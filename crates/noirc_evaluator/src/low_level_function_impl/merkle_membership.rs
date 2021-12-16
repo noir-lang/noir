@@ -4,7 +4,7 @@ use crate::object::Object;
 use crate::{Environment, Evaluator};
 use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
 use acvm::acir::OPCODE;
-use noir_field::FieldElement;
+use acvm::FieldElement;
 use noirc_frontend::hir_def::expr::HirCallExpression;
 
 pub struct MerkleMembershipGadget;
@@ -65,17 +65,17 @@ impl MerkleMembershipGadget {
 
         let mut inputs: Vec<GadgetInput> = vec![GadgetInput {
             witness: root_witness,
-            num_bits: noir_field::FieldElement::max_num_bits(),
+            num_bits: FieldElement::max_num_bits(),
         }];
 
         inputs.push(GadgetInput {
             witness: leaf_witness,
-            num_bits: noir_field::FieldElement::max_num_bits(),
+            num_bits: FieldElement::max_num_bits(),
         });
         let index_witness = evaluator.add_witness_to_cs();
         inputs.push(GadgetInput {
             witness: index_witness,
-            num_bits: noir_field::FieldElement::max_num_bits(),
+            num_bits: FieldElement::max_num_bits(),
         });
 
         // Add necessary amount of witnesses for the hashpath

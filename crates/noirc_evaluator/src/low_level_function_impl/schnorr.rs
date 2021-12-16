@@ -1,12 +1,12 @@
 use super::GadgetCaller;
+use super::RuntimeError;
 use crate::low_level_function_impl::object_to_wit_bits;
 use crate::object::{Array, Object};
 use crate::{Environment, Evaluator};
 use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
 use acvm::acir::OPCODE;
+use acvm::FieldElement;
 use noirc_frontend::hir_def::expr::HirCallExpression;
-
-use super::RuntimeError;
 
 pub struct SchnorrVerifyGadget;
 
@@ -64,11 +64,11 @@ impl SchnorrVerifyGadget {
 
         let mut inputs: Vec<GadgetInput> = vec![GadgetInput {
             witness: pub_key_x_witness,
-            num_bits: noir_field::FieldElement::max_num_bits(),
+            num_bits: FieldElement::max_num_bits(),
         }];
         inputs.push(GadgetInput {
             witness: pub_key_y_witness,
-            num_bits: noir_field::FieldElement::max_num_bits(),
+            num_bits: FieldElement::max_num_bits(),
         });
 
         // XXX: Technical debt: refactor so this functionality,

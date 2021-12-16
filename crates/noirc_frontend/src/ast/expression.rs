@@ -1,6 +1,6 @@
 use crate::token::{Attribute, Token};
 use crate::{Ident, Path, Statement, Type};
-use noir_field::FieldElement;
+use acvm::FieldElement;
 use noirc_errors::{Span, Spanned};
 
 #[derive(Debug, PartialEq, Eq, Clone)]

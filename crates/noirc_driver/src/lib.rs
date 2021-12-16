@@ -27,10 +27,10 @@ impl Driver {
 
     // This is here for backwards compatibility
     // with the restricted version which only uses one file
-    pub fn compile_file(root_file: PathBuf) -> CompiledProgram {
+    pub fn compile_file(root_file: PathBuf, np_language: acvm::Language) -> CompiledProgram {
         let mut driver = Driver::new();
         driver.create_local_crate(root_file, CrateType::Binary);
-        driver.into_compiled_program()
+        driver.into_compiled_program(np_language)
     }
 
     /// Compiles a file and returns true if compilation was successful
@@ -153,7 +153,7 @@ impl Driver {
         Some(abi)
     }
 
-    pub fn into_compiled_program(mut self) -> CompiledProgram {
+    pub fn into_compiled_program(mut self, np_language: acvm::Language) -> CompiledProgram {
         self.build();
         // First find the local crate
         // There is always a local crate
@@ -180,7 +180,7 @@ impl Driver {
         let evaluator = Evaluator::new(main_function, &self.context);
 
         // Compile Program
-        let circuit = match evaluator.compile() {
+        let circuit = match evaluator.compile(np_language) {
             Ok(circuit) => circuit,
             Err(err) => {
                 // The FileId here will be the file id of the file with the main file

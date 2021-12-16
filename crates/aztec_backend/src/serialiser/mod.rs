@@ -5,10 +5,10 @@ use crate::barretenberg_rs::composer::{
     HashToFieldConstraint, InsertMerkleConstraint, LogicConstraint, MerkleMembershipConstraint,
     PedersenConstraint, RangeConstraint, SchnorrConstraint, Sha256Constraint,
 };
-use acir::circuit::{Circuit, Gate};
-use acir::native_types::Arithmetic;
-use acir::OPCODE;
-use noir_field::FieldElement;
+use acvm::acir::circuit::{Circuit, Gate};
+use acvm::acir::native_types::Arithmetic;
+use acvm::acir::OPCODE;
+use acvm::FieldElement;
 
 /// Converts an `IR` into the `StandardFormat` constraint system
 pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
@@ -408,7 +408,6 @@ fn serialise_arithmetic_gates(gate: &Arithmetic) -> Constraint {
     let mut ql: FieldElement = 0.into();
     let mut qr: FieldElement = 0.into();
     let mut qo: FieldElement = 0.into();
-    let qc: FieldElement;
 
     // check mul gate
     if !gate.mul_terms.is_empty() {
@@ -473,7 +472,7 @@ fn serialise_arithmetic_gates(gate: &Arithmetic) -> Constraint {
     }
 
     // Add the qc term
-    qc = gate.q_c;
+    let qc = gate.q_c;
 
     Constraint {
         a,

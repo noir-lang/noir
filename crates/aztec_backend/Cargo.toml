@@ -7,9 +7,13 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-noir_field = { path="../noir_field", features=["bn254"] }
-acir = { path="../acir" }
-barretenberg_wrapper = { git = "https://github.com/AztecProtocol/barretenberg", branch = "gd/noir-dsl"}
+
+acvm = { path = "../acvm", features = ["bn254"] }
+barretenberg_wrapper = { git = "https://github.com/AztecProtocol/barretenberg", branch = "gd/noir-dsl" }
+
+sha2 = "0.9.3"
+blake2 = "0.9.1"
+sled = "0.34.6"
 
 dirs = "3.0"
 downloader = "0.2.6"

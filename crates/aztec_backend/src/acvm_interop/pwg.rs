@@ -1,9 +1,9 @@
-use crate::{
+use acvm::acir::{self, circuit::Gate, native_types::Witness};
+use acvm::FieldElement;
+use acvm::{
     pwg::{arithmetic::ArithmeticSolver, logic::LogicSolver},
     PartialWitnessGenerator,
 };
-use acir::{circuit::Gate, native_types::Witness};
-use noir_field::FieldElement;
 use std::collections::BTreeMap;
 
 mod gadget_call;

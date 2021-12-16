@@ -1,7 +1,7 @@
 // TODO: remove once this module is used
 #![allow(dead_code)]
-use aztec_backend::barretenberg_rs::Barretenberg;
-use noir_field::FieldElement;
+use crate::barretenberg_rs::Barretenberg;
+use acvm::FieldElement;
 use std::{convert::TryInto, path::Path};
 
 // This impl should be redone in a more efficient and readable way.

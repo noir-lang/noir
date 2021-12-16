@@ -1,14 +1,12 @@
 cfg_if::cfg_if! {
-    if #[cfg(feature = "plonk")] {
-        // CSAT_3_PLONK_AZTEC
+    if #[cfg(feature = "plonk_bn254")] {
 
-        pub mod csat_3_plonk_aztec;
-        pub use csat_3_plonk_aztec::Plonk as ConcreteBackend;
+        pub use aztec_backend::Plonk as ConcreteBackend;
 
     } else if #[cfg(feature = "marlin")] {
         // R1CS_MARLIN_ARKWORKS
-        pub mod r1cs_marlin_arkworks;
-        pub use r1cs_marlin_arkworks::Marlin as ConcreteBackend;
+        compile_error!("marlin backend has not been configured yet");
+
     } else {
         compile_error!("please specify a backend to compile with");
     }

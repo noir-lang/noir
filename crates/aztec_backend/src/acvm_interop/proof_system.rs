@@ -1,12 +1,9 @@
-use std::collections::BTreeMap;
-
-use acir::{circuit::Circuit, native_types::Witness};
-use aztec_backend::barretenberg_rs::composer::{Assignments, StandardComposer};
-use noir_field::FieldElement;
-
-use crate::{Language, ProofSystemCompiler};
-
 use super::Plonk;
+use crate::barretenberg_rs::composer::{Assignments, StandardComposer};
+use acvm::acir::{circuit::Circuit, native_types::Witness};
+use acvm::FieldElement;
+use acvm::{Language, ProofSystemCompiler};
+use std::collections::BTreeMap;
 
 impl ProofSystemCompiler for Plonk {
     fn prove_with_meta(
@@ -14,7 +11,7 @@ impl ProofSystemCompiler for Plonk {
         circuit: Circuit,
         witness_values: BTreeMap<Witness, FieldElement>,
     ) -> Vec<u8> {
-        let constraint_system = aztec_backend::serialise_circuit(&circuit);
+        let constraint_system = crate::serialise_circuit(&circuit);
 
         let mut composer = StandardComposer::new(constraint_system);
 
@@ -34,7 +31,7 @@ impl ProofSystemCompiler for Plonk {
         public_inputs: Vec<FieldElement>,
         circuit: Circuit,
     ) -> bool {
-        let constraint_system = aztec_backend::serialise_circuit(&circuit);
+        let constraint_system = crate::serialise_circuit(&circuit);
 
         let mut composer = StandardComposer::new(constraint_system);
 

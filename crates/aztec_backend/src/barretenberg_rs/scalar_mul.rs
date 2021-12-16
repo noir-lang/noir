@@ -1,4 +1,4 @@
-use noir_field::FieldElement;
+use acvm::FieldElement;
 
 use super::field_to_array;
 use super::Barretenberg;
