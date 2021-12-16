@@ -1,10 +1,10 @@
 use std::{collections::BTreeMap, path::PathBuf};
 
 use acvm::acir::native_types::Witness;
+use acvm::FieldElement;
 use acvm::PartialWitnessGenerator;
 use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
-use acvm::FieldElement;
 use noirc_abi::{input_parser::InputValue, Abi};
 use std::path::Path;
 
