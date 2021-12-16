@@ -1,10 +1,10 @@
 use std::{collections::BTreeMap, path::PathBuf};
 
 use acvm::acir::native_types::Witness;
+use acvm::FieldElement;
 use acvm::PartialWitnessGenerator;
 use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
-use noir_field::FieldElement;
 use noirc_abi::{input_parser::InputValue, Abi};
 use std::path::Path;
 
@@ -92,7 +92,8 @@ pub fn prove_with_path<P: AsRef<Path>>(
     proof_dir: P,
 ) -> Result<PathBuf, CliError> {
     let driver = Resolver::resolve_root_config(program_dir.as_ref())?;
-    let compiled_program = driver.into_compiled_program();
+    let backend = crate::backends::ConcreteBackend;
+    let compiled_program = driver.into_compiled_program(backend.np_language());
 
     // Parse the initial witness values
     let witness_map = noirc_abi::input_parser::Format::Toml.parse(program_dir, PROVER_INPUT_FILE);
@@ -110,7 +111,6 @@ pub fn prove_with_path<P: AsRef<Path>>(
     let abi = compiled_program.abi.unwrap();
     let mut solved_witness = process_abi_with_input(abi, witness_map)?;
 
-    let backend = acvm::ConcreteBackend;
     let solver_res = backend.solve(&mut solved_witness, compiled_program.circuit.gates.clone());
 
     if let Err(opcode) = solver_res {
@@ -120,7 +120,7 @@ pub fn prove_with_path<P: AsRef<Path>>(
         )));
     }
 
-    let backend = acvm::ConcreteBackend;
+    let backend = crate::backends::ConcreteBackend;
     let proof = backend.prove_with_meta(compiled_program.circuit, solved_witness);
 
     let mut proof_path = create_proof_dir(proof_dir.as_ref().to_path_buf());

@@ -1,7 +1,7 @@
 use super::crs::CRS;
 use super::pippenger::Pippenger;
 use super::BARRETENBERG;
-use noir_field::FieldElement as Scalar;
+use acvm::FieldElement as Scalar;
 
 pub struct StandardComposer {
     pippenger: Pippenger,

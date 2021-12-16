@@ -1,9 +1,9 @@
 use super::merkle::{flatten_path, MerkleTree};
-use crate::pwg::{self, input_to_value};
-use acir::{circuit::gate::GadgetCall, native_types::Witness, OPCODE};
-use aztec_backend::barretenberg_rs::Barretenberg;
+use crate::barretenberg_rs::Barretenberg;
+use acvm::acir::{circuit::gate::GadgetCall, native_types::Witness, OPCODE};
+use acvm::pwg::{self, input_to_value};
+use acvm::FieldElement;
 use blake2::Blake2s;
-use noir_field::FieldElement;
 use sha2::Digest;
 use std::collections::BTreeMap;
 
@@ -16,7 +16,7 @@ impl GadgetCaller {
     pub fn solve_gadget_call(
         initial_witness: &mut BTreeMap<Witness, FieldElement>,
         gadget_call: &GadgetCall,
-    ) -> Result<(), acir::OPCODE> {
+    ) -> Result<(), OPCODE> {
         match gadget_call.name {
             OPCODE::SHA256 => pwg::hash::sha256(initial_witness, gadget_call),
             OPCODE::Blake2s => pwg::hash::blake2s(initial_witness, gadget_call),

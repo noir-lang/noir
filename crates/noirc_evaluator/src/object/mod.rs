@@ -6,7 +6,7 @@ pub use integer::Integer;
 
 use acvm::acir::circuit::gate::Gate;
 use acvm::acir::native_types::{Arithmetic, Linear, Witness};
-use noir_field::FieldElement;
+use acvm::FieldElement;
 
 use crate::Evaluator;
 

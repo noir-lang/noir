@@ -1,12 +1,12 @@
 use super::GadgetCaller;
+use super::RuntimeError;
 use crate::low_level_function_impl::object_to_wit_bits;
 use crate::object::{Array, Object};
 use crate::{Environment, Evaluator};
 use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
 use acvm::acir::OPCODE;
+use acvm::FieldElement;
 use noirc_frontend::hir_def::expr::HirCallExpression;
-
-use super::RuntimeError;
 
 pub struct PedersenGadget;
 
@@ -68,10 +68,7 @@ impl PedersenGadget {
 
         for element in arr.contents.into_iter() {
             let gadget_inp = object_to_wit_bits(&element);
-            assert_eq!(
-                gadget_inp.num_bits,
-                noir_field::FieldElement::max_num_bits()
-            );
+            assert_eq!(gadget_inp.num_bits, FieldElement::max_num_bits());
 
             inputs.push(gadget_inp);
         }

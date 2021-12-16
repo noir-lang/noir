@@ -1,8 +1,6 @@
 // Key is currently {NPComplete_lang}_{OptionalFanIn}_ProofSystem_OrgName
 // Org name is needed because more than one implementation of the same proof system may arise
 
-pub mod backends;
-pub use backends::ConcreteBackend;
 pub mod compiler;
 pub mod pwg;
 
@@ -16,7 +14,7 @@ use acir::{
 
 // re-export acir
 pub use acir;
-use acir::FieldElement;
+pub use acir::FieldElement;
 
 pub trait Backend: SmartContract + ProofSystemCompiler + PartialWitnessGenerator {}
 

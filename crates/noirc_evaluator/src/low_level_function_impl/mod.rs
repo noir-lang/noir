@@ -17,6 +17,7 @@ mod sha256;
 use super::RuntimeErrorKind;
 use acvm::acir::circuit::gate::GadgetInput;
 use acvm::acir::OPCODE;
+use acvm::FieldElement;
 use blake2s::Blake2sGadget;
 use ecdsa_secp256k1::EcdsaSecp256k1Gadget;
 use fixed_based_scalar_mul::FixedBaseScalarMulGadget;
@@ -82,7 +83,7 @@ pub(crate) fn object_to_wit_bits(obj: &Object) -> GadgetInput {
             if !lin.is_unit() {
                 unimplemented!("Logic for non unit witnesses is currently not implemented")
             }
-            (lin.witness, noir_field::FieldElement::max_num_bits())
+            (lin.witness, FieldElement::max_num_bits())
         }
         k => unimplemented!("logic for {:?} is not implemented yet", k),
     };
