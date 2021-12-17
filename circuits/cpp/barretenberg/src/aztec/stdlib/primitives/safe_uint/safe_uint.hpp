@@ -6,6 +6,10 @@
 #include <common/assert.hpp>
 #include "../field/field.hpp"
 
+// The purpose of this class is to enable positive integer operations without a risk of overflow.
+// Despite the name, it is *not* a "safe" version of the uint class - as operations are positive integer
+// operations, and not modulu 2^t for some t, as they are in the uint class.
+
 namespace plonk {
 namespace stdlib {
 
