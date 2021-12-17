@@ -5,6 +5,7 @@ mod environment;
 mod errors;
 mod low_level_function_impl;
 mod object;
+mod ssa;
 
 use acvm::acir::circuit::{
     gate::{AndGate, Gate, XorGate},
@@ -178,6 +179,35 @@ impl<'a> Evaluator<'a> {
         for stmt_id in block.statements() {
             self.evaluate_statement(env, stmt_id)?;
         }
+        Ok(())
+    }
+
+    
+       /// Compiles the AST into the intermediate format by evaluating the main function
+       pub fn evaluate_main_alt(&mut self, env: &mut Environment) -> Result<(), RuntimeError> {
+        self.parse_abi(env)?;
+
+        let mut cfg = ssa::code_gen::ParsingContext::new(self.context); 
+        //cfg.evaluate_main(env, self.context);
+           // let &mut cfg= self.cfg.as_mut_ref().unwrap();
+       
+        // Now call the main function
+        // XXX: We should be able to replace this with call_function in the future,
+        // It is not possible now due to the aztec standard format requiring a particular ordering of inputs in the ABI
+        let main_func_body = self.context.def_interner.function(&self.main_function);
+        let block = main_func_body.block(&self.context.def_interner);
+        for stmt_id in block.statements() {
+            cfg.evaluate_statement(env, stmt_id);
+        }
+        cfg.print();
+        dbg!("SSA - 1");
+        cfg.cse();
+        cfg.print();
+        dbg!("CSE!");
+        cfg.overflow_strategy();
+        cfg.print();
+        cfg.acir(self);
+        dbg!("DONE");
         Ok(())
     }
 
