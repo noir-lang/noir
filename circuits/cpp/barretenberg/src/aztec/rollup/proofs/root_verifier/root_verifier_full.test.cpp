@@ -91,7 +91,7 @@ class root_verifier_full_tests : public ::testing::Test {
 HEAVY_TEST_F(root_verifier_full_tests, good_data_passes)
 {
     auto tx = create_root_verifier_tx();
-    auto result = verify(tx, root_verifier_cd);
+    auto result = verify(tx, root_verifier_cd, root_rollup_cd);
     ASSERT_TRUE(result.verified);
 }
 
@@ -101,7 +101,7 @@ HEAVY_TEST_F(root_verifier_full_tests, bad_byte_failure)
 
     // change the first byte of the root rollup proof data.
     tx.proof_data[0] = (tx.proof_data[0] == 0) ? 1 : 0;
-    auto result = verify(tx, root_verifier_cd);
+    auto result = verify(tx, root_verifier_cd, root_rollup_cd);
     ASSERT_FALSE(result.verified);
 }
 
@@ -127,7 +127,7 @@ HEAVY_TEST_F(root_verifier_full_tests, bad_valid_point_failure)
     ptr += RootVerifierProofFields::NUM_FIELDS * 32 + (4 * 32);
     fr::serialize_to_buffer(minus_y, ptr);
 
-    auto result = root_verifier::verify(tx, root_verifier_cd);
+    auto result = root_verifier::verify(tx, root_verifier_cd, root_rollup_cd);
     ASSERT_FALSE(result.verified);
 }
 

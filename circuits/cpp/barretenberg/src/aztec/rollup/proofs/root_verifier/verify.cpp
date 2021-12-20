@@ -17,16 +17,19 @@ bool pairing_check(stdlib::recursion::recursion_output<outer_curve> recursion_ou
     return inner_proof_result == barretenberg::fq12::one();
 }
 
-verify_result verify_internal(OuterComposer& composer, root_verifier_tx& tx, circuit_data const& cd)
+verify_result verify_internal(OuterComposer& composer,
+                              root_verifier_tx& tx,
+                              circuit_data const& cd,
+                              root_rollup::circuit_data const& root_rollup_cd)
 {
     verify_result result = { false, false, {} };
 
-    if (!cd.root_rollup_circuit_data.verification_key) {
+    if (!root_rollup_cd.verification_key) {
         info("Inner verification key not provided.");
         return result;
     }
 
-    if (cd.root_rollup_circuit_data.padding_proof.size() == 0) {
+    if (root_rollup_cd.padding_proof.size() == 0) {
         info("Inner padding proof not provided.");
         return result;
     }
@@ -36,8 +39,7 @@ verify_result verify_internal(OuterComposer& composer, root_verifier_tx& tx, cir
         return result;
     }
 
-    auto circuit_result =
-        root_verifier_circuit(composer, tx, cd.root_rollup_circuit_data.verification_key, cd.valid_vks);
+    auto circuit_result = root_verifier_circuit(composer, tx, root_rollup_cd.verification_key, cd.valid_vks);
 
     if (composer.failed) {
         info("Circuit logic failed: " + composer.err);
@@ -53,17 +55,19 @@ verify_result verify_internal(OuterComposer& composer, root_verifier_tx& tx, cir
     return result;
 }
 
-verify_result verify_logic(root_verifier_tx& tx, circuit_data const& cd)
+verify_result verify_logic(root_verifier_tx& tx,
+                           circuit_data const& cd,
+                           root_rollup::circuit_data const& root_rollup_cd)
 {
     OuterComposer composer = OuterComposer(cd.proving_key, cd.verification_key, cd.num_gates);
-    return verify_internal(composer, tx, cd);
+    return verify_internal(composer, tx, cd, root_rollup_cd);
 }
 
-verify_result verify(root_verifier_tx& tx, circuit_data const& cd)
+verify_result verify(root_verifier_tx& tx, circuit_data const& cd, root_rollup::circuit_data const& root_rollup_cd)
 {
     OuterComposer composer = OuterComposer(cd.proving_key, cd.verification_key, cd.num_gates);
 
-    auto result = verify_internal(composer, tx, cd);
+    auto result = verify_internal(composer, tx, cd, root_rollup_cd);
 
     if (!result.logic_verified) {
         return result;

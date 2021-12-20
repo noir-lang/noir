@@ -113,7 +113,7 @@ class root_verifier_tests : public ::testing::Test {
 TEST_F(root_verifier_tests, passing)
 {
     root_verifier_tx tx_data = create_root_verifier_tx();
-    auto result = verify_logic(tx_data, root_verifier_cd);
+    auto result = verify_logic(tx_data, root_verifier_cd, root_rollup_cd);
     ASSERT_TRUE(result.logic_verified);
 }
 
@@ -122,8 +122,7 @@ TEST_F(root_verifier_tests, failing_invalid_shape)
     root_verifier_tx tx_data = create_root_verifier_tx();
 
     // try to pass a root rollup circuit with invalid shape
-    root_verifier_cd.root_rollup_circuit_data = root_rollup_cd_bad;
-    auto result = verify_logic(tx_data, root_verifier_cd);
+    auto result = verify_logic(tx_data, root_verifier_cd, root_rollup_cd_bad);
     ASSERT_FALSE(result.logic_verified);
 }
 

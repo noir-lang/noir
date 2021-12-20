@@ -17,7 +17,19 @@ inline std::ostream& operator<<(std::ostream& os, std::vector<uint8_t> const& ar
     return os;
 }
 
-template <typename T> inline std::ostream& operator<<(std::ostream& os, std::vector<T> const& arr)
+template <typename T, std::enable_if_t<std::is_integral<T>::value, bool> = true>
+inline std::ostream& operator<<(std::ostream& os, std::vector<T> const& arr)
+{
+    os << "[";
+    for (auto element : arr) {
+        os << ' ' << element;
+    }
+    os << " ]";
+    return os;
+}
+
+template <typename T, std::enable_if_t<!std::is_integral<T>::value, bool> = true>
+inline std::ostream& operator<<(std::ostream& os, std::vector<T> const& arr)
 {
     os << "[\n";
     for (auto element : arr) {

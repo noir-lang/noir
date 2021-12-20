@@ -10,6 +10,7 @@
 #include "../proofs/root_verifier/index.hpp"
 #include <common/timer.hpp>
 #include <common/container.hpp>
+#include <common/map.hpp>
 #include <plonk/composer/turbo/compute_verification_key.hpp>
 #include <plonk/proof_system/proving_key/proving_key.hpp>
 #include <plonk/proof_system/verification_key/verification_key.hpp>
@@ -143,16 +144,13 @@ bool create_claim()
 
 bool create_root_verifier()
 {
+    // TODO: Not needed. We can assume prior call to create_rollup_tx will have inited the tx_rollup_cd.
     uint32_t num_txs;
-    uint32_t num_proofs;
     read(std::cin, num_txs);
-    read(std::cin, num_proofs);
 
-    if (!tx_rollup_cd.proving_key || tx_rollup_cd.num_txs != num_txs) {
-        tx_rollup_cd.proving_key.reset();
-        tx_rollup_cd =
-            tx_rollup::get_circuit_data(num_txs, js_cd, account_cd, claim_cd, crs, data_path, true, persist, persist);
-    }
+    // We do however, currently need to know the num_proofs, in order to correctly be able to slice off broadcast data.
+    uint32_t num_proofs;
+    read(std::cin, num_proofs);
 
     // On first run of create_root_verifier, build list of valid verification keys.
     if (!root_verifier_cd.proving_key) {
@@ -164,14 +162,10 @@ bool create_root_verifier()
                     root_rollup::get_circuit_data(size, tx_rollup_cd, crs, data_path, true, persist, persist)
                         .verification_key);
             }
-            root_verifier_cd = root_verifier::get_circuit_data(
-                root_rollup_cd, crs, root_verifier_cd.valid_vks, data_path, true, persist, persist);
         }
+        root_verifier_cd = root_verifier::get_circuit_data(
+            root_rollup_cd, crs, root_verifier_cd.valid_vks, data_path, true, persist, persist);
     }
-
-    auto rollup_size = num_proofs * tx_rollup_cd.rollup_size;
-    auto floor = 1UL << numeric::get_msb(rollup_size);
-    auto rollup_size_pow2 = rollup_size == floor ? rollup_size : floor << 1UL;
 
     Timer timer;
 
@@ -179,12 +173,17 @@ bool create_root_verifier()
     std::cerr << "Reading root verifier tx..." << std::endl;
     read(std::cin, root_rollup_proof_buf);
 
+    auto rollup_size = num_proofs * tx_rollup_cd.rollup_size;
     auto tx = root_verifier::create_root_verifier_tx(root_rollup_proof_buf, rollup_size);
+
+    std::cerr << "Received root verifier tx... (circuit valid sizes: "
+              << map(valid_outer_sizes, [](size_t s) { return s * tx_rollup_cd.rollup_size; })
+              << ", proof size: " << rollup_size << ")" << std::endl;
 
     root_verifier_cd.proving_key->reset();
 
     std::cerr << "Creating root verifier proof..." << std::endl;
-    auto result = verify(tx, root_verifier_cd);
+    auto result = verify(tx, root_verifier_cd, root_rollup_cd);
 
     std::cerr << "Time taken: " << timer.toString() << std::endl;
     std::cerr << "Verified: " << result.verified << std::endl;
@@ -218,7 +217,6 @@ int main(int argc, char** argv)
     claim_cd = claim::get_circuit_data(crs, data_path, true, persist, persist);
 
     std::cerr << "Reading rollups from standard input..." << std::endl;
-    serialize::write(std::cout, true);
 
     while (true) {
         if (!std::cin.good() || std::cin.peek() == std::char_traits<char>::eof()) {
@@ -243,6 +241,16 @@ int main(int argc, char** argv)
         }
         case 3: {
             create_root_verifier();
+            break;
+        }
+        case 666: {
+            // Ping... Pong... Used for learning when rollup_cli is responsive.
+            std::cerr << "Ping... Pong..." << std::endl;
+            serialize::write(std::cout, true);
+            break;
+        }
+        default: {
+            std::cerr << "Unknown command: " << proof_id << std::endl;
             break;
         }
         }

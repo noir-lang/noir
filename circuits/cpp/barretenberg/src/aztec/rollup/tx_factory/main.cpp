@@ -55,9 +55,6 @@ int main(int argc, char** argv)
     mkdir("./data", 0700);
     mkdir(data_path, 0700);
 
-    bool initialized;
-    read(std::cin, initialized);
-
     auto crs = std::make_shared<waffle::DynamicFileReferenceStringFactory>("../srs_db/ignition");
     auto join_split_circuit_data = join_split::compute_circuit_data(crs);
     auto data_root = world_state.data_tree.root();
@@ -125,11 +122,14 @@ int main(int argc, char** argv)
     write(std::cout, (uint32_t)outer_rollup_size);
     write(std::cout, root_rollup_proof_buf);
 
+    std::vector<uint8_t> proof_data;
+    bool verified;
+    read(std::cin, proof_data);
+    read(std::cin, verified);
+
+    std::cerr << prefix << "Verified: " << verified << std::endl;
+
     if (args.size() > 5) {
-        std::vector<uint8_t> proof_data;
-        bool verified;
-        read(std::cin, proof_data);
-        read(std::cin, verified);
         std::ofstream of(args[5]);
         write(of, proof_data);
         write(of, verified);

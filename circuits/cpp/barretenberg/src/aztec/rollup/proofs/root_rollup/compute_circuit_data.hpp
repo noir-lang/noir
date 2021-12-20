@@ -26,7 +26,8 @@ inline circuit_data get_circuit_data(size_t num_inner_rollups,
                                      bool save = true,
                                      bool load = true,
                                      bool pk = true,
-                                     bool vk = true)
+                                     bool vk = true,
+                                     bool padding = true)
 {
     auto rollup_size = num_inner_rollups * rollup_circuit_data.rollup_size;
     auto floor = 1UL << numeric::get_msb(rollup_size);
@@ -60,7 +61,8 @@ inline circuit_data get_circuit_data(size_t num_inner_rollups,
                             rollup_circuit_data.verification_key);
     };
 
-    auto cd = proofs::get_circuit_data<Composer>(name, srs, key_path, compute, save, load, pk, vk, true, build_circuit);
+    auto cd =
+        proofs::get_circuit_data<Composer>(name, srs, key_path, compute, save, load, pk, vk, padding, build_circuit);
 
     circuit_data data;
     data.num_gates = cd.num_gates;

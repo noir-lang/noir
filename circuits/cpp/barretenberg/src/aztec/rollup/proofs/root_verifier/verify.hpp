@@ -17,8 +17,12 @@ struct verify_result {
     std::vector<uint8_t> proof_data;
 };
 
-verify_result verify_logic(root_verifier_tx& tx, circuit_data const& circuit_data);
-verify_result verify(root_verifier_tx& tx, circuit_data const& circuit_data);
+verify_result verify_logic(root_verifier_tx& tx,
+                           circuit_data const& circuit_data,
+                           root_rollup::circuit_data const& root_rollup_cd);
+verify_result verify(root_verifier_tx& tx,
+                     circuit_data const& circuit_data,
+                     root_rollup::circuit_data const& root_rollup_cd);
 
 } // namespace root_verifier
 } // namespace proofs

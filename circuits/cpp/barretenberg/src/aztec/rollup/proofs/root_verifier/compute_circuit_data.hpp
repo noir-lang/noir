@@ -8,7 +8,6 @@ namespace root_verifier {
 
 struct circuit_data : proofs::circuit_data {
     std::vector<std::shared_ptr<waffle::verification_key>> valid_vks;
-    root_rollup::circuit_data root_rollup_circuit_data;
 };
 
 inline circuit_data get_circuit_data(root_rollup::circuit_data const& root_rollup_circuit_data,
@@ -23,7 +22,8 @@ inline circuit_data get_circuit_data(root_rollup::circuit_data const& root_rollu
 {
     std::cerr << "Getting root verifier circuit data: (size: " << root_rollup_circuit_data.rollup_size << ")"
               << std::endl;
-    auto name = format("root_verifier");
+    auto name =
+        format("root_verifier_", root_rollup_circuit_data.inner_rollup_circuit_data.rollup_size, "_", valid_vks.size());
 
     auto build_verifier_circuit = [&](OuterComposer& composer) {
         root_verifier_tx tx;
@@ -40,7 +40,6 @@ inline circuit_data get_circuit_data(root_rollup::circuit_data const& root_rollu
     data.proving_key = cd.proving_key;
     data.verification_key = cd.verification_key;
     data.valid_vks = valid_vks;
-    data.root_rollup_circuit_data = root_rollup_circuit_data;
 
     return data;
 }
