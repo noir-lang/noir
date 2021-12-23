@@ -268,6 +268,9 @@ pub struct Instruction {
     pub res_name: String,
     pub bit_size: u32,      //TODO only for the truncate instruction...: bits size of the max value of the lhs.. a merger avec ci dessous!!!TODO
     pub max_value: BigUint, //TODO only for sub instruction: max value of the rhs
+
+    //temp:
+    pub phi_arguments: Vec<(arena::Index, arena::Index)>,
 }
 
 impl Instruction{
@@ -286,6 +289,7 @@ impl Instruction{
             parent_block: p_block,
             bit_size: 0,
             max_value: BigUint::zero(),
+            phi_arguments: Vec::new(),
         }
     }
 
@@ -354,8 +358,8 @@ impl Instruction{
                 assert!(lhs_bits == rhs_bits);
                 (false,false)
             },
-            Operation::trunc => (false,false), 
-            Operation::nop => (false,false),
+            Operation::trunc | Operation::phi => (false,false), 
+            Operation::nop | Operation::jne | Operation::jeq | Operation::jmp => (false,false),
         }
     }
 
@@ -400,7 +404,8 @@ impl Instruction{
             Operation::trunc => BigUint::min(lhs_max, BigUint::from(2_u32).pow(rhs_max.try_into().unwrap()) - BigUint::from(1_u32)), 
             //'a = b': a and b must be of same type.
             Operation::ass => rhs_max,     
-            Operation::nop => todo!(),
+            Operation::nop | Operation::jne | Operation::jeq | Operation::jmp => todo!(),
+            Operation::phi => BigUint::max(lhs_max, rhs_max),   //TODO operands are in phi_arguments, not lhs/rhs!!
         }
     }
 
@@ -416,9 +421,6 @@ impl Instruction{
         }
     }
 
-    pub fn toto() -> NodeObj {
-        return NodeObj::new_constant_bool(true);
-    }
 
     //Performs constant folding, arithmetic and boolean simplification
     //Returns the index of the simplified instruction, or, if no index, the constant which should replace the instruction
@@ -502,11 +504,15 @@ impl Instruction{
                 //so it is probably not worth it.
             },
             Operation::udiv | Operation::sdiv | Operation::div => {
-                if (r_is_zero) {
+                if r_is_zero {
                     todo!("Panic - division by zero");
-                } else if (l_is_zero) {
+                } else if l_is_zero {
                     return (Some(self.lhs), None, None);  //TODO should we ensure rhs != 0 ???
                 }
+                //else if r_constant.is_some() {
+                    //TODO same as lhs*1/r
+                    //return (Some(self.lhs), None, None);
+                //}        
                 //constant folding - TODO 
                 else if l_constant.is_some() && r_constant.is_some() {
                     todo!();
@@ -709,8 +715,16 @@ pub enum Operation {
     cast,       //convert type
     ass,        //assignement
     trunc,      //truncate
+
+    //control flow
+    jne,        //jump on not equal
+    jeq,        //jump on equal
+    jmp,        //unconditional jump
+    phi,      
+    // todo: call, br,..
     nop,        // no op
-    //control flow, todo: call, br, phi,..
+   
+
     //memory todo: load, store, getelementptr?
 }
 
@@ -752,6 +766,8 @@ pub fn is_binary(op_code: Operation) -> bool
         Operation::cast => false,
         Operation::ass => false,
         Operation::trunc => true,
+        Operation::jne | Operation::jeq | Operation::jmp => false,
+        Operation::phi => false,
         Operation::nop => false,
     }
 }
@@ -841,7 +857,7 @@ pub struct BasicBlock {
     pub left: Option<arena::Index>,         //sequential successor
     pub right: Option<arena::Index>,        //jump successor
     pub instructions : Vec<arena::Index>,   
-
+   
     pub value_array: HashMap<arena::Index, arena::Index>,   //for generating the ssa form
     pub value_name: HashMap<arena::Index, u32>,             //only for pretty print
 }
@@ -887,6 +903,10 @@ impl BasicBlock{
         0
     }
 
+    pub fn get_first_instruction(&self) -> arena::Index
+    {
+        self.instructions[0]
+    }
 
 
 }

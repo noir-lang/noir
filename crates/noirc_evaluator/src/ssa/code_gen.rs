@@ -1,5 +1,5 @@
 use super::node;
-use std::collections::{HashMap, LinkedList, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::ops::Add;
 
 use arena;
@@ -37,15 +37,15 @@ pub struct ParsingContext<'a> {
     pub blocks : arena::Arena<node::BasicBlock>,
     pub nodes: arena::Arena<node::NodeObj>,
     pub id0: arena::Index,     //dummy index.. should we put a dummy object somewhere?
-    
-    pub objects: arena::Arena<node::Variable>,
+    pub dummy_instruction: arena::Index,
+   // pub objects: arena::Arena<node::Variable>,
 }
 
 impl<'a> ParsingContext<'a>{
     pub fn new(context: &Context) -> ParsingContext
     {
-        let mut pc = ParsingContext{ context: Some(context), id0: ParsingContext::dummy_id(), first_block: ParsingContext::dummy_id(), current_block: ParsingContext::dummy_id(), blocks : arena::Arena::new(), nodes: arena::Arena::new(), objects: arena::Arena::new()};
-        pc.create_fisrt_block();
+        let mut pc = ParsingContext{ context: Some(context), id0: ParsingContext::dummy_id(), first_block: ParsingContext::dummy_id(), current_block: ParsingContext::dummy_id(), blocks : arena::Arena::new(), nodes: arena::Arena::new(), dummy_instruction: ParsingContext::dummy_id()};//, objects: arena::Arena::new()
+        pc.create_first_block();
         pc
     }
 
@@ -157,16 +157,25 @@ impl<'a> ParsingContext<'a>{
         self.get_object(idx).unwrap().get_type()
     }
 
+    pub fn get_as_constant(&self, idx: arena::Index) -> Option<FieldElement>
+    {
+        let obj = self.get_object(idx).unwrap();
+        match obj {
+            node::NodeObj::Const(c) => Some(FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be())),
+            _ => None,
+        }
+    }
+
     fn get_mut_instruction(&mut self, idx: arena::Index) -> &mut node::Instruction
     {
         let obj = self.get_mut_object(idx).unwrap();
-        match(obj){
+        match obj {
             node::NodeObj::Instr(i) => i,
             _ => todo!(),  //Panic
         }
     }
 
-    fn get_as_instruction(&self, idx: arena::Index) -> Option<&node::Instruction>
+    pub fn get_as_instruction(&self, idx: arena::Index) -> Option<&node::Instruction>
     {
         let obj = self.get_object(idx).unwrap();
         match(obj){
@@ -192,13 +201,13 @@ impl<'a> ParsingContext<'a>{
     {
         let obj = self.get_object(idx);
         if obj.is_some() {
-            let result = match(obj.unwrap()){
+            let result = match obj.unwrap() {
                 node::NodeObj::Instr(i) => i,
-                _ => todo!(),  //Panic
+                _ => unreachable!("Not and instruction")
             };
             return result;
         }
-        todo!();
+        unreachable!("Index not found")
     }
 
     pub fn get_variable(&self, idx: arena::Index) -> Result<&node::Variable, &str>{   //TODO RuntimeError!!
@@ -285,7 +294,7 @@ impl<'a> ParsingContext<'a>{
         idx
     }
 
-    pub fn new_instruction(&mut self, res: Option<arena::Index>, lhs : arena::Index, rhs : arena::Index, opcode: node::Operation, optype: node::ObjectType) -> arena::Index
+    pub fn new_instruction(&mut self, lhs : arena::Index, rhs : arena::Index, opcode: node::Operation, optype: node::ObjectType) -> arena::Index
     {
         //Add a new instruction to the nodes arena
         let id0 = self.dummy();
@@ -300,6 +309,16 @@ impl<'a> ParsingContext<'a>{
         //i.idx
     }
 
+    pub fn get_const(&mut self, x: FieldElement, t: node::ObjectType) -> arena::Index
+    {
+        //TODO: self.find_const(x, t); checks if prev value exist
+        let value = BigUint::from_bytes_be(&x.to_bytes()); //TODO a const should be a field element
+        let obj_cst = node::Constant{ id: self.id0,  value: value, value_type: t, value_str: String::new()};
+        let obj = node::NodeObj::Const(obj_cst);
+        self.add_object2(obj)
+    }
+
+    //TODO the type should be provided by previous step
     pub fn new_constant(&mut self, x: FieldElement) -> arena::Index {
         //we try to convert it to a supported integer type
         //if it does not work, we use the field type
@@ -315,6 +334,7 @@ impl<'a> ParsingContext<'a>{
             return prev_const.unwrap();
         }
 
+        //TODO default should be FieldElement, not i32
         let num_bits = x.num_bits();
         let idx : arena::Index;
         if (num_bits < 32) {
@@ -338,11 +358,9 @@ impl<'a> ParsingContext<'a>{
          if (var.root.is_some())
         {
             let rootObj = self.get_object(var.root.unwrap());
-            if (rootObj.is_some()) {
-                match rootObj.unwrap() {
-                    node::NodeObj::Obj(o) => {return self.get_current_value(&o);},
-                    _ => todo!(),//Err
-                }
+            match rootObj.unwrap() {
+                node::NodeObj::Obj(o) => {return self.get_current_value(&o);},
+                _ => todo!(),//Err
             }
         }
         //Current value is taken from the value_array, we do not use anymore the cur_value of the variable because it was painfull to update due to rust ownership
@@ -353,17 +371,17 @@ impl<'a> ParsingContext<'a>{
     //update 'new_var' which is a new ssa value of previous 'var' by:
     //- setting a new name  (e.g if var is x, then new_var becomes x5)
     //- update value array and value name structures of the block
-    pub fn update_variable(&mut self, var: &node::Variable, new_var: arena::Index, new_value: arena::Index)
-    {
-        let root = self.get_variable(self.get_root(var)).unwrap();
-        let root_name = root.name.clone();
-        let cb = self.get_current_block_mut();
-        cb.update_variable(var.id, new_value);
-        let vname = cb.get_value_name(var.id).to_string();
-        let nvar = self.get_mut_variable(new_var).unwrap();
+    // pub fn update_variable(&mut self, var: &node::Variable, new_var: arena::Index, new_value: arena::Index)
+    // {
+    //     let root = self.get_variable(self.get_root(var)).unwrap();
+    //     let root_name = root.name.clone();
+    //     let cb = self.get_current_block_mut();
+    //     cb.update_variable(var.id, new_value);
+    //     let vname = cb.get_value_name(var.id).to_string();
+    //     let nvar = self.get_mut_variable(new_var).unwrap();
         
-        nvar.name = root_name + &vname;
-    }
+    //     nvar.name = root_name + &vname;
+    // }
 
     //same as update_variable but using the var index instead of var
     pub fn update_variable_id(&mut self, var_id: arena::Index, new_var: arena::Index, new_value: arena::Index)
@@ -402,7 +420,7 @@ impl<'a> ParsingContext<'a>{
     }
 
 
-    fn create_fisrt_block(&mut self)
+    fn create_first_block(&mut self)
     {
         let mut first_block = node::BasicBlock::new(self.dummy());
         first_block.left = None;
@@ -411,41 +429,48 @@ impl<'a> ParsingContext<'a>{
         block2.idx = new_idx;
         self.first_block = new_idx;
         self.current_block = new_idx;
+        self.dummy_instruction = self.new_instruction(self.dummy(), self.dummy(), node::Operation::nop, node::ObjectType::none);
     }
 
     //Not suitable for the first block
     pub fn new_block(&mut self) -> arena::Index
     {
-        let mut new_block = node::BasicBlock::new(self.current_block);
+        let dummy_ins = self.dummy_instruction.clone();
+        let new_block = node::BasicBlock::new(self.current_block);
         let new_idx = self.blocks.insert(new_block);
         let block2 = self.blocks.get_mut(new_idx).unwrap();     //RIA..
         block2.idx = new_idx;
         block2.dominator = Some(self.current_block);    
-
         //update current block 
         let cb = self.get_block_mut(self.current_block).unwrap();
-        cb.right = Some(new_idx);
+        cb.left = Some(new_idx);
+        cb.instructions.push(dummy_ins);
         self.current_block = new_idx;
         new_idx
     }
 
-    //link the current block to the target block
+    //link the current block to the target block so that current block becomes its target
     pub fn fixup(&mut self, target: arena::Index)
     {
-        
-        //should we set target.dominator = current??
-        todo!();
+        let cb = self.current_block;
+        let target_block = self.get_block_mut(target);
+        if target_block.is_some() {
+            target_block.unwrap().right = Some(cb);
+            //TODO should also update the last instruction rhs to the first instruction of the current block  -- TODOshoud we do it here??
+            let cb = self.get_block_mut(self.current_block);
+            cb.unwrap().dominator = Some(target);
+       }
     }
 
     pub fn compute_dominated(&mut self)
     {
         let mut b = self.get_block(self.first_block);
         let mut rira : HashMap<arena::Index, Vec<arena::Index>> = HashMap::new();
-        while b.unwrap().right.is_some() {
-            let r = b.unwrap().right.unwrap();
+        while b.unwrap().left.is_some() {
+            let r = b.unwrap().left.unwrap();
             b = self.blocks.get(r);
             let mut dom_b_idx = None;
-            if (b.is_some() && b.unwrap().dominator.is_some()) {
+            if b.is_some() && b.unwrap().dominator.is_some() {
                 dom_b_idx = b.unwrap().dominator;
                let dom_b = self.get_block(b.unwrap().dominator.unwrap());
                if dom_b.is_some() {
@@ -503,14 +528,26 @@ impl<'a> ParsingContext<'a>{
         result
     }
 
+    //common subexpression elimination
     pub fn cse(&mut self)
     {
         let mut anchor: HashMap<node::Operation, VecDeque<arena::Index>> = HashMap::new();
-        let mut i_list : Vec<arena::Index> = Vec::new();
-        //TODO do it for all blocks by following the dominator tree and passing around the anchor list.
-        self.block_cse(self.first_block, &mut anchor, &mut i_list);   
+       // let mut i_list : Vec<arena::Index> = Vec::new();
+        self.cse_tree(self.first_block, &mut anchor);
+
+    //TODO do it for all blocks by following the dominator tree and passing around the anchor list.
+        //self.block_cse(self.first_block, &mut anchor, &mut i_list);   
     }
 
+    pub fn cse_tree(&mut self, b_idx: arena::Index, anchor: &mut HashMap<node::Operation, VecDeque<arena::Index>>) {
+        let mut i_list : Vec<arena::Index> = Vec::new();
+        self.block_cse(b_idx, anchor, &mut i_list);
+        let block = self.get_block(b_idx).unwrap();
+        let bd = block.dominated.clone();
+        for b in bd {
+            self.cse_tree(b, &mut anchor.clone());
+        }
+    }
     //Performs common subexpression elimination and copy propagation on a block
     pub fn block_cse(&mut self, b_idx: arena::Index, anchor: &mut HashMap<node::Operation, VecDeque<arena::Index>>, block_list : &mut Vec<arena::Index>) {
         let mut new_list : Vec<arena::Index> = Vec::new();
@@ -541,7 +578,7 @@ impl<'a> ParsingContext<'a>{
                     i_rhs = self.propagate(i.rhs);
                     let j = self.find_similar_instruction(i_lhs,i_rhs, &anchor[&i.operator]);
                     if j.is_some() {
-                            to_delete = true;
+                            to_delete = true; //we want to delete ins but ins is immutable so we use the new_list instead
                             i_rhs = j.unwrap();
                     }
                     else {
@@ -607,8 +644,8 @@ impl<'a> ParsingContext<'a>{
                 }
             }
         }
-        let bb3 = self.blocks.get_mut(b_idx).unwrap();
-        bb3.instructions = new_list; 
+        let bb = self.blocks.get_mut(b_idx).unwrap();
+        bb.instructions = new_list; 
     }
     
 ////////////////PARSING THE AST//////////////////////////////////////////////
@@ -700,7 +737,7 @@ fn evaluate_infix_expression(&mut self, lhs : arena::Index, rhs : arena::Index, 
     // Get the opcode from the infix operator
     let opcode = node::to_operation(op.kind, optype);
     //TODO we should validate the types with the opcode
-    Ok(self.new_instruction(None, lhs,rhs, opcode, optype)) //todo new_instruction should return a result to handle error
+    Ok(self.new_instruction(lhs,rhs, opcode, optype)) //todo new_instruction should return a result to handle error
 }
 
 
@@ -735,7 +772,7 @@ pub fn evaluate_statement(
             // let statements are used to declare a higher level object
             self.handle_let_statement(env, let_stmt)
         }
-        HirStatement::Assign(assign_stmt) => {
+        HirStatement::Assign(assign_stmt) => {  //left hand is already declared
             //TODO clarify what is an HirStatement::Assign vs HirStatement::Let vs HirStatement::Priv
             //e.g 'let a=x+2;' could be let:(assign:(a, x+2)) or assign:(let a, x+2)
             //For now we do all the job here but it should be splitted
@@ -807,13 +844,13 @@ pub fn evaluate_statement(
             let result;
             match rhs {
                 node::NodeObj::Instr(ins) => {
-                    result = self.new_instruction( None, new_var_id, rhs_id, node::Operation::ass, ins.res_type);
+                    result = self.new_instruction(  new_var_id, rhs_id, node::Operation::ass, ins.res_type);
                 },
                 node::NodeObj::Const(cst) => {
-                   result = self.new_instruction( None, new_var_id, cst.id, node::Operation::ass, cst.value_type);
+                   result = self.new_instruction(  new_var_id, cst.id, node::Operation::ass, cst.value_type);
                 }
                 node::NodeObj::Obj(v) => {
-                    result = self.new_instruction( None, new_var_id, v.id, node::Operation::ass, v.get_type());
+                    result = self.new_instruction(  new_var_id, v.id, node::Operation::ass, v.get_type());
                 }
                 _ => todo!(),
             }
@@ -823,6 +860,20 @@ pub fn evaluate_statement(
     }
 }
 
+fn create_new_variable(&mut self,
+var_name: String,
+env: &mut Environment) -> arena::Index {
+    let obj = env.get(&var_name);
+    let obj_type = node::ObjectType::get_type_from_object(obj);
+    let new_var = node::Variable{
+        id : self.dummy(),
+        obj_type: obj_type,
+        name: var_name,   
+        cur_value : self.dummy(),       //Not used
+        root :  None, 
+     };
+     self.add_variable(new_var, None)
+}
 
     //TODO: refactor properly so that one function handle the creation of a new variable and generates the ass opcode, and use it in priv,let,assign
     //then add the priv feature: a priv variable should never be assigned to a const value (n.b. because apparently this would indicate a bug in a user program)
@@ -851,13 +902,13 @@ pub fn evaluate_statement(
                 // let mut_ins =self.get_mut_instruction(rhs_id);
                 // mut_ins.res = Some(new_var_id); //TODO should delete previous temp res
                 // result = mut_ins.idx;
-                result = self.new_instruction( None, new_var_id, rhs_id, node::Operation::ass, ins.res_type);
+                result = self.new_instruction( new_var_id, rhs_id, node::Operation::ass, ins.res_type);
             },
             node::NodeObj::Const(cst) => {
-                result = self.new_instruction( None, new_var_id, cst.id, node::Operation::ass, cst.value_type);
+                result = self.new_instruction( new_var_id, cst.id, node::Operation::ass, cst.value_type);
             }
             node::NodeObj::Obj(v) => {
-                result = self.new_instruction( None, new_var_id, v.id, node::Operation::ass, v.get_type());
+                result = self.new_instruction( new_var_id, v.id, node::Operation::ass, v.get_type());
             }
             _ => todo!(),
         }
@@ -1144,6 +1195,7 @@ pub fn evaluate_statement(
    
     //overflow strategy over a block
     //TODO - check the type; we MUST NOT truncate or overflow field elements!!
+    //TODO - to work properly with the CFG, we must propagte the value_map through-out the blocks
     pub fn block_overflow(&mut self,  
         b_idx: arena::Index, 
         //block: &mut node::BasicBlock,
@@ -1221,9 +1273,8 @@ pub fn evaluate_statement(
                         "Require big int implementation, the bit size is too big for the field: {}, {}",
                         l_trunc_max.clone().bits(), r_trunc_max.clone().bits()
                     );
-                    todo!("{}",message);
-                    //TODO return Err(RuntimeErrorKind::Unimplemented(message));
-                    }  
+                    panic!("{}",message); 
+                }  
             }
             self.process_to_truncate(&mut new_list, &mut truncate_map, max_map, b_idx, &mut value_map); 
             new_list.push(ins.idx);
@@ -1261,45 +1312,75 @@ pub fn evaluate_statement(
         
     }
 
-    
+    //TODO generate phi instructions
     fn handle_for_expr(
         &mut self,
         env: &mut Environment,
         for_expr: HirForExpression,
     ) //-> Result<Object, RuntimeErrorKind> 
     {
-
-//TODO
         //we need to add the ' i = start' instruction (in previous block)
-
+        let start_idx = self
+        .expression_to_object(env, &for_expr.start_range)
+        .map_err(|err| err.remove_span()).unwrap();
+        let end_idx = self
+        .expression_to_object(env, &for_expr.end_range)
+        .map_err(|err| err.remove_span()).unwrap();
+        //We support only const range for now
+        let start = self.get_as_constant(start_idx).unwrap();
+        let end = self.get_as_constant(end_idx).unwrap();
+        //TODO how names are matched against scope?
+        let iter_name = self.context.unwrap().def_interner.ident_name(&for_expr.identifier);
+        let iter_id = self.create_new_variable(iter_name, env);
+        let iter_type = self.get_object_type(iter_id);
+        self.new_instruction(iter_id, start_idx, node::Operation::ass, iter_type);
+        //TODO handle scope (cf. start/end_for_loop)
         //join block
         let join_idx = self.new_block();
-        //should have an expression that evaluate to bool, but
-        //seem Noir only supports i=start;i<end
-        //so we create instruction ne i, end => or jne?
-
-        //body
-        let body_idx = self.new_block();
-
-        //exit block
-        let exit_idx = self.new_block();
-        // let block =  match self.context.def_interner.expression(&for_expr.block) {
-        //     HirExpression::Block(block_expr) => block_expr,
-        //     _ => panic!("ice: expected a block expression"),
-        // };
-        // let statements = block.statements();
-        // for stmt in statements {
-        //     result = self.evaluate_statement(env, stmt)?;
-        // }
+        //should parse a for_expr.condition statement that should evaluate to bool, but
+        //seems we only supports i=start;i!=end for now
+        let phi = self.new_instruction(iter_id, iter_id, node::Operation::phi, iter_type); 
+        let cond = self.new_instruction(phi, end_idx, node::Operation::ne, node::ObjectType::boolean); 
+        let to_fix = self.new_instruction( cond, self.dummy(), node::Operation::jeq, node::ObjectType::none);
         
-        //todo link the blocks together:
-        //join.right -> body
-        //body.right -> join
-        //join.left -> exit
+        //body
+        let body_idx = self.new_block();   
+        let block = match self.context.unwrap().def_interner.expression(&for_expr.block) {
+            HirExpression::Block(block_expr) => block_expr,
+            _ => panic!("ice: expected a block expression"),
+        };
+        let body_block1 = self.get_block_mut(body_idx).unwrap();
+        body_block1.update_variable(iter_id, phi);
+      //  self.update_variable_id(iter_id, new_var, phi);//todo new_var is the new ssa variable
+        let statements = block.statements();
+        for stmt in statements {
+            self.evaluate_statement(env, stmt);
+        }
+        //increment iter
+        let one = self.get_const(FieldElement::one(), iter_type);
+        let incr = self.new_instruction( phi, one, node::Operation::add, iter_type);  
+        let incr_var = self.new_instruction(phi, incr, node::Operation::ass, iter_type);
+        let body_block = self.get_block_mut(body_idx).unwrap();
+        body_block.update_variable(iter_id, incr_var);
+        //body.left = join
+        body_block.left  = Some(join_idx);
+        //generate phi
+        let value_array = body_block.value_array.clone();   //TODO can we avoid this clone??
+        self.generate_phi(join_idx, &value_array, body_idx);
 
+        //jump back to join
+        self.new_instruction( self.dummy(), self.get_block(join_idx).unwrap().get_first_instruction(), node::Operation::jmp, node::ObjectType::none);  
+        
+    
+        //exit block
+        self.new_block();
+        let exit_first = self.get_current_block().get_first_instruction();
+        self.fixup(join_idx); 
+        let to_fix_ins = self.get_as_mut_instruction(to_fix);
+        to_fix_ins.unwrap().rhs = exit_first;
 
     }
-
+ 
     pub fn acir(&self, evaluator:  &mut Evaluator) {
         let mut acir = Acir::new();
         let fb = self.get_block(self.first_block).unwrap();
@@ -1310,12 +1391,109 @@ pub fn evaluate_statement(
         
     }
 
+    //If the Phi already exists, we merge, else we create a new one and update the value array.
+    pub fn generate_phi(&mut self, target_block: arena::Index, value_array: &HashMap<arena::Index, arena::Index>, from: arena::Index) {
+        let target = self.get_block(target_block).unwrap();
+        let mut phi_list: Vec<node::Instruction> = Vec::new();
+        for v in value_array.keys() {
+            //look for a phi for v:
+            for i in &target.instructions {
+                let opt_ins = self.get_as_instruction(*i);
+                let mut to_insert = true;
+                if opt_ins.is_some() && opt_ins.unwrap().operator == node::Operation::phi {
+                    let mut phi_merge = opt_ins.unwrap().clone();
+                    for arg in &mut phi_merge.phi_arguments {
+                        if arg.1 == from {
+                            arg.0 = value_array[v];
+                            to_insert = false;
+                        }
+                    }
+                    if to_insert == true {
+                        phi_merge.phi_arguments.push((value_array[v], from));
+                        to_insert = false;
+                    }
+                }
+                if to_insert {
+                    let v_type = self.get_object_type(*v);
+                    let mut phi_ins = node::Instruction::new(node::Operation::phi, *v, *v, v_type, Some(target_block));
+                    phi_ins.phi_arguments.push((*v,*v));
+                    phi_ins.phi_arguments.push((value_array[v], from));
+                    phi_list.push(phi_ins);
+                    //TODO we also need to add the phi_argument coming from the predecessor of the join block!!
+                }
+                //TODO add (or replace) all instructions from the phi_list into self.nodes
+                //TODO update target instruction list by setting all his phi instruction as phi_list
+                //TODO target.update_variable(*v, value_array[v]);  
+            }
+        }
+    }
+
+
+    //TODO to finalise. should we do it for the block or simply do it per instruction during the CSE?
+    pub fn simplify_phi(&mut self, block_id: arena::Index)
+    {
+        let opt_block = self.get_block(block_id);
+        if opt_block.is_some() {
+            let block = opt_block.unwrap();
+            for i in &block.instructions {
+                let mut new_list: Vec<arena::Index> = Vec::new();
+                let mut new_ass: Vec<arena::Index> = Vec::new();
+                let opt_ins = self.get_as_instruction(*i);
+                if opt_ins.is_some() && opt_ins.unwrap().operator == node::Operation::phi {
+                    let ins = opt_ins.unwrap();
+                    let mut remove = false;
+                    let mut values : HashSet<arena::Index> = HashSet::new();
+                    if ins.phi_arguments.len() <= 1 {
+                        remove = true;
+                    } else {
+                        let v = ins.phi_arguments[0].0;
+                       // let v1 = ins.phi_arguments[1].0;
+                        // for i in[1..ins.phi_arguments.len()] {
+                        //     if ins.phi_arguments[i].0 != v {
+                        //         values.insert(ins.phi_arguments[i].0);
+                        //     }
+                        // }
+                        let mut first: bool = true;
+                        for iter in &ins.phi_arguments {
+                            if first {
+                                first= false;
+                            }
+                            else {
+                                if iter.0 != v  {
+                                    values.insert(iter.0);
+                                }
+                            }
+                        }
+                        if values.len() == 0 {
+                            remove = true;
+                        } else if values.len() == 1 {
+                            remove = true;
+                            //TODO create assignement v := values.first
+                            //let ass = self.new_instruction(...);
+                            //new_ass.push(ass);
+                        }
+                    }
+                    if !remove {
+                        new_list.push(*i);
+                    }
+                }
+                else {
+                    //phi instructions should be at the beginning, so we have passed them
+                    new_list.push(new_ass[0]);//todo concat
+                    new_list.push(*i);
+
+                } 
+            }
+        }
+    }
 }
+
+
 
 fn get_current_value2(idx: arena::Index, vmap: &HashMap<arena::Index, arena::Index>) -> arena::Index
     {
         match vmap.get(&idx) {
             Some(cur_idx) => *cur_idx,
-            None => idx
+            None => idx,
         }
     }

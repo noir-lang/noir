@@ -139,7 +139,7 @@ impl Acir {
             Operation::cast => {
                 todo!()
             },
-            Operation::ass => {
+            Operation::ass | Operation::jne | Operation::jeq | Operation::jmp | Operation::phi => {
                 todo!("invalid instruction");  
             },
             Operation::trunc => {
