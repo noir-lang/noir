@@ -66,7 +66,7 @@ impl Parameters {
 
         let merged_span = spans.pop().unwrap();
         for span in spans {
-            merged_span.merge(span);
+            let _ = merged_span.merge(span);
         }
 
         merged_span
