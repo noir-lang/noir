@@ -183,7 +183,7 @@ dependencies = [
 [[package]]
 name = "barretenberg_wrapper"
 version = "0.1.0"
-source = "git+https://github.com/AztecProtocol/barretenberg?branch=gd/noir-dsl#1266d668716f09289e77b7cdf21f3b3b753a897f"
+source = "git+https://github.com/AztecProtocol/barretenberg?branch=kw/noir-dsl-mac#714aaf85fd9c098553932626425161f787aa073b"
 dependencies = [
  "cmake",
  "hex",
