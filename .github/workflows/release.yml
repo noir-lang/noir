@@ -16,7 +16,7 @@ jobs:
       matrix:
         name: [
             linux,
-            windows,
+            # windows,
             macos
         ]
 
@@ -25,10 +25,10 @@ jobs:
             os: ubuntu-latest
             artifact_name: nargo
             asset_name: nargo-linux
-          - name: windows
-            os: windows-latest
-            artifact_name: nargo.exe
-            asset_name: nargo-windows
+          # - name: windows
+          #   os: windows-latest
+          #   artifact_name: nargo.exe
+          #   asset_name: nargo-windows
           - name: macos
             os: macos-latest
             artifact_name: nargo
