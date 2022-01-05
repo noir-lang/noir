@@ -15,16 +15,16 @@ jobs:
     strategy:
       matrix:
         name: [
-            linux,
+            # linux,
             # windows,
             macos
         ]
 
         include:
-          - name: linux
-            os: ubuntu-latest
-            artifact_name: nargo
-            asset_name: nargo-linux
+          # - name: linux
+          #   os: ubuntu-latest
+          #   artifact_name: nargo
+          #   asset_name: nargo-linux
           # - name: windows
           #   os: windows-latest
           #   artifact_name: nargo.exe
