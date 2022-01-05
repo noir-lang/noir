@@ -215,7 +215,7 @@ impl<'a> Resolver<'a> {
         let attributes = func.attribute().cloned();
 
         let mut parameters = Vec::new();
-        for (ident, typ) in func.parameters().to_owned() {
+        for (ident, typ) in func.parameters().iter().cloned() {
             let ident_id = self.add_variable_decl(ident.clone());
 
             parameters.push(Param(ident_id, typ));

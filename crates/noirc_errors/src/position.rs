@@ -18,17 +18,21 @@ impl Position {
         self.column += 1;
         self.idx += 1;
     }
-
+    #[must_use]
     pub fn mark(&self) -> Position {
         *self
     }
+    #[must_use]
     pub fn forward(self) -> Position {
         self.forward_by(1)
     }
+
+    #[must_use]
     pub fn backward(self) -> Position {
         self.backward_by(1)
     }
 
+    #[must_use]
     pub fn into_span(self) -> Span {
         Span {
             start: self,
@@ -36,6 +40,7 @@ impl Position {
         }
     }
 
+    #[must_use]
     pub fn backward_by(self, amount: usize) -> Position {
         Position {
             line: self.line,
@@ -43,6 +48,7 @@ impl Position {
             idx: self.idx - amount,
         }
     }
+    #[must_use]
     pub fn forward_by(self, amount: usize) -> Position {
         Position {
             line: self.line,
@@ -116,6 +122,7 @@ pub struct Span {
 }
 
 impl Span {
+    #[must_use]
     pub fn merge(self, other: Span) -> Span {
         use std::cmp::{max, min};
 
