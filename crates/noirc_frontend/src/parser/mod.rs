@@ -4,7 +4,7 @@ mod infix_parser;
 mod parser;
 mod prefix_parser;
 
-use crate::{ast::ImportStatement, NoirFunction};
+use crate::{ast::ImportStatement, NoirFunction, NoirStruct};
 use crate::{
     token::{Keyword, SpannedToken, Token},
     Ident,
@@ -16,6 +16,7 @@ pub use parser::{Parser, ParserExprKindResult, ParserExprResult};
 pub struct ParsedModule {
     pub imports: Vec<ImportStatement>,
     pub functions: Vec<NoirFunction>,
+    pub types: Vec<NoirStruct>,
     pub module_decls: Vec<Ident>,
 }
 
@@ -24,6 +25,7 @@ impl ParsedModule {
         ParsedModule {
             imports: Vec::with_capacity(cap),
             functions: Vec::with_capacity(cap),
+            types: Vec::with_capacity(cap),
             module_decls: Vec::new(),
         }
     }
@@ -31,9 +33,15 @@ impl ParsedModule {
     fn push_function(&mut self, func: NoirFunction) {
         self.functions.push(func);
     }
+
+    fn push_type(&mut self, typ: NoirStruct) {
+        self.types.push(typ);
+    }
+
     fn push_import(&mut self, import_stmt: ImportStatement) {
         self.imports.push(import_stmt);
     }
+
     fn push_module_decl(&mut self, mod_name: Ident) {
         self.module_decls.push(mod_name);
     }
@@ -49,6 +57,7 @@ pub enum Precedence {
     Prefix,
     Call,
     Index,
+    Constructor,
 }
 impl Precedence {
     // Higher the number, the higher(more priority) the precedence
@@ -72,6 +81,7 @@ impl Precedence {
             Token::Keyword(Keyword::As) => Precedence::Prefix,
             Token::LeftParen => Precedence::Call,
             Token::LeftBracket => Precedence::Index,
+            Token::LeftBrace => Precedence::Constructor,
             _ => Precedence::Lowest,
         }
     }

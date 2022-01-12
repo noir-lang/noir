@@ -2,6 +2,7 @@ mod binary;
 mod call;
 mod cast;
 mod index;
+mod constructor;
 
 use binary::BinaryParser;
 use call::CallParser;
@@ -25,6 +26,7 @@ pub enum InfixParser {
     Binary,
     Call,
     Index,
+    Constructor,
     Cast,
 }
 
@@ -34,6 +36,7 @@ impl InfixParser {
             InfixParser::Binary => span_parser(parser, left, BinaryParser::parse),
             InfixParser::Call => span_parser(parser, left, CallParser::parse),
             InfixParser::Index => span_parser(parser, left, IndexParser::parse),
+            InfixParser::Constructor => span_parser(parser, left, constructor::parse),
             InfixParser::Cast => span_parser(parser, left, CastParser::parse),
         }
     }

@@ -16,17 +16,20 @@ struct ResolverMeta {
     num_times_used: usize,
     id: IdentId,
 }
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
+use crate::{NoirStruct, Path};
 use crate::graph::CrateId;
+use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId};
+use crate::hir_def::expr::HirConstructorExpression;
 use crate::hir_def::stmt::HirAssignStatement;
-use crate::node_interner::{ExprId, FuncId, IdentId, NodeInterner, StmtId};
+use crate::node_interner::{ExprId, FuncId, TypeId, IdentId, NodeInterner, StmtId};
 use crate::{
     hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
     BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
     Statement,
 };
-use noirc_errors::Spanned;
+use noirc_errors::{Span, Spanned};
 
 use crate::hir::scope::{
     Scope as GenericScope, ScopeForest as GenericScopeForest, ScopeTree as GenericScopeTree,
@@ -56,6 +59,9 @@ pub struct Resolver<'a> {
     path_resolver: &'a dyn PathResolver,
     def_maps: &'a HashMap<CrateId, CrateDefMap>,
 
+    //TODO: Is this needed or can we use def_maps or the path_resolver to store structs?
+    structs: &'a HashMap<TypeId, NoirStruct>,
+
     interner: &'a mut NodeInterner,
 
     errors: Vec<ResolverError>,
@@ -66,12 +72,14 @@ impl<'a> Resolver<'a> {
         interner: &'a mut NodeInterner,
         path_resolver: &'a dyn PathResolver,
         def_maps: &'a HashMap<CrateId, CrateDefMap>,
+        structs: &'a HashMap<TypeId, NoirStruct>,
     ) -> Resolver<'a> {
         Self {
             path_resolver,
             def_maps,
             scopes: ScopeForest::new(),
             interner,
+            structs,
             errors: Vec::new(),
         }
     }
@@ -342,43 +350,7 @@ impl<'a> Resolver<'a> {
             }
             ExpressionKind::Call(call_expr) => {
                 // Get the span and name of path for error reporting
-                let span = call_expr.func_name.span();
-                let func_name = call_expr.func_name.as_string();
-
-                let mod_def_id = match self
-                    .path_resolver
-                    .resolve(self.def_maps, call_expr.func_name)
-                {
-                    Ok(mod_def_id) => mod_def_id,
-                    Err(segment) => {
-                        let err = ResolverError::PathUnresolved {
-                            span,
-                            name: func_name,
-                            segment,
-                        };
-                        self.push_err(err);
-                        None
-                    }
-                };
-
-                let func_id = match mod_def_id {
-                    // Could not resolve this symbol, the error is already logged, return a dummy function id
-                    None => FuncId::dummy_id(),
-                    Some(def_id) => {
-                        // A symbol was found. Check if it is a function
-                        if let Some(func_id) = def_id.as_function() {
-                            func_id
-                        } else {
-                            let err = ResolverError::Expected {
-                                expected: "function".to_owned(),
-                                got: def_id.as_str().to_owned(),
-                                span,
-                            };
-                            self.push_err(err);
-                            FuncId::dummy_id()
-                        }
-                    }
-                };
+                let func_id = self.lookup_function(call_expr.func_name);
 
                 let mut arguments = Vec::with_capacity(call_expr.arguments.len());
                 for arg in call_expr.arguments {
@@ -444,10 +416,113 @@ impl<'a> Resolver<'a> {
                 self.interner.push_expr(HirExpression::Ident(ident_id))
             }
             ExpressionKind::Block(block_expr) => self.resolve_block(block_expr),
+            ExpressionKind::Constructor(constructor) => {
+                let span = constructor.type_name.span();
+                let type_id = self.lookup_type(constructor.type_name);
+                let fields = self.resolve_constructor_fields(type_id, constructor.fields, span);
+                let expr = HirConstructorExpression { type_id, fields };
+                self.interner.push_expr(HirExpression::Constructor(expr))
+            },
         };
 
         self.interner.push_expr_span(expr_id, expr.span);
         expr_id
+    }
+
+    /// Resolve all the fields of a struct constructor expression.
+    /// Ensures all fields are present, none are repeated, and all
+    /// are part of the struct.
+    fn resolve_constructor_fields(&mut self, type_id: TypeId, fields: Vec<(Ident, Expression)>, span: Span) -> Vec<(IdentId, ExprId)> {
+        let mut ret = Vec::with_capacity(fields.len());
+        let mut seen_fields = HashSet::new();
+        let mut unseen_fields = self.get_field_names_of_type(type_id);
+
+        for (field, expr) in fields {
+            let field_name = field.as_str();
+            let expr_id = self.resolve_expression(expr);
+
+            if unseen_fields.contains(field_name) {
+                unseen_fields.remove(field_name);
+                seen_fields.insert(field_name.to_owned());
+            } else if seen_fields.contains(field_name) {
+                // duplicate field
+                self.push_err(ResolverError::DuplicateField {
+                    field: field_name.to_owned(),
+                    span: field.span(),
+                });
+            } else {
+                // field not required by struct
+                self.push_err(ResolverError::NoSuchField {
+                    field: field_name.to_owned(),
+                    span: field.span(),
+                    struct_name: self.get_struct(type_id).name.as_str().to_owned(),
+                    struct_span: self.get_struct(type_id).span,
+                });
+            }
+
+            let name_id = self.interner.push_ident(field);
+            ret.push((name_id, expr_id));
+        }
+
+        if !unseen_fields.is_empty() {
+            self.push_err(ResolverError::MissingFields {
+                span,
+                fields: unseen_fields.into_iter().collect(),
+                struct_name: self.get_struct(type_id).name.as_str().to_owned(),
+                struct_span: self.get_struct(type_id).span,
+            });
+        }
+
+        ret
+    }
+
+    fn get_struct(&self, type_id: TypeId) -> &NoirStruct {
+        self.structs.get(&type_id).unwrap()
+    }
+
+    fn get_field_names_of_type(&self, type_id: TypeId) -> HashSet<String> {
+        let typ = self.get_struct(type_id);
+        typ.fields.iter()
+            .map(|(name, _)| name.as_str().to_owned())
+            .collect()
+    }
+
+    fn lookup<T: TryFromModuleDefId>(&mut self, path: Path) -> T {
+        let span = path.span();
+        match self.resolve_path(path) {
+            // Could not resolve this symbol, the error is already logged, return a dummy function id
+            None => T::dummy_id(),
+            Some(def_id) => {
+                // A symbol was found. Check if it is a function
+                T::try_from(def_id).unwrap_or_else(|| {
+                    let err = ResolverError::Expected {
+                        expected: T::description(),
+                        got: def_id.as_str().to_owned(),
+                        span,
+                    };
+                    self.push_err(err);
+                    T::dummy_id()
+                })
+            }
+        }
+    }
+
+    fn lookup_function(&mut self, path: Path) -> FuncId {
+        self.lookup(path)
+    }
+
+    fn lookup_type(&mut self, path: Path) -> TypeId {
+        self.lookup(path)
+    }
+
+    fn resolve_path(&mut self, path: Path) -> Option<ModuleDefId> {
+        let span = path.span();
+        let name = path.as_string();
+        self.path_resolver.resolve(self.def_maps, path).unwrap_or_else(|segment| {
+            let err = ResolverError::PathUnresolved { name, span, segment };
+            self.push_err(err);
+            None
+        })
     }
 
     fn resolve_block(&mut self, block_expr: BlockExpression) -> ExprId {
@@ -505,9 +580,12 @@ mod test {
 
         let def_maps: HashMap<CrateId, CrateDefMap> = HashMap::new();
 
+        // TODO: Add struct tests
+        let structs = HashMap::new();
+
         let mut errors = Vec::new();
         for func in program.functions {
-            let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps);
+            let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, &structs);
             match resolver.resolve_function(func) {
                 Ok((_, _)) => {}
                 Err(err) => errors.extend(err),

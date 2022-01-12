@@ -56,6 +56,16 @@ impl From<Ident> for ExpressionKind {
     }
 }
 
+impl Ident {
+    pub fn as_str(&self) -> &str {
+        &self.0.contents
+    }
+
+    pub fn span(&self) -> Span {
+        self.0.span()
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Statement {
     Let(LetStatement),

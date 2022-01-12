@@ -561,9 +561,9 @@ impl<'a> Evaluator<'a> {
         env: &mut Environment,
         expr_id: &ExprId,
     ) -> Result<Object, RuntimeError> {
-        let expr = self.context.def_interner.expression(expr_id);
         let span = self.context.def_interner.expr_span(expr_id);
-        match expr {
+
+        match self.context.def_interner.expression(expr_id) {
             HirExpression::Literal(HirLiteral::Integer(x)) => Ok(Object::Constants(x)),
             HirExpression::Literal(HirLiteral::Array(arr_lit)) => {
                 Ok(Object::Array(Array::from(self, env, arr_lit)?))
@@ -620,7 +620,8 @@ impl<'a> Evaluator<'a> {
             HirExpression::Prefix(_) => todo!(),
             HirExpression::Predicate(_) => todo!(),
             HirExpression::Literal(_) => todo!(),
-            HirExpression::Block(_) => todo!("currently block expressions not in for/if branches are not being evaluated. In the future, we should be able to unify the eval_block and all places which require block_expr here")
+            HirExpression::Block(_) => todo!("currently block expressions not in for/if branches are not being evaluated. In the future, we should be able to unify the eval_block and all places which require block_expr here"),
+            HirExpression::Constructor(_) => todo!(),
         }
     }
 

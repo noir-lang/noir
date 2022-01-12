@@ -11,6 +11,7 @@ pub enum ExpressionKind {
     Prefix(Box<PrefixExpression>),
     Index(Box<IndexExpression>),
     Call(Box<CallExpression>),
+    Constructor(Box<ConstructorExpression>),
     Cast(Box<CastExpression>),
     Infix(Box<InfixExpression>),
     Predicate(Box<InfixExpression>),
@@ -259,6 +260,13 @@ pub struct CallExpression {
     pub func_name: Path,
     pub arguments: Vec<Expression>,
 }
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct ConstructorExpression {
+    pub type_name: Path,
+    pub fields: Vec<(Ident, Expression)>,
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct IndexExpression {
     pub collection_name: Ident, // XXX: For now, this will be the name of the array, as we do not support other collections

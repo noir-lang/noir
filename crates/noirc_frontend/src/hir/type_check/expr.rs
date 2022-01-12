@@ -17,8 +17,7 @@ pub(crate) fn type_check_expression(
     interner: &mut NodeInterner,
     expr_id: &ExprId,
 ) -> Result<(), TypeCheckError> {
-    let hir_expr = interner.expression(expr_id);
-    match hir_expr {
+    match interner.expression(expr_id) {
         HirExpression::Ident(ident_id) => {
             // If an Ident is used in an expression, it cannot be a declaration statement
             let ident_def_id = interner.ident_def(&ident_id).expect("ice: all identifiers should have been resolved. This should have been caught in the resolver");
@@ -264,6 +263,11 @@ pub(crate) fn type_check_expression(
             todo!("predicate statements have not been implemented yet")
         }
         HirExpression::If(_) => todo!("If statements have not been implemented yet!"),
+        HirExpression::Constructor(constructor) => {
+
+            let typ = Type::Struct(constructor.type_id);
+            interner.push_expr_type(expr_id, typ);
+        },
     };
     Ok(())
 }
@@ -281,48 +285,49 @@ pub fn infix_operand_type_rules(
     }
 
     match (lhs_type, other)  {
-
-            (Type::Integer(lhs_field_type,sign_x, bit_width_x), Type::Integer(rhs_field_type,sign_y, bit_width_y)) => {
-                let field_type = field_type_rules(lhs_field_type, rhs_field_type);
-                if sign_x != sign_y {
-                    return Err(format!("Integers must have the same signedness LHS is {:?}, RHS is {:?} ", sign_x, sign_y))
-                }
-                if bit_width_x != bit_width_y {
-                    return Err(format!("Integers must have the same bit width LHS is {}, RHS is {} ", bit_width_x, bit_width_y))
-                }
-                Ok(Type::Integer(field_type,*sign_x, *bit_width_x))
+        (Type::Integer(lhs_field_type,sign_x, bit_width_x), Type::Integer(rhs_field_type,sign_y, bit_width_y)) => {
+            let field_type = field_type_rules(lhs_field_type, rhs_field_type);
+            if sign_x != sign_y {
+                return Err(format!("Integers must have the same signedness LHS is {:?}, RHS is {:?} ", sign_x, sign_y))
             }
-            (Type::Integer(_,_, _), Type::FieldElement(FieldElementType::Private)) | ( Type::FieldElement(FieldElementType::Private), Type::Integer(_,_, _) ) => {
-                Err("Cannot use an integer and a witness in a binary operation, try converting the witness into an integer".to_string())
+            if bit_width_x != bit_width_y {
+                return Err(format!("Integers must have the same bit width LHS is {}, RHS is {} ", bit_width_x, bit_width_y))
             }
-            (Type::Integer(_,_, _), Type::FieldElement(FieldElementType::Public)) | ( Type::FieldElement(FieldElementType::Public), Type::Integer(_,_, _) ) => {
-                Err("Cannot use an integer and a public variable in a binary operation, try converting the public into an integer".to_string())
-            }
-            (Type::Integer(int_field_type,sign_x, bit_width_x), Type::FieldElement(FieldElementType::Constant))| (Type::FieldElement(FieldElementType::Constant),Type::Integer(int_field_type,sign_x, bit_width_x)) => {
-                let field_type = field_type_rules(int_field_type, &FieldElementType::Constant);
-                Ok(Type::Integer(field_type,*sign_x, *bit_width_x))
-            }
-            (Type::Integer(_,_, _), typ) | (typ,Type::Integer(_,_, _)) => {
-                Err(format!("Integer cannot be used with type {}", typ))
-            }
-            // Currently, arrays are not supported in binary operations
-            (Type::Array(_,_,_), _) | (_,Type::Array(_,_, _)) => Err("Arrays cannot be used in an infix operation".to_string()),
-            //
-            // An error type on either side will always return an error
-            (Type::Error, _) | (_,Type::Error) => Ok(Type::Error),
-            (Type::Unspecified, _) | (_,Type::Unspecified) => Ok(Type::Unspecified),
-            (Type::Unknown, _) | (_,Type::Unknown) => Ok(Type::Unknown),
-            (Type::Unit, _) | (_,Type::Unit) => Ok(Type::Unit),
-            //
-            // If no side contains an integer. Then we check if either side contains a witness
-            // If either side contains a witness, then the final result will be a witness
-            (Type::FieldElement(FieldElementType::Private), _) | (_,Type::FieldElement(FieldElementType::Private)) => Ok(Type::FieldElement(FieldElementType::Private)),
-            // Public types are added as witnesses under the hood
-            (Type::FieldElement(FieldElementType::Public), _) | (_,Type::FieldElement(FieldElementType::Public)) => Ok(Type::FieldElement(FieldElementType::Private)),
-            (Type::Bool, _) | (_,Type::Bool) => Ok(Type::Bool),
-            //
-            (Type::FieldElement(FieldElementType::Constant), Type::FieldElement(FieldElementType::Constant))  => Ok(Type::FieldElement(FieldElementType::Constant)),
+            Ok(Type::Integer(field_type,*sign_x, *bit_width_x))
         }
+        (Type::Integer(_,_, _), Type::FieldElement(FieldElementType::Private)) | ( Type::FieldElement(FieldElementType::Private), Type::Integer(_,_, _) ) => {
+            Err("Cannot use an integer and a witness in a binary operation, try converting the witness into an integer".to_string())
+        }
+        (Type::Integer(_,_, _), Type::FieldElement(FieldElementType::Public)) | ( Type::FieldElement(FieldElementType::Public), Type::Integer(_,_, _) ) => {
+            Err("Cannot use an integer and a public variable in a binary operation, try converting the public into an integer".to_string())
+        }
+        (Type::Integer(int_field_type,sign_x, bit_width_x), Type::FieldElement(FieldElementType::Constant))| (Type::FieldElement(FieldElementType::Constant),Type::Integer(int_field_type,sign_x, bit_width_x)) => {
+            let field_type = field_type_rules(int_field_type, &FieldElementType::Constant);
+            Ok(Type::Integer(field_type,*sign_x, *bit_width_x))
+        }
+        (Type::Integer(_,_, _), typ) | (typ,Type::Integer(_,_, _)) => {
+            Err(format!("Integer cannot be used with type {}", typ))
+        }
+        // Currently, arrays and structs are not supported in binary operations
+        (Type::Array(_,_,_), _) | (_,Type::Array(_,_, _)) => Err("Arrays cannot be used in an infix operation".to_string()),
+        // Currently, arrays are not supported in binary operations
+        (Type::Struct(_), _) | (_, Type::Struct(_)) => Err("Structs cannot be used in an infix operation".to_string()),
+        //
+        // An error type on either side will always return an error
+        (Type::Error, _) | (_,Type::Error) => Ok(Type::Error),
+        (Type::Unspecified, _) | (_,Type::Unspecified) => Ok(Type::Unspecified),
+        (Type::Unknown, _) | (_,Type::Unknown) => Ok(Type::Unknown),
+        (Type::Unit, _) | (_,Type::Unit) => Ok(Type::Unit),
+        //
+        // If no side contains an integer. Then we check if either side contains a witness
+        // If either side contains a witness, then the final result will be a witness
+        (Type::FieldElement(FieldElementType::Private), _) | (_,Type::FieldElement(FieldElementType::Private)) => Ok(Type::FieldElement(FieldElementType::Private)),
+        // Public types are added as witnesses under the hood
+        (Type::FieldElement(FieldElementType::Public), _) | (_,Type::FieldElement(FieldElementType::Public)) => Ok(Type::FieldElement(FieldElementType::Private)),
+        (Type::Bool, _) | (_,Type::Bool) => Ok(Type::Bool),
+        //
+        (Type::FieldElement(FieldElementType::Constant), Type::FieldElement(FieldElementType::Constant))  => Ok(Type::FieldElement(FieldElementType::Constant)),
+    }
 }
 
 fn field_type_rules(lhs: &FieldElementType, rhs: &FieldElementType) -> FieldElementType {

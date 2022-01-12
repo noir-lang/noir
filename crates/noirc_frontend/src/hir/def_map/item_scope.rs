@@ -25,6 +25,7 @@ impl ItemScope {
         self.defs.push(mod_def);
         Ok(())
     }
+
     /// Returns an Err if there is already an item
     /// in the namespace with that exact name.
     /// The Err will return (old_item, new_item)
@@ -33,25 +34,22 @@ impl ItemScope {
         name: Ident,
         mod_def: ModuleDefId,
     ) -> Result<(), (Ident, Ident)> {
-        match &mod_def {
-            ModuleDefId::ModuleId(_) => {
-                if let Entry::Occupied(o) = self.types.entry(name.clone()) {
-                    let old_ident = o.key();
-                    return Err((old_ident.clone(), name));
-                }
-
-                self.types.insert(name, (mod_def, Visibility::Public))
-            }
-            ModuleDefId::FunctionId(_) => {
-                if let Entry::Occupied(o) = self.values.entry(name.clone()) {
-                    let old_ident = o.key();
-                    return Err((old_ident.clone(), name));
-                }
-
-                self.values.insert(name, (mod_def, Visibility::Public))
+        let add_item = |map: &mut HashMap<Ident, (ModuleDefId, Visibility)>| {
+            if let Entry::Occupied(o) = map.entry(name.clone()) {
+                let old_ident = o.key();
+                Err((old_ident.clone(), name))
+            } else {
+                map.insert(name, (mod_def, Visibility::Public));
+                Ok(())
             }
         };
-        Ok(())
+
+        match mod_def {
+            // TODO: Why are modules using the type namespace?
+            ModuleDefId::ModuleId(_) => add_item(&mut self.types),
+            ModuleDefId::FunctionId(_) => add_item(&mut self.values),
+            ModuleDefId::TypeId(_) => add_item(&mut self.types),
+        }
     }
 
     pub fn define_module_def(

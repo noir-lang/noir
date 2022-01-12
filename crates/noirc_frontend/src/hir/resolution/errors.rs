@@ -26,11 +26,30 @@ pub enum ResolverError {
         name: String,
         segment: Ident,
     },
-    #[error("could not resolve path")]
+    #[error("Expected")]
     Expected {
         span: Span,
         expected: String,
         got: String,
+    },
+    #[error("Duplicate field in constructor")]
+    DuplicateField {
+        span: Span,
+        field: String,
+    },
+    #[error("No such field in struct")]
+    NoSuchField {
+        span: Span,
+        field: String,
+        struct_name: String,
+        struct_span: Span,
+    },
+    #[error("Missing fields from struct")]
+    MissingFields {
+        span: Span,
+        fields: Vec<String>,
+        struct_name: String,
+        struct_span: Span,
     },
 }
 
@@ -109,6 +128,34 @@ impl ResolverError {
                 String::new(),
                 span,
             ),
+            ResolverError::DuplicateField { span, field } => Diagnostic::simple_error(
+                format!("duplicate field {}", field),
+                String::new(),
+                span,
+            ),
+            ResolverError::NoSuchField { span, field, struct_name, struct_span } => {
+                let mut error = Diagnostic::simple_error(
+                    format!("no such field {} defined in struct {}", field, struct_name),
+                    String::new(),
+                    span,
+                );
+
+                error.add_secondary(format!("{} defined here with no {} field", struct_name, field), struct_span);
+                error
+            }
+            ResolverError::MissingFields { span, fields, struct_name, struct_span } => {
+                let plural = if fields.len() != 1 { "s" } else { "" };
+                let fields = fields.join(", ");
+
+                let mut error = Diagnostic::simple_error(
+                    format!("missing field{}: {}", plural, fields),
+                    String::new(),
+                    span,
+                );
+
+                error.add_secondary(format!("{} defined here", struct_name), struct_span);
+                error
+            }
         }
     }
 }

@@ -44,6 +44,18 @@ impl FuncId {
     }
 }
 
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
+pub struct TypeId(Index);
+
+impl TypeId {
+    //dummy id for error reporting
+    // This can be anything, as the program will ultimately fail
+    // after resolution
+    pub fn dummy_id() -> TypeId {
+        TypeId(Index::from_raw_parts(std::usize::MAX, 0))
+    }
+}
+
 macro_rules! into_index {
     ($id_type:ty) => {
         impl From<$id_type> for Index {

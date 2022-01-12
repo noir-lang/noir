@@ -1,13 +1,17 @@
 /// This module contains two Ident structures, due to the fact that an identifier may or may not return a value
 /// statement::Ident does not return a value, while Expression::Ident does.
 mod expression;
-mod function;
 mod statement;
+mod function;
+mod structure;
 
 pub use expression::*;
 pub use function::*;
+pub use structure::*;
 use noirc_abi::{AbiFEType, AbiType};
 pub use statement::*;
+
+use crate::{node_interner::TypeId, token::IntType};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ArraySize {
@@ -91,10 +95,12 @@ pub enum Type {
     Array(FieldElementType, ArraySize, Box<Type>), // [4]Witness = Array(4, Witness)
     Integer(FieldElementType, Signedness, u32),    // u32 = Integer(unsigned, 32)
     Bool,
+    Unit,
+    Struct(TypeId),
+
     Error,       // XXX: Currently have not implemented structs, so this type is a stub
     Unspecified, // This is for when the user declares a variable without specifying it's type
     Unknown, // This is mainly used for array literals, where the parser cannot figure out the type for the literal
-    Unit,
 }
 
 impl Type {
@@ -120,11 +126,12 @@ impl std::fmt::Display for Type {
                 Signedness::Signed => write!(f, "{} i{}", fe_type, num_bits),
                 Signedness::Unsigned => write!(f, "{} u{}", fe_type, num_bits),
             },
+            Type::Struct(id) => todo!("Now we need a context parameter for structs"),
             Type::Bool => write!(f, "bool"),
+            Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "Error"),
             Type::Unspecified => write!(f, "unspecified"),
             Type::Unknown => write!(f, "unknown"),
-            Type::Unit => write!(f, "()"),
         }
     }
 }
@@ -181,6 +188,7 @@ impl Type {
     pub fn num_elements(&self) -> usize {
         let arr_size = match self {
             Type::Array(_, size, _) => size,
+            Type::Struct(_) => todo!("Getting the elements of a struct requires context"),
             Type::FieldElement(_)
             | Type::Integer(_, _, _)
             | Type::Bool
@@ -302,11 +310,10 @@ impl Type {
             Type::Unspecified => unreachable!(),
             Type::Unknown => unreachable!(),
             Type::Unit => unreachable!(),
+            Type::Struct(_) => todo!(),
         }
     }
 }
-
-use crate::token::IntType;
 
 impl Type {
     pub fn from_int_tok(field_type: FieldElementType, int_tok: &IntType) -> Type {

@@ -113,7 +113,7 @@ impl<'a> Parser<'a> {
 
     /// A Program corresponds to a single module
     pub fn parse_program(&mut self) -> Result<ParsedModule, &Vec<ParserErrorKind>> {
-        use super::prefix_parser::{FuncParser, ModuleParser, UseParser};
+        use super::prefix_parser::{FuncParser, ModuleParser, UseParser, structure};
 
         let mut program = ParsedModule::with_capacity(self.lexer.by_ref().approx_len());
 
@@ -127,6 +127,10 @@ impl<'a> Parser<'a> {
                 Token::Keyword(Keyword::Fn) => {
                     let func_def = FuncParser::parse_fn_definition(self, None);
                     self.on_value(func_def, |value| program.push_function(value));
+                }
+                Token::Keyword(Keyword::Struct) => {
+                    let structure = structure::parse(self);
+                    self.on_value(structure, |value| program.push_type(value));
                 }
                 Token::Keyword(Keyword::Mod) => {
                     let parsed_mod = ModuleParser::parse_decl(self);
@@ -310,6 +314,7 @@ impl<'a> Parser<'a> {
             Token::Keyword(Keyword::As) => Some(InfixParser::Cast),
             Token::LeftParen => Some(InfixParser::Call),
             Token::LeftBracket => Some(InfixParser::Index),
+            Token::LeftBrace => Some(InfixParser::Constructor),
             _ => None,
         }
     }

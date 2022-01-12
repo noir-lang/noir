@@ -179,7 +179,11 @@ fn resolve_functions(
                 local_id: mod_id,
                 krate: crate_id,
             });
-            let resolver = Resolver::new(interner, &func_resolver, def_maps);
+
+            // TODO: Add struct mapping
+            let structs = HashMap::new();
+
+            let resolver = Resolver::new(interner, &func_resolver, def_maps, &structs);
 
             match resolver.resolve_function(func) {
                 Ok((hir_func, func_meta)) => {

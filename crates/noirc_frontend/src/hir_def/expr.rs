@@ -1,7 +1,7 @@
 use acvm::FieldElement;
 use noirc_errors::Span;
 
-use crate::node_interner::{ExprId, FuncId, IdentId, StmtId};
+use crate::node_interner::{ExprId, FuncId, IdentId, StmtId, TypeId};
 use crate::{BinaryOp, BinaryOpKind, Type, UnaryOp};
 #[derive(Debug, Clone)]
 pub enum HirExpression {
@@ -11,6 +11,7 @@ pub enum HirExpression {
     Prefix(HirPrefixExpression),
     Infix(HirInfixExpression),
     Index(HirIndexExpression),
+    Constructor(HirConstructorExpression),
     Call(HirCallExpression),
     Cast(HirCastExpression),
     Predicate(HirInfixExpression),
@@ -165,6 +166,13 @@ pub struct HirCallExpression {
     pub func_id: FuncId,
     pub arguments: Vec<ExprId>,
 }
+
+#[derive(Debug, Clone)]
+pub struct HirConstructorExpression {
+    pub type_id: TypeId,
+    pub fields: Vec<(IdentId, ExprId)>,
+}
+
 #[derive(Debug, Clone)]
 pub struct HirIndexExpression {
     pub collection_name: IdentId,

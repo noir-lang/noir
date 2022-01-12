@@ -5,6 +5,7 @@ mod constrain;
 mod declaration;
 mod for_loop;
 mod function;
+pub mod structure;
 mod group;
 mod if_expr;
 mod literal;
