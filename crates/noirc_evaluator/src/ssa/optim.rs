@@ -36,7 +36,7 @@ pub fn unroll_block(join_id: Index, eval: &mut ParsingContext) {
                     node::NodeObj::Instr(i) => {
                         let new_left = get_current_value(i.lhs, &eval_map).to_index().unwrap();
                         let new_right = get_current_value(i.rhs, &eval_map).to_index().unwrap();
-                        let new_ins = node::Instruction::new(
+                        let mut new_ins = node::Instruction::new(
                             i.operator,
                             new_left,
                             new_right,
@@ -48,15 +48,12 @@ pub fn unroll_block(join_id: Index, eval: &mut ParsingContext) {
                             //To support assignments, we should create a new variable and updates the eval_map with it
                             //however assignments should have already been removed by copy propagation.
                         } else {
-                            //we do some constant folding here because the iterator is a constant, however this
-                            // should be built-in whenever we generate an instruction...TODO
-                            let lhs = get_current_value(i.lhs, &eval_map);
-                            let lhr = get_current_value(i.rhs, &eval_map);
-                            let result = i.evaluate(&to_const(eval, lhs), &to_const(eval, lhr));
+                            simplify(eval, &mut new_ins);
                             let result_id;
-                            if let Some(_) = result.to_const_value() {
-                                result_id = to_index(eval, result);
-                            } else {
+                            if new_ins.is_deleted {
+                                result_id = new_ins.rhs;
+                            }
+                            else{
                                 result_id = eval.nodes.insert(node::NodeObj::Instr(new_ins));
                                 new_instructions_id.push(result_id);
                             }
@@ -130,18 +127,22 @@ fn to_index(eval: &mut ParsingContext, obj: node::NodeEval) -> Index {
 }
 
 // If NodeEval refers to a constant NodeObj, we return a constant NodeEval
-fn to_const(eval: &ParsingContext, obj: node::NodeEval) -> node::NodeEval {
+pub fn to_const(eval: &ParsingContext, obj: node::NodeEval) -> node::NodeEval {
     match obj {
         node::NodeEval::Const(_, _) => obj,
         node::NodeEval::Idx(i) => {
-            let node_obj = eval.get_object(i).unwrap();
-            match node_obj {
-                node::NodeObj::Const(c) => node::NodeEval::Const(
-                    FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be()),
-                    c.get_type(),
-                ),
-                _ => obj,
+            if let Some(node_obj) = eval.get_object(i) {
+                match node_obj {
+                    node::NodeObj::Const(c) => {
+                        return node::NodeEval::Const(
+                            FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be()),
+                            c.get_type(),
+                        )
+                    }
+                    _ => (),
+                }
             }
+            return obj;
         }
     }
 }
@@ -293,4 +294,70 @@ pub fn unroll_tree(eval: &mut ParsingContext, b_idx: arena::Index) {
     for b in bd {
         unroll_block(b, eval);
     }
+}
+
+// Performs constant folding, arithmetic simplifications and move to standard form
+pub fn simplify(eval: &mut ParsingContext, ins: &mut node::Instruction) {
+    //1. constant folding
+    let l_eval = to_const(eval, node::NodeEval::Idx(ins.lhs));
+    let r_eval = to_const(eval, node::NodeEval::Idx(ins.rhs));
+    let result = ins.evaluate(&l_eval, &r_eval);
+    let mut result_idx = None;
+    match result {
+        NodeEval::Const(c, t) => result_idx = Some(eval.get_const(c, t)),
+        NodeEval::Idx(i) => {
+            if i != ins.idx {
+                result_idx = Some(i);
+            }
+        }
+    };
+    if let Some(idx) = result_idx {
+        ins.is_deleted = true;
+        ins.rhs = idx;
+        return;
+    }
+
+    //2. standard form
+    ins.standard_form();
+
+    //3. left-overs (it requires &mut eval)
+    if let NodeEval::Const(r_const, r_type) = r_eval {
+        match ins.operator {
+            node::Operation::udiv => {
+                //TODO handle other bitsize, not only u32!!
+                ins.rhs = eval.get_const(
+                    FieldElement::from((1_u32 / (r_const.to_u128() as u32)) as i128),
+                    r_type,
+                );
+                ins.operator = node::Operation::mul
+            }
+            node::Operation::sdiv => {
+                //TODO handle other bitsize, not only i32!!
+                ins.rhs = eval.get_const(
+                    FieldElement::from((1_i32 / (r_const.to_u128() as i32)) as i128),
+                    r_type,
+                );
+                ins.operator = node::Operation::mul
+            }
+            node::Operation::div => {
+                ins.rhs = eval.get_const(r_const.inverse(), r_type);
+                ins.operator = node::Operation::mul
+            }
+            node::Operation::xor => {
+                if !r_const.is_zero() {
+                    ins.operator = node::Operation::not;
+                    return;
+                }
+            }
+            _ => (),
+        }
+    }
+    if let NodeEval::Const(l_const, _) = l_eval {
+        if !l_const.is_zero() && ins.operator == node::Operation::xor {
+            ins.operator = node::Operation::not;
+            ins.lhs = ins.rhs;
+            return;
+        }
+    }
+    return;
 }

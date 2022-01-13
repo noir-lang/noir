@@ -676,7 +676,7 @@ impl Instruction {
                 }
             }
             Operation::phi => (), //Phi are simplified by simply_phi()
-            _ => todo!(),
+            _ => (),
             // Operation::fmod
             // Operation::fneg
             // Operation::fdiv
@@ -691,6 +691,7 @@ impl Instruction {
             // Operation::gte
             // Operation::cast =
             // Operation::trunc
+            // jumps, ass, nop => do not evaluate
             // Operation::ass => todo!(),
             // Operation::nop => todo!(),
         }
@@ -726,260 +727,67 @@ impl Instruction {
         return Some(ins_id);
     }
 
-    pub fn simplify<'a>(
-        &self,
-        lhs: &NodeObj,
-        rhs: &NodeObj,
-    ) -> (
-        Option<arena::Index>,
-        Option<FieldElement>,
-        Option<FieldElement>,
-    ) {
-        let mut r_is_zero = false;
-        let mut l_is_zero = false;
-        let mut l_constant = None;
-        let mut r_constant = None;
-        let mut r_bsize = 0;
-        let mut l_bsize = 0;
-        let mut l_sign = false; //TODO
-        match lhs {
-            NodeObj::Const(c) => {
-                l_is_zero = c.value == BigUint::zero();
-                let cv = Instruction::get_const_value(c);
-                l_constant = Some(cv.0);
-                l_bsize = cv.1;
-            }
-            _ => (),
-        }
-        match rhs {
-            NodeObj::Const(c) => {
-                r_is_zero = c.value == BigUint::zero();
-                let cv = Instruction::get_const_value(c);
-                r_constant = Some(cv.0);
-                r_bsize = cv.1;
-            }
-            _ => (),
-        }
-        let mut result = self;
+    pub fn standard_form<'a>(&mut self) {
         match self.operator {
-            Operation::add | Operation::sadd => {
-                if (r_is_zero) {
-                    return (Some(self.lhs), None, None);
-                } else if (l_is_zero) {
-                    return (Some(self.rhs), None, None);
-                } else
-                //constant folding - TODO - only for integers; NO modulo for field elements - May be we should have a different opcode for field addition?
-                if l_constant.is_some() && r_constant.is_some() {
-                    assert!(l_bsize == r_bsize);
-                    let res_value = (l_constant.unwrap() + r_constant.unwrap()) % l_bsize;
-                    return (None, Some(FieldElement::from(res_value as i128)), None);
-                }
-                //if only one is const, we could try to do constant propagation but this will be handled by the arithmetization step anyways
-                //so it is probably not worth it.
-                //same for x+x vs 2*x
-            }
-            Operation::sub | Operation::ssub => {
-                if (r_is_zero) {
-                    return (Some(self.lhs), None, None);
-                }
-                if self.lhs == self.rhs {
-                    return (None, Some(FieldElement::zero()), None);
-                }
-                //constant folding - TODO - only for integers; NO modulo for field elements - May be we should have a different opcode?
-                if l_constant.is_some() && r_constant.is_some() {
-                    assert!(l_bsize == r_bsize);
-                    let res_value = (l_constant.unwrap() - r_constant.unwrap()) % l_bsize;
-                    return (None, Some(FieldElement::from(res_value as i128)), None);
-                }
-            }
-            Operation::mul | Operation::smul => {
-                if (r_is_zero) {
-                    return (Some(self.rhs), None, None);
-                } else if (l_is_zero) {
-                    return (Some(self.lhs), None, None);
-                } else if l_constant.is_some() && l_constant.unwrap() == 1 {
-                    return (Some(self.rhs), None, None);
-                } else if r_constant.is_some() && r_constant.unwrap() == 1 {
-                    return (Some(self.lhs), None, None);
-                }
-                //constant folding - TODO - only for integers; NO modulo for field elements - May be we should have a different opcode?
-                else if l_constant.is_some() && r_constant.is_some() {
-                    assert!(l_bsize == r_bsize);
-                    let res_value = (l_constant.unwrap() * r_constant.unwrap()) % l_bsize;
-                    return (None, Some(FieldElement::from(res_value as i128)), None);
-                }
-                //if only one is const, we could try to do constant propagation but this will be handled by the arithmetization step anyways
-                //so it is probably not worth it.
-            }
-            Operation::udiv | Operation::sdiv | Operation::div => {
-                if r_is_zero {
-                    todo!("Panic - division by zero");
-                } else if l_is_zero {
-                    return (Some(self.lhs), None, None); //TODO should we ensure rhs != 0 ???
-                }
-                //else if r_constant.is_some() {
-                //TODO same as lhs*1/r
-                //return (Some(self.lhs), None, None);
-                //}
-                //constant folding - TODO
-                else if l_constant.is_some() && r_constant.is_some() {
-                    todo!();
-                }
-            }
-            Operation::urem | Operation::srem => {
-                if r_is_zero {
-                    todo!("Panic - division by zero");
-                } else if l_is_zero {
-                    return (Some(self.lhs), None, None); //TODO what is the correct result? and should we ensure rhs != 0 ???
-                }
-                //constant folding - TODO
-                else if l_constant.is_some() && r_constant.is_some() {
-                    todo!();
-                }
+            //convert greater into less
+            Operation::ugt => {
+                let r = self.rhs;
+                self.rhs = self.lhs;
+                self.lhs = r;
+                self.operator = Operation::ult
             }
             Operation::uge => {
-                if r_is_zero {
-                    return (None, Some(FieldElement::zero()), None);
-                    //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
-                } else if l_constant.is_some() && r_constant.is_some() {
-                    let res = if l_constant.unwrap() >= r_constant.unwrap() {
-                        FieldElement::one()
-                    } else {
-                        FieldElement::zero()
-                    };
-                    return (Some(self.lhs), None, Some(res));
-                }
+                let r = self.rhs;
+                self.rhs = self.lhs;
+                self.lhs = r;
+                self.operator = Operation::ule
             }
-            Operation::ult => {
-                if r_is_zero {
-                    return (None, None, Some(FieldElement::zero()));
-                    //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
-                } else if l_constant.is_some() && r_constant.is_some() {
-                    let res = if l_constant.unwrap() < r_constant.unwrap() {
-                        FieldElement::one()
-                    } else {
-                        FieldElement::zero()
-                    };
-                    return (Some(self.lhs), None, Some(res));
-                }
+            Operation::sgt => {
+                let r = self.rhs;
+                self.rhs = self.lhs;
+                self.lhs = r;
+                self.operator = Operation::slt
             }
-            Operation::ule => {
-                if l_is_zero {
-                    return (None, None, Some(FieldElement::one()));
-                    //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
-                } else if l_constant.is_some() && r_constant.is_some() {
-                    let res = if l_constant.unwrap() <= r_constant.unwrap() {
-                        FieldElement::one()
-                    } else {
-                        FieldElement::zero()
-                    };
-                    return (Some(self.lhs), None, Some(res));
-                }
+            Operation::sge => {
+                let r = self.rhs;
+                self.rhs = self.lhs;
+                self.lhs = r;
+                self.operator = Operation::sle
             }
-            Operation::ugt => {
-                if l_is_zero {
-                    return (None, None, Some(FieldElement::zero())); // u<0 is false for unsigned u
-                                                                     //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
-                } else if l_constant.is_some() && r_constant.is_some() {
-                    let res = if l_constant.unwrap() > r_constant.unwrap() {
-                        FieldElement::one()
-                    } else {
-                        FieldElement::zero()
-                    };
-                    return (Some(self.lhs), None, Some(res));
-                }
+            Operation::gt => {
+                let r = self.rhs;
+                self.rhs = self.lhs;
+                self.lhs = r;
+                self.operator = Operation::lt
             }
-            Operation::eq => {
-                if self.lhs == self.rhs {
-                    return (None, None, Some(FieldElement::one()));
-                } else if l_constant.is_some() && r_constant.is_some() {
-                    if l_constant.unwrap() == r_constant.unwrap() {
-                        return (None, None, Some(FieldElement::one()));
-                    } else {
-                        return (None, None, Some(FieldElement::zero()));
-                    }
-                }
+            Operation::gte => {
+                let r = self.rhs;
+                self.rhs = self.lhs;
+                self.lhs = r;
+                self.operator = Operation::lte
             }
-            Operation::ne => {
-                if l_constant.is_some() && r_constant.is_some() {
-                    if r_constant.unwrap() != l_constant.unwrap() {
-                        return (None, None, Some(FieldElement::one()));
-                    } else {
-                        return (None, None, Some(FieldElement::zero()));
-                    }
-                }
-            }
-            Operation::and => {
-                if l_is_zero {
-                    return (Some(self.lhs), None, None);
-                } else if r_is_zero {
-                    return (Some(self.rhs), None, None);
-                } else if l_constant.is_some() {
-                    return (Some(self.rhs), None, None);
-                } else if r_constant.is_some() {
-                    return (Some(self.lhs), None, None);
-                } else if self.lhs == self.rhs {
-                    return (Some(self.lhs), None, None);
-                }
-            }
-            Operation::or => {
-                if l_is_zero {
-                    return (Some(self.rhs), None, None);
-                } else if r_is_zero {
-                    return (Some(self.lhs), None, None);
-                } else if l_constant.is_some() {
-                    return (Some(self.lhs), None, None);
-                } else if r_constant.is_some() {
-                    return (Some(self.rhs), None, None);
-                } else if self.lhs == self.rhs {
-                    return (Some(self.lhs), None, None);
-                }
-            }
-            Operation::not => {
-                if l_is_zero {
-                    return (None, None, Some(FieldElement::one()));
-                } else if l_constant.is_some() {
-                    return (None, None, Some(FieldElement::zero()));
-                }
-            }
-            Operation::xor => {
-                if self.lhs == self.rhs {
-                    return (None, None, Some(FieldElement::zero()));
-                }
-                if l_is_zero {
-                    return (Some(self.rhs), None, None);
-                }
-                if r_is_zero {
-                    return (Some(self.lhs), None, None);
-                } else if l_constant.is_some() && r_constant.is_some() {
-                    return (None, None, Some(FieldElement::zero()));
-                } else if l_constant.is_some() {
-                    todo!();
-                    //TODO generate 'not rhs' instruction
-                } else if r_constant.is_some() {
-                    todo!();
-                    ////TODO generate 'not lhs' instruction
-                }
-            }
-            _ => todo!(),
-            // Operation::fmod
-            // Operation::fneg
-            // Operation::fdiv
+            //TODO replace a<b with a<=b+1, but beware of edge cases!
 
-            // Operation::sgt
-            // Operation::sge
-            // Operation::slt
-            // Operation::sle
-
-            // Operation::gt
-            // Operation::lte
-            // Operation::gte
-            // Operation::cast =
-            // Operation::trunc
-            // Operation::ass => todo!(),
-            // Operation::nop => todo!(),
+            //commutativity
+            Operation::add
+            | Operation::sadd
+            | Operation::mul
+            | Operation::smul
+            | Operation::and
+            | Operation::or => {
+                if self.rhs < self.lhs {
+                    let r = self.rhs;
+                    self.rhs = self.lhs;
+                    self.lhs = r;
+                }
+            }
+            _ => (),
         }
-        return (Some(self.idx), None, None);
+        if is_commutative(self.operator) && self.rhs < self.lhs {
+            let r = self.rhs;
+            self.rhs = self.lhs;
+            self.lhs = r;
+        }
     }
 }
 
@@ -1031,6 +839,19 @@ pub enum Operation {
     nop, // no op
 
          //memory todo: load, store, getelementptr?
+}
+
+pub fn is_commutative(op_code: Operation) -> bool {
+    match op_code {
+        Operation::add
+        | Operation::sadd
+        | Operation::mul
+        | Operation::smul
+        | Operation::and
+        | Operation::or
+        | Operation::xor => true,
+        _ => false,
+    }
 }
 
 pub fn is_binary(op_code: Operation) -> bool {

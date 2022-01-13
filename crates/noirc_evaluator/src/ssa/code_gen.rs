@@ -1,4 +1,5 @@
 use super::node;
+use super::optim;
 use std::collections::{HashMap, VecDeque};
 use std::ops::Add;
 
@@ -325,16 +326,15 @@ impl<'a> ParsingContext<'a> {
         optype: node::ObjectType,
     ) -> arena::Index {
         //Add a new instruction to the nodes arena
-        let id0 = self.dummy();
         let cb = self.get_current_block();
 
-        let i = node::Instruction::new(opcode, lhs, rhs, optype, Some(cb.idx));
+        let mut i = node::Instruction::new(opcode, lhs, rhs, optype, Some(cb.idx));
+        //Basic simplification
+        optim::simplify(self, &mut i);
+        if i.is_deleted {
+            return i.rhs;
+        }
         self.add_object2(node::NodeObj::Instr(i))
-        // i = i.simplify();  TODO uncomment and make it work
-        // if (i.idx == id0) {
-        //     self.add_object2(node::NodeObj::Instr(i))
-        // }
-        //i.idx
     }
 
     pub fn get_const(&mut self, x: FieldElement, t: node::ObjectType) -> arena::Index {
@@ -396,7 +396,7 @@ impl<'a> ParsingContext<'a> {
                 node::NodeObj::Obj(o) => {
                     return self.get_current_value(&o);
                 }
-                _ => todo!(), //Err 
+                _ => todo!(), //Err
             }
         }
         //Current value is taken from the value_array, we do not use anymore the cur_value of the variable because it was painfull to update due to rust ownership
@@ -534,18 +534,19 @@ impl<'a> ParsingContext<'a> {
         while b.unwrap().left.is_some() {
             let r = b.unwrap().left.unwrap();
             b = self.blocks.get(r);
-            if let Some(b) = self.blocks.get(r)  {
-                if  let Some(dom_b_idx) = b.dominator {
-                if self.get_block(dom_b_idx).is_some(){
-                    if rira.contains_key(&dom_b_idx) {
-                        let mut v = rira[&dom_b_idx].clone(); //TODO can we avoid it?
-                        v.push(r);
-                        rira.insert(dom_b_idx, v);
-                    } else {
-                        rira.insert(dom_b_idx, [r].to_vec());
+            if let Some(b) = self.blocks.get(r) {
+                if let Some(dom_b_idx) = b.dominator {
+                    if self.get_block(dom_b_idx).is_some() {
+                        if rira.contains_key(&dom_b_idx) {
+                            let mut v = rira[&dom_b_idx].clone(); //TODO can we avoid it?
+                            v.push(r);
+                            rira.insert(dom_b_idx, v);
+                        } else {
+                            rira.insert(dom_b_idx, [r].to_vec());
+                        }
                     }
                 }
-            }}
+            }
         }
         //RIA
         for (master, svec) in rira {
@@ -629,9 +630,7 @@ impl<'a> ParsingContext<'a> {
         }
 
         for iter in block_list {
-           // let ins = self.get_as_instruction(*iter);
             if let Some(ins) = self.get_as_instruction(*iter)
-            //if ins.is_some() 
             {
                 let mut to_delete = false;
                 let mut i_lhs = ins.lhs.clone();
@@ -653,7 +652,8 @@ impl<'a> ParsingContext<'a> {
                         i_rhs = j.unwrap();
                     } else {
                         new_list.push(*iter);
-                        anchor.get_mut(&ins.operator).unwrap().push_front(*iter); //TODO - Take into account store and load for arrays
+                        anchor.get_mut(&ins.operator).unwrap().push_front(*iter);
+                        //TODO - Take into account store and load for arrays
                     }
                 } else if ins.operator == node::Operation::ass {
                     //assignement
@@ -667,9 +667,7 @@ impl<'a> ParsingContext<'a> {
                             to_update_phi = true;
                         }
                     }
-                    if let Some(first) =
-                        node::Instruction::simplify_one_phi(ins.idx, &phi_args)
-                    {
+                    if let Some(first) = node::Instruction::simplify_one_phi(ins.idx, &phi_args) {
                         if first == ins.idx {
                             new_list.push(*iter);
                         } else {
