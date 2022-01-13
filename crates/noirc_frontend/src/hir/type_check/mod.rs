@@ -249,12 +249,13 @@ mod test {
         }
 
         let def_maps: HashMap<CrateId, CrateDefMap> = HashMap::new();
+        let structs = HashMap::new();
 
         let func_meta: Vec<_> = program
             .functions
             .into_iter()
             .map(|nf| {
-                let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps);
+                let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, &structs);
                 resolver.resolve_function(nf).unwrap()
             })
             .collect();

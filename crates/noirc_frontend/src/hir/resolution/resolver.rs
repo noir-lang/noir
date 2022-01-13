@@ -17,8 +17,9 @@ struct ResolverMeta {
     id: IdentId,
 }
 use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
 
-use crate::{NoirStruct, Path};
+use crate::{Path, StructType};
 use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId};
 use crate::hir_def::expr::HirConstructorExpression;
@@ -60,7 +61,7 @@ pub struct Resolver<'a> {
     def_maps: &'a HashMap<CrateId, CrateDefMap>,
 
     //TODO: Is this needed or can we use def_maps or the path_resolver to store structs?
-    structs: &'a HashMap<TypeId, NoirStruct>,
+    structs: &'a HashMap<TypeId, Rc<StructType>>,
 
     interner: &'a mut NodeInterner,
 
@@ -72,7 +73,7 @@ impl<'a> Resolver<'a> {
         interner: &'a mut NodeInterner,
         path_resolver: &'a dyn PathResolver,
         def_maps: &'a HashMap<CrateId, CrateDefMap>,
-        structs: &'a HashMap<TypeId, NoirStruct>,
+        structs: &'a HashMap<TypeId, Rc<StructType>>,
     ) -> Resolver<'a> {
         Self {
             path_resolver,
@@ -420,13 +421,19 @@ impl<'a> Resolver<'a> {
                 let span = constructor.type_name.span();
                 let type_id = self.lookup_type(constructor.type_name);
                 let fields = self.resolve_constructor_fields(type_id, constructor.fields, span);
-                let expr = HirConstructorExpression { type_id, fields };
+                let r#type = self.struct_type(type_id);
+                let expr = HirConstructorExpression { type_id, fields, r#type };
                 self.interner.push_expr(HirExpression::Constructor(expr))
             },
         };
 
         self.interner.push_expr_span(expr_id, expr.span);
         expr_id
+    }
+
+    /// Retrieves the corresponding StructType for a given struct TypeId.
+    fn struct_type(&self, type_id: TypeId) -> Rc<StructType> {
+        self.structs[&type_id].clone()
     }
 
     /// Resolve all the fields of a struct constructor expression.
@@ -476,7 +483,7 @@ impl<'a> Resolver<'a> {
         ret
     }
 
-    fn get_struct(&self, type_id: TypeId) -> &NoirStruct {
+    fn get_struct(&self, type_id: TypeId) -> &StructType {
         self.structs.get(&type_id).unwrap()
     }
 

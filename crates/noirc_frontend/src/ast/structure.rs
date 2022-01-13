@@ -3,7 +3,7 @@ use noirc_errors::Span;
 use crate::{Ident, Type};
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NoirStruct {
     pub name: Ident,
     pub fields: Vec<(Ident, Type)>,
@@ -15,3 +15,4 @@ impl NoirStruct {
         NoirStruct { name, fields, span }
     }
 }
+

@@ -5,8 +5,11 @@ mod statement;
 mod function;
 mod structure;
 
+use std::rc::Rc;
+
 pub use expression::*;
 pub use function::*;
+use noirc_errors::Span;
 pub use structure::*;
 use noirc_abi::{AbiFEType, AbiType};
 pub use statement::*;
@@ -89,6 +92,21 @@ impl std::fmt::Display for FieldElementType {
     }
 }
 
+#[derive(Debug, Eq)]
+pub struct StructType {
+    pub id: TypeId,
+    pub name: Ident,
+    pub fields: Vec<(Ident, Type)>,
+    pub span: Span,
+}
+
+impl PartialEq for StructType {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {
     FieldElement(FieldElementType),
@@ -96,9 +114,8 @@ pub enum Type {
     Integer(FieldElementType, Signedness, u32),    // u32 = Integer(unsigned, 32)
     Bool,
     Unit,
-    Struct(TypeId),
+    Struct(Rc<StructType>),
 
-    Error,       // XXX: Currently have not implemented structs, so this type is a stub
     Unspecified, // This is for when the user declares a variable without specifying it's type
     Unknown, // This is mainly used for array literals, where the parser cannot figure out the type for the literal
 }
@@ -126,10 +143,9 @@ impl std::fmt::Display for Type {
                 Signedness::Signed => write!(f, "{} i{}", fe_type, num_bits),
                 Signedness::Unsigned => write!(f, "{} u{}", fe_type, num_bits),
             },
-            Type::Struct(id) => todo!("Now we need a context parameter for structs"),
+            Type::Struct(s) => write!(f, "{}", s.name.as_str()),
             Type::Bool => write!(f, "bool"),
             Type::Unit => write!(f, "()"),
-            Type::Error => write!(f, "Error"),
             Type::Unspecified => write!(f, "unspecified"),
             Type::Unknown => write!(f, "unknown"),
         }
@@ -186,21 +202,17 @@ impl Type {
     /// Arrays and Structs will be the only data structures to return more than one
 
     pub fn num_elements(&self) -> usize {
-        let arr_size = match self {
-            Type::Array(_, size, _) => size,
-            Type::Struct(_) => todo!("Getting the elements of a struct requires context"),
+        match self {
+            Type::Array(_, ArraySize::Fixed(fixed_size), _) => *fixed_size as usize,
+            Type::Array(_, ArraySize::Variable, _) =>
+                unreachable!("ice : this method is only ever called when we want to compare the prover inputs with the ABI in main. The ABI should not have variable input. The program should be compiled before calling this"),
+            Type::Struct(s) => s.fields.len(),
             Type::FieldElement(_)
             | Type::Integer(_, _, _)
             | Type::Bool
-            | Type::Error
             | Type::Unspecified
             | Type::Unknown
             | Type::Unit => return 1,
-        };
-
-        match arr_size {
-            ArraySize::Variable => unreachable!("ice : this method is only ever called when we want to compare the prover inputs with the ABI in main. The ABI should not have variable input. The program should be compiled before calling this"),
-            ArraySize::Fixed(fixed_size) => *fixed_size as usize
         }
     }
 
@@ -306,7 +318,6 @@ impl Type {
                 }
             }
             Type::Bool => panic!("currently, cannot have a bool in the entry point function"),
-            Type::Error => unreachable!(),
             Type::Unspecified => unreachable!(),
             Type::Unknown => unreachable!(),
             Type::Unit => unreachable!(),

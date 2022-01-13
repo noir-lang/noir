@@ -1,8 +1,10 @@
+use std::rc::Rc;
+
 use acvm::FieldElement;
 use noirc_errors::Span;
 
 use crate::node_interner::{ExprId, FuncId, IdentId, StmtId, TypeId};
-use crate::{BinaryOp, BinaryOpKind, Type, UnaryOp};
+use crate::{BinaryOp, BinaryOpKind, StructType, Type, UnaryOp};
 #[derive(Debug, Clone)]
 pub enum HirExpression {
     Ident(IdentId),
@@ -170,6 +172,13 @@ pub struct HirCallExpression {
 #[derive(Debug, Clone)]
 pub struct HirConstructorExpression {
     pub type_id: TypeId,
+    pub r#type: Rc<StructType>,
+
+    // NOTE: It is tempting to make this a BTreeSet to force ordering of field
+    //       names (and thus remove the need to normalize them during type checking)
+    //       but doing so would force the order of evaluation of field
+    //       arguments to be alphabetical rather than the ordering the user
+    //       included in the source code.
     pub fields: Vec<(IdentId, ExprId)>,
 }
 
