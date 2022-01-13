@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 
 acvm = { path = "../acvm", features = ["bn254"] }
-barretenberg_wrapper = { git = "https://github.com/AztecProtocol/barretenberg", branch = "kw/noir-dsl-mac-suppress-error" }
+barretenberg_wrapper = { git = "https://github.com/AztecProtocol/barretenberg", branch = "kw/noir-dsl-mac" }
 
 sha2 = "0.9.3"
 blake2 = "0.9.1"
