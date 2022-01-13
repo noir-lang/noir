@@ -158,6 +158,29 @@ class join_split_tests : public ::testing::Test {
         return tx;
     }
 
+    join_split_tx setup_defi_case_5()
+    {
+        join_split_tx tx = simple_setup({ 0, 4 });
+        tx.proof_id = ProofIds::DEFI_DEPOSIT;
+        tx.claim_note.deposit_value = 90;
+        tx.claim_note.input_nullifier = tx.output_note[0].input_nullifier;
+
+        bridge_id bridge_id = { 0,
+                                tx.asset_id,
+                                0,
+                                0,
+                                defi_interaction_nonce,
+                                { .first_input_asset_virtual = false,
+                                  .second_input_asset_virtual = true,
+                                  .first_output_asset_virtual = false,
+                                  .second_output_asset_virtual = false,
+                                  .second_input_valid = false,
+                                  .second_output_valid = false } };
+        tx.claim_note.bridge_id = bridge_id.to_uint256_t();
+
+        return tx;
+    }
+
     /**
      * Return a join split tx with 0-valued input notes.
      */
@@ -721,6 +744,24 @@ TEST_F(join_split_tests, test_invalid_bridge_id)
     join_split_tx tx = simple_setup();
     tx.proof_id = ProofIds::DEFI_DEPOSIT;
     tx.claim_note.deposit_value = 1;
+
+    auto result = sign_and_verify_logic(tx, user.owner.private_key);
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(result.err, "asset ids don't match");
+}
+
+TEST_F(join_split_tests, test_defi_deposit)
+{
+    join_split_tx tx = setup_defi_case_5();
+
+    auto result = sign_and_verify_logic(tx, user.owner.private_key);
+    EXPECT_TRUE(result.valid);
+}
+
+TEST_F(join_split_tests, test_defi_invalid_tx_fee_asset_id_fails)
+{
+    join_split_tx tx = setup_defi_case_5();
+    tx.asset_id = 666;
 
     auto result = sign_and_verify_logic(tx, user.owner.private_key);
     EXPECT_FALSE(result.valid);

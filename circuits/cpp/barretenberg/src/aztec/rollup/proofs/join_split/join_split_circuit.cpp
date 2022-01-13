@@ -71,6 +71,7 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
     // Check public value and owner are not zero for deposit and withdraw, otherwise they must be zero.
     (is_public_tx == inputs.public_value.is_zero()).assert_equal(false, "public value incorrect");
     (is_public_tx == inputs.public_owner.is_zero()).assert_equal(false, "public owner incorrect");
+
     // Circuit operates in one of several cases. Assert we're only in one of these cases and rules apply.
     {
         // Case 0: 0 input notes, all notes have same asset ids, can only DEPOSIT.
@@ -83,8 +84,9 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
         const auto case3 = input_note1.is_virtual && !inote2_valid;
         // Case 4: 2 virtual asset notes, all notes have same asset ids, can only SEND.
         const auto case4 = input_note1.is_virtual && input_note2.is_virtual && inote2_valid;
-        // Case 5: 1st note real, 2nd note virtual, different input asset ids allowed, values equal, can only
-        // DEFI_DEPOSIT, virtual notes interaction nonce must match that in the bridge id.
+        // Case 5: 1st note real, 2nd note virtual, different input asset ids allowed, fee asset id must equal
+        // real input not asset id, values equal, can only DEFI_DEPOSIT, virtual notes interaction nonce must
+        // match that in the bridge id.
         const auto case5 = !input_note1.is_virtual && input_note2.is_virtual && inote2_valid;
 
         // Check we are exactly one of the defined cases.
@@ -111,7 +113,8 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
                              bridge_id_data.config.second_input_asset_virtual,
                          "can only defi deposit");
         case5.must_imply(inote1_value == inote2_value, "input note values must match");
-        case5.must_imply(input_note1.asset_id == output_note1_assetId && input_note1.asset_id == output_note2.asset_id,
+        case5.must_imply(input_note1.asset_id == output_note1_assetId &&
+                             input_note1.asset_id == output_note2.asset_id && input_note1.asset_id == inputs.asset_id,
                          "asset ids don't match");
         case5.must_imply(bridge_id_data.opening_nonce == input_note2.virtual_note_nonce,
                          "incorrect interaction nonce in bridge id");
