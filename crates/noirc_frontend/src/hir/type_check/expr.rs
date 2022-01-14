@@ -1,11 +1,4 @@
-use crate::{
-    hir_def::{
-        expr::{HirBinaryOp, HirExpression, HirLiteral},
-        function::Param,
-        stmt::HirStatement,
-    },
-    ArraySize, Type,
-};
+use crate::{ArraySize, Type, hir_def::{expr::{self, HirBinaryOp, HirExpression, HirLiteral}, function::Param, stmt::HirStatement}};
 use crate::{
     node_interner::{ExprId, NodeInterner, StmtId},
     FieldElementType,
@@ -114,8 +107,7 @@ pub(crate) fn type_check_expression(
             type_check_expression(interner, &infix_expr.rhs)?;
             let rhs_type = interner.id_type(&infix_expr.rhs);
 
-            let result_type = infix_operand_type_rules(&lhs_type, &infix_expr.operator, &rhs_type);
-            match result_type {
+            match infix_operand_type_rules(&lhs_type, &infix_expr.operator, &rhs_type) {
                 Ok(typ) => interner.push_expr_type(expr_id, typ),
                 Err(string) => {
                     let lhs_span = interner.expr_span(&infix_expr.lhs);
@@ -278,7 +270,7 @@ pub(crate) fn type_check_expression(
 
             for ((param_id, param_type), (arg_id, arg)) in typ.fields.iter().zip(args) {
                 // Sanity check to ensure we're matching against the same field
-                assert_eq!(param_id.as_str(), interner.ident(&arg_id).as_str());
+                assert_eq!(param_id, &interner.ident(&arg_id));
 
                 type_check_expression(interner, &arg)?;
                 let arg_type = interner.id_type(arg);
@@ -293,6 +285,7 @@ pub(crate) fn type_check_expression(
                 }
             }
         },
+        HirExpression::MemberAccess(access) => check_member_access(access, expr_id, interner)?,
     };
     Ok(())
 }
@@ -351,6 +344,27 @@ pub fn infix_operand_type_rules(
         (Type::Bool, _) | (_,Type::Bool) => Ok(Type::Bool),
         //
         (Type::FieldElement(FieldElementType::Constant), Type::FieldElement(FieldElementType::Constant))  => Ok(Type::FieldElement(FieldElementType::Constant)),
+    }
+}
+
+pub fn check_member_access(access: expr::HirMemberAccess, expr_id: &ExprId, interner: &mut NodeInterner) -> Result<(), TypeCheckError> {
+    type_check_expression(interner, &access.lhs)?;
+    let lhs_type = interner.id_type(&access.lhs);
+
+    match lhs_type {
+        Type::Struct(s) => {
+            // unwrapping here should be fine, the field should be guarenteed to be within the
+            // struct following name resolution
+            let field = s.fields.iter().find(|(name, _)| name == &access.rhs).unwrap();
+            interner.push_expr_type(expr_id, field.1.clone());
+            Ok(())
+        }
+        _ => {
+            Err(TypeCheckError::Unstructured {
+                msg: format!("Type {} has no member named {}", lhs_type, access.rhs),
+                span: interner.expr_span(&access.lhs),
+            })
+        }
     }
 }
 

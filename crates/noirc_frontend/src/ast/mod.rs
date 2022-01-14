@@ -143,7 +143,7 @@ impl std::fmt::Display for Type {
                 Signedness::Signed => write!(f, "{} i{}", fe_type, num_bits),
                 Signedness::Unsigned => write!(f, "{} u{}", fe_type, num_bits),
             },
-            Type::Struct(s) => write!(f, "{}", s.name.as_str()),
+            Type::Struct(s) => write!(f, "{}", s.name),
             Type::Bool => write!(f, "bool"),
             Type::Unit => write!(f, "()"),
             Type::Unspecified => write!(f, "unspecified"),

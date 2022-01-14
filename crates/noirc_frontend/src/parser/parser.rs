@@ -295,6 +295,7 @@ impl<'a> Parser<'a> {
             _ => None,
         }
     }
+
     fn choose_infix_parser(&self) -> Option<InfixParser> {
         match self.peek_token.token() {
             Token::Plus
@@ -310,6 +311,7 @@ impl<'a> Parser<'a> {
             | Token::GreaterEqual
             | Token::Equal
             | Token::Assign
+            | Token::Dot
             | Token::NotEqual => Some(InfixParser::Binary),
             Token::Keyword(Keyword::As) => Some(InfixParser::Cast),
             Token::LeftParen => Some(InfixParser::Call),

@@ -154,6 +154,7 @@ impl<'a> Evaluator<'a> {
                 let err = RuntimeErrorKind::Unimplemented("The Or operation is currently not implemented. First implement in Barretenberg.".to_owned());
                 Err(err)
             }
+            HirBinaryOpKind::MemberAccess => todo!("Member access for structs is unimplemented in the noir backend"),
         }.map_err(|kind|kind.add_span(op.span))
     }
 
@@ -622,6 +623,7 @@ impl<'a> Evaluator<'a> {
             HirExpression::Literal(_) => todo!(),
             HirExpression::Block(_) => todo!("currently block expressions not in for/if branches are not being evaluated. In the future, we should be able to unify the eval_block and all places which require block_expr here"),
             HirExpression::Constructor(_) => todo!(),
+            HirExpression::MemberAccess(_) => todo!(),
         }
     }
 

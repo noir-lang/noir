@@ -56,11 +56,13 @@ impl From<Ident> for ExpressionKind {
     }
 }
 
-impl Ident {
-    pub fn as_str(&self) -> &str {
-        &self.0.contents
+impl std::fmt::Display for Ident {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", &self.0.contents)
     }
+}
 
+impl Ident {
     pub fn span(&self) -> Span {
         self.0.span()
     }

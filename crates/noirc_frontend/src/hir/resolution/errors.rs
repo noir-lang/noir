@@ -33,23 +33,17 @@ pub enum ResolverError {
         got: String,
     },
     #[error("Duplicate field in constructor")]
-    DuplicateField {
-        span: Span,
-        field: String,
-    },
+    DuplicateField { field: Ident },
     #[error("No such field in struct")]
     NoSuchField {
-        span: Span,
-        field: String,
-        struct_name: String,
-        struct_span: Span,
+        field: Ident,
+        struct_definition: Ident,
     },
     #[error("Missing fields from struct")]
     MissingFields {
         span: Span,
-        fields: Vec<String>,
-        struct_name: String,
-        struct_span: Span,
+        missing_fields: Vec<String>,
+        struct_definition: Ident,
     },
 }
 
@@ -128,32 +122,32 @@ impl ResolverError {
                 String::new(),
                 span,
             ),
-            ResolverError::DuplicateField { span, field } => Diagnostic::simple_error(
+            ResolverError::DuplicateField { field } => Diagnostic::simple_error(
                 format!("duplicate field {}", field),
                 String::new(),
-                span,
+                field.span(),
             ),
-            ResolverError::NoSuchField { span, field, struct_name, struct_span } => {
+            ResolverError::NoSuchField { field, struct_definition } => {
                 let mut error = Diagnostic::simple_error(
-                    format!("no such field {} defined in struct {}", field, struct_name),
+                    format!("no such field {} defined in struct {}", field, struct_definition),
                     String::new(),
-                    span,
+                    field.span(),
                 );
 
-                error.add_secondary(format!("{} defined here with no {} field", struct_name, field), struct_span);
+                error.add_secondary(format!("{} defined here with no {} field", struct_definition, field), struct_definition.span());
                 error
             }
-            ResolverError::MissingFields { span, fields, struct_name, struct_span } => {
-                let plural = if fields.len() != 1 { "s" } else { "" };
-                let fields = fields.join(", ");
+            ResolverError::MissingFields { span, missing_fields, struct_definition } => {
+                let plural = if missing_fields.len() != 1 { "s" } else { "" };
+                let missing_fields = missing_fields.join(", ");
 
                 let mut error = Diagnostic::simple_error(
-                    format!("missing field{}: {}", plural, fields),
+                    format!("missing field{}: {}", plural, missing_fields),
                     String::new(),
                     span,
                 );
 
-                error.add_secondary(format!("{} defined here", struct_name), struct_span);
+                error.add_secondary(format!("{} defined here", struct_definition), struct_definition.span());
                 error
             }
         }

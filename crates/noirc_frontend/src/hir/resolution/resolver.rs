@@ -22,7 +22,7 @@ use std::rc::Rc;
 use crate::{Path, StructType};
 use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId};
-use crate::hir_def::expr::HirConstructorExpression;
+use crate::hir_def::expr::{HirConstructorExpression, HirMemberAccess};
 use crate::hir_def::stmt::HirAssignStatement;
 use crate::node_interner::{ExprId, FuncId, TypeId, IdentId, NodeInterner, StmtId};
 use crate::{
@@ -425,6 +425,11 @@ impl<'a> Resolver<'a> {
                 let expr = HirConstructorExpression { type_id, fields, r#type };
                 self.interner.push_expr(HirExpression::Constructor(expr))
             },
+            ExpressionKind::MemberAccess(access) => {
+                let lhs = self.resolve_expression(access.lhs);
+                let expr = HirMemberAccess { lhs, rhs: access.rhs };
+                self.interner.push_expr(HirExpression::MemberAccess(expr))
+            },
         };
 
         self.interner.push_expr_span(expr_id, expr.span);
@@ -445,25 +450,19 @@ impl<'a> Resolver<'a> {
         let mut unseen_fields = self.get_field_names_of_type(type_id);
 
         for (field, expr) in fields {
-            let field_name = field.as_str();
             let expr_id = self.resolve_expression(expr);
 
-            if unseen_fields.contains(field_name) {
-                unseen_fields.remove(field_name);
-                seen_fields.insert(field_name.to_owned());
-            } else if seen_fields.contains(field_name) {
+            if unseen_fields.contains(&field) {
+                unseen_fields.remove(&field);
+                seen_fields.insert(field.clone());
+            } else if seen_fields.contains(&field) {
                 // duplicate field
-                self.push_err(ResolverError::DuplicateField {
-                    field: field_name.to_owned(),
-                    span: field.span(),
-                });
+                self.push_err(ResolverError::DuplicateField { field: field.clone() });
             } else {
                 // field not required by struct
                 self.push_err(ResolverError::NoSuchField {
-                    field: field_name.to_owned(),
-                    span: field.span(),
-                    struct_name: self.get_struct(type_id).name.as_str().to_owned(),
-                    struct_span: self.get_struct(type_id).span,
+                    field: field.clone(),
+                    struct_definition: self.get_struct(type_id).name.clone(),
                 });
             }
 
@@ -474,9 +473,8 @@ impl<'a> Resolver<'a> {
         if !unseen_fields.is_empty() {
             self.push_err(ResolverError::MissingFields {
                 span,
-                fields: unseen_fields.into_iter().collect(),
-                struct_name: self.get_struct(type_id).name.as_str().to_owned(),
-                struct_span: self.get_struct(type_id).span,
+                missing_fields: unseen_fields.into_iter().map(|field| field.to_string()).collect(),
+                struct_definition: self.get_struct(type_id).name.clone(),
             });
         }
 
@@ -487,10 +485,10 @@ impl<'a> Resolver<'a> {
         self.structs.get(&type_id).unwrap()
     }
 
-    fn get_field_names_of_type(&self, type_id: TypeId) -> HashSet<String> {
+    fn get_field_names_of_type(&self, type_id: TypeId) -> HashSet<Ident> {
         let typ = self.get_struct(type_id);
         typ.fields.iter()
-            .map(|(name, _)| name.as_str().to_owned())
+            .map(|(name, _)| name.clone())
             .collect()
     }
 

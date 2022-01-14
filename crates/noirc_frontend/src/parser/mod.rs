@@ -57,6 +57,7 @@ pub enum Precedence {
     Prefix,
     Call,
     Index,
+    MemberAccess,
     Constructor,
 }
 impl Precedence {
@@ -81,6 +82,7 @@ impl Precedence {
             Token::Keyword(Keyword::As) => Precedence::Prefix,
             Token::LeftParen => Precedence::Call,
             Token::LeftBracket => Precedence::Index,
+            Token::Dot => Precedence::MemberAccess,
             Token::LeftBrace => Precedence::Constructor,
             _ => Precedence::Lowest,
         }

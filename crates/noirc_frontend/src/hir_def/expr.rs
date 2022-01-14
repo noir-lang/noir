@@ -4,7 +4,7 @@ use acvm::FieldElement;
 use noirc_errors::Span;
 
 use crate::node_interner::{ExprId, FuncId, IdentId, StmtId, TypeId};
-use crate::{BinaryOp, BinaryOpKind, StructType, Type, UnaryOp};
+use crate::{BinaryOp, BinaryOpKind, Ident, StructType, Type, UnaryOp};
 #[derive(Debug, Clone)]
 pub enum HirExpression {
     Ident(IdentId),
@@ -14,6 +14,7 @@ pub enum HirExpression {
     Infix(HirInfixExpression),
     Index(HirIndexExpression),
     Constructor(HirConstructorExpression),
+    MemberAccess(HirMemberAccess),
     Call(HirCallExpression),
     Cast(HirCastExpression),
     Predicate(HirInfixExpression),
@@ -51,6 +52,7 @@ pub enum HirBinaryOpKind {
     And,
     Or,
     Xor,
+    MemberAccess,
     Assign,
 }
 
@@ -76,6 +78,7 @@ impl From<BinaryOpKind> for HirBinaryOpKind {
             BinaryOpKind::And => HirBinaryOpKind::And,
             BinaryOpKind::Or => HirBinaryOpKind::Or,
             BinaryOpKind::Xor => HirBinaryOpKind::Xor,
+            BinaryOpKind::MemberAccess => HirBinaryOpKind::MemberAccess,
             BinaryOpKind::Assign => HirBinaryOpKind::Assign,
         }
     }
@@ -142,6 +145,14 @@ pub struct HirInfixExpression {
     pub lhs: ExprId,
     pub operator: HirBinaryOp,
     pub rhs: ExprId,
+}
+
+#[derive(Debug, Clone)]
+pub struct HirMemberAccess {
+    pub lhs: ExprId,
+    // This field is not an IdentId since the rhs of a field
+    // access has no corresponding definition
+    pub rhs: Ident,
 }
 
 #[derive(Debug, Clone)]

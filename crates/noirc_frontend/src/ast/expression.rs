@@ -12,6 +12,7 @@ pub enum ExpressionKind {
     Index(Box<IndexExpression>),
     Call(Box<CallExpression>),
     Constructor(Box<ConstructorExpression>),
+    MemberAccess(Box<MemberAccessExpression>),
     Cast(Box<CastExpression>),
     Infix(Box<InfixExpression>),
     Predicate(Box<InfixExpression>),
@@ -123,6 +124,7 @@ pub enum BinaryOpKind {
     And,
     Or,
     Xor,
+    MemberAccess, // struct.field
     // Assign is the only binary operator which cannot be used in a constrain statement
     Assign,
 }
@@ -158,6 +160,7 @@ impl BinaryOpKind {
             BinaryOpKind::And => "&",
             BinaryOpKind::Or => "|",
             BinaryOpKind::Xor => "^",
+            BinaryOpKind::MemberAccess => ".",
             BinaryOpKind::Assign => "=",
         }
     }
@@ -179,6 +182,7 @@ impl From<&Token> for Option<BinaryOpKind> {
             Token::LessEqual => BinaryOpKind::LessEqual,
             Token::Greater => BinaryOpKind::Greater,
             Token::GreaterEqual => BinaryOpKind::GreaterEqual,
+            Token::Dot => BinaryOpKind::MemberAccess,
             Token::Assign => BinaryOpKind::Assign,
             _ => return None,
         };
@@ -265,6 +269,12 @@ pub struct CallExpression {
 pub struct ConstructorExpression {
     pub type_name: Path,
     pub fields: Vec<(Ident, Expression)>,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct MemberAccessExpression {
+    pub lhs: Expression,
+    pub rhs: Ident,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

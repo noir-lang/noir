@@ -26,9 +26,7 @@ pub fn parse(parser: &mut Parser, collection_name: Expression) -> ParserExprKind
 
     // Advance past `{` to either an IDENT or `}`
     parser.advance_tokens();
-
     let fields = parse_fields(parser)?;
-    parser.peek_check_variant_advance(&Token::RightBrace)?;
 
     let constructor = ConstructorExpression { type_name, fields };
     Ok(ExpressionKind::Constructor(Box::new(constructor)))
@@ -50,6 +48,7 @@ fn parse_fields(parser: &mut Parser) -> Result<Vec<(Ident, Expression)>, ParserE
         parser.advance_tokens();
 
         let typ = parser.parse_expression(Precedence::Lowest)?;
+        parser.advance_tokens();
 
         // TODO: This also makes commas between fields optional
         if parser.curr_token.token() == &Token::Comma {
