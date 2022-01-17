@@ -25,7 +25,7 @@ inline void output_vk_sol(std::ostream& os, std::shared_ptr<verification_key> co
       "// SPDX-License-Identifier: GPL-2.0-only\n"
       "// Copyright 2021 Spilsbury Holdings Ltd\n"
       "\n"
-      "pragma solidity >=0.6.0 <0.8.0;\n"
+      "pragma solidity >=0.6.0 <0.8.11;\n"
       "pragma experimental ABIEncoderV2;\n"
       "\n"
       "import {StandardTypes} from '../cryptography/StandardTypes.sol';\n"
