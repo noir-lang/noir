@@ -8,6 +8,20 @@ namespace plonk {
 namespace stdlib {
 namespace merkle_tree {
 
+/**
+ * Checks if the subtree is correctly inserted at a specified index in a Merkle tree.
+ *
+ * @param root: The root of the latest state of the merkle tree,
+ * @param hashes: The hash path from any leaf in the subtree to the root, it doesn't matter if this hash path is
+ * computed before or after updating the tree,
+ * @param value: The value of the subtree root,
+ * @param index: The index of any leaf in the subtree,
+ * @param at_height: The height of the subtree,
+ * @param is_updating_tree: set to true if we're updating the tree.
+ * @tparam Composer: type of composer.
+ *
+ * @see Check full documentation: https://hackmd.io/2zyJc6QhRuugyH8D78Tbqg?view
+ */
 template <typename Composer>
 bool_t<Composer> check_subtree_membership(field_t<Composer> const& root,
                                           hash_path<Composer> const& hashes,
@@ -16,26 +30,39 @@ bool_t<Composer> check_subtree_membership(field_t<Composer> const& root,
                                           size_t at_height,
                                           bool const is_updating_tree = false)
 {
-    auto is_zero = value == 0;
-    auto current = value * !is_zero + (-field_t<Composer>(1)) * is_zero;
+    auto is_zero = value.is_zero();
+    auto current = field_t<Composer>::conditional_assign(is_zero, (-field_t<Composer>(1)), value);
 
     for (size_t i = at_height; i < hashes.size(); ++i) {
         // get the parity bit at this level of the tree (get_bit returns bool so we know this is 0 or 1)
-        field_t<Composer> path_bit = static_cast<field_t<Composer>>(index.get_bit(i));
+        bool_t<Composer> path_bit = index.get_bit(i);
 
         // reconstruct the two inputs we need to hash
         // if `path_bit = false`, we know `current` is the left leaf and `hashes[i].second` is the right leaf
         // if `path_bit = true`, we know `current` is the right leaf and `hashes[i].first` is the left leaf
         // We don't need to explicitly check that hashes[i].first = current iff !path bit , or that hashes[i].second =
         // current iff path_bit If either of these does not hold, then the final computed merkle root will not match
-        field_t<Composer> left = path_bit.madd(hashes[i].first - current, current);
-        field_t<Composer> right = path_bit.madd(current - hashes[i].second, hashes[i].second);
+        field_t<Composer> left = field_t<Composer>::conditional_assign(path_bit, hashes[i].first, current);
+        field_t<Composer> right = field_t<Composer>::conditional_assign(path_bit, current, hashes[i].second);
         current = pedersen<Composer>::compress(left, right, 0, false, is_updating_tree);
     }
 
     return (current == root);
 }
 
+/**
+ * Asserts if the subtree is correctly inserted at a specified index in a Merkle tree.
+ *
+ * @param root: The root of the latest state of the merkle tree,
+ * @param hashes: The hash path from any leaf in the subtree to the root, it doesn't matter if this hash path is
+ * computed before or after updating the tree,
+ * @param value: The value of the subtree root,
+ * @param index: The index of any leaf in the subtree,
+ * @param at_height: The height of the subtree,
+ * @param is_updating_tree: set to true if we're updating the tree,
+ * @param msg: error message.
+ * @tparam Composer: type of composer.
+ */
 template <typename Composer>
 void assert_check_subtree_membership(field_t<Composer> const& root,
                                      hash_path<Composer> const& hashes,
@@ -49,6 +76,17 @@ void assert_check_subtree_membership(field_t<Composer> const& root,
     exists.assert_equal(true, msg);
 }
 
+/**
+ * Checks if a value is correctly inserted at a specified leaf in a Merkle tree.
+ *
+ * @param root: The root of the updated merkle tree,
+ * @param hashes: The hash path from the given index, it doesn't matter if this hash path is
+ * computed before or after updating the tree,
+ * @param value: The value of the leaf,
+ * @param index: The index of the leaf in the tree,
+ * @param is_updating_tree: set to true if we're updating the tree.
+ * @tparam Composer: type of composer.
+ */
 template <typename Composer>
 bool_t<Composer> check_membership(field_t<Composer> const& root,
                                   hash_path<Composer> const& hashes,
@@ -59,6 +97,18 @@ bool_t<Composer> check_membership(field_t<Composer> const& root,
     return check_subtree_membership(root, hashes, value, index, 0, is_updating_tree);
 }
 
+/**
+ * Asserts if a value is correctly inserted at a specified leaf in a Merkle tree.
+ *
+ * @param root: The root of the updated merkle tree,
+ * @param hashes: The hash path from the given index, it doesn't matter if this hash path is
+ * computed before or after updating the tree,
+ * @param value: The value of the leaf,
+ * @param index: The index of the leaf in the tree,
+ * @param is_updating_tree: set to true if we're updating the tree,
+ * @param msg: error message.
+ * @tparam Composer: type of composer.
+ */
 template <typename Composer>
 void assert_check_membership(field_t<Composer> const& root,
                              hash_path<Composer> const& hashes,
@@ -71,6 +121,19 @@ void assert_check_membership(field_t<Composer> const& root,
     exists.assert_equal(true, msg);
 }
 
+/**
+ * Asserts if old and new state of the tree is correct after updating a single leaf.
+ *
+ * @param new_root: The root of the updated merkle tree,
+ * @param new_value: The new value of the leaf,
+ * @param old_root: The root of the merkle tree before it was updated,
+ * @param old_hashes: The hash path from the given index, it doesn't matter if this hash path is
+ * computed before or after updating the tree,
+ * @param old_value: The value of the leaf before it was updated with new_value,
+ * @param index: The index of the leaf in the tree,
+ * @param msg: error message.
+ * @tparam Composer: type of composer.
+ */
 template <typename Composer>
 void update_membership(field_t<Composer> const& new_root,
                        field_t<Composer> const& new_value,
@@ -87,6 +150,20 @@ void update_membership(field_t<Composer> const& new_root,
     assert_check_membership(new_root, old_hashes, new_value, index, true, msg + "_new_value");
 }
 
+/**
+ * Asserts if old and new state of the tree is correct after a subtree-update.
+ *
+ * @param new_root: The root of the updated merkle tree,
+ * @param new_subtree_root: The new value of the subtree root,
+ * @param old_root: The root of the merkle tree before it was updated,
+ * @param old_hashes: The hash path from any leaf in the subtree to the root, it doesn't matter if this hash path is
+ * computed before or after updating the tree,
+ * @param old_subtree_root: The value of the subtree root before it was updated,
+ * @param index: The index of any leaf in the subtree,
+ * @param at_height: The height of the subtree,
+ * @param msg: error message.
+ * @tparam Composer: type of composer.
+ */
 template <typename Composer>
 void update_subtree_membership(field_t<Composer> const& new_root,
                                field_t<Composer> const& new_subtree_root,
@@ -108,12 +185,21 @@ void update_subtree_membership(field_t<Composer> const& new_root,
         new_root, old_hashes, new_subtree_root, index, at_height, true, msg + "_new_subtree");
 }
 
+/**
+ * Computes the root of a tree with leaves given as the vector `input`.
+ *
+ * @param input: vector of leaf values.
+ * @tparam Composer: type of composer.
+ */
 template <typename Composer> field_t<Composer> compute_tree_root(std::vector<field_t<Composer>> const& input)
 {
+    // Check if the input vector size is a power of 2.
+    ASSERT(input.size() > 0);
+    ASSERT(!(input.size() & (input.size() - 1)) == true);
     auto layer = input;
     for (auto& f : layer) {
-        auto is_zero = f == 0;
-        f = f * !is_zero + (-field_t<Composer>(1)) * is_zero;
+        auto is_zero = f.is_zero();
+        f = field_t<Composer>::conditional_assign(is_zero, (-field_t<Composer>(1)), f);
     }
     while (layer.size() > 1) {
         std::vector<field_t<Composer>> next_layer(layer.size() / 2);
@@ -126,12 +212,24 @@ template <typename Composer> field_t<Composer> compute_tree_root(std::vector<fie
     return layer[0];
 }
 
+/**
+ * Checks if a given root matches the root computed from a set of leaves.
+ *
+ * @param values: vector of leaf values.
+ * @tparam Composer: type of composer.
+ */
 template <typename Composer>
 bool_t<Composer> check_tree(field_t<Composer> const& root, std::vector<field_t<Composer>> const& values)
 {
     return compute_tree_root(values) == root;
 }
 
+/**
+ * Asserts if a given root matches the root computed from a set of leaves.
+ *
+ * @param values: vector of leaf values.
+ * @tparam Composer: type of composer.
+ */
 template <typename Composer>
 void assert_check_tree(field_t<Composer> const& root, std::vector<field_t<Composer>> const& values)
 {
@@ -139,6 +237,17 @@ void assert_check_tree(field_t<Composer> const& root, std::vector<field_t<Compos
     valid.assert_equal(true, "assert_check_tree");
 }
 
+/**
+ * Updates the tree with a vector of new values starting from the leaf at start_index.
+ *
+ * @param new_root: The root of the updated merkle tree,
+ * @param old_root: The root of the merkle tree before it was updated,
+ * @param old_hashes: The hash path from the leaf at start_index, computed before the tree was updated
+ * @param new_values: The vector of values to be inserted from start_index,
+ * @param start_index: The index of any leaf from which new values are inserted,
+ * @param msg: error message.
+ * @tparam Composer: type of composer.
+ */
 template <typename Composer>
 void batch_update_membership(field_t<Composer> const& new_root,
                              field_t<Composer> const& old_root,
