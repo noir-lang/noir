@@ -2,10 +2,10 @@ use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::DefCollector;
 use crate::hir::Context;
 use crate::node_interner::FuncId;
-use crate::{parser::ParsedModule, Parser};
+use crate::parser::{ParsedModule, parse_program};
 use arena::{Arena, Index};
 use fm::{FileId, FileManager};
-use noirc_errors::{CollectedErrors, DiagnosableError};
+use noirc_errors::CollectedErrors;
 use std::collections::HashMap;
 
 mod module_def;
@@ -110,13 +110,12 @@ pub fn parse_file(
     file_id: FileId,
 ) -> Result<ParsedModule, Vec<CollectedErrors>> {
     let file = fm.fetch_file(file_id);
-    let mut parser = Parser::from_src(file.get_source());
-    match parser.parse_program() {
+    match parse_program(file.get_source()) {
         Ok(prog) => Ok(prog),
         Err(errs) => {
             let file_errs = CollectedErrors {
                 file_id,
-                errors: errs.iter().map(|err| err.to_diagnostic()).collect(),
+                errors: errs.into_iter().map(|err| err.into()).collect(),
             };
 
             Err(vec![file_errs])

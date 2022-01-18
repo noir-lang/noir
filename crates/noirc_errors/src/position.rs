@@ -1,71 +1,7 @@
-use codespan::{ByteIndex, Span as ByteSpan};
-use std::hash::{Hash, Hasher};
+use codespan::Span as ByteSpan;
+use std::{hash::{Hash, Hasher}, ops::Range};
 
-#[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone, Default)]
-pub struct Position {
-    line: usize,
-    column: usize,
-    idx: usize,
-}
-
-impl Position {
-    pub fn new_line(&mut self) {
-        self.line += 1;
-        self.column = 0;
-        self.idx += 1;
-    }
-    pub fn right_shift(&mut self) {
-        self.column += 1;
-        self.idx += 1;
-    }
-    #[must_use]
-    pub fn mark(&self) -> Position {
-        *self
-    }
-    #[must_use]
-    pub fn forward(self) -> Position {
-        self.forward_by(1)
-    }
-
-    #[must_use]
-    pub fn backward(self) -> Position {
-        self.backward_by(1)
-    }
-
-    #[must_use]
-    pub fn into_span(self) -> Span {
-        Span {
-            start: self,
-            end: self,
-        }
-    }
-
-    #[must_use]
-    pub fn backward_by(self, amount: usize) -> Position {
-        Position {
-            line: self.line,
-            column: self.column - amount,
-            idx: self.idx - amount,
-        }
-    }
-    #[must_use]
-    pub fn forward_by(self, amount: usize) -> Position {
-        Position {
-            line: self.line,
-            column: self.column + amount,
-            idx: self.idx + amount,
-        }
-    }
-    pub fn to_byte_index(self) -> ByteIndex {
-        if self.idx == 0 {
-            // XXX:FIXME: Default span is being used where it should not be
-            // for error reporting
-            dbg!("ice : Span::default() has been used to trigger an error report");
-            return ByteIndex((self.idx) as u32);
-        }
-        ByteIndex((self.idx - 1) as u32)
-    }
-}
+pub type Position = u32;
 
 #[derive(PartialOrd, Eq, Ord, Debug, Clone)]
 pub struct Spanned<T> {
@@ -91,9 +27,9 @@ impl<T: Hash> Hash for Spanned<T> {
 }
 
 impl<T> Spanned<T> {
-    pub const fn from_position(start: Position, end: Position, contents: T) -> Spanned<T> {
+    pub fn from_position(start: Position, end: Position, contents: T) -> Spanned<T> {
         Spanned {
-            span: Span { start, end },
+            span: Span(ByteSpan::new(start, end)),
             contents,
         }
     }
@@ -116,21 +52,45 @@ impl<T> std::borrow::Borrow<T> for Spanned<T> {
 }
 
 #[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone, Default)]
-pub struct Span {
-    pub start: Position,
-    pub end: Position,
-}
+pub struct Span(ByteSpan);
 
 impl Span {
+    pub fn new(range: Range<usize>) -> Span {
+        Span(ByteSpan::from(range.start as u32 .. range.end as u32))
+    }
+
+    pub fn exclusive(start: u32, end: u32) -> Span {
+        Span(ByteSpan::from(start .. end))
+    }
+
+    pub fn inclusive(start: u32, end: u32) -> Span {
+        Span::exclusive(start, end + 1)
+    }
+
+    pub fn single_char(start: u32) -> Span {
+        Span::inclusive(start, start)
+    }
+
     #[must_use]
     pub fn merge(self, other: Span) -> Span {
-        use std::cmp::{max, min};
-
-        let start = min(self.start, other.start);
-        let end = max(self.end, other.end);
-        Span { start, end }
+        Span(self.0.merge(other.0))
     }
+
     pub fn to_byte_span(self) -> ByteSpan {
-        ByteSpan::from(self.start.to_byte_index()..self.end.to_byte_index())
+        self.0
+    }
+
+    pub fn start(&self) -> u32 {
+        self.0.start().into()
+    }
+
+    pub fn end(&self) -> u32 {
+        self.0.end().into()
+    }
+}
+
+impl From<Span> for Range<usize> {
+    fn from(span: Span) -> Self {
+        span.0.into()
     }
 }

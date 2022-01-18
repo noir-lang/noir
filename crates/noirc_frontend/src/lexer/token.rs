@@ -15,7 +15,7 @@ impl PartialEq<Token> for SpannedToken {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SpannedToken(Spanned<Token>);
 
 impl From<SpannedToken> for Token {
@@ -31,17 +31,31 @@ impl SpannedToken {
     pub fn token(&self) -> &Token {
         &self.0.contents
     }
+    pub fn into_token(self) -> Token {
+        self.0.contents
+    }
     pub fn kind(&self) -> TokenKind {
         self.token().kind()
     }
     pub fn is_variant(&self, tok: &Token) -> bool {
         self.token().is_variant(tok)
     }
-    pub fn is_comment(&self) -> bool {
-        self.token().is_comment()
-    }
     pub fn can_start_declaration(&self) -> bool {
         self.token().can_start_declaration()
+    }
+
+    /// Convert a Token into a SpannedToken using
+    /// a nonsensical Span. This should only be used
+    /// if you can guarentee the Span will not be used
+    /// in a user-facing error.
+    pub fn dummy_span(token: Token) -> SpannedToken {
+        token.into_single_span(0)
+    }
+}
+
+impl std::fmt::Display for SpannedToken {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.token().fmt(f)
     }
 }
 
@@ -56,7 +70,6 @@ pub enum Token {
     Str(String),
     Keyword(Keyword),
     IntType(IntType),
-    Comment(String),
     Attribute(Attribute),
     // <
     Less,
@@ -131,7 +144,6 @@ impl fmt::Display for Token {
             Token::Int(n) => write!(f, "{:?}", n),
             Token::Bool(b) => write!(f, "{}", b),
             Token::Str(ref b) => write!(f, "{}", b),
-            Token::Comment(ref b) => write!(f, "{}", b),
             Token::Keyword(k) => write!(f, "{}", k),
             Token::Attribute(ref a) => write!(f, "{}", a),
             Token::IntType(ref i) => write!(f, "{}", i),
@@ -224,9 +236,6 @@ impl Token {
 
         // If we arrive here, then the Token variants are the same and they are not the Keyword type
         same_token_variant
-    }
-    pub fn is_comment(&self) -> bool {
-        matches!(self, Token::Comment(_))
     }
 
     pub(super) fn into_single_span(self, position: Position) -> SpannedToken {

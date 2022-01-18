@@ -1,495 +1,484 @@
-use super::{errors::ParserErrorKind, ParsedModule, Precedence};
+use std::ops::Range;
+
+use super::{NoirParser, ParseError, ParsedModule, Precedence, TopLevelStatement, foldl_with_span};
 use crate::lexer::Lexer;
-use crate::token::{Keyword, SpannedToken, Token, TokenKind};
+use crate::{AssignStatement, BinaryOpKind, BlockExpression, CastExpression, ConstStatement, ConstrainStatement, ForExpression, FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, LetStatement, Path, PathKind, PrivateStatement, UnaryOp};
+use crate::token::{Attribute, Keyword, SpannedToken, Token, TokenKind};
 use crate::{
     ast::{ArraySize, Expression, ExpressionKind, Statement, Type},
     FieldElementType,
 };
 
-use super::infix_parser::InfixParser;
-use super::prefix_parser::PrefixParser;
+use chumsky::prelude::*;
+use noirc_errors::{Span, Spanned};
 
-pub type ParserResult<T> = Result<T, ParserErrorKind>;
-pub type ParserExprKindResult = ParserResult<ExpressionKind>;
-pub type ParserExprResult = ParserResult<Expression>;
-type ParserStmtResult = ParserResult<Statement>;
+/// A Program corresponds to a single module
+/// TODO: We can change this to use 'parse_recovery' and
+/// return a (ParsedModule, Vec<ParseError>) instead
+pub fn parse_program(program: &str) -> Result<ParsedModule, Vec<ParseError>> {
+    let mut lexer = Lexer::new(program);
+    let mut program = ParsedModule::with_capacity(lexer.by_ref().approx_len());
+    let (tokens, lexing_errors) = lexer.lex();
 
-// XXX: We can probably abstract the lexer away, as we really only need an Iterator of Tokens/ TokenStream
-// XXX: Alternatively can make Lexer take a Reader, but will need to do a Bytes -> to char conversion. Can just return an error if cannot do conversion
-// As this should not be leaked to any other part of the lib
-pub struct Parser<'a> {
-    pub(crate) lexer: Lexer<'a>,
-    pub(crate) curr_token: SpannedToken,
-    pub(crate) peek_token: SpannedToken,
-    pub(crate) errors: Vec<ParserErrorKind>,
+    let parser = top_level_statement().repeated();
+    match parser.parse(tokens) {
+        Ok(statements) => {
+            for statement in statements {
+                match statement {
+                    TopLevelStatement::Function(f) => program.push_function(f),
+                    TopLevelStatement::Module(m) => program.push_module_decl(m),
+                    TopLevelStatement::Import(i) => program.push_import(i),
+                }
+            }
+            Ok(program)
+        },
+        Err(mut parsing_errors) => {
+            let mut errors: Vec<_> = lexing_errors.into_iter().map(Into::into).collect();
+            errors.append(&mut parsing_errors);
+            Err(errors)
+        }
+    }
 }
 
-impl<'a> Parser<'a> {
-    pub fn new(mut lexer: Lexer<'a>) -> Self {
-        let curr_token = lexer.next_token().unwrap();
-        let peek_token = lexer.next_token().unwrap();
+fn top_level_statement() -> impl NoirParser<TopLevelStatement> {
+    choice((
+        function_definition(),
+        module_declaration(),
+        use_statement(),
+    ))
+}
 
-        Parser {
-            lexer,
-            curr_token,
-            peek_token,
-            errors: Vec::new(),
+fn function_definition() -> impl NoirParser<TopLevelStatement> {
+    attribute().or_not()
+        .then_ignore(keyword(Keyword::Fn))
+        .then(ident())
+        .then(function_parameters().parenthesized())
+        .then(function_return_type())
+        .then(block())
+        .map(|((((attribute, name), parameters), return_type), body)| {
+            TopLevelStatement::Function(FunctionDefinition {
+                span: name.0.span(),
+                name,
+                attribute, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
+                parameters,
+                body,
+                return_type,
+            }.into())
+        })
+}
+
+fn function_return_type() -> impl NoirParser<Type> {
+    token(Token::Arrow).ignore_then(parse_type()).or_not()
+        .map(|r#type| r#type.unwrap_or(Type::Unit))
+}
+
+fn attribute() -> impl NoirParser<Attribute> {
+    tokenkind(TokenKind::Attribute).map(|spanned_token| {
+        match spanned_token.into_token() {
+            Token::Attribute(attribute) => attribute,
+            _ => unreachable!(),
         }
-    }
-    pub fn from_src(src: &'a str) -> Self {
-        Parser::new(Lexer::new(src))
-    }
+    })
+}
 
-    /// Note that this function does not alert the user of an EOF
-    /// calling this function repeatedly will repeatedly give you
-    /// an EOF token. EOF tokens are not errors
-    pub(crate) fn advance_tokens(&mut self) {
-        self.curr_token = self.peek_token.clone();
+fn function_parameters() -> impl NoirParser<Vec<(Ident, Type)>> {
+    ident()
+        .then_ignore(token(Token::Colon))
+        .then(parse_type())
+        .separated_by(token(Token::Comma))
+        .allow_trailing()
+}
 
-        loop {
-            match self.lexer.next_token() {
-                Ok(spanned_token) => {
-                    if spanned_token.is_comment() {
-                        continue;
-                    }
-                    self.peek_token = spanned_token;
-                    break;
-                }
-                Err(lex_err) => self.errors.push(ParserErrorKind::LexerError(lex_err)),
+fn block() -> impl NoirParser<BlockExpression> {
+    statement()
+        .map(|statement| {
+            match statement {
+                Statement::Expression(expr) => Statement::Semi(expr),
+                other => other,
             }
-        }
-
-        // At this point, we could check for lexer errors
-        // and abort, however, if we do not we may be able to
-        // recover if the next token is the correct one
-        //
-        // Its also usually bad UX to only show one error at a time.
-    }
-
-    // peaks at the next token
-    // asserts that it should be of a certain variant
-    // If it is, the parser is advanced
-    pub(crate) fn peek_check_variant_advance(
-        &mut self,
-        token: &Token,
-    ) -> Result<(), ParserErrorKind> {
-        let same_variant = self.peek_token.is_variant(token);
-
-        if !same_variant {
-            let peeked_span = self.peek_token.to_span();
-            let peeked_token = self.peek_token.token().clone();
-            self.advance_tokens(); // We advance the token regardless, so the parser does not choke on a prefix function
-            return Err(ParserErrorKind::UnexpectedToken {
-                span: peeked_span,
-                expected: token.clone(),
-                found: peeked_token,
-            });
-        }
-        self.advance_tokens();
-        Ok(())
-    }
-
-    // peaks at the next token
-    // asserts that it should be of a certain kind
-    // If it is, the parser is advanced
-    pub(crate) fn peek_check_kind_advance(
-        &mut self,
-        token_kind: TokenKind,
-    ) -> Result<(), ParserErrorKind> {
-        let peeked_kind = self.peek_token.kind();
-        let same_kind = peeked_kind == token_kind;
-        if !same_kind {
-            let peeked_span = self.peek_token.to_span();
-            self.advance_tokens();
-            return Err(ParserErrorKind::UnexpectedTokenKind {
-                span: peeked_span,
-                expected: token_kind,
-                found: peeked_kind,
-            });
-        }
-        self.advance_tokens();
-        Ok(())
-    }
-
-    /// A Program corresponds to a single module
-    pub fn parse_program(&mut self) -> Result<ParsedModule, &Vec<ParserErrorKind>> {
-        use super::prefix_parser::{FuncParser, ModuleParser, UseParser};
-
-        let mut program = ParsedModule::with_capacity(self.lexer.by_ref().approx_len());
-
-        while self.curr_token != Token::EOF {
-            match self.curr_token.clone().into() {
-                Token::Attribute(attr) => {
-                    self.advance_tokens(); // Skip the attribute
-                    let func_def = FuncParser::parse_fn_definition(self, Some(attr));
-                    self.on_value(func_def, |value| program.push_function(value));
-                }
-                Token::Keyword(Keyword::Fn) => {
-                    let func_def = FuncParser::parse_fn_definition(self, None);
-                    self.on_value(func_def, |value| program.push_function(value));
-                }
-                Token::Keyword(Keyword::Mod) => {
-                    let parsed_mod = ModuleParser::parse_decl(self);
-                    self.on_value(parsed_mod, |module_identifier| {
-                        program.push_module_decl(module_identifier)
-                    });
-                }
-                Token::Keyword(Keyword::Use) => {
-                    let import_stmt = UseParser::parse(self);
-                    self.on_value(import_stmt, |value| program.push_import(value));
-                }
-                Token::Comment(_) => {
-                    // This is a comment outside of a function.
-                    // Currently we do nothing with Comment tokens
-                    // It may be possible to store them in the AST, but this may not be helpful
-                    // XXX: Maybe we can follow Rust and say by default all public functions need documentation?
-                }
-                tok => {
-                    // XXX: We may allow global constants. We can use a subenum to remove the wildcard pattern
-                    let expected_tokens = r#" expected "`mod`, `use`,`fn` `#`"#;
-                    let err = ParserErrorKind::UnstructuredError {
-                        span: self.curr_token.to_span(),
-                        message: format!("found `{}`. {}", tok, expected_tokens), // XXX: Fix in next refactor, avoid allocations with error messages
-                    };
-                    self.errors.push(err);
-                    return Err(&self.errors);
+        })
+        .separated_by(token(Token::Semicolon))
+        .then(token(Token::Semicolon).or_not())
+        .surrounded_by(Token::LeftBrace, Token::RightBrace)
+        .map(|(mut statements, last_semi)| {
+            if last_semi.is_none() {
+                use Statement::{Expression, Semi};
+                match statements.pop() {
+                    Some(Semi(expr)) => statements.push(Expression(expr)),
+                    Some(other) => statements.push(other),
+                    None => (),
                 }
             }
-            // The current token will be the ending token for whichever branch was just picked
-            // so we advance from that
-            self.advance_tokens();
-        }
+            BlockExpression(statements)
+        })
+}
 
-        if !self.errors.is_empty() {
-            Err(&self.errors)
+fn optional_type_annotation() -> impl NoirParser<Type> {
+    token(Token::Colon).ignore_then(parse_type()).or_not()
+        .map(|r#type| r#type.unwrap_or(Type::Unspecified))
+}
+
+fn module_declaration() -> impl NoirParser<TopLevelStatement> {
+    keyword(Keyword::Mod).ignore_then(ident())
+        .map(TopLevelStatement::Module)
+}
+
+fn use_statement() -> impl NoirParser<TopLevelStatement> {
+    keyword(Keyword::Use)
+        .ignore_then(path())
+        .then(keyword(Keyword::As).ignore_then(ident()).or_not())
+        .map(|(path, alias)| TopLevelStatement::Import(ImportStatement { path, alias }))
+}
+
+fn keyword(keyword: Keyword) -> impl NoirParser<()> {
+    token(Token::Keyword(keyword))
+}
+
+fn token(expected: Token) -> impl NoirParser<()> {
+    filter_map(move |span, token: SpannedToken| {
+        if token.token() == &expected {
+            Ok(())
         } else {
-            Ok(program)
+            Err(Simple::custom(span, format!("Unexpected token {}, expected {}", token.token(), expected)))
         }
-    }
+    })
+}
 
-    fn on_value<T, F>(&mut self, parser_res: ParserResult<T>, mut func: F)
-    where
-        F: FnMut(T),
+fn tokenkind(tokenkind: TokenKind) -> impl NoirParser<SpannedToken> {
+    filter_map(move |span, token: SpannedToken| {
+        if token.kind() == tokenkind {
+            Ok(token)
+        } else {
+            Err(Simple::custom(span, format!("Unexpected token {}, expected {}", token.token(), tokenkind)))
+        }
+    })
+}
+
+fn path() -> impl NoirParser<Path> {
+    let idents = || ident().separated_by(token(Token::DoubleColon));
+    let make_path = |kind| move |segments| Path { segments, kind };
+
+    choice((
+        keyword(Keyword::Crate).ignore_then(idents()).map(make_path(PathKind::Crate)),
+        keyword(Keyword::Dep).ignore_then(idents()).map(make_path(PathKind::Dep)),
+        idents().map(make_path(PathKind::Plain)),
+    ))
+}
+
+fn ident() -> impl NoirParser<Ident> {
+    tokenkind(TokenKind::Ident).map(Into::into)
+}
+
+fn statement() -> impl NoirParser<Statement> {
+    choice((
+        constrain(),
+        declaration(),
+        assignment(),
+
+        // TODO: Semi-Expr is expression ';'
+        expression().map(Statement::Expression),
+    ))
+}
+
+fn operator_disallowed_in_constrain(operator: BinaryOpKind) -> bool {
+    [
+        BinaryOpKind::And,
+        BinaryOpKind::Or,
+        BinaryOpKind::Divide,
+        BinaryOpKind::Multiply,
+    ].contains(&operator)
+}
+
+fn constrain() -> impl NoirParser<Statement> {
+    keyword(Keyword::Constrain)
+        .ignore_then(expression())
+        .try_map(|expr, span| {
+            match expr.kind.into_infix() {
+                Some(infix) if infix.operator.contents == BinaryOpKind::Assign => {
+                    Err(Simple::custom(span, "Cannot use '=' with a constrain statement".to_string()))
+                }
+                Some(infix) if operator_disallowed_in_constrain(infix.operator.contents) => {
+                    let message = format!(
+                        "Cannot use the {} operator in a constraint statement.",
+                        infix.operator.contents.as_string()
+                    );
+                    Err(Simple::custom(span, message))
+                }
+                None => Err(Simple::custom(span, "Expected an infix expression since this is a constrain statement. You cannot assign values".to_string())),
+                Some(infix) => Ok(Statement::Constrain(ConstrainStatement(infix))),
+            }
+        })
+}
+
+fn declaration() -> impl NoirParser<Statement> {
+    fn generic_declaration<F>(key: Keyword, f: F) -> impl NoirParser<Statement>
+        where F: Fn(((Ident, Type), Expression)) -> Statement
     {
-        match parser_res {
-            Ok(value) => func(value),
-            Err(err) => {
-                self.errors.push(err);
-                self.synchronise();
-            }
-        }
+        keyword(key)
+            .ignore_then(ident())
+            .then(optional_type_annotation())
+            .then_ignore(token(Token::Assign))
+            .then(expression())
+            .map(f)
     }
 
-    // XXX: For now the synchonisation strategy is basic.
-    // XXX: Revise this after error refactoring is completed
-    fn synchronise(&mut self) {
-        loop {
-            if self.peek_token == Token::EOF {
-                break;
-            }
+    let let_statement = generic_declaration(Keyword::Let, |((identifier, r#type), expression)| {
+        Statement::Let(LetStatement { identifier, r#type, expression })
+    });
 
-            if self.choose_prefix_parser().is_some() {
-                self.advance_tokens();
-                break;
-            }
+    let priv_statement = generic_declaration(Keyword::Priv, |((identifier, r#type), expression)| {
+        Statement::Private(PrivateStatement { identifier, r#type, expression })
+    });
 
-            if self.peek_token == Token::Keyword(Keyword::Priv)
-                || self.peek_token == Token::Keyword(Keyword::Let)
-                || self.peek_token == Token::Keyword(Keyword::Fn)
-            {
-                self.advance_tokens();
-                break;
-            }
-            if self.peek_token == Token::RightBrace || self.peek_token == Token::Semicolon {
-                self.advance_tokens();
-                self.advance_tokens();
-                break;
-            }
+    let const_statement = generic_declaration(Keyword::Const, |((identifier, r#type), expression)| {
+        Statement::Const(ConstStatement { identifier, r#type, expression })
+    });
 
-            self.advance_tokens()
-        }
+    choice((let_statement, priv_statement, const_statement))
+}
+
+fn assignment() -> impl NoirParser<Statement> {
+    ident()
+        .then_ignore(token(Token::Assign))
+        .then(expression())
+        .map(|(identifier, expression)| Statement::Assign(AssignStatement {
+            identifier,
+            expression,
+        }))
+}
+
+fn parse_type() -> impl NoirParser<Type> {
+    parse_type_with_visibility(true)
+}
+
+fn parse_type_no_field_element() -> impl NoirParser<Type> {
+    parse_type_with_visibility(false)
+}
+
+fn parse_type_with_visibility(parse_visibility: bool) -> impl NoirParser<Type> {
+    choice((
+        field_type(parse_visibility),
+        int_type(parse_visibility),
+        array_type(parse_visibility),
+    ))
+}
+
+fn field_type(parse_visibility: bool) -> impl NoirParser<Type> {
+    optional_visibility().then_ignore(keyword(Keyword::Field))
+        .try_map(move |field, span| {
+            let field = check_visibility(field, span, parse_visibility)?;
+            Ok(Type::FieldElement(field))
+        })
+}
+
+fn optional_visibility() -> impl NoirParser<Option<FieldElementType>> {
+    choice((
+        keyword(Keyword::Pub).map(|_| FieldElementType::Public),
+        keyword(Keyword::Priv).map(|_| FieldElementType::Private),
+        keyword(Keyword::Const).map(|_| FieldElementType::Constant),
+    )).or_not()
+}
+
+fn check_visibility(visibility: Option<FieldElementType>, span: Range<usize>, parse_visibility: bool) -> Result<FieldElementType, ParseError> {
+    match (visibility, parse_visibility) {
+        (Some(visibility), true) => Ok(visibility),
+        (None, _) => Ok(FieldElementType::Private),
+        (Some(visibility), false) => Err(Simple::custom(span, format!("Unexpected {} found, visibility keywords aren't valid in this position", visibility))),
     }
+}
 
-    pub fn parse_statement(&mut self) -> ParserStmtResult {
-        use crate::parser::prefix_parser::{AssignParser, ConstrainParser, DeclarationParser};
-
-        let stmt = match self.curr_token.token() {
-            tk if tk.can_start_declaration() => {
-                return DeclarationParser::parse_statement(self);
-            }
-            tk if tk.is_comment() => {
-                // Comments here are within a function
-                self.advance_tokens();
-                return self.parse_statement();
-            }
-            Token::Keyword(Keyword::Constrain) => {
-                Statement::Constrain(ConstrainParser::parse_statement(self)?)
-            }
-            tk if tk.is_ident() && self.peek_token == Token::Assign => {
-                Statement::Assign(AssignParser::parse_statement(self)?)
-            }
-            _ => {
-                let expr = self.parse_expression_statement()?;
-
-                // Check if the next token is a semi-colon
-                // If it is, it is a SemiExpr
-                if self.peek_token == Token::Semicolon {
-                    self.advance_tokens();
-                    Statement::Semi(expr)
-                } else {
-                    Statement::Expression(expr)
-                }
-            }
-        };
-        Ok(stmt)
-    }
-
-    fn parse_expression_statement(&mut self) -> ParserExprResult {
-        self.parse_expression(Precedence::Lowest)
-    }
-
-    pub(crate) fn parse_expression(&mut self, precedence: Precedence) -> ParserExprResult {
-        // Calling this method means that we are at the beginning of a local expression
-        // We may be in the middle of a global expression, but this does not matter
-        let mut left_exp = match self.choose_prefix_parser() {
-            Some(prefix_parser) => prefix_parser.parse(self)?,
-            None => {
-                return Err(ParserErrorKind::ExpectedExpression {
-                    span: self.curr_token.to_span(),
-                    lexeme: self.curr_token.token().to_string(),
-                })
-            }
-        };
-
-        while (self.peek_token != Token::Semicolon)
-            && (precedence < Precedence::from(self.peek_token.token()))
-        {
-            match self.choose_infix_parser() {
-                None => {
-                    dbg!("No infix function found for {}", self.curr_token.token());
-                    return Ok(left_exp);
-                }
-                Some(infix_parser) => {
-                    self.advance_tokens();
-                    left_exp = infix_parser.parse(self, left_exp)?;
-                }
-            }
+fn int_type(parse_visibility: bool) -> impl NoirParser<Type> {
+    optional_visibility().then(filter_map(|span, token: SpannedToken| {
+        match token.into_token() {
+            Token::IntType(int_type) => Ok(int_type),
+            unexpected => Err(Simple::custom(span, format!("Expected an integer type, found {}", unexpected))),
         }
+    })).try_map(move |(visibility, int_type), span| {
+        let visibility = check_visibility(visibility, span, parse_visibility)?;
+        Ok(Type::from_int_tok(visibility, &int_type))
+    })
+}
 
-        Ok(left_exp)
-    }
-    fn choose_prefix_parser(&self) -> Option<PrefixParser> {
-        match self.curr_token.token() {
-            Token::Keyword(Keyword::If) => Some(PrefixParser::If),
-            Token::Keyword(Keyword::For) => Some(PrefixParser::For),
-            Token::LeftBracket => Some(PrefixParser::Array),
-            x if x.kind() == TokenKind::Ident => Some(PrefixParser::Path),
-            x if x.kind() == TokenKind::Literal => Some(PrefixParser::Literal),
-            Token::Bang | Token::Minus => Some(PrefixParser::Unary),
-            Token::LeftParen => Some(PrefixParser::Group),
-            Token::LeftBrace => Some(PrefixParser::Block),
-            _ => None,
-        }
-    }
-    fn choose_infix_parser(&self) -> Option<InfixParser> {
-        match self.peek_token.token() {
-            Token::Plus
-            | Token::Minus
-            | Token::Slash
-            | Token::Pipe
-            | Token::Ampersand
-            | Token::Caret
-            | Token::Star
-            | Token::Less
-            | Token::LessEqual
-            | Token::Greater
-            | Token::GreaterEqual
-            | Token::Equal
-            | Token::Assign
-            | Token::NotEqual => Some(InfixParser::Binary),
-            Token::Keyword(Keyword::As) => Some(InfixParser::Cast),
-            Token::LeftParen => Some(InfixParser::Call),
-            Token::LeftBracket => Some(InfixParser::Index),
-            _ => None,
-        }
-    }
-
-    /// Parse a comma separated list with a chosen delimiter
-    ///
-    /// This function is used to parse arrays and call expressions.
-    /// It is very similar to `parse_fn_parameters`, in the future
-    /// these methods may be unified.
-    ///
-    /// Cursor Start : `START_TOKEN`
-    ///
-    /// Cursor End : `END_TOKEN`
-    ///
-    /// Importantly note that the cursor should be on the starting token
-    /// and not the first element in the list.
-    ///
-    /// Example : [a,b,c]
-    /// START_TOKEN = `[`
-    /// END_TOKEN = `]`
-    ///
-    /// In general, the END_TOKEN will be closing_token
-    pub(crate) fn parse_comma_separated_argument_list(
-        &mut self,
-        closing_token: Token,
-    ) -> Result<Vec<Expression>, ParserErrorKind> {
-        // An empty container.
-        // Advance to the ending token and
-        // return an empty array
-        if self.peek_token == closing_token {
-            self.advance_tokens();
-            return Ok(Vec::new());
-        }
-        let mut arguments: Vec<Expression> = Vec::new();
-
-        // Parse the first element, implicitly assuming that `parse_expression`
-        // does not advance the token from what it has just parsed
-        self.advance_tokens();
-        arguments.push(self.parse_expression(Precedence::Lowest)?);
-
-        while self.peek_token == Token::Comma {
-            self.advance_tokens();
-
-            if (self.curr_token == Token::Comma) && (self.peek_token == closing_token) {
-                // Entering here means there is nothing else to parse;
-                // the list has a trailing comma
-                break;
+fn array_type(parse_visibility: bool) -> impl NoirParser<Type> {
+    optional_visibility()
+        .then(fixed_array_size().or_not())
+        .surrounded_by(Token::LeftBracket, Token::RightBracket)
+        .then(parse_type_no_field_element())
+        .try_map(move |((visibility, size), element_type), span| {
+            match &element_type {
+                Type::Array(..) => return Err(Simple::custom(span, "Multi-dimensional arrays are currently unsupported".to_string())),
+                _ => (),
             }
+            let size = size.unwrap_or(ArraySize::Variable);
+            let visibility = check_visibility(visibility, span, parse_visibility)?;
+            Ok(Type::Array(visibility, size, Box::new(element_type)))
+        })
+        .boxed()
+}
 
-            self.advance_tokens();
+fn expression() -> impl NoirParser<Expression> {
+    expression_with_precedence(Precedence::Lowest)
+}
 
-            arguments.push(self.parse_expression(Precedence::Lowest)?);
+// NOTE: This relies on the topmost precedence level being uninhabited
+fn expression_with_precedence(precedence: Precedence) -> impl NoirParser<Expression> {
+    term().then(
+        operator_with_precedence(precedence)
+            .then(expression_with_precedence(precedence.higher()))
+            .repeated()
+    ).foldl(create_infix_expression).boxed()
+}
+
+fn create_infix_expression(lhs: Expression, (operator, rhs): (Spanned<BinaryOpKind>, Expression)) -> Expression {
+    let span = lhs.span.merge(rhs.span);
+    let kind = ExpressionKind::Infix(Box::new(InfixExpression { lhs, operator, rhs }));
+    Expression { kind, span }
+}
+
+const NO_ERROR: String = String::new();
+
+fn operator_with_precedence(precedence: Precedence) -> impl NoirParser<Spanned<BinaryOpKind>> {
+    filter_map(move |span, token: SpannedToken| {
+        if Precedence::token_precedence(token.token()) == Some(precedence) {
+            let bin_op_kind: Option<BinaryOpKind> = token.token().into();
+            Ok(Spanned::from(token.to_span(), bin_op_kind.unwrap()))
+        } else {
+            // This error will never actually show in user code, so best avoid
+            // extra allocations entirely
+            Err(Simple::custom(span, NO_ERROR))
         }
+    })
+}
 
-        self.peek_check_variant_advance(&closing_token)?;
+fn term() -> impl NoirParser<Expression> {
+    choice((
+        if_expr(),
+        for_expr(),
+        array_expr(),
+        not(),
+        negation(),
+        block().map(ExpressionKind::Block),
+    )).map_with_span(to_expression)
+        .or(expression().parenthesized())
+        .or(value_or_cast())
+        .boxed()
+}
 
-        Ok(arguments)
-    }
+fn to_expression(kind: ExpressionKind, range: Range<usize>) -> Expression {
+    Expression { kind, span: Span::new(range) }
+}
 
-    /// Cursor Start : `FIELD_TYPE`?
-    ///
-    /// Cursor End : `TYPE`
-    /// The cursor starts on the first token which represents the type
-    /// It ends on the last token in the Type
-    pub(crate) fn parse_type(
-        &mut self,
-        can_have_field_type: bool,
-    ) -> Result<Type, ParserErrorKind> {
-        let mut field_type = FieldElementType::Private;
+fn if_expr() -> impl NoirParser<ExpressionKind> {
+    keyword(Keyword::If)
+        .ignore_then(expression())
+        .then(block())
+        .then(keyword(Keyword::Else).ignore_then(block()).or_not())
+        .map(|((condition, consequence), alternative)| {
+            ExpressionKind::If(Box::new(IfExpression {
+                condition,
+                consequence,
+                alternative,
+            }))
+        })
+}
 
-        // This implicitly assumes that the tokens used to declare field types
-        // are not also used to declare Types
-        let tok_is_fe_type = self.curr_token.token().can_be_field_element_type();
+fn for_expr() -> impl NoirParser<ExpressionKind> {
+    keyword(Keyword::For)
+        .ignore_then(ident())
+        .then_ignore(keyword(Keyword::In))
+        .then(expression())
+        .then_ignore(token(Token::DoubleDot))
+        .then(expression())
+        .then(block())
+        .map(|(((identifier, start_range), end_range), block)| {
+            ExpressionKind::For(Box::new(ForExpression {
+                identifier, start_range, end_range, block
+            }))
+        })
+}
 
-        match (tok_is_fe_type, can_have_field_type) {
-            (true, true) => {
-                field_type = self.parse_field_type()?;
-                // Advance past the FieldType
-                self.advance_tokens();
-            }
-            (true, false) => {
-                let message = "unexpected field element type keyword found. \"pub, priv or const\" is not valid here".to_string();
-                return Err(ParserErrorKind::UnstructuredError {
-                    message,
-                    span: self.curr_token.to_span(),
-                });
-            }
-            (false, false) => {
-                // This is valid. As the token is not a field element type
-                // and the caller does not expect a field element
-            }
-            (false, true) => {
-                // This is also valid. The token is not a field element type and the
-                // caller states that it is possible to have field element types
-                // If no type is written, then we assume it is private by default.
-            }
+fn array_expr() -> impl NoirParser<ExpressionKind> {
+    expression_list().surrounded_by(Token::LeftBracket, Token::RightBracket)
+        .map(ExpressionKind::array)
+}
+
+fn expression_list() -> impl NoirParser<Vec<Expression>> {
+    expression().separated_by(token(Token::Comma)).allow_trailing()
+}
+
+fn not() -> impl NoirParser<ExpressionKind> {
+    token(Token::Bang).ignore_then(term())
+        .map(|rhs| ExpressionKind::prefix(UnaryOp::Not, rhs))
+}
+
+fn negation() -> impl NoirParser<ExpressionKind> {
+    token(Token::Minus).ignore_then(term())
+        .map(|rhs| ExpressionKind::prefix(UnaryOp::Minus, rhs))
+}
+
+fn value() -> impl NoirParser<Expression> {
+    choice((
+        function_call(),
+        array_access(),
+        variable(),
+        literal(),
+    )).map_with_span(to_expression)
+}
+
+// This function is parses a value followed by 0 or more cast expressions.
+fn value_or_cast() -> impl NoirParser<Expression> {
+    let cast_rhs = keyword(Keyword::As).ignore_then(parse_type_no_field_element());
+
+    foldl_with_span(value(), cast_rhs, |(lhs, lhs_span), (r#type, rhs_span)| {
+        Expression {
+            kind: ExpressionKind::Cast(Box::new(CastExpression { lhs, r#type })),
+            span: lhs_span.merge(rhs_span),
         }
+    })
+}
 
-        // Currently we only support the default types and integers.
-        // If we get into this function, then the user is specifying a type
-        match self.curr_token.token() {
-            Token::Keyword(Keyword::Field) => Ok(Type::FieldElement(field_type)),
-            Token::IntType(int_type) => Ok(Type::from_int_tok(field_type, int_type)),
-            Token::LeftBracket => self.parse_array_type(field_type),
-            k => {
-                let message = format!("Expected a type, found {}", k);
-                Err(ParserErrorKind::UnstructuredError {
-                    message,
-                    span: self.curr_token.to_span(),
-                })
-            }
+fn function_call() -> impl NoirParser<ExpressionKind> {
+    path().then(expression_list().surrounded_by(Token::LeftParen, Token::RightParen))
+        .map(|(path, args)| ExpressionKind::function_call(path, args))
+}
+
+fn array_access() -> impl NoirParser<ExpressionKind> {
+    ident().then(expression().surrounded_by(Token::LeftBracket, Token::RightBracket))
+        .map(|(variable, index)| ExpressionKind::index(variable, index))
+}
+
+fn variable() -> impl NoirParser<ExpressionKind> {
+    ident().map(|name| ExpressionKind::Ident(name.0.contents))
+}
+
+fn literal() -> impl NoirParser<ExpressionKind> {
+    tokenkind(TokenKind::Literal).map(|token| {
+        match token.into_token() {
+            Token::Int(x) => ExpressionKind::integer(x),
+            Token::Bool(b) => ExpressionKind::boolean(b),
+            Token::Str(s) => ExpressionKind::string(s),
+            unexpected => unreachable!("Non-literal {} parsed as a literal", unexpected),
         }
-    }
-    /// Cursor Start : `FIELD_ELEMENT_TYPE`
-    ///
-    /// Cursor End : `FIELD_ELEMENT_TYPE`
-    fn parse_field_type(&mut self) -> Result<FieldElementType, ParserErrorKind> {
-        match self.curr_token.token() {
-            Token::Keyword(Keyword::Priv) => Ok(FieldElementType::Private),
-            Token::Keyword(Keyword::Pub) => Ok(FieldElementType::Public),
-            Token::Keyword(Keyword::Const) => Ok(FieldElementType::Constant),
-            tok => {
-                let message = format!(
-                    "unexpected keyword. Expected \"pub, const or priv\". Found {}",
-                    tok
-                );
-                Err(ParserErrorKind::UnstructuredError {
-                    message,
-                    span: self.curr_token.to_span(),
-                })
-            }
-        }
-    }
+    })
+}
 
-    fn parse_array_type(&mut self, field_type: FieldElementType) -> Result<Type, ParserErrorKind> {
-        // Expression is of the form [3]Type
-
-        // Current token is '['
-        //
-        // Next token should be an Integer or right brace
-        let array_len = match self.peek_token.clone().into() {
+fn fixed_array_size() -> impl NoirParser<ArraySize> {
+    filter_map(|span, token: SpannedToken| {
+        match token.into_token() {
             Token::Int(integer) => {
                 if !integer.fits_in_u128() {
                     let message = "Array sizes must fit within a u128".to_string();
-                    return Err(ParserErrorKind::UnstructuredError {
-                        message,
-                        span: self.peek_token.to_span(),
-                    });
+                    Err(Simple::custom(span, message))
+                } else {
+                    Ok(ArraySize::Fixed(integer.to_u128()))
                 }
-                self.advance_tokens();
-                ArraySize::Fixed(integer.to_u128())
             }
-            Token::RightBracket => ArraySize::Variable,
             _ => {
                 let message = "The array size is defined as [k] for fixed size or [] for variable length. k must be a literal".to_string();
-                return Err(ParserErrorKind::UnstructuredError {
-                    message,
-                    span: self.peek_token.to_span(),
-                });
+                Err(Simple::custom(span, message))
             }
-        };
-
-        self.peek_check_variant_advance(&Token::RightBracket)?;
-
-        // Skip Right bracket
-        self.advance_tokens();
-
-        // Disallow [4][3]Witness i.e. Matrices
-        if self.peek_token == Token::LeftBracket {
-            return Err(ParserErrorKind::UnstructuredError {
-                message: "Currently Multi-dimensional arrays are not supported".to_string(),
-                span: self.peek_token.to_span(),
-            });
         }
-
-        // set this to false as we do not allow something like `[4] pub Witness`
-        let array_type = self.parse_type(false)?;
-
-        Ok(Type::Array(field_type, array_len, Box::new(array_type)))
-    }
+    })
 }
 
 #[cfg(test)]
@@ -518,9 +507,7 @@ mod test {
                 )
             }
         "#;
-        let mut parser = Parser::from_src(COMMENT_BETWEEN_FIELD);
-        let _program = parser.parse_program().unwrap();
-        parser = Parser::from_src(COMMENT_BETWEEN_CALL);
-        let _program = parser.parse_program().unwrap();
+        parse_program(COMMENT_BETWEEN_FIELD).unwrap();
+        parse_program(COMMENT_BETWEEN_CALL).unwrap();
     }
 }

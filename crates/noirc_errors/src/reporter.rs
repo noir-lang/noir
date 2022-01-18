@@ -1,4 +1,5 @@
 use crate::Span;
+use chumsky::prelude::Simple;
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::term;
 use codespan_reporting::term::termcolor::{
@@ -41,6 +42,12 @@ impl CustomDiagnostic {
     }
 }
 
+impl<T> From<Simple<T>> for CustomDiagnostic where T: std::hash::Hash + Eq + std::fmt::Display {
+    fn from(error: Simple<T>) -> Self {
+        CustomDiagnostic::simple_error(error.to_string(), String::new(), Span::new(error.span()))
+    }
+}
+
 #[derive(Debug)]
 struct CustomLabel {
     pub message: String,
@@ -69,8 +76,8 @@ impl Reporter {
                     .secondaries
                     .iter()
                     .map(|sl| {
-                        let start_span = sl.span.start.to_byte_index().to_usize();
-                        let end_span = sl.span.end.to_byte_index().to_usize() + 1;
+                        let start_span = sl.span.start() as usize;
+                        let end_span = sl.span.end() as usize + 1;
                         Label::secondary(file_id, start_span..end_span).with_message(&sl.message)
                     })
                     .collect();

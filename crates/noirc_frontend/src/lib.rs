@@ -11,7 +11,7 @@ pub mod hir_def;
 pub use lexer::token;
 
 // Parser API
-pub use parser::{ParsedModule, Parser};
+pub use parser::{ParsedModule, parse_program};
 
 // AST API
 pub use ast::*;

@@ -75,7 +75,7 @@ pub struct ImportStatement {
     pub alias: Option<Ident>,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub enum PathKind {
     Crate,
     Dep,

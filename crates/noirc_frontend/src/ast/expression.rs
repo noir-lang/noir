@@ -35,6 +35,44 @@ impl ExpressionKind {
         }
     }
 
+    pub fn prefix(operator: UnaryOp, rhs: Expression) -> ExpressionKind {
+        ExpressionKind::Prefix(Box::new(PrefixExpression { operator, rhs }))
+    }
+
+    pub fn array(contents: Vec<Expression>) -> ExpressionKind {
+        ExpressionKind::Literal(Literal::Array(ArrayLiteral {
+            length: contents.len() as u128,
+            r#type: Type::Unknown,
+            contents,
+        }))
+    }
+
+    pub fn integer(contents: FieldElement) -> ExpressionKind {
+        ExpressionKind::Literal(Literal::Integer(contents))
+    }
+
+    pub fn boolean(contents: bool) -> ExpressionKind {
+        ExpressionKind::Literal(Literal::Bool(contents))
+    }
+
+    pub fn string(contents: String) -> ExpressionKind {
+        ExpressionKind::Literal(Literal::Str(contents))
+    }
+
+    pub fn function_call(func_name: Path, arguments: Vec<Expression>) -> ExpressionKind {
+        ExpressionKind::Call(Box::new(CallExpression {
+            func_name,
+            arguments,
+        }))
+    }
+
+    pub fn index(collection_name: Ident, index: Expression) -> ExpressionKind {
+        ExpressionKind::Index(Box::new(IndexExpression {
+            collection_name,
+            index,
+        }))
+    }
+
     /// Returns true if the expression is a literal integer
     pub fn is_integer(&self) -> bool {
         self.as_integer().is_some()

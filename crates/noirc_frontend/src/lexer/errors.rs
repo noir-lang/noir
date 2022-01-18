@@ -1,3 +1,5 @@
+use crate::token::SpannedToken;
+
 use super::token::Token;
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::{DiagnosableError, Span};
@@ -23,24 +25,24 @@ pub enum LexerErrorKind {
     TooManyBits { span: Span, max: u32, got: u32 },
 }
 
-impl DiagnosableError for LexerErrorKind {
-    fn to_diagnostic(&self) -> Diagnostic {
+impl LexerErrorKind {
+    fn into_parts(&self) -> (String, String, Span) {
         match self {
             LexerErrorKind::UnexpectedCharacter {
                 span,
                 expected,
                 found,
-            } => Diagnostic::simple_error(
+            } => (
                 "an unexpected character was found".to_string(),
                 format!(" expected {} , but got {}", expected, found),
                 *span,
             ),
-            LexerErrorKind::CharacterNotInLanguage { span, found } => Diagnostic::simple_error(
+            LexerErrorKind::CharacterNotInLanguage { span, found } => (
                 "char is not in language".to_string(),
                 format!(" {:?} is not in language", found),
                 *span,
             ),
-            LexerErrorKind::NotADoubleChar { span, found } => Diagnostic::simple_error(
+            LexerErrorKind::NotADoubleChar { span, found } => (
                 format!("tried to parse {} as double char", found),
                 format!(
                     " {:?} is not a double char, this is an internal error",
@@ -48,17 +50,17 @@ impl DiagnosableError for LexerErrorKind {
                 ),
                 *span,
             ),
-            LexerErrorKind::InvalidIntegerLiteral { span, found } => Diagnostic::simple_error(
+            LexerErrorKind::InvalidIntegerLiteral { span, found } => (
                 "invalid integer literal".to_string(),
                 format!(" {} is not an integer", found),
                 *span,
             ),
-            LexerErrorKind::MalformedFuncAttribute { span, found } => Diagnostic::simple_error(
+            LexerErrorKind::MalformedFuncAttribute { span, found } => (
                 "malformed function attribute".to_string(),
                 format!(" {} is not a valid attribute", found),
                 *span,
             ),
-            LexerErrorKind::TooManyBits { span, max, got } => Diagnostic::simple_error(
+            LexerErrorKind::TooManyBits { span, max, got } => (
                 "integer literal too large".to_string(),
                 format!(
                     "The maximum number of bits needed to represent a field is {}, This integer type needs {} bits",
@@ -67,5 +69,19 @@ impl DiagnosableError for LexerErrorKind {
                 *span,
             ),
         }
+    }
+}
+
+impl DiagnosableError for LexerErrorKind {
+    fn to_diagnostic(&self) -> Diagnostic {
+        let (primary, secondary, span) = self.into_parts();
+        Diagnostic::simple_error(primary, secondary, span)
+    }
+}
+
+impl From<LexerErrorKind> for chumsky::error::Simple<SpannedToken> {
+    fn from(error: LexerErrorKind) -> Self {
+        let (_, message, span) = error.into_parts();
+        chumsky::error::Simple::custom(span.into(), message)
     }
 }
