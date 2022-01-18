@@ -9,7 +9,7 @@ use std::collections::HashMap;
 //Unroll a for loop: exit <- join <--> body
 //join block is given in argumemt, it will evaluate the join condition, starting from 'start' until it reaches 'end'
 //and write the unrolled instructions into the join block, then delete the body block at the end.
-pub fn unroll_block(join_id: Index, eval: &mut ParsingContext) {
+pub fn unroll_block(join_id: Index, unroll_map: &mut HashMap<Index,Index>, eval: &mut ParsingContext) {
     let join = eval.get_block(join_id).unwrap();
     let join_instructions = join.instructions.clone();
     let mut from = join.predecessor.first().unwrap().clone(); //todo predecessor.first or .last?
@@ -31,7 +31,6 @@ pub fn unroll_block(join_id: Index, eval: &mut ParsingContext) {
             //Process body
             for i_id in &body_instructions {
                 let ins = eval.get_object(*i_id).unwrap();
-
                 match ins {
                     node::NodeObj::Instr(i) => {
                         let new_left = get_current_value(i.lhs, &eval_map).to_index().unwrap();
@@ -50,20 +49,41 @@ pub fn unroll_block(join_id: Index, eval: &mut ParsingContext) {
                         } else {
                             simplify(eval, &mut new_ins);
                             let result_id;
+                            let mut to_delete = false;
                             if new_ins.is_deleted {
                                 result_id = new_ins.rhs;
+                                if  new_ins.rhs == new_ins.idx {
+                                    to_delete = true;
+                                }
                             }
                             else{
                                 result_id = eval.nodes.insert(node::NodeObj::Instr(new_ins));
                                 new_instructions_id.push(result_id);
                             }
-                            eval_map.insert(*i_id, node::NodeEval::Idx(result_id));
+                            //ignore self-deleted instructions
+                            if !to_delete {
+                                eval_map.insert(*i_id, node::NodeEval::Idx(result_id));
+                            }
+                            
                         }
                     }
                     _ => todo!(),
                 }
             }
             from = body_id;
+        }
+        //map the Phis variables to their unrolled values:
+        for ins in join_instructions {
+            if let Some(ins_obj) = eval.get_as_instruction(ins) {
+                if ins_obj.operator == node::Operation::phi {
+                    if eval_map.contains_key(&ins_obj.rhs) {
+                        unroll_map.insert(ins_obj.lhs, eval_map[&ins_obj.rhs].to_index().unwrap()); //todo tester avec un const!!!
+                    } else if eval_map.contains_key(&ins_obj.idx) {
+                        unroll_map.insert(ins_obj.lhs, eval_map[&ins_obj.idx].to_index().unwrap()); //todo tester avec un const!!!
+
+                    }
+                }
+            }
         }
         //TODO add the jmp to the exit block
         for ins in &new_instructions_id {
@@ -87,6 +107,25 @@ pub fn unroll_block(join_id: Index, eval: &mut ParsingContext) {
             join_mut.dominated.swap_remove(index);
         }
         eval.blocks.remove(body_id);
+    }
+    else {
+        unroll_in_block(join_id, unroll_map, eval);
+    }
+}
+
+
+fn unroll_in_block(join_id: Index, unroll_map: &HashMap<Index,Index>, eval: &mut ParsingContext)  {
+    let join = eval.get_block(join_id).unwrap();
+    for i in &join.instructions.clone() {       //RIA
+        if let Some(ins) = eval.get_as_mut_instruction(*i) {
+            if unroll_map.contains_key(&ins.rhs) {
+                ins.rhs = unroll_map[&ins.rhs];
+            }
+            if unroll_map.contains_key(&ins.lhs) {
+                ins.lhs = unroll_map[&ins.lhs];
+            }
+            //TODO simplify(eval, ins);
+        }
     }
 }
 
@@ -278,23 +317,27 @@ fn evaluate_conditional_jump(
             _ => panic!("loop without conditional statement!"), //TODO shouldn't we return false instead?
         }
     }
+    dbg!(cond);
     unreachable!("Condition should be constant");
     true
 }
 
 pub fn unroll(eval: &mut ParsingContext) {
-    unroll_tree(eval, eval.first_block);
+    let mut umap:HashMap<Index,Index> = HashMap::new();
+    unroll_tree(eval, eval.first_block, &mut umap);
     //which order should we follow?
 }
 
-pub fn unroll_tree(eval: &mut ParsingContext, b_idx: arena::Index) {
-    unroll_block(b_idx, eval);
+pub fn unroll_tree(eval: &mut ParsingContext, b_idx: arena::Index, umap: &mut HashMap<Index,Index>) {
+    
+    unroll_block(b_idx, umap, eval);
     let block = eval.get_block(b_idx).unwrap();
     let bd = block.dominated.clone();
     for b in bd {
-        unroll_block(b, eval);
+        unroll_tree(eval, b, &mut umap.clone());
     }
 }
+
 
 // Performs constant folding, arithmetic simplifications and move to standard form
 pub fn simplify(eval: &mut ParsingContext, ins: &mut node::Instruction) {
@@ -360,4 +403,30 @@ pub fn simplify(eval: &mut ParsingContext, ins: &mut node::Instruction) {
         }
     }
     return;
+}
+
+
+pub fn loop_invariant(eval: &ParsingContext, idx: Index) -> bool {
+    if let Some(obj) = eval.get_object(idx) {
+        match obj {
+            node::NodeObj::Instr(i) => {
+                if i.operator == node::Operation::phi {
+                    todo!();
+                    return false;
+                }
+                if node::is_binary(i.operator) {
+                    return loop_invariant(eval, i.lhs) && loop_invariant(eval, i.rhs);
+                }
+                if i.operator == node::Operation::not {
+                    return loop_invariant(eval, i.lhs);
+                }
+                return false;
+            }
+            node::NodeObj::Const(_) => {
+                return true;
+            }
+            node::NodeObj::Obj(var) => return false, //TODO it depends where the variable is defined
+        }
+    }
+    return false;
 }

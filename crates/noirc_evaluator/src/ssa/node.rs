@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 
 use acvm::FieldElement;
+use acvm::acir::native_types::{Witness};
 use arena;
 use noirc_frontend::hir_def::expr::HirBinaryOpKind;
 use num_bigint::BigUint;
@@ -138,6 +139,7 @@ pub struct Variable {
                                     //TODO clarify where cur_value and root is stored, and also this:
                                     //  pub max_bits: u32,                  //max possible bit size of the expression
                                     //  pub max_value: Option<BigUInt>,     //maximum possible value of the expression, if less than max_bits
+    pub witness: Option<Witness>,       
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -193,7 +195,7 @@ impl ObjectType {
         }
     }
 
-    pub fn get_type_from_object(obj: Object) -> ObjectType {
+    pub fn get_type_from_object(obj: &Object) -> ObjectType {
         let toto = match obj.clone() {
             Object::Arithmetic(a) => dbg!("aa".to_string()), //TODO
             Object::Array(a) => dbg!("aaa".to_string()),
@@ -360,6 +362,7 @@ impl Instruction {
             }
             Operation::trunc | Operation::phi => (false, false),
             Operation::nop | Operation::jne | Operation::jeq | Operation::jmp => (false, false),
+            Operation::eq_gate => (true, true),
         }
     }
 
@@ -408,6 +411,7 @@ impl Instruction {
             Operation::ass => rhs_max,
             Operation::nop | Operation::jne | Operation::jeq | Operation::jmp => todo!(),
             Operation::phi => BigUint::max(lhs_max, rhs_max), //TODO operands are in phi_arguments, not lhs/rhs!!
+            Operation::eq_gate => BigUint::min(lhs_max, rhs_max), 
         }
     }
 
@@ -704,6 +708,7 @@ impl Instruction {
     //else, we should replace it with an assignement to the returned index
     pub fn simplify_one_phi(
         ins_id: arena::Index,
+        ins_lhs: arena::Index,
         phi_arguments: &Vec<(arena::Index, arena::Index)>,
     ) -> Option<arena::Index> {
         let mut values: HashSet<arena::Index> = HashSet::new();
@@ -711,7 +716,7 @@ impl Instruction {
         if phi_arguments.len() <= 0 {
             return None;
         } else {
-            let v = ins_id; //ins.lhs?
+            let v = ins_lhs;
             for iter in phi_arguments {
                 if iter.0 != v {
                     values.insert(iter.0);
@@ -721,7 +726,8 @@ impl Instruction {
             if values.len() == 0 {
                 return None;
             } else if values.len() == 1 {
-                return Some(first);
+                return Some(ins_id);
+                //return Some(first); TODO..this does not work because other blocks may use ins_lhs
             }
         }
         return Some(ins_id);
@@ -768,19 +774,12 @@ impl Instruction {
             }
             //TODO replace a<b with a<=b+1, but beware of edge cases!
 
-            //commutativity
-            Operation::add
-            | Operation::sadd
-            | Operation::mul
-            | Operation::smul
-            | Operation::and
-            | Operation::or => {
-                if self.rhs < self.lhs {
-                    let r = self.rhs;
-                    self.rhs = self.lhs;
-                    self.lhs = r;
-                }
-            }
+           Operation::eq_gate => {
+               if self.rhs == self.lhs {
+                   self.rhs = self.idx;
+                   self.is_deleted = true;
+               }
+           }
             _ => (),
         }
         if is_commutative(self.operator) && self.rhs < self.lhs {
@@ -838,6 +837,7 @@ pub enum Operation {
     // todo: call, br,..
     nop, // no op
 
+    eq_gate,     //write a gate enforcing equality of the two sides (to support the constrain statement)
          //memory todo: load, store, getelementptr?
 }
 
@@ -894,6 +894,7 @@ pub fn is_binary(op_code: Operation) -> bool {
         Operation::jne | Operation::jeq | Operation::jmp => false,
         Operation::phi => false,
         Operation::nop => false,
+        Operation::eq_gate => true,
     }
 }
 
@@ -1007,10 +1008,10 @@ impl BasicBlock {
         }
     }
 
-    pub fn get_current_value(&self, idx: arena::Index) -> arena::Index {
+    pub fn get_current_value(&self, idx: arena::Index) -> Option<arena::Index> {
         match self.value_array.get(&idx) {
-            Some(cur_idx) => *cur_idx,
-            None => idx,
+            Some(cur_idx) => Some(*cur_idx),
+            None => None,
         }
     }
 
@@ -1032,5 +1033,14 @@ impl BasicBlock {
 
     pub fn get_first_instruction(&self) -> arena::Index {
         self.instructions[0]
+    }
+}
+
+pub fn get_witness_from_object(obj: &Object) -> Option<Witness> {
+    match obj {
+        Object::Integer(i) => Some(i.witness),
+        Object::Array(a) => todo!(),
+        Object::Constants(f) => None,
+        _ => obj.witness(), // These will
     }
 }

@@ -332,7 +332,7 @@ impl<'a> ParsingContext<'a> {
         //Basic simplification
         optim::simplify(self, &mut i);
         if i.is_deleted {
-            return i.rhs;
+            return i.rhs;   //TODO how should we handle fully deleted instruction (i.e i.rhs is not an object)?
         }
         self.add_object2(node::NodeObj::Instr(i))
     }
@@ -400,8 +400,26 @@ impl<'a> ParsingContext<'a> {
             }
         }
         //Current value is taken from the value_array, we do not use anymore the cur_value of the variable because it was painfull to update due to rust ownership
-        //TODO: should we ask the parent block if it is not in the current block?
-        return self.get_current_block().get_current_value(var.id);
+        let mut block = self.get_current_block();
+        if let Some(idx) = block.get_current_value(var.id) {
+            return idx;
+        }
+        // if the block value array does not have the variable, we ask recursively to its predecessor
+        while let Some(prev) = block.predecessor.first() {
+            let prev_opt = self.get_block(*prev);
+            if prev_opt.is_some()
+            {
+                block = prev_opt.unwrap();
+                if let Some(idx) = block.get_current_value(var.id) {
+                    return idx;
+                }
+            }
+            else {
+                return var.id; 
+            }
+   
+        }
+        return var.id;
     }
 
     //update 'new_var' which is a new ssa value of previous 'var' by:
@@ -511,11 +529,9 @@ impl<'a> ParsingContext<'a> {
         left: Option<arena::Index>,
         right: Option<arena::Index>,
     ) {
-        let target_block = self.get_block_mut(target);
-        if target_block.is_some() {
-            let tb = target_block.unwrap();
-            tb.right = right;
-            tb.left = left;
+        if let Some(target_block) = self.get_block_mut(target) {
+            target_block.right = right;
+            target_block.left = left;
             //TODO should also update the last instruction rhs to the first instruction of the current block  -- TODOshoud we do it here??
             if right.is_some() {
                 let rb = self.get_block_mut(right.unwrap());
@@ -667,7 +683,7 @@ impl<'a> ParsingContext<'a> {
                             to_update_phi = true;
                         }
                     }
-                    if let Some(first) = node::Instruction::simplify_one_phi(ins.idx, &phi_args) {
+                    if let Some(first) = node::Instruction::simplify_one_phi(ins.idx, ins.lhs, &phi_args) {
                         if first == ins.idx {
                             new_list.push(*iter);
                         } else {
@@ -686,7 +702,6 @@ impl<'a> ParsingContext<'a> {
                 if to_update_phi {
                     let update = self.get_mut_instruction(*iter);
                     update.phi_arguments = phi_args;
-                    dbg!(&update.phi_arguments);
                 } else if to_delete || ins.lhs != i_lhs || ins.rhs != i_rhs {
                     //update i:
                     let ii_l = ins.lhs.clone();
@@ -804,7 +819,7 @@ impl<'a> ParsingContext<'a> {
                 let phi = self.generate_one_phi(
                     create_phi.unwrap(),
                     v_id,
-                    self.get_root(var.unwrap()),
+                    var.unwrap().id,//self.get_root(var.unwrap()),
                     v_id,
                     self.current_block,
                 );
@@ -815,7 +830,7 @@ impl<'a> ParsingContext<'a> {
             return v_id; //self.get_current_value(&var.unwrap());
         }
         let obj = env.get(&ident_name);
-        let obj_type = node::ObjectType::get_type_from_object(obj);
+        let obj_type = node::ObjectType::get_type_from_object(&obj);
 
         //new variable - should be in a let statement? The let statement should set the type
         let obj = node::Variable {
@@ -824,6 +839,7 @@ impl<'a> ParsingContext<'a> {
             /*symbol_id: ident_iid,*/ obj_type: obj_type,
             cur_value: self.id0,
             root: None,
+            witness: node::get_witness_from_object(&obj),
         };
         self.add_variable(obj, None)
     }
@@ -853,7 +869,7 @@ impl<'a> ParsingContext<'a> {
         let rtype = self.get_object_type(rhs);
         let optype = ltype; //TODO if type differs try to cast them: check how rust handle this
                             //and else returns an error
-                            // Get the opcode from the infix operator
+        // Get the opcode from the infix operator
         let opcode = node::to_operation(op.kind, optype);
         //TODO we should validate the types with the opcode
         Ok(self.new_instruction(lhs, rhs, opcode, optype)) //todo new_instruction should return a result to handle error
@@ -866,13 +882,10 @@ impl<'a> ParsingContext<'a> {
         create_phi: Option<arena::Index>,
     ) -> Result<arena::Index, RuntimeError> {
         let statement = self.context().def_interner.statement(stmt_id);
-        dbg!(statement.clone());
         match statement {
             HirStatement::Private(x) => self.handle_private_statement(env, x),
             HirStatement::Constrain(constrain_stmt) => {
-                Ok(self.dummy())
-                // todo!();
-                //self.handle_constrain_statement(env, constrain_stmt)
+                self.handle_constrain_statement(env, constrain_stmt)
             }
             HirStatement::Const(x) => {
                 let variable_name: String = self.context().def_interner.ident_name(&x.identifier);
@@ -933,13 +946,14 @@ impl<'a> ParsingContext<'a> {
                 //var is not defined, 
                 //let's do it here for now...TODO
                 let obj = env.get(&ident_name);
-                let obj_type = node::ObjectType::get_type_from_object(obj);
+                let obj_type = node::ObjectType::get_type_from_object(&obj);
                 let new_var2 = node::Variable{
                     id : self.dummy(),
                      obj_type: obj_type,  //TODO
-                     name: ident_name,
+                     name: ident_name.clone(),
                      cur_value : self.dummy(),
                      root :  None,
+                     witness: node::get_witness_from_object(&obj),
                  };
                  let new_var2_id= self.add_variable(new_var2, None);
                  self.get_variable(new_var2_id).unwrap()
@@ -955,6 +969,7 @@ impl<'a> ParsingContext<'a> {
                     name: String::new(),
                     cur_value: lhs.cur_value,
                     root: None,
+                    witness: None,
                 };
                 let ls_root = self.get_root(lhs);
 
@@ -988,8 +1003,8 @@ impl<'a> ParsingContext<'a> {
                 if create_phi.is_some() {
                     let phi = self.generate_one_phi(
                         create_phi.unwrap(),
-                        ls_root,
-                        ls_root,
+                        new_var_id,
+                        new_var_id, //TODO to check ls_root,
                         rhs_id,
                         self.current_block,
                     );
@@ -1006,15 +1021,89 @@ impl<'a> ParsingContext<'a> {
 
     fn create_new_variable(&mut self, var_name: String, env: &mut Environment) -> arena::Index {
         let obj = env.get(&var_name);
-        let obj_type = node::ObjectType::get_type_from_object(obj);
+        let obj_type = node::ObjectType::get_type_from_object(&obj);
         let new_var = node::Variable {
             id: self.dummy(),
             obj_type: obj_type,
             name: var_name,
             cur_value: self.dummy(), //Not used
             root: None,
+            witness: node::get_witness_from_object(&obj),
         };
         self.add_variable(new_var, None)
+    }
+
+    //create a variable for a new assignement of var
+    fn new_ssa_variable(&mut self, var_id: arena::Index) -> arena::Index {
+        if let Ok(var)  = self.get_variable(var_id) {
+            let obj_type = var.get_type();
+            let root  = self.get_root(var);
+            let new_var = node::Variable {
+                id: self.dummy(),
+                obj_type: obj_type,
+                name: String::new(),
+                cur_value: self.dummy(), //Not used
+                root: Some(root),
+                witness: None,
+            };
+            let id = self.add_variable(new_var, Some(root));
+            self.update_variable_id(root, id, id);
+            return id;
+        }
+        unreachable!("TODO: error");
+    }
+
+       // Add a constraint to constrain two expression together
+       fn handle_constrain_statement(
+        &mut self,
+        env: &mut Environment,
+        constrain_stmt: HirConstrainStatement,
+    ) -> Result<arena::Index, RuntimeError> {
+        let lhs = self.expression_to_object( env, &constrain_stmt.0.lhs, None)?;
+        let rhs = self.expression_to_object(env, &constrain_stmt.0.rhs, None)?;
+
+        let result =
+        match constrain_stmt.0.operator.kind  {
+            // HirBinaryOpKind::Add => binary_op::handle_add_op(lhs, rhs, self),
+            // HirBinaryOpKind::Subtract => binary_op::handle_sub_op(lhs, rhs, self),
+            // HirBinaryOpKind::Multiply => binary_op::handle_mul_op(lhs, rhs, self),
+            // HirBinaryOpKind::Divide => binary_op::handle_div_op(lhs, rhs, self),
+            HirBinaryOpKind::NotEqual => todo!(),
+            HirBinaryOpKind::Equal => Ok(self.new_instruction(lhs, rhs, node::Operation::eq_gate, node::ObjectType::none)),
+            // HirBinaryOpKind::And => binary_op::handle_and_op(lhs, rhs, self),
+            // HirBinaryOpKind::Xor => binary_op::handle_xor_op(lhs, rhs, self),
+            HirBinaryOpKind::Less =>todo!(),
+            HirBinaryOpKind::LessEqual => todo!(),
+            HirBinaryOpKind::Greater => todo!(),
+            HirBinaryOpKind::GreaterEqual => {
+                todo!();
+            }
+            HirBinaryOpKind::Assign => {
+                let err = RuntimeErrorKind::Spanless(
+                    "The Binary operation `=` can only be used in declaration statements"
+                        .to_string(),
+                );
+                Err(err)
+            }
+            HirBinaryOpKind::Or => {
+                let err = RuntimeErrorKind::Unimplemented("The Or operation is currently not implemented. First implement in Barretenberg.".to_owned());
+                Err(err)
+            }
+            _ => {
+                let err = RuntimeErrorKind::Unimplemented("The operation is currently not supported in a constrain statement".to_owned());
+                Err(err)
+            }
+        }.map_err(|kind|kind.add_span(constrain_stmt.0.operator.span));
+
+        if constrain_stmt.0.operator.kind == HirBinaryOpKind::Equal {
+           //TODO; the truncate strategy should benefit from this.
+           //if one of them is a const, them we update the value array of the other to the same const
+           // and we should even do it retro-actively!  mais comment?? => deuxieme pass?
+           // we should replace one with the other retro-actively
+           // we should merge their property; min(max), min(bitsize),etc..
+
+        };
+        result
     }
 
     //TODO: refactor properly so that one function handle the creation of a new variable and generates the ass opcode, and use it in priv,let,assign
@@ -1036,6 +1125,7 @@ impl<'a> ParsingContext<'a> {
             name: variable_name,
             cur_value: self.dummy(),
             root: None,
+            witness: None, //TODO
         };
         let new_var_id = self.add_variable(new_var, None);
         // Create assign instruction
@@ -1114,7 +1204,6 @@ impl<'a> ParsingContext<'a> {
                 //Ok(Object::Array(Array::from(self, env, arr_lit)?)) 
             },
             HirExpression::Ident(x) =>  {
-                dbg!(expr);
                 Ok(self.evaluate_identifier(env, &x, create_phi))
                 //n.b this creates a new variable if it does not exist, may be we should delegate this to explicit statements (let) - TODO
             },
@@ -1514,10 +1603,11 @@ impl<'a> ParsingContext<'a> {
             name: String::new(),
             cur_value: iter_id,
             root: None,
+            witness: None,
         };
         let i1_id = self.add_variable(i1, Some(iter_id));
         let phi = self
-            .generate_one_phi(join_idx, iter_id, iter_id, iter_ass, prev_block)
+            .generate_one_phi(join_idx, i1_id, iter_id, iter_ass, prev_block)
             .unwrap();
         self.update_variable_id(iter_id, i1_id, phi);
         let cond =
@@ -1578,16 +1668,40 @@ impl<'a> ParsingContext<'a> {
         //for the dominator tree
         let join2 = self.get_block_mut(join_idx).unwrap();
         join2.dominated.push(body_idx);
+        let mut va_tmp : HashMap<arena::Index, arena::Index> = HashMap::new();
+        for i in &join2.instructions.clone() {
+            if let Some(ins) = self.get_as_instruction(*i) {
+                if ins.operator == node::Operation::phi {
+                    va_tmp.insert(ins.rhs, ins.lhs);
+                }
+            }
+        }
+        //update value array of join block to expose the phi variables
+        let join2 = self.get_block_mut(join_idx).unwrap();
+        for mapped in va_tmp {
+            join2.value_array.insert(mapped.0,mapped.1);
+        }
         Ok(exit_first) //TODO what should we return???
     }
 
     pub fn acir(&self, evaluator: &mut Evaluator) {
         let mut acir = Acir::new();
-        let fb = self.get_block(self.first_block).unwrap();
-        for iter in &fb.instructions {
-            let ins = self.get_instruction(*iter);
-            acir.evaluate_instruction(ins, evaluator, self);
+        let mut fb = self.get_block(self.first_block);
+        while  fb.is_some() {
+            for iter in &fb.unwrap().instructions {
+                let ins = self.get_instruction(*iter);
+                acir.evaluate_instruction(ins, evaluator, self);
+            }
+             //TODO we should rather follow the jumps!
+            if fb.unwrap().left.is_some() {
+                fb = self.get_block(fb.unwrap().left.unwrap());
+            }
+            else {
+                fb = None;
+            }
+
         }
+
     }
 
     //If the Phi already exists, we merge, else we create a new one and update the value array.
@@ -1603,10 +1717,12 @@ impl<'a> ParsingContext<'a> {
         for v in value_array.keys() {
             //look for a phi for v:
             let mut to_insert = true;
+            let root = self.get_root_id(*v);
             for i in &target.instructions {
                 if let Some(ins) = self.get_as_instruction(*i) {
                     let mut phi_merge = ins.clone();
-                    if phi_merge.lhs == *v {
+                   // if phi_merge.lhs == *v {
+                       if phi_merge.rhs == root {
                         for arg in &mut phi_merge.phi_arguments {
                             if arg.1 == from {
                                 arg.0 = value_array[v];
@@ -1678,13 +1794,14 @@ impl<'a> ParsingContext<'a> {
         &mut self,
         target_block: arena::Index,
         v: arena::Index,
-        root: arena::Index,
+        v2: arena::Index,        //  root: arena::Index,
         value: arena::Index,
         from: arena::Index,
     ) -> Option<arena::Index> {
         let target = self.get_block(target_block).unwrap();
         let mut result = self.dummy();
-        //look for a phi for v:
+        //look for a phi for root:
+        let root = self.get_root_id(v2);
         let mut to_insert = true;
         let mut to_update = false;
         for i in &target.instructions {
@@ -1717,20 +1834,29 @@ impl<'a> ParsingContext<'a> {
             let mut phi_ins =
                 node::Instruction::new(node::Operation::phi, v, root, v_type, Some(target_block));
             phi_ins.phi_arguments.push((value, from));
+            if let Some(prev_block) = target.predecessor.first() {
+                if *prev_block != from {
+                    phi_ins.phi_arguments.push((v2, *prev_block));
+                }
+            }            
             //phi_list.push(phi_ins);
             let phi_id = self.nodes.insert(node::NodeObj::Instr(phi_ins));
             //ria
+            //we create a new variable representing the PHI result, we store it as PHI.lhs
+            let new_v = self.new_ssa_variable(v);
             let mut phi_ins2 = self.get_as_mut_instruction(phi_id).unwrap();
             phi_ins2.idx = phi_id;
+            phi_ins2.lhs = new_v;
+            dbg!(phi_ins2);
             let target2 = self.get_block_mut(target_block).unwrap();
             target2.instructions.insert(1, phi_id); //We insert after the dummy instruction
             result = phi_id;
         }
-        //update value array
+        //update value array todo??
         if to_insert {
             let from_block = self.get_block_mut(from);
             if from_block.is_some() {
-                from_block.unwrap().update_variable(v, value)
+               //from_block.unwrap().update_variable(v, value)   //todo??
             }
             return Some(result);
         }

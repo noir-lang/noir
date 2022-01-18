@@ -4,7 +4,7 @@ use arena::Index;
 use std::collections::HashMap;
 //use crate::acir::native_types::{Arithmetic, Witness};
 use crate::ssa::code_gen::ParsingContext;
-use crate::ssa::node::NodeObj::Const;
+use crate::ssa::node;
 use crate::Evaluator;
 use crate::Gate;
 use crate::RuntimeErrorKind;
@@ -38,6 +38,7 @@ impl InternalVar {
 }
 
 impl Acir {
+
     //This function stores the substitution with the arithmetic expression in the cache
     //When an instruction performs arithmetic operation, its output can be represented as an arithmetic expression of its arguments
     //Substitute a nodeobj as an arithmetic expression
@@ -56,7 +57,7 @@ impl Acir {
 
         if obj.is_some() {
             match obj.unwrap() {
-                Const(c) => {
+                node::NodeObj::Const(c) => {
                     let f_value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be()); //TODO const should be a field
                     expr = Arithmetic {
                         mul_terms: Vec::new(),
@@ -67,6 +68,20 @@ impl Acir {
                         idx: Some(idx),
                         expression: expr,
                         witness: None,
+                    });
+                },
+                node::NodeObj::Obj(v) => {
+                    let w = if let Some(w1) = v.witness {
+                        w1
+                    }
+                    else {
+                       evaluator.add_witness_to_cs()
+                    };
+                    expr = Arithmetic::from(&w);
+                    result = Some(InternalVar {
+                        idx: Some(idx),
+                        expression: expr,
+                        witness: Some(w),
                     });
                 }
                 _ => (),
@@ -97,6 +112,9 @@ impl Acir {
         evaluator: &mut Evaluator,
         cfg: &ParsingContext,
     ) {
+        if ins.operator == Operation::nop {
+            return;
+        }
         let mut output = Arithmetic::default();
         let l_c = Acir::substitute(&mut self.arith_cache, ins.lhs, evaluator, cfg);
         let r_c = Acir::substitute(&mut self.arith_cache, ins.rhs, evaluator, cfg);
@@ -162,14 +180,18 @@ impl Acir {
                 }
             }
             Operation::nop => (), //for now we skip..TODO todo!(),
+            Operation::eq_gate => {
+                output = add(&l_c.expression, FieldElement::from(-1), &r_c.expression);
+                evaluator.gates.push(Gate::Arithmetic(output.clone()));       //TODO should we create a witness??
+            }
         }
-
         let output_var = InternalVar {
             expression: output,
             //value: FieldElement::from(0_u32),
             idx: Some(ins.idx),
             witness: None, //TODO put the witness when it exist
         };
+        
         self.arith_cache.insert(ins.idx, output_var);
     }
 }
@@ -186,7 +208,7 @@ pub fn evaluate_truncate(
     let a_witness;
     //TODO: we should truncate the arithmetic expression (and so avoid having to create a witness)
     // if lhs is not a witness, but this requires a new truncate directive...TODO
-    if (lhs.witness.is_none()) {
+    if lhs.witness.is_none() {
         a_witness = generate_witness(lhs, evaluator);
     } else {
         a_witness = lhs.witness.unwrap();
@@ -219,13 +241,13 @@ pub fn evaluate_truncate(
 }
 
 pub fn generate_witness(lhs: InternalVar, evaluator: &mut Evaluator) -> Witness {
-    if (lhs.witness.is_some()) {
+    if lhs.witness.is_some() {
         return lhs.witness.unwrap();
     }
     if is_const(&lhs.expression) {
         todo!("Panic");
     }
-    if (lhs.expression.mul_terms.len() == 0 && lhs.expression.linear_combinations.len() == 1) {
+    if lhs.expression.mul_terms.len() == 0 && lhs.expression.linear_combinations.len() == 1 {
         todo!("optimisation ??!?");
     }
     let w = evaluator.add_witness_to_cs(); //TODO  set lhs.witness = w
@@ -257,7 +279,7 @@ pub fn evaluate_mul(lhs: InternalVar, rhs: InternalVar, evaluator: &mut Evaluato
         .gates
         .push(Gate::Arithmetic(&lhs.expression - &Arithmetic::from(&a)));
     //create new witness b et gate b = rhs
-    if (lhs.is_equal(&rhs)) {
+    if lhs.is_equal(&rhs) {
         b = a;
     } else {
         b = evaluator.add_witness_to_cs();
@@ -363,7 +385,7 @@ pub fn mul(a: &Arithmetic, b: &Arithmetic) -> Arithmetic {
     i1 = 0;
     i2 = 0;
     //todo check it is correct
-    while (i1 < a.linear_combinations.len() && i2 < b.linear_combinations.len()) {
+    while i1 < a.linear_combinations.len() && i2 < b.linear_combinations.len() {
         let coef_a = b.q_c * a.linear_combinations[i1].0;
         let coef_b = a.q_c * b.linear_combinations[i2].0;
         if a.linear_combinations[i1].1 < b.linear_combinations[i2].1 {
@@ -372,7 +394,7 @@ pub fn mul(a: &Arithmetic, b: &Arithmetic) -> Arithmetic {
                     .linear_combinations
                     .push((coef_a, a.linear_combinations[i1].1));
             }
-            if (i1 + 1 >= a.linear_combinations.len()) {
+            if i1 + 1 >= a.linear_combinations.len() {
                 i2 += 1;
             } else {
                 i1 += 1;
@@ -383,7 +405,7 @@ pub fn mul(a: &Arithmetic, b: &Arithmetic) -> Arithmetic {
                     .linear_combinations
                     .push((coef_b, b.linear_combinations[i2].1));
             }
-            if (i2 + 1 >= b.linear_combinations.len()) {
+            if i2 + 1 >= b.linear_combinations.len() {
                 i1 += 1;
             } else {
                 i2 += 1;
@@ -398,10 +420,10 @@ pub fn mul(a: &Arithmetic, b: &Arithmetic) -> Arithmetic {
                 i1 += 1;
                 i2 += 1;
             } else {
-                if (i1 + 1 < a.linear_combinations.len()) {
+                if i1 + 1 < a.linear_combinations.len() {
                     i1 += 1;
                 }
-                if (i2 + 1 < a.linear_combinations.len()) {
+                if i2 + 1 < a.linear_combinations.len() {
                     i2 += 1;
                 }
             }
@@ -428,14 +450,14 @@ fn next_mul_iter(
     }
 
     if *i1 + 1 < a.len() {
-        if (a[*i1 + 1].1 < b[*i2].1) {
+        if a[*i1 + 1].1 < b[*i2].1 {
             next_a = Some((a[*i1 + 1].1, b[*i2].1));
         } else {
             next_a = Some((b[*i2].1, a[*i1 + 1].1));
         }
     }
     if *i2 as usize + 1 < b.len() {
-        if (a[*i1].1 < b[*i2 + 1].1) {
+        if a[*i1].1 < b[*i2 + 1].1 {
             next_b = Some((a[*i1].1, b[*i2 + 1].1));
         } else {
             next_b = Some((b[*i2 + 1].1, a[*i1].1));
@@ -464,13 +486,13 @@ pub fn add(a: &Arithmetic, k: FieldElement, b: &Arithmetic) -> Arithmetic {
     //linear combinations
     let mut i1 = 0; //a
     let mut i2 = 0; //b
-    while (i1 < a.linear_combinations.len() && i2 < b.linear_combinations.len()) {
+    while i1 < a.linear_combinations.len() && i2 < b.linear_combinations.len() {
         if a.linear_combinations[i1].1 < b.linear_combinations[i2].1 {
             output.linear_combinations.push(a.linear_combinations[i1]);
             i1 += 1;
-        } else if a.linear_combinations[i1].1 > b.linear_combinations[i1].1 {
+        } else if a.linear_combinations[i1].1 > b.linear_combinations[i2].1 {
             let coef = b.linear_combinations[i2].0 * k;
-            if (coef != FieldElement::zero()) {
+            if coef != FieldElement::zero() {
                 output
                     .linear_combinations
                     .push((coef, b.linear_combinations[i2].1));
@@ -478,7 +500,7 @@ pub fn add(a: &Arithmetic, k: FieldElement, b: &Arithmetic) -> Arithmetic {
             i2 += 1;
         } else {
             let coef = a.linear_combinations[i1].0 + b.linear_combinations[i2].0 * k;
-            if (coef != FieldElement::zero()) {
+            if coef != FieldElement::zero() {
                 output
                     .linear_combinations
                     .push((coef, a.linear_combinations[i1].1));
@@ -487,13 +509,13 @@ pub fn add(a: &Arithmetic, k: FieldElement, b: &Arithmetic) -> Arithmetic {
             i1 += 1;
         }
     }
-    while (i1 < a.linear_combinations.len()) {
+    while i1 < a.linear_combinations.len() {
         output.linear_combinations.push(a.linear_combinations[i1]);
         i1 += 1;
     }
-    while (i2 < b.linear_combinations.len()) {
+    while i2 < b.linear_combinations.len() {
         let coef = b.linear_combinations[i2].0 * k;
-        if (coef != FieldElement::zero()) {
+        if coef != FieldElement::zero() {
             output
                 .linear_combinations
                 .push((coef, b.linear_combinations[i2].1));
@@ -505,13 +527,13 @@ pub fn add(a: &Arithmetic, k: FieldElement, b: &Arithmetic) -> Arithmetic {
 
     i1 = 0; //a
     i2 = 0; //b
-    while (i1 < a.mul_terms.len() && i2 < b.mul_terms.len()) {
+    while i1 < a.mul_terms.len() && i2 < b.mul_terms.len() {
         if (a.mul_terms[i1].1, a.mul_terms[i1].2) < (b.mul_terms[i2].1, b.mul_terms[i2].2) {
             output.mul_terms.push(a.mul_terms[i1]);
             i1 += 1;
         } else if (a.mul_terms[i1].1, a.mul_terms[i1].2) > (b.mul_terms[i2].1, b.mul_terms[i2].2) {
             let coef = b.mul_terms[i2].0 * k;
-            if (coef != FieldElement::zero()) {
+            if coef != FieldElement::zero() {
                 output
                     .mul_terms
                     .push((coef, b.mul_terms[i2].1, b.mul_terms[i2].2));
@@ -519,7 +541,7 @@ pub fn add(a: &Arithmetic, k: FieldElement, b: &Arithmetic) -> Arithmetic {
             i2 += 1;
         } else {
             let coef = a.mul_terms[i1].0 + b.mul_terms[i2].0 * k;
-            if (coef != FieldElement::zero()) {
+            if coef != FieldElement::zero() {
                 output
                     .mul_terms
                     .push((coef, a.mul_terms[i1].1, a.mul_terms[i1].2));
@@ -528,14 +550,14 @@ pub fn add(a: &Arithmetic, k: FieldElement, b: &Arithmetic) -> Arithmetic {
             i1 += 1;
         }
     }
-    while (i1 < a.mul_terms.len()) {
+    while i1 < a.mul_terms.len() {
         output.mul_terms.push(a.mul_terms[i1]);
         i1 += 1;
     }
 
-    while (i2 < b.mul_terms.len()) {
+    while i2 < b.mul_terms.len() {
         let coef = b.mul_terms[i2].0 * k;
-        if (coef != FieldElement::zero()) {
+        if coef != FieldElement::zero() {
             output
                 .mul_terms
                 .push((coef, b.mul_terms[i2].1, b.mul_terms[i2].2));
@@ -544,7 +566,6 @@ pub fn add(a: &Arithmetic, k: FieldElement, b: &Arithmetic) -> Arithmetic {
     }
 
     output.q_c = a.q_c + k * b.q_c;
-    //  dbg!("add...{:?}", output.clone());
     output
 }
 
@@ -552,7 +573,7 @@ pub fn add(a: &Arithmetic, k: FieldElement, b: &Arithmetic) -> Arithmetic {
 pub fn single_mul(w: Witness, b: &Arithmetic) -> Arithmetic {
     let mut output = Arithmetic::default();
     let mut i1 = 0;
-    while (i1 < b.linear_combinations.len()) {
+    while i1 < b.linear_combinations.len() {
         if (w, b.linear_combinations[i1].1) < (b.linear_combinations[i1].1, w) {
             output
                 .mul_terms
@@ -581,7 +602,7 @@ pub fn range_constraint(
     num_bits: u32,
     evaluator: &mut Evaluator,
 ) -> Result<(), RuntimeErrorKind> {
-    if (num_bits == 1) {
+    if num_bits == 1 {
         // Add a bool gate
         let bool_constraint = boolean(witness);
         evaluator.gates.push(Gate::Arithmetic(bool_constraint));
