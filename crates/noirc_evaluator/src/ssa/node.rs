@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 
+use acvm::acir::native_types::Witness;
 use acvm::FieldElement;
-use acvm::acir::native_types::{Witness};
 use arena;
 use noirc_frontend::hir_def::expr::HirBinaryOpKind;
 use num_bigint::BigUint;
@@ -136,10 +136,11 @@ pub struct Variable {
     pub name: String,
     pub cur_value: arena::Index, //for generating the SSA form, current value of the object during parsing of the AST
     pub root: Option<arena::Index>, //when generating SSA, assignment of an object creates a new one which is linked to the original one
-                                    //TODO clarify where cur_value and root is stored, and also this:
-                                    //  pub max_bits: u32,                  //max possible bit size of the expression
-                                    //  pub max_value: Option<BigUInt>,     //maximum possible value of the expression, if less than max_bits
-    pub witness: Option<Witness>,       
+    //TODO clarify where cur_value and root is stored, and also this:
+    //  pub max_bits: u32,                  //max possible bit size of the expression
+    //  pub max_value: Option<BigUInt>,     //maximum possible value of the expression, if less than max_bits
+    pub witness: Option<Witness>,
+    pub parent_block: arena::Index,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -411,7 +412,7 @@ impl Instruction {
             Operation::ass => rhs_max,
             Operation::nop | Operation::jne | Operation::jeq | Operation::jmp => todo!(),
             Operation::phi => BigUint::max(lhs_max, rhs_max), //TODO operands are in phi_arguments, not lhs/rhs!!
-            Operation::eq_gate => BigUint::min(lhs_max, rhs_max), 
+            Operation::eq_gate => BigUint::min(lhs_max, rhs_max),
         }
     }
 
@@ -726,8 +727,7 @@ impl Instruction {
             if values.len() == 0 {
                 return None;
             } else if values.len() == 1 {
-                return Some(ins_id);
-                //return Some(first); TODO..this does not work because other blocks may use ins_lhs
+                return Some(first);
             }
         }
         return Some(ins_id);
@@ -773,13 +773,12 @@ impl Instruction {
                 self.operator = Operation::lte
             }
             //TODO replace a<b with a<=b+1, but beware of edge cases!
-
-           Operation::eq_gate => {
-               if self.rhs == self.lhs {
-                   self.rhs = self.idx;
-                   self.is_deleted = true;
-               }
-           }
+            Operation::eq_gate => {
+                if self.rhs == self.lhs {
+                    self.rhs = self.idx;
+                    self.is_deleted = true;
+                }
+            }
             _ => (),
         }
         if is_commutative(self.operator) && self.rhs < self.lhs {
@@ -837,8 +836,8 @@ pub enum Operation {
     // todo: call, br,..
     nop, // no op
 
-    eq_gate,     //write a gate enforcing equality of the two sides (to support the constrain statement)
-         //memory todo: load, store, getelementptr?
+    eq_gate, //write a gate enforcing equality of the two sides (to support the constrain statement)
+             //memory todo: load, store, getelementptr?
 }
 
 pub fn is_commutative(op_code: Operation) -> bool {

@@ -38,7 +38,6 @@ impl InternalVar {
 }
 
 impl Acir {
-
     //This function stores the substitution with the arithmetic expression in the cache
     //When an instruction performs arithmetic operation, its output can be represented as an arithmetic expression of its arguments
     //Substitute a nodeobj as an arithmetic expression
@@ -69,13 +68,12 @@ impl Acir {
                         expression: expr,
                         witness: None,
                     });
-                },
+                }
                 node::NodeObj::Obj(v) => {
                     let w = if let Some(w1) = v.witness {
                         w1
-                    }
-                    else {
-                       evaluator.add_witness_to_cs()
+                    } else {
+                        evaluator.add_witness_to_cs()
                     };
                     expr = Arithmetic::from(&w);
                     result = Some(InternalVar {
@@ -182,7 +180,7 @@ impl Acir {
             Operation::nop => (), //for now we skip..TODO todo!(),
             Operation::eq_gate => {
                 output = add(&l_c.expression, FieldElement::from(-1), &r_c.expression);
-                evaluator.gates.push(Gate::Arithmetic(output.clone()));       //TODO should we create a witness??
+                evaluator.gates.push(Gate::Arithmetic(output.clone())); //TODO should we create a witness??
             }
         }
         let output_var = InternalVar {
@@ -191,7 +189,7 @@ impl Acir {
             idx: Some(ins.idx),
             witness: None, //TODO put the witness when it exist
         };
-        
+
         self.arith_cache.insert(ins.idx, output_var);
     }
 }

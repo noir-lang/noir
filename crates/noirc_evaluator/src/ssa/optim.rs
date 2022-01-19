@@ -1,6 +1,6 @@
 use super::{
     code_gen::ParsingContext,
-    node::{self, Node, NodeEval},
+    node::{self, BasicBlock, Node, NodeEval},
 };
 use acvm::FieldElement;
 use arena::Index;
@@ -9,7 +9,11 @@ use std::collections::HashMap;
 //Unroll a for loop: exit <- join <--> body
 //join block is given in argumemt, it will evaluate the join condition, starting from 'start' until it reaches 'end'
 //and write the unrolled instructions into the join block, then delete the body block at the end.
-pub fn unroll_block(join_id: Index, unroll_map: &mut HashMap<Index,Index>, eval: &mut ParsingContext) {
+pub fn unroll_block(
+    join_id: Index,
+    unroll_map: &mut HashMap<Index, Index>,
+    eval: &mut ParsingContext,
+) {
     let join = eval.get_block(join_id).unwrap();
     let join_instructions = join.instructions.clone();
     let mut from = join.predecessor.first().unwrap().clone(); //todo predecessor.first or .last?
@@ -52,11 +56,10 @@ pub fn unroll_block(join_id: Index, unroll_map: &mut HashMap<Index,Index>, eval:
                             let mut to_delete = false;
                             if new_ins.is_deleted {
                                 result_id = new_ins.rhs;
-                                if  new_ins.rhs == new_ins.idx {
+                                if new_ins.rhs == new_ins.idx {
                                     to_delete = true;
                                 }
-                            }
-                            else{
+                            } else {
                                 result_id = eval.nodes.insert(node::NodeObj::Instr(new_ins));
                                 new_instructions_id.push(result_id);
                             }
@@ -64,7 +67,6 @@ pub fn unroll_block(join_id: Index, unroll_map: &mut HashMap<Index,Index>, eval:
                             if !to_delete {
                                 eval_map.insert(*i_id, node::NodeEval::Idx(result_id));
                             }
-                            
                         }
                     }
                     _ => todo!(),
@@ -77,13 +79,14 @@ pub fn unroll_block(join_id: Index, unroll_map: &mut HashMap<Index,Index>, eval:
             if let Some(ins_obj) = eval.get_as_instruction(ins) {
                 if ins_obj.operator == node::Operation::phi {
                     if eval_map.contains_key(&ins_obj.rhs) {
-                        unroll_map.insert(ins_obj.lhs, eval_map[&ins_obj.rhs].to_index().unwrap()); //todo tester avec un const!!!
+                        unroll_map.insert(ins_obj.lhs, eval_map[&ins_obj.rhs].to_index().unwrap());
+                    //todo test with constants
                     } else if eval_map.contains_key(&ins_obj.idx) {
-                        unroll_map.insert(ins_obj.lhs, eval_map[&ins_obj.idx].to_index().unwrap()); //todo tester avec un const!!!
-
+                        unroll_map.insert(ins_obj.lhs, eval_map[&ins_obj.idx].to_index().unwrap());
+                        //todo test with constants
                     }
                 }
-            }
+            } //todo else break
         }
         //TODO add the jmp to the exit block
         for ins in &new_instructions_id {
@@ -107,16 +110,15 @@ pub fn unroll_block(join_id: Index, unroll_map: &mut HashMap<Index,Index>, eval:
             join_mut.dominated.swap_remove(index);
         }
         eval.blocks.remove(body_id);
-    }
-    else {
+    } else {
         unroll_in_block(join_id, unroll_map, eval);
     }
 }
 
-
-fn unroll_in_block(join_id: Index, unroll_map: &HashMap<Index,Index>, eval: &mut ParsingContext)  {
+fn unroll_in_block(join_id: Index, unroll_map: &HashMap<Index, Index>, eval: &mut ParsingContext) {
     let join = eval.get_block(join_id).unwrap();
-    for i in &join.instructions.clone() {       //RIA
+    for i in &join.instructions.clone() {
+        //RIA
         if let Some(ins) = eval.get_as_mut_instruction(*i) {
             if unroll_map.contains_key(&ins.rhs) {
                 ins.rhs = unroll_map[&ins.rhs];
@@ -323,13 +325,16 @@ fn evaluate_conditional_jump(
 }
 
 pub fn unroll(eval: &mut ParsingContext) {
-    let mut umap:HashMap<Index,Index> = HashMap::new();
+    let mut umap: HashMap<Index, Index> = HashMap::new();
     unroll_tree(eval, eval.first_block, &mut umap);
     //which order should we follow?
 }
 
-pub fn unroll_tree(eval: &mut ParsingContext, b_idx: arena::Index, umap: &mut HashMap<Index,Index>) {
-    
+pub fn unroll_tree(
+    eval: &mut ParsingContext,
+    b_idx: arena::Index,
+    umap: &mut HashMap<Index, Index>,
+) {
     unroll_block(b_idx, umap, eval);
     let block = eval.get_block(b_idx).unwrap();
     let bd = block.dominated.clone();
@@ -337,7 +342,6 @@ pub fn unroll_tree(eval: &mut ParsingContext, b_idx: arena::Index, umap: &mut Ha
         unroll_tree(eval, b, &mut umap.clone());
     }
 }
-
 
 // Performs constant folding, arithmetic simplifications and move to standard form
 pub fn simplify(eval: &mut ParsingContext, ins: &mut node::Instruction) {
@@ -405,8 +409,7 @@ pub fn simplify(eval: &mut ParsingContext, ins: &mut node::Instruction) {
     return;
 }
 
-
-pub fn loop_invariant(eval: &ParsingContext, idx: Index) -> bool {
+pub fn loop_invariant(eval: &ParsingContext, idx: Index, join_idx: Index) -> bool {
     if let Some(obj) = eval.get_object(idx) {
         match obj {
             node::NodeObj::Instr(i) => {
@@ -415,17 +418,32 @@ pub fn loop_invariant(eval: &ParsingContext, idx: Index) -> bool {
                     return false;
                 }
                 if node::is_binary(i.operator) {
-                    return loop_invariant(eval, i.lhs) && loop_invariant(eval, i.rhs);
+                    return loop_invariant(eval, i.lhs, join_idx)
+                        && loop_invariant(eval, i.rhs, join_idx);
                 }
                 if i.operator == node::Operation::not {
-                    return loop_invariant(eval, i.lhs);
+                    return loop_invariant(eval, i.lhs, join_idx);
                 }
                 return false;
             }
             node::NodeObj::Const(_) => {
                 return true;
             }
-            node::NodeObj::Obj(var) => return false, //TODO it depends where the variable is defined
+            node::NodeObj::Obj(var) => {
+                return !dominate(eval, join_idx, var.parent_block);
+            }
+        }
+    }
+    return false;
+}
+
+//returns true if block a dominates block b
+pub fn dominate(eval: &ParsingContext, a: Index, b: Index) -> bool {
+    if let Some(block_a) = eval.get_block(a) {
+        for block in &block_a.dominated {
+            if *block == b || dominate(eval, *block, b) {
+                return true;
+            }
         }
     }
     return false;
