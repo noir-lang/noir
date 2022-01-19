@@ -1,5 +1,8 @@
 use codespan::Span as ByteSpan;
-use std::{hash::{Hash, Hasher}, ops::Range};
+use std::{
+    hash::{Hash, Hasher},
+    ops::Range,
+};
 
 pub type Position = u32;
 
@@ -60,7 +63,7 @@ impl Span {
     }
 
     pub fn exclusive(start: u32, end: u32) -> Span {
-        Span::new(start .. end)
+        Span::new(start..end)
     }
 
     pub fn inclusive(start: u32, end: u32) -> Span {

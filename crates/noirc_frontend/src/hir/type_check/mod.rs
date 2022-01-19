@@ -77,7 +77,7 @@ mod test {
             def_map::{CrateDefMap, ModuleDefId},
             resolution::{path_resolver::PathResolver, resolver::Resolver},
         },
-        FunctionKind, parse_program, Path, Type,
+        parse_program, FunctionKind, Path, Type,
     };
 
     #[test]

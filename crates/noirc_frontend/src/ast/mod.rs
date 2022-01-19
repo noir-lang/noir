@@ -6,8 +6,8 @@ mod statement;
 
 pub use expression::*;
 pub use function::*;
-pub use statement::*;
 use noirc_abi::{AbiFEType, AbiType};
+pub use statement::*;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ArraySize {

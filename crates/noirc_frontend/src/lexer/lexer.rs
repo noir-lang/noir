@@ -5,8 +5,11 @@ use super::{
 use acvm::FieldElement;
 use fm::File;
 use noirc_errors::{Position, Span};
-use std::{iter::{Peekable, Zip}, ops::RangeFrom};
 use std::str::Chars;
+use std::{
+    iter::{Peekable, Zip},
+    ops::RangeFrom,
+};
 // XXX(low) : We could probably use Bytes, but I cannot see the advantage yet. I don't think Unicode will be implemented
 // XXX(low) : We may need to implement a TokenStream struct which wraps the lexer. This is then passed to the Parser
 // XXX(low) : Possibly use &str instead of String when applicable
@@ -174,12 +177,10 @@ impl<'a> Lexer<'a> {
 
                 Ok(spanned_prev_token)
             }
-            _ => {
-                Err(LexerErrorKind::NotADoubleChar {
-                    span: Span::single_char(self.position),
-                    found: prev_token,
-                })
-            }
+            _ => Err(LexerErrorKind::NotADoubleChar {
+                span: Span::single_char(self.position),
+                found: prev_token,
+            }),
         }
     }
 
@@ -220,13 +221,11 @@ impl<'a> Lexer<'a> {
         match initial_char {
             'A'..='Z' | 'a'..='z' | '_' => Ok(self.eat_word(initial_char)?),
             '0'..='9' => self.eat_digit(initial_char),
-            _ => {
-                Err(LexerErrorKind::UnexpectedCharacter {
-                    span: Span::single_char(self.position),
-                    found: initial_char,
-                    expected: "an alpha numeric character".to_owned(),
-                })
-            }
+            _ => Err(LexerErrorKind::UnexpectedCharacter {
+                span: Span::single_char(self.position),
+                found: initial_char,
+                expected: "an alpha numeric character".to_owned(),
+            }),
         }
     }
 
@@ -464,7 +463,7 @@ fn test_span() {
     let input = "let x = 5";
 
     // Let
-    let start_position = Position::default() + 1;
+    let start_position = Position::default();
     let let_position = start_position + 2;
     let let_token = Token::Keyword(Keyword::Let).into_span(start_position, let_position);
 

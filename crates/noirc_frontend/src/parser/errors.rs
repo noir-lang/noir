@@ -1,8 +1,8 @@
 use std::collections::BTreeSet;
 
-use crate::BinaryOp;
-use crate::lexer::token::Token;
 use crate::lexer::errors::LexerErrorKind;
+use crate::lexer::token::Token;
+use crate::BinaryOp;
 
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::DiagnosableError;
@@ -64,15 +64,24 @@ impl DiagnosableError for ParserError {
         match &self.reason {
             Some(reason) => Diagnostic::simple_error(reason.clone(), String::new(), self.span),
             None => {
-                let mut expected = self.expected_tokens.iter().map(ToString::to_string).collect::<Vec<_>>();
+                let mut expected = self
+                    .expected_tokens
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>();
                 expected.append(&mut self.expected_labels.iter().cloned().collect());
 
                 let primary = if expected.is_empty() {
                     format!("Unexpected {} in input", self.found)
                 } else if expected.len() == 1 {
-                    format!("Expected a {} but found {}", expected.first().unwrap(), self.found)
+                    format!(
+                        "Expected a {} but found {}",
+                        expected.first().unwrap(),
+                        self.found
+                    )
                 } else {
-                    let expected = expected.iter()
+                    let expected = expected
+                        .iter()
                         .map(ToString::to_string)
                         .collect::<Vec<_>>()
                         .join(", ");
@@ -105,10 +114,14 @@ impl chumsky::Error<Token> for ParserError {
     type Label = String;
 
     fn expected_input_found<Iter>(span: Self::Span, expected: Iter, found: Option<Token>) -> Self
-        where Iter: IntoIterator<Item = Option<Token>>
+    where
+        Iter: IntoIterator<Item = Option<Token>>,
     {
         ParserError {
-            expected_tokens: expected.into_iter().map(|opt| opt.unwrap_or(Token::EOF)).collect(),
+            expected_tokens: expected
+                .into_iter()
+                .map(|opt| opt.unwrap_or(Token::EOF))
+                .collect(),
             expected_labels: BTreeSet::new(),
             found: found.unwrap_or(Token::EOF),
             lexer_errors: vec![],

@@ -2,7 +2,7 @@ use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::DefCollector;
 use crate::hir::Context;
 use crate::node_interner::FuncId;
-use crate::parser::{ParsedModule, parse_program};
+use crate::parser::{parse_program, ParsedModule};
 use arena::{Arena, Index};
 use fm::{FileId, FileManager};
 use noirc_errors::{CollectedErrors, DiagnosableError};

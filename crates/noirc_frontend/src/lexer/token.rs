@@ -534,7 +534,13 @@ fn test_variant_equality() {
 
 pub struct Tokens(pub Vec<SpannedToken>);
 
-impl<'a> From<Tokens> for chumsky::Stream<'a, Token, Span, Map<IntoIter<SpannedToken>, fn(SpannedToken) -> (Token, Span)>>
+impl<'a> From<Tokens>
+    for chumsky::Stream<
+        'a,
+        Token,
+        Span,
+        Map<IntoIter<SpannedToken>, fn(SpannedToken) -> (Token, Span)>,
+    >
 {
     fn from(tokens: Tokens) -> Self {
         let end_of_input = match tokens.0.last() {
