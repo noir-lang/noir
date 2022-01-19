@@ -1,74 +1,57 @@
 mod errors;
 #[allow(clippy::module_inception)]
 mod parser;
-mod combinators;
-
-use std::ops::Range;
 
 use crate::{ast::ImportStatement, NoirFunction};
 use crate::token::Token;
-use crate::Ident;
+use crate::{Expression, Ident};
 
-pub use errors::ParserErrorKind;
+pub use errors::ParserError;
 use noirc_errors::Span;
 pub use parser::parse_program;
 use chumsky::prelude::*;
 
-pub type ParseError = Simple<SpannedToken>;
-pub type ParserExprKindResult = Result<crate::ExpressionKind, ParseError>;
-pub type ParserExprResult = Result<crate::Expression, ParseError>;
-
+#[derive(Debug)]
 enum TopLevelStatement {
     Function(NoirFunction),
     Module(Ident),
     Import(ImportStatement),
 }
 
-use crate::token::SpannedToken;
+// Helper trait that gives us simpler type signatures for return types:
+// e.g. impl Parser<T> versus impl Parser<Token, T, Error = Simple<Token>>
+pub trait NoirParser<T>: Parser<Token, T, Error = ParserError> + Sized {}
+impl<P, T> NoirParser<T> for P where P: Parser<Token, T, Error = ParserError> {}
 
-// Helper trait that compared to using just Parser gives us:
-// 1. Simpler type signatures (impl Parser<O> versus impl Parser<SpannedToken, O, Error = Simple<SpannedToken>>)
-// 2. The ability to use member access syntax for some helper functions defined in the trait.
-pub trait NoirParser<O>: Parser<SpannedToken, O, Error = ParseError> + Sized {
-    fn surrounded_by(self, left: Token, right: Token) -> chumsky::combinator::DelimitedBy<Self, SpannedToken>;
-    fn parenthesized(self) -> chumsky::combinator::DelimitedBy<Self, SpannedToken>;
-    fn spanned(self) -> chumsky::combinator::MapWithSpan<Self, fn(O, Range<usize>) -> (O, Span), O>;
-}
+// ExprParser just serves as a type alias for NoirParser<Expression> + Clone
+trait ExprParser : NoirParser<Expression> + Clone {}
+impl<P> ExprParser for P where P: NoirParser<Expression> + Clone {}
 
-impl<P, O> NoirParser<O> for P where P: Parser<SpannedToken, O, Error = ParseError> {
-    fn parenthesized(self) -> chumsky::combinator::DelimitedBy<Self, SpannedToken> {
-        self.surrounded_by(Token::LeftParen, Token::RightParen)
-    }
-
-    fn surrounded_by(self, left: Token, right: Token) -> chumsky::combinator::DelimitedBy<Self, SpannedToken> {
-        let left = SpannedToken::dummy_span(left);
-        let right = SpannedToken::dummy_span(right);
-        self.delimited_by(left, right)
-    }
-
-    fn spanned(self) -> chumsky::combinator::MapWithSpan<Self, fn(O, Range<usize>) -> (O, Span), O> {
-        self.map_with_span(attach_span)
-    }
-}
-
-fn foldl_with_span<P1, P2, O1, O2, F>(first_parser: P1, to_be_repeated: P2, f: F) -> impl NoirParser<O1>
-    where P1: NoirParser<O1>,
-          P2: NoirParser<O2>,
-          F: Fn((O1, Span), (O2, Span)) -> O1
+fn parenthesized<P, T>(parser: P) -> impl NoirParser<T>
+    where P: NoirParser<T>
 {
-    first_parser.spanned()
-        .then(to_be_repeated.spanned().repeated())
+    parser.delimited_by(Token::LeftParen, Token::RightParen)
+}
+
+fn spanned<P, T>(parser: P) -> impl NoirParser<(T, Span)>
+    where P: NoirParser<T>
+{
+    parser.map_with_span(|value, span| (value, span))
+}
+
+fn foldl_with_span<P1, P2, T1, T2, F>(first_parser: P1, to_be_repeated: P2, f: F) -> impl NoirParser<T1>
+    where P1: NoirParser<T1>,
+          P2: NoirParser<T2>,
+          F: Fn((T1, Span), (T2, Span)) -> T1
+{
+    spanned(first_parser)
+        .then(spanned(to_be_repeated).repeated())
         .foldl(move |a, b| {
             let span = a.1.clone();
             (f(a, b), span)
         })
         .map(|(value, _span)| value)
 }
-
-fn attach_span<T>(value: T, range: Range<usize>) -> (T, Span) {
-    (value, Span::new(range))
-}
-
 
 #[derive(Clone, Debug)]
 pub struct ParsedModule {

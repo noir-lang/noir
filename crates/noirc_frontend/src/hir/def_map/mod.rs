@@ -5,7 +5,7 @@ use crate::node_interner::FuncId;
 use crate::parser::{ParsedModule, parse_program};
 use arena::{Arena, Index};
 use fm::{FileId, FileManager};
-use noirc_errors::CollectedErrors;
+use noirc_errors::{CollectedErrors, DiagnosableError};
 use std::collections::HashMap;
 
 mod module_def;
@@ -115,7 +115,7 @@ pub fn parse_file(
         Err(errs) => {
             let file_errs = CollectedErrors {
                 file_id,
-                errors: errs.into_iter().map(|err| err.into()).collect(),
+                errors: errs.into_iter().map(|err| err.to_diagnostic()).collect(),
             };
 
             Err(vec![file_errs])

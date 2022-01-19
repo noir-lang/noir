@@ -1,4 +1,5 @@
 use crate::lexer::token::SpannedToken;
+use crate::token::Token;
 use crate::{Expression, ExpressionKind, InfixExpression, Type};
 use noirc_errors::{Span, Spanned};
 
@@ -53,6 +54,12 @@ impl From<Ident> for Expression {
 impl From<Ident> for ExpressionKind {
     fn from(i: Ident) -> ExpressionKind {
         ExpressionKind::Ident(i.0.contents)
+    }
+}
+
+impl Ident {
+    pub fn new(token: Token, span: Span) -> Ident {
+        Ident::from(SpannedToken::new(token, span))
     }
 }
 

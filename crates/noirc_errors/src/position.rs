@@ -55,12 +55,12 @@ impl<T> std::borrow::Borrow<T> for Spanned<T> {
 pub struct Span(ByteSpan);
 
 impl Span {
-    pub fn new(range: Range<usize>) -> Span {
-        Span(ByteSpan::from(range.start as u32 .. range.end as u32))
+    pub fn new(range: Range<u32>) -> Span {
+        Span(ByteSpan::from(range))
     }
 
     pub fn exclusive(start: u32, end: u32) -> Span {
-        Span(ByteSpan::from(start .. end))
+        Span::new(start .. end)
     }
 
     pub fn inclusive(start: u32, end: u32) -> Span {
@@ -92,5 +92,27 @@ impl Span {
 impl From<Span> for Range<usize> {
     fn from(span: Span) -> Self {
         span.0.into()
+    }
+}
+
+impl chumsky::Span for Span {
+    type Context = ();
+
+    type Offset = u32;
+
+    fn new(_context: Self::Context, range: Range<Self::Offset>) -> Self {
+        Span::new(range)
+    }
+
+    fn context(&self) -> Self::Context {
+        ()
+    }
+
+    fn start(&self) -> Self::Offset {
+        self.start()
+    }
+
+    fn end(&self) -> Self::Offset {
+        self.end()
     }
 }

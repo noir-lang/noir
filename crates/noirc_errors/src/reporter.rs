@@ -1,5 +1,4 @@
 use crate::Span;
-use chumsky::prelude::Simple;
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::term;
 use codespan_reporting::term::termcolor::{
@@ -39,12 +38,6 @@ impl CustomDiagnostic {
     }
     pub fn add_secondary(&mut self, message: String, span: Span) {
         self.secondaries.push(CustomLabel::new(message, span));
-    }
-}
-
-impl<T> From<Simple<T>> for CustomDiagnostic where T: std::hash::Hash + Eq + std::fmt::Display {
-    fn from(error: Simple<T>) -> Self {
-        CustomDiagnostic::simple_error(error.to_string(), String::new(), Span::new(error.span()))
     }
 }
 

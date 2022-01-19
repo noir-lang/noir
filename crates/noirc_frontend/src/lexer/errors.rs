@@ -26,6 +26,17 @@ pub enum LexerErrorKind {
 }
 
 impl LexerErrorKind {
+    pub fn span(&self) -> Span {
+        match self {
+            LexerErrorKind::UnexpectedCharacter { span, .. } => *span,
+            LexerErrorKind::CharacterNotInLanguage { span, .. } => *span,
+            LexerErrorKind::NotADoubleChar { span, .. } => *span,
+            LexerErrorKind::InvalidIntegerLiteral { span, .. } => *span,
+            LexerErrorKind::MalformedFuncAttribute { span, .. } => *span,
+            LexerErrorKind::TooManyBits { span, .. } => *span,
+        }
+    }
+
     fn into_parts(&self) -> (String, String, Span) {
         match self {
             LexerErrorKind::UnexpectedCharacter {
@@ -79,9 +90,9 @@ impl DiagnosableError for LexerErrorKind {
     }
 }
 
-impl From<LexerErrorKind> for chumsky::error::Simple<SpannedToken> {
+impl From<LexerErrorKind> for chumsky::error::Simple<SpannedToken, Span> {
     fn from(error: LexerErrorKind) -> Self {
         let (_, message, span) = error.into_parts();
-        chumsky::error::Simple::custom(span.into(), message)
+        chumsky::error::Simple::custom(span, message)
     }
 }

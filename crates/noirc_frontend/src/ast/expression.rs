@@ -124,6 +124,10 @@ impl PartialEq<Expression> for Expression {
 }
 
 impl Expression {
+    pub fn new(kind: ExpressionKind, span: Span) -> Expression {
+        Expression { kind, span }
+    }
+
     pub fn into_ident(self) -> Option<Ident> {
         let identifier = match self.kind {
             ExpressionKind::Ident(x) => x,
@@ -180,7 +184,7 @@ impl BinaryOpKind {
         )
     }
 
-    pub fn as_string(&self) -> &str {
+    pub fn as_string(self) -> &'static str {
         match self {
             BinaryOpKind::Add => "+",
             BinaryOpKind::Subtract => "-",
@@ -196,6 +200,25 @@ impl BinaryOpKind {
             BinaryOpKind::Or => "|",
             BinaryOpKind::Xor => "^",
             BinaryOpKind::Assign => "=",
+        }
+    }
+
+    pub fn as_token(self) -> Token {
+        match self {
+            BinaryOpKind::Add => Token::Plus,
+            BinaryOpKind::Subtract => Token::Minus,
+            BinaryOpKind::Multiply => Token::Star,
+            BinaryOpKind::Divide => Token::Slash,
+            BinaryOpKind::Equal => Token::Equal,
+            BinaryOpKind::NotEqual => Token::NotEqual,
+            BinaryOpKind::Less => Token::Less,
+            BinaryOpKind::LessEqual => Token::LessEqual,
+            BinaryOpKind::Greater => Token::Greater,
+            BinaryOpKind::GreaterEqual => Token::GreaterEqual,
+            BinaryOpKind::And => Token::Ampersand,
+            BinaryOpKind::Or => Token::Pipe,
+            BinaryOpKind::Xor => Token::Caret,
+            BinaryOpKind::Assign => Token::Assign,
         }
     }
 }

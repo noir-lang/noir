@@ -1,11 +1,11 @@
 use super::{
     errors::LexerErrorKind,
-    token::{Attribute, IntType, Keyword, SpannedToken, Token},
+    token::{Attribute, IntType, Keyword, SpannedToken, Token, Tokens},
 };
 use acvm::FieldElement;
 use fm::File;
 use noirc_errors::{Position, Span};
-use std::iter::Peekable;
+use std::{iter::{Peekable, Zip}, ops::RangeFrom};
 use std::str::Chars;
 // XXX(low) : We could probably use Bytes, but I cannot see the advantage yet. I don't think Unicode will be implemented
 // XXX(low) : We may need to implement a TokenStream struct which wraps the lexer. This is then passed to the Parser
@@ -14,15 +14,18 @@ use std::str::Chars;
 pub type SpannedTokenResult = Result<SpannedToken, LexerErrorKind>;
 
 pub struct Lexer<'a> {
-    char_iter: Peekable<Chars<'a>>,
+    char_iter: Peekable<Zip<Chars<'a>, RangeFrom<u32>>>,
     position: Position,
+    done: bool,
 }
 
 impl<'a> Lexer<'a> {
     pub fn new(source: &'a str) -> Self {
         Lexer {
-            char_iter: source.chars().peekable(),
-            position: Position::default(),
+            // We zip with the character index here to ensure the first char has index 0
+            char_iter: source.chars().zip(0..).peekable(),
+            position: 0,
+            done: false,
         }
     }
 
@@ -43,7 +46,7 @@ impl<'a> Lexer<'a> {
         size_hint
     }
 
-    pub fn lex(self) -> (Vec<SpannedToken>, Vec<LexerErrorKind>) {
+    pub fn lex(self) -> (Tokens, Vec<LexerErrorKind>) {
         let mut tokens = vec![];
         let mut errors = vec![];
         for result in self {
@@ -52,27 +55,24 @@ impl<'a> Lexer<'a> {
                 Err(error) => errors.push(error),
             }
         }
-        (tokens, errors)
+        (Tokens(tokens), errors)
     }
 
     /// Iterates the cursor and returns the char at the new cursor position
     fn next_char(&mut self) -> Option<char> {
-        let next_char = self.char_iter.next();
-        self.position += 1;
-        next_char
+        let (c, index) = self.char_iter.next()?;
+        self.position = index;
+        Some(c)
     }
 
     /// Peeks at the next char. Does not iterate the cursor
-    fn peek_char(&mut self) -> Option<&char> {
-        self.char_iter.peek()
+    fn peek_char(&mut self) -> Option<char> {
+        self.char_iter.peek().map(|(c, _)| *c)
     }
 
     /// Peeks at the next char and returns true if it is equal to the char argument
     fn peek_char_is(&mut self, ch: char) -> bool {
-        if let Some(peeked_ch) = self.peek_char() {
-            return *peeked_ch == ch;
-        };
-        false
+        self.peek_char() == Some(ch)
     }
 
     pub fn next_token(&mut self) -> SpannedTokenResult {
@@ -110,7 +110,10 @@ impl<'a> Lexer<'a> {
                 let span = Span::single_char(self.position);
                 Err(LexerErrorKind::CharacterNotInLanguage { span, found: ch })
             }
-            None => Ok(Token::EOF.into_single_span(self.position)),
+            None => {
+                self.done = true;
+                Ok(Token::EOF.into_single_span(self.position))
+            }
         }
     }
 
@@ -201,10 +204,10 @@ impl<'a> Lexer<'a> {
             // Then check for the predicate, if predicate matches append char and increment the cursor
             // If not, return word. The next character will be analysed on the next iteration of next_token,
             // Which will increment the cursor
-            if !predicate(*peek_char) {
+            if !predicate(peek_char) {
                 return (word, start, self.position);
             }
-            word.push(*peek_char);
+            word.push(peek_char);
 
             // If we arrive at this point, then the char has been added to the word and we should increment the cursor
             self.next_char();
@@ -251,7 +254,7 @@ impl<'a> Lexer<'a> {
         }
         self.next_char();
 
-        let attribute = Attribute::lookup_attribute(&word, Span::inclusive(start, end))?;
+        let attribute = Attribute::lookup_attribute(&word, Span::exclusive(start, end))?;
 
         // Move start position backwards to cover the left bracket
         // Move end position forwards to cover the right bracket
@@ -272,7 +275,7 @@ impl<'a> Lexer<'a> {
 
         // Check if word an int type
         // if no error occurred, then it is either a valid integer type or it is not an int type
-        let parsed_token = IntType::lookup_int_type(&word, Span::inclusive(start, end))?;
+        let parsed_token = IntType::lookup_int_type(&word, Span::exclusive(start, end))?;
 
         // Check if it is an int type
         if let Some(int_type_token) = parsed_token {
@@ -291,7 +294,7 @@ impl<'a> Lexer<'a> {
         let integer = match FieldElement::try_from_str(&integer_str) {
             None => {
                 return Err(LexerErrorKind::InvalidIntegerLiteral {
-                    span: Span::inclusive(start, end),
+                    span: Span::exclusive(start, end),
                     found: integer_str,
                 })
             }
@@ -319,7 +322,11 @@ impl<'a> Lexer<'a> {
 impl<'a> Iterator for Lexer<'a> {
     type Item = SpannedTokenResult;
     fn next(&mut self) -> Option<Self::Item> {
-        Some(self.next_token())
+        if self.done {
+            None
+        } else {
+            Some(self.next_token())
+        }
     }
 }
 
