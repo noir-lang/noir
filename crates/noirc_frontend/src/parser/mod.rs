@@ -47,7 +47,7 @@ fn foldl_with_span<P1, P2, T1, T2, F>(first_parser: P1, to_be_repeated: P2, f: F
     spanned(first_parser)
         .then(spanned(to_be_repeated).repeated())
         .foldl(move |a, b| {
-            let span = a.1.clone();
+            let span = a.1;
             (f(a, b), span)
         })
         .map(|(value, _span)| value)

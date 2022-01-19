@@ -37,7 +37,7 @@ impl LexerErrorKind {
         }
     }
 
-    fn into_parts(&self) -> (String, String, Span) {
+    fn parts(&self) -> (String, String, Span) {
         match self {
             LexerErrorKind::UnexpectedCharacter {
                 span,
@@ -85,14 +85,14 @@ impl LexerErrorKind {
 
 impl DiagnosableError for LexerErrorKind {
     fn to_diagnostic(&self) -> Diagnostic {
-        let (primary, secondary, span) = self.into_parts();
+        let (primary, secondary, span) = self.parts();
         Diagnostic::simple_error(primary, secondary, span)
     }
 }
 
 impl From<LexerErrorKind> for chumsky::error::Simple<SpannedToken, Span> {
     fn from(error: LexerErrorKind) -> Self {
-        let (_, message, span) = error.into_parts();
+        let (_, message, span) = error.parts();
         chumsky::error::Simple::custom(span, message)
     }
 }

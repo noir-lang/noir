@@ -318,9 +318,8 @@ fn array_type<V, T>(visibility_parser: V, type_parser: T) -> impl NoirParser<Typ
         .then_ignore(token(Token::RightBracket))
         .then(type_parser)
         .try_map(|((visibility, size), element_type), span| {
-            match &element_type {
-                Type::Array(..) => return Err(ParserError::with_reason("Multi-dimensional arrays are currently unsupported".to_string(), span)),
-                _ => (),
+            if let Type::Array(..) = &element_type {
+                return Err(ParserError::with_reason("Multi-dimensional arrays are currently unsupported".to_string(), span));
             }
             let size = size.unwrap_or(ArraySize::Variable);
             Ok(Type::Array(visibility, size, Box::new(element_type)))
