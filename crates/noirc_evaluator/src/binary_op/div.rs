@@ -3,6 +3,7 @@ use crate::{Evaluator, Object, RuntimeErrorKind};
 
 /// For a / b . First compute the 1/b and constraint it to be the inverse of b
 /// Then multiply this inverse by a
+/// This is the safe variant of division, whereby the result is not overflown
 pub fn handle_div_op_default(
     left: Object,
     right: Object,
@@ -12,6 +13,9 @@ pub fn handle_div_op_default(
     handle_mul_op(left, right_inv, evaluator)
 }
 
+// This is the overflow version of division.
+// The functionality of this matches what one would expect in a
+// regular machine, where the result is wrapped modulo the bit width
 pub fn handle_div_op(
     left: Object,
     right: Object,

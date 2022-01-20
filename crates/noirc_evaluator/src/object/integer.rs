@@ -1,5 +1,3 @@
-//use core::num;
-
 use crate::binary_op;
 use crate::binary_op::bound_check;
 use crate::{AndGate, Evaluator, FieldElement, XorGate};
@@ -13,7 +11,7 @@ use std::ops::Add;
 pub struct Integer {
     pub(crate) witness: Witness,
     pub(crate) num_bits: u32, //bit size of the integer type, e.g 32 for u32
-    max_bits: u32, //maximum bit size of the witness, e.g 64 if you multiply 2 32 bits values without contraining the result to 32 bits.
+    max_bits: u32, //maximum bit size of the witness, e.g 64 if you multiply 2 32 bits values without constraining the result to 32 bits.
 }
 
 // XXX: Most of the needed functionality seems to be to monitor the final num_bits and then constrain it.
@@ -28,7 +26,7 @@ impl Integer {
         }
     }
 
-    pub fn from_witness_unconstrained_withmax(
+    pub fn from_witness_unconstrained_with_max(
         witness: Witness,
         num_bits: u32,
         max_bits: u32,
@@ -145,7 +143,7 @@ impl Integer {
         let rhs_arith = Arithmetic::from(intermediate.linear().unwrap());
         evaluator.gates.push(Gate::Arithmetic(&arith - &rhs_arith));
 
-        Integer::from_witness_unconstrained_withmax(witness, num_bits, max_bits)
+        Integer::from_witness_unconstrained_with_max(witness, num_bits, max_bits)
     }
 
     /// Constrains the integer to be equal to zero
@@ -217,15 +215,14 @@ impl Integer {
             );
             return Err(RuntimeErrorKind::UnstructuredError { message });
         }
-        let b_obj: Integer;
-        if witness_rhs.integer().is_none() {
-            b_obj = Integer::from_object(witness_rhs, self.num_bits, evaluator)?;
-        } else {
-            b_obj = witness_rhs.integer().unwrap();
-        }
+
+        let b_obj = match witness_rhs.integer() {
+            Some(integer) => integer,
+            None => Integer::from_object(witness_rhs, self.num_bits, evaluator)?,
+        };
 
         let (new_bits, a_wit, b_wit) = self
-            .truncate_argments(b_obj, evaluator, |x, y| u32::max(x, y) + 1)
+            .truncate_arguments(b_obj, evaluator, |x, y| u32::max(x, y) + 1)
             .unwrap();
 
         let res = binary_op::handle_add_op(
@@ -238,7 +235,7 @@ impl Integer {
     }
 
     //Truncate a and/or b in case of overflow
-    pub fn truncate_argments(
+    pub fn truncate_arguments(
         &self,
         b: Integer,
         evaluator: &mut Evaluator,
@@ -288,13 +285,13 @@ impl Integer {
             ));
             return Err(err);
         }
-        let obj_rhs = Integer::from_witness_unconstrained_withmax(
+        let obj_rhs = Integer::from_witness_unconstrained_with_max(
             witness_rhs.witness().unwrap(),
             num_bits,
             max_bits,
         );
         let (new_bits, a_wit, b_wit) = self
-            .truncate_argments(obj_rhs, evaluator, |x, y| u32::max(x, y) + 1)
+            .truncate_arguments(obj_rhs, evaluator, |x, y| u32::max(x, y) + 1)
             .unwrap();
 
         let mut f = FieldElement::from(2_i128);
@@ -318,10 +315,13 @@ impl Integer {
         poly: Object,
         evaluator: &mut Evaluator,
     ) -> Result<Integer, RuntimeErrorKind> {
-        let b_object = poly.integer().unwrap();
+        let b_object = poly
+            .integer()
+            .expect("expected the rhs to be an integer in division operator");
         //we need to truncate a and b
         let a = self.truncate(evaluator)?;
         let b = b_object.truncate(evaluator)?;
+
         // Create quotient and remainder witnesses
         let q_witness = evaluator.add_witness_to_cs();
         let r_witness = evaluator.add_witness_to_cs();
@@ -333,12 +333,14 @@ impl Integer {
             q: q_witness,
             r: r_witness,
         }));
+
         // Constraints quotient and remainder
         let b2 = Object::Integer(Integer {
             witness: b.witness,
             num_bits: b.num_bits,
             max_bits: b.num_bits,
-        }); //why not cloning?
+        });
+
         q_int.constrain(evaluator)?; //we need to bound q so we use the fact that q<=a
         bound_check::handle_less_than_op(Object::Integer(r_int), b2, evaluator)?; //r < b
                                                                                   // a-b*q-r = 0
@@ -370,7 +372,7 @@ impl Integer {
         // Add a gate which subtracts both integers
         let res =
             binary_op::handle_sub_op(Object::from_witness(self.witness), witness_rhs, evaluator)?;
-        //XXX: this  creates many intermediate variables that are potentially not needed, cf. #128
+        //XXX: this creates many intermediate variables that are potentially not needed, cf. #128
         let res_object = Integer::from_object(res, self.num_bits, evaluator)?;
         // Constrain the result to be equal to an integer in range of 2^num_bits
         res_object.constrain(evaluator)?;
@@ -462,7 +464,7 @@ impl Integer {
         // You can only mul an integer with another integer and they must have the same number of bits
 
         let (witness_rhs, num_bits, max_bits) = extract_witness_and_num_bits(self.num_bits, poly)?;
-        let obj_rhs = Integer::from_witness_unconstrained_withmax(
+        let obj_rhs = Integer::from_witness_unconstrained_with_max(
             witness_rhs.witness().unwrap(),
             num_bits,
             max_bits,
@@ -476,7 +478,7 @@ impl Integer {
         }
 
         let (new_bits, a_wit, b_wit) = self
-            .truncate_argments(obj_rhs, evaluator, |x, y| x + y)
+            .truncate_arguments(obj_rhs, evaluator, |x, y| x + y)
             .unwrap();
         let res = binary_op::handle_mul_op(
             Object::from_witness(a_wit),
