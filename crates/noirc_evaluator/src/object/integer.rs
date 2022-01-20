@@ -87,6 +87,8 @@ impl Integer {
         Ok(())
     }
 
+    //This function is reducing 'self' to its bit size:
+    //It returns a new integer c such that c = 'self' % 2^{bit size}
     pub fn truncate(&self, evaluator: &mut Evaluator) -> Result<Integer, RuntimeErrorKind> {
         if self.max_bits <= self.num_bits {
             return Ok(*self);
@@ -235,32 +237,35 @@ impl Integer {
     }
 
     //Truncate a and/or b in case of overflow
+    // In case the operation 'a op b' does overflow the field size, the function reduces a and/or b to their native bit size so that 'a op b' does not overflow
+    // The closure 'op_bsize' returns the maximum number of bits of the result 'a op b' from the max bit size of a and b
+    // For instance if op is 'x', then 'op_bsize' would be max(max bit size of a, max bit size of b)+1
     pub fn truncate_arguments(
         &self,
         b: Integer,
         evaluator: &mut Evaluator,
-        f: fn(u32, u32) -> u32,
+        op_bsize: fn(u32, u32) -> u32,
     ) -> Result<(u32, Witness, Witness), RuntimeErrorKind> {
-        let mut new_bits = f(self.max_bits, b.max_bits);
+        let mut result_bits = op_bsize(self.max_bits, b.max_bits);
         let mut a_wit = self.witness;
         let mut b_wit = b.witness;
-        if new_bits >= FieldElement::max_num_bits() {
+        if result_bits >= FieldElement::max_num_bits() {
             if self.max_bits > b.max_bits {
                 a_wit = self.truncate(evaluator).unwrap().witness;
-                new_bits = f(self.num_bits, b.max_bits);
-                if new_bits >= FieldElement::max_num_bits() {
+                result_bits = op_bsize(self.num_bits, b.max_bits);
+                if result_bits >= FieldElement::max_num_bits() {
                     b_wit = b.truncate(evaluator).unwrap().witness;
-                    new_bits = f(self.num_bits, b.num_bits);
+                    result_bits = op_bsize(self.num_bits, b.num_bits);
                 }
             } else {
                 b_wit = b.truncate(evaluator).unwrap().witness;
-                new_bits = f(self.max_bits, b.num_bits);
-                if new_bits >= FieldElement::max_num_bits() {
+                result_bits = op_bsize(self.max_bits, b.num_bits);
+                if result_bits >= FieldElement::max_num_bits() {
                     a_wit = self.truncate(evaluator).unwrap().witness;
-                    new_bits = f(self.num_bits, b.num_bits);
+                    result_bits = op_bsize(self.num_bits, b.num_bits);
                 }
             }
-            if new_bits >= FieldElement::max_num_bits() {
+            if result_bits >= FieldElement::max_num_bits() {
                 let message = format!(
                     "Require big int implementation, the bit size too big for the field: {}, {}",
                     self.num_bits, b.num_bits
@@ -268,7 +273,7 @@ impl Integer {
                 return Err(RuntimeErrorKind::Unimplemented(message));
             }
         }
-        Ok((new_bits, a_wit, b_wit))
+        Ok((result_bits, a_wit, b_wit))
     }
 
     pub fn sub(
@@ -335,15 +340,15 @@ impl Integer {
         }));
 
         // Constraints quotient and remainder
-        let b2 = Object::Integer(Integer {
+        let b_copy = Object::Integer(Integer {
             witness: b.witness,
             num_bits: b.num_bits,
             max_bits: b.num_bits,
         });
 
         q_int.constrain(evaluator)?; //we need to bound q so we use the fact that q<=a
-        bound_check::handle_less_than_op(Object::Integer(r_int), b2, evaluator)?; //r < b
-                                                                                  // a-b*q-r = 0
+        bound_check::handle_less_than_op(Object::Integer(r_int), b_copy, evaluator)?; //r < b
+                                                                                      // a-b*q-r = 0
         let res = Arithmetic::from(Linear::from_witness(a.witness));
         let my_constraint = &res
             - &Arithmetic {
@@ -438,7 +443,7 @@ impl Integer {
         Ok(Integer {
             witness: result,
             num_bits: self.num_bits,
-            max_bits: self.num_bits, //XXX ??
+            max_bits: self.num_bits,
         })
     }
     pub fn xor(
