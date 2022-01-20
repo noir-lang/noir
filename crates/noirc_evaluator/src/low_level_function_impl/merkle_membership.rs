@@ -4,7 +4,7 @@ use crate::object::Object;
 use crate::{Environment, Evaluator};
 use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
 use acvm::acir::OPCODE;
-use noir_field::FieldElement;
+use acvm::FieldElement;
 use noirc_frontend::hir_def::expr::HirCallExpression;
 
 pub struct MerkleMembershipGadget;
@@ -21,7 +21,8 @@ impl GadgetCaller for MerkleMembershipGadget {
     ) -> Result<Object, RuntimeError> {
         let inputs = MerkleMembershipGadget::prepare_inputs(evaluator, env, call_expr)?;
 
-        // Create a fresh variable which will be the root
+        // Create a fresh variable which will be the boolean indicating
+        // whether the item was in the tree or not
 
         let merkle_mem_witness = evaluator.add_witness_to_cs();
         let merkle_mem_object = Object::from_witness(merkle_mem_witness);
@@ -39,7 +40,7 @@ impl GadgetCaller for MerkleMembershipGadget {
 }
 
 impl MerkleMembershipGadget {
-    fn prepare_inputs(
+    pub(super) fn prepare_inputs(
         evaluator: &mut Evaluator,
         env: &mut Environment,
         mut call_expr: HirCallExpression,
@@ -64,17 +65,17 @@ impl MerkleMembershipGadget {
 
         let mut inputs: Vec<GadgetInput> = vec![GadgetInput {
             witness: root_witness,
-            num_bits: noir_field::FieldElement::max_num_bits(),
+            num_bits: FieldElement::max_num_bits(),
         }];
 
         inputs.push(GadgetInput {
             witness: leaf_witness,
-            num_bits: noir_field::FieldElement::max_num_bits(),
+            num_bits: FieldElement::max_num_bits(),
         });
         let index_witness = evaluator.add_witness_to_cs();
         inputs.push(GadgetInput {
             witness: index_witness,
-            num_bits: noir_field::FieldElement::max_num_bits(),
+            num_bits: FieldElement::max_num_bits(),
         });
 
         // Add necessary amount of witnesses for the hashpath

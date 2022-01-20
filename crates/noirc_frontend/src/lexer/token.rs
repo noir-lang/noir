@@ -1,4 +1,4 @@
-use noir_field::FieldElement;
+use acvm::FieldElement;
 use noirc_errors::{Position, Span, Spanned};
 use std::fmt;
 
@@ -289,7 +289,7 @@ impl IntType {
             Err(_) => return Ok(None),
         };
 
-        let max_bits = noir_field::FieldElement::max_num_bits();
+        let max_bits = FieldElement::max_num_bits();
 
         if str_as_u32 > max_bits {
             return Err(LexerErrorKind::TooManyBits {

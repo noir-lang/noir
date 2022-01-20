@@ -18,5 +18,5 @@ fn main() {
     driver.add_dep(LOCAL_CRATE, ncrate_id1, "coo4");
     driver.add_dep(LOCAL_CRATE, ncrate_id2, "coo3");
 
-    driver.into_compiled_program();
+    driver.into_compiled_program(acvm::Language::R1CS);
 }

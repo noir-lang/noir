@@ -14,7 +14,7 @@ Once you have read through the documentation, you can also run the examples loca
 
 Backends:
 
- - Barretenberg via WASM. (Due to the usage of FFTs in WASM. This backend is slow.)
+ - Barretenberg via FFI
 
 Compiler:
 
@@ -49,7 +49,6 @@ Concretely the following items are on the road map:
 - Signed integers
 - Backend integration: (Marlin, Bulletproofs)
 - Recursion
-- Deprecate WASM32 in Barretenberg backend. WASM32 puts an upper bound on the linear memory, which puts an upper bound on the circuit size.
 
 ## License
 

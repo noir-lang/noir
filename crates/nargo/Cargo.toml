@@ -11,10 +11,10 @@ dirs = "3.0.1"
 url = "2.2.0"
 noirc_driver = { path = "../noirc_driver" }
 noirc_frontend = { path = "../noirc_frontend" }
-noir_field = { path = "../noir_field" }
 noirc_abi = { path = "../noirc_abi" }
 fm = { path = "../fm" }
 acvm = { path = "../acvm" }
+cfg-if = "1.0.0"
 
 toml = "0.5"
 serde_derive = "1.0.123"
@@ -22,9 +22,13 @@ serde = "1.0.123"
 clap = "2.33.3"
 termcolor = "1.1.2"
 hex = "0.4.2"
+tempdir = "0.3.7"
+
+# Backends
+aztec_backend = { optional = true, path = "../aztec_backend" }
 
 [features]
-# The plonk backend can only use bn254, so we do not specify the field
-plonk_bn254 = ["acvm/plonk"]
-marlin_bn254 = ["acvm/marlin", "noir_field/bn254"]
 default = ["plonk_bn254"]
+# The plonk backend can only use bn254, so we do not specify the field
+plonk_bn254 = ["aztec_backend"]
+# marlin_bn254 = ["acvm/marlin", "noir_field/bn254"]

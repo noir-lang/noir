@@ -10,11 +10,13 @@ fn nargo_crates() -> PathBuf {
     dirs::home_dir().unwrap().join("nargo")
 }
 
+mod backends;
 pub mod cli;
 mod errors;
 mod git;
 mod resolver;
 mod toml;
+
 /// Searches for the Nargo.toml file
 ///
 /// XXX: In the end, this should find the root of the project and check

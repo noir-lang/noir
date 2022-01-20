@@ -2,7 +2,7 @@ mod toml;
 
 use std::{collections::BTreeMap, path::Path};
 
-use noir_field::FieldElement;
+use acvm::FieldElement;
 
 use crate::AbiType;
 

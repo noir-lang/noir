@@ -44,7 +44,7 @@ fn read_crs(path: std::path::PathBuf) -> Vec<u8> {
         Ok(bytes) => bytes,
         Err(e) => {
             assert!(
-                !(e.kind() == std::io::ErrorKind::PermissionDenied),
+                e.kind() != std::io::ErrorKind::PermissionDenied,
                 "please run again with appropriate permissions."
             );
             panic!(
@@ -145,26 +145,20 @@ impl downloader::progress::Reporter for SimpleReporter {
 
 #[test]
 fn does_not_panic() {
-    use super::Barretenberg;
-    use wasmer::Value;
-
-    let mut barretenberg = Barretenberg::new();
-
     let num_points = 4 * 1024;
 
     let crs = CRS::new(num_points);
 
-    let crs_ptr = barretenberg.allocate(&crs.g1_data);
+    let p_points = barretenberg_wrapper::pippenger::new(&crs.g1_data);
 
-    let _ = barretenberg.call_multiple(
-        "new_pippenger",
-        vec![&crs_ptr, &Value::I32(num_points as i32)],
-    );
-    barretenberg.free(crs_ptr);
-
-    let scalars = vec![0; num_points * 32];
-    let mem = barretenberg.allocate(&scalars);
-    barretenberg.free(mem);
+    unsafe {
+        Vec::from_raw_parts(
+            p_points as *mut u8,
+            num_points * 32 as usize,
+            num_points * 32 as usize,
+        );
+    }
+    //TODO check that p_points memory is properly free
 }
 #[test]
 #[ignore]

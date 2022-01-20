@@ -2,13 +2,13 @@
 // This serialiser converts the IR into the `TurboFormat` which can then be fed into the WASM file
 use crate::barretenberg_rs::composer::{
     Blake2sConstraint, Constraint, ConstraintSystem, EcdsaConstraint, FixedBaseScalarMulConstraint,
-    HashToFieldConstraint, LogicConstraint, MerkleMembershipConstraint, PedersenConstraint,
-    RangeConstraint, SchnorrConstraint, Sha256Constraint,
+    HashToFieldConstraint, InsertMerkleConstraint, LogicConstraint, MerkleMembershipConstraint,
+    PedersenConstraint, RangeConstraint, SchnorrConstraint, Sha256Constraint,
 };
-use acir::circuit::{Circuit, Gate};
-use acir::native_types::Arithmetic;
-use acir::OPCODE;
-use noir_field::FieldElement;
+use acvm::acir::circuit::{Circuit, Gate};
+use acvm::acir::native_types::Arithmetic;
+use acvm::acir::OPCODE;
+use acvm::FieldElement;
 
 /// Converts an `IR` into the `StandardFormat` constraint system
 pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
@@ -20,6 +20,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
     let mut blake2s_constraints: Vec<Blake2sConstraint> = Vec::new();
     let mut pedersen_constraints: Vec<PedersenConstraint> = Vec::new();
     let mut merkle_membership_constraints: Vec<MerkleMembershipConstraint> = Vec::new();
+    let mut insert_merkle_constraints: Vec<InsertMerkleConstraint> = Vec::new();
     let mut schnorr_constraints: Vec<SchnorrConstraint> = Vec::new();
     let mut ecdsa_secp256k1_constraints: Vec<EcdsaConstraint> = Vec::new();
     let mut fixed_base_scalar_mul_constraints: Vec<FixedBaseScalarMulConstraint> = Vec::new();
@@ -162,6 +163,58 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
                         };
 
                         merkle_membership_constraints.push(constraint);
+                    }
+                    // copies merkle membership
+                    OPCODE::InsertRegularMerkle => {
+                        let mut inputs_iter = gadget_call.inputs.iter().peekable();
+
+                        // root
+                        let root = {
+                            let root_input = inputs_iter.next().expect("missing Merkle root");
+                            root_input.witness.witness_index() as i32
+                        };
+                        // leaf
+                        let leaf = {
+                            let leaf_input = inputs_iter
+                                .next()
+                                .expect("missing leaf to check membership for");
+                            leaf_input.witness.witness_index() as i32
+                        };
+                        // index
+                        let index = {
+                            let index_input = inputs_iter.next().expect("missing index for leaf");
+                            index_input.witness.witness_index() as i32
+                        };
+
+                        if inputs_iter.peek().is_none() {
+                            unreachable!("cannot check membership without a hash path")
+                        }
+
+                        let mut hash_path = Vec::new();
+                        while let (Some(path_left), path_right_option) =
+                            (inputs_iter.next(), inputs_iter.next())
+                        {
+                            let path_right = path_right_option
+                                .expect("iterator contains an odd amount of items");
+
+                            let path_left_index = path_left.witness.witness_index() as i32;
+                            let path_right_index = path_right.witness.witness_index() as i32;
+
+                            hash_path.push((path_left_index, path_right_index));
+                        }
+
+                        // new_root
+                        let new_root = gadget_call.outputs[0].witness_index() as i32;
+
+                        let constraint = InsertMerkleConstraint {
+                            hash_path,
+                            root,
+                            leaf,
+                            index,
+                            result: new_root,
+                        };
+
+                        insert_merkle_constraints.push(constraint);
                     }
                     OPCODE::SchnorrVerify => {
                         let mut inputs_iter = gadget_call.inputs.iter().peekable();
@@ -342,6 +395,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
         hash_to_field_constraints,
         constraints,
         fixed_base_scalar_mul_constraints,
+        insert_merkle_constraints,
     }
 }
 
@@ -354,7 +408,6 @@ fn serialise_arithmetic_gates(gate: &Arithmetic) -> Constraint {
     let mut ql: FieldElement = 0.into();
     let mut qr: FieldElement = 0.into();
     let mut qo: FieldElement = 0.into();
-    let qc: FieldElement;
 
     // check mul gate
     if !gate.mul_terms.is_empty() {
@@ -419,7 +472,7 @@ fn serialise_arithmetic_gates(gate: &Arithmetic) -> Constraint {
     }
 
     // Add the qc term
-    qc = gate.q_c;
+    let qc = gate.q_c;
 
     Constraint {
         a,
