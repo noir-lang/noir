@@ -350,13 +350,13 @@ impl Integer {
         bound_check::handle_less_than_op(Object::Integer(r_int), b_copy, evaluator)?; //r < b
                                                                                       // a-b*q-r = 0
         let res = Arithmetic::from(Linear::from_witness(a.witness));
-        let my_constraint = &res
+        let eucl_div_constraint = &res
             - &Arithmetic {
                 mul_terms: vec![(FieldElement::one(), b.witness, q_witness)],
                 linear_combinations: vec![(FieldElement::one(), r_witness)],
                 q_c: FieldElement::zero(),
             };
-        evaluator.gates.push(Gate::Arithmetic(my_constraint));
+        evaluator.gates.push(Gate::Arithmetic(eucl_div_constraint));
         Ok(q_int)
     }
 
