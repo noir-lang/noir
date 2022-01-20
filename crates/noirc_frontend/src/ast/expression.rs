@@ -377,7 +377,7 @@ impl Display for Literal {
             Literal::Array(array) => {
                 let contents: Vec<_> = array.contents.iter().map(ToString::to_string).collect();
                 write!(f, "[{}]", contents.join(", "))
-            },
+            }
             Literal::Bool(boolean) => write!(f, "{}", if *boolean { "true" } else { "false" }),
             Literal::Integer(integer) => write!(f, "{}", integer.to_u128()),
             Literal::Str(string) => write!(f, "\"{}\"", string),
@@ -387,11 +387,11 @@ impl Display for Literal {
 
 impl Display for BlockExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{{\n")?;
+        writeln!(f, "{{")?;
         for statement in &self.0 {
             let statement = statement.to_string();
             for line in statement.lines() {
-                write!(f, "    {}\n", line)?;
+                writeln!(f, "    {}", line)?;
             }
         }
         write!(f, "}}")
@@ -461,7 +461,11 @@ impl Display for BinaryOpKind {
 
 impl Display for ForExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "for {} in {} .. {} {}", self.identifier, self.start_range, self.end_range, self.block)
+        write!(
+            f,
+            "for {} in {} .. {} {}",
+            self.identifier, self.start_range, self.end_range, self.block
+        )
     }
 }
 
@@ -478,13 +482,22 @@ impl Display for IfExpression {
 impl Display for FunctionDefinition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(attribute) = &self.attribute {
-            write!(f, "{}\n", attribute)?;
+            writeln!(f, "{}", attribute)?;
         }
 
-        let parameters: Vec<_> = self.parameters.iter().map(|(name, r#type)| {
-            format!("{}: {}", name, r#type)
-        }).collect();
+        let parameters: Vec<_> = self
+            .parameters
+            .iter()
+            .map(|(name, r#type)| format!("{}: {}", name, r#type))
+            .collect();
 
-        write!(f, "fn {}({}) -> {} {}", self.name, parameters.join(", "), self.return_type, self.body)
+        write!(
+            f,
+            "fn {}({}) -> {} {}",
+            self.name,
+            parameters.join(", "),
+            self.return_type,
+            self.body
+        )
     }
 }

@@ -193,7 +193,6 @@ pub struct AssignStatement {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ConstrainStatement(pub InfixExpression);
 
-
 impl Display for Statement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -211,19 +210,31 @@ impl Display for Statement {
 
 impl Display for LetStatement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "let {}: {} = {}", self.identifier, self.r#type, self.expression)
+        write!(
+            f,
+            "let {}: {} = {}",
+            self.identifier, self.r#type, self.expression
+        )
     }
 }
 
 impl Display for ConstStatement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "const {}: {} = {}", self.identifier, self.r#type, self.expression)
+        write!(
+            f,
+            "const {}: {} = {}",
+            self.identifier, self.r#type, self.expression
+        )
     }
 }
 
 impl Display for PrivateStatement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "priv {}: {} = {}", self.identifier, self.r#type, self.expression)
+        write!(
+            f,
+            "priv {}: {} = {}",
+            self.identifier, self.r#type, self.expression
+        )
     }
 }
 

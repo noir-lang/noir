@@ -112,7 +112,6 @@ where
             Statement::Expression(expr) => Statement::Semi(expr),
             other => other,
         })
-        .recover_with(skip_until([Token::Semicolon, Token::RightBrace], |_| Statement::Error))
         .separated_by(just(Token::Semicolon))
         .then(just(Token::Semicolon).or_not())
         .delimited_by(Token::LeftBrace, Token::RightBrace)
@@ -419,9 +418,15 @@ fn create_infix_expression(lhs: Expression, (operator, rhs): (BinaryOp, Expressi
     let infix = Box::new(InfixExpression { lhs, operator, rhs });
 
     if is_comparator {
-        Expression { span, kind: ExpressionKind::Predicate(infix) }
+        Expression {
+            span,
+            kind: ExpressionKind::Predicate(infix),
+        }
     } else {
-        Expression { span, kind: ExpressionKind::Infix(infix) }
+        Expression {
+            span,
+            kind: ExpressionKind::Infix(infix),
+        }
     }
 }
 
