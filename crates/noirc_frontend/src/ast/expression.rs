@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::token::{Attribute, Token};
 use crate::{Ident, Path, Statement, Type};
 use acvm::FieldElement;
@@ -340,5 +342,149 @@ impl BlockExpression {
 
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
+    }
+}
+
+impl Display for Expression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.kind.fmt(f)
+    }
+}
+
+impl Display for ExpressionKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use ExpressionKind::*;
+        match self {
+            Ident(name) => name.fmt(f),
+            Literal(literal) => literal.fmt(f),
+            Block(block) => block.fmt(f),
+            Prefix(prefix) => prefix.fmt(f),
+            Index(index) => index.fmt(f),
+            Call(call) => call.fmt(f),
+            Cast(cast) => cast.fmt(f),
+            Infix(infix) => infix.fmt(f),
+            Predicate(infix) => infix.fmt(f),
+            For(for_loop) => for_loop.fmt(f),
+            If(if_expr) => if_expr.fmt(f),
+            Path(path) => path.fmt(f),
+        }
+    }
+}
+
+impl Display for Literal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Literal::Array(array) => {
+                let contents: Vec<_> = array.contents.iter().map(ToString::to_string).collect();
+                write!(f, "[{}]", contents.join(", "))
+            },
+            Literal::Bool(boolean) => write!(f, "{}", if *boolean { "true" } else { "false" }),
+            Literal::Integer(integer) => write!(f, "{}", integer.to_u128()),
+            Literal::Str(string) => write!(f, "\"{}\"", string),
+        }
+    }
+}
+
+impl Display for BlockExpression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{{\n")?;
+        for statement in &self.0 {
+            let statement = statement.to_string();
+            for line in statement.lines() {
+                write!(f, "    {}\n", line)?;
+            }
+        }
+        write!(f, "}}")
+    }
+}
+
+impl Display for PrefixExpression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({} {})", self.operator, self.rhs)
+    }
+}
+
+impl Display for UnaryOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            UnaryOp::Minus => write!(f, "-"),
+            UnaryOp::Not => write!(f, "!"),
+        }
+    }
+}
+
+impl Display for IndexExpression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}[{}]", self.collection_name, self.index)
+    }
+}
+
+impl Display for CallExpression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let args: Vec<_> = self.arguments.iter().map(ToString::to_string).collect();
+        write!(f, "{}({})", self.func_name, args.join(", "))
+    }
+}
+
+impl Display for CastExpression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({} as {})", self.lhs, self.r#type)
+    }
+}
+
+impl Display for InfixExpression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({} {} {})", self.lhs, self.operator.contents, self.rhs)
+    }
+}
+
+impl Display for BinaryOpKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BinaryOpKind::Add => write!(f, "+"),
+            BinaryOpKind::Subtract => write!(f, "-"),
+            BinaryOpKind::Multiply => write!(f, "*"),
+            BinaryOpKind::Divide => write!(f, "/"),
+            BinaryOpKind::Equal => write!(f, "=="),
+            BinaryOpKind::NotEqual => write!(f, "!="),
+            BinaryOpKind::Less => write!(f, "<"),
+            BinaryOpKind::LessEqual => write!(f, "<="),
+            BinaryOpKind::Greater => write!(f, ">"),
+            BinaryOpKind::GreaterEqual => write!(f, ">="),
+            BinaryOpKind::And => write!(f, "&"),
+            BinaryOpKind::Or => write!(f, "|"),
+            BinaryOpKind::Xor => write!(f, "^"),
+            BinaryOpKind::Assign => write!(f, "="),
+        }
+    }
+}
+
+impl Display for ForExpression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "for {} in {} .. {} {}", self.identifier, self.start_range, self.end_range, self.block)
+    }
+}
+
+impl Display for IfExpression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "if {} {}", self.condition, self.consequence)?;
+        if let Some(alternative) = &self.alternative {
+            write!(f, " else {}", alternative)?;
+        }
+        Ok(())
+    }
+}
+
+impl Display for FunctionDefinition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(attribute) = &self.attribute {
+            write!(f, "{}\n", attribute)?;
+        }
+
+        let parameters: Vec<_> = self.parameters.iter().map(|(name, r#type)| {
+            format!("{}: {}", name, r#type)
+        }).collect();
+
+        write!(f, "fn {}({}) -> {} {}", self.name, parameters.join(", "), self.return_type, self.body)
     }
 }

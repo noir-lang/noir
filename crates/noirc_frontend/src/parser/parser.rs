@@ -28,9 +28,9 @@ pub fn parse_program(program: &str) -> Result<ParsedModule, Vec<ParserError>> {
 
     let parser = top_level_statement()
         .repeated()
-        .then_ignore(token(Token::EOF));
-    let (tree, mut parsing_errors) = parser.parse_recovery(tokens);
+        .then_ignore(just(Token::EOF));
 
+    let (tree, mut parsing_errors) = parser.parse_recovery(tokens);
     match tree {
         Some(statements) => {
             for statement in statements {
@@ -53,8 +53,8 @@ pub fn parse_program(program: &str) -> Result<ParsedModule, Vec<ParserError>> {
 fn top_level_statement() -> impl NoirParser<TopLevelStatement> {
     choice((
         function_definition(),
-        module_declaration().then_ignore(token(Token::Semicolon)),
-        use_statement().then_ignore(token(Token::Semicolon)),
+        module_declaration().then_ignore(just(Token::Semicolon)),
+        use_statement().then_ignore(just(Token::Semicolon)),
     ))
 }
 
@@ -82,7 +82,7 @@ fn function_definition() -> impl NoirParser<TopLevelStatement> {
 }
 
 fn function_return_type() -> impl NoirParser<Type> {
-    token(Token::Arrow)
+    just(Token::Arrow)
         .ignore_then(parse_type())
         .or_not()
         .map(|r#type| r#type.unwrap_or(Type::Unit))
@@ -97,9 +97,9 @@ fn attribute() -> impl NoirParser<Attribute> {
 
 fn function_parameters() -> impl NoirParser<Vec<(Ident, Type)>> {
     ident()
-        .then_ignore(token(Token::Colon))
+        .then_ignore(just(Token::Colon))
         .then(parse_type())
-        .separated_by(token(Token::Comma))
+        .separated_by(just(Token::Comma))
         .allow_trailing()
 }
 
@@ -112,8 +112,9 @@ where
             Statement::Expression(expr) => Statement::Semi(expr),
             other => other,
         })
-        .separated_by(token(Token::Semicolon))
-        .then(token(Token::Semicolon).or_not())
+        .recover_with(skip_until([Token::Semicolon, Token::RightBrace], |_| Statement::Error))
+        .separated_by(just(Token::Semicolon))
+        .then(just(Token::Semicolon).or_not())
         .delimited_by(Token::LeftBrace, Token::RightBrace)
         .map(|(mut statements, last_semi)| {
             if last_semi.is_none() {
@@ -129,7 +130,7 @@ where
 }
 
 fn optional_type_annotation() -> impl NoirParser<Type> {
-    token(Token::Colon)
+    just(Token::Colon)
         .ignore_then(parse_type())
         .or_not()
         .map(|r#type| r#type.unwrap_or(Type::Unspecified))
@@ -148,18 +149,8 @@ fn use_statement() -> impl NoirParser<TopLevelStatement> {
         .map(|(path, alias)| TopLevelStatement::Import(ImportStatement { path, alias }))
 }
 
-fn keyword(keyword: Keyword) -> impl NoirParser<()> {
-    token(Token::Keyword(keyword))
-}
-
-fn token(expected: Token) -> impl NoirParser<()> {
-    filter_map(move |span, found: Token| {
-        if found == expected {
-            Ok(())
-        } else {
-            Err(ParserError::expected(expected.clone(), found, span))
-        }
-    })
+fn keyword(keyword: Keyword) -> impl NoirParser<Token> {
+    just(Token::Keyword(keyword))
 }
 
 fn tokenkind(tokenkind: TokenKind) -> impl NoirParser<Token> {
@@ -177,8 +168,8 @@ fn tokenkind(tokenkind: TokenKind) -> impl NoirParser<Token> {
 }
 
 fn path() -> impl NoirParser<Path> {
-    let prefix = |key| keyword(key).ignore_then(token(Token::DoubleColon));
-    let idents = || ident().separated_by(token(Token::DoubleColon));
+    let prefix = |key| keyword(key).ignore_then(just(Token::DoubleColon));
+    let idents = || ident().separated_by(just(Token::DoubleColon));
     let make_path = |kind| move |segments| Path { segments, kind };
 
     choice((
@@ -211,9 +202,10 @@ where
 fn operator_disallowed_in_constrain(operator: BinaryOpKind) -> bool {
     [
         BinaryOpKind::And,
-        BinaryOpKind::Or,
+        BinaryOpKind::Subtract,
         BinaryOpKind::Divide,
         BinaryOpKind::Multiply,
+        BinaryOpKind::Or,
         BinaryOpKind::Assign,
     ]
     .contains(&operator)
@@ -288,7 +280,7 @@ where
     keyword(key)
         .ignore_then(ident())
         .then(optional_type_annotation())
-        .then_ignore(token(Token::Assign))
+        .then_ignore(just(Token::Assign))
         .then(expr_parser)
         .map(f)
 }
@@ -298,7 +290,7 @@ where
     P: ExprParser,
 {
     ident()
-        .then_ignore(token(Token::Assign))
+        .then_ignore(just(Token::Assign))
         .then(expr_parser)
         .map(|(identifier, expression)| {
             Statement::Assign(AssignStatement {
@@ -377,9 +369,9 @@ where
     T: NoirParser<Type>,
 {
     visibility_parser
-        .then_ignore(token(Token::LeftBracket))
+        .then_ignore(just(Token::LeftBracket))
         .then(fixed_array_size().or_not())
-        .then_ignore(token(Token::RightBracket))
+        .then_ignore(just(Token::RightBracket))
         .then(type_parser)
         .try_map(|((visibility, size), element_type), span| {
             if let Type::Array(..) = &element_type {
@@ -423,8 +415,14 @@ where
 
 fn create_infix_expression(lhs: Expression, (operator, rhs): (BinaryOp, Expression)) -> Expression {
     let span = lhs.span.merge(rhs.span);
-    let kind = ExpressionKind::Infix(Box::new(InfixExpression { lhs, operator, rhs }));
-    Expression { kind, span }
+    let is_comparator = operator.contents.is_comparator();
+    let infix = Box::new(InfixExpression { lhs, operator, rhs });
+
+    if is_comparator {
+        Expression { span, kind: ExpressionKind::Predicate(infix) }
+    } else {
+        Expression { span, kind: ExpressionKind::Infix(infix) }
+    }
 }
 
 fn operator_with_precedence(precedence: Precedence) -> impl NoirParser<Spanned<BinaryOpKind>> {
@@ -490,7 +488,7 @@ where
         .ignore_then(ident())
         .then_ignore(keyword(Keyword::In))
         .then(expr_parser.clone())
-        .then_ignore(token(Token::DoubleDot))
+        .then_ignore(just(Token::DoubleDot))
         .then(expr_parser.clone())
         .then(block(expr_parser))
         .map(|(((identifier, start_range), end_range), block)| {
@@ -517,7 +515,7 @@ where
     P: ExprParser,
 {
     expr_parser
-        .separated_by(token(Token::Comma))
+        .separated_by(just(Token::Comma))
         .allow_trailing()
 }
 
@@ -525,7 +523,7 @@ fn not<P>(term_parser: P) -> impl NoirParser<ExpressionKind>
 where
     P: ExprParser,
 {
-    token(Token::Bang)
+    just(Token::Bang)
         .ignore_then(term_parser)
         .map(|rhs| ExpressionKind::prefix(UnaryOp::Not, rhs))
 }
@@ -534,7 +532,7 @@ fn negation<P>(term_parser: P) -> impl NoirParser<ExpressionKind>
 where
     P: ExprParser,
 {
-    token(Token::Minus)
+    just(Token::Minus)
         .ignore_then(term_parser)
         .map(|rhs| ExpressionKind::prefix(UnaryOp::Minus, rhs))
 }

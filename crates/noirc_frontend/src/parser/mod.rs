@@ -133,3 +133,13 @@ impl Precedence {
         }
     }
 }
+
+impl std::fmt::Display for TopLevelStatement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TopLevelStatement::Function(fun) => fun.fmt(f),
+            TopLevelStatement::Module(m) => write!(f, "mod {}", m),
+            TopLevelStatement::Import(i) => i.fmt(f),
+        }
+    }
+}
