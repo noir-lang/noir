@@ -231,8 +231,8 @@ void accumulate_tx_fees(Composer& composer,
         total_tx_fees[k] = total_tx_fees[k] + tx_fee * static_cast<suint_ct>(matches);
     }
 
-    // Assert this proof matched a single asset_id or it must be a padding proof.
-    auto is_valid_asset_id = !is_real || num_matched == 1 || is_account;
+    // Assert this proof matched either 0 or 1 assets
+    auto is_valid_asset_id = !is_real || num_matched == 0 || num_matched == 1 || is_account;
     is_valid_asset_id.assert_equal(true,
                                    format("proof asset id matched ", uint64_t(num_matched.get_value()), " times"));
 }

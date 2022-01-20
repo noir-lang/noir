@@ -163,6 +163,65 @@ class rollup_tests : public ::testing::Test {
         return join_split::create_proof(tx, js_cd);
     }
 
+    auto create_tx_with_3_defi_include_non_fee_asset()
+    {
+        context.append_value_notes({ 100, 50 });
+        context.append_value_notes({ 100, 50, 100, 50 }, 8);
+        context.append_value_notes({ 200, 40 }, 25); // not a fee paying asset
+        context.start_next_root_rollup();
+
+        const notes::native::bridge_id bid1 = {
+            .bridge_address_id = 0,
+            .input_asset_id = 8,
+            .output_asset_id_a = 0,
+            .output_asset_id_b = 1,
+            .opening_nonce = 0,
+            .config = notes::native::bridge_id::bit_config{ .first_input_asset_virtual = false,
+                                                            .second_input_asset_virtual = false,
+                                                            .first_output_asset_virtual = false,
+                                                            .second_output_asset_virtual = false,
+                                                            .second_input_valid = false,
+                                                            .second_output_valid = true },
+            .aux_data = 0
+        };
+
+        const notes::native::bridge_id bid2 = {
+            .bridge_address_id = 1,
+            .input_asset_id = 13,
+            .output_asset_id_a = 0,
+            .output_asset_id_b = 1,
+            .opening_nonce = 0,
+            .config = notes::native::bridge_id::bit_config{ .first_input_asset_virtual = false,
+                                                            .second_input_asset_virtual = false,
+                                                            .first_output_asset_virtual = false,
+                                                            .second_output_asset_virtual = false,
+                                                            .second_input_valid = false,
+                                                            .second_output_valid = true },
+            .aux_data = 0
+        };
+        const notes::native::bridge_id bid3 = {
+            .bridge_address_id = 2,
+            .input_asset_id = 25,
+            .output_asset_id_a = 0,
+            .output_asset_id_b = 1,
+            .opening_nonce = 0,
+            .config = notes::native::bridge_id::bit_config{ .first_input_asset_virtual = false,
+                                                            .second_input_asset_virtual = false,
+                                                            .first_output_asset_virtual = false,
+                                                            .second_output_asset_virtual = false,
+                                                            .second_input_valid = false,
+                                                            .second_output_valid = true },
+            .aux_data = 0
+        };
+        auto js_proof = context.create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 73 });         // fee = 7
+        auto defi_proof1 = context.create_defi_proof({ 2, 3 }, { 100, 50 }, { 40, 100 }, bid1, 8);  // fee = 10
+        auto defi_proof2 = context.create_defi_proof({ 4, 5 }, { 100, 50 }, { 30, 80 }, bid1, 8);   // fee = 40
+        auto defi_proof3 = context.create_defi_proof({ 6, 7 }, { 200, 40 }, { 20, 207 }, bid3, 25); // fee = 13
+
+        return create_rollup_tx(
+            context.world_state, 4, { js_proof, defi_proof1, defi_proof2, defi_proof3 }, { bid1, bid3 }, { 0, 8 });
+    }
+
     void test_chain_off_disallowed_note_fails(uint32_t allow_chain, size_t indicator);
 
     fixtures::TestContext context;
@@ -360,14 +419,14 @@ TEST_F(rollup_tests, test_asset_id_repeated_fails)
     EXPECT_EQ(result.err, "proof asset id matched 2 times");
 }
 
-TEST_F(rollup_tests, test_asset_id_unmatched_fails)
+TEST_F(rollup_tests, test_proof_asset_id_not_in_assets)
 {
-    auto tx = create_tx_with_3_defi();
-    tx.asset_ids[0] = { 1, 2, 0, 0 };
+    // txs can have non-fee paying assets
+    // these need to be accepted and asset constraint bypassed
+    auto tx = create_tx_with_3_defi_include_non_fee_asset();
+    // 4th tx has asset that is not included in list of assets on rollup
     auto result = verify_logic(tx, rollup_4_keyless);
-
-    ASSERT_FALSE(result.logic_verified);
-    EXPECT_EQ(result.err, "proof asset id matched 0 times");
+    ASSERT_TRUE(result.logic_verified);
 }
 
 TEST_F(rollup_tests, test_asset_id_reordering_works)
