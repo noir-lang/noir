@@ -69,8 +69,8 @@ impl Reporter {
                     .secondaries
                     .iter()
                     .map(|sl| {
-                        let start_span = sl.span.start.to_byte_index().to_usize();
-                        let end_span = sl.span.end.to_byte_index().to_usize() + 1;
+                        let start_span = sl.span.start() as usize;
+                        let end_span = sl.span.end() as usize + 1;
                         Label::secondary(file_id, start_span..end_span).with_message(&sl.message)
                     })
                     .collect();

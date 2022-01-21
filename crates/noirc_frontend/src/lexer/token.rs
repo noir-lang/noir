@@ -1,6 +1,6 @@
 use acvm::FieldElement;
 use noirc_errors::{Position, Span, Spanned};
-use std::fmt;
+use std::{fmt, iter::Map, vec::IntoIter};
 
 use crate::lexer::errors::LexerErrorKind;
 
@@ -15,7 +15,7 @@ impl PartialEq<Token> for SpannedToken {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SpannedToken(Spanned<Token>);
 
 impl From<SpannedToken> for Token {
@@ -25,11 +25,17 @@ impl From<SpannedToken> for Token {
 }
 
 impl SpannedToken {
+    pub fn new(token: Token, span: Span) -> SpannedToken {
+        SpannedToken(Spanned::from(span, token))
+    }
     pub fn to_span(&self) -> Span {
         self.0.span()
     }
     pub fn token(&self) -> &Token {
         &self.0.contents
+    }
+    pub fn into_token(self) -> Token {
+        self.0.contents
     }
     pub fn kind(&self) -> TokenKind {
         self.token().kind()
@@ -37,17 +43,20 @@ impl SpannedToken {
     pub fn is_variant(&self, tok: &Token) -> bool {
         self.token().is_variant(tok)
     }
-    pub fn is_comment(&self) -> bool {
-        self.token().is_comment()
-    }
     pub fn can_start_declaration(&self) -> bool {
         self.token().can_start_declaration()
     }
 }
 
+impl std::fmt::Display for SpannedToken {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.token().fmt(f)
+    }
+}
+
 // XXX(low): Add a Comment Token to force users to have documentation on public functions
 
-#[derive(PartialEq, Eq, Hash, Debug, Clone)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 /// All possible tokens allowed in the target language
 pub enum Token {
     Ident(String),
@@ -56,7 +65,6 @@ pub enum Token {
     Str(String),
     Keyword(Keyword),
     IntType(IntType),
-    Comment(String),
     Attribute(Attribute),
     // <
     Less,
@@ -122,6 +130,10 @@ pub enum Token {
     Assign,
     #[allow(clippy::upper_case_acronyms)]
     EOF,
+
+    // An invalid character is one that is not in noir's language or grammer.
+    // Delaying reporting these as errors until parsing improves error messsages
+    Invalid(char),
 }
 
 impl fmt::Display for Token {
@@ -131,7 +143,6 @@ impl fmt::Display for Token {
             Token::Int(n) => write!(f, "{:?}", n),
             Token::Bool(b) => write!(f, "{}", b),
             Token::Str(ref b) => write!(f, "{}", b),
-            Token::Comment(ref b) => write!(f, "{}", b),
             Token::Keyword(k) => write!(f, "{}", k),
             Token::Attribute(ref a) => write!(f, "{}", a),
             Token::IntType(ref i) => write!(f, "{}", i),
@@ -166,7 +177,8 @@ impl fmt::Display for Token {
             Token::Assign => write!(f, "="),
             Token::Bang => write!(f, "!"),
             Token::Underscore => write!(f, "_"),
-            Token::EOF => write!(f, ""),
+            Token::EOF => write!(f, "end of input"),
+            Token::Invalid(c) => write!(f, "{}", c),
         }
     }
 }
@@ -199,6 +211,7 @@ impl Token {
             Token::Ident(_) => TokenKind::Ident,
             Token::Int(_) | Token::Bool(_) | Token::Str(_) => TokenKind::Literal,
             Token::Keyword(_) => TokenKind::Keyword,
+            Token::Attribute(_) => TokenKind::Attribute,
             ref tok => TokenKind::Token(tok.clone()),
         }
     }
@@ -225,9 +238,6 @@ impl Token {
         // If we arrive here, then the Token variants are the same and they are not the Keyword type
         same_token_variant
     }
-    pub fn is_comment(&self) -> bool {
-        matches!(self, Token::Comment(_))
-    }
 
     pub(super) fn into_single_span(self, position: Position) -> SpannedToken {
         self.into_span(position, position)
@@ -252,7 +262,7 @@ impl Token {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Clone)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum IntType {
     Unsigned(u32), // u32 = Unsigned(32)
     Signed(u32),   // i64 = Signed(64)
@@ -310,7 +320,7 @@ impl IntType {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Clone)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 // Attributes are special language markers in the target language
 // An example of one is `#[SHA256]` . Currently only Foreign attributes are supported
 // Calls to functions which have the foreign attribute are executed in the host language
@@ -390,7 +400,7 @@ impl AsRef<str> for Attribute {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone)]
+#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, PartialOrd, Ord)]
 // Special Keywords allowed in the target language
 pub enum Keyword {
     Dep,
@@ -525,4 +535,30 @@ fn test_variant_equality() {
 
     let tok4 = Token::LeftBrace;
     assert!(!tok.is_variant(&tok4));
+}
+
+pub struct Tokens(pub Vec<SpannedToken>);
+
+impl<'a> From<Tokens>
+    for chumsky::Stream<
+        'a,
+        Token,
+        Span,
+        Map<IntoIter<SpannedToken>, fn(SpannedToken) -> (Token, Span)>,
+    >
+{
+    fn from(tokens: Tokens) -> Self {
+        let end_of_input = match tokens.0.last() {
+            Some(spanned_token) => spanned_token.to_span(),
+            None => Span::single_char(0),
+        };
+
+        fn get_span(token: SpannedToken) -> (Token, Span) {
+            let span = token.to_span();
+            (token.into_token(), span)
+        }
+
+        let iter = tokens.0.into_iter().map(get_span as fn(_) -> _);
+        chumsky::Stream::from_iter(end_of_input, iter)
+    }
 }
