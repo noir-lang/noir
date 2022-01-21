@@ -36,9 +36,9 @@ int main(int argc, char** argv)
     const std::string srs_path = (args.size() >= 5) ? args[4] : "../srs_db/ignition";
 
     auto srs = std::make_shared<waffle::DynamicFileReferenceStringFactory>(srs_path);
-    auto account_cd = account::compute_circuit_data(srs);
-    auto join_split_cd = join_split::compute_circuit_data(srs);
-    auto claim_cd = claim::get_circuit_data(srs, "", true, false, false);
+    auto account_cd = account::get_circuit_data(srs);
+    auto join_split_cd = join_split::get_circuit_data(srs);
+    auto claim_cd = claim::get_circuit_data(srs);
     auto rollup_cd =
         tx_rollup::get_circuit_data(num_inner_tx, join_split_cd, account_cd, claim_cd, srs, "", true, false, false);
 

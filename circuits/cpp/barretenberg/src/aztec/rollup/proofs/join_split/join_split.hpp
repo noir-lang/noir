@@ -19,7 +19,7 @@ void init_verification_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs
 void init_verification_key(std::shared_ptr<waffle::VerifierMemReferenceString> const& crs,
                            waffle::verification_key_data&& vk_data);
 
-UnrolledProver new_join_split_prover(join_split_tx const& tx);
+Composer new_join_split_composer(join_split_tx const& tx);
 
 bool verify_proof(waffle::plonk_proof const& proof);
 

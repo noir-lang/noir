@@ -16,8 +16,10 @@ using namespace plonk::stdlib::types::turbo;
 namespace tx_rollup = ::rollup::proofs::rollup;
 using WorldState = ::rollup::world_state::WorldState<MemoryStore>;
 
-auto prefix = "tx_factory: ";
-auto data_path = "./data/tx_factory";
+template <typename... Args> inline void txf_info(Args... args)
+{
+    info("tx_factory: ", args...);
+}
 
 tx_rollup::rollup_tx create_inner_rollup(size_t rollup_num,
                                          uint32_t num_txs,
@@ -26,13 +28,10 @@ tx_rollup::rollup_tx create_inner_rollup(size_t rollup_num,
                                          barretenberg::fr const& data_tree_root,
                                          WorldState& world_state)
 {
-    std::cerr << prefix << "Generating a " << rollup_size << " rollup with " << num_txs << " txs..." << std::endl;
+    txf_info("Generating a ", rollup_size, " rollup with ", num_txs, " txs...");
     auto proofs = std::vector<std::vector<uint8_t>>(num_txs);
     for (size_t i = 0; i < num_txs; ++i) {
-        auto name = format("js", rollup_num * rollup_size + i);
-        proofs[i] = compute_or_load_fixture(data_path, name, [&]() {
-            return join_split::create_noop_join_split_proof(join_split_circuit_data, data_tree_root);
-        });
+        proofs[i] = join_split::create_noop_join_split_proof(join_split_circuit_data, data_tree_root);
     }
     return tx_rollup::create_rollup_tx(world_state, rollup_size, proofs);
 }
@@ -45,18 +44,14 @@ int main(int argc, char** argv)
     std::vector<std::string> args(argv, argv + argc);
 
     if (args.size() < 4) {
-        std::cerr << "usage:\n"
-                  << args[0]
-                  << " <num_txs> <inner_rollup_size> <outer_rollup_size> <split_proofs_across_rollups> [output_file]"
-                  << std::endl;
+        info("usage:\n",
+             args[0],
+             " <num_txs> <inner_rollup_size> <outer_rollup_size> <split_proofs_across_rollups> [output_file]");
         return -1;
     }
 
-    mkdir("./data", 0700);
-    mkdir(data_path, 0700);
-
     auto crs = std::make_shared<waffle::DynamicFileReferenceStringFactory>("../srs_db/ignition");
-    auto join_split_circuit_data = join_split::compute_circuit_data(crs);
+    auto join_split_circuit_data = join_split::get_circuit_data(crs);
     auto data_root = world_state.data_tree.root();
     world_state.root_tree.update_element(0, data_root);
 
@@ -65,69 +60,65 @@ int main(int argc, char** argv)
     const uint32_t outer_rollup_size = static_cast<uint32_t>(std::stoul(args[3]));
     const bool split_txns_across_rollups = static_cast<bool>(std::stoul(args[4]));
 
+    Timer timer;
+
     std::vector<std::vector<uint8_t>> rollups_data;
     const auto num_total_txs = num_txs;
     while (num_txs > 0) {
         auto rollup_num = rollups_data.size();
         auto n = split_txns_across_rollups ? (num_total_txs / outer_rollup_size) : std::min(num_txs, inner_rollup_size);
-        auto name = format("rollup_", inner_rollup_size, "x", outer_rollup_size, "_", rollup_num, "_", n, ".dat");
         num_txs -= n;
 
         auto rollup = create_inner_rollup(
             rollups_data.size(), n, inner_rollup_size, join_split_circuit_data, data_root, world_state);
 
-        auto proof_data = compute_or_load_fixture(data_path, name, [&]() {
-            std::cerr << prefix << "Sending..." << std::endl;
-            write(std::cout, (uint32_t)0);
-            write(std::cout, (uint32_t)inner_rollup_size);
-            write(std::cout, rollup);
-            std::cerr << prefix << "Sent." << std::endl;
+        txf_info("Sending tx rollup request with ", n, " txs...");
+        write(std::cout, (uint32_t)0);
+        write(std::cout, (uint32_t)inner_rollup_size);
+        write(std::cout, rollup);
+        txf_info("Sent.");
 
-            std::vector<uint8_t> proof_data;
-            bool verified;
-            read(std::cin, proof_data);
-            read(std::cin, verified);
-            if (!verified) {
-                throw std::runtime_error("Received an unverified proof.");
-            }
-            return proof_data;
-        });
+        std::vector<uint8_t> proof_data;
+        bool verified;
+        read(std::cin, proof_data);
+        read(std::cin, verified);
+        if (!verified) {
+            throw std::runtime_error("Received an unverified proof.");
+        }
 
         rollups_data.push_back(proof_data);
     }
 
     auto root_rollup = root_rollup::create_root_rollup_tx(world_state, 0, world_state.defi_tree.root(), rollups_data);
-    auto name = format("root_rollup_", inner_rollup_size, "x", outer_rollup_size, "_", rollups_data.size(), ".dat");
 
-    auto root_rollup_proof_buf = compute_or_load_fixture(data_path, name, [&]() {
-        std::cerr << prefix << "Sending..." << std::endl;
-        write(std::cout, (uint32_t)1);
-        write(std::cout, (uint32_t)inner_rollup_size);
-        write(std::cout, (uint32_t)outer_rollup_size);
-        write(std::cout, root_rollup);
-        std::cerr << prefix << "Sent." << std::endl;
+    txf_info("Sending root rollup request...");
+    write(std::cout, (uint32_t)1);
+    write(std::cout, (uint32_t)inner_rollup_size);
+    write(std::cout, (uint32_t)outer_rollup_size);
+    write(std::cout, root_rollup);
+    txf_info("Sent.");
 
-        std::vector<uint8_t> root_rollup_proof_buf;
-        bool verified;
-        read(std::cin, root_rollup_proof_buf);
-        read(std::cin, verified);
-        if (!verified) {
-            throw std::runtime_error("Received an unverified root rollup proof.");
-        }
-        return root_rollup_proof_buf;
-    });
+    std::vector<uint8_t> root_rollup_proof_buf;
+    bool verified;
+    read(std::cin, root_rollup_proof_buf);
+    read(std::cin, verified);
+    if (!verified) {
+        throw std::runtime_error("Received an unverified root rollup proof.");
+    }
 
+    txf_info("Sending root verifier request...");
     write(std::cout, (uint32_t)3);
     write(std::cout, (uint32_t)inner_rollup_size);
     write(std::cout, (uint32_t)outer_rollup_size);
     write(std::cout, root_rollup_proof_buf);
+    txf_info("Sent.");
 
     std::vector<uint8_t> proof_data;
-    bool verified;
     read(std::cin, proof_data);
     read(std::cin, verified);
 
-    std::cerr << prefix << "Verified: " << verified << std::endl;
+    txf_info("Verified: ", verified);
+    txf_info("Time taken: ", timer.toString());
 
     if (args.size() > 5) {
         std::ofstream of(args[5]);

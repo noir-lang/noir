@@ -1,3 +1,4 @@
+#include <common/container.hpp>
 #include "verify.hpp"
 
 namespace rollup {
@@ -20,9 +21,10 @@ bool pairing_check(stdlib::recursion::recursion_output<outer_curve> recursion_ou
 verify_result verify_internal(OuterComposer& composer,
                               root_verifier_tx& tx,
                               circuit_data const& cd,
-                              root_rollup::circuit_data const& root_rollup_cd)
+                              root_rollup::circuit_data const& root_rollup_cd,
+                              bool skip_pairing)
 {
-    verify_result result = { false, false, {} };
+    verify_result result = { false, false, {}, {} };
 
     if (!root_rollup_cd.verification_key) {
         info("Inner verification key not provided.");
@@ -41,12 +43,14 @@ verify_result verify_internal(OuterComposer& composer,
 
     auto circuit_result = root_verifier_circuit(composer, tx, root_rollup_cd.verification_key, cd.valid_vks);
 
+    result.public_inputs = composer.get_public_inputs();
+
     if (composer.failed) {
         info("Circuit logic failed: " + composer.err);
         return result;
     }
 
-    if (!pairing_check(circuit_result, cd.verifier_crs)) {
+    if (!skip_pairing && !pairing_check(circuit_result, cd.verifier_crs)) {
         info("Native pairing check failed.");
         return result;
     }
@@ -60,18 +64,37 @@ verify_result verify_logic(root_verifier_tx& tx,
                            root_rollup::circuit_data const& root_rollup_cd)
 {
     OuterComposer composer = OuterComposer(cd.proving_key, cd.verification_key, cd.num_gates);
-    return verify_internal(composer, tx, cd, root_rollup_cd);
+    return verify_internal(composer, tx, cd, root_rollup_cd, false);
+}
+
+verify_result verify_proverless(root_verifier_tx& tx,
+                                circuit_data const& cd,
+                                root_rollup::circuit_data const& root_rollup_cd)
+{
+    OuterComposer composer = OuterComposer(cd.proving_key, cd.verification_key, cd.num_gates);
+    auto result = verify_internal(composer, tx, cd, root_rollup_cd, true);
+
+    if (!result.logic_verified) {
+        return result;
+    }
+
+    auto pub_input_buf = to_buffer(result.public_inputs);
+    result.proof_data = join({ pub_input_buf, slice(cd.padding_proof, pub_input_buf.size()) });
+    result.verified = true;
+    return result;
 }
 
 verify_result verify(root_verifier_tx& tx, circuit_data const& cd, root_rollup::circuit_data const& root_rollup_cd)
 {
     OuterComposer composer = OuterComposer(cd.proving_key, cd.verification_key, cd.num_gates);
 
-    auto result = verify_internal(composer, tx, cd, root_rollup_cd);
+    auto result = verify_internal(composer, tx, cd, root_rollup_cd, false);
 
     if (!result.logic_verified) {
         return result;
     }
+
+    cd.proving_key->reset();
 
     auto prover = composer.create_prover();
     auto proof = prover.construct_proof();

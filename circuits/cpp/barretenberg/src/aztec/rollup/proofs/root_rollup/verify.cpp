@@ -1,3 +1,4 @@
+#include <common/container.hpp>
 #include "verify.hpp"
 #include "root_rollup_circuit.hpp"
 #include "create_root_rollup_tx.hpp"
@@ -23,7 +24,10 @@ bool pairing_check(recursion_output<bn254> recursion_output,
     return inner_proof_result == barretenberg::fq12::one();
 }
 
-verify_result verify_internal(Composer& composer, root_rollup_tx& tx, circuit_data const& circuit_data)
+verify_result verify_internal(Composer& composer,
+                              root_rollup_tx& tx,
+                              circuit_data const& circuit_data,
+                              bool skip_pairing)
 {
     verify_result result = { false, false, {}, {}, {}, recursion_output<bn254>() };
 
@@ -60,7 +64,7 @@ verify_result verify_internal(Composer& composer, root_rollup_tx& tx, circuit_da
         return result;
     }
 
-    if (!pairing_check(result.recursion_output_data, circuit_data.verifier_crs)) {
+    if (!skip_pairing && !pairing_check(result.recursion_output_data, circuit_data.verifier_crs)) {
         info("Native pairing check failed.");
         return result;
     }
@@ -72,18 +76,34 @@ verify_result verify_internal(Composer& composer, root_rollup_tx& tx, circuit_da
 verify_result verify_logic(root_rollup_tx& tx, circuit_data const& circuit_data)
 {
     Composer composer = Composer(circuit_data.proving_key, circuit_data.verification_key, circuit_data.num_gates);
-    return verify_internal(composer, tx, circuit_data);
+    return verify_internal(composer, tx, circuit_data, false);
+}
+
+verify_result verify_proverless(root_rollup_tx& tx, circuit_data const& circuit_data)
+{
+    Composer composer = Composer(circuit_data.proving_key, circuit_data.verification_key, circuit_data.num_gates);
+    auto result = verify_internal(composer, tx, circuit_data, true);
+
+    if (!result.logic_verified) {
+        return result;
+    }
+
+    auto pub_input_buf = to_buffer(result.public_inputs);
+    result.proof_data = join({ pub_input_buf, slice(circuit_data.padding_proof, pub_input_buf.size()) });
+    result.verified = true;
+    return result;
 }
 
 verify_result verify(root_rollup_tx& tx, circuit_data const& circuit_data)
 {
     Composer composer = Composer(circuit_data.proving_key, circuit_data.verification_key, circuit_data.num_gates);
-
-    auto result = verify_internal(composer, tx, circuit_data);
+    auto result = verify_internal(composer, tx, circuit_data, false);
 
     if (!result.logic_verified) {
         return result;
     }
+
+    circuit_data.proving_key->reset();
 
     auto prover = composer.create_unrolled_prover();
     auto proof = prover.construct_proof();

@@ -56,9 +56,9 @@ class root_verifier_tests : public ::testing::Test {
         mkdir(TEST_PROOFS_PATH, 0700);
         srs = std::make_shared<waffle::DynamicFileReferenceStringFactory>(CRS_PATH);
 
-        account_cd = proofs::account::compute_circuit_data(srs);
-        js_cd = join_split::compute_circuit_data(srs);
-        claim_cd = proofs::claim::get_circuit_data(srs, "", true, false, false);
+        account_cd = proofs::account::get_circuit_data(srs);
+        js_cd = join_split::get_circuit_data(srs);
+        claim_cd = proofs::claim::get_circuit_data(srs);
 
         if (recreate) {
             tx_rollup_cd =

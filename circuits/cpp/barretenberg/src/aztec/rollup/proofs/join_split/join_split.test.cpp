@@ -220,7 +220,8 @@ class join_split_tests : public ::testing::Test {
     {
         tx.signature = sign_join_split_tx(tx, { signing_private_key, tx.signing_pub_key });
 
-        auto prover = new_join_split_prover(tx);
+        auto composer = new_join_split_composer(tx);
+        auto prover = composer.create_unrolled_prover();
         return prover.construct_proof();
     }
 
@@ -730,7 +731,8 @@ TEST_F(join_split_tests, test_tainted_output_owner_fails)
     tx.public_owner = from_buffer<fr>(public_owner);
     tx.signature = sign_join_split_tx(tx, { user.owner.private_key, user.owner.public_key });
 
-    auto prover = new_join_split_prover(tx);
+    auto composer = new_join_split_composer(tx);
+    auto prover = composer.create_unrolled_prover();
     auto proof = prover.construct_proof();
 
     EXPECT_EQ(proof.proof_data[InnerProofOffsets::PUBLIC_OWNER], 0x01);

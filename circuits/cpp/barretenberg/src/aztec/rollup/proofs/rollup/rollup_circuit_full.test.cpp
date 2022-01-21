@@ -30,9 +30,9 @@ class rollup_full_tests : public ::testing::Test {
     {
         std::string CRS_PATH = "../srs_db/ignition";
         srs = std::make_shared<waffle::DynamicFileReferenceStringFactory>(CRS_PATH);
-        account_cd = account::compute_circuit_data(srs);
-        js_cd = join_split::compute_circuit_data(srs);
-        claim_cd = claim::get_circuit_data(srs, "", true, false, false);
+        account_cd = account::get_circuit_data(srs);
+        js_cd = join_split::get_circuit_data(srs);
+        claim_cd = claim::get_circuit_data(srs);
     }
 
     fixtures::TestContext context;

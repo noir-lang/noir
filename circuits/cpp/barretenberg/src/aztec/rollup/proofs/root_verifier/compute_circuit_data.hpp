@@ -18,7 +18,8 @@ inline circuit_data get_circuit_data(root_rollup::circuit_data const& root_rollu
                                      bool save = true,
                                      bool load = true,
                                      bool pk = true,
-                                     bool vk = true)
+                                     bool vk = true,
+                                     bool padding = false)
 {
     std::cerr << "Getting root verifier circuit data: (size: " << root_rollup_circuit_data.rollup_size << ")"
               << std::endl;
@@ -32,7 +33,7 @@ inline circuit_data get_circuit_data(root_rollup::circuit_data const& root_rollu
     };
 
     auto cd = proofs::get_circuit_data<OuterComposer>(
-        name, srs, key_path, compute, save, load, pk, vk, false, build_verifier_circuit);
+        name, srs, key_path, compute, save, load, pk, vk, padding, build_verifier_circuit);
 
     circuit_data data;
     data.num_gates = cd.num_gates;
@@ -40,6 +41,7 @@ inline circuit_data get_circuit_data(root_rollup::circuit_data const& root_rollu
     data.proving_key = cd.proving_key;
     data.verification_key = cd.verification_key;
     data.valid_vks = valid_vks;
+    data.padding_proof = cd.padding_proof;
 
     return data;
 }

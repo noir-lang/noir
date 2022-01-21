@@ -50,9 +50,9 @@ class root_rollup_full_tests : public ::testing::Test {
         mkdir(FIXTURE_PATH, 0700);
         mkdir(TEST_PROOFS_PATH, 0700);
         srs = std::make_shared<waffle::DynamicFileReferenceStringFactory>(CRS_PATH);
-        account_cd = proofs::account::compute_circuit_data(srs);
-        js_cd = join_split::compute_circuit_data(srs);
-        claim_cd = proofs::claim::get_circuit_data(srs, FIXTURE_PATH, true, false, false);
+        account_cd = proofs::account::get_circuit_data(srs);
+        js_cd = join_split::get_circuit_data(srs);
+        claim_cd = proofs::claim::get_circuit_data(srs);
         tx_rollup2_cd =
             rollup::get_circuit_data(2, js_cd, account_cd, claim_cd, srs, FIXTURE_PATH, true, persist, persist);
         tx_rollup3_cd =

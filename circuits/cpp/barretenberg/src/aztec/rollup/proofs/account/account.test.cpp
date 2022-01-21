@@ -89,7 +89,8 @@ class account_tests : public ::testing::Test {
 
     bool verify(account_tx& tx)
     {
-        auto prover = new_account_prover(tx);
+        auto composer = new_account_composer(tx);
+        auto prover = composer.create_unrolled_prover();
         auto proof = prover.construct_proof();
         return verify_proof(proof);
     }
@@ -217,7 +218,8 @@ TEST_F(account_tests, test_change_account_public_key_fails)
 TEST_F(account_tests, test_migrate_account_full_proof)
 {
     auto tx = create_account_tx();
-    auto prover = new_account_prover(tx);
+    auto composer = new_account_composer(tx);
+    auto prover = composer.create_unrolled_prover();
     auto proof = prover.construct_proof();
     auto data = inner_proof_data(proof.proof_data);
 
@@ -248,7 +250,8 @@ TEST_F(account_tests, test_non_migrate_account_full_proof)
     preload_account_notes();
     auto tx = create_account_tx(1);
     tx.migrate = false;
-    auto prover = new_account_prover(tx);
+    auto composer = new_account_composer(tx);
+    auto prover = composer.create_unrolled_prover();
     auto proof = prover.construct_proof();
     auto data = inner_proof_data(proof.proof_data);
 

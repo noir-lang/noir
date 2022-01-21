@@ -21,7 +21,7 @@ void init_verification_key(std::shared_ptr<waffle::VerifierMemReferenceString> c
 
 void account_circuit(Composer& composer, account_tx const& tx);
 
-UnrolledProver new_account_prover(account_tx const& tx);
+Composer new_account_composer(account_tx const& tx);
 
 bool verify_proof(waffle::plonk_proof const& proof);
 

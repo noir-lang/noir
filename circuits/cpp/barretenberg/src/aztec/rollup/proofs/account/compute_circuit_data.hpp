@@ -10,14 +10,9 @@ namespace account {
 
 using circuit_data = proofs::circuit_data;
 
-inline circuit_data get_circuit_data(std::shared_ptr<waffle::ReferenceStringFactory> const& srs,
-                                     std::string const& key_path,
-                                     bool compute = true,
-                                     bool save = true,
-                                     bool load = true)
+inline circuit_data get_circuit_data(std::shared_ptr<waffle::ReferenceStringFactory> const& srs)
 {
     std::cerr << "Getting account circuit data..." << std::endl;
-    auto name = format("account");
 
     auto build_circuit = [&](Composer& composer) {
         account_tx tx;
@@ -25,21 +20,7 @@ inline circuit_data get_circuit_data(std::shared_ptr<waffle::ReferenceStringFact
         account_circuit(composer, tx);
     };
 
-    return proofs::get_circuit_data<Composer>(
-        name, srs, key_path, compute, save, load, true, true, false, build_circuit);
-}
-
-// Deprecated. Just use get_circuit_data.
-inline circuit_data compute_circuit_data(std::shared_ptr<waffle::ReferenceStringFactory> const& srs)
-{
-    return get_circuit_data(srs, "", true, false, false);
-}
-
-// Deprecated. Just use get_circuit_data.
-inline circuit_data compute_or_load_circuit_data(std::shared_ptr<waffle::ReferenceStringFactory> const& srs,
-                                                 std::string const& key_path)
-{
-    return get_circuit_data(srs, key_path, true, true, true);
+    return proofs::get_circuit_data<Composer>("", srs, "", true, false, false, true, true, false, build_circuit);
 }
 
 } // namespace account

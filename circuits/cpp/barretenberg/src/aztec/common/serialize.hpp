@@ -343,8 +343,12 @@ template <bool include_size = false, typename T> std::vector<uint8_t> to_buffer(
 {
     using serialize::write;
     std::vector<uint8_t> buf;
-    for (auto e : value) {
-        write(buf, e);
+    if (include_size) {
+        write(buf, value);
+    } else {
+        for (auto e : value) {
+            write(buf, e);
+        }
     }
     return buf;
 }

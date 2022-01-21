@@ -8,6 +8,7 @@
 #include "../proofs/rollup/index.hpp"
 #include "../proofs/root_rollup/index.hpp"
 #include "../proofs/root_verifier/index.hpp"
+#include "../proofs/proofless_padding.hpp"
 #include <common/timer.hpp>
 #include <common/container.hpp>
 #include <common/map.hpp>
@@ -22,7 +23,11 @@ namespace tx_rollup = ::rollup::proofs::rollup;
 
 namespace {
 std::string data_path;
+// True if rollup circuit data (proving and verification keys) are to be persisted to disk.
+// We likely don't have enough memory to hold all keys in memory, and loading keys from disk is faster.
 bool persist;
+// In proverless mode, fake proofs (with real public inputs) are generated, and pairing checks are disabled.
+bool proverless;
 std::shared_ptr<waffle::DynamicFileReferenceStringFactory> crs;
 join_split::circuit_data js_cd;
 account::circuit_data account_cd;
@@ -40,6 +45,7 @@ bool create_tx_rollup()
 
     if (!tx_rollup_cd.proving_key || tx_rollup_cd.num_txs != num_txs) {
         tx_rollup_cd.proving_key.reset();
+        // TODO: Can we find a way to avoid having to generate the keys and padding proof in proverless mode?
         tx_rollup_cd =
             tx_rollup::get_circuit_data(num_txs, js_cd, account_cd, claim_cd, crs, data_path, true, persist, persist);
     }
@@ -51,17 +57,11 @@ bool create_tx_rollup()
     std::cerr << "Received tx rollup with " << rollup.num_txs << " txs." << std::endl;
 
     if (rollup.num_txs > tx_rollup_cd.num_txs) {
-        std::cerr << "Receieved rollup size too large: " << rollup.txs.size() << std::endl;
+        std::cerr << "Received rollup size too large: " << rollup.txs.size() << std::endl;
         return false;
     }
 
-    Timer timer;
-    tx_rollup_cd.proving_key->reset();
-
-    std::cerr << "Creating tx rollup proof..." << std::endl;
-    auto result = verify(rollup, tx_rollup_cd);
-
-    std::cerr << "Time taken: " << timer.toString() << std::endl;
+    auto result = proverless ? verify_proverless(rollup, tx_rollup_cd) : verify(rollup, tx_rollup_cd);
     std::cerr << "Verified: " << result.verified << std::endl;
 
     write(std::cout, result.proof_data);
@@ -80,6 +80,7 @@ bool create_root_rollup()
 
     if (!tx_rollup_cd.proving_key || tx_rollup_cd.num_txs != num_txs) {
         tx_rollup_cd.proving_key.reset();
+        // TODO: Can we find a way to avoid having to generate the keys and padding proof in proverless mode?
         tx_rollup_cd =
             tx_rollup::get_circuit_data(num_txs, js_cd, account_cd, claim_cd, crs, data_path, true, persist, persist);
     }
@@ -102,10 +103,9 @@ bool create_root_rollup()
     }
 
     Timer timer;
-    root_rollup_cd.proving_key->reset();
 
     std::cerr << "Creating root rollup proof..." << std::endl;
-    auto result = verify(root_rollup, root_rollup_cd);
+    auto result = proverless ? verify_proverless(root_rollup, root_rollup_cd) : verify(root_rollup, root_rollup_cd);
 
     std::cerr << "Time taken: " << timer.toString() << std::endl;
     std::cerr << "Verified: " << result.verified << std::endl;
@@ -164,7 +164,7 @@ bool create_root_verifier()
             }
         }
         root_verifier_cd = root_verifier::get_circuit_data(
-            root_rollup_cd, crs, root_verifier_cd.valid_vks, data_path, true, persist, persist);
+            root_rollup_cd, crs, root_verifier_cd.valid_vks, data_path, true, persist, persist, true, true, proverless);
     }
 
     Timer timer;
@@ -180,10 +180,9 @@ bool create_root_verifier()
               << map(valid_outer_sizes, [](size_t s) { return s * tx_rollup_cd.rollup_size; })
               << ", proof size: " << rollup_size << ")" << std::endl;
 
-    root_verifier_cd.proving_key->reset();
-
     std::cerr << "Creating root verifier proof..." << std::endl;
-    auto result = verify(tx, root_verifier_cd, root_rollup_cd);
+    auto result = proverless ? verify_proverless(tx, root_verifier_cd, root_rollup_cd)
+                             : verify(tx, root_verifier_cd, root_rollup_cd);
 
     std::cerr << "Time taken: " << timer.toString() << std::endl;
     std::cerr << "Verified: " << result.verified << std::endl;
@@ -202,6 +201,7 @@ int main(int argc, char** argv)
     data_path = (args.size() > 2) ? args[2] : "./data";
     std::string outers = args.size() > 3 ? args[3] : "1";
     persist = args.size() > 4 ? args[4] == "true" : true;
+    proverless = args.size() > 5 ? args[5] == "true" : false;
 
     std::istringstream outer_stream(outers);
     std::string outer_size;
@@ -209,15 +209,18 @@ int main(int argc, char** argv)
         valid_outer_sizes.emplace_back(std::stoul(outer_size));
     };
 
-    std::cerr << "Loading crs..." << std::endl;
+    if (proverless) {
+        info("Running in proverless mode. Fake proofs will be generated!");
+    }
+
+    info("Loading crs...");
     crs = std::make_shared<waffle::DynamicFileReferenceStringFactory>(srs_path);
 
-    account_cd = account::compute_or_load_circuit_data(crs, data_path);
-    js_cd = join_split::compute_or_load_circuit_data(crs, data_path);
-    claim_cd = claim::get_circuit_data(crs, data_path, true, persist, persist);
+    account_cd = account::get_circuit_data(crs);
+    js_cd = join_split::get_circuit_data(crs);
+    claim_cd = claim::get_circuit_data(crs);
 
-    std::cerr << "Reading rollups from standard input..." << std::endl;
-
+    info("Reading rollups from standard input...");
     while (true) {
         if (!std::cin.good() || std::cin.peek() == std::char_traits<char>::eof()) {
             break;
@@ -241,6 +244,17 @@ int main(int argc, char** argv)
         }
         case 3: {
             create_root_verifier();
+            break;
+        }
+        case 100: {
+            // Convert to buffer first, so when we call write we prefix the buffer length.
+            std::cerr << "Serving join split vk..." << std::endl;
+            write(std::cout, to_buffer(*js_cd.verification_key));
+            break;
+        }
+        case 101: {
+            std::cerr << "Serving account vk..." << std::endl;
+            write(std::cout, to_buffer(*account_cd.verification_key));
             break;
         }
         case 666: {

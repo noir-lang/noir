@@ -1,7 +1,9 @@
 #include "c_bind.h"
 #include "account.hpp"
 #include "compute_signing_data.hpp"
+#include "../proofless_padding.hpp"
 #include <common/streams.hpp>
+#include <common/container.hpp>
 #include <cstdint>
 #include <ecc/curves/grumpkin/grumpkin.hpp>
 #include <plonk/reference_string/pippenger_reference_string.hpp>
@@ -94,9 +96,22 @@ WASM_EXPORT void account__compute_signing_data(uint8_t const* account_buf, uint8
 WASM_EXPORT void* account__new_prover(uint8_t const* account_buf)
 {
     auto tx = from_buffer<account_tx>(account_buf);
-    auto prover = new_account_prover(tx);
+    auto composer = new_account_composer(tx);
+    auto prover = composer.create_unrolled_prover();
     auto heapProver = new UnrolledProver(std::move(prover));
     return heapProver;
+}
+
+WASM_EXPORT uint32_t account__compute_public_inputs(uint8_t const* account_buf, uint8_t** output)
+{
+    auto tx = from_buffer<account_tx>(account_buf);
+    auto composer = new_account_composer(tx);
+    auto public_inputs = composer.get_public_inputs();
+    auto buf = join({ to_buffer(public_inputs), get_proofless_data() });
+    auto mem = (uint8_t*)aligned_alloc(64, buf.size());
+    memcpy(mem, buf.data(), buf.size());
+    *output = mem;
+    return static_cast<uint32_t>(buf.size());
 }
 
 WASM_EXPORT void account__delete_prover(void* prover)

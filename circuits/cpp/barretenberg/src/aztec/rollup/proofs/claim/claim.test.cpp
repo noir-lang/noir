@@ -29,7 +29,7 @@ class claim_tests : public ::testing::Test {
     static void SetUpTestCase()
     {
         srs = std::make_shared<waffle::FileReferenceStringFactory>("../srs_db");
-        cd = get_circuit_data(srs, "", true, false, false);
+        cd = get_circuit_data(srs);
     }
 
     virtual void SetUp()

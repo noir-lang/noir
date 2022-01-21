@@ -15,11 +15,17 @@ struct verify_result {
     bool verified;
     bool logic_verified;
     std::vector<uint8_t> proof_data;
+    std::vector<fr> public_inputs;
 };
 
 verify_result verify_logic(root_verifier_tx& tx,
                            circuit_data const& circuit_data,
                            root_rollup::circuit_data const& root_rollup_cd);
+
+verify_result verify_proverless(root_verifier_tx& tx,
+                                circuit_data const& circuit_data,
+                                root_rollup::circuit_data const& root_rollup_cd);
+
 verify_result verify(root_verifier_tx& tx,
                      circuit_data const& circuit_data,
                      root_rollup::circuit_data const& root_rollup_cd);

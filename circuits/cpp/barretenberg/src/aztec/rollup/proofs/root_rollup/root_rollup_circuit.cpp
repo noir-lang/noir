@@ -222,6 +222,7 @@ circuit_result_data root_rollup_circuit(Composer& composer,
                                         std::shared_ptr<waffle::verification_key> const& inner_verification_key)
 {
     auto max_num_inner_proofs = tx.rollups.size();
+
     // Witnesses.
     const auto rollup_id = field_ct(witness_ct(&composer, tx.rollup_id));
     const auto rollup_size_pow2 = field_ct(witness_ct(&composer, num_outer_txs_pow2));
@@ -242,9 +243,9 @@ circuit_result_data root_rollup_circuit(Composer& composer,
     const auto recursive_manifest = Composer::create_unrolled_manifest(inner_verification_key->num_public_inputs);
     const auto recursive_verification_key =
         plonk::stdlib::recursion::verification_key<bn254>::from_constants(&composer, inner_verification_key);
-
     field_ct rollup_beneficiary = field_ct(witness_ct(&composer, tx.rollup_beneficiary));
     rollup_beneficiary.create_range_constraint(160, "rollup beneficiary is not an address!");
+
     // To be extracted from inner proofs.
     field_ct data_start_index = witness_ct(&composer, 0);
     field_ct old_data_root = witness_ct(&composer, 0);
@@ -252,7 +253,7 @@ circuit_result_data root_rollup_circuit(Composer& composer,
     field_ct old_null_root = witness_ct(&composer, 0);
     field_ct new_null_root = witness_ct(&composer, 0);
 
-    // An padding rollup should use the following its public input hash.
+    // A padding rollup uses the following as its public input hash.
     field_ct zero_hash = compute_sha256_of_zeroes(composer, num_inner_txs_pow2);
 
     // Loop accumulators.

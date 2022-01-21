@@ -56,6 +56,7 @@ circuit_data get_circuit_data(std::string const& name,
         (compute && !load)) {
         std::cerr << "Building circuit..." << std::endl;
         build_circuit(composer);
+        std::cerr << "Circuit size: " << composer.get_num_gates() << std::endl;
     }
 
     // If we're saving data, create the circuit data directory.

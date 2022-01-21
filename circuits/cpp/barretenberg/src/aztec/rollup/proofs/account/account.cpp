@@ -163,7 +163,7 @@ void init_verification_key(std::shared_ptr<waffle::VerifierMemReferenceString> c
     verification_key = std::make_shared<waffle::verification_key>(std::move(vk_data), crs);
 }
 
-UnrolledProver new_account_prover(account_tx const& tx)
+Composer new_account_composer(account_tx const& tx)
 {
     Composer composer(proving_key, nullptr);
     account_circuit(composer, tx);
@@ -175,7 +175,7 @@ UnrolledProver new_account_prover(account_tx const& tx)
     info("composer gates: ", composer.get_num_gates());
     info("public inputs: ", composer.public_inputs.size());
 
-    return composer.create_unrolled_prover();
+    return composer;
 }
 
 bool verify_proof(waffle::plonk_proof const& proof)

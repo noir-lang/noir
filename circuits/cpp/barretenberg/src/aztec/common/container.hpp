@@ -1,5 +1,14 @@
 #pragma once
 #include <stddef.h>
+#include <iterator>
+
+template <typename C> C slice(C const& container, size_t start)
+{
+    auto b = container.begin();
+    auto e = container.end();
+    std::advance(b, start);
+    return C(b, e);
+}
 
 template <typename C> C slice(C const& container, size_t start, size_t end)
 {

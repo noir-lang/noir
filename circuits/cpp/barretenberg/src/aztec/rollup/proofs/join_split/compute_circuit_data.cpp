@@ -53,22 +53,16 @@ join_split_tx noop_tx()
     return tx;
 }
 
-circuit_data get_circuit_data(std::shared_ptr<waffle::ReferenceStringFactory> const& srs,
-                              std::string const& key_path,
-                              bool compute,
-                              bool save,
-                              bool load)
+circuit_data get_circuit_data(std::shared_ptr<waffle::ReferenceStringFactory> const& srs)
 {
     std::cerr << "Getting join-split circuit data..." << std::endl;
-    auto name = format("join_split");
 
     auto build_circuit = [&](Composer& composer) {
         join_split_tx tx(noop_tx());
         join_split_circuit(composer, tx);
     };
 
-    return proofs::get_circuit_data<Composer>(
-        name, srs, key_path, compute, save, load, true, true, true, build_circuit);
+    return proofs::get_circuit_data<Composer>("", srs, "", true, false, false, true, true, true, build_circuit);
 }
 
 } // namespace join_split

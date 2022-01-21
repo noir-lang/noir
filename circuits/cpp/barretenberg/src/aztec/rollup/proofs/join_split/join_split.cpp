@@ -45,7 +45,7 @@ void init_verification_key(std::shared_ptr<waffle::VerifierMemReferenceString> c
     verification_key = std::make_shared<waffle::verification_key>(std::move(vk_data), crs);
 }
 
-UnrolledProver new_join_split_prover(join_split_tx const& tx)
+Composer new_join_split_composer(join_split_tx const& tx)
 {
     Composer composer(proving_key, nullptr);
     join_split_circuit(composer, tx);
@@ -57,7 +57,7 @@ UnrolledProver new_join_split_prover(join_split_tx const& tx)
     info("composer gates: ", composer.get_num_gates());
     info("public inputs: ", composer.public_inputs.size());
 
-    return composer.create_unrolled_prover();
+    return composer;
 }
 
 bool verify_proof(waffle::plonk_proof const& proof)
