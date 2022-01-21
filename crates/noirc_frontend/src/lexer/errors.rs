@@ -13,8 +13,6 @@ pub enum LexerErrorKind {
         expected: String,
         found: char,
     },
-    #[error("The character {:?} is not in the language.", found)]
-    CharacterNotInLanguage { span: Span, found: char },
     #[error("NotADoubleChar : {:?} is not a double char token", found)]
     NotADoubleChar { span: Span, found: Token },
     #[error("InvalidIntegerLiteral : {:?} is not a integer", found)]
@@ -29,7 +27,6 @@ impl LexerErrorKind {
     pub fn span(&self) -> Span {
         match self {
             LexerErrorKind::UnexpectedCharacter { span, .. } => *span,
-            LexerErrorKind::CharacterNotInLanguage { span, .. } => *span,
             LexerErrorKind::NotADoubleChar { span, .. } => *span,
             LexerErrorKind::InvalidIntegerLiteral { span, .. } => *span,
             LexerErrorKind::MalformedFuncAttribute { span, .. } => *span,
@@ -46,11 +43,6 @@ impl LexerErrorKind {
             } => (
                 "an unexpected character was found".to_string(),
                 format!(" expected {} , but got {}", expected, found),
-                *span,
-            ),
-            LexerErrorKind::CharacterNotInLanguage { span, found } => (
-                "char is not in language".to_string(),
-                format!(" {:?} is not in language", found),
                 *span,
             ),
             LexerErrorKind::NotADoubleChar { span, found } => (

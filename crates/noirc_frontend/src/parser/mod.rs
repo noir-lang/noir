@@ -27,11 +27,20 @@ impl<P, T> NoirParser<T> for P where P: Parser<Token, T, Error = ParserError> {}
 trait ExprParser: NoirParser<Expression> + Clone {}
 impl<P> ExprParser for P where P: NoirParser<Expression> + Clone {}
 
-fn parenthesized<P, T>(parser: P) -> impl NoirParser<T>
+fn parenthesized<P, F, T>(parser: P, default: F) -> impl NoirParser<T>
 where
     P: NoirParser<T>,
+    F: Fn(Span) -> T,
 {
-    parser.delimited_by(Token::LeftParen, Token::RightParen)
+    use Token::*;
+    parser
+        .delimited_by(LeftParen, RightParen)
+        .recover_with(nested_delimiters(
+            LeftParen,
+            RightParen,
+            [(LeftBracket, RightBracket)],
+            default,
+        ))
 }
 
 fn spanned<P, T>(parser: P) -> impl NoirParser<(T, Span)>
@@ -41,6 +50,11 @@ where
     parser.map_with_span(|value, span| (value, span))
 }
 
+// Parse with the first parser, then continue by
+// repeating the second parser 0 or more times.
+// The passed in function is then used to combine the
+// results of both parsers along with their spans at
+// each step.
 fn foldl_with_span<P1, P2, T1, T2, F>(
     first_parser: P1,
     to_be_repeated: P2,

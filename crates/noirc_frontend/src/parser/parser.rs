@@ -9,9 +9,9 @@ use crate::{
     FieldElementType,
 };
 use crate::{
-    AssignStatement, BinaryOp, BinaryOpKind, BlockExpression, CastExpression, ConstStatement,
-    ConstrainStatement, ForExpression, FunctionDefinition, Ident, IfExpression, ImportStatement,
-    InfixExpression, LetStatement, Path, PathKind, PrivateStatement, UnaryOp,
+    AssignStatement, BinaryOp, BinaryOpKind, BlockExpression, CastExpression, ConstrainStatement,
+    ForExpression, FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, Path,
+    PathKind, UnaryOp,
 };
 
 use chumsky::prelude::*;
@@ -34,6 +34,7 @@ pub fn parse_program(program: &str) -> Result<ParsedModule, Vec<ParserError>> {
     match tree {
         Some(statements) => {
             for statement in statements {
+                println!("{};", statement);
                 match statement {
                     TopLevelStatement::Function(f) => program.push_function(f),
                     TopLevelStatement::Module(m) => program.push_module_decl(m),
@@ -43,6 +44,7 @@ pub fn parse_program(program: &str) -> Result<ParsedModule, Vec<ParserError>> {
             Ok(program)
         }
         None => {
+            println!("no parse tree");
             let mut errors: Vec<_> = lexing_errors.into_iter().map(Into::into).collect();
             errors.append(&mut parsing_errors);
             Err(errors)
@@ -63,7 +65,7 @@ fn function_definition() -> impl NoirParser<TopLevelStatement> {
         .or_not()
         .then_ignore(keyword(Keyword::Fn))
         .then(ident())
-        .then(parenthesized(function_parameters()))
+        .then(parenthesized(function_parameters(), |_| vec![]))
         .then(function_return_type())
         .then(block(expression()))
         .map(|((((attribute, name), parameters), return_type), body)| {
@@ -107,25 +109,31 @@ fn block<P>(expr_parser: P) -> impl NoirParser<BlockExpression>
 where
     P: ExprParser,
 {
+    use Token::*;
     statement(expr_parser)
-        .map(|statement| match statement {
+        .separated_by(just(Semicolon))
+        .then(just(Semicolon).or_not())
+        .delimited_by(LeftBrace, RightBrace)
+        .recover_with(nested_delimiters(
+            LeftBrace,
+            RightBrace,
+            [(LeftParen, RightParen), (LeftBracket, RightBracket)],
+            |_| (vec![], None),
+        ))
+        .map(into_block)
+}
+
+fn into_block(
+    (mut statements, last_semicolon): (Vec<Statement>, Option<Token>),
+) -> BlockExpression {
+    if last_semicolon.is_some() && !statements.is_empty() {
+        let last = match statements.pop().unwrap() {
             Statement::Expression(expr) => Statement::Semi(expr),
             other => other,
-        })
-        .separated_by(just(Token::Semicolon))
-        .then(just(Token::Semicolon).or_not())
-        .delimited_by(Token::LeftBrace, Token::RightBrace)
-        .map(|(mut statements, last_semi)| {
-            if last_semi.is_none() {
-                use Statement::{Expression, Semi};
-                match statements.pop() {
-                    Some(Semi(expr)) => statements.push(Expression(expr)),
-                    Some(other) => statements.push(other),
-                    None => (),
-                }
-            }
-            BlockExpression(statements)
-        })
+        };
+        statements.push(last);
+    }
+    BlockExpression(statements)
 }
 
 fn optional_type_annotation() -> impl NoirParser<Type> {
@@ -168,7 +176,7 @@ fn tokenkind(tokenkind: TokenKind) -> impl NoirParser<Token> {
 
 fn path() -> impl NoirParser<Path> {
     let prefix = |key| keyword(key).ignore_then(just(Token::DoubleColon));
-    let idents = || ident().separated_by(just(Token::DoubleColon));
+    let idents = || ident().separated_by(just(Token::DoubleColon)).at_least(1);
     let make_path = |kind| move |segments| Path { segments, kind };
 
     choice((
@@ -196,6 +204,7 @@ where
         assignment(expr_parser.clone()),
         expr_parser.map(Statement::Expression),
     ))
+    .labelled("statement")
 }
 
 fn operator_disallowed_in_constrain(operator: BinaryOpKind) -> bool {
@@ -232,41 +241,10 @@ fn declaration<P>(expr_parser: P) -> impl NoirParser<Statement>
 where
     P: ExprParser,
 {
-    let let_statement = generic_declaration(
-        Keyword::Let,
-        expr_parser.clone(),
-        |((identifier, r#type), expression)| {
-            Statement::Let(LetStatement {
-                identifier,
-                r#type,
-                expression,
-            })
-        },
-    );
-
-    let priv_statement = generic_declaration(
-        Keyword::Priv,
-        expr_parser.clone(),
-        |((identifier, r#type), expression)| {
-            Statement::Private(PrivateStatement {
-                identifier,
-                r#type,
-                expression,
-            })
-        },
-    );
-
-    let const_statement = generic_declaration(
-        Keyword::Const,
-        expr_parser,
-        |((identifier, r#type), expression)| {
-            Statement::Const(ConstStatement {
-                identifier,
-                r#type,
-                expression,
-            })
-        },
-    );
+    let let_statement = generic_declaration(Keyword::Let, expr_parser.clone(), Statement::new_let);
+    let priv_statement =
+        generic_declaration(Keyword::Priv, expr_parser.clone(), Statement::new_priv);
+    let const_statement = generic_declaration(Keyword::Const, expr_parser, Statement::new_const);
 
     choice((let_statement, priv_statement, const_statement))
 }
@@ -459,7 +437,6 @@ where
             block(expr_parser.clone()).map(ExpressionKind::Block),
         ))
         .map_with_span(Expression::new)
-        .or(parenthesized(expr_parser.clone()))
         .or(value_or_cast(expr_parser))
     })
 }
@@ -548,11 +525,14 @@ where
 {
     choice((
         function_call(expr_parser.clone()),
-        array_access(expr_parser),
+        array_access(expr_parser.clone()),
         variable(),
         literal(),
     ))
     .map_with_span(Expression::new)
+    .or(parenthesized(expr_parser, |span| {
+        Expression::new(ExpressionKind::Block(BlockExpression(vec![])), span)
+    }))
 }
 
 // This function is parses a value followed by 0 or more cast expressions.
@@ -577,7 +557,7 @@ where
     P: ExprParser,
 {
     path()
-        .then(expression_list(expr_parser).delimited_by(Token::LeftParen, Token::RightParen))
+        .then(parenthesized(expression_list(expr_parser), |_| vec![]))
         .map(|(path, args)| ExpressionKind::function_call(path, args))
 }
 
@@ -624,29 +604,426 @@ fn fixed_array_size() -> impl NoirParser<ArraySize> {
 mod test {
     use super::*;
 
+    fn parse_with<P, T>(parser: P, program: &str) -> Result<T, Vec<ParserError>>
+    where
+        P: NoirParser<T>,
+    {
+        let lexer = Lexer::new(program);
+        let (tokens, lexer_errors) = lexer.lex();
+        if !lexer_errors.is_empty() {
+            return Err(lexer_errors.into_iter().map(Into::into).collect());
+        }
+        parser.then_ignore(just(Token::EOF)).parse(tokens)
+    }
+
+    fn parse_all<P, T>(parser: P, programs: Vec<&str>) -> Vec<T>
+    where
+        P: NoirParser<T>,
+    {
+        programs
+            .into_iter()
+            .map(move |program| {
+                let message = format!("Failed to parse:\n{}", program);
+                parse_with(&parser, program).expect(&message)
+            })
+            .collect()
+    }
+
+    fn parse_all_failing<P, T>(parser: P, programs: Vec<&str>) -> Vec<ParserError>
+    where
+        P: NoirParser<T>,
+        T: std::fmt::Display,
+    {
+        programs
+            .into_iter()
+            .flat_map(|program| match parse_with(&parser, program) {
+                Ok(expr) => unreachable!(
+                    "Expected this input to fail:\n{}\nYet it successfully parsed as:\n{}",
+                    program, expr
+                ),
+                Err(error) => error,
+            })
+            .collect()
+    }
+
     #[test]
     fn regression_skip_comment() {
-        const COMMENT_BETWEEN_FIELD: &str = r#"
-            fn main(
+        parse_all(
+            function_definition(),
+            vec![
+                "fn main(
                 // This comment should be skipped
                 x : Field,
                 // And this one
                 y : Field,
             ) {
-
-            }
-        "#;
-        const COMMENT_BETWEEN_CALL: &str = r#"
-            fn main(x : Field, y : Field,) {
+            }",
+                "fn main(x : Field, y : Field,) {
                 foo::bar(
                     // Comment for x argument
                     x,
                     // Comment for y argument
                     y
                 )
+            }",
+            ],
+        );
+    }
+
+    #[test]
+    fn parse_infix() {
+        let valid = vec!["x + 6", "x - k", "x + (x + a)", " x * (x + a) + (x - 4)"];
+        parse_all(expression(), valid);
+        parse_all_failing(expression(), vec!["y ! x"]);
+    }
+
+    #[test]
+    fn parse_function_call() {
+        let valid = vec![
+            "std::hash ()",
+            " std::hash(x,y,a+b)",
+            "crate::foo (x)",
+            "hash (x,)",
+        ];
+        parse_all(function_call(expression()), valid);
+    }
+
+    #[test]
+    fn parse_cast() {
+        parse_all(
+            value_or_cast(expression()),
+            vec!["x as u8", "0 as Field", "(x + 3) as [8]Field"],
+        );
+        parse_all_failing(value_or_cast(expression()), vec!["x as pub u8"]);
+    }
+
+    #[test]
+    fn parse_array_index() {
+        let valid = vec!["x[9]", "y[x+a]", " foo [foo+5]", "baz[bar]"];
+        parse_all(array_access(expression()), valid);
+    }
+
+    use crate::{ArrayLiteral, Literal};
+
+    fn expr_to_array(expr: ExpressionKind) -> ArrayLiteral {
+        let lit = match expr {
+            ExpressionKind::Literal(literal) => literal,
+            _ => unreachable!("expected a literal"),
+        };
+
+        match lit {
+            Literal::Array(arr) => arr,
+            _ => unreachable!("expected an array"),
+        }
+    }
+
+    /// This is the standard way to declare an array
+    #[test]
+    fn parse_array() {
+        let valid = vec![
+            "[0, 1, 2,3, 4]",
+            "[0,1,2,3,4,]", // Trailing commas are valid syntax
+        ];
+
+        for expr in parse_all(array_expr(expression()), valid) {
+            let arr_lit = expr_to_array(expr);
+            assert_eq!(arr_lit.length, 5);
+
+            // All array types are unknown at parse time
+            // This makes parsing simpler. The type checker
+            // needs to iterate the whole array to ensure homogeneity
+            // so there is no advantage to deducing the type here.
+            assert_eq!(arr_lit.r#type, Type::Unknown);
+        }
+
+        parse_all_failing(
+            array_expr(expression()),
+            vec!["0,1,2,3,4]", "[[0,1,2,3,4]", "[0,1,2,,]", "[0,1,2,3,4"],
+        );
+    }
+
+    #[test]
+    fn parse_block() {
+        parse_with(block(expression()), "{ [0,1,2,3,4] }").unwrap();
+
+        parse_all_failing(
+            block(expression()),
+            vec![
+                "[0,1,2,3,4] }",
+                "{ [0,1,2,3,4]",
+                "{ [0,1,2,,] }", // Contents of the block must still be a valid expression
+                "{ [0,1,2,3 }",
+                "{ 0,1,2,3] }",
+                "[[0,1,2,3,4]}",
+            ],
+        );
+    }
+
+    /// This is the standard way to declare a constrain statement
+    #[test]
+    fn parse_constrain() {
+        parse_with(constrain(expression()), "constrain x == y").unwrap();
+
+        // Currently we disallow constrain statements where the outer infix operator
+        // produces a value. This would require an implicit `==` which
+        // may not be intuitive to the user.
+        //
+        // If this is deemed useful, one would either apply a transformation
+        // or interpret it with an `==` in the evaluator
+        let disallowed_operators = vec![
+            BinaryOpKind::And,
+            BinaryOpKind::Subtract,
+            BinaryOpKind::Divide,
+            BinaryOpKind::Multiply,
+            BinaryOpKind::Or,
+            BinaryOpKind::Assign,
+        ];
+
+        for operator in disallowed_operators {
+            let src = format!("constrain x {} y;", operator.as_string());
+            parse_with(constrain(expression()), &src).unwrap_err();
+        }
+
+        // These are general cases which should always work.
+        //
+        // The first case is the most noteworthy. It contains two `==`
+        // The first (inner) `==` is a predicate which returns 0/1
+        // The outer layer is an infix `==` which is
+        // associated with the Constrain statement
+        parse_all(
+            constrain(expression()),
+            vec![
+                "constrain ((x + y) == k) + z == y",
+                "constrain (x + !y) == y",
+                "constrain (x ^ y) == y",
+                "constrain (x ^ y) == (y + m)",
+                "constrain x + x ^ x == y | m",
+            ],
+        );
+    }
+
+    #[test]
+    fn parse_let() {
+        // Why is it valid to specify a let declaration as having type u8?
+        //
+        // Let statements are not type checked here, so the parser will accept as
+        // long as it is a type. Other statements such as Public are type checked
+        // Because for now, they can only have one type
+        parse_all(
+            declaration(expression()),
+            vec!["let x = y", "let x : u8 = y"],
+        );
+    }
+    #[test]
+    fn parse_priv() {
+        parse_all(
+            declaration(expression()),
+            vec!["priv x = y", "priv x : pub Field = y"],
+        );
+    }
+
+    #[test]
+    fn parse_invalid_pub() {
+        // pub cannot be used to declare a statement
+        parse_all_failing(
+            statement(expression()),
+            vec!["pub x = y", "pub x : pub Field = y"],
+        );
+    }
+
+    #[test]
+    fn parse_const() {
+        // XXX: We have `Constant` because we may allow constants to
+        // be casted to integers. Maybe rename this to `Field` instead
+        parse_all(
+            declaration(expression()),
+            vec!["const x = y", "const x : const Field = y"],
+        );
+    }
+
+    #[test]
+    fn parse_for_loop() {
+        parse_all(
+            for_expr(expression()),
+            vec!["for i in x+y..z {}", "for i in 0..100 { foo; bar }"],
+        );
+
+        parse_all_failing(
+            for_expr(expression()),
+            vec![
+                "for 1 in x+y..z {}",  // Cannot have a literal as the loop identifier
+                "for i in 0...100 {}", // Only '..' is supported, there are no inclusive ranges yet
+                "for i in 0..=100 {}", // Only '..' is supported, there are no inclusive ranges yet
+            ],
+        );
+    }
+
+    #[test]
+    fn parse_function() {
+        parse_all(
+            function_definition(),
+            vec![
+                "fn func_name() {}",
+                "fn f(foo: pub u8, y : pub Field) -> u8 { x + a }",
+                "fn f(f: pub Field, y : Field, z : const Field) -> u8 { x + a }",
+                "fn func_name(f: Field, y : pub Field, z : pub [5]u8,) {}",
+                "fn func_name(x: []Field, y : [2]Field,y : pub [2]Field, z : pub [5]u8)  {}",
+            ],
+        );
+
+        parse_all_failing(
+            function_definition(),
+            vec![
+                "fn x2( f: []Field,,) {}",
+                "fn ( f: []Field) {}",
+                "fn ( f: []Field) {}",
+            ],
+        );
+    }
+
+    #[test]
+    fn parse_parenthesized_expression() {
+        parse_all(
+            value(expression()),
+            vec!["(0)", "(x+a)", "({(({{({(nested)})}}))})"],
+        );
+
+        parse_all_failing(value(expression()), vec!["(x+a", "((x+a)", "()"]);
+    }
+
+    #[test]
+    fn parse_if_expr() {
+        parse_all(
+            if_expr(expression()),
+            vec!["if x + a {  } else {  }", "if x {}"],
+        );
+
+        parse_all_failing(
+            if_expr(expression()),
+            vec![
+                "if (x / a) + 1 {} else",
+                "if foo then 1 else 2",
+                "if true { 1 }else 3",
+            ],
+        );
+    }
+
+    fn expr_to_lit(expr: ExpressionKind) -> Literal {
+        match expr {
+            ExpressionKind::Literal(literal) => literal,
+            _ => unreachable!("expected a literal"),
+        }
+    }
+
+    #[test]
+    fn parse_int() {
+        let int = parse_with(literal(), "5").unwrap();
+        let hex = parse_with(literal(), "0x05").unwrap();
+
+        match (expr_to_lit(int), expr_to_lit(hex)) {
+            (Literal::Integer(int), Literal::Integer(hex)) => assert_eq!(int, hex),
+            _ => unreachable!(),
+        }
+    }
+
+    #[test]
+    fn parse_string() {
+        let expr = parse_with(literal(), r#""hello""#).unwrap();
+        match expr_to_lit(expr) {
+            Literal::Str(s) => assert_eq!(s, "hello"),
+            _ => unreachable!(),
+        };
+    }
+
+    #[test]
+    fn parse_bool() {
+        let expr_true = parse_with(literal(), "true").unwrap();
+        let expr_false = parse_with(literal(), "false").unwrap();
+
+        match (expr_to_lit(expr_true), expr_to_lit(expr_false)) {
+            (Literal::Bool(t), Literal::Bool(f)) => {
+                assert!(t);
+                assert!(!f);
             }
-        "#;
-        parse_program(COMMENT_BETWEEN_FIELD).unwrap();
-        parse_program(COMMENT_BETWEEN_CALL).unwrap();
+            _ => unreachable!(),
+        };
+    }
+
+    #[test]
+    fn parse_module_declaration() {
+        parse_with(module_declaration(), "mod foo").unwrap();
+        parse_with(module_declaration(), "mod 1").unwrap_err();
+    }
+
+    #[test]
+    fn parse_path() {
+        let cases = vec![
+            ("std", vec!["std"]),
+            ("std::hash", vec!["std", "hash"]),
+            ("std::hash::collections", vec!["std", "hash", "collections"]),
+            ("dep::foo::bar", vec!["foo", "bar"]),
+            ("crate::std::hash", vec!["std", "hash"]),
+        ];
+
+        for (src, expected_segments) in cases {
+            let path: Path = parse_with(path(), src).unwrap();
+            for (segment, expected) in path.segments.into_iter().zip(expected_segments) {
+                assert_eq!(segment.0.contents, expected);
+            }
+        }
+
+        parse_all_failing(path(), vec!["std::", "::std", "std::hash::", "foo::1"]);
+    }
+
+    #[test]
+    fn parse_path_kinds() {
+        let cases = vec![
+            ("std", PathKind::Plain),
+            ("dep::hash::collections", PathKind::Dep),
+            ("crate::std::hash", PathKind::Crate),
+        ];
+
+        for (src, expected_path_kind) in cases {
+            let path = parse_with(path(), src).unwrap();
+            assert_eq!(path.kind, expected_path_kind)
+        }
+
+        parse_all_failing(
+            path(),
+            vec![
+                "dep",
+                "crate",
+                "crate::std::crate",
+                "foo::bar::crate",
+                "foo::dep",
+            ],
+        );
+    }
+
+    #[test]
+    fn parse_unary() {
+        parse_all(
+            term(expression()),
+            vec!["!hello", "-hello", "--hello", "-!hello", "!-hello"],
+        );
+        parse_all_failing(term(expression()), vec!["+hello", "/hello"]);
+    }
+
+    #[test]
+    fn parse_use() {
+        parse_all(
+            use_statement(),
+            vec![
+                "use std::hash",
+                "use std",
+                "use foo::bar as hello",
+                "use bar as bar",
+            ],
+        );
+
+        parse_all_failing(
+            use_statement(),
+            vec!["use std as ;", "use foobar as as;", "use hello:: as foo;"],
+        );
     }
 }

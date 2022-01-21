@@ -89,6 +89,32 @@ pub enum Statement {
     Error,
 }
 
+impl Statement {
+    pub fn new_let(((identifier, r#type), expression): ((Ident, Type), Expression)) -> Statement {
+        Statement::Let(LetStatement {
+            identifier,
+            r#type,
+            expression,
+        })
+    }
+
+    pub fn new_const(((identifier, r#type), expression): ((Ident, Type), Expression)) -> Statement {
+        Statement::Const(ConstStatement {
+            identifier,
+            r#type,
+            expression,
+        })
+    }
+
+    pub fn new_priv(((identifier, r#type), expression): ((Ident, Type), Expression)) -> Statement {
+        Statement::Private(PrivateStatement {
+            identifier,
+            r#type,
+            expression,
+        })
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ImportStatement {
     pub path: Path,

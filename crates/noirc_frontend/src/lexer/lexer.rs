@@ -110,8 +110,8 @@ impl<'a> Lexer<'a> {
             Some('#') => self.eat_attribute(),
             Some(ch) if ch.is_ascii_alphanumeric() || ch == '_' => self.eat_alpha_numeric(ch),
             Some(ch) => {
-                let span = Span::single_char(self.position);
-                Err(LexerErrorKind::CharacterNotInLanguage { span, found: ch })
+                // Invalid tokens are reported during parsing for better error messages
+                Ok(Token::Invalid(ch).into_single_span(self.position))
             }
             None => {
                 self.done = true;
@@ -136,7 +136,7 @@ impl<'a> Lexer<'a> {
             false => Ok(single.into_single_span(start)),
             true => {
                 self.next_char();
-                Ok(double.into_single_span(start))
+                Ok(double.into_span(start, start + 2))
             }
         }
     }
@@ -306,6 +306,7 @@ impl<'a> Lexer<'a> {
     fn eat_string_literal(&mut self) -> SpannedToken {
         let (str_literal, start_span, end_span) = self.eat_while(None, |ch| ch != '"');
         let str_literal_token = Token::Str(str_literal);
+        self.next_char(); // Advance past the closing quote
         str_literal_token.into_span(start_span, end_span)
     }
     fn parse_comment(&mut self) -> SpannedTokenResult {

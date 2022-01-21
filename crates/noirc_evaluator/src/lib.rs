@@ -349,6 +349,9 @@ impl<'a> Evaluator<'a> {
                     todo!("compiler currently cannot reassign types {:?}", typ)
                 }
             }
+            HirStatement::Error => unreachable!(
+                "ice: compiler did not exit before codegen when a statement failed to parse"
+            ),
         }
     }
 

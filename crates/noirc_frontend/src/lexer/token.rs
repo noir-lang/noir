@@ -130,6 +130,10 @@ pub enum Token {
     Assign,
     #[allow(clippy::upper_case_acronyms)]
     EOF,
+
+    // An invalid character is one that is not in noir's language or grammer.
+    // Delaying reporting these as errors until parsing improves error messsages
+    Invalid(char),
 }
 
 impl fmt::Display for Token {
@@ -174,6 +178,7 @@ impl fmt::Display for Token {
             Token::Bang => write!(f, "!"),
             Token::Underscore => write!(f, "_"),
             Token::EOF => write!(f, "end of input"),
+            Token::Invalid(c) => write!(f, "{}", c),
         }
     }
 }

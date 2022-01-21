@@ -376,6 +376,7 @@ fn extract_ret_type(interner: &NodeInterner, stmt_id: &StmtId) -> Type {
         | HirStatement::Assign(_)
         | HirStatement::Constrain(_) => Type::Unit,
         HirStatement::Expression(expr_id) => interner.id_type(&expr_id),
+        HirStatement::Error => Type::Error,
     }
 }
 

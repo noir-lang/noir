@@ -26,7 +26,7 @@ use crate::{
     BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
     Statement,
 };
-use noirc_errors::{Span, Spanned};
+use noirc_errors::Spanned;
 
 use crate::hir::scope::{
     Scope as GenericScope, ScopeForest as GenericScopeForest, ScopeTree as GenericScopeTree,
@@ -293,15 +293,7 @@ impl<'a> Resolver<'a> {
                 };
                 self.interner.push_stmt(HirStatement::Assign(stmt))
             }
-            // XXX: Currently we lower erroring statements into an expression that
-            // does nothing. We may want to have a dedicated HirStatement::Error
-            // variant instead.
-            Statement::Error => {
-                let kind = ExpressionKind::Literal(Literal::Bool(false));
-                let expr = Expression::new(kind, Span::single_char(0));
-                let stmt = HirStatement::Semi(self.resolve_expression(expr));
-                self.interner.push_stmt(stmt)
-            }
+            Statement::Error => self.interner.push_stmt(HirStatement::Error),
         }
     }
 

@@ -47,6 +47,9 @@ pub(crate) fn type_check(
             type_check_constrain_stmt(interner, constrain_stmt)
         }
         HirStatement::Assign(assign_stmt) => type_check_assign_stmt(interner, assign_stmt),
+
+        // Avoid issuing further errors for statements that did not parse correctly
+        HirStatement::Error => Ok(()),
     }
 }
 

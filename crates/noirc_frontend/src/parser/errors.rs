@@ -135,6 +135,11 @@ impl chumsky::Error<Token> for ParserError {
         self
     }
 
+    // Merge two errors into a new one that should encompass both.
+    // If one error has a more specific reason with it then keep
+    // that reason and discard the other if present.
+    // The spans of both errors must match, otherwise the error
+    // messages and error spans may not line up.
     fn merge(mut self, mut other: Self) -> Self {
         self.expected_tokens.append(&mut other.expected_tokens);
         self.expected_labels.append(&mut other.expected_labels);
@@ -144,9 +149,7 @@ impl chumsky::Error<Token> for ParserError {
             self.reason = other.reason;
         }
 
-        // Is this needed?
-        self.span = self.span.merge(other.span);
-
+        assert_eq!(self.span, other.span);
         self
     }
 }
