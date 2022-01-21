@@ -212,7 +212,7 @@ template <typename Composer> class stdlib_biggroup : public testing::Test {
         for (size_t i = 0; i < num_repetitions; ++i) {
             g1::affine_element input(g1::element::random_element());
             fr scalar(fr::random_element());
-            if ((scalar.from_montgomery_form().get_bit(0) & 1) == 1) {
+            if (uint256_t(scalar).get_bit(0)) {
                 scalar -= fr(1); // make sure to add skew
             }
             g1_ct P = convert_inputs(&composer, input);
@@ -248,10 +248,10 @@ template <typename Composer> class stdlib_biggroup : public testing::Test {
             g1::affine_element input_b(g1::element::random_element());
             fr scalar_a(fr::random_element());
             fr scalar_b(fr::random_element());
-            if ((scalar_a.from_montgomery_form().get_bit(0) & 1) == 1) {
+            if ((uint256_t(scalar_a).get_bit(0) & 1) == 1) {
                 scalar_a -= fr(1); // make a have skew
             }
-            if ((scalar_b.from_montgomery_form().get_bit(0) & 1) == 0) {
+            if ((uint256_t(scalar_b).get_bit(0) & 1) == 0) {
                 scalar_b += fr(1); // make b not have skew
             }
             g1_bigfr_ct P_a = convert_inputs_bigfr(&composer, input_a);
@@ -290,10 +290,10 @@ template <typename Composer> class stdlib_biggroup : public testing::Test {
             fr scalar_a(fr::random_element());
             fr scalar_b(fr::random_element());
             fr scalar_c(fr::random_element());
-            if ((scalar_a.from_montgomery_form().get_bit(0) & 1) == 1) {
+            if ((uint256_t(scalar_a).get_bit(0) & 1) == 1) {
                 scalar_a -= fr(1); // make a have skew
             }
-            if ((scalar_b.from_montgomery_form().get_bit(0) & 1) == 0) {
+            if ((uint256_t(scalar_b).get_bit(0) & 1) == 0) {
                 scalar_b += fr(1); // make b not have skew
             }
             g1_bigfr_ct P_a = convert_inputs_bigfr(&composer, input_a);
@@ -338,10 +338,10 @@ template <typename Composer> class stdlib_biggroup : public testing::Test {
             fr scalar_b(fr::random_element());
             fr scalar_c(fr::random_element());
             fr scalar_d(fr::random_element());
-            if ((scalar_a.from_montgomery_form().get_bit(0) & 1) == 1) {
+            if ((uint256_t(scalar_a).get_bit(0) & 1) == 1) {
                 scalar_a -= fr(1); // make a have skew
             }
-            if ((scalar_b.from_montgomery_form().get_bit(0) & 1) == 0) {
+            if ((uint256_t(scalar_b).get_bit(0) & 1) == 0) {
                 scalar_b += fr(1); // make b not have skew
             }
             g1_bigfr_ct P_a = convert_inputs_bigfr(&composer, input_a);
@@ -389,10 +389,10 @@ template <typename Composer> class stdlib_biggroup : public testing::Test {
             fr scalar_b(fr::random_element());
             fr scalar_c(fr::random_element());
             fr scalar_d(fr::random_element());
-            if ((scalar_a.from_montgomery_form().get_bit(0) & 1) == 1) {
+            if ((uint256_t(scalar_a).get_bit(0) & 1) == 1) {
                 scalar_a -= fr(1); // make a have skew
             }
-            if ((scalar_b.from_montgomery_form().get_bit(0) & 1) == 0) {
+            if ((uint256_t(scalar_b).get_bit(0) & 1) == 0) {
                 scalar_b += fr(1); // make b not have skew
             }
             g1_ct P_a = convert_inputs(&composer, input_a);
@@ -433,7 +433,7 @@ template <typename Composer> class stdlib_biggroup : public testing::Test {
         size_t num_repetitions = 1;
         for (size_t i = 0; i < num_repetitions; ++i) {
             fr scalar_a(fr::random_element());
-            if ((scalar_a.from_montgomery_form().get_bit(0) & 1) == 1) {
+            if ((uint256_t(scalar_a).get_bit(0) & 1) == 1) {
                 scalar_a -= fr(1); // make a have skew
             }
             g1_bigfr_ct P_a = g1_bigfr_ct::one(&composer);
@@ -456,34 +456,35 @@ template <typename Composer> class stdlib_biggroup : public testing::Test {
         EXPECT_EQ(proof_result, true);
     }
 
-    static void test_one_secp256r1()
-    {
-        auto composer = Composer("../srs_db/ignition/");
-        size_t num_repetitions = 1;
-        for (size_t i = 0; i < num_repetitions; ++i) {
-            typename secp256r1::fr scalar_a(secp256r1::fr::random_element());
-            if ((scalar_a.from_montgomery_form().get_bit(0) & 1) == 1) {
-                scalar_a -= secp256r1::fr(1); // make a have skew
-            }
-            typename secp256r1_ct::g1_bigfr_ct P_a = secp256r1_ct::g1_bigfr_ct::one(&composer);
-            typename secp256r1_ct::bigfr_ct x_a = convert_inputs_bigfr_secp256r1(&composer, scalar_a);
-            typename secp256r1_ct::g1_bigfr_ct c = P_a * x_a;
-            secp256r1::g1::affine_element expected(secp256r1::g1::one * scalar_a);
-            secp256r1::fq c_x_result(c.x.get_value().lo);
-            secp256r1::fq c_y_result(c.y.get_value().lo);
+    /** TODO (#LARGE_MODULUS_AFFINE_POINT_COMPRESSION): Rewrite this test after designing point compression for p>2^255
+            static void test_one_secp256r1()
+            {
+                auto composer = Composer("../srs_db/ignition/");
+                size_t num_repetitions = 1;
+                for (size_t i = 0; i < num_repetitions; ++i) {
+                    typename secp256r1::fr scalar_a(secp256r1::fr::random_element());
+                    if ((uint256_t(scalar_a).get_bit(0) & 1) == 1) {
+                        scalar_a -= secp256r1::fr(1); // make a have skew
+                    }
+                    typename secp256r1_ct::g1_bigfr_ct P_a = secp256r1_ct::g1_bigfr_ct::one(&composer);
+                    typename secp256r1_ct::bigfr_ct x_a = convert_inputs_bigfr_secp256r1(&composer, scalar_a);
+                    typename secp256r1_ct::g1_bigfr_ct c = P_a * x_a;
+                    secp256r1::g1::affine_element expected(secp256r1::g1::one * scalar_a);
+                    secp256r1::fq c_x_result(c.x.get_value().lo);
+                    secp256r1::fq c_y_result(c.y.get_value().lo);
 
-            EXPECT_EQ(c_x_result, expected.x);
-            EXPECT_EQ(c_y_result, expected.y);
-        }
-        std::cout << "composer gates = " << composer.get_num_gates() << std::endl;
-        auto prover = composer.create_prover();
-        std::cout << "creating verifier " << std::endl;
-        auto verifier = composer.create_verifier();
-        std::cout << "creating proof " << std::endl;
-        waffle::plonk_proof proof = prover.construct_proof();
-        bool proof_result = verifier.verify_proof(proof);
-        EXPECT_EQ(proof_result, true);
-    }
+                    EXPECT_EQ(c_x_result, expected.x);
+                    EXPECT_EQ(c_y_result, expected.y);
+                }
+                std::cout << "composer gates = " << composer.get_num_gates() << std::endl;
+                auto prover = composer.create_prover();
+                std::cout << "creating verifier " << std::endl;
+                auto verifier = composer.create_verifier();
+                std::cout << "creating proof " << std::endl;
+                waffle::plonk_proof proof = prover.construct_proof();
+                bool proof_result = verifier.verify_proof(proof);
+                EXPECT_EQ(proof_result, true);
+            }**/
 
     static void test_batch_mul()
     {
@@ -693,10 +694,12 @@ HEAVY_TYPED_TEST(stdlib_biggroup, one)
     TestFixture::test_one();
 }
 
+/** TODO (#LARGE_MODULUS_AFFINE_POINT_COMPRESSION): Rewrite this test after designing point compression for p>2^255
 HEAVY_TYPED_TEST(stdlib_biggroup, one_secp256r1)
 {
     TestFixture::test_one_secp256r1();
 }
+**/
 
 HEAVY_TYPED_TEST(stdlib_biggroup, batch_mul)
 {

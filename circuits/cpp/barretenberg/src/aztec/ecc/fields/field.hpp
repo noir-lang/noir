@@ -194,11 +194,9 @@ template <class Params> struct alignas(32) field {
     BBERG_INLINE constexpr field reduce_once() const noexcept;
     BBERG_INLINE constexpr void self_reduce_once() noexcept;
 
-    BBERG_INLINE constexpr uint64_t get_msb() const noexcept;
     BBERG_INLINE constexpr void self_set_msb() noexcept;
     BBERG_INLINE constexpr bool is_msb_set() const noexcept;
     BBERG_INLINE constexpr uint64_t is_msb_set_word() const noexcept;
-    BBERG_INLINE constexpr bool get_bit(const uint64_t bit_index) const noexcept;
 
     BBERG_INLINE constexpr bool is_zero() const noexcept;
 

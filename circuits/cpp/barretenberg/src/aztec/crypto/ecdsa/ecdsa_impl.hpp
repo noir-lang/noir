@@ -1,6 +1,7 @@
 #pragma once
 
 #include <numeric/uint256/uint256.hpp>
+#include <common/serialize.hpp>
 
 namespace crypto {
 namespace ecdsa {
@@ -28,8 +29,19 @@ signature construct_signature(const std::string& message, const key_pair<Fr, G1>
 template <typename Hash, typename Fq, typename Fr, typename G1>
 bool verify_signature(const std::string& message, const typename G1::affine_element& public_key, const signature& sig)
 {
-    Fr r = Fr::serialize_from_buffer(&sig.r[0]);
-    Fr s = Fr::serialize_from_buffer(&sig.s[0]);
+    using serialize::read;
+    uint256_t r_uint;
+    uint256_t s_uint;
+    const auto* r_buf = &sig.r[0];
+    const auto* s_buf = &sig.s[0];
+    read(r_buf, r_uint);
+    read(s_buf, s_uint);
+    // We need to check that r and s are in Field according to specification
+    if ((r_uint >= Fr::modulus) || (s_uint >= Fr::modulus)) {
+        return false;
+    }
+    Fr r = Fr(r_uint);
+    Fr s = Fr(s_uint);
 
     std::vector<uint8_t> message_buffer;
     std::copy(message.begin(), message.end(), std::back_inserter(message_buffer));

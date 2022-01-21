@@ -473,6 +473,7 @@ TEST(secp256k1, group_exponentiation_consistency_check)
     EXPECT_EQ(result == expected, true);
 }
 
+/** TODO (#LARGE_MODULUS_AFFINE_POINT_COMPRESSION): Rewrite this test after designing point compression for p>2^255
 TEST(secp256k1, derive_generators)
 {
     constexpr size_t num_generators = 128;
@@ -492,4 +493,5 @@ TEST(secp256k1, derive_generators)
         EXPECT_EQ(result[k].on_curve(), true);
     }
 }
+*/
 } // namespace test_secp256k1

@@ -537,7 +537,7 @@ std::vector<uint32_t> PlookupComposer::decompose_into_base4_accumulators(const u
      *
      **/
 
-    const fr witness_value = get_variable(witness_index).from_montgomery_form();
+    const uint256_t witness_value(get_variable(witness_index));
 
     // one gate accmulates 4 quads, or 8 bits.
     // # gates = (bits / 8)
@@ -687,8 +687,8 @@ waffle::accumulator_triple PlookupComposer::create_logic_constraint(const uint32
      *
      **/
 
-    const fr left_witness_value = get_variable(a).from_montgomery_form();
-    const fr right_witness_value = get_variable(b).from_montgomery_form();
+    const uint256_t left_witness_value(get_variable(a));
+    const uint256_t right_witness_value(get_variable(b));
 
     // one gate accmulates 1 quads, or 2 bits.
     // # gates = (bits / 2)

@@ -401,7 +401,24 @@ TEST(secp256r1, group_exponentiation_consistency_check)
 
     EXPECT_EQ(result == expected, true);
 }
+// TODO: Remove in 2023
+// This test ensures that we haven't regressed to using a buggy implementation of method get_msb (now deleted) from
+// field class instead of uint256_t's get_msb in element class's mul_without_endomorphism method.
+TEST(secp256r1, msb_bug_regression_check)
+{
+    uint256_t start = (uint256_t(1) << 64);
+    uint64_t test_vector_x[4] = { 0x90e75cb48e14db63, 0x29493baaad651f7e, 0x8492592e326e25de, 0xfa822bc2811aaa5 };
+    uint64_t test_vector_y[4] = { 0xe41124545f462ee7, 0x34b1a65050fe82f5, 0x6f4ad4bcb3df188b, 0xbff44ae8f5dba80d };
+    secp256r1::g1::affine_element expected_result = secp256r1::g1::affine_element(
+        secp256r1::fq(uint256_t(test_vector_x[0], test_vector_x[1], test_vector_x[2], test_vector_x[3])),
+        secp256r1::fq(uint256_t(test_vector_y[0], test_vector_y[1], test_vector_y[2], test_vector_y[3])));
+    secp256r1::fr a = secp256r1::fr(start);
+    secp256r1::g1::affine_element input = secp256r1::g1::affine_one;
+    secp256r1::g1::affine_element result = input * a;
+    EXPECT_EQ(result, expected_result);
+}
 
+/* TODO (#LARGE_MODULUS_AFFINE_POINT_COMPRESSION): Rewrite this test after designing point compression for p>2^255
 TEST(secp256r1, derive_generators)
 {
     constexpr size_t num_generators = 128;
@@ -421,4 +438,10 @@ TEST(secp256r1, derive_generators)
         EXPECT_EQ(result[k].on_curve(), true);
     }
 }
+TEST(secp256r1, check_compression_constructor)
+{
+    secp256r1::g1::affine_element el(uint256_t(10));
+    std::cout << "Affine element: " << el << std::endl;
+}**/
+
 } // namespace test_secp256r1

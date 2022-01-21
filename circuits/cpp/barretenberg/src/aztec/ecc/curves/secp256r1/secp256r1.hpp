@@ -133,5 +133,7 @@ typedef barretenberg::
     group<barretenberg::field<Secp256r1FqParams>, barretenberg::field<Secp256r1FrParams>, Secp256r1G1Params>
         g1;
 
+/** TODO (#LARGE_MODULUS_AFFINE_POINT_COMPRESSION): Rewrite this test after designing point compression for p>2^255
 g1::affine_element get_generator(const size_t generator_index);
+**/
 } // namespace secp256r1

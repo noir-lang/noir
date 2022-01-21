@@ -94,8 +94,7 @@ auto group<ComposerContext>::fixed_base_scalar_mul_internal(const field_t<Compos
     auto scalar = in.normalize();
     auto ctx = in.context;
     ASSERT(ctx != nullptr);
-    fr scalar_multiplier = scalar.get_value().from_montgomery_form();
-
+    uint256_t scalar_multiplier(scalar.get_value());
     if (scalar_multiplier.get_msb() >= num_bits) {
         ctx->failed = true;
         ctx->err = format(
@@ -114,7 +113,7 @@ auto group<ComposerContext>::fixed_base_scalar_mul_internal(const field_t<Compos
     origin_points[1] = origin_points[0] + generator;
     origin_points[1] = origin_points[1].normalize();
 
-    fr scalar_multiplier_base = scalar_multiplier.to_montgomery_form();
+    fr scalar_multiplier_base = scalar.get_value();
 
     if ((scalar_multiplier.data[0] & 1) == 0) {
         fr two = fr::one() + fr::one();

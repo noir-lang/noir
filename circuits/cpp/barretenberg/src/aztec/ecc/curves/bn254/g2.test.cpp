@@ -354,3 +354,14 @@ TEST(g2, serialize)
 
     EXPECT_EQ(result == expected, true);
 }
+template <class T> void write(const T t)
+{
+    FILE* fp = fopen("/dev/null", "wb");
+    fwrite(&t, sizeof(t), 1, fp);
+    fclose(fp);
+}
+TEST(g2, initialization_check)
+{
+
+    EXPECT_NO_THROW(write<barretenberg::g2::affine_element>({}));
+}

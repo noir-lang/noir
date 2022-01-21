@@ -502,7 +502,7 @@ std::vector<uint32_t> StandardComposer::decompose_into_base4_accumulators(const 
                                                                           std::string const& msg)
 {
     ASSERT(num_bits > 0);
-    fr target = get_variable(witness_index).from_montgomery_form();
+    const uint256_t target(get_variable(witness_index));
 
     std::vector<uint32_t> accumulators;
 
@@ -566,8 +566,8 @@ waffle::accumulator_triple StandardComposer::create_logic_constraint(const uint3
 
     waffle::accumulator_triple accumulators;
 
-    const fr left_witness_value = get_variable(a).from_montgomery_form();
-    const fr right_witness_value = get_variable(b).from_montgomery_form();
+    const uint256_t left_witness_value(get_variable(a));
+    const uint256_t right_witness_value(get_variable(b));
 
     fr left_accumulator = fr::zero();
     fr right_accumulator = fr::zero();

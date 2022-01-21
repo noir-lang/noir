@@ -149,6 +149,7 @@ template <class base_uint> class uintx {
     };
 
     constexpr uintx invmod(const uintx& modulus) const;
+    constexpr uintx unsafe_invmod(const uintx& modulus) const;
 
     base_uint lo;
     base_uint hi;

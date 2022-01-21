@@ -730,7 +730,8 @@ g1::element evaluate_pippenger_rounds(pippenger_runtime_state& state,
 #endif
     const size_t bits_per_bucket = get_optimal_bucket_width(num_points / 2);
 
-    g1::element* thread_accumulators = static_cast<g1::element*>(aligned_alloc(64, num_threads * sizeof(g1::element)));
+    std::unique_ptr<g1::element[], decltype(&aligned_free)> thread_accumulators(
+        static_cast<g1::element*>(aligned_alloc(64, num_threads * sizeof(g1::element))), &aligned_free);
 
 #ifndef NO_MULTITHREADING
 #pragma omp parallel for
@@ -833,7 +834,6 @@ g1::element evaluate_pippenger_rounds(pippenger_runtime_state& state,
     for (size_t i = 0; i < num_threads; ++i) {
         result += thread_accumulators[i];
     }
-    free(thread_accumulators);
     return result;
 }
 

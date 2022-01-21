@@ -501,9 +501,9 @@ std::vector<uint32_t> TurboComposer::decompose_into_base4_accumulators(const uin
      *
      **/
 
-    const fr witness_value = get_variable(witness_index).from_montgomery_form();
+    const uint256_t witness_value(get_variable(witness_index));
 
-    if ((witness_value).get_msb() > num_bits && !failed) {
+    if (witness_value.get_msb() > num_bits && !failed) {
         failed = true;
         err = msg;
     }
@@ -660,8 +660,8 @@ waffle::accumulator_triple TurboComposer::create_logic_constraint(const uint32_t
      *
      **/
 
-    const fr left_witness_value = get_variable(a).from_montgomery_form();
-    const fr right_witness_value = get_variable(b).from_montgomery_form();
+    const uint256_t left_witness_value(get_variable(a));
+    const uint256_t right_witness_value(get_variable(b));
 
     // one gate accmulates 1 quads, or 2 bits.
     // # gates = (bits / 2)

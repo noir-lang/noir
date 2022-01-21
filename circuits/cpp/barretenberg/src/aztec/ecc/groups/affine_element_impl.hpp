@@ -22,6 +22,8 @@ constexpr affine_element<Fq, Fr, T>::affine_element(affine_element&& other) noex
 {}
 
 template <class Fq, class Fr, class T>
+
+template <typename BaseField, typename CompileTimeEnabled>
 constexpr affine_element<Fq, Fr, T>::affine_element(const uint256_t& compressed) noexcept
 {
     uint256_t x_coordinate = compressed;
@@ -34,7 +36,7 @@ constexpr affine_element<Fq, Fr, T>::affine_element(const uint256_t& compressed)
         y += (x * T::a);
     }
     y = y.sqrt();
-    if (y.from_montgomery_form().get_bit(0) != y_bit) {
+    if (uint256_t(y).get_bit(0) != y_bit) {
         y = -y;
     }
 }
@@ -54,8 +56,10 @@ constexpr affine_element<Fq, Fr, T>& affine_element<Fq, Fr, T>::operator=(affine
     y = other.y;
     return *this;
 }
+template <class Fq, class Fr, class T>
+template <typename BaseField, typename CompileTimeEnabled>
 
-template <class Fq, class Fr, class T> constexpr affine_element<Fq, Fr, T>::operator uint256_t() const noexcept
+constexpr affine_element<Fq, Fr, T>::operator uint256_t() const noexcept
 {
     uint256_t out(x);
     if (y.from_montgomery_form().get_bit(0)) {
@@ -75,10 +79,12 @@ constexpr affine_element<Fq, Fr, T> affine_element<Fq, Fr, T>::set_infinity() co
 template <class Fq, class Fr, class T> constexpr void affine_element<Fq, Fr, T>::self_set_infinity() noexcept
 {
     if constexpr (Fq::modulus.data[3] >= 0x4000000000000000ULL) {
-        x.data[0] = 0;
-        x.data[1] = 0;
-        x.data[2] = 0;
-        x.data[3] = 0;
+        // We set the value of x equal to modulus to represent inifinty
+        x.data[0] = Fq::modulus.data[0];
+        x.data[1] = Fq::modulus.data[1];
+        x.data[2] = Fq::modulus.data[2];
+        x.data[3] = Fq::modulus.data[3];
+
     } else {
         x.self_set_msb();
     }
@@ -87,7 +93,10 @@ template <class Fq, class Fr, class T> constexpr void affine_element<Fq, Fr, T>:
 template <class Fq, class Fr, class T> constexpr bool affine_element<Fq, Fr, T>::is_point_at_infinity() const noexcept
 {
     if constexpr (Fq::modulus.data[3] >= 0x4000000000000000ULL) {
-        return ((x.data[0] | x.data[1] | x.data[2] | x.data[3]) == 0);
+        // We check if the value of x is equal to modulus to represent inifinty
+        return ((x.data[0] ^ Fq::modulus.data[0]) | (x.data[1] ^ Fq::modulus.data[1]) |
+                (x.data[2] ^ Fq::modulus.data[2]) | (x.data[3] ^ Fq::modulus.data[3])) == 0;
+
     } else {
         return (x.is_msb_set());
     }
@@ -114,6 +123,7 @@ constexpr bool affine_element<Fq, Fr, T>::operator==(const affine_element& other
 }
 
 template <class Fq, class Fr, class T>
+template <typename BaseField, typename CompileTimeEnabled>
 affine_element<Fq, Fr, T> affine_element<Fq, Fr, T>::hash_to_curve(const uint64_t seed) noexcept
 {
     static_assert(T::can_hash_to_curve == true);

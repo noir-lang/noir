@@ -1,6 +1,7 @@
 #include "ecdsa.hpp"
 #include <ecc/curves/grumpkin/grumpkin.hpp>
 #include <ecc/curves/secp256r1/secp256r1.hpp>
+#include <common/serialize.hpp>
 #include <gtest/gtest.h>
 
 using namespace barretenberg;
@@ -50,6 +51,55 @@ std::vector<uint8_t> HexToBytes(const std::string& hex)
     }
 
     return bytes;
+}
+
+TEST(ecdsa, check_overflowing_r_and_s_are_rejected)
+{
+
+    std::vector<uint8_t> message_vec = HexToBytes("41414141");
+
+    std::string message(message_vec.begin(), message_vec.end());
+    crypto::ecdsa::signature signature;
+    grumpkin::fr private_key;
+    grumpkin::g1::affine_element public_key;
+    crypto::ecdsa::key_pair<grumpkin::fr, grumpkin::g1> key_pair;
+    // We create a private and public key and a signature
+    private_key = grumpkin::fr::random_element();
+    public_key = grumpkin::g1::affine_element((grumpkin::g1::one * private_key).normalize());
+    key_pair = { private_key, public_key };
+    signature =
+        crypto::ecdsa::construct_signature<Sha256Hasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(message, key_pair);
+    // Check that the signature is correct
+    bool result = crypto::ecdsa::verify_signature<Sha256Hasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(
+        message, public_key, signature);
+    EXPECT_TRUE(result);
+    using serialize::read;
+
+    const auto* p_r = &signature.r[0];
+    uint256_t old_r, new_r, old_s, new_s;
+    read(p_r, old_r);
+    new_r = old_r;
+    // We update r so it is larger than the modulus, but has the same value modulo fr::modulus
+    new_r = new_r + grumpkin::fr::modulus;
+    using serialize::write;
+    auto* p_r_m = &signature.r[0];
+    write(p_r_m, new_r);
+    result = crypto::ecdsa::verify_signature<Sha256Hasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(
+        message, public_key, signature);
+    // Signature verification should decline this signature, since it breaks specification
+    EXPECT_FALSE(result);
+    // Do the same for s, restore r
+    const auto* p_s = &signature.s[0];
+    read(p_s, old_s);
+    new_s = old_s;
+    new_s = new_s + grumpkin::fr::modulus;
+    using serialize::write;
+    auto* p_r_s = &signature.s[0];
+    write(p_r_m, old_r);
+    write(p_r_s, new_s);
+    result = crypto::ecdsa::verify_signature<Sha256Hasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(
+        message, public_key, signature);
+    EXPECT_FALSE(result);
 }
 
 TEST(ecdsa, verify_signature_secp256r1_sha256_NIST_1)

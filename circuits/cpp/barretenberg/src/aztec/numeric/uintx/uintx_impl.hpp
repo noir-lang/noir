@@ -49,14 +49,16 @@ constexpr std::pair<uintx<base_uint>, uintx<base_uint>> uintx<base_uint>::divmod
 }
 
 /**
- * computes the inverse of *this, modulo modulus, via the extended Euclidean algorithm
+ * Computes invmod. Only for internal usage within the class.
+ * This is an insecure version of the algorithm that doesn't take into account the 0 case and cases when modulus is
+ *close to the top margin.
+ *
+ * @param modulus The modulus of the ring
+ *
+ * @return The inverse of *this modulo modulus
  **/
-template <class base_uint> constexpr uintx<base_uint> uintx<base_uint>::invmod(const uintx& modulus) const
+template <class base_uint> constexpr uintx<base_uint> uintx<base_uint>::unsafe_invmod(const uintx& modulus) const
 {
-    ASSERT((*this) != 0);
-    if (modulus == 0) {
-        return 0;
-    }
 
     uintx t1 = 0;
     uintx t2 = 1;
@@ -77,6 +79,28 @@ template <class base_uint> constexpr uintx<base_uint> uintx<base_uint>::invmod(c
         return modulus + t1;
     }
     return t1;
+}
+
+/**
+ * Computes the inverse of *this, modulo modulus, via the extended Euclidean algorithm.
+ *
+ * Delegates to appropriate unsafe_invmod (if the modulus is close to uintx top margin there is a need to expand)
+ *
+ * @param modulus The modulus
+ * @return The inverse of *this modulo modulus
+ **/
+template <class base_uint> constexpr uintx<base_uint> uintx<base_uint>::invmod(const uintx& modulus) const
+{
+    ASSERT((*this) != 0);
+    if (modulus == 0) {
+        return 0;
+    }
+    if (modulus.get_msb() >= (2 * base_uint::length() - 1)) {
+        uintx<uintx<base_uint>> a_expanded(*this);
+        uintx<uintx<base_uint>> modulus_expanded(modulus);
+        return a_expanded.unsafe_invmod(modulus_expanded).lo;
+    }
+    return this->unsafe_invmod(modulus);
 }
 
 template <class base_uint>

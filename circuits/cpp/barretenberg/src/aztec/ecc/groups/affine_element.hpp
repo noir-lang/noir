@@ -14,12 +14,24 @@ template <typename Fq, typename Fr, typename Params> class alignas(64) affine_el
 
     constexpr affine_element(affine_element&& other) noexcept;
 
+    /**
+     * @brief Reconstruct a point in affine coordinates from compressed form.
+     *
+     * @tparam BaseField Coordinate field class
+     * @tparam CompileTimeEnabled Checks that the modulus of BaseField is < 2**255, otherwise disables the function
+     *
+     * @param compressed Compressed point
+     */
+    template <typename BaseField = Fq,
+              typename CompileTimeEnabled = std::enable_if_t<(BaseField::modulus >> 255) == uint256_t(0), void>>
     explicit constexpr affine_element(const uint256_t& compressed) noexcept;
 
     constexpr affine_element& operator=(const affine_element& other) noexcept;
 
     constexpr affine_element& operator=(affine_element&& other) noexcept;
 
+    template <typename BaseField = Fq,
+              typename CompileTimeEnabled = std::enable_if_t<(BaseField::modulus >> 255) == uint256_t(0), void>>
     explicit constexpr operator uint256_t() const noexcept;
 
     constexpr affine_element set_infinity() const noexcept;
@@ -29,12 +41,31 @@ template <typename Fq, typename Fr, typename Params> class alignas(64) affine_el
 
     constexpr bool on_curve() const noexcept;
 
+    /**
+     * @brief Hash a seed value to curve
+     *
+     * @tparam BaseField Coordinate field
+     * @tparam CompileTimeEnabled Checks that the modulus of BaseField is < 2**255, otherwise disables the function
+     *
+     * @return A point on the curve corresponding to the given seed
+     */
+    template <typename BaseField = Fq,
+              typename CompileTimeEnabled = std::enable_if_t<(BaseField::modulus >> 255) == uint256_t(0), void>>
     static affine_element hash_to_curve(const uint64_t seed) noexcept;
 
     constexpr bool operator==(const affine_element& other) const noexcept;
 
     constexpr affine_element operator-() const noexcept { return { x, -y }; }
 
+    /**
+     * @brief Serialize the point to the given buffer
+     *
+     * @tparam BaseField Coordinate field
+     * @tparam CompileTimeEnabled Checks that the modulus of BaseField is < 2**255, otherwise disables the function
+     *
+     */
+    template <typename BaseField = Fq,
+              typename CompileTimeEnabled = std::enable_if_t<(BaseField::modulus >> 255) == uint256_t(0), void>>
     static void serialize_to_buffer(const affine_element& value, uint8_t* buffer)
     {
         Fq::serialize_to_buffer(value.y, buffer);
@@ -43,7 +74,18 @@ template <typename Fq, typename Fr, typename Params> class alignas(64) affine_el
             buffer[0] = buffer[0] | (1 << 7);
         }
     }
-
+    /**
+     * @brief Restore point from a buffer
+     *
+     * @tparam BaseField Coordinate field
+     * @tparam CompileTimeEnabled Checks that the modulus of BaseField is < 2**255, otherwise disables the function
+     *
+     * @param buffer Buffer from which we deserialize the point
+     *
+     * @return Deserialized point
+     */
+    template <typename BaseField = Fq,
+              typename CompileTimeEnabled = std::enable_if_t<(BaseField::modulus >> 255) == uint256_t(0), void>>
     static affine_element serialize_from_buffer(uint8_t* buffer)
     {
         affine_element result;
@@ -54,7 +96,16 @@ template <typename Fq, typename Fr, typename Params> class alignas(64) affine_el
         }
         return result;
     }
-
+    /**
+     * @brief Serialize the point to a byte vector
+     *
+     * @tparam BaseField Coordinate field
+     * @tparam CompileTimeEnabled Checks that the modulus of BaseField is < 2**255, otherwise disables the function
+     *
+     * @return Vector with serialized representation of the point
+     */
+    template <typename BaseField = Fq,
+              typename CompileTimeEnabled = std::enable_if_t<(BaseField::modulus >> 255) == uint256_t(0), void>>
     inline std::vector<uint8_t> to_buffer() const
     {
         std::vector<uint8_t> buffer(sizeof(affine_element));

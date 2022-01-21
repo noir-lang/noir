@@ -306,11 +306,10 @@ template <class T> constexpr field<T> field<T>::pow(const uint256_t& exponent) c
             accumulator *= to_mul;
         }
     }
-
-    if (*this == zero()) {
-        accumulator = zero();
-    } else if (exponent == uint256_t(0)) {
+    if (exponent == uint256_t(0)) {
         accumulator = one();
+    } else if (*this == zero()) {
+        accumulator = zero();
     }
     return accumulator;
 }
@@ -458,15 +457,6 @@ template <class T> constexpr field<T> field<T>::operator/=(const field& other) n
     return *this;
 }
 
-template <class T> constexpr uint64_t field<T>::get_msb() const noexcept
-{
-    uint64_t idx = numeric::get_msb(data[3]);
-    idx = idx == 0 ? numeric::get_msb(data[2]) : idx + 64;
-    idx = idx == 0 ? numeric::get_msb(data[1]) : idx + 64;
-    idx = idx == 0 ? numeric::get_msb(data[0]) : idx + 64;
-    return idx;
-}
-
 template <class T> constexpr void field<T>::self_set_msb() noexcept
 {
     data[3] = 0ULL | (1ULL << 63ULL);
@@ -480,11 +470,6 @@ template <class T> constexpr bool field<T>::is_msb_set() const noexcept
 template <class T> constexpr uint64_t field<T>::is_msb_set_word() const noexcept
 {
     return (data[3] >> 63ULL);
-}
-
-template <class T> constexpr bool field<T>::get_bit(const uint64_t bit_index) const noexcept
-{
-    return bool((data[bit_index >> 6] >> (bit_index & 63)) & 1);
 }
 
 template <class T> constexpr bool field<T>::is_zero() const noexcept

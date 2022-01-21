@@ -462,4 +462,11 @@ TEST(fq, r_inv)
     EXPECT_EQ(result, expected);
 }
 
+// TEST to check we don't have 0^0=0
+TEST(fq, pow_regression_check)
+{
+    fq zero = fq::zero();
+    fq one = fq::one();
+    EXPECT_EQ(zero.pow(uint256_t(0)), one);
+}
 //   438268ca91d42ad f1e7025a7b654e1f f8d9d72e0438b995 8c422ec208ac8a6e

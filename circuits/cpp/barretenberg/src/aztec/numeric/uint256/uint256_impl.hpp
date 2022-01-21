@@ -1,5 +1,6 @@
 #pragma once
 #include "../bitop/get_msb.hpp"
+#include <common/assert.hpp>
 
 namespace numeric {
 
@@ -179,6 +180,10 @@ constexpr uint256_t uint256_t::pow(const uint256_t& exponent) const
 
 constexpr bool uint256_t::get_bit(const uint64_t bit_index) const
 {
+    ASSERT(bit_index < 256);
+    if (bit_index > 255) {
+        return bool(0);
+    }
     const size_t idx = static_cast<size_t>(bit_index >> 6);
     const size_t shift = bit_index & 63;
     return bool((data[idx] >> shift) & 1);

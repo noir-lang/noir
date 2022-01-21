@@ -71,12 +71,10 @@ template <class Fq, class Fr, class T> constexpr void element<Fq, Fr, T>::self_d
 {
     if constexpr (Fq::modulus.data[3] >= 0x4000000000000000ULL) {
         if (is_point_at_infinity()) {
-            self_set_infinity();
             return;
         }
     } else {
         if (x.is_msb_set_word()) {
-            self_set_infinity();
             return;
         }
     }
@@ -497,10 +495,11 @@ template <class Fq, class Fr, class T> constexpr element<Fq, Fr, T> element<Fq, 
 template <class Fq, class Fr, class T> constexpr void element<Fq, Fr, T>::self_set_infinity() noexcept
 {
     if constexpr (Fq::modulus.data[3] >= 0x4000000000000000ULL) {
-        x.data[0] = 0;
-        x.data[1] = 0;
-        x.data[2] = 0;
-        x.data[3] = 0;
+        // We set the value of x equal to modulus to represent inifinty
+        x.data[0] = Fq::modulus.data[0];
+        x.data[1] = Fq::modulus.data[1];
+        x.data[2] = Fq::modulus.data[2];
+        x.data[3] = Fq::modulus.data[3];
     } else {
         x.self_set_msb();
     }
@@ -509,7 +508,9 @@ template <class Fq, class Fr, class T> constexpr void element<Fq, Fr, T>::self_s
 template <class Fq, class Fr, class T> constexpr bool element<Fq, Fr, T>::is_point_at_infinity() const noexcept
 {
     if constexpr (Fq::modulus.data[3] >= 0x4000000000000000ULL) {
-        return ((x.data[0] | x.data[1] | x.data[2] | x.data[3]) == 0);
+        // We check if the value of x is equal to modulus to represent inifinty
+        return ((x.data[0] ^ Fq::modulus.data[0]) | (x.data[1] ^ Fq::modulus.data[1]) |
+                (x.data[2] ^ Fq::modulus.data[2]) | (x.data[3] ^ Fq::modulus.data[3])) == 0;
     } else {
         return (x.is_msb_set());
     }
@@ -569,17 +570,18 @@ element<Fq, Fr, T> element<Fq, Fr, T>::random_element(numeric::random::Engine* e
 template <class Fq, class Fr, class T>
 element<Fq, Fr, T> element<Fq, Fr, T>::mul_without_endomorphism(const Fr& exponent) const noexcept
 {
-    const Fr converted_scalar = exponent.from_montgomery_form();
+    const uint256_t converted_scalar(exponent);
 
-    if (converted_scalar.is_zero()) {
+    if (converted_scalar == 0) {
         element result{ Fq::zero(), Fq::zero(), Fq::zero() };
         result.self_set_infinity();
         return result;
     }
 
     element work_element(*this);
-
     const uint64_t maximum_set_bit = converted_scalar.get_msb();
+    // This is simpler and doublings of infinity should be fast. We should think if we want to defend against the timing
+    // leak here (if used with ECDSA it can sometimes lead to private key compromise)
     for (uint64_t i = maximum_set_bit - 1; i < maximum_set_bit; --i) {
         work_element.self_dbl();
         if (converted_scalar.get_bit(i)) {
