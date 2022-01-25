@@ -34,7 +34,6 @@ pub fn parse_program(program: &str) -> Result<ParsedModule, Vec<ParserError>> {
     match tree {
         Some(statements) => {
             for statement in statements {
-                println!("{};", statement);
                 match statement {
                     TopLevelStatement::Function(f) => program.push_function(f),
                     TopLevelStatement::Module(m) => program.push_module_decl(m),
@@ -44,7 +43,6 @@ pub fn parse_program(program: &str) -> Result<ParsedModule, Vec<ParserError>> {
             Ok(program)
         }
         None => {
-            println!("no parse tree");
             let mut errors: Vec<_> = lexing_errors.into_iter().map(Into::into).collect();
             errors.append(&mut parsing_errors);
             Err(errors)
