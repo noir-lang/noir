@@ -76,7 +76,7 @@ impl<'a> Resolver<'a> {
     fn resolve_config(&mut self, parent_crate: CrateId, cfg: Config) -> Result<(), CliError> {
         // First download and add these top level dependencies crates to the Driver
         for (dep_pkg_name, pkg_src) in cfg.dependencies.iter() {
-            let (dir_path, dep_meta) = Resolver::cache_dep2(pkg_src)?;
+            let (dir_path, dep_meta) = Resolver::cache_dep(pkg_src)?;
 
             let (entry_path, crate_type) = (&dep_meta.entry_path, &dep_meta.crate_type);
 
@@ -113,7 +113,7 @@ impl<'a> Resolver<'a> {
     ///
     /// If it's a local path, the same applies, however it will not
     /// be downloaded
-    fn cache_dep2(dep: &Dependency) -> Result<(PathBuf, CachedDep), CliError> {
+    fn cache_dep(dep: &Dependency) -> Result<(PathBuf, CachedDep), CliError> {
         fn retrieve_meta(dir_path: &Path, remote: bool) -> Result<CachedDep, CliError> {
             let (entry_path, crate_type) = super::lib_or_bin(dir_path)?;
             let cfg_path = super::find_package_config(dir_path)?;
