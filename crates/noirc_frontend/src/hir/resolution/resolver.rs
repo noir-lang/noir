@@ -302,6 +302,7 @@ impl<'a> Resolver<'a> {
                 };
                 self.interner.push_stmt(HirStatement::Assign(stmt))
             }
+            Statement::Error => self.interner.push_stmt(HirStatement::Error),
         }
     }
 
@@ -558,7 +559,7 @@ mod test {
     use crate::node_interner::{FuncId, NodeInterner};
     use crate::{
         hir::def_map::{CrateDefMap, ModuleDefId},
-        Parser, Path,
+        parse_program, Path,
     };
 
     use super::{PathResolver, Resolver};
@@ -569,8 +570,7 @@ mod test {
         src: &str,
         func_namespace: Vec<String>,
     ) -> (NodeInterner, Vec<ResolverError>) {
-        let mut parser = Parser::from_src(src);
-        let program = parser.parse_program().unwrap();
+        let program = parse_program(src).unwrap();
         let mut interner = NodeInterner::default();
 
         let mut func_ids = Vec::new();

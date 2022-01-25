@@ -332,6 +332,7 @@ pub fn infix_operand_type_rules(
         (Type::Struct(_), _) | (_, Type::Struct(_)) => Err("Structs cannot be used in an infix operation".to_string()),
         //
         // An error type on either side will always return an error
+        (Type::Error, _) | (_,Type::Error) => Ok(Type::Error),
         (Type::Unspecified, _) | (_,Type::Unspecified) => Ok(Type::Unspecified),
         (Type::Unknown, _) | (_,Type::Unknown) => Ok(Type::Unknown),
         (Type::Unit, _) | (_,Type::Unit) => Ok(Type::Unit),
@@ -419,6 +420,7 @@ fn extract_ret_type(interner: &NodeInterner, stmt_id: &StmtId) -> Type {
         | HirStatement::Assign(_)
         | HirStatement::Constrain(_) => Type::Unit,
         HirStatement::Expression(expr_id) => interner.id_type(&expr_id),
+        HirStatement::Error => Type::Error,
     }
 }
 

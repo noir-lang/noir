@@ -116,6 +116,7 @@ pub enum Type {
     Unit,
     Struct(Rc<StructType>),
 
+    Error,
     Unspecified, // This is for when the user declares a variable without specifying it's type
     Unknown, // This is mainly used for array literals, where the parser cannot figure out the type for the literal
 }
@@ -146,6 +147,7 @@ impl std::fmt::Display for Type {
             Type::Struct(s) => write!(f, "{}", s.name),
             Type::Bool => write!(f, "bool"),
             Type::Unit => write!(f, "()"),
+            Type::Error => write!(f, "error"),
             Type::Unspecified => write!(f, "unspecified"),
             Type::Unknown => write!(f, "unknown"),
         }
@@ -210,6 +212,7 @@ impl Type {
             Type::FieldElement(_)
             | Type::Integer(_, _, _)
             | Type::Bool
+            | Type::Error
             | Type::Unspecified
             | Type::Unknown
             | Type::Unit => return 1,
@@ -318,6 +321,7 @@ impl Type {
                 }
             }
             Type::Bool => panic!("currently, cannot have a bool in the entry point function"),
+            Type::Error => unreachable!(),
             Type::Unspecified => unreachable!(),
             Type::Unknown => unreachable!(),
             Type::Unit => unreachable!(),

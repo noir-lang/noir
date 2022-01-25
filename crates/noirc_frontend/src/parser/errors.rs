@@ -1,98 +1,155 @@
-use crate::lexer::token::{SpannedToken, Token, TokenKind};
-use crate::{lexer::errors::LexerErrorKind, PathKind};
+use std::collections::BTreeSet;
+
+use crate::lexer::errors::LexerErrorKind;
+use crate::lexer::token::Token;
+use crate::BinaryOp;
 
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::DiagnosableError;
 use noirc_errors::Span;
-use thiserror::Error;
 
-#[derive(Error, Debug)]
-pub enum ParserErrorKind {
-    #[error("Lexer error found")]
-    LexerError(LexerErrorKind),
-    #[error(" expected expression, found `{}`", lexeme)]
-    ExpectedExpression { span: Span, lexeme: String },
-    #[error("Unexpected token found")]
-    UnexpectedToken {
-        span: Span,
-        expected: Token,
-        found: Token,
-    },
-    #[error("Unexpected token kind found")]
-    UnexpectedTokenKind {
-        span: Span,
-        expected: TokenKind,
-        found: TokenKind,
-    },
-    #[error("Paths with a single segment, cannot have the single segment be a keyword")]
-    SingleKeywordSegmentNotAllowed { span: Span, path_kind: PathKind },
-    #[error("Unstructured Error")]
-    UnstructuredError { span: Span, message: String },
-    #[error("Token is not a unary operation")]
-    TokenNotUnaryOp { spanned_token: SpannedToken },
-    #[error("Token is not a binary operation")]
-    TokenNotBinaryOp { spanned_token: SpannedToken },
+#[derive(Debug)]
+pub struct ParserError {
+    expected_tokens: BTreeSet<Token>,
+    expected_labels: BTreeSet<String>,
+    found: Token,
+    lexer_errors: Vec<LexerErrorKind>,
+    reason: Option<String>,
+    span: Span,
 }
 
-impl DiagnosableError for ParserErrorKind {
+impl ParserError {
+    pub fn empty(found: Token, span: Span) -> ParserError {
+        ParserError {
+            expected_tokens: BTreeSet::new(),
+            expected_labels: BTreeSet::new(),
+            found,
+            lexer_errors: vec![],
+            reason: None,
+            span,
+        }
+    }
+
+    pub fn expected(token: Token, found: Token, span: Span) -> ParserError {
+        let mut error = ParserError::empty(found, span);
+        error.expected_tokens.insert(token);
+        error
+    }
+
+    pub fn expected_label(label: String, found: Token, span: Span) -> ParserError {
+        let mut error = ParserError::empty(found, span);
+        error.expected_labels.insert(label);
+        error
+    }
+
+    pub fn with_reason(reason: String, span: Span) -> ParserError {
+        let mut error = ParserError::empty(Token::EOF, span);
+        error.reason = Some(reason);
+        error
+    }
+
+    pub fn invalid_constrain_operator(operator: BinaryOp) -> ParserError {
+        let message = format!(
+            "Cannot use the {} operator in a constraint statement.",
+            operator.contents.as_string()
+        );
+        let mut error = ParserError::empty(operator.contents.as_token(), operator.span());
+        error.reason = Some(message);
+        error
+    }
+}
+
+impl DiagnosableError for ParserError {
     fn to_diagnostic(&self) -> Diagnostic {
-        match self {
-            ParserErrorKind::LexerError(lex_err) => lex_err.to_diagnostic(),
-            ParserErrorKind::ExpectedExpression { span, lexeme } => {
-                let mut diag = Diagnostic::simple_error(
-                    format!("Unexpected start of an expression {}", lexeme),
-                    "did not expect this token".to_string(),
-                    *span,
-                );
-                diag.add_note("This error is commonly caused by either a previous error cascading or an unclosed delimiter.".to_string());
-                diag
-            }
-            ParserErrorKind::TokenNotUnaryOp { spanned_token } => Diagnostic::simple_error(
-                format!("Unsupported unary operation {}", spanned_token.token()),
-                "cannot use as a unary operation.".to_string(),
-                spanned_token.to_span(),
-            ),
-            ParserErrorKind::TokenNotBinaryOp { spanned_token } => Diagnostic::simple_error(
-                format!("Unsupported binary operation {}", spanned_token.token()),
-                "cannot use as a binary operation.".to_string(),
-                spanned_token.to_span(),
-            ),
-            ParserErrorKind::UnexpectedToken {
-                span,
-                expected,
-                found,
-            } => Diagnostic::simple_error(
-                format!("Expected a {} but found {}", expected, found),
-                format!("Expected {}", expected),
-                *span,
-            ),
-            ParserErrorKind::UnexpectedTokenKind {
-                span,
-                expected,
-                found,
-            } => Diagnostic::simple_error(
-                format!("Expected a {} but found {}", expected, found),
-                format!("Expected {}", expected),
-                *span,
-            ),
-            ParserErrorKind::UnstructuredError { span, message } => {
-                Diagnostic::simple_error("".to_owned(), message.to_string(), *span)
-            }
-            ParserErrorKind::SingleKeywordSegmentNotAllowed { span, path_kind } => {
-                let note = match path_kind{
-                    PathKind::Dep => "You have specified `dep`. However, it is not possible to determine which dependency you want to import.\n Try `use dep::{name of dependency}`",
-                    PathKind::Crate => "You have specified `crate`. However, it is not possible to determine which module you want to import.\n Try `use crate::{name of module}`",
-                    _=> unreachable!("ice: this error is caused by single segment paths which contain a keyword")
+        match &self.reason {
+            Some(reason) => Diagnostic::simple_error(reason.clone(), String::new(), self.span),
+            None => {
+                let mut expected = self
+                    .expected_tokens
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>();
+                expected.append(&mut self.expected_labels.iter().cloned().collect());
+
+                let primary = if expected.is_empty() {
+                    format!("Unexpected {} in input", self.found)
+                } else if expected.len() == 1 {
+                    format!(
+                        "Expected a {} but found {}",
+                        expected.first().unwrap(),
+                        self.found
+                    )
+                } else {
+                    let expected = expected
+                        .iter()
+                        .map(ToString::to_string)
+                        .collect::<Vec<_>>()
+                        .join(", ");
+
+                    format!("Unexpected {}, expected one of {}", self.found, expected)
                 };
 
-                let mut diag = Diagnostic::simple_error(
-                    "path is ambiguous".to_string(),
-                    "path contains a single keyword".to_string(),
-                    *span,
-                );
-                diag.add_note(note.to_owned());
-                diag
+                Diagnostic::simple_error(primary, String::new(), self.span)
             }
         }
+    }
+}
+
+impl From<LexerErrorKind> for ParserError {
+    fn from(error: LexerErrorKind) -> Self {
+        let span = error.span();
+        ParserError {
+            expected_tokens: BTreeSet::new(),
+            expected_labels: BTreeSet::new(),
+            found: Token::EOF,
+            lexer_errors: vec![error],
+            reason: None,
+            span,
+        }
+    }
+}
+
+impl chumsky::Error<Token> for ParserError {
+    type Span = Span;
+    type Label = String;
+
+    fn expected_input_found<Iter>(span: Self::Span, expected: Iter, found: Option<Token>) -> Self
+    where
+        Iter: IntoIterator<Item = Option<Token>>,
+    {
+        ParserError {
+            expected_tokens: expected
+                .into_iter()
+                .map(|opt| opt.unwrap_or(Token::EOF))
+                .collect(),
+            expected_labels: BTreeSet::new(),
+            found: found.unwrap_or(Token::EOF),
+            lexer_errors: vec![],
+            reason: None,
+            span,
+        }
+    }
+
+    fn with_label(mut self, label: Self::Label) -> Self {
+        self.expected_labels.insert(label);
+        self
+    }
+
+    // Merge two errors into a new one that should encompass both.
+    // If one error has a more specific reason with it then keep
+    // that reason and discard the other if present.
+    // The spans of both errors must match, otherwise the error
+    // messages and error spans may not line up.
+    fn merge(mut self, mut other: Self) -> Self {
+        self.expected_tokens.append(&mut other.expected_tokens);
+        self.expected_labels.append(&mut other.expected_labels);
+        self.lexer_errors.append(&mut other.lexer_errors);
+
+        if self.reason.is_none() {
+            self.reason = other.reason;
+        }
+
+        assert_eq!(self.span, other.span);
+        self
     }
 }

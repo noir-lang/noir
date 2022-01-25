@@ -1,16 +1,79 @@
 mod errors;
-mod infix_parser;
 #[allow(clippy::module_inception)]
 mod parser;
-mod prefix_parser;
 
-use crate::{ast::ImportStatement, NoirFunction, NoirStruct};
-use crate::{
-    token::{Keyword, SpannedToken, Token},
-    Ident,
-};
-pub use errors::ParserErrorKind;
-pub use parser::{Parser, ParserExprKindResult, ParserExprResult};
+use crate::token::Token;
+use crate::{NoirFunction, Ident};
+use crate::{Expression, ast::ImportStatement, NoirStruct};
+
+use chumsky::prelude::*;
+pub use errors::ParserError;
+use noirc_errors::Span;
+pub use parser::parse_program;
+
+#[derive(Debug)]
+enum TopLevelStatement {
+    Function(NoirFunction),
+    Module(Ident),
+    Import(ImportStatement),
+    Struct(NoirStruct),
+}
+
+// Helper trait that gives us simpler type signatures for return types:
+// e.g. impl Parser<T> versus impl Parser<Token, T, Error = Simple<Token>>
+pub trait NoirParser<T>: Parser<Token, T, Error = ParserError> + Sized {}
+impl<P, T> NoirParser<T> for P where P: Parser<Token, T, Error = ParserError> {}
+
+// ExprParser just serves as a type alias for NoirParser<Expression> + Clone
+trait ExprParser: NoirParser<Expression> + Clone {}
+impl<P> ExprParser for P where P: NoirParser<Expression> + Clone {}
+
+fn parenthesized<P, F, T>(parser: P, default: F) -> impl NoirParser<T>
+where
+    P: NoirParser<T>,
+    F: Fn(Span) -> T,
+{
+    use Token::*;
+    parser
+        .delimited_by(LeftParen, RightParen)
+        .recover_with(nested_delimiters(
+            LeftParen,
+            RightParen,
+            [(LeftBracket, RightBracket)],
+            default,
+        ))
+}
+
+fn spanned<P, T>(parser: P) -> impl NoirParser<(T, Span)>
+where
+    P: NoirParser<T>,
+{
+    parser.map_with_span(|value, span| (value, span))
+}
+
+// Parse with the first parser, then continue by
+// repeating the second parser 0 or more times.
+// The passed in function is then used to combine the
+// results of both parsers along with their spans at
+// each step.
+fn foldl_with_span<P1, P2, T1, T2, F>(
+    first_parser: P1,
+    to_be_repeated: P2,
+    f: F,
+) -> impl NoirParser<T1>
+where
+    P1: NoirParser<T1>,
+    P2: NoirParser<T2>,
+    F: Fn(T1, T2, Span) -> T1,
+{
+    spanned(first_parser)
+        .then(spanned(to_be_repeated).repeated())
+        .foldl(move |(a, a_span), (b, b_span)| {
+            let span = a_span.merge(b_span);
+            (f(a, b, span), span)
+        })
+        .map(|(value, _span)| value)
+}
 
 #[derive(Clone, Debug)]
 pub struct ParsedModule {
@@ -47,27 +110,23 @@ impl ParsedModule {
     }
 }
 
-#[derive(PartialEq, PartialOrd)]
+#[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
 pub enum Precedence {
     Lowest,
-    Equals,
     LessGreater,
     Sum,
     Product,
-    Prefix,
-    Call,
-    Index,
-    MemberAccess,
-    Constructor,
+    Highest,
 }
+
 impl Precedence {
     // Higher the number, the higher(more priority) the precedence
     // XXX: Check the precedence is correct for operators
-    fn token_precedence(tok: &Token) -> Precedence {
-        match tok {
-            Token::Assign => Precedence::Equals,
-            Token::Equal => Precedence::Equals,
-            Token::NotEqual => Precedence::Equals,
+    fn token_precedence(tok: &Token) -> Option<Precedence> {
+        let precedence = match tok {
+            Token::Assign => Precedence::Lowest,
+            Token::Equal => Precedence::Lowest,
+            Token::NotEqual => Precedence::Lowest,
             Token::Less => Precedence::LessGreater,
             Token::LessEqual => Precedence::LessGreater,
             Token::Greater => Precedence::LessGreater,
@@ -79,37 +138,32 @@ impl Precedence {
             Token::Minus => Precedence::Sum,
             Token::Slash => Precedence::Product,
             Token::Star => Precedence::Product,
-            Token::Keyword(Keyword::As) => Precedence::Prefix,
-            Token::LeftParen => Precedence::Call,
-            Token::LeftBracket => Precedence::Index,
-            Token::Dot => Precedence::MemberAccess,
-            Token::LeftBrace => Precedence::Constructor,
-            _ => Precedence::Lowest,
+            _ => return None,
+        };
+
+        assert_ne!(precedence, Precedence::Highest, "expression_with_precedence in the parser currently relies on the highest precedence level being uninhabited");
+        Some(precedence)
+    }
+
+    fn higher(self) -> Self {
+        use Precedence::*;
+        match self {
+            Lowest => LessGreater,
+            LessGreater => Sum,
+            Sum => Product,
+            Product => Highest,
+            Highest => Highest,
         }
     }
 }
-impl From<&Token> for Precedence {
-    fn from(t: &Token) -> Precedence {
-        Precedence::token_precedence(t)
-    }
-}
-impl From<&SpannedToken> for Precedence {
-    fn from(t: &SpannedToken) -> Precedence {
-        Precedence::token_precedence(t.token())
-    }
-}
 
-#[cfg(test)]
-pub(crate) fn test_parse(src: &str) -> Parser {
-    Parser::from_src(src)
-}
-
-#[cfg(test)]
-pub(crate) fn dummy_expr() -> crate::Expression {
-    use crate::parser::prefix_parser::PrefixParser;
-    const SRC: &str = r#"
-        foo;
-    "#;
-    let mut parser = test_parse(SRC);
-    PrefixParser::Path.parse(&mut parser).unwrap()
+impl std::fmt::Display for TopLevelStatement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TopLevelStatement::Function(fun) => fun.fmt(f),
+            TopLevelStatement::Module(m) => write!(f, "mod {}", m),
+            TopLevelStatement::Import(i) => i.fmt(f),
+            TopLevelStatement::Struct(s) => s.fmt(f),
+        }
+    }
 }

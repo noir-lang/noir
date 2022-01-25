@@ -1,5 +1,8 @@
+use std::fmt::Display;
+
 use crate::lexer::token::SpannedToken;
-use crate::{Expression, ExpressionKind, InfixExpression, Type};
+use crate::token::Token;
+use crate::{Expression, ExpressionKind, InfixExpression, Type, NoirStruct};
 use noirc_errors::{Span, Spanned};
 
 #[derive(PartialOrd, Eq, Ord, Debug, Clone)]
@@ -14,6 +17,12 @@ impl PartialEq<Ident> for Ident {
 impl std::hash::Hash for Ident {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.0.contents.hash(state);
+    }
+}
+
+impl Display for Ident {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.contents.fmt(f)
     }
 }
 
@@ -56,15 +65,13 @@ impl From<Ident> for ExpressionKind {
     }
 }
 
-impl std::fmt::Display for Ident {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", &self.0.contents)
-    }
-}
-
 impl Ident {
     pub fn span(&self) -> Span {
         self.0.span()
+    }
+
+    pub fn new(token: Token, span: Span) -> Ident {
+        Ident::from(SpannedToken::new(token, span))
     }
 }
 
@@ -79,6 +86,37 @@ pub enum Statement {
     // This is an expression with a trailing semi-colon
     // terminology Taken from rustc
     Semi(Expression),
+
+    // This statement is the result of a recovered parse error.
+    // To avoid issuing multiple errors in later steps, it should
+    // be skipped in any future analysis if possible.
+    Error,
+}
+
+impl Statement {
+    pub fn new_let(((identifier, r#type), expression): ((Ident, Type), Expression)) -> Statement {
+        Statement::Let(LetStatement {
+            identifier,
+            r#type,
+            expression,
+        })
+    }
+
+    pub fn new_const(((identifier, r#type), expression): ((Ident, Type), Expression)) -> Statement {
+        Statement::Const(ConstStatement {
+            identifier,
+            r#type,
+            expression,
+        })
+    }
+
+    pub fn new_priv(((identifier, r#type), expression): ((Ident, Type), Expression)) -> Statement {
+        Statement::Private(PrivateStatement {
+            identifier,
+            r#type,
+            expression,
+        })
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -87,7 +125,7 @@ pub struct ImportStatement {
     pub alias: Option<Ident>,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub enum PathKind {
     Crate,
     Dep,
@@ -127,6 +165,7 @@ impl Path {
         }
         self.segments.first()
     }
+
     pub fn to_ident(&self) -> Option<Ident> {
         if !self.is_ident() {
             return None;
@@ -184,3 +223,99 @@ pub struct AssignStatement {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ConstrainStatement(pub InfixExpression);
+
+impl Display for Statement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Statement::Let(let_statement) => let_statement.fmt(f),
+            Statement::Const(const_statement) => const_statement.fmt(f),
+            Statement::Constrain(constrain) => constrain.fmt(f),
+            Statement::Private(private) => private.fmt(f),
+            Statement::Expression(expression) => expression.fmt(f),
+            Statement::Assign(assign) => assign.fmt(f),
+            Statement::Semi(semi) => write!(f, "{};", semi),
+            Statement::Error => write!(f, "error"),
+        }
+    }
+}
+
+impl Display for LetStatement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "let {}: {} = {}",
+            self.identifier, self.r#type, self.expression
+        )
+    }
+}
+
+impl Display for ConstStatement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "const {}: {} = {}",
+            self.identifier, self.r#type, self.expression
+        )
+    }
+}
+
+impl Display for PrivateStatement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "priv {}: {} = {}",
+            self.identifier, self.r#type, self.expression
+        )
+    }
+}
+
+impl Display for ConstrainStatement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "constrain {}", self.0)
+    }
+}
+
+impl Display for AssignStatement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} = {}", self.identifier, self.expression)
+    }
+}
+
+impl Display for Path {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let segments: Vec<_> = self.segments.iter().map(ToString::to_string).collect();
+        write!(f, "{}::{}", self.kind, segments.join("::"))
+    }
+}
+
+impl Display for PathKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PathKind::Crate => write!(f, "crate"),
+            PathKind::Dep => write!(f, "dep"),
+            PathKind::Plain => write!(f, "plain"),
+        }
+    }
+}
+
+impl Display for ImportStatement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "use {}", self.path)?;
+        if let Some(alias) = &self.alias {
+            write!(f, " as {}", alias)?;
+        }
+        Ok(())
+    }
+}
+
+impl Display for NoirStruct {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "struct {} {{\n", self.name)?;
+
+        for (name, typ) in self.fields.iter() {
+            write!(f, "    {}: {},\n", name, typ)?;
+        }
+        
+        write!(f, "}}")
+    }
+}

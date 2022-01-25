@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::token::{Attribute, Token};
 use crate::{Ident, Path, Statement, Type};
 use acvm::FieldElement;
@@ -35,6 +37,51 @@ impl ExpressionKind {
             ExpressionKind::Predicate(infix) => Some(*infix),
             _ => None,
         }
+    }
+
+    pub fn prefix(operator: UnaryOp, rhs: Expression) -> ExpressionKind {
+        ExpressionKind::Prefix(Box::new(PrefixExpression { operator, rhs }))
+    }
+
+    pub fn array(contents: Vec<Expression>) -> ExpressionKind {
+        ExpressionKind::Literal(Literal::Array(ArrayLiteral {
+            length: contents.len() as u128,
+            r#type: Type::Unknown,
+            contents,
+        }))
+    }
+
+    pub fn integer(contents: FieldElement) -> ExpressionKind {
+        ExpressionKind::Literal(Literal::Integer(contents))
+    }
+
+    pub fn boolean(contents: bool) -> ExpressionKind {
+        ExpressionKind::Literal(Literal::Bool(contents))
+    }
+
+    pub fn string(contents: String) -> ExpressionKind {
+        ExpressionKind::Literal(Literal::Str(contents))
+    }
+
+    pub fn function_call((func_name, arguments): (Path, Vec<Expression>)) -> ExpressionKind {
+        ExpressionKind::Call(Box::new(CallExpression {
+            func_name,
+            arguments,
+        }))
+    }
+
+    pub fn constructor((type_name, fields): (Path, Vec<(Ident, Expression)>)) -> ExpressionKind {
+        ExpressionKind::Constructor(Box::new(ConstructorExpression {
+            type_name,
+            fields,
+        }))
+    }
+
+    pub fn index(collection_name: Ident, index: Expression) -> ExpressionKind {
+        ExpressionKind::Index(Box::new(IndexExpression {
+            collection_name,
+            index,
+        }))
     }
 
     /// Returns true if the expression is a literal integer
@@ -88,6 +135,10 @@ impl PartialEq<Expression> for Expression {
 }
 
 impl Expression {
+    pub fn new(kind: ExpressionKind, span: Span) -> Expression {
+        Expression { kind, span }
+    }
+
     pub fn into_ident(self) -> Option<Ident> {
         let identifier = match self.kind {
             ExpressionKind::Ident(x) => x,
@@ -96,6 +147,20 @@ impl Expression {
 
         let ident = Ident(Spanned::from(self.span, identifier));
         Some(ident)
+    }
+
+    pub fn member_access(lhs: Expression, rhs: Ident, span: Span) -> Expression {
+        Expression {
+            kind: ExpressionKind::MemberAccess(Box::new(MemberAccessExpression { lhs, rhs })),
+            span,
+        }
+    }
+
+    pub fn cast(lhs: Expression, r#type: Type, span: Span) -> Expression {
+        Expression {
+            kind: ExpressionKind::Cast(Box::new(CastExpression { lhs, r#type })),
+            span,
+        }
     }
 }
 
@@ -124,7 +189,6 @@ pub enum BinaryOpKind {
     And,
     Or,
     Xor,
-    MemberAccess, // struct.field
     // Assign is the only binary operator which cannot be used in a constrain statement
     Assign,
 }
@@ -145,7 +209,7 @@ impl BinaryOpKind {
         )
     }
 
-    pub fn as_string(&self) -> &str {
+    pub fn as_string(self) -> &'static str {
         match self {
             BinaryOpKind::Add => "+",
             BinaryOpKind::Subtract => "-",
@@ -160,8 +224,26 @@ impl BinaryOpKind {
             BinaryOpKind::And => "&",
             BinaryOpKind::Or => "|",
             BinaryOpKind::Xor => "^",
-            BinaryOpKind::MemberAccess => ".",
             BinaryOpKind::Assign => "=",
+        }
+    }
+
+    pub fn as_token(self) -> Token {
+        match self {
+            BinaryOpKind::Add => Token::Plus,
+            BinaryOpKind::Subtract => Token::Minus,
+            BinaryOpKind::Multiply => Token::Star,
+            BinaryOpKind::Divide => Token::Slash,
+            BinaryOpKind::Equal => Token::Equal,
+            BinaryOpKind::NotEqual => Token::NotEqual,
+            BinaryOpKind::Less => Token::Less,
+            BinaryOpKind::LessEqual => Token::LessEqual,
+            BinaryOpKind::Greater => Token::Greater,
+            BinaryOpKind::GreaterEqual => Token::GreaterEqual,
+            BinaryOpKind::And => Token::Ampersand,
+            BinaryOpKind::Or => Token::Pipe,
+            BinaryOpKind::Xor => Token::Caret,
+            BinaryOpKind::Assign => Token::Assign,
         }
     }
 }
@@ -182,7 +264,6 @@ impl From<&Token> for Option<BinaryOpKind> {
             Token::LessEqual => BinaryOpKind::LessEqual,
             Token::Greater => BinaryOpKind::Greater,
             Token::GreaterEqual => BinaryOpKind::GreaterEqual,
-            Token::Dot => BinaryOpKind::MemberAccess,
             Token::Assign => BinaryOpKind::Assign,
             _ => return None,
         };
@@ -297,5 +378,180 @@ impl BlockExpression {
 
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
+    }
+}
+
+impl Display for Expression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.kind.fmt(f)
+    }
+}
+
+impl Display for ExpressionKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use ExpressionKind::*;
+        match self {
+            Ident(name) => name.fmt(f),
+            Literal(literal) => literal.fmt(f),
+            Block(block) => block.fmt(f),
+            Prefix(prefix) => prefix.fmt(f),
+            Index(index) => index.fmt(f),
+            Call(call) => call.fmt(f),
+            Cast(cast) => cast.fmt(f),
+            Infix(infix) => infix.fmt(f),
+            Predicate(infix) => infix.fmt(f),
+            For(for_loop) => for_loop.fmt(f),
+            If(if_expr) => if_expr.fmt(f),
+            Path(path) => path.fmt(f),
+            Constructor(constructor) => constructor.fmt(f),
+            MemberAccess(access) => access.fmt(f),
+        }
+    }
+}
+
+impl Display for Literal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Literal::Array(array) => {
+                let contents: Vec<_> = array.contents.iter().map(ToString::to_string).collect();
+                write!(f, "[{}]", contents.join(", "))
+            }
+            Literal::Bool(boolean) => write!(f, "{}", if *boolean { "true" } else { "false" }),
+            Literal::Integer(integer) => write!(f, "{}", integer.to_u128()),
+            Literal::Str(string) => write!(f, "\"{}\"", string),
+        }
+    }
+}
+
+impl Display for BlockExpression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{{")?;
+        for statement in &self.0 {
+            let statement = statement.to_string();
+            for line in statement.lines() {
+                writeln!(f, "    {}", line)?;
+            }
+        }
+        write!(f, "}}")
+    }
+}
+
+impl Display for PrefixExpression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({} {})", self.operator, self.rhs)
+    }
+}
+
+impl Display for UnaryOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            UnaryOp::Minus => write!(f, "-"),
+            UnaryOp::Not => write!(f, "!"),
+        }
+    }
+}
+
+impl Display for IndexExpression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}[{}]", self.collection_name, self.index)
+    }
+}
+
+impl Display for CallExpression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let args: Vec<_> = self.arguments.iter().map(ToString::to_string).collect();
+        write!(f, "{}({})", self.func_name, args.join(", "))
+    }
+}
+
+impl Display for CastExpression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({} as {})", self.lhs, self.r#type)
+    }
+}
+
+impl Display for ConstructorExpression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let fields = self.fields.iter().map(|(ident, expr)| {
+            format!("{}: {}", ident, expr)
+        }).collect::<Vec<_>>();
+
+        write!(f, "({} {{ {} }})", self.type_name, fields.join(", "))
+    }
+}
+
+impl Display for MemberAccessExpression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({}.{})", self.lhs, self.rhs)
+    }
+}
+
+impl Display for InfixExpression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({} {} {})", self.lhs, self.operator.contents, self.rhs)
+    }
+}
+
+impl Display for BinaryOpKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BinaryOpKind::Add => write!(f, "+"),
+            BinaryOpKind::Subtract => write!(f, "-"),
+            BinaryOpKind::Multiply => write!(f, "*"),
+            BinaryOpKind::Divide => write!(f, "/"),
+            BinaryOpKind::Equal => write!(f, "=="),
+            BinaryOpKind::NotEqual => write!(f, "!="),
+            BinaryOpKind::Less => write!(f, "<"),
+            BinaryOpKind::LessEqual => write!(f, "<="),
+            BinaryOpKind::Greater => write!(f, ">"),
+            BinaryOpKind::GreaterEqual => write!(f, ">="),
+            BinaryOpKind::And => write!(f, "&"),
+            BinaryOpKind::Or => write!(f, "|"),
+            BinaryOpKind::Xor => write!(f, "^"),
+            BinaryOpKind::Assign => write!(f, "="),
+        }
+    }
+}
+
+impl Display for ForExpression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "for {} in {} .. {} {}",
+            self.identifier, self.start_range, self.end_range, self.block
+        )
+    }
+}
+
+impl Display for IfExpression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "if {} {}", self.condition, self.consequence)?;
+        if let Some(alternative) = &self.alternative {
+            write!(f, " else {}", alternative)?;
+        }
+        Ok(())
+    }
+}
+
+impl Display for FunctionDefinition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(attribute) = &self.attribute {
+            writeln!(f, "{}", attribute)?;
+        }
+
+        let parameters: Vec<_> = self
+            .parameters
+            .iter()
+            .map(|(name, r#type)| format!("{}: {}", name, r#type))
+            .collect();
+
+        write!(
+            f,
+            "fn {}({}) -> {} {}",
+            self.name,
+            parameters.join(", "),
+            self.return_type,
+            self.body
+        )
     }
 }

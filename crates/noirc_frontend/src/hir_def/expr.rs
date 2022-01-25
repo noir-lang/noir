@@ -78,7 +78,6 @@ impl From<BinaryOpKind> for HirBinaryOpKind {
             BinaryOpKind::And => HirBinaryOpKind::And,
             BinaryOpKind::Or => HirBinaryOpKind::Or,
             BinaryOpKind::Xor => HirBinaryOpKind::Xor,
-            BinaryOpKind::MemberAccess => HirBinaryOpKind::MemberAccess,
             BinaryOpKind::Assign => HirBinaryOpKind::Assign,
         }
     }

@@ -77,7 +77,7 @@ mod test {
             def_map::{CrateDefMap, ModuleDefId},
             resolution::{path_resolver::PathResolver, resolver::Resolver},
         },
-        FunctionKind, Parser, Path, Type,
+        parse_program, FunctionKind, Path, Type,
     };
 
     #[test]
@@ -234,8 +234,7 @@ mod test {
     // This function assumes that there is only one function and this is the
     // func id that is returned
     fn type_check_src_code(src: &str, func_namespace: Vec<String>) {
-        let mut parser = Parser::from_src(src);
-        let program = parser.parse_program().unwrap();
+        let program = parse_program(src).unwrap();
         let mut interner = NodeInterner::default();
 
         let mut func_ids = Vec::new();
