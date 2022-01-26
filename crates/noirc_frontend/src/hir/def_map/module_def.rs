@@ -24,7 +24,7 @@ impl ModuleDefId {
         }
     }
 
-    // XXX: We are still allocating fro error reporting even though strings are stored in binary
+    // XXX: We are still allocating for error reporting even though strings are stored in binary
     // It is a minor performance issue, which can be addressed by having the error reporting, not allocate
     pub fn as_str(&self) -> &'static str {
         match self {

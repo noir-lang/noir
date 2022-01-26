@@ -6,7 +6,7 @@ struct Pair {
 }
 
 fn main(x : Field, y : Field) {
-    constrain Pair { first: x, second: y }.x == 1;
-    constrain Pair { first: x, second: y }.y == 0;
+    constrain Pair { first: x, second: y }.first == 1;
+    constrain Pair { first: x, second: y }.second == 0;
 }
     

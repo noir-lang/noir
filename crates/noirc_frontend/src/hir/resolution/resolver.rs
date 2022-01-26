@@ -56,15 +56,9 @@ type ScopeForest = GenericScopeForest<String, ResolverMeta>;
 
 pub struct Resolver<'a> {
     scopes: ScopeForest,
-
     path_resolver: &'a dyn PathResolver,
     def_maps: &'a HashMap<CrateId, CrateDefMap>,
-
-    //TODO: Is this needed or can we use def_maps or the path_resolver to store structs?
-    structs: &'a HashMap<TypeId, Rc<StructType>>,
-
     interner: &'a mut NodeInterner,
-
     errors: Vec<ResolverError>,
 }
 
@@ -73,14 +67,12 @@ impl<'a> Resolver<'a> {
         interner: &'a mut NodeInterner,
         path_resolver: &'a dyn PathResolver,
         def_maps: &'a HashMap<CrateId, CrateDefMap>,
-        structs: &'a HashMap<TypeId, Rc<StructType>>,
     ) -> Resolver<'a> {
         Self {
             path_resolver,
             def_maps,
             scopes: ScopeForest::new(),
             interner,
-            structs,
             errors: Vec::new(),
         }
     }
@@ -422,11 +414,13 @@ impl<'a> Resolver<'a> {
                 let span = constructor.type_name.span();
                 let type_id = self.lookup_type(constructor.type_name);
                 let fields = self.resolve_constructor_fields(type_id, constructor.fields, span);
-                let r#type = self.struct_type(type_id);
+                let r#type = self.get_struct(type_id);
                 let expr = HirConstructorExpression { type_id, fields, r#type };
                 self.interner.push_expr(HirExpression::Constructor(expr))
             },
             ExpressionKind::MemberAccess(access) => {
+                // Validating whether the lhs actually has the rhs as a field
+                // needs to wait until type checking when we know the type of the lhs
                 let lhs = self.resolve_expression(access.lhs);
                 let expr = HirMemberAccess { lhs, rhs: access.rhs };
                 self.interner.push_expr(HirExpression::MemberAccess(expr))
@@ -435,11 +429,6 @@ impl<'a> Resolver<'a> {
 
         self.interner.push_expr_span(expr_id, expr.span);
         expr_id
-    }
-
-    /// Retrieves the corresponding StructType for a given struct TypeId.
-    fn struct_type(&self, type_id: TypeId) -> Rc<StructType> {
-        self.structs[&type_id].clone()
     }
 
     /// Resolve all the fields of a struct constructor expression.
@@ -482,8 +471,9 @@ impl<'a> Resolver<'a> {
         ret
     }
 
-    fn get_struct(&self, type_id: TypeId) -> &StructType {
-        self.structs.get(&type_id).unwrap()
+    fn get_struct(&self, type_id: TypeId) -> Rc<StructType> {
+        println!("looking up struct type {:?}", type_id);
+        self.interner.get_struct(type_id)
     }
 
     fn get_field_names_of_type(&self, type_id: TypeId) -> HashSet<Ident> {
@@ -585,12 +575,9 @@ mod test {
 
         let def_maps: HashMap<CrateId, CrateDefMap> = HashMap::new();
 
-        // TODO: Add struct tests
-        let structs = HashMap::new();
-
         let mut errors = Vec::new();
         for func in program.functions {
-            let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, &structs);
+            let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps);
             match resolver.resolve_function(func) {
                 Ok((_, _)) => {}
                 Err(err) => errors.extend(err),

@@ -352,21 +352,17 @@ pub fn check_member_access(access: expr::HirMemberAccess, expr_id: &ExprId, inte
     type_check_expression(interner, &access.lhs)?;
     let lhs_type = interner.id_type(&access.lhs);
 
-    match lhs_type {
-        Type::Struct(s) => {
-            // unwrapping here should be fine, the field should be guarenteed to be within the
-            // struct following name resolution
-            let field = s.fields.iter().find(|(name, _)| name == &access.rhs).unwrap();
+    if let Type::Struct(s) = &lhs_type {
+        if let Some(field) = s.fields.iter().find(|(name, _)| name == &access.rhs) {
             interner.push_expr_type(expr_id, field.1.clone());
-            Ok(())
-        }
-        _ => {
-            Err(TypeCheckError::Unstructured {
-                msg: format!("Type {} has no member named {}", lhs_type, access.rhs),
-                span: interner.expr_span(&access.lhs),
-            })
+            return Ok(());
         }
     }
+
+    Err(TypeCheckError::Unstructured {
+        msg: format!("Type {} has no member named {}", lhs_type, access.rhs),
+        span: interner.expr_span(&access.lhs),
+    })
 }
 
 fn field_type_rules(lhs: &FieldElementType, rhs: &FieldElementType) -> FieldElementType {

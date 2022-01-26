@@ -1,5 +1,5 @@
 use super::{namespace::PerNs, ModuleDefId, ModuleId};
-use crate::{node_interner::FuncId, Ident};
+use crate::{Ident, node_interner::{FuncId, TypeId}};
 use std::collections::{hash_map::Entry, HashMap};
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
@@ -59,8 +59,13 @@ impl ItemScope {
     ) -> Result<(), (Ident, Ident)> {
         self.add_definition(name, mod_id.into())
     }
+
     pub fn define_func_def(&mut self, name: Ident, local_id: FuncId) -> Result<(), (Ident, Ident)> {
         self.add_definition(name, local_id.into())
+    }
+
+    pub fn define_struct_def(&mut self, name: Ident, local_id: TypeId) -> Result<(), (Ident, Ident)> {
+        self.add_definition(name, ModuleDefId::TypeId(local_id))
     }
 
     pub fn find_module_with_name(&self, mod_name: &Ident) -> Option<&ModuleId> {

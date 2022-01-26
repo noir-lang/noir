@@ -1,7 +1,7 @@
 use fm::FileId;
-use noirc_errors::{CollectedErrors, DiagnosableError};
+use noirc_errors::{CollectedErrors, CustomDiagnostic, DiagnosableError};
 
-use crate::{Ident, NoirFunction, ParsedModule};
+use crate::{Ident, NoirFunction, ParsedModule, StructType};
 
 use super::{
     dc_crate::{DefCollector, UnresolvedFunctions},
@@ -30,19 +30,22 @@ impl<'a> ModCollector<'a> {
         }
 
         // Then add the imports to defCollector to resolve once all modules in the hierarchy have been resolved
-        for import in self.ast.imports.clone() {
+        for import in &self.ast.imports {
             self.def_collector.collected_imports.push(ImportDirective {
                 module_id: self.module_id,
-                path: import.path,
-                alias: import.alias,
+                path: import.path.clone(),
+                alias: import.alias.clone(),
             });
         }
+
+        let mut errors = self.collect_structs(context);
 
         // Then add functions to functionArena
         let mut unresolved_functions = UnresolvedFunctions {
             file_id: self.file_id,
             functions: Vec::new(),
         };
+
         for function in self.ast.functions.clone() {
             let name = function.name_ident().clone();
             let nf: NoirFunction = function;
@@ -60,27 +63,61 @@ impl<'a> ModCollector<'a> {
             unresolved_functions.push_fn(self.module_id, func_id, nf);
 
             // Add function to scope/ns of the module
-            self.def_collector.def_map.modules[self.module_id.0]
+            let result = self.def_collector.def_map.modules[self.module_id.0]
                 .scope
-                .define_func_def(name, func_id)
-                .map_err(|(first_def, second_def)| {
-                    let err = DefCollectorErrorKind::DuplicateFunction {
-                        first_def,
-                        second_def,
-                    };
+                .define_func_def(name, func_id);
 
-                    vec![CollectedErrors {
-                        file_id: self.file_id,
-                        errors: vec![err.to_diagnostic()],
-                    }]
-                })?;
+            if let Err((first_def, second_def)) = result {
+                let err = DefCollectorErrorKind::DuplicateFunction {
+                    first_def,
+                    second_def,
+                };
+
+                errors.push(err.to_diagnostic());
+            }
         }
-        self.def_collector
-            .collected_functions
-            .push(unresolved_functions);
 
-        Ok(())
+        if !errors.is_empty() {
+            Err(vec![CollectedErrors { file_id: self.file_id, errors }])
+        } else {
+            self.def_collector
+                .collected_functions
+                .push(unresolved_functions);
+
+            Ok(())
+        }
     }
+
+    /// Collect any struct definitions declared within the ast.
+    /// Returns a vector of errors if any structs were already defined.
+    fn collect_structs(&mut self, context: &mut Context) -> Vec<CustomDiagnostic> {
+        let mut errors = vec![];
+
+        for struct_definition in self.ast.types.iter() {
+            let id = context.next_struct_id();
+            let typ = StructType::new(id, struct_definition.clone());
+
+            // Add the struct to scope so its path can be looked up later
+            let result = self.def_collector.def_map.modules[self.module_id.0]
+                .scope
+                .define_struct_def(typ.name.clone(), id);
+
+            if let Err((first_def, second_def)) = result {
+                let err = DefCollectorErrorKind::DuplicateFunction {
+                    first_def,
+                    second_def,
+                };
+
+                errors.push(err.to_diagnostic());
+            }
+
+            // And store the TypeId -> StructType mapping somewhere it is reachable
+            self.def_collector.collected_types.insert(id, typ);
+        }
+
+        errors
+    }
+
     /// Search for a module named `mod_name`
     /// Parse it, add it as a child to the parent module in which it was declared
     /// and then collect all definitions of the child module

@@ -106,6 +106,8 @@ fn resolve_name_in_module(
             krate: def_map.krate,
             local_id: starting_mod,
         };
+        // XXX: Why is an empty import path resolved, and why
+        // is it resolved to a type?
         return PathResolution::Resolved(PerNs::types(mod_id.into()));
     }
 
@@ -128,6 +130,7 @@ fn resolve_name_in_module(
         let new_module_id = match typ {
             ModuleDefId::ModuleId(id) => id,
             ModuleDefId::FunctionId(_) => panic!("functions cannot be in the type namespace"),
+            // TODO: If impls are ever implemented, types can be used in a path
             ModuleDefId::TypeId(_) => panic!("types cannot be used in a path"),
         };
         current_mod = &def_maps[&new_module_id.krate].modules[new_module_id.local_id.0];

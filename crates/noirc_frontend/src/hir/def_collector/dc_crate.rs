@@ -5,11 +5,11 @@ use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::resolver::Resolver;
 use crate::hir::resolution::{
     import::{resolve_imports, ImportDirective},
-    path_resolver::FunctionPathResolver,
+    path_resolver::StandardPathResolver,
 };
 use crate::hir::Context;
-use crate::node_interner::{FuncId, NodeInterner};
-use crate::{NoirFunction, ParsedModule};
+use crate::node_interner::{FuncId, NodeInterner, TypeId};
+use crate::{NoirFunction, ParsedModule, StructType};
 use fm::FileId;
 use noirc_errors::CollectedErrors;
 use noirc_errors::DiagnosableError;
@@ -32,6 +32,7 @@ pub struct DefCollector {
     pub(crate) def_map: CrateDefMap,
     pub(crate) collected_imports: Vec<ImportDirective>,
     pub(crate) collected_functions: Vec<UnresolvedFunctions>,
+    pub(crate) collected_types: HashMap<TypeId, StructType>,
 }
 
 impl DefCollector {
@@ -75,6 +76,7 @@ impl DefCollector {
             def_map,
             collected_imports: Vec::new(),
             collected_functions: Vec::new(),
+            collected_types: HashMap::new(),
         };
 
         // Collecting module declarations with ModCollector
@@ -140,6 +142,12 @@ impl DefCollector {
             }
         }
 
+        // Create the mappings from TypeId -> StructType
+        // so that expressions can access the fields of structs
+        for (id, typ) in def_collector.collected_types {
+            context.def_interner.push_struct(id, typ);
+        }
+
         // Lower each function in the crate. This is now possible since imports have been resolved
         let file_func_ids = resolve_functions(
             &mut context.def_interner,
@@ -175,15 +183,12 @@ fn resolve_functions(
         for (mod_id, func_id, func) in unresolved_functions.functions {
             file_func_ids.push((file_id, func_id));
 
-            let func_resolver = FunctionPathResolver::new(ModuleId {
+            let path_resolver = StandardPathResolver::new(ModuleId {
                 local_id: mod_id,
                 krate: crate_id,
             });
 
-            // TODO: Add struct mapping
-            let structs = HashMap::new();
-
-            let resolver = Resolver::new(interner, &func_resolver, def_maps, &structs);
+            let resolver = Resolver::new(interner, &path_resolver, def_maps);
 
             match resolver.resolve_function(func) {
                 Ok((hir_func, func_meta)) => {

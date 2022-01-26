@@ -106,6 +106,22 @@ impl PartialEq for StructType {
     }
 }
 
+impl StructType {
+    pub fn new(id: TypeId, structure: NoirStruct) -> StructType {
+        StructType {
+            id,
+            name: structure.name,
+            fields: structure.fields,
+            span: structure.span,
+        }
+    }
+}
+
+impl std::fmt::Display for StructType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name)
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {
@@ -144,7 +160,7 @@ impl std::fmt::Display for Type {
                 Signedness::Signed => write!(f, "{} i{}", fe_type, num_bits),
                 Signedness::Unsigned => write!(f, "{} u{}", fe_type, num_bits),
             },
-            Type::Struct(s) => write!(f, "{}", s.name),
+            Type::Struct(s) => s.fmt(f),
             Type::Bool => write!(f, "bool"),
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
