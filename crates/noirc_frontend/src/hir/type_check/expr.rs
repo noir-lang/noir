@@ -275,15 +275,15 @@ pub(crate) fn type_check_expression(
             let mut args = constructor.fields.clone();
             args.sort_by_key(|arg| interner.ident(&arg.0));
 
-            for ((param_id, param_type), (arg_id, arg)) in typ.fields.iter().zip(args) {
+            for ((param_name, param_type), (arg_id, arg)) in typ.fields.iter().zip(args) {
                 // Sanity check to ensure we're matching against the same field
-                assert_eq!(param_id, &interner.ident(&arg_id));
+                assert_eq!(param_name, &interner.ident(&arg_id));
 
                 type_check_expression(interner, &arg)?;
                 let arg_type = interner.id_type(arg);
 
                 if !param_type.is_super_type_of(&arg_type) {
-                    let span = interner.expr_span(&expr_id);
+                    let span = interner.expr_span(expr_id);
                     return Err(TypeCheckError::TypeMismatch {
                         expected_typ: param_type.to_string(),
                         expr_typ: arg_type.to_string(),

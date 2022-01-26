@@ -231,7 +231,7 @@ impl Type {
             | Type::Error
             | Type::Unspecified
             | Type::Unknown
-            | Type::Unit => return 1,
+            | Type::Unit => 1,
         }
     }
 

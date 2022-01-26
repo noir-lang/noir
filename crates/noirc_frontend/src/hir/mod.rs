@@ -38,13 +38,13 @@ impl Default for Context {
 }
 
 impl Context {
-    pub fn new(file_manager: FileManager, crate_graph: CrateGraph, struct_count: usize) -> Context {
+    pub fn new(file_manager: FileManager, crate_graph: CrateGraph) -> Context {
         Context {
             def_interner: NodeInterner::default(),
             def_maps: HashMap::new(),
             crate_graph,
             file_manager,
-            struct_count,
+            struct_count: 0,
         }
     }
     /// Returns the CrateDefMap for a given CrateId.

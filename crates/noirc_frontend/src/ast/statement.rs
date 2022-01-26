@@ -310,10 +310,10 @@ impl Display for ImportStatement {
 
 impl Display for NoirStruct {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "struct {} {{\n", self.name)?;
+        writeln!(f, "struct {} {{", self.name)?;
 
         for (name, typ) in self.fields.iter() {
-            write!(f, "    {}: {},\n", name, typ)?;
+            writeln!(f, "    {}: {},", name, typ)?;
         }
 
         write!(f, "}}")
