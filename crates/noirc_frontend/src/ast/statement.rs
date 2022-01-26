@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::lexer::token::SpannedToken;
 use crate::token::Token;
-use crate::{Expression, ExpressionKind, InfixExpression, Type, NoirStruct};
+use crate::{Expression, ExpressionKind, InfixExpression, NoirStruct, Type};
 use noirc_errors::{Span, Spanned};
 
 #[derive(PartialOrd, Eq, Ord, Debug, Clone)]
@@ -315,7 +315,7 @@ impl Display for NoirStruct {
         for (name, typ) in self.fields.iter() {
             write!(f, "    {}: {},\n", name, typ)?;
         }
-        
+
         write!(f, "}}")
     }
 }

@@ -19,17 +19,17 @@ struct ResolverMeta {
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
-use crate::{Path, StructType};
 use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId};
 use crate::hir_def::expr::{HirConstructorExpression, HirMemberAccess};
 use crate::hir_def::stmt::HirAssignStatement;
-use crate::node_interner::{ExprId, FuncId, TypeId, IdentId, NodeInterner, StmtId};
+use crate::node_interner::{ExprId, FuncId, IdentId, NodeInterner, StmtId, TypeId};
 use crate::{
     hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
     BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
     Statement,
 };
+use crate::{Path, StructType};
 use noirc_errors::{Span, Spanned};
 
 use crate::hir::scope::{
@@ -415,16 +415,23 @@ impl<'a> Resolver<'a> {
                 let type_id = self.lookup_type(constructor.type_name);
                 let fields = self.resolve_constructor_fields(type_id, constructor.fields, span);
                 let r#type = self.get_struct(type_id);
-                let expr = HirConstructorExpression { type_id, fields, r#type };
+                let expr = HirConstructorExpression {
+                    type_id,
+                    fields,
+                    r#type,
+                };
                 self.interner.push_expr(HirExpression::Constructor(expr))
-            },
+            }
             ExpressionKind::MemberAccess(access) => {
                 // Validating whether the lhs actually has the rhs as a field
                 // needs to wait until type checking when we know the type of the lhs
                 let lhs = self.resolve_expression(access.lhs);
-                let expr = HirMemberAccess { lhs, rhs: access.rhs };
+                let expr = HirMemberAccess {
+                    lhs,
+                    rhs: access.rhs,
+                };
                 self.interner.push_expr(HirExpression::MemberAccess(expr))
-            },
+            }
         };
 
         self.interner.push_expr_span(expr_id, expr.span);
@@ -434,7 +441,12 @@ impl<'a> Resolver<'a> {
     /// Resolve all the fields of a struct constructor expression.
     /// Ensures all fields are present, none are repeated, and all
     /// are part of the struct.
-    fn resolve_constructor_fields(&mut self, type_id: TypeId, fields: Vec<(Ident, Expression)>, span: Span) -> Vec<(IdentId, ExprId)> {
+    fn resolve_constructor_fields(
+        &mut self,
+        type_id: TypeId,
+        fields: Vec<(Ident, Expression)>,
+        span: Span,
+    ) -> Vec<(IdentId, ExprId)> {
         let mut ret = Vec::with_capacity(fields.len());
         let mut seen_fields = HashSet::new();
         let mut unseen_fields = self.get_field_names_of_type(type_id);
@@ -447,7 +459,9 @@ impl<'a> Resolver<'a> {
                 seen_fields.insert(field.clone());
             } else if seen_fields.contains(&field) {
                 // duplicate field
-                self.push_err(ResolverError::DuplicateField { field: field.clone() });
+                self.push_err(ResolverError::DuplicateField {
+                    field: field.clone(),
+                });
             } else {
                 // field not required by struct
                 self.push_err(ResolverError::NoSuchField {
@@ -463,7 +477,10 @@ impl<'a> Resolver<'a> {
         if !unseen_fields.is_empty() {
             self.push_err(ResolverError::MissingFields {
                 span,
-                missing_fields: unseen_fields.into_iter().map(|field| field.to_string()).collect(),
+                missing_fields: unseen_fields
+                    .into_iter()
+                    .map(|field| field.to_string())
+                    .collect(),
                 struct_definition: self.get_struct(type_id).name.clone(),
             });
         }
@@ -478,9 +495,7 @@ impl<'a> Resolver<'a> {
 
     fn get_field_names_of_type(&self, type_id: TypeId) -> HashSet<Ident> {
         let typ = self.get_struct(type_id);
-        typ.fields.iter()
-            .map(|(name, _)| name.clone())
-            .collect()
+        typ.fields.iter().map(|(name, _)| name.clone()).collect()
     }
 
     fn lookup<T: TryFromModuleDefId>(&mut self, path: Path) -> T {
@@ -514,11 +529,17 @@ impl<'a> Resolver<'a> {
     fn resolve_path(&mut self, path: Path) -> Option<ModuleDefId> {
         let span = path.span();
         let name = path.as_string();
-        self.path_resolver.resolve(self.def_maps, path).unwrap_or_else(|segment| {
-            let err = ResolverError::PathUnresolved { name, span, segment };
-            self.push_err(err);
-            None
-        })
+        self.path_resolver
+            .resolve(self.def_maps, path)
+            .unwrap_or_else(|segment| {
+                let err = ResolverError::PathUnresolved {
+                    name,
+                    span,
+                    segment,
+                };
+                self.push_err(err);
+                None
+            })
     }
 
     fn resolve_block(&mut self, block_expr: BlockExpression) -> ExprId {

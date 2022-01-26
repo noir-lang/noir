@@ -1,4 +1,4 @@
-use crate::node_interner::{ FuncId, TypeId };
+use crate::node_interner::{FuncId, TypeId};
 
 use super::ModuleId;
 
@@ -47,7 +47,7 @@ impl From<FuncId> for ModuleDefId {
     }
 }
 
-pub trait TryFromModuleDefId : Sized {
+pub trait TryFromModuleDefId: Sized {
     fn try_from(id: ModuleDefId) -> Option<Self>;
     fn dummy_id() -> Self;
     fn description() -> String;

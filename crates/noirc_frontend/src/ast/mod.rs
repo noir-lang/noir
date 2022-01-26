@@ -1,18 +1,18 @@
 /// This module contains two Ident structures, due to the fact that an identifier may or may not return a value
 /// statement::Ident does not return a value, while Expression::Ident does.
 mod expression;
-mod statement;
 mod function;
+mod statement;
 mod structure;
 
 use std::rc::Rc;
 
 pub use expression::*;
 pub use function::*;
-use noirc_errors::Span;
-pub use structure::*;
 use noirc_abi::{AbiFEType, AbiType};
+use noirc_errors::Span;
 pub use statement::*;
+pub use structure::*;
 
 use crate::{node_interner::TypeId, token::IntType};
 

@@ -78,7 +78,10 @@ impl<'a> ModCollector<'a> {
         }
 
         if !errors.is_empty() {
-            Err(vec![CollectedErrors { file_id: self.file_id, errors }])
+            Err(vec![CollectedErrors {
+                file_id: self.file_id,
+                errors,
+            }])
         } else {
             self.def_collector
                 .collected_functions

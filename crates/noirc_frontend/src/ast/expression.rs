@@ -71,10 +71,7 @@ impl ExpressionKind {
     }
 
     pub fn constructor((type_name, fields): (Path, Vec<(Ident, Expression)>)) -> ExpressionKind {
-        ExpressionKind::Constructor(Box::new(ConstructorExpression {
-            type_name,
-            fields,
-        }))
+        ExpressionKind::Constructor(Box::new(ConstructorExpression { type_name, fields }))
     }
 
     pub fn index(collection_name: Ident, index: Expression) -> ExpressionKind {
@@ -472,9 +469,11 @@ impl Display for CastExpression {
 
 impl Display for ConstructorExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let fields = self.fields.iter().map(|(ident, expr)| {
-            format!("{}: {}", ident, expr)
-        }).collect::<Vec<_>>();
+        let fields = self
+            .fields
+            .iter()
+            .map(|(ident, expr)| format!("{}: {}", ident, expr))
+            .collect::<Vec<_>>();
 
         write!(f, "({} {{ {} }})", self.type_name, fields.join(", "))
     }

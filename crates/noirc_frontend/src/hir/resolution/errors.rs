@@ -127,17 +127,30 @@ impl ResolverError {
                 String::new(),
                 field.span(),
             ),
-            ResolverError::NoSuchField { field, struct_definition } => {
+            ResolverError::NoSuchField {
+                field,
+                struct_definition,
+            } => {
                 let mut error = Diagnostic::simple_error(
-                    format!("no such field {} defined in struct {}", field, struct_definition),
+                    format!(
+                        "no such field {} defined in struct {}",
+                        field, struct_definition
+                    ),
                     String::new(),
                     field.span(),
                 );
 
-                error.add_secondary(format!("{} defined here with no {} field", struct_definition, field), struct_definition.span());
+                error.add_secondary(
+                    format!("{} defined here with no {} field", struct_definition, field),
+                    struct_definition.span(),
+                );
                 error
             }
-            ResolverError::MissingFields { span, missing_fields, struct_definition } => {
+            ResolverError::MissingFields {
+                span,
+                missing_fields,
+                struct_definition,
+            } => {
                 let plural = if missing_fields.len() != 1 { "s" } else { "" };
                 let missing_fields = missing_fields.join(", ");
 
@@ -147,7 +160,10 @@ impl ResolverError {
                     span,
                 );
 
-                error.add_secondary(format!("{} defined here", struct_definition), struct_definition.span());
+                error.add_secondary(
+                    format!("{} defined here", struct_definition),
+                    struct_definition.span(),
+                );
                 error
             }
         }

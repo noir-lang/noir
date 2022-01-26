@@ -3,8 +3,8 @@ mod errors;
 mod parser;
 
 use crate::token::Token;
-use crate::{NoirFunction, Ident};
-use crate::{Expression, ast::ImportStatement, NoirStruct};
+use crate::{ast::ImportStatement, Expression, NoirStruct};
+use crate::{Ident, NoirFunction};
 
 use chumsky::prelude::*;
 pub use errors::ParserError;

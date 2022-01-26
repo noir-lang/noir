@@ -1,4 +1,11 @@
-use crate::{ArraySize, Type, hir_def::{expr::{self, HirBinaryOp, HirExpression, HirLiteral}, function::Param, stmt::HirStatement}};
+use crate::{
+    hir_def::{
+        expr::{self, HirBinaryOp, HirExpression, HirLiteral},
+        function::Param,
+        stmt::HirStatement,
+    },
+    ArraySize, Type,
+};
 use crate::{
     node_interner::{ExprId, NodeInterner, StmtId},
     FieldElementType,
@@ -284,7 +291,7 @@ pub(crate) fn type_check_expression(
                     });
                 }
             }
-        },
+        }
         HirExpression::MemberAccess(access) => check_member_access(access, expr_id, interner)?,
     };
     Ok(())
@@ -348,7 +355,11 @@ pub fn infix_operand_type_rules(
     }
 }
 
-pub fn check_member_access(access: expr::HirMemberAccess, expr_id: &ExprId, interner: &mut NodeInterner) -> Result<(), TypeCheckError> {
+pub fn check_member_access(
+    access: expr::HirMemberAccess,
+    expr_id: &ExprId,
+    interner: &mut NodeInterner,
+) -> Result<(), TypeCheckError> {
     type_check_expression(interner, &access.lhs)?;
     let lhs_type = interner.id_type(&access.lhs);
 
