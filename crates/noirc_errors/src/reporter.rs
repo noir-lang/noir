@@ -6,7 +6,7 @@ use codespan_reporting::term::termcolor::{
 };
 use std::io::Write;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct CustomDiagnostic {
     message: String,
     secondaries: Vec<CustomLabel>,
@@ -41,7 +41,7 @@ impl CustomDiagnostic {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 struct CustomLabel {
     pub message: String,
     pub span: Span,

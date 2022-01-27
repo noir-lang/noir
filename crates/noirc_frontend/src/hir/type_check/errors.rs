@@ -5,7 +5,7 @@ use thiserror::Error;
 use crate::node_interner::NodeInterner;
 use crate::{hir_def::expr::HirBinaryOp, Type};
 
-#[derive(Error, Debug, Clone)]
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum TypeCheckError {
     #[error("operator {op:?} cannot be used in a {place:?}")]
     OpCannotBeUsed {

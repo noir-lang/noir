@@ -21,13 +21,17 @@ pub struct ModCollector<'a> {
 
 impl<'a> ModCollector<'a> {
     /// Walk a module and collect it's definitions
-    pub fn collect_defs(&mut self, context: &mut Context) -> Result<(), Vec<CollectedErrors>> {
+    pub fn collect_defs(&mut self, context: &mut Context) -> Vec<CollectedErrors> {
         // First resolve the module declarations
         // XXX: to avoid clone, possibly destructure the AST and pass in `self` for mod collector instead of `&mut self`
         // Alternatively, pass in the AST as a reference
-        for decl in self.ast.module_decls.clone() {
-            self.parse_module_declaration(context, &decl)?
-        }
+        let mut errors = self
+            .ast
+            .module_decls
+            .clone()
+            .into_iter()
+            .flat_map(|decl| self.parse_module_declaration(context, &decl))
+            .collect::<Vec<_>>();
 
         // Then add the imports to defCollector to resolve once all modules in the hierarchy have been resolved
         for import in &self.ast.imports {
@@ -38,7 +42,7 @@ impl<'a> ModCollector<'a> {
             });
         }
 
-        let mut errors = self.collect_structs(context);
+        let mut errors_in_same_file = self.collect_structs(context);
 
         // Then add functions to functionArena
         let mut unresolved_functions = UnresolvedFunctions {
@@ -73,22 +77,22 @@ impl<'a> ModCollector<'a> {
                     second_def,
                 };
 
-                errors.push(err.to_diagnostic());
+                errors_in_same_file.push(err.to_diagnostic());
             }
         }
 
-        if !errors.is_empty() {
-            Err(vec![CollectedErrors {
+        if !errors_in_same_file.is_empty() {
+            errors.push(CollectedErrors {
                 file_id: self.file_id,
-                errors,
-            }])
-        } else {
-            self.def_collector
-                .collected_functions
-                .push(unresolved_functions);
-
-            Ok(())
+                errors: errors_in_same_file,
+            });
         }
+
+        self.def_collector
+            .collected_functions
+            .push(unresolved_functions);
+
+        errors
     }
 
     /// Collect any struct definitions declared within the ast.
@@ -128,34 +132,38 @@ impl<'a> ModCollector<'a> {
         &mut self,
         context: &mut Context,
         mod_name: &Ident,
-    ) -> Result<(), Vec<CollectedErrors>> {
-        let child_file_id = context
+    ) -> Vec<CollectedErrors> {
+        let child_file_id = match context
             .file_manager
             .resolve_path(self.file_id, &mod_name.0.contents)
-            .map_err(|_| {
+        {
+            Ok(child_file_id) => child_file_id,
+            Err(_) => {
                 let err = DefCollectorErrorKind::UnresolvedModuleDecl {
                     mod_name: mod_name.clone(),
                 };
 
-                vec![CollectedErrors {
+                return vec![CollectedErrors {
                     file_id: self.file_id,
                     errors: vec![err.to_diagnostic()],
-                }]
-            })?;
+                }];
+            }
+        };
 
         // Parse the AST for the module we just found and then recursively look for it's defs
-        let ast = parse_file(&mut context.file_manager, child_file_id)?;
+        let (ast, errors) = parse_file(&mut context.file_manager, child_file_id);
 
         // Add module into def collector and get a ModuleId
-        let child_mod_id = self.push_child_module(mod_name, child_file_id)?;
-
-        ModCollector {
-            def_collector: self.def_collector,
-            ast,
-            file_id: child_file_id,
-            module_id: child_mod_id,
+        match self.push_child_module(mod_name, child_file_id) {
+            Err(errors) => errors,
+            Ok(child_mod_id) => ModCollector {
+                def_collector: self.def_collector,
+                ast,
+                file_id: child_file_id,
+                module_id: child_mod_id,
+            }
+            .collect_defs(context),
         }
-        .collect_defs(context)
     }
 
     pub fn push_child_module(

@@ -17,9 +17,7 @@ use crate::{
 use chumsky::prelude::*;
 use noirc_errors::Spanned;
 
-/// TODO: We can leverage 'parse_recovery' and return both
-/// (ParsedModule, Vec<ParseError>) instead of only one
-pub fn parse_program(program: &str) -> Result<ParsedModule, Vec<ParserError>> {
+pub fn parse_program(program: &str) -> (ParsedModule, Vec<ParserError>) {
     let lexer = Lexer::new(program);
 
     const APPROX_CHARS_PER_FUNCTION: usize = 250;
@@ -31,24 +29,21 @@ pub fn parse_program(program: &str) -> Result<ParsedModule, Vec<ParserError>> {
         .then_ignore(just(Token::EOF));
 
     let (tree, mut parsing_errors) = parser.parse_recovery(tokens);
-    match tree {
-        Some(statements) => {
-            for statement in statements {
-                match statement {
-                    TopLevelStatement::Function(f) => program.push_function(f),
-                    TopLevelStatement::Module(m) => program.push_module_decl(m),
-                    TopLevelStatement::Import(i) => program.push_import(i),
-                    TopLevelStatement::Struct(s) => program.push_type(s),
-                }
+    let mut errors: Vec<_> = lexing_errors.into_iter().map(Into::into).collect();
+    errors.append(&mut parsing_errors);
+
+    if let Some(statements) = tree {
+        for statement in statements {
+            match statement {
+                TopLevelStatement::Function(f) => program.push_function(f),
+                TopLevelStatement::Module(m) => program.push_module_decl(m),
+                TopLevelStatement::Import(i) => program.push_import(i),
+                TopLevelStatement::Struct(s) => program.push_type(s),
             }
-            Ok(program)
-        }
-        None => {
-            let mut errors: Vec<_> = lexing_errors.into_iter().map(Into::into).collect();
-            errors.append(&mut parsing_errors);
-            Err(errors)
         }
     }
+
+    (program, errors)
 }
 
 fn top_level_statement() -> impl NoirParser<TopLevelStatement> {

@@ -41,22 +41,19 @@ pub struct CrateDefMap {
 
 impl CrateDefMap {
     /// Collect all definitions in the crate
-    pub fn collect_defs(
-        crate_id: CrateId,
-        context: &mut Context,
-    ) -> Result<(), Vec<CollectedErrors>> {
+    pub fn collect_defs(crate_id: CrateId, context: &mut Context) -> Vec<CollectedErrors> {
         // Check if this Crate has already been compiled
         // XXX: There is probably a better alternative for this.
         // Without this check, the compiler will panic as it does not
         // expect the same crate to be processed twice. It would not
         // make the implementation wrong, if the same crate was processed twice, it just makes it slow.
         if context.def_map(crate_id).is_some() {
-            return Ok(());
+            return vec![];
         }
 
         // First parse the root file.
         let root_file_id = context.crate_graph[crate_id].root_file_id;
-        let ast = parse_file(&mut context.file_manager, root_file_id)?;
+        let (ast, mut errors) = parse_file(&mut context.file_manager, root_file_id);
 
         // Allocate a default Module for the root, giving it a ModuleId
         let mut modules: Arena<ModuleData> = Arena::default();
@@ -73,8 +70,9 @@ impl CrateDefMap {
         };
 
         // Now we want to populate the CrateDefMap using the DefCollector
-        //
-        DefCollector::collect(def_map, context, ast, root_file_id)
+        let mut name_resolution_errors = DefCollector::collect(def_map, context, ast, root_file_id);
+        errors.append(&mut name_resolution_errors);
+        errors
     }
 
     pub fn root(&self) -> LocalModuleId {
@@ -105,22 +103,13 @@ impl CrateDefMap {
 }
 
 /// Given a FileId, fetch the File, from the FileManager and parse it's content
-pub fn parse_file(
-    fm: &mut FileManager,
-    file_id: FileId,
-) -> Result<ParsedModule, Vec<CollectedErrors>> {
+pub fn parse_file(fm: &mut FileManager, file_id: FileId) -> (ParsedModule, Vec<CollectedErrors>) {
     let file = fm.fetch_file(file_id);
-    match parse_program(file.get_source()) {
-        Ok(prog) => Ok(prog),
-        Err(errs) => {
-            let file_errs = CollectedErrors {
-                file_id,
-                errors: errs.into_iter().map(|err| err.to_diagnostic()).collect(),
-            };
+    let (program, errors) = parse_program(file.get_source());
+    let errors = errors.into_iter().map(|err| err.to_diagnostic()).collect();
 
-            Err(vec![file_errs])
-        }
-    }
+    let file_errs = CollectedErrors { file_id, errors };
+    (program, vec![file_errs])
 }
 
 impl std::ops::Index<LocalModuleId> for CrateDefMap {

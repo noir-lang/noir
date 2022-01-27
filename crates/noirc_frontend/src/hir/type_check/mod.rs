@@ -13,7 +13,7 @@ use crate::node_interner::{FuncId, NodeInterner};
 
 /// Type checks a function and assigns the
 /// appropriate types to expressions in a side table
-pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Result<(), TypeCheckError> {
+pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<TypeCheckError> {
     // First fetch the metadata and add the types for parameters
     // Note that we do not look for the defining Identifier for a parameter,
     // since we know that it is the parameter itself
@@ -30,14 +30,14 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Result<(
     let func_as_expr = hir_func.as_expr();
 
     // Convert the function to a block expression and then type check the block expr
-    type_check_expression(interner, func_as_expr)?;
+    let mut errors = type_check_expression(interner, func_as_expr);
 
     // Check declared return type and actual return type
     let function_last_type = interner.id_type(func_as_expr);
 
     if !can_ignore_ret && (&function_last_type != declared_return_type) {
         let func_span = interner.id_span(func_as_expr); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
-        return Err(TypeCheckError::TypeMismatch {
+        errors.push(TypeCheckError::TypeMismatch {
             expected_typ: declared_return_type.to_string(),
             expr_typ: function_last_type.to_string(),
             expr_span: func_span,
@@ -46,22 +46,22 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Result<(
 
     // Return type cannot be public
     if declared_return_type.is_public() {
-        return Err(TypeCheckError::PublicReturnType {
+        errors.push(TypeCheckError::PublicReturnType {
             typ: declared_return_type.clone(),
             span: interner.id_span(func_as_expr),
         });
     }
 
-    Ok(())
+    errors
 }
 
 // XXX: These tests are all manual currently.
 /// We can either build a test apparatus or pass raw code through the resolver
 #[cfg(test)]
 mod test {
-    use std::collections::HashMap;
+    use std::{collections::HashMap, ops::DivAssign};
 
-    use noirc_errors::{Span, Spanned};
+    use noirc_errors::{DiagnosableError, Span, Spanned};
 
     use crate::hir_def::{
         expr::{
@@ -138,8 +138,10 @@ mod test {
         };
         interner.push_fn_meta(func_meta, func_id);
 
-        super::type_check_func(&mut interner, func_id).unwrap();
+        let errors = super::type_check_func(&mut interner, func_id);
+        assert!(errors.is_empty());
     }
+
     #[test]
     fn basic_priv_simplified() {
         let src = r#"
@@ -234,8 +236,12 @@ mod test {
     // This function assumes that there is only one function and this is the
     // func id that is returned
     fn type_check_src_code(src: &str, func_namespace: Vec<String>) {
-        let program = parse_program(src).unwrap();
+        let (program, errors) = parse_program(src);
         let mut interner = NodeInterner::default();
+
+        // Using assert_eq here instead of assert(errors.is_empty()) displays
+        // the whole vec if the assert fails rather than just two booleans
+        assert_eq!(errors, vec![]);
 
         let mut func_ids = Vec::new();
         for _ in 0..func_namespace.len() {
@@ -254,7 +260,9 @@ mod test {
             .into_iter()
             .map(|nf| {
                 let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps);
-                resolver.resolve_function(nf).unwrap()
+                let (hir_func, func_meta, resolver_errors) = resolver.resolve_function(nf);
+                assert_eq!(resolver_errors, vec![]);
+                (hir_func, func_meta)
             })
             .collect();
 
@@ -264,6 +272,7 @@ mod test {
         }
 
         // Type check section
-        super::type_check_func(&mut interner, func_ids.first().cloned().unwrap()).unwrap();
+        let errors = super::type_check_func(&mut interner, func_ids.first().cloned().unwrap());
+        assert_eq!(errors, vec![]);
     }
 }

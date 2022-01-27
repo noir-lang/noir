@@ -16,7 +16,9 @@ use super::errors::TypeCheckError;
 pub(crate) fn type_check_expression(
     interner: &mut NodeInterner,
     expr_id: &ExprId,
-) -> Result<(), TypeCheckError> {
+) -> Vec<TypeCheckError> {
+    let mut errors = vec![];
+
     match interner.expression(expr_id) {
         HirExpression::Ident(ident_id) => {
             // If an Ident is used in an expression, it cannot be a declaration statement
@@ -30,7 +32,7 @@ pub(crate) fn type_check_expression(
             match literal {
                 HirLiteral::Array(arr) => {
                     // Type check the contents of the array
-                    type_check_list_expression(interner, &arr.contents)?;
+                    errors.extend(type_check_list_expression(interner, &arr.contents));
 
                     // Retrieve type for each expression
                     let arr_types: Vec<_> = arr
@@ -56,7 +58,7 @@ pub(crate) fn type_check_expression(
                     // An array with one element will be homogeneous
                     if arr_types.len() == 1 {
                         interner.push_expr_type(expr_id, arr_type);
-                        return Ok(());
+                        return errors;
                     }
 
                     // To check if an array with more than one element
@@ -82,10 +84,11 @@ pub(crate) fn type_check_expression(
                                 second_type: right_type.to_string(),
                                 second_index: index + 1,
                             };
-                            let err = err
-                                .add_context("elements in an array must have the same type")
-                                .unwrap();
-                            return Err(err);
+
+                            errors.push(
+                                err.add_context("elements in an array must have the same type")
+                                    .unwrap(),
+                            );
                         }
                     }
 
@@ -107,20 +110,19 @@ pub(crate) fn type_check_expression(
 
         HirExpression::Infix(infix_expr) => {
             // The type of the infix expression must be looked up from a type table
-
-            type_check_expression(interner, &infix_expr.lhs)?;
+            errors.extend(type_check_expression(interner, &infix_expr.lhs));
             let lhs_type = interner.id_type(&infix_expr.lhs);
 
-            type_check_expression(interner, &infix_expr.rhs)?;
+            errors.extend(type_check_expression(interner, &infix_expr.rhs));
             let rhs_type = interner.id_type(&infix_expr.rhs);
 
             match infix_operand_type_rules(&lhs_type, &infix_expr.operator, &rhs_type) {
                 Ok(typ) => interner.push_expr_type(expr_id, typ),
-                Err(string) => {
+                Err(msg) => {
                     let lhs_span = interner.expr_span(&infix_expr.lhs);
                     let rhs_span = interner.expr_span(&infix_expr.rhs);
-                    return Err(TypeCheckError::Unstructured {
-                        msg: string,
+                    errors.push(TypeCheckError::Unstructured {
+                        msg,
                         span: lhs_span.merge(rhs_span),
                     });
                 }
@@ -137,7 +139,7 @@ pub(crate) fn type_check_expression(
                 Type::Array(_, _, base_type) => interner.push_expr_type(expr_id, *base_type),
                 typ => {
                     let span = interner.id_span(&index_expr.collection_name);
-                    return Err(TypeCheckError::TypeMismatch {
+                    errors.push(TypeCheckError::TypeMismatch {
                         expected_typ: "Array".to_owned(),
                         expr_typ: typ.to_string(),
                         expr_span: span,
@@ -152,25 +154,27 @@ pub(crate) fn type_check_expression(
             let param_len = func_meta.parameters.len();
             let arg_len = call_expr.arguments.len();
 
+            // Type check arguments
+            let mut arg_types = Vec::with_capacity(call_expr.arguments.len());
+            for arg_expr in call_expr.arguments.iter() {
+                errors.extend(type_check_expression(interner, arg_expr));
+                arg_types.push(interner.id_type(arg_expr))
+            }
+
             if param_len != arg_len {
                 let span = interner.expr_span(expr_id);
-                return Err(TypeCheckError::ArityMisMatch {
+                errors.push(TypeCheckError::ArityMisMatch {
                     expected: param_len as u16,
                     found: arg_len as u16,
                     span,
                 });
             }
 
-            // Type check arguments
-            let mut arg_types = Vec::with_capacity(call_expr.arguments.len());
-            for arg_expr in call_expr.arguments.iter() {
-                type_check_expression(interner, arg_expr)?;
-                arg_types.push(interner.id_type(arg_expr))
-            }
-
-            // Check for argument param equality
+            // Check for argument param equality.
+            // In the case where we previously issued an error for a parameter count mismatch
+            // this will only check up until the shorter of the two Vecs.
             for (param, arg) in func_meta.parameters.iter().zip(arg_types) {
-                check_param_argument(interner, *expr_id, param, &arg)?
+                errors.extend(check_param_argument(interner, *expr_id, param, &arg));
             }
 
             // The type of the call expression is the return type of the function being called
@@ -178,7 +182,7 @@ pub(crate) fn type_check_expression(
         }
         HirExpression::Cast(cast_expr) => {
             // Evaluate the LHS
-            type_check_expression(interner, &cast_expr.lhs)?;
+            errors.extend(type_check_expression(interner, &cast_expr.lhs));
             let _lhs_type = interner.id_type(cast_expr.lhs);
 
             // Then check that the type_of(LHS) can be casted to the RHS
@@ -189,35 +193,34 @@ pub(crate) fn type_check_expression(
             interner.push_expr_type(expr_id, cast_expr.r#type);
         }
         HirExpression::For(for_expr) => {
-            type_check_expression(interner, &for_expr.start_range)?;
-            type_check_expression(interner, &for_expr.end_range)?;
+            errors.extend(type_check_expression(interner, &for_expr.start_range));
+            errors.extend(type_check_expression(interner, &for_expr.end_range));
 
             let start_range_type = interner.id_type(&for_expr.start_range);
             let end_range_type = interner.id_type(&for_expr.end_range);
 
             if start_range_type != Type::FieldElement(FieldElementType::Constant) {
-                let span = interner.expr_span(&for_expr.start_range);
-                let mut err = TypeCheckError::TypeCannotBeUsed {
-                    typ: start_range_type,
-                    place: "for loop",
-                    span,
-                };
-                err = err
+                errors.push(
+                    TypeCheckError::TypeCannotBeUsed {
+                        typ: start_range_type.clone(),
+                        place: "for loop",
+                        span: interner.expr_span(&for_expr.start_range),
+                    }
                     .add_context("currently the range in a loop must be constant literal")
-                    .unwrap();
-                return Err(err);
+                    .unwrap(),
+                );
             }
+
             if end_range_type != Type::FieldElement(FieldElementType::Constant) {
-                let span = interner.expr_span(&for_expr.end_range);
-                let mut err = TypeCheckError::TypeCannotBeUsed {
-                    typ: end_range_type,
-                    place: "for loop",
-                    span,
-                };
-                err = err
+                errors.push(
+                    TypeCheckError::TypeCannotBeUsed {
+                        typ: end_range_type.clone(),
+                        place: "for loop",
+                        span: interner.expr_span(&for_expr.end_range),
+                    }
                     .add_context("currently the range in a loop must be constant literal")
-                    .unwrap();
-                return Err(err);
+                    .unwrap(),
+                );
             }
 
             // This check is only needed, if we decide to not have constant range bounds.
@@ -227,7 +230,7 @@ pub(crate) fn type_check_expression(
             // The type of the identifier is equal to the type of the ranges
             interner.push_ident_type(&for_expr.identifier, start_range_type);
 
-            type_check_expression(interner, &for_expr.block)?;
+            errors.extend(type_check_expression(interner, &for_expr.block));
             let last_type = interner.id_type(for_expr.block);
             // XXX: In the release before this, we were using the start and end range to determine the number
             // of iterations and marking the type as Fixed. Is this still necessary?
@@ -245,8 +248,9 @@ pub(crate) fn type_check_expression(
         }
         HirExpression::Block(block_expr) => {
             for stmt in block_expr.statements() {
-                super::stmt::type_check(interner, stmt)?
+                errors.extend(super::stmt::type_check(interner, stmt));
             }
+
             let last_stmt_type = match block_expr.statements().last() {
                 None => Type::Unit,
                 Some(stmt) => extract_ret_type(interner, stmt),
@@ -279,12 +283,12 @@ pub(crate) fn type_check_expression(
                 // Sanity check to ensure we're matching against the same field
                 assert_eq!(param_name, &interner.ident(&arg_id));
 
-                type_check_expression(interner, &arg)?;
+                errors.extend(type_check_expression(interner, &arg));
                 let arg_type = interner.id_type(arg);
 
                 if !param_type.is_super_type_of(&arg_type) {
                     let span = interner.expr_span(expr_id);
-                    return Err(TypeCheckError::TypeMismatch {
+                    errors.push(TypeCheckError::TypeMismatch {
                         expected_typ: param_type.to_string(),
                         expr_typ: arg_type.to_string(),
                         expr_span: span,
@@ -292,9 +296,12 @@ pub(crate) fn type_check_expression(
                 }
             }
         }
-        HirExpression::MemberAccess(access) => check_member_access(access, expr_id, interner)?,
-    };
-    Ok(())
+        HirExpression::MemberAccess(access) => {
+            errors.extend(check_member_access(access, expr_id, interner));
+        }
+    }
+
+    errors
 }
 
 // Given a binary operator and another type. This method will produce the
@@ -359,21 +366,22 @@ pub fn check_member_access(
     access: expr::HirMemberAccess,
     expr_id: &ExprId,
     interner: &mut NodeInterner,
-) -> Result<(), TypeCheckError> {
-    type_check_expression(interner, &access.lhs)?;
+) -> Vec<TypeCheckError> {
+    let mut errors = type_check_expression(interner, &access.lhs);
     let lhs_type = interner.id_type(&access.lhs);
 
     if let Type::Struct(s) = &lhs_type {
         if let Some(field) = s.fields.iter().find(|(name, _)| name == &access.rhs) {
             interner.push_expr_type(expr_id, field.1.clone());
-            return Ok(());
+            return errors;
         }
     }
 
-    Err(TypeCheckError::Unstructured {
+    errors.push(TypeCheckError::Unstructured {
         msg: format!("Type {} has no member named {}", lhs_type, access.rhs),
         span: interner.expr_span(&access.lhs),
-    })
+    });
+    errors
 }
 
 fn field_type_rules(lhs: &FieldElementType, rhs: &FieldElementType) -> FieldElementType {
@@ -395,23 +403,18 @@ fn check_param_argument(
     expr_id: ExprId,
     param: &Param,
     arg_type: &Type,
-) -> Result<(), TypeCheckError> {
+) -> Option<TypeCheckError> {
     let param_type = &param.1;
 
     if arg_type.is_variable_sized_array() {
         unreachable!("arg type type cannot be a variable sized array. This is not supported.")
     }
 
-    if !param_type.is_super_type_of(arg_type) {
-        let span = interner.expr_span(&expr_id);
-        return Err(TypeCheckError::TypeMismatch {
-            expected_typ: param_type.to_string(),
-            expr_typ: arg_type.to_string(),
-            expr_span: span,
-        });
-    }
-
-    Ok(())
+    (!param_type.is_super_type_of(arg_type)).then(|| TypeCheckError::TypeMismatch {
+        expected_typ: param_type.to_string(),
+        expr_typ: arg_type.to_string(),
+        expr_span: interner.expr_span(&expr_id),
+    })
 }
 
 fn extract_ret_type(interner: &NodeInterner, stmt_id: &StmtId) -> Type {
@@ -434,19 +437,11 @@ fn extract_ret_type(interner: &NodeInterner, stmt_id: &StmtId) -> Type {
 fn type_check_list_expression(
     interner: &mut NodeInterner,
     exprs: &[ExprId],
-) -> Result<(), TypeCheckError> {
+) -> Vec<TypeCheckError> {
     assert!(!exprs.is_empty());
 
-    let (_, errors): (Vec<_>, Vec<_>) = exprs
+    exprs
         .iter()
-        .map(|arg| type_check_expression(interner, arg))
-        .partition(Result::is_ok);
-
-    let errors: Vec<TypeCheckError> = errors.into_iter().map(Result::unwrap_err).collect();
-
-    if !errors.is_empty() {
-        return Err(TypeCheckError::MultipleErrors(errors));
-    }
-
-    Ok(())
+        .flat_map(|arg| type_check_expression(interner, arg))
+        .collect()
 }
