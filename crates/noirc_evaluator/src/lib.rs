@@ -514,7 +514,7 @@ impl<'a> Evaluator<'a> {
         let mut contents: Vec<Object> = Vec::new();
 
         for indice in ranged_object {
-            env.start_for_loop();
+            env.start_scope();
 
             // Add indice to environment
             let variable_name = self.context.def_interner.ident_name(&for_expr.identifier);
@@ -527,7 +527,7 @@ impl<'a> Evaluator<'a> {
                 .map_err(|err| err.remove_span())?;
             contents.push(return_typ);
 
-            env.end_for_loop();
+            env.end_scope();
         }
         let length = contents.len() as u128;
 

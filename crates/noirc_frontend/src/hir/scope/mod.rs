@@ -165,13 +165,14 @@ impl<K: std::hash::Hash + Eq + Clone, V> ScopeForest<K, V> {
             .expect("ice: expected a scope tree, however none was found")
     }
 
-    /// Starting a for loop requires access to the outside scope.
-    /// Once the for loop has finished, we remove it from the scope tree
-    pub fn start_for_loop(&mut self) {
+    /// The beginning of a scope always correlates with the start of a block {}.
+    /// This can be in if expressions, for loops, or functions.
+    pub fn start_scope(&mut self) {
         self.extend_current_scope_tree()
     }
-    /// Ending a for loop requires removal of it's scope from the current scope tree
-    pub fn end_for_loop(&mut self) -> Scope<K, V> {
+
+    /// Ends the current scope - this should correspond with the end of a BlockExpression.
+    pub fn end_scope(&mut self) -> Scope<K, V> {
         self.remove_scope_tree_extension()
     }
 }

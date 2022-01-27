@@ -19,6 +19,7 @@ struct ResolverMeta {
 use std::collections::HashMap;
 
 use crate::graph::CrateId;
+use crate::hir_def::expr::HirIfExpression;
 use crate::hir_def::stmt::HirAssignStatement;
 use crate::node_interner::{ExprId, FuncId, IdentId, NodeInterner, StmtId};
 use crate::{
@@ -402,12 +403,12 @@ impl<'a> Resolver<'a> {
                 let start_range = self.resolve_expression(for_expr.start_range);
                 let end_range = self.resolve_expression(for_expr.end_range);
 
-                self.scopes.start_for_loop();
+                self.scopes.start_scope();
 
                 let identifier = self.add_variable_decl(for_expr.identifier);
 
                 let block_id = self.resolve_block(for_expr.block);
-                let for_scope = self.scopes.end_for_loop();
+                let for_scope = self.scopes.end_scope();
 
                 self.check_for_unused_variables_in_scope_tree(for_scope.into());
 
@@ -419,7 +420,19 @@ impl<'a> Resolver<'a> {
                 };
                 self.interner.push_expr(HirExpression::For(expr))
             }
-            ExpressionKind::If(_) => todo!("If statements are currently not supported"),
+            ExpressionKind::If(if_expr) => {
+
+                let condition = self.resolve_expression(if_expr.condition);
+                let consequence = self.resolve_block(if_expr.consequence);
+                let alternative = if_expr.alternative.map(|e| self.resolve_block(e));
+
+                let expr = HirIfExpression {
+                    condition,
+                    consequence,
+                    alternative,
+                };
+                self.interner.push_expr(HirExpression::If(expr))
+            },
             ExpressionKind::Index(indexed_expr) => {
                 let collection_name = self.find_variable(&indexed_expr.collection_name);
                 let index = self.resolve_expression(indexed_expr.index);
@@ -452,14 +465,16 @@ impl<'a> Resolver<'a> {
     }
 
     fn resolve_block(&mut self, block_expr: BlockExpression) -> ExprId {
+        self.scopes.start_scope();
+
         let stmts: Vec<_> = block_expr
             .0
             .into_iter()
             .map(|stmt| self.intern_stmt(stmt))
             .collect();
 
+        self.scopes.end_scope();
         let hir_block = HirBlockExpression(stmts);
-
         self.interner.push_expr(HirExpression::Block(hir_block))
     }
 }

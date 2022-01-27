@@ -15,7 +15,7 @@ pub enum HirExpression {
     Cast(HirCastExpression),
     Predicate(HirInfixExpression),
     For(HirForExpression),
-    If(IfExpression),
+    If(HirIfExpression),
 }
 
 impl HirExpression {
@@ -142,7 +142,7 @@ pub struct HirInfixExpression {
 }
 
 #[derive(Debug, Clone)]
-pub struct IfExpression {
+pub struct HirIfExpression {
     pub condition: ExprId,
     pub consequence: ExprId,
     pub alternative: Option<ExprId>,
