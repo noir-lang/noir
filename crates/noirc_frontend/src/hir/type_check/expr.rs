@@ -16,7 +16,7 @@ use super::errors::TypeCheckError;
 pub(crate) fn type_check_expression(
     interner: &mut NodeInterner,
     expr_id: &ExprId,
-    ) -> Vec<TypeCheckError> {
+) -> Vec<TypeCheckError> {
     let mut errors = vec![];
 
     match interner.expression(expr_id) {
@@ -76,14 +76,16 @@ pub(crate) fn type_check_expression(
                         if left_type != right_type {
                             let left_span = interner.expr_span(&arr.contents[index]);
                             let right_span = interner.expr_span(&arr.contents[index + 1]);
-                            errors.push(TypeCheckError::NonHomogeneousArray {
-                                first_span: left_span,
-                                first_type: left_type.to_string(),
-                                first_index: index,
-                                second_span: right_span,
-                                second_type: right_type.to_string(),
-                                second_index: index + 1,
-                            }.add_context("elements in an array must have the same type")
+                            errors.push(
+                                TypeCheckError::NonHomogeneousArray {
+                                    first_span: left_span,
+                                    first_type: left_type.to_string(),
+                                    first_index: index,
+                                    second_span: right_span,
+                                    second_type: right_type.to_string(),
+                                    second_index: index + 1,
+                                }
+                                .add_context("elements in an array must have the same type")
                                 .unwrap(),
                             );
                         }

@@ -153,12 +153,14 @@ fn type_check_constrain_stmt(
 
     // Since constrain statements are not expressions, we do not allow predicate or non-comparison binary operators
     if !stmt.0.operator.kind.is_comparator() {
-        errors.push(TypeCheckError::OpCannotBeUsed {
-            op: stmt.0.operator,
-            place: "constrain statement",
-            span: stmt.0.operator.span,
-        }.add_context("only comparison operators can be used in a constrain statement")
-            .unwrap()
+        errors.push(
+            TypeCheckError::OpCannotBeUsed {
+                op: stmt.0.operator,
+                place: "constrain statement",
+                span: stmt.0.operator.span,
+            }
+            .add_context("only comparison operators can be used in a constrain statement")
+            .unwrap(),
         );
     };
 
