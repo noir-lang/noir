@@ -16,17 +16,17 @@ use super::errors::TypeCheckError;
 pub(crate) fn type_check_expression(
     interner: &mut NodeInterner,
     expr_id: &ExprId,
-) -> Vec<TypeCheckError> {
+    ) -> Vec<TypeCheckError> {
     let mut errors = vec![];
 
     match interner.expression(expr_id) {
         HirExpression::Ident(ident_id) => {
             // If an Ident is used in an expression, it cannot be a declaration statement
-            let ident_def_id = interner.ident_def(&ident_id).expect("ice: all identifiers should have been resolved. This should have been caught in the resolver");
-
-            // The type of this Ident expression is the type of the Identifier which defined it
-            let typ = interner.id_type(ident_def_id);
-            interner.push_expr_type(expr_id, typ);
+            if let Some(ident_def_id) = interner.ident_def(&ident_id) {
+                // The type of this Ident expression is the type of the Identifier which defined it
+                let typ = interner.id_type(ident_def_id);
+                interner.push_expr_type(expr_id, typ);
+            }
         }
         HirExpression::Literal(literal) => {
             match literal {
@@ -76,18 +76,15 @@ pub(crate) fn type_check_expression(
                         if left_type != right_type {
                             let left_span = interner.expr_span(&arr.contents[index]);
                             let right_span = interner.expr_span(&arr.contents[index + 1]);
-                            let err = TypeCheckError::NonHomogeneousArray {
+                            errors.push(TypeCheckError::NonHomogeneousArray {
                                 first_span: left_span,
                                 first_type: left_type.to_string(),
                                 first_index: index,
                                 second_span: right_span,
                                 second_type: right_type.to_string(),
                                 second_index: index + 1,
-                            };
-
-                            errors.push(
-                                err.add_context("elements in an array must have the same type")
-                                    .unwrap(),
+                            }.add_context("elements in an array must have the same type")
+                                .unwrap(),
                             );
                         }
                     }
@@ -129,23 +126,21 @@ pub(crate) fn type_check_expression(
             }
         }
         HirExpression::Index(index_expr) => {
-            let ident_def = interner
-                .ident_def(&index_expr.collection_name)
-                .expect("ice : all identifiers should have a def");
-            let collection_type = interner.id_type(&ident_def);
-            match collection_type {
-                // XXX: We can check the array bounds here also, but it may be better to constant fold first
-                // and have ConstId instead of ExprId for constants
-                Type::Array(_, _, base_type) => interner.push_expr_type(expr_id, *base_type),
-                typ => {
-                    let span = interner.id_span(&index_expr.collection_name);
-                    errors.push(TypeCheckError::TypeMismatch {
-                        expected_typ: "Array".to_owned(),
-                        expr_typ: typ.to_string(),
-                        expr_span: span,
-                    });
+            if let Some(ident_def) = interner.ident_def(&index_expr.collection_name) {
+                match interner.id_type(&ident_def) {
+                    // XXX: We can check the array bounds here also, but it may be better to constant fold first
+                    // and have ConstId instead of ExprId for constants
+                    Type::Array(_, _, base_type) => interner.push_expr_type(expr_id, *base_type),
+                    typ => {
+                        let span = interner.id_span(&index_expr.collection_name);
+                        errors.push(TypeCheckError::TypeMismatch {
+                            expected_typ: "Array".to_owned(),
+                            expr_typ: typ.to_string(),
+                            expr_span: span,
+                        });
+                    }
                 }
-            };
+            }
         }
         HirExpression::Call(call_expr) => {
             let func_meta = interner.function_meta(&call_expr.func_id);

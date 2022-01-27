@@ -59,9 +59,9 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
 /// We can either build a test apparatus or pass raw code through the resolver
 #[cfg(test)]
 mod test {
-    use std::{collections::HashMap, ops::DivAssign};
+    use std::collections::HashMap;
 
-    use noirc_errors::{DiagnosableError, Span, Spanned};
+    use noirc_errors::{Span, Spanned};
 
     use crate::hir_def::{
         expr::{

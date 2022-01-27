@@ -52,23 +52,23 @@ fn type_check_assign_stmt(
     interner: &mut NodeInterner,
     assign_stmt: HirAssignStatement,
 ) -> Vec<TypeCheckError> {
+    let mut errors = type_check_expression(interner, &assign_stmt.expression);
+
     // To get the type of the identifier, we need to get the identifier which defined it
     // once a variable has a type, it cannot be changed
-    let ident_def = interner
-        .ident_def(&assign_stmt.identifier)
-        .expect("all identifiers that define a variable, should have a type during type checking");
-    let identifier_type = interner.id_type(&ident_def);
+    if let Some(ident_def) = interner.ident_def(&assign_stmt.identifier) {
+        let identifier_type = interner.id_type(&ident_def);
 
-    let mut errors = type_check_expression(interner, &assign_stmt.expression);
-    let expr_type = interner.id_type(&assign_stmt.expression);
+        let expr_type = interner.id_type(&assign_stmt.expression);
 
-    if expr_type != identifier_type {
-        let expr_span = interner.expr_span(&assign_stmt.expression);
-        errors.push(TypeCheckError::TypeMismatch {
-            expected_typ: identifier_type.to_string(),
-            expr_typ: expr_type.to_string(),
-            expr_span,
-        });
+        if expr_type != identifier_type {
+            let expr_span = interner.expr_span(&assign_stmt.expression);
+            errors.push(TypeCheckError::TypeMismatch {
+                expected_typ: identifier_type.to_string(),
+                expr_typ: expr_type.to_string(),
+                expr_span,
+            });
+        }
     }
 
     errors
@@ -153,32 +153,27 @@ fn type_check_constrain_stmt(
 
     // Since constrain statements are not expressions, we do not allow predicate or non-comparison binary operators
     if !stmt.0.operator.kind.is_comparator() {
-        let span = stmt.0.operator.span;
-        let err = TypeCheckError::OpCannotBeUsed {
+        errors.push(TypeCheckError::OpCannotBeUsed {
             op: stmt.0.operator,
             place: "constrain statement",
-            span,
-        };
-        errors.push(
-            err.add_context("only comparison operators can be used in a constrain statement")
-                .unwrap(),
+            span: stmt.0.operator.span,
+        }.add_context("only comparison operators can be used in a constrain statement")
+            .unwrap()
         );
     };
 
     if !lhs_type.can_be_used_in_constrain() {
-        let span = interner.expr_span(&stmt.0.lhs);
         errors.push(TypeCheckError::TypeCannotBeUsed {
             typ: lhs_type,
             place: "constrain statement",
-            span,
+            span: interner.expr_span(&stmt.0.lhs),
         });
     }
     if !rhs_type.can_be_used_in_constrain() {
-        let span = interner.expr_span(&stmt.0.rhs);
         errors.push(TypeCheckError::TypeCannotBeUsed {
             typ: rhs_type,
             place: "constrain statement",
-            span,
+            span: interner.expr_span(&stmt.0.rhs),
         });
     }
 
