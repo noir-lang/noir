@@ -154,9 +154,11 @@ pub(crate) fn type_check_expression(
             }
 
             // Type check arguments
-            let arg_types = call_expr.arguments.iter().map(|arg_expr| {
-                type_check_expression(interner, arg_expr)
-            }).collect::<Result<Vec<_>, _>>()?;
+            let arg_types = call_expr
+                .arguments
+                .iter()
+                .map(|arg_expr| type_check_expression(interner, arg_expr))
+                .collect::<Result<Vec<_>, _>>()?;
 
             // Check for argument param equality
             for (param, arg) in func_meta.parameters.iter().zip(arg_types) {
@@ -266,11 +268,15 @@ pub(crate) fn type_check_expression(
 
                         if then_type == Type::Unit {
                             err = err
-                                .add_context("Are you missing a semicolon at the end of your 'else' branch?")
+                                .add_context(
+                                    "Are you missing a semicolon at the end of your 'else' branch?",
+                                )
                                 .unwrap();
                         } else if else_type == Type::Unit {
                             err = err
-                                .add_context("Are you missing a semicolon at the end of your 'then' branch?")
+                                .add_context(
+                                    "Are you missing a semicolon at the end of your 'then' branch?",
+                                )
                                 .unwrap();
                         } else {
                             err = err
@@ -302,7 +308,7 @@ pub fn infix_operand_type_rules(
         return comparator_operand_type_rules(lhs_type, other);
     }
 
-    use { Type::*, FieldElementType::* };
+    use {FieldElementType::*, Type::*};
     match (lhs_type, other)  {
         (Integer(lhs_field_type,sign_x, bit_width_x), Integer(rhs_field_type,sign_y, bit_width_y)) => {
             let field_type = field_type_rules(lhs_field_type, rhs_field_type);
@@ -362,11 +368,8 @@ fn field_type_rules(lhs: &FieldElementType, rhs: &FieldElementType) -> FieldElem
     }
 }
 
-pub fn comparator_operand_type_rules(
-    lhs_type: &Type,
-    other: &Type,
-) -> Result<Type, String> {
-    use { Type::*, FieldElementType::* };
+pub fn comparator_operand_type_rules(lhs_type: &Type, other: &Type) -> Result<Type, String> {
+    use {FieldElementType::*, Type::*};
     match (lhs_type, other)  {
         (Integer(_, sign_x, bit_width_x), Integer(_, sign_y, bit_width_y)) => {
             if sign_x != sign_y {

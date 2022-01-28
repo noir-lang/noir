@@ -47,7 +47,8 @@ impl<K: std::hash::Hash + Eq + Clone, V> Scope<K, V> {
 
     /// Returns an iterator over all of the elements which satisfy the predicate
     pub fn filter<F>(&self, pred: F) -> impl Iterator<Item = (&K, &V)>
-        where F: FnMut(&(&K, &V)) -> bool
+    where
+        F: FnMut(&(&K, &V)) -> bool,
     {
         self.0.iter().filter(pred)
     }

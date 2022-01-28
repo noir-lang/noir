@@ -3,6 +3,7 @@ use noirc_errors::Span;
 
 use crate::node_interner::{ExprId, FuncId, IdentId, StmtId};
 use crate::{BinaryOp, BinaryOpKind, Type, UnaryOp};
+
 #[derive(Debug, Clone)]
 pub enum HirExpression {
     Ident(IdentId),

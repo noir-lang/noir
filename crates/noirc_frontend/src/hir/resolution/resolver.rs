@@ -196,7 +196,7 @@ impl<'a> Resolver<'a> {
         let hir_func = match func.kind {
             FunctionKind::Builtin | FunctionKind::LowLevel => HirFunction::empty(),
             FunctionKind::Normal => {
-                let expr_id = self.resolve_block(func.def.body);
+                let expr_id = self.intern_block(func.def.body);
 
                 self.interner.push_expr_span(expr_id, func.def.span);
 
@@ -297,48 +297,42 @@ impl<'a> Resolver<'a> {
     }
 
     pub fn intern_expr(&mut self, expr: Expression) -> ExprId {
-        let expr_id = match expr.kind {
+        let hir_expr = match expr.kind {
             ExpressionKind::Ident(string) => {
                 let span = expr.span;
                 let ident: Ident = Spanned::from(span, string).into();
                 let ident_id = self.find_variable(&ident);
-                self.interner.push_expr(HirExpression::Ident(ident_id))
+                HirExpression::Ident(ident_id)
             }
-            ExpressionKind::Literal(literal) => {
-                let literal = match literal {
-                    Literal::Bool(b) => HirLiteral::Bool(b),
-                    Literal::Array(arr) => {
-                        let mut interned_contents = Vec::new();
-                        for content in arr.contents {
-                            interned_contents.push(self.resolve_expression(content));
-                        }
-                        HirLiteral::Array(HirArrayLiteral {
-                            contents: interned_contents,
-                            r#type: arr.r#type,
-                            length: arr.length,
-                        })
+            ExpressionKind::Literal(literal) => HirExpression::Literal(match literal {
+                Literal::Bool(b) => HirLiteral::Bool(b),
+                Literal::Array(arr) => {
+                    let mut interned_contents = Vec::new();
+                    for content in arr.contents {
+                        interned_contents.push(self.resolve_expression(content));
                     }
-                    Literal::Integer(integer) => HirLiteral::Integer(integer),
-                    Literal::Str(str) => HirLiteral::Str(str),
-                };
-
-                self.interner.push_expr(HirExpression::Literal(literal))
-            }
+                    HirLiteral::Array(HirArrayLiteral {
+                        contents: interned_contents,
+                        r#type: arr.r#type,
+                        length: arr.length,
+                    })
+                }
+                Literal::Integer(integer) => HirLiteral::Integer(integer),
+                Literal::Str(str) => HirLiteral::Str(str),
+            }),
             ExpressionKind::Prefix(prefix) => {
                 let operator: HirUnaryOp = prefix.operator.into();
                 let rhs = self.resolve_expression(prefix.rhs);
-                let expr = HirPrefixExpression { operator, rhs };
-                self.interner.push_expr(HirExpression::Prefix(expr))
+                HirExpression::Prefix(HirPrefixExpression { operator, rhs })
             }
             ExpressionKind::Infix(infix) => {
                 let lhs = self.intern_expr(infix.lhs);
                 let rhs = self.intern_expr(infix.rhs);
-                let expr = HirInfixExpression {
+                HirExpression::Infix(HirInfixExpression {
                     lhs,
                     operator: infix.operator.into(),
                     rhs,
-                };
-                self.interner.push_expr(HirExpression::Infix(expr))
+                })
             }
             ExpressionKind::Call(call_expr) => {
                 // Get the span and name of path for error reporting
@@ -380,23 +374,18 @@ impl<'a> Resolver<'a> {
                     }
                 };
 
-                let mut arguments = Vec::with_capacity(call_expr.arguments.len());
-                for arg in call_expr.arguments {
-                    arguments.push(self.resolve_expression(arg));
-                }
+                let arguments = call_expr
+                    .arguments
+                    .into_iter()
+                    .map(|arg| self.resolve_expression(arg))
+                    .collect();
 
-                let expr = HirCallExpression { func_id, arguments };
-                self.interner.push_expr(HirExpression::Call(expr))
+                HirExpression::Call(HirCallExpression { func_id, arguments })
             }
-            ExpressionKind::Cast(cast_expr) => {
-                let lhs = self.resolve_expression(cast_expr.lhs);
-                let expr = HirCastExpression {
-                    lhs,
-                    r#type: cast_expr.r#type,
-                };
-
-                self.interner.push_expr(HirExpression::Cast(expr))
-            }
+            ExpressionKind::Cast(cast_expr) => HirExpression::Cast(HirCastExpression {
+                lhs: self.resolve_expression(cast_expr.lhs),
+                r#type: cast_expr.r#type,
+            }),
             ExpressionKind::For(for_expr) => {
                 let start_range = self.resolve_expression(for_expr.start_range);
                 let end_range = self.resolve_expression(for_expr.end_range);
@@ -405,41 +394,27 @@ impl<'a> Resolver<'a> {
 
                 let identifier = self.add_variable_decl(for_expr.identifier);
 
-                let block_id = self.resolve_block(for_expr.block);
+                let block_id = self.intern_block(for_expr.block);
                 let for_scope = self.scopes.end_scope();
 
                 self.check_for_unused_variables_in_scope_tree(for_scope.into());
 
-                let expr = HirForExpression {
+                HirExpression::For(HirForExpression {
                     start_range,
                     end_range,
                     block: block_id,
                     identifier,
-                };
-                self.interner.push_expr(HirExpression::For(expr))
+                })
             }
-            ExpressionKind::If(if_expr) => {
-
-                let condition = self.resolve_expression(if_expr.condition);
-                let consequence = self.resolve_block(if_expr.consequence);
-                let alternative = if_expr.alternative.map(|e| self.resolve_block(e));
-
-                let expr = HirIfExpression {
-                    condition,
-                    consequence,
-                    alternative,
-                };
-                self.interner.push_expr(HirExpression::If(expr))
-            },
-            ExpressionKind::Index(indexed_expr) => {
-                let collection_name = self.find_variable(&indexed_expr.collection_name);
-                let index = self.resolve_expression(indexed_expr.index);
-                let expr = HirIndexExpression {
-                    collection_name,
-                    index,
-                };
-                self.interner.push_expr(HirExpression::Index(expr))
-            }
+            ExpressionKind::If(if_expr) => HirExpression::If(HirIfExpression {
+                condition: self.resolve_expression(if_expr.condition),
+                consequence: self.intern_block(if_expr.consequence),
+                alternative: if_expr.alternative.map(|e| self.intern_block(e)),
+            }),
+            ExpressionKind::Index(indexed_expr) => HirExpression::Index(HirIndexExpression {
+                collection_name: self.find_variable(&indexed_expr.collection_name),
+                index: self.resolve_expression(indexed_expr.index),
+            }),
             ExpressionKind::Path(path) => {
                 // If the Path is being used as an Expression, then it is referring to an Identifier
                 //
@@ -453,16 +428,17 @@ impl<'a> Resolver<'a> {
                     Some(identifier) => self.find_variable(identifier),
                 };
 
-                self.interner.push_expr(HirExpression::Ident(ident_id))
+                HirExpression::Ident(ident_id)
             }
             ExpressionKind::Block(block_expr) => self.resolve_block(block_expr),
         };
 
+        let expr_id = self.interner.push_expr(hir_expr);
         self.interner.push_expr_span(expr_id, expr.span);
         expr_id
     }
 
-    fn resolve_block(&mut self, block_expr: BlockExpression) -> ExprId {
+    fn resolve_block(&mut self, block_expr: BlockExpression) -> HirExpression {
         self.scopes.start_scope();
 
         let stmts: Vec<_> = block_expr
@@ -473,7 +449,12 @@ impl<'a> Resolver<'a> {
 
         self.scopes.end_scope();
         let hir_block = HirBlockExpression(stmts);
-        self.interner.push_expr(HirExpression::Block(hir_block))
+        HirExpression::Block(hir_block)
+    }
+
+    fn intern_block(&mut self, block: BlockExpression) -> ExprId {
+        let hir_block = self.resolve_block(block);
+        self.interner.push_expr(hir_block)
     }
 }
 
