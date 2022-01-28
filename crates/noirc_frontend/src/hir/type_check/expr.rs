@@ -4,6 +4,7 @@ use crate::{
         function::Param,
         stmt::HirStatement,
     },
+    util::vecmap,
     ArraySize, Type,
 };
 use crate::{
@@ -32,11 +33,7 @@ pub(crate) fn type_check_expression(
                     type_check_list_expression(interner, &arr.contents)?;
 
                     // Retrieve type for each expression
-                    let arr_types: Vec<_> = arr
-                        .contents
-                        .iter()
-                        .map(|expr_id| interner.id_type(expr_id))
-                        .collect();
+                    let arr_types = vecmap(&arr.contents, |expr_id| interner.id_type(expr_id));
 
                     // Check the result for errors
 
@@ -154,11 +151,10 @@ pub(crate) fn type_check_expression(
             }
 
             // Type check arguments
-            let arg_types = call_expr
-                .arguments
-                .iter()
-                .map(|arg_expr| type_check_expression(interner, arg_expr))
-                .collect::<Result<Vec<_>, _>>()?;
+            let mut arg_types = Vec::with_capacity(call_expr.arguments.len());
+            for arg_expr in call_expr.arguments.iter() {
+                arg_types.push(type_check_expression(interner, arg_expr)?);
+            }
 
             // Check for argument param equality
             for (param, arg) in func_meta.parameters.iter().zip(arg_types) {
@@ -462,7 +458,7 @@ fn type_check_list_expression(
         .map(|arg| type_check_expression(interner, arg))
         .partition(Result::is_ok);
 
-    let errors: Vec<TypeCheckError> = errors.into_iter().map(Result::unwrap_err).collect();
+    let errors = vecmap(errors, Result::unwrap_err);
 
     if !errors.is_empty() {
         return Err(TypeCheckError::MultipleErrors(errors));

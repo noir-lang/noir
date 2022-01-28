@@ -59,13 +59,6 @@ mod test {
 
     use noirc_errors::{Span, Spanned};
 
-    use crate::hir_def::{
-        expr::{
-            HirBinaryOp, HirBinaryOpKind, HirBlockExpression, HirExpression, HirInfixExpression,
-        },
-        function::{FuncMeta, HirFunction, Param},
-        stmt::{HirPrivateStatement, HirStatement},
-    };
     use crate::node_interner::{FuncId, NodeInterner};
     use crate::{graph::CrateId, Ident};
     use crate::{
@@ -74,6 +67,16 @@ mod test {
             resolution::{path_resolver::PathResolver, resolver::Resolver},
         },
         parse_program, FunctionKind, Path, Type,
+    };
+    use crate::{
+        hir_def::{
+            expr::{
+                HirBinaryOp, HirBinaryOpKind, HirBlockExpression, HirExpression, HirInfixExpression,
+            },
+            function::{FuncMeta, HirFunction, Param},
+            stmt::{HirPrivateStatement, HirStatement},
+        },
+        util::vecmap,
     };
 
     #[test]
@@ -245,14 +248,10 @@ mod test {
 
         let def_maps: HashMap<CrateId, CrateDefMap> = HashMap::new();
 
-        let func_meta: Vec<_> = program
-            .functions
-            .into_iter()
-            .map(|nf| {
-                let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps);
-                resolver.resolve_function(nf).unwrap()
-            })
-            .collect();
+        let func_meta = vecmap(program.functions, |nf| {
+            let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps);
+            resolver.resolve_function(nf).unwrap()
+        });
 
         for ((hir_func, meta), func_id) in func_meta.into_iter().zip(func_ids.clone()) {
             interner.update_fn(func_id, hir_func);

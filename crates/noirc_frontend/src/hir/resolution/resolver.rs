@@ -22,6 +22,7 @@ use crate::graph::CrateId;
 use crate::hir_def::expr::HirIfExpression;
 use crate::hir_def::stmt::HirAssignStatement;
 use crate::node_interner::{ExprId, FuncId, IdentId, NodeInterner, StmtId};
+use crate::util::vecmap;
 use crate::{
     hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
     BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
@@ -374,11 +375,7 @@ impl<'a> Resolver<'a> {
                     }
                 };
 
-                let arguments = call_expr
-                    .arguments
-                    .into_iter()
-                    .map(|arg| self.resolve_expression(arg))
-                    .collect();
+                let arguments = vecmap(call_expr.arguments, |arg| self.resolve_expression(arg));
 
                 HirExpression::Call(HirCallExpression { func_id, arguments })
             }
@@ -441,11 +438,7 @@ impl<'a> Resolver<'a> {
     fn resolve_block(&mut self, block_expr: BlockExpression) -> HirExpression {
         self.scopes.start_scope();
 
-        let stmts: Vec<_> = block_expr
-            .0
-            .into_iter()
-            .map(|stmt| self.intern_stmt(stmt))
-            .collect();
+        let stmts = vecmap(block_expr.0, |stmt| self.intern_stmt(stmt));
 
         self.scopes.end_scope();
         let hir_block = HirBlockExpression(stmts);

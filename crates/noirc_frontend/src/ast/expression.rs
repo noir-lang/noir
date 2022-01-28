@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use crate::token::{Attribute, Token};
+use crate::util::vecmap;
 use crate::{Ident, Path, Statement, Type};
 use acvm::FieldElement;
 use noirc_errors::{Span, Spanned};
@@ -372,7 +373,7 @@ impl Display for Literal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Literal::Array(array) => {
-                let contents: Vec<_> = array.contents.iter().map(ToString::to_string).collect();
+                let contents = vecmap(&array.contents, ToString::to_string);
                 write!(f, "[{}]", contents.join(", "))
             }
             Literal::Bool(boolean) => write!(f, "{}", if *boolean { "true" } else { "false" }),
@@ -418,7 +419,7 @@ impl Display for IndexExpression {
 
 impl Display for CallExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let args: Vec<_> = self.arguments.iter().map(ToString::to_string).collect();
+        let args = vecmap(&self.arguments, ToString::to_string);
         write!(f, "{}({})", self.func_name, args.join(", "))
     }
 }
@@ -482,11 +483,9 @@ impl Display for FunctionDefinition {
             writeln!(f, "{}", attribute)?;
         }
 
-        let parameters: Vec<_> = self
-            .parameters
-            .iter()
-            .map(|(name, r#type)| format!("{}: {}", name, r#type))
-            .collect();
+        let parameters = vecmap(&self.parameters, |(name, r#type)| {
+            format!("{}: {}", name, r#type)
+        });
 
         write!(
             f,

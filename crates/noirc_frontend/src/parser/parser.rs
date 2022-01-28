@@ -4,6 +4,7 @@ use super::{
 };
 use crate::lexer::Lexer;
 use crate::token::{Attribute, Keyword, Token, TokenKind};
+use crate::util::vecmap;
 use crate::{
     ast::{ArraySize, Expression, ExpressionKind, Statement, Type},
     FieldElementType,
@@ -43,7 +44,7 @@ pub fn parse_program(program: &str) -> Result<ParsedModule, Vec<ParserError>> {
             Ok(program)
         }
         None => {
-            let mut errors: Vec<_> = lexing_errors.into_iter().map(Into::into).collect();
+            let mut errors = vecmap(lexing_errors, Into::into);
             errors.append(&mut parsing_errors);
             Err(errors)
         }
@@ -601,7 +602,7 @@ mod test {
         let lexer = Lexer::new(program);
         let (tokens, lexer_errors) = lexer.lex();
         if !lexer_errors.is_empty() {
-            return Err(lexer_errors.into_iter().map(Into::into).collect());
+            return Err(vecmap(lexer_errors, Into::into));
         }
         parser.then_ignore(just(Token::EOF)).parse(tokens)
     }
@@ -610,13 +611,10 @@ mod test {
     where
         P: NoirParser<T>,
     {
-        programs
-            .into_iter()
-            .map(move |program| {
-                let message = format!("Failed to parse:\n{}", program);
-                parse_with(&parser, program).expect(&message)
-            })
-            .collect()
+        vecmap(programs, move |program| {
+            let message = format!("Failed to parse:\n{}", program);
+            parse_with(&parser, program).expect(&message)
+        })
     }
 
     fn parse_all_failing<P, T>(parser: P, programs: Vec<&str>) -> Vec<ParserError>
