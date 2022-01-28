@@ -155,9 +155,7 @@ impl Type {
             (self, argument)
         {
             let is_super_type = param_type.is_super_type_of(arg_type);
-
             let arity_check = param_size.is_a_super_type_of(arg_size);
-
             return is_super_type && arity_check;
         }
 

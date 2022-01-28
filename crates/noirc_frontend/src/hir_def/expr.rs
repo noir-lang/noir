@@ -13,7 +13,6 @@ pub enum HirExpression {
     Index(HirIndexExpression),
     Call(HirCallExpression),
     Cast(HirCastExpression),
-    Predicate(HirInfixExpression),
     For(HirForExpression),
     If(HirIfExpression),
 }

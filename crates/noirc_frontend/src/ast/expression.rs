@@ -15,7 +15,6 @@ pub enum ExpressionKind {
     Call(Box<CallExpression>),
     Cast(Box<CastExpression>),
     Infix(Box<InfixExpression>),
-    Predicate(Box<InfixExpression>),
     For(Box<ForExpression>),
     If(Box<IfExpression>),
     Path(Path),
@@ -32,7 +31,6 @@ impl ExpressionKind {
     pub fn into_infix(self) -> Option<InfixExpression> {
         match self {
             ExpressionKind::Infix(infix) => Some(*infix),
-            ExpressionKind::Predicate(infix) => Some(*infix),
             _ => None,
         }
     }
@@ -363,7 +361,6 @@ impl Display for ExpressionKind {
             Call(call) => call.fmt(f),
             Cast(cast) => cast.fmt(f),
             Infix(infix) => infix.fmt(f),
-            Predicate(infix) => infix.fmt(f),
             For(for_loop) => for_loop.fmt(f),
             If(if_expr) => if_expr.fmt(f),
             Path(path) => path.fmt(f),

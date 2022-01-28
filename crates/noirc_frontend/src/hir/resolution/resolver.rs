@@ -119,11 +119,9 @@ impl<'a> Resolver<'a> {
             });
         }
     }
-    fn check_for_unused_variables_in_local_scope(decl_map: Scope, unused_vars: &mut Vec<IdentId>) {
-        let unused_variables = decl_map.predicate(|kv: &(&String, &ResolverMeta)| -> bool {
-            let variable_name = kv.0;
-            let metadata = kv.1;
 
+    fn check_for_unused_variables_in_local_scope(decl_map: Scope, unused_vars: &mut Vec<IdentId>) {
+        let unused_variables = decl_map.filter(|(variable_name, metadata)| {
             let has_underscore_prefix = variable_name.starts_with('_'); // XXX: This is used for development mode, and will be removed
 
             if metadata.num_times_used == 0 && !has_underscore_prefix {
@@ -332,7 +330,7 @@ impl<'a> Resolver<'a> {
                 let expr = HirPrefixExpression { operator, rhs };
                 self.interner.push_expr(HirExpression::Prefix(expr))
             }
-            ExpressionKind::Infix(infix) | ExpressionKind::Predicate(infix) => {
+            ExpressionKind::Infix(infix) => {
                 let lhs = self.intern_expr(infix.lhs);
                 let rhs = self.intern_expr(infix.rhs);
                 let expr = HirInfixExpression {

@@ -24,18 +24,6 @@ It's not implemented yet, because nothing has been benched
 /// Implementers will usually store a Vector of ScopeTrees to implement the logic needed for FunctionCalls
 pub struct Scope<K, V>(pub HashMap<K, V>);
 
-use std::collections::hash_map;
-use std::iter::Filter;
-
-// Why is this here?
-// To avoid collecting after using the predicate method.
-// It allows the caller to filter or map further without paying the cost of a vector collect
-// The complexity is hidden in this method, as the caller will simply call .map() or an iterator method
-// to do further processing
-// I also note that the unreadability in my opinion, seems to come from the fact that we are using generics and lifetimes in PredicateResult
-type Predicate<K, V> = fn(&(&K, &V)) -> bool;
-type PredicateResult<'r, K, V> = Filter<hash_map::Iter<'r, K, V>, Predicate<K, V>>;
-
 impl<K: std::hash::Hash + Eq + Clone, V> Scope<K, V> {
     pub fn new() -> Self {
         Scope(HashMap::with_capacity(100))
@@ -57,8 +45,10 @@ impl<K: std::hash::Hash + Eq + Clone, V> Scope<K, V> {
         self.0.insert(key, value)
     }
 
-    /// Returns all of the elements which satisfy the predicate
-    pub fn predicate(&self, pred: Predicate<K, V>) -> PredicateResult<'_, K, V> {
+    /// Returns an iterator over all of the elements which satisfy the predicate
+    pub fn filter<F>(&self, pred: F) -> impl Iterator<Item = (&K, &V)>
+        where F: FnMut(&(&K, &V)) -> bool
+    {
         self.0.iter().filter(pred)
     }
 }

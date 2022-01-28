@@ -390,19 +390,11 @@ where
 
 fn create_infix_expression(lhs: Expression, (operator, rhs): (BinaryOp, Expression)) -> Expression {
     let span = lhs.span.merge(rhs.span);
-    let is_comparator = operator.contents.is_comparator();
     let infix = Box::new(InfixExpression { lhs, operator, rhs });
 
-    if is_comparator {
-        Expression {
-            span,
-            kind: ExpressionKind::Predicate(infix),
-        }
-    } else {
-        Expression {
-            span,
-            kind: ExpressionKind::Infix(infix),
-        }
+    Expression {
+        span,
+        kind: ExpressionKind::Infix(infix),
     }
 }
 
