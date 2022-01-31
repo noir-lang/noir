@@ -94,6 +94,7 @@ impl Abi {
         self.parameters.len()
     }
     /// ABI with only the public parameters
+    #[must_use]
     pub fn public_abi(self) -> Abi {
         let parameters: Vec<_> = self
             .parameters

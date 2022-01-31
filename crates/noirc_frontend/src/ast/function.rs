@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::{token::Attribute, Ident};
 
 use super::{FunctionDefinition, Type};
@@ -87,5 +89,11 @@ impl From<FunctionDefinition> for NoirFunction {
         };
 
         NoirFunction { def: fd, kind }
+    }
+}
+
+impl Display for NoirFunction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.def.fmt(f)
     }
 }

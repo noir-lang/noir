@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 
 acvm = { path = "../acvm", features = ["bn254"] }
-barretenberg_wrapper = { git = "https://github.com/AztecProtocol/barretenberg", branch = "gd/noir-dsl" }
+barretenberg_wrapper = { git = "https://github.com/AztecProtocol/barretenberg", branch = "kw/noir-dsl-mac" }
 
 sha2 = "0.9.3"
 blake2 = "0.9.1"
@@ -21,6 +21,9 @@ downloader = "0.2.6"
 indicatif = "0.15.0"
 regex = "1.4.0"
 once_cell = "1.5.2"
+
+num-bigint = "0.4"
+num-traits = "0.2.8"
 
 [dev-dependencies]
 tempfile = "3.2.0"

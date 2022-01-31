@@ -27,8 +27,8 @@ pub fn handle_equal_op(
         Object::Linear(linear) => evaluator.gates.push(Gate::Arithmetic(linear.into())),
         Object::Arithmetic(arith) => evaluator.gates.push(Gate::Arithmetic(arith)),
         Object::Integer(integer) => {
-            let witness_linear = Linear::from_witness(integer.witness);
-
+            let truncated = integer.truncate(evaluator).unwrap();
+            let witness_linear = Linear::from_witness(truncated.witness);
             evaluator
                 .gates
                 .push(Gate::Arithmetic(witness_linear.into()))
