@@ -8,6 +8,8 @@
 namespace plonk {
 namespace stdlib {
 
+constexpr uint64_t WNAF_MASK = crypto::pedersen::WNAF_MASK;
+
 template <typename ComposerContext> class pedersen {
   private:
     typedef plonk::stdlib::field_t<ComposerContext> field_t;
@@ -17,7 +19,7 @@ template <typename ComposerContext> class pedersen {
 
     static point hash_single(const field_t& in,
                              const crypto::pedersen::generator_index_t hash_index,
-                             const bool validate_edge_cases = false,
+                             const bool allow_zero_input = false,
                              const bool validate_input_is_in_field = true);
     static point accumulate(const std::vector<point>& to_accumulate);
     static point conditionally_accumulate(const std::vector<point>& to_accumulate, const std::vector<field_t>& inputs);
@@ -26,18 +28,18 @@ template <typename ComposerContext> class pedersen {
     static field_t compress(const field_t& left,
                             const field_t& right,
                             const size_t hash_index = 0,
-                            const bool handle_edge_cases = false,
+                            const bool allow_zero_input = false,
                             const bool validate_input_is_in_field = true);
 
     static field_t compress(const std::vector<field_t>& inputs,
-                            const bool handle_edge_cases = false,
+                            const bool allow_zero_input = false,
                             const size_t hash_index = 0);
 
     template <size_t T>
-    static field_t compress(const std::array<field_t, T>& inputs, const bool handle_edge_cases = true)
+    static field_t compress(const std::array<field_t, T>& inputs, const bool allow_zero_input = true)
     {
         std::vector<field_t> in(inputs.begin(), inputs.end());
-        return compress(in, handle_edge_cases);
+        return compress(in, allow_zero_input);
     }
 
     static field_t compress(const byte_array& inputs);
@@ -46,12 +48,12 @@ template <typename ComposerContext> class pedersen {
 
     static point commit(const std::vector<field_t>& inputs,
                         const size_t hash_index = 0,
-                        const bool handle_edge_cases = true);
+                        const bool allow_zero_input = true);
 
     static void validate_wnaf_is_in_field(ComposerContext* ctx,
                                           const std::vector<uint32_t>& accumulator,
                                           const field_t& in,
-                                          const bool validate_edge_cases);
+                                          const bool allow_zero_input);
 };
 
 extern template class pedersen<waffle::StandardComposer>;

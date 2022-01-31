@@ -250,7 +250,7 @@ TEST(turbo_composer, small_scalar_multipliers)
     fr one = fr::one();
     fr three = ((one + one) + one);
     for (size_t i = 0; i < num_quads; ++i) {
-        uint64_t entry = wnaf_entries[i + 1] & 0xffffff;
+        uint64_t entry = wnaf_entries[i + 1] & crypto::pedersen::WNAF_MASK;
         fr prev_accumulator = accumulator_transcript[i] + accumulator_transcript[i];
         prev_accumulator = prev_accumulator + prev_accumulator;
 
@@ -380,7 +380,7 @@ TEST(turbo_composer, large_scalar_multipliers)
     fr one = fr::one();
     fr three = ((one + one) + one);
     for (size_t i = 0; i < num_quads; ++i) {
-        uint64_t entry = wnaf_entries[i + 1] & 0xffffff;
+        uint64_t entry = wnaf_entries[i + 1] & crypto::pedersen::WNAF_MASK;
         fr prev_accumulator = accumulator_transcript[i] + accumulator_transcript[i];
         prev_accumulator = prev_accumulator + prev_accumulator;
 

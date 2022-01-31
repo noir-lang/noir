@@ -5,6 +5,72 @@
 namespace waffle {
 namespace widget {
 
+/**
+ * This gate computes 2-bit NAF elliptic curve addition (aka fixed-based scalar multiplication).
+ * The theory is explained in detail in [1]. Suppose the (n+1) gates are strutured as following:
+ *
+ * +---------+---------+-----------+---------+
+ * | w_1     | w_2     | w_3       | w_4     |
+ * |---------|---------|-----------|---------|
+ * | x_0     | y_0     | c         | a_0     |
+ * | x_1     | y_1     | x_{α,0}   | a_1     |
+ * | .       | .       | .         | .       |
+ * | .       | .       | .         | .       |
+ * | .       | .       | .         | .       |
+ * | x_i     | y_i     | x_{α,i-1} | a_i     |<- i th gate
+ * | x_{i+1} | y_{i+1} | x_{α,i}   | a_{i+1} |
+ * | .       | .       | .         | .       |
+ * | .       | .       | .         | .       |
+ * | .       | .       | .         | .       |
+ * | x_n     | y_n     | x_{α,n-1} | a_n     |
+ * +---------+---------+-----------+---------+
+ *
+ * Here, (x_{i+1}, y_{i+1}) = [(x_i, y_i)] + b_i.[(x_{α,i}, y_{α,i})] for i = {0, 1, ..., n-1}.
+ * Since the values (a_i) are intermediate sums, the actual quad value b_i is:
+ * b_i := a_{i+1} - 4 * a_i.
+ *
+ * In the implementation below, we call b_i as delta (δ).
+ * Let P_0 = 4^{n-1}.[g] and P_1 = (1 + 4^{n-1}).[g].
+ * We need the following constraints:
+ *
+ *
+ * 0. Quad value is either of {-3, -1, 1, 3}. See page 6 of [1].
+ * => (b_i + 3)(b_i + 1)(b_i - 1)(b_i - 3) = 0
+ *
+ * 1. Check if x-coordinate of the point to be added is correct. See page 5 of [1].
+ * => q_1 * b_i^2 + q_2 = x_{α,i}
+ *
+ * 2. Check if x-coordinate of new point is correct. See page 7 of [1].
+ * => (x_{i+1} + x_i + x_{α,i}) * (x_{α,i} - x_i)^2 +
+ *    (2.b_i.y_1) * (q_3.x_{α,i} + q_{ecc,1}) -
+ *    (x_{α,i}^3 + y_i^2 + b_{grumpkin}) = 0
+ *
+ * 3. Check if y-coordinate of new point is correct. See page 7 of [1].
+ * => (y_{i+1} + y_i) * (x_{α,i} - x_i) -
+ *    (b_i.(q_3.x_{α,i} + q_{ecc,1}) - y_i) * (x_i - x_{i+1}) = 0
+ *
+ * 4. Initialization: a_0 must be either 1 or (1 + 4^{-n}). See page 7 of [1].
+ * => q_c * (1 - a_0).(1 - a_0 - 4^{-n}) = 0
+ *
+ * 5. Initialization: x_0 must be x-coordinate of either P_0 or P_1.
+ * => q_c * (c.(q_4 - x_0) + q_5.(1 - a_0)) = 0
+ *
+ * 6. Initialization: y_0 must be y-coordinate of either P_0 or P_1.
+ * => q_c * (c.(q_m - y_0) + q_c.(1 - a_0)) = 0
+ *
+ *
+ * We combine all of these constraints using powers of the challenge α. Further, the linear and non-linear parts in
+ * the constraines are computed separately in the functions `compute_linear_terms` and `compute_linear_terms`
+ * respectively. More details on how selector values for i=0  are specially chosen are explained in [3].
+ *
+ * References:
+ * [1] The Turbo-PLONK program syntax for specifying SNARK programs, Ariel G and Zac W.
+ *     Link: https://docs.zkproof.org/pages/standards/accepted-workshop3/proposal-turbo_plonk.pdf
+ * [2] Constant b_{grumpkin} = -17.
+ * [3] Fixed-base Multiplication gate, Cody G.
+ *     Link: https://hackmd.io/MCmV2bipRYelT1WUNLj02g
+ *
+ **/
 template <class Field, class Getters, typename PolyContainer> class TurboFixedBaseKernel {
   public:
     static constexpr bool use_quotient_mid = false;

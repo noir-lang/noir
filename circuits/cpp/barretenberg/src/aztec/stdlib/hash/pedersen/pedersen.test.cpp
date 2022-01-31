@@ -86,7 +86,7 @@ template <typename Composer> class stdlib_pedersen : public testing::Test {
                 uint64_t entry = wnafs[i];
                 grumpkin::fr prev = result + result;
                 prev = prev + prev;
-                if ((entry & 0xffffff) == 0) {
+                if ((entry & stdlib::WNAF_MASK) == 0) {
                     if (((entry >> 31UL) & 1UL) == 1UL) {
                         result = prev - grumpkin::fr::one();
                     } else {

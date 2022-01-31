@@ -224,6 +224,25 @@ inline uint64_t get_num_scalar_bits(const uint64_t* scalar)
     return msb;
 }
 
+/**
+ * How to compute an x-bit wnaf slice?
+ *
+ * Iterate over number of slices in scalar.
+ * For each slice, if slice is even, ADD +1 to current slice and SUBTRACT 2^x from previous slice.
+ * (for 1st slice we instead add +1 and set the scalar's 'skew' value to 'true' (i.e. need to subtract 1 from it at the
+ * end of our scalar mul algo))
+ *
+ * In *wnaf we store the following:
+ *  1. bits 0-30: ABSOLUTE value of wnaf (i.e. -3 goes to 3)
+ *  2. bit 31: 'predicate' bool (i.e. does the wnaf value need to be negated?)
+ *  3. bits 32-63: position in a point array that describes the elliptic curve point this wnaf slice is referencing
+ *
+ * N.B. IN OUR STDLIB ALGORITHMS THE SKEW VALUE REPRESENTS AN ADDITION NOT A SUBTRACTION (i.e. we add +1 at the end of
+ * the scalar mul algo we don't sub 1) (this is to eliminate situations which could produce the point at infinity as an
+ * output as our circuit logic cannot accomodate this edge case).
+ *
+ * Credits: Zac W.
+ */
 inline void fixed_wnaf_with_counts(const uint64_t* scalar,
                                    uint64_t* wnaf,
                                    bool& skew_map,

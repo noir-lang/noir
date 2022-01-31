@@ -4,6 +4,8 @@
 namespace crypto {
 namespace pedersen {
 
+constexpr uint64_t WNAF_MASK = 0x7fffffffUL;
+
 template <size_t num_bits>
 grumpkin::g1::element fixed_base_scalar_mul(const barretenberg::fr& in, const size_t generator_index)
 {
@@ -35,7 +37,7 @@ grumpkin::g1::element fixed_base_scalar_mul(const barretenberg::fr& in, const si
     for (size_t i = 0; i < num_quads; ++i) {
         uint64_t entry = wnaf_entries[i + 1];
         const grumpkin::g1::affine_element& point_to_add =
-            ((entry & 0xffffff) == 1) ? ladder[i + 1].three : ladder[i + 1].one;
+            ((entry & WNAF_MASK) == 1) ? ladder[i + 1].three : ladder[i + 1].one;
         uint64_t predicate = (entry >> 31U) & 1U;
         accumulator.self_mixed_add_or_sub(point_to_add, predicate);
     }
