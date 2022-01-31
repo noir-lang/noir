@@ -92,7 +92,6 @@ impl<'a> Resolver<'a> {
         func: NoirFunction,
     ) -> Result<(HirFunction, FuncMeta), Vec<ResolverError>> {
         self.scopes.start_function();
-
         let (hir_func, func_meta) = self.intern_function(func);
         let func_scope_tree = self.scopes.end_function();
 
@@ -130,11 +129,18 @@ impl<'a> Resolver<'a> {
             }
             false
         });
-        unused_vars.extend(unused_variables.into_iter().map(|(_, meta)| meta.id));
+        unused_vars.extend(unused_variables.map(|(_, meta)| meta.id));
     }
-}
 
-impl<'a> Resolver<'a> {
+    /// Run the given function in a new scope.
+    fn in_new_scope<T, F: FnOnce(&mut Self) -> T>(&mut self, f: F) -> T {
+        self.scopes.start_scope();
+        let ret = f(self);
+        let scope = self.scopes.end_scope();
+        self.check_for_unused_variables_in_scope_tree(scope.into());
+        ret
+    }
+
     fn add_variable_decl(&mut self, name: Ident) -> IdentId {
         let id = self.interner.push_ident(name.clone());
         // Variable was defined here, so it's definition links to itself
@@ -386,15 +392,11 @@ impl<'a> Resolver<'a> {
             ExpressionKind::For(for_expr) => {
                 let start_range = self.resolve_expression(for_expr.start_range);
                 let end_range = self.resolve_expression(for_expr.end_range);
+                let (identifier, block) = (for_expr.identifier, for_expr.block);
 
-                self.scopes.start_scope();
-
-                let identifier = self.add_variable_decl(for_expr.identifier);
-
-                let block_id = self.intern_block(for_expr.block);
-                let for_scope = self.scopes.end_scope();
-
-                self.check_for_unused_variables_in_scope_tree(for_scope.into());
+                let (identifier, block_id) = self.in_new_scope(|this| {
+                    (this.add_variable_decl(identifier), this.intern_block(block))
+                });
 
                 HirExpression::For(HirForExpression {
                     start_range,
@@ -436,13 +438,10 @@ impl<'a> Resolver<'a> {
     }
 
     fn resolve_block(&mut self, block_expr: BlockExpression) -> HirExpression {
-        self.scopes.start_scope();
+        let statements =
+            self.in_new_scope(|this| vecmap(block_expr.0, |stmt| this.intern_stmt(stmt)));
 
-        let stmts = vecmap(block_expr.0, |stmt| self.intern_stmt(stmt));
-
-        self.scopes.end_scope();
-        let hir_block = HirBlockExpression(stmts);
-        HirExpression::Block(hir_block)
+        HirExpression::Block(HirBlockExpression(statements))
     }
 
     fn intern_block(&mut self, block: BlockExpression) -> ExprId {
@@ -539,7 +538,7 @@ mod test {
         let (interner, mut errors) = resolve_src_code(src, vec![String::from("main")]);
 
         // There should only be one error
-        assert!(errors.len() == 1);
+        assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
         let err = errors.pop().unwrap();
         // It should be regarding the unused variable
         match err {
@@ -610,7 +609,7 @@ mod test {
         "#;
 
         let (interner, errors) = resolve_src_code(src, vec![String::from("main")]);
-        assert!(errors.len() == 3);
+        assert!(errors.len() == 3, "Expected 3 errors, got: {:?}", errors);
 
         // Errors are:
         // `a` is undeclared
