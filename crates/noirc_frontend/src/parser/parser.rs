@@ -107,7 +107,10 @@ fn attribute() -> impl NoirParser<Attribute> {
 }
 
 fn struct_fields() -> impl NoirParser<Vec<(Ident, Type)>> {
-    parameters(parse_type_no_field_element())
+    parameters(parse_type_with_visibility(
+        optional_pri_or_const(),
+        parse_type_no_field_element(),
+    ))
 }
 
 fn function_parameters() -> impl NoirParser<Vec<(Ident, Type)>> {
@@ -176,7 +179,7 @@ fn use_statement() -> impl NoirParser<TopLevelStatement> {
         .map(|(path, alias)| TopLevelStatement::Import(ImportStatement { path, alias }))
 }
 
-fn keyword(keyword: Keyword) -> impl NoirParser<Token> {
+fn keyword(keyword: Keyword) -> impl NoirParser<Token> + Clone {
     just(Token::Keyword(keyword))
 }
 
@@ -298,41 +301,59 @@ where
 }
 
 fn parse_type() -> impl NoirParser<Type> {
-    choice((
-        field_type(optional_visibility()),
-        int_type(optional_visibility()),
-        array_type(optional_visibility(), parse_type_no_field_element()),
-    ))
+    parse_type_with_visibility(optional_visibility(), parse_type_no_field_element())
 }
 
-fn parse_type_no_field_element() -> impl NoirParser<Type> {
+fn parse_type_no_field_element() -> impl NoirParser<Type> + Clone {
     // NOTE: Technically since we disallow multidimensional arrays our type parser
     // does not strictly need to be recursive - we could manually unroll it by
     // only parsing an integer or field type as our array elements. If/when Noir's
     // types become truly recursive though this will be necessary
-    recursive(|type_parser| {
-        choice((
-            field_type(no_visibility()),
-            int_type(no_visibility()),
-            array_type(no_visibility(), type_parser),
-        ))
-    })
-    .boxed()
+    recursive(|type_parser| parse_type_with_visibility(no_visibility(), type_parser))
+}
+
+fn parse_type_with_visibility<V, T>(
+    visibility_parser: V,
+    recursive_type_parser: T,
+) -> impl NoirParser<Type>
+where
+    V: NoirParser<FieldElementType> + Clone,
+    T: NoirParser<Type>,
+{
+    choice((
+        field_type(visibility_parser.clone()),
+        int_type(visibility_parser.clone()),
+        array_type(visibility_parser, recursive_type_parser),
+    ))
 }
 
 // Parse nothing, just return a FieldElementType::Private
-fn no_visibility() -> impl NoirParser<FieldElementType> {
+fn no_visibility() -> impl NoirParser<FieldElementType> + Clone {
     just([]).or_not().map(|_| FieldElementType::Private)
 }
 
-fn optional_visibility() -> impl NoirParser<FieldElementType> {
+// Returns a parser that parses any FieldElementType that satisfies
+// the given predicate
+fn visibility(field: FieldElementType) -> impl NoirParser<FieldElementType> + Clone {
+    keyword(field.as_keyword()).map(move |_| field)
+}
+
+fn optional_visibility() -> impl NoirParser<FieldElementType> + Clone {
     choice((
-        keyword(Keyword::Pub).map(|_| FieldElementType::Public),
-        keyword(Keyword::Priv).map(|_| FieldElementType::Private),
-        keyword(Keyword::Const).map(|_| FieldElementType::Constant),
+        visibility(FieldElementType::Public),
+        visibility(FieldElementType::Private),
+        visibility(FieldElementType::Constant),
+        no_visibility(),
     ))
-    .or_not()
-    .map(|opt| opt.unwrap_or(FieldElementType::Private))
+}
+
+// This is primarily for struct fields which cannot be public
+fn optional_pri_or_const() -> impl NoirParser<FieldElementType> + Clone {
+    choice((
+        visibility(FieldElementType::Private),
+        visibility(FieldElementType::Constant),
+        no_visibility(),
+    ))
 }
 
 fn field_type<P>(visibility_parser: P) -> impl NoirParser<Type>

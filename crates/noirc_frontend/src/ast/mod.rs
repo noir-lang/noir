@@ -14,7 +14,10 @@ use noirc_errors::Span;
 pub use statement::*;
 pub use structure::*;
 
-use crate::{node_interner::TypeId, token::IntType};
+use crate::{
+    node_interner::TypeId,
+    token::{IntType, Keyword},
+};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ArraySize {
@@ -47,7 +50,7 @@ impl std::fmt::Display for ArraySize {
 
 /// FieldElementType refers to how the Compiler type is interpreted by the proof system
 /// Example: FieldElementType::Private means that the Compiler type is seen as a witness/witnesses
-#[derive(Debug, Eq, Clone)]
+#[derive(Debug, Eq, Copy, Clone)]
 pub enum FieldElementType {
     Private,
     Public,
@@ -79,6 +82,15 @@ impl FieldElementType {
     // For the compiler, the appropriate place would be in the ABI
     pub fn strict_eq(&self, other: &FieldElementType) -> bool {
         std::mem::discriminant(self) == std::mem::discriminant(other)
+    }
+
+    /// Return the corresponding keyword for this field type
+    pub fn as_keyword(self) -> Keyword {
+        match self {
+            FieldElementType::Private => Keyword::Priv,
+            FieldElementType::Public => Keyword::Pub,
+            FieldElementType::Constant => Keyword::Const,
+        }
     }
 }
 
