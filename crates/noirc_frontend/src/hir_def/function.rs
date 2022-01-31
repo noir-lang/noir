@@ -3,6 +3,7 @@ use noirc_errors::Span;
 
 use super::expr::{HirBlockExpression, HirExpression};
 use crate::node_interner::{ExprId, IdentId, NodeInterner};
+use crate::util::vecmap;
 use crate::{token::Attribute, FunctionKind, Type};
 
 /// A Hir function is a block expression
@@ -44,25 +45,17 @@ pub struct Parameters(Vec<Param>);
 
 impl Parameters {
     pub fn into_abi(self, interner: &NodeInterner) -> Abi {
-        let parameters: Vec<_> = self
-            .0
-            .into_iter()
-            .map(|param| {
-                let (param_id, param_type) = (param.0, param.1);
-                let param_name = interner.ident_name(&param_id);
-                (param_name, param_type.as_abi_type())
-            })
-            .collect();
+        let parameters = vecmap(self.0, |param| {
+            let (param_id, param_type) = (param.0, param.1);
+            let param_name = interner.ident_name(&param_id);
+            (param_name, param_type.as_abi_type())
+        });
         noirc_abi::Abi { parameters }
     }
 
     pub fn span(&self, interner: &NodeInterner) -> Span {
         assert!(!self.is_empty());
-        let mut spans: Vec<_> = self
-            .0
-            .iter()
-            .map(|param| interner.ident_span(&param.0))
-            .collect();
+        let mut spans = vecmap(&self.0, |param| interner.ident_span(&param.0));
 
         let merged_span = spans.pop().unwrap();
         for span in spans {
