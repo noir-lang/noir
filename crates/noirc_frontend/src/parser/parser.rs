@@ -174,17 +174,15 @@ fn tokenkind(tokenkind: TokenKind) -> impl NoirParser<Token> {
 }
 
 fn path() -> impl NoirParser<Path> {
-    let prefix = |key| keyword(key).ignore_then(just(Token::DoubleColon));
     let idents = || ident().separated_by(just(Token::DoubleColon)).at_least(1);
     let make_path = |kind| move |segments| Path { segments, kind };
 
+    let prefix = |key| keyword(key).ignore_then(just(Token::DoubleColon));
+    let path_kind = |key, kind| prefix(key).ignore_then(idents()).map(make_path(kind));
+
     choice((
-        prefix(Keyword::Crate)
-            .ignore_then(idents())
-            .map(make_path(PathKind::Crate)),
-        prefix(Keyword::Dep)
-            .ignore_then(idents())
-            .map(make_path(PathKind::Dep)),
+        path_kind(Keyword::Crate, PathKind::Crate),
+        path_kind(Keyword::Dep, PathKind::Dep),
         idents().map(make_path(PathKind::Plain)),
     ))
 }

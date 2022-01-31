@@ -259,7 +259,7 @@ pub(crate) fn type_check_expression(
                         let mut err = TypeCheckError::TypeMismatch {
                             expected_typ: then_type.to_string(),
                             expr_typ: else_type.to_string(),
-                            expr_span: interner.expr_span(&alternative),
+                            expr_span: interner.expr_span(expr_id),
                         };
 
                         if then_type == Type::Unit {
@@ -271,7 +271,7 @@ pub(crate) fn type_check_expression(
                         } else if else_type == Type::Unit {
                             err = err
                                 .add_context(
-                                    "Are you missing a semicolon at the end of your 'then' branch?",
+                                    "Are you missing a semicolon at the end of the first block of this 'if'?",
                                 )
                                 .unwrap();
                         } else {
