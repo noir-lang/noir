@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
+use std::env::VarError;
 
 use acvm::acir::native_types::Witness;
 use acvm::FieldElement;
@@ -42,7 +43,7 @@ impl NodeObj {
     pub fn new_constant_bool(value: bool) -> NodeObj {
         let val = if value { 1_u32 } else { 0_u32 };
         NodeObj::Const(Constant {
-            id: crate::ssa::code_gen::ParsingContext::dummy_id(),
+            id: crate::ssa::code_gen::IRGenerator::dummy_id(),
             value: BigUint::from(val),
             value_str: String::new(),
             value_type: ObjectType::boolean,
@@ -51,7 +52,7 @@ impl NodeObj {
 
     pub fn new_constant_int(value: u32, bit_size: u32, is_signed: bool) -> NodeObj {
         NodeObj::Const(Constant {
-            id: crate::ssa::code_gen::ParsingContext::dummy_id(),
+            id: crate::ssa::code_gen::IRGenerator::dummy_id(),
             value: BigUint::from(value),
             value_str: String::new(),
             value_type: if is_signed {
@@ -134,13 +135,22 @@ pub struct Variable {
     pub id: arena::Index,
     pub obj_type: ObjectType,
     pub name: String,
-    pub cur_value: arena::Index, //for generating the SSA form, current value of the object during parsing of the AST
+    //pub cur_value: arena::Index, //for generating the SSA form, current value of the object during parsing of the AST
     pub root: Option<arena::Index>, //when generating SSA, assignment of an object creates a new one which is linked to the original one
     //TODO clarify where cur_value and root is stored, and also this:
     //  pub max_bits: u32,                  //max possible bit size of the expression
     //  pub max_value: Option<BigUInt>,     //maximum possible value of the expression, if less than max_bits
     pub witness: Option<Witness>,
     pub parent_block: arena::Index,
+}
+
+impl Variable {
+    pub fn get_root(&self) -> arena::Index {
+        match self.root {
+            Some(r) => r,
+            _ => self.id,
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -283,7 +293,7 @@ impl Instruction {
         r_type: ObjectType,
         parent_block: Option<arena::Index>,
     ) -> Instruction {
-        let id0 = crate::ssa::code_gen::ParsingContext::dummy_id();
+        let id0 = crate::ssa::code_gen::IRGenerator::dummy_id();
         let p_block = parent_block.unwrap_or(id0);
         Instruction {
             idx: id0,
@@ -363,7 +373,10 @@ impl Instruction {
             }
             Operation::trunc | Operation::phi => (false, false),
             Operation::nop | Operation::jne | Operation::jeq | Operation::jmp => (false, false),
-            Operation::eq_gate => (true, true),
+            Operation::eq_gate => {
+                dbg!("EQ GATE: TRUNCATING!!!!!!!");
+                (true, true)
+            }
         }
     }
 
@@ -440,7 +453,7 @@ impl Instruction {
 
     pub fn to_const(value: FieldElement, obj_type: ObjectType) -> NodeObj {
         let c = Constant {
-            id: crate::ssa::code_gen::ParsingContext::dummy_id(),
+            id: crate::ssa::code_gen::IRGenerator::dummy_id(),
             value: BigUint::from_bytes_be(&value.to_bytes()),
             value_str: String::new(),
             value_type: obj_type,
@@ -703,34 +716,28 @@ impl Instruction {
         return NodeEval::Idx(self.idx);
     }
 
-    //Simplify a Phi instruction of the form v=phi(v,..,v)->delete or v=phi(vi1,..vin) where vi in {v,v1} -> v=v1
-    //If returns None, phi should be deleted
-    //If returns phi id, we should keep it
-    //else, we should replace it with an assignement to the returned index
-    pub fn simplify_one_phi(
+    // Simplifies trivial Phi instructions by returning:
+    // None, if the instruction is unreachable or in the root block and can be safely deleted
+    // Some(id), if the instruction can be replaced by the node id
+    // Some(ins_id), if the instruction is not trivial
+    pub fn simplify_phi(
         ins_id: arena::Index,
-        ins_lhs: arena::Index,
         phi_arguments: &Vec<(arena::Index, arena::Index)>,
     ) -> Option<arena::Index> {
-        let mut values: HashSet<arena::Index> = HashSet::new();
-        let mut first = ins_id;
-        if phi_arguments.len() <= 0 {
-            return None;
-        } else {
-            let v = ins_lhs;
-            for iter in phi_arguments {
-                if iter.0 != v {
-                    values.insert(iter.0);
-                    first = iter.0;
-                }
+        let mut same = None;
+        for op in phi_arguments {
+            if Some(op.0) == same || op.0 == ins_id {
+                continue;
             }
-            if values.len() == 0 {
-                return None;
-            } else if values.len() == 1 {
-                return Some(first);
+            if same.is_some() {
+                //no simplification
+                return Some(ins_id);
             }
+
+            same = Some(op.0);
         }
-        return Some(ins_id);
+        //if same.is_none()  => unreachable phi or in root block, can be replaced by ins.lhs (i.e the root) then.
+        return same;
     }
 
     pub fn standard_form<'a>(&mut self) {
@@ -832,7 +839,8 @@ pub enum Operation {
     jne, //jump on not equal
     jeq, //jump on equal
     jmp, //unconditional jump
-    phi,
+    //phi,
+    phi, //TEMP!!!
     // todo: call, br,..
     nop, // no op
 
@@ -969,69 +977,6 @@ pub fn to_operation(op_kind: HirBinaryOpKind, op_type: ObjectType) -> Operation 
             return Operation::nop; //TODO error
         }
         HirBinaryOpKind::Assign => Operation::ass, //TODO
-    }
-}
-
-#[derive(PartialEq)]
-pub enum BlockType {
-    Normal,
-    ForJoin,
-}
-pub struct BasicBlock {
-    pub idx: arena::Index,
-    pub kind: BlockType,
-    pub dominator: Option<arena::Index>, //direct dominator
-    pub dominated: Vec<arena::Index>,    //dominated sons
-    pub predecessor: Vec<arena::Index>,  //for computing the dominator tree
-    pub left: Option<arena::Index>,      //sequential successor
-    pub right: Option<arena::Index>,     //jump successor
-    pub instructions: Vec<arena::Index>,
-
-    pub value_array: HashMap<arena::Index, arena::Index>, //for generating the ssa form
-    pub value_name: HashMap<arena::Index, u32>,           //only for pretty print
-}
-
-impl BasicBlock {
-    pub fn new(prev: arena::Index, kind: BlockType) -> BasicBlock {
-        BasicBlock {
-            idx: crate::ssa::code_gen::ParsingContext::dummy_id(),
-            predecessor: vec![prev],
-            left: None, //Some(left),
-            right: None,
-            instructions: Vec::new(),
-            value_array: HashMap::new(),
-            value_name: HashMap::new(),
-            dominator: None, //crate::ssa::code_gen::ParsingContext::dummy_id(),
-            dominated: Vec::new(),
-            kind: kind,
-        }
-    }
-
-    pub fn get_current_value(&self, idx: arena::Index) -> Option<arena::Index> {
-        match self.value_array.get(&idx) {
-            Some(cur_idx) => Some(*cur_idx),
-            None => None,
-        }
-    }
-
-    //When generating a new instance of a variable because of ssa, we update the value array
-    //to link the two variables and also increment the counter for the variable name
-    pub fn update_variable(&mut self, old_value: arena::Index, new_value: arena::Index) {
-        self.value_array.insert(old_value, new_value);
-        self.value_name.entry(old_value).or_insert(1);
-        self.value_name
-            .insert(old_value, self.value_name[&old_value] + 1);
-    }
-
-    pub fn get_value_name(&self, idx: arena::Index) -> u32 {
-        if self.value_name.contains_key(&idx) {
-            return self.value_name[&idx];
-        }
-        0
-    }
-
-    pub fn get_first_instruction(&self) -> arena::Index {
-        self.instructions[0]
     }
 }
 

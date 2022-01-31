@@ -1,21 +1,25 @@
 use super::node::{Instruction, Operation};
 use acvm::FieldElement;
 use arena::Index;
+use num_traits::ToPrimitive;
 use std::collections::HashMap;
+use std::fs::File;
 //use crate::acir::native_types::{Arithmetic, Witness};
-use crate::ssa::code_gen::ParsingContext;
+use crate::ssa::code_gen::IRGenerator;
 use crate::ssa::node;
+use crate::ssa::node::Node;
 use crate::Evaluator;
 use crate::Gate;
 use crate::RuntimeErrorKind;
 use acvm::acir::circuit::gate::Directive;
 use acvm::acir::native_types::{Arithmetic, Linear, Witness};
+use num_bigint::BigUint;
 use std::convert::TryInto;
 pub struct Acir {
-    arith_cache: HashMap<Index, InternalVar>,
+    pub arith_cache: HashMap<Index, InternalVar>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct InternalVar {
     expression: Arithmetic,
     //value: FieldElement,     //not used for now
@@ -24,12 +28,12 @@ pub struct InternalVar {
 }
 impl InternalVar {
     pub fn is_equal(&self, b: &InternalVar) -> bool {
-        if (self.idx.is_some() && b.idx.is_some() && self.idx.unwrap() == b.idx.unwrap()) {
+        if self.idx.is_some() && b.idx.is_some() && self.idx.unwrap() == b.idx.unwrap() {
             return true;
         }
-        if (self.witness.is_some()
+        if self.witness.is_some()
             && b.witness.is_some()
-            && self.witness.unwrap() == b.witness.unwrap())
+            && self.witness.unwrap() == b.witness.unwrap()
         {
             return true;
         }
@@ -45,7 +49,7 @@ impl Acir {
         arith_cache: &mut HashMap<Index, InternalVar>,
         idx: Index,
         evaluator: &mut Evaluator,
-        cfg: &ParsingContext,
+        cfg: &IRGenerator,
     ) -> InternalVar {
         if arith_cache.contains_key(&idx) {
             return arith_cache[&idx].clone();
@@ -108,7 +112,7 @@ impl Acir {
         &mut self,
         ins: &Instruction,
         evaluator: &mut Evaluator,
-        cfg: &ParsingContext,
+        cfg: &IRGenerator,
     ) {
         if ins.operator == Operation::nop {
             return;
@@ -124,11 +128,15 @@ impl Acir {
                 //  output.add(r_c.expression);
             }
             Operation::sub | Operation::ssub => {
-                //we need the type of rhs and its max value
-                //then we compute k=ceil(max_value/2^bit_size) et  on fait lhs-rhs+k*2^bit_size...
-                //ins.max_value
+                //we need the type of rhs and its max value, then:
+                //lhs-rhs+k*2^bit_size where k=ceil(max_value/2^bit_size)
+                let bit_size = cfg.get_object(ins.rhs).unwrap().bits();
+                let r_mod = 1_u128 << bit_size;
+                let k = (ins.max_value.to_f64().unwrap() / r_mod as f64).ceil() as i128;
+                let mut f = FieldElement::from(-k);
+                f = f * FieldElement::from_be_bytes_reduce(&BigUint::from(r_mod).to_bytes_be());
                 output = add(&l_c.expression, FieldElement::from(-1), &r_c.expression);
-                //&l_c.expression - &r_c.expression;
+                output.q_c += f;
             }
             Operation::mul | Operation::smul => {
                 output = evaluate_mul(l_c, r_c, evaluator);
@@ -183,6 +191,10 @@ impl Acir {
                 evaluator.gates.push(Gate::Arithmetic(output.clone())); //TODO should we create a witness??
             }
         }
+        //     dbg!("INSTRUCTION..");
+        //    dbg!(&ins);
+        //    dbg!(&output.clone());
+
         let output_var = InternalVar {
             expression: output,
             //value: FieldElement::from(0_u32),
