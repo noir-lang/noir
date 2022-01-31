@@ -3,6 +3,7 @@ use crate::hir::def_collector::dc_crate::DefCollector;
 use crate::hir::Context;
 use crate::node_interner::FuncId;
 use crate::parser::{parse_program, ParsedModule};
+use crate::util::vecmap;
 use arena::{Arena, Index};
 use fm::{FileId, FileManager};
 use noirc_errors::{CollectedErrors, DiagnosableError};
@@ -115,7 +116,7 @@ pub fn parse_file(
         Err(errs) => {
             let file_errs = CollectedErrors {
                 file_id,
-                errors: errs.into_iter().map(|err| err.to_diagnostic()).collect(),
+                errors: vecmap(errs, |err| err.to_diagnostic()),
             };
 
             Err(vec![file_errs])

@@ -32,12 +32,13 @@ pub(crate) fn type_check(
         // does not use the interner to get the type. It returns Unit.
         //
         // The reason why we still modify the database, is to make sure it is future-proof
-        HirStatement::Expression(expr_id) => type_check_expression(interner, &expr_id),
+        HirStatement::Expression(expr_id) => {
+            type_check_expression(interner, &expr_id)?;
+            Ok(())
+        }
         HirStatement::Semi(expr_id) => {
             type_check_expression(interner, &expr_id)?;
-
             interner.make_expr_type_unit(&expr_id);
-
             Ok(())
         }
         HirStatement::Private(priv_stmt) => type_check_priv_stmt(interner, priv_stmt),
@@ -64,8 +65,7 @@ fn type_check_assign_stmt(
         .expect("all identifiers that define a variable, should have a type during type checking");
     let identifier_type = interner.id_type(&ident_def);
 
-    type_check_expression(interner, &assign_stmt.expression)?;
-    let expr_type = interner.id_type(&assign_stmt.expression);
+    let expr_type = type_check_expression(interner, &assign_stmt.expression)?;
 
     if expr_type != identifier_type {
         let expr_span = interner.expr_span(&assign_stmt.expression);
@@ -150,13 +150,10 @@ fn type_check_constrain_stmt(
     interner: &mut NodeInterner,
     stmt: HirConstrainStatement,
 ) -> Result<(), TypeCheckError> {
-    type_check_expression(interner, &stmt.0.lhs)?;
-    let lhs_type = interner.id_type(stmt.0.lhs);
+    let lhs_type = type_check_expression(interner, &stmt.0.lhs)?;
+    let rhs_type = type_check_expression(interner, &stmt.0.rhs)?;
 
-    type_check_expression(interner, &stmt.0.rhs)?;
-    let rhs_type = interner.id_type(&stmt.0.rhs);
-
-    // Since constrain statements are not expressions, we do not allow predicate or non-comparison binary operators
+    // Since constrain statements are not expressions, we disallow non-comparison binary operators
     if !stmt.0.operator.kind.is_comparator() {
         let span = stmt.0.operator.span;
         let err = TypeCheckError::OpCannotBeUsed {
@@ -191,16 +188,15 @@ fn type_check_constrain_stmt(
 }
 
 /// All declaration statements check that the user specified type(UST) is equal to the
-/// expression on the RHS, unless the UST is unspecified
-/// In that case, the UST because the expression
+/// expression on the RHS, unless the UST is unspecified in which case
+/// the type of the declaration is inferred to match the RHS.
 fn type_check_declaration(
     interner: &mut NodeInterner,
     rhs_expr: ExprId,
     mut annotated_type: Type,
 ) -> Result<Type, TypeCheckError> {
     // Type check the expression on the RHS
-    type_check_expression(interner, &rhs_expr)?;
-    let expr_type = interner.id_type(&rhs_expr);
+    let expr_type = type_check_expression(interner, &rhs_expr)?;
 
     // First check if the LHS is unspecified
     // If so, then we give it the same type as the expression

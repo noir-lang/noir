@@ -4,6 +4,7 @@ use super::{
 };
 use crate::lexer::Lexer;
 use crate::token::{Attribute, Keyword, Token, TokenKind};
+use crate::util::vecmap;
 use crate::{
     ast::{ArraySize, Expression, ExpressionKind, Statement, Type},
     FieldElementType,
@@ -44,7 +45,7 @@ pub fn parse_program(program: &str) -> Result<ParsedModule, Vec<ParserError>> {
             Ok(program)
         }
         None => {
-            let mut errors: Vec<_> = lexing_errors.into_iter().map(Into::into).collect();
+            let mut errors = vecmap(lexing_errors, Into::into);
             errors.append(&mut parsing_errors);
             Err(errors)
         }
@@ -198,17 +199,15 @@ fn tokenkind(tokenkind: TokenKind) -> impl NoirParser<Token> {
 }
 
 fn path() -> impl NoirParser<Path> {
-    let prefix = |key| keyword(key).ignore_then(just(Token::DoubleColon));
     let idents = || ident().separated_by(just(Token::DoubleColon)).at_least(1);
     let make_path = |kind| move |segments| Path { segments, kind };
 
+    let prefix = |key| keyword(key).ignore_then(just(Token::DoubleColon));
+    let path_kind = |key, kind| prefix(key).ignore_then(idents()).map(make_path(kind));
+
     choice((
-        prefix(Keyword::Crate)
-            .ignore_then(idents())
-            .map(make_path(PathKind::Crate)),
-        prefix(Keyword::Dep)
-            .ignore_then(idents())
-            .map(make_path(PathKind::Dep)),
+        path_kind(Keyword::Crate, PathKind::Crate),
+        path_kind(Keyword::Dep, PathKind::Dep),
         idents().map(make_path(PathKind::Plain)),
     ))
 }
@@ -433,19 +432,11 @@ where
 
 fn create_infix_expression(lhs: Expression, (operator, rhs): (BinaryOp, Expression)) -> Expression {
     let span = lhs.span.merge(rhs.span);
-    let is_comparator = operator.contents.is_comparator();
     let infix = Box::new(InfixExpression { lhs, operator, rhs });
 
-    if is_comparator {
-        Expression {
-            span,
-            kind: ExpressionKind::Predicate(infix),
-        }
-    } else {
-        Expression {
-            span,
-            kind: ExpressionKind::Infix(infix),
-        }
+    Expression {
+        span,
+        kind: ExpressionKind::Infix(infix),
     }
 }
 
@@ -669,7 +660,7 @@ mod test {
         let lexer = Lexer::new(program);
         let (tokens, lexer_errors) = lexer.lex();
         if !lexer_errors.is_empty() {
-            return Err(lexer_errors.into_iter().map(Into::into).collect());
+            return Err(vecmap(lexer_errors, Into::into));
         }
         parser.then_ignore(just(Token::EOF)).parse(tokens)
     }
@@ -678,13 +669,10 @@ mod test {
     where
         P: NoirParser<T>,
     {
-        programs
-            .into_iter()
-            .map(move |program| {
-                let message = format!("Failed to parse:\n{}", program);
-                parse_with(&parser, program).expect(&message)
-            })
-            .collect()
+        vecmap(programs, move |program| {
+            let message = format!("Failed to parse:\n{}", program);
+            parse_with(&parser, program).expect(&message)
+        })
     }
 
     fn parse_all_failing<P, T>(parser: P, programs: Vec<&str>) -> Vec<ParserError>
