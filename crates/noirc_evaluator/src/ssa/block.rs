@@ -153,12 +153,12 @@ pub fn fixup(
         target_block.right = right;
         target_block.left = left;
         //TODO should also update the last instruction rhs to the first instruction of the current block  -- TODOshoud we do it here??
-        if right.is_some() {
-            let rb = igen.get_block_mut(right.unwrap());
+        if let Some(right_uw) = right {
+            let rb = igen.get_block_mut(right_uw);
             rb.unwrap().dominator = Some(target);
         }
-        if left.is_some() {
-            let lb = igen.get_block_mut(left.unwrap());
+        if let Some(left_uw) = left {
+            let lb = igen.get_block_mut(left_uw);
             lb.unwrap().dominator = Some(target);
         }
     }
@@ -210,5 +210,5 @@ pub fn bfs(start: Index, stop: Index, eval: &IRGenerator) -> Vec<Index> {
             }
         }
     }
-    return result;
+    result
 }

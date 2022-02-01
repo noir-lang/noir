@@ -6,7 +6,7 @@ use super::{
 };
 use acvm::FieldElement;
 use arena::Index;
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 
 //Unroll the CFG
 pub fn unroll_tree(eval: &mut IRGenerator) {
@@ -49,14 +49,13 @@ pub fn unroll_block(
     let block = eval.get_block(block_id).unwrap();
     if block.is_join() {
         return unroll_join(unroll_ins, eval_map, block_id, caller, eval);
-    } else {
-        if let Some(i) = unroll_std_block(unroll_ins, eval_map, block_id, caller, eval) {
-            if let Some(ins) = eval.get_as_instruction(i) {
-                return Some(ins.parent_block);
-            }
+    } else if let Some(i) = unroll_std_block(unroll_ins, eval_map, block_id, caller, eval) {
+        if let Some(ins) = eval.get_as_instruction(i) {
+            return Some(ins.parent_block);
         }
     }
-    return None;
+
+    None
 }
 
 //unroll a normal block by generating new instructions into the unroll_ins list, using and updating the eval_map
@@ -81,8 +80,8 @@ pub fn unroll_std_block(
         let ins = eval.get_object(*i_id).unwrap();
         match ins {
             node::NodeObj::Instr(i) => {
-                let new_left = get_current_value(i.lhs, &eval_map).to_index().unwrap();
-                let new_right = get_current_value(i.rhs, &eval_map).to_index().unwrap();
+                let new_left = get_current_value(i.lhs, eval_map).to_index().unwrap();
+                let new_right = get_current_value(i.rhs, eval_map).to_index().unwrap();
                 let mut new_ins = node::Instruction::new(
                     i.operator, new_left, new_right, i.res_type, None, //TODO a fixer later
                 );
@@ -137,15 +136,14 @@ pub fn unroll_join(
     //Returns the exit block of the loop
     let join = eval.get_block(block_id).unwrap();
     let join_instructions = join.instructions.clone();
-    let join_left = join.left.clone();
-    let prev = join.predecessor.first().unwrap().clone(); //todo predecessor.first or .last?
-    let exit_id = join.left.unwrap().clone();
+    let join_left = join.left; //XXX.clone();
+    let prev = *join.predecessor.first().unwrap(); //todo predecessor.first or .last?
+
     let mut from = prev; //todo caller?
     assert!(join.is_join());
     let body = eval.get_block(join.right.unwrap()).unwrap();
     let body_id = join.right.unwrap();
-    let mut body_instructions = body.instructions.clone();
-    if unroll_ins.len() == 0 {
+    if unroll_ins.is_empty() {
         //unrolled blocks will be merged into the join ->outer join seulement!
         unroll_ins.push(*join_instructions.first().unwrap()); //TODO is it needed? we also should assert it is a nop instruction.
     }
@@ -157,15 +155,13 @@ pub fn unroll_join(
     } {
         from = block_id;
         let mut b_id = body_id;
-        let mut next = None;
-        let mut i = 0;
+        let mut next;
         while {
             next = unroll_block(unroll_ins, eval_map, b_id, from, eval);
             processed.push(b_id);
             next.is_some()
         } {
             //process next block:
-            i += 1;
             from = b_id;
             b_id = next.unwrap();
             if b_id == block_id {
@@ -188,8 +184,8 @@ pub fn outer_unroll(
 {
     assert!(unroll_ins.is_empty());
     let block = eval.get_block(block_id).unwrap();
-    let b_right = block.right.clone();
-    let b_left = block.left.clone();
+    let b_right = block.right;
+    let b_left = block.left;
     let block_instructions = block.instructions.clone();
     if block.is_join() {
         //1. unroll the block into the unroll_ins
@@ -243,18 +239,16 @@ pub fn outer_unroll(
         //We update block instructions from the eval_map
         eval_block(block_id, eval_map, eval);
     }
-    return b_left; //returns the next block to process
+    b_left //returns the next block to process
 }
-
 
 //evaluate phi instruction, coming from 'from' block; retrieve the argument corresponding to the block, evaluates it and update the evaluation map
 fn evaluate_phi(
-    instructions: &Vec<arena::Index>,
+    instructions: &[arena::Index],
     from: Index,
     to: &mut HashMap<Index, node::NodeEval>,
     eval: &mut IRGenerator,
 ) {
-    dbg!(from);
     for i in instructions {
         let mut to_process: Vec<(Index, node::NodeEval)> = Vec::new();
         if let Some(ins) = eval.get_as_instruction(*i) {
@@ -284,9 +278,8 @@ fn evaluate_conditional_jump(
     let jump_ins = eval.get_as_instruction(jump).unwrap();
     let lhs = get_current_value(jump_ins.lhs, value_array);
     let cond = evaluate_object(lhs, value_array, eval);
-    let cond_const = cond.to_const_value();
-    if cond_const.is_some() {
-        let result = !cond_const.unwrap().is_zero();
+    if let Some(cond_const) = cond.to_const_value() {
+        let result = !cond_const.is_zero();
         match jump_ins.operator {
             node::Operation::jeq => return result,
             node::Operation::jne => return !result,
@@ -342,13 +335,10 @@ fn evaluate_one(
                     let lhs = get_current_value(i.lhs, value_array);
                     let lhr = get_current_value(i.rhs, value_array);
                     let result = i.evaluate(&lhs, &lhr);
-                    match result {
-                        node::NodeEval::Idx(idx) => {
-                            if eval.get_object(idx).is_none() {
-                                return node::NodeEval::Idx(obj_id);
-                            }
+                    if let node::NodeEval::Idx(idx) = result {
+                        if eval.get_object(idx).is_none() {
+                            return node::NodeEval::Idx(obj_id);
                         }
-                        _ => (),
                     }
                     result
                 }
@@ -389,13 +379,10 @@ fn evaluate_object(
                     let lhr =
                         evaluate_object(get_current_value(i.rhs, value_array), value_array, eval);
                     let result = i.evaluate(&lhs, &lhr);
-                    match result {
-                        node::NodeEval::Idx(idx) => {
-                            if eval.get_object(idx).is_none() {
-                                return node::NodeEval::Idx(obj_id);
-                            }
+                    if let node::NodeEval::Idx(idx) = result {
+                        if eval.get_object(idx).is_none() {
+                            return node::NodeEval::Idx(obj_id);
                         }
-                        _ => (),
                     }
                     result
                 }

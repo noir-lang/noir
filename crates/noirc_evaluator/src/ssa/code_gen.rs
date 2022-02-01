@@ -1,12 +1,11 @@
-use super::{block, node, optim, ssa_form, flatten, integer};
+use super::{block, flatten, integer, node, optim, ssa_form};
+use std::collections::HashMap;
 use std::collections::HashSet;
-use std::collections::{HashMap, VecDeque};
-use std::ops::Add;
 use std::io;
 
-use super::super::environment::{Environment, FuncContext};
+use super::super::environment::Environment;
 use super::super::errors::{RuntimeError, RuntimeErrorKind};
-use crate::object::{Array, Integer, Object, RangedObject};
+use crate::object::Object;
 use crate::ssa::acir_gen::Acir;
 use crate::ssa::node::Node;
 use crate::Evaluator;
@@ -128,18 +127,15 @@ impl<'a> IRGenerator<'a> {
         idx
     }
 
-    //TODO:
-    // - we need an additional parameter in order to handle variables with the same name but with different scope
-    // - use a hashmap or something se we do not need to go through all the nodes to find a variable
-    pub fn find_variable(&self, name: &String) -> Option<&node::Variable> {
+    pub fn find_variable(&self, definition: &Option<IdentId>) -> Option<&node::Variable> {
+        if definition.is_none() {
+            return None;
+        }
         for (_, o) in &self.nodes {
-            match o {
-                node::NodeObj::Obj(v) => {
-                    if v.name == *name {
-                        return Some(v);
-                    }
+            if let node::NodeObj::Obj(v) = o {
+                if v.def == *definition {
+                    return Some(v);
                 }
-                _ => (),
             }
         }
         None
@@ -148,13 +144,10 @@ impl<'a> IRGenerator<'a> {
     pub fn find_const(&self, value: &BigUint) -> Option<arena::Index> {
         //TODO We should map constant values to id
         for (idx, o) in &self.nodes {
-            match o {
-                node::NodeObj::Const(c) => {
-                    if c.value == *value {
-                        return Some(idx);
-                    }
+            if let node::NodeObj::Const(c) = o {
+                if c.value == *value {
+                    return Some(idx);
                 }
-                _ => (),
             }
         }
         None
@@ -182,57 +175,39 @@ impl<'a> IRGenerator<'a> {
 
     //Returns the object value if it is a constant, None if not. TODO: handle types
     pub fn get_as_constant(&self, idx: arena::Index) -> Option<FieldElement> {
-        let obj = self.get_object(idx).unwrap();
-        match obj {
-            node::NodeObj::Const(c) => {
-                Some(FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be()))
-            }
-            _ => None,
+        if let Some(node::NodeObj::Const(c)) = self.get_object(idx) {
+            return Some(FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be()));
         }
+        None
     }
 
     pub fn get_mut_instruction(&mut self, idx: arena::Index) -> &mut node::Instruction {
-        let obj = self.get_mut_object(idx).unwrap();
-        match obj {
-            node::NodeObj::Instr(i) => i,
-            _ => todo!(), //Panic
+        if let Some(node::NodeObj::Instr(i)) = self.get_mut_object(idx) {
+            return i;
         }
+        unreachable!("Index not found or not an instruction");
     }
 
     pub fn get_as_instruction(&self, idx: arena::Index) -> Option<&node::Instruction> {
-        let obj = self.get_object(idx);
-        if obj.is_some() {
-            match obj.unwrap() {
-                node::NodeObj::Instr(i) => return Some(i),
-                _ => return None,
-            }
+        if let Some(node::NodeObj::Instr(i)) = self.get_object(idx) {
+            return Some(i);
         }
         None
     }
 
     pub fn get_as_mut_instruction(&mut self, idx: arena::Index) -> Option<&mut node::Instruction> {
-        let obj = self.get_mut_object(idx);
-        if obj.is_some() {
-            let result = match obj.unwrap() {
-                node::NodeObj::Instr(i) => Some(i),
-                _ => None,
-            };
-            return result;
+        if let Some(node::NodeObj::Instr(i)) = self.get_mut_object(idx) {
+            return Some(i);
         }
         None
     }
 
     //todo handle errors
     fn get_instruction(&self, idx: arena::Index) -> &node::Instruction {
-        let obj = self.get_object(idx);
-        if obj.is_some() {
-            let result = match obj.unwrap() {
-                node::NodeObj::Instr(i) => i,
-                _ => unreachable!("Not and instruction"),
-            };
-            return result;
+        if let Some(node::NodeObj::Instr(i)) = self.get_object(idx) {
+            return i;
         }
-        unreachable!("Index not found")
+        unreachable!("Index not found or not an instruction");
     }
 
     pub fn get_variable(&self, idx: arena::Index) -> Result<&node::Variable, &str> {
@@ -258,12 +233,8 @@ impl<'a> IRGenerator<'a> {
     }
 
     pub fn try_into_instruction(&self, idx: arena::Index) -> Option<&node::Instruction> {
-        let obj = self.get_object(idx);
-        if obj.is_some() {
-            return match obj.unwrap() {
-                node::NodeObj::Instr(i) => Some(i),
-                _ => None,
-            };
+        if let Some(node::NodeObj::Instr(i)) = self.get_object(idx) {
+            return Some(i);
         }
         None
     }
@@ -272,12 +243,8 @@ impl<'a> IRGenerator<'a> {
         &mut self,
         idx: arena::Index,
     ) -> Option<&mut node::Instruction> {
-        let obj = self.get_mut_object(idx);
-        if obj.is_some() {
-            return match obj.unwrap() {
-                node::NodeObj::Instr(i) => Some(i),
-                _ => None,
-            };
+        if let Some(node::NodeObj::Instr(i)) = self.get_mut_object(idx) {
+            return Some(i);
         }
         None
     }
@@ -328,9 +295,10 @@ impl<'a> IRGenerator<'a> {
     //TODO: handle type
     pub fn get_const(&mut self, x: FieldElement, t: node::ObjectType) -> arena::Index {
         let value = BigUint::from_bytes_be(&x.to_bytes()); //TODO a const should be a field element
-        let obj = self.find_const(&value); //todo type
-        if obj.is_some() {
-            return obj.unwrap();
+        if let Some(obj) = self.find_const(&value)
+        //todo type
+        {
+            return obj;
         }
         let obj_cst = node::Constant {
             id: self.dummy(),
@@ -370,7 +338,7 @@ impl<'a> IRGenerator<'a> {
             idx = self.add_object(obj);
             return idx;
         } else {
-            idx = self.id0.clone();
+            idx = self.id0;
             todo!();
             //we should support integer of size < FieldElement::max_num_bits()/2, because else we cannot support multiplication!
             //for bigger size, we will need to represent an integer using several field elements, it may be easier to implement them in Noir! (i.e as a Noir library)
@@ -399,9 +367,8 @@ impl<'a> IRGenerator<'a> {
             0
         }
         .to_string();
-        let nvar = self.get_mut_variable(new_var);
-        if nvar.is_ok() {
-            nvar.unwrap().name = root_name + &vname;
+        if let Ok(nvar) = self.get_mut_variable(new_var) {
+            nvar.name = root_name + &vname;
         }
     }
     //blocks/////////////////////////
@@ -422,15 +389,13 @@ impl<'a> IRGenerator<'a> {
         self.blocks.get(self.current_block).unwrap()
     }
 
-
- 
     ////////////////PARSING THE AST//////////////////////////////////////////////
     /// Compiles the AST into the intermediate format by evaluating the main function
     pub fn evaluate_main(
         &mut self,
         env: &mut Environment,
         context: &'a Context,
-        main_func_body: HirFunction,            //main function
+        main_func_body: HirFunction, //main function
     ) -> Result<(), RuntimeError> {
         self.context = Some(context);
 
@@ -438,51 +403,41 @@ impl<'a> IRGenerator<'a> {
         for stmt_id in block.statements() {
             self.evaluate_statement(env, stmt_id)?;
         }
-       
+
         Ok(())
     }
 
     //Optimise, flatten and truncate IR and then generates ACIR representation from it
-    pub fn ir_to_acir(&mut self,
-        evaluator: &mut Evaluator,
-    ) -> Result<(), RuntimeError> {
-
-        //Optimisation
-        dbg!("SSA - done");
+    pub fn ir_to_acir(&mut self, evaluator: &mut Evaluator) -> Result<(), RuntimeError> {
+        //SSA
+        dbg!("SSA:");
         let mut number = String::new();
         self.print();
-        println!("Press enter to continue");
-        io::stdin().read_line(&mut number);
+        //Optimisation
         block::compute_dom(self);
-        dbg!("CSE!");
+        dbg!("CSE:");
         optim::cse(self);
-
+        self.print();
         //Unrolling
-        self.print();
-        println!("Press enter to continue");
-        io::stdin().read_line(&mut number);
-        dbg!("unrolling");
+        dbg!("unrolling:");
         flatten::unroll_tree(self);
-        self.print();
-        println!("Press enter to continue");
-        io::stdin().read_line(&mut number);
         optim::cse(self);
-
+        self.print();
         //Truncation
         integer::overflow_strategy(self);
         self.print();
-        println!("Press enter to continue");
-        io::stdin().read_line(&mut number);
-
+        //println!("Press enter to continue");
+        //io::stdin().read_line(&mut number);
         //ACIR
         self.acir(evaluator);
         dbg!("DONE");
         Ok(())
     }
-  
+
     fn evaluate_identifier(&mut self, env: &mut Environment, ident_id: &IdentId) -> arena::Index {
         let ident_name = self.context.unwrap().def_interner.ident_name(ident_id);
-        let var = self.find_variable(&ident_name); //TODO by name or by id?
+        let ident_def = self.context.unwrap().def_interner.ident_def(ident_id);
+        let var = self.find_variable(&ident_def); //TODO by name or by id?
         let v_id;
         if var.is_some() {
             v_id = ssa_form::get_current_value(self, var.unwrap().id);
@@ -497,6 +452,7 @@ impl<'a> IRGenerator<'a> {
             name: ident_name.clone(),
             obj_type: obj_type,
             root: None,
+            def: ident_def,
             witness: node::get_witness_from_object(&obj),
             parent_block: self.current_block,
         };
@@ -518,8 +474,7 @@ impl<'a> IRGenerator<'a> {
             rtype,
             Some(self.current_block),
         );
-        let idx = self.add_object(node::NodeObj::Instr(i));
-        idx
+        self.add_object(node::NodeObj::Instr(i))
     }
 
     fn evaluate_infix_expression(
@@ -596,20 +551,45 @@ impl<'a> IRGenerator<'a> {
                 let ident_def = self
                     .context()
                     .def_interner
-                    .ident_def(&assign_stmt.identifier)
-                    .unwrap();
+                    .ident_def(&assign_stmt.identifier);
                 let ident_name = self
                     .context
                     .unwrap()
                     .def_interner
                     .ident_name(&assign_stmt.identifier);
-                let var = self.find_variable(&ident_name);
-                let lhs = var.unwrap();
+                dbg!(&ident_name);
+                let var = self.find_variable(&ident_def);
+                //TODO handle function call arguments! meanwhile, we create unknown variables...it is a temporary Workaround
+                let lhs = if var.is_none() {
+                    //var is not defined,
+                    //let's do it here for now...TODO
+                    let obj = env.get(&ident_name);
+                    let obj_type = node::ObjectType::get_type_from_object(&obj);
+                    let new_var2 = node::Variable {
+                        id: self.dummy(),
+                        obj_type: obj_type, //TODO
+                        name: ident_name.clone(),
+                        root: None,
+                        def: ident_def,
+                        witness: node::get_witness_from_object(&obj),
+                        parent_block: self.current_block,
+                    };
+                    let new_var2_id = self.add_variable(new_var2, None);
+                    self.get_block_mut(self.current_block)
+                        .unwrap()
+                        .update_variable(new_var2_id, new_var2_id); //DE MEME
+                    self.get_variable(new_var2_id).unwrap()
+                } else {
+                    var.unwrap()
+                };
+
+                //let lhs = var.unwrap();
                 let new_var = node::Variable {
                     id: lhs.id,
                     obj_type: lhs.obj_type,
                     name: String::new(),
                     root: None,
+                    def: ident_def,
                     witness: None,
                     parent_block: self.current_block,
                 };
@@ -629,10 +609,18 @@ impl<'a> IRGenerator<'a> {
                 self.update_variable_id(ls_root, new_var_id, result); //update the name and the value array
                 Ok(result)
             }
+            HirStatement::Error => unreachable!(
+                "ice: compiler did not exit before codegen when a statement failed to parse"
+            ),
         }
     }
 
-    fn create_new_variable(&mut self, var_name: String, env: &mut Environment) -> arena::Index {
+    fn create_new_variable(
+        &mut self,
+        var_name: String,
+        def: Option<IdentId>,
+        env: &mut Environment,
+    ) -> arena::Index {
         let obj = env.get(&var_name);
         let obj_type = node::ObjectType::get_type_from_object(&obj);
         let new_var = node::Variable {
@@ -640,30 +628,11 @@ impl<'a> IRGenerator<'a> {
             obj_type: obj_type,
             name: var_name,
             root: None,
+            def: def,
             witness: node::get_witness_from_object(&obj),
             parent_block: self.current_block,
         };
         self.add_variable(new_var, None)
-    }
-
-    //create a variable for a new assignement of var
-    fn new_ssa_variable(&mut self, var_id: arena::Index) -> arena::Index {
-        if let Ok(var) = self.get_variable(var_id) {
-            let obj_type = var.get_type();
-            let root = var.get_root();
-            let new_var = node::Variable {
-                id: self.dummy(),
-                obj_type: obj_type,
-                name: String::new(),
-                root: Some(root),
-                witness: None,
-                parent_block: self.current_block,
-            };
-            let id = self.add_variable(new_var, Some(root));
-            self.update_variable_id(root, id, id);
-            return id;
-        }
-        unreachable!("TODO: error");
     }
 
     // Add a constraint to constrain two expression together
@@ -730,11 +699,13 @@ impl<'a> IRGenerator<'a> {
             .context()
             .def_interner
             .ident_name(&priv_stmt.identifier);
+        let ident_def = self.context().def_interner.ident_def(&priv_stmt.identifier);
         let new_var = node::Variable {
             id: self.dummy(),
             obj_type: node::ObjectType::native_field, //TODO
             name: variable_name,
             root: None,
+            def: ident_def,
             witness: None, //TODO
             parent_block: self.current_block,
         };
@@ -763,6 +734,7 @@ impl<'a> IRGenerator<'a> {
 
         // Convert the LHS into an identifier
         let variable_name = self.context().def_interner.ident_name(&let_stmt.identifier);
+        let ident_def = self.context().def_interner.ident_def(&let_stmt.identifier);
         //Create a new variable;
         //TODO in the name already exists, we should use something else (from env) to find a variable (identid?)
 
@@ -771,6 +743,7 @@ impl<'a> IRGenerator<'a> {
             obj_type: rtype, //TODO - what if type is defined on lhs only?
             name: variable_name,
             root: None,
+            def: ident_def,
             witness: None,
             parent_block: self.current_block,
         };
@@ -808,9 +781,7 @@ impl<'a> IRGenerator<'a> {
             HirExpression::Infix(infx) => {
                 let lhs = self.expression_to_object(env, &infx.lhs)?;
                 let rhs = self.expression_to_object(env, &infx.rhs)?;
-                let ins = self.evaluate_infix_expression(lhs, rhs, infx.operator);
-                //si lhs est une var + creatphi=> create phi
-                ins
+                self.evaluate_infix_expression(lhs, rhs, infx.operator)
             },
             HirExpression::Cast(cast_expr) => {
                 let lhs = self.expression_to_object(env, &cast_expr.lhs)?;
@@ -896,9 +867,17 @@ impl<'a> IRGenerator<'a> {
             .unwrap()
             .def_interner
             .ident_name(&for_expr.identifier);
+        let iter_def = self
+            .context
+            .unwrap()
+            .def_interner
+            .ident_def(&for_expr.identifier);
         env.store(iter_name.clone(), Object::Constants(start));
-        let iter_id = self.create_new_variable(iter_name, env); //TODO do we need to store and retrieve it ?
+        let iter_id = self.create_new_variable(iter_name, iter_def, env); //TODO do we need to store and retrieve it ?
+        let iter_var = self.get_mut_variable(iter_id).unwrap();
+        iter_var.obj_type = node::ObjectType::unsigned(32); //TODO create_new_variable should set the correct type
         let iter_type = self.get_object_type(iter_id);
+        dbg!(iter_type);
         let iter_ass = self.new_instruction(iter_id, start_idx, node::Operation::ass, iter_type);
         //We map the iterator to start_idx so that when we seal the join block, we will get the corrdect value.
         self.update_variable_id(iter_id, iter_ass, start_idx);
@@ -917,6 +896,7 @@ impl<'a> IRGenerator<'a> {
             obj_type: iter_type,
             name: String::new(),
             root: None,
+            def: None,
             witness: None,
             parent_block: join_idx,
         };
@@ -945,7 +925,7 @@ impl<'a> IRGenerator<'a> {
             _ => panic!("ice: expected a block expression"),
         };
         let body_block1 = self.get_block_mut(body_idx).unwrap();
-        body_block1.update_variable(iter_id, phi); //TODO try with just a get_current_value(iter) 
+        body_block1.update_variable(iter_id, phi); //TODO try with just a get_current_value(iter)
         let statements = block.statements();
         for stmt in statements {
             self.evaluate_statement(env, stmt);
@@ -1000,7 +980,6 @@ impl<'a> IRGenerator<'a> {
         //   dbg!(acir.arith_cache);
     }
 
- 
     pub fn generate_empty_phi(
         &mut self,
         target_block: arena::Index,

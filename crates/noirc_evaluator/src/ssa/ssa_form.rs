@@ -4,7 +4,7 @@ use arena;
 // create phi arguments from the predecessors of the block (containing phi)
 pub fn write_phi(
     igen: &mut IRGenerator,
-    predecessors: &Vec<arena::Index>,
+    predecessors: &[arena::Index],
     var: arena::Index,
     phi: arena::Index,
 ) {
@@ -16,7 +16,7 @@ pub fn write_phi(
 
     let s2 = node::Instruction::simplify_phi(phi, &result);
     if let Some(phi_ins) = igen.get_as_mut_instruction(phi) {
-        assert!(phi_ins.phi_arguments.len() == 0);
+        assert!(phi_ins.phi_arguments.is_empty());
         if let Some(s_phi) = s2 {
             if s_phi != phi {
                 //s2 != phi
@@ -60,14 +60,12 @@ pub fn get_block_value(
         //incomplete CFG
         result = igen.generate_empty_phi(block_id, root);
     } else {
-        //TODO a enlever, car ca a ete fait avant en fait (mais tocheck)
         let block = igen.get_block(block_id).unwrap();
         if let Some(idx) = block.get_current_value(root) {
             return idx;
         }
         let pred = block.predecessor.clone();
-        if pred.len() == 0 {
-            dbg!(block_id);
+        if pred.is_empty() {
             return root;
         }
         if pred.len() == 1 {
@@ -101,21 +99,10 @@ pub fn get_current_value_in_block(
         return val;
     }
     //Global value numbering
-    return get_block_value(igen, root, block_id);
+    get_block_value(igen, root, block_id)
 }
 
 //Returns the current SSA value of a variable, recursively
 pub fn get_current_value(igen: &mut IRGenerator, var_id: arena::Index) -> arena::Index {
-    return get_current_value_in_block(igen, var_id, igen.current_block);
+    get_current_value_in_block(igen, var_id, igen.current_block)
 }
-
-//Returns the current SSA value of a variable.  =read recursive
-// pub fn get_current_value3(&mut self, var_id: arena::Index) -> arena::Index {
-//     let mut root = var_id;
-//     if let Ok(var) = self.get_variable(var_id) {
-//         if let Some(var_root) = var.root {
-//             root = var_root;
-//         }
-//     }
-//     return self.get_block_value(root, self.current_block);
-//   }

@@ -1,16 +1,14 @@
-use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
-use std::env::VarError;
 
 use acvm::acir::native_types::Witness;
 use acvm::FieldElement;
 use arena;
 use noirc_frontend::hir_def::expr::HirBinaryOpKind;
+use noirc_frontend::node_interner::IdentId;
 use num_bigint::BigUint;
 
 use crate::object::Object;
 use num_traits::identities::Zero;
-//n.b
 
 pub trait Node {
     fn get_type(&self) -> ObjectType;
@@ -27,7 +25,7 @@ impl Node for Variable {
 
     fn print(&self) -> String {
         //format!("{}({:?})", self.name, self.id)
-        format!("{}", self.name)
+        self.name.to_string()
     }
 
     fn bits(&self) -> u32 {
@@ -137,6 +135,7 @@ pub struct Variable {
     pub name: String,
     //pub cur_value: arena::Index, //for generating the SSA form, current value of the object during parsing of the AST
     pub root: Option<arena::Index>, //when generating SSA, assignment of an object creates a new one which is linked to the original one
+    pub def: Option<IdentId>,       //TODO redondant with root - should it be an option?
     //TODO clarify where cur_value and root is stored, and also this:
     //  pub max_bits: u32,                  //max possible bit size of the expression
     //  pub max_value: Option<BigUInt>,     //maximum possible value of the expression, if less than max_bits
@@ -153,6 +152,7 @@ impl Variable {
     }
 }
 
+#[allow(non_camel_case_types)]
 #[derive(Copy, Clone, Debug)]
 pub enum ObjectType {
     native_field,
@@ -169,25 +169,18 @@ pub enum ObjectType {
 
 impl ObjectType {
     fn is_signed(&self) -> bool {
-        match self {
-            ObjectType::signed(_) => true,
-            _ => false,
-        }
+        matches!(self, ObjectType::signed(_))
     }
 
     fn is_unsigned(&self) -> bool {
-        match self {
-            ObjectType::unsigned(_) => true,
-            _ => false,
-        }
+        matches!(self, ObjectType::unsigned(_))
     }
 
     fn is_field(&self) -> bool {
-        match self {
-            ObjectType::native_field => true,
-            // ObjectType::custom_field(_)=> true,
-            _ => false,
-        }
+        matches!(
+            self,
+            ObjectType::native_field //| ObjectType::custom_field
+        )
     }
 
     pub fn from_type(t: noirc_frontend::Type) -> ObjectType {
@@ -219,17 +212,17 @@ impl ObjectType {
         match obj {
             Object::Arithmetic(a) => {
                 todo!();
-                ObjectType::native_field
+                //ObjectType::native_field
             }
             Object::Array(a) => {
                 todo!();
-                ObjectType::none
+                //ObjectType::none
             }
             Object::Constants(_) => ObjectType::native_field,
-            Object::Integer(i) => ObjectType::signed(i.num_bits), //TODO signed or unsigned?
+            Object::Integer(i) => ObjectType::unsigned(i.num_bits), //TODO signed or unsigned?
             Object::Linear(l) => {
                 todo!();
-                ObjectType::native_field
+                //ObjectType::native_field
             }
             Object::Null => ObjectType::none,
         }
@@ -320,10 +313,7 @@ impl Instruction {
 
     //indicates if the operation is a substraction
     pub fn is_sub(&self) -> bool {
-        match self.operator {
-            Operation::sub | Operation::ssub => true,
-            _ => false,
-        }
+        matches!(self.operator, Operation::sub | Operation::ssub)
     }
 
     //indicates whether the left and/or right operand of the instruction is required to be truncated to its bit-width
@@ -488,7 +478,7 @@ impl Instruction {
         let mut r_constant = None;
         let mut r_bsize = 0;
         let mut l_bsize = 0;
-        let mut l_sign = false; //TODO
+        //let mut l_sign = false; //TODO
         Instruction::node_evaluate(lhs, &mut l_is_zero, &mut l_constant, &mut l_bsize);
         Instruction::node_evaluate(rhs, &mut r_is_zero, &mut r_constant, &mut r_bsize);
 
@@ -713,7 +703,7 @@ impl Instruction {
             // Operation::ass => todo!(),
             // Operation::nop => todo!(),
         }
-        return NodeEval::Idx(self.idx);
+        NodeEval::Idx(self.idx)
     }
 
     // Simplifies trivial Phi instructions by returning:
@@ -722,7 +712,7 @@ impl Instruction {
     // Some(ins_id), if the instruction is not trivial
     pub fn simplify_phi(
         ins_id: arena::Index,
-        phi_arguments: &Vec<(arena::Index, arena::Index)>,
+        phi_arguments: &[(arena::Index, arena::Index)],
     ) -> Option<arena::Index> {
         let mut same = None;
         for op in phi_arguments {
@@ -737,46 +727,34 @@ impl Instruction {
             same = Some(op.0);
         }
         //if same.is_none()  => unreachable phi or in root block, can be replaced by ins.lhs (i.e the root) then.
-        return same;
+        same
     }
 
-    pub fn standard_form<'a>(&mut self) {
+    pub fn standard_form(&mut self) {
         match self.operator {
             //convert greater into less
             Operation::ugt => {
-                let r = self.rhs;
-                self.rhs = self.lhs;
-                self.lhs = r;
+                std::mem::swap(&mut self.rhs, &mut self.lhs);
                 self.operator = Operation::ult
             }
             Operation::uge => {
-                let r = self.rhs;
-                self.rhs = self.lhs;
-                self.lhs = r;
+                std::mem::swap(&mut self.rhs, &mut self.lhs);
                 self.operator = Operation::ule
             }
             Operation::sgt => {
-                let r = self.rhs;
-                self.rhs = self.lhs;
-                self.lhs = r;
+                std::mem::swap(&mut self.rhs, &mut self.lhs);
                 self.operator = Operation::slt
             }
             Operation::sge => {
-                let r = self.rhs;
-                self.rhs = self.lhs;
-                self.lhs = r;
+                std::mem::swap(&mut self.rhs, &mut self.lhs);
                 self.operator = Operation::sle
             }
             Operation::gt => {
-                let r = self.rhs;
-                self.rhs = self.lhs;
-                self.lhs = r;
+                std::mem::swap(&mut self.rhs, &mut self.lhs);
                 self.operator = Operation::lt
             }
             Operation::gte => {
-                let r = self.rhs;
-                self.rhs = self.lhs;
-                self.lhs = r;
+                std::mem::swap(&mut self.rhs, &mut self.lhs);
                 self.operator = Operation::lte
             }
             //TODO replace a<b with a<=b+1, but beware of edge cases!
@@ -789,14 +767,13 @@ impl Instruction {
             _ => (),
         }
         if is_commutative(self.operator) && self.rhs < self.lhs {
-            let r = self.rhs;
-            self.rhs = self.lhs;
-            self.lhs = r;
+            std::mem::swap(&mut self.rhs, &mut self.lhs);
         }
     }
 }
 
 //adpated from LLVM IR
+#[allow(non_camel_case_types)]
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum Operation {
     add,  //(+)
@@ -840,7 +817,7 @@ pub enum Operation {
     jeq, //jump on equal
     jmp, //unconditional jump
     //phi,
-    phi, //TEMP!!!
+    phi,
     // todo: call, br,..
     nop, // no op
 
@@ -849,16 +826,16 @@ pub enum Operation {
 }
 
 pub fn is_commutative(op_code: Operation) -> bool {
-    match op_code {
+    matches!(
+        op_code,
         Operation::add
-        | Operation::sadd
-        | Operation::mul
-        | Operation::smul
-        | Operation::and
-        | Operation::or
-        | Operation::xor => true,
-        _ => false,
-    }
+            | Operation::sadd
+            | Operation::mul
+            | Operation::smul
+            | Operation::and
+            | Operation::or
+            | Operation::xor
+    )
 }
 
 pub fn is_binary(op_code: Operation) -> bool {
@@ -925,7 +902,7 @@ pub fn to_operation(op_kind: HirBinaryOpKind, op_type: ObjectType) -> Operation 
             if op_type.is_field() {
                 return Operation::div;
             }
-            todo!("invalid type"); //TODO error
+            unreachable!("invalid type"); //TODO error
             return Operation::nop;
         }
         HirBinaryOpKind::Less => {
@@ -938,7 +915,8 @@ pub fn to_operation(op_kind: HirBinaryOpKind, op_type: ObjectType) -> Operation 
             if op_type.is_field() {
                 return Operation::lt;
             }
-            return Operation::nop; //TODO error
+            unreachable!("invalid type"); //TODO error
+            Operation::nop
         }
         HirBinaryOpKind::Greater => {
             if op_type.is_signed() {
@@ -950,7 +928,8 @@ pub fn to_operation(op_kind: HirBinaryOpKind, op_type: ObjectType) -> Operation 
             if op_type.is_field() {
                 return Operation::gt;
             }
-            return Operation::nop; //TODO error
+            unreachable!("invalid type"); //TODO error
+            Operation::nop
         }
         HirBinaryOpKind::LessEqual => {
             if op_type.is_signed() {
@@ -962,7 +941,8 @@ pub fn to_operation(op_kind: HirBinaryOpKind, op_type: ObjectType) -> Operation 
             if op_type.is_field() {
                 return Operation::lte;
             }
-            return Operation::nop; //TODO error
+            unreachable!("invalid type"); //TODO error
+            Operation::nop
         }
         HirBinaryOpKind::GreaterEqual => {
             if op_type.is_signed() {
@@ -974,9 +954,10 @@ pub fn to_operation(op_kind: HirBinaryOpKind, op_type: ObjectType) -> Operation 
             if op_type.is_field() {
                 return Operation::gte;
             }
-            return Operation::nop; //TODO error
+            unreachable!("invalid type"); //TODO error
+            Operation::nop //TODO error
         }
-        HirBinaryOpKind::Assign => Operation::ass, //TODO
+        HirBinaryOpKind::Assign => Operation::ass,
     }
 }
 

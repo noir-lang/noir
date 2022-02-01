@@ -3,7 +3,6 @@ use acvm::FieldElement;
 use arena::Index;
 use num_traits::ToPrimitive;
 use std::collections::HashMap;
-use std::fs::File;
 //use crate::acir::native_types::{Arithmetic, Witness};
 use crate::ssa::code_gen::IRGenerator;
 use crate::ssa::node;
@@ -37,7 +36,7 @@ impl InternalVar {
         {
             return true;
         }
-        return false; //TODO should we check if content is the same??
+        false //TODO should we check if content is the same??
     }
 }
 
@@ -54,12 +53,11 @@ impl Acir {
         if arith_cache.contains_key(&idx) {
             return arith_cache[&idx].clone();
         }
-        let obj = cfg.get_object(idx);
         let mut expr;
         let mut result: Option<InternalVar> = None;
 
-        if obj.is_some() {
-            match obj.unwrap() {
+        if let Some(obj) = cfg.get_object(idx) {
+            match obj {
                 node::NodeObj::Const(c) => {
                     let f_value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be()); //TODO const should be a field
                     expr = Arithmetic {
@@ -99,7 +97,7 @@ impl Acir {
             });
         }
         arith_cache.insert(idx, result.unwrap());
-        return arith_cache[&idx].clone();
+        arith_cache[&idx].clone()
     }
 
     pub fn new() -> Acir {
@@ -131,17 +129,20 @@ impl Acir {
                 //we need the type of rhs and its max value, then:
                 //lhs-rhs+k*2^bit_size where k=ceil(max_value/2^bit_size)
                 let bit_size = cfg.get_object(ins.rhs).unwrap().bits();
+                assert!(bit_size < 128); //todo
                 let r_mod = 1_u128 << bit_size;
                 let k = (ins.max_value.to_f64().unwrap() / r_mod as f64).ceil() as i128;
-                let mut f = FieldElement::from(-k);
+                let mut f = FieldElement::from(k);
                 f = f * FieldElement::from_be_bytes_reduce(&BigUint::from(r_mod).to_bytes_be());
                 output = add(&l_c.expression, FieldElement::from(-1), &r_c.expression);
                 output.q_c += f;
             }
             Operation::mul | Operation::smul => {
-                output = evaluate_mul(l_c, r_c, evaluator);
+                output = evaluate_mul(&l_c, &r_c, evaluator);
             }
-            Operation::udiv => todo!(),
+            Operation::udiv => {
+                output = evaluate_udiv(&l_c, &r_c, evaluator);
+            }
             Operation::sdiv => todo!(),
             Operation::urem => todo!(),
             Operation::srem => todo!(),
@@ -219,7 +220,7 @@ pub fn evaluate_truncate(
     //TODO: we should truncate the arithmetic expression (and so avoid having to create a witness)
     // if lhs is not a witness, but this requires a new truncate directive...TODO
     if lhs.witness.is_none() {
-        a_witness = generate_witness(lhs, evaluator);
+        a_witness = generate_witness(&lhs, evaluator);
     } else {
         a_witness = lhs.witness.unwrap();
     }
@@ -227,12 +228,12 @@ pub fn evaluate_truncate(
     let b_witness = evaluator.add_witness_to_cs();
     let c_witness = evaluator.add_witness_to_cs();
     //TODO not in master..
-    // evaluator.gates.push(Gate::Directive(Directive::Truncate {
-    //     a: a_witness,
-    //     b: b_witness,
-    //     c: c_witness,
-    //     bit_size: rhs,
-    // }));
+    evaluator.gates.push(Gate::Directive(Directive::Truncate {
+        a: a_witness,
+        b: b_witness,
+        c: c_witness,
+        bit_size: rhs,
+    }));
 
     range_constraint(b_witness, rhs, evaluator);
     range_constraint(c_witness, max_bits - rhs, evaluator);
@@ -247,27 +248,27 @@ pub fn evaluate_truncate(
     let my_constraint = add(&res, -FieldElement::one(), a);
     evaluator.gates.push(Gate::Arithmetic(my_constraint));
 
-    return Arithmetic::from(Linear::from_witness(b_witness));
+    Arithmetic::from(Linear::from_witness(b_witness))
 }
 
-pub fn generate_witness(lhs: InternalVar, evaluator: &mut Evaluator) -> Witness {
+pub fn generate_witness(lhs: &InternalVar, evaluator: &mut Evaluator) -> Witness {
     if lhs.witness.is_some() {
         return lhs.witness.unwrap();
     }
     if is_const(&lhs.expression) {
         todo!("Panic");
     }
-    if lhs.expression.mul_terms.len() == 0 && lhs.expression.linear_combinations.len() == 1 {
+    if lhs.expression.mul_terms.is_empty() && lhs.expression.linear_combinations.len() == 1 {
         todo!("optimisation ??!?");
     }
     let w = evaluator.add_witness_to_cs(); //TODO  set lhs.witness = w
     evaluator
         .gates
         .push(Gate::Arithmetic(&lhs.expression - &Arithmetic::from(&w)));
-    return w;
+    w
 }
 
-pub fn evaluate_mul(lhs: InternalVar, rhs: InternalVar, evaluator: &mut Evaluator) -> Arithmetic {
+pub fn evaluate_mul(lhs: &InternalVar, rhs: &InternalVar, evaluator: &mut Evaluator) -> Arithmetic {
     let result;
     if is_const(&lhs.expression) {
         result = &(rhs.expression) * &(lhs.expression.q_c);
@@ -289,7 +290,7 @@ pub fn evaluate_mul(lhs: InternalVar, rhs: InternalVar, evaluator: &mut Evaluato
         .gates
         .push(Gate::Arithmetic(&lhs.expression - &Arithmetic::from(&a)));
     //create new witness b et gate b = rhs
-    if lhs.is_equal(&rhs) {
+    if lhs.is_equal(rhs) {
         b = a;
     } else {
         b = evaluator.add_witness_to_cs();
@@ -299,10 +300,14 @@ pub fn evaluate_mul(lhs: InternalVar, rhs: InternalVar, evaluator: &mut Evaluato
     }
 
     //return arith(mul=a*b)
-    return mul(&Arithmetic::from(&a), &Arithmetic::from(&b)); //TODO  &lhs.expression * &rhs.expression
+    mul(&Arithmetic::from(&a), &Arithmetic::from(&b)) //TODO  &lhs.expression * &rhs.expression
 }
 
-pub fn evaluate_udiv(lhs: InternalVar, rhs: InternalVar, evaluator: &mut Evaluator) -> Arithmetic {
+pub fn evaluate_udiv(
+    lhs: &InternalVar,
+    rhs: &InternalVar,
+    evaluator: &mut Evaluator,
+) -> Arithmetic {
     //a = q*b+r, a= lhs, et b= rhs
     //result = q
     //n.b a et b MUST have proper bit size
@@ -310,47 +315,57 @@ pub fn evaluate_udiv(lhs: InternalVar, rhs: InternalVar, evaluator: &mut Evaluat
     //generate witnesses
     let a_witness;
     //TODO: can we handle an arithmetic and not create a witness for a and b?
-    if (lhs.witness.is_none()) {
+    if lhs.witness.is_none() {
         a_witness = generate_witness(lhs, evaluator); //TODO we should set lhs.witness = a.witness et lhs.expression= 1*w
     } else {
         a_witness = lhs.witness.unwrap();
     }
     let b_witness;
     //TODO: can we handle an arithmetic and not create a witness for a and b?
-    if (rhs.witness.is_none()) {
+    if rhs.witness.is_none() {
         b_witness = generate_witness(rhs, evaluator);
     } else {
         b_witness = rhs.witness.unwrap();
     }
     let q_witness = evaluator.add_witness_to_cs();
     let r_witness = evaluator.add_witness_to_cs();
+
     //TODO not in master...
-    // evaluator.gates.push(Gate::Directive(Directive::Quotient {
-    //     a: a_witness,
-    //     b: b_witness,
-    //     q: q_witness,
-    //     r: r_witness,
-    // }));
+    evaluator.gates.push(Gate::Directive(Directive::Quotient {
+        a: a_witness,
+        b: b_witness,
+        q: q_witness,
+        r: r_witness,
+    }));
     //r<b
-    //TODO   bound_check(r, b, true, 32, evaluator);//TODO bit size! should be max(a.bit, b.bit)
-    //range check q<=a
-    //TODO   range_constraint(q_witness, 32, evaluator); //todo bit size should be a.bits
-    // a-b*q-r = 0
-    //TODO!!    // let div_eucl = add(&lhs.expression,
-    //     -FieldElement::one(),
-    //     &Arithmetic {
-    //     mul_terms: vec![(FieldElement::one(), b_witness, q_witness)],
-    //     linear_combinations: vec![(FieldElement::one(), r_witness)],
-    //     q_c: FieldElement::zero(),
-    // });
+    let r_expr = Arithmetic::from(Linear::from_witness(r_witness));
+    let r_var = InternalVar {
+        expression: r_expr,
+        witness: Some(r_witness),
+        idx: None,
+    };
+    bound_check(&r_var, rhs, true, 32, evaluator); //TODO bit size! should be max(a.bit, b.bit)
+                                                   //range check q<=a
+    range_constraint(q_witness, 32, evaluator); //todo bit size should be a.bits
+                                                // a-b*q-r = 0
+    let div_eucl = add(
+        &lhs.expression,
+        -FieldElement::one(),
+        &Arithmetic {
+            mul_terms: vec![(FieldElement::one(), b_witness, q_witness)],
+            linear_combinations: vec![(FieldElement::one(), r_witness)],
+            q_c: FieldElement::zero(),
+        },
+    );
 
     // evaluator.gates.push(Gate::Arithmetic(div_eucl));
-    return Arithmetic::from(Linear::from_witness(q_witness)); //todo witness, arith, var??
+    Arithmetic::from(Linear::from_witness(q_witness)) //todo witness, arith, var??
 }
 
 pub fn evaluate_sdiv(lhs: InternalVar, rhs: InternalVar, evaluator: &mut Evaluator) -> Arithmetic {
     //TODO
-    return Arithmetic::default();
+    todo!();
+    Arithmetic::default()
 }
 
 pub fn is_const(expr: &Arithmetic) -> bool {
@@ -442,12 +457,12 @@ pub fn mul(a: &Arithmetic, b: &Arithmetic) -> Arithmetic {
     //Constant term:
     output.q_c = a.q_c * b.q_c;
     //dbg!("mul result: {:?}", output.clone());
-    return output;
+    output
 }
 
 fn next_mul_iter(
-    a: &Vec<(FieldElement, Witness)>,
-    b: &Vec<(FieldElement, Witness)>,
+    a: &[(FieldElement, Witness)],
+    b: &[(FieldElement, Witness)],
     i1: &mut usize,
     i2: &mut usize,
 ) {
@@ -595,7 +610,7 @@ pub fn single_mul(w: Witness, b: &Arithmetic) -> Arithmetic {
         }
         i1 += 1;
     }
-    return output;
+    output
 }
 
 pub fn boolean(witness: Witness) -> Arithmetic {
@@ -661,7 +676,13 @@ pub fn range_constraint(
 // if a>b, b-a = p+b-a > p-2^bits >= 2^bits  (if log(p) >= bits + 1)
 // n.b: we de NOT check here that a and b are indeed 'bits' size
 // a < b <=> a+1<=b
-fn bound_check(a: InternalVar, b: InternalVar, strict: bool, bits: u32, evaluator: &mut Evaluator)
+fn bound_check(
+    a: &InternalVar,
+    b: &InternalVar,
+    strict: bool,
+    bits: u32,
+    evaluator: &mut Evaluator,
+)
 //-> Result<RuntimeErrorKind>
 {
     //todo appeler bound_constrains et rajouter les gates a l'evaluator

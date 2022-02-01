@@ -17,9 +17,7 @@ pub fn get_instruction_max(
 ) -> BigUint {
     let r_max = get_obj_max_value(eval, None, ins.rhs, max_map, vmap);
     let l_max = get_obj_max_value(eval, None, ins.lhs, max_map, vmap);
-    let i_max = ins.get_max_value(l_max, r_max);
-
-    i_max
+    ins.get_max_value(l_max, r_max)
 }
 
 // Retrieve max possible value of a node; from the max_map if it was already computed
@@ -46,8 +44,14 @@ pub fn get_obj_max_value(
 
     let result: BigUint;
     result = match obj_ {
-        node::NodeObj::Obj(v) => BigUint::from((1_u128 << v.bits()) - 1), //TODO check for signed type
-        node::NodeObj::Instr(i) => get_instruction_max(eval, &i, max_map, vmap),
+        node::NodeObj::Obj(v) => {
+            dbg!(v.bits());
+            if v.bits() > 100 {
+                dbg!(&v);
+            }
+            BigUint::from((1_u128 << v.bits()) - 1)
+        } //TODO check for signed type
+        node::NodeObj::Instr(i) => get_instruction_max(eval, i, max_map, vmap),
         node::NodeObj::Const(c) => c.value.clone(), //TODO panic for string constants
     };
     max_map.insert(id, result.clone());
@@ -113,12 +117,8 @@ fn add_to_truncate(
 ) -> BigUint {
     let v_max = &max_map[&obj_id];
     if *v_max >= BigUint::from(1_u128 << bit_size) {
-        let obj = eval.get_object(obj_id).unwrap();
-        match obj {
-            node::NodeObj::Const(_) => {
-                return v_max.clone(); //a constant cannot be truncated, so we exit the function gracefully
-            }
-            _ => {}
+        if let Some(node::NodeObj::Const(_)) = eval.get_object(obj_id) {
+            return v_max.clone(); //a constant cannot be truncated, so we exit the function gracefully
         }
         let truncate_bits;
         if to_truncate.contains_key(&obj_id) {
@@ -130,7 +130,7 @@ fn add_to_truncate(
         }
         return BigUint::from(truncate_bits - 1);
     }
-    return v_max.clone();
+    v_max.clone()
 }
 
 //Truncate the 'to_truncate' list
@@ -163,8 +163,8 @@ fn update_ins_parameters(
     let mut ins = eval.get_as_mut_instruction(idx).unwrap();
     ins.lhs = lhs;
     ins.rhs = rhs;
-    if max_value.is_some() {
-        ins.max_value = max_value.unwrap();
+    if let Some(max_v) = max_value {
+        ins.max_value = max_v;
     }
 }
 
@@ -265,8 +265,8 @@ pub fn block_overflow(
             if ins_max.bits() >= FieldElement::max_num_bits().into() {
                 let message = format!(
                     "Require big int implementation, the bit size is too big for the field: {}, {}",
-                    l_trunc_max.clone().bits(),
-                    r_trunc_max.clone().bits()
+                    l_trunc_max.bits(),
+                    r_trunc_max.bits()
                 );
                 panic!("{}", message);
             }

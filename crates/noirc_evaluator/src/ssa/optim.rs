@@ -1,5 +1,4 @@
 use super::{
-    block,
     code_gen::IRGenerator,
     node::{self, Node, NodeEval},
 };
@@ -21,18 +20,13 @@ pub fn to_const(eval: &IRGenerator, obj: node::NodeEval) -> node::NodeEval {
     match obj {
         node::NodeEval::Const(_, _) => obj,
         node::NodeEval::Idx(i) => {
-            if let Some(node_obj) = eval.get_object(i) {
-                match node_obj {
-                    node::NodeObj::Const(c) => {
-                        return node::NodeEval::Const(
-                            FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be()),
-                            c.get_type(),
-                        )
-                    }
-                    _ => (),
-                }
+            if let Some(node::NodeObj::Const(c)) = eval.get_object(i) {
+                return node::NodeEval::Const(
+                    FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be()),
+                    c.get_type(),
+                );
             }
-            return obj;
+            obj
         }
     }
 }
@@ -97,10 +91,8 @@ pub fn simplify(eval: &mut IRGenerator, ins: &mut node::Instruction) {
         if !l_const.is_zero() && ins.operator == node::Operation::xor {
             ins.operator = node::Operation::not;
             ins.lhs = ins.rhs;
-            return;
         }
     }
-    return;
 }
 
 ////////////////////CSE////////////////////////////////////////
@@ -112,23 +104,20 @@ pub fn find_similar_instruction(
     prev_ins: &VecDeque<arena::Index>,
 ) -> Option<arena::Index> {
     for iter in prev_ins {
-        let i = eval.get_as_instruction(*iter);
-        if i.is_some() {
-            let ins = i.unwrap();
+        if let Some(ins) = eval.get_as_instruction(*iter) {
             if ins.lhs == lhs && ins.rhs == rhs {
                 return Some(*iter);
             }
         }
     }
-    return None;
+    None
 }
 
 pub fn propagate(eval: &IRGenerator, idx: arena::Index) -> arena::Index {
-    let obj = eval.get_as_instruction(idx);
     let mut result = idx;
-    if obj.is_some() {
-        if obj.unwrap().operator == node::Operation::ass || obj.unwrap().is_deleted {
-            result = obj.unwrap().rhs;
+    if let Some(obj) = eval.get_as_instruction(idx) {
+        if obj.operator == node::Operation::ass || obj.is_deleted {
+            result = obj.rhs;
         }
     }
     result
@@ -168,17 +157,17 @@ pub fn block_cse(
     if block_list.is_empty() {
         //RIA...
         for iter in &bb.instructions {
-            block_list.push(iter.clone());
+            block_list.push(*iter);
         }
     }
 
     for iter in block_list {
         if let Some(ins) = eval.get_as_instruction(*iter) {
             let mut to_delete = false;
-            let mut i_lhs = ins.lhs.clone();
-            let mut i_rhs = ins.rhs.clone();
-            let mut i_lhs_name = String::new();
-            let mut i_rhs_name = String::new();
+            let mut i_lhs = ins.lhs;
+            let mut i_rhs = ins.rhs;
+            let i_lhs_name = String::new();
+            let i_rhs_name = String::new();
             let mut phi_args: Vec<(arena::Index, arena::Index)> = Vec::new();
             let mut to_update_phi = false;
             if !anchor.contains_key(&ins.operator) {
@@ -228,8 +217,8 @@ pub fn block_cse(
                 update.phi_arguments = phi_args;
             } else if to_delete || ins.lhs != i_lhs || ins.rhs != i_rhs {
                 //update i:
-                let ii_l = ins.lhs.clone();
-                let ii_r = ins.rhs.clone();
+                let ii_l = ins.lhs;
+                let ii_r = ins.rhs;
                 let update = eval.get_mut_instruction(*iter);
                 update.lhs = i_lhs;
                 update.rhs = i_rhs;
