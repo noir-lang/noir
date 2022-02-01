@@ -515,7 +515,7 @@ impl<'a> Evaluator<'a> {
         let mut contents: Vec<Object> = Vec::new();
 
         for indice in ranged_object {
-            env.start_for_loop();
+            env.start_scope();
 
             // Add indice to environment
             let variable_name = self.context.def_interner.ident_name(&for_expr.identifier);
@@ -528,7 +528,7 @@ impl<'a> Evaluator<'a> {
                 .map_err(|err| err.remove_span())?;
             contents.push(return_typ);
 
-            env.end_for_loop();
+            env.end_scope();
         }
         let length = contents.len() as u128;
 
@@ -620,13 +620,13 @@ impl<'a> Evaluator<'a> {
                 }
             }
             HirExpression::For(for_expr) => self.handle_for_expr(env,for_expr).map_err(|kind|kind.add_span(span)),
-            HirExpression::If(_) => todo!(),
-            HirExpression::Prefix(_) => todo!(),
-            HirExpression::Predicate(_) => todo!(),
-            HirExpression::Literal(_) => todo!(),
+            HirExpression::If(_) => todo!("If expressions are currently unimplemented"),
+            HirExpression::Prefix(_) => todo!("Prefix expressions are currently unimplemented"),
+            HirExpression::Literal(HirLiteral::Str(_)) => todo!("string literals are currently unimplemented"),
+            HirExpression::Literal(HirLiteral::Bool(_)) => todo!("boolean literals are currently unimplemented"),
             HirExpression::Block(_) => todo!("currently block expressions not in for/if branches are not being evaluated. In the future, we should be able to unify the eval_block and all places which require block_expr here"),
-            HirExpression::Constructor(_) => todo!(),
-            HirExpression::MemberAccess(_) => todo!(),
+            HirExpression::Constructor(_) => todo!("Constructor expressions are unimplemented in the noir backend"),
+            HirExpression::MemberAccess(_) => todo!("Member access expressions are unimplemented in the noir backend"),
         }
     }
 

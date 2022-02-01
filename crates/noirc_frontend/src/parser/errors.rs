@@ -2,6 +2,7 @@ use std::collections::BTreeSet;
 
 use crate::lexer::errors::LexerErrorKind;
 use crate::lexer::token::Token;
+use crate::util::vecmap;
 use crate::BinaryOp;
 
 use noirc_errors::CustomDiagnostic as Diagnostic;
@@ -64,12 +65,8 @@ impl DiagnosableError for ParserError {
         match &self.reason {
             Some(reason) => Diagnostic::simple_error(reason.clone(), String::new(), self.span),
             None => {
-                let mut expected = self
-                    .expected_tokens
-                    .iter()
-                    .map(ToString::to_string)
-                    .collect::<Vec<_>>();
-                expected.append(&mut self.expected_labels.iter().cloned().collect());
+                let mut expected = vecmap(&self.expected_tokens, ToString::to_string);
+                expected.append(&mut vecmap(&self.expected_labels, Clone::clone));
 
                 let primary = if expected.is_empty() {
                     format!("Unexpected {} in input", self.found)

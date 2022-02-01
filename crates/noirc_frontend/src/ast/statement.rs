@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 use crate::lexer::token::SpannedToken;
 use crate::token::Token;
+use crate::util::vecmap;
 use crate::{Expression, ExpressionKind, InfixExpression, NoirStruct, Type};
 use noirc_errors::{Span, Spanned};
 
@@ -283,7 +284,7 @@ impl Display for AssignStatement {
 
 impl Display for Path {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let segments: Vec<_> = self.segments.iter().map(ToString::to_string).collect();
+        let segments = vecmap(&self.segments, ToString::to_string);
         write!(f, "{}::{}", self.kind, segments.join("::"))
     }
 }

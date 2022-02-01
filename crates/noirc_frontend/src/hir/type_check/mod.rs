@@ -29,12 +29,10 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     let hir_func = interner.function(&func_id);
     let func_as_expr = hir_func.as_expr();
 
-    // Convert the function to a block expression and then type check the block expr
-    let mut errors = type_check_expression(interner, func_as_expr);
+    let mut errors = vec![];
+    let function_last_type = type_check_expression(interner, func_as_expr, &mut errors);
 
     // Check declared return type and actual return type
-    let function_last_type = interner.id_type(func_as_expr);
-
     if !can_ignore_ret && (&function_last_type != declared_return_type) {
         let func_span = interner.id_span(func_as_expr); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
         errors.push(TypeCheckError::TypeMismatch {
@@ -63,13 +61,6 @@ mod test {
 
     use noirc_errors::{Span, Spanned};
 
-    use crate::hir_def::{
-        expr::{
-            HirBinaryOp, HirBinaryOpKind, HirBlockExpression, HirExpression, HirInfixExpression,
-        },
-        function::{FuncMeta, HirFunction, Param},
-        stmt::{HirPrivateStatement, HirStatement},
-    };
     use crate::node_interner::{FuncId, NodeInterner};
     use crate::{graph::CrateId, Ident};
     use crate::{
@@ -78,6 +69,16 @@ mod test {
             resolution::{path_resolver::PathResolver, resolver::Resolver},
         },
         parse_program, FunctionKind, Path, Type,
+    };
+    use crate::{
+        hir_def::{
+            expr::{
+                HirBinaryOp, HirBinaryOpKind, HirBlockExpression, HirExpression, HirInfixExpression,
+            },
+            function::{FuncMeta, HirFunction, Param},
+            stmt::{HirPrivateStatement, HirStatement},
+        },
+        util::vecmap,
     };
 
     #[test]
@@ -255,16 +256,12 @@ mod test {
 
         let def_maps: HashMap<CrateId, CrateDefMap> = HashMap::new();
 
-        let func_meta: Vec<_> = program
-            .functions
-            .into_iter()
-            .map(|nf| {
-                let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps);
-                let (hir_func, func_meta, resolver_errors) = resolver.resolve_function(nf);
-                assert_eq!(resolver_errors, vec![]);
-                (hir_func, func_meta)
-            })
-            .collect();
+        let func_meta = vecmap(program.functions, |nf| {
+            let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps);
+            let (hir_func, func_meta, resolver_errors) = resolver.resolve_function(nf);
+            assert_eq!(resolver_errors, vec![]);
+            (hir_func, func_meta)
+        });
 
         for ((hir_func, meta), func_id) in func_meta.into_iter().zip(func_ids.clone()) {
             interner.update_fn(func_id, hir_func);

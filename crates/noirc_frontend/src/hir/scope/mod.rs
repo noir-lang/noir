@@ -24,18 +24,6 @@ It's not implemented yet, because nothing has been benched
 /// Implementers will usually store a Vector of ScopeTrees to implement the logic needed for FunctionCalls
 pub struct Scope<K, V>(pub HashMap<K, V>);
 
-use std::collections::hash_map;
-use std::iter::Filter;
-
-// Why is this here?
-// To avoid collecting after using the predicate method.
-// It allows the caller to filter or map further without paying the cost of a vector collect
-// The complexity is hidden in this method, as the caller will simply call .map() or an iterator method
-// to do further processing
-// I also note that the unreadability in my opinion, seems to come from the fact that we are using generics and lifetimes in PredicateResult
-type Predicate<K, V> = fn(&(&K, &V)) -> bool;
-type PredicateResult<'r, K, V> = Filter<hash_map::Iter<'r, K, V>, Predicate<K, V>>;
-
 impl<K: std::hash::Hash + Eq + Clone, V> Scope<K, V> {
     pub fn new() -> Self {
         Scope(HashMap::with_capacity(100))
@@ -57,8 +45,11 @@ impl<K: std::hash::Hash + Eq + Clone, V> Scope<K, V> {
         self.0.insert(key, value)
     }
 
-    /// Returns all of the elements which satisfy the predicate
-    pub fn predicate(&self, pred: Predicate<K, V>) -> PredicateResult<'_, K, V> {
+    /// Returns an iterator over all of the elements which satisfy the predicate
+    pub fn filter<F>(&self, pred: F) -> impl Iterator<Item = (&K, &V)>
+    where
+        F: FnMut(&(&K, &V)) -> bool,
+    {
         self.0.iter().filter(pred)
     }
 }
@@ -165,13 +156,14 @@ impl<K: std::hash::Hash + Eq + Clone, V> ScopeForest<K, V> {
             .expect("ice: expected a scope tree, however none was found")
     }
 
-    /// Starting a for loop requires access to the outside scope.
-    /// Once the for loop has finished, we remove it from the scope tree
-    pub fn start_for_loop(&mut self) {
+    /// The beginning of a scope always correlates with the start of a block {}.
+    /// This can be in if expressions, for loops, or functions.
+    pub fn start_scope(&mut self) {
         self.extend_current_scope_tree()
     }
-    /// Ending a for loop requires removal of it's scope from the current scope tree
-    pub fn end_for_loop(&mut self) -> Scope<K, V> {
+
+    /// Ends the current scope - this should correspond with the end of a BlockExpression.
+    pub fn end_scope(&mut self) -> Scope<K, V> {
         self.remove_scope_tree_extension()
     }
 }

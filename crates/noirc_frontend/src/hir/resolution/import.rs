@@ -106,8 +106,6 @@ fn resolve_name_in_module(
             krate: def_map.krate,
             local_id: starting_mod,
         };
-        // XXX: Why is an empty import path resolved, and why
-        // is it resolved to a type?
         return PathResolution::Resolved(PerNs::types(mod_id.into()));
     }
 

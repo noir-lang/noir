@@ -5,6 +5,7 @@ use noirc_errors::Span;
 
 use crate::node_interner::{ExprId, FuncId, IdentId, StmtId, TypeId};
 use crate::{BinaryOp, BinaryOpKind, Ident, StructType, Type, UnaryOp};
+
 #[derive(Debug, Clone)]
 pub enum HirExpression {
     Ident(IdentId),
@@ -17,9 +18,8 @@ pub enum HirExpression {
     MemberAccess(HirMemberAccess),
     Call(HirCallExpression),
     Cast(HirCastExpression),
-    Predicate(HirInfixExpression),
     For(HirForExpression),
-    If(IfExpression),
+    If(HirIfExpression),
 }
 
 impl HirExpression {
@@ -155,7 +155,7 @@ pub struct HirMemberAccess {
 }
 
 #[derive(Debug, Clone)]
-pub struct IfExpression {
+pub struct HirIfExpression {
     pub condition: ExprId,
     pub consequence: ExprId,
     pub alternative: Option<ExprId>,
