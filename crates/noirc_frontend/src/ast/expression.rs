@@ -14,6 +14,8 @@ pub enum ExpressionKind {
     Prefix(Box<PrefixExpression>),
     Index(Box<IndexExpression>),
     Call(Box<CallExpression>),
+    Constructor(Box<ConstructorExpression>),
+    MemberAccess(Box<MemberAccessExpression>),
     Cast(Box<CastExpression>),
     Infix(Box<InfixExpression>),
     For(Box<ForExpression>),
@@ -60,11 +62,15 @@ impl ExpressionKind {
         ExpressionKind::Literal(Literal::Str(contents))
     }
 
-    pub fn function_call(func_name: Path, arguments: Vec<Expression>) -> ExpressionKind {
+    pub fn function_call((func_name, arguments): (Path, Vec<Expression>)) -> ExpressionKind {
         ExpressionKind::Call(Box::new(CallExpression {
             func_name,
             arguments,
         }))
+    }
+
+    pub fn constructor((type_name, fields): (Path, Vec<(Ident, Expression)>)) -> ExpressionKind {
+        ExpressionKind::Constructor(Box::new(ConstructorExpression { type_name, fields }))
     }
 
     pub fn index(collection_name: Ident, index: Expression) -> ExpressionKind {
@@ -137,6 +143,20 @@ impl Expression {
 
         let ident = Ident(Spanned::from(self.span, identifier));
         Some(ident)
+    }
+
+    pub fn member_access(lhs: Expression, rhs: Ident, span: Span) -> Expression {
+        Expression {
+            kind: ExpressionKind::MemberAccess(Box::new(MemberAccessExpression { lhs, rhs })),
+            span,
+        }
+    }
+
+    pub fn cast(lhs: Expression, r#type: Type, span: Span) -> Expression {
+        Expression {
+            kind: ExpressionKind::Cast(Box::new(CastExpression { lhs, r#type })),
+            span,
+        }
     }
 }
 
@@ -321,6 +341,19 @@ pub struct CallExpression {
     pub func_name: Path,
     pub arguments: Vec<Expression>,
 }
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct ConstructorExpression {
+    pub type_name: Path,
+    pub fields: Vec<(Ident, Expression)>,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct MemberAccessExpression {
+    pub lhs: Expression,
+    pub rhs: Ident,
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct IndexExpression {
     pub collection_name: Ident, // XXX: For now, this will be the name of the array, as we do not support other collections
@@ -365,6 +398,8 @@ impl Display for ExpressionKind {
             For(for_loop) => for_loop.fmt(f),
             If(if_expr) => if_expr.fmt(f),
             Path(path) => path.fmt(f),
+            Constructor(constructor) => constructor.fmt(f),
+            MemberAccess(access) => access.fmt(f),
         }
     }
 }
@@ -427,6 +462,24 @@ impl Display for CallExpression {
 impl Display for CastExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "({} as {})", self.lhs, self.r#type)
+    }
+}
+
+impl Display for ConstructorExpression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let fields = self
+            .fields
+            .iter()
+            .map(|(ident, expr)| format!("{}: {}", ident, expr))
+            .collect::<Vec<_>>();
+
+        write!(f, "({} {{ {} }})", self.type_name, fields.join(", "))
+    }
+}
+
+impl Display for MemberAccessExpression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({}.{})", self.lhs, self.rhs)
     }
 }
 

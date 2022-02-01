@@ -1,6 +1,6 @@
 use crate::{
     hir_def::{
-        expr::{HirBinaryOp, HirExpression, HirLiteral},
+        expr::{self, HirBinaryOp, HirExpression, HirLiteral},
         function::Param,
         stmt::HirStatement,
     },
@@ -102,8 +102,7 @@ pub(crate) fn type_check_expression(
             let lhs_type = type_check_expression(interner, &infix_expr.lhs)?;
             let rhs_type = type_check_expression(interner, &infix_expr.rhs)?;
 
-            let result_type = infix_operand_type_rules(&lhs_type, &infix_expr.operator, &rhs_type);
-            match result_type {
+            match infix_operand_type_rules(&lhs_type, &infix_expr.operator, &rhs_type) {
                 Ok(typ) => typ,
                 Err(string) => {
                     let lhs_span = interner.expr_span(&infix_expr.lhs);
@@ -238,55 +237,11 @@ pub(crate) fn type_check_expression(
             // type_of(prefix_expr) == type_of(rhs_expression)
             todo!("prefix expressions have not been implemented yet")
         }
-        HirExpression::If(if_expr) => {
-            let cond_type = type_check_expression(interner, &if_expr.condition)?;
-            let then_type = type_check_expression(interner, &if_expr.consequence)?;
-
-            if cond_type != Type::Bool {
-                return Err(TypeCheckError::TypeMismatch {
-                    expected_typ: Type::Bool.to_string(),
-                    expr_typ: cond_type.to_string(),
-                    expr_span: interner.expr_span(&if_expr.condition),
-                });
-            }
-
-            match if_expr.alternative {
-                None => Type::Unit,
-                Some(alternative) => {
-                    let else_type = type_check_expression(interner, &alternative)?;
-
-                    if then_type != else_type {
-                        let mut err = TypeCheckError::TypeMismatch {
-                            expected_typ: then_type.to_string(),
-                            expr_typ: else_type.to_string(),
-                            expr_span: interner.expr_span(expr_id),
-                        };
-
-                        if then_type == Type::Unit {
-                            err = err
-                                .add_context(
-                                    "Are you missing a semicolon at the end of your 'else' branch?",
-                                )
-                                .unwrap();
-                        } else if else_type == Type::Unit {
-                            err = err
-                                .add_context(
-                                    "Are you missing a semicolon at the end of the first block of this 'if'?",
-                                )
-                                .unwrap();
-                        } else {
-                            err = err
-                                .add_context("Expected the types of both if branches to be equal")
-                                .unwrap();
-                        }
-
-                        return Err(err);
-                    }
-
-                    then_type
-                }
-            }
+        HirExpression::If(if_expr) => check_if_expr(&if_expr, expr_id, interner)?,
+        HirExpression::Constructor(constructor) => {
+            check_constructor(&constructor, expr_id, interner)?
         }
+        HirExpression::MemberAccess(access) => check_member_access(access, interner)?,
     };
 
     interner.push_expr_type(expr_id, typ.clone());
@@ -306,7 +261,7 @@ pub fn infix_operand_type_rules(
 
     use {FieldElementType::*, Type::*};
     match (lhs_type, other)  {
-        (Integer(lhs_field_type,sign_x, bit_width_x), Integer(rhs_field_type,sign_y, bit_width_y)) => {
+        (Integer(lhs_field_type, sign_x, bit_width_x), Integer(rhs_field_type, sign_y, bit_width_y)) => {
             let field_type = field_type_rules(lhs_field_type, rhs_field_type);
             if sign_x != sign_y {
                 return Err(format!("Integers must have the same signedness LHS is {:?}, RHS is {:?} ", sign_x, sign_y))
@@ -329,9 +284,10 @@ pub fn infix_operand_type_rules(
         (Integer(_,_, _), typ) | (typ,Integer(_,_, _)) => {
             Err(format!("Integer cannot be used with type {}", typ))
         }
-        // Currently, arrays are not supported in binary operations
-        (Array(_,_,_), _) | (_,Array(_,_, _)) => Err("Arrays cannot be used in an infix operation".to_string()),
-        //
+        // Currently, arrays and structs are not supported in binary operations
+        (Array(_,_,_), _) | (_, Array(_,_,_)) => Err("Arrays cannot be used in an infix operation".to_string()),
+        (Struct(_), _) | (_, Struct(_)) => Err("Structs cannot be used in an infix operation".to_string()),
+
         // An error type on either side will always return an error
         (Error, _) | (_,Error) => Ok(Error),
         (Unspecified, _) | (_,Unspecified) => Ok(Unspecified),
@@ -347,6 +303,114 @@ pub fn infix_operand_type_rules(
         //
         (FieldElement(Constant), FieldElement(Constant))  => Ok(FieldElement(Constant)),
     }
+}
+
+fn check_if_expr(
+    if_expr: &expr::HirIfExpression,
+    expr_id: &ExprId,
+    interner: &mut NodeInterner,
+) -> Result<Type, TypeCheckError> {
+    let cond_type = type_check_expression(interner, &if_expr.condition)?;
+    let then_type = type_check_expression(interner, &if_expr.consequence)?;
+
+    if cond_type != Type::Bool {
+        return Err(TypeCheckError::TypeMismatch {
+            expected_typ: Type::Bool.to_string(),
+            expr_typ: cond_type.to_string(),
+            expr_span: interner.expr_span(&if_expr.condition),
+        });
+    }
+
+    match if_expr.alternative {
+        None => Ok(Type::Unit),
+        Some(alternative) => {
+            let else_type = type_check_expression(interner, &alternative)?;
+
+            if then_type != else_type {
+                let mut err = TypeCheckError::TypeMismatch {
+                    expected_typ: then_type.to_string(),
+                    expr_typ: else_type.to_string(),
+                    expr_span: interner.expr_span(expr_id),
+                };
+
+                if then_type == Type::Unit {
+                    err = err
+                        .add_context(
+                            "Are you missing a semicolon at the end of your 'else' branch?",
+                        )
+                        .unwrap();
+                } else if else_type == Type::Unit {
+                    err = err
+                        .add_context(
+                            "Are you missing a semicolon at the end of the first block of this 'if'?",
+                        )
+                        .unwrap();
+                } else {
+                    err = err
+                        .add_context("Expected the types of both if branches to be equal")
+                        .unwrap();
+                }
+
+                return Err(err);
+            }
+
+            Ok(then_type)
+        }
+    }
+}
+
+fn check_constructor(
+    constructor: &expr::HirConstructorExpression,
+    expr_id: &ExprId,
+    interner: &mut NodeInterner,
+) -> Result<Type, TypeCheckError> {
+    let typ = &constructor.r#type;
+
+    // Sanity check, this should be caught during name resolution anyway
+    assert_eq!(constructor.fields.len(), typ.fields.len());
+
+    // Sort argument types by name so we can zip with the struct type in the same ordering.
+    // Note that we use a Vec to store the original arguments (rather than a BTreeMap) to
+    // preserve the evaluation order of the source code.
+    let mut args = constructor.fields.clone();
+    args.sort_by_key(|arg| interner.ident(&arg.0));
+
+    for ((param_name, param_type), (arg_id, arg)) in typ.fields.iter().zip(args) {
+        // Sanity check to ensure we're matching against the same field
+        assert_eq!(param_name, &interner.ident(&arg_id));
+
+        type_check_expression(interner, &arg)?;
+        let arg_type = interner.id_type(arg);
+
+        if !param_type.is_super_type_of(&arg_type) {
+            let span = interner.expr_span(expr_id);
+            return Err(TypeCheckError::TypeMismatch {
+                expected_typ: param_type.to_string(),
+                expr_typ: arg_type.to_string(),
+                expr_span: span,
+            });
+        }
+    }
+
+    Ok(Type::Struct(typ.clone()))
+}
+
+pub fn check_member_access(
+    access: expr::HirMemberAccess,
+    interner: &mut NodeInterner,
+) -> Result<Type, TypeCheckError> {
+    let lhs_type = type_check_expression(interner, &access.lhs)?;
+
+    if let Type::Struct(s) = &lhs_type {
+        if let Some(field) = s.fields.iter().find(|(name, _)| name == &access.rhs) {
+            return Ok(field.1.clone());
+        }
+    }
+
+    Err(TypeCheckError::Unstructured {
+        msg: format!("Type {} has no member named {}", lhs_type, access.rhs),
+        span: interner.expr_span(&access.lhs),
+    })
 }
 
 fn field_type_rules(lhs: &FieldElementType, rhs: &FieldElementType) -> FieldElementType {

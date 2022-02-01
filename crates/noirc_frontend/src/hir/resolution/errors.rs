@@ -26,11 +26,24 @@ pub enum ResolverError {
         name: String,
         segment: Ident,
     },
-    #[error("could not resolve path")]
+    #[error("Expected")]
     Expected {
         span: Span,
         expected: String,
         got: String,
+    },
+    #[error("Duplicate field in constructor")]
+    DuplicateField { field: Ident },
+    #[error("No such field in struct")]
+    NoSuchField {
+        field: Ident,
+        struct_definition: Ident,
+    },
+    #[error("Missing fields from struct")]
+    MissingFields {
+        span: Span,
+        missing_fields: Vec<String>,
+        struct_definition: Ident,
     },
 }
 
@@ -109,6 +122,50 @@ impl ResolverError {
                 String::new(),
                 span,
             ),
+            ResolverError::DuplicateField { field } => Diagnostic::simple_error(
+                format!("duplicate field {}", field),
+                String::new(),
+                field.span(),
+            ),
+            ResolverError::NoSuchField {
+                field,
+                struct_definition,
+            } => {
+                let mut error = Diagnostic::simple_error(
+                    format!(
+                        "no such field {} defined in struct {}",
+                        field, struct_definition
+                    ),
+                    String::new(),
+                    field.span(),
+                );
+
+                error.add_secondary(
+                    format!("{} defined here with no {} field", struct_definition, field),
+                    struct_definition.span(),
+                );
+                error
+            }
+            ResolverError::MissingFields {
+                span,
+                missing_fields,
+                struct_definition,
+            } => {
+                let plural = if missing_fields.len() != 1 { "s" } else { "" };
+                let missing_fields = missing_fields.join(", ");
+
+                let mut error = Diagnostic::simple_error(
+                    format!("missing field{}: {}", plural, missing_fields),
+                    String::new(),
+                    span,
+                );
+
+                error.add_secondary(
+                    format!("{} defined here", struct_definition),
+                    struct_definition.span(),
+                );
+                error
+            }
         }
     }
 }

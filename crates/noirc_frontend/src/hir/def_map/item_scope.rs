@@ -1,5 +1,8 @@
 use super::{namespace::PerNs, ModuleDefId, ModuleId};
-use crate::{node_interner::FuncId, Ident};
+use crate::{
+    node_interner::{FuncId, TypeId},
+    Ident,
+};
 use std::collections::{hash_map::Entry, HashMap};
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
@@ -25,6 +28,7 @@ impl ItemScope {
         self.defs.push(mod_def);
         Ok(())
     }
+
     /// Returns an Err if there is already an item
     /// in the namespace with that exact name.
     /// The Err will return (old_item, new_item)
@@ -33,25 +37,21 @@ impl ItemScope {
         name: Ident,
         mod_def: ModuleDefId,
     ) -> Result<(), (Ident, Ident)> {
-        match &mod_def {
-            ModuleDefId::ModuleId(_) => {
-                if let Entry::Occupied(o) = self.types.entry(name.clone()) {
-                    let old_ident = o.key();
-                    return Err((old_ident.clone(), name));
-                }
-
-                self.types.insert(name, (mod_def, Visibility::Public))
-            }
-            ModuleDefId::FunctionId(_) => {
-                if let Entry::Occupied(o) = self.values.entry(name.clone()) {
-                    let old_ident = o.key();
-                    return Err((old_ident.clone(), name));
-                }
-
-                self.values.insert(name, (mod_def, Visibility::Public))
+        let add_item = |map: &mut HashMap<Ident, (ModuleDefId, Visibility)>| {
+            if let Entry::Occupied(o) = map.entry(name.clone()) {
+                let old_ident = o.key();
+                Err((old_ident.clone(), name))
+            } else {
+                map.insert(name, (mod_def, Visibility::Public));
+                Ok(())
             }
         };
-        Ok(())
+
+        match mod_def {
+            ModuleDefId::ModuleId(_) => add_item(&mut self.types),
+            ModuleDefId::FunctionId(_) => add_item(&mut self.values),
+            ModuleDefId::TypeId(_) => add_item(&mut self.types),
+        }
     }
 
     pub fn define_module_def(
@@ -61,8 +61,17 @@ impl ItemScope {
     ) -> Result<(), (Ident, Ident)> {
         self.add_definition(name, mod_id.into())
     }
+
     pub fn define_func_def(&mut self, name: Ident, local_id: FuncId) -> Result<(), (Ident, Ident)> {
         self.add_definition(name, local_id.into())
+    }
+
+    pub fn define_struct_def(
+        &mut self,
+        name: Ident,
+        local_id: TypeId,
+    ) -> Result<(), (Ident, Ident)> {
+        self.add_definition(name, ModuleDefId::TypeId(local_id))
     }
 
     pub fn find_module_with_name(&self, mod_name: &Ident) -> Option<&ModuleId> {
