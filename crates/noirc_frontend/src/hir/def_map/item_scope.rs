@@ -48,7 +48,6 @@ impl ItemScope {
         };
 
         match mod_def {
-            // TODO: Why are modules using the type namespace?
             ModuleDefId::ModuleId(_) => add_item(&mut self.types),
             ModuleDefId::FunctionId(_) => add_item(&mut self.values),
             ModuleDefId::TypeId(_) => add_item(&mut self.types),
