@@ -72,12 +72,13 @@ impl<'a> ModCollector<'a> {
                 .define_func_def(name, func_id);
 
             if let Err((first_def, second_def)) = result {
-                let err = DefCollectorErrorKind::DuplicateFunction {
-                    first_def,
-                    second_def,
-                };
-
-                errors_in_same_file.push(err.to_diagnostic());
+                errors_in_same_file.push(
+                    DefCollectorErrorKind::DuplicateFunction {
+                        first_def,
+                        second_def,
+                    }
+                    .to_diagnostic(),
+                );
             }
         }
 
