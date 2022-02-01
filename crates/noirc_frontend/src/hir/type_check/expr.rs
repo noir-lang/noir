@@ -32,7 +32,9 @@ pub(crate) fn type_check_expression(
                 HirLiteral::Array(arr) => {
                     // Type check the contents of the array
                     assert!(!arr.contents.is_empty());
-                    let elem_types = vecmap(&arr.contents, |arg| type_check_expression(interner, arg, errors));
+                    let elem_types = vecmap(&arr.contents, |arg| {
+                        type_check_expression(interner, arg, errors)
+                    });
 
                     // Specify the type of the Array
                     // Note: This assumes that the array is homogeneous, which will be checked next
@@ -329,7 +331,7 @@ fn check_if_expr(
                     expr_typ: else_type.to_string(),
                     expr_span: interner.expr_span(expr_id),
                 };
-                
+
                 let context = if then_type == Type::Unit {
                     "Are you missing a semicolon at the end of your 'else' branch?"
                 } else if else_type == Type::Unit {
@@ -337,7 +339,7 @@ fn check_if_expr(
                 } else {
                     "Expected the types of both if branches to be equal"
                 };
-                
+
                 err = err.add_context(context).unwrap();
                 errors.push(err);
             }

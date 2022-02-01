@@ -7,7 +7,11 @@ use crate::Type;
 
 use super::{errors::TypeCheckError, expr::type_check_expression};
 
-pub(crate) fn type_check(interner: &mut NodeInterner, stmt_id: &StmtId, errors: &mut Vec<TypeCheckError>) {
+pub(crate) fn type_check(
+    interner: &mut NodeInterner,
+    stmt_id: &StmtId,
+    errors: &mut Vec<TypeCheckError>,
+) {
     match interner.statement(stmt_id) {
         // Lets lay out a convincing argument that the handling of
         // SemiExpressions and Expressions below is correct.
