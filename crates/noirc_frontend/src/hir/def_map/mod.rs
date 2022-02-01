@@ -107,9 +107,13 @@ impl CrateDefMap {
 pub fn parse_file(fm: &mut FileManager, file_id: FileId) -> (ParsedModule, Vec<CollectedErrors>) {
     let file = fm.fetch_file(file_id);
     let (program, errors) = parse_program(file.get_source());
-    let errors = vecmap(errors, |err| err.to_diagnostic());
-    let file_errs = CollectedErrors { file_id, errors };
-    (program, vec![file_errs])
+    let errors = if errors.is_empty() {
+        vec![]
+    } else {
+        let errors = vecmap(errors, |err| err.to_diagnostic());
+        vec![CollectedErrors { file_id, errors }]
+    };
+    (program, errors)
 }
 
 impl std::ops::Index<LocalModuleId> for CrateDefMap {

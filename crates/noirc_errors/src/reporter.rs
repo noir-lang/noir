@@ -65,7 +65,7 @@ impl Reporter {
         let diagnostics: Vec<_> = diagnostics
             .iter()
             .map(|cd| {
-                let secondary_labels: Vec<_> = cd
+                let secondary_labels = cd
                     .secondaries
                     .iter()
                     .map(|sl| {
