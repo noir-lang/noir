@@ -1104,7 +1104,7 @@ mod test {
         // disallowed, they conflict with block syntax in some cases. Namely:
         // if a + b {}
         // for i in 0..a { }
-
+        // https://github.com/noir-lang/noir/issues/152
         parse_with(expression(), "Foo {}").unwrap_err();
     }
 }
