@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use crate::token::{Attribute, Token};
+use crate::util::vecmap;
 use crate::{Ident, Path, Statement, Type};
 use acvm::FieldElement;
 use noirc_errors::{Span, Spanned};
@@ -15,7 +16,6 @@ pub enum ExpressionKind {
     Call(Box<CallExpression>),
     Cast(Box<CastExpression>),
     Infix(Box<InfixExpression>),
-    Predicate(Box<InfixExpression>),
     For(Box<ForExpression>),
     If(Box<IfExpression>),
     Path(Path),
@@ -32,7 +32,6 @@ impl ExpressionKind {
     pub fn into_infix(self) -> Option<InfixExpression> {
         match self {
             ExpressionKind::Infix(infix) => Some(*infix),
-            ExpressionKind::Predicate(infix) => Some(*infix),
             _ => None,
         }
     }
@@ -363,7 +362,6 @@ impl Display for ExpressionKind {
             Call(call) => call.fmt(f),
             Cast(cast) => cast.fmt(f),
             Infix(infix) => infix.fmt(f),
-            Predicate(infix) => infix.fmt(f),
             For(for_loop) => for_loop.fmt(f),
             If(if_expr) => if_expr.fmt(f),
             Path(path) => path.fmt(f),
@@ -375,7 +373,7 @@ impl Display for Literal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Literal::Array(array) => {
-                let contents: Vec<_> = array.contents.iter().map(ToString::to_string).collect();
+                let contents = vecmap(&array.contents, ToString::to_string);
                 write!(f, "[{}]", contents.join(", "))
             }
             Literal::Bool(boolean) => write!(f, "{}", if *boolean { "true" } else { "false" }),
@@ -421,7 +419,7 @@ impl Display for IndexExpression {
 
 impl Display for CallExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let args: Vec<_> = self.arguments.iter().map(ToString::to_string).collect();
+        let args = vecmap(&self.arguments, ToString::to_string);
         write!(f, "{}({})", self.func_name, args.join(", "))
     }
 }
@@ -485,11 +483,9 @@ impl Display for FunctionDefinition {
             writeln!(f, "{}", attribute)?;
         }
 
-        let parameters: Vec<_> = self
-            .parameters
-            .iter()
-            .map(|(name, r#type)| format!("{}: {}", name, r#type))
-            .collect();
+        let parameters = vecmap(&self.parameters, |(name, r#type)| {
+            format!("{}: {}", name, r#type)
+        });
 
         write!(
             f,

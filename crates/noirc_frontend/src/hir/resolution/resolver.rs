@@ -19,8 +19,10 @@ struct ResolverMeta {
 use std::collections::HashMap;
 
 use crate::graph::CrateId;
+use crate::hir_def::expr::HirIfExpression;
 use crate::hir_def::stmt::HirAssignStatement;
 use crate::node_interner::{ExprId, FuncId, IdentId, NodeInterner, StmtId};
+use crate::util::vecmap;
 use crate::{
     hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
     BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
@@ -90,7 +92,6 @@ impl<'a> Resolver<'a> {
         func: NoirFunction,
     ) -> Result<(HirFunction, FuncMeta), Vec<ResolverError>> {
         self.scopes.start_function();
-
         let (hir_func, func_meta) = self.intern_function(func);
         let func_scope_tree = self.scopes.end_function();
 
@@ -118,11 +119,9 @@ impl<'a> Resolver<'a> {
             });
         }
     }
-    fn check_for_unused_variables_in_local_scope(decl_map: Scope, unused_vars: &mut Vec<IdentId>) {
-        let unused_variables = decl_map.predicate(|kv: &(&String, &ResolverMeta)| -> bool {
-            let variable_name = kv.0;
-            let metadata = kv.1;
 
+    fn check_for_unused_variables_in_local_scope(decl_map: Scope, unused_vars: &mut Vec<IdentId>) {
+        let unused_variables = decl_map.filter(|(variable_name, metadata)| {
             let has_underscore_prefix = variable_name.starts_with('_'); // XXX: This is used for development mode, and will be removed
 
             if metadata.num_times_used == 0 && !has_underscore_prefix {
@@ -130,11 +129,18 @@ impl<'a> Resolver<'a> {
             }
             false
         });
-        unused_vars.extend(unused_variables.into_iter().map(|(_, meta)| meta.id));
+        unused_vars.extend(unused_variables.map(|(_, meta)| meta.id));
     }
-}
 
-impl<'a> Resolver<'a> {
+    /// Run the given function in a new scope.
+    fn in_new_scope<T, F: FnOnce(&mut Self) -> T>(&mut self, f: F) -> T {
+        self.scopes.start_scope();
+        let ret = f(self);
+        let scope = self.scopes.end_scope();
+        self.check_for_unused_variables_in_scope_tree(scope.into());
+        ret
+    }
+
     fn add_variable_decl(&mut self, name: Ident) -> IdentId {
         let id = self.interner.push_ident(name.clone());
         // Variable was defined here, so it's definition links to itself
@@ -197,7 +203,7 @@ impl<'a> Resolver<'a> {
         let hir_func = match func.kind {
             FunctionKind::Builtin | FunctionKind::LowLevel => HirFunction::empty(),
             FunctionKind::Normal => {
-                let expr_id = self.resolve_block(func.def.body);
+                let expr_id = self.intern_block(func.def.body);
 
                 self.interner.push_expr_span(expr_id, func.def.span);
 
@@ -298,48 +304,42 @@ impl<'a> Resolver<'a> {
     }
 
     pub fn intern_expr(&mut self, expr: Expression) -> ExprId {
-        let expr_id = match expr.kind {
+        let hir_expr = match expr.kind {
             ExpressionKind::Ident(string) => {
                 let span = expr.span;
                 let ident: Ident = Spanned::from(span, string).into();
                 let ident_id = self.find_variable(&ident);
-                self.interner.push_expr(HirExpression::Ident(ident_id))
+                HirExpression::Ident(ident_id)
             }
-            ExpressionKind::Literal(literal) => {
-                let literal = match literal {
-                    Literal::Bool(b) => HirLiteral::Bool(b),
-                    Literal::Array(arr) => {
-                        let mut interned_contents = Vec::new();
-                        for content in arr.contents {
-                            interned_contents.push(self.resolve_expression(content));
-                        }
-                        HirLiteral::Array(HirArrayLiteral {
-                            contents: interned_contents,
-                            r#type: arr.r#type,
-                            length: arr.length,
-                        })
+            ExpressionKind::Literal(literal) => HirExpression::Literal(match literal {
+                Literal::Bool(b) => HirLiteral::Bool(b),
+                Literal::Array(arr) => {
+                    let mut interned_contents = Vec::new();
+                    for content in arr.contents {
+                        interned_contents.push(self.resolve_expression(content));
                     }
-                    Literal::Integer(integer) => HirLiteral::Integer(integer),
-                    Literal::Str(str) => HirLiteral::Str(str),
-                };
-
-                self.interner.push_expr(HirExpression::Literal(literal))
-            }
+                    HirLiteral::Array(HirArrayLiteral {
+                        contents: interned_contents,
+                        r#type: arr.r#type,
+                        length: arr.length,
+                    })
+                }
+                Literal::Integer(integer) => HirLiteral::Integer(integer),
+                Literal::Str(str) => HirLiteral::Str(str),
+            }),
             ExpressionKind::Prefix(prefix) => {
                 let operator: HirUnaryOp = prefix.operator.into();
                 let rhs = self.resolve_expression(prefix.rhs);
-                let expr = HirPrefixExpression { operator, rhs };
-                self.interner.push_expr(HirExpression::Prefix(expr))
+                HirExpression::Prefix(HirPrefixExpression { operator, rhs })
             }
-            ExpressionKind::Infix(infix) | ExpressionKind::Predicate(infix) => {
+            ExpressionKind::Infix(infix) => {
                 let lhs = self.intern_expr(infix.lhs);
                 let rhs = self.intern_expr(infix.rhs);
-                let expr = HirInfixExpression {
+                HirExpression::Infix(HirInfixExpression {
                     lhs,
                     operator: infix.operator.into(),
                     rhs,
-                };
-                self.interner.push_expr(HirExpression::Infix(expr))
+                })
             }
             ExpressionKind::Call(call_expr) => {
                 // Get the span and name of path for error reporting
@@ -381,54 +381,39 @@ impl<'a> Resolver<'a> {
                     }
                 };
 
-                let mut arguments = Vec::with_capacity(call_expr.arguments.len());
-                for arg in call_expr.arguments {
-                    arguments.push(self.resolve_expression(arg));
-                }
+                let arguments = vecmap(call_expr.arguments, |arg| self.resolve_expression(arg));
 
-                let expr = HirCallExpression { func_id, arguments };
-                self.interner.push_expr(HirExpression::Call(expr))
+                HirExpression::Call(HirCallExpression { func_id, arguments })
             }
-            ExpressionKind::Cast(cast_expr) => {
-                let lhs = self.resolve_expression(cast_expr.lhs);
-                let expr = HirCastExpression {
-                    lhs,
-                    r#type: cast_expr.r#type,
-                };
-
-                self.interner.push_expr(HirExpression::Cast(expr))
-            }
+            ExpressionKind::Cast(cast_expr) => HirExpression::Cast(HirCastExpression {
+                lhs: self.resolve_expression(cast_expr.lhs),
+                r#type: cast_expr.r#type,
+            }),
             ExpressionKind::For(for_expr) => {
                 let start_range = self.resolve_expression(for_expr.start_range);
                 let end_range = self.resolve_expression(for_expr.end_range);
+                let (identifier, block) = (for_expr.identifier, for_expr.block);
 
-                self.scopes.start_for_loop();
+                let (identifier, block_id) = self.in_new_scope(|this| {
+                    (this.add_variable_decl(identifier), this.intern_block(block))
+                });
 
-                let identifier = self.add_variable_decl(for_expr.identifier);
-
-                let block_id = self.resolve_block(for_expr.block);
-                let for_scope = self.scopes.end_for_loop();
-
-                self.check_for_unused_variables_in_scope_tree(for_scope.into());
-
-                let expr = HirForExpression {
+                HirExpression::For(HirForExpression {
                     start_range,
                     end_range,
                     block: block_id,
                     identifier,
-                };
-                self.interner.push_expr(HirExpression::For(expr))
+                })
             }
-            ExpressionKind::If(_) => todo!("If statements are currently not supported"),
-            ExpressionKind::Index(indexed_expr) => {
-                let collection_name = self.find_variable(&indexed_expr.collection_name);
-                let index = self.resolve_expression(indexed_expr.index);
-                let expr = HirIndexExpression {
-                    collection_name,
-                    index,
-                };
-                self.interner.push_expr(HirExpression::Index(expr))
-            }
+            ExpressionKind::If(if_expr) => HirExpression::If(HirIfExpression {
+                condition: self.resolve_expression(if_expr.condition),
+                consequence: self.intern_block(if_expr.consequence),
+                alternative: if_expr.alternative.map(|e| self.intern_block(e)),
+            }),
+            ExpressionKind::Index(indexed_expr) => HirExpression::Index(HirIndexExpression {
+                collection_name: self.find_variable(&indexed_expr.collection_name),
+                index: self.resolve_expression(indexed_expr.index),
+            }),
             ExpressionKind::Path(path) => {
                 // If the Path is being used as an Expression, then it is referring to an Identifier
                 //
@@ -442,25 +427,26 @@ impl<'a> Resolver<'a> {
                     Some(identifier) => self.find_variable(identifier),
                 };
 
-                self.interner.push_expr(HirExpression::Ident(ident_id))
+                HirExpression::Ident(ident_id)
             }
             ExpressionKind::Block(block_expr) => self.resolve_block(block_expr),
         };
 
+        let expr_id = self.interner.push_expr(hir_expr);
         self.interner.push_expr_span(expr_id, expr.span);
         expr_id
     }
 
-    fn resolve_block(&mut self, block_expr: BlockExpression) -> ExprId {
-        let stmts: Vec<_> = block_expr
-            .0
-            .into_iter()
-            .map(|stmt| self.intern_stmt(stmt))
-            .collect();
+    fn resolve_block(&mut self, block_expr: BlockExpression) -> HirExpression {
+        let statements =
+            self.in_new_scope(|this| vecmap(block_expr.0, |stmt| this.intern_stmt(stmt)));
 
-        let hir_block = HirBlockExpression(stmts);
+        HirExpression::Block(HirBlockExpression(statements))
+    }
 
-        self.interner.push_expr(HirExpression::Block(hir_block))
+    fn intern_block(&mut self, block: BlockExpression) -> ExprId {
+        let hir_block = self.resolve_block(block);
+        self.interner.push_expr(hir_block)
     }
 }
 
@@ -552,7 +538,7 @@ mod test {
         let (interner, mut errors) = resolve_src_code(src, vec![String::from("main")]);
 
         // There should only be one error
-        assert!(errors.len() == 1);
+        assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
         let err = errors.pop().unwrap();
         // It should be regarding the unused variable
         match err {
@@ -623,7 +609,7 @@ mod test {
         "#;
 
         let (interner, errors) = resolve_src_code(src, vec![String::from("main")]);
-        assert!(errors.len() == 3);
+        assert!(errors.len() == 3, "Expected 3 errors, got: {:?}", errors);
 
         // Errors are:
         // `a` is undeclared

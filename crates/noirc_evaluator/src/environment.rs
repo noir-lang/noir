@@ -42,12 +42,12 @@ impl Environment {
         self.env.end_function()
     }
 
-    pub fn start_for_loop(&mut self) {
-        self.env.start_for_loop()
+    pub fn start_scope(&mut self) {
+        self.env.start_scope()
     }
 
-    pub fn end_for_loop(&mut self) {
-        self.env.end_for_loop();
+    pub fn end_scope(&mut self) {
+        self.env.end_scope();
     }
 
     pub fn store(&mut self, name: String, object: Object) {
