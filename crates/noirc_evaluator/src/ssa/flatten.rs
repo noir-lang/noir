@@ -63,7 +63,7 @@ pub fn unroll_std_block(
     unroll_ins: &mut Vec<Index>, //unrolled instructions
     eval_map: &mut HashMap<Index, node::NodeEval>,
     block_id: Index, //block to unroll
-    caller: Index,   //previous block
+    _caller: Index,  //previous block  TODO to check whether it is needed
     eval: &mut IRGenerator,
 ) -> Option<Index> //first instruction of the left block
 {
@@ -83,7 +83,7 @@ pub fn unroll_std_block(
                 let new_left = get_current_value(i.lhs, eval_map).to_index().unwrap();
                 let new_right = get_current_value(i.rhs, eval_map).to_index().unwrap();
                 let mut new_ins = node::Instruction::new(
-                    i.operator, new_left, new_right, i.res_type, None, //TODO a fixer later
+                    i.operator, new_left, new_right, i.res_type, None, //TODO to fix later
                 );
                 match i.operator {
                     node::Operation::ass => {
@@ -130,7 +130,7 @@ pub fn unroll_join(
     unroll_ins: &mut Vec<Index>, //unrolled instructions
     eval_map: &mut HashMap<Index, node::NodeEval>,
     block_id: Index, //block to unroll
-    caller: Index,   //previous block TODO a voir ce qu'on en fait
+    _caller: Index,  //previous block TODO is it needed?
     eval: &mut IRGenerator,
 ) -> Option<Index> {
     //Returns the exit block of the loop
@@ -141,10 +141,8 @@ pub fn unroll_join(
 
     let mut from = prev; //todo caller?
     assert!(join.is_join());
-    let body = eval.get_block(join.right.unwrap()).unwrap();
     let body_id = join.right.unwrap();
     if unroll_ins.is_empty() {
-        //unrolled blocks will be merged into the join ->outer join seulement!
         unroll_ins.push(*join_instructions.first().unwrap()); //TODO is it needed? we also should assert it is a nop instruction.
     }
     let mut processed: Vec<Index> = Vec::new();
@@ -289,7 +287,6 @@ fn evaluate_conditional_jump(
     }
 
     unreachable!("Condition should be constant");
-    true
 }
 
 //Retrieve the NodeEval value of the index in the evaluation map

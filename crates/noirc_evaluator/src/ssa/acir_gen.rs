@@ -358,14 +358,18 @@ pub fn evaluate_udiv(
         },
     );
 
-    // evaluator.gates.push(Gate::Arithmetic(div_eucl));
+    evaluator.gates.push(Gate::Arithmetic(div_eucl));
     Arithmetic::from(Linear::from_witness(q_witness)) //todo witness, arith, var??
 }
 
-pub fn evaluate_sdiv(lhs: InternalVar, rhs: InternalVar, evaluator: &mut Evaluator) -> Arithmetic {
+pub fn evaluate_sdiv(
+    lhs: &InternalVar,
+    rhs: &InternalVar,
+    evaluator: &mut Evaluator,
+) -> Arithmetic {
     //TODO
+    evaluate_udiv(lhs, rhs, evaluator);
     todo!();
-    Arithmetic::default()
 }
 
 pub fn is_const(expr: &Arithmetic) -> bool {
@@ -408,7 +412,7 @@ pub fn mul(a: &Arithmetic, b: &Arithmetic) -> Arithmetic {
 
     //linear terms
     i1 = 0;
-    i2 = 0;
+    //i2 = 0;
     //todo check it is correct
     while i1 < a.linear_combinations.len() && i2 < b.linear_combinations.len() {
         let coef_a = b.q_c * a.linear_combinations[i1].0;
@@ -460,49 +464,49 @@ pub fn mul(a: &Arithmetic, b: &Arithmetic) -> Arithmetic {
     output
 }
 
-fn next_mul_iter(
-    a: &[(FieldElement, Witness)],
-    b: &[(FieldElement, Witness)],
-    i1: &mut usize,
-    i2: &mut usize,
-) {
-    let mut next_a = None;
-    let mut next_b = None;
-    if *i1 + 1 >= a.len() && *i2 + 1 >= b.len() {
-        *i1 += 1;
-        *i2 += 1;
-        return;
-    }
+// fn next_mul_iter(
+//     a: &[(FieldElement, Witness)],
+//     b: &[(FieldElement, Witness)],
+//     i1: &mut usize,
+//     i2: &mut usize,
+// ) {
+//     let mut next_a = None;
+//     let mut next_b = None;
+//     if *i1 + 1 >= a.len() && *i2 + 1 >= b.len() {
+//         *i1 += 1;
+//         *i2 += 1;
+//         return;
+//     }
 
-    if *i1 + 1 < a.len() {
-        if a[*i1 + 1].1 < b[*i2].1 {
-            next_a = Some((a[*i1 + 1].1, b[*i2].1));
-        } else {
-            next_a = Some((b[*i2].1, a[*i1 + 1].1));
-        }
-    }
-    if *i2 as usize + 1 < b.len() {
-        if a[*i1].1 < b[*i2 + 1].1 {
-            next_b = Some((a[*i1].1, b[*i2 + 1].1));
-        } else {
-            next_b = Some((b[*i2 + 1].1, a[*i1].1));
-        }
-    }
+//     if *i1 + 1 < a.len() {
+//         if a[*i1 + 1].1 < b[*i2].1 {
+//             next_a = Some((a[*i1 + 1].1, b[*i2].1));
+//         } else {
+//             next_a = Some((b[*i2].1, a[*i1 + 1].1));
+//         }
+//     }
+//     if *i2 as usize + 1 < b.len() {
+//         if a[*i1].1 < b[*i2 + 1].1 {
+//             next_b = Some((a[*i1].1, b[*i2 + 1].1));
+//         } else {
+//             next_b = Some((b[*i2 + 1].1, a[*i1].1));
+//         }
+//     }
 
-    if next_a.is_none() {
-        *i2 += 1;
-        return;
-    }
-    if next_b.is_none() {
-        *i1 += 1;
-        return;
-    }
-    if next_a.unwrap() < next_b.unwrap() {
-        *i1 += 1;
-        return;
-    }
-    *i2 += 1;
-}
+//     if next_a.is_none() {
+//         *i2 += 1;
+//         return;
+//     }
+//     if next_b.is_none() {
+//         *i1 += 1;
+//         return;
+//     }
+//     if next_a.unwrap() < next_b.unwrap() {
+//         *i1 += 1;
+//         return;
+//     }
+//     *i2 += 1;
+// }
 
 // returns a + k*b
 pub fn add(a: &Arithmetic, k: FieldElement, b: &Arithmetic) -> Arithmetic {

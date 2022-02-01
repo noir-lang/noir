@@ -302,7 +302,7 @@ impl<'a> IRGenerator<'a> {
         }
         let obj_cst = node::Constant {
             id: self.dummy(),
-            value: value,
+            value,
             value_str: String::new(),
             value_type: t,
         };
@@ -330,13 +330,12 @@ impl<'a> IRGenerator<'a> {
         if num_bits < 32 {
             let obj_cst = node::Constant {
                 id: self.id0,
-                value: value,
+                value,
                 value_type: node::ObjectType::signed(32),
                 value_str: String::new(),
             };
             let obj = node::NodeObj::Const(obj_cst);
             idx = self.add_object(obj);
-            return idx;
         } else {
             idx = self.id0;
             todo!();
@@ -409,9 +408,10 @@ impl<'a> IRGenerator<'a> {
 
     //Optimise, flatten and truncate IR and then generates ACIR representation from it
     pub fn ir_to_acir(&mut self, evaluator: &mut Evaluator) -> Result<(), RuntimeError> {
+        //let mut number = String::new();
+
         //SSA
         dbg!("SSA:");
-        let mut number = String::new();
         self.print();
         //Optimisation
         block::compute_dom(self);
@@ -450,7 +450,7 @@ impl<'a> IRGenerator<'a> {
         let obj = node::Variable {
             id: self.id0,
             name: ident_name.clone(),
-            obj_type: obj_type,
+            obj_type,
             root: None,
             def: ident_def,
             witness: node::get_witness_from_object(&obj),
@@ -508,13 +508,13 @@ impl<'a> IRGenerator<'a> {
                 self.handle_constrain_statement(env, constrain_stmt)
             }
             HirStatement::Const(x) => {
-                let variable_name: String = self.context().def_interner.ident_name(&x.identifier);
+                //let variable_name: String = self.context().def_interner.ident_name(&x.identifier);
                 // const can only be integers/Field elements, cannot involve the witness, so we can possibly move this to
                 // analysis. Right now it would not make a difference, since we are not compiling to an intermediate Noir format
-                let span = self.context().def_interner.expr_span(&x.expression);
-                self.expression_to_object(env, &x.expression) //devrait renvoyer un nodeobj de type const
-                                                              //TODO the result of expression_to_object should be an assignement, we should modify the lhs to specify it is a const
-                                                              // and then forbid any other assignement with the same variable during the SSA phase (and instead of applying the SSA form of it).
+                //let span = self.context().def_interner.expr_span(&x.expression);
+                //TODO the result of expression_to_object should be an assignement, we should modify the lhs to specify it is a const
+                // and then forbid any other assignement with the same variable during the SSA phase (and instead of applying the SSA form of it).
+                self.expression_to_object(env, &x.expression)
             }
             HirStatement::Expression(expr) | HirStatement::Semi(expr) => {
                 self.expression_to_object(env, &expr)
@@ -567,7 +567,7 @@ impl<'a> IRGenerator<'a> {
                     let obj_type = node::ObjectType::get_type_from_object(&obj);
                     let new_var2 = node::Variable {
                         id: self.dummy(),
-                        obj_type: obj_type, //TODO
+                        obj_type,
                         name: ident_name.clone(),
                         root: None,
                         def: ident_def,
@@ -625,10 +625,10 @@ impl<'a> IRGenerator<'a> {
         let obj_type = node::ObjectType::get_type_from_object(&obj);
         let new_var = node::Variable {
             id: self.dummy(),
-            obj_type: obj_type,
+            obj_type,
             name: var_name,
             root: None,
-            def: def,
+            def,
             witness: node::get_witness_from_object(&obj),
             parent_block: self.current_block,
         };
@@ -768,11 +768,10 @@ impl<'a> IRGenerator<'a> {
         match expr {
             HirExpression::Literal(HirLiteral::Integer(x)) =>
             Ok(self.new_constant(x)),
-            HirExpression::Literal(HirLiteral::Array(arr_lit)) => {
+            HirExpression::Literal(HirLiteral::Array(_arr_lit)) => {
                 //TODO - handle arrays
                 todo!();
-                Ok(self.new_constant(FieldElement::zero()))
-                //Ok(Object::Array(Array::from(self, env, arr_lit)?)) 
+                //Ok(Object::Array(Array::from(self, env, _arr_lit)?)) 
             },
             HirExpression::Ident(x) =>  {
                 Ok(self.evaluate_identifier(env, &x))
@@ -784,7 +783,7 @@ impl<'a> IRGenerator<'a> {
                 self.evaluate_infix_expression(lhs, rhs, infx.operator)
             },
             HirExpression::Cast(cast_expr) => {
-                let lhs = self.expression_to_object(env, &cast_expr.lhs)?;
+                let _lhs = self.expression_to_object(env, &cast_expr.lhs)?;
                 todo!();
                 //We should generate a cast instruction and handle properly type conversion:
                 // unsigned integer to field ; ok, just checks if bit size over FieldElement::max_num_bits()
@@ -798,25 +797,27 @@ impl<'a> IRGenerator<'a> {
                 //binary_op::handle_cast_op(self,lhs, cast_expr.r#type).map_err(|kind|kind.add_span(span))
             },
             HirExpression::Index(indexed_expr) => {
-                todo!();
                 // Currently these only happen for arrays
                 let arr_name = self.context().def_interner.ident_name(&indexed_expr.collection_name);
                 let ident_span = self.context().def_interner.ident_span(&indexed_expr.collection_name);
                 let arr = env.get_array(&arr_name).map_err(|kind|kind.add_span(ident_span))?;
                 //
                 // Evaluate the index expression
-                //TODO should check whether it is an assignment or not to generate the proper instruction
-                // let index_as_obj = self.expression_to_object(env, &indexed_expr.index)?;
-                // let index_as_constant = match index_as_obj.constant() {
-                //     Ok(v) => v,
-                //     Err(_) => panic!("Indexed expression does not evaluate to a constant")
-                // };
-                // let index_as_u128 = index_as_constant.to_u128();
+                let index_as_obj = self.expression_to_object(env, &indexed_expr.index)?;
+                let index_as_u128 = if let Some(index_as_constant) = self.get_as_constant(index_as_obj) {
+                    index_as_constant.to_u128()
+                }
+                else {
+                    panic!("Indexed expression does not evaluate to a constant");
+                };
+                dbg!(index_as_u128);
+                todo!();
+                //should return array + index
                 // arr.get(index_as_u128).map_err(|kind|kind.add_span(span))
             },
             HirExpression::Call(call_expr) => {
+                let _func_meta = self.context().def_interner.function_meta(&call_expr.func_id);
                 todo!();
-                let func_meta = self.context().def_interner.function_meta(&call_expr.func_id);
                 //TODO generate a new block and checks whether how arguments should be passed (copy or ref)?
                 // Choices are a low level func or an imported library function
                 // If low level, then we use it's func name to find out what function to call
@@ -882,8 +883,6 @@ impl<'a> IRGenerator<'a> {
         self.update_variable_id(iter_id, iter_ass, start_idx);
 
         //join block
-        let prev_block = self.current_block;
-
         let join_idx = block::new_unsealed_block(self, block::BlockType::ForJoin, true);
         let exit_id = block::new_sealed_block(self, block::BlockType::Normal);
         self.current_block = join_idx;

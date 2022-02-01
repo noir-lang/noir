@@ -33,7 +33,7 @@ impl BasicBlock {
             value_name: HashMap::new(),
             dominator: None,
             dominated: Vec::new(),
-            kind: kind,
+            kind,
         }
     }
 
@@ -51,13 +51,6 @@ impl BasicBlock {
         //   self.value_name.entry(old_value).or_insert(1);
         //   self.value_name
         //       .insert(old_value, self.value_name[&old_value] + 1);
-    }
-
-    pub fn get_value_name(&self, idx: arena::Index) -> u32 {
-        if self.value_name.contains_key(&idx) {
-            return self.value_name[&idx];
-        }
-        0
     }
 
     pub fn get_first_instruction(&self) -> arena::Index {

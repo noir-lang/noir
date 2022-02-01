@@ -38,28 +38,28 @@ impl Node for Variable {
 }
 
 impl NodeObj {
-    pub fn new_constant_bool(value: bool) -> NodeObj {
-        let val = if value { 1_u32 } else { 0_u32 };
-        NodeObj::Const(Constant {
-            id: crate::ssa::code_gen::IRGenerator::dummy_id(),
-            value: BigUint::from(val),
-            value_str: String::new(),
-            value_type: ObjectType::boolean,
-        })
-    }
+    // pub fn new_constant_bool(value: bool) -> NodeObj {
+    //     let val = if value { 1_u32 } else { 0_u32 };
+    //     NodeObj::Const(Constant {
+    //         id: crate::ssa::code_gen::IRGenerator::dummy_id(),
+    //         value: BigUint::from(val),
+    //         value_str: String::new(),
+    //         value_type: ObjectType::boolean,
+    //     })
+    // }
 
-    pub fn new_constant_int(value: u32, bit_size: u32, is_signed: bool) -> NodeObj {
-        NodeObj::Const(Constant {
-            id: crate::ssa::code_gen::IRGenerator::dummy_id(),
-            value: BigUint::from(value),
-            value_str: String::new(),
-            value_type: if is_signed {
-                ObjectType::signed(bit_size)
-            } else {
-                ObjectType::unsigned(bit_size)
-            },
-        })
-    }
+    // pub fn new_constant_int(value: u32, bit_size: u32, is_signed: bool) -> NodeObj {
+    //     NodeObj::Const(Constant {
+    //         id: crate::ssa::code_gen::IRGenerator::dummy_id(),
+    //         value: BigUint::from(value),
+    //         value_str: String::new(),
+    //         value_type: if is_signed {
+    //             ObjectType::signed(bit_size)
+    //         } else {
+    //             ObjectType::unsigned(bit_size)
+    //         },
+    //     })
+    // }
 }
 
 impl Node for NodeObj {
@@ -119,6 +119,7 @@ pub enum NodeObj {
     Obj(Variable),
     Instr(Instruction),
     Const(Constant),
+    //Mem(Address)
 }
 
 #[derive(Debug)]
@@ -128,6 +129,35 @@ pub struct Constant {
     pub value_str: String, //TODO ConstStr subtype
     pub value_type: ObjectType,
 }
+
+#[derive(Debug)]
+pub struct Address {
+    //n.b could be a subtype of variable??
+    pub id: arena::Index,
+    pub offset: arena::Index,
+    pub element_type: ObjectType,
+    pub name: String,
+    pub def: Option<IdentId>,
+}
+
+impl Node for Address {
+    fn get_type(&self) -> ObjectType {
+        self.element_type
+    }
+
+    fn print(&self) -> String {
+        self.name.to_string() //todo a[i]
+    }
+
+    fn bits(&self) -> u32 {
+        0_u32 //bonne question !!!
+    }
+
+    fn get_id(&self) -> arena::Index {
+        self.id
+    }
+}
+
 #[derive(Debug)]
 pub struct Variable {
     pub id: arena::Index,
@@ -160,7 +190,7 @@ pub enum ObjectType {
     boolean,
     unsigned(u32), //bit size
     signed(u32),   //bit size
-    custom(u32),   //user-defined struct, u32 refers to the id of the type in...?todo
+    //custom(u32),   //user-defined struct, u32 refers to the id of the type in...?todo
     //array(ObjectType),  TODO we should have primitive type and composite types
     //TODO big_int
     //TODO floats
@@ -183,44 +213,35 @@ impl ObjectType {
         )
     }
 
-    pub fn from_type(t: noirc_frontend::Type) -> ObjectType {
-        match t {
-            noirc_frontend::Type::FieldElement(_) => ObjectType::native_field,
-            Array => ObjectType::none, //TODO
-            noirc_frontend::Type::Integer(ftype, sign, bit_size) => {
-                match sign {
-                    //todo FieldElementType?
-                    noirc_frontend::Signedness::Signed => ObjectType::signed(bit_size),
-                    noirc_frontend::Signedness::Unsigned => ObjectType::unsigned(bit_size),
-                }
-            }
-            Bool => ObjectType::boolean,
-            _ => ObjectType::none, //todo Error,Unspecified, Unknown,Unit
-        }
-    }
+    // pub fn from_type(t: noirc_frontend::Type) -> ObjectType {
+    //     match t {
+    //         noirc_frontend::Type::FieldElement(_) => ObjectType::native_field,
+    //         noirc_frontend::Type::Array(_,_,_) => ObjectType::none, //TODO
+    //         noirc_frontend::Type::Integer(_ftype, sign, bit_size) => {
+    //             match sign {
+    //                 //todo FieldElementType?
+    //                 noirc_frontend::Signedness::Signed => ObjectType::signed(bit_size),
+    //                 noirc_frontend::Signedness::Unsigned => ObjectType::unsigned(bit_size),
+    //             }
+    //         }
+    //         noirc_frontend::Type::Bool => ObjectType::boolean,
+    //         _ => ObjectType::none, //todo Error,Unspecified, Unknown,Unit
+    //     }
+    // }
 
     pub fn get_type_from_object(obj: &Object) -> ObjectType {
-        let toto = match obj.clone() {
-            Object::Arithmetic(a) => dbg!("aa".to_string()), //TODO
-            Object::Array(a) => dbg!("aaa".to_string()),
-            Object::Constants(_) => dbg!("const- antive".to_string()),
-            Object::Integer(i) => dbg!(format!("int {:?}", i.num_bits)), //TODO signed or unsigned?
-            Object::Linear(l) => dbg!("linear".to_string()),             //TODO
-            Object::Null => dbg!("none".to_string()),
-        };
-
         match obj {
-            Object::Arithmetic(a) => {
+            Object::Arithmetic(_) => {
                 todo!();
                 //ObjectType::native_field
             }
-            Object::Array(a) => {
+            Object::Array(_) => {
                 todo!();
                 //ObjectType::none
             }
-            Object::Constants(_) => ObjectType::native_field,
+            Object::Constants(_) => ObjectType::native_field, //TODO
             Object::Integer(i) => ObjectType::unsigned(i.num_bits), //TODO signed or unsigned?
-            Object::Linear(l) => {
+            Object::Linear(_) => {
                 todo!();
                 //ObjectType::native_field
             }
@@ -235,7 +256,7 @@ impl ObjectType {
             ObjectType::none => 0,
             ObjectType::signed(c) => *c,
             ObjectType::unsigned(c) => *c,
-            ObjectType::custom(_) => todo!(),
+            //ObjectType::custom(_) => todo!(),
         }
     }
 }
@@ -291,8 +312,8 @@ impl Instruction {
         Instruction {
             idx: id0,
             operator: op_code,
-            lhs: lhs,
-            rhs: rhs,
+            lhs,
+            rhs,
             res_type: r_type,
             res_name: String::new(),
             is_deleted: false,
@@ -419,17 +440,17 @@ impl Instruction {
         }
     }
 
-    pub fn get_const_value(c: &Constant) -> (u32, u32) {
-        //....todo...only u32 for now... should also provide the sign
-        match c.value_type {
-            ObjectType::boolean => (if c.value.is_zero() { 0 } else { 1 }, 1),
-            ObjectType::native_field => todo!(), //to field(value), field:prime
-            ObjectType::signed(b) | ObjectType::unsigned(b) => {
-                (c.value.clone().try_into().unwrap(), b)
-            }
-            _ => todo!(),
-        }
-    }
+    // pub fn get_const_value(c: &Constant) -> (u32, u32) {
+    //     //....todo...only u32 for now... should also provide the sign
+    //     match c.value_type {
+    //         ObjectType::boolean => (if c.value.is_zero() { 0 } else { 1 }, 1),
+    //         ObjectType::native_field => todo!(), //to field(value), field:prime
+    //         ObjectType::signed(b) | ObjectType::unsigned(b) => {
+    //             (c.value.clone().try_into().unwrap(), b)
+    //         }
+    //         _ => todo!(),
+    //     }
+    // }
 
     pub fn get_const_value2(c: FieldElement, ctype: ObjectType) -> (u32, u32) {
         //....todo...only u32 for now... should also provide the sign
@@ -441,15 +462,15 @@ impl Instruction {
         }
     }
 
-    pub fn to_const(value: FieldElement, obj_type: ObjectType) -> NodeObj {
-        let c = Constant {
-            id: crate::ssa::code_gen::IRGenerator::dummy_id(),
-            value: BigUint::from_bytes_be(&value.to_bytes()),
-            value_str: String::new(),
-            value_type: obj_type,
-        };
-        NodeObj::Const(c)
-    }
+    // pub fn to_const(value: FieldElement, obj_type: ObjectType) -> NodeObj {
+    //     let c = Constant {
+    //         id: crate::ssa::code_gen::IRGenerator::dummy_id(),
+    //         value: BigUint::from_bytes_be(&value.to_bytes()),
+    //         value_str: String::new(),
+    //         value_type: obj_type,
+    //     };
+    //     NodeObj::Const(c)
+    // }
 
     pub fn node_evaluate(
         n: &NodeEval,
@@ -488,9 +509,8 @@ impl Instruction {
                     return *lhs;
                 } else if l_is_zero {
                     return *rhs;
-                } else
-                //constant folding - TODO - only for integers; NO modulo for field elements - May be we should have a different opcode for field addition?
-                if l_constant.is_some() && r_constant.is_some() {
+                } else if l_constant.is_some() && r_constant.is_some() {
+                    //constant folding - TODO - only for integers; NO modulo for field elements - May be we should have a different opcode for field addition?
                     assert!(l_bsize == r_bsize);
                     let res_value = (l_constant.unwrap() + r_constant.unwrap()) % l_bsize;
                     return NodeEval::Const(FieldElement::from(res_value as i128), self.res_type);
@@ -522,9 +542,8 @@ impl Instruction {
                     return *rhs;
                 } else if r_constant.is_some() && r_constant.unwrap() == 1 {
                     return *lhs;
-                }
-                //constant folding - TODO - only for integers; NO modulo for field elements - May be we should have a different opcode?
-                else if l_constant.is_some() && r_constant.is_some() {
+                } else if l_constant.is_some() && r_constant.is_some() {
+                    //constant folding - TODO - only for integers; NO modulo for field elements - May be we should have a different opcode?
                     assert!(l_bsize == r_bsize);
                     let res_value = (l_constant.unwrap() * r_constant.unwrap()) % l_bsize;
                     return NodeEval::Const(FieldElement::from(res_value as i128), self.res_type);
@@ -903,7 +922,6 @@ pub fn to_operation(op_kind: HirBinaryOpKind, op_type: ObjectType) -> Operation 
                 return Operation::div;
             }
             unreachable!("invalid type"); //TODO error
-            return Operation::nop;
         }
         HirBinaryOpKind::Less => {
             if op_type.is_signed() {
@@ -916,7 +934,6 @@ pub fn to_operation(op_kind: HirBinaryOpKind, op_type: ObjectType) -> Operation 
                 return Operation::lt;
             }
             unreachable!("invalid type"); //TODO error
-            Operation::nop
         }
         HirBinaryOpKind::Greater => {
             if op_type.is_signed() {
@@ -929,7 +946,6 @@ pub fn to_operation(op_kind: HirBinaryOpKind, op_type: ObjectType) -> Operation 
                 return Operation::gt;
             }
             unreachable!("invalid type"); //TODO error
-            Operation::nop
         }
         HirBinaryOpKind::LessEqual => {
             if op_type.is_signed() {
@@ -942,7 +958,6 @@ pub fn to_operation(op_kind: HirBinaryOpKind, op_type: ObjectType) -> Operation 
                 return Operation::lte;
             }
             unreachable!("invalid type"); //TODO error
-            Operation::nop
         }
         HirBinaryOpKind::GreaterEqual => {
             if op_type.is_signed() {
@@ -955,7 +970,6 @@ pub fn to_operation(op_kind: HirBinaryOpKind, op_type: ObjectType) -> Operation 
                 return Operation::gte;
             }
             unreachable!("invalid type"); //TODO error
-            Operation::nop //TODO error
         }
         HirBinaryOpKind::Assign => Operation::ass,
     }
@@ -964,8 +978,8 @@ pub fn to_operation(op_kind: HirBinaryOpKind, op_type: ObjectType) -> Operation 
 pub fn get_witness_from_object(obj: &Object) -> Option<Witness> {
     match obj {
         Object::Integer(i) => Some(i.witness),
-        Object::Array(a) => todo!(),
-        Object::Constants(f) => None,
+        Object::Array(_) => todo!(),
+        Object::Constants(_) => None,
         _ => obj.witness(), // These will
     }
 }
