@@ -10,4 +10,4 @@ edition = "2018"
 codespan-reporting = "0.9.5"
 codespan = "0.9.5"
 fm = {path = "../fm"}
-chumsky = { git = "https://github.com/zesterer/chumsky" }
+chumsky = { git = "https://github.com/zesterer/chumsky", rev="75ed13c" }

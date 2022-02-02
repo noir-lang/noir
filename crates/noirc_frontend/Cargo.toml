@@ -13,7 +13,7 @@ noirc_errors = { path = "../noirc_errors" }
 std_lib = { path = "../std_lib" }
 fm = { path = "../fm" }
 arena = { path = "../arena" }
-chumsky = { git = "https://github.com/zesterer/chumsky" }
+chumsky = { git = "https://github.com/zesterer/chumsky", rev="75ed13c" }
 thiserror = "1.0.21"
 pathdiff = "0.2"
 smol_str = "0.1.17"
