@@ -121,8 +121,8 @@ inline std::ostream& operator<<(std::ostream& os, root_rollup_tx const& tx)
         os << "    bridge_id: " << defi_note.bridge_id << "\n";
         os << "    interaction_nonce: " << defi_note.interaction_nonce << "\n";
         os << "    total_input_value: " << defi_note.total_input_value << "\n";
-        os << "    total_output_a_value: " << defi_note.total_output_a_value << "\n";
-        os << "    total_output_b_value: " << defi_note.total_output_b_value << "\n";
+        os << "    total_output_value_a: " << defi_note.total_output_value_a << "\n";
+        os << "    total_output_value_b: " << defi_note.total_output_value_b << "\n";
         os << "    interaction_result: " << defi_note.interaction_result << "\n";
     }
 

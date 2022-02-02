@@ -277,6 +277,9 @@ field_t<ComposerContext> field_t<ComposerContext>::operator/(const field_t& othe
     return result;
 }
 
+/**
+ * @returns `this * to_mul + to_add`
+ */
 template <typename ComposerContext>
 field_t<ComposerContext> field_t<ComposerContext>::madd(const field_t& to_mul, const field_t& to_add) const
 {

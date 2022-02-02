@@ -47,9 +47,9 @@ TEST(client_proofs_join_split_tx, test_serialization)
         tx.output_note[i].creator_pubkey = fr::random_element();
     }
 
-    tx.claim_note.bridge_id = 0xdeadbeef;
-    tx.claim_note.note_secret = 0xcafebabe;
-    tx.claim_note.deposit_value = 666;
+    tx.partial_claim_note.bridge_id = 0xdeadbeef;
+    tx.partial_claim_note.note_secret = 0xcafebabe;
+    tx.partial_claim_note.deposit_value = 666;
 
     memset(&tx.signature.e, 1, 32);
     memset(&tx.signature.s, 2, 32);

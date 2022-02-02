@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
-#include "../../../fixtures/user_context.hpp"
+#include "../../../../fixtures/user_context.hpp"
 #include "./compute_nullifier.hpp"
-#include "./value/value_note.hpp"
-#include "../native/compute_nullifier.hpp"
-#include "../native/value/value_note.hpp"
+#include "./value_note.hpp"
+#include "../../native/value/compute_nullifier.hpp"
+#include "../../native/value/value_note.hpp"
 #include <stdlib/types/turbo.hpp>
 
 using namespace rollup::proofs::notes;

@@ -23,7 +23,7 @@ struct join_split_inputs {
     notes::circuit::value::witness_data input_note2;
     notes::circuit::value::witness_data output_note1;
     notes::circuit::value::witness_data output_note2;
-    notes::circuit::claim::claim_note_tx_witness_data claim_note;
+    notes::circuit::claim::partial_claim_note_witness_data partial_claim_note;
     point_ct signing_pub_key;
     stdlib::schnorr::signature_bits<Composer> signature;
     field_ct merkle_root;

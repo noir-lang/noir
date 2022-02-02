@@ -9,18 +9,22 @@ namespace claim {
 using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
 
-inline bool verify_logic(claim_tx& tx, circuit_data const& circuit_data)
+struct verify_logic_result {
+    bool valid;
+    std::string err;
+};
+
+inline verify_logic_result verify_logic(claim_tx& tx, circuit_data const& circuit_data)
 {
     Composer composer = Composer(circuit_data.proving_key, circuit_data.verification_key, circuit_data.num_gates);
 
     claim_circuit(composer, tx);
 
     if (composer.failed) {
-        info("Circuit logic failed: " + composer.err);
-        return false;
+        std::cout << "Logic failed: " << composer.err << std::endl;
     }
 
-    return true;
+    return { !composer.failed, composer.err };
 }
 
 struct verify_result {

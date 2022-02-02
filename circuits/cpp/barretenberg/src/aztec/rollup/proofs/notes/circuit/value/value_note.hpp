@@ -20,6 +20,7 @@ struct value_note {
     field_ct input_nullifier;
     field_ct commitment;
     field_ct creator_pubkey;
+    // Note the below two fields are not committed-to explicitly, because the asset_id already contains this data.
     bool_ct is_virtual;
     suint_ct virtual_note_nonce;
 

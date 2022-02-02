@@ -103,6 +103,11 @@ template <class base_uint> constexpr uintx<base_uint> uintx<base_uint>::invmod(c
     return this->unsafe_invmod(modulus);
 }
 
+/**
+ * Viewing `this` as a bit string, and counting bits from 0, slices a substring.
+ * @returns the uintx equal to the substring of bits from (and including) the `start`-th bit, to (but excluding) the
+ * `end`-th bit of `this`.
+ */
 template <class base_uint>
 constexpr uintx<base_uint> uintx<base_uint>::slice(const uint64_t start, const uint64_t end) const
 {

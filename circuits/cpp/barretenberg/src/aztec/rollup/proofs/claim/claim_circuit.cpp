@@ -17,14 +17,31 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
 {
     // Create witnesses.
     const auto proof_id = field_ct(witness_ct(&composer, ProofIds::DEFI_CLAIM));
+    proof_id.assert_equal(ProofIds::DEFI_CLAIM);
     const auto data_root = field_ct(witness_ct(&composer, tx.data_root));
     const auto defi_root = field_ct(witness_ct(&composer, tx.defi_root));
     const auto claim_note_index =
         suint_ct(witness_ct(&composer, tx.claim_note_index), DATA_TREE_DEPTH, "claim_note_index");
     const auto claim_note_path = create_witness_hash_path(composer, tx.claim_note_path);
+    /**
+     * Conversion to `claim_note_witness_data` contains:
+     *   - range constraints on the claim note's attributes
+     *   - expansion of bridge_id
+     *     - expansion of the bridge_id's bit_config
+     *       - sense checks on the bit_config's values
+     *         (certain bits aren't yet allowed, and some bits can contradict each other)
+     */
     const auto claim_note_data = circuit::claim::claim_note_witness_data(composer, tx.claim_note);
     const auto claim_note = circuit::claim::claim_note(claim_note_data);
     const auto defi_interaction_note_path = create_witness_hash_path(composer, tx.defi_interaction_note_path);
+    /**
+     * Implicit conversion to `defi_interaction::witness_data` includes:
+     *   - range constraints on the defi_interaction_note's attributes
+     *   - expansion of bridge_id
+     *     - expansion of the bridge_id's bit_config
+     *       - sense checks on the bit_config's values
+     *         (certain bits aren't yet allowed, and some bits can contradict each other)
+     */
     const auto defi_interaction_note = circuit::defi_interaction::note({ composer, tx.defi_interaction_note });
     const auto defi_interaction_note_dummy_nullifier_nonce =
         field_ct(witness_ct(&composer, tx.defi_interaction_note_dummy_nullifier_nonce));
@@ -32,81 +49,117 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
         suint_ct(witness_ct(&composer, tx.output_value_a), NOTE_VALUE_BIT_LENGTH, "output_value_a");
     const auto output_value_b =
         suint_ct(witness_ct(&composer, tx.output_value_b), NOTE_VALUE_BIT_LENGTH, "output_value_b");
-    const auto two_output_notes = claim_note_data.bridge_id_data.config.second_output_valid;
-    const auto is_virtual_note = claim_note_data.bridge_id_data.config.second_output_asset_virtual;
+    const auto second_output_real = claim_note_data.bridge_id_data.config.second_output_real;
+    const auto second_output_virtual = claim_note_data.bridge_id_data.config.second_output_virtual;
 
-    // Ratio checks. Guarantees:
-    // defi_interaction_note.total_input_value != 0
-    // claim_note.deposit_value != 0
-    defi_interaction_note.total_input_value.subtract(claim_note.deposit_value, NOTE_VALUE_BIT_LENGTH);
+    {
+        // Don't support zero deposits (because they're illogical):
+        claim_note.deposit_value.value.assert_is_not_zero("Not supported: zero deposit");
+        // Ensure deposit_value <= total_input_value
+        defi_interaction_note.total_input_value.subtract(
+            claim_note.deposit_value, NOTE_VALUE_BIT_LENGTH, "deposit_value > total_input_value");
+        // These checks are superfluous, but included just in case:
+        // Ensure output_value_a <= total_output_value_a
+        defi_interaction_note.total_output_value_a.subtract(
+            output_value_a, NOTE_VALUE_BIT_LENGTH, "output_value_a > total_output_value_a");
+        // Ensure output_value_b <= total_output_value_b
+        defi_interaction_note.total_output_value_b.subtract(
+            output_value_b, NOTE_VALUE_BIT_LENGTH, "output_value_b > total_output_value_b");
+    }
 
-    auto rc1 = ratio_check(composer,
-                           { .a1 = claim_note.deposit_value.value,
-                             .a2 = defi_interaction_note.total_input_value.value,
-                             .b1 = output_value_a.value,
-                             .b2 = defi_interaction_note.total_output_a_value.value });
-    auto valid1 = (output_value_a == 0 && defi_interaction_note.total_output_a_value == 0) || rc1;
-    valid1.assert_equal(true, "ratio check 1 failed");
+    {
+        // Ratio checks.
+        // Note, these ratio_checks also guarantee:
+        //   defi_interaction_note.total_input_value != 0
+        //   defi_interaction_note.total_output_value_a != 0 (unless output_value_a == 0)
+        //   defi_interaction_note.total_output_value_b != 0 (unless output_value_b == 0)
 
-    auto rc2 = ratio_check(composer,
-                           { .a1 = claim_note.deposit_value.value,
-                             .a2 = defi_interaction_note.total_input_value.value,
-                             .b1 = output_value_b.value,
-                             .b2 = defi_interaction_note.total_output_b_value.value });
-    auto valid2 = (output_value_b == 0 && defi_interaction_note.total_output_b_value == 0) || rc2;
-    valid2.assert_equal(true, "ratio check 2 failed");
+        // Check that (deposit * total_output_value_a) == (output_value_a * total_input_value)
+        // Rearranging, this ensures output_value_a == (deposit / total_input_value) * total_output_value_a
+        auto rc1 = ratio_check(composer,
+                               { .a1 = claim_note.deposit_value.value,
+                                 .a2 = defi_interaction_note.total_input_value.value,
+                                 .b1 = output_value_a.value,
+                                 .b2 = defi_interaction_note.total_output_value_a.value });
+        auto valid1 = (output_value_a == 0 && defi_interaction_note.total_output_value_a == 0) || rc1;
+        valid1.assert_equal(true, "ratio check 1 failed");
 
-    // If is_virtual_note is 1, it indicates the second output note must be a "virtual" note.
-    // Assert if is_virtual_note is true, then num_output_notes is 1.
-    auto valid3 = !(is_virtual_note && two_output_notes);
-    valid3.assert_equal(true, "num_output_notes not 1");
+        // Check that (deposit * total_output_value_b) == (output_value_b * total_input_value)
+        // Rearranging, this ensures output_value_b == (deposit / total_input_value) * total_output_value_b
+        auto rc2 = ratio_check(composer,
+                               { .a1 = claim_note.deposit_value.value,
+                                 .a2 = defi_interaction_note.total_input_value.value,
+                                 .b1 = output_value_b.value,
+                                 .b2 = defi_interaction_note.total_output_value_b.value });
+        auto valid2 = (output_value_b == 0 && defi_interaction_note.total_output_value_b == 0) || rc2;
+        valid2.assert_equal(true, "ratio check 2 failed");
+    }
 
-    // Value notes must be completed with input_nullifiers' known unique values.
-    // The second nullifier is is a 'dummy' - generated from randomness provided by the user.
+    // This nullifier1 is unique because the claim_note.commitment is unique (which itself is unique because it contains
+    // a unique input_nullifier (from the defi-deposit tx which created it)).
     const auto nullifier1 = circuit::claim::compute_nullifier(claim_note.commitment);
 
-    // TODO: Ask Ariel about this nullifier.
+    // The second nullifier is a 'dummy', in the sense that it won't prevent other users from also referring to this
+    // defi-interaction note - each user can generate a valid dummy nullifier by providing a unique nonce.
     const auto nullifier2 = circuit::defi_interaction::compute_dummy_nullifier(
         defi_interaction_note.commitment, defi_interaction_note_dummy_nullifier_nonce);
 
-    // Compute output notes. Second note is zeroed if not used.
-    // If defi interaction result is 0, refund original value.
-    auto interaction_success = defi_interaction_note.interaction_result;
-    auto output_value_1 =
-        suint_ct::conditional_assign(interaction_success, output_value_a, claim_note_data.deposit_value);
-    auto output_asset_id_1 = suint_ct::conditional_assign(interaction_success,
-                                                          claim_note_data.bridge_id_data.output_asset_id_a,
-                                                          claim_note_data.bridge_id_data.input_asset_id);
-    auto output_note1 = circuit::value::complete_partial_commitment(
-        claim_note.value_note_partial_commitment, output_value_1, output_asset_id_1, nullifier1);
+    field_ct output_note_commitment1;
+    field_ct output_note_commitment2;
+    {
+        // Compute output notes.
 
-    // If is_virtual_note is 1, we set asset_id_2 = 2^{31} + nonce and
-    // the output value of the second note must be equal to output_value_a.
-    auto output_value_2 = suint_ct::conditional_assign(is_virtual_note, output_value_a, output_value_b);
-    auto virtual_note_flag = suint_ct(uint256_t(1) << (MAX_NUM_ASSETS_BIT_LENGTH - 1));
-    auto output_asset_id_2 = suint_ct::conditional_assign(is_virtual_note,
-                                                          virtual_note_flag + claim_note.defi_interaction_nonce,
-                                                          claim_note_data.bridge_id_data.output_asset_id_b);
-    auto output_note2 = circuit::value::complete_partial_commitment(
-        claim_note.value_note_partial_commitment, output_value_2, output_asset_id_2, nullifier2);
-    auto valid_output_note2 = is_virtual_note ^ two_output_notes;
-    output_note2 = output_note2 * valid_output_note2 * interaction_success;
+        // If the defi interaction was unsuccessful, refund the original value via output note 1.
+        auto interaction_success = defi_interaction_note.interaction_result;
+        auto output_value_1 =
+            suint_ct::conditional_assign(interaction_success, output_value_a, claim_note_data.deposit_value);
+        auto output_asset_id_1 = suint_ct::conditional_assign(interaction_success,
+                                                              claim_note_data.bridge_id_data.output_asset_id_a,
+                                                              claim_note_data.bridge_id_data.input_asset_id);
+        output_note_commitment1 = circuit::value::complete_partial_commitment(
+            claim_note.value_note_partial_commitment, output_value_1, output_asset_id_1, nullifier1);
 
-    // Check claim note and interaction note are related.
-    claim_note.bridge_id.assert_equal(defi_interaction_note.bridge_id, "note bridge ids don't match");
-    claim_note.defi_interaction_nonce.assert_equal(defi_interaction_note.interaction_nonce, "note nonces don't match");
+        // If second_output_virtual, we:
+        //    - set asset_id_2 = 2^{30} + nonce
+        //    - check the output value of the second output note must be equal to that of the first output note
+        //    (output_value_a).
+        auto output_value_2 = suint_ct::conditional_assign(second_output_virtual, output_value_a, output_value_b);
+        auto virtual_note_flag = suint_ct(uint256_t(1) << (MAX_NUM_ASSETS_BIT_LENGTH - 1));
+        auto output_asset_id_2 = suint_ct::conditional_assign(second_output_virtual,
+                                                              virtual_note_flag + claim_note.defi_interaction_nonce,
+                                                              claim_note_data.bridge_id_data.output_asset_id_b);
+        output_note_commitment2 = circuit::value::complete_partial_commitment(
+            claim_note.value_note_partial_commitment, output_value_2, output_asset_id_2, nullifier2);
 
-    // Check claim note exists and compute nullifier.
-    auto claim_exists =
-        check_membership(data_root, claim_note_path, claim_note.commitment, byte_array_ct(claim_note_index));
-    claim_exists.assert_equal(true, "claim note not a member");
+        // Zero the output_note_commitment2 if: it's not used; or if the defi interaction was unsuccessful.
+        auto is_output_note_2_in_use =
+            second_output_virtual ^ second_output_real; // Note, the case of both being true is a contradiction which is
+                                                        // caught in bridge_id.hpp.
+        output_note_commitment2 = output_note_commitment2 * is_output_note_2_in_use * interaction_success;
+    }
 
-    // Check defi interaction note exists.
-    const auto din_exists = check_membership(defi_root,
-                                             defi_interaction_note_path,
-                                             defi_interaction_note.commitment,
-                                             byte_array_ct(defi_interaction_note.interaction_nonce.value));
-    din_exists.assert_equal(true, "defi interaction note not a member");
+    {
+        // Check claim note and interaction note are related.
+        claim_note.bridge_id.assert_equal(defi_interaction_note.bridge_id, "note bridge ids don't match");
+        claim_note.defi_interaction_nonce.assert_equal(defi_interaction_note.interaction_nonce,
+                                                       "note nonces don't match");
+    }
+
+    {
+        // Existence checks
+
+        // Check claim note exists:
+        auto claim_exists =
+            check_membership(data_root, claim_note_path, claim_note.commitment, byte_array_ct(claim_note_index));
+        claim_exists.assert_equal(true, "claim note not a member");
+
+        // Check defi interaction note exists:
+        const auto din_exists = check_membership(defi_root,
+                                                 defi_interaction_note_path,
+                                                 defi_interaction_note.commitment,
+                                                 byte_array_ct(defi_interaction_note.interaction_nonce.value));
+        din_exists.assert_equal(true, "defi interaction note not a member");
+    }
 
     // Force unused public inputs to 0.
     const field_ct public_value = witness_ct(&composer, 0);
@@ -124,21 +177,21 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
 
     // The following make up the public inputs to the circuit.
     proof_id.set_public();
-    output_note1.set_public();
-    output_note2.set_public();
+    output_note_commitment1.set_public();
+    output_note_commitment2.set_public();
     nullifier1.set_public();
     nullifier2.set_public();
-    public_value.set_public();
-    public_owner.set_public();
-    asset_id.set_public();
+    public_value.set_public(); // 0
+    public_owner.set_public(); // 0
+    asset_id.set_public();     // 0
     data_root.set_public();
     claim_note.fee.set_public();
     claim_note_data.bridge_id_data.input_asset_id.set_public();
     claim_note.bridge_id.set_public();
-    defi_deposit_value.set_public();
+    defi_deposit_value.set_public(); // 0
     defi_root.set_public();
-    backward_link.set_public();
-    allow_claim.set_public();
+    backward_link.set_public(); // 0
+    allow_claim.set_public();   // 0
 }
 
 } // namespace claim

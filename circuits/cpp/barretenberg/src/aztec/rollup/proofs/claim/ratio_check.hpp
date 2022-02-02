@@ -14,6 +14,8 @@ struct ratios {
     field_ct b1;
     field_ct b2;
 
+    // Get residual of a1 * b2 (mod a2)
+    // Notice, it'll be 0 if a1 * b2 == k * a2 for some k.
     field_ct get_residual(Composer& composer) const
     {
         uint256_t a1_v = a1.get_value();
@@ -31,7 +33,7 @@ struct ratios {
     }
 };
 
-// validate that a1 * b1 = a2 * b2 , when (a1, b1, a2, b2) are treated as Integers
+// Validate that a1 * b1 == a2 * b2 , when (a1, b1, a2, b2) are treated as Integers
 inline bool_ct product_check(Composer& composer,
                              const field_ct& a1,
                              const field_ct& b1,
@@ -76,7 +78,8 @@ inline bool_ct product_check(Composer& composer,
     const auto right_1 = split_into_limbs(b1);
     const auto right_2 = split_into_limbs(b2);
     const auto residual_limbs = split_into_limbs(residual);
-    // takes a 204+ bit limb and splits it into a low 192-bit limb and a high limb
+
+    // takes a [204-208]-bit limb and splits it into a low 136-bit limb and a high 72-bit limb
     const auto split_out_carry_term = [&composer, &shift_2](const field_ct& limb) {
         const uint256_t limb_val = limb.get_value();
 
@@ -94,8 +97,8 @@ inline bool_ct product_check(Composer& composer,
         return std::array<field_ct, 2>{ lo, hi };
     };
 
-    // use schoolbook multiplication algorithm to multiply limbs together
-    // then convert result into 4 2-limb values that do not overlap
+    // Use schoolbook multiplication algorithm to multiply 2 4-limbed values together, then convert result into 4
+    // 2-limb values (with limbs twice the size) that do not overlap
     const auto compute_product_limbs = [&split_out_carry_term, &shift_1](const std::array<field_ct, 4>& left,
                                                                          const std::array<field_ct, 4>& right,
                                                                          const std::array<field_ct, 4>& to_add,
@@ -142,7 +145,7 @@ inline bool_ct product_check(Composer& composer,
 
 /**
  * Will return true if the ratios are the same, false if not or if either denominator is 0.
- * Effictively: a1 / a2 == b1 / b2
+ * Effectively: a1 / a2 == b1 / b2
  */
 inline bool_ct ratio_check(Composer& composer, ratios const& ratios)
 {

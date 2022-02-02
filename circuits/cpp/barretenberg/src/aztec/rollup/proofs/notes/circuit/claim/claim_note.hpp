@@ -21,7 +21,7 @@ struct partial_claim_note {
     field_ct input_nullifier;
     field_ct partial_commitment;
 
-    partial_claim_note(claim_note_tx_witness_data const& data, point_ct const& owner, suint_ct const& owner_nonce)
+    partial_claim_note(partial_claim_note_witness_data const& data, point_ct const& owner, suint_ct const& owner_nonce)
     {
         deposit_value = data.deposit_value;
         bridge_id = data.bridge_id_data.to_safe_uint();

@@ -11,8 +11,8 @@ namespace claim {
 using namespace plonk::stdlib::types::turbo;
 
 struct claim_tx {
-    barretenberg::fr data_root;
-    barretenberg::fr defi_root;
+    fr data_root;
+    fr defi_root;
 
     uint32_t claim_note_index;
     merkle_tree::fr_hash_path claim_note_path;
@@ -21,7 +21,7 @@ struct claim_tx {
     merkle_tree::fr_hash_path defi_interaction_note_path;
     notes::native::defi_interaction::note defi_interaction_note;
 
-    barretenberg::fr defi_interaction_note_dummy_nullifier_nonce;
+    fr defi_interaction_note_dummy_nullifier_nonce;
 
     fr output_value_a;
     fr output_value_b;

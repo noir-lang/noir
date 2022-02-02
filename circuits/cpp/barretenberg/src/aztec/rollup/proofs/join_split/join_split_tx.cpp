@@ -20,7 +20,7 @@ void write(std::vector<uint8_t>& buf, join_split_tx const& tx)
     write(buf, tx.input_path);
     write(buf, tx.input_note);
     write(buf, tx.output_note);
-    write(buf, tx.claim_note);
+    write(buf, tx.partial_claim_note);
 
     write(buf, tx.account_private_key);
     write(buf, tx.alias_hash);
@@ -48,7 +48,7 @@ void read(uint8_t const*& it, join_split_tx& tx)
     read(it, tx.input_path);
     read(it, tx.input_note);
     read(it, tx.output_note);
-    read(it, tx.claim_note);
+    read(it, tx.partial_claim_note);
 
     read(it, tx.account_private_key);
     read(it, tx.alias_hash);
@@ -79,7 +79,7 @@ std::ostream& operator<<(std::ostream& os, join_split_tx const& tx)
               << "in_note2: " << tx.input_note[1] << "\n"
               << "out_note1: " << tx.output_note[0] << "\n"
               << "out_note2: " << tx.output_note[1] << "\n"
-              << "claim_note: " << tx.claim_note << "\n"
+              << "partial_claim_note: " << tx.partial_claim_note << "\n"
               << "account_private_key: " << tx.account_private_key << "\n"
               << "alias_hash: " << tx.alias_hash << "\n"
               << "nonce: " << tx.nonce << "\n"

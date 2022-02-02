@@ -83,14 +83,16 @@ template <typename ComposerContext> class safe_uint_t {
     static safe_uint_t from_witness_index(ComposerContext* parent_context, const uint32_t witness_index);
 
     // Subtraction when you have a pre-determined bound on the difference size
-    safe_uint_t subtract(const safe_uint_t& other, const size_t difference_bit_size) const
+    safe_uint_t subtract(const safe_uint_t& other,
+                         const size_t difference_bit_size,
+                         std::string const& description = "") const
     {
         ASSERT(difference_bit_size <= MAX_BIT_NUM);
         field_t<ComposerContext> difference_val = this->value - other.value;
-        safe_uint_t<ComposerContext> difference(difference_val, difference_bit_size);
+        safe_uint_t<ComposerContext> difference(difference_val, difference_bit_size, format("subtract: ", description));
         // This checks the subtraction is correct for integers without any wraps
         if (difference.current_max + other.current_max > MAX_VALUE)
-            throw_or_abort("maximum value exceeded in positive_int subtract");
+            throw_or_abort("maximum value exceeded in safe_uint subtract");
         return difference;
     }
 
@@ -100,7 +102,7 @@ template <typename ComposerContext> class safe_uint_t {
         safe_uint_t<ComposerContext> difference(difference_val, (size_t)(current_max.get_msb() + 1));
         // This checks the subtraction is correct for integers without any wraps
         if (difference.current_max + other.current_max > MAX_VALUE)
-            throw_or_abort("maximum value exceeded in positive_int minus operator");
+            throw_or_abort("maximum value exceeded in safe_uint minus operator");
         return difference;
     }
 

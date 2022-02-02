@@ -150,6 +150,11 @@ constexpr std::pair<uint256_t, uint256_t> uint256_t::mul_extended(const uint256_
     return { lo, hi };
 }
 
+/**
+ * Viewing `this` uint256_t as a bit string, and counting bits from 0, slices a substring.
+ * @returns the uint256_t equal to the substring of bits from (and including) the `start`-th bit, to (but excluding) the
+ * `end`-th bit of `this`.
+ */
 constexpr uint256_t uint256_t::slice(const uint64_t start, const uint64_t end) const
 {
     const uint64_t range = end - start;

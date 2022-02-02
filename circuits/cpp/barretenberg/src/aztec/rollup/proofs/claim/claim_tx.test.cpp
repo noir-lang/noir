@@ -28,8 +28,8 @@ TEST(client_proofs_claim_tx, test_serialization)
     tx.defi_interaction_note.bridge_id = 456;
     tx.defi_interaction_note.interaction_nonce = 567;
     tx.defi_interaction_note.total_input_value = 678;
-    tx.defi_interaction_note.total_output_a_value = 789;
-    tx.defi_interaction_note.total_output_b_value = 890;
+    tx.defi_interaction_note.total_output_value_a = 789;
+    tx.defi_interaction_note.total_output_value_b = 890;
     tx.defi_interaction_note.interaction_result = 1;
 
     tx.defi_interaction_note_dummy_nullifier_nonce = fr::random_element();

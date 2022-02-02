@@ -163,9 +163,9 @@ TEST(positiveint, subtract)
             c = c.subtract(d, suint_t::MAX_BIT_NUM);
             FAIL() << "Expected out of range error";
         } catch (std::runtime_error const& err) {
-            EXPECT_EQ(err.what(), std::string("maximum value exceeded in positive_int subtract"));
+            EXPECT_EQ(err.what(), std::string("maximum value exceeded in safe_uint subtract"));
         } catch (...) {
-            FAIL() << "Expected std::runtime_error modulus in positive_int class";
+            FAIL() << "Expected std::runtime_error modulus in safe_uint class";
         }
     }
 }

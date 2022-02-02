@@ -23,10 +23,10 @@ struct note {
     suint_ct total_input_value;
 
     // 252 bits
-    suint_ct total_output_a_value;
+    suint_ct total_output_value_a;
 
     // 252 bits. Force this to be 0 if bridge_id only uses 1 output note
-    suint_ct total_output_b_value;
+    suint_ct total_output_value_b;
 
     // if interaction failed, re-create original deposit note
     bool_ct interaction_result;
@@ -38,8 +38,8 @@ struct note {
         : bridge_id(note.bridge_id_data.to_safe_uint())
         , interaction_nonce(note.interaction_nonce)
         , total_input_value(note.total_input_value)
-        , total_output_a_value(note.total_output_a_value)
-        , total_output_b_value(note.total_output_b_value)
+        , total_output_value_a(note.total_output_value_a)
+        , total_output_value_b(note.total_output_value_b)
         , interaction_result(note.interaction_result)
         , commitment(compute_commitment())
     {}
@@ -53,8 +53,8 @@ struct note {
         arr.write(bridge_id * is_real);
         arr.write(interaction_nonce * is_real);
         arr.write(total_input_value * is_real);
-        arr.write(total_output_a_value * is_real);
-        arr.write(total_output_b_value * is_real);
+        arr.write(total_output_value_a * is_real);
+        arr.write(total_output_value_b * is_real);
         arr.write((field_ct(interaction_result) * is_real));
 
         return arr;
@@ -65,8 +65,8 @@ struct note {
     {
         return pedersen::compress({ bridge_id,
                                     total_input_value,
-                                    total_output_a_value,
-                                    total_output_b_value,
+                                    total_output_value_a,
+                                    total_output_value_b,
                                     interaction_nonce,
                                     interaction_result },
                                   true,

@@ -58,10 +58,10 @@ template <typename WorldState> class JoinSplitTxFactory {
 
         value::value_note output_note1 = { out_value[0], asset_id, nonce, receiver, user.note_secret, 0, fr(0) };
         value::value_note output_note2 = { out_value[1], asset_id, nonce, sender, user.note_secret, 0, fr(0) };
-        notes::native::claim::claim_note_tx_data claim_note = { 0, 0, user.note_secret, fr(0) };
+        notes::native::claim::partial_claim_note_data partial_claim_note = { 0, 0, user.note_secret, fr(0) };
 
         auto get_proof_id = [&]() -> uint32_t {
-            if (claim_note.deposit_value > 0) {
+            if (partial_claim_note.deposit_value > 0) {
                 return ProofIds::DEFI_DEPOSIT;
             }
             if (public_input > 0) {
@@ -96,7 +96,7 @@ template <typename WorldState> class JoinSplitTxFactory {
         tx.account_private_key = user.owner.private_key;
         tx.alias_hash = 0;
         tx.nonce = nonce;
-        tx.claim_note = claim_note;
+        tx.partial_claim_note = partial_claim_note;
         tx.backward_link = fr::zero();
         tx.allow_chain = 0;
 
@@ -117,7 +117,7 @@ template <typename WorldState> class JoinSplitTxFactory {
         auto input_nullifier2 = compute_nullifier(tx.input_note[1].commit(), user.owner.private_key, num_inputs > 1);
         tx.output_note[0].input_nullifier = input_nullifier1;
         tx.output_note[1].input_nullifier = input_nullifier2;
-        tx.claim_note.input_nullifier = tx.proof_id == ProofIds::DEFI_DEPOSIT ? input_nullifier1 : 0;
+        tx.partial_claim_note.input_nullifier = tx.proof_id == ProofIds::DEFI_DEPOSIT ? input_nullifier1 : 0;
         tx.signature = sign_join_split_tx(tx, signer, rand_engine);
     }
 
@@ -131,9 +131,9 @@ template <typename WorldState> class JoinSplitTxFactory {
         auto tx =
             create_join_split_tx(in_note_idx, in_note_value, out_note_value, 0, 0, 0, asset_id, 0, virtual_asset_id);
         tx.proof_id = ProofIds::DEFI_DEPOSIT;
-        tx.claim_note.bridge_id = bridge_id;
-        tx.claim_note.deposit_value = tx.output_note[0].value;
-        tx.claim_note.note_secret = user.note_secret;
+        tx.partial_claim_note.bridge_id = bridge_id;
+        tx.partial_claim_note.deposit_value = tx.output_note[0].value;
+        tx.partial_claim_note.note_secret = user.note_secret;
         tx.output_note[0].value = 0;
         return tx;
     }

@@ -14,7 +14,6 @@ using namespace barretenberg;
 
 inline auto compute_nullifier(grumpkin::fq const& note_commitment)
 {
-    // TODO: check if this is ok with Ariel!
     return crypto::pedersen::compress_native({ note_commitment }, GeneratorIndex::CLAIM_NOTE_NULLIFIER);
 }
 

@@ -18,10 +18,10 @@ barretenberg::fr compute_signing_data(join_split_tx const& tx)
     auto public_value = tx.public_value;
     auto public_asset_id = tx.asset_id * (is_deposit || is_withdraw);
 
-    auto partial_value_note_commitment =
-        value::create_partial_commitment(tx.claim_note.note_secret, tx.input_note[0].owner, tx.input_note[0].nonce, 0);
-    claim::claim_note claim_note = { tx.claim_note.deposit_value,   tx.claim_note.bridge_id,      0, 0,
-                                     partial_value_note_commitment, tx.claim_note.input_nullifier };
+    auto partial_value_note_commitment = value::create_partial_commitment(
+        tx.partial_claim_note.note_secret, tx.input_note[0].owner, tx.input_note[0].nonce, 0);
+    claim::claim_note claim_note = { tx.partial_claim_note.deposit_value, tx.partial_claim_note.bridge_id,      0, 0,
+                                     partial_value_note_commitment,       tx.partial_claim_note.input_nullifier };
     const grumpkin::fq input_note_1 = tx.input_note[0].commit();
     const grumpkin::fq input_note_2 = tx.input_note[1].commit();
     const grumpkin::fq output_note_1 = is_defi ? claim_note.partial_commit() : tx.output_note[0].commit();

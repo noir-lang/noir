@@ -21,36 +21,36 @@ namespace native {
  * outputAssetA    : First output asset id
  * outputAssetB    : Second output asset id
  * openingNonce    : Defi interaction nonce when a loan/LP position was opened
- * bitConfig       : 32-bit configuration (0 || 0 || ... || 0 || secondOutputAssetVirtual || secondOutputAssetValid)
+ * bitConfig       : 32-bit configuration (0 || 0 || ... || 0 || secondOutputVirtual || secondOutputAssetValid)
  * auxData         : Additional (optional) data to be used by the bridge contract.
  *
  */
 struct bridge_id {
     /**
      * | bit | meaning |
-     * |  0  | firstInputAssetVirtual (currently always false) |
-     * |  1  | secondInputAssetVirtual |
-     * |  2  | firstOutputAssetVirtual |
-     * |  3  | secondOutputAssetVirtual |
-     * |  4  | secondInputValid | is first output note valid and real?
-     * |  5  | secondOutputValid | is second output note valid and real?
+     * |  0  | firstInputVirtual (currently always false) |
+     * |  1  | secondInputVirtual |
+     * |  2  | firstOutputVirtual |
+     * |  3  | secondOutputVirtual |
+     * |  4  | secondInputReal | is first output note valid and real?
+     * |  5  | secondOutputReal | is second output note valid and real?
      */
     struct bit_config {
-        bool first_input_asset_virtual = false;
-        bool second_input_asset_virtual = false;
-        bool first_output_asset_virtual = false;
-        bool second_output_asset_virtual = false;
-        bool second_input_valid = false;
-        bool second_output_valid = false;
+        bool first_input_virtual = false;
+        bool second_input_virtual = false;
+        bool first_output_virtual = false;
+        bool second_output_virtual = false;
+        bool second_input_real = false;
+        bool second_output_real = false;
 
         bool operator==(const bit_config& other) const
         {
-            bool res = (first_input_asset_virtual == other.first_input_asset_virtual);
-            res = res && (second_input_asset_virtual == other.second_input_asset_virtual);
-            res = res && (first_output_asset_virtual == other.first_output_asset_virtual);
-            res = res && (second_output_asset_virtual == other.second_output_asset_virtual);
-            res = res && (second_input_valid == other.second_input_valid);
-            res = res && (second_output_valid == other.second_output_valid);
+            bool res = (first_input_virtual == other.first_input_virtual);
+            res = res && (second_input_virtual == other.second_input_virtual);
+            res = res && (first_output_virtual == other.first_output_virtual);
+            res = res && (second_output_virtual == other.second_output_virtual);
+            res = res && (second_input_real == other.second_input_real);
+            res = res && (second_output_real == other.second_output_real);
             return res;
         }
 
@@ -62,12 +62,12 @@ struct bridge_id {
             constexpr auto opening_nonce_shift = output_asset_id_b_shift + DEFI_BRIDGE_OUTPUT_B_ASSET_ID_LEN;
             constexpr auto bitconfig_shift = opening_nonce_shift + DEFI_BRIDGE_OPENING_NONCE_LEN;
 
-            uint256_t result(first_input_asset_virtual);
-            result += uint256_t(second_input_asset_virtual) << 1;
-            result += uint256_t(first_output_asset_virtual) << 2;
-            result += uint256_t(second_output_asset_virtual) << 3;
-            result += uint256_t(second_input_valid) << 4;
-            result += uint256_t(second_output_valid) << 5;
+            uint256_t result(first_input_virtual);
+            result += uint256_t(second_input_virtual) << 1;
+            result += uint256_t(first_output_virtual) << 2;
+            result += uint256_t(second_output_virtual) << 3;
+            result += uint256_t(second_input_real) << 4;
+            result += uint256_t(second_output_real) << 5;
             result = result << bitconfig_shift;
             return result;
         }
@@ -126,12 +126,12 @@ struct bridge_id {
 
 inline std::ostream& operator<<(std::ostream& os, bridge_id::bit_config const& config)
 {
-    os << "  first_input_asset_virtual: " << config.first_input_asset_virtual << ",\n"
-       << "  second_input_asset_virtual: " << config.second_input_asset_virtual << ",\n"
-       << "  first_output_asset_virtual: " << config.first_output_asset_virtual << ",\n"
-       << "  second_output_asset_virtual: " << config.second_output_asset_virtual << ",\n"
-       << "  second_input_valid: " << config.second_input_valid << ",\n"
-       << "  second_output_valid: " << config.second_output_valid << ",\n";
+    os << "  first_input_virtual: " << config.first_input_virtual << ",\n"
+       << "  second_input_virtual: " << config.second_input_virtual << ",\n"
+       << "  first_output_virtual: " << config.first_output_virtual << ",\n"
+       << "  second_output_virtual: " << config.second_output_virtual << ",\n"
+       << "  second_input_real: " << config.second_input_real << ",\n"
+       << "  second_output_real: " << config.second_output_real << ",\n";
     return os;
 }
 

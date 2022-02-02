@@ -145,12 +145,12 @@ class root_rollup_tests : public ::testing::Test {
             .output_asset_id_a = 0,
             .output_asset_id_b = 1,
             .opening_nonce = 0,
-            .config = notes::native::bridge_id::bit_config{ .first_input_asset_virtual = false,
-                                                            .second_input_asset_virtual = false,
-                                                            .first_output_asset_virtual = false,
-                                                            .second_output_asset_virtual = false,
-                                                            .second_input_valid = false,
-                                                            .second_output_valid = true },
+            .config = notes::native::bridge_id::bit_config{ .first_input_virtual = false,
+                                                            .second_input_virtual = false,
+                                                            .first_output_virtual = false,
+                                                            .second_output_virtual = false,
+                                                            .second_input_real = false,
+                                                            .second_output_real = true },
             .aux_data = 0
         };
 
@@ -160,12 +160,12 @@ class root_rollup_tests : public ::testing::Test {
             .output_asset_id_a = 0,
             .output_asset_id_b = 1,
             .opening_nonce = 0,
-            .config = notes::native::bridge_id::bit_config{ .first_input_asset_virtual = false,
-                                                            .second_input_asset_virtual = false,
-                                                            .first_output_asset_virtual = false,
-                                                            .second_output_asset_virtual = false,
-                                                            .second_input_valid = false,
-                                                            .second_output_valid = true },
+            .config = notes::native::bridge_id::bit_config{ .first_input_virtual = false,
+                                                            .second_input_virtual = false,
+                                                            .first_output_virtual = false,
+                                                            .second_output_virtual = false,
+                                                            .second_input_real = false,
+                                                            .second_output_real = true },
             .aux_data = 0
         };
 
