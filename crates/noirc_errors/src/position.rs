@@ -60,7 +60,7 @@ pub struct Span(ByteSpan);
 impl Span {
     pub fn new(mut range: Range<u32>) -> Span {
         if range.start >= range.end {
-            range = range.end .. range.start;
+            range = range.end..range.start;
 
             if range.end == range.start {
                 range.end += 1;

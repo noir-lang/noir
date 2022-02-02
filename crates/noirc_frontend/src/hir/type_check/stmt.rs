@@ -10,7 +10,7 @@ use super::{errors::TypeCheckError, expr::type_check_expression};
 pub(crate) fn type_check(
     interner: &mut NodeInterner,
     stmt_id: &StmtId,
-) -> Result<(), TypeCheckError> {
+) -> Result<Type, TypeCheckError> {
     match interner.statement(stmt_id) {
         // Lets lay out a convincing argument that the handling of
         // SemiExpressions and Expressions below is correct.
@@ -33,25 +33,24 @@ pub(crate) fn type_check(
         //
         // The reason why we still modify the database, is to make sure it is future-proof
         HirStatement::Expression(expr_id) => {
-            type_check_expression(interner, &expr_id)?;
-            Ok(())
+            return type_check_expression(interner, &expr_id);
         }
         HirStatement::Semi(expr_id) => {
             type_check_expression(interner, &expr_id)?;
             interner.make_expr_type_unit(&expr_id);
-            Ok(())
         }
-        HirStatement::Private(priv_stmt) => type_check_priv_stmt(interner, priv_stmt),
-        HirStatement::Let(let_stmt) => type_check_let_stmt(interner, let_stmt),
-        HirStatement::Const(const_stmt) => type_check_const_stmt(interner, const_stmt),
+        HirStatement::Private(priv_stmt) => type_check_priv_stmt(interner, priv_stmt)?,
+        HirStatement::Let(let_stmt) => type_check_let_stmt(interner, let_stmt)?,
+        HirStatement::Const(const_stmt) => type_check_const_stmt(interner, const_stmt)?,
         HirStatement::Constrain(constrain_stmt) => {
-            type_check_constrain_stmt(interner, constrain_stmt)
+            type_check_constrain_stmt(interner, constrain_stmt)?;
         }
-        HirStatement::Assign(assign_stmt) => type_check_assign_stmt(interner, assign_stmt),
+        HirStatement::Assign(assign_stmt) => type_check_assign_stmt(interner, assign_stmt)?,
 
         // Avoid issuing further errors for statements that did not parse correctly
-        HirStatement::Error => Ok(()),
+        HirStatement::Error => (),
     }
+    Ok(Type::Unit)
 }
 
 fn type_check_assign_stmt(

@@ -120,7 +120,13 @@ impl Statement {
         })
     }
 
-    pub fn add_semicolon(self, semi: Option<Token>, span: Span, last_statement_in_block: bool, emit_error: &mut dyn FnMut(ParserError)) -> Statement {
+    pub fn add_semicolon(
+        self,
+        semi: Option<Token>,
+        span: Span,
+        last_statement_in_block: bool,
+        emit_error: &mut dyn FnMut(ParserError),
+    ) -> Statement {
         match self {
             Statement::Let(_)
             | Statement::Const(_)
@@ -135,7 +141,7 @@ impl Statement {
                     emit_error(ParserError::with_reason(reason, span));
                 }
                 self
-            },
+            }
 
             Statement::Expression(expr) => {
                 match (&expr.kind, semi, last_statement_in_block) {
@@ -148,7 +154,7 @@ impl Statement {
                         } else {
                             Statement::Expression(expr)
                         }
-                    },
+                    }
 
                     // Don't wrap expressions that are not the last expression in
                     // a block in a Semi so that we can report errors in the type checker
@@ -163,7 +169,7 @@ impl Statement {
                     (_, Some(_), true) => Statement::Semi(expr),
                     (_, None, true) => Statement::Expression(expr),
                 }
-            },
+            }
         }
     }
 }
