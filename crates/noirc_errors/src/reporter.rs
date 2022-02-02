@@ -94,18 +94,25 @@ impl Reporter {
             )
             .unwrap();
         }
+    }
 
-        if !diagnostics.is_empty() {
+    pub fn finish(error_count: usize) {
+        if error_count != 0 {
+            let writer = StandardStream::stderr(ColorChoice::Always);
+            let mut writer = writer.lock();
+
             writer
-                .lock()
                 .set_color(ColorSpec::new().set_fg(Some(Color::Red)))
                 .unwrap();
+
             writeln!(
-                &mut writer.lock(),
+                &mut writer,
                 "error: aborting due to {} previous errors",
-                diagnostics.len()
+                error_count
             )
             .unwrap();
+
+            std::process::exit(1);
         }
     }
 }

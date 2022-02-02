@@ -128,7 +128,9 @@ impl Driver {
 
     fn analyse_crate(&mut self) {
         let errs = CrateDefMap::collect_defs(LOCAL_CRATE, &mut self.context);
+        let mut error_count = 0;
         for errors in &errs {
+            error_count += errors.errors.len();
             Reporter::with_diagnostics(
                 errors.file_id.as_usize(),
                 &self.context.file_manager,
@@ -136,9 +138,7 @@ impl Driver {
             );
         }
 
-        if !errs.is_empty() {
-            std::process::exit(1);
-        }
+        Reporter::finish(error_count);
     }
 
     pub fn compute_abi(&self) -> Option<Abi> {
@@ -189,7 +189,8 @@ impl Driver {
                     &self.context.file_manager,
                     &[err.to_diagnostic()],
                 );
-                std::process::exit(1);
+                Reporter::finish(1);
+                unreachable!("reporter will exit before this point")
             }
         };
 
