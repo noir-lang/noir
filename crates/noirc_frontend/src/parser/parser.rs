@@ -599,15 +599,22 @@ fn constructor<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
 where
     P: ExprParser,
 {
-    let args = ident()
-        .then_ignore(just(Token::Colon))
-        .then(expr_parser)
+    let args = constructor_field(expr_parser)
         .separated_by(just(Token::Comma))
         .at_least(1)
         .allow_trailing()
         .delimited_by(Token::LeftBrace, Token::RightBrace);
 
     path().then(args).map(ExpressionKind::constructor)
+}
+
+fn constructor_field<P>(expr_parser: P) -> impl NoirParser<(Ident, Expression)>
+where
+    P: ExprParser,
+{
+    let long_form = ident().then_ignore(just(Token::Colon)).then(expr_parser);
+    let short_form = ident().map(|ident| (ident.clone(), ident.into()));
+    long_form.or(short_form)
 }
 
 fn array_access<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
@@ -1097,6 +1104,7 @@ mod test {
         let cases = vec![
             "Bar { ident: 32 }",
             "Baz { other: 2 + 42, ident: foo() + 1 }",
+            "Baz { other, ident: foo() + 1, foo }",
         ];
         parse_all(expression(), cases);
 
