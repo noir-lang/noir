@@ -284,8 +284,7 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 [[package]]
 name = "chumsky"
 version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "091823bc52a25302827bc0d34813ecf770b84d663a3aaac396b5d0dbd4ef1dcb"
+source = "git+https://github.com/zesterer/chumsky#75ed13caea4e1f4842cc5197e4724588e5f4b982"
 dependencies = [
  "ahash",
 ]

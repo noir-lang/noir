@@ -16,7 +16,7 @@ use crate::{
 };
 
 use chumsky::prelude::*;
-use noirc_errors::Spanned;
+use noirc_errors::{Span, Spanned};
 
 /// TODO: We can leverage 'parse_recovery' and return both
 /// (ParsedModule, Vec<ParseError>) instead of only one
@@ -87,7 +87,7 @@ fn function_definition() -> impl NoirParser<TopLevelStatement> {
 fn struct_definition() -> impl NoirParser<TopLevelStatement> {
     keyword(Keyword::Struct)
         .ignore_then(ident())
-        .then(struct_fields().delimited_by(Token::LeftBrace, Token::RightBrace))
+        .then(struct_fields().delimited_by(just(Token::LeftBrace), just(Token::RightBrace)))
         .map_with_span(|(name, fields), span| {
             TopLevelStatement::Struct(NoirStruct { name, fields, span })
         })
@@ -135,29 +135,35 @@ where
 {
     use Token::*;
     statement(expr_parser)
-        .separated_by(just(Semicolon))
-        .then(just(Semicolon).or_not())
-        .delimited_by(LeftBrace, RightBrace)
+        .then(just(Semicolon).or_not().map_with_span(|s, span| (s, span)))
+        .repeated()
+        .validate(check_statements_require_semicolon)
+        .delimited_by(just(LeftBrace), just(RightBrace))
         .recover_with(nested_delimiters(
             LeftBrace,
             RightBrace,
             [(LeftParen, RightParen), (LeftBracket, RightBracket)],
-            |_| (vec![], None),
+            |_| vec![],
         ))
-        .map(into_block)
+        .map(BlockExpression)
 }
 
-fn into_block(
-    (mut statements, last_semicolon): (Vec<Statement>, Option<Token>),
-) -> BlockExpression {
-    if last_semicolon.is_some() && !statements.is_empty() {
-        let last = match statements.pop().unwrap() {
-            Statement::Expression(expr) => Statement::Semi(expr),
-            other => other,
-        };
-        statements.push(last);
+fn check_statements_require_semicolon(
+    mut statements: Vec<(Statement, (Option<Token>, Span))>,
+    _span: Span,
+    emit: &mut dyn FnMut(ParserError),
+) -> Vec<Statement> {
+    let last = statements.pop();
+
+    let mut ret = vecmap(statements, |(statement, (semicolon, span))| {
+        statement.add_semicolon(semicolon, span, false, emit)
+    });
+
+    if let Some((last, (semicolon, span))) = last {
+        ret.push(last.add_semicolon(semicolon, span, true, emit));
     }
-    BlockExpression(statements)
+
+    ret
 }
 
 fn optional_type_annotation() -> impl NoirParser<Type> {
@@ -520,7 +526,7 @@ where
     P: ExprParser,
 {
     expression_list(expr_parser)
-        .delimited_by(Token::LeftBracket, Token::RightBracket)
+        .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
         .map(ExpressionKind::array)
 }
 
@@ -605,7 +611,7 @@ where
         .separated_by(just(Token::Comma))
         .at_least(1)
         .allow_trailing()
-        .delimited_by(Token::LeftBrace, Token::RightBrace);
+        .delimited_by(just(Token::LeftBrace), just(Token::RightBrace));
 
     path().then(args).map(ExpressionKind::constructor)
 }
@@ -615,7 +621,7 @@ where
     P: ExprParser,
 {
     ident()
-        .then(expr_parser.delimited_by(Token::LeftBracket, Token::RightBracket))
+        .then(expr_parser.delimited_by(just(Token::LeftBracket), just(Token::RightBracket)))
         .map(|(variable, index)| ExpressionKind::index(variable, index))
 }
 
@@ -1106,5 +1112,32 @@ mod test {
         // for i in 0..a { }
         // https://github.com/noir-lang/noir/issues/152
         parse_with(expression(), "Foo {}").unwrap_err();
+    }
+
+    // Semicolons are:
+    // - Required after non-expression statements
+    // - Optional after for, if, block expressions
+    // - Optional after an expression as the last statement of a block
+    // - Required after an expression as the non-final statement of a block
+    #[test]
+    fn parse_semicolons() {
+        let cases = vec![
+            "{ if true {} if false {} foo }",
+            "{ if true {}; if false {} foo }",
+            "{ for x in 0..1 {} if false {} foo; }",
+            "{ let x = 2; }",
+            "{ expr1; expr2 }",
+            "{ expr1; expr2; }",
+        ];
+        parse_all(block(expression()), cases);
+
+        let failing = vec![
+            // We disallow multiple semicolons after a statement unlike rust where it is a warning
+            "{ test;; foo }",
+            "{ for x in 0..1 {} foo if false {} }",
+            "{ let x = 2 }",
+            "{ expr1 expr2 }",
+        ];
+        parse_all_failing(block(expression()), failing);
     }
 }
