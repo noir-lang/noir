@@ -149,21 +149,15 @@ where
 }
 
 fn check_statements_require_semicolon(
-    mut statements: Vec<(Statement, (Option<Token>, Span))>,
+    statements: Vec<(Statement, (Option<Token>, Span))>,
     _span: Span,
     emit: &mut dyn FnMut(ParserError),
 ) -> Vec<Statement> {
-    let last = statements.pop();
-
-    let mut ret = vecmap(statements, |(statement, (semicolon, span))| {
-        statement.add_semicolon(semicolon, span, false, emit)
-    });
-
-    if let Some((last, (semicolon, span))) = last {
-        ret.push(last.add_semicolon(semicolon, span, true, emit));
-    }
-
-    ret
+    let last = statements.len().saturating_sub(1);
+    let iter = statements.into_iter().enumerate();
+    vecmap(iter, |(i, (statement, (semicolon, span)))| {
+        statement.add_semicolon(semicolon, span, i == last, emit)
+    })
 }
 
 fn optional_type_annotation() -> impl NoirParser<Type> {
