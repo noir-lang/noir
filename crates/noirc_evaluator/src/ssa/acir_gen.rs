@@ -4,9 +4,7 @@ use arena::Index;
 use num_traits::ToPrimitive;
 use std::collections::HashMap;
 //use crate::acir::native_types::{Arithmetic, Witness};
-use crate::ssa::code_gen::IRGenerator;
-use crate::ssa::node;
-use crate::ssa::node::Node;
+use crate::ssa::{code_gen::IRGenerator, mem, node, node::Node};
 use crate::Evaluator;
 use crate::Gate;
 use crate::RuntimeErrorKind;
@@ -16,6 +14,7 @@ use num_bigint::BigUint;
 use std::convert::TryInto;
 pub struct Acir {
     pub arith_cache: HashMap<Index, InternalVar>,
+    pub memory_map: HashMap<u32, InternalVar>, //maps memory adress to expression
 }
 
 #[derive(Clone, Debug)]
@@ -37,6 +36,13 @@ impl InternalVar {
             return true;
         }
         false //TODO should we check if content is the same??
+    }
+
+    pub fn to_const(&self) -> Option<FieldElement> {
+        if self.expression.mul_terms.is_empty() && self.expression.linear_combinations.is_empty() {
+            return Some(self.expression.q_c);
+        }
+        None
     }
 }
 
@@ -103,6 +109,7 @@ impl Acir {
     pub fn new() -> Acir {
         Acir {
             arith_cache: HashMap::new(),
+            memory_map: HashMap::new(),
         }
     }
 
@@ -188,13 +195,40 @@ impl Acir {
             }
             Operation::nop => (), //for now we skip..TODO todo!(),
             Operation::eq_gate => {
+                dbg!(&l_c);
                 output = add(&l_c.expression, FieldElement::from(-1), &r_c.expression);
                 evaluator.gates.push(Gate::Arithmetic(output.clone())); //TODO should we create a witness??
             }
+            Operation::load => {
+                //retrieves the value from the map if address is known at compile time:
+                //address = l_c and should be constant
+                if let Some(val) = l_c.to_const() {
+                    let address = mem::Memory::as_u32(val);
+                    dbg!(address);
+                    if self.memory_map.contains_key(&address) {
+                        output = self.memory_map[&address].expression.clone();
+                    } else {
+                        //if not found, then it must be a witnes (else it is non-initialised memory)
+                        let array = cfg.mem.get_array_adr(address);
+                        let index = (address - array.adr) as usize;
+                        let w = array.witness[index];
+                        output = Arithmetic::from(Linear::from_witness(w));
+                    }
+                }
+            }
+
+            Operation::store => {
+                //maps the address to the rhs if address is known at compile time
+                if let Some(val) = r_c.to_const() {
+                    let address = mem::Memory::as_u32(val);
+                    self.memory_map.insert(address, l_c);
+                    //we do not generate constraint, so no output.
+                } else {
+                    todo!();
+                }
+                
+            }
         }
-        //     dbg!("INSTRUCTION..");
-        //    dbg!(&ins);
-        //    dbg!(&output.clone());
 
         let output_var = InternalVar {
             expression: output,

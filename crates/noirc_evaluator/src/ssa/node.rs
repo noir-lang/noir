@@ -191,7 +191,6 @@ pub enum ObjectType {
     unsigned(u32), //bit size
     signed(u32),   //bit size
     //custom(u32),   //user-defined struct, u32 refers to the id of the type in...?todo
-    //array(ObjectType),  TODO we should have primitive type and composite types
     //TODO big_int
     //TODO floats
     none, //not an object
@@ -213,21 +212,21 @@ impl ObjectType {
         )
     }
 
-    // pub fn from_type(t: noirc_frontend::Type) -> ObjectType {
-    //     match t {
-    //         noirc_frontend::Type::FieldElement(_) => ObjectType::native_field,
-    //         noirc_frontend::Type::Array(_,_,_) => ObjectType::none, //TODO
-    //         noirc_frontend::Type::Integer(_ftype, sign, bit_size) => {
-    //             match sign {
-    //                 //todo FieldElementType?
-    //                 noirc_frontend::Signedness::Signed => ObjectType::signed(bit_size),
-    //                 noirc_frontend::Signedness::Unsigned => ObjectType::unsigned(bit_size),
-    //             }
-    //         }
-    //         noirc_frontend::Type::Bool => ObjectType::boolean,
-    //         _ => ObjectType::none, //todo Error,Unspecified, Unknown,Unit
-    //     }
-    // }
+    pub fn from_type(t: noirc_frontend::Type) -> ObjectType {
+        match t {
+            noirc_frontend::Type::FieldElement(_) => ObjectType::native_field,
+            noirc_frontend::Type::Array(_, _, t) => ObjectType::from_type(*t),
+            noirc_frontend::Type::Integer(_ftype, sign, bit_size) => {
+                match sign {
+                    //todo FieldElementType?
+                    noirc_frontend::Signedness::Signed => ObjectType::signed(bit_size),
+                    noirc_frontend::Signedness::Unsigned => ObjectType::unsigned(bit_size),
+                }
+            }
+            noirc_frontend::Type::Bool => ObjectType::boolean,
+            _ => ObjectType::none, //todo Error,Unspecified, Unknown,Unit
+        }
+    }
 
     pub fn get_type_from_object(obj: &Object) -> ObjectType {
         match obj {
@@ -384,10 +383,8 @@ impl Instruction {
             }
             Operation::trunc | Operation::phi => (false, false),
             Operation::nop | Operation::jne | Operation::jeq | Operation::jmp => (false, false),
-            Operation::eq_gate => {
-                dbg!("EQ GATE: TRUNCATING!!!!!!!");
-                (true, true)
-            }
+            Operation::eq_gate => (true, true),
+            Operation::load | Operation::store => (true, false), //TODO???
         }
     }
 
@@ -437,6 +434,8 @@ impl Instruction {
             Operation::nop | Operation::jne | Operation::jeq | Operation::jmp => todo!(),
             Operation::phi => BigUint::max(lhs_max, rhs_max), //TODO operands are in phi_arguments, not lhs/rhs!!
             Operation::eq_gate => BigUint::min(lhs_max, rhs_max),
+            Operation::load => 0,//TODO BigUint::from(2_u32).pow(5), 
+            Operation::store => 0, //TODO BigUint::from(2_u32).pow(5), 
         }
     }
 
@@ -840,8 +839,11 @@ pub enum Operation {
     // todo: call, br,..
     nop, // no op
 
+    //memory
+    load,
+    store,
+    //getelementptr?
     eq_gate, //write a gate enforcing equality of the two sides (to support the constrain statement)
-             //memory todo: load, store, getelementptr?
 }
 
 pub fn is_commutative(op_code: Operation) -> bool {
@@ -898,6 +900,8 @@ pub fn is_binary(op_code: Operation) -> bool {
         Operation::phi => false,
         Operation::nop => false,
         Operation::eq_gate => true,
+        Operation::load => false,  //???
+        Operation::store => false, //???
     }
 }
 

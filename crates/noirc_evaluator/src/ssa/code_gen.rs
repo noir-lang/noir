@@ -1,7 +1,10 @@
-use super::{block, flatten, integer, node, optim, ssa_form};
+use super::mem::Memory;
+use super::{block, flatten, integer, mem, node, optim, ssa_form};
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::io;
+
+use std::convert::TryFrom;
 
 use super::super::environment::Environment;
 use super::super::errors::{RuntimeError, RuntimeErrorKind};
@@ -35,6 +38,7 @@ pub struct IRGenerator<'a> {
     pub current_block: arena::Index,
     pub blocks: arena::Arena<block::BasicBlock>,
     pub nodes: arena::Arena<node::NodeObj>,
+    pub mem: Memory,
     pub id0: arena::Index, //dummy index.. should we put a dummy object somewhere?
     pub value_name: HashMap<arena::Index, u32>,
     pub sealed_blocks: HashSet<arena::Index>,
@@ -49,6 +53,7 @@ impl<'a> IRGenerator<'a> {
             current_block: IRGenerator::dummy_id(),
             blocks: arena::Arena::new(),
             nodes: arena::Arena::new(),
+            mem: Memory::new(),
             // dummy_instruction: ParsingContext::dummy_id(),
             value_name: HashMap::new(),
             sealed_blocks: HashSet::new(),
@@ -408,7 +413,7 @@ impl<'a> IRGenerator<'a> {
 
     //Optimise, flatten and truncate IR and then generates ACIR representation from it
     pub fn ir_to_acir(&mut self, evaluator: &mut Evaluator) -> Result<(), RuntimeError> {
-        //let mut number = String::new();
+        let mut number = String::new();
 
         //SSA
         dbg!("SSA:");
@@ -423,8 +428,10 @@ impl<'a> IRGenerator<'a> {
         flatten::unroll_tree(self);
         optim::cse(self);
         self.print();
+        println!("Press enter to continue");
+        io::stdin().read_line(&mut number);
         //Truncation
-        integer::overflow_strategy(self);
+        //integer::overflow_strategy(self);
         self.print();
         //println!("Press enter to continue");
         //io::stdin().read_line(&mut number);
@@ -492,6 +499,16 @@ impl<'a> IRGenerator<'a> {
 
         // Get the opcode from the infix operator
         let opcode = node::to_operation(op.kind, optype);
+        if opcode == node::Operation::ass {
+            if let Some(lhs_ins) = self.get_as_mut_instruction(lhs) {
+                if lhs_ins.operator == node::Operation::load {
+                    //make it a store rhs
+                    lhs_ins.operator = node::Operation::store;
+                    lhs_ins.lhs = rhs;
+                    return Ok(lhs);
+                }
+            }
+        }
         //TODO we should validate the types with the opcode
         Ok(self.new_instruction(lhs, rhs, opcode, optype))
     }
@@ -559,6 +576,7 @@ impl<'a> IRGenerator<'a> {
                     .ident_name(&assign_stmt.identifier);
                 dbg!(&ident_name);
                 let var = self.find_variable(&ident_def);
+
                 //TODO handle function call arguments! meanwhile, we create unknown variables...it is a temporary Workaround
                 let lhs = if var.is_none() {
                     //var is not defined,
@@ -771,13 +789,14 @@ impl<'a> IRGenerator<'a> {
             HirExpression::Literal(HirLiteral::Array(_arr_lit)) => {
                 //TODO - handle arrays
                 todo!();
-                //Ok(Object::Array(Array::from(self, env, _arr_lit)?)) 
+               // Ok(Object::Array(Array::from(self, env, _arr_lit)?)) 
             },
             HirExpression::Ident(x) =>  {
                 Ok(self.evaluate_identifier(env, &x))
                 //n.b this creates a new variable if it does not exist, may be we should delegate this to explicit statements (let) - TODO
             },
             HirExpression::Infix(infx) => {
+                dbg!(&infx.operator);
                 let lhs = self.expression_to_object(env, &infx.lhs)?;
                 let rhs = self.expression_to_object(env, &infx.rhs)?;
                 self.evaluate_infix_expression(lhs, rhs, infx.operator)
@@ -798,21 +817,37 @@ impl<'a> IRGenerator<'a> {
             },
             HirExpression::Index(indexed_expr) => {
                 // Currently these only happen for arrays
+                let arr_def = self.context().def_interner.ident_def(&indexed_expr.collection_name);
                 let arr_name = self.context().def_interner.ident_name(&indexed_expr.collection_name);
                 let ident_span = self.context().def_interner.ident_span(&indexed_expr.collection_name);
-                let arr = env.get_array(&arr_name).map_err(|kind|kind.add_span(ident_span))?;
-                //
+                let arr = env.get_array(&arr_name).map_err(|kind|kind.add_span(ident_span)).unwrap();
+                let arr_type = self.context().def_interner.id_type(arr_def.unwrap());
+                let o_type = node::ObjectType::from_type(arr_type);
+                let array = if let Some(moi) =self.mem.find_array(&arr_def) {
+                    moi
+                }else {
+                    self.mem.create_array(&arr, arr_def.unwrap(), o_type, arr_name)
+                };
+                //let array = self.mem.get_or_create_array(&arr, arr_def.unwrap(), o_type, arr_name);
+                let mut address = array.adr;
+
+                     //
                 // Evaluate the index expression
                 let index_as_obj = self.expression_to_object(env, &indexed_expr.index)?;
-                let index_as_u128 = if let Some(index_as_constant) = self.get_as_constant(index_as_obj) {
-                    index_as_constant.to_u128()
-                }
-                else {
-                    panic!("Indexed expression does not evaluate to a constant");
-                };
-                dbg!(index_as_u128);
-                todo!();
-                //should return array + index
+                // let index_as_u128 = if let Some(index_as_constant) = self.get_as_constant(index_as_obj) {
+                //     index_as_constant.to_u128()
+                // }
+                // else {
+                //    // panic!("Indexed expression does not evaluate to a constant");
+                //     //lhs = instruction: address + index
+                //     let adr_id = self.get_const(FieldElement::from(address as i128), node::ObjectType::unsigned(32));
+                //     let aaa = self.new_instruction(adr_id, index_as_obj, node::Operation::add, node::ObjectType::unsigned(32));
+                // };
+
+                let base_adr = self.get_const(FieldElement::from(address as i128), node::ObjectType::unsigned(32));
+                let adr_id = self.new_instruction(base_adr, index_as_obj, node::Operation::add, node::ObjectType::unsigned(32));                //address +=  u32::try_from(index_as_u128).unwrap();
+                //let adr_id = self.get_const(FieldElement::from(address as i128), node::ObjectType::unsigned(32));
+                 Ok(self.new_instruction(adr_id, adr_id, node::Operation::load, o_type))
                 // arr.get(index_as_u128).map_err(|kind|kind.add_span(span))
             },
             HirExpression::Call(call_expr) => {
