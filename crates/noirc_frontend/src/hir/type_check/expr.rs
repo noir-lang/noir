@@ -221,7 +221,7 @@ pub(crate) fn type_check_expression(
             )
         }
         HirExpression::Block(block_expr) => {
-            let mut last = None;
+            let mut block_type = Type::Unit;
 
             let statements = block_expr.statements();
             for (i, stmt) in statements.iter().enumerate() {
@@ -236,11 +236,11 @@ pub(crate) fn type_check_expression(
                         });
                     }
                 } else {
-                    last = Some(expr_type);
+                    block_type = expr_type;
                 }
             }
 
-            last.unwrap_or(Type::Unit)
+            block_type
         }
         HirExpression::Prefix(_) => {
             // type_of(prefix_expr) == type_of(rhs_expression)
