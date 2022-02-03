@@ -953,7 +953,7 @@ impl<'a> IRGenerator<'a> {
         //exit block
         self.current_block = exit_id;
         let exit_first = self.get_current_block().get_first_instruction();
-        block::fixup(self, join_idx, Some(exit_id), Some(body_idx));
+        block::link_with_target(self, join_idx, Some(exit_id), Some(body_idx));
         let to_fix_ins = self.get_as_mut_instruction(to_fix);
         to_fix_ins.unwrap().rhs = body_idx;
 
