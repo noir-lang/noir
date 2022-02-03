@@ -91,19 +91,16 @@ impl<'a> Resolver<'a> {
     pub fn resolve_function(
         mut self,
         func: NoirFunction,
-    ) -> Result<(HirFunction, FuncMeta), Vec<ResolverError>> {
+    ) -> (HirFunction, FuncMeta, Vec<ResolverError>) {
         self.scopes.start_function();
         let (hir_func, func_meta) = self.intern_function(func);
         let func_scope_tree = self.scopes.end_function();
 
         self.check_for_unused_variables_in_scope_tree(func_scope_tree);
 
-        if self.errors.is_empty() {
-            Ok((hir_func, func_meta))
-        } else {
-            Err(self.errors)
-        }
+        (hir_func, func_meta, self.errors)
     }
+
     fn resolve_expression(&mut self, expr: Expression) -> ExprId {
         self.intern_expr(expr)
     }
@@ -561,7 +558,9 @@ mod test {
         src: &str,
         func_namespace: Vec<String>,
     ) -> (NodeInterner, Vec<ResolverError>) {
-        let program = parse_program(src).unwrap();
+        let (program, errors) = parse_program(src);
+        assert!(errors.is_empty());
+
         let mut interner = NodeInterner::default();
 
         let mut func_ids = Vec::new();
@@ -579,10 +578,8 @@ mod test {
         let mut errors = Vec::new();
         for func in program.functions {
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps);
-            match resolver.resolve_function(func) {
-                Ok((_, _)) => {}
-                Err(err) => errors.extend(err),
-            }
+            let (_, _, err) = resolver.resolve_function(func);
+            errors.extend(err);
         }
 
         (interner, errors)
