@@ -1,8 +1,6 @@
-use super::{
-    foldl_with_span, parenthesized, ExprParser, NoirParser, ParsedModule, ParserError, Precedence,
-    TopLevelStatement,
-};
+use super::{ExprParser, NoirParser, ParsedModule, ParserError, Precedence, TopLevelStatement, foldl_with_span, parenthesized, then_commit, then_commit_ignore};
 use crate::lexer::Lexer;
+use crate::parser::ignore_then_commit;
 use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::util::vecmap;
 use crate::{
@@ -124,9 +122,9 @@ where
         .allow_trailing()
 }
 
-fn block<P>(expr_parser: P) -> impl NoirParser<BlockExpression>
+fn block<'a, P>(expr_parser: P) -> impl NoirParser<BlockExpression> + 'a
 where
-    P: ExprParser,
+    P: ExprParser + 'a,
 {
     use Token::*;
     statement(expr_parser)
@@ -211,9 +209,9 @@ fn ident() -> impl NoirParser<Ident> {
     tokenkind(TokenKind::Ident).map_with_span(Ident::new)
 }
 
-fn statement<P>(expr_parser: P) -> impl NoirParser<Statement>
+fn statement<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
-    P: ExprParser,
+    P: ExprParser + 'a,
 {
     choice((
         constrain(expr_parser.clone()),
@@ -254,9 +252,9 @@ where
         })
 }
 
-fn declaration<P>(expr_parser: P) -> impl NoirParser<Statement>
+fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
-    P: ExprParser,
+    P: ExprParser + 'a,
 {
     let let_statement = generic_declaration(Keyword::Let, expr_parser.clone(), Statement::new_let);
     let priv_statement =
@@ -266,17 +264,20 @@ where
     choice((let_statement, priv_statement, const_statement))
 }
 
-fn generic_declaration<F, P>(key: Keyword, expr_parser: P, f: F) -> impl NoirParser<Statement>
+fn generic_declaration<'a, F, P>(key: Keyword, expr_parser: P, f: F) -> impl NoirParser<Statement> + 'a
 where
-    F: Fn(((Ident, Type), Expression)) -> Statement,
-    P: ExprParser,
+    F: 'a + Fn(((Ident, Type), Expression)) -> Statement,
+    P: ExprParser + 'a,
 {
-    keyword(key)
-        .ignore_then(ident())
-        .then(optional_type_annotation())
-        .then_ignore(just(Token::Assign))
-        .then(expr_parser)
-        .map(f)
+    let p = ignore_then_commit(keyword(key), ident(),
+        |span| Ident::new(Token::Ident("$error".into()), span));
+
+    let p = p.then(optional_type_annotation());
+    let p = then_commit_ignore(p, just(Token::Assign));
+    let p = then_commit(p, expr_parser,
+        |span| Expression::new(ExpressionKind::Ident("$error".into()), span));
+
+    p.map(f)
 }
 
 fn assignment<P>(expr_parser: P) -> impl NoirParser<Statement>
@@ -468,9 +469,9 @@ where
     })
 }
 
-fn if_expr<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
+fn if_expr<'a, P>(expr_parser: P) -> impl NoirParser<ExpressionKind> + 'a
 where
-    P: ExprParser,
+    P: ExprParser + 'a,
 {
     keyword(Keyword::If)
         .ignore_then(expr_parser.clone())
@@ -489,9 +490,9 @@ where
         })
 }
 
-fn for_expr<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
+fn for_expr<'a, P>(expr_parser: P) -> impl NoirParser<ExpressionKind> + 'a
 where
-    P: ExprParser,
+    P: ExprParser + 'a,
 {
     keyword(Keyword::For)
         .ignore_then(ident())
@@ -665,6 +666,17 @@ mod test {
             return Err(vecmap(lexer_errors, Into::into));
         }
         parser.then_ignore(just(Token::EOF)).parse(tokens)
+    }
+
+    fn parse_recover<P, T>(parser: P, program: &str) -> (Option<T>, Vec<ParserError>)
+    where
+        P: NoirParser<T>,
+    {
+        let lexer = Lexer::new(program);
+        let (tokens, lexer_errors) = lexer.lex();
+        let (opt, mut errs) = parser.then_ignore(just(Token::EOF)).parse_recovery(tokens);
+        errs.append(&mut vecmap(lexer_errors, Into::into));
+        (opt, errs)
     }
 
     fn parse_all<P, T>(parser: P, programs: Vec<&str>) -> Vec<T>
@@ -1136,5 +1148,24 @@ mod test {
             "{ expr1 expr2 }",
         ];
         parse_all_failing(block(expression()), failing);
+    }
+
+    // Semicolons are:
+    // - Required after non-expression statements
+    // - Optional after for, if, block expressions
+    // - Optional after an expression as the last statement of a block
+    // - Required after an expression as the non-final statement of a block
+    #[test]
+    fn parse_recovery() {
+        let cases = vec![
+            ("let a = 4 + 3", 0, "let a: unspecified = (4 + 3)"),
+            ("let = 4 + 3", 1, "let $error: unspecified = (4 + 3)"),
+        ];
+
+        for (src, expected_errors, expected_result) in cases {
+            let (opt, errors) = parse_recover(declaration(expression()), src);
+            assert_eq!(errors.len(), expected_errors, "Expected {} errors, but got {}:\n{:?}\n", expected_errors, errors.len(), errors);
+            assert_eq!(opt.unwrap().to_string(), expected_result);
+        }
     }
 }

@@ -2,7 +2,9 @@ mod errors;
 #[allow(clippy::module_inception)]
 mod parser;
 
-use crate::token::Token;
+
+
+use crate::token::{Keyword, Token};
 use crate::{ast::ImportStatement, Expression, NoirStruct};
 use crate::{Ident, NoirFunction};
 
@@ -73,6 +75,131 @@ where
             (f(a, b, span), span)
         })
         .map(|(value, _span)| value)
+}
+
+/// Try to parse using the given parser, attempting to
+/// recover to the given syncronization token if it fails.
+/// Afterward, parse the syncronization token as well.
+///
+/// If we try to skip to the sync token and it isn't present,
+/// we will stop early if we encounter a token in `too_far`.
+/// Note that the parser returned by this function will never
+/// fail.
+pub fn sync_to<P, T, F>(
+    parser: P,
+    sync_point: Token,
+    too_far: Vec<Token>,
+    default: F,
+) -> impl NoirParser<T>
+where
+    P: NoirParser<T>,
+    F: 'static + Clone + Fn() -> T,
+    T: 'static + Clone,
+{
+    force(parser).then_with(move |option| {
+        let sync_point = sync_point.clone();
+        let default = default.clone();
+        match option {
+            Some(t) => force(just(sync_point)).map(move |_| t.clone()).boxed(),
+            None => {
+                let mut targets = too_far.clone();
+                targets.push(sync_point.clone());
+                force(take_until(one_of(targets)).then_ignore(just(sync_point)))
+                    .map(move |_| default())
+                    .boxed()
+            }
+        }
+    })
+}
+
+/// Sequence the two parsers.
+/// Fails if the first parser fails, otherwise forces
+/// the second parser to succeed while logging any errors.
+pub fn then_commit<'a, P1, P2, T1, T2: 'a, F>(
+    first_parser: P1,
+    second_parser: P2,
+    default: F,
+) -> impl NoirParser<(T1, T2)> + 'a
+where
+    P1: NoirParser<T1> + 'a,
+    P2: NoirParser<T2> + 'a,
+    F: 'a + Fn(Span) -> T2,
+    T2: Clone
+{
+    let second_parser = force(my_skip_then_retry_until(second_parser))
+        .map_with_span(move |option, span| option.unwrap_or_else(|| default(span)));
+
+    first_parser.then(second_parser)
+}
+
+pub fn then_commit_ignore<'a, P1, P2, T1: 'a, T2: 'a>(
+    first_parser: P1,
+    second_parser: P2,
+) -> impl NoirParser<T1> + 'a
+where
+    P1: NoirParser<T1> + 'a,
+    P2: NoirParser<T2> + 'a,
+    T2: Clone
+{
+    let second_parser = force(my_skip_then_retry_until(second_parser));
+
+    first_parser.then_ignore(second_parser)
+}
+
+// pub fn foo<'a>() -> Custom<Box<dyn Fn(&'a mut Stream<SpannedToken, Span>) -> Result<(&'a [SpannedToken], i32), ParserError>>, ParserError> {
+//     custom(Box::new(|stream| {
+//         let tokens = stream.fetch_tokens();
+//         todo!()
+//     }))
+// }
+
+pub fn ignore_then_commit<'a, P1, P2, T1: 'a, T2: 'a, F>(
+    first_parser: P1,
+    second_parser: P2,
+    default: F,
+) -> impl NoirParser<T2> + 'a
+where
+    P1: NoirParser<T1> + 'a,
+    P2: NoirParser<T2> + 'a,
+    F: 'a + Fn(Span) -> T2,
+    T2: Clone
+{
+    let second_parser = force(my_skip_then_retry_until(second_parser))
+        .map_with_span(move |option, span| option.unwrap_or_else(|| default(span)));
+
+    first_parser.ignore_then(second_parser)
+}
+
+fn my_skip_then_retry_until<'a, P, T: 'a>(parser: P) -> impl NoirParser<T> + 'a
+    where P: NoirParser<T> + 'a,
+          T: Clone
+{
+    recursive(move |recur| {
+        force(parser).then_with(move |option| match option {
+            Some(value) => empty().map(move |_| value.clone()).boxed(),
+            None => {
+                let terminators = [Token::EOF, Token::Colon, Token::Semicolon, Token::RightBrace, Token::Keyword(Keyword::Let), Token::Keyword(Keyword::Priv), Token::Keyword(Keyword::Const), Token::Keyword(Keyword::Constrain)];
+                none_of(terminators).ignore_then(recur.clone()).boxed()
+            }
+        })
+    })
+}
+
+/// Force the given parser to succeed, logging any errors it had
+pub fn force<P, T>(parser: P) -> impl NoirParser<Option<T>>
+where
+    P: NoirParser<T>,
+{
+    parser
+        .map(Ok)
+        .or_else(|err| Ok(Err(err)))
+        .validate(move |result, _, emit| match result {
+            Ok(t) => Some(t),
+            Err(err) => {
+                emit(err);
+                None
+            }
+        })
 }
 
 #[derive(Clone, Debug)]
