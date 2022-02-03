@@ -253,7 +253,7 @@ impl<'a> Lexer<'a> {
         }
         self.next_char();
 
-        let attribute = Attribute::lookup_attribute(&word, Span::inclusive(start, end))?;
+        let attribute = Attribute::lookup_attribute(&word, Span::exclusive(start, end))?;
 
         // Move start position backwards to cover the left bracket
         // Move end position forwards to cover the right bracket
@@ -274,7 +274,7 @@ impl<'a> Lexer<'a> {
 
         // Check if word an int type
         // if no error occurred, then it is either a valid integer type or it is not an int type
-        let parsed_token = IntType::lookup_int_type(&word, Span::inclusive(start, end))?;
+        let parsed_token = IntType::lookup_int_type(&word, Span::exclusive(start, end))?;
 
         // Check if it is an int type
         if let Some(int_type_token) = parsed_token {
@@ -293,7 +293,7 @@ impl<'a> Lexer<'a> {
         let integer = match FieldElement::try_from_str(&integer_str) {
             None => {
                 return Err(LexerErrorKind::InvalidIntegerLiteral {
-                    span: Span::inclusive(start, end),
+                    span: Span::exclusive(start, end),
                     found: integer_str,
                 })
             }

@@ -8,7 +8,7 @@ pub trait DiagnosableError {
     fn to_diagnostic(&self) -> CustomDiagnostic;
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct CollectedErrors {
     pub file_id: fm::FileId,
     pub errors: Vec<CustomDiagnostic>,

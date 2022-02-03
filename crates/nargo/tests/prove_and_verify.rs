@@ -25,8 +25,8 @@ mod tests {
         }
         conf_data
     }
-    #[test]
 
+    #[test]
     fn noir_integration() {
         let mut cdir = std::env::current_dir().unwrap();
         cdir.push(TEST_DIR);

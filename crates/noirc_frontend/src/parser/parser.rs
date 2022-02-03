@@ -18,9 +18,7 @@ use crate::{
 use chumsky::prelude::*;
 use noirc_errors::{Span, Spanned};
 
-/// TODO: We can leverage 'parse_recovery' and return both
-/// (ParsedModule, Vec<ParseError>) instead of only one
-pub fn parse_program(program: &str) -> Result<ParsedModule, Vec<ParserError>> {
+pub fn parse_program(program: &str) -> (ParsedModule, Vec<ParserError>) {
     let lexer = Lexer::new(program);
 
     const APPROX_CHARS_PER_FUNCTION: usize = 250;
@@ -32,24 +30,21 @@ pub fn parse_program(program: &str) -> Result<ParsedModule, Vec<ParserError>> {
         .then_ignore(just(Token::EOF));
 
     let (tree, mut parsing_errors) = parser.parse_recovery(tokens);
-    match tree {
-        Some(statements) => {
-            for statement in statements {
-                match statement {
-                    TopLevelStatement::Function(f) => program.push_function(f),
-                    TopLevelStatement::Module(m) => program.push_module_decl(m),
-                    TopLevelStatement::Import(i) => program.push_import(i),
-                    TopLevelStatement::Struct(s) => program.push_type(s),
-                }
+    let mut errors = vecmap(lexing_errors, Into::into);
+    errors.append(&mut parsing_errors);
+
+    if let Some(statements) = tree {
+        for statement in statements {
+            match statement {
+                TopLevelStatement::Function(f) => program.push_function(f),
+                TopLevelStatement::Module(m) => program.push_module_decl(m),
+                TopLevelStatement::Import(i) => program.push_import(i),
+                TopLevelStatement::Struct(s) => program.push_type(s),
             }
-            Ok(program)
-        }
-        None => {
-            let mut errors = vecmap(lexing_errors, Into::into);
-            errors.append(&mut parsing_errors);
-            Err(errors)
         }
     }
+
+    (program, errors)
 }
 
 fn top_level_statement() -> impl NoirParser<TopLevelStatement> {
@@ -599,15 +594,22 @@ fn constructor<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
 where
     P: ExprParser,
 {
-    let args = ident()
-        .then_ignore(just(Token::Colon))
-        .then(expr_parser)
+    let args = constructor_field(expr_parser)
         .separated_by(just(Token::Comma))
         .at_least(1)
         .allow_trailing()
         .delimited_by(just(Token::LeftBrace), just(Token::RightBrace));
 
     path().then(args).map(ExpressionKind::constructor)
+}
+
+fn constructor_field<P>(expr_parser: P) -> impl NoirParser<(Ident, Expression)>
+where
+    P: ExprParser,
+{
+    let long_form = ident().then_ignore(just(Token::Colon)).then(expr_parser);
+    let short_form = ident().map(|ident| (ident.clone(), ident.into()));
+    long_form.or(short_form)
 }
 
 fn array_access<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
@@ -1097,6 +1099,7 @@ mod test {
         let cases = vec![
             "Bar { ident: 32 }",
             "Baz { other: 2 + 42, ident: foo() + 1 }",
+            "Baz { other, ident: foo() + 1, foo }",
         ];
         parse_all(expression(), cases);
 

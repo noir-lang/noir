@@ -14,14 +14,11 @@ use std::collections::HashMap;
 #[derive(Debug)]
 pub struct Context {
     pub def_interner: NodeInterner,
-
     pub crate_graph: CrateGraph,
-
     pub(crate) def_maps: HashMap<CrateId, CrateDefMap>,
 
     /// Used to generate unique TypeIds for NoirStructs
     pub struct_count: usize,
-
     pub file_manager: FileManager,
 }
 
