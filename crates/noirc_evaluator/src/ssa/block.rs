@@ -18,7 +18,6 @@ pub struct BasicBlock {
     pub right: Option<arena::Index>,     //jump successor
     pub instructions: Vec<arena::Index>,
     pub value_array: HashMap<arena::Index, arena::Index>, //for generating the ssa form
-    pub value_name: HashMap<arena::Index, u32>, //only for pretty print  ..a voir pour supprimer
 }
 
 impl BasicBlock {
@@ -30,7 +29,6 @@ impl BasicBlock {
             right: None,
             instructions: Vec::new(),
             value_array: HashMap::new(),
-            value_name: HashMap::new(),
             dominator: None,
             dominated: Vec::new(),
             kind,
@@ -45,12 +43,9 @@ impl BasicBlock {
     }
 
     //When generating a new instance of a variable because of ssa, we update the value array
-    //to link the two variables and also increment the counter for the variable name
+    //to link the two variables
     pub fn update_variable(&mut self, old_value: arena::Index, new_value: arena::Index) {
         self.value_array.insert(old_value, new_value);
-        //   self.value_name.entry(old_value).or_insert(1);
-        //   self.value_name
-        //       .insert(old_value, self.value_name[&old_value] + 1);
     }
 
     pub fn get_first_instruction(&self) -> arena::Index {
@@ -66,13 +61,11 @@ impl BasicBlock {
 
 pub fn create_first_block(igen: &mut IRGenerator) {
     let mut first_block = BasicBlock::new(igen.dummy(), BlockType::Normal);
-    first_block.left = None;
     let new_idx = igen.blocks.insert(first_block);
     let block2 = igen.blocks.get_mut(new_idx).unwrap(); //RIA..
     block2.idx = new_idx;
     igen.first_block = new_idx;
     igen.current_block = new_idx;
-    //self.dummy_instruction =
     igen.new_instruction(
         igen.dummy(),
         igen.dummy(),
@@ -81,7 +74,8 @@ pub fn create_first_block(igen: &mut IRGenerator) {
     );
 }
 
-//Not suitable for the first block - a renommer en new_sealed_block
+//Creates a new sealed block (i.e whose predecessors are known)
+//It is not suitable for the first block because it uses the current block.
 pub fn new_sealed_block(igen: &mut IRGenerator, kind: BlockType) -> arena::Index {
     let new_block = BasicBlock::new(igen.current_block, kind);
     let new_idx = igen.blocks.insert(new_block);
@@ -93,7 +87,6 @@ pub fn new_sealed_block(igen: &mut IRGenerator, kind: BlockType) -> arena::Index
     let cb = igen.get_block_mut(igen.current_block).unwrap();
     cb.left = Some(new_idx);
     igen.current_block = new_idx;
-    //self.dummy_instruction =
     igen.new_instruction(
         igen.dummy(),
         igen.dummy(),
@@ -116,7 +109,6 @@ pub fn new_unsealed_block(igen: &mut IRGenerator, kind: BlockType, left: bool) -
         cb.right = Some(new_idx);
     }
     igen.current_block = new_idx;
-    //self.dummy_instruction =
     igen.new_instruction(
         igen.dummy(),
         igen.dummy(),
@@ -136,7 +128,7 @@ pub fn create_block(igen: &mut IRGenerator, kind: BlockType) -> arena::Index {
 }
 
 //link the current block to the target block so that current block becomes its target
-pub fn fixup(
+pub fn link_with_target(
     igen: &mut IRGenerator,
     target: arena::Index,
     left: Option<arena::Index>,
@@ -158,21 +150,21 @@ pub fn fixup(
 }
 
 pub fn compute_dom(igen: &mut IRGenerator) {
-    let mut rira: HashMap<arena::Index, Vec<arena::Index>> = HashMap::new();
+    let mut dominator_link: HashMap<arena::Index, Vec<arena::Index>> = HashMap::new();
     for (idx, block) in &igen.blocks {
         if let Some(dom) = block.dominator {
-            if rira.contains_key(&dom) {
-                let mut v = rira[&dom].clone(); //TODO can we avoid it?
+            if dominator_link.contains_key(&dom) {
+                let mut v = dominator_link[&dom].clone(); //TODO can we avoid it?
                 v.push(idx);
-                rira.insert(dom, v);
+                dominator_link.insert(dom, v);
             } else {
-                rira.insert(dom, [idx].to_vec());
+                dominator_link.insert(dom, [idx].to_vec());
             }
             // dom_block.dominated.push(idx);
         }
     }
     //RIA
-    for (master, svec) in rira {
+    for (master, svec) in dominator_link {
         let dom_b = igen.get_block_mut(master).unwrap();
         for slave in svec {
             dom_b.dominated.push(slave);
@@ -182,9 +174,8 @@ pub fn compute_dom(igen: &mut IRGenerator) {
 
 //breadth-first traversal of the CFG, from start, until we reach stop
 pub fn bfs(start: Index, stop: Index, eval: &IRGenerator) -> Vec<Index> {
-    let mut result: Vec<Index> = Vec::new(); //list of blocks in the visited subgraph
+    let mut result = vec![start]; //list of blocks in the visited subgraph
     let mut queue: VecDeque<Index> = VecDeque::new(); //Queue of elements to visit
-    result.push(start);
     queue.push_back(start);
     while !queue.is_empty() {
         let b = queue.pop_front().unwrap();
