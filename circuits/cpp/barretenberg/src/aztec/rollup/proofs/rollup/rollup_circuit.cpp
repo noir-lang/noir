@@ -70,6 +70,12 @@ auto process_defi_deposit(Composer& composer,
         public_inputs[InnerProofFields::DEFI_DEPOSIT_VALUE], DEFI_DEPOSIT_VALUE_BIT_LENGTH, "defi_deposit");
     const auto is_defi_deposit = proof_id == field_ct(ProofIds::DEFI_DEPOSIT);
 
+    /**
+     * There is one defi_interaction_nonce for each interaction ('bridge call').
+     * The defi deposit being processed by this function will belong to one of these bridge calls
+     * (based on the bridge_id) - say it's the k-th bridge call of this rollup.
+     * Then the defi_interaction_nonce = rollup_id * NUM_BRIDGE_CALLS_PER_BLOCK + k.
+     */
     field_ct note_defi_interaction_nonce = defi_interaction_nonce;
     field_ct num_matched(&composer, 0);
 
@@ -163,11 +169,12 @@ void process_chained_txs(size_t const& i,
         const bool_ct temp_is_propagating_prev_output2 = (backward_link == prev_note_commitment2) && is_tx_real;
         const bool_ct found_link_in_loop = temp_is_propagating_prev_output1 || temp_is_propagating_prev_output2;
 
-        // If we've found a tx which matches this tx's backward_link, then write data to the higher-scoped variables:
-        // Note: we don't need to try to prevent multiple matches (and hence multiple writes to the higher-scoped
-        // variables) in this loop. Multiple matches would mean there are >1 txs with the same output commitment, which
-        // is a bigger problem that will be caught when updating the nullifier tree (duplicate output commitments would
-        // share the same input_nullifier).
+        // If we've found a tx which matches this tx's backward_link, then write data to the higher-scoped
+        // variables:
+        // Note: we don't need to try to prevent multiple matches (and hence multiple writes to the
+        // higher-scoped variables) in this loop. Multiple matches would mean there are >1 txs with the same output
+        // commitment, which is a bigger problem that will be caught when updating the nullifier tree (duplicate
+        // output commitments would share the same input_nullifier).
         // Notice: once found, the below values remain unchanged through future iterations:
         found_link_in_rollup |= found_link_in_loop;
         prev_allow_chain = field_ct::conditional_assign(found_link_in_loop, temp_prev_allow_chain, prev_allow_chain);
@@ -303,8 +310,8 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
     auto new_data_values = std::vector<field_ct>();
     auto new_null_indicies = std::vector<field_ct>();
     recursion_output<bn254> recursion_output;
-    // Public inputs of the inner txs which will be 'made public' ('propagated' - not to be confused with chained txs
-    // propagation) by this rollup circuit:
+    // Public inputs of the inner txs which will be 'made public' ('propagated' - not to be confused with chained
+    // txs propagation) by this rollup circuit:
     std::vector<std::vector<field_ct>> propagated_tx_public_inputs;
     // All public inputs of the inner txs (including public inputs which will not be made public by this rollup
     // circuit):

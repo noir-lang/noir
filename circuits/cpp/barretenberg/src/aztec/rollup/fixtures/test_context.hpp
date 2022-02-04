@@ -129,22 +129,25 @@ class TestContext {
         return claim::create_proof(tx, claim_cd);
     }
 
-    /*
+    /**
      * Updates the next slot in the root tree with the latest data root.
      * Inserts the given defi interaction notes from the previous rollup into the defi tree.
+     * @param dins_ - defi interaction NOTES (not 'nonce')
      */
     void start_next_root_rollup(std::vector<native::defi_interaction::note> const& dins_ = {})
     {
         uint32_t rollup_id = static_cast<uint32_t>(world_state.root_tree.size());
-        uint32_t din_insertion_index = (rollup_id - 1) * NUM_INTERACTION_RESULTS_PER_BLOCK;
+        uint32_t initial_din_insertion_index = (rollup_id - 1) * NUM_INTERACTION_RESULTS_PER_BLOCK;
+        uint32_t initial_interaction_nonce = initial_din_insertion_index;
         world_state.update_root_tree_with_data_root();
 
         auto dins = dins_;
-        defi_interactions.resize(din_insertion_index + dins.size());
+        defi_interactions.resize(initial_din_insertion_index + dins.size());
         for (size_t i = 0; i < dins.size(); ++i) {
-            auto nonce = din_insertion_index + i;
-            dins[i].interaction_nonce = static_cast<uint32_t>(nonce);
-            defi_interactions[nonce] = dins[i];
+            auto din_insertion_index = initial_din_insertion_index + i;
+            auto interaction_nonce = initial_interaction_nonce + i;
+            dins[i].interaction_nonce = static_cast<uint32_t>(interaction_nonce);
+            defi_interactions[din_insertion_index] = dins[i];
         }
 
         world_state.add_defi_notes(dins);

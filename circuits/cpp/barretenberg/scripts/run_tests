@@ -2,7 +2,7 @@
 set -e
 
 NAME=$1
-TRANSCRIPTS=${2:-0}
+TRANSCRIPTS=${2:-1}
 
 $(aws ecr get-login --region us-east-2 --no-include-email) 2> /dev/null
 

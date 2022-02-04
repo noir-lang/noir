@@ -1060,14 +1060,22 @@ TEST_F(rollup_tests, test_defi_interaction_nonce_added_to_claim_notes)
     auto rollup_data = rollup_proof_data(result.public_inputs);
 
     // Check regular join-split output note1 unchanged (as we change it for defi deposits).
-    notes::native::value::value_note note1 = {
-        70, 0, 0, context.user.owner.public_key, context.user.note_secret, 0, rollup_data.inner_proofs[0].nullifier1
-    };
+    notes::native::value::value_note note1 = { .value = 70,
+                                               .asset_id = 0,
+                                               .nonce = 0,
+                                               .owner = context.user.owner.public_key,
+                                               .secret = context.user.note_secret,
+                                               .creator_pubkey = 0,
+                                               .input_nullifier = rollup_data.inner_proofs[0].nullifier1 };
     EXPECT_EQ(rollup_data.inner_proofs[0].note_commitment1, note1.commit());
 
-    notes::native::value::value_note note2 = {
-        73, 0, 0, context.user.owner.public_key, context.user.note_secret, 0, rollup_data.inner_proofs[0].nullifier2
-    };
+    notes::native::value::value_note note2 = { .value = 73,
+                                               .asset_id = 0,
+                                               .nonce = 0,
+                                               .owner = context.user.owner.public_key,
+                                               .secret = context.user.note_secret,
+                                               .creator_pubkey = 0,
+                                               .input_nullifier = rollup_data.inner_proofs[0].nullifier2 };
     EXPECT_EQ(rollup_data.inner_proofs[0].note_commitment2, note2.commit());
 
     std::vector<uint32_t> claim_fees = { 0, 5, 20, 7 };
@@ -1079,19 +1087,19 @@ TEST_F(rollup_tests, test_defi_interaction_nonce_added_to_claim_notes)
 
         auto partial_state = notes::native::value::create_partial_commitment(
             context.user.note_secret, context.user.owner.public_key, 0, 0);
-        notes::native::claim::claim_note claim_note = { defi_proof_data.defi_deposit_value,
-                                                        defi_proof_data.bridge_id,
-                                                        claim_note_interaction_nonce,
-                                                        claim_fees[i],
-                                                        partial_state,
-                                                        defi_proof.nullifier1 };
+        notes::native::claim::claim_note claim_note = { .deposit_value = defi_proof_data.defi_deposit_value,
+                                                        .bridge_id = defi_proof_data.bridge_id,
+                                                        .defi_interaction_nonce = claim_note_interaction_nonce,
+                                                        .fee = claim_fees[i],
+                                                        .value_note_partial_commitment = partial_state,
+                                                        .input_nullifier = defi_proof.nullifier1 };
 
         EXPECT_EQ(defi_proof.note_commitment1, claim_note.commit());
     };
 
-    check_defi_proof(1, 4);
-    check_defi_proof(2, 4);
-    check_defi_proof(3, 5);
+    check_defi_proof(1, NUM_BRIDGE_CALLS_PER_BLOCK);
+    check_defi_proof(2, NUM_BRIDGE_CALLS_PER_BLOCK);
+    check_defi_proof(3, NUM_BRIDGE_CALLS_PER_BLOCK + 1);
 }
 
 TEST_F(rollup_tests, test_defi_claim_proofs)
@@ -1102,8 +1110,18 @@ TEST_F(rollup_tests, test_defi_claim_proofs)
     auto result = verify_logic(rollup1_tx, rollup_4_keyless);
     ASSERT_TRUE(result.logic_verified);
 
-    std::vector<native::defi_interaction::note> dins = { { bids[0], 0, 70, 700, 7000, true },
-                                                         { bids[1], 0, 20, 2, 3, true } };
+    std::vector<native::defi_interaction::note> dins = { { .bridge_id = bids[0],
+                                                           .interaction_nonce = 0,
+                                                           .total_input_value = 70,
+                                                           .total_output_value_a = 700,
+                                                           .total_output_value_b = 7000,
+                                                           .interaction_result = true },
+                                                         { .bridge_id = bids[1],
+                                                           .interaction_nonce = 0,
+                                                           .total_input_value = 20,
+                                                           .total_output_value_a = 2,
+                                                           .total_output_value_b = 3,
+                                                           .interaction_result = true } };
     context.append_account_notes();
     context.start_next_root_rollup(dins);
 
@@ -1168,8 +1186,10 @@ TEST_F(rollup_tests, test_defi_loan_proofs)
     /**
      * Rollup 1: Create defi claim proofs for drawing 3 loans:
      */
-    std::vector<native::defi_interaction::note> dins = { { bids[0], 4, 370, 3700, 0, true },
-                                                         { bids[1], 5, 150, 3000, 0, true } };
+    std::vector<native::defi_interaction::note> dins = {
+        { bids[0], NUM_BRIDGE_CALLS_PER_BLOCK, 370, 3700, 0, true },
+        { bids[1], NUM_BRIDGE_CALLS_PER_BLOCK + 1, 150, 3000, 0, true }
+    };
     context.start_next_root_rollup(dins);
 
     rollup::rollup_proof_data data(result.public_inputs);
@@ -1198,7 +1218,7 @@ TEST_F(rollup_tests, test_defi_loan_proofs)
     rollup::rollup_proof_data data2(result2.public_inputs);
 
     // Loan number 1 repayment
-    const uint32_t opening_nonce1 = 4;
+    const uint32_t opening_nonce1 = NUM_BRIDGE_CALLS_PER_BLOCK;
 
     const notes::native::bridge_id bid1 = { .bridge_address_id = 0,
                                             .input_asset_id = 2,
@@ -1222,7 +1242,7 @@ TEST_F(rollup_tests, test_defi_loan_proofs)
                                                        0,
                                                        virtual_asset_id1);
     // Loan number 3 repayment
-    const uint32_t opening_nonce2 = 5;
+    const uint32_t opening_nonce2 = opening_nonce1 + 1;
     const notes::native::bridge_id bid2 = { .bridge_address_id = 0,
                                             .input_asset_id = 3,
                                             .output_asset_id_a = 1,
