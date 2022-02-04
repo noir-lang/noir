@@ -23,10 +23,10 @@ pub fn unroll_tree(eval: &mut IRGenerator) {
 
 //Update the block instruction list using the eval_map
 fn eval_block(block_id: Index, eval_map: &HashMap<Index, NodeEval>, eval: &mut IRGenerator) {
-    let block = eval.get_block(block_id).unwrap();
+    let block = eval.get_block(block_id);
     for i in &block.instructions.clone() {
         //RIA
-        if let Some(ins) = eval.get_as_mut_instruction(*i) {
+        if let Some(ins) = eval.try_get_mut_instruction(*i) {
             if eval_map.contains_key(&ins.rhs) {
                 ins.rhs = eval_map[&ins.rhs].to_index().unwrap();
             }
@@ -46,11 +46,11 @@ pub fn unroll_block(
     caller: Index,   //previous block
     eval: &mut IRGenerator,
 ) -> Option<Index> {
-    let block = eval.get_block(block_id).unwrap();
+    let block = eval.get_block(block_id);
     if block.is_join() {
         return unroll_join(unroll_ins, eval_map, block_id, caller, eval);
     } else if let Some(i) = unroll_std_block(unroll_ins, eval_map, block_id, caller, eval) {
-        if let Some(ins) = eval.get_as_instruction(i) {
+        if let Some(ins) = eval.try_get_instruction(i) {
             return Some(ins.parent_block);
         }
     }
@@ -67,11 +67,11 @@ pub fn unroll_std_block(
     eval: &mut IRGenerator,
 ) -> Option<Index> //first instruction of the left block
 {
-    let block = eval.get_block(block_id).unwrap();
+    let block = eval.get_block(block_id);
     let b_instructions = block.instructions.clone();
     let mut next = None;
     if let Some(left) = block.left {
-        let left_block = eval.get_block(left).unwrap();
+        let left_block = eval.get_block(left);
         if let Some(f) = left_block.instructions.first() {
             next = Some(*f);
         }
@@ -134,7 +134,7 @@ pub fn unroll_join(
     eval: &mut IRGenerator,
 ) -> Option<Index> {
     //Returns the exit block of the loop
-    let join = eval.get_block(block_id).unwrap();
+    let join = eval.get_block(block_id);
     let join_instructions = join.instructions.clone();
     let join_left = join.left; //XXX.clone();
     let prev = *join.predecessor.first().unwrap(); //todo predecessor.first or .last?
@@ -181,7 +181,7 @@ pub fn outer_unroll(
 ) -> Option<Index> //next block
 {
     assert!(unroll_ins.is_empty());
-    let block = eval.get_block(block_id).unwrap();
+    let block = eval.get_block(block_id);
     let b_right = block.right;
     let b_left = block.left;
     let block_instructions = block.instructions.clone();
@@ -190,7 +190,7 @@ pub fn outer_unroll(
         unroll_join(unroll_ins, eval_map, block_id, caller, eval);
         //2. map the Phis variables to their unrolled values:
         for ins in &block_instructions {
-            if let Some(ins_obj) = eval.get_as_instruction(*ins) {
+            if let Some(ins_obj) = eval.try_get_instruction(*ins) {
                 if ins_obj.operator == node::Operation::phi {
                     if eval_map.contains_key(&ins_obj.rhs) {
                         eval_map.insert(ins_obj.lhs, eval_map[&ins_obj.rhs]);
@@ -208,7 +208,7 @@ pub fn outer_unroll(
         //3. Merge the unrolled blocks into the join
         for ins in &unroll_ins.clone() {
             //TODO this clone should not be needed...
-            let ins_obj = eval.get_as_mut_instruction(*ins);
+            let ins_obj = eval.try_get_mut_instruction(*ins);
             ins_obj.unwrap().idx = *ins;
         }
         let join_mut = eval.get_block_mut(block_id).unwrap();
@@ -249,7 +249,7 @@ fn evaluate_phi(
 ) {
     for i in instructions {
         let mut to_process: Vec<(Index, node::NodeEval)> = Vec::new();
-        if let Some(ins) = eval.get_as_instruction(*i) {
+        if let Some(ins) = eval.try_get_instruction(*i) {
             for phi in &ins.phi_arguments {
                 if phi.1 == from {
                     //we evaluate the phi instruction value
@@ -273,7 +273,7 @@ fn evaluate_conditional_jump(
     value_array: &mut HashMap<arena::Index, node::NodeEval>,
     eval: &IRGenerator,
 ) -> bool {
-    let jump_ins = eval.get_as_instruction(jump).unwrap();
+    let jump_ins = eval.try_get_instruction(jump).unwrap();
     let lhs = get_current_value(jump_ins.lhs, value_array);
     let cond = evaluate_object(lhs, value_array, eval);
     if let Some(cond_const) = cond.to_const_value() {

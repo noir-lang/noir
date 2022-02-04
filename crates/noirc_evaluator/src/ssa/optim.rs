@@ -104,7 +104,7 @@ pub fn find_similar_instruction(
     prev_ins: &VecDeque<arena::Index>,
 ) -> Option<arena::Index> {
     for iter in prev_ins {
-        if let Some(ins) = eval.get_as_instruction(*iter) {
+        if let Some(ins) = eval.try_get_instruction(*iter) {
             if ins.lhs == lhs && ins.rhs == rhs {
                 return Some(*iter);
             }
@@ -115,7 +115,7 @@ pub fn find_similar_instruction(
 
 pub fn propagate(eval: &IRGenerator, idx: arena::Index) -> arena::Index {
     let mut result = idx;
-    if let Some(obj) = eval.get_as_instruction(idx) {
+    if let Some(obj) = eval.try_get_instruction(idx) {
         if obj.operator == node::Operation::ass || obj.is_deleted {
             result = obj.rhs;
         }
@@ -137,7 +137,7 @@ pub fn cse_tree(
 ) {
     let mut i_list: Vec<arena::Index> = Vec::new();
     block_cse(eval, b_idx, anchor, &mut i_list);
-    let block = eval.get_block(b_idx).unwrap();
+    let block = eval.get_block(b_idx);
     let bd = block.dominated.clone();
     for b in bd {
         cse_tree(eval, b, &mut anchor.clone());
@@ -162,7 +162,7 @@ pub fn block_cse(
     }
 
     for iter in block_list {
-        if let Some(ins) = eval.get_as_instruction(*iter) {
+        if let Some(ins) = eval.try_get_instruction(*iter) {
             let mut to_delete = false;
             let mut i_lhs = ins.lhs;
             let mut i_rhs = ins.rhs;
@@ -228,11 +228,11 @@ pub fn block_cse(
                     operator: node::Operation::ass,
                     lhs,
                     ..
-                }) = eval.try_into_instruction(ii_l)
+                }) = eval.try_get_instruction(ii_l)
                 {
                     if let Ok(lv) = eval.get_variable(*lhs) {
                         let i_name = lv.name.clone();
-                        if let Some(p_ins) = eval.try_into_mut_instruction(i_lhs) {
+                        if let Some(p_ins) = eval.try_get_mut_instruction(i_lhs) {
                             if p_ins.res_name.is_empty() {
                                 p_ins.res_name = i_name;
                             }
@@ -243,11 +243,11 @@ pub fn block_cse(
                     operator: node::Operation::ass,
                     lhs,
                     ..
-                }) = eval.try_into_instruction(ii_r)
+                }) = eval.try_get_instruction(ii_r)
                 {
                     if let Ok(lv) = eval.get_variable(*lhs) {
                         let i_name = lv.name.clone();
-                        if let Some(p_ins) = eval.try_into_mut_instruction(i_rhs) {
+                        if let Some(p_ins) = eval.try_get_mut_instruction(i_rhs) {
                             if p_ins.res_name.is_empty() {
                                 p_ins.res_name = i_name;
                             }

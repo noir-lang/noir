@@ -181,33 +181,29 @@ impl<'a> IRGenerator<'a> {
         None
     }
 
-    pub fn get_mut_instruction(&mut self, idx: arena::Index) -> &mut node::Instruction {
-        if let Some(node::NodeObj::Instr(i)) = self.get_mut_object(idx) {
-            return i;
-        }
-        unreachable!("Index not found or not an instruction");
-    }
-
-    pub fn get_as_instruction(&self, idx: arena::Index) -> Option<&node::Instruction> {
-        if let Some(node::NodeObj::Instr(i)) = self.get_object(idx) {
-            return Some(i);
-        }
-        None
-    }
-
-    pub fn get_as_mut_instruction(&mut self, idx: arena::Index) -> Option<&mut node::Instruction> {
-        if let Some(node::NodeObj::Instr(i)) = self.get_mut_object(idx) {
-            return Some(i);
-        }
-        None
-    }
-
     //todo handle errors
     fn get_instruction(&self, idx: arena::Index) -> &node::Instruction {
+        self.try_get_instruction(idx)
+            .expect("Index not found or not an instruction")
+    }
+
+    pub fn get_mut_instruction(&mut self, idx: arena::Index) -> &mut node::Instruction {
+        self.try_get_mut_instruction(idx)
+            .expect("Index not found or not an instruction")
+    }
+
+    pub fn try_get_instruction(&self, idx: arena::Index) -> Option<&node::Instruction> {
         if let Some(node::NodeObj::Instr(i)) = self.get_object(idx) {
-            return i;
+            return Some(i);
         }
-        unreachable!("Index not found or not an instruction");
+        None
+    }
+
+    pub fn try_get_mut_instruction(&mut self, idx: arena::Index) -> Option<&mut node::Instruction> {
+        if let Some(node::NodeObj::Instr(i)) = self.get_mut_object(idx) {
+            return Some(i);
+        }
+        None
     }
 
     pub fn get_variable(&self, idx: arena::Index) -> Result<&node::Variable, &str> {
@@ -230,23 +226,6 @@ impl<'a> IRGenerator<'a> {
             },
             _ => Err("Invalid id"),
         }
-    }
-
-    pub fn try_into_instruction(&self, idx: arena::Index) -> Option<&node::Instruction> {
-        if let Some(node::NodeObj::Instr(i)) = self.get_object(idx) {
-            return Some(i);
-        }
-        None
-    }
-
-    pub fn try_into_mut_instruction(
-        &mut self,
-        idx: arena::Index,
-    ) -> Option<&mut node::Instruction> {
-        if let Some(node::NodeObj::Instr(i)) = self.get_mut_object(idx) {
-            return Some(i);
-        }
-        None
     }
 
     pub fn get_root_id(&self, var_id: arena::Index) -> arena::Index {
@@ -380,8 +359,11 @@ impl<'a> IRGenerator<'a> {
         self.blocks.get_mut(self.current_block).unwrap()
     }
 
-    pub fn get_block(&self, idx: arena::Index) -> Option<&block::BasicBlock> {
+    pub fn try_get_block(&self, idx: arena::Index) -> Option<&block::BasicBlock> {
         self.blocks.get(idx)
+    }
+    pub fn get_block(&self, idx: arena::Index) -> &block::BasicBlock {
+        self.blocks.get(idx).unwrap()
     }
 
     pub fn get_current_block(&self) -> &block::BasicBlock {
@@ -943,7 +925,7 @@ impl<'a> IRGenerator<'a> {
         //jump back to join
         self.new_instruction(
             self.dummy(),
-            self.get_block(join_idx).unwrap().get_first_instruction(),
+            self.get_block(join_idx).get_first_instruction(),
             node::Operation::jmp,
             node::ObjectType::none,
         );
@@ -954,7 +936,7 @@ impl<'a> IRGenerator<'a> {
         self.current_block = exit_id;
         let exit_first = self.get_current_block().get_first_instruction();
         block::link_with_target(self, join_idx, Some(exit_id), Some(body_idx));
-        let to_fix_ins = self.get_as_mut_instruction(to_fix);
+        let to_fix_ins = self.try_get_mut_instruction(to_fix);
         to_fix_ins.unwrap().rhs = body_idx;
 
         Ok(exit_first) //TODO what should we return???
@@ -962,7 +944,7 @@ impl<'a> IRGenerator<'a> {
 
     pub fn acir(&self, evaluator: &mut Evaluator) {
         let mut acir = Acir::new();
-        let mut fb = self.get_block(self.first_block);
+        let mut fb = self.try_get_block(self.first_block);
         while fb.is_some() {
             for iter in &fb.unwrap().instructions {
                 let ins = self.get_instruction(*iter);
@@ -970,7 +952,7 @@ impl<'a> IRGenerator<'a> {
             }
             //TODO we should rather follow the jumps
             if fb.unwrap().left.is_some() {
-                fb = self.get_block(fb.unwrap().left.unwrap());
+                fb = self.try_get_block(fb.unwrap().left.unwrap());
             } else {
                 fb = None;
             }
@@ -984,9 +966,9 @@ impl<'a> IRGenerator<'a> {
         root: arena::Index,
     ) -> arena::Index {
         //Ensure there is not already a phi for the variable (n.b. probably not usefull)
-        let block = self.get_block(target_block).unwrap();
+        let block = self.get_block(target_block);
         for i in &block.instructions {
-            if let Some(ins) = self.get_as_instruction(*i) {
+            if let Some(ins) = self.try_get_instruction(*i) {
                 if ins.operator == node::Operation::phi && ins.rhs == root {
                     return *i;
                 }
@@ -997,7 +979,7 @@ impl<'a> IRGenerator<'a> {
             node::Instruction::new(node::Operation::phi, root, root, v_type, Some(target_block));
         let phi_id = self.nodes.insert(node::NodeObj::Instr(new_phi));
         //ria
-        let mut phi_ins = self.get_as_mut_instruction(phi_id).unwrap();
+        let mut phi_ins = self.try_get_mut_instruction(phi_id).unwrap();
         phi_ins.idx = phi_id;
         let block = self.get_block_mut(target_block).unwrap();
         block.instructions.insert(1, phi_id);

@@ -179,7 +179,7 @@ pub fn bfs(start: Index, stop: Index, eval: &IRGenerator) -> Vec<Index> {
     queue.push_back(start);
     while !queue.is_empty() {
         let b = queue.pop_front().unwrap();
-        if let Some(block) = eval.get_block(b) {
+        if let Some(block) = eval.try_get_block(b) {
             if let Some(left) = block.left {
                 if left != stop && !result.contains(&left) {
                     result.push(left);

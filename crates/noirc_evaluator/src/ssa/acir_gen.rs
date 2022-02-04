@@ -27,16 +27,17 @@ pub struct InternalVar {
 }
 impl InternalVar {
     pub fn is_equal(&self, b: &InternalVar) -> bool {
-        if self.idx.is_some() && b.idx.is_some() && self.idx.unwrap() == b.idx.unwrap() {
-            return true;
+        (self.idx.is_some() && self.idx == b.idx)
+            || (self.witness.is_some() && self.witness == b.witness)
+            || self.expression == b.expression
+    }
+
+    fn new(expression: Arithmetic, witness: Option<Witness>, id: Index) -> InternalVar {
+        InternalVar {
+            expression,
+            witness,
+            idx: Some(id),
         }
-        if self.witness.is_some()
-            && b.witness.is_some()
-            && self.witness.unwrap() == b.witness.unwrap()
-        {
-            return true;
-        }
-        false //TODO should we check if content is the same??
     }
 }
 
@@ -53,50 +54,32 @@ impl Acir {
         if arith_cache.contains_key(&idx) {
             return arith_cache[&idx].clone();
         }
-        let mut expr;
-        let mut result: Option<InternalVar> = None;
-
-        if let Some(obj) = cfg.get_object(idx) {
-            match obj {
-                node::NodeObj::Const(c) => {
-                    let f_value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be()); //TODO const should be a field
-                    expr = Arithmetic {
-                        mul_terms: Vec::new(),
-                        linear_combinations: Vec::new(),
-                        q_c: f_value, //TODO handle other types
-                    };
-                    result = Some(InternalVar {
-                        idx: Some(idx),
-                        expression: expr,
-                        witness: None,
-                    });
-                }
-                node::NodeObj::Obj(v) => {
-                    let w = if let Some(w1) = v.witness {
-                        w1
-                    } else {
-                        evaluator.add_witness_to_cs()
-                    };
-                    expr = Arithmetic::from(&w);
-                    result = Some(InternalVar {
-                        idx: Some(idx),
-                        expression: expr,
-                        witness: Some(w),
-                    });
-                }
-                _ => (),
+        let var = match cfg.get_object(idx) {
+            Some(node::NodeObj::Const(c)) => {
+                let f_value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be()); //TODO const should be a field
+                let expr = Arithmetic {
+                    mul_terms: Vec::new(),
+                    linear_combinations: Vec::new(),
+                    q_c: f_value, //TODO handle other types
+                };
+                InternalVar::new(expr, None, idx)
             }
-        }
-        if result.is_none() {
-            let w = evaluator.add_witness_to_cs();
-            expr = Arithmetic::from(&w);
-            result = Some(InternalVar {
-                idx: Some(idx),
-                expression: expr,
-                witness: Some(w),
-            });
-        }
-        arith_cache.insert(idx, result.unwrap());
+            Some(node::NodeObj::Obj(v)) => {
+                let w = if let Some(w1) = v.witness {
+                    w1
+                } else {
+                    evaluator.add_witness_to_cs()
+                };
+                let expr = Arithmetic::from(&w);
+                InternalVar::new(expr, Some(w), idx)
+            }
+            _ => {
+                let w = evaluator.add_witness_to_cs();
+                let expr = Arithmetic::from(&w);
+                InternalVar::new(expr, Some(w), idx)
+            }
+        };
+        arith_cache.insert(idx, var);
         arith_cache[&idx].clone()
     }
 
@@ -252,9 +235,10 @@ pub fn evaluate_truncate(
 }
 
 pub fn generate_witness(lhs: &InternalVar, evaluator: &mut Evaluator) -> Witness {
-    if lhs.witness.is_some() {
-        return lhs.witness.unwrap();
+    if let Some(witness) = lhs.witness {
+        return witness;
     }
+
     if is_const(&lhs.expression) {
         todo!("Panic");
     }
@@ -285,14 +269,13 @@ pub fn evaluate_mul(lhs: &InternalVar, rhs: &InternalVar, evaluator: &mut Evalua
     //Generate intermediate variable
     //create new witness a and a gate: a = lhs
     let a = evaluator.add_witness_to_cs();
-    let b;
+    let b: Witness;
     evaluator
         .gates
         .push(Gate::Arithmetic(&lhs.expression - &Arithmetic::from(&a)));
-    //create new witness b et gate b = rhs
-    if lhs.is_equal(rhs) {
-        b = a;
-    } else {
+    //create new witness b and gate b = rhs
+    let mut b = a;
+    if !lhs.is_equal(rhs) {
         b = evaluator.add_witness_to_cs();
         evaluator
             .gates
@@ -313,20 +296,20 @@ pub fn evaluate_udiv(
     //n.b a et b MUST have proper bit size
     //we need to know a bit size (so that q has the same)
     //generate witnesses
-    let a_witness;
+
     //TODO: can we handle an arithmetic and not create a witness for a and b?
-    if lhs.witness.is_none() {
-        a_witness = generate_witness(lhs, evaluator); //TODO we should set lhs.witness = a.witness et lhs.expression= 1*w
+    let a_witness = if let Some(lhs_witness) = lhs.witness {
+        lhs_witness
     } else {
-        a_witness = lhs.witness.unwrap();
-    }
-    let b_witness;
+        generate_witness(lhs, evaluator) //TODO we should set lhs.witness = a.witness and lhs.expression= 1*w
+    };
+
     //TODO: can we handle an arithmetic and not create a witness for a and b?
-    if rhs.witness.is_none() {
-        b_witness = generate_witness(rhs, evaluator);
+    let b_witness = if let Some(rhs_witness) = rhs.witness {
+        rhs_witness
     } else {
-        b_witness = rhs.witness.unwrap();
-    }
+        generate_witness(rhs, evaluator)
+    };
     let q_witness = evaluator.add_witness_to_cs();
     let r_witness = evaluator.add_witness_to_cs();
 
@@ -642,31 +625,30 @@ pub fn range_constraint(
             FieldElement::max_num_bits()
         );
         return Err(RuntimeErrorKind::UnstructuredError { message });
-    } else {
+    } else if num_bits % 2 == 1 {
         // Note if the number of bits is odd, then Barretenberg will panic
-        if num_bits % 2 == 1 {
-            // new witnesses; r is constrained to num_bits-1 and b is 1 bit
-            let r_witness = evaluator.add_witness_to_cs();
-            let b_witness = evaluator.add_witness_to_cs();
-            //TODO not in master...
-            // evaluator.gates.push(Gate::Directive(Directive::Oddrange {
-            //     a: witness,
-            //     b: b_witness,
-            //     r: r_witness,
-            //     bit_size: num_bits,
-            // }));
-            range_constraint(r_witness, num_bits - 1, evaluator);
-            range_constraint(b_witness, 1, evaluator);
-            //Add the constraint a = r + 2^N*b
-            let mut f = FieldElement::from(2_i128);
-            f = f.pow(&FieldElement::from((num_bits - 1) as i128));
-            let res = add(&from_witness(r_witness), f, &from_witness(b_witness));
-            let my_constraint = add(&res, -FieldElement::one(), &from_witness(witness));
-            evaluator.gates.push(Gate::Arithmetic(my_constraint));
-        } else {
-            evaluator.gates.push(Gate::Range(witness, num_bits));
-        }
+        // new witnesses; r is constrained to num_bits-1 and b is 1 bit
+        let r_witness = evaluator.add_witness_to_cs();
+        let b_witness = evaluator.add_witness_to_cs();
+        //TODO not in master...
+        // evaluator.gates.push(Gate::Directive(Directive::Oddrange {
+        //     a: witness,
+        //     b: b_witness,
+        //     r: r_witness,
+        //     bit_size: num_bits,
+        // }));
+        range_constraint(r_witness, num_bits - 1, evaluator);
+        range_constraint(b_witness, 1, evaluator);
+        //Add the constraint a = r + 2^N*b
+        let mut f = FieldElement::from(2_i128);
+        f = f.pow(&FieldElement::from((num_bits - 1) as i128));
+        let res = add(&from_witness(r_witness), f, &from_witness(b_witness));
+        let my_constraint = add(&res, -FieldElement::one(), &from_witness(witness));
+        evaluator.gates.push(Gate::Arithmetic(my_constraint));
+    } else {
+        evaluator.gates.push(Gate::Range(witness, num_bits));
     }
+
     Ok(())
 }
 

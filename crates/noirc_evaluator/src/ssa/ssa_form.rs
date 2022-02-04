@@ -15,7 +15,7 @@ pub fn write_phi(
     }
 
     let s2 = node::Instruction::simplify_phi(phi, &result);
-    if let Some(phi_ins) = igen.get_as_mut_instruction(phi) {
+    if let Some(phi_ins) = igen.try_get_mut_instruction(phi) {
         assert!(phi_ins.phi_arguments.is_empty());
         if let Some(s_phi) = s2 {
             if s_phi != phi {
@@ -36,11 +36,11 @@ pub fn write_phi(
 }
 
 pub fn seal_block(igen: &mut IRGenerator, block_id: arena::Index) {
-    let block = igen.get_block(block_id).unwrap();
+    let block = igen.get_block(block_id);
     let pred = block.predecessor.clone();
     let instructions = block.instructions.clone();
     for i in instructions {
-        if let Some(ins) = igen.get_as_instruction(i) {
+        if let Some(ins) = igen.try_get_instruction(i) {
             if ins.operator == node::Operation::phi {
                 write_phi(igen, &pred, ins.rhs, i);
             }
@@ -60,7 +60,7 @@ pub fn get_block_value(
         //incomplete CFG
         result = igen.generate_empty_phi(block_id, root);
     } else {
-        let block = igen.get_block(block_id).unwrap();
+        let block = igen.get_block(block_id);
         if let Some(idx) = block.get_current_value(root) {
             return idx;
         }
@@ -94,7 +94,7 @@ pub fn get_current_value_in_block(
         }
     }
     //Local value numbering
-    let block = igen.get_block(block_id).unwrap();
+    let block = igen.get_block(block_id);
     if let Some(val) = block.get_current_value(root) {
         return val;
     }

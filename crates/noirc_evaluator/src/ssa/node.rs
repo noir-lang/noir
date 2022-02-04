@@ -384,10 +384,7 @@ impl Instruction {
             }
             Operation::trunc | Operation::phi => (false, false),
             Operation::nop | Operation::jne | Operation::jeq | Operation::jmp => (false, false),
-            Operation::eq_gate => {
-                dbg!("EQ GATE: TRUNCATING!!!!!!!");
-                (true, true)
-            }
+            Operation::eq_gate => (true, true),
         }
     }
 
