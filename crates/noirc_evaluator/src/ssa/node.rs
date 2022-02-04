@@ -939,6 +939,7 @@ pub fn to_operation(op_kind: HirBinaryOpKind, op_type: ObjectType) -> Operation 
             unreachable!("invalid type"); //TODO error
         }
         HirBinaryOpKind::Assign => Operation::ass,
+        HirBinaryOpKind::MemberAccess => todo!(),
     }
 }
 
