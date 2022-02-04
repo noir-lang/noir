@@ -119,7 +119,6 @@ pub enum NodeObj {
     Obj(Variable),
     Instr(Instruction),
     Const(Constant),
-    //Mem(Address)
 }
 
 #[derive(Debug)]
@@ -128,34 +127,6 @@ pub struct Constant {
     pub value: BigUint,    //TODO use FieldElement instead
     pub value_str: String, //TODO ConstStr subtype
     pub value_type: ObjectType,
-}
-
-#[derive(Debug)]
-pub struct Address {
-    //n.b could be a subtype of variable??
-    pub id: arena::Index,
-    pub offset: arena::Index,
-    pub element_type: ObjectType,
-    pub name: String,
-    pub def: Option<IdentId>,
-}
-
-impl Node for Address {
-    fn get_type(&self) -> ObjectType {
-        self.element_type
-    }
-
-    fn print(&self) -> String {
-        self.name.to_string() //todo a[i]
-    }
-
-    fn bits(&self) -> u32 {
-        0_u32 //bonne question !!!
-    }
-
-    fn get_id(&self) -> arena::Index {
-        self.id
-    }
 }
 
 #[derive(Debug)]
@@ -334,18 +305,18 @@ impl Instruction {
 
     //indicates if the operation is a substraction
     pub fn is_sub(&self) -> bool {
-        matches!(self.operator, Operation::sub | Operation::ssub)
+        matches!(self.operator, Operation::sub | Operation::safe_sub)
     }
 
     //indicates whether the left and/or right operand of the instruction is required to be truncated to its bit-width
     pub fn truncate_required(&self, lhs_bits: u32, rhs_bits: u32) -> (bool, bool) {
         match self.operator {
             Operation::add => (false, false),
-            Operation::sadd => (false, false),
+            Operation::safe_add => (false, false),
             Operation::sub => (false, false),
-            Operation::ssub => (false, false),
+            Operation::safe_sub => (false, false),
             Operation::mul => (false, false),
-            Operation::smul => (false, false),
+            Operation::safe_mul => (false, false),
             Operation::udiv => (true, true),
             Operation::sdiv => (true, true),
             Operation::urem => (true, true),
@@ -391,11 +362,11 @@ impl Instruction {
     pub fn get_max_value(&self, lhs_max: BigUint, rhs_max: BigUint) -> BigUint {
         match self.operator {
             Operation::add => lhs_max + rhs_max,
-            Operation::sadd => todo!(),
+            Operation::safe_add => todo!(),
             Operation::sub => lhs_max + rhs_max,
-            Operation::ssub => todo!(),
+            Operation::safe_sub => todo!(),
             Operation::mul => lhs_max * rhs_max,
-            Operation::smul => todo!(),
+            Operation::safe_mul => todo!(),
             Operation::udiv => lhs_max,
             Operation::sdiv => todo!(),
             Operation::urem => rhs_max - BigUint::from(1_u32),
@@ -501,7 +472,7 @@ impl Instruction {
         Instruction::node_evaluate(rhs, &mut r_is_zero, &mut r_constant, &mut r_bsize);
 
         match self.operator {
-            Operation::add | Operation::sadd => {
+            Operation::add | Operation::safe_add => {
                 if r_is_zero {
                     return *lhs;
                 } else if l_is_zero {
@@ -516,7 +487,7 @@ impl Instruction {
                 //so it is probably not worth it.
                 //same for x+x vs 2*x
             }
-            Operation::sub | Operation::ssub => {
+            Operation::sub | Operation::safe_sub => {
                 if r_is_zero {
                     return *lhs;
                 }
@@ -530,7 +501,7 @@ impl Instruction {
                     return NodeEval::Const(FieldElement::from(res_value as i128), self.res_type);
                 }
             }
-            Operation::mul | Operation::smul => {
+            Operation::mul | Operation::safe_mul => {
                 if r_is_zero {
                     return *rhs;
                 } else if l_is_zero {
@@ -792,34 +763,34 @@ impl Instruction {
 #[allow(non_camel_case_types)]
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum Operation {
-    add,  //(+)
-    sadd, //(+) safe addtion
-    sub,  //(-)
-    ssub, //(-) safe substraction
-    mul,  //(*)
-    smul, //(*) safe multiplication
-    udiv, //(/) unsigned division
-    sdiv, //(/) signed division
-    urem, //(%) modulo; remainder of unsigned division
-    srem, //(%) remainder of signed division
-    fmod, //(%) remainder of the floating point division
-    fneg, //(-) negation of a float
-    fdiv, //(/) floating point division
-    div,  //(/) field division
-    eq,   //(==) equal
-    ne,   //(!=) not equal
-    ugt,  //(>) unsigned greater than
-    uge,  //(>=) unsigned greater or equal
-    ult,  //(<) unsigned less than
-    ule,  //(<=) unsigned less or equal
-    sgt,  //(>) signed greater than
-    sge,  //(>=) signed greater or equal
-    slt,  //(<) signed less than
-    sle,  //(<=) signed less or equal
-    lt,   //(<) field less
-    gt,   //(>) field greater
-    lte,  //(<=) field less or equal
-    gte,  //(<=) field greater or equal
+    add,      //(+)
+    safe_add, //(+) safe addtion
+    sub,      //(-)
+    safe_sub, //(-) safe substraction
+    mul,      //(*)
+    safe_mul, //(*) safe multiplication
+    udiv,     //(/) unsigned division
+    sdiv,     //(/) signed division
+    urem,     //(%) modulo; remainder of unsigned division
+    srem,     //(%) remainder of signed division
+    fmod,     //(%) remainder of the floating point division
+    fneg,     //(-) negation of a float
+    fdiv,     //(/) floating point division
+    div,      //(/) field division
+    eq,       //(==) equal
+    ne,       //(!=) not equal
+    ugt,      //(>) unsigned greater than
+    uge,      //(>=) unsigned greater or equal
+    ult,      //(<) unsigned less than
+    ule,      //(<=) unsigned less or equal
+    sgt,      //(>) signed greater than
+    sge,      //(>=) signed greater or equal
+    slt,      //(<) signed less than
+    sle,      //(<=) signed less or equal
+    lt,       //(<) field less
+    gt,       //(>) field greater
+    lte,      //(<=) field less or equal
+    gte,      //(<=) field greater or equal
     and,
     not,
     or,
@@ -832,7 +803,6 @@ pub enum Operation {
     jne, //jump on not equal
     jeq, //jump on equal
     jmp, //unconditional jump
-    //phi,
     phi,
     // todo: call, br,..
     nop, // no op
@@ -845,9 +815,9 @@ pub fn is_commutative(op_code: Operation) -> bool {
     matches!(
         op_code,
         Operation::add
-            | Operation::sadd
+            | Operation::safe_add
             | Operation::mul
-            | Operation::smul
+            | Operation::safe_mul
             | Operation::and
             | Operation::or
             | Operation::xor
@@ -857,11 +827,11 @@ pub fn is_commutative(op_code: Operation) -> bool {
 pub fn is_binary(op_code: Operation) -> bool {
     match op_code {
         Operation::add => true,
-        Operation::sadd => true,
+        Operation::safe_add => true,
         Operation::sub => true,
-        Operation::ssub => true,
+        Operation::safe_sub => true,
         Operation::mul => true,
-        Operation::smul => true,
+        Operation::safe_mul => true,
         Operation::udiv => true, //(/) unsigned division
         Operation::sdiv => true,
         Operation::urem => true,

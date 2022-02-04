@@ -46,13 +46,13 @@ impl Acir {
     //When an instruction performs arithmetic operation, its output can be represented as an arithmetic expression of its arguments
     //Substitute a nodeobj as an arithmetic expression
     fn substitute(
-        arith_cache: &mut HashMap<Index, InternalVar>,
+        &mut self,
         idx: Index,
         evaluator: &mut Evaluator,
         cfg: &IRGenerator,
     ) -> InternalVar {
-        if arith_cache.contains_key(&idx) {
-            return arith_cache[&idx].clone();
+        if self.arith_cache.contains_key(&idx) {
+            return self.arith_cache[&idx].clone();
         }
         let var = match cfg.get_object(idx) {
             Some(node::NodeObj::Const(c)) => {
@@ -79,8 +79,8 @@ impl Acir {
                 InternalVar::new(expr, Some(w), idx)
             }
         };
-        arith_cache.insert(idx, var);
-        arith_cache[&idx].clone()
+        self.arith_cache.insert(idx, var);
+        self.arith_cache[&idx].clone()
     }
 
     pub fn new() -> Acir {
@@ -99,16 +99,16 @@ impl Acir {
             return;
         }
         let mut output = Arithmetic::default();
-        let l_c = Acir::substitute(&mut self.arith_cache, ins.lhs, evaluator, cfg);
-        let r_c = Acir::substitute(&mut self.arith_cache, ins.rhs, evaluator, cfg);
+        let l_c = self.substitute(/*&mut self.arith_cache,*/ ins.lhs, evaluator, cfg);
+        let r_c = self.substitute(/*&mut self.arith_cache,*/ ins.rhs, evaluator, cfg);
         match ins.operator {
-            Operation::add | Operation::sadd => {
+            Operation::add | Operation::safe_add => {
                 //output = &l_c.expression + &r_c.expression;
                 output = add(&l_c.expression, FieldElement::one(), &r_c.expression);
                 //  output.add(l_c.expression);
                 //  output.add(r_c.expression);
             }
-            Operation::sub | Operation::ssub => {
+            Operation::sub | Operation::safe_sub => {
                 //we need the type of rhs and its max value, then:
                 //lhs-rhs+k*2^bit_size where k=ceil(max_value/2^bit_size)
                 let bit_size = cfg.get_object(ins.rhs).unwrap().bits();
@@ -120,7 +120,7 @@ impl Acir {
                 output = add(&l_c.expression, FieldElement::from(-1), &r_c.expression);
                 output.q_c += f;
             }
-            Operation::mul | Operation::smul => {
+            Operation::mul | Operation::safe_mul => {
                 output = evaluate_mul(&l_c, &r_c, evaluator);
             }
             Operation::udiv => {
@@ -199,15 +199,11 @@ pub fn evaluate_truncate(
 ) -> Arithmetic {
     assert!(max_bits > rhs);
     //1. Generate witnesses a,b,c
-    let a_witness;
     //TODO: we should truncate the arithmetic expression (and so avoid having to create a witness)
     // if lhs is not a witness, but this requires a new truncate directive...TODO
-    if lhs.witness.is_none() {
-        a_witness = generate_witness(&lhs, evaluator);
-    } else {
-        a_witness = lhs.witness.unwrap();
-    }
-
+    let a_witness = lhs
+        .witness
+        .unwrap_or_else(|| generate_witness(&lhs, evaluator));
     let b_witness = evaluator.add_witness_to_cs();
     let c_witness = evaluator.add_witness_to_cs();
     //TODO not in master..
@@ -269,7 +265,6 @@ pub fn evaluate_mul(lhs: &InternalVar, rhs: &InternalVar, evaluator: &mut Evalua
     //Generate intermediate variable
     //create new witness a and a gate: a = lhs
     let a = evaluator.add_witness_to_cs();
-    let b: Witness;
     evaluator
         .gates
         .push(Gate::Arithmetic(&lhs.expression - &Arithmetic::from(&a)));

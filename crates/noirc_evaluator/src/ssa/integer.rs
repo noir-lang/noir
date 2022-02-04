@@ -307,7 +307,7 @@ fn update_value_array(
 ) {
     let block = eval.get_block_mut(b_id).unwrap();
     for (old, new) in vmap {
-        block.value_array.insert(*old, *new); //TODO we must merge rather than update
+        block.value_map.insert(*old, *new); //TODO we must merge rather than update
     }
 }
 

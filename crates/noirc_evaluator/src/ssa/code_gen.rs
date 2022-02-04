@@ -57,7 +57,8 @@ impl<'a> IRGenerator<'a> {
         pc
     }
 
-    fn print_operand(&self, idx: arena::Index) -> String {
+    //Display an object for debugging puposes
+    fn to_string(&self, idx: arena::Index) -> String {
         let var = self.get_object(idx);
         if var.is_none() {
             return format!("unknown {:?}", idx);
@@ -81,8 +82,8 @@ impl<'a> IRGenerator<'a> {
             if ins.is_deleted {
                 str_res += " -DELETED";
             }
-            let lhs_str = self.print_operand(ins.lhs);
-            let rhs_str = self.print_operand(ins.rhs);
+            let lhs_str = self.to_string(ins.lhs);
+            let rhs_str = self.to_string(ins.rhs);
             let ins_str = format!(
                 "{} {} {}",
                 lhs_str,
@@ -98,10 +99,8 @@ impl<'a> IRGenerator<'a> {
     }
 
     pub fn print(&self) {
-        let mut i = 0;
-        for (_, b) in &self.blocks {
+        for (i, (_, b)) in self.blocks.iter().enumerate() {
             println!("************* Block n.{}", i);
-            i += 1;
             self.print_block(b);
         }
     }
@@ -506,30 +505,6 @@ impl<'a> IRGenerator<'a> {
                 self.handle_let_statement(env, let_stmt)
             }
             HirStatement::Assign(assign_stmt) => {
-                //left hand is already declared
-                //TODO clarify what is an HirStatement::Assign vs HirStatement::Let vs HirStatement::Priv
-                //e.g 'let a=x+2;' could be let:(assign:(a, x+2)) or assign:(let a, x+2)
-                //For now we do all the job here but it should be splitted
-
-                //visiblement le = classique est traite dans le handle_private_statement... mais why??
-                //qn comment on differencie let a =3 - vs- a=3; ? je suppose que ca vient avant dans le handle_let_statement..
-                //on doit: generer une nouvelle variable
-                //assign_stmt.identifier est un ident_id qui identifie ma variable (de gauche)
-                //on peut avoir son nom  par:   let variable_name = self.context.def_interner.ident_name(&x.identifier);
-                //nous on doit trouver le 'node' qui correspond a cette variable (grace a ident_id donc)
-                //puis generer sa form SSA
-                //comme c'est un assignement, il faudra (plus tard) gerer les Phi ici
-
-                //pour l'instant on suppose que c'est pas un let
-                //lhs = expression =>
-                // soit var, soit const, soit instruction
-                //instruction devient ins.res=lhs
-                //const devient ? lhs est une var de type const => son cur_value est const!
-                //var devient? => cur_value de lhs est var
-
-                // It's possible to desugar the assign statement in the type checker.
-                // However for clarity, we just match on the type and call the corresponding function.
-                // eg if  we are assigning a witness, we call handle_private_statement
                 let ident_def = self
                     .context()
                     .def_interner
@@ -539,33 +514,7 @@ impl<'a> IRGenerator<'a> {
                     .unwrap()
                     .def_interner
                     .ident_name(&assign_stmt.identifier);
-                dbg!(&ident_name);
-                let var = self.find_variable(&ident_def);
-                //TODO handle function call arguments! meanwhile, we create unknown variables...it is a temporary Workaround
-                let lhs = if var.is_none() {
-                    //var is not defined,
-                    //let's do it here for now...TODO
-                    let obj = env.get(&ident_name);
-                    let obj_type = node::ObjectType::get_type_from_object(&obj);
-                    let new_var2 = node::Variable {
-                        id: self.dummy(),
-                        obj_type,
-                        name: ident_name.clone(),
-                        root: None,
-                        def: ident_def,
-                        witness: node::get_witness_from_object(&obj),
-                        parent_block: self.current_block,
-                    };
-                    let new_var2_id = self.add_variable(new_var2, None);
-                    self.get_block_mut(self.current_block)
-                        .unwrap()
-                        .update_variable(new_var2_id, new_var2_id); //DE MEME
-                    self.get_variable(new_var2_id).unwrap()
-                } else {
-                    var.unwrap()
-                };
-
-                //let lhs = var.unwrap();
+                let lhs = self.find_variable(&ident_def).unwrap(); //left hand must be already declared
                 let new_var = node::Variable {
                     id: lhs.id,
                     obj_type: lhs.obj_type,
@@ -588,7 +537,7 @@ impl<'a> IRGenerator<'a> {
                     node::Operation::ass,
                     rhs.get_type(),
                 );
-                self.update_variable_id(ls_root, new_var_id, result); //update the name and the value array
+                self.update_variable_id(ls_root, new_var_id, result); //update the name and the value map
                 Ok(result)
             }
             HirStatement::Error => unreachable!(

@@ -17,7 +17,7 @@ pub struct BasicBlock {
     pub left: Option<arena::Index>,      //sequential successor
     pub right: Option<arena::Index>,     //jump successor
     pub instructions: Vec<arena::Index>,
-    pub value_array: HashMap<arena::Index, arena::Index>, //for generating the ssa form
+    pub value_map: HashMap<arena::Index, arena::Index>, //for generating the ssa form
 }
 
 impl BasicBlock {
@@ -28,7 +28,7 @@ impl BasicBlock {
             left: None,
             right: None,
             instructions: Vec::new(),
-            value_array: HashMap::new(),
+            value_map: HashMap::new(),
             dominator: None,
             dominated: Vec::new(),
             kind,
@@ -36,7 +36,7 @@ impl BasicBlock {
     }
 
     pub fn get_current_value(&self, idx: arena::Index) -> Option<arena::Index> {
-        match self.value_array.get(&idx) {
+        match self.value_map.get(&idx) {
             Some(cur_idx) => Some(*cur_idx),
             None => None,
         }
@@ -45,7 +45,7 @@ impl BasicBlock {
     //When generating a new instance of a variable because of ssa, we update the value array
     //to link the two variables
     pub fn update_variable(&mut self, old_value: arena::Index, new_value: arena::Index) {
-        self.value_array.insert(old_value, new_value);
+        self.value_map.insert(old_value, new_value);
     }
 
     pub fn get_first_instruction(&self) -> arena::Index {
