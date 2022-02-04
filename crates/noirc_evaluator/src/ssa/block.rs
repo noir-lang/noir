@@ -17,7 +17,7 @@ pub struct BasicBlock {
     pub left: Option<arena::Index>,      //sequential successor
     pub right: Option<arena::Index>,     //jump successor
     pub instructions: Vec<arena::Index>,
-    pub value_array: HashMap<arena::Index, arena::Index>, //for generating the ssa form
+    pub value_map: HashMap<arena::Index, arena::Index>, //for generating the ssa form
 }
 
 impl BasicBlock {
@@ -28,7 +28,7 @@ impl BasicBlock {
             left: None,
             right: None,
             instructions: Vec::new(),
-            value_array: HashMap::new(),
+            value_map: HashMap::new(),
             dominator: None,
             dominated: Vec::new(),
             kind,
@@ -36,16 +36,13 @@ impl BasicBlock {
     }
 
     pub fn get_current_value(&self, idx: arena::Index) -> Option<arena::Index> {
-        match self.value_array.get(&idx) {
-            Some(cur_idx) => Some(*cur_idx),
-            None => None,
-        }
+        self.value_map.get(&idx).copied()
     }
 
     //When generating a new instance of a variable because of ssa, we update the value array
     //to link the two variables
     pub fn update_variable(&mut self, old_value: arena::Index, new_value: arena::Index) {
-        self.value_array.insert(old_value, new_value);
+        self.value_map.insert(old_value, new_value);
     }
 
     pub fn get_first_instruction(&self) -> arena::Index {
@@ -60,7 +57,7 @@ impl BasicBlock {
 ///////////
 
 pub fn create_first_block(igen: &mut IRGenerator) {
-    let mut first_block = BasicBlock::new(igen.dummy(), BlockType::Normal);
+    let first_block = BasicBlock::new(igen.dummy(), BlockType::Normal);
     let new_idx = igen.blocks.insert(first_block);
     let block2 = igen.blocks.get_mut(new_idx).unwrap(); //RIA..
     block2.idx = new_idx;
@@ -179,7 +176,7 @@ pub fn bfs(start: Index, stop: Index, eval: &IRGenerator) -> Vec<Index> {
     queue.push_back(start);
     while !queue.is_empty() {
         let b = queue.pop_front().unwrap();
-        if let Some(block) = eval.get_block(b) {
+        if let Some(block) = eval.try_get_block(b) {
             if let Some(left) = block.left {
                 if left != stop && !result.contains(&left) {
                     result.push(left);

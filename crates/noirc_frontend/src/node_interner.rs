@@ -1,9 +1,10 @@
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use arena::{Arena, Index};
 use noirc_errors::Span;
 
-use crate::{Ident, Type};
+use crate::{Ident, StructType, Type};
 
 use crate::hir_def::{
     expr::HirExpression,
@@ -41,6 +42,22 @@ impl FuncId {
     // after resolution
     pub fn dummy_id() -> FuncId {
         FuncId(Index::from_raw_parts(std::usize::MAX, 0))
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
+pub struct TypeId(usize);
+
+impl TypeId {
+    //dummy id for error reporting
+    // This can be anything, as the program will ultimately fail
+    // after resolution
+    pub fn dummy_id() -> TypeId {
+        TypeId(std::usize::MAX)
+    }
+
+    pub fn new(n: usize) -> TypeId {
+        TypeId(n)
     }
 }
 
@@ -118,6 +135,9 @@ pub struct NodeInterner {
     // Further note, that an ExprId and an IdentId will never have the same underlying Index
     // Because we use one Arena to store all Definitions/Nodes
     id_to_type: HashMap<Index, Type>,
+
+    // Struct map
+    structs: HashMap<TypeId, Rc<StructType>>,
 }
 
 impl Default for NodeInterner {
@@ -129,6 +149,7 @@ impl Default for NodeInterner {
             id_to_span: HashMap::new(),
             ident_to_name: HashMap::new(),
             id_to_type: HashMap::new(),
+            structs: HashMap::new(),
         };
 
         // An empty block expression is used often, we add this into the `node` on startup
@@ -162,6 +183,11 @@ impl NodeInterner {
     /// Store the type for an interned expression
     pub fn push_expr_type(&mut self, expr_id: &ExprId, typ: Type) {
         self.id_to_type.insert(expr_id.into(), typ);
+    }
+
+    /// Store a struct definition
+    pub fn push_struct(&mut self, expr_id: TypeId, typ: StructType) {
+        self.structs.insert(expr_id, Rc::new(typ));
     }
 
     /// Modify the type of an expression.
@@ -322,6 +348,10 @@ impl NodeInterner {
     /// Returns the span of an expression
     pub fn expr_span(&self, expr_id: &ExprId) -> Span {
         self.id_span(expr_id)
+    }
+
+    pub fn get_struct(&self, id: TypeId) -> Rc<StructType> {
+        self.structs[&id].clone()
     }
 
     /// Returns the type of an item stored in the Interner.

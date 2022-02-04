@@ -9,7 +9,7 @@ use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::DiagnosableError;
 use noirc_errors::Span;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct ParserError {
     expected_tokens: BTreeSet<Token>,
     expected_labels: BTreeSet<String>,

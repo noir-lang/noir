@@ -31,16 +31,12 @@ pub fn get_obj_max_value(
     max_map: &mut HashMap<arena::Index, BigUint>,
     vmap: &HashMap<arena::Index, arena::Index>,
 ) -> BigUint {
-    let id = get_current_value2(idx, vmap); //block.get_current_value(idx);
+    let id = get_value_from_map(idx, vmap); //block.get_current_value(idx);
     if max_map.contains_key(&id) {
         return max_map[&id].clone();
     }
-    let obj_;
-    if obj.is_none() {
-        obj_ = eval.get_object(id).unwrap();
-    } else {
-        obj_ = obj.unwrap();
-    }
+
+    let obj_ = obj.unwrap_or_else(|| eval.get_object(id).unwrap());
 
     let result: BigUint;
     result = match obj_ {
@@ -100,7 +96,7 @@ pub fn fix_truncate(
     block_idx: arena::Index,
     vmap: &mut HashMap<arena::Index, arena::Index>,
 ) {
-    if let Some(ins) = eval.get_as_mut_instruction(idx) {
+    if let Some(ins) = eval.try_get_mut_instruction(idx) {
         ins.idx = idx;
         ins.parent_block = block_idx;
         vmap.insert(prev_id, idx);
@@ -160,7 +156,7 @@ fn update_ins_parameters(
     rhs: arena::Index,
     max_value: Option<BigUint>,
 ) {
-    let mut ins = eval.get_as_mut_instruction(idx).unwrap();
+    let mut ins = eval.try_get_mut_instruction(idx).unwrap();
     ins.lhs = lhs;
     ins.rhs = rhs;
     if let Some(max_v) = max_value {
@@ -181,7 +177,7 @@ pub fn tree_overflow(
     max_map: &mut HashMap<arena::Index, BigUint>,
 ) {
     block_overflow(eval, b_idx, max_map);
-    let block = eval.get_block(b_idx).unwrap();
+    let block = eval.get_block(b_idx);
     let bd = block.dominated.clone();
     //TODO: Handle IF statements in there:
     for b in bd {
@@ -207,7 +203,7 @@ pub fn block_overflow(
     let mut truncate_map: HashMap<arena::Index, u32> = HashMap::new();
     //RIA...
     for iter in &block.instructions {
-        b.push((*eval.get_as_instruction(*iter).unwrap()).clone());
+        b.push((*eval.try_get_instruction(*iter).unwrap()).clone());
     }
     let mut value_map: HashMap<arena::Index, arena::Index> = HashMap::new(); //since we process the block from the start, the block value array is not relevant
                                                                              //block.value_array.clone();     //RIA - we need to modify it and to use it
@@ -217,13 +213,13 @@ pub fn block_overflow(
             continue;
         }
         //We retrieve get_current_value() in case a previous truncate has updated the value map
-        let r_id = get_current_value2(ins.rhs, &value_map); //block.get_current_value(ins.rhs);
+        let r_id = get_value_from_map(ins.rhs, &value_map); //block.get_current_value(ins.rhs);
         let mut update_instruction = false;
         if r_id != ins.rhs {
             ins.rhs = r_id;
             update_instruction = true;
         }
-        let l_id = get_current_value2(ins.lhs, &value_map); //block.get_current_value(ins.lhs);
+        let l_id = get_value_from_map(ins.lhs, &value_map); //block.get_current_value(ins.lhs);
         if l_id != ins.lhs {
             ins.lhs = l_id;
             update_instruction = true;
@@ -280,8 +276,8 @@ pub fn block_overflow(
             &mut value_map,
         );
         new_list.push(ins.idx);
-        let l_new = get_current_value2(l_id, &value_map); //block.get_current_value(l_id);
-        let r_new = get_current_value2(r_id, &value_map); //block.get_current_value(r_id);
+        let l_new = get_value_from_map(l_id, &value_map); //block.get_current_value(l_id);
+        let r_new = get_value_from_map(r_id, &value_map); //block.get_current_value(r_id);
         if l_new != l_id || r_new != r_id || ins.is_sub() {
             update_instruction = true;
         }
@@ -307,12 +303,12 @@ fn update_value_array(
 ) {
     let block = eval.get_block_mut(b_id).unwrap();
     for (old, new) in vmap {
-        block.value_array.insert(*old, *new); //TODO we must merge rather than update
+        block.value_map.insert(*old, *new); //TODO we must merge rather than update
     }
 }
 
 //Get current value using the provided vmap
-pub fn get_current_value2(
+pub fn get_value_from_map(
     idx: arena::Index,
     vmap: &HashMap<arena::Index, arena::Index>,
 ) -> arena::Index {

@@ -1,4 +1,4 @@
-use crate::node_interner::FuncId;
+use crate::node_interner::{FuncId, TypeId};
 
 use super::ModuleId;
 
@@ -6,20 +6,30 @@ use super::ModuleId;
 pub enum ModuleDefId {
     ModuleId(ModuleId),
     FunctionId(FuncId),
+    TypeId(TypeId),
 }
 
 impl ModuleDefId {
     pub fn as_function(&self) -> Option<FuncId> {
-        if let ModuleDefId::FunctionId(func_id) = self {
-            return Some(*func_id);
+        match self {
+            ModuleDefId::FunctionId(func_id) => Some(*func_id),
+            _ => None,
         }
-        None
     }
-    // XXX: We are still allocating fro error reporting even though strings are stored in binary
+
+    pub fn as_type(&self) -> Option<TypeId> {
+        match self {
+            ModuleDefId::TypeId(type_id) => Some(*type_id),
+            _ => None,
+        }
+    }
+
+    // XXX: We are still allocating for error reporting even though strings are stored in binary
     // It is a minor performance issue, which can be addressed by having the error reporting, not allocate
     pub fn as_str(&self) -> &'static str {
         match self {
             ModuleDefId::FunctionId(_) => "function",
+            ModuleDefId::TypeId(_) => "type",
             ModuleDefId::ModuleId(_) => "module",
         }
     }
@@ -34,5 +44,39 @@ impl From<ModuleId> for ModuleDefId {
 impl From<FuncId> for ModuleDefId {
     fn from(fid: FuncId) -> Self {
         ModuleDefId::FunctionId(fid)
+    }
+}
+
+pub trait TryFromModuleDefId: Sized {
+    fn try_from(id: ModuleDefId) -> Option<Self>;
+    fn dummy_id() -> Self;
+    fn description() -> String;
+}
+
+impl TryFromModuleDefId for FuncId {
+    fn try_from(id: ModuleDefId) -> Option<Self> {
+        id.as_function()
+    }
+
+    fn dummy_id() -> Self {
+        FuncId::dummy_id()
+    }
+
+    fn description() -> String {
+        "function".to_string()
+    }
+}
+
+impl TryFromModuleDefId for TypeId {
+    fn try_from(id: ModuleDefId) -> Option<Self> {
+        id.as_type()
+    }
+
+    fn dummy_id() -> Self {
+        TypeId::dummy_id()
+    }
+
+    fn description() -> String {
+        "type".to_string()
     }
 }

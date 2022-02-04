@@ -6,7 +6,7 @@ use codespan_reporting::term::termcolor::{
 };
 use std::io::Write;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct CustomDiagnostic {
     message: String,
     secondaries: Vec<CustomLabel>,
@@ -41,7 +41,7 @@ impl CustomDiagnostic {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 struct CustomLabel {
     pub message: String,
     pub span: Span,
@@ -65,7 +65,7 @@ impl Reporter {
         let diagnostics: Vec<_> = diagnostics
             .iter()
             .map(|cd| {
-                let secondary_labels: Vec<_> = cd
+                let secondary_labels = cd
                     .secondaries
                     .iter()
                     .map(|sl| {
@@ -94,18 +94,25 @@ impl Reporter {
             )
             .unwrap();
         }
+    }
 
-        if !diagnostics.is_empty() {
+    pub fn finish(error_count: usize) {
+        if error_count != 0 {
+            let writer = StandardStream::stderr(ColorChoice::Always);
+            let mut writer = writer.lock();
+
             writer
-                .lock()
                 .set_color(ColorSpec::new().set_fg(Some(Color::Red)))
                 .unwrap();
+
             writeln!(
-                &mut writer.lock(),
+                &mut writer,
                 "error: aborting due to {} previous errors",
-                diagnostics.len()
+                error_count
             )
             .unwrap();
+
+            std::process::exit(1);
         }
     }
 }

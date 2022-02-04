@@ -1,7 +1,7 @@
 use fm::FileId;
-use noirc_errors::{CollectedErrors, DiagnosableError};
+use noirc_errors::{CollectedErrors, CustomDiagnostic, DiagnosableError};
 
-use crate::{Ident, NoirFunction, ParsedModule};
+use crate::{Ident, NoirFunction, ParsedModule, StructType};
 
 use super::{
     dc_crate::{DefCollector, UnresolvedFunctions},
@@ -21,28 +21,35 @@ pub struct ModCollector<'a> {
 
 impl<'a> ModCollector<'a> {
     /// Walk a module and collect it's definitions
-    pub fn collect_defs(&mut self, context: &mut Context) -> Result<(), Vec<CollectedErrors>> {
+    pub fn collect_defs(&mut self, context: &mut Context) -> Vec<CollectedErrors> {
         // First resolve the module declarations
         // XXX: to avoid clone, possibly destructure the AST and pass in `self` for mod collector instead of `&mut self`
         // Alternatively, pass in the AST as a reference
-        for decl in self.ast.module_decls.clone() {
-            self.parse_module_declaration(context, &decl)?
-        }
+        let mut errors = self
+            .ast
+            .module_decls
+            .clone()
+            .into_iter()
+            .flat_map(|decl| self.parse_module_declaration(context, &decl))
+            .collect::<Vec<_>>();
 
         // Then add the imports to defCollector to resolve once all modules in the hierarchy have been resolved
-        for import in self.ast.imports.clone() {
+        for import in &self.ast.imports {
             self.def_collector.collected_imports.push(ImportDirective {
                 module_id: self.module_id,
-                path: import.path,
-                alias: import.alias,
+                path: import.path.clone(),
+                alias: import.alias.clone(),
             });
         }
+
+        let mut errors_in_same_file = self.collect_structs(context);
 
         // Then add functions to functionArena
         let mut unresolved_functions = UnresolvedFunctions {
             file_id: self.file_id,
             functions: Vec::new(),
         };
+
         for function in self.ast.functions.clone() {
             let name = function.name_ident().clone();
             let nf: NoirFunction = function;
@@ -60,27 +67,65 @@ impl<'a> ModCollector<'a> {
             unresolved_functions.push_fn(self.module_id, func_id, nf);
 
             // Add function to scope/ns of the module
-            self.def_collector.def_map.modules[self.module_id.0]
+            let result = self.def_collector.def_map.modules[self.module_id.0]
                 .scope
-                .define_func_def(name, func_id)
-                .map_err(|(first_def, second_def)| {
-                    let err = DefCollectorErrorKind::DuplicateFunction {
+                .define_func_def(name, func_id);
+
+            if let Err((first_def, second_def)) = result {
+                errors_in_same_file.push(
+                    DefCollectorErrorKind::DuplicateFunction {
                         first_def,
                         second_def,
-                    };
-
-                    vec![CollectedErrors {
-                        file_id: self.file_id,
-                        errors: vec![err.to_diagnostic()],
-                    }]
-                })?;
+                    }
+                    .to_diagnostic(),
+                );
+            }
         }
+
+        if !errors_in_same_file.is_empty() {
+            errors.push(CollectedErrors {
+                file_id: self.file_id,
+                errors: errors_in_same_file,
+            });
+        }
+
         self.def_collector
             .collected_functions
             .push(unresolved_functions);
 
-        Ok(())
+        errors
     }
+
+    /// Collect any struct definitions declared within the ast.
+    /// Returns a vector of errors if any structs were already defined.
+    fn collect_structs(&mut self, context: &mut Context) -> Vec<CustomDiagnostic> {
+        let mut errors = vec![];
+
+        for struct_definition in self.ast.types.iter() {
+            let id = context.next_struct_id();
+            let typ = StructType::new(id, struct_definition.clone());
+
+            // Add the struct to scope so its path can be looked up later
+            let result = self.def_collector.def_map.modules[self.module_id.0]
+                .scope
+                .define_struct_def(typ.name.clone(), id);
+
+            if let Err((first_def, second_def)) = result {
+                let err = DefCollectorErrorKind::DuplicateFunction {
+                    first_def,
+                    second_def,
+                };
+
+                errors.push(err.to_diagnostic());
+            }
+
+            // And store the TypeId -> StructType mapping somewhere it is reachable
+            self.def_collector.collected_types.insert(id, typ);
+        }
+
+        errors
+    }
+
     /// Search for a module named `mod_name`
     /// Parse it, add it as a child to the parent module in which it was declared
     /// and then collect all definitions of the child module
@@ -88,34 +133,40 @@ impl<'a> ModCollector<'a> {
         &mut self,
         context: &mut Context,
         mod_name: &Ident,
-    ) -> Result<(), Vec<CollectedErrors>> {
-        let child_file_id = context
+    ) -> Vec<CollectedErrors> {
+        let child_file_id = match context
             .file_manager
             .resolve_path(self.file_id, &mod_name.0.contents)
-            .map_err(|_| {
+        {
+            Ok(child_file_id) => child_file_id,
+            Err(_) => {
                 let err = DefCollectorErrorKind::UnresolvedModuleDecl {
                     mod_name: mod_name.clone(),
                 };
 
-                vec![CollectedErrors {
+                return vec![CollectedErrors {
                     file_id: self.file_id,
                     errors: vec![err.to_diagnostic()],
-                }]
-            })?;
+                }];
+            }
+        };
 
         // Parse the AST for the module we just found and then recursively look for it's defs
-        let ast = parse_file(&mut context.file_manager, child_file_id)?;
+        let (ast, mut errors) = parse_file(&mut context.file_manager, child_file_id);
 
         // Add module into def collector and get a ModuleId
-        let child_mod_id = self.push_child_module(mod_name, child_file_id)?;
+        errors.extend(match self.push_child_module(mod_name, child_file_id) {
+            Err(errors) => errors,
+            Ok(child_mod_id) => ModCollector {
+                def_collector: self.def_collector,
+                ast,
+                file_id: child_file_id,
+                module_id: child_mod_id,
+            }
+            .collect_defs(context),
+        });
 
-        ModCollector {
-            def_collector: self.def_collector,
-            ast,
-            file_id: child_file_id,
-            module_id: child_mod_id,
-        }
-        .collect_defs(context)
+        errors
     }
 
     pub fn push_child_module(

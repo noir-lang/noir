@@ -17,13 +17,10 @@ use arena;
 use noirc_frontend::hir::Context;
 use noirc_frontend::hir_def::function::HirFunction;
 use noirc_frontend::hir_def::{
-    expr::{
-        HirBinaryOp, HirBinaryOpKind, HirBlockExpression, HirCallExpression, HirExpression,
-        HirForExpression, HirLiteral,
-    },
+    expr::{HirBinaryOp, HirBinaryOpKind, HirExpression, HirForExpression, HirLiteral},
     stmt::{HirConstrainStatement, HirLetStatement, HirPrivateStatement, HirStatement},
 };
-use noirc_frontend::node_interner::{ExprId, FuncId, IdentId, StmtId};
+use noirc_frontend::node_interner::{ExprId, IdentId, StmtId};
 //use noirc_frontend::{FunctionKind, Type};
 use num_bigint::BigUint;
 
@@ -62,7 +59,8 @@ impl<'a> IRGenerator<'a> {
         pc
     }
 
-    fn print_operand(&self, idx: arena::Index) -> String {
+    //Display an object for debugging puposes
+    fn to_string(&self, idx: arena::Index) -> String {
         let var = self.get_object(idx);
         if var.is_none() {
             return format!("unknown {:?}", idx);
@@ -86,14 +84,9 @@ impl<'a> IRGenerator<'a> {
             if ins.is_deleted {
                 str_res += " -DELETED";
             }
-            let lhs_str = self.print_operand(ins.lhs);
-            let rhs_str = self.print_operand(ins.rhs);
-            let ins_str = format!(
-                "{} {} {}",
-                lhs_str,
-                format!(" op:{:?} ", ins.operator),
-                rhs_str
-            );
+            let lhs_str = self.to_string(ins.lhs);
+            let rhs_str = self.to_string(ins.rhs);
+            let ins_str = format!("{} op:{:?} {}", lhs_str, ins.operator, rhs_str);
             println!("{}: {}", str_res, ins_str);
 
             if ins.operator == node::Operation::phi {
@@ -103,10 +96,8 @@ impl<'a> IRGenerator<'a> {
     }
 
     pub fn print(&self) {
-        let mut i = 0;
-        for (_, b) in &self.blocks {
+        for (i, (_, b)) in self.blocks.iter().enumerate() {
             println!("************* Block n.{}", i);
-            i += 1;
             self.print_block(b);
         }
     }
@@ -186,33 +177,29 @@ impl<'a> IRGenerator<'a> {
         None
     }
 
-    pub fn get_mut_instruction(&mut self, idx: arena::Index) -> &mut node::Instruction {
-        if let Some(node::NodeObj::Instr(i)) = self.get_mut_object(idx) {
-            return i;
-        }
-        unreachable!("Index not found or not an instruction");
-    }
-
-    pub fn get_as_instruction(&self, idx: arena::Index) -> Option<&node::Instruction> {
-        if let Some(node::NodeObj::Instr(i)) = self.get_object(idx) {
-            return Some(i);
-        }
-        None
-    }
-
-    pub fn get_as_mut_instruction(&mut self, idx: arena::Index) -> Option<&mut node::Instruction> {
-        if let Some(node::NodeObj::Instr(i)) = self.get_mut_object(idx) {
-            return Some(i);
-        }
-        None
-    }
-
     //todo handle errors
     fn get_instruction(&self, idx: arena::Index) -> &node::Instruction {
+        self.try_get_instruction(idx)
+            .expect("Index not found or not an instruction")
+    }
+
+    pub fn get_mut_instruction(&mut self, idx: arena::Index) -> &mut node::Instruction {
+        self.try_get_mut_instruction(idx)
+            .expect("Index not found or not an instruction")
+    }
+
+    pub fn try_get_instruction(&self, idx: arena::Index) -> Option<&node::Instruction> {
         if let Some(node::NodeObj::Instr(i)) = self.get_object(idx) {
-            return i;
+            return Some(i);
         }
-        unreachable!("Index not found or not an instruction");
+        None
+    }
+
+    pub fn try_get_mut_instruction(&mut self, idx: arena::Index) -> Option<&mut node::Instruction> {
+        if let Some(node::NodeObj::Instr(i)) = self.get_mut_object(idx) {
+            return Some(i);
+        }
+        None
     }
 
     pub fn get_variable(&self, idx: arena::Index) -> Result<&node::Variable, &str> {
@@ -235,23 +222,6 @@ impl<'a> IRGenerator<'a> {
             },
             _ => Err("Invalid id"),
         }
-    }
-
-    pub fn try_into_instruction(&self, idx: arena::Index) -> Option<&node::Instruction> {
-        if let Some(node::NodeObj::Instr(i)) = self.get_object(idx) {
-            return Some(i);
-        }
-        None
-    }
-
-    pub fn try_into_mut_instruction(
-        &mut self,
-        idx: arena::Index,
-    ) -> Option<&mut node::Instruction> {
-        if let Some(node::NodeObj::Instr(i)) = self.get_mut_object(idx) {
-            return Some(i);
-        }
-        None
     }
 
     pub fn get_root_id(&self, var_id: arena::Index) -> arena::Index {
@@ -342,7 +312,7 @@ impl<'a> IRGenerator<'a> {
             let obj = node::NodeObj::Const(obj_cst);
             idx = self.add_object(obj);
         } else {
-            idx = self.id0;
+            //idx = self.id0;
             todo!();
             //we should support integer of size < FieldElement::max_num_bits()/2, because else we cannot support multiplication!
             //for bigger size, we will need to represent an integer using several field elements, it may be easier to implement them in Noir! (i.e as a Noir library)
@@ -385,8 +355,11 @@ impl<'a> IRGenerator<'a> {
         self.blocks.get_mut(self.current_block).unwrap()
     }
 
-    pub fn get_block(&self, idx: arena::Index) -> Option<&block::BasicBlock> {
+    pub fn try_get_block(&self, idx: arena::Index) -> Option<&block::BasicBlock> {
         self.blocks.get(idx)
+    }
+    pub fn get_block(&self, idx: arena::Index) -> &block::BasicBlock {
+        self.blocks.get(idx).unwrap()
     }
 
     pub fn get_current_block(&self) -> &block::BasicBlock {
@@ -444,11 +417,11 @@ impl<'a> IRGenerator<'a> {
     fn evaluate_identifier(&mut self, env: &mut Environment, ident_id: &IdentId) -> arena::Index {
         let ident_name = self.context.unwrap().def_interner.ident_name(ident_id);
         let ident_def = self.context.unwrap().def_interner.ident_def(ident_id);
-        let var = self.find_variable(&ident_def); //TODO by name or by id?
-        let v_id;
-        if var.is_some() {
-            v_id = ssa_form::get_current_value(self, var.unwrap().id);
-            return v_id;
+        // let var = self.find_variable(&ident_def); //TODO by name or by id?
+        // if let Some(node::Variable { id, .. }) = self.find_variable(&ident_def) {
+        if let Some(var) = self.find_variable(&ident_def) {
+            let id = var.id;
+            return ssa_form::get_current_value(self, id);
         }
         let obj = env.get(&ident_name);
         let obj_type = node::ObjectType::get_type_from_object(&obj);
@@ -464,7 +437,7 @@ impl<'a> IRGenerator<'a> {
             parent_block: self.current_block,
         };
 
-        v_id = self.add_variable(obj, None);
+        let v_id = self.add_variable(obj, None);
         self.get_block_mut(self.current_block)
             .unwrap()
             .update_variable(v_id, v_id);
@@ -500,7 +473,7 @@ impl<'a> IRGenerator<'a> {
         // Get the opcode from the infix operator
         let opcode = node::to_operation(op.kind, optype);
         if opcode == node::Operation::ass {
-            if let Some(lhs_ins) = self.get_as_mut_instruction(lhs) {
+            if let Some(lhs_ins) = self.try_get_mut_instruction(lhs) {
                 if lhs_ins.operator == node::Operation::load {
                     //make it a store rhs
                     lhs_ins.operator = node::Operation::store;
@@ -541,67 +514,11 @@ impl<'a> IRGenerator<'a> {
                 self.handle_let_statement(env, let_stmt)
             }
             HirStatement::Assign(assign_stmt) => {
-                //left hand is already declared
-                //TODO clarify what is an HirStatement::Assign vs HirStatement::Let vs HirStatement::Priv
-                //e.g 'let a=x+2;' could be let:(assign:(a, x+2)) or assign:(let a, x+2)
-                //For now we do all the job here but it should be splitted
-
-                //visiblement le = classique est traite dans le handle_private_statement... mais why??
-                //qn comment on differencie let a =3 - vs- a=3; ? je suppose que ca vient avant dans le handle_let_statement..
-                //on doit: generer une nouvelle variable
-                //assign_stmt.identifier est un ident_id qui identifie ma variable (de gauche)
-                //on peut avoir son nom  par:   let variable_name = self.context.def_interner.ident_name(&x.identifier);
-                //nous on doit trouver le 'node' qui correspond a cette variable (grace a ident_id donc)
-                //puis generer sa form SSA
-                //comme c'est un assignement, il faudra (plus tard) gerer les Phi ici
-
-                //pour l'instant on suppose que c'est pas un let
-                //lhs = expression =>
-                // soit var, soit const, soit instruction
-                //instruction devient ins.res=lhs
-                //const devient ? lhs est une var de type const => son cur_value est const!
-                //var devient? => cur_value de lhs est var
-
-                // It's possible to desugar the assign statement in the type checker.
-                // However for clarity, we just match on the type and call the corresponding function.
-                // eg if  we are assigning a witness, we call handle_private_statement
                 let ident_def = self
                     .context()
                     .def_interner
                     .ident_def(&assign_stmt.identifier);
-                let ident_name = self
-                    .context
-                    .unwrap()
-                    .def_interner
-                    .ident_name(&assign_stmt.identifier);
-                dbg!(&ident_name);
-                let var = self.find_variable(&ident_def);
-
-                //TODO handle function call arguments! meanwhile, we create unknown variables...it is a temporary Workaround
-                let lhs = if var.is_none() {
-                    //var is not defined,
-                    //let's do it here for now...TODO
-                    let obj = env.get(&ident_name);
-                    let obj_type = node::ObjectType::get_type_from_object(&obj);
-                    let new_var2 = node::Variable {
-                        id: self.dummy(),
-                        obj_type,
-                        name: ident_name.clone(),
-                        root: None,
-                        def: ident_def,
-                        witness: node::get_witness_from_object(&obj),
-                        parent_block: self.current_block,
-                    };
-                    let new_var2_id = self.add_variable(new_var2, None);
-                    self.get_block_mut(self.current_block)
-                        .unwrap()
-                        .update_variable(new_var2_id, new_var2_id); //DE MEME
-                    self.get_variable(new_var2_id).unwrap()
-                } else {
-                    var.unwrap()
-                };
-
-                //let lhs = var.unwrap();
+                let lhs = self.find_variable(&ident_def).unwrap(); //left hand must be already declared
                 let new_var = node::Variable {
                     id: lhs.id,
                     obj_type: lhs.obj_type,
@@ -618,13 +535,10 @@ impl<'a> IRGenerator<'a> {
 
                 let rhs_id = self.expression_to_object(env, &assign_stmt.expression)?;
                 let rhs = self.get_object(rhs_id).unwrap();
-                let result = self.new_instruction(
-                    new_var_id,
-                    rhs.get_id(),
-                    node::Operation::ass,
-                    rhs.get_type(),
-                );
-                self.update_variable_id(ls_root, new_var_id, result); //update the name and the value array
+                let r_type = rhs.get_type();
+                let r_id = rhs.get_id();
+                let result = self.new_instruction(new_var_id, r_id, node::Operation::ass, r_type);
+                self.update_variable_id(ls_root, new_var_id, result); //update the name and the value map
                 Ok(result)
             }
             HirStatement::Error => unreachable!(
@@ -731,7 +645,8 @@ impl<'a> IRGenerator<'a> {
         // Create assign instruction
         let rhs_id = self.expression_to_object(env, &priv_stmt.expression)?;
         let rhs = self.get_object(rhs_id).unwrap();
-        let result = self.new_instruction(new_var_id, rhs_id, node::Operation::ass, rhs.get_type());
+        let r_type = rhs.get_type();
+        let result = self.new_instruction(new_var_id, rhs_id, node::Operation::ass, r_type);
         //self.update_variable_id(lhs_id, new_var_id); //update the name and the value array
         Ok(result)
     }
@@ -875,7 +790,8 @@ impl<'a> IRGenerator<'a> {
             HirExpression::If(_) => todo!(),
             HirExpression::Prefix(_) => todo!(),
             HirExpression::Literal(_) => todo!(),
-            HirExpression::Block(_) => todo!("currently block expressions not in for/if branches are not being evaluated. In the future, we should be able to unify the eval_block and all places which require block_expr here")
+            HirExpression::Block(_) => todo!("currently block expressions not in for/if branches are not being evaluated. In the future, we should be able to unify the eval_block and all places which require block_expr here"),
+            HirExpression::Constructor(_) | HirExpression::MemberAccess(_) => todo!(),
         }
     }
 
@@ -961,7 +877,7 @@ impl<'a> IRGenerator<'a> {
         body_block1.update_variable(iter_id, phi); //TODO try with just a get_current_value(iter)
         let statements = block.statements();
         for stmt in statements {
-            self.evaluate_statement(env, stmt);
+            self.evaluate_statement(env, stmt).unwrap_err(); //TODO return the error
         }
 
         //increment iter
@@ -978,7 +894,7 @@ impl<'a> IRGenerator<'a> {
         //jump back to join
         self.new_instruction(
             self.dummy(),
-            self.get_block(join_idx).unwrap().get_first_instruction(),
+            self.get_block(join_idx).get_first_instruction(),
             node::Operation::jmp,
             node::ObjectType::none,
         );
@@ -989,7 +905,7 @@ impl<'a> IRGenerator<'a> {
         self.current_block = exit_id;
         let exit_first = self.get_current_block().get_first_instruction();
         block::link_with_target(self, join_idx, Some(exit_id), Some(body_idx));
-        let to_fix_ins = self.get_as_mut_instruction(to_fix);
+        let to_fix_ins = self.try_get_mut_instruction(to_fix);
         to_fix_ins.unwrap().rhs = body_idx;
 
         Ok(exit_first) //TODO what should we return???
@@ -997,7 +913,7 @@ impl<'a> IRGenerator<'a> {
 
     pub fn acir(&self, evaluator: &mut Evaluator) {
         let mut acir = Acir::new();
-        let mut fb = self.get_block(self.first_block);
+        let mut fb = self.try_get_block(self.first_block);
         while fb.is_some() {
             for iter in &fb.unwrap().instructions {
                 let ins = self.get_instruction(*iter);
@@ -1005,7 +921,7 @@ impl<'a> IRGenerator<'a> {
             }
             //TODO we should rather follow the jumps
             if fb.unwrap().left.is_some() {
-                fb = self.get_block(fb.unwrap().left.unwrap());
+                fb = self.try_get_block(fb.unwrap().left.unwrap());
             } else {
                 fb = None;
             }
@@ -1019,9 +935,9 @@ impl<'a> IRGenerator<'a> {
         root: arena::Index,
     ) -> arena::Index {
         //Ensure there is not already a phi for the variable (n.b. probably not usefull)
-        let block = self.get_block(target_block).unwrap();
+        let block = self.get_block(target_block);
         for i in &block.instructions {
-            if let Some(ins) = self.get_as_instruction(*i) {
+            if let Some(ins) = self.try_get_instruction(*i) {
                 if ins.operator == node::Operation::phi && ins.rhs == root {
                     return *i;
                 }
@@ -1032,7 +948,7 @@ impl<'a> IRGenerator<'a> {
             node::Instruction::new(node::Operation::phi, root, root, v_type, Some(target_block));
         let phi_id = self.nodes.insert(node::NodeObj::Instr(new_phi));
         //ria
-        let mut phi_ins = self.get_as_mut_instruction(phi_id).unwrap();
+        let mut phi_ins = self.try_get_mut_instruction(phi_id).unwrap();
         phi_ins.idx = phi_id;
         let block = self.get_block_mut(target_block).unwrap();
         block.instructions.insert(1, phi_id);

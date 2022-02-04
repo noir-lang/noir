@@ -155,6 +155,7 @@ impl<'a> Evaluator<'a> {
                 let err = RuntimeErrorKind::Unimplemented("The Or operation is currently not implemented. First implement in Barretenberg.".to_owned());
                 Err(err)
             }
+            HirBinaryOpKind::MemberAccess => todo!("Member access for structs is unimplemented in the noir backend"),
         }.map_err(|kind|kind.add_span(op.span))
     }
 
@@ -189,10 +190,11 @@ impl<'a> Evaluator<'a> {
         // Now call the main function
         let main_func_body = self.context.def_interner.function(&self.main_function);
         let mut cfg = ssa::code_gen::IRGenerator::new(self.context);
-        cfg.evaluate_main(env, self.context, main_func_body);
+        cfg.evaluate_main(env, self.context, main_func_body)
+            .unwrap_err();
 
         //Generates ACIR representation:
-        cfg.ir_to_acir(self);
+        cfg.ir_to_acir(self).unwrap_err();
         Ok(())
     }
 
@@ -579,9 +581,9 @@ impl<'a> Evaluator<'a> {
         env: &mut Environment,
         expr_id: &ExprId,
     ) -> Result<Object, RuntimeError> {
-        let expr = self.context.def_interner.expression(expr_id);
         let span = self.context.def_interner.expr_span(expr_id);
-        match expr {
+
+        match self.context.def_interner.expression(expr_id) {
             HirExpression::Literal(HirLiteral::Integer(x)) => Ok(Object::Constants(x)),
             HirExpression::Literal(HirLiteral::Array(arr_lit)) => {
                 Ok(Object::Array(Array::from(self, env, arr_lit)?))
@@ -638,7 +640,9 @@ impl<'a> Evaluator<'a> {
             HirExpression::Prefix(_) => todo!("Prefix expressions are currently unimplemented"),
             HirExpression::Literal(HirLiteral::Str(_)) => todo!("string literals are currently unimplemented"),
             HirExpression::Literal(HirLiteral::Bool(_)) => todo!("boolean literals are currently unimplemented"),
-            HirExpression::Block(_) => todo!("currently block expressions not in for/if branches are not being evaluated. In the future, we should be able to unify the eval_block and all places which require block_expr here")
+            HirExpression::Block(_) => todo!("currently block expressions not in for/if branches are not being evaluated. In the future, we should be able to unify the eval_block and all places which require block_expr here"),
+            HirExpression::Constructor(_) => todo!("Constructor expressions are unimplemented in the noir backend"),
+            HirExpression::MemberAccess(_) => todo!("Member access expressions are unimplemented in the noir backend"),
         }
     }
 

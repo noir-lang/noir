@@ -124,10 +124,12 @@ fn resolve_name_in_module(
             Some(typ) => typ,
         };
 
-        // In the type namespace, only Mod can be used in a path. Moreover only Mod is in this namespace for now
+        // In the type namespace, only Mod can be used in a path.
         let new_module_id = match typ {
             ModuleDefId::ModuleId(id) => id,
             ModuleDefId::FunctionId(_) => panic!("functions cannot be in the type namespace"),
+            // TODO: If impls are ever implemented, types can be used in a path
+            ModuleDefId::TypeId(_) => panic!("types cannot be used in a path"),
         };
         current_mod = &def_maps[&new_module_id.krate].modules[new_module_id.local_id.0];
         // Check if namespace
