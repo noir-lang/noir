@@ -23,8 +23,8 @@ enum TopLevelStatement {
 
 // Helper trait that gives us simpler type signatures for return types:
 // e.g. impl Parser<T> versus impl Parser<Token, T, Error = Simple<Token>>
-pub trait NoirParser<T>: Parser<Token, T, Error = ParserError> + Sized {}
-impl<P, T> NoirParser<T> for P where P: Parser<Token, T, Error = ParserError> {}
+pub trait NoirParser<T>: Parser<Token, T, Error = ParserError> + Sized + Clone {}
+impl<P, T> NoirParser<T> for P where P: Parser<Token, T, Error = ParserError> + Clone {}
 
 // ExprParser just serves as a type alias for NoirParser<Expression> + Clone
 trait ExprParser: NoirParser<Expression> + Clone {}
@@ -33,7 +33,7 @@ impl<P> ExprParser for P where P: NoirParser<Expression> + Clone {}
 fn parenthesized<P, F, T>(parser: P, default: F) -> impl NoirParser<T>
 where
     P: NoirParser<T>,
-    F: Fn(Span) -> T,
+    F: Fn(Span) -> T + Clone,
 {
     use Token::*;
     parser
@@ -66,7 +66,7 @@ fn foldl_with_span<P1, P2, T1, T2, F>(
 where
     P1: NoirParser<T1>,
     P2: NoirParser<T2>,
-    F: Fn(T1, T2, Span) -> T1,
+    F: Fn(T1, T2, Span) -> T1 + Clone,
 {
     spanned(first_parser)
         .then(spanned(to_be_repeated).repeated())
@@ -75,41 +75,6 @@ where
             (f(a, b, span), span)
         })
         .map(|(value, _span)| value)
-}
-
-/// Try to parse using the given parser, attempting to
-/// recover to the given syncronization token if it fails.
-/// Afterward, parse the syncronization token as well.
-///
-/// If we try to skip to the sync token and it isn't present,
-/// we will stop early if we encounter a token in `too_far`.
-/// Note that the parser returned by this function will never
-/// fail.
-pub fn sync_to<P, T, F>(
-    parser: P,
-    sync_point: Token,
-    too_far: Vec<Token>,
-    default: F,
-) -> impl NoirParser<T>
-where
-    P: NoirParser<T>,
-    F: 'static + Clone + Fn() -> T,
-    T: 'static + Clone,
-{
-    force(parser).then_with(move |option| {
-        let sync_point = sync_point.clone();
-        let default = default.clone();
-        match option {
-            Some(t) => force(just(sync_point)).map(move |_| t.clone()).boxed(),
-            None => {
-                let mut targets = too_far.clone();
-                targets.push(sync_point.clone());
-                force(take_until(one_of(targets)).then_ignore(just(sync_point)))
-                    .map(move |_| default())
-                    .boxed()
-            }
-        }
-    })
 }
 
 /// Sequence the two parsers.
@@ -122,11 +87,11 @@ pub fn then_commit<'a, P1, P2, T1, T2: 'a, F>(
 ) -> impl NoirParser<(T1, T2)> + 'a
 where
     P1: NoirParser<T1> + 'a,
-    P2: NoirParser<T2> + 'a,
-    F: 'a + Fn(Span) -> T2,
+    P2: NoirParser<T2> + 'a + Clone,
+    F: 'a + Fn(Span) -> T2 + Clone,
     T2: Clone
 {
-    let second_parser = force(my_skip_then_retry_until(second_parser))
+    let second_parser = my_skip_then_retry_until(second_parser)
         .map_with_span(move |option, span| option.unwrap_or_else(|| default(span)));
 
     first_parser.then(second_parser)
@@ -138,10 +103,10 @@ pub fn then_commit_ignore<'a, P1, P2, T1: 'a, T2: 'a>(
 ) -> impl NoirParser<T1> + 'a
 where
     P1: NoirParser<T1> + 'a,
-    P2: NoirParser<T2> + 'a,
+    P2: NoirParser<T2> + 'a + Clone,
     T2: Clone
 {
-    let second_parser = force(my_skip_then_retry_until(second_parser));
+    let second_parser = my_skip_then_retry_until(second_parser);
 
     first_parser.then_ignore(second_parser)
 }
@@ -160,39 +125,55 @@ pub fn ignore_then_commit<'a, P1, P2, T1: 'a, T2: 'a, F>(
 ) -> impl NoirParser<T2> + 'a
 where
     P1: NoirParser<T1> + 'a,
-    P2: NoirParser<T2> + 'a,
-    F: 'a + Fn(Span) -> T2,
+    P2: NoirParser<T2> + 'a + Clone,
+    F: 'a + Fn(Span) -> T2 + Clone,
     T2: Clone
 {
-    let second_parser = force(my_skip_then_retry_until(second_parser))
+    let second_parser = my_skip_then_retry_until(second_parser)
         .map_with_span(move |option, span| option.unwrap_or_else(|| default(span)));
 
     first_parser.ignore_then(second_parser)
 }
 
-fn my_skip_then_retry_until<'a, P, T: 'a>(parser: P) -> impl NoirParser<T> + 'a
-    where P: NoirParser<T> + 'a,
+fn my_skip_then_retry_until<'a, P, T: 'a>(parser: P) -> impl NoirParser<Option<T>> + 'a
+    where P: NoirParser<T> + 'a + Clone,
           T: Clone
 {
-    recursive(move |recur| {
-        force(parser).then_with(move |option| match option {
-            Some(value) => empty().map(move |_| value.clone()).boxed(),
-            None => {
-                let terminators = [Token::EOF, Token::Colon, Token::Semicolon, Token::RightBrace, Token::Keyword(Keyword::Let), Token::Keyword(Keyword::Priv), Token::Keyword(Keyword::Const), Token::Keyword(Keyword::Constrain)];
-                none_of(terminators).ignore_then(recur.clone()).boxed()
-            }
-        })
+    force(parser.clone()).then_with(move |option| match option {
+        Some(value) => empty().map(move |_| Some(value.clone())).boxed(),
+        None => {
+            let parser = parser.clone();
+            recursive(move |recur| {
+                let terminators = [
+                    Token::EOF,
+                    Token::Colon,
+                    Token::Semicolon,
+                    Token::RightBrace,
+                    Token::Keyword(Keyword::Let),
+                    Token::Keyword(Keyword::Priv),
+                    Token::Keyword(Keyword::Const),
+                    Token::Keyword(Keyword::Constrain)
+                ];
+
+                parser.or(none_of(terminators).ignore_then(recur))
+            }).or_not().boxed()
+        }
     })
 }
 
 /// Force the given parser to succeed, logging any errors it had
-pub fn force<P, T>(parser: P) -> impl NoirParser<Option<T>>
+pub fn force<'a, P, T: 'a>(parser: P) -> impl NoirParser<Option<T>> + 'a
 where
-    P: NoirParser<T>,
+    P: NoirParser<T> + 'a,
 {
-    parser
+    parser.clone()
         .map(Ok)
         .or_else(|err| Ok(Err(err)))
+        .rewind()
+        .then_with(move |result| match result {
+            Ok(_) => parser.clone().map(Ok).boxed(),
+            Err(err) => empty().map(move |_| Err(err.clone())).boxed(),
+        })
         .validate(move |result, _, emit| match result {
             Ok(t) => Some(t),
             Err(err) => {
