@@ -236,22 +236,27 @@ fn operator_disallowed_in_constrain(operator: BinaryOpKind) -> bool {
     .contains(&operator)
 }
 
-fn constrain<P>(expr_parser: P) -> impl NoirParser<Statement>
+fn constrain<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
-    P: ExprParser,
+    P: ExprParser + 'a,
 {
-    keyword(Keyword::Constrain)
-        .ignore_then(expr_parser)
-        .try_map(|expr, span| match expr.kind.into_infix() {
-            Some(infix) if operator_disallowed_in_constrain(infix.operator.contents) => {
-                Err(ParserError::invalid_constrain_operator(infix.operator))
-            }
-            None => Err(ParserError::with_reason(
+    ignore_then_commit(keyword(Keyword::Constrain), expr_parser, |span| {
+        Expression::new(ExpressionKind::Block(BlockExpression(vec![])), span)
+    })
+    .validate(|expr, span, emit| match expr.kind.into_infix() {
+        Some(infix) if operator_disallowed_in_constrain(infix.operator.contents) => {
+            emit(ParserError::invalid_constrain_operator(infix.operator));
+            Statement::Error
+        }
+        None => {
+            emit(ParserError::with_reason(
                 "Only an infix expression can follow the constrain keyword".to_string(),
                 span,
-            )),
-            Some(infix) => Ok(Statement::Constrain(ConstrainStatement(infix))),
-        })
+            ));
+            Statement::Error
+        }
+        Some(infix) => Statement::Constrain(ConstrainStatement(infix)),
+    })
 }
 
 fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
@@ -281,26 +286,22 @@ where
 
     let p = p.then(optional_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
-    let p = then_commit(p, expr_parser, |span| {
-        Expression::new(ExpressionKind::Ident("$error".into()), span)
-    });
+    let p = then_commit(p, expr_parser, Expression::error);
 
     p.map(f)
 }
 
-fn assignment<P>(expr_parser: P) -> impl NoirParser<Statement>
+fn assignment<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
-    P: ExprParser,
+    P: ExprParser + 'a,
 {
-    ident()
-        .then_ignore(just(Token::Assign))
-        .then(expr_parser)
-        .map(|(identifier, expression)| {
-            Statement::Assign(AssignStatement {
-                identifier,
-                expression,
-            })
+    let failable = ident().then_ignore(just(Token::Assign));
+    then_commit(failable, expr_parser, Expression::error).map(|(identifier, expression)| {
+        Statement::Assign(AssignStatement {
+            identifier,
+            expression,
         })
+    })
 }
 
 fn parse_type() -> impl NoirParser<Type> {
@@ -407,8 +408,7 @@ where
 }
 
 fn expression() -> impl ExprParser {
-    recursive(|expr_parser| expression_with_precedence(Precedence::Lowest, expr_parser))
-        .labelled("expression")
+    recursive(|expr| expression_with_precedence(Precedence::Lowest, expr)).labelled("expression")
 }
 
 // An expression is a single term followed by 0 or more (OP subexpr)*
@@ -422,7 +422,7 @@ where
     P: ExprParser + 'a,
 {
     if precedence == Precedence::Highest {
-        term(expr_parser).boxed()
+        term(expr_parser).boxed().labelled("term")
     } else {
         expression_with_precedence(precedence.higher(), expr_parser.clone())
             .then(
@@ -432,6 +432,7 @@ where
             )
             .foldl(create_infix_expression)
             .boxed()
+            .labelled("expression")
     }
 }
 
@@ -1159,17 +1160,16 @@ mod test {
         parse_all_failing(block(expression()), failing);
     }
 
-    // Semicolons are:
-    // - Required after non-expression statements
-    // - Optional after for, if, block expressions
-    // - Optional after an expression as the last statement of a block
-    // - Required after an expression as the non-final statement of a block
     #[test]
     fn parse_recovery() {
         let cases = vec![
             ("let a = 4 + 3", 0, "let a: unspecified = (4 + 3)"),
             ("let a: = 4 + 3", 1, "let a: error = (4 + 3)"),
             ("let = 4 + 3", 1, "let $error: unspecified = (4 + 3)"),
+            ("let = ", 2, "let $error: unspecified = Error"),
+            ("priv = ", 2, "priv $error: unspecified = Error"),
+            ("constrain x ==", 1, "Error"),
+            ("foo = one two three", 1, "foo = Error"),
         ];
 
         fn show_errors<T: ToString>(v: &[T]) -> String {
@@ -1184,7 +1184,7 @@ mod test {
         }
 
         for (src, expected_errors, expected_result) in cases {
-            let (opt, errors) = parse_recover(declaration(expression()), src);
+            let (opt, errors) = parse_recover(statement(expression()), src);
             let actual = opt.map(|ast| ast.to_string());
             let expected = Some(expected_result.to_string());
             assert_eq!((errors.len(), &actual), (expected_errors, &expected),

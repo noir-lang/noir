@@ -251,6 +251,7 @@ pub(crate) fn type_check_expression(
             check_constructor(&constructor, expr_id, interner, errors)
         }
         HirExpression::MemberAccess(access) => check_member_access(access, interner, errors),
+        HirExpression::Error => Type::Error,
     };
 
     interner.push_expr_type(expr_id, typ.clone());

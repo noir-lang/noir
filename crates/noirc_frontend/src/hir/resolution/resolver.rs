@@ -409,6 +409,7 @@ impl<'a> Resolver<'a> {
                     rhs: access.rhs,
                 })
             }
+            ExpressionKind::Error => HirExpression::Error,
         };
 
         let expr_id = self.interner.push_expr(hir_expr);

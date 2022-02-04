@@ -21,6 +21,7 @@ pub enum ExpressionKind {
     For(Box<ForExpression>),
     If(Box<IfExpression>),
     Path(Path),
+    Error,
 }
 
 impl ExpressionKind {
@@ -133,6 +134,10 @@ impl PartialEq<Expression> for Expression {
 impl Expression {
     pub fn new(kind: ExpressionKind, span: Span) -> Expression {
         Expression { kind, span }
+    }
+
+    pub fn error(span: Span) -> Expression {
+        Expression::new(ExpressionKind::Error, span)
     }
 
     pub fn into_ident(self) -> Option<Ident> {
@@ -400,6 +405,7 @@ impl Display for ExpressionKind {
             Path(path) => path.fmt(f),
             Constructor(constructor) => constructor.fmt(f),
             MemberAccess(access) => access.fmt(f),
+            Error => write!(f, "Error"),
         }
     }
 }

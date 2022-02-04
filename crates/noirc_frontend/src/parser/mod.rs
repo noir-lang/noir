@@ -2,8 +2,6 @@ mod errors;
 #[allow(clippy::module_inception)]
 mod parser;
 
-
-
 use crate::token::{Keyword, Token};
 use crate::{ast::ImportStatement, Expression, NoirStruct};
 use crate::{Ident, NoirFunction};
@@ -27,8 +25,8 @@ pub trait NoirParser<T>: Parser<Token, T, Error = ParserError> + Sized + Clone {
 impl<P, T> NoirParser<T> for P where P: Parser<Token, T, Error = ParserError> + Clone {}
 
 // ExprParser just serves as a type alias for NoirParser<Expression> + Clone
-trait ExprParser: NoirParser<Expression> + Clone {}
-impl<P> ExprParser for P where P: NoirParser<Expression> + Clone {}
+trait ExprParser: NoirParser<Expression> {}
+impl<P> ExprParser for P where P: NoirParser<Expression> {}
 
 fn parenthesized<P, F, T>(parser: P, default: F) -> impl NoirParser<T>
 where
@@ -87,11 +85,11 @@ pub fn then_commit<'a, P1, P2, T1, T2: 'a, F>(
 ) -> impl NoirParser<(T1, T2)> + 'a
 where
     P1: NoirParser<T1> + 'a,
-    P2: NoirParser<T2> + 'a + Clone,
+    P2: NoirParser<T2> + 'a,
     F: 'a + Fn(Span) -> T2 + Clone,
-    T2: Clone
+    T2: Clone,
 {
-    let second_parser = my_skip_then_retry_until(second_parser)
+    let second_parser = skip_then_retry_until(second_parser)
         .map_with_span(move |option, span| option.unwrap_or_else(|| default(span)));
 
     first_parser.then(second_parser)
@@ -103,11 +101,10 @@ pub fn then_commit_ignore<'a, P1, P2, T1: 'a, T2: 'a>(
 ) -> impl NoirParser<T1> + 'a
 where
     P1: NoirParser<T1> + 'a,
-    P2: NoirParser<T2> + 'a + Clone,
-    T2: Clone
+    P2: NoirParser<T2> + 'a,
+    T2: Clone,
 {
-    let second_parser = my_skip_then_retry_until(second_parser);
-
+    let second_parser = skip_then_retry_until(second_parser);
     first_parser.then_ignore(second_parser)
 }
 
@@ -118,26 +115,26 @@ where
 //     }))
 // }
 
-pub fn ignore_then_commit<'a, P1, P2, T1: 'a, T2: 'a, F>(
+pub fn ignore_then_commit<'a, P1, P2, T1: 'a, T2: Clone + 'a, F>(
     first_parser: P1,
     second_parser: P2,
     default: F,
 ) -> impl NoirParser<T2> + 'a
 where
     P1: NoirParser<T1> + 'a,
-    P2: NoirParser<T2> + 'a + Clone,
+    P2: NoirParser<T2> + 'a,
     F: 'a + Fn(Span) -> T2 + Clone,
-    T2: Clone
 {
-    let second_parser = my_skip_then_retry_until(second_parser)
+    let second_parser = skip_then_retry_until(second_parser)
         .map_with_span(move |option, span| option.unwrap_or_else(|| default(span)));
 
     first_parser.ignore_then(second_parser)
 }
 
-fn my_skip_then_retry_until<'a, P, T: 'a>(parser: P) -> impl NoirParser<Option<T>> + 'a
-    where P: NoirParser<T> + 'a + Clone,
-          T: Clone
+fn skip_then_retry_until<'a, P, T: 'a>(parser: P) -> impl NoirParser<Option<T>> + 'a
+where
+    P: NoirParser<T> + 'a,
+    T: Clone,
 {
     force(parser.clone()).then_with(move |option| match option {
         Some(value) => empty().map(move |_| Some(value.clone())).boxed(),
@@ -152,11 +149,13 @@ fn my_skip_then_retry_until<'a, P, T: 'a>(parser: P) -> impl NoirParser<Option<T
                     Token::Keyword(Keyword::Let),
                     Token::Keyword(Keyword::Priv),
                     Token::Keyword(Keyword::Const),
-                    Token::Keyword(Keyword::Constrain)
+                    Token::Keyword(Keyword::Constrain),
                 ];
 
                 parser.or(none_of(terminators).ignore_then(recur))
-            }).or_not().boxed()
+            })
+            .or_not()
+            .boxed()
         }
     })
 }
@@ -166,7 +165,8 @@ pub fn force<'a, P, T: 'a>(parser: P) -> impl NoirParser<Option<T>> + 'a
 where
     P: NoirParser<T> + 'a,
 {
-    parser.clone()
+    parser
+        .clone()
         .map(Ok)
         .or_else(|err| Ok(Err(err)))
         .rewind()
