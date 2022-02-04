@@ -166,21 +166,20 @@ pub fn block_cse(
             let mut to_delete = false;
             let mut i_lhs = ins.lhs;
             let mut i_rhs = ins.rhs;
-            let i_lhs_name = String::new();
-            let i_rhs_name = String::new();
             let mut phi_args: Vec<(arena::Index, arena::Index)> = Vec::new();
             let mut to_update_phi = false;
-            if !anchor.contains_key(&ins.operator) {
-                anchor.insert(ins.operator, VecDeque::new());
-            }
+            anchor
+                .entry(ins.operator)
+                .or_insert_with(|| {VecDeque::new()});
             if node::is_binary(ins.operator) {
                 //binary operation:
                 i_lhs = propagate(eval, ins.lhs);
                 i_rhs = propagate(eval, ins.rhs);
-                let j = find_similar_instruction(eval, i_lhs, i_rhs, &anchor[&ins.operator]);
-                if j.is_some() {
+                if let Some(j) =
+                    find_similar_instruction(eval, i_lhs, i_rhs, &anchor[&ins.operator])
+                {
                     to_delete = true; //we want to delete ins but ins is immutable so we use the new_list instead
-                    i_rhs = j.unwrap();
+                    i_rhs = j;
                 } else {
                     new_list.push(*iter);
                     anchor.get_mut(&ins.operator).unwrap().push_front(*iter);

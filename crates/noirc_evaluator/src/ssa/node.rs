@@ -256,15 +256,15 @@ pub enum NodeEval {
 }
 
 impl NodeEval {
-    pub fn to_const_value(&self) -> Option<FieldElement> {
+    pub fn to_const_value(self) -> Option<FieldElement> {
         match self {
-            NodeEval::Const(c, _) => Some(*c),
+            NodeEval::Const(c, _) => Some(c),
             _ => None,
         }
     }
-    pub fn to_index(&self) -> Option<arena::Index> {
+    pub fn to_index(self) -> Option<arena::Index> {
         match self {
-            NodeEval::Idx(i) => Some(*i),
+            NodeEval::Idx(i) => Some(i),
             NodeEval::Const(_, _) => None,
         }
     }
@@ -470,6 +470,8 @@ impl Instruction {
         //let mut l_sign = false; //TODO
         Instruction::node_evaluate(lhs, &mut l_is_zero, &mut l_constant, &mut l_bsize);
         Instruction::node_evaluate(rhs, &mut r_is_zero, &mut r_constant, &mut r_bsize);
+        let r_is_const = r_constant.is_some();
+        let l_is_const = l_constant.is_some();
 
         match self.operator {
             Operation::add | Operation::safe_add => {
@@ -477,10 +479,10 @@ impl Instruction {
                     return *lhs;
                 } else if l_is_zero {
                     return *rhs;
-                } else if l_constant.is_some() && r_constant.is_some() {
+                } else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
                     //constant folding - TODO - only for integers; NO modulo for field elements - May be we should have a different opcode for field addition?
                     assert!(l_bsize == r_bsize);
-                    let res_value = (l_constant.unwrap() + r_constant.unwrap()) % l_bsize;
+                    let res_value = (l_const + r_const) % l_bsize;
                     return NodeEval::Const(FieldElement::from(res_value as i128), self.res_type);
                 }
                 //if only one is const, we could try to do constant propagation but this will be handled by the arithmetization step anyways
@@ -495,9 +497,10 @@ impl Instruction {
                     return NodeEval::Const(FieldElement::zero(), self.res_type);
                 }
                 //constant folding - TODO - only for integers; NO modulo for field elements - May be we should have a different opcode?
-                if l_constant.is_some() && r_constant.is_some() {
+                if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
+                    //if l_constant.is_some() && r_constant.is_some() {
                     assert!(l_bsize == r_bsize);
-                    let res_value = (l_constant.unwrap() - r_constant.unwrap()) % l_bsize;
+                    let res_value = (l_const - r_const) % l_bsize;
                     return NodeEval::Const(FieldElement::from(res_value as i128), self.res_type);
                 }
             }
@@ -506,14 +509,14 @@ impl Instruction {
                     return *rhs;
                 } else if l_is_zero {
                     return *lhs;
-                } else if l_constant.is_some() && l_constant.unwrap() == 1 {
+                } else if l_is_const && l_constant.unwrap() == 1 {
                     return *rhs;
-                } else if r_constant.is_some() && r_constant.unwrap() == 1 {
+                } else if r_is_const && r_constant.unwrap() == 1 {
                     return *lhs;
-                } else if l_constant.is_some() && r_constant.is_some() {
+                } else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
                     //constant folding - TODO - only for integers; NO modulo for field elements - May be we should have a different opcode?
                     assert!(l_bsize == r_bsize);
-                    let res_value = (l_constant.unwrap() * r_constant.unwrap()) % l_bsize;
+                    let res_value = (l_const * r_const) % l_bsize;
                     return NodeEval::Const(FieldElement::from(res_value as i128), self.res_type);
                 }
                 //if only one is const, we could try to do constant propagation but this will be handled by the arithmetization step anyways
@@ -525,13 +528,13 @@ impl Instruction {
                 } else if l_is_zero {
                     return *lhs; //TODO should we ensure rhs != 0 ???
                 }
-                //else if r_constant.is_some() {
-                //TODO same as lhs*1/r
-                //return (Some(self.lhs), None, None);
-                //}
                 //constant folding - TODO
                 else if l_constant.is_some() && r_constant.is_some() {
                     todo!();
+                } else if r_constant.is_some() {
+                    //same as lhs*1/r
+                    todo!("");
+                    //return (Some(self.lhs), None, None);
                 }
             }
             Operation::urem | Operation::srem => {
@@ -549,8 +552,8 @@ impl Instruction {
                 if r_is_zero {
                     return NodeEval::Const(FieldElement::zero(), ObjectType::boolean);
                     //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
-                } else if l_constant.is_some() && r_constant.is_some() {
-                    let res = if l_constant.unwrap() >= r_constant.unwrap() {
+                } else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
+                    let res = if l_const >= r_const {
                         FieldElement::one()
                     } else {
                         FieldElement::zero()
@@ -562,8 +565,8 @@ impl Instruction {
                 if r_is_zero {
                     return NodeEval::Const(FieldElement::zero(), ObjectType::boolean);
                     //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
-                } else if l_constant.is_some() && r_constant.is_some() {
-                    let res = if l_constant.unwrap() < r_constant.unwrap() {
+                } else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
+                    let res = if l_const < r_const {
                         FieldElement::one()
                     } else {
                         FieldElement::zero()
@@ -575,8 +578,8 @@ impl Instruction {
                 if l_is_zero {
                     return NodeEval::Const(FieldElement::one(), ObjectType::boolean);
                     //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
-                } else if l_constant.is_some() && r_constant.is_some() {
-                    let res = if l_constant.unwrap() <= r_constant.unwrap() {
+                } else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
+                    let res = if l_const <= r_const {
                         FieldElement::one()
                     } else {
                         FieldElement::zero()
@@ -589,8 +592,8 @@ impl Instruction {
                     return NodeEval::Const(FieldElement::zero(), ObjectType::boolean);
                 // u<0 is false for unsigned u
                 //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
-                } else if l_constant.is_some() && r_constant.is_some() {
-                    let res = if l_constant.unwrap() > r_constant.unwrap() {
+                } else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
+                    let res = if l_const > r_const {
                         FieldElement::one()
                     } else {
                         FieldElement::zero()
@@ -601,8 +604,8 @@ impl Instruction {
             Operation::eq => {
                 if self.lhs == self.rhs {
                     return NodeEval::Const(FieldElement::one(), ObjectType::boolean);
-                } else if l_constant.is_some() && r_constant.is_some() {
-                    if l_constant.unwrap() == r_constant.unwrap() {
+                } else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
+                    if l_const == r_const {
                         return NodeEval::Const(FieldElement::one(), ObjectType::boolean);
                     } else {
                         return NodeEval::Const(FieldElement::zero(), ObjectType::boolean);
@@ -610,8 +613,8 @@ impl Instruction {
                 }
             }
             Operation::ne => {
-                if l_constant.is_some() && r_constant.is_some() {
-                    if r_constant.unwrap() != l_constant.unwrap() {
+                if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
+                    if l_const != r_const {
                         return NodeEval::Const(FieldElement::one(), ObjectType::boolean);
                     } else {
                         return NodeEval::Const(FieldElement::zero(), ObjectType::boolean);
@@ -621,33 +624,25 @@ impl Instruction {
             Operation::and => {
                 if l_is_zero {
                     return *lhs;
-                } else if r_is_zero {
+                } else if r_is_zero || l_is_const {
                     return *rhs;
-                } else if l_constant.is_some() {
-                    return *rhs;
-                } else if r_constant.is_some() {
-                    return *lhs;
-                } else if self.lhs == self.rhs {
+                } else if l_is_const || self.lhs == self.rhs {
                     return *lhs;
                 }
             }
             Operation::or => {
                 if l_is_zero {
                     return *rhs;
-                } else if r_is_zero {
+                } else if r_is_zero || l_is_const {
                     return *lhs;
-                } else if l_constant.is_some() {
-                    return *lhs;
-                } else if r_constant.is_some() {
+                } else if r_is_const || self.lhs == self.rhs {
                     return *rhs;
-                } else if self.lhs == self.rhs {
-                    return *lhs;
                 }
             }
             Operation::not => {
                 if l_is_zero {
                     return NodeEval::Const(FieldElement::one(), ObjectType::boolean);
-                } else if l_constant.is_some() {
+                } else if l_is_const {
                     return NodeEval::Const(FieldElement::zero(), ObjectType::boolean);
                 }
             }
@@ -660,13 +655,13 @@ impl Instruction {
                 }
                 if r_is_zero {
                     return *lhs;
-                } else if l_constant.is_some() && r_constant.is_some() {
+                } else if l_is_const && r_is_const {
                     return NodeEval::Const(FieldElement::zero(), ObjectType::boolean);
-                } else if l_constant.is_some() {
+                } else if l_is_const {
                     todo!();
                     //TODO generate 'not rhs' instruction
-                } else if r_constant.is_some() {
-                    todo!();
+                } else if r_is_const {
+                    todo!("");
                     ////TODO generate 'not lhs' instruction
                 }
             }

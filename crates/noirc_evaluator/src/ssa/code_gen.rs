@@ -1,7 +1,7 @@
 use super::{block, flatten, integer, node, optim, ssa_form};
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::io;
+//use std::io;
 
 use super::super::environment::Environment;
 use super::super::errors::{RuntimeError, RuntimeErrorKind};
@@ -14,13 +14,10 @@ use arena;
 use noirc_frontend::hir::Context;
 use noirc_frontend::hir_def::function::HirFunction;
 use noirc_frontend::hir_def::{
-    expr::{
-        HirBinaryOp, HirBinaryOpKind, HirBlockExpression, HirCallExpression, HirExpression,
-        HirForExpression, HirLiteral,
-    },
+    expr::{HirBinaryOp, HirBinaryOpKind, HirExpression, HirForExpression, HirLiteral},
     stmt::{HirConstrainStatement, HirLetStatement, HirPrivateStatement, HirStatement},
 };
-use noirc_frontend::node_interner::{ExprId, FuncId, IdentId, StmtId};
+use noirc_frontend::node_interner::{ExprId, IdentId, StmtId};
 //use noirc_frontend::{FunctionKind, Type};
 use num_bigint::BigUint;
 
@@ -84,12 +81,7 @@ impl<'a> IRGenerator<'a> {
             }
             let lhs_str = self.to_string(ins.lhs);
             let rhs_str = self.to_string(ins.rhs);
-            let ins_str = format!(
-                "{} {} {}",
-                lhs_str,
-                format!(" op:{:?} ", ins.operator),
-                rhs_str
-            );
+            let ins_str = format!("{} op:{:?} {}", lhs_str, ins.operator, rhs_str);
             println!("{}: {}", str_res, ins_str);
 
             if ins.operator == node::Operation::phi {
@@ -315,7 +307,7 @@ impl<'a> IRGenerator<'a> {
             let obj = node::NodeObj::Const(obj_cst);
             idx = self.add_object(obj);
         } else {
-            idx = self.id0;
+            //idx = self.id0;
             todo!();
             //we should support integer of size < FieldElement::max_num_bits()/2, because else we cannot support multiplication!
             //for bigger size, we will need to represent an integer using several field elements, it may be easier to implement them in Noir! (i.e as a Noir library)
@@ -418,11 +410,11 @@ impl<'a> IRGenerator<'a> {
     fn evaluate_identifier(&mut self, env: &mut Environment, ident_id: &IdentId) -> arena::Index {
         let ident_name = self.context.unwrap().def_interner.ident_name(ident_id);
         let ident_def = self.context.unwrap().def_interner.ident_def(ident_id);
-        let var = self.find_variable(&ident_def); //TODO by name or by id?
-        let v_id;
-        if var.is_some() {
-            v_id = ssa_form::get_current_value(self, var.unwrap().id);
-            return v_id;
+        // let var = self.find_variable(&ident_def); //TODO by name or by id?
+        // if let Some(node::Variable { id, .. }) = self.find_variable(&ident_def) {
+        if let Some(var) = self.find_variable(&ident_def) {
+            let id = var.id;
+            return ssa_form::get_current_value(self, id);
         }
         let obj = env.get(&ident_name);
         let obj_type = node::ObjectType::get_type_from_object(&obj);
@@ -438,7 +430,7 @@ impl<'a> IRGenerator<'a> {
             parent_block: self.current_block,
         };
 
-        v_id = self.add_variable(obj, None);
+        let v_id = self.add_variable(obj, None);
         self.get_block_mut(self.current_block)
             .unwrap()
             .update_variable(v_id, v_id);
@@ -509,11 +501,6 @@ impl<'a> IRGenerator<'a> {
                     .context()
                     .def_interner
                     .ident_def(&assign_stmt.identifier);
-                let ident_name = self
-                    .context
-                    .unwrap()
-                    .def_interner
-                    .ident_name(&assign_stmt.identifier);
                 let lhs = self.find_variable(&ident_def).unwrap(); //left hand must be already declared
                 let new_var = node::Variable {
                     id: lhs.id,
@@ -531,12 +518,9 @@ impl<'a> IRGenerator<'a> {
 
                 let rhs_id = self.expression_to_object(env, &assign_stmt.expression)?;
                 let rhs = self.get_object(rhs_id).unwrap();
-                let result = self.new_instruction(
-                    new_var_id,
-                    rhs.get_id(),
-                    node::Operation::ass,
-                    rhs.get_type(),
-                );
+                let r_type = rhs.get_type();
+                let r_id = rhs.get_id();
+                let result = self.new_instruction(new_var_id, r_id, node::Operation::ass, r_type);
                 self.update_variable_id(ls_root, new_var_id, result); //update the name and the value map
                 Ok(result)
             }
@@ -644,7 +628,8 @@ impl<'a> IRGenerator<'a> {
         // Create assign instruction
         let rhs_id = self.expression_to_object(env, &priv_stmt.expression)?;
         let rhs = self.get_object(rhs_id).unwrap();
-        let result = self.new_instruction(new_var_id, rhs_id, node::Operation::ass, rhs.get_type());
+        let r_type = rhs.get_type();
+        let result = self.new_instruction(new_var_id, rhs_id, node::Operation::ass, r_type);
         //self.update_variable_id(lhs_id, new_var_id); //update the name and the value array
         Ok(result)
     }
@@ -731,7 +716,7 @@ impl<'a> IRGenerator<'a> {
                 // Currently these only happen for arrays
                 let arr_name = self.context().def_interner.ident_name(&indexed_expr.collection_name);
                 let ident_span = self.context().def_interner.ident_span(&indexed_expr.collection_name);
-                let arr = env.get_array(&arr_name).map_err(|kind|kind.add_span(ident_span))?;
+                let _arr = env.get_array(&arr_name).map_err(|kind|kind.add_span(ident_span))?;
                 //
                 // Evaluate the index expression
                 let index_as_obj = self.expression_to_object(env, &indexed_expr.index)?;
@@ -858,7 +843,7 @@ impl<'a> IRGenerator<'a> {
         body_block1.update_variable(iter_id, phi); //TODO try with just a get_current_value(iter)
         let statements = block.statements();
         for stmt in statements {
-            self.evaluate_statement(env, stmt);
+            self.evaluate_statement(env, stmt).unwrap_err(); //TODO return the error
         }
 
         //increment iter

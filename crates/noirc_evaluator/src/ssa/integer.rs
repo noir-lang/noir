@@ -35,12 +35,8 @@ pub fn get_obj_max_value(
     if max_map.contains_key(&id) {
         return max_map[&id].clone();
     }
-    let obj_;
-    if obj.is_none() {
-        obj_ = eval.get_object(id).unwrap();
-    } else {
-        obj_ = obj.unwrap();
-    }
+
+    let obj_ = obj.unwrap_or_else(|| eval.get_object(id).unwrap());
 
     let result: BigUint;
     result = match obj_ {

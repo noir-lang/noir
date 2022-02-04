@@ -36,10 +36,7 @@ impl BasicBlock {
     }
 
     pub fn get_current_value(&self, idx: arena::Index) -> Option<arena::Index> {
-        match self.value_map.get(&idx) {
-            Some(cur_idx) => Some(*cur_idx),
-            None => None,
-        }
+        self.value_map.get(&idx).copied()
     }
 
     //When generating a new instance of a variable because of ssa, we update the value array
@@ -60,7 +57,7 @@ impl BasicBlock {
 ///////////
 
 pub fn create_first_block(igen: &mut IRGenerator) {
-    let mut first_block = BasicBlock::new(igen.dummy(), BlockType::Normal);
+    let first_block = BasicBlock::new(igen.dummy(), BlockType::Normal);
     let new_idx = igen.blocks.insert(first_block);
     let block2 = igen.blocks.get_mut(new_idx).unwrap(); //RIA..
     block2.idx = new_idx;

@@ -126,7 +126,9 @@ impl Acir {
             Operation::udiv => {
                 output = evaluate_udiv(&l_c, &r_c, evaluator);
             }
-            Operation::sdiv => todo!(),
+            Operation::sdiv => {
+                output = evaluate_sdiv(&l_c, &r_c, evaluator);
+            }
             Operation::urem => todo!(),
             Operation::srem => todo!(),
             Operation::fmod => todo!(),
@@ -214,8 +216,12 @@ pub fn evaluate_truncate(
         bit_size: rhs,
     }));
 
-    range_constraint(b_witness, rhs, evaluator);
-    range_constraint(c_witness, max_bits - rhs, evaluator);
+    range_constraint(b_witness, rhs, evaluator).unwrap_or_else(|err| {
+        dbg!(err);
+    }); //TODO propagate the error using ?
+    range_constraint(c_witness, max_bits - rhs, evaluator).unwrap_or_else(|err| {
+        dbg!(err);
+    });
 
     //2. Add the constraint a = b+2^Nc
     let mut f = FieldElement::from(2_i128);
@@ -324,8 +330,10 @@ pub fn evaluate_udiv(
     };
     bound_check(&r_var, rhs, true, 32, evaluator); //TODO bit size! should be max(a.bit, b.bit)
                                                    //range check q<=a
-    range_constraint(q_witness, 32, evaluator); //todo bit size should be a.bits
-                                                // a-b*q-r = 0
+    range_constraint(q_witness, 32, evaluator).unwrap_or_else(|err| {
+        dbg!(err);
+    }); //todo bit size should be a.bits
+        // a-b*q-r = 0
     let div_eucl = add(
         &lhs.expression,
         -FieldElement::one(),
@@ -632,8 +640,12 @@ pub fn range_constraint(
         //     r: r_witness,
         //     bit_size: num_bits,
         // }));
-        range_constraint(r_witness, num_bits - 1, evaluator);
-        range_constraint(b_witness, 1, evaluator);
+        range_constraint(r_witness, num_bits - 1, evaluator).unwrap_or_else(|err| {
+            dbg!(err);
+        });
+        range_constraint(b_witness, 1, evaluator).unwrap_or_else(|err| {
+            dbg!(err);
+        });
         //Add the constraint a = r + 2^N*b
         let mut f = FieldElement::from(2_i128);
         f = f.pow(&FieldElement::from((num_bits - 1) as i128));
@@ -684,7 +696,9 @@ fn bound_check(
     evaluator
         .gates
         .push(Gate::Arithmetic(&sub_expression - &Arithmetic::from(&w)));
-    range_constraint(w, bits, evaluator);
+    range_constraint(w, bits, evaluator).unwrap_or_else(|err| {
+        dbg!(err);
+    });
     //Ok()
 }
 

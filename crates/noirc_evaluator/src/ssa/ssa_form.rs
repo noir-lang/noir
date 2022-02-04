@@ -41,8 +41,9 @@ pub fn seal_block(igen: &mut IRGenerator, block_id: arena::Index) {
     let instructions = block.instructions.clone();
     for i in instructions {
         if let Some(ins) = igen.try_get_instruction(i) {
+            let rhs = ins.rhs;
             if ins.operator == node::Operation::phi {
-                write_phi(igen, &pred, ins.rhs, i);
+                write_phi(igen, &pred, rhs, i);
             }
         }
     }
@@ -69,7 +70,7 @@ pub fn get_block_value(
             return root;
         }
         if pred.len() == 1 {
-            result = get_block_value(igen, root, block.predecessor[0]);
+            result = get_block_value(igen, root, pred[0]);
         } else {
             result = igen.generate_empty_phi(block_id, root);
             write_phi(igen, &pred, root, result);
