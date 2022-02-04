@@ -3,8 +3,8 @@ mod errors;
 mod parser;
 
 use crate::token::Token;
-use crate::{ast::ImportStatement, NoirFunction};
-use crate::{Expression, Ident};
+use crate::{ast::ImportStatement, Expression, NoirStruct};
+use crate::{Ident, NoirFunction};
 
 use chumsky::prelude::*;
 pub use errors::ParserError;
@@ -16,6 +16,7 @@ enum TopLevelStatement {
     Function(NoirFunction),
     Module(Ident),
     Import(ImportStatement),
+    Struct(NoirStruct),
 }
 
 // Helper trait that gives us simpler type signatures for return types:
@@ -63,13 +64,13 @@ fn foldl_with_span<P1, P2, T1, T2, F>(
 where
     P1: NoirParser<T1>,
     P2: NoirParser<T2>,
-    F: Fn((T1, Span), (T2, Span)) -> T1,
+    F: Fn(T1, T2, Span) -> T1,
 {
     spanned(first_parser)
         .then(spanned(to_be_repeated).repeated())
-        .foldl(move |a, b| {
-            let span = a.1;
-            (f(a, b), span)
+        .foldl(move |(a, a_span), (b, b_span)| {
+            let span = a_span.merge(b_span);
+            (f(a, b, span), span)
         })
         .map(|(value, _span)| value)
 }
@@ -78,6 +79,7 @@ where
 pub struct ParsedModule {
     pub imports: Vec<ImportStatement>,
     pub functions: Vec<NoirFunction>,
+    pub types: Vec<NoirStruct>,
     pub module_decls: Vec<Ident>,
 }
 
@@ -86,6 +88,7 @@ impl ParsedModule {
         ParsedModule {
             imports: Vec::with_capacity(cap),
             functions: Vec::with_capacity(cap),
+            types: Vec::with_capacity(cap),
             module_decls: Vec::new(),
         }
     }
@@ -93,9 +96,15 @@ impl ParsedModule {
     fn push_function(&mut self, func: NoirFunction) {
         self.functions.push(func);
     }
+
+    fn push_type(&mut self, typ: NoirStruct) {
+        self.types.push(typ);
+    }
+
     fn push_import(&mut self, import_stmt: ImportStatement) {
         self.imports.push(import_stmt);
     }
+
     fn push_module_decl(&mut self, mod_name: Ident) {
         self.module_decls.push(mod_name);
     }
@@ -154,6 +163,7 @@ impl std::fmt::Display for TopLevelStatement {
             TopLevelStatement::Function(fun) => fun.fmt(f),
             TopLevelStatement::Module(m) => write!(f, "mod {}", m),
             TopLevelStatement::Import(i) => i.fmt(f),
+            TopLevelStatement::Struct(s) => s.fmt(f),
         }
     }
 }

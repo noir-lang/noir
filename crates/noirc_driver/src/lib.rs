@@ -40,13 +40,11 @@ impl Driver {
         let mut driver = Driver::new();
         driver.create_local_crate(root_file, CrateType::Binary);
         driver.add_std_lib();
-        if let Err(errs) = CrateDefMap::collect_defs(LOCAL_CRATE, &mut driver.context) {
-            for errors in errs {
-                dbg!(errors);
-            }
-            return false;
+        let errs = CrateDefMap::collect_defs(LOCAL_CRATE, &mut driver.context);
+        for errors in &errs {
+            dbg!(errors);
         }
-        true
+        errs.is_empty()
     }
 
     /// Adds the File with the local crate root to the file system
@@ -129,17 +127,18 @@ impl Driver {
     }
 
     fn analyse_crate(&mut self) {
-        if let Err(errs) = CrateDefMap::collect_defs(LOCAL_CRATE, &mut self.context) {
-            for errors in errs {
-                Reporter::with_diagnostics(
-                    errors.file_id.as_usize(),
-                    &self.context.file_manager,
-                    &errors.errors,
-                );
-            }
-
-            std::process::exit(1);
+        let errs = CrateDefMap::collect_defs(LOCAL_CRATE, &mut self.context);
+        let mut error_count = 0;
+        for errors in &errs {
+            error_count += errors.errors.len();
+            Reporter::with_diagnostics(
+                errors.file_id.as_usize(),
+                &self.context.file_manager,
+                &errors.errors,
+            );
         }
+
+        Reporter::finish(error_count);
     }
 
     pub fn compute_abi(&self) -> Option<Abi> {
@@ -190,7 +189,8 @@ impl Driver {
                     &self.context.file_manager,
                     &[err.to_diagnostic()],
                 );
-                std::process::exit(1);
+                Reporter::finish(1);
+                unreachable!("reporter will exit before this point")
             }
         };
 

@@ -3,11 +3,21 @@
 mod expression;
 mod function;
 mod statement;
+mod structure;
+
+use std::rc::Rc;
 
 pub use expression::*;
 pub use function::*;
 use noirc_abi::{AbiFEType, AbiType};
+use noirc_errors::Span;
 pub use statement::*;
+pub use structure::*;
+
+use crate::{
+    node_interner::TypeId,
+    token::{IntType, Keyword},
+};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ArraySize {
@@ -40,7 +50,7 @@ impl std::fmt::Display for ArraySize {
 
 /// FieldElementType refers to how the Compiler type is interpreted by the proof system
 /// Example: FieldElementType::Private means that the Compiler type is seen as a witness/witnesses
-#[derive(Debug, Eq, Clone)]
+#[derive(Debug, Eq, Copy, Clone)]
 pub enum FieldElementType {
     Private,
     Public,
@@ -73,6 +83,15 @@ impl FieldElementType {
     pub fn strict_eq(&self, other: &FieldElementType) -> bool {
         std::mem::discriminant(self) == std::mem::discriminant(other)
     }
+
+    /// Return the corresponding keyword for this field type
+    pub fn as_keyword(self) -> Keyword {
+        match self {
+            FieldElementType::Private => Keyword::Priv,
+            FieldElementType::Public => Keyword::Pub,
+            FieldElementType::Constant => Keyword::Const,
+        }
+    }
 }
 
 impl std::fmt::Display for FieldElementType {
@@ -85,16 +104,49 @@ impl std::fmt::Display for FieldElementType {
     }
 }
 
+#[derive(Debug, Eq)]
+pub struct StructType {
+    pub id: TypeId,
+    pub name: Ident,
+    pub fields: Vec<(Ident, Type)>,
+    pub span: Span,
+}
+
+impl PartialEq for StructType {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl StructType {
+    pub fn new(id: TypeId, structure: NoirStruct) -> StructType {
+        StructType {
+            id,
+            name: structure.name,
+            fields: structure.fields,
+            span: structure.span,
+        }
+    }
+}
+
+impl std::fmt::Display for StructType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name)
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {
     FieldElement(FieldElementType),
     Array(FieldElementType, ArraySize, Box<Type>), // [4]Witness = Array(4, Witness)
     Integer(FieldElementType, Signedness, u32),    // u32 = Integer(unsigned, 32)
     Bool,
-    Error,       // XXX: Currently have not implemented structs, so this type is a stub
+    Unit,
+    Struct(Rc<StructType>),
+
+    Error,
     Unspecified, // This is for when the user declares a variable without specifying it's type
     Unknown, // This is mainly used for array literals, where the parser cannot figure out the type for the literal
-    Unit,
 }
 
 impl Type {
@@ -120,11 +172,12 @@ impl std::fmt::Display for Type {
                 Signedness::Signed => write!(f, "{} i{}", fe_type, num_bits),
                 Signedness::Unsigned => write!(f, "{} u{}", fe_type, num_bits),
             },
+            Type::Struct(s) => s.fmt(f),
             Type::Bool => write!(f, "bool"),
-            Type::Error => write!(f, "Error"),
+            Type::Unit => write!(f, "()"),
+            Type::Error => write!(f, "error"),
             Type::Unspecified => write!(f, "unspecified"),
             Type::Unknown => write!(f, "unknown"),
-            Type::Unit => write!(f, "()"),
         }
     }
 }
@@ -177,20 +230,18 @@ impl Type {
     /// Arrays and Structs will be the only data structures to return more than one
 
     pub fn num_elements(&self) -> usize {
-        let arr_size = match self {
-            Type::Array(_, size, _) => size,
+        match self {
+            Type::Array(_, ArraySize::Fixed(fixed_size), _) => *fixed_size as usize,
+            Type::Array(_, ArraySize::Variable, _) =>
+                unreachable!("ice : this method is only ever called when we want to compare the prover inputs with the ABI in main. The ABI should not have variable input. The program should be compiled before calling this"),
+            Type::Struct(s) => s.fields.len(),
             Type::FieldElement(_)
             | Type::Integer(_, _, _)
             | Type::Bool
             | Type::Error
             | Type::Unspecified
             | Type::Unknown
-            | Type::Unit => return 1,
-        };
-
-        match arr_size {
-            ArraySize::Variable => unreachable!("ice : this method is only ever called when we want to compare the prover inputs with the ABI in main. The ABI should not have variable input. The program should be compiled before calling this"),
-            ArraySize::Fixed(fixed_size) => *fixed_size as usize
+            | Type::Unit => 1,
         }
     }
 
@@ -300,11 +351,10 @@ impl Type {
             Type::Unspecified => unreachable!(),
             Type::Unknown => unreachable!(),
             Type::Unit => unreachable!(),
+            Type::Struct(_) => todo!(),
         }
     }
 }
-
-use crate::token::IntType;
 
 impl Type {
     pub fn from_int_tok(field_type: FieldElementType, int_tok: &IntType) -> Type {

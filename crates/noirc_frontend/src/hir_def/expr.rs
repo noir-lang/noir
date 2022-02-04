@@ -1,8 +1,10 @@
+use std::rc::Rc;
+
 use acvm::FieldElement;
 use noirc_errors::Span;
 
-use crate::node_interner::{ExprId, FuncId, IdentId, StmtId};
-use crate::{BinaryOp, BinaryOpKind, Type, UnaryOp};
+use crate::node_interner::{ExprId, FuncId, IdentId, StmtId, TypeId};
+use crate::{BinaryOp, BinaryOpKind, Ident, StructType, Type, UnaryOp};
 
 #[derive(Debug, Clone)]
 pub enum HirExpression {
@@ -12,6 +14,8 @@ pub enum HirExpression {
     Prefix(HirPrefixExpression),
     Infix(HirInfixExpression),
     Index(HirIndexExpression),
+    Constructor(HirConstructorExpression),
+    MemberAccess(HirMemberAccess),
     Call(HirCallExpression),
     Cast(HirCastExpression),
     For(HirForExpression),
@@ -48,6 +52,7 @@ pub enum HirBinaryOpKind {
     And,
     Or,
     Xor,
+    MemberAccess,
     Assign,
 }
 
@@ -142,6 +147,14 @@ pub struct HirInfixExpression {
 }
 
 #[derive(Debug, Clone)]
+pub struct HirMemberAccess {
+    pub lhs: ExprId,
+    // This field is not an IdentId since the rhs of a field
+    // access has no corresponding definition
+    pub rhs: Ident,
+}
+
+#[derive(Debug, Clone)]
 pub struct HirIfExpression {
     pub condition: ExprId,
     pub consequence: ExprId,
@@ -165,6 +178,20 @@ pub struct HirCallExpression {
     pub func_id: FuncId,
     pub arguments: Vec<ExprId>,
 }
+
+#[derive(Debug, Clone)]
+pub struct HirConstructorExpression {
+    pub type_id: TypeId,
+    pub r#type: Rc<StructType>,
+
+    // NOTE: It is tempting to make this a BTreeSet to force ordering of field
+    //       names (and thus remove the need to normalize them during type checking)
+    //       but doing so would force the order of evaluation of field
+    //       arguments to be alphabetical rather than the ordering the user
+    //       included in the source code.
+    pub fields: Vec<(IdentId, ExprId)>,
+}
+
 #[derive(Debug, Clone)]
 pub struct HirIndexExpression {
     pub collection_name: IdentId,

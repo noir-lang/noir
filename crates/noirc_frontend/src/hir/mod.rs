@@ -5,7 +5,7 @@ pub mod scope;
 pub mod type_check;
 
 use crate::graph::{CrateGraph, CrateId};
-use crate::node_interner::NodeInterner;
+use crate::node_interner::{NodeInterner, TypeId};
 use def_map::CrateDefMap;
 use fm::FileManager;
 use std::collections::HashMap;
@@ -14,11 +14,11 @@ use std::collections::HashMap;
 #[derive(Debug)]
 pub struct Context {
     pub def_interner: NodeInterner,
-
     pub crate_graph: CrateGraph,
-
     pub(crate) def_maps: HashMap<CrateId, CrateDefMap>,
 
+    /// Used to generate unique TypeIds for NoirStructs
+    pub struct_count: usize,
     pub file_manager: FileManager,
 }
 
@@ -29,6 +29,7 @@ impl Default for Context {
             crate_graph: CrateGraph::default(),
             file_manager: FileManager::new(),
             def_maps: HashMap::new(),
+            struct_count: 0,
         }
     }
 }
@@ -40,6 +41,7 @@ impl Context {
             def_maps: HashMap::new(),
             crate_graph,
             file_manager,
+            struct_count: 0,
         }
     }
     /// Returns the CrateDefMap for a given CrateId.
@@ -54,5 +56,13 @@ impl Context {
     /// successfully
     pub fn crates(&self) -> impl Iterator<Item = CrateId> + '_ {
         self.crate_graph.iter_keys()
+    }
+
+    /// Increments the current count and returns the next
+    /// unique TypeId
+    pub fn next_struct_id(&mut self) -> TypeId {
+        let count = self.struct_count;
+        self.struct_count += 1;
+        TypeId::new(count)
     }
 }

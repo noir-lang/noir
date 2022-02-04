@@ -5,11 +5,11 @@ use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::resolver::Resolver;
 use crate::hir::resolution::{
     import::{resolve_imports, ImportDirective},
-    path_resolver::FunctionPathResolver,
+    path_resolver::StandardPathResolver,
 };
 use crate::hir::Context;
-use crate::node_interner::{FuncId, NodeInterner};
-use crate::{NoirFunction, ParsedModule};
+use crate::node_interner::{FuncId, NodeInterner, TypeId};
+use crate::{NoirFunction, ParsedModule, StructType};
 use fm::FileId;
 use noirc_errors::CollectedErrors;
 use noirc_errors::DiagnosableError;
@@ -32,6 +32,7 @@ pub struct DefCollector {
     pub(crate) def_map: CrateDefMap,
     pub(crate) collected_imports: Vec<ImportDirective>,
     pub(crate) collected_functions: Vec<UnresolvedFunctions>,
+    pub(crate) collected_types: HashMap<TypeId, StructType>,
 }
 
 impl DefCollector {
@@ -43,7 +44,7 @@ impl DefCollector {
         context: &mut Context,
         ast: ParsedModule,
         root_file_id: FileId,
-    ) -> Result<(), Vec<CollectedErrors>> {
+    ) -> Vec<CollectedErrors> {
         let crate_id = def_map.krate;
 
         // Recursively resolve the dependencies
@@ -52,8 +53,11 @@ impl DefCollector {
         // Then added these to the context of DefMaps once they are resolved
         //
         let crate_graph = &context.crate_graph[crate_id];
+        let mut errors = vec![];
+
         for dep in crate_graph.dependencies.clone() {
-            CrateDefMap::collect_defs(dep.crate_id, context)?;
+            let mut collect_errors = CrateDefMap::collect_defs(dep.crate_id, context);
+            errors.append(&mut collect_errors);
 
             let dep_def_root = context
                 .def_map(dep.crate_id)
@@ -75,19 +79,22 @@ impl DefCollector {
             def_map,
             collected_imports: Vec::new(),
             collected_functions: Vec::new(),
+            collected_types: HashMap::new(),
         };
 
         // Collecting module declarations with ModCollector
         // and lowering the functions
         // i.e. Use a mod collector to collect the nodes at the root module
         // and process them
-        ModCollector {
+        let mut mod_errors = ModCollector {
             def_collector: &mut def_collector,
             ast,
             file_id: root_file_id,
             module_id: crate_root,
         }
-        .collect_defs(context)?;
+        .collect_defs(context);
+
+        errors.append(&mut mod_errors);
 
         // Add the current crate to the collection of DefMaps
         context.def_maps.insert(crate_id, def_collector.def_map);
@@ -95,8 +102,6 @@ impl DefCollector {
         // Resolve unresolved imports collected from the crate
         let (unresolved, resolved) =
             resolve_imports(crate_id, def_collector.collected_imports, &context.def_maps);
-
-        let mut unresolved_errors = Vec::new();
 
         let current_def_map = context.def_maps.get(&crate_id).unwrap();
         for unresolved_import in unresolved.into_iter() {
@@ -112,10 +117,7 @@ impl DefCollector {
                 file_id,
                 errors: vec![diagnostic],
             };
-            unresolved_errors.push(err);
-        }
-        if !unresolved_errors.is_empty() {
-            return Err(unresolved_errors);
+            errors.push(err);
         }
 
         // Populate module namespaces according to the imports used
@@ -123,35 +125,44 @@ impl DefCollector {
         for resolved_import in resolved {
             let name = resolved_import.name;
             for ns in resolved_import.resolved_namespace.iter_defs() {
-                current_def_map.modules[resolved_import.module_scope.0]
+                let result = current_def_map.modules[resolved_import.module_scope.0]
                     .scope
-                    .add_item_to_namespace(name.clone(), ns)
-                    .map_err(|(first_def, second_def)| {
-                        let err = DefCollectorErrorKind::DuplicateImport {
-                            first_def,
-                            second_def,
-                        };
+                    .add_item_to_namespace(name.clone(), ns);
 
-                        vec![CollectedErrors {
-                            file_id: root_file_id,
-                            errors: vec![err.to_diagnostic()],
-                        }]
-                    })?;
+                if let Err((first_def, second_def)) = result {
+                    let err = DefCollectorErrorKind::DuplicateImport {
+                        first_def,
+                        second_def,
+                    };
+
+                    errors.push(CollectedErrors {
+                        file_id: root_file_id,
+                        errors: vec![err.to_diagnostic()],
+                    });
+                }
             }
         }
 
+        // Create the mappings from TypeId -> StructType
+        // so that expressions can access the fields of structs
+        for (id, typ) in def_collector.collected_types {
+            context.def_interner.push_struct(id, typ);
+        }
+
         // Lower each function in the crate. This is now possible since imports have been resolved
-        let file_func_ids = resolve_functions(
+        let (file_func_ids, mut function_errors) = resolve_functions(
             &mut context.def_interner,
             crate_id,
             &context.def_maps,
             def_collector.collected_functions,
-        )?;
+        );
+
+        errors.append(&mut function_errors);
 
         // Type check all of the functions in the crate
-        type_check_functions(&mut context.def_interner, file_func_ids)?;
-
-        Ok(())
+        let mut type_errors = type_check_functions(&mut context.def_interner, file_func_ids);
+        errors.append(&mut type_errors);
+        errors
     }
 }
 
@@ -160,7 +171,7 @@ fn resolve_functions(
     crate_id: CrateId,
     def_maps: &HashMap<CrateId, CrateDefMap>,
     collected_functions: Vec<UnresolvedFunctions>,
-) -> Result<Vec<(FileId, FuncId)>, Vec<CollectedErrors>> {
+) -> (Vec<(FileId, FuncId)>, Vec<CollectedErrors>) {
     let mut file_func_ids = Vec::new();
     let mut errors = Vec::new();
 
@@ -175,50 +186,44 @@ fn resolve_functions(
         for (mod_id, func_id, func) in unresolved_functions.functions {
             file_func_ids.push((file_id, func_id));
 
-            let func_resolver = FunctionPathResolver::new(ModuleId {
+            let path_resolver = StandardPathResolver::new(ModuleId {
                 local_id: mod_id,
                 krate: crate_id,
             });
-            let resolver = Resolver::new(interner, &func_resolver, def_maps);
 
-            match resolver.resolve_function(func) {
-                Ok((hir_func, func_meta)) => {
-                    interner.push_fn_meta(func_meta, func_id);
-                    interner.update_fn(func_id, hir_func);
-                }
-                Err(errs) => {
-                    collected_errors
-                        .errors
-                        .extend(errs.into_iter().map(|err| err.into_diagnostic(interner)));
-                }
-            }
+            let resolver = Resolver::new(interner, &path_resolver, def_maps);
+
+            let (hir_func, func_meta, errs) = resolver.resolve_function(func);
+            interner.push_fn_meta(func_meta, func_id);
+            interner.update_fn(func_id, hir_func);
+            collected_errors
+                .errors
+                .extend(errs.into_iter().map(|err| err.into_diagnostic(interner)));
         }
         if !collected_errors.errors.is_empty() {
             errors.push(collected_errors);
         }
     }
 
-    if errors.is_empty() {
-        return Ok(file_func_ids);
-    }
-    Err(errors)
+    (file_func_ids, errors)
 }
 
 use crate::hir::type_check::type_check_func;
 fn type_check_functions(
     interner: &mut NodeInterner,
     file_func_ids: Vec<(FileId, FuncId)>,
-) -> Result<(), Vec<CollectedErrors>> {
+) -> Vec<CollectedErrors> {
+    let mut errors = vec![];
+
     for (file_id, func_id) in file_func_ids {
-        if let Err(type_err) = type_check_func(interner, func_id) {
-            let diag = type_err.into_diagnostics(interner);
-            let errs = vec![CollectedErrors {
+        for type_error in type_check_func(interner, func_id) {
+            let diag = type_error.into_diagnostics(interner);
+            errors.push(CollectedErrors {
                 file_id,
                 errors: diag,
-            }];
-            return Err(errs);
+            });
         }
     }
 
-    Ok(())
+    errors
 }
