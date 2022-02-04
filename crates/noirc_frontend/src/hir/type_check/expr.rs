@@ -2,13 +2,12 @@ use crate::{
     hir_def::{
         expr::{self, HirBinaryOp, HirExpression, HirLiteral},
         function::Param,
-        stmt::HirStatement,
     },
     util::vecmap,
     ArraySize, Type,
 };
 use crate::{
-    node_interner::{ExprId, NodeInterner, StmtId},
+    node_interner::{ExprId, NodeInterner},
     FieldElementType,
 };
 
@@ -222,14 +221,26 @@ pub(crate) fn type_check_expression(
             )
         }
         HirExpression::Block(block_expr) => {
-            for stmt in block_expr.statements() {
-                super::stmt::type_check(interner, stmt, errors);
+            let mut block_type = Type::Unit;
+
+            let statements = block_expr.statements();
+            for (i, stmt) in statements.iter().enumerate() {
+                let expr_type = super::stmt::type_check(interner, stmt, errors);
+
+                if i + 1 < statements.len() {
+                    if expr_type != Type::Unit {
+                        errors.push(TypeCheckError::TypeMismatch {
+                            expected_typ: Type::Unit.to_string(),
+                            expr_typ: expr_type.to_string(),
+                            expr_span: interner.expr_span(expr_id),
+                        });
+                    }
+                } else {
+                    block_type = expr_type;
+                }
             }
 
-            match block_expr.statements().last() {
-                None => Type::Unit,
-                Some(stmt) => extract_ret_type(interner, stmt),
-            }
+            block_type
         }
         HirExpression::Prefix(_) => {
             // type_of(prefix_expr) == type_of(rhs_expression)
@@ -482,22 +493,5 @@ fn check_param_argument(
             expr_typ: arg_type.to_string(),
             expr_span: interner.expr_span(&expr_id),
         });
-    }
-}
-
-fn extract_ret_type(interner: &NodeInterner, stmt_id: &StmtId) -> Type {
-    let stmt = interner.statement(stmt_id);
-    match stmt {
-        HirStatement::Let(_)
-        | HirStatement::Const(_)
-        | HirStatement::Private(_)
-        // We could fetch the type here also for Semi
-        // It would return Unit, as we modify the
-        // return type in the interner after type checking it
-        | HirStatement::Semi(_)
-        | HirStatement::Assign(_)
-        | HirStatement::Constrain(_) => Type::Unit,
-        HirStatement::Expression(expr_id) => interner.id_type(&expr_id),
-        HirStatement::Error => Type::Error,
     }
 }

@@ -128,6 +128,8 @@ impl chumsky::Error<Token> for ParserError {
     }
 
     fn with_label(mut self, label: Self::Label) -> Self {
+        self.expected_tokens.clear();
+        self.expected_labels.clear();
         self.expected_labels.insert(label);
         self
     }
