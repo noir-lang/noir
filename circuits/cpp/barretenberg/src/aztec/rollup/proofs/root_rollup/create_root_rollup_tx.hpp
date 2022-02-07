@@ -10,9 +10,9 @@ namespace rollup {
 namespace proofs {
 namespace root_rollup {
 
-using WorldState = world_state::WorldState<MemoryStore>;
+using WorldState = world_state::WorldState<plonk::stdlib::merkle_tree::MemoryStore>;
 
-inline void pad_rollup_tx(root_rollup_tx& rollup, circuit_data const& circuit_data)
+inline void pad_root_rollup_tx(root_rollup_tx& rollup, circuit_data const& circuit_data)
 {
     rollup.rollups.resize(circuit_data.num_inner_rollups, circuit_data.inner_rollup_circuit_data.padding_proof);
     rollup.num_previous_defi_interactions = rollup.defi_interaction_notes.size();

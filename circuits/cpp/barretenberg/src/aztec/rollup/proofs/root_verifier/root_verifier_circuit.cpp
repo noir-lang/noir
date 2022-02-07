@@ -29,12 +29,8 @@ recursion_output<outer_curve> root_verifier_circuit(
                                                                      waffle::plonk_proof{ tx.proof_data },
                                                                      recursion_output);
 
-    // get the index of the first recursive proof element
-    auto idx = (inner_verification_key->recursive_proof_public_input_indices).front();
-    for (size_t i = 0; i != idx; i++) {
-        composer.set_public_input(recursion_output.public_inputs[i].witness_index);
-    }
-
+    // Expose the broadcast data hash, and recursion point inputs.
+    recursion_output.public_inputs[0].set_public();
     recursion_output.add_proof_outputs_as_public_inputs();
 
     return recursion_output;

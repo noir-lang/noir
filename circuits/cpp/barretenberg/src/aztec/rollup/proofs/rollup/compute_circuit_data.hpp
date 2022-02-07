@@ -29,7 +29,8 @@ inline circuit_data get_circuit_data(size_t rollup_size,
                                      bool save = true,
                                      bool load = true,
                                      bool pk = true,
-                                     bool vk = true)
+                                     bool vk = true,
+                                     bool mock = false)
 {
     auto floor_max_txs = 1UL << numeric::get_msb(rollup_size);
     auto rollup_size_pow2 = rollup_size == floor_max_txs ? rollup_size : floor_max_txs << 1UL;
@@ -49,7 +50,8 @@ inline circuit_data get_circuit_data(size_t rollup_size,
         rollup_circuit(composer, rollup, verification_keys, rollup_size);
     };
 
-    auto cd = proofs::get_circuit_data<Composer>(name, srs, key_path, compute, save, load, pk, vk, true, build_circuit);
+    auto cd = proofs::get_circuit_data<Composer>(
+        "tx rollup", name, srs, key_path, compute, save, load, pk, vk, true, mock, build_circuit);
 
     circuit_data data;
     data.num_gates = cd.num_gates;
@@ -60,7 +62,8 @@ inline circuit_data get_circuit_data(size_t rollup_size,
     data.num_txs = rollup_size;
     data.rollup_size = rollup_size_pow2;
     data.join_split_circuit_data = join_split_circuit_data;
-    data.verifier_crs = cd.verifier_crs;
+    data.srs = cd.srs;
+    data.mock = cd.mock;
 
     return data;
 }

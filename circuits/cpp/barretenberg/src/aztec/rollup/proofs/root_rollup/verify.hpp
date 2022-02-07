@@ -1,4 +1,5 @@
 #pragma once
+#include "../verify.hpp"
 #include "compute_circuit_data.hpp"
 #include "root_rollup_tx.hpp"
 
@@ -9,20 +10,13 @@ namespace root_rollup {
 using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
 
-struct verify_result {
-    bool verified;
-    bool logic_verified;
-    std::vector<fr> public_inputs;
-    std::vector<uint8_t> proof_data;
+struct verify_result : ::rollup::proofs::verify_result<Composer> {
     std::vector<fr> broadcast_data;
-    recursion_output<bn254> recursion_output_data;
 };
 
-verify_result verify_logic(root_rollup_tx& rollup, circuit_data const& circuit_data);
+verify_result verify_logic(root_rollup_tx& tx, circuit_data const& cd);
 
-verify_result verify_proverless(root_rollup_tx& rollup, circuit_data const& circuit_data);
-
-verify_result verify(root_rollup_tx& rollup, circuit_data const& circuit_data);
+verify_result verify(root_rollup_tx& tx, circuit_data const& cd);
 
 } // namespace root_rollup
 } // namespace proofs

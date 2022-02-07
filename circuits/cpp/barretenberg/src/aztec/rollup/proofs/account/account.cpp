@@ -1,5 +1,6 @@
 #include "account.hpp"
 #include "../notes/circuit/account/account_note.hpp"
+#include "../mock/mock_circuit.hpp"
 #include "../notes/constants.hpp"
 #include "../add_zero_public_inputs.hpp"
 #include <common/log.hpp>
@@ -126,7 +127,7 @@ void account_circuit(Composer& composer, account_tx const& tx)
     add_zero_public_inputs(composer, 2); // 2 chained transaction public inputs
 }
 
-void init_proving_key(std::shared_ptr<waffle::ReferenceStringFactory> const& crs_factory)
+void init_proving_key(std::shared_ptr<waffle::ReferenceStringFactory> const& crs_factory, bool mock)
 {
     // Junk data required just to create proving key.
     account_tx tx;
@@ -138,7 +139,13 @@ void init_proving_key(std::shared_ptr<waffle::ReferenceStringFactory> const& crs
 
     Composer composer(crs_factory);
     account_circuit(composer, tx);
-    proving_key = composer.compute_proving_key();
+    if (!mock) {
+        proving_key = composer.compute_proving_key();
+    } else {
+        Composer mock_proof_composer(crs_factory);
+        rollup::proofs::mock::mock_circuit(mock_proof_composer, composer.get_public_inputs());
+        proving_key = mock_proof_composer.compute_proving_key();
+    }
 }
 
 void init_proving_key(std::shared_ptr<waffle::ProverReferenceString> const& crs, waffle::proving_key_data&& pk_data)
@@ -149,7 +156,7 @@ void init_proving_key(std::shared_ptr<waffle::ProverReferenceString> const& crs,
 void init_verification_key(std::shared_ptr<waffle::ReferenceStringFactory> const& crs_factory)
 {
     if (!proving_key) {
-        init_proving_key(crs_factory);
+        throw_or_abort("Compute proving key first.");
     } else {
         // Patch the 'nothing' reference string fed to init_proving_key.
         proving_key->reference_string = crs_factory->get_prover_crs(proving_key->n);
@@ -163,7 +170,7 @@ void init_verification_key(std::shared_ptr<waffle::VerifierMemReferenceString> c
     verification_key = std::make_shared<waffle::verification_key>(std::move(vk_data), crs);
 }
 
-Composer new_account_composer(account_tx const& tx)
+UnrolledProver new_account_prover(account_tx const& tx, bool mock)
 {
     Composer composer(proving_key, nullptr);
     account_circuit(composer, tx);
@@ -175,7 +182,13 @@ Composer new_account_composer(account_tx const& tx)
     info("composer gates: ", composer.get_num_gates());
     info("public inputs: ", composer.public_inputs.size());
 
-    return composer;
+    if (!mock) {
+        return composer.create_unrolled_prover();
+    } else {
+        Composer mock_proof_composer(proving_key, nullptr);
+        rollup::proofs::mock::mock_circuit(mock_proof_composer, composer.get_public_inputs());
+        return mock_proof_composer.create_unrolled_prover();
+    }
 }
 
 bool verify_proof(waffle::plonk_proof const& proof)

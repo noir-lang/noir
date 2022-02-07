@@ -27,7 +27,7 @@ $4 = $3.dbl();
 (grumpkin::)?g(1|2)::mixed_add_or_sub\(([^,\s]*), ([^,\s]*), \3, ([^\s]*)\);
 
 barretenberg::fq::__mul(q1,q2, q1);
-fq::__mul_with_coarse_reduction(q1, q2,   q1);
+fq::__mul_with_coarse_reduction(q1, q2, q1);
 
 // regex captures for when output parameter = input parameter
 // these need to be replaced first, as the latter captures will also match against these strings

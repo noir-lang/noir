@@ -15,7 +15,7 @@ using namespace plonk::stdlib::merkle_tree;
 
 using circuit_data = proofs::circuit_data;
 
-inline circuit_data get_circuit_data(std::shared_ptr<waffle::ReferenceStringFactory> const& srs)
+inline circuit_data get_circuit_data(std::shared_ptr<waffle::ReferenceStringFactory> const& srs, bool mock = false)
 {
     std::cerr << "Getting claim circuit data..." << std::endl;
 
@@ -26,7 +26,8 @@ inline circuit_data get_circuit_data(std::shared_ptr<waffle::ReferenceStringFact
         claim_circuit(composer, claim_tx);
     };
 
-    return proofs::get_circuit_data<Composer>("", srs, "", true, false, false, true, true, false, build_circuit);
+    return proofs::get_circuit_data<Composer>(
+        "claim", "", srs, "", true, false, false, true, true, false, mock, build_circuit);
 }
 
 } // namespace claim

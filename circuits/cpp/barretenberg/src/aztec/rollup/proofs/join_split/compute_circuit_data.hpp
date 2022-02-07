@@ -10,7 +10,7 @@ join_split_tx noop_tx();
 
 using circuit_data = proofs::circuit_data;
 
-circuit_data get_circuit_data(std::shared_ptr<waffle::ReferenceStringFactory> const& srs);
+circuit_data get_circuit_data(std::shared_ptr<waffle::ReferenceStringFactory> const& srs, bool mock = false);
 
 } // namespace join_split
 } // namespace proofs

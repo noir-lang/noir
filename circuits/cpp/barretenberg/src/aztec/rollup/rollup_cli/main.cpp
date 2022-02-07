@@ -8,7 +8,6 @@
 #include "../proofs/rollup/index.hpp"
 #include "../proofs/root_rollup/index.hpp"
 #include "../proofs/root_verifier/index.hpp"
-#include "../proofs/proofless_padding.hpp"
 #include <common/timer.hpp>
 #include <common/container.hpp>
 #include <common/map.hpp>
@@ -26,8 +25,8 @@ std::string data_path;
 // True if rollup circuit data (proving and verification keys) are to be persisted to disk.
 // We likely don't have enough memory to hold all keys in memory, and loading keys from disk is faster.
 bool persist;
-// In proverless mode, fake proofs (with real public inputs) are generated, and pairing checks are disabled.
-bool proverless;
+// In mock mode, mock proofs (expected public inputs, but no constraints) are generated.
+bool mock_proofs;
 std::shared_ptr<waffle::DynamicFileReferenceStringFactory> crs;
 join_split::circuit_data js_cd;
 account::circuit_data account_cd;
@@ -45,24 +44,16 @@ bool create_tx_rollup()
 
     if (!tx_rollup_cd.proving_key || tx_rollup_cd.num_txs != num_txs) {
         tx_rollup_cd.proving_key.reset();
-        // TODO: Can we find a way to avoid having to generate the keys and padding proof in proverless mode?
-        tx_rollup_cd =
-            tx_rollup::get_circuit_data(num_txs, js_cd, account_cd, claim_cd, crs, data_path, true, persist, persist);
+        tx_rollup_cd = tx_rollup::get_circuit_data(
+            num_txs, js_cd, account_cd, claim_cd, crs, data_path, true, persist, persist, true, true, mock_proofs);
     }
 
     tx_rollup::rollup_tx rollup;
     std::cerr << "Reading tx rollup..." << std::endl;
     read(std::cin, rollup);
-
     std::cerr << "Received tx rollup with " << rollup.num_txs << " txs." << std::endl;
 
-    if (rollup.num_txs > tx_rollup_cd.num_txs) {
-        std::cerr << "Received rollup size too large: " << rollup.txs.size() << std::endl;
-        return false;
-    }
-
-    auto result = proverless ? verify_proverless(rollup, tx_rollup_cd) : verify(rollup, tx_rollup_cd);
-    std::cerr << "Verified: " << result.verified << std::endl;
+    auto result = verify(rollup, tx_rollup_cd);
 
     write(std::cout, result.proof_data);
     write(std::cout, result.verified);
@@ -80,35 +71,22 @@ bool create_root_rollup()
 
     if (!tx_rollup_cd.proving_key || tx_rollup_cd.num_txs != num_txs) {
         tx_rollup_cd.proving_key.reset();
-        // TODO: Can we find a way to avoid having to generate the keys and padding proof in proverless mode?
-        tx_rollup_cd =
-            tx_rollup::get_circuit_data(num_txs, js_cd, account_cd, claim_cd, crs, data_path, true, persist, persist);
+        tx_rollup_cd = tx_rollup::get_circuit_data(
+            num_txs, js_cd, account_cd, claim_cd, crs, data_path, true, persist, persist, true, true, mock_proofs);
     }
 
     if (!root_rollup_cd.proving_key || root_rollup_cd.num_inner_rollups != num_proofs) {
         root_rollup_cd.proving_key.reset();
-        root_rollup_cd =
-            root_rollup::get_circuit_data(num_proofs, tx_rollup_cd, crs, data_path, true, persist, persist);
+        root_rollup_cd = root_rollup::get_circuit_data(
+            num_proofs, tx_rollup_cd, crs, data_path, true, persist, persist, true, true, mock_proofs);
     }
 
     root_rollup::root_rollup_tx root_rollup;
     std::cerr << "Reading root rollup..." << std::endl;
     read(std::cin, root_rollup);
-
     std::cerr << "Received root rollup with " << root_rollup.rollups.size() << " rollups." << std::endl;
 
-    if (root_rollup.rollups.size() > root_rollup_cd.num_inner_rollups) {
-        std::cerr << "Receieved rollup size too large: " << root_rollup.rollups.size() << std::endl;
-        return false;
-    }
-
-    Timer timer;
-
-    std::cerr << "Creating root rollup proof..." << std::endl;
-    auto result = proverless ? verify_proverless(root_rollup, root_rollup_cd) : verify(root_rollup, root_rollup_cd);
-
-    std::cerr << "Time taken: " << timer.toString() << std::endl;
-    std::cerr << "Verified: " << result.verified << std::endl;
+    auto result = verify(root_rollup, root_rollup_cd);
 
     root_rollup::root_rollup_broadcast_data broadcast_data(result.broadcast_data);
     auto buf = join({ to_buffer(broadcast_data), result.proof_data });
@@ -126,14 +104,7 @@ bool create_claim()
     std::cerr << "Reading claim tx..." << std::endl;
     read(std::cin, claim_tx);
 
-    Timer timer;
-    claim_cd.proving_key->reset();
-
-    std::cerr << "Creating claim proof..." << std::endl;
     auto result = verify(claim_tx, claim_cd);
-
-    std::cerr << "Time taken: " << timer.toString() << std::endl;
-    std::cerr << "Verified: " << result.verified << std::endl;
 
     write(std::cout, result.proof_data);
     write(std::cout, result.verified);
@@ -159,15 +130,22 @@ bool create_root_verifier()
                 root_verifier_cd.valid_vks.emplace_back(root_rollup_cd.verification_key);
             } else {
                 root_verifier_cd.valid_vks.emplace_back(
-                    root_rollup::get_circuit_data(size, tx_rollup_cd, crs, data_path, true, persist, persist)
+                    root_rollup::get_circuit_data(
+                        size, tx_rollup_cd, crs, data_path, true, persist, persist, true, true, mock_proofs)
                         .verification_key);
             }
         }
-        root_verifier_cd = root_verifier::get_circuit_data(
-            root_rollup_cd, crs, root_verifier_cd.valid_vks, data_path, true, persist, persist, true, true, proverless);
+        root_verifier_cd = root_verifier::get_circuit_data(root_rollup_cd,
+                                                           crs,
+                                                           root_verifier_cd.valid_vks,
+                                                           data_path,
+                                                           true,
+                                                           persist,
+                                                           persist,
+                                                           true,
+                                                           true,
+                                                           mock_proofs);
     }
-
-    Timer timer;
 
     std::vector<uint8_t> root_rollup_proof_buf;
     std::cerr << "Reading root verifier tx..." << std::endl;
@@ -180,12 +158,8 @@ bool create_root_verifier()
               << map(valid_outer_sizes, [](size_t s) { return s * tx_rollup_cd.rollup_size; })
               << ", proof size: " << rollup_size << ")" << std::endl;
 
-    std::cerr << "Creating root verifier proof..." << std::endl;
-    auto result = proverless ? verify_proverless(tx, root_verifier_cd, root_rollup_cd)
-                             : verify(tx, root_verifier_cd, root_rollup_cd);
+    auto result = verify(tx, root_verifier_cd, root_rollup_cd);
 
-    std::cerr << "Time taken: " << timer.toString() << std::endl;
-    std::cerr << "Verified: " << result.verified << std::endl;
     result.proof_data = join({ tx.broadcast_data, result.proof_data });
     write(std::cout, result.proof_data);
     write(std::cout, (uint8_t)result.verified);
@@ -201,7 +175,7 @@ int main(int argc, char** argv)
     data_path = (args.size() > 2) ? args[2] : "./data";
     std::string outers = args.size() > 3 ? args[3] : "1";
     persist = args.size() > 4 ? args[4] == "true" : true;
-    proverless = args.size() > 5 ? args[5] == "true" : false;
+    mock_proofs = args.size() > 5 ? args[5] == "true" : false;
 
     std::istringstream outer_stream(outers);
     std::string outer_size;
@@ -209,16 +183,16 @@ int main(int argc, char** argv)
         valid_outer_sizes.emplace_back(std::stoul(outer_size));
     };
 
-    if (proverless) {
-        info("Running in proverless mode. Fake proofs will be generated!");
+    if (mock_proofs) {
+        info("Running in mock proof mode. Mock proofs will be generated!");
     }
 
     info("Loading crs...");
     crs = std::make_shared<waffle::DynamicFileReferenceStringFactory>(srs_path);
 
-    account_cd = account::get_circuit_data(crs);
-    js_cd = join_split::get_circuit_data(crs);
-    claim_cd = claim::get_circuit_data(crs);
+    account_cd = account::get_circuit_data(crs, mock_proofs);
+    js_cd = join_split::get_circuit_data(crs, mock_proofs);
+    claim_cd = claim::get_circuit_data(crs, mock_proofs);
 
     info("Reading rollups from standard input...");
     while (true) {

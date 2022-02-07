@@ -9,7 +9,8 @@ namespace join_split {
 
 std::vector<uint8_t> create_noop_join_split_proof(circuit_data const& circuit_data,
                                                   barretenberg::fr const& merkle_root,
-                                                  bool valid = true);
+                                                  bool valid = true,
+                                                  bool mock = false);
 
 } // namespace join_split
 } // namespace proofs

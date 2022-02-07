@@ -15,11 +15,8 @@ int main(int argc, char** argv)
 {
     std::vector<std::string> args(argv, argv + argc);
     if (args.size() < 4) {
-        info("usage: ", args[0], " <num inner txs> <valid outer sizes, separated by commas> <output path> [srs path]");
-        info("");
-        info("Generates solidity contract containing verification key for:");
-        info("  - A circuit used to verify a root rollup proof made with a circuit containing");
-        info("  - n inner circuits of size <inner txs>, where n is in <valid outer sizes>.");
+        info(
+            "usage: ", args[0], " <num inner txs> <comma separated valid outer sizes> <output path> <mock> [srs path]");
         return 1;
     }
     size_t num_inner_tx = (size_t)atoi(args[1].c_str());
@@ -33,14 +30,15 @@ int main(int argc, char** argv)
     };
 
     const std::string output_path = args[3];
-    const std::string srs_path = (args.size() >= 5) ? args[4] : "../srs_db/ignition";
+    const bool mock_proof = (args.size() > 4) ? args[4] == "true" : false;
+    const std::string srs_path = (args.size() > 5) ? args[5] : "../srs_db/ignition";
 
     auto srs = std::make_shared<waffle::DynamicFileReferenceStringFactory>(srs_path);
-    auto account_cd = account::get_circuit_data(srs);
-    auto join_split_cd = join_split::get_circuit_data(srs);
-    auto claim_cd = claim::get_circuit_data(srs);
-    auto rollup_cd =
-        tx_rollup::get_circuit_data(num_inner_tx, join_split_cd, account_cd, claim_cd, srs, "", true, false, false);
+    auto account_cd = account::get_circuit_data(srs, mock_proof);
+    auto join_split_cd = join_split::get_circuit_data(srs, mock_proof);
+    auto claim_cd = claim::get_circuit_data(srs, mock_proof);
+    auto rollup_cd = tx_rollup::get_circuit_data(
+        num_inner_tx, join_split_cd, account_cd, claim_cd, srs, "", true, false, false, true, true, mock_proof);
 
     // Release memory held by proving key, we don't need it.
     rollup_cd.proving_key.reset();
@@ -50,15 +48,20 @@ int main(int argc, char** argv)
     root_verifier::circuit_data root_verifier_cd;
     for (auto i : valid_outer_sizes) {
         root_rollup_cd.proving_key.reset();
-        root_rollup_cd = root_rollup::get_circuit_data(i, rollup_cd, srs, "", true, false, false);
+        root_rollup_cd =
+            root_rollup::get_circuit_data(i, rollup_cd, srs, "", true, false, false, true, true, mock_proof);
         valid_root_rollup_vks.emplace_back(root_rollup_cd.verification_key);
     }
 
-    root_verifier_cd =
-        root_verifier::get_circuit_data(root_rollup_cd, srs, valid_root_rollup_vks, "", true, false, false);
-    auto class_name = format("RootVerifierVk");
-    std::ofstream os(output_path + "/" + class_name + ".sol");
+    root_verifier_cd = root_verifier::get_circuit_data(
+        root_rollup_cd, srs, valid_root_rollup_vks, "", true, false, false, true, true, mock_proof);
+    std::replace(outer_size.begin(), outer_size.end(), ',', '_');
+    auto class_name = format(mock_proof ? "Mock" : "", "VerificationKey", num_inner_tx, "x", outer_size);
+    auto filename = output_path + "/" + class_name + ".sol";
+    std::ofstream os(filename);
     output_vk_sol(os, root_verifier_cd.verification_key, class_name);
+
+    info("VK contract written to: ", filename);
 
     return 0;
 }

@@ -14,14 +14,22 @@ using namespace plonk::stdlib::merkle_tree;
 static std::shared_ptr<waffle::proving_key> proving_key;
 static std::shared_ptr<waffle::verification_key> verification_key;
 
-void init_proving_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory)
+void init_proving_key(std::shared_ptr<waffle::ReferenceStringFactory> const& crs_factory, bool mock)
 {
     // Junk data required just to create proving key.
     join_split_tx tx = noop_tx();
 
-    Composer composer(std::move(crs_factory));
-    join_split_circuit(composer, tx);
-    proving_key = composer.compute_proving_key();
+    if (!mock) {
+        Composer composer(crs_factory);
+        join_split_circuit(composer, tx);
+        proving_key = composer.compute_proving_key();
+    } else {
+        Composer composer;
+        join_split_circuit(composer, tx);
+        Composer mock_proof_composer(crs_factory);
+        rollup::proofs::mock::mock_circuit(mock_proof_composer, composer.get_public_inputs());
+        proving_key = mock_proof_composer.compute_proving_key();
+    }
 }
 
 void init_proving_key(std::shared_ptr<waffle::ProverReferenceString> const& crs, waffle::proving_key_data&& pk_data)
@@ -45,7 +53,7 @@ void init_verification_key(std::shared_ptr<waffle::VerifierMemReferenceString> c
     verification_key = std::make_shared<waffle::verification_key>(std::move(vk_data), crs);
 }
 
-Composer new_join_split_composer(join_split_tx const& tx)
+UnrolledProver new_join_split_prover(join_split_tx const& tx, bool mock)
 {
     Composer composer(proving_key, nullptr);
     join_split_circuit(composer, tx);
@@ -54,10 +62,17 @@ Composer new_join_split_composer(join_split_tx const& tx)
         info("composer logic failed: ", composer.err);
     }
 
-    info("composer gates: ", composer.get_num_gates());
     info("public inputs: ", composer.public_inputs.size());
 
-    return composer;
+    if (!mock) {
+        info("composer gates: ", composer.get_num_gates());
+        return composer.create_unrolled_prover();
+    } else {
+        Composer mock_proof_composer(proving_key, nullptr);
+        rollup::proofs::mock::mock_circuit(mock_proof_composer, composer.get_public_inputs());
+        info("mock composer gates: ", mock_proof_composer.get_num_gates());
+        return mock_proof_composer.create_unrolled_prover();
+    }
 }
 
 bool verify_proof(waffle::plonk_proof const& proof)

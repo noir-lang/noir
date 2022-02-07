@@ -182,20 +182,6 @@ class rollup_tests : public ::testing::Test {
             .aux_data = 0
         };
 
-        const notes::native::bridge_id bid2 = {
-            .bridge_address_id = 1,
-            .input_asset_id = 13,
-            .output_asset_id_a = 0,
-            .output_asset_id_b = 1,
-            .opening_nonce = 0,
-            .config = notes::native::bridge_id::bit_config{ .first_input_virtual = false,
-                                                            .second_input_virtual = false,
-                                                            .first_output_virtual = false,
-                                                            .second_output_virtual = false,
-                                                            .second_input_real = false,
-                                                            .second_output_real = true },
-            .aux_data = 0
-        };
         const notes::native::bridge_id bid3 = {
             .bridge_address_id = 2,
             .input_asset_id = 25,

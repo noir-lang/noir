@@ -10,7 +10,7 @@ namespace join_split {
 using namespace plonk::stdlib::merkle_tree;
 using namespace plonk::stdlib::types::turbo;
 
-void init_proving_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory);
+void init_proving_key(std::shared_ptr<waffle::ReferenceStringFactory> const& crs_factory, bool mock);
 
 void init_proving_key(std::shared_ptr<waffle::ProverReferenceString> const& crs, waffle::proving_key_data&& pk_data);
 
@@ -19,7 +19,7 @@ void init_verification_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs
 void init_verification_key(std::shared_ptr<waffle::VerifierMemReferenceString> const& crs,
                            waffle::verification_key_data&& vk_data);
 
-Composer new_join_split_composer(join_split_tx const& tx);
+UnrolledProver new_join_split_prover(join_split_tx const& tx, bool mock);
 
 bool verify_proof(waffle::plonk_proof const& proof);
 

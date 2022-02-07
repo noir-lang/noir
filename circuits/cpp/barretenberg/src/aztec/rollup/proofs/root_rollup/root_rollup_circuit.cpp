@@ -159,8 +159,7 @@ void check_bridge_ids_and_accumulate_defi_deposits(Composer& composer,
     }
 }
 
-void assert_inner_proof_sequential(Composer& composer,
-                                   size_t const num_inner_txs_pow2,
+void assert_inner_proof_sequential(size_t const num_inner_txs_pow2,
                                    uint32_t const i,
                                    field_ct const& rollup_id,
                                    field_ct& data_start_index,
@@ -289,8 +288,7 @@ circuit_result_data root_rollup_circuit(Composer& composer,
         check_bridge_ids_and_accumulate_defi_deposits(
             composer, i, defi_deposit_sums, bridge_ids, public_inputs, is_real);
 
-        assert_inner_proof_sequential(composer,
-                                      num_inner_txs_pow2,
+        assert_inner_proof_sequential(num_inner_txs_pow2,
                                       i,
                                       rollup_id,
                                       data_start_index,

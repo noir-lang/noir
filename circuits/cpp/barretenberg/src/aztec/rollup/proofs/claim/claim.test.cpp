@@ -97,7 +97,7 @@ TEST_F(claim_tests, test_claim)
     append_note(note2, defi_tree);
     claim_tx tx = create_claim_tx(note1, 0, note2);
 
-    EXPECT_TRUE(verify_logic(tx, cd).valid);
+    EXPECT_TRUE(verify_logic(tx, cd).logic_verified);
 }
 
 TEST_F(claim_tests, test_theft_via_field_overflow_fails_1)
@@ -131,7 +131,7 @@ TEST_F(claim_tests, test_theft_via_field_overflow_fails_1)
     tx.output_value_a = o_v_a; // choose the cheeky large output value
 
     auto result = verify_logic(tx, cd);
-    EXPECT_FALSE(result.valid);
+    EXPECT_FALSE(result.logic_verified);
     EXPECT_EQ(result.err, "safe_uint_t range constraint failure: output_value_a");
 }
 
@@ -166,7 +166,7 @@ TEST_F(claim_tests, test_theft_via_field_overflow_fails_2)
     tx.output_value_a = o_v_a; // choose the cheeky large output value, that flies under the 252-bit radar
 
     auto result = verify_logic(tx, cd);
-    EXPECT_FALSE(result.valid);
+    EXPECT_FALSE(result.logic_verified);
     EXPECT_EQ(result.err, "safe_uint_t range constraint failure: subtract: output_value_a > total_output_value_a");
 }
 
@@ -195,7 +195,7 @@ TEST_F(claim_tests, test_integer_division_works)
     append_note(note2, defi_tree);
     claim_tx tx = create_claim_tx(note1, 0, note2);
     auto result = verify_logic(tx, cd);
-    EXPECT_TRUE(result.valid);
+    EXPECT_TRUE(result.logic_verified);
 }
 
 TEST_F(claim_tests, test_outputs_larger_than_252_bits_fails)
@@ -221,7 +221,7 @@ TEST_F(claim_tests, test_outputs_larger_than_252_bits_fails)
     append_note(note2, defi_tree);
     claim_tx tx = create_claim_tx(note1, 0, note2);
     auto result = verify_logic(tx, cd);
-    EXPECT_FALSE(result.valid);
+    EXPECT_FALSE(result.logic_verified);
     EXPECT_EQ(result.err, "safe_uint_t range constraint failure: total_output_value_a");
 }
 
@@ -245,7 +245,7 @@ TEST_F(claim_tests, test_zero_deposit_fails)
     append_note(note2, defi_tree);
     claim_tx tx = create_claim_tx(note1, 0, note2);
     auto result = verify_logic(tx, cd);
-    EXPECT_FALSE(result.valid);
+    EXPECT_FALSE(result.logic_verified);
     EXPECT_EQ(result.err, "Not supported: zero deposit");
 }
 
@@ -279,7 +279,7 @@ TEST_F(claim_tests, test_theft_via_zero_equality_fails)
     tx.output_value_a = MAX_252_BIT_VALUE; // Try to steal loads of money.
 
     auto result = verify_logic(tx, cd);
-    EXPECT_FALSE(result.valid);
+    EXPECT_FALSE(result.logic_verified);
     EXPECT_EQ(result.err,
               "Not supported: zero deposit"); // This case was already caught by the ratio_check function preventing
                                               // a zero-valued denominator of b2 = total_output_value_a.
@@ -306,7 +306,7 @@ TEST_F(claim_tests, test_deposit_greater_than_total_fails)
     tx.output_value_a = 100; // Match the malicious ratio of the deposit_value:total_input_value
 
     auto result = verify_logic(tx, cd);
-    EXPECT_FALSE(result.valid);
+    EXPECT_FALSE(result.logic_verified);
     EXPECT_EQ(result.err, "safe_uint_t range constraint failure: subtract: deposit_value > total_input_value");
 }
 
@@ -331,7 +331,7 @@ TEST_F(claim_tests, test_output_value_greater_than_total_fails)
     tx.output_value_a = 100; // Cheeky
 
     auto result = verify_logic(tx, cd);
-    EXPECT_FALSE(result.valid);
+    EXPECT_FALSE(result.logic_verified);
     EXPECT_EQ(result.err, "safe_uint_t range constraint failure: subtract: output_value_a > total_output_value_a");
 }
 
@@ -358,7 +358,7 @@ TEST_F(claim_tests, test_zero_output_value_fails)
     tx.output_value_a = 0; // We want to test whether a 0 output_value will fail
 
     auto result = verify_logic(tx, cd);
-    EXPECT_FALSE(result.valid);
+    EXPECT_FALSE(result.logic_verified);
     EXPECT_EQ(result.err, "ratio check 1 failed");
 }
 
@@ -385,7 +385,7 @@ TEST_F(claim_tests, test_zero_total_output_value_fails)
     tx.output_value_a = 1; // We want to test whether a 0 output_value will fail
 
     auto result = verify_logic(tx, cd);
-    EXPECT_FALSE(result.valid);
+    EXPECT_FALSE(result.logic_verified);
     EXPECT_EQ(
         result.err,
         "safe_uint_t range constraint failure: subtract: output_value_a > total_output_value_a"); // The 'division by
@@ -419,7 +419,7 @@ TEST_F(claim_tests, test_unmatching_ratio_a_fails)
     tx.output_value_a = 10; // Force an unmatching ratio (it should be 20)
 
     auto result = verify_logic(tx, cd);
-    EXPECT_FALSE(result.valid);
+    EXPECT_FALSE(result.logic_verified);
     EXPECT_EQ(result.err, "ratio check 1 failed");
 }
 
@@ -446,7 +446,7 @@ TEST_F(claim_tests, test_unmatching_ratio_b_fails)
     tx.output_value_b = 10; // Force an unmatching ratio (it should be 20)
 
     auto result = verify_logic(tx, cd);
-    EXPECT_FALSE(result.valid);
+    EXPECT_FALSE(result.logic_verified);
     EXPECT_EQ(result.err, "ratio check 2 failed");
 }
 
@@ -472,7 +472,7 @@ TEST_F(claim_tests, test_unmatching_bridge_ids_fails)
     claim_tx tx = create_claim_tx(note1, 0, note2);
 
     auto result = verify_logic(tx, cd);
-    EXPECT_FALSE(result.valid);
+    EXPECT_FALSE(result.logic_verified);
     EXPECT_EQ(result.err, "note bridge ids don't match");
 }
 
@@ -498,7 +498,7 @@ TEST_F(claim_tests, test_unmatching_interaction_nonces_fails)
     claim_tx tx = create_claim_tx(note1, 0, note2);
 
     auto result = verify_logic(tx, cd);
-    EXPECT_FALSE(result.valid);
+    EXPECT_FALSE(result.logic_verified);
     EXPECT_EQ(result.err, "note nonces don't match");
 }
 
@@ -524,7 +524,7 @@ TEST_F(claim_tests, test_missing_claim_note_fails)
     claim_tx tx = create_claim_tx(note1, 0, note2);
 
     auto result = verify_logic(tx, cd);
-    EXPECT_FALSE(result.valid);
+    EXPECT_FALSE(result.logic_verified);
     EXPECT_EQ(result.err, "claim note not a member");
 }
 
@@ -550,7 +550,7 @@ TEST_F(claim_tests, test_missing_interaction_note_fails)
     claim_tx tx = create_claim_tx(note1, 0, note2);
 
     auto result = verify_logic(tx, cd);
-    EXPECT_FALSE(result.valid);
+    EXPECT_FALSE(result.logic_verified);
     EXPECT_EQ(result.err, "defi interaction note not a member");
 }
 
@@ -586,7 +586,7 @@ TEST_F(claim_tests, test_claim_for_virtual_note)
     append_note(note2, defi_tree);
     claim_tx tx = create_claim_tx(note1, 0, note2);
 
-    EXPECT_TRUE(verify_logic(tx, cd).valid);
+    EXPECT_TRUE(verify_logic(tx, cd).logic_verified);
 }
 
 TEST_F(claim_tests, test_unsupported_first_input_note_virtual_fails)
@@ -623,7 +623,7 @@ TEST_F(claim_tests, test_unsupported_first_input_note_virtual_fails)
     claim_tx tx = create_claim_tx(note1, 0, note2);
 
     auto result = verify_logic(tx, cd);
-    EXPECT_FALSE(result.valid);
+    EXPECT_FALSE(result.logic_verified);
     EXPECT_EQ(result.err, "Not yet supported: first input asset cannot be virtual");
 }
 
@@ -661,7 +661,7 @@ TEST_F(claim_tests, test_unsupported_first_output_note_virtual_fails)
     claim_tx tx = create_claim_tx(note1, 0, note2);
 
     auto result = verify_logic(tx, cd);
-    EXPECT_FALSE(result.valid);
+    EXPECT_FALSE(result.logic_verified);
     EXPECT_EQ(result.err, "Not yet supported: first output asset cannot be virtual");
 }
 
@@ -699,7 +699,7 @@ TEST_F(claim_tests, test_second_input_note_virtual_and_real_fails)
     claim_tx tx = create_claim_tx(note1, 0, note2);
 
     auto result = verify_logic(tx, cd);
-    EXPECT_FALSE(result.valid);
+    EXPECT_FALSE(result.logic_verified);
     EXPECT_EQ(result.err, "Contradiction: second_input_virtual AND second_input_real cannot both be true");
 }
 
@@ -737,7 +737,7 @@ TEST_F(claim_tests, test_second_output_note_virtual_and_real_fails)
     claim_tx tx = create_claim_tx(note1, 0, note2);
 
     auto result = verify_logic(tx, cd);
-    EXPECT_FALSE(result.valid);
+    EXPECT_FALSE(result.logic_verified);
     EXPECT_EQ(result.err, "Contradiction: second_output_virtual AND second_output_real cannot both be true");
 }
 
@@ -775,7 +775,7 @@ TEST_F(claim_tests, test_second_output_real_means_asset_ids_equal_fails)
     claim_tx tx = create_claim_tx(note1, 0, note2);
 
     auto result = verify_logic(tx, cd);
-    EXPECT_FALSE(result.valid);
+    EXPECT_FALSE(result.logic_verified);
     EXPECT_EQ(result.err, "second_output_real == true AND both output asset ids are identical");
 }
 
@@ -1158,7 +1158,7 @@ TEST_F(claim_tests, test_total_input_value_out_of_range_fails)
     claim_tx tx = create_claim_tx(test_data.note1, 0, test_data.note2);
 
     auto result = verify_logic(tx, cd);
-    EXPECT_FALSE(result.valid);
+    EXPECT_FALSE(result.logic_verified);
     EXPECT_EQ(result.err, "safe_uint_t range constraint failure: total_input_value");
 }
 
@@ -1172,7 +1172,7 @@ TEST_F(claim_tests, test_total_output_value_a_out_of_range_fails)
     claim_tx tx = create_claim_tx(test_data.note1, 0, test_data.note2);
 
     auto result = verify_logic(tx, cd);
-    EXPECT_FALSE(result.valid);
+    EXPECT_FALSE(result.logic_verified);
     EXPECT_EQ(result.err, "safe_uint_t range constraint failure: total_output_value_a");
 }
 
@@ -1186,7 +1186,7 @@ TEST_F(claim_tests, test_total_output_value_b_out_of_range_fails)
     claim_tx tx = create_claim_tx(test_data.note1, 0, test_data.note2);
 
     auto result = verify_logic(tx, cd);
-    EXPECT_FALSE(result.valid);
+    EXPECT_FALSE(result.logic_verified);
     EXPECT_EQ(result.err, "safe_uint_t range constraint failure: total_output_value_b");
 }
 
@@ -1200,7 +1200,7 @@ TEST_F(claim_tests, test_deposit_value_out_of_range_fails)
     claim_tx tx = create_claim_tx(test_data.note1, 0, test_data.note2);
 
     auto result = verify_logic(tx, cd);
-    EXPECT_FALSE(result.valid);
+    EXPECT_FALSE(result.logic_verified);
     EXPECT_EQ(result.err, "safe_uint_t range constraint failure: deposit_value");
 }
 
@@ -1214,7 +1214,7 @@ TEST_F(claim_tests, test_fee_out_of_range_fails)
     claim_tx tx = create_claim_tx(test_data.note1, 0, test_data.note2);
 
     auto result = verify_logic(tx, cd);
-    EXPECT_FALSE(result.valid);
+    EXPECT_FALSE(result.logic_verified);
     EXPECT_EQ(result.err, "safe_uint_t range constraint failure: fee");
 }
 

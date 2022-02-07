@@ -22,11 +22,6 @@ using namespace notes::native;
 using namespace plonk::stdlib::merkle_tree;
 
 namespace {
-#ifdef CI
-bool persist = false;
-#else
-bool persist = true;
-#endif
 std::shared_ptr<waffle::DynamicFileReferenceStringFactory> srs;
 numeric::random::Engine* rand_engine = &numeric::random::get_debug_engine(true);
 fixtures::user_context user = fixtures::create_user_context(rand_engine);

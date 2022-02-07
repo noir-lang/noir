@@ -1,6 +1,7 @@
 #pragma once
 #include <stddef.h>
-#include <iterator>
+#include <vector>
+#include <string>
 
 template <typename C> C slice(C const& container, size_t start)
 {
@@ -24,6 +25,17 @@ template <typename C> C join(std::initializer_list<C> to_join)
     C result;
     for (auto& e : to_join) {
         result.insert(result.end(), e.begin(), e.end());
+    }
+    return result;
+}
+
+inline std::string join(std::vector<std::string> const& to_join, std::string const& with = ",")
+{
+    auto it = to_join.begin();
+    std::string result(*it++);
+    for (; it != to_join.end(); ++it) {
+        result += with;
+        result += *it;
     }
     return result;
 }

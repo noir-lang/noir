@@ -10,7 +10,7 @@ namespace account {
 
 using namespace plonk::stdlib::types::turbo;
 
-void init_proving_key(std::shared_ptr<waffle::ReferenceStringFactory> const& crs_factory);
+void init_proving_key(std::shared_ptr<waffle::ReferenceStringFactory> const& crs_factory, bool mock);
 
 void init_proving_key(std::shared_ptr<waffle::ProverReferenceString> const& crs, waffle::proving_key_data&& pk_data);
 
@@ -21,7 +21,7 @@ void init_verification_key(std::shared_ptr<waffle::VerifierMemReferenceString> c
 
 void account_circuit(Composer& composer, account_tx const& tx);
 
-Composer new_account_composer(account_tx const& tx);
+UnrolledProver new_account_prover(account_tx const& tx, bool mock);
 
 bool verify_proof(waffle::plonk_proof const& proof);
 

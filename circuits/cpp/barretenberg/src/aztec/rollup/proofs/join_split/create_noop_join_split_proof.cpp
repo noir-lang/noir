@@ -12,7 +12,10 @@ using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
 using namespace plonk::stdlib::merkle_tree;
 
-std::vector<uint8_t> create_noop_join_split_proof(circuit_data const& circuit_data, fr const& merkle_root, bool valid)
+std::vector<uint8_t> create_noop_join_split_proof(circuit_data const& circuit_data,
+                                                  fr const& merkle_root,
+                                                  bool valid,
+                                                  bool mock)
 {
     join_split_tx tx = noop_tx();
     tx.num_input_notes = valid ? 0 : 1;
@@ -25,9 +28,17 @@ std::vector<uint8_t> create_noop_join_split_proof(circuit_data const& circuit_da
         info("join split logic failed: ", composer.err);
     }
 
-    auto prover = composer.create_unrolled_prover();
-    auto proof = prover.construct_proof();
-    return proof.proof_data;
+    if (!mock) {
+        auto prover = composer.create_unrolled_prover();
+        auto proof = prover.construct_proof();
+        return proof.proof_data;
+    } else {
+        auto mock_proof_composer = Composer(circuit_data.srs);
+        ::rollup::proofs::mock::mock_circuit(mock_proof_composer, composer.get_public_inputs());
+        auto prover = mock_proof_composer.create_unrolled_prover();
+        auto proof = prover.construct_proof();
+        return proof.proof_data;
+    }
 }
 
 } // namespace join_split

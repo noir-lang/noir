@@ -91,7 +91,7 @@ function(barretenberg_module MODULE_NAME)
             gtest_main
         )
 
-        if(NOT WASM)
+        if(NOT WASM AND NOT CI)
             # Currently haven't found a way to easily wrap the calls in wasmtime when run from ctest.
             gtest_discover_tests(${MODULE_NAME}_tests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
         endif()

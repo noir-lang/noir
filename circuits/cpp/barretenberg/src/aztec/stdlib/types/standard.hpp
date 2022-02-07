@@ -14,6 +14,7 @@
 #include <stdlib/encryption/schnorr/schnorr.hpp>
 #include <stdlib/primitives/curves/bn254.hpp>
 #include <stdlib/primitives/group/group.hpp>
+#include <stdlib/recursion/verifier/verifier.hpp>
 
 namespace plonk {
 namespace stdlib {

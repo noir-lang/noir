@@ -1,7 +1,7 @@
 #include "c_bind.h"
 #include "join_split.hpp"
 #include "compute_signing_data.hpp"
-#include "../proofless_padding.hpp"
+#include "../mock/mock_circuit.hpp"
 #include <common/streams.hpp>
 #include <common/mem.hpp>
 #include <common/container.hpp>
@@ -19,12 +19,12 @@ using namespace rollup::proofs::join_split;
 
 extern "C" {
 
-WASM_EXPORT void join_split__init_proving_key()
+WASM_EXPORT void join_split__init_proving_key(bool mock)
 {
     // We know that we don't actually need any CRS to create a proving key, so just feed in a nothing.
     // Hacky, but, right now it needs *something*.
-    auto crs_factory = std::make_unique<waffle::ReferenceStringFactory>();
-    init_proving_key(std::move(crs_factory));
+    auto crs_factory = std::make_shared<waffle::ReferenceStringFactory>();
+    init_proving_key(crs_factory, mock);
 }
 
 WASM_EXPORT void join_split__init_proving_key_from_buffer(uint8_t const* pk_buf)
@@ -84,25 +84,12 @@ WASM_EXPORT void join_split__compute_signing_data(uint8_t const* join_split_tx_b
     barretenberg::fr::serialize_to_buffer(signing_data, output);
 }
 
-WASM_EXPORT void* join_split__new_prover(uint8_t const* join_split_buf)
+WASM_EXPORT void* join_split__new_prover(uint8_t const* join_split_buf, bool mock)
 {
     auto tx = from_buffer<join_split_tx>(join_split_buf);
-    auto composer = new_join_split_composer(tx);
-    auto prover = composer.create_unrolled_prover();
+    auto prover = new_join_split_prover(tx, mock);
     auto heapProver = new UnrolledProver(std::move(prover));
     return heapProver;
-}
-
-WASM_EXPORT uint32_t join_split__compute_public_inputs(uint8_t const* join_split_buf, uint8_t** output)
-{
-    auto tx = from_buffer<join_split_tx>(join_split_buf);
-    auto composer = new_join_split_composer(tx);
-    auto public_inputs = composer.get_public_inputs();
-    auto buf = join({ to_buffer(public_inputs), get_proofless_data() });
-    auto mem = (uint8_t*)aligned_alloc(64, buf.size());
-    memcpy(mem, buf.data(), buf.size());
-    *output = mem;
-    return static_cast<uint32_t>(buf.size());
 }
 
 WASM_EXPORT void join_split__delete_prover(void* prover)

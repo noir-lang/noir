@@ -4,7 +4,7 @@
 
 extern "C" {
 
-WASM_EXPORT void join_split__init_proving_key();
+WASM_EXPORT void join_split__init_proving_key(bool mock);
 
 WASM_EXPORT void join_split__init_proving_key_from_buffer(uint8_t const* pk_buf);
 
@@ -18,7 +18,7 @@ WASM_EXPORT uint32_t join_split__get_new_verification_key_data(uint8_t** output)
 
 WASM_EXPORT void join_split__compute_signing_data(uint8_t const* join_split_tx_buf, uint8_t* output);
 
-WASM_EXPORT void* join_split__new_prover(uint8_t const* join_split_buf);
+WASM_EXPORT void* join_split__new_prover(uint8_t const* join_split_buf, bool mock);
 
 WASM_EXPORT void join_split__delete_prover(void* prover);
 

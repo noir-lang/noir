@@ -1,5 +1,6 @@
 #include <common/test.hpp>
 #include "index.hpp"
+#include "../join_split/index.hpp"
 #include "../rollup/index.hpp"
 #include "../notes/native/index.hpp"
 #include "../../fixtures/test_context.hpp"
@@ -173,7 +174,7 @@ HEAVY_TEST_F(root_rollup_full_tests, test_bad_js_proof_fails)
     static constexpr auto rollups_per_rollup = 1U;
 
     // Create a bad js proof.
-    auto bad_proof = create_noop_join_split_proof(js_cd, context.world_state.data_tree.root(), false);
+    auto bad_proof = join_split::create_noop_join_split_proof(js_cd, context.world_state.data_tree.root(), false);
 
     // Our inner rollup should fail.
     auto tx_rollup_cd = tx_rollup2_cd;
@@ -194,7 +195,7 @@ HEAVY_TEST_F(root_rollup_full_tests, test_bad_js_proof_fails)
         context.world_state, 0, context.world_state.defi_tree.root(), { inner_proof.proof_data });
     Composer root_composer =
         Composer(root_rollup_cd.proving_key, root_rollup_cd.verification_key, root_rollup_cd.num_gates);
-    pad_rollup_tx(root_rollup_tx, root_rollup_cd);
+    pad_root_rollup_tx(root_rollup_tx, root_rollup_cd);
     root_rollup_circuit(root_composer,
                         root_rollup_tx,
                         root_rollup_cd.inner_rollup_circuit_data.rollup_size,
