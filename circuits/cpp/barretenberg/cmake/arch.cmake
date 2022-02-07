@@ -6,5 +6,5 @@ if(WASM)
 endif()
 
 if(NOT WASM)
-    add_compile_options(-march=skylake-avx512)
+    add_compile_options(-march=sandybridge)
 endif()
