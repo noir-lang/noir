@@ -7,6 +7,13 @@ use crate::util::vecmap;
 use crate::{Expression, ExpressionKind, InfixExpression, NoirStruct, Type};
 use noirc_errors::{Span, Spanned};
 
+/// This is used when an identifier fails to parse in the parser.
+/// Instead of failing the parse, we can often recover using this
+/// as the default value instead. Further passes like name resolution
+/// should also check for this ident to avoid issuing multiple errors
+/// for an identifier that already failed to parse.
+pub const ERROR_IDENT: &str = "$error";
+
 #[derive(PartialOrd, Eq, Ord, Debug, Clone)]
 pub struct Ident(pub Spanned<String>);
 
@@ -74,6 +81,10 @@ impl Ident {
 
     pub fn new(token: Token, span: Span) -> Ident {
         Ident::from(SpannedToken::new(token, span))
+    }
+
+    pub fn error(span: Span) -> Ident {
+        Ident(Spanned::from(span, ERROR_IDENT.to_owned()))
     }
 }
 

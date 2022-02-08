@@ -36,7 +36,7 @@ use crate::{
     BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
     Statement,
 };
-use crate::{Path, StructType};
+use crate::{Path, StructType, ERROR_IDENT};
 use noirc_errors::{Span, Spanned};
 
 use crate::hir::scope::{
@@ -51,8 +51,6 @@ use crate::hir_def::{
 };
 
 use super::errors::ResolverError;
-
-const IDENT_ERROR_PREFIX: &str = "$";
 
 type Scope = GenericScope<String, ResolverMeta>;
 type ScopeTree = GenericScopeTree<String, ResolverMeta>;
@@ -114,11 +112,7 @@ impl<'a> Resolver<'a> {
         }
 
         for unused_var in unused_vars.iter() {
-            if !self
-                .interner
-                .ident_name(unused_var)
-                .starts_with(IDENT_ERROR_PREFIX)
-            {
+            if self.interner.ident_name(unused_var) != ERROR_IDENT {
                 self.push_err(ResolverError::UnusedVariable {
                     ident_id: *unused_var,
                 });

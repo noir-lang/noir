@@ -281,10 +281,7 @@ where
     F: 'a + Clone + Fn(((Ident, Type), Expression)) -> Statement,
     P: ExprParser + 'a,
 {
-    let p = ignore_then_commit(keyword(key).labelled("statement"), ident(), |span| {
-        Ident::new(Token::Ident("$error".into()), span)
-    });
-
+    let p = ignore_then_commit(keyword(key).labelled("statement"), ident(), Ident::error);
     let p = p.then(optional_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
     let p = then_commit(p, expr_parser, Expression::error);
