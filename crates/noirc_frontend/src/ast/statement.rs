@@ -82,10 +82,25 @@ impl Ident {
     pub fn new(token: Token, span: Span) -> Ident {
         Ident::from(SpannedToken::new(token, span))
     }
+}
 
-    pub fn error(span: Span) -> Ident {
+impl Recoverable for Ident {
+    fn error(span: Span) -> Self {
         Ident(Spanned::from(span, ERROR_IDENT.to_owned()))
     }
+}
+
+impl<T> Recoverable for Vec<T> {
+    fn error(_: Span) -> Self {
+        vec![]
+    }
+}
+
+/// Trait for recoverable nodes during parsing.
+/// This is similar to Default but is expected
+/// to return an Error node of the appropriate type.
+pub trait Recoverable {
+    fn error(span: Span) -> Self;
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -104,6 +119,12 @@ pub enum Statement {
     // To avoid issuing multiple errors in later steps, it should
     // be skipped in any future analysis if possible.
     Error,
+}
+
+impl Recoverable for Statement {
+    fn error(_: Span) -> Self {
+        Statement::Error
+    }
 }
 
 impl Statement {
@@ -198,6 +219,9 @@ pub enum PathKind {
     Plain,
 }
 
+// Note: Path deliberately doesn't implement Recoverable.
+// No matter which default value we could give in Recoverable::error,
+// it would most likely cause further errors during name resolution
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Path {
     pub segments: Vec<Ident>,

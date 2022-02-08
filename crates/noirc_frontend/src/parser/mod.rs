@@ -4,7 +4,7 @@ mod parser;
 
 use crate::token::{Keyword, Token};
 use crate::{ast::ImportStatement, Expression, NoirStruct};
-use crate::{Ident, NoirFunction};
+use crate::{Ident, NoirFunction, Recoverable};
 
 use chumsky::prelude::*;
 pub use errors::ParserError;
@@ -28,10 +28,10 @@ impl<P, T> NoirParser<T> for P where P: Parser<Token, T, Error = ParserError> + 
 trait ExprParser: NoirParser<Expression> {}
 impl<P> ExprParser for P where P: NoirParser<Expression> {}
 
-fn parenthesized<P, F, T>(parser: P, default: F) -> impl NoirParser<T>
+fn parenthesized<P, T>(parser: P) -> impl NoirParser<T>
 where
     P: NoirParser<T>,
-    F: Fn(Span) -> T + Clone,
+    T: Recoverable,
 {
     use Token::*;
     parser
@@ -40,7 +40,7 @@ where
             LeftParen,
             RightParen,
             [(LeftBracket, RightBracket)],
-            default,
+            Recoverable::error,
         ))
 }
 
@@ -78,19 +78,17 @@ where
 /// Sequence the two parsers.
 /// Fails if the first parser fails, otherwise forces
 /// the second parser to succeed while logging any errors.
-pub fn then_commit<'a, P1, P2, T1, T2: 'a, F>(
+pub fn then_commit<'a, P1, P2, T1, T2: 'a>(
     first_parser: P1,
     second_parser: P2,
-    default: F,
 ) -> impl NoirParser<(T1, T2)> + 'a
 where
     P1: NoirParser<T1> + 'a,
     P2: NoirParser<T2> + 'a,
-    F: 'a + Fn(Span) -> T2 + Clone,
-    T2: Clone,
+    T2: Clone + Recoverable,
 {
     let second_parser = skip_then_retry_until(second_parser)
-        .map_with_span(move |option, span| option.unwrap_or_else(|| default(span)));
+        .map_with_span(|option, span| option.unwrap_or_else(|| Recoverable::error(span)));
 
     first_parser.then(second_parser)
 }
@@ -108,18 +106,17 @@ where
     first_parser.then_ignore(second_parser)
 }
 
-pub fn ignore_then_commit<'a, P1, P2, T1: 'a, T2: Clone + 'a, F>(
+pub fn ignore_then_commit<'a, P1, P2, T1: 'a, T2: Clone + 'a>(
     first_parser: P1,
     second_parser: P2,
-    default: F,
 ) -> impl NoirParser<T2> + 'a
 where
     P1: NoirParser<T1> + 'a,
     P2: NoirParser<T2> + 'a,
-    F: 'a + Fn(Span) -> T2 + Clone,
+    T2: Recoverable,
 {
     let second_parser = skip_then_retry_until(second_parser)
-        .map_with_span(move |option, span| option.unwrap_or_else(|| default(span)));
+        .map_with_span(|option, span| option.unwrap_or_else(|| Recoverable::error(span)));
 
     first_parser.ignore_then(second_parser)
 }

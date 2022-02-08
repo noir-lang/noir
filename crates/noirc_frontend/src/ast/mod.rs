@@ -163,6 +163,12 @@ impl From<&Type> for AbiType {
     }
 }
 
+impl Recoverable for Type {
+    fn error(_: Span) -> Self {
+        Type::Error
+    }
+}
+
 impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

@@ -52,8 +52,8 @@ fn top_level_statement() -> impl NoirParser<TopLevelStatement> {
     choice((
         function_definition(),
         struct_definition(),
-        module_declaration().then_ignore(just(Token::Semicolon)),
-        use_statement().then_ignore(just(Token::Semicolon)),
+        module_declaration().then_ignore(force(just(Token::Semicolon))),
+        use_statement().then_ignore(force(just(Token::Semicolon))),
     ))
 }
 
@@ -62,7 +62,7 @@ fn function_definition() -> impl NoirParser<TopLevelStatement> {
         .or_not()
         .then_ignore(keyword(Keyword::Fn))
         .then(ident())
-        .then(parenthesized(function_parameters(), |_| vec![]))
+        .then(parenthesized(function_parameters()))
         .then(function_return_type())
         .then(block(expression()))
         .map(|((((attribute, name), parameters), return_type), body)| {
@@ -157,7 +157,7 @@ fn check_statements_require_semicolon(
 }
 
 fn optional_type_annotation() -> impl NoirParser<Type> {
-    ignore_then_commit(just(Token::Colon), parse_type(), |_| Type::Error)
+    ignore_then_commit(just(Token::Colon), parse_type())
         .or_not()
         .map(|r#type| r#type.unwrap_or(Type::Unspecified))
 }
@@ -169,9 +169,11 @@ fn module_declaration() -> impl NoirParser<TopLevelStatement> {
 }
 
 fn use_statement() -> impl NoirParser<TopLevelStatement> {
+    let rename = ignore_then_commit(keyword(Keyword::As), ident()).or_not();
+
     keyword(Keyword::Use)
         .ignore_then(path())
-        .then(keyword(Keyword::As).ignore_then(ident()).or_not())
+        .then(rename)
         .map(|(path, alias)| TopLevelStatement::Import(ImportStatement { path, alias }))
 }
 
@@ -242,7 +244,6 @@ where
     ignore_then_commit(
         keyword(Keyword::Constrain).labelled("statement"),
         expr_parser,
-        Expression::error,
     )
     .validate(|expr, span, emit| match expr.kind.into_infix() {
         Some(infix) if operator_disallowed_in_constrain(infix.operator.contents) => {
@@ -281,10 +282,10 @@ where
     F: 'a + Clone + Fn(((Ident, Type), Expression)) -> Statement,
     P: ExprParser + 'a,
 {
-    let p = ignore_then_commit(keyword(key).labelled("statement"), ident(), Ident::error);
+    let p = ignore_then_commit(keyword(key).labelled("statement"), ident());
     let p = p.then(optional_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
-    let p = then_commit(p, expr_parser, Expression::error);
+    let p = then_commit(p, expr_parser);
 
     p.map(f)
 }
@@ -296,7 +297,7 @@ where
     let failable = ident()
         .then_ignore(just(Token::Assign))
         .labelled("statement");
-    then_commit(failable, expr_parser, Expression::error).map(|(identifier, expression)| {
+    then_commit(failable, expr_parser).map(|(identifier, expression)| {
         Statement::Assign(AssignStatement {
             identifier,
             expression,
@@ -429,7 +430,6 @@ where
                 then_commit(
                     operator_with_precedence(precedence),
                     expression_with_precedence(precedence.higher(), expr_parser),
-                    Expression::error,
                 )
                 .repeated(),
             )
@@ -572,7 +572,7 @@ where
         literal(),
     ))
     .map_with_span(Expression::new)
-    .or(parenthesized(expr_parser, Expression::error))
+    .or(parenthesized(expr_parser))
     .labelled("value")
 }
 
@@ -603,7 +603,7 @@ where
     P: ExprParser,
 {
     path()
-        .then(parenthesized(expression_list(expr_parser), |_| vec![]))
+        .then(parenthesized(expression_list(expr_parser)))
         .map(ExpressionKind::function_call)
 }
 

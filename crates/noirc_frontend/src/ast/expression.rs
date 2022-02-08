@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::token::{Attribute, Token};
 use crate::util::vecmap;
-use crate::{Ident, Path, Statement, Type};
+use crate::{Ident, Path, Recoverable, Statement, Type};
 use acvm::FieldElement;
 use noirc_errors::{Span, Spanned};
 
@@ -117,6 +117,18 @@ impl ExpressionKind {
     }
 }
 
+impl Recoverable for ExpressionKind {
+    fn error(_: Span) -> Self {
+        ExpressionKind::Error
+    }
+}
+
+impl Recoverable for Expression {
+    fn error(span: Span) -> Self {
+        Expression::new(ExpressionKind::Error, span)
+    }
+}
+
 #[derive(Debug, Eq, Clone)]
 pub struct Expression {
     pub kind: ExpressionKind,
@@ -134,10 +146,6 @@ impl PartialEq<Expression> for Expression {
 impl Expression {
     pub fn new(kind: ExpressionKind, span: Span) -> Expression {
         Expression { kind, span }
-    }
-
-    pub fn error(span: Span) -> Expression {
-        Expression::new(ExpressionKind::Error, span)
     }
 
     pub fn into_ident(self) -> Option<Ident> {
