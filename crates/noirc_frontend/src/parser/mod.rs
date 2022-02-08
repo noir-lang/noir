@@ -108,13 +108,6 @@ where
     first_parser.then_ignore(second_parser)
 }
 
-// pub fn foo<'a>() -> Custom<Box<dyn Fn(&'a mut Stream<SpannedToken, Span>) -> Result<(&'a [SpannedToken], i32), ParserError>>, ParserError> {
-//     custom(Box::new(|stream| {
-//         let tokens = stream.fetch_tokens();
-//         todo!()
-//     }))
-// }
-
 pub fn ignore_then_commit<'a, P1, P2, T1: 'a, T2: Clone + 'a, F>(
     first_parser: P1,
     second_parser: P2,
