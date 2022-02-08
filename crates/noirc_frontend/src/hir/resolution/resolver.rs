@@ -52,7 +52,7 @@ use crate::hir_def::{
 
 use super::errors::ResolverError;
 
-const IDENT_ERROR_PREFIX: &'static str = "$";
+const IDENT_ERROR_PREFIX: &str = "$";
 
 type Scope = GenericScope<String, ResolverMeta>;
 type ScopeTree = GenericScopeTree<String, ResolverMeta>;
