@@ -355,7 +355,7 @@ impl Instruction {
             Operation::trunc | Operation::phi => (false, false),
             Operation::nop | Operation::jne | Operation::jeq | Operation::jmp => (false, false),
             Operation::eq_gate => (true, true),
-            Operation::load | Operation::store => (true, false), //TODO???
+            Operation::load | Operation::store => (false, false),
         }
     }
 
@@ -405,8 +405,8 @@ impl Instruction {
             Operation::nop | Operation::jne | Operation::jeq | Operation::jmp => todo!(),
             Operation::phi => BigUint::max(lhs_max, rhs_max), //TODO operands are in phi_arguments, not lhs/rhs!!
             Operation::eq_gate => BigUint::min(lhs_max, rhs_max),
-            Operation::load => BigUint::from(0_u32), //TODO BigUint::from(2_u32).pow(5),
-            Operation::store => BigUint::from(0_u32), //TODO BigUint::from(2_u32).pow(5),
+            Operation::load => { unreachable!();},
+            Operation::store => BigUint::from(0_u32),
         }
     }
 

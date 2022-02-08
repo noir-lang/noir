@@ -404,7 +404,7 @@ impl<'a> IRGenerator<'a> {
         println!("Press enter to continue");
         io::stdin().read_line(&mut number);
         //Truncation
-        //integer::overflow_strategy(self);
+        integer::overflow_strategy(self);
         self.print();
         //println!("Press enter to continue");
         //io::stdin().read_line(&mut number);
@@ -518,7 +518,36 @@ impl<'a> IRGenerator<'a> {
                     .context()
                     .def_interner
                     .ident_def(&assign_stmt.identifier);
-                let lhs = self.find_variable(&ident_def).unwrap(); //left hand must be already declared
+                    //////////////TODO temp this is needed because we don't parse main arguments
+                    let ident_name = self
+                    .context()
+                    .def_interner
+                    .ident_name(&assign_stmt.identifier);
+                    let var =self.find_variable(&ident_def);
+                let lhs = //self.find_variable(&ident_def).unwrap(); //left hand must be already declared
+                 if var.is_none() {
+                    //var is not defined,
+                    //let's do it here for now...TODO
+                    let obj = env.get(&ident_name);
+                    let obj_type = node::ObjectType::get_type_from_object(&obj);
+                    let new_var2 = node::Variable {
+                        id: self.dummy(),
+                        obj_type,
+                        name: ident_name.clone(),
+                        root: None,
+                        def: ident_def,
+                        witness: node::get_witness_from_object(&obj),
+                        parent_block: self.current_block,
+                    };
+                    let new_var2_id = self.add_variable(new_var2, None);
+                    self.get_block_mut(self.current_block)
+                        .unwrap()
+                        .update_variable(new_var2_id, new_var2_id); //DE MEME
+                    self.get_variable(new_var2_id).unwrap()
+                } else {
+                    var.unwrap()
+                };
+                //////////////////////////////----******************************************
                 let new_var = node::Variable {
                     id: lhs.id,
                     obj_type: lhs.obj_type,
@@ -877,7 +906,7 @@ impl<'a> IRGenerator<'a> {
         body_block1.update_variable(iter_id, phi); //TODO try with just a get_current_value(iter)
         let statements = block.statements();
         for stmt in statements {
-            self.evaluate_statement(env, stmt).unwrap_err(); //TODO return the error
+            self.evaluate_statement(env, stmt).unwrap(); //TODO return the error
         }
 
         //increment iter

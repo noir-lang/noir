@@ -1,8 +1,10 @@
 use acvm::acir::native_types::Witness;
 use acvm::FieldElement;
 use std::convert::TryFrom;
+use std::collections::HashMap;
 //use arena;
 use super::super::environment::Environment;
+use super::code_gen::IRGenerator;
 use super::node;
 use noirc_frontend::hir::Context;
 use noirc_frontend::node_interner::IdentId;
@@ -15,6 +17,7 @@ use std::convert::TryInto;
 pub struct Memory {
     pub arrays: Vec<MemArray>,
     pub last_adr: u32, //last address in 'memory'
+    pub memory_map: HashMap<u32, arena::Index>, //maps memory adress to expression
 }
 
 pub struct MemArray {
@@ -24,6 +27,7 @@ pub struct MemArray {
     pub def: IdentId,
     pub len: u32, //number of elements
     pub adr: u32, //base address of the array
+    pub max: BigUint,      //Max possible value of array elements
 }
 
 impl MemArray {
@@ -39,12 +43,13 @@ impl MemArray {
     pub fn new(definition: IdentId, name: String, of: node::ObjectType, len: u32) -> MemArray {
         assert!(len > 0);
         MemArray {
-            element_type: node::ObjectType::unsigned(32), //TODO!
+            element_type: of,
             name,
             witness: Vec::new(),
             def: definition,
             len,
             adr: 0,
+            max: BigUint::from((1_u128 << of.bits()) - 1),
         }
     }
 }
@@ -54,6 +59,7 @@ impl Memory {
         Memory {
             arrays: Vec::new(),
             last_adr: 0,
+            memory_map: HashMap::new(),
         }
     }
 
@@ -85,7 +91,7 @@ impl Memory {
         &self.arrays.last().unwrap()
     }
 
-    pub fn get_array_adr(&self, adr: u32) -> &MemArray {
+    pub fn get_array_from_adr(&self, adr: u32) -> &MemArray {
         let mut cur_adr = 0;
         for a in &self.arrays {
             if cur_adr + a.len > adr {
@@ -102,5 +108,15 @@ impl Memory {
         modulus = modulus.pow(32);
         let result = big_v % modulus;
         result.to_u32().unwrap()
+    }
+
+    pub fn to_u32(eval: &IRGenerator, idx: arena::Index) -> Option<u32> {
+        if let Some(index_as_constant) = eval.get_as_constant(idx) {
+            if let Ok(address) = index_as_constant.to_u128().try_into() {
+                return Some(address);
+            }
+            //Invalid memory address
+        }
+        None   //Not a constant object
     }
 }

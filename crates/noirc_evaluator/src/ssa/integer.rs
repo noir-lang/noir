@@ -7,6 +7,7 @@ use super::{
 use acvm::FieldElement;
 use num_bigint::BigUint;
 use std::collections::{HashMap, VecDeque};
+use std::convert::TryInto;
 
 //Gets the maximum value of the instruction result
 pub fn get_instruction_max(
@@ -17,7 +18,22 @@ pub fn get_instruction_max(
 ) -> BigUint {
     let r_max = get_obj_max_value(eval, None, ins.rhs, max_map, vmap);
     let l_max = get_obj_max_value(eval, None, ins.lhs, max_map, vmap);
-    ins.get_max_value(l_max, r_max)
+    get_instruction_max_operand(eval, ins, l_max,r_max, max_map, vmap)
+}
+
+//Gets the maximum value of the instruction result using the provided operand maximum
+pub fn get_instruction_max_operand(
+    eval: &IRGenerator,
+    ins: &node::Instruction,
+    left_max: BigUint,
+    right_max: BigUint,
+    max_map: &mut HashMap<arena::Index, BigUint>,
+    vmap: &HashMap<arena::Index, arena::Index>,
+) -> BigUint {
+    if ins.operator == node::Operation::load {
+        return get_load_max(eval, ins.lhs, max_map, vmap);
+    }
+    ins.get_max_value(left_max, right_max)
 }
 
 // Retrieve max possible value of a node; from the max_map if it was already computed
@@ -208,18 +224,28 @@ pub fn block_overflow(
     let mut value_map: HashMap<arena::Index, arena::Index> = HashMap::new(); //since we process the block from the start, the block value array is not relevant
                                                                              //block.value_array.clone();     //RIA - we need to modify it and to use it
                                                                              //TODO we should try to make another simplify round here, or at least after copy propagation, we should do it at the best convenient place....TODO
+    let mut memory_map: HashMap<u32, arena::Index> = HashMap::new();    //TODO surement a mettre en argument
+    let mut delete_ins = false;
     for mut ins in b {
         if ins.operator == node::Operation::nop {
             continue;
         }
+        let mut i_lhs = ins.lhs;
+        let mut i_rhs = ins.rhs;
+        //we propagate optimised loads - todo check if it is needed because there is cse at the end
+        if node::is_binary(ins.operator) {
+            //binary operation:
+            i_lhs = super::optim::propagate(eval, ins.lhs);
+            i_rhs = super::optim::propagate(eval, ins.rhs);
+        }
         //We retrieve get_current_value() in case a previous truncate has updated the value map
-        let r_id = get_value_from_map(ins.rhs, &value_map); //block.get_current_value(ins.rhs);
+        let r_id = get_value_from_map(i_rhs, &value_map); 
         let mut update_instruction = false;
         if r_id != ins.rhs {
             ins.rhs = r_id;
             update_instruction = true;
         }
-        let l_id = get_value_from_map(ins.lhs, &value_map); //block.get_current_value(ins.lhs);
+        let l_id = get_value_from_map(i_lhs, &value_map);
         if l_id != ins.lhs {
             ins.lhs = l_id;
             update_instruction = true;
@@ -239,6 +265,25 @@ pub fn block_overflow(
             //adds a new truncate(rhs) instruction
             add_to_truncate(eval, r_id, r_obj.bits(), &mut truncate_map, max_map);
         }
+        
+        if ins.operator == node::Operation::load {
+            //TODO we use a local memory map for now but it should be used in arguments
+            //for instance, the join block of a IF should merge the two memorymaps using the condition value
+            if let Some(adr) = super::mem::Memory::to_u32(eval, ins.lhs) {
+                if let Some(val) = memory_map.get(&adr) {
+                    //optimise static load
+                    ins.is_deleted = true;
+                    ins.rhs = *val;
+                }
+            }
+        }
+        if ins.operator == node::Operation::store {
+            if let Some(adr) = super::mem::Memory::to_u32(eval, ins.lhs) {
+                //optimise static store
+                memory_map.insert(adr, ins.lhs);
+                delete_ins = true;
+            }
+        }
         if ins.operator == node::Operation::cast {
             //TODO for cast, we may need to reduce rhs into the bit size of lhs
             //this can change the max value of the cast so its need to be done here
@@ -257,7 +302,8 @@ pub fn block_overflow(
             //n.b we could try to truncate only one of them, but then we should check if rhs==lhs.
             let l_trunc_max = add_to_truncate(eval, l_id, l_obj.bits(), &mut truncate_map, max_map);
             let r_trunc_max = add_to_truncate(eval, r_id, r_obj.bits(), &mut truncate_map, max_map);
-            ins_max = ins.get_max_value(l_trunc_max.clone(), r_trunc_max.clone());
+            ins_max = get_instruction_max_operand(eval, &ins, l_trunc_max.clone(), r_trunc_max.clone(), max_map, &value_map);
+            //ins_max = ins.get_max_value(l_trunc_max.clone(), r_trunc_max.clone());
             if ins_max.bits() >= FieldElement::max_num_bits().into() {
                 let message = format!(
                     "Require big int implementation, the bit size is too big for the field: {}, {}",
@@ -275,19 +321,24 @@ pub fn block_overflow(
             b_idx,
             &mut value_map,
         );
-        new_list.push(ins.idx);
-        let l_new = get_value_from_map(l_id, &value_map); //block.get_current_value(l_id);
-        let r_new = get_value_from_map(r_id, &value_map); //block.get_current_value(r_id);
-        if l_new != l_id || r_new != r_id || ins.is_sub() {
-            update_instruction = true;
+        if delete_ins {
+            delete_ins = false;
         }
-        if update_instruction {
-            let mut max_r_value = None;
-            if ins.is_sub() {
-                max_r_value = Some(max_map[&r_new].clone()); //for now we pass the max value to the instruction, we could also keep the max_map e.g in the block (or max in each nodeobj)
-                                                             //we may do that in future when the max_map becomes more used elsewhere (for other optim)
+        else {
+            new_list.push(ins.idx);   
+            let l_new = get_value_from_map(l_id, &value_map);
+            let r_new = get_value_from_map(r_id, &value_map); 
+            if l_new != l_id || r_new != r_id || ins.is_sub() {
+                update_instruction = true;
             }
-            update_ins_parameters(eval, ins.idx, l_new, r_new, max_r_value);
+            if update_instruction {
+                let mut max_r_value = None;
+                if ins.is_sub() {
+                    max_r_value = Some(max_map[&r_new].clone()); //for now we pass the max value to the instruction, we could also keep the max_map e.g in the block (or max in each nodeobj)
+                                                                //we may do that in future when the max_map becomes more used elsewhere (for other optim)
+                }
+                update_ins_parameters(eval, ins.idx, l_new, r_new, max_r_value);
+            }
         }
     }
     update_value_array(eval, b_idx, &value_map);
@@ -316,4 +367,20 @@ pub fn get_value_from_map(
         Some(cur_idx) => *cur_idx,
         None => idx,
     }
+}
+
+
+pub fn get_load_max(eval: &IRGenerator, address: arena::Index,
+    max_map: &mut HashMap<arena::Index, BigUint>,
+    vmap: &HashMap<arena::Index, arena::Index>,
+) -> BigUint {
+    if let Some(adr_as_const) = eval.get_as_constant(address) {
+        let adr : u32 = adr_as_const.to_u128().try_into().unwrap();
+        if let Some(&value) = eval.mem.memory_map.get(&adr) {
+            return get_obj_max_value(eval, None, value, max_map, vmap);
+        }
+        return eval.mem.get_array_from_adr(adr).max.clone();
+    };
+    todo!(); //todo return array max
+    
 }

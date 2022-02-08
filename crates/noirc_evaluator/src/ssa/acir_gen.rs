@@ -106,8 +106,8 @@ impl Acir {
             return;
         }
         let mut output = Arithmetic::default();
-        let l_c = self.substitute(/*&mut self.arith_cache,*/ ins.lhs, evaluator, cfg);
-        let r_c = self.substitute(/*&mut self.arith_cache,*/ ins.rhs, evaluator, cfg);
+        let l_c = self.substitute(ins.lhs, evaluator, cfg);
+        let r_c = self.substitute(ins.rhs, evaluator, cfg);
         match ins.operator {
             Operation::add | Operation::safe_add => {
                 //output = &l_c.expression + &r_c.expression;
@@ -194,7 +194,7 @@ impl Acir {
                         output = self.memory_map[&address].expression.clone();
                     } else {
                         //if not found, then it must be a witnes (else it is non-initialised memory)
-                        let array = cfg.mem.get_array_adr(address);
+                        let array = cfg.mem.get_array_from_adr(address);
                         let index = (address - array.adr) as usize;
                         let w = array.witness[index];
                         output = Arithmetic::from(Linear::from_witness(w));
@@ -667,13 +667,12 @@ pub fn range_constraint(
         // new witnesses; r is constrained to num_bits-1 and b is 1 bit
         let r_witness = evaluator.add_witness_to_cs();
         let b_witness = evaluator.add_witness_to_cs();
-        //TODO not in master...
-        // evaluator.gates.push(Gate::Directive(Directive::Oddrange {
-        //     a: witness,
-        //     b: b_witness,
-        //     r: r_witness,
-        //     bit_size: num_bits,
-        // }));
+        evaluator.gates.push(Gate::Directive(Directive::Oddrange {
+            a: witness,
+            b: b_witness,
+            r: r_witness,
+            bit_size: num_bits,
+        }));
         range_constraint(r_witness, num_bits - 1, evaluator).unwrap_or_else(|err| {
             dbg!(err);
         });
