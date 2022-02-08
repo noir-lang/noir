@@ -61,7 +61,9 @@ circuit_data get_circuit_data(std::string const& name,
     if (((!exists(pk_path) || !exists(vk_path) || (!exists(padding_path) && padding)) && compute) ||
         (compute && !load)) {
         info(name, ": Building circuit...");
+        Timer timer;
         build_circuit(composer);
+        info(name, ": Circuit built in: ", timer.toString(), "s");
         info(name, ": Circuit size: ", composer.get_num_gates());
         if (mock) {
             auto public_inputs = composer.get_public_inputs();
