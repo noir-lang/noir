@@ -843,7 +843,7 @@ impl<'a> IRGenerator<'a> {
         body_block1.update_variable(iter_id, phi); //TODO try with just a get_current_value(iter)
         let statements = block.statements();
         for stmt in statements {
-            self.evaluate_statement(env, stmt).unwrap_err(); //TODO return the error
+            self.evaluate_statement(env, stmt).unwrap(); //TODO return the error
         }
 
         //increment iter
