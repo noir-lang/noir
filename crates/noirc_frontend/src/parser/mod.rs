@@ -35,7 +35,7 @@ where
 {
     use Token::*;
     parser
-        .delimited_by(LeftParen, RightParen)
+        .delimited_by(just(LeftParen), just(RightParen))
         .recover_with(nested_delimiters(
             LeftParen,
             RightParen,

@@ -11,7 +11,7 @@ pub(crate) fn type_check(
     interner: &mut NodeInterner,
     stmt_id: &StmtId,
     errors: &mut Vec<TypeCheckError>,
-) {
+) -> Type {
     match interner.statement(stmt_id) {
         // Lets lay out a convincing argument that the handling of
         // SemiExpressions and Expressions below is correct.
@@ -34,7 +34,7 @@ pub(crate) fn type_check(
         //
         // The reason why we still modify the database, is to make sure it is future-proof
         HirStatement::Expression(expr_id) => {
-            type_check_expression(interner, &expr_id, errors);
+            return type_check_expression(interner, &expr_id, errors);
         }
         HirStatement::Semi(expr_id) => {
             type_check_expression(interner, &expr_id, errors);
@@ -47,10 +47,9 @@ pub(crate) fn type_check(
             type_check_constrain_stmt(interner, constrain_stmt, errors)
         }
         HirStatement::Assign(assign_stmt) => type_check_assign_stmt(interner, assign_stmt, errors),
-
-        // Avoid issuing further errors for statements that did not parse correctly
         HirStatement::Error => (),
     }
+    Type::Unit
 }
 
 fn type_check_assign_stmt(

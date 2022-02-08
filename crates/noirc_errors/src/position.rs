@@ -58,7 +58,10 @@ impl<T> std::borrow::Borrow<T> for Spanned<T> {
 pub struct Span(ByteSpan);
 
 impl Span {
-    pub fn new(range: Range<u32>) -> Span {
+    pub fn new(mut range: Range<u32>) -> Span {
+        if range.start > range.end {
+            range = range.end..range.start;
+        }
         Span(ByteSpan::from(range))
     }
 

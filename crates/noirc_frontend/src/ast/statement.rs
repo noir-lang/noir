@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use crate::lexer::token::SpannedToken;
+use crate::parser::ParserError;
 use crate::token::Token;
 use crate::util::vecmap;
 use crate::{Expression, ExpressionKind, InfixExpression, NoirStruct, Type};
@@ -117,6 +118,59 @@ impl Statement {
             r#type,
             expression,
         })
+    }
+
+    pub fn add_semicolon(
+        self,
+        semi: Option<Token>,
+        span: Span,
+        last_statement_in_block: bool,
+        emit_error: &mut dyn FnMut(ParserError),
+    ) -> Statement {
+        match self {
+            Statement::Let(_)
+            | Statement::Const(_)
+            | Statement::Constrain(_)
+            | Statement::Private(_)
+            | Statement::Assign(_)
+            | Statement::Semi(_)
+            | Statement::Error => {
+                // To match rust, statements always require a semicolon, even at the end of a block
+                if semi.is_none() {
+                    let reason = "Expected a ; after this statement".to_string();
+                    emit_error(ParserError::with_reason(reason, span));
+                }
+                self
+            }
+
+            Statement::Expression(expr) => {
+                match (&expr.kind, semi, last_statement_in_block) {
+                    // Semicolons are optional for these expressions
+                    (ExpressionKind::Block(_), semi, _)
+                    | (ExpressionKind::For(_), semi, _)
+                    | (ExpressionKind::If(_), semi, _) => {
+                        if semi.is_some() {
+                            Statement::Semi(expr)
+                        } else {
+                            Statement::Expression(expr)
+                        }
+                    }
+
+                    // Don't wrap expressions that are not the last expression in
+                    // a block in a Semi so that we can report errors in the type checker
+                    // for unneeded expressions like { 1 + 2; 3 }
+                    (_, Some(_), false) => Statement::Expression(expr),
+                    (_, None, false) => {
+                        let reason = "Expected a ; after this expression".to_string();
+                        emit_error(ParserError::with_reason(reason, span));
+                        Statement::Expression(expr)
+                    }
+
+                    (_, Some(_), true) => Statement::Semi(expr),
+                    (_, None, true) => Statement::Expression(expr),
+                }
+            }
+        }
     }
 }
 
