@@ -52,6 +52,8 @@ use crate::hir_def::{
 
 use super::errors::ResolverError;
 
+const IDENT_ERROR_PREFIX: &'static str = "$";
+
 type Scope = GenericScope<String, ResolverMeta>;
 type ScopeTree = GenericScopeTree<String, ResolverMeta>;
 type ScopeForest = GenericScopeForest<String, ResolverMeta>;
@@ -112,9 +114,11 @@ impl<'a> Resolver<'a> {
         }
 
         for unused_var in unused_vars.iter() {
-            self.push_err(ResolverError::UnusedVariable {
-                ident_id: *unused_var,
-            });
+            if !self.interner.ident_name(unused_var).starts_with(IDENT_ERROR_PREFIX) {
+                self.push_err(ResolverError::UnusedVariable {
+                    ident_id: *unused_var,
+                });
+            }
         }
     }
 

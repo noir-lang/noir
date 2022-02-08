@@ -188,6 +188,7 @@ impl Type {
         match self {
             Type::FieldElement(FieldElementType::Private) => true,
             Type::Integer(field_type, _, _) => field_type == &FieldElementType::Private,
+            Type::Error => true,
             _ => false,
         }
     }
@@ -269,20 +270,21 @@ impl Type {
 
     // Returns true if the Type can be used in a Let statement
     pub fn can_be_used_in_let(&self) -> bool {
-        self.is_fixed_sized_array() || self.is_variable_sized_array()
+        self.is_fixed_sized_array() || self.is_variable_sized_array() || self == &Type::Error
     }
+
     // Returns true if the Type can be used in a Constrain statement
     pub fn can_be_used_in_constrain(&self) -> bool {
         matches!(
             self,
-            Type::FieldElement(_) | Type::Integer(_, _, _) | Type::Array(_, _, _)
+            Type::FieldElement(_) | Type::Integer(_, _, _) | Type::Array(_, _, _) | Type::Error
         )
     }
 
     // Base types are types in the language that are simply alias for a field element
     // Therefore they can be the operands in an infix comparison operator
     pub fn is_base_type(&self) -> bool {
-        matches!(self, Type::FieldElement(_) | Type::Integer(_, _, _))
+        matches!(self, Type::FieldElement(_) | Type::Integer(_, _, _) | Type::Error)
     }
 
     pub fn is_constant(&self) -> bool {
@@ -291,6 +293,7 @@ impl Type {
             self,
             Type::FieldElement(FieldElementType::Constant)
                 | Type::Integer(FieldElementType::Constant, _, _)
+                | Type::Error
         )
     }
 

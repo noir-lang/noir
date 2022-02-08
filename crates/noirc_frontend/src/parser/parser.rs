@@ -55,8 +55,6 @@ fn top_level_statement() -> impl NoirParser<TopLevelStatement> {
         module_declaration().then_ignore(just(Token::Semicolon)),
         use_statement().then_ignore(just(Token::Semicolon)),
     ))
-    // 'declaration' label doesn't really cover use statements, is that an issue?
-    .labelled("declaration")
 }
 
 fn function_definition() -> impl NoirParser<TopLevelStatement> {

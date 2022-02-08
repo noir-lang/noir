@@ -126,7 +126,7 @@ fn type_check_const_stmt(
     let resolved_type =
         type_check_declaration(interner, const_stmt.expression, const_stmt.r#type, errors);
 
-    if resolved_type != Type::CONSTANT {
+    if resolved_type != Type::CONSTANT && resolved_type != Type::Error {
         errors.push(
             TypeCheckError::TypeCannotBeUsed {
                 typ: resolved_type.clone(),
