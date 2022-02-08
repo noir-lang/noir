@@ -289,7 +289,7 @@ impl Display for Statement {
             Statement::Expression(expression) => expression.fmt(f),
             Statement::Assign(assign) => assign.fmt(f),
             Statement::Semi(semi) => write!(f, "{};", semi),
-            Statement::Error => write!(f, "error"),
+            Statement::Error => write!(f, "Error"),
         }
     }
 }

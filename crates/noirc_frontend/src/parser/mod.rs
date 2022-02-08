@@ -136,28 +136,17 @@ where
     P: NoirParser<T> + 'a,
     T: Clone,
 {
-    force(parser.clone()).then_with(move |option| match option {
-        Some(value) => empty().map(move |_| Some(value.clone())).boxed(),
-        None => {
-            let parser = parser.clone();
-            recursive(move |recur| {
-                let terminators = [
-                    Token::EOF,
-                    Token::Colon,
-                    Token::Semicolon,
-                    Token::RightBrace,
-                    Token::Keyword(Keyword::Let),
-                    Token::Keyword(Keyword::Priv),
-                    Token::Keyword(Keyword::Const),
-                    Token::Keyword(Keyword::Constrain),
-                ];
-
-                parser.or(none_of(terminators).ignore_then(recur))
-            })
-            .or_not()
-            .boxed()
-        }
-    })
+    let terminators = [
+        Token::EOF,
+        Token::Colon,
+        Token::Semicolon,
+        Token::RightBrace,
+        Token::Keyword(Keyword::Let),
+        Token::Keyword(Keyword::Priv),
+        Token::Keyword(Keyword::Const),
+        Token::Keyword(Keyword::Constrain),
+    ];
+    force(parser.recover_with(chumsky::prelude::skip_then_retry_until(terminators)))
 }
 
 /// Force the given parser to succeed, logging any errors it had

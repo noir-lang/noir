@@ -69,8 +69,9 @@ impl std::fmt::Display for ParserError {
             write!(f, "Unexpected {} in input", self.found)
         } else if expected.len() == 1 {
             let first = expected.first().unwrap();
-            let vowel = "aeiou".contains(first.chars().nth(0).unwrap());
-            write!(f,
+            let vowel = "aeiou".contains(first.chars().next().unwrap());
+            write!(
+                f,
                 "Expected a{} {} but found {}",
                 if vowel { "n" } else { "" },
                 first,

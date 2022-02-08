@@ -284,7 +284,7 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 [[package]]
 name = "chumsky"
 version = "0.7.0"
-source = "git+https://github.com/zesterer/chumsky?rev=75ed13c#75ed13caea4e1f4842cc5197e4724588e5f4b982"
+source = "git+https://github.com/zesterer/chumsky?rev=03e6d48#03e6d484952dac60b04c728f506b72c0ef3b4c59"
 dependencies = [
  "ahash",
 ]
