@@ -1,5 +1,4 @@
 use std::convert::TryInto;
-
 use std::ops::Add;
 
 use acvm::acir::native_types::Witness;
@@ -13,22 +12,36 @@ use crate::object::Object;
 use num_traits::identities::Zero;
 use std::ops::Mul;
 
-pub trait Node {
+pub trait Node: std::fmt::Display {
     fn get_type(&self) -> ObjectType;
-    fn print(&self) -> String;
     //fn get_bit_size(&self) -> u32;
     fn get_id(&self) -> arena::Index;
     fn bits(&self) -> u32; //bit size of the node
 }
 
+impl std::fmt::Display for Variable {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.name)
+    }
+}
+impl std::fmt::Display for NodeObj {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            NodeObj::Obj(o) => write!(f, "{}", o),
+            NodeObj::Instr(i) => write!(f, "{}", i),
+            NodeObj::Const(c) => write!(f, "{}", c),
+        }
+    }
+}
+impl std::fmt::Display for Constant {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+
 impl Node for Variable {
     fn get_type(&self) -> ObjectType {
         self.obj_type
-    }
-
-    fn print(&self) -> String {
-        //format!("{}({:?})", self.name, self.id)
-        self.name.to_string()
     }
 
     fn bits(&self) -> u32 {
@@ -46,14 +59,6 @@ impl Node for NodeObj {
             NodeObj::Obj(o) => o.get_type(),
             NodeObj::Instr(i) => i.res_type,
             NodeObj::Const(o) => o.value_type,
-        }
-    }
-
-    fn print(&self) -> String {
-        match self {
-            NodeObj::Obj(o) => o.print(),
-            NodeObj::Instr(i) => i.print_i(),
-            NodeObj::Const(c) => c.print(),
         }
     }
 
@@ -77,10 +82,6 @@ impl Node for NodeObj {
 impl Node for Constant {
     fn get_type(&self) -> ObjectType {
         self.value_type
-    }
-
-    fn print(&self) -> String {
-        self.value.to_string()
     }
 
     fn bits(&self) -> u32 {
@@ -182,6 +183,22 @@ impl ObjectType {
         }
     }
 
+    pub fn from_type(t: noirc_frontend::Type) -> ObjectType {
+        match t {
+            noirc_frontend::Type::FieldElement(_) => ObjectType::native_field,
+
+            noirc_frontend::Type::Integer(_ftype, sign, bit_size) => match sign {
+                noirc_frontend::Signedness::Signed => ObjectType::signed(bit_size),
+                noirc_frontend::Signedness::Unsigned => ObjectType::unsigned(bit_size),
+            },
+            noirc_frontend::Type::Bool => ObjectType::boolean,
+            x => {
+                let err = format!("currently we do not support type casting to {}", x);
+                todo!("{}", err);
+            }
+        }
+    }
+
     pub fn bits(&self) -> u32 {
         match self {
             ObjectType::boolean => 1,
@@ -209,6 +226,24 @@ pub struct Instruction {
     //temp: todo phi subtype
     pub phi_arguments: Vec<(arena::Index, arena::Index)>,
 }
+
+impl std::fmt::Display for Instruction {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        if self.res_name.is_empty() {
+            write!(f, "{:?}", self.idx.into_raw_parts().0)
+        } else {
+            write!(f, "{}", self.res_name.clone())
+        }
+    }
+}
+
+// pub fn print_i(&self) -> String {
+//     if self.res_name.is_empty() {
+//         format!("{:?}", self.idx.into_raw_parts().0)
+//     } else {
+//         self.res_name.clone()
+//     }
+// }
 
 #[derive(Debug, Clone, Copy)]
 pub enum NodeEval {
@@ -253,14 +288,6 @@ impl Instruction {
             bit_size: 0,
             max_value: BigUint::zero(),
             phi_arguments: Vec::new(),
-        }
-    }
-
-    pub fn print_i(&self) -> String {
-        if self.res_name.is_empty() {
-            format!("{:?}", self.idx.into_raw_parts().0)
-        } else {
-            self.res_name.clone()
         }
     }
 
@@ -317,7 +344,7 @@ impl Instruction {
         match ctype {
             ObjectType::boolean => (if c.is_zero() { 0 } else { 1 }, 1),
             ObjectType::native_field => (0, 256),
-            ObjectType::signed(b) | ObjectType::unsigned(b) => (c.to_u128().try_into().unwrap(), b), //TODO check how to handle signed integers
+            ObjectType::signed(b) | ObjectType::unsigned(b) => (c.to_u128(), b), //TODO check how to handle signed integers
             _ => todo!(),
         }
     }

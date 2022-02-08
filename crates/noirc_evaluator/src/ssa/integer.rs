@@ -65,7 +65,7 @@ pub fn truncate(
     // get type
     let obj = eval.get_object(obj_id).unwrap();
     let obj_type = obj.get_type();
-    let obj_name = obj.print();
+    let obj_name = format!("{}", obj);
     //ensure truncate is needed:
     let v_max = &max_map[&obj_id];
     if *v_max >= BigUint::from(1_u128 << bit_size) {

@@ -57,14 +57,10 @@ impl<'a> IRGenerator<'a> {
 
     //Display an object for debugging puposes
     fn to_string(&self, idx: arena::Index) -> String {
-        let var = self.get_object(idx);
-        if var.is_none() {
+        if let Some(var) = self.get_object(idx) {
+            return format!("{}", var);
+        } else {
             return format!("unknown {:?}", idx.into_raw_parts().0);
-        }
-        match var.unwrap() {
-            node::NodeObj::Obj(v) => v.print(),
-            node::NodeObj::Instr(i) => i.print_i(),
-            node::NodeObj::Const(c) => c.print(),
         }
     }
 
@@ -728,8 +724,10 @@ impl<'a> IRGenerator<'a> {
                 self.evaluate_infix_expression(lhs, rhs, infx.operator)
             },
             HirExpression::Cast(cast_expr) => {
-                let _lhs = self.expression_to_object(env, &cast_expr.lhs)?;
-                todo!();
+                let lhs = self.expression_to_object(env, &cast_expr.lhs)?;
+                let rtype = node::ObjectType::from_type(cast_expr.r#type);
+                Ok(self.new_cast_expression(lhs, rtype))
+
                 //We should generate a cast instruction and handle properly type conversion:
                 // unsigned integer to field ; ok, just checks if bit size over FieldElement::max_num_bits()
                 // signed integer to field; ok; check bit size N, retrieve sign bit s and returns x*(1-s)+s*(p-2^N+x)
