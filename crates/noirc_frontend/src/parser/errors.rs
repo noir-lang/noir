@@ -157,7 +157,7 @@ impl chumsky::Error<Token> for ParserError {
             self.reason = other.reason;
         }
 
-        // assert_eq!(self.span, other.span);
+        assert_eq!(self.span, other.span);
         self
     }
 }

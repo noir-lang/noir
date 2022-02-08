@@ -1176,10 +1176,9 @@ mod test {
             ("let = ", 2, "let $error: unspecified = Error"),
             ("let", 3, "let $error: unspecified = Error"),
             ("priv = ", 2, "priv $error: unspecified = Error"),
-            ("{ test = }", 1, "{}"),
             ("foo = one two three", 1, "foo = one"),
             ("constrain", 2, "Error"), // We don't recover 'constrain Error' since constrain needs a binary operator
-            ("constrain x ==", 1, "constrain (x == Error)"),
+            ("constrain x ==", 2, "constrain (x == Error)"), // This gives a duplicate 'end of input' error currently
         ];
 
         let show_errors = |v| vecmap(v, ToString::to_string).join("\n");
