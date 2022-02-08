@@ -27,11 +27,11 @@ fn eval_block(block_id: Index, eval_map: &HashMap<Index, NodeEval>, eval: &mut I
     for i in &block.instructions.clone() {
         //RIA
         if let Some(ins) = eval.try_get_mut_instruction(*i) {
-            if eval_map.contains_key(&ins.rhs) {
-                ins.rhs = eval_map[&ins.rhs].to_index().unwrap();
+            if let Some(value) = eval_map.get(&ins.rhs) {
+                ins.rhs = value.to_index().unwrap();
             }
-            if eval_map.contains_key(&ins.lhs) {
-                ins.lhs = eval_map[&ins.lhs].to_index().unwrap();
+            if let Some(value) = eval_map.get(&ins.lhs) {
+                ins.lhs = value.to_index().unwrap();
             }
             if ins.operator == Operation::eq_gate {}
             //TODO simplify(eval, ins);

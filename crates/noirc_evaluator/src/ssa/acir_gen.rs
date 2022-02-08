@@ -131,9 +131,6 @@ impl Acir {
             }
             Operation::urem => todo!(),
             Operation::srem => todo!(),
-            Operation::fmod => todo!(),
-            Operation::fneg => todo!(), //to check
-            Operation::fdiv => todo!(),
             Operation::div => todo!(),
             Operation::eq => todo!(),
             Operation::ne => todo!(),
@@ -255,14 +252,11 @@ pub fn generate_witness(lhs: &InternalVar, evaluator: &mut Evaluator) -> Witness
 }
 
 pub fn evaluate_mul(lhs: &InternalVar, rhs: &InternalVar, evaluator: &mut Evaluator) -> Arithmetic {
-    let result;
     if is_const(&lhs.expression) {
-        result = &(rhs.expression) * &(lhs.expression.q_c);
-        return result;
+        return &rhs.expression * &lhs.expression.q_c;
     }
     if is_const(&rhs.expression) {
-        result = &lhs.expression * &rhs.expression.q_c;
-        return result;
+        return &lhs.expression * &rhs.expression.q_c;
     }
     //No multiplicative term
     if lhs.expression.mul_terms.is_empty() && rhs.expression.mul_terms.is_empty() {
@@ -367,20 +361,17 @@ pub fn mul(a: &Arithmetic, b: &Arithmetic) -> Arithmetic {
     if !(a.mul_terms.is_empty() && b.mul_terms.is_empty()) {
         todo!("PANIC");
     }
-    let mut i1 = 0; //a
-    let mut i2 = 0; //b
+
     let mut output = Arithmetic {
         mul_terms: Vec::new(),
         linear_combinations: Vec::new(),
         q_c: FieldElement::zero(),
     };
 
-    //TODO a optimiser...
-    while i1 < a.linear_combinations.len() {
-        let single = single_mul(a.linear_combinations[i1].1, b);
-        output = add(&output, a.linear_combinations[i1].0, &single);
-
-        i1 += 1;
+    //TODO to optimise...
+    for lc in &a.linear_combinations {
+        let single = single_mul(lc.1, b);
+        output = add(&output, lc.0, &single);
     }
 
     // while (i1< a.linear_combinations.len() && i2 < b.linear_combinations.len()) {
@@ -397,9 +388,9 @@ pub fn mul(a: &Arithmetic, b: &Arithmetic) -> Arithmetic {
     // }
 
     //linear terms
-    i1 = 0;
-    //i2 = 0;
-    //todo check it is correct
+    let mut i1 = 0; //a
+    let mut i2 = 0; //b
+                    //todo check it is correct
     while i1 < a.linear_combinations.len() && i2 < b.linear_combinations.len() {
         let coef_a = b.q_c * a.linear_combinations[i1].0;
         let coef_b = a.q_c * b.linear_combinations[i2].0;
