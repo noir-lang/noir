@@ -114,7 +114,11 @@ impl<'a> Resolver<'a> {
         }
 
         for unused_var in unused_vars.iter() {
-            if !self.interner.ident_name(unused_var).starts_with(IDENT_ERROR_PREFIX) {
+            if !self
+                .interner
+                .ident_name(unused_var)
+                .starts_with(IDENT_ERROR_PREFIX)
+            {
                 self.push_err(ResolverError::UnusedVariable {
                     ident_id: *unused_var,
                 });

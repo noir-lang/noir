@@ -284,7 +284,10 @@ impl Type {
     // Base types are types in the language that are simply alias for a field element
     // Therefore they can be the operands in an infix comparison operator
     pub fn is_base_type(&self) -> bool {
-        matches!(self, Type::FieldElement(_) | Type::Integer(_, _, _) | Type::Error)
+        matches!(
+            self,
+            Type::FieldElement(_) | Type::Integer(_, _, _) | Type::Error
+        )
     }
 
     pub fn is_constant(&self) -> bool {
