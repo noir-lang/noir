@@ -102,8 +102,13 @@ TEST(stdlib_byte_array, test_byte_array_input_output_consistency)
 
     EXPECT_EQ(a_result.get_value(), a_expected);
     EXPECT_EQ(b_result.get_value(), b_expected);
-}
 
+    auto prover = composer.create_prover();
+    auto verifier = composer.create_verifier();
+    auto proof = prover.construct_proof();
+    bool verified = verifier.verify_proof(proof);
+    EXPECT_EQ(verified, true);
+}
 
 TEST(stdlib_byte_array, get_bit)
 {
@@ -137,8 +142,6 @@ TEST(stdlib_byte_array, get_bit)
     EXPECT_EQ(proof_result, true);
 }
 
-
-
 TEST(stdlib_byte_array, set_bit)
 {
     waffle::TurboComposer composer = waffle::TurboComposer();
@@ -160,7 +163,5 @@ TEST(stdlib_byte_array, set_bit)
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, true);
 }
-
-
 
 } // namespace test_stdlib_byte_array

@@ -366,3 +366,17 @@ TEST(stdlib_safeuint, test_slice_random)
     bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, true);
 }
+TEST(stdlib_safeuint, test_div_operator)
+{
+    waffle::TurboComposer composer = waffle::TurboComposer();
+
+    suint_t a(witness_t(&composer, 1000), 10, "a");
+    suint_t b(2, 2, "b");
+
+    a = a / b;
+
+    waffle::TurboProver prover = composer.create_prover();
+    waffle::TurboVerifier verifier = composer.create_verifier();
+    waffle::plonk_proof proof = prover.construct_proof();
+    EXPECT_TRUE(verifier.verify_proof(proof));
+}

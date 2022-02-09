@@ -44,17 +44,54 @@ byte_array<ComposerContext>::byte_array(ComposerContext* parent_context, std::ve
 }
 
 /**
- * Create a byte_array out of a field element
+ * @brief Create a byte_array out of a field element.
  *
- * The length of the byte array will default to 32 bytes, but shorter lengths can be specified.
+ * @details The length of the byte array will default to 32 bytes, but shorter lengths can be specified.
  * If a shorter length is used, the circuit will NOT truncate the input to fit the reduced length.
  * Instead, the circuit adds constraints that VALIDATE the input is smaller than the specified length
  *
- * e.g. if this constructor is used on a 16-bit input witness, where `num_bytes` is 1, the resulting proof will fail
- **/
+ * e.g. if this constructor is used on a 16-bit input witness, where `num_bytes` is 1, the resulting proof will fail.
+ *
+ *
+ * # Description of circuit
+ *
+ * Our field element is `input`. Say the byte vector provided by the prover consists of bits b0,...,b255. These bits
+ * are used to construct the corresponding uint256_t validator := \sum_{i=0}^{8num_bytes-7} 2^{i}b_{i}, and `validator`
+ * is copy constrained to be equal to `input`. However, more constraints are needed in general.
+ *
+ * Let r = barretenberg::fr::modulus. For later applications, we want to ensure that the prover must pass the bit
+ * decomposition of the standard representative of the mod r residue class containing `input`, which is to say that we
+ * want to show `validator` lies in [0, ..., r-1]. By the formula for `validator`, we do not have to worry about it
+ * wrapping the modulus if num_bytes < 32 or, in the default case, if the `input` fits into 31 bytes.
+ *
+ * Suppose now that num_bytes is 32. We would like to show that r - validator lies > 0 as integers, but this
+ * cannot be done inside of uint256_t since `validator` can be any uint256_t, hence its negative is not constrained to
+ * lie in any proper subset. We therefore split it and `r-1` into two smaller limbs and make comparisons using range
+ * constraints in uint256_t (shifting r to turn a `>` into a `>=`).
+ *
+ * By the construction of `validator`, it is easy to extract its top 16 bytes shifted_high_limb = 2^{128}v_hi, so that
+ * one gets a decomposition by computing v_lo := validator - 2^{128}v_hi.  We separate the problem of imposing that
+ * validator <= r - 1 into two cases.
+ *
+ *      Case 0: When s_lo < v_lo, we must impose that v_hi < s_hi, i.e., s_hi - v_hi - 1 >= 0.
+ *      Case 1:           >=                               =<            s_hi - v_hi     >= 0.
+ *
+ * To unify these cases, we need a predicate that distinguishes them, and we need to use this to effect a shift of 1 or
+ * 0 in v_hi, as the case may be. We build this now. Consider the expression s_lo - v_lo. As an integer, this lies in
+ * [-2^128+1, 2^128-1], with Case 0 corresponding to the numbers < 0. Shifting to
+ *      y_lo :=  s_lo - v_lo + 2^128,
+ * Case 0 corresponds to the range [1, 2^128-1]. We see that the 129th bit of y_lo exactly indicates the case.
+ * Extracting this (and the 130th bit, which is always 0, for convenience) and adding it to v_hi, we have a uniform
+ * constraint to apply. Namely, setting
+ *      y_borrow := 1 - (top quad of y_lo regarded as a 130-bit integer)
+ * and
+ *      y_hi := s_hi - v_hi - y_borrow,
+ * range constrianing y_hi to 128 bits imposes validator < r.
+ */
 template <typename ComposerContext>
 byte_array<ComposerContext>::byte_array(const field_t<ComposerContext>& input, const size_t num_bytes)
 {
+    ASSERT(num_bytes <= 32);
     uint256_t value = input.get_value();
     values.resize(num_bytes);
     context = input.get_context();
@@ -66,7 +103,7 @@ byte_array<ComposerContext>::byte_array(const field_t<ComposerContext>& input, c
         constexpr barretenberg::fr byte_shift(256);
         field_t<ComposerContext> validator(context, 0);
 
-        field_t<ComposerContext> shifted_high_limb(context, 0); // will equal high 128 bits, left shifted by 128 bits
+        field_t<ComposerContext> shifted_high_limb(context, 0); // will be set to 2^128v_hi if `i` reaches 15.
         for (size_t i = 0; i < num_bytes; ++i) {
             barretenberg::fr byte_val = value.slice((num_bytes - i - 1) * 8, (num_bytes - i) * 8);
             field_t<ComposerContext> byte = witness_t(context, byte_val);
@@ -81,20 +118,26 @@ byte_array<ComposerContext>::byte_array(const field_t<ComposerContext>& input, c
         }
         validator.assert_equal(input);
 
-        // validate input bytes < p
-        if (num_bytes >= 32) {
-            constexpr uint256_t modulus = fr::modulus;
-            const fr p_lo = modulus.slice(0, 128);
-            const fr p_hi = modulus.slice(128, 256);
+        // constrain validator to be < r
+        if (num_bytes == 32) {
+            constexpr uint256_t modulus_minus_one = fr::modulus - 1;
+            const fr s_lo = modulus_minus_one.slice(0, 128);
+            const fr s_hi = modulus_minus_one.slice(128, 256);
             const fr shift = fr(uint256_t(1) << 128);
-            field_t<ComposerContext> y_lo = (-validator) + (p_lo + shift);
+
+            // defining input_lo = validator - shifted_high_limb, we're checking s_lo + shift - input_lo is
+            // non-negative.
+            field_t<ComposerContext> y_lo = (-validator) + (s_lo + shift);
             y_lo += shifted_high_limb;
+            // The range constraint imposed here already holds implicitly. We only do this to get the top quad.
             const auto low_accumulators =
                 context->decompose_into_base4_accumulators(y_lo.normalize().witness_index, 130);
             field_t<ComposerContext> y_borrow =
                 -(field_t<ComposerContext>::from_witness_index(context, low_accumulators[0]) - 1);
 
-            field_t<ComposerContext> y_hi = -(shifted_high_limb / shift) + (p_hi);
+            // define input_hi = shifted_high_limb/shift. We know input_hi is max 128 bits, and we're checking
+            // s_hi - (input_hi + borrow) is non-negative
+            field_t<ComposerContext> y_hi = -(shifted_high_limb / shift) + (s_hi);
             y_hi -= y_borrow;
             y_hi.create_range_constraint(128);
         }

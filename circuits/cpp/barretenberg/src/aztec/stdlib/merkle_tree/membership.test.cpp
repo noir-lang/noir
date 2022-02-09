@@ -17,14 +17,14 @@ TEST(stdlib_merkle_tree, test_check_membership)
     Composer composer = Composer();
 
     // Check membership at index 0.
-    byte_array_ct zero(field_ct(witness_ct(&composer, fr::zero())));
+    auto zero = field_ct(witness_ct(&composer, fr::zero())).decompose_into_bits();
     field_ct root = witness_ct(&composer, db.root());
     bool_ct is_member =
         check_membership(root, create_witness_hash_path(composer, db.get_hash_path(0)), field_ct(0), zero);
 
     // Check membership at index 7 after inserting 1.
     db.update_element(7, 1);
-    byte_array_ct seven(field_ct(witness_ct(&composer, fr(7))));
+    auto seven = field_ct(witness_ct(&composer, fr(7))).decompose_into_bits();
     root = witness_ct(&composer, db.root());
     bool_ct is_member_ =
         check_membership(root, create_witness_hash_path(composer, db.get_hash_path(1)), field_ct(1), seven);
@@ -77,7 +77,7 @@ TEST(stdlib_merkle_tree, test_assert_check_membership)
     auto db = MerkleTree(store, 3);
     Composer composer = Composer();
 
-    byte_array_ct zero(field_ct(witness_ct(&composer, fr::zero())));
+    auto zero = field_ct(witness_ct(&composer, fr::zero())).decompose_into_bits();
     field_ct root = witness_ct(&composer, db.root());
 
     assert_check_membership(root, create_witness_hash_path(composer, db.get_hash_path(0)), field_ct(0), zero);
@@ -100,7 +100,7 @@ TEST(stdlib_merkle_tree, test_assert_check_membership_fail)
 
     Composer composer = Composer();
 
-    byte_array_ct zero(field_ct(witness_ct(&composer, fr::zero())));
+    auto zero = field_ct(witness_ct(&composer, fr::zero())).decompose_into_bits();
     field_ct root = witness_ct(&composer, db.root());
 
     assert_check_membership(root, create_witness_hash_path(composer, db.get_hash_path(0)), field_ct(1), zero);
@@ -124,7 +124,7 @@ TEST(stdlib_merkle_tree, test_update_members)
 
         Composer composer = Composer();
 
-        byte_array_ct zero(field_ct(witness_ct(&composer, fr::zero())));
+        auto zero = field_ct(witness_ct(&composer, fr::zero())).decompose_into_bits();
 
         auto old_value = field_ct(0);
         hash_path<Composer> old_path = create_witness_hash_path(composer, db.get_hash_path(0));
@@ -153,7 +153,7 @@ TEST(stdlib_merkle_tree, test_update_members)
 
         Composer composer = Composer();
 
-        byte_array_ct zero(field_ct(witness_ct(&composer, fr::zero())));
+        auto zero = field_ct(witness_ct(&composer, fr::zero())).decompose_into_bits();
 
         auto old_value = field_ct(0);
         hash_path<Composer> old_path = create_witness_hash_path(composer, db.get_hash_path(0));

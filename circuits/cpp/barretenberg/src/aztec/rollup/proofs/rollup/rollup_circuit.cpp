@@ -39,7 +39,7 @@ field_ct check_nullifiers_inserted(Composer& composer,
                           latest_null_root,
                           old_null_paths[i],
                           field_ct(0),
-                          byte_array_ct(index),
+                          index.decompose_into_bits(NULL_TREE_DEPTH),
                           format(__FUNCTION__, "_", i));
 
         latest_null_root = new_null_roots[i];
@@ -189,8 +189,11 @@ void process_chained_txs(size_t const& i,
     // middle_of_chain = "this tx is not the first tx of its chain to be included in this rollup"
     const bool_ct middle_of_chain = chaining && found_link_in_rollup;
 
-    const bool_ct linked_commitment_exists = merkle_tree::check_membership(
-        old_data_root, linked_commitment_paths[i], backward_link, byte_array_ct(linked_commitment_indices[i]));
+    const bool_ct linked_commitment_exists =
+        merkle_tree::check_membership(old_data_root,
+                                      linked_commitment_paths[i],
+                                      backward_link,
+                                      linked_commitment_indices[i].decompose_into_bits(DATA_TREE_DEPTH));
 
     (start_of_subchain)
         .must_imply(linked_commitment_exists,
@@ -371,8 +374,10 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
         // Check this proof's data root exists in the data root tree (unless a padding entry).
         auto data_root = public_inputs[InnerProofFields::MERKLE_ROOT];
         bool_ct data_root_exists =
-            data_root != 0 &&
-            check_membership(data_roots_root, data_roots_paths[i], data_root, byte_array_ct(data_root_indicies[i]));
+            data_root != 0 && check_membership(data_roots_root,
+                                               data_roots_paths[i],
+                                               data_root,
+                                               data_root_indicies[i].decompose_into_bits(ROOT_TREE_DEPTH));
         is_real.assert_equal(data_root_exists, format("data_root_for_proof_", i));
 
         // Accumulate tx fee.

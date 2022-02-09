@@ -8,6 +8,7 @@ namespace plonk {
 namespace stdlib {
 namespace merkle_tree {
 
+template <typename ComposerContext> using bit_vector = std::vector<bool_t<ComposerContext>>;
 /**
  * Checks if the subtree is correctly inserted at a specified index in a Merkle tree.
  *
@@ -26,7 +27,7 @@ template <typename Composer>
 bool_t<Composer> check_subtree_membership(field_t<Composer> const& root,
                                           hash_path<Composer> const& hashes,
                                           field_t<Composer> const& value,
-                                          byte_array<Composer> const& index,
+                                          bit_vector<Composer> const& index,
                                           size_t at_height,
                                           bool const is_updating_tree = false)
 {
@@ -35,7 +36,7 @@ bool_t<Composer> check_subtree_membership(field_t<Composer> const& root,
 
     for (size_t i = at_height; i < hashes.size(); ++i) {
         // get the parity bit at this level of the tree (get_bit returns bool so we know this is 0 or 1)
-        bool_t<Composer> path_bit = index.get_bit(i);
+        bool_t<Composer> path_bit = index[i];
 
         // reconstruct the two inputs we need to hash
         // if `path_bit = false`, we know `current` is the left leaf and `hashes[i].second` is the right leaf
@@ -67,7 +68,7 @@ template <typename Composer>
 void assert_check_subtree_membership(field_t<Composer> const& root,
                                      hash_path<Composer> const& hashes,
                                      field_t<Composer> const& value,
-                                     byte_array<Composer> const& index,
+                                     bit_vector<Composer> const& index,
                                      size_t at_height,
                                      bool const is_updating_tree = false,
                                      std::string const& msg = "assert_check_subtree_membership")
@@ -91,7 +92,7 @@ template <typename Composer>
 bool_t<Composer> check_membership(field_t<Composer> const& root,
                                   hash_path<Composer> const& hashes,
                                   field_t<Composer> const& value,
-                                  byte_array<Composer> const& index,
+                                  bit_vector<Composer> const& index,
                                   bool const is_updating_tree = false)
 {
     return check_subtree_membership(root, hashes, value, index, 0, is_updating_tree);
@@ -113,7 +114,7 @@ template <typename Composer>
 void assert_check_membership(field_t<Composer> const& root,
                              hash_path<Composer> const& hashes,
                              field_t<Composer> const& value,
-                             byte_array<Composer> const& index,
+                             bit_vector<Composer> const& index,
                              bool const is_updating_tree = false,
                              std::string const& msg = "assert_check_membership")
 {
@@ -140,7 +141,7 @@ void update_membership(field_t<Composer> const& new_root,
                        field_t<Composer> const& old_root,
                        hash_path<Composer> const& old_hashes,
                        field_t<Composer> const& old_value,
-                       byte_array<Composer> const& index,
+                       bit_vector<Composer> const& index,
                        std::string const& msg = "update_membership")
 {
     // Check that the old_value, is in the tree given by old_root, at index.
@@ -170,7 +171,7 @@ void update_subtree_membership(field_t<Composer> const& new_root,
                                field_t<Composer> const& old_root,
                                hash_path<Composer> const& old_hashes,
                                field_t<Composer> const& old_subtree_root,
-                               byte_array<Composer> const& index,
+                               bit_vector<Composer> const& index,
                                size_t at_height,
                                std::string const& msg = "update_subtree_membership")
 {
@@ -262,7 +263,7 @@ void batch_update_membership(field_t<Composer> const& new_root,
     auto rollup_root = compute_tree_root(new_values);
 
     update_subtree_membership(
-        new_root, rollup_root, old_root, old_path, zero_subtree_root, byte_array<Composer>(start_index), height, msg);
+        new_root, rollup_root, old_root, old_path, zero_subtree_root, start_index.decompose_into_bits(), height, msg);
 }
 
 } // namespace merkle_tree

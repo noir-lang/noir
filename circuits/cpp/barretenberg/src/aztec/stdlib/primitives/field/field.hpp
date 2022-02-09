@@ -1,4 +1,5 @@
 #pragma once
+#include <functional>
 #include "../composers/composers_fwd.hpp"
 #include "../witness/witness.hpp"
 #include <common/assert.hpp>
@@ -7,7 +8,6 @@ namespace plonk {
 namespace stdlib {
 
 template <typename ComposerContext> class bool_t;
-
 template <typename ComposerContext> class field_t {
   public:
     field_t(ComposerContext* parent_context = nullptr);
@@ -250,11 +250,18 @@ template <typename ComposerContext> class field_t {
 
     mutable ComposerContext* context = nullptr;
 
+    std::vector<bool_t<ComposerContext>> decompose_into_bits(
+        const size_t num_bits = 256,
+        std::function<witness_t<ComposerContext>(ComposerContext* ctx, uint64_t, uint256_t)> get_bit =
+            [](ComposerContext* ctx, uint64_t j, uint256_t val) {
+                return witness_t<ComposerContext>(ctx, val.get_bit(j));
+            }) const;
     /**
      * additive_constant, multiplicative_constant are constant scaling factors applied to a field_t object.
-     * We track these scaling factors, because we can apply the same scaling factors to Plonk wires when creating gates.
-     * i.e. if we want to multiply a wire by a constant, or add a constant, we do not need to add extra gates to do
-     *this. Instead, we track the scaling factors, and apply them to the relevant wires when adding constraints
+     * We track these scaling factors, because we can apply the same scaling factors to Plonk wires when creating
+     *gates. i.e. if we want to multiply a wire by a constant, or add a constant, we do not need to add extra gates
+     *to do this. Instead, we track the scaling factors, and apply them to the relevant wires when adding
+     *constraints
      *
      * This also makes constant field_t objects effectively free. Where 'constant' is a circuit constant, not a C++
      *constant! e.g. the following 3 lines of code add 0 constraints into a circuit:
@@ -268,8 +275,8 @@ template <typename ComposerContext> class field_t {
      * field_t zip = witness_t(context, 10);
      * zip *= bar + foo;
      *
-     * The above adds 0 constraints, the only effect is that `zip`'s scaling factors have been modified. However if we
-     *now add:
+     * The above adds 0 constraints, the only effect is that `zip`'s scaling factors have been modified. However if
+     *we now add:
      *
      * field_t zap = witness_t(context, 50);
      * zip *= zap;

@@ -149,15 +149,18 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
         // Existence checks
 
         // Check claim note exists:
-        auto claim_exists =
-            check_membership(data_root, claim_note_path, claim_note.commitment, byte_array_ct(claim_note_index));
+        auto claim_exists = check_membership(data_root,
+                                             claim_note_path,
+                                             claim_note.commitment,
+                                             claim_note_index.value.decompose_into_bits(DATA_TREE_DEPTH));
         claim_exists.assert_equal(true, "claim note not a member");
 
         // Check defi interaction note exists:
-        const auto din_exists = check_membership(defi_root,
-                                                 defi_interaction_note_path,
-                                                 defi_interaction_note.commitment,
-                                                 byte_array_ct(defi_interaction_note.interaction_nonce.value));
+        const auto din_exists =
+            check_membership(defi_root,
+                             defi_interaction_note_path,
+                             defi_interaction_note.commitment,
+                             defi_interaction_note.interaction_nonce.value.decompose_into_bits(DEFI_TREE_DEPTH));
         din_exists.assert_equal(true, "defi interaction note not a member");
     }
 

@@ -1,9 +1,13 @@
 #include "field.hpp"
+#include <functional>
 #include "../bool/bool.hpp"
 #include "../composers/composers.hpp"
 #include "../../../rollup/constants.hpp"
 #include "pow.hpp"
 #include "../../../rollup/constants.hpp"
+
+// #pragma GCC diagnostic ignored "-Wunused-variable"
+// #pragma GCC diagnostic ignored "-Wunused-parameter"
 
 namespace plonk {
 namespace stdlib {
@@ -808,6 +812,54 @@ std::array<field_t<ComposerContext>, 3> field_t<ComposerContext>::slice(const ui
         ((hi_wit * field_t(uint256_t(1) << msb_plus_one)) + lo_wit + (slice_wit * field_t(uint256_t(1) << lsb))));
 
     std::array<field_t, 3> result = { lo_wit, slice_wit, hi_wit };
+    return result;
+}
+
+/**
+ * @brief Build a circuit allowing a user to prove that they have deomposed `this` into bits.
+ */
+template <typename ComposerContext>
+std::vector<bool_t<ComposerContext>> field_t<ComposerContext>::decompose_into_bits(
+    const size_t num_bits,
+    const std::function<witness_t<ComposerContext>(ComposerContext*, uint64_t, uint256_t)> get_bit) const
+{
+    ASSERT(num_bits <= 256);
+    std::vector<bool_t<ComposerContext>> result(num_bits);
+
+    const uint256_t val_u256 = static_cast<uint256_t>(get_value());
+    field_t<ComposerContext> sum(context, 0);
+    field_t<ComposerContext> shifted_high_limb(context, 0); // will equal high 128 bits, left shifted by 128 bits
+    for (size_t i = 0; i < num_bits; ++i) {
+        bool_t<ComposerContext> bit = get_bit(context, num_bits - 1 - i, val_u256);
+        result[num_bits - 1 - i] = bit;
+        barretenberg::fr scaling_factor_value = fr(2).pow(static_cast<uint64_t>(num_bits - 1 - i));
+        field_t<ComposerContext> scaling_factor(context, scaling_factor_value);
+
+        sum = sum + (scaling_factor * bit);
+        if (i == 127)
+            shifted_high_limb = sum;
+    }
+
+    this->assert_equal(sum); // note: `this` and `sum` both normalized here.
+    constexpr uint256_t modulus_minus_one = fr::modulus - 1;
+    auto modulus_bits = modulus_minus_one.get_msb() + 1;
+    // if value can be larger than modulus we must enforce unique representation
+    if (num_bits >= modulus_bits) {
+        const fr p_lo = modulus_minus_one.slice(0, 128);
+        const fr p_hi = modulus_minus_one.slice(128, 256);
+        const fr shift = fr(uint256_t(1) << 128);
+
+        field_t<ComposerContext> y_lo = (-sum) + (p_lo + shift);
+        y_lo += shifted_high_limb;
+        const auto low_accumulators = context->decompose_into_base4_accumulators(y_lo.normalize().witness_index, 130);
+        field_t<ComposerContext> y_borrow =
+            -(field_t<ComposerContext>::from_witness_index(context, low_accumulators[0]) - 1);
+
+        field_t<ComposerContext> y_hi = -(shifted_high_limb / shift) + (p_hi);
+        y_hi -= y_borrow;
+        y_hi.create_range_constraint(128);
+    }
+
     return result;
 }
 

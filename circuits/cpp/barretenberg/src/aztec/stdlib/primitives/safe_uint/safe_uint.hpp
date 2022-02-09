@@ -116,6 +116,7 @@ template <typename ComposerContext> class safe_uint_t {
                 return std::make_pair((uint256_t)(val / (uint256_t)divisor), (uint256_t)(val % (uint256_t)divisor));
             })
     {
+        ASSERT(this->value.is_constant() == false);
         ASSERT(quotient_bit_size <= MAX_BIT_NUM);
         ASSERT(remainder_bit_size <= MAX_BIT_NUM);
         uint256_t val = this->value.get_value();
@@ -134,9 +135,11 @@ template <typename ComposerContext> class safe_uint_t {
     // Potentially less efficient than divide function - bounds remainder and quotient by max of this
     safe_uint_t operator/(const safe_uint_t& other) const
     {
+        ASSERT(this->value.is_constant() == false);
         uint256_t val = this->value.get_value();
         auto quotient_val = (uint256_t)(val / (uint256_t)other.value.get_value());
         auto remainder_val = (uint256_t)(val % (uint256_t)other.value.get_value());
+        info("context:", value.context);
         field_t<ComposerContext> quotient_field(witness_t(value.context, quotient_val));
         field_t<ComposerContext> remainder_field(witness_t(value.context, remainder_val));
         safe_uint_t<ComposerContext> quotient(quotient_field, (size_t)(current_max.get_msb() + 1));

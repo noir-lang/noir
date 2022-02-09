@@ -4,17 +4,29 @@
 #include <plonk/composer/standard_composer.hpp>
 #include <plonk/composer/plookup_composer.hpp>
 #include <plonk/composer/turbo_composer.hpp>
+#include <numeric/random/engine.hpp>
+
+// #pragma GCC diagnostic ignored "-Wunused-variable"
+// #pragma GCC diagnostic ignored "-Wunused-parameter"
 
 namespace test_stdlib_field {
+
+namespace {
+auto& engine = numeric::random::get_debug_engine();
+}
+
+template <class T> void ignore_unused(T&) {} // use to ignore unused variables in lambdas
+
 using namespace barretenberg;
 using namespace plonk;
 
-typedef stdlib::bool_t<waffle::StandardComposer> bool_t;
-typedef stdlib::field_t<waffle::StandardComposer> field_t;
-typedef stdlib::witness_t<waffle::StandardComposer> witness_t;
-typedef stdlib::public_witness_t<waffle::StandardComposer> public_witness_t;
+typedef waffle::StandardComposer Composer;
+typedef stdlib::bool_t<Composer> bool_t;
+typedef stdlib::field_t<Composer> field_t;
+typedef stdlib::witness_t<Composer> witness_t;
+typedef stdlib::public_witness_t<Composer> public_witness_t;
 
-void fibbonaci(waffle::StandardComposer& composer)
+void fibbonaci(Composer& composer)
 {
     field_t a(stdlib::witness_t(&composer, fr::one()));
     field_t b(stdlib::witness_t(&composer, fr::one()));
@@ -27,7 +39,7 @@ void fibbonaci(waffle::StandardComposer& composer)
         c = a + b;
     }
 }
-uint64_t fidget(waffle::StandardComposer& composer)
+uint64_t fidget(Composer& composer)
 {
     field_t a(public_witness_t(&composer, fr::one())); // a is a legit wire value in our circuit
     field_t b(&composer,
@@ -59,7 +71,7 @@ uint64_t fidget(waffle::StandardComposer& composer)
     return cc;
 }
 
-void generate_test_plonk_circuit(waffle::StandardComposer& composer, size_t num_gates)
+void generate_test_plonk_circuit(Composer& composer, size_t num_gates)
 {
     field_t a(public_witness_t(&composer, barretenberg::fr::random_element()));
     field_t b(public_witness_t(&composer, barretenberg::fr::random_element()));
@@ -75,14 +87,14 @@ void generate_test_plonk_circuit(waffle::StandardComposer& composer, size_t num_
 
 TEST(stdlib_field, test_add_mul_with_constants)
 {
-    waffle::StandardComposer composer = waffle::StandardComposer();
+    Composer composer = Composer();
 
     uint64_t expected = fidget(composer);
-    waffle::Prover prover = composer.preprocess();
+    auto prover = composer.create_prover();
     EXPECT_EQ(prover.witness->wires.at("w_3")[18], fr(expected));
 
     EXPECT_EQ(prover.n, 32UL);
-    waffle::Verifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
     bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, true);
@@ -90,7 +102,7 @@ TEST(stdlib_field, test_add_mul_with_constants)
 
 TEST(stdlib_field, test_div)
 {
-    waffle::StandardComposer composer = waffle::StandardComposer();
+    Composer composer = Composer();
 
     field_t a = witness_t(&composer, barretenberg::fr::random_element());
     a *= barretenberg::fr::random_element();
@@ -116,9 +128,9 @@ TEST(stdlib_field, test_div)
     EXPECT_EQ(out.get_value(), 0);
     EXPECT_EQ(out.is_constant(), true);
 
-    waffle::Prover prover = composer.preprocess();
+    auto prover = composer.create_prover();
 
-    waffle::Verifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
     bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, true);
@@ -126,15 +138,15 @@ TEST(stdlib_field, test_div)
 
 TEST(stdlib_field, test_field_fibbonaci)
 {
-    waffle::StandardComposer composer = waffle::StandardComposer();
+    Composer composer = Composer();
 
     fibbonaci(composer);
 
-    waffle::Prover prover = composer.preprocess();
+    auto prover = composer.create_prover();
 
     EXPECT_EQ(prover.witness->wires.at("w_3")[17], fr(4181));
     EXPECT_EQ(prover.n, 32UL);
-    waffle::Verifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     waffle::plonk_proof proof = prover.construct_proof();
 
@@ -144,7 +156,7 @@ TEST(stdlib_field, test_field_fibbonaci)
 
 TEST(stdlib_field, test_equality)
 {
-    waffle::StandardComposer composer = waffle::StandardComposer();
+    Composer composer = Composer();
 
     field_t a(stdlib::witness_t(&composer, 4));
     field_t b(stdlib::witness_t(&composer, 4));
@@ -152,13 +164,13 @@ TEST(stdlib_field, test_equality)
 
     EXPECT_EQ(r.get_value(), true);
 
-    waffle::Prover prover = composer.preprocess();
+    auto prover = composer.create_prover();
 
     fr x = composer.get_variable(r.witness_index);
     EXPECT_EQ(x, fr(1));
 
     EXPECT_EQ(prover.n, 16UL);
-    waffle::Verifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     waffle::plonk_proof proof = prover.construct_proof();
 
@@ -168,7 +180,7 @@ TEST(stdlib_field, test_equality)
 
 TEST(stdlib_field, test_equality_false)
 {
-    waffle::StandardComposer composer = waffle::StandardComposer();
+    Composer composer = Composer();
 
     field_t a(stdlib::witness_t(&composer, 4));
     field_t b(stdlib::witness_t(&composer, 3));
@@ -176,13 +188,13 @@ TEST(stdlib_field, test_equality_false)
 
     EXPECT_EQ(r.get_value(), false);
 
-    waffle::Prover prover = composer.preprocess();
+    auto prover = composer.create_prover();
 
     fr x = composer.get_variable(r.witness_index);
     EXPECT_EQ(x, fr(0));
 
     EXPECT_EQ(prover.n, 16UL);
-    waffle::Verifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     waffle::plonk_proof proof = prover.construct_proof();
 
@@ -192,7 +204,7 @@ TEST(stdlib_field, test_equality_false)
 
 TEST(stdlib_field, test_equality_with_constants)
 {
-    waffle::StandardComposer composer = waffle::StandardComposer();
+    Composer composer = Composer();
 
     field_t a(stdlib::witness_t(&composer, 4));
     field_t b = 3;
@@ -201,13 +213,13 @@ TEST(stdlib_field, test_equality_with_constants)
 
     EXPECT_EQ(r.get_value(), true);
 
-    waffle::Prover prover = composer.preprocess();
+    auto prover = composer.create_prover();
 
     fr x = composer.get_variable(r.witness_index);
     EXPECT_EQ(x, fr(1));
 
     EXPECT_EQ(prover.n, 16UL);
-    waffle::Verifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     waffle::plonk_proof proof = prover.construct_proof();
 
@@ -218,13 +230,13 @@ TEST(stdlib_field, test_equality_with_constants)
 TEST(stdlib_field, test_larger_circuit)
 {
     size_t n = 16384;
-    waffle::StandardComposer composer = waffle::StandardComposer(n);
+    Composer composer = Composer("../srs_db/", n);
 
     generate_test_plonk_circuit(composer, n);
 
-    waffle::Prover prover = composer.preprocess();
+    auto prover = composer.create_prover();
 
-    waffle::Verifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     waffle::plonk_proof proof = prover.construct_proof();
 
@@ -234,7 +246,7 @@ TEST(stdlib_field, test_larger_circuit)
 
 TEST(stdlib_field, is_zero)
 {
-    waffle::StandardComposer composer = waffle::StandardComposer();
+    Composer composer = Composer();
 
     // yuck
     field_t a = (public_witness_t(&composer, fr::random_element()));
@@ -266,9 +278,9 @@ TEST(stdlib_field, is_zero)
     EXPECT_EQ(d_zero.get_value(), true);
     EXPECT_EQ(e_zero.get_value(), false);
 
-    waffle::Prover prover = composer.preprocess();
+    auto prover = composer.create_prover();
 
-    waffle::Verifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     waffle::plonk_proof proof = prover.construct_proof();
 
@@ -278,7 +290,7 @@ TEST(stdlib_field, is_zero)
 
 TEST(stdlib_field, madd)
 {
-    waffle::StandardComposer composer = waffle::StandardComposer();
+    Composer composer = Composer();
 
     field_t a(stdlib::witness_t(&composer, fr::random_element()));
     field_t b(stdlib::witness_t(&composer, fr::random_element()));
@@ -321,9 +333,9 @@ TEST(stdlib_field, madd)
     n = n.normalize();
     EXPECT_EQ(m.get_value(), n.get_value());
 
-    waffle::Prover prover = composer.preprocess();
+    auto prover = composer.create_prover();
 
-    waffle::Verifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     waffle::plonk_proof proof = prover.construct_proof();
 
@@ -333,7 +345,7 @@ TEST(stdlib_field, madd)
 
 TEST(stdlib_field, two_bit_table)
 {
-    waffle::StandardComposer composer = waffle::StandardComposer();
+    Composer composer = Composer();
     field_t a(witness_t(&composer, fr::random_element()));
     field_t b(witness_t(&composer, fr::random_element()));
     field_t c(witness_t(&composer, fr::random_element()));
@@ -354,9 +366,9 @@ TEST(stdlib_field, two_bit_table)
     EXPECT_EQ(result_c.get_value(), c.get_value());
     EXPECT_EQ(result_d.get_value(), d.get_value());
 
-    waffle::Prover prover = composer.preprocess();
+    auto prover = composer.create_prover();
 
-    waffle::Verifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     waffle::plonk_proof proof = prover.construct_proof();
 
@@ -366,7 +378,7 @@ TEST(stdlib_field, two_bit_table)
 
 TEST(stdlib_field, test_slice)
 {
-    waffle::StandardComposer composer = waffle::StandardComposer();
+    Composer composer = Composer();
     // 0b11110110101001011
     //         ^      ^
     //        msb    lsb
@@ -380,9 +392,9 @@ TEST(stdlib_field, test_slice)
     EXPECT_EQ(slice_data[1].get_value(), fr(169));
     EXPECT_EQ(slice_data[2].get_value(), fr(61));
 
-    waffle::Prover prover = composer.preprocess();
+    auto prover = composer.create_prover();
 
-    waffle::Verifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     waffle::plonk_proof proof = prover.construct_proof();
 
@@ -392,7 +404,7 @@ TEST(stdlib_field, test_slice)
 
 TEST(stdlib_field, test_slice_equal_msb_lsb)
 {
-    waffle::StandardComposer composer = waffle::StandardComposer();
+    Composer composer = Composer();
     // 0b11110110101001011
     //             ^
     //         msb = lsb
@@ -406,9 +418,9 @@ TEST(stdlib_field, test_slice_equal_msb_lsb)
     EXPECT_EQ(slice_data[1].get_value(), fr(1));
     EXPECT_EQ(slice_data[2].get_value(), fr(986));
 
-    waffle::Prover prover = composer.preprocess();
+    auto prover = composer.create_prover();
 
-    waffle::Verifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     waffle::plonk_proof proof = prover.construct_proof();
 
@@ -418,7 +430,7 @@ TEST(stdlib_field, test_slice_equal_msb_lsb)
 
 TEST(stdlib_field, test_slice_random)
 {
-    waffle::StandardComposer composer = waffle::StandardComposer();
+    Composer composer = Composer();
 
     uint8_t lsb = 106;
     uint8_t msb = 189;
@@ -434,9 +446,9 @@ TEST(stdlib_field, test_slice_random)
     EXPECT_EQ(slice[1].get_value(), fr(expected1));
     EXPECT_EQ(slice[2].get_value(), fr(expected2));
 
-    waffle::Prover prover = composer.preprocess();
+    auto prover = composer.create_prover();
 
-    waffle::Verifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     waffle::plonk_proof proof = prover.construct_proof();
 
@@ -446,7 +458,7 @@ TEST(stdlib_field, test_slice_random)
 
 TEST(stdlib_field, three_bit_table)
 {
-    waffle::StandardComposer composer = waffle::StandardComposer();
+    Composer composer = Composer();
     field_t a(witness_t(&composer, fr::random_element()));
     field_t b(witness_t(&composer, fr::random_element()));
     field_t c(witness_t(&composer, fr::random_element()));
@@ -479,13 +491,93 @@ TEST(stdlib_field, three_bit_table)
     EXPECT_EQ(result_g.get_value(), g.get_value());
     EXPECT_EQ(result_h.get_value(), h.get_value());
 
-    waffle::Prover prover = composer.preprocess();
+    auto prover = composer.create_prover();
 
-    waffle::Verifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     waffle::plonk_proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, true);
+}
+
+/**
+ * @brief Failure cases for decomposer_into_bits.
+ *
+ * @details The target function constructs `sum` from a supplied collection of bits and compares it with a value
+ * `val_256`. We supply bit vectors to test some failure cases.
+ */
+
+TEST(stdlib_field, decompose_into_bits)
+{
+    using witness_supplier_type = std::function<witness_t(Composer * ctx, uint64_t, uint256_t)>;
+
+    // check that constraints are satisfied for a variety of inputs
+    auto run_success_test = [&]() {
+        Composer composer = Composer();
+
+        constexpr uint256_t modulus_minus_one = fr::modulus - 1;
+        const fr p_lo = modulus_minus_one.slice(0, 130);
+
+        std::vector<barretenberg::fr> test_elements = {
+            barretenberg::fr::random_element(),
+            0,
+            -1,
+            barretenberg::fr(static_cast<uint256_t>(engine.get_random_uint8())),
+            barretenberg::fr((static_cast<uint256_t>(1) << 130) + 1 + p_lo)
+        };
+
+        for (auto a_expected : test_elements) {
+            field_t a = witness_t(&composer, a_expected);
+            std::vector<bool_t> c = a.decompose_into_bits(256);
+            fr bit_sum = 0;
+            for (size_t i = 0; i < c.size(); i++) {
+                fr scaling_factor_value = fr(2).pow(static_cast<uint64_t>(i));
+                bit_sum += (fr(c[i].get_value()) * scaling_factor_value);
+            }
+            EXPECT_EQ(bit_sum, a_expected);
+        };
+
+        auto prover = composer.create_prover();
+        auto verifier = composer.create_verifier();
+        waffle::plonk_proof proof = prover.construct_proof();
+        bool verified = verifier.verify_proof(proof);
+        ASSERT_TRUE(verified);
+    };
+
+    // Now try to supply unintended witness values and test for failure.
+    // Fr::modulus is equivalent to zero in Fr, but this should be forbidden by a range constraint.
+    witness_supplier_type supply_modulus_bits = [](Composer* ctx, uint64_t j, uint256_t val_256) {
+        ignore_unused(val_256);
+        // use this to get `sum` to be fr::modulus.
+        return witness_t(ctx, fr::modulus.get_bit(j));
+    };
+
+    // design a bit vector that will pass all range constraints, but it fails the copy constraint.
+    witness_supplier_type supply_half_modulus_bits = [](Composer* ctx, uint64_t j, uint256_t val_256) {
+        // use this to fit y_hi into 128 bits
+        if (j > 127) {
+            return witness_t(ctx, val_256.get_bit(j));
+        };
+        return witness_t(ctx, (fr::modulus).get_bit(j));
+    };
+
+    auto run_failure_test = [&](witness_supplier_type witness_supplier) {
+        Composer composer = Composer();
+
+        fr a_expected = 0;
+        field_t a = witness_t(&composer, a_expected);
+        std::vector<bool_t> c = a.decompose_into_bits(256, witness_supplier);
+
+        auto prover = composer.create_prover();
+        auto verifier = composer.create_verifier();
+        waffle::plonk_proof proof = prover.construct_proof();
+        bool verified = verifier.verify_proof(proof);
+        ASSERT_FALSE(verified);
+    };
+
+    run_success_test();
+    run_failure_test(supply_modulus_bits);
+    run_failure_test(supply_half_modulus_bits);
 }
 } // namespace test_stdlib_field

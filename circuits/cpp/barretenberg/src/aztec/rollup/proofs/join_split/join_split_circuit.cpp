@@ -34,7 +34,8 @@ field_ct process_input_note(field_ct const& account_private_key,
     bool_ct valid_value = note.value == 0 || is_real;
     valid_value.assert_equal(true, "padding note non zero");
 
-    auto exists = merkle_tree::check_membership(merkle_root, hash_path, note.commitment, byte_array_ct(index.value));
+    auto exists = merkle_tree::check_membership(
+        merkle_root, hash_path, note.commitment, index.value.decompose_into_bits(DATA_TREE_DEPTH));
     auto valid = exists || is_propagated || !is_real;
     valid.assert_equal(true, "input note not a member");
 
@@ -187,8 +188,11 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
     {
         auto account_alias_id = inputs.alias_hash + (inputs.nonce * suint_ct(uint256_t(1) << 224));
         auto account_note_data = account::account_note(account_alias_id.value, account_public_key, signer);
-        auto signing_key_exists = merkle_tree::check_membership(
-            inputs.merkle_root, inputs.account_path, account_note_data.commitment, byte_array_ct(inputs.account_index));
+        auto signing_key_exists =
+            merkle_tree::check_membership(inputs.merkle_root,
+                                          inputs.account_path,
+                                          account_note_data.commitment,
+                                          (inputs.account_index.value.decompose_into_bits(DATA_TREE_DEPTH)));
         (signing_key_exists || zero_nonce).assert_equal(true, "account check_membership failed");
     }
 

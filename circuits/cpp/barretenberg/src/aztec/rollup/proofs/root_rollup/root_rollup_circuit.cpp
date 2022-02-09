@@ -41,7 +41,7 @@ void check_root_tree_updated(merkle_tree::hash_path const& old_data_roots_path,
                              field_ct const& new_data_roots_root,
                              field_ct const& old_data_roots_root)
 {
-    auto index = byte_array_ct(rollup_id + 1);
+    auto index = (rollup_id + 1).decompose_into_bits(ROOT_TREE_DEPTH);
     update_membership(
         new_data_roots_root, new_data_root, old_data_roots_root, old_data_roots_path, field_ct(0), index, __FUNCTION__);
 }
