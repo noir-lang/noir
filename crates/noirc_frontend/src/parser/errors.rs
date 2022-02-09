@@ -9,7 +9,7 @@ use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::DiagnosableError;
 use noirc_errors::Span;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParserError {
     expected_tokens: BTreeSet<Token>,
     expected_labels: BTreeSet<String>,
@@ -60,32 +60,41 @@ impl ParserError {
     }
 }
 
+impl std::fmt::Display for ParserError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut expected = vecmap(&self.expected_tokens, ToString::to_string);
+        expected.append(&mut vecmap(&self.expected_labels, Clone::clone));
+
+        if expected.is_empty() {
+            write!(f, "Unexpected {} in input", self.found)
+        } else if expected.len() == 1 {
+            let first = expected.first().unwrap();
+            let vowel = "aeiou".contains(first.chars().next().unwrap());
+            write!(
+                f,
+                "Expected a{} {} but found {}",
+                if vowel { "n" } else { "" },
+                first,
+                self.found
+            )
+        } else {
+            let expected = expected
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join(", ");
+
+            write!(f, "Unexpected {}, expected one of {}", self.found, expected)
+        }
+    }
+}
+
 impl DiagnosableError for ParserError {
     fn to_diagnostic(&self) -> Diagnostic {
         match &self.reason {
             Some(reason) => Diagnostic::simple_error(reason.clone(), String::new(), self.span),
             None => {
-                let mut expected = vecmap(&self.expected_tokens, ToString::to_string);
-                expected.append(&mut vecmap(&self.expected_labels, Clone::clone));
-
-                let primary = if expected.is_empty() {
-                    format!("Unexpected {} in input", self.found)
-                } else if expected.len() == 1 {
-                    format!(
-                        "Expected a {} but found {}",
-                        expected.first().unwrap(),
-                        self.found
-                    )
-                } else {
-                    let expected = expected
-                        .iter()
-                        .map(ToString::to_string)
-                        .collect::<Vec<_>>()
-                        .join(", ");
-
-                    format!("Unexpected {}, expected one of {}", self.found, expected)
-                };
-
+                let primary = self.to_string();
                 Diagnostic::simple_error(primary, String::new(), self.span)
             }
         }

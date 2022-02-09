@@ -7,6 +7,13 @@ use crate::util::vecmap;
 use crate::{Expression, ExpressionKind, InfixExpression, NoirStruct, Type};
 use noirc_errors::{Span, Spanned};
 
+/// This is used when an identifier fails to parse in the parser.
+/// Instead of failing the parse, we can often recover using this
+/// as the default value instead. Further passes like name resolution
+/// should also check for this ident to avoid issuing multiple errors
+/// for an identifier that already failed to parse.
+pub const ERROR_IDENT: &str = "$error";
+
 #[derive(PartialOrd, Eq, Ord, Debug, Clone)]
 pub struct Ident(pub Spanned<String>);
 
@@ -77,6 +84,25 @@ impl Ident {
     }
 }
 
+impl Recoverable for Ident {
+    fn error(span: Span) -> Self {
+        Ident(Spanned::from(span, ERROR_IDENT.to_owned()))
+    }
+}
+
+impl<T> Recoverable for Vec<T> {
+    fn error(_: Span) -> Self {
+        vec![]
+    }
+}
+
+/// Trait for recoverable nodes during parsing.
+/// This is similar to Default but is expected
+/// to return an Error node of the appropriate type.
+pub trait Recoverable {
+    fn error(span: Span) -> Self;
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Statement {
     Let(LetStatement),
@@ -93,6 +119,12 @@ pub enum Statement {
     // To avoid issuing multiple errors in later steps, it should
     // be skipped in any future analysis if possible.
     Error,
+}
+
+impl Recoverable for Statement {
+    fn error(_: Span) -> Self {
+        Statement::Error
+    }
 }
 
 impl Statement {
@@ -187,6 +219,9 @@ pub enum PathKind {
     Plain,
 }
 
+// Note: Path deliberately doesn't implement Recoverable.
+// No matter which default value we could give in Recoverable::error,
+// it would most likely cause further errors during name resolution
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Path {
     pub segments: Vec<Ident>,
@@ -289,7 +324,7 @@ impl Display for Statement {
             Statement::Expression(expression) => expression.fmt(f),
             Statement::Assign(assign) => assign.fmt(f),
             Statement::Semi(semi) => write!(f, "{};", semi),
-            Statement::Error => write!(f, "error"),
+            Statement::Error => write!(f, "Error"),
         }
     }
 }

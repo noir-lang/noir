@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::token::{Attribute, Token};
 use crate::util::vecmap;
-use crate::{Ident, Path, Statement, Type};
+use crate::{Ident, Path, Recoverable, Statement, Type};
 use acvm::FieldElement;
 use noirc_errors::{Span, Spanned};
 
@@ -21,6 +21,7 @@ pub enum ExpressionKind {
     For(Box<ForExpression>),
     If(Box<IfExpression>),
     Path(Path),
+    Error,
 }
 
 impl ExpressionKind {
@@ -113,6 +114,18 @@ impl ExpressionKind {
             ExpressionKind::Ident(x) => Some(x.clone()),
             _ => None,
         }
+    }
+}
+
+impl Recoverable for ExpressionKind {
+    fn error(_: Span) -> Self {
+        ExpressionKind::Error
+    }
+}
+
+impl Recoverable for Expression {
+    fn error(span: Span) -> Self {
+        Expression::new(ExpressionKind::Error, span)
     }
 }
 
@@ -400,6 +413,7 @@ impl Display for ExpressionKind {
             Path(path) => path.fmt(f),
             Constructor(constructor) => constructor.fmt(f),
             MemberAccess(access) => access.fmt(f),
+            Error => write!(f, "Error"),
         }
     }
 }
