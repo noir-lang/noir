@@ -133,8 +133,7 @@ fn type_check_const_stmt(
                 place: "constant statement",
                 span: interner.expr_span(&const_stmt.expression),
             }
-            .add_context("constant statements can only contain constant types")
-            .unwrap(),
+            .add_context("constant statements can only contain constant types"),
         );
     }
 
@@ -157,8 +156,7 @@ fn type_check_constrain_stmt(
                 place: "constrain statement",
                 span: stmt.0.operator.span,
             }
-            .add_context("only comparison operators can be used in a constrain statement")
-            .unwrap(),
+            .add_context("only comparison operators can be used in a constrain statement"),
         );
     };
 
