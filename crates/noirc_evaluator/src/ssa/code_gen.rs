@@ -61,14 +61,10 @@ impl<'a> IRGenerator<'a> {
 
     //Display an object for debugging puposes
     fn to_string(&self, idx: arena::Index) -> String {
-        let var = self.get_object(idx);
-        if var.is_none() {
-            return format!("unknown {:?}", idx);
-        }
-        match var.unwrap() {
-            node::NodeObj::Obj(v) => v.print(),
-            node::NodeObj::Instr(i) => i.print_i(),
-            node::NodeObj::Const(c) => c.print(),
+        if let Some(var) = self.get_object(idx) {
+            return format!("{}", var);
+        } else {
+            return format!("unknown {:?}", idx.into_raw_parts().0);
         }
     }
 
@@ -77,7 +73,7 @@ impl<'a> IRGenerator<'a> {
             let ins = self.get_instruction(*idx);
             let mut str_res;
             if ins.res_name.is_empty() {
-                str_res = format!("{:?}", idx);
+                str_res = format!("{:?}", idx.into_raw_parts().0);
             } else {
                 str_res = ins.res_name.clone();
             }
@@ -86,12 +82,16 @@ impl<'a> IRGenerator<'a> {
             }
             let lhs_str = self.to_string(ins.lhs);
             let rhs_str = self.to_string(ins.rhs);
-            let ins_str = format!("{} op:{:?} {}", lhs_str, ins.operator, rhs_str);
-            println!("{}: {}", str_res, ins_str);
+            let mut ins_str = format!("{} op:{:?} {}", lhs_str, ins.operator, rhs_str);
 
             if ins.operator == node::Operation::phi {
-                //    dbg!(&ins.phi_arguments);
+                ins_str += "(";
+                for (v, b) in &ins.phi_arguments {
+                    ins_str += &format!("{:?}:{:?}, ", v.into_raw_parts().0, b.into_raw_parts().0);
+                }
+                ins_str += ")";
             }
+            println!("{}: {}", str_res, ins_str);
         }
     }
 
@@ -260,7 +260,7 @@ impl<'a> IRGenerator<'a> {
         //Basic simplification
         optim::simplify(self, &mut i);
         if i.is_deleted {
-            return i.rhs; //TODO how should we handle fully deleted instruction (i.e i.rhs is not an object)?
+            return i.rhs;
         }
         self.add_object(node::NodeObj::Instr(i))
     }
@@ -465,10 +465,7 @@ impl<'a> IRGenerator<'a> {
     ) -> Result<arena::Index, RuntimeError> {
         let ltype = self.get_object_type(lhs);
 
-        let optype = ltype;
-        //TODO if type differs try to cast them: check how rust handle this
-        //let rtype = self.get_object_type(rhs);
-        //and else returns an error
+        let optype = ltype; //n.b. we do not verify rhs type as it should have been handled by the typechecker.
 
         // Get the opcode from the infix operator
         let opcode = node::to_operation(op.kind, optype);
@@ -482,7 +479,6 @@ impl<'a> IRGenerator<'a> {
                 }
             }
         }
-        //TODO we should validate the types with the opcode
         Ok(self.new_instruction(lhs, rhs, opcode, optype))
     }
 
@@ -518,14 +514,15 @@ impl<'a> IRGenerator<'a> {
                     .context()
                     .def_interner
                     .ident_def(&assign_stmt.identifier);
-                    //////////////TODO temp this is needed because we don't parse main arguments
-                    let ident_name = self
+                //////////////TODO temp this is needed because we don't parse main arguments
+                let ident_name = self
                     .context()
                     .def_interner
                     .ident_name(&assign_stmt.identifier);
-                    let var =self.find_variable(&ident_def);
                 let lhs = //self.find_variable(&ident_def).unwrap(); //left hand must be already declared
-                 if var.is_none() {
+                if  let Some(var) = self.find_variable(&ident_def) {
+                    var
+                } else {
                     //var is not defined,
                     //let's do it here for now...TODO
                     let obj = env.get(&ident_name);
@@ -544,8 +541,6 @@ impl<'a> IRGenerator<'a> {
                         .unwrap()
                         .update_variable(new_var2_id, new_var2_id); //DE MEME
                     self.get_variable(new_var2_id).unwrap()
-                } else {
-                    var.unwrap()
                 };
                 //////////////////////////////----******************************************
                 let new_var = node::Variable {
@@ -746,8 +741,10 @@ impl<'a> IRGenerator<'a> {
                 self.evaluate_infix_expression(lhs, rhs, infx.operator)
             },
             HirExpression::Cast(cast_expr) => {
-                let _lhs = self.expression_to_object(env, &cast_expr.lhs)?;
-                todo!();
+                let lhs = self.expression_to_object(env, &cast_expr.lhs)?;
+                let rtype = node::ObjectType::from_type(cast_expr.r#type);
+                Ok(self.new_cast_expression(lhs, rtype))
+
                 //We should generate a cast instruction and handle properly type conversion:
                 // unsigned integer to field ; ok, just checks if bit size over FieldElement::max_num_bits()
                 // signed integer to field; ok; check bit size N, retrieve sign bit s and returns x*(1-s)+s*(p-2^N+x)

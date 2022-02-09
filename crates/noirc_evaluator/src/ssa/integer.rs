@@ -1,7 +1,7 @@
 use super::{
     //block,
     code_gen::IRGenerator,
-    node::{self, Node},
+    node::{self, Node, Operation},
     optim,
 };
 use acvm::FieldElement;
@@ -33,7 +33,7 @@ pub fn get_instruction_max_operand(
     if ins.operator == node::Operation::load {
         return get_load_max(eval, ins.lhs, max_map, vmap);
     }
-    ins.get_max_value(left_max, right_max)
+    get_max_value(&ins.operator, left_max, right_max)
 }
 
 // Retrieve max possible value of a node; from the max_map if it was already computed
@@ -80,7 +80,7 @@ pub fn truncate(
     // get type
     let obj = eval.get_object(obj_id).unwrap();
     let obj_type = obj.get_type();
-    let obj_name = obj.print();
+    let obj_name = format!("{}", obj);
     //ensure truncate is needed:
     let v_max = &max_map[&obj_id];
     if *v_max >= BigUint::from(1_u128 << bit_size) {
@@ -328,14 +328,16 @@ pub fn block_overflow(
             new_list.push(ins.idx);   
             let l_new = get_value_from_map(l_id, &value_map);
             let r_new = get_value_from_map(r_id, &value_map); 
-            if l_new != l_id || r_new != r_id || ins.is_sub() {
+            if l_new != l_id || r_new != r_id || is_sub(&ins.operator) {
                 update_instruction = true;
             }
             if update_instruction {
                 let mut max_r_value = None;
-                if ins.is_sub() {
-                    max_r_value = Some(max_map[&r_new].clone()); //for now we pass the max value to the instruction, we could also keep the max_map e.g in the block (or max in each nodeobj)
-                                                                //we may do that in future when the max_map becomes more used elsewhere (for other optim)
+                if is_sub(&ins.operator) {
+                    //for now we pass the max value to the instruction, we could also keep the max_map e.g in the block (or max in each nodeobj)
+                    //sub operations require the max value to ensure it does not underflow
+                    max_r_value = Some(max_map[&r_new].clone());
+                    //we may do that in future when the max_map becomes more used elsewhere (for other optim)
                 }
                 update_ins_parameters(eval, ins.idx, l_new, r_new, max_r_value);
             }
@@ -382,5 +384,59 @@ pub fn get_load_max(eval: &IRGenerator, address: arena::Index,
         return eval.mem.get_array_from_adr(adr).max.clone();
     };
     todo!(); //todo return array max
+}
     
+//Returns the max value of an operation from an upper bound of left and right hand sides
+//Function is used to check for overflows over the field size, this is why we use BigUint.
+pub fn get_max_value(operator: &Operation, lhs_max: BigUint, rhs_max: BigUint) -> BigUint {
+    match operator {
+        Operation::add => lhs_max + rhs_max,
+        Operation::safe_add => todo!(),
+        Operation::sub => lhs_max + rhs_max,
+        Operation::safe_sub => todo!(),
+        Operation::mul => lhs_max * rhs_max,
+        Operation::safe_mul => todo!(),
+        Operation::udiv => lhs_max,
+        Operation::sdiv => todo!(),
+        Operation::urem => rhs_max - BigUint::from(1_u32),
+        Operation::srem => todo!(),
+        Operation::div => todo!(),
+        Operation::eq => BigUint::from(1_u32),
+        Operation::ne => BigUint::from(1_u32),
+        Operation::ugt => BigUint::from(1_u32),
+        Operation::uge => BigUint::from(1_u32),
+        Operation::ult => BigUint::from(1_u32),
+        Operation::ule => BigUint::from(1_u32),
+        Operation::sgt => BigUint::from(1_u32),
+        Operation::sge => BigUint::from(1_u32),
+        Operation::slt => BigUint::from(1_u32),
+        Operation::sle => BigUint::from(1_u32),
+        Operation::lt => BigUint::from(1_u32),
+        Operation::gt => BigUint::from(1_u32),
+        Operation::lte => BigUint::from(1_u32),
+        Operation::gte => BigUint::from(1_u32),
+        Operation::and => BigUint::from(1_u32),
+        Operation::not => BigUint::from(1_u32),
+        Operation::or => BigUint::from(1_u32),
+        Operation::xor => BigUint::from(1_u32),
+        //'a cast b' means we cast b into a: (a) b
+        //we assume that eventual truncate has been done so rhs_max must fit into type of a.
+        Operation::cast => rhs_max,
+        Operation::trunc => BigUint::min(
+            lhs_max,
+            BigUint::from(2_u32).pow(rhs_max.try_into().unwrap()) - BigUint::from(1_u32),
+        ),
+        //'a = b': a and b must be of same type.
+        Operation::ass => rhs_max,
+        Operation::nop | Operation::jne | Operation::jeq | Operation::jmp => todo!(),
+        Operation::phi => BigUint::max(lhs_max, rhs_max), //TODO operands are in phi_arguments, not lhs/rhs!!
+        Operation::eq_gate => BigUint::min(lhs_max, rhs_max),
+        Operation::load => { unreachable!();},
+        Operation::store => BigUint::from(0_u32),
+    }
+}
+
+//indicates if the operation is a substraction, we need to check them for underflow
+pub fn is_sub(operator: &Operation) -> bool {
+    matches!(operator, Operation::sub | Operation::safe_sub)
 }

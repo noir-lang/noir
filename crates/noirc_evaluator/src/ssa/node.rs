@@ -1,4 +1,5 @@
 use std::convert::TryInto;
+use std::ops::Add;
 
 use acvm::acir::native_types::Witness;
 use acvm::FieldElement;
@@ -9,23 +10,38 @@ use num_bigint::BigUint;
 
 use crate::object::Object;
 use num_traits::identities::Zero;
+use std::ops::Mul;
 
-pub trait Node {
+pub trait Node: std::fmt::Display {
     fn get_type(&self) -> ObjectType;
-    fn print(&self) -> String;
     //fn get_bit_size(&self) -> u32;
     fn get_id(&self) -> arena::Index;
     fn bits(&self) -> u32; //bit size of the node
 }
 
+impl std::fmt::Display for Variable {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.name)
+    }
+}
+impl std::fmt::Display for NodeObj {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            NodeObj::Obj(o) => write!(f, "{}", o),
+            NodeObj::Instr(i) => write!(f, "{}", i),
+            NodeObj::Const(c) => write!(f, "{}", c),
+        }
+    }
+}
+impl std::fmt::Display for Constant {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+
 impl Node for Variable {
     fn get_type(&self) -> ObjectType {
         self.obj_type
-    }
-
-    fn print(&self) -> String {
-        //format!("{}({:?})", self.name, self.id)
-        self.name.to_string()
     }
 
     fn bits(&self) -> u32 {
@@ -37,45 +53,12 @@ impl Node for Variable {
     }
 }
 
-impl NodeObj {
-    // pub fn new_constant_bool(value: bool) -> NodeObj {
-    //     let val = if value { 1_u32 } else { 0_u32 };
-    //     NodeObj::Const(Constant {
-    //         id: crate::ssa::code_gen::IRGenerator::dummy_id(),
-    //         value: BigUint::from(val),
-    //         value_str: String::new(),
-    //         value_type: ObjectType::boolean,
-    //     })
-    // }
-
-    // pub fn new_constant_int(value: u32, bit_size: u32, is_signed: bool) -> NodeObj {
-    //     NodeObj::Const(Constant {
-    //         id: crate::ssa::code_gen::IRGenerator::dummy_id(),
-    //         value: BigUint::from(value),
-    //         value_str: String::new(),
-    //         value_type: if is_signed {
-    //             ObjectType::signed(bit_size)
-    //         } else {
-    //             ObjectType::unsigned(bit_size)
-    //         },
-    //     })
-    // }
-}
-
 impl Node for NodeObj {
     fn get_type(&self) -> ObjectType {
         match self {
             NodeObj::Obj(o) => o.get_type(),
             NodeObj::Instr(i) => i.res_type,
             NodeObj::Const(o) => o.value_type,
-        }
-    }
-
-    fn print(&self) -> String {
-        match self {
-            NodeObj::Obj(o) => o.print(),
-            NodeObj::Instr(i) => i.print_i(),
-            NodeObj::Const(c) => c.print(),
         }
     }
 
@@ -99,10 +82,6 @@ impl Node for NodeObj {
 impl Node for Constant {
     fn get_type(&self) -> ObjectType {
         self.value_type
-    }
-
-    fn print(&self) -> String {
-        self.value.to_string()
     }
 
     fn bits(&self) -> u32 {
@@ -186,19 +165,18 @@ impl ObjectType {
     pub fn from_type(t: noirc_frontend::Type) -> ObjectType {
         match t {
             noirc_frontend::Type::FieldElement(_) => ObjectType::native_field,
-            noirc_frontend::Type::Array(_, _, t) => ObjectType::from_type(*t),
-            noirc_frontend::Type::Integer(_ftype, sign, bit_size) => {
-                match sign {
-                    //todo FieldElementType?
-                    noirc_frontend::Signedness::Signed => ObjectType::signed(bit_size),
-                    noirc_frontend::Signedness::Unsigned => ObjectType::unsigned(bit_size),
-                }
-            }
+            noirc_frontend::Type::Integer(_ftype, sign, bit_size) => match sign {
+                noirc_frontend::Signedness::Signed => ObjectType::signed(bit_size),
+                noirc_frontend::Signedness::Unsigned => ObjectType::unsigned(bit_size),
+            },
             noirc_frontend::Type::Bool => ObjectType::boolean,
-            _ => ObjectType::none, //todo Error,Unspecified, Unknown,Unit
+            x => {
+                let err = format!("currently we do not support type casting to {}", x);
+                todo!("{}", err);
+            }
+            //noirc_frontend::Type::Array(_, _, t) => ObjectType::from_type(*t),
         }
     }
-
     pub fn get_type_from_object(obj: &Object) -> ObjectType {
         match obj {
             Object::Arithmetic(_) => {
@@ -219,14 +197,15 @@ impl ObjectType {
         }
     }
 
+    
+
     pub fn bits(&self) -> u32 {
         match self {
             ObjectType::boolean => 1,
-            ObjectType::native_field => FieldElement::max_num_bits(), //TODO is it the correct value?
+            ObjectType::native_field => FieldElement::max_num_bits(),
             ObjectType::none => 0,
             ObjectType::signed(c) => *c,
             ObjectType::unsigned(c) => *c,
-            //ObjectType::custom(_) => todo!(),
         }
     }
 }
@@ -247,6 +226,24 @@ pub struct Instruction {
     //temp: todo phi subtype
     pub phi_arguments: Vec<(arena::Index, arena::Index)>,
 }
+
+impl std::fmt::Display for Instruction {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        if self.res_name.is_empty() {
+            write!(f, "{:?}", self.idx.into_raw_parts().0)
+        } else {
+            write!(f, "{}", self.res_name.clone())
+        }
+    }
+}
+
+// pub fn print_i(&self) -> String {
+//     if self.res_name.is_empty() {
+//         format!("{:?}", self.idx.into_raw_parts().0)
+//     } else {
+//         self.res_name.clone()
+//     }
+// }
 
 #[derive(Debug, Clone, Copy)]
 pub enum NodeEval {
@@ -294,19 +291,6 @@ impl Instruction {
         }
     }
 
-    pub fn print_i(&self) -> String {
-        if self.res_name.is_empty() {
-            format!("{:?}", self.idx)
-        } else {
-            self.res_name.clone()
-        }
-    }
-
-    //indicates if the operation is a substraction
-    pub fn is_sub(&self) -> bool {
-        matches!(self.operator, Operation::sub | Operation::safe_sub)
-    }
-
     //indicates whether the left and/or right operand of the instruction is required to be truncated to its bit-width
     pub fn truncate_required(&self, lhs_bits: u32, rhs_bits: u32) -> (bool, bool) {
         match self.operator {
@@ -320,9 +304,6 @@ impl Instruction {
             Operation::sdiv => (true, true),
             Operation::urem => (true, true),
             Operation::srem => (true, true),
-            Operation::fmod => (true, true),   //to check
-            Operation::fneg => (false, false), //to check
-            Operation::fdiv => (true, true),   //to check
             Operation::div => (false, false),
             Operation::eq => (true, true),
             Operation::ne => (true, true),
@@ -359,119 +340,31 @@ impl Instruction {
         }
     }
 
-    pub fn get_max_value(&self, lhs_max: BigUint, rhs_max: BigUint) -> BigUint {
-        match self.operator {
-            Operation::add => lhs_max + rhs_max,
-            Operation::safe_add => todo!(),
-            Operation::sub => lhs_max + rhs_max,
-            Operation::safe_sub => todo!(),
-            Operation::mul => lhs_max * rhs_max,
-            Operation::safe_mul => todo!(),
-            Operation::udiv => lhs_max,
-            Operation::sdiv => todo!(),
-            Operation::urem => rhs_max - BigUint::from(1_u32),
-            Operation::srem => todo!(),
-            Operation::fmod => todo!(),
-            Operation::fneg => todo!(),
-            Operation::fdiv => todo!(),
-            Operation::div => todo!(),
-            Operation::eq => BigUint::from(1_u32),
-            Operation::ne => BigUint::from(1_u32),
-            Operation::ugt => BigUint::from(1_u32),
-            Operation::uge => BigUint::from(1_u32),
-            Operation::ult => BigUint::from(1_u32),
-            Operation::ule => BigUint::from(1_u32),
-            Operation::sgt => BigUint::from(1_u32),
-            Operation::sge => BigUint::from(1_u32),
-            Operation::slt => BigUint::from(1_u32),
-            Operation::sle => BigUint::from(1_u32),
-            Operation::lt => BigUint::from(1_u32),
-            Operation::gt => BigUint::from(1_u32),
-            Operation::lte => BigUint::from(1_u32),
-            Operation::gte => BigUint::from(1_u32),
-            Operation::and => BigUint::from(1_u32),
-            Operation::not => BigUint::from(1_u32),
-            Operation::or => BigUint::from(1_u32),
-            Operation::xor => BigUint::from(1_u32),
-            //'a cast b' means we cast b into a: (a) b
-            //we assume that eventual truncate has been done so rhs_max must fit into type of a.
-            Operation::cast => rhs_max,
-            Operation::trunc => BigUint::min(
-                lhs_max,
-                BigUint::from(2_u32).pow(rhs_max.try_into().unwrap()) - BigUint::from(1_u32),
-            ),
-            //'a = b': a and b must be of same type.
-            Operation::ass => rhs_max,
-            Operation::nop | Operation::jne | Operation::jeq | Operation::jmp => todo!(),
-            Operation::phi => BigUint::max(lhs_max, rhs_max), //TODO operands are in phi_arguments, not lhs/rhs!!
-            Operation::eq_gate => BigUint::min(lhs_max, rhs_max),
-            Operation::load => { unreachable!();},
-            Operation::store => BigUint::from(0_u32),
-        }
-    }
-
-    // pub fn get_const_value(c: &Constant) -> (u32, u32) {
-    //     //....todo...only u32 for now... should also provide the sign
-    //     match c.value_type {
-    //         ObjectType::boolean => (if c.value.is_zero() { 0 } else { 1 }, 1),
-    //         ObjectType::native_field => todo!(), //to field(value), field:prime
-    //         ObjectType::signed(b) | ObjectType::unsigned(b) => {
-    //             (c.value.clone().try_into().unwrap(), b)
-    //         }
-    //         _ => todo!(),
-    //     }
-    // }
-
-    pub fn get_const_value2(c: FieldElement, ctype: ObjectType) -> (u32, u32) {
-        //....todo...only u32 for now... should also provide the sign
+    //Returns the field element as i128 and the bit size of the constant node
+    pub fn get_const_value(c: FieldElement, ctype: ObjectType) -> (u128, u32) {
         match ctype {
             ObjectType::boolean => (if c.is_zero() { 0 } else { 1 }, 1),
-            ObjectType::native_field => (c.to_u128().try_into().unwrap(), 32), //TODO! //to field(value), field:prime
-            ObjectType::signed(b) | ObjectType::unsigned(b) => (c.to_u128().try_into().unwrap(), b),
+            ObjectType::native_field => (0, 256),
+            ObjectType::signed(b) | ObjectType::unsigned(b) => (c.to_u128(), b), //TODO check how to handle signed integers
             _ => todo!(),
         }
     }
 
-    // pub fn to_const(value: FieldElement, obj_type: ObjectType) -> NodeObj {
-    //     let c = Constant {
-    //         id: crate::ssa::code_gen::IRGenerator::dummy_id(),
-    //         value: BigUint::from_bytes_be(&value.to_bytes()),
-    //         value_str: String::new(),
-    //         value_type: obj_type,
-    //     };
-    //     NodeObj::Const(c)
-    // }
-
-    pub fn node_evaluate(
-        n: &NodeEval,
-        is_zero: &mut bool,
-        const_value: &mut Option<u32>,
-        bit_size: &mut u32,
-    ) {
+    pub fn node_evaluate(n: &NodeEval) -> (bool, Option<u128>, u32) {
         match n {
             &NodeEval::Const(c, t) => {
-                *is_zero = c.is_zero();
-                let cv = Instruction::get_const_value2(c, t);
-                *const_value = Some(cv.0);
-                *bit_size = cv.1;
+                let cv = Instruction::get_const_value(c, t);
+                (c.is_zero(), Some(cv.0), cv.1)
             }
-            _ => {
-                *const_value = None;
-            }
+            _ => (false, None, 0),
         }
     }
 
-    //Evalaute the instruction value when its operands are constant
+    //Evaluate the instruction value when its operands are constant
     pub fn evaluate(&self, lhs: &NodeEval, rhs: &NodeEval) -> NodeEval {
-        let mut r_is_zero = false;
-        let mut l_is_zero = false;
-        let mut l_constant = None;
-        let mut r_constant = None;
-        let mut r_bsize = 0;
-        let mut l_bsize = 0;
         //let mut l_sign = false; //TODO
-        Instruction::node_evaluate(lhs, &mut l_is_zero, &mut l_constant, &mut l_bsize);
-        Instruction::node_evaluate(rhs, &mut r_is_zero, &mut r_constant, &mut r_bsize);
+        let (l_is_zero, l_constant, l_bsize) = Instruction::node_evaluate(lhs);
+        let (r_is_zero, r_constant, r_bsize) = Instruction::node_evaluate(rhs);
         let r_is_const = r_constant.is_some();
         let l_is_const = l_constant.is_some();
 
@@ -482,9 +375,17 @@ impl Instruction {
                 } else if l_is_zero {
                     return *rhs;
                 } else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
-                    //constant folding - TODO - only for integers; NO modulo for field elements - May be we should have a different opcode for field addition?
+                    //constant folding
+                    if l_bsize == 256 {
+                        //NO modulo for field elements - May be we should have a different opcode?
+                        if let (NodeEval::Const(a, _), NodeEval::Const(b, _)) = (lhs, rhs) {
+                            let res_value = a.add(*b);
+                            return NodeEval::Const(res_value, self.res_type);
+                        }
+                        unreachable!();
+                    }
                     assert!(l_bsize == r_bsize);
-                    let res_value = (l_const + r_const) % l_bsize;
+                    let res_value = (l_const + r_const) % l_bsize as u128;
                     return NodeEval::Const(FieldElement::from(res_value as i128), self.res_type);
                 }
                 //if only one is const, we could try to do constant propagation but this will be handled by the arithmetization step anyways
@@ -498,11 +399,19 @@ impl Instruction {
                 if self.lhs == self.rhs {
                     return NodeEval::Const(FieldElement::zero(), self.res_type);
                 }
-                //constant folding - TODO - only for integers; NO modulo for field elements - May be we should have a different opcode?
+                //constant folding
                 if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
+                    if l_bsize == 256 {
+                        //NO modulo for field elements - May be we should have a different opcode?
+                        if let (NodeEval::Const(a, _), NodeEval::Const(b, _)) = (lhs, rhs) {
+                            let res_value = a.add(-*b);
+                            return NodeEval::Const(res_value, self.res_type);
+                        }
+                        unreachable!();
+                    }
                     //if l_constant.is_some() && r_constant.is_some() {
                     assert!(l_bsize == r_bsize);
-                    let res_value = (l_const - r_const) % l_bsize;
+                    let res_value = (l_const - r_const) % l_bsize as u128;
                     return NodeEval::Const(FieldElement::from(res_value as i128), self.res_type);
                 }
             }
@@ -516,9 +425,18 @@ impl Instruction {
                 } else if r_is_const && r_constant.unwrap() == 1 {
                     return *lhs;
                 } else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
-                    //constant folding - TODO - only for integers; NO modulo for field elements - May be we should have a different opcode?
+                    //constant folding
+                    if l_bsize == 256 {
+                        //NO modulo for field elements - May be we should have a different opcode?
+                        if let (NodeEval::Const(a, _), NodeEval::Const(b, _)) = (lhs, rhs) {
+                            let res_value = a.mul(*b);
+                            return NodeEval::Const(res_value, self.res_type);
+                        }
+                        unreachable!();
+                    }
+
                     assert!(l_bsize == r_bsize);
-                    let res_value = (l_const * r_const) % l_bsize;
+                    let res_value = (l_const * r_const) % l_bsize as u128;
                     return NodeEval::Const(FieldElement::from(res_value as i128), self.res_type);
                 }
                 //if only one is const, we could try to do constant propagation but this will be handled by the arithmetization step anyways
@@ -555,6 +473,7 @@ impl Instruction {
                     return NodeEval::Const(FieldElement::zero(), ObjectType::boolean);
                     //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
                 } else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
+                    assert!(l_bsize < 256); //comparisons are not implemented for field elements
                     let res = if l_const >= r_const {
                         FieldElement::one()
                     } else {
@@ -568,6 +487,7 @@ impl Instruction {
                     return NodeEval::Const(FieldElement::zero(), ObjectType::boolean);
                     //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
                 } else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
+                    assert!(l_bsize < 256); //comparisons are not implemented for field elements
                     let res = if l_const < r_const {
                         FieldElement::one()
                     } else {
@@ -581,6 +501,7 @@ impl Instruction {
                     return NodeEval::Const(FieldElement::one(), ObjectType::boolean);
                     //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
                 } else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
+                    assert!(l_bsize < 256); //comparisons are not implemented for field elements
                     let res = if l_const <= r_const {
                         FieldElement::one()
                     } else {
@@ -595,6 +516,7 @@ impl Instruction {
                 // u<0 is false for unsigned u
                 //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
                 } else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
+                    assert!(l_bsize < 256); //comparisons are not implemented for field elements
                     let res = if l_const > r_const {
                         FieldElement::one()
                     } else {
@@ -607,6 +529,16 @@ impl Instruction {
                 if self.lhs == self.rhs {
                     return NodeEval::Const(FieldElement::one(), ObjectType::boolean);
                 } else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
+                    if l_bsize == 256 {
+                        if let (NodeEval::Const(a, _), NodeEval::Const(b, _)) = (lhs, rhs) {
+                            if a == b {
+                                return NodeEval::Const(FieldElement::one(), ObjectType::boolean);
+                            } else {
+                                return NodeEval::Const(FieldElement::zero(), ObjectType::boolean);
+                            }
+                        }
+                        unreachable!();
+                    }
                     if l_const == r_const {
                         return NodeEval::Const(FieldElement::one(), ObjectType::boolean);
                     } else {
@@ -616,6 +548,16 @@ impl Instruction {
             }
             Operation::ne => {
                 if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
+                    if l_bsize == 256 {
+                        if let (NodeEval::Const(a, _), NodeEval::Const(b, _)) = (lhs, rhs) {
+                            if a != b {
+                                return NodeEval::Const(FieldElement::one(), ObjectType::boolean);
+                            } else {
+                                return NodeEval::Const(FieldElement::zero(), ObjectType::boolean);
+                            }
+                        }
+                        unreachable!();
+                    }
                     if l_const != r_const {
                         return NodeEval::Const(FieldElement::one(), ObjectType::boolean);
                     } else {
@@ -660,32 +602,13 @@ impl Instruction {
                 } else if l_is_const && r_is_const {
                     return NodeEval::Const(FieldElement::zero(), ObjectType::boolean);
                 } else if l_is_const {
-                    todo!();
-                    //TODO generate 'not rhs' instruction
+                    todo!("generate 'not rhs' instruction");
                 } else if r_is_const {
-                    todo!("");
-                    ////TODO generate 'not lhs' instruction
+                    todo!("generate 'not lhs' instruction");
                 }
             }
             Operation::phi => (), //Phi are simplified by simply_phi()
             _ => (),
-            // Operation::fmod
-            // Operation::fneg
-            // Operation::fdiv
-
-            // Operation::sgt
-            // Operation::sge
-            // Operation::slt
-            // Operation::sle
-
-            // Operation::gt
-            // Operation::lte
-            // Operation::gte
-            // Operation::cast =
-            // Operation::trunc
-            // jumps, ass, nop => do not evaluate
-            // Operation::ass => todo!(),
-            // Operation::nop => todo!(),
         }
         NodeEval::Idx(self.idx)
     }
@@ -746,6 +669,7 @@ impl Instruction {
                 if self.rhs == self.lhs {
                     self.rhs = self.idx;
                     self.is_deleted = true;
+                    self.operator = Operation::nop;
                 }
             }
             _ => (),
@@ -756,23 +680,20 @@ impl Instruction {
     }
 }
 
-//adpated from LLVM IR
+//adapted from LLVM IR
 #[allow(non_camel_case_types)]
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum Operation {
     add,      //(+)
-    safe_add, //(+) safe addtion
+    safe_add, //(+) safe addition
     sub,      //(-)
-    safe_sub, //(-) safe substraction
+    safe_sub, //(-) safe subtraction
     mul,      //(*)
     safe_mul, //(*) safe multiplication
     udiv,     //(/) unsigned division
     sdiv,     //(/) signed division
     urem,     //(%) modulo; remainder of unsigned division
     srem,     //(%) remainder of signed division
-    fmod,     //(%) remainder of the floating point division
-    fneg,     //(-) negation of a float
-    fdiv,     //(/) floating point division
     div,      //(/) field division
     eq,       //(==) equal
     ne,       //(!=) not equal
@@ -801,13 +722,11 @@ pub enum Operation {
     jeq, //jump on equal
     jmp, //unconditional jump
     phi,
-    // todo: call, br,..
-    nop, // no op
-
     //memory
     load,
     store,
     //getelementptr?
+    nop,     // no op
     eq_gate, //write a gate enforcing equality of the two sides (to support the constrain statement)
 }
 
@@ -825,49 +744,42 @@ pub fn is_commutative(op_code: Operation) -> bool {
 }
 
 pub fn is_binary(op_code: Operation) -> bool {
-    match op_code {
-        Operation::add => true,
-        Operation::safe_add => true,
-        Operation::sub => true,
-        Operation::safe_sub => true,
-        Operation::mul => true,
-        Operation::safe_mul => true,
-        Operation::udiv => true, //(/) unsigned division
-        Operation::sdiv => true,
-        Operation::urem => true,
-        Operation::srem => true,
-        Operation::fmod => true,
-        Operation::fneg => true,
-        Operation::fdiv => true,
-        Operation::div => true,
-        Operation::eq => true,
-        Operation::ne => true,
-        Operation::ugt => true,
-        Operation::uge => true,
-        Operation::ult => true,
-        Operation::ule => true,
-        Operation::sgt => true,
-        Operation::sge => true,
-        Operation::slt => true,
-        Operation::sle => true,
-        Operation::lt => true,
-        Operation::gt => true,
-        Operation::lte => true,
-        Operation::gte => true,
-        Operation::and => true,
-        Operation::not => false,
-        Operation::or => true,
-        Operation::xor => true,
-        Operation::cast => false,
-        Operation::ass => false,
-        Operation::trunc => true,
-        Operation::jne | Operation::jeq | Operation::jmp => false,
-        Operation::phi => false,
-        Operation::nop => false,
-        Operation::eq_gate => true,
-        Operation::load => false,  //???
-        Operation::store => false, //???
-    }
+    matches!(
+        op_code,
+        Operation::add
+            | Operation::safe_add
+            | Operation::sub
+            | Operation::safe_sub
+            | Operation::mul
+            | Operation::safe_mul
+            | Operation::udiv
+            | Operation::sdiv
+            | Operation::urem
+            | Operation::srem
+            | Operation::div
+            | Operation::eq
+            | Operation::ne
+            | Operation::ugt
+            | Operation::uge
+            | Operation::ult
+            | Operation::ule
+            | Operation::sgt
+            | Operation::sge
+            | Operation::slt
+            | Operation::sle
+            | Operation::lt
+            | Operation::gt
+            | Operation::lte
+            | Operation::gte
+            | Operation::and
+            | Operation::or
+            | Operation::xor
+            | Operation::trunc
+            | Operation::eq_gate
+    )
+
+    //For the record:  Operation::not | Operation::cast => false | Operation::ass | Operation::trunc | Operation::nop
+    //  | Operation::jne | Operation::jeq | Operation::jmp | Operation::phi | Operation::load | Operation::store
 }
 
 pub fn to_operation(op_kind: HirBinaryOpKind, op_type: ObjectType) -> Operation {
@@ -948,8 +860,8 @@ pub fn to_operation(op_kind: HirBinaryOpKind, op_type: ObjectType) -> Operation 
 pub fn get_witness_from_object(obj: &Object) -> Option<Witness> {
     match obj {
         Object::Integer(i) => Some(i.witness),
-        Object::Array(_) => todo!(),
+        Object::Array(_) => unreachable!("Array has multiple witnesses"),
         Object::Constants(_) => None,
-        _ => obj.witness(), // These will
+        _ => obj.witness(),
     }
 }

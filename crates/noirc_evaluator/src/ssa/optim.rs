@@ -170,7 +170,10 @@ pub fn block_cse(
             let mut to_update_phi = false;
             anchor
                 .entry(ins.operator)
-                .or_insert_with(|| VecDeque::new());
+                .or_insert_with(|| {VecDeque::new()});
+            if ins.is_deleted {
+                continue;
+            }
             if node::is_binary(ins.operator) {
                 //binary operation:
                 i_lhs = propagate(eval, ins.lhs);
