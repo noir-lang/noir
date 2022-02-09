@@ -37,11 +37,6 @@ pub enum TypeCheckError {
     // They will be removed in a later iteration
     #[error("unstructured msg: {msg:?}")]
     Unstructured { msg: String, span: Span },
-    // Usually the type checker will return after the first encountered errors
-    // Due to the fact that types depend on each other.
-    // This is not the case in a CallExpression however, or more generally a list of expressions
-    #[error("multiple errors when type checking list of expressions")]
-    MultipleErrors(Vec<TypeCheckError>),
     #[error("error with additional context")]
     Context {
         err: Box<TypeCheckError>,
@@ -59,47 +54,32 @@ pub enum TypeCheckError {
 }
 
 impl TypeCheckError {
-    pub fn into_diagnostics(self, interner: &NodeInterner) -> Vec<Diagnostic> {
+    pub fn into_diagnostic(self, interner: &NodeInterner) -> Diagnostic {
         match self {
-            TypeCheckError::TypeCannotBeUsed { typ, place, span } => {
-                vec![Diagnostic::simple_error(
-                    format!("the type {} cannot be used in a {}", &typ, place),
-                    String::new(),
-                    span,
-                )]
-            }
-            TypeCheckError::MultipleErrors(errors) => errors
-                .into_iter()
-                .flat_map(|err| err.into_diagnostics(interner))
-                .collect(),
+            TypeCheckError::TypeCannotBeUsed { typ, place, span } => Diagnostic::simple_error(
+                format!("the type {} cannot be used in a {}", &typ, place),
+                String::new(),
+                span,
+            ),
             TypeCheckError::Context { err, ctx } => {
-                let mut diags = err.into_diagnostics(interner);
-
-                // Cannot add a single context to multiple errors
-                assert!(diags.len() == 1);
-
-                let mut diag = diags.pop().unwrap();
+                let mut diag = err.into_diagnostic(interner);
                 diag.add_note(ctx.to_owned());
-                vec![diag]
+                diag
             }
-            TypeCheckError::OpCannotBeUsed { op, place, span } => {
-                vec![Diagnostic::simple_error(
-                    format!("the operator {:?} cannot be used in a {}", op, place),
-                    String::new(),
-                    span,
-                )]
-            }
+            TypeCheckError::OpCannotBeUsed { op, place, span } => Diagnostic::simple_error(
+                format!("the operator {:?} cannot be used in a {}", op, place),
+                String::new(),
+                span,
+            ),
             TypeCheckError::TypeMismatch {
                 expected_typ,
                 expr_typ,
                 expr_span,
-            } => {
-                vec![Diagnostic::simple_error(
-                    format!("expected type {}, found type {}", expected_typ, expr_typ),
-                    String::new(),
-                    expr_span,
-                )]
-            }
+            } => Diagnostic::simple_error(
+                format!("expected type {}, found type {}", expected_typ, expr_typ),
+                String::new(),
+                expr_span,
+            ),
             TypeCheckError::NonHomogeneousArray {
                 first_span,
                 first_type,
@@ -117,48 +97,32 @@ impl TypeCheckError {
                     first_span,
                 );
                 diag.add_secondary(format!("but then found type {}", second_type), second_span);
-                vec![diag]
+                diag
             }
             TypeCheckError::ArityMisMatch {
                 expected,
                 found,
                 span,
-            } => {
-                vec![Diagnostic::simple_error(
-                    format!("expected {} number of arguments, found {}", expected, found),
-                    String::new(),
-                    span,
-                )]
-            }
+            } => Diagnostic::simple_error(
+                format!("expected {} number of arguments, found {}", expected, found),
+                String::new(),
+                span,
+            ),
             TypeCheckError::Unstructured { msg, span } => {
-                vec![Diagnostic::simple_error(msg, String::new(), span)]
+                Diagnostic::simple_error(msg, String::new(), span)
             }
-            TypeCheckError::PublicReturnType { typ, span } => {
-                vec![Diagnostic::simple_error(
-                    "functions cannot declare a public return type".to_string(),
-                    format!("return type is {}", typ),
-                    span,
-                )]
-            }
+            TypeCheckError::PublicReturnType { typ, span } => Diagnostic::simple_error(
+                "functions cannot declare a public return type".to_string(),
+                format!("return type is {}", typ),
+                span,
+            ),
         }
     }
 
-    pub fn add_context(self, ctx: &'static str) -> Option<Self> {
-        match &self {
-            TypeCheckError::OpCannotBeUsed { .. }
-            | TypeCheckError::Unstructured { .. }
-            | TypeCheckError::TypeMismatch { .. }
-            | TypeCheckError::NonHomogeneousArray { .. }
-            | TypeCheckError::PublicReturnType { .. }
-            | TypeCheckError::ArityMisMatch { .. }
-            | TypeCheckError::TypeCannotBeUsed { .. } => Some(TypeCheckError::Context {
-                err: Box::new(self),
-                ctx,
-            }),
-            // Cannot apply a context to multiple diagnostics
-            TypeCheckError::MultipleErrors(_) => None,
-            // Cannot append or overwrite a context
-            TypeCheckError::Context { .. } => None,
+    pub fn add_context(self, ctx: &'static str) -> Self {
+        TypeCheckError::Context {
+            err: Box::new(self),
+            ctx,
         }
     }
 }

@@ -470,7 +470,6 @@ impl<'a> Resolver<'a> {
     }
 
     fn get_struct(&self, type_id: TypeId) -> Rc<StructType> {
-        println!("looking up struct type {:?}", type_id);
         self.interner.get_struct(type_id)
     }
 
