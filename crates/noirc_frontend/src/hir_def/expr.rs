@@ -203,7 +203,6 @@ impl HirMethodCallExpression {
             arguments,
         })
     }
-
 }
 
 #[derive(Debug, Clone)]

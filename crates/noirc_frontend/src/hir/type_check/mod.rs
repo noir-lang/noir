@@ -9,7 +9,10 @@ mod stmt;
 use errors::TypeCheckError;
 use expr::type_check_expression;
 
-use crate::{Type, node_interner::{FuncId, NodeInterner}};
+use crate::{
+    node_interner::{FuncId, NodeInterner},
+    Type,
+};
 
 /// Type checks a function and assigns the
 /// appropriate types to expressions in a side table
@@ -33,7 +36,10 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     let function_last_type = type_check_expression(interner, func_as_expr, &mut errors);
 
     // Check declared return type and actual return type
-    if !can_ignore_ret && (&function_last_type != declared_return_type) && function_last_type != Type::Error {
+    if !can_ignore_ret
+        && (&function_last_type != declared_return_type)
+        && function_last_type != Type::Error
+    {
         let func_span = interner.id_span(func_as_expr); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
         errors.push(TypeCheckError::TypeMismatch {
             expected_typ: declared_return_type.to_string(),

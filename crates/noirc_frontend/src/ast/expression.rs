@@ -166,13 +166,11 @@ impl Expression {
     ) -> Expression {
         let kind = match args {
             None => ExpressionKind::MemberAccess(Box::new(MemberAccessExpression { lhs, rhs })),
-            Some(arguments) => {
-                ExpressionKind::MethodCall(Box::new(MethodCallExpression {
-                    object: lhs,
-                    method_name: rhs,
-                    arguments,
-                }))
-            }
+            Some(arguments) => ExpressionKind::MethodCall(Box::new(MethodCallExpression {
+                object: lhs,
+                method_name: rhs,
+                arguments,
+            })),
         };
         Expression::new(kind, span)
     }
@@ -496,7 +494,13 @@ impl Display for CallExpression {
 impl Display for MethodCallExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let args = vecmap(&self.arguments, ToString::to_string);
-        write!(f, "{}.{}({})", self.object, self.method_name, args.join(", "))
+        write!(
+            f,
+            "{}.{}({})",
+            self.object,
+            self.method_name,
+            args.join(", ")
+        )
     }
 }
 

@@ -1,7 +1,12 @@
-use crate::{ArraySize, Type, hir_def::{
+use crate::{
+    hir_def::{
         expr::{self, HirBinaryOp, HirExpression, HirLiteral},
         function::Param,
-    }, node_interner::FuncId, util::vecmap};
+    },
+    node_interner::FuncId,
+    util::vecmap,
+    ArraySize, Type,
+};
 use crate::{
     node_interner::{ExprId, NodeInterner},
     FieldElementType,
@@ -73,8 +78,7 @@ pub(crate) fn type_check_expression(
                                     second_type: right_type.to_string(),
                                     second_index: index + 1,
                                 }
-                                .add_context("elements in an array must have the same type")
-                                .unwrap(),
+                                .add_context("elements in an array must have the same type"),
                             );
                         }
                     }
@@ -130,7 +134,9 @@ pub(crate) fn type_check_expression(
             }
         }
         HirExpression::Call(call_expr) => {
-            let args = vecmap(&call_expr.arguments, |arg| type_check_expression(interner, arg, errors));
+            let args = vecmap(&call_expr.arguments, |arg| {
+                type_check_expression(interner, arg, errors)
+            });
             type_check_function_call(interner, expr_id, &call_expr.func_id, args, errors)
         }
         HirExpression::MethodCall(method_call) => {
@@ -139,7 +145,9 @@ pub(crate) fn type_check_expression(
             match lookup_method(interner, object_type.clone(), method_name, expr_id, errors) {
                 Some(method_id) => {
                     let mut args = vec![object_type];
-                    let mut arg_types = vecmap(&method_call.arguments, |arg| type_check_expression(interner, arg, errors));
+                    let mut arg_types = vecmap(&method_call.arguments, |arg| {
+                        type_check_expression(interner, arg, errors)
+                    });
                     args.append(&mut arg_types);
                     let ret = type_check_function_call(interner, expr_id, &method_id, args, errors);
 
@@ -148,7 +156,7 @@ pub(crate) fn type_check_expression(
                     let function_call = method_call.into_function_call(method_id);
                     interner.replace_expr(expr_id, function_call);
                     ret
-                },
+                }
                 None => Type::Error,
             }
         }
@@ -174,8 +182,7 @@ pub(crate) fn type_check_expression(
                         place: "for loop",
                         span: interner.expr_span(&for_expr.start_range),
                     }
-                    .add_context("currently the range in a loop must be constant literal")
-                    .unwrap(),
+                    .add_context("currently the range in a loop must be constant literal"),
                 );
             }
 
@@ -186,8 +193,7 @@ pub(crate) fn type_check_expression(
                         place: "for loop",
                         span: interner.expr_span(&for_expr.end_range),
                     }
-                    .add_context("currently the range in a loop must be constant literal")
-                    .unwrap(),
+                    .add_context("currently the range in a loop must be constant literal"),
                 );
             }
 
@@ -219,11 +225,16 @@ pub(crate) fn type_check_expression(
                 let expr_type = super::stmt::type_check(interner, stmt, errors);
 
                 if i + 1 < statements.len() {
-                    if expr_type != Type::Unit {
+                    if expr_type != Type::Unit && expr_type != Type::Error {
+                        let id = match interner.statement(stmt) {
+                            crate::hir_def::stmt::HirStatement::Expression(expr) => expr,
+                            _ => *expr_id,
+                        };
+
                         errors.push(TypeCheckError::TypeMismatch {
                             expected_typ: Type::Unit.to_string(),
                             expr_typ: expr_type.to_string(),
-                            expr_span: interner.expr_span(expr_id),
+                            expr_span: interner.expr_span(&id),
                         });
                     }
                 } else {
@@ -264,10 +275,13 @@ fn lookup_method(
                 None => {
                     errors.push(TypeCheckError::Unstructured {
                         span: interner.expr_span(expr_id),
-                        msg: format!("No method named '{}' found for type '{}'", method_name, object_type),
+                        msg: format!(
+                            "No method named '{}' found for type '{}'",
+                            method_name, object_type
+                        ),
                     });
                     None
-                },
+                }
             }
         }
         // If we fail to resolve the object to a struct type, we have no way of type
@@ -276,7 +290,10 @@ fn lookup_method(
         other => {
             errors.push(TypeCheckError::Unstructured {
                 span: interner.expr_span(expr_id),
-                msg: format!("Type '{}' must be a struct type to call methods on it", other),
+                msg: format!(
+                    "Type '{}' must be a struct type to call methods on it",
+                    other
+                ),
             });
             None
         }
@@ -411,7 +428,7 @@ fn check_if_expr(
                     "Expected the types of both if branches to be equal"
                 };
 
-                err = err.add_context(context).unwrap();
+                err = err.add_context(context);
                 errors.push(err);
             }
 

@@ -17,7 +17,12 @@ struct ResolverMeta {
     id: IdentId,
 }
 
-use crate::hir_def::expr::{HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression, HirConstructorExpression, HirForExpression, HirIfExpression, HirIndexExpression, HirInfixExpression, HirLiteral, HirMemberAccess, HirMethodCallExpression, HirPrefixExpression, HirUnaryOp};
+use crate::hir_def::expr::{
+    HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
+    HirConstructorExpression, HirForExpression, HirIfExpression, HirIndexExpression,
+    HirInfixExpression, HirLiteral, HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
+    HirUnaryOp,
+};
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -99,7 +104,7 @@ impl<'a> Resolver<'a> {
     }
 
     pub fn function_name(&self, id: &FuncId) -> String {
-        self.interner.function_meta(id).name.to_owned()
+        self.interner.function_meta(id).name
     }
 
     fn resolve_expression(&mut self, expr: Expression) -> ExprId {
@@ -352,7 +357,11 @@ impl<'a> Resolver<'a> {
                 let method = call_expr.method_name;
                 let object = self.resolve_expression(call_expr.object);
                 let arguments = vecmap(call_expr.arguments, |arg| self.resolve_expression(arg));
-                HirExpression::MethodCall(HirMethodCallExpression { arguments, method, object })
+                HirExpression::MethodCall(HirMethodCallExpression {
+                    arguments,
+                    method,
+                    object,
+                })
             }
             ExpressionKind::Cast(cast_expr) => HirExpression::Cast(HirCastExpression {
                 lhs: self.resolve_expression(cast_expr.lhs),
@@ -475,7 +484,6 @@ impl<'a> Resolver<'a> {
     }
 
     pub fn get_struct(&self, type_id: TypeId) -> Rc<RefCell<StructType>> {
-        println!("looking up struct type {:?}", type_id);
         self.interner.get_struct(type_id)
     }
 

@@ -7,8 +7,10 @@ use crate::hir::resolution::{
     import::{resolve_imports, ImportDirective},
     path_resolver::StandardPathResolver,
 };
+use crate::hir::type_check::type_check_func;
 use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner, TypeId};
+use crate::util::vecmap;
 use crate::{NoirFunction, ParsedModule, Path, StructType};
 use fm::FileId;
 use noirc_errors::CollectedErrors;
@@ -257,19 +259,20 @@ fn resolve_functions(
     file_func_ids
 }
 
-use crate::hir::type_check::type_check_func;
 fn type_check_functions(
     interner: &mut NodeInterner,
     file_func_ids: Vec<(FileId, FuncId)>,
     errors: &mut Vec<CollectedErrors>,
 ) {
-    for (file_id, func_id) in file_func_ids {
-        for type_error in type_check_func(interner, func_id) {
-            let diag = type_error.into_diagnostics(interner);
-            errors.push(CollectedErrors {
-                file_id,
-                errors: diag,
+    file_func_ids
+        .into_iter()
+        .map(|(file_id, func_id)| {
+            let errors = vecmap(type_check_func(interner, func_id), |error| {
+                error.into_diagnostic(interner)
             });
-        }
-    }
+
+            CollectedErrors { file_id, errors }
+        })
+        .filter(|collected| !collected.errors.is_empty())
+        .for_each(|error| errors.push(error));
 }
