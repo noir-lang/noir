@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -136,8 +137,12 @@ pub struct NodeInterner {
     // Because we use one Arena to store all Definitions/Nodes
     id_to_type: HashMap<Index, Type>,
 
-    // Struct map
-    structs: HashMap<TypeId, Rc<StructType>>,
+    // Struct map.
+    //
+    // Each struct definition is possibly shared across multiple type nodes.
+    // It is also mutated through the RefCell during name resolution to append
+    // methods from impls to the type.
+    structs: HashMap<TypeId, Rc<RefCell<StructType>>>,
 }
 
 impl Default for NodeInterner {
@@ -187,7 +192,7 @@ impl NodeInterner {
 
     /// Store a struct definition
     pub fn push_struct(&mut self, expr_id: TypeId, typ: StructType) {
-        self.structs.insert(expr_id, Rc::new(typ));
+        self.structs.insert(expr_id, Rc::new(RefCell::new(typ)));
     }
 
     /// Modify the type of an expression.
@@ -350,7 +355,7 @@ impl NodeInterner {
         self.id_span(expr_id)
     }
 
-    pub fn get_struct(&self, id: TypeId) -> Rc<StructType> {
+    pub fn get_struct(&self, id: TypeId) -> Rc<RefCell<StructType>> {
         self.structs[&id].clone()
     }
 
@@ -368,5 +373,11 @@ impl NodeInterner {
     /// Returns the span of an item stored in the Interner
     pub fn id_span(&self, index: impl Into<Index>) -> Span {
         self.id_to_span.get(&index.into()).copied().unwrap()
+    }
+
+    /// Replaces the HirExpression at the given ExprId with a new HirExpression
+    pub fn replace_expr(&mut self, id: &ExprId, new: HirExpression) {
+        let old = self.nodes.get_mut(id.into()).unwrap();
+        *old = Node::Expression(new);
     }
 }

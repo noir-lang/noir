@@ -125,7 +125,7 @@ impl TypeCheckError {
                 span,
             } => {
                 vec![Diagnostic::simple_error(
-                    format!("expected {} number of arguments, found {}", expected, found),
+                    format!("expected {} argument(s), found {}", expected, found),
                     String::new(),
                     span,
                 )]

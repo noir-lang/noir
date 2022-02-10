@@ -12,52 +12,52 @@ use crate::{
 };
 use crate::{
     AssignStatement, BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, ForExpression,
-    FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, NoirStruct, Path,
-    PathKind, UnaryOp,
+    FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, NoirFunction,
+    NoirImpl, NoirStruct, Path, PathKind, UnaryOp,
 };
 
 use chumsky::prelude::*;
 use noirc_errors::{Span, Spanned};
 
-pub fn parse_program(program: &str) -> (ParsedModule, Vec<ParserError>) {
-    let lexer = Lexer::new(program);
-
-    const APPROX_CHARS_PER_FUNCTION: usize = 250;
-    let mut program = ParsedModule::with_capacity(lexer.approx_len() / APPROX_CHARS_PER_FUNCTION);
+pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<ParserError>) {
+    let lexer = Lexer::new(source_program);
     let (tokens, lexing_errors) = lexer.lex();
-
-    let parser = top_level_statement()
-        .repeated()
-        .then_ignore(force(just(Token::EOF)));
-
-    let (tree, mut parsing_errors) = parser.parse_recovery(tokens);
     let mut errors = vecmap(lexing_errors, Into::into);
+
+    let (module, mut parsing_errors) = program().parse_recovery(tokens);
     errors.append(&mut parsing_errors);
 
-    if let Some(statements) = tree {
-        for statement in statements {
+    (module.unwrap(), errors)
+}
+
+fn program() -> impl NoirParser<ParsedModule> {
+    empty()
+        .map(move |_| ParsedModule::default())
+        .then(top_level_statement().repeated())
+        .then_ignore(force(just(Token::EOF)))
+        .foldl(|mut program, statement| {
             match statement {
                 TopLevelStatement::Function(f) => program.push_function(f),
                 TopLevelStatement::Module(m) => program.push_module_decl(m),
                 TopLevelStatement::Import(i) => program.push_import(i),
                 TopLevelStatement::Struct(s) => program.push_type(s),
+                TopLevelStatement::Impl(i) => program.push_impl(i),
             }
-        }
-    }
-
-    (program, errors)
+            program
+        })
 }
 
 fn top_level_statement() -> impl NoirParser<TopLevelStatement> {
     choice((
-        function_definition(),
+        function_definition().map(TopLevelStatement::Function),
         struct_definition(),
+        implementation(),
         module_declaration().then_ignore(force(just(Token::Semicolon))),
         use_statement().then_ignore(force(just(Token::Semicolon))),
     ))
 }
 
-fn function_definition() -> impl NoirParser<TopLevelStatement> {
+fn function_definition() -> impl NoirParser<NoirFunction> {
     attribute()
         .or_not()
         .then_ignore(keyword(Keyword::Fn))
@@ -66,17 +66,15 @@ fn function_definition() -> impl NoirParser<TopLevelStatement> {
         .then(function_return_type())
         .then(block(expression()))
         .map(|((((attribute, name), parameters), return_type), body)| {
-            TopLevelStatement::Function(
-                FunctionDefinition {
-                    span: name.0.span(),
-                    name,
-                    attribute, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
-                    parameters,
-                    body,
-                    return_type,
-                }
-                .into(),
-            )
+            FunctionDefinition {
+                span: name.0.span(),
+                name,
+                attribute, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
+                parameters,
+                body,
+                return_type,
+            }
+            .into()
         })
 }
 
@@ -123,6 +121,15 @@ where
         .then(type_parser)
         .separated_by(just(Token::Comma))
         .allow_trailing()
+}
+
+fn implementation() -> impl NoirParser<TopLevelStatement> {
+    keyword(Keyword::Impl)
+        .ignore_then(path())
+        .then_ignore(just(Token::LeftBrace))
+        .then(function_definition().repeated())
+        .then_ignore(just(Token::RightBrace))
+        .map(|(type_path, methods)| TopLevelStatement::Impl(NoirImpl { type_path, methods }))
 }
 
 fn block<'a, P>(expr_parser: P) -> impl NoirParser<BlockExpression> + 'a
@@ -576,15 +583,21 @@ where
     .labelled("value")
 }
 
-// Parses a value followed by 0 or more member accesses
+// Parses a value followed by 0 or more member accesses or method calls
 fn member_access<P>(expr_parser: P) -> impl NoirParser<Expression>
 where
     P: ExprParser,
 {
     let rhs = just(Token::Dot)
         .ignore_then(ident())
+        .then(parenthesized(expression_list(expr_parser.clone())).or_not())
         .labelled("field access");
-    foldl_with_span(value(expr_parser), rhs, Expression::member_access)
+
+    foldl_with_span(
+        value(expr_parser),
+        rhs,
+        Expression::member_access_or_method_call,
+    )
 }
 
 // Parses a member_access followed by 0 or more cast expressions
@@ -595,6 +608,7 @@ where
     let cast_rhs = keyword(Keyword::As)
         .ignore_then(parse_type_no_field_element())
         .labelled("cast");
+
     foldl_with_span(member_access(expr_parser), cast_rhs, Expression::cast)
 }
 

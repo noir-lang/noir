@@ -17,11 +17,8 @@ struct ResolverMeta {
     id: IdentId,
 }
 
-use crate::hir_def::expr::{
-    HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
-    HirConstructorExpression, HirForExpression, HirIfExpression, HirIndexExpression,
-    HirInfixExpression, HirLiteral, HirMemberAccess, HirPrefixExpression, HirUnaryOp,
-};
+use crate::hir_def::expr::{HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression, HirConstructorExpression, HirForExpression, HirIfExpression, HirIndexExpression, HirInfixExpression, HirLiteral, HirMemberAccess, HirMethodCallExpression, HirPrefixExpression, HirUnaryOp};
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
@@ -99,6 +96,10 @@ impl<'a> Resolver<'a> {
         self.check_for_unused_variables_in_scope_tree(func_scope_tree);
 
         (hir_func, func_meta, self.errors)
+    }
+
+    pub fn function_name(&self, id: &FuncId) -> String {
+        self.interner.function_meta(id).name.to_owned()
     }
 
     fn resolve_expression(&mut self, expr: Expression) -> ExprId {
@@ -344,10 +345,14 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Call(call_expr) => {
                 // Get the span and name of path for error reporting
                 let func_id = self.lookup_function(call_expr.func_name);
-
                 let arguments = vecmap(call_expr.arguments, |arg| self.resolve_expression(arg));
-
                 HirExpression::Call(HirCallExpression { func_id, arguments })
+            }
+            ExpressionKind::MethodCall(call_expr) => {
+                let method = call_expr.method_name;
+                let object = self.resolve_expression(call_expr.object);
+                let arguments = vecmap(call_expr.arguments, |arg| self.resolve_expression(arg));
+                HirExpression::MethodCall(HirMethodCallExpression { arguments, method, object })
             }
             ExpressionKind::Cast(cast_expr) => HirExpression::Cast(HirCastExpression {
                 lhs: self.resolve_expression(cast_expr.lhs),
@@ -447,7 +452,7 @@ impl<'a> Resolver<'a> {
                 // field not required by struct
                 self.push_err(ResolverError::NoSuchField {
                     field: field.clone(),
-                    struct_definition: self.get_struct(type_id).name.clone(),
+                    struct_definition: self.get_struct(type_id).borrow().name.clone(),
                 });
             }
 
@@ -462,20 +467,21 @@ impl<'a> Resolver<'a> {
                     .into_iter()
                     .map(|field| field.to_string())
                     .collect(),
-                struct_definition: self.get_struct(type_id).name.clone(),
+                struct_definition: self.get_struct(type_id).borrow().name.clone(),
             });
         }
 
         ret
     }
 
-    fn get_struct(&self, type_id: TypeId) -> Rc<StructType> {
+    pub fn get_struct(&self, type_id: TypeId) -> Rc<RefCell<StructType>> {
         println!("looking up struct type {:?}", type_id);
         self.interner.get_struct(type_id)
     }
 
     fn get_field_names_of_type(&self, type_id: TypeId) -> HashSet<Ident> {
         let typ = self.get_struct(type_id);
+        let typ = typ.borrow();
         typ.fields.iter().map(|(name, _)| name.clone()).collect()
     }
 
@@ -484,18 +490,14 @@ impl<'a> Resolver<'a> {
         match self.resolve_path(path) {
             // Could not resolve this symbol, the error is already logged, return a dummy function id
             None => T::dummy_id(),
-            Some(def_id) => {
-                // A symbol was found. Check if it is a function
-                T::try_from(def_id).unwrap_or_else(|| {
-                    let err = ResolverError::Expected {
-                        expected: T::description(),
-                        got: def_id.as_str().to_owned(),
-                        span,
-                    };
-                    self.push_err(err);
-                    T::dummy_id()
-                })
-            }
+            Some(def_id) => T::try_from(def_id).unwrap_or_else(|| {
+                self.push_err(ResolverError::Expected {
+                    expected: T::description(),
+                    got: def_id.as_str().to_owned(),
+                    span,
+                });
+                T::dummy_id()
+            }),
         }
     }
 
@@ -503,7 +505,7 @@ impl<'a> Resolver<'a> {
         self.lookup(path)
     }
 
-    fn lookup_type(&mut self, path: Path) -> TypeId {
+    pub fn lookup_type(&mut self, path: Path) -> TypeId {
         self.lookup(path)
     }
 
@@ -513,12 +515,11 @@ impl<'a> Resolver<'a> {
         self.path_resolver
             .resolve(self.def_maps, path)
             .unwrap_or_else(|segment| {
-                let err = ResolverError::PathUnresolved {
+                self.push_err(ResolverError::PathUnresolved {
                     name,
                     span,
                     segment,
-                };
-                self.push_err(err);
+                });
                 None
             })
     }

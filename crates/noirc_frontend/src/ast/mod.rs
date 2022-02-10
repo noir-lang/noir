@@ -5,7 +5,7 @@ mod function;
 mod statement;
 mod structure;
 
-use std::rc::Rc;
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 pub use expression::*;
 pub use function::*;
@@ -15,7 +15,7 @@ pub use statement::*;
 pub use structure::*;
 
 use crate::{
-    node_interner::TypeId,
+    node_interner::{FuncId, TypeId},
     token::{IntType, Keyword},
 };
 
@@ -109,6 +109,7 @@ pub struct StructType {
     pub id: TypeId,
     pub name: Ident,
     pub fields: Vec<(Ident, Type)>,
+    pub methods: HashMap<String, FuncId>,
     pub span: Span,
 }
 
@@ -125,6 +126,7 @@ impl StructType {
             name: structure.name,
             fields: structure.fields,
             span: structure.span,
+            methods: HashMap::new(),
         }
     }
 }
@@ -142,7 +144,7 @@ pub enum Type {
     Integer(FieldElementType, Signedness, u32),    // u32 = Integer(unsigned, 32)
     Bool,
     Unit,
-    Struct(Rc<StructType>),
+    Struct(Rc<RefCell<StructType>>),
 
     Error,
     Unspecified, // This is for when the user declares a variable without specifying it's type
@@ -178,7 +180,7 @@ impl std::fmt::Display for Type {
                 Signedness::Signed => write!(f, "{} i{}", fe_type, num_bits),
                 Signedness::Unsigned => write!(f, "{} u{}", fe_type, num_bits),
             },
-            Type::Struct(s) => s.fmt(f),
+            Type::Struct(s) => s.borrow().fmt(f),
             Type::Bool => write!(f, "bool"),
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
@@ -241,7 +243,7 @@ impl Type {
             Type::Array(_, ArraySize::Fixed(fixed_size), _) => *fixed_size as usize,
             Type::Array(_, ArraySize::Variable, _) =>
                 unreachable!("ice : this method is only ever called when we want to compare the prover inputs with the ABI in main. The ABI should not have variable input. The program should be compiled before calling this"),
-            Type::Struct(s) => s.fields.len(),
+            Type::Struct(s) => s.borrow().fields.len(),
             Type::FieldElement(_)
             | Type::Integer(_, _, _)
             | Type::Bool

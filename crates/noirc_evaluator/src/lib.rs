@@ -627,6 +627,7 @@ impl<'a> Evaluator<'a> {
             HirExpression::Block(_) => todo!("currently block expressions not in for/if branches are not being evaluated. In the future, we should be able to unify the eval_block and all places which require block_expr here"),
             HirExpression::Constructor(_) => todo!("Constructor expressions are unimplemented in the noir backend"),
             HirExpression::MemberAccess(_) => todo!("Member access expressions are unimplemented in the noir backend"),
+            HirExpression::MethodCall(expr) => unreachable!("Method call expressions should have been desugared into call expressions before reaching the backend: {:#?}", expr),
             HirExpression::Error => unreachable!("Tried to evaluate an Expression::Error node"),
         }
     }

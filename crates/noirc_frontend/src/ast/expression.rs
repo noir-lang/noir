@@ -14,6 +14,7 @@ pub enum ExpressionKind {
     Prefix(Box<PrefixExpression>),
     Index(Box<IndexExpression>),
     Call(Box<CallExpression>),
+    MethodCall(Box<MethodCallExpression>),
     Constructor(Box<ConstructorExpression>),
     MemberAccess(Box<MemberAccessExpression>),
     Cast(Box<CastExpression>),
@@ -158,11 +159,22 @@ impl Expression {
         Some(ident)
     }
 
-    pub fn member_access(lhs: Expression, rhs: Ident, span: Span) -> Expression {
-        Expression {
-            kind: ExpressionKind::MemberAccess(Box::new(MemberAccessExpression { lhs, rhs })),
-            span,
-        }
+    pub fn member_access_or_method_call(
+        lhs: Expression,
+        (rhs, args): (Ident, Option<Vec<Expression>>),
+        span: Span,
+    ) -> Expression {
+        let kind = match args {
+            None => ExpressionKind::MemberAccess(Box::new(MemberAccessExpression { lhs, rhs })),
+            Some(arguments) => {
+                ExpressionKind::MethodCall(Box::new(MethodCallExpression {
+                    object: lhs,
+                    method_name: rhs,
+                    arguments,
+                }))
+            }
+        };
+        Expression::new(kind, span)
     }
 
     pub fn cast(lhs: Expression, r#type: Type, span: Span) -> Expression {
@@ -356,6 +368,13 @@ pub struct CallExpression {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+pub struct MethodCallExpression {
+    pub object: Expression,
+    pub method_name: Ident,
+    pub arguments: Vec<Expression>,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ConstructorExpression {
     pub type_name: Path,
     pub fields: Vec<(Ident, Expression)>,
@@ -406,6 +425,7 @@ impl Display for ExpressionKind {
             Prefix(prefix) => prefix.fmt(f),
             Index(index) => index.fmt(f),
             Call(call) => call.fmt(f),
+            MethodCall(call) => call.fmt(f),
             Cast(cast) => cast.fmt(f),
             Infix(infix) => infix.fmt(f),
             For(for_loop) => for_loop.fmt(f),
@@ -470,6 +490,13 @@ impl Display for CallExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let args = vecmap(&self.arguments, ToString::to_string);
         write!(f, "{}({})", self.func_name, args.join(", "))
+    }
+}
+
+impl Display for MethodCallExpression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let args = vecmap(&self.arguments, ToString::to_string);
+        write!(f, "{}.{}({})", self.object, self.method_name, args.join(", "))
     }
 }
 

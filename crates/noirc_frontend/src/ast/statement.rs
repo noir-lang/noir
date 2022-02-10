@@ -4,7 +4,7 @@ use crate::lexer::token::SpannedToken;
 use crate::parser::ParserError;
 use crate::token::Token;
 use crate::util::vecmap;
-use crate::{Expression, ExpressionKind, InfixExpression, NoirStruct, Type};
+use crate::{Expression, ExpressionKind, InfixExpression, Type};
 use noirc_errors::{Span, Spanned};
 
 /// This is used when an identifier fails to parse in the parser.
@@ -222,7 +222,7 @@ pub enum PathKind {
 // Note: Path deliberately doesn't implement Recoverable.
 // No matter which default value we could give in Recoverable::error,
 // it would most likely cause further errors during name resolution
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct Path {
     pub segments: Vec<Ident>,
     pub kind: PathKind,
@@ -395,17 +395,5 @@ impl Display for ImportStatement {
             write!(f, " as {}", alias)?;
         }
         Ok(())
-    }
-}
-
-impl Display for NoirStruct {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "struct {} {{", self.name)?;
-
-        for (name, typ) in self.fields.iter() {
-            writeln!(f, "    {}: {},", name, typ)?;
-        }
-
-        write!(f, "}}")
     }
 }

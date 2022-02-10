@@ -407,6 +407,7 @@ pub enum Keyword {
     Crate,
     Fn,
     Struct,
+    Impl,
     If,
     Mod,
     Else,
@@ -436,6 +437,7 @@ impl fmt::Display for Keyword {
             Keyword::Crate => write!(f, "crate"),
             Keyword::Fn => write!(f, "fn"),
             Keyword::Struct => write!(f, "struct"),
+            Keyword::Impl => write!(f, "impl"),
             Keyword::If => write!(f, "if"),
             Keyword::Mod => write!(f, "mod"),
             Keyword::For => write!(f, "for"),
@@ -460,35 +462,37 @@ impl Keyword {
     /// else return None
     /// XXX: Notice that because of the underscore, new keywords will not produce an err for this function
     pub(crate) fn lookup_keyword(word: &str) -> Option<Token> {
-        match word {
-            "fn" => Some(Token::Keyword(Keyword::Fn)),
-            "struct" => Some(Token::Keyword(Keyword::Struct)),
-            "dep" => Some(Token::Keyword(Keyword::Dep)),
-            "crate" => Some(Token::Keyword(Keyword::Crate)),
-            "if" => Some(Token::Keyword(Keyword::If)),
-            "mod" => Some(Token::Keyword(Keyword::Mod)),
-            "for" => Some(Token::Keyword(Keyword::For)),
-            "in" => Some(Token::Keyword(Keyword::In)),
-            "else" => Some(Token::Keyword(Keyword::Else)),
-            "while" => Some(Token::Keyword(Keyword::While)),
-            "constrain" => Some(Token::Keyword(Keyword::Constrain)),
-            "let" => Some(Token::Keyword(Keyword::Let)),
-            "as" => Some(Token::Keyword(Keyword::As)),
-            "use" => Some(Token::Keyword(Keyword::Use)),
-            "true" => Some(Token::Bool(true)),
-            "false" => Some(Token::Bool(false)),
+        let keyword = match word {
+            "fn" => Keyword::Fn,
+            "struct" => Keyword::Struct,
+            "impl" => Keyword::Impl,
+            "dep" => Keyword::Dep,
+            "crate" => Keyword::Crate,
+            "if" => Keyword::If,
+            "mod" => Keyword::Mod,
+            "for" => Keyword::For,
+            "in" => Keyword::In,
+            "else" => Keyword::Else,
+            "while" => Keyword::While,
+            "constrain" => Keyword::Constrain,
+            "let" => Keyword::Let,
+            "as" => Keyword::As,
+            "use" => Keyword::Use,
 
-            "setpub" => Some(Token::Keyword(Keyword::SetPub)),
-
-            "priv" => Some(Token::Keyword(Keyword::Priv)),
-            "pub" => Some(Token::Keyword(Keyword::Pub)),
-            "const" => Some(Token::Keyword(Keyword::Const)),
+            "setpub" => Keyword::SetPub,
+            "priv" => Keyword::Priv,
+            "pub" => Keyword::Pub,
+            "const" => Keyword::Const,
             // Native Types
-            "Field" => Some(Token::Keyword(Keyword::Field)),
+            "Field" => Keyword::Field,
 
-            "_" => Some(Token::Underscore),
-            _ => None,
-        }
+            "true" => return Some(Token::Bool(true)),
+            "false" => return Some(Token::Bool(false)),
+            "_" => return Some(Token::Underscore),
+            _ => return None,
+        };
+
+        Some(Token::Keyword(keyword))
     }
 }
 
