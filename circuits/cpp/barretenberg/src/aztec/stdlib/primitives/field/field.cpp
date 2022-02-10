@@ -197,8 +197,16 @@ field_t<ComposerContext> field_t<ComposerContext>::operator*(const field_t& othe
     return result;
 }
 
+// Since in divide_no_zero_check, we check a/b=c by the constraint a=b*c, if a=b=0, we can set c to *any value*
+// and it will pass the constraint. Hence, when not having prior knowledge of b not being zero it is essential to check.
 template <typename ComposerContext>
 field_t<ComposerContext> field_t<ComposerContext>::operator/(const field_t& other) const
+{
+    other.assert_is_not_zero("field_t::operator/ divisor is 0");
+    return divide_no_zero_check(other);
+}
+template <typename ComposerContext>
+field_t<ComposerContext> field_t<ComposerContext>::divide_no_zero_check(const field_t& other) const
 {
     ComposerContext* ctx = (context == nullptr) ? other.context : context;
     field_t<ComposerContext> result(ctx);

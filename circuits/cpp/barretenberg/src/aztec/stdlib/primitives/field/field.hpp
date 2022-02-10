@@ -107,6 +107,7 @@ template <typename ComposerContext> class field_t {
     field_t operator-(const field_t& other) const;
     field_t operator*(const field_t& other) const;
     field_t operator/(const field_t& other) const;
+    field_t divide_no_zero_check(const field_t& other) const;
 
     field_t sqr() const { return operator*(*this); }
 

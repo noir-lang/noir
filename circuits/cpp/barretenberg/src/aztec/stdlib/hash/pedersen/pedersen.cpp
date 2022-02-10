@@ -20,7 +20,8 @@ template <typename C> point<C> add_points(const point<C>& first, const point<C>&
 {
     field_t<C> lhs = second.y - first.y;
     field_t<C> rhs = second.x - first.x;
-    field_t<C> lambda = lhs / rhs;
+    // since we are adding multiples of different generators, creating a zero denum is as hard as DL
+    field_t<C> lambda = lhs.divide_no_zero_check(rhs);
     field_t<C> x_3 = lambda * lambda - second.x - first.x;
     field_t<C> y_3 = lambda * (first.x - x_3) - first.y;
     return { x_3, y_3 };
