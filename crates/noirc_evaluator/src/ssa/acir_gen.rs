@@ -153,12 +153,15 @@ impl Acir {
             Operation::gt => todo!(),
             Operation::lte => todo!(),
             Operation::gte => todo!(),
-            Operation::and => todo!(),
+            Operation::and => {
+                todo!();
+                //use AndGate
+            }
             Operation::not => todo!(),
             Operation::or => todo!(),
             Operation::xor => todo!(),
             Operation::cast => {
-                todo!()
+                output = l_c.expression;
             }
             Operation::ass | Operation::jne | Operation::jeq | Operation::jmp | Operation::phi => {
                 todo!("invalid instruction");

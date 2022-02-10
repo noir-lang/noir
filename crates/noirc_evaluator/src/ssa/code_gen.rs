@@ -306,7 +306,7 @@ impl<'a> IRGenerator<'a> {
             let obj_cst = node::Constant {
                 id: self.id0,
                 value,
-                value_type: node::ObjectType::signed(32),
+                value_type: node::ObjectType::Signed(32),
                 value_str: String::new(),
             };
             let obj = node::NodeObj::Const(obj_cst);
@@ -607,7 +607,7 @@ impl<'a> IRGenerator<'a> {
             // HirBinaryOpKind::Multiply => binary_op::handle_mul_op(lhs, rhs, self),
             // HirBinaryOpKind::Divide => binary_op::handle_div_op(lhs, rhs, self),
             HirBinaryOpKind::NotEqual => todo!(),
-            HirBinaryOpKind::Equal => Ok(self.new_instruction(lhs, rhs, node::Operation::eq_gate, node::ObjectType::none)),
+            HirBinaryOpKind::Equal => Ok(self.new_instruction(lhs, rhs, node::Operation::eq_gate, node::ObjectType::NotAnObject)),
             // HirBinaryOpKind::And => binary_op::handle_and_op(lhs, rhs, self),
             // HirBinaryOpKind::Xor => binary_op::handle_xor_op(lhs, rhs, self),
             HirBinaryOpKind::Less =>todo!(),
@@ -658,7 +658,7 @@ impl<'a> IRGenerator<'a> {
         let ident_def = self.context().def_interner.ident_def(&priv_stmt.identifier);
         let new_var = node::Variable {
             id: self.dummy(),
-            obj_type: node::ObjectType::native_field, //TODO
+            obj_type: node::ObjectType::NativeField, //TODO
             name: variable_name,
             root: None,
             def: ident_def,
@@ -852,7 +852,7 @@ impl<'a> IRGenerator<'a> {
         env.store(iter_name.clone(), Object::Constants(start));
         let iter_id = self.create_new_variable(iter_name, iter_def, env); //TODO do we need to store and retrieve it ?
         let iter_var = self.get_mut_variable(iter_id).unwrap();
-        iter_var.obj_type = node::ObjectType::unsigned(32); //TODO create_new_variable should set the correct type
+        iter_var.obj_type = node::ObjectType::Unsigned(32); //TODO create_new_variable should set the correct type
         let iter_type = self.get_object_type(iter_id);
         dbg!(iter_type);
         let iter_ass = self.new_instruction(iter_id, start_idx, node::Operation::ass, iter_type);
@@ -880,12 +880,12 @@ impl<'a> IRGenerator<'a> {
         let phi = self.generate_empty_phi(join_idx, iter_id);
         self.update_variable_id(iter_id, i1_id, phi); //j'imagine que y'a plus besoin
         let cond =
-            self.new_instruction(phi, end_idx, node::Operation::ne, node::ObjectType::boolean);
+            self.new_instruction(phi, end_idx, node::Operation::ne, node::ObjectType::Boolean);
         let to_fix = self.new_instruction(
             cond,
             self.dummy(),
             node::Operation::jeq,
-            node::ObjectType::none,
+            node::ObjectType::NotAnObject,
         );
 
         //Body
@@ -922,7 +922,7 @@ impl<'a> IRGenerator<'a> {
             self.dummy(),
             self.get_block(join_idx).get_first_instruction(),
             node::Operation::jmp,
-            node::ObjectType::none,
+            node::ObjectType::NotAnObject,
         );
         //seal join
         ssa_form::seal_block(self, join_idx);

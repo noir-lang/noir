@@ -54,6 +54,15 @@ pub fn simplify(eval: &mut IRGenerator, ins: &mut node::Instruction) {
 
     //2. standard form
     ins.standard_form();
+    if ins.operator == node::Operation::cast {
+        if let Some(lhs_obj) = eval.get_object(ins.lhs) {
+            if lhs_obj.get_type() == ins.res_type {
+                ins.is_deleted = true;
+                ins.rhs = ins.lhs;
+                return;
+            }
+        }
+    }
 
     //3. left-overs (it requires &mut eval)
     if let NodeEval::Const(r_const, r_type) = r_eval {
@@ -168,9 +177,7 @@ pub fn block_cse(
             let mut i_rhs = ins.rhs;
             let mut phi_args: Vec<(arena::Index, arena::Index)> = Vec::new();
             let mut to_update_phi = false;
-            anchor
-                .entry(ins.operator)
-                .or_insert_with(|| {VecDeque::new()});
+            anchor.entry(ins.operator).or_insert_with(VecDeque::new);
             if ins.is_deleted {
                 continue;
             }

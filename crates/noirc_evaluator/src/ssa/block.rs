@@ -67,7 +67,7 @@ pub fn create_first_block(igen: &mut IRGenerator) {
         igen.dummy(),
         igen.dummy(),
         node::Operation::nop,
-        node::ObjectType::none,
+        node::ObjectType::NotAnObject,
     );
 }
 
@@ -88,7 +88,7 @@ pub fn new_sealed_block(igen: &mut IRGenerator, kind: BlockType) -> arena::Index
         igen.dummy(),
         igen.dummy(),
         node::Operation::nop,
-        node::ObjectType::none,
+        node::ObjectType::NotAnObject,
     );
     new_idx
 }
@@ -110,7 +110,7 @@ pub fn new_unsealed_block(igen: &mut IRGenerator, kind: BlockType, left: bool) -
         igen.dummy(),
         igen.dummy(),
         node::Operation::nop,
-        node::ObjectType::none,
+        node::ObjectType::NotAnObject,
     );
     new_idx
 }

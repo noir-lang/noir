@@ -1,11 +1,12 @@
 use super::{
     //block,
     code_gen::IRGenerator,
-    node::{self, Node, Operation},
+    node::{self, Instruction, Node, Operation},
     optim,
 };
 use acvm::FieldElement;
 use num_bigint::BigUint;
+use num_traits::One;
 use std::collections::{HashMap, VecDeque};
 use std::convert::TryInto;
 
@@ -33,7 +34,7 @@ pub fn get_instruction_max_operand(
     if ins.operator == node::Operation::load {
         return get_load_max(eval, ins.lhs, max_map, vmap);
     }
-    get_max_value(&ins.operator, left_max, right_max)
+    get_max_value(&ins, left_max, right_max)
 }
 
 // Retrieve max possible value of a node; from the max_map if it was already computed
@@ -61,7 +62,7 @@ pub fn get_obj_max_value(
             if v.bits() > 100 {
                 dbg!(&v);
             }
-            BigUint::from((1_u128 << v.bits()) - 1)
+            (BigUint::one() << v.bits()) - BigUint::one()
         } //TODO check for signed type
         node::NodeObj::Instr(i) => get_instruction_max(eval, i, max_map, vmap),
         node::NodeObj::Const(c) => c.value.clone(), //TODO panic for string constants
@@ -83,10 +84,11 @@ pub fn truncate(
     let obj_name = format!("{}", obj);
     //ensure truncate is needed:
     let v_max = &max_map[&obj_id];
-    if *v_max >= BigUint::from(1_u128 << bit_size) {
-        let rhs_bitsize = eval.new_constant(FieldElement::from(bit_size as i128)); //TODO is this leaking some info????
-                                                                                   //Create a new truncate instruction '(idx): obj trunc bit_size'
-                                                                                   //set current value of obj to idx
+    if *v_max >= BigUint::one() << bit_size {
+        //TODO is this leaking some info????
+        let rhs_bitsize = eval.new_constant(FieldElement::from(bit_size as i128));
+        //Create a new truncate instruction '(idx): obj trunc bit_size'
+        //set current value of obj to idx
         let mut i =
             node::Instruction::new(node::Operation::trunc, obj_id, rhs_bitsize, obj_type, None);
         if i.res_name.ends_with("_t") {
@@ -128,7 +130,7 @@ fn add_to_truncate(
     max_map: &HashMap<arena::Index, BigUint>,
 ) -> BigUint {
     let v_max = &max_map[&obj_id];
-    if *v_max >= BigUint::from(1_u128 << bit_size) {
+    if *v_max >= BigUint::one() << bit_size {
         if let Some(node::NodeObj::Const(_)) = eval.get_object(obj_id) {
             return v_max.clone(); //a constant cannot be truncated, so we exit the function gracefully
         }
@@ -212,19 +214,20 @@ pub fn block_overflow(
     //for each instruction, we compute the resulting max possible value (in term of the field representation of the operation)
     //when it is over the field charac, or if the instruction requires it, then we insert truncate instructions
     // The instructions are insterted in a duplicate list( because of rust ownership..), which we use for
-    // processing another cse round for the block because the truncates may have added duplicate.
+    // processing another cse round for the block because the truncates may be duplicated.
     let block = eval.blocks.get(b_idx).unwrap();
     let mut b: Vec<node::Instruction> = Vec::new();
     let mut new_list: Vec<arena::Index> = Vec::new();
     let mut truncate_map: HashMap<arena::Index, u32> = HashMap::new();
+    let mut modify_ins: Option<Instruction> = None;
+    let mut trunc_size = FieldElement::zero();
     //RIA...
     for iter in &block.instructions {
         b.push((*eval.try_get_instruction(*iter).unwrap()).clone());
     }
-    let mut value_map: HashMap<arena::Index, arena::Index> = HashMap::new(); //since we process the block from the start, the block value array is not relevant
-                                                                             //block.value_array.clone();     //RIA - we need to modify it and to use it
-                                                                             //TODO we should try to make another simplify round here, or at least after copy propagation, we should do it at the best convenient place....TODO
-    let mut memory_map: HashMap<u32, arena::Index> = HashMap::new();    //TODO surement a mettre en argument
+    //since we process the block from the start, the block value array is not relevant
+    let mut value_map: HashMap<arena::Index, arena::Index> = HashMap::new(); 
+    let mut memory_map: HashMap<u32, arena::Index> = HashMap::new();    //TODO put in argument
     let mut delete_ins = false;
     for mut ins in b {
         if ins.operator == node::Operation::nop {
@@ -285,12 +288,37 @@ pub fn block_overflow(
             }
         }
         if ins.operator == node::Operation::cast {
-            //TODO for cast, we may need to reduce rhs into the bit size of lhs
-            //this can change the max value of the cast so its need to be done here
-            //(or we update the get_max_bits() for casts)
-            let lhs_bits = l_obj.bits();
-            if r_max.bits() as u32 > lhs_bits {
-                add_to_truncate(eval, r_id, l_obj.bits(), &mut truncate_map, max_map);
+            //TODO for now the types we support here are only all integer types (field, signed, unsigned, bool)
+            //so a cast would normally translate to a truncate.
+            //if res_type and lhs have the same bit size (in a large sens, which include field elements)
+            //then either they have the same type and should have been simplified
+            //or they don't have the same sign so we keep the cast operator
+            //if res_type is smaller than lhs bit size, we look if lhs can hold directly into res_type
+            // if not, we need to truncate lhs to a res_type. We modify directly the cast instruction into a truncate
+            // in other cases we can keep the cast instruction
+            // for instance if res_type is greater than lhs bit size, we need to truncate lhs to its bit size and use the truncate
+            // result in the cast, but this is handled by the truncate_required
+            // after this function, all cast instructions refer to casting lhs into a bigger (or equal) type
+            // anyother case has been transformed into the latter using truncates.
+            if ins.res_type == l_obj.get_type() {
+                ins.is_deleted = true;
+                ins.rhs = ins.lhs;
+            }
+            if ins.res_type.bits() < l_obj.bits() {
+                if r_max.bits() as u32 > ins.res_type.bits() {
+                    //we need to truncate
+                    update_instruction = true;
+                    trunc_size = FieldElement::from(ins.res_type.bits() as i128);
+                    modify_ins = Some(Instruction::new(
+                        node::Operation::trunc,
+                        l_id,
+                        l_id,
+                        ins.res_type,
+                        Some(ins.parent_block),
+                    ));
+                    //TODO name for the instruction: modify_ins.res_name = l_obj."name"+"_t";
+                    //n.b. we do not update value map because we re-use the cast instruction
+                }
             }
         }
         let mut ins_max = get_instruction_max(eval, &ins, max_map, &value_map);
@@ -338,6 +366,10 @@ pub fn block_overflow(
                     //sub operations require the max value to ensure it does not underflow
                     max_r_value = Some(max_map[&r_new].clone());
                     //we may do that in future when the max_map becomes more used elsewhere (for other optim)
+                }
+                if let Some(modified_ins) = &modify_ins {
+                    ins.operator = modified_ins.operator;
+                    ins.rhs = eval.get_const(trunc_size, node::ObjectType::Unsigned(32));
                 }
                 update_ins_parameters(eval, ins.idx, l_new, r_new, max_r_value);
             }
@@ -388,8 +420,8 @@ pub fn get_load_max(eval: &IRGenerator, address: arena::Index,
     
 //Returns the max value of an operation from an upper bound of left and right hand sides
 //Function is used to check for overflows over the field size, this is why we use BigUint.
-pub fn get_max_value(operator: &Operation, lhs_max: BigUint, rhs_max: BigUint) -> BigUint {
-    match operator {
+pub fn get_max_value(ins: &Instruction, lhs_max: BigUint, rhs_max: BigUint) -> BigUint {
+    match ins.operator {
         Operation::add => lhs_max + rhs_max,
         Operation::safe_add => todo!(),
         Operation::sub => lhs_max + rhs_max,
@@ -415,13 +447,15 @@ pub fn get_max_value(operator: &Operation, lhs_max: BigUint, rhs_max: BigUint) -
         Operation::gt => BigUint::from(1_u32),
         Operation::lte => BigUint::from(1_u32),
         Operation::gte => BigUint::from(1_u32),
-        Operation::and => BigUint::from(1_u32),
-        Operation::not => BigUint::from(1_u32),
-        Operation::or => BigUint::from(1_u32),
-        Operation::xor => BigUint::from(1_u32),
-        //'a cast b' means we cast b into a: (a) b
-        //we assume that eventual truncate has been done so rhs_max must fit into type of a.
-        Operation::cast => rhs_max,
+        Operation::and => ins.res_type.max_size(),
+        Operation::not => ins.res_type.max_size(),
+        Operation::or => ins.res_type.max_size(),
+        Operation::xor => ins.res_type.max_size(),
+        //'a cast a' means we cast a into res_type of the instruction
+        Operation::cast => {
+            let type_max = ins.res_type.max_size();
+            BigUint::min(lhs_max, type_max)
+        }
         Operation::trunc => BigUint::min(
             lhs_max,
             BigUint::from(2_u32).pow(rhs_max.try_into().unwrap()) - BigUint::from(1_u32),
