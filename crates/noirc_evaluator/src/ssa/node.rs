@@ -7,6 +7,7 @@ use arena;
 use noirc_frontend::hir_def::expr::HirBinaryOpKind;
 use noirc_frontend::node_interner::IdentId;
 use num_bigint::BigUint;
+use num_traits::One;
 
 use crate::object::Object;
 use num_traits::identities::Zero;
@@ -132,34 +133,33 @@ impl Variable {
     }
 }
 
-#[allow(non_camel_case_types)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ObjectType {
-    native_field,
+    NativeField,
     // custom_field(BigUint), //TODO requires copy trait for BigUint
-    boolean,
-    unsigned(u32), //bit size
-    signed(u32),   //bit size
+    Boolean,
+    Unsigned(u32), //bit size
+    Signed(u32),   //bit size
     //custom(u32),   //user-defined struct, u32 refers to the id of the type in...?todo
     //array(ObjectType),  TODO we should have primitive type and composite types
     //TODO big_int
     //TODO floats
-    none, //not an object
+    NotAnObject, //not an object
 }
 
 impl ObjectType {
     fn is_signed(&self) -> bool {
-        matches!(self, ObjectType::signed(_))
+        matches!(self, ObjectType::Signed(_))
     }
 
     fn is_unsigned(&self) -> bool {
-        matches!(self, ObjectType::unsigned(_))
+        matches!(self, ObjectType::Unsigned(_))
     }
 
     fn is_field(&self) -> bool {
         matches!(
             self,
-            ObjectType::native_field //| ObjectType::custom_field
+            ObjectType::NativeField //| ObjectType::custom_field
         )
     }
 
@@ -173,25 +173,24 @@ impl ObjectType {
                 todo!();
                 //ObjectType::none
             }
-            Object::Constants(_) => ObjectType::native_field, //TODO
-            Object::Integer(i) => ObjectType::unsigned(i.num_bits), //TODO signed or unsigned?
+            Object::Constants(_) => ObjectType::NativeField, //TODO
+            Object::Integer(i) => ObjectType::Unsigned(i.num_bits), //TODO signed or unsigned?
             Object::Linear(_) => {
-                todo!();
-                //ObjectType::native_field
+                ObjectType::NativeField //TODO check with Kev!
             }
-            Object::Null => ObjectType::none,
+            Object::Null => ObjectType::NotAnObject,
         }
     }
 
     pub fn from_type(t: noirc_frontend::Type) -> ObjectType {
         match t {
-            noirc_frontend::Type::FieldElement(_) => ObjectType::native_field,
+            noirc_frontend::Type::FieldElement(_) => ObjectType::NativeField,
 
             noirc_frontend::Type::Integer(_ftype, sign, bit_size) => match sign {
-                noirc_frontend::Signedness::Signed => ObjectType::signed(bit_size),
-                noirc_frontend::Signedness::Unsigned => ObjectType::unsigned(bit_size),
+                noirc_frontend::Signedness::Signed => ObjectType::Signed(bit_size),
+                noirc_frontend::Signedness::Unsigned => ObjectType::Unsigned(bit_size),
             },
-            noirc_frontend::Type::Bool => ObjectType::boolean,
+            noirc_frontend::Type::Bool => ObjectType::Boolean,
             x => {
                 let err = format!("currently we do not support type casting to {}", x);
                 todo!("{}", err);
@@ -201,12 +200,17 @@ impl ObjectType {
 
     pub fn bits(&self) -> u32 {
         match self {
-            ObjectType::boolean => 1,
-            ObjectType::native_field => FieldElement::max_num_bits(),
-            ObjectType::none => 0,
-            ObjectType::signed(c) => *c,
-            ObjectType::unsigned(c) => *c,
+            ObjectType::Boolean => 1,
+            ObjectType::NativeField => FieldElement::max_num_bits(),
+            ObjectType::NotAnObject => 0,
+            ObjectType::Signed(c) => *c,
+            ObjectType::Unsigned(c) => *c,
         }
+    }
+
+    //maximum size of the representation (e.g. signed(8).max_size() return 255, not 128.)
+    pub fn max_size(&self) -> BigUint {
+        (BigUint::one() << self.bits()) - BigUint::one()
     }
 }
 #[derive(Clone, Debug)]
@@ -324,8 +328,8 @@ impl Instruction {
             Operation::or => (true, true),
             Operation::xor => (true, true),
             Operation::cast => {
-                if lhs_bits != rhs_bits {
-                    return (false, true);
+                if self.res_type.bits() > lhs_bits {
+                    return (true, false);
                 }
                 (false, false)
             }
@@ -342,9 +346,9 @@ impl Instruction {
     //Returns the field element as i128 and the bit size of the constant node
     pub fn get_const_value(c: FieldElement, ctype: ObjectType) -> (u128, u32) {
         match ctype {
-            ObjectType::boolean => (if c.is_zero() { 0 } else { 1 }, 1),
-            ObjectType::native_field => (0, 256),
-            ObjectType::signed(b) | ObjectType::unsigned(b) => (c.to_u128(), b), //TODO check how to handle signed integers
+            ObjectType::Boolean => (if c.is_zero() { 0 } else { 1 }, 1),
+            ObjectType::NativeField => (0, 256),
+            ObjectType::Signed(b) | ObjectType::Unsigned(b) => (c.to_u128(), b), //TODO check how to handle signed integers
             _ => todo!(),
         }
     }
@@ -469,7 +473,7 @@ impl Instruction {
             }
             Operation::uge => {
                 if r_is_zero {
-                    return NodeEval::Const(FieldElement::zero(), ObjectType::boolean);
+                    return NodeEval::Const(FieldElement::zero(), ObjectType::Boolean);
                     //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
                 } else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
                     assert!(l_bsize < 256); //comparisons are not implemented for field elements
@@ -478,12 +482,12 @@ impl Instruction {
                     } else {
                         FieldElement::zero()
                     };
-                    return NodeEval::Const(res, ObjectType::boolean);
+                    return NodeEval::Const(res, ObjectType::Boolean);
                 }
             }
             Operation::ult => {
                 if r_is_zero {
-                    return NodeEval::Const(FieldElement::zero(), ObjectType::boolean);
+                    return NodeEval::Const(FieldElement::zero(), ObjectType::Boolean);
                     //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
                 } else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
                     assert!(l_bsize < 256); //comparisons are not implemented for field elements
@@ -492,12 +496,12 @@ impl Instruction {
                     } else {
                         FieldElement::zero()
                     };
-                    return NodeEval::Const(res, ObjectType::boolean);
+                    return NodeEval::Const(res, ObjectType::Boolean);
                 }
             }
             Operation::ule => {
                 if l_is_zero {
-                    return NodeEval::Const(FieldElement::one(), ObjectType::boolean);
+                    return NodeEval::Const(FieldElement::one(), ObjectType::Boolean);
                     //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
                 } else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
                     assert!(l_bsize < 256); //comparisons are not implemented for field elements
@@ -506,12 +510,12 @@ impl Instruction {
                     } else {
                         FieldElement::zero()
                     };
-                    return NodeEval::Const(res, ObjectType::boolean);
+                    return NodeEval::Const(res, ObjectType::Boolean);
                 }
             }
             Operation::ugt => {
                 if l_is_zero {
-                    return NodeEval::Const(FieldElement::zero(), ObjectType::boolean);
+                    return NodeEval::Const(FieldElement::zero(), ObjectType::Boolean);
                 // u<0 is false for unsigned u
                 //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
                 } else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
@@ -521,27 +525,27 @@ impl Instruction {
                     } else {
                         FieldElement::zero()
                     };
-                    return NodeEval::Const(res, ObjectType::boolean);
+                    return NodeEval::Const(res, ObjectType::Boolean);
                 }
             }
             Operation::eq => {
                 if self.lhs == self.rhs {
-                    return NodeEval::Const(FieldElement::one(), ObjectType::boolean);
+                    return NodeEval::Const(FieldElement::one(), ObjectType::Boolean);
                 } else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
                     if l_bsize == 256 {
                         if let (NodeEval::Const(a, _), NodeEval::Const(b, _)) = (lhs, rhs) {
                             if a == b {
-                                return NodeEval::Const(FieldElement::one(), ObjectType::boolean);
+                                return NodeEval::Const(FieldElement::one(), ObjectType::Boolean);
                             } else {
-                                return NodeEval::Const(FieldElement::zero(), ObjectType::boolean);
+                                return NodeEval::Const(FieldElement::zero(), ObjectType::Boolean);
                             }
                         }
                         unreachable!();
                     }
                     if l_const == r_const {
-                        return NodeEval::Const(FieldElement::one(), ObjectType::boolean);
+                        return NodeEval::Const(FieldElement::one(), ObjectType::Boolean);
                     } else {
-                        return NodeEval::Const(FieldElement::zero(), ObjectType::boolean);
+                        return NodeEval::Const(FieldElement::zero(), ObjectType::Boolean);
                     }
                 }
             }
@@ -550,17 +554,17 @@ impl Instruction {
                     if l_bsize == 256 {
                         if let (NodeEval::Const(a, _), NodeEval::Const(b, _)) = (lhs, rhs) {
                             if a != b {
-                                return NodeEval::Const(FieldElement::one(), ObjectType::boolean);
+                                return NodeEval::Const(FieldElement::one(), ObjectType::Boolean);
                             } else {
-                                return NodeEval::Const(FieldElement::zero(), ObjectType::boolean);
+                                return NodeEval::Const(FieldElement::zero(), ObjectType::Boolean);
                             }
                         }
                         unreachable!();
                     }
                     if l_const != r_const {
-                        return NodeEval::Const(FieldElement::one(), ObjectType::boolean);
+                        return NodeEval::Const(FieldElement::one(), ObjectType::Boolean);
                     } else {
-                        return NodeEval::Const(FieldElement::zero(), ObjectType::boolean);
+                        return NodeEval::Const(FieldElement::zero(), ObjectType::Boolean);
                     }
                 }
             }
@@ -582,16 +586,19 @@ impl Instruction {
                     return *rhs;
                 }
             }
+
             Operation::not => {
+                todo!("bitwise"); //todo!!! bitwise...
                 if l_is_zero {
-                    return NodeEval::Const(FieldElement::one(), ObjectType::boolean);
+                    return NodeEval::Const(FieldElement::one(), ObjectType::Boolean);
                 } else if l_is_const {
-                    return NodeEval::Const(FieldElement::zero(), ObjectType::boolean);
+                    return NodeEval::Const(FieldElement::zero(), ObjectType::Boolean);
                 }
             }
             Operation::xor => {
+                todo!("bitwise"); //todo!!! bitwise...
                 if self.lhs == self.rhs {
-                    return NodeEval::Const(FieldElement::zero(), ObjectType::boolean);
+                    return NodeEval::Const(FieldElement::zero(), ObjectType::Boolean);
                 }
                 if l_is_zero {
                     return *rhs;
@@ -599,7 +606,7 @@ impl Instruction {
                 if r_is_zero {
                     return *lhs;
                 } else if l_is_const && r_is_const {
-                    return NodeEval::Const(FieldElement::zero(), ObjectType::boolean);
+                    return NodeEval::Const(FieldElement::zero(), ObjectType::Boolean);
                 } else if l_is_const {
                     todo!("generate 'not rhs' instruction");
                 } else if r_is_const {
@@ -607,6 +614,11 @@ impl Instruction {
                 }
             }
             Operation::phi => (), //Phi are simplified by simply_phi()
+            Operation::cast => {
+                if let Some(l_const) = l_constant {
+                    todo!();
+                }
+            } //
             _ => (),
         }
         NodeEval::Idx(self.idx)
@@ -857,6 +869,6 @@ pub fn get_witness_from_object(obj: &Object) -> Option<Witness> {
         Object::Integer(i) => Some(i.witness),
         Object::Array(_) => unreachable!("Array has multiple witnesses"),
         Object::Constants(_) => None,
-        _ => obj.witness(),
+        _ => obj.witness(), //("This function should only be called for Integer objects"),
     }
 }
