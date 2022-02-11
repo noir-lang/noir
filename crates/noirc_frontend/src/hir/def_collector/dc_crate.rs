@@ -260,7 +260,7 @@ fn resolve_impls(
                 if let Some(first_fn) = typ.methods.insert(method_name, *method_id) {
                     let error = ResolverError::DuplicateDefinition {
                         first_ident: interner.function_meta(&first_fn).name_id,
-                        second_ident: interner.function_meta(&method_id).name_id,
+                        second_ident: interner.function_meta(method_id).name_id,
                     };
 
                     errors.push(CollectedErrors {
