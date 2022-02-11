@@ -10,8 +10,8 @@ use errors::TypeCheckError;
 use expr::type_check_expression;
 
 use crate::{
+    hir_def::types::Type,
     node_interner::{FuncId, NodeInterner},
-    Type,
 };
 
 /// Type checks a function and assigns the
@@ -67,6 +67,7 @@ mod test {
 
     use noirc_errors::{Span, Spanned};
 
+    use crate::hir_def::types::Type;
     use crate::node_interner::{FuncId, NodeInterner};
     use crate::{graph::CrateId, Ident};
     use crate::{
@@ -74,7 +75,7 @@ mod test {
             def_map::{CrateDefMap, ModuleDefId},
             resolution::{path_resolver::PathResolver, resolver::Resolver},
         },
-        parse_program, FunctionKind, Path, Type,
+        parse_program, FunctionKind, Path,
     };
     use crate::{
         hir_def::{
@@ -123,20 +124,25 @@ mod test {
         // Create priv statement
         let priv_stmt = HirPrivateStatement {
             identifier: z_id,
-            r#type: crate::Type::Unspecified,
+            r#type: Type::Unspecified,
             expression: expr_id,
         };
-        let stmt_id = interner.push_stmt(HirStatement::Private(priv_stmt));
 
+        let stmt_id = interner.push_stmt(HirStatement::Private(priv_stmt));
         let expr_id = interner.push_expr(HirExpression::Block(HirBlockExpression(vec![stmt_id])));
 
         // Create function to enclose the private statement
         let func = HirFunction::unsafe_from_expr(expr_id);
         let func_id = interner.push_fn(func);
 
+        let name = "test_func".to_owned();
+        let fake_span = Span::single_char(0);
+        let name_id = interner.push_ident(Ident::from(Spanned::from(fake_span, name.clone())));
+
         // Add function meta
         let func_meta = FuncMeta {
-            name: String::from("test_func"),
+            name,
+            name_id,
             kind: FunctionKind::Normal,
             attributes: None,
             parameters: vec![Param(x_id, Type::WITNESS), Param(y_id, Type::WITNESS)].into(),

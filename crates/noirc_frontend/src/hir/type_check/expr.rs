@@ -2,14 +2,11 @@ use crate::{
     hir_def::{
         expr::{self, HirBinaryOp, HirExpression, HirLiteral},
         function::Param,
+        types::Type,
     },
-    node_interner::FuncId,
+    node_interner::{ExprId, FuncId, NodeInterner},
     util::vecmap,
-    ArraySize, Type,
-};
-use crate::{
-    node_interner::{ExprId, NodeInterner},
-    FieldElementType,
+    ArraySize, FieldElementType,
 };
 
 use super::errors::TypeCheckError;
@@ -268,7 +265,7 @@ fn lookup_method(
     errors: &mut Vec<TypeCheckError>,
 ) -> Option<FuncId> {
     match object_type {
-        Type::Struct(ref typ) => {
+        Type::Struct(_, ref typ) => {
             let typ = typ.borrow();
             match typ.methods.get(method_name) {
                 Some(method_id) => Some(*method_id),
@@ -357,22 +354,22 @@ pub fn infix_operand_type_rules(
             }
             Ok(Integer(field_type, *sign_x, *bit_width_x))
         }
-        (Integer(_,_, _), FieldElement(Private)) | ( FieldElement(Private), Integer(_,_, _) ) => {
+        (Integer(..), FieldElement(Private)) | ( FieldElement(Private), Integer(..) ) => {
             Err("Cannot use an integer and a witness in a binary operation, try converting the witness into an integer".to_string())
         }
-        (Integer(_,_, _), FieldElement(Public)) | ( FieldElement(Public), Integer(_,_, _) ) => {
+        (Integer(..), FieldElement(Public)) | ( FieldElement(Public), Integer(..) ) => {
             Err("Cannot use an integer and a public variable in a binary operation, try converting the public into an integer".to_string())
         }
         (Integer(int_field_type,sign_x, bit_width_x), FieldElement(Constant))| (FieldElement(Constant),Integer(int_field_type,sign_x, bit_width_x)) => {
             let field_type = field_type_rules(int_field_type, &Constant);
             Ok(Integer(field_type,*sign_x, *bit_width_x))
         }
-        (Integer(_,_, _), typ) | (typ,Integer(_,_, _)) => {
+        (Integer(..), typ) | (typ,Integer(..)) => {
             Err(format!("Integer cannot be used with type {}", typ))
         }
         // Currently, arrays and structs are not supported in binary operations
-        (Array(_,_,_), _) | (_, Array(_,_,_)) => Err("Arrays cannot be used in an infix operation".to_string()),
-        (Struct(_), _) | (_, Struct(_)) => Err("Structs cannot be used in an infix operation".to_string()),
+        (Array(..), _) | (_, Array(..)) => Err("Arrays cannot be used in an infix operation".to_string()),
+        (Struct(..), _) | (_, Struct(..)) => Err("Structs cannot be used in an infix operation".to_string()),
 
         // An error type on either side will always return an error
         (Error, _) | (_,Error) => Ok(Error),
@@ -470,7 +467,8 @@ fn check_constructor(
         }
     }
 
-    Type::Struct(typ.clone())
+    // TODO: Should a constructor expr always result in a Private type?
+    Type::Struct(FieldElementType::Private, typ.clone())
 }
 
 pub fn check_member_access(
@@ -480,9 +478,10 @@ pub fn check_member_access(
 ) -> Type {
     let lhs_type = type_check_expression(interner, &access.lhs, errors);
 
-    if let Type::Struct(s) = &lhs_type {
+    if let Type::Struct(_, s) = &lhs_type {
         let s = s.borrow();
         if let Some(field) = s.fields.iter().find(|(name, _)| name == &access.rhs) {
+            // TODO: Should the struct's visibility be applied to the field?
             return field.1.clone();
         }
     }
@@ -524,16 +523,16 @@ pub fn comparator_operand_type_rules(lhs_type: &Type, other: &Type) -> Result<Ty
             }
             Ok(Bool)
         }
-        (Integer(_,_, _), FieldElement(Private)) | ( FieldElement(Private), Integer(_,_, _) ) => {
+        (Integer(..), FieldElement(Private)) | ( FieldElement(Private), Integer(..) ) => {
             Err("Cannot use an integer and a witness in a binary operation, try converting the witness into an integer".to_string())
         }
-        (Integer(_,_, _), FieldElement(Public)) | ( FieldElement(Public), Integer(_,_, _) ) => {
+        (Integer(..), FieldElement(Public)) | ( FieldElement(Public), Integer(..) ) => {
             Err("Cannot use an integer and a public variable in a binary operation, try converting the public into an integer".to_string())
         }
         (Integer(_, _, _), FieldElement(Constant))| (FieldElement(Constant),Integer(_, _, _)) => {
             Ok(Bool)
         }
-        (Integer(_,_, _), typ) | (typ,Integer(_,_, _)) => {
+        (Integer(..), typ) | (typ,Integer(..)) => {
             Err(format!("Integer cannot be used with type {}", typ))
         }
         // If no side contains an integer. Then we check if either side contains a witness

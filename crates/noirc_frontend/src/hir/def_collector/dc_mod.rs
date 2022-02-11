@@ -1,7 +1,10 @@
 use fm::FileId;
 use noirc_errors::{CollectedErrors, CustomDiagnostic, DiagnosableError};
 
-use crate::{Ident, ParsedModule, StructType};
+use crate::{
+    hir::def_collector::dc_crate::UnresolvedStruct, Ident, NoirFunction, NoirImpl, NoirStruct,
+    ParsedModule,
+};
 
 use super::{
     dc_crate::{DefCollector, UnresolvedFunctions},
@@ -14,38 +17,32 @@ use crate::hir::Context;
 /// Given a module collect all definitions into ModuleData
 struct ModCollector<'a> {
     pub(crate) def_collector: &'a mut DefCollector,
-    pub(crate) ast: ParsedModule,
     pub(crate) file_id: FileId,
     pub(crate) module_id: LocalModuleId,
 }
 
 /// Walk a module and collect it's definitions
-///
-/// ast.modules and ast.imports will be empty afterwards!
 pub fn collect_defs<'a>(
     def_collector: &'a mut DefCollector,
-    mut ast: ParsedModule,
+    ast: ParsedModule,
     file_id: FileId,
     module_id: LocalModuleId,
     context: &mut Context,
     errors: &mut Vec<CollectedErrors>,
 ) {
-    let modules = std::mem::take(&mut ast.module_decls);
-    let imports = std::mem::take(&mut ast.imports);
     let mut collector = ModCollector {
         def_collector,
-        ast,
         file_id,
         module_id,
     };
 
     // First resolve the module declarations
-    for decl in modules {
+    for decl in ast.module_decls {
         collector.parse_module_declaration(context, &decl, errors)
     }
 
     // Then add the imports to defCollector to resolve once all modules in the hierarchy have been resolved
-    for import in imports {
+    for import in ast.imports {
         collector
             .def_collector
             .collected_imports
@@ -56,9 +53,9 @@ pub fn collect_defs<'a>(
             });
     }
 
-    let mut errors_in_same_file = collector.collect_structs(context);
-    errors_in_same_file.extend(collector.collect_functions(context));
-    collector.collect_impls(context);
+    let mut errors_in_same_file = collector.collect_structs(context, ast.types);
+    errors_in_same_file.extend(collector.collect_functions(context, ast.functions));
+    collector.collect_impls(context, ast.impls);
 
     if !errors_in_same_file.is_empty() {
         errors.push(CollectedErrors {
@@ -69,8 +66,8 @@ pub fn collect_defs<'a>(
 }
 
 impl<'a> ModCollector<'a> {
-    fn collect_impls(&mut self, context: &mut Context) {
-        for r#impl in self.ast.impls.iter() {
+    fn collect_impls(&mut self, context: &mut Context, impls: Vec<NoirImpl>) {
+        for r#impl in impls {
             let mut unresolved_functions = UnresolvedFunctions {
                 file_id: self.file_id,
                 functions: Vec::new(),
@@ -87,7 +84,11 @@ impl<'a> ModCollector<'a> {
         }
     }
 
-    fn collect_functions(&mut self, context: &mut Context) -> Vec<CustomDiagnostic> {
+    fn collect_functions(
+        &mut self,
+        context: &mut Context,
+        functions: Vec<NoirFunction>,
+    ) -> Vec<CustomDiagnostic> {
         let mut errors = vec![];
 
         let mut unresolved_functions = UnresolvedFunctions {
@@ -95,7 +96,7 @@ impl<'a> ModCollector<'a> {
             functions: Vec::new(),
         };
 
-        for function in self.ast.functions.clone() {
+        for function in functions {
             let name = function.name_ident().clone();
 
             // First create dummy function in the DefInterner
@@ -135,17 +136,22 @@ impl<'a> ModCollector<'a> {
 
     /// Collect any struct definitions declared within the ast.
     /// Returns a vector of errors if any structs were already defined.
-    fn collect_structs(&mut self, context: &mut Context) -> Vec<CustomDiagnostic> {
+    fn collect_structs(
+        &mut self,
+        context: &mut Context,
+        types: Vec<NoirStruct>,
+    ) -> Vec<CustomDiagnostic> {
         let mut errors = vec![];
 
-        for struct_definition in self.ast.types.iter() {
+        for struct_definition in types {
             let id = context.next_struct_id();
-            let typ = StructType::new(id, struct_definition.clone());
+            // let typ = StructType::new(id, struct_definition.clone());
+            let name = struct_definition.name.clone();
 
             // Add the struct to scope so its path can be looked up later
             let result = self.def_collector.def_map.modules[self.module_id.0]
                 .scope
-                .define_struct_def(typ.name.clone(), id);
+                .define_struct_def(name, id);
 
             if let Err((first_def, second_def)) = result {
                 let err = DefCollectorErrorKind::DuplicateFunction {
@@ -157,7 +163,12 @@ impl<'a> ModCollector<'a> {
             }
 
             // And store the TypeId -> StructType mapping somewhere it is reachable
-            self.def_collector.collected_types.insert(id, typ);
+            let unresolved = UnresolvedStruct {
+                file_id: self.file_id,
+                module_id: self.module_id,
+                struct_def: struct_definition,
+            };
+            self.def_collector.collected_types.insert(id, unresolved);
         }
 
         errors

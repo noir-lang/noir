@@ -4,7 +4,7 @@ use crate::lexer::token::SpannedToken;
 use crate::parser::ParserError;
 use crate::token::Token;
 use crate::util::vecmap;
-use crate::{Expression, ExpressionKind, InfixExpression, Type};
+use crate::{Expression, ExpressionKind, InfixExpression, UnresolvedType};
 use noirc_errors::{Span, Spanned};
 
 /// This is used when an identifier fails to parse in the parser.
@@ -128,7 +128,9 @@ impl Recoverable for Statement {
 }
 
 impl Statement {
-    pub fn new_let(((identifier, r#type), expression): ((Ident, Type), Expression)) -> Statement {
+    pub fn new_let(
+        ((identifier, r#type), expression): ((Ident, UnresolvedType), Expression),
+    ) -> Statement {
         Statement::Let(LetStatement {
             identifier,
             r#type,
@@ -136,7 +138,9 @@ impl Statement {
         })
     }
 
-    pub fn new_const(((identifier, r#type), expression): ((Ident, Type), Expression)) -> Statement {
+    pub fn new_const(
+        ((identifier, r#type), expression): ((Ident, UnresolvedType), Expression),
+    ) -> Statement {
         Statement::Const(ConstStatement {
             identifier,
             r#type,
@@ -144,7 +148,9 @@ impl Statement {
         })
     }
 
-    pub fn new_priv(((identifier, r#type), expression): ((Ident, Type), Expression)) -> Statement {
+    pub fn new_priv(
+        ((identifier, r#type), expression): ((Ident, UnresolvedType), Expression),
+    ) -> Statement {
         Statement::Private(PrivateStatement {
             identifier,
             r#type,
@@ -287,21 +293,21 @@ impl Path {
 // This will be used for non primitive data types like Arrays and Structs
 pub struct LetStatement {
     pub identifier: Ident,
-    pub r#type: Type,
+    pub r#type: UnresolvedType,
     pub expression: Expression,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ConstStatement {
     pub identifier: Ident,
-    pub r#type: Type, // This will always be a Literal FieldElement
+    pub r#type: UnresolvedType, // This will always be a Literal FieldElement
     pub expression: Expression,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct PrivateStatement {
     pub identifier: Ident,
-    pub r#type: Type,
+    pub r#type: UnresolvedType,
     pub expression: Expression,
 }
 

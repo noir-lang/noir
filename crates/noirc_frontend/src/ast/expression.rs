@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::token::{Attribute, Token};
 use crate::util::vecmap;
-use crate::{Ident, Path, Recoverable, Statement, Type};
+use crate::{Ident, Path, Recoverable, Statement, UnresolvedType};
 use acvm::FieldElement;
 use noirc_errors::{Span, Spanned};
 
@@ -47,7 +47,7 @@ impl ExpressionKind {
     pub fn array(contents: Vec<Expression>) -> ExpressionKind {
         ExpressionKind::Literal(Literal::Array(ArrayLiteral {
             length: contents.len() as u128,
-            r#type: Type::Unknown,
+            r#type: UnresolvedType::Unspecified,
             contents,
         }))
     }
@@ -175,7 +175,7 @@ impl Expression {
         Expression::new(kind, span)
     }
 
-    pub fn cast(lhs: Expression, r#type: Type, span: Span) -> Expression {
+    pub fn cast(lhs: Expression, r#type: UnresolvedType, span: Span) -> Expression {
         Expression {
             kind: ExpressionKind::Cast(Box::new(CastExpression { lhs, r#type })),
             span,
@@ -332,7 +332,7 @@ pub struct InfixExpression {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct CastExpression {
     pub lhs: Expression,
-    pub r#type: Type,
+    pub r#type: UnresolvedType,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -346,16 +346,16 @@ pub struct IfExpression {
 pub struct FunctionDefinition {
     pub name: Ident,
     pub attribute: Option<Attribute>, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
-    pub parameters: Vec<(Ident, Type)>,
+    pub parameters: Vec<(Ident, UnresolvedType)>,
     pub body: BlockExpression,
     pub span: Span,
-    pub return_type: Type,
+    pub return_type: UnresolvedType,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ArrayLiteral {
     pub length: u128, // XXX: Maybe allow field element, so that the user can define the length using a constant
-    pub r#type: Type,
+    pub r#type: UnresolvedType,
     pub contents: Vec<Expression>,
 }
 

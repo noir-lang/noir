@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::{token::Attribute, Ident};
 
-use super::{FunctionDefinition, Type};
+use super::{FunctionDefinition, UnresolvedType};
 
 // A NoirFunction can be either a foreign low level function or a function definition
 // A closure / function definition will be stored under a name, so we do not differentiate between their variants
@@ -45,7 +45,7 @@ impl NoirFunction {
         }
     }
 
-    pub fn return_type(&self) -> Type {
+    pub fn return_type(&self) -> UnresolvedType {
         self.def.return_type.clone()
     }
     pub fn name(&self) -> &str {
@@ -54,7 +54,7 @@ impl NoirFunction {
     pub fn name_ident(&self) -> &Ident {
         &self.def.name
     }
-    pub fn parameters(&self) -> &Vec<(Ident, Type)> {
+    pub fn parameters(&self) -> &Vec<(Ident, UnresolvedType)> {
         &self.def.parameters
     }
     pub fn attribute(&self) -> Option<&Attribute> {

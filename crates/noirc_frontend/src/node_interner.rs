@@ -5,8 +5,10 @@ use std::rc::Rc;
 use arena::{Arena, Index};
 use noirc_errors::Span;
 
-use crate::{Ident, StructType, Type};
+use crate::Ident;
 
+use crate::hir::def_collector::dc_crate::UnresolvedStruct;
+use crate::hir_def::types::{StructType, Type};
 use crate::hir_def::{
     expr::HirExpression,
     function::{FuncMeta, HirFunction},
@@ -190,9 +192,25 @@ impl NodeInterner {
         self.id_to_type.insert(expr_id.into(), typ);
     }
 
-    /// Store a struct definition
-    pub fn push_struct(&mut self, expr_id: TypeId, typ: StructType) {
-        self.structs.insert(expr_id, Rc::new(RefCell::new(typ)));
+    pub fn push_empty_struct(&mut self, type_id: TypeId, typ: &UnresolvedStruct) {
+        self.structs.insert(
+            type_id,
+            Rc::new(RefCell::new(StructType {
+                id: type_id,
+                name: typ.struct_def.name.clone(),
+                fields: vec![],
+                methods: HashMap::new(),
+                span: typ.struct_def.span,
+            })),
+        );
+    }
+
+    pub fn update_struct<F>(&mut self, type_id: TypeId, f: F)
+    where
+        F: FnOnce(&mut StructType),
+    {
+        let mut value = self.structs.get_mut(&type_id).unwrap().borrow_mut();
+        f(&mut value)
     }
 
     /// Modify the type of an expression.

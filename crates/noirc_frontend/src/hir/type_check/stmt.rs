@@ -2,8 +2,8 @@ use crate::hir_def::stmt::{
     HirAssignStatement, HirConstStatement, HirConstrainStatement, HirLetStatement,
     HirPrivateStatement, HirStatement,
 };
+use crate::hir_def::types::Type;
 use crate::node_interner::{ExprId, NodeInterner, StmtId};
-use crate::Type;
 
 use super::{errors::TypeCheckError, expr::type_check_expression};
 

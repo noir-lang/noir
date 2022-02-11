@@ -1,17 +1,17 @@
 use std::fmt::Display;
 
-use crate::{Ident, NoirFunction, Path, Type};
+use crate::{Ident, NoirFunction, Path, UnresolvedType};
 use noirc_errors::Span;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NoirStruct {
     pub name: Ident,
-    pub fields: Vec<(Ident, Type)>,
+    pub fields: Vec<(Ident, UnresolvedType)>,
     pub span: Span,
 }
 
 impl NoirStruct {
-    pub fn new(name: Ident, fields: Vec<(Ident, Type)>, span: Span) -> NoirStruct {
+    pub fn new(name: Ident, fields: Vec<(Ident, UnresolvedType)>, span: Span) -> NoirStruct {
         NoirStruct { name, fields, span }
     }
 }

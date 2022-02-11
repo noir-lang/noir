@@ -23,6 +23,7 @@ use crate::hir_def::expr::{
     HirInfixExpression, HirLiteral, HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
     HirUnaryOp,
 };
+use crate::hir_def::types::{StructType, Type};
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -38,7 +39,7 @@ use crate::{
     BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
     Statement,
 };
-use crate::{Path, StructType, ERROR_IDENT};
+use crate::{NoirStruct, Path, UnresolvedType, ERROR_IDENT};
 use noirc_errors::{Span, Spanned};
 
 use crate::hir::scope::{
@@ -101,14 +102,6 @@ impl<'a> Resolver<'a> {
         self.check_for_unused_variables_in_scope_tree(func_scope_tree);
 
         (hir_func, func_meta, self.errors)
-    }
-
-    pub fn function_name(&self, id: &FuncId) -> String {
-        self.interner.function_meta(id).name
-    }
-
-    fn resolve_expression(&mut self, expr: Expression) -> ExprId {
-        self.intern_expr(expr)
     }
 
     fn check_for_unused_variables_in_scope_tree(&mut self, scope_decls: ScopeTree) {
@@ -220,23 +213,55 @@ impl<'a> Resolver<'a> {
         (hir_func, func_meta)
     }
 
+    fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
+        match typ {
+            UnresolvedType::FieldElement(vis) => Type::FieldElement(vis),
+            UnresolvedType::Array(vis, size, elem) => {
+                Type::Array(vis, size, Box::new(self.resolve_type(*elem)))
+            }
+            UnresolvedType::Integer(vis, sign, bits) => Type::Integer(vis, sign, bits),
+            UnresolvedType::Bool => Type::Bool,
+            UnresolvedType::Unit => Type::Unit,
+            UnresolvedType::Unspecified => Type::Unspecified,
+            UnresolvedType::Error => Type::Error,
+            UnresolvedType::Struct(vis, path) => match self.lookup_struct(path) {
+                Some(definition) => Type::Struct(vis, definition),
+                None => Type::Error,
+            },
+        }
+    }
+
+    pub fn resolve_struct_fields(
+        mut self,
+        unresolved: NoirStruct,
+    ) -> (Vec<(Ident, Type)>, Vec<ResolverError>) {
+        let fields = vecmap(unresolved.fields, |(ident, typ)| {
+            (ident, self.resolve_type(typ))
+        });
+
+        (fields, self.errors)
+    }
+
     /// Extract metadata from a NoirFunction
     /// to be used in analysis and intern the function parameters
     fn extract_meta(&mut self, func: &NoirFunction) -> FuncMeta {
         let name = func.name().to_owned();
+        let name_id = self.interner.push_ident(func.name_ident().clone());
         let attributes = func.attribute().cloned();
 
         let mut parameters = Vec::new();
         for (ident, typ) in func.parameters().iter().cloned() {
             let ident_id = self.add_variable_decl(ident.clone());
 
+            let typ = self.resolve_type(typ);
             parameters.push(Param(ident_id, typ));
         }
 
-        let return_type = func.return_type();
+        let return_type = self.resolve_type(func.return_type());
 
         FuncMeta {
             name,
+            name_id,
             kind: func.kind,
             attributes,
             parameters: parameters.into(),
@@ -248,26 +273,41 @@ impl<'a> Resolver<'a> {
     pub fn intern_stmt(&mut self, stmt: Statement) -> StmtId {
         match stmt {
             Statement::Let(let_stmt) => {
-                let id = self.add_variable_decl(let_stmt.identifier);
+                let identifier = self.add_variable_decl(let_stmt.identifier);
+                let r#type = self.resolve_type(let_stmt.r#type);
+                let expression = self.resolve_expression(let_stmt.expression);
 
                 let let_stmt = HirLetStatement {
-                    identifier: id,
-                    r#type: let_stmt.r#type,
-                    expression: self.intern_expr(let_stmt.expression),
+                    identifier,
+                    r#type,
+                    expression,
                 };
-
                 self.interner.push_stmt(HirStatement::Let(let_stmt))
             }
             Statement::Const(const_stmt) => {
-                let id = self.add_variable_decl(const_stmt.identifier);
+                let identifier = self.add_variable_decl(const_stmt.identifier);
+                let r#type = self.resolve_type(const_stmt.r#type);
+                let expression = self.resolve_expression(const_stmt.expression);
 
                 let const_stmt = HirConstStatement {
-                    identifier: id,
-                    r#type: const_stmt.r#type,
-                    expression: self.intern_expr(const_stmt.expression),
+                    identifier,
+                    r#type,
+                    expression,
                 };
 
                 self.interner.push_stmt(HirStatement::Const(const_stmt))
+            }
+            Statement::Private(priv_stmt) => {
+                let identifier = self.add_variable_decl(priv_stmt.identifier);
+                let expression = self.resolve_expression(priv_stmt.expression);
+                let r#type = self.resolve_type(priv_stmt.r#type);
+
+                let stmt = HirPrivateStatement {
+                    identifier,
+                    expression,
+                    r#type,
+                };
+                self.interner.push_stmt(HirStatement::Private(stmt))
             }
             Statement::Constrain(constrain_stmt) => {
                 let lhs = self.resolve_expression(constrain_stmt.0.lhs);
@@ -277,16 +317,6 @@ impl<'a> Resolver<'a> {
                 let stmt = HirConstrainStatement(HirInfixExpression { lhs, operator, rhs });
 
                 self.interner.push_stmt(HirStatement::Constrain(stmt))
-            }
-            Statement::Private(priv_stmt) => {
-                let identifier = self.add_variable_decl(priv_stmt.identifier);
-                let expression = self.resolve_expression(priv_stmt.expression);
-                let stmt = HirPrivateStatement {
-                    identifier,
-                    expression,
-                    r#type: priv_stmt.r#type,
-                };
-                self.interner.push_stmt(HirStatement::Private(stmt))
             }
             Statement::Expression(expr) => {
                 let stmt = HirStatement::Expression(self.resolve_expression(expr));
@@ -309,7 +339,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    pub fn intern_expr(&mut self, expr: Expression) -> ExprId {
+    pub fn resolve_expression(&mut self, expr: Expression) -> ExprId {
         let hir_expr = match expr.kind {
             ExpressionKind::Ident(string) => {
                 let span = expr.span;
@@ -326,7 +356,7 @@ impl<'a> Resolver<'a> {
                     }
                     HirLiteral::Array(HirArrayLiteral {
                         contents: interned_contents,
-                        r#type: arr.r#type,
+                        r#type: self.resolve_type(arr.r#type),
                         length: arr.length,
                     })
                 }
@@ -339,8 +369,9 @@ impl<'a> Resolver<'a> {
                 HirExpression::Prefix(HirPrefixExpression { operator, rhs })
             }
             ExpressionKind::Infix(infix) => {
-                let lhs = self.intern_expr(infix.lhs);
-                let rhs = self.intern_expr(infix.rhs);
+                let lhs = self.resolve_expression(infix.lhs);
+                let rhs = self.resolve_expression(infix.rhs);
+
                 HirExpression::Infix(HirInfixExpression {
                     lhs,
                     operator: infix.operator.into(),
@@ -365,7 +396,7 @@ impl<'a> Resolver<'a> {
             }
             ExpressionKind::Cast(cast_expr) => HirExpression::Cast(HirCastExpression {
                 lhs: self.resolve_expression(cast_expr.lhs),
-                r#type: cast_expr.r#type,
+                r#type: self.resolve_type(cast_expr.r#type),
             }),
             ExpressionKind::For(for_expr) => {
                 let start_range = self.resolve_expression(for_expr.start_range);
@@ -513,8 +544,13 @@ impl<'a> Resolver<'a> {
         self.lookup(path)
     }
 
-    pub fn lookup_type(&mut self, path: Path) -> TypeId {
+    fn lookup_type(&mut self, path: Path) -> TypeId {
         self.lookup(path)
+    }
+
+    pub fn lookup_struct(&mut self, path: Path) -> Option<Rc<RefCell<StructType>>> {
+        let id = self.lookup_type(path);
+        (id != TypeId::dummy_id()).then(|| self.get_struct(id))
     }
 
     fn resolve_path(&mut self, path: Path) -> Option<ModuleDefId> {

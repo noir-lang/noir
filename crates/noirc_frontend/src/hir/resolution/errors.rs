@@ -99,7 +99,7 @@ impl ResolverError {
                 segment,
             } => {
                 let mut diag = Diagnostic::simple_error(
-                    format!("could not resolve path : {}", name),
+                    format!("could not resolve path '{}'", name),
                     String::new(),
                     span,
                 );

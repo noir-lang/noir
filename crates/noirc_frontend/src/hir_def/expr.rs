@@ -5,7 +5,9 @@ use acvm::FieldElement;
 use noirc_errors::Span;
 
 use crate::node_interner::{ExprId, FuncId, IdentId, StmtId, TypeId};
-use crate::{BinaryOp, BinaryOpKind, Ident, StructType, Type, UnaryOp};
+use crate::{BinaryOp, BinaryOpKind, Ident, UnaryOp};
+
+use super::types::{StructType, Type};
 
 #[derive(Debug, Clone)]
 pub enum HirExpression {

@@ -7,7 +7,7 @@ use crate::parser::{force, ignore_then_commit};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::util::vecmap;
 use crate::{
-    ast::{ArraySize, Expression, ExpressionKind, Statement, Type},
+    ast::{ArraySize, Expression, ExpressionKind, Statement, UnresolvedType},
     FieldElementType,
 };
 use crate::{
@@ -87,11 +87,11 @@ fn struct_definition() -> impl NoirParser<TopLevelStatement> {
         })
 }
 
-fn function_return_type() -> impl NoirParser<Type> {
+fn function_return_type() -> impl NoirParser<UnresolvedType> {
     just(Token::Arrow)
         .ignore_then(parse_type())
         .or_not()
-        .map(|r#type| r#type.unwrap_or(Type::Unit))
+        .map(|r#type| r#type.unwrap_or(UnresolvedType::Unit))
 }
 
 fn attribute() -> impl NoirParser<Attribute> {
@@ -101,20 +101,20 @@ fn attribute() -> impl NoirParser<Attribute> {
     })
 }
 
-fn struct_fields() -> impl NoirParser<Vec<(Ident, Type)>> {
+fn struct_fields() -> impl NoirParser<Vec<(Ident, UnresolvedType)>> {
     parameters(parse_type_with_visibility(
         optional_pri_or_const(),
         parse_type_no_field_element(),
     ))
 }
 
-fn function_parameters() -> impl NoirParser<Vec<(Ident, Type)>> {
+fn function_parameters() -> impl NoirParser<Vec<(Ident, UnresolvedType)>> {
     parameters(parse_type())
 }
 
-fn parameters<P>(type_parser: P) -> impl NoirParser<Vec<(Ident, Type)>>
+fn parameters<P>(type_parser: P) -> impl NoirParser<Vec<(Ident, UnresolvedType)>>
 where
-    P: NoirParser<Type>,
+    P: NoirParser<UnresolvedType>,
 {
     ident()
         .then_ignore(just(Token::Colon))
@@ -163,10 +163,10 @@ fn check_statements_require_semicolon(
     })
 }
 
-fn optional_type_annotation() -> impl NoirParser<Type> {
+fn optional_type_annotation() -> impl NoirParser<UnresolvedType> {
     ignore_then_commit(just(Token::Colon), parse_type())
         .or_not()
-        .map(|r#type| r#type.unwrap_or(Type::Unspecified))
+        .map(|r#type| r#type.unwrap_or(UnresolvedType::Unspecified))
 }
 
 fn module_declaration() -> impl NoirParser<TopLevelStatement> {
@@ -286,7 +286,7 @@ fn generic_declaration<'a, F, P>(
     f: F,
 ) -> impl NoirParser<Statement> + 'a
 where
-    F: 'a + Clone + Fn(((Ident, Type), Expression)) -> Statement,
+    F: 'a + Clone + Fn(((Ident, UnresolvedType), Expression)) -> Statement,
     P: ExprParser + 'a,
 {
     let p = ignore_then_commit(keyword(key).labelled("statement"), ident());
@@ -312,11 +312,11 @@ where
     })
 }
 
-fn parse_type() -> impl NoirParser<Type> {
+fn parse_type() -> impl NoirParser<UnresolvedType> {
     parse_type_with_visibility(optional_visibility(), parse_type_no_field_element())
 }
 
-fn parse_type_no_field_element() -> impl NoirParser<Type> {
+fn parse_type_no_field_element() -> impl NoirParser<UnresolvedType> {
     // NOTE: Technically since we disallow multidimensional arrays our type parser
     // does not strictly need to be recursive - we could manually unroll it by
     // only parsing an integer or field type as our array elements. If/when Noir's
@@ -327,14 +327,15 @@ fn parse_type_no_field_element() -> impl NoirParser<Type> {
 fn parse_type_with_visibility<V, T>(
     visibility_parser: V,
     recursive_type_parser: T,
-) -> impl NoirParser<Type>
+) -> impl NoirParser<UnresolvedType>
 where
     V: NoirParser<FieldElementType>,
-    T: NoirParser<Type>,
+    T: NoirParser<UnresolvedType>,
 {
     choice((
         field_type(visibility_parser.clone()),
         int_type(visibility_parser.clone()),
+        struct_type(visibility_parser.clone()),
         array_type(visibility_parser, recursive_type_parser),
     ))
 }
@@ -368,16 +369,16 @@ fn optional_pri_or_const() -> impl NoirParser<FieldElementType> {
     ))
 }
 
-fn field_type<P>(visibility_parser: P) -> impl NoirParser<Type>
+fn field_type<P>(visibility_parser: P) -> impl NoirParser<UnresolvedType>
 where
     P: NoirParser<FieldElementType>,
 {
     visibility_parser
         .then_ignore(keyword(Keyword::Field))
-        .map(Type::FieldElement)
+        .map(UnresolvedType::FieldElement)
 }
 
-fn int_type<P>(visibility_parser: P) -> impl NoirParser<Type>
+fn int_type<P>(visibility_parser: P) -> impl NoirParser<UnresolvedType>
 where
     P: NoirParser<FieldElementType>,
 {
@@ -390,13 +391,22 @@ where
                 span,
             )),
         }))
-        .map(|(visibility, int_type)| Type::from_int_tok(visibility, &int_type))
+        .map(|(visibility, int_type)| UnresolvedType::from_int_tok(visibility, &int_type))
 }
 
-fn array_type<V, T>(visibility_parser: V, type_parser: T) -> impl NoirParser<Type>
+fn struct_type<P>(visibility_parser: P) -> impl NoirParser<UnresolvedType>
+where
+    P: NoirParser<FieldElementType>,
+{
+    visibility_parser
+        .then(path())
+        .map(|(visibility, path)| UnresolvedType::Struct(visibility, path))
+}
+
+fn array_type<V, T>(visibility_parser: V, type_parser: T) -> impl NoirParser<UnresolvedType>
 where
     V: NoirParser<FieldElementType>,
-    T: NoirParser<Type>,
+    T: NoirParser<UnresolvedType>,
 {
     visibility_parser
         .then_ignore(just(Token::LeftBracket))
@@ -404,14 +414,18 @@ where
         .then_ignore(just(Token::RightBracket))
         .then(type_parser)
         .try_map(|((visibility, size), element_type), span| {
-            if let Type::Array(..) = &element_type {
+            if let UnresolvedType::Array(..) = &element_type {
                 return Err(ParserError::with_reason(
                     "Multi-dimensional arrays are currently unsupported".to_string(),
                     span,
                 ));
             }
             let size = size.unwrap_or(ArraySize::Variable);
-            Ok(Type::Array(visibility, size, Box::new(element_type)))
+            Ok(UnresolvedType::Array(
+                visibility,
+                size,
+                Box::new(element_type),
+            ))
         })
 }
 
@@ -685,7 +699,7 @@ fn fixed_array_size() -> impl NoirParser<ArraySize> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{ArrayLiteral, Literal};
+    use crate::{ArrayLiteral, Literal, UnresolvedType};
 
     fn parse_with<P, T>(parser: P, program: &str) -> Result<T, Vec<ParserError>>
     where
@@ -820,11 +834,10 @@ mod test {
             let arr_lit = expr_to_array(expr);
             assert_eq!(arr_lit.length, 5);
 
-            // All array types are unknown at parse time
-            // This makes parsing simpler. The type checker
+            // All array types are unspecified at parse time. The type checker
             // needs to iterate the whole array to ensure homogeneity
             // so there is no advantage to deducing the type here.
-            assert_eq!(arr_lit.r#type, Type::Unknown);
+            assert_eq!(arr_lit.r#type, UnresolvedType::Unspecified);
         }
 
         parse_all_failing(

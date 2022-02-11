@@ -1,18 +1,29 @@
 use dep::std;
 
+struct Foo {
+    bar: Field,
+}
+
 struct Pair {
-    first: Field,
+    first: Foo,
     second: Field,
 }
 
 impl Pair {
-    fn foo(p: Pair) -> Field {
-        p.second
+    fn foo(p: Pair) -> Foo {
+        p.first
+    }
+
+    fn bar(p: Pair) -> Field {
+        p.foo().bar
     }
 }
 
 fn main(x : Field, y : Field) {
-    constrain Pair { first: x, second: y }.first == 1;
-    constrain Pair { first: x, second: y }.foo() == 0;
+    let first = Foo { bar: 0 };
+    let p = Pair { first, second: 1 };
+
+    constrain p.bar() == x;
+    constrain p.second == y;
 }
     
