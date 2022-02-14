@@ -12,11 +12,13 @@ use crate::hir::type_check::type_check_func;
 use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner, TypeId};
 use crate::util::vecmap;
-use crate::{Ident, NoirFunction, NoirStruct, ParsedModule, Path, Type};
+use crate::{Ident, NoirFunction, NoirStruct, ParsedModule, Path, StructType, Type};
 use fm::FileId;
 use noirc_errors::CollectedErrors;
 use noirc_errors::DiagnosableError;
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 /// Stores all of the unresolved functions in a particular file/mod
 pub struct UnresolvedFunctions {
@@ -167,6 +169,7 @@ impl DefCollector {
             crate_id,
             &context.def_maps,
             def_collector.collected_functions,
+            None,
             errors,
         );
 
@@ -243,16 +246,18 @@ fn resolve_impls(
     let mut file_method_ids = vec![];
 
     for ((path, module_id), methods) in collected_impls {
-        let mut ids = resolve_functions(interner, crate_id, def_maps, methods, errors);
-
         let path_resolver = StandardPathResolver::new(ModuleId {
             local_id: module_id,
             krate: crate_id,
         });
 
         let mut resolver = Resolver::new(interner, &path_resolver, def_maps);
+        let self_type = resolver.lookup_struct(path);
+        let self_type_clone = self_type.clone();
 
-        if let Some(typ) = resolver.lookup_struct(path) {
+        let mut ids = resolve_functions(interner, crate_id, def_maps, methods, self_type, errors);
+
+        if let Some(typ) = self_type_clone {
             for (file_id, method_id) in &ids {
                 let method_name = interner.function_meta(method_id).name;
                 let mut typ = typ.borrow_mut();
@@ -282,6 +287,7 @@ fn resolve_functions(
     crate_id: CrateId,
     def_maps: &HashMap<CrateId, CrateDefMap>,
     collected_functions: Vec<UnresolvedFunctions>,
+    self_type: Option<Rc<RefCell<StructType>>>,
     errors: &mut Vec<CollectedErrors>,
 ) -> Vec<(FileId, FuncId)> {
     let mut file_func_ids = Vec::new();
@@ -302,7 +308,8 @@ fn resolve_functions(
                 krate: crate_id,
             });
 
-            let resolver = Resolver::new(interner, &path_resolver, def_maps);
+            let mut resolver = Resolver::new(interner, &path_resolver, def_maps);
+            resolver.set_self_type(self_type.clone());
 
             let (hir_func, func_meta, errs) = resolver.resolve_function(func);
             interner.push_fn_meta(func_meta, func_id);

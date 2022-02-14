@@ -10,16 +10,16 @@ struct Pair {
 }
 
 impl Pair {
-    fn foo(p: Pair) -> Foo {
+    fn foo(p: Self) -> Foo {
         p.first
     }
 
-    fn bar(p: Pair) -> Field {
-        p.foo().bar
+    fn bar(self) -> Field {
+        self.foo().bar
     }
 }
 
-fn main(x : Field, y : Field) {
+fn main(x: Field, y : Field) {
     let first = Foo { bar: 0 };
     let p = Pair { first, second: 1 };
 

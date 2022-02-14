@@ -49,7 +49,7 @@ fn program() -> impl NoirParser<ParsedModule> {
 
 fn top_level_statement() -> impl NoirParser<TopLevelStatement> {
     choice((
-        function_definition().map(TopLevelStatement::Function),
+        function_definition(false).map(TopLevelStatement::Function),
         struct_definition(),
         implementation(),
         module_declaration().then_ignore(force(just(Token::Semicolon))),
@@ -57,12 +57,12 @@ fn top_level_statement() -> impl NoirParser<TopLevelStatement> {
     ))
 }
 
-fn function_definition() -> impl NoirParser<NoirFunction> {
+fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
     attribute()
         .or_not()
         .then_ignore(keyword(Keyword::Fn))
         .then(ident())
-        .then(parenthesized(function_parameters()))
+        .then(parenthesized(function_parameters(allow_self)))
         .then(function_return_type())
         .then(block(expression()))
         .map(|((((attribute, name), parameters), return_type), body)| {
@@ -102,32 +102,64 @@ fn attribute() -> impl NoirParser<Attribute> {
 }
 
 fn struct_fields() -> impl NoirParser<Vec<(Ident, UnresolvedType)>> {
-    parameters(parse_type_with_visibility(
+    parameters(false, parse_type_with_visibility(
         optional_pri_or_const(),
         parse_type_no_field_element(),
     ))
 }
 
-fn function_parameters() -> impl NoirParser<Vec<(Ident, UnresolvedType)>> {
-    parameters(parse_type())
+fn function_parameters(allow_self: bool) -> impl NoirParser<Vec<(Ident, UnresolvedType)>> {
+    parameters(allow_self, parse_type())
 }
 
-fn parameters<P>(type_parser: P) -> impl NoirParser<Vec<(Ident, UnresolvedType)>>
+fn parameters<P>(allow_self: bool, type_parser: P) -> impl NoirParser<Vec<(Ident, UnresolvedType)>>
 where
     P: NoirParser<UnresolvedType>,
 {
-    ident()
+    let full_parameter = ident()
         .then_ignore(just(Token::Colon))
-        .then(type_parser)
+        .then(type_parser);
+
+    let self_parameter = if allow_self {
+        self_parameter().boxed()
+    } else {
+        nothing().boxed()
+    };
+
+    full_parameter
+        .or(self_parameter)
         .separated_by(just(Token::Comma))
         .allow_trailing()
+}
+
+fn nothing<T>() -> impl NoirParser<T> {
+    one_of([]).map(|_| unreachable!())
+}
+
+fn self_parameter() -> impl NoirParser<(Ident, UnresolvedType)> {
+    filter_map(move |span, found: Token| {
+        match found {
+            Token::Ident(ref word) if word == "self" => {
+                let ident = Ident::new(found, span);
+                let path = Path::from_single("Self".to_owned(), span);
+                Ok((ident, UnresolvedType::Struct(FieldElementType::Private, path)))
+            }
+            _ => {
+                Err(ParserError::expected_label(
+                    "parameter".to_owned(),
+                    found,
+                    span,
+                ))
+            }
+        }
+    })
 }
 
 fn implementation() -> impl NoirParser<TopLevelStatement> {
     keyword(Keyword::Impl)
         .ignore_then(path())
         .then_ignore(just(Token::LeftBrace))
-        .then(function_definition().repeated())
+        .then(function_definition(true).repeated())
         .then_ignore(just(Token::RightBrace))
         .map(|(type_path, methods)| TopLevelStatement::Impl(NoirImpl { type_path, methods }))
 }
@@ -756,7 +788,7 @@ mod test {
     #[test]
     fn regression_skip_comment() {
         parse_all(
-            function_definition(),
+            function_definition(false),
             vec![
                 "fn main(
                 // This comment should be skipped
@@ -965,7 +997,7 @@ mod test {
     #[test]
     fn parse_function() {
         parse_all(
-            function_definition(),
+            function_definition(false),
             vec![
                 "fn func_name() {}",
                 "fn f(foo: pub u8, y : pub Field) -> u8 { x + a }",
@@ -976,7 +1008,7 @@ mod test {
         );
 
         parse_all_failing(
-            function_definition(),
+            function_definition(false),
             vec![
                 "fn x2( f: []Field,,) {}",
                 "fn ( f: []Field) {}",

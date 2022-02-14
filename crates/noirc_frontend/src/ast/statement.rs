@@ -23,6 +23,12 @@ impl PartialEq<Ident> for Ident {
     }
 }
 
+impl PartialEq<str> for Ident {
+    fn eq(&self, other: &str) -> bool {
+        self.0.contents == other
+    }
+}
+
 impl std::hash::Hash for Ident {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.0.contents.hash(state);
@@ -235,6 +241,15 @@ pub struct Path {
 }
 
 impl Path {
+    /// Construct a PathKind::Plain from this single 
+    pub fn from_single(name: String, span: Span) -> Path {
+        let segment = Ident::from(Spanned::from(span, name));
+        Path {
+            segments: vec![segment],
+            kind: PathKind::Plain,
+        }
+    }
+
     pub fn span(&self) -> Span {
         let mut segments = self.segments.iter();
         let first_segment = segments.next().expect("ice : cannot have an empty path");
