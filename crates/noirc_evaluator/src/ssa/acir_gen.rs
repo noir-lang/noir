@@ -180,7 +180,6 @@ impl Acir {
             }
             Operation::nop => (), //for now we skip..TODO todo!(),
             Operation::eq_gate => {
-                dbg!(&l_c);
                 output = add(&l_c.expression, FieldElement::from(-1), &r_c.expression);
                 evaluator.gates.push(Gate::Arithmetic(output.clone())); //TODO should we create a witness??
             }
@@ -189,7 +188,6 @@ impl Acir {
                 //address = l_c and should be constant
                 if let Some(val) = l_c.to_const() {
                     let address = mem::Memory::as_u32(val);
-                    dbg!(address);
                     if self.memory_map.contains_key(&address) {
                         output = self.memory_map[&address].expression.clone();
                     } else {
@@ -237,9 +235,9 @@ pub fn evaluate_truncate(
     //1. Generate witnesses a,b,c
     //TODO: we should truncate the arithmetic expression (and so avoid having to create a witness)
     // if lhs is not a witness, but this requires a new truncate directive...TODO
-    let a_witness = lhs
-        .witness
-        .unwrap_or_else(|| generate_witness(&lhs, evaluator));
+     let a_witness = lhs
+         .witness
+         .unwrap_or_else(|| generate_witness(&lhs, evaluator));
     let b_witness = evaluator.add_witness_to_cs();
     let c_witness = evaluator.add_witness_to_cs();
     //TODO not in master..
@@ -279,9 +277,10 @@ pub fn generate_witness(lhs: &InternalVar, evaluator: &mut Evaluator) -> Witness
         todo!("Panic");
     }
     if lhs.expression.mul_terms.is_empty() && lhs.expression.linear_combinations.len() == 1 {
-        todo!("optimisation ??!?");
+        //TODO check if this case can be optimised
     }
     let w = evaluator.add_witness_to_cs(); //TODO  set lhs.witness = w
+ 
     evaluator
         .gates
         .push(Gate::Arithmetic(&lhs.expression - &Arithmetic::from(&w)));

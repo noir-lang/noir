@@ -171,6 +171,7 @@ impl ObjectType {
                 noirc_frontend::Signedness::Unsigned => ObjectType::Unsigned(bit_size),
             },
             noirc_frontend::Type::Bool => ObjectType::Boolean,
+            noirc_frontend::Type::Array(_,_,t) => ObjectType::from_type(*t),
             x => {
                 let err = format!("currently we do not support type casting to {}", x);
                 todo!("{}", err);
@@ -235,7 +236,7 @@ pub struct Instruction {
 impl std::fmt::Display for Instruction {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if self.res_name.is_empty() {
-            write!(f, "{:?}", self.idx.into_raw_parts().0)
+            write!(f, "({:?})", self.idx.into_raw_parts().0)
         } else {
             write!(f, "{}", self.res_name.clone())
         }

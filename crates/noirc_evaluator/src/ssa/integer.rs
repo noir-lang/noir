@@ -32,7 +32,7 @@ pub fn get_instruction_max_operand(
     vmap: &HashMap<arena::Index, arena::Index>,
 ) -> BigUint {
     if ins.operator == node::Operation::load {
-        return get_load_max(eval, ins.lhs, max_map, vmap);
+        return get_load_max(eval, ins.lhs, max_map, vmap, ins.res_type);
     }
     get_max_value(&ins, left_max, right_max)
 }
@@ -58,7 +58,6 @@ pub fn get_obj_max_value(
     let result: BigUint;
     result = match obj_ {
         node::NodeObj::Obj(v) => {
-            dbg!(v.bits());
             if v.bits() > 100 {
                 dbg!(&v);
             }
@@ -407,7 +406,9 @@ pub fn get_value_from_map(
 pub fn get_load_max(eval: &IRGenerator, address: arena::Index,
     max_map: &mut HashMap<arena::Index, BigUint>,
     vmap: &HashMap<arena::Index, arena::Index>,
+    obj_type: node::ObjectType,
 ) -> BigUint {
+  
     if let Some(adr_as_const) = eval.get_as_constant(address) {
         let adr : u32 = adr_as_const.to_u128().try_into().unwrap();
         if let Some(&value) = eval.mem.memory_map.get(&adr) {
@@ -416,6 +417,7 @@ pub fn get_load_max(eval: &IRGenerator, address: arena::Index,
         return eval.mem.get_array_from_adr(adr).max.clone();
     };
     todo!(); //todo return array max
+    return obj_type.max_size();  
 }
     
 //Returns the max value of an operation from an upper bound of left and right hand sides

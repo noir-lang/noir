@@ -73,7 +73,7 @@ impl<'a> IRGenerator<'a> {
             let ins = self.get_instruction(*idx);
             let mut str_res;
             if ins.res_name.is_empty() {
-                str_res = format!("{:?}", idx.into_raw_parts().0);
+                str_res = format!("({:?})", idx.into_raw_parts().0);
             } else {
                 str_res = ins.res_name.clone();
             }
@@ -96,10 +96,13 @@ impl<'a> IRGenerator<'a> {
     }
 
     pub fn print(&self) {
+        let mut ins_nb = 0;
         for (i, (_, b)) in self.blocks.iter().enumerate() {
             println!("************* Block n.{}", i);
             self.print_block(b);
+            ins_nb += b.instructions.len();
         }
+        println!("*** TOTAL: {} instructions", ins_nb);
     }
 
     pub fn context(&self) -> &Context {
@@ -311,7 +314,17 @@ impl<'a> IRGenerator<'a> {
             };
             let obj = node::NodeObj::Const(obj_cst);
             idx = self.add_object(obj);
-        } else {
+        } else  if num_bits < 64 {
+            let obj_cst = node::Constant {
+                id: self.id0,
+                value,
+                value_type: node::ObjectType::Signed(64),
+                value_str: String::new(),
+            };
+            let obj = node::NodeObj::Const(obj_cst);
+            idx = self.add_object(obj);
+        }
+        else {
             //idx = self.id0;
             todo!();
             //we should support integer of size < FieldElement::max_num_bits()/2, because else we cannot support multiplication!
@@ -391,23 +404,27 @@ impl<'a> IRGenerator<'a> {
         //SSA
         dbg!("SSA:");
         self.print();
+        println!("Press enter to continue");
+        io::stdin().read_line(&mut number);
         //Optimisation
         block::compute_dom(self);
         dbg!("CSE:");
         optim::cse(self);
         self.print();
+        println!("Press enter to continue");
+        io::stdin().read_line(&mut number);
         //Unrolling
         dbg!("unrolling:");
         flatten::unroll_tree(self);
-        optim::cse(self);
         self.print();
         println!("Press enter to continue");
         io::stdin().read_line(&mut number);
+        optim::cse(self);
         //Truncation
         integer::overflow_strategy(self);
         self.print();
-        //println!("Press enter to continue");
-        //io::stdin().read_line(&mut number);
+        println!("Press enter to continue");
+        io::stdin().read_line(&mut number);
         //ACIR
         self.acir(evaluator);
         dbg!("DONE");
@@ -705,7 +722,6 @@ impl<'a> IRGenerator<'a> {
             parent_block: self.current_block,
         };
         let id = self.add_variable(new_var, None);
-        dbg!(id);
 
         //Assign rhs to lhs
         let result = self.new_instruction(id, rhs_id, node::Operation::ass, rtype);
@@ -735,7 +751,6 @@ impl<'a> IRGenerator<'a> {
                 //n.b this creates a new variable if it does not exist, may be we should delegate this to explicit statements (let) - TODO
             },
             HirExpression::Infix(infx) => {
-                dbg!(&infx.operator);
                 let lhs = self.expression_to_object(env, &infx.lhs)?;
                 let rhs = self.expression_to_object(env, &infx.rhs)?;
                 self.evaluate_infix_expression(lhs, rhs, infx.operator)
@@ -785,8 +800,8 @@ impl<'a> IRGenerator<'a> {
                 //     let aaa = self.new_instruction(adr_id, index_as_obj, node::Operation::add, node::ObjectType::unsigned(32));
                 // };
 
-                let base_adr = self.get_const(FieldElement::from(address as i128), node::ObjectType::unsigned(32));
-                let adr_id = self.new_instruction(base_adr, index_as_obj, node::Operation::add, node::ObjectType::unsigned(32));                //address +=  u32::try_from(index_as_u128).unwrap();
+                let base_adr = self.get_const(FieldElement::from(address as i128), node::ObjectType::Unsigned(32));
+                let adr_id = self.new_instruction(base_adr, index_as_obj, node::Operation::add, node::ObjectType::Unsigned(32));                //address +=  u32::try_from(index_as_u128).unwrap();
                 //let adr_id = self.get_const(FieldElement::from(address as i128), node::ObjectType::unsigned(32));
                  Ok(self.new_instruction(adr_id, adr_id, node::Operation::load, o_type))
                 // arr.get(index_as_u128).map_err(|kind|kind.add_span(span))
@@ -854,9 +869,8 @@ impl<'a> IRGenerator<'a> {
         let iter_var = self.get_mut_variable(iter_id).unwrap();
         iter_var.obj_type = node::ObjectType::Unsigned(32); //TODO create_new_variable should set the correct type
         let iter_type = self.get_object_type(iter_id);
-        dbg!(iter_type);
         let iter_ass = self.new_instruction(iter_id, start_idx, node::Operation::ass, iter_type);
-        //We map the iterator to start_idx so that when we seal the join block, we will get the corrdect value.
+        //We map the iterator to start_idx so that when we seal the join block, we will get the correct value.
         self.update_variable_id(iter_id, iter_ass, start_idx);
 
         //join block
@@ -866,19 +880,19 @@ impl<'a> IRGenerator<'a> {
         //should parse a for_expr.condition statement that should evaluate to bool, but
         //we only supports i=start;i!=end for now
         //i1=phi(start);
-        let i1 = node::Variable {
-            id: iter_id,
-            obj_type: iter_type,
-            name: String::new(),
-            root: None,
-            def: None,
-            witness: None,
-            parent_block: join_idx,
-        };
-        let i1_id = self.add_variable(i1, Some(iter_id)); //TODO we do not need them
+        // let i1 = node::Variable {
+        //     id: iter_id,
+        //     obj_type: iter_type,
+        //     name: String::new(),
+        //     root: None,
+        //     def: None,
+        //     witness: None,
+        //     parent_block: join_idx,
+        // };
+        // let i1_id = self.add_variable(i1, Some(iter_id)); //TODO we do not need them
                                                           //we generate the phi for the iterator because the iterator is manually created
         let phi = self.generate_empty_phi(join_idx, iter_id);
-        self.update_variable_id(iter_id, i1_id, phi); //j'imagine que y'a plus besoin
+        self.update_variable_id(iter_id, iter_id, phi); //j'imagine que y'a plus besoin
         let cond =
             self.new_instruction(phi, end_idx, node::Operation::ne, node::ObjectType::Boolean);
         let to_fix = self.new_instruction(

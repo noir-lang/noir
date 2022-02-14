@@ -181,6 +181,7 @@ pub fn block_cse(
             if ins.is_deleted {
                 continue;
             }
+
             if node::is_binary(ins.operator) {
                 //binary operation:
                 i_lhs = propagate(eval, ins.lhs);
@@ -193,8 +194,16 @@ pub fn block_cse(
                 } else {
                     new_list.push(*iter);
                     anchor.get_mut(&ins.operator).unwrap().push_front(*iter);
-                    //TODO - Take into account store and load for arrays
                 }
+            } else if ins.operator == node::Operation::load || ins.operator == node::Operation::store {
+                i_lhs = propagate(eval, ins.lhs);
+                i_rhs = propagate(eval, ins.rhs);
+                new_list.push(*iter);
+                //TODO CSE for load and store:
+                //find_similar_instruction..
+                //anchor list for 'mem_a' operator, i.e. load or store on array a
+                //specific cse rule (store kill loads and loads kill store)
+                //handle control flow before hand by adding dummy stores on merged blocks
             } else if ins.operator == node::Operation::ass {
                 //assignement
                 i_rhs = propagate(eval, ins.rhs);
