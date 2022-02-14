@@ -105,15 +105,11 @@ impl Acir {
         if ins.operator == Operation::nop {
             return;
         }
-        let mut output = Arithmetic::default();
         let l_c = self.substitute(ins.lhs, evaluator, cfg);
         let r_c = self.substitute(ins.rhs, evaluator, cfg);
-        match ins.operator {
+        let output = match ins.operator {
             Operation::add | Operation::safe_add => {
-                //output = &l_c.expression + &r_c.expression;
-                output = add(&l_c.expression, FieldElement::one(), &r_c.expression);
-                //  output.add(l_c.expression);
-                //  output.add(r_c.expression);
+                add(&l_c.expression, FieldElement::one(), &r_c.expression)
             }
             Operation::sub | Operation::safe_sub => {
                 //we need the type of rhs and its max value, then:
@@ -124,17 +120,18 @@ impl Acir {
                 let k = (ins.max_value.to_f64().unwrap() / r_mod as f64).ceil() as i128;
                 let mut f = FieldElement::from(k);
                 f = f * FieldElement::from_be_bytes_reduce(&BigUint::from(r_mod).to_bytes_be());
-                output = add(&l_c.expression, FieldElement::from(-1), &r_c.expression);
+                let mut output = add(&l_c.expression, FieldElement::from(-1), &r_c.expression);
                 output.q_c += f;
+                output
             }
             Operation::mul | Operation::safe_mul => {
-                output = evaluate_mul(&l_c, &r_c, evaluator);
+                evaluate_mul(&l_c, &r_c, evaluator)
             }
             Operation::udiv => {
-                output = evaluate_udiv(&l_c, &r_c, evaluator);
+                evaluate_udiv(&l_c, &r_c, evaluator)
             }
             Operation::sdiv => {
-                output = evaluate_sdiv(&l_c, &r_c, evaluator);
+                evaluate_sdiv(&l_c, &r_c, evaluator)
             }
             Operation::urem => todo!(),
             Operation::srem => todo!(),
@@ -161,27 +158,25 @@ impl Acir {
             Operation::or => todo!(),
             Operation::xor => todo!(),
             Operation::cast => {
-                output = l_c.expression;
+                l_c.expression
             }
             Operation::ass | Operation::jne | Operation::jeq | Operation::jmp | Operation::phi => {
                 todo!("invalid instruction");
             }
             Operation::trunc => {
-                if is_const(&r_c.expression) {
-                    output = evaluate_truncate(
+                assert!(is_const(&r_c.expression));
+                evaluate_truncate(
                         l_c,
                         r_c.expression.q_c.to_u128().try_into().unwrap(),
                         ins.bit_size,
                         evaluator,
-                    );
-                } else {
-                    todo!("Panic {:?}", r_c.expression);
-                }
+                    )
             }
-            Operation::nop => (), //for now we skip..TODO todo!(),
+            Operation::nop => Arithmetic::default(),
             Operation::eq_gate => {
-                output = add(&l_c.expression, FieldElement::from(-1), &r_c.expression);
+                let output = add(&l_c.expression, FieldElement::from(-1), &r_c.expression);
                 evaluator.gates.push(Gate::Arithmetic(output.clone())); //TODO should we create a witness??
+                output
             }
             Operation::load => {
                 //retrieves the value from the map if address is known at compile time:
@@ -189,15 +184,19 @@ impl Acir {
                 if let Some(val) = l_c.to_const() {
                     let address = mem::Memory::as_u32(val);
                     if self.memory_map.contains_key(&address) {
-                        output = self.memory_map[&address].expression.clone();
+                         self.memory_map[&address].expression.clone()
                     } else {
                         //if not found, then it must be a witnes (else it is non-initialised memory)
                         let array = cfg.mem.get_array_from_adr(address);
                         let index = (address - array.adr) as usize;
                         let w = array.witness[index];
-                        output = Arithmetic::from(Linear::from_witness(w));
+                        Arithmetic::from(Linear::from_witness(w))
                     }
                 }
+                else {
+                    todo!();
+                }
+
             }
 
             Operation::store => {
@@ -206,12 +205,13 @@ impl Acir {
                     let address = mem::Memory::as_u32(val);
                     self.memory_map.insert(address, l_c);
                     //we do not generate constraint, so no output.
+                    Arithmetic::default()
                 } else {
                     todo!();
                 }
                 
             }
-        }
+        };
 
         let output_var = InternalVar {
             expression: output,
@@ -238,6 +238,9 @@ pub fn evaluate_truncate(
      let a_witness = lhs
          .witness
          .unwrap_or_else(|| generate_witness(&lhs, evaluator));
+    if lhs.witness.is_none() {
+        dbg!(a_witness);
+    }
     let b_witness = evaluator.add_witness_to_cs();
     let c_witness = evaluator.add_witness_to_cs();
     //TODO not in master..
