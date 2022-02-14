@@ -230,12 +230,10 @@ impl<'a> Resolver<'a> {
             UnresolvedType::Unit => Type::Unit,
             UnresolvedType::Unspecified => Type::Unspecified,
             UnresolvedType::Error => Type::Error,
-            UnresolvedType::Struct(vis, path) => {
-                match self.lookup_struct(path) {
-                    Some(definition) => Type::Struct(vis, definition),
-                    None => Type::Error,
-                }
-            }
+            UnresolvedType::Struct(vis, path) => match self.lookup_struct(path) {
+                Some(definition) => Type::Struct(vis, definition),
+                None => Type::Error,
+            },
         }
     }
 
@@ -449,12 +447,18 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Block(block_expr) => self.resolve_block(block_expr),
             ExpressionKind::Constructor(constructor) => {
                 let span = constructor.type_name.span();
-                let type_id = self.lookup_type(constructor.type_name);
-                HirExpression::Constructor(HirConstructorExpression {
-                    type_id,
-                    fields: self.resolve_constructor_fields(type_id, constructor.fields, span),
-                    r#type: self.get_struct(type_id),
-                })
+
+                if let Some(typ) = self.lookup_struct(constructor.type_name) {
+                    let type_id = typ.borrow().id;
+
+                    HirExpression::Constructor(HirConstructorExpression {
+                        type_id,
+                        fields: self.resolve_constructor_fields(type_id, constructor.fields, span),
+                        r#type: typ,
+                    })
+                } else {
+                    HirExpression::Error
+                }
             }
             ExpressionKind::MemberAccess(access) => {
                 // Validating whether the lhs actually has the rhs as a field

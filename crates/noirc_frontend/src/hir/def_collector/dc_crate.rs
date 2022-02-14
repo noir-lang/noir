@@ -253,7 +253,8 @@ fn resolve_impls(
         let self_type = resolver.lookup_struct(path);
         let self_type_id = self_type.as_ref().map(|typ| typ.borrow().id);
 
-        let mut ids = resolve_functions(interner, crate_id, def_maps, methods, self_type_id, errors);
+        let mut ids =
+            resolve_functions(interner, crate_id, def_maps, methods, self_type_id, errors);
 
         if let Some(typ) = self_type {
             for (file_id, method_id) in &ids {
