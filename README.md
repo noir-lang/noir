@@ -16,7 +16,7 @@ Backends:
 
  - Barretenberg via FFI
 
-Compiler:
+Compiler supported features:
 
  - Module System
  - For expressions
@@ -24,6 +24,7 @@ Compiler:
  - Bit Operations, except for OR
  - Binary operations (<, <=, >, >=, +, -, *, /) [See documentation for an extensive list]
  - Unsigned integers
+ - Structs and methods
 
 ACIR Supported OPCODES:
 
