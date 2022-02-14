@@ -36,17 +36,11 @@ pub fn simplify(eval: &mut IRGenerator, ins: &mut node::Instruction) {
     //1. constant folding
     let l_eval = to_const(eval, node::NodeEval::Idx(ins.lhs));
     let r_eval = to_const(eval, node::NodeEval::Idx(ins.rhs));
-    let result = ins.evaluate(&l_eval, &r_eval);
-    let mut result_idx = None;
-    match result {
-        NodeEval::Const(c, t) => result_idx = Some(eval.get_const(c, t)),
-        NodeEval::Idx(i) => {
-            if i != ins.idx {
-                result_idx = Some(i);
-            }
-        }
+    let idx = match ins.evaluate(&l_eval, &r_eval) {
+        NodeEval::Const(c, t) => eval.get_const(c, t),
+        NodeEval::Idx(i) => i,
     };
-    if let Some(idx) = result_idx {
+    if idx != ins.idx {
         ins.is_deleted = true;
         ins.rhs = idx;
         return;

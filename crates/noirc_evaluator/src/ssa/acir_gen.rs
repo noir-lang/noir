@@ -98,15 +98,11 @@ impl Acir {
         if ins.operator == Operation::nop {
             return;
         }
-        let mut output = Arithmetic::default();
         let l_c = self.substitute(ins.lhs, evaluator, cfg);
         let r_c = self.substitute(ins.rhs, evaluator, cfg);
-        match ins.operator {
+        let output = match ins.operator {
             Operation::add | Operation::safe_add => {
-                //output = &l_c.expression + &r_c.expression;
-                output = add(&l_c.expression, FieldElement::one(), &r_c.expression);
-                //  output.add(l_c.expression);
-                //  output.add(r_c.expression);
+                add(&l_c.expression, FieldElement::one(), &r_c.expression)
             }
             Operation::sub | Operation::safe_sub => {
                 //we need the type of rhs and its max value, then:
@@ -117,17 +113,18 @@ impl Acir {
                 let k = (ins.max_value.to_f64().unwrap() / r_mod as f64).ceil() as i128;
                 let mut f = FieldElement::from(k);
                 f = f * FieldElement::from_be_bytes_reduce(&BigUint::from(r_mod).to_bytes_be());
-                output = add(&l_c.expression, FieldElement::from(-1), &r_c.expression);
+                let mut output = add(&l_c.expression, FieldElement::from(-1), &r_c.expression);
                 output.q_c += f;
+                output
             }
             Operation::mul | Operation::safe_mul => {
-                output = evaluate_mul(&l_c, &r_c, evaluator);
+                evaluate_mul(&l_c, &r_c, evaluator)
             }
             Operation::udiv => {
-                output = evaluate_udiv(&l_c, &r_c, evaluator);
+                evaluate_udiv(&l_c, &r_c, evaluator)
             }
             Operation::sdiv => {
-                output = evaluate_sdiv(&l_c, &r_c, evaluator);
+                evaluate_sdiv(&l_c, &r_c, evaluator)
             }
             Operation::urem => todo!(),
             Operation::srem => todo!(),
@@ -154,32 +151,27 @@ impl Acir {
             Operation::or => todo!(),
             Operation::xor => todo!(),
             Operation::cast => {
-                output = l_c.expression;
+                l_c.expression
             }
             Operation::ass | Operation::jne | Operation::jeq | Operation::jmp | Operation::phi => {
                 todo!("invalid instruction");
             }
             Operation::trunc => {
-                if is_const(&r_c.expression) {
-                    output = evaluate_truncate(
+                assert!(is_const(&r_c.expression));
+                evaluate_truncate(
                         l_c,
                         r_c.expression.q_c.to_u128().try_into().unwrap(),
                         ins.bit_size,
                         evaluator,
-                    );
-                } else {
-                    todo!("Panic {:?}", r_c.expression);
-                }
+                    )
             }
-            Operation::nop => (), //for now we skip..TODO todo!(),
+            Operation::nop => Arithmetic::default(),
             Operation::eq_gate => {
-                output = add(&l_c.expression, FieldElement::from(-1), &r_c.expression);
+                let output = add(&l_c.expression, FieldElement::from(-1), &r_c.expression);
                 evaluator.gates.push(Gate::Arithmetic(output.clone())); //TODO should we create a witness??
+                output
             }
-        }
-        //     dbg!("INSTRUCTION..");
-        //    dbg!(&ins);
-        //    dbg!(&output.clone());
+        };
 
         let output_var = InternalVar {
             expression: output,
