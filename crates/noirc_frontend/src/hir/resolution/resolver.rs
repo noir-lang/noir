@@ -64,7 +64,7 @@ pub struct Resolver<'a> {
     path_resolver: &'a dyn PathResolver,
     def_maps: &'a HashMap<CrateId, CrateDefMap>,
     interner: &'a mut NodeInterner,
-    self_type: Option<Rc<RefCell<StructType>>>,
+    self_type: Option<TypeId>,
     errors: Vec<ResolverError>,
 }
 
@@ -84,7 +84,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    pub fn set_self_type(&mut self, self_type: Option<Rc<RefCell<StructType>>>) {
+    pub fn set_self_type(&mut self, self_type: Option<TypeId>) {
         self.self_type = self_type;
     }
 
@@ -231,13 +231,6 @@ impl<'a> Resolver<'a> {
             UnresolvedType::Unspecified => Type::Unspecified,
             UnresolvedType::Error => Type::Error,
             UnresolvedType::Struct(vis, path) => {
-                let ident = path.as_ident();
-                if ident.map_or(false, |i| i == "Self") {
-                    if let Some(typ) = &self.self_type {
-                        return Type::Struct(vis, typ.clone());
-                    }
-                }
-
                 match self.lookup_struct(path) {
                     Some(definition) => Type::Struct(vis, definition),
                     None => Type::Error,
@@ -560,6 +553,13 @@ impl<'a> Resolver<'a> {
     }
 
     fn lookup_type(&mut self, path: Path) -> TypeId {
+        let ident = path.as_ident();
+        if ident.map_or(false, |i| i == "Self") {
+            if let Some(id) = &self.self_type {
+                return *id;
+            }
+        }
+
         self.lookup(path)
     }
 

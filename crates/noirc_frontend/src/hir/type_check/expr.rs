@@ -304,31 +304,35 @@ fn type_check_function_call(
     arguments: Vec<Type>,
     errors: &mut Vec<TypeCheckError>,
 ) -> Type {
-    let func_meta = interner.function_meta(func_id);
+    if func_id == &FuncId::dummy_id() {
+        Type::Error
+    } else {
+        let func_meta = interner.function_meta(func_id);
 
-    // Check function call arity is correct
-    let param_len = func_meta.parameters.len();
-    let arg_len = arguments.len();
+        // Check function call arity is correct
+        let param_len = func_meta.parameters.len();
+        let arg_len = arguments.len();
 
-    if param_len != arg_len {
-        let span = interner.expr_span(expr_id);
-        errors.push(TypeCheckError::ArityMisMatch {
-            expected: param_len as u16,
-            found: arg_len as u16,
-            span,
-        });
+        if param_len != arg_len {
+            let span = interner.expr_span(expr_id);
+            errors.push(TypeCheckError::ArityMisMatch {
+                expected: param_len as u16,
+                found: arg_len as u16,
+                span,
+            });
+        }
+
+        // Check for argument param equality
+        // In the case where we previously issued an error for a parameter count mismatch
+        // this will only check up until the shorter of the two Vecs.
+        // Type check arguments
+        for (param, arg_type) in func_meta.parameters.iter().zip(arguments) {
+            check_param_argument(interner, *expr_id, param, &arg_type, errors);
+        }
+
+        // The type of the call expression is the return type of the function being called
+        func_meta.return_type
     }
-
-    // Check for argument param equality
-    // In the case where we previously issued an error for a parameter count mismatch
-    // this will only check up until the shorter of the two Vecs.
-    // Type check arguments
-    for (param, arg_type) in func_meta.parameters.iter().zip(arguments) {
-        check_param_argument(interner, *expr_id, param, &arg_type, errors);
-    }
-
-    // The type of the call expression is the return type of the function being called
-    func_meta.return_type
 }
 
 // Given a binary operator and another type. This method will produce the output type

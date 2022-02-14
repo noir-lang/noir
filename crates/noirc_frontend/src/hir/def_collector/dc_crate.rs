@@ -12,13 +12,11 @@ use crate::hir::type_check::type_check_func;
 use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner, TypeId};
 use crate::util::vecmap;
-use crate::{Ident, NoirFunction, NoirStruct, ParsedModule, Path, StructType, Type};
+use crate::{Ident, NoirFunction, NoirStruct, ParsedModule, Path, Type};
 use fm::FileId;
 use noirc_errors::CollectedErrors;
 use noirc_errors::DiagnosableError;
-use std::cell::RefCell;
 use std::collections::HashMap;
-use std::rc::Rc;
 
 /// Stores all of the unresolved functions in a particular file/mod
 pub struct UnresolvedFunctions {
@@ -253,11 +251,11 @@ fn resolve_impls(
 
         let mut resolver = Resolver::new(interner, &path_resolver, def_maps);
         let self_type = resolver.lookup_struct(path);
-        let self_type_clone = self_type.clone();
+        let self_type_id = self_type.as_ref().map(|typ| typ.borrow().id);
 
-        let mut ids = resolve_functions(interner, crate_id, def_maps, methods, self_type, errors);
+        let mut ids = resolve_functions(interner, crate_id, def_maps, methods, self_type_id, errors);
 
-        if let Some(typ) = self_type_clone {
+        if let Some(typ) = self_type {
             for (file_id, method_id) in &ids {
                 let method_name = interner.function_meta(method_id).name;
                 let mut typ = typ.borrow_mut();
@@ -287,7 +285,7 @@ fn resolve_functions(
     crate_id: CrateId,
     def_maps: &HashMap<CrateId, CrateDefMap>,
     collected_functions: Vec<UnresolvedFunctions>,
-    self_type: Option<Rc<RefCell<StructType>>>,
+    self_type: Option<TypeId>,
     errors: &mut Vec<CollectedErrors>,
 ) -> Vec<(FileId, FuncId)> {
     let mut file_func_ids = Vec::new();
@@ -309,7 +307,7 @@ fn resolve_functions(
             });
 
             let mut resolver = Resolver::new(interner, &path_resolver, def_maps);
-            resolver.set_self_type(self_type.clone());
+            resolver.set_self_type(self_type);
 
             let (hir_func, func_meta, errs) = resolver.resolve_function(func);
             interner.push_fn_meta(func_meta, func_id);
