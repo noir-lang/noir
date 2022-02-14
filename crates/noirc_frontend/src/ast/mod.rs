@@ -29,7 +29,6 @@ impl ArraySize {
         !self.is_fixed()
     }
 
-    // #[allow(clippy::suspicious_operation_groupings)]
     pub fn is_a_super_type_of(&self, argument: &ArraySize) -> bool {
         (self.is_variable() && argument.is_fixed()) || (self == argument)
     }
