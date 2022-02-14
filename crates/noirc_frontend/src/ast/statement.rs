@@ -241,7 +241,7 @@ pub struct Path {
 }
 
 impl Path {
-    /// Construct a PathKind::Plain from this single 
+    /// Construct a PathKind::Plain from this single
     pub fn from_single(name: String, span: Span) -> Path {
         let segment = Ident::from(Spanned::from(span, name));
         Path {

@@ -102,10 +102,10 @@ fn attribute() -> impl NoirParser<Attribute> {
 }
 
 fn struct_fields() -> impl NoirParser<Vec<(Ident, UnresolvedType)>> {
-    parameters(false, parse_type_with_visibility(
-        optional_pri_or_const(),
-        parse_type_no_field_element(),
-    ))
+    parameters(
+        false,
+        parse_type_with_visibility(optional_pri_or_const(), parse_type_no_field_element()),
+    )
 }
 
 fn function_parameters(allow_self: bool) -> impl NoirParser<Vec<(Ident, UnresolvedType)>> {
@@ -116,9 +116,7 @@ fn parameters<P>(allow_self: bool, type_parser: P) -> impl NoirParser<Vec<(Ident
 where
     P: NoirParser<UnresolvedType>,
 {
-    let full_parameter = ident()
-        .then_ignore(just(Token::Colon))
-        .then(type_parser);
+    let full_parameter = ident().then_ignore(just(Token::Colon)).then(type_parser);
 
     let self_parameter = if allow_self {
         self_parameter().boxed()
@@ -137,21 +135,20 @@ fn nothing<T>() -> impl NoirParser<T> {
 }
 
 fn self_parameter() -> impl NoirParser<(Ident, UnresolvedType)> {
-    filter_map(move |span, found: Token| {
-        match found {
-            Token::Ident(ref word) if word == "self" => {
-                let ident = Ident::new(found, span);
-                let path = Path::from_single("Self".to_owned(), span);
-                Ok((ident, UnresolvedType::Struct(FieldElementType::Private, path)))
-            }
-            _ => {
-                Err(ParserError::expected_label(
-                    "parameter".to_owned(),
-                    found,
-                    span,
-                ))
-            }
+    filter_map(move |span, found: Token| match found {
+        Token::Ident(ref word) if word == "self" => {
+            let ident = Ident::new(found, span);
+            let path = Path::from_single("Self".to_owned(), span);
+            Ok((
+                ident,
+                UnresolvedType::Struct(FieldElementType::Private, path),
+            ))
         }
+        _ => Err(ParserError::expected_label(
+            "parameter".to_owned(),
+            found,
+            span,
+        )),
     })
 }
 
