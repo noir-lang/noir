@@ -117,15 +117,9 @@ impl Acir {
                 output.q_c += f;
                 output
             }
-            Operation::mul | Operation::safe_mul => {
-                evaluate_mul(&l_c, &r_c, evaluator)
-            }
-            Operation::udiv => {
-                evaluate_udiv(&l_c, &r_c, evaluator)
-            }
-            Operation::sdiv => {
-                evaluate_sdiv(&l_c, &r_c, evaluator)
-            }
+            Operation::mul | Operation::safe_mul => evaluate_mul(&l_c, &r_c, evaluator),
+            Operation::udiv => evaluate_udiv(&l_c, &r_c, evaluator),
+            Operation::sdiv => evaluate_sdiv(&l_c, &r_c, evaluator),
             Operation::urem => todo!(),
             Operation::srem => todo!(),
             Operation::div => todo!(),
@@ -150,20 +144,18 @@ impl Acir {
             Operation::not => todo!(),
             Operation::or => todo!(),
             Operation::xor => todo!(),
-            Operation::cast => {
-                l_c.expression
-            }
+            Operation::cast => l_c.expression,
             Operation::ass | Operation::jne | Operation::jeq | Operation::jmp | Operation::phi => {
                 todo!("invalid instruction");
             }
             Operation::trunc => {
                 assert!(is_const(&r_c.expression));
                 evaluate_truncate(
-                        l_c,
-                        r_c.expression.q_c.to_u128().try_into().unwrap(),
-                        ins.bit_size,
-                        evaluator,
-                    )
+                    l_c,
+                    r_c.expression.q_c.to_u128().try_into().unwrap(),
+                    ins.bit_size,
+                    evaluator,
+                )
             }
             Operation::nop => Arithmetic::default(),
             Operation::eq_gate => {
