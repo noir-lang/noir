@@ -83,7 +83,7 @@ impl<'a> Lexer<'a> {
             // Note: when we issue this error the first '&' will already be consumed
             // and the next token issued will be the next '&' which is likely what the
             // programmer intended anyway.
-            let span = Span::new(self.position..self.position + 2);
+            let span = Span::new(self.position..self.position + 1);
             Err(LexerErrorKind::LogicalAnd { span })
         } else {
             self.single_char_token(Token::Ampersand)
@@ -148,7 +148,7 @@ impl<'a> Lexer<'a> {
             false => Ok(single.into_single_span(start)),
             true => {
                 self.next_char();
-                Ok(double.into_span(start, start + 2))
+                Ok(double.into_span(start, start + 1))
             }
         }
     }
