@@ -80,6 +80,7 @@ uint<Composer, Native>::uint(const byte_array<Composer>& other)
     , accumulators()
     , witness_index(IS_CONSTANT)
 {
+    ASSERT(other.bytes().size() <= sizeof(Native));
     field_t<Composer> accumulator(context, fr::zero());
     field_t<Composer> scaling_factor(context, fr::one());
     const auto bytes = other.bytes();

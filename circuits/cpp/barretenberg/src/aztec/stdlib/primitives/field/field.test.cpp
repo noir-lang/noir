@@ -502,7 +502,7 @@ TEST(stdlib_field, three_bit_table)
 }
 
 /**
- * @brief Failure cases for decomposer_into_bits.
+ * @brief Test success and failure cases for decompose_into_bits.
  *
  * @details The target function constructs `sum` from a supplied collection of bits and compares it with a value
  * `val_256`. We supply bit vectors to test some failure cases.

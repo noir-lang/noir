@@ -1,6 +1,9 @@
 #include "../composers/composers.hpp"
 #include "uint.hpp"
 
+// #pragma GCC diagnostic ignored "-Wunused-variable"
+// #pragma GCC diagnostic ignored "-Wunused-parameter"
+
 using namespace barretenberg;
 
 namespace plonk {
@@ -185,7 +188,7 @@ std::pair<uint<Composer, Native>, uint<Composer, Native>> uint<Composer, Native>
      *      b = divisor witness
      *      q = quotient
      *      r = remainder
-     *      (b - r) is in the range [0, 2**{width}]
+     *      (b - r - 1) is in the range [0, 2**{width}]
      *
      * The final check validates that r is a geuine remainder term, that does not contain multiples of b
      *
@@ -256,19 +259,17 @@ std::pair<uint<Composer, Native>, uint<Composer, Native>> uint<Composer, Native>
     };
     ctx->create_big_mul_gate(division_gate);
 
-    // (b + c_b - r) = d
-    const uint256_t delta = divisor - r;
-
+    const uint256_t delta = divisor - r - 1;
     const uint32_t delta_idx = ctx->add_variable(delta);
-    const waffle::add_triple delta_gate{
-        divisor_idx,             // b
-        remainder_idx,           // r
-        delta_idx,               // d
-        fr::one(),               // q_l = 1
-        fr::neg_one(),           // q_r = -1
-        fr::neg_one(),           // q_o = -1
-        other.additive_constant, // q_c = d if const
-    };
+
+    // constraint: b - r - delta + const_b - 1 == 0
+    const waffle::add_triple delta_gate{ .a = divisor_idx,
+                                         .b = remainder_idx,
+                                         .c = delta_idx,
+                                         .a_scaling = fr::one(),
+                                         .b_scaling = fr::neg_one(),
+                                         .c_scaling = fr::neg_one(),
+                                         .const_scaling = other.additive_constant + fr::neg_one() };
     ctx->create_add_gate(delta_gate);
 
     // validate delta is in the correct range

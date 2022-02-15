@@ -364,29 +364,27 @@ TEST(stdlib_uint32, test_or)
     EXPECT_EQ(result, true);
 }
 
-
 TEST(stdlib_uint32, test_gt)
 {
     const auto run_test = [](bool lhs_constant, bool rhs_constant, int type = 0) {
         uint32_t a_expected = 0xa3b10422;
         uint32_t b_expected;
-        switch (type)
-        {
-            case 0: {
-                b_expected = 0xbac21343; // a < b
-                break;
-            }
-            case 1: {
-                b_expected = 0x000affe2; // a > b
-                break;
-            }
-            case 2: {
-                b_expected = 0xa3b10422; // a = b
-                break;
-            }
-            default: {
-                b_expected = 0xbac21343; // a < b
-            }
+        switch (type) {
+        case 0: {
+            b_expected = 0xbac21343; // a < b
+            break;
+        }
+        case 1: {
+            b_expected = 0x000affe2; // a > b
+            break;
+        }
+        case 2: {
+            b_expected = 0xa3b10422; // a = b
+            break;
+        }
+        default: {
+            b_expected = 0xbac21343; // a < b
+        }
         }
         bool c_expected = a_expected > b_expected;
 
@@ -394,23 +392,16 @@ TEST(stdlib_uint32, test_gt)
 
         uint32 a;
         uint32 b;
-        if (lhs_constant)
-        {
+        if (lhs_constant) {
             a = uint32(nullptr, a_expected);
-        }
-        else
-        {
+        } else {
             a = witness_t(&composer, a_expected);
         }
-        if (rhs_constant)
-        {
+        if (rhs_constant) {
             b = uint32(nullptr, b_expected);
-        }
-        else
-        {
+        } else {
             b = witness_t(&composer, b_expected);
         }
-
         // mix in some constant terms for good measure
         a *= uint32(&composer, 2);
         a += uint32(&composer, 0x00112233);
@@ -616,6 +607,86 @@ TEST(stdlib_uint32, test_hash_rounds)
 
     bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, true);
+}
+
+/**
+ * @brief Make sure we prevent proving v / v = 0 by setting the divison remainder to be v.
+ * TODO: This is lifted from the implementation. Should rewrite this test after introducing framework that separates
+ * circuit construction from witness generation.
+
+ */
+TEST(stdlib_uint32, div_remainder_constraint)
+{
+    size_t width = 32; // will go away in refactor part of audit.
+    waffle::TurboComposer composer = waffle::TurboComposer();
+
+    uint32_t val = engine.get_random_uint32(); // will change in refactor part of audit
+
+    uint32 a = witness_t(&composer, val);
+    uint32 b = witness_t(&composer, val);
+
+    const uint32_t dividend_idx = a.get_witness_index();
+    const uint32_t divisor_idx = b.get_witness_index();
+
+    const uint256_t divisor = b.get_value();
+
+    const uint256_t q = 0;
+    const uint256_t r = val;
+
+    const uint32_t quotient_idx = composer.add_variable(q);
+    const uint32_t remainder_idx = composer.add_variable(r);
+
+    // In this example there are no additive constaints, so we just replace them by zero below.
+
+    // constraint: qb + const_b q + 0 b - a + r - const_a == 0
+    // i.e., a + const_a = q(b + const_b) + r
+    const waffle::mul_quad division_gate{ .a = quotient_idx,  // q
+                                          .b = divisor_idx,   // b
+                                          .c = dividend_idx,  // a
+                                          .d = remainder_idx, // r
+                                          .mul_scaling = fr::one(),
+                                          .a_scaling = b.get_additive_constant(),
+                                          .b_scaling = fr::zero(),
+                                          .c_scaling = fr::neg_one(),
+                                          .d_scaling = fr::one(),
+                                          .const_scaling = -a.get_additive_constant() };
+    composer.create_big_mul_gate(division_gate);
+
+    // set delta = (b + const_b - r)
+
+    // constraint: b - r - delta + const_b == 0
+    const uint256_t delta = divisor - r - 1;
+    const uint32_t delta_idx = composer.add_variable(delta);
+
+    const waffle::add_triple delta_gate{
+        .a = divisor_idx,   // b
+        .b = remainder_idx, // r
+        .c = delta_idx,     // d
+        .a_scaling = fr::one(),
+        .b_scaling = fr::neg_one(),
+        .c_scaling = fr::neg_one(),
+        .const_scaling = b.get_additive_constant(),
+    };
+
+    composer.create_add_gate(delta_gate);
+
+    // validate delta is in the correct range
+    stdlib::field_t<waffle::TurboComposer>::from_witness_index(&composer, delta_idx).create_range_constraint(width);
+
+    // normalize witness quotient and remainder
+    // minimal bit range for quotient: from 0 (in case a = b-1) to width (when b = 1).
+    uint32 quotient(&composer);
+    composer.decompose_into_base4_accumulators(quotient_idx, width);
+
+    // constrain remainder to lie in [0, 2^width-1]
+    uint32 remainder(&composer);
+    composer.decompose_into_base4_accumulators(remainder_idx, width);
+
+    auto prover = composer.create_prover();
+    auto verifier = composer.create_verifier();
+    waffle::plonk_proof proof = prover.construct_proof();
+    bool result = verifier.verify_proof(proof);
+    EXPECT_EQ(result, false);
 }
 
 } // namespace test_stdlib_uint32
