@@ -404,10 +404,10 @@ fn serialise_arithmetic_gates(gate: &Arithmetic) -> Constraint {
     let mut a: i32 = 0;
     let mut b: i32 = 0;
     let mut c: i32 = 0;
-    let mut qm: FieldElement = 0.into();
-    let mut ql: FieldElement = 0.into();
-    let mut qr: FieldElement = 0.into();
-    let mut qo: FieldElement = 0.into();
+    let mut qm: FieldElement = FieldElement::zero();
+    let mut ql: FieldElement = FieldElement::zero();
+    let mut qr: FieldElement = FieldElement::zero();
+    let mut qo: FieldElement = FieldElement::zero();
 
     // check mul gate
     if !gate.mul_terms.is_empty() {

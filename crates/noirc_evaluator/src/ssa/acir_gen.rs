@@ -2,6 +2,7 @@ use super::node::{Instruction, Operation};
 use acvm::FieldElement;
 use arena::Index;
 use num_traits::ToPrimitive;
+use std::cmp::Ordering;
 use std::collections::HashMap;
 //use crate::acir::native_types::{Arithmetic, Witness};
 use crate::ssa::{code_gen::IRGenerator, mem, node, node::Node};
@@ -102,16 +103,16 @@ impl Acir {
         evaluator: &mut Evaluator,
         cfg: &IRGenerator,
     ) {
-        if ins.operator == Operation::nop {
+        if ins.operator == Operation::Nop {
             return;
         }
         let l_c = self.substitute(ins.lhs, evaluator, cfg);
         let r_c = self.substitute(ins.rhs, evaluator, cfg);
         let output = match ins.operator {
-            Operation::add | Operation::safe_add => {
+            Operation::Add | Operation::SafeAdd => {
                 add(&l_c.expression, FieldElement::one(), &r_c.expression)
             }
-            Operation::sub | Operation::safe_sub => {
+            Operation::Sub | Operation::SafeSub => {
                 //we need the type of rhs and its max value, then:
                 //lhs-rhs+k*2^bit_size where k=ceil(max_value/2^bit_size)
                 let bit_size = cfg.get_object(ins.rhs).unwrap().bits();
@@ -120,42 +121,46 @@ impl Acir {
                 let k = (ins.max_value.to_f64().unwrap() / r_mod as f64).ceil() as i128;
                 let mut f = FieldElement::from(k);
                 f = f * FieldElement::from_be_bytes_reduce(&BigUint::from(r_mod).to_bytes_be());
-                let mut output = add(&l_c.expression, FieldElement::from(-1), &r_c.expression);
+                let mut output = add(
+                    &l_c.expression,
+                    FieldElement::from(-1_i128),
+                    &r_c.expression,
+                );
                 output.q_c += f;
                 output
             }
-            Operation::mul | Operation::safe_mul => evaluate_mul(&l_c, &r_c, evaluator),
-            Operation::udiv => evaluate_udiv(&l_c, &r_c, evaluator),
-            Operation::sdiv => evaluate_sdiv(&l_c, &r_c, evaluator),
-            Operation::urem => todo!(),
-            Operation::srem => todo!(),
-            Operation::div => todo!(),
-            Operation::eq => todo!(),
-            Operation::ne => todo!(),
-            Operation::ugt => todo!(),
-            Operation::uge => todo!(),
-            Operation::ult => todo!(),
-            Operation::ule => todo!(),
-            Operation::sgt => todo!(),
-            Operation::sge => todo!(),
-            Operation::slt => todo!(),
-            Operation::sle => todo!(),
-            Operation::lt => todo!(),
-            Operation::gt => todo!(),
-            Operation::lte => todo!(),
-            Operation::gte => todo!(),
-            Operation::and => {
+            Operation::Mul | Operation::SafeMul => evaluate_mul(&l_c, &r_c, evaluator),
+            Operation::Udiv => evaluate_udiv(&l_c, &r_c, evaluator),
+            Operation::Sdiv => evaluate_sdiv(&l_c, &r_c, evaluator),
+            Operation::Urem => todo!(),
+            Operation::Srem => todo!(),
+            Operation::Div => todo!(),
+            Operation::Eq => todo!(),
+            Operation::Ne => todo!(),
+            Operation::Ugt => todo!(),
+            Operation::Uge => todo!(),
+            Operation::Ult => todo!(),
+            Operation::Ule => todo!(),
+            Operation::Sgt => todo!(),
+            Operation::Sge => todo!(),
+            Operation::Slt => todo!(),
+            Operation::Sle => todo!(),
+            Operation::Lt => todo!(),
+            Operation::Gt => todo!(),
+            Operation::Lte => todo!(),
+            Operation::Gte => todo!(),
+            Operation::And => {
                 todo!();
                 //use AndGate
             }
-            Operation::not => todo!(),
-            Operation::or => todo!(),
-            Operation::xor => todo!(),
-            Operation::cast => l_c.expression,
-            Operation::ass | Operation::jne | Operation::jeq | Operation::jmp | Operation::phi => {
+            Operation::Not => todo!(),
+            Operation::Or => todo!(),
+            Operation::Xor => todo!(),
+            Operation::Cast => l_c.expression,
+            Operation::Ass | Operation::Jne | Operation::Jeq | Operation::Jmp | Operation::Phi => {
                 todo!("invalid instruction");
             }
-            Operation::trunc => {
+            Operation::Trunc => {
                 assert!(is_const(&r_c.expression));
                 evaluate_truncate(
                     l_c,
@@ -164,13 +169,17 @@ impl Acir {
                     evaluator,
                 )
             }
-            Operation::nop => Arithmetic::default(),
-            Operation::eq_gate => {
-                let output = add(&l_c.expression, FieldElement::from(-1), &r_c.expression);
+            Operation::Nop => Arithmetic::default(),
+            Operation::EqGate => {
+                let output = add(
+                    &l_c.expression,
+                    FieldElement::from(-1_i128),
+                    &r_c.expression,
+                );
                 evaluator.gates.push(Gate::Arithmetic(output.clone())); //TODO should we create a witness??
                 output
             }
-            Operation::load(base_adr) => {
+            Operation::Load(base_adr) => {
                 //retrieves the value from the map if address is known at compile time:
                 //address = l_c and should be constant
                 if let Some(val) = l_c.to_const() {
@@ -188,7 +197,7 @@ impl Acir {
                 }
             }
 
-            Operation::store(_) => {
+            Operation::Store(_) => {
                 //maps the address to the rhs if address is known at compile time
                 if let Some(val) = r_c.to_const() {
                     let address = mem::Memory::as_u32(val);
@@ -404,116 +413,66 @@ pub fn mul(a: &Arithmetic, b: &Arithmetic) -> Arithmetic {
         output = add(&output, lc.0, &single);
     }
 
-    // while (i1< a.linear_combinations.len() && i2 < b.linear_combinations.len()) {
-    //     let coef = a.linear_combinations[i1].0 * b.linear_combinations[i2].0;
-    //     if a.linear_combinations[i1].1 < b.linear_combinations[i2].1 {
-    //         output.mul_terms.push((coef, a.linear_combinations[i1].1, b.linear_combinations[i2].1));
-    //     }
-    //     else {
-    //         output.mul_terms.push((coef, b.linear_combinations[i2].1, a.linear_combinations[i1].1));
-    //     }
-    //     next_mul_iter(&a.linear_combinations,&b.linear_combinations,&mut i1,&mut i2);
-    //     dbg!(i1);
-    //     dbg!(i2);
-    // }
-
     //linear terms
     let mut i1 = 0; //a
     let mut i2 = 0; //b
-                    //todo check it is correct
     while i1 < a.linear_combinations.len() && i2 < b.linear_combinations.len() {
         let coef_a = b.q_c * a.linear_combinations[i1].0;
         let coef_b = a.q_c * b.linear_combinations[i2].0;
-        if a.linear_combinations[i1].1 < b.linear_combinations[i2].1 {
-            if coef_a != FieldElement::zero() {
-                output
-                    .linear_combinations
-                    .push((coef_a, a.linear_combinations[i1].1));
+        match a.linear_combinations[i1]
+            .1
+            .cmp(&b.linear_combinations[i2].1)
+        {
+            Ordering::Greater => {
+                if coef_b != FieldElement::zero() {
+                    output
+                        .linear_combinations
+                        .push((coef_b, b.linear_combinations[i2].1));
+                }
+                if i2 + 1 >= b.linear_combinations.len() {
+                    i1 += 1;
+                } else {
+                    i2 += 1;
+                }
             }
-            if i1 + 1 >= a.linear_combinations.len() {
-                i2 += 1;
-            } else {
-                i1 += 1;
-            }
-        } else if a.linear_combinations[i1].1 > b.linear_combinations[i2].1 {
-            if coef_b != FieldElement::zero() {
-                output
-                    .linear_combinations
-                    .push((coef_b, b.linear_combinations[i2].1));
-            }
-            if i2 + 1 >= b.linear_combinations.len() {
-                i1 += 1;
-            } else {
-                i2 += 1;
-            }
-        } else {
-            if coef_a + coef_b != FieldElement::zero() {
-                output
-                    .linear_combinations
-                    .push((coef_a + coef_b, a.linear_combinations[i1].1));
-            }
-            if (i1 + 1 >= a.linear_combinations.len()) && (i2 + 1 >= b.linear_combinations.len()) {
-                i1 += 1;
-                i2 += 1;
-            } else {
-                if i1 + 1 < a.linear_combinations.len() {
+            Ordering::Less => {
+                if coef_a != FieldElement::zero() {
+                    output
+                        .linear_combinations
+                        .push((coef_a, a.linear_combinations[i1].1));
+                }
+                if i1 + 1 >= a.linear_combinations.len() {
+                    i2 += 1;
+                } else {
                     i1 += 1;
                 }
-                if i2 + 1 < a.linear_combinations.len() {
+            }
+            Ordering::Equal => {
+                if coef_a + coef_b != FieldElement::zero() {
+                    output
+                        .linear_combinations
+                        .push((coef_a + coef_b, a.linear_combinations[i1].1));
+                }
+                if (i1 + 1 >= a.linear_combinations.len())
+                    && (i2 + 1 >= b.linear_combinations.len())
+                {
+                    i1 += 1;
                     i2 += 1;
+                } else {
+                    if i1 + 1 < a.linear_combinations.len() {
+                        i1 += 1;
+                    }
+                    if i2 + 1 < a.linear_combinations.len() {
+                        i2 += 1;
+                    }
                 }
             }
         }
     }
     //Constant term:
     output.q_c = a.q_c * b.q_c;
-    //dbg!("mul result: {:?}", output.clone());
     output
 }
-
-// fn next_mul_iter(
-//     a: &[(FieldElement, Witness)],
-//     b: &[(FieldElement, Witness)],
-//     i1: &mut usize,
-//     i2: &mut usize,
-// ) {
-//     let mut next_a = None;
-//     let mut next_b = None;
-//     if *i1 + 1 >= a.len() && *i2 + 1 >= b.len() {
-//         *i1 += 1;
-//         *i2 += 1;
-//         return;
-//     }
-
-//     if *i1 + 1 < a.len() {
-//         if a[*i1 + 1].1 < b[*i2].1 {
-//             next_a = Some((a[*i1 + 1].1, b[*i2].1));
-//         } else {
-//             next_a = Some((b[*i2].1, a[*i1 + 1].1));
-//         }
-//     }
-//     if *i2 as usize + 1 < b.len() {
-//         if a[*i1].1 < b[*i2 + 1].1 {
-//             next_b = Some((a[*i1].1, b[*i2 + 1].1));
-//         } else {
-//             next_b = Some((b[*i2 + 1].1, a[*i1].1));
-//         }
-//     }
-
-//     if next_a.is_none() {
-//         *i2 += 1;
-//         return;
-//     }
-//     if next_b.is_none() {
-//         *i1 += 1;
-//         return;
-//     }
-//     if next_a.unwrap() < next_b.unwrap() {
-//         *i1 += 1;
-//         return;
-//     }
-//     *i2 += 1;
-// }
 
 // returns a + k*b
 pub fn add(a: &Arithmetic, k: FieldElement, b: &Arithmetic) -> Arithmetic {
@@ -523,26 +482,33 @@ pub fn add(a: &Arithmetic, k: FieldElement, b: &Arithmetic) -> Arithmetic {
     let mut i1 = 0; //a
     let mut i2 = 0; //b
     while i1 < a.linear_combinations.len() && i2 < b.linear_combinations.len() {
-        if a.linear_combinations[i1].1 < b.linear_combinations[i2].1 {
-            output.linear_combinations.push(a.linear_combinations[i1]);
-            i1 += 1;
-        } else if a.linear_combinations[i1].1 > b.linear_combinations[i2].1 {
-            let coef = b.linear_combinations[i2].0 * k;
-            if coef != FieldElement::zero() {
-                output
-                    .linear_combinations
-                    .push((coef, b.linear_combinations[i2].1));
+        match a.linear_combinations[i1]
+            .1
+            .cmp(&b.linear_combinations[i2].1)
+        {
+            Ordering::Greater => {
+                let coef = b.linear_combinations[i2].0 * k;
+                if coef != FieldElement::zero() {
+                    output
+                        .linear_combinations
+                        .push((coef, b.linear_combinations[i2].1));
+                }
+                i2 += 1;
             }
-            i2 += 1;
-        } else {
-            let coef = a.linear_combinations[i1].0 + b.linear_combinations[i2].0 * k;
-            if coef != FieldElement::zero() {
-                output
-                    .linear_combinations
-                    .push((coef, a.linear_combinations[i1].1));
+            Ordering::Less => {
+                output.linear_combinations.push(a.linear_combinations[i1]);
+                i1 += 1;
             }
-            i2 += 1;
-            i1 += 1;
+            Ordering::Equal => {
+                let coef = a.linear_combinations[i1].0 + b.linear_combinations[i2].0 * k;
+                if coef != FieldElement::zero() {
+                    output
+                        .linear_combinations
+                        .push((coef, a.linear_combinations[i1].1));
+                }
+                i2 += 1;
+                i1 += 1;
+            }
         }
     }
     while i1 < a.linear_combinations.len() {
@@ -563,27 +529,32 @@ pub fn add(a: &Arithmetic, k: FieldElement, b: &Arithmetic) -> Arithmetic {
 
     i1 = 0; //a
     i2 = 0; //b
+
     while i1 < a.mul_terms.len() && i2 < b.mul_terms.len() {
-        if (a.mul_terms[i1].1, a.mul_terms[i1].2) < (b.mul_terms[i2].1, b.mul_terms[i2].2) {
-            output.mul_terms.push(a.mul_terms[i1]);
-            i1 += 1;
-        } else if (a.mul_terms[i1].1, a.mul_terms[i1].2) > (b.mul_terms[i2].1, b.mul_terms[i2].2) {
-            let coef = b.mul_terms[i2].0 * k;
-            if coef != FieldElement::zero() {
-                output
-                    .mul_terms
-                    .push((coef, b.mul_terms[i2].1, b.mul_terms[i2].2));
+        match (a.mul_terms[i1].1, a.mul_terms[i1].2).cmp(&(b.mul_terms[i2].1, b.mul_terms[i2].2)) {
+            Ordering::Greater => {
+                let coef = b.mul_terms[i2].0 * k;
+                if coef != FieldElement::zero() {
+                    output
+                        .mul_terms
+                        .push((coef, b.mul_terms[i2].1, b.mul_terms[i2].2));
+                }
+                i2 += 1;
             }
-            i2 += 1;
-        } else {
-            let coef = a.mul_terms[i1].0 + b.mul_terms[i2].0 * k;
-            if coef != FieldElement::zero() {
-                output
-                    .mul_terms
-                    .push((coef, a.mul_terms[i1].1, a.mul_terms[i1].2));
+            Ordering::Less => {
+                output.mul_terms.push(a.mul_terms[i1]);
+                i1 += 1;
             }
-            i2 += 1;
-            i1 += 1;
+            Ordering::Equal => {
+                let coef = a.mul_terms[i1].0 + b.mul_terms[i2].0 * k;
+                if coef != FieldElement::zero() {
+                    output
+                        .mul_terms
+                        .push((coef, a.mul_terms[i1].1, a.mul_terms[i1].2));
+                }
+                i2 += 1;
+                i1 += 1;
+            }
         }
     }
     while i1 < a.mul_terms.len() {
@@ -687,7 +658,7 @@ pub fn range_constraint(
 // a<=b is done by constraining b-a to a bit size of 'bits':
 // if a<=b, 0 <= b-a <= b < 2^bits
 // if a>b, b-a = p+b-a > p-2^bits >= 2^bits  (if log(p) >= bits + 1)
-// n.b: we de NOT check here that a and b are indeed 'bits' size
+// n.b: we do NOT check here that a and b are indeed 'bits' size
 // a < b <=> a+1<=b
 fn bound_check(
     a: &InternalVar,
@@ -695,9 +666,7 @@ fn bound_check(
     strict: bool,
     bits: u32,
     evaluator: &mut Evaluator,
-)
-//-> Result<RuntimeErrorKind>
-{
+) {
     //todo appeler bound_constrains et rajouter les gates a l'evaluator
     if bits > FieldElement::max_num_bits() - 1
     //TODO max_num_bits() is not log(p)?
@@ -711,15 +680,13 @@ fn bound_check(
     };
     let mut sub_expression = add(&b.expression, -FieldElement::one(), &a.expression); //a-b
     sub_expression.q_c += offset; //a-b+offset
-                                  //range_check requires a witness - TODO may be this can be avoided?
-    let w = evaluator.add_witness_to_cs();
+    let w = evaluator.add_witness_to_cs(); //range_check requires a witness - TODO may be this can be avoided?
     evaluator
         .gates
         .push(Gate::Arithmetic(&sub_expression - &Arithmetic::from(&w)));
     range_constraint(w, bits, evaluator).unwrap_or_else(|err| {
         dbg!(err);
     });
-    //Ok()
 }
 
 pub fn from_witness(witness: Witness) -> Arithmetic {
