@@ -48,7 +48,7 @@ pub fn simplify(eval: &mut IRGenerator, ins: &mut node::Instruction) {
 
     //2. standard form
     ins.standard_form();
-    if ins.operator == node::Operation::cast {
+    if ins.operator == node::Operation::Cast {
         if let Some(lhs_obj) = eval.get_object(ins.lhs) {
             if lhs_obj.get_type() == ins.res_type {
                 ins.is_deleted = true;
@@ -61,29 +61,29 @@ pub fn simplify(eval: &mut IRGenerator, ins: &mut node::Instruction) {
     //3. left-overs (it requires &mut eval)
     if let NodeEval::Const(r_const, r_type) = r_eval {
         match ins.operator {
-            node::Operation::udiv => {
+            node::Operation::Udiv => {
                 //TODO handle other bitsize, not only u32!!
                 ins.rhs = eval.get_const(
                     FieldElement::from((1_u32 / (r_const.to_u128() as u32)) as i128),
                     r_type,
                 );
-                ins.operator = node::Operation::mul
+                ins.operator = node::Operation::Mul
             }
-            node::Operation::sdiv => {
+            node::Operation::Sdiv => {
                 //TODO handle other bitsize, not only i32!!
                 ins.rhs = eval.get_const(
                     FieldElement::from((1_i32 / (r_const.to_u128() as i32)) as i128),
                     r_type,
                 );
-                ins.operator = node::Operation::mul
+                ins.operator = node::Operation::Mul
             }
-            node::Operation::div => {
+            node::Operation::Div => {
                 ins.rhs = eval.get_const(r_const.inverse(), r_type);
-                ins.operator = node::Operation::mul
+                ins.operator = node::Operation::Mul
             }
-            node::Operation::xor => {
+            node::Operation::Xor => {
                 if !r_const.is_zero() {
-                    ins.operator = node::Operation::not;
+                    ins.operator = node::Operation::Not;
                     return;
                 }
             }
@@ -91,8 +91,8 @@ pub fn simplify(eval: &mut IRGenerator, ins: &mut node::Instruction) {
         }
     }
     if let NodeEval::Const(l_const, _) = l_eval {
-        if !l_const.is_zero() && ins.operator == node::Operation::xor {
-            ins.operator = node::Operation::not;
+        if !l_const.is_zero() && ins.operator == node::Operation::Xor {
+            ins.operator = node::Operation::Not;
             ins.lhs = ins.rhs;
         }
     }
@@ -119,7 +119,7 @@ pub fn find_similar_instruction(
 pub fn propagate(eval: &IRGenerator, idx: arena::Index) -> arena::Index {
     let mut result = idx;
     if let Some(obj) = eval.try_get_instruction(idx) {
-        if obj.operator == node::Operation::ass || obj.is_deleted {
+        if obj.operator == node::Operation::Ass || obj.is_deleted {
             result = obj.rhs;
         }
     }
@@ -189,11 +189,14 @@ pub fn block_cse(
                     anchor.get_mut(&ins.operator).unwrap().push_front(*iter);
                     //TODO - Take into account store and load for arrays
                 }
-            } else if ins.operator == node::Operation::ass {
+            } else if ins.operator == node::Operation::Ass {
                 //assignement
                 i_rhs = propagate(eval, ins.rhs);
                 to_delete = true;
-            } else if ins.operator == node::Operation::phi {
+            } else if ins.operator == node::Operation::Cast {
+                i_lhs = propagate(eval, ins.lhs);
+                i_rhs = propagate(eval, ins.rhs);
+            } else if ins.operator == node::Operation::Phi {
                 // propagate phi arguments
                 for a in &ins.phi_arguments {
                     phi_args.push((propagate(eval, a.0), a.1));
@@ -228,7 +231,7 @@ pub fn block_cse(
                 update.is_deleted = to_delete;
                 //update instruction name - for debug/pretty print purposes only /////////////////////
                 if let Some(node::Instruction {
-                    operator: node::Operation::ass,
+                    operator: node::Operation::Ass,
                     lhs,
                     ..
                 }) = eval.try_get_instruction(ii_l)
@@ -243,7 +246,7 @@ pub fn block_cse(
                     }
                 }
                 if let Some(node::Instruction {
-                    operator: node::Operation::ass,
+                    operator: node::Operation::Ass,
                     lhs,
                     ..
                 }) = eval.try_get_instruction(ii_r)

@@ -10,6 +10,13 @@ use num_traits::One;
 use std::collections::{HashMap, VecDeque};
 use std::convert::TryInto;
 
+//Returns the maximum bit size of short integers
+pub fn short_integer_max_bit_size() -> u32 {
+    //TODO: it should be FieldElement::max_num_bits()/2, but for now we do not support more than 128 bits as well
+    //This allows us to do use u128 to represent integer constant values
+    u32::min(FieldElement::max_num_bits() / 2, 128)
+}
+
 //Gets the maximum value of the instruction result
 pub fn get_instruction_max(
     eval: &IRGenerator,
@@ -75,7 +82,7 @@ pub fn truncate(
         //Create a new truncate instruction '(idx): obj trunc bit_size'
         //set current value of obj to idx
         let mut i =
-            node::Instruction::new(node::Operation::trunc, obj_id, rhs_bitsize, obj_type, None);
+            node::Instruction::new(node::Operation::Trunc, obj_id, rhs_bitsize, obj_type, None);
         if i.res_name.ends_with("_t") {
             //TODO we should use %t so that we can check for this substring (% is not a valid char for a variable name) in the name and then write name%t[number+1]
         }
@@ -213,7 +220,7 @@ pub fn block_overflow(
     //since we process the block from the start, the block value map is not relevant
     let mut value_map: HashMap<arena::Index, arena::Index> = HashMap::new();
     for mut ins in b {
-        if ins.operator == node::Operation::nop {
+        if ins.operator == node::Operation::Nop {
             continue;
         }
         //We retrieve get_current_value() in case a previous truncate has updated the value map
@@ -243,7 +250,7 @@ pub fn block_overflow(
             //adds a new truncate(rhs) instruction
             add_to_truncate(eval, r_id, r_obj.bits(), &mut truncate_map, max_map);
         }
-        if ins.operator == node::Operation::cast {
+        if ins.operator == node::Operation::Cast {
             //TODO for now the types we support here are only all integer types (field, signed, unsigned, bool)
             //so a cast would normally translate to a truncate.
             //if res_type and lhs have the same bit size (in a large sens, which include field elements)
@@ -265,7 +272,7 @@ pub fn block_overflow(
                 update_instruction = true;
                 trunc_size = FieldElement::from(ins.res_type.bits() as i128);
                 modify_ins = Some(Instruction::new(
-                    node::Operation::trunc,
+                    node::Operation::Trunc,
                     l_id,
                     l_id,
                     ins.res_type,
@@ -355,53 +362,53 @@ pub fn get_value_from_map(
 //Function is used to check for overflows over the field size, this is why we use BigUint.
 pub fn get_max_value(ins: &Instruction, lhs_max: BigUint, rhs_max: BigUint) -> BigUint {
     match ins.operator {
-        Operation::add => lhs_max + rhs_max,
-        Operation::safe_add => todo!(),
-        Operation::sub => lhs_max + rhs_max,
-        Operation::safe_sub => todo!(),
-        Operation::mul => lhs_max * rhs_max,
-        Operation::safe_mul => todo!(),
-        Operation::udiv => lhs_max,
-        Operation::sdiv => todo!(),
-        Operation::urem => rhs_max - BigUint::from(1_u32),
-        Operation::srem => todo!(),
-        Operation::div => todo!(),
-        Operation::eq => BigUint::from(1_u32),
-        Operation::ne => BigUint::from(1_u32),
-        Operation::ugt => BigUint::from(1_u32),
-        Operation::uge => BigUint::from(1_u32),
-        Operation::ult => BigUint::from(1_u32),
-        Operation::ule => BigUint::from(1_u32),
-        Operation::sgt => BigUint::from(1_u32),
-        Operation::sge => BigUint::from(1_u32),
-        Operation::slt => BigUint::from(1_u32),
-        Operation::sle => BigUint::from(1_u32),
-        Operation::lt => BigUint::from(1_u32),
-        Operation::gt => BigUint::from(1_u32),
-        Operation::lte => BigUint::from(1_u32),
-        Operation::gte => BigUint::from(1_u32),
-        Operation::and => ins.res_type.max_size(),
-        Operation::not => ins.res_type.max_size(),
-        Operation::or => ins.res_type.max_size(),
-        Operation::xor => ins.res_type.max_size(),
+        Operation::Add => lhs_max + rhs_max,
+        Operation::SafeAdd => todo!(),
+        Operation::Sub => lhs_max + rhs_max,
+        Operation::SafeSub => todo!(),
+        Operation::Mul => lhs_max * rhs_max,
+        Operation::SafeMul => todo!(),
+        Operation::Udiv => lhs_max,
+        Operation::Sdiv => todo!(),
+        Operation::Urem => rhs_max - BigUint::from(1_u32),
+        Operation::Srem => todo!(),
+        Operation::Div => todo!(),
+        Operation::Eq => BigUint::from(1_u32),
+        Operation::Ne => BigUint::from(1_u32),
+        Operation::Ugt => BigUint::from(1_u32),
+        Operation::Uge => BigUint::from(1_u32),
+        Operation::Ult => BigUint::from(1_u32),
+        Operation::Ule => BigUint::from(1_u32),
+        Operation::Sgt => BigUint::from(1_u32),
+        Operation::Sge => BigUint::from(1_u32),
+        Operation::Slt => BigUint::from(1_u32),
+        Operation::Sle => BigUint::from(1_u32),
+        Operation::Lt => BigUint::from(1_u32),
+        Operation::Gt => BigUint::from(1_u32),
+        Operation::Lte => BigUint::from(1_u32),
+        Operation::Gte => BigUint::from(1_u32),
+        Operation::And => ins.res_type.max_size(),
+        Operation::Not => ins.res_type.max_size(),
+        Operation::Or => ins.res_type.max_size(),
+        Operation::Xor => ins.res_type.max_size(),
         //'a cast a' means we cast a into res_type of the instruction
-        Operation::cast => {
+        Operation::Cast => {
             let type_max = ins.res_type.max_size();
             BigUint::min(lhs_max, type_max)
         }
-        Operation::trunc => BigUint::min(
+        Operation::Trunc => BigUint::min(
             lhs_max,
             BigUint::from(2_u32).pow(rhs_max.try_into().unwrap()) - BigUint::from(1_u32),
         ),
         //'a = b': a and b must be of same type.
-        Operation::ass => rhs_max,
-        Operation::nop | Operation::jne | Operation::jeq | Operation::jmp => todo!(),
-        Operation::phi => BigUint::max(lhs_max, rhs_max), //TODO operands are in phi_arguments, not lhs/rhs!!
-        Operation::eq_gate => BigUint::min(lhs_max, rhs_max),
+        Operation::Ass => rhs_max,
+        Operation::Nop | Operation::Jne | Operation::Jeq | Operation::Jmp => todo!(),
+        Operation::Phi => BigUint::max(lhs_max, rhs_max), //TODO operands are in phi_arguments, not lhs/rhs!!
+        Operation::EqGate => BigUint::min(lhs_max, rhs_max),
     }
 }
 
 //indicates if the operation is a substraction, we need to check them for underflow
 pub fn is_sub(operator: &Operation) -> bool {
-    matches!(operator, Operation::sub | Operation::safe_sub)
+    matches!(operator, Operation::Sub | Operation::SafeSub)
 }

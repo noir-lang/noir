@@ -42,7 +42,7 @@ pub fn seal_block(igen: &mut IRGenerator, block_id: arena::Index) {
     for i in instructions {
         if let Some(ins) = igen.try_get_instruction(i) {
             let rhs = ins.rhs;
-            if ins.operator == node::Operation::phi {
+            if ins.operator == node::Operation::Phi {
                 write_phi(igen, &pred, rhs, i);
             }
         }

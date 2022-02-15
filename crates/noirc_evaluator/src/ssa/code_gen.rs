@@ -80,7 +80,7 @@ impl<'a> IRGenerator<'a> {
             let rhs_str = self.to_string(ins.rhs);
             let mut ins_str = format!("{} op:{:?} {}", lhs_str, ins.operator, rhs_str);
 
-            if ins.operator == node::Operation::phi {
+            if ins.operator == node::Operation::Phi {
                 ins_str += "(";
                 for (v, b) in &ins.phi_arguments {
                     ins_str += &format!("{:?}:{:?}, ", v.into_raw_parts().0, b.into_raw_parts().0);
@@ -310,7 +310,7 @@ impl<'a> IRGenerator<'a> {
         } else {
             //idx = self.id0;
             todo!();
-            //we should support integer of size < FieldElement::max_num_bits()/2, because else we cannot support multiplication!
+            //we should support integer of size <  integer::short_integer_max_bit_size(), because else we cannot do multiplication!
             //for bigger size, we will need to represent an integer using several field elements, it may be easier to implement them in Noir! (i.e as a Noir library)
         }
         idx
@@ -442,7 +442,7 @@ impl<'a> IRGenerator<'a> {
     fn new_cast_expression(&mut self, lhs: arena::Index, rtype: node::ObjectType) -> arena::Index {
         //generate instruction 'a cast a', with result type rtype
         let i = node::Instruction::new(
-            node::Operation::cast,
+            node::Operation::Cast,
             lhs,
             lhs,
             rtype,
@@ -545,7 +545,7 @@ impl<'a> IRGenerator<'a> {
                 let rhs = self.get_object(rhs_id).unwrap();
                 let r_type = rhs.get_type();
                 let r_id = rhs.get_id();
-                let result = self.new_instruction(new_var_id, r_id, node::Operation::ass, r_type);
+                let result = self.new_instruction(new_var_id, r_id, node::Operation::Ass, r_type);
                 self.update_variable_id(ls_root, new_var_id, result); //update the name and the value map
                 Ok(result)
             }
@@ -591,7 +591,7 @@ impl<'a> IRGenerator<'a> {
             // HirBinaryOpKind::Multiply => binary_op::handle_mul_op(lhs, rhs, self),
             // HirBinaryOpKind::Divide => binary_op::handle_div_op(lhs, rhs, self),
             HirBinaryOpKind::NotEqual => todo!(),
-            HirBinaryOpKind::Equal => Ok(self.new_instruction(lhs, rhs, node::Operation::eq_gate, node::ObjectType::NotAnObject)),
+            HirBinaryOpKind::Equal => Ok(self.new_instruction(lhs, rhs, node::Operation::EqGate, node::ObjectType::NotAnObject)),
             // HirBinaryOpKind::And => binary_op::handle_and_op(lhs, rhs, self),
             // HirBinaryOpKind::Xor => binary_op::handle_xor_op(lhs, rhs, self),
             HirBinaryOpKind::Less =>todo!(),
@@ -654,7 +654,7 @@ impl<'a> IRGenerator<'a> {
         let rhs_id = self.expression_to_object(env, &priv_stmt.expression)?;
         let rhs = self.get_object(rhs_id).unwrap();
         let r_type = rhs.get_type();
-        let result = self.new_instruction(new_var_id, rhs_id, node::Operation::ass, r_type);
+        let result = self.new_instruction(new_var_id, rhs_id, node::Operation::Ass, r_type);
         //self.update_variable_id(lhs_id, new_var_id); //update the name and the value array
         Ok(result)
     }
@@ -692,7 +692,7 @@ impl<'a> IRGenerator<'a> {
         dbg!(id);
 
         //Assign rhs to lhs
-        let result = self.new_instruction(id, rhs_id, node::Operation::ass, rtype);
+        let result = self.new_instruction(id, rhs_id, node::Operation::Ass, rtype);
         //This new variable should not be available in outer scopes.
         let cb = self.get_current_block_mut();
         cb.update_variable(id, result); //update the value array. n.b. we should not update the name as it is the first assignment (let)
@@ -823,7 +823,7 @@ impl<'a> IRGenerator<'a> {
         iter_var.obj_type = node::ObjectType::Unsigned(32); //TODO create_new_variable should set the correct type
         let iter_type = self.get_object_type(iter_id);
         dbg!(iter_type);
-        let iter_ass = self.new_instruction(iter_id, start_idx, node::Operation::ass, iter_type);
+        let iter_ass = self.new_instruction(iter_id, start_idx, node::Operation::Ass, iter_type);
         //We map the iterator to start_idx so that when we seal the join block, we will get the corrdect value.
         self.update_variable_id(iter_id, iter_ass, start_idx);
 
@@ -848,11 +848,11 @@ impl<'a> IRGenerator<'a> {
         let phi = self.generate_empty_phi(join_idx, iter_id);
         self.update_variable_id(iter_id, i1_id, phi); //j'imagine que y'a plus besoin
         let cond =
-            self.new_instruction(phi, end_idx, node::Operation::ne, node::ObjectType::Boolean);
+            self.new_instruction(phi, end_idx, node::Operation::Ne, node::ObjectType::Boolean);
         let to_fix = self.new_instruction(
             cond,
             self.dummy(),
-            node::Operation::jeq,
+            node::Operation::Jeq,
             node::ObjectType::NotAnObject,
         );
 
@@ -876,7 +876,7 @@ impl<'a> IRGenerator<'a> {
 
         //increment iter
         let one = self.get_const(FieldElement::one(), iter_type);
-        let incr = self.new_instruction(phi, one, node::Operation::add, iter_type);
+        let incr = self.new_instruction(phi, one, node::Operation::Add, iter_type);
         let cur_block_id = self.current_block; //It should be the body block, except if the body has CFG statements
         let cur_block = self.get_block_mut(cur_block_id).unwrap();
         cur_block.update_variable(iter_id, incr);
@@ -889,7 +889,7 @@ impl<'a> IRGenerator<'a> {
         self.new_instruction(
             self.dummy(),
             self.get_block(join_idx).get_first_instruction(),
-            node::Operation::jmp,
+            node::Operation::Jmp,
             node::ObjectType::NotAnObject,
         );
         //seal join
@@ -932,14 +932,14 @@ impl<'a> IRGenerator<'a> {
         let block = self.get_block(target_block);
         for i in &block.instructions {
             if let Some(ins) = self.try_get_instruction(*i) {
-                if ins.operator == node::Operation::phi && ins.rhs == root {
+                if ins.operator == node::Operation::Phi && ins.rhs == root {
                     return *i;
                 }
             }
         }
         let v_type = self.get_object_type(root);
         let new_phi =
-            node::Instruction::new(node::Operation::phi, root, root, v_type, Some(target_block));
+            node::Instruction::new(node::Operation::Phi, root, root, v_type, Some(target_block));
         let phi_id = self.nodes.insert(node::NodeObj::Instr(new_phi));
         //ria
         let mut phi_ins = self.try_get_mut_instruction(phi_id).unwrap();

@@ -7,6 +7,7 @@ pub enum BlockType {
     Normal,
     ForJoin,
 }
+
 #[derive(Debug)]
 pub struct BasicBlock {
     pub idx: arena::Index,
@@ -66,7 +67,7 @@ pub fn create_first_block(igen: &mut IRGenerator) {
     igen.new_instruction(
         igen.dummy(),
         igen.dummy(),
-        node::Operation::nop,
+        node::Operation::Nop,
         node::ObjectType::NotAnObject,
     );
 }
@@ -87,7 +88,7 @@ pub fn new_sealed_block(igen: &mut IRGenerator, kind: BlockType) -> arena::Index
     igen.new_instruction(
         igen.dummy(),
         igen.dummy(),
-        node::Operation::nop,
+        node::Operation::Nop,
         node::ObjectType::NotAnObject,
     );
     new_idx
@@ -109,7 +110,7 @@ pub fn new_unsealed_block(igen: &mut IRGenerator, kind: BlockType, left: bool) -
     igen.new_instruction(
         igen.dummy(),
         igen.dummy(),
-        node::Operation::nop,
+        node::Operation::Nop,
         node::ObjectType::NotAnObject,
     );
     new_idx

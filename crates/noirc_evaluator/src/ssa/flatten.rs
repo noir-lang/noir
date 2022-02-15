@@ -33,7 +33,7 @@ fn eval_block(block_id: Index, eval_map: &HashMap<Index, NodeEval>, eval: &mut I
             if let Some(value) = eval_map.get(&ins.lhs) {
                 ins.lhs = value.to_index().unwrap();
             }
-            if ins.operator == Operation::eq_gate {}
+            if ins.operator == Operation::EqGate {}
             //TODO simplify(eval, ins);
         }
     }
@@ -86,15 +86,15 @@ pub fn unroll_std_block(
                     i.operator, new_left, new_right, i.res_type, None, //TODO to fix later
                 );
                 match i.operator {
-                    node::Operation::ass => {
+                    node::Operation::Ass => {
                         unreachable!("unsupported instruction type when unrolling: assign");
                         //To support assignments, we should create a new variable and updates the eval_map with it
                         //however assignments should have already been removed by copy propagation.
                     }
-                    node::Operation::jmp => {
+                    node::Operation::Jmp => {
                         return Some(i.rhs);
                     }
-                    node::Operation::nop => (),
+                    node::Operation::Nop => (),
                     _ => {
                         optim::simplify(eval, &mut new_ins);
                         let result_id;
@@ -191,7 +191,7 @@ pub fn outer_unroll(
         //2. map the Phis variables to their unrolled values:
         for ins in &block_instructions {
             if let Some(ins_obj) = eval.try_get_instruction(*ins) {
-                if ins_obj.operator == node::Operation::phi {
+                if ins_obj.operator == node::Operation::Phi {
                     if eval_map.contains_key(&ins_obj.rhs) {
                         eval_map.insert(ins_obj.lhs, eval_map[&ins_obj.rhs]);
                         //todo test with constants
@@ -200,7 +200,7 @@ pub fn outer_unroll(
                         eval_map.insert(ins_obj.lhs, eval_map[&ins_obj.idx]);
                         //todo test with constants
                     }
-                } else if ins_obj.operator != node::Operation::nop {
+                } else if ins_obj.operator != node::Operation::Nop {
                     break; //no more phis
                 }
             }
@@ -256,7 +256,7 @@ fn evaluate_phi(
                     to_process.push((ins.idx, evaluate_one(node::NodeEval::Idx(phi.0), to, eval)));
                 }
             }
-            if ins.operator != node::Operation::phi && ins.operator != node::Operation::nop {
+            if ins.operator != node::Operation::Phi && ins.operator != node::Operation::Nop {
                 break; //phi instructions are placed at the beginning (and after the first dummy instruction)
             }
         }
@@ -279,9 +279,9 @@ fn evaluate_conditional_jump(
     if let Some(cond_const) = cond.to_const_value() {
         let result = !cond_const.is_zero();
         match jump_ins.operator {
-            node::Operation::jeq => return result,
-            node::Operation::jne => return !result,
-            node::Operation::jmp => return true,
+            node::Operation::Jeq => return result,
+            node::Operation::Jne => return !result,
+            node::Operation::Jmp => return true,
             _ => panic!("loop without conditional statement!"), //TODO shouldn't we return false instead?
         }
     }
@@ -323,7 +323,7 @@ fn evaluate_one(
             let value = eval.get_object(obj_id).unwrap();
             match value {
                 node::NodeObj::Instr(i) => {
-                    if i.operator == node::Operation::phi {
+                    if i.operator == node::Operation::Phi {
                         //n.b phi are handled before, else we should know which block we come from
                         dbg!(i.idx);
                         return node::NodeEval::Idx(i.idx);
@@ -366,7 +366,7 @@ fn evaluate_object(
             // dbg!(value);
             match value {
                 node::NodeObj::Instr(i) => {
-                    if i.operator == node::Operation::phi {
+                    if i.operator == node::Operation::Phi {
                         dbg!(i.idx);
                         return node::NodeEval::Idx(i.idx);
                     }

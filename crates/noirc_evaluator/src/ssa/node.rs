@@ -135,6 +135,7 @@ impl Variable {
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ObjectType {
+    //Numeric(NumericType),
     NativeField,
     // custom_field(BigUint), //TODO requires copy trait for BigUint
     Boolean,
@@ -147,22 +148,25 @@ pub enum ObjectType {
     NotAnObject, //not an object
 }
 
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum NumericType {
+    Signed(u32),
+    Unsigned(u32),
+    NativeField,
+}
+
+impl From<ObjectType> for NumericType {
+    fn from(object_type: ObjectType) -> NumericType {
+        match object_type {
+            ObjectType::Signed(x) => NumericType::Signed(x),
+            ObjectType::Unsigned(x) => NumericType::Unsigned(x),
+            ObjectType::NativeField => NumericType::NativeField,
+            _ => unreachable!("failed to convert an object type into a numeric type"),
+        }
+    }
+}
+
 impl ObjectType {
-    fn is_signed(&self) -> bool {
-        matches!(self, ObjectType::Signed(_))
-    }
-
-    fn is_unsigned(&self) -> bool {
-        matches!(self, ObjectType::Unsigned(_))
-    }
-
-    fn is_field(&self) -> bool {
-        matches!(
-            self,
-            ObjectType::NativeField //| ObjectType::custom_field
-        )
-    }
-
     pub fn get_type_from_object(obj: &Object) -> ObjectType {
         match obj {
             Object::Arithmetic(_) => {
@@ -174,7 +178,13 @@ impl ObjectType {
                 //ObjectType::none
             }
             Object::Constants(_) => ObjectType::NativeField, //TODO
-            Object::Integer(i) => ObjectType::Unsigned(i.num_bits), //TODO signed or unsigned?
+            Object::Integer(i) => {
+                assert!(
+                    i.num_bits < super::integer::short_integer_max_bit_size(),
+                    "long integers are not yet supported"
+                );
+                ObjectType::Unsigned(i.num_bits)
+            } //TODO signed or unsigned?
             Object::Linear(_) => {
                 ObjectType::NativeField //TODO check with Kev!
             }
@@ -186,10 +196,16 @@ impl ObjectType {
         match t {
             noirc_frontend::Type::FieldElement(_) => ObjectType::NativeField,
 
-            noirc_frontend::Type::Integer(_ftype, sign, bit_size) => match sign {
-                noirc_frontend::Signedness::Signed => ObjectType::Signed(bit_size),
-                noirc_frontend::Signedness::Unsigned => ObjectType::Unsigned(bit_size),
-            },
+            noirc_frontend::Type::Integer(_ftype, sign, bit_size) => {
+                assert!(
+                    bit_size < super::integer::short_integer_max_bit_size(),
+                    "long integers are not yet supported"
+                );
+                match sign {
+                    noirc_frontend::Signedness::Signed => ObjectType::Signed(bit_size),
+                    noirc_frontend::Signedness::Unsigned => ObjectType::Unsigned(bit_size),
+                }
+            }
             noirc_frontend::Type::Bool => ObjectType::Boolean,
             x => {
                 let err = format!("currently we do not support type casting to {}", x);
@@ -241,14 +257,6 @@ impl std::fmt::Display for Instruction {
     }
 }
 
-// pub fn print_i(&self) -> String {
-//     if self.res_name.is_empty() {
-//         format!("{:?}", self.idx.into_raw_parts().0)
-//     } else {
-//         self.res_name.clone()
-//     }
-// }
-
 #[derive(Debug, Clone, Copy)]
 pub enum NodeEval {
     Const(FieldElement, ObjectType),
@@ -298,48 +306,48 @@ impl Instruction {
     //indicates whether the left and/or right operand of the instruction is required to be truncated to its bit-width
     pub fn truncate_required(&self, lhs_bits: u32, rhs_bits: u32) -> (bool, bool) {
         match self.operator {
-            Operation::add => (false, false),
-            Operation::safe_add => (false, false),
-            Operation::sub => (false, false),
-            Operation::safe_sub => (false, false),
-            Operation::mul => (false, false),
-            Operation::safe_mul => (false, false),
-            Operation::udiv => (true, true),
-            Operation::sdiv => (true, true),
-            Operation::urem => (true, true),
-            Operation::srem => (true, true),
-            Operation::div => (false, false),
-            Operation::eq => (true, true),
-            Operation::ne => (true, true),
-            Operation::ugt => (true, true),
-            Operation::uge => (true, true),
-            Operation::ult => (true, true),
-            Operation::ule => (true, true),
-            Operation::sgt => (true, true),
-            Operation::sge => (true, true),
-            Operation::slt => (true, true),
-            Operation::sle => (true, true),
-            Operation::lt => (true, true),
-            Operation::gt => (true, true),
-            Operation::lte => (true, true),
-            Operation::gte => (true, true),
-            Operation::and => (true, true),
-            Operation::not => (true, true),
-            Operation::or => (true, true),
-            Operation::xor => (true, true),
-            Operation::cast => {
+            Operation::Add => (false, false),
+            Operation::SafeAdd => (false, false),
+            Operation::Sub => (false, false),
+            Operation::SafeSub => (false, false),
+            Operation::Mul => (false, false),
+            Operation::SafeMul => (false, false),
+            Operation::Udiv => (true, true),
+            Operation::Sdiv => (true, true),
+            Operation::Urem => (true, true),
+            Operation::Srem => (true, true),
+            Operation::Div => (false, false),
+            Operation::Eq => (true, true),
+            Operation::Ne => (true, true),
+            Operation::Ugt => (true, true),
+            Operation::Uge => (true, true),
+            Operation::Ult => (true, true),
+            Operation::Ule => (true, true),
+            Operation::Sgt => (true, true),
+            Operation::Sge => (true, true),
+            Operation::Slt => (true, true),
+            Operation::Sle => (true, true),
+            Operation::Lt => (true, true),
+            Operation::Gt => (true, true),
+            Operation::Lte => (true, true),
+            Operation::Gte => (true, true),
+            Operation::And => (true, true),
+            Operation::Not => (true, true),
+            Operation::Or => (true, true),
+            Operation::Xor => (true, true),
+            Operation::Cast => {
                 if self.res_type.bits() > lhs_bits {
                     return (true, false);
                 }
                 (false, false)
             }
-            Operation::ass => {
+            Operation::Ass => {
                 assert!(lhs_bits == rhs_bits);
                 (false, false)
             }
-            Operation::trunc | Operation::phi => (false, false),
-            Operation::nop | Operation::jne | Operation::jeq | Operation::jmp => (false, false),
-            Operation::eq_gate => (true, true),
+            Operation::Trunc | Operation::Phi => (false, false),
+            Operation::Nop | Operation::Jne | Operation::Jeq | Operation::Jmp => (false, false),
+            Operation::EqGate => (true, true),
         }
     }
 
@@ -348,7 +356,10 @@ impl Instruction {
         match ctype {
             ObjectType::Boolean => (if c.is_zero() { 0 } else { 1 }, 1),
             ObjectType::NativeField => (0, 256),
-            ObjectType::Signed(b) | ObjectType::Unsigned(b) => (c.to_u128(), b), //TODO check how to handle signed integers
+            ObjectType::Signed(b) | ObjectType::Unsigned(b) => {
+                assert!(b < 128); //we do not support integers bigger than 128 bits for now.
+                (c.to_u128(), b)
+            } //TODO check how to handle signed integers
             _ => todo!(),
         }
     }
@@ -372,7 +383,7 @@ impl Instruction {
         let l_is_const = l_constant.is_some();
 
         match self.operator {
-            Operation::add | Operation::safe_add => {
+            Operation::Add | Operation::SafeAdd => {
                 if r_is_zero {
                     return *lhs;
                 } else if l_is_zero {
@@ -389,13 +400,13 @@ impl Instruction {
                     }
                     assert!(l_bsize == r_bsize);
                     let res_value = (l_const + r_const) % l_bsize as u128;
-                    return NodeEval::Const(FieldElement::from(res_value as i128), self.res_type);
+                    return NodeEval::Const(FieldElement::from(res_value), self.res_type);
                 }
                 //if only one is const, we could try to do constant propagation but this will be handled by the arithmetization step anyways
                 //so it is probably not worth it.
                 //same for x+x vs 2*x
             }
-            Operation::sub | Operation::safe_sub => {
+            Operation::Sub | Operation::SafeSub => {
                 if r_is_zero {
                     return *lhs;
                 }
@@ -415,10 +426,10 @@ impl Instruction {
                     //if l_constant.is_some() && r_constant.is_some() {
                     assert!(l_bsize == r_bsize);
                     let res_value = (l_const - r_const) % l_bsize as u128;
-                    return NodeEval::Const(FieldElement::from(res_value as i128), self.res_type);
+                    return NodeEval::Const(FieldElement::from(res_value), self.res_type);
                 }
             }
-            Operation::mul | Operation::safe_mul => {
+            Operation::Mul | Operation::SafeMul => {
                 if r_is_zero {
                     return *rhs;
                 } else if l_is_zero {
@@ -440,12 +451,12 @@ impl Instruction {
 
                     assert!(l_bsize == r_bsize);
                     let res_value = (l_const * r_const) % l_bsize as u128;
-                    return NodeEval::Const(FieldElement::from(res_value as i128), self.res_type);
+                    return NodeEval::Const(FieldElement::from(res_value), self.res_type);
                 }
                 //if only one is const, we could try to do constant propagation but this will be handled by the arithmetization step anyways
                 //so it is probably not worth it.
             }
-            Operation::udiv | Operation::sdiv | Operation::div => {
+            Operation::Udiv | Operation::Sdiv | Operation::Div => {
                 if r_is_zero {
                     todo!("Panic - division by zero");
                 } else if l_is_zero {
@@ -460,7 +471,7 @@ impl Instruction {
                     //return (Some(self.lhs), None, None);
                 }
             }
-            Operation::urem | Operation::srem => {
+            Operation::Urem | Operation::Srem => {
                 if r_is_zero {
                     todo!("Panic - division by zero");
                 } else if l_is_zero {
@@ -468,10 +479,10 @@ impl Instruction {
                 }
                 //constant folding - TODO
                 else if l_constant.is_some() && r_constant.is_some() {
-                    todo!();
+                    todo!("divide l_constant/r_constant but take sign into account");
                 }
             }
-            Operation::uge => {
+            Operation::Uge => {
                 if r_is_zero {
                     return NodeEval::Const(FieldElement::zero(), ObjectType::Boolean);
                     //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
@@ -485,7 +496,7 @@ impl Instruction {
                     return NodeEval::Const(res, ObjectType::Boolean);
                 }
             }
-            Operation::ult => {
+            Operation::Ult => {
                 if r_is_zero {
                     return NodeEval::Const(FieldElement::zero(), ObjectType::Boolean);
                     //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
@@ -499,7 +510,7 @@ impl Instruction {
                     return NodeEval::Const(res, ObjectType::Boolean);
                 }
             }
-            Operation::ule => {
+            Operation::Ule => {
                 if l_is_zero {
                     return NodeEval::Const(FieldElement::one(), ObjectType::Boolean);
                     //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
@@ -513,7 +524,7 @@ impl Instruction {
                     return NodeEval::Const(res, ObjectType::Boolean);
                 }
             }
-            Operation::ugt => {
+            Operation::Ugt => {
                 if l_is_zero {
                     return NodeEval::Const(FieldElement::zero(), ObjectType::Boolean);
                 // u<0 is false for unsigned u
@@ -528,7 +539,7 @@ impl Instruction {
                     return NodeEval::Const(res, ObjectType::Boolean);
                 }
             }
-            Operation::eq => {
+            Operation::Eq => {
                 if self.lhs == self.rhs {
                     return NodeEval::Const(FieldElement::one(), ObjectType::Boolean);
                 } else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
@@ -549,7 +560,7 @@ impl Instruction {
                     }
                 }
             }
-            Operation::ne => {
+            Operation::Ne => {
                 if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
                     if l_bsize == 256 {
                         if let (NodeEval::Const(a, _), NodeEval::Const(b, _)) = (lhs, rhs) {
@@ -568,7 +579,7 @@ impl Instruction {
                     }
                 }
             }
-            Operation::and => {
+            Operation::And => {
                 //Bitwise AND
                 if l_is_zero {
                     return *lhs;
@@ -577,15 +588,11 @@ impl Instruction {
                 } else if self.lhs == self.rhs {
                     return *lhs;
                 } else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
-                    return NodeEval::Const(
-                        FieldElement::from((l_const & r_const) as i128),
-                        self.res_type,
-                    );
+                    return NodeEval::Const(FieldElement::from(l_const & r_const), self.res_type);
                 }
                 //TODO if boolean and not zero, also checks this is correct for field elements
-                //TODO use from u128
             }
-            Operation::or => {
+            Operation::Or => {
                 //Bitwise OR
                 if l_is_zero {
                     return *rhs;
@@ -594,57 +601,37 @@ impl Instruction {
                 } else if self.lhs == self.rhs {
                     return *rhs;
                 } else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
-                    return NodeEval::Const(
-                        FieldElement::from((l_const | r_const) as i128),
-                        self.res_type,
-                    );
+                    return NodeEval::Const(FieldElement::from(l_const | r_const), self.res_type);
                 }
                 //TODO if boolean and not zero, also checks this is correct for field elements
-                //TODO use from u128
             }
 
-            Operation::not => {
-                //todo..
-                // if l_is_zero {
-                //     return NodeEval::Const(FieldElement::one(), ObjectType::Boolean);
-                // } else if l_is_const {
-                //     return NodeEval::Const(FieldElement::zero(), ObjectType::Boolean);
-                // }
+            Operation::Not => {
                 if let Some(l_const) = l_constant {
-                    return NodeEval::Const(FieldElement::from((!l_const) as i128), self.res_type);
+                    return NodeEval::Const(FieldElement::from(!l_const), self.res_type);
                 }
             }
-            Operation::xor => {
-                //todo
-                // if self.lhs == self.rhs {
-                //     return NodeEval::Const(FieldElement::zero(), ObjectType::Boolean);
-                // }
-                // if l_is_zero {
-                //     return *rhs;
-                // }
-                // if r_is_zero {
-                //     return *lhs;
-                // } else if l_is_const && r_is_const {
-                //     return NodeEval::Const(FieldElement::zero(), ObjectType::Boolean);
-                // } else if l_is_const {
-                //     todo!("generate 'not rhs' instruction");
-                // } else if r_is_const {
-                //     todo!("generate 'not lhs' instruction");
-                // }
+            Operation::Xor => {
+                if self.lhs == self.rhs {
+                    return NodeEval::Const(FieldElement::zero(), self.res_type);
+                }
+                if l_is_zero {
+                    return *rhs;
+                }
+                if r_is_zero {
+                    return *lhs;
+                }
                 if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
-                    return NodeEval::Const(
-                        FieldElement::from((l_const ^ r_const) as i128),
-                        self.res_type,
-                    );
+                    return NodeEval::Const(FieldElement::from(l_const ^ r_const), self.res_type);
                 }
-                //TODO use from u128
+                //TODO handle case when l_const is one (or r_const is one) by generating 'not rhs' instruction (or 'not lhs' instruction)
             }
-            Operation::phi => (), //Phi are simplified by simply_phi()
-            Operation::cast => {
+            Operation::Cast => {
                 if l_constant.is_some() {
-                    todo!();
+                    todo!("need to cast l_constant into self.res_type.bits() bit size")
                 }
-            } //
+            }
+            Operation::Phi => (), //Phi are simplified by simply_phi() later on; they must not be simplified here
             _ => (),
         }
         NodeEval::Idx(self.idx)
@@ -677,36 +664,36 @@ impl Instruction {
     pub fn standard_form(&mut self) {
         match self.operator {
             //convert greater into less
-            Operation::ugt => {
+            Operation::Ugt => {
                 std::mem::swap(&mut self.rhs, &mut self.lhs);
-                self.operator = Operation::ult
+                self.operator = Operation::Ult
             }
-            Operation::uge => {
+            Operation::Uge => {
                 std::mem::swap(&mut self.rhs, &mut self.lhs);
-                self.operator = Operation::ule
+                self.operator = Operation::Ule
             }
-            Operation::sgt => {
+            Operation::Sgt => {
                 std::mem::swap(&mut self.rhs, &mut self.lhs);
-                self.operator = Operation::slt
+                self.operator = Operation::Slt
             }
-            Operation::sge => {
+            Operation::Sge => {
                 std::mem::swap(&mut self.rhs, &mut self.lhs);
-                self.operator = Operation::sle
+                self.operator = Operation::Sle
             }
-            Operation::gt => {
+            Operation::Gt => {
                 std::mem::swap(&mut self.rhs, &mut self.lhs);
-                self.operator = Operation::lt
+                self.operator = Operation::Lt
             }
-            Operation::gte => {
+            Operation::Gte => {
                 std::mem::swap(&mut self.rhs, &mut self.lhs);
-                self.operator = Operation::lte
+                self.operator = Operation::Lte
             }
             //TODO replace a<b with a<=b+1, but beware of edge cases!
-            Operation::eq_gate => {
+            Operation::EqGate => {
                 if self.rhs == self.lhs {
                     self.rhs = self.idx;
                     self.is_deleted = true;
-                    self.operator = Operation::nop;
+                    self.operator = Operation::Nop;
                 }
             }
             _ => (),
@@ -718,97 +705,97 @@ impl Instruction {
 }
 
 //adapted from LLVM IR
-#[allow(non_camel_case_types)]
+#[allow(dead_code)]
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum Operation {
-    add,      //(+)
-    safe_add, //(+) safe addition
-    sub,      //(-)
-    safe_sub, //(-) safe subtraction
-    mul,      //(*)
-    safe_mul, //(*) safe multiplication
-    udiv,     //(/) unsigned division
-    sdiv,     //(/) signed division
-    urem,     //(%) modulo; remainder of unsigned division
-    srem,     //(%) remainder of signed division
-    div,      //(/) field division
-    eq,       //(==) equal
-    ne,       //(!=) not equal
-    ugt,      //(>) unsigned greater than
-    uge,      //(>=) unsigned greater or equal
-    ult,      //(<) unsigned less than
-    ule,      //(<=) unsigned less or equal
-    sgt,      //(>) signed greater than
-    sge,      //(>=) signed greater or equal
-    slt,      //(<) signed less than
-    sle,      //(<=) signed less or equal
-    lt,       //(<) field less
-    gt,       //(>) field greater
-    lte,      //(<=) field less or equal
-    gte,      //(<=) field greater or equal
-    and,
-    not,
-    or,
-    xor,
-    cast,  //convert type
-    ass,   //assignement
-    trunc, //truncate
+    Add,     //(+)
+    SafeAdd, //(+) safe addition
+    Sub,     //(-)
+    SafeSub, //(-) safe subtraction
+    Mul,     //(*)
+    SafeMul, //(*) safe multiplication
+    Udiv,    //(/) unsigned division
+    Sdiv,    //(/) signed division
+    Urem,    //(%) modulo; remainder of unsigned division
+    Srem,    //(%) remainder of signed division
+    Div,     //(/) field division
+    Eq,      //(==) equal
+    Ne,      //(!=) not equal
+    Ugt,     //(>) unsigned greater than
+    Uge,     //(>=) unsigned greater or equal
+    Ult,     //(<) unsigned less than
+    Ule,     //(<=) unsigned less or equal
+    Sgt,     //(>) signed greater than
+    Sge,     //(>=) signed greater or equal
+    Slt,     //(<) signed less than
+    Sle,     //(<=) signed less or equal
+    Lt,      //(<) field less
+    Gt,      //(>) field greater
+    Lte,     //(<=) field less or equal
+    Gte,     //(<=) field greater or equal
+    And,     //(&) Bitwise And
+    Not,     //(!) Bitwise Not
+    Or,      //(|) Bitwise Or
+    Xor,     //(^) Bitwise Xor
+    Cast,    //convert type
+    Ass,     //assignement
+    Trunc,   //truncate
 
     //control flow
-    jne, //jump on not equal
-    jeq, //jump on equal
-    jmp, //unconditional jump
-    phi,
-    nop,     // no op
-    eq_gate, //write a gate enforcing equality of the two sides (to support the constrain statement)
+    Jne, //jump on not equal
+    Jeq, //jump on equal
+    Jmp, //unconditional jump
+    Phi,
+    Nop,    // no op
+    EqGate, //write a gate enforcing equality of the two sides (to support the constrain statement)
 }
 
 pub fn is_commutative(op_code: Operation) -> bool {
     matches!(
         op_code,
-        Operation::add
-            | Operation::safe_add
-            | Operation::mul
-            | Operation::safe_mul
-            | Operation::and
-            | Operation::or
-            | Operation::xor
+        Operation::Add
+            | Operation::SafeAdd
+            | Operation::Mul
+            | Operation::SafeMul
+            | Operation::And
+            | Operation::Or
+            | Operation::Xor
     )
 }
 
 pub fn is_binary(op_code: Operation) -> bool {
     matches!(
         op_code,
-        Operation::add
-            | Operation::safe_add
-            | Operation::sub
-            | Operation::safe_sub
-            | Operation::mul
-            | Operation::safe_mul
-            | Operation::udiv
-            | Operation::sdiv
-            | Operation::urem
-            | Operation::srem
-            | Operation::div
-            | Operation::eq
-            | Operation::ne
-            | Operation::ugt
-            | Operation::uge
-            | Operation::ult
-            | Operation::ule
-            | Operation::sgt
-            | Operation::sge
-            | Operation::slt
-            | Operation::sle
-            | Operation::lt
-            | Operation::gt
-            | Operation::lte
-            | Operation::gte
-            | Operation::and
-            | Operation::or
-            | Operation::xor
-            | Operation::trunc
-            | Operation::eq_gate
+        Operation::Add
+            | Operation::SafeAdd
+            | Operation::Sub
+            | Operation::SafeSub
+            | Operation::Mul
+            | Operation::SafeMul
+            | Operation::Udiv
+            | Operation::Sdiv
+            | Operation::Urem
+            | Operation::Srem
+            | Operation::Div
+            | Operation::Eq
+            | Operation::Ne
+            | Operation::Ugt
+            | Operation::Uge
+            | Operation::Ult
+            | Operation::Ule
+            | Operation::Sgt
+            | Operation::Sge
+            | Operation::Slt
+            | Operation::Sle
+            | Operation::Lt
+            | Operation::Gt
+            | Operation::Lte
+            | Operation::Gte
+            | Operation::And
+            | Operation::Or
+            | Operation::Xor
+            | Operation::Trunc
+            | Operation::EqGate
     )
 
     //For the record:  Operation::not | Operation::cast => false | Operation::ass | Operation::trunc
@@ -817,75 +804,55 @@ pub fn is_binary(op_code: Operation) -> bool {
 
 pub fn to_operation(op_kind: HirBinaryOpKind, op_type: ObjectType) -> Operation {
     match op_kind {
-        HirBinaryOpKind::Add => Operation::add,
-        HirBinaryOpKind::Subtract => Operation::sub,
-        HirBinaryOpKind::Multiply => Operation::mul,
-        HirBinaryOpKind::Equal => Operation::eq,
-        HirBinaryOpKind::NotEqual => Operation::ne,
-        HirBinaryOpKind::And => Operation::and,
-        HirBinaryOpKind::Or => Operation::or,
-        HirBinaryOpKind::Xor => Operation::xor,
+        HirBinaryOpKind::Add => Operation::Add,
+        HirBinaryOpKind::Subtract => Operation::Sub,
+        HirBinaryOpKind::Multiply => Operation::Mul,
+        HirBinaryOpKind::Equal => Operation::Eq,
+        HirBinaryOpKind::NotEqual => Operation::Ne,
+        HirBinaryOpKind::And => Operation::And,
+        HirBinaryOpKind::Or => Operation::Or,
+        HirBinaryOpKind::Xor => Operation::Xor,
         HirBinaryOpKind::Divide => {
-            if op_type.is_signed() {
-                return Operation::sdiv;
+            let num_type: NumericType = op_type.into();
+            match num_type {
+                NumericType::Signed(_) => Operation::Sdiv,
+                NumericType::Unsigned(_) => Operation::Udiv,
+                NumericType::NativeField => Operation::Div,
             }
-            if op_type.is_unsigned() {
-                return Operation::udiv;
-            }
-            if op_type.is_field() {
-                return Operation::div;
-            }
-            unreachable!("invalid type"); //TODO error
         }
         HirBinaryOpKind::Less => {
-            if op_type.is_signed() {
-                return Operation::slt;
+            let num_type: NumericType = op_type.into();
+            match num_type {
+                NumericType::Signed(_) => Operation::Slt,
+                NumericType::Unsigned(_) => Operation::Ult,
+                NumericType::NativeField => Operation::Lt,
             }
-            if op_type.is_unsigned() {
-                return Operation::ult;
-            }
-            if op_type.is_field() {
-                return Operation::lt;
-            }
-            unreachable!("invalid type"); //TODO error
         }
         HirBinaryOpKind::Greater => {
-            if op_type.is_signed() {
-                return Operation::sgt;
+            let num_type: NumericType = op_type.into();
+            match num_type {
+                NumericType::Signed(_) => Operation::Sgt,
+                NumericType::Unsigned(_) => Operation::Ugt,
+                NumericType::NativeField => Operation::Gt,
             }
-            if op_type.is_unsigned() {
-                return Operation::ugt;
-            }
-            if op_type.is_field() {
-                return Operation::gt;
-            }
-            unreachable!("invalid type"); //TODO error
         }
         HirBinaryOpKind::LessEqual => {
-            if op_type.is_signed() {
-                return Operation::sle;
+            let num_type: NumericType = op_type.into();
+            match num_type {
+                NumericType::Signed(_) => Operation::Sle,
+                NumericType::Unsigned(_) => Operation::Ult,
+                NumericType::NativeField => Operation::Lte,
             }
-            if op_type.is_unsigned() {
-                return Operation::ule;
-            }
-            if op_type.is_field() {
-                return Operation::lte;
-            }
-            unreachable!("invalid type"); //TODO error
         }
         HirBinaryOpKind::GreaterEqual => {
-            if op_type.is_signed() {
-                return Operation::sge;
+            let num_type: NumericType = op_type.into();
+            match num_type {
+                NumericType::Signed(_) => Operation::Sge,
+                NumericType::Unsigned(_) => Operation::Uge,
+                NumericType::NativeField => Operation::Gte,
             }
-            if op_type.is_unsigned() {
-                return Operation::uge;
-            }
-            if op_type.is_field() {
-                return Operation::gte;
-            }
-            unreachable!("invalid type"); //TODO error
         }
-        HirBinaryOpKind::Assign => Operation::ass,
+        HirBinaryOpKind::Assign => Operation::Ass,
         HirBinaryOpKind::MemberAccess => todo!(),
     }
 }
@@ -894,7 +861,6 @@ pub fn get_witness_from_object(obj: &Object) -> Option<Witness> {
     match obj {
         Object::Integer(i) => Some(i.witness),
         Object::Array(_) => unreachable!("Array has multiple witnesses"),
-        Object::Constants(_) => None,
-        _ => obj.witness(), //("This function should only be called for Integer objects"),
+        _ => obj.witness(),
     }
 }
