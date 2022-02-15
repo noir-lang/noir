@@ -33,7 +33,7 @@ pub fn get_instruction_max_operand(
 ) -> BigUint {
     match ins.operator {
         node::Operation::load(array) => get_load_max(eval, ins.lhs, max_map, vmap, array),
-        _ => get_max_value(&ins, left_max, right_max),
+        _ => get_max_value(ins, left_max, right_max),
     }
 }
 
@@ -303,21 +303,19 @@ pub fn block_overflow(
                     ins.is_deleted = true;
                     ins.rhs = ins.lhs;
                 }
-                if ins.res_type.bits() < l_obj.bits() {
-                    if r_max.bits() as u32 > ins.res_type.bits() {
-                        //we need to truncate
-                        update_instruction = true;
-                        trunc_size = FieldElement::from(ins.res_type.bits() as i128);
-                        modify_ins = Some(Instruction::new(
-                            node::Operation::trunc,
-                            l_id,
-                            l_id,
-                            ins.res_type,
-                            Some(ins.parent_block),
-                        ));
-                        //TODO name for the instruction: modify_ins.res_name = l_obj."name"+"_t";
-                        //n.b. we do not update value map because we re-use the cast instruction
-                    }
+                if ins.res_type.bits() < l_obj.bits() && r_max.bits() as u32 > ins.res_type.bits() {
+                    //we need to truncate
+                    update_instruction = true;
+                    trunc_size = FieldElement::from(ins.res_type.bits() as i128);
+                    modify_ins = Some(Instruction::new(
+                        node::Operation::trunc,
+                        l_id,
+                        l_id,
+                        ins.res_type,
+                        Some(ins.parent_block),
+                    ));
+                    //TODO name for the instruction: modify_ins.res_name = l_obj."name"+"_t";
+                    //n.b. we do not update value map because we re-use the cast instruction
                 }
             }
             _ => (),

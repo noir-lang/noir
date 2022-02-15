@@ -5,7 +5,7 @@ use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::{DiagnosableError, Span};
 use thiserror::Error;
 
-#[derive(Error, Debug, PartialEq, Eq)]
+#[derive(Error, Clone, Debug, PartialEq, Eq)]
 pub enum LexerErrorKind {
     #[error("An unexpected character {:?} was found.", found)]
     UnexpectedCharacter {

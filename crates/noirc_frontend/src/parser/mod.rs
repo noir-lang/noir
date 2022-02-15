@@ -2,9 +2,9 @@ mod errors;
 #[allow(clippy::module_inception)]
 mod parser;
 
-use crate::token::Token;
+use crate::token::{Keyword, Token};
 use crate::{ast::ImportStatement, Expression, NoirStruct};
-use crate::{Ident, NoirFunction};
+use crate::{Ident, NoirFunction, Recoverable};
 
 use chumsky::prelude::*;
 pub use errors::ParserError;
@@ -21,17 +21,17 @@ enum TopLevelStatement {
 
 // Helper trait that gives us simpler type signatures for return types:
 // e.g. impl Parser<T> versus impl Parser<Token, T, Error = Simple<Token>>
-pub trait NoirParser<T>: Parser<Token, T, Error = ParserError> + Sized {}
-impl<P, T> NoirParser<T> for P where P: Parser<Token, T, Error = ParserError> {}
+pub trait NoirParser<T>: Parser<Token, T, Error = ParserError> + Sized + Clone {}
+impl<P, T> NoirParser<T> for P where P: Parser<Token, T, Error = ParserError> + Clone {}
 
 // ExprParser just serves as a type alias for NoirParser<Expression> + Clone
-trait ExprParser: NoirParser<Expression> + Clone {}
-impl<P> ExprParser for P where P: NoirParser<Expression> + Clone {}
+trait ExprParser: NoirParser<Expression> {}
+impl<P> ExprParser for P where P: NoirParser<Expression> {}
 
-fn parenthesized<P, F, T>(parser: P, default: F) -> impl NoirParser<T>
+fn parenthesized<P, T>(parser: P) -> impl NoirParser<T>
 where
     P: NoirParser<T>,
-    F: Fn(Span) -> T,
+    T: Recoverable,
 {
     use Token::*;
     parser
@@ -40,7 +40,7 @@ where
             LeftParen,
             RightParen,
             [(LeftBracket, RightBracket)],
-            default,
+            Recoverable::error,
         ))
 }
 
@@ -64,7 +64,7 @@ fn foldl_with_span<P1, P2, T1, T2, F>(
 where
     P1: NoirParser<T1>,
     P2: NoirParser<T2>,
-    F: Fn(T1, T2, Span) -> T1,
+    F: Fn(T1, T2, Span) -> T1 + Clone,
 {
     spanned(first_parser)
         .then(spanned(to_be_repeated).repeated())
@@ -73,6 +73,93 @@ where
             (f(a, b, span), span)
         })
         .map(|(value, _span)| value)
+}
+
+/// Sequence the two parsers.
+/// Fails if the first parser fails, otherwise forces
+/// the second parser to succeed while logging any errors.
+pub fn then_commit<'a, P1, P2, T1, T2: 'a>(
+    first_parser: P1,
+    second_parser: P2,
+) -> impl NoirParser<(T1, T2)> + 'a
+where
+    P1: NoirParser<T1> + 'a,
+    P2: NoirParser<T2> + 'a,
+    T2: Clone + Recoverable,
+{
+    let second_parser = skip_then_retry_until(second_parser)
+        .map_with_span(|option, span| option.unwrap_or_else(|| Recoverable::error(span)));
+
+    first_parser.then(second_parser)
+}
+
+pub fn then_commit_ignore<'a, P1, P2, T1: 'a, T2: 'a>(
+    first_parser: P1,
+    second_parser: P2,
+) -> impl NoirParser<T1> + 'a
+where
+    P1: NoirParser<T1> + 'a,
+    P2: NoirParser<T2> + 'a,
+    T2: Clone,
+{
+    let second_parser = skip_then_retry_until(second_parser);
+    first_parser.then_ignore(second_parser)
+}
+
+pub fn ignore_then_commit<'a, P1, P2, T1: 'a, T2: Clone + 'a>(
+    first_parser: P1,
+    second_parser: P2,
+) -> impl NoirParser<T2> + 'a
+where
+    P1: NoirParser<T1> + 'a,
+    P2: NoirParser<T2> + 'a,
+    T2: Recoverable,
+{
+    let second_parser = skip_then_retry_until(second_parser)
+        .map_with_span(|option, span| option.unwrap_or_else(|| Recoverable::error(span)));
+
+    first_parser.ignore_then(second_parser)
+}
+
+fn skip_then_retry_until<'a, P, T: 'a>(parser: P) -> impl NoirParser<Option<T>> + 'a
+where
+    P: NoirParser<T> + 'a,
+    T: Clone,
+{
+    let terminators = [
+        Token::EOF,
+        Token::Colon,
+        Token::Semicolon,
+        Token::RightBrace,
+        Token::Keyword(Keyword::Let),
+        Token::Keyword(Keyword::Priv),
+        Token::Keyword(Keyword::Const),
+        Token::Keyword(Keyword::Constrain),
+    ];
+    force(parser.recover_with(chumsky::prelude::skip_then_retry_until(terminators)))
+}
+
+/// Force the given parser to succeed, logging any errors it had
+pub fn force<'a, P, T: 'a>(parser: P) -> impl NoirParser<Option<T>> + 'a
+where
+    P: NoirParser<T> + 'a,
+{
+    parser
+        .clone()
+        .map(Ok)
+        .or_else(|err| Ok(Err(err)))
+        .rewind()
+        .then_with(move |result| match result {
+            Ok(_) => parser.clone().map(Ok).boxed(),
+            Err(err) => empty().map(move |_| Err(err.clone())).boxed(),
+        })
+        .validate(move |result, _, emit| match result {
+            Ok(t) => Some(t),
+            Err(err) => {
+                emit(err);
+                None
+            }
+        })
 }
 
 #[derive(Clone, Debug)]

@@ -572,53 +572,79 @@ impl Instruction {
                 }
             }
             Operation::and => {
+                //Bitwise AND
                 if l_is_zero {
                     return *lhs;
-                } else if r_is_zero || l_is_const {
+                } else if r_is_zero {
                     return *rhs;
-                } else if l_is_const || self.lhs == self.rhs {
+                } else if self.lhs == self.rhs {
                     return *lhs;
+                } else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
+                    return NodeEval::Const(
+                        FieldElement::from((l_const & r_const) as i128),
+                        self.res_type,
+                    );
                 }
+                //TODO if boolean and not zero, also checks this is correct for field elements
+                //TODO use from u128
             }
             Operation::or => {
+                //Bitwise OR
                 if l_is_zero {
                     return *rhs;
-                } else if r_is_zero || l_is_const {
+                } else if r_is_zero {
                     return *lhs;
-                } else if r_is_const || self.lhs == self.rhs {
+                } else if self.lhs == self.rhs {
                     return *rhs;
+                } else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
+                    return NodeEval::Const(
+                        FieldElement::from((l_const | r_const) as i128),
+                        self.res_type,
+                    );
                 }
+                //TODO if boolean and not zero, also checks this is correct for field elements
+                //TODO use from u128
             }
 
             Operation::not => {
-                todo!("bitwise"); //todo!!! bitwise...
-                if l_is_zero {
-                    return NodeEval::Const(FieldElement::one(), ObjectType::Boolean);
-                } else if l_is_const {
-                    return NodeEval::Const(FieldElement::zero(), ObjectType::Boolean);
+                //todo..
+                // if l_is_zero {
+                //     return NodeEval::Const(FieldElement::one(), ObjectType::Boolean);
+                // } else if l_is_const {
+                //     return NodeEval::Const(FieldElement::zero(), ObjectType::Boolean);
+                // }
+                if let Some(l_const) = l_constant {
+                    return NodeEval::Const(FieldElement::from((!l_const) as i128), self.res_type);
                 }
             }
             Operation::xor => {
-                todo!("bitwise"); //todo!!! bitwise...
-                if self.lhs == self.rhs {
-                    return NodeEval::Const(FieldElement::zero(), ObjectType::Boolean);
+                //todo
+                // if self.lhs == self.rhs {
+                //     return NodeEval::Const(FieldElement::zero(), ObjectType::Boolean);
+                // }
+                // if l_is_zero {
+                //     return *rhs;
+                // }
+                // if r_is_zero {
+                //     return *lhs;
+                // } else if l_is_const && r_is_const {
+                //     return NodeEval::Const(FieldElement::zero(), ObjectType::Boolean);
+                // } else if l_is_const {
+                //     todo!("generate 'not rhs' instruction");
+                // } else if r_is_const {
+                //     todo!("generate 'not lhs' instruction");
+                // }
+                if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
+                    return NodeEval::Const(
+                        FieldElement::from((l_const ^ r_const) as i128),
+                        self.res_type,
+                    );
                 }
-                if l_is_zero {
-                    return *rhs;
-                }
-                if r_is_zero {
-                    return *lhs;
-                } else if l_is_const && r_is_const {
-                    return NodeEval::Const(FieldElement::zero(), ObjectType::Boolean);
-                } else if l_is_const {
-                    todo!("generate 'not rhs' instruction");
-                } else if r_is_const {
-                    todo!("generate 'not lhs' instruction");
-                }
+                //TODO use from u128
             }
             Operation::phi => (), //Phi are simplified by simply_phi()
             Operation::cast => {
-                if let Some(l_const) = l_constant {
+                if l_constant.is_some() {
                     todo!();
                 }
             } //

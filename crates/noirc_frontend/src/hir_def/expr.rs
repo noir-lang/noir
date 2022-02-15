@@ -20,6 +20,7 @@ pub enum HirExpression {
     Cast(HirCastExpression),
     For(HirForExpression),
     If(HirIfExpression),
+    Error,
 }
 
 impl HirExpression {
