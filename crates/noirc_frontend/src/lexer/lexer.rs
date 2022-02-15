@@ -78,6 +78,18 @@ impl<'a> Lexer<'a> {
         self.peek_char() == Some(ch)
     }
 
+    fn ampersand(&mut self) -> SpannedTokenResult {
+        if self.peek_char_is('&') {
+            // Note: when we issue this error the first '&' will already be consumed
+            // and the next token issued will be the next '&' which is likely what the
+            // programmer intended anyway.
+            let span = Span::new(self.position..self.position + 2);
+            Err(LexerErrorKind::LogicalAnd { span })
+        } else {
+            self.single_char_token(Token::Ampersand)
+        }
+    }
+
     pub fn next_token(&mut self) -> SpannedTokenResult {
         match self.next_char() {
             Some(x) if { x.is_whitespace() } => {
@@ -92,8 +104,8 @@ impl<'a> Lexer<'a> {
             Some(':') => self.glue(Token::Colon),
             Some('!') => self.glue(Token::Bang),
             Some('-') => self.glue(Token::Minus),
+            Some('&') => self.ampersand(),
             Some('%') => self.single_char_token(Token::Percent),
-            Some('&') => self.single_char_token(Token::Ampersand),
             Some('^') => self.single_char_token(Token::Caret),
             Some(';') => self.single_char_token(Token::Semicolon),
             Some('*') => self.single_char_token(Token::Star),
