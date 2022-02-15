@@ -13,6 +13,8 @@ use crate::object::Object;
 use num_traits::identities::Zero;
 use std::ops::Mul;
 
+use super::mem::MemArray;
+
 pub trait Node: std::fmt::Display {
     fn get_type(&self) -> ObjectType;
     //fn get_bit_size(&self) -> u32;
@@ -162,7 +164,7 @@ impl ObjectType {
         )
     }
 
-     pub fn from_type(t: noirc_frontend::Type) -> ObjectType {
+    pub fn from_type(t: noirc_frontend::Type) -> ObjectType {
         match t {
             noirc_frontend::Type::FieldElement(_) => ObjectType::NativeField,
 
@@ -171,7 +173,7 @@ impl ObjectType {
                 noirc_frontend::Signedness::Unsigned => ObjectType::Unsigned(bit_size),
             },
             noirc_frontend::Type::Bool => ObjectType::Boolean,
-            noirc_frontend::Type::Array(_,_,t) => ObjectType::from_type(*t),
+            noirc_frontend::Type::Array(_, _, t) => ObjectType::from_type(*t),
             x => {
                 let err = format!("currently we do not support type casting to {}", x);
                 todo!("{}", err);
@@ -197,8 +199,6 @@ impl ObjectType {
             Object::Null => ObjectType::NotAnObject,
         }
     }
-
- 
 
     pub fn bits(&self) -> u32 {
         match self {
@@ -342,7 +342,7 @@ impl Instruction {
             Operation::trunc | Operation::phi => (false, false),
             Operation::nop | Operation::jne | Operation::jeq | Operation::jmp => (false, false),
             Operation::eq_gate => (true, true),
-            Operation::load | Operation::store => (false, false),
+            Operation::load(_) | Operation::store(_) => (false, false),
         }
     }
 
@@ -737,8 +737,8 @@ pub enum Operation {
     jmp, //unconditional jump
     phi,
     //memory
-    load,
-    store,
+    load(u32),
+    store(u32),
     //getelementptr?
     nop,     // no op
     eq_gate, //write a gate enforcing equality of the two sides (to support the constrain statement)

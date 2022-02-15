@@ -171,6 +171,7 @@ pub fn block_cse(
             let mut i_rhs = ins.rhs;
             let mut phi_args: Vec<(arena::Index, arena::Index)> = Vec::new();
             let mut to_update_phi = false;
+
             anchor.entry(ins.operator).or_insert_with(VecDeque::new);
             if ins.is_deleted {
                 continue;
@@ -189,41 +190,49 @@ pub fn block_cse(
                     new_list.push(*iter);
                     anchor.get_mut(&ins.operator).unwrap().push_front(*iter);
                 }
-            } else if ins.operator == node::Operation::load || ins.operator == node::Operation::store {
-                i_lhs = propagate(eval, ins.lhs);
-                i_rhs = propagate(eval, ins.rhs);
-                new_list.push(*iter);
-                //TODO CSE for load and store:
-                //find_similar_instruction..
-                //anchor list for 'mem_a' operator, i.e. load or store on array a
-                //specific cse rule (store kill loads and loads kill store)
-                //handle control flow before hand by adding dummy stores on merged blocks
-            } else if ins.operator == node::Operation::ass {
-                //assignement
-                i_rhs = propagate(eval, ins.rhs);
-                to_delete = true;
-            } else if ins.operator == node::Operation::phi {
-                // propagate phi arguments
-                for a in &ins.phi_arguments {
-                    phi_args.push((propagate(eval, a.0), a.1));
-                    if phi_args.last().unwrap().0 != a.0 {
-                        to_update_phi = true;
-                    }
-                }
-                if let Some(first) = node::Instruction::simplify_phi(ins.idx, &phi_args) {
-                    if first == ins.idx {
-                        new_list.push(*iter);
-                    } else {
-                        to_delete = true;
-                        i_rhs = first;
-                        to_update_phi = false;
-                    }
-                } else {
-                    to_delete = true;
-                }
             } else {
-                new_list.push(*iter);
+                match ins.operator {
+                    node::Operation::load(_) | node::Operation::store(_) => {
+                        i_lhs = propagate(eval, ins.lhs);
+                        i_rhs = propagate(eval, ins.rhs);
+                        new_list.push(*iter);
+                        //TODO CSE for load and store:
+                        //find_similar_instruction..
+                        //anchor list for 'mem_a' operator, i.e. load or store on array a
+                        //specific cse rule (store kill loads and loads kill store)
+                        //handle control flow before hand by adding dummy stores on merged blocks
+                    }
+                    node::Operation::ass => {
+                        //assignement
+                        i_rhs = propagate(eval, ins.rhs);
+                        to_delete = true;
+                    }
+                    node::Operation::phi => {
+                        // propagate phi arguments
+                        for a in &ins.phi_arguments {
+                            phi_args.push((propagate(eval, a.0), a.1));
+                            if phi_args.last().unwrap().0 != a.0 {
+                                to_update_phi = true;
+                            }
+                        }
+                        if let Some(first) = node::Instruction::simplify_phi(ins.idx, &phi_args) {
+                            if first == ins.idx {
+                                new_list.push(*iter);
+                            } else {
+                                to_delete = true;
+                                i_rhs = first;
+                                to_update_phi = false;
+                            }
+                        } else {
+                            to_delete = true;
+                        }
+                    }
+                    _ => {
+                        new_list.push(*iter);
+                    }
+                }
             }
+
             if to_update_phi {
                 let update = eval.get_mut_instruction(*iter);
                 update.phi_arguments = phi_args;

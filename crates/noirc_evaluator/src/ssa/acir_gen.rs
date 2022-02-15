@@ -124,15 +124,9 @@ impl Acir {
                 output.q_c += f;
                 output
             }
-            Operation::mul | Operation::safe_mul => {
-                evaluate_mul(&l_c, &r_c, evaluator)
-            }
-            Operation::udiv => {
-                evaluate_udiv(&l_c, &r_c, evaluator)
-            }
-            Operation::sdiv => {
-                evaluate_sdiv(&l_c, &r_c, evaluator)
-            }
+            Operation::mul | Operation::safe_mul => evaluate_mul(&l_c, &r_c, evaluator),
+            Operation::udiv => evaluate_udiv(&l_c, &r_c, evaluator),
+            Operation::sdiv => evaluate_sdiv(&l_c, &r_c, evaluator),
             Operation::urem => todo!(),
             Operation::srem => todo!(),
             Operation::div => todo!(),
@@ -157,20 +151,18 @@ impl Acir {
             Operation::not => todo!(),
             Operation::or => todo!(),
             Operation::xor => todo!(),
-            Operation::cast => {
-                l_c.expression
-            }
+            Operation::cast => l_c.expression,
             Operation::ass | Operation::jne | Operation::jeq | Operation::jmp | Operation::phi => {
                 todo!("invalid instruction");
             }
             Operation::trunc => {
                 assert!(is_const(&r_c.expression));
                 evaluate_truncate(
-                        l_c,
-                        r_c.expression.q_c.to_u128().try_into().unwrap(),
-                        ins.bit_size,
-                        evaluator,
-                    )
+                    l_c,
+                    r_c.expression.q_c.to_u128().try_into().unwrap(),
+                    ins.bit_size,
+                    evaluator,
+                )
             }
             Operation::nop => Arithmetic::default(),
             Operation::eq_gate => {
@@ -178,28 +170,25 @@ impl Acir {
                 evaluator.gates.push(Gate::Arithmetic(output.clone())); //TODO should we create a witness??
                 output
             }
-            Operation::load => {
+            Operation::load(base_adr) => {
                 //retrieves the value from the map if address is known at compile time:
                 //address = l_c and should be constant
                 if let Some(val) = l_c.to_const() {
                     let address = mem::Memory::as_u32(val);
                     if self.memory_map.contains_key(&address) {
-                         self.memory_map[&address].expression.clone()
+                        self.memory_map[&address].expression.clone()
                     } else {
-                        //if not found, then it must be a witnes (else it is non-initialised memory)
-                        let array = cfg.mem.get_array_from_adr(address);
-                        let index = (address - array.adr) as usize;
-                        let w = array.witness[index];
+                        //if not found, then it must be a witness (else it is non-initialised memory)
+                        let index = (address - base_adr) as usize;
+                        let w = cfg.mem.arrays[base_adr as usize].witness[index];
                         Arithmetic::from(Linear::from_witness(w))
                     }
-                }
-                else {
+                } else {
                     todo!();
                 }
-
             }
 
-            Operation::store => {
+            Operation::store(_) => {
                 //maps the address to the rhs if address is known at compile time
                 if let Some(val) = r_c.to_const() {
                     let address = mem::Memory::as_u32(val);
@@ -209,7 +198,6 @@ impl Acir {
                 } else {
                     todo!();
                 }
-                
             }
         };
 
@@ -235,15 +223,15 @@ pub fn evaluate_truncate(
     //1. Generate witnesses a,b,c
     //TODO: we should truncate the arithmetic expression (and so avoid having to create a witness)
     // if lhs is not a witness, but this requires a new truncate directive...TODO
-     let a_witness = lhs
-         .witness
-         .unwrap_or_else(|| generate_witness(&lhs, evaluator));
+    let a_witness = lhs
+        .witness
+        .unwrap_or_else(|| generate_witness(&lhs, evaluator));
     if lhs.witness.is_none() {
         dbg!(a_witness);
+        dbg!(&lhs.expression);
     }
     let b_witness = evaluator.add_witness_to_cs();
     let c_witness = evaluator.add_witness_to_cs();
-    //TODO not in master..
     evaluator.gates.push(Gate::Directive(Directive::Truncate {
         a: a_witness,
         b: b_witness,
@@ -282,12 +270,15 @@ pub fn generate_witness(lhs: &InternalVar, evaluator: &mut Evaluator) -> Witness
     if lhs.expression.mul_terms.is_empty() && lhs.expression.linear_combinations.len() == 1 {
         //TODO check if this case can be optimised
     }
-    let w = evaluator.add_witness_to_cs(); //TODO  set lhs.witness = w
- 
-    evaluator
-        .gates
-        .push(Gate::Arithmetic(&lhs.expression - &Arithmetic::from(&w)));
+    let (_, w) = evaluator.create_intermediate_variable(lhs.expression.clone());
     w
+
+    // let w = evaluator.add_witness_to_cs(); //TODO  set lhs.witness = w
+    // let (_,w) = evaluator.create_intermediate_variable(&lhs.expression);
+    // evaluator
+    //     .gates
+    //     .push(Gate::Arithmetic(&lhs.expression - &Arithmetic::from(&w)));
+    // w
 }
 
 pub fn evaluate_mul(lhs: &InternalVar, rhs: &InternalVar, evaluator: &mut Evaluator) -> Arithmetic {

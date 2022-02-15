@@ -1,7 +1,7 @@
 use acvm::acir::native_types::Witness;
 use acvm::FieldElement;
-use std::convert::TryFrom;
 use std::collections::HashMap;
+use std::convert::TryFrom;
 //use arena;
 use super::super::environment::Environment;
 use super::code_gen::IRGenerator;
@@ -16,7 +16,7 @@ use std::convert::TryInto;
 
 pub struct Memory {
     pub arrays: Vec<MemArray>,
-    pub last_adr: u32, //last address in 'memory'
+    pub last_adr: u32,                          //last address in 'memory'
     pub memory_map: HashMap<u32, arena::Index>, //maps memory adress to expression
 }
 
@@ -25,9 +25,9 @@ pub struct MemArray {
     pub witness: Vec<Witness>,
     pub name: String,
     pub def: IdentId,
-    pub len: u32, //number of elements
-    pub adr: u32, //base address of the array
-    pub max: BigUint,      //Max possible value of array elements
+    pub len: u32,     //number of elements
+    pub adr: u32,     //base address of the array
+    pub max: BigUint, //Max possible value of array elements
 }
 
 impl MemArray {
@@ -117,6 +117,6 @@ impl Memory {
             }
             //Invalid memory address
         }
-        None   //Not a constant object
+        None //Not a constant object
     }
 }

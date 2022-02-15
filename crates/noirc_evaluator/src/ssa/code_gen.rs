@@ -314,7 +314,7 @@ impl<'a> IRGenerator<'a> {
             };
             let obj = node::NodeObj::Const(obj_cst);
             idx = self.add_object(obj);
-        } else  if num_bits < 64 {
+        } else if num_bits < 64 {
             let obj_cst = node::Constant {
                 id: self.id0,
                 value,
@@ -323,8 +323,7 @@ impl<'a> IRGenerator<'a> {
             };
             let obj = node::NodeObj::Const(obj_cst);
             idx = self.add_object(obj);
-        }
-        else {
+        } else {
             //idx = self.id0;
             todo!();
             //we should support integer of size < FieldElement::max_num_bits()/2, because else we cannot support multiplication!
@@ -488,11 +487,14 @@ impl<'a> IRGenerator<'a> {
         let opcode = node::to_operation(op.kind, optype);
         if opcode == node::Operation::ass {
             if let Some(lhs_ins) = self.try_get_mut_instruction(lhs) {
-                if lhs_ins.operator == node::Operation::load {
-                    //make it a store rhs
-                    lhs_ins.operator = node::Operation::store;
-                    lhs_ins.lhs = rhs;
-                    return Ok(lhs);
+                match lhs_ins.operator {
+                    node::Operation::load(array) => {
+                        //make it a store rhs
+                        lhs_ins.operator = node::Operation::store(array);
+                        lhs_ins.lhs = rhs;
+                        return Ok(lhs);
+                    }
+                    _ => (),
                 }
             }
         }
@@ -803,7 +805,7 @@ impl<'a> IRGenerator<'a> {
                 let base_adr = self.get_const(FieldElement::from(address as i128), node::ObjectType::Unsigned(32));
                 let adr_id = self.new_instruction(base_adr, index_as_obj, node::Operation::add, node::ObjectType::Unsigned(32));                //address +=  u32::try_from(index_as_u128).unwrap();
                 //let adr_id = self.get_const(FieldElement::from(address as i128), node::ObjectType::unsigned(32));
-                 Ok(self.new_instruction(adr_id, adr_id, node::Operation::load, o_type))
+                 Ok(self.new_instruction(adr_id, adr_id, node::Operation::load(address), o_type))
                 // arr.get(index_as_u128).map_err(|kind|kind.add_span(span))
             },
             HirExpression::Call(call_expr) => {
@@ -890,7 +892,7 @@ impl<'a> IRGenerator<'a> {
         //     parent_block: join_idx,
         // };
         // let i1_id = self.add_variable(i1, Some(iter_id)); //TODO we do not need them
-                                                          //we generate the phi for the iterator because the iterator is manually created
+        //we generate the phi for the iterator because the iterator is manually created
         let phi = self.generate_empty_phi(join_idx, iter_id);
         self.update_variable_id(iter_id, iter_id, phi); //j'imagine que y'a plus besoin
         let cond =
