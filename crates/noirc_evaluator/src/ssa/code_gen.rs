@@ -785,6 +785,7 @@ impl<'a> IRGenerator<'a> {
             HirExpression::Literal(_) => todo!(),
             HirExpression::Block(_) => todo!("currently block expressions not in for/if branches are not being evaluated. In the future, we should be able to unify the eval_block and all places which require block_expr here"),
             HirExpression::Constructor(_) | HirExpression::MemberAccess(_) => todo!(),
+            HirExpression::Error => todo!(),
         }
     }
 
