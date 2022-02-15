@@ -36,7 +36,7 @@ use crate::{
     BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
     Statement,
 };
-use crate::{Path, StructType};
+use crate::{Path, StructType, ERROR_IDENT};
 use noirc_errors::{Span, Spanned};
 
 use crate::hir::scope::{
@@ -112,9 +112,11 @@ impl<'a> Resolver<'a> {
         }
 
         for unused_var in unused_vars.iter() {
-            self.push_err(ResolverError::UnusedVariable {
-                ident_id: *unused_var,
-            });
+            if self.interner.ident_name(unused_var) != ERROR_IDENT {
+                self.push_err(ResolverError::UnusedVariable {
+                    ident_id: *unused_var,
+                });
+            }
         }
     }
 
@@ -409,6 +411,7 @@ impl<'a> Resolver<'a> {
                     rhs: access.rhs,
                 })
             }
+            ExpressionKind::Error => HirExpression::Error,
         };
 
         let expr_id = self.interner.push_expr(hir_expr);
@@ -467,7 +470,6 @@ impl<'a> Resolver<'a> {
     }
 
     fn get_struct(&self, type_id: TypeId) -> Rc<StructType> {
-        println!("looking up struct type {:?}", type_id);
         self.interner.get_struct(type_id)
     }
 

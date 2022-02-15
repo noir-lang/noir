@@ -126,15 +126,14 @@ fn type_check_const_stmt(
     let resolved_type =
         type_check_declaration(interner, const_stmt.expression, const_stmt.r#type, errors);
 
-    if resolved_type != Type::CONSTANT {
+    if resolved_type != Type::CONSTANT && resolved_type != Type::Error {
         errors.push(
             TypeCheckError::TypeCannotBeUsed {
                 typ: resolved_type.clone(),
                 place: "constant statement",
                 span: interner.expr_span(&const_stmt.expression),
             }
-            .add_context("constant statements can only contain constant types")
-            .unwrap(),
+            .add_context("constant statements can only contain constant types"),
         );
     }
 
@@ -157,8 +156,7 @@ fn type_check_constrain_stmt(
                 place: "constrain statement",
                 span: stmt.0.operator.span,
             }
-            .add_context("only comparison operators can be used in a constrain statement")
-            .unwrap(),
+            .add_context("only comparison operators can be used in a constrain statement"),
         );
     };
 
