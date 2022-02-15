@@ -108,6 +108,7 @@ impl DefCollector {
             ast,
             root_file_id,
             crate_root,
+            crate_id,
             context,
             errors,
         );
@@ -161,6 +162,12 @@ impl DefCollector {
 
         resolve_structs(context, def_collector.collected_types, crate_id, errors);
 
+        // Before we resolve any function symbols we must go through our impls and
+        // re-collect the methods within into their proper module. This cannot be
+        // done before resolution since we need to be able to resolve the type of the
+        // impl since that determines the module we should collect into.
+        collect_impls(context, crate_id, &def_collector.collected_impls, errors);
+
         // Lower each function in the crate. This is now possible since imports have been resolved
         let file_func_ids = resolve_functions(
             &mut context.def_interner,
@@ -182,6 +189,59 @@ impl DefCollector {
         // Type check all of the functions in the crate
         type_check_functions(&mut context.def_interner, file_func_ids, errors);
         type_check_functions(&mut context.def_interner, file_method_ids, errors);
+    }
+}
+
+/// Go through the list of impls and add each function within to the scope
+/// of the module defined by its type.
+fn collect_impls(
+    context: &mut Context,
+    crate_id: CrateId,
+    collected_impls: &HashMap<(Path, LocalModuleId), Vec<UnresolvedFunctions>>,
+    errors: &mut Vec<CollectedErrors>,
+) {
+    let interner = &mut context.def_interner;
+    let def_maps = &mut context.def_maps;
+
+    for ((path, module_id), methods) in collected_impls {
+        let path_resolver = StandardPathResolver::new(ModuleId {
+            local_id: *module_id,
+            krate: crate_id,
+        });
+
+        for unresolved in methods {
+            let resolver = Resolver::new(interner, &path_resolver, def_maps);
+            let (typ, more_errors) = resolver.lookup_type_for_impl(path.clone());
+            if !more_errors.is_empty() {
+                errors.push(CollectedErrors {
+                    file_id: unresolved.file_id,
+                    errors: vecmap(more_errors, |err| err.into_diagnostic(interner)),
+                })
+            }
+
+            if typ != TypeId::dummy_id() {
+                // Grab the scope defined by the struct type. Note that impls are a case
+                // where the scope the methods are added to is not the same as the scope
+                // they are resolved in.
+                let type_module = typ.0.local_id;
+                let scope = &mut def_maps.get_mut(&crate_id).unwrap().modules[type_module.0].scope;
+
+                // .define_func_def(name, func_id);
+                for (_, method_id, method) in &unresolved.functions {
+                    let result = scope.define_func_def(method.name_ident().clone(), *method_id);
+                    if let Err((first_def, second_def)) = result {
+                        let err = DefCollectorErrorKind::DuplicateFunction {
+                            first_def,
+                            second_def,
+                        };
+                        errors.push(CollectedErrors {
+                            file_id: unresolved.file_id,
+                            errors: vec![err.to_diagnostic()],
+                        });
+                    }
+                }
+            }
+        }
     }
 }
 

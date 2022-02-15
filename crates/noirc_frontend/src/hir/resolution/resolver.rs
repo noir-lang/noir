@@ -572,6 +572,10 @@ impl<'a> Resolver<'a> {
         (id != TypeId::dummy_id()).then(|| self.get_struct(id))
     }
 
+    pub fn lookup_type_for_impl(mut self, path: Path) -> (TypeId, Vec<ResolverError>) {
+        (self.lookup_type(path), self.errors)
+    }
+
     fn resolve_path(&mut self, path: Path) -> Option<ModuleDefId> {
         let span = path.span();
         let name = path.as_string();

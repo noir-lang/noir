@@ -23,7 +23,13 @@ pub use namespace::*;
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub struct LocalModuleId(pub Index);
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+impl LocalModuleId {
+    pub fn dummy_id() -> LocalModuleId {
+        LocalModuleId(Index::from_raw_parts(std::usize::MAX, std::u64::MAX))
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct ModuleId {
     pub krate: CrateId,
     pub local_id: LocalModuleId,

@@ -2,8 +2,8 @@ use fm::FileId;
 use noirc_errors::{CollectedErrors, CustomDiagnostic, DiagnosableError};
 
 use crate::{
-    hir::def_collector::dc_crate::UnresolvedStruct, Ident, NoirFunction, NoirImpl, NoirStruct,
-    ParsedModule,
+    graph::CrateId, hir::def_collector::dc_crate::UnresolvedStruct, node_interner::TypeId, Ident,
+    NoirFunction, NoirImpl, NoirStruct, ParsedModule,
 };
 
 use super::{
@@ -27,6 +27,7 @@ pub fn collect_defs<'a>(
     ast: ParsedModule,
     file_id: FileId,
     module_id: LocalModuleId,
+    crate_id: CrateId,
     context: &mut Context,
     errors: &mut Vec<CollectedErrors>,
 ) {
@@ -38,7 +39,7 @@ pub fn collect_defs<'a>(
 
     // First resolve the module declarations
     for decl in ast.module_decls {
-        collector.parse_module_declaration(context, &decl, errors)
+        collector.parse_module_declaration(context, &decl, crate_id, errors)
     }
 
     // Then add the imports to defCollector to resolve once all modules in the hierarchy have been resolved
@@ -53,8 +54,9 @@ pub fn collect_defs<'a>(
             });
     }
 
-    let mut errors_in_same_file = collector.collect_structs(context, ast.types);
-    errors_in_same_file.extend(collector.collect_functions(context, ast.functions));
+    collector.collect_structs(ast.types, crate_id, errors);
+
+    let errors_in_same_file = collector.collect_functions(context, ast.functions);
     collector.collect_impls(context, ast.impls);
 
     if !errors_in_same_file.is_empty() {
@@ -138,15 +140,21 @@ impl<'a> ModCollector<'a> {
     /// Returns a vector of errors if any structs were already defined.
     fn collect_structs(
         &mut self,
-        context: &mut Context,
         types: Vec<NoirStruct>,
-    ) -> Vec<CustomDiagnostic> {
-        let mut errors = vec![];
-
+        krate: CrateId,
+        errors: &mut Vec<CollectedErrors>,
+    ) {
         for struct_definition in types {
-            let id = context.next_struct_id();
-            // let typ = StructType::new(id, struct_definition.clone());
             let name = struct_definition.name.clone();
+
+            // Create the corresponding module for the struct namespace
+            let id = match self.push_child_module(&name, self.file_id, false) {
+                Ok(local_id) => TypeId(ModuleId { krate, local_id }),
+                Err(mut more_errors) => {
+                    errors.append(&mut more_errors);
+                    continue;
+                }
+            };
 
             // Add the struct to scope so its path can be looked up later
             let result = self.def_collector.def_map.modules[self.module_id.0]
@@ -159,7 +167,10 @@ impl<'a> ModCollector<'a> {
                     second_def,
                 };
 
-                errors.push(err.to_diagnostic());
+                errors.push(CollectedErrors {
+                    file_id: self.file_id,
+                    errors: vec![err.to_diagnostic()],
+                });
             }
 
             // And store the TypeId -> StructType mapping somewhere it is reachable
@@ -170,8 +181,6 @@ impl<'a> ModCollector<'a> {
             };
             self.def_collector.collected_types.insert(id, unresolved);
         }
-
-        errors
     }
 
     /// Search for a module named `mod_name`
@@ -181,6 +190,7 @@ impl<'a> ModCollector<'a> {
         &mut self,
         context: &mut Context,
         mod_name: &Ident,
+        crate_id: CrateId,
         errors: &mut Vec<CollectedErrors>,
     ) {
         let child_file_id = match context
@@ -205,13 +215,14 @@ impl<'a> ModCollector<'a> {
         let ast = parse_file(&mut context.file_manager, child_file_id, errors);
 
         // Add module into def collector and get a ModuleId
-        match self.push_child_module(mod_name, child_file_id) {
+        match self.push_child_module(mod_name, child_file_id, true) {
             Err(mut more_errors) => errors.append(&mut more_errors),
             Ok(child_mod_id) => collect_defs(
                 self.def_collector,
                 ast,
                 child_file_id,
                 child_mod_id,
+                crate_id,
                 context,
                 errors,
             ),
@@ -222,6 +233,7 @@ impl<'a> ModCollector<'a> {
         &mut self,
         mod_name: &Ident,
         file_id: FileId,
+        add_to_parent_scope: bool,
     ) -> Result<LocalModuleId, Vec<CollectedErrors>> {
         // Create a new default module
         let module_id = self
@@ -249,24 +261,30 @@ impl<'a> ModCollector<'a> {
         // Add this child module into the scope of the parent module as a module definition
         // module definitions are definitions which can only exist at the module level.
         // ModuleDefinitionIds can be used across crates since they contain the CrateId
-        let mod_id = ModuleId {
-            krate: self.def_collector.def_map.krate,
-            local_id: LocalModuleId(module_id),
-        };
-        modules[self.module_id.0]
-            .scope
-            .define_module_def(mod_name.to_owned(), mod_id)
-            .map_err(|(first_def, second_def)| {
-                let err = DefCollectorErrorKind::DuplicateModuleDecl {
-                    first_def,
-                    second_def,
-                };
+        //
+        // We do not want to do this in the case of struct modules (each struct type corresponds
+        // to a child module containing its methods) since the module name should not shadow
+        // the struct name.
+        if add_to_parent_scope {
+            let mod_id = ModuleId {
+                krate: self.def_collector.def_map.krate,
+                local_id: LocalModuleId(module_id),
+            };
+            modules[self.module_id.0]
+                .scope
+                .define_module_def(mod_name.to_owned(), mod_id)
+                .map_err(|(first_def, second_def)| {
+                    let err = DefCollectorErrorKind::DuplicateModuleDecl {
+                        first_def,
+                        second_def,
+                    };
 
-                vec![CollectedErrors {
-                    file_id: self.file_id,
-                    errors: vec![err.to_diagnostic()],
-                }]
-            })?;
+                    vec![CollectedErrors {
+                        file_id: self.file_id,
+                        errors: vec![err.to_diagnostic()],
+                    }]
+                })?;
+        }
 
         Ok(LocalModuleId(module_id))
     }

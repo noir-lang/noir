@@ -9,6 +9,12 @@ struct Pair {
     second: Field,
 }
 
+impl Foo {
+    fn default() -> Self {
+        Self { bar: 0 }
+    }
+}
+
 impl Pair {
     fn foo(p: Self) -> Foo {
         p.first
@@ -20,7 +26,7 @@ impl Pair {
 }
 
 fn main(x: Field, y : Field) {
-    let first = Foo { bar: 0 };
+    let first = Foo::default();
     let p = Pair { first, second: 1 };
 
     constrain p.bar() == x;

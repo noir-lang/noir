@@ -7,7 +7,9 @@ use noirc_errors::Span;
 
 use crate::Ident;
 
+use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::UnresolvedStruct;
+use crate::hir::def_map::{LocalModuleId, ModuleId};
 use crate::hir_def::types::{StructType, Type};
 use crate::hir_def::{
     expr::HirExpression,
@@ -49,18 +51,17 @@ impl FuncId {
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
-pub struct TypeId(usize);
+pub struct TypeId(pub ModuleId);
 
 impl TypeId {
     //dummy id for error reporting
     // This can be anything, as the program will ultimately fail
     // after resolution
     pub fn dummy_id() -> TypeId {
-        TypeId(std::usize::MAX)
-    }
-
-    pub fn new(n: usize) -> TypeId {
-        TypeId(n)
+        TypeId(ModuleId {
+            krate: CrateId::dummy_id(),
+            local_id: LocalModuleId::dummy_id(),
+        })
     }
 }
 
