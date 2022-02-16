@@ -705,7 +705,7 @@ impl Instruction {
 }
 
 //adapted from LLVM IR
-#[allow(dead_code)]
+#[allow(dead_code)] //Some enums are not used yet, allow dead_code should be removed once they are all implemented.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum Operation {
     Add,     //(+)
