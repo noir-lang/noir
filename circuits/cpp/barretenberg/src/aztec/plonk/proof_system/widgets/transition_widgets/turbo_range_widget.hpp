@@ -21,31 +21,32 @@ namespace widget {
  *
  * In program memory, we place an accumulating base-4 sum of x {a_0, ..., a_15}, where
  *
- *         i
- *        ===
- *        \                  j
- * a   =  /    q         .  4
- *  i     ===   (15 - j)
- *       j = 0
+ *            i                         |
+ *           ===                        | a_0  =                         q_15
+ *           \                  i - j   | a_1  =              q_15 . 4 + q_14
+ *    a   =  /    q         .  4        | a_2  = q_15 . 4^2 + q_14 . 4 + q_13
+ *     i     ===   (15 - j)             |   ...
+ *          j = 0                       | a_15 = x
  *
  *
  * From this, we can use our range transition constraint to validate that
  *
  *
- *  a      - 4 . a  ϵ [0, 1, 2, 3]
- *   i + 1        i
+ *  a      - 4 . a  ϵ {0, 1, 2, 3}  (for the a_i above, we have
+ *   i + 1        i                  a_{i+1} - 4.a_i = q_{14-i}, for i = 0, ..., 15),
  *
+ * setting a_{-1} = 0.
  *
  * We place our accumulating sums in program memory in the following sequence:
  *
  * +-----+-----+-----+-----+
  * |  A  |  B  |  C  |  D  |
  * +-----+-----+-----+-----+
- * | a3  | a2  | a1  | 0   |
- * | a7  | a6  | a5  | a4  |
- * | a11 | a10 | a9  | a8  |
- * | a15 | a14 | a13 | a12 |
- * | --- | --- | --- | a16 |
+ * | a2  | a1  | a0  | 0   |
+ * | a6  | a5  | a4  | a3  |
+ * | a10 | a9  | a8  | a7  |
+ * | a14 | a13 | a12 | a11 |
+ * | --- | --- | --- | a15 |
  * +-----+-----+-----+-----+
  *
  * Our range transition constraint on row 'i'

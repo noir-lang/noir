@@ -48,6 +48,7 @@ template <class Field, class Getters, typename PolyContainer> class TurboArithme
         T3 = q_arith * w_3;
         T4 = q_arith * w_4;
 
+        // T5 imposes w_4 lies in {0, 1, 2}
         T5 = w_4.sqr();
         T5 -= w_4;
         T6 = w_4 + minus_two;
@@ -85,39 +86,61 @@ template <class Field, class Getters, typename PolyContainer> class TurboArithme
         Field T6;
 
         /**
-         * quad extraction term
+         * Quad extraction term. This term is only active when q_arith is set to 2.
          *
          * We evaluate ranges using the turbo_range_widget, which generates a sequence
          * of accumulating sums - each sum aggregates a base-4 value.
          *
          * We sometimes need to extract individual bits from our quads, the following
-         * term will extract the high bit from two accumulators, and add it into the
+         * term will extract the high bit b from two accumulators, and add 6b into the
          * arithmetic identity.
          *
-         * This term is only active when q_arith is set to 2
+         * In more detail, a quad will be represented using accumulators stored in
+         * wires w_3, w_4 via the formula
+         *                 Δ = w_3 - 4.w_4.
+         * We'd like to construct the high bit of Δ in each of the four possible cases
+         * Δ = 0, 1, 2, 3. We could do this via Lagrange interpolation of the points
+         * {(0, 0), (1, 0), (2, 1), (3, 1)} over the domain {0, 1, 2, 3}, leading to
+         * the polynomial
+         *
+         *                     Δ(Δ-1)(Δ-3)  Δ(Δ-1)(Δ-2)
+         *      l_2 + l_3   =  ---------- + ----------- .
+         *                       2.1.-1        3.2.1
+         *
+         * Clearing the denominators, we find that
+         *      9.Δ^2 - 2.Δ^3 - 7.Δ interpolates {(0, 0), (1, 0), (2, 6), (3, 6)},
+         * so we instead treat 6 as the indicator that the high bit of Δ is 1.
          **/
+
+        // T1 = q_arith^2 - q_arith.
         T1 = q_arith.sqr();
         T1 -= q_arith;
 
+        // T2  = Δ
         T2 = w_4 + w_4;
         T2 += T2;
         T2 = w_3 - T2;
 
+        // T3 = 2Δ^2
         T3 = T2.sqr();
         T3 += T3;
 
+        // T4 = 9.Δ
         T4 = T2 + T2;
         T4 += T2;
+        // // T5 = 6.Δ
         T5 = T4 + T4;
         T4 += T5;
 
+        // T4 = 9.Δ - 2.Δ^2 - 7
         T4 -= T3;
         T4 += minus_seven;
 
-        // T2 = 6 iff delta is 2 or 3
-        // T2 = 0 iff delta is 0 or 1 (extracts high bit)
+        // T2 = 9.Δ^2 - 2.Δ^3 - 7.Δ
         T2 *= T4;
 
+        // T1 = (q_arith^2 - q_arith).(9.Δ^2 - 2.Δ^3 - 7.Δ)
+        // Note that, when q_arith = 2, q_arith^2 - q_arith = q_arith
         T1 *= T2;
 
         T1 *= alpha_base;

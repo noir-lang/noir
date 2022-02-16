@@ -7,6 +7,13 @@ namespace plonk {
 namespace stdlib {
 
 template <typename Composer, typename Native>
+/**
+ * @brief Determine whether this > other.
+ *
+ * @details This allows a prover to demonstrate that they have correctly classified a, b
+ * as satisfying either a > b or a <= b.
+ *
+ */
 bool_t<Composer> uint<Composer, Native>::operator>(const uint& other) const
 {
     Composer* ctx = (context == nullptr) ? other.context : context;
@@ -22,11 +29,30 @@ bool_t<Composer> uint<Composer, Native>::operator>(const uint& other) const
     const bool_t<Composer> result = witness_t<Composer>(ctx, result_witness);
 
     /**
-     * if (a > b), then (a - b - 1) will be in the range [0, 2**{width}]
-     * if !(a > b), then (b - a) will be in the range [0, 2**{width}]
-     * i.e. (a - b - 1)result + (b - a)(1 - result) should be positive
+     * The field_t operator on uints normalizes its input, so a and be have
+     * been constrained to the width of Native. That is, both a and b
+     * lie in the closed interval [0, 2*{width} - 1]. Now,
+     *    (a > b) <==>  (a - b - 1) is in the range [0, 2**{width} - 2]
+     * and
+     *   !(a > b) <==>  (b - a)     is in the range [0, 2**{width} - 1].
+     * Consider
+     *   comparison_check = (a - b - 1)result + (b - a)(1 - result).
+     * If comparison_check is in the range [0, 2**{width} - 1] and result is boolean,
+     * then we are left with three possibilities:
+     *   (1) a - b - 1 = 2**{width} - 1
+     *   (2) a > b
+     *   (3) !(a > b)
+     * The bool_t operator on witnesses applies the relevant constraint to result, so we are
+     * left to eliminate possibility (1). The difference a - b is calculated relative to the
+     * circuit modulus r. The number D of distinct Fr elements that can be written this
+     * way is at most M = 2*(2**{width}-1) + 1 = 2**{width+1} - 1, and in fact, D = M if
+     * r > M. Since our r has 252 bits, it suffices to ensure that 2**252 >= M.
+     * Altogether, as long as 252 > width, 2**width cannot be written as the additive inverse
+     * of a of  that width.
      **/
+
     const auto diff = a - b;
+    // diff.result - result + diff.result - diff = diff.(2.result - 1) - result
     const auto comparison_check =
         diff.madd(field_t<Composer>(result) * 2 - field_t<Composer>(1), -field_t<Composer>(result));
     comparison_check.create_range_constraint(width);
@@ -70,8 +96,10 @@ bool_t<Composer> uint<Composer, Native>::operator!=(const uint& other) const
 
 template <typename Composer, typename Native> bool_t<Composer> uint<Composer, Native>::operator!() const
 {
+    // return true if this is zero, otherwise return false.
     return (field_t<Composer>(*this).is_zero()).normalize();
 }
+
 template class uint<waffle::PlookupComposer, uint8_t>;
 template class uint<waffle::PlookupComposer, uint16_t>;
 template class uint<waffle::PlookupComposer, uint32_t>;

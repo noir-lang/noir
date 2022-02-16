@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 #include "safe_uint.hpp"
 #include <numeric/random/engine.hpp>
+#include "../byte_array/byte_array.hpp"
 #include <plonk/composer/standard_composer.hpp>
 #include <plonk/composer/plookup_composer.hpp>
 #include <plonk/composer/turbo_composer.hpp>
@@ -18,6 +19,7 @@ typedef plonk::stdlib::field_t<waffle::TurboComposer> field_t;
 typedef plonk::stdlib::safe_uint_t<waffle::TurboComposer> suint_t;
 typedef plonk::stdlib::witness_t<waffle::TurboComposer> witness_t;
 typedef plonk::stdlib::public_witness_t<waffle::TurboComposer> public_witness_t;
+typedef plonk::stdlib::byte_array<waffle::TurboComposer> byte_array_t;
 
 TEST(stdlib_safeuint, add_and_multiply)
 {
@@ -554,5 +556,20 @@ TEST(stdlib_safeuint, div_remainder_constraint)
     waffle::plonk_proof proof = prover.construct_proof();
     bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, false);
+}
+
+TEST(stdlib_safeuint, test_byte_array_conversion)
+{
+    waffle::TurboComposer composer = waffle::TurboComposer();
+    field_t elt = witness_t(&composer, 0x7f6f5f4f00010203);
+    suint_t safe(elt, 63);
+    // safe.value is a uint256_t, so we serialize to a 32-byte array
+    std::string expected = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                             0x00, 0x00, 0x7f, 0x6f, 0x5f, 0x4f, 0x00, 0x01, 0x02, 0x03 };
+
+    byte_array_t arr(&composer);
+    arr.write(static_cast<byte_array_t>(safe));
+    EXPECT_EQ(arr.get_string(), expected);
 }
 } // namespace test_stdlib_safe_uint

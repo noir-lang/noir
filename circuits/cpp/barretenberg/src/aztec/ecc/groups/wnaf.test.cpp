@@ -29,7 +29,7 @@ void recover_fixed_wnaf(uint64_t* wnaf, bool skew, uint64_t& hi, uint64_t& lo, s
     }
     scalar -= (unsigned __int128)(skew);
     hi = (uint64_t)(unsigned __int128)(scalar >> (unsigned __int128)(64));
-    lo = (uint64_t)(unsigned __int128)(scalar & (unsigned __int128)0xffffffffffffffff);
+    lo = (uint64_t)(unsigned __int128)(scalar & (unsigned __int128)0xffff'ffff'ffff'ffff);
 }
 } // namespace
 

@@ -8,7 +8,21 @@
 namespace plonk {
 namespace stdlib {
 
+/**
+ * @brief A standard library fixed-width unsigned integer type. Useful, e.g., for hashing.
+ * Use safe_uint instead if looking to represent integer arithmetic inside of Fr.
+ *
+ * @tparam Composer The type of the composer context.
+ * @tparam Native   One of the native uint types uintN_t, where N = 8, 16, 32, 64.
+ *
+ * @details All arithmetic operations in Native is done modulo 2**N, and the same is true for
+ * uint<Composer, Native>.
+ */
+
 template <typename Composer, typename Native> class uint {
+    // We only instantiate for widths 8, 16, 32 and 64, and only those widths were audited.
+    static_assert((sizeof(Native) == 1) || (sizeof(Native) == 2) || (sizeof(Native) == 4) || (sizeof(Native) == 8));
+
   public:
     static constexpr size_t width = sizeof(Native) * 8;
 
@@ -17,6 +31,7 @@ template <typename Composer, typename Native> class uint {
     uint(const uint256_t& value = 0);
     uint(Composer* composer, const uint256_t& value = 0);
     uint(const byte_array<Composer>& other);
+    // constructors used for bit arrays
     uint(Composer* parent_context, const std::vector<bool_t<Composer>>& wires);
     uint(Composer* parent_context, const std::array<bool_t<Composer>, width>& wires);
 
@@ -32,13 +47,6 @@ template <typename Composer, typename Native> class uint {
     {
         return (width + Composer::UINT_LOG2_BASE - 1) / Composer::UINT_LOG2_BASE;
     }
-
-    // uint(const char v)
-    //     : uint(uint256_t((uint8_t)v))
-    // {}
-    // uint(uint64_t v)
-    //     : uint(static_cast<uint256_t>(v))
-    // {}
 
     uint(const uint& other);
     uint(uint&& other);
@@ -128,6 +136,8 @@ template <typename Composer, typename Native> class uint {
         *this = operator<<(shift);
         return *this;
     }
+
+    uint256_t get_mask() const { return MASK; };
 
     uint normalize() const;
 

@@ -26,6 +26,13 @@ class RandomEngine : public Engine {
         return static_cast<uint8_t>(out);
     }
 
+    uint16_t get_random_uint16()
+    {
+        auto buf = generate_random_data();
+        uint32_t out = buf[0];
+        return static_cast<uint16_t>(out);
+    }
+
     uint32_t get_random_uint32()
     {
         auto buf = generate_random_data();
@@ -76,6 +83,8 @@ class DebugEngine : public Engine {
     {}
 
     uint8_t get_random_uint8() { return static_cast<uint8_t>(dist(engine)); }
+
+    uint16_t get_random_uint16() { return static_cast<uint16_t>(dist(engine)); }
 
     uint32_t get_random_uint32() { return static_cast<uint32_t>(dist(engine)); }
 

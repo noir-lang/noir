@@ -137,6 +137,7 @@ void init_proving_key(std::shared_ptr<waffle::ReferenceStringFactory> const& crs
     tx.new_account_public_key = grumpkin::g1::affine_one;
     tx.new_signing_pub_key_1 = grumpkin::g1::affine_one;
     tx.new_signing_pub_key_2 = grumpkin::g1::affine_one;
+    tx.signing_pub_key = grumpkin::g1::affine_one;
     tx.account_path.resize(32);
 
     Composer composer(crs_factory);

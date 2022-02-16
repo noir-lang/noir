@@ -4,6 +4,13 @@
 
 namespace test_grumpkin {
 
+TEST(grumpkin, check_b)
+{
+    auto b = grumpkin::g1::curve_b;
+    barretenberg::fr seventeen = 17;
+    EXPECT_EQ(seventeen, -b);
+}
+
 TEST(grumpkin, random_element)
 {
     grumpkin::g1::element result = grumpkin::g1::element::random_element();

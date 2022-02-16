@@ -7,7 +7,7 @@ namespace join_split {
 
 using namespace notes;
 
-inline bool verify_signature(field_ct const& public_value,
+inline void verify_signature(field_ct const& public_value,
                              field_ct const& public_owner,
                              field_ct const& public_asset_id,
                              field_ct const& output_note1_commitment,
@@ -24,7 +24,7 @@ inline bool verify_signature(field_ct const& public_value,
         nullifier2,   backward_link, allow_chain,
     };
     byte_array_ct message = pedersen::compress(to_compress, true);
-    return verify_signature(message, owner_pub_key, signature);
+    verify_signature(message, owner_pub_key, signature);
 }
 
 } // namespace join_split

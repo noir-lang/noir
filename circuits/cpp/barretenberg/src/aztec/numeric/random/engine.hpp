@@ -12,6 +12,8 @@ class Engine {
   public:
     virtual uint8_t get_random_uint8() = 0;
 
+    virtual uint16_t get_random_uint16() = 0;
+
     virtual uint32_t get_random_uint32() = 0;
 
     virtual uint64_t get_random_uint64() = 0;

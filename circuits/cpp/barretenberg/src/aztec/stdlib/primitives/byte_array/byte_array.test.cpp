@@ -11,47 +11,6 @@ typedef stdlib::field_t<waffle::TurboComposer> field_t;
 typedef stdlib::witness_t<waffle::TurboComposer> witness_t;
 typedef stdlib::byte_array<waffle::TurboComposer> byte_array;
 
-/*
-TODO move to uint tests
-TEST(stdlib_byte_array, test_uint32_byte_array_conversion)
-{
-    waffle::TurboComposer composer = waffle::TurboComposer();
-    uint32 a = witness_t(&composer, 0x10000002);
-    std::string expected = { 0x10, 0x00, 0x00, 0x02 };
-    byte_array arr(&composer);
-    arr.write(a);
-
-    EXPECT_EQ(arr.size(), 4UL);
-    EXPECT_EQ(arr.get_value(), expected);
-}
-
-TEST(stdlib_byte_array, test_uint32_input_output_consistency)
-{
-    waffle::TurboComposer composer = waffle::TurboComposer();
-
-    for (size_t i = 1; i < 1024; i *= 2) {
-        uint32_t a_expected = (uint32_t)i;
-        uint32_t b_expected = (uint32_t)i;
-
-        uint32 a = witness_t(&composer, a_expected);
-        uint32 b = witness_t(&composer, b_expected);
-
-        byte_array arr(&composer);
-
-        arr.write(a);
-        arr.write(b);
-
-        EXPECT_EQ(arr.size(), 8UL);
-
-        uint32 a_result(arr.slice(0, 4));
-        uint32 b_result(arr.slice(4));
-
-        EXPECT_EQ(a_result.get_value(), a_expected);
-        EXPECT_EQ(b_result.get_value(), b_expected);
-    }
-}
-*/
-
 TEST(stdlib_byte_array, test_reverse)
 {
     waffle::TurboComposer composer = waffle::TurboComposer();

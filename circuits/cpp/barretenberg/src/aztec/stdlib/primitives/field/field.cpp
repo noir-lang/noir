@@ -588,9 +588,9 @@ void field_t<ComposerContext>::create_range_constraint(const size_t num_bits, st
 }
 
 /**
- * Constrain that this field is equal to the given field.
+ * @brief Constrain that this field is equal to the given field.
  *
- * WARNING: After calling this method, both field values *will* be equal, regardless of whether the constraint
+ * @warning: After calling this method, both field values *will* be equal, regardless of whether the constraint
  * succeeds or fails. This can lead to confusion when debugging. If you want to log the inputs, do so before
  * calling this method.
  */

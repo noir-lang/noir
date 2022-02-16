@@ -1,8 +1,13 @@
-#include "../bool/bool.hpp"
 #include "uint.hpp"
+#include <functional>
 #include <gtest/gtest.h>
 #include <numeric/random/engine.hpp>
+#include <plonk/composer/standard_composer.hpp>
 #include <plonk/composer/turbo_composer.hpp>
+#include <plonk/composer/plookup_composer.hpp>
+
+// #pragma GCC diagnostic ignored "-Wunused-variable"
+// #pragma GCC diagnostic ignored "-Wunused-parameter"
 
 using namespace barretenberg;
 using namespace plonk;
@@ -11,177 +16,373 @@ namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
 
-namespace test_stdlib_uint32 {
-typedef stdlib::bool_t<waffle::TurboComposer> bool_t;
-typedef stdlib::uint8<waffle::TurboComposer> uint8;
-typedef stdlib::uint32<waffle::TurboComposer> uint32;
-typedef stdlib::witness_t<waffle::TurboComposer> witness_t;
+namespace test_stdlib_uint {
+typedef uint32_t uint_native;
+size_t uint_native_width = 8 * sizeof(uint_native);
+uint_native uint_native_max = static_cast<uint_native>((static_cast<uint256_t>(1) << uint_native_width) - 1);
 
-std::vector<uint32_t> get_random_ints(size_t num)
+typedef waffle::TurboComposer Composer;
+typedef stdlib::uint<Composer, uint_native> uint_ct;
+typedef stdlib::bool_t<Composer> bool_ct;
+typedef stdlib::witness_t<Composer> witness_ct;
+typedef stdlib::byte_array<Composer> byte_array_ct;
+
+std::vector<uint_native> special_values({ 0U,
+                                          1U,
+                                          2U,
+                                          static_cast<uint_native>(1 << uint_native_width / 4),
+                                          static_cast<uint_native>(1 << uint_native_width / 2),
+                                          static_cast<uint_native>((1 << uint_native_width / 2) + 1),
+                                          uint_native_max });
+
+size_t num_special_values = special_values.size();
+std::vector<uint_ct> special_uints(num_special_values);
+
+auto set_up_special_cases(Composer* ctx)
 {
-    std::vector<uint32_t> result;
+    for (size_t i = 0; i != num_special_values; ++i) {
+        special_uints[i] = witness_ct(ctx, special_values[i]);
+    };
+};
+
+template <typename Native> Native get_random()
+{
+    return static_cast<uint_native>(engine.get_random_uint64());
+};
+
+template <typename Native> std::vector<Native> get_several_random(size_t num)
+{
+    std::vector<Native> result;
     for (size_t i = 0; i < num; ++i) {
-        result.emplace_back(engine.get_random_uint32());
+        result.emplace_back(get_random<Native>());
     }
     return result;
 }
 
-TEST(stdlib_uint32, test_create_from_wires)
+TEST(stdlib_uint, test_weak_normalize)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    auto run_test = [](bool constant_only, bool add_constant) {
+        Composer composer = Composer();
+        uint_ct a;
+        uint_native a_val = get_random<uint_native>();
+        uint_native const_a = get_random<uint_native>();
+        uint_native expected;
 
-    uint8 a = uint8(&composer,
-                    std::vector<bool_t>{
-                        bool_t(false),
-                        bool_t(false),
-                        bool_t(false),
-                        bool_t(false),
-                        bool_t(false),
-                        bool_t(false),
-                        bool_t(false),
-                        witness_t(&composer, true),
-                    });
+        if (constant_only) {
+            a = const_a;
+            expected = const_a;
+        } else {
+            a = witness_ct(&composer, a_val);
+            expected = a_val;
+            if (add_constant) {
+                a += const_a;
+                expected += const_a;
+            }
+        };
+
+        EXPECT_EQ(expected, a.get_value());
+        auto prover = composer.create_prover();
+        auto verifier = composer.create_verifier();
+        waffle::plonk_proof proof = prover.construct_proof();
+        bool verified = verifier.verify_proof(proof);
+        EXPECT_EQ(verified, true);
+    };
+
+    run_test(true, false);
+    run_test(false, false);
+    run_test(false, true);
+}
+
+TEST(stdlib_uint, test_byte_array_conversion)
+{
+    Composer composer = Composer();
+    uint_ct a = witness_ct(&composer, 0x7f6f5f6f10111213);
+    std::string longest_expected = { 0x7f, 0x6f, 0x5f, 0x4f, 0x10, 0x11, 0x12, 0x13 };
+    // truncate, so we are running different tests for different choices of uint_native
+    std::string expected = longest_expected.substr(longest_expected.length() - sizeof(uint_native));
+    byte_array_ct arr(&composer);
+    arr.write(static_cast<byte_array_ct>(a));
+
+    EXPECT_EQ(arr.size(), sizeof(uint_native));
+    EXPECT_EQ(arr.get_string(), expected);
+}
+
+TEST(stdlib_uint, test_input_output_consistency)
+{
+    Composer composer = Composer();
+
+    for (size_t i = 1; i < 1024; i *= 2) {
+        uint_native a_expected = (uint_native)i;
+        uint_native b_expected = (uint_native)i;
+
+        uint_ct a = witness_ct(&composer, a_expected);
+        uint_ct b = witness_ct(&composer, b_expected);
+
+        byte_array_ct arr(&composer);
+
+        arr.write(static_cast<byte_array_ct>(a));
+        arr.write(static_cast<byte_array_ct>(b));
+
+        EXPECT_EQ(arr.size(), 2 * sizeof(uint_native));
+
+        uint_ct a_result(arr.slice(0, sizeof(uint_native)));
+        uint_ct b_result(arr.slice(sizeof(uint_native)));
+
+        EXPECT_EQ(a_result.get_value(), a_expected);
+        EXPECT_EQ(b_result.get_value(), b_expected);
+    }
+}
+
+TEST(stdlib_uint, test_create_from_wires)
+{
+    Composer composer = Composer();
+
+    uint_ct a = uint_ct(&composer,
+                        std::vector<bool_ct>{
+                            bool_ct(false),
+                            bool_ct(false),
+                            bool_ct(false),
+                            bool_ct(false),
+                            bool_ct(false),
+                            bool_ct(false),
+                            bool_ct(false),
+                            witness_ct(&composer, true),
+                        });
 
     EXPECT_EQ(a.at(0).get_value(), false);
     EXPECT_EQ(a.at(7).get_value(), true);
     EXPECT_EQ(static_cast<uint32_t>(a.get_value()), 128U);
 }
 
-TEST(stdlib_uint32, test_add)
+/**
+ * @brief Test addition of special values.
+ * */
+TEST(stdlib_uint, test_add_special)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
 
-    witness_t first_input(&composer, 1U);
-    witness_t second_input(&composer, 0U);
+    witness_ct first_input(&composer, 1U);
+    witness_ct second_input(&composer, 0U);
 
-    uint32 a = first_input;
-    uint32 b = second_input;
-    uint32 c = a + b;
-    for (size_t i = 0; i < 32; ++i) {
+    uint_ct a = first_input;
+    uint_ct b = second_input;
+    uint_ct c = a + b;
+    /**
+     * Fibbonacci sequence a(0) = 0, a(1), ..., a(2 + 32) = 5702887
+     * a | 1 | 1 | 2 | 3 | 5 | ...
+     * b | 0 | 1 | 1 | 2 | 3 | ...
+     * c | 1 | 2 | 3 | 5 | 8 | ...
+     */
+    for (size_t i = 0; i < uint_native_width; ++i) {
         b = a;
         a = c;
         c = a + b;
     }
-    waffle::TurboProver prover = composer.create_prover();
 
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    set_up_special_cases(&composer);
+    for (size_t i = 0; i != num_special_values; ++i) {
+        uint_native x = special_values[i];
+        uint_ct x_ct = special_uints[i];
 
+        for (size_t j = i; j != num_special_values; ++j) {
+            uint_native y = special_values[j];
+            uint_ct y_ct = special_uints[j];
+
+            uint_native expected_value = x + y;
+            uint_ct z_ct = x_ct + y_ct;
+            uint_native value = static_cast<uint_native>(z_ct.get_value());
+
+            EXPECT_EQ(value, expected_value);
+        }
+    };
+
+    auto prover = composer.create_prover();
+    auto verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
-
     bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, true);
 }
 
-TEST(stdlib_uint32, test_add_with_constants)
+TEST(stdlib_uint, test_sub_special)
 {
-    size_t n = 3;
-    std::vector<uint32_t> witnesses = get_random_ints(3 * n);
-    uint32_t expected[8];
+    Composer composer = Composer();
+
+    witness_ct a_val(&composer, static_cast<uint_native>(4));
+    // witness_ct b_val(&composer, static_cast<uint_native>(5));
+    uint_native const_a = 1;
+    uint_native const_b = 2;
+    uint_ct a = uint_ct(a_val) + const_a;
+    // uint_ct b = uint_ct(b_val) + const_b;
+    uint_ct b = const_b;
+    uint_ct diff = a - b;
+
+    set_up_special_cases(&composer);
+    for (size_t i = 0; i != num_special_values; ++i) {
+        uint_native x = special_values[i];
+        uint_ct x_ct = special_uints[i];
+
+        for (size_t j = i; j != num_special_values; ++j) {
+            uint_native y = special_values[j];
+            uint_ct y_ct = special_uints[j];
+
+            uint_native expected_value = x - y;
+            uint_ct z_ct = x_ct - y_ct;
+            uint_native value = static_cast<uint_native>(z_ct.get_value());
+
+            EXPECT_EQ(value, expected_value);
+        }
+    };
+
+    auto prover = composer.create_prover();
+    auto verifier = composer.create_verifier();
+    waffle::plonk_proof proof = prover.construct_proof();
+    bool verified = verifier.verify_proof(proof);
+
+    EXPECT_EQ(verified, true);
+}
+
+TEST(stdlib_uint, test_add_with_constants)
+{
+    size_t n = 8;
+    std::vector<uint_native> witnesses = get_several_random<uint_native>(3 * n);
+    uint_native expected[8];
     for (size_t i = 2; i < n; ++i) {
         expected[0] = witnesses[3 * i];
         expected[1] = witnesses[3 * i + 1];
         expected[2] = witnesses[3 * i + 2];
         expected[3] = expected[0] + expected[1];
         expected[4] = expected[1] + expected[0];
-        // expected[5] = expected[1] + expected[2];
-        // expected[6] = expected[3] + expected[4];
-        // expected[7] = expected[4] + expected[5];
+        expected[5] = expected[1] + expected[2];
+        expected[6] = expected[3] + expected[4];
+        expected[7] = expected[4] + expected[5];
     }
-    waffle::TurboComposer composer = waffle::TurboComposer();
-    uint32 result[8];
+    Composer composer = Composer();
+    uint_ct result[8];
     for (size_t i = 2; i < n; ++i) {
-        result[0] = uint32(&composer, witnesses[3 * i]);
-        result[1] = (witness_t(&composer, witnesses[3 * i + 1]));
-        // result[2] = (witness_t(&composer, witnesses[3 * i + 2]));
+        result[0] = uint_ct(&composer, witnesses[3 * i]);
+        result[1] = (witness_ct(&composer, witnesses[3 * i + 1]));
+        result[2] = (witness_ct(&composer, witnesses[3 * i + 2]));
         result[3] = result[0] + result[1];
         result[4] = result[1] + result[0];
-        // result[5] = result[1] + result[2];
+        result[5] = result[1] + result[2];
         result[6] = result[3] + result[4];
-        // result[7] = result[4] + result[5];
+        result[7] = result[4] + result[5];
     }
 
-    // for (size_t i = 0; i < 8; ++i) {
-    //     EXPECT_EQ(get_value(result[i]), expected[i]);
-    // }
-    waffle::TurboProver prover = composer.create_prover();
+    for (size_t i = 0; i < n; ++i) {
+        EXPECT_EQ(result[i].get_value(), expected[i]);
+    }
 
-    waffle::TurboVerifier verifier = composer.create_verifier();
-
+    auto prover = composer.create_prover();
+    auto verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
-
     bool proof_valid = verifier.verify_proof(proof);
     EXPECT_EQ(proof_valid, true);
 }
 
-TEST(stdlib_uint32, test_mul)
+TEST(stdlib_uint, test_mul_special)
 {
-    uint32_t a_expected = 1U;
-    uint32_t b_expected = 2U;
-    uint32_t c_expected = a_expected + b_expected;
+    uint_native a_expected = 1U;
+    uint_native b_expected = 2U;
+    uint_native c_expected = a_expected + b_expected;
     for (size_t i = 0; i < 100; ++i) {
         b_expected = a_expected;
         a_expected = c_expected;
         c_expected = a_expected * b_expected;
     }
 
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
 
-    witness_t first_input(&composer, 1U);
-    witness_t second_input(&composer, 2U);
+    witness_ct first_input(&composer, 1U);
+    witness_ct second_input(&composer, 2U);
 
-    uint32 a = first_input;
-    uint32 b = second_input;
-    uint32 c = a + b;
+    uint_ct a = first_input;
+    uint_ct b = second_input;
+    uint_ct c = a + b;
     for (size_t i = 0; i < 100; ++i) {
         b = a;
         a = c;
         c = a * b;
     }
-    uint32_t c_result =
-        static_cast<uint32_t>(composer.get_variable(c.get_witness_index()).from_montgomery_form().data[0]);
+    uint_native c_result =
+        static_cast<uint_native>(composer.get_variable(c.get_witness_index()).from_montgomery_form().data[0]);
     EXPECT_EQ(c_result, c_expected);
-    waffle::TurboProver prover = composer.create_prover();
 
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    set_up_special_cases(&composer);
+    for (size_t i = 0; i != num_special_values; ++i) {
+        uint_native x = special_values[i];
+        uint_ct x_ct = special_uints[i];
 
+        for (size_t j = i; j != num_special_values; ++j) {
+            uint_native y = special_values[j];
+            uint_ct y_ct = special_uints[j];
+
+            uint_native expected_value = x * y;
+            uint_ct z_ct = x_ct * y_ct;
+            uint_native value = static_cast<uint_native>(z_ct.get_value());
+
+            EXPECT_EQ(value, expected_value);
+        }
+    };
+
+    auto prover = composer.create_prover();
+    auto verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
-
     bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, true);
 }
 
-TEST(stdlib_uint32, test_xor)
+TEST(stdlib_uint, test_mul_big)
 {
-    uint32_t a_expected = 0xa3b10422;
-    uint32_t b_expected = 0xeac21343;
-    uint32_t c_expected = a_expected ^ b_expected;
-    for (size_t i = 0; i < 32; ++i) {
+    uint_native max = uint_native_max;
+
+    Composer composer = Composer();
+    uint_ct a = witness_ct(&composer, max);
+    a = a + max;
+    uint_ct b = a;
+    uint_ct c = a * b;
+
+    auto prover = composer.create_prover();
+    auto verifier = composer.create_verifier();
+    waffle::plonk_proof proof = prover.construct_proof();
+    bool result = verifier.verify_proof(proof);
+    EXPECT_EQ(result, true);
+}
+
+TEST(stdlib_uint, test_xor_special)
+{
+    uint_native a_expected = static_cast<uint_native>(0x1312f0ffa3b10422);
+    uint_native b_expected = static_cast<uint_native>(0xfafab007eac21343);
+    uint_native c_expected = a_expected ^ b_expected;
+    for (size_t i = 0; i < uint_native_width; ++i) {
         b_expected = a_expected;
         a_expected = c_expected;
         c_expected = a_expected + b_expected;
         a_expected = c_expected ^ a_expected;
     }
 
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
 
-    witness_t first_input(&composer, 0xa3b10422);
-    witness_t second_input(&composer, 0xeac21343);
+    witness_ct first_input(&composer, static_cast<uint_native>(0x1312f0ffa3b10422));
+    witness_ct second_input(&composer, static_cast<uint_native>(0xfafab007eac21343));
 
-    uint32 a = first_input;
-    uint32 b = second_input;
-    uint32 c = a ^ b;
-    for (size_t i = 0; i < 32; ++i) {
+    uint_ct a = first_input;
+    uint_ct b = second_input;
+    uint_ct c = a ^ b;
+    for (size_t i = 0; i < uint_native_width; ++i) {
         b = a;
         a = c;
         c = a + b;
         a = c ^ a;
     }
-    uint32_t a_result =
-        static_cast<uint32_t>(composer.get_variable(a.get_witness_index()).from_montgomery_form().data[0]);
-    EXPECT_EQ(a_result, a_expected);
-    waffle::TurboProver prover = composer.create_prover();
+    uint_native a_result =
+        static_cast<uint_native>(composer.get_variable(a.get_witness_index()).from_montgomery_form().data[0]);
 
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    EXPECT_EQ(a_result, a_expected);
+
+    auto prover = composer.create_prover();
+
+    auto verifier = composer.create_verifier();
 
     waffle::plonk_proof proof = prover.construct_proof();
 
@@ -189,54 +390,56 @@ TEST(stdlib_uint32, test_xor)
     EXPECT_EQ(result, true);
 }
 
-TEST(stdlib_uint32, test_xor_constants)
+TEST(stdlib_uint, test_xor_constants)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
 
-    uint32_t a_expected = 0xa3b10422;
-    uint32_t b_expected = 0xeac21343;
-    uint32_t c_expected = a_expected ^ b_expected;
+    uint_native a_expected = static_cast<uint_native>(0x1312f0ffa3b10422);
+    uint_native b_expected = static_cast<uint_native>(0xfafab007eac21343);
+    uint_native c_expected = a_expected ^ b_expected;
 
-    uint32 const_a(&composer, 0xa3b10422);
-    uint32 const_b(&composer, 0xeac21343);
-    uint32 c = const_a ^ const_b;
+    uint_ct const_a(&composer, static_cast<uint_native>(0x1312f0ffa3b10422));
+    uint_ct const_b(&composer, static_cast<uint_native>(0xfafab007eac21343));
+    uint_ct c = const_a ^ const_b;
     c.get_witness_index();
 
     EXPECT_EQ(c.get_additive_constant(), uint256_t(c_expected));
 }
 
-TEST(stdlib_uint32, test_xor_more_constants)
+TEST(stdlib_uint, test_xor_more_constants)
 {
-    uint32_t a_expected = 0xa3b10422;
-    uint32_t b_expected = 0xeac21343;
-    uint32_t c_expected = a_expected ^ b_expected;
+    uint_native a_expected = static_cast<uint_native>(0x1312f0ffa3b10422);
+    uint_native b_expected = static_cast<uint_native>(0xfafab007eac21343);
+    uint_native c_expected = a_expected ^ b_expected;
     for (size_t i = 0; i < 1; ++i) {
         b_expected = a_expected;
         a_expected = c_expected;
-        c_expected = (a_expected + b_expected) ^ (0xa3b10422 ^ 0xeac21343);
+        c_expected = (a_expected + b_expected) ^
+                     (static_cast<uint_native>(0x1312f0ffa3b10422) ^ static_cast<uint_native>(0xfafab007eac21343));
     }
 
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
 
-    witness_t first_input(&composer, 0xa3b10422);
-    witness_t second_input(&composer, 0xeac21343);
+    witness_ct first_input(&composer, static_cast<uint_native>(0x1312f0ffa3b10422));
+    witness_ct second_input(&composer, static_cast<uint_native>(0xfafab007eac21343));
 
-    uint32 a = first_input;
-    uint32 b = second_input;
-    uint32 c = a ^ b;
+    uint_ct a = first_input;
+    uint_ct b = second_input;
+    uint_ct c = a ^ b;
     for (size_t i = 0; i < 1; ++i) {
-        uint32 const_a = 0xa3b10422;
-        uint32 const_b = 0xeac21343;
+        uint_ct const_a = static_cast<uint_native>(0x1312f0ffa3b10422);
+        uint_ct const_b = static_cast<uint_native>(0xfafab007eac21343);
         b = a;
         a = c;
         c = (a + b) ^ (const_a ^ const_b);
     }
     uint32_t c_witness_index = c.get_witness_index();
-    uint32_t c_result = static_cast<uint32_t>(composer.get_variable(c_witness_index).from_montgomery_form().data[0]);
+    uint_native c_result =
+        static_cast<uint_native>(composer.get_variable(c_witness_index).from_montgomery_form().data[0]);
     EXPECT_EQ(c_result, c_expected);
-    waffle::TurboProver prover = composer.create_prover();
+    auto prover = composer.create_prover();
 
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     waffle::plonk_proof proof = prover.construct_proof();
 
@@ -244,39 +447,42 @@ TEST(stdlib_uint32, test_xor_more_constants)
     EXPECT_EQ(result, true);
 }
 
-TEST(stdlib_uint32, test_and_constants)
+TEST(stdlib_uint, test_and_constants)
 {
-    uint32_t a_expected = 0xa3b10422;
-    uint32_t b_expected = 0xeac21343;
-    uint32_t c_expected = a_expected & b_expected;
+    uint_native a_expected = static_cast<uint_native>(0x1312f0ffa3b10422);
+    uint_native b_expected = static_cast<uint_native>(0xfafab007eac21343);
+    uint_native c_expected = a_expected & b_expected;
     for (size_t i = 0; i < 1; ++i) {
         b_expected = a_expected;
         a_expected = c_expected;
-        c_expected = (~a_expected & 0xa3b10422) + (b_expected & 0xeac21343);
-        // c_expected = (a_expected + b_expected) & (0xa3b10422 & 0xeac21343);
+        c_expected = (~a_expected & static_cast<uint_native>(0x1312f0ffa3b10422)) +
+                     (b_expected & static_cast<uint_native>(0xfafab007eac21343));
+        // c_expected = (a_expected + b_expected) & (static_cast<uint_native>(0x1312f0ffa3b10422) &
+        // static_cast<uint_native>(0xfafab007eac21343));
     }
 
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
 
-    witness_t first_input(&composer, 0xa3b10422);
-    witness_t second_input(&composer, 0xeac21343);
+    witness_ct first_input(&composer, static_cast<uint_native>(0x1312f0ffa3b10422));
+    witness_ct second_input(&composer, static_cast<uint_native>(0xfafab007eac21343));
 
-    uint32 a = first_input;
-    uint32 b = second_input;
-    uint32 c = a & b;
+    uint_ct a = first_input;
+    uint_ct b = second_input;
+    uint_ct c = a & b;
     for (size_t i = 0; i < 1; ++i) {
-        uint32 const_a = 0xa3b10422;
-        uint32 const_b = 0xeac21343;
+        uint_ct const_a = static_cast<uint_native>(0x1312f0ffa3b10422);
+        uint_ct const_b = static_cast<uint_native>(0xfafab007eac21343);
         b = a;
         a = c;
         c = (~a & const_a) + (b & const_b);
     }
     uint32_t c_witness_index = c.get_witness_index();
-    uint32_t c_result = static_cast<uint32_t>(composer.get_variable(c_witness_index).from_montgomery_form().data[0]);
+    uint_native c_result =
+        static_cast<uint_native>(composer.get_variable(c_witness_index).from_montgomery_form().data[0]);
     EXPECT_EQ(c_result, c_expected);
-    waffle::TurboProver prover = composer.create_prover();
+    auto prover = composer.create_prover();
 
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     waffle::plonk_proof proof = prover.construct_proof();
 
@@ -284,39 +490,39 @@ TEST(stdlib_uint32, test_and_constants)
     EXPECT_EQ(result, true);
 }
 
-TEST(stdlib_uint32s, test_and)
+TEST(stdlib_uint, test_and_special)
 {
-    uint32_t a_expected = 0xa3b10422;
-    uint32_t b_expected = 0xeac21343;
-    uint32_t c_expected = a_expected + b_expected;
-    for (size_t i = 0; i < 32; ++i) {
+    uint_native a_expected = static_cast<uint_native>(0x1312f0ffa3b10422);
+    uint_native b_expected = static_cast<uint_native>(0xfafab007eac21343);
+    uint_native c_expected = a_expected + b_expected;
+    for (size_t i = 0; i < uint_native_width; ++i) {
         b_expected = a_expected;
         a_expected = c_expected;
         c_expected = a_expected + b_expected;
         a_expected = c_expected & a_expected;
     }
 
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
 
-    witness_t first_input(&composer, 0xa3b10422);
-    witness_t second_input(&composer, 0xeac21343);
+    witness_ct first_input(&composer, static_cast<uint_native>(0x1312f0ffa3b10422));
+    witness_ct second_input(&composer, static_cast<uint_native>(0xfafab007eac21343));
 
-    uint32 a = first_input;
-    uint32 b = second_input;
-    uint32 c = a + b;
-    for (size_t i = 0; i < 32; ++i) {
+    uint_ct a = first_input;
+    uint_ct b = second_input;
+    uint_ct c = a + b;
+    for (size_t i = 0; i < uint_native_width; ++i) {
         b = a;
         a = c;
         c = a + b;
         a = c & a;
     }
-    uint32_t a_result =
-        static_cast<uint32_t>(composer.get_variable(a.get_witness_index()).from_montgomery_form().data[0]);
+    uint_native a_result =
+        static_cast<uint_native>(composer.get_variable(a.get_witness_index()).from_montgomery_form().data[0]);
     EXPECT_EQ(a_result, a_expected);
 
-    waffle::TurboProver prover = composer.create_prover();
+    auto prover = composer.create_prover();
 
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     waffle::plonk_proof proof = prover.construct_proof();
 
@@ -324,39 +530,39 @@ TEST(stdlib_uint32s, test_and)
     EXPECT_EQ(result, true);
 }
 
-TEST(stdlib_uint32, test_or)
+TEST(stdlib_uint, test_or_special)
 {
-    uint32_t a_expected = 0xa3b10422;
-    uint32_t b_expected = 0xeac21343;
-    uint32_t c_expected = a_expected ^ b_expected;
-    for (size_t i = 0; i < 32; ++i) {
+    uint_native a_expected = static_cast<uint_native>(0x1312f0ffa3b10422);
+    uint_native b_expected = static_cast<uint_native>(0xfafab007eac21343);
+    uint_native c_expected = a_expected ^ b_expected;
+    for (size_t i = 0; i < uint_native_width; ++i) {
         b_expected = a_expected;
         a_expected = c_expected;
         c_expected = a_expected + b_expected;
         a_expected = c_expected | a_expected;
     }
 
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
 
-    witness_t first_input(&composer, 0xa3b10422);
-    witness_t second_input(&composer, 0xeac21343);
+    witness_ct first_input(&composer, static_cast<uint_native>(0x1312f0ffa3b10422));
+    witness_ct second_input(&composer, static_cast<uint_native>(0xfafab007eac21343));
 
-    uint32 a = first_input;
-    uint32 b = second_input;
-    uint32 c = a ^ b;
-    for (size_t i = 0; i < 32; ++i) {
+    uint_ct a = first_input;
+    uint_ct b = second_input;
+    uint_ct c = a ^ b;
+    for (size_t i = 0; i < uint_native_width; ++i) {
         b = a;
         a = c;
         c = a + b;
         a = c | a;
     }
-    uint32_t a_result =
-        static_cast<uint32_t>(composer.get_variable(a.get_witness_index()).from_montgomery_form().data[0]);
+    uint_native a_result =
+        static_cast<uint_native>(composer.get_variable(a.get_witness_index()).from_montgomery_form().data[0]);
     EXPECT_EQ(a_result, a_expected);
 
-    waffle::TurboProver prover = composer.create_prover();
+    auto prover = composer.create_prover();
 
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     waffle::plonk_proof proof = prover.construct_proof();
 
@@ -364,58 +570,58 @@ TEST(stdlib_uint32, test_or)
     EXPECT_EQ(result, true);
 }
 
-TEST(stdlib_uint32, test_gt)
+TEST(stdlib_uint, test_gt_special)
 {
     const auto run_test = [](bool lhs_constant, bool rhs_constant, int type = 0) {
-        uint32_t a_expected = 0xa3b10422;
-        uint32_t b_expected;
+        uint_native a_expected = static_cast<uint_native>(0x1312f0ffa3b10422);
+        uint_native b_expected;
         switch (type) {
         case 0: {
-            b_expected = 0xbac21343; // a < b
+            b_expected = static_cast<uint_native>(0xbac21343); // a < b
             break;
         }
         case 1: {
-            b_expected = 0x000affe2; // a > b
+            b_expected = static_cast<uint_native>(0x000affe2); // a > b
             break;
         }
         case 2: {
-            b_expected = 0xa3b10422; // a = b
+            b_expected = static_cast<uint_native>(0x1312f0ffa3b10422); // a = b
             break;
         }
         default: {
-            b_expected = 0xbac21343; // a < b
+            b_expected = static_cast<uint_native>(0xbac21343); // a < b
         }
         }
         bool c_expected = a_expected > b_expected;
 
-        waffle::TurboComposer composer = waffle::TurboComposer();
+        Composer composer = Composer();
 
-        uint32 a;
-        uint32 b;
+        uint_ct a;
+        uint_ct b;
         if (lhs_constant) {
-            a = uint32(nullptr, a_expected);
+            a = uint_ct(nullptr, a_expected);
         } else {
-            a = witness_t(&composer, a_expected);
+            a = witness_ct(&composer, a_expected);
         }
         if (rhs_constant) {
-            b = uint32(nullptr, b_expected);
+            b = uint_ct(nullptr, b_expected);
         } else {
-            b = witness_t(&composer, b_expected);
+            b = witness_ct(&composer, b_expected);
         }
         // mix in some constant terms for good measure
-        a *= uint32(&composer, 2);
-        a += uint32(&composer, 0x00112233);
-        b *= uint32(&composer, 2);
-        b += uint32(&composer, 0x00112233);
+        a *= uint_ct(&composer, 2);
+        a += uint_ct(&composer, 0x00112233);
+        b *= uint_ct(&composer, 2);
+        b += uint_ct(&composer, 0x00112233);
 
-        bool_t c = a > b;
+        bool_ct c = a > b;
 
         bool c_result = static_cast<bool>(c.get_value());
         EXPECT_EQ(c_result, c_expected);
 
-        waffle::TurboProver prover = composer.create_prover();
+        auto prover = composer.create_prover();
 
-        waffle::TurboVerifier verifier = composer.create_verifier();
+        auto verifier = composer.create_verifier();
 
         waffle::plonk_proof proof = prover.construct_proof();
 
@@ -437,44 +643,46 @@ TEST(stdlib_uint32, test_gt)
     run_test(true, true, 2);
 }
 
-uint32_t rotate(uint32_t value, size_t rotation)
+uint_native rotate(uint_native value, size_t rotation)
 {
-    return rotation ? (value >> rotation) + (value << (32 - rotation)) : value;
+    return rotation ? static_cast<uint_native>(value >> rotation) +
+                          static_cast<uint_native>(value << (uint_native_width - rotation))
+                    : value;
 }
 
-TEST(stdlib_uint32, test_ror)
+TEST(stdlib_uint, test_ror_special)
 {
-    uint32_t a_expected = 0xa3b10422;
-    uint32_t b_expected = 0xeac21343;
-    uint32_t c_expected = a_expected ^ b_expected;
-    for (size_t i = 0; i < 32; ++i) {
+    uint_native a_expected = static_cast<uint_native>(0x1312f0ffa3b10422);
+    uint_native b_expected = static_cast<uint_native>(0xfafab007eac21343);
+    uint_native c_expected = a_expected ^ b_expected;
+    for (size_t i = 0; i < uint_native_width; ++i) {
         b_expected = a_expected;
         a_expected = c_expected;
         c_expected = a_expected + b_expected;
         a_expected = rotate(c_expected, i % 31) + rotate(a_expected, (i + 1) % 31);
     }
 
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
 
-    witness_t first_input(&composer, 0xa3b10422);
-    witness_t second_input(&composer, 0xeac21343);
+    witness_ct first_input(&composer, static_cast<uint_native>(0x1312f0ffa3b10422));
+    witness_ct second_input(&composer, static_cast<uint_native>(0xfafab007eac21343));
 
-    uint32 a = first_input;
-    uint32 b = second_input;
-    uint32 c = a ^ b;
-    for (size_t i = 0; i < 32; ++i) {
+    uint_ct a = first_input;
+    uint_ct b = second_input;
+    uint_ct c = a ^ b;
+    for (size_t i = 0; i < uint_native_width; ++i) {
         b = a;
         a = c;
         c = a + b;
-        a = c.ror(static_cast<uint32_t>(i % 31)) + a.ror(static_cast<uint32_t>((i + 1) % 31));
+        a = c.ror(static_cast<uint_native>(i % 31)) + a.ror(static_cast<uint_native>((i + 1) % 31));
     }
-    uint32_t a_result =
-        static_cast<uint32_t>(composer.get_variable(a.get_witness_index()).from_montgomery_form().data[0]);
+    uint_native a_result =
+        static_cast<uint_native>(composer.get_variable(a.get_witness_index()).from_montgomery_form().data[0]);
     EXPECT_EQ(a_result, a_expected);
 
-    waffle::TurboProver prover = composer.create_prover();
+    auto prover = composer.create_prover();
 
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     waffle::plonk_proof proof = prover.construct_proof();
 
@@ -482,49 +690,81 @@ TEST(stdlib_uint32, test_ror)
     EXPECT_EQ(result, true);
 }
 
-uint32_t k_constants[64]{ 0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4,
-                          0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe,
-                          0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f,
-                          0x4a7484aa, 0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7,
-                          0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc,
-                          0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b,
-                          0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070, 0x19a4c116,
-                          0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
-                          0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7,
-                          0xc67178f2 };
-uint32_t round_values[8]{
-    0x01020304, 0x0a0b0c0d, 0x1a2b3e4d, 0x03951bd3, 0x0e0fa3fe, 0x01000000, 0x0f0eeea1, 0x12345678
-};
-
-// subtraction
-// A - B
-// = 2^{32} - B + A
-// ...but only if constants are zero
-// can also do (2^{32} - B + A) + (2^{32} - B.const)
-// ...but what about multiplicative value? Um...erm...
-TEST(stdlib_uint32, test_hash_rounds)
+/**
+ * @brief If uint_native_width == 32, test part of SHA256. Otherwise, do something similar.
+ *
+ * @details Notes that the static casts have to be there becuase of -Wc++11-narrowing flag.
+ *
+ * TurboPLONK:     19896 gates
+ * StandardPLONK: 210363 gates
+ */
+TEST(stdlib_uint, test_hash_rounds)
 {
-    uint32_t w_alt[64];
+    std::vector<uint_native> k_constants(64);
+    std::vector<uint_native> round_values(8);
+    if (uint_native_width == 32) {
+        k_constants = { static_cast<uint_native>(0x428a2f98), static_cast<uint_native>(0x71374491),
+                        static_cast<uint_native>(0xb5c0fbcf), static_cast<uint_native>(0xe9b5dba5),
+                        static_cast<uint_native>(0x3956c25b), static_cast<uint_native>(0x59f111f1),
+                        static_cast<uint_native>(0x923f82a4), static_cast<uint_native>(0xab1c5ed5),
+                        static_cast<uint_native>(0xd807aa98), static_cast<uint_native>(0x12835b01),
+                        static_cast<uint_native>(0x243185be), static_cast<uint_native>(0x550c7dc3),
+                        static_cast<uint_native>(0x72be5d74), static_cast<uint_native>(0x80deb1fe),
+                        static_cast<uint_native>(0x9bdc06a7), static_cast<uint_native>(0xc19bf174),
+                        static_cast<uint_native>(0xe49b69c1), static_cast<uint_native>(0xefbe4786),
+                        static_cast<uint_native>(0x0fc19dc6), static_cast<uint_native>(0x240ca1cc),
+                        static_cast<uint_native>(0x2de92c6f), static_cast<uint_native>(0x4a7484aa),
+                        static_cast<uint_native>(0x5cb0a9dc), static_cast<uint_native>(0x76f988da),
+                        static_cast<uint_native>(0x983e5152), static_cast<uint_native>(0xa831c66d),
+                        static_cast<uint_native>(0xb00327c8), static_cast<uint_native>(0xbf597fc7),
+                        static_cast<uint_native>(0xc6e00bf3), static_cast<uint_native>(0xd5a79147),
+                        static_cast<uint_native>(0x06ca6351), static_cast<uint_native>(0x14292967),
+                        static_cast<uint_native>(0x27b70a85), static_cast<uint_native>(0x2e1b2138),
+                        static_cast<uint_native>(0x4d2c6dfc), static_cast<uint_native>(0x53380d13),
+                        static_cast<uint_native>(0x650a7354), static_cast<uint_native>(0x766a0abb),
+                        static_cast<uint_native>(0x81c2c92e), static_cast<uint_native>(0x92722c85),
+                        static_cast<uint_native>(0xa2bfe8a1), static_cast<uint_native>(0xa81a664b),
+                        static_cast<uint_native>(0xc24b8b70), static_cast<uint_native>(0xc76c51a3),
+                        static_cast<uint_native>(0xd192e819), static_cast<uint_native>(0xd6990624),
+                        static_cast<uint_native>(0xf40e3585), static_cast<uint_native>(0x106aa070),
+                        static_cast<uint_native>(0x19a4c116), static_cast<uint_native>(0x1e376c08),
+                        static_cast<uint_native>(0x2748774c), static_cast<uint_native>(0x34b0bcb5),
+                        static_cast<uint_native>(0x391c0cb3), static_cast<uint_native>(0x4ed8aa4a),
+                        static_cast<uint_native>(0x5b9cca4f), static_cast<uint_native>(0x682e6ff3),
+                        static_cast<uint_native>(0x748f82ee), static_cast<uint_native>(0x78a5636f),
+                        static_cast<uint_native>(0x84c87814), static_cast<uint_native>(0x8cc70208),
+                        static_cast<uint_native>(0x90befffa), static_cast<uint_native>(0xa4506ceb),
+                        static_cast<uint_native>(0xbef9a3f7), static_cast<uint_native>(0xc67178f2) };
 
-    for (size_t i = 0; i < 64; ++i) {
-        w_alt[i] = static_cast<uint32_t>(barretenberg::fr::random_element().data[0]);
-    }
-    uint32_t a_alt = round_values[0];
-    uint32_t b_alt = round_values[1];
-    uint32_t c_alt = round_values[2];
-    uint32_t d_alt = round_values[3];
-    uint32_t e_alt = round_values[4];
-    uint32_t f_alt = round_values[5];
-    uint32_t g_alt = round_values[6];
-    uint32_t h_alt = round_values[7];
-    for (size_t i = 0; i < 64; ++i) {
-        uint32_t S1_alt = rotate(e_alt, 7) ^ rotate(e_alt, 11) ^ rotate(e_alt, 25);
-        uint32_t ch_alt = (e_alt & f_alt) ^ ((~e_alt) & g_alt);
-        uint32_t temp1_alt = h_alt + S1_alt + ch_alt + k_constants[i % 64] + w_alt[i];
+        round_values = { static_cast<uint_native>(0x01020304), static_cast<uint_native>(0x0a0b0c0d),
+                         static_cast<uint_native>(0x1a2b3e4d), static_cast<uint_native>(0x03951bd3),
+                         static_cast<uint_native>(0x0e0fa3fe), static_cast<uint_native>(0x01000000),
+                         static_cast<uint_native>(0x0f0eeea1), static_cast<uint_native>(0x12345678) };
+    } else {
+        k_constants = get_several_random<uint_native>(64);
+        round_values = get_several_random<uint_native>(8);
+    };
 
-        uint32_t S0_alt = rotate(a_alt, 2) ^ rotate(a_alt, 13) ^ rotate(a_alt, 22);
-        uint32_t maj_alt = (a_alt & b_alt) ^ (a_alt & c_alt) ^ (b_alt & c_alt);
-        uint32_t temp2_alt = S0_alt + maj_alt;
+    std::vector<uint_native> w_alt = get_several_random<uint_native>(64);
+
+    uint_native a_alt = round_values[0];
+    uint_native b_alt = round_values[1];
+    uint_native c_alt = round_values[2];
+    uint_native d_alt = round_values[3];
+    uint_native e_alt = round_values[4];
+    uint_native f_alt = round_values[5];
+    uint_native g_alt = round_values[6];
+    uint_native h_alt = round_values[7];
+    for (size_t i = 0; i < 64; ++i) {
+        uint_native S1_alt = rotate(e_alt, 7 % uint_native_width) ^ rotate(e_alt, 11 % uint_native_width) ^
+                             rotate(e_alt, 25 % uint_native_width);
+        uint_native ch_alt = (e_alt & f_alt) ^ ((~e_alt) & g_alt);
+        uint_native temp1_alt = h_alt + S1_alt + ch_alt + k_constants[i % 64] + w_alt[i];
+
+        uint_native S0_alt = rotate(a_alt, 2 % uint_native_width) ^ rotate(a_alt, 13 % uint_native_width) ^
+                             rotate(a_alt, 22 % uint_native_width);
+        uint_native maj_alt = (a_alt & b_alt) ^ (a_alt & c_alt) ^ (b_alt & c_alt);
+        uint_native temp2_alt = S0_alt + maj_alt;
 
         h_alt = g_alt;
         g_alt = f_alt;
@@ -535,33 +775,33 @@ TEST(stdlib_uint32, test_hash_rounds)
         b_alt = a_alt;
         a_alt = temp1_alt + temp2_alt;
     }
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
 
-    std::vector<uint32> w;
-    std::vector<uint32> k;
+    std::vector<uint_ct> w;
+    std::vector<uint_ct> k;
     for (size_t i = 0; i < 64; ++i) {
-        w.emplace_back(uint32(witness_t(&composer, w_alt[i])));
-        k.emplace_back(uint32(&composer, k_constants[i % 64]));
+        w.emplace_back(uint_ct(witness_ct(&composer, w_alt[i])));
+        k.emplace_back(uint_ct(&composer, k_constants[i % 64]));
     }
-    uint32 a = witness_t(&composer, round_values[0]);
-    uint32 b = witness_t(&composer, round_values[1]);
-    uint32 c = witness_t(&composer, round_values[2]);
-    uint32 d = witness_t(&composer, round_values[3]);
-    uint32 e = witness_t(&composer, round_values[4]);
-    uint32 f = witness_t(&composer, round_values[5]);
-    uint32 g = witness_t(&composer, round_values[6]);
-    uint32 h = witness_t(&composer, round_values[7]);
+    uint_ct a = witness_ct(&composer, round_values[0]);
+    uint_ct b = witness_ct(&composer, round_values[1]);
+    uint_ct c = witness_ct(&composer, round_values[2]);
+    uint_ct d = witness_ct(&composer, round_values[3]);
+    uint_ct e = witness_ct(&composer, round_values[4]);
+    uint_ct f = witness_ct(&composer, round_values[5]);
+    uint_ct g = witness_ct(&composer, round_values[6]);
+    uint_ct h = witness_ct(&composer, round_values[7]);
     for (size_t i = 0; i < 64; ++i) {
-        uint32 S1 = e.ror(7U) ^ e.ror(11U) ^ e.ror(25U);
-        uint32 ch = (e & f) + ((~e) & g);
-        uint32 temp1 = h + S1 + ch + k[i] + w[i];
+        uint_ct S1 = e.ror(7U % uint_native_width) ^ e.ror(11U % uint_native_width) ^ e.ror(25U % uint_native_width);
+        uint_ct ch = (e & f) + ((~e) & g);
+        uint_ct temp1 = h + S1 + ch + k[i] + w[i];
 
-        uint32 S0 = a.ror(2U) ^ a.ror(13U) ^ a.ror(22U);
-        uint32 T0 = (b & c);
-        uint32 T1 = (b - T0) + (c - T0);
-        uint32 T2 = a & T1;
-        uint32 maj = T2 + T0;
-        uint32 temp2 = S0 + maj;
+        uint_ct S0 = a.ror(2U % uint_native_width) ^ a.ror(13U % uint_native_width) ^ a.ror(22U % uint_native_width);
+        uint_ct T0 = (b & c);
+        uint_ct T1 = (b - T0) + (c - T0);
+        uint_ct T2 = a & T1;
+        uint_ct maj = T2 + T0;
+        uint_ct temp2 = S0 + maj;
 
         h = g;
         g = f;
@@ -573,22 +813,22 @@ TEST(stdlib_uint32, test_hash_rounds)
         a = temp1 + temp2;
     }
 
-    uint32_t a_result =
-        static_cast<uint32_t>(composer.get_variable(a.get_witness_index()).from_montgomery_form().data[0]);
-    uint32_t b_result =
-        static_cast<uint32_t>(composer.get_variable(b.get_witness_index()).from_montgomery_form().data[0]);
-    uint32_t c_result =
-        static_cast<uint32_t>(composer.get_variable(c.get_witness_index()).from_montgomery_form().data[0]);
-    uint32_t d_result =
-        static_cast<uint32_t>(composer.get_variable(d.get_witness_index()).from_montgomery_form().data[0]);
-    uint32_t e_result =
-        static_cast<uint32_t>(composer.get_variable(e.get_witness_index()).from_montgomery_form().data[0]);
-    uint32_t f_result =
-        static_cast<uint32_t>(composer.get_variable(f.get_witness_index()).from_montgomery_form().data[0]);
-    uint32_t g_result =
-        static_cast<uint32_t>(composer.get_variable(g.get_witness_index()).from_montgomery_form().data[0]);
-    uint32_t h_result =
-        static_cast<uint32_t>(composer.get_variable(h.get_witness_index()).from_montgomery_form().data[0]);
+    uint_native a_result =
+        static_cast<uint_native>(composer.get_variable(a.get_witness_index()).from_montgomery_form().data[0]);
+    uint_native b_result =
+        static_cast<uint_native>(composer.get_variable(b.get_witness_index()).from_montgomery_form().data[0]);
+    uint_native c_result =
+        static_cast<uint_native>(composer.get_variable(c.get_witness_index()).from_montgomery_form().data[0]);
+    uint_native d_result =
+        static_cast<uint_native>(composer.get_variable(d.get_witness_index()).from_montgomery_form().data[0]);
+    uint_native e_result =
+        static_cast<uint_native>(composer.get_variable(e.get_witness_index()).from_montgomery_form().data[0]);
+    uint_native f_result =
+        static_cast<uint_native>(composer.get_variable(f.get_witness_index()).from_montgomery_form().data[0]);
+    uint_native g_result =
+        static_cast<uint_native>(composer.get_variable(g.get_witness_index()).from_montgomery_form().data[0]);
+    uint_native h_result =
+        static_cast<uint_native>(composer.get_variable(h.get_witness_index()).from_montgomery_form().data[0]);
 
     EXPECT_EQ(a_result, a_alt);
     EXPECT_EQ(b_result, b_alt);
@@ -599,12 +839,347 @@ TEST(stdlib_uint32, test_hash_rounds)
     EXPECT_EQ(g_result, g_alt);
     EXPECT_EQ(h_result, h_alt);
 
-    waffle::TurboProver prover = composer.create_prover();
+    auto prover = composer.create_prover();
 
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     waffle::plonk_proof proof = prover.construct_proof();
 
+    bool result = verifier.verify_proof(proof);
+    EXPECT_EQ(result, true);
+}
+
+// BELOW HERE ARE TESTS FORMERLY MARKED AS TURBO
+
+/**
+ * @brief Utility function for testing the uint_ct comparison operators
+ *
+ * @details Given a uint_ct a and a constant const_b, this  allows to create a
+ * uint_ct b having a desired relation to a (either >. = or <).
+ */
+uint_native impose_comparison(uint_native const_a,
+                              uint_native const_b,
+                              uint_native a_val,
+                              bool force_equal = false,
+                              bool force_gt = false,
+                              bool force_lt = false)
+{
+    uint_native b_val;
+    if (force_equal) {
+        b_val = a_val + const_a - const_b;
+    } else if (force_lt) { // forcing b < a
+        // if   a_val + const_a != const_b, then we set up b_val + const_b = a_val + const_a - 1
+        // elif a_val + const_a  = const_b, then we set up b_val + const_b = a_val + const_a
+        //   and we increment a by 1, leading to           a_val + const_a = b_val + const_b + 1.
+        b_val = (a_val + const_a - const_b) ? a_val + const_a - const_b - 1 : const_a - const_b + (a_val++);
+    } else if (force_gt) { // forcing b > a
+        // set b_val + const_b = a_val + const_a + 1 unless that would wrap, in which case we instead
+        // set b_val + const_b = a then decrease a by 1.
+        b_val = (a_val + const_a - const_b) == uint_native_width ? const_a - const_b + (a_val--)
+                                                                 : a_val + const_a - const_b + 1;
+    } else {
+        b_val = get_random<uint_native>();
+    }
+    return b_val;
+}
+
+/**
+ * @brief Test addition of random uint's, trying all combinations of (constant, witness).
+ */
+TEST(stdlib_uint, test_add)
+{
+    Composer composer = Composer();
+
+    const auto add_integers = [&composer](bool lhs_constant = false, bool rhs_constant = false) {
+        uint_native a_val = get_random<uint_native>();
+        uint_native b_val = get_random<uint_native>();
+        uint_native expected = a_val + b_val;
+        uint_ct a = lhs_constant ? uint_ct(&composer, a_val) : witness_ct(&composer, a_val);
+        uint_ct b = rhs_constant ? uint_ct(&composer, b_val) : witness_ct(&composer, b_val);
+        uint_ct c = a + b;
+        c = c.normalize();
+
+        uint_native result = uint_native(c.get_value());
+
+        EXPECT_EQ(result, expected);
+    };
+
+    add_integers(false, false);
+    add_integers(false, true);
+    add_integers(true, false);
+    add_integers(true, true);
+
+    auto prover = composer.create_prover();
+
+    printf("composer gates = %zu\n", composer.get_num_gates());
+    auto verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+TEST(stdlib_uint, test_sub)
+{
+    Composer composer = Composer();
+
+    const auto sub_integers = [&composer](bool lhs_constant = false, bool rhs_constant = false) {
+        uint_native a_val = get_random<uint_native>();
+        uint_native b_val = get_random<uint_native>();
+        uint_native const_shift_val = get_random<uint_native>();
+        uint_native expected = a_val - (b_val + const_shift_val);
+        uint_ct a = lhs_constant ? uint_ct(&composer, a_val) : witness_ct(&composer, a_val);
+        uint_ct b = rhs_constant ? uint_ct(&composer, b_val) : witness_ct(&composer, b_val);
+        uint_ct b_shift = uint_ct(&composer, const_shift_val);
+        uint_ct c = b + b_shift;
+        uint_ct d = a - c;
+        d = d.normalize();
+
+        uint_native result = uint_native(d.get_value());
+
+        EXPECT_EQ(result, expected);
+    };
+
+    sub_integers(false, false);
+    sub_integers(false, true);
+    sub_integers(true, false);
+    sub_integers(true, true);
+
+    auto prover = composer.create_prover();
+
+    printf("composer gates = %zu\n", composer.get_num_gates());
+    auto verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+TEST(stdlib_uint, test_mul)
+{
+    Composer composer = Composer();
+
+    const auto mul_integers = [&composer](bool lhs_constant = false, bool rhs_constant = false) {
+        uint_native a_val = get_random<uint_native>();
+        uint_native b_val = get_random<uint_native>();
+        uint_native const_a = get_random<uint_native>();
+        uint_native const_b = get_random<uint_native>();
+        uint_native expected = static_cast<uint_native>(a_val + const_a) * static_cast<uint_native>(b_val + const_b);
+        uint_ct a = lhs_constant ? uint_ct(&composer, a_val) : witness_ct(&composer, a_val);
+        uint_ct b = rhs_constant ? uint_ct(&composer, b_val) : witness_ct(&composer, b_val);
+        uint_ct a_shift = uint_ct(&composer, const_a);
+        uint_ct b_shift = uint_ct(&composer, const_b);
+        uint_ct c = a + a_shift;
+        uint_ct d = b + b_shift;
+        uint_ct e = c * d;
+        e = e.normalize();
+
+        uint_native result = uint_native(e.get_value());
+
+        EXPECT_EQ(result, expected);
+    };
+
+    mul_integers(false, false);
+    mul_integers(false, true);
+    mul_integers(true, false);
+    mul_integers(true, true);
+
+    auto prover = composer.create_prover();
+
+    printf("composer gates = %zu\n", composer.get_num_gates());
+    auto verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+TEST(stdlib_uint, test_divide)
+{
+    Composer composer = Composer();
+
+    const auto divide_integers = [&composer](bool lhs_constant = false,
+                                             bool rhs_constant = false,
+                                             bool dividend_is_divisor = false,
+                                             bool dividend_zero = false,
+                                             bool divisor_zero = false) {
+        uint_native a_val = get_random<uint_native>();
+        uint_native b_val = dividend_is_divisor ? a_val : get_random<uint_native>();
+        uint_native const_a = dividend_zero ? 0 - a_val : get_random<uint_native>();
+        uint_native const_b = divisor_zero ? 0 - b_val : (dividend_is_divisor ? const_a : get_random<uint_native>());
+        uint_native expected = static_cast<uint_native>(a_val + const_a) / static_cast<uint_native>(b_val + const_b);
+        uint_ct a = lhs_constant ? uint_ct(&composer, a_val) : witness_ct(&composer, a_val);
+        uint_ct b = rhs_constant ? uint_ct(&composer, b_val) : witness_ct(&composer, b_val);
+        uint_ct a_shift = uint_ct(&composer, const_a);
+        uint_ct b_shift = uint_ct(&composer, const_b);
+        uint_ct c = a + a_shift;
+        uint_ct d = b + b_shift;
+        uint_ct e = c / d;
+        e = e.normalize();
+
+        uint_native result = static_cast<uint_native>(e.get_value());
+
+        EXPECT_EQ(result, expected);
+    };
+
+    divide_integers(false, false, false, false, false);
+    divide_integers(false, false, false, false, false);
+    divide_integers(false, false, false, false, false);
+    divide_integers(false, false, false, false, false);
+    divide_integers(false, false, false, false, false);
+
+    divide_integers(false, true, false, false, false);
+    divide_integers(true, false, false, false, false);
+    divide_integers(true, true, false, false, false); // fails; 0 != 1
+
+    divide_integers(false, false, true, false, false);
+    divide_integers(false, true, true, false, false);
+    divide_integers(true, false, true, false, false);
+    divide_integers(true, true, true, false, false);
+
+    divide_integers(false, false, false, true, false);
+    divide_integers(false, true, false, true, false); // fails; 0 != 1
+    divide_integers(true, false, false, true, false);
+    divide_integers(true, true, false, true, false);
+
+    auto prover = composer.create_prover();
+
+    printf("composer gates = %zu\n", composer.get_num_gates());
+    auto verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+TEST(stdlib_uint, test_modulo)
+{
+    Composer composer = Composer();
+
+    const auto mod_integers = [&composer](bool lhs_constant = false,
+                                          bool rhs_constant = false,
+                                          bool dividend_is_divisor = false,
+                                          bool dividend_zero = false,
+                                          bool divisor_zero = false) {
+        uint_native a_val = get_random<uint_native>();
+        uint_native b_val = dividend_is_divisor ? a_val : get_random<uint_native>();
+        uint_native const_a = dividend_zero ? 0 - a_val : get_random<uint_native>();
+        uint_native const_b = divisor_zero ? 0 - b_val : (dividend_is_divisor ? const_a : get_random<uint_native>());
+        uint_native expected = static_cast<uint_native>(a_val + const_a) % static_cast<uint_native>(b_val + const_b);
+        uint_ct a = lhs_constant ? uint_ct(&composer, a_val) : witness_ct(&composer, a_val);
+        uint_ct b = rhs_constant ? uint_ct(&composer, b_val) : witness_ct(&composer, b_val);
+        uint_ct a_shift = uint_ct(&composer, const_a);
+        uint_ct b_shift = uint_ct(&composer, const_b);
+        uint_ct c = a + a_shift;
+        uint_ct d = b + b_shift;
+        uint_ct e = c % d;
+        e = e.normalize();
+
+        uint_native result = uint_native(e.get_value());
+
+        EXPECT_EQ(result, expected);
+    };
+
+    mod_integers(false, false, false, false, false);
+    mod_integers(false, true, false, false, false);
+    mod_integers(true, false, false, false, false);
+    mod_integers(true, true, false, false, false);
+
+    mod_integers(false, false, true, false, false);
+    mod_integers(false, true, true, false, false);
+    mod_integers(true, false, true, false, false);
+    mod_integers(true, true, true, false, false);
+
+    mod_integers(false, false, false, true, false);
+    mod_integers(false, true, false, true, false);
+    mod_integers(true, false, false, true, false);
+    mod_integers(true, true, false, true, false);
+
+    auto prover = composer.create_prover();
+
+    printf("composer gates = %zu\n", composer.get_num_gates());
+    auto verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+TEST(stdlib_uint, test_divide_by_zero_fails)
+{
+
+    const auto divide_integers = [](bool lhs_constant = false,
+                                    bool rhs_constant = false,
+                                    bool dividend_is_divisor = false,
+                                    bool dividend_zero = false,
+                                    bool divisor_zero = false) {
+        Composer composer = Composer();
+
+        uint_native a_val = get_random<uint_native>();
+        uint_native b_val = dividend_is_divisor ? a_val : get_random<uint_native>();
+        uint_native const_a = dividend_zero ? 0 - a_val : get_random<uint_native>();
+        uint_native const_b = divisor_zero ? 0 - b_val : (dividend_is_divisor ? const_a : get_random<uint_native>());
+        uint_ct a = lhs_constant ? uint_ct(&composer, a_val) : witness_ct(&composer, a_val);
+        uint_ct b = rhs_constant ? uint_ct(&composer, b_val) : witness_ct(&composer, b_val);
+        uint_ct a_shift = uint_ct(&composer, const_a);
+        uint_ct b_shift = uint_ct(&composer, const_b);
+        uint_ct c = a + a_shift;
+        uint_ct d = b + b_shift;
+        uint_ct e = c / d;
+        e = e.normalize();
+
+        auto prover = composer.create_prover();
+
+        auto verifier = composer.create_verifier();
+
+        waffle::plonk_proof proof = prover.construct_proof();
+
+        bool proof_result = verifier.verify_proof(proof);
+        EXPECT_EQ(proof_result, false);
+    };
+
+    divide_integers(false, false, false, false, true);
+    divide_integers(false, false, false, true, true);
+    divide_integers(true, true, false, false, true);
+    divide_integers(true, true, false, true, true);
+}
+
+TEST(stdlib_uint, test_divide_special)
+{
+    Composer composer = Composer();
+
+    set_up_special_cases(&composer);
+
+    for (size_t i = 0; i != num_special_values; ++i) {
+        uint_native x = special_values[i];
+        uint_ct x_ct = special_uints[i];
+
+        for (size_t j = i; j != num_special_values; ++j) {
+            uint_native y = special_values[j];
+            uint_ct y_ct = special_uints[j];
+
+            // uint_native hits this error when trying to divide by zero:
+            // Stop reason: signal SIGFPE: integer divide by zero
+            uint_native expected_value;
+            uint_ct z_ct;
+            uint_native value;
+            if (y != 0) {
+                expected_value = x / y;
+                z_ct = x_ct / y_ct;
+                value = static_cast<uint_native>(z_ct.get_value());
+                EXPECT_EQ(value, expected_value);
+            }
+        }
+    };
+
+    auto prover = composer.create_prover();
+    auto verifier = composer.create_verifier();
+    waffle::plonk_proof proof = prover.construct_proof();
     bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, true);
 }
@@ -615,15 +1190,14 @@ TEST(stdlib_uint32, test_hash_rounds)
  * circuit construction from witness generation.
 
  */
-TEST(stdlib_uint32, div_remainder_constraint)
+TEST(stdlib_uint, div_remainder_constraint)
 {
-    size_t width = 32; // will go away in refactor part of audit.
     waffle::TurboComposer composer = waffle::TurboComposer();
 
-    uint32_t val = engine.get_random_uint32(); // will change in refactor part of audit
+    uint_native val = get_random<uint_native>();
 
-    uint32 a = witness_t(&composer, val);
-    uint32 b = witness_t(&composer, val);
+    uint_ct a = witness_ct(&composer, val);
+    uint_ct b = witness_ct(&composer, val);
 
     const uint32_t dividend_idx = a.get_witness_index();
     const uint32_t divisor_idx = b.get_witness_index();
@@ -671,16 +1245,17 @@ TEST(stdlib_uint32, div_remainder_constraint)
     composer.create_add_gate(delta_gate);
 
     // validate delta is in the correct range
-    stdlib::field_t<waffle::TurboComposer>::from_witness_index(&composer, delta_idx).create_range_constraint(width);
+    stdlib::field_t<waffle::TurboComposer>::from_witness_index(&composer, delta_idx)
+        .create_range_constraint(uint_native_width);
 
     // normalize witness quotient and remainder
     // minimal bit range for quotient: from 0 (in case a = b-1) to width (when b = 1).
-    uint32 quotient(&composer);
-    composer.decompose_into_base4_accumulators(quotient_idx, width);
+    uint_ct quotient(&composer);
+    composer.decompose_into_base4_accumulators(quotient_idx, uint_native_width);
 
     // constrain remainder to lie in [0, 2^width-1]
-    uint32 remainder(&composer);
-    composer.decompose_into_base4_accumulators(remainder_idx, width);
+    uint_ct remainder(&composer);
+    composer.decompose_into_base4_accumulators(remainder_idx, uint_native_width);
 
     auto prover = composer.create_prover();
     auto verifier = composer.create_verifier();
@@ -689,4 +1264,640 @@ TEST(stdlib_uint32, div_remainder_constraint)
     EXPECT_EQ(result, false);
 }
 
-} // namespace test_stdlib_uint32
+TEST(stdlib_uint, test_and)
+{
+    Composer composer = Composer();
+
+    const auto and_integers = [&composer](bool lhs_constant = false, bool rhs_constant = false) {
+        uint_native a_val = get_random<uint_native>();
+        uint_native b_val = get_random<uint_native>();
+        uint_native const_a = get_random<uint_native>();
+        uint_native const_b = get_random<uint_native>();
+        uint_native expected = (a_val + const_a) & (b_val + const_b);
+        uint_ct a = lhs_constant ? uint_ct(&composer, a_val) : witness_ct(&composer, a_val);
+        uint_ct b = rhs_constant ? uint_ct(&composer, b_val) : witness_ct(&composer, b_val);
+        uint_ct a_shift = uint_ct(&composer, const_a);
+        uint_ct b_shift = uint_ct(&composer, const_b);
+        uint_ct c = a + a_shift;
+        uint_ct d = b + b_shift;
+        uint_ct e = c & d;
+        e = e.normalize();
+
+        uint_native result = uint_native(e.get_value());
+
+        EXPECT_EQ(result, expected);
+    };
+
+    and_integers(false, false);
+    and_integers(false, true);
+    and_integers(true, false);
+    and_integers(true, true);
+
+    auto prover = composer.create_prover();
+
+    printf("composer gates = %zu\n", composer.get_num_gates());
+    auto verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+TEST(stdlib_uint, test_xor)
+{
+    Composer composer = Composer();
+
+    const auto xor_integers = [&composer](bool lhs_constant = false, bool rhs_constant = false) {
+        uint_native a_val = get_random<uint_native>();
+        uint_native b_val = get_random<uint_native>();
+        uint_native const_a = get_random<uint_native>();
+        uint_native const_b = get_random<uint_native>();
+        uint_native expected = (a_val + const_a) ^ (b_val + const_b);
+        uint_ct a = lhs_constant ? uint_ct(&composer, a_val) : witness_ct(&composer, a_val);
+        uint_ct b = rhs_constant ? uint_ct(&composer, b_val) : witness_ct(&composer, b_val);
+        uint_ct a_shift = uint_ct(&composer, const_a);
+        uint_ct b_shift = uint_ct(&composer, const_b);
+        uint_ct c = a + a_shift;
+        uint_ct d = b + b_shift;
+        uint_ct e = c ^ d;
+        e = e.normalize();
+
+        uint_native result = uint_native(e.get_value());
+
+        EXPECT_EQ(result, expected);
+    };
+
+    xor_integers(false, false);
+    xor_integers(false, true);
+    xor_integers(true, false);
+    xor_integers(true, true);
+
+    auto prover = composer.create_prover();
+
+    printf("composer gates = %zu\n", composer.get_num_gates());
+    auto verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+TEST(stdlib_uint, test_or)
+{
+    Composer composer = Composer();
+
+    const auto or_integers = [&composer](bool lhs_constant = false, bool rhs_constant = false) {
+        uint_native a_val = get_random<uint_native>();
+        uint_native b_val = get_random<uint_native>();
+        uint_native const_a = get_random<uint_native>();
+        uint_native const_b = get_random<uint_native>();
+        uint_native expected = (a_val + const_a) | (b_val + const_b);
+        uint_ct a = lhs_constant ? uint_ct(&composer, a_val) : witness_ct(&composer, a_val);
+        uint_ct b = rhs_constant ? uint_ct(&composer, b_val) : witness_ct(&composer, b_val);
+        uint_ct a_shift = uint_ct(&composer, const_a);
+        uint_ct b_shift = uint_ct(&composer, const_b);
+        uint_ct c = a + a_shift;
+        uint_ct d = b + b_shift;
+        uint_ct e = c | d;
+        e = e.normalize();
+
+        uint_native result = uint_native(e.get_value());
+
+        EXPECT_EQ(result, expected);
+    };
+
+    or_integers(false, false);
+    or_integers(false, false);
+    or_integers(false, false);
+    or_integers(false, false);
+    or_integers(false, false);
+    or_integers(false, true);
+    or_integers(true, false);
+    or_integers(true, true);
+
+    auto prover = composer.create_prover();
+
+    printf("composer gates = %zu\n", composer.get_num_gates());
+    auto verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+TEST(stdlib_uint, test_not)
+{
+    Composer composer = Composer();
+
+    const auto not_integers = [&composer](bool lhs_constant = false, bool = false) {
+        uint_native a_val = get_random<uint_native>();
+        uint_native const_a = get_random<uint_native>();
+        uint_native expected = ~(a_val + const_a);
+        uint_ct a = lhs_constant ? uint_ct(&composer, a_val) : witness_ct(&composer, a_val);
+        uint_ct a_shift = uint_ct(&composer, const_a);
+        uint_ct c = a + a_shift;
+        uint_ct e = ~c;
+        e = e.normalize();
+
+        uint_native result = uint_native(e.get_value());
+
+        EXPECT_EQ(result, expected);
+    };
+
+    not_integers(false, false);
+    not_integers(false, true);
+    not_integers(true, false);
+    not_integers(true, true);
+
+    auto prover = composer.create_prover();
+
+    printf("composer gates = %zu\n", composer.get_num_gates());
+    auto verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+TEST(stdlib_uint, test_gt)
+{
+    Composer composer = Composer();
+    const auto compare_integers = [&composer](bool force_equal = false, bool force_gt = false, bool force_lt = false) {
+        uint_native const_a = get_random<uint_native>();
+        uint_native const_b = get_random<uint_native>();
+        uint_native a_val = get_random<uint_native>();
+        uint_native b_val = impose_comparison(const_a, const_b, a_val, force_equal, force_gt, force_lt);
+
+        bool expected = static_cast<uint_native>(b_val + const_b) > static_cast<uint_native>(a_val + const_a);
+        uint_ct a = witness_ct(&composer, a_val);
+        uint_ct b = witness_ct(&composer, b_val);
+        uint_ct a_shift = uint_ct(&composer, const_a);
+        uint_ct b_shift = uint_ct(&composer, const_b);
+        uint_ct c = a + a_shift;
+        uint_ct d = b + b_shift;
+        bool_ct e = d > c;
+        bool result = bool(e.get_value());
+
+        EXPECT_EQ(result, expected);
+    };
+
+    compare_integers(false, false, false); // both are random
+    compare_integers(false, false, false); //       ''
+    compare_integers(false, false, false); //       ''
+    compare_integers(false, false, false); //       ''
+    compare_integers(false, false, true);  //      b < a
+    compare_integers(false, true, false);  //      b > a
+    compare_integers(true, false, false);  //      b = a
+    compare_integers(false, true, false);  //      b > a
+    compare_integers(true, false, false);  //      b = a
+
+    auto prover = composer.create_prover();
+
+    printf("composer gates = %zu\n", composer.get_num_gates());
+    auto verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+TEST(stdlib_uint, test_lt)
+{
+    Composer composer = Composer();
+
+    const auto compare_integers = [&composer](bool force_equal = false, bool force_gt = false, bool force_lt = false) {
+        uint_native const_a = get_random<uint_native>();
+        uint_native const_b = get_random<uint_native>();
+        uint_native a_val = get_random<uint_native>();
+        uint_native b_val = impose_comparison(const_a, const_b, a_val, force_equal, force_gt, force_lt);
+
+        bool expected = static_cast<uint_native>(b_val + const_b) < static_cast<uint_native>(a_val + const_a);
+        uint_ct a = witness_ct(&composer, a_val);
+        uint_ct b = witness_ct(&composer, b_val);
+        uint_ct a_shift = uint_ct(&composer, const_a);
+        uint_ct b_shift = uint_ct(&composer, const_b);
+        uint_ct c = a + a_shift;
+        uint_ct d = b + b_shift;
+        bool_ct e = d < c;
+        bool result = bool(e.get_value());
+
+        EXPECT_EQ(result, expected);
+    };
+
+    compare_integers(false, false, false);
+    compare_integers(false, false, false);
+    compare_integers(false, false, false);
+    compare_integers(false, false, false);
+    compare_integers(false, false, true);
+    compare_integers(false, true, false);
+    compare_integers(true, false, false);
+    compare_integers(false, false, true);
+    compare_integers(false, true, false);
+    compare_integers(true, false, false);
+
+    auto prover = composer.create_prover();
+
+    printf("composer gates = %zu\n", composer.get_num_gates());
+    auto verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+TEST(stdlib_uint, test_gte)
+{
+    Composer composer = Composer();
+
+    const auto compare_integers = [&composer](bool force_equal = false, bool force_gt = false, bool force_lt = false) {
+        uint_native const_a = get_random<uint_native>();
+        uint_native const_b = get_random<uint_native>();
+        uint_native a_val = get_random<uint_native>();
+        uint_native b_val = impose_comparison(const_a, const_b, a_val, force_equal, force_gt, force_lt);
+
+        bool expected = static_cast<uint_native>(b_val + const_b) >= static_cast<uint_native>(a_val + const_a);
+        uint_ct a = witness_ct(&composer, a_val);
+        uint_ct b = witness_ct(&composer, b_val);
+        uint_ct a_shift = uint_ct(&composer, const_a);
+        uint_ct b_shift = uint_ct(&composer, const_b);
+        uint_ct c = a + a_shift;
+        uint_ct d = b + b_shift;
+        bool_ct e = d >= c;
+        bool result = bool(e.get_value());
+        EXPECT_EQ(result, expected);
+    };
+
+    compare_integers(false, false, false);
+    compare_integers(false, false, false);
+    compare_integers(false, false, false);
+    compare_integers(false, false, false);
+    compare_integers(false, false, true);
+    compare_integers(false, true, false);
+    compare_integers(true, false, false);
+    compare_integers(false, false, true);
+    compare_integers(false, true, false);
+    compare_integers(true, false, false);
+
+    auto prover = composer.create_prover();
+
+    printf("composer gates = %zu\n", composer.get_num_gates());
+    auto verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+TEST(stdlib_uint, test_lte)
+{
+    Composer composer = Composer();
+
+    const auto compare_integers = [&composer](bool force_equal = false, bool force_gt = false, bool force_lt = false) {
+        uint_native const_a = get_random<uint_native>();
+        uint_native const_b = get_random<uint_native>();
+        uint_native a_val = get_random<uint_native>();
+        uint_native b_val = impose_comparison(const_a, const_b, a_val, force_equal, force_gt, force_lt);
+
+        bool expected = static_cast<uint_native>(b_val + const_b) <= static_cast<uint_native>(a_val + const_a);
+        uint_ct a = witness_ct(&composer, a_val);
+        uint_ct b = witness_ct(&composer, b_val);
+        uint_ct a_shift = uint_ct(&composer, const_a);
+        uint_ct b_shift = uint_ct(&composer, const_b);
+        uint_ct c = a + a_shift;
+        uint_ct d = b + b_shift;
+        bool_ct e = d <= c;
+        bool result = bool(e.get_value());
+
+        EXPECT_EQ(result, expected);
+    };
+
+    compare_integers(false, false, false);
+    compare_integers(false, false, false);
+    compare_integers(false, false, false);
+    compare_integers(false, false, false);
+    compare_integers(false, false, true);
+    compare_integers(false, true, false);
+    compare_integers(true, false, false);
+    compare_integers(false, false, true);
+    compare_integers(false, true, false);
+    compare_integers(true, false, false);
+
+    auto prover = composer.create_prover();
+
+    printf("composer gates = %zu\n", composer.get_num_gates());
+    auto verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+TEST(stdlib_uint, test_equality_operator)
+{
+    Composer composer = Composer();
+
+    const auto compare_integers = [&composer](bool force_equal = false, bool force_gt = false, bool force_lt = false) {
+        uint_native const_a = get_random<uint_native>();
+        uint_native const_b = get_random<uint_native>();
+        uint_native a_val = get_random<uint_native>();
+        uint_native b_val = impose_comparison(const_a, const_b, a_val, force_equal, force_gt, force_lt);
+
+        bool expected = static_cast<uint_native>(b_val + const_b) == static_cast<uint_native>(a_val + const_a);
+        uint_ct a = witness_ct(&composer, a_val);
+        uint_ct b = witness_ct(&composer, b_val);
+        uint_ct a_shift = uint_ct(&composer, const_a);
+        uint_ct b_shift = uint_ct(&composer, const_b);
+        uint_ct c = a + a_shift;
+        uint_ct d = b + b_shift;
+        bool_ct e = d == c;
+        bool result = bool(e.get_value());
+
+        EXPECT_EQ(result, expected);
+    };
+
+    compare_integers(false, false, false);
+    compare_integers(false, false, false);
+    compare_integers(false, false, false);
+    compare_integers(false, false, false);
+    compare_integers(false, false, true);
+    compare_integers(false, true, false);
+    compare_integers(true, false, false);
+    compare_integers(false, false, true);
+    compare_integers(false, true, false);
+    compare_integers(true, false, false);
+
+    auto prover = composer.create_prover();
+
+    printf("composer gates = %zu\n", composer.get_num_gates());
+    auto verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+TEST(stdlib_uint, test_not_equality_operator)
+{
+    Composer composer = Composer();
+
+    const auto compare_integers = [&composer](bool force_equal = false, bool force_gt = false, bool force_lt = false) {
+        uint_native const_a = get_random<uint_native>();
+        uint_native const_b = get_random<uint_native>();
+        uint_native a_val = get_random<uint_native>();
+        uint_native b_val = impose_comparison(const_a, const_b, a_val, force_equal, force_gt, force_lt);
+
+        bool expected = static_cast<uint_native>(b_val + const_b) != static_cast<uint_native>(a_val + const_a);
+        uint_ct a = witness_ct(&composer, a_val);
+        uint_ct b = witness_ct(&composer, b_val);
+        uint_ct a_shift = uint_ct(&composer, const_a);
+        uint_ct b_shift = uint_ct(&composer, const_b);
+        uint_ct c = a + a_shift;
+        uint_ct d = b + b_shift;
+        bool_ct e = d != c;
+        bool result = bool(e.get_value());
+
+        EXPECT_EQ(result, expected);
+    };
+
+    compare_integers(false, false, false);
+    compare_integers(false, false, false);
+    compare_integers(false, false, false);
+    compare_integers(false, false, false);
+    compare_integers(false, false, true);
+    compare_integers(false, true, false);
+    compare_integers(true, false, false);
+    compare_integers(false, false, true);
+    compare_integers(false, true, false);
+    compare_integers(true, false, false);
+
+    auto prover = composer.create_prover();
+
+    printf("composer gates = %zu\n", composer.get_num_gates());
+    auto verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+TEST(stdlib_uint, test_logical_not)
+{
+    Composer composer = Composer();
+
+    const auto not_integer = [&composer](bool force_zero) {
+        uint_native const_a = get_random<uint_native>();
+        uint_native a_val = force_zero ? 0 - const_a : get_random<uint_native>();
+        bool expected = !static_cast<uint_native>(const_a + a_val);
+        uint_ct a = witness_ct(&composer, a_val);
+        uint_ct a_shift = uint_ct(&composer, const_a);
+        uint_ct c = a + a_shift;
+        bool_ct e = !c;
+        bool result = bool(e.get_value());
+
+        EXPECT_EQ(result, expected);
+    };
+
+    not_integer(true);
+    not_integer(true);
+    not_integer(false);
+    not_integer(false);
+
+    auto prover = composer.create_prover();
+
+    printf("composer gates = %zu\n", composer.get_num_gates());
+    auto verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+TEST(stdlib_uint, test_right_shift)
+{
+    Composer composer = Composer();
+
+    const auto shift_integer = [&composer](const bool is_constant, const uint_native shift) {
+        uint_native const_a = get_random<uint_native>();
+        uint_native a_val = get_random<uint_native>();
+        uint_native expected = static_cast<uint_native>(a_val + const_a) >> shift;
+        uint_ct a = is_constant ? uint_ct(&composer, a_val) : witness_ct(&composer, a_val);
+        uint_ct a_shift = uint_ct(&composer, const_a);
+        uint_ct c = a + a_shift;
+        uint_ct d = c >> shift;
+        uint_native result = uint_native(d.get_value());
+
+        EXPECT_EQ(result, expected);
+    };
+
+    for (uint_native i = 0; i < uint_native_width; ++i) {
+        shift_integer(false, i);
+        shift_integer(true, i);
+    }
+
+    auto prover = composer.create_prover();
+
+    printf("composer gates = %zu\n", composer.get_num_gates());
+    auto verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+TEST(stdlib_uint, test_left_shift)
+{
+    Composer composer = Composer();
+
+    const auto shift_integer = [&composer](const bool is_constant, const uint_native shift) {
+        uint_native const_a = get_random<uint_native>();
+        uint_native a_val = get_random<uint_native>();
+        uint_native expected = static_cast<uint_native>((a_val + const_a) << shift);
+        uint_ct a = is_constant ? uint_ct(&composer, a_val) : witness_ct(&composer, a_val);
+        uint_ct a_shift = uint_ct(&composer, const_a);
+        uint_ct c = a + a_shift;
+        uint_ct d = c << shift;
+        uint_native result = uint_native(d.get_value());
+
+        EXPECT_EQ(result, expected);
+    };
+
+    for (uint_native i = 0; i < uint_native_width; ++i) {
+        shift_integer(true, i);
+        shift_integer(false, i);
+    }
+
+    auto prover = composer.create_prover();
+
+    printf("composer gates = %zu\n", composer.get_num_gates());
+    auto verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+TEST(stdlib_uint, test_ror)
+{
+    Composer composer = Composer();
+
+    const auto ror_integer = [&composer](const bool is_constant, const uint_native rotation) {
+        const auto ror = [](const uint_native in, const uint_native rval) {
+            return rval ? (in >> rval) | (in << (uint_native_width - rval)) : in;
+        };
+
+        uint_native const_a = get_random<uint_native>();
+        uint_native a_val = get_random<uint_native>();
+        uint_native expected = static_cast<uint_native>(ror(static_cast<uint_native>(const_a + a_val), rotation));
+        uint_ct a = is_constant ? uint_ct(&composer, a_val) : witness_ct(&composer, a_val);
+        uint_ct a_shift = uint_ct(&composer, const_a);
+        uint_ct c = a + a_shift;
+        uint_ct d = c.ror(rotation);
+        uint_native result = uint_native(d.get_value());
+
+        EXPECT_EQ(result, expected);
+    };
+
+    for (uint_native i = 0; i < uint_native_width; ++i) {
+        ror_integer(true, i);
+        ror_integer(false, i);
+    }
+
+    auto prover = composer.create_prover();
+
+    printf("composer gates = %zu\n", composer.get_num_gates());
+    auto verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+TEST(stdlib_uint, test_rol)
+{
+    Composer composer = Composer();
+
+    const auto rol_integer = [&composer](const bool is_constant, const uint_native rotation) {
+        const auto rol = [](const uint_native in, const uint_native rval) {
+            return rval ? (in << rval) | (in >> (uint_native_width - rval)) : in;
+        };
+
+        uint_native const_a = get_random<uint_native>();
+        uint_native a_val = get_random<uint_native>();
+        uint_native expected = static_cast<uint_native>(rol(static_cast<uint_native>(const_a + a_val), rotation));
+        uint_ct a = is_constant ? uint_ct(&composer, a_val) : witness_ct(&composer, a_val);
+        uint_ct a_shift = uint_ct(&composer, const_a);
+        uint_ct c = a + a_shift;
+        uint_ct d = c.rol(rotation);
+        uint_native result = uint_native(d.get_value());
+
+        EXPECT_EQ(result, expected);
+    };
+
+    for (uint_native i = 0; i < uint_native_width; ++i) {
+        rol_integer(true, i);
+        rol_integer(false, i);
+    }
+
+    auto prover = composer.create_prover();
+
+    printf("composer gates = %zu\n", composer.get_num_gates());
+    auto verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+/**
+ * @brief Test the the function uint_ct::at used to extract bits.
+ */
+TEST(stdlib_uint, test_at)
+{
+    Composer composer = Composer();
+
+    const auto bit_test = [&composer](const bool is_constant) {
+        // construct a sum of uint_ct's, where at least one is a constant,
+        // and validate its correctness bitwise
+        uint_native const_a = get_random<uint_native>();
+        uint_native a_val = get_random<uint_native>();
+        uint_native c_val = const_a + a_val;
+        uint_ct a = is_constant ? uint_ct(&composer, a_val) : witness_ct(&composer, a_val);
+        uint_ct a_shift = uint_ct(&composer, const_a);
+        uint_ct c = a + a_shift;
+        for (size_t i = 0; i < uint_native_width; ++i) {
+            bool_ct result = c.at(i);
+            bool expected = (((c_val >> i) & 1UL) == 1UL) ? true : false;
+            EXPECT_EQ(result.get_value(), expected);
+        }
+    };
+
+    bit_test(false);
+    bit_test(true);
+
+    auto prover = composer.create_prover();
+
+    printf("composer gates = %zu\n", composer.get_num_gates());
+    auto verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+} // namespace test_stdlib_uint

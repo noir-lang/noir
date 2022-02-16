@@ -125,7 +125,7 @@ void TurboComposer::create_add_gate(const add_triple& in)
 /**
  * Create an addition gate that adds 4 variables.
  * The q_m, q_5, q_ecc_1, q_range, q_logic are zero.
- * q_artith is one.
+ * q_arith is one.
  * Other parameters are received from the argument.
  *
  * @param in Specifies addition gate parameters:
@@ -155,13 +155,20 @@ void TurboComposer::create_big_add_gate(const add_quad& in)
 }
 
 /**
- * Create an addition gate that adds 4 variables with bit extraction.
+ * @brief Create an addition gate that adds 4 variables with bit extraction.
  * The q_m, q_5, q_ecc_1, q_range, q_logic are zero.
- * q_artith is 2.
+ * q_arith is 2, so an additional constraint is imposed in the nonlinear terms.
  * Other parameters are received from the argument.
  *
  * @param in Specifies addition gate parameters:
  * w_l, w_r, w_o, w_4, q_1, q_2, q_3, q_4, q_c.
+ *
+ * @details Impose the constraint
+ * a_scaling . a + b_scaling . b + c_scaling . c + d_scaling . d
+ *               + 6 * (high bit of c - 4d)                        == 0.
+ * @warning This function assumes that c - 4d lies in the set {0, 1, 2, 3}. The circuit writer should take care to
+ * ensure this assumption is backed by a constraint (e.g., c and d could be accumulators produced using the TurboPLONK
+ * function `decompose_into_base_4_accumulators`).
  * */
 void TurboComposer::create_big_add_gate_with_bit_extraction(const add_quad& in)
 {
@@ -209,8 +216,23 @@ void TurboComposer::create_big_mul_gate(const mul_quad& in)
     ++n;
 }
 
-// Creates a width-4 addition gate, where the fourth witness must be a boolean.
-// Can be used to normalize a 32-bit addition
+/**
+ * @brief Create an addition constraint with a range constraint on the fourth witness.
+ *
+ * @details The constraints imposed by this:
+ *     q_1 * w_l + q_2 * w_r + q_3 * w_o  + q_4 * w_4 + q_c == 0
+ *  and
+ *     w_4 * (w_4 - 1) * (w_4 - 2) == 0   (i.e., w_4 is in {0, 1, 2}).
+ *
+ * We use this gate to evaluate additions/subtractions of bounded integers. The purpose is to ensure the prover can use
+ * the output witness in constraints that require the input to be bounded. For a typical example, look at the function,
+ * uint<Composer, Native>::operator+, which calculates addition modulo some number 2**w. This function must
+ * calculate a long divison by 2**w and return the remainder. Without the constraint on w_4, the prover could lie about
+ * the remainder.
+ *
+ * @warning Even with the constraint on w_3, it is typically necessary to range constrain the wire value that will be
+ * returned.
+ */
 void TurboComposer::create_balanced_add_gate(const add_quad& in)
 {
     TURBO_SELECTOR_REFS
@@ -447,44 +469,46 @@ std::vector<uint32_t> TurboComposer::decompose_into_base4_accumulators(const uin
     /*
      * The range constraint accumulates base 4 values into a sum.
      * We do this by evaluating a kind of 'raster scan', where we compare adjacent elements
-     * and validate that their differences map to a base for value  *
-     * Let's say that we want to perform a 32-bit range constraint in 'x'.
-     * We can represent x via 16 constituent base-4 'quads' {q_0, ..., q_15}:
+     * and validate that their weighted differences lie in a base for value expansion in powers of 4.
+     * Let's say that we want to perform a 32-bit range constraint on a field element x.
+     * We can expand x to the desired length via 16 constituent base-4 'quads' {q_0, ..., q_15}:
      *
-     *      15
-     *      ===
-     *      \          i
-     * x =  /    q  . 4
-     *      ===   i
-     *     i = 0
+     *          15
+     *          ===
+     *          \          i
+     *     x =  /    q  . 4
+     *          ===   i
+     *         i = 0
      *
      * In program memory, we place an accumulating base-4 sum of x {a_0, ..., a_15}, where
      *
-     *         i
-     *        ===
-     *        \                  j
-     * a   =  /    q         .  4
-     *  i     ===   (15 - j)
-     *       j = 0
+     *
+     *            i                         |
+     *           ===                        | a_0  =                         q_15
+     *           \                  i - j   | a_1  =              q_15 . 4 + q_14
+     *    a   =  /    q         .  4        | a_2  = q_15 . 4^2 + q_14 . 4 + q_13
+     *     i     ===   (15 - j)             |   ...
+     *          j = 0                       | a_15 = x
      *
      *
      * From this, we can use our range transition constraint to validate that
      *
      *
-     *  a      - 4 . a  ϵ [0, 1, 2, 3]
-     *   i + 1        i
+     *  a      - 4 . a  ϵ {0, 1, 2, 3}  (for the a_i above, we have
+     *   i + 1        i                  a_{i+1} - 4.a_i = q_{14-i}, for i = 0, ..., 15),
      *
+     * setting a_{-1} = 0.
      *
      * We place our accumulating sums in program memory in the following sequence:
      *
      * +-----+-----+-----+-----+
      * |  A  |  B  |  C  |  D  |
      * +-----+-----+-----+-----+
-     * | a3  | a2  | a1  | 0   |
-     * | a7  | a6  | a5  | a4  |
-     * | a11 | a10 | a9  | a8  |
-     * | a15 | a14 | a13 | a12 |
-     * | --- | --- | --- | a16 |
+     * | a2  | a1  | a0  | 0   |
+     * | a6  | a5  | a4  | a3  |
+     * | a10 | a9  | a8  | a7  |
+     * | a14 | a13 | a12 | a11 |
+     * | --- | --- | --- | a15 |
      * +-----+-----+-----+-----+
      *
      * Our range transition constraint on row 'i'
@@ -507,7 +531,7 @@ std::vector<uint32_t> TurboComposer::decompose_into_base4_accumulators(const uin
         failed = true;
         err = msg;
     }
-    // one gate accmulates 4 quads, or 8 bits.
+    // one gate accumulates 4 quads, or 8 bits.
     // # gates = (bits / 8)
     size_t num_quad_gates = (num_bits >> 3);
 
@@ -584,6 +608,17 @@ std::vector<uint32_t> TurboComposer::decompose_into_base4_accumulators(const uin
     return accumulators;
 }
 
+/**
+ * @brief Implements AND and XOR.
+ *
+ * @returns A triple of vectors of accumulator values.
+ *
+ * @details If T is the returned triple, then the last element of T.left is guaranteed to be
+ * our input a, regardless of a's relation with the rest of T.left. For instance, if num_bits is
+ * smaller than the bit length of a, then the constraint that a is reproduced by T.left will fail:
+ * for u = T.left[T.left.size()-2], u will be too small to express a in the form a = 4u + quad.
+ * The same holds, mutatis mutandis, for T.right.
+ */
 waffle::accumulator_triple TurboComposer::create_logic_constraint(const uint32_t a,
                                                                   const uint32_t b,
                                                                   const size_t num_bits,
@@ -592,22 +627,30 @@ waffle::accumulator_triple TurboComposer::create_logic_constraint(const uint32_t
     TURBO_SELECTOR_REFS
     assert_valid_variables({ a, b });
 
-    ASSERT(((num_bits >> 1U) << 1U) == num_bits); // no odd number of bits! bad! only quads!
+    ASSERT(((num_bits >> 1U) << 1U) == num_bits); // Do not allow constraint for an odd number of bits.
+
+    // one gate accmulates 1 quads, or 2 bits.
+    // # gates = (bits / 2)
+    const size_t num_quads = (num_bits >> 1);
 
     /*
      * The LOGIC constraint accumulates 3 base-4 values (a, b, c) into a sum, where c = a & b OR c = a ^ b
      *
-     * In program memory, we place an accumulating base-4 sum of a, b, c {a_0, ..., a_15}, where
-     *
+     * In program memory, we place an accumulating base-4 sum of a, b, c {a_0, ..., a_{(num_bits/2)-1}}, where
      *         i
      *        ===
-     *        \                  j
-     * a   =  /    q         .  4
-     *  i     ===   (15 - j)
+     *        \                              i - j
+     * a   =  /    q                     .  4
+     *  i     ===   (num_bits/2 - 1 - j)
      *       j = 0
      *
+     * Note that a_0 = q_15, a_1 = 4.q_15 + q_14 = 4.a_0 + q_14, and, in general, we have the
+     * accumulator relation
      *
-     * From this, we can use our logic transition constraint to validate that
+     * a       =  4 a  + q                     (for i > 0).
+     *  i + 1        i    num_bits/2 - 1 -i
+     *
+     * We can use our logic transition constraint to validate that
      *
      *
      *  a      - 4 . a  ϵ [0, 1, 2, 3]
@@ -621,16 +664,15 @@ waffle::accumulator_triple TurboComposer::create_logic_constraint(const uint32_t
      *
      *
      *
-     *
      *                    /                 \          /                 \
-     *  c      - 4 . c  = | a      - 4 . a  | (& OR ^) | b      - b . a  |
+     *  c      - 4 . c  = | a      - 4 . a  | (& OR ^) | b      - 4 . b  |
      *   i + 1        i   \  i + 1        i /          \  i + 1        i /
      *
      *
      * We also need the following temporary, w, stored in program memory:
      *
      *      /                 \   /                 \
-     * w  = | a      - 4 . a  | * | b      - b . b  |
+     * w  = | a      - 4 . a  | * | b      - 4 . b  |
      *  i   \  i + 1        i /   \  i + 1        i /
      *
      *
@@ -641,31 +683,26 @@ waffle::accumulator_triple TurboComposer::create_logic_constraint(const uint32_t
      * +-----+-----+-----+-----+
      * |  A  |  B  |  C  |  D  |
      * +-----+-----+-----+-----+
-     * | 0   | 0   | w1  | 0   |
+     * | 0   | 0   | w0  | 0   |
+     * | a0  | b0  | w1  | c0  |
      * | a1  | b1  | w2  | c1  |
-     * | a2  | b2  | w3  | c2  |
      * |  :  |  :  |  :  |  :  |
-     * | an  | bn  | --- | cn  |
+     * | aN  | bN  |  0  | cN  |     where N = num_bits/2 - 1  (num_bits is assumed even)
      * +-----+-----+-----+-----+
+     *
+     * Typically we will set num_bits = max(num_bits(a), num_bits(b)), so that c computes the AND or XOR
+     * of a and b, depending on the value of is_xor_gate.
      *
      * Our transition constraint extracts quads by taking the difference between two accumulating sums,
      * so we need to start the chain with a row of zeroes
      *
-     * The total number of gates required to evaluate an AND operation is (n / 2) + 1,
-     * where n = max(num_bits(a), num_bits(b))
-     *
      * One additional benefit of this constraint, is that both our inputs and output are in 'native' uint32 form.
      * This means we *never* have to decompose a uint32 into bits and back in order to chain together
      * addition and logic operations.
-     *
      **/
 
     const uint256_t left_witness_value(get_variable(a));
     const uint256_t right_witness_value(get_variable(b));
-
-    // one gate accmulates 1 quads, or 2 bits.
-    // # gates = (bits / 2)
-    const size_t num_quads = (num_bits >> 1);
 
     waffle::accumulator_triple accumulators;
     fr left_accumulator = fr::zero();
@@ -677,19 +714,20 @@ waffle::accumulator_triple TurboComposer::create_logic_constraint(const uint32_t
     w_r.emplace_back(zero_idx);
     w_4.emplace_back(zero_idx);
 
-    // w_l, w_r, w_4 should now point to 1 gate ahead of w_o
-    for (size_t i = 0; i < num_quads; ++i) {
+    // w_l, w_r, w_4 now point to 1 gate ahead of w_o
+    for (size_t j = 0; j < num_quads; ++j) {
         uint32_t left_accumulator_index;
         uint32_t right_accumulator_index;
         uint32_t out_accumulator_index;
         uint32_t product_index;
 
-        const size_t bit_index = (num_quads - 1 - i) << 1;
+        const size_t bit_index = (num_quads - 1 - j) << 1; // subscript of q as defined above
+        // get quad coeffs of 4^{num_quads - 1 - j} in a and b, respectively
         const uint64_t left_quad = static_cast<uint64_t>(left_witness_value.get_bit(bit_index)) +
                                    2ULL * static_cast<uint64_t>(left_witness_value.get_bit(bit_index + 1));
-
         const uint64_t right_quad = static_cast<uint64_t>(right_witness_value.get_bit(bit_index)) +
                                     2ULL * static_cast<uint64_t>(right_witness_value.get_bit(bit_index + 1));
+
         const fr left_quad_element = fr{ left_quad, 0, 0, 0 }.to_montgomery_form();
         const fr right_quad_element = fr{ right_quad, 0, 0, 0 }.to_montgomery_form();
         fr out_quad_element;
@@ -701,6 +739,7 @@ waffle::accumulator_triple TurboComposer::create_logic_constraint(const uint32_t
 
         const fr product_quad_element = fr{ left_quad * right_quad, 0, 0, 0 }.to_montgomery_form();
 
+        // replace accumulator by 4.accumulator + quad for a, b and c
         left_accumulator += left_accumulator;
         left_accumulator += left_accumulator;
         left_accumulator += left_quad_element;
@@ -749,16 +788,20 @@ waffle::accumulator_triple TurboComposer::create_logic_constraint(const uint32_t
             q_logic.emplace_back(fr::one());
         }
     }
+
     q_c[q_c.size() - 1] = fr::zero();         // last gate is a noop
     q_logic[q_logic.size() - 1] = fr::zero(); // last gate is a noop
 
-    assert_equal(accumulators.left[accumulators.left.size() - 1], a);
+    assert_equal(a, accumulators.left[accumulators.left.size() - 1], "cannot reproduce `a` value using accumulator.");
+
     accumulators.left[accumulators.left.size() - 1] = a;
 
-    assert_equal(accumulators.right[accumulators.right.size() - 1], b);
+    assert_equal(b, accumulators.right[accumulators.right.size() - 1], "cannot reproduce `b` value using accumulator.");
+
     accumulators.right[accumulators.right.size() - 1] = b;
 
     n += (num_quads + 1);
+
     return accumulators;
 }
 

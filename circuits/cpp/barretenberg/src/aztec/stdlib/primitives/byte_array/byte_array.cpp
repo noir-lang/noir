@@ -26,8 +26,9 @@ byte_array<ComposerContext>::byte_array(ComposerContext* parent_context, const s
 {}
 
 /**
- * Create a byte array out of a vector of uint8_t bytes.
- * This constructor will instantiate each byte as a circuit witness, NOT a circuit constant.
+ * @brief Create a byte array out of a vector of uint8_t bytes.
+ *
+ * @warning This constructor will instantiate each byte as a circuit witness, NOT a circuit constant.
  * Do not use this method if the input needs to be hardcoded for a specific circuit
  **/
 template <typename ComposerContext>
@@ -56,7 +57,7 @@ byte_array<ComposerContext>::byte_array(ComposerContext* parent_context, std::ve
  * # Description of circuit
  *
  * Our field element is `input`. Say the byte vector provided by the prover consists of bits b0,...,b255. These bits
- * are used to construct the corresponding uint256_t validator := \sum_{i=0}^{8num_bytes-7} 2^{i}b_{i}, and `validator`
+ * are used to construct the corresponding uint256_t validator := \sum_{i=0}^{8num_bytes-1} 2^{i}b_{i}, and `validator`
  * is copy constrained to be equal to `input`. However, more constraints are needed in general.
  *
  * Let r = barretenberg::fr::modulus. For later applications, we want to ensure that the prover must pass the bit
@@ -191,8 +192,9 @@ byte_array<ComposerContext>& byte_array<ComposerContext>::operator=(byte_array&&
 }
 
 /**
- * Convert a byte array into a field element.
- * The byte array is represented as a big integer, that is then converted into a field element.
+ * @brief Convert a byte array into a field element.
+ *
+ * @details The byte array is represented as a big integer, that is then converted into a field element.
  * The transformation is only injective if the byte array is < 32 bytes.
  * Larger byte arrays can still be cast to a single field element, but the value will wrap around the circuit modulus
  **/
@@ -224,7 +226,8 @@ template <typename ComposerContext> byte_array<ComposerContext> byte_array<Compo
 }
 
 /**
- * Slice `length` bytes from the byte array, starting at `offset`. Does not add any constraints
+ * @brief Slice `length` bytes from the byte array, starting at `offset`. Does not add any constraints
+ * @details Note that the syntax here differs for the syntax used for slicing uint256_t's.
  **/
 template <typename ComposerContext>
 byte_array<ComposerContext> byte_array<ComposerContext>::slice(size_t offset, size_t length) const
@@ -238,7 +241,7 @@ byte_array<ComposerContext> byte_array<ComposerContext>::slice(size_t offset, si
 }
 
 /**
- * Reverse the bytes in the byte array
+ * @brief Reverse the bytes in the byte array
  **/
 template <typename ComposerContext> byte_array<ComposerContext> byte_array<ComposerContext>::reverse() const
 {
@@ -268,9 +271,9 @@ template <typename ComposerContext> std::string byte_array<ComposerContext>::get
 }
 
 /**
- * Extract a bit from the byte array.
+ * @brief Extract a bit from the byte array.
  *
- * get_bit treats the array as a little-endian integer
+ * @details get_bit treats the array as a little-endian integer
  * e.g. get_bit(1) corresponds to the second bit in the last, 'least significant' byte in the array.
  *
  **/
@@ -284,9 +287,9 @@ bool_t<ComposerContext> byte_array<ComposerContext>::get_bit(size_t index_revers
 }
 
 /**
- * Set a bit in the byte array
+ * @brief Set a bit in the byte array
  *
- * set_bit treats the array as a little-endian integer
+ * @details set_bit treats the array as a little-endian integer
  * e.g. set_bit(0) will set the first bit in the last, 'least significant' byte in the array
  *
  * For example, if we have a 64-byte array filled with zeroes, `set_bit(0, true)` will set `values[63]` to 1,
@@ -312,9 +315,9 @@ void byte_array<ComposerContext>::set_bit(size_t index_reversed, bool_t<Composer
 }
 
 /**
- * Split a byte at the target bit index, return [low slice, high slice, isolated bit]
+ * @brief Split a byte at the target bit index, return [low slice, high slice, isolated bit]
  *
- * This is a private method used by `get_bit` and `set_bit`
+ * @details This is a private method used by `get_bit` and `set_bit`
  **/
 template <typename ComposerContext>
 typename byte_array<ComposerContext>::byte_slice byte_array<ComposerContext>::split_byte(const size_t index) const

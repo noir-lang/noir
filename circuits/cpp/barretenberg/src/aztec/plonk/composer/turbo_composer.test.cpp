@@ -526,6 +526,41 @@ TEST(turbo_composer, range_constraint_fail)
     EXPECT_EQ(result, false);
 }
 
+/**
+ * @brief Test that the `AND` constraint fails when constraining too few bits.
+ *
+ */
+TEST(turbo_composer, and_constraint_failure)
+{
+    waffle::TurboComposer composer = waffle::TurboComposer();
+
+    uint32_t left_value = 4;
+    fr left_witness_value = fr{ left_value, 0, 0, 0 }.to_montgomery_form();
+    uint32_t left_witness_index = composer.add_variable(left_witness_value);
+
+    uint32_t right_value = 5;
+    fr right_witness_value = fr{ right_value, 0, 0, 0 }.to_montgomery_form();
+    uint32_t right_witness_index = composer.add_variable(right_witness_value);
+
+    // 4 && 5 is 4, so 3 bits are needed, but we only constrain 2
+    waffle::accumulator_triple accumulators =
+        composer.create_and_constraint(left_witness_index, right_witness_index, 2);
+
+    waffle::TurboProver prover = composer.create_prover();
+
+    waffle::TurboVerifier verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof);
+
+    if (composer.failed) {
+        info("Composer failed; ", composer.err);
+    }
+
+    EXPECT_EQ(result, false);
+}
+
 TEST(turbo_composer, and_constraint)
 {
     waffle::TurboComposer composer = waffle::TurboComposer();
@@ -595,6 +630,41 @@ TEST(turbo_composer, and_constraint)
     bool result = verifier.verify_proof(proof);
 
     EXPECT_EQ(result, true);
+}
+
+/**
+ * @brief Test that the `XOR` constraint fails when constraining too few bits.
+ *
+ */
+TEST(turbo_composer, xor_constraint_failure)
+{
+    waffle::TurboComposer composer = waffle::TurboComposer();
+
+    uint32_t left_value = 4;
+    fr left_witness_value = fr{ left_value, 0, 0, 0 }.to_montgomery_form();
+    uint32_t left_witness_index = composer.add_variable(left_witness_value);
+
+    uint32_t right_value = 1;
+    fr right_witness_value = fr{ right_value, 0, 0, 0 }.to_montgomery_form();
+    uint32_t right_witness_index = composer.add_variable(right_witness_value);
+
+    // 4 && 1 is 5, so 3 bits are needed, but we only constrain 2
+    waffle::accumulator_triple accumulators =
+        composer.create_and_constraint(left_witness_index, right_witness_index, 2);
+
+    waffle::TurboProver prover = composer.create_prover();
+
+    waffle::TurboVerifier verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof);
+
+    if (composer.failed) {
+        info("Composer failed; ", composer.err);
+    }
+
+    EXPECT_EQ(result, false);
 }
 
 TEST(turbo_composer, xor_constraint)

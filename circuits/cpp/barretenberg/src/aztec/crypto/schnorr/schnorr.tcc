@@ -2,6 +2,23 @@
 
 namespace crypto {
 namespace schnorr {
+
+/**
+ * @brief Construct a Schnorr signature of the form (random - priv * hash, hash) using the group G1.
+ *
+ * @tparam Hash: A function std::vector<uint8_t> -> std::array<uint8_t, 32>
+ * @tparam Fq:   The field over which points of G1 are defined.
+ * @tparam Fr:   A class with a random element generator, where the multiplication
+ * G1::one * k is defined for any randomly-generated class member.
+ * @tparam G1:   A group with a generator G1:one, where an element R is assumed
+ * to posses an 'x-coordinate' R.x lying in the field Fq. It is also assumed that
+ * G1 comes with a notion of an 'affine element'.
+ * @param message A standard library string reference.
+ * @param account A private key-public key pair in Fr × {affine elements of G1}.
+ * @param engine  An instance of numeric::random::Engine.
+ * @return signature
+ */
+
 template <typename Hash, typename Fq, typename Fr, typename G1>
 signature construct_signature(const std::string& message,
                               const key_pair<Fr, G1>& account,
@@ -15,7 +32,6 @@ signature construct_signature(const std::string& message,
     Fq::serialize_to_buffer(R.x, &r[0]);
 
     std::vector<uint8_t> message_buffer;
-    // message_buffer.resize(r.size() + message.size());
     std::copy(r.begin(), r.end(), std::back_inserter(message_buffer));
     std::copy(message.begin(), message.end(), std::back_inserter(message_buffer));
 
@@ -30,6 +46,9 @@ signature construct_signature(const std::string& message,
     return sig;
 }
 
+/**
+ * @brief Construction used in the public key account recovery procedure.
+ */
 template <typename Hash, typename Fq, typename Fr, typename G1>
 signature_b construct_signature_b(const std::string& message, const key_pair<Fr, G1>& account)
 {
@@ -57,6 +76,9 @@ signature_b construct_signature_b(const std::string& message, const key_pair<Fr,
     return sig;
 }
 
+/**
+ * @brief Public key recovery function.
+ */
 template <typename Hash, typename Fq, typename Fr, typename G1>
 typename G1::affine_element ecrecover(const std::string& message, const signature_b& sig)
 {
@@ -90,6 +112,9 @@ typename G1::affine_element ecrecover(const std::string& message, const signatur
     return key;
 }
 
+/**
+ * @brief Verify a Schnorr signature of the sort produced by construct_signature.
+ */
 template <typename Hash, typename Fq, typename Fr, typename G1>
 bool verify_signature(const std::string& message, const typename G1::affine_element& public_key, const signature& sig)
 {

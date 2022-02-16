@@ -85,6 +85,73 @@ void generate_test_plonk_circuit(Composer& composer, size_t num_gates)
     }
 }
 
+/**
+ * @brief Demonstrate current behavior of assert_equal.
+ */
+TEST(stdlib_field, test_assert_equal)
+{
+    auto run_test = [](bool constrain, bool true_when_y_val_zero = true) {
+        waffle::StandardComposer composer = waffle::StandardComposer();
+        field_t x = witness_t(&composer, 1);
+        field_t y = witness_t(&composer, 0);
+
+        // With no constraints, the proof verification will pass even though
+        // we assert x and y are equal.
+        bool expected_result = true;
+
+        if (constrain) {
+            /* The fact that we have a passing test in both cases that follow tells us
+             * that the failure in the first case comes from the additive constraint,
+             * not from a copy constraint. That failure is because the assert_equal
+             * below says that 'the value of y was always x'--the value 1 is substituted
+             * for x when evaluating the gate identity.
+             */
+            if (true_when_y_val_zero) {
+                // constraint: 0*x + 1*y + 0*0 + 0 == 0
+                waffle::add_triple t{ .a = x.witness_index,
+                                      .b = y.witness_index,
+                                      .c = composer.zero_idx,
+                                      .a_scaling = 0,
+                                      .b_scaling = 1,
+                                      .c_scaling = 0,
+                                      .const_scaling = 0 };
+
+                composer.create_add_gate(t);
+                expected_result = false;
+            } else {
+                // constraint: 0*x + 1*y + 0*0 - 1 == 0
+                waffle::add_triple t{ .a = x.witness_index,
+                                      .b = y.witness_index,
+                                      .c = composer.zero_idx,
+                                      .a_scaling = 0,
+                                      .b_scaling = 1,
+                                      .c_scaling = 0,
+                                      .const_scaling = -1 };
+
+                composer.create_add_gate(t);
+                expected_result = true;
+            }
+        }
+
+        x.assert_equal(y);
+
+        // both field elements have real value 1 now
+        EXPECT_EQ(x.get_value(), 1);
+        EXPECT_EQ(y.get_value(), 1);
+
+        auto prover = composer.create_prover();
+        waffle::plonk_proof proof = prover.construct_proof();
+        auto verifier = composer.create_verifier();
+        bool result = verifier.verify_proof(proof);
+
+        EXPECT_EQ(result, expected_result);
+    };
+
+    run_test(false);
+    run_test(true, true);
+    run_test(true, false);
+}
+
 TEST(stdlib_field, test_add_mul_with_constants)
 {
     Composer composer = Composer();

@@ -6,6 +6,9 @@ using namespace barretenberg;
 namespace plonk {
 namespace stdlib {
 
+/**
+ * @brief  In the case of TurboPLONK, range constrain the given witness.
+ */
 template <typename Composer, typename Native>
 std::vector<uint32_t> uint<Composer, Native>::constrain_accumulators(Composer* context,
                                                                      const uint32_t witness_index,
@@ -176,6 +179,12 @@ template <typename Context, typename Native> uint<Context, Native>::operator byt
     return byte_array<Context>(static_cast<field_t<Context>>(*this), width / 8);
 }
 
+/**
+ * @brief Record reduction of value modulo 2^width as a constraint.
+ *
+ * @details This function also updates the witness and zeroes out the additive constant.
+ * It does not add any range constraints.
+ */
 template <typename Composer, typename Native> uint<Composer, Native> uint<Composer, Native>::weak_normalize() const
 {
     if (!context || is_constant()) {
@@ -184,21 +193,33 @@ template <typename Composer, typename Native> uint<Composer, Native> uint<Compos
     if (witness_status == WitnessStatus::WEAK_NORMALIZED) {
         return *this;
     }
+
+    /**
+     * Constraints:
+     *   witness - remainder - overflow * 2^width + (additive_constant && MASK) = 0
+     * and
+     *   overflow lies in {0, 1, 2}.
+     *
+     * Note that
+     *   witness + additive_value
+     * and
+     *   witness + (additive_value % 2^width)
+     * have the same remainder under division by 2^width.
+     */
+
     if (witness_status == WitnessStatus::NOT_NORMALIZED) {
         const uint256_t value = get_unbounded_value();
         const uint256_t overflow = value >> width;
         const uint256_t remainder = value & MASK;
-        const waffle::add_quad gate{
-            witness_index,
-            context->zero_idx,
-            context->add_variable(remainder),
-            context->add_variable(overflow),
-            fr::one(),
-            fr::zero(),
-            fr::neg_one(),
-            -fr(CIRCUIT_UINT_MAX_PLUS_ONE),
-            (additive_constant & MASK),
-        };
+        const waffle::add_quad gate{ .a = witness_index,
+                                     .b = context->zero_idx,
+                                     .c = context->add_variable(remainder),
+                                     .d = context->add_variable(overflow),
+                                     .a_scaling = fr::one(),
+                                     .b_scaling = fr::zero(),
+                                     .c_scaling = fr::neg_one(),
+                                     .d_scaling = -fr(CIRCUIT_UINT_MAX_PLUS_ONE),
+                                     .const_scaling = (additive_constant & MASK) };
 
         context->create_balanced_add_gate(gate);
 
@@ -209,6 +230,9 @@ template <typename Composer, typename Native> uint<Composer, Native> uint<Compos
     return *this;
 }
 
+/**
+ * @brief For non-constants, weakly normalize and constrain the updated witness to width-many bits.
+ */
 template <typename Composer, typename Native> uint<Composer, Native> uint<Composer, Native>::normalize() const
 {
     if (!context || is_constant()) {
@@ -220,9 +244,19 @@ template <typename Composer, typename Native> uint<Composer, Native> uint<Compos
         witness_index = accumulators[num_accumulators() - 1];
         witness_status = WitnessStatus::OK;
     }
+
     if (witness_status == WitnessStatus::NOT_NORMALIZED) {
         weak_normalize();
+        /**
+         * constrain_accumulators will do more for PlookupComposer, but in TurboPLONK it just imposes
+         * the range constraint that the witness can be expressed in width-many bits.
+         *
+         * The Turbo-only strategy for imposing a range constraint on a w is develop a base-4 expansion
+         * of w, storing this in accumulators (just partial sums), and checking that a partial sum of a
+         * fixed length actually does reproduce the witness value.
+         */
         accumulators = constrain_accumulators(context, witness_index);
+        // This will only change the value of the uint if the range constraint fails.
         witness_index = accumulators[num_accumulators() - 1];
         witness_status = WitnessStatus::OK;
     }
@@ -245,36 +279,64 @@ template <typename Composer, typename Native> uint256_t uint<Composer, Native>::
     return (uint256_t(context->get_variable(witness_index)) + additive_constant);
 }
 
+/**
+ * @brief Extract the bit value at a given position.
+ * @details Since we represent our uint's using quads, to extract a bit we must distinguish
+ * between the case where that bit is the low bit of a quad or a high bit of a quad.
+ *
+ **/
 template <typename Composer, typename Native> bool_t<Composer> uint<Composer, Native>::at(const size_t bit_index) const
 {
     if (is_constant()) {
         return bool_t<Composer>(context, get_value().get_bit(bit_index));
     }
+
     if (witness_status != WitnessStatus::OK) {
         normalize();
     }
 
+    /**
+     * Calculating the position of the bit:
+     * - Assume width is even and let w = width/2. There are w-many quads describing a width-bit integer.
+     * We encode these in a vector of accumulators A_0, ... , A_{w-1}. Setting A_{-1} = 0.
+     * - For j < w-1, the quad q_j is extracted using  as q_j = A_{w-1-j} - 4 A_{w-1-j-1}.
+     * - The k-th bit lies in the k//2-th quad as the low bit (k even) or high bit (k odd).
+     *
+     * Therefore we need to access accumulators[pivot] and accumulators[pivot-1], where
+     *      pivot = (width//2) - 1 + (bit_index//2)
+     */
     const size_t pivot_index = ((width >> 1) - (bit_index >> 1UL)) - 1;
     uint32_t left_idx = (pivot_index == 0) ? context->zero_idx : accumulators[pivot_index - 1];
     uint32_t right_idx = accumulators[pivot_index];
     uint256_t quad =
         uint256_t(context->get_variable(right_idx)) - uint256_t(context->get_variable(left_idx)) * uint256_t(4);
 
-    // if 'index' is odd, we want a low bit
+    /**
+     * Write Δ = accumulators[pivot] - 4 . accumulators[pivot - 1]. We would like to construct
+     * the bit representation of Δ by imposing the constraint that Δ = lo_bit + 2 . hi_bit
+     * and then return either lo_bit or hi_bit, depending on the parity of bit_index.
+     * The big addition gate with bit extraction imposes the equivalent relation obtained by
+     * scaling both sides by 3.
+     **/
+
+    // if 'index' is even, we want a low bit
     if ((bit_index & 1UL) == 0UL) {
         // we want a low bit
         uint256_t lo_bit = quad & 1;
-        waffle::add_quad gate{
-            context->add_variable(lo_bit), // our extracted bit
-            context->zero_idx,             // no explicit need to add high bit - extract gate does that for us
-            right_idx,                     // large accumulator
-            left_idx,                      // small accumulator
-            fr(3),                         // 3 * lo_bit + 6 * hi_bit = 3 * a[pivot] - 12 * a[pivot - 1]
-            fr::zero(),                    // 0
-            -fr(3),                        // -3 * a[pivot]
-            fr(12),                        // 12 * a[pivot - 1]
-            fr::zero()                     // 0
-        };
+        waffle::add_quad gate{ .a = context->add_variable(lo_bit),
+                               .b = context->zero_idx,
+                               .c = right_idx,
+                               .d = left_idx,
+                               .a_scaling = fr(3),
+                               .b_scaling = fr::zero(),
+                               .c_scaling = -fr(3),
+                               .d_scaling = fr(12),
+                               .const_scaling = fr::zero() };
+        /** constraint:
+         *    3 lo_bit + 0 * 0 - 3 a_pivot + 12 a_{pivot - 1} + 0 + 6 high bit of (A_pivot - 4 A_{pivot - 1}) == 0
+         *  i.e.,
+         *    lo_bit + 2 high bit of (A_pivot - 4 A_{pivot - 1}) = A_pivot - 4 A_{pivot - 1} == 0
+         */
         context->create_big_add_gate_with_bit_extraction(gate);
         bool_t<Composer> result;
         result.witness_index = gate.a;
@@ -282,20 +344,25 @@ template <typename Composer, typename Native> bool_t<Composer> uint<Composer, Na
         return result;
     }
 
-    // if 'index' is even, we want a high bit
+    // if 'index' is odd, we want a high bit
     uint256_t hi_bit = quad >> 1;
 
-    waffle::add_quad gate{
-        context->zero_idx,             // no need for the low bit
-        context->add_variable(hi_bit), // our extracted bit
-        right_idx,                     // large accumlator
-        left_idx,                      // small accumulator
-        fr::zero(),                    // 0
-        -fr(6),                        // extracted bit is scaled by 6, so apply -6 to our high bit
-        fr::zero(),                    // 0
-        fr::zero(),                    // 0
-        fr::zero()                     // 0
-    };
+    waffle::add_quad gate{ .a = context->zero_idx,
+                           .b = context->add_variable(hi_bit),
+                           .c = right_idx,
+                           .d = left_idx,
+                           .a_scaling = fr::zero(),
+                           .b_scaling = -fr(6),
+                           .c_scaling = fr::zero(),
+                           .d_scaling = fr::zero(),
+                           .const_scaling = fr::zero() };
+
+    /**
+     * constraint:
+     *   0 * 0 - 6 hi_bit  + 0 A_pivot + 0 * A_{pivot - 1} + 0 + 6 high bit of (A_pivot - 4 A_{pivot - 1}) == 0
+     * Note: we have normalized self, so A_pivot - 4 A_{pivot - 1} is known to be in {0, 1, 2, 3}. Our protocol's
+     * bit extraction gate is trusted to correctly extract 6 * (high bit c - 4d).
+     */
     context->create_big_add_gate_with_bit_extraction(gate);
     bool_t<Composer> result;
     result.witness_index = gate.b;

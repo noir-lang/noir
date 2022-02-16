@@ -13,9 +13,7 @@ struct GrumpkinG1Params {
     static constexpr bool can_hash_to_curve = true;
     static constexpr bool small_elements = true;
     static constexpr bool has_a = false;
-    // b = -17 in montgomery form
-    // curve formula: y^2 = x^3 - 17
-    // TODO: erm, I think this is -17 in montgomery form. Should double check this
+    // have checked in grumpkin.test_b that b is Montgomery form of  -17
     static constexpr barretenberg::fr b{
         0xdd7056026000005a, 0x223fa97acb319311, 0xcc388229877910c0, 0x34394632b724eaa
     };
