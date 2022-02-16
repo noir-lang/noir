@@ -5,7 +5,9 @@
 namespace plonk {
 namespace stdlib {
 
-static constexpr uint32_t IS_CONSTANT = waffle::ComposerBase::IS_CONSTANT;
+// indicates whether a witness index actually contains a constant
+static constexpr uint32_t IS_CONSTANT = UINT32_MAX;
+
 template <typename ComposerContext> class witness_t {
   public:
     witness_t() = default;
@@ -44,7 +46,7 @@ template <typename ComposerContext> class witness_t {
     }
 
     barretenberg::fr witness;
-    uint32_t witness_index = waffle::ComposerBase::IS_CONSTANT;
+    uint32_t witness_index = IS_CONSTANT;
     ComposerContext* context = nullptr;
 };
 

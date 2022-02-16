@@ -53,7 +53,7 @@ template <typename ComposerContext> class bool_t {
 
     bool get_value() const { return witness_bool ^ witness_inverted; }
 
-    bool is_constant() const { return witness_index == waffle::ComposerBase::IS_CONSTANT; }
+    bool is_constant() const { return witness_index == IS_CONSTANT; }
 
     bool_t normalize() const;
 
@@ -62,7 +62,7 @@ template <typename ComposerContext> class bool_t {
     mutable ComposerContext* context = nullptr;
     mutable bool witness_bool = false;
     mutable bool witness_inverted = false;
-    mutable uint32_t witness_index = waffle::ComposerBase::IS_CONSTANT;
+    mutable uint32_t witness_index = IS_CONSTANT;
 };
 
 template <typename T> inline std::ostream& operator<<(std::ostream& os, bool_t<T> const& v)

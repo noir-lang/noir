@@ -1197,10 +1197,11 @@ PlookupBasicTable& PlookupComposer::get_table(const PlookupBasicTableId id)
     return lookup_tables[lookup_tables.size() - 1];
 }
 
-std::array<std::vector<uint32_t>, 3> PlookupComposer::read_sequence_from_multi_table(const PlookupMultiTableId& id,
-                                                                                     const PlookupReadData& read_values,
-                                                                                     const uint32_t key_a_index,
-                                                                                     const uint32_t key_b_index)
+std::array<std::vector<uint32_t>, 3> PlookupComposer::read_sequence_from_multi_table(
+    const PlookupMultiTableId& id,
+    const PlookupReadData& read_values,
+    const uint32_t key_a_index,
+    std::optional<uint32_t> key_b_index)
 
 {
     PLOOKUP_SELECTOR_REFS;
@@ -1213,8 +1214,8 @@ std::array<std::vector<uint32_t>, 3> PlookupComposer::read_sequence_from_multi_t
         table.lookup_gates.emplace_back(read_values.key_entries[i]);
 
         const auto first_idx = (i == 0) ? key_a_index : add_variable(read_values.column_1_accumulator_values[i]);
-        const auto second_idx = (i == 0 && is_valid_variable(key_b_index))
-                                    ? key_b_index
+        const auto second_idx = (i == 0 && (key_b_index.has_value()))
+                                    ? key_b_index.value()
                                     : add_variable(read_values.column_2_accumulator_values[i]);
         const auto third_idx = add_variable(read_values.column_3_accumulator_values[i]);
 
