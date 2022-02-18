@@ -314,12 +314,8 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Literal(literal) => HirExpression::Literal(match literal {
                 Literal::Bool(b) => HirLiteral::Bool(b),
                 Literal::Array(arr) => {
-                    let mut interned_contents = Vec::new();
-                    for content in arr.contents {
-                        interned_contents.push(self.resolve_expression(content));
-                    }
                     HirLiteral::Array(HirArrayLiteral {
-                        contents: interned_contents,
+                        contents: vecmap(arr.contents, |elem| self.resolve_expression(elem)),
                         r#type: arr.r#type,
                         length: arr.length,
                     })

@@ -530,7 +530,12 @@ where
 {
     expression_list(expr_parser)
         .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
-        .map(ExpressionKind::array)
+        .validate(|elems, span, emit| {
+            if elems.is_empty() {
+                emit(ParserError::with_reason("Arrays must have at least one element".to_owned(), span))
+            }
+            ExpressionKind::array(elems)
+        })
 }
 
 fn expression_list<P>(expr_parser: P) -> impl NoirParser<Vec<Expression>>
