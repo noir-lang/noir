@@ -313,13 +313,11 @@ impl<'a> Resolver<'a> {
             }
             ExpressionKind::Literal(literal) => HirExpression::Literal(match literal {
                 Literal::Bool(b) => HirLiteral::Bool(b),
-                Literal::Array(arr) => {
-                    HirLiteral::Array(HirArrayLiteral {
-                        contents: vecmap(arr.contents, |elem| self.resolve_expression(elem)),
-                        r#type: arr.r#type,
-                        length: arr.length,
-                    })
-                }
+                Literal::Array(arr) => HirLiteral::Array(HirArrayLiteral {
+                    contents: vecmap(arr.contents, |elem| self.resolve_expression(elem)),
+                    r#type: arr.r#type,
+                    length: arr.length,
+                }),
                 Literal::Integer(integer) => HirLiteral::Integer(integer),
                 Literal::Str(str) => HirLiteral::Str(str),
             }),
