@@ -11,4 +11,8 @@ noirc_frontend = { path = "../noirc_frontend" }
 noirc_errors = { path = "../noirc_errors" }
 noirc_abi = { path = "../noirc_abi" }
 acvm = { path = "../acvm" }
+arena = {path = "../arena"}
+lazy_static = "1.4.0"
 thiserror = "1.0.21"
+num-bigint = "0.4"
+num-traits = "0.2.8"

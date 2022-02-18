@@ -5,6 +5,7 @@ mod environment;
 mod errors;
 mod low_level_function_impl;
 mod object;
+mod ssa;
 
 use acvm::acir::circuit::{
     gate::{AndGate, Gate, XorGate},
@@ -179,6 +180,21 @@ impl<'a> Evaluator<'a> {
         for stmt_id in block.statements() {
             self.evaluate_statement(env, stmt_id)?;
         }
+        Ok(())
+    }
+
+    /// Compiles the AST into the intermediate format by evaluating the main function
+    pub fn evaluate_main_alt(&mut self, env: &mut Environment) -> Result<(), RuntimeError> {
+        self.parse_abi(env)?;
+
+        // Now call the main function
+        let main_func_body = self.context.def_interner.function(&self.main_function);
+        let mut cfg = ssa::code_gen::IRGenerator::new(self.context);
+        cfg.evaluate_main(env, self.context, main_func_body)
+            .unwrap();
+
+        //Generates ACIR representation:
+        cfg.ir_to_acir(self).unwrap();
         Ok(())
     }
 

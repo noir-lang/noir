@@ -66,6 +66,16 @@ impl<'de, T: ark_ff::PrimeField> Deserialize<'de> for FieldElement<T> {
     }
 }
 
+impl<F: PrimeField> From<u128> for FieldElement<F> {
+    fn from(a: u128) -> FieldElement<F> {
+        let result = match F::from_str(&a.to_string()) {
+            Ok(result) => result,
+            Err(_) => panic!("Cannot convert u128 as a string to a field element"),
+        };
+        FieldElement(result)
+    }
+}
+
 impl<F: PrimeField> FieldElement<F> {
     pub fn one() -> FieldElement<F> {
         FieldElement(F::one())
