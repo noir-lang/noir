@@ -1,5 +1,6 @@
 use crate::native_types::{Linear, Witness};
 use noir_field::FieldElement;
+use serde::{Serialize, Deserialize};
 use std::ops::{Add, Mul, Neg, Sub};
 
 use super::witness::UnknownWitness;
@@ -11,7 +12,7 @@ use super::witness::UnknownWitness;
 //
 // In the multiplication polynomial
 // XXX: If we allow the degree of the quotient polynomial to be arbitrary, then we will need a vector of wire values
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Arithmetic {
     // To avoid having to create intermediate variables pre-optimisation
     // We collect all of the multiplication terms in the arithmetic gate

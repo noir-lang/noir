@@ -4,8 +4,9 @@ pub use gate::Gate;
 use noir_field::FieldElement;
 
 use crate::native_types::Witness;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Circuit {
     pub current_witness_index: u32,
     pub gates: Vec<Gate>,
@@ -18,7 +19,7 @@ impl Circuit {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PublicInputs(pub Vec<Witness>);
 
 impl PublicInputs {
@@ -40,5 +41,33 @@ pub struct Selector(pub String, pub FieldElement);
 impl Default for Selector {
     fn default() -> Selector {
         Selector("zero".to_string(), FieldElement::zero())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use noir_field::FieldElement;
+    use crate::native_types::Witness;
+    use super::{Circuit, Gate, gate::AndGate, PublicInputs};
+
+    #[test]
+    fn test_serialize() {
+        let circuit = Circuit {
+            current_witness_index: 0,
+            gates: vec![
+                Gate::Arithmetic(crate::native_types::Arithmetic { mul_terms: vec![], linear_combinations: vec![], q_c: FieldElement::from_hex("FFFF").unwrap() }),
+                Gate::Range(Witness(1), 8),
+                Gate::And(AndGate { a: Witness(1), b: Witness(2), result: Witness(3), num_bits: 4 }),
+            ],
+            public_inputs: PublicInputs(vec![
+                Witness(2)
+            ]),
+        };
+
+        let json = serde_json::to_string_pretty(&circuit).unwrap();
+        println!("serialized: {json}");
+
+        let deserialized = serde_json::from_str(&json).unwrap();
+        assert_eq!(circuit, deserialized);
     }
 }
