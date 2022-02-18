@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Clone, Debug, Hash, Copy, PartialEq, Eq, Serialize, Deserialize)]

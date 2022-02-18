@@ -1,6 +1,6 @@
 use crate::native_types::{Linear, Witness};
 use noir_field::FieldElement;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::ops::{Add, Mul, Neg, Sub};
 
 use super::witness::UnknownWitness;

@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::native_types::{Arithmetic, Witness};
 use crate::OPCODE;

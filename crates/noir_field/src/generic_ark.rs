@@ -2,7 +2,7 @@ use ark_ff::to_bytes;
 use ark_ff::FpParameters;
 use ark_ff::PrimeField;
 
-use serde::{ Serialize, Deserialize };
+use serde::{Deserialize, Serialize};
 
 // XXX: Switch out for a trait and proper implementations
 // This implementation is in-efficient, can definitely remove hex usage and Iterator instances for trivial functionality
@@ -43,7 +43,8 @@ impl<F: PrimeField> From<i128> for FieldElement<F> {
 
 impl<T: ark_ff::PrimeField> Serialize for FieldElement<T> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where S: serde::Serializer
+    where
+        S: serde::Serializer,
     {
         self.to_hex().serialize(serializer)
     }
@@ -51,12 +52,16 @@ impl<T: ark_ff::PrimeField> Serialize for FieldElement<T> {
 
 impl<'de, T: ark_ff::PrimeField> Deserialize<'de> for FieldElement<T> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where D: serde::Deserializer<'de>
+    where
+        D: serde::Deserializer<'de>,
     {
         let s = <&str>::deserialize(deserializer)?;
         match Self::from_hex(s) {
             Some(value) => Ok(value),
-            None => Err(serde::de::Error::custom(format!("Invalid hex for FieldElement: {}", s))),
+            None => Err(serde::de::Error::custom(format!(
+                "Invalid hex for FieldElement: {}",
+                s
+            ))),
         }
     }
 }
