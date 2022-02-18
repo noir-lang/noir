@@ -33,11 +33,29 @@ impl CustomDiagnostic {
             notes: Vec::new(),
         }
     }
+
     pub fn add_note(&mut self, message: String) {
         self.notes.push(message);
     }
+
     pub fn add_secondary(&mut self, message: String, span: Span) {
         self.secondaries.push(CustomLabel::new(message, span));
+    }
+}
+
+impl std::fmt::Display for CustomDiagnostic {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.message)?;
+
+        for secondary in &self.secondaries {
+            write!(f, "\nsecondary: {}", secondary.message)?;
+        }
+
+        for note in &self.notes {
+            write!(f, "\nnote: {}", note)?;
+        }
+
+        Ok(())
     }
 }
 

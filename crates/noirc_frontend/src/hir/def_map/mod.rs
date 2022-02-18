@@ -3,10 +3,9 @@ use crate::hir::def_collector::dc_crate::DefCollector;
 use crate::hir::Context;
 use crate::node_interner::FuncId;
 use crate::parser::{parse_program, ParsedModule};
-use crate::util::vecmap;
 use arena::{Arena, Index};
 use fm::{FileId, FileManager};
-use noirc_errors::{CollectedErrors, DiagnosableError};
+use noirc_errors::CollectedErrors;
 use std::collections::HashMap;
 
 mod module_def;
@@ -110,7 +109,6 @@ pub fn parse_file(fm: &mut FileManager, file_id: FileId) -> (ParsedModule, Vec<C
     let errors = if errors.is_empty() {
         vec![]
     } else {
-        let errors = vecmap(errors, |err| err.to_diagnostic());
         vec![CollectedErrors { file_id, errors }]
     };
     (program, errors)
