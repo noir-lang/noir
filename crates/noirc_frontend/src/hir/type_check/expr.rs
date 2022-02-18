@@ -30,10 +30,11 @@ pub(crate) fn type_check_expression(
             match literal {
                 HirLiteral::Array(arr) => {
                     // Type check the contents of the array
-                    assert!(!arr.contents.is_empty());
                     let elem_types = vecmap(&arr.contents, |arg| {
                         type_check_expression(interner, arg, errors)
                     });
+
+                    let first_elem_type = elem_types.get(0).cloned().unwrap_or(Type::Error);
 
                     // Specify the type of the Array
                     // Note: This assumes that the array is homogeneous, which will be checked next
@@ -42,43 +43,25 @@ pub(crate) fn type_check_expression(
                         // adds type annotations that say otherwise.
                         FieldElementType::Private,
                         ArraySize::Fixed(elem_types.len() as u128),
-                        Box::new(elem_types[0].clone()),
+                        Box::new(first_elem_type.clone()),
                     );
 
                     // Check if the array is homogeneous
-                    //
-                    // An array with one element will be homogeneous
-                    if elem_types.len() == 1 {
-                        interner.push_expr_type(expr_id, arr_type.clone());
-                        return arr_type;
-                    }
-
-                    // To check if an array with more than one element
-                    // is homogeneous, we can use a sliding window of size two
-                    // to check if adjacent elements are the same
-                    // Note: windows(2) expects there to be two or more values
-                    // So the case of one element is an edge case which would panic in the compiler.
-                    //
-                    // XXX: We can refactor this algorithm to peek ahead and check instead of using window.
-                    // It would allow us to not need to check the case of one, but it's not significant.
-                    for (index, type_pair) in elem_types.windows(2).enumerate() {
-                        let left_type = &type_pair[0];
-                        let right_type = &type_pair[1];
-
-                        if left_type != right_type {
-                            let left_span = interner.expr_span(&arr.contents[index]);
-                            let right_span = interner.expr_span(&arr.contents[index + 1]);
-                            errors.push(
-                                TypeCheckError::NonHomogeneousArray {
-                                    first_span: left_span,
-                                    first_type: left_type.to_string(),
-                                    first_index: index,
-                                    second_span: right_span,
-                                    second_type: right_type.to_string(),
-                                    second_index: index + 1,
-                                }
-                                .add_context("elements in an array must have the same type"),
-                            );
+                    if first_elem_type != Type::Error {
+                        for (index, elem_type) in elem_types.iter().enumerate().skip(1) {
+                            if *elem_type != first_elem_type && elem_type != &Type::Error {
+                                errors.push(
+                                    TypeCheckError::NonHomogeneousArray {
+                                        first_span: interner.expr_span(&arr.contents[0]),
+                                        first_type: first_elem_type.to_string(),
+                                        first_index: index,
+                                        second_span: interner.expr_span(&arr.contents[index]),
+                                        second_type: elem_type.to_string(),
+                                        second_index: index + 1,
+                                    }
+                                    .add_context("elements in an array must have the same type"),
+                                );
+                            }
                         }
                     }
 
