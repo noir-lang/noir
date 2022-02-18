@@ -14,6 +14,8 @@ members = [
     "crates/arena",
     "crates/acvm",
     "crates/noirc_abi",
+    "crates/noir_nd",
+    "crates/noir_nd_stdlib",
 ]
 exclude = ["examples/9/merkle_tree_processor"]
 default-members = ["crates/nargo"]

@@ -1,0 +1,16 @@
+[package]
+name = "noir_nd"
+version = "0.1.0"
+edition = "2021"
+
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+noir_field = { path = "../noir_field", default-features = false }
+libloading = "*"
+
+
+[features]
+default = ["bn254"]
+bn254 = ["noir_field/bn254"]

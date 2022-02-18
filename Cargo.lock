@@ -999,6 +999,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e74d72e0f9b65b5b4ca49a346af3976df0f9c61d550727f349ecd559f251a26c"
 
 [[package]]
+name = "libloading"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "efbc0f03f9a775e9f6aed295c6a1ba2253c5757a9e03d55c6caa46a681abcddd"
+dependencies = [
+ "cfg-if 1.0.0",
+ "winapi",
+]
+
+[[package]]
 name = "lock_api"
 version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1115,6 +1125,22 @@ dependencies = [
  "blake2",
  "cfg-if 1.0.0",
  "hex",
+]
+
+[[package]]
+name = "noir_nd"
+version = "0.1.0"
+dependencies = [
+ "libloading",
+ "noir_field",
+]
+
+[[package]]
+name = "noir_nd_stdlib"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "noir_nd",
 ]
 
 [[package]]

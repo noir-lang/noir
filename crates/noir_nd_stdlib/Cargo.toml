@@ -1,0 +1,13 @@
+[package]
+name = "noir_nd_stdlib"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+noir_nd = { path = "../noir_nd" }
+
+[dev-dependencies]
+hex = "*"
