@@ -2,20 +2,19 @@
 
 mod test_lib;
 
-use noir_nd::c_header::C_ExternFuncCall;
-use std::ffi::CStr;
+use std::{ffi::CStr, os::raw::c_char};
 
 #[no_mangle]
-pub extern "C" fn call_func(x: C_ExternFuncCall) {
+pub extern "C" fn call_func(name: *const c_char, inputs: *const [u8; 32], outputs: *mut [u8; 32]) {
     let foo = [3u8; 32];
     let foo2 = [5u8; 32];
 
     unsafe {
-        *x.outputs.offset(0) = foo;
-        *x.outputs.offset(1) = foo2;
+        *outputs.offset(0) = foo;
+        *outputs.offset(1) = foo2;
     }
 
-    let c_str: &CStr = unsafe { CStr::from_ptr(x.name) };
+    let c_str: &CStr = unsafe { CStr::from_ptr(name) };
     let str_slice: &str = c_str.to_str().unwrap();
     println!("function called is named : {}", str_slice);
 }

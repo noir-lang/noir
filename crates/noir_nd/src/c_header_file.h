@@ -3,10 +3,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-typedef struct C_ExternFuncCall {
-  const char *name;
-  const uint8_t (*inputs)[32];
-  uint8_t (*outputs)[32];
-} C_ExternFuncCall;
+typedef uint8_t NoirValue[32];
 
-extern void call_func(struct C_ExternFuncCall x);
+extern void call_func(const uint32_t *name, const NoirValue *inputs, NoirValue *outputs);
