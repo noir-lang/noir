@@ -413,7 +413,7 @@ fn test_int_type() {
         Token::IntType(IntType::Signed(108)),
         Token::IntType(IntType::Unsigned(104)),
         Token::Dot,
-        Token::Int(5.into()),
+        Token::Int(5_i128.into()),
     ];
 
     let mut lexer = Lexer::new(input);
@@ -432,7 +432,7 @@ fn test_comment() {
         Token::Keyword(Keyword::Let),
         Token::Ident("x".to_string()),
         Token::Assign,
-        Token::Int(FieldElement::from(5)),
+        Token::Int(FieldElement::from(5_i128)),
     ];
 
     let mut lexer = Lexer::new(input);
@@ -463,7 +463,7 @@ fn test_eat_string_literal() {
 fn test_eat_hex_int() {
     let input = "0x05";
 
-    let expected = vec![Token::Int(5.into())];
+    let expected = vec![Token::Int(5_i128.into())];
     let mut lexer = Lexer::new(input);
 
     for token in expected.into_iter() {
@@ -499,7 +499,7 @@ fn test_span() {
 
     // Int position
     let int_position = whitespace_position + 1;
-    let int_token = Token::Int(5.into()).into_single_span(int_position);
+    let int_token = Token::Int(5_i128.into()).into_single_span(int_position);
 
     let expected = vec![let_token, ident_token, assign_token, int_token];
     let mut lexer = Lexer::new(input);
@@ -528,14 +528,14 @@ fn test_basic_language_syntax() {
         Token::Keyword(Keyword::Const),
         Token::Ident("five".to_string()),
         Token::Assign,
-        Token::Int(5.into()),
+        Token::Int(5_i128.into()),
         Token::Semicolon,
         Token::Keyword(Keyword::Pub),
         Token::Ident("ten".to_string()),
         Token::Colon,
         Token::Keyword(Keyword::Field),
         Token::Assign,
-        Token::Int(10.into()),
+        Token::Int(10_i128.into()),
         Token::Semicolon,
         Token::Keyword(Keyword::Let),
         Token::Ident("mul".to_string()),

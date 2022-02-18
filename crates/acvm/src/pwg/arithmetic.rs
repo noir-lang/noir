@@ -174,12 +174,12 @@ fn arithmetic_smoke_test() {
     };
 
     let mut values: BTreeMap<Witness, FieldElement> = BTreeMap::new();
-    values.insert(b, FieldElement::from(2));
-    values.insert(c, FieldElement::from(1));
-    values.insert(d, FieldElement::from(1));
+    values.insert(b, FieldElement::from(2_i128));
+    values.insert(c, FieldElement::from(1_i128));
+    values.insert(d, FieldElement::from(1_i128));
 
     assert!(ArithmeticSolver::solve(&mut values, &gate_a).is_none());
     assert!(ArithmeticSolver::solve(&mut values, &gate_b).is_none());
 
-    assert_eq!(values.get(&a).unwrap(), &FieldElement::from(4));
+    assert_eq!(values.get(&a).unwrap(), &FieldElement::from(4_i128));
 }
