@@ -78,6 +78,18 @@ impl<'a> Lexer<'a> {
         self.peek_char() == Some(ch)
     }
 
+    fn ampersand(&mut self) -> SpannedTokenResult {
+        if self.peek_char_is('&') {
+            // Note: when we issue this error the first '&' will already be consumed
+            // and the next token issued will be the next '&' which is likely what the
+            // programmer intended anyway.
+            let span = Span::new(self.position..self.position + 1);
+            Err(LexerErrorKind::LogicalAnd { span })
+        } else {
+            self.single_char_token(Token::Ampersand)
+        }
+    }
+
     pub fn next_token(&mut self) -> SpannedTokenResult {
         match self.next_char() {
             Some(x) if { x.is_whitespace() } => {
@@ -92,8 +104,8 @@ impl<'a> Lexer<'a> {
             Some(':') => self.glue(Token::Colon),
             Some('!') => self.glue(Token::Bang),
             Some('-') => self.glue(Token::Minus),
+            Some('&') => self.ampersand(),
             Some('%') => self.single_char_token(Token::Percent),
-            Some('&') => self.single_char_token(Token::Ampersand),
             Some('^') => self.single_char_token(Token::Caret),
             Some(';') => self.single_char_token(Token::Semicolon),
             Some('*') => self.single_char_token(Token::Star),
@@ -136,7 +148,7 @@ impl<'a> Lexer<'a> {
             false => Ok(single.into_single_span(start)),
             true => {
                 self.next_char();
-                Ok(double.into_span(start, start + 2))
+                Ok(double.into_span(start, start + 1))
             }
         }
     }
@@ -401,7 +413,7 @@ fn test_int_type() {
         Token::IntType(IntType::Signed(108)),
         Token::IntType(IntType::Unsigned(104)),
         Token::Dot,
-        Token::Int(5.into()),
+        Token::Int(5_i128.into()),
     ];
 
     let mut lexer = Lexer::new(input);
@@ -420,7 +432,7 @@ fn test_comment() {
         Token::Keyword(Keyword::Let),
         Token::Ident("x".to_string()),
         Token::Assign,
-        Token::Int(FieldElement::from(5)),
+        Token::Int(FieldElement::from(5_i128)),
     ];
 
     let mut lexer = Lexer::new(input);
@@ -451,7 +463,7 @@ fn test_eat_string_literal() {
 fn test_eat_hex_int() {
     let input = "0x05";
 
-    let expected = vec![Token::Int(5.into())];
+    let expected = vec![Token::Int(5_i128.into())];
     let mut lexer = Lexer::new(input);
 
     for token in expected.into_iter() {
@@ -487,7 +499,7 @@ fn test_span() {
 
     // Int position
     let int_position = whitespace_position + 1;
-    let int_token = Token::Int(5.into()).into_single_span(int_position);
+    let int_token = Token::Int(5_i128.into()).into_single_span(int_position);
 
     let expected = vec![let_token, ident_token, assign_token, int_token];
     let mut lexer = Lexer::new(input);
@@ -516,14 +528,14 @@ fn test_basic_language_syntax() {
         Token::Keyword(Keyword::Const),
         Token::Ident("five".to_string()),
         Token::Assign,
-        Token::Int(5.into()),
+        Token::Int(5_i128.into()),
         Token::Semicolon,
         Token::Keyword(Keyword::Pub),
         Token::Ident("ten".to_string()),
         Token::Colon,
         Token::Keyword(Keyword::Field),
         Token::Assign,
-        Token::Int(10.into()),
+        Token::Int(10_i128.into()),
         Token::Semicolon,
         Token::Keyword(Keyword::Let),
         Token::Ident("mul".to_string()),
