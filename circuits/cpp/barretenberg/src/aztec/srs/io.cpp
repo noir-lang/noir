@@ -156,8 +156,6 @@ void read_transcript_g1(g1::affine_element* monomials, size_t degree, std::strin
     size_t num_read = 1;
     std::string path = get_transcript_path(dir, num);
 
-    info("Reading transcript g1 from ", path);
-
     while (is_file_exist(path) && num_read < degree) {
         Manifest manifest;
         read_manifest(path, manifest);
@@ -190,8 +188,6 @@ void read_transcript_g2(g2::affine_element& g2_x, std::string const& dir)
     std::string path = dir + "/g2.dat";
 
     if (is_file_exist(path)) {
-        info("Reading transcript g2 from ", path);
-
         char* buffer = (char*)&g2_x;
         size_t size = 0;
 
@@ -204,8 +200,6 @@ void read_transcript_g2(g2::affine_element& g2_x, std::string const& dir)
 
     // Get transcript starting at g0.dat
     path = get_transcript_path(dir, 0);
-
-    info("Reading transcript g2 from ", path);
 
     Manifest manifest;
     read_manifest(path, manifest);
