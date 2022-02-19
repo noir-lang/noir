@@ -46,10 +46,15 @@ void read_manifest(std::string const& filename, Manifest& manifest)
 
 void read_g1_elements_from_buffer(g1::affine_element* elements, char const* buffer, size_t buffer_size)
 {
-    constexpr size_t bytes_per_element = sizeof(g1::affine_element);
-    size_t num_elements = buffer_size / bytes_per_element;
-
     memcpy((void*)elements, (void*)buffer, buffer_size);
+    byteswap(elements, buffer_size);
+}
+
+void byteswap(g1::affine_element* elements, size_t elements_size)
+{
+    constexpr size_t bytes_per_element = sizeof(g1::affine_element);
+    size_t num_elements = elements_size / bytes_per_element;
+
     if (is_little_endian()) {
         for (size_t i = 0; i < num_elements; ++i) {
             elements[i].x.data[0] = __builtin_bswap64(elements[i].x.data[0]);
@@ -68,10 +73,14 @@ void read_g1_elements_from_buffer(g1::affine_element* elements, char const* buff
 
 void read_g2_elements_from_buffer(g2::affine_element* elements, char const* buffer, size_t buffer_size)
 {
-    constexpr size_t bytes_per_element = sizeof(g2::affine_element);
-    size_t num_elements = buffer_size / bytes_per_element;
-
     memcpy((void*)elements, (void*)buffer, buffer_size);
+    byteswap(elements, buffer_size);
+}
+
+void byteswap(g2::affine_element* elements, size_t elements_size)
+{
+    constexpr size_t bytes_per_element = sizeof(g2::affine_element);
+    size_t num_elements = elements_size / bytes_per_element;
 
     if (is_little_endian()) {
         for (size_t i = 0; i < num_elements; ++i) {
@@ -108,16 +117,23 @@ size_t get_file_size(std::string const& filename)
     return (size_t)st.st_size;
 }
 
-std::vector<char> read_file_into_buffer(std::string const& filename, size_t offset = 0, size_t size = 0)
+void read_file_into_buffer(
+    char* buffer, size_t& size, std::string const& filename, size_t offset = 0, size_t amount = 0)
 {
-    size_t file_size = size ? size : get_file_size(filename);
-    std::vector<char> buffer(file_size);
+    size = amount ? amount : get_file_size(filename);
+
     std::ifstream file;
     file.open(filename, std::ifstream::binary);
     file.seekg((int)offset);
-    file.read(&buffer[0], (int)buffer.size());
+
+    // Read the desired size, but return the actual size read
+    file.read(buffer, (int)size);
+    if (!file) {
+        ptrdiff_t read = file.gcount();
+        throw_or_abort(format("Only read ", read, " bytes from file but expected ", size, "."));
+    }
+
     file.close();
-    return buffer;
 }
 
 std::string get_transcript_path(std::string const& dir, size_t num)
@@ -140,6 +156,8 @@ void read_transcript_g1(g1::affine_element* monomials, size_t degree, std::strin
     size_t num_read = 1;
     std::string path = get_transcript_path(dir, num);
 
+    info("Reading transcript g1 from ", path);
+
     while (is_file_exist(path) && num_read < degree) {
         Manifest manifest;
         read_manifest(path, manifest);
@@ -148,9 +166,13 @@ void read_transcript_g1(g1::affine_element* monomials, size_t degree, std::strin
         const size_t num_to_read = std::min((size_t)manifest.num_g1_points, degree - num_read);
         const size_t g1_buffer_size = sizeof(fq) * 2 * num_to_read;
 
-        auto buffer = read_file_into_buffer(path, offset, g1_buffer_size);
+        char* buffer = (char*)&monomials[num_read];
+        size_t size = 0;
 
-        read_g1_elements_from_buffer(&monomials[num_read], buffer.data(), g1_buffer_size);
+        // We must pass the size actually read to the second call, not the desired
+        // g1_buffer_size as the file may have been smaller than this.
+        read_file_into_buffer(buffer, size, path, offset, g1_buffer_size);
+        byteswap(&monomials[num_read], size);
 
         num_read += num_to_read;
         path = get_transcript_path(dir, ++num);
@@ -163,24 +185,40 @@ void read_transcript_g1(g1::affine_element* monomials, size_t degree, std::strin
 
 void read_transcript_g2(g2::affine_element& g2_x, std::string const& dir)
 {
-    const size_t g2_size = sizeof(fq2) * 2;
 
-    if (is_file_exist(dir + "/g2.dat")) {
-        auto buffer = read_file_into_buffer(dir + "/g2.dat", 0, g2_size);
-        read_g2_elements_from_buffer(&g2_x, buffer.data(), g2_size);
+    const size_t g2_size = sizeof(fq2) * 2;
+    std::string path = dir + "/g2.dat";
+
+    if (is_file_exist(path)) {
+        info("Reading transcript g2 from ", path);
+
+        char* buffer = (char*)&g2_x;
+        size_t size = 0;
+
+        // Again, size passed to second function should be size actually read
+        read_file_into_buffer(buffer, size, path, 0, g2_size);
+        byteswap(&g2_x, size);
+
         return;
     }
 
-    std::string path = get_transcript_path(dir, 0);
+    // Get transcript starting at g0.dat
+    path = get_transcript_path(dir, 0);
+
+    info("Reading transcript g2 from ", path);
+
     Manifest manifest;
     read_manifest(path, manifest);
 
     const size_t g2_buffer_offset = sizeof(fq) * 2 * manifest.num_g1_points;
     auto offset = sizeof(Manifest) + g2_buffer_offset;
 
-    auto buffer = read_file_into_buffer(path, offset, g2_size);
+    char* buffer = (char*)&g2_x;
+    size_t size = 0;
 
-    read_g2_elements_from_buffer(&g2_x, buffer.data(), g2_size);
+    // Again, size passed to second function should be size actually read
+    read_file_into_buffer(buffer, size, path, offset, g2_size);
+    byteswap(&g2_x, size);
 }
 
 void read_transcript(g1::affine_element* monomials, g2::affine_element& g2_x, size_t degree, std::string const& path)
