@@ -10,11 +10,11 @@ namespace circuit {
 
 using namespace plonk::stdlib::types::turbo;
 
-constexpr uint32_t input_asset_id_shift = DEFI_BRIDGE_ADDRESS_ID_LEN;
-constexpr uint32_t output_asset_id_a_shift = input_asset_id_shift + DEFI_BRIDGE_INPUT_ASSET_ID_LEN;
+constexpr uint32_t input_asset_id_a_shift = DEFI_BRIDGE_ADDRESS_ID_LEN;
+constexpr uint32_t input_asset_id_b_shift = input_asset_id_a_shift + DEFI_BRIDGE_OUTPUT_B_ASSET_ID_LEN;
+constexpr uint32_t output_asset_id_a_shift = input_asset_id_b_shift + DEFI_BRIDGE_INPUT_A_ASSET_ID_LEN;
 constexpr uint32_t output_asset_id_b_shift = output_asset_id_a_shift + DEFI_BRIDGE_OUTPUT_A_ASSET_ID_LEN;
-constexpr uint32_t opening_nonce_shift = output_asset_id_b_shift + DEFI_BRIDGE_OUTPUT_B_ASSET_ID_LEN;
-constexpr uint32_t bitconfig_shift = opening_nonce_shift + DEFI_BRIDGE_OPENING_NONCE_LEN;
+constexpr uint32_t bitconfig_shift = output_asset_id_b_shift + DEFI_BRIDGE_INPUT_B_ASSET_ID_LEN;
 constexpr uint32_t aux_data_shift = bitconfig_shift + DEFI_BRIDGE_BITCONFIG_LEN;
 
 struct bridge_id {
@@ -54,11 +54,6 @@ struct bridge_id {
             second_input_real = witness_ct(composer, (config_u32 >> 4) & 1ULL);
             second_output_real = witness_ct(composer, (config_u32 >> 5) & 1ULL);
 
-            // For now we do not support making the first input asset virtual. May change in a future circuit update
-            first_input_virtual.assert_equal(false, "Not yet supported: first input asset cannot be virtual");
-            // For now we do not support making the first output asset virtual. May change in a future circuit update
-            first_output_virtual.assert_equal(false, "Not yet supported: first output asset cannot be virtual");
-
             // Prevent contradictions:
             (second_input_virtual & second_input_real)
                 .assert_equal(false, "Contradiction: second_input_virtual AND second_input_real cannot both be true");
@@ -84,21 +79,23 @@ struct bridge_id {
     /**
      * The 250-bit bridge_id comprises the following:
      *
-     * | aux_data | config | opening_nonce | output_asset_id_b | output_asst_id_a | input_asset_id | bridge_adress_id |
+     * | aux_data | config | input_asset_id_b | output_asset_id_b | output_asst_id_a | input_asset_id_a |
+     * bridge_adress_id |
      *  ---------- -------- --------------- ------------------- ------------------ ---------------- ------------------
      *      64        32          32                30                  30                30                32
      */
 
     // 32-bit integer which maps to a 20-byte bridge contract address.
+    // N.B. for virtual assets, the asset_id will be the defi interaction nonce that created the asset
     suint_ct bridge_address_id;
-    // 30-bit asset_id of the input asset.
-    suint_ct input_asset_id;
+    // 30-bit asset_id of first input asset
+    suint_ct input_asset_id_a;
+    // 30-bit asset_id of second input asset
+    suint_ct input_asset_id_b = 0;
     // 30-bit asset_id of the first output asset.
     suint_ct output_asset_id_a;
     // 30-bit asset_id of the second output asset.
     suint_ct output_asset_id_b;
-    // 32-bit defi interaction nonce of opening a loan/LP position.
-    suint_ct opening_nonce = 0;
 
     // 32-bit bit configuration that describes input/output note structure of bridge:
     // see bit_config constructor for details.
@@ -117,26 +114,26 @@ struct bridge_id {
         constexpr auto one = uint256_t(1);
 
         auto bridge_address_id_value = bridge_id & uint256_t((one << DEFI_BRIDGE_ADDRESS_ID_LEN) - 1);
-        auto input_asset_id_value =
-            (bridge_id >> input_asset_id_shift) & uint256_t((one << DEFI_BRIDGE_INPUT_ASSET_ID_LEN) - 1);
+        auto input_asset_id_a_value =
+            (bridge_id >> input_asset_id_a_shift) & uint256_t((one << DEFI_BRIDGE_INPUT_A_ASSET_ID_LEN) - 1);
+        auto input_asset_id_b_value =
+            (bridge_id >> input_asset_id_b_shift) & uint256_t((one << DEFI_BRIDGE_INPUT_B_ASSET_ID_LEN) - 1);
         auto output_asset_id_a_value =
             (bridge_id >> output_asset_id_a_shift) & uint256_t((one << DEFI_BRIDGE_OUTPUT_A_ASSET_ID_LEN) - 1);
         auto output_asset_id_b_value =
             (bridge_id >> output_asset_id_b_shift) & uint256_t((one << DEFI_BRIDGE_OUTPUT_B_ASSET_ID_LEN) - 1);
-        auto opening_nonce_value =
-            (bridge_id >> opening_nonce_shift) & uint256_t((one << DEFI_BRIDGE_OPENING_NONCE_LEN) - 1);
         auto aux_data_value = (bridge_id >> aux_data_shift) & uint256_t((one << DEFI_BRIDGE_AUX_DATA) - 1);
 
         // Given the above bit-shifting, the below range constraints aren't strictly necessary, but they don't hurt.
         bridge_address_id =
             suint_ct(witness_ct(composer, bridge_address_id_value), DEFI_BRIDGE_ADDRESS_ID_LEN, "bridge_address");
-        input_asset_id =
-            suint_ct(witness_ct(composer, input_asset_id_value), DEFI_BRIDGE_INPUT_ASSET_ID_LEN, "input_asset_id");
+        input_asset_id_a = suint_ct(
+            witness_ct(composer, input_asset_id_a_value), DEFI_BRIDGE_INPUT_A_ASSET_ID_LEN, "input_asset_id_a");
+        input_asset_id_b = suint_ct(witness_ct(composer, input_asset_id_b_value), DEFI_TREE_DEPTH, "input_asset_id_b");
         output_asset_id_a = suint_ct(
             witness_ct(composer, output_asset_id_a_value), DEFI_BRIDGE_OUTPUT_A_ASSET_ID_LEN, "output_asset_id_a");
         output_asset_id_b = suint_ct(
             witness_ct(composer, output_asset_id_b_value), DEFI_BRIDGE_OUTPUT_B_ASSET_ID_LEN, "output_asset_id_b");
-        opening_nonce = suint_ct(witness_ct(composer, opening_nonce_value), DEFI_TREE_DEPTH, "opening_nonce");
         aux_data = suint_ct(witness_ct(composer, aux_data_value), DEFI_BRIDGE_AUX_DATA, "aux_data");
 
         config = bit_config(composer, bridge_id);
@@ -150,10 +147,10 @@ struct bridge_id {
         // constants
         constexpr auto one = uint256_t(1);
 
-        auto result = bridge_address_id + (input_asset_id * suint_ct(one << (input_asset_id_shift))) +
+        auto result = bridge_address_id + (input_asset_id_a * suint_ct(one << (input_asset_id_a_shift))) +
+                      (input_asset_id_b * suint_ct(one << (input_asset_id_b_shift))) +
                       (output_asset_id_a * suint_ct(one << (output_asset_id_a_shift))) +
-                      (output_asset_id_b * suint_ct(one << (output_asset_id_b_shift))) +
-                      (opening_nonce * suint_ct(one << (opening_nonce_shift))) + config.to_suint() +
+                      (output_asset_id_b * suint_ct(one << (output_asset_id_b_shift))) + config.to_suint() +
                       (aux_data * suint_ct(one << (aux_data_shift)));
         return result;
     }
@@ -174,10 +171,10 @@ inline std::ostream& operator<<(std::ostream& os, bridge_id const& bridge_id)
 {
     os << "{\n"
        << "  bridge_address_id: " << bridge_id.bridge_address_id << ",\n"
-       << "  input_asset_id: " << bridge_id.input_asset_id << ",\n"
+       << "  input_asset_id_a: " << bridge_id.input_asset_id_a << ",\n"
+       << "  input_asset_id_b: " << bridge_id.input_asset_id_b << ",\n"
        << "  output_asset_id_a: " << bridge_id.output_asset_id_a << ",\n"
        << "  output_asset_id_b: " << bridge_id.output_asset_id_b << ",\n"
-       << "  opening_nonce: " << bridge_id.opening_nonce << ",\n"
        << bridge_id.config << "  aux_data: " << bridge_id.aux_data << "\n}";
     return os;
 }

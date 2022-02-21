@@ -16,8 +16,14 @@ mkdir -p ignition
 cd ignition
 NUM=${1:-19}
 
+if command -v sha256sum > /dev/null; then
+  SHASUM=sha256sum
+else
+  SHASUM="shasum -a 256"
+fi
+
 checksum() {
-  grep transcript${1}.dat checksums | sha256sum -c
+  grep transcript${1}.dat checksums | $SHASUM -c
   return $?
 }
 

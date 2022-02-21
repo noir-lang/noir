@@ -141,10 +141,10 @@ class root_rollup_tests : public ::testing::Test {
 
         const notes::native::bridge_id bid2 = {
             .bridge_address_id = 1,
-            .input_asset_id = aid2,
+            .input_asset_id_a = aid2,
+            .input_asset_id_b = 0,
             .output_asset_id_a = 0,
             .output_asset_id_b = 1,
-            .opening_nonce = 0,
             .config = notes::native::bridge_id::bit_config{ .first_input_virtual = false,
                                                             .second_input_virtual = false,
                                                             .first_output_virtual = false,
@@ -156,10 +156,10 @@ class root_rollup_tests : public ::testing::Test {
 
         const notes::native::bridge_id bid3 = {
             .bridge_address_id = 2,
-            .input_asset_id = aid3,
+            .input_asset_id_a = aid3,
+            .input_asset_id_b = 0,
             .output_asset_id_a = 0,
             .output_asset_id_b = 1,
-            .opening_nonce = 0,
             .config = notes::native::bridge_id::bit_config{ .first_input_virtual = false,
                                                             .second_input_virtual = false,
                                                             .first_output_virtual = false,

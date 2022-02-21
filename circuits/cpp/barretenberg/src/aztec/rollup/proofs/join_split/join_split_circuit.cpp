@@ -80,24 +80,31 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
         const auto case0 = !inote1_valid && !inote2_valid;
         // Case 1: 1 real asset note, all notes have same asset ids, any function.
         const auto case1 = !input_note1.is_virtual && inote1_valid && !inote2_valid;
-        // Case 2: 2 real asset notes, all notes have same asset ids, any function.
-        const auto case2 = !input_note1.is_virtual && !input_note2.is_virtual && inote2_valid;
+        // Case 2: 2 real asset notes, all notes have same asset ids, any function
+        const auto case2 = !input_note1.is_virtual && !input_note2.is_virtual && inote2_valid &&
+                           (input_note1.asset_id == input_note2.asset_id);
         // Case 3: 1 virtual asset note, all notes have same asset ids, can only SEND or DEFI_DEPOSIT.
         const auto case3 = input_note1.is_virtual && !inote2_valid;
         // Case 4: 2 virtual asset notes, all notes have same asset ids, can only SEND.
-        const auto case4 = input_note1.is_virtual && input_note2.is_virtual && inote2_valid;
+        const auto case4 = input_note1.is_virtual && input_note2.is_virtual && inote2_valid && !is_defi_deposit;
         // Case 5: 1st note real, 2nd note virtual, different input asset ids allowed, fee asset id must equal
         // real input not asset id, values equal, can only DEFI_DEPOSIT, virtual notes interaction nonce must
         // match that in the bridge id.
         const auto case5 = !input_note1.is_virtual && input_note2.is_virtual && inote2_valid;
+        // Case 6: 2 real asset notes, notes have different asset ids. only DEFI_DEPOSIT
+        const auto case6 = !input_note1.is_virtual && !input_note2.is_virtual && inote2_valid &&
+                           (input_note1.asset_id != input_note2.asset_id) && is_defi_deposit;
+        // Case 7: 2 virtual asset notes, notes have different asset ids, only DEFI_DEPOSIT.
+        const auto case7 = input_note1.is_virtual && input_note2.is_virtual && inote2_valid &&
+                           (input_note1.asset_id != input_note2.asset_id) && is_defi_deposit;
 
         // Check we are exactly one of the defined cases.
-        (field_ct(case0) + case1 + case2 + case3 + case4 + case5).assert_equal(1, "unsupported case");
+        (field_ct(case0) + case1 + case2 + case3 + case4 + case5 + case6 + case7).assert_equal(1, "unsupported case");
 
         const auto& bridge_id_data = inputs.partial_claim_note.bridge_id_data;
         // Assert case rules.
         const auto output_note1_assetId = suint_ct::conditional_assign(
-            is_defi_deposit, inputs.partial_claim_note.bridge_id_data.input_asset_id, inputs.output_note1.asset_id);
+            is_defi_deposit, inputs.partial_claim_note.bridge_id_data.input_asset_id_a, inputs.output_note1.asset_id);
         const auto all_asset_ids_match =
             input_note1.asset_id == input_note2.asset_id && input_note1.asset_id == output_note1_assetId &&
             input_note1.asset_id == output_note2.asset_id && input_note1.asset_id == inputs.asset_id;
@@ -114,14 +121,23 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
         case5.must_imply(is_defi_deposit && !bridge_id_data.config.first_input_virtual &&
                              bridge_id_data.config.second_input_virtual,
                          "can only defi deposit");
-        case5.must_imply(inote1_value == inote2_value, "input note values must match");
-        case5.must_imply(input_note1.asset_id == output_note1_assetId &&
-                             input_note1.asset_id == output_note2.asset_id && input_note1.asset_id == inputs.asset_id,
-                         "asset ids don't match");
-        case5.must_imply(bridge_id_data.opening_nonce == input_note2.virtual_note_nonce,
-                         "incorrect interaction nonce in bridge id");
-        // Don't consider second note value for case5 in the input/output balancing equations.
-        inote2_value *= !case5;
+        (case5 || case6 || case7).must_imply(inote1_value == inote2_value, "input note values must match");
+        (case5 || case6 || case7)
+            .must_imply(input_note1.asset_id == output_note1_assetId && input_note1.asset_id == output_note2.asset_id &&
+                            input_note1.asset_id == inputs.asset_id,
+                        "asset ids don't match");
+        case5.must_imply(bridge_id_data.input_asset_id_b == input_note2.virtual_note_nonce,
+                         "incorrect second input asset id in bridge id");
+        (case6 || case7)
+            .must_imply(bridge_id_data.input_asset_id_b == input_note2.asset_id,
+                        "incorrect second input asset id in bridge id");
+        case6.must_imply(!bridge_id_data.config.first_input_virtual && !bridge_id_data.config.second_input_virtual,
+                         "can only defi deposit");
+        case7.must_imply(bridge_id_data.config.first_input_virtual && bridge_id_data.config.second_input_virtual,
+                         "can only defi deposit");
+
+        // Don't consider second note value for case5/case6/case7 in the input/output balancing equations.
+        inote2_value *= !(case5 || case6 || case7);
     }
 
     // Prevent deposits of 0 into the defi bridge (simply because it's illogical).

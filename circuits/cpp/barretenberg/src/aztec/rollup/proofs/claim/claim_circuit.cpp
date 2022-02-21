@@ -50,7 +50,10 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
     const auto output_value_b =
         suint_ct(witness_ct(&composer, tx.output_value_b), NOTE_VALUE_BIT_LENGTH, "output_value_b");
     const auto second_output_real = claim_note_data.bridge_id_data.config.second_output_real;
+    const auto first_output_virtual = claim_note_data.bridge_id_data.config.first_output_virtual;
     const auto second_output_virtual = claim_note_data.bridge_id_data.config.second_output_virtual;
+    const auto second_input_virtual = claim_note_data.bridge_id_data.config.second_input_virtual;
+    const auto second_input_real = claim_note_data.bridge_id_data.config.second_input_real;
 
     {
         // Don't support zero deposits (because they're illogical):
@@ -108,14 +111,18 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
     field_ct output_note_commitment2;
     {
         // Compute output notes.
+        const auto virtual_note_flag = suint_ct(uint256_t(1) << (MAX_NUM_ASSETS_BIT_LENGTH - 1));
 
         // If the defi interaction was unsuccessful, refund the original value via output note 1.
         auto interaction_success = defi_interaction_note.interaction_result;
         auto output_value_1 =
             suint_ct::conditional_assign(interaction_success, output_value_a, claim_note_data.deposit_value);
-        auto output_asset_id_1 = suint_ct::conditional_assign(interaction_success,
-                                                              claim_note_data.bridge_id_data.output_asset_id_a,
-                                                              claim_note_data.bridge_id_data.input_asset_id);
+        auto output_asset_id_1_if_success =
+            suint_ct::conditional_assign(first_output_virtual,
+                                         virtual_note_flag + claim_note.defi_interaction_nonce,
+                                         claim_note_data.bridge_id_data.output_asset_id_a);
+        auto output_asset_id_1 = suint_ct::conditional_assign(
+            interaction_success, output_asset_id_1_if_success, claim_note_data.bridge_id_data.input_asset_id_a);
         output_note_commitment1 = circuit::value::complete_partial_commitment(
             claim_note.value_note_partial_commitment, output_value_1, output_asset_id_1, nullifier1);
 
@@ -124,18 +131,26 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
         //    - check the output value of the second output note must be equal to that of the first output note
         //    (output_value_a).
         auto output_value_2 = suint_ct::conditional_assign(second_output_virtual, output_value_a, output_value_b);
-        auto virtual_note_flag = suint_ct(uint256_t(1) << (MAX_NUM_ASSETS_BIT_LENGTH - 1));
-        auto output_asset_id_2 = suint_ct::conditional_assign(second_output_virtual,
-                                                              virtual_note_flag + claim_note.defi_interaction_nonce,
-                                                              claim_note_data.bridge_id_data.output_asset_id_b);
+        auto output_asset_id_2_if_success =
+            suint_ct::conditional_assign(second_output_virtual,
+                                         virtual_note_flag + claim_note.defi_interaction_nonce,
+                                         claim_note_data.bridge_id_data.output_asset_id_b);
+        auto output_asset_id_2 = suint_ct::conditional_assign(
+            interaction_success, output_asset_id_2_if_success, claim_note_data.bridge_id_data.input_asset_id_b);
         output_note_commitment2 = circuit::value::complete_partial_commitment(
             claim_note.value_note_partial_commitment, output_value_2, output_asset_id_2, nullifier2);
 
         // Zero the output_note_commitment2 if: it's not used; or if the defi interaction was unsuccessful.
         auto is_output_note_2_in_use =
-            second_output_virtual ^ second_output_real; // Note, the case of both being true is a contradiction which is
-                                                        // caught in bridge_id.hpp.
-        output_note_commitment2 = output_note_commitment2 * is_output_note_2_in_use * interaction_success;
+            interaction_success &&
+            (second_output_virtual ^ second_output_real); // Note, the case of both being true is a contradiction which
+                                                          // is caught in bridge_id.hpp.
+        auto is_input_note_2_in_use = !interaction_success && (second_input_virtual ^ second_input_real);
+
+        auto output_note_2_exists = is_output_note_2_in_use ^ is_input_note_2_in_use;
+        // TODO: CHECK NOTES RECOVERED IF FAIL FOR ALL TOPOLOGIES
+
+        output_note_commitment2 = output_note_commitment2 * output_note_2_exists;
     }
 
     {
@@ -189,7 +204,7 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
     asset_id.set_public();     // 0
     data_root.set_public();
     claim_note.fee.set_public();
-    claim_note_data.bridge_id_data.input_asset_id.set_public();
+    claim_note_data.bridge_id_data.input_asset_id_a.set_public();
     claim_note.bridge_id.set_public();
     defi_deposit_value.set_public(); // 0
     defi_root.set_public();
