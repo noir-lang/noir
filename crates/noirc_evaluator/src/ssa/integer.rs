@@ -69,7 +69,6 @@ pub fn get_obj_max_value(
     }
 
     let obj_ = obj.unwrap_or_else(|| eval.get_object(id).unwrap());
-    dbg!(&obj_);
     let result: BigUint;
     result = match obj_ {
         node::NodeObj::Obj(v) => {
