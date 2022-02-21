@@ -1,8 +1,10 @@
 use std::path::Path;
-use wasmer::{imports, ChainableNamedResolver, Cranelift, Function, Instance, Value};
+use wasmer::{imports, Cranelift, Instance, Value};
 use wasmer::{Module, Store};
 use wasmer_engine_jit::JIT;
-use wasmer_wasi::WasiState;
+
+// When allocating and freeing memory, we set the alignment to always be 1 for our purpose
+const ALIGNMENT: i32 = 1;
 
 /// A wrapper around the return value from a WASM call
 /// Notice, Option<> is used because not every call returns a value
@@ -16,8 +18,17 @@ impl WASMValue {
         self.0.expect("expected a `Value`")
     }
     pub fn into_i32(self) -> i32 {
-        i32::try_from(self.0.unwrap()).expect("expected an i32 value")
+        value_to_i32(self.0.unwrap())
     }
+}
+
+fn value_to_i32(value: Value) -> i32 {
+    i32::try_from(value).expect("expected an i32 value")
+}
+
+pub struct Pointer {
+    addr: Value,
+    size: usize,
 }
 
 pub struct CompiledModule {
@@ -34,23 +45,27 @@ impl CompiledModule {
         }
     }
 
-    /// Transfer bytes to WASM heap
-    pub fn transfer_to_heap(&mut self, arr: &[u8], offset: usize) {
+    /// write to allocated memory
+    pub fn write_memory(&mut self, arr: &[u8], ptr: &Pointer) {
+        let ptr = value_to_i32(ptr.addr.clone()) as usize;
+        let offset = arr.len();
+
         let memory = self.instance.exports.get_memory("memory").unwrap();
-        for (byte_id, cell) in memory.view::<u8>()[offset..(offset + arr.len())]
-            .iter()
-            .enumerate()
-        {
+        for (byte_id, cell) in memory.view::<u8>()[ptr..(ptr + offset)].iter().enumerate() {
             cell.set(arr[byte_id]);
         }
     }
 
-    pub fn read_memory(&self, start: usize, end: usize) -> Vec<u8> {
+    // Note on 64 bit systems, we usize is a u64 which may cause problems if you underflow and
+    // try to address WASM32 memory
+    pub fn read_memory(&self, ptr: &Pointer, offset: usize) -> Vec<u8> {
         let memory = self.instance.exports.get_memory("memory").unwrap();
 
-        let mut result = Vec::with_capacity(end - start);
+        let start = value_to_i32(ptr.addr.clone()) as usize;
+        let end = start + offset;
+        let mut result = Vec::with_capacity(offset as usize);
 
-        for cell in memory.view()[start as usize..end].iter() {
+        for cell in memory.view()[start..end].iter() {
             result.push(cell.get());
         }
 
@@ -72,23 +87,38 @@ impl CompiledModule {
     }
 
     /// Creates a pointer and allocates the bytes that the pointer references to, to the heap
-    pub fn allocate(&mut self, bytes: &[u8]) -> Value {
-        let ptr = self
-            .call("wasm_malloc", &Value::I32(bytes.len() as i32))
+    // malloc takes two arguments ; size and alignment
+    pub fn allocate(&mut self, bytes: &[u8]) -> Pointer {
+        let addr = self
+            .call_multiple(
+                "malloc",
+                vec![&Value::I32(bytes.len() as i32), &Value::I32(ALIGNMENT)],
+            )
             .value();
 
-        let i32_bytes = ptr.unwrap_i32().to_be_bytes();
-        let u32_bytes = u32::from_be_bytes(i32_bytes);
+        // Create a pointer abstraction storing the length
+        let ptr = Pointer {
+            addr,
+            size: bytes.len(),
+        };
 
-        self.transfer_to_heap(bytes, u32_bytes as usize);
+        self.write_memory(bytes, &ptr);
         ptr
     }
 
     /// Frees a pointer.
     /// Notice we consume the Value, if you clone the value before passing it to free
     /// It most likely is a bug as you will be using a dangling pointer/ use-after-free
-    pub fn free(&mut self, pointer: Value) {
-        self.call("wasm_free", &pointer);
+    // Free takes three arguments; address, size and alignment
+    pub fn free(&mut self, ptr: Pointer) {
+        self.call_multiple(
+            "free",
+            vec![
+                &ptr.addr,
+                &Value::I32(ptr.size as i32),
+                &Value::I32(ALIGNMENT),
+            ],
+        );
     }
 }
 
@@ -147,4 +177,38 @@ fn load_simple_add_wasm_file() {
     let c = a + b;
     let result = compiled_mod.call_multiple("add", vec![&Value::I32(a), &Value::I32(b)]);
     assert_eq!(result.value(), Value::I32(c));
+}
+
+#[test]
+fn malloc_alloc_example() {
+    let wasm_bytes = include_bytes!("malloc_alloc.wasm");
+    let tmp_dir = tempdir::TempDir::new("temp_directory").unwrap();
+    let mut compiled_mod = CompiledModule::new(wasm_bytes, tmp_dir.path());
+
+    let bytes_to_alloc = vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+    let ptr = compiled_mod.allocate(&bytes_to_alloc);
+
+    // Read the first 5 bytes of the freshly allocated memory
+    let offset = 5;
+    let mem = compiled_mod.read_memory(&ptr, offset);
+    assert_eq!(mem, vec![0; offset]);
+
+    // Now write to the first five bytes of the freshly allocated memory
+    compiled_mod.write_memory(&[1, 2, 3, 4, 5], &ptr);
+
+    // Reading again should show that the memory has changed
+    let mem = compiled_mod.read_memory(&ptr, offset);
+    assert_eq!(mem, vec![1, 2, 3, 4, 5]);
+
+    // The tests below may fail, depending on the allocator being used
+    // We want to check if `free` is working as expected.
+    // With the allocator being used, if memory has been freed
+    // then when we call `free` again, it will return the same address.
+    let old_addr = ptr.addr.clone();
+    compiled_mod.free(ptr);
+
+    let ptr = compiled_mod.allocate(&bytes_to_alloc);
+    let new_addr = ptr.addr;
+    assert_eq!(old_addr, new_addr);
 }
