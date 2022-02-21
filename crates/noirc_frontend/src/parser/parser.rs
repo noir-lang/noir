@@ -17,22 +17,22 @@ use crate::{
 };
 
 use chumsky::prelude::*;
-use noirc_errors::{Span, Spanned};
+use noirc_errors::{CustomDiagnostic, DiagnosableError, Span, Spanned};
 
-pub fn parse_program(program: &str) -> (ParsedModule, Vec<ParserError>) {
+pub fn parse_program(program: &str) -> (ParsedModule, Vec<CustomDiagnostic>) {
     let lexer = Lexer::new(program);
 
     const APPROX_CHARS_PER_FUNCTION: usize = 250;
     let mut program = ParsedModule::with_capacity(lexer.approx_len() / APPROX_CHARS_PER_FUNCTION);
     let (tokens, lexing_errors) = lexer.lex();
+    let mut errors = vecmap(&lexing_errors, DiagnosableError::to_diagnostic);
 
     let parser = top_level_statement()
         .repeated()
         .then_ignore(force(just(Token::EOF)));
 
-    let (tree, mut parsing_errors) = parser.parse_recovery(tokens);
-    let mut errors = vecmap(lexing_errors, Into::into);
-    errors.append(&mut parsing_errors);
+    let (tree, parsing_errors) = parser.parse_recovery(tokens);
+    errors.extend(parsing_errors.iter().map(DiagnosableError::to_diagnostic));
 
     if let Some(statements) = tree {
         for statement in statements {
@@ -530,7 +530,15 @@ where
 {
     expression_list(expr_parser)
         .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
-        .map(ExpressionKind::array)
+        .validate(|elems, span, emit| {
+            if elems.is_empty() {
+                emit(ParserError::with_reason(
+                    "Arrays must have at least one element".to_owned(),
+                    span,
+                ))
+            }
+            ExpressionKind::array(elems)
+        })
 }
 
 fn expression_list<P>(expr_parser: P) -> impl NoirParser<Vec<Expression>>
@@ -670,32 +678,40 @@ fn fixed_array_size() -> impl NoirParser<ArraySize> {
 
 #[cfg(test)]
 mod test {
+    use noirc_errors::{CustomDiagnostic, DiagnosableError};
+
     use super::*;
     use crate::{ArrayLiteral, Literal};
 
-    fn parse_with<P, T>(parser: P, program: &str) -> Result<T, Vec<ParserError>>
+    fn parse_with<P, T>(parser: P, program: &str) -> Result<T, Vec<CustomDiagnostic>>
     where
         P: NoirParser<T>,
     {
         let lexer = Lexer::new(program);
         let (tokens, lexer_errors) = lexer.lex();
         if !lexer_errors.is_empty() {
-            return Err(vecmap(lexer_errors, Into::into));
+            return Err(vecmap(&lexer_errors, DiagnosableError::to_diagnostic));
         }
-        parser.then_ignore(just(Token::EOF)).parse(tokens)
+        parser
+            .then_ignore(just(Token::EOF))
+            .parse(tokens)
+            .map_err(|errors| vecmap(&errors, DiagnosableError::to_diagnostic))
     }
 
-    fn parse_recover<P, T>(parser: P, program: &str) -> (Option<T>, Vec<ParserError>)
+    fn parse_recover<P, T>(parser: P, program: &str) -> (Option<T>, Vec<CustomDiagnostic>)
     where
         P: NoirParser<T>,
     {
         let lexer = Lexer::new(program);
         let (tokens, lexer_errors) = lexer.lex();
-        let (opt, mut errs) = parser
+        let (opt, errs) = parser
             .then_ignore(force(just(Token::EOF)))
             .parse_recovery(tokens);
-        errs.append(&mut vecmap(lexer_errors, Into::into));
-        (opt, errs)
+
+        let mut errors = vecmap(&lexer_errors, DiagnosableError::to_diagnostic);
+        errors.extend(errs.iter().map(DiagnosableError::to_diagnostic));
+
+        (opt, errors)
     }
 
     fn parse_all<P, T>(parser: P, programs: Vec<&str>) -> Vec<T>
@@ -708,7 +724,7 @@ mod test {
         })
     }
 
-    fn parse_all_failing<P, T>(parser: P, programs: Vec<&str>) -> Vec<ParserError>
+    fn parse_all_failing<P, T>(parser: P, programs: Vec<&str>) -> Vec<CustomDiagnostic>
     where
         P: NoirParser<T>,
         T: std::fmt::Display,
