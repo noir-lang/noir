@@ -1,7 +1,8 @@
 use super::node::{Instruction, Operation};
+use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use arena::Index;
-use num_traits::ToPrimitive;
+use num_traits::{One, Zero};
 use std::cmp::Ordering;
 use std::collections::HashMap;
 //use crate::acir::native_types::{Arithmetic, Witness};
@@ -9,7 +10,7 @@ use crate::ssa::{code_gen::IRGenerator, mem, node, node::Node};
 use crate::Evaluator;
 use crate::Gate;
 use crate::RuntimeErrorKind;
-use acvm::acir::circuit::gate::Directive;
+use acvm::acir::circuit::gate::{Directive, GadgetCall, GadgetInput};
 use acvm::acir::native_types::{Arithmetic, Linear, Witness};
 use num_bigint::BigUint;
 use std::convert::TryInto;
@@ -116,11 +117,13 @@ impl Acir {
                 //we need the type of rhs and its max value, then:
                 //lhs-rhs+k*2^bit_size where k=ceil(max_value/2^bit_size)
                 let bit_size = cfg.get_object(ins.rhs).unwrap().bits();
-                assert!(bit_size < 128); //todo
-                let r_mod = 1_u128 << bit_size;
-                let k = (ins.max_value.to_f64().unwrap() / r_mod as f64).ceil() as i128;
-                let mut f = FieldElement::from(k);
-                f = f * FieldElement::from_be_bytes_reduce(&BigUint::from(r_mod).to_bytes_be());
+                let r_big = BigUint::one() << bit_size;
+                let mut k = &ins.max_value / &r_big;
+                if &ins.max_value % &r_big != BigUint::zero() {
+                    k = &k + BigUint::one();
+                }
+                k = &k * r_big;
+                let f = FieldElement::from_be_bytes_reduce(&k.to_bytes_be());
                 let mut output = add(
                     &l_c.expression,
                     FieldElement::from(-1_i128),
@@ -130,10 +133,16 @@ impl Acir {
                 output
             }
             Operation::Mul | Operation::SafeMul => evaluate_mul(&l_c, &r_c, evaluator),
-            Operation::Udiv => evaluate_udiv(&l_c, &r_c, evaluator),
-            Operation::Sdiv => evaluate_sdiv(&l_c, &r_c, evaluator),
-            Operation::Urem => todo!(),
-            Operation::Srem => todo!(),
+            Operation::Udiv => {
+                let (q_wit, _) = evaluate_udiv(&l_c, &r_c, evaluator);
+                Arithmetic::from(Linear::from_witness(q_wit))
+            }
+            Operation::Sdiv => evaluate_sdiv(&l_c, &r_c, evaluator).0,
+            Operation::Urem => {
+                let (_, r_wit) = evaluate_udiv(&l_c, &r_c, evaluator);
+                Arithmetic::from(Linear::from_witness(r_wit))
+            }
+            Operation::Srem => evaluate_sdiv(&l_c, &r_c, evaluator).1,
             Operation::Div => todo!(),
             Operation::Eq => todo!(),
             Operation::Ne => todo!(),
@@ -145,17 +154,14 @@ impl Acir {
             Operation::Sge => todo!(),
             Operation::Slt => todo!(),
             Operation::Sle => todo!(),
-            Operation::Lt => todo!(),
+            Operation::Lt => todo!(), //TODO need a quad_decomposition gate from barretenberg
             Operation::Gt => todo!(),
             Operation::Lte => todo!(),
             Operation::Gte => todo!(),
-            Operation::And => {
-                todo!();
-                //use AndGate
-            }
+            Operation::And => evaluate_and(l_c, r_c, ins.res_type.bits(), evaluator),
             Operation::Not => todo!(),
             Operation::Or => todo!(),
-            Operation::Xor => todo!(),
+            Operation::Xor => evaluate_xor(l_c, r_c, ins.res_type.bits(), evaluator),
             Operation::Cast => l_c.expression,
             Operation::Ass | Operation::Jne | Operation::Jeq | Operation::Jmp | Operation::Phi => {
                 todo!("invalid instruction");
@@ -169,6 +175,7 @@ impl Acir {
                     evaluator,
                 )
             }
+            Operation::StdLib(opcode) => evaluate_opcode(l_c, opcode, cfg, evaluator),
             Operation::Nop => Arithmetic::default(),
             Operation::EqGate => {
                 let output = add(
@@ -179,7 +186,7 @@ impl Acir {
                 evaluator.gates.push(Gate::Arithmetic(output.clone())); //TODO should we create a witness??
                 output
             }
-            Operation::Load(base_adr) => {
+            Operation::Load(array_idx) => {
                 //retrieves the value from the map if address is known at compile time:
                 //address = l_c and should be constant
                 if let Some(val) = l_c.to_const() {
@@ -188,8 +195,9 @@ impl Acir {
                         self.memory_map[&address].expression.clone()
                     } else {
                         //if not found, then it must be a witness (else it is non-initialised memory)
-                        let index = (address - base_adr) as usize;
-                        let w = cfg.mem.arrays[base_adr as usize].witness[index];
+                        let array = &cfg.mem.arrays[array_idx as usize];
+                        let index = (address - array.adr) as usize;
+                        let w = array.witness[index];
                         Arithmetic::from(Linear::from_witness(w))
                     }
                 } else {
@@ -219,6 +227,211 @@ impl Acir {
 
         self.arith_cache.insert(ins.idx, output_var);
     }
+
+    pub fn print_field(f: FieldElement) -> String {
+        if f == -FieldElement::one() {
+            return "-".to_string();
+        }
+        if f == FieldElement::one() {
+            return String::new();
+        }
+        let big_f = BigUint::from_bytes_be(&f.to_bytes());
+
+        if big_f.to_string() == "4294967296" {
+            return "2^32".to_string();
+        }
+        let s = big_f.bits();
+        let big_s = BigUint::one() << s;
+        if big_s == big_f {
+            return format!("2^{}", s.to_string());
+        }
+        if big_f.clone() == BigUint::zero() {
+            return "0".to_string();
+        }
+        if big_f.clone() % BigUint::from(2_u128).pow(32) == BigUint::zero() {
+            return format!("2^32*{}", big_f.clone() / BigUint::from(2_u128).pow(32));
+        }
+        let big_minus = BigUint::from_bytes_be(&(-f).to_bytes());
+        if big_minus.to_string().len() < big_f.to_string().len() {
+            return format!("-{}", big_minus);
+        }
+        big_f.to_string()
+    }
+
+    pub fn print_gate(g: &Gate) -> String {
+        let mut result = String::new();
+        match g {
+            Gate::Arithmetic(a) => {
+                for i in &a.mul_terms {
+                    result += &format!(
+                        "{}x{}*x{} + ",
+                        Acir::print_field(i.0),
+                        i.1.witness_index(),
+                        i.2.witness_index()
+                    );
+                }
+                for i in &a.linear_combinations {
+                    result += &format!("{}x{} + ", Acir::print_field(i.0), i.1.witness_index());
+                }
+                result += &format!("{} = 0", Acir::print_field(a.q_c));
+            }
+            Gate::Range(w, s) => {
+                result = format!("x{} is {} bits", w.witness_index(), s);
+            }
+            _ => {
+                //dbg!(&g);
+            }
+        }
+
+        result
+    }
+}
+pub fn evaluate_opcode(
+    lhs: InternalVar,
+    opcode: OPCODE,
+    cfg: &IRGenerator,
+    evaluator: &mut Evaluator,
+) -> Arithmetic {
+    match opcode {
+        OPCODE::SHA256 => std_lib_sha256(lhs, cfg, evaluator),
+        // OPCODE::MerkleMembership => MerkleMembershipGadget::call(evaluator, env, call_expr),
+        // OPCODE::SchnorrVerify => SchnorrVerifyGadget::call(evaluator, env, call_expr),
+        // OPCODE::Blake2s => Blake2sGadget::call(evaluator, env, call_expr),
+        // OPCODE::Pedersen => PedersenGadget::call(evaluator, env, call_expr),
+        // OPCODE::EcdsaSecp256k1 => EcdsaSecp256k1Gadget::call(evaluator, env, call_expr),
+        // OPCODE::HashToField => HashToFieldGadget::call(evaluator, env, call_expr),
+        // OPCODE::FixedBaseScalarMul => FixedBaseScalarMulGadget::call(evaluator, env, call_expr),
+        // OPCODE::InsertRegularMerkle => InsertRegularMerkleGadget::call(evaluator, env, call_expr),
+        _ => todo!(),
+    }
+    Arithmetic::default()
+}
+
+pub fn prepare_inputs(pointer: Index, cfg: &IRGenerator) -> Vec<GadgetInput> {
+    let l_obj = cfg.get_object(pointer).unwrap();
+    let mut inputs: Vec<GadgetInput> = Vec::new();
+    match l_obj.get_type() {
+        node::ObjectType::Pointer(a) => {
+            let array = &cfg.mem.arrays[a as usize];
+            let num_bits = array.element_type.bits();
+            for i in &array.witness {
+                inputs.push(GadgetInput {
+                    witness: *i,
+                    num_bits,
+                });
+            }
+        }
+        _ => unreachable!("invalid input"),
+    }
+    inputs
+}
+
+pub fn prepare_outputs(
+    pointer: Index,
+    output_nb: u32,
+    cfg: &IRGenerator,
+    evaluator: &mut Evaluator,
+) -> Vec<Witness> {
+    // Create fresh variables that will link to the output
+    let mut outputs = Vec::with_capacity(output_nb as usize);
+    for _ in 0..output_nb {
+        let witness = evaluator.add_witness_to_cs();
+        outputs.push(witness);
+    }
+
+    let l_obj = cfg.get_object(pointer).unwrap();
+    match l_obj.get_type() {
+        // node::ObjectType::Pointer(a) => {
+        //     let array = &mut cfg.mem.arrays[a as usize];
+        //     array.witness = outputs;
+        //}
+        _ => unreachable!("invalid output"),
+    }
+    outputs
+}
+
+fn std_lib_blake2s(lhs: InternalVar, cfg: &IRGenerator, evaluator: &mut Evaluator)
+//-> Result<Object, RuntimeError>
+{
+    let inputs = prepare_inputs(lhs.idx.unwrap(), cfg);
+    let outputs = Vec::new(); //TODO...prepare_outputs(ins.res_type, 32, cfg, evaluator);
+    let sha256_gate = GadgetCall {
+        name: OPCODE::Blake2s,
+        inputs,  //witness + bit size
+        outputs, //witness
+    };
+
+    evaluator.gates.push(Gate::GadgetCall(sha256_gate));
+}
+
+fn std_lib_sha256(lhs: InternalVar, cfg: &IRGenerator, evaluator: &mut Evaluator)
+//-> Result<Object, RuntimeError>
+{
+    let inputs = prepare_inputs(lhs.idx.unwrap(), cfg);
+    let outputs = prepare_outputs(lhs.idx.unwrap(), 32, cfg, evaluator); //TODO pas lhs.idx mais ins.res_type!!!
+
+    let sha256_gate = GadgetCall {
+        name: OPCODE::SHA256,
+        inputs,  //witness + bit size
+        outputs, //witness
+    };
+
+    evaluator.gates.push(Gate::GadgetCall(sha256_gate));
+
+    //what to return??
+
+    // Ok(Object::Array(arr))
+}
+
+pub fn evaluate_and(
+    lhs: InternalVar,
+    rhs: InternalVar,
+    bit_size: u32,
+    evaluator: &mut Evaluator,
+) -> Arithmetic {
+    let result = evaluator.add_witness_to_cs();
+    let a_witness = lhs
+        .witness
+        .unwrap_or_else(|| generate_witness(&lhs, evaluator));
+    let b_witness = rhs
+        .witness
+        .unwrap_or_else(|| generate_witness(&rhs, evaluator));
+    //TODO checks the cost of the gate vs bit_size (cf. #164)
+    evaluator
+        .gates
+        .push(Gate::And(acvm::acir::circuit::gate::AndGate {
+            a: a_witness,
+            b: b_witness,
+            result,
+            num_bits: bit_size,
+        }));
+    Arithmetic::from(Linear::from_witness(result))
+}
+
+pub fn evaluate_xor(
+    lhs: InternalVar,
+    rhs: InternalVar,
+    bit_size: u32,
+    evaluator: &mut Evaluator,
+) -> Arithmetic {
+    let result = evaluator.add_witness_to_cs();
+
+    let a_witness = lhs
+        .witness
+        .unwrap_or_else(|| generate_witness(&lhs, evaluator));
+    let b_witness = lhs
+        .witness
+        .unwrap_or_else(|| generate_witness(&rhs, evaluator));
+    //TODO checks the cost of the gate vs bit_size (cf. #164)
+    evaluator
+        .gates
+        .push(Gate::Xor(acvm::acir::circuit::gate::XorGate {
+            a: a_witness,
+            b: b_witness,
+            result,
+            num_bits: bit_size,
+        }));
+    Arithmetic::from(Linear::from_witness(result))
 }
 
 //truncate lhs (a number whose value requires max_bits) into a rhs-bits number: i.e it returns b such that lhs mod 2^rhs is b
@@ -228,6 +441,8 @@ pub fn evaluate_truncate(
     max_bits: u32,
     evaluator: &mut Evaluator,
 ) -> Arithmetic {
+    // dbg!(&max_bits);
+    // dbg!(&rhs);
     assert!(max_bits > rhs);
     //1. Generate witnesses a,b,c
     //TODO: we should truncate the arithmetic expression (and so avoid having to create a witness)
@@ -235,10 +450,10 @@ pub fn evaluate_truncate(
     let a_witness = lhs
         .witness
         .unwrap_or_else(|| generate_witness(&lhs, evaluator));
-    if lhs.witness.is_none() {
-        dbg!(a_witness);
-        dbg!(&lhs.expression);
-    }
+    // if lhs.witness.is_none() {
+    //     dbg!(a_witness);
+    //     dbg!(&lhs.expression);
+    // }
     let b_witness = evaluator.add_witness_to_cs();
     let c_witness = evaluator.add_witness_to_cs();
     evaluator.gates.push(Gate::Directive(Directive::Truncate {
@@ -324,7 +539,7 @@ pub fn evaluate_udiv(
     lhs: &InternalVar,
     rhs: &InternalVar,
     evaluator: &mut Evaluator,
-) -> Arithmetic {
+) -> (Witness, Witness) {
     //a = q*b+r, a= lhs, et b= rhs
     //result = q
     //n.b a et b MUST have proper bit size
@@ -378,17 +593,45 @@ pub fn evaluate_udiv(
     );
 
     evaluator.gates.push(Gate::Arithmetic(div_eucl));
-    Arithmetic::from(Linear::from_witness(q_witness)) //todo witness, arith, var??
+    (q_witness, r_witness)
 }
 
+//TODO: returns the sign bit of lhs
+pub fn sign(lhs: &InternalVar, s: u32, evaluator: &mut Evaluator) -> Witness {
+    //TODO:
+    //we need to bit size s of lhs..we can get this from the res_type of the instruction
+    if s % 2 == 0 {
+        range_constraint(lhs.witness.unwrap(), s + 2, evaluator); //todo check the s+2
+                                                                  //TODO range_constraint should returns the quad decomposition
+                                                                  //Then take the last quad and use the 'new' bit-decomposition gate
+    }
+    return lhs.witness.unwrap(); //..TODO
+}
 pub fn evaluate_sdiv(
     lhs: &InternalVar,
     rhs: &InternalVar,
     evaluator: &mut Evaluator,
-) -> Arithmetic {
+) -> (Arithmetic, Arithmetic) {
     //TODO
-    evaluate_udiv(lhs, rhs, evaluator);
     todo!();
+    // let last_bit_a_wit = sign(lhs, 32, evaluator);//TODO bit size
+    // let last_bit_b_wit = sign(rhs, 32, evaluator);//TODO bit size
+    // //sa=1-2la; sa*lhs
+    // let sa =& Arithmetic{
+    //     mul_terms: Vec::new(),
+    //     linear_combinations: vec![(FieldElement::from(-2_i128),last_bit_a_wit)],
+    //     q_c: FieldElement::one(),
+    // };
+    // let sb = &Arithmetic{
+    //     mul_terms: Vec::new(),
+    //     linear_combinations: vec![(FieldElement::from(-2_i128),last_bit_b_wit)],
+    //     q_c: FieldElement::one(),
+    // };
+    // let (uq_wit, ur_wit) = evaluate_udiv(mul(sa, &lhs.expression), mul(sb, &rhs.expression), evaluator);
+    // //result is
+    // let r_arith = &Arithmetic::from(Linear::from_witness(ur_wit));
+    // let q_arith = &Arithmetic::from(Linear::from_witness(uq_wit));
+    // (mul(sb, &mul(sa, q_arith)), mul(sa, r_arith))
 }
 
 pub fn is_const(expr: &Arithmetic) -> bool {

@@ -1,5 +1,5 @@
 #[allow(clippy::upper_case_acronyms)]
-#[derive(Clone, Debug, Hash, Copy)]
+#[derive(Clone, Debug, Hash, Copy, PartialEq, Eq)]
 pub enum OPCODE {
     #[allow(clippy::upper_case_acronyms)]
     AES,

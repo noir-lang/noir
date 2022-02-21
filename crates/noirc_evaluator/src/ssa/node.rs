@@ -2,6 +2,7 @@ use std::convert::TryInto;
 use std::ops::Add;
 
 use acvm::acir::native_types::Witness;
+use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use arena;
 use noirc_frontend::hir_def::expr::HirBinaryOpKind;
@@ -143,6 +144,7 @@ pub enum ObjectType {
     Boolean,
     Unsigned(u32), //bit size
     Signed(u32),   //bit size
+    Pointer(u32),  //array index -
     //custom(u32),   //user-defined struct, u32 refers to the id of the type in...?todo
     //TODO big_int
     //TODO floats
@@ -222,6 +224,7 @@ impl ObjectType {
             ObjectType::NotAnObject => 0,
             ObjectType::Signed(c) => *c,
             ObjectType::Unsigned(c) => *c,
+            ObjectType::Pointer(_) => 8, //TODO  ???
         }
     }
 
@@ -350,6 +353,7 @@ impl Instruction {
             Operation::Nop | Operation::Jne | Operation::Jeq | Operation::Jmp => (false, false),
             Operation::EqGate => (true, true),
             Operation::Load(_) | Operation::Store(_) => (false, false),
+            Operation::StdLib(_) => (true, true), //TODO to check
         }
     }
 
@@ -752,8 +756,12 @@ pub enum Operation {
     Load(u32),
     Store(u32),
 
-    Nop,    // no op
+    StdLib(OPCODE),
+
+    Nop, // no op
     EqGate, //write a gate enforcing equality of the two sides (to support the constrain statement)
+         // LtGate,     //less than gate
+         // AndGate,    //AND constraint Gate - TODO y'a besoin ??? NON!
 }
 
 pub fn is_commutative(op_code: Operation) -> bool {

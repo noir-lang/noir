@@ -6,7 +6,7 @@ use super::{
 };
 use acvm::FieldElement;
 use num_bigint::BigUint;
-use num_traits::One;
+use num_traits::{One, Zero};
 use std::collections::{HashMap, VecDeque};
 use std::convert::TryInto;
 
@@ -40,6 +40,13 @@ pub fn get_instruction_max_operand(
 ) -> BigUint {
     match ins.operator {
         node::Operation::Load(array) => get_load_max(eval, ins.lhs, max_map, vmap, array),
+        node::Operation::EqGate => {
+            //TODO... we should update the max_map AFTER the truncate is processed (else it breaks it)
+            // let min = BigUint::min(left_max.clone(), right_max.clone());
+            // max_map.insert(ins.lhs, min.clone());
+            // max_map.insert(ins.rhs, min);
+            get_max_value(ins, left_max, right_max)
+        }
         _ => get_max_value(ins, left_max, right_max),
     }
 }
@@ -56,12 +63,13 @@ pub fn get_obj_max_value(
     vmap: &HashMap<arena::Index, arena::Index>,
 ) -> BigUint {
     let id = get_value_from_map(idx, vmap); //block.get_current_value(idx);
+    dbg!(&id);
     if max_map.contains_key(&id) {
         return max_map[&id].clone();
     }
 
     let obj_ = obj.unwrap_or_else(|| eval.get_object(id).unwrap());
-
+    dbg!(&obj_);
     let result: BigUint;
     result = match obj_ {
         node::NodeObj::Obj(v) => {
@@ -74,6 +82,7 @@ pub fn get_obj_max_value(
         node::NodeObj::Const(c) => c.value.clone(), //TODO panic for string constants
     };
     max_map.insert(id, result.clone());
+    dbg!(&max_map);
     result
 }
 
@@ -188,6 +197,15 @@ fn update_ins_parameters(
     }
 }
 
+fn update_ins(eval: &mut IRGenerator, idx: arena::Index, copy_from: &node::Instruction) {
+    let mut ins = eval.try_get_mut_instruction(idx).unwrap();
+    ins.lhs = copy_from.lhs;
+    ins.rhs = copy_from.rhs;
+    ins.operator = copy_from.operator;
+    ins.max_value = copy_from.max_value.clone();
+    ins.bit_size = copy_from.bit_size;
+}
+
 //Add required truncate instructions on all blocks
 pub fn overflow_strategy(eval: &mut IRGenerator) {
     let mut max_map: HashMap<arena::Index, BigUint> = HashMap::new();
@@ -210,7 +228,6 @@ pub fn tree_overflow(
 }
 
 //overflow strategy for one block
-//TODO - check the type; we MUST NOT truncate or overflow field elements!!
 pub fn block_overflow(
     eval: &mut IRGenerator,
     b_idx: arena::Index,
@@ -263,7 +280,7 @@ pub fn block_overflow(
         let r_obj = eval.get_object(r_id).unwrap();
         let l_obj = eval.get_object(l_id).unwrap();
         let r_max = get_obj_max_value(eval, Some(r_obj), r_id, max_map, &value_map);
-        get_obj_max_value(eval, Some(l_obj), l_id, max_map, &value_map);
+        let l_max = get_obj_max_value(eval, Some(l_obj), l_id, max_map, &value_map);
         //insert required truncates
         let to_truncate = ins.truncate_required(l_obj.bits(), r_obj.bits());
         if to_truncate.0 {
@@ -314,22 +331,25 @@ pub fn block_overflow(
                     //we need to truncate
                     update_instruction = true;
                     trunc_size = FieldElement::from(ins.res_type.bits() as i128);
-                    modify_ins = Some(Instruction::new(
+                    let mut mod_ins = Instruction::new(
                         node::Operation::Trunc,
                         l_id,
                         l_id,
                         ins.res_type,
                         Some(ins.parent_block),
-                    ));
+                    );
+                    mod_ins.bit_size = l_max.bits() as u32;
+                    modify_ins = Some(mod_ins);
                     //TODO name for the instruction: modify_ins.res_name = l_obj."name"+"_t";
                     //n.b. we do not update value map because we re-use the cast instruction
                 }
             }
             _ => (),
         }
-
         let mut ins_max = get_instruction_max(eval, &ins, max_map, &value_map);
-        if ins_max.bits() >= (FieldElement::max_num_bits() as u64) {
+        if ins_max.bits() >= (FieldElement::max_num_bits() as u64)
+            && ins.res_type != node::ObjectType::NativeField
+        {
             //let's truncate a and b:
             //- insert truncate(lhs) dans la list des instructions
             //- insert truncate(rhs) dans la list des instructions
@@ -380,11 +400,16 @@ pub fn block_overflow(
                     max_r_value = Some(max_map[&r_new].clone());
                     //we may do that in future when the max_map becomes more used elsewhere (for other optim)
                 }
-                if let Some(modified_ins) = &modify_ins {
-                    ins.operator = modified_ins.operator;
-                    ins.rhs = eval.get_const(trunc_size, node::ObjectType::Unsigned(32));
+                if let Some(modified_ins) = &mut modify_ins {
+                    modified_ins.rhs = eval.get_const(trunc_size, node::ObjectType::Unsigned(32));
+                    modified_ins.lhs = l_new;
+                    if let Some(max_v) = max_r_value {
+                        modified_ins.max_value = max_v;
+                    }
+                    update_ins(eval, ins.idx, modified_ins);
+                } else {
+                    update_ins_parameters(eval, ins.idx, l_new, r_new, max_r_value);
                 }
-                update_ins_parameters(eval, ins.idx, l_new, r_new, max_r_value);
             }
         }
     }
@@ -440,29 +465,37 @@ pub fn get_max_value(ins: &Instruction, lhs_max: BigUint, rhs_max: BigUint) -> B
     match ins.operator {
         Operation::Add => lhs_max + rhs_max,
         Operation::SafeAdd => todo!(),
-        Operation::Sub => lhs_max + rhs_max,
+        Operation::Sub => {
+            let r_mod = BigUint::one() << ins.res_type.bits();
+            let mut k = &rhs_max / &r_mod;
+            if &rhs_max % &r_mod != BigUint::zero() {
+                k += BigUint::one();
+            }
+            assert!(&k * &r_mod >= rhs_max);
+            lhs_max + k * r_mod
+        }
         Operation::SafeSub => todo!(),
         Operation::Mul => lhs_max * rhs_max,
         Operation::SafeMul => todo!(),
         Operation::Udiv => lhs_max,
         Operation::Sdiv => todo!(),
-        Operation::Urem => rhs_max - BigUint::from(1_u32),
+        Operation::Urem => rhs_max - BigUint::one(),
         Operation::Srem => todo!(),
         Operation::Div => todo!(),
-        Operation::Eq => BigUint::from(1_u32),
-        Operation::Ne => BigUint::from(1_u32),
-        Operation::Ugt => BigUint::from(1_u32),
-        Operation::Uge => BigUint::from(1_u32),
-        Operation::Ult => BigUint::from(1_u32),
-        Operation::Ule => BigUint::from(1_u32),
-        Operation::Sgt => BigUint::from(1_u32),
-        Operation::Sge => BigUint::from(1_u32),
-        Operation::Slt => BigUint::from(1_u32),
-        Operation::Sle => BigUint::from(1_u32),
-        Operation::Lt => BigUint::from(1_u32),
-        Operation::Gt => BigUint::from(1_u32),
-        Operation::Lte => BigUint::from(1_u32),
-        Operation::Gte => BigUint::from(1_u32),
+        Operation::Eq => BigUint::one(),
+        Operation::Ne => BigUint::one(),
+        Operation::Ugt => BigUint::one(),
+        Operation::Uge => BigUint::one(),
+        Operation::Ult => BigUint::one(),
+        Operation::Ule => BigUint::one(),
+        Operation::Sgt => BigUint::one(),
+        Operation::Sge => BigUint::one(),
+        Operation::Slt => BigUint::one(),
+        Operation::Sle => BigUint::one(),
+        Operation::Lt => BigUint::one(),
+        Operation::Gt => BigUint::one(),
+        Operation::Lte => BigUint::one(),
+        Operation::Gte => BigUint::one(),
         Operation::And => ins.res_type.max_size(),
         Operation::Not => ins.res_type.max_size(),
         Operation::Or => ins.res_type.max_size(),
@@ -480,11 +513,12 @@ pub fn get_max_value(ins: &Instruction, lhs_max: BigUint, rhs_max: BigUint) -> B
         Operation::Ass => rhs_max,
         Operation::Nop | Operation::Jne | Operation::Jeq | Operation::Jmp => todo!(),
         Operation::Phi => BigUint::max(lhs_max, rhs_max), //TODO operands are in phi_arguments, not lhs/rhs!!
-        Operation::EqGate => BigUint::min(lhs_max, rhs_max),
+        Operation::EqGate => BigUint::zero(),             //min(lhs_max, rhs_max),
         Operation::Load(_) => {
             unreachable!();
         }
         Operation::Store(_) => BigUint::from(0_u32),
+        Operation::StdLib(opcode) => todo!(),
     }
 }
 

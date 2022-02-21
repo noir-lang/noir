@@ -70,6 +70,13 @@ impl Memory {
         None
     }
 
+    pub fn get_array_index(&self, array: &MemArray) -> Option<u32> {
+        if let Some(p) = self.arrays.iter().position(|x| x.def == array.def) {
+            return Some(p as u32);
+        }
+        return None;
+    }
+
     pub fn create_array(
         &mut self,
         array: &Array,

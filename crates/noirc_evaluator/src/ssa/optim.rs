@@ -116,6 +116,69 @@ pub fn find_similar_instruction(
     None
 }
 
+pub enum CseAction {
+    Replace, //replace the instruction
+    Remove,  //remove the instruction
+    Keep,    //keep the instruction
+}
+
+pub fn find_similar_mem_instruction(
+    eval: &IRGenerator,
+    op: node::Operation,
+    ins_id: arena::Index,
+    lhs: arena::Index,
+    rhs: arena::Index,
+    anchor: &HashMap<node::Operation, VecDeque<arena::Index>>,
+) -> (arena::Index, CseAction) {
+    match op {
+        node::Operation::Load(_) => {
+            for iter in anchor[&op].iter().rev() {
+                if let Some(ins_iter) = eval.try_get_instruction(*iter) {
+                    match ins_iter.operator {
+                        node::Operation::Load(_) => {
+                            if ins_iter.lhs == lhs {
+                                return (*iter, CseAction::Replace);
+                            }
+                        }
+                        node::Operation::Store(_) => {
+                            if ins_iter.rhs == lhs {
+                                return (ins_iter.lhs, CseAction::Replace);
+                            } else {
+                                //TODO: If we know that ins.lhs value cannot be equal to ins_iter.rhs, we could continue instead
+                                return (ins_id, CseAction::Keep);
+                            }
+                        }
+                        _ => unreachable!("invalid operator in the memory anchor list"),
+                    }
+                }
+            }
+        }
+        node::Operation::Store(x) => {
+            let prev_ins = &anchor[&node::Operation::Load(x)];
+            for iter in prev_ins.iter().rev() {
+                if let Some(ins_iter) = eval.try_get_instruction(*iter) {
+                    match ins_iter.operator {
+                        node::Operation::Load(_) => {
+                            //TODO: If we know that ins.rhs value cannot be equal to ins_iter.rhs, we could continue instead
+                            return (ins_id, CseAction::Keep);
+                        }
+                        node::Operation::Store(_) => {
+                            if ins_iter.rhs == rhs {
+                                return (*iter, CseAction::Remove);
+                            } else {
+                                //TODO: If we know that ins.rhs value cannot be equal to ins_iter.rhs, we could continue instead
+                                return (ins_id, CseAction::Keep);
+                            }
+                        }
+                        _ => unreachable!("invalid operator in the memory anchor list"),
+                    }
+                }
+            }
+        }
+        _ => unreachable!("invalid non memory operator"),
+    }
+    (ins_id, CseAction::Keep)
+}
 pub fn propagate(eval: &IRGenerator, idx: arena::Index) -> arena::Index {
     let mut result = idx;
     if let Some(obj) = eval.try_get_instruction(idx) {
@@ -147,6 +210,18 @@ pub fn cse_tree(
     }
 }
 
+pub fn anchor_push(
+    op: node::Operation,
+    anchor: &mut HashMap<node::Operation, VecDeque<arena::Index>>,
+) {
+    match op {
+        node::Operation::Store(x) => anchor
+            .entry(node::Operation::Load(x))
+            .or_insert_with(VecDeque::new),
+        _ => anchor.entry(op).or_insert_with(VecDeque::new),
+    };
+}
+
 //Performs common subexpression elimination and copy propagation on a block
 pub fn block_cse(
     eval: &mut IRGenerator,
@@ -172,11 +247,10 @@ pub fn block_cse(
             let mut phi_args: Vec<(arena::Index, arena::Index)> = Vec::new();
             let mut to_update_phi = false;
 
-            anchor.entry(ins.operator).or_insert_with(VecDeque::new);
             if ins.is_deleted {
                 continue;
             }
-
+            anchor_push(ins.operator, anchor);
             if node::is_binary(ins.operator) {
                 //binary operation:
                 i_lhs = propagate(eval, ins.lhs);
@@ -189,19 +263,34 @@ pub fn block_cse(
                 } else {
                     new_list.push(*iter);
                     anchor.get_mut(&ins.operator).unwrap().push_front(*iter);
-                    //TODO - Take into account store and load for arrays
                 }
             } else {
                 match ins.operator {
                     node::Operation::Load(_) | node::Operation::Store(_) => {
                         i_lhs = propagate(eval, ins.lhs);
                         i_rhs = propagate(eval, ins.rhs);
-                        new_list.push(*iter);
-                        //TODO CSE for load and store:
-                        //find_similar_instruction..
-                        //anchor list for 'mem_a' operator, i.e. load or store on array a
-                        //specific cse rule (store kill loads and loads kill store)
-                        //handle control flow before hand by adding dummy stores on merged blocks
+                        let (cse_id, cse_action) = find_similar_mem_instruction(
+                            eval,
+                            ins.operator,
+                            ins.idx,
+                            i_lhs,
+                            i_rhs,
+                            anchor,
+                        );
+                        match cse_action {
+                            CseAction::Keep => new_list.push(*iter),
+                            CseAction::Replace => {
+                                to_delete = true;
+                                i_rhs = cse_id;
+                            }
+                            CseAction::Remove => {
+                                new_list.push(*iter);
+                                // TODO if not found, it should be removed from other blocks; we could keep a list of instructions to remove
+                                if let Some(pos) = new_list.iter().position(|x| *x == cse_id) {
+                                    new_list.remove(pos);
+                                }
+                            }
+                        }
                     }
                     node::Operation::Ass => {
                         //assignement
@@ -231,6 +320,7 @@ pub fn block_cse(
                     node::Operation::Cast => {
                         i_lhs = propagate(eval, ins.lhs);
                         i_rhs = propagate(eval, ins.rhs);
+                        new_list.push(*iter);
                     }
                     _ => {
                         new_list.push(*iter);
