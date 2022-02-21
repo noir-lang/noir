@@ -8,6 +8,8 @@ version = "0.1.0"
 dependencies = [
  "indexmap",
  "noir_field",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -1115,6 +1117,7 @@ dependencies = [
  "blake2",
  "cfg-if 1.0.0",
  "hex",
+ "serde",
 ]
 
 [[package]]
@@ -1643,6 +1646,9 @@ name = "serde"
 version = "1.0.136"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ce31e24b01e1e524df96f1c2fdd054405f8d7376249a5110886fb4b658484789"
+dependencies = [
+ "serde_derive",
+]
 
 [[package]]
 name = "serde_derive"
@@ -1657,9 +1663,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.78"
+version = "1.0.79"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d23c1ba4cf0efd44be32017709280b32d1cea5c3f1275c3b6d9e8bc54f758085"
+checksum = "8e8d9fa5c3b304765ce1fd9c4c8a3de2c8db365a5b91be52f186efc675681d95"
 dependencies = [
  "itoa 1.0.1",
  "ryu",
