@@ -1,6 +1,5 @@
 use std::collections::BTreeSet;
 
-use crate::lexer::errors::LexerErrorKind;
 use crate::lexer::token::Token;
 use crate::util::vecmap;
 use crate::BinaryOp;
@@ -14,7 +13,6 @@ pub struct ParserError {
     expected_tokens: BTreeSet<Token>,
     expected_labels: BTreeSet<String>,
     found: Token,
-    lexer_errors: Vec<LexerErrorKind>,
     reason: Option<String>,
     span: Span,
 }
@@ -25,7 +23,6 @@ impl ParserError {
             expected_tokens: BTreeSet::new(),
             expected_labels: BTreeSet::new(),
             found,
-            lexer_errors: vec![],
             reason: None,
             span,
         }
@@ -101,20 +98,6 @@ impl DiagnosableError for ParserError {
     }
 }
 
-impl From<LexerErrorKind> for ParserError {
-    fn from(error: LexerErrorKind) -> Self {
-        let span = error.span();
-        ParserError {
-            expected_tokens: BTreeSet::new(),
-            expected_labels: BTreeSet::new(),
-            found: Token::EOF,
-            lexer_errors: vec![error],
-            reason: None,
-            span,
-        }
-    }
-}
-
 impl chumsky::Error<Token> for ParserError {
     type Span = Span;
     type Label = String;
@@ -130,7 +113,6 @@ impl chumsky::Error<Token> for ParserError {
                 .collect(),
             expected_labels: BTreeSet::new(),
             found: found.unwrap_or(Token::EOF),
-            lexer_errors: vec![],
             reason: None,
             span,
         }
@@ -151,7 +133,6 @@ impl chumsky::Error<Token> for ParserError {
     fn merge(mut self, mut other: Self) -> Self {
         self.expected_tokens.append(&mut other.expected_tokens);
         self.expected_labels.append(&mut other.expected_labels);
-        self.lexer_errors.append(&mut other.lexer_errors);
 
         if self.reason.is_none() {
             self.reason = other.reason;

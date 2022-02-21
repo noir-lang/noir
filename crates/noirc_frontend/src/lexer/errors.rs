@@ -21,6 +21,8 @@ pub enum LexerErrorKind {
     MalformedFuncAttribute { span: Span, found: String },
     #[error("TooManyBits")]
     TooManyBits { span: Span, max: u32, got: u32 },
+    #[error("LogicalAnd used instead of bitwise and")]
+    LogicalAnd { span: Span },
 }
 
 impl LexerErrorKind {
@@ -31,6 +33,7 @@ impl LexerErrorKind {
             LexerErrorKind::InvalidIntegerLiteral { span, .. } => *span,
             LexerErrorKind::MalformedFuncAttribute { span, .. } => *span,
             LexerErrorKind::TooManyBits { span, .. } => *span,
+            LexerErrorKind::LogicalAnd { span } => *span,
         }
     }
 
@@ -69,6 +72,11 @@ impl LexerErrorKind {
                     "The maximum number of bits needed to represent a field is {}, This integer type needs {} bits",
                     max, got
                 ),
+                *span,
+            ),
+            LexerErrorKind::LogicalAnd { span } => (
+                "Noir has no logical-and (&&) operator, try the bitwise-and (&) instead".to_string(),
+                "To compile to circuits, noir cannot have a short-circuiting '&&' operator. Instead, the bitwise & should function the same but will strictly evaluate its arguments".to_string(),
                 *span,
             ),
         }

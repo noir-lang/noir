@@ -2,3 +2,4 @@
 .DS_Store
 examples/**/target/
 examples/9
+.vscode
