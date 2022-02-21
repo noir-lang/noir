@@ -10,6 +10,17 @@ edition = "2021"
 noir_field = { path = "../noir_field", default-features = false }
 libloading = "*"
 
+# WASM dependencies
+wasmer-wasi = "1.0.1"
+
+wasmer = "1.0.1"
+# wasmer-compiler-llvm = "1.0.1"
+wasmer-engine-native = "1.0.1"
+wasmer-engine-jit = "1.0.1"
+wasmer-cache = "1.0.1"
+
+[dev-dependencies]
+tempdir = "*"
 
 [features]
 default = ["bn254"]

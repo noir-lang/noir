@@ -1,6 +1,8 @@
 // This is the non determinism (nd) module.
 
 pub mod c_header;
+mod wasm_loader;
+pub use noir_field::FieldElement;
 
 use libloading::{Library, Symbol};
 use std::{os::raw::c_char, path::Path};
@@ -15,8 +17,34 @@ pub fn to_c_extern_func_call(
 ) -> (*const c_char, *const [u8; 32], *mut [u8; 32]) {
     (name.as_ptr(), inputs.as_ptr(), outputs.as_mut_ptr())
 }
-
+// Note: We have two choices on how we load libraries
+// We could specify that DLLs are for native and wasm is for web
+// This would allow us to use conditional compilation to only compile the wasm and dll functions when we needed
+// This code does an alternative instead; we compile both and check the path extension
 pub fn make_extern_call<P: AsRef<Path>>(
+    path: P,
+    name: String,
+    inputs: &Vec<[u8; 32]>,
+    outputs: &mut [[u8; 32]],
+) {
+    // To see if we need to load a WASM file or a DLL, we can check the extension of the path
+    let ext = path.as_ref().extension().expect("file has no extension");
+    if ext == "wasm" {
+        make_extern_call_wasm(path, name, inputs, outputs)
+    } else {
+        make_extern_call_dll(path, name, inputs, outputs)
+    }
+}
+pub fn make_extern_call_wasm<P: AsRef<Path>>(
+    path: P,
+    name: String,
+    inputs: &Vec<[u8; 32]>,
+    outputs: &mut [[u8; 32]],
+) {
+    todo!("WASM compilation is not yet implemented")
+}
+
+fn make_extern_call_dll<P: AsRef<Path>>(
     path_to_dynamic_lib: P,
     name: String,
     inputs: &Vec<[u8; 32]>,
