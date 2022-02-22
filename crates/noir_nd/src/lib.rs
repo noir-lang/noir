@@ -42,14 +42,12 @@ pub fn make_extern_call_wasm<P: AsRef<Path>>(
     outputs: &mut [[u8; 32]],
 ) {
     let path = path.as_ref();
-    let f = std::fs::File::open(&path).unwrap();
-    let reader = std::io::BufReader::new(f);
-    let wasm_bytes = reader.buffer().to_vec();
+    let wasm_bytes = std::fs::read(path).expect("file does not exist");
 
     // We store the cache in a directory one level deeper than where we found the wasm file
     let mut path_to_cache = path.to_path_buf();
     path_to_cache.pop(); // This pops off the file from the path
-    path_to_cache.push("/cache");
+    path_to_cache.push("cache");
 
     // TODO: can we do this once outside of this module
     let mut compiled_mod = CompiledModule::new(&wasm_bytes, &path_to_cache);
