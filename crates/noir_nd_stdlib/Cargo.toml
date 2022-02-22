@@ -8,6 +8,8 @@ crate-type = ["cdylib"]
 
 [dependencies]
 noir_nd = { path = "../noir_nd" }
+wasm-bindgen = "*"
+getrandom = { version = "0.2.4", features = ["js"] }
 
 [dev-dependencies]
 hex = "*"
