@@ -1,7 +1,7 @@
 // We compile this Rust project as a dynamic library to be used for stdlib non deterministic methods
 
 mod test_lib;
-
+mod wasm_lib;
 use std::{ffi::CStr, os::raw::c_char};
 
 #[no_mangle]
