@@ -1,6 +1,0 @@
-[package]
-authors = ["kev"]
-compiler_version = "0.1"
-
-[dependencies]
-hello_world = { tag = "v0.5", git = "https://github.com/kevaundray/hello-world-noir"}
