@@ -21,6 +21,7 @@ RUN git clone -b release/10.x --depth 1 https://github.com/llvm/llvm-project.git
   && make install \
   && cd ../.. && rm -rf llvm-project
 ```
+
 ### Getting started
 
 Run the bootstrap script. (The bootstrap script will build both the native and wasm versions of barretenberg)

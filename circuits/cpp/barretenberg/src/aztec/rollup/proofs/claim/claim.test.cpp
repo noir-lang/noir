@@ -557,10 +557,10 @@ TEST_F(claim_tests, test_missing_interaction_note_fails)
 TEST_F(claim_tests, test_claim_for_virtual_note)
 {
     const bridge_id bridge_id = { .bridge_address_id = 0,
-                                  .input_asset_id = 0,
+                                  .input_asset_id_a = 0,
+                                  .input_asset_id_b = 0,
                                   .output_asset_id_a = 0,
                                   .output_asset_id_b = 0,
-                                  .opening_nonce = 0,
                                   .config = bridge_id::bit_config{ .first_input_virtual = false,
                                                                    .second_input_virtual = false,
                                                                    .first_output_virtual = false,
@@ -586,16 +586,20 @@ TEST_F(claim_tests, test_claim_for_virtual_note)
     append_note(note2, defi_tree);
     claim_tx tx = create_claim_tx(note1, 0, note2);
 
-    EXPECT_TRUE(verify_logic(tx, cd).logic_verified);
+    auto result = verify_logic(tx, cd);
+
+    EXPECT_TRUE(result.logic_verified);
+    EXPECT_EQ(tx.get_output_notes()[0], result.public_inputs[InnerProofFields::NOTE_COMMITMENT1]);
+    EXPECT_EQ(tx.get_output_notes()[1], result.public_inputs[InnerProofFields::NOTE_COMMITMENT2]);
 }
 
-TEST_F(claim_tests, test_unsupported_first_input_note_virtual_fails)
+TEST_F(claim_tests, test_first_input_note_virtual)
 {
     const bridge_id bridge_id = { .bridge_address_id = 0,
-                                  .input_asset_id = 0,
+                                  .input_asset_id_a = 0,
+                                  .input_asset_id_b = 0,
                                   .output_asset_id_a = 111,
                                   .output_asset_id_b = 222,
-                                  .opening_nonce = 0,
                                   .config = bridge_id::bit_config{ .first_input_virtual = true, // <--
                                                                    .second_input_virtual = false,
                                                                    .first_output_virtual = false,
@@ -623,17 +627,17 @@ TEST_F(claim_tests, test_unsupported_first_input_note_virtual_fails)
     claim_tx tx = create_claim_tx(note1, 0, note2);
 
     auto result = verify_logic(tx, cd);
-    EXPECT_FALSE(result.logic_verified);
-    EXPECT_EQ(result.err, "Not yet supported: first input asset cannot be virtual");
+    EXPECT_TRUE(result.logic_verified);
+    EXPECT_EQ(tx.get_output_notes()[0], result.public_inputs[InnerProofFields::NOTE_COMMITMENT1]);
 }
 
-TEST_F(claim_tests, test_unsupported_first_output_note_virtual_fails)
+TEST_F(claim_tests, test_first_output_note_virtual)
 {
     const bridge_id bridge_id = { .bridge_address_id = 0,
-                                  .input_asset_id = 0,
+                                  .input_asset_id_a = 0,
+                                  .input_asset_id_b = 0,
                                   .output_asset_id_a = 111,
                                   .output_asset_id_b = 222,
-                                  .opening_nonce = 0,
                                   .config = bridge_id::bit_config{ .first_input_virtual = false,
                                                                    .second_input_virtual = false,
                                                                    .first_output_virtual = true, // <--
@@ -661,17 +665,17 @@ TEST_F(claim_tests, test_unsupported_first_output_note_virtual_fails)
     claim_tx tx = create_claim_tx(note1, 0, note2);
 
     auto result = verify_logic(tx, cd);
-    EXPECT_FALSE(result.logic_verified);
-    EXPECT_EQ(result.err, "Not yet supported: first output asset cannot be virtual");
+    EXPECT_TRUE(result.logic_verified);
+    EXPECT_EQ(tx.get_output_notes()[0], result.public_inputs[InnerProofFields::NOTE_COMMITMENT1]);
 }
 
 TEST_F(claim_tests, test_second_input_note_virtual_and_real_fails)
 {
     const bridge_id bridge_id = { .bridge_address_id = 0,
-                                  .input_asset_id = 0,
+                                  .input_asset_id_a = 0,
+                                  .input_asset_id_b = 0,
                                   .output_asset_id_a = 111,
                                   .output_asset_id_b = 222,
-                                  .opening_nonce = 0,
                                   .config = bridge_id::bit_config{ .first_input_virtual = false,
                                                                    .second_input_virtual = true, // <--
                                                                    .first_output_virtual = false,
@@ -706,10 +710,10 @@ TEST_F(claim_tests, test_second_input_note_virtual_and_real_fails)
 TEST_F(claim_tests, test_second_output_note_virtual_and_real_fails)
 {
     const bridge_id bridge_id = { .bridge_address_id = 0,
-                                  .input_asset_id = 0,
+                                  .input_asset_id_a = 0,
+                                  .input_asset_id_b = 0,
                                   .output_asset_id_a = 111,
                                   .output_asset_id_b = 222,
-                                  .opening_nonce = 0,
                                   .config = bridge_id::bit_config{ .first_input_virtual = false,
                                                                    .second_input_virtual = false,
                                                                    .first_output_virtual = false,
@@ -744,10 +748,10 @@ TEST_F(claim_tests, test_second_output_note_virtual_and_real_fails)
 TEST_F(claim_tests, test_second_output_real_means_asset_ids_equal_fails)
 {
     const bridge_id bridge_id = { .bridge_address_id = 0,
-                                  .input_asset_id = 0,
+                                  .input_asset_id_a = 0,
+                                  .input_asset_id_b = 0,
                                   .output_asset_id_a = 111,
                                   .output_asset_id_b = 111, // <-- equal
-                                  .opening_nonce = 0,
                                   .config = bridge_id::bit_config{ .first_input_virtual = false,
                                                                    .second_input_virtual = false,
                                                                    .first_output_virtual = false,
@@ -782,10 +786,10 @@ TEST_F(claim_tests, test_second_output_real_means_asset_ids_equal_fails)
 TEST_F(claim_tests, test_claim_2_outputs_full_proof)
 {
     const bridge_id bridge_id = { .bridge_address_id = 0,
-                                  .input_asset_id = 0,
+                                  .input_asset_id_a = 0,
+                                  .input_asset_id_b = 0,
                                   .output_asset_id_a = 111,
                                   .output_asset_id_b = 222,
-                                  .opening_nonce = 0,
                                   .config = bridge_id::bit_config{ .first_input_virtual = false,
                                                                    .second_input_virtual = false,
                                                                    .first_output_virtual = false,
@@ -870,7 +874,7 @@ TEST_F(claim_tests, test_claim_2_outputs_full_proof)
     EXPECT_EQ(proof_data.asset_id, uint256_t(0));
     EXPECT_EQ(proof_data.merkle_root, data_tree->root());
     EXPECT_EQ(proof_data.tx_fee, uint256_t(0));
-    EXPECT_EQ(proof_data.tx_fee_asset_id, bridge_id.input_asset_id);
+    EXPECT_EQ(proof_data.tx_fee_asset_id, bridge_id.input_asset_id_a);
     EXPECT_EQ(proof_data.bridge_id, tx.claim_note.bridge_id);
     EXPECT_EQ(proof_data.defi_deposit_value, uint256_t(0));
     EXPECT_EQ(proof_data.defi_root, defi_tree->root());
@@ -881,10 +885,10 @@ TEST_F(claim_tests, test_claim_2_outputs_full_proof)
 TEST_F(claim_tests, test_claim_1_output_full_proof)
 {
     const bridge_id bridge_id = { .bridge_address_id = 0,
-                                  .input_asset_id = 0,
+                                  .input_asset_id_a = 0,
+                                  .input_asset_id_b = 0,
                                   .output_asset_id_a = 111,
                                   .output_asset_id_b = 222,
-                                  .opening_nonce = 0,
                                   .config = bridge_id::bit_config{ .first_input_virtual = false,
                                                                    .second_input_virtual = false,
                                                                    .first_output_virtual = false,
@@ -937,7 +941,7 @@ TEST_F(claim_tests, test_claim_1_output_full_proof)
     EXPECT_EQ(proof_data.asset_id, uint256_t(0));
     EXPECT_EQ(proof_data.merkle_root, data_tree->root());
     EXPECT_EQ(proof_data.tx_fee, claim_fee);
-    EXPECT_EQ(proof_data.tx_fee_asset_id, bridge_id.input_asset_id);
+    EXPECT_EQ(proof_data.tx_fee_asset_id, bridge_id.input_asset_id_a);
     EXPECT_EQ(proof_data.bridge_id, tx.claim_note.bridge_id);
     EXPECT_EQ(proof_data.defi_deposit_value, uint256_t(0));
     EXPECT_EQ(proof_data.defi_root, defi_tree->root());
@@ -950,10 +954,10 @@ TEST_F(claim_tests, test_claim_1_output_full_proof)
 TEST_F(claim_tests, test_claim_1_output_with_virtual_note_full_proof)
 {
     const bridge_id bridge_id = { .bridge_address_id = 0,
-                                  .input_asset_id = 0,
+                                  .input_asset_id_a = 0,
+                                  .input_asset_id_b = 0,
                                   .output_asset_id_a = 111,
                                   .output_asset_id_b = 222,
-                                  .opening_nonce = 0,
                                   .config = bridge_id::bit_config{ .first_input_virtual = false,
                                                                    .second_input_virtual = false,
                                                                    .first_output_virtual = false,
@@ -1025,7 +1029,7 @@ TEST_F(claim_tests, test_claim_1_output_with_virtual_note_full_proof)
     EXPECT_EQ(proof_data.public_owner, fr(0));
     EXPECT_EQ(proof_data.bridge_id, tx.claim_note.bridge_id);
     EXPECT_EQ(proof_data.tx_fee, claim_fee);
-    EXPECT_EQ(proof_data.tx_fee_asset_id, bridge_id.input_asset_id);
+    EXPECT_EQ(proof_data.tx_fee_asset_id, bridge_id.input_asset_id_a);
     EXPECT_EQ(proof_data.bridge_id, tx.claim_note.bridge_id);
     EXPECT_EQ(proof_data.defi_deposit_value, uint256_t(0));
     EXPECT_EQ(proof_data.defi_root, defi_tree->root());
@@ -1036,10 +1040,10 @@ TEST_F(claim_tests, test_claim_1_output_with_virtual_note_full_proof)
 TEST_F(claim_tests, test_claim_refund_full_proof)
 {
     const bridge_id bridge_id = { .bridge_address_id = 0,
-                                  .input_asset_id = 0,
+                                  .input_asset_id_a = 0,
+                                  .input_asset_id_b = 0,
                                   .output_asset_id_a = 111,
                                   .output_asset_id_b = 222,
-                                  .opening_nonce = 0,
                                   .config = bridge_id::bit_config{ .first_input_virtual = false,
                                                                    .second_input_virtual = false,
                                                                    .first_output_virtual = false,
@@ -1074,7 +1078,7 @@ TEST_F(claim_tests, test_claim_refund_full_proof)
     uint256_t nullifier2 = compute_dummy_nullifier(note2.commit(), tx.defi_interaction_note_dummy_nullifier_nonce);
 
     const value_note expected_output_note1 = { .value = 10,
-                                               .asset_id = bridge_id.input_asset_id,
+                                               .asset_id = bridge_id.input_asset_id_a,
                                                .nonce = 0,
                                                .owner = user.owner.public_key,
                                                .secret = user.note_secret,
@@ -1091,7 +1095,7 @@ TEST_F(claim_tests, test_claim_refund_full_proof)
     EXPECT_EQ(proof_data.asset_id, uint256_t(0));
     EXPECT_EQ(proof_data.merkle_root, data_tree->root());
     EXPECT_EQ(proof_data.tx_fee, uint256_t(0));
-    EXPECT_EQ(proof_data.tx_fee_asset_id, bridge_id.input_asset_id);
+    EXPECT_EQ(proof_data.tx_fee_asset_id, bridge_id.input_asset_id_a);
     EXPECT_EQ(proof_data.bridge_id, tx.claim_note.bridge_id);
     EXPECT_EQ(proof_data.defi_deposit_value, uint256_t(0));
     EXPECT_EQ(proof_data.defi_root, defi_tree->root());
@@ -1113,11 +1117,11 @@ class test_data {
 
     test_data(rollup::fixtures::user_context user)
     {
-        bid = { .bridge_address_id = 0,
-                .input_asset_id = 0,
+        bid = { .bridge_address_id = 123,
+                .input_asset_id_a = 456,
+                .input_asset_id_b = 0,
                 .output_asset_id_a = 111,
                 .output_asset_id_b = 222,
-                .opening_nonce = 0,
                 .config = bridge_id::bit_config{ .first_input_virtual = false,
                                                  .second_input_virtual = false,
                                                  .first_output_virtual = false,
@@ -1218,6 +1222,194 @@ TEST_F(claim_tests, test_fee_out_of_range_fails)
     EXPECT_EQ(result.err, "safe_uint_t range constraint failure: fee");
 }
 
+TEST_F(claim_tests, test_refund_one_virtual)
+{
+    test_data test_data(user);
+    test_data.bid.config.first_input_virtual = true;
+    test_data.note2.interaction_result = false;
+    append_note(test_data.note1, data_tree);
+    append_note(test_data.note2, defi_tree);
+    claim_tx tx = create_claim_tx(test_data.note1, 0, test_data.note2);
+
+    auto result = verify_logic(tx, cd);
+    EXPECT_TRUE(result.logic_verified);
+    EXPECT_EQ(tx.get_output_notes()[0], result.public_inputs[InnerProofFields::NOTE_COMMITMENT1]);
+    EXPECT_EQ(tx.get_output_notes()[1], 0);
+}
+
+TEST_F(claim_tests, test_refund_two_virtual)
+{
+    test_data test_data(user);
+    test_data.bid.config.first_input_virtual = true;
+    test_data.bid.config.second_input_virtual = true;
+    test_data.note2.interaction_result = false;
+    append_note(test_data.note1, data_tree);
+    append_note(test_data.note2, defi_tree);
+    claim_tx tx = create_claim_tx(test_data.note1, 0, test_data.note2);
+
+    auto result = verify_logic(tx, cd);
+    EXPECT_TRUE(result.logic_verified);
+    EXPECT_EQ(tx.get_output_notes()[0], result.public_inputs[InnerProofFields::NOTE_COMMITMENT1]);
+    EXPECT_EQ(tx.get_output_notes()[1], result.public_inputs[InnerProofFields::NOTE_COMMITMENT2]);
+}
+
+TEST_F(claim_tests, test_refund_one_real)
+{
+    test_data test_data(user);
+    test_data.note2.interaction_result = false;
+    test_data.bid.config.second_output_real = true;
+    append_note(test_data.note1, data_tree);
+    append_note(test_data.note2, defi_tree);
+    claim_tx tx = create_claim_tx(test_data.note1, 0, test_data.note2);
+
+    auto result = verify_logic(tx, cd);
+    EXPECT_TRUE(result.logic_verified);
+    EXPECT_EQ(tx.get_output_notes()[0], result.public_inputs[InnerProofFields::NOTE_COMMITMENT1]);
+    EXPECT_EQ(tx.get_output_notes()[1], 0);
+}
+
+TEST_F(claim_tests, test_refund_two_real)
+{
+    test_data test_data(user);
+    test_data.note2.interaction_result = false;
+    test_data.bid.config.second_input_real = true;
+    append_note(test_data.note1, data_tree);
+    append_note(test_data.note2, defi_tree);
+    claim_tx tx = create_claim_tx(test_data.note1, 0, test_data.note2);
+
+    auto result = verify_logic(tx, cd);
+    EXPECT_TRUE(result.logic_verified);
+    EXPECT_EQ(tx.get_output_notes()[0], result.public_inputs[InnerProofFields::NOTE_COMMITMENT1]);
+    EXPECT_EQ(tx.get_output_notes()[1], result.public_inputs[InnerProofFields::NOTE_COMMITMENT2]);
+}
+
+TEST_F(claim_tests, test_refund_virtual_real)
+{
+    test_data test_data(user);
+    test_data.note2.interaction_result = false;
+    test_data.bid.config.first_input_virtual = true;
+    test_data.bid.config.second_input_real = true;
+    test_data.bid.config.second_input_virtual = false;
+
+    append_note(test_data.note1, data_tree);
+    append_note(test_data.note2, defi_tree);
+    claim_tx tx = create_claim_tx(test_data.note1, 0, test_data.note2);
+
+    auto result = verify_logic(tx, cd);
+    EXPECT_TRUE(result.logic_verified);
+    EXPECT_EQ(tx.get_output_notes()[0], result.public_inputs[InnerProofFields::NOTE_COMMITMENT1]);
+    EXPECT_EQ(tx.get_output_notes()[1], result.public_inputs[InnerProofFields::NOTE_COMMITMENT2]);
+}
+
+TEST_F(claim_tests, test_refund_real_virtual)
+{
+    test_data test_data(user);
+    test_data.note2.interaction_result = false;
+    test_data.bid.config.first_input_virtual = false;
+    test_data.bid.config.second_input_real = false;
+    test_data.bid.config.second_input_virtual = true;
+
+    append_note(test_data.note1, data_tree);
+    append_note(test_data.note2, defi_tree);
+    claim_tx tx = create_claim_tx(test_data.note1, 0, test_data.note2);
+
+    auto result = verify_logic(tx, cd);
+    EXPECT_TRUE(result.logic_verified);
+    EXPECT_EQ(tx.get_output_notes()[0], result.public_inputs[InnerProofFields::NOTE_COMMITMENT1]);
+    EXPECT_EQ(tx.get_output_notes()[1], result.public_inputs[InnerProofFields::NOTE_COMMITMENT2]);
+}
+
+TEST_F(claim_tests, test_one_virtual)
+{
+    test_data test_data(user);
+    test_data.bid.config.first_output_virtual = true;
+    append_note(test_data.note1, data_tree);
+    append_note(test_data.note2, defi_tree);
+    claim_tx tx = create_claim_tx(test_data.note1, 0, test_data.note2);
+
+    auto result = verify_logic(tx, cd);
+    EXPECT_TRUE(result.logic_verified);
+    EXPECT_EQ(tx.get_output_notes()[0], result.public_inputs[InnerProofFields::NOTE_COMMITMENT1]);
+    EXPECT_EQ(tx.get_output_notes()[1], 0);
+}
+
+TEST_F(claim_tests, test_two_virtual)
+{
+    test_data test_data(user);
+    test_data.bid.config.first_output_virtual = true;
+    test_data.bid.config.second_output_virtual = true;
+    append_note(test_data.note1, data_tree);
+    append_note(test_data.note2, defi_tree);
+    claim_tx tx = create_claim_tx(test_data.note1, 0, test_data.note2);
+
+    auto result = verify_logic(tx, cd);
+    EXPECT_TRUE(result.logic_verified);
+    EXPECT_EQ(tx.get_output_notes()[0], result.public_inputs[InnerProofFields::NOTE_COMMITMENT1]);
+    EXPECT_EQ(tx.get_output_notes()[1], result.public_inputs[InnerProofFields::NOTE_COMMITMENT2]);
+}
+
+TEST_F(claim_tests, test_one_real)
+{
+    test_data test_data(user);
+    test_data.bid.config.first_input_virtual = true;
+    test_data.bid.config.second_output_real = true;
+    append_note(test_data.note1, data_tree);
+    append_note(test_data.note2, defi_tree);
+    claim_tx tx = create_claim_tx(test_data.note1, 0, test_data.note2);
+
+    auto result = verify_logic(tx, cd);
+    EXPECT_TRUE(result.logic_verified);
+    EXPECT_EQ(tx.get_output_notes()[0], result.public_inputs[InnerProofFields::NOTE_COMMITMENT1]);
+    EXPECT_EQ(tx.get_output_notes()[1], 0);
+}
+
+TEST_F(claim_tests, test_two_real)
+{
+    test_data test_data(user);
+    test_data.bid.config.second_output_real = true;
+    append_note(test_data.note1, data_tree);
+    append_note(test_data.note2, defi_tree);
+    claim_tx tx = create_claim_tx(test_data.note1, 0, test_data.note2);
+
+    auto result = verify_logic(tx, cd);
+    EXPECT_TRUE(result.logic_verified);
+    EXPECT_EQ(tx.get_output_notes()[0], result.public_inputs[InnerProofFields::NOTE_COMMITMENT1]);
+    EXPECT_EQ(tx.get_output_notes()[1], result.public_inputs[InnerProofFields::NOTE_COMMITMENT2]);
+}
+
+TEST_F(claim_tests, test_virtual_real)
+{
+    test_data test_data(user);
+    test_data.bid.config.first_output_virtual = true;
+    test_data.bid.config.second_output_real = true;
+    test_data.bid.config.second_output_virtual = false;
+
+    append_note(test_data.note1, data_tree);
+    append_note(test_data.note2, defi_tree);
+    claim_tx tx = create_claim_tx(test_data.note1, 0, test_data.note2);
+
+    auto result = verify_logic(tx, cd);
+    EXPECT_TRUE(result.logic_verified);
+    EXPECT_EQ(tx.get_output_notes()[0], result.public_inputs[InnerProofFields::NOTE_COMMITMENT1]);
+    EXPECT_EQ(tx.get_output_notes()[1], result.public_inputs[InnerProofFields::NOTE_COMMITMENT2]);
+}
+
+TEST_F(claim_tests, test_real_virtual)
+{
+    test_data test_data(user);
+    test_data.bid.config.first_output_virtual = false;
+    test_data.bid.config.second_output_real = false;
+    test_data.bid.config.second_output_virtual = true;
+
+    append_note(test_data.note1, data_tree);
+    append_note(test_data.note2, defi_tree);
+    claim_tx tx = create_claim_tx(test_data.note1, 0, test_data.note2);
+
+    auto result = verify_logic(tx, cd);
+    EXPECT_TRUE(result.logic_verified);
+    EXPECT_EQ(tx.get_output_notes()[0], result.public_inputs[InnerProofFields::NOTE_COMMITMENT1]);
+    EXPECT_EQ(tx.get_output_notes()[1], result.public_inputs[InnerProofFields::NOTE_COMMITMENT2]);
+}
 } // namespace claim
 } // namespace proofs
 } // namespace rollup

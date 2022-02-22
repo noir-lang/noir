@@ -1,5 +1,6 @@
 #pragma once
 #include <algorithm>
+#include <type_traits>
 
 /*
  * Generic map function for mapping a containers element to another type.
@@ -8,7 +9,7 @@ template <template <typename, typename...> typename Cont,
           typename InElem,
           typename... Args,
           typename F,
-          typename OutElem = typename std::result_of<F(InElem const&)>::type>
+          typename OutElem = typename std::invoke_result<F, InElem const&>::type>
 Cont<OutElem> map(Cont<InElem, Args...> const& in, F op)
 {
     Cont<OutElem> result;
@@ -24,7 +25,7 @@ template <template <typename, typename...> typename Cont,
           typename InElem,
           typename... Args,
           typename F,
-          typename OutElem = typename std::result_of<F(InElem const&, size_t)>::type>
+          typename OutElem = typename std::invoke_result<F, InElem const&, size_t>::type>
 Cont<OutElem> mapi(Cont<InElem, Args...> const& in, F op)
 {
     Cont<OutElem> result;

@@ -1,6 +1,9 @@
 #pragma once
+#include "../notes/native/value/complete_partial_commitment.hpp"
 #include "../notes/native/claim/claim_note.hpp"
+#include "../notes/native/claim/compute_nullifier.hpp"
 #include "../notes/native/defi_interaction/note.hpp"
+#include "../notes/native/defi_interaction/compute_dummy_nullifier.hpp"
 #include <stdlib/merkle_tree/hash_path.hpp>
 #include <stdlib/types/turbo.hpp>
 
@@ -27,6 +30,51 @@ struct claim_tx {
     fr output_value_b;
 
     bool operator==(claim_tx const&) const = default;
+
+    std::array<fr, 2> get_output_notes()
+    {
+        const auto virtual_flag = static_cast<uint32_t>(1 << (MAX_NUM_ASSETS_BIT_LENGTH - 1));
+        const auto bridge_id = notes::native::bridge_id::from_uint256_t(claim_note.bridge_id);
+
+        const auto success = defi_interaction_note.interaction_result;
+
+        const auto asset_id_a_good = bridge_id.config.first_output_virtual
+                                         ? virtual_flag + defi_interaction_note.interaction_nonce
+                                         : bridge_id.output_asset_id_a;
+        const auto asset_id_b_good = bridge_id.config.second_output_virtual
+                                         ? virtual_flag + defi_interaction_note.interaction_nonce
+                                         : bridge_id.output_asset_id_b;
+
+        const auto asset_id_a_bad = bridge_id.config.first_input_virtual
+                                        ? virtual_flag + defi_interaction_note.interaction_nonce
+                                        : bridge_id.input_asset_id_a;
+
+        const auto asset_id_b_bad = bridge_id.config.first_input_virtual
+                                        ? virtual_flag + defi_interaction_note.interaction_nonce
+                                        : bridge_id.input_asset_id_b;
+
+        const auto asset_id_a = success ? asset_id_a_good : asset_id_a_bad;
+        const auto asset_id_b = success ? asset_id_b_good : asset_id_b_bad;
+
+        auto output_note_a = notes::native::value::complete_partial_commitment(
+            claim_note.value_note_partial_commitment,
+            success ? output_value_a : fr(claim_note.deposit_value),
+            asset_id_a,
+            notes::native::claim::compute_nullifier(claim_note.commit()));
+
+        auto output_note_b = notes::native::value::complete_partial_commitment(
+            claim_note.value_note_partial_commitment,
+            success ? output_value_b : fr(claim_note.deposit_value),
+            asset_id_b,
+            notes::native::defi_interaction::compute_dummy_nullifier(defi_interaction_note.commit(),
+                                                                     defi_interaction_note_dummy_nullifier_nonce));
+
+        bool has_output_two =
+            success && (bridge_id.config.second_output_real || bridge_id.config.second_output_virtual);
+        has_output_two = has_output_two ||
+                         (!success && (bridge_id.config.second_input_real || bridge_id.config.second_input_virtual));
+        return { output_note_a, has_output_two ? output_note_b : 0 };
+    }
 };
 
 template <typename B> inline void read(B& buf, claim_tx& tx)

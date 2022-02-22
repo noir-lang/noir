@@ -8,7 +8,7 @@ if(BENCHMARKS)
     FetchContent_Declare(
         benchmark
         GIT_REPOSITORY https://github.com/google/benchmark
-        GIT_TAG v1.5.0
+        GIT_TAG v1.6.1
     )
 
     FetchContent_GetProperties(benchmark)

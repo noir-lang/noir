@@ -71,7 +71,6 @@ int main(int argc, char** argv)
 
         info("Sending tx rollup request with ", n, " txs...");
         write(std::cout, (uint32_t)0);
-        write(std::cout, (uint32_t)inner_rollup_size);
         write(std::cout, rollup);
         info("Sent.");
 
@@ -90,8 +89,6 @@ int main(int argc, char** argv)
 
     info("Sending root rollup request...");
     write(std::cout, (uint32_t)1);
-    write(std::cout, (uint32_t)inner_rollup_size);
-    write(std::cout, (uint32_t)outer_rollup_size);
     write(std::cout, root_rollup);
     info("Sent.");
 
@@ -105,8 +102,6 @@ int main(int argc, char** argv)
 
     info("Sending root verifier request...");
     write(std::cout, (uint32_t)3);
-    write(std::cout, (uint32_t)inner_rollup_size);
-    write(std::cout, (uint32_t)outer_rollup_size);
     write(std::cout, root_rollup_proof_buf);
     info("Sent.");
 

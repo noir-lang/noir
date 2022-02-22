@@ -1,6 +1,5 @@
 #include <gtest/gtest.h>
 #include <common/streams.hpp>
-#include <common/map.hpp>
 #include "./pedersen.hpp"
 
 using namespace crypto::pedersen;

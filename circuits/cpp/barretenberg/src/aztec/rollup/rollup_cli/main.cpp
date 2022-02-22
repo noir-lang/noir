@@ -1,6 +1,10 @@
 #include <sstream>
 #include <iostream>
 
+#include <stdio.h>
+#include <sys/types.h>
+#include <unistd.h>
+
 #include "../proofs/account/compute_circuit_data.hpp"
 #include "../proofs/join_split/compute_circuit_data.hpp"
 #include "../proofs/claim/get_circuit_data.hpp"
@@ -11,6 +15,7 @@
 #include <common/timer.hpp>
 #include <common/container.hpp>
 #include <common/map.hpp>
+
 #include <plonk/composer/turbo/compute_verification_key.hpp>
 #include <plonk/proof_system/proving_key/proving_key.hpp>
 #include <plonk/proof_system/verification_key/verification_key.hpp>
@@ -21,32 +26,48 @@ using namespace serialize;
 namespace tx_rollup = ::rollup::proofs::rollup;
 
 namespace {
-std::string data_path;
+// Number of transactions in an inner rollup.
+size_t txs_per_inner;
+// Number of inner rollups in a root rollup.
+size_t inners_per_root;
+// In mock mode, mock proofs (expected public inputs, but no constraints) are generated.
+bool mock_proofs;
+// Create big circuits proving keys lazily to improve startup times.
+bool lazy_init;
 // True if rollup circuit data (proving and verification keys) are to be persisted to disk.
 // We likely don't have enough memory to hold all keys in memory, and loading keys from disk is faster.
 bool persist;
-// In mock mode, mock proofs (expected public inputs, but no constraints) are generated.
-bool mock_proofs;
+// Path to save proving keys to if persist is on.
+std::string data_path;
+
 std::shared_ptr<waffle::DynamicFileReferenceStringFactory> crs;
 join_split::circuit_data js_cd;
 account::circuit_data account_cd;
+claim::circuit_data claim_cd;
 tx_rollup::circuit_data tx_rollup_cd;
 root_rollup::circuit_data root_rollup_cd;
-claim::circuit_data claim_cd;
-std::vector<uint32_t> valid_outer_sizes;
 root_verifier::circuit_data root_verifier_cd;
 } // namespace
 
+// Postcondition: tx_rollup_cd has a proving key and verification key.
+void init_tx_rollup(size_t num_txs)
+{
+    if (tx_rollup_cd.proving_key) {
+        // We always have a vk if we have a pk, as we request both in the call to get_circuit_data.
+        return;
+    }
+    if (lazy_init) {
+        // In lazy init mode we conserve memory. Throw away the root rollup proving key first.
+        info("Purging root rollup proving key.");
+        root_rollup_cd.proving_key.reset();
+    }
+    tx_rollup_cd = tx_rollup::get_circuit_data(
+        num_txs, js_cd, account_cd, claim_cd, crs, data_path, true, persist, persist, true, true, mock_proofs);
+}
+
 bool create_tx_rollup()
 {
-    uint32_t num_txs;
-    read(std::cin, num_txs);
-
-    if (!tx_rollup_cd.proving_key || tx_rollup_cd.num_txs != num_txs) {
-        tx_rollup_cd.proving_key.reset();
-        tx_rollup_cd = tx_rollup::get_circuit_data(
-            num_txs, js_cd, account_cd, claim_cd, crs, data_path, true, persist, persist, true, true, mock_proofs);
-    }
+    init_tx_rollup(txs_per_inner);
 
     tx_rollup::rollup_tx rollup;
     std::cerr << "Reading tx rollup..." << std::endl;
@@ -62,24 +83,29 @@ bool create_tx_rollup()
     return result.verified;
 }
 
+// Postcondition: root_rollup_cd has a proving key and verification key.
+void init_root_rollup(size_t num_rollups)
+{
+    if (root_rollup_cd.proving_key) {
+        // We always have a vk if we have a pk, as we request both in the call to get_circuit_data.
+        return;
+    }
+    if (!tx_rollup_cd.verification_key) {
+        // If we've never created the tx rollup circuit data, we won't have a vk. Build it.
+        init_tx_rollup(txs_per_inner);
+    }
+    if (lazy_init) {
+        // In lazy init mode we conserve memory. Throw away the tx rollup proving key first.
+        info("Purging tx rollup proving key.");
+        tx_rollup_cd.proving_key.reset();
+    }
+    root_rollup_cd = root_rollup::get_circuit_data(
+        num_rollups, tx_rollup_cd, crs, data_path, true, persist, persist, true, true, mock_proofs);
+}
+
 bool create_root_rollup()
 {
-    uint32_t num_txs;
-    uint32_t num_proofs;
-    read(std::cin, num_txs);
-    read(std::cin, num_proofs);
-
-    if (!tx_rollup_cd.proving_key || tx_rollup_cd.num_txs != num_txs) {
-        tx_rollup_cd.proving_key.reset();
-        tx_rollup_cd = tx_rollup::get_circuit_data(
-            num_txs, js_cd, account_cd, claim_cd, crs, data_path, true, persist, persist, true, true, mock_proofs);
-    }
-
-    if (!root_rollup_cd.proving_key || root_rollup_cd.num_inner_rollups != num_proofs) {
-        root_rollup_cd.proving_key.reset();
-        root_rollup_cd = root_rollup::get_circuit_data(
-            num_proofs, tx_rollup_cd, crs, data_path, true, persist, persist, true, true, mock_proofs);
-    }
+    init_root_rollup(inners_per_root);
 
     root_rollup::root_rollup_tx root_rollup;
     std::cerr << "Reading root rollup..." << std::endl;
@@ -113,50 +139,35 @@ bool create_claim()
     return result.verified;
 }
 
+void init_root_verifier()
+{
+    if (root_verifier_cd.proving_key) {
+        return;
+    }
+    root_verifier_cd = root_verifier::get_circuit_data(root_rollup_cd,
+                                                       crs,
+                                                       { root_rollup_cd.verification_key },
+                                                       data_path,
+                                                       true,
+                                                       persist,
+                                                       persist,
+                                                       true,
+                                                       true,
+                                                       mock_proofs);
+}
+
 bool create_root_verifier()
 {
-    // TODO: Not needed. We can assume prior call to create_rollup_tx will have inited the tx_rollup_cd.
-    uint32_t num_txs;
-    read(std::cin, num_txs);
-
-    // We do however, currently need to know the num_proofs, in order to correctly be able to slice off broadcast data.
-    uint32_t num_proofs;
-    read(std::cin, num_proofs);
-
-    // On first run of create_root_verifier, build list of valid verification keys.
-    if (!root_verifier_cd.proving_key) {
-        for (size_t size : valid_outer_sizes) {
-            if (root_rollup_cd.proving_key && root_rollup_cd.num_inner_rollups == size) {
-                root_verifier_cd.valid_vks.emplace_back(root_rollup_cd.verification_key);
-            } else {
-                root_verifier_cd.valid_vks.emplace_back(
-                    root_rollup::get_circuit_data(
-                        size, tx_rollup_cd, crs, data_path, true, persist, persist, true, true, mock_proofs)
-                        .verification_key);
-            }
-        }
-        root_verifier_cd = root_verifier::get_circuit_data(root_rollup_cd,
-                                                           crs,
-                                                           root_verifier_cd.valid_vks,
-                                                           data_path,
-                                                           true,
-                                                           persist,
-                                                           persist,
-                                                           true,
-                                                           true,
-                                                           mock_proofs);
-    }
+    init_tx_rollup(txs_per_inner);
+    init_root_rollup(inners_per_root);
+    init_root_verifier();
 
     std::vector<uint8_t> root_rollup_proof_buf;
     std::cerr << "Reading root verifier tx..." << std::endl;
     read(std::cin, root_rollup_proof_buf);
 
-    auto rollup_size = num_proofs * tx_rollup_cd.rollup_size;
+    auto rollup_size = inners_per_root * tx_rollup_cd.rollup_size;
     auto tx = root_verifier::create_root_verifier_tx(root_rollup_proof_buf, rollup_size);
-
-    std::cerr << "Received root verifier tx... (circuit valid sizes: "
-              << map(valid_outer_sizes, [](size_t s) { return s * tx_rollup_cd.rollup_size; })
-              << ", proof size: " << rollup_size << ")" << std::endl;
 
     auto result = verify(tx, root_verifier_cd, root_rollup_cd);
 
@@ -171,17 +182,24 @@ bool create_root_verifier()
 int main(int argc, char** argv)
 {
     std::vector<std::string> args(argv, argv + argc);
-    const std::string srs_path = (args.size() > 1) ? args[1] : "../srs_db/ignition";
-    data_path = (args.size() > 2) ? args[2] : "./data";
-    std::string outers = args.size() > 3 ? args[3] : "1";
-    persist = args.size() > 4 ? args[4] == "true" : true;
-    mock_proofs = args.size() > 5 ? args[5] == "true" : false;
 
-    std::istringstream outer_stream(outers);
-    std::string outer_size;
-    while (std::getline(outer_stream, outer_size, ',')) {
-        valid_outer_sizes.emplace_back(std::stoul(outer_size));
-    };
+    info("Rollup CLI pid: ", getpid());
+    info("Command line: ", join(args, " "));
+
+    const std::string srs_path = (args.size() > 1) ? args[1] : "../srs_db/ignition";
+    txs_per_inner = args.size() > 2 ? (std::stoul(args[2])) : 1;
+    inners_per_root = args.size() > 3 ? (std::stoul(args[3])) : 1;
+    mock_proofs = args.size() > 4 ? args[4] == "true" : false;
+    lazy_init = args.size() > 5 ? args[5] == "true" : false;
+    persist = args.size() > 6 ? args[6] == "true" : true;
+    data_path = (args.size() > 7) ? args[7] : "./data";
+
+    info("Txs per inner: ", txs_per_inner);
+    info("Inners per root: ", inners_per_root);
+    info("Mock proofs: ", mock_proofs);
+    info("Lazy init: ", lazy_init);
+    info("Persist: ", persist);
+    info("Data path: ", data_path);
 
     if (mock_proofs) {
         info("Running in mock proof mode. Mock proofs will be generated!");
@@ -193,6 +211,21 @@ int main(int argc, char** argv)
     account_cd = account::get_circuit_data(crs, mock_proofs);
     js_cd = join_split::get_circuit_data(crs, mock_proofs);
     claim_cd = claim::get_circuit_data(crs, mock_proofs);
+
+    // Lazy init mode conserves memory by purging and recomputing tx/root proving keys.
+    // If the halloumi instance is targeted to produce a specific type of proof, use lazy init as it will only
+    // need to hold the pk of the specific proof it creates in memory.
+    //
+    // Eager mode can be useful to create all the circuits up front at load time, which is fine if they are not
+    // too big. It can be useful for determining to total memory footprint of the process for certain circuit sizes.
+    if (!lazy_init) {
+        info("Running in eager init mode, all proving keys will be created once up front.");
+        init_tx_rollup(txs_per_inner);
+        init_root_rollup(inners_per_root);
+        init_root_verifier();
+    } else {
+        info("Running in lazy init mode, tx rollup and root rollup proving keys will be swapped in and out.");
+    }
 
     info("Reading rollups from standard input...");
     while (true) {

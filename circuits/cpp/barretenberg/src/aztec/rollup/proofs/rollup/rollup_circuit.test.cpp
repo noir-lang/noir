@@ -50,10 +50,10 @@ class rollup_tests : public ::testing::Test {
         context.start_next_root_rollup();
 
         const notes::native::bridge_id bid = { .bridge_address_id = 0,
-                                               .input_asset_id = 0,
+                                               .input_asset_id_a = 0,
+                                               .input_asset_id_b = 0,
                                                .output_asset_id_a = 111,
                                                .output_asset_id_b = 222,
-                                               .opening_nonce = 0,
                                                .config =
                                                    notes::native::bridge_id::bit_config{ .first_input_virtual = false,
                                                                                          .second_input_virtual = false,
@@ -77,10 +77,10 @@ class rollup_tests : public ::testing::Test {
 
         const notes::native::bridge_id bid1 = {
             .bridge_address_id = 0,
-            .input_asset_id = 8,
+            .input_asset_id_a = 8,
+            .input_asset_id_b = 0,
             .output_asset_id_a = 0,
             .output_asset_id_b = 1,
-            .opening_nonce = 0,
             .config = notes::native::bridge_id::bit_config{ .first_input_virtual = false,
                                                             .second_input_virtual = false,
                                                             .first_output_virtual = false,
@@ -92,10 +92,10 @@ class rollup_tests : public ::testing::Test {
 
         const notes::native::bridge_id bid2 = {
             .bridge_address_id = 1,
-            .input_asset_id = 13,
+            .input_asset_id_a = 13,
+            .input_asset_id_b = 0,
             .output_asset_id_a = 0,
             .output_asset_id_b = 1,
-            .opening_nonce = 0,
             .config = notes::native::bridge_id::bit_config{ .first_input_virtual = false,
                                                             .second_input_virtual = false,
                                                             .first_output_virtual = false,
@@ -120,10 +120,10 @@ class rollup_tests : public ::testing::Test {
         context.start_next_root_rollup();
 
         const notes::native::bridge_id bid1 = { .bridge_address_id = 0,
-                                                .input_asset_id = 0,
+                                                .input_asset_id_a = 0,
+                                                .input_asset_id_b = 0,
                                                 .output_asset_id_a = 2,
                                                 .output_asset_id_b = 0,
-                                                .opening_nonce = 0,
                                                 .config =
                                                     notes::native::bridge_id::bit_config{ .first_input_virtual = false,
                                                                                           .second_input_virtual = false,
@@ -134,10 +134,10 @@ class rollup_tests : public ::testing::Test {
                                                 .aux_data = 0 };
 
         const notes::native::bridge_id bid2 = { .bridge_address_id = 1,
-                                                .input_asset_id = 1,
+                                                .input_asset_id_a = 1,
+                                                .input_asset_id_b = 0,
                                                 .output_asset_id_a = 3,
                                                 .output_asset_id_b = 0,
-                                                .opening_nonce = 0,
                                                 .config =
                                                     notes::native::bridge_id::bit_config{ .first_input_virtual = false,
                                                                                           .second_input_virtual = false,
@@ -169,10 +169,10 @@ class rollup_tests : public ::testing::Test {
 
         const notes::native::bridge_id bid1 = {
             .bridge_address_id = 0,
-            .input_asset_id = 8,
+            .input_asset_id_a = 8,
+            .input_asset_id_b = 0,
             .output_asset_id_a = 0,
             .output_asset_id_b = 1,
-            .opening_nonce = 0,
             .config = notes::native::bridge_id::bit_config{ .first_input_virtual = false,
                                                             .second_input_virtual = false,
                                                             .first_output_virtual = false,
@@ -184,10 +184,10 @@ class rollup_tests : public ::testing::Test {
 
         const notes::native::bridge_id bid3 = {
             .bridge_address_id = 2,
-            .input_asset_id = 25,
+            .input_asset_id_a = 25,
+            .input_asset_id_b = 0,
             .output_asset_id_a = 0,
             .output_asset_id_b = 1,
-            .opening_nonce = 0,
             .config = notes::native::bridge_id::bit_config{ .first_input_virtual = false,
                                                             .second_input_virtual = false,
                                                             .first_output_virtual = false,
@@ -1117,10 +1117,10 @@ TEST_F(rollup_tests, test_defi_claim_proofs)
     auto acc_proof = context.create_account_proof(0, data.data_start_index + 8);
     auto js_proof = context.create_join_split_proof({}, {}, { 100, 30 }, 130);
     const notes::native::bridge_id bid1 = { .bridge_address_id = 0,
-                                            .input_asset_id = 0,
+                                            .input_asset_id_a = 0,
+                                            .input_asset_id_b = 0,
                                             .output_asset_id_a = 0,
                                             .output_asset_id_b = 1,
-                                            .opening_nonce = 0,
                                             .config =
                                                 notes::native::bridge_id::bit_config{ .first_input_virtual = false,
                                                                                       .second_input_virtual = false,
@@ -1207,10 +1207,10 @@ TEST_F(rollup_tests, test_defi_loan_proofs)
     const uint32_t opening_nonce1 = NUM_BRIDGE_CALLS_PER_BLOCK;
 
     const notes::native::bridge_id bid1 = { .bridge_address_id = 0,
-                                            .input_asset_id = 2,
+                                            .input_asset_id_a = 2,
+                                            .input_asset_id_b = opening_nonce1,
                                             .output_asset_id_a = 0,
                                             .output_asset_id_b = 0,
-                                            .opening_nonce = opening_nonce1,
                                             .config =
                                                 notes::native::bridge_id::bit_config{ .first_input_virtual = false,
                                                                                       .second_input_virtual = true,
@@ -1230,10 +1230,10 @@ TEST_F(rollup_tests, test_defi_loan_proofs)
     // Loan number 3 repayment
     const uint32_t opening_nonce2 = opening_nonce1 + 1;
     const notes::native::bridge_id bid2 = { .bridge_address_id = 0,
-                                            .input_asset_id = 3,
+                                            .input_asset_id_a = 3,
+                                            .input_asset_id_b = opening_nonce2,
                                             .output_asset_id_a = 1,
                                             .output_asset_id_b = 0,
-                                            .opening_nonce = opening_nonce2,
                                             .config =
                                                 notes::native::bridge_id::bit_config{ .first_input_virtual = false,
                                                                                       .second_input_virtual = true,
