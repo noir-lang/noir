@@ -198,7 +198,7 @@ dependencies = [
 [[package]]
 name = "barretenberg_wrapper"
 version = "0.1.0"
-source = "git+https://github.com/AztecProtocol/barretenberg?branch=kw/noir-dsl-mac#2d845971147ae9e9aae49ae0be882a20d2f45f56"
+source = "git+https://github.com/AztecProtocol/barretenberg?rev=dde4b03196cc4eb881a4f5f0b2ab32703cd9f395#dde4b03196cc4eb881a4f5f0b2ab32703cd9f395"
 dependencies = [
  "cmake",
  "hex",
@@ -1161,9 +1161,13 @@ name = "noirc_evaluator"
 version = "0.1.0"
 dependencies = [
  "acvm",
+ "arena",
+ "lazy_static",
  "noirc_abi",
  "noirc_errors",
  "noirc_frontend",
+ "num-bigint",
+ "num-traits",
  "thiserror",
 ]
 

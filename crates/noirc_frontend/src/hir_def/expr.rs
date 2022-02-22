@@ -167,10 +167,10 @@ pub struct HirCastExpression {
     pub lhs: ExprId,
     pub r#type: Type,
 }
+
 #[derive(Debug, Clone)]
 pub struct HirArrayLiteral {
     pub length: u128,
-    pub r#type: Type,
     pub contents: Vec<ExprId>,
 }
 
