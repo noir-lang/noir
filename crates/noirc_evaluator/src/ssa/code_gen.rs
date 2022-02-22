@@ -67,12 +67,11 @@ impl<'a> IRGenerator<'a> {
     pub fn print_block(&self, b: &block::BasicBlock) {
         for idx in &b.instructions {
             let ins = self.get_instruction(*idx);
-            let mut str_res;
-            if ins.res_name.is_empty() {
-                str_res = format!("{:?}", idx.into_raw_parts().0);
+            let mut str_res = if ins.res_name.is_empty() {
+                format!("{:?}", idx.into_raw_parts().0)
             } else {
-                str_res = ins.res_name.clone();
-            }
+                ins.res_name.clone()
+            };
             if ins.is_deleted {
                 str_res += " -DELETED";
             }
@@ -297,7 +296,6 @@ impl<'a> IRGenerator<'a> {
 
         //TODO default should be FieldElement, not i32
         let num_bits = x.num_bits();
-        let idx: arena::Index;
         if num_bits < 32 {
             let obj_cst = node::Constant {
                 id: self.id0,
@@ -306,14 +304,13 @@ impl<'a> IRGenerator<'a> {
                 value_str: String::new(),
             };
             let obj = node::NodeObj::Const(obj_cst);
-            idx = self.add_object(obj);
+            self.add_object(obj)
         } else {
             //idx = self.id0;
             todo!();
             //we should support integer of size <  integer::short_integer_max_bit_size(), because else we cannot do multiplication!
             //for bigger size, we will need to represent an integer using several field elements, it may be easier to implement them in Noir! (i.e as a Noir library)
         }
-        idx
     }
 
     //same as update_variable but using the var index instead of var
