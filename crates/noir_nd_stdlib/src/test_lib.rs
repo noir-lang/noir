@@ -57,4 +57,28 @@ mod tests {
             println!("{}", hex::encode(&o))
         }
     }
+    #[test]
+    fn test_api() {
+        make_helpers();
+
+        // For Dynamically loaded libraries
+        let name = String::from("modify_output");
+        let inputs = vec![[0u8; 32]; 1];
+        let mut outputs = vec![[0u8; 32]; 2];
+
+        make_extern_call(lib_path(), name, &inputs, &mut outputs);
+        for o in outputs {
+            println!("{}", hex::encode(&o))
+        }
+
+        // For WASM
+        let name = String::from("modify_output");
+        let inputs = vec![[0u8; 32]; 1];
+        let mut outputs = vec![[0u8; 32]; 2];
+
+        make_extern_call("src/call_func.wasm", name, &inputs, &mut outputs);
+        for o in outputs {
+            println!("{}", hex::encode(&o))
+        }
+    }
 }
