@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 // This file runs the examples. Currently, we will not know if there is a failure however since
 // all errors are written to stderr and std::process::exit is called
 //
@@ -5,16 +7,48 @@
 // the scaffolding below is being committed.
 #[test]
 fn run_examples() {
-    let examples_dir = format!("{}/../../examples", env!("CARGO_MANIFEST_DIR"));
+    let mut examples_dir = PathBuf::from(format!("{}/examples", env!("CARGO_MANIFEST_DIR")));
 
-    let paths = std::fs::read_dir(&examples_dir)
-        .expect(&format!("Could not read from directory '{}'", examples_dir));
+    for _ in 0..5 {
+        eprintln!("trying {}", examples_dir.display());
+        let paths = match std::fs::read_dir(&examples_dir) {
+            Ok(dir) => dir,
+            Err(error) => {
+                eprintln!(
+                    "Could not read from directory '{}', io error: {}",
+                    examples_dir.display(),
+                    error
+                );
+                examples_dir = examples_dir
+                    .parent()
+                    .unwrap()
+                    .parent()
+                    .unwrap()
+                    .join("examples/");
+                continue;
+            }
+        };
 
-    for path in paths {
-        let path = path.unwrap().path();
-        if !path.is_dir() {
-            continue;
+        let mut success = false;
+        for path in paths {
+            let path = path.unwrap().path();
+            if !path.is_dir() {
+                continue;
+            }
+
+            eprintln!("  Building from path {}", path.display());
+            match nargo::cli::build_from_path(path) {
+                Ok(_) => success = true,
+                Err(error) => {
+                    eprintln!("error: {:?}", error);
+                }
+            }
         }
-        nargo::cli::build_from_path(path).unwrap();
+
+        if success {
+            break;
+        }
     }
+
+    panic!("error");
 }
