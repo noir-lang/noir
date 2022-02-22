@@ -286,7 +286,6 @@ pub fn infix_operand_type_rules(
         // An error type on either side will always return an error
         (Error, _) | (_,Error) => Ok(Error),
         (Unspecified, _) | (_,Unspecified) => Ok(Unspecified),
-        (Unknown, _) | (_,Unknown) => Ok(Unknown),
         (Unit, _) | (_,Unit) => Ok(Unit),
         //
         // If no side contains an integer. Then we check if either side contains a witness
@@ -455,7 +454,6 @@ pub fn comparator_operand_type_rules(lhs_type: &Type, other: &Type) -> Result<Ty
         // Avoid reporting errors multiple times
         (Error, _) | (_,Error) => Ok(Error),
         (Unspecified, _) | (_,Unspecified) => Ok(Unspecified),
-        (Unknown, _) | (_,Unknown) => Ok(Unknown),
         (lhs, rhs) => Err(format!("Unsupported types for comparison: {} and {}", lhs, rhs)),
     }
 }

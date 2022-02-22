@@ -146,7 +146,6 @@ pub enum Type {
 
     Error,
     Unspecified, // This is for when the user declares a variable without specifying it's type
-    Unknown, // This is mainly used for array literals, where the parser cannot figure out the type for the literal
 }
 
 impl Type {
@@ -183,7 +182,6 @@ impl std::fmt::Display for Type {
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
             Type::Unspecified => write!(f, "unspecified"),
-            Type::Unknown => write!(f, "unknown"),
         }
     }
 }
@@ -247,7 +245,6 @@ impl Type {
             | Type::Bool
             | Type::Error
             | Type::Unspecified
-            | Type::Unknown
             | Type::Unit => 1,
         }
     }
@@ -361,7 +358,6 @@ impl Type {
             Type::Bool => panic!("currently, cannot have a bool in the entry point function"),
             Type::Error => unreachable!(),
             Type::Unspecified => unreachable!(),
-            Type::Unknown => unreachable!(),
             Type::Unit => unreachable!(),
             Type::Struct(_) => todo!(),
         }

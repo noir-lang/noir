@@ -821,12 +821,6 @@ mod test {
         for expr in parse_all(array_expr(expression()), valid) {
             let arr_lit = expr_to_array(expr);
             assert_eq!(arr_lit.length, 5);
-
-            // All array types are unknown at parse time
-            // This makes parsing simpler. The type checker
-            // needs to iterate the whole array to ensure homogeneity
-            // so there is no advantage to deducing the type here.
-            assert_eq!(arr_lit.r#type, Type::Unknown);
         }
 
         parse_all_failing(
