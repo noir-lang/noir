@@ -25,10 +25,10 @@ impl WASMValue {
 fn value_to_i32(value: Value) -> i32 {
     i32::try_from(value).expect("expected an i32 value")
 }
-
+#[derive(Debug)]
 pub struct Pointer {
-    addr: Value,
-    size: usize,
+    pub(crate) addr: Value,
+    pub(crate) size: usize,
 }
 
 pub struct CompiledModule {
@@ -70,6 +70,22 @@ impl CompiledModule {
         }
 
         result
+    }
+    pub fn read_string(&self, ptr: &Pointer) -> String {
+        let memory = self.instance.exports.get_memory("memory").unwrap();
+
+        // Search for where the string ends
+        let ptr_start_addr = value_to_i32(ptr.addr.clone()) as usize;
+        let mut offset = 0;
+        for (i, cell) in memory.view::<u8>()[ptr_start_addr..].iter().enumerate() {
+            // Strings are like C strings which end in \0
+            if cell.get() == 0 {
+                offset = i;
+                break;
+            }
+        }
+        let utf8_encoded_string = self.read_memory(ptr, offset);
+        String::from_utf8(utf8_encoded_string).expect("expected a utf8 encoded string as a vector")
     }
 
     pub fn call(&self, name: &str, param: &Value) -> WASMValue {
@@ -201,14 +217,43 @@ fn malloc_alloc_example() {
     let mem = compiled_mod.read_memory(&ptr, offset);
     assert_eq!(mem, vec![1, 2, 3, 4, 5]);
 
-    // The tests below may fail, depending on the allocator being used
-    // We want to check if `free` is working as expected.
-    // With the allocator being used, if memory has been freed
-    // then when we call `free` again, it will return the same address.
-    let old_addr = ptr.addr.clone();
     compiled_mod.free(ptr);
+}
+#[test]
+fn call_func_example() {
+    let wasm_bytes = include_bytes!("call_func.wasm");
+    let tmp_dir = tempdir::TempDir::new("temp_directory").unwrap();
+    let mut compiled_mod = CompiledModule::new(wasm_bytes, tmp_dir.path());
 
-    let ptr = compiled_mod.allocate(&bytes_to_alloc);
-    let new_addr = ptr.addr;
-    assert_eq!(old_addr, new_addr);
+    let name = String::from("modify_output");
+    let inputs = vec![0u8; 64];
+    let outputs = vec![0u8; 64];
+
+    let name_ptr = compiled_mod.allocate(name.as_bytes());
+    let inputs_ptr = compiled_mod.allocate(&inputs);
+    let outputs_ptr = compiled_mod.allocate(&outputs);
+
+    compiled_mod.call_multiple(
+        "call_func",
+        vec![
+            // name
+            &name_ptr.addr,
+            &Value::I32(name_ptr.size as i32),
+            // inputs
+            &inputs_ptr.addr,
+            &Value::I32(inputs_ptr.size as i32),
+            // outputs
+            &outputs_ptr.addr,
+            &Value::I32(outputs_ptr.size as i32),
+        ],
+    );
+
+    let got_name = compiled_mod.read_string(&name_ptr);
+    // The name should not have changed
+    assert_eq!(got_name, "modify_output");
+
+    let got_output = compiled_mod.read_memory(&outputs_ptr, outputs_ptr.size);
+    let half = outputs_ptr.size / 2;
+    assert_eq!(&got_output[0..half], &vec![1u8; half]);
+    assert_eq!(&got_output[half..], &vec![2u8; half]);
 }
