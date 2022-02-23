@@ -6,10 +6,7 @@ use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::util::vecmap;
-use crate::{
-    ast::{ArraySize, Expression, ExpressionKind, Statement, Type},
-    FieldElementType,
-};
+use crate::ast::{ArraySize, Expression, ExpressionKind, Statement, Type};
 use crate::{
     AssignStatement, BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, ForExpression,
     FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, NoirStruct, Path,
@@ -62,7 +59,7 @@ fn function_definition() -> impl NoirParser<TopLevelStatement> {
         .or_not()
         .then_ignore(keyword(Keyword::Fn))
         .then(ident())
-        .then(parenthesized(function_parameters()))
+        .then(parenthesized(parameters()))
         .then(function_return_type())
         .then(block(expression()))
         .map(|((((attribute, name), parameters), return_type), body)| {
@@ -83,7 +80,7 @@ fn function_definition() -> impl NoirParser<TopLevelStatement> {
 fn struct_definition() -> impl NoirParser<TopLevelStatement> {
     keyword(Keyword::Struct)
         .ignore_then(ident())
-        .then(struct_fields().delimited_by(just(Token::LeftBrace), just(Token::RightBrace)))
+        .then(parameters().delimited_by(just(Token::LeftBrace), just(Token::RightBrace)))
         .map_with_span(|(name, fields), span| {
             TopLevelStatement::Struct(NoirStruct { name, fields, span })
         })
@@ -103,24 +100,10 @@ fn attribute() -> impl NoirParser<Attribute> {
     })
 }
 
-fn struct_fields() -> impl NoirParser<Vec<(Ident, Type)>> {
-    parameters(parse_type_with_visibility(
-        optional_pri_or_const(),
-        parse_type_no_field_element(),
-    ))
-}
-
-fn function_parameters() -> impl NoirParser<Vec<(Ident, Type)>> {
-    parameters(parse_type())
-}
-
-fn parameters<P>(type_parser: P) -> impl NoirParser<Vec<(Ident, Type)>>
-where
-    P: NoirParser<Type>,
-{
+fn parameters() -> impl NoirParser<Vec<(Ident, Type)>> {
     ident()
         .then_ignore(just(Token::Colon))
-        .then(type_parser)
+        .then(parse_type())
         .separated_by(just(Token::Comma))
         .allow_trailing()
 }
@@ -265,30 +248,13 @@ fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
 {
-    let let_statement = generic_declaration(Keyword::Let, expr_parser.clone(), Statement::new_let);
-    let priv_statement =
-        generic_declaration(Keyword::Priv, expr_parser.clone(), Statement::new_priv);
-    let const_statement = generic_declaration(Keyword::Const, expr_parser, Statement::new_const);
-
-    choice((let_statement, priv_statement, const_statement))
-}
-
-fn generic_declaration<'a, F, P>(
-    key: Keyword,
-    expr_parser: P,
-    f: F,
-) -> impl NoirParser<Statement> + 'a
-where
-    F: 'a + Clone + Fn(((Ident, Type), Expression)) -> Statement,
-    P: ExprParser + 'a,
-{
-    let p = ignore_then_commit(keyword(key).labelled("statement"), ident());
+    let p = ignore_then_commit(keyword(Keyword::Let).labelled("statement"), ident());
     let p = p.then(optional_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
     let p = then_commit(p, expr_parser);
-
-    p.map(f)
+    p.map(Statement::new_let)
 }
+
 
 fn assignment<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
@@ -306,97 +272,38 @@ where
 }
 
 fn parse_type() -> impl NoirParser<Type> {
-    parse_type_with_visibility(optional_visibility(), parse_type_no_field_element())
-}
-
-fn parse_type_no_field_element() -> impl NoirParser<Type> {
-    // NOTE: Technically since we disallow multidimensional arrays our type parser
-    // does not strictly need to be recursive - we could manually unroll it by
-    // only parsing an integer or field type as our array elements. If/when Noir's
-    // types become truly recursive though this will be necessary
-    recursive(|type_parser| parse_type_with_visibility(no_visibility(), type_parser))
-}
-
-fn parse_type_with_visibility<V, T>(
-    visibility_parser: V,
-    recursive_type_parser: T,
-) -> impl NoirParser<Type>
-where
-    V: NoirParser<FieldElementType>,
-    T: NoirParser<Type>,
-{
     choice((
-        field_type(visibility_parser.clone()),
-        int_type(visibility_parser.clone()),
-        array_type(visibility_parser, recursive_type_parser),
+        field_type(),
+        int_type(),
+        array_type(),
     ))
 }
 
-// Parse nothing, just return a FieldElementType::Private
-fn no_visibility() -> impl NoirParser<FieldElementType> {
-    just([]).or_not().map(|_| FieldElementType::Private)
-}
-
-// Returns a parser that parses any FieldElementType that satisfies
-// the given predicate
-fn visibility(field: FieldElementType) -> impl NoirParser<FieldElementType> {
-    keyword(field.as_keyword()).map(move |_| field)
-}
-
-fn optional_visibility() -> impl NoirParser<FieldElementType> {
-    choice((
-        visibility(FieldElementType::Public),
-        visibility(FieldElementType::Private),
-        visibility(FieldElementType::Constant),
-        no_visibility(),
-    ))
-}
-
-// This is primarily for struct fields which cannot be public
-fn optional_pri_or_const() -> impl NoirParser<FieldElementType> {
-    choice((
-        visibility(FieldElementType::Private),
-        visibility(FieldElementType::Constant),
-        no_visibility(),
-    ))
-}
-
-fn field_type<P>(visibility_parser: P) -> impl NoirParser<Type>
-where
-    P: NoirParser<FieldElementType>,
+fn field_type() -> impl NoirParser<Type>
 {
-    visibility_parser
-        .then_ignore(keyword(Keyword::Field))
-        .map(Type::FieldElement)
+    keyword(Keyword::Field).map(|_| Type::FieldElement)
 }
 
-fn int_type<P>(visibility_parser: P) -> impl NoirParser<Type>
-where
-    P: NoirParser<FieldElementType>,
+fn int_type() -> impl NoirParser<Type>
 {
-    visibility_parser
-        .then(filter_map(|span, token: Token| match token {
-            Token::IntType(int_type) => Ok(int_type),
-            unexpected => Err(ParserError::expected_label(
-                "integer type".to_string(),
-                unexpected,
-                span,
-            )),
-        }))
-        .map(|(visibility, int_type)| Type::from_int_tok(visibility, &int_type))
+    filter_map(|span, token: Token| match token {
+        Token::IntType(int_type) => Ok(int_type),
+        unexpected => Err(ParserError::expected_label(
+            "integer type".to_string(),
+            unexpected,
+            span,
+        )),
+    })
+    .map(|int_type| Type::from_int_tok(&int_type))
 }
 
-fn array_type<V, T>(visibility_parser: V, type_parser: T) -> impl NoirParser<Type>
-where
-    V: NoirParser<FieldElementType>,
-    T: NoirParser<Type>,
+fn array_type() -> impl NoirParser<Type>
 {
-    visibility_parser
-        .then_ignore(just(Token::LeftBracket))
-        .then(fixed_array_size().or_not())
+    just(Token::LeftBracket)
+        .ignore_then(fixed_array_size().or_not())
         .then_ignore(just(Token::RightBracket))
-        .then(type_parser)
-        .try_map(|((visibility, size), element_type), span| {
+        .then(field_type().or(int_type()))
+        .try_map(|(size, element_type), span| {
             if let Type::Array(..) = &element_type {
                 return Err(ParserError::with_reason(
                     "Multi-dimensional arrays are currently unsupported".to_string(),
@@ -404,7 +311,7 @@ where
                 ));
             }
             let size = size.unwrap_or(ArraySize::Variable);
-            Ok(Type::Array(visibility, size, Box::new(element_type)))
+            Ok(Type::Array(size, Box::new(element_type)))
         })
 }
 
@@ -601,7 +508,7 @@ where
     P: ExprParser,
 {
     let cast_rhs = keyword(Keyword::As)
-        .ignore_then(parse_type_no_field_element())
+        .ignore_then(parse_type())
         .labelled("cast");
     foldl_with_span(member_access(expr_parser), cast_rhs, Expression::cast)
 }

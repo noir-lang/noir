@@ -9,14 +9,14 @@ use std::rc::Rc;
 
 pub use expression::*;
 pub use function::*;
-use noirc_abi::{AbiFEType, AbiType};
+use noirc_abi::AbiType;
 use noirc_errors::Span;
 pub use statement::*;
 pub use structure::*;
 
 use crate::{
     node_interner::TypeId,
-    token::{IntType, Keyword},
+    token::IntType,
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -83,15 +83,6 @@ impl FieldElementType {
     pub fn strict_eq(&self, other: &FieldElementType) -> bool {
         std::mem::discriminant(self) == std::mem::discriminant(other)
     }
-
-    /// Return the corresponding keyword for this field type
-    pub fn as_keyword(self) -> Keyword {
-        match self {
-            FieldElementType::Private => Keyword::Priv,
-            FieldElementType::Public => Keyword::Pub,
-            FieldElementType::Constant => Keyword::Const,
-        }
-    }
 }
 
 impl std::fmt::Display for FieldElementType {
@@ -137,23 +128,16 @@ impl std::fmt::Display for StructType {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {
-    FieldElement(FieldElementType),
-    Array(FieldElementType, ArraySize, Box<Type>), // [4]Witness = Array(4, Witness)
-    Integer(FieldElementType, Signedness, u32),    // u32 = Integer(unsigned, 32)
+    FieldElement,
+    Integer(Signedness, u32),    // u32 = Integer(unsigned, 32)
+    ConstantInteger,
     Bool,
     Unit,
+    Array(ArraySize, Box<Type>), // [4]Witness = Array(4, Witness)
     Struct(Rc<StructType>),
 
     Error,
     Unspecified, // This is for when the user declares a variable without specifying it's type
-}
-
-impl Type {
-    // These are here so that the code is more readable.
-    // Type::WITNESS vs Type::FieldElement(FieldElementType::Private)
-    pub const WITNESS: Type = Type::FieldElement(FieldElementType::Private);
-    pub const CONSTANT: Type = Type::FieldElement(FieldElementType::Constant);
-    pub const PUBLIC: Type = Type::FieldElement(FieldElementType::Public);
 }
 
 impl From<&Type> for AbiType {
@@ -171,45 +155,36 @@ impl Recoverable for Type {
 impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Type::FieldElement(fe_type) => write!(f, "{} Field", fe_type),
-            Type::Array(fe_type, size, typ) => write!(f, "{} {}{}", fe_type, size, typ),
-            Type::Integer(fe_type, sign, num_bits) => match sign {
-                Signedness::Signed => write!(f, "{} i{}", fe_type, num_bits),
-                Signedness::Unsigned => write!(f, "{} u{}", fe_type, num_bits),
+            Type::FieldElement => write!(f, "Field"),
+            Type::Array(size, typ) => write!(f, "{}{}", size, typ),
+            Type::Integer(sign, num_bits) => match sign {
+                Signedness::Signed => write!(f, "i{}", num_bits),
+                Signedness::Unsigned => write!(f, "u{}", num_bits),
             },
             Type::Struct(s) => s.fmt(f),
             Type::Bool => write!(f, "bool"),
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
             Type::Unspecified => write!(f, "unspecified"),
+            Type::ConstantInteger => write!(f, "Field"),
         }
     }
 }
 
 impl Type {
-    // Returns true if the Type can be used in a Private statement
-    pub fn can_be_used_in_priv(&self) -> bool {
-        match self {
-            Type::FieldElement(FieldElementType::Private) => true,
-            Type::Integer(field_type, _, _) => field_type == &FieldElementType::Private,
-            Type::Error => true,
-            _ => false,
-        }
-    }
-
     // A feature of the language is that `Field` is like an
     // `Any` type which allows you to pass in any type which
     // is fundamentally a field element. E.g all integer types
     pub fn is_super_type_of(&self, argument: &Type) -> bool {
         // if `self` is a `Field` then it is a super type
         // if the argument is a field element
-        if let Type::FieldElement(FieldElementType::Private) = self {
+        if let Type::FieldElement = self {
             return argument.is_field_element();
         }
 
         // For composite types, we need to check they are structurally the same
         // and then check that their base types are super types
-        if let (Type::Array(_, param_size, param_type), Type::Array(_, arg_size, arg_type)) =
+        if let (Type::Array(param_size, param_type), Type::Array(arg_size, arg_type)) =
             (self, argument)
         {
             let is_super_type = param_type.is_super_type_of(arg_type);
@@ -227,24 +202,24 @@ impl Type {
     pub fn is_field_element(&self) -> bool {
         matches!(
             self,
-            Type::FieldElement(_) | Type::Bool | Type::Integer(_, _, _)
+            Type::FieldElement | Type::Bool | Type::Integer(..)
         )
     }
 
     /// Computes the number of elements in a Type
     /// Arrays and Structs will be the only data structures to return more than one
-
     pub fn num_elements(&self) -> usize {
         match self {
-            Type::Array(_, ArraySize::Fixed(fixed_size), _) => *fixed_size as usize,
-            Type::Array(_, ArraySize::Variable, _) =>
+            Type::Array(ArraySize::Fixed(fixed_size), _) => *fixed_size as usize,
+            Type::Array(ArraySize::Variable, _) =>
                 unreachable!("ice : this method is only ever called when we want to compare the prover inputs with the ABI in main. The ABI should not have variable input. The program should be compiled before calling this"),
             Type::Struct(s) => s.fields.len(),
-            Type::FieldElement(_)
-            | Type::Integer(_, _, _)
+            Type::FieldElement
+            | Type::Integer(..)
             | Type::Bool
             | Type::Error
             | Type::Unspecified
+            | Type::ConstantInteger
             | Type::Unit => 1,
         }
     }
@@ -266,21 +241,16 @@ impl Type {
 
     fn array(&self) -> Option<(&ArraySize, &Type)> {
         match self {
-            Type::Array(_, sized, typ) => Some((sized, typ)),
+            Type::Array(sized, typ) => Some((sized, typ)),
             _ => None,
         }
-    }
-
-    // Returns true if the Type can be used in a Let statement
-    pub fn can_be_used_in_let(&self) -> bool {
-        self.is_fixed_sized_array() || self.is_variable_sized_array() || self == &Type::Error
     }
 
     // Returns true if the Type can be used in a Constrain statement
     pub fn can_be_used_in_constrain(&self) -> bool {
         matches!(
             self,
-            Type::FieldElement(_) | Type::Integer(_, _, _) | Type::Array(_, _, _) | Type::Error
+            Type::FieldElement | Type::Integer(..) | Type::Array(..) | Type::Error
         )
     }
 
@@ -289,26 +259,7 @@ impl Type {
     pub fn is_base_type(&self) -> bool {
         matches!(
             self,
-            Type::FieldElement(_) | Type::Integer(_, _, _) | Type::Error
-        )
-    }
-
-    pub fn is_constant(&self) -> bool {
-        // XXX: Currently no such thing as a const array
-        matches!(
-            self,
-            Type::FieldElement(FieldElementType::Constant)
-                | Type::Integer(FieldElementType::Constant, _, _)
-                | Type::Error
-        )
-    }
-
-    pub fn is_public(&self) -> bool {
-        matches!(
-            self,
-            Type::FieldElement(FieldElementType::Public)
-                | Type::Integer(FieldElementType::Public, _, _)
-                | Type::Array(FieldElementType::Public, _, _)
+            Type::FieldElement | Type::Integer(..) | Type::Error
         )
     }
 
@@ -320,30 +271,21 @@ impl Type {
     // Note; use strict_eq instead of partial_eq when comparing field types
     // in this method, you most likely want to distinguish between public and private
     pub fn as_abi_type(&self) -> AbiType {
-        // converts a field element type
-        fn fet_to_abi(fe: &FieldElementType) -> AbiFEType {
-            match fe {
-                FieldElementType::Private => noirc_abi::AbiFEType::Private,
-                FieldElementType::Public => noirc_abi::AbiFEType::Public,
-                FieldElementType::Constant => {
-                    panic!("constant field in the ABI, this is not allowed!")
-                }
-            }
-        }
-
+        // TODO: hardcoded to private abi type here
+        use noirc_abi::AbiFEType::Private;
         match self {
-            Type::FieldElement(fe_type) => AbiType::Field(fet_to_abi(fe_type)),
-            Type::Array(fe_type, size, typ) => match size {
+            Type::FieldElement => AbiType::Field(Private),
+            Type::Array(size, typ) => match size {
                 crate::ArraySize::Variable => {
                     panic!("cannot have variable sized array in entry point")
                 }
                 crate::ArraySize::Fixed(length) => AbiType::Array {
-                    visibility: fet_to_abi(fe_type),
+                    visibility: Private,
                     length: *length,
                     typ: Box::new(typ.as_abi_type()),
                 },
             },
-            Type::Integer(fe_type, sign, bit_width) => {
+            Type::Integer(sign, bit_width) => {
                 let sign = match sign {
                     crate::Signedness::Unsigned => noirc_abi::Sign::Unsigned,
                     crate::Signedness::Signed => noirc_abi::Sign::Signed,
@@ -352,7 +294,7 @@ impl Type {
                 AbiType::Integer {
                     sign,
                     width: *bit_width as u32,
-                    visibility: fet_to_abi(fe_type),
+                    visibility: Private,
                 }
             }
             Type::Bool => panic!("currently, cannot have a bool in the entry point function"),
@@ -360,17 +302,16 @@ impl Type {
             Type::Unspecified => unreachable!(),
             Type::Unit => unreachable!(),
             Type::Struct(_) => todo!(),
+            Type::ConstantInteger => panic!("constant field in the ABI, this is not allowed!"),
         }
     }
 }
 
 impl Type {
-    pub fn from_int_tok(field_type: FieldElementType, int_tok: &IntType) -> Type {
+    pub fn from_int_tok(int_tok: &IntType) -> Type {
         match int_tok {
-            IntType::Signed(num_bits) => Type::Integer(field_type, Signedness::Signed, *num_bits),
-            IntType::Unsigned(num_bits) => {
-                Type::Integer(field_type, Signedness::Unsigned, *num_bits)
-            }
+            IntType::Signed(num_bits) => Type::Integer(Signedness::Signed, *num_bits),
+            IntType::Unsigned(num_bits) => Type::Integer(Signedness::Unsigned, *num_bits),
         }
     }
 }

@@ -22,7 +22,7 @@ use noirc_frontend::hir_def::{
         HirBinaryOp, HirBinaryOpKind, HirBlockExpression, HirCallExpression, HirExpression,
         HirForExpression, HirLiteral,
     },
-    stmt::{HirConstrainStatement, HirLetStatement, HirPrivateStatement, HirStatement},
+    stmt::{HirConstrainStatement, HirStatement},
 };
 use noirc_frontend::node_interner::{ExprId, FuncId, IdentId, StmtId};
 use noirc_frontend::{FunctionKind, Type};
@@ -313,58 +313,21 @@ impl<'a> Evaluator<'a> {
     ) -> Result<Object, RuntimeError> {
         let statement = self.context.def_interner.statement(stmt_id);
         match statement {
-            HirStatement::Private(x) => self.handle_private_statement(env, x),
             HirStatement::Constrain(constrain_stmt) => {
                 self.handle_constrain_statement(env, constrain_stmt)
-            }
-            HirStatement::Const(x) => {
-                let variable_name: String = self.context.def_interner.ident_name(&x.identifier);
-                // const can only be integers/Field elements, cannot involve the witness, so we can possibly move this to
-                // analysis. Right now it would not make a difference, since we are not compiling to an intermediate Noir format
-                let span = self.context.def_interner.expr_span(&x.expression);
-                let value = self
-                    .evaluate_integer(env, &x.expression)
-                    .map_err(|kind| kind.add_span(span))?;
-
-                env.store(variable_name, value);
-                Ok(Object::Null)
             }
             HirStatement::Expression(expr) | HirStatement::Semi(expr) => {
                 self.expression_to_object(env, &expr)
             }
             HirStatement::Let(let_stmt) => {
                 // let statements are used to declare a higher level object
-                self.handle_let_statement(env, let_stmt)?;
-
-                Ok(Object::Null)
+                self.handle_let_statement(env, &let_stmt.identifier, &let_stmt.expression)
             }
             HirStatement::Assign(assign_stmt) => {
                 // It's possible to desugar the assign statement in the type checker.
                 // However for clarity, we just match on the type and call the corresponding function.
                 // eg if  we are assigning a witness, we call handle_private_statement
-                let ident_def = self
-                    .context
-                    .def_interner
-                    .ident_def(&assign_stmt.identifier)
-                    .unwrap();
-                let typ = dbg!(self.context.def_interner.id_type(ident_def));
-                if typ.can_be_used_in_priv() {
-                    let stmt = HirPrivateStatement {
-                        identifier: assign_stmt.identifier,
-                        r#type: typ,
-                        expression: assign_stmt.expression,
-                    };
-                    self.handle_private_statement(env, stmt)
-                } else if typ.can_be_used_in_let() {
-                    let stmt = HirLetStatement {
-                        identifier: assign_stmt.identifier,
-                        r#type: typ,
-                        expression: assign_stmt.expression,
-                    };
-                    self.handle_let_statement(env, stmt)
-                } else {
-                    todo!("compiler currently cannot reassign types {:?}", typ)
-                }
+                self.handle_let_statement(env, &assign_stmt.identifier, &assign_stmt.expression)
             }
             HirStatement::Error => unreachable!(
                 "ice: compiler did not exit before codegen when a statement failed to parse"
@@ -378,12 +341,13 @@ impl<'a> Evaluator<'a> {
     fn handle_private_statement(
         &mut self,
         env: &mut Environment,
-        x: HirPrivateStatement,
+        identifier: &IdentId,
+        rhs: &ExprId,
     ) -> Result<Object, RuntimeError> {
-        let rhs_span = self.context.def_interner.expr_span(&x.expression);
-        let rhs_poly = self.expression_to_object(env, &x.expression)?;
+        let rhs_span = self.context.def_interner.expr_span(rhs);
+        let rhs_poly = self.expression_to_object(env, rhs)?;
 
-        let variable_name = self.context.def_interner.ident_name(&x.identifier);
+        let variable_name = self.context.def_interner.ident_name(identifier);
         // We do not store it in the environment yet, because it may need to be casted to an integer
         let witness = self.add_witness_to_cs();
 
@@ -488,28 +452,38 @@ impl<'a> Evaluator<'a> {
     fn handle_let_statement(
         &mut self,
         env: &mut Environment,
-        let_stmt: HirLetStatement,
+        identifier: &IdentId,
+        rhs: &ExprId,
     ) -> Result<Object, RuntimeError> {
         // Convert the LHS into an identifier
-        let variable_name = self.context.def_interner.ident_name(&let_stmt.identifier);
+        let variable_name = self.context.def_interner.ident_name(identifier);
 
-        // XXX: Currently we only support arrays using this, when other types are introduced
-        // we can extend into a separate (generic) module
+        match self.context.def_interner.id_type(rhs) {
+            Type::ConstantInteger => {
+                // const can only be integers/Field elements, cannot involve the witness, so we can possibly move this to
+                // analysis. Right now it would not make a difference, since we are not compiling to an intermediate Noir format
+                let span = self.context.def_interner.expr_span(&rhs);
+                let value = self
+                    .evaluate_integer(env, &rhs)
+                    .map_err(|kind| kind.add_span(span))?;
 
-        // Extract the array
-        let rhs_poly = self.expression_to_object(env, &let_stmt.expression)?;
-
-        match rhs_poly {
-            Object::Array(arr) => {
-                env.store(variable_name, Object::Array(arr));
-            }
-            _ => unimplemented!(
-                "logic for types that are not arrays in a let statement, not implemented yet!"
-            ),
-        };
+                env.store(variable_name, value);
+            },
+            Type::Array(..) => {
+                let rhs_poly = self.expression_to_object(env, &rhs)?;
+                match rhs_poly {
+                    Object::Array(arr) => {
+                        env.store(variable_name, Object::Array(arr));
+                    }
+                    _ => unimplemented!("The evaluator currently only supports arrays and constant integers!"),
+                };
+            },
+            _ => return self.handle_private_statement(env, identifier, rhs),
+        }
 
         Ok(Object::Null)
     }
+
     fn handle_for_expr(
         &mut self,
         env: &mut Environment,

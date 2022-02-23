@@ -42,14 +42,6 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
         });
     }
 
-    // Return type cannot be public
-    if declared_return_type.is_public() {
-        errors.push(TypeCheckError::PublicReturnType {
-            typ: declared_return_type.clone(),
-            span: interner.id_span(func_as_expr),
-        });
-    }
-
     errors
 }
 
@@ -61,6 +53,7 @@ mod test {
 
     use noirc_errors::{Span, Spanned};
 
+    use crate::hir_def::stmt::HirLetStatement;
     use crate::node_interner::{FuncId, NodeInterner};
     use crate::{graph::CrateId, Ident};
     use crate::{
@@ -76,13 +69,13 @@ mod test {
                 HirBinaryOp, HirBinaryOpKind, HirBlockExpression, HirExpression, HirInfixExpression,
             },
             function::{FuncMeta, HirFunction, Param},
-            stmt::{HirPrivateStatement, HirStatement},
+            stmt::HirStatement,
         },
         util::vecmap,
     };
 
     #[test]
-    fn basic_priv() {
+    fn manually_construct_let() {
         let mut interner = NodeInterner::default();
 
         // Add a simple Priv Statement into the interner
@@ -114,14 +107,14 @@ mod test {
         };
         let expr_id = interner.push_expr(HirExpression::Infix(expr));
 
-        // Create priv statement
-        let priv_stmt = HirPrivateStatement {
+        // Create let statement
+        let let_stmt = HirLetStatement {
             identifier: z_id,
             r#type: crate::Type::Unspecified,
             expression: expr_id,
         };
-        let stmt_id = interner.push_stmt(HirStatement::Private(priv_stmt));
 
+        let stmt_id = interner.push_stmt(HirStatement::Let(let_stmt));
         let expr_id = interner.push_expr(HirExpression::Block(HirBlockExpression(vec![stmt_id])));
 
         // Create function to enclose the private statement
@@ -133,7 +126,7 @@ mod test {
             name: String::from("test_func"),
             kind: FunctionKind::Normal,
             attributes: None,
-            parameters: vec![Param(x_id, Type::WITNESS), Param(y_id, Type::WITNESS)].into(),
+            parameters: vec![Param(x_id, Type::FieldElement), Param(y_id, Type::FieldElement)].into(),
             return_type: Type::Unit,
             has_body: true,
         };
@@ -144,46 +137,35 @@ mod test {
     }
 
     #[test]
-    fn basic_priv_simplified() {
-        let src = r#"
-
-            fn main(x : Field) {
-                priv k = x;
-                priv _z = x + k;
-            }
-
-        "#;
-
-        type_check_src_code(src, vec![String::from("main")]);
-    }
-    #[test]
     #[should_panic]
     fn basic_let_stmt() {
         let src = r#"
             fn main(x : Field) {
                 let k = [x,x];
-                priv _z = x + k;
+                let _z = x + k;
             }
         "#;
 
         type_check_src_code(src, vec![String::from("main")]);
     }
+
     #[test]
     fn basic_index_expr() {
         let src = r#"
             fn main(x : Field) {
                 let k = [x,x];
-                priv _z = x + k[0];
+                let _z = x + k[0];
             }
         "#;
 
         type_check_src_code(src, vec![String::from("main")]);
     }
+
     #[test]
     fn basic_call_expr() {
         let src = r#"
             fn main(x : Field) {
-                priv _z = x + foo(x);
+                let _z = x + foo(x);
             }
 
             fn foo(x : Field) -> Field {
@@ -193,6 +175,7 @@ mod test {
 
         type_check_src_code(src, vec![String::from("main"), String::from("foo")]);
     }
+
     #[test]
     fn basic_for_expr() {
         let src = r#"

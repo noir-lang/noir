@@ -45,8 +45,7 @@ use crate::hir::scope::{
 use crate::hir_def::{
     function::{FuncMeta, HirFunction, Param},
     stmt::{
-        HirConstStatement, HirConstrainStatement, HirLetStatement, HirPrivateStatement,
-        HirStatement,
+        HirConstrainStatement, HirLetStatement, HirStatement,
     },
 };
 
@@ -99,10 +98,6 @@ impl<'a> Resolver<'a> {
         self.check_for_unused_variables_in_scope_tree(func_scope_tree);
 
         (hir_func, func_meta, self.errors)
-    }
-
-    fn resolve_expression(&mut self, expr: Expression) -> ExprId {
-        self.intern_expr(expr)
     }
 
     fn check_for_unused_variables_in_scope_tree(&mut self, scope_decls: ScopeTree) {
@@ -243,25 +238,12 @@ impl<'a> Resolver<'a> {
         match stmt {
             Statement::Let(let_stmt) => {
                 let id = self.add_variable_decl(let_stmt.identifier);
-
                 let let_stmt = HirLetStatement {
                     identifier: id,
                     r#type: let_stmt.r#type,
-                    expression: self.intern_expr(let_stmt.expression),
+                    expression: self.resolve_expression(let_stmt.expression),
                 };
-
                 self.interner.push_stmt(HirStatement::Let(let_stmt))
-            }
-            Statement::Const(const_stmt) => {
-                let id = self.add_variable_decl(const_stmt.identifier);
-
-                let const_stmt = HirConstStatement {
-                    identifier: id,
-                    r#type: const_stmt.r#type,
-                    expression: self.intern_expr(const_stmt.expression),
-                };
-
-                self.interner.push_stmt(HirStatement::Const(const_stmt))
             }
             Statement::Constrain(constrain_stmt) => {
                 let lhs = self.resolve_expression(constrain_stmt.0.lhs);
@@ -271,16 +253,6 @@ impl<'a> Resolver<'a> {
                 let stmt = HirConstrainStatement(HirInfixExpression { lhs, operator, rhs });
 
                 self.interner.push_stmt(HirStatement::Constrain(stmt))
-            }
-            Statement::Private(priv_stmt) => {
-                let identifier = self.add_variable_decl(priv_stmt.identifier);
-                let expression = self.resolve_expression(priv_stmt.expression);
-                let stmt = HirPrivateStatement {
-                    identifier,
-                    expression,
-                    r#type: priv_stmt.r#type,
-                };
-                self.interner.push_stmt(HirStatement::Private(stmt))
             }
             Statement::Expression(expr) => {
                 let stmt = HirStatement::Expression(self.resolve_expression(expr));
@@ -303,7 +275,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    pub fn intern_expr(&mut self, expr: Expression) -> ExprId {
+    pub fn resolve_expression(&mut self, expr: Expression) -> ExprId {
         let hir_expr = match expr.kind {
             ExpressionKind::Ident(string) => {
                 let span = expr.span;
@@ -326,8 +298,8 @@ impl<'a> Resolver<'a> {
                 HirExpression::Prefix(HirPrefixExpression { operator, rhs })
             }
             ExpressionKind::Infix(infix) => {
-                let lhs = self.intern_expr(infix.lhs);
-                let rhs = self.intern_expr(infix.rhs);
+                let lhs = self.resolve_expression(infix.lhs);
+                let rhs = self.resolve_expression(infix.rhs);
                 HirExpression::Infix(HirInfixExpression {
                     lhs,
                     operator: infix.operator.into(),

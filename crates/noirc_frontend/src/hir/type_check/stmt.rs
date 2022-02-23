@@ -1,8 +1,7 @@
 use crate::hir_def::stmt::{
-    HirAssignStatement, HirConstStatement, HirConstrainStatement, HirLetStatement,
-    HirPrivateStatement, HirStatement,
+    HirAssignStatement, HirConstrainStatement, HirLetStatement, HirStatement,
 };
-use crate::node_interner::{ExprId, NodeInterner, StmtId};
+use crate::node_interner::{NodeInterner, StmtId};
 use crate::Type;
 
 use super::{errors::TypeCheckError, expr::type_check_expression};
@@ -40,9 +39,7 @@ pub(crate) fn type_check(
             type_check_expression(interner, &expr_id, errors);
             interner.make_expr_type_unit(&expr_id);
         }
-        HirStatement::Private(priv_stmt) => type_check_priv_stmt(interner, priv_stmt, errors),
         HirStatement::Let(let_stmt) => type_check_let_stmt(interner, let_stmt, errors),
-        HirStatement::Const(const_stmt) => type_check_const_stmt(interner, const_stmt, errors),
         HirStatement::Constrain(constrain_stmt) => {
             type_check_constrain_stmt(interner, constrain_stmt, errors)
         }
@@ -74,70 +71,35 @@ fn type_check_assign_stmt(
     }
 }
 
-fn type_check_priv_stmt(
-    interner: &mut NodeInterner,
-    priv_stmt: HirPrivateStatement,
-    errors: &mut Vec<TypeCheckError>,
-) {
-    let resolved_type =
-        type_check_declaration(interner, priv_stmt.expression, priv_stmt.r#type, errors);
-
-    // Check if this type can be used in a Private statement
-    if !resolved_type.can_be_used_in_priv() {
-        errors.push(TypeCheckError::TypeCannotBeUsed {
-            typ: resolved_type.clone(),
-            place: "private statement",
-            span: interner.expr_span(&priv_stmt.expression),
-        });
-    }
-
-    // Set the type of the identifier to be equal to the annotated type
-    interner.push_ident_type(&priv_stmt.identifier, resolved_type);
-}
-
 fn type_check_let_stmt(
     interner: &mut NodeInterner,
     let_stmt: HirLetStatement,
     errors: &mut Vec<TypeCheckError>,
 ) {
-    let resolved_type =
-        type_check_declaration(interner, let_stmt.expression, let_stmt.r#type, errors);
+    // Type check the expression on the RHS
+    let expr_type = type_check_expression(interner, &let_stmt.expression, errors);
 
-    // Check if this type can be used in a Let statement
-    if !resolved_type.can_be_used_in_let() {
-        errors.push(TypeCheckError::TypeCannotBeUsed {
-            typ: resolved_type.clone(),
-            place: "let statement",
-            span: interner.expr_span(&let_stmt.expression),
+    let mut resolved_type = let_stmt.r#type;
+
+    // First check if the LHS is unspecified
+    // If so, then we give it the same type as the expression
+    if resolved_type == Type::Unspecified {
+        resolved_type = expr_type.clone();
+    };
+
+    // Now check if LHS is the same type as the RHS
+    // Importantly, we do not co-erce any types implicitly
+    if resolved_type != expr_type {
+        let expr_span = interner.expr_span(&let_stmt.expression);
+        errors.push(TypeCheckError::TypeMismatch {
+            expected_typ: resolved_type.to_string(),
+            expr_typ: expr_type.to_string(),
+            expr_span,
         });
     }
 
-    // Set the type of the identifier to be equal to the annotated type
+    // Set the type of the identifier to be equal to the resolved type
     interner.push_ident_type(&let_stmt.identifier, resolved_type);
-}
-
-fn type_check_const_stmt(
-    interner: &mut NodeInterner,
-    const_stmt: HirConstStatement,
-    errors: &mut Vec<TypeCheckError>,
-) {
-    // XXX: It may not make sense to have annotations for const statements, since they can only have one type
-    // Unless we later want to have u32 constants and check those at compile time.
-    let resolved_type =
-        type_check_declaration(interner, const_stmt.expression, const_stmt.r#type, errors);
-
-    if resolved_type != Type::CONSTANT && resolved_type != Type::Error {
-        errors.push(
-            TypeCheckError::TypeCannotBeUsed {
-                typ: resolved_type.clone(),
-                place: "constant statement",
-                span: interner.expr_span(&const_stmt.expression),
-            }
-            .add_context("constant statements can only contain constant types"),
-        );
-    }
-
-    interner.push_ident_type(&const_stmt.identifier, resolved_type);
 }
 
 fn type_check_constrain_stmt(
@@ -175,38 +137,4 @@ fn type_check_constrain_stmt(
             span: interner.expr_span(&stmt.0.rhs),
         });
     }
-}
-
-/// All declaration statements check that the user specified type(UST) is equal to the
-/// expression on the RHS, unless the UST is unspecified in which case
-/// the type of the declaration is inferred to match the RHS.
-fn type_check_declaration(
-    interner: &mut NodeInterner,
-    rhs_expr: ExprId,
-    mut annotated_type: Type,
-    errors: &mut Vec<TypeCheckError>,
-) -> Type {
-    // Type check the expression on the RHS
-    let expr_type = type_check_expression(interner, &rhs_expr, errors);
-
-    // First check if the LHS is unspecified
-    // If so, then we give it the same type as the expression
-    if annotated_type == Type::Unspecified {
-        annotated_type = expr_type.clone();
-    };
-
-    // Now check if LHS is the same type as the RHS
-    // Importantly, we do not co-erce any types implicitly
-    if annotated_type != expr_type {
-        let expr_span = interner.expr_span(&rhs_expr);
-        errors.push(TypeCheckError::TypeMismatch {
-            expected_typ: annotated_type.to_string(),
-            expr_typ: expr_type.to_string(),
-            expr_span,
-        });
-    }
-
-    // At this point annotated type and user specified type are the same
-    // so we can return either. Cloning a Type is Cheap and may eventually be Copy
-    expr_type
 }

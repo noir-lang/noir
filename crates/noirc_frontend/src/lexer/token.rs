@@ -43,9 +43,6 @@ impl SpannedToken {
     pub fn is_variant(&self, tok: &Token) -> bool {
         self.token().is_variant(tok)
     }
-    pub fn can_start_declaration(&self) -> bool {
-        self.token().can_start_declaration()
-    }
 }
 
 impl std::fmt::Display for SpannedToken {
@@ -252,14 +249,6 @@ impl Token {
             Token::Keyword(Keyword::Field) | Token::IntType(_) | Token::LeftBracket
         )
     }
-    pub fn can_be_field_element_type(&self) -> bool {
-        matches!(
-            self,
-            Token::Keyword(Keyword::Pub)
-                | Token::Keyword(Keyword::Const)
-                | Token::Keyword(Keyword::Priv)
-        )
-    }
 }
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
@@ -416,12 +405,6 @@ pub enum Keyword {
     In,
     Use,
     Constrain,
-    // Field types
-    Pub,
-    Priv,
-    Const,
-    //
-    SetPub,
     //
     // Let declarations will be for Structures and possibly closures, if they are added
     Let,
@@ -446,11 +429,7 @@ impl fmt::Display for Keyword {
             Keyword::Let => write!(f, "let"),
             Keyword::As => write!(f, "as"),
             Keyword::Use => write!(f, "use"),
-            Keyword::SetPub => write!(f, "setpub"),
-            Keyword::Pub => write!(f, "pub"),
-            Keyword::Priv => write!(f, "priv"),
             Keyword::Field => write!(f, "Field"),
-            Keyword::Const => write!(f, "const"),
         }
     }
 }
@@ -478,48 +457,11 @@ impl Keyword {
             "true" => Some(Token::Bool(true)),
             "false" => Some(Token::Bool(false)),
 
-            "setpub" => Some(Token::Keyword(Keyword::SetPub)),
-
-            "priv" => Some(Token::Keyword(Keyword::Priv)),
-            "pub" => Some(Token::Keyword(Keyword::Pub)),
-            "const" => Some(Token::Keyword(Keyword::Const)),
             // Native Types
             "Field" => Some(Token::Keyword(Keyword::Field)),
 
             "_" => Some(Token::Underscore),
             _ => None,
-        }
-    }
-}
-
-// The list of keyword tokens which can start "variable" declarations. "fn" is for function declarations
-// XXX(low) : It might make sense to create a Keyword::Declarations Variant
-const fn declaration_keywords() -> [Keyword; 4] {
-    [Keyword::Let, Keyword::Const, Keyword::Pub, Keyword::Priv]
-}
-
-impl Token {
-    /// Converts Token into a declaration keyword
-    /// Panics if the token cannot start a declaration
-    /// XXX: There should be a cleaner way of doing this.
-    pub fn to_declaration_keyword(&self) -> Keyword {
-        assert!(self.can_start_declaration());
-        match self {
-            Token::Keyword(kw) => *kw,
-            _ => unreachable!("All tokens which can start declarations, must be keyword"),
-        }
-    }
-    // The set of keyword which can declare variables
-    pub fn can_start_declaration(&self) -> bool {
-        // First check it is a keyword
-        let is_keyword = self.kind() == TokenKind::Keyword;
-        if !is_keyword {
-            return false;
-        }
-
-        match self {
-            Token::Keyword(kw) => declaration_keywords().contains(kw),
-            _ => false,
         }
     }
 }
@@ -530,7 +472,7 @@ fn test_variant_equality() {
     let tok2 = Token::Keyword(Keyword::Let);
     assert!(tok.is_variant(&tok2));
 
-    let tok3 = Token::Keyword(Keyword::Const);
+    let tok3 = Token::Keyword(Keyword::Struct);
     assert!(!tok.is_variant(&tok3));
 
     let tok4 = Token::LeftBrace;

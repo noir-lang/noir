@@ -6,8 +6,8 @@ pub fn handle_cast_op(
     right: Type,
 ) -> Result<Object, RuntimeErrorKind> {
     let num_bits = match right {
-        Type::Integer(_, _sign, num_bits) => num_bits,
-        Type::FieldElement(_) => {
+        Type::Integer(_sign, num_bits) => num_bits,
+        Type::FieldElement => {
             match left.to_arithmetic() {
                 Some(arith) => {
                     // XXX: Create an intermediate variable for the arithmetic gate
