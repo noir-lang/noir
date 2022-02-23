@@ -1,5 +1,5 @@
 /target
 .DS_Store
 examples/**/target/
-examples/9
+examples/**/Verifier.toml
 .vscode
