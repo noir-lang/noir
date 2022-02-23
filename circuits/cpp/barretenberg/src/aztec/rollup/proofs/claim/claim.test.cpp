@@ -47,6 +47,7 @@ class claim_tests : public ::testing::Test {
 
     claim_tx create_claim_tx(claim_note const& claim_note,
                              uint32_t claim_note_index,
+                             uint32_t defi_note_index,
                              defi_interaction::note const& interaction_note)
     {
         claim_tx tx;
@@ -57,6 +58,7 @@ class claim_tests : public ::testing::Test {
         tx.claim_note_path = data_tree->get_hash_path(claim_note_index);
 
         tx.defi_root = defi_tree->root();
+        tx.defi_note_index = defi_note_index;
         tx.defi_interaction_note = interaction_note;
         tx.defi_interaction_note_path = defi_tree->get_hash_path(interaction_note.interaction_nonce);
         tx.defi_interaction_note_dummy_nullifier_nonce = fr::random_element();
@@ -95,7 +97,7 @@ TEST_F(claim_tests, test_claim)
                                            .interaction_result = 1 };
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
-    claim_tx tx = create_claim_tx(note1, 0, note2);
+    claim_tx tx = create_claim_tx(note1, 0, 0, note2);
 
     EXPECT_TRUE(verify_logic(tx, cd).logic_verified);
 }
@@ -127,7 +129,7 @@ TEST_F(claim_tests, test_theft_via_field_overflow_fails_1)
                                            .interaction_result = 1 };
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
-    claim_tx tx = create_claim_tx(note1, 0, note2);
+    claim_tx tx = create_claim_tx(note1, 0, 0, note2);
     tx.output_value_a = o_v_a; // choose the cheeky large output value
 
     auto result = verify_logic(tx, cd);
@@ -162,7 +164,7 @@ TEST_F(claim_tests, test_theft_via_field_overflow_fails_2)
                                            .interaction_result = 1 };
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
-    claim_tx tx = create_claim_tx(note1, 0, note2);
+    claim_tx tx = create_claim_tx(note1, 0, 0, note2);
     tx.output_value_a = o_v_a; // choose the cheeky large output value, that flies under the 252-bit radar
 
     auto result = verify_logic(tx, cd);
@@ -193,7 +195,7 @@ TEST_F(claim_tests, test_integer_division_works)
                                            .interaction_result = 1 };
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
-    claim_tx tx = create_claim_tx(note1, 0, note2);
+    claim_tx tx = create_claim_tx(note1, 0, 0, note2);
     auto result = verify_logic(tx, cd);
     EXPECT_TRUE(result.logic_verified);
 }
@@ -219,7 +221,7 @@ TEST_F(claim_tests, test_outputs_larger_than_252_bits_fails)
                                            .interaction_result = 1 };
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
-    claim_tx tx = create_claim_tx(note1, 0, note2);
+    claim_tx tx = create_claim_tx(note1, 0, 0, note2);
     auto result = verify_logic(tx, cd);
     EXPECT_FALSE(result.logic_verified);
     EXPECT_EQ(result.err, "safe_uint_t range constraint failure: total_output_value_a");
@@ -243,7 +245,7 @@ TEST_F(claim_tests, test_zero_deposit_fails)
                                            .interaction_result = 1 };
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
-    claim_tx tx = create_claim_tx(note1, 0, note2);
+    claim_tx tx = create_claim_tx(note1, 0, 0, note2);
     auto result = verify_logic(tx, cd);
     EXPECT_FALSE(result.logic_verified);
     EXPECT_EQ(result.err, "Not supported: zero deposit");
@@ -275,7 +277,7 @@ TEST_F(claim_tests, test_theft_via_zero_equality_fails)
                                            .interaction_result = 1 };
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
-    claim_tx tx = create_claim_tx(note1, 0, note2);
+    claim_tx tx = create_claim_tx(note1, 0, 0, note2);
     tx.output_value_a = MAX_252_BIT_VALUE; // Try to steal loads of money.
 
     auto result = verify_logic(tx, cd);
@@ -302,7 +304,7 @@ TEST_F(claim_tests, test_deposit_greater_than_total_fails)
                                            .interaction_result = 1 };
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
-    claim_tx tx = create_claim_tx(note1, 0, note2);
+    claim_tx tx = create_claim_tx(note1, 0, 0, note2);
     tx.output_value_a = 100; // Match the malicious ratio of the deposit_value:total_input_value
 
     auto result = verify_logic(tx, cd);
@@ -327,7 +329,7 @@ TEST_F(claim_tests, test_output_value_greater_than_total_fails)
                                            .interaction_result = 1 };
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
-    claim_tx tx = create_claim_tx(note1, 0, note2);
+    claim_tx tx = create_claim_tx(note1, 0, 0, note2);
     tx.output_value_a = 100; // Cheeky
 
     auto result = verify_logic(tx, cd);
@@ -354,7 +356,7 @@ TEST_F(claim_tests, test_zero_output_value_fails)
 
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
-    claim_tx tx = create_claim_tx(note1, 0, note2);
+    claim_tx tx = create_claim_tx(note1, 0, 0, note2);
     tx.output_value_a = 0; // We want to test whether a 0 output_value will fail
 
     auto result = verify_logic(tx, cd);
@@ -381,7 +383,7 @@ TEST_F(claim_tests, test_zero_total_output_value_fails)
 
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
-    claim_tx tx = create_claim_tx(note1, 0, note2);
+    claim_tx tx = create_claim_tx(note1, 0, 0, note2);
     tx.output_value_a = 1; // We want to test whether a 0 output_value will fail
 
     auto result = verify_logic(tx, cd);
@@ -415,7 +417,7 @@ TEST_F(claim_tests, test_unmatching_ratio_a_fails)
 
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
-    claim_tx tx = create_claim_tx(note1, 0, note2);
+    claim_tx tx = create_claim_tx(note1, 0, 0, note2);
     tx.output_value_a = 10; // Force an unmatching ratio (it should be 20)
 
     auto result = verify_logic(tx, cd);
@@ -442,7 +444,7 @@ TEST_F(claim_tests, test_unmatching_ratio_b_fails)
 
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
-    claim_tx tx = create_claim_tx(note1, 0, note2);
+    claim_tx tx = create_claim_tx(note1, 0, 0, note2);
     tx.output_value_b = 10; // Force an unmatching ratio (it should be 20)
 
     auto result = verify_logic(tx, cd);
@@ -469,7 +471,7 @@ TEST_F(claim_tests, test_unmatching_bridge_ids_fails)
 
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
-    claim_tx tx = create_claim_tx(note1, 0, note2);
+    claim_tx tx = create_claim_tx(note1, 0, 0, note2);
 
     auto result = verify_logic(tx, cd);
     EXPECT_FALSE(result.logic_verified);
@@ -495,7 +497,7 @@ TEST_F(claim_tests, test_unmatching_interaction_nonces_fails)
 
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
-    claim_tx tx = create_claim_tx(note1, 0, note2);
+    claim_tx tx = create_claim_tx(note1, 0, 0, note2);
 
     auto result = verify_logic(tx, cd);
     EXPECT_FALSE(result.logic_verified);
@@ -521,7 +523,7 @@ TEST_F(claim_tests, test_missing_claim_note_fails)
 
     // Notice: note1 not being appended
     append_note(note2, defi_tree);
-    claim_tx tx = create_claim_tx(note1, 0, note2);
+    claim_tx tx = create_claim_tx(note1, 0, 0, note2);
 
     auto result = verify_logic(tx, cd);
     EXPECT_FALSE(result.logic_verified);
@@ -547,11 +549,59 @@ TEST_F(claim_tests, test_missing_interaction_note_fails)
 
     append_note(note1, data_tree);
     // Notice: note2 not being appended
-    claim_tx tx = create_claim_tx(note1, 0, note2);
+    claim_tx tx = create_claim_tx(note1, 0, 0, note2);
 
     auto result = verify_logic(tx, cd);
     EXPECT_FALSE(result.logic_verified);
     EXPECT_EQ(result.err, "defi interaction note not a member");
+}
+
+TEST_F(claim_tests, test_defi_note_incorrect_index_fails)
+{
+    const claim_note note1 = { .deposit_value = 10,
+                               .bridge_id = 0,
+                               .defi_interaction_nonce = 25,
+                               .fee = 0,
+                               .value_note_partial_commitment =
+                                   create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
+                               .input_nullifier = fr::random_element() };
+
+    append_note(note1, data_tree);
+
+    // add some notes to the defi tree
+    for (uint32_t i = 0; i < 32; i++) {
+        const defi_interaction::note empty_note = { .bridge_id = 0,
+                                                    .interaction_nonce = 0,
+                                                    .total_input_value = 0,
+                                                    .total_output_value_a = 0,
+                                                    .total_output_value_b = 0,
+                                                    .interaction_result = 0 };
+        append_note(empty_note, defi_tree);
+    }
+
+    // create some actual notes
+    std::vector<defi_interaction::note> defi_notes;
+    for (uint32_t i = 0; i < 32; i++) {
+        const defi_interaction::note note = { .bridge_id = 0,
+                                              .interaction_nonce = i,
+                                              .total_input_value = 100 + i,
+                                              .total_output_value_a = 200 + i,
+                                              .total_output_value_b = 300 + i,
+                                              .interaction_result = 1 };
+        defi_notes.push_back(note);
+        append_note(note, defi_tree);
+    }
+
+    claim_tx tx_fail =
+        create_claim_tx(note1, 0, 25, defi_notes[25]); // interaction index taken from interaction nonce is not correct
+    auto result = verify_logic(tx_fail, cd);
+    EXPECT_FALSE(result.logic_verified);
+    EXPECT_EQ(result.err, "defi interaction note not a member");
+
+    // the defi note is actually at index 31 + 25
+    claim_tx tx_pass = create_claim_tx(note1, 0, 56, defi_notes[25]);
+    result = verify_logic(tx_pass, cd);
+    EXPECT_TRUE(result.logic_verified);
 }
 
 TEST_F(claim_tests, test_claim_for_virtual_note)
@@ -584,7 +634,7 @@ TEST_F(claim_tests, test_claim_for_virtual_note)
                                            .interaction_result = 1 };
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
-    claim_tx tx = create_claim_tx(note1, 0, note2);
+    claim_tx tx = create_claim_tx(note1, 0, 0, note2);
 
     auto result = verify_logic(tx, cd);
 
@@ -624,7 +674,7 @@ TEST_F(claim_tests, test_first_input_note_virtual)
                                            .interaction_result = 1 };
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
-    claim_tx tx = create_claim_tx(note1, 0, note2);
+    claim_tx tx = create_claim_tx(note1, 0, 0, note2);
 
     auto result = verify_logic(tx, cd);
     EXPECT_TRUE(result.logic_verified);
@@ -662,7 +712,7 @@ TEST_F(claim_tests, test_first_output_note_virtual)
                                            .interaction_result = 1 };
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
-    claim_tx tx = create_claim_tx(note1, 0, note2);
+    claim_tx tx = create_claim_tx(note1, 0, 0, note2);
 
     auto result = verify_logic(tx, cd);
     EXPECT_TRUE(result.logic_verified);
@@ -700,7 +750,7 @@ TEST_F(claim_tests, test_second_input_note_virtual_and_real_fails)
                                            .interaction_result = 1 };
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
-    claim_tx tx = create_claim_tx(note1, 0, note2);
+    claim_tx tx = create_claim_tx(note1, 0, 0, note2);
 
     auto result = verify_logic(tx, cd);
     EXPECT_FALSE(result.logic_verified);
@@ -738,7 +788,7 @@ TEST_F(claim_tests, test_second_output_note_virtual_and_real_fails)
                                            .interaction_result = 1 };
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
-    claim_tx tx = create_claim_tx(note1, 0, note2);
+    claim_tx tx = create_claim_tx(note1, 0, 0, note2);
 
     auto result = verify_logic(tx, cd);
     EXPECT_FALSE(result.logic_verified);
@@ -776,7 +826,7 @@ TEST_F(claim_tests, test_second_output_real_means_asset_ids_equal_fails)
                                            .interaction_result = 1 };
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
-    claim_tx tx = create_claim_tx(note1, 0, note2);
+    claim_tx tx = create_claim_tx(note1, 0, 0, note2);
 
     auto result = verify_logic(tx, cd);
     EXPECT_FALSE(result.logic_verified);
@@ -835,7 +885,7 @@ TEST_F(claim_tests, test_claim_2_outputs_full_proof)
     append_note(note2, defi_tree);
 
     // Construct transaction data.
-    claim_tx tx = create_claim_tx(note1, 0, note2);
+    claim_tx tx = create_claim_tx(note1, 0, 0, note2);
 
     // Verify proof.
     auto result = verify(tx, cd);
@@ -915,7 +965,7 @@ TEST_F(claim_tests, test_claim_1_output_full_proof)
 
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
-    claim_tx tx = create_claim_tx(note1, 0, note2);
+    claim_tx tx = create_claim_tx(note1, 0, 0, note2);
     auto result = verify(tx, cd);
 
     auto proof_data = inner_proof_data(result.proof_data);
@@ -994,7 +1044,7 @@ TEST_F(claim_tests, test_claim_1_output_with_virtual_note_full_proof)
     append_note(dummy, defi_tree);
     append_note(dummy, defi_tree);
     append_note(note2, defi_tree);
-    claim_tx tx = create_claim_tx(note1, 0, note2);
+    claim_tx tx = create_claim_tx(note1, 0, 0, note2);
     auto result = verify(tx, cd);
 
     auto proof_data = inner_proof_data(result.proof_data);
@@ -1069,7 +1119,7 @@ TEST_F(claim_tests, test_claim_refund_full_proof)
 
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
-    claim_tx tx = create_claim_tx(note1, 0, note2);
+    claim_tx tx = create_claim_tx(note1, 0, 0, note2);
     auto result = verify(tx, cd);
 
     auto proof_data = inner_proof_data(result.proof_data);
@@ -1159,7 +1209,7 @@ TEST_F(claim_tests, test_total_input_value_out_of_range_fails)
     test_data.note2.total_input_value = total_input_value;
     append_note(test_data.note1, data_tree);
     append_note(test_data.note2, defi_tree);
-    claim_tx tx = create_claim_tx(test_data.note1, 0, test_data.note2);
+    claim_tx tx = create_claim_tx(test_data.note1, 0, 0, test_data.note2);
 
     auto result = verify_logic(tx, cd);
     EXPECT_FALSE(result.logic_verified);
@@ -1173,7 +1223,7 @@ TEST_F(claim_tests, test_total_output_value_a_out_of_range_fails)
     test_data.note2.total_output_value_a = total_output_value_a;
     append_note(test_data.note1, data_tree);
     append_note(test_data.note2, defi_tree);
-    claim_tx tx = create_claim_tx(test_data.note1, 0, test_data.note2);
+    claim_tx tx = create_claim_tx(test_data.note1, 0, 0, test_data.note2);
 
     auto result = verify_logic(tx, cd);
     EXPECT_FALSE(result.logic_verified);
@@ -1187,7 +1237,7 @@ TEST_F(claim_tests, test_total_output_value_b_out_of_range_fails)
     test_data.note2.total_output_value_b = total_output_value_b;
     append_note(test_data.note1, data_tree);
     append_note(test_data.note2, defi_tree);
-    claim_tx tx = create_claim_tx(test_data.note1, 0, test_data.note2);
+    claim_tx tx = create_claim_tx(test_data.note1, 0, 0, test_data.note2);
 
     auto result = verify_logic(tx, cd);
     EXPECT_FALSE(result.logic_verified);
@@ -1201,7 +1251,7 @@ TEST_F(claim_tests, test_deposit_value_out_of_range_fails)
     test_data.note1.deposit_value = deposit_value;
     append_note(test_data.note1, data_tree);
     append_note(test_data.note2, defi_tree);
-    claim_tx tx = create_claim_tx(test_data.note1, 0, test_data.note2);
+    claim_tx tx = create_claim_tx(test_data.note1, 0, 0, test_data.note2);
 
     auto result = verify_logic(tx, cd);
     EXPECT_FALSE(result.logic_verified);
@@ -1215,7 +1265,7 @@ TEST_F(claim_tests, test_fee_out_of_range_fails)
     test_data.note1.fee = fee;
     append_note(test_data.note1, data_tree);
     append_note(test_data.note2, defi_tree);
-    claim_tx tx = create_claim_tx(test_data.note1, 0, test_data.note2);
+    claim_tx tx = create_claim_tx(test_data.note1, 0, 0, test_data.note2);
 
     auto result = verify_logic(tx, cd);
     EXPECT_FALSE(result.logic_verified);
@@ -1229,7 +1279,7 @@ TEST_F(claim_tests, test_refund_one_virtual)
     test_data.note2.interaction_result = false;
     append_note(test_data.note1, data_tree);
     append_note(test_data.note2, defi_tree);
-    claim_tx tx = create_claim_tx(test_data.note1, 0, test_data.note2);
+    claim_tx tx = create_claim_tx(test_data.note1, 0, 0, test_data.note2);
 
     auto result = verify_logic(tx, cd);
     EXPECT_TRUE(result.logic_verified);
@@ -1245,7 +1295,7 @@ TEST_F(claim_tests, test_refund_two_virtual)
     test_data.note2.interaction_result = false;
     append_note(test_data.note1, data_tree);
     append_note(test_data.note2, defi_tree);
-    claim_tx tx = create_claim_tx(test_data.note1, 0, test_data.note2);
+    claim_tx tx = create_claim_tx(test_data.note1, 0, 0, test_data.note2);
 
     auto result = verify_logic(tx, cd);
     EXPECT_TRUE(result.logic_verified);
@@ -1260,7 +1310,7 @@ TEST_F(claim_tests, test_refund_one_real)
     test_data.bid.config.second_output_real = true;
     append_note(test_data.note1, data_tree);
     append_note(test_data.note2, defi_tree);
-    claim_tx tx = create_claim_tx(test_data.note1, 0, test_data.note2);
+    claim_tx tx = create_claim_tx(test_data.note1, 0, 0, test_data.note2);
 
     auto result = verify_logic(tx, cd);
     EXPECT_TRUE(result.logic_verified);
@@ -1275,7 +1325,7 @@ TEST_F(claim_tests, test_refund_two_real)
     test_data.bid.config.second_input_real = true;
     append_note(test_data.note1, data_tree);
     append_note(test_data.note2, defi_tree);
-    claim_tx tx = create_claim_tx(test_data.note1, 0, test_data.note2);
+    claim_tx tx = create_claim_tx(test_data.note1, 0, 0, test_data.note2);
 
     auto result = verify_logic(tx, cd);
     EXPECT_TRUE(result.logic_verified);
@@ -1293,7 +1343,7 @@ TEST_F(claim_tests, test_refund_virtual_real)
 
     append_note(test_data.note1, data_tree);
     append_note(test_data.note2, defi_tree);
-    claim_tx tx = create_claim_tx(test_data.note1, 0, test_data.note2);
+    claim_tx tx = create_claim_tx(test_data.note1, 0, 0, test_data.note2);
 
     auto result = verify_logic(tx, cd);
     EXPECT_TRUE(result.logic_verified);
@@ -1311,7 +1361,7 @@ TEST_F(claim_tests, test_refund_real_virtual)
 
     append_note(test_data.note1, data_tree);
     append_note(test_data.note2, defi_tree);
-    claim_tx tx = create_claim_tx(test_data.note1, 0, test_data.note2);
+    claim_tx tx = create_claim_tx(test_data.note1, 0, 0, test_data.note2);
 
     auto result = verify_logic(tx, cd);
     EXPECT_TRUE(result.logic_verified);
@@ -1325,7 +1375,7 @@ TEST_F(claim_tests, test_one_virtual)
     test_data.bid.config.first_output_virtual = true;
     append_note(test_data.note1, data_tree);
     append_note(test_data.note2, defi_tree);
-    claim_tx tx = create_claim_tx(test_data.note1, 0, test_data.note2);
+    claim_tx tx = create_claim_tx(test_data.note1, 0, 0, test_data.note2);
 
     auto result = verify_logic(tx, cd);
     EXPECT_TRUE(result.logic_verified);
@@ -1340,7 +1390,7 @@ TEST_F(claim_tests, test_two_virtual)
     test_data.bid.config.second_output_virtual = true;
     append_note(test_data.note1, data_tree);
     append_note(test_data.note2, defi_tree);
-    claim_tx tx = create_claim_tx(test_data.note1, 0, test_data.note2);
+    claim_tx tx = create_claim_tx(test_data.note1, 0, 0, test_data.note2);
 
     auto result = verify_logic(tx, cd);
     EXPECT_TRUE(result.logic_verified);
@@ -1355,7 +1405,7 @@ TEST_F(claim_tests, test_one_real)
     test_data.bid.config.second_output_real = true;
     append_note(test_data.note1, data_tree);
     append_note(test_data.note2, defi_tree);
-    claim_tx tx = create_claim_tx(test_data.note1, 0, test_data.note2);
+    claim_tx tx = create_claim_tx(test_data.note1, 0, 0, test_data.note2);
 
     auto result = verify_logic(tx, cd);
     EXPECT_TRUE(result.logic_verified);
@@ -1369,7 +1419,7 @@ TEST_F(claim_tests, test_two_real)
     test_data.bid.config.second_output_real = true;
     append_note(test_data.note1, data_tree);
     append_note(test_data.note2, defi_tree);
-    claim_tx tx = create_claim_tx(test_data.note1, 0, test_data.note2);
+    claim_tx tx = create_claim_tx(test_data.note1, 0, 0, test_data.note2);
 
     auto result = verify_logic(tx, cd);
     EXPECT_TRUE(result.logic_verified);
@@ -1386,7 +1436,7 @@ TEST_F(claim_tests, test_virtual_real)
 
     append_note(test_data.note1, data_tree);
     append_note(test_data.note2, defi_tree);
-    claim_tx tx = create_claim_tx(test_data.note1, 0, test_data.note2);
+    claim_tx tx = create_claim_tx(test_data.note1, 0, 0, test_data.note2);
 
     auto result = verify_logic(tx, cd);
     EXPECT_TRUE(result.logic_verified);
@@ -1403,7 +1453,7 @@ TEST_F(claim_tests, test_real_virtual)
 
     append_note(test_data.note1, data_tree);
     append_note(test_data.note2, defi_tree);
-    claim_tx tx = create_claim_tx(test_data.note1, 0, test_data.note2);
+    claim_tx tx = create_claim_tx(test_data.note1, 0, 0, test_data.note2);
 
     auto result = verify_logic(tx, cd);
     EXPECT_TRUE(result.logic_verified);

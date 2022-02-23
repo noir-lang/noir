@@ -26,6 +26,7 @@ TEST(client_proofs_claim_tx, test_serialization)
         merkle_tree::fr_hash_path(32, std::make_pair(fr::random_element(), fr::random_element()));
 
     tx.defi_interaction_note.bridge_id = 456;
+    tx.defi_note_index = 64;
     tx.defi_interaction_note.interaction_nonce = 567;
     tx.defi_interaction_note.total_input_value = 678;
     tx.defi_interaction_note.total_output_value_a = 789;

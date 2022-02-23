@@ -23,6 +23,8 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
     const auto claim_note_index =
         suint_ct(witness_ct(&composer, tx.claim_note_index), DATA_TREE_DEPTH, "claim_note_index");
     const auto claim_note_path = create_witness_hash_path(composer, tx.claim_note_path);
+    const auto defi_note_index =
+        suint_ct(witness_ct(&composer, tx.defi_note_index), DEFI_TREE_DEPTH, "defi_note_index");
     /**
      * Conversion to `claim_note_witness_data` contains:
      *   - range constraints on the claim note's attributes
@@ -171,11 +173,10 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
         claim_exists.assert_equal(true, "claim note not a member");
 
         // Check defi interaction note exists:
-        const auto din_exists =
-            check_membership(defi_root,
-                             defi_interaction_note_path,
-                             defi_interaction_note.commitment,
-                             defi_interaction_note.interaction_nonce.value.decompose_into_bits(DEFI_TREE_DEPTH));
+        const auto din_exists = check_membership(defi_root,
+                                                 defi_interaction_note_path,
+                                                 defi_interaction_note.commitment,
+                                                 defi_note_index.value.decompose_into_bits(DEFI_TREE_DEPTH));
         din_exists.assert_equal(true, "defi interaction note not a member");
     }
 

@@ -18,6 +18,7 @@ template <typename WorldState> class ClaimTxFactory {
 
     auto create_claim_tx(barretenberg::fr const& defi_root,
                          uint32_t claim_note_index,
+                         uint32_t defi_note_index,
                          notes::native::claim::claim_note const& claim_note,
                          notes::native::defi_interaction::note const& defi_interaction_note)
     {
@@ -27,6 +28,7 @@ template <typename WorldState> class ClaimTxFactory {
         tx.claim_note_index = claim_note_index;
         tx.claim_note_path = world_state.data_tree.get_hash_path(claim_note_index);
         tx.claim_note = claim_note;
+        tx.defi_note_index = defi_note_index;
         tx.defi_interaction_note_path = world_state.defi_tree.get_hash_path(defi_interaction_note.interaction_nonce);
         tx.defi_interaction_note = defi_interaction_note;
         tx.defi_interaction_note_dummy_nullifier_nonce = fr::random_element();

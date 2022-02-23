@@ -99,7 +99,11 @@ class TestContext {
         return account::create_proof(tx, signer, account_cd);
     }
 
-    auto create_claim_tx(uint256_t bridge_id, uint256_t deposit_value, uint32_t claim_note_index, uint256_t fee)
+    auto create_claim_tx(uint256_t bridge_id,
+                         uint256_t deposit_value,
+                         uint32_t claim_note_index,
+                         uint32_t defi_note_index,
+                         uint256_t fee)
     {
         uint32_t interaction_nonce = 0;
         // Assume this claim note was created against the most recent matching bridge id interaction.
@@ -116,16 +120,20 @@ class TestContext {
             deposit_value, bridge_id,     interaction_nonce,
             fee,           partial_state, world_state.input_nullifiers[claim_note_index]
         };
-        return claim_tx_factory.create_claim_tx(
-            world_state.defi_tree.root(), claim_note_index, claim_note, defi_interactions[interaction_nonce]);
+        return claim_tx_factory.create_claim_tx(world_state.defi_tree.root(),
+                                                claim_note_index,
+                                                defi_note_index,
+                                                claim_note,
+                                                defi_interactions[interaction_nonce]);
     }
 
     std::vector<uint8_t> create_claim_proof(uint256_t bridge_id,
                                             uint256_t deposit_value,
                                             uint32_t claim_note_index,
+                                            uint32_t defi_note_index,
                                             uint256_t fee)
     {
-        auto tx = create_claim_tx(bridge_id, deposit_value, claim_note_index, fee);
+        auto tx = create_claim_tx(bridge_id, deposit_value, claim_note_index, defi_note_index, fee);
         return claim::create_proof(tx, claim_cd);
     }
 
@@ -134,7 +142,7 @@ class TestContext {
      * Inserts the given defi interaction notes from the previous rollup into the defi tree.
      * @param dins_ - defi interaction NOTES (not 'nonce')
      */
-    void start_next_root_rollup(std::vector<native::defi_interaction::note> const& dins_ = {})
+    uint32_t start_next_root_rollup(std::vector<native::defi_interaction::note> const& dins_ = {})
     {
         uint32_t rollup_id = static_cast<uint32_t>(world_state.root_tree.size());
         uint32_t initial_din_insertion_index = (rollup_id - 1) * NUM_INTERACTION_RESULTS_PER_BLOCK;
@@ -151,6 +159,7 @@ class TestContext {
         }
 
         world_state.add_defi_notes(dins);
+        return initial_din_insertion_index;
     }
 
     numeric::random::Engine* rand_engine;
