@@ -42,6 +42,14 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
         });
     }
 
+    // Return type cannot be public
+    if declared_return_type.is_public() {
+        errors.push(TypeCheckError::PublicReturnType {
+            typ: declared_return_type.clone(),
+            span: interner.id_span(func_as_expr),
+        });
+    }
+
     errors
 }
 

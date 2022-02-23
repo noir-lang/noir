@@ -194,9 +194,9 @@ impl ObjectType {
 
     pub fn from_type(t: noirc_frontend::Type) -> ObjectType {
         match t {
-            noirc_frontend::Type::FieldElement => ObjectType::NativeField,
+            noirc_frontend::Type::FieldElement(_) => ObjectType::NativeField,
 
-            noirc_frontend::Type::Integer(sign, bit_size) => {
+            noirc_frontend::Type::Integer(_ftype, sign, bit_size) => {
                 assert!(
                     bit_size < super::integer::short_integer_max_bit_size(),
                     "long integers are not yet supported"
