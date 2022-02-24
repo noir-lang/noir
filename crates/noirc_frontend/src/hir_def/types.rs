@@ -5,7 +5,6 @@ use noirc_errors::Span;
 
 use crate::{
     node_interner::{FuncId, TypeId},
-    token::IntType,
     ArraySize, FieldElementType, Ident, Signedness,
 };
 
@@ -53,7 +52,6 @@ pub enum Type {
 
     Error,
     Unspecified, // This is for when the user declares a variable without specifying it's type
-    Unknown, // This is mainly used for array literals, where the parser cannot figure out the type for the literal
 }
 
 impl Type {
@@ -84,7 +82,6 @@ impl std::fmt::Display for Type {
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
             Type::Unspecified => write!(f, "unspecified"),
-            Type::Unknown => write!(f, "unknown"),
         }
     }
 }
@@ -153,7 +150,6 @@ impl Type {
             | Type::Bool
             | Type::Error
             | Type::Unspecified
-            | Type::Unknown
             | Type::Unit => 1,
         }
     }
@@ -270,20 +266,8 @@ impl Type {
             Type::Bool => panic!("currently, cannot have a bool in the entry point function"),
             Type::Error => unreachable!(),
             Type::Unspecified => unreachable!(),
-            Type::Unknown => unreachable!(),
             Type::Unit => unreachable!(),
             Type::Struct(_, _) => todo!("as_abi_type not yet implemented for struct types"),
-        }
-    }
-}
-
-impl Type {
-    pub fn from_int_tok(field_type: FieldElementType, int_tok: &IntType) -> Type {
-        match int_tok {
-            IntType::Signed(num_bits) => Type::Integer(field_type, Signedness::Signed, *num_bits),
-            IntType::Unsigned(num_bits) => {
-                Type::Integer(field_type, Signedness::Unsigned, *num_bits)
-            }
         }
     }
 }

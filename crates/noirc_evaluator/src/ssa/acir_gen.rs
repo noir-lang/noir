@@ -1,7 +1,8 @@
 use super::node::{Instruction, Operation};
 use acvm::FieldElement;
 use arena::Index;
-use num_traits::ToPrimitive;
+use num_traits::One;
+use num_traits::Zero;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 //use crate::acir::native_types::{Arithmetic, Witness};
@@ -109,11 +110,13 @@ impl Acir {
                 //we need the type of rhs and its max value, then:
                 //lhs-rhs+k*2^bit_size where k=ceil(max_value/2^bit_size)
                 let bit_size = cfg.get_object(ins.rhs).unwrap().bits();
-                assert!(bit_size < 128); //todo
-                let r_mod = 1_u128 << bit_size;
-                let k = (ins.max_value.to_f64().unwrap() / r_mod as f64).ceil() as i128;
-                let mut f = FieldElement::from(k);
-                f = f * FieldElement::from_be_bytes_reduce(&BigUint::from(r_mod).to_bytes_be());
+                let r_big = BigUint::one() << bit_size;
+                let mut k = &ins.max_value / &r_big;
+                if &ins.max_value % &r_big != BigUint::zero() {
+                    k = &k + BigUint::one();
+                }
+                k = &k * r_big;
+                let f = FieldElement::from_be_bytes_reduce(&k.to_bytes_be());
                 let mut output = add(
                     &l_c.expression,
                     FieldElement::from(-1_i128),

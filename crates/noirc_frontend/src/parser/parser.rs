@@ -580,7 +580,15 @@ where
 {
     expression_list(expr_parser)
         .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
-        .map(ExpressionKind::array)
+        .validate(|elems, span, emit| {
+            if elems.is_empty() {
+                emit(ParserError::with_reason(
+                    "Arrays must have at least one element".to_owned(),
+                    span,
+                ))
+            }
+            ExpressionKind::array(elems)
+        })
 }
 
 fn expression_list<P>(expr_parser: P) -> impl NoirParser<Vec<Expression>>
@@ -870,11 +878,6 @@ mod test {
         for expr in parse_all(array_expr(expression()), valid) {
             let arr_lit = expr_to_array(expr);
             assert_eq!(arr_lit.length, 5);
-
-            // All array types are unspecified at parse time. The type checker
-            // needs to iterate the whole array to ensure homogeneity
-            // so there is no advantage to deducing the type here.
-            assert_eq!(arr_lit.r#type, UnresolvedType::Unspecified);
         }
 
         parse_all_failing(
