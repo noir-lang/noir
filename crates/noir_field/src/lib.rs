@@ -12,6 +12,7 @@ cfg_if::cfg_if! {
         compile_error!("please specify a field to compile with");
     }
 }
+
 #[derive(Debug)]
 pub enum FieldOptions {
     BN254,

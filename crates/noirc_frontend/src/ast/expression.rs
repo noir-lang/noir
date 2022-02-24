@@ -47,7 +47,6 @@ impl ExpressionKind {
     pub fn array(contents: Vec<Expression>) -> ExpressionKind {
         ExpressionKind::Literal(Literal::Array(ArrayLiteral {
             length: contents.len() as u128,
-            r#type: UnresolvedType::Unspecified,
             contents,
         }))
     }
@@ -355,7 +354,6 @@ pub struct FunctionDefinition {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ArrayLiteral {
     pub length: u128, // XXX: Maybe allow field element, so that the user can define the length using a constant
-    pub r#type: UnresolvedType,
     pub contents: Vec<Expression>,
 }
 

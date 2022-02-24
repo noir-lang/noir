@@ -6,7 +6,7 @@ use super::{
 };
 use acvm::FieldElement;
 use num_bigint::BigUint;
-use num_traits::One;
+use num_traits::{One, Zero};
 use std::collections::{HashMap, VecDeque};
 use std::convert::TryInto;
 
@@ -364,7 +364,15 @@ pub fn get_max_value(ins: &Instruction, lhs_max: BigUint, rhs_max: BigUint) -> B
     match ins.operator {
         Operation::Add => lhs_max + rhs_max,
         Operation::SafeAdd => todo!(),
-        Operation::Sub => lhs_max + rhs_max,
+        Operation::Sub => {
+            let r_mod = BigUint::one() << ins.res_type.bits();
+            let mut k = &rhs_max / &r_mod;
+            if &rhs_max % &r_mod != BigUint::zero() {
+                k += BigUint::one();
+            }
+            assert!(&k * &r_mod >= rhs_max);
+            lhs_max + k * r_mod
+        }
         Operation::SafeSub => todo!(),
         Operation::Mul => lhs_max * rhs_max,
         Operation::SafeMul => todo!(),
