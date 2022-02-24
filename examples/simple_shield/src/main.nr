@@ -10,7 +10,7 @@ fn main(
   // Merkle membership proof
   note_root : pub Field, 
   index : Field,
-  note_hash_path : [32]Field,
+  // note_hash_path : [32]Field,
 
   // Receiver public key
   to_pubkey_x : Field, 
@@ -24,18 +24,18 @@ fn main(
     priv pubkey_y = pubkey[1];
 
     // Compute input note commitment
-    priv note_commitment = std::hash::pedersen([pubkey_x, pubkey_y]);
+    let note_commitment = std::hash::pedersen([pubkey_x, pubkey_y]);
     
     // Compute input note nullifier
-    priv nullifier = std::hash::pedersen([note_commitment, index, priv_key]);
+    let nullifier = std::hash::pedersen([note_commitment[0], index, priv_key]);
 
     // Compute output note nullifier
-    priv receiver_note_commitment = std::hash::pedersen([to_pubkey_x, to_pubkey_y]);
+    let receiver_note_commitment = std::hash::pedersen([to_pubkey_x, to_pubkey_y]);
 
     // Check that the input note nullifier is in the root
-    priv is_member = std::merkle::check_membership(note_root, note_commitment, index, note_hash_path);
+    priv is_member = std::merkle::check_membership(note_root, note_commitment[0], index);
     constrain is_member == 1;
 
-    std::set_as_public(receiver_note_commitment);
-    std::set_as_public(nullifier);
+    std::set_as_public(receiver_note_commitment[0]);
+    std::set_as_public(nullifier[0]);
 }
