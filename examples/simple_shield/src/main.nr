@@ -1,5 +1,3 @@
-
-
 use dep::std;
 
 fn main(
@@ -10,7 +8,6 @@ fn main(
   // Merkle membership proof
   note_root : pub Field, 
   index : Field,
-  // note_hash_path : [32]Field,
 
   // Receiver public key
   to_pubkey_x : Field, 
