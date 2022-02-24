@@ -2,15 +2,15 @@ use super::{
     foldl_with_span, parenthesized, then_commit, then_commit_ignore, ExprParser, NoirParser,
     ParsedModule, ParserError, Precedence, TopLevelStatement,
 };
+use crate::ast::{ArraySize, Expression, ExpressionKind, Statement, Type};
 use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::util::vecmap;
-use crate::ast::{ArraySize, Expression, ExpressionKind, Statement, Type};
 use crate::{
-    AssignStatement, BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, ForExpression,
-    FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, NoirStruct, Path,
-    PathKind, UnaryOp,
+    AssignStatement, BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, FieldElementType,
+    ForExpression, FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression,
+    NoirStruct, Path, PathKind, UnaryOp,
 };
 
 use chumsky::prelude::*;
@@ -59,7 +59,7 @@ fn function_definition() -> impl NoirParser<TopLevelStatement> {
         .or_not()
         .then_ignore(keyword(Keyword::Fn))
         .then(ident())
-        .then(parenthesized(parameters()))
+        .then(parenthesized(function_parameters()))
         .then(function_return_type())
         .then(block(expression()))
         .map(|((((attribute, name), parameters), return_type), body)| {
@@ -102,7 +102,7 @@ fn attribute() -> impl NoirParser<Attribute> {
 
 fn struct_fields() -> impl NoirParser<Vec<(Ident, Type)>> {
     parameters(parse_type_with_visibility(
-        optional_pri_or_const(),
+        optional_pri(),
         parse_type_no_field_element(),
     ))
 }
@@ -262,29 +262,11 @@ fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
 {
-    let let_statement = generic_declaration(Keyword::Let, expr_parser.clone(), Statement::new_let);
-    let priv_statement =
-        generic_declaration(Keyword::Priv, expr_parser.clone(), Statement::new_priv);
-    let const_statement = generic_declaration(Keyword::Const, expr_parser, Statement::new_const);
-
-    choice((let_statement, priv_statement, const_statement))
-}
-
-fn generic_declaration<'a, F, P>(
-    key: Keyword,
-    expr_parser: P,
-    f: F,
-) -> impl NoirParser<Statement> + 'a
-where
-    F: 'a + Clone + Fn(((Ident, Type), Expression)) -> Statement,
-    P: ExprParser + 'a,
-{
-    let p = ignore_then_commit(keyword(key).labelled("statement"), ident());
+    let p = ignore_then_commit(keyword(Keyword::Let).labelled("statement"), ident());
     let p = p.then(optional_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
     let p = then_commit(p, expr_parser);
-
-    p.map(f)
+    p.map(Statement::new_let)
 }
 
 fn assignment<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
@@ -344,18 +326,13 @@ fn optional_visibility() -> impl NoirParser<FieldElementType> {
     choice((
         visibility(FieldElementType::Public),
         visibility(FieldElementType::Private),
-        visibility(FieldElementType::Constant),
         no_visibility(),
     ))
 }
 
 // This is primarily for struct fields which cannot be public
-fn optional_pri_or_const() -> impl NoirParser<FieldElementType> {
-    choice((
-        visibility(FieldElementType::Private),
-        visibility(FieldElementType::Constant),
-        no_visibility(),
-    ))
+fn optional_pri() -> impl NoirParser<FieldElementType> {
+    choice((visibility(FieldElementType::Private), no_visibility()))
 }
 
 fn field_type<P>(visibility_parser: P) -> impl NoirParser<Type>

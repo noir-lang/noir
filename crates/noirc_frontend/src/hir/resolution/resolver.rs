@@ -44,9 +44,7 @@ use crate::hir::scope::{
 };
 use crate::hir_def::{
     function::{FuncMeta, HirFunction, Param},
-    stmt::{
-        HirConstrainStatement, HirLetStatement, HirStatement,
-    },
+    stmt::{HirConstrainStatement, HirLetStatement, HirStatement},
 };
 
 use super::errors::ResolverError;

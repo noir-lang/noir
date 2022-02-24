@@ -1,12 +1,12 @@
+use crate::node_interner::{ExprId, NodeInterner};
 use crate::{
     hir_def::{
         expr::{self, HirBinaryOp, HirExpression, HirLiteral},
         function::Param,
     },
     util::vecmap,
-    ArraySize, Type,
+    ArraySize, FieldElementType, Type,
 };
-use crate::node_interner::{ExprId, NodeInterner};
 
 use super::errors::TypeCheckError;
 
@@ -263,27 +263,23 @@ pub fn infix_operand_type_rules(
             }
             Ok(Integer(field_type, *sign_x, *bit_width_x))
         }
-        (Integer(_,_, _), FieldElement(Private)) | ( FieldElement(Private), Integer(_,_, _) ) => {
-            Err("Cannot use an integer and a witness in a binary operation, try converting the witness into an integer".to_string())
+        (int @ Integer(..), FieldElement(_)) | (FieldElement(_), int @ Integer(..)) => {
+            Err(format!("Cannot use an {int} and a Field in a binary operation, try converting the Field into an integer"))
         }
-        (Integer(_,_, _), FieldElement(Public)) | ( FieldElement(Public), Integer(_,_, _) ) => {
-            Err("Cannot use an integer and a public variable in a binary operation, try converting the public into an integer".to_string())
+        (Integer(int_field_type,sign_x, bit_width_x), ConstantInteger)| (ConstantInteger, Integer(int_field_type,sign_x, bit_width_x)) => {
+            Ok(Integer(*int_field_type, *sign_x, *bit_width_x))
         }
-        (Integer(int_field_type,sign_x, bit_width_x), FieldElement(Constant))| (FieldElement(Constant),Integer(int_field_type,sign_x, bit_width_x)) => {
-            let field_type = field_type_rules(int_field_type, &Constant);
-            Ok(Integer(field_type,*sign_x, *bit_width_x))
-        }
-        (Integer(_,_, _), typ) | (typ,Integer(_,_, _)) => {
+        (Integer(..), typ) | (typ, Integer(..)) => {
             Err(format!("Integer cannot be used with type {}", typ))
         }
         // Currently, arrays and structs are not supported in binary operations
-        (Array(_,_,_), _) | (_, Array(_,_,_)) => Err("Arrays cannot be used in an infix operation".to_string()),
+        (Array(..), _) | (_, Array(..)) => Err("Arrays cannot be used in an infix operation".to_string()),
         (Struct(_), _) | (_, Struct(_)) => Err("Structs cannot be used in an infix operation".to_string()),
 
         // An error type on either side will always return an error
-        (Error, _) | (_,Error) => Ok(Error),
-        (Unspecified, _) | (_,Unspecified) => Ok(Unspecified),
-        (Unit, _) | (_,Unit) => Ok(Unit),
+        (Error, _) | (_, Error) => Ok(Error),
+        (Unspecified, _) | (_, Unspecified) => Ok(Unspecified),
+        (Unit, _) | (_, Unit) => Ok(Unit),
         //
         // If no side contains an integer. Then we check if either side contains a witness
         // If either side contains a witness, then the final result will be a witness
@@ -292,7 +288,7 @@ pub fn infix_operand_type_rules(
         (FieldElement(Public), _) | (_,FieldElement(Public)) => Ok(FieldElement(Private)),
         (Bool, _) | (_,Bool) => Ok(Bool),
         //
-        (FieldElement(Constant), FieldElement(Constant))  => Ok(FieldElement(Constant)),
+        (ConstantInteger, ConstantInteger)  => Ok(ConstantInteger),
     }
 }
 
@@ -404,13 +400,8 @@ fn field_type_rules(lhs: &FieldElementType, rhs: &FieldElementType) -> FieldElem
     match (lhs, rhs) {
         (Private, Private) => Private,
         (Private, Public) => Private,
-        (Private, Constant) => Private,
         (Public, Private) => Private,
         (Public, Public) => Public,
-        (Public, Constant) => Public,
-        (Constant, Private) => Private,
-        (Constant, Public) => Public,
-        (Constant, Constant) => Constant,
     }
 }
 
@@ -426,24 +417,20 @@ pub fn comparator_operand_type_rules(lhs_type: &Type, other: &Type) -> Result<Ty
             }
             Ok(Bool)
         }
-        (Integer(_,_, _), FieldElement(Private)) | ( FieldElement(Private), Integer(_,_, _) ) => {
+        (Integer(..), FieldElement(Private)) | ( FieldElement(Private), Integer(..) ) => {
             Err("Cannot use an integer and a witness in a binary operation, try converting the witness into an integer".to_string())
         }
-        (Integer(_,_, _), FieldElement(Public)) | ( FieldElement(Public), Integer(_,_, _) ) => {
+        (Integer(..), FieldElement(Public)) | ( FieldElement(Public), Integer(..) ) => {
             Err("Cannot use an integer and a public variable in a binary operation, try converting the public into an integer".to_string())
         }
-        (Integer(_, _, _), FieldElement(Constant))| (FieldElement(Constant),Integer(_, _, _)) => {
+        (Integer(_, _, _), ConstantInteger)| (ConstantInteger,Integer(_, _, _)) => {
             Ok(Bool)
         }
-        (Integer(_,_, _), typ) | (typ,Integer(_,_, _)) => {
+        (Integer(..), typ) | (typ,Integer(..)) => {
             Err(format!("Integer cannot be used with type {}", typ))
         }
-        // If no side contains an integer. Then we check if either side contains a witness
-        // If either side contains a witness, then the final result will be a witness
-        (FieldElement(Private), FieldElement(_)) | (FieldElement(_), FieldElement(Private)) => Ok(Bool),
-        // Public types are added as witnesses under the hood
-        (FieldElement(Public), FieldElement(_)) | (FieldElement(_), FieldElement(Public)) => Ok(Bool),
-        (FieldElement(Constant), FieldElement(Constant))  => Ok(Bool),
+        (FieldElement(_), FieldElement(_)) => Ok(Bool),
+        (ConstantInteger, ConstantInteger)  => Ok(Bool),
 
         // <= and friends are technically valid for booleans, just not very useful
         (Bool, Bool) => Ok(Bool),

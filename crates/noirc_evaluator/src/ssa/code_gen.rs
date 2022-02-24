@@ -479,9 +479,7 @@ impl<'a> IRGenerator<'a> {
             HirStatement::Expression(expr) | HirStatement::Semi(expr) => {
                 self.expression_to_object(env, &expr)
             }
-            HirStatement::Let(let_stmt) => {
-                self.handle_let_statement(env, let_stmt)
-            }
+            HirStatement::Let(let_stmt) => self.handle_let_statement(env, let_stmt),
             HirStatement::Assign(assign_stmt) => {
                 let ident_def = self
                     .context()

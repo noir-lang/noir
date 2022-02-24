@@ -468,16 +468,18 @@ impl<'a> Evaluator<'a> {
                     .map_err(|kind| kind.add_span(span))?;
 
                 env.store(variable_name, value);
-            },
+            }
             Type::Array(..) => {
                 let rhs_poly = self.expression_to_object(env, &rhs)?;
                 match rhs_poly {
                     Object::Array(arr) => {
                         env.store(variable_name, Object::Array(arr));
                     }
-                    _ => unimplemented!("The evaluator currently only supports arrays and constant integers!"),
+                    _ => unimplemented!(
+                        "The evaluator currently only supports arrays and constant integers!"
+                    ),
                 };
-            },
+            }
             _ => return self.handle_private_statement(env, identifier, rhs),
         }
 

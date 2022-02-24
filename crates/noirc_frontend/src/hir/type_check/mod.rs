@@ -61,6 +61,7 @@ mod test {
 
     use noirc_errors::{Span, Spanned};
 
+    use crate::FieldElementType;
     use crate::hir_def::stmt::HirLetStatement;
     use crate::node_interner::{FuncId, NodeInterner};
     use crate::{graph::CrateId, Ident};
@@ -134,7 +135,11 @@ mod test {
             name: String::from("test_func"),
             kind: FunctionKind::Normal,
             attributes: None,
-            parameters: vec![Param(x_id, Type::FieldElement), Param(y_id, Type::FieldElement)].into(),
+            parameters: vec![
+                Param(x_id, Type::FieldElement(FieldElementType::Private)),
+                Param(y_id, Type::FieldElement(FieldElementType::Private)),
+            ]
+            .into(),
             return_type: Type::Unit,
             has_body: true,
         };

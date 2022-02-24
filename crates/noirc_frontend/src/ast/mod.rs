@@ -9,14 +9,14 @@ use std::rc::Rc;
 
 pub use expression::*;
 pub use function::*;
-use noirc_abi::AbiType;
+use noirc_abi::{AbiFEType, AbiType};
 use noirc_errors::Span;
 pub use statement::*;
 pub use structure::*;
 
 use crate::{
     node_interner::TypeId,
-    token::IntType,
+    token::{IntType, Keyword},
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -50,28 +50,15 @@ impl std::fmt::Display for ArraySize {
 
 /// FieldElementType refers to how the Compiler type is interpreted by the proof system
 /// Example: FieldElementType::Private means that the Compiler type is seen as a witness/witnesses
-#[derive(Debug, Eq, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq)]
 pub enum FieldElementType {
     Private,
     Public,
-    Constant,
 }
 
 impl PartialEq for FieldElementType {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (FieldElementType::Private, FieldElementType::Private) => true,
-            (FieldElementType::Public, FieldElementType::Public) => true,
-            (FieldElementType::Constant, FieldElementType::Constant) => true,
-            // The reason we manually implement this, is so that Private and Public
-            // are seen as equal
-            (FieldElementType::Private, FieldElementType::Public) => true,
-            (FieldElementType::Public, FieldElementType::Private) => true,
-            (FieldElementType::Private, FieldElementType::Constant) => false,
-            (FieldElementType::Public, FieldElementType::Constant) => false,
-            (FieldElementType::Constant, FieldElementType::Private) => false,
-            (FieldElementType::Constant, FieldElementType::Public) => false,
-        }
+    fn eq(&self, _: &Self) -> bool {
+        true
     }
 }
 
@@ -89,18 +76,13 @@ impl FieldElementType {
         match self {
             FieldElementType::Private => Keyword::Priv,
             FieldElementType::Public => Keyword::Pub,
-            FieldElementType::Constant => Keyword::Const,
         }
     }
 }
 
 impl std::fmt::Display for FieldElementType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            FieldElementType::Private => write!(f, "priv"),
-            FieldElementType::Constant => write!(f, "const"),
-            FieldElementType::Public => write!(f, "pub"),
-        }
+        self.as_keyword().fmt(f)
     }
 }
 
@@ -137,12 +119,12 @@ impl std::fmt::Display for StructType {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {
-    FieldElement,
-    Integer(Signedness, u32),    // u32 = Integer(unsigned, 32)
+    FieldElement(FieldElementType),
+    Integer(FieldElementType, Signedness, u32), // u32 = Integer(unsigned, 32)
     ConstantInteger,
     Bool,
     Unit,
-    Array(ArraySize, Box<Type>), // [4]Witness = Array(4, Witness)
+    Array(FieldElementType, ArraySize, Box<Type>), // [4]Witness = Array(4, Witness)
     Struct(Rc<StructType>),
 
     Error,
@@ -163,18 +145,30 @@ impl Recoverable for Type {
 
 impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Hide priv visibility by default so that types such as
+        // `priv [5] priv Field` are displayed as `[5] Field` instead.
+        fn display_visibility(v: &FieldElementType) -> &'static str {
+            match v {
+                FieldElementType::Public => "pub ",
+                FieldElementType::Private => "",
+            }
+        }
+
         match self {
-            Type::FieldElement(fe_type) => write!(f, "{} Field", fe_type),
-            Type::Array(fe_type, size, typ) => write!(f, "{} {}{}", fe_type, size, typ),
+            Type::FieldElement(fe_type) => write!(f, "{}Field", display_visibility(fe_type)),
+            Type::Array(fe_type, size, typ) => {
+                write!(f, "{} [{}]{}", display_visibility(fe_type), size, typ)
+            }
             Type::Integer(fe_type, sign, num_bits) => match sign {
-                Signedness::Signed => write!(f, "{} i{}", fe_type, num_bits),
-                Signedness::Unsigned => write!(f, "{} u{}", fe_type, num_bits),
+                Signedness::Signed => write!(f, "{} i{}", display_visibility(fe_type), num_bits),
+                Signedness::Unsigned => write!(f, "{} u{}", display_visibility(fe_type), num_bits),
             },
             Type::Struct(s) => s.fmt(f),
             Type::Bool => write!(f, "bool"),
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
             Type::Unspecified => write!(f, "unspecified"),
+            Type::ConstantInteger => write!(f, "const Field"),
         }
     }
 }
@@ -224,6 +218,17 @@ impl Type {
         )
     }
 
+    pub fn get_visibility(&self) -> Option<FieldElementType> {
+        match self {
+            Type::FieldElement(vis) | Type::Integer(vis, ..) | Type::Array(vis, ..) => Some(*vis),
+            _ => None,
+        }
+    }
+
+    pub fn is_public(&self) -> bool {
+        self.get_visibility() == Some(FieldElementType::Public) || self == &Type::Error
+    }
+
     /// Computes the number of elements in a Type
     /// Arrays and Structs will be the only data structures to return more than one
 
@@ -234,10 +239,11 @@ impl Type {
                 unreachable!("ice : this method is only ever called when we want to compare the prover inputs with the ABI in main. The ABI should not have variable input. The program should be compiled before calling this"),
             Type::Struct(s) => s.fields.len(),
             Type::FieldElement(_)
-            | Type::Integer(_, _, _)
+            | Type::Integer(..)
             | Type::Bool
             | Type::Error
             | Type::Unspecified
+            | Type::ConstantInteger
             | Type::Unit => 1,
         }
     }
@@ -259,7 +265,7 @@ impl Type {
 
     fn array(&self) -> Option<(&ArraySize, &Type)> {
         match self {
-            Type::Array(sized, typ) => Some((sized, typ)),
+            Type::Array(_, sized, typ) => Some((sized, typ)),
             _ => None,
         }
     }
@@ -268,7 +274,7 @@ impl Type {
     pub fn can_be_used_in_constrain(&self) -> bool {
         matches!(
             self,
-            Type::FieldElement | Type::Integer(..) | Type::Array(..) | Type::Error
+            Type::FieldElement(_) | Type::Integer(..) | Type::Array(..) | Type::Error
         )
     }
 
@@ -277,7 +283,7 @@ impl Type {
     pub fn is_base_type(&self) -> bool {
         matches!(
             self,
-            Type::FieldElement | Type::Integer(..) | Type::Error
+            Type::FieldElement(_) | Type::Integer(..) | Type::Error
         )
     }
 
@@ -294,9 +300,6 @@ impl Type {
             match fe {
                 FieldElementType::Private => noirc_abi::AbiFEType::Private,
                 FieldElementType::Public => noirc_abi::AbiFEType::Public,
-                FieldElementType::Constant => {
-                    panic!("constant field in the ABI, this is not allowed!")
-                }
             }
         }
 
@@ -329,6 +332,7 @@ impl Type {
             Type::Unspecified => unreachable!(),
             Type::Unit => unreachable!(),
             Type::Struct(_) => todo!(),
+            Type::ConstantInteger => panic!("constant field in the ABI, this is not allowed!"),
         }
     }
 }
