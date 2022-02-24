@@ -215,11 +215,12 @@ impl Token {
             ref tok => TokenKind::Token(tok.clone()),
         }
     }
+
     pub fn is_ident(&self) -> bool {
         matches!(self, Token::Ident(_))
     }
+
     // Does not work for Keyword or whatever is inside of variant
-    // XXX: Review the special case of Keyword
     pub fn is_variant(&self, tok: &Token) -> bool {
         let got_variant = core::mem::discriminant(self);
         let expected_variant = core::mem::discriminant(tok);
@@ -227,16 +228,16 @@ impl Token {
         if !same_token_variant {
             return false;
         }
+
         // Check if the keywords are the same
         // Two tokens can be the same variant, but have different inner values
         // We especially care about the Keyword value however
-        match (&self, tok) {
-            (Token::Keyword(x), Token::Keyword(y)) => return x == y,
-            (_, _) => {}
-        };
+        if let (Token::Keyword(x), Token::Keyword(y)) = (&self, tok) {
+            return x == y;
+        }
 
         // If we arrive here, then the Token variants are the same and they are not the Keyword type
-        same_token_variant
+        true
     }
 
     pub(super) fn into_single_span(self, position: Position) -> SpannedToken {
