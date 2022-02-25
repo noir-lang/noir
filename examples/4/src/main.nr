@@ -4,11 +4,11 @@
 //
 // XXX(Dankrad): For loop is not clear
 fn main(x : Field, y : Field) {
-    const _a = 1;
-    priv k = x + y;
+    let a = 1;
+    let k = x + y;
 
-    let j = for _k in _a..100 {
-       priv z = x + k;
+    let j = for _k in a..100 {
+       let z = x + k;
        z
     };
 

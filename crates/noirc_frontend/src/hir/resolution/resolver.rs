@@ -44,10 +44,7 @@ use crate::hir::scope::{
 };
 use crate::hir_def::{
     function::{FuncMeta, HirFunction, Param},
-    stmt::{
-        HirConstStatement, HirConstrainStatement, HirLetStatement, HirPrivateStatement,
-        HirStatement,
-    },
+    stmt::{HirConstrainStatement, HirLetStatement, HirStatement},
 };
 
 use super::errors::ResolverError;
@@ -252,17 +249,6 @@ impl<'a> Resolver<'a> {
 
                 self.interner.push_stmt(HirStatement::Let(let_stmt))
             }
-            Statement::Const(const_stmt) => {
-                let id = self.add_variable_decl(const_stmt.identifier);
-
-                let const_stmt = HirConstStatement {
-                    identifier: id,
-                    r#type: const_stmt.r#type,
-                    expression: self.intern_expr(const_stmt.expression),
-                };
-
-                self.interner.push_stmt(HirStatement::Const(const_stmt))
-            }
             Statement::Constrain(constrain_stmt) => {
                 let lhs = self.resolve_expression(constrain_stmt.0.lhs);
                 let operator: HirBinaryOp = constrain_stmt.0.operator.into();
@@ -271,16 +257,6 @@ impl<'a> Resolver<'a> {
                 let stmt = HirConstrainStatement(HirInfixExpression { lhs, operator, rhs });
 
                 self.interner.push_stmt(HirStatement::Constrain(stmt))
-            }
-            Statement::Private(priv_stmt) => {
-                let identifier = self.add_variable_decl(priv_stmt.identifier);
-                let expression = self.resolve_expression(priv_stmt.expression);
-                let stmt = HirPrivateStatement {
-                    identifier,
-                    expression,
-                    r#type: priv_stmt.r#type,
-                };
-                self.interner.push_stmt(HirStatement::Private(stmt))
             }
             Statement::Expression(expr) => {
                 let stmt = HirStatement::Expression(self.resolve_expression(expr));
@@ -722,7 +698,7 @@ mod test {
         let src = r#"
             fn main(x : Field) {
                 for i in 1..20 {
-                    priv _z = x + i;
+                    let _z = x + i;
                 };
             }
         "#;
