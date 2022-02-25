@@ -417,6 +417,7 @@ pub enum Keyword {
     In,
     Use,
     Constrain,
+    Mut,
     // Field types
     Pub,
     Priv,
@@ -444,6 +445,7 @@ impl fmt::Display for Keyword {
             Keyword::Else => write!(f, "else"),
             Keyword::While => write!(f, "while"),
             Keyword::Constrain => write!(f, "constrain"),
+            Keyword::Mut => write!(f, "mut"),
             Keyword::Let => write!(f, "let"),
             Keyword::As => write!(f, "as"),
             Keyword::Use => write!(f, "use"),
@@ -473,6 +475,7 @@ impl Keyword {
             "else" => Some(Token::Keyword(Keyword::Else)),
             "while" => Some(Token::Keyword(Keyword::While)),
             "constrain" => Some(Token::Keyword(Keyword::Constrain)),
+            "mut" => Some(Token::Keyword(Keyword::Mut)),
             "let" => Some(Token::Keyword(Keyword::Let)),
             "as" => Some(Token::Keyword(Keyword::As)),
             "use" => Some(Token::Keyword(Keyword::Use)),

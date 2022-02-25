@@ -128,25 +128,25 @@ impl Recoverable for Statement {
 }
 
 impl Statement {
-    pub fn new_let(((identifier, r#type), expression): ((Ident, Type), Expression)) -> Statement {
+    pub fn new_let(((pattern, r#type), expression): ((Pattern, Type), Expression)) -> Statement {
         Statement::Let(LetStatement {
-            identifier,
+            pattern,
             r#type,
             expression,
         })
     }
 
-    pub fn new_const(((identifier, r#type), expression): ((Ident, Type), Expression)) -> Statement {
+    pub fn new_const(((pattern, r#type), expression): ((Pattern, Type), Expression)) -> Statement {
         Statement::Const(ConstStatement {
-            identifier,
+            pattern,
             r#type,
             expression,
         })
     }
 
-    pub fn new_priv(((identifier, r#type), expression): ((Ident, Type), Expression)) -> Statement {
+    pub fn new_priv(((pattern, r#type), expression): ((Pattern, Type), Expression)) -> Statement {
         Statement::Private(PrivateStatement {
-            identifier,
+            pattern,
             r#type,
             expression,
         })
@@ -284,23 +284,22 @@ impl Path {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-// This will be used for non primitive data types like Arrays and Structs
 pub struct LetStatement {
-    pub identifier: Ident,
+    pub pattern: Pattern,
     pub r#type: Type,
     pub expression: Expression,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ConstStatement {
-    pub identifier: Ident,
+    pub pattern: Pattern,
     pub r#type: Type, // This will always be a Literal FieldElement
     pub expression: Expression,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct PrivateStatement {
-    pub identifier: Ident,
+    pub pattern: Pattern,
     pub r#type: Type,
     pub expression: Expression,
 }
@@ -313,6 +312,20 @@ pub struct AssignStatement {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ConstrainStatement(pub InfixExpression);
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum Pattern {
+    Identifier(Ident),
+    Mutable(Ident),
+    Tuple(Vec<Pattern>),
+    Struct(Ident, Vec<(Ident, Pattern)>),
+}
+
+impl Recoverable for Pattern {
+    fn error(span: Span) -> Self {
+        Pattern::Identifier(Ident::error(span))
+    }
+}
 
 impl Display for Statement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -334,7 +347,7 @@ impl Display for LetStatement {
         write!(
             f,
             "let {}: {} = {}",
-            self.identifier, self.r#type, self.expression
+            self.pattern, self.r#type, self.expression
         )
     }
 }
@@ -344,7 +357,7 @@ impl Display for ConstStatement {
         write!(
             f,
             "const {}: {} = {}",
-            self.identifier, self.r#type, self.expression
+            self.pattern, self.r#type, self.expression
         )
     }
 }
@@ -354,7 +367,7 @@ impl Display for PrivateStatement {
         write!(
             f,
             "priv {}: {} = {}",
-            self.identifier, self.r#type, self.expression
+            self.pattern, self.r#type, self.expression
         )
     }
 }
@@ -407,5 +420,22 @@ impl Display for NoirStruct {
         }
 
         write!(f, "}}")
+    }
+}
+
+impl Display for Pattern {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Pattern::Identifier(name) => name.fmt(f),
+            Pattern::Mutable(name) => write!(f, "mut {}", name),
+            Pattern::Tuple(fields) => {
+                let fields = vecmap(fields, ToString::to_string);
+                write!(f, "({})", fields.join(", "))
+            }
+            Pattern::Struct(typename, fields) => {
+                let fields = vecmap(fields, |(name, pattern)| format!("{}: {}", name, pattern));
+                write!(f, "{} {{ {} }}", typename, fields.join(", "))
+            }
+        }
     }
 }
