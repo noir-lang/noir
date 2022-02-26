@@ -16,7 +16,6 @@ using namespace plonk::stdlib::types::turbo;
 using namespace plonk::stdlib::merkle_tree;
 using namespace rollup::proofs::notes::native;
 using namespace rollup::proofs::notes::native::claim;
-using namespace rollup::proofs::notes::native::defi_interaction;
 
 namespace {
 std::shared_ptr<waffle::FileReferenceStringFactory> srs;
@@ -61,7 +60,6 @@ class claim_tests : public ::testing::Test {
         tx.defi_note_index = defi_note_index;
         tx.defi_interaction_note = interaction_note;
         tx.defi_interaction_note_path = defi_tree->get_hash_path(interaction_note.interaction_nonce);
-        tx.defi_interaction_note_dummy_nullifier_nonce = fr::random_element();
 
         tx.output_value_a = ((uint512_t(claim_note.deposit_value) * uint512_t(interaction_note.total_output_value_a)) /
                              uint512_t(interaction_note.total_input_value))
@@ -892,7 +890,7 @@ TEST_F(claim_tests, test_claim_2_outputs_full_proof)
     ASSERT_TRUE(result.verified);
 
     uint256_t nullifier1 = compute_nullifier(note1.commit());
-    uint256_t nullifier2 = compute_dummy_nullifier(note2.commit(), tx.defi_interaction_note_dummy_nullifier_nonce);
+    uint256_t nullifier2 = defi_interaction::compute_nullifier(note2.commit(), note1.commit());
 
     // Compute expected public inputs.
     auto proof_data = inner_proof_data(result.proof_data);
@@ -971,7 +969,7 @@ TEST_F(claim_tests, test_claim_1_output_full_proof)
     auto proof_data = inner_proof_data(result.proof_data);
 
     uint256_t nullifier1 = compute_nullifier(note1.commit());
-    uint256_t nullifier2 = compute_dummy_nullifier(note2.commit(), tx.defi_interaction_note_dummy_nullifier_nonce);
+    uint256_t nullifier2 = defi_interaction::compute_nullifier(note2.commit(), note1.commit());
 
     const value_note expected_output_note1 = { .value = 20,
                                                .asset_id = bridge_id.output_asset_id_a,
@@ -1050,7 +1048,7 @@ TEST_F(claim_tests, test_claim_1_output_with_virtual_note_full_proof)
     auto proof_data = inner_proof_data(result.proof_data);
 
     uint256_t nullifier1 = compute_nullifier(note1.commit());
-    uint256_t nullifier2 = compute_dummy_nullifier(note2.commit(), tx.defi_interaction_note_dummy_nullifier_nonce);
+    uint256_t nullifier2 = defi_interaction::compute_nullifier(note2.commit(), note1.commit());
 
     const value_note expected_output_note1 = { .value = 20,
                                                .asset_id = bridge_id.output_asset_id_a,
@@ -1125,7 +1123,7 @@ TEST_F(claim_tests, test_claim_refund_full_proof)
     auto proof_data = inner_proof_data(result.proof_data);
 
     uint256_t nullifier1 = compute_nullifier(note1.commit());
-    uint256_t nullifier2 = compute_dummy_nullifier(note2.commit(), tx.defi_interaction_note_dummy_nullifier_nonce);
+    uint256_t nullifier2 = defi_interaction::compute_nullifier(note2.commit(), note1.commit());
 
     const value_note expected_output_note1 = { .value = 10,
                                                .asset_id = bridge_id.input_asset_id_a,

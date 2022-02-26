@@ -13,11 +13,11 @@ using namespace plonk::stdlib::types::turbo;
 /**
  * nonce - randomness provided by the user (sdk) to ensure uniqueness.
  */
-inline field_ct compute_dummy_nullifier(field_ct const& defi_interaction_note_commitment, field_ct const& nonce)
+inline field_ct compute_nullifier(field_ct const& defi_interaction_note_commitment, field_ct const& nonce)
 {
     return pedersen::compress(std::vector<field_ct>{ defi_interaction_note_commitment, nonce },
                               true,
-                              GeneratorIndex::DEFI_INTERACTION_NOTE_DUMMY_NULLIFIER);
+                              GeneratorIndex::DEFI_INTERACTION_NULLIFIER);
 }
 
 } // namespace defi_interaction

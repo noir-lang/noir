@@ -14,10 +14,10 @@ using namespace barretenberg;
 /**
  * nonce - randomness provided by the user (sdk) to ensure uniqueness
  */
-inline auto compute_dummy_nullifier(grumpkin::fq const& defi_interaction_note_commitment, grumpkin::fq nonce)
+inline auto compute_nullifier(grumpkin::fq const& defi_interaction_note_commitment, grumpkin::fq nonce)
 {
     return crypto::pedersen::compress_native(std::vector<barretenberg::fr>{ defi_interaction_note_commitment, nonce },
-                                             GeneratorIndex::DEFI_INTERACTION_NOTE_DUMMY_NULLIFIER);
+                                             GeneratorIndex::DEFI_INTERACTION_NULLIFIER);
 }
 
 } // namespace defi_interaction

@@ -45,8 +45,6 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
      *         (certain bits aren't yet allowed, and some bits can contradict each other)
      */
     const auto defi_interaction_note = circuit::defi_interaction::note({ composer, tx.defi_interaction_note });
-    const auto defi_interaction_note_dummy_nullifier_nonce =
-        field_ct(witness_ct(&composer, tx.defi_interaction_note_dummy_nullifier_nonce));
     const auto output_value_a =
         suint_ct(witness_ct(&composer, tx.output_value_a), NOTE_VALUE_BIT_LENGTH, "output_value_a");
     const auto output_value_b =
@@ -104,10 +102,10 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
     // a unique input_nullifier (from the defi-deposit tx which created it)).
     const auto nullifier1 = circuit::claim::compute_nullifier(claim_note.commitment);
 
-    // The second nullifier is a 'dummy', in the sense that it won't prevent other users from also referring to this
-    // defi-interaction note - each user can generate a valid dummy nullifier by providing a unique nonce.
-    const auto nullifier2 = circuit::defi_interaction::compute_dummy_nullifier(
-        defi_interaction_note.commitment, defi_interaction_note_dummy_nullifier_nonce);
+    // We 'nullify' this (claim note, defi interaction note) combination. Each owner of a claim note can produce a valid
+    // nullifier.
+    const auto nullifier2 =
+        circuit::defi_interaction::compute_nullifier(defi_interaction_note.commitment, claim_note.commitment);
 
     field_ct output_note_commitment1;
     field_ct output_note_commitment2;

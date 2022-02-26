@@ -1,3 +1,3 @@
 #pragma once
-#include "compute_dummy_nullifier.hpp"
+#include "compute_nullifier.hpp"
 #include "note.hpp"

@@ -3,7 +3,7 @@
 #include "../notes/native/claim/claim_note.hpp"
 #include "../notes/native/claim/compute_nullifier.hpp"
 #include "../notes/native/defi_interaction/note.hpp"
-#include "../notes/native/defi_interaction/compute_dummy_nullifier.hpp"
+#include "../notes/native/defi_interaction/compute_nullifier.hpp"
 #include <stdlib/merkle_tree/hash_path.hpp>
 #include <stdlib/types/turbo.hpp>
 
@@ -24,8 +24,6 @@ struct claim_tx {
     uint32_t defi_note_index;
     merkle_tree::fr_hash_path defi_interaction_note_path;
     notes::native::defi_interaction::note defi_interaction_note;
-
-    fr defi_interaction_note_dummy_nullifier_nonce;
 
     fr output_value_a;
     fr output_value_b;
@@ -67,8 +65,7 @@ struct claim_tx {
             claim_note.value_note_partial_commitment,
             success ? output_value_b : fr(claim_note.deposit_value),
             asset_id_b,
-            notes::native::defi_interaction::compute_dummy_nullifier(defi_interaction_note.commit(),
-                                                                     defi_interaction_note_dummy_nullifier_nonce));
+            notes::native::defi_interaction::compute_nullifier(defi_interaction_note.commit(), claim_note.commit()));
 
         bool has_output_two =
             success && (bridge_id.config.second_output_real || bridge_id.config.second_output_virtual);
@@ -89,7 +86,6 @@ template <typename B> inline void read(B& buf, claim_tx& tx)
     read(buf, tx.defi_note_index);
     read(buf, tx.defi_interaction_note_path);
     read(buf, tx.defi_interaction_note);
-    read(buf, tx.defi_interaction_note_dummy_nullifier_nonce);
     read(buf, tx.output_value_a);
     read(buf, tx.output_value_b);
 }
@@ -105,7 +101,6 @@ template <typename B> inline void write(B& buf, claim_tx const& tx)
     write(buf, tx.defi_note_index);
     write(buf, tx.defi_interaction_note_path);
     write(buf, tx.defi_interaction_note);
-    write(buf, tx.defi_interaction_note_dummy_nullifier_nonce);
     write(buf, tx.output_value_a);
     write(buf, tx.output_value_b);
 }
@@ -118,8 +113,6 @@ inline std::ostream& operator<<(std::ostream& os, claim_tx const& tx)
               << "claim_note_path: " << tx.claim_note_path << "\n"
               << "defi_note_index: " << tx.defi_note_index << "\n"
               << "interaction_note_path: " << tx.defi_interaction_note_path << "\n"
-              << "defi_interaction_note_dummy_nullifier_nonce: " << tx.defi_interaction_note_dummy_nullifier_nonce
-              << "\n"
               << "output_value_a: " << tx.output_value_a << "\n"
               << "output_value_b: " << tx.output_value_b << "\n";
 }

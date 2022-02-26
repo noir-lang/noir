@@ -33,8 +33,6 @@ TEST(client_proofs_claim_tx, test_serialization)
     tx.defi_interaction_note.total_output_value_b = 890;
     tx.defi_interaction_note.interaction_result = 1;
 
-    tx.defi_interaction_note_dummy_nullifier_nonce = fr::random_element();
-
     tx.output_value_a = 888;
     tx.output_value_b = 999;
 
