@@ -520,12 +520,13 @@ point<C> pedersen<C>::conditionally_accumulate(const std::vector<point>& to_accu
     return accumulator;
 }
 
+// called unsafe because allowing the option of not validating the input elements are unique, i.e. <r
 template <typename C>
-field_t<C> pedersen<C>::compress(const field_t& in_left,
-                                 const field_t& in_right,
-                                 const size_t hash_index,
-                                 const bool allow_zero_input,
-                                 const bool validate_input_is_in_field)
+field_t<C> pedersen<C>::compress_unsafe(const field_t& in_left,
+                                        const field_t& in_right,
+                                        const size_t hash_index,
+                                        const bool allow_zero_input,
+                                        const bool validate_input_is_in_field)
 {
     if constexpr (C::type == waffle::ComposerType::PLOOKUP) {
         return pedersen_plookup<C>::compress(in_left, in_right);
@@ -608,19 +609,6 @@ template <typename C> field_t<C> pedersen<C>::compress(const byte_array& input)
 
     field_t output = field_t::conditional_assign(is_zero, field_t(num_bytes), compressed);
     return output;
-}
-
-template <typename C>
-point<C> pedersen<C>::compress_to_point(const field_t& in_left, const field_t& in_right, const size_t hash_index)
-{
-    if constexpr (C::type == waffle::ComposerType::PLOOKUP) {
-        return pedersen_plookup<C>::compress_to_point(in_left, in_right);
-    }
-    generator_index_t index_1 = { hash_index, 0 };
-    generator_index_t index_2 = { hash_index, 1 };
-    point first = hash_single(in_left, index_1);
-    point second = hash_single(in_right, index_2);
-    return add_points(first, second);
 }
 
 template class pedersen<waffle::StandardComposer>;

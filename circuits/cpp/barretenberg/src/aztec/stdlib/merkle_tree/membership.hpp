@@ -45,7 +45,7 @@ bool_t<Composer> check_subtree_membership(field_t<Composer> const& root,
         // current iff path_bit If either of these does not hold, then the final computed merkle root will not match
         field_t<Composer> left = field_t<Composer>::conditional_assign(path_bit, hashes[i].first, current);
         field_t<Composer> right = field_t<Composer>::conditional_assign(path_bit, current, hashes[i].second);
-        current = pedersen<Composer>::compress(left, right, 0, false, is_updating_tree);
+        current = pedersen<Composer>::compress_unsafe(left, right, 0, false, is_updating_tree);
     }
 
     return (current == root);

@@ -25,11 +25,19 @@ template <typename ComposerContext> class pedersen {
     static point conditionally_accumulate(const std::vector<point>& to_accumulate, const std::vector<field_t>& inputs);
 
   public:
+    // called unsafe because allowing the option of not validating the input elements are unique, i.e. <r
+    static field_t compress_unsafe(const field_t& left,
+                                   const field_t& right,
+                                   const size_t hash_index,
+                                   const bool handle_edge_cases,
+                                   const bool validate_input_is_in_field);
     static field_t compress(const field_t& left,
                             const field_t& right,
                             const size_t hash_index = 0,
-                            const bool allow_zero_input = false,
-                            const bool validate_input_is_in_field = true);
+                            const bool allow_zero_input = false)
+    {
+        return compress_unsafe(left, right, hash_index, allow_zero_input, true);
+    }
 
     static field_t compress(const std::vector<field_t>& inputs,
                             const bool allow_zero_input = false,
@@ -44,16 +52,15 @@ template <typename ComposerContext> class pedersen {
 
     static field_t compress(const byte_array& inputs);
 
-    static point compress_to_point(const field_t& left, const field_t& right, const size_t hash_index = 0);
-
-    static point commit(const std::vector<field_t>& inputs,
-                        const size_t hash_index = 0,
-                        const bool allow_zero_input = true);
-
     static void validate_wnaf_is_in_field(ComposerContext* ctx,
                                           const std::vector<uint32_t>& accumulator,
                                           const field_t& in,
                                           const bool allow_zero_input);
+
+  private:
+    static point commit(const std::vector<field_t>& inputs,
+                        const size_t hash_index = 0,
+                        const bool allow_zero_input = true);
 };
 
 extern template class pedersen<waffle::StandardComposer>;
