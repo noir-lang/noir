@@ -1,17 +1,21 @@
-use crate::Type;
+use std::rc::Rc;
+
+use noirc_errors::Span;
+
+use crate::{Type, StructType};
 
 use super::expr::HirInfixExpression;
 use crate::node_interner::{ExprId, IdentId};
 #[derive(Debug, Clone)]
 pub struct HirLetStatement {
-    pub identifier: IdentId,
+    pub pattern: HirPattern,
     pub r#type: Type,
     pub expression: ExprId,
 }
 
 #[derive(Debug, Clone)]
 pub struct HirConstStatement {
-    pub identifier: IdentId,
+    pub pattern: HirPattern,
     pub r#type: Type,
     pub expression: ExprId,
 }
@@ -26,7 +30,7 @@ pub struct HirPublicStatement {
 
 #[derive(Debug, Clone)]
 pub struct HirPrivateStatement {
-    pub identifier: IdentId,
+    pub pattern: HirPattern,
     pub r#type: Type,
     pub expression: ExprId,
 }
@@ -38,12 +42,14 @@ pub struct HirAssignStatement {
 
 #[derive(Debug, Clone)]
 pub struct HirConstrainStatement(pub HirInfixExpression);
+
 #[derive(Debug, Clone)]
 pub struct BinaryStatement {
     pub lhs: ExprId,
     pub r#type: Type,
     pub expression: ExprId,
 }
+
 #[derive(Debug, Clone)]
 pub enum HirStatement {
     Let(HirLetStatement),
@@ -54,4 +60,12 @@ pub enum HirStatement {
     Expression(ExprId),
     Semi(ExprId),
     Error,
+}
+
+#[derive(Debug, Clone)]
+pub enum HirPattern {
+    Identifier(IdentId),
+    Mutable(Box<HirPattern>, Span),
+    Tuple(Vec<HirPattern>, Span),
+    Struct(Rc<StructType>, Vec<(IdentId, HirPattern)>, Span)
 }

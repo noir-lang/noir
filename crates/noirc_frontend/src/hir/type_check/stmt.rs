@@ -1,6 +1,6 @@
 use crate::hir_def::stmt::{
     HirAssignStatement, HirConstStatement, HirConstrainStatement, HirLetStatement,
-    HirPrivateStatement, HirStatement,
+    HirPrivateStatement, HirStatement, HirPattern,
 };
 use crate::node_interner::{ExprId, NodeInterner, StmtId};
 use crate::Type;
@@ -52,6 +52,47 @@ pub(crate) fn type_check(
     Type::Unit
 }
 
+pub fn bind_pattern(
+    interner: &mut NodeInterner,
+    pattern: &HirPattern,
+    typ: Type,
+    errors: &mut Vec<TypeCheckError>,
+) {
+    match pattern {
+        HirPattern::Identifier(id) => interner.push_ident_type(id, typ),
+        HirPattern::Mutable(pattern, _) => bind_pattern(interner, &pattern, typ, errors),
+        HirPattern::Tuple(_fields, _span) => {
+            todo!("Implement tuple types")
+        },
+        HirPattern::Struct(struct_type, fields, span) => {
+            match typ {
+                Type::Struct(inner) if inner.id == struct_type.id => {
+                    let mut pattern_fields = fields.clone();
+                    let mut type_fields = inner.fields.clone();
+
+                    pattern_fields.sort_by_key(|(id, _)| {
+                        interner.ident(id)
+                    });
+                    type_fields.sort_by_key(|(ident, _)| ident.clone());
+
+                    for (pattern_field, type_field) in pattern_fields.into_iter().zip(type_fields) {
+                        assert_eq!(interner.ident(&pattern_field.0), type_field.0);
+                        bind_pattern(interner, &pattern_field.1, type_field.1, errors);
+                    }
+                },
+                Type::Error => (),
+                other => {
+                    errors.push(TypeCheckError::TypeMismatch {
+                        expected_typ: other.to_string(),
+                        expr_typ: other.to_string(),
+                        expr_span: *span,
+                    });
+                }
+            }
+        },
+    }
+}
+
 fn type_check_assign_stmt(
     interner: &mut NodeInterner,
     assign_stmt: HirAssignStatement,
@@ -91,8 +132,8 @@ fn type_check_priv_stmt(
         });
     }
 
-    // Set the type of the identifier to be equal to the annotated type
-    interner.push_ident_type(&priv_stmt.identifier, resolved_type);
+    // Set the type of the pattern to be equal to the annotated type
+    bind_pattern(interner, &priv_stmt.pattern, resolved_type, errors);
 }
 
 fn type_check_let_stmt(
@@ -112,8 +153,8 @@ fn type_check_let_stmt(
         });
     }
 
-    // Set the type of the identifier to be equal to the annotated type
-    interner.push_ident_type(&let_stmt.identifier, resolved_type);
+    // Set the type of the pattern to be equal to the annotated type
+    bind_pattern(interner, &let_stmt.pattern, resolved_type, errors);
 }
 
 fn type_check_const_stmt(
@@ -137,7 +178,7 @@ fn type_check_const_stmt(
         );
     }
 
-    interner.push_ident_type(&const_stmt.identifier, resolved_type);
+    bind_pattern(interner, &const_stmt.pattern, resolved_type, errors);
 }
 
 fn type_check_constrain_stmt(

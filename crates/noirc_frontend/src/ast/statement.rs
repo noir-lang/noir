@@ -316,9 +316,9 @@ pub struct ConstrainStatement(pub InfixExpression);
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Pattern {
     Identifier(Ident),
-    Mutable(Ident),
-    Tuple(Vec<Pattern>),
-    Struct(Ident, Vec<(Ident, Pattern)>),
+    Mutable(Box<Pattern>, Span),
+    Tuple(Vec<Pattern>, Span),
+    Struct(Path, Vec<(Ident, Pattern)>, Span),
 }
 
 impl Recoverable for Pattern {
@@ -427,12 +427,12 @@ impl Display for Pattern {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Pattern::Identifier(name) => name.fmt(f),
-            Pattern::Mutable(name) => write!(f, "mut {}", name),
-            Pattern::Tuple(fields) => {
+            Pattern::Mutable(name, _) => write!(f, "mut {}", name),
+            Pattern::Tuple(fields, _) => {
                 let fields = vecmap(fields, ToString::to_string);
                 write!(f, "({})", fields.join(", "))
             }
-            Pattern::Struct(typename, fields) => {
+            Pattern::Struct(typename, fields, _) => {
                 let fields = vecmap(fields, |(name, pattern)| format!("{}: {}", name, pattern));
                 write!(f, "{} {{ {} }}", typename, fields.join(", "))
             }

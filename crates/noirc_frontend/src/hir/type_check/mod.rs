@@ -11,6 +11,8 @@ use expr::type_check_expression;
 
 use crate::node_interner::{FuncId, NodeInterner};
 
+use self::stmt::bind_pattern;
+
 /// Type checks a function and assigns the
 /// appropriate types to expressions in a side table
 pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<TypeCheckError> {
@@ -21,15 +23,15 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     let declared_return_type = &meta.return_type;
     let can_ignore_ret = meta.can_ignore_return_type();
 
+    let mut errors = vec![];
     for param in meta.parameters.into_iter() {
-        interner.push_ident_type(&param.0, param.1);
+        bind_pattern(interner, &param.0, param.1, &mut errors);
     }
 
     // Fetch the HirFunction and iterate all of it's statements
     let hir_func = interner.function(&func_id);
     let func_as_expr = hir_func.as_expr();
 
-    let mut errors = vec![];
     let function_last_type = type_check_expression(interner, func_as_expr, &mut errors);
 
     // Check declared return type and actual return type
@@ -61,6 +63,7 @@ mod test {
 
     use noirc_errors::{Span, Spanned};
 
+    use crate::hir_def::stmt::HirPattern::Identifier;
     use crate::node_interner::{FuncId, NodeInterner};
     use crate::{graph::CrateId, Ident};
     use crate::{
@@ -116,7 +119,7 @@ mod test {
 
         // Create priv statement
         let priv_stmt = HirPrivateStatement {
-            identifier: z_id,
+            pattern: Identifier(z_id),
             r#type: crate::Type::Unspecified,
             expression: expr_id,
         };
@@ -133,7 +136,7 @@ mod test {
             name: String::from("test_func"),
             kind: FunctionKind::Normal,
             attributes: None,
-            parameters: vec![Param(x_id, Type::WITNESS), Param(y_id, Type::WITNESS)].into(),
+            parameters: vec![Param(Identifier(x_id), Type::WITNESS), Param(Identifier(y_id), Type::WITNESS)].into(),
             return_type: Type::Unit,
             has_body: true,
         };

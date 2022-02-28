@@ -292,8 +292,8 @@ fn pattern() -> impl NoirParser<Pattern> {
         let ident_pattern = ident().map(|name| Pattern::Identifier(name));
 
         let mut_pattern = keyword(Keyword::Mut)
-            .ignore_then(ident())
-            .map(|name| Pattern::Mutable(name));
+            .ignore_then(pattern.clone())
+            .map_with_span(|inner, span| Pattern::Mutable(Box::new(inner), span));
 
         let shortfield = ident().map(|name| (name.clone(), Pattern::Identifier(name)));
         let longfield = ident()
@@ -305,14 +305,14 @@ fn pattern() -> impl NoirParser<Pattern> {
             .separated_by(just(Token::Comma))
             .delimited_by(just(Token::LeftBrace), just(Token::RightBrace));
 
-        let struct_pattern = ident()
+        let struct_pattern = path()
             .then(struct_pattern_fields)
-            .map(|(typename, fields)| Pattern::Struct(typename, fields));
+            .map_with_span(|(typename, fields), span| Pattern::Struct(typename, fields, span));
 
         let tuple_pattern = pattern
             .separated_by(just(Token::Comma))
             .delimited_by(just(Token::LeftParen), just(Token::RightParen))
-            .map(|fields| Pattern::Tuple(fields));
+            .map_with_span(|fields, span| Pattern::Tuple(fields, span));
 
         choice((mut_pattern, tuple_pattern, struct_pattern, ident_pattern))
     })
