@@ -738,7 +738,7 @@ mod test {
     use noirc_errors::{CustomDiagnostic, DiagnosableError};
 
     use super::*;
-    use crate::{ArrayLiteral, Literal, UnresolvedType};
+    use crate::{ArrayLiteral, Literal};
 
     fn parse_with<P, T>(parser: P, program: &str) -> Result<T, Vec<CustomDiagnostic>>
     where
