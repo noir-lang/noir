@@ -106,9 +106,7 @@ pub trait Recoverable {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Statement {
     Let(LetStatement),
-    Const(ConstStatement),
     Constrain(ConstrainStatement),
-    Private(PrivateStatement),
     Expression(Expression),
     Assign(AssignStatement),
     // This is an expression with a trailing semi-colon
@@ -136,22 +134,6 @@ impl Statement {
         })
     }
 
-    pub fn new_const(((pattern, r#type), expression): ((Pattern, Type), Expression)) -> Statement {
-        Statement::Const(ConstStatement {
-            pattern,
-            r#type,
-            expression,
-        })
-    }
-
-    pub fn new_priv(((pattern, r#type), expression): ((Pattern, Type), Expression)) -> Statement {
-        Statement::Private(PrivateStatement {
-            pattern,
-            r#type,
-            expression,
-        })
-    }
-
     pub fn add_semicolon(
         self,
         semi: Option<Token>,
@@ -161,15 +143,13 @@ impl Statement {
     ) -> Statement {
         match self {
             Statement::Let(_)
-            | Statement::Const(_)
             | Statement::Constrain(_)
-            | Statement::Private(_)
             | Statement::Assign(_)
             | Statement::Semi(_)
             | Statement::Error => {
                 // To match rust, statements always require a semicolon, even at the end of a block
                 if semi.is_none() {
-                    let reason = "Expected a ; after this statement".to_string();
+                    let reason = "Expected a ; separating these two statements".to_string();
                     emit_error(ParserError::with_reason(reason, span));
                 }
                 self
@@ -193,7 +173,7 @@ impl Statement {
                     // for unneeded expressions like { 1 + 2; 3 }
                     (_, Some(_), false) => Statement::Expression(expr),
                     (_, None, false) => {
-                        let reason = "Expected a ; after this expression".to_string();
+                        let reason = "Expected a ; separating these two statements".to_string();
                         emit_error(ParserError::with_reason(reason, span));
                         Statement::Expression(expr)
                     }
@@ -291,20 +271,6 @@ pub struct LetStatement {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ConstStatement {
-    pub pattern: Pattern,
-    pub r#type: Type, // This will always be a Literal FieldElement
-    pub expression: Expression,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct PrivateStatement {
-    pub pattern: Pattern,
-    pub r#type: Type,
-    pub expression: Expression,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AssignStatement {
     pub identifier: Ident,
     pub expression: Expression,
@@ -331,9 +297,7 @@ impl Display for Statement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Statement::Let(let_statement) => let_statement.fmt(f),
-            Statement::Const(const_statement) => const_statement.fmt(f),
             Statement::Constrain(constrain) => constrain.fmt(f),
-            Statement::Private(private) => private.fmt(f),
             Statement::Expression(expression) => expression.fmt(f),
             Statement::Assign(assign) => assign.fmt(f),
             Statement::Semi(semi) => write!(f, "{};", semi),
@@ -347,26 +311,6 @@ impl Display for LetStatement {
         write!(
             f,
             "let {}: {} = {}",
-            self.pattern, self.r#type, self.expression
-        )
-    }
-}
-
-impl Display for ConstStatement {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "const {}: {} = {}",
-            self.pattern, self.r#type, self.expression
-        )
-    }
-}
-
-impl Display for PrivateStatement {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "priv {}: {} = {}",
             self.pattern, self.r#type, self.expression
         )
     }

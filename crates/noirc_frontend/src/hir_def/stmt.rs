@@ -2,10 +2,10 @@ use std::rc::Rc;
 
 use noirc_errors::Span;
 
-use crate::{Type, StructType};
-
 use super::expr::HirInfixExpression;
 use crate::node_interner::{ExprId, IdentId};
+use crate::{Type, StructType};
+
 #[derive(Debug, Clone)]
 pub struct HirLetStatement {
     pub pattern: HirPattern,
@@ -13,27 +13,6 @@ pub struct HirLetStatement {
     pub expression: ExprId,
 }
 
-#[derive(Debug, Clone)]
-pub struct HirConstStatement {
-    pub pattern: HirPattern,
-    pub r#type: Type,
-    pub expression: ExprId,
-}
-
-#[derive(Debug, Clone)]
-#[deprecated = "we will no longer support declaration of public variables"]
-pub struct HirPublicStatement {
-    pub identifier: IdentId,
-    pub r#type: Type,
-    pub expression: ExprId,
-}
-
-#[derive(Debug, Clone)]
-pub struct HirPrivateStatement {
-    pub pattern: HirPattern,
-    pub r#type: Type,
-    pub expression: ExprId,
-}
 #[derive(Debug, Clone)]
 pub struct HirAssignStatement {
     pub identifier: IdentId,
@@ -53,9 +32,7 @@ pub struct BinaryStatement {
 #[derive(Debug, Clone)]
 pub enum HirStatement {
     Let(HirLetStatement),
-    Const(HirConstStatement),
     Constrain(HirConstrainStatement),
-    Private(HirPrivateStatement),
     Assign(HirAssignStatement),
     Expression(ExprId),
     Semi(ExprId),
