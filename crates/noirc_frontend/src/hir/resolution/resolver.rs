@@ -392,7 +392,7 @@ impl<'a> Resolver<'a> {
     fn resolve_pattern_mutable(&mut self, pattern: Pattern, mutable: Option<Span>) -> HirPattern {
         match pattern {
             Pattern::Identifier(name) => {
-                let id = self.interner.push_ident(name);
+                let id = self.add_variable_decl(name);
                 HirPattern::Identifier(id)
             },
             Pattern::Mutable(pattern, span) => {
