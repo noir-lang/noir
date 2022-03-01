@@ -16,7 +16,7 @@ use acvm::FieldElement;
 use acvm::Language;
 use environment::{Environment, FuncContext};
 use errors::{RuntimeError, RuntimeErrorKind};
-use noirc_frontend::hir::Context;
+use noirc_frontend::{hir::Context, hir_def::stmt::HirPattern};
 use noirc_frontend::hir_def::{
     expr::{
         HirBinaryOp, HirBinaryOpKind, HirBlockExpression, HirCallExpression, HirExpression,
@@ -306,6 +306,15 @@ impl<'a> Evaluator<'a> {
         Ok(())
     }
 
+    fn pattern_name(&self, pattern: &HirPattern) -> String {
+        match pattern {
+            HirPattern::Identifier(id) => self.context.def_interner.ident_name(id),
+            HirPattern::Mutable(pattern, _) => self.pattern_name(pattern),
+            HirPattern::Tuple(_, _) => todo!("Implement tuples in the backend"),
+            HirPattern::Struct(_, _, _) => todo!("Implement structs in the backend"),
+        }
+    }
+
     fn evaluate_statement(
         &mut self,
         env: &mut Environment,
@@ -318,7 +327,8 @@ impl<'a> Evaluator<'a> {
                 self.handle_constrain_statement(env, constrain_stmt)
             }
             HirStatement::Const(x) => {
-                let variable_name: String = self.context.def_interner.ident_name(&x.identifier);
+                let variable_name = self.pattern_name(&x.pattern);
+
                 // const can only be integers/Field elements, cannot involve the witness, so we can possibly move this to
                 // analysis. Right now it would not make a difference, since we are not compiling to an intermediate Noir format
                 let span = self.context.def_interner.expr_span(&x.expression);
@@ -350,14 +360,14 @@ impl<'a> Evaluator<'a> {
                 let typ = dbg!(self.context.def_interner.id_type(ident_def));
                 if typ.can_be_used_in_priv() {
                     let stmt = HirPrivateStatement {
-                        identifier: assign_stmt.identifier,
+                        pattern: HirPattern::Identifier(assign_stmt.identifier),
                         r#type: typ,
                         expression: assign_stmt.expression,
                     };
                     self.handle_private_statement(env, stmt)
                 } else if typ.can_be_used_in_let() {
                     let stmt = HirLetStatement {
-                        identifier: assign_stmt.identifier,
+                        pattern: HirPattern::Identifier(assign_stmt.identifier),
                         r#type: typ,
                         expression: assign_stmt.expression,
                     };
@@ -383,7 +393,7 @@ impl<'a> Evaluator<'a> {
         let rhs_span = self.context.def_interner.expr_span(&x.expression);
         let rhs_poly = self.expression_to_object(env, &x.expression)?;
 
-        let variable_name = self.context.def_interner.ident_name(&x.identifier);
+        let variable_name = self.pattern_name(&x.pattern);
         // We do not store it in the environment yet, because it may need to be casted to an integer
         let witness = self.add_witness_to_cs();
 
@@ -491,7 +501,7 @@ impl<'a> Evaluator<'a> {
         let_stmt: HirLetStatement,
     ) -> Result<Object, RuntimeError> {
         // Convert the LHS into an identifier
-        let variable_name = self.context.def_interner.ident_name(&let_stmt.identifier);
+        let variable_name = self.pattern_name(&let_stmt.pattern);
 
         // XXX: Currently we only support arrays using this, when other types are introduced
         // we can extend into a separate (generic) module
@@ -669,9 +679,7 @@ impl<'a> Evaluator<'a> {
         let func_meta = self.context.def_interner.function_meta(&func_id);
 
         for (param, argument) in func_meta.parameters.iter().zip(arguments.into_iter()) {
-            let param_id = param.0;
-            let param_name = self.context.def_interner.ident_name(&param_id);
-
+            let param_name = self.pattern_name(&param.0);
             new_env.store(param_name, argument);
         }
 

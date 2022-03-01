@@ -14,6 +14,7 @@ use acvm::FieldElement;
 use arena;
 use noirc_frontend::hir::Context;
 use noirc_frontend::hir_def::function::HirFunction;
+use noirc_frontend::hir_def::stmt::HirPattern;
 use noirc_frontend::hir_def::{
     expr::{HirBinaryOp, HirBinaryOpKind, HirExpression, HirForExpression, HirLiteral},
     stmt::{HirConstrainStatement, HirLetStatement, HirPrivateStatement, HirStatement},
@@ -623,6 +624,18 @@ impl<'a> IRGenerator<'a> {
         result
     }
 
+    fn pattern_name_and_def(&self, pattern: &HirPattern) -> (String, Option<IdentId>) {
+        match pattern {
+            HirPattern::Identifier(id) => {
+                let interner = &self.context().def_interner;
+                (interner.ident_name(id), interner.ident_def(id))
+            }
+            HirPattern::Mutable(pattern, _) => self.pattern_name_and_def(pattern),
+            HirPattern::Tuple(_, _) => todo!("Implement tuples in the backend"),
+            HirPattern::Struct(_, _, _) => todo!("Implement structs in the backend"),
+        }
+    }
+
     //TODO: refactor properly so that one function handle the creation of a new variable and generates the ass opcode, and use it in priv,let,assign
     //then add the priv feature: a priv variable should never be assigned to a const value (n.b. because apparently this would indicate a bug in a user program)
     //so handle_private_statement should add the 'priv' attribute to the variable, and the handle_assign should check for it when assigning a const to a 'priv'var.
@@ -632,11 +645,7 @@ impl<'a> IRGenerator<'a> {
         priv_stmt: HirPrivateStatement,
     ) -> Result<arena::Index, RuntimeError> {
         // Create a new variable
-        let variable_name = self
-            .context()
-            .def_interner
-            .ident_name(&priv_stmt.identifier);
-        let ident_def = self.context().def_interner.ident_def(&priv_stmt.identifier);
+        let (variable_name, ident_def) = self.pattern_name_and_def(&priv_stmt.pattern);
         let new_var = node::Variable {
             id: self.dummy(),
             obj_type: node::ObjectType::NativeField, //TODO
@@ -671,8 +680,7 @@ impl<'a> IRGenerator<'a> {
         let rtype = rhs.get_type();
 
         // Convert the LHS into an identifier
-        let variable_name = self.context().def_interner.ident_name(&let_stmt.identifier);
-        let ident_def = self.context().def_interner.ident_def(&let_stmt.identifier);
+        let (variable_name, ident_def) = self.pattern_name_and_def(&let_stmt.pattern);
         //Create a new variable;
         //TODO in the name already exists, we should use something else (from env) to find a variable (identid?)
 
