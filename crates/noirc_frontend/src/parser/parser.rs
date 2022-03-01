@@ -270,7 +270,7 @@ where
 
 fn pattern() -> impl NoirParser<Pattern> {
     recursive(|pattern| {
-        let ident_pattern = ident().map(|name| Pattern::Identifier(name));
+        let ident_pattern = ident().map(Pattern::Identifier);
 
         let mut_pattern = keyword(Keyword::Mut)
             .ignore_then(pattern.clone())
@@ -293,7 +293,7 @@ fn pattern() -> impl NoirParser<Pattern> {
         let tuple_pattern = pattern
             .separated_by(just(Token::Comma))
             .delimited_by(just(Token::LeftParen), just(Token::RightParen))
-            .map_with_span(|fields, span| Pattern::Tuple(fields, span));
+            .map_with_span(Pattern::Tuple);
 
         choice((mut_pattern, tuple_pattern, struct_pattern, ident_pattern))
     })
