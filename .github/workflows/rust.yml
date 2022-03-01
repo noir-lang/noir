@@ -18,7 +18,7 @@ jobs:
       matrix:
         toolchain:
           - stable
-          - beta
+          - nightly
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
@@ -30,8 +30,8 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
           override: true
 
-      - name: Install denepencies
-        run: sudo ./barretenberg_dep.sh
+      - name: Install dependencies
+        run: brew update && brew install libomp
         
       - name: Run cargo check
         uses: actions-rs/cargo@v1
