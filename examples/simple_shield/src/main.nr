@@ -17,8 +17,8 @@ fn main(
     // Compute public key from private key to show ownership
     //
     let pubkey = std::scalar_mul::fixed_base(priv_key);
-    priv pubkey_x = pubkey[0];
-    priv pubkey_y = pubkey[1];
+    let pubkey_x = pubkey[0];
+    let pubkey_y = pubkey[1];
 
     // Compute input note commitment
     let note_commitment = std::hash::pedersen([pubkey_x, pubkey_y]);
@@ -30,7 +30,7 @@ fn main(
     let receiver_note_commitment = std::hash::pedersen([to_pubkey_x, to_pubkey_y]);
 
     // Check that the input note nullifier is in the root
-    priv is_member = std::merkle::check_membership(note_root, note_commitment[0], index);
+    let is_member = std::merkle::check_membership(note_root, note_commitment[0], index);
     constrain is_member == 1;
 
     std::set_as_public(receiver_note_commitment[0]);

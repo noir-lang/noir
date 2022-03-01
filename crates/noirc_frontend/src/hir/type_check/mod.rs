@@ -61,6 +61,7 @@ mod test {
 
     use noirc_errors::{Span, Spanned};
 
+    use crate::hir_def::stmt::HirLetStatement;
     use crate::node_interner::{FuncId, NodeInterner};
     use crate::{graph::CrateId, Ident};
     use crate::{
@@ -76,16 +77,16 @@ mod test {
                 HirBinaryOp, HirBinaryOpKind, HirBlockExpression, HirExpression, HirInfixExpression,
             },
             function::{FuncMeta, HirFunction, Param},
-            stmt::{HirPrivateStatement, HirStatement},
+            stmt::HirStatement,
         },
         util::vecmap,
     };
 
     #[test]
-    fn basic_priv() {
+    fn basic_let() {
         let mut interner = NodeInterner::default();
 
-        // Add a simple Priv Statement into the interner
+        // Add a simple let Statement into the interner
         // let z = x + y;
         //
         // Push x variable
@@ -114,17 +115,17 @@ mod test {
         };
         let expr_id = interner.push_expr(HirExpression::Infix(expr));
 
-        // Create priv statement
-        let priv_stmt = HirPrivateStatement {
+        // Create let statement
+        let let_stmt = HirLetStatement {
             identifier: z_id,
             r#type: crate::Type::Unspecified,
             expression: expr_id,
         };
-        let stmt_id = interner.push_stmt(HirStatement::Private(priv_stmt));
+        let stmt_id = interner.push_stmt(HirStatement::Let(let_stmt));
 
         let expr_id = interner.push_expr(HirExpression::Block(HirBlockExpression(vec![stmt_id])));
 
-        // Create function to enclose the private statement
+        // Create function to enclose the let statement
         let func = HirFunction::unsafe_from_expr(expr_id);
         let func_id = interner.push_fn(func);
 
@@ -144,36 +145,24 @@ mod test {
     }
 
     #[test]
-    fn basic_priv_simplified() {
-        let src = r#"
-
-            fn main(x : Field) {
-                priv k = x;
-                priv _z = x + k;
-            }
-
-        "#;
-
-        type_check_src_code(src, vec![String::from("main")]);
-    }
-    #[test]
     #[should_panic]
     fn basic_let_stmt() {
         let src = r#"
             fn main(x : Field) {
                 let k = [x,x];
-                priv _z = x + k;
+                let _z = x + k;
             }
         "#;
 
         type_check_src_code(src, vec![String::from("main")]);
     }
+
     #[test]
     fn basic_index_expr() {
         let src = r#"
             fn main(x : Field) {
                 let k = [x,x];
-                priv _z = x + k[0];
+                let _z = x + k[0];
             }
         "#;
 
@@ -183,7 +172,7 @@ mod test {
     fn basic_call_expr() {
         let src = r#"
             fn main(x : Field) {
-                priv _z = x + foo(x);
+                let _z = x + foo(x);
             }
 
             fn foo(x : Field) -> Field {
