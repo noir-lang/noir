@@ -58,7 +58,8 @@ pub struct Parameters(Vec<Param>);
 impl Parameters {
     pub fn into_abi(self, interner: &NodeInterner) -> Abi {
         let parameters = vecmap(self.0, |param| {
-            let param_name = get_param_name(&param.0, interner).expect("Abi for tuple and struct parameters is unimplemented");
+            let param_name = get_param_name(&param.0, interner)
+                .expect("Abi for tuple and struct parameters is unimplemented");
             (param_name, param.1.as_abi_type())
         });
         noirc_abi::Abi { parameters }

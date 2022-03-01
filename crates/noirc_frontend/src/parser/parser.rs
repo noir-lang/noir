@@ -104,8 +104,7 @@ fn attribute() -> impl NoirParser<Attribute> {
 }
 
 fn struct_fields() -> impl NoirParser<Vec<(Ident, Type)>> {
-    let type_parser =
-        parse_type_with_visibility(optional_const(), parse_type_no_field_element());
+    let type_parser = parse_type_with_visibility(optional_const(), parse_type_no_field_element());
 
     ident()
         .then_ignore(just(Token::Colon))

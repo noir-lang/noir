@@ -4,7 +4,7 @@ use noirc_errors::Span;
 
 use super::expr::HirInfixExpression;
 use crate::node_interner::{ExprId, IdentId};
-use crate::{Type, StructType};
+use crate::{StructType, Type};
 
 #[derive(Debug, Clone)]
 pub struct HirLetStatement {
@@ -44,5 +44,5 @@ pub enum HirPattern {
     Identifier(IdentId),
     Mutable(Box<HirPattern>, Span),
     Tuple(Vec<HirPattern>, Span),
-    Struct(Rc<StructType>, Vec<(IdentId, HirPattern)>, Span)
+    Struct(Rc<StructType>, Vec<(IdentId, HirPattern)>, Span),
 }

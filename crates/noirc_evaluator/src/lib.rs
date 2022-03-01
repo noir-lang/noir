@@ -16,15 +16,18 @@ use acvm::FieldElement;
 use acvm::Language;
 use environment::{Environment, FuncContext};
 use errors::{RuntimeError, RuntimeErrorKind};
-use noirc_frontend::{hir_def::{
-    expr::{
-        HirBinaryOp, HirBinaryOpKind, HirBlockExpression, HirCallExpression, HirExpression,
-        HirForExpression, HirLiteral,
-    },
-    stmt::{HirConstrainStatement, HirStatement, HirPattern},
-}, FieldElementType};
-use noirc_frontend::node_interner::{ExprId, FuncId, IdentId, StmtId};
 use noirc_frontend::hir::Context;
+use noirc_frontend::node_interner::{ExprId, FuncId, IdentId, StmtId};
+use noirc_frontend::{
+    hir_def::{
+        expr::{
+            HirBinaryOp, HirBinaryOpKind, HirBlockExpression, HirCallExpression, HirExpression,
+            HirForExpression, HirLiteral,
+        },
+        stmt::{HirConstrainStatement, HirPattern, HirStatement},
+    },
+    FieldElementType,
+};
 use noirc_frontend::{FunctionKind, Type};
 use object::{Array, Integer, Object, RangedObject};
 pub struct Evaluator<'a> {

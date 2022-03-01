@@ -36,7 +36,7 @@ use crate::{
     BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
     Statement,
 };
-use crate::{Path, StructType, ERROR_IDENT, Pattern};
+use crate::{Path, Pattern, StructType, ERROR_IDENT};
 use noirc_errors::{Span, Spanned};
 
 use crate::hir::scope::{
@@ -365,7 +365,12 @@ impl<'a> Resolver<'a> {
                 let type_id = self.lookup_type(constructor.type_name);
                 HirExpression::Constructor(HirConstructorExpression {
                     type_id,
-                    fields: self.resolve_constructor_fields(type_id, constructor.fields, span, Resolver::resolve_expression),
+                    fields: self.resolve_constructor_fields(
+                        type_id,
+                        constructor.fields,
+                        span,
+                        Resolver::resolve_expression,
+                    ),
                     r#type: self.get_struct(type_id),
                 })
             }
@@ -394,7 +399,7 @@ impl<'a> Resolver<'a> {
             Pattern::Identifier(name) => {
                 let id = self.add_variable_decl(name);
                 HirPattern::Identifier(id)
-            },
+            }
             Pattern::Mutable(pattern, span) => {
                 if let Some(first_mut) = mutable {
                     self.push_err(ResolverError::UnnecessaryMut {
@@ -409,14 +414,16 @@ impl<'a> Resolver<'a> {
             Pattern::Tuple(fields, span) => {
                 let fields = vecmap(fields, |field| self.resolve_pattern_mutable(field, mutable));
                 HirPattern::Tuple(fields, span)
-            },
+            }
             Pattern::Struct(name, fields, span) => {
                 let struct_id = self.lookup_type(name);
                 let struct_type = self.get_struct(struct_id);
-                let resolve_field = |this: &mut Self, pattern| this.resolve_pattern_mutable(pattern, mutable);
-                let fields = self.resolve_constructor_fields(struct_id, fields, span, resolve_field);
+                let resolve_field =
+                    |this: &mut Self, pattern| this.resolve_pattern_mutable(pattern, mutable);
+                let fields =
+                    self.resolve_constructor_fields(struct_id, fields, span, resolve_field);
                 HirPattern::Struct(struct_type, fields, span)
-            },
+            }
         }
     }
 
@@ -433,7 +440,8 @@ impl<'a> Resolver<'a> {
         span: Span,
         mut resolve_function: F,
     ) -> Vec<(IdentId, U)>
-        where F: FnMut(&mut Self, T) -> U
+    where
+        F: FnMut(&mut Self, T) -> U,
     {
         let mut ret = Vec::with_capacity(fields.len());
         let mut seen_fields = HashSet::new();

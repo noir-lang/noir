@@ -1,5 +1,5 @@
 use crate::hir_def::stmt::{
-    HirAssignStatement, HirConstrainStatement, HirLetStatement, HirStatement, HirPattern,
+    HirAssignStatement, HirConstrainStatement, HirLetStatement, HirPattern, HirStatement,
 };
 use crate::node_interner::{ExprId, NodeInterner, StmtId};
 use crate::Type;
@@ -60,31 +60,27 @@ pub fn bind_pattern(
         HirPattern::Mutable(pattern, _) => bind_pattern(interner, &pattern, typ, errors),
         HirPattern::Tuple(_fields, _span) => {
             todo!("Implement tuple types")
-        },
-        HirPattern::Struct(struct_type, fields, span) => {
-            match typ {
-                Type::Struct(inner) if inner.id == struct_type.id => {
-                    let mut pattern_fields = fields.clone();
-                    let mut type_fields = inner.fields.clone();
+        }
+        HirPattern::Struct(struct_type, fields, span) => match typ {
+            Type::Struct(inner) if inner.id == struct_type.id => {
+                let mut pattern_fields = fields.clone();
+                let mut type_fields = inner.fields.clone();
 
-                    pattern_fields.sort_by_key(|(id, _)| {
-                        interner.ident(id)
-                    });
-                    type_fields.sort_by_key(|(ident, _)| ident.clone());
+                pattern_fields.sort_by_key(|(id, _)| interner.ident(id));
+                type_fields.sort_by_key(|(ident, _)| ident.clone());
 
-                    for (pattern_field, type_field) in pattern_fields.into_iter().zip(type_fields) {
-                        assert_eq!(interner.ident(&pattern_field.0), type_field.0);
-                        bind_pattern(interner, &pattern_field.1, type_field.1, errors);
-                    }
-                },
-                Type::Error => (),
-                other => {
-                    errors.push(TypeCheckError::TypeMismatch {
-                        expected_typ: other.to_string(),
-                        expr_typ: other.to_string(),
-                        expr_span: *span,
-                    });
+                for (pattern_field, type_field) in pattern_fields.into_iter().zip(type_fields) {
+                    assert_eq!(interner.ident(&pattern_field.0), type_field.0);
+                    bind_pattern(interner, &pattern_field.1, type_field.1, errors);
                 }
+            }
+            Type::Error => (),
+            other => {
+                errors.push(TypeCheckError::TypeMismatch {
+                    expected_typ: other.to_string(),
+                    expr_typ: other.to_string(),
+                    expr_span: *span,
+                });
             }
         },
     }

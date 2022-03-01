@@ -137,7 +137,11 @@ mod test {
             name: String::from("test_func"),
             kind: FunctionKind::Normal,
             attributes: None,
-            parameters: vec![Param(Identifier(x_id), Type::WITNESS), Param(Identifier(y_id), Type::WITNESS)].into(),
+            parameters: vec![
+                Param(Identifier(x_id), Type::WITNESS),
+                Param(Identifier(y_id), Type::WITNESS),
+            ]
+            .into(),
             return_type: Type::Unit,
             has_body: true,
         };
