@@ -237,6 +237,9 @@ pub(crate) fn type_check_expression(
         }
         HirExpression::MemberAccess(access) => check_member_access(access, interner, errors),
         HirExpression::Error => Type::Error,
+        HirExpression::Tuple(elements) => Type::Tuple(vecmap(&elements, |elem| {
+            type_check_expression(interner, elem, errors)
+        })),
     };
 
     interner.push_expr_type(expr_id, typ.clone());
@@ -279,9 +282,10 @@ pub fn infix_operand_type_rules(
         (Integer(_,_, _), typ) | (typ,Integer(_,_, _)) => {
             Err(format!("Integer cannot be used with type {}", typ))
         }
-        // Currently, arrays and structs are not supported in binary operations
+        // These types are not supported in binary operations
         (Array(_,_,_), _) | (_, Array(_,_,_)) => Err("Arrays cannot be used in an infix operation".to_string()),
         (Struct(_), _) | (_, Struct(_)) => Err("Structs cannot be used in an infix operation".to_string()),
+        (Tuple(_), _) | (_, Tuple(_)) => Err("Tuples cannot be used in an infix operation".to_string()),
 
         // An error type on either side will always return an error
         (Error, _) | (_,Error) => Ok(Error),
@@ -391,6 +395,12 @@ pub fn check_member_access(
     if let Type::Struct(s) = &lhs_type {
         if let Some(field) = s.fields.iter().find(|(name, _)| name == &access.rhs) {
             return field.1.clone();
+        }
+    } else if let Type::Tuple(elements) = &lhs_type {
+        if let Ok(index) = access.rhs.0.contents.parse::<usize>() {
+            if index < elements.len() {
+                return elements[index].clone();
+            }
         }
     }
 

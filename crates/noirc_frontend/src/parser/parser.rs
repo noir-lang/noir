@@ -13,7 +13,7 @@ use crate::{
 use crate::{
     AssignStatement, BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, ForExpression,
     FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, NoirStruct, Path,
-    PathKind, UnaryOp,
+    PathKind, Recoverable, UnaryOp,
 };
 
 use chumsky::prelude::*;
@@ -328,7 +328,8 @@ where
     choice((
         field_type(visibility_parser.clone()),
         int_type(visibility_parser.clone()),
-        array_type(visibility_parser, recursive_type_parser),
+        array_type(visibility_parser, recursive_type_parser.clone()),
+        tuple_type(recursive_type_parser),
     ))
 }
 
@@ -406,6 +407,18 @@ where
             let size = size.unwrap_or(ArraySize::Variable);
             Ok(Type::Array(visibility, size, Box::new(element_type)))
         })
+}
+
+fn tuple_type<T>(type_parser: T) -> impl NoirParser<Type>
+where
+    T: NoirParser<Type>,
+{
+    parenthesized(
+        type_parser
+            .separated_by(just(Token::Comma))
+            .allow_trailing(),
+    )
+    .map(Type::Tuple)
 }
 
 fn expression() -> impl ExprParser {
@@ -580,8 +593,17 @@ where
         literal(),
     ))
     .map_with_span(Expression::new)
-    .or(parenthesized(expr_parser))
+    .or(parenthesized(expr_parser.clone()))
+    .or(tuple(expr_parser))
     .labelled("value")
+}
+
+fn tuple<P>(expr_parser: P) -> impl NoirParser<Expression>
+where
+    P: ExprParser,
+{
+    parenthesized(expression_list(expr_parser))
+        .map_with_span(|elements, span| Expression::new(ExpressionKind::Tuple(elements), span))
 }
 
 // Parses a value followed by 0 or more member accesses
@@ -590,9 +612,22 @@ where
     P: ExprParser,
 {
     let rhs = just(Token::Dot)
-        .ignore_then(ident())
+        .ignore_then(field_name())
         .labelled("field access");
     foldl_with_span(value(expr_parser), rhs, Expression::member_access)
+}
+
+fn field_name() -> impl NoirParser<Ident> {
+    ident().or(
+        tokenkind(TokenKind::Literal).validate(|token, span, emit| match token {
+            Token::Int(_) => Ident::from(Spanned::from(span, token.to_string())),
+            other => {
+                let reason = format!("Unexpected '{}', expected a field name", other);
+                emit(ParserError::with_reason(reason, span));
+                Ident::error(span)
+            }
+        }),
+    )
 }
 
 // Parses a member_access followed by 0 or more cast expressions

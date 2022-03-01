@@ -140,7 +140,7 @@ impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Token::Ident(ref s) => write!(f, "{}", s),
-            Token::Int(n) => write!(f, "{:?}", n),
+            Token::Int(n) => write!(f, "{}", n.to_u128()),
             Token::Bool(b) => write!(f, "{}", b),
             Token::Str(ref b) => write!(f, "{}", b),
             Token::Keyword(k) => write!(f, "{}", k),
