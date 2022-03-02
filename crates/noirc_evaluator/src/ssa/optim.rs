@@ -10,8 +10,8 @@ use std::collections::{HashMap, VecDeque};
 //if NodeEval is a constant, it may creates a new NodeObj corresponding to the constant value
 pub fn to_index(eval: &mut IRGenerator, obj: node::NodeEval) -> Index {
     match obj {
-        node::NodeEval::Const(c, t) => eval.get_const(c, t),
-        node::NodeEval::Idx(i) => i,
+        node::NodeEval::Const(c, t) => eval.get_or_create_const(c, t),
+        node::NodeEval::Instruction(i) => i,
     }
 }
 
@@ -19,7 +19,7 @@ pub fn to_index(eval: &mut IRGenerator, obj: node::NodeEval) -> Index {
 pub fn to_const(eval: &IRGenerator, obj: node::NodeEval) -> node::NodeEval {
     match obj {
         node::NodeEval::Const(_, _) => obj,
-        node::NodeEval::Idx(i) => {
+        node::NodeEval::Instruction(i) => {
             if let Some(node::NodeObj::Const(c)) = eval.get_object(i) {
                 return node::NodeEval::Const(
                     FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be()),
@@ -34,13 +34,13 @@ pub fn to_const(eval: &IRGenerator, obj: node::NodeEval) -> node::NodeEval {
 // Performs constant folding, arithmetic simplifications and move to standard form
 pub fn simplify(eval: &mut IRGenerator, ins: &mut node::Instruction) {
     //1. constant folding
-    let l_eval = to_const(eval, node::NodeEval::Idx(ins.lhs));
-    let r_eval = to_const(eval, node::NodeEval::Idx(ins.rhs));
+    let l_eval = to_const(eval, node::NodeEval::Instruction(ins.lhs));
+    let r_eval = to_const(eval, node::NodeEval::Instruction(ins.rhs));
     let idx = match ins.evaluate(&l_eval, &r_eval) {
-        NodeEval::Const(c, t) => eval.get_const(c, t),
-        NodeEval::Idx(i) => i,
+        NodeEval::Const(c, t) => eval.get_or_create_const(c, t),
+        NodeEval::Instruction(i) => i,
     };
-    if idx != ins.idx {
+    if idx != ins.id {
         ins.is_deleted = true;
         ins.rhs = idx;
         return;
@@ -63,7 +63,7 @@ pub fn simplify(eval: &mut IRGenerator, ins: &mut node::Instruction) {
         match ins.operator {
             node::Operation::Udiv => {
                 //TODO handle other bitsize, not only u32!!
-                ins.rhs = eval.get_const(
+                ins.rhs = eval.get_or_create_const(
                     FieldElement::from((1_u32 / (r_const.to_u128() as u32)) as i128),
                     r_type,
                 );
@@ -71,14 +71,14 @@ pub fn simplify(eval: &mut IRGenerator, ins: &mut node::Instruction) {
             }
             node::Operation::Sdiv => {
                 //TODO handle other bitsize, not only i32!!
-                ins.rhs = eval.get_const(
+                ins.rhs = eval.get_or_create_const(
                     FieldElement::from((1_i32 / (r_const.to_u128() as i32)) as i128),
                     r_type,
                 );
                 ins.operator = node::Operation::Mul
             }
             node::Operation::Div => {
-                ins.rhs = eval.get_const(r_const.inverse(), r_type);
+                ins.rhs = eval.get_or_create_const(r_const.inverse(), r_type);
                 ins.operator = node::Operation::Mul
             }
             node::Operation::Xor => {
@@ -204,8 +204,8 @@ pub fn block_cse(
                         to_update_phi = true;
                     }
                 }
-                if let Some(first) = node::Instruction::simplify_phi(ins.idx, &phi_args) {
-                    if first == ins.idx {
+                if let Some(first) = node::Instruction::simplify_phi(ins.id, &phi_args) {
+                    if first == ins.id {
                         new_list.push(*iter);
                     } else {
                         to_delete = true;

@@ -49,11 +49,11 @@ pub fn get_obj_max_value(
 
     let result = match obj_ {
         node::NodeObj::Obj(v) => {
-            dbg!(v.bits());
-            if v.bits() > 100 {
+            dbg!(v.size_in_bits());
+            if v.size_in_bits() > 100 {
                 dbg!(&v);
             }
-            (BigUint::one() << v.bits()) - BigUint::one()
+            (BigUint::one() << v.size_in_bits()) - BigUint::one()
         } //TODO check for signed type
         node::NodeObj::Instr(i) => get_instruction_max(eval, i, max_map, vmap),
         node::NodeObj::Const(c) => c.value.clone(), //TODO panic for string constants
@@ -106,7 +106,7 @@ pub fn fix_truncate(
     vmap: &mut HashMap<arena::Index, arena::Index>,
 ) {
     if let Some(ins) = eval.try_get_mut_instruction(idx) {
-        ins.idx = idx;
+        ins.id = idx;
         ins.parent_block = block_idx;
         vmap.insert(prev_id, idx);
     }
@@ -240,14 +240,14 @@ pub fn block_overflow(
         let r_max = get_obj_max_value(eval, Some(r_obj), r_id, max_map, &value_map);
         get_obj_max_value(eval, Some(l_obj), l_id, max_map, &value_map);
         //insert required truncates
-        let to_truncate = ins.truncate_required(l_obj.bits(), r_obj.bits());
+        let to_truncate = ins.truncate_required(l_obj.size_in_bits(), r_obj.size_in_bits());
         if to_truncate.0 {
             //adds a new truncate(lhs) instruction
-            add_to_truncate(eval, l_id, l_obj.bits(), &mut truncate_map, max_map);
+            add_to_truncate(eval, l_id, l_obj.size_in_bits(), &mut truncate_map, max_map);
         }
         if to_truncate.1 {
             //adds a new truncate(rhs) instruction
-            add_to_truncate(eval, r_id, r_obj.bits(), &mut truncate_map, max_map);
+            add_to_truncate(eval, r_id, r_obj.size_in_bits(), &mut truncate_map, max_map);
         }
         if ins.operator == node::Operation::Cast {
             //TODO for now the types we support here are only all integer types (field, signed, unsigned, bool)
@@ -266,7 +266,9 @@ pub fn block_overflow(
                 ins.is_deleted = true;
                 ins.rhs = ins.lhs;
             }
-            if ins.res_type.bits() < l_obj.bits() && r_max.bits() as u32 > ins.res_type.bits() {
+            if ins.res_type.bits() < l_obj.size_in_bits()
+                && r_max.bits() as u32 > ins.res_type.bits()
+            {
                 //we need to truncate
                 update_instruction = true;
                 trunc_size = FieldElement::from(ins.res_type.bits() as i128);
@@ -288,8 +290,10 @@ pub fn block_overflow(
             //- insert truncate(rhs) dans la list des instructions
             //- update r_max et l_max
             //n.b we could try to truncate only one of them, but then we should check if rhs==lhs.
-            let l_trunc_max = add_to_truncate(eval, l_id, l_obj.bits(), &mut truncate_map, max_map);
-            let r_trunc_max = add_to_truncate(eval, r_id, r_obj.bits(), &mut truncate_map, max_map);
+            let l_trunc_max =
+                add_to_truncate(eval, l_id, l_obj.size_in_bits(), &mut truncate_map, max_map);
+            let r_trunc_max =
+                add_to_truncate(eval, r_id, r_obj.size_in_bits(), &mut truncate_map, max_map);
             ins_max = get_max_value(&ins, l_trunc_max.clone(), r_trunc_max.clone());
             if ins_max.bits() >= FieldElement::max_num_bits().into() {
                 let message = format!(
@@ -308,7 +312,7 @@ pub fn block_overflow(
             b_idx,
             &mut value_map,
         );
-        new_list.push(ins.idx);
+        new_list.push(ins.id);
         let l_new = get_value_from_map(l_id, &value_map);
         let r_new = get_value_from_map(r_id, &value_map);
         if l_new != l_id || r_new != r_id || is_sub(&ins.operator) {
@@ -324,9 +328,9 @@ pub fn block_overflow(
             }
             if let Some(modified_ins) = &modify_ins {
                 ins.operator = modified_ins.operator;
-                ins.rhs = eval.get_const(trunc_size, node::ObjectType::Unsigned(32));
+                ins.rhs = eval.get_or_create_const(trunc_size, node::ObjectType::Unsigned(32));
             }
-            update_ins_parameters(eval, ins.idx, l_new, r_new, max_r_value);
+            update_ins_parameters(eval, ins.id, l_new, r_new, max_r_value);
         }
     }
     update_value_array(eval, b_idx, &value_map);

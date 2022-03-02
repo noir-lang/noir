@@ -1,3 +1,4 @@
+use super::node::NodeId;
 use super::node::{Instruction, Operation};
 use acvm::FieldElement;
 use arena::Index;
@@ -17,7 +18,7 @@ use acvm::acir::native_types::{Arithmetic, Linear, Witness};
 use num_bigint::BigUint;
 use std::convert::TryInto;
 pub struct Acir {
-    pub arith_cache: HashMap<Index, InternalVar>,
+    pub arith_cache: HashMap<NodeId, InternalVar>,
 }
 
 #[derive(Clone, Debug)]
@@ -25,20 +26,20 @@ pub struct InternalVar {
     expression: Arithmetic,
     //value: FieldElement,     //not used for now
     witness: Option<Witness>,
-    idx: Option<Index>,
+    id: Option<NodeId>,
 }
 impl InternalVar {
     pub fn is_equal(&self, b: &InternalVar) -> bool {
-        (self.idx.is_some() && self.idx == b.idx)
+        (self.id.is_some() && self.id == b.id)
             || (self.witness.is_some() && self.witness == b.witness)
             || self.expression == b.expression
     }
 
-    fn new(expression: Arithmetic, witness: Option<Witness>, id: Index) -> InternalVar {
+    fn new(expression: Arithmetic, witness: Option<Witness>, id: NodeId) -> InternalVar {
         InternalVar {
             expression,
             witness,
-            idx: Some(id),
+            id: Some(id),
         }
     }
 }
@@ -49,14 +50,14 @@ impl Acir {
     //Substitute a nodeobj as an arithmetic expression
     fn substitute(
         &mut self,
-        idx: Index,
+        id: NodeId,
         evaluator: &mut Evaluator,
-        cfg: &IRGenerator,
+        irgen: &IRGenerator,
     ) -> InternalVar {
-        if self.arith_cache.contains_key(&idx) {
-            return self.arith_cache[&idx].clone();
+        if self.arith_cache.contains_key(&id) {
+            return self.arith_cache[&id].clone();
         }
-        let var = match cfg.get_object(idx) {
+        let var = match irgen.rename_me_get_object(id) {
             Some(node::NodeObj::Const(c)) => {
                 let f_value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be()); //TODO const should be a field
                 let expr = Arithmetic {
@@ -64,7 +65,7 @@ impl Acir {
                     linear_combinations: Vec::new(),
                     q_c: f_value, //TODO handle other types
                 };
-                InternalVar::new(expr, None, idx)
+                InternalVar::new(expr, None, id)
             }
             Some(node::NodeObj::Obj(v)) => {
                 let w = if let Some(w1) = v.witness {
@@ -73,16 +74,17 @@ impl Acir {
                     evaluator.add_witness_to_cs()
                 };
                 let expr = Arithmetic::from(&w);
-                InternalVar::new(expr, Some(w), idx)
+                InternalVar::new(expr, Some(w), id)
             }
             _ => {
                 let w = evaluator.add_witness_to_cs();
                 let expr = Arithmetic::from(&w);
-                InternalVar::new(expr, Some(w), idx)
+                InternalVar::new(expr, Some(w), id)
             }
         };
-        self.arith_cache.insert(idx, var);
-        self.arith_cache[&idx].clone()
+
+        self.arith_cache.insert(id, var.clone());
+        var
     }
 
     pub fn new() -> Acir {
@@ -95,13 +97,13 @@ impl Acir {
         &mut self,
         ins: &Instruction,
         evaluator: &mut Evaluator,
-        cfg: &IRGenerator,
+        irgen: &IRGenerator,
     ) {
         if ins.operator == Operation::Nop {
             return;
         }
-        let l_c = self.substitute(ins.lhs, evaluator, cfg);
-        let r_c = self.substitute(ins.rhs, evaluator, cfg);
+        let l_c = self.substitute(ins.lhs, evaluator, irgen);
+        let r_c = self.substitute(ins.rhs, evaluator, irgen);
         let output = match ins.operator {
             Operation::Add | Operation::SafeAdd => {
                 add(&l_c.expression, FieldElement::one(), &r_c.expression)
@@ -109,7 +111,7 @@ impl Acir {
             Operation::Sub | Operation::SafeSub => {
                 //we need the type of rhs and its max value, then:
                 //lhs-rhs+k*2^bit_size where k=ceil(max_value/2^bit_size)
-                let bit_size = cfg.get_object(ins.rhs).unwrap().bits();
+                let bit_size = irgen[ins.rhs].size_in_bits();
                 let r_big = BigUint::one() << bit_size;
                 let mut k = &ins.max_value / &r_big;
                 if &ins.max_value % &r_big != BigUint::zero() {
@@ -180,11 +182,11 @@ impl Acir {
         let output_var = InternalVar {
             expression: output,
             //value: FieldElement::from(0_u32),
-            idx: Some(ins.idx),
+            id: Some(ins.id),
             witness: None, //TODO put the witness when it exist
         };
 
-        self.arith_cache.insert(ins.idx, output_var);
+        self.arith_cache.insert(ins.id, output_var);
     }
 }
 
@@ -319,7 +321,7 @@ pub fn evaluate_udiv(
     let r_var = InternalVar {
         expression: r_expr,
         witness: Some(r_witness),
-        idx: None,
+        id: None,
     };
     bound_check(&r_var, rhs, true, 32, evaluator); //TODO bit size! should be max(a.bit, b.bit)
                                                    //range check q<=a
