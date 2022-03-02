@@ -263,7 +263,7 @@ pub struct Instruction {
     pub max_value: BigUint, //TODO only for sub instruction: max value of the rhs
 
     //temp: todo phi subtype
-    pub phi_arguments: Vec<(NodeId, NodeId)>,
+    pub phi_arguments: Vec<(NodeId, BlockId)>,
 }
 
 impl std::fmt::Display for Instruction {
@@ -662,7 +662,7 @@ impl Instruction {
     // None, if the instruction is unreachable or in the root block and can be safely deleted
     // Some(id), if the instruction can be replaced by the node id
     // Some(ins_id), if the instruction is not trivial
-    pub fn simplify_phi(ins_id: NodeId, phi_arguments: &[(NodeId, NodeId)]) -> Option<NodeId> {
+    pub fn simplify_phi(ins_id: NodeId, phi_arguments: &[(NodeId, BlockId)]) -> Option<NodeId> {
         let mut same = None;
         for op in phi_arguments {
             if Some(op.0) == same || op.0 == ins_id {

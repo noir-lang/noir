@@ -3,7 +3,6 @@ use super::{
     code_gen::IRGenerator,
     node::{self, NodeId},
 };
-use arena;
 
 // create phi arguments from the predecessors of the block (containing phi)
 pub fn write_phi(igen: &mut IRGenerator, predecessors: &[BlockId], var: NodeId, phi: NodeId) {
@@ -53,7 +52,7 @@ pub fn seal_block(igen: &mut IRGenerator, block_id: BlockId) {
 pub fn get_block_value(igen: &mut IRGenerator, root: NodeId, block_id: BlockId) -> NodeId {
     let result = if !igen.sealed_blocks.contains(&block_id) {
         //incomplete CFG
-        igen.generate_empty_phi(block_id, root);
+        igen.generate_empty_phi(block_id, root)
     } else {
         let block = &igen[block_id];
         if let Some(idx) = block.get_current_value(root) {
@@ -64,15 +63,15 @@ pub fn get_block_value(igen: &mut IRGenerator, root: NodeId, block_id: BlockId) 
             return root;
         }
         if pred.len() == 1 {
-            get_block_value(igen, root, pred[0]);
+            get_block_value(igen, root, pred[0])
         } else {
             let result = igen.generate_empty_phi(block_id, root);
             write_phi(igen, &pred, root, result);
             result
         }
     };
-    let block = igen.get_block_mut(block_id).unwrap();
-    block.update_variable(root, result);
+
+    igen[block_id].update_variable(root, result);
     result
 }
 

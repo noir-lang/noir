@@ -1,11 +1,10 @@
 use super::{
     block::{self, BlockId},
     code_gen::IRGenerator,
-    node::{self, Node, NodeEval, NodeId, Operation},
+    node::{self, Node, NodeEval, NodeId, NodeObj, Operation},
     optim,
 };
 use acvm::FieldElement;
-use arena::Index;
 use std::collections::HashMap;
 
 //Unroll the CFG
@@ -14,19 +13,16 @@ pub fn unroll_tree(eval: &mut IRGenerator) {
     let mut id = eval.first_block;
     let mut unroll_ins = Vec::new();
     let mut eval_map = HashMap::new();
-    let mut from = id;
-    while let Some(next) = outer_unroll(&mut unroll_ins, &mut eval_map, id, from, eval) {
-        from = id;
+    while let Some(next) = outer_unroll(&mut unroll_ins, &mut eval_map, id, eval) {
         id = next;
     }
 }
 
 //Update the block instruction list using the eval_map
-fn eval_block(block_id: Index, eval_map: &HashMap<Index, NodeEval>, eval: &mut IRGenerator) {
-    let block = eval.get_block(block_id);
-    for i in &block.instructions.clone() {
+fn eval_block(block_id: BlockId, eval_map: &HashMap<NodeId, NodeEval>, igen: &mut IRGenerator) {
+    for i in &igen[block_id].instructions.clone() {
         //RIA
-        if let Some(ins) = eval.try_get_mut_instruction(*i) {
+        if let Some(ins) = igen.try_get_mut_instruction(*i) {
             if let Some(value) = eval_map.get(&ins.rhs) {
                 ins.rhs = value.into_node_id().unwrap();
             }
@@ -40,45 +36,39 @@ fn eval_block(block_id: Index, eval_map: &HashMap<Index, NodeEval>, eval: &mut I
 }
 
 pub fn unroll_block(
-    unroll_ins: &mut Vec<Index>, //unrolled instructions
-    eval_map: &mut HashMap<Index, node::NodeEval>,
-    block_id: Index, //block to unroll
-    caller: Index,   //previous block
-    eval: &mut IRGenerator,
-) -> Option<Index> {
-    let block = eval.get_block(block_id);
-    if block.is_join() {
-        return unroll_join(unroll_ins, eval_map, block_id, caller, eval);
-    } else if let Some(i) = unroll_std_block(unroll_ins, eval_map, block_id, caller, eval) {
-        if let Some(ins) = eval.try_get_instruction(i) {
-            return Some(ins.parent_block);
-        }
+    unrolled_instructions: &mut Vec<NodeId>,
+    eval_map: &mut HashMap<NodeId, node::NodeEval>,
+    block_to_unroll: BlockId,
+    igen: &mut IRGenerator,
+) -> Option<BlockId> {
+    if igen[block_to_unroll].is_join() {
+        unroll_join(unrolled_instructions, eval_map, block_to_unroll, igen)
+    } else if let Some(i) = unroll_std_block(unrolled_instructions, eval_map, block_to_unroll, igen)
+    {
+        igen.try_get_instruction(i).map(|ins| ins.parent_block)
+    } else {
+        None
     }
-
-    None
 }
 
 //unroll a normal block by generating new instructions into the unroll_ins list, using and updating the eval_map
 pub fn unroll_std_block(
-    unroll_ins: &mut Vec<Index>, //unrolled instructions
-    eval_map: &mut HashMap<Index, node::NodeEval>,
-    block_id: Index, //block to unroll
-    _caller: Index,  //previous block  TODO to check whether it is needed
-    eval: &mut IRGenerator,
-) -> Option<Index> //first instruction of the left block
+    unrolled_instructions: &mut Vec<NodeId>,
+    eval_map: &mut HashMap<NodeId, node::NodeEval>,
+    block_to_unroll: BlockId,
+    igen: &mut IRGenerator,
+) -> Option<NodeId> //first instruction of the left block
 {
-    let block = eval.get_block(block_id);
+    let block = &igen[block_to_unroll];
     let b_instructions = block.instructions.clone();
     let mut next = None;
     if let Some(left) = block.left {
-        let left_block = eval.get_block(left);
-        if let Some(f) = left_block.instructions.first() {
+        if let Some(f) = igen[left].instructions.first() {
             next = Some(*f);
         }
     }
     for i_id in &b_instructions {
-        let ins = eval.get_object(*i_id).unwrap();
-        match ins {
+        match &igen[*i_id] {
             node::NodeObj::Instr(i) => {
                 let new_left = get_current_value(i.lhs, eval_map).into_node_id().unwrap();
                 let new_right = get_current_value(i.rhs, eval_map).into_node_id().unwrap();
@@ -86,17 +76,17 @@ pub fn unroll_std_block(
                     i.operator, new_left, new_right, i.res_type, None, //TODO to fix later
                 );
                 match i.operator {
-                    node::Operation::Ass => {
+                    Operation::Ass => {
                         unreachable!("unsupported instruction type when unrolling: assign");
                         //To support assignments, we should create a new variable and updates the eval_map with it
                         //however assignments should have already been removed by copy propagation.
                     }
-                    node::Operation::Jmp => {
+                    Operation::Jmp => {
                         return Some(i.rhs);
                     }
-                    node::Operation::Nop => (),
+                    Operation::Nop => (),
                     _ => {
-                        optim::simplify(eval, &mut new_ins);
+                        optim::simplify(igen, &mut new_ins);
                         let result_id;
                         let mut to_delete = false;
                         if new_ins.is_deleted {
@@ -105,8 +95,8 @@ pub fn unroll_std_block(
                                 to_delete = true;
                             }
                         } else {
-                            result_id = eval.nodes.insert(node::NodeObj::Instr(new_ins));
-                            unroll_ins.push(result_id);
+                            result_id = igen.add_instruction(new_ins);
+                            unrolled_instructions.push(result_id);
                         }
                         //ignore self-deleted instructions
                         if !to_delete {
@@ -128,7 +118,7 @@ pub fn unroll_std_block(
 //If there is a nested loop, unroll_block will call recursively unroll_join, keeping unroll list and eval map from the previous one
 pub fn unroll_join(
     unrolled_instructions: &mut Vec<NodeId>,
-    eval_map: &mut HashMap<Index, node::NodeEval>,
+    eval_map: &mut HashMap<NodeId, node::NodeEval>,
     block_to_unroll: BlockId,
     igen: &mut IRGenerator,
 ) -> Option<BlockId> {
@@ -144,7 +134,6 @@ pub fn unroll_join(
     if unrolled_instructions.is_empty() {
         unrolled_instructions.push(*join_instructions.first().unwrap()); //TODO is it needed? we also should assert it is a nop instruction.
     }
-    let mut processed: Vec<Index> = Vec::new();
     while {
         //evaluate the join  block:
         evaluate_phi(&join_instructions, from, eval_map, igen);
@@ -152,15 +141,10 @@ pub fn unroll_join(
     } {
         from = block_to_unroll;
         let mut b_id = body_id;
-        let mut next;
-        while {
-            next = unroll_block(unrolled_instructions, eval_map, b_id, from, igen);
-            processed.push(b_id);
-            next.is_some()
-        } {
+        while let Some(next) = unroll_block(unrolled_instructions, eval_map, b_id, igen) {
             //process next block:
             from = b_id;
-            b_id = next.unwrap();
+            b_id = next;
             if b_id == block_to_unroll {
                 //looping back to the join block; we are done
                 break;
@@ -175,7 +159,6 @@ pub fn outer_unroll(
     unroll_ins: &mut Vec<NodeId>, //unrolled instructions
     eval_map: &mut HashMap<NodeId, node::NodeEval>,
     block_id: BlockId, //block to unroll
-    caller: BlockId,   //previous block
     igen: &mut IRGenerator,
 ) -> Option<BlockId> //next block
 {
@@ -186,7 +169,7 @@ pub fn outer_unroll(
     let block_instructions = block.instructions.clone();
     if block.is_join() {
         //1. unroll the block into the unroll_ins
-        unroll_join(unroll_ins, eval_map, block_id, caller, igen);
+        unroll_join(unroll_ins, eval_map, block_id, igen);
         //2. map the Phis variables to their unrolled values:
         for ins in &block_instructions {
             if let Some(ins_obj) = igen.try_get_instruction(*ins) {
@@ -205,7 +188,7 @@ pub fn outer_unroll(
             }
         }
         //3. Merge the unrolled blocks into the join
-        for ins in unroll_ins {
+        for ins in unroll_ins.iter() {
             igen[*ins].set_id(*ins);
         }
         let join_mut = &mut igen[block_id];
@@ -224,7 +207,7 @@ pub fn outer_unroll(
         if let Some(body_id) = b_right {
             let sub_graph = block::bfs(body_id, block_id, igen);
             for b in sub_graph {
-                igen.blocks.remove(b);
+                igen.remove_block(b);
             }
         }
 
@@ -240,7 +223,7 @@ pub fn outer_unroll(
 //evaluate phi instruction, coming from 'from' block; retrieve the argument corresponding to the block, evaluates it and update the evaluation map
 fn evaluate_phi(
     instructions: &[NodeId],
-    from: NodeId,
+    from: BlockId,
     to: &mut HashMap<NodeId, NodeEval>,
     igen: &mut IRGenerator,
 ) {
@@ -269,8 +252,8 @@ fn evaluate_phi(
 
 //returns true if we should jump
 fn evaluate_conditional_jump(
-    jump: Index,
-    value_array: &mut HashMap<arena::Index, node::NodeEval>,
+    jump: NodeId,
+    value_array: &mut HashMap<NodeId, node::NodeEval>,
     eval: &IRGenerator,
 ) -> bool {
     let jump_ins = eval.try_get_instruction(jump).unwrap();
@@ -314,12 +297,12 @@ fn evaluate_one(
     match get_current_value_for_node_eval(obj, value_array) {
         node::NodeEval::Const(_, _) => obj,
         node::NodeEval::Instruction(obj_id) => {
-            if igen.get_object(obj_id).is_none() {
+            if igen.rename_me_get_object(obj_id).is_none() {
                 return obj;
             }
-            let value = igen.get_object(obj_id).unwrap();
-            match value {
-                node::NodeObj::Instr(i) => {
+
+            match &igen[obj_id] {
+                NodeObj::Instr(i) => {
                     if i.operator == node::Operation::Phi {
                         //n.b phi are handled before, else we should know which block we come from
                         dbg!(i.id);
@@ -330,17 +313,17 @@ fn evaluate_one(
                     let lhr = get_current_value(i.rhs, value_array);
                     let result = i.evaluate(&lhs, &lhr);
                     if let node::NodeEval::Instruction(idx) = result {
-                        if igen.get_object(idx).is_none() {
-                            return node::NodeEval::Instruction(obj_id);
+                        if igen.rename_me_get_object(idx).is_none() {
+                            return NodeEval::Instruction(obj_id);
                         }
                     }
                     result
                 }
-                node::NodeObj::Const(c) => {
+                NodeObj::Const(c) => {
                     let value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
-                    node::NodeEval::Const(value, c.get_type())
+                    NodeEval::Const(value, c.get_type())
                 }
-                _ => node::NodeEval::Instruction(obj_id),
+                NodeObj::Obj(_) => NodeEval::Instruction(obj_id),
             }
         }
     }
@@ -349,42 +332,41 @@ fn evaluate_one(
 //Evaluate an object recursively
 fn evaluate_object(
     obj: node::NodeEval,
-    value_array: &HashMap<arena::Index, NodeEval>,
-    eval: &IRGenerator,
+    value_array: &HashMap<NodeId, NodeEval>,
+    igen: &IRGenerator,
 ) -> node::NodeEval {
     match get_current_value_for_node_eval(obj, value_array) {
         node::NodeEval::Const(_, _) => obj,
         node::NodeEval::Instruction(obj_id) => {
-            if eval.get_object(obj_id).is_none() {
+            if igen.rename_me_get_object(obj_id).is_none() {
                 dbg!(obj_id);
                 return obj;
             }
-            let value = eval.get_object(obj_id).unwrap();
-            // dbg!(value);
-            match value {
-                node::NodeObj::Instr(i) => {
-                    if i.operator == node::Operation::Phi {
+
+            match &igen[obj_id] {
+                NodeObj::Instr(i) => {
+                    if i.operator == Operation::Phi {
                         dbg!(i.id);
-                        return node::NodeEval::Instruction(i.id);
+                        return NodeEval::Instruction(i.id);
                     }
                     //n.b phi are handled before, else we should know which block we come from
                     let lhs =
-                        evaluate_object(get_current_value(i.lhs, value_array), value_array, eval);
+                        evaluate_object(get_current_value(i.lhs, value_array), value_array, igen);
                     let lhr =
-                        evaluate_object(get_current_value(i.rhs, value_array), value_array, eval);
+                        evaluate_object(get_current_value(i.rhs, value_array), value_array, igen);
                     let result = i.evaluate(&lhs, &lhr);
-                    if let node::NodeEval::Instruction(idx) = result {
-                        if eval.get_object(idx).is_none() {
-                            return node::NodeEval::Instruction(obj_id);
+                    if let NodeEval::Instruction(idx) = result {
+                        if igen.rename_me_get_object(idx).is_none() {
+                            return NodeEval::Instruction(obj_id);
                         }
                     }
                     result
                 }
-                node::NodeObj::Const(c) => {
+                NodeObj::Const(c) => {
                     let value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
-                    node::NodeEval::Const(value, c.get_type())
+                    NodeEval::Const(value, c.get_type())
                 }
-                _ => node::NodeEval::Instruction(obj_id),
+                NodeObj::Obj(_) => NodeEval::Instruction(obj_id),
             }
         }
     }

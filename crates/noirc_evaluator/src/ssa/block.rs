@@ -69,8 +69,9 @@ impl BasicBlock {
 pub fn create_first_block(igen: &mut IRGenerator) {
     let first_block = BasicBlock::new(BlockId::dummy(), BlockType::Normal);
     let first_block = igen.insert_block(first_block);
-    igen.first_block = first_block.id;
-    igen.current_block = first_block.id;
+    let first_id = first_block.id;
+    igen.first_block = first_id;
+    igen.current_block = first_id;
     igen.new_instruction(
         NodeId::dummy(),
         NodeId::dummy(),
@@ -82,28 +83,32 @@ pub fn create_first_block(igen: &mut IRGenerator) {
 //Creates a new sealed block (i.e whose predecessors are known)
 //It is not suitable for the first block because it uses the current block.
 pub fn new_sealed_block(igen: &mut IRGenerator, kind: BlockType) -> BlockId {
+    let current_block = igen.current_block;
     let new_block = BasicBlock::new(igen.current_block, kind);
     let new_block = igen.insert_block(new_block);
-    new_block.dominator = Some(igen.current_block);
-    igen.sealed_blocks.insert(new_block.id);
+    let new_id = new_block.id;
+
+    new_block.dominator = Some(current_block);
+    igen.sealed_blocks.insert(new_id);
 
     //update current block
     let cb = igen.get_current_block_mut();
-    cb.left = Some(new_block.id);
-    igen.current_block = new_block.id;
+    cb.left = Some(new_id);
+    igen.current_block = new_id;
     igen.new_instruction(
         NodeId::dummy(),
         NodeId::dummy(),
         node::Operation::Nop,
         node::ObjectType::NotAnObject,
     );
-    new_block.id
+    new_id
 }
 
 //if left is true, the new block is left to the current block
 pub fn new_unsealed_block(igen: &mut IRGenerator, kind: BlockType, left: bool) -> BlockId {
+    let current_block = igen.current_block;
     let new_block = create_block(igen, kind);
-    new_block.dominator = Some(igen.current_block);
+    new_block.dominator = Some(current_block);
     let new_idx = new_block.id;
 
     //update current block
@@ -175,8 +180,9 @@ pub fn bfs(start: BlockId, stop: BlockId, igen: &IRGenerator) -> Vec<BlockId> {
     queue.push_back(start);
 
     while !queue.is_empty() {
-        // TODO: Change back to if let if this fails
-        let test_and_push = |block_opt| {
+        let block = &igen[queue.pop_front().unwrap()];
+
+        let mut test_and_push = |block_opt| {
             if let Some(block_id) = block_opt {
                 if block_id != stop && !result.contains(&block_id) {
                     result.push(block_id);
@@ -185,7 +191,6 @@ pub fn bfs(start: BlockId, stop: BlockId, igen: &IRGenerator) -> Vec<BlockId> {
             }
         };
 
-        let block = &igen[queue.pop_front().unwrap()];
         test_and_push(block.left);
         test_and_push(block.right);
     }

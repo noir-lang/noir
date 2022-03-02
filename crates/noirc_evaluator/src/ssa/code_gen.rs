@@ -91,7 +91,11 @@ impl<'a> IRGenerator<'a> {
             if ins.operator == node::Operation::Phi {
                 ins_str += "(";
                 for (v, b) in &ins.phi_arguments {
-                    ins_str += &format!("{:?}:{:?}, ", v.into_raw_parts().0, b.into_raw_parts().0);
+                    ins_str += &format!(
+                        "{:?}:{:?}, ",
+                        v.0.into_raw_parts().0,
+                        b.0.into_raw_parts().0
+                    );
                 }
                 ins_str += ")";
             }
@@ -108,6 +112,10 @@ impl<'a> IRGenerator<'a> {
 
     pub fn context(&self) -> &Context {
         self.context.unwrap()
+    }
+
+    pub fn remove_block(&mut self, block: BlockId) {
+        self.blocks.remove(block.0);
     }
 
     /// Add an instruction to self.nodes and sets its id.
@@ -335,9 +343,10 @@ impl<'a> IRGenerator<'a> {
         cb.update_variable(var_id, new_value);
         let vname = self.value_name.entry(var_id).or_insert(0);
         *vname += 1;
+        let variable_id = *vname;
 
         if let Ok(nvar) = self.get_mut_variable(new_var) {
-            nvar.name = format!("{root_name}{vname}");
+            nvar.name = format!("{root_name}{variable_id}");
         }
     }
 
@@ -355,7 +364,8 @@ impl<'a> IRGenerator<'a> {
     }
 
     pub fn get_current_block_mut(&mut self) -> &mut block::BasicBlock {
-        &mut self[self.current_block]
+        let current = self.current_block;
+        &mut self[current]
     }
 
     pub fn iter_blocks(&self) -> impl Iterator<Item = &BasicBlock> {
@@ -491,7 +501,9 @@ impl<'a> IRGenerator<'a> {
                     .def_interner
                     .ident_name(&assign_stmt.identifier);
 
-                let lhs = self.find_variable(&ident_def).unwrap_or_else(|| {
+                let lhs = if let Some(variable) = self.find_variable(&ident_def) {
+                    variable
+                } else {
                     //var is not defined,
                     //let's do it here for now...TODO
                     let obj = env.get(&ident_name);
@@ -509,7 +521,7 @@ impl<'a> IRGenerator<'a> {
                     self.get_current_block_mut()
                         .update_variable(new_var2_id, new_var2_id); //DE MEME
                     self.get_variable(new_var2_id).unwrap()
-                });
+                };
 
                 //////////////////////////////----******************************************
                 let new_var = node::Variable {
@@ -844,9 +856,8 @@ impl<'a> IRGenerator<'a> {
         self.current_block = exit_id;
         let exit_first = self.get_current_block().get_first_instruction();
         block::link_with_target(self, join_idx, Some(exit_id), Some(body_id));
-        let to_fix_ins = self.try_get_mut_instruction(to_fix);
-        to_fix_ins.unwrap().rhs = self[body_id].get_first_instruction();
-
+        let first_instruction = self[body_id].get_first_instruction();
+        self.try_get_mut_instruction(to_fix).unwrap().rhs = first_instruction;
         Ok(exit_first) //TODO what should we return???
     }
 
