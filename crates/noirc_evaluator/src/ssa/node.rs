@@ -175,7 +175,7 @@ impl ObjectType {
                 //ObjectType::native_field
             }
             Object::Array(_) => {
-                todo!();//TODO we should match an array in mem: ObjectType::Pointer(0) 
+                todo!(); //TODO we should match an array in mem: ObjectType::Pointer(0)
             }
             Object::Constants(_) => ObjectType::NativeField, //TODO
             Object::Integer(i) => {
