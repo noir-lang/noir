@@ -20,7 +20,7 @@ pub fn to_const(eval: &IRGenerator, obj: NodeEval) -> NodeEval {
     match obj {
         node::NodeEval::Const(_, _) => obj,
         node::NodeEval::Instruction(i) => {
-            if let Some(NodeObj::Const(c)) = eval.rename_me_get_object(i) {
+            if let Some(NodeObj::Const(c)) = eval.try_get_node(i) {
                 return NodeEval::Const(
                     FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be()),
                     c.get_type(),
@@ -49,7 +49,7 @@ pub fn simplify(eval: &mut IRGenerator, ins: &mut node::Instruction) {
     //2. standard form
     ins.standard_form();
     if ins.operator == node::Operation::Cast {
-        if let Some(lhs_obj) = eval.rename_me_get_object(ins.lhs) {
+        if let Some(lhs_obj) = eval.try_get_node(ins.lhs) {
             if lhs_obj.get_type() == ins.res_type {
                 ins.is_deleted = true;
                 ins.rhs = ins.lhs;

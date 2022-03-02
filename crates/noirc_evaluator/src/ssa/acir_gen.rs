@@ -1,7 +1,6 @@
 use super::node::NodeId;
 use super::node::{Instruction, Operation};
 use acvm::FieldElement;
-use arena::Index;
 use num_traits::One;
 use num_traits::Zero;
 use std::cmp::Ordering;
@@ -57,7 +56,7 @@ impl Acir {
         if self.arith_cache.contains_key(&id) {
             return self.arith_cache[&id].clone();
         }
-        let var = match irgen.rename_me_get_object(id) {
+        let var = match irgen.try_get_node(id) {
             Some(node::NodeObj::Const(c)) => {
                 let f_value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be()); //TODO const should be a field
                 let expr = Arithmetic {

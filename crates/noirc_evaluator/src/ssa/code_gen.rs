@@ -66,7 +66,7 @@ impl<'a> IRGenerator<'a> {
 
     //Display an object for debugging puposes
     fn node_to_string(&self, id: NodeId) -> String {
-        if let Some(var) = self.rename_me_get_object(id) {
+        if let Some(var) = self.try_get_node(id) {
             return format!("{}", var);
         } else {
             return format!("unknown {:?}", id.0.into_raw_parts().0);
@@ -135,7 +135,7 @@ impl<'a> IRGenerator<'a> {
     /// Adds the instruction to self.nodes and pushes it to the current block
     pub fn push_instruction(&mut self, instruction: node::Instruction) -> NodeId {
         let id = self.add_instruction(instruction);
-        if let NodeObj::Instr(i) = &self[id] {
+        if let NodeObj::Instr(_) = &self[id] {
             self.get_current_block_mut().instructions.push(id);
         }
         id
@@ -182,11 +182,11 @@ impl<'a> IRGenerator<'a> {
         arena::Index::from_raw_parts(std::usize::MAX, 0)
     }
 
-    pub fn rename_me_get_object(&self, id: NodeId) -> Option<&node::NodeObj> {
+    pub fn try_get_node(&self, id: NodeId) -> Option<&node::NodeObj> {
         self.nodes.get(id.0)
     }
 
-    pub fn rename_me_get_mut_object(&mut self, id: NodeId) -> Option<&mut node::NodeObj> {
+    pub fn try_get_node_mut(&mut self, id: NodeId) -> Option<&mut node::NodeObj> {
         self.nodes.get_mut(id.0)
     }
 
@@ -196,7 +196,7 @@ impl<'a> IRGenerator<'a> {
 
     //Returns the object value if it is a constant, None if not. TODO: handle types
     pub fn get_as_constant(&self, id: NodeId) -> Option<FieldElement> {
-        if let Some(node::NodeObj::Const(c)) = self.rename_me_get_object(id) {
+        if let Some(node::NodeObj::Const(c)) = self.try_get_node(id) {
             return Some(FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be()));
         }
         None
@@ -214,14 +214,14 @@ impl<'a> IRGenerator<'a> {
     }
 
     pub fn try_get_instruction(&self, id: NodeId) -> Option<&node::Instruction> {
-        if let Some(NodeObj::Instr(i)) = self.rename_me_get_object(id) {
+        if let Some(NodeObj::Instr(i)) = self.try_get_node(id) {
             return Some(i);
         }
         None
     }
 
     pub fn try_get_mut_instruction(&mut self, id: NodeId) -> Option<&mut node::Instruction> {
-        if let Some(NodeObj::Instr(i)) = self.rename_me_get_mut_object(id) {
+        if let Some(NodeObj::Instr(i)) = self.try_get_node_mut(id) {
             return Some(i);
         }
         None
@@ -351,11 +351,7 @@ impl<'a> IRGenerator<'a> {
     }
 
     //blocks/////////////////////////
-    pub fn rename_me_get_block(&self, id: BlockId) -> Option<&block::BasicBlock> {
-        self.blocks.get(id.0)
-    }
-
-    pub fn rename_me_get_block_mut(&mut self, id: BlockId) -> Option<&mut block::BasicBlock> {
+    pub fn try_get_block_mut(&mut self, id: BlockId) -> Option<&mut block::BasicBlock> {
         self.blocks.get_mut(id.0)
     }
 

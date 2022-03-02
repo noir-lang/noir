@@ -3,12 +3,11 @@ use super::{
     //block,
     code_gen::IRGenerator,
     node::{self, Instruction, Node, NodeId, NodeObj, Operation},
-    optim,
 };
 use acvm::FieldElement;
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use std::convert::TryInto;
 
 //Returns the maximum bit size of short integers
@@ -123,7 +122,7 @@ fn add_to_truncate(
 ) -> BigUint {
     let v_max = &max_map[&obj_id];
     if *v_max >= BigUint::one() << bit_size {
-        if let Some(node::NodeObj::Const(_)) = &igen.rename_me_get_object(obj_id) {
+        if let Some(node::NodeObj::Const(_)) = &igen.try_get_node(obj_id) {
             return v_max.clone(); //a constant cannot be truncated, so we exit the function gracefully
         }
         let truncate_bits;

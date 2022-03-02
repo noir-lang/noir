@@ -297,7 +297,7 @@ fn evaluate_one(
     match get_current_value_for_node_eval(obj, value_array) {
         node::NodeEval::Const(_, _) => obj,
         node::NodeEval::Instruction(obj_id) => {
-            if igen.rename_me_get_object(obj_id).is_none() {
+            if igen.try_get_node(obj_id).is_none() {
                 return obj;
             }
 
@@ -313,7 +313,7 @@ fn evaluate_one(
                     let lhr = get_current_value(i.rhs, value_array);
                     let result = i.evaluate(&lhs, &lhr);
                     if let node::NodeEval::Instruction(idx) = result {
-                        if igen.rename_me_get_object(idx).is_none() {
+                        if igen.try_get_node(idx).is_none() {
                             return NodeEval::Instruction(obj_id);
                         }
                     }
@@ -338,7 +338,7 @@ fn evaluate_object(
     match get_current_value_for_node_eval(obj, value_array) {
         node::NodeEval::Const(_, _) => obj,
         node::NodeEval::Instruction(obj_id) => {
-            if igen.rename_me_get_object(obj_id).is_none() {
+            if igen.try_get_node(obj_id).is_none() {
                 dbg!(obj_id);
                 return obj;
             }
@@ -356,7 +356,7 @@ fn evaluate_object(
                         evaluate_object(get_current_value(i.rhs, value_array), value_array, igen);
                     let result = i.evaluate(&lhs, &lhr);
                     if let NodeEval::Instruction(idx) = result {
-                        if igen.rename_me_get_object(idx).is_none() {
+                        if igen.try_get_node(idx).is_none() {
                             return NodeEval::Instruction(obj_id);
                         }
                     }

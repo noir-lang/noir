@@ -142,7 +142,7 @@ pub fn link_with_target(
     left: Option<BlockId>,
     right: Option<BlockId>,
 ) {
-    if let Some(target_block) = igen.rename_me_get_block_mut(target) {
+    if let Some(target_block) = igen.try_get_block_mut(target) {
         target_block.right = right;
         target_block.left = left;
         //TODO should also update the last instruction rhs to the first instruction of the current block  -- TODOshoud we do it here??
