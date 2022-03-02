@@ -17,17 +17,17 @@ struct account_tx {
     grumpkin::g1::affine_element new_signing_pub_key_1 = grumpkin::g1::affine_one;
     grumpkin::g1::affine_element new_signing_pub_key_2 = grumpkin::g1::affine_one;
     barretenberg::fr alias_hash;
-    uint32_t nonce;
+    uint32_t account_nonce;
     bool migrate;
 
-    uint32_t account_index;
-    plonk::stdlib::merkle_tree::fr_hash_path account_path;
+    uint32_t account_note_index;
+    plonk::stdlib::merkle_tree::fr_hash_path account_note_path;
     grumpkin::g1::affine_element signing_pub_key = grumpkin::g1::affine_one;
     crypto::schnorr::signature signature;
 
     barretenberg::fr account_alias_id() const
     {
-        return alias_hash + (barretenberg::fr{ (uint64_t)nonce } * barretenberg::fr(2).pow(224));
+        return alias_hash + (barretenberg::fr{ (uint64_t)account_nonce } * barretenberg::fr(2).pow(224));
     }
 
     void sign(crypto::schnorr::key_pair<grumpkin::fr, grumpkin::g1> const& keys);

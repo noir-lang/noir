@@ -32,6 +32,13 @@ bool_t<Composer> check_subtree_membership(field_t<Composer> const& root,
                                           bool const is_updating_tree = false)
 {
     auto is_zero = value.is_zero();
+
+    // NOTICE: this function mutates any zero-valued leaves to be `-1`. This is important if pedersen commitments
+    // disallow zero-valued inputs (such as within this function).
+    //
+    // E.g. The claim circuit can legitimately produce a 2nd output commitment equal to zero. The sibling of such a leaf
+    // in the tree would be unspendable, since hashing up the tree would fail, since an input to pedersen would be zero.
+    // Hence why conversion to -1 is important here.
     auto current = field_t<Composer>::conditional_assign(is_zero, (-field_t<Composer>(1)), value);
 
     for (size_t i = at_height; i < hashes.size(); ++i) {

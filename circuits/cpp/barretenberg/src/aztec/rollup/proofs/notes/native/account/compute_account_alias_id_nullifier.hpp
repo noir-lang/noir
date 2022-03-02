@@ -13,8 +13,8 @@ using namespace barretenberg;
 
 inline fr compute_account_alias_id_nullifier(fr const& account_alias_id)
 {
-    const std::vector<fr> hash_elements{ fr(ProofIds::ACCOUNT), account_alias_id };
-    return crypto::pedersen::compress_native(hash_elements, notes::GeneratorIndex::ACCOUNT_ALIAS_ID_NULLIFIER);
+    return crypto::pedersen::compress_native(std::vector<fr>{ account_alias_id },
+                                             notes::GeneratorIndex::ACCOUNT_ALIAS_ID_NULLIFIER);
 }
 
 } // namespace account

@@ -29,8 +29,8 @@ struct join_split_inputs {
     field_ct merkle_root;
     merkle_tree::hash_path input_path1;
     merkle_tree::hash_path input_path2;
-    suint_ct account_index;
-    merkle_tree::hash_path account_path;
+    suint_ct account_note_index;
+    merkle_tree::hash_path account_note_path;
     field_ct account_private_key;
     suint_ct alias_hash;
     suint_ct nonce;

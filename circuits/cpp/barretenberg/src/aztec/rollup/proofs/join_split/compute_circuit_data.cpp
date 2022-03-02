@@ -39,8 +39,8 @@ join_split_tx noop_tx()
     tx.input_note = { input_note1, input_note2 };
     tx.output_note = { output_note1, output_note2 };
     tx.partial_claim_note = { 0, 0, fr::random_element(), 0 };
-    tx.account_index = 0;
-    tx.account_path = gibberish_path;
+    tx.account_note_index = 0;
+    tx.account_note_path = gibberish_path;
     tx.signing_pub_key = pub_key;
     tx.account_private_key = priv_key;
     tx.alias_hash = 0;

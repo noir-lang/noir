@@ -109,7 +109,7 @@ class join_split_tests : public ::testing::Test {
     join_split_tx create_join_split_tx(std::array<uint32_t, 2> const& input_indicies,
                                        std::array<value::value_note, 2> const& input_notes,
                                        uint32_t tx_asset_id,
-                                       uint32_t account_index = 0,
+                                       uint32_t account_note_index = 0,
                                        uint32_t nonce = 0)
     {
         auto input_nullifier1 = compute_nullifier(input_notes[0].commit(), user.owner.private_key, true);
@@ -134,8 +134,8 @@ class join_split_tests : public ::testing::Test {
         tx.input_note = input_notes;
         tx.output_note = { output_note1, output_note2 };
         tx.public_owner = fr(0);
-        tx.account_index = account_index;
-        tx.account_path = tree->get_hash_path(account_index);
+        tx.account_note_index = account_note_index;
+        tx.account_note_path = tree->get_hash_path(account_note_index);
         tx.signing_pub_key = user.signing_keys[0].public_key;
         tx.asset_id = tx_asset_id;
         tx.account_private_key = user.owner.private_key;
@@ -153,7 +153,7 @@ class join_split_tests : public ::testing::Test {
      * Return a join split tx that spends them.
      */
     join_split_tx simple_setup(std::array<uint32_t, 2> const& input_indicies = { 0, 1 },
-                               uint32_t account_index = 0,
+                               uint32_t account_note_index = 0,
                                uint32_t nonce = 0)
     {
         // The tree, user and {value, virtual}_notes are initialised in SetUp().
@@ -162,7 +162,7 @@ class join_split_tests : public ::testing::Test {
         return create_join_split_tx(input_indicies,
                                     { value_notes[input_indicies[0]], value_notes[input_indicies[1]] },
                                     asset_id,
-                                    account_index,
+                                    account_note_index,
                                     nonce);
     }
 
@@ -301,8 +301,8 @@ class join_split_tests : public ::testing::Test {
         tx.account_private_key = user.owner.private_key;
         tx.alias_hash = rollup::fixtures::generate_alias_hash("penguin");
         tx.nonce = 0;
-        tx.account_index = 0;
-        tx.account_path = tree->get_hash_path(0);
+        tx.account_note_index = 0;
+        tx.account_note_path = tree->get_hash_path(0);
         tx.signing_pub_key = user.signing_keys[0].public_key;
         tx.backward_link = 0;
         tx.allow_chain = 0;

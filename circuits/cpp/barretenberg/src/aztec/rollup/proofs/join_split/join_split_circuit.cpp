@@ -206,9 +206,9 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
         auto account_note_data = account::account_note(account_alias_id.value, account_public_key, signer);
         auto signing_key_exists =
             merkle_tree::check_membership(inputs.merkle_root,
-                                          inputs.account_path,
+                                          inputs.account_note_path,
                                           account_note_data.commitment,
-                                          (inputs.account_index.value.decompose_into_bits(DATA_TREE_DEPTH)));
+                                          inputs.account_note_index.value.decompose_into_bits(DATA_TREE_DEPTH));
         (signing_key_exists || zero_nonce).assert_equal(true, "account check_membership failed");
     }
 
@@ -272,8 +272,9 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
         .merkle_root = witness_ct(&composer, tx.old_data_root),
         .input_path1 = merkle_tree::create_witness_hash_path(composer, tx.input_path[0]),
         .input_path2 = merkle_tree::create_witness_hash_path(composer, tx.input_path[1]),
-        .account_index = suint_ct(witness_ct(&composer, tx.account_index), DATA_TREE_DEPTH, "account_index"),
-        .account_path = merkle_tree::create_witness_hash_path(composer, tx.account_path),
+        .account_note_index =
+            suint_ct(witness_ct(&composer, tx.account_note_index), DATA_TREE_DEPTH, "account_note_index"),
+        .account_note_path = merkle_tree::create_witness_hash_path(composer, tx.account_note_path),
         .account_private_key = witness_ct(&composer, static_cast<fr>(tx.account_private_key)),
         .alias_hash = suint_ct(witness_ct(&composer, tx.alias_hash), ALIAS_HASH_BIT_LENGTH, "alias_hash"),
         .nonce = suint_ct(witness_ct(&composer, tx.nonce), ACCOUNT_NONCE_BIT_LENGTH, "account_nonce"),

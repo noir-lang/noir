@@ -31,10 +31,10 @@ void write(std::vector<uint8_t>& buf, account_tx const& tx)
     write(buf, tx.new_signing_pub_key_1);
     write(buf, tx.new_signing_pub_key_2);
     write(buf, tx.alias_hash);
-    write(buf, tx.nonce);
+    write(buf, tx.account_nonce);
     write(buf, tx.migrate);
-    write(buf, tx.account_index);
-    write(buf, tx.account_path);
+    write(buf, tx.account_note_index);
+    write(buf, tx.account_note_path);
     write(buf, tx.signing_pub_key);
     write(buf, tx.signature);
 }
@@ -48,10 +48,10 @@ void read(uint8_t const*& buf, account_tx& tx)
     read(buf, tx.new_signing_pub_key_1);
     read(buf, tx.new_signing_pub_key_2);
     read(buf, tx.alias_hash);
-    read(buf, tx.nonce);
+    read(buf, tx.account_nonce);
     read(buf, tx.migrate);
-    read(buf, tx.account_index);
-    read(buf, tx.account_path);
+    read(buf, tx.account_note_index);
+    read(buf, tx.account_note_path);
     read(buf, tx.signing_pub_key);
     read(buf, tx.signature);
 }
@@ -64,10 +64,10 @@ std::ostream& operator<<(std::ostream& os, account_tx const& tx)
               << "new_signing_pub_key_1: " << tx.new_signing_pub_key_1 << "\n"
               << "new_signing_pub_key_2: " << tx.new_signing_pub_key_2 << "\n"
               << "alias_hash: " << tx.alias_hash << "\n"
-              << "nonce: " << tx.nonce << "\n"
+              << "account_nonce: " << tx.account_nonce << "\n"
               << "migrate: " << tx.migrate << "\n"
-              << "account_index: " << tx.account_index << "\n"
-              << "account_path: " << tx.account_path << "\n"
+              << "account_note_index: " << tx.account_note_index << "\n"
+              << "account_note_path: " << tx.account_note_path << "\n"
               << "signing_pub_key: " << tx.signing_pub_key << "\n"
               << "signature: " << tx.signature << "\n";
 }

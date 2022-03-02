@@ -58,18 +58,18 @@ class account_tests : public ::testing::Test {
 
     uint256_t compute_account_alias_id_nullifier(fr const& account_alias_id)
     {
-        const std::vector<fr> hash_elements{ fr(ProofIds::ACCOUNT), account_alias_id };
+        const std::vector<fr> hash_elements{ account_alias_id };
         auto result =
             crypto::pedersen::compress_native(hash_elements, notes::GeneratorIndex::ACCOUNT_ALIAS_ID_NULLIFIER);
         return uint256_t(result);
     }
 
-    fr compute_account_alias_id(barretenberg::fr alias_hash, uint32_t nonce)
+    fr compute_account_alias_id(barretenberg::fr alias_hash, uint32_t account_nonce)
     {
-        return alias_hash + (fr{ (uint64_t)nonce } * fr(2).pow(224));
+        return alias_hash + (fr{ (uint64_t)account_nonce } * fr(2).pow(224));
     }
 
-    account_tx create_account_tx(uint32_t nonce = 0)
+    account_tx create_account_tx(uint32_t account_nonce = 0)
     {
         account_tx tx;
         tx.merkle_root = tree->root();
@@ -78,11 +78,11 @@ class account_tests : public ::testing::Test {
         tx.new_signing_pub_key_1 = user.signing_keys[0].public_key;
         tx.new_signing_pub_key_2 = user.signing_keys[1].public_key;
         tx.alias_hash = user.alias_hash;
-        tx.nonce = nonce;
+        tx.account_nonce = account_nonce;
         tx.migrate = true;
-        tx.account_index = 0;
+        tx.account_note_index = 0;
         tx.signing_pub_key = user.signing_keys[0].public_key;
-        tx.account_path = tree->get_hash_path(0);
+        tx.account_note_path = tree->get_hash_path(0);
         tx.sign(user.owner);
 
         return tx;
@@ -95,14 +95,19 @@ class account_tests : public ::testing::Test {
         return verify_proof(proof);
     }
 
-    bool verify_logic(account_tx& tx)
+    struct verify_logic_result {
+        bool valid;
+        std::string err;
+    };
+
+    verify_logic_result verify_logic(account_tx& tx)
     {
         Composer composer(get_proving_key(), nullptr);
         account_circuit(composer, tx);
         if (composer.failed) {
-            std::cout << "Logic failed: " << composer.err << std::endl;
+            info("Circuit logic failed: " + composer.err);
         }
-        return !composer.failed;
+        return { !composer.failed, composer.err };
     }
 
     rollup::fixtures::user_context user;
@@ -113,7 +118,7 @@ class account_tests : public ::testing::Test {
 TEST_F(account_tests, test_create_account)
 {
     auto tx = create_account_tx();
-    EXPECT_TRUE(verify_logic(tx));
+    EXPECT_TRUE(verify_logic(tx).valid);
 }
 
 TEST_F(account_tests, test_create_account_full_proof)
@@ -126,10 +131,23 @@ TEST_F(account_tests, test_migrate_account)
 {
     preload_account_notes();
     auto tx = create_account_tx(1);
-    tx.account_index = 0;
+    tx.account_note_index = 0;
     tx.sign(user.signing_keys[0]);
 
-    EXPECT_TRUE(verify_logic(tx));
+    EXPECT_TRUE(verify_logic(tx).valid);
+}
+
+// Initial migration (account_nonce = 0)
+
+TEST_F(account_tests, test_initial_account_not_migrated_fails)
+{
+    auto tx = create_account_tx();
+    tx.migrate = false;
+    tx.sign(user.owner);
+
+    auto result = verify_logic(tx);
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(result.err, "account must be migrated");
 }
 
 // Signature
@@ -138,19 +156,27 @@ TEST_F(account_tests, test_wrong_account_key_pair_fails)
 {
     auto tx = create_account_tx();
     auto keys = rollup::fixtures::create_key_pair(nullptr);
-    tx.sign(keys);
+    tx.sign(keys); // sign the tx with the wrong signing private key
 
     EXPECT_FALSE(tx.account_public_key == keys.public_key);
-    EXPECT_FALSE(verify_logic(tx));
+    auto result = verify_logic(tx);
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(result.err, "verify signature failed");
 }
 
 TEST_F(account_tests, test_migrate_account_with_account_key_fails)
 {
     preload_account_notes();
     auto tx = create_account_tx(1);
+    // The `tx.signature`, by default, gets signed by the original account private key.
+    // So if we change the public key with which to verify this signature, it should fail.
+    // (Note, even without this change the tx would fail, because the `tx` we got back attests to an account note which
+    // doesn't exist in the tree).
     tx.signing_pub_key = user.signing_keys[0].public_key;
 
-    EXPECT_FALSE(verify_logic(tx));
+    auto result = verify_logic(tx);
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(result.err, "verify signature failed");
 }
 
 // Account membership
@@ -160,10 +186,10 @@ TEST_F(account_tests, test_alternative_signing_key_1)
     preload_account_notes();
     auto tx = create_account_tx(1);
     tx.migrate = false;
-    tx.account_index = 0;
+    tx.account_note_index = 0;
     tx.sign(user.signing_keys[0]);
 
-    EXPECT_TRUE(verify_logic(tx));
+    EXPECT_TRUE(verify_logic(tx).valid);
 }
 
 TEST_F(account_tests, test_alternative_signing_key_2)
@@ -171,21 +197,24 @@ TEST_F(account_tests, test_alternative_signing_key_2)
     preload_account_notes();
     auto tx = create_account_tx(1);
     tx.migrate = false;
-    tx.account_index = 1;
-    tx.account_path = tree->get_hash_path(1);
+    tx.account_note_index = 1;
+    tx.account_note_path = tree->get_hash_path(1);
     tx.sign(user.signing_keys[1]);
 
-    EXPECT_TRUE(verify_logic(tx));
+    EXPECT_TRUE(verify_logic(tx).valid);
 }
 
 TEST_F(account_tests, test_wrong_alias_hash_fails)
 {
     preload_account_notes();
     auto tx = create_account_tx(1);
-    tx.alias_hash = rollup::fixtures::generate_alias_hash("penguin");
+    // The circuit will calculate an 'old' account note with the wrong alias, so the membership check should fail.
+    tx.alias_hash = rollup::fixtures::generate_alias_hash("penguin"); // it's actually "pebble"
     tx.sign(user.signing_keys[0]);
 
-    EXPECT_FALSE(verify_logic(tx));
+    auto result = verify_logic(tx);
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(result.err, "account check_membership failed");
 }
 
 // Account public key
@@ -196,23 +225,23 @@ TEST_F(account_tests, test_migrate_to_new_account_public_key)
     auto tx = create_account_tx(1);
     auto new_keys = rollup::fixtures::create_key_pair(nullptr);
     tx.new_account_public_key = new_keys.public_key;
-    tx.account_index = 0;
     tx.sign(user.signing_keys[0]);
 
-    EXPECT_TRUE(verify_logic(tx));
+    EXPECT_TRUE(verify_logic(tx).valid);
 }
 
-TEST_F(account_tests, test_change_account_public_key_fails)
+TEST_F(account_tests, test_change_account_public_key_without_migrating_fails)
 {
     preload_account_notes();
     auto tx = create_account_tx(1);
     auto new_keys = rollup::fixtures::create_key_pair(nullptr);
     tx.migrate = false;
     tx.new_account_public_key = new_keys.public_key;
-    tx.account_index = 0;
     tx.sign(user.signing_keys[0]);
 
-    EXPECT_FALSE(verify_logic(tx));
+    auto result = verify_logic(tx);
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(result.err, "cannot change account keys unless migrating");
 }
 
 TEST_F(account_tests, test_migrate_account_full_proof)
@@ -222,7 +251,7 @@ TEST_F(account_tests, test_migrate_account_full_proof)
     auto proof = prover.construct_proof();
     auto data = inner_proof_data(proof.proof_data);
 
-    auto new_account_alias_id = compute_account_alias_id(tx.alias_hash, tx.nonce + 1);
+    auto new_account_alias_id = compute_account_alias_id(tx.alias_hash, tx.account_nonce + 1);
     auto note1_commitment =
         account_note{ new_account_alias_id, tx.account_public_key, tx.new_signing_pub_key_1 }.commit();
     auto note2_commitment =
@@ -242,6 +271,8 @@ TEST_F(account_tests, test_migrate_account_full_proof)
     EXPECT_EQ(data.bridge_id, uint256_t(0));
     EXPECT_EQ(data.defi_deposit_value, uint256_t(0));
     EXPECT_EQ(data.defi_root, fr(0));
+    EXPECT_EQ(data.backward_link, fr(0));
+    EXPECT_EQ(data.allow_chain, uint256_t(0));
 }
 
 TEST_F(account_tests, test_non_migrate_account_full_proof)
@@ -272,4 +303,6 @@ TEST_F(account_tests, test_non_migrate_account_full_proof)
     EXPECT_EQ(data.bridge_id, uint256_t(0));
     EXPECT_EQ(data.defi_deposit_value, uint256_t(0));
     EXPECT_EQ(data.defi_root, fr(0));
+    EXPECT_EQ(data.backward_link, fr(0));
+    EXPECT_EQ(data.allow_chain, uint256_t(0));
 }

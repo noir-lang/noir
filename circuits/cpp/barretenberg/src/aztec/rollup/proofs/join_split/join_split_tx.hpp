@@ -28,8 +28,8 @@ struct join_split_tx {
     grumpkin::fr account_private_key;
     barretenberg::fr alias_hash;
     uint32_t nonce;
-    uint32_t account_index;
-    merkle_tree::fr_hash_path account_path;
+    uint32_t account_note_index;
+    merkle_tree::fr_hash_path account_note_path;
     grumpkin::g1::affine_element signing_pub_key;
 
     barretenberg::fr backward_link; // 0: no link, otherwise: any commitment.

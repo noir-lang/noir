@@ -16,7 +16,7 @@ TEST(client_proofs_join_split_tx, test_serialization)
 {
     join_split_tx tx;
     tx.proof_id = 1;
-    tx.account_index = 0;
+    tx.account_note_index = 0;
     tx.signing_pub_key = grumpkin::g1::one * grumpkin::fr::random_element();
     tx.public_value = 10;
     tx.public_owner = fr::random_element();
@@ -26,7 +26,7 @@ TEST(client_proofs_join_split_tx, test_serialization)
     tx.nonce = 456;
     tx.old_data_root = fr::random_element();
     for (size_t i = 0; i < 32; ++i) {
-        tx.account_path.push_back(std::make_pair(fr::random_element(), fr::random_element()));
+        tx.account_note_path.push_back(std::make_pair(fr::random_element(), fr::random_element()));
         tx.input_path[0].push_back(std::make_pair(fr::random_element(), fr::random_element()));
         tx.input_path[1].push_back(std::make_pair(fr::random_element(), fr::random_element()));
     }
