@@ -514,23 +514,21 @@ fn test_span() {
 #[test]
 fn test_basic_language_syntax() {
     let input = "
-
-    const five = 5;
-    pub ten : Field = 10;
-    let mul = fn(x, y) {
-         x * y;
-    };
-    priv result = mul(five, ten);
-
+        let five = 5;
+        let ten : Field = 10;
+        let mul = fn(x, y) {
+            x * y;
+        };
+        constrain mul(five, ten) == 50;
     ";
 
     let expected = vec![
-        Token::Keyword(Keyword::Const),
+        Token::Keyword(Keyword::Let),
         Token::Ident("five".to_string()),
         Token::Assign,
         Token::Int(5_i128.into()),
         Token::Semicolon,
-        Token::Keyword(Keyword::Pub),
+        Token::Keyword(Keyword::Let),
         Token::Ident("ten".to_string()),
         Token::Colon,
         Token::Keyword(Keyword::Field),
@@ -553,15 +551,15 @@ fn test_basic_language_syntax() {
         Token::Semicolon,
         Token::RightBrace,
         Token::Semicolon,
-        Token::Keyword(Keyword::Priv),
-        Token::Ident("result".to_string()),
-        Token::Assign,
+        Token::Keyword(Keyword::Constrain),
         Token::Ident("mul".to_string()),
         Token::LeftParen,
         Token::Ident("five".to_string()),
         Token::Comma,
         Token::Ident("ten".to_string()),
         Token::RightParen,
+        Token::Equal,
+        Token::Int(50_i128.into()),
         Token::Semicolon,
         Token::EOF,
     ];

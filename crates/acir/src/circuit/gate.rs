@@ -1,7 +1,9 @@
+use serde::{Deserialize, Serialize};
+
 use crate::native_types::{Arithmetic, Witness};
 use crate::OPCODE;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AndGate {
     pub a: Witness,
     pub b: Witness,
@@ -9,7 +11,7 @@ pub struct AndGate {
     pub num_bits: u32,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct XorGate {
     pub a: Witness,
     pub b: Witness,
@@ -17,7 +19,7 @@ pub struct XorGate {
     pub num_bits: u32,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 // XXX: Gate does not capture what this is anymore. I think IR/OPCODE would be a better name
 pub enum Gate {
     Arithmetic(Arithmetic),
@@ -40,7 +42,7 @@ impl Gate {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 /// Directives do not apply any constraints.
 pub enum Directive {
     //Inverts the value of x and stores it in the result variable
@@ -76,13 +78,13 @@ pub enum Directive {
 
 // Note: Some gadgets will not use all of the witness
 // So we need to supply how many bits of the witness is needed
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GadgetInput {
     pub witness: Witness,
     pub num_bits: u32,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GadgetCall {
     pub name: OPCODE,
     pub inputs: Vec<GadgetInput>,

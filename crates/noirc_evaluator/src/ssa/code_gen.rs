@@ -23,7 +23,7 @@ use noirc_frontend::hir::Context;
 use noirc_frontend::hir_def::function::HirFunction;
 use noirc_frontend::hir_def::{
     expr::{HirBinaryOp, HirBinaryOpKind, HirExpression, HirForExpression, HirLiteral},
-    stmt::{HirConstrainStatement, HirLetStatement, HirPrivateStatement, HirStatement},
+    stmt::{HirConstrainStatement, HirLetStatement, HirStatement},
 };
 use noirc_frontend::node_interner::{ExprId, IdentId, StmtId};
 use noirc_frontend::FunctionKind;
@@ -77,12 +77,11 @@ impl<'a> IRGenerator<'a> {
     pub fn print_block(&self, b: &block::BasicBlock) {
         for idx in &b.instructions {
             let ins = self.get_instruction(*idx);
-            let mut str_res;
-            if ins.res_name.is_empty() {
-                str_res = format!("({:?})", idx.into_raw_parts().0);
+            let mut str_res = if ins.res_name.is_empty() {
+                format!("{:?}", idx.into_raw_parts().0)
             } else {
-                str_res = ins.res_name.clone();
-            }
+                ins.res_name.clone()
+            };
             if ins.is_deleted {
                 str_res += " -DELETED";
             }
@@ -512,18 +511,8 @@ impl<'a> IRGenerator<'a> {
     ) -> Result<arena::Index, RuntimeError> {
         let statement = self.context().def_interner.statement(stmt_id);
         match statement {
-            HirStatement::Private(x) => self.handle_private_statement(env, x),
             HirStatement::Constrain(constrain_stmt) => {
                 self.handle_constrain_statement(env, constrain_stmt)
-            }
-            HirStatement::Const(x) => {
-                //let variable_name: String = self.context().def_interner.ident_name(&x.identifier);
-                // const can only be integers/Field elements, cannot involve the witness, so we can possibly move this to
-                // analysis. Right now it would not make a difference, since we are not compiling to an intermediate Noir format
-                //let span = self.context().def_interner.expr_span(&x.expression);
-                //TODO the result of expression_to_object should be an assignement, we should modify the lhs to specify it is a const
-                // and then forbid any other assignement with the same variable during the SSA phase (and instead of applying the SSA form of it).
-                self.expression_to_object(env, &x.expression)
             }
             HirStatement::Expression(expr) | HirStatement::Semi(expr) => {
                 self.expression_to_object(env, &expr)
@@ -663,41 +652,6 @@ impl<'a> IRGenerator<'a> {
             // we should merge their property; min(max), min(bitsize),etc..
         };
         result
-    }
-
-    //TODO: refactor properly so that one function handle the creation of a new variable and generates the ass opcode, and use it in priv,let,assign
-    //then add the priv feature: a priv variable should never be assigned to a const value (n.b. because apparently this would indicate a bug in a user program)
-    //so handle_private_statement should add the 'priv' attribute to the variable, and the handle_assign should check for it when assigning a const to a 'priv'var.
-    fn handle_private_statement(
-        &mut self,
-        env: &mut Environment,
-        priv_stmt: HirPrivateStatement,
-    ) -> Result<arena::Index, RuntimeError> {
-        // Create a new variable
-        let variable_name = self
-            .context()
-            .def_interner
-            .ident_name(&priv_stmt.identifier);
-        let ident_def = self.context().def_interner.ident_def(&priv_stmt.identifier);
-        let new_var = node::Variable {
-            id: self.dummy(),
-            obj_type: node::ObjectType::NativeField, //TODO
-            name: variable_name,
-            root: None,
-            def: ident_def,
-            witness: None, //TODO
-            parent_block: self.current_block,
-        };
-        let new_var_id = self.add_variable(new_var, None);
-        // Create assign instruction
-        let rhs_id = self.expression_to_object(env, &priv_stmt.expression)?;
-        let rhs = self.get_object(rhs_id).unwrap();
-        let r_type = rhs.get_type();
-        let result = self.new_instruction(new_var_id, rhs_id, node::Operation::Ass, r_type);
-        //self.update_variable_id(lhs_id, new_var_id); //update the name and the value array
-        let cb = self.get_current_block_mut();
-        cb.update_variable(new_var_id, result); //update the value array. n.b. we should not update the name as it is the first assignment (let)
-        Ok(result)
     }
 
     // Let statements are used to declare higher level objects

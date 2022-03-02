@@ -87,7 +87,7 @@ impl FieldElementType {
     /// Return the corresponding keyword for this field type
     pub fn as_keyword(self) -> Keyword {
         match self {
-            FieldElementType::Private => Keyword::Priv,
+            FieldElementType::Private => panic!("No Keyword for a Private FieldElementType"),
             FieldElementType::Public => Keyword::Pub,
             FieldElementType::Constant => Keyword::Const,
         }
@@ -146,7 +146,6 @@ pub enum Type {
 
     Error,
     Unspecified, // This is for when the user declares a variable without specifying it's type
-    Unknown, // This is mainly used for array literals, where the parser cannot figure out the type for the literal
 }
 
 impl Type {
@@ -171,19 +170,24 @@ impl Recoverable for Type {
 
 impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let vis_str = |vis| match vis {
+            FieldElementType::Private => "",
+            FieldElementType::Public => "pub ",
+            FieldElementType::Constant => "const ",
+        };
+
         match self {
-            Type::FieldElement(fe_type) => write!(f, "{} Field", fe_type),
-            Type::Array(fe_type, size, typ) => write!(f, "{} {}{}", fe_type, size, typ),
+            Type::FieldElement(fe_type) => write!(f, "{}Field", vis_str(*fe_type)),
+            Type::Array(fe_type, size, typ) => write!(f, "{}{}{}", vis_str(*fe_type), size, typ),
             Type::Integer(fe_type, sign, num_bits) => match sign {
-                Signedness::Signed => write!(f, "{} i{}", fe_type, num_bits),
-                Signedness::Unsigned => write!(f, "{} u{}", fe_type, num_bits),
+                Signedness::Signed => write!(f, "{}i{}", vis_str(*fe_type), num_bits),
+                Signedness::Unsigned => write!(f, "{}u{}", vis_str(*fe_type), num_bits),
             },
             Type::Struct(s) => s.fmt(f),
             Type::Bool => write!(f, "bool"),
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
             Type::Unspecified => write!(f, "unspecified"),
-            Type::Unknown => write!(f, "unknown"),
         }
     }
 }
@@ -247,7 +251,6 @@ impl Type {
             | Type::Bool
             | Type::Error
             | Type::Unspecified
-            | Type::Unknown
             | Type::Unit => 1,
         }
     }
@@ -272,11 +275,6 @@ impl Type {
             Type::Array(_, sized, typ) => Some((sized, typ)),
             _ => None,
         }
-    }
-
-    // Returns true if the Type can be used in a Let statement
-    pub fn can_be_used_in_let(&self) -> bool {
-        self.is_fixed_sized_array() || self.is_variable_sized_array() || self == &Type::Error
     }
 
     // Returns true if the Type can be used in a Constrain statement
@@ -361,7 +359,6 @@ impl Type {
             Type::Bool => panic!("currently, cannot have a bool in the entry point function"),
             Type::Error => unreachable!(),
             Type::Unspecified => unreachable!(),
-            Type::Unknown => unreachable!(),
             Type::Unit => unreachable!(),
             Type::Struct(_) => todo!(),
         }

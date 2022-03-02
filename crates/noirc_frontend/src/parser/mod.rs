@@ -132,8 +132,6 @@ where
         Token::Semicolon,
         Token::RightBrace,
         Token::Keyword(Keyword::Let),
-        Token::Keyword(Keyword::Priv),
-        Token::Keyword(Keyword::Const),
         Token::Keyword(Keyword::Constrain),
     ];
     force(parser.recover_with(chumsky::prelude::skip_then_retry_until(terminators)))

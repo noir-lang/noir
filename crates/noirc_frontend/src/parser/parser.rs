@@ -105,7 +105,7 @@ fn attribute() -> impl NoirParser<Attribute> {
 
 fn struct_fields() -> impl NoirParser<Vec<(Ident, Type)>> {
     parameters(parse_type_with_visibility(
-        optional_pri_or_const(),
+        optional_const(),
         parse_type_no_field_element(),
     ))
 }
@@ -265,29 +265,11 @@ fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
 {
-    let let_statement = generic_declaration(Keyword::Let, expr_parser.clone(), Statement::new_let);
-    let priv_statement =
-        generic_declaration(Keyword::Priv, expr_parser.clone(), Statement::new_priv);
-    let const_statement = generic_declaration(Keyword::Const, expr_parser, Statement::new_const);
-
-    choice((let_statement, priv_statement, const_statement))
-}
-
-fn generic_declaration<'a, F, P>(
-    key: Keyword,
-    expr_parser: P,
-    f: F,
-) -> impl NoirParser<Statement> + 'a
-where
-    F: 'a + Clone + Fn(((Ident, Type), Expression)) -> Statement,
-    P: ExprParser + 'a,
-{
-    let p = ignore_then_commit(keyword(key).labelled("statement"), ident());
+    let p = ignore_then_commit(keyword(Keyword::Let).labelled("statement"), ident());
     let p = p.then(optional_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
     let p = then_commit(p, expr_parser);
-
-    p.map(f)
+    p.map(Statement::new_let)
 }
 
 fn assignment<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
@@ -334,7 +316,7 @@ where
 
 // Parse nothing, just return a FieldElementType::Private
 fn no_visibility() -> impl NoirParser<FieldElementType> {
-    just([]).or_not().map(|_| FieldElementType::Private)
+    empty().map(|_| FieldElementType::Private)
 }
 
 // Returns a parser that parses any FieldElementType that satisfies
@@ -346,19 +328,14 @@ fn visibility(field: FieldElementType) -> impl NoirParser<FieldElementType> {
 fn optional_visibility() -> impl NoirParser<FieldElementType> {
     choice((
         visibility(FieldElementType::Public),
-        visibility(FieldElementType::Private),
         visibility(FieldElementType::Constant),
         no_visibility(),
     ))
 }
 
 // This is primarily for struct fields which cannot be public
-fn optional_pri_or_const() -> impl NoirParser<FieldElementType> {
-    choice((
-        visibility(FieldElementType::Private),
-        visibility(FieldElementType::Constant),
-        no_visibility(),
-    ))
+fn optional_const() -> impl NoirParser<FieldElementType> {
+    visibility(FieldElementType::Constant).or(no_visibility())
 }
 
 fn field_type<P>(visibility_parser: P) -> impl NoirParser<Type>
@@ -821,12 +798,6 @@ mod test {
         for expr in parse_all(array_expr(expression()), valid) {
             let arr_lit = expr_to_array(expr);
             assert_eq!(arr_lit.length, 5);
-
-            // All array types are unknown at parse time
-            // This makes parsing simpler. The type checker
-            // needs to iterate the whole array to ensure homogeneity
-            // so there is no advantage to deducing the type here.
-            assert_eq!(arr_lit.r#type, Type::Unknown);
         }
 
         parse_all_failing(
@@ -907,13 +878,6 @@ mod test {
             vec!["let x = y", "let x : u8 = y"],
         );
     }
-    #[test]
-    fn parse_priv() {
-        parse_all(
-            declaration(expression()),
-            vec!["priv x = y", "priv x : pub Field = y"],
-        );
-    }
 
     #[test]
     fn parse_invalid_pub() {
@@ -921,16 +885,6 @@ mod test {
         parse_all_failing(
             statement(expression()),
             vec!["pub x = y", "pub x : pub Field = y"],
-        );
-    }
-
-    #[test]
-    fn parse_const() {
-        // XXX: We have `Constant` because we may allow constants to
-        // be casted to integers. Maybe rename this to `Field` instead
-        parse_all(
-            declaration(expression()),
-            vec!["const x = y", "const x : const Field = y"],
         );
     }
 
@@ -1191,7 +1145,6 @@ mod test {
             ("let = 4 + 3", 1, "let $error: unspecified = (4 + 3)"),
             ("let = ", 2, "let $error: unspecified = Error"),
             ("let", 3, "let $error: unspecified = Error"),
-            ("priv = ", 2, "priv $error: unspecified = Error"),
             ("foo = one two three", 1, "foo = one"),
             ("constrain", 2, "Error"), // We don't recover 'constrain Error' since constrain needs a binary operator
             ("constrain x ==", 2, "constrain (x == Error)"), // This gives a duplicate 'end of input' error currently
