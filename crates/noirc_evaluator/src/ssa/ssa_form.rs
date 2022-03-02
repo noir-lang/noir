@@ -1,4 +1,5 @@
 use super::{code_gen::IRGenerator, node};
+use crate::{environment::Environment, object::Object};
 use arena;
 
 // create phi arguments from the predecessors of the block (containing phi)
@@ -106,4 +107,58 @@ pub fn get_current_value_in_block(
 //Returns the current SSA value of a variable, recursively
 pub fn get_current_value(igen: &mut IRGenerator, var_id: arena::Index) -> arena::Index {
     get_current_value_in_block(igen, var_id, igen.current_block)
+}
+
+pub fn evaluate_identifier(
+    igen: &mut IRGenerator,
+    env: &mut Environment,
+    ident_id: &noirc_frontend::node_interner::IdentId,
+) -> arena::Index {
+    let ident_name = igen.context.unwrap().def_interner.ident_name(ident_id);
+    let ident_def = igen.context.unwrap().def_interner.ident_def(ident_id);
+    let o_type = igen.context().def_interner.id_type(ident_def.unwrap());
+    //check if the variable is already created:
+    if let Some(var) = igen.find_variable(&ident_def) {
+        let id = var.id;
+        return get_current_value(igen, id);
+    }
+    let obj = env.get(&ident_name);
+    dbg!(&o_type);
+    let obj = match obj {
+        Object::Array(a) => {
+            let obj_type = node::ObjectType::from_type(o_type);
+            //on doit creer une MEMarray a partir des witness de a
+            igen.mem
+                .create_array(&a, ident_def.unwrap(), obj_type, &ident_name);
+            let array_index = (igen.mem.arrays.len() - 1) as u32;
+            node::Variable {
+                id: igen.id0,
+                name: ident_name.clone(),
+                obj_type: node::ObjectType::Pointer(array_index),
+                root: None,
+                def: ident_def,
+                witness: None,
+                parent_block: igen.current_block,
+            }
+        }
+        _ => {
+            let obj_type = node::ObjectType::get_type_from_object(&obj);
+            //new variable - should be in a let statement? The let statement should set the type
+            node::Variable {
+                id: igen.id0,
+                name: ident_name.clone(),
+                obj_type,
+                root: None,
+                def: ident_def,
+                witness: node::get_witness_from_object(&obj),
+                parent_block: igen.current_block,
+            }
+        }
+    };
+
+    let v_id = igen.add_variable(obj, None);
+    igen.get_block_mut(igen.current_block)
+        .unwrap()
+        .update_variable(v_id, v_id);
+    v_id
 }

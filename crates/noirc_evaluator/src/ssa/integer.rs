@@ -40,7 +40,20 @@ pub fn get_instruction_max_operand(
 ) -> BigUint {
     match ins.operator {
         node::Operation::Load(array) => get_load_max(eval, ins.lhs, max_map, vmap, array),
-        node::Operation::EqGate => {
+        node::Operation::Sub => {
+            if matches!(ins.res_type, node::ObjectType::Unsigned(_)) {
+                if let Some(lhs_const) = eval.get_as_constant(ins.lhs) {
+                    let lhs_big = BigUint::from_bytes_be(&lhs_const.to_bytes());
+                    if right_max <= lhs_big {
+                        //todo unsigned
+                        return lhs_big;
+                    }
+                }
+            }
+            get_max_value(ins, left_max, right_max)
+        }
+        node::Operation::Constrain(_) => {
+            //ContrainOp::Eq :
             //TODO... we should update the max_map AFTER the truncate is processed (else it breaks it)
             // let min = BigUint::min(left_max.clone(), right_max.clone());
             // max_map.insert(ins.lhs, min.clone());
@@ -63,7 +76,6 @@ pub fn get_obj_max_value(
     vmap: &HashMap<arena::Index, arena::Index>,
 ) -> BigUint {
     let id = get_value_from_map(idx, vmap); //block.get_current_value(idx);
-    dbg!(&id);
     if max_map.contains_key(&id) {
         return max_map[&id].clone();
     }
@@ -81,7 +93,6 @@ pub fn get_obj_max_value(
         node::NodeObj::Const(c) => c.value.clone(), //TODO panic for string constants
     };
     max_map.insert(id, result.clone());
-    dbg!(&max_map);
     result
 }
 
@@ -512,12 +523,19 @@ pub fn get_max_value(ins: &Instruction, lhs_max: BigUint, rhs_max: BigUint) -> B
         Operation::Ass => rhs_max,
         Operation::Nop | Operation::Jne | Operation::Jeq | Operation::Jmp => todo!(),
         Operation::Phi => BigUint::max(lhs_max, rhs_max), //TODO operands are in phi_arguments, not lhs/rhs!!
-        Operation::EqGate => BigUint::zero(),             //min(lhs_max, rhs_max),
+        Operation::Constrain(_) => BigUint::zero(),       //min(lhs_max, rhs_max),
         Operation::Load(_) => {
             unreachable!();
         }
         Operation::Store(_) => BigUint::from(0_u32),
-        Operation::StdLib(opcode) => todo!(),
+        Operation::Intrinsic(opcode) => {
+            match opcode {
+                acvm::acir::OPCODE::SHA256
+                | acvm::acir::OPCODE::Blake2s
+                | acvm::acir::OPCODE::Pedersen => BigUint::zero(), //pointers do not overflow
+                _ => todo!(),
+            }
+        }
     }
 }
 

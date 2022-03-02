@@ -1,22 +1,26 @@
+use super::mem::MemArray;
 use super::node::{Instruction, Operation};
-use acvm::acir::OPCODE;
 use acvm::FieldElement;
+
 use arena::Index;
+
 use num_traits::{One, Zero};
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::ops::{Mul, Neg};
 //use crate::acir::native_types::{Arithmetic, Witness};
 use crate::ssa::{code_gen::IRGenerator, mem, node, node::Node};
 use crate::Evaluator;
 use crate::Gate;
 use crate::RuntimeErrorKind;
-use acvm::acir::circuit::gate::{Directive, GadgetCall, GadgetInput};
+use acvm::acir::circuit::gate::Directive;
 use acvm::acir::native_types::{Arithmetic, Linear, Witness};
 use num_bigint::BigUint;
 use std::convert::TryInto;
 pub struct Acir {
     pub arith_cache: HashMap<Index, InternalVar>,
     pub memory_map: HashMap<u32, InternalVar>, //maps memory adress to expression
+    pub memory_witness: HashMap<u32, Vec<Witness>>, //map arrays to their witness...temporary
 }
 
 #[derive(Clone, Debug)]
@@ -33,6 +37,14 @@ impl InternalVar {
             || self.expression == b.expression
     }
 
+    pub fn default() -> InternalVar {
+        InternalVar {
+            expression: Arithmetic::default(),
+            witness: None,
+            idx: None,
+        }
+    }
+
     fn new(expression: Arithmetic, witness: Option<Witness>, id: Index) -> InternalVar {
         InternalVar {
             expression,
@@ -46,6 +58,27 @@ impl InternalVar {
             return Some(self.expression.q_c);
         }
         None
+    }
+}
+
+impl From<&Arithmetic> for InternalVar {
+    fn from(arith: &Arithmetic) -> InternalVar {
+        //TODO shouldn't we rather move arith?
+        InternalVar {
+            expression: arith.clone(),
+            witness: is_unit(arith),
+            idx: None,
+        }
+    }
+}
+
+impl From<&Witness> for InternalVar {
+    fn from(w: &Witness) -> InternalVar {
+        InternalVar {
+            expression: from_witness(*w),
+            witness: Some(*w),
+            idx: None,
+        }
     }
 }
 
@@ -95,6 +128,7 @@ impl Acir {
         Acir {
             arith_cache: HashMap::new(),
             memory_map: HashMap::new(),
+            memory_witness: HashMap::new(),
         }
     }
 
@@ -109,10 +143,12 @@ impl Acir {
         }
         let l_c = self.substitute(ins.lhs, evaluator, cfg);
         let r_c = self.substitute(ins.rhs, evaluator, cfg);
-        let output = match ins.operator {
-            Operation::Add | Operation::SafeAdd => {
-                add(&l_c.expression, FieldElement::one(), &r_c.expression)
-            }
+        let mut output_var = match ins.operator {
+            Operation::Add | Operation::SafeAdd => InternalVar {
+                expression: add(&l_c.expression, FieldElement::one(), &r_c.expression),
+                witness: None,
+                idx: None,
+            },
             Operation::Sub | Operation::SafeSub => {
                 //we need the type of rhs and its max value, then:
                 //lhs-rhs+k*2^bit_size where k=ceil(max_value/2^bit_size)
@@ -130,22 +166,35 @@ impl Acir {
                     &r_c.expression,
                 );
                 output.q_c += f;
-                output
+                InternalVar {
+                    expression: output,
+                    witness: None,
+                    idx: None,
+                }
             }
-            Operation::Mul | Operation::SafeMul => evaluate_mul(&l_c, &r_c, evaluator),
+            Operation::Mul | Operation::SafeMul => {
+                InternalVar::from(&evaluate_mul(&l_c, &r_c, evaluator))
+            }
             Operation::Udiv => {
                 let (q_wit, _) = evaluate_udiv(&l_c, &r_c, evaluator);
-                Arithmetic::from(Linear::from_witness(q_wit))
+                InternalVar::from(&q_wit)
             }
-            Operation::Sdiv => evaluate_sdiv(&l_c, &r_c, evaluator).0,
+            Operation::Sdiv => InternalVar::from(&evaluate_sdiv(&l_c, &r_c, evaluator).0),
             Operation::Urem => {
                 let (_, r_wit) = evaluate_udiv(&l_c, &r_c, evaluator);
-                Arithmetic::from(Linear::from_witness(r_wit))
+                InternalVar::from(&r_wit)
             }
-            Operation::Srem => evaluate_sdiv(&l_c, &r_c, evaluator).1,
-            Operation::Div => todo!(),
-            Operation::Eq => todo!(),
-            Operation::Ne => todo!(),
+            Operation::Srem => InternalVar::from(&evaluate_sdiv(&l_c, &r_c, evaluator).1),
+            Operation::Div => InternalVar::from(&mul(
+                &l_c.expression,
+                &from_witness(evaluate_inverse(&r_c.expression, evaluator)),
+            )),
+            Operation::Eq => {
+                InternalVar::from(&self.evaluate_eq(ins.lhs, ins.rhs, &l_c, &r_c, cfg, evaluator))
+            }
+            Operation::Ne => {
+                InternalVar::from(&self.evaluate_neq(ins.lhs, ins.rhs, &l_c, &r_c, cfg, evaluator))
+            }
             Operation::Ugt => todo!(),
             Operation::Uge => todo!(),
             Operation::Ult => todo!(),
@@ -154,54 +203,61 @@ impl Acir {
             Operation::Sge => todo!(),
             Operation::Slt => todo!(),
             Operation::Sle => todo!(),
-            Operation::Lt => todo!(), //TODO need a quad_decomposition gate from barretenberg
+            Operation::Lt => todo!(),
             Operation::Gt => todo!(),
-            Operation::Lte => todo!(),
-            Operation::Gte => todo!(),
-            Operation::And => evaluate_and(l_c, r_c, ins.res_type.bits(), evaluator),
+            Operation::Lte => InternalVar::from(&evaluate_cmp(&l_c, &r_c, 32, evaluator)), //TODO we need the bit_size from the instruction
+            Operation::Gte => InternalVar::from(&evaluate_cmp(&r_c, &l_c, 32, evaluator)), //TODO we need the bit_size from the instruction
+            Operation::And => {
+                InternalVar::from(&evaluate_and(l_c, r_c, ins.res_type.bits(), evaluator))
+            }
             Operation::Not => todo!(),
             Operation::Or => todo!(),
-            Operation::Xor => evaluate_xor(l_c, r_c, ins.res_type.bits(), evaluator),
-            Operation::Cast => l_c.expression,
+            Operation::Xor => {
+                InternalVar::from(&evaluate_xor(l_c, r_c, ins.res_type.bits(), evaluator))
+            }
+            Operation::Cast => l_c.clone(),
             Operation::Ass | Operation::Jne | Operation::Jeq | Operation::Jmp | Operation::Phi => {
                 todo!("invalid instruction");
             }
             Operation::Trunc => {
                 assert!(is_const(&r_c.expression));
-                evaluate_truncate(
+                InternalVar::from(&evaluate_truncate(
                     l_c,
                     r_c.expression.q_c.to_u128().try_into().unwrap(),
                     ins.bit_size,
                     evaluator,
-                )
+                ))
             }
-            Operation::StdLib(opcode) => evaluate_opcode(l_c, opcode, cfg, evaluator),
-            Operation::Nop => Arithmetic::default(),
-            Operation::EqGate => {
-                let output = add(
-                    &l_c.expression,
-                    FieldElement::from(-1_i128),
-                    &r_c.expression,
-                );
-                evaluator.gates.push(Gate::Arithmetic(output.clone())); //TODO should we create a witness??
-                output
-            }
+            Operation::Intrinsic(_) => todo!("Intrinsic"),
+            Operation::Nop => InternalVar::default(),
+            Operation::Constrain(op) => match op {
+                node::ConstrainOp::Eq => {
+                    InternalVar::from(&self.equalize(ins.lhs, ins.rhs, &l_c, &r_c, cfg, evaluator))
+                }
+                node::ConstrainOp::Neq => {
+                    InternalVar::from(&self.distinct(ins.lhs, ins.rhs, &l_c, &r_c, cfg, evaluator))
+                }
+            },
             Operation::Load(array_idx) => {
                 //retrieves the value from the map if address is known at compile time:
                 //address = l_c and should be constant
                 if let Some(val) = l_c.to_const() {
                     let address = mem::Memory::as_u32(val);
                     if self.memory_map.contains_key(&address) {
-                        self.memory_map[&address].expression.clone()
+                        InternalVar::from(&self.memory_map[&address].expression.clone())
                     } else {
                         //if not found, then it must be a witness (else it is non-initialised memory)
                         let array = &cfg.mem.arrays[array_idx as usize];
                         let index = (address - array.adr) as usize;
-                        let w = array.witness[index];
-                        Arithmetic::from(Linear::from_witness(w))
+                        let w = if array.witness.len() > index {
+                            array.witness[index]
+                        } else {
+                            self.memory_witness[&array_idx][index]
+                        };
+                        InternalVar::from(&w)
                     }
                 } else {
-                    todo!();
+                    todo!("dynamic arrays are not implemented yet");
                 }
             }
 
@@ -210,20 +266,16 @@ impl Acir {
                 if let Some(val) = r_c.to_const() {
                     let address = mem::Memory::as_u32(val);
                     self.memory_map.insert(address, l_c);
+                    dbg!(&self.memory_map);
                     //we do not generate constraint, so no output.
-                    Arithmetic::default()
+                    InternalVar::default()
                 } else {
-                    todo!();
+                    todo!("dynamic arrays are not implemented yet");
                 }
             }
         };
 
-        let output_var = InternalVar {
-            expression: output,
-            //value: FieldElement::from(0_u32),
-            idx: Some(ins.idx),
-            witness: None, //TODO put the witness when it exist
-        };
+        output_var.idx = Some(ins.idx);
 
         self.arith_cache.insert(ins.idx, output_var);
     }
@@ -243,13 +295,13 @@ impl Acir {
         let s = big_f.bits();
         let big_s = BigUint::one() << s;
         if big_s == big_f {
-            return format!("2^{}", s.to_string());
+            return format!("2^{}", s);
         }
-        if big_f.clone() == BigUint::zero() {
+        if big_f == BigUint::zero() {
             return "0".to_string();
         }
         if big_f.clone() % BigUint::from(2_u128).pow(32) == BigUint::zero() {
-            return format!("2^32*{}", big_f.clone() / BigUint::from(2_u128).pow(32));
+            return format!("2^32*{}", big_f / BigUint::from(2_u128).pow(32));
         }
         let big_minus = BigUint::from_bytes_be(&(-f).to_bytes());
         if big_minus.to_string().len() < big_f.to_string().len() {
@@ -278,109 +330,264 @@ impl Acir {
             Gate::Range(w, s) => {
                 result = format!("x{} is {} bits", w.witness_index(), s);
             }
+            Gate::Directive(Directive::Invert { x, result: r }) => {
+                result = format!("1/{}={}, or 0", x.witness_index(), r.witness_index());
+            }
             _ => {
-                //dbg!(&g);
+                dbg!(&g);
             }
         }
 
         result
     }
-}
-pub fn evaluate_opcode(
-    lhs: InternalVar,
-    opcode: OPCODE,
-    cfg: &IRGenerator,
-    evaluator: &mut Evaluator,
-) -> Arithmetic {
-    match opcode {
-        OPCODE::SHA256 => std_lib_sha256(lhs, cfg, evaluator),
-        // OPCODE::MerkleMembership => MerkleMembershipGadget::call(evaluator, env, call_expr),
-        // OPCODE::SchnorrVerify => SchnorrVerifyGadget::call(evaluator, env, call_expr),
-        // OPCODE::Blake2s => Blake2sGadget::call(evaluator, env, call_expr),
-        // OPCODE::Pedersen => PedersenGadget::call(evaluator, env, call_expr),
-        // OPCODE::EcdsaSecp256k1 => EcdsaSecp256k1Gadget::call(evaluator, env, call_expr),
-        // OPCODE::HashToField => HashToFieldGadget::call(evaluator, env, call_expr),
-        // OPCODE::FixedBaseScalarMul => FixedBaseScalarMulGadget::call(evaluator, env, call_expr),
-        // OPCODE::InsertRegularMerkle => InsertRegularMerkleGadget::call(evaluator, env, call_expr),
-        _ => todo!(),
-    }
-    Arithmetic::default()
-}
 
-pub fn prepare_inputs(pointer: Index, cfg: &IRGenerator) -> Vec<GadgetInput> {
-    let l_obj = cfg.get_object(pointer).unwrap();
-    let mut inputs: Vec<GadgetInput> = Vec::new();
-    match l_obj.get_type() {
-        node::ObjectType::Pointer(a) => {
-            let array = &cfg.mem.arrays[a as usize];
-            let num_bits = array.element_type.bits();
-            for i in &array.witness {
-                inputs.push(GadgetInput {
-                    witness: *i,
-                    num_bits,
+    pub fn print_circuit(gates: &[Gate]) {
+        for gate in gates {
+            println!("{}", Acir::print_gate(gate));
+        }
+    }
+
+    //Load array values into InternalVars
+    //If create_witness is true, we create witnesses for values that do not have witness
+    pub fn load_array(
+        &mut self,
+        array: &MemArray,
+        array_index: u32,
+        create_witness: bool,
+        evaluator: &mut Evaluator,
+    ) -> Vec<InternalVar> {
+        let mut result: Vec<InternalVar> = Vec::new();
+        for i in 0..array.len {
+            let address = array.adr + i;
+            if self.memory_map.contains_key(&address) {
+                if create_witness && self.memory_map[&address].witness.is_none() {
+                    let (_, w) = evaluator
+                        .create_intermediate_variable(self.memory_map[&address].expression.clone());
+                    self.memory_map.get_mut(&address).unwrap().witness = Some(w);
+                }
+                result.push(self.memory_map[&address].clone());
+            } else if self.memory_witness.contains_key(&array_index) {
+                let w = self.memory_witness[&array_index][i as usize];
+                result.push(InternalVar {
+                    expression: from_witness(w),
+                    witness: Some(w),
+                    idx: None,
+                });
+            } else {
+                let w = array.witness[i as usize];
+                result.push(InternalVar {
+                    expression: from_witness(w),
+                    witness: Some(w),
+                    idx: None,
                 });
             }
         }
-        _ => unreachable!("invalid input"),
+        result
     }
-    inputs
+
+    pub fn evaluate_neq(
+        &mut self,
+        lhs: Index,
+        rhs: Index,
+        l_c: &InternalVar,
+        r_c: &InternalVar,
+        cfg: &IRGenerator,
+        evaluator: &mut Evaluator,
+    ) -> Arithmetic {
+        if let (Some(a), Some(b)) = (
+            super::mem::Memory::deref(cfg, lhs),
+            super::mem::Memory::deref(cfg, rhs),
+        ) {
+            let array_a = &cfg.mem.arrays[a as usize];
+            let array_b = &cfg.mem.arrays[b as usize];
+
+            if array_a.len == array_b.len {
+                let mut x = InternalVar {
+                    expression: self.zerop_array_sum(array_a, a, array_b, b, evaluator),
+                    witness: None,
+                    idx: None,
+                };
+                x.witness = Some(generate_witness(&x, evaluator));
+                from_witness(evaluate_zerop(&x, evaluator))
+            } else {
+                //If length are different, then the arrays are different
+                Arithmetic {
+                    mul_terms: Vec::new(),
+                    linear_combinations: Vec::new(),
+                    q_c: FieldElement::one(),
+                }
+            }
+        } else {
+            let mut x = InternalVar {
+                expression: sub(&l_c.expression, FieldElement::one(), &r_c.expression),
+                witness: None,
+                idx: None,
+            };
+            x.witness = Some(generate_witness(&x, evaluator));
+            from_witness(evaluate_zerop(&x, evaluator))
+        }
+    }
+
+    pub fn evaluate_eq(
+        &mut self,
+        lhs: Index,
+        rhs: Index,
+        l_c: &InternalVar,
+        r_c: &InternalVar,
+        cfg: &IRGenerator,
+        evaluator: &mut Evaluator,
+    ) -> Arithmetic {
+        sub(
+            &Arithmetic {
+                mul_terms: Vec::new(),
+                linear_combinations: Vec::new(),
+                q_c: FieldElement::one(),
+            },
+            FieldElement::one(),
+            &self.evaluate_neq(lhs, rhs, l_c, r_c, cfg, evaluator),
+        )
+    }
+
+    //Constraint lhs to be different than rhs
+    pub fn distinct(
+        &mut self,
+        lhs: Index,
+        rhs: Index,
+        l_c: &InternalVar,
+        r_c: &InternalVar,
+        cfg: &IRGenerator,
+        evaluator: &mut Evaluator,
+    ) -> Arithmetic {
+        if let (Some(a), Some(b)) = (
+            super::mem::Memory::deref(cfg, lhs),
+            super::mem::Memory::deref(cfg, rhs),
+        ) {
+            let array_a = &cfg.mem.arrays[a as usize];
+            let array_b = &cfg.mem.arrays[b as usize];
+            //If length are different, then the arrays are different
+            if array_a.len == array_b.len {
+                let sum = self.zerop_array_sum(array_a, a, array_b, b, evaluator);
+                evaluate_inverse(&sum, evaluator);
+            }
+        } else {
+            let diff = sub(&l_c.expression, FieldElement::one(), &r_c.expression);
+            evaluate_inverse(&diff, evaluator);
+        }
+        Arithmetic::default()
+    }
+
+    //Constraint lhs to be equal to rhs
+    pub fn equalize(
+        &mut self,
+        lhs: Index,
+        rhs: Index,
+        l_c: &InternalVar,
+        r_c: &InternalVar,
+        cfg: &IRGenerator,
+        evaluator: &mut Evaluator,
+    ) -> Arithmetic {
+        if let (Some(a), Some(b)) = (
+            super::mem::Memory::deref(cfg, lhs),
+            super::mem::Memory::deref(cfg, rhs),
+        ) {
+            //  self.equal_array(&cfg.mem.arrays[a as usize], a, &cfg.mem.arrays[b as usize], b, evaluator);
+            let a_values = self.load_array(&cfg.mem.arrays[a as usize], a, false, evaluator);
+            let b_values = self.load_array(&cfg.mem.arrays[b as usize], b, false, evaluator);
+            assert!(a_values.len() == b_values.len());
+            for i in 0..a_values.len() {
+                let array_diff = sub(
+                    &a_values[i].expression,
+                    FieldElement::one(),
+                    &b_values[i].expression,
+                );
+                evaluator.gates.push(Gate::Arithmetic(array_diff));
+            }
+            Arithmetic::default()
+        } else {
+            let output = add(
+                &l_c.expression,
+                FieldElement::from(-1_i128),
+                &r_c.expression,
+            );
+            evaluator.gates.push(Gate::Arithmetic(output.clone()));
+            output
+        }
+    }
+
+    //Generates gates for the expression: \sum_i(zerop(A[i]-B[i]))
+    fn zerop_array_sum(
+        &mut self,
+        a: &MemArray,
+        a_idx: u32,
+        b: &MemArray,
+        b_idx: u32,
+        evaluator: &mut Evaluator,
+    ) -> Arithmetic {
+        let mut sum = Arithmetic::default();
+
+        let a_values = self.load_array(a, a_idx, false, evaluator);
+        let b_values = self.load_array(b, b_idx, false, evaluator);
+
+        for i in 0..a.len {
+            let diff_expr = sub(
+                &a_values[i as usize].expression,
+                FieldElement::one(),
+                &b_values[i as usize].expression,
+            );
+
+            let diff_witness = evaluator.add_witness_to_cs();
+            let diff_var = InternalVar {
+                //in cache??
+                expression: diff_expr.clone(),
+                witness: Some(diff_witness),
+                idx: None,
+            };
+            evaluator.gates.push(Gate::Arithmetic(sub(
+                &diff_expr,
+                FieldElement::one(),
+                &from_witness(diff_witness),
+            )));
+            //TODO: avoid creating witnesses for diff
+            sum = add(
+                &sum,
+                FieldElement::one(),
+                &from_witness(evaluate_zerop(&diff_var, evaluator)),
+            );
+        }
+        sum
+    }
 }
 
-pub fn prepare_outputs(
-    pointer: Index,
-    output_nb: u32,
-    cfg: &IRGenerator,
+//Returns 1 if lhs <= rhs
+pub fn evaluate_cmp(
+    lhs: &InternalVar,
+    rhs: &InternalVar,
+    bit_size: u32,
     evaluator: &mut Evaluator,
-) -> Vec<Witness> {
-    // Create fresh variables that will link to the output
-    let mut outputs = Vec::with_capacity(output_nb as usize);
-    for _ in 0..output_nb {
-        let witness = evaluator.add_witness_to_cs();
-        outputs.push(witness);
-    }
-
-    let l_obj = cfg.get_object(pointer).unwrap();
-    match l_obj.get_type() {
-        // node::ObjectType::Pointer(a) => {
-        //     let array = &mut cfg.mem.arrays[a as usize];
-        //     array.witness = outputs;
-        //}
-        _ => unreachable!("invalid output"),
-    }
-    outputs
+) -> Witness {
+    //TODO use quad_decomposition gate for barretenberg
+    let sub_expr = sub(&lhs.expression, FieldElement::one(), &rhs.expression);
+    let bits = split(&sub_expr, bit_size + 1, evaluator);
+    bits[bit_size as usize]
 }
 
-fn std_lib_blake2s(lhs: InternalVar, cfg: &IRGenerator, evaluator: &mut Evaluator)
-//-> Result<Object, RuntimeError>
-{
-    let inputs = prepare_inputs(lhs.idx.unwrap(), cfg);
-    let outputs = Vec::new(); //TODO...prepare_outputs(ins.res_type, 32, cfg, evaluator);
-    let sha256_gate = GadgetCall {
-        name: OPCODE::Blake2s,
-        inputs,  //witness + bit size
-        outputs, //witness
-    };
-
-    evaluator.gates.push(Gate::GadgetCall(sha256_gate));
-}
-
-fn std_lib_sha256(lhs: InternalVar, cfg: &IRGenerator, evaluator: &mut Evaluator)
-//-> Result<Object, RuntimeError>
-{
-    let inputs = prepare_inputs(lhs.idx.unwrap(), cfg);
-    let outputs = prepare_outputs(lhs.idx.unwrap(), 32, cfg, evaluator); //TODO pas lhs.idx mais ins.res_type!!!
-
-    let sha256_gate = GadgetCall {
-        name: OPCODE::SHA256,
-        inputs,  //witness + bit size
-        outputs, //witness
-    };
-
-    evaluator.gates.push(Gate::GadgetCall(sha256_gate));
-
-    //what to return??
-
-    // Ok(Object::Array(arr))
+//Performs bit decomposition
+pub fn split(lhs: &Arithmetic, bit_size: u32, evaluator: &mut Evaluator) -> Vec<Witness> {
+    let mut bits = Arithmetic::default();
+    let mut two_pow = FieldElement::one();
+    let two = FieldElement::from(2_i128);
+    let mut result: Vec<Witness> = Vec::new();
+    for _ in 0..bit_size {
+        let bit_witness = evaluator.add_witness_to_cs();
+        result.push(bit_witness);
+        bits = add(&bits, two_pow, &from_witness(bit_witness));
+        two_pow = two_pow.mul(two);
+    }
+    evaluator
+        .gates
+        .push(Gate::Arithmetic(sub(lhs, FieldElement::one(), &bits)));
+    //toto witness values for solver
+    result
 }
 
 pub fn evaluate_and(
@@ -413,7 +620,7 @@ pub fn evaluate_xor(
     rhs: InternalVar,
     bit_size: u32,
     evaluator: &mut Evaluator,
-) -> Arithmetic {
+) -> Witness {
     let result = evaluator.add_witness_to_cs();
 
     let a_witness = lhs
@@ -431,7 +638,7 @@ pub fn evaluate_xor(
             result,
             num_bits: bit_size,
         }));
-    Arithmetic::from(Linear::from_witness(result))
+    result
 }
 
 //truncate lhs (a number whose value requires max_bits) into a rhs-bits number: i.e it returns b such that lhs mod 2^rhs is b
@@ -440,7 +647,7 @@ pub fn evaluate_truncate(
     rhs: u32,
     max_bits: u32,
     evaluator: &mut Evaluator,
-) -> Arithmetic {
+) -> Witness {
     // dbg!(&max_bits);
     // dbg!(&rhs);
     assert!(max_bits > rhs);
@@ -450,10 +657,6 @@ pub fn evaluate_truncate(
     let a_witness = lhs
         .witness
         .unwrap_or_else(|| generate_witness(&lhs, evaluator));
-    // if lhs.witness.is_none() {
-    //     dbg!(a_witness);
-    //     dbg!(&lhs.expression);
-    // }
     let b_witness = evaluator.add_witness_to_cs();
     let c_witness = evaluator.add_witness_to_cs();
     evaluator.gates.push(Gate::Directive(Directive::Truncate {
@@ -479,8 +682,7 @@ pub fn evaluate_truncate(
     let a = &Arithmetic::from(Linear::from_witness(a_witness));
     let my_constraint = add(&res, -FieldElement::one(), a);
     evaluator.gates.push(Gate::Arithmetic(my_constraint));
-
-    Arithmetic::from(Linear::from_witness(b_witness))
+    b_witness
 }
 
 pub fn generate_witness(lhs: &InternalVar, evaluator: &mut Evaluator) -> Witness {
@@ -596,42 +798,59 @@ pub fn evaluate_udiv(
     (q_witness, r_witness)
 }
 
-//TODO: returns the sign bit of lhs
-pub fn sign(lhs: &InternalVar, s: u32, evaluator: &mut Evaluator) -> Witness {
-    //TODO:
-    //we need to bit size s of lhs..we can get this from the res_type of the instruction
-    if s % 2 == 0 {
-        range_constraint(lhs.witness.unwrap(), s + 2, evaluator); //todo check the s+2
-                                                                  //TODO range_constraint should returns the quad decomposition
-                                                                  //Then take the last quad and use the 'new' bit-decomposition gate
-    }
-    return lhs.witness.unwrap(); //..TODO
+//Zero Equality gate: returns 1 if x is not null and 0 else
+pub fn evaluate_zerop(x: &InternalVar, evaluator: &mut Evaluator) -> Witness {
+    let x_witness = x.witness.unwrap(); //todo we need a witness because of the directive, but we should use an expression
+
+    let m = evaluator.add_witness_to_cs(); //'inverse' of x
+    evaluator.gates.push(Gate::Directive(Directive::Invert {
+        x: x_witness,
+        result: m,
+    }));
+    //y=x*m         y is 1 if x is not null, and 0 else
+    let y_witness = evaluator.add_witness_to_cs();
+    let y_expr = from_witness(y_witness);
+    let xm: Arithmetic = Linear::from_witness(x_witness) * Linear::from_witness(m);
+    evaluator.gates.push(Gate::Arithmetic(add(
+        &xm,
+        FieldElement::from(-1_i128),
+        &y_expr,
+    )));
+    //x=y*x
+    let xy: Arithmetic = Linear::from_witness(x_witness) * Linear::from_witness(y_witness);
+    evaluator.gates.push(Gate::Arithmetic(add(
+        &xy,
+        FieldElement::from(-1_i128),
+        &from_witness(x_witness),
+    )));
+    y_witness
 }
+
+/// Creates a new witness and constrains it to be the inverse of x
+pub fn evaluate_inverse(x: &Arithmetic, evaluator: &mut Evaluator) -> Witness {
+    // Create a fresh witness - n.b we could check if x is constant or not
+    let inverse_witness = evaluator.add_witness_to_cs();
+    let inverse_expr = from_witness(inverse_witness);
+    //x*inverse = 1
+    Arithmetic::default();
+    evaluator.gates.push(Gate::Arithmetic(add(
+        &mul(x, &inverse_expr),
+        FieldElement::one(),
+        &Arithmetic {
+            mul_terms: Vec::new(),
+            linear_combinations: Vec::new(),
+            q_c: FieldElement::from(-1_i128),
+        },
+    )));
+    inverse_witness
+}
+
 pub fn evaluate_sdiv(
-    lhs: &InternalVar,
-    rhs: &InternalVar,
-    evaluator: &mut Evaluator,
+    _lhs: &InternalVar,
+    _rhs: &InternalVar,
+    _evaluator: &mut Evaluator,
 ) -> (Arithmetic, Arithmetic) {
-    //TODO
-    todo!();
-    // let last_bit_a_wit = sign(lhs, 32, evaluator);//TODO bit size
-    // let last_bit_b_wit = sign(rhs, 32, evaluator);//TODO bit size
-    // //sa=1-2la; sa*lhs
-    // let sa =& Arithmetic{
-    //     mul_terms: Vec::new(),
-    //     linear_combinations: vec![(FieldElement::from(-2_i128),last_bit_a_wit)],
-    //     q_c: FieldElement::one(),
-    // };
-    // let sb = &Arithmetic{
-    //     mul_terms: Vec::new(),
-    //     linear_combinations: vec![(FieldElement::from(-2_i128),last_bit_b_wit)],
-    //     q_c: FieldElement::one(),
-    // };
-    // let (uq_wit, ur_wit) = evaluate_udiv(mul(sa, &lhs.expression), mul(sb, &rhs.expression), evaluator);
-    // //result is
-    // let r_arith = &Arithmetic::from(Linear::from_witness(ur_wit));
-    // let q_arith = &Arithmetic::from(Linear::from_witness(uq_wit));
-    // (mul(sb, &mul(sa, q_arith)), mul(sa, r_arith))
+    todo!(); //TODO
 }
 
 pub fn is_const(expr: &Arithmetic) -> bool {
@@ -715,6 +934,11 @@ pub fn mul(a: &Arithmetic, b: &Arithmetic) -> Arithmetic {
     //Constant term:
     output.q_c = a.q_c * b.q_c;
     output
+}
+
+// returns a - k*b
+pub fn sub(a: &Arithmetic, k: FieldElement, b: &Arithmetic) -> Arithmetic {
+    add(a, k.neg(), b)
 }
 
 // returns a + k*b
@@ -932,6 +1156,19 @@ fn bound_check(
     });
 }
 
+pub fn is_unit(arith: &Arithmetic) -> Option<Witness> {
+    if arith.mul_terms.is_empty()
+        && arith.linear_combinations.len() == 1
+        && arith.linear_combinations[0].0 == FieldElement::one()
+        && arith.q_c == FieldElement::zero()
+    {
+        return Some(arith.linear_combinations[0].1);
+    }
+    if arith.mul_terms.is_empty() && arith.linear_combinations.len() == 1 {
+        //todo!("should be simplified");
+    }
+    None
+}
 pub fn from_witness(witness: Witness) -> Arithmetic {
     Arithmetic {
         mul_terms: Vec::new(),

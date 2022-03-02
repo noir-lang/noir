@@ -1,7 +1,7 @@
 use super::{
     block,
     code_gen::IRGenerator,
-    node::{self, Node, NodeEval, Operation},
+    node::{self, Node, NodeEval},
     optim,
 };
 use acvm::FieldElement;
@@ -33,7 +33,6 @@ fn eval_block(block_id: Index, eval_map: &HashMap<Index, NodeEval>, eval: &mut I
             if let Some(value) = eval_map.get(&ins.lhs) {
                 ins.lhs = value.to_index().unwrap();
             }
-            if ins.operator == Operation::EqGate {}
             //TODO simplify(eval, ins);
         }
     }
@@ -250,13 +249,15 @@ fn evaluate_phi(
     for i in instructions {
         let mut to_process: Vec<(Index, node::NodeEval)> = Vec::new();
         if let Some(ins) = eval.try_get_instruction(*i) {
-            for phi in &ins.phi_arguments {
-                if phi.1 == from {
-                    //we evaluate the phi instruction value
-                    to_process.push((ins.idx, evaluate_one(node::NodeEval::Idx(phi.0), to, eval)));
+            if ins.operator == node::Operation::Phi {
+                for phi in &ins.phi_arguments {
+                    if phi.1 == from {
+                        //we evaluate the phi instruction value
+                        to_process
+                            .push((ins.idx, evaluate_one(node::NodeEval::Idx(phi.0), to, eval)));
+                    }
                 }
-            }
-            if ins.operator != node::Operation::Phi && ins.operator != node::Operation::Nop {
+            } else if ins.operator != node::Operation::Nop {
                 break; //phi instructions are placed at the beginning (and after the first dummy instruction)
             }
         }

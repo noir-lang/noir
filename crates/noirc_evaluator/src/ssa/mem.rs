@@ -1,15 +1,12 @@
+use super::code_gen::IRGenerator;
+use super::node::{self, Node};
 use acvm::acir::native_types::Witness;
 use acvm::FieldElement;
-use std::collections::HashMap;
-use std::convert::TryFrom;
-//use arena;
-use super::super::environment::Environment;
-use super::code_gen::IRGenerator;
-use super::node;
-use noirc_frontend::hir::Context;
 use noirc_frontend::node_interner::IdentId;
 use num_bigint::BigUint;
 use num_traits::ToPrimitive;
+use std::collections::HashMap;
+use std::convert::TryFrom;
 
 use crate::Array;
 use std::convert::TryInto;
@@ -20,6 +17,7 @@ pub struct Memory {
     pub memory_map: HashMap<u32, arena::Index>, //maps memory adress to expression
 }
 
+#[derive(Debug)]
 pub struct MemArray {
     pub element_type: node::ObjectType, //type of elements
     pub witness: Vec<Witness>,
@@ -37,19 +35,19 @@ impl MemArray {
                 self.witness.push(w);
             }
         }
-        assert!(self.witness.len() == 0 || self.witness.len() == self.len.try_into().unwrap());
+        assert!(self.witness.is_empty() || self.witness.len() == self.len.try_into().unwrap());
     }
 
-    pub fn new(definition: IdentId, name: String, of: node::ObjectType, len: u32) -> MemArray {
+    pub fn new(definition: IdentId, name: &str, of: node::ObjectType, len: u32) -> MemArray {
         assert!(len > 0);
         MemArray {
             element_type: of,
-            name,
+            name: name.to_string(),
             witness: Vec::new(),
             def: definition,
             len,
             adr: 0,
-            max: BigUint::from((1_u128 << of.bits()) - 1),
+            max: of.max_size(),
         }
     }
 }
@@ -74,7 +72,19 @@ impl Memory {
         if let Some(p) = self.arrays.iter().position(|x| x.def == array.def) {
             return Some(p as u32);
         }
-        return None;
+        None
+    }
+
+    //dereference a pointer
+    pub fn deref(igen: &IRGenerator, idx: arena::Index) -> Option<u32> {
+        if let Some(var) = igen.get_object(idx) {
+            match var.get_type() {
+                node::ObjectType::Pointer(a) => Some(a),
+                _ => None,
+            }
+        } else {
+            None
+        }
     }
 
     pub fn create_array(
@@ -82,7 +92,7 @@ impl Memory {
         array: &Array,
         definition: IdentId,
         el_type: node::ObjectType,
-        arr_name: String,
+        arr_name: &str,
     ) -> &MemArray {
         // let arr_name = context.def_interner.ident_name(collection);
         // let ident_span = context.def_interner.ident_span(collection);
@@ -95,18 +105,20 @@ impl Memory {
         new_array.set_witness(array);
         self.arrays.push(new_array);
         self.last_adr += len;
-        &self.arrays.last().unwrap()
+        self.arrays.last().unwrap()
     }
 
-    pub fn get_array_from_adr(&self, adr: u32) -> &MemArray {
-        let mut cur_adr = 0;
-        for a in &self.arrays {
-            if cur_adr + a.len > adr {
-                return a;
-            }
-            cur_adr += a.len;
-        }
-        unreachable!("Invalid memory");
+    pub fn create_new_array(
+        &mut self,
+        len: u32,
+        el_type: node::ObjectType,
+        arr_name: String,
+    ) -> u32 {
+        let mut new_array = MemArray::new(IdentId::dummy_id(), &arr_name, el_type, len);
+        new_array.adr = self.last_adr;
+        self.arrays.push(new_array);
+        self.last_adr += len;
+        (self.arrays.len() - 1) as u32
     }
 
     pub fn as_u32(value: FieldElement) -> u32 {

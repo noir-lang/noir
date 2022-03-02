@@ -14,8 +14,6 @@ use crate::object::Object;
 use num_traits::identities::Zero;
 use std::ops::Mul;
 
-use super::mem::MemArray;
-
 pub trait Node: std::fmt::Display {
     fn get_type(&self) -> ObjectType;
     //fn get_bit_size(&self) -> u32;
@@ -144,7 +142,7 @@ pub enum ObjectType {
     Boolean,
     Unsigned(u32), //bit size
     Signed(u32),   //bit size
-    Pointer(u32),  //array index -
+    Pointer(u32),  //array index
     //custom(u32),   //user-defined struct, u32 refers to the id of the type in...?todo
     //TODO big_int
     //TODO floats
@@ -177,8 +175,7 @@ impl ObjectType {
                 //ObjectType::native_field
             }
             Object::Array(_) => {
-                todo!();
-                //ObjectType::none
+                todo!();//TODO we should match an array in mem: ObjectType::Pointer(0) 
             }
             Object::Constants(_) => ObjectType::NativeField, //TODO
             Object::Integer(i) => {
@@ -230,7 +227,12 @@ impl ObjectType {
 
     //maximum size of the representation (e.g. signed(8).max_size() return 255, not 128.)
     pub fn max_size(&self) -> BigUint {
-        (BigUint::one() << self.bits()) - BigUint::one()
+        match self {
+            &ObjectType::NativeField => {
+                BigUint::from_bytes_be(&FieldElement::from(-1_i128).to_bytes())
+            }
+            _ => (BigUint::one() << self.bits()) - BigUint::one(),
+        }
     }
 }
 #[derive(Clone, Debug)]
@@ -249,6 +251,8 @@ pub struct Instruction {
 
     //temp: todo phi subtype
     pub phi_arguments: Vec<(arena::Index, arena::Index)>,
+
+    pub ins_arguments: Vec<arena::Index>,
 }
 
 impl std::fmt::Display for Instruction {
@@ -304,6 +308,7 @@ impl Instruction {
             bit_size: 0,
             max_value: BigUint::zero(),
             phi_arguments: Vec::new(),
+            ins_arguments: Vec::new(),
         }
     }
 
@@ -351,9 +356,9 @@ impl Instruction {
             }
             Operation::Trunc | Operation::Phi => (false, false),
             Operation::Nop | Operation::Jne | Operation::Jeq | Operation::Jmp => (false, false),
-            Operation::EqGate => (true, true),
+            Operation::Constrain(_) => (true, true),
             Operation::Load(_) | Operation::Store(_) => (false, false),
-            Operation::StdLib(_) => (true, true), //TODO to check
+            Operation::Intrinsic(_) => (true, true), //TODO to check
         }
     }
 
@@ -380,7 +385,7 @@ impl Instruction {
         }
     }
 
-    //Evaluate the instruction value when its operands are constant
+    //Evaluate the instruction value when its operands are constant (constant folding)
     pub fn evaluate(&self, lhs: &NodeEval, rhs: &NodeEval) -> NodeEval {
         //let mut l_sign = false; //TODO
         let (l_is_zero, l_constant, l_bsize) = Instruction::node_evaluate(lhs);
@@ -431,7 +436,8 @@ impl Instruction {
                     }
                     //if l_constant.is_some() && r_constant.is_some() {
                     assert!(l_bsize == r_bsize);
-                    let res_value = (l_const - r_const) % l_bsize as u128;
+
+                    let res_value = l_const.overflowing_sub(r_const).0 % l_bsize as u128;
                     return NodeEval::Const(FieldElement::from(res_value), self.res_type);
                 }
             }
@@ -633,8 +639,21 @@ impl Instruction {
                 //TODO handle case when l_const is one (or r_const is one) by generating 'not rhs' instruction (or 'not lhs' instruction)
             }
             Operation::Cast => {
-                if l_constant.is_some() {
-                    todo!("need to cast l_constant into self.res_type.bits() bit size")
+                if let Some(l_const) = l_constant {
+                    return NodeEval::Const(
+                        FieldElement::from(l_const % (1 << self.res_type.bits())),
+                        self.res_type,
+                    );
+                }
+            }
+            Operation::Constrain(op) => {
+                if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
+                    match op {
+                        ConstrainOp::Eq => assert!(l_const == r_const),
+                        ConstrainOp::Neq => assert!(l_const != r_const),
+                    }
+                    //we can delete the instruction
+                    return NodeEval::Idx(arena::Index::from_raw_parts(std::usize::MAX, 0));
                 }
             }
             Operation::Phi => (), //Phi are simplified by simply_phi() later on; they must not be simplified here
@@ -694,20 +713,29 @@ impl Instruction {
                 std::mem::swap(&mut self.rhs, &mut self.lhs);
                 self.operator = Operation::Lte
             }
-            //TODO replace a<b with a<=b+1, but beware of edge cases!
-            Operation::EqGate => {
-                if self.rhs == self.lhs {
-                    self.rhs = self.idx;
-                    self.is_deleted = true;
-                    self.operator = Operation::Nop;
+            Operation::Constrain(op) => match op {
+                ConstrainOp::Eq => {
+                    if self.rhs == self.lhs {
+                        self.rhs = self.idx;
+                        self.is_deleted = true;
+                        self.operator = Operation::Nop;
+                    }
                 }
-            }
+                ConstrainOp::Neq => assert!(self.rhs != self.lhs),
+            },
             _ => (),
         }
         if is_commutative(self.operator) && self.rhs < self.lhs {
             std::mem::swap(&mut self.rhs, &mut self.lhs);
         }
     }
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+pub enum ConstrainOp {
+    Eq,
+    Neq,
+    //Cmp...
 }
 
 //adapted from LLVM IR
@@ -756,12 +784,11 @@ pub enum Operation {
     Load(u32),
     Store(u32),
 
-    StdLib(OPCODE),
+    Intrinsic(OPCODE), //Custom implementation of usefull primitives which are more performant with Aztec backend
+    //Call(noirc_frontend::node_interner::FuncId),
+    Constrain(ConstrainOp), //write gates enforcing the ContrainOp to be true
 
     Nop, // no op
-    EqGate, //write a gate enforcing equality of the two sides (to support the constrain statement)
-         // LtGate,     //less than gate
-         // AndGate,    //AND constraint Gate - TODO y'a besoin ??? NON!
 }
 
 pub fn is_commutative(op_code: Operation) -> bool {
@@ -774,6 +801,8 @@ pub fn is_commutative(op_code: Operation) -> bool {
             | Operation::And
             | Operation::Or
             | Operation::Xor
+            | Operation::Constrain(ConstrainOp::Eq)
+            | Operation::Constrain(ConstrainOp::Neq)
     )
 }
 
@@ -809,7 +838,7 @@ pub fn is_binary(op_code: Operation) -> bool {
             | Operation::Or
             | Operation::Xor
             | Operation::Trunc
-            | Operation::EqGate
+            | Operation::Constrain(_)
     )
 
     //For the record:  Operation::not | Operation::cast => false | Operation::ass | Operation::trunc | Operation::nop

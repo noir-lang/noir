@@ -43,22 +43,58 @@ pub fn simplify(eval: &mut IRGenerator, ins: &mut node::Instruction) {
     if idx != ins.idx {
         ins.is_deleted = true;
         ins.rhs = idx;
+        if idx == eval.dummy() {
+            ins.operator = node::Operation::Nop;
+        }
         return;
     }
 
     //2. standard form
     ins.standard_form();
-    if ins.operator == node::Operation::Cast {
-        if let Some(lhs_obj) = eval.get_object(ins.lhs) {
-            if lhs_obj.get_type() == ins.res_type {
-                ins.is_deleted = true;
-                ins.rhs = ins.lhs;
-                return;
+    match ins.operator {
+        node::Operation::Cast => {
+            if let Some(lhs_obj) = eval.get_object(ins.lhs) {
+                if lhs_obj.get_type() == ins.res_type {
+                    ins.is_deleted = true;
+                    ins.rhs = ins.lhs;
+                    return;
+                }
             }
         }
+        // node::Operation::Gte => {
+        //     //a>=b <=> Not(a<b)
+        //     let inv = eval.new_instruction(ins.lhs, ins.rhs, node::Operation::Lt, ins.res_type);
+        //     ins.lhs = eval.get_const(FieldElement::one(), ins.res_type);
+        //     ins.rhs = inv;
+        //     ins.operator = node::Operation::Sub; //n.b. no need to underflow here
+        //TODO: inv must be inserted before ins.
+        // }
+        node::Operation::Constrain(op) => match op {
+            node::ConstrainOp::Eq => {
+                if let (Some(a), Some(b)) = (
+                    super::mem::Memory::deref(eval, ins.lhs),
+                    super::mem::Memory::deref(eval, ins.rhs),
+                ) {
+                    if a == b {
+                        ins.is_deleted = true;
+                        ins.operator = node::Operation::Nop;
+                    }
+                }
+            }
+            node::ConstrainOp::Neq => {
+                if let (Some(a), Some(b)) = (
+                    super::mem::Memory::deref(eval, ins.lhs),
+                    super::mem::Memory::deref(eval, ins.rhs),
+                ) {
+                    assert!(a != b);
+                }
+            }
+        },
+        _ => (),
     }
 
     //3. left-overs (it requires &mut eval)
+
     if let NodeEval::Const(r_const, r_type) = r_eval {
         match ins.operator {
             node::Operation::Udiv => {
