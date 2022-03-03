@@ -74,6 +74,13 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
     (is_public_tx == inputs.public_value.is_zero()).assert_equal(false, "public value incorrect");
     (is_public_tx == inputs.public_owner.is_zero()).assert_equal(false, "public owner incorrect");
 
+    // Constrain the proof id.
+    inputs.proof_id.assert_is_in_set({ field_ct(ProofIds::DEPOSIT),
+                                       field_ct(ProofIds::WITHDRAW),
+                                       field_ct(ProofIds::SEND),
+                                       field_ct(ProofIds::DEFI_DEPOSIT) },
+                                     "incorrect proof id");
+
     // Circuit operates in one of several cases. Assert we're only in one of these cases and rules apply.
     {
         // Case 0: 0 input notes, all notes have same asset ids, can only DEPOSIT.
@@ -84,7 +91,7 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
         const auto case2 = !input_note1.is_virtual && !input_note2.is_virtual && inote2_valid &&
                            (input_note1.asset_id == input_note2.asset_id);
         // Case 3: 1 virtual asset note, all notes have same asset ids, can only SEND or DEFI_DEPOSIT.
-        const auto case3 = input_note1.is_virtual && !inote2_valid;
+        const auto case3 = input_note1.is_virtual && inote1_valid && !inote2_valid;
         // Case 4: 2 virtual asset notes, all notes have same asset ids, can only SEND.
         const auto case4 = input_note1.is_virtual && input_note2.is_virtual && inote2_valid && !is_defi_deposit;
         // Case 5: 1st note real, 2nd note virtual, different input asset ids allowed, fee asset id must equal

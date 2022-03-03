@@ -569,6 +569,17 @@ TEST_F(join_split_tests, test_overflow_public_value_fails)
     EXPECT_EQ(result.err, "safe_uint_t range constraint failure: public_value");
 }
 
+// Proof id.
+TEST_F(join_split_tests, test_wrong_proof_id)
+{
+    join_split_tx tx = zero_input_setup();
+    tx.proof_id = ProofIds::DEFI_CLAIM;
+
+    auto result = sign_and_verify_logic(tx, user.owner.private_key);
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(result.err, "incorrect proof id");
+}
+
 // Tx fee
 TEST_F(join_split_tests, test_non_zero_tx_fee)
 {
