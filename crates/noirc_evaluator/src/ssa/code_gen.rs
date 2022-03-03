@@ -713,7 +713,6 @@ impl<'a> IRGenerator<'a> {
             Ok(self.new_constant(x)),
             HirExpression::Literal(HirLiteral::Array(arr_lit)) => {
                 //We create a MemArray
-                dbg!(&arr_lit);
                 let arr_type = self.context().def_interner.id_type(expr_id);
                 let element_type = node::ObjectType::from_type(arr_type);    //WARNING array type!
 
