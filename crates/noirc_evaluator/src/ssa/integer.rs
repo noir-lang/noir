@@ -219,7 +219,8 @@ fn update_ins(eval: &mut IRGenerator, idx: arena::Index, copy_from: &node::Instr
 //Add required truncate instructions on all blocks
 pub fn overflow_strategy(eval: &mut IRGenerator) {
     let mut max_map: HashMap<arena::Index, BigUint> = HashMap::new();
-    tree_overflow(eval, eval.first_block, &mut max_map);
+    let mut memory_map: HashMap<u32, arena::Index> = HashMap::new();
+    tree_overflow(eval, eval.first_block, &mut max_map, &mut memory_map);
 }
 
 //implement overflow strategy following the dominator tree
@@ -227,13 +228,14 @@ pub fn tree_overflow(
     eval: &mut IRGenerator,
     b_idx: arena::Index,
     max_map: &mut HashMap<arena::Index, BigUint>,
+    memory_map: &mut HashMap<u32, arena::Index>,
 ) {
-    block_overflow(eval, b_idx, max_map);
+    block_overflow(eval, b_idx, max_map, memory_map);
     let block = eval.get_block(b_idx);
     let bd = block.dominated.clone();
     //TODO: Handle IF statements in there:
     for b in bd {
-        tree_overflow(eval, b, &mut max_map.clone());
+        tree_overflow(eval, b, &mut max_map.clone(), &mut memory_map.clone());
     }
 }
 
@@ -243,6 +245,7 @@ pub fn block_overflow(
     b_idx: arena::Index,
     //block: &mut node::BasicBlock,
     max_map: &mut HashMap<arena::Index, BigUint>,
+    memory_map: &mut HashMap<u32, arena::Index>,
 ) {
     //for each instruction, we compute the resulting max possible value (in term of the field representation of the operation)
     //when it is over the field charac, or if the instruction requires it, then we insert truncate instructions
@@ -260,7 +263,6 @@ pub fn block_overflow(
     }
     //since we process the block from the start, the block value array is not relevant
     let mut value_map: HashMap<arena::Index, arena::Index> = HashMap::new();
-    let mut memory_map: HashMap<u32, arena::Index> = HashMap::new(); //TODO put in argument
     let mut delete_ins = false;
     for mut ins in b {
         if ins.operator == node::Operation::Nop {
