@@ -99,7 +99,7 @@ auto process_defi_deposit(Composer& composer,
     const suint_ct tx_fee(public_inputs[InnerProofFields::TX_FEE], TX_FEE_BIT_LENGTH, "tx_fee");
     const suint_ct defi_deposit_fee = tx_fee / 2;
     const auto claim_fee = (tx_fee - defi_deposit_fee) * is_defi_deposit;
-    const auto net_tx_fee = tx_fee * !is_defi_deposit + defi_deposit_fee * is_defi_deposit;
+    const auto net_tx_fee = suint_ct::conditional_assign(is_defi_deposit, defi_deposit_fee, tx_fee);
 
     // Complete the claim note output to mix in the interaction nonce and the claim fee.
     auto note_commitment1 = public_inputs[InnerProofFields::NOTE_COMMITMENT1];
@@ -107,7 +107,7 @@ auto process_defi_deposit(Composer& composer,
         notes::circuit::claim::complete_partial_commitment(note_commitment1, note_defi_interaction_nonce, claim_fee);
 
     public_inputs[InnerProofFields::NOTE_COMMITMENT1] =
-        note_commitment1 * !is_defi_deposit + claim_note_commitment * is_defi_deposit;
+        field_ct::conditional_assign(is_defi_deposit, claim_note_commitment, note_commitment1);
 
     return net_tx_fee;
 }
@@ -129,13 +129,13 @@ auto process_claims(std::vector<field_ct>& public_inputs, field_ct const& new_de
  * - Perform a membership check for the propagated inputs of txs at the start of a split chain.
  * - 'Zero' the commitments and nullifiers of notes propagated to a user's self.
  *
- * @param all_tx_public_inputs is required to extract the allow_chain public input from each tx
+ * @param prev_txs_public_inputs is required to extract the allow_chain public input from each tx
  * @returns the (possibly zeroed) nullifiers of this tx
  */
 void process_chained_txs(size_t const& i,
                          bool_ct const& is_tx_real,
                          std::vector<field_ct> const& public_inputs,
-                         std::vector<std::vector<field_ct>> const& all_tx_public_inputs,
+                         std::vector<std::vector<field_ct>> const& prev_txs_public_inputs,
                          field_ct const& old_data_root,
                          std::vector<merkle_tree::hash_path> const& linked_commitment_paths,
                          std::vector<field_ct> const& linked_commitment_indices)
@@ -157,7 +157,7 @@ void process_chained_txs(size_t const& i,
     field_ct matched_tx_index(0);
 
     for (size_t j = 0; j < i; j++) {
-        const auto prev_public_inputs = all_tx_public_inputs[j];
+        const auto prev_public_inputs = prev_txs_public_inputs[j];
         const field_ct prev_note_commitment1 = prev_public_inputs[InnerProofFields::NOTE_COMMITMENT1];
         const field_ct prev_note_commitment2 = prev_public_inputs[InnerProofFields::NOTE_COMMITMENT2];
         const field_ct temp_prev_allow_chain = prev_public_inputs[InnerProofFields::ALLOW_CHAIN];
@@ -238,7 +238,7 @@ void accumulate_tx_fees(Composer& composer,
         const auto matches = asset_id == asset_ids[k] && is_asset_id_real;
         num_matched += matches;
 
-        total_tx_fees[k] = total_tx_fees[k] + tx_fee * static_cast<suint_ct>(matches);
+        total_tx_fees[k] += tx_fee * static_cast<suint_ct>(matches);
     }
 
     // Assert this proof matched either 0 or 1 assets
@@ -304,7 +304,7 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
     // Input asset_ids that are outside scope are set to 2^{30} (NUM_MAX_ASSETS).
     for (uint32_t i = 0; i < NUM_ASSETS; i++) {
         auto in_scope = uint32_ct(i) < num_asset_ids;
-        asset_ids[i] = asset_ids[i].madd(field_ct(in_scope), field_ct(MAX_NUM_ASSETS) * !in_scope);
+        asset_ids[i] = field_ct::conditional_assign(in_scope, asset_ids[i], field_ct(MAX_NUM_ASSETS));
         auto valid = !in_scope || asset_ids[i] != field_ct(MAX_NUM_ASSETS);
         valid.assert_equal(true, "asset_id out of scope");
     }
@@ -318,7 +318,7 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
     std::vector<std::vector<field_ct>> propagated_tx_public_inputs;
     // All public inputs of the inner txs (including public inputs which will not be made public by this rollup
     // circuit):
-    std::vector<std::vector<field_ct>> all_tx_public_inputs;
+    std::vector<std::vector<field_ct>> prev_txs_public_inputs;
     auto total_tx_fees = std::vector<suint_ct>(NUM_ASSETS, suint_ct::create_constant_witness(&composer, 0));
     std::vector<suint_ct> defi_deposit_sums(NUM_BRIDGE_CALLS_PER_BLOCK,
                                             suint_ct::create_constant_witness(&composer, 0));
@@ -358,7 +358,7 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
         process_chained_txs(i,
                             is_real,
                             public_inputs,
-                            all_tx_public_inputs,
+                            prev_txs_public_inputs,
                             old_data_root,
                             linked_commitment_paths,
                             linked_commitment_indices);
@@ -385,7 +385,7 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
         auto asset_id = public_inputs[InnerProofFields::TX_FEE_ASSET_ID];
         accumulate_tx_fees(composer, total_tx_fees, proof_id, asset_id, tx_fee, asset_ids, num_asset_ids, is_real);
 
-        all_tx_public_inputs.push_back(public_inputs);
+        prev_txs_public_inputs.push_back(public_inputs);
     }
 
     new_data_values.resize(rollup_size_pow2_ * 2, fr(0));

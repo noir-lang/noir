@@ -59,7 +59,7 @@ class claim_tests : public ::testing::Test {
         tx.defi_root = defi_tree->root();
         tx.defi_note_index = defi_note_index;
         tx.defi_interaction_note = interaction_note;
-        tx.defi_interaction_note_path = defi_tree->get_hash_path(interaction_note.interaction_nonce);
+        tx.defi_interaction_note_path = defi_tree->get_hash_path(defi_note_index);
 
         tx.output_value_a = ((uint512_t(claim_note.deposit_value) * uint512_t(interaction_note.total_output_value_a)) /
                              uint512_t(interaction_note.total_input_value))
@@ -596,8 +596,8 @@ TEST_F(claim_tests, test_defi_note_incorrect_index_fails)
     EXPECT_FALSE(result.logic_verified);
     EXPECT_EQ(result.err, "defi interaction note not a member");
 
-    // the defi note is actually at index 31 + 25
-    claim_tx tx_pass = create_claim_tx(note1, 0, 56, defi_notes[25]);
+    // the defi note is actually at index 31 + 26
+    claim_tx tx_pass = create_claim_tx(note1, 0, 57, defi_notes[25]);
     result = verify_logic(tx_pass, cd);
     EXPECT_TRUE(result.logic_verified);
 }
@@ -1042,7 +1042,7 @@ TEST_F(claim_tests, test_claim_1_output_with_virtual_note_full_proof)
     append_note(dummy, defi_tree);
     append_note(dummy, defi_tree);
     append_note(note2, defi_tree);
-    claim_tx tx = create_claim_tx(note1, 0, 0, note2);
+    claim_tx tx = create_claim_tx(note1, 0, 2, note2);
     auto result = verify(tx, cd);
 
     auto proof_data = inner_proof_data(result.proof_data);

@@ -1,6 +1,5 @@
 #include "claim_circuit.hpp"
 #include "ratio_check.hpp"
-#include "../add_zero_public_inputs.hpp"
 #include "../notes/circuit/index.hpp"
 #include <stdlib/merkle_tree/membership.hpp>
 

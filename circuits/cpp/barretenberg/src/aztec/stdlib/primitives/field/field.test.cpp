@@ -647,4 +647,52 @@ TEST(stdlib_field, decompose_into_bits)
     run_failure_test(supply_modulus_bits);
     run_failure_test(supply_half_modulus_bits);
 }
+
+TEST(stdlib_field, test_assert_is_in_set)
+{
+    waffle::StandardComposer composer = waffle::StandardComposer();
+
+    field_t a(witness_t(&composer, fr(1)));
+    field_t b(witness_t(&composer, fr(2)));
+    field_t c(witness_t(&composer, fr(3)));
+    field_t d(witness_t(&composer, fr(4)));
+    field_t e(witness_t(&composer, fr(5)));
+    std::vector<field_t> set = { a, b, c, d, e };
+
+    a.assert_is_in_set(set);
+
+    waffle::Prover prover = composer.preprocess();
+    waffle::Verifier verifier = composer.create_verifier();
+    waffle::plonk_proof proof = prover.construct_proof();
+    info("composer gates = ", composer.get_num_gates());
+    bool result = verifier.verify_proof(proof);
+    EXPECT_EQ(result, true);
+}
+
+TEST(stdlib_field, test_assert_is_in_set_fails)
+{
+    waffle::StandardComposer composer = waffle::StandardComposer();
+
+    field_t a(witness_t(&composer, fr(1)));
+    field_t b(witness_t(&composer, fr(2)));
+    field_t c(witness_t(&composer, fr(3)));
+    field_t d(witness_t(&composer, fr(4)));
+    field_t e(witness_t(&composer, fr(5)));
+    std::vector<field_t> set = { a, b, c, d, e };
+
+    field_t f(witness_t(&composer, fr(6)));
+    f.assert_is_in_set(set);
+
+    waffle::Prover prover = composer.preprocess();
+
+    waffle::Verifier verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    info("composer gates = ", composer.get_num_gates());
+
+    bool result = verifier.verify_proof(proof);
+    EXPECT_EQ(result, false);
+}
+
 } // namespace test_stdlib_field

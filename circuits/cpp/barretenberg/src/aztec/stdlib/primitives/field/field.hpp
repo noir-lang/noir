@@ -156,6 +156,8 @@ template <typename ComposerContext> class field_t {
 
     void assert_not_equal(const field_t& rhs, std::string const& msg = "field_t::assert_not_equal") const;
 
+    void assert_is_in_set(const std::vector<field_t>& set, std::string const& msg = "field_t::assert_not_in_set") const;
+
     static field_t conditional_assign(const bool_t<ComposerContext>& predicate, const field_t& lhs, const field_t& rhs);
 
     static std::array<field_t, 4> preprocess_two_bit_table(const field_t& T0,

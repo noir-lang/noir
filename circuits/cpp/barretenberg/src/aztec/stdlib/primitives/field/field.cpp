@@ -624,6 +624,17 @@ void field_t<ComposerContext>::assert_not_equal(const field_t& rhs, std::string 
 }
 
 template <typename ComposerContext>
+void field_t<ComposerContext>::assert_is_in_set(const std::vector<field_t>& set, std::string const& msg) const
+{
+    const field_t input = *this;
+    field_t product = (input - set[0]);
+    for (size_t i = 1; i < set.size(); i++) {
+        product *= (input - set[i]);
+    }
+    product.assert_is_zero(msg);
+}
+
+template <typename ComposerContext>
 std::array<field_t<ComposerContext>, 4> field_t<ComposerContext>::preprocess_two_bit_table(const field_t& T0,
                                                                                            const field_t& T1,
                                                                                            const field_t& T2,

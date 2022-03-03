@@ -81,6 +81,15 @@ field_ct process_defi_interaction_notes(Composer& composer,
                             insertion_index,
                             "check_defi_tree_updated");
 
+    /**
+     * hash_output = H(H(A), H(B), H(C), H(D))
+     *
+     * Q: Why don't we use hash_output = H(A, B, C, D)?
+     * A: We need to store the defi interaction notes in the smart contract so as to allow async defi transactions.
+     *    For example, if a rollup block n results in defi notes (A, B, C, D) then all of these four need not be
+     *    processed together. Hence we must store individual notes: to minimise the amount of data we store, we store
+     *    H(D) for each defi note D.
+     */
     auto hash_output =
         plonk::stdlib::sha256_to_field<Composer>(packed_byte_array_ct::from_field_element_vector(hash_input));
 
@@ -142,11 +151,11 @@ void check_bridge_ids_and_accumulate_defi_deposits(Composer& composer,
             const auto matches = (inner_bridge_id == bridge_ids[k]);
             num_matched += matches;
 
-            // Sum the real tx rollup proof's tx fee according to the matched asset id.
+            // Sum the real tx rollup proof's tx fee according to the matched bridge_id.
             defi_deposit_sums[k] += (inner_defi_deposit_sum * matches * !is_bridge_id_zero);
         }
 
-        // Assert that the tx rollup proof's asset_id matched a single asset_id.
+        // Assert that the tx rollup proof's bridge_id matched a single bridge_id.
         auto is_valid_bridge_id = !is_real || (num_matched == 1 || is_bridge_id_zero);
         is_valid_bridge_id.assert_equal(true,
                                         format("rollup proof ",
@@ -189,6 +198,10 @@ void assert_inner_proof_sequential(size_t const num_inner_txs_pow2,
     auto valid_defi_root = !is_real || new_defi_root_inner == new_defi_root;
     valid_defi_root.assert_equal(true, format("inconsistent_defi_root_", i));
 
+    // Check if the inner rollup's id matches root rollup's id.
+    auto valid_rollup_id = !is_real || rollup_id_inner == rollup_id;
+    valid_rollup_id.assert_equal(true, format("incorrect_rollup_id_", i));
+
     if (i == 0) {
         // The first proof should always be real.
         is_real.assert_equal(true, "root rollup first proof is not real");
@@ -198,19 +211,17 @@ void assert_inner_proof_sequential(size_t const num_inner_txs_pow2,
         old_null_root = old_null_root_inner;
         new_null_root = new_null_root_inner;
     } else {
-        auto valid_rollup_id = !is_real || rollup_id_inner == rollup_id;
         auto valid_data_start_index =
             !is_real || data_start_index_inner == (data_start_index + (i * num_inner_txs_pow2 * 2));
         auto valid_old_data_root = !is_real || old_data_root_inner == new_data_root;
         auto valid_old_null_root = !is_real || old_null_root_inner == new_null_root;
 
-        valid_rollup_id.assert_equal(true, format("incorrect_rollup_id_", i));
         valid_data_start_index.assert_equal(true, format("incorrect_data_start_index_", i));
         valid_old_data_root.assert_equal(true, format("inconsistent_old_data_root_", i));
         valid_old_null_root.assert_equal(true, format("inconsistent_old_null_root_", i));
 
-        new_data_root = (new_data_root_inner * is_real) + (new_data_root * !is_real);
-        new_null_root = (new_null_root_inner * is_real) + (new_null_root * !is_real);
+        new_data_root = field_ct::conditional_assign(is_real, new_data_root_inner, new_data_root);
+        new_null_root = field_ct::conditional_assign(is_real, new_null_root_inner, new_null_root);
     }
 }
 
@@ -221,6 +232,7 @@ circuit_result_data root_rollup_circuit(Composer& composer,
                                         std::shared_ptr<waffle::verification_key> const& inner_verification_key)
 {
     auto max_num_inner_proofs = tx.rollups.size();
+    ASSERT(max_num_inner_proofs <= num_outer_txs_pow2);
 
     // Witnesses.
     const auto rollup_id = field_ct(witness_ct(&composer, tx.rollup_id));

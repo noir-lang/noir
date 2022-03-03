@@ -24,73 +24,89 @@ using namespace notes::circuit::account;
 static std::shared_ptr<waffle::proving_key> proving_key;
 static std::shared_ptr<waffle::verification_key> verification_key;
 
-field_ct compute_account_alias_id_nullifier(field_ct const& proof_id, suint_ct const& account_alias_id)
+field_ct compute_account_alias_id_nullifier(suint_ct const& account_alias_id)
 {
-    std::vector<field_ct> to_compress = { proof_id, account_alias_id.value };
-    return pedersen::compress(to_compress, true, notes::GeneratorIndex::ACCOUNT_ALIAS_ID_NULLIFIER);
+    return pedersen::compress(
+        std::vector<field_ct>{ account_alias_id.value }, true, notes::GeneratorIndex::ACCOUNT_ALIAS_ID_NULLIFIER);
 }
 
 void account_circuit(Composer& composer, account_tx const& tx)
 {
+    // @dev This has to be a witness because we want to set it as a public input (see set_public() later). However, we
+    // don't want provers to have freedom to change this value.
     const auto proof_id = field_ct(witness_ct(&composer, ProofIds::ACCOUNT));
-    const auto nonce = suint_ct(witness_ct(&composer, tx.nonce), ACCOUNT_NONCE_BIT_LENGTH, "account_nonce");
-    const auto alias_hash = suint_ct(witness_ct(&composer, tx.alias_hash), ALIAS_HASH_BIT_LENGTH, "alias_hash");
-    const auto migrate = bool_ct(witness_ct(&composer, tx.migrate));
-    const auto signature = stdlib::schnorr::convert_signature(&composer, tx.signature);
+    proof_id.assert_equal(field_ct(ProofIds::ACCOUNT));
+
+    // Extract witnesses
+    const auto data_tree_root = field_ct(witness_ct(&composer, tx.merkle_root));
     const auto account_public_key = stdlib::create_point_witness(composer, tx.account_public_key);
     const auto new_account_public_key = stdlib::create_point_witness(composer, tx.new_account_public_key);
     const auto spending_public_key_1 = stdlib::create_point_witness(composer, tx.new_signing_pub_key_1, false);
     const auto spending_public_key_2 = stdlib::create_point_witness(composer, tx.new_signing_pub_key_2, false);
-    const auto account_note_index =
-        suint_ct(witness_ct(&composer, tx.account_index), DATA_TREE_DEPTH, "account_note_index");
-    const auto account_note_path = merkle_tree::create_witness_hash_path(composer, tx.account_path);
-    const auto signing_pub_key = stdlib::create_point_witness(composer, tx.signing_pub_key);
-    const auto data_tree_root = field_ct(witness_ct(&composer, tx.merkle_root));
+    const auto alias_hash = suint_ct(witness_ct(&composer, tx.alias_hash), ALIAS_HASH_BIT_LENGTH, "alias_hash");
+    const auto account_nonce =
+        suint_ct(witness_ct(&composer, tx.account_nonce), ACCOUNT_NONCE_BIT_LENGTH, "account_nonce");
+    const auto migrate = bool_ct(witness_ct(&composer, tx.migrate));
 
-    const auto account_alias_id = alias_hash + nonce * suint_ct(uint256_t(1) << 224);
-    const auto output_nonce = nonce + migrate;
-    const auto output_account_alias_id = alias_hash + output_nonce * suint_ct(uint256_t(1) << 224);
+    const auto account_note_index =
+        suint_ct(witness_ct(&composer, tx.account_note_index), DATA_TREE_DEPTH, "account_note_index");
+    const auto account_note_path = merkle_tree::create_witness_hash_path(composer, tx.account_note_path);
+    const auto signing_pub_key = stdlib::create_point_witness(composer, tx.signing_pub_key);
+    const auto signature = stdlib::schnorr::convert_signature(&composer, tx.signature);
+
+    // Calculations begin:
+    const auto account_alias_id = alias_hash + account_nonce * suint_ct(uint256_t(1) << 224);
+    const auto output_account_nonce = account_nonce + migrate;
+    const auto output_account_alias_id = alias_hash + output_account_nonce * suint_ct(uint256_t(1) << 224);
 
     const auto output_note_1 =
         account_note(output_account_alias_id.value, new_account_public_key, spending_public_key_1);
     const auto output_note_2 =
         account_note(output_account_alias_id.value, new_account_public_key, spending_public_key_2);
 
-    const auto nullifier_1 = compute_account_alias_id_nullifier(proof_id, account_alias_id) * migrate;
+    // @dev unlimited zero-valued nullifiers are permitted by the rollup circuit (e.g. if migrate == 0).
+    const auto nullifier_1 = compute_account_alias_id_nullifier(account_alias_id) * migrate;
+
+    const bool_ct zero_account_nonce = account_nonce == suint_ct(0);
+    const point_ct signer = { account_public_key.x * zero_account_nonce + signing_pub_key.x * !zero_account_nonce,
+                              account_public_key.y * zero_account_nonce + signing_pub_key.y * !zero_account_nonce };
+
+    // Validate that, if account_nonce == 0 then migrate == 1
+    zero_account_nonce.must_imply(migrate, "account must be migrated");
 
     // Check signature.
-    const bool_ct zero_nonce = nonce == suint_ct(0);
-
-    // Validate that, if nonce == 0 then migrate == 1
-    const bool_ct migrate_check = (migrate || !zero_nonce);
-    migrate_check.assert_equal(true, "both nonce and migrate are 0");
-    const point_ct signer = { account_public_key.x * zero_nonce + signing_pub_key.x * !zero_nonce,
-                              account_public_key.y * zero_nonce + signing_pub_key.y * !zero_nonce };
-    std::vector<field_ct> to_compress = { account_alias_id.value,
-                                          account_public_key.x,
-                                          new_account_public_key.x,
-                                          spending_public_key_1.x,
-                                          spending_public_key_2.x };
-    const byte_array_ct message = pedersen::compress(to_compress, true);
-    stdlib::schnorr::verify_signature(message, signer, signature);
-    if (composer.failed) {
-        composer.err = "verify signature failed.";
+    {
+        bool composerAlreadyFailed = composer.failed;
+        std::vector<field_ct> to_compress = { account_alias_id.value,
+                                              account_public_key.x,
+                                              new_account_public_key.x,
+                                              spending_public_key_1.x,
+                                              spending_public_key_2.x };
+        const byte_array_ct message = pedersen::compress(to_compress, true);
+        stdlib::schnorr::verify_signature(message, signer, signature);
+        if (composer.failed && !composerAlreadyFailed) {
+            // only assign this error if an error hasn't already been assigned.
+            composer.err = "verify signature failed";
+        }
     }
 
-    // Check signing account note exists if nonce != 0.
-    const auto assert_account_exists = !zero_nonce;
-    const auto account_note_data = account_note(account_alias_id.value, account_public_key, signer);
-    const auto exists = merkle_tree::check_membership(data_tree_root,
-                                                      account_note_path,
-                                                      account_note_data.commitment,
-                                                      account_note_index.value.decompose_into_bits(DATA_TREE_DEPTH));
-    exists.assert_equal(assert_account_exists, "account check_membership failed");
+    // Check signing account note exists if account_nonce != 0.
+    {
+        const auto account_note_data = account_note(account_alias_id.value, account_public_key, signer);
+        const auto account_note_exists =
+            merkle_tree::check_membership(data_tree_root,
+                                          account_note_path,
+                                          account_note_data.commitment,
+                                          account_note_index.value.decompose_into_bits(DATA_TREE_DEPTH));
+        (!zero_account_nonce).must_imply(account_note_exists, "account check_membership failed");
+    }
 
     // Check account public key does not change unless migrating.
-    const auto account_keys_equal_or_migrating =
-        (account_public_key.x == new_account_public_key.x && account_public_key.y == new_account_public_key.y) ||
-        migrate;
-    account_keys_equal_or_migrating.assert_equal(1, "public key should not change");
+    {
+        const auto account_key_change =
+            account_public_key.x != new_account_public_key.x || account_public_key.y != new_account_public_key.y;
+        account_key_change.must_imply(migrate, "cannot change account keys unless migrating");
+    }
 
     const field_ct nullifier_2 = witness_ct(&composer, 0);
     const field_ct public_value = witness_ct(&composer, 0);
@@ -101,6 +117,8 @@ void account_circuit(Composer& composer, account_tx const& tx)
     const field_ct bridge_id = witness_ct(&composer, 0);
     const field_ct defi_deposit_value = witness_ct(&composer, 0);
     const field_ct defi_root = witness_ct(&composer, 0);
+    const field_ct backward_link = witness_ct(&composer, 0);
+    const field_ct allow_chain = witness_ct(&composer, 0);
     nullifier_2.assert_is_zero();
     public_value.assert_is_zero();
     public_owner.assert_is_zero();
@@ -110,12 +128,16 @@ void account_circuit(Composer& composer, account_tx const& tx)
     bridge_id.assert_is_zero();
     defi_deposit_value.assert_is_zero();
     defi_root.assert_is_zero();
+    backward_link.assert_is_zero();
+    allow_chain.assert_is_zero();
 
-    // Expose public inputs.
+    // Expose public inputs:
     proof_id.set_public();
     output_note_1.commitment.set_public();
     output_note_2.commitment.set_public();
     nullifier_1.set_public();
+
+    // Also expose zero-valued public inputs:
     nullifier_2.set_public();
     public_value.set_public();
     public_owner.set_public();
@@ -126,7 +148,8 @@ void account_circuit(Composer& composer, account_tx const& tx)
     bridge_id.set_public();
     defi_deposit_value.set_public();
     defi_root.set_public();
-    add_zero_public_inputs(composer, 2); // 2 chained transaction public inputs
+    backward_link.set_public();
+    allow_chain.set_public();
 }
 
 void init_proving_key(std::shared_ptr<waffle::ReferenceStringFactory> const& crs_factory, bool mock)
@@ -138,7 +161,7 @@ void init_proving_key(std::shared_ptr<waffle::ReferenceStringFactory> const& crs
     tx.new_signing_pub_key_1 = grumpkin::g1::affine_one;
     tx.new_signing_pub_key_2 = grumpkin::g1::affine_one;
     tx.signing_pub_key = grumpkin::g1::affine_one;
-    tx.account_path.resize(32);
+    tx.account_note_path.resize(32);
 
     Composer composer(crs_factory);
     account_circuit(composer, tx);

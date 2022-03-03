@@ -13,7 +13,7 @@ template <typename WorldState> class AccountTxFactory {
         , user(user)
     {}
 
-    auto create_tx(uint32_t nonce = 0, uint32_t account_note_idx = 0)
+    auto create_tx(uint32_t account_nonce = 0, uint32_t account_note_idx = 0)
     {
         account_tx tx;
         tx.merkle_root = world_state.data_tree.root();
@@ -22,11 +22,11 @@ template <typename WorldState> class AccountTxFactory {
         tx.new_signing_pub_key_1 = user.signing_keys[0].public_key;
         tx.new_signing_pub_key_2 = user.signing_keys[1].public_key;
         tx.alias_hash = user.alias_hash;
-        tx.nonce = nonce;
+        tx.account_nonce = account_nonce;
         tx.migrate = true;
-        tx.account_index = account_note_idx;
+        tx.account_note_index = account_note_idx;
         tx.signing_pub_key = user.signing_keys[0].public_key;
-        tx.account_path = world_state.data_tree.get_hash_path(account_note_idx);
+        tx.account_note_path = world_state.data_tree.get_hash_path(account_note_idx);
         return tx;
     }
 

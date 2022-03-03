@@ -90,8 +90,8 @@ template <typename WorldState> class JoinSplitTxFactory {
                           world_state.data_tree.get_hash_path(in_idx[1]) };
         tx.input_note = { input_note1, input_note2 };
         tx.output_note = { output_note1, output_note2 };
-        tx.account_index = account_note_idx;
-        tx.account_path = world_state.data_tree.get_hash_path(account_note_idx);
+        tx.account_note_index = account_note_idx;
+        tx.account_note_path = world_state.data_tree.get_hash_path(account_note_idx);
         tx.signing_pub_key = user.signing_keys[0].public_key;
         tx.account_private_key = user.owner.private_key;
         tx.alias_hash = 0;

@@ -74,6 +74,13 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
     (is_public_tx == inputs.public_value.is_zero()).assert_equal(false, "public value incorrect");
     (is_public_tx == inputs.public_owner.is_zero()).assert_equal(false, "public owner incorrect");
 
+    // Constrain the proof id.
+    inputs.proof_id.assert_is_in_set({ field_ct(ProofIds::DEPOSIT),
+                                       field_ct(ProofIds::WITHDRAW),
+                                       field_ct(ProofIds::SEND),
+                                       field_ct(ProofIds::DEFI_DEPOSIT) },
+                                     "incorrect proof id");
+
     // Circuit operates in one of several cases. Assert we're only in one of these cases and rules apply.
     {
         // Case 0: 0 input notes, all notes have same asset ids, can only DEPOSIT.
@@ -84,7 +91,7 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
         const auto case2 = !input_note1.is_virtual && !input_note2.is_virtual && inote2_valid &&
                            (input_note1.asset_id == input_note2.asset_id);
         // Case 3: 1 virtual asset note, all notes have same asset ids, can only SEND or DEFI_DEPOSIT.
-        const auto case3 = input_note1.is_virtual && !inote2_valid;
+        const auto case3 = input_note1.is_virtual && inote1_valid && !inote2_valid;
         // Case 4: 2 virtual asset notes, all notes have same asset ids, can only SEND.
         const auto case4 = input_note1.is_virtual && input_note2.is_virtual && inote2_valid && !is_defi_deposit;
         // Case 5: 1st note real, 2nd note virtual, different input asset ids allowed, fee asset id must equal
@@ -206,9 +213,9 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
         auto account_note_data = account::account_note(account_alias_id.value, account_public_key, signer);
         auto signing_key_exists =
             merkle_tree::check_membership(inputs.merkle_root,
-                                          inputs.account_path,
+                                          inputs.account_note_path,
                                           account_note_data.commitment,
-                                          (inputs.account_index.value.decompose_into_bits(DATA_TREE_DEPTH)));
+                                          inputs.account_note_index.value.decompose_into_bits(DATA_TREE_DEPTH));
         (signing_key_exists || zero_nonce).assert_equal(true, "account check_membership failed");
     }
 
@@ -272,8 +279,9 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
         .merkle_root = witness_ct(&composer, tx.old_data_root),
         .input_path1 = merkle_tree::create_witness_hash_path(composer, tx.input_path[0]),
         .input_path2 = merkle_tree::create_witness_hash_path(composer, tx.input_path[1]),
-        .account_index = suint_ct(witness_ct(&composer, tx.account_index), DATA_TREE_DEPTH, "account_index"),
-        .account_path = merkle_tree::create_witness_hash_path(composer, tx.account_path),
+        .account_note_index =
+            suint_ct(witness_ct(&composer, tx.account_note_index), DATA_TREE_DEPTH, "account_note_index"),
+        .account_note_path = merkle_tree::create_witness_hash_path(composer, tx.account_note_path),
         .account_private_key = witness_ct(&composer, static_cast<fr>(tx.account_private_key)),
         .alias_hash = suint_ct(witness_ct(&composer, tx.alias_hash), ALIAS_HASH_BIT_LENGTH, "alias_hash"),
         .nonce = suint_ct(witness_ct(&composer, tx.nonce), ACCOUNT_NONCE_BIT_LENGTH, "account_nonce"),

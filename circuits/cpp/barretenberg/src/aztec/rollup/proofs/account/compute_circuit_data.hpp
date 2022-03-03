@@ -16,7 +16,7 @@ inline circuit_data get_circuit_data(std::shared_ptr<waffle::ReferenceStringFact
 
     auto build_circuit = [&](Composer& composer) {
         account_tx tx;
-        tx.account_path.resize(DATA_TREE_DEPTH);
+        tx.account_note_path.resize(DATA_TREE_DEPTH);
         account_circuit(composer, tx);
     };
 
