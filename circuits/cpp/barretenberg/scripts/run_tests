@@ -11,7 +11,7 @@ IMAGE_URI=278380418400.dkr.ecr.us-east-2.amazonaws.com/barretenberg-x86_64-linux
 docker pull $IMAGE_URI
 
 if [ -f "$TESTS" ]; then
-  TESTS=$(cat $NAME | tr '\n' ' ')
+  TESTS=$(cat $TESTS | tr '\n' ' ')
 fi
 
 # TODO: Can code make the fixtures dirs so we don't have to?
