@@ -3,6 +3,7 @@ use super::{
     //block,
     code_gen::IRGenerator,
     node::{self, Instruction, Node, NodeId, NodeObj, Operation},
+    optim,
 };
 use acvm::FieldElement;
 use num_bigint::BigUint;
@@ -329,12 +330,12 @@ pub fn block_overflow(
             update_ins_parameters(igen, ins.id, l_new, r_new, max_r_value);
         }
     }
+
     update_value_array(igen, block_id, &value_map);
-    // let mut anchor = HashMap::new();
 
     //We run another round of CSE for the block in order to remove possible duplicated truncates, this will assign 'new_list' to the block instructions
-    // TODO: Type error, new_list: Vec<NodeId>, but block_cse expects blocks: Vec<BlockId>
-    // optim::block_cse(igen, block_id, &mut anchor, &mut new_list);
+    let mut anchor = HashMap::new();
+    optim::block_cse(igen, block_id, &mut anchor, &mut new_list);
 }
 
 fn update_value_array(igen: &mut IRGenerator, block_id: BlockId, vmap: &HashMap<NodeId, NodeId>) {

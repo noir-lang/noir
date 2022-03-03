@@ -306,7 +306,7 @@ impl Instruction {
         r_type: ObjectType,
         parent_block: Option<BlockId>,
     ) -> Instruction {
-        let id = NodeId(IRGenerator::dummy_id());
+        let id = NodeId::dummy();
         let p_block = parent_block.unwrap_or_else(BlockId::dummy);
 
         Instruction {
