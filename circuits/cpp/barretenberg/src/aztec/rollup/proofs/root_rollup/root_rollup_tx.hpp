@@ -21,7 +21,7 @@ struct root_rollup_tx {
     // The rollup id. Inner proof rollup ids must match.
     uint32_t rollup_id;
 
-    // The maximum number of inner rollups in this proof.
+    // The actual number of "real" inner rollups in this proof.
     uint32_t num_inner_proofs;
 
     // If the size < num_inner_proofs, it's padded to size num_inner_proofs with the padding proof.
@@ -43,7 +43,7 @@ struct root_rollup_tx {
     // Set of asset ids. Inner proofs asset ids must match.
     std::vector<uint256_t> asset_ids;
 
-    // Defi interactions from the previous rollup, to be inserted into defi tree.
+    // Defi interactions from the previous root rollup, to be inserted into defi tree.
     std::vector<native::defi_interaction::note> defi_interaction_notes;
 
     // which address do we send fees to? Add it into the circuit to make the proof binding against this address
