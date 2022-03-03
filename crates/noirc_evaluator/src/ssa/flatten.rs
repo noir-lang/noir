@@ -37,7 +37,7 @@ fn eval_block(block_id: BlockId, eval_map: &HashMap<NodeId, NodeEval>, igen: &mu
 
 pub fn unroll_block(
     unrolled_instructions: &mut Vec<NodeId>,
-    eval_map: &mut HashMap<NodeId, node::NodeEval>,
+    eval_map: &mut HashMap<NodeId, NodeEval>,
     block_to_unroll: BlockId,
     igen: &mut IRGenerator,
 ) -> Option<BlockId> {
@@ -54,7 +54,7 @@ pub fn unroll_block(
 //unroll a normal block by generating new instructions into the unroll_ins list, using and updating the eval_map
 pub fn unroll_std_block(
     unrolled_instructions: &mut Vec<NodeId>,
-    eval_map: &mut HashMap<NodeId, node::NodeEval>,
+    eval_map: &mut HashMap<NodeId, NodeEval>,
     block_to_unroll: BlockId,
     igen: &mut IRGenerator,
 ) -> Option<NodeId> //first instruction of the left block
@@ -100,7 +100,7 @@ pub fn unroll_std_block(
                         }
                         //ignore self-deleted instructions
                         if !to_delete {
-                            eval_map.insert(*i_id, node::NodeEval::Instruction(result_id));
+                            eval_map.insert(*i_id, NodeEval::VarOrInstruction(result_id));
                         }
                     }
                 }
@@ -118,7 +118,7 @@ pub fn unroll_std_block(
 //If there is a nested loop, unroll_block will call recursively unroll_join, keeping unroll list and eval map from the previous one
 pub fn unroll_join(
     unrolled_instructions: &mut Vec<NodeId>,
-    eval_map: &mut HashMap<NodeId, node::NodeEval>,
+    eval_map: &mut HashMap<NodeId, NodeEval>,
     block_to_unroll: BlockId,
     igen: &mut IRGenerator,
 ) -> Option<BlockId> {
@@ -157,7 +157,7 @@ pub fn unroll_join(
 // Unrolling outer loops, i.e non-nested loops
 pub fn outer_unroll(
     unroll_ins: &mut Vec<NodeId>, //unrolled instructions
-    eval_map: &mut HashMap<NodeId, node::NodeEval>,
+    eval_map: &mut HashMap<NodeId, NodeEval>,
     block_id: BlockId, //block to unroll
     igen: &mut IRGenerator,
 ) -> Option<BlockId> //next block
@@ -233,7 +233,10 @@ fn evaluate_phi(
             for phi in &ins.phi_arguments {
                 if phi.1 == from {
                     //we evaluate the phi instruction value
-                    to_process.push((ins.id, evaluate_one(NodeEval::Instruction(phi.0), to, igen)));
+                    to_process.push((
+                        ins.id,
+                        evaluate_one(NodeEval::VarOrInstruction(phi.0), to, igen),
+                    ));
                 }
             }
             if ins.operator != Operation::Phi && ins.operator != Operation::Nop {
@@ -244,7 +247,7 @@ fn evaluate_phi(
         for obj in to_process {
             to.insert(
                 obj.0,
-                node::NodeEval::Instruction(optim::to_index(igen, obj.1)),
+                NodeEval::VarOrInstruction(optim::to_index(igen, obj.1)),
             );
         }
     }
@@ -253,7 +256,7 @@ fn evaluate_phi(
 //returns true if we should jump
 fn evaluate_conditional_jump(
     jump: NodeId,
-    value_array: &mut HashMap<NodeId, node::NodeEval>,
+    value_array: &mut HashMap<NodeId, NodeEval>,
     eval: &IRGenerator,
 ) -> bool {
     let jump_ins = eval.try_get_instruction(jump).unwrap();
@@ -274,7 +277,9 @@ fn evaluate_conditional_jump(
 
 //Retrieve the NodeEval value of the index in the evaluation map
 fn get_current_value(id: NodeId, value_array: &HashMap<NodeId, NodeEval>) -> NodeEval {
-    *value_array.get(&id).unwrap_or(&NodeEval::Instruction(id))
+    *value_array
+        .get(&id)
+        .unwrap_or(&NodeEval::VarOrInstruction(id))
 }
 
 //Same as get_current_value but for a NodeEval object instead of a NodeObj
@@ -283,8 +288,8 @@ fn get_current_value_for_node_eval(
     value_array: &HashMap<NodeId, NodeEval>,
 ) -> NodeEval {
     match obj {
-        node::NodeEval::Const(_, _) => obj,
-        node::NodeEval::Instruction(obj_id) => get_current_value(obj_id, value_array),
+        NodeEval::Const(_, _) => obj,
+        NodeEval::VarOrInstruction(obj_id) => get_current_value(obj_id, value_array),
     }
 }
 
@@ -295,8 +300,8 @@ fn evaluate_one(
     igen: &IRGenerator,
 ) -> NodeEval {
     match get_current_value_for_node_eval(obj, value_array) {
-        node::NodeEval::Const(_, _) => obj,
-        node::NodeEval::Instruction(obj_id) => {
+        NodeEval::Const(_, _) => obj,
+        NodeEval::VarOrInstruction(obj_id) => {
             if igen.try_get_node(obj_id).is_none() {
                 return obj;
             }
@@ -306,15 +311,15 @@ fn evaluate_one(
                     if i.operator == node::Operation::Phi {
                         //n.b phi are handled before, else we should know which block we come from
                         dbg!(i.id);
-                        return node::NodeEval::Instruction(i.id);
+                        return NodeEval::VarOrInstruction(i.id);
                     }
 
                     let lhs = get_current_value(i.lhs, value_array);
                     let lhr = get_current_value(i.rhs, value_array);
                     let result = i.evaluate(&lhs, &lhr);
-                    if let node::NodeEval::Instruction(idx) = result {
+                    if let NodeEval::VarOrInstruction(idx) = result {
                         if igen.try_get_node(idx).is_none() {
-                            return NodeEval::Instruction(obj_id);
+                            return NodeEval::VarOrInstruction(obj_id);
                         }
                     }
                     result
@@ -323,7 +328,7 @@ fn evaluate_one(
                     let value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
                     NodeEval::Const(value, c.get_type())
                 }
-                NodeObj::Obj(_) => NodeEval::Instruction(obj_id),
+                NodeObj::Obj(_) => NodeEval::VarOrInstruction(obj_id),
             }
         }
     }
@@ -331,13 +336,13 @@ fn evaluate_one(
 
 //Evaluate an object recursively
 fn evaluate_object(
-    obj: node::NodeEval,
+    obj: NodeEval,
     value_array: &HashMap<NodeId, NodeEval>,
     igen: &IRGenerator,
-) -> node::NodeEval {
+) -> NodeEval {
     match get_current_value_for_node_eval(obj, value_array) {
-        node::NodeEval::Const(_, _) => obj,
-        node::NodeEval::Instruction(obj_id) => {
+        NodeEval::Const(_, _) => obj,
+        NodeEval::VarOrInstruction(obj_id) => {
             if igen.try_get_node(obj_id).is_none() {
                 dbg!(obj_id);
                 return obj;
@@ -347,7 +352,7 @@ fn evaluate_object(
                 NodeObj::Instr(i) => {
                     if i.operator == Operation::Phi {
                         dbg!(i.id);
-                        return NodeEval::Instruction(i.id);
+                        return NodeEval::VarOrInstruction(i.id);
                     }
                     //n.b phi are handled before, else we should know which block we come from
                     let lhs =
@@ -355,9 +360,9 @@ fn evaluate_object(
                     let lhr =
                         evaluate_object(get_current_value(i.rhs, value_array), value_array, igen);
                     let result = i.evaluate(&lhs, &lhr);
-                    if let NodeEval::Instruction(idx) = result {
+                    if let NodeEval::VarOrInstruction(idx) = result {
                         if igen.try_get_node(idx).is_none() {
-                            return NodeEval::Instruction(obj_id);
+                            return NodeEval::VarOrInstruction(obj_id);
                         }
                     }
                     result
@@ -366,7 +371,7 @@ fn evaluate_object(
                     let value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
                     NodeEval::Const(value, c.get_type())
                 }
-                NodeObj::Obj(_) => NodeEval::Instruction(obj_id),
+                NodeObj::Obj(_) => NodeEval::VarOrInstruction(obj_id),
             }
         }
     }

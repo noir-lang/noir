@@ -279,7 +279,7 @@ impl std::fmt::Display for Instruction {
 #[derive(Debug, Clone, Copy)]
 pub enum NodeEval {
     Const(FieldElement, ObjectType),
-    Instruction(NodeId),
+    VarOrInstruction(NodeId),
 }
 
 impl NodeEval {
@@ -292,7 +292,7 @@ impl NodeEval {
 
     pub fn into_node_id(self) -> Option<NodeId> {
         match self {
-            NodeEval::Instruction(i) => Some(i),
+            NodeEval::VarOrInstruction(i) => Some(i),
             NodeEval::Const(_, _) => None,
         }
     }
@@ -655,7 +655,7 @@ impl Instruction {
             Operation::Phi => (), //Phi are simplified by simply_phi() later on; they must not be simplified here
             _ => (),
         }
-        NodeEval::Instruction(self.id)
+        NodeEval::VarOrInstruction(self.id)
     }
 
     // Simplifies trivial Phi instructions by returning:

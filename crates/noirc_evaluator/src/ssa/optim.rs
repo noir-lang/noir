@@ -10,16 +10,16 @@ use std::collections::{HashMap, VecDeque};
 //if NodeEval is a constant, it may creates a new NodeObj corresponding to the constant value
 pub fn to_index(eval: &mut IRGenerator, obj: NodeEval) -> NodeId {
     match obj {
-        node::NodeEval::Const(c, t) => eval.get_or_create_const(c, t),
-        node::NodeEval::Instruction(i) => i,
+        NodeEval::Const(c, t) => eval.get_or_create_const(c, t),
+        NodeEval::VarOrInstruction(i) => i,
     }
 }
 
 // If NodeEval refers to a constant NodeObj, we return a constant NodeEval
 pub fn to_const(eval: &IRGenerator, obj: NodeEval) -> NodeEval {
     match obj {
-        node::NodeEval::Const(_, _) => obj,
-        node::NodeEval::Instruction(i) => {
+        NodeEval::Const(_, _) => obj,
+        NodeEval::VarOrInstruction(i) => {
             if let Some(NodeObj::Const(c)) = eval.try_get_node(i) {
                 return NodeEval::Const(
                     FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be()),
@@ -34,11 +34,11 @@ pub fn to_const(eval: &IRGenerator, obj: NodeEval) -> NodeEval {
 // Performs constant folding, arithmetic simplifications and move to standard form
 pub fn simplify(eval: &mut IRGenerator, ins: &mut node::Instruction) {
     //1. constant folding
-    let l_eval = to_const(eval, node::NodeEval::Instruction(ins.lhs));
-    let r_eval = to_const(eval, node::NodeEval::Instruction(ins.rhs));
+    let l_eval = to_const(eval, NodeEval::VarOrInstruction(ins.lhs));
+    let r_eval = to_const(eval, NodeEval::VarOrInstruction(ins.rhs));
     let idx = match ins.evaluate(&l_eval, &r_eval) {
         NodeEval::Const(c, t) => eval.get_or_create_const(c, t),
-        NodeEval::Instruction(i) => i,
+        NodeEval::VarOrInstruction(i) => i,
     };
     if idx != ins.id {
         ins.is_deleted = true;

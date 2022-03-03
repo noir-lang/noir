@@ -84,8 +84,8 @@ pub fn get_current_value_in_block(
     let root = igen.get_root_value(var_id);
 
     igen[block_id]
-        .get_current_value(root)
-        .unwrap_or_else(|| get_block_value(igen, root, block_id))
+        .get_current_value(root) //Local value numbering
+        .unwrap_or_else(|| get_block_value(igen, root, block_id)) //Global value numbering
 }
 
 //Returns the current SSA value of a variable, recursively
