@@ -2,7 +2,7 @@ use super::mem::MemArray;
 use super::node::{Instruction, Operation};
 use acvm::FieldElement;
 
-use arena::Index;
+use super::node::NodeId;
 
 use num_traits::{One, Zero};
 use std::cmp::Ordering;
@@ -20,7 +20,7 @@ use std::convert::TryInto;
 
 #[derive(Default)]
 pub struct Acir {
-    pub arith_cache: HashMap<Index, InternalVar>,
+    pub arith_cache: HashMap<NodeId, InternalVar>,
     pub memory_map: HashMap<u32, InternalVar>, //maps memory adress to expression
     pub memory_witness: HashMap<u32, Vec<Witness>>, //map arrays to their witness...temporary
 }
@@ -30,20 +30,20 @@ pub struct InternalVar {
     expression: Arithmetic,
     //value: FieldElement,     //not used for now
     witness: Option<Witness>,
-    idx: Option<Index>,
+    id: Option<NodeId>,
 }
 impl InternalVar {
     pub fn is_equal(&self, b: &InternalVar) -> bool {
-        (self.idx.is_some() && self.idx == b.idx)
+        (self.id.is_some() && self.id == b.id)
             || (self.witness.is_some() && self.witness == b.witness)
             || self.expression == b.expression
     }
 
-    fn new(expression: Arithmetic, witness: Option<Witness>, id: Index) -> InternalVar {
+    fn new(expression: Arithmetic, witness: Option<Witness>, id: NodeId) -> InternalVar {
         InternalVar {
             expression,
             witness,
-            idx: Some(id),
+            id: Some(id),
         }
     }
 
@@ -61,7 +61,7 @@ impl From<Arithmetic> for InternalVar {
         InternalVar {
             expression: arith,
             witness: w,
-            idx: None,
+            id: None,
         }
     }
 }
@@ -71,7 +71,7 @@ impl From<Witness> for InternalVar {
         InternalVar {
             expression: from_witness(w),
             witness: Some(w),
-            idx: None,
+            id: None,
         }
     }
 }
@@ -82,14 +82,14 @@ impl Acir {
     //Substitute a nodeobj as an arithmetic expression
     fn substitute(
         &mut self,
-        idx: Index,
+        id: NodeId,
         evaluator: &mut Evaluator,
         igen: &IRGenerator,
     ) -> InternalVar {
-        if self.arith_cache.contains_key(&idx) {
-            return self.arith_cache[&idx].clone();
+        if self.arith_cache.contains_key(&id) {
+            return self.arith_cache[&id].clone();
         }
-        let var = match igen.get_object(idx) {
+        let var = match igen.try_get_node(id) {
             Some(node::NodeObj::Const(c)) => {
                 let f_value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be()); //TODO const should be a field
                 let expr = Arithmetic {
@@ -97,7 +97,7 @@ impl Acir {
                     linear_combinations: Vec::new(),
                     q_c: f_value, //TODO handle other types
                 };
-                InternalVar::new(expr, None, idx)
+                InternalVar::new(expr, None, id)
             }
             Some(node::NodeObj::Obj(v)) => {
                 let w = if let Some(w1) = v.witness {
@@ -106,37 +106,38 @@ impl Acir {
                     evaluator.add_witness_to_cs()
                 };
                 let expr = Arithmetic::from(&w);
-                InternalVar::new(expr, Some(w), idx)
+                InternalVar::new(expr, Some(w), id)
             }
             _ => {
                 let w = evaluator.add_witness_to_cs();
                 let expr = Arithmetic::from(&w);
-                InternalVar::new(expr, Some(w), idx)
+                InternalVar::new(expr, Some(w), id)
             }
         };
-        self.arith_cache.insert(idx, var);
-        self.arith_cache[&idx].clone()
+
+        self.arith_cache.insert(id, var.clone());
+        var
     }
 
     pub fn evaluate_instruction(
         &mut self,
         ins: &Instruction,
         evaluator: &mut Evaluator,
-        igen: &IRGenerator,
+        irgen: &IRGenerator,
     ) {
         if ins.operator == Operation::Nop {
             return;
         }
-        let l_c = self.substitute(ins.lhs, evaluator, igen);
-        let r_c = self.substitute(ins.rhs, evaluator, igen);
-        let mut output_var = match ins.operator {
+        let l_c = self.substitute(ins.lhs, evaluator, irgen);
+        let r_c = self.substitute(ins.rhs, evaluator, irgen);
+        let mut output = match ins.operator {
             Operation::Add | Operation::SafeAdd => {
                 InternalVar::from(add(&l_c.expression, FieldElement::one(), &r_c.expression))
             }
             Operation::Sub | Operation::SafeSub => {
                 //we need the type of rhs and its max value, then:
                 //lhs-rhs+k*2^bit_size where k=ceil(max_value/2^bit_size)
-                let bit_size = igen.get_object(ins.rhs).unwrap().bits();
+                let bit_size = irgen[ins.rhs].size_in_bits();
                 let r_big = BigUint::one() << bit_size;
                 let mut k = &ins.max_value / &r_big;
                 if &ins.max_value % &r_big != BigUint::zero() {
@@ -150,11 +151,7 @@ impl Acir {
                     &r_c.expression,
                 );
                 output.q_c += f;
-                InternalVar {
-                    expression: output,
-                    witness: None,
-                    idx: None,
-                }
+                output.into()
             }
             Operation::Mul | Operation::SafeMul => {
                 InternalVar::from(evaluate_mul(&l_c, &r_c, evaluator))
@@ -174,10 +171,10 @@ impl Acir {
                 &from_witness(evaluate_inverse(&r_c.expression, evaluator)),
             )),
             Operation::Eq => {
-                InternalVar::from(self.evaluate_eq(ins.lhs, ins.rhs, &l_c, &r_c, igen, evaluator))
+                InternalVar::from(self.evaluate_eq(ins.lhs, ins.rhs, &l_c, &r_c, irgen, evaluator))
             }
             Operation::Ne => {
-                InternalVar::from(self.evaluate_neq(ins.lhs, ins.rhs, &l_c, &r_c, igen, evaluator))
+                InternalVar::from(self.evaluate_neq(ins.lhs, ins.rhs, &l_c, &r_c, irgen, evaluator))
             }
             Operation::Ugt => todo!(),
             Operation::Uge => todo!(),
@@ -216,10 +213,10 @@ impl Acir {
             Operation::Nop => InternalVar::default(),
             Operation::Constrain(op) => match op {
                 node::ConstrainOp::Eq => {
-                    InternalVar::from(self.equalize(ins.lhs, ins.rhs, &l_c, &r_c, igen, evaluator))
+                    InternalVar::from(self.equalize(ins.lhs, ins.rhs, &l_c, &r_c, irgen, evaluator))
                 }
                 node::ConstrainOp::Neq => {
-                    InternalVar::from(self.distinct(ins.lhs, ins.rhs, &l_c, &r_c, igen, evaluator))
+                    InternalVar::from(self.distinct(ins.lhs, ins.rhs, &l_c, &r_c, irgen, evaluator))
                 }
             },
             Operation::Load(array_idx) => {
@@ -231,7 +228,7 @@ impl Acir {
                         InternalVar::from(self.memory_map[&address].expression.clone())
                     } else {
                         //if not found, then it must be a witness (else it is non-initialised memory)
-                        let array = &igen.mem.arrays[array_idx as usize];
+                        let array = &irgen.mem.arrays[array_idx as usize];
                         let index = (address - array.adr) as usize;
                         let w = if array.witness.len() > index {
                             array.witness[index]
@@ -258,10 +255,8 @@ impl Acir {
                 }
             }
         };
-
-        output_var.idx = Some(ins.idx);
-
-        self.arith_cache.insert(ins.idx, output_var);
+        output.id = Some(ins.id);
+        self.arith_cache.insert(ins.id, output);
     }
 
     pub fn print_circuit(gates: &[Gate]) {
@@ -302,8 +297,8 @@ impl Acir {
 
     pub fn evaluate_neq(
         &mut self,
-        lhs: Index,
-        rhs: Index,
+        lhs: NodeId,
+        rhs: NodeId,
         l_c: &InternalVar,
         r_c: &InternalVar,
         igen: &IRGenerator,
@@ -317,11 +312,8 @@ impl Acir {
             let array_b = &igen.mem.arrays[b as usize];
 
             if array_a.len == array_b.len {
-                let mut x = InternalVar {
-                    expression: self.zerop_array_sum(array_a, a, array_b, b, evaluator),
-                    witness: None,
-                    idx: None,
-                };
+                let mut x =
+                    InternalVar::from(self.zerop_array_sum(array_a, a, array_b, b, evaluator));
                 x.witness = Some(generate_witness(&x, evaluator));
                 from_witness(evaluate_zerop(&x, evaluator))
             } else {
@@ -345,8 +337,8 @@ impl Acir {
 
     pub fn evaluate_eq(
         &mut self,
-        lhs: Index,
-        rhs: Index,
+        lhs: NodeId,
+        rhs: NodeId,
         l_c: &InternalVar,
         r_c: &InternalVar,
         igen: &IRGenerator,
@@ -366,8 +358,8 @@ impl Acir {
     //Constraint lhs to be different than rhs
     pub fn distinct(
         &mut self,
-        lhs: Index,
-        rhs: Index,
+        lhs: NodeId,
+        rhs: NodeId,
         l_c: &InternalVar,
         r_c: &InternalVar,
         igen: &IRGenerator,
@@ -394,8 +386,8 @@ impl Acir {
     //Constraint lhs to be equal to rhs
     pub fn equalize(
         &mut self,
-        lhs: Index,
-        rhs: Index,
+        lhs: NodeId,
+        rhs: NodeId,
         l_c: &InternalVar,
         r_c: &InternalVar,
         igen: &IRGenerator,
@@ -454,7 +446,7 @@ impl Acir {
                 //in cache??
                 expression: diff_expr.clone(),
                 witness: Some(diff_witness),
-                idx: None,
+                id: None,
             };
             evaluator.gates.push(Gate::Arithmetic(subtract(
                 &diff_expr,
@@ -664,7 +656,7 @@ pub fn evaluate_udiv(
     let r_var = InternalVar {
         expression: r_expr,
         witness: Some(r_witness),
-        idx: None,
+        id: None,
     };
     bound_check(&r_var, rhs, true, 32, evaluator); //TODO bit size! should be max(a.bit, b.bit)
                                                    //range check q<=a

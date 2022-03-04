@@ -1,5 +1,5 @@
 use super::code_gen::IRGenerator;
-use super::node::{self, Node};
+use super::node::{self, Node, NodeId};
 use acvm::acir::native_types::Witness;
 use acvm::FieldElement;
 use noirc_frontend::node_interner::IdentId;
@@ -14,8 +14,8 @@ use std::convert::TryInto;
 #[derive(Default)]
 pub struct Memory {
     pub arrays: Vec<MemArray>,
-    pub last_adr: u32,                          //last address in 'memory'
-    pub memory_map: HashMap<u32, arena::Index>, //maps memory adress to expression
+    pub last_adr: u32,                    //last address in 'memory'
+    pub memory_map: HashMap<u32, NodeId>, //maps memory adress to expression
 }
 
 #[derive(Debug)]
@@ -69,8 +69,8 @@ impl Memory {
     }
 
     //dereference a pointer
-    pub fn deref(igen: &IRGenerator, idx: arena::Index) -> Option<u32> {
-        if let Some(var) = igen.get_object(idx) {
+    pub fn deref(igen: &IRGenerator, id: NodeId) -> Option<u32> {
+        if let Some(var) = igen.try_get_node(id) {
             match var.get_type() {
                 node::ObjectType::Pointer(a) => Some(a),
                 _ => None,
@@ -117,8 +117,8 @@ impl Memory {
         result.to_u32().unwrap()
     }
 
-    pub fn to_u32(eval: &IRGenerator, idx: arena::Index) -> Option<u32> {
-        if let Some(index_as_constant) = eval.get_as_constant(idx) {
+    pub fn to_u32(eval: &IRGenerator, id: NodeId) -> Option<u32> {
+        if let Some(index_as_constant) = eval.get_as_constant(id) {
             if let Ok(address) = index_as_constant.to_u128().try_into() {
                 return Some(address);
             }

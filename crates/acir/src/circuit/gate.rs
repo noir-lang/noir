@@ -66,7 +66,12 @@ impl std::fmt::Debug for Gate {
             Gate::Directive(Directive::Invert { x, result: r }) => {
                 result = format!("1/{}={}, or 0", x.witness_index(), r.witness_index());
             }
-            Gate::Directive(Directive::Truncate { a, b, c: _c , bit_size }) => {
+            Gate::Directive(Directive::Truncate {
+                a,
+                b,
+                c: _c,
+                bit_size,
+            }) => {
                 result = format!(
                     "Truncate: x{} is x{} truncated to {} bits",
                     b.witness_index(),
