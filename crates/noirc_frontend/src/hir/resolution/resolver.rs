@@ -383,6 +383,10 @@ impl<'a> Resolver<'a> {
                 })
             }
             ExpressionKind::Error => HirExpression::Error,
+            ExpressionKind::Tuple(elements) => {
+                let elements = vecmap(elements, |elem| self.resolve_expression(elem));
+                HirExpression::Tuple(elements)
+            }
         };
 
         let expr_id = self.interner.push_expr(hir_expr);

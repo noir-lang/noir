@@ -630,6 +630,7 @@ impl<'a> Evaluator<'a> {
             HirExpression::Literal(HirLiteral::Bool(_)) => todo!("boolean literals are currently unimplemented"),
             HirExpression::Block(_) => todo!("currently block expressions not in for/if branches are not being evaluated. In the future, we should be able to unify the eval_block and all places which require block_expr here"),
             HirExpression::Constructor(_) => todo!("Constructor expressions are unimplemented in the noir backend"),
+            HirExpression::Tuple(_) => todo!("Tuple expressions are unimplemented in the noir backend"),
             HirExpression::MemberAccess(_) => todo!("Member access expressions are unimplemented in the noir backend"),
             HirExpression::Error => unreachable!("Tried to evaluate an Expression::Error node"),
         }
