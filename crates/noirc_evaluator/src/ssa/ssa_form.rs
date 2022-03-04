@@ -114,8 +114,8 @@ pub fn evaluate_identifier(
     env: &mut Environment,
     ident_id: &noirc_frontend::node_interner::IdentId,
 ) -> arena::Index {
-    let ident_name = igen.context.unwrap().def_interner.ident_name(ident_id);
-    let ident_def = igen.context.unwrap().def_interner.ident_def(ident_id);
+    let ident_name = igen.context().def_interner.ident_name(ident_id);
+    let ident_def = igen.context().def_interner.ident_def(ident_id);
     let o_type = igen.context().def_interner.id_type(ident_def.unwrap());
     //check if the variable is already created:
     if let Some(var) = igen.find_variable(&ident_def) {
@@ -123,7 +123,6 @@ pub fn evaluate_identifier(
         return get_current_value(igen, id);
     }
     let obj = env.get(&ident_name);
-    dbg!(&o_type);
     let obj = match obj {
         Object::Array(a) => {
             let obj_type = node::ObjectType::from_type(o_type);

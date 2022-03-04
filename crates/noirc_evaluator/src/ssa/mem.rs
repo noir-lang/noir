@@ -11,6 +11,7 @@ use std::convert::TryFrom;
 use crate::Array;
 use std::convert::TryInto;
 
+#[derive(Default)]
 pub struct Memory {
     pub arrays: Vec<MemArray>,
     pub last_adr: u32,                          //last address in 'memory'
@@ -53,14 +54,6 @@ impl MemArray {
 }
 
 impl Memory {
-    pub fn new() -> Memory {
-        Memory {
-            arrays: Vec::new(),
-            last_adr: 0,
-            memory_map: HashMap::new(),
-        }
-    }
-
     pub fn find_array(&self, definition: &Option<IdentId>) -> Option<&MemArray> {
         if let Some(def) = definition {
             return self.arrays.iter().find(|a| a.def == *def);
@@ -94,11 +87,6 @@ impl Memory {
         el_type: node::ObjectType,
         arr_name: &str,
     ) -> &MemArray {
-        // let arr_name = context.def_interner.ident_name(collection);
-        // let ident_span = context.def_interner.ident_span(collection);
-        // let arr = env.get_array(&arr_name).map_err(|kind|kind.add_span(ident_span)).unwrap();
-        // let arr_type = context.def_interner.id_type(arr_def.unwrap());
-        // let o_type = node::ObjectType::from_type(arr_type);
         let len = u32::try_from(array.length).unwrap();
         let mut new_array = MemArray::new(definition, arr_name, el_type, len);
         new_array.adr = self.last_adr;

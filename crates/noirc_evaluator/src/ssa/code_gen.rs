@@ -5,9 +5,6 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 //use std::io;
 
-//use std::convert::TryFrom;
-//use std::str::FromStr;
-
 use super::super::environment::Environment;
 use super::super::errors::{RuntimeError, RuntimeErrorKind};
 use crate::object::Object;
@@ -56,7 +53,7 @@ impl<'a> IRGenerator<'a> {
             current_block: IRGenerator::dummy_id(),
             blocks: arena::Arena::new(),
             nodes: arena::Arena::new(),
-            mem: Memory::new(),
+            mem: Memory::default(),
             // dummy_instruction: ParsingContext::dummy_id(),
             value_name: HashMap::new(),
             sealed_blocks: HashSet::new(),
@@ -883,17 +880,6 @@ impl<'a> IRGenerator<'a> {
         self.current_block = join_idx;
         //should parse a for_expr.condition statement that should evaluate to bool, but
         //we only supports i=start;i!=end for now
-        //i1=phi(start);
-        // let i1 = node::Variable {
-        //     id: iter_id,
-        //     obj_type: iter_type,
-        //     name: String::new(),
-        //     root: None,
-        //     def: None,
-        //     witness: None,
-        //     parent_block: join_idx,
-        // };
-        // let i1_id = self.add_variable(i1, Some(iter_id)); //TODO we do not need them
         //we generate the phi for the iterator because the iterator is manually created
         let phi = self.generate_empty_phi(join_idx, iter_id);
         self.update_variable_id(iter_id, iter_id, phi); //j'imagine que y'a plus besoin
@@ -955,8 +941,8 @@ impl<'a> IRGenerator<'a> {
         Ok(exit_first) //TODO what should we return???
     }
 
-    pub fn acir(&mut self, evaluator: &mut Evaluator) {
-        let mut acir = Acir::new();
+    pub fn acir(&self, evaluator: &mut Evaluator) {
+        let mut acir = Acir::default();
         let mut fb = self.try_get_block(self.first_block);
         while fb.is_some() {
             for iter in &fb.unwrap().instructions {

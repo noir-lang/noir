@@ -17,13 +17,15 @@ use acvm::acir::circuit::gate::Directive;
 use acvm::acir::native_types::{Arithmetic, Linear, Witness};
 use num_bigint::BigUint;
 use std::convert::TryInto;
+
+#[derive(Default)]
 pub struct Acir {
     pub arith_cache: HashMap<Index, InternalVar>,
     pub memory_map: HashMap<u32, InternalVar>, //maps memory adress to expression
     pub memory_witness: HashMap<u32, Vec<Witness>>, //map arrays to their witness...temporary
 }
 
-#[derive(Clone, Debug)]
+#[derive(Default, Clone, Debug)]
 pub struct InternalVar {
     expression: Arithmetic,
     //value: FieldElement,     //not used for now
@@ -35,14 +37,6 @@ impl InternalVar {
         (self.idx.is_some() && self.idx == b.idx)
             || (self.witness.is_some() && self.witness == b.witness)
             || self.expression == b.expression
-    }
-
-    pub fn default() -> InternalVar {
-        InternalVar {
-            expression: Arithmetic::default(),
-            witness: None,
-            idx: None,
-        }
     }
 
     fn new(expression: Arithmetic, witness: Option<Witness>, id: Index) -> InternalVar {
@@ -61,22 +55,22 @@ impl InternalVar {
     }
 }
 
-impl From<&Arithmetic> for InternalVar {
-    fn from(arith: &Arithmetic) -> InternalVar {
-        //TODO shouldn't we rather move arith?
+impl From<Arithmetic> for InternalVar {
+    fn from(arith: Arithmetic) -> InternalVar {
+        let w = is_unit(&arith);
         InternalVar {
-            expression: arith.clone(),
-            witness: is_unit(arith),
+            expression: arith,
+            witness: w,
             idx: None,
         }
     }
 }
 
-impl From<&Witness> for InternalVar {
-    fn from(w: &Witness) -> InternalVar {
+impl From<Witness> for InternalVar {
+    fn from(w: Witness) -> InternalVar {
         InternalVar {
-            expression: from_witness(*w),
-            witness: Some(*w),
+            expression: from_witness(w),
+            witness: Some(w),
             idx: None,
         }
     }
@@ -90,12 +84,12 @@ impl Acir {
         &mut self,
         idx: Index,
         evaluator: &mut Evaluator,
-        cfg: &IRGenerator,
+        igen: &IRGenerator,
     ) -> InternalVar {
         if self.arith_cache.contains_key(&idx) {
             return self.arith_cache[&idx].clone();
         }
-        let var = match cfg.get_object(idx) {
+        let var = match igen.get_object(idx) {
             Some(node::NodeObj::Const(c)) => {
                 let f_value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be()); //TODO const should be a field
                 let expr = Arithmetic {
@@ -124,35 +118,25 @@ impl Acir {
         self.arith_cache[&idx].clone()
     }
 
-    pub fn new() -> Acir {
-        Acir {
-            arith_cache: HashMap::new(),
-            memory_map: HashMap::new(),
-            memory_witness: HashMap::new(),
-        }
-    }
-
     pub fn evaluate_instruction(
         &mut self,
         ins: &Instruction,
         evaluator: &mut Evaluator,
-        cfg: &IRGenerator,
+        igen: &IRGenerator,
     ) {
         if ins.operator == Operation::Nop {
             return;
         }
-        let l_c = self.substitute(ins.lhs, evaluator, cfg);
-        let r_c = self.substitute(ins.rhs, evaluator, cfg);
+        let l_c = self.substitute(ins.lhs, evaluator, igen);
+        let r_c = self.substitute(ins.rhs, evaluator, igen);
         let mut output_var = match ins.operator {
-            Operation::Add | Operation::SafeAdd => InternalVar {
-                expression: add(&l_c.expression, FieldElement::one(), &r_c.expression),
-                witness: None,
-                idx: None,
-            },
+            Operation::Add | Operation::SafeAdd => {
+                InternalVar::from(add(&l_c.expression, FieldElement::one(), &r_c.expression))
+            }
             Operation::Sub | Operation::SafeSub => {
                 //we need the type of rhs and its max value, then:
                 //lhs-rhs+k*2^bit_size where k=ceil(max_value/2^bit_size)
-                let bit_size = cfg.get_object(ins.rhs).unwrap().bits();
+                let bit_size = igen.get_object(ins.rhs).unwrap().bits();
                 let r_big = BigUint::one() << bit_size;
                 let mut k = &ins.max_value / &r_big;
                 if &ins.max_value % &r_big != BigUint::zero() {
@@ -173,27 +157,27 @@ impl Acir {
                 }
             }
             Operation::Mul | Operation::SafeMul => {
-                InternalVar::from(&evaluate_mul(&l_c, &r_c, evaluator))
+                InternalVar::from(evaluate_mul(&l_c, &r_c, evaluator))
             }
             Operation::Udiv => {
                 let (q_wit, _) = evaluate_udiv(&l_c, &r_c, evaluator);
-                InternalVar::from(&q_wit)
+                InternalVar::from(q_wit)
             }
-            Operation::Sdiv => InternalVar::from(&evaluate_sdiv(&l_c, &r_c, evaluator).0),
+            Operation::Sdiv => InternalVar::from(evaluate_sdiv(&l_c, &r_c, evaluator).0),
             Operation::Urem => {
                 let (_, r_wit) = evaluate_udiv(&l_c, &r_c, evaluator);
-                InternalVar::from(&r_wit)
+                InternalVar::from(r_wit)
             }
-            Operation::Srem => InternalVar::from(&evaluate_sdiv(&l_c, &r_c, evaluator).1),
-            Operation::Div => InternalVar::from(&mul(
+            Operation::Srem => InternalVar::from(evaluate_sdiv(&l_c, &r_c, evaluator).1),
+            Operation::Div => InternalVar::from(mul(
                 &l_c.expression,
                 &from_witness(evaluate_inverse(&r_c.expression, evaluator)),
             )),
             Operation::Eq => {
-                InternalVar::from(&self.evaluate_eq(ins.lhs, ins.rhs, &l_c, &r_c, cfg, evaluator))
+                InternalVar::from(self.evaluate_eq(ins.lhs, ins.rhs, &l_c, &r_c, igen, evaluator))
             }
             Operation::Ne => {
-                InternalVar::from(&self.evaluate_neq(ins.lhs, ins.rhs, &l_c, &r_c, cfg, evaluator))
+                InternalVar::from(self.evaluate_neq(ins.lhs, ins.rhs, &l_c, &r_c, igen, evaluator))
             }
             Operation::Ugt => todo!(),
             Operation::Uge => todo!(),
@@ -205,15 +189,15 @@ impl Acir {
             Operation::Sle => todo!(),
             Operation::Lt => todo!(),
             Operation::Gt => todo!(),
-            Operation::Lte => InternalVar::from(&evaluate_cmp(&l_c, &r_c, 32, evaluator)), //TODO we need the bit_size from the instruction
-            Operation::Gte => InternalVar::from(&evaluate_cmp(&r_c, &l_c, 32, evaluator)), //TODO we need the bit_size from the instruction
+            Operation::Lte => InternalVar::from(evaluate_cmp(&l_c, &r_c, 32, evaluator)), //TODO we need the bit_size from the instruction
+            Operation::Gte => InternalVar::from(evaluate_cmp(&r_c, &l_c, 32, evaluator)), //TODO we need the bit_size from the instruction
             Operation::And => {
-                InternalVar::from(&evaluate_and(l_c, r_c, ins.res_type.bits(), evaluator))
+                InternalVar::from(evaluate_and(l_c, r_c, ins.res_type.bits(), evaluator))
             }
             Operation::Not => todo!(),
             Operation::Or => todo!(),
             Operation::Xor => {
-                InternalVar::from(&evaluate_xor(l_c, r_c, ins.res_type.bits(), evaluator))
+                InternalVar::from(evaluate_xor(l_c, r_c, ins.res_type.bits(), evaluator))
             }
             Operation::Cast => l_c.clone(),
             Operation::Ass | Operation::Jne | Operation::Jeq | Operation::Jmp | Operation::Phi => {
@@ -221,7 +205,7 @@ impl Acir {
             }
             Operation::Trunc => {
                 assert!(is_const(&r_c.expression));
-                InternalVar::from(&evaluate_truncate(
+                InternalVar::from(evaluate_truncate(
                     l_c,
                     r_c.expression.q_c.to_u128().try_into().unwrap(),
                     ins.bit_size,
@@ -232,10 +216,10 @@ impl Acir {
             Operation::Nop => InternalVar::default(),
             Operation::Constrain(op) => match op {
                 node::ConstrainOp::Eq => {
-                    InternalVar::from(&self.equalize(ins.lhs, ins.rhs, &l_c, &r_c, cfg, evaluator))
+                    InternalVar::from(self.equalize(ins.lhs, ins.rhs, &l_c, &r_c, igen, evaluator))
                 }
                 node::ConstrainOp::Neq => {
-                    InternalVar::from(&self.distinct(ins.lhs, ins.rhs, &l_c, &r_c, cfg, evaluator))
+                    InternalVar::from(self.distinct(ins.lhs, ins.rhs, &l_c, &r_c, igen, evaluator))
                 }
             },
             Operation::Load(array_idx) => {
@@ -244,17 +228,17 @@ impl Acir {
                 if let Some(val) = l_c.to_const() {
                     let address = mem::Memory::as_u32(val);
                     if self.memory_map.contains_key(&address) {
-                        InternalVar::from(&self.memory_map[&address].expression.clone())
+                        InternalVar::from(self.memory_map[&address].expression.clone())
                     } else {
                         //if not found, then it must be a witness (else it is non-initialised memory)
-                        let array = &cfg.mem.arrays[array_idx as usize];
+                        let array = &igen.mem.arrays[array_idx as usize];
                         let index = (address - array.adr) as usize;
                         let w = if array.witness.len() > index {
                             array.witness[index]
                         } else {
                             self.memory_witness[&array_idx][index]
                         };
-                        InternalVar::from(&w)
+                        InternalVar::from(w)
                     }
                 } else {
                     todo!("dynamic arrays are not implemented yet");
@@ -289,9 +273,6 @@ impl Acir {
         }
         let big_f = BigUint::from_bytes_be(&f.to_bytes());
 
-        if big_f.to_string() == "4294967296" {
-            return "2^32".to_string();
-        }
         let s = big_f.bits();
         let big_s = BigUint::one() << s;
         if big_s == big_f {
@@ -359,27 +340,18 @@ impl Acir {
         let mut result: Vec<InternalVar> = Vec::new();
         for i in 0..array.len {
             let address = array.adr + i;
-            if self.memory_map.contains_key(&address) {
-                if create_witness && self.memory_map[&address].witness.is_none() {
-                    let (_, w) = evaluator
-                        .create_intermediate_variable(self.memory_map[&address].expression.clone());
+            if let Some(memory) = self.memory_map.get_mut(&address) {
+                if create_witness && memory.witness.is_none() {
+                    let (_, w) = evaluator.create_intermediate_variable(memory.expression.clone());
                     self.memory_map.get_mut(&address).unwrap().witness = Some(w);
                 }
                 result.push(self.memory_map[&address].clone());
-            } else if self.memory_witness.contains_key(&array_index) {
-                let w = self.memory_witness[&array_index][i as usize];
-                result.push(InternalVar {
-                    expression: from_witness(w),
-                    witness: Some(w),
-                    idx: None,
-                });
+            } else if let Some(memory) = self.memory_witness.get(&array_index) {
+                let w = memory[i as usize];
+                result.push(w.into());
             } else {
                 let w = array.witness[i as usize];
-                result.push(InternalVar {
-                    expression: from_witness(w),
-                    witness: Some(w),
-                    idx: None,
-                });
+                result.push(w.into());
             }
         }
         result
@@ -391,15 +363,15 @@ impl Acir {
         rhs: Index,
         l_c: &InternalVar,
         r_c: &InternalVar,
-        cfg: &IRGenerator,
+        igen: &IRGenerator,
         evaluator: &mut Evaluator,
     ) -> Arithmetic {
         if let (Some(a), Some(b)) = (
-            super::mem::Memory::deref(cfg, lhs),
-            super::mem::Memory::deref(cfg, rhs),
+            super::mem::Memory::deref(igen, lhs),
+            super::mem::Memory::deref(igen, rhs),
         ) {
-            let array_a = &cfg.mem.arrays[a as usize];
-            let array_b = &cfg.mem.arrays[b as usize];
+            let array_a = &igen.mem.arrays[a as usize];
+            let array_b = &igen.mem.arrays[b as usize];
 
             if array_a.len == array_b.len {
                 let mut x = InternalVar {
@@ -418,11 +390,11 @@ impl Acir {
                 }
             }
         } else {
-            let mut x = InternalVar {
-                expression: sub(&l_c.expression, FieldElement::one(), &r_c.expression),
-                witness: None,
-                idx: None,
-            };
+            let mut x = InternalVar::from(subtract(
+                &l_c.expression,
+                FieldElement::one(),
+                &r_c.expression,
+            ));
             x.witness = Some(generate_witness(&x, evaluator));
             from_witness(evaluate_zerop(&x, evaluator))
         }
@@ -434,17 +406,17 @@ impl Acir {
         rhs: Index,
         l_c: &InternalVar,
         r_c: &InternalVar,
-        cfg: &IRGenerator,
+        igen: &IRGenerator,
         evaluator: &mut Evaluator,
     ) -> Arithmetic {
-        sub(
+        subtract(
             &Arithmetic {
                 mul_terms: Vec::new(),
                 linear_combinations: Vec::new(),
                 q_c: FieldElement::one(),
             },
             FieldElement::one(),
-            &self.evaluate_neq(lhs, rhs, l_c, r_c, cfg, evaluator),
+            &self.evaluate_neq(lhs, rhs, l_c, r_c, igen, evaluator),
         )
     }
 
@@ -455,22 +427,22 @@ impl Acir {
         rhs: Index,
         l_c: &InternalVar,
         r_c: &InternalVar,
-        cfg: &IRGenerator,
+        igen: &IRGenerator,
         evaluator: &mut Evaluator,
     ) -> Arithmetic {
         if let (Some(a), Some(b)) = (
-            super::mem::Memory::deref(cfg, lhs),
-            super::mem::Memory::deref(cfg, rhs),
+            super::mem::Memory::deref(igen, lhs),
+            super::mem::Memory::deref(igen, rhs),
         ) {
-            let array_a = &cfg.mem.arrays[a as usize];
-            let array_b = &cfg.mem.arrays[b as usize];
+            let array_a = &igen.mem.arrays[a as usize];
+            let array_b = &igen.mem.arrays[b as usize];
             //If length are different, then the arrays are different
             if array_a.len == array_b.len {
                 let sum = self.zerop_array_sum(array_a, a, array_b, b, evaluator);
                 evaluate_inverse(&sum, evaluator);
             }
         } else {
-            let diff = sub(&l_c.expression, FieldElement::one(), &r_c.expression);
+            let diff = subtract(&l_c.expression, FieldElement::one(), &r_c.expression);
             evaluate_inverse(&diff, evaluator);
         }
         Arithmetic::default()
@@ -483,19 +455,18 @@ impl Acir {
         rhs: Index,
         l_c: &InternalVar,
         r_c: &InternalVar,
-        cfg: &IRGenerator,
+        igen: &IRGenerator,
         evaluator: &mut Evaluator,
     ) -> Arithmetic {
         if let (Some(a), Some(b)) = (
-            super::mem::Memory::deref(cfg, lhs),
-            super::mem::Memory::deref(cfg, rhs),
+            super::mem::Memory::deref(igen, lhs),
+            super::mem::Memory::deref(igen, rhs),
         ) {
-            //  self.equal_array(&cfg.mem.arrays[a as usize], a, &cfg.mem.arrays[b as usize], b, evaluator);
-            let a_values = self.load_array(&cfg.mem.arrays[a as usize], a, false, evaluator);
-            let b_values = self.load_array(&cfg.mem.arrays[b as usize], b, false, evaluator);
+            let a_values = self.load_array(&igen.mem.arrays[a as usize], a, false, evaluator);
+            let b_values = self.load_array(&igen.mem.arrays[b as usize], b, false, evaluator);
             assert!(a_values.len() == b_values.len());
             for i in 0..a_values.len() {
-                let array_diff = sub(
+                let array_diff = subtract(
                     &a_values[i].expression,
                     FieldElement::one(),
                     &b_values[i].expression,
@@ -529,7 +500,7 @@ impl Acir {
         let b_values = self.load_array(b, b_idx, false, evaluator);
 
         for i in 0..a.len {
-            let diff_expr = sub(
+            let diff_expr = subtract(
                 &a_values[i as usize].expression,
                 FieldElement::one(),
                 &b_values[i as usize].expression,
@@ -542,7 +513,7 @@ impl Acir {
                 witness: Some(diff_witness),
                 idx: None,
             };
-            evaluator.gates.push(Gate::Arithmetic(sub(
+            evaluator.gates.push(Gate::Arithmetic(subtract(
                 &diff_expr,
                 FieldElement::one(),
                 &from_witness(diff_witness),
@@ -566,7 +537,7 @@ pub fn evaluate_cmp(
     evaluator: &mut Evaluator,
 ) -> Witness {
     //TODO use quad_decomposition gate for barretenberg
-    let sub_expr = sub(&lhs.expression, FieldElement::one(), &rhs.expression);
+    let sub_expr = subtract(&lhs.expression, FieldElement::one(), &rhs.expression);
     let bits = split(&sub_expr, bit_size + 1, evaluator);
     bits[bit_size as usize]
 }
@@ -576,7 +547,7 @@ pub fn split(lhs: &Arithmetic, bit_size: u32, evaluator: &mut Evaluator) -> Vec<
     let mut bits = Arithmetic::default();
     let mut two_pow = FieldElement::one();
     let two = FieldElement::from(2_i128);
-    let mut result: Vec<Witness> = Vec::new();
+    let mut result = Vec::new();
     for _ in 0..bit_size {
         let bit_witness = evaluator.add_witness_to_cs();
         result.push(bit_witness);
@@ -585,8 +556,8 @@ pub fn split(lhs: &Arithmetic, bit_size: u32, evaluator: &mut Evaluator) -> Vec<
     }
     evaluator
         .gates
-        .push(Gate::Arithmetic(sub(lhs, FieldElement::one(), &bits)));
-    //toto witness values for solver
+        .push(Gate::Arithmetic(subtract(lhs, FieldElement::one(), &bits)));
+    //todo witness values for solver
     result
 }
 
@@ -648,8 +619,6 @@ pub fn evaluate_truncate(
     max_bits: u32,
     evaluator: &mut Evaluator,
 ) -> Witness {
-    // dbg!(&max_bits);
-    // dbg!(&rhs);
     assert!(max_bits > rhs);
     //1. Generate witnesses a,b,c
     //TODO: we should truncate the arithmetic expression (and so avoid having to create a witness)
@@ -807,20 +776,21 @@ pub fn evaluate_zerop(x: &InternalVar, evaluator: &mut Evaluator) -> Witness {
         x: x_witness,
         result: m,
     }));
+
     //y=x*m         y is 1 if x is not null, and 0 else
     let y_witness = evaluator.add_witness_to_cs();
-    let y_expr = from_witness(y_witness);
-    let xm: Arithmetic = Linear::from_witness(x_witness) * Linear::from_witness(m);
-    evaluator.gates.push(Gate::Arithmetic(add(
-        &xm,
-        FieldElement::from(-1_i128),
-        &y_expr,
-    )));
+    evaluator.gates.push(Gate::Arithmetic(Arithmetic {
+        mul_terms: vec![(FieldElement::one(), x_witness, m)],
+        linear_combinations: vec![(FieldElement::one().neg(), y_witness)],
+        q_c: FieldElement::zero(),
+    }));
+
     //x=y*x
-    let xy: Arithmetic = Linear::from_witness(x_witness) * Linear::from_witness(y_witness);
-    evaluator.gates.push(Gate::Arithmetic(add(
+    let y_expr = from_witness(y_witness);
+    let xy = mul(&x.expression, &y_expr);
+    evaluator.gates.push(Gate::Arithmetic(subtract(
         &xy,
-        FieldElement::from(-1_i128),
+        FieldElement::one(),
         &from_witness(x_witness),
     )));
     y_witness
@@ -937,7 +907,7 @@ pub fn mul(a: &Arithmetic, b: &Arithmetic) -> Arithmetic {
 }
 
 // returns a - k*b
-pub fn sub(a: &Arithmetic, k: FieldElement, b: &Arithmetic) -> Arithmetic {
+pub fn subtract(a: &Arithmetic, k: FieldElement, b: &Arithmetic) -> Arithmetic {
     add(a, k.neg(), b)
 }
 

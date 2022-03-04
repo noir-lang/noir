@@ -221,7 +221,7 @@ impl ObjectType {
             ObjectType::NotAnObject => 0,
             ObjectType::Signed(c) => *c,
             ObjectType::Unsigned(c) => *c,
-            ObjectType::Pointer(_) => 8, //TODO  ???
+            ObjectType::Pointer(_) => unreachable!(),
         }
     }
 
@@ -649,8 +649,8 @@ impl Instruction {
             Operation::Constrain(op) => {
                 if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
                     match op {
-                        ConstrainOp::Eq => assert!(l_const == r_const),
-                        ConstrainOp::Neq => assert!(l_const != r_const),
+                        ConstrainOp::Eq => assert_eq!(l_const, r_const),
+                        ConstrainOp::Neq => assert_ne!(l_const, r_const),
                     }
                     //we can delete the instruction
                     return NodeEval::Idx(arena::Index::from_raw_parts(std::usize::MAX, 0));

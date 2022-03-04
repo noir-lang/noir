@@ -158,6 +158,10 @@ pub enum CseAction {
     Keep,    //keep the instruction
 }
 
+//Returns an id and an action:
+//- replace => the instruction should be replaced by the returned id
+//- remove  => the instruction corresponding to the returned id should be removed
+//- keep    => keep the instruction
 pub fn find_similar_mem_instruction(
     eval: &IRGenerator,
     op: node::Operation,

@@ -219,7 +219,7 @@ fn update_ins(eval: &mut IRGenerator, idx: arena::Index, copy_from: &node::Instr
 //Add required truncate instructions on all blocks
 pub fn overflow_strategy(eval: &mut IRGenerator) {
     let mut max_map: HashMap<arena::Index, BigUint> = HashMap::new();
-    let mut memory_map: HashMap<u32, arena::Index> = HashMap::new();
+    let mut memory_map = HashMap::new();
     tree_overflow(eval, eval.first_block, &mut max_map, &mut memory_map);
 }
 
