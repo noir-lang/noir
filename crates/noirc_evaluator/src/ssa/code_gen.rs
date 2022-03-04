@@ -16,6 +16,7 @@ use acvm::FieldElement;
 use arena;
 use noirc_frontend::hir::Context;
 use noirc_frontend::hir_def::function::HirFunction;
+use noirc_frontend::hir_def::stmt::HirPattern;
 use noirc_frontend::hir_def::{
     expr::{HirBinaryOp, HirBinaryOpKind, HirExpression, HirForExpression, HirLiteral},
     stmt::{HirConstrainStatement, HirLetStatement, HirStatement},
@@ -619,6 +620,18 @@ impl<'a> IRGenerator<'a> {
         result
     }
 
+    fn pattern_name_and_def(&self, pattern: &HirPattern) -> (String, Option<IdentId>) {
+        match pattern {
+            HirPattern::Identifier(id) => {
+                let interner = &self.context().def_interner;
+                (interner.ident_name(id), interner.ident_def(id))
+            }
+            HirPattern::Mutable(pattern, _) => self.pattern_name_and_def(pattern),
+            HirPattern::Tuple(_, _) => todo!("Implement tuples in the backend"),
+            HirPattern::Struct(_, _, _) => todo!("Implement structs in the backend"),
+        }
+    }
+
     // Let statements are used to declare higher level objects
     fn handle_let_statement(
         &mut self,
@@ -633,8 +646,7 @@ impl<'a> IRGenerator<'a> {
         let rtype = self[rhs_id].get_type();
 
         // Convert the LHS into an identifier
-        let variable_name = self.context().def_interner.ident_name(&let_stmt.identifier);
-        let ident_def = self.context().def_interner.ident_def(&let_stmt.identifier);
+        let (variable_name, ident_def) = self.pattern_name_and_def(&let_stmt.pattern);
         //Create a new variable;
         //TODO in the name already exists, we should use something else (from env) to find a variable (identid?)
 

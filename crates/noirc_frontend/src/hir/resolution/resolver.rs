@@ -28,7 +28,7 @@ use std::rc::Rc;
 use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId};
 use crate::hir_def::expr::HirExpression;
-use crate::hir_def::stmt::HirAssignStatement;
+use crate::hir_def::stmt::{HirAssignStatement, HirPattern};
 use crate::node_interner::{ExprId, FuncId, IdentId, NodeInterner, StmtId, TypeId};
 use crate::util::vecmap;
 use crate::{
@@ -36,7 +36,7 @@ use crate::{
     BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
     Statement,
 };
-use crate::{Path, StructType, ERROR_IDENT};
+use crate::{Path, Pattern, StructType, ERROR_IDENT};
 use noirc_errors::{Span, Spanned};
 
 use crate::hir::scope::{
@@ -218,10 +218,9 @@ impl<'a> Resolver<'a> {
         let attributes = func.attribute().cloned();
 
         let mut parameters = Vec::new();
-        for (ident, typ) in func.parameters().iter().cloned() {
-            let ident_id = self.add_variable_decl(ident.clone());
-
-            parameters.push(Param(ident_id, typ));
+        for (pattern, typ) in func.parameters().iter().cloned() {
+            let pattern = self.resolve_pattern(pattern);
+            parameters.push(Param(pattern, typ));
         }
 
         let return_type = func.return_type();
@@ -239,10 +238,8 @@ impl<'a> Resolver<'a> {
     pub fn intern_stmt(&mut self, stmt: Statement) -> StmtId {
         match stmt {
             Statement::Let(let_stmt) => {
-                let id = self.add_variable_decl(let_stmt.identifier);
-
                 let let_stmt = HirLetStatement {
-                    identifier: id,
+                    pattern: self.resolve_pattern(let_stmt.pattern),
                     r#type: let_stmt.r#type,
                     expression: self.intern_expr(let_stmt.expression),
                 };
@@ -368,7 +365,12 @@ impl<'a> Resolver<'a> {
                 let type_id = self.lookup_type(constructor.type_name);
                 HirExpression::Constructor(HirConstructorExpression {
                     type_id,
-                    fields: self.resolve_constructor_fields(type_id, constructor.fields, span),
+                    fields: self.resolve_constructor_fields(
+                        type_id,
+                        constructor.fields,
+                        span,
+                        Resolver::resolve_expression,
+                    ),
                     r#type: self.get_struct(type_id),
                 })
             }
@@ -388,21 +390,65 @@ impl<'a> Resolver<'a> {
         expr_id
     }
 
+    fn resolve_pattern(&mut self, pattern: Pattern) -> HirPattern {
+        self.resolve_pattern_mutable(pattern, None)
+    }
+
+    fn resolve_pattern_mutable(&mut self, pattern: Pattern, mutable: Option<Span>) -> HirPattern {
+        match pattern {
+            Pattern::Identifier(name) => {
+                let id = self.add_variable_decl(name);
+                HirPattern::Identifier(id)
+            }
+            Pattern::Mutable(pattern, span) => {
+                if let Some(first_mut) = mutable {
+                    self.push_err(ResolverError::UnnecessaryMut {
+                        first_mut,
+                        second_mut: span,
+                    })
+                }
+
+                let pattern = self.resolve_pattern_mutable(*pattern, Some(span));
+                HirPattern::Mutable(Box::new(pattern), span)
+            }
+            Pattern::Tuple(fields, span) => {
+                let fields = vecmap(fields, |field| self.resolve_pattern_mutable(field, mutable));
+                HirPattern::Tuple(fields, span)
+            }
+            Pattern::Struct(name, fields, span) => {
+                let struct_id = self.lookup_type(name);
+                let struct_type = self.get_struct(struct_id);
+                let resolve_field =
+                    |this: &mut Self, pattern| this.resolve_pattern_mutable(pattern, mutable);
+                let fields =
+                    self.resolve_constructor_fields(struct_id, fields, span, resolve_field);
+                HirPattern::Struct(struct_type, fields, span)
+            }
+        }
+    }
+
     /// Resolve all the fields of a struct constructor expression.
     /// Ensures all fields are present, none are repeated, and all
     /// are part of the struct.
-    fn resolve_constructor_fields(
+    ///
+    /// This is generic to allow it to work for constructor expressions
+    /// and constructor patterns.
+    fn resolve_constructor_fields<T, U, F>(
         &mut self,
         type_id: TypeId,
-        fields: Vec<(Ident, Expression)>,
+        fields: Vec<(Ident, T)>,
         span: Span,
-    ) -> Vec<(IdentId, ExprId)> {
+        mut resolve_function: F,
+    ) -> Vec<(IdentId, U)>
+    where
+        F: FnMut(&mut Self, T) -> U,
+    {
         let mut ret = Vec::with_capacity(fields.len());
         let mut seen_fields = HashSet::new();
         let mut unseen_fields = self.get_field_names_of_type(type_id);
 
         for (field, expr) in fields {
-            let expr_id = self.resolve_expression(expr);
+            let resolved = resolve_function(self, expr);
 
             if unseen_fields.contains(&field) {
                 unseen_fields.remove(&field);
@@ -421,7 +467,7 @@ impl<'a> Resolver<'a> {
             }
 
             let name_id = self.interner.push_ident(field);
-            ret.push((name_id, expr_id));
+            ret.push((name_id, resolved));
         }
 
         if !unseen_fields.is_empty() {
