@@ -14,6 +14,8 @@ use crate::{
     node_interner::{FuncId, NodeInterner},
 };
 
+use self::stmt::bind_pattern;
+
 /// Type checks a function and assigns the
 /// appropriate types to expressions in a side table
 pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<TypeCheckError> {
@@ -24,15 +26,15 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     let declared_return_type = &meta.return_type;
     let can_ignore_ret = meta.can_ignore_return_type();
 
+    let mut errors = vec![];
     for param in meta.parameters.into_iter() {
-        interner.push_ident_type(&param.0, param.1);
+        bind_pattern(interner, &param.0, param.1, &mut errors);
     }
 
     // Fetch the HirFunction and iterate all of it's statements
     let hir_func = interner.function(&func_id);
     let func_as_expr = hir_func.as_expr();
 
-    let mut errors = vec![];
     let function_last_type = type_check_expression(interner, func_as_expr, &mut errors);
 
     // Check declared return type and actual return type
@@ -67,6 +69,8 @@ mod test {
 
     use noirc_errors::{Span, Spanned};
 
+    use crate::hir_def::stmt::HirLetStatement;
+    use crate::hir_def::stmt::HirPattern::Identifier;
     use crate::hir_def::types::Type;
     use crate::node_interner::{FuncId, NodeInterner};
     use crate::{graph::CrateId, Ident};
@@ -83,16 +87,16 @@ mod test {
                 HirBinaryOp, HirBinaryOpKind, HirBlockExpression, HirExpression, HirInfixExpression,
             },
             function::{FuncMeta, HirFunction, Param},
-            stmt::{HirPrivateStatement, HirStatement},
+            stmt::HirStatement,
         },
         util::vecmap,
     };
 
     #[test]
-    fn basic_priv() {
+    fn basic_let() {
         let mut interner = NodeInterner::default();
 
-        // Add a simple Priv Statement into the interner
+        // Add a simple let Statement into the interner
         // let z = x + y;
         //
         // Push x variable
@@ -121,17 +125,16 @@ mod test {
         };
         let expr_id = interner.push_expr(HirExpression::Infix(expr));
 
-        // Create priv statement
-        let priv_stmt = HirPrivateStatement {
-            identifier: z_id,
+        // Create let statement
+        let let_stmt = HirLetStatement {
+            pattern: Identifier(z_id),
             r#type: Type::Unspecified,
             expression: expr_id,
         };
-
-        let stmt_id = interner.push_stmt(HirStatement::Private(priv_stmt));
+        let stmt_id = interner.push_stmt(HirStatement::Let(let_stmt));
         let expr_id = interner.push_expr(HirExpression::Block(HirBlockExpression(vec![stmt_id])));
 
-        // Create function to enclose the private statement
+        // Create function to enclose the let statement
         let func = HirFunction::unsafe_from_expr(expr_id);
         let func_id = interner.push_fn(func);
 
@@ -145,7 +148,11 @@ mod test {
             name_id,
             kind: FunctionKind::Normal,
             attributes: None,
-            parameters: vec![Param(x_id, Type::WITNESS), Param(y_id, Type::WITNESS)].into(),
+            parameters: vec![
+                Param(Identifier(x_id), Type::WITNESS),
+                Param(Identifier(y_id), Type::WITNESS),
+            ]
+            .into(),
             return_type: Type::Unit,
             has_body: true,
         };
@@ -156,36 +163,24 @@ mod test {
     }
 
     #[test]
-    fn basic_priv_simplified() {
-        let src = r#"
-
-            fn main(x : Field) {
-                priv k = x;
-                priv _z = x + k;
-            }
-
-        "#;
-
-        type_check_src_code(src, vec![String::from("main")]);
-    }
-    #[test]
     #[should_panic]
     fn basic_let_stmt() {
         let src = r#"
             fn main(x : Field) {
                 let k = [x,x];
-                priv _z = x + k;
+                let _z = x + k;
             }
         "#;
 
         type_check_src_code(src, vec![String::from("main")]);
     }
+
     #[test]
     fn basic_index_expr() {
         let src = r#"
             fn main(x : Field) {
                 let k = [x,x];
-                priv _z = x + k[0];
+                let _z = x + k[0];
             }
         "#;
 
@@ -195,7 +190,7 @@ mod test {
     fn basic_call_expr() {
         let src = r#"
             fn main(x : Field) {
-                priv _z = x + foo(x);
+                let _z = x + foo(x);
             }
 
             fn foo(x : Field) -> Field {

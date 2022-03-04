@@ -2,6 +2,5 @@ value = 0
 priv_key = 0
 note_root = 0
 index = 0
-note_hash_path = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 to_pubkey_x = 0
 to_pubkey_y = 0

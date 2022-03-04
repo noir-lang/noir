@@ -45,6 +45,8 @@ pub enum ResolverError {
         missing_fields: Vec<String>,
         struct_definition: Ident,
     },
+    #[error("Unneeded 'mut', pattern is already marked as mutable")]
+    UnnecessaryMut { first_mut: Span, second_mut: Span },
 }
 
 impl ResolverError {
@@ -163,6 +165,21 @@ impl ResolverError {
                 error.add_secondary(
                     format!("{} defined here", struct_definition),
                     struct_definition.span(),
+                );
+                error
+            }
+            ResolverError::UnnecessaryMut {
+                first_mut,
+                second_mut,
+            } => {
+                let mut error = Diagnostic::simple_error(
+                    "'mut' here is not necessary".to_owned(),
+                    "".to_owned(),
+                    second_mut,
+                );
+                error.add_secondary(
+                    "Pattern was already made mutable from this 'mut'".to_owned(),
+                    first_mut,
                 );
                 error
             }

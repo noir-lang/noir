@@ -40,12 +40,6 @@ impl SpannedToken {
     pub fn kind(&self) -> TokenKind {
         self.token().kind()
     }
-    pub fn is_variant(&self, tok: &Token) -> bool {
-        self.token().is_variant(tok)
-    }
-    pub fn can_start_declaration(&self) -> bool {
-        self.token().can_start_declaration()
-    }
 }
 
 impl std::fmt::Display for SpannedToken {
@@ -215,28 +209,9 @@ impl Token {
             ref tok => TokenKind::Token(tok.clone()),
         }
     }
+
     pub fn is_ident(&self) -> bool {
         matches!(self, Token::Ident(_))
-    }
-    // Does not work for Keyword or whatever is inside of variant
-    // XXX: Review the special case of Keyword
-    pub fn is_variant(&self, tok: &Token) -> bool {
-        let got_variant = core::mem::discriminant(self);
-        let expected_variant = core::mem::discriminant(tok);
-        let same_token_variant = got_variant == expected_variant;
-        if !same_token_variant {
-            return false;
-        }
-        // Check if the keywords are the same
-        // Two tokens can be the same variant, but have different inner values
-        // We especially care about the Keyword value however
-        match (&self, tok) {
-            (Token::Keyword(x), Token::Keyword(y)) => return x == y,
-            (_, _) => {}
-        };
-
-        // If we arrive here, then the Token variants are the same and they are not the Keyword type
-        same_token_variant
     }
 
     pub(super) fn into_single_span(self, position: Position) -> SpannedToken {
@@ -244,21 +219,6 @@ impl Token {
     }
     pub(super) fn into_span(self, start: Position, end: Position) -> SpannedToken {
         SpannedToken(Spanned::from_position(start, end, self))
-    }
-
-    pub fn can_start_type(&self) -> bool {
-        matches!(
-            self,
-            Token::Keyword(Keyword::Field) | Token::IntType(_) | Token::LeftBracket
-        )
-    }
-    pub fn can_be_field_element_type(&self) -> bool {
-        matches!(
-            self,
-            Token::Keyword(Keyword::Pub)
-                | Token::Keyword(Keyword::Const)
-                | Token::Keyword(Keyword::Priv)
-        )
     }
 }
 
@@ -417,9 +377,9 @@ pub enum Keyword {
     In,
     Use,
     Constrain,
+    Mut,
     // Field types
     Pub,
-    Priv,
     Const,
     //
     SetPub,
@@ -445,12 +405,12 @@ impl fmt::Display for Keyword {
             Keyword::Else => write!(f, "else"),
             Keyword::While => write!(f, "while"),
             Keyword::Constrain => write!(f, "constrain"),
+            Keyword::Mut => write!(f, "mut"),
             Keyword::Let => write!(f, "let"),
             Keyword::As => write!(f, "as"),
             Keyword::Use => write!(f, "use"),
             Keyword::SetPub => write!(f, "setpub"),
             Keyword::Pub => write!(f, "pub"),
-            Keyword::Priv => write!(f, "priv"),
             Keyword::Field => write!(f, "Field"),
             Keyword::Const => write!(f, "const"),
         }
@@ -462,6 +422,7 @@ impl Keyword {
     /// else return None
     /// XXX: Notice that because of the underscore, new keywords will not produce an err for this function
     pub(crate) fn lookup_keyword(word: &str) -> Option<Token> {
+<<<<<<< HEAD
         let keyword = match word {
             "fn" => Keyword::Fn,
             "struct" => Keyword::Struct,
@@ -483,6 +444,31 @@ impl Keyword {
             "priv" => Keyword::Priv,
             "pub" => Keyword::Pub,
             "const" => Keyword::Const,
+=======
+        match word {
+            "fn" => Some(Token::Keyword(Keyword::Fn)),
+            "struct" => Some(Token::Keyword(Keyword::Struct)),
+            "dep" => Some(Token::Keyword(Keyword::Dep)),
+            "crate" => Some(Token::Keyword(Keyword::Crate)),
+            "if" => Some(Token::Keyword(Keyword::If)),
+            "mod" => Some(Token::Keyword(Keyword::Mod)),
+            "for" => Some(Token::Keyword(Keyword::For)),
+            "in" => Some(Token::Keyword(Keyword::In)),
+            "else" => Some(Token::Keyword(Keyword::Else)),
+            "while" => Some(Token::Keyword(Keyword::While)),
+            "constrain" => Some(Token::Keyword(Keyword::Constrain)),
+            "mut" => Some(Token::Keyword(Keyword::Mut)),
+            "let" => Some(Token::Keyword(Keyword::Let)),
+            "as" => Some(Token::Keyword(Keyword::As)),
+            "use" => Some(Token::Keyword(Keyword::Use)),
+            "true" => Some(Token::Bool(true)),
+            "false" => Some(Token::Bool(false)),
+
+            "setpub" => Some(Token::Keyword(Keyword::SetPub)),
+
+            "pub" => Some(Token::Keyword(Keyword::Pub)),
+            "const" => Some(Token::Keyword(Keyword::Const)),
+>>>>>>> master
             // Native Types
             "Field" => Keyword::Field,
 
@@ -494,51 +480,6 @@ impl Keyword {
 
         Some(Token::Keyword(keyword))
     }
-}
-
-// The list of keyword tokens which can start "variable" declarations. "fn" is for function declarations
-// XXX(low) : It might make sense to create a Keyword::Declarations Variant
-const fn declaration_keywords() -> [Keyword; 4] {
-    [Keyword::Let, Keyword::Const, Keyword::Pub, Keyword::Priv]
-}
-
-impl Token {
-    /// Converts Token into a declaration keyword
-    /// Panics if the token cannot start a declaration
-    /// XXX: There should be a cleaner way of doing this.
-    pub fn to_declaration_keyword(&self) -> Keyword {
-        assert!(self.can_start_declaration());
-        match self {
-            Token::Keyword(kw) => *kw,
-            _ => unreachable!("All tokens which can start declarations, must be keyword"),
-        }
-    }
-    // The set of keyword which can declare variables
-    pub fn can_start_declaration(&self) -> bool {
-        // First check it is a keyword
-        let is_keyword = self.kind() == TokenKind::Keyword;
-        if !is_keyword {
-            return false;
-        }
-
-        match self {
-            Token::Keyword(kw) => declaration_keywords().contains(kw),
-            _ => false,
-        }
-    }
-}
-
-#[test]
-fn test_variant_equality() {
-    let tok = Token::Keyword(Keyword::Let);
-    let tok2 = Token::Keyword(Keyword::Let);
-    assert!(tok.is_variant(&tok2));
-
-    let tok3 = Token::Keyword(Keyword::Const);
-    assert!(!tok.is_variant(&tok3));
-
-    let tok4 = Token::LeftBrace;
-    assert!(!tok.is_variant(&tok4));
 }
 
 pub struct Tokens(pub Vec<SpannedToken>);

@@ -12,8 +12,13 @@ use crate::{
 };
 use crate::{
     AssignStatement, BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, ForExpression,
+<<<<<<< HEAD
     FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, NoirFunction,
     NoirImpl, NoirStruct, Path, PathKind, UnaryOp,
+=======
+    FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, NoirStruct, Path,
+    PathKind, Pattern, UnaryOp,
+>>>>>>> master
 };
 
 use chumsky::prelude::*;
@@ -101,6 +106,7 @@ fn attribute() -> impl NoirParser<Attribute> {
     })
 }
 
+<<<<<<< HEAD
 fn struct_fields() -> impl NoirParser<Vec<(Ident, UnresolvedType)>> {
     parameters(
         false,
@@ -126,10 +132,19 @@ where
 
     full_parameter
         .or(self_parameter)
+=======
+fn struct_fields() -> impl NoirParser<Vec<(Ident, Type)>> {
+    let type_parser = parse_type_with_visibility(optional_const(), parse_type_no_field_element());
+
+    ident()
+        .then_ignore(just(Token::Colon))
+        .then(type_parser)
+>>>>>>> master
         .separated_by(just(Token::Comma))
         .allow_trailing()
 }
 
+<<<<<<< HEAD
 fn nothing<T>() -> impl NoirParser<T> {
     one_of([]).map(|_| unreachable!())
 }
@@ -159,6 +174,14 @@ fn implementation() -> impl NoirParser<TopLevelStatement> {
         .then(function_definition(true).repeated())
         .then_ignore(just(Token::RightBrace))
         .map(|(type_path, methods)| TopLevelStatement::Impl(NoirImpl { type_path, methods }))
+=======
+fn function_parameters() -> impl NoirParser<Vec<(Pattern, Type)>> {
+    pattern()
+        .then_ignore(just(Token::Colon))
+        .then(parse_type())
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
+>>>>>>> master
 }
 
 fn block<'a, P>(expr_parser: P) -> impl NoirParser<BlockExpression> + 'a
@@ -301,6 +324,7 @@ fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
 {
+<<<<<<< HEAD
     let let_statement = generic_declaration(Keyword::Let, expr_parser.clone(), Statement::new_let);
     let priv_statement =
         generic_declaration(Keyword::Priv, expr_parser.clone(), Statement::new_priv);
@@ -319,11 +343,44 @@ where
     P: ExprParser + 'a,
 {
     let p = ignore_then_commit(keyword(key).labelled("statement"), ident());
+=======
+    let p = ignore_then_commit(keyword(Keyword::Let).labelled("statement"), pattern());
+>>>>>>> master
     let p = p.then(optional_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
     let p = then_commit(p, expr_parser);
+    p.map(Statement::new_let)
+}
 
-    p.map(f)
+fn pattern() -> impl NoirParser<Pattern> {
+    recursive(|pattern| {
+        let ident_pattern = ident().map(Pattern::Identifier);
+
+        let mut_pattern = keyword(Keyword::Mut)
+            .ignore_then(pattern.clone())
+            .map_with_span(|inner, span| Pattern::Mutable(Box::new(inner), span));
+
+        let shortfield = ident().map(|name| (name.clone(), Pattern::Identifier(name)));
+        let longfield = ident()
+            .then_ignore(just(Token::Colon))
+            .then(pattern.clone());
+
+        let struct_pattern_fields = longfield
+            .or(shortfield)
+            .separated_by(just(Token::Comma))
+            .delimited_by(just(Token::LeftBrace), just(Token::RightBrace));
+
+        let struct_pattern = path()
+            .then(struct_pattern_fields)
+            .map_with_span(|(typename, fields), span| Pattern::Struct(typename, fields, span));
+
+        let tuple_pattern = pattern
+            .separated_by(just(Token::Comma))
+            .delimited_by(just(Token::LeftParen), just(Token::RightParen))
+            .map_with_span(Pattern::Tuple);
+
+        choice((mut_pattern, tuple_pattern, struct_pattern, ident_pattern))
+    })
 }
 
 fn assignment<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
@@ -371,7 +428,7 @@ where
 
 // Parse nothing, just return a FieldElementType::Private
 fn no_visibility() -> impl NoirParser<FieldElementType> {
-    just([]).or_not().map(|_| FieldElementType::Private)
+    empty().map(|_| FieldElementType::Private)
 }
 
 // Returns a parser that parses any FieldElementType that satisfies
@@ -383,19 +440,14 @@ fn visibility(field: FieldElementType) -> impl NoirParser<FieldElementType> {
 fn optional_visibility() -> impl NoirParser<FieldElementType> {
     choice((
         visibility(FieldElementType::Public),
-        visibility(FieldElementType::Private),
         visibility(FieldElementType::Constant),
         no_visibility(),
     ))
 }
 
 // This is primarily for struct fields which cannot be public
-fn optional_pri_or_const() -> impl NoirParser<FieldElementType> {
-    choice((
-        visibility(FieldElementType::Private),
-        visibility(FieldElementType::Constant),
-        no_visibility(),
-    ))
+fn optional_const() -> impl NoirParser<FieldElementType> {
+    visibility(FieldElementType::Constant).or(no_visibility())
 }
 
 fn field_type<P>(visibility_parser: P) -> impl NoirParser<UnresolvedType>
@@ -958,13 +1010,6 @@ mod test {
             vec!["let x = y", "let x : u8 = y"],
         );
     }
-    #[test]
-    fn parse_priv() {
-        parse_all(
-            declaration(expression()),
-            vec!["priv x = y", "priv x : pub Field = y"],
-        );
-    }
 
     #[test]
     fn parse_invalid_pub() {
@@ -972,16 +1017,6 @@ mod test {
         parse_all_failing(
             statement(expression()),
             vec!["pub x = y", "pub x : pub Field = y"],
-        );
-    }
-
-    #[test]
-    fn parse_const() {
-        // XXX: We have `Constant` because we may allow constants to
-        // be casted to integers. Maybe rename this to `Field` instead
-        parse_all(
-            declaration(expression()),
-            vec!["const x = y", "const x : const Field = y"],
         );
     }
 
@@ -1242,7 +1277,6 @@ mod test {
             ("let = 4 + 3", 1, "let $error: unspecified = (4 + 3)"),
             ("let = ", 2, "let $error: unspecified = Error"),
             ("let", 3, "let $error: unspecified = Error"),
-            ("priv = ", 2, "priv $error: unspecified = Error"),
             ("foo = one two three", 1, "foo = one"),
             ("constrain", 2, "Error"), // We don't recover 'constrain Error' since constrain needs a binary operator
             ("constrain x ==", 2, "constrain (x == Error)"), // This gives a duplicate 'end of input' error currently

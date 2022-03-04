@@ -1,6 +1,5 @@
 use crate::hir_def::stmt::{
-    HirAssignStatement, HirConstStatement, HirConstrainStatement, HirLetStatement,
-    HirPrivateStatement, HirStatement,
+    HirAssignStatement, HirConstrainStatement, HirLetStatement, HirPattern, HirStatement,
 };
 use crate::hir_def::types::Type;
 use crate::node_interner::{ExprId, NodeInterner, StmtId};
@@ -40,9 +39,7 @@ pub(crate) fn type_check(
             type_check_expression(interner, &expr_id, errors);
             interner.make_expr_type_unit(&expr_id);
         }
-        HirStatement::Private(priv_stmt) => type_check_priv_stmt(interner, priv_stmt, errors),
         HirStatement::Let(let_stmt) => type_check_let_stmt(interner, let_stmt, errors),
-        HirStatement::Const(const_stmt) => type_check_const_stmt(interner, const_stmt, errors),
         HirStatement::Constrain(constrain_stmt) => {
             type_check_constrain_stmt(interner, constrain_stmt, errors)
         }
@@ -50,6 +47,43 @@ pub(crate) fn type_check(
         HirStatement::Error => (),
     }
     Type::Unit
+}
+
+pub fn bind_pattern(
+    interner: &mut NodeInterner,
+    pattern: &HirPattern,
+    typ: Type,
+    errors: &mut Vec<TypeCheckError>,
+) {
+    match pattern {
+        HirPattern::Identifier(id) => interner.push_ident_type(id, typ),
+        HirPattern::Mutable(pattern, _) => bind_pattern(interner, pattern, typ, errors),
+        HirPattern::Tuple(_fields, _span) => {
+            todo!("Implement tuple types")
+        }
+        HirPattern::Struct(struct_type, fields, span) => match typ {
+            Type::Struct(inner) if inner.id == struct_type.id => {
+                let mut pattern_fields = fields.clone();
+                let mut type_fields = inner.fields.clone();
+
+                pattern_fields.sort_by_key(|(id, _)| interner.ident(id));
+                type_fields.sort_by_key(|(ident, _)| ident.clone());
+
+                for (pattern_field, type_field) in pattern_fields.into_iter().zip(type_fields) {
+                    assert_eq!(interner.ident(&pattern_field.0), type_field.0);
+                    bind_pattern(interner, &pattern_field.1, type_field.1, errors);
+                }
+            }
+            Type::Error => (),
+            other => {
+                errors.push(TypeCheckError::TypeMismatch {
+                    expected_typ: other.to_string(),
+                    expr_typ: other.to_string(),
+                    expr_span: *span,
+                });
+            }
+        },
+    }
 }
 
 fn type_check_assign_stmt(
@@ -74,27 +108,6 @@ fn type_check_assign_stmt(
     }
 }
 
-fn type_check_priv_stmt(
-    interner: &mut NodeInterner,
-    priv_stmt: HirPrivateStatement,
-    errors: &mut Vec<TypeCheckError>,
-) {
-    let resolved_type =
-        type_check_declaration(interner, priv_stmt.expression, priv_stmt.r#type, errors);
-
-    // Check if this type can be used in a Private statement
-    if !resolved_type.can_be_used_in_priv() {
-        errors.push(TypeCheckError::TypeCannotBeUsed {
-            typ: resolved_type.clone(),
-            place: "private statement",
-            span: interner.expr_span(&priv_stmt.expression),
-        });
-    }
-
-    // Set the type of the identifier to be equal to the annotated type
-    interner.push_ident_type(&priv_stmt.identifier, resolved_type);
-}
-
 fn type_check_let_stmt(
     interner: &mut NodeInterner,
     let_stmt: HirLetStatement,
@@ -103,41 +116,8 @@ fn type_check_let_stmt(
     let resolved_type =
         type_check_declaration(interner, let_stmt.expression, let_stmt.r#type, errors);
 
-    // Check if this type can be used in a Let statement
-    if !resolved_type.can_be_used_in_let() {
-        errors.push(TypeCheckError::TypeCannotBeUsed {
-            typ: resolved_type.clone(),
-            place: "let statement",
-            span: interner.expr_span(&let_stmt.expression),
-        });
-    }
-
-    // Set the type of the identifier to be equal to the annotated type
-    interner.push_ident_type(&let_stmt.identifier, resolved_type);
-}
-
-fn type_check_const_stmt(
-    interner: &mut NodeInterner,
-    const_stmt: HirConstStatement,
-    errors: &mut Vec<TypeCheckError>,
-) {
-    // XXX: It may not make sense to have annotations for const statements, since they can only have one type
-    // Unless we later want to have u32 constants and check those at compile time.
-    let resolved_type =
-        type_check_declaration(interner, const_stmt.expression, const_stmt.r#type, errors);
-
-    if resolved_type != Type::CONSTANT && resolved_type != Type::Error {
-        errors.push(
-            TypeCheckError::TypeCannotBeUsed {
-                typ: resolved_type.clone(),
-                place: "constant statement",
-                span: interner.expr_span(&const_stmt.expression),
-            }
-            .add_context("constant statements can only contain constant types"),
-        );
-    }
-
-    interner.push_ident_type(&const_stmt.identifier, resolved_type);
+    // Set the type of the pattern to be equal to the annotated type
+    bind_pattern(interner, &let_stmt.pattern, resolved_type, errors);
 }
 
 fn type_check_constrain_stmt(

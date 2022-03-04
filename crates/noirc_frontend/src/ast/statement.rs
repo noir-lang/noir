@@ -112,9 +112,7 @@ pub trait Recoverable {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Statement {
     Let(LetStatement),
-    Const(ConstStatement),
     Constrain(ConstrainStatement),
-    Private(PrivateStatement),
     Expression(Expression),
     Assign(AssignStatement),
     // This is an expression with a trailing semi-colon
@@ -134,6 +132,7 @@ impl Recoverable for Statement {
 }
 
 impl Statement {
+<<<<<<< HEAD
     pub fn new_let(
         ((identifier, r#type), expression): ((Ident, UnresolvedType), Expression),
     ) -> Statement {
@@ -159,6 +158,11 @@ impl Statement {
     ) -> Statement {
         Statement::Private(PrivateStatement {
             identifier,
+=======
+    pub fn new_let(((pattern, r#type), expression): ((Pattern, Type), Expression)) -> Statement {
+        Statement::Let(LetStatement {
+            pattern,
+>>>>>>> master
             r#type,
             expression,
         })
@@ -173,15 +177,13 @@ impl Statement {
     ) -> Statement {
         match self {
             Statement::Let(_)
-            | Statement::Const(_)
             | Statement::Constrain(_)
-            | Statement::Private(_)
             | Statement::Assign(_)
             | Statement::Semi(_)
             | Statement::Error => {
                 // To match rust, statements always require a semicolon, even at the end of a block
                 if semi.is_none() {
-                    let reason = "Expected a ; after this statement".to_string();
+                    let reason = "Expected a ; separating these two statements".to_string();
                     emit_error(ParserError::with_reason(reason, span));
                 }
                 self
@@ -205,7 +207,7 @@ impl Statement {
                     // for unneeded expressions like { 1 + 2; 3 }
                     (_, Some(_), false) => Statement::Expression(expr),
                     (_, None, false) => {
-                        let reason = "Expected a ; after this expression".to_string();
+                        let reason = "Expected a ; separating these two statements".to_string();
                         emit_error(ParserError::with_reason(reason, span));
                         Statement::Expression(expr)
                     }
@@ -305,43 +307,57 @@ impl Path {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-// This will be used for non primitive data types like Arrays and Structs
 pub struct LetStatement {
+<<<<<<< HEAD
     pub identifier: Ident,
     pub r#type: UnresolvedType,
-    pub expression: Expression,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ConstStatement {
-    pub identifier: Ident,
-    pub r#type: UnresolvedType, // This will always be a Literal FieldElement
-    pub expression: Expression,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct PrivateStatement {
-    pub identifier: Ident,
-    pub r#type: UnresolvedType,
+=======
+    pub pattern: Pattern,
+    pub r#type: Type,
+>>>>>>> master
     pub expression: Expression,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AssignStatement {
     pub identifier: Ident,
+<<<<<<< HEAD
+    pub r#type: UnresolvedType, // This will always be a Literal FieldElement
+=======
+>>>>>>> master
     pub expression: Expression,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+<<<<<<< HEAD
+pub struct PrivateStatement {
+    pub identifier: Ident,
+    pub r#type: UnresolvedType,
+    pub expression: Expression,
+}
+=======
 pub struct ConstrainStatement(pub InfixExpression);
+>>>>>>> master
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum Pattern {
+    Identifier(Ident),
+    Mutable(Box<Pattern>, Span),
+    Tuple(Vec<Pattern>, Span),
+    Struct(Path, Vec<(Ident, Pattern)>, Span),
+}
+
+impl Recoverable for Pattern {
+    fn error(span: Span) -> Self {
+        Pattern::Identifier(Ident::error(span))
+    }
+}
 
 impl Display for Statement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Statement::Let(let_statement) => let_statement.fmt(f),
-            Statement::Const(const_statement) => const_statement.fmt(f),
             Statement::Constrain(constrain) => constrain.fmt(f),
-            Statement::Private(private) => private.fmt(f),
             Statement::Expression(expression) => expression.fmt(f),
             Statement::Assign(assign) => assign.fmt(f),
             Statement::Semi(semi) => write!(f, "{};", semi),
@@ -355,27 +371,7 @@ impl Display for LetStatement {
         write!(
             f,
             "let {}: {} = {}",
-            self.identifier, self.r#type, self.expression
-        )
-    }
-}
-
-impl Display for ConstStatement {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "const {}: {} = {}",
-            self.identifier, self.r#type, self.expression
-        )
-    }
-}
-
-impl Display for PrivateStatement {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "priv {}: {} = {}",
-            self.identifier, self.r#type, self.expression
+            self.pattern, self.r#type, self.expression
         )
     }
 }
@@ -418,3 +414,35 @@ impl Display for ImportStatement {
         Ok(())
     }
 }
+<<<<<<< HEAD
+=======
+
+impl Display for NoirStruct {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "struct {} {{", self.name)?;
+
+        for (name, typ) in self.fields.iter() {
+            writeln!(f, "    {}: {},", name, typ)?;
+        }
+
+        write!(f, "}}")
+    }
+}
+
+impl Display for Pattern {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Pattern::Identifier(name) => name.fmt(f),
+            Pattern::Mutable(name, _) => write!(f, "mut {}", name),
+            Pattern::Tuple(fields, _) => {
+                let fields = vecmap(fields, ToString::to_string);
+                write!(f, "({})", fields.join(", "))
+            }
+            Pattern::Struct(typename, fields, _) => {
+                let fields = vecmap(fields, |(name, pattern)| format!("{}: {}", name, pattern));
+                write!(f, "{} {{ {} }}", typename, fields.join(", "))
+            }
+        }
+    }
+}
+>>>>>>> master
