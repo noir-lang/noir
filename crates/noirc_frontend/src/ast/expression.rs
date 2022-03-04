@@ -22,6 +22,7 @@ pub enum ExpressionKind {
     For(Box<ForExpression>),
     If(Box<IfExpression>),
     Path(Path),
+    Tuple(Vec<Expression>),
     Error,
 }
 
@@ -429,6 +430,10 @@ impl Display for ExpressionKind {
             Path(path) => path.fmt(f),
             Constructor(constructor) => constructor.fmt(f),
             MemberAccess(access) => access.fmt(f),
+            Tuple(elements) => {
+                let elements = vecmap(elements, ToString::to_string);
+                write!(f, "({})", elements.join(", "))
+            }
             Error => write!(f, "Error"),
         }
     }

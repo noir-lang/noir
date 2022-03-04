@@ -12,7 +12,10 @@ use noirc_errors::Span;
 pub use statement::*;
 pub use structure::*;
 
-use crate::token::{IntType, Keyword};
+use crate::{
+    token::{IntType, Keyword},
+    util::vecmap,
+};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ArraySize {
@@ -110,6 +113,10 @@ pub enum UnresolvedType {
     Bool,
     Unit,
     Struct(FieldElementType, Path),
+
+    // Note: Tuples have no FieldElementType, instead each of their elements may have one.
+    Tuple(Vec<UnresolvedType>),
+
     Unspecified, // This is for when the user declares a variable without specifying it's type
     Error,
 }
@@ -144,6 +151,10 @@ impl std::fmt::Display for UnresolvedType {
                 Signedness::Unsigned => write!(f, "{}u{}", vis_str(*fe_type), num_bits),
             },
             Struct(fe_type, s) => write!(f, "{}{}", vis_str(*fe_type), s),
+            Tuple(elements) => {
+                let elements = vecmap(elements, ToString::to_string);
+                write!(f, "({})", elements.join(", "))
+            }
             Bool => write!(f, "bool"),
             Unit => write!(f, "()"),
             Error => write!(f, "error"),

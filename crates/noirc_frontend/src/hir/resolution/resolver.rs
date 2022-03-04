@@ -230,6 +230,9 @@ impl<'a> Resolver<'a> {
                 Some(definition) => Type::Struct(vis, definition),
                 None => Type::Error,
             },
+            UnresolvedType::Tuple(fields) => {
+                Type::Tuple(vecmap(fields, |field| self.resolve_type(field)))
+            }
         }
     }
 
@@ -433,6 +436,10 @@ impl<'a> Resolver<'a> {
                 })
             }
             ExpressionKind::Error => HirExpression::Error,
+            ExpressionKind::Tuple(elements) => {
+                let elements = vecmap(elements, |elem| self.resolve_expression(elem));
+                HirExpression::Tuple(elements)
+            }
         };
 
         let expr_id = self.interner.push_expr(hir_expr);

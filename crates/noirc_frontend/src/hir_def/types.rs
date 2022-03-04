@@ -5,6 +5,7 @@ use noirc_errors::Span;
 
 use crate::{
     node_interner::{FuncId, TypeId},
+    util::vecmap,
     ArraySize, FieldElementType, Ident, Signedness,
 };
 
@@ -49,6 +50,7 @@ pub enum Type {
     Bool,
     Unit,
     Struct(FieldElementType, Rc<RefCell<StructType>>),
+    Tuple(Vec<Type>),
 
     Error,
     Unspecified, // This is for when the user declares a variable without specifying it's type
@@ -70,14 +72,24 @@ impl From<&Type> for AbiType {
 
 impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let vis_str = |vis| match vis {
+            FieldElementType::Private => "",
+            FieldElementType::Public => "pub ",
+            FieldElementType::Constant => "const ",
+        };
+
         match self {
-            Type::FieldElement(fe_type) => write!(f, "{} Field", fe_type),
-            Type::Array(fe_type, size, typ) => write!(f, "{} {}{}", fe_type, size, typ),
+            Type::FieldElement(fe_type) => write!(f, "{}Field", vis_str(*fe_type)),
+            Type::Array(fe_type, size, typ) => write!(f, "{}{}{}", vis_str(*fe_type), size, typ),
             Type::Integer(fe_type, sign, num_bits) => match sign {
-                Signedness::Signed => write!(f, "{} i{}", fe_type, num_bits),
-                Signedness::Unsigned => write!(f, "{} u{}", fe_type, num_bits),
+                Signedness::Signed => write!(f, "{}i{}", vis_str(*fe_type), num_bits),
+                Signedness::Unsigned => write!(f, "{}u{}", vis_str(*fe_type), num_bits),
             },
-            Type::Struct(vis, s) => write!(f, "{} {}", vis, s.borrow()),
+            Type::Struct(vis, s) => write!(f, "{}{}", vis_str(*vis), s.borrow()),
+            Type::Tuple(elements) => {
+                let elements = vecmap(elements, ToString::to_string);
+                write!(f, "({})", elements.join(", "))
+            }
             Type::Bool => write!(f, "bool"),
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
@@ -125,7 +137,6 @@ impl Type {
         // XXX: Should we also allow functions that ask for u16
         // to accept u8? We would need to pad the bit decomposition
         // if so.
-
         self == argument
     }
 
@@ -137,14 +148,14 @@ impl Type {
     }
 
     /// Computes the number of elements in a Type
-    /// Arrays and Structs will be the only data structures to return more than one
-
+    /// Arrays, structs, and tuples will be the only data structures to return more than one
     pub fn num_elements(&self) -> usize {
         match self {
             Type::Array(_, ArraySize::Fixed(fixed_size), _) => *fixed_size as usize,
             Type::Array(_, ArraySize::Variable, _) =>
                 unreachable!("ice : this method is only ever called when we want to compare the prover inputs with the ABI in main. The ABI should not have variable input. The program should be compiled before calling this"),
             Type::Struct(_, s) => s.borrow().fields.len(),
+            Type::Tuple(fields) => fields.len(),
             Type::FieldElement(_)
             | Type::Integer(_, _, _)
             | Type::Bool
@@ -268,6 +279,7 @@ impl Type {
             Type::Unspecified => unreachable!(),
             Type::Unit => unreachable!(),
             Type::Struct(_, _) => todo!("as_abi_type not yet implemented for struct types"),
+            Type::Tuple(_) => todo!("as_abi_type not yet implemented for tuple types"),
         }
     }
 }

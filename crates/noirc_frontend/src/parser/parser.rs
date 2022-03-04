@@ -13,7 +13,7 @@ use crate::{
 use crate::{
     AssignStatement, BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, ForExpression,
     FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, NoirFunction,
-    NoirImpl, NoirStruct, Path, PathKind, Pattern, UnaryOp,
+    NoirImpl, NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp,
 };
 
 use chumsky::prelude::*;
@@ -375,7 +375,8 @@ where
         field_type(visibility_parser.clone()),
         int_type(visibility_parser.clone()),
         struct_type(visibility_parser.clone()),
-        array_type(visibility_parser, recursive_type_parser),
+        array_type(visibility_parser, recursive_type_parser.clone()),
+        tuple_type(recursive_type_parser),
     ))
 }
 
@@ -461,6 +462,16 @@ where
                 Box::new(element_type),
             ))
         })
+}
+
+fn tuple_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>
+where
+    T: NoirParser<UnresolvedType>,
+{
+    let fields = type_parser
+        .separated_by(just(Token::Comma))
+        .allow_trailing();
+    parenthesized(fields).map(UnresolvedType::Tuple)
 }
 
 fn expression() -> impl ExprParser {
@@ -635,8 +646,17 @@ where
         literal(),
     ))
     .map_with_span(Expression::new)
-    .or(parenthesized(expr_parser))
+    .or(parenthesized(expr_parser.clone()))
+    .or(tuple(expr_parser))
     .labelled("value")
+}
+
+fn tuple<P>(expr_parser: P) -> impl NoirParser<Expression>
+where
+    P: ExprParser,
+{
+    parenthesized(expression_list(expr_parser))
+        .map_with_span(|elements, span| Expression::new(ExpressionKind::Tuple(elements), span))
 }
 
 // Parses a value followed by 0 or more member accesses or method calls
@@ -645,7 +665,7 @@ where
     P: ExprParser,
 {
     let rhs = just(Token::Dot)
-        .ignore_then(ident())
+        .ignore_then(field_name())
         .then(parenthesized(expression_list(expr_parser.clone())).or_not())
         .labelled("field access");
 
@@ -653,6 +673,19 @@ where
         value(expr_parser),
         rhs,
         Expression::member_access_or_method_call,
+    )
+}
+
+fn field_name() -> impl NoirParser<Ident> {
+    ident().or(
+        tokenkind(TokenKind::Literal).validate(|token, span, emit| match token {
+            Token::Int(_) => Ident::from(Spanned::from(span, token.to_string())),
+            other => {
+                let reason = format!("Unexpected '{}', expected a field name", other);
+                emit(ParserError::with_reason(reason, span));
+                Ident::error(span)
+            }
+        }),
     )
 }
 
@@ -1020,7 +1053,15 @@ mod test {
             vec!["(0)", "(x+a)", "({(({{({(nested)})}}))})"],
         );
 
-        parse_all_failing(value(expression()), vec!["(x+a", "((x+a)", "()"]);
+        parse_all_failing(value(expression()), vec!["(x+a", "((x+a)", "(,)"]);
+    }
+
+    #[test]
+    fn parse_tuple() {
+        parse_all(
+            tuple(expression()),
+            vec!["()", "(x,)", "(a,b+2)", "(a,(b,c,),d,)"],
+        );
     }
 
     #[test]
