@@ -13,7 +13,7 @@ use crate::{
 use crate::{
     AssignStatement, BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, ForExpression,
     FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, NoirStruct, Path,
-    PathKind, Recoverable, UnaryOp,
+    PathKind, Recoverable, Pattern, UnaryOp,
 };
 
 use chumsky::prelude::*;
@@ -104,23 +104,19 @@ fn attribute() -> impl NoirParser<Attribute> {
 }
 
 fn struct_fields() -> impl NoirParser<Vec<(Ident, Type)>> {
-    parameters(parse_type_with_visibility(
-        optional_const(),
-        parse_type_no_field_element(),
-    ))
-}
+    let type_parser = parse_type_with_visibility(optional_const(), parse_type_no_field_element());
 
-fn function_parameters() -> impl NoirParser<Vec<(Ident, Type)>> {
-    parameters(parse_type())
-}
-
-fn parameters<P>(type_parser: P) -> impl NoirParser<Vec<(Ident, Type)>>
-where
-    P: NoirParser<Type>,
-{
     ident()
         .then_ignore(just(Token::Colon))
         .then(type_parser)
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
+}
+
+fn function_parameters() -> impl NoirParser<Vec<(Pattern, Type)>> {
+    pattern()
+        .then_ignore(just(Token::Colon))
+        .then(parse_type())
         .separated_by(just(Token::Comma))
         .allow_trailing()
 }
@@ -265,11 +261,42 @@ fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
 {
-    let p = ignore_then_commit(keyword(Keyword::Let).labelled("statement"), ident());
+    let p = ignore_then_commit(keyword(Keyword::Let).labelled("statement"), pattern());
     let p = p.then(optional_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
     let p = then_commit(p, expr_parser);
     p.map(Statement::new_let)
+}
+
+fn pattern() -> impl NoirParser<Pattern> {
+    recursive(|pattern| {
+        let ident_pattern = ident().map(Pattern::Identifier);
+
+        let mut_pattern = keyword(Keyword::Mut)
+            .ignore_then(pattern.clone())
+            .map_with_span(|inner, span| Pattern::Mutable(Box::new(inner), span));
+
+        let shortfield = ident().map(|name| (name.clone(), Pattern::Identifier(name)));
+        let longfield = ident()
+            .then_ignore(just(Token::Colon))
+            .then(pattern.clone());
+
+        let struct_pattern_fields = longfield
+            .or(shortfield)
+            .separated_by(just(Token::Comma))
+            .delimited_by(just(Token::LeftBrace), just(Token::RightBrace));
+
+        let struct_pattern = path()
+            .then(struct_pattern_fields)
+            .map_with_span(|(typename, fields), span| Pattern::Struct(typename, fields, span));
+
+        let tuple_pattern = pattern
+            .separated_by(just(Token::Comma))
+            .delimited_by(just(Token::LeftParen), just(Token::RightParen))
+            .map_with_span(Pattern::Tuple);
+
+        choice((mut_pattern, tuple_pattern, struct_pattern, ident_pattern))
+    })
 }
 
 fn assignment<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a

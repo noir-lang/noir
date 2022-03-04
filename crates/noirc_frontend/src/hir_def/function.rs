@@ -2,7 +2,8 @@ use noirc_abi::Abi;
 use noirc_errors::Span;
 
 use super::expr::{HirBlockExpression, HirExpression};
-use crate::node_interner::{ExprId, IdentId, NodeInterner};
+use super::stmt::HirPattern;
+use crate::node_interner::{ExprId, NodeInterner};
 use crate::util::vecmap;
 use crate::{token::Attribute, FunctionKind, Type};
 
@@ -38,7 +39,18 @@ impl HirFunction {
 
 /// An interned function parameter from a function definition
 #[derive(Debug, Clone)]
-pub struct Param(pub IdentId, pub Type);
+pub struct Param(pub HirPattern, pub Type);
+
+/// Attempts to retrieve the name of this parameter. Returns None
+/// if this parameter is a tuple or struct pattern.
+fn get_param_name(pattern: &HirPattern, interner: &NodeInterner) -> Option<String> {
+    match pattern {
+        HirPattern::Identifier(id) => Some(interner.ident_name(id)),
+        HirPattern::Mutable(pattern, _) => get_param_name(pattern, interner),
+        HirPattern::Tuple(_, _) => None,
+        HirPattern::Struct(_, _, _) => None,
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Parameters(Vec<Param>);
@@ -46,16 +58,21 @@ pub struct Parameters(Vec<Param>);
 impl Parameters {
     pub fn into_abi(self, interner: &NodeInterner) -> Abi {
         let parameters = vecmap(self.0, |param| {
-            let (param_id, param_type) = (param.0, param.1);
-            let param_name = interner.ident_name(&param_id);
-            (param_name, param_type.as_abi_type())
+            let param_name = get_param_name(&param.0, interner)
+                .expect("Abi for tuple and struct parameters is unimplemented");
+            (param_name, param.1.as_abi_type())
         });
         noirc_abi::Abi { parameters }
     }
 
     pub fn span(&self, interner: &NodeInterner) -> Span {
         assert!(!self.is_empty());
-        let mut spans = vecmap(&self.0, |param| interner.ident_span(&param.0));
+        let mut spans = vecmap(&self.0, |param| match &param.0 {
+            HirPattern::Identifier(id) => interner.ident_span(id),
+            HirPattern::Mutable(_, span) => *span,
+            HirPattern::Tuple(_, span) => *span,
+            HirPattern::Struct(_, _, span) => *span,
+        });
 
         let merged_span = spans.pop().unwrap();
         for span in spans {
