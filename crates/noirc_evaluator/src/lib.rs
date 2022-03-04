@@ -89,12 +89,20 @@ impl<'a> Evaluator<'a> {
     // Some of these could have been removed due to optimisations. We need this number because the
     // Standard format requires the number of witnesses. The max number is also fine.
     // If we had a composer object, we would not need it
-    pub fn compile(mut self, np_language: Language) -> Result<Circuit, RuntimeError> {
+    pub fn compile(
+        mut self,
+        np_language: Language,
+        interactive: bool,
+    ) -> Result<Circuit, RuntimeError> {
         // create a new environment for the main context
         let mut env = Environment::new(FuncContext::Main);
 
         // First evaluate the main function
-        self.evaluate_main(&mut env)?;
+        if interactive {
+            self.evaluate_main_alt(&mut env, interactive)?;
+        } else {
+            self.evaluate_main(&mut env)?;
+        }
 
         let witness_index = self.current_witness_index();
 
@@ -187,7 +195,11 @@ impl<'a> Evaluator<'a> {
     }
 
     /// Compiles the AST into the intermediate format by evaluating the main function
-    pub fn evaluate_main_alt(&mut self, env: &mut Environment) -> Result<(), RuntimeError> {
+    pub fn evaluate_main_alt(
+        &mut self,
+        env: &mut Environment,
+        interactive: bool,
+    ) -> Result<(), RuntimeError> {
         self.parse_abi(env)?;
 
         // Now call the main function
@@ -197,7 +209,7 @@ impl<'a> Evaluator<'a> {
             .unwrap();
 
         //Generates ACIR representation:
-        cfg.ir_to_acir(self).unwrap();
+        cfg.ir_to_acir(self, interactive).unwrap();
         Ok(())
     }
 

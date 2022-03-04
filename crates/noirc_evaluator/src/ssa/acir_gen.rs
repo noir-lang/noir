@@ -1,4 +1,4 @@
-use super::mem::MemArray;
+use super::mem::{MemArray, Memory};
 use super::node::{Instruction, Operation};
 use acvm::FieldElement;
 
@@ -304,10 +304,7 @@ impl Acir {
         igen: &IRGenerator,
         evaluator: &mut Evaluator,
     ) -> Arithmetic {
-        if let (Some(a), Some(b)) = (
-            super::mem::Memory::deref(igen, lhs),
-            super::mem::Memory::deref(igen, rhs),
-        ) {
+        if let (Some(a), Some(b)) = (Memory::deref(igen, lhs), Memory::deref(igen, rhs)) {
             let array_a = &igen.mem.arrays[a as usize];
             let array_b = &igen.mem.arrays[b as usize];
 
@@ -365,10 +362,7 @@ impl Acir {
         igen: &IRGenerator,
         evaluator: &mut Evaluator,
     ) -> Arithmetic {
-        if let (Some(a), Some(b)) = (
-            super::mem::Memory::deref(igen, lhs),
-            super::mem::Memory::deref(igen, rhs),
-        ) {
+        if let (Some(a), Some(b)) = (Memory::deref(igen, lhs), Memory::deref(igen, rhs)) {
             let array_a = &igen.mem.arrays[a as usize];
             let array_b = &igen.mem.arrays[b as usize];
             //If length are different, then the arrays are different
@@ -393,10 +387,7 @@ impl Acir {
         igen: &IRGenerator,
         evaluator: &mut Evaluator,
     ) -> Arithmetic {
-        if let (Some(a), Some(b)) = (
-            super::mem::Memory::deref(igen, lhs),
-            super::mem::Memory::deref(igen, rhs),
-        ) {
+        if let (Some(a), Some(b)) = (Memory::deref(igen, lhs), Memory::deref(igen, rhs)) {
             let a_values = self.load_array(&igen.mem.arrays[a as usize], a, false, evaluator);
             let b_values = self.load_array(&igen.mem.arrays[b as usize], b, false, evaluator);
             assert!(a_values.len() == b_values.len());

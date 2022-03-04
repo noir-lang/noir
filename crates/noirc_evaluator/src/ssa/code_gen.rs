@@ -4,7 +4,6 @@ use super::node::{ConstrainOp, Instruction, NodeId, NodeObj, ObjectType, Operati
 use super::{block, flatten, integer, node, optim, ssa_form};
 use std::collections::HashMap;
 use std::collections::HashSet;
-//use std::io;
 
 use super::super::environment::Environment;
 use super::super::errors::{RuntimeError, RuntimeErrorKind};
@@ -432,34 +431,40 @@ impl<'a> IRGenerator<'a> {
         Ok(())
     }
 
+    pub fn pause(interactive: bool) {
+        if_debug::if_debug!(if interactive {
+            let mut number = String::new();
+            println!("Press enter to continue");
+            std::io::stdin().read_line(&mut number).unwrap();
+        });
+    }
     //Optimise, flatten and truncate IR and then generates ACIR representation from it
-    pub fn ir_to_acir(&mut self, evaluator: &mut Evaluator) -> Result<(), RuntimeError> {
-        //let mut number = String::new();
-
+    pub fn ir_to_acir(
+        &mut self,
+        evaluator: &mut Evaluator,
+        interactive: bool,
+    ) -> Result<(), RuntimeError> {
         //SSA
         dbg!("SSA:");
         self.print();
-        // println!("Press enter to continue");
-        // io::stdin().read_line(&mut number);
+        IRGenerator::pause(interactive);
+
         //Optimisation
         block::compute_dom(self);
         dbg!("CSE:");
         optim::cse(self);
         self.print();
-        // println!("Press enter to continue");
-        // io::stdin().read_line(&mut number);
+        IRGenerator::pause(interactive);
         //Unrolling
         dbg!("unrolling:");
         flatten::unroll_tree(self);
         self.print();
-        // println!("Press enter to continue");
-        // io::stdin().read_line(&mut number);
+        IRGenerator::pause(interactive);
         optim::cse(self);
         //Truncation
         integer::overflow_strategy(self);
         self.print();
-        // println!("Press enter to continue");
-        // io::stdin().read_line(&mut number);
+        IRGenerator::pause(interactive);
         //ACIR
         self.acir(evaluator);
         dbg!("DONE");
