@@ -132,7 +132,9 @@ impl Recoverable for Statement {
 }
 
 impl Statement {
-    pub fn new_let(((pattern, r#type), expression): ((Pattern, UnresolvedType), Expression)) -> Statement {
+    pub fn new_let(
+        ((pattern, r#type), expression): ((Pattern, UnresolvedType), Expression),
+    ) -> Statement {
         Statement::Let(LetStatement {
             pattern,
             r#type,

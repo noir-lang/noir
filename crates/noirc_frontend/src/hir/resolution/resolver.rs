@@ -38,7 +38,7 @@ use crate::{
     BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
     Statement,
 };
-use crate::{NoirStruct, UnresolvedType, Path, Pattern, StructType, ERROR_IDENT, Type};
+use crate::{NoirStruct, Path, Pattern, StructType, Type, UnresolvedType, ERROR_IDENT};
 use noirc_errors::{Span, Spanned};
 
 use crate::hir::scope::{
@@ -412,7 +412,12 @@ impl<'a> Resolver<'a> {
 
                     HirExpression::Constructor(HirConstructorExpression {
                         type_id,
-                        fields: self.resolve_constructor_fields(type_id, constructor.fields, span, Resolver::resolve_expression),
+                        fields: self.resolve_constructor_fields(
+                            type_id,
+                            constructor.fields,
+                            span,
+                            Resolver::resolve_expression,
+                        ),
                         r#type: typ,
                     })
                 } else {

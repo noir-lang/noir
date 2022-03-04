@@ -3,9 +3,9 @@ use noirc_errors::Span;
 
 use super::expr::{HirBlockExpression, HirExpression};
 use super::stmt::HirPattern;
-use crate::Type;
-use crate::node_interner::{ExprId, NodeInterner, IdentId};
+use crate::node_interner::{ExprId, IdentId, NodeInterner};
 use crate::util::vecmap;
+use crate::Type;
 use crate::{token::Attribute, FunctionKind};
 
 /// A Hir function is a block expression

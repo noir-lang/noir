@@ -13,7 +13,7 @@ use crate::{
 use crate::{
     AssignStatement, BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, ForExpression,
     FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, NoirFunction,
-    NoirImpl, NoirStruct, Path, PathKind, UnaryOp, Pattern,
+    NoirImpl, NoirStruct, Path, PathKind, Pattern, UnaryOp,
 };
 
 use chumsky::prelude::*;
