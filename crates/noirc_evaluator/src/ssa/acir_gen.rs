@@ -189,8 +189,8 @@ impl Acir {
             Operation::Sle => todo!(),
             Operation::Lt => todo!(),
             Operation::Gt => todo!(),
-            Operation::Lte => InternalVar::from(evaluate_cmp(&l_c, &r_c, 32, evaluator)), //TODO we need the bit_size from the instruction
-            Operation::Gte => InternalVar::from(evaluate_cmp(&r_c, &l_c, 32, evaluator)), //TODO we need the bit_size from the instruction
+            Operation::Lte => evaluate_cmp(&l_c, &r_c, 32, evaluator).into(), //TODO we need the bit_size from the instruction
+            Operation::Gte => evaluate_cmp(&r_c, &l_c, 32, evaluator).into(), //TODO we need the bit_size from the instruction
             Operation::And => {
                 InternalVar::from(evaluate_and(l_c, r_c, ins.res_type.bits(), evaluator))
             }
@@ -264,67 +264,9 @@ impl Acir {
         self.arith_cache.insert(ins.idx, output_var);
     }
 
-    pub fn print_field(f: FieldElement) -> String {
-        if f == -FieldElement::one() {
-            return "-".to_string();
-        }
-        if f == FieldElement::one() {
-            return String::new();
-        }
-        let big_f = BigUint::from_bytes_be(&f.to_bytes());
-
-        let s = big_f.bits();
-        let big_s = BigUint::one() << s;
-        if big_s == big_f {
-            return format!("2^{}", s);
-        }
-        if big_f == BigUint::zero() {
-            return "0".to_string();
-        }
-        if big_f.clone() % BigUint::from(2_u128).pow(32) == BigUint::zero() {
-            return format!("2^32*{}", big_f / BigUint::from(2_u128).pow(32));
-        }
-        let big_minus = BigUint::from_bytes_be(&(-f).to_bytes());
-        if big_minus.to_string().len() < big_f.to_string().len() {
-            return format!("-{}", big_minus);
-        }
-        big_f.to_string()
-    }
-
-    pub fn print_gate(g: &Gate) -> String {
-        let mut result = String::new();
-        match g {
-            Gate::Arithmetic(a) => {
-                for i in &a.mul_terms {
-                    result += &format!(
-                        "{}x{}*x{} + ",
-                        Acir::print_field(i.0),
-                        i.1.witness_index(),
-                        i.2.witness_index()
-                    );
-                }
-                for i in &a.linear_combinations {
-                    result += &format!("{}x{} + ", Acir::print_field(i.0), i.1.witness_index());
-                }
-                result += &format!("{} = 0", Acir::print_field(a.q_c));
-            }
-            Gate::Range(w, s) => {
-                result = format!("x{} is {} bits", w.witness_index(), s);
-            }
-            Gate::Directive(Directive::Invert { x, result: r }) => {
-                result = format!("1/{}={}, or 0", x.witness_index(), r.witness_index());
-            }
-            _ => {
-                dbg!(&g);
-            }
-        }
-
-        result
-    }
-
     pub fn print_circuit(gates: &[Gate]) {
         for gate in gates {
-            println!("{}", Acir::print_gate(gate));
+            println!("{:?}", gate);
         }
     }
 
@@ -337,24 +279,25 @@ impl Acir {
         create_witness: bool,
         evaluator: &mut Evaluator,
     ) -> Vec<InternalVar> {
-        let mut result: Vec<InternalVar> = Vec::new();
-        for i in 0..array.len {
-            let address = array.adr + i;
-            if let Some(memory) = self.memory_map.get_mut(&address) {
-                if create_witness && memory.witness.is_none() {
-                    let (_, w) = evaluator.create_intermediate_variable(memory.expression.clone());
-                    self.memory_map.get_mut(&address).unwrap().witness = Some(w);
+        (0..array.len)
+            .map(|i| {
+                let address = array.adr + i;
+                if let Some(memory) = self.memory_map.get_mut(&address) {
+                    if create_witness && memory.witness.is_none() {
+                        let (_, w) =
+                            evaluator.create_intermediate_variable(memory.expression.clone());
+                        self.memory_map.get_mut(&address).unwrap().witness = Some(w);
+                    }
+                    self.memory_map[&address].clone()
+                } else if let Some(memory) = self.memory_witness.get(&array_index) {
+                    let w = memory[i as usize];
+                    w.into()
+                } else {
+                    let w = array.witness[i as usize];
+                    w.into()
                 }
-                result.push(self.memory_map[&address].clone());
-            } else if let Some(memory) = self.memory_witness.get(&array_index) {
-                let w = memory[i as usize];
-                result.push(w.into());
-            } else {
-                let w = array.witness[i as usize];
-                result.push(w.into());
-            }
-        }
-        result
+            })
+            .collect()
     }
 
     pub fn evaluate_neq(
@@ -568,12 +511,8 @@ pub fn evaluate_and(
     evaluator: &mut Evaluator,
 ) -> Arithmetic {
     let result = evaluator.add_witness_to_cs();
-    let a_witness = lhs
-        .witness
-        .unwrap_or_else(|| generate_witness(&lhs, evaluator));
-    let b_witness = rhs
-        .witness
-        .unwrap_or_else(|| generate_witness(&rhs, evaluator));
+    let a_witness = generate_witness(&lhs, evaluator);
+    let b_witness = generate_witness(&rhs, evaluator);
     //TODO checks the cost of the gate vs bit_size (cf. #164)
     evaluator
         .gates
@@ -594,12 +533,8 @@ pub fn evaluate_xor(
 ) -> Witness {
     let result = evaluator.add_witness_to_cs();
 
-    let a_witness = lhs
-        .witness
-        .unwrap_or_else(|| generate_witness(&lhs, evaluator));
-    let b_witness = lhs
-        .witness
-        .unwrap_or_else(|| generate_witness(&rhs, evaluator));
+    let a_witness = generate_witness(&lhs, evaluator);
+    let b_witness = generate_witness(&rhs, evaluator);
     //TODO checks the cost of the gate vs bit_size (cf. #164)
     evaluator
         .gates
@@ -623,9 +558,7 @@ pub fn evaluate_truncate(
     //1. Generate witnesses a,b,c
     //TODO: we should truncate the arithmetic expression (and so avoid having to create a witness)
     // if lhs is not a witness, but this requires a new truncate directive...TODO
-    let a_witness = lhs
-        .witness
-        .unwrap_or_else(|| generate_witness(&lhs, evaluator));
+    let a_witness = generate_witness(&lhs, evaluator);
     let b_witness = evaluator.add_witness_to_cs();
     let c_witness = evaluator.add_witness_to_cs();
     evaluator.gates.push(Gate::Directive(Directive::Truncate {
@@ -666,14 +599,7 @@ pub fn generate_witness(lhs: &InternalVar, evaluator: &mut Evaluator) -> Witness
         //TODO check if this case can be optimised
     }
     let (_, w) = evaluator.create_intermediate_variable(lhs.expression.clone());
-    w
-
-    // let w = evaluator.add_witness_to_cs(); //TODO  set lhs.witness = w
-    // let (_,w) = evaluator.create_intermediate_variable(&lhs.expression);
-    // evaluator
-    //     .gates
-    //     .push(Gate::Arithmetic(&lhs.expression - &Arithmetic::from(&w)));
-    // w
+    w //TODO  set lhs.witness = w
 }
 
 pub fn evaluate_mul(lhs: &InternalVar, rhs: &InternalVar, evaluator: &mut Evaluator) -> Arithmetic {
@@ -718,18 +644,11 @@ pub fn evaluate_udiv(
     //generate witnesses
 
     //TODO: can we handle an arithmetic and not create a witness for a and b?
-    let a_witness = if let Some(lhs_witness) = lhs.witness {
-        lhs_witness
-    } else {
-        generate_witness(lhs, evaluator) //TODO we should set lhs.witness = a.witness and lhs.expression= 1*w
-    };
+    let a_witness = generate_witness(lhs, evaluator); //TODO we should set lhs.witness = a.witness and lhs.expression= 1*w
 
     //TODO: can we handle an arithmetic and not create a witness for a and b?
-    let b_witness = if let Some(rhs_witness) = rhs.witness {
-        rhs_witness
-    } else {
-        generate_witness(rhs, evaluator)
-    };
+    let b_witness = generate_witness(rhs, evaluator);
+
     let q_witness = evaluator.add_witness_to_cs();
     let r_witness = evaluator.add_witness_to_cs();
 
