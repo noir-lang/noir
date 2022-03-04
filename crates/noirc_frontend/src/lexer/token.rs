@@ -422,7 +422,6 @@ impl Keyword {
     /// else return None
     /// XXX: Notice that because of the underscore, new keywords will not produce an err for this function
     pub(crate) fn lookup_keyword(word: &str) -> Option<Token> {
-<<<<<<< HEAD
         let keyword = match word {
             "fn" => Keyword::Fn,
             "struct" => Keyword::Struct,
@@ -439,36 +438,12 @@ impl Keyword {
             "let" => Keyword::Let,
             "as" => Keyword::As,
             "use" => Keyword::Use,
+            "mut" => Keyword::Mut,
 
             "setpub" => Keyword::SetPub,
-            "priv" => Keyword::Priv,
             "pub" => Keyword::Pub,
             "const" => Keyword::Const,
-=======
-        match word {
-            "fn" => Some(Token::Keyword(Keyword::Fn)),
-            "struct" => Some(Token::Keyword(Keyword::Struct)),
-            "dep" => Some(Token::Keyword(Keyword::Dep)),
-            "crate" => Some(Token::Keyword(Keyword::Crate)),
-            "if" => Some(Token::Keyword(Keyword::If)),
-            "mod" => Some(Token::Keyword(Keyword::Mod)),
-            "for" => Some(Token::Keyword(Keyword::For)),
-            "in" => Some(Token::Keyword(Keyword::In)),
-            "else" => Some(Token::Keyword(Keyword::Else)),
-            "while" => Some(Token::Keyword(Keyword::While)),
-            "constrain" => Some(Token::Keyword(Keyword::Constrain)),
-            "mut" => Some(Token::Keyword(Keyword::Mut)),
-            "let" => Some(Token::Keyword(Keyword::Let)),
-            "as" => Some(Token::Keyword(Keyword::As)),
-            "use" => Some(Token::Keyword(Keyword::Use)),
-            "true" => Some(Token::Bool(true)),
-            "false" => Some(Token::Bool(false)),
 
-            "setpub" => Some(Token::Keyword(Keyword::SetPub)),
-
-            "pub" => Some(Token::Keyword(Keyword::Pub)),
-            "const" => Some(Token::Keyword(Keyword::Const)),
->>>>>>> master
             // Native Types
             "Field" => Keyword::Field,
 

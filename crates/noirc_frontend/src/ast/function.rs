@@ -54,11 +54,7 @@ impl NoirFunction {
     pub fn name_ident(&self) -> &Ident {
         &self.def.name
     }
-<<<<<<< HEAD
-    pub fn parameters(&self) -> &Vec<(Ident, UnresolvedType)> {
-=======
-    pub fn parameters(&self) -> &Vec<(Pattern, Type)> {
->>>>>>> master
+    pub fn parameters(&self) -> &Vec<(Pattern, UnresolvedType)> {
         &self.def.parameters
     }
     pub fn attribute(&self) -> Option<&Attribute> {

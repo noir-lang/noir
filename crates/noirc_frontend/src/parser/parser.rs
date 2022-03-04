@@ -12,13 +12,8 @@ use crate::{
 };
 use crate::{
     AssignStatement, BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, ForExpression,
-<<<<<<< HEAD
     FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, NoirFunction,
-    NoirImpl, NoirStruct, Path, PathKind, UnaryOp,
-=======
-    FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, NoirStruct, Path,
-    PathKind, Pattern, UnaryOp,
->>>>>>> master
+    NoirImpl, NoirStruct, Path, PathKind, UnaryOp, Pattern,
 };
 
 use chumsky::prelude::*;
@@ -106,23 +101,18 @@ fn attribute() -> impl NoirParser<Attribute> {
     })
 }
 
-<<<<<<< HEAD
 fn struct_fields() -> impl NoirParser<Vec<(Ident, UnresolvedType)>> {
-    parameters(
-        false,
-        parse_type_with_visibility(optional_pri_or_const(), parse_type_no_field_element()),
-    )
+    let type_parser = parse_type_with_visibility(optional_const(), parse_type_no_field_element());
+
+    ident()
+        .then_ignore(just(Token::Colon))
+        .then(type_parser)
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
 }
 
-fn function_parameters(allow_self: bool) -> impl NoirParser<Vec<(Ident, UnresolvedType)>> {
-    parameters(allow_self, parse_type())
-}
-
-fn parameters<P>(allow_self: bool, type_parser: P) -> impl NoirParser<Vec<(Ident, UnresolvedType)>>
-where
-    P: NoirParser<UnresolvedType>,
-{
-    let full_parameter = ident().then_ignore(just(Token::Colon)).then(type_parser);
+fn function_parameters(allow_self: bool) -> impl NoirParser<Vec<(Pattern, UnresolvedType)>> {
+    let full_parameter = pattern().then_ignore(just(Token::Colon)).then(parse_type());
 
     let self_parameter = if allow_self {
         self_parameter().boxed()
@@ -132,30 +122,22 @@ where
 
     full_parameter
         .or(self_parameter)
-=======
-fn struct_fields() -> impl NoirParser<Vec<(Ident, Type)>> {
-    let type_parser = parse_type_with_visibility(optional_const(), parse_type_no_field_element());
-
-    ident()
-        .then_ignore(just(Token::Colon))
-        .then(type_parser)
->>>>>>> master
         .separated_by(just(Token::Comma))
         .allow_trailing()
 }
 
-<<<<<<< HEAD
+/// This parser always parses no input and fails
 fn nothing<T>() -> impl NoirParser<T> {
     one_of([]).map(|_| unreachable!())
 }
 
-fn self_parameter() -> impl NoirParser<(Ident, UnresolvedType)> {
+fn self_parameter() -> impl NoirParser<(Pattern, UnresolvedType)> {
     filter_map(move |span, found: Token| match found {
         Token::Ident(ref word) if word == "self" => {
             let ident = Ident::new(found, span);
             let path = Path::from_single("Self".to_owned(), span);
             Ok((
-                ident,
+                Pattern::Identifier(ident),
                 UnresolvedType::Struct(FieldElementType::Private, path),
             ))
         }
@@ -174,14 +156,6 @@ fn implementation() -> impl NoirParser<TopLevelStatement> {
         .then(function_definition(true).repeated())
         .then_ignore(just(Token::RightBrace))
         .map(|(type_path, methods)| TopLevelStatement::Impl(NoirImpl { type_path, methods }))
-=======
-fn function_parameters() -> impl NoirParser<Vec<(Pattern, Type)>> {
-    pattern()
-        .then_ignore(just(Token::Colon))
-        .then(parse_type())
-        .separated_by(just(Token::Comma))
-        .allow_trailing()
->>>>>>> master
 }
 
 fn block<'a, P>(expr_parser: P) -> impl NoirParser<BlockExpression> + 'a
@@ -324,28 +298,7 @@ fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
 {
-<<<<<<< HEAD
-    let let_statement = generic_declaration(Keyword::Let, expr_parser.clone(), Statement::new_let);
-    let priv_statement =
-        generic_declaration(Keyword::Priv, expr_parser.clone(), Statement::new_priv);
-    let const_statement = generic_declaration(Keyword::Const, expr_parser, Statement::new_const);
-
-    choice((let_statement, priv_statement, const_statement))
-}
-
-fn generic_declaration<'a, F, P>(
-    key: Keyword,
-    expr_parser: P,
-    f: F,
-) -> impl NoirParser<Statement> + 'a
-where
-    F: 'a + Clone + Fn(((Ident, UnresolvedType), Expression)) -> Statement,
-    P: ExprParser + 'a,
-{
-    let p = ignore_then_commit(keyword(key).labelled("statement"), ident());
-=======
     let p = ignore_then_commit(keyword(Keyword::Let).labelled("statement"), pattern());
->>>>>>> master
     let p = p.then(optional_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
     let p = then_commit(p, expr_parser);

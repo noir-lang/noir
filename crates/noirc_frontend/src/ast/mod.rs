@@ -129,213 +129,25 @@ impl Recoverable for UnresolvedType {
 
 impl std::fmt::Display for UnresolvedType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-<<<<<<< HEAD
-        use UnresolvedType::*;
-        match self {
-            FieldElement(fe_type) => write!(f, "{} Field", fe_type),
-            Array(fe_type, size, typ) => write!(f, "{} {}{}", fe_type, size, typ),
-            Integer(fe_type, sign, num_bits) => match sign {
-                Signedness::Signed => write!(f, "{} i{}", fe_type, num_bits),
-                Signedness::Unsigned => write!(f, "{} u{}", fe_type, num_bits),
-            },
-            Struct(fe_type, s) => write!(f, "{} {}", fe_type, s),
-            Bool => write!(f, "bool"),
-            Unit => write!(f, "()"),
-            Error => write!(f, "error"),
-            Unspecified => write!(f, "unspecified"),
-=======
         let vis_str = |vis| match vis {
             FieldElementType::Private => "",
             FieldElementType::Public => "pub ",
             FieldElementType::Constant => "const ",
         };
 
+        use UnresolvedType::*;
         match self {
-            Type::FieldElement(fe_type) => write!(f, "{}Field", vis_str(*fe_type)),
-            Type::Array(fe_type, size, typ) => write!(f, "{}{}{}", vis_str(*fe_type), size, typ),
-            Type::Integer(fe_type, sign, num_bits) => match sign {
+            FieldElement(fe_type) => write!(f, "{}Field", vis_str(*fe_type)),
+            Array(fe_type, size, typ) => write!(f, "{}{}{}", vis_str(*fe_type), size, typ),
+            Integer(fe_type, sign, num_bits) => match sign {
                 Signedness::Signed => write!(f, "{}i{}", vis_str(*fe_type), num_bits),
                 Signedness::Unsigned => write!(f, "{}u{}", vis_str(*fe_type), num_bits),
             },
-            Type::Struct(s) => s.fmt(f),
-            Type::Bool => write!(f, "bool"),
-            Type::Unit => write!(f, "()"),
-            Type::Error => write!(f, "error"),
-            Type::Unspecified => write!(f, "unspecified"),
-        }
-    }
-}
-
-impl Type {
-    // Returns true if the Type can be used in a Private statement
-    pub fn can_be_used_in_priv(&self) -> bool {
-        match self {
-            Type::FieldElement(FieldElementType::Private) => true,
-            Type::Integer(field_type, _, _) => field_type == &FieldElementType::Private,
-            Type::Error => true,
-            _ => false,
-        }
-    }
-
-    // A feature of the language is that `Field` is like an
-    // `Any` type which allows you to pass in any type which
-    // is fundamentally a field element. E.g all integer types
-    pub fn is_super_type_of(&self, argument: &Type) -> bool {
-        // if `self` is a `Field` then it is a super type
-        // if the argument is a field element
-        if let Type::FieldElement(FieldElementType::Private) = self {
-            return argument.is_field_element();
-        }
-
-        // For composite types, we need to check they are structurally the same
-        // and then check that their base types are super types
-        if let (Type::Array(_, param_size, param_type), Type::Array(_, arg_size, arg_type)) =
-            (self, argument)
-        {
-            let is_super_type = param_type.is_super_type_of(arg_type);
-            let arity_check = param_size.is_a_super_type_of(arg_size);
-            return is_super_type && arity_check;
-        }
-
-        // XXX: Should we also allow functions that ask for u16
-        // to accept u8? We would need to pad the bit decomposition
-        // if so.
-
-        self == argument
-    }
-
-    pub fn is_field_element(&self) -> bool {
-        matches!(
-            self,
-            Type::FieldElement(_) | Type::Bool | Type::Integer(_, _, _)
-        )
-    }
-
-    /// Computes the number of elements in a Type
-    /// Arrays and Structs will be the only data structures to return more than one
-
-    pub fn num_elements(&self) -> usize {
-        match self {
-            Type::Array(_, ArraySize::Fixed(fixed_size), _) => *fixed_size as usize,
-            Type::Array(_, ArraySize::Variable, _) =>
-                unreachable!("ice : this method is only ever called when we want to compare the prover inputs with the ABI in main. The ABI should not have variable input. The program should be compiled before calling this"),
-            Type::Struct(s) => s.fields.len(),
-            Type::FieldElement(_)
-            | Type::Integer(_, _, _)
-            | Type::Bool
-            | Type::Error
-            | Type::Unspecified
-            | Type::Unit => 1,
-        }
-    }
-
-    pub fn is_fixed_sized_array(&self) -> bool {
-        let (sized, _) = match self.array() {
-            None => return false,
-            Some(arr) => arr,
-        };
-        sized.is_fixed()
-    }
-    pub fn is_variable_sized_array(&self) -> bool {
-        let (sized, _) = match self.array() {
-            None => return false,
-            Some(arr) => arr,
-        };
-        !sized.is_fixed()
-    }
-
-    fn array(&self) -> Option<(&ArraySize, &Type)> {
-        match self {
-            Type::Array(_, sized, typ) => Some((sized, typ)),
-            _ => None,
-        }
-    }
-
-    // Returns true if the Type can be used in a Constrain statement
-    pub fn can_be_used_in_constrain(&self) -> bool {
-        matches!(
-            self,
-            Type::FieldElement(_) | Type::Integer(_, _, _) | Type::Array(_, _, _) | Type::Error
-        )
-    }
-
-    // Base types are types in the language that are simply alias for a field element
-    // Therefore they can be the operands in an infix comparison operator
-    pub fn is_base_type(&self) -> bool {
-        matches!(
-            self,
-            Type::FieldElement(_) | Type::Integer(_, _, _) | Type::Error
-        )
-    }
-
-    pub fn is_constant(&self) -> bool {
-        // XXX: Currently no such thing as a const array
-        matches!(
-            self,
-            Type::FieldElement(FieldElementType::Constant)
-                | Type::Integer(FieldElementType::Constant, _, _)
-                | Type::Error
-        )
-    }
-
-    pub fn is_public(&self) -> bool {
-        matches!(
-            self,
-            Type::FieldElement(FieldElementType::Public)
-                | Type::Integer(FieldElementType::Public, _, _)
-                | Type::Array(FieldElementType::Public, _, _)
-        )
-    }
-
-    // Returns true, if both type can be used in an infix expression
-    pub fn can_be_used_for_infix(&self, other: &Type) -> bool {
-        self.is_base_type() && other.is_base_type()
-    }
-
-    // Note; use strict_eq instead of partial_eq when comparing field types
-    // in this method, you most likely want to distinguish between public and private
-    pub fn as_abi_type(&self) -> AbiType {
-        // converts a field element type
-        fn fet_to_abi(fe: &FieldElementType) -> AbiFEType {
-            match fe {
-                FieldElementType::Private => noirc_abi::AbiFEType::Private,
-                FieldElementType::Public => noirc_abi::AbiFEType::Public,
-                FieldElementType::Constant => {
-                    panic!("constant field in the ABI, this is not allowed!")
-                }
-            }
-        }
-
-        match self {
-            Type::FieldElement(fe_type) => AbiType::Field(fet_to_abi(fe_type)),
-            Type::Array(fe_type, size, typ) => match size {
-                crate::ArraySize::Variable => {
-                    panic!("cannot have variable sized array in entry point")
-                }
-                crate::ArraySize::Fixed(length) => AbiType::Array {
-                    visibility: fet_to_abi(fe_type),
-                    length: *length,
-                    typ: Box::new(typ.as_abi_type()),
-                },
-            },
-            Type::Integer(fe_type, sign, bit_width) => {
-                let sign = match sign {
-                    crate::Signedness::Unsigned => noirc_abi::Sign::Unsigned,
-                    crate::Signedness::Signed => noirc_abi::Sign::Signed,
-                };
-
-                AbiType::Integer {
-                    sign,
-                    width: *bit_width as u32,
-                    visibility: fet_to_abi(fe_type),
-                }
-            }
-            Type::Bool => panic!("currently, cannot have a bool in the entry point function"),
-            Type::Error => unreachable!(),
-            Type::Unspecified => unreachable!(),
-            Type::Unit => unreachable!(),
-            Type::Struct(_) => todo!(),
->>>>>>> master
+            Struct(fe_type, s) => write!(f, "{}{}", vis_str(*fe_type), s),
+            Bool => write!(f, "bool"),
+            Unit => write!(f, "()"),
+            Error => write!(f, "error"),
+            Unspecified => write!(f, "unspecified"),
         }
     }
 }

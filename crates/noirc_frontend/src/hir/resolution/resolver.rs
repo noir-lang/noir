@@ -23,7 +23,6 @@ use crate::hir_def::expr::{
     HirInfixExpression, HirLiteral, HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
     HirUnaryOp,
 };
-use crate::hir_def::types::{StructType, Type};
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -39,11 +38,7 @@ use crate::{
     BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
     Statement,
 };
-<<<<<<< HEAD
-use crate::{NoirStruct, Path, UnresolvedType, ERROR_IDENT};
-=======
-use crate::{Path, Pattern, StructType, ERROR_IDENT};
->>>>>>> master
+use crate::{NoirStruct, UnresolvedType, Path, Pattern, StructType, ERROR_IDENT, Type};
 use noirc_errors::{Span, Spanned};
 
 use crate::hir::scope::{
@@ -257,17 +252,10 @@ impl<'a> Resolver<'a> {
         let attributes = func.attribute().cloned();
 
         let mut parameters = Vec::new();
-<<<<<<< HEAD
-        for (ident, typ) in func.parameters().iter().cloned() {
-            let ident_id = self.add_variable_decl(ident.clone());
-
-            let typ = self.resolve_type(typ);
-            parameters.push(Param(ident_id, typ));
-=======
         for (pattern, typ) in func.parameters().iter().cloned() {
             let pattern = self.resolve_pattern(pattern);
+            let typ = self.resolve_type(typ);
             parameters.push(Param(pattern, typ));
->>>>>>> master
         }
 
         let return_type = self.resolve_type(func.return_type());
@@ -286,52 +274,13 @@ impl<'a> Resolver<'a> {
     pub fn intern_stmt(&mut self, stmt: Statement) -> StmtId {
         match stmt {
             Statement::Let(let_stmt) => {
-<<<<<<< HEAD
-                let identifier = self.add_variable_decl(let_stmt.identifier);
-                let r#type = self.resolve_type(let_stmt.r#type);
-                let expression = self.resolve_expression(let_stmt.expression);
-
-                let let_stmt = HirLetStatement {
-                    identifier,
-                    r#type,
-                    expression,
-=======
                 let let_stmt = HirLetStatement {
                     pattern: self.resolve_pattern(let_stmt.pattern),
-                    r#type: let_stmt.r#type,
-                    expression: self.intern_expr(let_stmt.expression),
->>>>>>> master
+                    r#type: self.resolve_type(let_stmt.r#type),
+                    expression: self.resolve_expression(let_stmt.expression),
                 };
                 self.interner.push_stmt(HirStatement::Let(let_stmt))
             }
-<<<<<<< HEAD
-            Statement::Const(const_stmt) => {
-                let identifier = self.add_variable_decl(const_stmt.identifier);
-                let r#type = self.resolve_type(const_stmt.r#type);
-                let expression = self.resolve_expression(const_stmt.expression);
-
-                let const_stmt = HirConstStatement {
-                    identifier,
-                    r#type,
-                    expression,
-                };
-
-                self.interner.push_stmt(HirStatement::Const(const_stmt))
-            }
-            Statement::Private(priv_stmt) => {
-                let identifier = self.add_variable_decl(priv_stmt.identifier);
-                let expression = self.resolve_expression(priv_stmt.expression);
-                let r#type = self.resolve_type(priv_stmt.r#type);
-
-                let stmt = HirPrivateStatement {
-                    identifier,
-                    expression,
-                    r#type,
-                };
-                self.interner.push_stmt(HirStatement::Private(stmt))
-            }
-=======
->>>>>>> master
             Statement::Constrain(constrain_stmt) => {
                 let lhs = self.resolve_expression(constrain_stmt.0.lhs);
                 let operator: HirBinaryOp = constrain_stmt.0.operator.into();
@@ -457,32 +406,18 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Block(block_expr) => self.resolve_block(block_expr),
             ExpressionKind::Constructor(constructor) => {
                 let span = constructor.type_name.span();
-<<<<<<< HEAD
 
                 if let Some(typ) = self.lookup_struct(constructor.type_name) {
                     let type_id = typ.borrow().id;
 
                     HirExpression::Constructor(HirConstructorExpression {
                         type_id,
-                        fields: self.resolve_constructor_fields(type_id, constructor.fields, span),
+                        fields: self.resolve_constructor_fields(type_id, constructor.fields, span, Resolver::resolve_expression),
                         r#type: typ,
                     })
                 } else {
                     HirExpression::Error
                 }
-=======
-                let type_id = self.lookup_type(constructor.type_name);
-                HirExpression::Constructor(HirConstructorExpression {
-                    type_id,
-                    fields: self.resolve_constructor_fields(
-                        type_id,
-                        constructor.fields,
-                        span,
-                        Resolver::resolve_expression,
-                    ),
-                    r#type: self.get_struct(type_id),
-                })
->>>>>>> master
             }
             ExpressionKind::MemberAccess(access) => {
                 // Validating whether the lhs actually has the rhs as a field

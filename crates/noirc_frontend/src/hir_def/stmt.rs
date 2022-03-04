@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use super::expr::HirInfixExpression;
@@ -43,5 +44,5 @@ pub enum HirPattern {
     Identifier(IdentId),
     Mutable(Box<HirPattern>, Span),
     Tuple(Vec<HirPattern>, Span),
-    Struct(Rc<StructType>, Vec<(IdentId, HirPattern)>, Span),
+    Struct(Rc<RefCell<StructType>>, Vec<(IdentId, HirPattern)>, Span),
 }

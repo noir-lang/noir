@@ -62,9 +62,9 @@ pub fn bind_pattern(
             todo!("Implement tuple types")
         }
         HirPattern::Struct(struct_type, fields, span) => match typ {
-            Type::Struct(inner) if inner.id == struct_type.id => {
+            Type::Struct(_, inner) if &inner == struct_type => {
                 let mut pattern_fields = fields.clone();
-                let mut type_fields = inner.fields.clone();
+                let mut type_fields = inner.borrow().fields.clone();
 
                 pattern_fields.sort_by_key(|(id, _)| interner.ident(id));
                 type_fields.sort_by_key(|(ident, _)| ident.clone());

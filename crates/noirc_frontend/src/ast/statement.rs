@@ -132,37 +132,9 @@ impl Recoverable for Statement {
 }
 
 impl Statement {
-<<<<<<< HEAD
-    pub fn new_let(
-        ((identifier, r#type), expression): ((Ident, UnresolvedType), Expression),
-    ) -> Statement {
-        Statement::Let(LetStatement {
-            identifier,
-            r#type,
-            expression,
-        })
-    }
-
-    pub fn new_const(
-        ((identifier, r#type), expression): ((Ident, UnresolvedType), Expression),
-    ) -> Statement {
-        Statement::Const(ConstStatement {
-            identifier,
-            r#type,
-            expression,
-        })
-    }
-
-    pub fn new_priv(
-        ((identifier, r#type), expression): ((Ident, UnresolvedType), Expression),
-    ) -> Statement {
-        Statement::Private(PrivateStatement {
-            identifier,
-=======
-    pub fn new_let(((pattern, r#type), expression): ((Pattern, Type), Expression)) -> Statement {
+    pub fn new_let(((pattern, r#type), expression): ((Pattern, UnresolvedType), Expression)) -> Statement {
         Statement::Let(LetStatement {
             pattern,
->>>>>>> master
             r#type,
             expression,
         })
@@ -308,36 +280,19 @@ impl Path {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct LetStatement {
-<<<<<<< HEAD
-    pub identifier: Ident,
-    pub r#type: UnresolvedType,
-=======
     pub pattern: Pattern,
-    pub r#type: Type,
->>>>>>> master
+    pub r#type: UnresolvedType,
     pub expression: Expression,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AssignStatement {
     pub identifier: Ident,
-<<<<<<< HEAD
-    pub r#type: UnresolvedType, // This will always be a Literal FieldElement
-=======
->>>>>>> master
     pub expression: Expression,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-<<<<<<< HEAD
-pub struct PrivateStatement {
-    pub identifier: Ident,
-    pub r#type: UnresolvedType,
-    pub expression: Expression,
-}
-=======
 pub struct ConstrainStatement(pub InfixExpression);
->>>>>>> master
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Pattern {
@@ -414,20 +369,6 @@ impl Display for ImportStatement {
         Ok(())
     }
 }
-<<<<<<< HEAD
-=======
-
-impl Display for NoirStruct {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "struct {} {{", self.name)?;
-
-        for (name, typ) in self.fields.iter() {
-            writeln!(f, "    {}: {},", name, typ)?;
-        }
-
-        write!(f, "}}")
-    }
-}
 
 impl Display for Pattern {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -445,4 +386,3 @@ impl Display for Pattern {
         }
     }
 }
->>>>>>> master

@@ -3,7 +3,8 @@ use noirc_errors::Span;
 
 use super::expr::{HirBlockExpression, HirExpression};
 use super::stmt::HirPattern;
-use crate::node_interner::{ExprId, NodeInterner};
+use crate::Type;
+use crate::node_interner::{ExprId, NodeInterner, IdentId};
 use crate::util::vecmap;
 use crate::{token::Attribute, FunctionKind};
 
