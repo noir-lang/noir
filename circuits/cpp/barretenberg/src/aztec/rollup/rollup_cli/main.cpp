@@ -139,10 +139,16 @@ bool create_claim()
     return result.verified;
 }
 
+// Postcondition: root_verifier_cd has a proving key and verification key.
 void init_root_verifier()
 {
     if (root_verifier_cd.proving_key) {
+        // We always have a vk if we have a pk, as we request both in the call to get_circuit_data.
         return;
+    }
+    if (!root_rollup_cd.verification_key) {
+        // If we've never created the root rollup circuit data, we won't have a vk. Build it.
+        init_root_rollup(txs_per_inner);
     }
     root_verifier_cd = root_verifier::get_circuit_data(root_rollup_cd,
                                                        crs,
@@ -158,8 +164,6 @@ void init_root_verifier()
 
 bool create_root_verifier()
 {
-    init_tx_rollup(txs_per_inner);
-    init_root_rollup(inners_per_root);
     init_root_verifier();
 
     std::vector<uint8_t> root_rollup_proof_buf;
