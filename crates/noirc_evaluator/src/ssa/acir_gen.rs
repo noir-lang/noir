@@ -310,9 +310,9 @@ impl Acir {
 
             if array_a.len == array_b.len {
                 let mut x =
-                    InternalVar::from(self.zerop_array_sum(array_a, a, array_b, b, evaluator));
+                    InternalVar::from(self.zero_eq_array_sum(array_a, a, array_b, b, evaluator));
                 x.witness = Some(generate_witness(&x, evaluator));
-                from_witness(evaluate_zerop(&x, evaluator))
+                from_witness(evaluate_zero_equality(&x, evaluator))
             } else {
                 //If length are different, then the arrays are different
                 Arithmetic {
@@ -328,7 +328,7 @@ impl Acir {
                 &r_c.expression,
             ));
             x.witness = Some(generate_witness(&x, evaluator));
-            from_witness(evaluate_zerop(&x, evaluator))
+            from_witness(evaluate_zero_equality(&x, evaluator))
         }
     }
 
@@ -367,7 +367,7 @@ impl Acir {
             let array_b = &igen.mem.arrays[b as usize];
             //If length are different, then the arrays are different
             if array_a.len == array_b.len {
-                let sum = self.zerop_array_sum(array_a, a, array_b, b, evaluator);
+                let sum = self.zero_eq_array_sum(array_a, a, array_b, b, evaluator);
                 evaluate_inverse(&sum, evaluator);
             }
         } else {
@@ -408,9 +408,9 @@ impl Acir {
         }
     }
 
-    //Generates gates for the expression: \sum_i(zerop(A[i]-B[i]))
+    //Generates gates for the expression: \sum_i(zero_eq(A[i]-B[i]))
     //N.b. We assumes the lenghts of a and b are the same but it is not checked inside the function.
-    fn zerop_array_sum(
+    fn zero_eq_array_sum(
         &mut self,
         a: &MemArray,
         a_idx: u32,
@@ -442,7 +442,7 @@ impl Acir {
             sum = add(
                 &sum,
                 FieldElement::one(),
-                &from_witness(evaluate_zerop(&diff_var, evaluator)),
+                &from_witness(evaluate_zero_equality(&diff_var, evaluator)),
             );
         }
         sum
@@ -664,7 +664,7 @@ pub fn evaluate_udiv(
 }
 
 //Zero Equality gate: returns 1 if x is not null and 0 else
-pub fn evaluate_zerop(x: &InternalVar, evaluator: &mut Evaluator) -> Witness {
+pub fn evaluate_zero_equality(x: &InternalVar, evaluator: &mut Evaluator) -> Witness {
     let x_witness = x.witness.unwrap(); //todo we need a witness because of the directive, but we should use an expression
 
     let m = evaluator.add_witness_to_cs(); //'inverse' of x

@@ -114,7 +114,7 @@ pub fn evaluate_identifier(
             let obj_type = node::ObjectType::from_type(o_type);
             //We should create an array from 'a' witnesses
             igen.mem
-                .create_array(&a, ident_def.unwrap(), obj_type, &ident_name);
+                .create_array_from_object(&a, ident_def.unwrap(), obj_type, &ident_name);
             let array_index = (igen.mem.arrays.len() - 1) as u32;
             node::Variable {
                 id: NodeId::dummy(),

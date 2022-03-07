@@ -21,6 +21,9 @@ blake2 = "0.9.1"
 cfg-if = "1.0.0"
 serde = { version = "1.0.136", features = ["derive"] }
 
+num-bigint = "0.4"
+num-traits = "0.2.8"
+
 [dev-dependencies]
 ark-bn254 = { version = "^0.3.0", features = ["curve"] }
 

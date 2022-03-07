@@ -175,11 +175,11 @@ impl<'a> IRGenerator<'a> {
         None
     }
 
-    pub fn find_const(&self, value: &BigUint) -> Option<NodeId> {
+    pub fn find_const_with_type(&self, value: &BigUint, e_type: node::ObjectType) -> Option<NodeId> {
         //TODO We should map constant values to id
         for (idx, o) in &self.nodes {
             if let node::NodeObj::Const(c) = o {
-                if c.value == *value {
+                if c.value == *value  && c.get_type() == e_type {
                     return Some(NodeId(idx));
                 }
             }
@@ -295,13 +295,10 @@ impl<'a> IRGenerator<'a> {
 
     //Retrieve the object conresponding to the const value given in argument
     // If such object does not exist, we create one
-    //TODO: handle type
     pub fn get_or_create_const(&mut self, x: FieldElement, t: node::ObjectType) -> NodeId {
         let value = BigUint::from_bytes_be(&x.to_bytes()); //TODO a const should be a field element
-        if let Some(obj) = self.find_const(&value)
-        //todo type
-        {
-            return obj;
+        if let Some(prev_const) = self.find_const_with_type(&value, t) {
+            return prev_const;
         }
 
         self.add_const(node::Constant {
@@ -310,44 +307,6 @@ impl<'a> IRGenerator<'a> {
             value_str: String::new(),
             value_type: t,
         })
-    }
-
-    //TODO the type should be provided by previous step so we can use get_const() instead
-    pub fn new_constant(&mut self, x: FieldElement) -> NodeId {
-        //we try to convert it to a supported integer type
-        //if it does not work, we use the field type
-        //n.b we cannot support custom fields bigger than the native field, we would need to support bigint and
-        //use bigint inside HiLiterrals.
-        //default to i32 (like rust)
-
-        //We first check if a constant with the same value already exists, and use it if it exists. it will allow for better CSE.
-        let value = BigUint::from_bytes_be(&x.to_bytes()); //TODO a const should be a field element
-        if let Some(prev_const) = self.find_const(&value) {
-            return prev_const;
-        }
-
-        //TODO default should be FieldElement, not i32
-        let num_bits = x.num_bits();
-        if num_bits < 32 {
-            self.add_const(node::Constant {
-                id: NodeId::dummy(),
-                value,
-                value_type: node::ObjectType::Signed(32),
-                value_str: String::new(),
-            })
-        } else if num_bits < 64 {
-            self.add_const(node::Constant {
-                id: NodeId::dummy(),
-                value,
-                value_type: node::ObjectType::Signed(64),
-                value_str: String::new(),
-            })
-        } else {
-            //idx = self.id0;
-            todo!();
-            //we should support integer of size <  integer::short_integer_max_bit_size(), because else we cannot do multiplication!
-            //for bigger size, we will need to represent an integer using several field elements, it may be easier to implement them in Noir! (i.e as a Noir library)
-        }
     }
 
     //same as update_variable but using the var index instead of var
@@ -724,14 +683,18 @@ impl<'a> IRGenerator<'a> {
         let expr = self.context().def_interner.expression(expr_id);
         let span = self.context().def_interner.expr_span(expr_id);
         match expr {
-            HirExpression::Literal(HirLiteral::Integer(x)) =>
-            Ok(self.new_constant(x)),
+            HirExpression::Literal(HirLiteral::Integer(x)) => {
+                let int_type = self.context().def_interner.id_type(expr_id);
+                let element_type = node::ObjectType::from_type(int_type); 
+                Ok(self.get_or_create_const(x, element_type))
+            }
+            
             HirExpression::Literal(HirLiteral::Array(arr_lit)) => {
                 //We create a MemArray
                 let arr_type = self.context().def_interner.id_type(expr_id);
                 let element_type = node::ObjectType::from_type(arr_type);    //WARNING array type!
 
-                let array_index = self.mem.create_new_array(arr_lit.length as u32, element_type, String::new());
+                let array_index = self.mem.create_new_array(arr_lit.length as u32, element_type, &String::new());
                 //We parse the array definition
                 let elements = self.expression_list_to_objects(env, &arr_lit.contents);
                 let array = &mut self.mem.arrays[array_index as usize];
@@ -801,7 +764,7 @@ impl<'a> IRGenerator<'a> {
                  }
                 else {
                     let arr = env.get_array(&arr_name).map_err(|kind|kind.add_span(ident_span)).unwrap();
-                    self.mem.create_array(&arr, arr_def.unwrap(), o_type, &arr_name)
+                    self.mem.create_array_from_object(&arr, arr_def.unwrap(), o_type, &arr_name)
                 };
                 //let array = self.mem.get_or_create_array(&arr, arr_def.unwrap(), o_type, arr_name);
                 let address = array.adr;

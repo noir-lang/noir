@@ -55,32 +55,22 @@ impl MemArray {
 
 impl Memory {
     pub fn find_array(&self, definition: &Option<IdentId>) -> Option<&MemArray> {
-        if let Some(def) = definition {
-            return self.arrays.iter().find(|a| a.def == *def);
-        }
-        None
+        definition.and_then(|def| self.arrays.iter().find(|a| a.def == def))
     }
 
     pub fn get_array_index(&self, array: &MemArray) -> Option<u32> {
-        if let Some(p) = self.arrays.iter().position(|x| x.def == array.def) {
-            return Some(p as u32);
-        }
-        None
+        self.arrays.iter().position(|x| x.def == array.def).and_then(|p| Some(p as u32))
     }
 
     //dereference a pointer
     pub fn deref(igen: &IRGenerator, id: NodeId) -> Option<u32> {
-        if let Some(var) = igen.try_get_node(id) {
-            match var.get_type() {
-                node::ObjectType::Pointer(a) => Some(a),
-                _ => None,
-            }
-        } else {
-            None
-        }
+        igen.try_get_node(id).and_then(|var| match var.get_type() {
+            node::ObjectType::Pointer(a) => Some(a),
+            _ => None,
+        })
     }
 
-    pub fn create_array(
+    pub fn create_array_from_object(
         &mut self,
         array: &Array,
         definition: IdentId,
@@ -88,11 +78,10 @@ impl Memory {
         arr_name: &str,
     ) -> &MemArray {
         let len = u32::try_from(array.length).unwrap();
-        let mut new_array = MemArray::new(definition, arr_name, el_type, len);
-        new_array.adr = self.last_adr;
-        new_array.set_witness(array);
-        self.arrays.push(new_array);
-        self.last_adr += len;
+        self.create_new_array(len, el_type, &arr_name);
+        let mem_array = self.arrays.last_mut().unwrap();
+        mem_array.set_witness(array);
+        mem_array.def = definition;
         self.arrays.last().unwrap()
     }
 
@@ -100,9 +89,9 @@ impl Memory {
         &mut self,
         len: u32,
         el_type: node::ObjectType,
-        arr_name: String,
+        arr_name: &str,
     ) -> u32 {
-        let mut new_array = MemArray::new(IdentId::dummy_id(), &arr_name, el_type, len);
+        let mut new_array = MemArray::new(IdentId::dummy_id(), arr_name, el_type, len);
         new_array.adr = self.last_adr;
         self.arrays.push(new_array);
         self.last_adr += len;
