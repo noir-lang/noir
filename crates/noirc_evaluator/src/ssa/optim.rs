@@ -1,6 +1,7 @@
 use super::{
     block::BlockId,
     code_gen::IRGenerator,
+    mem,
     node::{self, Instruction, Node, NodeEval, NodeId, NodeObj, Operation},
 };
 use acvm::FieldElement;
@@ -72,8 +73,8 @@ pub fn simplify(irgen: &mut IRGenerator, ins: &mut node::Instruction) {
         node::Operation::Constrain(op) => match op {
             node::ConstrainOp::Eq => {
                 if let (Some(a), Some(b)) = (
-                    super::mem::Memory::deref(irgen, ins.lhs),
-                    super::mem::Memory::deref(irgen, ins.rhs),
+                    mem::Memory::deref(irgen, ins.lhs),
+                    mem::Memory::deref(irgen, ins.rhs),
                 ) {
                     if a == b {
                         ins.is_deleted = true;
@@ -83,8 +84,8 @@ pub fn simplify(irgen: &mut IRGenerator, ins: &mut node::Instruction) {
             }
             node::ConstrainOp::Neq => {
                 if let (Some(a), Some(b)) = (
-                    super::mem::Memory::deref(irgen, ins.lhs),
-                    super::mem::Memory::deref(irgen, ins.rhs),
+                    mem::Memory::deref(irgen, ins.lhs),
+                    mem::Memory::deref(irgen, ins.rhs),
                 ) {
                     assert!(a != b);
                 }

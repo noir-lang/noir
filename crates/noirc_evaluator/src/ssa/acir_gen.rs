@@ -391,12 +391,9 @@ impl Acir {
             let a_values = self.load_array(&igen.mem.arrays[a as usize], a, false, evaluator);
             let b_values = self.load_array(&igen.mem.arrays[b as usize], b, false, evaluator);
             assert!(a_values.len() == b_values.len());
-            for i in 0..a_values.len() {
-                let array_diff = subtract(
-                    &a_values[i].expression,
-                    FieldElement::one(),
-                    &b_values[i].expression,
-                );
+            for (a_iter, b_iter) in a_values.into_iter().zip(b_values) {
+                let array_diff =
+                    subtract(&a_iter.expression, FieldElement::one(), &b_iter.expression);
                 evaluator.gates.push(Gate::Arithmetic(array_diff));
             }
             Arithmetic::default()
@@ -412,6 +409,7 @@ impl Acir {
     }
 
     //Generates gates for the expression: \sum_i(zerop(A[i]-B[i]))
+    //N.b. We assumes the lenghts of a and b are the same but it is not checked inside the function.
     fn zerop_array_sum(
         &mut self,
         a: &MemArray,
@@ -425,12 +423,8 @@ impl Acir {
         let a_values = self.load_array(a, a_idx, false, evaluator);
         let b_values = self.load_array(b, b_idx, false, evaluator);
 
-        for i in 0..a.len {
-            let diff_expr = subtract(
-                &a_values[i as usize].expression,
-                FieldElement::one(),
-                &b_values[i as usize].expression,
-            );
+        for (a_iter, b_iter) in a_values.into_iter().zip(b_values) {
+            let diff_expr = subtract(&a_iter.expression, FieldElement::one(), &b_iter.expression);
 
             let diff_witness = evaluator.add_witness_to_cs();
             let diff_var = InternalVar {

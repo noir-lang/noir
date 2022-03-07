@@ -270,8 +270,8 @@ pub fn block_overflow(
         //we propagate optimised loads - todo check if it is needed because there is cse at the end
         if node::is_binary(ins.operator) {
             //binary operation:
-            i_lhs = super::optim::propagate(igen, ins.lhs);
-            i_rhs = super::optim::propagate(igen, ins.rhs);
+            i_lhs = optim::propagate(igen, ins.lhs);
+            i_rhs = optim::propagate(igen, ins.rhs);
         }
         //We retrieve get_current_value() in case a previous truncate has updated the value map
         let r_id = get_value_from_map(i_rhs, &value_map);

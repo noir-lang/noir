@@ -22,7 +22,7 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
         .subcommand_matches("prove")
         .unwrap()
         .value_of("interactive");
-        let mut is_interactive = false;
+    let mut is_interactive = false;
     if let Some(int) = interactive {
         if int == "i" {
             is_interactive = true;
