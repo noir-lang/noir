@@ -94,7 +94,7 @@ impl<'a> Evaluator<'a> {
         let mut env = Environment::new(FuncContext::Main);
 
         // First evaluate the main function
-        self.evaluate_main(&mut env)?;
+        self.evaluate_main_alt(&mut env)?;
 
         let witness_index = self.current_witness_index();
 
@@ -193,8 +193,7 @@ impl<'a> Evaluator<'a> {
         // Now call the main function
         let main_func_body = self.context.def_interner.function(&self.main_function);
         let mut cfg = ssa::code_gen::IRGenerator::new(self.context);
-        cfg.evaluate_main(env, self.context, main_func_body)
-            .unwrap();
+        cfg.evaluate_main(env, main_func_body).unwrap();
 
         //Generates ACIR representation:
         cfg.ir_to_acir(self).unwrap();

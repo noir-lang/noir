@@ -1,10 +1,8 @@
 use super::block::{BasicBlock, BlockId};
-use super::node::{Instruction, NodeId, NodeObj, Operation};
+use super::node::{Instruction, NodeId, NodeObj, Operation, Variable};
 use super::{block, flatten, integer, node, optim, ssa_form};
 use std::collections::HashMap;
 use std::collections::HashSet;
-
-//use std::io;
 
 use super::super::environment::Environment;
 use super::super::errors::{RuntimeError, RuntimeErrorKind};
@@ -15,6 +13,7 @@ use crate::Evaluator;
 use acvm::FieldElement;
 use arena;
 use noirc_frontend::hir::Context;
+use noirc_frontend::hir_def::expr::{HirConstructorExpression, HirMemberAccess};
 use noirc_frontend::hir_def::function::HirFunction;
 use noirc_frontend::hir_def::stmt::HirPattern;
 use noirc_frontend::hir_def::{
@@ -22,6 +21,7 @@ use noirc_frontend::hir_def::{
     stmt::{HirConstrainStatement, HirLetStatement, HirStatement},
 };
 use noirc_frontend::node_interner::{ExprId, IdentId, StmtId};
+use noirc_frontend::Type;
 //use noirc_frontend::{FunctionKind, Type};
 use num_bigint::BigUint;
 
@@ -30,7 +30,7 @@ use num_bigint::BigUint;
 // and The CFG in the blocks arena
 // everything else just reference objects from these two arena using their index.
 pub struct IRGenerator<'a> {
-    pub context: Option<&'a Context>,
+    pub context: &'a Context,
 
     pub first_block: BlockId,
     pub current_block: BlockId,
@@ -41,10 +41,24 @@ pub struct IRGenerator<'a> {
     pub sealed_blocks: HashSet<BlockId>,
 }
 
+pub enum Value {
+    Single(NodeId),
+    Struct(Vec<(/*field_name:*/ String, Value)>),
+}
+
+impl Value {
+    fn into_id(&self) -> NodeId {
+        match self {
+            Value::Single(id) => *id,
+            Value::Struct(_) => panic!("Tried to unwrap a struct into a single value"),
+        }
+    }
+}
+
 impl<'a> IRGenerator<'a> {
     pub fn new(context: &Context) -> IRGenerator {
         let mut pc = IRGenerator {
-            context: Some(context),
+            context,
             id0: IRGenerator::dummy_id(),
             first_block: BlockId::dummy(),
             current_block: BlockId::dummy(),
@@ -109,10 +123,6 @@ impl<'a> IRGenerator<'a> {
             println!("************* Block n.{}", i);
             self.print_block(b);
         }
-    }
-
-    pub fn context(&self) -> &Context {
-        self.context.unwrap()
     }
 
     pub fn remove_block(&mut self, block: BlockId) {
@@ -374,12 +384,9 @@ impl<'a> IRGenerator<'a> {
     pub fn evaluate_main(
         &mut self,
         env: &mut Environment,
-        context: &'a Context,
         main_func_body: HirFunction, //main function
     ) -> Result<(), RuntimeError> {
-        self.context = Some(context);
-
-        let block = main_func_body.block(&context.def_interner);
+        let block = main_func_body.block(&self.context.def_interner);
         for stmt_id in block.statements() {
             self.evaluate_statement(env, stmt_id)?;
         }
@@ -416,14 +423,13 @@ impl<'a> IRGenerator<'a> {
     }
 
     fn evaluate_identifier(&mut self, env: &mut Environment, ident_id: &IdentId) -> NodeId {
-        let ident_name = self.context.unwrap().def_interner.ident_name(ident_id);
-        let ident_def = self.context.unwrap().def_interner.ident_def(ident_id);
-        // let var = self.find_variable(&ident_def); //TODO by name or by id?
-        // if let Some(node::Variable { id, .. }) = self.find_variable(&ident_def) {
+        let ident_def = self.ident_def(ident_id);
         if let Some(var) = self.find_variable(&ident_def) {
             let id = var.id;
             return ssa_form::get_current_value(self, id);
         }
+
+        let ident_name = self.ident_name(ident_id);
         let obj = env.get(&ident_name);
         let obj_type = node::ObjectType::get_type_from_object(&obj);
 
@@ -460,43 +466,39 @@ impl<'a> IRGenerator<'a> {
         lhs: NodeId,
         rhs: NodeId,
         op: HirBinaryOp,
-    ) -> Result<NodeId, RuntimeError> {
+    ) -> Result<Value, RuntimeError> {
         let ltype = self.get_object_type(lhs);
 
         let optype = ltype; //n.b. we do not verify rhs type as it should have been handled by the typechecker.
 
         // Get the opcode from the infix operator
         let opcode = node::to_operation(op.kind, optype);
-        Ok(self.new_instruction(lhs, rhs, opcode, optype))
+        let instruction = self.new_instruction(lhs, rhs, opcode, optype);
+        Ok(Value::Single(instruction))
     }
 
     pub fn evaluate_statement(
         &mut self,
         env: &mut Environment,
         stmt_id: &StmtId,
-    ) -> Result<NodeId, RuntimeError> {
-        let statement = self.context().def_interner.statement(stmt_id);
+    ) -> Result<(), RuntimeError> {
+        let statement = self.context.def_interner.statement(stmt_id);
         match statement {
             HirStatement::Constrain(constrain_stmt) => {
                 self.handle_constrain_statement(env, constrain_stmt)
             }
             HirStatement::Expression(expr) | HirStatement::Semi(expr) => {
-                self.expression_to_object(env, &expr)
+                self.expression_to_object(env, &expr)?;
+                Ok(())
             }
             HirStatement::Let(let_stmt) => {
                 // let statements are used to declare a higher level object
                 self.handle_let_statement(env, let_stmt)
             }
             HirStatement::Assign(assign_stmt) => {
-                let ident_def = self
-                    .context()
-                    .def_interner
-                    .ident_def(&assign_stmt.identifier);
+                let ident_def = self.context.def_interner.ident_def(&assign_stmt.identifier);
                 //////////////TODO temp this is needed because we don't parse main arguments
-                let ident_name = self
-                    .context()
-                    .def_interner
-                    .ident_name(&assign_stmt.identifier);
+                let ident_name = self.ident_name(&assign_stmt.identifier);
 
                 let lhs = if let Some(variable) = self.find_variable(&ident_def) {
                     variable
@@ -535,13 +537,13 @@ impl<'a> IRGenerator<'a> {
                 //ssa: we create a new variable a1 linked to a
                 let new_var_id = self.add_variable(new_var, Some(ls_root));
 
-                let rhs_id = self.expression_to_object(env, &assign_stmt.expression)?;
-                let rhs = &self[rhs_id];
+                let rhs_value = self.expression_to_object(env, &assign_stmt.expression)?;
+                let rhs = &self[rhs_value.into_id()];
                 let r_type = rhs.get_type();
                 let r_id = rhs.get_id();
                 let result = self.new_instruction(new_var_id, r_id, node::Operation::Ass, r_type);
                 self.update_variable_id(ls_root, new_var_id, result); //update the name and the value map
-                Ok(result)
+                Ok(())
             }
             HirStatement::Error => unreachable!(
                 "ice: compiler did not exit before codegen when a statement failed to parse"
@@ -574,62 +576,136 @@ impl<'a> IRGenerator<'a> {
         &mut self,
         env: &mut Environment,
         constrain_stmt: HirConstrainStatement,
-    ) -> Result<NodeId, RuntimeError> {
+    ) -> Result<(), RuntimeError> {
         let lhs = self.expression_to_object(env, &constrain_stmt.0.lhs)?;
         let rhs = self.expression_to_object(env, &constrain_stmt.0.rhs)?;
 
-        let result =
-        match constrain_stmt.0.operator.kind  {
+        match constrain_stmt.0.operator.kind {
             // HirBinaryOpKind::Add => binary_op::handle_add_op(lhs, rhs, self),
             // HirBinaryOpKind::Subtract => binary_op::handle_sub_op(lhs, rhs, self),
             // HirBinaryOpKind::Multiply => binary_op::handle_mul_op(lhs, rhs, self),
             // HirBinaryOpKind::Divide => binary_op::handle_div_op(lhs, rhs, self),
             HirBinaryOpKind::NotEqual => todo!(),
-            HirBinaryOpKind::Equal => Ok(self.new_instruction(lhs, rhs, node::Operation::EqGate, node::ObjectType::NotAnObject)),
+            HirBinaryOpKind::Equal => {
+                //TODO; the truncate strategy should benefit from this.
+                //if one of them is a const, them we update the value array of the other to the same const
+                // we should replace one with the other 'everywhere'
+                // we should merge their property; min(max), min(bitsize),etc..
+                Ok(self.new_instruction(
+                    lhs.into_id(),
+                    rhs.into_id(),
+                    node::Operation::EqGate,
+                    node::ObjectType::NotAnObject,
+                ))
+            }
             // HirBinaryOpKind::And => binary_op::handle_and_op(lhs, rhs, self),
             // HirBinaryOpKind::Xor => binary_op::handle_xor_op(lhs, rhs, self),
-            HirBinaryOpKind::Less =>todo!(),
+            HirBinaryOpKind::Less => todo!(),
             HirBinaryOpKind::LessEqual => todo!(),
             HirBinaryOpKind::Greater => todo!(),
             HirBinaryOpKind::GreaterEqual => {
                 todo!();
             }
-            HirBinaryOpKind::Assign => {
-                let err = RuntimeErrorKind::Spanless(
-                    "The Binary operation `=` can only be used in declaration statements"
-                        .to_string(),
-                );
-                Err(err)
-            }
-            HirBinaryOpKind::Or => {
-                let err = RuntimeErrorKind::Unimplemented("The Or operation is currently not implemented. First implement in Barretenberg.".to_owned());
-                Err(err)
-            }
-            _ => {
-                let err = RuntimeErrorKind::Unimplemented("The operation is currently not supported in a constrain statement".to_owned());
-                Err(err)
-            }
-        }.map_err(|kind|kind.add_span(constrain_stmt.0.operator.span));
+            HirBinaryOpKind::Assign => Err(RuntimeErrorKind::Spanless(
+                "The Binary operation `=` can only be used in declaration statements".to_string(),
+            )),
+            HirBinaryOpKind::Or => Err(RuntimeErrorKind::Unimplemented(
+                "The Or operation is currently not implemented. First implement in Barretenberg."
+                    .to_owned(),
+            )),
+            _ => Err(RuntimeErrorKind::Unimplemented(
+                "The operation is currently not supported in a constrain statement".to_owned(),
+            )),
+        }
+        .map_err(|kind| kind.add_span(constrain_stmt.0.operator.span))?;
 
-        if constrain_stmt.0.operator.kind == HirBinaryOpKind::Equal {
-            //TODO; the truncate strategy should benefit from this.
-            //if one of them is a const, them we update the value array of the other to the same const
-            // we should replace one with the other 'everywhere'
-            // we should merge their property; min(max), min(bitsize),etc..
-        };
-        result
+        Ok(())
     }
 
-    fn pattern_name_and_def(&self, pattern: &HirPattern) -> (String, Option<IdentId>) {
-        match pattern {
-            HirPattern::Identifier(id) => {
-                let interner = &self.context().def_interner;
-                (interner.ident_name(id), interner.ident_def(id))
+    /// Flatten the pattern and value, binding each identifier in the pattern
+    /// to a single NodeId in the corresponding Value. This effectively flattens
+    /// let bindings of struct variables, declaring a new variable for each field.
+    fn bind_pattern(&mut self, pattern: &HirPattern, value: Value) -> Value {
+        match (pattern, value) {
+            (HirPattern::Identifier(ident_id), Value::Single(node_id)) => {
+                let typ = self.context.def_interner.id_type(ident_id);
+                let variable_name = self.ident_name(ident_id);
+                let ident_def = self.ident_def(ident_id);
+                self.bind_variable(variable_name, ident_def, &typ, node_id)
             }
-            HirPattern::Mutable(pattern, _) => self.pattern_name_and_def(pattern),
-            HirPattern::Tuple(_, _) => todo!("Implement tuples in the backend"),
-            HirPattern::Struct(_, _, _) => todo!("Implement structs in the backend"),
+            (HirPattern::Identifier(ident_id), value @ Value::Struct(_)) => {
+                let typ = self.context.def_interner.id_type(ident_id);
+                let name = self.ident_name(ident_id);
+                let value = self.bind_fresh_pattern(&name, &typ, value);
+                value
+            }
+            (HirPattern::Mutable(pattern, _), value) => self.bind_pattern(pattern, value),
+            (pattern @ (HirPattern::Tuple(..) | HirPattern::Struct(..)), Value::Struct(exprs)) => {
+                assert_eq!(pattern.field_count(), exprs.len());
+                let values = pattern
+                    .iter_fields(&self.context.def_interner)
+                    .zip(exprs)
+                    .map(|((pattern_name, pattern), (field_name, value))| {
+                        assert_eq!(pattern_name, field_name);
+                        (field_name, self.bind_pattern(pattern, value))
+                    })
+                    .collect();
+
+                Value::Struct(values)
+            }
+            _ => unreachable!(),
         }
+    }
+
+    /// This function is a recursive helper for bind_pattern which takes care
+    /// of creating fresh variables to expand `ident = (a, b, ...)` to `(i_a, i_b, ...) = (a, b, ...)`
+    ///
+    /// This function could use a clearer name
+    fn bind_fresh_pattern(&mut self, basename: &str, typ: &Type, value: Value) -> Value {
+        match value {
+            Value::Single(node_id) => self.bind_variable(basename.to_owned(), None, typ, node_id),
+            Value::Struct(field_values) => {
+                assert_eq!(field_values.len(), typ.num_elements());
+                let values = typ
+                    .iter_fields()
+                    .zip(field_values)
+                    .map(|((field_name, field_type), (value_name, field_value))| {
+                        assert_eq!(field_name.as_ref(), &value_name);
+                        let name = format!("{}.{}", basename, field_name);
+                        let value = self.bind_fresh_pattern(&name, field_type, field_value);
+                        (name, value)
+                    })
+                    .collect();
+                Value::Struct(values)
+            }
+        }
+    }
+
+    fn bind_variable(
+        &mut self,
+        variable_name: String,
+        ident_def: Option<IdentId>,
+        typ: &Type,
+        value_id: NodeId,
+    ) -> Value {
+        let obj_type = typ.into();
+        let new_var = Variable::new(obj_type, variable_name, ident_def, self.current_block);
+        let id = self.add_variable(new_var, None);
+
+        //Assign rhs to lhs
+        let result = self.new_instruction(id, value_id, node::Operation::Ass, obj_type);
+        //This new variable should not be available in outer scopes.
+        let cb = self.get_current_block_mut();
+        cb.update_variable(id, result); //update the value array. n.b. we should not update the name as it is the first assignment (let)
+        Value::Single(id)
+    }
+
+    fn ident_name(&self, ident: &IdentId) -> String {
+        self.context.def_interner.ident_name(ident)
+    }
+
+    fn ident_def(&self, ident: &IdentId) -> Option<IdentId> {
+        self.context.def_interner.ident_def(ident)
     }
 
     // Let statements are used to declare higher level objects
@@ -637,67 +713,45 @@ impl<'a> IRGenerator<'a> {
         &mut self,
         env: &mut Environment,
         let_stmt: HirLetStatement,
-    ) -> Result<NodeId, RuntimeError> {
-        //create a variable from the left side of the statement, evaluate the right and generate an assign instruction.
-
-        // Extract the expression
-        let rhs_id = self.expression_to_object(env, &let_stmt.expression)?;
-        //TODO: is there always an expression? if not, how can we get the type of the variable?
-        let rtype = self[rhs_id].get_type();
-
-        // Convert the LHS into an identifier
-        let (variable_name, ident_def) = self.pattern_name_and_def(&let_stmt.pattern);
-        //Create a new variable;
-        //TODO in the name already exists, we should use something else (from env) to find a variable (identid?)
-
-        let new_var = node::Variable {
-            id: NodeId::dummy(),
-            obj_type: rtype, //TODO - what if type is defined on lhs only?
-            name: variable_name,
-            root: None,
-            def: ident_def,
-            witness: None,
-            parent_block: self.current_block,
-        };
-        let id = self.add_variable(new_var, None);
-        dbg!(id);
-
-        //Assign rhs to lhs
-        let result = self.new_instruction(id, rhs_id, node::Operation::Ass, rtype);
-        //This new variable should not be available in outer scopes.
-        let cb = self.get_current_block_mut();
-        cb.update_variable(id, result); //update the value array. n.b. we should not update the name as it is the first assignment (let)
-        Ok(result)
+    ) -> Result<(), RuntimeError> {
+        let rhs = self.expression_to_object(env, &let_stmt.expression)?;
+        self.bind_pattern(&let_stmt.pattern, rhs);
+        Ok(())
     }
 
     pub(crate) fn expression_to_object(
         &mut self,
         env: &mut Environment,
         expr_id: &ExprId,
-    ) -> Result<NodeId, RuntimeError> {
-        let expr = self.context().def_interner.expression(expr_id);
-        let span = self.context().def_interner.expr_span(expr_id);
+    ) -> Result<Value, RuntimeError> {
+        let expr = self.context.def_interner.expression(expr_id);
+        let span = self.context.def_interner.expr_span(expr_id);
         match expr {
             HirExpression::Literal(HirLiteral::Integer(x)) =>
-            Ok(self.new_constant(x)),
+            Ok(Value::Single(self.new_constant(x))),
             HirExpression::Literal(HirLiteral::Array(_arr_lit)) => {
                 //TODO - handle arrays
                 todo!();
                 //Ok(Object::Array(Array::from(self, env, _arr_lit)?)) 
             },
             HirExpression::Ident(x) =>  {
-                Ok(self.evaluate_identifier(env, &x))
+                Ok(Value::Single(self.evaluate_identifier(env, &x)))
                 //n.b this creates a new variable if it does not exist, may be we should delegate this to explicit statements (let) - TODO
             },
             HirExpression::Infix(infx) => {
-                let lhs = self.expression_to_object(env, &infx.lhs)?;
-                let rhs = self.expression_to_object(env, &infx.rhs)?;
+                // Note: using .into_id() here disallows structs/tuples in infix expressions.
+                // The type checker currently disallows this as well but we may want to allow
+                // for e.g. struct == struct in the future
+                let lhs = self.expression_to_object(env, &infx.lhs)?.into_id();
+                let rhs = self.expression_to_object(env, &infx.rhs)?.into_id();
                 self.evaluate_infix_expression(lhs, rhs, infx.operator)
             },
             HirExpression::Cast(cast_expr) => {
                 let lhs = self.expression_to_object(env, &cast_expr.lhs)?;
-                let rtype = node::ObjectType::from_type(cast_expr.r#type);
-                Ok(self.new_cast_expression(lhs, rtype))
+                let rtype = cast_expr.r#type.into();
+
+                // Note: using .into_id here means structs/tuples are disallowed as the lhs of a cast expression
+                Ok(Value::Single(self.new_cast_expression(lhs.into_id(), rtype)))
 
                 //We should generate a cast instruction and handle properly type conversion:
                 // unsigned integer to field ; ok, just checks if bit size over FieldElement::max_num_bits()
@@ -712,12 +766,12 @@ impl<'a> IRGenerator<'a> {
             },
             HirExpression::Index(indexed_expr) => {
                 // Currently these only happen for arrays
-                let arr_name = self.context().def_interner.ident_name(&indexed_expr.collection_name);
-                let ident_span = self.context().def_interner.ident_span(&indexed_expr.collection_name);
+                let arr_name = self.context.def_interner.ident_name(&indexed_expr.collection_name);
+                let ident_span = self.context.def_interner.ident_span(&indexed_expr.collection_name);
                 let _arr = env.get_array(&arr_name).map_err(|kind|kind.add_span(ident_span))?;
                 //
                 // Evaluate the index expression
-                let index_as_obj = self.expression_to_object(env, &indexed_expr.index)?;
+                let index_as_obj = self.expression_to_object(env, &indexed_expr.index)?.into_id();
                 let index_as_u128 = if let Some(index_as_constant) = self.get_as_constant(index_as_obj) {
                     index_as_constant.to_u128()
                 }
@@ -730,7 +784,7 @@ impl<'a> IRGenerator<'a> {
                 // arr.get(index_as_u128).map_err(|kind|kind.add_span(span))
             },
             HirExpression::Call(call_expr) => {
-                let _func_meta = self.context().def_interner.function_meta(&call_expr.func_id);
+                let _func_meta = self.context.def_interner.function_meta(&call_expr.func_id);
                 todo!();
                 //TODO generate a new block and checks whether how arguments should be passed (copy or ref)?
                 // Choices are a low level func or an imported library function
@@ -751,14 +805,70 @@ impl<'a> IRGenerator<'a> {
                 // ...todo }
             },
             HirExpression::For(for_expr) => self.handle_for_expr(env,for_expr).map_err(|kind|kind.add_span(span)),
+            HirExpression::Constructor(constructor) => self.handle_constructor(env, constructor),
+            HirExpression::MemberAccess(access) => self.handle_member_access(env, access),
+            HirExpression::Tuple(fields) => self.handle_tuple(env, fields),
             HirExpression::If(_) => todo!(),
             HirExpression::Prefix(_) => todo!(),
             HirExpression::Literal(_) => todo!(),
             HirExpression::Block(_) => todo!("currently block expressions not in for/if branches are not being evaluated. In the future, we should be able to unify the eval_block and all places which require block_expr here"),
-            HirExpression::Constructor(_) => todo!(),
-            HirExpression::Tuple(_) => todo!(),
-            HirExpression::MemberAccess(_) => todo!(),
             HirExpression::Error => todo!(),
+        }
+    }
+
+    fn handle_constructor(
+        &mut self,
+        env: &mut Environment,
+        constructor: HirConstructorExpression,
+    ) -> Result<Value, RuntimeError> {
+        let fields = constructor
+            .fields
+            .into_iter()
+            .map(|(ident, field)| {
+                let field_name = self.ident_name(&ident);
+                Ok((field_name, self.expression_to_object(env, &field)?))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(Value::Struct(fields))
+    }
+
+    /// A tuple is much the same as a constructor, we just give it fields with numbered names
+    fn handle_tuple(
+        &mut self,
+        env: &mut Environment,
+        fields: Vec<ExprId>,
+    ) -> Result<Value, RuntimeError> {
+        let fields = fields
+            .into_iter()
+            .enumerate()
+            .map(|(i, field)| {
+                // Tuple field names are 0..n-1 where n = the length of the tuple
+                let field_name = i.to_string();
+                Ok((field_name, self.expression_to_object(env, &field)?))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(Value::Struct(fields))
+    }
+
+    fn handle_member_access(
+        &mut self,
+        env: &mut Environment,
+        access: HirMemberAccess,
+    ) -> Result<Value, RuntimeError> {
+        match self.expression_to_object(env, &access.lhs)? {
+            Value::Single(_) => unreachable!(
+                "Runtime type error, expected struct but found a single value for {:?}",
+                access
+            ),
+            Value::Struct(fields) => {
+                let field = fields
+                    .into_iter()
+                    .find(|(field_name, _)| *field_name == access.rhs.0.contents);
+
+                Ok(field.unwrap().1)
+            }
         }
     }
 
@@ -767,29 +877,23 @@ impl<'a> IRGenerator<'a> {
         &mut self,
         env: &mut Environment,
         for_expr: HirForExpression,
-    ) -> Result<NodeId, RuntimeErrorKind> {
+    ) -> Result<Value, RuntimeErrorKind> {
         //we add the ' i = start' instruction (in the block before the join)
         let start_idx = self
             .expression_to_object(env, &for_expr.start_range)
             .map_err(|err| err.remove_span())
-            .unwrap();
+            .unwrap()
+            .into_id();
         let end_idx = self
             .expression_to_object(env, &for_expr.end_range)
             .map_err(|err| err.remove_span())
-            .unwrap();
+            .unwrap()
+            .into_id();
         //We support only const range for now
         let start = self.get_as_constant(start_idx).unwrap();
         //TODO how should we handle scope (cf. start/end_for_loop)?
-        let iter_name = self
-            .context
-            .unwrap()
-            .def_interner
-            .ident_name(&for_expr.identifier);
-        let iter_def = self
-            .context
-            .unwrap()
-            .def_interner
-            .ident_def(&for_expr.identifier);
+        let iter_name = self.context.def_interner.ident_name(&for_expr.identifier);
+        let iter_def = self.context.def_interner.ident_def(&for_expr.identifier);
         env.store(iter_name.clone(), Object::Constants(start));
         let iter_id = self.create_new_variable(iter_name, iter_def, env); //TODO do we need to store and retrieve it ?
         let iter_var = self.get_mut_variable(iter_id).unwrap();
@@ -830,7 +934,7 @@ impl<'a> IRGenerator<'a> {
 
         //Body
         let body_id = block::new_sealed_block(self, block::BlockType::Normal);
-        let block = match self.context().def_interner.expression(&for_expr.block) {
+        let block = match self.context.def_interner.expression(&for_expr.block) {
             HirExpression::Block(block_expr) => block_expr,
             _ => panic!("ice: expected a block expression"),
         };
@@ -868,7 +972,7 @@ impl<'a> IRGenerator<'a> {
         block::link_with_target(self, join_idx, Some(exit_id), Some(body_id));
         let first_instruction = self[body_id].get_first_instruction();
         self.try_get_mut_instruction(to_fix).unwrap().rhs = first_instruction;
-        Ok(exit_first) //TODO what should we return???
+        Ok(Value::Single(exit_first)) //TODO what should we return???
     }
 
     pub fn acir(&self, evaluator: &mut Evaluator) {

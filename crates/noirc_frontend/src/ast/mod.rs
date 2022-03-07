@@ -5,7 +5,7 @@ mod function;
 mod statement;
 mod structure;
 
-use std::rc::Rc;
+use std::{borrow::Cow, rc::Rc};
 
 pub use expression::*;
 pub use function::*;
@@ -372,15 +372,35 @@ impl Type {
             Type::Tuple(_) => todo!(),
         }
     }
-}
 
-impl Type {
     pub fn from_int_tok(field_type: FieldElementType, int_tok: &IntType) -> Type {
         match int_tok {
             IntType::Signed(num_bits) => Type::Integer(field_type, Signedness::Signed, *num_bits),
             IntType::Unsigned(num_bits) => {
                 Type::Integer(field_type, Signedness::Unsigned, *num_bits)
             }
+        }
+    }
+
+    /// Iterate over the fields of this type.
+    /// Panics if the type is not a struct or tuple.
+    pub fn iter_fields<'a>(&'a self) -> Box<dyn Iterator<Item = (Cow<'a, String>, &'a Type)> + 'a> {
+        match self {
+            Type::Struct(def) => Box::new(
+                def.fields
+                    .iter()
+                    .map(|(name, typ)| (Cow::Borrowed(&name.0.contents), typ)),
+            ),
+            Type::Tuple(fields) => Box::new(
+                fields
+                    .iter()
+                    .enumerate()
+                    .map(|(i, field)| (Cow::Owned(i.to_string()), field)),
+            ),
+            other => panic!(
+                "Tried to iterate over the fields of '{}', which has none",
+                other
+            ),
         }
     }
 }

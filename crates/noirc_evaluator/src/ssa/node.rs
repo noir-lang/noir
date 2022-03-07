@@ -4,6 +4,7 @@ use std::ops::Add;
 use acvm::acir::native_types::Witness;
 use acvm::FieldElement;
 use arena;
+use noirc_frontend::{Type, Signedness};
 use noirc_frontend::hir_def::expr::HirBinaryOpKind;
 use noirc_frontend::node_interner::IdentId;
 use num_bigint::BigUint;
@@ -149,6 +150,18 @@ impl Variable {
     pub fn get_root(&self) -> NodeId {
         self.root.unwrap_or(self.id)
     }
+
+    pub fn new(obj_type: ObjectType, name: String, def: Option<IdentId>, parent_block: BlockId) -> Variable {
+        Variable {
+            id: NodeId::dummy(),
+            obj_type,
+            name,
+            root: None,
+            def,
+            witness: None,
+            parent_block,
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -184,6 +197,32 @@ impl From<ObjectType> for NumericType {
     }
 }
 
+impl From<&Type> for ObjectType {
+    fn from(t: &noirc_frontend::Type) -> ObjectType {
+        match t {
+            Type::Bool => ObjectType::Boolean,
+            Type::FieldElement(_) => ObjectType::NativeField,
+            Type::Integer(_ftype, sign, bit_size) => {
+                assert!(
+                    *bit_size < super::integer::short_integer_max_bit_size(),
+                    "long integers are not yet supported"
+                );
+                match sign {
+                    Signedness::Signed => ObjectType::Signed(*bit_size),
+                    Signedness::Unsigned => ObjectType::Unsigned(*bit_size),
+                }
+            }
+            x => unimplemented!("Conversion to ObjectType is unimplemented for type {}", x),
+        }
+    }
+}
+
+impl From<Type> for ObjectType {
+    fn from(t: noirc_frontend::Type) -> ObjectType {
+        ObjectType::from(&t)
+    }
+}
+
 impl ObjectType {
     pub fn get_type_from_object(obj: &Object) -> ObjectType {
         match obj {
@@ -207,28 +246,6 @@ impl ObjectType {
                 ObjectType::NativeField //TODO check with Kev!
             }
             Object::Null => ObjectType::NotAnObject,
-        }
-    }
-
-    pub fn from_type(t: noirc_frontend::Type) -> ObjectType {
-        match t {
-            noirc_frontend::Type::FieldElement(_) => ObjectType::NativeField,
-
-            noirc_frontend::Type::Integer(_ftype, sign, bit_size) => {
-                assert!(
-                    bit_size < super::integer::short_integer_max_bit_size(),
-                    "long integers are not yet supported"
-                );
-                match sign {
-                    noirc_frontend::Signedness::Signed => ObjectType::Signed(bit_size),
-                    noirc_frontend::Signedness::Unsigned => ObjectType::Unsigned(bit_size),
-                }
-            }
-            noirc_frontend::Type::Bool => ObjectType::Boolean,
-            x => {
-                let err = format!("currently we do not support type casting to {}", x);
-                todo!("{}", err);
-            }
         }
     }
 
