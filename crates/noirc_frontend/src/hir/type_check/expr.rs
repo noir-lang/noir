@@ -97,6 +97,16 @@ pub(crate) fn type_check_expression(
         }
         HirExpression::Index(index_expr) => {
             if let Some(ident_def) = interner.ident_def(&index_expr.collection_name) {
+                let index_type = type_check_expression(interner, &index_expr.index, errors);
+                if index_type != Type::CONSTANT && index_type != Type::Error {
+                    let span = interner.id_span(&index_expr.index);
+                    errors.push(TypeCheckError::TypeMismatch {
+                        expected_typ: "const Field".to_owned(),
+                        expr_typ: index_type.to_string(),
+                        expr_span: span,
+                    });
+                }
+
                 match interner.id_type(&ident_def) {
                     // XXX: We can check the array bounds here also, but it may be better to constant fold first
                     // and have ConstId instead of ExprId for constants
