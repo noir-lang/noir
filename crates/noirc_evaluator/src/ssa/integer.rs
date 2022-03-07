@@ -113,7 +113,10 @@ pub fn truncate(
 
     if *v_max >= BigUint::one() << bit_size {
         //TODO is this leaking some info????
-        let rhs_bitsize = igen.get_or_create_const(FieldElement::from(bit_size as i128), node::ObjectType::Unsigned(32));
+        let rhs_bitsize = igen.get_or_create_const(
+            FieldElement::from(bit_size as i128),
+            node::ObjectType::Unsigned(32),
+        );
         //Create a new truncate instruction '(idx): obj trunc bit_size'
         //set current value of obj to idx
         let mut i = Instruction::new(Operation::Trunc, obj_id, rhs_bitsize, obj_type, None);

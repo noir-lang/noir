@@ -59,7 +59,10 @@ impl Memory {
     }
 
     pub fn get_array_index(&self, array: &MemArray) -> Option<u32> {
-        self.arrays.iter().position(|x| x.def == array.def).map(|p| p as u32)
+        self.arrays
+            .iter()
+            .position(|x| x.def == array.def)
+            .map(|p| p as u32)
     }
 
     //dereference a pointer
@@ -85,12 +88,7 @@ impl Memory {
         self.arrays.last().unwrap()
     }
 
-    pub fn create_new_array(
-        &mut self,
-        len: u32,
-        el_type: node::ObjectType,
-        arr_name: &str,
-    ) -> u32 {
+    pub fn create_new_array(&mut self, len: u32, el_type: node::ObjectType, arr_name: &str) -> u32 {
         let mut new_array = MemArray::new(IdentId::dummy_id(), arr_name, el_type, len);
         new_array.adr = self.last_adr;
         self.arrays.push(new_array);

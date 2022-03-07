@@ -175,11 +175,15 @@ impl<'a> IRGenerator<'a> {
         None
     }
 
-    pub fn find_const_with_type(&self, value: &BigUint, e_type: node::ObjectType) -> Option<NodeId> {
+    pub fn find_const_with_type(
+        &self,
+        value: &BigUint,
+        e_type: node::ObjectType,
+    ) -> Option<NodeId> {
         //TODO We should map constant values to id
         for (idx, o) in &self.nodes {
             if let node::NodeObj::Const(c) = o {
-                if c.value == *value  && c.get_type() == e_type {
+                if c.value == *value && c.get_type() == e_type {
                     return Some(NodeId(idx));
                 }
             }
@@ -685,10 +689,9 @@ impl<'a> IRGenerator<'a> {
         match expr {
             HirExpression::Literal(HirLiteral::Integer(x)) => {
                 let int_type = self.context().def_interner.id_type(expr_id);
-                let element_type = node::ObjectType::from_type(int_type); 
+                let element_type = node::ObjectType::from_type(int_type);
                 Ok(self.get_or_create_const(x, element_type))
-            }
-            
+            },
             HirExpression::Literal(HirLiteral::Array(arr_lit)) => {
                 //We create a MemArray
                 let arr_type = self.context().def_interner.id_type(expr_id);
