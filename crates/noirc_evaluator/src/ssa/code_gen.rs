@@ -286,9 +286,7 @@ impl<'a> IRGenerator<'a> {
         optype: node::ObjectType,
     ) -> NodeId {
         //Add a new instruction to the nodes arena
-        let cb = self.get_current_block();
-
-        let mut i = node::Instruction::new(opcode, lhs, rhs, optype, Some(cb.id));
+        let mut i = node::Instruction::new(opcode, lhs, rhs, optype, Some(self.current_block));
         //Basic simplification
         optim::simplify(self, &mut i);
         if i.is_deleted {
@@ -432,18 +430,6 @@ impl<'a> IRGenerator<'a> {
         self.acir(evaluator);
         dbg!("DONE");
         Ok(())
-    }
-
-    //Cast lhs into type rtype. a cast b means (a) b
-    fn new_cast_expression(&mut self, lhs: NodeId, rtype: node::ObjectType) -> NodeId {
-        //generate instruction 'a cast a', with result type rtype
-        self.push_instruction(Instruction::new(
-            node::Operation::Cast,
-            lhs,
-            lhs,
-            rtype,
-            Some(self.current_block),
-        ))
     }
 
     fn evaluate_infix_expression(
@@ -731,7 +717,7 @@ impl<'a> IRGenerator<'a> {
             HirExpression::Cast(cast_expr) => {
                 let lhs = self.expression_to_object(env, &cast_expr.lhs)?;
                 let rtype = node::ObjectType::from_type(cast_expr.r#type);
-                Ok(self.new_cast_expression(lhs, rtype))
+                Ok(self.new_instruction(lhs, lhs, Operation::Cast, rtype))
 
                 //We should generate a cast instruction and handle properly type conversion:
                 // unsigned integer to field ; ok, just checks if bit size over FieldElement::max_num_bits()
@@ -774,8 +760,9 @@ impl<'a> IRGenerator<'a> {
 
                 // Evaluate the index expression
                 let index_as_obj = self.expression_to_object(env, &indexed_expr.index)?;
-                let base_adr = self.get_or_create_const(FieldElement::from(address as i128), node::ObjectType::Unsigned(32));
-                let adr_id = self.new_instruction(base_adr, index_as_obj, node::Operation::Add, node::ObjectType::Unsigned(32));
+                let index_type = self.get_object_type(index_as_obj);
+                let base_adr = self.get_or_create_const(FieldElement::from(address as i128), index_type);
+                let adr_id = self.new_instruction(base_adr, index_as_obj, node::Operation::Add, index_type);
                  Ok(self.new_instruction(adr_id, adr_id, node::Operation::Load(array_index), o_type))
             },
             HirExpression::Call(call_expr) => {
@@ -851,10 +838,11 @@ impl<'a> IRGenerator<'a> {
             .unwrap()
             .def_interner
             .ident_def(&for_expr.identifier);
+        let int_type = self.context().def_interner.id_type(&for_expr.identifier);
         env.store(iter_name.clone(), Object::Constants(start));
-        let iter_id = self.create_new_variable(iter_name, iter_def, env); //TODO do we need to store and retrieve it ?
+        let iter_id = self.create_new_variable(iter_name, iter_def, env);
         let iter_var = self.get_mut_variable(iter_id).unwrap();
-        iter_var.obj_type = node::ObjectType::Unsigned(32); //TODO create_new_variable should set the correct type
+        iter_var.obj_type = node::ObjectType::from_type(int_type);
         let iter_type = self.get_object_type(iter_id);
         let iter_ass = self.new_instruction(iter_id, start_idx, node::Operation::Ass, iter_type);
         //We map the iterator to start_idx so that when we seal the join block, we will get the corrdect value.

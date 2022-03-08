@@ -387,7 +387,9 @@ impl Instruction {
     pub fn get_const_value(c: FieldElement, ctype: ObjectType) -> (u128, u32) {
         match ctype {
             ObjectType::Boolean => (if c.is_zero() { 0 } else { 1 }, 1),
-            ObjectType::NativeField => (0, 256),
+            ObjectType::NativeField => {
+                (c.to_u128(), 256) //TODO: handle elements that do not fit in 128 bits
+            }
             ObjectType::Signed(b) | ObjectType::Unsigned(b) => {
                 assert!(b < 128); //we do not support integers bigger than 128 bits for now.
                 (c.to_u128(), b)
@@ -431,7 +433,7 @@ impl Instruction {
                         unreachable!();
                     }
                     assert!(l_bsize == r_bsize);
-                    let res_value = (l_const + r_const) % l_bsize as u128;
+                    let res_value = (l_const + r_const) % (1_u128 << l_bsize) as u128;
                     return NodeEval::Const(FieldElement::from(res_value), self.res_type);
                 }
                 //if only one is const, we could try to do constant propagation but this will be handled by the arithmetization step anyways
@@ -458,7 +460,8 @@ impl Instruction {
                     //if l_constant.is_some() && r_constant.is_some() {
                     assert!(l_bsize == r_bsize);
 
-                    let res_value = l_const.overflowing_sub(r_const).0 % l_bsize as u128;
+                    let res_value =
+                        l_const.overflowing_sub(r_const).0 % (1_u128 << l_bsize) as u128;
                     return NodeEval::Const(FieldElement::from(res_value), self.res_type);
                 }
             }
@@ -483,7 +486,7 @@ impl Instruction {
                     }
 
                     assert!(l_bsize == r_bsize);
-                    let res_value = (l_const * r_const) % l_bsize as u128;
+                    let res_value = (l_const * r_const) % (1_u128 << l_bsize) as u128;
                     return NodeEval::Const(FieldElement::from(res_value), self.res_type);
                 }
                 //if only one is const, we could try to do constant propagation but this will be handled by the arithmetization step anyways
@@ -661,8 +664,11 @@ impl Instruction {
             }
             Operation::Cast => {
                 if let Some(l_const) = l_constant {
+                    if self.res_type == ObjectType::NativeField {
+                        return NodeEval::Const(FieldElement::from(l_const), self.res_type);
+                    }
                     return NodeEval::Const(
-                        FieldElement::from(l_const % (1 << self.res_type.bits())),
+                        FieldElement::from(l_const % (1_u128 << self.res_type.bits())),
                         self.res_type,
                     );
                 }

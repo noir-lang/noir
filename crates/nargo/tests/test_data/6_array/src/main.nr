@@ -26,7 +26,7 @@ fn main(x : [5]u32 , y : [5]u32 , z : u32, t : u32) {
    for i in 0..5 {
       z  = z + x[i]*y[i];
        for _i in 0..3 {
-           c = i as u32 - 2;
+           c = i as u32 - 2 as u32;
            z=c*z;
        };
    };
