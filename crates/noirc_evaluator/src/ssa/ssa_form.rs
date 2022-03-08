@@ -1,19 +1,19 @@
 use super::{
     block::BlockId,
-    code_gen::IRGenerator,
+    context::SsaContext,
     node::{self, NodeId},
 };
 
 // create phi arguments from the predecessors of the block (containing phi)
-pub fn write_phi(igen: &mut IRGenerator, predecessors: &[BlockId], var: NodeId, phi: NodeId) {
+pub fn write_phi(ctx: &mut SsaContext, predecessors: &[BlockId], var: NodeId, phi: NodeId) {
     let mut result = Vec::new();
     for b in predecessors {
-        let v = get_current_value_in_block(igen, var, *b);
+        let v = get_current_value_in_block(ctx, var, *b);
         result.push((v, *b));
     }
 
     let s2 = node::Instruction::simplify_phi(phi, &result);
-    if let Some(phi_ins) = igen.try_get_mut_instruction(phi) {
+    if let Some(phi_ins) = ctx.try_get_mut_instruction(phi) {
         assert!(phi_ins.phi_arguments.is_empty());
         if let Some(s_phi) = s2 {
             if s_phi != phi {
@@ -33,28 +33,28 @@ pub fn write_phi(igen: &mut IRGenerator, predecessors: &[BlockId], var: NodeId, 
     }
 }
 
-pub fn seal_block(igen: &mut IRGenerator, block_id: BlockId) {
-    let block = &igen[block_id];
+pub fn seal_block(ctx: &mut SsaContext, block_id: BlockId) {
+    let block = &ctx[block_id];
     let pred = block.predecessor.clone();
     let instructions = block.instructions.clone();
     for i in instructions {
-        if let Some(ins) = igen.try_get_instruction(i) {
+        if let Some(ins) = ctx.try_get_instruction(i) {
             let rhs = ins.rhs;
             if ins.operator == node::Operation::Phi {
-                write_phi(igen, &pred, rhs, i);
+                write_phi(ctx, &pred, rhs, i);
             }
         }
     }
-    igen.sealed_blocks.insert(block_id);
+    ctx.sealed_blocks.insert(block_id);
 }
 
 //look-up recursiverly into predecessors
-pub fn get_block_value(igen: &mut IRGenerator, root: NodeId, block_id: BlockId) -> NodeId {
-    let result = if !igen.sealed_blocks.contains(&block_id) {
+pub fn get_block_value(ctx: &mut SsaContext, root: NodeId, block_id: BlockId) -> NodeId {
+    let result = if !ctx.sealed_blocks.contains(&block_id) {
         //incomplete CFG
-        igen.generate_empty_phi(block_id, root)
+        ctx.generate_empty_phi(block_id, root)
     } else {
-        let block = &igen[block_id];
+        let block = &ctx[block_id];
         if let Some(idx) = block.get_current_value(root) {
             return idx;
         }
@@ -63,32 +63,32 @@ pub fn get_block_value(igen: &mut IRGenerator, root: NodeId, block_id: BlockId) 
             return root;
         }
         if pred.len() == 1 {
-            get_block_value(igen, root, pred[0])
+            get_block_value(ctx, root, pred[0])
         } else {
-            let result = igen.generate_empty_phi(block_id, root);
-            write_phi(igen, &pred, root, result);
+            let result = ctx.generate_empty_phi(block_id, root);
+            write_phi(ctx, &pred, root, result);
             result
         }
     };
 
-    igen[block_id].update_variable(root, result);
+    ctx[block_id].update_variable(root, result);
     result
 }
 
 //Returns the current SSA value of a variable in a (filled) block.
 pub fn get_current_value_in_block(
-    igen: &mut IRGenerator,
+    ctx: &mut SsaContext,
     var_id: NodeId,
     block_id: BlockId,
 ) -> NodeId {
-    let root = igen.get_root_value(var_id);
+    let root = ctx.get_root_value(var_id);
 
-    igen[block_id]
+    ctx[block_id]
         .get_current_value(root) //Local value numbering
-        .unwrap_or_else(|| get_block_value(igen, root, block_id)) //Global value numbering
+        .unwrap_or_else(|| get_block_value(ctx, root, block_id)) //Global value numbering
 }
 
 //Returns the current SSA value of a variable, recursively
-pub fn get_current_value(igen: &mut IRGenerator, var_id: NodeId) -> NodeId {
-    get_current_value_in_block(igen, var_id, igen.current_block)
+pub fn get_current_value(ctx: &mut SsaContext, var_id: NodeId) -> NodeId {
+    get_current_value_in_block(ctx, var_id, ctx.current_block)
 }

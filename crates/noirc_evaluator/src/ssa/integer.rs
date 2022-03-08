@@ -1,7 +1,7 @@
 use super::{
     block::BlockId,
     //block,
-    code_gen::IRGenerator,
+    context::SsaContext,
     node::{self, Instruction, Node, NodeId, NodeObj, Operation},
     optim,
 };
@@ -20,13 +20,13 @@ pub fn short_integer_max_bit_size() -> u32 {
 
 //Gets the maximum value of the instruction result
 pub fn get_instruction_max(
-    igen: &IRGenerator,
+    ctx: &SsaContext,
     ins: &node::Instruction,
     max_map: &mut HashMap<NodeId, BigUint>,
     vmap: &HashMap<NodeId, NodeId>,
 ) -> BigUint {
-    let r_max = get_obj_max_value(igen, None, ins.rhs, max_map, vmap);
-    let l_max = get_obj_max_value(igen, None, ins.lhs, max_map, vmap);
+    let r_max = get_obj_max_value(ctx, None, ins.rhs, max_map, vmap);
+    let l_max = get_obj_max_value(ctx, None, ins.lhs, max_map, vmap);
     get_max_value(ins, l_max, r_max)
 }
 
@@ -35,7 +35,7 @@ pub fn get_instruction_max(
 // we use the value array (get_current_value2) in order to handle truncate instructions
 // we need to do it because rust did not allow to modify the instruction in block_overflow..
 pub fn get_obj_max_value(
-    igen: &IRGenerator,
+    ctx: &SsaContext,
     obj: Option<&NodeObj>,
     id: NodeId,
     max_map: &mut HashMap<NodeId, BigUint>,
@@ -46,7 +46,7 @@ pub fn get_obj_max_value(
         return max_map[&id].clone();
     }
 
-    let obj_ = obj.unwrap_or_else(|| &igen[id]);
+    let obj_ = obj.unwrap_or_else(|| &ctx[id]);
 
     let result = match obj_ {
         NodeObj::Obj(v) => {
@@ -56,7 +56,7 @@ pub fn get_obj_max_value(
             }
             (BigUint::one() << v.size_in_bits()) - BigUint::one()
         } //TODO check for signed type
-        NodeObj::Instr(i) => get_instruction_max(igen, i, max_map, vmap),
+        NodeObj::Instr(i) => get_instruction_max(ctx, i, max_map, vmap),
         NodeObj::Const(c) => c.value.clone(), //TODO panic for string constants
     };
     max_map.insert(id, result.clone());
@@ -65,13 +65,13 @@ pub fn get_obj_max_value(
 
 //Creates a truncate instruction for obj_id
 pub fn truncate(
-    igen: &mut IRGenerator,
+    ctx: &mut SsaContext,
     obj_id: NodeId,
     bit_size: u32,
     max_map: &mut HashMap<NodeId, BigUint>,
 ) -> Option<NodeId> {
     // get type
-    let obj = &igen[obj_id];
+    let obj = &ctx[obj_id];
     let obj_type = obj.get_type();
     let obj_name = format!("{}", obj);
     //ensure truncate is needed:
@@ -79,7 +79,7 @@ pub fn truncate(
 
     if *v_max >= BigUint::one() << bit_size {
         //TODO is this leaking some info????
-        let rhs_bitsize = igen.new_constant(FieldElement::from(bit_size as i128));
+        let rhs_bitsize = ctx.new_constant(FieldElement::from(bit_size as i128));
         //Create a new truncate instruction '(idx): obj trunc bit_size'
         //set current value of obj to idx
         let mut i = Instruction::new(Operation::Trunc, obj_id, rhs_bitsize, obj_type, None);
@@ -88,7 +88,7 @@ pub fn truncate(
         }
         i.res_name = obj_name + "_t";
         i.bit_size = v_max.bits() as u32;
-        let i_id = igen.add_instruction(i);
+        let i_id = ctx.add_instruction(i);
         max_map.insert(i_id, BigUint::from((1_u128 << bit_size) - 1));
         Some(i_id)
         //we now need to call fix_truncate(), it is done in a separate function in order to not overwhelm the arguments list.
@@ -101,7 +101,7 @@ pub fn truncate(
 //This is needed because the instruction is inserted into a block and not added in the current block like regular instructions
 //We also update the value array
 pub fn fix_truncate(
-    eval: &mut IRGenerator,
+    eval: &mut SsaContext,
     id: NodeId,
     prev_id: NodeId,
     block_idx: BlockId,
@@ -115,7 +115,7 @@ pub fn fix_truncate(
 
 //Adds the variable to the list of variables that need to be truncated
 fn add_to_truncate(
-    igen: &IRGenerator,
+    ctx: &SsaContext,
     obj_id: NodeId,
     bit_size: u32,
     to_truncate: &mut HashMap<NodeId, u32>,
@@ -123,7 +123,7 @@ fn add_to_truncate(
 ) -> BigUint {
     let v_max = &max_map[&obj_id];
     if *v_max >= BigUint::one() << bit_size {
-        if let Some(node::NodeObj::Const(_)) = &igen.try_get_node(obj_id) {
+        if let Some(node::NodeObj::Const(_)) = &ctx.try_get_node(obj_id) {
             return v_max.clone(); //a constant cannot be truncated, so we exit the function gracefully
         }
         let truncate_bits;
@@ -141,7 +141,7 @@ fn add_to_truncate(
 
 //Truncate the 'to_truncate' list
 fn process_to_truncate(
-    igen: &mut IRGenerator,
+    ctx: &mut SsaContext,
     new_list: &mut Vec<NodeId>,
     to_truncate: &mut HashMap<NodeId, u32>,
     max_map: &mut HashMap<NodeId, BigUint>,
@@ -149,9 +149,9 @@ fn process_to_truncate(
     vmap: &mut HashMap<NodeId, NodeId>,
 ) {
     for (id, bit_size) in to_truncate.iter() {
-        if let Some(truncate_idx) = truncate(igen, *id, *bit_size, max_map) {
+        if let Some(truncate_idx) = truncate(ctx, *id, *bit_size, max_map) {
             //TODO properly handle signed arithmetic...
-            fix_truncate(igen, truncate_idx, *id, block_idx, vmap);
+            fix_truncate(ctx, truncate_idx, *id, block_idx, vmap);
             new_list.push(truncate_idx);
         }
     }
@@ -160,13 +160,13 @@ fn process_to_truncate(
 
 //Update right and left operands of the provided instruction
 fn update_ins_parameters(
-    igen: &mut IRGenerator,
+    ctx: &mut SsaContext,
     id: NodeId,
     lhs: NodeId,
     rhs: NodeId,
     max_value: Option<BigUint>,
 ) {
-    let mut ins = igen.try_get_mut_instruction(id).unwrap();
+    let mut ins = ctx.try_get_mut_instruction(id).unwrap();
     ins.lhs = lhs;
     ins.rhs = rhs;
     if let Some(max_v) = max_value {
@@ -175,28 +175,24 @@ fn update_ins_parameters(
 }
 
 //Add required truncate instructions on all blocks
-pub fn overflow_strategy(igen: &mut IRGenerator) {
+pub fn overflow_strategy(ctx: &mut SsaContext) {
     let mut max_map = HashMap::new();
-    tree_overflow(igen, igen.first_block, &mut max_map);
+    tree_overflow(ctx, ctx.first_block, &mut max_map);
 }
 
 //implement overflow strategy following the dominator tree
-pub fn tree_overflow(
-    igen: &mut IRGenerator,
-    b_idx: BlockId,
-    max_map: &mut HashMap<NodeId, BigUint>,
-) {
-    block_overflow(igen, b_idx, max_map);
+pub fn tree_overflow(ctx: &mut SsaContext, b_idx: BlockId, max_map: &mut HashMap<NodeId, BigUint>) {
+    block_overflow(ctx, b_idx, max_map);
     //TODO: Handle IF statements in there:
-    for b in igen[b_idx].dominated.clone() {
-        tree_overflow(igen, b, &mut max_map.clone());
+    for b in ctx[b_idx].dominated.clone() {
+        tree_overflow(ctx, b, &mut max_map.clone());
     }
 }
 
 //overflow strategy for one block
 //TODO - check the type; we MUST NOT truncate or overflow field elements!!
 pub fn block_overflow(
-    igen: &mut IRGenerator,
+    ctx: &mut SsaContext,
     block_id: BlockId,
     max_map: &mut HashMap<NodeId, BigUint>,
 ) {
@@ -210,8 +206,8 @@ pub fn block_overflow(
     let mut modify_ins = None;
     let mut trunc_size = FieldElement::zero();
     //RIA...
-    for iter in &igen[block_id].instructions {
-        instructions.push((*igen.try_get_instruction(*iter).unwrap()).clone());
+    for iter in &ctx[block_id].instructions {
+        instructions.push((*ctx.try_get_instruction(*iter).unwrap()).clone());
     }
     //since we process the block from the start, the block value map is not relevant
     let mut value_map = HashMap::new();
@@ -232,19 +228,19 @@ pub fn block_overflow(
             update_instruction = true;
         }
 
-        let r_obj = &igen[r_id];
-        let l_obj = &igen[l_id];
-        let r_max = get_obj_max_value(igen, Some(r_obj), r_id, max_map, &value_map);
-        get_obj_max_value(igen, Some(l_obj), l_id, max_map, &value_map);
+        let r_obj = &ctx[r_id];
+        let l_obj = &ctx[l_id];
+        let r_max = get_obj_max_value(ctx, Some(r_obj), r_id, max_map, &value_map);
+        get_obj_max_value(ctx, Some(l_obj), l_id, max_map, &value_map);
         //insert required truncates
         let to_truncate = ins.truncate_required(l_obj.size_in_bits(), r_obj.size_in_bits());
         if to_truncate.0 {
             //adds a new truncate(lhs) instruction
-            add_to_truncate(igen, l_id, l_obj.size_in_bits(), &mut truncate_map, max_map);
+            add_to_truncate(ctx, l_id, l_obj.size_in_bits(), &mut truncate_map, max_map);
         }
         if to_truncate.1 {
             //adds a new truncate(rhs) instruction
-            add_to_truncate(igen, r_id, r_obj.size_in_bits(), &mut truncate_map, max_map);
+            add_to_truncate(ctx, r_id, r_obj.size_in_bits(), &mut truncate_map, max_map);
         }
         if ins.operator == Operation::Cast {
             //TODO for now the types we support here are only all integer types (field, signed, unsigned, bool)
@@ -280,7 +276,7 @@ pub fn block_overflow(
                 //n.b. we do not update value map because we re-use the cast instruction
             }
         }
-        let mut ins_max = get_instruction_max(igen, &ins, max_map, &value_map);
+        let mut ins_max = get_instruction_max(ctx, &ins, max_map, &value_map);
         if ins_max.bits() >= (FieldElement::max_num_bits() as u64) {
             //let's truncate a and b:
             //- insert truncate(lhs) dans la list des instructions
@@ -288,9 +284,9 @@ pub fn block_overflow(
             //- update r_max et l_max
             //n.b we could try to truncate only one of them, but then we should check if rhs==lhs.
             let l_trunc_max =
-                add_to_truncate(igen, l_id, l_obj.size_in_bits(), &mut truncate_map, max_map);
+                add_to_truncate(ctx, l_id, l_obj.size_in_bits(), &mut truncate_map, max_map);
             let r_trunc_max =
-                add_to_truncate(igen, r_id, r_obj.size_in_bits(), &mut truncate_map, max_map);
+                add_to_truncate(ctx, r_id, r_obj.size_in_bits(), &mut truncate_map, max_map);
             ins_max = get_max_value(&ins, l_trunc_max.clone(), r_trunc_max.clone());
             if ins_max.bits() >= FieldElement::max_num_bits().into() {
                 let message = format!(
@@ -302,7 +298,7 @@ pub fn block_overflow(
             }
         }
         process_to_truncate(
-            igen,
+            ctx,
             &mut new_list,
             &mut truncate_map,
             max_map,
@@ -325,21 +321,21 @@ pub fn block_overflow(
             }
             if let Some(modified_ins) = &modify_ins {
                 ins.operator = modified_ins.operator;
-                ins.rhs = igen.get_or_create_const(trunc_size, node::ObjectType::Unsigned(32));
+                ins.rhs = ctx.get_or_create_const(trunc_size, node::ObjectType::Unsigned(32));
             }
-            update_ins_parameters(igen, ins.id, l_new, r_new, max_r_value);
+            update_ins_parameters(ctx, ins.id, l_new, r_new, max_r_value);
         }
     }
 
-    update_value_array(igen, block_id, &value_map);
+    update_value_array(ctx, block_id, &value_map);
 
     //We run another round of CSE for the block in order to remove possible duplicated truncates, this will assign 'new_list' to the block instructions
     let mut anchor = HashMap::new();
-    optim::block_cse(igen, block_id, &mut anchor, &mut new_list);
+    optim::block_cse(ctx, block_id, &mut anchor, &mut new_list);
 }
 
-fn update_value_array(igen: &mut IRGenerator, block_id: BlockId, vmap: &HashMap<NodeId, NodeId>) {
-    let block = &mut igen[block_id];
+fn update_value_array(ctx: &mut SsaContext, block_id: BlockId, vmap: &HashMap<NodeId, NodeId>) {
+    let block = &mut ctx[block_id];
     for (old, new) in vmap {
         block.value_map.insert(*old, *new); //TODO we must merge rather than update
     }

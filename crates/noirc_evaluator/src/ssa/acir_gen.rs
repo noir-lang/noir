@@ -6,7 +6,7 @@ use num_traits::Zero;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 //use crate::acir::native_types::{Arithmetic, Witness};
-use crate::ssa::code_gen::IRGenerator;
+use crate::ssa::context::SsaContext;
 use crate::ssa::node;
 use crate::ssa::node::Node;
 use crate::Evaluator;
@@ -51,12 +51,12 @@ impl Acir {
         &mut self,
         id: NodeId,
         evaluator: &mut Evaluator,
-        irgen: &IRGenerator,
+        ctx: &SsaContext,
     ) -> InternalVar {
         if self.arith_cache.contains_key(&id) {
             return self.arith_cache[&id].clone();
         }
-        let var = match irgen.try_get_node(id) {
+        let var = match ctx.try_get_node(id) {
             Some(node::NodeObj::Const(c)) => {
                 let f_value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be()); //TODO const should be a field
                 let expr = Arithmetic {
@@ -67,11 +67,7 @@ impl Acir {
                 InternalVar::new(expr, None, id)
             }
             Some(node::NodeObj::Obj(v)) => {
-                let w = if let Some(w1) = v.witness {
-                    w1
-                } else {
-                    evaluator.add_witness_to_cs()
-                };
+                let w = v.witness.unwrap_or_else(|| evaluator.add_witness_to_cs());
                 let expr = Arithmetic::from(&w);
                 InternalVar::new(expr, Some(w), id)
             }
@@ -96,13 +92,13 @@ impl Acir {
         &mut self,
         ins: &Instruction,
         evaluator: &mut Evaluator,
-        irgen: &IRGenerator,
+        ctx: &SsaContext,
     ) {
         if ins.operator == Operation::Nop {
             return;
         }
-        let l_c = self.substitute(ins.lhs, evaluator, irgen);
-        let r_c = self.substitute(ins.rhs, evaluator, irgen);
+        let l_c = self.substitute(ins.lhs, evaluator, ctx);
+        let r_c = self.substitute(ins.rhs, evaluator, ctx);
         let output = match ins.operator {
             Operation::Add | Operation::SafeAdd => {
                 add(&l_c.expression, FieldElement::one(), &r_c.expression)
@@ -110,7 +106,7 @@ impl Acir {
             Operation::Sub | Operation::SafeSub => {
                 //we need the type of rhs and its max value, then:
                 //lhs-rhs+k*2^bit_size where k=ceil(max_value/2^bit_size)
-                let bit_size = irgen[ins.rhs].size_in_bits();
+                let bit_size = ctx[ins.rhs].size_in_bits();
                 let r_big = BigUint::one() << bit_size;
                 let mut k = &ins.max_value / &r_big;
                 if &ins.max_value % &r_big != BigUint::zero() {

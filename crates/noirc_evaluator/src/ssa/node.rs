@@ -4,9 +4,9 @@ use std::ops::Add;
 use acvm::acir::native_types::Witness;
 use acvm::FieldElement;
 use arena;
-use noirc_frontend::{Type, Signedness};
 use noirc_frontend::hir_def::expr::HirBinaryOpKind;
 use noirc_frontend::node_interner::IdentId;
+use noirc_frontend::{Signedness, Type};
 use num_bigint::BigUint;
 use num_traits::One;
 
@@ -15,7 +15,7 @@ use num_traits::identities::Zero;
 use std::ops::Mul;
 
 use super::block::BlockId;
-use super::code_gen::IRGenerator;
+use super::context::SsaContext;
 
 pub trait Node: std::fmt::Display {
     fn get_type(&self) -> ObjectType;
@@ -102,7 +102,7 @@ pub struct NodeId(pub arena::Index);
 
 impl NodeId {
     pub fn dummy() -> NodeId {
-        NodeId(IRGenerator::dummy_id())
+        NodeId(SsaContext::dummy_id())
     }
 }
 
@@ -151,7 +151,12 @@ impl Variable {
         self.root.unwrap_or(self.id)
     }
 
-    pub fn new(obj_type: ObjectType, name: String, def: Option<IdentId>, parent_block: BlockId) -> Variable {
+    pub fn new(
+        obj_type: ObjectType,
+        name: String,
+        def: Option<IdentId>,
+        parent_block: BlockId,
+    ) -> Variable {
         Variable {
             id: NodeId::dummy(),
             obj_type,

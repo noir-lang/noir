@@ -6,3 +6,4 @@ pub mod integer;
 pub mod node;
 pub mod optim;
 pub mod ssa_form;
+pub mod context;

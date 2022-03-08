@@ -1,6 +1,6 @@
 use super::{
     block::BlockId,
-    code_gen::IRGenerator,
+    context::SsaContext,
     node::{self, Instruction, Node, NodeEval, NodeId, NodeObj, Operation},
 };
 use acvm::FieldElement;
@@ -8,19 +8,19 @@ use std::collections::{HashMap, VecDeque};
 
 //returns the NodeObj index of a NodeEval object
 //if NodeEval is a constant, it may creates a new NodeObj corresponding to the constant value
-pub fn to_index(eval: &mut IRGenerator, obj: NodeEval) -> NodeId {
+pub fn to_index(ctx: &mut SsaContext, obj: NodeEval) -> NodeId {
     match obj {
-        NodeEval::Const(c, t) => eval.get_or_create_const(c, t),
+        NodeEval::Const(c, t) => ctx.get_or_create_const(c, t),
         NodeEval::VarOrInstruction(i) => i,
     }
 }
 
 // If NodeEval refers to a constant NodeObj, we return a constant NodeEval
-pub fn to_const(eval: &IRGenerator, obj: NodeEval) -> NodeEval {
+pub fn to_const(ctx: &SsaContext, obj: NodeEval) -> NodeEval {
     match obj {
         NodeEval::Const(_, _) => obj,
         NodeEval::VarOrInstruction(i) => {
-            if let Some(NodeObj::Const(c)) = eval.try_get_node(i) {
+            if let Some(NodeObj::Const(c)) = ctx.try_get_node(i) {
                 return NodeEval::Const(
                     FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be()),
                     c.get_type(),
@@ -32,12 +32,12 @@ pub fn to_const(eval: &IRGenerator, obj: NodeEval) -> NodeEval {
 }
 
 // Performs constant folding, arithmetic simplifications and move to standard form
-pub fn simplify(eval: &mut IRGenerator, ins: &mut node::Instruction) {
+pub fn simplify(ctx: &mut SsaContext, ins: &mut node::Instruction) {
     //1. constant folding
-    let l_eval = to_const(eval, NodeEval::VarOrInstruction(ins.lhs));
-    let r_eval = to_const(eval, NodeEval::VarOrInstruction(ins.rhs));
+    let l_eval = to_const(ctx, NodeEval::VarOrInstruction(ins.lhs));
+    let r_eval = to_const(ctx, NodeEval::VarOrInstruction(ins.rhs));
     let idx = match ins.evaluate(&l_eval, &r_eval) {
-        NodeEval::Const(c, t) => eval.get_or_create_const(c, t),
+        NodeEval::Const(c, t) => ctx.get_or_create_const(c, t),
         NodeEval::VarOrInstruction(i) => i,
     };
     if idx != ins.id {
@@ -49,7 +49,7 @@ pub fn simplify(eval: &mut IRGenerator, ins: &mut node::Instruction) {
     //2. standard form
     ins.standard_form();
     if ins.operator == node::Operation::Cast {
-        if let Some(lhs_obj) = eval.try_get_node(ins.lhs) {
+        if let Some(lhs_obj) = ctx.try_get_node(ins.lhs) {
             if lhs_obj.get_type() == ins.res_type {
                 ins.is_deleted = true;
                 ins.rhs = ins.lhs;
@@ -58,12 +58,12 @@ pub fn simplify(eval: &mut IRGenerator, ins: &mut node::Instruction) {
         }
     }
 
-    //3. left-overs (it requires &mut eval)
+    //3. left-overs (it requires &mut ctx)
     if let NodeEval::Const(r_const, r_type) = r_eval {
         match ins.operator {
             node::Operation::Udiv => {
                 //TODO handle other bitsize, not only u32!!
-                ins.rhs = eval.get_or_create_const(
+                ins.rhs = ctx.get_or_create_const(
                     FieldElement::from((1_u32 / (r_const.to_u128() as u32)) as i128),
                     r_type,
                 );
@@ -71,14 +71,14 @@ pub fn simplify(eval: &mut IRGenerator, ins: &mut node::Instruction) {
             }
             node::Operation::Sdiv => {
                 //TODO handle other bitsize, not only i32!!
-                ins.rhs = eval.get_or_create_const(
+                ins.rhs = ctx.get_or_create_const(
                     FieldElement::from((1_i32 / (r_const.to_u128() as i32)) as i128),
                     r_type,
                 );
                 ins.operator = node::Operation::Mul
             }
             node::Operation::Div => {
-                ins.rhs = eval.get_or_create_const(r_const.inverse(), r_type);
+                ins.rhs = ctx.get_or_create_const(r_const.inverse(), r_type);
                 ins.operator = node::Operation::Mul
             }
             node::Operation::Xor => {
@@ -101,7 +101,7 @@ pub fn simplify(eval: &mut IRGenerator, ins: &mut node::Instruction) {
 ////////////////////CSE////////////////////////////////////////
 
 pub fn find_similar_instruction(
-    igen: &IRGenerator,
+    igen: &SsaContext,
     lhs: NodeId,
     rhs: NodeId,
     prev_ins: &VecDeque<NodeId>,
@@ -116,7 +116,7 @@ pub fn find_similar_instruction(
     None
 }
 
-pub fn propagate(igen: &IRGenerator, id: NodeId) -> NodeId {
+pub fn propagate(igen: &SsaContext, id: NodeId) -> NodeId {
     let mut result = id;
     if let Some(obj) = igen.try_get_instruction(id) {
         if obj.operator == node::Operation::Ass || obj.is_deleted {
@@ -127,14 +127,14 @@ pub fn propagate(igen: &IRGenerator, id: NodeId) -> NodeId {
 }
 
 //common subexpression elimination, starting from the root
-pub fn cse(igen: &mut IRGenerator) {
+pub fn cse(igen: &mut SsaContext) {
     let mut anchor = HashMap::new();
     cse_tree(igen, igen.first_block, &mut anchor);
 }
 
 //Perform CSE for the provided block and then process its children following the dominator tree, passing around the anchor list.
 pub fn cse_tree(
-    igen: &mut IRGenerator,
+    igen: &mut SsaContext,
     block_id: BlockId,
     anchor: &mut HashMap<Operation, VecDeque<NodeId>>,
 ) {
@@ -147,7 +147,7 @@ pub fn cse_tree(
 
 //Performs common subexpression elimination and copy propagation on a block
 pub fn block_cse(
-    igen: &mut IRGenerator,
+    igen: &mut SsaContext,
     block_id: BlockId,
     anchor: &mut HashMap<Operation, VecDeque<NodeId>>,
     instructions: &mut Vec<NodeId>,

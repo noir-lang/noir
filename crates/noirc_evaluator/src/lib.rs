@@ -192,11 +192,10 @@ impl<'a> Evaluator<'a> {
 
         // Now call the main function
         let main_func_body = self.context.def_interner.function(&self.main_function);
-        let mut cfg = ssa::code_gen::IRGenerator::new(self.context);
-        cfg.evaluate_main(env, main_func_body).unwrap();
+        let ssa = ssa::code_gen::evaluate_main(self.context, env, main_func_body)?;
 
         //Generates ACIR representation:
-        cfg.ir_to_acir(self).unwrap();
+        ssa.ir_to_acir(self)?;
         Ok(())
     }
 

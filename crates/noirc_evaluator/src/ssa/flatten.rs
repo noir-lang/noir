@@ -1,6 +1,6 @@
 use super::{
     block::{self, BlockId},
-    code_gen::IRGenerator,
+    context::SsaContext,
     node::{self, Node, NodeEval, NodeId, NodeObj, Operation},
     optim,
 };
@@ -8,18 +8,18 @@ use acvm::FieldElement;
 use std::collections::HashMap;
 
 //Unroll the CFG
-pub fn unroll_tree(eval: &mut IRGenerator) {
+pub fn unroll_tree(ctx: &mut SsaContext) {
     //Calls outer_unroll() from the root node
-    let mut id = eval.first_block;
+    let mut id = ctx.first_block;
     let mut unroll_ins = Vec::new();
     let mut eval_map = HashMap::new();
-    while let Some(next) = outer_unroll(&mut unroll_ins, &mut eval_map, id, eval) {
+    while let Some(next) = outer_unroll(&mut unroll_ins, &mut eval_map, id, ctx) {
         id = next;
     }
 }
 
 //Update the block instruction list using the eval_map
-fn eval_block(block_id: BlockId, eval_map: &HashMap<NodeId, NodeEval>, igen: &mut IRGenerator) {
+fn eval_block(block_id: BlockId, eval_map: &HashMap<NodeId, NodeEval>, igen: &mut SsaContext) {
     for i in &igen[block_id].instructions.clone() {
         //RIA
         if let Some(ins) = igen.try_get_mut_instruction(*i) {
@@ -30,7 +30,7 @@ fn eval_block(block_id: BlockId, eval_map: &HashMap<NodeId, NodeEval>, igen: &mu
                 ins.lhs = value.into_node_id().unwrap();
             }
             if ins.operator == Operation::EqGate {}
-            //TODO simplify(eval, ins);
+            //TODO simplify(ctx, ins);
         }
     }
 }
@@ -39,7 +39,7 @@ pub fn unroll_block(
     unrolled_instructions: &mut Vec<NodeId>,
     eval_map: &mut HashMap<NodeId, NodeEval>,
     block_to_unroll: BlockId,
-    igen: &mut IRGenerator,
+    igen: &mut SsaContext,
 ) -> Option<BlockId> {
     if igen[block_to_unroll].is_join() {
         unroll_join(unrolled_instructions, eval_map, block_to_unroll, igen)
@@ -56,7 +56,7 @@ pub fn unroll_std_block(
     unrolled_instructions: &mut Vec<NodeId>,
     eval_map: &mut HashMap<NodeId, NodeEval>,
     block_to_unroll: BlockId,
-    igen: &mut IRGenerator,
+    igen: &mut SsaContext,
 ) -> Option<NodeId> //first instruction of the left block
 {
     let block = &igen[block_to_unroll];
@@ -120,7 +120,7 @@ pub fn unroll_join(
     unrolled_instructions: &mut Vec<NodeId>,
     eval_map: &mut HashMap<NodeId, NodeEval>,
     block_to_unroll: BlockId,
-    igen: &mut IRGenerator,
+    igen: &mut SsaContext,
 ) -> Option<BlockId> {
     //Returns the exit block of the loop
     let join = &igen[block_to_unroll];
@@ -159,7 +159,7 @@ pub fn outer_unroll(
     unroll_ins: &mut Vec<NodeId>, //unrolled instructions
     eval_map: &mut HashMap<NodeId, NodeEval>,
     block_id: BlockId, //block to unroll
-    igen: &mut IRGenerator,
+    igen: &mut SsaContext,
 ) -> Option<BlockId> //next block
 {
     assert!(unroll_ins.is_empty());
@@ -225,7 +225,7 @@ fn evaluate_phi(
     instructions: &[NodeId],
     from: BlockId,
     to: &mut HashMap<NodeId, NodeEval>,
-    igen: &mut IRGenerator,
+    igen: &mut SsaContext,
 ) {
     for i in instructions {
         let mut to_process = Vec::new();
@@ -257,11 +257,11 @@ fn evaluate_phi(
 fn evaluate_conditional_jump(
     jump: NodeId,
     value_array: &mut HashMap<NodeId, NodeEval>,
-    eval: &IRGenerator,
+    ctx: &SsaContext,
 ) -> bool {
-    let jump_ins = eval.try_get_instruction(jump).unwrap();
+    let jump_ins = ctx.try_get_instruction(jump).unwrap();
     let lhs = get_current_value(jump_ins.lhs, value_array);
-    let cond = evaluate_object(lhs, value_array, eval);
+    let cond = evaluate_object(lhs, value_array, ctx);
     if let Some(cond_const) = cond.into_const_value() {
         let result = !cond_const.is_zero();
         match jump_ins.operator {
@@ -297,7 +297,7 @@ fn get_current_value_for_node_eval(
 fn evaluate_one(
     obj: NodeEval,
     value_array: &HashMap<NodeId, NodeEval>,
-    igen: &IRGenerator,
+    igen: &SsaContext,
 ) -> NodeEval {
     match get_current_value_for_node_eval(obj, value_array) {
         NodeEval::Const(_, _) => obj,
@@ -338,7 +338,7 @@ fn evaluate_one(
 fn evaluate_object(
     obj: NodeEval,
     value_array: &HashMap<NodeId, NodeEval>,
-    igen: &IRGenerator,
+    igen: &SsaContext,
 ) -> NodeEval {
     match get_current_value_for_node_eval(obj, value_array) {
         NodeEval::Const(_, _) => obj,
