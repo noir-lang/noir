@@ -1,13 +1,61 @@
 use ark_ff::to_bytes;
 use ark_ff::FpParameters;
+use ark_ff::One;
 use ark_ff::PrimeField;
-
+use ark_ff::Zero;
+use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
 
 // XXX: Switch out for a trait and proper implementations
 // This implementation is in-efficient, can definitely remove hex usage and Iterator instances for trivial functionality
-#[derive(Clone, Copy, Debug, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Eq, PartialOrd, Ord)]
 pub struct FieldElement<F: PrimeField>(F);
+
+impl<F: PrimeField> std::fmt::Display for FieldElement<F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let big_f = BigUint::from_bytes_be(&self.to_bytes());
+        let s = big_f.bits();
+        let big_s = BigUint::one() << s;
+        if big_s == big_f {
+            return write!(f, "2^{}", s);
+        }
+        if big_f == BigUint::zero() {
+            return write!(f, "0");
+        }
+        let big_minus = BigUint::from_bytes_be(&(self.neg()).to_bytes());
+        if big_minus.to_string().len() < big_f.to_string().len() {
+            return write!(f, "-{}", big_minus);
+        }
+        write!(f, "{}", big_f)
+    }
+}
+
+impl<F: PrimeField> std::fmt::Debug for FieldElement<F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if *self == -FieldElement::one() {
+            return write!(f, "-");
+        }
+        if *self == FieldElement::one() {
+            return write!(f, "");
+        }
+
+        let big_f = BigUint::from_bytes_be(&self.to_bytes());
+        if big_f == BigUint::zero() {
+            return write!(f, "0");
+        }
+
+        let s = big_f.bits();
+        let big_s = BigUint::one() << s;
+        if big_s == big_f {
+            return write!(f, "2^{}", s);
+        }
+        if big_f.clone() % BigUint::from(2_u128).pow(32) == BigUint::zero() {
+            return write!(f, "2^32*{}", big_f / BigUint::from(2_u128).pow(32));
+        }
+
+        write!(f, "{}", self)
+    }
+}
 
 impl<F: PrimeField> std::hash::Hash for FieldElement<F> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {

@@ -88,7 +88,7 @@ pub fn verify_with_path<P: AsRef<Path>>(program_dir: P, proof_path: P) -> Result
     let driver = Resolver::resolve_root_config(program_dir.as_ref())?;
     let backend = crate::backends::ConcreteBackend;
 
-    let compiled_program = driver.into_compiled_program(backend.np_language());
+    let compiled_program = driver.into_compiled_program(backend.np_language(), false);
 
     let mut public_abi = compiled_program.abi.clone().unwrap().public_abi();
     add_dummy_setpub_arr(&mut public_abi);

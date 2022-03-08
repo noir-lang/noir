@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::{token::Attribute, Ident};
+use crate::{token::Attribute, Ident, Pattern};
 
 use super::{FunctionDefinition, Type};
 
@@ -54,7 +54,7 @@ impl NoirFunction {
     pub fn name_ident(&self) -> &Ident {
         &self.def.name
     }
-    pub fn parameters(&self) -> &Vec<(Ident, Type)> {
+    pub fn parameters(&self) -> &Vec<(Pattern, Type)> {
         &self.def.parameters
     }
     pub fn attribute(&self) -> Option<&Attribute> {

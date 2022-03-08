@@ -14,11 +14,13 @@ use crate::object::Object;
 use num_traits::identities::Zero;
 use std::ops::Mul;
 
+use super::block::BlockId;
+use super::code_gen::IRGenerator;
+
 pub trait Node: std::fmt::Display {
     fn get_type(&self) -> ObjectType;
-    //fn get_bit_size(&self) -> u32;
-    fn get_id(&self) -> arena::Index;
-    fn bits(&self) -> u32; //bit size of the node
+    fn get_id(&self) -> NodeId;
+    fn size_in_bits(&self) -> u32;
 }
 
 impl std::fmt::Display for Variable {
@@ -46,11 +48,11 @@ impl Node for Variable {
         self.obj_type
     }
 
-    fn bits(&self) -> u32 {
+    fn size_in_bits(&self) -> u32 {
         self.get_type().bits()
     }
 
-    fn get_id(&self) -> arena::Index {
+    fn get_id(&self) -> NodeId {
         self.id
     }
 }
@@ -64,18 +66,18 @@ impl Node for NodeObj {
         }
     }
 
-    fn bits(&self) -> u32 {
+    fn size_in_bits(&self) -> u32 {
         match self {
-            NodeObj::Obj(o) => o.bits(),
+            NodeObj::Obj(o) => o.size_in_bits(),
             NodeObj::Instr(i) => i.res_type.bits(),
-            NodeObj::Const(c) => c.bits(),
+            NodeObj::Const(c) => c.size_in_bits(),
         }
     }
 
-    fn get_id(&self) -> arena::Index {
+    fn get_id(&self) -> NodeId {
         match self {
             NodeObj::Obj(o) => o.get_id(),
-            NodeObj::Instr(i) => i.idx,
+            NodeObj::Instr(i) => i.id,
             NodeObj::Const(c) => c.get_id(),
         }
     }
@@ -86,12 +88,21 @@ impl Node for Constant {
         self.value_type
     }
 
-    fn bits(&self) -> u32 {
+    fn size_in_bits(&self) -> u32 {
         self.value.bits().try_into().unwrap()
     }
 
-    fn get_id(&self) -> arena::Index {
+    fn get_id(&self) -> NodeId {
         self.id
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct NodeId(pub arena::Index);
+
+impl NodeId {
+    pub fn dummy() -> NodeId {
+        NodeId(IRGenerator::dummy_id())
     }
 }
 
@@ -102,9 +113,19 @@ pub enum NodeObj {
     Const(Constant),
 }
 
+impl NodeObj {
+    pub fn set_id(&mut self, new_id: NodeId) {
+        match self {
+            NodeObj::Obj(obj) => obj.id = new_id,
+            NodeObj::Instr(inst) => inst.id = new_id,
+            NodeObj::Const(c) => c.id = new_id,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Constant {
-    pub id: arena::Index,
+    pub id: NodeId,
     pub value: BigUint,    //TODO use FieldElement instead
     pub value_str: String, //TODO ConstStr subtype
     pub value_type: ObjectType,
@@ -112,25 +133,22 @@ pub struct Constant {
 
 #[derive(Debug)]
 pub struct Variable {
-    pub id: arena::Index,
+    pub id: NodeId,
     pub obj_type: ObjectType,
     pub name: String,
     //pub cur_value: arena::Index, //for generating the SSA form, current value of the object during parsing of the AST
-    pub root: Option<arena::Index>, //when generating SSA, assignment of an object creates a new one which is linked to the original one
-    pub def: Option<IdentId>,       //TODO redondant with root - should it be an option?
+    pub root: Option<NodeId>, //when generating SSA, assignment of an object creates a new one which is linked to the original one
+    pub def: Option<IdentId>, //TODO redundant with root - should it be an option?
     //TODO clarify where cur_value and root is stored, and also this:
     //  pub max_bits: u32,                  //max possible bit size of the expression
     //  pub max_value: Option<BigUInt>,     //maximum possible value of the expression, if less than max_bits
     pub witness: Option<Witness>,
-    pub parent_block: arena::Index,
+    pub parent_block: BlockId,
 }
 
 impl Variable {
-    pub fn get_root(&self) -> arena::Index {
-        match self.root {
-            Some(r) => r,
-            _ => self.id,
-        }
+    pub fn get_root(&self) -> NodeId {
+        self.root.unwrap_or(self.id)
     }
 }
 
@@ -221,7 +239,7 @@ impl ObjectType {
             ObjectType::NotAnObject => 0,
             ObjectType::Signed(c) => *c,
             ObjectType::Unsigned(c) => *c,
-            ObjectType::Pointer(_) => 8, //TODO  ???
+            ObjectType::Pointer(_) => unreachable!(),
         }
     }
 
@@ -235,22 +253,23 @@ impl ObjectType {
         }
     }
 }
+
 #[derive(Clone, Debug)]
 pub struct Instruction {
-    pub idx: arena::Index,
+    pub id: NodeId,
     pub operator: Operation,
-    pub rhs: arena::Index,
-    pub lhs: arena::Index,
+    pub rhs: NodeId,
+    pub lhs: NodeId,
     pub res_type: ObjectType, //result type
     //prev,next: should have been a double linked list so that we can easily remove an instruction during optimisation phases
-    pub parent_block: arena::Index,
+    pub parent_block: BlockId,
     pub is_deleted: bool,
     pub res_name: String,
     pub bit_size: u32, //TODO only for the truncate instruction...: bits size of the max value of the lhs.. a merger avec ci dessous!!!TODO
     pub max_value: BigUint, //TODO only for sub instruction: max value of the rhs
 
     //temp: todo phi subtype
-    pub phi_arguments: Vec<(arena::Index, arena::Index)>,
+    pub phi_arguments: Vec<(NodeId, BlockId)>,
 
     pub ins_arguments: Vec<arena::Index>,
 }
@@ -258,7 +277,7 @@ pub struct Instruction {
 impl std::fmt::Display for Instruction {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if self.res_name.is_empty() {
-            write!(f, "({:?})", self.idx.into_raw_parts().0)
+            write!(f, "({:?})", self.id.0.into_raw_parts().0)
         } else {
             write!(f, "{}", self.res_name.clone())
         }
@@ -268,19 +287,20 @@ impl std::fmt::Display for Instruction {
 #[derive(Debug, Clone, Copy)]
 pub enum NodeEval {
     Const(FieldElement, ObjectType),
-    Idx(arena::Index),
+    VarOrInstruction(NodeId),
 }
 
 impl NodeEval {
-    pub fn to_const_value(self) -> Option<FieldElement> {
+    pub fn into_const_value(self) -> Option<FieldElement> {
         match self {
             NodeEval::Const(c, _) => Some(c),
             _ => None,
         }
     }
-    pub fn to_index(self) -> Option<arena::Index> {
+
+    pub fn into_node_id(self) -> Option<NodeId> {
         match self {
-            NodeEval::Idx(i) => Some(i),
+            NodeEval::VarOrInstruction(i) => Some(i),
             NodeEval::Const(_, _) => None,
         }
     }
@@ -289,15 +309,16 @@ impl NodeEval {
 impl Instruction {
     pub fn new(
         op_code: Operation,
-        lhs: arena::Index,
-        rhs: arena::Index,
+        lhs: NodeId,
+        rhs: NodeId,
         r_type: ObjectType,
-        parent_block: Option<arena::Index>,
+        parent_block: Option<BlockId>,
     ) -> Instruction {
-        let id0 = crate::ssa::code_gen::IRGenerator::dummy_id();
-        let p_block = parent_block.unwrap_or(id0);
+        let id = NodeId::dummy();
+        let p_block = parent_block.unwrap_or_else(BlockId::dummy);
+
         Instruction {
-            idx: id0,
+            id,
             operator: op_code,
             lhs,
             rhs,
@@ -366,7 +387,9 @@ impl Instruction {
     pub fn get_const_value(c: FieldElement, ctype: ObjectType) -> (u128, u32) {
         match ctype {
             ObjectType::Boolean => (if c.is_zero() { 0 } else { 1 }, 1),
-            ObjectType::NativeField => (0, 256),
+            ObjectType::NativeField => {
+                (c.to_u128(), 256) //TODO: handle elements that do not fit in 128 bits
+            }
             ObjectType::Signed(b) | ObjectType::Unsigned(b) => {
                 assert!(b < 128); //we do not support integers bigger than 128 bits for now.
                 (c.to_u128(), b)
@@ -410,7 +433,7 @@ impl Instruction {
                         unreachable!();
                     }
                     assert!(l_bsize == r_bsize);
-                    let res_value = (l_const + r_const) % l_bsize as u128;
+                    let res_value = (l_const + r_const) % (1_u128 << l_bsize) as u128;
                     return NodeEval::Const(FieldElement::from(res_value), self.res_type);
                 }
                 //if only one is const, we could try to do constant propagation but this will be handled by the arithmetization step anyways
@@ -437,7 +460,8 @@ impl Instruction {
                     //if l_constant.is_some() && r_constant.is_some() {
                     assert!(l_bsize == r_bsize);
 
-                    let res_value = l_const.overflowing_sub(r_const).0 % l_bsize as u128;
+                    let res_value =
+                        l_const.overflowing_sub(r_const).0 % (1_u128 << l_bsize) as u128;
                     return NodeEval::Const(FieldElement::from(res_value), self.res_type);
                 }
             }
@@ -462,7 +486,7 @@ impl Instruction {
                     }
 
                     assert!(l_bsize == r_bsize);
-                    let res_value = (l_const * r_const) % l_bsize as u128;
+                    let res_value = (l_const * r_const) % (1_u128 << l_bsize) as u128;
                     return NodeEval::Const(FieldElement::from(res_value), self.res_type);
                 }
                 //if only one is const, we could try to do constant propagation but this will be handled by the arithmetization step anyways
@@ -640,8 +664,11 @@ impl Instruction {
             }
             Operation::Cast => {
                 if let Some(l_const) = l_constant {
+                    if self.res_type == ObjectType::NativeField {
+                        return NodeEval::Const(FieldElement::from(l_const), self.res_type);
+                    }
                     return NodeEval::Const(
-                        FieldElement::from(l_const % (1 << self.res_type.bits())),
+                        FieldElement::from(l_const % (1_u128 << self.res_type.bits())),
                         self.res_type,
                     );
                 }
@@ -649,27 +676,24 @@ impl Instruction {
             Operation::Constrain(op) => {
                 if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
                     match op {
-                        ConstrainOp::Eq => assert!(l_const == r_const),
-                        ConstrainOp::Neq => assert!(l_const != r_const),
+                        ConstrainOp::Eq => assert_eq!(l_const, r_const),
+                        ConstrainOp::Neq => assert_ne!(l_const, r_const),
                     }
                     //we can delete the instruction
-                    return NodeEval::Idx(arena::Index::from_raw_parts(std::usize::MAX, 0));
+                    return NodeEval::VarOrInstruction(NodeId::dummy());
                 }
             }
             Operation::Phi => (), //Phi are simplified by simply_phi() later on; they must not be simplified here
             _ => (),
         }
-        NodeEval::Idx(self.idx)
+        NodeEval::VarOrInstruction(self.id)
     }
 
     // Simplifies trivial Phi instructions by returning:
     // None, if the instruction is unreachable or in the root block and can be safely deleted
     // Some(id), if the instruction can be replaced by the node id
     // Some(ins_id), if the instruction is not trivial
-    pub fn simplify_phi(
-        ins_id: arena::Index,
-        phi_arguments: &[(arena::Index, arena::Index)],
-    ) -> Option<arena::Index> {
+    pub fn simplify_phi(ins_id: NodeId, phi_arguments: &[(NodeId, BlockId)]) -> Option<NodeId> {
         let mut same = None;
         for op in phi_arguments {
             if Some(op.0) == same || op.0 == ins_id {
@@ -716,7 +740,7 @@ impl Instruction {
             Operation::Constrain(op) => match op {
                 ConstrainOp::Eq => {
                     if self.rhs == self.lhs {
-                        self.rhs = self.idx;
+                        self.rhs = self.id;
                         self.is_deleted = true;
                         self.operator = Operation::Nop;
                     }

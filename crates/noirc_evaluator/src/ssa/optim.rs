@@ -1,27 +1,28 @@
 use super::{
+    block::BlockId,
     code_gen::IRGenerator,
-    node::{self, Node, NodeEval},
+    mem,
+    node::{self, Instruction, Node, NodeEval, NodeId, NodeObj, Operation},
 };
 use acvm::FieldElement;
-use arena::Index;
 use std::collections::{HashMap, VecDeque};
 
 //returns the NodeObj index of a NodeEval object
 //if NodeEval is a constant, it may creates a new NodeObj corresponding to the constant value
-pub fn to_index(eval: &mut IRGenerator, obj: node::NodeEval) -> Index {
+pub fn to_index(eval: &mut IRGenerator, obj: NodeEval) -> NodeId {
     match obj {
-        node::NodeEval::Const(c, t) => eval.get_const(c, t),
-        node::NodeEval::Idx(i) => i,
+        NodeEval::Const(c, t) => eval.get_or_create_const(c, t),
+        NodeEval::VarOrInstruction(i) => i,
     }
 }
 
 // If NodeEval refers to a constant NodeObj, we return a constant NodeEval
-pub fn to_const(eval: &IRGenerator, obj: node::NodeEval) -> node::NodeEval {
+pub fn to_const(eval: &IRGenerator, obj: NodeEval) -> NodeEval {
     match obj {
-        node::NodeEval::Const(_, _) => obj,
-        node::NodeEval::Idx(i) => {
-            if let Some(node::NodeObj::Const(c)) = eval.get_object(i) {
-                return node::NodeEval::Const(
+        NodeEval::Const(_, _) => obj,
+        NodeEval::VarOrInstruction(i) => {
+            if let Some(NodeObj::Const(c)) = eval.try_get_node(i) {
+                return NodeEval::Const(
                     FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be()),
                     c.get_type(),
                 );
@@ -32,18 +33,18 @@ pub fn to_const(eval: &IRGenerator, obj: node::NodeEval) -> node::NodeEval {
 }
 
 // Performs constant folding, arithmetic simplifications and move to standard form
-pub fn simplify(eval: &mut IRGenerator, ins: &mut node::Instruction) {
+pub fn simplify(irgen: &mut IRGenerator, ins: &mut node::Instruction) {
     //1. constant folding
-    let l_eval = to_const(eval, node::NodeEval::Idx(ins.lhs));
-    let r_eval = to_const(eval, node::NodeEval::Idx(ins.rhs));
+    let l_eval = to_const(irgen, NodeEval::VarOrInstruction(ins.lhs));
+    let r_eval = to_const(irgen, NodeEval::VarOrInstruction(ins.rhs));
     let idx = match ins.evaluate(&l_eval, &r_eval) {
-        NodeEval::Const(c, t) => eval.get_const(c, t),
-        NodeEval::Idx(i) => i,
+        NodeEval::Const(c, t) => irgen.get_or_create_const(c, t),
+        NodeEval::VarOrInstruction(i) => i,
     };
-    if idx != ins.idx {
+    if idx != ins.id {
         ins.is_deleted = true;
         ins.rhs = idx;
-        if idx == eval.dummy() {
+        if idx == NodeId::dummy() {
             ins.operator = node::Operation::Nop;
         }
         return;
@@ -53,7 +54,7 @@ pub fn simplify(eval: &mut IRGenerator, ins: &mut node::Instruction) {
     ins.standard_form();
     match ins.operator {
         node::Operation::Cast => {
-            if let Some(lhs_obj) = eval.get_object(ins.lhs) {
+            if let Some(lhs_obj) = irgen.try_get_node(ins.lhs) {
                 if lhs_obj.get_type() == ins.res_type {
                     ins.is_deleted = true;
                     ins.rhs = ins.lhs;
@@ -72,8 +73,8 @@ pub fn simplify(eval: &mut IRGenerator, ins: &mut node::Instruction) {
         node::Operation::Constrain(op) => match op {
             node::ConstrainOp::Eq => {
                 if let (Some(a), Some(b)) = (
-                    super::mem::Memory::deref(eval, ins.lhs),
-                    super::mem::Memory::deref(eval, ins.rhs),
+                    mem::Memory::deref(irgen, ins.lhs),
+                    mem::Memory::deref(irgen, ins.rhs),
                 ) {
                     if a == b {
                         ins.is_deleted = true;
@@ -83,8 +84,8 @@ pub fn simplify(eval: &mut IRGenerator, ins: &mut node::Instruction) {
             }
             node::ConstrainOp::Neq => {
                 if let (Some(a), Some(b)) = (
-                    super::mem::Memory::deref(eval, ins.lhs),
-                    super::mem::Memory::deref(eval, ins.rhs),
+                    mem::Memory::deref(irgen, ins.lhs),
+                    mem::Memory::deref(irgen, ins.rhs),
                 ) {
                     assert!(a != b);
                 }
@@ -99,7 +100,7 @@ pub fn simplify(eval: &mut IRGenerator, ins: &mut node::Instruction) {
         match ins.operator {
             node::Operation::Udiv => {
                 //TODO handle other bitsize, not only u32!!
-                ins.rhs = eval.get_const(
+                ins.rhs = irgen.get_or_create_const(
                     FieldElement::from((1_u32 / (r_const.to_u128() as u32)) as i128),
                     r_type,
                 );
@@ -107,14 +108,14 @@ pub fn simplify(eval: &mut IRGenerator, ins: &mut node::Instruction) {
             }
             node::Operation::Sdiv => {
                 //TODO handle other bitsize, not only i32!!
-                ins.rhs = eval.get_const(
+                ins.rhs = irgen.get_or_create_const(
                     FieldElement::from((1_i32 / (r_const.to_u128() as i32)) as i128),
                     r_type,
                 );
                 ins.operator = node::Operation::Mul
             }
             node::Operation::Div => {
-                ins.rhs = eval.get_const(r_const.inverse(), r_type);
+                ins.rhs = irgen.get_or_create_const(r_const.inverse(), r_type);
                 ins.operator = node::Operation::Mul
             }
             node::Operation::Xor => {
@@ -137,13 +138,13 @@ pub fn simplify(eval: &mut IRGenerator, ins: &mut node::Instruction) {
 ////////////////////CSE////////////////////////////////////////
 
 pub fn find_similar_instruction(
-    eval: &IRGenerator,
-    lhs: arena::Index,
-    rhs: arena::Index,
-    prev_ins: &VecDeque<arena::Index>,
-) -> Option<arena::Index> {
+    igen: &IRGenerator,
+    lhs: NodeId,
+    rhs: NodeId,
+    prev_ins: &VecDeque<NodeId>,
+) -> Option<NodeId> {
     for iter in prev_ins {
-        if let Some(ins) = eval.try_get_instruction(*iter) {
+        if let Some(ins) = igen.try_get_instruction(*iter) {
             if ins.lhs == lhs && ins.rhs == rhs {
                 return Some(*iter);
             }
@@ -158,14 +159,18 @@ pub enum CseAction {
     Keep,    //keep the instruction
 }
 
+//Returns an id and an action:
+//- replace => the instruction should be replaced by the returned id
+//- remove  => the instruction corresponding to the returned id should be removed
+//- keep    => keep the instruction
 pub fn find_similar_mem_instruction(
     eval: &IRGenerator,
     op: node::Operation,
-    ins_id: arena::Index,
-    lhs: arena::Index,
-    rhs: arena::Index,
-    anchor: &HashMap<node::Operation, VecDeque<arena::Index>>,
-) -> (arena::Index, CseAction) {
+    ins_id: NodeId,
+    lhs: NodeId,
+    rhs: NodeId,
+    anchor: &HashMap<node::Operation, VecDeque<NodeId>>,
+) -> (NodeId, CseAction) {
     match op {
         node::Operation::Load(_) => {
             for iter in anchor[&op].iter().rev() {
@@ -215,9 +220,9 @@ pub fn find_similar_mem_instruction(
     }
     (ins_id, CseAction::Keep)
 }
-pub fn propagate(eval: &IRGenerator, idx: arena::Index) -> arena::Index {
-    let mut result = idx;
-    if let Some(obj) = eval.try_get_instruction(idx) {
+pub fn propagate(eval: &IRGenerator, id: NodeId) -> NodeId {
+    let mut result = id;
+    if let Some(obj) = eval.try_get_instruction(id) {
         if obj.operator == node::Operation::Ass || obj.is_deleted {
             result = obj.rhs;
         }
@@ -226,30 +231,25 @@ pub fn propagate(eval: &IRGenerator, idx: arena::Index) -> arena::Index {
 }
 
 //common subexpression elimination, starting from the root
-pub fn cse(eval: &mut IRGenerator) {
-    let mut anchor: HashMap<node::Operation, VecDeque<arena::Index>> = HashMap::new();
-    cse_tree(eval, eval.first_block, &mut anchor);
+pub fn cse(igen: &mut IRGenerator) {
+    let mut anchor = HashMap::new();
+    cse_tree(igen, igen.first_block, &mut anchor);
 }
 
 //Perform CSE for the provided block and then process its children following the dominator tree, passing around the anchor list.
 pub fn cse_tree(
-    eval: &mut IRGenerator,
-    b_idx: arena::Index,
-    anchor: &mut HashMap<node::Operation, VecDeque<arena::Index>>,
+    igen: &mut IRGenerator,
+    block_id: BlockId,
+    anchor: &mut HashMap<Operation, VecDeque<NodeId>>,
 ) {
-    let mut i_list: Vec<arena::Index> = Vec::new();
-    block_cse(eval, b_idx, anchor, &mut i_list);
-    let block = eval.get_block(b_idx);
-    let bd = block.dominated.clone();
-    for b in bd {
-        cse_tree(eval, b, &mut anchor.clone());
+    let mut instructions = Vec::new();
+    block_cse(igen, block_id, anchor, &mut instructions);
+    for b in igen[block_id].dominated.clone() {
+        cse_tree(igen, b, &mut anchor.clone());
     }
 }
 
-pub fn anchor_push(
-    op: node::Operation,
-    anchor: &mut HashMap<node::Operation, VecDeque<arena::Index>>,
-) {
+pub fn anchor_push(op: node::Operation, anchor: &mut HashMap<node::Operation, VecDeque<NodeId>>) {
     match op {
         node::Operation::Store(x) => anchor
             .entry(node::Operation::Load(x))
@@ -260,27 +260,24 @@ pub fn anchor_push(
 
 //Performs common subexpression elimination and copy propagation on a block
 pub fn block_cse(
-    eval: &mut IRGenerator,
-    b_idx: arena::Index,
-    anchor: &mut HashMap<node::Operation, VecDeque<arena::Index>>,
-    block_list: &mut Vec<arena::Index>,
+    igen: &mut IRGenerator,
+    block_id: BlockId,
+    anchor: &mut HashMap<Operation, VecDeque<NodeId>>,
+    instructions: &mut Vec<NodeId>,
 ) {
-    let mut new_list: Vec<arena::Index> = Vec::new();
-    let bb = eval.blocks.get(b_idx).unwrap();
+    let mut new_list = Vec::new();
+    let bb = &igen[block_id];
 
-    if block_list.is_empty() {
-        //RIA...
-        for iter in &bb.instructions {
-            block_list.push(*iter);
-        }
+    if instructions.is_empty() {
+        instructions.append(&mut bb.instructions.clone());
     }
 
-    for iter in block_list {
-        if let Some(ins) = eval.try_get_instruction(*iter) {
+    for iter in instructions {
+        if let Some(ins) = igen.try_get_instruction(*iter) {
             let mut to_delete = false;
             let mut i_lhs = ins.lhs;
             let mut i_rhs = ins.rhs;
-            let mut phi_args: Vec<(arena::Index, arena::Index)> = Vec::new();
+            let mut phi_args = Vec::new();
             let mut to_update_phi = false;
 
             if ins.is_deleted {
@@ -289,10 +286,10 @@ pub fn block_cse(
             anchor_push(ins.operator, anchor);
             if node::is_binary(ins.operator) {
                 //binary operation:
-                i_lhs = propagate(eval, ins.lhs);
-                i_rhs = propagate(eval, ins.rhs);
+                i_lhs = propagate(igen, ins.lhs);
+                i_rhs = propagate(igen, ins.rhs);
                 if let Some(j) =
-                    find_similar_instruction(eval, i_lhs, i_rhs, &anchor[&ins.operator])
+                    find_similar_instruction(igen, i_lhs, i_rhs, &anchor[&ins.operator])
                 {
                     to_delete = true; //we want to delete ins but ins is immutable so we use the new_list instead
                     i_rhs = j;
@@ -303,12 +300,12 @@ pub fn block_cse(
             } else {
                 match ins.operator {
                     node::Operation::Load(_) | node::Operation::Store(_) => {
-                        i_lhs = propagate(eval, ins.lhs);
-                        i_rhs = propagate(eval, ins.rhs);
+                        i_lhs = propagate(igen, ins.lhs);
+                        i_rhs = propagate(igen, ins.rhs);
                         let (cse_id, cse_action) = find_similar_mem_instruction(
-                            eval,
+                            igen,
                             ins.operator,
-                            ins.idx,
+                            ins.id,
                             i_lhs,
                             i_rhs,
                             anchor,
@@ -330,19 +327,19 @@ pub fn block_cse(
                     }
                     node::Operation::Ass => {
                         //assignement
-                        i_rhs = propagate(eval, ins.rhs);
+                        i_rhs = propagate(igen, ins.rhs);
                         to_delete = true;
                     }
                     node::Operation::Phi => {
                         // propagate phi arguments
                         for a in &ins.phi_arguments {
-                            phi_args.push((propagate(eval, a.0), a.1));
+                            phi_args.push((propagate(igen, a.0), a.1));
                             if phi_args.last().unwrap().0 != a.0 {
                                 to_update_phi = true;
                             }
                         }
-                        if let Some(first) = node::Instruction::simplify_phi(ins.idx, &phi_args) {
-                            if first == ins.idx {
+                        if let Some(first) = node::Instruction::simplify_phi(ins.id, &phi_args) {
+                            if first == ins.id {
                                 new_list.push(*iter);
                             } else {
                                 to_delete = true;
@@ -354,8 +351,8 @@ pub fn block_cse(
                         }
                     }
                     node::Operation::Cast => {
-                        i_lhs = propagate(eval, ins.lhs);
-                        i_rhs = propagate(eval, ins.rhs);
+                        i_lhs = propagate(igen, ins.lhs);
+                        i_rhs = propagate(igen, ins.rhs);
                         new_list.push(*iter);
                     }
                     _ => {
@@ -365,41 +362,41 @@ pub fn block_cse(
             }
 
             if to_update_phi {
-                let update = eval.get_mut_instruction(*iter);
+                let update = igen.get_mut_instruction(*iter);
                 update.phi_arguments = phi_args;
             } else if to_delete || ins.lhs != i_lhs || ins.rhs != i_rhs {
                 //update i:
                 let ii_l = ins.lhs;
                 let ii_r = ins.rhs;
-                let update = eval.get_mut_instruction(*iter);
+                let update = igen.get_mut_instruction(*iter);
                 update.lhs = i_lhs;
                 update.rhs = i_rhs;
                 update.is_deleted = to_delete;
                 //update instruction name - for debug/pretty print purposes only /////////////////////
-                if let Some(node::Instruction {
-                    operator: node::Operation::Ass,
+                if let Some(Instruction {
+                    operator: Operation::Ass,
                     lhs,
                     ..
-                }) = eval.try_get_instruction(ii_l)
+                }) = igen.try_get_instruction(ii_l)
                 {
-                    if let Ok(lv) = eval.get_variable(*lhs) {
+                    if let Ok(lv) = igen.get_variable(*lhs) {
                         let i_name = lv.name.clone();
-                        if let Some(p_ins) = eval.try_get_mut_instruction(i_lhs) {
+                        if let Some(p_ins) = igen.try_get_mut_instruction(i_lhs) {
                             if p_ins.res_name.is_empty() {
                                 p_ins.res_name = i_name;
                             }
                         }
                     }
                 }
-                if let Some(node::Instruction {
-                    operator: node::Operation::Ass,
+                if let Some(Instruction {
+                    operator: Operation::Ass,
                     lhs,
                     ..
-                }) = eval.try_get_instruction(ii_r)
+                }) = igen.try_get_instruction(ii_r)
                 {
-                    if let Ok(lv) = eval.get_variable(*lhs) {
+                    if let Ok(lv) = igen.get_variable(*lhs) {
                         let i_name = lv.name.clone();
-                        if let Some(p_ins) = eval.try_get_mut_instruction(i_rhs) {
+                        if let Some(p_ins) = igen.try_get_mut_instruction(i_rhs) {
                             if p_ins.res_name.is_empty() {
                                 p_ins.res_name = i_name;
                             }
@@ -410,6 +407,6 @@ pub fn block_cse(
             }
         }
     }
-    let bb = eval.blocks.get_mut(b_idx).unwrap();
-    bb.instructions = new_list;
+
+    igen[block_id].instructions = new_list;
 }

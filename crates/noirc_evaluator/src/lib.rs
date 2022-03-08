@@ -16,15 +16,18 @@ use acvm::FieldElement;
 use acvm::Language;
 use environment::{Environment, FuncContext};
 use errors::{RuntimeError, RuntimeErrorKind};
-use noirc_frontend::hir_def::{
-    expr::{
-        HirBinaryOp, HirBinaryOpKind, HirBlockExpression, HirCallExpression, HirExpression,
-        HirForExpression, HirLiteral,
-    },
-    stmt::{HirConstrainStatement, HirStatement},
-};
+use noirc_frontend::hir::Context;
 use noirc_frontend::node_interner::{ExprId, FuncId, IdentId, StmtId};
-use noirc_frontend::{hir::Context, FieldElementType};
+use noirc_frontend::{
+    hir_def::{
+        expr::{
+            HirBinaryOp, HirBinaryOpKind, HirBlockExpression, HirCallExpression, HirExpression,
+            HirForExpression, HirLiteral,
+        },
+        stmt::{HirConstrainStatement, HirPattern, HirStatement},
+    },
+    FieldElementType,
+};
 use noirc_frontend::{FunctionKind, Type};
 use object::{Array, Integer, Object, RangedObject};
 pub struct Evaluator<'a> {
@@ -86,12 +89,20 @@ impl<'a> Evaluator<'a> {
     // Some of these could have been removed due to optimisations. We need this number because the
     // Standard format requires the number of witnesses. The max number is also fine.
     // If we had a composer object, we would not need it
-    pub fn compile(mut self, np_language: Language) -> Result<Circuit, RuntimeError> {
+    pub fn compile(
+        mut self,
+        np_language: Language,
+        interactive: bool,
+    ) -> Result<Circuit, RuntimeError> {
         // create a new environment for the main context
         let mut env = Environment::new(FuncContext::Main);
 
         // First evaluate the main function
-        self.evaluate_main_alt(&mut env)?;
+        if interactive {
+            self.evaluate_main_alt(&mut env, interactive)?;
+        } else {
+            self.evaluate_main(&mut env)?;
+        }
 
         let witness_index = self.current_witness_index();
 
@@ -184,7 +195,11 @@ impl<'a> Evaluator<'a> {
     }
 
     /// Compiles the AST into the intermediate format by evaluating the main function
-    pub fn evaluate_main_alt(&mut self, env: &mut Environment) -> Result<(), RuntimeError> {
+    pub fn evaluate_main_alt(
+        &mut self,
+        env: &mut Environment,
+        interactive: bool,
+    ) -> Result<(), RuntimeError> {
         self.parse_abi(env)?;
 
         // Now call the main function
@@ -194,7 +209,7 @@ impl<'a> Evaluator<'a> {
             .unwrap();
 
         //Generates ACIR representation:
-        cfg.ir_to_acir(self).unwrap();
+        cfg.ir_to_acir(self, interactive).unwrap();
         Ok(())
     }
 
@@ -306,6 +321,15 @@ impl<'a> Evaluator<'a> {
         Ok(())
     }
 
+    fn pattern_name(&self, pattern: &HirPattern) -> String {
+        match pattern {
+            HirPattern::Identifier(id) => self.context.def_interner.ident_name(id),
+            HirPattern::Mutable(pattern, _) => self.pattern_name(pattern),
+            HirPattern::Tuple(_, _) => todo!("Implement tuples in the backend"),
+            HirPattern::Struct(_, _, _) => todo!("Implement structs in the backend"),
+        }
+    }
+
     fn evaluate_statement(
         &mut self,
         env: &mut Environment,
@@ -321,10 +345,11 @@ impl<'a> Evaluator<'a> {
             }
             HirStatement::Let(let_stmt) => {
                 // let statements are used to declare a higher level object
-                self.handle_definition(env, &let_stmt.identifier, &let_stmt.expression)
+                self.handle_definition(env, &let_stmt.pattern, &let_stmt.expression)
             }
             HirStatement::Assign(assign_stmt) => {
-                self.handle_definition(env, &assign_stmt.identifier, &assign_stmt.expression)
+                let ident = HirPattern::Identifier(assign_stmt.identifier);
+                self.handle_definition(env, &ident, &assign_stmt.expression)
             }
             HirStatement::Error => unreachable!(
                 "ice: compiler did not exit before codegen when a statement failed to parse"
@@ -338,13 +363,12 @@ impl<'a> Evaluator<'a> {
     fn handle_private_statement(
         &mut self,
         env: &mut Environment,
-        identifier: &IdentId,
+        variable_name: String,
         rhs: &ExprId,
     ) -> Result<Object, RuntimeError> {
         let rhs_span = self.context.def_interner.expr_span(rhs);
         let rhs_poly = self.expression_to_object(env, rhs)?;
 
-        let variable_name = self.context.def_interner.ident_name(identifier);
         // We do not store it in the environment yet, because it may need to be casted to an integer
         let witness = self.add_witness_to_cs();
 
@@ -449,11 +473,14 @@ impl<'a> Evaluator<'a> {
     fn handle_definition(
         &mut self,
         env: &mut Environment,
-        identifier: &IdentId,
+        pattern: &HirPattern,
         rhs: &ExprId,
     ) -> Result<Object, RuntimeError> {
         // Convert the LHS into an identifier
-        let variable_name = self.context.def_interner.ident_name(identifier);
+        let variable_name = self.pattern_name(pattern);
+
+        // XXX: Currently we only support arrays using this, when other types are introduced
+        // we can extend into a separate (generic) module
 
         match self.context.def_interner.id_type(rhs) {
             Type::FieldElement(FieldElementType::Constant) => {
@@ -477,7 +504,7 @@ impl<'a> Evaluator<'a> {
                     ),
                 };
             }
-            _ => return self.handle_private_statement(env, identifier, rhs),
+            _ => return self.handle_private_statement(env, variable_name, rhs),
         }
 
         Ok(Object::Null)
@@ -615,6 +642,7 @@ impl<'a> Evaluator<'a> {
             HirExpression::Literal(HirLiteral::Bool(_)) => todo!("boolean literals are currently unimplemented"),
             HirExpression::Block(_) => todo!("currently block expressions not in for/if branches are not being evaluated. In the future, we should be able to unify the eval_block and all places which require block_expr here"),
             HirExpression::Constructor(_) => todo!("Constructor expressions are unimplemented in the noir backend"),
+            HirExpression::Tuple(_) => todo!("Tuple expressions are unimplemented in the noir backend"),
             HirExpression::MemberAccess(_) => todo!("Member access expressions are unimplemented in the noir backend"),
             HirExpression::Error => unreachable!("Tried to evaluate an Expression::Error node"),
         }
@@ -642,9 +670,7 @@ impl<'a> Evaluator<'a> {
         let func_meta = self.context.def_interner.function_meta(&func_id);
 
         for (param, argument) in func_meta.parameters.iter().zip(arguments.into_iter()) {
-            let param_id = param.0;
-            let param_name = self.context.def_interner.ident_name(&param_id);
-
+            let param_name = self.pattern_name(&param.0);
             new_env.store(param_name, argument);
         }
 
