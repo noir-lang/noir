@@ -9,7 +9,10 @@ mod stmt;
 use errors::TypeCheckError;
 use expr::type_check_expression;
 
-use crate::node_interner::{FuncId, NodeInterner};
+use crate::{
+    hir_def::types::Type,
+    node_interner::{FuncId, NodeInterner},
+};
 
 use self::stmt::bind_pattern;
 
@@ -35,7 +38,10 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     let function_last_type = type_check_expression(interner, func_as_expr, &mut errors);
 
     // Check declared return type and actual return type
-    if !can_ignore_ret && (&function_last_type != declared_return_type) {
+    if !can_ignore_ret
+        && (&function_last_type != declared_return_type)
+        && function_last_type != Type::Error
+    {
         let func_span = interner.id_span(func_as_expr); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
         errors.push(TypeCheckError::TypeMismatch {
             expected_typ: declared_return_type.to_string(),
@@ -65,6 +71,7 @@ mod test {
 
     use crate::hir_def::stmt::HirLetStatement;
     use crate::hir_def::stmt::HirPattern::Identifier;
+    use crate::hir_def::types::Type;
     use crate::node_interner::{FuncId, NodeInterner};
     use crate::{graph::CrateId, Ident};
     use crate::{
@@ -72,7 +79,7 @@ mod test {
             def_map::{CrateDefMap, ModuleDefId},
             resolution::{path_resolver::PathResolver, resolver::Resolver},
         },
-        parse_program, FunctionKind, Path, Type,
+        parse_program, FunctionKind, Path,
     };
     use crate::{
         hir_def::{
@@ -121,20 +128,24 @@ mod test {
         // Create let statement
         let let_stmt = HirLetStatement {
             pattern: Identifier(z_id),
-            r#type: crate::Type::Unspecified,
+            r#type: Type::Unspecified,
             expression: expr_id,
         };
         let stmt_id = interner.push_stmt(HirStatement::Let(let_stmt));
-
         let expr_id = interner.push_expr(HirExpression::Block(HirBlockExpression(vec![stmt_id])));
 
         // Create function to enclose the let statement
         let func = HirFunction::unsafe_from_expr(expr_id);
         let func_id = interner.push_fn(func);
 
+        let name = "test_func".to_owned();
+        let fake_span = Span::single_char(0);
+        let name_id = interner.push_ident(Ident::from(Spanned::from(fake_span, name.clone())));
+
         // Add function meta
         let func_meta = FuncMeta {
-            name: String::from("test_func"),
+            name,
+            name_id,
             kind: FunctionKind::Normal,
             attributes: None,
             parameters: vec![

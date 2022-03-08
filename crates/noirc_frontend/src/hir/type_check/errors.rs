@@ -2,8 +2,9 @@ use noirc_errors::CustomDiagnostic as Diagnostic;
 pub use noirc_errors::Span;
 use thiserror::Error;
 
+use crate::hir_def::expr::HirBinaryOp;
+use crate::hir_def::types::Type;
 use crate::node_interner::NodeInterner;
-use crate::{hir_def::expr::HirBinaryOp, Type};
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum TypeCheckError {
@@ -103,11 +104,14 @@ impl TypeCheckError {
                 expected,
                 found,
                 span,
-            } => Diagnostic::simple_error(
-                format!("expected {} number of arguments, found {}", expected, found),
-                String::new(),
-                span,
-            ),
+            } => {
+                let plural = if expected == 1 { "" } else { "s" };
+                let msg = format!(
+                    "expected {} argument{}, but found {}",
+                    expected, plural, found
+                );
+                Diagnostic::simple_error(msg, String::new(), span)
+            }
             TypeCheckError::Unstructured { msg, span } => {
                 Diagnostic::simple_error(msg, String::new(), span)
             }

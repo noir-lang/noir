@@ -3,9 +3,10 @@ use noirc_errors::Span;
 
 use super::expr::{HirBlockExpression, HirExpression};
 use super::stmt::HirPattern;
-use crate::node_interner::{ExprId, NodeInterner};
+use crate::node_interner::{ExprId, IdentId, NodeInterner};
 use crate::util::vecmap;
-use crate::{token::Attribute, FunctionKind, Type};
+use crate::Type;
+use crate::{token::Attribute, FunctionKind};
 
 /// A Hir function is a block expression
 /// with a list of statements
@@ -111,6 +112,7 @@ impl From<Vec<Param>> for Parameters {
 #[derive(Debug, Clone)]
 pub struct FuncMeta {
     pub name: String,
+    pub name_id: IdentId,
 
     pub kind: FunctionKind,
 

@@ -16,3 +16,6 @@ pub use parser::{parse_program, ParsedModule};
 
 // AST API
 pub use ast::*;
+
+// Type API
+pub use hir_def::types::*;

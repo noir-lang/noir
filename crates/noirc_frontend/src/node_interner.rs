@@ -1,11 +1,16 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
 use arena::{Arena, Index};
 use noirc_errors::Span;
 
-use crate::{Ident, StructType, Type};
+use crate::Ident;
 
+use crate::graph::CrateId;
+use crate::hir::def_collector::dc_crate::UnresolvedStruct;
+use crate::hir::def_map::{LocalModuleId, ModuleId};
+use crate::hir_def::types::{StructType, Type};
 use crate::hir_def::{
     expr::HirExpression,
     function::{FuncMeta, HirFunction},
@@ -46,18 +51,17 @@ impl FuncId {
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
-pub struct TypeId(usize);
+pub struct TypeId(pub ModuleId);
 
 impl TypeId {
     //dummy id for error reporting
     // This can be anything, as the program will ultimately fail
     // after resolution
     pub fn dummy_id() -> TypeId {
-        TypeId(std::usize::MAX)
-    }
-
-    pub fn new(n: usize) -> TypeId {
-        TypeId(n)
+        TypeId(ModuleId {
+            krate: CrateId::dummy_id(),
+            local_id: LocalModuleId::dummy_id(),
+        })
     }
 }
 
@@ -136,8 +140,12 @@ pub struct NodeInterner {
     // Because we use one Arena to store all Definitions/Nodes
     id_to_type: HashMap<Index, Type>,
 
-    // Struct map
-    structs: HashMap<TypeId, Rc<StructType>>,
+    // Struct map.
+    //
+    // Each struct definition is possibly shared across multiple type nodes.
+    // It is also mutated through the RefCell during name resolution to append
+    // methods from impls to the type.
+    structs: HashMap<TypeId, Rc<RefCell<StructType>>>,
 }
 
 impl Default for NodeInterner {
@@ -185,9 +193,25 @@ impl NodeInterner {
         self.id_to_type.insert(expr_id.into(), typ);
     }
 
-    /// Store a struct definition
-    pub fn push_struct(&mut self, expr_id: TypeId, typ: StructType) {
-        self.structs.insert(expr_id, Rc::new(typ));
+    pub fn push_empty_struct(&mut self, type_id: TypeId, typ: &UnresolvedStruct) {
+        self.structs.insert(
+            type_id,
+            Rc::new(RefCell::new(StructType {
+                id: type_id,
+                name: typ.struct_def.name.clone(),
+                fields: vec![],
+                methods: HashMap::new(),
+                span: typ.struct_def.span,
+            })),
+        );
+    }
+
+    pub fn update_struct<F>(&mut self, type_id: TypeId, f: F)
+    where
+        F: FnOnce(&mut StructType),
+    {
+        let mut value = self.structs.get_mut(&type_id).unwrap().borrow_mut();
+        f(&mut value)
     }
 
     /// Modify the type of an expression.
@@ -350,7 +374,7 @@ impl NodeInterner {
         self.id_span(expr_id)
     }
 
-    pub fn get_struct(&self, id: TypeId) -> Rc<StructType> {
+    pub fn get_struct(&self, id: TypeId) -> Rc<RefCell<StructType>> {
         self.structs[&id].clone()
     }
 
@@ -368,5 +392,11 @@ impl NodeInterner {
     /// Returns the span of an item stored in the Interner
     pub fn id_span(&self, index: impl Into<Index>) -> Span {
         self.id_to_span.get(&index.into()).copied().unwrap()
+    }
+
+    /// Replaces the HirExpression at the given ExprId with a new HirExpression
+    pub fn replace_expr(&mut self, id: &ExprId, new: HirExpression) {
+        let old = self.nodes.get_mut(id.into()).unwrap();
+        *old = Node::Expression(new);
     }
 }

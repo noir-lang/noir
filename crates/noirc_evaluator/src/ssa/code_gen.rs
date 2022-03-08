@@ -678,8 +678,9 @@ impl<'a> IRGenerator<'a> {
         let expr = self.context().def_interner.expression(expr_id);
         let span = self.context().def_interner.expr_span(expr_id);
         match expr {
-            HirExpression::Literal(HirLiteral::Integer(x)) =>
-            Ok(self.new_constant(x)),
+            HirExpression::Literal(HirLiteral::Integer(x)) => {
+                Ok(self.new_constant(x))
+            }
             HirExpression::Literal(HirLiteral::Array(_arr_lit)) => {
                 //TODO - handle arrays
                 todo!();
@@ -759,6 +760,7 @@ impl<'a> IRGenerator<'a> {
             HirExpression::Tuple(_) => todo!(),
             HirExpression::MemberAccess(_) => todo!(),
             HirExpression::Error => todo!(),
+            HirExpression::MethodCall(_) => unreachable!("Method calls should be desugared before codegen"),
         }
     }
 
