@@ -11,21 +11,21 @@ use std::collections::HashSet;
 use super::super::environment::Environment;
 use super::super::errors::{RuntimeError, RuntimeErrorKind};
 use crate::object::Object;
-use crate::ssa::acir_gen::Acir;
-//use crate::ssa::function;
-use crate::ssa::node::Node;
+use crate::ssa::{acir_gen::Acir, function, node::Node};
 use crate::Evaluator;
 //use acvm::acir::OPCODE;
 use acvm::FieldElement;
+use acvm::acir::OPCODE;
 use arena;
 use noirc_frontend::hir::Context;
+use noirc_frontend::hir_def::expr::HirCallExpression;
 //use noirc_frontend::hir_def::expr::HirCallExpression;
 use noirc_frontend::hir_def::function::HirFunction;
 use noirc_frontend::hir_def::{
     expr::{HirBinaryOp, HirBinaryOpKind, HirExpression, HirForExpression, HirLiteral},
     stmt::{HirConstrainStatement, HirLetStatement, HirStatement},
 };
-use noirc_frontend::node_interner::{ExprId, IdentId, StmtId};
+use noirc_frontend::node_interner::{ExprId, IdentId, StmtId, FuncId};
 use noirc_frontend::FunctionKind;
 //use noirc_frontend::{FunctionKind, Type};
 use num_bigint::BigUint;
@@ -45,6 +45,7 @@ pub struct IRGenerator<'a> {
     pub id0: arena::Index, //dummy index.. should we put a dummy object somewhere?
     pub value_name: HashMap<arena::Index, u32>,
     pub sealed_blocks: HashSet<arena::Index>,
+    pub  functions_cfg: HashMap<FuncId, function::SSAFunction<'a>>,
 }
 
 impl<'a> IRGenerator<'a> {
@@ -60,6 +61,7 @@ impl<'a> IRGenerator<'a> {
             // dummy_instruction: ParsingContext::dummy_id(),
             value_name: HashMap::new(),
             sealed_blocks: HashSet::new(),
+            functions_cfg: HashMap::new(),
         }; //, objects: arena::Arena::new()
         block::create_first_block(&mut pc);
         pc
@@ -110,7 +112,7 @@ impl<'a> IRGenerator<'a> {
         println!("*** TOTAL: {} instructions", ins_nb);
     }
 
-    pub fn context(&self) -> &Context {
+    pub fn context(&self) -> &'a Context {
         self.context.unwrap()
     }
 
@@ -163,6 +165,25 @@ impl<'a> IRGenerator<'a> {
 
     pub fn dummy(&self) -> arena::Index {
         IRGenerator::dummy_id()
+    }
+
+    pub fn get_function(&self, func_id: FuncId) -> Option<&'a function::SSAFunction> { 
+        if self.functions_cfg.contains_key(&func_id) {
+            return Some(& self.functions_cfg[&func_id])
+        }
+        None
+    }
+
+    pub fn get_mut_function(&self, func_id: FuncId) -> Option<&'a mut function::SSAFunction> { 
+        if self.functions_cfg.contains_key(&func_id) {
+            return Some(&mut self.functions_cfg[&func_id])
+        }
+        None
+    }
+
+    pub fn add_function(&mut self, func: FuncId) {
+        //todo is it the correct context?
+        self.functions_cfg.insert(func, function::SSAFunction::new(func,self.context()));
     }
 
     pub fn get_object(&self, idx: arena::Index) -> Option<&node::NodeObj> {
@@ -802,14 +823,34 @@ impl<'a> IRGenerator<'a> {
                 match func_meta.kind {
                     FunctionKind::Normal =>  {
                         //Function defined inside the Noir program.
-                        todo!();
+                       // todo!();
+
+                 
+                        if self.get_function(call_expr.func_id).is_none() {
+                            //parse the function blocks if not already done
+                            self.add_function(call_expr.func_id);
+                            let function = self.context().def_interner.function(&call_expr.func_id);
+                            let block = function.block(&self.context().def_interner);
+                            let mut func = self.get_mut_function(call_expr.func_id).unwrap();
+                            func.parse_statements(block.statements(), env);
+                        }
+
+                    //generate a call instruction to the function cfg
+                        //The return values will be set in the assignment to variables
+                    let toto=function::SSAFunction::call(call_expr.func_id ,&call_expr.arguments, self, env);
+                    Ok(toto)
+                       // self.call_function(env, &call_expr, call_expr.func_id)
+                    
+                       //generate a call instruction to the function cfg
+                       //..
+                       //set the return values
+                       //..
                     },
                     FunctionKind::LowLevel => {
                     // We use it's func name to find out what intrinsic function to call
-                    todo!();
-                    //    let attribute = func_meta.attributes.expect("all low level functions must contain an attribute which contains the opcode which it links to");
-                    //    let opcode_name = attribute.foreign().expect("ice: function marked as foreign, but attribute kind does not match this");
-                    //    Ok(self.handle_stdlib(env, opcode_name, call_expr))
+                    let attribute = func_meta.attributes.expect("all low level functions must contain an attribute which contains the opcode which it links to");
+                    let opcode_name = attribute.foreign().expect("ice: function marked as foreign, but attribute kind does not match this");
+                    Ok(self.handle_stdlib(env, opcode_name, call_expr))
                     },
                     FunctionKind::Builtin => { todo!();
                     //     let attribute = func_meta.attributes.expect("all builtin functions must contain an attribute which contains the function name which it links to");
@@ -828,6 +869,47 @@ impl<'a> IRGenerator<'a> {
         }
     }
 
+    pub fn handle_stdlib(
+        &mut self,
+        env: &mut Environment,
+        opcode_name: &str,
+        call_expr: HirCallExpression,
+    ) -> arena::Index {
+        let func = match OPCODE::lookup(opcode_name) {
+            None => {
+                let message = format!(
+                    "cannot find a low level opcode with the name {} in the IR",
+                    opcode_name
+                );
+                todo!();
+                //       return Err(RuntimeErrorKind::UnstructuredError { message }.add_span(span));
+            }
+
+            Some(func) => func,
+        };
+        function::call_low_level(func, call_expr, self, env)
+        // let arr_expr = {
+        //     // For SHA256, we expect a single input which should be an array
+        //     assert_eq!(call_expr.arguments.len(), 1);
+        //     call_expr.arguments[0]
+        // };
+        // if let Ok(lhs) = self.expression_to_object(env,&arr_expr) {
+        //     dbg!(&lhs);
+
+        //     //We create an array that will contain the result and set the res_type to point to that array
+        //     let result = self.mem.create_new_array(32, node::ObjectType::Unsigned(8), String::new());
+        //     //Call instruction
+        //     let sha = self.new_instruction(
+        //         lhs,
+        //         lhs,
+        //         node::Operation::StdLib(func),
+        //         node::ObjectType::Array(result),
+        //     );
+        //     return sha;
+        // }
+        //panic!("error calling {}",func);
+    }
+    
     pub fn expression_list_to_objects(
         &mut self,
         env: &mut Environment,
@@ -896,7 +978,7 @@ impl<'a> IRGenerator<'a> {
         // let i1_id = self.add_variable(i1, Some(iter_id)); //TODO we do not need them
         //we generate the phi for the iterator because the iterator is manually created
         let phi = self.generate_empty_phi(join_idx, iter_id);
-        self.update_variable_id(iter_id, iter_id, phi); //j'imagine que y'a plus besoin
+        self.update_variable_id(iter_id, iter_id, phi); //probably not needed anymore
         let cond =
             self.new_instruction(phi, end_idx, node::Operation::Ne, node::ObjectType::Boolean);
         let to_fix = self.new_instruction(

@@ -785,7 +785,7 @@ pub enum Operation {
     Store(u32),
 
     Intrinsic(OPCODE), //Custom implementation of usefull primitives which are more performant with Aztec backend
-    //Call(noirc_frontend::node_interner::FuncId),
+    Call(noirc_frontend::node_interner::FuncId),
     Constrain(ConstrainOp), //write gates enforcing the ContrainOp to be true
 
     Nop, // no op

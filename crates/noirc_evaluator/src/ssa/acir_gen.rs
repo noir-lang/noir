@@ -2,6 +2,8 @@ use super::mem::MemArray;
 use super::node::{Instruction, Operation};
 use acvm::FieldElement;
 
+use acvm::acir::OPCODE;
+use acvm::acir::opcode::{InputSize, OutputSize};
 use arena::Index;
 
 use num_traits::{One, Zero};
@@ -13,7 +15,7 @@ use crate::ssa::{code_gen::IRGenerator, mem, node, node::Node};
 use crate::Evaluator;
 use crate::Gate;
 use crate::RuntimeErrorKind;
-use acvm::acir::circuit::gate::Directive;
+use acvm::acir::circuit::gate::{Directive, GadgetCall};
 use acvm::acir::native_types::{Arithmetic, Linear, Witness};
 use num_bigint::BigUint;
 use std::convert::TryInto;
@@ -228,7 +230,7 @@ impl Acir {
                     evaluator,
                 ))
             }
-            Operation::Intrinsic(_) => todo!("Intrinsic"),
+            Operation::Intrinsic(opcode) =>  InternalVar::from(&self.evaluate_opcode(l_c, ins, opcode, cfg, evaluator)),
             Operation::Nop => InternalVar::default(),
             Operation::Constrain(op) => match op {
                 node::ConstrainOp::Eq => {
@@ -556,7 +558,183 @@ impl Acir {
         }
         sum
     }
+
+    pub fn prepare_inputs(&self, pointer: Index, cfg: &IRGenerator, evaluator: &mut Evaluator,) -> Vec<GadgetInput> {
+        let l_obj = cfg.get_object(pointer).unwrap();
+        let mut inputs: Vec<GadgetInput> = Vec::new();
+        match l_obj.get_type() {
+            node::ObjectType::Array(a) => {
+                let array = &cfg.mem.arrays[a as usize];
+                dbg!(&array);
+                let num_bits = array.element_type.bits();
+                dbg!(&self.memory_map);
+                dbg!(& array.adr);
+                for i in 0..array.len {
+                    let address = array.adr + i;
+                    if self.memory_map.contains_key(&address) {
+                        if let Some(wit) =  self.memory_map[&address].witness {
+                            inputs.push(GadgetInput {
+                                witness: wit,
+                                num_bits,
+                            });
+                        } else {
+                            let (_, w) = evaluator.create_intermediate_variable(self.memory_map[&address].expression.clone());
+                            inputs.push(GadgetInput {
+                                witness: w,
+                                num_bits,
+                            });
+                            //we create a witness (and so we need to update the internal var)
+                            //QN; on map une internalvar ou bien un element du cache? (genre son idx)
+                            //si on utilise le cache, alors on doit etre mut mais ca evite des doublons!
+                            //ca peut venir de la cache (static store), ou bien des new witness
+                            //(dynamic store)
+                        }
+                    }
+                    else {
+                        inputs.push(GadgetInput {
+                            witness: array.witness[i as usize],
+                            num_bits,
+                        });
+                    }
+                }
+            }
+            _ => unreachable!("invalid input"),
+        }
+        inputs
+    }
+
+
+
+//si result est 1 witness, on le renvoie
+//si result est une array, on renvoie rien, et celui qui appel l'instruction
+//a en fait deja le pointeur sur la array via ins.res_type! smart guy
+pub fn evaluate_opcode(
+    &mut self,
+    lhs: InternalVar,
+    ins: &Instruction,
+    opcode: OPCODE,
+    cfg: &IRGenerator,
+    evaluator: &mut Evaluator,
+) -> Arithmetic {
+
+    let signature = opcode.definition();
+    match (signature.input_size, signature.output_size) {
+       (InputSize::Variable, OutputSize(x)) => {
+        let inputs = self.prepare_inputs(lhs.idx.unwrap(), cfg, evaluator);
+        let outputs = self.prepare_outputs(ins.idx, x as u32, cfg, evaluator); //TODO pas lhs.idx mais ins.res_type!!!
+    
+        let call_gate = GadgetCall {
+            name: opcode,
+            inputs,  //witness + bit size
+            outputs, //witness
+        };
+    
+        evaluator.gates.push(Gate::GadgetCall(call_gate));
+    
+       } 
+       _ => todo!(),
+    }
+//si output size est 1; on renvoie le witness, comme ca ca va bien
+//si ouput size>1; le resultat se trouve dans ins.res_type.. comment qu'on sait?
+    // let inputs, outputs = match opcode {
+    //     OPCODE::SHA256 | OPCODE::Blake2s => 
+    //         (self.prepare_inputs(lhs.idx.unwrap(), cfg, evaluator),
+    //         self.prepare_outputs(ins.idx, x as u32, cfg, evaluator)) //TODO pas lhs.idx mais ins.res_type!!!
+    //         ,
+    //     // OPCODE::MerkleMembership => MerkleMembershipGadget::call(evaluator, env, call_expr),
+    //     // OPCODE::SchnorrVerify => SchnorrVerifyGadget::call(evaluator, env, call_expr),
+
+    //     // OPCODE::Pedersen => PedersenGadget::call(evaluator, env, call_expr),
+    //     // OPCODE::EcdsaSecp256k1 => EcdsaSecp256k1Gadget::call(evaluator, env, call_expr),
+    //     // OPCODE::HashToField => HashToFieldGadget::call(evaluator, env, call_expr),
+    //     // OPCODE::FixedBaseScalarMul => FixedBaseScalarMulGadget::call(evaluator, env, call_expr),
+    //     // OPCODE::InsertRegularMerkle => InsertRegularMerkleGadget::call(evaluator, env, call_expr),
+    //     _ => todo!(),
+    // }
+
+    // let call_gate = GadgetCall {
+    //     name: opcode,
+    //     inputs,  //witness + bit size
+    //     outputs, //witness
+    // };
+
+    // evaluator.gates.push(Gate::GadgetCall(call_gate));
+    Arithmetic::default()
 }
+
+pub fn prepare_outputs(
+    &mut self,
+    pointer: Index,
+    output_nb: u32,
+    cfg: &IRGenerator,
+    evaluator: &mut Evaluator,
+) -> Vec<Witness> {
+    // Create fresh variables that will link to the output
+    let mut outputs = Vec::with_capacity(output_nb as usize);
+    for _ in 0..output_nb {
+        let witness = evaluator.add_witness_to_cs();
+        outputs.push(witness);
+    }
+
+    let l_obj = cfg.get_object(pointer).unwrap();
+    match l_obj.get_type() {
+        node::ObjectType::Pointer(a) => {
+            let array = &cfg.mem.arrays[a as usize];
+            dbg!("INSERTING: {}", a);
+            dbg!(&array);
+            self.memory_witness.insert(a, outputs.clone()); 	//TODO can we avoid the clone?
+         //   array.witness = outputs;  TODO muter cfg est pas top, on pourrait mapper les array avec leurs witness
+         //dans ACIR. D'ailleur les witness devraient tous etre fait pas ACIR (sauf les inputs et eventuellement le output de main)
+        }
+        _ => unreachable!("invalid output"),
+    }
+    outputs
+}
+
+
+}
+
+
+////////////////////////////////////////////////TODO a cleaner et a faire marcher
+//TODO: returns the sign bit of lhs
+pub fn sign(lhs: &InternalVar, s: u32, evaluator: &mut Evaluator) -> Witness {
+    //TODO:
+    //we need to bit size s of lhs..we can get this from the res_type of the instruction
+    if s % 2 == 0 {
+        range_constraint(lhs.witness.unwrap(), s + 2, evaluator).unwrap(); //todo check the s+2
+                                                                  //TODO range_constraint should returns the quad decomposition
+                                                                  //Then take the last quad and use the 'new' bit-decomposition gate
+    }
+    return lhs.witness.unwrap(); //..TODO
+}
+pub fn evaluate_sdiv(
+    _lhs: &InternalVar,
+    _rhs: &InternalVar,
+    _evaluator: &mut Evaluator,
+) -> (Arithmetic, Arithmetic) {
+   
+    todo!();     //TODO
+    // let last_bit_a_wit = sign(lhs, 32, evaluator);//TODO bit size
+    // let last_bit_b_wit = sign(rhs, 32, evaluator);//TODO bit size
+    // //sa=1-2la; sa*lhs
+    // let sa =& Arithmetic{
+    //     mul_terms: Vec::new(),
+    //     linear_combinations: vec![(FieldElement::from(-2_i128),last_bit_a_wit)],
+    //     q_c: FieldElement::one(),
+    // };
+    // let sb = &Arithmetic{
+    //     mul_terms: Vec::new(),
+    //     linear_combinations: vec![(FieldElement::from(-2_i128),last_bit_b_wit)],
+    //     q_c: FieldElement::one(),
+    // };
+    // let (uq_wit, ur_wit) = evaluate_udiv(mul(sa, &lhs.expression), mul(sb, &rhs.expression), evaluator);
+    // //result is
+    // let r_arith = &Arithmetic::from(Linear::from_witness(ur_wit));
+    // let q_arith = &Arithmetic::from(Linear::from_witness(uq_wit));
+    // (mul(sb, &mul(sa, q_arith)), mul(sa, r_arith))
+}
+/////////////////////////////////////////////////////////////////////////
+
 
 //Returns 1 if lhs <= rhs
 pub fn evaluate_cmp(
