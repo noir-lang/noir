@@ -94,7 +94,7 @@ impl<'a> Evaluator<'a> {
         let mut env = Environment::new(FuncContext::Main);
 
         // First evaluate the main function
-        self.evaluate_main_alt(&mut env)?;
+        self.evaluate_main(&mut env)?;
 
         let witness_index = self.current_witness_index();
 
