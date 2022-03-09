@@ -17,17 +17,18 @@ use noirc_frontend::hir_def::{
     stmt::{HirConstrainStatement, HirLetStatement, HirStatement},
 };
 use noirc_frontend::node_interner::{ExprId, IdentId, NodeInterner, StmtId};
+use noirc_frontend::util::vecmap;
 use noirc_frontend::Type;
 
 struct IRGenerator<'a> {
     context: SsaContext<'a>,
-    value_names: HashMap<NodeId, u32>,
 
     /// The current value of a variable. Used for flattening structs
     /// into multiple variables/values
-    variable_values: HashMap<NodeId, Value>,
+    variable_values: HashMap<IdentId, Value>,
 }
 
+#[derive(Debug, Clone)]
 pub enum Value {
     Single(NodeId),
     Struct(Vec<(/*field_name:*/ String, Value)>),
@@ -62,39 +63,36 @@ impl<'a> IRGenerator<'a> {
     pub fn new(context: &Context) -> IRGenerator {
         IRGenerator {
             context: SsaContext::new(context),
-            value_names: HashMap::new(),
             variable_values: HashMap::new(),
         }
     }
 
-    //same as update_variable but using the var index instead of var
-    //TODO
-    pub fn update_variable_id(&mut self, var_id: NodeId, new_var: NodeId, new_value: NodeId) {
-        let root_id = self.context.get_root_value(var_id);
-        let root = self.context.get_variable(root_id).unwrap();
-        let root_name = root.name.clone();
-        let cb = self.context.get_current_block_mut();
-        cb.update_variable(var_id, new_value);
-        let vname = self.value_names.entry(var_id).or_insert(0);
-        *vname += 1;
-        let variable_id = *vname;
+    fn find_variable(&self, variable_def: Option<IdentId>) -> Option<&Value> {
+        variable_def.and_then(|def| self.variable_values.get(&def))
+    }
 
-        if let Ok(nvar) = self.context.get_mut_variable(new_var) {
-            nvar.name = format!("{root_name}{variable_id}");
+    fn get_current_value(&mut self, value: &Value) -> Value {
+        match value {
+            Value::Single(id) => Value::Single(ssa_form::get_current_value(&mut self.context, *id)),
+            Value::Struct(fields) => Value::Struct(vecmap(fields, |(name, value)| {
+                let value = self.get_current_value(value);
+                (name.clone(), value)
+            })),
         }
     }
 
-    fn evaluate_identifier(&mut self, env: &mut Environment, ident_id: &IdentId) -> NodeId {
+    fn evaluate_identifier(&mut self, env: &mut Environment, ident_id: &IdentId) -> Value {
         let ident_def = self.ident_def(ident_id);
-        if let Some(var) = self.context.find_variable(&ident_def) {
-            let id = var.id;
-            return ssa_form::get_current_value(&mut self.context, id);
+        if let Some(value) = ident_def.and_then(|def| self.variable_values.get(&def)) {
+            let value = value.clone();
+            return self.get_current_value(&value);
         }
 
-        let ident_name = self.ident_name(ident_id);
+        let ident_name = dbg!(self.ident_name(ident_id));
         let obj = env.get(&ident_name);
         let obj_type = node::ObjectType::get_type_from_object(&obj);
 
+        // TODO: Creating a new variable won't work for struct/tuple types here
         //new variable - should be in a let statement? The let statement should set the type
         let obj = node::Variable {
             id: NodeId::dummy(),
@@ -110,7 +108,8 @@ impl<'a> IRGenerator<'a> {
         self.context
             .get_current_block_mut()
             .update_variable(v_id, v_id);
-        v_id
+
+        Value::Single(v_id)
     }
 
     fn def_interner(&self) -> &NodeInterner {
@@ -156,52 +155,20 @@ impl<'a> IRGenerator<'a> {
                 //////////////TODO temp this is needed because we don't parse main arguments
                 let ident_name = self.ident_name(&assign_stmt.identifier);
 
-                let lhs = if let Some(variable) = self.context.find_variable(&ident_def) {
-                    variable
+                let rhs = self.expression_to_object(env, &assign_stmt.expression)?;
+
+                if let Some(lhs) = self.find_variable(ident_def) {
+                    // We may be able to avoid cloning here if we change find_variable
+                    // and assign_pattern to use only fields of self instead of `self` itself.
+                    let lhs = lhs.clone();
+                    self.assign_pattern(&lhs, rhs);
                 } else {
                     //var is not defined,
                     //let's do it here for now...TODO
-                    let obj = env.get(&ident_name);
-                    let obj_type = node::ObjectType::get_type_from_object(&obj);
-                    let new_var2 = node::Variable {
-                        id: NodeId::dummy(),
-                        obj_type,
-                        name: ident_name.clone(),
-                        root: None,
-                        def: ident_def,
-                        witness: node::get_witness_from_object(&obj),
-                        parent_block: self.context.current_block,
-                    };
-                    let new_var2_id = self.context.add_variable(new_var2, None);
-                    self.context
-                        .get_current_block_mut()
-                        .update_variable(new_var2_id, new_var2_id); //DE MEME
-                    self.context.get_variable(new_var2_id).unwrap()
-                };
+                    let typ = self.def_interner().id_type(&assign_stmt.identifier);
+                    self.bind_fresh_pattern(&ident_name, &typ, rhs);
+                }
 
-                //////////////////////////////----******************************************
-                let new_var = node::Variable {
-                    id: lhs.id,
-                    obj_type: lhs.obj_type,
-                    name: String::new(),
-                    root: None,
-                    def: ident_def,
-                    witness: None,
-                    parent_block: self.context.current_block,
-                };
-                let ls_root = lhs.get_root();
-
-                //ssa: we create a new variable a1 linked to a
-                let new_var_id = self.context.add_variable(new_var, Some(ls_root));
-
-                let rhs_value = self.expression_to_object(env, &assign_stmt.expression)?;
-                let rhs = &self.context[rhs_value.into_id()];
-                let r_type = rhs.get_type();
-                let r_id = rhs.get_id();
-                let result =
-                    self.context
-                        .new_instruction(new_var_id, r_id, node::Operation::Ass, r_type);
-                self.update_variable_id(ls_root, new_var_id, result); //update the name and the value map
                 Ok(())
             }
             HirStatement::Error => unreachable!(
@@ -284,33 +251,31 @@ impl<'a> IRGenerator<'a> {
     /// Flatten the pattern and value, binding each identifier in the pattern
     /// to a single NodeId in the corresponding Value. This effectively flattens
     /// let bindings of struct variables, declaring a new variable for each field.
-    fn bind_pattern(&mut self, pattern: &HirPattern, value: Value) -> Value {
+    fn bind_pattern(&mut self, pattern: &HirPattern, value: Value) {
         match (pattern, value) {
             (HirPattern::Identifier(ident_id), Value::Single(node_id)) => {
                 let typ = self.def_interner().id_type(ident_id);
                 let variable_name = self.ident_name(ident_id);
                 let ident_def = self.ident_def(ident_id);
-                self.bind_variable(variable_name, ident_def, &typ, node_id)
+                let value = self.bind_variable(variable_name, ident_def, &typ, node_id);
+                self.variable_values.insert(*ident_id, value);
             }
             (HirPattern::Identifier(ident_id), value @ Value::Struct(_)) => {
                 let typ = self.def_interner().id_type(ident_id);
                 let name = self.ident_name(ident_id);
                 let value = self.bind_fresh_pattern(&name, &typ, value);
-                value
+                self.variable_values.insert(*ident_id, value);
             }
             (HirPattern::Mutable(pattern, _), value) => self.bind_pattern(pattern, value),
             (pattern @ (HirPattern::Tuple(..) | HirPattern::Struct(..)), Value::Struct(exprs)) => {
                 assert_eq!(pattern.field_count(), exprs.len());
-                let values = pattern
+                for ((pattern_name, pattern), (field_name, value)) in pattern
                     .iter_fields(&self.context.context.def_interner)
                     .zip(exprs)
-                    .map(|((pattern_name, pattern), (field_name, value))| {
-                        assert_eq!(pattern_name, field_name);
-                        (field_name, self.bind_pattern(pattern, value))
-                    })
-                    .collect();
-
-                Value::Struct(values)
+                {
+                    assert_eq!(pattern_name, field_name);
+                    self.bind_pattern(pattern, value);
+                }
             }
             _ => unreachable!(),
         }
@@ -332,7 +297,7 @@ impl<'a> IRGenerator<'a> {
                         assert_eq!(field_name.as_ref(), &value_name);
                         let name = format!("{}.{}", basename, field_name);
                         let value = self.bind_fresh_pattern(&name, field_type, field_value);
-                        (name, value)
+                        (field_name.to_string(), value)
                     })
                     .collect();
                 Value::Struct(values)
@@ -364,6 +329,51 @@ impl<'a> IRGenerator<'a> {
         let cb = self.context.get_current_block_mut();
         cb.update_variable(id, result); //update the value array. n.b. we should not update the name as it is the first assignment (let)
         Value::Single(id)
+    }
+
+    /// Similar to bind_pattern but recursively creates Assignment instructions for
+    /// each value rather than defining new variables.
+    fn assign_pattern(&mut self, lhs: &Value, rhs: Value) {
+        match (lhs, rhs) {
+            (Value::Single(lhs_id), Value::Single(rhs_id)) => {
+                let lhs = self.context.get_variable(*lhs_id).unwrap();
+
+                //////////////////////////////----******************************************
+                let new_var = node::Variable {
+                    id: *lhs_id,
+                    obj_type: lhs.obj_type,
+                    name: String::new(),
+                    root: None,
+                    def: lhs.def,
+                    witness: None,
+                    parent_block: self.context.current_block,
+                };
+                let ls_root = lhs.get_root();
+
+                //ssa: we create a new variable a1 linked to a
+                let new_var_id = self.context.add_variable(new_var, Some(ls_root));
+
+                let rhs = &self.context[rhs_id];
+                let r_type = rhs.get_type();
+                let result = self.context.new_instruction(
+                    new_var_id,
+                    rhs_id,
+                    node::Operation::Ass,
+                    r_type,
+                );
+
+                self.context.update_variable_id(ls_root, new_var_id, result); //update the name and the value map
+            }
+            (Value::Struct(lhs_fields), Value::Struct(rhs_fields)) => {
+                assert_eq!(lhs_fields.len(), rhs_fields.len());
+                for (lhs_field, rhs_field) in lhs_fields.into_iter().zip(rhs_fields) {
+                    assert_eq!(lhs_field.0, rhs_field.0);
+                    self.assign_pattern(&lhs_field.1, rhs_field.1);
+                }
+            }
+            (Value::Single(_), Value::Struct(_)) => unreachable!("variables with tuple/struct types should already be decomposed into multiple variables"),
+            (Value::Struct(_), Value::Single(_)) => unreachable!("Uncaught type error, tried to assign a single value to a tuple/struct type"),
+        }
     }
 
     fn ident_name(&self, ident: &IdentId) -> String {
@@ -401,7 +411,7 @@ impl<'a> IRGenerator<'a> {
                 //Ok(Object::Array(Array::from(self, env, _arr_lit)?)) 
             },
             HirExpression::Ident(x) =>  {
-                Ok(Value::Single(self.evaluate_identifier(env, &x)))
+                Ok(self.evaluate_identifier(env, &x))
                 //n.b this creates a new variable if it does not exist, may be we should delegate this to explicit statements (let) - TODO
             },
             HirExpression::Infix(infx) => {
@@ -529,7 +539,8 @@ impl<'a> IRGenerator<'a> {
                 access
             ),
             Value::Struct(fields) => {
-                let field = fields
+                dbg!(&access);
+                let field = dbg!(fields)
                     .into_iter()
                     .find(|(field_name, _)| *field_name == access.rhs.0.contents);
 
@@ -570,7 +581,8 @@ impl<'a> IRGenerator<'a> {
             self.context
                 .new_instruction(iter_id, start_idx, node::Operation::Ass, iter_type);
         //We map the iterator to start_idx so that when we seal the join block, we will get the corrdect value.
-        self.update_variable_id(iter_id, iter_ass, start_idx);
+        self.context
+            .update_variable_id(iter_id, iter_ass, start_idx);
 
         //join block
         let join_idx =
@@ -592,7 +604,7 @@ impl<'a> IRGenerator<'a> {
         let i1_id = self.context.add_variable(i1, Some(iter_id)); //TODO we do not need them
                                                                   //we generate the phi for the iterator because the iterator is manually created
         let phi = self.generate_empty_phi(join_idx, iter_id);
-        self.update_variable_id(iter_id, i1_id, phi); //j'imagine que y'a plus besoin
+        self.context.update_variable_id(iter_id, i1_id, phi); //j'imagine que y'a plus besoin
         let cond =
             self.context
                 .new_instruction(phi, end_idx, Operation::Ne, node::ObjectType::Boolean);
