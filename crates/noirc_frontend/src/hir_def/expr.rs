@@ -1,10 +1,13 @@
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use acvm::FieldElement;
 use noirc_errors::Span;
 
 use crate::node_interner::{ExprId, FuncId, IdentId, StmtId, TypeId};
-use crate::{BinaryOp, BinaryOpKind, Ident, StructType, Type, UnaryOp};
+use crate::{BinaryOp, BinaryOpKind, Ident, UnaryOp};
+
+use super::types::{StructType, Type};
 
 #[derive(Debug, Clone)]
 pub enum HirExpression {
@@ -17,6 +20,7 @@ pub enum HirExpression {
     Constructor(HirConstructorExpression),
     MemberAccess(HirMemberAccess),
     Call(HirCallExpression),
+    MethodCall(HirMethodCallExpression),
     Cast(HirCastExpression),
     For(HirForExpression),
     If(HirIfExpression),
@@ -181,10 +185,33 @@ pub struct HirCallExpression {
     pub arguments: Vec<ExprId>,
 }
 
+/// These nodes are temporary, they're
+/// lowered into HirCallExpression nodes
+/// after type checking resolves the object
+/// type and the method it calls.
+#[derive(Debug, Clone)]
+pub struct HirMethodCallExpression {
+    pub method: Ident,
+    pub object: ExprId,
+    pub arguments: Vec<ExprId>,
+}
+
+impl HirMethodCallExpression {
+    pub fn into_function_call(mut self, method_id: FuncId) -> HirExpression {
+        let mut arguments = vec![self.object];
+        arguments.append(&mut self.arguments);
+
+        HirExpression::Call(HirCallExpression {
+            func_id: method_id,
+            arguments,
+        })
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct HirConstructorExpression {
     pub type_id: TypeId,
-    pub r#type: Rc<StructType>,
+    pub r#type: Rc<RefCell<StructType>>,
 
     // NOTE: It is tempting to make this a BTreeSet to force ordering of field
     //       names (and thus remove the need to normalize them during type checking)

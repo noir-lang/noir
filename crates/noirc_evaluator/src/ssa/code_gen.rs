@@ -35,7 +35,7 @@ pub enum Value {
 }
 
 impl Value {
-    fn into_id(&self) -> NodeId {
+    fn unwrap_id(&self) -> NodeId {
         match self {
             Value::Single(id) => *id,
             Value::Struct(_) => panic!("Tried to unwrap a struct into a single value"),
@@ -51,7 +51,7 @@ pub fn evaluate_main<'a>(
     main_func_body: HirFunction, //main function
 ) -> Result<SsaContext<'a>, RuntimeError> {
     let mut this = IRGenerator::new(context);
-    let block = main_func_body.block(&this.def_interner());
+    let block = main_func_body.block(this.def_interner());
     for stmt_id in block.statements() {
         this.evaluate_statement(env, stmt_id)?;
     }
@@ -218,8 +218,8 @@ impl<'a> IRGenerator<'a> {
                 // we should replace one with the other 'everywhere'
                 // we should merge their property; min(max), min(bitsize),etc..
                 Ok(self.context.new_instruction(
-                    lhs.into_id(),
-                    rhs.into_id(),
+                    lhs.unwrap_id(),
+                    rhs.unwrap_id(),
                     node::Operation::EqGate,
                     node::ObjectType::NotAnObject,
                 ))
@@ -294,10 +294,10 @@ impl<'a> IRGenerator<'a> {
                     .iter_fields()
                     .zip(field_values)
                     .map(|((field_name, field_type), (value_name, field_value))| {
-                        assert_eq!(field_name.as_ref(), &value_name);
+                        assert_eq!(field_name, value_name);
                         let name = format!("{}.{}", basename, field_name);
-                        let value = self.bind_fresh_pattern(&name, field_type, field_value);
-                        (field_name.to_string(), value)
+                        let value = self.bind_fresh_pattern(&name, &field_type, field_value);
+                        (field_name, value)
                     })
                     .collect();
                 Value::Struct(values)
@@ -366,7 +366,7 @@ impl<'a> IRGenerator<'a> {
             }
             (Value::Struct(lhs_fields), Value::Struct(rhs_fields)) => {
                 assert_eq!(lhs_fields.len(), rhs_fields.len());
-                for (lhs_field, rhs_field) in lhs_fields.into_iter().zip(rhs_fields) {
+                for (lhs_field, rhs_field) in lhs_fields.iter().zip(rhs_fields) {
                     assert_eq!(lhs_field.0, rhs_field.0);
                     self.assign_pattern(&lhs_field.1, rhs_field.1);
                 }
@@ -403,8 +403,7 @@ impl<'a> IRGenerator<'a> {
         let expr = self.def_interner().expression(expr_id);
         let span = self.def_interner().expr_span(expr_id);
         match expr {
-            HirExpression::Literal(HirLiteral::Integer(x)) =>
-            Ok(Value::Single(self.context.new_constant(x))),
+            HirExpression::Literal(HirLiteral::Integer(x)) => Ok(Value::Single(self.context.new_constant(x))),
             HirExpression::Literal(HirLiteral::Array(_arr_lit)) => {
                 //TODO - handle arrays
                 todo!();
@@ -418,8 +417,8 @@ impl<'a> IRGenerator<'a> {
                 // Note: using .into_id() here disallows structs/tuples in infix expressions.
                 // The type checker currently disallows this as well but we may want to allow
                 // for e.g. struct == struct in the future
-                let lhs = self.expression_to_object(env, &infx.lhs)?.into_id();
-                let rhs = self.expression_to_object(env, &infx.rhs)?.into_id();
+                let lhs = self.expression_to_object(env, &infx.lhs)?.unwrap_id();
+                let rhs = self.expression_to_object(env, &infx.rhs)?.unwrap_id();
                 self.evaluate_infix_expression(lhs, rhs, infx.operator)
             },
             HirExpression::Cast(cast_expr) => {
@@ -427,7 +426,7 @@ impl<'a> IRGenerator<'a> {
                 let rtype = cast_expr.r#type.into();
 
                 // Note: using .into_id here means structs/tuples are disallowed as the lhs of a cast expression
-                Ok(Value::Single(self.context.new_cast_expression(lhs.into_id(), rtype)))
+                Ok(Value::Single(self.context.new_cast_expression(lhs.unwrap_id(), rtype)))
 
                 //We should generate a cast instruction and handle properly type conversion:
                 // unsigned integer to field ; ok, just checks if bit size over FieldElement::max_num_bits()
@@ -447,7 +446,7 @@ impl<'a> IRGenerator<'a> {
                 let _arr = env.get_array(&arr_name).map_err(|kind|kind.add_span(ident_span))?;
                 //
                 // Evaluate the index expression
-                let index_as_obj = self.expression_to_object(env, &indexed_expr.index)?.into_id();
+                let index_as_obj = self.expression_to_object(env, &indexed_expr.index)?.unwrap_id();
                 let index_as_u128 = if let Some(index_as_constant) = self.context.get_as_constant(index_as_obj) {
                     index_as_constant.to_u128()
                 }
@@ -489,6 +488,7 @@ impl<'a> IRGenerator<'a> {
             HirExpression::Literal(_) => todo!(),
             HirExpression::Block(_) => todo!("currently block expressions not in for/if branches are not being evaluated. In the future, we should be able to unify the eval_block and all places which require block_expr here"),
             HirExpression::Error => todo!(),
+            HirExpression::MethodCall(_) => unreachable!("Method calls should be desugared before codegen"),
         }
     }
 
@@ -560,12 +560,12 @@ impl<'a> IRGenerator<'a> {
             .expression_to_object(env, &for_expr.start_range)
             .map_err(|err| err.remove_span())
             .unwrap()
-            .into_id();
+            .unwrap_id();
         let end_idx = self
             .expression_to_object(env, &for_expr.end_range)
             .map_err(|err| err.remove_span())
             .unwrap()
-            .into_id();
+            .unwrap_id();
         //We support only const range for now
         let start = self.context.get_as_constant(start_idx).unwrap();
         //TODO how should we handle scope (cf. start/end_for_loop)?

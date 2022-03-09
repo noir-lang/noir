@@ -2,13 +2,11 @@ use crate::{
     hir_def::{
         expr::{self, HirBinaryOp, HirExpression, HirLiteral},
         function::Param,
+        types::Type,
     },
+    node_interner::{ExprId, FuncId, NodeInterner},
     util::vecmap,
-    ArraySize, Type,
-};
-use crate::{
-    node_interner::{ExprId, NodeInterner},
-    FieldElementType,
+    ArraySize, FieldElementType,
 };
 
 use super::errors::TypeCheckError;
@@ -97,6 +95,16 @@ pub(crate) fn type_check_expression(
         }
         HirExpression::Index(index_expr) => {
             if let Some(ident_def) = interner.ident_def(&index_expr.collection_name) {
+                let index_type = type_check_expression(interner, &index_expr.index, errors);
+                if index_type != Type::CONSTANT && index_type != Type::Error {
+                    let span = interner.id_span(&index_expr.index);
+                    errors.push(TypeCheckError::TypeMismatch {
+                        expected_typ: "const Field".to_owned(),
+                        expr_typ: index_type.to_string(),
+                        expr_span: span,
+                    });
+                }
+
                 match interner.id_type(&ident_def) {
                     // XXX: We can check the array bounds here also, but it may be better to constant fold first
                     // and have ConstId instead of ExprId for constants
@@ -116,32 +124,31 @@ pub(crate) fn type_check_expression(
             }
         }
         HirExpression::Call(call_expr) => {
-            let func_meta = interner.function_meta(&call_expr.func_id);
+            let args = vecmap(&call_expr.arguments, |arg| {
+                type_check_expression(interner, arg, errors)
+            });
+            type_check_function_call(interner, expr_id, &call_expr.func_id, args, errors)
+        }
+        HirExpression::MethodCall(method_call) => {
+            let object_type = type_check_expression(interner, &method_call.object, errors);
+            let method_name = method_call.method.0.contents.as_str();
+            match lookup_method(interner, object_type.clone(), method_name, expr_id, errors) {
+                Some(method_id) => {
+                    let mut args = vec![object_type];
+                    let mut arg_types = vecmap(&method_call.arguments, |arg| {
+                        type_check_expression(interner, arg, errors)
+                    });
+                    args.append(&mut arg_types);
+                    let ret = type_check_function_call(interner, expr_id, &method_id, args, errors);
 
-            // Check function call arity is correct
-            let param_len = func_meta.parameters.len();
-            let arg_len = call_expr.arguments.len();
-
-            if param_len != arg_len {
-                let span = interner.expr_span(expr_id);
-                errors.push(TypeCheckError::ArityMisMatch {
-                    expected: param_len as u16,
-                    found: arg_len as u16,
-                    span,
-                });
+                    // Desugar the method call into a normal, resolved function call
+                    // so that the backend doesn't need to worry about methods
+                    let function_call = method_call.into_function_call(method_id);
+                    interner.replace_expr(expr_id, function_call);
+                    ret
+                }
+                None => Type::Error,
             }
-
-            // Check for argument param equality
-            // In the case where we previously issued an error for a parameter count mismatch
-            // this will only check up until the shorter of the two Vecs.
-            // Type check arguments
-            for (param, arg) in func_meta.parameters.iter().zip(call_expr.arguments.iter()) {
-                let arg_type = type_check_expression(interner, arg, errors);
-                check_param_argument(interner, *expr_id, param, &arg_type, errors);
-            }
-
-            // The type of the call expression is the return type of the function being called
-            func_meta.return_type
         }
         HirExpression::Cast(cast_expr) => {
             // Evaluate the LHS
@@ -246,6 +253,84 @@ pub(crate) fn type_check_expression(
     typ
 }
 
+fn lookup_method(
+    interner: &mut NodeInterner,
+    object_type: Type,
+    method_name: &str,
+    expr_id: &ExprId,
+    errors: &mut Vec<TypeCheckError>,
+) -> Option<FuncId> {
+    match object_type {
+        Type::Struct(_, ref typ) => {
+            let typ = typ.borrow();
+            match typ.methods.get(method_name) {
+                Some(method_id) => Some(*method_id),
+                None => {
+                    errors.push(TypeCheckError::Unstructured {
+                        span: interner.expr_span(expr_id),
+                        msg: format!(
+                            "No method named '{}' found for type '{}'",
+                            method_name, object_type
+                        ),
+                    });
+                    None
+                }
+            }
+        }
+        // If we fail to resolve the object to a struct type, we have no way of type
+        // checking its arguments as we can't even resolve the name of the function
+        Type::Error => None,
+        other => {
+            errors.push(TypeCheckError::Unstructured {
+                span: interner.expr_span(expr_id),
+                msg: format!(
+                    "Type '{}' must be a struct type to call methods on it",
+                    other
+                ),
+            });
+            None
+        }
+    }
+}
+
+fn type_check_function_call(
+    interner: &mut NodeInterner,
+    expr_id: &ExprId,
+    func_id: &FuncId,
+    arguments: Vec<Type>,
+    errors: &mut Vec<TypeCheckError>,
+) -> Type {
+    if func_id == &FuncId::dummy_id() {
+        Type::Error
+    } else {
+        let func_meta = interner.function_meta(func_id);
+
+        // Check function call arity is correct
+        let param_len = func_meta.parameters.len();
+        let arg_len = arguments.len();
+
+        if param_len != arg_len {
+            let span = interner.expr_span(expr_id);
+            errors.push(TypeCheckError::ArityMisMatch {
+                expected: param_len as u16,
+                found: arg_len as u16,
+                span,
+            });
+        }
+
+        // Check for argument param equality
+        // In the case where we previously issued an error for a parameter count mismatch
+        // this will only check up until the shorter of the two Vecs.
+        // Type check arguments
+        for (param, arg_type) in func_meta.parameters.iter().zip(arguments) {
+            check_param_argument(interner, *expr_id, param, &arg_type, errors);
+        }
+
+        // The type of the call expression is the return type of the function being called
+        func_meta.return_type
+    }
+}
+
 // Given a binary operator and another type. This method will produce the output type
 // XXX: Review these rules. In particular, the interaction between integers, constants and private/public variables
 pub fn infix_operand_type_rules(
@@ -269,22 +354,22 @@ pub fn infix_operand_type_rules(
             }
             Ok(Integer(field_type, *sign_x, *bit_width_x))
         }
-        (Integer(_,_, _), FieldElement(Private)) | ( FieldElement(Private), Integer(_,_, _) ) => {
+        (Integer(..), FieldElement(Private)) | ( FieldElement(Private), Integer(..) ) => {
             Err("Cannot use an integer and a witness in a binary operation, try converting the witness into an integer".to_string())
         }
-        (Integer(_,_, _), FieldElement(Public)) | ( FieldElement(Public), Integer(_,_, _) ) => {
+        (Integer(..), FieldElement(Public)) | ( FieldElement(Public), Integer(..) ) => {
             Err("Cannot use an integer and a public variable in a binary operation, try converting the public into an integer".to_string())
         }
         (Integer(int_field_type,sign_x, bit_width_x), FieldElement(Constant))| (FieldElement(Constant),Integer(int_field_type,sign_x, bit_width_x)) => {
             let field_type = field_type_rules(int_field_type, &Constant);
             Ok(Integer(field_type,*sign_x, *bit_width_x))
         }
-        (Integer(_,_, _), typ) | (typ,Integer(_,_, _)) => {
+        (Integer(..), typ) | (typ,Integer(..)) => {
             Err(format!("Integer cannot be used with type {}", typ))
         }
         // These types are not supported in binary operations
-        (Array(_,_,_), _) | (_, Array(_,_,_)) => Err("Arrays cannot be used in an infix operation".to_string()),
-        (Struct(_), _) | (_, Struct(_)) => Err("Structs cannot be used in an infix operation".to_string()),
+        (Array(..), _) | (_, Array(..)) => Err("Arrays cannot be used in an infix operation".to_string()),
+        (Struct(..), _) | (_, Struct(..)) => Err("Structs cannot be used in an infix operation".to_string()),
         (Tuple(_), _) | (_, Tuple(_)) => Err("Tuples cannot be used in an infix operation".to_string()),
 
         // An error type on either side will always return an error
@@ -358,7 +443,7 @@ fn check_constructor(
     let typ = &constructor.r#type;
 
     // Sanity check, this should be caught during name resolution anyway
-    assert_eq!(constructor.fields.len(), typ.fields.len());
+    assert_eq!(constructor.fields.len(), typ.borrow().fields.len());
 
     // Sort argument types by name so we can zip with the struct type in the same ordering.
     // Note that we use a Vec to store the original arguments (rather than a BTreeMap) to
@@ -366,7 +451,7 @@ fn check_constructor(
     let mut args = constructor.fields.clone();
     args.sort_by_key(|arg| interner.ident(&arg.0));
 
-    for ((param_name, param_type), (arg_id, arg)) in typ.fields.iter().zip(args) {
+    for ((param_name, param_type), (arg_id, arg)) in typ.borrow().fields.iter().zip(args) {
         // Sanity check to ensure we're matching against the same field
         assert_eq!(param_name, &interner.ident(&arg_id));
 
@@ -382,7 +467,8 @@ fn check_constructor(
         }
     }
 
-    Type::Struct(typ.clone())
+    // TODO: Should a constructor expr always result in a Private type?
+    Type::Struct(FieldElementType::Private, typ.clone())
 }
 
 pub fn check_member_access(
@@ -392,8 +478,10 @@ pub fn check_member_access(
 ) -> Type {
     let lhs_type = type_check_expression(interner, &access.lhs, errors);
 
-    if let Type::Struct(s) = &lhs_type {
+    if let Type::Struct(_, s) = &lhs_type {
+        let s = s.borrow();
         if let Some(field) = s.fields.iter().find(|(name, _)| name == &access.rhs) {
+            // TODO: Should the struct's visibility be applied to the field?
             return field.1.clone();
         }
     } else if let Type::Tuple(elements) = &lhs_type {
@@ -404,10 +492,12 @@ pub fn check_member_access(
         }
     }
 
-    errors.push(TypeCheckError::Unstructured {
-        msg: format!("Type {} has no member named {}", lhs_type, access.rhs),
-        span: interner.expr_span(&access.lhs),
-    });
+    if lhs_type != Type::Error {
+        errors.push(TypeCheckError::Unstructured {
+            msg: format!("Type {} has no member named {}", lhs_type, access.rhs),
+            span: interner.expr_span(&access.lhs),
+        });
+    }
 
     Type::Error
 }
@@ -439,16 +529,16 @@ pub fn comparator_operand_type_rules(lhs_type: &Type, other: &Type) -> Result<Ty
             }
             Ok(Bool)
         }
-        (Integer(_,_, _), FieldElement(Private)) | ( FieldElement(Private), Integer(_,_, _) ) => {
+        (Integer(..), FieldElement(Private)) | ( FieldElement(Private), Integer(..) ) => {
             Err("Cannot use an integer and a witness in a binary operation, try converting the witness into an integer".to_string())
         }
-        (Integer(_,_, _), FieldElement(Public)) | ( FieldElement(Public), Integer(_,_, _) ) => {
+        (Integer(..), FieldElement(Public)) | ( FieldElement(Public), Integer(..) ) => {
             Err("Cannot use an integer and a public variable in a binary operation, try converting the public into an integer".to_string())
         }
         (Integer(_, _, _), FieldElement(Constant))| (FieldElement(Constant),Integer(_, _, _)) => {
             Ok(Bool)
         }
-        (Integer(_,_, _), typ) | (typ,Integer(_,_, _)) => {
+        (Integer(..), typ) | (typ,Integer(..)) => {
             Err(format!("Integer cannot be used with type {}", typ))
         }
         // If no side contains an integer. Then we check if either side contains a witness

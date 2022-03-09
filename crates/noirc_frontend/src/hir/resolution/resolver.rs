@@ -20,8 +20,10 @@ struct ResolverMeta {
 use crate::hir_def::expr::{
     HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
     HirConstructorExpression, HirForExpression, HirIfExpression, HirIndexExpression,
-    HirInfixExpression, HirLiteral, HirMemberAccess, HirPrefixExpression, HirUnaryOp,
+    HirInfixExpression, HirLiteral, HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
+    HirUnaryOp,
 };
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
@@ -36,7 +38,7 @@ use crate::{
     BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
     Statement,
 };
-use crate::{Path, Pattern, StructType, ERROR_IDENT};
+use crate::{NoirStruct, Path, Pattern, StructType, Type, UnresolvedType, ERROR_IDENT};
 use noirc_errors::{Span, Spanned};
 
 use crate::hir::scope::{
@@ -58,6 +60,7 @@ pub struct Resolver<'a> {
     path_resolver: &'a dyn PathResolver,
     def_maps: &'a HashMap<CrateId, CrateDefMap>,
     interner: &'a mut NodeInterner,
+    self_type: Option<TypeId>,
     errors: Vec<ResolverError>,
 }
 
@@ -72,8 +75,13 @@ impl<'a> Resolver<'a> {
             def_maps,
             scopes: ScopeForest::new(),
             interner,
+            self_type: None,
             errors: Vec::new(),
         }
+    }
+
+    pub fn set_self_type(&mut self, self_type: Option<TypeId>) {
+        self.self_type = self_type;
     }
 
     fn push_err(&mut self, err: ResolverError) {
@@ -96,10 +104,6 @@ impl<'a> Resolver<'a> {
         self.check_for_unused_variables_in_scope_tree(func_scope_tree);
 
         (hir_func, func_meta, self.errors)
-    }
-
-    fn resolve_expression(&mut self, expr: Expression) -> ExprId {
-        self.intern_expr(expr)
     }
 
     fn check_for_unused_variables_in_scope_tree(&mut self, scope_decls: ScopeTree) {
@@ -211,22 +215,57 @@ impl<'a> Resolver<'a> {
         (hir_func, func_meta)
     }
 
+    fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
+        match typ {
+            UnresolvedType::FieldElement(vis) => Type::FieldElement(vis),
+            UnresolvedType::Array(vis, size, elem) => {
+                Type::Array(vis, size, Box::new(self.resolve_type(*elem)))
+            }
+            UnresolvedType::Integer(vis, sign, bits) => Type::Integer(vis, sign, bits),
+            UnresolvedType::Bool => Type::Bool,
+            UnresolvedType::Unit => Type::Unit,
+            UnresolvedType::Unspecified => Type::Unspecified,
+            UnresolvedType::Error => Type::Error,
+            UnresolvedType::Struct(vis, path) => match self.lookup_struct(path) {
+                Some(definition) => Type::Struct(vis, definition),
+                None => Type::Error,
+            },
+            UnresolvedType::Tuple(fields) => {
+                Type::Tuple(vecmap(fields, |field| self.resolve_type(field)))
+            }
+        }
+    }
+
+    pub fn resolve_struct_fields(
+        mut self,
+        unresolved: NoirStruct,
+    ) -> (Vec<(Ident, Type)>, Vec<ResolverError>) {
+        let fields = vecmap(unresolved.fields, |(ident, typ)| {
+            (ident, self.resolve_type(typ))
+        });
+
+        (fields, self.errors)
+    }
+
     /// Extract metadata from a NoirFunction
     /// to be used in analysis and intern the function parameters
     fn extract_meta(&mut self, func: &NoirFunction) -> FuncMeta {
         let name = func.name().to_owned();
+        let name_id = self.interner.push_ident(func.name_ident().clone());
         let attributes = func.attribute().cloned();
 
         let mut parameters = Vec::new();
         for (pattern, typ) in func.parameters().iter().cloned() {
             let pattern = self.resolve_pattern(pattern);
+            let typ = self.resolve_type(typ);
             parameters.push(Param(pattern, typ));
         }
 
-        let return_type = func.return_type();
+        let return_type = self.resolve_type(func.return_type());
 
         FuncMeta {
             name,
+            name_id,
             kind: func.kind,
             attributes,
             parameters: parameters.into(),
@@ -240,10 +279,9 @@ impl<'a> Resolver<'a> {
             Statement::Let(let_stmt) => {
                 let let_stmt = HirLetStatement {
                     pattern: self.resolve_pattern(let_stmt.pattern),
-                    r#type: let_stmt.r#type,
-                    expression: self.intern_expr(let_stmt.expression),
+                    r#type: self.resolve_type(let_stmt.r#type),
+                    expression: self.resolve_expression(let_stmt.expression),
                 };
-
                 self.interner.push_stmt(HirStatement::Let(let_stmt))
             }
             Statement::Constrain(constrain_stmt) => {
@@ -276,7 +314,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    pub fn intern_expr(&mut self, expr: Expression) -> ExprId {
+    pub fn resolve_expression(&mut self, expr: Expression) -> ExprId {
         let hir_expr = match expr.kind {
             ExpressionKind::Ident(string) => {
                 let span = expr.span;
@@ -299,8 +337,9 @@ impl<'a> Resolver<'a> {
                 HirExpression::Prefix(HirPrefixExpression { operator, rhs })
             }
             ExpressionKind::Infix(infix) => {
-                let lhs = self.intern_expr(infix.lhs);
-                let rhs = self.intern_expr(infix.rhs);
+                let lhs = self.resolve_expression(infix.lhs);
+                let rhs = self.resolve_expression(infix.rhs);
+
                 HirExpression::Infix(HirInfixExpression {
                     lhs,
                     operator: infix.operator.into(),
@@ -310,14 +349,22 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Call(call_expr) => {
                 // Get the span and name of path for error reporting
                 let func_id = self.lookup_function(call_expr.func_name);
-
                 let arguments = vecmap(call_expr.arguments, |arg| self.resolve_expression(arg));
-
                 HirExpression::Call(HirCallExpression { func_id, arguments })
+            }
+            ExpressionKind::MethodCall(call_expr) => {
+                let method = call_expr.method_name;
+                let object = self.resolve_expression(call_expr.object);
+                let arguments = vecmap(call_expr.arguments, |arg| self.resolve_expression(arg));
+                HirExpression::MethodCall(HirMethodCallExpression {
+                    arguments,
+                    method,
+                    object,
+                })
             }
             ExpressionKind::Cast(cast_expr) => HirExpression::Cast(HirCastExpression {
                 lhs: self.resolve_expression(cast_expr.lhs),
-                r#type: cast_expr.r#type,
+                r#type: self.resolve_type(cast_expr.r#type),
             }),
             ExpressionKind::For(for_expr) => {
                 let start_range = self.resolve_expression(for_expr.start_range);
@@ -362,17 +409,23 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Block(block_expr) => self.resolve_block(block_expr),
             ExpressionKind::Constructor(constructor) => {
                 let span = constructor.type_name.span();
-                let type_id = self.lookup_type(constructor.type_name);
-                HirExpression::Constructor(HirConstructorExpression {
-                    type_id,
-                    fields: self.resolve_constructor_fields(
+
+                if let Some(typ) = self.lookup_struct(constructor.type_name) {
+                    let type_id = typ.borrow().id;
+
+                    HirExpression::Constructor(HirConstructorExpression {
                         type_id,
-                        constructor.fields,
-                        span,
-                        Resolver::resolve_expression,
-                    ),
-                    r#type: self.get_struct(type_id),
-                })
+                        fields: self.resolve_constructor_fields(
+                            type_id,
+                            constructor.fields,
+                            span,
+                            Resolver::resolve_expression,
+                        ),
+                        r#type: typ,
+                    })
+                } else {
+                    HirExpression::Error
+                }
             }
             ExpressionKind::MemberAccess(access) => {
                 // Validating whether the lhs actually has the rhs as a field
@@ -466,7 +519,7 @@ impl<'a> Resolver<'a> {
                 // field not required by struct
                 self.push_err(ResolverError::NoSuchField {
                     field: field.clone(),
-                    struct_definition: self.get_struct(type_id).name.clone(),
+                    struct_definition: self.get_struct(type_id).borrow().name.clone(),
                 });
             }
 
@@ -481,19 +534,20 @@ impl<'a> Resolver<'a> {
                     .into_iter()
                     .map(|field| field.to_string())
                     .collect(),
-                struct_definition: self.get_struct(type_id).name.clone(),
+                struct_definition: self.get_struct(type_id).borrow().name.clone(),
             });
         }
 
         ret
     }
 
-    fn get_struct(&self, type_id: TypeId) -> Rc<StructType> {
+    pub fn get_struct(&self, type_id: TypeId) -> Rc<RefCell<StructType>> {
         self.interner.get_struct(type_id)
     }
 
     fn get_field_names_of_type(&self, type_id: TypeId) -> HashSet<Ident> {
         let typ = self.get_struct(type_id);
+        let typ = typ.borrow();
         typ.fields.iter().map(|(name, _)| name.clone()).collect()
     }
 
@@ -502,18 +556,14 @@ impl<'a> Resolver<'a> {
         match self.resolve_path(path) {
             // Could not resolve this symbol, the error is already logged, return a dummy function id
             None => T::dummy_id(),
-            Some(def_id) => {
-                // A symbol was found. Check if it is a function
-                T::try_from(def_id).unwrap_or_else(|| {
-                    let err = ResolverError::Expected {
-                        expected: T::description(),
-                        got: def_id.as_str().to_owned(),
-                        span,
-                    };
-                    self.push_err(err);
-                    T::dummy_id()
-                })
-            }
+            Some(def_id) => T::try_from(def_id).unwrap_or_else(|| {
+                self.push_err(ResolverError::Expected {
+                    expected: T::description(),
+                    got: def_id.as_str().to_owned(),
+                    span,
+                });
+                T::dummy_id()
+            }),
         }
     }
 
@@ -522,7 +572,23 @@ impl<'a> Resolver<'a> {
     }
 
     fn lookup_type(&mut self, path: Path) -> TypeId {
+        let ident = path.as_ident();
+        if ident.map_or(false, |i| i == "Self") {
+            if let Some(id) = &self.self_type {
+                return *id;
+            }
+        }
+
         self.lookup(path)
+    }
+
+    pub fn lookup_struct(&mut self, path: Path) -> Option<Rc<RefCell<StructType>>> {
+        let id = self.lookup_type(path);
+        (id != TypeId::dummy_id()).then(|| self.get_struct(id))
+    }
+
+    pub fn lookup_type_for_impl(mut self, path: Path) -> (TypeId, Vec<ResolverError>) {
+        (self.lookup_type(path), self.errors)
     }
 
     fn resolve_path(&mut self, path: Path) -> Option<ModuleDefId> {
@@ -531,12 +597,11 @@ impl<'a> Resolver<'a> {
         self.path_resolver
             .resolve(self.def_maps, path)
             .unwrap_or_else(|segment| {
-                let err = ResolverError::PathUnresolved {
+                self.push_err(ResolverError::PathUnresolved {
                     name,
                     span,
                     segment,
-                };
-                self.push_err(err);
+                });
                 None
             })
     }

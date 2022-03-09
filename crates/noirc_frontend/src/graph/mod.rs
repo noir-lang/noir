@@ -15,6 +15,12 @@ pub const LOCAL_CRATE: CrateId = CrateId(0);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct CrateId(usize);
 
+impl CrateId {
+    pub fn dummy_id() -> CrateId {
+        CrateId(std::usize::MAX)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CrateName(SmolStr);
 
