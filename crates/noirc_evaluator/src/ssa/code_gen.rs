@@ -22,6 +22,7 @@ use noirc_frontend::Type;
 
 struct IRGenerator<'a> {
     context: SsaContext<'a>,
+    value_names: HashMap<NodeId, u32>,
 
     /// The current value of a variable. Used for flattening structs
     /// into multiple variables/values
@@ -63,6 +64,7 @@ impl<'a> IRGenerator<'a> {
     pub fn new(context: &Context) -> IRGenerator {
         IRGenerator {
             context: SsaContext::new(context),
+            value_names: HashMap::new(),
             variable_values: HashMap::new(),
         }
     }
@@ -331,6 +333,22 @@ impl<'a> IRGenerator<'a> {
         Value::Single(id)
     }
 
+    //same as update_variable but using the var index instead of var
+    pub fn update_variable_id(&mut self, var_id: NodeId, new_var: NodeId, new_value: NodeId) {
+        let root_id = self.context.get_root_value(var_id);
+        let root = self.context.get_variable(root_id).unwrap();
+        let root_name = root.name.clone();
+        let cb = self.context.get_current_block_mut();
+        cb.update_variable(var_id, new_value);
+        let vname = self.value_names.entry(var_id).or_insert(0);
+        *vname += 1;
+        let variable_id = *vname;
+
+        if let Ok(nvar) = self.context.get_mut_variable(new_var) {
+            nvar.name = format!("{root_name}{variable_id}");
+        }
+    }
+
     /// Similar to bind_pattern but recursively creates Assignment instructions for
     /// each value rather than defining new variables.
     fn assign_pattern(&mut self, lhs: &Value, rhs: Value) {
@@ -362,7 +380,7 @@ impl<'a> IRGenerator<'a> {
                     r_type,
                 );
 
-                self.context.update_variable_id(ls_root, new_var_id, result); //update the name and the value map
+                self.update_variable_id(ls_root, new_var_id, result); //update the name and the value map
             }
             (Value::Struct(lhs_fields), Value::Struct(rhs_fields)) => {
                 assert_eq!(lhs_fields.len(), rhs_fields.len());
@@ -581,8 +599,7 @@ impl<'a> IRGenerator<'a> {
             self.context
                 .new_instruction(iter_id, start_idx, node::Operation::Ass, iter_type);
         //We map the iterator to start_idx so that when we seal the join block, we will get the corrdect value.
-        self.context
-            .update_variable_id(iter_id, iter_ass, start_idx);
+        self.update_variable_id(iter_id, iter_ass, start_idx);
 
         //join block
         let join_idx =
@@ -604,7 +621,7 @@ impl<'a> IRGenerator<'a> {
         let i1_id = self.context.add_variable(i1, Some(iter_id)); //TODO we do not need them
                                                                   //we generate the phi for the iterator because the iterator is manually created
         let phi = self.generate_empty_phi(join_idx, iter_id);
-        self.context.update_variable_id(iter_id, i1_id, phi); //j'imagine que y'a plus besoin
+        self.update_variable_id(iter_id, i1_id, phi); //j'imagine que y'a plus besoin
         let cond =
             self.context
                 .new_instruction(phi, end_idx, Operation::Ne, node::ObjectType::Boolean);

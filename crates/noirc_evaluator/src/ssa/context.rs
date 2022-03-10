@@ -1,7 +1,6 @@
 use super::block::{BasicBlock, BlockId};
 use super::node::{Instruction, NodeId, NodeObj, Operation};
 use super::{block, flatten, integer, node, optim};
-use std::collections::HashMap;
 use std::collections::HashSet;
 
 use super::super::errors::RuntimeError;
@@ -18,13 +17,10 @@ use num_bigint::BigUint;
 // everything else just reference objects from these two arena using their index.
 pub struct SsaContext<'a> {
     pub context: &'a Context,
-
     pub first_block: BlockId,
     pub current_block: BlockId,
     blocks: arena::Arena<block::BasicBlock>,
     pub nodes: arena::Arena<node::NodeObj>,
-    pub id0: arena::Index, //dummy index.. should we put a dummy object somewhere?
-    pub value_name: HashMap<NodeId, u32>,
     pub sealed_blocks: HashSet<BlockId>,
 }
 
@@ -32,13 +28,10 @@ impl<'a> SsaContext<'a> {
     pub fn new(context: &Context) -> SsaContext {
         let mut pc = SsaContext {
             context,
-            id0: SsaContext::dummy_id(),
             first_block: BlockId::dummy(),
             current_block: BlockId::dummy(),
             blocks: arena::Arena::new(),
             nodes: arena::Arena::new(),
-            // dummy_instruction: ParsingContext::dummy_id(),
-            value_name: HashMap::new(),
             sealed_blocks: HashSet::new(),
         };
         block::create_first_block(&mut pc);
@@ -301,22 +294,6 @@ impl<'a> SsaContext<'a> {
             todo!();
             //we should support integer of size <  integer::short_integer_max_bit_size(), because else we cannot do multiplication!
             //for bigger size, we will need to represent an integer using several field elements, it may be easier to implement them in Noir! (i.e as a Noir library)
-        }
-    }
-
-    //same as update_variable but using the var index instead of var
-    pub fn update_variable_id(&mut self, var_id: NodeId, new_var: NodeId, new_value: NodeId) {
-        let root_id = self.get_root_value(var_id);
-        let root = self.get_variable(root_id).unwrap();
-        let root_name = root.name.clone();
-        let cb = self.get_current_block_mut();
-        cb.update_variable(var_id, new_value);
-        let vname = self.value_name.entry(var_id).or_insert(0);
-        *vname += 1;
-        let variable_id = *vname;
-
-        if let Ok(nvar) = self.get_mut_variable(new_var) {
-            nvar.name = format!("{root_name}{variable_id}");
         }
     }
 
