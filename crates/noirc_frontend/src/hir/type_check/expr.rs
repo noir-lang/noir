@@ -457,7 +457,7 @@ fn check_constructor(
 
         let arg_type = type_check_expression(interner, &arg, errors);
 
-        if !arg_type.is_subtype_of(&param_type) {
+        if !arg_type.is_subtype_of(param_type) {
             let span = interner.expr_span(expr_id);
             errors.push(TypeCheckError::TypeMismatch {
                 expected_typ: param_type.to_string(),
