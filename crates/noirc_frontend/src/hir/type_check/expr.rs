@@ -457,7 +457,7 @@ fn check_constructor(
 
         let arg_type = type_check_expression(interner, &arg, errors);
 
-        if !param_type.is_super_type_of(&arg_type) {
+        if !arg_type.is_subtype_of(&param_type) {
             let span = interner.expr_span(expr_id);
             errors.push(TypeCheckError::TypeMismatch {
                 expected_typ: param_type.to_string(),
@@ -571,7 +571,7 @@ fn check_param_argument(
         unreachable!("arg type type cannot be a variable sized array. This is not supported.")
     }
 
-    if !param_type.is_super_type_of(arg_type) {
+    if !arg_type.is_subtype_of(param_type) {
         errors.push(TypeCheckError::TypeMismatch {
             expected_typ: param_type.to_string(),
             expr_typ: arg_type.to_string(),

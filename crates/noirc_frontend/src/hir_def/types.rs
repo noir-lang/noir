@@ -112,32 +112,31 @@ impl Type {
     // A feature of the language is that `Field` is like an
     // `Any` type which allows you to pass in any type which
     // is fundamentally a field element. E.g all integer types
-    pub fn is_super_type_of(&self, argument: &Type) -> bool {
+    pub fn is_subtype_of(&self, other: &Type) -> bool {
         // Avoid reporting duplicate errors
-        if self == &Type::Error || argument == &Type::Error {
+        if self == &Type::Error || other == &Type::Error {
             return true;
         }
 
-        // if `self` is a `Field` then it is a super type
-        // if the argument is a field element
-        if let Type::FieldElement(FieldElementType::Private) = self {
-            return argument.is_field_element();
+        // Any field element type is a subtype of `priv Field`
+        if let Type::FieldElement(FieldElementType::Private) = other {
+            return self.is_field_element();
         }
 
-        // For composite types, we need to check they are structurally the same
-        // and then check that their base types are super types
-        if let (Type::Array(_, param_size, param_type), Type::Array(_, arg_size, arg_type)) =
-            (self, argument)
+        if let (Type::Array(_, arg_size, arg_type), Type::Array(_, param_size, param_type)) =
+            (self, other)
         {
-            let is_super_type = param_type.is_super_type_of(arg_type);
-            let arity_check = param_size.is_a_super_type_of(arg_size);
-            return is_super_type && arity_check;
+            // We require array elements to be exactly equal, though an array with known
+            // length is a subtype of an array with an unknown length. Originally arrays were
+            // covariant (so []i32 <: []Field), but it was changed to be more like rusts and
+            // require explicit casts.
+            return arg_type == param_type && arg_size.is_subtype_of(param_size);
         }
 
         // XXX: Should we also allow functions that ask for u16
         // to accept u8? We would need to pad the bit decomposition
         // if so.
-        self == argument
+        self == other
     }
 
     pub fn is_field_element(&self) -> bool {
