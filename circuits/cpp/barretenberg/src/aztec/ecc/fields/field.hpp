@@ -182,7 +182,12 @@ template <class Params> struct alignas(32) field {
         uint256_t(Params::modulus_0 - 2ULL, Params::modulus_1, Params::modulus_2, Params::modulus_3);
     constexpr field invert() const noexcept;
     static void batch_invert(field* coeffs, const size_t n) noexcept;
-    constexpr field sqrt() const noexcept;
+    /**
+     * @brief Compute square root of the field element.
+     *
+     * @return <true, root> if the element is a quadratic remainder, <false, 0> if it's not
+     */
+    constexpr std::pair<bool, field> sqrt() const noexcept;
 
     BBERG_INLINE constexpr void self_neg() noexcept;
 

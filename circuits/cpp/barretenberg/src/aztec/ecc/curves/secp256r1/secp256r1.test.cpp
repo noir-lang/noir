@@ -379,6 +379,10 @@ TEST(secp256r1, group_exponentiation_zero_and_one)
     secp256r1::g1::affine_element result = secp256r1::g1::one * secp256r1::fr::zero();
 
     EXPECT_EQ(result.is_point_at_infinity(), true);
+    secp256r1::g1::element pif = secp256r1::g1::one * secp256r1::fr::zero();
+
+    EXPECT_EQ(result.is_point_at_infinity(), true);
+    EXPECT_NE(pif, secp256r1::g1::one);
 
     result = secp256r1::g1::one * secp256r1::fr::one();
 

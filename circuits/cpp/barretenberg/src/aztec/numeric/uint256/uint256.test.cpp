@@ -159,6 +159,10 @@ TEST(uint256, left_shift)
     uint256_t e = a << 123;
     e = e >> 123;
     EXPECT_EQ(e, uint256_t(0xaaaaaaaaaaaaaaaa, 0xbbbbbbbbbbbbbbbb, 0xc, 0));
+
+    uint256_t large_shift = uint256_t(1) << 64;
+    uint256_t f = a << large_shift;
+    EXPECT_EQ(f, uint256_t(0));
 }
 
 TEST(uint256, and)

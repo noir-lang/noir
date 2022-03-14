@@ -46,8 +46,8 @@ template <typename coordinate_field, typename subgroup_field, typename GroupPara
         size_t seed = 0;
         while (count < N) {
             ++seed;
-            affine_element candidate = affine_element::hash_to_curve(seed);
-            if (candidate.on_curve() && !candidate.is_point_at_infinity()) {
+            auto [on_curve, candidate] = affine_element::hash_to_curve(seed);
+            if (on_curve && !candidate.is_point_at_infinity()) {
                 generators[count] = candidate;
                 ++count;
             }

@@ -32,12 +32,18 @@ bool verify_signature(const std::string& message, const typename G1::affine_elem
     using serialize::read;
     uint256_t r_uint;
     uint256_t s_uint;
+    if (!public_key.on_curve()) {
+        return false;
+    }
     const auto* r_buf = &sig.r[0];
     const auto* s_buf = &sig.s[0];
     read(r_buf, r_uint);
     read(s_buf, s_uint);
     // We need to check that r and s are in Field according to specification
     if ((r_uint >= Fr::modulus) || (s_uint >= Fr::modulus)) {
+        return false;
+    }
+    if ((r_uint == 0) || (s_uint == 0)) {
         return false;
     }
     Fr r = Fr(r_uint);

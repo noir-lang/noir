@@ -521,6 +521,10 @@ template <class Fq, class Fr, class T> constexpr bool element<Fq, Fr, T>::on_cur
     if (is_point_at_infinity()) {
         return true;
     }
+    // We specify the point at inifinity not by (0 \lambda 0), so z should not be 0
+    if (z.is_zero()) {
+        return false;
+    }
     Fq zz = z.sqr();
     Fq zzzz = zz.sqr();
     Fq bz_6 = zzzz * zz * T::b;
@@ -535,8 +539,17 @@ template <class Fq, class Fr, class T> constexpr bool element<Fq, Fr, T>::on_cur
 template <class Fq, class Fr, class T>
 constexpr bool element<Fq, Fr, T>::operator==(const element& other) const noexcept
 {
-    bool both_infinity = is_point_at_infinity() && other.is_point_at_infinity();
-
+    // If one of points is not on curve, we have no business comparing them.
+    if ((!on_curve()) || (!other.on_curve())) {
+        return false;
+    }
+    bool am_infinity = is_point_at_infinity();
+    bool is_infinity = other.is_point_at_infinity();
+    bool both_infinity = am_infinity && is_infinity;
+    // If just one is infinity, then they are obviously not equal.
+    if ((!both_infinity) && (am_infinity || is_infinity)) {
+        return false;
+    }
     const Fq lhs_zz = z.sqr();
     const Fq lhs_zzz = lhs_zz * z;
     const Fq rhs_zz = other.z.sqr();
@@ -909,9 +922,11 @@ element<Fq, Fr, T> element<Fq, Fr, T>::random_coordinates_on_curve(numeric::rand
         if constexpr (T::has_a) {
             yy += (x * T::a);
         }
-        y = yy.sqrt();
-        t0 = y.sqr();
-        found_one = (yy == t0);
+        auto [found_root, y1] = yy.sqrt();
+        y = y1;
+        found_one = found_root;
+        // t0 = y.sqr();
+        // found_one = (yy == t0);
     }
     return { x, y, Fq::one() };
 }

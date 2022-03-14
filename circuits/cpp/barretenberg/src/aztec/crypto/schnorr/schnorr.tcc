@@ -58,7 +58,7 @@ signature_b construct_signature_b(const std::string& message, const key_pair<Fr,
     Fq::serialize_to_buffer(R.x, &sig.r[0]);
 
     Fq yy = R.x.sqr() * R.x + G1::element::curve_b;
-    Fq y_candidate = yy.sqrt();
+    auto [is_square, y_candidate] = yy.sqrt();
 
     // if the signer / verifier sqrt algorithm is consistent, this *should* work...
     bool flip_sign = R.y != y_candidate;
@@ -95,8 +95,10 @@ typename G1::affine_element ecrecover(const std::string& message, const signatur
     r[0] = r[0] & 127U;
     Fq r_x = Fq::serialize_from_buffer(&r[0]);
     Fq r_yy = r_x.sqr() * r_x + G1::element::curve_b;
-    Fq r_y = r_yy.sqrt();
-
+    auto [is_square, r_y] = r_yy.sqrt();
+    if (!is_square) {
+        throw_or_abort("r is not a valid point");
+    }
     if ((flip_sign)) {
         r_y.self_neg();
     }

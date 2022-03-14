@@ -302,7 +302,7 @@ TEST(fq, invert_one_is_one)
 TEST(fq, sqrt)
 {
     fq input = fq::one();
-    fq root = input.sqrt();
+    auto [is_sqr, root] = input.sqrt();
     fq result = root.sqr();
     EXPECT_EQ(result, input);
 }
@@ -311,7 +311,8 @@ TEST(fq, sqrt_random)
 {
     for (size_t i = 0; i < 1; ++i) {
         fq input = fq::random_element().sqr();
-        fq root_test = input.sqrt().sqr();
+        auto [is_sqr, root] = input.sqrt();
+        fq root_test = root.sqr();
         EXPECT_EQ(root_test, input);
     }
 }

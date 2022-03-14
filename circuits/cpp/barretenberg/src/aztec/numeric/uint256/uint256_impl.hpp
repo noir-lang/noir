@@ -174,11 +174,10 @@ constexpr uint256_t uint256_t::pow(const uint256_t& exponent) const
             accumulator *= to_mul;
         }
     }
-
-    if (*this == uint256_t(0)) {
-        accumulator = uint256_t(0);
-    } else if (exponent == uint256_t(0)) {
+    if (exponent == uint256_t(0)) {
         accumulator = uint256_t(1);
+    } else if (*this == uint256_t(0)) {
+        accumulator = uint256_t(0);
     }
     return accumulator;
 }
@@ -368,14 +367,13 @@ constexpr uint256_t uint256_t::operator<<(const uint256_t& other) const
 {
     uint64_t total_shift = other.data[0];
 
-    if (total_shift == 0) {
-        return *this;
-    }
-
     if (total_shift >= 256 || other.data[1] || other.data[2] || other.data[3]) {
         return 0;
     }
 
+    if (total_shift == 0) {
+        return *this;
+    }
     uint64_t num_shifted_limbs = total_shift >> 6ULL;
     uint64_t limb_shift = total_shift & 63ULL;
 

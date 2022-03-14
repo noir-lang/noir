@@ -24,7 +24,7 @@ template <typename Fq, typename Fr, typename Params> class alignas(64) affine_el
      */
     template <typename BaseField = Fq,
               typename CompileTimeEnabled = std::enable_if_t<(BaseField::modulus >> 255) == uint256_t(0), void>>
-    explicit constexpr affine_element(const uint256_t& compressed) noexcept;
+    static constexpr std::pair<bool, affine_element> deserialize(const uint256_t& compressed) noexcept;
 
     constexpr affine_element& operator=(const affine_element& other) noexcept;
 
@@ -42,16 +42,17 @@ template <typename Fq, typename Fr, typename Params> class alignas(64) affine_el
     constexpr bool on_curve() const noexcept;
 
     /**
-     * @brief Hash a seed value to curve
+     * @brief Hash a seed value to curve.
      *
      * @tparam BaseField Coordinate field
      * @tparam CompileTimeEnabled Checks that the modulus of BaseField is < 2**255, otherwise disables the function
      *
-     * @return A point on the curve corresponding to the given seed
+     * @return <true,A point on the curve corresponding to the given seed> if the seed lands on a point <false,
+     * affine_element(0,0)> if not.
      */
     template <typename BaseField = Fq,
               typename CompileTimeEnabled = std::enable_if_t<(BaseField::modulus >> 255) == uint256_t(0), void>>
-    static affine_element hash_to_curve(const uint64_t seed) noexcept;
+    static std::pair<bool, affine_element> hash_to_curve(const uint64_t seed) noexcept;
 
     constexpr bool operator==(const affine_element& other) const noexcept;
 

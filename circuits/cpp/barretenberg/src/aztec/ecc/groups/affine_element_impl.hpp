@@ -24,21 +24,26 @@ constexpr affine_element<Fq, Fr, T>::affine_element(affine_element&& other) noex
 template <class Fq, class Fr, class T>
 
 template <typename BaseField, typename CompileTimeEnabled>
-constexpr affine_element<Fq, Fr, T>::affine_element(const uint256_t& compressed) noexcept
+constexpr std::pair<bool, affine_element<Fq, Fr, T>> affine_element<Fq, Fr, T>::deserialize(
+    const uint256_t& compressed) noexcept
 {
     uint256_t x_coordinate = compressed;
     x_coordinate.data[3] = x_coordinate.data[3] & (~0x8000000000000000ULL);
     bool y_bit = compressed.get_bit(255);
 
-    x = Fq(x_coordinate);
-    y = (x.sqr() * x + T::b);
+    Fq x = Fq(x_coordinate);
+    Fq y2 = (x.sqr() * x + T::b);
     if constexpr (T::has_a) {
-        y += (x * T::a);
+        y2 += (x * T::a);
     }
-    y = y.sqrt();
+    auto [is_quadratic_remainder, y] = y2.sqrt();
+    if (!is_quadratic_remainder) {
+        return std::make_pair(false, affine_element(Fq::zero(), Fq::zero()));
+    }
     if (uint256_t(y).get_bit(0) != y_bit) {
         y = -y;
     }
+    return std::make_pair(true, affine_element(x, y));
 }
 
 template <class Fq, class Fr, class T>
@@ -124,14 +129,14 @@ constexpr bool affine_element<Fq, Fr, T>::operator==(const affine_element& other
 
 template <class Fq, class Fr, class T>
 template <typename BaseField, typename CompileTimeEnabled>
-affine_element<Fq, Fr, T> affine_element<Fq, Fr, T>::hash_to_curve(const uint64_t seed) noexcept
+std::pair<bool, affine_element<Fq, Fr, T>> affine_element<Fq, Fr, T>::hash_to_curve(const uint64_t seed) noexcept
 {
     static_assert(T::can_hash_to_curve == true);
 
     Fq input(seed, 0, 0, 0);
     keccak256 c = hash_field_element((uint64_t*)&input.data[0]);
     uint256_t compressed{ c.word64s[0], c.word64s[1], c.word64s[2], c.word64s[3] };
-    return affine_element<Fq, Fr, T>(compressed);
+    return deserialize(compressed);
 }
 } // namespace group_elements
 } // namespace barretenberg

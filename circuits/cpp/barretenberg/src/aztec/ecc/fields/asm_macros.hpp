@@ -162,6 +162,7 @@
         "mulxq %[modulus_1], %%rdi, %%rcx         \n\t" /* (t[2], t[3]) <- (modulus[1] * k)                         */  \
         "adcq %%rcx, %%r10                        \n\t" /* r[2] += t[3] + flag_c                                    */  \
         "adcq $0, %%r11                           \n\t" /* r[4] += flag_c                                           */  \
+/* Partial fix        "adcq $0, %%r12                           \n\t"*/ /* r[4] += flag_c                                           */  \
         "addq %%rdi, %%r9                         \n\t" /* r[1] += t[2]                                             */  \
         "mulxq %[modulus_2], %%rdi, %%rcx         \n\t" /* (t[0], t[1]) <- (modulus[3] * k)                         */  \
         "mulxq %[modulus_3], %%r8, %%rdx          \n\t" /* (t[2], t[3]) <- (modulus[2] * k)                         */  \
@@ -258,6 +259,7 @@
         "adcq %%rdi, %%r14                        \n\t" /* r[1] += t[0]                                             */  \
         "adcq %%r11, %%r15                        \n\t" /* r[2] += t[1] + flag_c                                    */  \
         "adcq $0, %%r10                           \n\t" /* r[3] += flag_c                                           */  \
+        "adcq $0, %%r12                           \n\t" /* r[4] += flag_c                                           */  \
         "addq %%r9, %%r14                         \n\t" /* r[1] += t[1] + flag_c                                    */  \
         "mulxq %[modulus_2], %%r8, %%r9           \n\t" /* (t[0], t[1]) <- (modulus.data[2] * k)                    */  \
         "mulxq %[modulus_3], %%rdi, %%r11         \n\t" /* (t[2], t[3]) <- (modulus.data[3] * k)                    */  \
@@ -300,6 +302,7 @@
         "adcq %%rdi, %%r15                        \n\t"  /* r[2] += t[0] + flag_c                                   */  \
         "adcq %%r11, %%r10                        \n\t"  /* r[3] += t[1] + flag_c                                   */  \
         "adcq $0, %%r12                           \n\t"  /* r[4] += flag_c                                          */  \
+        "adcq $0, %%r13                           \n\t"  /* r[5] += flag_c                                          */  \
         "addq %%r9, %%r15                         \n\t"  /* r[2] += t[1] + flag_c                                   */  \
         "mulxq %[modulus_2], %%r8, %%r9           \n\t"  /* (t[0], t[1]) <- (modulus.data[2] * k)                   */  \
         "mulxq %[modulus_3], %%rdi, %%r11         \n\t"  /* (t[2], t[3]) <- (modulus.data[3] * k)                   */  \
@@ -335,6 +338,7 @@
         "adcq %%r9, %%r10                         \n\t"  /* r[3] += t[0] + flag_c                                   */  \
         "adcq %%r11, %%r12                        \n\t"  /* r[4] += t[1] + flag_c                                   */  \
         "adcq $0, %%r13                           \n\t"  /* r[5] += flag_c                                          */  \
+        "adcq $0, %%r14                           \n\t"  /* r[6] += flag_c                                          */  \
         "addq %%rdi, %%r10                        \n\t"  /* r[3] += t[1] + flag_c                                   */  \
         "mulxq %[modulus_2], %%r8, %%r9           \n\t"  /* (t[0], t[1]) <- (modulus.data[2] * k)                   */  \
         "mulxq %[modulus_3], %%rdi, %%r11         \n\t"  /* (t[2], t[3]) <- (modulus.data[3] * k)                   */  \
@@ -371,6 +375,7 @@
         "adcq %%r9, %%r12                         \n\t" /* r[4] += t[2] + flag_c                                    */  \
         "adcq %%r11, %%r13                        \n\t" /* r[5] += t[3] + flag_c                                    */  \
         "adcq $0, %%r14                           \n\t" /* r[6] += flag_c                                           */  \
+        "adcq $0, %%r15                           \n\t" /* r[7] += flag_c                                           */  \
         "addq %%rdi, %%r12                        \n\t" /* r[4] += t[1] + flag_c                                    */  \
                                                                                                                         \
         "mulxq %[modulus_2], %%r8, %%r9           \n\t" /* (t[4], t[5]) <- (modulus.data[2] * k)                    */  \

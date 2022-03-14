@@ -436,14 +436,21 @@ template <class T> constexpr field<T> field<T>::tonelli_shanks_sqrt() const noex
     return r;
 }
 
-template <class T> constexpr field<T> field<T>::sqrt() const noexcept
+template <class T> constexpr std::pair<bool, field<T>> field<T>::sqrt() const noexcept
 {
+    field root;
     if constexpr ((T::modulus_0 & 0x3UL) == 0x3UL) {
         constexpr uint256_t sqrt_exponent = (modulus + uint256_t(1)) >> 2;
-        return pow(sqrt_exponent);
+        root = pow(sqrt_exponent);
     } else {
-        return tonelli_shanks_sqrt();
+        root = tonelli_shanks_sqrt();
     }
+    if ((root * root) == (*this)) {
+        return std::pair<bool, field>(true, root);
+    } else {
+        return std::pair<bool, field>(false, field::zero());
+    }
+
 } // namespace barretenberg
 
 template <class T> constexpr field<T> field<T>::operator/(const field& other) const noexcept
