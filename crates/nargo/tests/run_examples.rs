@@ -6,9 +6,8 @@
 #[test]
 fn run_examples() {
     let examples_dir = format!("{}/../../examples", env!("CARGO_MANIFEST_DIR"));
-
     let paths = std::fs::read_dir(&examples_dir)
-        .expect(&format!("Could not read from directory {examples_dir}"));
+        .expect(&format!("Could not read from directory {}", examples_dir));
 
     for path in paths {
         let path = path.unwrap().path();

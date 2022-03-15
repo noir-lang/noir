@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::token::{Attribute, Token};
 use crate::util::vecmap;
-use crate::{Ident, Path, Recoverable, Statement, Type};
+use crate::{Ident, Path, Pattern, Recoverable, Statement, Type};
 use acvm::FieldElement;
 use noirc_errors::{Span, Spanned};
 
@@ -21,6 +21,7 @@ pub enum ExpressionKind {
     For(Box<ForExpression>),
     If(Box<IfExpression>),
     Path(Path),
+    Tuple(Vec<Expression>),
     Error,
 }
 
@@ -335,7 +336,7 @@ pub struct IfExpression {
 pub struct FunctionDefinition {
     pub name: Ident,
     pub attribute: Option<Attribute>, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
-    pub parameters: Vec<(Ident, Type)>,
+    pub parameters: Vec<(Pattern, Type)>,
     pub body: BlockExpression,
     pub span: Span,
     pub return_type: Type,
@@ -411,6 +412,10 @@ impl Display for ExpressionKind {
             Path(path) => path.fmt(f),
             Constructor(constructor) => constructor.fmt(f),
             MemberAccess(access) => access.fmt(f),
+            Tuple(elements) => {
+                let elements = vecmap(elements, ToString::to_string);
+                write!(f, "({})", elements.join(", "))
+            }
             Error => write!(f, "Error"),
         }
     }

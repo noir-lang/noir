@@ -1,5 +1,5 @@
 use super::code_gen::IRGenerator;
-use super::node::{self, Node};
+use super::node::{self, Node, NodeId};
 use acvm::acir::native_types::Witness;
 use acvm::FieldElement;
 use noirc_frontend::node_interner::IdentId;
@@ -11,10 +11,11 @@ use std::convert::TryFrom;
 use crate::Array;
 use std::convert::TryInto;
 
+#[derive(Default)]
 pub struct Memory {
     pub arrays: Vec<MemArray>,
-    pub last_adr: u32,                          //last address in 'memory'
-    pub memory_map: HashMap<u32, arena::Index>, //maps memory adress to expression
+    pub last_adr: u32,                    //last address in 'memory'
+    pub memory_map: HashMap<u32, NodeId>, //maps memory adress to expression
 }
 
 #[derive(Debug)]
@@ -53,68 +54,42 @@ impl MemArray {
 }
 
 impl Memory {
-    pub fn new() -> Memory {
-        Memory {
-            arrays: Vec::new(),
-            last_adr: 0,
-            memory_map: HashMap::new(),
-        }
-    }
-
     pub fn find_array(&self, definition: &Option<IdentId>) -> Option<&MemArray> {
-        if let Some(def) = definition {
-            return self.arrays.iter().find(|a| a.def == *def);
-        }
-        None
+        definition.and_then(|def| self.arrays.iter().find(|a| a.def == def))
     }
 
     pub fn get_array_index(&self, array: &MemArray) -> Option<u32> {
-        if let Some(p) = self.arrays.iter().position(|x| x.def == array.def) {
-            return Some(p as u32);
-        }
-        None
+        self.arrays
+            .iter()
+            .position(|x| x.def == array.def)
+            .map(|p| p as u32)
     }
 
     //dereference a pointer
-    pub fn deref(igen: &IRGenerator, idx: arena::Index) -> Option<u32> {
-        if let Some(var) = igen.get_object(idx) {
-            match var.get_type() {
-                node::ObjectType::Pointer(a) => Some(a),
-                _ => None,
-            }
-        } else {
-            None
-        }
+    pub fn deref(igen: &IRGenerator, id: NodeId) -> Option<u32> {
+        igen.try_get_node(id).and_then(|var| match var.get_type() {
+            node::ObjectType::Pointer(a) => Some(a),
+            _ => None,
+        })
     }
 
-    pub fn create_array(
+    pub fn create_array_from_object(
         &mut self,
         array: &Array,
         definition: IdentId,
         el_type: node::ObjectType,
         arr_name: &str,
     ) -> &MemArray {
-        // let arr_name = context.def_interner.ident_name(collection);
-        // let ident_span = context.def_interner.ident_span(collection);
-        // let arr = env.get_array(&arr_name).map_err(|kind|kind.add_span(ident_span)).unwrap();
-        // let arr_type = context.def_interner.id_type(arr_def.unwrap());
-        // let o_type = node::ObjectType::from_type(arr_type);
         let len = u32::try_from(array.length).unwrap();
-        let mut new_array = MemArray::new(definition, arr_name, el_type, len);
-        new_array.adr = self.last_adr;
-        new_array.set_witness(array);
-        self.arrays.push(new_array);
-        self.last_adr += len;
+        self.create_new_array(len, el_type, arr_name);
+        let mem_array = self.arrays.last_mut().unwrap();
+        mem_array.set_witness(array);
+        mem_array.def = definition;
         self.arrays.last().unwrap()
     }
 
-    pub fn create_new_array(
-        &mut self,
-        len: u32,
-        el_type: node::ObjectType,
-        arr_name: String,
-    ) -> u32 {
-        let mut new_array = MemArray::new(IdentId::dummy_id(), &arr_name, el_type, len);
+    pub fn create_new_array(&mut self, len: u32, el_type: node::ObjectType, arr_name: &str) -> u32 {
+        let mut new_array = MemArray::new(IdentId::dummy_id(), arr_name, el_type, len);
         new_array.adr = self.last_adr;
         self.arrays.push(new_array);
         self.last_adr += len;
@@ -129,8 +104,8 @@ impl Memory {
         result.to_u32().unwrap()
     }
 
-    pub fn to_u32(eval: &IRGenerator, idx: arena::Index) -> Option<u32> {
-        if let Some(index_as_constant) = eval.get_as_constant(idx) {
+    pub fn to_u32(eval: &IRGenerator, id: NodeId) -> Option<u32> {
+        if let Some(index_as_constant) = eval.get_as_constant(id) {
             if let Ok(address) = index_as_constant.to_u128().try_into() {
                 return Some(address);
             }

@@ -19,7 +19,7 @@ pub struct XorGate {
     pub num_bits: u32,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 // XXX: Gate does not capture what this is anymore. I think IR/OPCODE would be a better name
 pub enum Gate {
     Arithmetic(Arithmetic),
@@ -39,6 +39,75 @@ impl Gate {
             Gate::Arithmetic(gate) => gate,
             _ => panic!("tried to convert a non arithmetic gate to an Arithmetic struct"),
         }
+    }
+}
+
+impl std::fmt::Debug for Gate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut result = String::new();
+        match self {
+            Gate::Arithmetic(a) => {
+                for i in &a.mul_terms {
+                    result += &format!(
+                        "{:?}x{}*x{} + ",
+                        i.0,
+                        i.1.witness_index(),
+                        i.2.witness_index()
+                    );
+                }
+                for i in &a.linear_combinations {
+                    result += &format!("{:?}x{} + ", i.0, i.1.witness_index());
+                }
+                result += &format!("{:?} = 0", a.q_c);
+            }
+            Gate::Range(w, s) => {
+                result = format!("x{} is {} bits", w.witness_index(), s);
+            }
+            Gate::Directive(Directive::Invert { x, result: r }) => {
+                result = format!("1/{}={}, or 0", x.witness_index(), r.witness_index());
+            }
+            Gate::Directive(Directive::Truncate {
+                a,
+                b,
+                c: _c,
+                bit_size,
+            }) => {
+                result = format!(
+                    "Truncate: x{} is x{} truncated to {} bits",
+                    b.witness_index(),
+                    a.witness_index(),
+                    bit_size
+                );
+            }
+            Gate::Directive(Directive::Quotient { a, b, q, r }) => {
+                result = format!(
+                    "Euclidian division: x{} = x{}*x{} + x{}",
+                    a.witness_index(),
+                    q.witness_index(),
+                    b.witness_index(),
+                    r.witness_index()
+                );
+            }
+            Gate::Directive(Directive::Oddrange { a, b, r, bit_size }) => {
+                result = format!(
+                    "Oddrange: x{} = x{}*2^{} + x{}",
+                    a.witness_index(),
+                    b.witness_index(),
+                    bit_size,
+                    r.witness_index()
+                );
+            }
+            Gate::And(g) => {
+                dbg!(&g);
+            }
+            Gate::Xor(g) => {
+                dbg!(&g);
+            }
+            Gate::GadgetCall(g) => {
+                dbg!(&g);
+            }
+        }
+        write!(f, "{}", result)
     }
 }
 

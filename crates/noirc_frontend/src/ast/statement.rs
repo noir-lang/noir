@@ -126,9 +126,9 @@ impl Recoverable for Statement {
 }
 
 impl Statement {
-    pub fn new_let(((identifier, r#type), expression): ((Ident, Type), Expression)) -> Statement {
+    pub fn new_let(((pattern, r#type), expression): ((Pattern, Type), Expression)) -> Statement {
         Statement::Let(LetStatement {
-            identifier,
+            pattern,
             r#type,
             expression,
         })
@@ -264,9 +264,8 @@ impl Path {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-// This will be used for non primitive data types like Arrays and Structs
 pub struct LetStatement {
-    pub identifier: Ident,
+    pub pattern: Pattern,
     pub r#type: Type,
     pub expression: Expression,
 }
@@ -279,6 +278,20 @@ pub struct AssignStatement {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ConstrainStatement(pub InfixExpression);
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum Pattern {
+    Identifier(Ident),
+    Mutable(Box<Pattern>, Span),
+    Tuple(Vec<Pattern>, Span),
+    Struct(Path, Vec<(Ident, Pattern)>, Span),
+}
+
+impl Recoverable for Pattern {
+    fn error(span: Span) -> Self {
+        Pattern::Identifier(Ident::error(span))
+    }
+}
 
 impl Display for Statement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -298,7 +311,7 @@ impl Display for LetStatement {
         write!(
             f,
             "let {}: {} = {}",
-            self.identifier, self.r#type, self.expression
+            self.pattern, self.r#type, self.expression
         )
     }
 }
@@ -351,5 +364,22 @@ impl Display for NoirStruct {
         }
 
         write!(f, "}}")
+    }
+}
+
+impl Display for Pattern {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Pattern::Identifier(name) => name.fmt(f),
+            Pattern::Mutable(name, _) => write!(f, "mut {}", name),
+            Pattern::Tuple(fields, _) => {
+                let fields = vecmap(fields, ToString::to_string);
+                write!(f, "({})", fields.join(", "))
+            }
+            Pattern::Struct(typename, fields, _) => {
+                let fields = vecmap(fields, |(name, pattern)| format!("{}: {}", name, pattern));
+                write!(f, "{} {{ {} }}", typename, fields.join(", "))
+            }
+        }
     }
 }

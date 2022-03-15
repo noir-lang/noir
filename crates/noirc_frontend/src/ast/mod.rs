@@ -17,6 +17,7 @@ pub use structure::*;
 use crate::{
     node_interner::TypeId,
     token::{IntType, Keyword},
+    util::vecmap,
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -144,6 +145,9 @@ pub enum Type {
     Unit,
     Struct(Rc<StructType>),
 
+    // Note: Tuples have no FieldElementType, instead each of their elements may have one.
+    Tuple(Vec<Type>),
+
     Error,
     Unspecified, // This is for when the user declares a variable without specifying it's type
 }
@@ -188,6 +192,10 @@ impl std::fmt::Display for Type {
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
             Type::Unspecified => write!(f, "unspecified"),
+            Type::Tuple(elements) => {
+                let elements = vecmap(elements, ToString::to_string);
+                write!(f, "({})", elements.join(", "))
+            }
         }
     }
 }
@@ -238,14 +246,14 @@ impl Type {
     }
 
     /// Computes the number of elements in a Type
-    /// Arrays and Structs will be the only data structures to return more than one
-
+    /// Arrays, Structs, and Tuples will be the only data structures to return more than one
     pub fn num_elements(&self) -> usize {
         match self {
             Type::Array(_, ArraySize::Fixed(fixed_size), _) => *fixed_size as usize,
             Type::Array(_, ArraySize::Variable, _) =>
                 unreachable!("ice : this method is only ever called when we want to compare the prover inputs with the ABI in main. The ABI should not have variable input. The program should be compiled before calling this"),
             Type::Struct(s) => s.fields.len(),
+            Type::Tuple(elements) => elements.len(),
             Type::FieldElement(_)
             | Type::Integer(_, _, _)
             | Type::Bool
@@ -361,6 +369,7 @@ impl Type {
             Type::Unspecified => unreachable!(),
             Type::Unit => unreachable!(),
             Type::Struct(_) => todo!(),
+            Type::Tuple(_) => todo!(),
         }
     }
 }
