@@ -85,7 +85,8 @@ int main(int argc, char** argv)
         rollups_data.push_back(proof_data);
     }
 
-    auto root_rollup = root_rollup::create_root_rollup_tx(world_state, 0, world_state.defi_tree.root(), rollups_data);
+    auto root_rollup = root_rollup::create_root_rollup_tx(
+        world_state, 0, world_state.defi_tree.root(), world_state.defi_tree.get_hash_path(0), rollups_data);
 
     info("Sending root rollup request...");
     write(std::cout, (uint32_t)1);

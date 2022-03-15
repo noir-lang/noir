@@ -88,8 +88,15 @@ class root_rollup_full_tests : public ::testing::Test {
             rollups_data.push_back(rollup_data);
         }
 
-        return root_rollup::create_root_rollup_tx(
-            context.world_state, rollup_id, context.world_state.defi_tree.root(), rollups_data, {}, { 0 });
+        auto old_defi_path = context.world_state.defi_tree.get_hash_path(rollup_id * NUM_INTERACTION_RESULTS_PER_BLOCK);
+
+        return root_rollup::create_root_rollup_tx(context.world_state,
+                                                  rollup_id,
+                                                  context.world_state.defi_tree.root(),
+                                                  old_defi_path,
+                                                  rollups_data,
+                                                  {},
+                                                  { 0 });
     }
 
     fixtures::TestContext context;
@@ -191,8 +198,11 @@ HEAVY_TEST_F(root_rollup_full_tests, test_bad_js_proof_fails)
 
     // Root rollup should fail.
     auto root_rollup_cd = get_circuit_data(rollups_per_rollup, tx_rollup_cd, srs, FIXTURE_PATH, true, false, false);
-    auto root_rollup_tx = root_rollup::create_root_rollup_tx(
-        context.world_state, 0, context.world_state.defi_tree.root(), { inner_proof.proof_data });
+    auto root_rollup_tx = root_rollup::create_root_rollup_tx(context.world_state,
+                                                             0,
+                                                             context.world_state.defi_tree.root(),
+                                                             context.world_state.defi_tree.get_hash_path(0),
+                                                             { inner_proof.proof_data });
     Composer root_composer =
         Composer(root_rollup_cd.proving_key, root_rollup_cd.verification_key, root_rollup_cd.num_gates);
     pad_root_rollup_tx(root_rollup_tx, root_rollup_cd);

@@ -61,10 +61,9 @@ field_ct process_defi_interaction_notes(Composer& composer,
                                         std::vector<field_ct>& defi_interaction_note_commitments)
 {
     std::vector<field_ct> hash_input;
-    auto not_first_rollup = rollup_id != 0;
 
     for (uint32_t i = 0; i < NUM_INTERACTION_RESULTS_PER_BLOCK; i++) {
-        auto is_real = uint32_ct(i) < num_previous_defi_interactions && not_first_rollup;
+        auto is_real = uint32_ct(i) < num_previous_defi_interactions;
         auto hashed_note =
             plonk::stdlib::sha256_to_field<Composer>(defi_interaction_notes[i].to_byte_array(composer, is_real));
         hash_input.push_back(hashed_note);
@@ -73,7 +72,7 @@ field_ct process_defi_interaction_notes(Composer& composer,
     }
 
     // Check defi interaction notes have been inserted into the defi interaction tree.
-    auto insertion_index = ((rollup_id - 1) * NUM_INTERACTION_RESULTS_PER_BLOCK * not_first_rollup);
+    auto insertion_index = (rollup_id * NUM_INTERACTION_RESULTS_PER_BLOCK);
     batch_update_membership(new_defi_interaction_root,
                             old_defi_interaction_root,
                             old_defi_interaction_path,

@@ -29,7 +29,7 @@ template <typename WorldState> class ClaimTxFactory {
         tx.claim_note_path = world_state.data_tree.get_hash_path(claim_note_index);
         tx.claim_note = claim_note;
         tx.defi_note_index = defi_note_index;
-        tx.defi_interaction_note_path = world_state.defi_tree.get_hash_path(defi_interaction_note.interaction_nonce);
+        tx.defi_interaction_note_path = world_state.defi_tree.get_hash_path(defi_note_index);
         tx.defi_interaction_note = defi_interaction_note;
         tx.output_value_a = claim_note.deposit_value * defi_interaction_note.total_output_value_a /
                             defi_interaction_note.total_input_value;

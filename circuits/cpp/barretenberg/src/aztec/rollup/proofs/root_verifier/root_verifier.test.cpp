@@ -97,8 +97,11 @@ class root_verifier_tests : public ::testing::Test {
             auto rollup_tx = rollup::create_rollup_tx(context.world_state, tx_rollup_cd.rollup_size, { js_proof });
             auto rollup_data = rollup::verify(rollup_tx, tx_rollup_cd).proof_data;
             ASSERT(!rollup_data.empty());
-            auto root_rollup_tx = root_rollup::create_root_rollup_tx(
-                context.world_state, 0, context.world_state.defi_tree.root(), { rollup_data });
+            auto root_rollup_tx = root_rollup::create_root_rollup_tx(context.world_state,
+                                                                     0,
+                                                                     context.world_state.defi_tree.root(),
+                                                                     context.world_state.defi_tree.get_hash_path(0),
+                                                                     { rollup_data });
             auto result = root_rollup::verify(root_rollup_tx, root_rollup_cd);
             ASSERT(!result.proof_data.empty());
             return join({ to_buffer(result.broadcast_data), result.proof_data });

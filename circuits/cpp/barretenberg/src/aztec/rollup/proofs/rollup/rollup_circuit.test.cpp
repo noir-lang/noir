@@ -1142,10 +1142,11 @@ TEST_F(rollup_tests, test_defi_claim_proofs)
         }
         auto claim_note_index = data.data_start_index + uint32_t(2 * i);
         auto inner_tx = inner_proof_data(rollup1_tx.txs[i]);
+        auto defi_note_index = initial_din_index + indices[i - 1];
         return context.create_claim_proof(inner_tx.bridge_id,
                                           inner_tx.defi_deposit_value,
                                           claim_note_index,
-                                          initial_din_index + indices[i - 1], // defi proofs are offset by one
+                                          defi_note_index, // defi proofs are offset by one
                                           claim_fees[i]);
     });
 

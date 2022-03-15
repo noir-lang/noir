@@ -80,7 +80,8 @@ class root_rollup_tests : public ::testing::Test {
     {
         uint32_t rollup_id = static_cast<uint32_t>(context.world_state.root_tree.size() - 1);
         auto old_defi_root = context.world_state.defi_tree.root();
-        context.world_state.add_defi_notes(interaction_notes);
+        auto old_defi_path = context.world_state.defi_tree.get_hash_path(rollup_id * NUM_INTERACTION_RESULTS_PER_BLOCK);
+        context.world_state.add_defi_notes(interaction_notes, rollup_id * NUM_INTERACTION_RESULTS_PER_BLOCK);
 
         std::vector<std::vector<uint8_t>> inner_data;
         for (size_t i = 0; i < rollup_structure.size(); ++i) {
@@ -98,6 +99,7 @@ class root_rollup_tests : public ::testing::Test {
         return root_rollup::create_root_rollup_tx(context.world_state,
                                                   rollup_id,
                                                   old_defi_root,
+                                                  old_defi_path,
                                                   inner_data,
                                                   bridge_ids_union,
                                                   asset_ids_union,

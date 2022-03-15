@@ -105,26 +105,15 @@ class TestContext {
                          uint32_t defi_note_index,
                          uint256_t fee)
     {
-        uint32_t interaction_nonce = 0;
-        // Assume this claim note was created against the most recent matching bridge id interaction.
-        for (size_t i = defi_interactions.size(); i > 0; --i) {
-            if (defi_interactions[i - 1].bridge_id == bridge_id) {
-                interaction_nonce = static_cast<uint32_t>(i - 1);
-                break;
-            }
-        }
-
+        auto& defi_note = defi_interactions[defi_note_index];
         auto partial_state =
             notes::native::value::create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0);
         notes::native::claim::claim_note claim_note = {
-            deposit_value, bridge_id,     interaction_nonce,
+            deposit_value, bridge_id,     defi_note.interaction_nonce,
             fee,           partial_state, world_state.input_nullifiers[claim_note_index]
         };
-        return claim_tx_factory.create_claim_tx(world_state.defi_tree.root(),
-                                                claim_note_index,
-                                                defi_note_index,
-                                                claim_note,
-                                                defi_interactions[interaction_nonce]);
+        return claim_tx_factory.create_claim_tx(
+            world_state.defi_tree.root(), claim_note_index, defi_note_index, claim_note, defi_note);
     }
 
     std::vector<uint8_t> create_claim_proof(uint256_t bridge_id,
@@ -145,8 +134,9 @@ class TestContext {
     uint32_t start_next_root_rollup(std::vector<native::defi_interaction::note> const& dins_ = {})
     {
         uint32_t rollup_id = static_cast<uint32_t>(world_state.root_tree.size());
-        uint32_t initial_din_insertion_index = (rollup_id - 1) * NUM_INTERACTION_RESULTS_PER_BLOCK;
-        uint32_t initial_interaction_nonce = initial_din_insertion_index;
+        // defi notes go into this rollup, but the nonces were 'generated' in the previous rollup
+        uint32_t initial_din_insertion_index = rollup_id * NUM_INTERACTION_RESULTS_PER_BLOCK;
+        uint32_t initial_interaction_nonce = (rollup_id - 1) * NUM_INTERACTION_RESULTS_PER_BLOCK;
         world_state.update_root_tree_with_data_root();
 
         auto dins = dins_;
@@ -158,7 +148,7 @@ class TestContext {
             defi_interactions[din_insertion_index] = dins[i];
         }
 
-        world_state.add_defi_notes(dins);
+        world_state.add_defi_notes(dins, initial_din_insertion_index);
         return initial_din_insertion_index;
     }
 

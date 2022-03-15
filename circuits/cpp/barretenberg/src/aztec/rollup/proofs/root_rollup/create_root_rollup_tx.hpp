@@ -24,6 +24,7 @@ inline void pad_root_rollup_tx(root_rollup_tx& rollup, circuit_data const& circu
 inline root_rollup_tx create_root_rollup_tx(WorldState& world_state,
                                             uint32_t rollup_id,
                                             fr old_defi_root,
+                                            plonk::stdlib::merkle_tree::fr_hash_path const& old_defi_path,
                                             std::vector<std::vector<uint8_t>> const& inner_rollups,
                                             std::vector<uint256_t> const& bridge_ids = {},
                                             std::vector<uint256_t> const& asset_ids = { 0 },
@@ -47,7 +48,7 @@ inline root_rollup_tx create_root_rollup_tx(WorldState& world_state,
     tx.new_data_roots_root = root_tree.root();
 
     tx.old_defi_root = old_defi_root;
-    tx.old_defi_path = defi_tree.get_hash_path(rollup_id ? rollup_id - 1 : 0);
+    tx.old_defi_path = old_defi_path;
     tx.new_defi_root = defi_tree.root();
 
     tx.bridge_ids = bridge_ids;

@@ -48,10 +48,10 @@ template <typename Store> class WorldState {
         insert_data_entry(data_tree.size(), note.commit(), fr(0));
     }
 
-    void add_defi_notes(std::vector<defi_interaction::note> const& din)
+    void add_defi_notes(std::vector<defi_interaction::note> const& din, uint32_t start_index)
     {
-        for (auto& interaction_note : din) {
-            defi_tree.update_element(interaction_note.interaction_nonce, interaction_note.commit());
+        for (uint32_t i = 0; i < din.size(); i++) {
+            defi_tree.update_element(start_index + i, din[i].commit());
         }
     }
 
