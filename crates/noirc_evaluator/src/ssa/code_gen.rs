@@ -4,16 +4,14 @@ use super::node::{ConstrainOp, Instruction, NodeId, NodeObj, ObjectType, Operati
 use super::{block, flatten, integer, node, optim, ssa_form};
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::fs::OpenOptions;
 
 use super::super::environment::Environment;
 use super::super::errors::{RuntimeError, RuntimeErrorKind};
-use crate::object::Object;
 use crate::ssa::{acir_gen::Acir, function, node::Node};
 use crate::Evaluator;
 //use acvm::acir::OPCODE;
-use acvm::FieldElement;
 use acvm::acir::OPCODE;
+use acvm::FieldElement;
 use arena;
 use noirc_frontend::hir::Context;
 use noirc_frontend::hir_def::expr::HirCallExpression;
@@ -24,7 +22,7 @@ use noirc_frontend::hir_def::{
     expr::{HirBinaryOp, HirBinaryOpKind, HirExpression, HirForExpression, HirLiteral},
     stmt::{HirConstrainStatement, HirLetStatement, HirStatement},
 };
-use noirc_frontend::node_interner::{ExprId, IdentId, StmtId, FuncId};
+use noirc_frontend::node_interner::{ExprId, FuncId, IdentId, StmtId};
 use noirc_frontend::FunctionKind;
 //use noirc_frontend::{FunctionKind, Type};
 use num_bigint::BigUint;
@@ -44,7 +42,7 @@ pub struct IRGenerator<'a> {
     pub id0: arena::Index, //dummy index.. should we put a dummy object somewhere?
     pub value_name: HashMap<NodeId, u32>,
     pub sealed_blocks: HashSet<BlockId>,
-    pub  functions_cfg: HashMap<FuncId, function::SSAFunction<'a>>,
+    pub functions_cfg: HashMap<FuncId, function::SSAFunction<'a>>,
 }
 
 impl<'a> IRGenerator<'a> {
@@ -122,7 +120,7 @@ impl<'a> IRGenerator<'a> {
         for (_, f) in self.functions_cfg.iter().enumerate() {
             println!("************* FUNCTION n.{:?}", f.1.id);
             f.1.cfg.print();
-          //  ins_nb += b.instructions.len();
+            //  ins_nb += b.instructions.len();
         }
         println!("*** TOTAL: {} instructions", ins_nb);
     }
@@ -207,24 +205,11 @@ impl<'a> IRGenerator<'a> {
         self.nodes.get(id.0)
     }
 
-    pub fn get_function(&self, func_id: FuncId) -> Option<&'a function::SSAFunction> { 
+    pub fn get_function(&self, func_id: FuncId) -> Option<&'a function::SSAFunction> {
         if self.functions_cfg.contains_key(&func_id) {
-            return Some(& self.functions_cfg[&func_id])
+            return Some(&self.functions_cfg[&func_id]);
         }
         None
-    }
-
-    pub fn get_mut_function(&mut self, func_id: FuncId) -> Option<&'a mut function::SSAFunction> { 
-        if self.functions_cfg.contains_key(&func_id) {
-            return self.functions_cfg.get_mut(&func_id);
-        //    return Some(&mut self.functions_cfg[&func_id])
-        }
-        None
-    }
-
-    pub fn add_function(&mut self, func: FuncId) {
-        //todo is it the correct context?
-        self.functions_cfg.insert(func, function::SSAFunction::new(func,self.context()));
     }
 
     pub fn try_get_node_mut(&mut self, id: NodeId) -> Option<&mut node::NodeObj> {
@@ -313,7 +298,7 @@ impl<'a> IRGenerator<'a> {
         opcode: node::Operation,
         optype: node::ObjectType,
     ) -> NodeId {
-        let mut operands = vec![lhs,rhs];
+        let mut operands = vec![lhs, rhs];
         self.new_instruction_with_multiple_operands(&mut operands, opcode, optype)
     }
 
@@ -327,7 +312,13 @@ impl<'a> IRGenerator<'a> {
             operands.push(NodeId::dummy());
         }
         //Add a new instruction to the nodes arena
-        let mut i = node::Instruction::new(opcode, operands[0], operands[1], optype, Some(self.current_block));
+        let mut i = node::Instruction::new(
+            opcode,
+            operands[0],
+            operands[1],
+            optype,
+            Some(self.current_block),
+        );
         //Basic simplification
         optim::simplify(self, &mut i);
         if operands.len() > 2 {
@@ -557,7 +548,7 @@ impl<'a> IRGenerator<'a> {
                 };
 
                 //////////////////////////////----******************************************
-    
+
                 let new_var = node::Variable {
                     id: lhs.id,
                     obj_type: lhs.obj_type,
@@ -568,7 +559,7 @@ impl<'a> IRGenerator<'a> {
                     parent_block: self.current_block,
                 };
                 let ls_root = lhs.get_root();
-                let toto = lhs.id.clone();     
+                let lhs_id = lhs.id;
                 //ssa: we create a new variable a1 linked to a
                 let new_var_id = self.add_variable(new_var, Some(ls_root));
 
@@ -576,17 +567,25 @@ impl<'a> IRGenerator<'a> {
                 let rhs = &self[rhs_id];
                 let r_type = rhs.get_type();
                 let r_id = rhs.get_id();
-                // function calls 
-                          
-                let result = if let node::NodeObj::Instr(node::Instruction{operator: Operation::Call(_), ..}) = rhs {
-                    //we need to create a res f, result  instruction that will map f results to the assigned variables  
-                    let result_id = self.new_instruction(r_id, r_id, node::Operation::Res, node::ObjectType::NotAnObject);
+                // function calls
+
+                let result = if let node::NodeObj::Instr(node::Instruction {
+                    operator: Operation::Call(_),
+                    ..
+                }) = rhs
+                {
+                    //we need to create a res f, result  instruction that will map f results to the assigned variables
+                    let result_id = self.new_instruction(
+                        r_id,
+                        r_id,
+                        node::Operation::Res,
+                        node::ObjectType::NotAnObject,
+                    );
                     let result_ins = self.get_mut_instruction(result_id);
                     //TODO result_ins.ins_arguments = self.variable_values.get(ident_def);
                     //for now, it is the lhs:
-                    result_ins.ins_arguments.push(toto);       //TODO!!! lhs ou bien new_var??
+                    result_ins.ins_arguments.push(lhs_id); //TODO!!! lhs ou bien new_var??
                     result_id
-                    
                 } else {
                     self.new_instruction(new_var_id, r_id, node::Operation::Ass, r_type)
                 };
@@ -601,27 +600,6 @@ impl<'a> IRGenerator<'a> {
     }
 
     fn create_new_variable(
-        &mut self,
-        var_name: String,
-        def: Option<IdentId>,
-        env: &mut Environment,
-    ) -> NodeId {
-        let obj = env.get(&var_name);
-        let obj_type = node::ObjectType::get_type_from_object(&obj);
-        let new_var = node::Variable {
-            id: NodeId::dummy(),
-            obj_type,
-            name: var_name,
-            root: None,
-            def,
-            witness: node::get_witness_from_object(&obj),
-            parent_block: self.current_block,
-        };
-        self.add_variable(new_var, None)
-    }
-
-
-    fn create_new_variable2(
         &mut self,
         var_name: String,
         def: Option<IdentId>,
@@ -853,29 +831,23 @@ impl<'a> IRGenerator<'a> {
                 let func_meta = self.context().def_interner.function_meta(&call_expr.func_id);
                 match func_meta.kind {
                     FunctionKind::Normal =>  {
-                        //Function defined inside the Noir program.
-                       // todo!();
-
-                 
+                        //Function defined inside the Noir program.           
                         if self.get_function(call_expr.func_id).is_none() {
                             //parse the function blocks if not already done
                             let mut func = function::SSAFunction::new(call_expr.func_id,self.context());
-                            let function = self.context().def_interner.function(&call_expr.func_id);                            
+                            let function = self.context().def_interner.function(&call_expr.func_id);
                             let block = function.block(&self.context().def_interner);
-                            dbg!(&func_meta.parameters);
                             func.parse_statements(block.statements(), env);
                             for pat in func_meta.parameters {
                                 let ident_id = match pat.0 {
                                     HirPattern::Identifier(id) => Some(id), //self.context().def_interner.ident_name(&id),
-                                    HirPattern::Mutable(pattern, _) => unreachable!("mutable arguments are not supported yet"),//get_param_name(pattern, interner),
+                                    HirPattern::Mutable(_pattern, _) => unreachable!("mutable arguments are not supported yet"),//get_param_name(pattern, interner),
                                     HirPattern::Tuple(_, _) => todo!(),
                                     HirPattern::Struct(_, _, _) => todo!(),
                                 };
-                                
                                 let node_id = func.cfg.find_variable(&ident_id).unwrap();
                                 func.arguments.push(node_id.id);
                             }
-                            
                             func.compile();         //unroll the function
 
                             self.functions_cfg.insert(call_expr.func_id, func);
@@ -885,16 +857,8 @@ impl<'a> IRGenerator<'a> {
                         }
 
                     //generate a call instruction to the function cfg
-                        //The return values will be set in the assignment to variables
-                    let toto=function::SSAFunction::call(call_expr.func_id ,&call_expr.arguments, self, env);
-                    //TODO generate the result instruction: ici?
-                    Ok(toto)
-                       // self.call_function(env, &call_expr, call_expr.func_id)
-                    
-                       //generate a call instruction to the function cfg
-                       //..
-                       //set the return values
-                       //..
+                    //The return values will be set in the assignment to variables
+                    Ok(function::SSAFunction::call(call_expr.func_id ,&call_expr.arguments, self, env))
                     },
                     FunctionKind::LowLevel => {
                     // We use it's func name to find out what intrinsic function to call
@@ -939,7 +903,7 @@ impl<'a> IRGenerator<'a> {
         };
         function::call_low_level(func, call_expr, self, env)
     }
-    
+
     pub fn expression_list_to_objects(
         &mut self,
         env: &mut Environment,
@@ -952,8 +916,6 @@ impl<'a> IRGenerator<'a> {
 
         objects.into_iter().map(Result::unwrap).collect()
     }
-
-  
 
     fn handle_for_expr(
         &mut self,
@@ -970,8 +932,7 @@ impl<'a> IRGenerator<'a> {
             .map_err(|err| err.remove_span())
             .unwrap();
         //We support only const range for now
-     //   dbg!(&self.try_get_node(start_idx) );
-    //    let start = self.get_as_constant(start_idx).unwrap();
+
         //TODO how should we handle scope (cf. start/end_for_loop)?
         let iter_name = self
             .context
@@ -984,15 +945,12 @@ impl<'a> IRGenerator<'a> {
             .def_interner
             .ident_def(&for_expr.identifier);
         let int_type = self.context().def_interner.id_type(&for_expr.identifier);
-    //    env.store(iter_name.clone(), Object::Constants(start));
-     //   let iter_id = self.create_new_variable(iter_name, iter_def, env);
-     let iter_type = node::ObjectType::from_type(int_type);
-     let iter_id = self.create_new_variable2(iter_name, iter_def, iter_type, None);
-        
+
+        let iter_type = node::ObjectType::from_type(int_type);
+        let iter_id = self.create_new_variable(iter_name, iter_def, iter_type, None);
 
         let iter_var = self.get_mut_variable(iter_id).unwrap();
-        iter_var.obj_type = iter_type;//node::ObjectType::from_type(int_type);
-     //   let iter_type = self.get_object_type(iter_id);
+        iter_var.obj_type = iter_type;
         let iter_ass = self.new_instruction(iter_id, start_idx, node::Operation::Ass, iter_type);
         //We map the iterator to start_idx so that when we seal the join block, we will get the corrdect value.
         self.update_variable_id(iter_id, iter_ass, start_idx);
@@ -1063,7 +1021,6 @@ impl<'a> IRGenerator<'a> {
         dbg!(&evaluator.current_witness_index);
         while let Some(block) = fb {
             for iter in &block.instructions {
-                
                 let ins = self.get_instruction(*iter);
                 acir.evaluate_instruction(ins, evaluator, self);
                 dbg!(&evaluator.current_witness_index);

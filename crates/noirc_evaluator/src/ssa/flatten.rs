@@ -1,6 +1,7 @@
 use super::{
     block::{self, BlockId},
     code_gen::IRGenerator,
+    function,
     node::{self, Node, NodeEval, NodeId, NodeObj, Operation},
     optim,
 };
@@ -374,5 +375,164 @@ fn evaluate_object(
                 NodeObj::Obj(_) => NodeEval::VarOrInstruction(obj_id),
             }
         }
+    }
+}
+
+pub fn inline_tree(igen: &mut IRGenerator) {
+    //inline all function calls
+    //todo process tous les blocks!
+    //vu qu'on fait ca plein de fois, y'a surement une maniere de faire generic..TODO!!
+    //pour le moment, juste le premier block...
+    inline_block(igen, igen.first_block);
+}
+
+//inline all function calls of the block
+pub fn inline_block(igen: &mut IRGenerator, block_id: BlockId) {
+    let mut call_ins: Vec<NodeId> = Vec::new();
+
+    for i in &igen[block_id].instructions {
+        if let Some(ins) = igen.try_get_instruction(*i) {
+            if matches!(ins.operator, node::Operation::Call(_)) {
+                call_ins.push(*i);
+            }
+        }
+    }
+
+    for ins_id in call_ins {
+        let ins = igen.try_get_instruction(ins_id).unwrap().clone();
+        if let node::Instruction {
+            operator: node::Operation::Call(f),
+            ..
+        } = ins
+        {
+            inline(f, &ins.ins_arguments, igen, ins.parent_block, ins.id);
+        }
+    }
+}
+
+//inline a function call
+pub fn inline(
+    func_id: noirc_frontend::node_interner::FuncId, //func: &function::SSAFunction,
+    args: &[NodeId],
+    irgen: &mut IRGenerator,
+    block: BlockId,
+    call_id: NodeId,
+) {
+    let ssa_func = irgen.get_function(func_id).unwrap();
+    let mut inline_map: HashMap<NodeId, NodeId> = HashMap::new(); //map nodes from the fonction cfg to the caller cfg
+                                                                  //1. map function parameters
+    for (arg_caller, arg_function) in args.iter().zip(&ssa_func.arguments) {
+        inline_map.insert(*arg_function, *arg_caller);
+    }
+    // let func_block = &ssa_func.cfg[ssa_func.cfg.first_block];
+    //2. inline in the block: we assume the function cfg is already flatened.
+    inline_in_block(
+        ssa_func.cfg.first_block,
+        block,
+        &mut inline_map,
+        func_id,
+        call_id,
+        irgen,
+    );
+    //TODO process all the blocks of the function.
+}
+
+//inline the given block of the function body into the target_block
+pub fn inline_in_block(
+    block_id: BlockId,
+    target_block_id: BlockId,
+    inline_map: &mut HashMap<NodeId, NodeId>,
+    func_id: noirc_frontend::node_interner::FuncId, //func_cfg: &IRGenerator,
+    call_id: NodeId,
+    irgen: &mut IRGenerator,
+) {
+    let mut new_instructions: Vec<NodeId> = Vec::new();
+    // let mut return_values: Vec<(NodeId,NodeId)> = Vec::new();
+    let block_func_instructions = &irgen.get_function(func_id).unwrap().cfg[block_id]
+        .instructions
+        .clone();
+    for &i_id in block_func_instructions {
+        //    let mut ftbc = false;
+        let mut cloned_ins = None;
+        if let Some(ins) = irgen
+            .get_function(func_id)
+            .unwrap()
+            .cfg
+            .try_get_instruction(i_id)
+        {
+            cloned_ins = Some(ins.clone());
+        }
+        if let Some(clone) = cloned_ins {
+            let new_left =
+                function::SSAFunction::get_mapped_value(func_id, clone.lhs, irgen, inline_map);
+            let new_right =
+                function::SSAFunction::get_mapped_value(func_id, clone.rhs, irgen, inline_map);
+            let new_arg = function::SSAFunction::get_mapped_value(
+                func_id,
+                clone.ins_arguments[0],
+                irgen,
+                inline_map,
+            );
+            match clone.operator {
+                Operation::Nop => (),
+                //Return instruction:
+                Operation::Ret => {
+                    //we need to find the corresponding result instruction in the target block (using ins.rhs) and replace it by ins.lhs
+                    if let Some(ret_id) =
+                        irgen[target_block_id].get_result_instruction(call_id, irgen)
+                    {
+                        //we support only one result for now, should use 'ins.lhs.get_value()'
+                        if let node::NodeObj::Instr(i) = &mut irgen[ret_id] {
+                            i.is_deleted = true;
+                            i.rhs = new_left; //Then we need to ensure there is a CSE.
+                        }
+                    } else {
+                        //we use the call instruction instead
+                        //we could use the ins_arguments to get the results here, and since we have the input arguments (in the ssafunction) we know how may there are.
+                        //for now the call instruction is replaced by the (one) result
+                        let call_ins = irgen.get_mut_instruction(call_id);
+                        call_ins.is_deleted = true;
+                        call_ins.rhs = new_arg;
+                    }
+                }
+                Operation::Call(_) => todo!("function calling function is not yet supported"), //We mainly need to map the arguments and then decide how to recurse the function call.
+                _ => {
+                    let mut new_ins = node::Instruction::new(
+                        clone.operator,
+                        new_left,
+                        new_right,
+                        clone.res_type,
+                        Some(target_block_id),
+                    );
+                    optim::simplify(irgen, &mut new_ins);
+                    let result_id;
+                    let mut to_delete = false;
+                    if new_ins.is_deleted {
+                        result_id = new_ins.rhs;
+                        if new_ins.rhs == new_ins.id {
+                            to_delete = true;
+                        }
+                    } else {
+                        result_id = irgen.add_instruction(new_ins);
+                        new_instructions.push(result_id)
+                    }
+                    //ignore self-deleted instructions
+                    if !to_delete {
+                        inline_map.insert(i_id, result_id);
+                    }
+                }
+            }
+        }
+    }
+
+    // add instruction to target_block, at proper location (really need a linked list!)
+    let mut pos = irgen[target_block_id]
+        .instructions
+        .iter()
+        .position(|x| *x == call_id)
+        .unwrap();
+    for &new_id in &new_instructions {
+        irgen[target_block_id].instructions.insert(pos, new_id);
+        pos += 1;
     }
 }

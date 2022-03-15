@@ -64,7 +64,7 @@ impl std::fmt::Debug for Gate {
                 result = format!("x{} is {} bits", w.witness_index(), s);
             }
             Gate::Directive(Directive::Invert { x, result: r }) => {
-                result = format!("1/{}={}, or 0", x.witness_index(), r.witness_index());
+                result = format!("x{}=1/x{}, or 0", r.witness_index(), x.witness_index());
             }
             Gate::Directive(Directive::Truncate {
                 a,

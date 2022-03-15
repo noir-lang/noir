@@ -80,7 +80,9 @@ pub fn get_obj_max_value(
     if max_map.contains_key(&id) {
         return max_map[&id].clone();
     }
-
+    if id == NodeId::dummy() {
+        return BigUint::zero(); //a non-argument has no max
+    }
     let obj_ = obj.unwrap_or_else(|| &igen[id]);
 
     let result = match obj_ {
@@ -201,6 +203,7 @@ fn update_ins_parameters(
     id: NodeId,
     lhs: NodeId,
     rhs: NodeId,
+    ins_arg: Vec<NodeId>,
     max_value: Option<BigUint>,
 ) {
     let mut ins = igen.try_get_mut_instruction(id).unwrap();
@@ -209,6 +212,7 @@ fn update_ins_parameters(
     if let Some(max_v) = max_value {
         ins.max_value = max_v;
     }
+    ins.ins_arguments = ins_arg;
 }
 
 fn update_ins(eval: &mut IRGenerator, id: NodeId, copy_from: &node::Instruction) {
@@ -257,6 +261,7 @@ pub fn block_overflow(
     let mut truncate_map = HashMap::new();
     let mut modify_ins = None;
     let mut trunc_size = FieldElement::zero();
+
     //RIA...
     for iter in &igen[block_id].instructions {
         instructions.push((*igen.try_get_instruction(*iter).unwrap()).clone());
@@ -265,9 +270,18 @@ pub fn block_overflow(
     let mut value_map = HashMap::new();
     let mut delete_ins = false; //a virer apres le merge???
     for mut ins in instructions {
-        if ins.operator == node::Operation::Nop {
+        if matches!(
+            ins.operator,
+            node::Operation::Nop
+                | node::Operation::Call(_)
+                | node::Operation::Res
+                | node::Operation::Ret
+        ) {
+            //TODO....for now we skip completely functions from overflow; that means arguments are NOT truncated..TODO but the pb is that arguments are NOT rhs,lhs (but ins.argument)..TODO
+            //then, we do assume the result is truncated, it could be interesting to allow for max values to the results...TODO
             continue;
         }
+        let mut ins_args = Vec::new();
         let mut i_lhs = ins.lhs;
         let mut i_rhs = ins.rhs;
         //we propagate optimised loads - todo check if it is needed because there is cse at the end
@@ -288,20 +302,31 @@ pub fn block_overflow(
             ins.lhs = l_id;
             update_instruction = true;
         }
-
-        let r_obj = &igen[r_id];
-        let l_obj = &igen[l_id];
-        let r_max = get_obj_max_value(igen, Some(r_obj), r_id, max_map, &value_map);
-        let l_max = get_obj_max_value(igen, Some(l_obj), l_id, max_map, &value_map);
-        //insert required truncates
-        let to_truncate = ins.truncate_required(l_obj.size_in_bits(), r_obj.size_in_bits());
-        if to_truncate.0 {
+        let r_obj = igen.try_get_node(r_id);
+        let l_obj = igen.try_get_node(l_id);
+        let r_max = get_obj_max_value(igen, r_obj, r_id, max_map, &value_map);
+        let l_max = get_obj_max_value(igen, l_obj, l_id, max_map, &value_map);
+        //insert required truncates, except for field type or dummy node
+        let to_truncate = ins.truncate_required(get_size_in_bits(l_obj), get_size_in_bits(r_obj));
+        if to_truncate.0 && l_obj.is_some() && get_type(l_obj) != node::ObjectType::NativeField {
             //adds a new truncate(lhs) instruction
-            add_to_truncate(igen, l_id, l_obj.size_in_bits(), &mut truncate_map, max_map);
+            add_to_truncate(
+                igen,
+                l_id,
+                get_size_in_bits(l_obj),
+                &mut truncate_map,
+                max_map,
+            );
         }
-        if to_truncate.1 {
+        if to_truncate.1 && r_obj.is_some() && get_type(r_obj) != node::ObjectType::NativeField {
             //adds a new truncate(rhs) instruction
-            add_to_truncate(igen, r_id, r_obj.size_in_bits(), &mut truncate_map, max_map);
+            add_to_truncate(
+                igen,
+                r_id,
+                get_size_in_bits(r_obj),
+                &mut truncate_map,
+                max_map,
+            );
         }
         match ins.operator {
             node::Operation::Load(_) => {
@@ -335,11 +360,11 @@ pub fn block_overflow(
                 // result in the cast, but this is handled by the truncate_required
                 // after this function, all cast instructions refer to casting lhs into a bigger (or equal) type
                 // anyother case has been transformed into the latter using truncates.
-                if ins.res_type == l_obj.get_type() {
+                if ins.res_type == get_type(l_obj) {
                     ins.is_deleted = true;
                     ins.rhs = ins.lhs;
                 }
-                if ins.res_type.bits() < l_obj.size_in_bits()
+                if ins.res_type.bits() < get_size_in_bits(l_obj)
                     && r_max.bits() as u32 > ins.res_type.bits()
                 {
                     //we need to truncate
@@ -358,6 +383,11 @@ pub fn block_overflow(
                     //n.b. we do not update value map because we re-use the cast instruction
                 }
             }
+            // node::Operation::Call(_) => {
+            //     for a in &ins.ins_arguments {
+            //         add_to_truncate(igen, *a, igen[*a].get_type().bits(), &mut truncate_map, max_map);
+            //     }
+            // }
             _ => (),
         }
         let mut ins_max = get_instruction_max(igen, &ins, max_map, &value_map);
@@ -369,10 +399,20 @@ pub fn block_overflow(
             //- insert truncate(rhs) dans la list des instructions
             //- update r_max et l_max
             //n.b we could try to truncate only one of them, but then we should check if rhs==lhs.
-            let l_trunc_max =
-                add_to_truncate(igen, l_id, l_obj.size_in_bits(), &mut truncate_map, max_map);
-            let r_trunc_max =
-                add_to_truncate(igen, r_id, r_obj.size_in_bits(), &mut truncate_map, max_map);
+            let l_trunc_max = add_to_truncate(
+                igen,
+                l_id,
+                get_size_in_bits(l_obj),
+                &mut truncate_map,
+                max_map,
+            );
+            let r_trunc_max = add_to_truncate(
+                igen,
+                r_id,
+                get_size_in_bits(r_obj),
+                &mut truncate_map,
+                max_map,
+            );
             ins_max = get_instruction_max_operand(
                 igen,
                 &ins,
@@ -407,6 +447,15 @@ pub fn block_overflow(
             if l_new != l_id || r_new != r_id || is_sub(&ins.operator) {
                 update_instruction = true;
             }
+
+            for a in &ins.ins_arguments {
+                let a_new = get_value_from_map(*a, &value_map);
+                if !update_instruction && *a != a_new {
+                    update_instruction = true;
+                }
+                ins_args.push(a_new);
+            }
+
             if update_instruction {
                 let mut max_r_value = None;
                 if is_sub(&ins.operator) {
@@ -424,7 +473,7 @@ pub fn block_overflow(
                     }
                     update_ins(igen, ins.id, modified_ins);
                 } else {
-                    update_ins_parameters(igen, ins.id, l_new, r_new, max_r_value);
+                    update_ins_parameters(igen, ins.id, l_new, r_new, ins_args, max_r_value);
                 }
             }
         }
@@ -447,6 +496,22 @@ fn update_value_array(igen: &mut IRGenerator, block_id: BlockId, vmap: &HashMap<
 //Get current value using the provided vmap
 pub fn get_value_from_map(id: NodeId, vmap: &HashMap<NodeId, NodeId>) -> NodeId {
     *vmap.get(&id).unwrap_or(&id)
+}
+
+fn get_size_in_bits(obj: Option<&node::NodeObj>) -> u32 {
+    if let Some(v) = obj {
+        v.size_in_bits()
+    } else {
+        0
+    }
+}
+
+fn get_type(obj: Option<&node::NodeObj>) -> node::ObjectType {
+    if let Some(v) = obj {
+        v.get_type()
+    } else {
+        node::ObjectType::NotAnObject
+    }
 }
 
 pub fn get_load_max(
@@ -525,12 +590,19 @@ pub fn get_max_value(ins: &Instruction, lhs_max: BigUint, rhs_max: BigUint) -> B
         Operation::Load(_) => {
             unreachable!();
         }
-        Operation::Store(_) => BigUint::from(0_u32),
+        Operation::Store(_) => BigUint::zero(),
+        Operation::Call(_) => ins.res_type.max_size(), //TODO interval analysis but we also need to get the arguments (ins_arguments)
+        Operation::Ret => todo!(),
+        Operation::Res => todo!(),
         Operation::Intrinsic(opcode) => {
             match opcode {
                 acvm::acir::OPCODE::SHA256
                 | acvm::acir::OPCODE::Blake2s
-                | acvm::acir::OPCODE::Pedersen => BigUint::zero(), //pointers do not overflow
+                | acvm::acir::OPCODE::Pedersen
+                | acvm::acir::OPCODE::FixedBaseScalarMul => BigUint::zero(), //pointers do not overflow
+                acvm::acir::OPCODE::SchnorrVerify | acvm::acir::OPCODE::EcdsaSecp256k1 => {
+                    BigUint::one()
+                } //verify returns 0 or 1
                 _ => todo!(),
             }
         }

@@ -153,6 +153,21 @@ pub fn find_similar_instruction(
     None
 }
 
+pub fn find_similar_cast(
+    igen: &IRGenerator,
+    lhs: NodeId,
+    res_type: node::ObjectType,
+    prev_ins: &VecDeque<NodeId>,
+) -> Option<NodeId> {
+    for iter in prev_ins {
+        if let Some(ins) = igen.try_get_instruction(*iter) {
+            if ins.lhs == lhs && ins.res_type == res_type {
+                return Some(*iter);
+            }
+        }
+    }
+    None
+}
 pub enum CseAction {
     Replace, //replace the instruction
     Remove,  //remove the instruction
@@ -278,7 +293,9 @@ pub fn block_cse(
             let mut i_lhs = ins.lhs;
             let mut i_rhs = ins.rhs;
             let mut phi_args = Vec::new();
+            let mut ins_args = Vec::new();
             let mut to_update_phi = false;
+            let mut to_update = false;
 
             if ins.is_deleted {
                 continue;
@@ -351,11 +368,34 @@ pub fn block_cse(
                         }
                     }
                     node::Operation::Cast => {
+                        //Propagate cast argument
                         i_lhs = propagate(igen, ins.lhs);
-                        i_rhs = propagate(igen, ins.rhs);
+                        i_rhs = i_lhs;
+                        //Similar cast must have same type
+                        if let Some(j) =
+                            find_similar_cast(igen, i_lhs, ins.res_type, &anchor[&ins.operator])
+                        {
+                            to_delete = true; //we want to delete ins but ins is immutable so we use the new_list instead
+                            i_rhs = j;
+                        } else {
+                            new_list.push(*iter);
+                            anchor.get_mut(&ins.operator).unwrap().push_front(*iter);
+                        }
+                    }
+                    node::Operation::Call(_) | node::Operation::Ret => {
+                        //No CSE for function calls because of possible side effect - TODO checks if a function has side effect when parsed and do cse for these.
+                        //Propagate arguments:
+                        for a in &ins.ins_arguments {
+                            let new_a = propagate(igen, *a);
+                            if !to_update && new_a != *a {
+                                to_update = true;
+                            }
+                            ins_args.push(new_a);
+                        }
                         new_list.push(*iter);
                     }
                     _ => {
+                        //TODO: checks we do not need to propagate res arguments
                         new_list.push(*iter);
                     }
                 }
@@ -364,7 +404,7 @@ pub fn block_cse(
             if to_update_phi {
                 let update = igen.get_mut_instruction(*iter);
                 update.phi_arguments = phi_args;
-            } else if to_delete || ins.lhs != i_lhs || ins.rhs != i_rhs {
+            } else if to_delete || ins.lhs != i_lhs || ins.rhs != i_rhs || to_update {
                 //update i:
                 let ii_l = ins.lhs;
                 let ii_r = ins.rhs;
@@ -372,6 +412,9 @@ pub fn block_cse(
                 update.lhs = i_lhs;
                 update.rhs = i_rhs;
                 update.is_deleted = to_delete;
+                if to_update {
+                    update.ins_arguments = ins_args;
+                }
                 //update instruction name - for debug/pretty print purposes only /////////////////////
                 if let Some(Instruction {
                     operator: Operation::Ass,
