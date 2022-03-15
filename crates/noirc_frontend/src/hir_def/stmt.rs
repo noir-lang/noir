@@ -1,10 +1,10 @@
+use std::cell::RefCell;
 use std::rc::Rc;
-
-use noirc_errors::Span;
 
 use super::expr::HirInfixExpression;
 use crate::node_interner::{ExprId, IdentId};
 use crate::{StructType, Type};
+use noirc_errors::Span;
 
 #[derive(Debug, Clone)]
 pub struct HirLetStatement {
@@ -44,5 +44,5 @@ pub enum HirPattern {
     Identifier(IdentId),
     Mutable(Box<HirPattern>, Span),
     Tuple(Vec<HirPattern>, Span),
-    Struct(Rc<StructType>, Vec<(IdentId, HirPattern)>, Span),
+    Struct(Rc<RefCell<StructType>>, Vec<(IdentId, HirPattern)>, Span),
 }

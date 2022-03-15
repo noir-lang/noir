@@ -4,7 +4,7 @@ mod parser;
 
 use crate::token::{Keyword, Token};
 use crate::{ast::ImportStatement, Expression, NoirStruct};
-use crate::{Ident, NoirFunction, Recoverable};
+use crate::{Ident, NoirFunction, NoirImpl, Recoverable};
 
 use chumsky::prelude::*;
 pub use errors::ParserError;
@@ -17,6 +17,7 @@ enum TopLevelStatement {
     Module(Ident),
     Import(ImportStatement),
     Struct(NoirStruct),
+    Impl(NoirImpl),
 }
 
 // Helper trait that gives us simpler type signatures for return types:
@@ -160,30 +161,26 @@ where
         })
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct ParsedModule {
     pub imports: Vec<ImportStatement>,
     pub functions: Vec<NoirFunction>,
     pub types: Vec<NoirStruct>,
+    pub impls: Vec<NoirImpl>,
     pub module_decls: Vec<Ident>,
 }
 
 impl ParsedModule {
-    fn with_capacity(cap: usize) -> Self {
-        ParsedModule {
-            imports: Vec::with_capacity(cap),
-            functions: Vec::with_capacity(cap),
-            types: Vec::with_capacity(cap),
-            module_decls: Vec::new(),
-        }
-    }
-
     fn push_function(&mut self, func: NoirFunction) {
         self.functions.push(func);
     }
 
     fn push_type(&mut self, typ: NoirStruct) {
         self.types.push(typ);
+    }
+
+    fn push_impl(&mut self, r#impl: NoirImpl) {
+        self.impls.push(r#impl);
     }
 
     fn push_import(&mut self, import_stmt: ImportStatement) {
@@ -249,6 +246,7 @@ impl std::fmt::Display for TopLevelStatement {
             TopLevelStatement::Module(m) => write!(f, "mod {}", m),
             TopLevelStatement::Import(i) => i.fmt(f),
             TopLevelStatement::Struct(s) => s.fmt(f),
+            TopLevelStatement::Impl(i) => i.fmt(f),
         }
     }
 }

@@ -40,7 +40,8 @@ impl Driver {
         let mut driver = Driver::new();
         driver.create_local_crate(root_file, CrateType::Binary);
         driver.add_std_lib();
-        let errs = CrateDefMap::collect_defs(LOCAL_CRATE, &mut driver.context);
+        let mut errs = vec![];
+        CrateDefMap::collect_defs(LOCAL_CRATE, &mut driver.context, &mut errs);
         for errors in &errs {
             dbg!(errors);
         }
@@ -127,7 +128,8 @@ impl Driver {
     }
 
     fn analyse_crate(&mut self) {
-        let errs = CrateDefMap::collect_defs(LOCAL_CRATE, &mut self.context);
+        let mut errs = vec![];
+        CrateDefMap::collect_defs(LOCAL_CRATE, &mut self.context, &mut errs);
         let mut error_count = 0;
         for errors in &errs {
             error_count += errors.errors.len();

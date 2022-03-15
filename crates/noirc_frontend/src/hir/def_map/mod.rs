@@ -19,10 +19,16 @@ pub use namespace::*;
 // XXX: Ultimately, we want to constrain an index to be of a certain type just like in RA
 /// Lets first check if this is offered by any external crate
 /// XXX: RA has made this a crate on crates.io
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub struct LocalModuleId(pub Index);
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+impl LocalModuleId {
+    pub fn dummy_id() -> LocalModuleId {
+        LocalModuleId(Index::from_raw_parts(std::usize::MAX, std::u64::MAX))
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct ModuleId {
     pub krate: CrateId,
     pub local_id: LocalModuleId,
@@ -41,19 +47,23 @@ pub struct CrateDefMap {
 
 impl CrateDefMap {
     /// Collect all definitions in the crate
-    pub fn collect_defs(crate_id: CrateId, context: &mut Context) -> Vec<CollectedErrors> {
+    pub fn collect_defs(
+        crate_id: CrateId,
+        context: &mut Context,
+        errors: &mut Vec<CollectedErrors>,
+    ) {
         // Check if this Crate has already been compiled
         // XXX: There is probably a better alternative for this.
         // Without this check, the compiler will panic as it does not
         // expect the same crate to be processed twice. It would not
         // make the implementation wrong, if the same crate was processed twice, it just makes it slow.
         if context.def_map(crate_id).is_some() {
-            return vec![];
+            return;
         }
 
         // First parse the root file.
         let root_file_id = context.crate_graph[crate_id].root_file_id;
-        let (ast, mut errors) = parse_file(&mut context.file_manager, root_file_id);
+        let ast = parse_file(&mut context.file_manager, root_file_id, errors);
 
         // Allocate a default Module for the root, giving it a ModuleId
         let mut modules: Arena<ModuleData> = Arena::default();
@@ -70,9 +80,7 @@ impl CrateDefMap {
         };
 
         // Now we want to populate the CrateDefMap using the DefCollector
-        let mut name_resolution_errors = DefCollector::collect(def_map, context, ast, root_file_id);
-        errors.append(&mut name_resolution_errors);
-        errors
+        DefCollector::collect(def_map, context, ast, root_file_id, errors);
     }
 
     pub fn root(&self) -> LocalModuleId {
@@ -103,15 +111,17 @@ impl CrateDefMap {
 }
 
 /// Given a FileId, fetch the File, from the FileManager and parse it's content
-pub fn parse_file(fm: &mut FileManager, file_id: FileId) -> (ParsedModule, Vec<CollectedErrors>) {
+pub fn parse_file(
+    fm: &mut FileManager,
+    file_id: FileId,
+    all_errors: &mut Vec<CollectedErrors>,
+) -> ParsedModule {
     let file = fm.fetch_file(file_id);
     let (program, errors) = parse_program(file.get_source());
-    let errors = if errors.is_empty() {
-        vec![]
-    } else {
-        vec![CollectedErrors { file_id, errors }]
+    if !errors.is_empty() {
+        all_errors.push(CollectedErrors { file_id, errors });
     };
-    (program, errors)
+    program
 }
 
 impl std::ops::Index<LocalModuleId> for CrateDefMap {
