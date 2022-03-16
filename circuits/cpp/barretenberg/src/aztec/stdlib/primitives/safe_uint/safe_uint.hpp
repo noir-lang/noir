@@ -26,7 +26,7 @@ template <typename ComposerContext> class safe_uint_t {
         ASSERT(safety == IS_UNSAFE);
         if (current_max > MAX_VALUE) // For optimal efficiency this should only be checked while testing a circuit
         {
-            throw_or_abort("exceeded modulus in positive_int class");
+            throw_or_abort("exceeded modulus in safe_uint class");
         }
     }
 
@@ -48,7 +48,6 @@ template <typename ComposerContext> class safe_uint_t {
     safe_uint_t(field_ct const& value, size_t bit_num, std::string const& description = "unknown")
         : value(value)
     {
-
         ASSERT(bit_num <= MAX_BIT_NUM);
         this->value.create_range_constraint(bit_num, format("safe_uint_t range constraint failure: ", description));
         current_max = ((uint256_t)1 << bit_num) - 1;
@@ -112,7 +111,7 @@ template <typename ComposerContext> class safe_uint_t {
     safe_uint_t operator-(const safe_uint_t& other) const
     {
         field_ct difference_val = this->value - other.value;
-        safe_uint_t<ComposerContext> difference(difference_val, (size_t)(current_max.get_msb() + 1));
+        safe_uint_t<ComposerContext> difference(difference_val, (size_t)(current_max.get_msb() + 1), "- operator");
         // This checks the subtraction is correct for integers without any wraps
         if (difference.current_max + other.current_max > MAX_VALUE)
             throw_or_abort("maximum value exceeded in safe_uint minus operator");
@@ -124,6 +123,7 @@ template <typename ComposerContext> class safe_uint_t {
         const safe_uint_t& other,
         const size_t quotient_bit_size,
         const size_t remainder_bit_size,
+        std::string const& description = "",
         const std::function<std::pair<uint256_t, uint256_t>(uint256_t, uint256_t)>& get_quotient =
             [](uint256_t val, uint256_t divisor) {
                 return std::make_pair((uint256_t)(val / (uint256_t)divisor), (uint256_t)(val % (uint256_t)divisor));
@@ -136,19 +136,21 @@ template <typename ComposerContext> class safe_uint_t {
         auto [quotient_val, remainder_val] = get_quotient(val, (uint256_t)other.value.get_value());
         field_ct quotient_field(witness_t(value.context, quotient_val));
         field_ct remainder_field(witness_t(value.context, remainder_val));
-        safe_uint_t<ComposerContext> quotient(quotient_field, quotient_bit_size);
-        safe_uint_t<ComposerContext> remainder(remainder_field, remainder_bit_size);
+        safe_uint_t<ComposerContext> quotient(
+            quotient_field, quotient_bit_size, format("divide method quotient: ", description));
+        safe_uint_t<ComposerContext> remainder(
+            remainder_field, remainder_bit_size, format("divide method remainder: ", description));
 
         // This line implicitly checks we are not overflowing
         safe_uint_t int_val = quotient * other + remainder;
 
         // We constrain divisor - remainder - 1 to be non-negative to ensure that remainder < divisor.
-        // // define remainder_plus_one to avoid multiple subtractions
+        // Define remainder_plus_one to avoid multiple subtractions
         const safe_uint_t<ComposerContext> remainder_plus_one = remainder + 1;
-        // // subtraction of safe_uint_t's imposes the desired range constraint
+        // Subtraction of safe_uint_t's imposes the desired range constraint
         other - remainder_plus_one;
 
-        this->assert_equal(int_val);
+        this->assert_equal(int_val, "divide method quotient and/or remainder incorrect");
 
         return quotient;
     }
@@ -162,8 +164,10 @@ template <typename ComposerContext> class safe_uint_t {
         auto remainder_val = (uint256_t)(val % (uint256_t)other.value.get_value());
         field_ct quotient_field(witness_t(value.context, quotient_val));
         field_ct remainder_field(witness_t(value.context, remainder_val));
-        safe_uint_t<ComposerContext> quotient(quotient_field, (size_t)(current_max.get_msb() + 1));
-        safe_uint_t<ComposerContext> remainder(remainder_field, (size_t)(other.current_max.get_msb() + 1));
+        safe_uint_t<ComposerContext> quotient(
+            quotient_field, (size_t)(current_max.get_msb() + 1), format("/ operator quotient"));
+        safe_uint_t<ComposerContext> remainder(
+            remainder_field, (size_t)(other.current_max.get_msb() + 1), format("/ operator remainder"));
 
         // This line implicitly checks we are not overflowing
         safe_uint_t int_val = quotient * other + remainder;
@@ -174,7 +178,7 @@ template <typename ComposerContext> class safe_uint_t {
         // // subtraction of safe_uint_t's imposes the desired range constraint
         other - remainder_plus_one;
 
-        this->assert_equal(int_val);
+        this->assert_equal(int_val, "/ operator quotient and/or remainder incorrect");
 
         return quotient;
     }
