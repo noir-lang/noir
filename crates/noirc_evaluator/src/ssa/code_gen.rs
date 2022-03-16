@@ -897,6 +897,12 @@ impl<'a> IRGenerator<'a> {
             }
         }
 
+        let a1 = [100; 1000000];
+        let a2 = a1;
+        let a3 = a1;
+        let a4 = a1;
+        println!("{:?} {:?} {:?} {:?}", a1, a2, a3, a4);
+
         let v_type = self.get_object_type(root);
         let new_phi = Instruction::new(Operation::Phi, root, root, v_type, Some(target_block));
         let phi_id = self.add_instruction(new_phi);
