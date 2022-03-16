@@ -380,9 +380,7 @@ fn evaluate_object(
 
 pub fn inline_tree(igen: &mut IRGenerator) {
     //inline all function calls
-    //todo process tous les blocks!
-    //vu qu'on fait ca plein de fois, y'a surement une maniere de faire generic..TODO!!
-    //pour le moment, juste le premier block...
+    //todo process all blocks
     inline_block(igen, igen.first_block);
 }
 
