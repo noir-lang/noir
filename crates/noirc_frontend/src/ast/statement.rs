@@ -4,7 +4,7 @@ use crate::lexer::token::SpannedToken;
 use crate::parser::ParserError;
 use crate::token::Token;
 use crate::util::vecmap;
-use crate::{Expression, ExpressionKind, InfixExpression, NoirStruct, Type};
+use crate::{Expression, ExpressionKind, InfixExpression, UnresolvedType};
 use noirc_errors::{Span, Spanned};
 
 /// This is used when an identifier fails to parse in the parser.
@@ -20,6 +20,12 @@ pub struct Ident(pub Spanned<String>);
 impl PartialEq<Ident> for Ident {
     fn eq(&self, other: &Ident) -> bool {
         self.0.contents == other.0.contents
+    }
+}
+
+impl PartialEq<str> for Ident {
+    fn eq(&self, other: &str) -> bool {
+        self.0.contents == other
     }
 }
 
@@ -126,7 +132,9 @@ impl Recoverable for Statement {
 }
 
 impl Statement {
-    pub fn new_let(((pattern, r#type), expression): ((Pattern, Type), Expression)) -> Statement {
+    pub fn new_let(
+        ((pattern, r#type), expression): ((Pattern, UnresolvedType), Expression),
+    ) -> Statement {
         Statement::Let(LetStatement {
             pattern,
             r#type,
@@ -202,13 +210,22 @@ pub enum PathKind {
 // Note: Path deliberately doesn't implement Recoverable.
 // No matter which default value we could give in Recoverable::error,
 // it would most likely cause further errors during name resolution
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct Path {
     pub segments: Vec<Ident>,
     pub kind: PathKind,
 }
 
 impl Path {
+    /// Construct a PathKind::Plain from this single
+    pub fn from_single(name: String, span: Span) -> Path {
+        let segment = Ident::from(Spanned::from(span, name));
+        Path {
+            segments: vec![segment],
+            kind: PathKind::Plain,
+        }
+    }
+
     pub fn span(&self) -> Span {
         let mut segments = self.segments.iter();
         let first_segment = segments.next().expect("ice : cannot have an empty path");
@@ -266,7 +283,7 @@ impl Path {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct LetStatement {
     pub pattern: Pattern,
-    pub r#type: Type,
+    pub r#type: UnresolvedType,
     pub expression: Expression,
 }
 
@@ -352,18 +369,6 @@ impl Display for ImportStatement {
             write!(f, " as {}", alias)?;
         }
         Ok(())
-    }
-}
-
-impl Display for NoirStruct {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "struct {} {{", self.name)?;
-
-        for (name, typ) in self.fields.iter() {
-            writeln!(f, "    {}: {},", name, typ)?;
-        }
-
-        write!(f, "}}")
     }
 }
 

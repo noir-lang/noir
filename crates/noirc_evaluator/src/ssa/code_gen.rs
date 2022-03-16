@@ -882,6 +882,7 @@ impl<'a> IRGenerator<'a> {
             HirExpression::Tuple(_) => todo!(),
             HirExpression::MemberAccess(_) => todo!(),
             HirExpression::Error => todo!(),
+            HirExpression::MethodCall(_) => unreachable!("Method calls should be desugared before codegen"),
         }
     }
 

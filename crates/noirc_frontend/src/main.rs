@@ -26,11 +26,10 @@ fn main() {
     // This is preamble for analysis
     // With a CrateDefMap, we are sure that the imports are correct, and the modules declared are located
     // The modules are resolved and type checked!
-    let errors = CrateDefMap::collect_defs(crate_id, &mut context);
+    let mut errors = vec![];
+    CrateDefMap::collect_defs(crate_id, &mut context, &mut errors);
     assert_eq!(errors, vec![]);
     let def_map = context.def_map(crate_id).unwrap();
-
-    //
 
     // Get root module
     let root = def_map.root();

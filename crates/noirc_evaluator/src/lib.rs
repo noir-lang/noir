@@ -644,6 +644,7 @@ impl<'a> Evaluator<'a> {
             HirExpression::Constructor(_) => todo!("Constructor expressions are unimplemented in the noir backend"),
             HirExpression::Tuple(_) => todo!("Tuple expressions are unimplemented in the noir backend"),
             HirExpression::MemberAccess(_) => todo!("Member access expressions are unimplemented in the noir backend"),
+            HirExpression::MethodCall(expr) => unreachable!("Method call expressions should have been desugared into call expressions before reaching the backend: {:#?}", expr),
             HirExpression::Error => unreachable!("Tried to evaluate an Expression::Error node"),
         }
     }
