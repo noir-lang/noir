@@ -152,7 +152,7 @@ where
 {
     chumsky::prelude::none_of(targets)
         .repeated()
-        .ignore_then(any().rewind())
+        .ignore_then(one_of(too_far.clone()).rewind())
         .try_map(move |peek, span| {
             if too_far.get_iter().any(|t| t == peek) {
                 // This error will never be shown to the user
@@ -181,9 +181,9 @@ fn parameter_name_recovery<T: Recoverable + Clone>() -> impl NoirParser<T> {
 }
 
 fn top_level_statement_recovery() -> impl NoirParser<TopLevelStatement> {
-    chumsky::prelude::none_of([Token::Semicolon, Token::RightBrace, Token::EOF])
+    none_of([Token::Semicolon, Token::RightBrace, Token::EOF])
         .repeated()
-        .ignore_then(just([Token::Semicolon, Token::RightBrace]))
+        .ignore_then(one_of([Token::Semicolon, Token::RightBrace]))
         .map(|_| TopLevelStatement::Error)
 }
 
