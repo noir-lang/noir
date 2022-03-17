@@ -145,14 +145,18 @@ where
 ///
 /// Expects all of `too_far` to be contained within `targets`
 fn try_skip_until<T, C1, C2>(targets: C1, too_far: C2) -> impl NoirParser<T>
-    where T: Recoverable + Clone, C1: Container<Token> + Clone, C2: Container<Token> + Clone
+where
+    T: Recoverable + Clone,
+    C1: Container<Token> + Clone,
+    C2: Container<Token> + Clone,
 {
     chumsky::prelude::none_of(targets)
         .repeated()
         .ignore_then(any().rewind())
         .try_map(move |peek, span| {
-            if too_far.get_iter().find(|t| t == &peek).is_some() {
-                Err(ParserError::with_reason("Failed to parse statement".to_owned(), span))
+            if too_far.get_iter().any(|t| t == peek) {
+                // This error will never be shown to the user
+                Err(ParserError::with_reason(String::new(), span))
             } else {
                 Ok(Recoverable::error(span))
             }
@@ -166,19 +170,16 @@ fn statement_recovery() -> impl NoirParser<Statement> {
     try_skip_until([Semicolon, RightBrace], RightBrace)
 }
 
-/// Recovery strategy for parameters. Try to skip to the next parameter if possible
 fn parameter_recovery<T: Recoverable + Clone>() -> impl NoirParser<T> {
     use Token::*;
     try_skip_until([Comma, RightParen], RightParen)
 }
 
-/// Recovery strategy for parameters. Try to skip to the next parameter if possible
 fn parameter_name_recovery<T: Recoverable + Clone>() -> impl NoirParser<T> {
     use Token::*;
     try_skip_until([Colon, RightParen, Comma], [RightParen, Comma])
 }
 
-/// Recovery strategy for parameters. Try to skip to the next parameter if possible
 fn top_level_statement_recovery() -> impl NoirParser<TopLevelStatement> {
     chumsky::prelude::none_of([Token::Semicolon, Token::RightBrace, Token::EOF])
         .repeated()

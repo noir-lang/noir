@@ -1,6 +1,7 @@
 use super::{
-    foldl_with_span, parenthesized, then_commit, then_commit_ignore, ExprParser, NoirParser,
-    ParsedModule, ParserError, Precedence, TopLevelStatement, parameter_recovery, top_level_statement_recovery, parameter_name_recovery,
+    foldl_with_span, parameter_name_recovery, parameter_recovery, parenthesized, then_commit,
+    then_commit_ignore, top_level_statement_recovery, ExprParser, NoirParser, ParsedModule,
+    ParserError, Precedence, TopLevelStatement,
 };
 use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
@@ -84,7 +85,8 @@ fn struct_definition() -> impl NoirParser<TopLevelStatement> {
     use self::Keyword::Struct;
     use Token::*;
 
-    let fields = struct_fields().delimited_by(just(LeftBrace), just(RightBrace))
+    let fields = struct_fields()
+        .delimited_by(just(LeftBrace), just(RightBrace))
         .recover_with(nested_delimiters(
             LeftBrace,
             RightBrace,
