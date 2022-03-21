@@ -109,12 +109,6 @@ pub trait Recoverable {
     fn error(span: Span) -> Self;
 }
 
-impl<T: Recoverable, U: Recoverable> Recoverable for (T, U) {
-    fn error(span: Span) -> Self {
-        (Recoverable::error(span), Recoverable::error(span))
-    }
-}
-
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Statement {
     Let(LetStatement),
