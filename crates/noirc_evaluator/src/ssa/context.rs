@@ -1,5 +1,6 @@
 use super::block::{BasicBlock, BlockId};
-use super::node::{Instruction, NodeId, NodeObj, Operation};
+use super::mem::Memory;
+use super::node::{Instruction, NodeId, NodeObj, ObjectType, Operation};
 use super::{block, flatten, integer, node, optim};
 use std::collections::HashSet;
 
@@ -22,6 +23,7 @@ pub struct SsaContext<'a> {
     blocks: arena::Arena<block::BasicBlock>,
     pub nodes: arena::Arena<node::NodeObj>,
     pub sealed_blocks: HashSet<BlockId>,
+    pub mem: Memory,
 }
 
 impl<'a> SsaContext<'a> {
@@ -33,6 +35,7 @@ impl<'a> SsaContext<'a> {
             blocks: arena::Arena::new(),
             nodes: arena::Arena::new(),
             sealed_blocks: HashSet::new(),
+            mem: Memory::default(),
         };
         block::create_first_block(&mut pc);
         pc
@@ -127,18 +130,6 @@ impl<'a> SsaContext<'a> {
         }
 
         id
-    }
-
-    pub fn find_const(&self, value: &BigUint) -> Option<NodeId> {
-        //TODO We should map constant values to id
-        for (idx, o) in &self.nodes {
-            if let node::NodeObj::Const(c) = o {
-                if c.value == *value {
-                    return Some(NodeId(idx));
-                }
-            }
-        }
-        None
     }
 
     pub fn dummy_id() -> arena::Index {
@@ -236,9 +227,7 @@ impl<'a> SsaContext<'a> {
         optype: node::ObjectType,
     ) -> NodeId {
         //Add a new instruction to the nodes arena
-        let cb = self.get_current_block();
-
-        let mut i = node::Instruction::new(opcode, lhs, rhs, optype, Some(cb.id));
+        let mut i = node::Instruction::new(opcode, lhs, rhs, optype, Some(self.current_block));
         //Basic simplification
         optim::simplify(self, &mut i);
         if i.is_deleted {
@@ -247,15 +236,28 @@ impl<'a> SsaContext<'a> {
         self.push_instruction(i)
     }
 
-    //Retrieve the object conresponding to the const value given in argument
+    pub fn find_const_with_type(
+        &self,
+        value: &BigUint,
+        e_type: node::ObjectType,
+    ) -> Option<NodeId> {
+        //TODO We should map constant values to id
+        for (idx, o) in &self.nodes {
+            if let node::NodeObj::Const(c) = o {
+                if c.value == *value && c.get_type() == e_type {
+                    return Some(NodeId(idx));
+                }
+            }
+        }
+        None
+    }
+
+    // Retrieve the object conresponding to the const value given in argument
     // If such object does not exist, we create one
-    //TODO: handle type
     pub fn get_or_create_const(&mut self, x: FieldElement, t: node::ObjectType) -> NodeId {
         let value = BigUint::from_bytes_be(&x.to_bytes()); //TODO a const should be a field element
-        if let Some(obj) = self.find_const(&value)
-        //todo type
-        {
-            return obj;
+        if let Some(prev_const) = self.find_const_with_type(&value, t) {
+            return prev_const;
         }
 
         self.add_const(node::Constant {
@@ -266,34 +268,32 @@ impl<'a> SsaContext<'a> {
         })
     }
 
-    //TODO the type should be provided by previous step so we can use get_const() instead
-    pub fn new_constant(&mut self, x: FieldElement) -> NodeId {
-        //we try to convert it to a supported integer type
-        //if it does not work, we use the field type
-        //n.b we cannot support custom fields bigger than the native field, we would need to support bigint and
-        //use bigint inside HiLiterrals.
-        //default to i32 (like rust)
-
-        //We first check if a constant with the same value already exists, and use it if it exists. it will allow for better CSE.
-        let value = BigUint::from_bytes_be(&x.to_bytes()); //TODO a const should be a field element
-        if let Some(prev_const) = self.find_const(&value) {
-            return prev_const;
-        }
-
-        //TODO default should be FieldElement, not i32
-        let num_bits = x.num_bits();
-        if num_bits < 32 {
-            self.add_const(node::Constant {
-                id: NodeId::dummy(),
-                value,
-                value_type: node::ObjectType::Signed(32),
-                value_str: String::new(),
-            })
-        } else {
-            //idx = self.id0;
-            todo!();
-            //we should support integer of size <  integer::short_integer_max_bit_size(), because else we cannot do multiplication!
-            //for bigger size, we will need to represent an integer using several field elements, it may be easier to implement them in Noir! (i.e as a Noir library)
+    //Return the type of the operation result, based on the left hand type
+    pub fn get_result_type(&self, op: Operation, lhs_type: node::ObjectType) -> node::ObjectType {
+        match op {
+            Operation::Eq
+            | Operation::Ne
+            | Operation::Ugt
+            | Operation::Uge
+            | Operation::Ult
+            | Operation::Ule
+            | Operation::Sgt
+            | Operation::Sge
+            | Operation::Slt
+            | Operation::Sle
+            | Operation::Lt
+            | Operation::Gt
+            | Operation::Lte
+            | Operation::Gte => ObjectType::Boolean,
+            Operation::Jne
+            | Operation::Jeq
+            | Operation::Jmp
+            | Operation::Nop
+            | Operation::Constrain(_)
+            | Operation::Store(_) => ObjectType::NotAnObject,
+            Operation::Load(adr) => self.mem.arrays[adr as usize].element_type,
+            Operation::Cast | Operation::Trunc => unreachable!("cannot determine result type"),
+            _ => lhs_type,
         }
     }
 
@@ -315,45 +315,49 @@ impl<'a> SsaContext<'a> {
         self.blocks.iter().map(|(_id, block)| block)
     }
 
+    pub fn pause(interactive: bool) {
+        if_debug::if_debug!(if interactive {
+            let mut number = String::new();
+            println!("Press enter to continue");
+            std::io::stdin().read_line(&mut number).unwrap();
+        });
+    }
+
     //Optimise, flatten and truncate IR and then generates ACIR representation from it
-    pub fn ir_to_acir(mut self, evaluator: &mut Evaluator) -> Result<(), RuntimeError> {
+    pub fn ir_to_acir(
+        &mut self,
+        evaluator: &mut Evaluator,
+        interactive: bool,
+    ) -> Result<(), RuntimeError> {
+        //SSA
         dbg!("SSA:");
         self.print();
+        Self::pause(interactive);
+
         //Optimisation
-        block::compute_dom(&mut self);
+        block::compute_dom(self);
         dbg!("CSE:");
-        optim::cse(&mut self);
+        optim::cse(self);
         self.print();
+        Self::pause(interactive);
         //Unrolling
         dbg!("unrolling:");
-        flatten::unroll_tree(&mut self);
-        optim::cse(&mut self);
+        flatten::unroll_tree(self);
         self.print();
+        Self::pause(interactive);
+        optim::cse(self);
         //Truncation
-        integer::overflow_strategy(&mut self);
+        integer::overflow_strategy(self);
         self.print();
-        //println!("Press enter to continue");
-        //io::stdin().read_line(&mut number);
+        Self::pause(interactive);
         //ACIR
         self.acir(evaluator);
         dbg!("DONE");
         Ok(())
     }
 
-    //Cast lhs into type rtype. a cast b means (a) b
-    pub fn new_cast_expression(&mut self, lhs: NodeId, rtype: node::ObjectType) -> NodeId {
-        //generate instruction 'a cast a', with result type rtype
-        self.push_instruction(Instruction::new(
-            node::Operation::Cast,
-            lhs,
-            lhs,
-            rtype,
-            Some(self.current_block),
-        ))
-    }
-
     pub fn acir(&self, evaluator: &mut Evaluator) {
-        let mut acir = Acir::new();
+        let mut acir = Acir::default();
         let mut fb = Some(&self[self.first_block]);
         while let Some(block) = fb {
             for iter in &block.instructions {
@@ -363,7 +367,7 @@ impl<'a> SsaContext<'a> {
             //TODO we should rather follow the jumps
             fb = block.left.map(|block_id| &self[block_id]);
         }
-        //   dbg!(acir.arith_cache);
+        Acir::print_circuit(&evaluator.gates);
     }
 
     pub fn generate_empty_phi(&mut self, target_block: BlockId, root: NodeId) -> NodeId {

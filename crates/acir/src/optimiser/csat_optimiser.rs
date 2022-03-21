@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use crate::native_types::{Arithmetic, Witness};
 use indexmap::IndexMap;
 use noir_field::FieldElement;
@@ -144,8 +146,19 @@ impl Optimiser {
                     intermediate_gate.linear_combinations.push(left_wire_term);
                     intermediate_gate.linear_combinations.push(right_wire_term);
                     // Remove the left and right wires so we do not re-add them
-                    gate.linear_combinations.remove(x);
-                    gate.linear_combinations.remove(y);
+                    match x.cmp(&y) {
+                        Ordering::Greater => {
+                            gate.linear_combinations.remove(x);
+                            gate.linear_combinations.remove(y);
+                        }
+                        Ordering::Less => {
+                            gate.linear_combinations.remove(y);
+                            gate.linear_combinations.remove(x);
+                        }
+                        Ordering::Equal => {
+                            gate.linear_combinations.remove(x);
+                        }
+                    }
 
                     // Now we have used up 2 spaces in our arithmetic gate. The width now dictates, how many more we can add
                     let remaining_space = self.width - 2 - 1; // We minus 1 because we need an extra space to contain the intermediate variable

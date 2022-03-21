@@ -61,6 +61,11 @@ pub fn start_cli() {
                     Arg::with_name("proof_name")
                         .help("The name of the proof")
                         .required(true),
+                )
+                .arg(
+                    Arg::with_name("interactive")
+                        .help("pause execution")
+                        .required(false),
                 ),
         )
         .get_matches();
@@ -103,6 +108,7 @@ fn write_to_file(bytes: &[u8], path: &Path) -> String {
 // helper function which tests noir programs by trying to generate a proof and verify it
 pub fn prove_and_verify(proof_name: &str, prg_dir: &Path) -> bool {
     let tmp_dir = TempDir::new("p_and_v_tests").unwrap();
-    let proof_path = prove_cmd::prove_with_path(proof_name, prg_dir, &tmp_dir.into_path()).unwrap();
+    let proof_path =
+        prove_cmd::prove_with_path(proof_name, prg_dir, &tmp_dir.into_path(), false).unwrap();
     verify_cmd::verify_with_path(prg_dir, &proof_path).unwrap()
 }
