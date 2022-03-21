@@ -29,7 +29,6 @@ fn eval_block(block_id: BlockId, eval_map: &HashMap<NodeId, NodeEval>, igen: &mu
             if let Some(value) = eval_map.get(&ins.lhs) {
                 ins.lhs = value.into_node_id().unwrap();
             }
-            if ins.operator == Operation::EqGate {}
             //TODO simplify(eval, ins);
         }
     }
@@ -230,16 +229,17 @@ fn evaluate_phi(
     for i in instructions {
         let mut to_process = Vec::new();
         if let Some(ins) = igen.try_get_instruction(*i) {
-            for phi in &ins.phi_arguments {
-                if phi.1 == from {
-                    //we evaluate the phi instruction value
-                    to_process.push((
-                        ins.id,
-                        evaluate_one(NodeEval::VarOrInstruction(phi.0), to, igen),
-                    ));
+            if ins.operator == node::Operation::Phi {
+                for phi in &ins.phi_arguments {
+                    if phi.1 == from {
+                        //we evaluate the phi instruction value
+                        to_process.push((
+                            ins.id,
+                            evaluate_one(NodeEval::VarOrInstruction(phi.0), to, igen),
+                        ));
+                    }
                 }
-            }
-            if ins.operator != Operation::Phi && ins.operator != Operation::Nop {
+            } else if ins.operator != node::Operation::Nop {
                 break; //phi instructions are placed at the beginning (and after the first dummy instruction)
             }
         }

@@ -2,6 +2,7 @@ use std::convert::TryInto;
 use std::ops::Add;
 
 use acvm::acir::native_types::Witness;
+use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use arena;
 use noirc_frontend::hir_def::expr::HirBinaryOpKind;
@@ -159,8 +160,8 @@ pub enum ObjectType {
     Boolean,
     Unsigned(u32), //bit size
     Signed(u32),   //bit size
+    Pointer(u32),  //array index
     //custom(u32),   //user-defined struct, u32 refers to the id of the type in...?todo
-    //array(ObjectType),  TODO we should have primitive type and composite types
     //TODO big_int
     //TODO floats
     NotAnObject, //not an object
@@ -192,8 +193,7 @@ impl ObjectType {
                 //ObjectType::native_field
             }
             Object::Array(_) => {
-                todo!();
-                //ObjectType::none
+                todo!(); //TODO we should match an array in mem: ObjectType::Pointer(0)
             }
             Object::Constants(_) => ObjectType::NativeField, //TODO
             Object::Integer(i) => {
@@ -213,7 +213,6 @@ impl ObjectType {
     pub fn from_type(t: noirc_frontend::Type) -> ObjectType {
         match t {
             noirc_frontend::Type::FieldElement(_) => ObjectType::NativeField,
-
             noirc_frontend::Type::Integer(_ftype, sign, bit_size) => {
                 assert!(
                     bit_size < super::integer::short_integer_max_bit_size(),
@@ -225,6 +224,7 @@ impl ObjectType {
                 }
             }
             noirc_frontend::Type::Bool => ObjectType::Boolean,
+            noirc_frontend::Type::Array(_, _, t) => ObjectType::from_type(*t),
             x => {
                 let err = format!("currently we do not support type casting to {}", x);
                 todo!("{}", err);
@@ -239,12 +239,18 @@ impl ObjectType {
             ObjectType::NotAnObject => 0,
             ObjectType::Signed(c) => *c,
             ObjectType::Unsigned(c) => *c,
+            ObjectType::Pointer(_) => unreachable!(),
         }
     }
 
     //maximum size of the representation (e.g. signed(8).max_size() return 255, not 128.)
     pub fn max_size(&self) -> BigUint {
-        (BigUint::one() << self.bits()) - BigUint::one()
+        match self {
+            &ObjectType::NativeField => {
+                BigUint::from_bytes_be(&FieldElement::from(-1_i128).to_bytes())
+            }
+            _ => (BigUint::one() << self.bits()) - BigUint::one(),
+        }
     }
 }
 
@@ -264,12 +270,14 @@ pub struct Instruction {
 
     //temp: todo phi subtype
     pub phi_arguments: Vec<(NodeId, BlockId)>,
+
+    pub ins_arguments: Vec<arena::Index>,
 }
 
 impl std::fmt::Display for Instruction {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if self.res_name.is_empty() {
-            write!(f, "{:?}", self.id.0.into_raw_parts().0)
+            write!(f, "({:?})", self.id.0.into_raw_parts().0)
         } else {
             write!(f, "{}", self.res_name.clone())
         }
@@ -321,6 +329,7 @@ impl Instruction {
             bit_size: 0,
             max_value: BigUint::zero(),
             phi_arguments: Vec::new(),
+            ins_arguments: Vec::new(),
         }
     }
 
@@ -368,7 +377,9 @@ impl Instruction {
             }
             Operation::Trunc | Operation::Phi => (false, false),
             Operation::Nop | Operation::Jne | Operation::Jeq | Operation::Jmp => (false, false),
-            Operation::EqGate => (true, true),
+            Operation::Constrain(_) => (true, true),
+            Operation::Load(_) | Operation::Store(_) => (false, false),
+            Operation::Intrinsic(_) => (true, true), //TODO to check
         }
     }
 
@@ -376,7 +387,9 @@ impl Instruction {
     pub fn get_const_value(c: FieldElement, ctype: ObjectType) -> (u128, u32) {
         match ctype {
             ObjectType::Boolean => (if c.is_zero() { 0 } else { 1 }, 1),
-            ObjectType::NativeField => (0, 256),
+            ObjectType::NativeField => {
+                (c.to_u128(), 256) //TODO: handle elements that do not fit in 128 bits
+            }
             ObjectType::Signed(b) | ObjectType::Unsigned(b) => {
                 assert!(b < 128); //we do not support integers bigger than 128 bits for now.
                 (c.to_u128(), b)
@@ -395,7 +408,7 @@ impl Instruction {
         }
     }
 
-    //Evaluate the instruction value when its operands are constant
+    //Evaluate the instruction value when its operands are constant (constant folding)
     pub fn evaluate(&self, lhs: &NodeEval, rhs: &NodeEval) -> NodeEval {
         //let mut l_sign = false; //TODO
         let (l_is_zero, l_constant, l_bsize) = Instruction::node_evaluate(lhs);
@@ -420,7 +433,7 @@ impl Instruction {
                         unreachable!();
                     }
                     assert!(l_bsize == r_bsize);
-                    let res_value = (l_const + r_const) % l_bsize as u128;
+                    let res_value = (l_const + r_const) % (1_u128 << l_bsize) as u128;
                     return NodeEval::Const(FieldElement::from(res_value), self.res_type);
                 }
                 //if only one is const, we could try to do constant propagation but this will be handled by the arithmetization step anyways
@@ -446,7 +459,9 @@ impl Instruction {
                     }
                     //if l_constant.is_some() && r_constant.is_some() {
                     assert!(l_bsize == r_bsize);
-                    let res_value = (l_const - r_const) % l_bsize as u128;
+
+                    let res_value =
+                        l_const.overflowing_sub(r_const).0 % (1_u128 << l_bsize) as u128;
                     return NodeEval::Const(FieldElement::from(res_value), self.res_type);
                 }
             }
@@ -471,7 +486,7 @@ impl Instruction {
                     }
 
                     assert!(l_bsize == r_bsize);
-                    let res_value = (l_const * r_const) % l_bsize as u128;
+                    let res_value = (l_const * r_const) % (1_u128 << l_bsize) as u128;
                     return NodeEval::Const(FieldElement::from(res_value), self.res_type);
                 }
                 //if only one is const, we could try to do constant propagation but this will be handled by the arithmetization step anyways
@@ -648,8 +663,24 @@ impl Instruction {
                 //TODO handle case when l_const is one (or r_const is one) by generating 'not rhs' instruction (or 'not lhs' instruction)
             }
             Operation::Cast => {
-                if l_constant.is_some() {
-                    todo!("need to cast l_constant into self.res_type.bits() bit size")
+                if let Some(l_const) = l_constant {
+                    if self.res_type == ObjectType::NativeField {
+                        return NodeEval::Const(FieldElement::from(l_const), self.res_type);
+                    }
+                    return NodeEval::Const(
+                        FieldElement::from(l_const % (1_u128 << self.res_type.bits())),
+                        self.res_type,
+                    );
+                }
+            }
+            Operation::Constrain(op) => {
+                if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
+                    match op {
+                        ConstrainOp::Eq => assert_eq!(l_const, r_const),
+                        ConstrainOp::Neq => assert_ne!(l_const, r_const),
+                    }
+                    //we can delete the instruction
+                    return NodeEval::VarOrInstruction(NodeId::dummy());
                 }
             }
             Operation::Phi => (), //Phi are simplified by simply_phi() later on; they must not be simplified here
@@ -706,20 +737,29 @@ impl Instruction {
                 std::mem::swap(&mut self.rhs, &mut self.lhs);
                 self.operator = Operation::Lte
             }
-            //TODO replace a<b with a<=b+1, but beware of edge cases!
-            Operation::EqGate => {
-                if self.rhs == self.lhs {
-                    self.rhs = self.id;
-                    self.is_deleted = true;
-                    self.operator = Operation::Nop;
+            Operation::Constrain(op) => match op {
+                ConstrainOp::Eq => {
+                    if self.rhs == self.lhs {
+                        self.rhs = self.id;
+                        self.is_deleted = true;
+                        self.operator = Operation::Nop;
+                    }
                 }
-            }
+                ConstrainOp::Neq => assert!(self.rhs != self.lhs),
+            },
             _ => (),
         }
         if is_commutative(self.operator) && self.rhs < self.lhs {
             std::mem::swap(&mut self.rhs, &mut self.lhs);
         }
     }
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+pub enum ConstrainOp {
+    Eq,
+    Neq,
+    //Cmp...
 }
 
 //adapted from LLVM IR
@@ -764,8 +804,15 @@ pub enum Operation {
     Jeq, //jump on equal
     Jmp, //unconditional jump
     Phi,
-    Nop,    // no op
-    EqGate, //write a gate enforcing equality of the two sides (to support the constrain statement)
+    //memory
+    Load(u32),
+    Store(u32),
+
+    Intrinsic(OPCODE), //Custom implementation of usefull primitives which are more performant with Aztec backend
+    //Call(noirc_frontend::node_interner::FuncId),
+    Constrain(ConstrainOp), //write gates enforcing the ContrainOp to be true
+
+    Nop, // no op
 }
 
 pub fn is_commutative(op_code: Operation) -> bool {
@@ -778,6 +825,8 @@ pub fn is_commutative(op_code: Operation) -> bool {
             | Operation::And
             | Operation::Or
             | Operation::Xor
+            | Operation::Constrain(ConstrainOp::Eq)
+            | Operation::Constrain(ConstrainOp::Neq)
     )
 }
 
@@ -813,11 +862,11 @@ pub fn is_binary(op_code: Operation) -> bool {
             | Operation::Or
             | Operation::Xor
             | Operation::Trunc
-            | Operation::EqGate
+            | Operation::Constrain(_)
     )
 
-    //For the record:  Operation::not | Operation::cast => false | Operation::ass | Operation::trunc
-    //  | Operation::jne | Operation::jeq | Operation::jmp | Operation::phi | Operation::nop
+    //For the record:  Operation::not | Operation::cast => false | Operation::ass | Operation::trunc | Operation::nop
+    //  | Operation::jne | Operation::jeq | Operation::jmp | Operation::phi | Operation::load | Operation::store
 }
 
 pub fn to_operation(op_kind: HirBinaryOpKind, op_type: ObjectType) -> Operation {

@@ -1,20 +1,22 @@
 use super::block::{BasicBlock, BlockId};
-use super::node::{Instruction, NodeId, NodeObj, Operation};
+use super::mem::Memory;
+use super::node::{ConstrainOp, Instruction, NodeId, NodeObj, ObjectType, Operation};
 use super::{block, flatten, integer, node, optim, ssa_form};
 use std::collections::HashMap;
 use std::collections::HashSet;
-
-//use std::io;
 
 use super::super::environment::Environment;
 use super::super::errors::{RuntimeError, RuntimeErrorKind};
 use crate::object::Object;
 use crate::ssa::acir_gen::Acir;
+//use crate::ssa::function;
 use crate::ssa::node::Node;
 use crate::Evaluator;
+//use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use arena;
 use noirc_frontend::hir::Context;
+//use noirc_frontend::hir_def::expr::HirCallExpression;
 use noirc_frontend::hir_def::function::HirFunction;
 use noirc_frontend::hir_def::stmt::HirPattern;
 use noirc_frontend::hir_def::{
@@ -22,6 +24,7 @@ use noirc_frontend::hir_def::{
     stmt::{HirConstrainStatement, HirLetStatement, HirStatement},
 };
 use noirc_frontend::node_interner::{ExprId, IdentId, StmtId};
+use noirc_frontend::FunctionKind;
 //use noirc_frontend::{FunctionKind, Type};
 use num_bigint::BigUint;
 
@@ -36,6 +39,7 @@ pub struct IRGenerator<'a> {
     pub current_block: BlockId,
     blocks: arena::Arena<block::BasicBlock>,
     pub nodes: arena::Arena<node::NodeObj>,
+    pub mem: Memory,
     pub id0: arena::Index, //dummy index.. should we put a dummy object somewhere?
     pub value_name: HashMap<NodeId, u32>,
     pub sealed_blocks: HashSet<BlockId>,
@@ -50,6 +54,7 @@ impl<'a> IRGenerator<'a> {
             current_block: BlockId::dummy(),
             blocks: arena::Arena::new(),
             nodes: arena::Arena::new(),
+            mem: Memory::default(),
             // dummy_instruction: ParsingContext::dummy_id(),
             value_name: HashMap::new(),
             sealed_blocks: HashSet::new(),
@@ -105,10 +110,13 @@ impl<'a> IRGenerator<'a> {
     }
 
     pub fn print(&self) {
+        let mut ins_nb = 0;
         for (i, (_, b)) in self.blocks.iter().enumerate() {
             println!("************* Block n.{}", i);
             self.print_block(b);
+            ins_nb += b.instructions.len();
         }
+        println!("*** TOTAL: {} instructions", ins_nb);
     }
 
     pub fn context(&self) -> &Context {
@@ -167,11 +175,15 @@ impl<'a> IRGenerator<'a> {
         None
     }
 
-    pub fn find_const(&self, value: &BigUint) -> Option<NodeId> {
+    pub fn find_const_with_type(
+        &self,
+        value: &BigUint,
+        e_type: node::ObjectType,
+    ) -> Option<NodeId> {
         //TODO We should map constant values to id
         for (idx, o) in &self.nodes {
             if let node::NodeObj::Const(c) = o {
-                if c.value == *value {
+                if c.value == *value && c.get_type() == e_type {
                     return Some(NodeId(idx));
                 }
             }
@@ -274,9 +286,7 @@ impl<'a> IRGenerator<'a> {
         optype: node::ObjectType,
     ) -> NodeId {
         //Add a new instruction to the nodes arena
-        let cb = self.get_current_block();
-
-        let mut i = node::Instruction::new(opcode, lhs, rhs, optype, Some(cb.id));
+        let mut i = node::Instruction::new(opcode, lhs, rhs, optype, Some(self.current_block));
         //Basic simplification
         optim::simplify(self, &mut i);
         if i.is_deleted {
@@ -287,13 +297,10 @@ impl<'a> IRGenerator<'a> {
 
     //Retrieve the object conresponding to the const value given in argument
     // If such object does not exist, we create one
-    //TODO: handle type
     pub fn get_or_create_const(&mut self, x: FieldElement, t: node::ObjectType) -> NodeId {
         let value = BigUint::from_bytes_be(&x.to_bytes()); //TODO a const should be a field element
-        if let Some(obj) = self.find_const(&value)
-        //todo type
-        {
-            return obj;
+        if let Some(prev_const) = self.find_const_with_type(&value, t) {
+            return prev_const;
         }
 
         self.add_const(node::Constant {
@@ -302,37 +309,6 @@ impl<'a> IRGenerator<'a> {
             value_str: String::new(),
             value_type: t,
         })
-    }
-
-    //TODO the type should be provided by previous step so we can use get_const() instead
-    pub fn new_constant(&mut self, x: FieldElement) -> NodeId {
-        //we try to convert it to a supported integer type
-        //if it does not work, we use the field type
-        //n.b we cannot support custom fields bigger than the native field, we would need to support bigint and
-        //use bigint inside HiLiterrals.
-        //default to i32 (like rust)
-
-        //We first check if a constant with the same value already exists, and use it if it exists. it will allow for better CSE.
-        let value = BigUint::from_bytes_be(&x.to_bytes()); //TODO a const should be a field element
-        if let Some(prev_const) = self.find_const(&value) {
-            return prev_const;
-        }
-
-        //TODO default should be FieldElement, not i32
-        let num_bits = x.num_bits();
-        if num_bits < 32 {
-            self.add_const(node::Constant {
-                id: NodeId::dummy(),
-                value,
-                value_type: node::ObjectType::Signed(32),
-                value_str: String::new(),
-            })
-        } else {
-            //idx = self.id0;
-            todo!();
-            //we should support integer of size <  integer::short_integer_max_bit_size(), because else we cannot do multiplication!
-            //for bigger size, we will need to represent an integer using several field elements, it may be easier to implement them in Noir! (i.e as a Noir library)
-        }
     }
 
     //same as update_variable but using the var index instead of var
@@ -347,7 +323,36 @@ impl<'a> IRGenerator<'a> {
         let variable_id = *vname;
 
         if let Ok(nvar) = self.get_mut_variable(new_var) {
-            nvar.name = format!("{root_name}{variable_id}");
+            nvar.name = format!("{}{}", root_name, variable_id);
+        }
+    }
+
+    //Return the type of the operation result, based on the left hand type
+    pub fn get_result_type(&self, op: Operation, lhs_type: node::ObjectType) -> node::ObjectType {
+        match op {
+            Operation::Eq
+            | Operation::Ne
+            | Operation::Ugt
+            | Operation::Uge
+            | Operation::Ult
+            | Operation::Ule
+            | Operation::Sgt
+            | Operation::Sge
+            | Operation::Slt
+            | Operation::Sle
+            | Operation::Lt
+            | Operation::Gt
+            | Operation::Lte
+            | Operation::Gte => ObjectType::Boolean,
+            Operation::Jne
+            | Operation::Jeq
+            | Operation::Jmp
+            | Operation::Nop
+            | Operation::Constrain(_)
+            | Operation::Store(_) => ObjectType::NotAnObject,
+            Operation::Load(adr) => self.mem.arrays[adr as usize].element_type,
+            Operation::Cast | Operation::Trunc => unreachable!("cannot determine result type"),
+            _ => lhs_type,
         }
     }
 
@@ -387,72 +392,44 @@ impl<'a> IRGenerator<'a> {
         Ok(())
     }
 
+    pub fn pause(interactive: bool) {
+        if_debug::if_debug!(if interactive {
+            let mut number = String::new();
+            println!("Press enter to continue");
+            std::io::stdin().read_line(&mut number).unwrap();
+        });
+    }
     //Optimise, flatten and truncate IR and then generates ACIR representation from it
-    pub fn ir_to_acir(&mut self, evaluator: &mut Evaluator) -> Result<(), RuntimeError> {
-        //let mut number = String::new();
-
+    pub fn ir_to_acir(
+        &mut self,
+        evaluator: &mut Evaluator,
+        interactive: bool,
+    ) -> Result<(), RuntimeError> {
         //SSA
         dbg!("SSA:");
         self.print();
+        IRGenerator::pause(interactive);
+
         //Optimisation
         block::compute_dom(self);
         dbg!("CSE:");
         optim::cse(self);
         self.print();
+        IRGenerator::pause(interactive);
         //Unrolling
         dbg!("unrolling:");
         flatten::unroll_tree(self);
-        optim::cse(self);
         self.print();
+        IRGenerator::pause(interactive);
+        optim::cse(self);
         //Truncation
         integer::overflow_strategy(self);
         self.print();
-        //println!("Press enter to continue");
-        //io::stdin().read_line(&mut number);
+        IRGenerator::pause(interactive);
         //ACIR
         self.acir(evaluator);
         dbg!("DONE");
         Ok(())
-    }
-
-    fn evaluate_identifier(&mut self, env: &mut Environment, ident_id: &IdentId) -> NodeId {
-        let ident_name = self.context.unwrap().def_interner.ident_name(ident_id);
-        let ident_def = self.context.unwrap().def_interner.ident_def(ident_id);
-        // let var = self.find_variable(&ident_def); //TODO by name or by id?
-        // if let Some(node::Variable { id, .. }) = self.find_variable(&ident_def) {
-        if let Some(var) = self.find_variable(&ident_def) {
-            let id = var.id;
-            return ssa_form::get_current_value(self, id);
-        }
-        let obj = env.get(&ident_name);
-        let obj_type = node::ObjectType::get_type_from_object(&obj);
-
-        //new variable - should be in a let statement? The let statement should set the type
-        let obj = node::Variable {
-            id: NodeId::dummy(),
-            name: ident_name.clone(),
-            obj_type,
-            root: None,
-            def: ident_def,
-            witness: node::get_witness_from_object(&obj),
-            parent_block: self.current_block,
-        };
-
-        let v_id = self.add_variable(obj, None);
-        self.get_current_block_mut().update_variable(v_id, v_id);
-        v_id
-    }
-
-    //Cast lhs into type rtype. a cast b means (a) b
-    fn new_cast_expression(&mut self, lhs: NodeId, rtype: node::ObjectType) -> NodeId {
-        //generate instruction 'a cast a', with result type rtype
-        self.push_instruction(Instruction::new(
-            node::Operation::Cast,
-            lhs,
-            lhs,
-            rtype,
-            Some(self.current_block),
-        ))
     }
 
     fn evaluate_infix_expression(
@@ -462,11 +439,22 @@ impl<'a> IRGenerator<'a> {
         op: HirBinaryOp,
     ) -> Result<NodeId, RuntimeError> {
         let ltype = self.get_object_type(lhs);
-
-        let optype = ltype; //n.b. we do not verify rhs type as it should have been handled by the typechecker.
+        //n.b. we do not verify rhs type as it should have been handled by the type checker.
 
         // Get the opcode from the infix operator
-        let opcode = node::to_operation(op.kind, optype);
+        let opcode = node::to_operation(op.kind, ltype);
+        // Get the result type from the opcode
+        let optype = self.get_result_type(opcode, ltype);
+        if opcode == node::Operation::Ass {
+            if let Some(lhs_ins) = self.try_get_mut_instruction(lhs) {
+                if let node::Operation::Load(array) = lhs_ins.operator {
+                    //make it a store rhs
+                    lhs_ins.operator = node::Operation::Store(array);
+                    lhs_ins.lhs = rhs;
+                    return Ok(lhs);
+                }
+            }
+        }
         Ok(self.new_instruction(lhs, rhs, opcode, optype))
     }
 
@@ -584,11 +572,11 @@ impl<'a> IRGenerator<'a> {
             // HirBinaryOpKind::Subtract => binary_op::handle_sub_op(lhs, rhs, self),
             // HirBinaryOpKind::Multiply => binary_op::handle_mul_op(lhs, rhs, self),
             // HirBinaryOpKind::Divide => binary_op::handle_div_op(lhs, rhs, self),
-            HirBinaryOpKind::NotEqual => todo!(),
-            HirBinaryOpKind::Equal => Ok(self.new_instruction(lhs, rhs, node::Operation::EqGate, node::ObjectType::NotAnObject)),
-            // HirBinaryOpKind::And => binary_op::handle_and_op(lhs, rhs, self),
+            HirBinaryOpKind::NotEqual => Ok(self.new_instruction(lhs, rhs, node::Operation::Constrain(ConstrainOp::Neq), node::ObjectType::NotAnObject)),
+            HirBinaryOpKind::Equal => Ok(self.new_instruction(lhs, rhs, node::Operation::Constrain(ConstrainOp::Eq), node::ObjectType::NotAnObject)),
+            HirBinaryOpKind::And => todo!(),
             // HirBinaryOpKind::Xor => binary_op::handle_xor_op(lhs, rhs, self),
-            HirBinaryOpKind::Less =>todo!(),
+            HirBinaryOpKind::Less => todo!(),// Ok(self.new_instruction(lhs, rhs, node::Operation::LtGate, node::ObjectType::NotAnObject)),
             HirBinaryOpKind::LessEqual => todo!(),
             HirBinaryOpKind::Greater => todo!(),
             HirBinaryOpKind::GreaterEqual => {
@@ -647,6 +635,14 @@ impl<'a> IRGenerator<'a> {
 
         // Convert the LHS into an identifier
         let (variable_name, ident_def) = self.pattern_name_and_def(&let_stmt.pattern);
+
+        if matches!(rtype, node::ObjectType::Pointer(_)) {
+            if let Ok(rhs_mut) = self.get_mut_variable(rhs_id) {
+                rhs_mut.def = ident_def;
+                rhs_mut.name = variable_name;
+                return Ok(rhs_id);
+            }
+        }
         //Create a new variable;
         //TODO in the name already exists, we should use something else (from env) to find a variable (identid?)
 
@@ -660,7 +656,6 @@ impl<'a> IRGenerator<'a> {
             parent_block: self.current_block,
         };
         let id = self.add_variable(new_var, None);
-        dbg!(id);
 
         //Assign rhs to lhs
         let result = self.new_instruction(id, rhs_id, node::Operation::Ass, rtype);
@@ -679,15 +674,39 @@ impl<'a> IRGenerator<'a> {
         let span = self.context().def_interner.expr_span(expr_id);
         match expr {
             HirExpression::Literal(HirLiteral::Integer(x)) => {
-                Ok(self.new_constant(x))
-            }
-            HirExpression::Literal(HirLiteral::Array(_arr_lit)) => {
-                //TODO - handle arrays
-                todo!();
-                //Ok(Object::Array(Array::from(self, env, _arr_lit)?)) 
+                let int_type = self.context().def_interner.id_type(expr_id);
+                let element_type = node::ObjectType::from_type(int_type);
+                Ok(self.get_or_create_const(x, element_type))
+            },
+            HirExpression::Literal(HirLiteral::Array(arr_lit)) => {
+                //We create a MemArray
+                let arr_type = self.context().def_interner.id_type(expr_id);
+                let element_type = node::ObjectType::from_type(arr_type);    //WARNING array type!
+
+                let array_index = self.mem.create_new_array(arr_lit.length as u32, element_type, &String::new());
+                //We parse the array definition
+                let elements = self.expression_list_to_objects(env, &arr_lit.contents);
+                let array = &mut self.mem.arrays[array_index as usize];
+                let array_adr = array.adr;
+                for (pos, object) in elements.into_iter().enumerate() {
+                    //array.witness.push(node::get_witness_from_object(&object));
+                    let lhs_adr = self.get_or_create_const(FieldElement::from((array_adr + pos as u32) as u128), node::ObjectType::Unsigned(32));
+                    self.new_instruction(object, lhs_adr, node::Operation::Store(array_index), element_type);
+                }
+                //Finally, we create a variable pointing to this MemArray
+                let new_var = node::Variable {
+                    id: NodeId::dummy(),
+                    obj_type : node::ObjectType::Pointer(array_index),
+                    name: String::new(),
+                    root: None,
+                    def: None,
+                    witness: None,
+                    parent_block: self.current_block,
+                };
+                Ok(self.add_variable(new_var, None))
             },
             HirExpression::Ident(x) =>  {
-                Ok(self.evaluate_identifier(env, &x))
+               Ok(ssa_form::evaluate_identifier(self, env, &x))
                 //n.b this creates a new variable if it does not exist, may be we should delegate this to explicit statements (let) - TODO
             },
             HirExpression::Infix(infx) => {
@@ -698,7 +717,7 @@ impl<'a> IRGenerator<'a> {
             HirExpression::Cast(cast_expr) => {
                 let lhs = self.expression_to_object(env, &cast_expr.lhs)?;
                 let rtype = node::ObjectType::from_type(cast_expr.r#type);
-                Ok(self.new_cast_expression(lhs, rtype))
+                Ok(self.new_instruction(lhs, lhs, Operation::Cast, rtype))
 
                 //We should generate a cast instruction and handle properly type conversion:
                 // unsigned integer to field ; ok, just checks if bit size over FieldElement::max_num_bits()
@@ -713,43 +732,59 @@ impl<'a> IRGenerator<'a> {
             },
             HirExpression::Index(indexed_expr) => {
                 // Currently these only happen for arrays
+                let arr_def = self.context().def_interner.ident_def(&indexed_expr.collection_name);
                 let arr_name = self.context().def_interner.ident_name(&indexed_expr.collection_name);
                 let ident_span = self.context().def_interner.ident_span(&indexed_expr.collection_name);
-                let _arr = env.get_array(&arr_name).map_err(|kind|kind.add_span(ident_span))?;
-                //
+                let arr_type = self.context().def_interner.id_type(arr_def.unwrap());
+                let o_type = node::ObjectType::from_type(arr_type);
+                let mut array_index = self.mem.arrays.len() as u32;
+                let array = if let Some(moi) = self.mem.find_array(&arr_def) {
+                    array_index= self.mem.get_array_index(moi).unwrap();
+                    moi
+                }
+                 else if let Some(pointer) = self.find_variable(&arr_def) {
+                    match pointer.get_type() {
+                        node::ObjectType::Pointer(a_id) => {
+                            array_index = a_id;
+                            &self.mem.arrays[a_id as usize]
+                        }
+                        _ => unreachable!(),
+                    }
+                 }
+                else {
+                    let arr = env.get_array(&arr_name).map_err(|kind|kind.add_span(ident_span)).unwrap();
+                    self.mem.create_array_from_object(&arr, arr_def.unwrap(), o_type, &arr_name)
+                };
+                //let array = self.mem.get_or_create_array(&arr, arr_def.unwrap(), o_type, arr_name);
+                let address = array.adr;
+
                 // Evaluate the index expression
                 let index_as_obj = self.expression_to_object(env, &indexed_expr.index)?;
-                let index_as_u128 = if let Some(index_as_constant) = self.get_as_constant(index_as_obj) {
-                    index_as_constant.to_u128()
-                }
-                else {
-                    panic!("Indexed expression does not evaluate to a constant");
-                };
-                dbg!(index_as_u128);
-                todo!();
-                //should return array + index
-                // arr.get(index_as_u128).map_err(|kind|kind.add_span(span))
+                let index_type = self.get_object_type(index_as_obj);
+                let base_adr = self.get_or_create_const(FieldElement::from(address as i128), index_type);
+                let adr_id = self.new_instruction(base_adr, index_as_obj, node::Operation::Add, index_type);
+                 Ok(self.new_instruction(adr_id, adr_id, node::Operation::Load(array_index), o_type))
             },
             HirExpression::Call(call_expr) => {
-                let _func_meta = self.context().def_interner.function_meta(&call_expr.func_id);
-                todo!();
-                //TODO generate a new block and checks whether how arguments should be passed (copy or ref)?
-                // Choices are a low level func or an imported library function
-                // If low level, then we use it's func name to find out what function to call
-                // If not then we just call the library as usual with the function definition
-                // todo..match func_meta.kind {
-                //     FunctionKind::Normal => self.call_function(env, &call_expr, call_expr.func_id),
-                //     FunctionKind::LowLevel => {
-                //         let attribute = func_meta.attributes.expect("all low level functions must contain an attribute which contains the opcode which it links to");
-                //         let opcode_name = attribute.foreign().expect("ice: function marked as foreign, but attribute kind does not match this");
-                //         low_level_function_impl::call_low_level(self, env, opcode_name, (call_expr, span))
-                //     },
-                //     FunctionKind::Builtin => {
-                //         let attribute = func_meta.attributes.expect("all builtin functions must contain an attribute which contains the function name which it links to");
-                //         let builtin_name = attribute.builtin().expect("ice: function marked as a builtin, but attribute kind does not match this");
-                //         builtin::call_builtin(self, env, builtin_name, (call_expr,span))
-                //     },
-                // ...todo }
+                let func_meta = self.context().def_interner.function_meta(&call_expr.func_id);
+                match func_meta.kind {
+                    FunctionKind::Normal =>  {
+                        //Function defined inside the Noir program.
+                        todo!();
+                    },
+                    FunctionKind::LowLevel => {
+                    // We use it's func name to find out what intrinsic function to call
+                    todo!();
+                    //    let attribute = func_meta.attributes.expect("all low level functions must contain an attribute which contains the opcode which it links to");
+                    //    let opcode_name = attribute.foreign().expect("ice: function marked as foreign, but attribute kind does not match this");
+                    //    Ok(self.handle_stdlib(env, opcode_name, call_expr))
+                    },
+                    FunctionKind::Builtin => { todo!();
+                    //     let attribute = func_meta.attributes.expect("all builtin functions must contain an attribute which contains the function name which it links to");
+                    //     let builtin_name = attribute.builtin().expect("ice: function marked as a builtin, but attribute kind does not match this");
+                    //     builtin::call_builtin(self, env, builtin_name, (call_expr,span))
+                    },
+                 }
             },
             HirExpression::For(for_expr) => self.handle_for_expr(env,for_expr).map_err(|kind|kind.add_span(span)),
             HirExpression::If(_) => todo!(),
@@ -764,7 +799,19 @@ impl<'a> IRGenerator<'a> {
         }
     }
 
-    //TODO generate phi instructions
+    pub fn expression_list_to_objects(
+        &mut self,
+        env: &mut Environment,
+        exprs: &[ExprId],
+    ) -> Vec<NodeId> {
+        let (objects, _errors): (Vec<_>, Vec<_>) = exprs
+            .iter()
+            .map(|expr| self.expression_to_object(env, expr))
+            .partition(Result::is_ok);
+
+        objects.into_iter().map(Result::unwrap).collect()
+    }
+
     fn handle_for_expr(
         &mut self,
         env: &mut Environment,
@@ -792,12 +839,12 @@ impl<'a> IRGenerator<'a> {
             .unwrap()
             .def_interner
             .ident_def(&for_expr.identifier);
+        let int_type = self.context().def_interner.id_type(&for_expr.identifier);
         env.store(iter_name.clone(), Object::Constants(start));
-        let iter_id = self.create_new_variable(iter_name, iter_def, env); //TODO do we need to store and retrieve it ?
+        let iter_id = self.create_new_variable(iter_name, iter_def, env);
         let iter_var = self.get_mut_variable(iter_id).unwrap();
-        iter_var.obj_type = node::ObjectType::Unsigned(32); //TODO create_new_variable should set the correct type
+        iter_var.obj_type = node::ObjectType::from_type(int_type);
         let iter_type = self.get_object_type(iter_id);
-        dbg!(iter_type);
         let iter_ass = self.new_instruction(iter_id, start_idx, node::Operation::Ass, iter_type);
         //We map the iterator to start_idx so that when we seal the join block, we will get the corrdect value.
         self.update_variable_id(iter_id, iter_ass, start_idx);
@@ -808,20 +855,9 @@ impl<'a> IRGenerator<'a> {
         self.current_block = join_idx;
         //should parse a for_expr.condition statement that should evaluate to bool, but
         //we only supports i=start;i!=end for now
-        //i1=phi(start);
-        let i1 = node::Variable {
-            id: iter_id,
-            obj_type: iter_type,
-            name: String::new(),
-            root: None,
-            def: None,
-            witness: None,
-            parent_block: join_idx,
-        };
-        let i1_id = self.add_variable(i1, Some(iter_id)); //TODO we do not need them
-                                                          //we generate the phi for the iterator because the iterator is manually created
+        //we generate the phi for the iterator because the iterator is manually created
         let phi = self.generate_empty_phi(join_idx, iter_id);
-        self.update_variable_id(iter_id, i1_id, phi); //j'imagine que y'a plus besoin
+        self.update_variable_id(iter_id, iter_id, phi); //is it still needed?
         let cond = self.new_instruction(phi, end_idx, Operation::Ne, node::ObjectType::Boolean);
         let to_fix = self.new_instruction(
             cond,
@@ -874,7 +910,7 @@ impl<'a> IRGenerator<'a> {
     }
 
     pub fn acir(&self, evaluator: &mut Evaluator) {
-        let mut acir = Acir::new();
+        let mut acir = Acir::default();
         let mut fb = Some(&self[self.first_block]);
         while let Some(block) = fb {
             for iter in &block.instructions {
@@ -884,6 +920,7 @@ impl<'a> IRGenerator<'a> {
             //TODO we should rather follow the jumps
             fb = block.left.map(|block_id| &self[block_id]);
         }
+        Acir::print_circuit(&evaluator.gates);
         //   dbg!(acir.arith_cache);
     }
 

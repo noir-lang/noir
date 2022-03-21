@@ -160,7 +160,10 @@ pub fn compute_dom(igen: &mut IRGenerator) {
 
     for block in igen.iter_blocks() {
         if let Some(dom) = block.dominator {
-            dominator_link.entry(dom).or_insert(vec![]).push(block.id);
+            dominator_link
+                .entry(dom)
+                .or_insert_with(Vec::new)
+                .push(block.id);
             // dom_block.dominated.push(idx);
         }
     }
