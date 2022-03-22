@@ -1,4 +1,4 @@
-use super::code_gen::IRGenerator;
+use super::context::SsaContext;
 use super::node::{self, Node, NodeId};
 use acvm::acir::native_types::Witness;
 use acvm::FieldElement;
@@ -66,8 +66,8 @@ impl Memory {
     }
 
     //dereference a pointer
-    pub fn deref(igen: &IRGenerator, id: NodeId) -> Option<u32> {
-        igen.try_get_node(id).and_then(|var| match var.get_type() {
+    pub fn deref(ctx: &SsaContext, id: NodeId) -> Option<u32> {
+        ctx.try_get_node(id).and_then(|var| match var.get_type() {
             node::ObjectType::Pointer(a) => Some(a),
             _ => None,
         })
@@ -104,8 +104,8 @@ impl Memory {
         result.to_u32().unwrap()
     }
 
-    pub fn to_u32(eval: &IRGenerator, id: NodeId) -> Option<u32> {
-        if let Some(index_as_constant) = eval.get_as_constant(id) {
+    pub fn to_u32(ctx: &SsaContext, id: NodeId) -> Option<u32> {
+        if let Some(index_as_constant) = ctx.get_as_constant(id) {
             if let Ok(address) = index_as_constant.to_u128().try_into() {
                 return Some(address);
             }

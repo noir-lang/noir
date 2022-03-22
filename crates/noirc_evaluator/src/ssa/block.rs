@@ -1,5 +1,5 @@
 use super::{
-    code_gen::IRGenerator,
+    context::SsaContext,
     node::{self, NodeId},
 };
 use std::collections::{HashMap, VecDeque};
@@ -15,7 +15,7 @@ pub struct BlockId(pub arena::Index);
 
 impl BlockId {
     pub fn dummy() -> BlockId {
-        BlockId(IRGenerator::dummy_id())
+        BlockId(SsaContext::dummy_id())
     }
 }
 
@@ -35,7 +35,7 @@ pub struct BasicBlock {
 impl BasicBlock {
     pub fn new(prev: BlockId, kind: BlockType) -> BasicBlock {
         BasicBlock {
-            id: BlockId(IRGenerator::dummy_id()),
+            id: BlockId(SsaContext::dummy_id()),
             predecessor: vec![prev],
             left: None,
             right: None,
@@ -66,13 +66,13 @@ impl BasicBlock {
     }
 }
 
-pub fn create_first_block(igen: &mut IRGenerator) {
+pub fn create_first_block(ctx: &mut SsaContext) {
     let first_block = BasicBlock::new(BlockId::dummy(), BlockType::Normal);
-    let first_block = igen.insert_block(first_block);
+    let first_block = ctx.insert_block(first_block);
     let first_id = first_block.id;
-    igen.first_block = first_id;
-    igen.current_block = first_id;
-    igen.new_instruction(
+    ctx.first_block = first_id;
+    ctx.current_block = first_id;
+    ctx.new_instruction(
         NodeId::dummy(),
         NodeId::dummy(),
         node::Operation::Nop,
@@ -82,20 +82,20 @@ pub fn create_first_block(igen: &mut IRGenerator) {
 
 //Creates a new sealed block (i.e whose predecessors are known)
 //It is not suitable for the first block because it uses the current block.
-pub fn new_sealed_block(igen: &mut IRGenerator, kind: BlockType) -> BlockId {
-    let current_block = igen.current_block;
-    let new_block = BasicBlock::new(igen.current_block, kind);
-    let new_block = igen.insert_block(new_block);
+pub fn new_sealed_block(ctx: &mut SsaContext, kind: BlockType) -> BlockId {
+    let current_block = ctx.current_block;
+    let new_block = BasicBlock::new(ctx.current_block, kind);
+    let new_block = ctx.insert_block(new_block);
     let new_id = new_block.id;
 
     new_block.dominator = Some(current_block);
-    igen.sealed_blocks.insert(new_id);
+    ctx.sealed_blocks.insert(new_id);
 
     //update current block
-    let cb = igen.get_current_block_mut();
+    let cb = ctx.get_current_block_mut();
     cb.left = Some(new_id);
-    igen.current_block = new_id;
-    igen.new_instruction(
+    ctx.current_block = new_id;
+    ctx.new_instruction(
         NodeId::dummy(),
         NodeId::dummy(),
         node::Operation::Nop,
@@ -105,22 +105,22 @@ pub fn new_sealed_block(igen: &mut IRGenerator, kind: BlockType) -> BlockId {
 }
 
 //if left is true, the new block is left to the current block
-pub fn new_unsealed_block(igen: &mut IRGenerator, kind: BlockType, left: bool) -> BlockId {
-    let current_block = igen.current_block;
-    let new_block = create_block(igen, kind);
+pub fn new_unsealed_block(ctx: &mut SsaContext, kind: BlockType, left: bool) -> BlockId {
+    let current_block = ctx.current_block;
+    let new_block = create_block(ctx, kind);
     new_block.dominator = Some(current_block);
     let new_idx = new_block.id;
 
     //update current block
-    let cb = igen.get_current_block_mut();
+    let cb = ctx.get_current_block_mut();
     if left {
         cb.left = Some(new_idx);
     } else {
         cb.right = Some(new_idx);
     }
 
-    igen.current_block = new_idx;
-    igen.new_instruction(
+    ctx.current_block = new_idx;
+    ctx.new_instruction(
         NodeId::dummy(),
         NodeId::dummy(),
         node::Operation::Nop,
@@ -130,35 +130,35 @@ pub fn new_unsealed_block(igen: &mut IRGenerator, kind: BlockType, left: bool) -
 }
 
 //create a block and sets its id, but do not update current block, and do not add dummy instruction!
-pub fn create_block<'a>(igen: &'a mut IRGenerator, kind: BlockType) -> &'a mut BasicBlock {
-    let new_block = BasicBlock::new(igen.current_block, kind);
-    igen.insert_block(new_block)
+pub fn create_block<'a>(ctx: &'a mut SsaContext, kind: BlockType) -> &'a mut BasicBlock {
+    let new_block = BasicBlock::new(ctx.current_block, kind);
+    ctx.insert_block(new_block)
 }
 
 //link the current block to the target block so that current block becomes its target
 pub fn link_with_target(
-    igen: &mut IRGenerator,
+    ctx: &mut SsaContext,
     target: BlockId,
     left: Option<BlockId>,
     right: Option<BlockId>,
 ) {
-    if let Some(target_block) = igen.try_get_block_mut(target) {
+    if let Some(target_block) = ctx.try_get_block_mut(target) {
         target_block.right = right;
         target_block.left = left;
         //TODO should also update the last instruction rhs to the first instruction of the current block  -- TODOshoud we do it here??
         if let Some(right_uw) = right {
-            igen[right_uw].dominator = Some(target);
+            ctx[right_uw].dominator = Some(target);
         }
         if let Some(left_uw) = left {
-            igen[left_uw].dominator = Some(target);
+            ctx[left_uw].dominator = Some(target);
         }
     }
 }
 
-pub fn compute_dom(igen: &mut IRGenerator) {
+pub fn compute_dom(ctx: &mut SsaContext) {
     let mut dominator_link = HashMap::new();
 
-    for block in igen.iter_blocks() {
+    for block in ctx.iter_blocks() {
         if let Some(dom) = block.dominator {
             dominator_link
                 .entry(dom)
@@ -169,7 +169,7 @@ pub fn compute_dom(igen: &mut IRGenerator) {
     }
     //RIA
     for (master, svec) in dominator_link {
-        let dom_b = &mut igen[master];
+        let dom_b = &mut ctx[master];
         for slave in svec {
             dom_b.dominated.push(slave);
         }
@@ -177,13 +177,13 @@ pub fn compute_dom(igen: &mut IRGenerator) {
 }
 
 //breadth-first traversal of the CFG, from start, until we reach stop
-pub fn bfs(start: BlockId, stop: BlockId, igen: &IRGenerator) -> Vec<BlockId> {
+pub fn bfs(start: BlockId, stop: BlockId, ctx: &SsaContext) -> Vec<BlockId> {
     let mut result = vec![start]; //list of blocks in the visited subgraph
     let mut queue = VecDeque::new(); //Queue of elements to visit
     queue.push_back(start);
 
     while !queue.is_empty() {
-        let block = &igen[queue.pop_front().unwrap()];
+        let block = &ctx[queue.pop_front().unwrap()];
 
         let mut test_and_push = |block_opt| {
             if let Some(block_id) = block_opt {

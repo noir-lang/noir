@@ -282,4 +282,27 @@ impl Type {
             Type::Tuple(_) => todo!("as_abi_type not yet implemented for tuple types"),
         }
     }
+
+    /// Iterate over the fields of this type.
+    /// Panics if the type is not a struct or tuple.
+    pub fn iter_fields(&self) -> impl Iterator<Item = (String, Type)> {
+        let fields: Vec<_> = match self {
+            // Unfortunately the .borrow() here forces us to collect into a Vec
+            // only to have to call .into_iter again afterward. Trying to ellide
+            // collecting to a Vec leads to us dropping the temporary Ref before
+            // the iterator is returned
+            Type::Struct(_, def) => vecmap(def.borrow().fields.iter(), |(name, typ)| {
+                (name.to_string(), typ.clone())
+            }),
+            Type::Tuple(fields) => {
+                let fields = fields.iter().enumerate();
+                vecmap(fields, |(i, field)| (i.to_string(), field.clone()))
+            }
+            other => panic!(
+                "Tried to iterate over the fields of '{}', which has none",
+                other
+            ),
+        };
+        fields.into_iter()
+    }
 }
