@@ -4,20 +4,22 @@ mod parser;
 
 use crate::token::{Keyword, Token};
 use crate::{ast::ImportStatement, Expression, NoirStruct};
-use crate::{Ident, NoirFunction, NoirImpl, Recoverable};
+use crate::{Ident, NoirFunction, NoirImpl, Recoverable, Statement};
 
 use chumsky::prelude::*;
+use chumsky::primitive::Container;
 pub use errors::ParserError;
 use noirc_errors::Span;
 pub use parser::parse_program;
 
-#[derive(Debug)]
-enum TopLevelStatement {
+#[derive(Debug, Clone)]
+pub(crate) enum TopLevelStatement {
     Function(NoirFunction),
     Module(Ident),
     Import(ImportStatement),
     Struct(NoirStruct),
     Impl(NoirImpl),
+    Error,
 }
 
 // Helper trait that gives us simpler type signatures for return types:
@@ -79,7 +81,7 @@ where
 /// Sequence the two parsers.
 /// Fails if the first parser fails, otherwise forces
 /// the second parser to succeed while logging any errors.
-pub fn then_commit<'a, P1, P2, T1, T2: 'a>(
+fn then_commit<'a, P1, P2, T1, T2: 'a>(
     first_parser: P1,
     second_parser: P2,
 ) -> impl NoirParser<(T1, T2)> + 'a
@@ -94,7 +96,7 @@ where
     first_parser.then(second_parser)
 }
 
-pub fn then_commit_ignore<'a, P1, P2, T1: 'a, T2: 'a>(
+fn then_commit_ignore<'a, P1, P2, T1: 'a, T2: 'a>(
     first_parser: P1,
     second_parser: P2,
 ) -> impl NoirParser<T1> + 'a
@@ -107,7 +109,7 @@ where
     first_parser.then_ignore(second_parser)
 }
 
-pub fn ignore_then_commit<'a, P1, P2, T1: 'a, T2: Clone + 'a>(
+fn ignore_then_commit<'a, P1, P2, T1: 'a, T2: Clone + 'a>(
     first_parser: P1,
     second_parser: P2,
 ) -> impl NoirParser<T2> + 'a
@@ -138,27 +140,56 @@ where
     force(parser.recover_with(chumsky::prelude::skip_then_retry_until(terminators)))
 }
 
-/// Force the given parser to succeed, logging any errors it had
-pub fn force<'a, P, T: 'a>(parser: P) -> impl NoirParser<Option<T>> + 'a
+/// General recovery strategy: try to skip to the target token, failing if we encounter the
+/// 'too_far' token beforehand.
+///
+/// Expects all of `too_far` to be contained within `targets`
+fn try_skip_until<T, C1, C2>(targets: C1, too_far: C2) -> impl NoirParser<T>
 where
-    P: NoirParser<T> + 'a,
+    T: Recoverable + Clone,
+    C1: Container<Token> + Clone,
+    C2: Container<Token> + Clone,
 {
-    parser
-        .clone()
-        .map(Ok)
-        .or_else(|err| Ok(Err(err)))
-        .rewind()
-        .then_with(move |result| match result {
-            Ok(_) => parser.clone().map(Ok).boxed(),
-            Err(err) => empty().map(move |_| Err(err.clone())).boxed(),
-        })
-        .validate(move |result, _, emit| match result {
-            Ok(t) => Some(t),
-            Err(err) => {
-                emit(err);
-                None
+    chumsky::prelude::none_of(targets)
+        .repeated()
+        .ignore_then(one_of(too_far.clone()).rewind())
+        .try_map(move |peek, span| {
+            if too_far.get_iter().any(|t| t == peek) {
+                // This error will never be shown to the user
+                Err(ParserError::with_reason(String::new(), span))
+            } else {
+                Ok(Recoverable::error(span))
             }
         })
+}
+
+/// Recovery strategy for statements: If a statement fails to parse skip until the next ';' or fail
+/// if we find a '}' first.
+fn statement_recovery() -> impl NoirParser<Statement> {
+    use Token::*;
+    try_skip_until([Semicolon, RightBrace], RightBrace)
+}
+
+fn parameter_recovery<T: Recoverable + Clone>() -> impl NoirParser<T> {
+    use Token::*;
+    try_skip_until([Comma, RightParen], RightParen)
+}
+
+fn parameter_name_recovery<T: Recoverable + Clone>() -> impl NoirParser<T> {
+    use Token::*;
+    try_skip_until([Colon, RightParen, Comma], [RightParen, Comma])
+}
+
+fn top_level_statement_recovery() -> impl NoirParser<TopLevelStatement> {
+    none_of([Token::Semicolon, Token::RightBrace, Token::EOF])
+        .repeated()
+        .ignore_then(one_of([Token::Semicolon, Token::RightBrace]))
+        .map(|_| TopLevelStatement::Error)
+}
+
+/// Force the given parser to succeed, logging any errors it had
+fn force<'a, T: 'a>(parser: impl NoirParser<T> + 'a) -> impl NoirParser<Option<T>> + 'a {
+    parser.map(Some).recover_via(empty().map(|_| None))
 }
 
 #[derive(Clone, Debug, Default)]
@@ -247,6 +278,7 @@ impl std::fmt::Display for TopLevelStatement {
             TopLevelStatement::Import(i) => i.fmt(f),
             TopLevelStatement::Struct(s) => s.fmt(f),
             TopLevelStatement::Impl(i) => i.fmt(f),
+            TopLevelStatement::Error => write!(f, "error"),
         }
     }
 }
