@@ -83,6 +83,20 @@ impl From<Witness> for InternalVar {
     }
 }
 
+impl From<FieldElement> for InternalVar {
+    fn from(f: FieldElement) -> InternalVar {
+        InternalVar {
+            expression: Arithmetic {
+                mul_terms: Vec::new(),
+                linear_combinations: Vec::new(),
+                q_c: f,
+            },
+            witness: None,
+            id: None,
+        }
+    }
+}
+
 impl Acir {
     //This function stores the substitution with the arithmetic expression in the cache
     //When an instruction performs arithmetic operation, its output can be represented as an arithmetic expression of its arguments
@@ -138,16 +152,13 @@ impl Acir {
         if ins.operator == Operation::Nop {
             return;
         }
-        dbg!(&evaluator.current_witness_index);
         let l_c = self.substitute(ins.lhs, evaluator, irgen);
         let mut r_c = self.substitute(ins.rhs, evaluator, irgen);
-        dbg!(&evaluator.current_witness_index);
         let mut output = match ins.operator {
             Operation::Add | Operation::SafeAdd => {
                 InternalVar::from(add(&l_c.expression, FieldElement::one(), &r_c.expression))
             }
             Operation::Sub | Operation::SafeSub => {
-                //PAS POUR LES FIELD!!!!!!!
                 if ins.res_type == node::ObjectType::NativeField {
                     InternalVar::from(subtract(
                         &l_c.expression,
@@ -165,10 +176,21 @@ impl Acir {
                     }
                     k = &k * r_big;
                     let f = FieldElement::from_be_bytes_reduce(&k.to_bytes_be());
-                    let mut output =
+                    let mut sub_expr =
                         subtract(&l_c.expression, FieldElement::one(), &r_c.expression);
-                    output.q_c += f;
-                    output.into()
+                    sub_expr.q_c += f;
+                    let mut sub_var = sub_expr.into();
+                    //TODO: uses interval analysis for more precise check
+                    if let Some(lhs_const) = l_c.to_const() {
+                        if ins.max_value <= BigUint::from_bytes_be(&lhs_const.to_bytes()) {
+                            sub_var = InternalVar::from(subtract(
+                                &l_c.expression,
+                                FieldElement::one(),
+                                &r_c.expression,
+                            ));
+                        }
+                    }
+                    sub_var
                 }
             }
             Operation::Mul | Operation::SafeMul => {
@@ -194,23 +216,71 @@ impl Acir {
             Operation::Ne => {
                 InternalVar::from(self.evaluate_neq(ins.lhs, ins.rhs, &l_c, &r_c, irgen, evaluator))
             }
-            Operation::Ugt => todo!(),
-            Operation::Uge => todo!(),
-            Operation::Ult => todo!(),
-            Operation::Ule => todo!(),
-            Operation::Sgt => todo!(),
-            Operation::Sge => todo!(),
-            Operation::Slt => todo!(),
-            Operation::Sle => todo!(),
+            Operation::Ugt => {
+                let s = irgen[ins.lhs].size_in_bits();
+                evaluate_cmp(&r_c, &l_c, s, false, evaluator).into()
+            }
+            Operation::Uge => {
+                let s = irgen[ins.lhs].size_in_bits();
+                let w = evaluate_cmp(&l_c, &r_c, s, false, evaluator);
+                Arithmetic {
+                    mul_terms: Vec::new(),
+                    linear_combinations: vec![(-FieldElement::one(), w)],
+                    q_c: FieldElement::one(),
+                }
+                .into()
+            }
+            Operation::Ult => {
+                let s = irgen[ins.lhs].size_in_bits();
+                evaluate_cmp(&l_c, &r_c, s, false, evaluator).into()
+            }
+            Operation::Ule => {
+                let s = irgen[ins.lhs].size_in_bits();
+                let w = evaluate_cmp(&r_c, &l_c, s, false, evaluator);
+                Arithmetic {
+                    mul_terms: Vec::new(),
+                    linear_combinations: vec![(-FieldElement::one(), w)],
+                    q_c: FieldElement::one(),
+                }
+                .into()
+            }
+            Operation::Sgt => {
+                let s = irgen[ins.lhs].size_in_bits();
+                evaluate_cmp(&r_c, &l_c, s, true, evaluator).into()
+            }
+            Operation::Sge => {
+                let s = irgen[ins.lhs].size_in_bits();
+                let w = evaluate_cmp(&l_c, &r_c, s, true, evaluator);
+                Arithmetic {
+                    mul_terms: Vec::new(),
+                    linear_combinations: vec![(-FieldElement::one(), w)],
+                    q_c: FieldElement::one(),
+                }
+                .into()
+            }
+            Operation::Slt => {
+                let s = irgen[ins.lhs].size_in_bits();
+                evaluate_cmp(&l_c, &r_c, s, true, evaluator).into()
+            }
+            Operation::Sle => {
+                let s = irgen[ins.lhs].size_in_bits();
+                let w = evaluate_cmp(&r_c, &l_c, s, true, evaluator);
+                Arithmetic {
+                    mul_terms: Vec::new(),
+                    linear_combinations: vec![(-FieldElement::one(), w)],
+                    q_c: FieldElement::one(),
+                }
+                .into()
+            }
             Operation::Lt => todo!(),
-            Operation::Gt => todo!(),
-            Operation::Lte => evaluate_cmp(&l_c, &r_c, 32, evaluator).into(), //TODO we need the bit_size from the instruction
-            Operation::Gte => evaluate_cmp(&r_c, &l_c, 32, evaluator).into(), //TODO we need the bit_size from the instruction
+            Operation::Gt => unreachable!(),
+            Operation::Lte => unreachable!(),
+            Operation::Gte => unreachable!(),
             Operation::And => {
                 InternalVar::from(evaluate_and(l_c, r_c, ins.res_type.bits(), evaluator))
             }
             Operation::Not => todo!(),
-            Operation::Or => todo!(),
+            Operation::Or => InternalVar::from(evaluate_or(l_c, r_c, ins.res_type.bits())),
             Operation::Xor => {
                 InternalVar::from(evaluate_xor(l_c, r_c, ins.res_type.bits(), evaluator))
             }
@@ -257,12 +327,11 @@ impl Acir {
                         //if not found, then it must be a witness (else it is non-initialised memory)
                         let array = &irgen.mem.arrays[array_idx as usize];
                         let index = (address - array.adr) as usize;
-                        let w = if array.witness.len() > index {
-                            array.witness[index]
+                        if array.values.len() > index {
+                            array.values[index].clone()
                         } else {
-                            self.memory_witness[&array_idx][index]
-                        };
-                        InternalVar::from(w)
+                            InternalVar::from(self.memory_witness[&array_idx][index])
+                        }
                     }
                 } else {
                     todo!("dynamic arrays are not implemented yet");
@@ -315,8 +384,7 @@ impl Acir {
                     let w = memory[i as usize];
                     w.into()
                 } else {
-                    let w = array.witness[i as usize];
-                    w.into()
+                    array.values[i as usize].clone()
                 }
             })
             .collect()
@@ -516,7 +584,7 @@ impl Acir {
                                     }
                                 } else {
                                     inputs.push(GadgetInput {
-                                        witness: array.witness[i as usize],
+                                        witness: array.values[i as usize].witness.unwrap(),
                                         num_bits,
                                     });
                                 }
@@ -554,33 +622,44 @@ impl Acir {
         let outputs;
         let signature = opcode.definition();
 
-        match (signature.input_size, signature.output_size) {
-            (InputSize::Variable, OutputSize(y)) => {
-                inputs = self.prepare_inputs(&ins.get_arguments(), cfg, evaluator);
-                outputs = self.prepare_outputs(ins.id, y as u32, cfg, evaluator);
+        match opcode {
+            OPCODE::ToBits => {
+                let bit_size = cfg.get_as_constant(ins.rhs).unwrap().to_u128() as u32;
+                let l_c = self.substitute(ins.lhs, evaluator, cfg);
+                outputs = split(&l_c, bit_size, evaluator);
+                if let node::ObjectType::Pointer(a) = ins.res_type {
+                    self.memory_witness.insert(a, outputs.clone()); //TODO can we avoid the clone?
+                }
             }
-            (InputSize::Fixed(x), OutputSize(y)) => match x {
-                1 => {
-                    inputs = self.prepare_inputs(&[ins.lhs], cfg, evaluator);
-                    outputs = self.prepare_outputs(ins.id, y as u32, cfg, evaluator);
+            _ => {
+                match (signature.input_size, signature.output_size) {
+                    (InputSize::Variable, OutputSize(y)) => {
+                        inputs = self.prepare_inputs(&ins.get_arguments(), cfg, evaluator);
+                        outputs = self.prepare_outputs(ins.id, y as u32, cfg, evaluator);
+                    }
+                    (InputSize::Fixed(x), OutputSize(y)) => match x {
+                        1 => {
+                            inputs = self.prepare_inputs(&[ins.lhs], cfg, evaluator);
+                            outputs = self.prepare_outputs(ins.id, y as u32, cfg, evaluator);
+                        }
+                        2 => {
+                            inputs = self.prepare_inputs(&[ins.lhs, ins.rhs], cfg, evaluator);
+                            outputs = self.prepare_outputs(ins.id, y as u32, cfg, evaluator);
+                        }
+                        _ => {
+                            todo!();
+                        }
+                    },
                 }
-                2 => {
-                    inputs = self.prepare_inputs(&[ins.lhs, ins.rhs], cfg, evaluator);
-                    outputs = self.prepare_outputs(ins.id, y as u32, cfg, evaluator);
-                }
-                _ => {
-                    todo!();
-                }
-            },
+                let call_gate = GadgetCall {
+                    name: opcode,
+                    inputs,                   //witness + bit size
+                    outputs: outputs.clone(), //witness
+                };
+                evaluator.gates.push(Gate::GadgetCall(call_gate));
+            }
         }
 
-        let call_gate = GadgetCall {
-            name: opcode,
-            inputs,                   //witness + bit size
-            outputs: outputs.clone(), //witness
-        };
-
-        evaluator.gates.push(Gate::GadgetCall(call_gate));
         if outputs.len() == 1 {
             return from_witness(outputs[0]);
         }
@@ -618,21 +697,29 @@ pub fn evaluate_sdiv(
     todo!();
 }
 
-//Returns 1 if lhs <= rhs
+//Returns 1 if lhs < rhs
 pub fn evaluate_cmp(
     lhs: &InternalVar,
     rhs: &InternalVar,
     bit_size: u32,
+    signed: bool,
     evaluator: &mut Evaluator,
 ) -> Witness {
     //TODO use quad_decomposition gate for barretenberg
-    let sub_expr = subtract(&lhs.expression, FieldElement::one(), &rhs.expression);
-    let bits = split(&sub_expr, bit_size + 1, evaluator);
-    bits[bit_size as usize]
+    let mut sub_expr = subtract(&lhs.expression, FieldElement::one(), &rhs.expression);
+    let two_pow = BigUint::one() << (bit_size + 1);
+    sub_expr.q_c += FieldElement::from_be_bytes_reduce(&two_pow.to_bytes_be());
+    let bits = split(&sub_expr.into(), bit_size + 2, evaluator);
+    if signed {
+        bits[(bit_size - 1) as usize]
+    } else {
+        bits[(bit_size) as usize]
+    }
 }
 
 //Performs bit decomposition
-pub fn split(lhs: &Arithmetic, bit_size: u32, evaluator: &mut Evaluator) -> Vec<Witness> {
+pub fn split(lhs: &InternalVar, bit_size: u32, evaluator: &mut Evaluator) -> Vec<Witness> {
+    assert!(bit_size < FieldElement::max_num_bits());
     let mut bits = Arithmetic::default();
     let mut two_pow = FieldElement::one();
     let two = FieldElement::from(2_i128);
@@ -640,13 +727,27 @@ pub fn split(lhs: &Arithmetic, bit_size: u32, evaluator: &mut Evaluator) -> Vec<
     for _ in 0..bit_size {
         let bit_witness = evaluator.add_witness_to_cs();
         result.push(bit_witness);
-        bits = add(&bits, two_pow, &from_witness(bit_witness));
+        let bit_expr = from_witness(bit_witness);
+        bits = add(&bits, two_pow, &bit_expr);
         two_pow = two_pow.mul(two);
+        evaluator.gates.push(Gate::Arithmetic(subtract(
+            &mul(&bit_expr, &bit_expr),
+            FieldElement::one(),
+            &bit_expr,
+        )));
     }
-    evaluator
-        .gates
-        .push(Gate::Arithmetic(subtract(lhs, FieldElement::one(), &bits)));
-    //todo witness values for solver
+    let a_witness = generate_witness(lhs, evaluator);
+    evaluator.gates.push(Gate::Directive(Directive::Split {
+        a: a_witness,
+        b: result.clone(),
+        bit_size,
+    }));
+    evaluator.gates.push(Gate::Arithmetic(subtract(
+        &from_witness(a_witness),
+        FieldElement::one(),
+        &bits,
+    )));
+
     result
 }
 
@@ -691,6 +792,15 @@ pub fn evaluate_xor(
             num_bits: bit_size,
         }));
     result
+}
+
+pub fn evaluate_or(lhs: InternalVar, rhs: InternalVar, bit_size: u32) -> Arithmetic {
+    if bit_size != 1 {
+        unreachable!("OR is only supported with boolean operands");
+    }
+    let sum = add(&lhs.expression, FieldElement::one(), &rhs.expression);
+    let mul = mul(&lhs.expression, &rhs.expression);
+    subtract(&sum, FieldElement::one(), &mul)
 }
 
 //truncate lhs (a number whose value requires max_bits) into a rhs-bits number: i.e it returns b such that lhs mod 2^rhs is b

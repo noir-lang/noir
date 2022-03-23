@@ -8,8 +8,8 @@ use super::{
 use acvm::FieldElement;
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
-use std::collections::HashMap;
 use std::convert::TryInto;
+use std::{collections::HashMap, ops::Neg};
 
 //Returns the maximum bit size of short integers
 pub fn short_integer_max_bit_size() -> u32 {
@@ -42,6 +42,7 @@ pub fn get_instruction_max_operand(
     match ins.operator {
         node::Operation::Load(array) => get_load_max(igen, ins.lhs, max_map, vmap, array),
         node::Operation::Sub => {
+            //TODO uses interval analysis instead
             if matches!(ins.res_type, node::ObjectType::Unsigned(_)) {
                 if let Some(lhs_const) = igen.get_as_constant(ins.lhs) {
                     let lhs_big = BigUint::from_bytes_be(&lhs_const.to_bytes());
@@ -277,8 +278,8 @@ pub fn block_overflow(
                 | node::Operation::Res
                 | node::Operation::Ret
         ) {
-            //TODO....for now we skip completely functions from overflow; that means arguments are NOT truncated..TODO but the pb is that arguments are NOT rhs,lhs (but ins.argument)..TODO
-            //then, we do assume the result is truncated, it could be interesting to allow for max values to the results...TODO
+            //For now we skip completely functions from overflow; that means arguments are NOT truncated.
+            //The reasoning is that this is handled by doing the overflow strategy after the function has been inlined
             continue;
         }
         let mut ins_args = Vec::new();
@@ -535,7 +536,7 @@ pub fn get_load_max(
 //Returns the max value of an operation from an upper bound of left and right hand sides
 //Function is used to check for overflows over the field size, this is why we use BigUint.
 pub fn get_max_value(ins: &Instruction, lhs_max: BigUint, rhs_max: BigUint) -> BigUint {
-    match ins.operator {
+    let max_value = match ins.operator {
         Operation::Add => lhs_max + rhs_max,
         Operation::SafeAdd => todo!(),
         Operation::Sub => {
@@ -599,14 +600,22 @@ pub fn get_max_value(ins: &Instruction, lhs_max: BigUint, rhs_max: BigUint) -> B
                 acvm::acir::OPCODE::SHA256
                 | acvm::acir::OPCODE::Blake2s
                 | acvm::acir::OPCODE::Pedersen
-                | acvm::acir::OPCODE::FixedBaseScalarMul => BigUint::zero(), //pointers do not overflow
+                | acvm::acir::OPCODE::FixedBaseScalarMul
+                | acvm::acir::OPCODE::ToBits => BigUint::zero(), //pointers do not overflow
                 acvm::acir::OPCODE::SchnorrVerify | acvm::acir::OPCODE::EcdsaSecp256k1 => {
                     BigUint::one()
                 } //verify returns 0 or 1
                 _ => todo!(),
             }
         }
+    };
+    if ins.res_type == node::ObjectType::NativeField {
+        //Native Field operations cannot overflow so they will not be truncated
+        if max_value >= BigUint::from_bytes_be(&FieldElement::one().neg().to_bytes()) {
+            return BigUint::from_bytes_be(&FieldElement::one().neg().to_bytes());
+        }
     }
+    max_value
 }
 
 //indicates if the operation is a substraction, we need to check them for underflow

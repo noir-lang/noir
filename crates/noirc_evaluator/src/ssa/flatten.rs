@@ -380,7 +380,6 @@ fn evaluate_object(
 
 pub fn inline_tree(igen: &mut IRGenerator) {
     //inline all function calls
-    //todo process all blocks
     inline_block(igen, igen.first_block);
 }
 
@@ -410,29 +409,34 @@ pub fn inline_block(igen: &mut IRGenerator, block_id: BlockId) {
 
 //inline a function call
 pub fn inline(
-    func_id: noirc_frontend::node_interner::FuncId, //func: &function::SSAFunction,
+    func_id: noirc_frontend::node_interner::FuncId,
     args: &[NodeId],
     irgen: &mut IRGenerator,
     block: BlockId,
     call_id: NodeId,
 ) {
     let ssa_func = irgen.get_function(func_id).unwrap();
-    let mut inline_map: HashMap<NodeId, NodeId> = HashMap::new(); //map nodes from the fonction cfg to the caller cfg
-                                                                  //1. map function parameters
+    //map nodes from the fonction cfg to the caller cfg
+    let mut inline_map: HashMap<NodeId, NodeId> = HashMap::new();
+    let mut array_map: HashMap<u32, u32> = HashMap::new();
+    //1. map function parameters
     for (arg_caller, arg_function) in args.iter().zip(&ssa_func.arguments) {
         inline_map.insert(*arg_function, *arg_caller);
     }
     // let func_block = &ssa_func.cfg[ssa_func.cfg.first_block];
     //2. inline in the block: we assume the function cfg is already flatened.
-    inline_in_block(
-        ssa_func.cfg.first_block,
-        block,
-        &mut inline_map,
-        func_id,
-        call_id,
-        irgen,
-    );
-    //TODO process all the blocks of the function.
+    let mut next_block = Some(ssa_func.cfg.first_block);
+    while let Some(next_b) = next_block {
+        next_block = inline_in_block(
+            next_b,
+            block,
+            &mut inline_map,
+            &mut array_map,
+            func_id,
+            call_id,
+            irgen,
+        );
+    }
 }
 
 //inline the given block of the function body into the target_block
@@ -440,18 +444,21 @@ pub fn inline_in_block(
     block_id: BlockId,
     target_block_id: BlockId,
     inline_map: &mut HashMap<NodeId, NodeId>,
+    array_map: &mut HashMap<u32, u32>,
     func_id: noirc_frontend::node_interner::FuncId, //func_cfg: &IRGenerator,
     call_id: NodeId,
     irgen: &mut IRGenerator,
-) {
+) -> Option<BlockId> {
     let mut new_instructions: Vec<NodeId> = Vec::new();
     // let mut return_values: Vec<(NodeId,NodeId)> = Vec::new();
-    let block_func_instructions = &irgen.get_function(func_id).unwrap().cfg[block_id]
-        .instructions
-        .clone();
+    let func_cfg = &irgen.get_function(func_id).unwrap().cfg;
+    let block_func = &func_cfg[block_id];
+    let next_block = block_func.left;
+    let block_func_instructions = &block_func.instructions.clone();
     for &i_id in block_func_instructions {
-        //    let mut ftbc = false;
         let mut cloned_ins = None;
+        let mut array_func = None;
+        let mut array_func_idx = u32::MAX;
         if let Some(ins) = irgen
             .get_function(func_id)
             .unwrap()
@@ -459,18 +466,53 @@ pub fn inline_in_block(
             .try_get_instruction(i_id)
         {
             cloned_ins = Some(ins.clone());
+            if let node::ObjectType::Pointer(a) = ins.res_type {
+                //Arrays are mapped to array
+                array_func =
+                    Some(irgen.get_function(func_id).unwrap().cfg.mem.arrays[a as usize].clone());
+                array_func_idx = a;
+            }
         }
+
         if let Some(clone) = cloned_ins {
-            let new_left =
-                function::SSAFunction::get_mapped_value(func_id, clone.lhs, irgen, inline_map);
-            let new_right =
-                function::SSAFunction::get_mapped_value(func_id, clone.rhs, irgen, inline_map);
-            let new_arg = function::SSAFunction::get_mapped_value(
+            let new_left = function::SSAFunction::get_mapped_value(
                 func_id,
-                clone.ins_arguments[0],
+                Some(&clone.lhs),
                 irgen,
                 inline_map,
             );
+            let new_right = function::SSAFunction::get_mapped_value(
+                func_id,
+                Some(&clone.rhs),
+                irgen,
+                inline_map,
+            );
+            let new_arg = function::SSAFunction::get_mapped_value(
+                func_id,
+                clone.ins_arguments.first(),
+                irgen,
+                inline_map,
+            );
+            //create the array if not mapped
+            if let Some(a) = array_func {
+                if !array_map.contains_key(&array_func_idx) {
+                    let i_pointer = irgen.mem.create_new_array(a.len, a.element_type, &a.name);
+                    //We populate the array (if possible) using the inline map
+                    for i in &a.values {
+                        if let Some(f) = i.to_const() {
+                            irgen.mem.arrays[i_pointer as usize]
+                                .values
+                                .push(super::acir_gen::InternalVar::from(f));
+                        }
+                        //todo: else use inline map.
+                    }
+                    array_map.insert(array_func_idx, i_pointer);
+                    dbg!(&i_pointer);
+                    dbg!(&irgen.mem.arrays[i_pointer as usize]);
+                    dbg!(&a.values);
+                }
+            }
+
             match clone.operator {
                 Operation::Nop => (),
                 //Return instruction:
@@ -486,14 +528,70 @@ pub fn inline_in_block(
                         }
                     } else {
                         //we use the call instruction instead
-                        //we could use the ins_arguments to get the results here, and since we have the input arguments (in the ssafunction) we know how may there are.
+                        //we could use the ins_arguments to get the results here, and since we have the input arguments (in the ssafunction) we know how many there are.
                         //for now the call instruction is replaced by the (one) result
                         let call_ins = irgen.get_mut_instruction(call_id);
                         call_ins.is_deleted = true;
                         call_ins.rhs = new_arg;
+                        if array_map.contains_key(&array_func_idx) {
+                            let i_pointer = array_map[&array_func_idx];
+                            call_ins.res_type = node::ObjectType::Pointer(i_pointer);
+                        }
                     }
                 }
                 Operation::Call(_) => todo!("function calling function is not yet supported"), //We mainly need to map the arguments and then decide how to recurse the function call.
+                Operation::Load(a) => {
+                    //Compute the new address:
+                    //TODO use relative addressing, but that requires a few changes, mainly in acir_gen.rs and integer.rs
+                    let b = array_map[&a];
+                    //n.b. this offset is always positive
+                    let offset = irgen.mem.arrays[b as usize].adr
+                        - irgen.get_function(func_id).unwrap().cfg.mem.arrays[a as usize].adr;
+                    let index_type = irgen[new_left].get_type();
+                    let offset_id =
+                        irgen.get_or_create_const(FieldElement::from(offset as i128), index_type);
+                    let adr_id = irgen.new_instruction(
+                        offset_id,
+                        new_left,
+                        node::Operation::Add,
+                        index_type,
+                    );
+                    let new_ins = node::Instruction::new(
+                        node::Operation::Load(array_map[&a]),
+                        adr_id,
+                        adr_id,
+                        clone.res_type,
+                        Some(target_block_id),
+                    );
+                    let result_id = irgen.add_instruction(new_ins);
+                    new_instructions.push(result_id);
+                    inline_map.insert(i_id, result_id);
+                }
+                Operation::Store(a) => {
+                    let b = array_map[&a];
+                    let offset = irgen.get_function(func_id).unwrap().cfg.mem.arrays[a as usize]
+                        .adr
+                        - irgen.mem.arrays[b as usize].adr;
+                    let index_type = irgen[new_left].get_type();
+                    let offset_id =
+                        irgen.get_or_create_const(FieldElement::from(offset as i128), index_type);
+                    let adr_id = irgen.new_instruction(
+                        offset_id,
+                        new_left,
+                        node::Operation::Add,
+                        index_type,
+                    );
+                    let new_ins = node::Instruction::new(
+                        node::Operation::Store(array_map[&a]),
+                        new_left,
+                        adr_id,
+                        clone.res_type,
+                        Some(target_block_id),
+                    );
+                    let result_id = irgen.add_instruction(new_ins);
+                    new_instructions.push(result_id);
+                    inline_map.insert(i_id, result_id);
+                }
                 _ => {
                     let mut new_ins = node::Instruction::new(
                         clone.operator,
@@ -502,17 +600,27 @@ pub fn inline_in_block(
                         clone.res_type,
                         Some(target_block_id),
                     );
+                    if array_map.contains_key(&array_func_idx) {
+                        let i_pointer = array_map[&array_func_idx];
+                        new_ins.res_type = node::ObjectType::Pointer(i_pointer);
+                    }
                     optim::simplify(irgen, &mut new_ins);
                     let result_id;
                     let mut to_delete = false;
                     if new_ins.is_deleted {
                         result_id = new_ins.rhs;
+                        if array_map.contains_key(&array_func_idx) {
+                            if let node::ObjectType::Pointer(a) = irgen[result_id].get_type() {
+                                //we now map the array to rhs array
+                                array_map.insert(array_func_idx, a);
+                            }
+                        }
                         if new_ins.rhs == new_ins.id {
                             to_delete = true;
                         }
                     } else {
                         result_id = irgen.add_instruction(new_ins);
-                        new_instructions.push(result_id)
+                        new_instructions.push(result_id);
                     }
                     //ignore self-deleted instructions
                     if !to_delete {
@@ -533,4 +641,5 @@ pub fn inline_in_block(
         irgen[target_block_id].instructions.insert(pos, new_id);
         pos += 1;
     }
+    next_block
 }

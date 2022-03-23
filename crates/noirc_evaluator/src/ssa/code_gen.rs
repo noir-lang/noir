@@ -26,6 +26,7 @@ use noirc_frontend::node_interner::{ExprId, FuncId, IdentId, StmtId};
 use noirc_frontend::FunctionKind;
 //use noirc_frontend::{FunctionKind, Type};
 use num_bigint::BigUint;
+use num_traits::{One, Zero};
 
 // This is a 'master' class for generating the SSA IR from the AST
 // It contains all the data; the node objects representing the source code in the nodes arena
@@ -61,7 +62,19 @@ impl<'a> IRGenerator<'a> {
             functions_cfg: HashMap::new(),
         };
         block::create_first_block(&mut pc);
+        pc.get_or_create_const(FieldElement::one(), node::ObjectType::Unsigned(1));
+        pc.get_or_create_const(FieldElement::zero(), node::ObjectType::Unsigned(1));
         pc
+    }
+
+    pub fn one(&self) -> NodeId {
+        self.find_const_with_type(&BigUint::one(), node::ObjectType::Unsigned(1))
+            .unwrap()
+    }
+
+    pub fn zero(&self) -> NodeId {
+        self.find_const_with_type(&BigUint::zero(), node::ObjectType::Unsigned(1))
+            .unwrap()
     }
 
     pub fn insert_block(&mut self, block: BasicBlock) -> &mut BasicBlock {
@@ -458,9 +471,9 @@ impl<'a> IRGenerator<'a> {
         IRGenerator::pause(interactive);
         dbg!("inlining:");
         flatten::inline_tree(self);
-        self.print();
-        IRGenerator::pause(interactive);
         optim::cse(self);
+        self.print();
+        dbg!("overflow::");
         //Truncation
         integer::overflow_strategy(self);
         self.print();
@@ -468,6 +481,8 @@ impl<'a> IRGenerator<'a> {
         //ACIR
         self.acir(evaluator);
         dbg!("DONE");
+        dbg!(&evaluator.current_witness_index);
+
         Ok(())
     }
 
@@ -736,13 +751,13 @@ impl<'a> IRGenerator<'a> {
         match expr {
             HirExpression::Literal(HirLiteral::Integer(x)) => {
                 let int_type = self.context().def_interner.id_type(expr_id);
-                let element_type = node::ObjectType::from_type(int_type);
+                let element_type = node::ObjectType::from_type(&int_type);
                 Ok(self.get_or_create_const(x, element_type))
             },
             HirExpression::Literal(HirLiteral::Array(arr_lit)) => {
                 //We create a MemArray
                 let arr_type = self.context().def_interner.id_type(expr_id);
-                let element_type = node::ObjectType::from_type(arr_type);    //WARNING array type!
+                let element_type = node::ObjectType::from_type(&arr_type);    //WARNING array type!
 
                 let array_index = self.mem.create_new_array(arr_lit.length as u32, element_type, &String::new());
                 //We parse the array definition
@@ -777,7 +792,7 @@ impl<'a> IRGenerator<'a> {
             },
             HirExpression::Cast(cast_expr) => {
                 let lhs = self.expression_to_object(env, &cast_expr.lhs)?;
-                let rtype = node::ObjectType::from_type(cast_expr.r#type);
+                let rtype = node::ObjectType::from_type(&cast_expr.r#type);
                 Ok(self.new_instruction(lhs, lhs, Operation::Cast, rtype))
 
                 //We should generate a cast instruction and handle properly type conversion:
@@ -797,7 +812,7 @@ impl<'a> IRGenerator<'a> {
                 let arr_name = self.context().def_interner.ident_name(&indexed_expr.collection_name);
                 let ident_span = self.context().def_interner.ident_span(&indexed_expr.collection_name);
                 let arr_type = self.context().def_interner.id_type(arr_def.unwrap());
-                let o_type = node::ObjectType::from_type(arr_type);
+                let o_type = node::ObjectType::from_type(&arr_type);
                 let mut array_index = self.mem.arrays.len() as u32;
                 let array = if let Some(moi) = self.mem.find_array(&arr_def) {
                     array_index= self.mem.get_array_index(moi).unwrap();
@@ -826,6 +841,7 @@ impl<'a> IRGenerator<'a> {
                 let base_adr = self.get_or_create_const(FieldElement::from(address as i128), index_type);
                 let adr_id = self.new_instruction(base_adr, index_as_obj, node::Operation::Add, index_type);
                  Ok(self.new_instruction(adr_id, adr_id, node::Operation::Load(array_index), o_type))
+
             },
             HirExpression::Call(call_expr) => {
                 let func_meta = self.context().def_interner.function_meta(&call_expr.func_id);
@@ -833,31 +849,11 @@ impl<'a> IRGenerator<'a> {
                     FunctionKind::Normal =>  {
                         //Function defined inside the Noir program.           
                         if self.get_function(call_expr.func_id).is_none() {
-                            //parse the function blocks if not already done
-                            let mut func = function::SSAFunction::new(call_expr.func_id,self.context());
-                            let function = self.context().def_interner.function(&call_expr.func_id);
-                            let block = function.block(&self.context().def_interner);
-                            func.parse_statements(block.statements(), env);
-                            for pat in func_meta.parameters {
-                                let ident_id = match pat.0 {
-                                    HirPattern::Identifier(id) => Some(id), //self.context().def_interner.ident_name(&id),
-                                    HirPattern::Mutable(_pattern, _) => unreachable!("mutable arguments are not supported yet"),//get_param_name(pattern, interner),
-                                    HirPattern::Tuple(_, _) => todo!(),
-                                    HirPattern::Struct(_, _, _) => todo!(),
-                                };
-                                let node_id = func.cfg.find_variable(&ident_id).unwrap();
-                                func.arguments.push(node_id.id);
-                            }
-                            func.compile();         //unroll the function
-
+                            let func = function::create_function(call_expr.func_id, self.context(), env, &func_meta.parameters);
                             self.functions_cfg.insert(call_expr.func_id, func);
-                            // self.add_function(call_expr.func_id);
-                            // let mut func = self.get_mut_function(call_expr.func_id).unwrap();
-                            // func.parse_statements(block.statements(), env);
                         }
 
                     //generate a call instruction to the function cfg
-                    //The return values will be set in the assignment to variables
                     Ok(function::SSAFunction::call(call_expr.func_id ,&call_expr.arguments, self, env))
                     },
                     FunctionKind::LowLevel => {
@@ -866,7 +862,7 @@ impl<'a> IRGenerator<'a> {
                     let opcode_name = attribute.foreign().expect("ice: function marked as foreign, but attribute kind does not match this");
                     Ok(self.handle_lowlevel(env, opcode_name, call_expr))
                     },
-                    FunctionKind::Builtin => { dbg!(func_meta.attributes);todo!();
+                    FunctionKind::Builtin => { todo!();
                     //     let attribute = func_meta.attributes.expect("all builtin functions must contain an attribute which contains the function name which it links to");
                     //     let builtin_name = attribute.builtin().expect("ice: function marked as a builtin, but attribute kind does not match this");
                     //     builtin::call_builtin(self, env, builtin_name, (call_expr,span))
@@ -876,7 +872,9 @@ impl<'a> IRGenerator<'a> {
             HirExpression::For(for_expr) => self.handle_for_expr(env,for_expr).map_err(|kind|kind.add_span(span)),
             HirExpression::If(_) => todo!(),
             HirExpression::Prefix(_) => todo!(),
-            HirExpression::Literal(_) => todo!(),
+            HirExpression::Literal(l) => {
+                Ok(self.handle_literal(&l))
+            },
             HirExpression::Block(_) => todo!("currently block expressions not in for/if branches are not being evaluated. In the future, we should be able to unify the eval_block and all places which require block_expr here"),
             HirExpression::Constructor(_) => todo!(),
             HirExpression::Tuple(_) => todo!(),
@@ -903,6 +901,22 @@ impl<'a> IRGenerator<'a> {
             Some(func) => func,
         };
         function::call_low_level(func, call_expr, self, env)
+    }
+
+    pub fn handle_literal(&mut self, l: &HirLiteral) -> NodeId {
+        match l {
+            HirLiteral::Bool(b) => {
+                if *b {
+                    self.get_or_create_const(FieldElement::one(), node::ObjectType::Unsigned(1))
+                } else {
+                    self.get_or_create_const(FieldElement::zero(), node::ObjectType::Unsigned(1))
+                }
+            }
+            HirLiteral::Integer(f) => {
+                self.get_or_create_const(*f, node::ObjectType::NativeField) //TODO support integer literrals in the fronted: 30_u8
+            }
+            _ => todo!(), // Array(HirArrayLiteral), Str(String),
+        }
     }
 
     pub fn expression_list_to_objects(
@@ -947,7 +961,7 @@ impl<'a> IRGenerator<'a> {
             .ident_def(&for_expr.identifier);
         let int_type = self.context().def_interner.id_type(&for_expr.identifier);
 
-        let iter_type = node::ObjectType::from_type(int_type);
+        let iter_type = node::ObjectType::from_type(&int_type);
         let iter_id = self.create_new_variable(iter_name, iter_def, iter_type, None);
 
         let iter_var = self.get_mut_variable(iter_id).unwrap();

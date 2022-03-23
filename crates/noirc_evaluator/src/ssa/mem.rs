@@ -1,6 +1,6 @@
+use super::acir_gen::InternalVar;
 use super::code_gen::IRGenerator;
 use super::node::{self, Node, NodeId};
-use acvm::acir::native_types::Witness;
 use acvm::FieldElement;
 use noirc_frontend::node_interner::IdentId;
 use num_bigint::BigUint;
@@ -18,10 +18,10 @@ pub struct Memory {
     pub memory_map: HashMap<u32, NodeId>, //maps memory adress to expression
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MemArray {
     pub element_type: node::ObjectType, //type of elements
-    pub witness: Vec<Witness>,
+    pub values: Vec<InternalVar>,
     pub name: String,
     pub def: IdentId,
     pub len: u32,     //number of elements
@@ -33,10 +33,10 @@ impl MemArray {
     pub fn set_witness(&mut self, array: &Array) {
         for object in &array.contents {
             if let Some(w) = node::get_witness_from_object(object) {
-                self.witness.push(w);
+                self.values.push(w.into());
             }
         }
-        assert!(self.witness.is_empty() || self.witness.len() == self.len.try_into().unwrap());
+        assert!(self.values.is_empty() || self.values.len() == self.len.try_into().unwrap());
     }
 
     pub fn new(definition: IdentId, name: &str, of: node::ObjectType, len: u32) -> MemArray {
@@ -44,7 +44,7 @@ impl MemArray {
         MemArray {
             element_type: of,
             name: name.to_string(),
-            witness: Vec::new(),
+            values: Vec::new(),
             def: definition,
             len,
             adr: 0,
@@ -61,7 +61,7 @@ impl Memory {
     pub fn get_array_index(&self, array: &MemArray) -> Option<u32> {
         self.arrays
             .iter()
-            .position(|x| x.def == array.def)
+            .position(|x| x.adr == array.adr)
             .map(|p| p as u32)
     }
 

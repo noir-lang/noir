@@ -1,4 +1,5 @@
 use super::{
+    acir_gen::InternalVar,
     block::BlockId,
     code_gen::IRGenerator,
     mem,
@@ -132,6 +133,61 @@ pub fn simplify(irgen: &mut IRGenerator, ins: &mut node::Instruction) {
             ins.operator = node::Operation::Not;
             ins.lhs = ins.rhs;
         }
+        if let NodeEval::Const(r_const, _) = r_eval {
+            if let Operation::Intrinsic(op) = ins.operator {
+                ins.rhs = evaluate_intrinsic(irgen, op, l_const, r_const);
+                ins.is_deleted = true;
+                return;
+            }
+        }
+    }
+}
+
+pub fn evaluate_intrinsic(
+    irgen: &mut IRGenerator,
+    op: acvm::acir::OPCODE,
+    lhs: FieldElement,
+    rhs: FieldElement,
+) -> NodeId {
+    match op {
+        acvm::acir::OPCODE::ToBits => {
+            let lhs_int = lhs.to_u128();
+            let rhs_int = rhs.to_u128() as u32;
+            let mut bits = Vec::new();
+            for i in 0..rhs_int {
+                if lhs_int & (1 << i) != 0 {
+                    bits.push(irgen.one());
+                } else {
+                    bits.push(irgen.zero());
+                }
+            }
+            let a =
+                irgen
+                    .mem
+                    .create_new_array(rhs_int, node::ObjectType::Unsigned(1), &String::new());
+            let pointer = node::Variable {
+                id: NodeId::dummy(),
+                obj_type: node::ObjectType::Pointer(a),
+                root: None,
+                name: String::new(),
+                def: None,
+                witness: None,
+                parent_block: irgen.current_block,
+            };
+            for i in 0..rhs_int {
+                if lhs_int & (1 << i) != 0 {
+                    irgen.mem.arrays[a as usize]
+                        .values
+                        .push(InternalVar::from(FieldElement::one()));
+                } else {
+                    irgen.mem.arrays[a as usize]
+                        .values
+                        .push(InternalVar::from(FieldElement::zero()));
+                }
+            }
+            irgen.add_variable(pointer, None)
+        }
+        _ => todo!(),
     }
 }
 
@@ -146,6 +202,27 @@ pub fn find_similar_instruction(
     for iter in prev_ins {
         if let Some(ins) = igen.try_get_instruction(*iter) {
             if ins.lhs == lhs && ins.rhs == rhs {
+                return Some(*iter);
+            }
+        }
+    }
+    None
+}
+
+pub fn find_similar_instruction_with_multiple_arguments(
+    igen: &IRGenerator,
+    lhs: NodeId,
+    rhs: NodeId,
+    ins_arg: &[NodeId],
+    prev_ins: &VecDeque<NodeId>,
+) -> Option<NodeId> {
+    for iter in prev_ins {
+        if let Some(ins) = igen.try_get_instruction(*iter) {
+            if ins.lhs == lhs
+                && ins.rhs == rhs
+                && ins.ins_arguments.len() == ins_arg.len()
+                && ins.ins_arguments.iter().zip(ins_arg).all(|(a, b)| *a == *b)
+            {
                 return Some(*iter);
             }
         }
@@ -246,9 +323,9 @@ pub fn propagate(eval: &IRGenerator, id: NodeId) -> NodeId {
 }
 
 //common subexpression elimination, starting from the root
-pub fn cse(igen: &mut IRGenerator) {
+pub fn cse(igen: &mut IRGenerator) -> Option<NodeId> {
     let mut anchor = HashMap::new();
-    cse_tree(igen, igen.first_block, &mut anchor);
+    cse_tree(igen, igen.first_block, &mut anchor)
 }
 
 //Perform CSE for the provided block and then process its children following the dominator tree, passing around the anchor list.
@@ -256,12 +333,16 @@ pub fn cse_tree(
     igen: &mut IRGenerator,
     block_id: BlockId,
     anchor: &mut HashMap<Operation, VecDeque<NodeId>>,
-) {
+) -> Option<NodeId> {
     let mut instructions = Vec::new();
-    block_cse(igen, block_id, anchor, &mut instructions);
+    let mut res = block_cse(igen, block_id, anchor, &mut instructions);
     for b in igen[block_id].dominated.clone() {
-        cse_tree(igen, b, &mut anchor.clone());
+        let sub_res = cse_tree(igen, b, &mut anchor.clone());
+        if sub_res.is_some() {
+            res = sub_res;
+        }
     }
+    res
 }
 
 pub fn anchor_push(op: node::Operation, anchor: &mut HashMap<node::Operation, VecDeque<NodeId>>) {
@@ -279,7 +360,7 @@ pub fn block_cse(
     block_id: BlockId,
     anchor: &mut HashMap<Operation, VecDeque<NodeId>>,
     instructions: &mut Vec<NodeId>,
-) {
+) -> Option<NodeId> {
     let mut new_list = Vec::new();
     let bb = &igen[block_id];
 
@@ -394,6 +475,31 @@ pub fn block_cse(
                         }
                         new_list.push(*iter);
                     }
+                    node::Operation::Intrinsic(_) => {
+                        //n.b this could be the default behovoir for binary operations
+                        for a in &ins.ins_arguments {
+                            let new_a = propagate(igen, *a);
+                            if !to_update && new_a != *a {
+                                to_update = true;
+                            }
+                            ins_args.push(new_a);
+                        }
+                        i_lhs = propagate(igen, ins.lhs);
+                        i_rhs = propagate(igen, ins.rhs);
+                        if let Some(j) = find_similar_instruction_with_multiple_arguments(
+                            igen,
+                            i_lhs,
+                            i_rhs,
+                            &ins_args,
+                            &anchor[&ins.operator],
+                        ) {
+                            to_delete = true; //we want to delete ins but ins is immutable so we use the new_list instead
+                            i_rhs = j;
+                        } else {
+                            new_list.push(*iter);
+                            anchor.get_mut(&ins.operator).unwrap().push_front(*iter);
+                        }
+                    }
                     _ => {
                         //TODO: checks we do not need to propagate res arguments
                         new_list.push(*iter);
@@ -450,6 +556,27 @@ pub fn block_cse(
             }
         }
     }
-
+    let mut last = None;
+    for i in new_list.iter().rev() {
+        if is_some(igen, *i) {
+            last = Some(*i);
+            break;
+        }
+    }
     igen[block_id].instructions = new_list;
+    last
+}
+
+pub fn is_some(igen: &IRGenerator, id: NodeId) -> bool {
+    if id == NodeId::dummy() {
+        return false;
+    }
+    if let Some(ins) = igen.try_get_instruction(id) {
+        if ins.operator != node::Operation::Nop {
+            return true;
+        }
+    } else if igen.try_get_node(id).is_some() {
+        return true;
+    }
+    false
 }

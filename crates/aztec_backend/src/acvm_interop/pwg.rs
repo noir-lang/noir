@@ -23,7 +23,6 @@ impl PartialWitnessGenerator for Plonk {
         if gates.is_empty() {
             return Ok(());
         }
-
         let mut unsolved_gates: Vec<Gate> = Vec::new();
 
         for gate in gates.into_iter() {
@@ -104,6 +103,22 @@ impl PartialWitnessGenerator for Plonk {
                         }
                         _ => true,
                     },
+                    Directive::Split { a, b, bit_size } => match initial_witness.get(a) {
+                        Some(val_a) => {
+                            let a_big = BigUint::from_bytes_be(&val_a.to_bytes());
+                            for i in 0..*bit_size {
+                                let j = i as usize;
+                                let v = if a_big.bit(j as u64) {
+                                    FieldElement::one()
+                                } else {
+                                    FieldElement::zero()
+                                };
+                                initial_witness.insert(b[j], v);
+                            }
+                            false
+                        }
+                        _ => true,
+                    },
                     Directive::Oddrange { a, b, r, bit_size } => match initial_witness.get(a) {
                         Some(val_a) => {
                             let int_a = BigUint::from_bytes_be(&val_a.to_bytes());
@@ -131,7 +146,6 @@ impl PartialWitnessGenerator for Plonk {
                 unsolved_gates.push(gate);
             }
         }
-
         self.solve(initial_witness, unsolved_gates)
     }
 }

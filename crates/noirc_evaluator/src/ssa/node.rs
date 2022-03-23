@@ -216,21 +216,21 @@ impl ObjectType {
         }
     }
 
-    pub fn from_type(t: noirc_frontend::Type) -> ObjectType {
+    pub fn from_type(t: &noirc_frontend::Type) -> ObjectType {
         match t {
             noirc_frontend::Type::FieldElement(_) => ObjectType::NativeField,
             noirc_frontend::Type::Integer(_ftype, sign, bit_size) => {
                 assert!(
-                    bit_size < super::integer::short_integer_max_bit_size(),
+                    *bit_size < super::integer::short_integer_max_bit_size(),
                     "long integers are not yet supported"
                 );
                 match sign {
-                    noirc_frontend::Signedness::Signed => ObjectType::Signed(bit_size),
-                    noirc_frontend::Signedness::Unsigned => ObjectType::Unsigned(bit_size),
+                    noirc_frontend::Signedness::Signed => ObjectType::Signed(*bit_size),
+                    noirc_frontend::Signedness::Unsigned => ObjectType::Unsigned(*bit_size),
                 }
             }
             noirc_frontend::Type::Bool => ObjectType::Boolean,
-            noirc_frontend::Type::Array(_, _, t) => ObjectType::from_type(*t),
+            noirc_frontend::Type::Array(_, _, t) => ObjectType::from_type(t),
             x => {
                 let err = format!("currently we do not support type casting to {}", x);
                 todo!("{}", err);
@@ -737,30 +737,30 @@ impl Instruction {
 
     pub fn standard_form(&mut self) {
         match self.operator {
-            //convert greater into less
+            //convert > into < and <= into >=
             Operation::Ugt => {
                 std::mem::swap(&mut self.rhs, &mut self.lhs);
                 self.operator = Operation::Ult
             }
-            Operation::Uge => {
+            Operation::Ule => {
                 std::mem::swap(&mut self.rhs, &mut self.lhs);
-                self.operator = Operation::Ule
+                self.operator = Operation::Uge
             }
             Operation::Sgt => {
                 std::mem::swap(&mut self.rhs, &mut self.lhs);
                 self.operator = Operation::Slt
             }
-            Operation::Sge => {
+            Operation::Sle => {
                 std::mem::swap(&mut self.rhs, &mut self.lhs);
-                self.operator = Operation::Sle
+                self.operator = Operation::Sge
             }
             Operation::Gt => {
                 std::mem::swap(&mut self.rhs, &mut self.lhs);
                 self.operator = Operation::Lt
             }
-            Operation::Gte => {
+            Operation::Lte => {
                 std::mem::swap(&mut self.rhs, &mut self.lhs);
-                self.operator = Operation::Lte
+                self.operator = Operation::Gte
             }
             Operation::Constrain(op) => match op {
                 ConstrainOp::Eq => {

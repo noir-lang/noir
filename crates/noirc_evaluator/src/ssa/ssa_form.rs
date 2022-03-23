@@ -1,3 +1,5 @@
+use noirc_frontend::ArraySize;
+
 use crate::{environment::Environment, object::Object};
 
 use super::{
@@ -111,7 +113,7 @@ pub fn evaluate_identifier(
     let obj = env.get(&ident_name);
     let obj = match obj {
         Object::Array(a) => {
-            let obj_type = node::ObjectType::from_type(o_type);
+            let obj_type = node::ObjectType::from_type(&o_type);
             //We should create an array from 'a' witnesses
             igen.mem
                 .create_array_from_object(&a, ident_def.unwrap(), obj_type, &ident_name);
@@ -141,6 +143,59 @@ pub fn evaluate_identifier(
         }
     };
 
+    let v_id = igen.add_variable(obj, None);
+    igen.get_current_block_mut().update_variable(v_id, v_id);
+    v_id
+}
+
+fn get_array_size(array_size: &ArraySize) -> u32 {
+    match array_size {
+        ArraySize::Fixed(l) => *l as u32,
+        ArraySize::Variable => todo!(),
+    }
+}
+
+pub fn create_function_parameter(
+    igen: &mut IRGenerator,
+    ident_id: &noirc_frontend::node_interner::IdentId,
+) -> NodeId {
+    let ident_name = igen.context().def_interner.ident_name(ident_id);
+    let ident_def = igen.context().def_interner.ident_def(ident_id);
+    let o_type = igen.context().def_interner.id_type(ident_def.unwrap());
+    //check if the variable is already created:
+    if let Some(var) = igen.find_variable(&ident_def) {
+        let id = var.id;
+        return get_current_value(igen, id);
+    }
+    let obj_type = node::ObjectType::from_type(&o_type);
+    let obj = match o_type {
+        noirc_frontend::Type::Array(_, len, _) => {
+            let array_idx = igen
+                .mem
+                .create_new_array(get_array_size(&len), obj_type, &ident_name);
+            node::Variable {
+                id: NodeId::dummy(),
+                name: ident_name.clone(),
+                obj_type: node::ObjectType::Pointer(array_idx),
+                root: None,
+                def: ident_def,
+                witness: None,
+                parent_block: igen.current_block,
+            }
+        }
+        _ => {
+            //new variable - should be in a let statement? The let statement should set the type
+            node::Variable {
+                id: NodeId::dummy(),
+                name: ident_name.clone(),
+                obj_type,
+                root: None,
+                def: ident_def,
+                witness: None,
+                parent_block: igen.current_block,
+            }
+        }
+    };
     let v_id = igen.add_variable(obj, None);
     igen.get_current_block_mut().update_variable(v_id, v_id);
     v_id
