@@ -719,6 +719,51 @@ template <typename Composer> class stdlib_bigfield : public testing::Test {
         bool proof_result = verifier.verify_proof(proof);
         EXPECT_EQ(proof_result, true);
     }
+
+    // This check tests if elements are reduced to fit quotient into range proof
+    static void test_quotient_completeness()
+    {
+        auto composer = Composer();
+        const uint256_t input =
+            uint256_t(0xfffffffffffffffe, 0xffffffffffffffff, 0xffffffffffffffff, 0x3fffffffffffffff);
+
+        fq_ct a(witness_ct(&composer, fr(uint256_t(input).slice(0, fq_ct::NUM_LIMB_BITS * 2))),
+                witness_ct(&composer, fr(uint256_t(input).slice(fq_ct::NUM_LIMB_BITS * 2, fq_ct::NUM_LIMB_BITS * 4))),
+                false);
+        auto a1 = a;
+        auto a2 = a;
+        auto a3 = a;
+        auto a4 = a;
+
+        for (auto i = 0; i < 8; i++) {
+            a = a + a;
+            a1 = a1 + a1;
+            a2 = a2 + a2;
+            a3 = a3 + a3;
+            a4 = a4 + a4;
+        }
+
+        auto b = a * a;
+        (void)b;
+
+        auto c = a1.sqr();
+        (void)c;
+
+        auto d = a2.sqradd({});
+        (void)d;
+
+        auto e = a3.madd(a3, {});
+        (void)e;
+
+        auto f = fq_ct::mult_madd({ a4 }, { a4 }, {}, false);
+        (void)f;
+
+        auto prover = composer.create_prover();
+        auto verifier = composer.create_verifier();
+        auto proof = prover.construct_proof();
+        bool proof_result = verifier.verify_proof(proof);
+        EXPECT_EQ(proof_result, true);
+    }
 };
 
 // Define types for which the above tests will be constructed.
@@ -789,6 +834,10 @@ TYPED_TEST(stdlib_bigfield, assert_is_in_field_succes)
 TYPED_TEST(stdlib_bigfield, byte_array_constructors)
 {
     TestFixture::test_byte_array_constructors();
+}
+TYPED_TEST(stdlib_bigfield, quotient_completeness_regression)
+{
+    TestFixture::test_quotient_completeness();
 }
 
 // // This test was disabled before the refactor to use TYPED_TEST's/

@@ -103,7 +103,8 @@ template <typename Composer, typename T> class bigfield {
     static constexpr uint512_t modulus_u512 = uint512_t(modulus);
     static constexpr uint64_t NUM_LIMB_BITS = waffle::NUM_LIMB_BITS_IN_FIELD_SIMULATION;
     static constexpr uint64_t NUM_LAST_LIMB_BITS = modulus_u512.get_msb() + 1 - (NUM_LIMB_BITS * 3);
-    static constexpr uint1024_t DEFAULT_MAXIMUM_REMAINDER = (uint1024_t(1) << (NUM_LIMB_BITS * 3 + NUM_LAST_LIMB_BITS));
+    static constexpr uint1024_t DEFAULT_MAXIMUM_REMAINDER =
+        (uint1024_t(1) << (NUM_LIMB_BITS * 3 + NUM_LAST_LIMB_BITS)) - uint1024_t(1);
     static constexpr uint256_t DEFAULT_MAXIMUM_LIMB = (uint256_t(1) << NUM_LIMB_BITS) - uint256_t(1);
     static constexpr uint256_t DEFAULT_MAXIMUM_MOST_SIGNIFICANT_LIMB =
         (uint256_t(1) << NUM_LAST_LIMB_BITS) - uint256_t(1);
@@ -187,6 +188,11 @@ template <typename Composer, typename T> class bigfield {
     bigfield sqr() const;
     bigfield sqradd(const std::vector<bigfield>& to_add) const;
     bigfield madd(const bigfield& to_mul, const std::vector<bigfield>& to_add) const;
+
+    static void perform_reductions_for_mult_madd(std::vector<bigfield>& mul_left,
+                                                 std::vector<bigfield>& mul_right,
+                                                 const std::vector<bigfield>& to_add);
+
     static bigfield mult_madd(const std::vector<bigfield>& mul_left,
                               const std::vector<bigfield>& mul_right,
                               const std::vector<bigfield>& to_add,
@@ -283,6 +289,12 @@ template <typename Composer, typename T> class bigfield {
         return maximum_product;
     }
 
+    /**
+     * @brief Compute the maximum number of bits for quotient range proof to protect against CRT undeflow
+     *
+     * @param remainders_max Maximum sizes of resulting remainders
+     * @return Desired length of range proof
+     */
     static size_t get_quotient_max_bits(const std::vector<uint1024_t>& remainders_max)
     {
         // find q_max * p + ...remainders_max < nT
@@ -329,8 +341,8 @@ template <typename Composer, typename T> class bigfield {
      *
      * @return true if there is an overflow, false otherwise
      **/
-    static bool mul_product_overflows_crt_modulus(const std::vector<uint1024_t>& as_max,
-                                                  const std::vector<uint1024_t>& bs_max,
+    static bool mul_product_overflows_crt_modulus(const std::vector<uint512_t>& as_max,
+                                                  const std::vector<uint512_t>& bs_max,
                                                   const std::vector<bigfield>& to_add)
     {
         std::vector<uint1024_t> products;
@@ -339,7 +351,7 @@ template <typename Composer, typename T> class bigfield {
         uint1024_t product_sum;
         uint1024_t add_term;
         for (size_t i = 0; i < as_max.size(); i++) {
-            product_sum += as_max[i] * bs_max[i];
+            product_sum += uint1024_t(as_max[i]) * uint1024_t(bs_max[i]);
         }
         for (const auto& add : to_add) {
             add_term += add.get_maximum_value();
@@ -384,6 +396,33 @@ template <typename Composer, typename T> class bigfield {
     static std::pair<uint512_t, uint512_t> compute_quotient_remainder_values(const bigfield& a,
                                                                              const bigfield& b,
                                                                              const std::vector<bigfield>& to_add);
+    /**
+     * @brief Compute the maximum possible value of quotient of a*b+\sum(to_add)
+     *
+     * @param as Multiplicands
+     * @param bs Multipliers
+     * @param to_add Added elements
+     * @return uint512_t The maximum value of quotient
+     */
+    static uint512_t compute_maximum_quotient_value(const std::vector<uint512_t>& as,
+                                                    const std::vector<uint512_t>& bs,
+                                                    const std::vector<uint512_t>& to_add);
+
+    /**
+     * @brief Check for 2 conditions (CRT modulus is overflown of the maximum quotient doesn't fit into range proof).
+     * Also returns the length of quotient's range proof if there is no need to reduce.
+     *
+     * @param as_max Vector of left multiplicands' maximum values
+     * @param bs_max Vector of right multiplicands' maximum values
+     * @param to_add Vector of added bigfield values
+     * @return <true, 0> if we need to reduce the product;
+     * <false, The length of quotient range proof> if there is no need to reduce the product.
+     */
+    static std::pair<bool, size_t> get_quotient_reduction_info(const std::vector<uint512_t>& as_max,
+                                                               const std::vector<uint512_t>& bs_max,
+                                                               const std::vector<bigfield>& to_add,
+                                                               const std::vector<uint1024_t>& remainders_max = {
+                                                                   DEFAULT_MAXIMUM_REMAINDER });
 
     static void unsafe_evaluate_multiply_add(const bigfield& left,
                                              const bigfield& right_mul,

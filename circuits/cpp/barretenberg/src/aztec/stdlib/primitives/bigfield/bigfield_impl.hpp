@@ -418,18 +418,12 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::operator-(const
  **/
 template <typename C, typename T> bigfield<C, T> bigfield<C, T>::operator*(const bigfield& other) const
 {
+    // First we do basic reduction checks of individual elements
     reduction_check();
     other.reduction_check();
-    if (mul_product_overflows_crt_modulus(get_maximum_value(), other.get_maximum_value(), {})) {
-        if (get_maximum_value() > other.get_maximum_value()) {
-            self_reduce();
-        } else {
-            other.self_reduce();
-        }
-        return (*this).operator*(other);
-    }
-    C* ctx = context ? context : other.context;
 
+    C* ctx = context ? context : other.context;
+    // Now we can actually compute the quotient and remainder values
     const auto [quotient_value, remainder_value] = compute_quotient_remainder_values(*this, other, {});
     bigfield remainder;
     bigfield quotient;
@@ -441,7 +435,18 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::operator*(const
         // when writing a*b = q*p + r we wish to enforce r<2^s for smallest s such that p<2^s
         // hence the second constructor call is with can_overflow=false. This will allow using r in more additions mod
         // 2^t without needing to apply the mod, where t=4*NUM_LIMB_BITS
-        const size_t num_quotient_bits = get_quotient_max_bits({ DEFAULT_MAXIMUM_REMAINDER });
+
+        // Check if the product overflows CRT or the quotient can't be contained in a range proof and reduce accordingly
+        auto [reduction_required, num_quotient_bits] =
+            get_quotient_reduction_info({ get_maximum_value() }, { other.get_maximum_value() }, {});
+        if (reduction_required) {
+            if (get_maximum_value() > other.get_maximum_value()) {
+                self_reduce();
+            } else {
+                other.self_reduce();
+            }
+            return (*this).operator*(other);
+        }
         quotient = bigfield(witness_t(ctx, fr(quotient_value.slice(0, NUM_LIMB_BITS * 2).lo)),
                             witness_t(ctx, fr(quotient_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 4).lo)),
                             false,
@@ -487,9 +492,7 @@ bigfield<C, T> bigfield<C, T>::internal_div(const std::vector<bigfield>& numerat
     }
 
     denominator.reduction_check();
-    if (mul_product_overflows_crt_modulus(DEFAULT_MAXIMUM_REMAINDER, denominator.get_maximum_value(), {})) {
-        denominator.self_reduce();
-    }
+
     C* ctx = denominator.context;
     uint512_t numerator_values(0);
     bool numerator_constant = true;
@@ -519,15 +522,26 @@ bigfield<C, T> bigfield<C, T>::internal_div(const std::vector<bigfield>& numerat
         return inverse;
     } else {
         // We only add the check if the result is non-constant
-        if (check_for_zero) {
-            denominator.assert_is_not_equal(zero());
-        }
+
         std::vector<uint1024_t> numerator_max;
         for (const auto& n : numerators) {
             numerator_max.push_back(n.get_maximum_value());
         }
 
-        const size_t num_quotient_bits = get_quotient_max_bits(numerator_max);
+        auto [reduction_required, num_quotient_bits] =
+            get_quotient_reduction_info({ static_cast<uint512_t>(DEFAULT_MAXIMUM_REMAINDER) },
+                                        { denominator.get_maximum_value() },
+                                        {},
+                                        numerator_max);
+        if (reduction_required) {
+
+            denominator.self_reduce();
+            return internal_div(numerators, denominator, check_for_zero);
+        }
+        // We do this after the quotient check, since this creates gates and we don't want to do this twice
+        if (check_for_zero) {
+            denominator.assert_is_not_equal(zero());
+        }
         quotient = bigfield(witness_t(ctx, fr(quotient_value.slice(0, NUM_LIMB_BITS * 2).lo)),
                             witness_t(ctx, fr(quotient_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 4).lo)),
                             false,
@@ -575,9 +589,7 @@ bigfield<C, T> bigfield<C, T>::div_check_denominator_nonzero(const std::vector<b
 template <typename C, typename T> bigfield<C, T> bigfield<C, T>::sqr() const
 {
     reduction_check();
-    if (mul_product_overflows_crt_modulus(get_maximum_value(), get_maximum_value(), {})) {
-        self_reduce();
-    }
+
     C* ctx = context;
 
     const auto [quotient_value, remainder_value] = compute_quotient_remainder_values(*this, *this, {});
@@ -588,7 +600,14 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::sqr() const
         remainder = bigfield(ctx, uint256_t(remainder_value.lo));
         return remainder;
     } else {
-        const size_t num_quotient_bits = get_quotient_max_bits({ DEFAULT_MAXIMUM_REMAINDER });
+
+        auto [reduction_required, num_quotient_bits] = get_quotient_reduction_info(
+            { get_maximum_value() }, { get_maximum_value() }, {}, { DEFAULT_MAXIMUM_REMAINDER });
+        if (reduction_required) {
+            self_reduce();
+            return sqr();
+        }
+
         quotient = bigfield(witness_t(ctx, fr(quotient_value.slice(0, NUM_LIMB_BITS * 2).lo)),
                             witness_t(ctx, fr(quotient_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 4).lo)),
                             false,
@@ -613,10 +632,7 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::sqr() const
 template <typename C, typename T> bigfield<C, T> bigfield<C, T>::sqradd(const std::vector<bigfield>& to_add) const
 {
     reduction_check();
-    if (mul_product_overflows_crt_modulus(get_maximum_value(), get_maximum_value(), to_add)) {
-        self_reduce();
-        ASSERT(mul_product_overflows_crt_modulus(get_maximum_value(), get_maximum_value(), to_add) == 0);
-    }
+
     C* ctx = context;
 
     uint512_t add_values(0);
@@ -643,7 +659,16 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::sqradd(const st
         remainder = bigfield(ctx, uint256_t(remainder_value.lo));
         return remainder;
     } else {
-        const size_t num_quotient_bits = get_quotient_max_bits({ DEFAULT_MAXIMUM_REMAINDER });
+
+        // Check the quotient fits the range proof
+        auto [reduction_required, num_quotient_bits] = get_quotient_reduction_info(
+            { get_maximum_value() }, { get_maximum_value() }, to_add, { DEFAULT_MAXIMUM_REMAINDER });
+
+        if (reduction_required) {
+            self_reduce();
+            return sqradd(to_add);
+        }
+
         quotient = bigfield(witness_t(ctx, fr(quotient_value.slice(0, NUM_LIMB_BITS * 2).lo)),
                             witness_t(ctx, fr(quotient_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 4).lo)),
                             false,
@@ -671,16 +696,9 @@ bigfield<C, T> bigfield<C, T>::madd(const bigfield& to_mul, const std::vector<bi
     reduction_check();
     to_mul.reduction_check();
 
-    if (mul_product_overflows_crt_modulus(get_maximum_value(), to_mul.get_maximum_value(), to_add)) {
-        if (get_maximum_value() > to_mul.get_maximum_value()) {
-            self_reduce();
-        } else {
-            to_mul.self_reduce();
-        }
-        return (*this).madd(to_mul, to_add);
-    }
     uint512_t add_values(0);
     bool add_constant = true;
+
     for (const auto& add_element : to_add) {
         add_element.reduction_check();
         add_values += add_element.get_value();
@@ -703,7 +721,18 @@ bigfield<C, T> bigfield<C, T>::madd(const bigfield& to_mul, const std::vector<bi
         remainder = bigfield(ctx, uint256_t(remainder_value.lo));
         return remainder;
     } else {
-        const size_t num_quotient_bits = get_quotient_max_bits({ DEFAULT_MAXIMUM_REMAINDER });
+
+        auto [reduction_required, num_quotient_bits] = get_quotient_reduction_info(
+            { get_maximum_value() }, { to_mul.get_maximum_value() }, to_add, { DEFAULT_MAXIMUM_REMAINDER });
+
+        if (reduction_required) {
+            if (get_maximum_value() > to_mul.get_maximum_value()) {
+                self_reduce();
+            } else {
+                to_mul.self_reduce();
+            }
+            return (*this).madd(to_mul, to_add);
+        }
         quotient = bigfield(witness_t(ctx, fr(quotient_value.slice(0, NUM_LIMB_BITS * 2).lo)),
                             witness_t(ctx, fr(quotient_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 4).lo)),
                             false,
@@ -714,6 +743,140 @@ bigfield<C, T> bigfield<C, T>::madd(const bigfield& to_mul, const std::vector<bi
     };
     unsafe_evaluate_multiply_add(*this, to_mul, to_add, quotient, { remainder });
     return remainder;
+}
+
+/**
+ * @brief Performs individual reductions on the supplied elements as well as more complex reductions to prevent CRT
+ * modulus overflow and to fit the quotient inside the range proof
+ *
+ *
+ * @tparam C composer
+ * @tparam T basefield
+ * @param mul_left
+ * @param mul_right
+ * @param to_add
+ */
+template <typename C, typename T>
+void bigfield<C, T>::perform_reductions_for_mult_madd(std::vector<bigfield>& mul_left,
+                                                      std::vector<bigfield>& mul_right,
+                                                      const std::vector<bigfield>& to_add)
+{
+    const size_t number_of_products = mul_left.size();
+    // Get the maximum values of elements
+    std::vector<uint512_t> max_values_left;
+    std::vector<uint512_t> max_values_right;
+
+    max_values_left.reserve(number_of_products);
+    max_values_right.reserve(number_of_products);
+    // Do regular reduction checks for all elements
+    for (auto& left_element : mul_left) {
+        left_element.reduction_check();
+        max_values_left.emplace_back(left_element.get_maximum_value());
+    }
+
+    for (auto& right_element : mul_right) {
+        right_element.reduction_check();
+        max_values_right.emplace_back(right_element.get_maximum_value());
+    }
+
+    // Perform CRT checks for the whole evaluation
+    // 1. Check if we can overflow CRT modulus
+    // 2. Check if the quotient actually fits in our range proof.
+    // 3. If we haven't passed one of the checks, reduce accordingly, starting with the largest product
+
+    // We only get the bitlength of range proof if there is no reduction
+    bool reduction_required;
+    reduction_required = std::get<0>(
+        get_quotient_reduction_info(max_values_left, max_values_right, to_add, { DEFAULT_MAXIMUM_REMAINDER }));
+
+    if (reduction_required) {
+
+        // We are out of luck and have to reduce the elements to keep the intermediate result below CRT modulus
+        // For that we need to compute the maximum update - how much reducing each element is going to update the
+        // quotient.
+        // Contents of the tuple: | Qmax_before-Qmax_after | product number | argument number |
+        std::vector<std::tuple<uint1024_t, size_t, size_t>> maximum_value_updates;
+
+        // We use this lambda function before the loop and in the loop itself
+        // It computes the maximum value update from reduction of each element
+        auto compute_updates = [](std::vector<std::tuple<uint1024_t, size_t, size_t>>& maxval_updates,
+                                  std::vector<bigfield>& m_left,
+                                  std::vector<bigfield>& m_right,
+                                  size_t number_of_products) {
+            maxval_updates.resize(0);
+            maxval_updates.reserve(number_of_products * 2);
+            // Compute all reduction differences
+            for (size_t i = 0; i < number_of_products; i++) {
+                uint1024_t original_left = static_cast<uint1024_t>(m_left[i].get_maximum_value());
+                uint1024_t original_right = static_cast<uint1024_t>(m_right[i].get_maximum_value());
+                uint1024_t original_product = original_left * original_right;
+                if (m_left[i].is_constant()) {
+                    // If the multiplicand is constant, we can't reduce it, so the update is 0.
+                    maxval_updates.emplace_back(std::tuple<uint1024_t, size_t, size_t>(0, i, 0));
+                } else {
+                    uint1024_t new_product = DEFAULT_MAXIMUM_REMAINDER * original_right;
+                    if (new_product > original_product) {
+                        throw_or_abort("This should never happen");
+                    }
+                    maxval_updates.emplace_back(
+                        std::tuple<uint1024_t, size_t, size_t>(original_product - new_product, i, 0));
+                }
+                if (m_right[i].is_constant()) {
+                    // If the multiplicand is constant, we can't reduce it, so the update is 0.
+                    maxval_updates.emplace_back(std::tuple<uint1024_t, size_t, size_t>(0, i, 1));
+                } else {
+                    uint1024_t new_product = DEFAULT_MAXIMUM_REMAINDER * original_left;
+                    if (new_product > original_product) {
+                        throw_or_abort("This should never happen");
+                    }
+                    maxval_updates.emplace_back(
+                        std::tuple<uint1024_t, size_t, size_t>(original_product - new_product, i, 1));
+                }
+            }
+        };
+
+        // Compute the possible reduction updates
+        compute_updates(maximum_value_updates, mul_left, mul_right, number_of_products);
+        auto compare_update_tuples = [](std::tuple<uint1024_t, size_t, size_t>& left_element,
+                                        std::tuple<uint1024_t, size_t, size_t>& right_element) {
+            return std::get<0>(left_element) > std::get<0>(right_element);
+        };
+
+        // Sort the vector, larger values first
+        std::sort(maximum_value_updates.begin(), maximum_value_updates.end(), compare_update_tuples);
+        // Now we loop through, reducing 1 element each time. This is costly in code, but allows us to use fewer
+        // gates
+
+        while (reduction_required) {
+
+            // We choose the largest update
+            auto [update_size, largest_update_product_index, multiplicand_index] = maximum_value_updates[0];
+            if (!update_size) {
+                throw_or_abort("Can't reduce further");
+            }
+            // Reduce the larger of the multiplicands that compose the product
+            if (multiplicand_index == 0) {
+                mul_left[largest_update_product_index].self_reduce();
+            } else {
+                mul_right[largest_update_product_index].self_reduce();
+            }
+
+            reduction_required = std::get<0>(
+                get_quotient_reduction_info(max_values_left, max_values_right, to_add, { DEFAULT_MAXIMUM_REMAINDER }));
+
+            compute_updates(maximum_value_updates, mul_left, mul_right, number_of_products);
+
+            for (size_t i = 0; i < number_of_products; i++) {
+                max_values_left[i] = mul_left[i].get_maximum_value();
+                max_values_right[i] = mul_right[i].get_maximum_value();
+            }
+
+            // Sort the the vector
+            std::sort(maximum_value_updates.begin(), maximum_value_updates.end(), compare_update_tuples);
+        }
+        // Now we have reduced everything exactly to the point of no overflow. There is probably a way to use even
+        // fewer reductions, but for now this will suffice.
+    }
 }
 
 /**
@@ -732,6 +895,9 @@ bigfield<C, T> bigfield<C, T>::mult_madd(const std::vector<bigfield>& mul_left,
                                          bool fix_remainder_to_zero)
 {
     ASSERT(mul_left.size() == mul_right.size());
+
+    std::vector<bigfield> mutable_mul_left(mul_left);
+    std::vector<bigfield> mutable_mul_right(mul_right);
 
     const size_t number_of_products = mul_left.size();
 
@@ -752,85 +918,27 @@ bigfield<C, T> bigfield<C, T>::mult_madd(const std::vector<bigfield>& mul_left,
         add_constant = add_constant && (add_element.is_constant());
     }
 
-    // Now add the products in the worst case, when they are all reduced
-    /*for (size_t i = 0; i < number_of_products; i++) {
-        worst_case_product_sum += (uint1024_t(mul_left[i].get_value()) % modulus) *
-                                  (uint1024_t(mul_right[i].get_value()) % modulus); // change to default maximum_values
-    }*/
     worst_case_product_sum =
         uint1024_t(number_of_products) * uint1024_t(DEFAULT_MAXIMUM_REMAINDER) * uint1024_t(DEFAULT_MAXIMUM_REMAINDER);
     // Check that we can actually reduce the products enough, this assert will probably never get triggered
     ASSERT((worst_case_product_sum + add_right_maximum) < get_maximum_crt_product());
 
-    // Get the maximum values of elements
-    std::vector<uint1024_t> max_values_left;
-    std::vector<uint1024_t> max_values_right;
+    perform_reductions_for_mult_madd(mutable_mul_left, mutable_mul_right, to_add);
 
-    max_values_left.reserve(number_of_products);
-    max_values_right.reserve(number_of_products);
-    // Do regular reduction checks for all elements
-    for (const auto& left_element : mul_left) {
-        left_element.reduction_check();
-        max_values_left.emplace_back(left_element.get_maximum_value());
-    }
-
-    for (const auto& right_element : mul_right) {
-        right_element.reduction_check();
-        max_values_right.emplace_back(right_element.get_maximum_value());
-    }
-
-    // Check if we can overflow CRT modulus and reduce accordingly, starting with the largest product
-    if (mul_product_overflows_crt_modulus(max_values_left, max_values_right, to_add)) {
-
-        // We are out of luck and have to reduce the elements to keep the intermediate result below CRT modulus
-        std::vector<std::pair<uint1024_t, size_t>> maximum_products;
-        maximum_products.reserve(number_of_products);
-
-        // Compute all products
-        for (size_t i = 0; i < number_of_products; i++) {
-            maximum_products.emplace_back(
-                std::pair<uint1024_t, size_t>(mul_left[i].get_maximum_value() * mul_right[i].get_maximum_value(), i));
-        }
-
-        auto compare_product_pairs = [](std::pair<uint1024_t, size_t>& left_element,
-                                        std::pair<uint1024_t, size_t>& right_element) {
-            return left_element.first > right_element.first;
-        };
-        // Sort the vector, larger values first
-        std::sort(maximum_products.begin(), maximum_products.end(), compare_product_pairs);
-
-        // Now we loop through, reducing 1 element each time. This is costly in code, but allows us to use fewer gates
-        while (mul_product_overflows_crt_modulus(max_values_left, max_values_right, to_add)) {
-            size_t largest_product_index = maximum_products[0].second;
-
-            // Reduce the larger of the multiplicands that compose the product and update its maximum_value in vectors
-            if (max_values_left[largest_product_index] > max_values_right[largest_product_index]) {
-                mul_left[largest_product_index].self_reduce();
-                max_values_left[largest_product_index] = mul_left[largest_product_index].get_maximum_value();
-            } else {
-                mul_right[largest_product_index].self_reduce();
-                max_values_right[largest_product_index] = mul_right[largest_product_index].get_maximum_value();
-            }
-            // Update the maximum value of the product and sort the vector again
-            maximum_products[0] = std::pair<uint1024_t, size_t>(max_values_left[largest_product_index] *
-                                                                    max_values_right[largest_product_index],
-                                                                largest_product_index);
-            std::sort(maximum_products.begin(), maximum_products.end(), compare_product_pairs);
-        }
-        // Now we have reduced everything exactly to the point of no overflow. There is probably a way to use even fewer
-        // reductions, but for now this will suffice.
-    }
+    // Get the number of range proof bits for the quotient
+    const size_t num_quotient_bits = get_quotient_max_bits({ DEFAULT_MAXIMUM_REMAINDER });
 
     // TODO: Could probably search through all
-    C* ctx = mul_left[0].context ? mul_left[0].context : mul_right[0].context;
+    C* ctx = mutable_mul_left[0].context ? mutable_mul_left[0].context : mutable_mul_right[0].context;
 
     // Compute the product sum
     // And check if all the multiplied values are constant
     uint1024_t product_sum(0);
     bool product_sum_constant = true;
     for (size_t i = 0; i < number_of_products; i++) {
-        product_sum += uint1024_t(mul_left[i].get_value()) * uint1024_t(mul_right[i].get_value());
-        product_sum_constant = product_sum_constant && mul_left[i].is_constant() && mul_right[i].is_constant();
+        product_sum += uint1024_t(mutable_mul_left[i].get_value()) * uint1024_t(mutable_mul_right[i].get_value());
+        product_sum_constant =
+            product_sum_constant && mutable_mul_left[i].is_constant() && mutable_mul_right[i].is_constant();
     }
 
     // Compute the quotient and remainder
@@ -854,7 +962,6 @@ bigfield<C, T> bigfield<C, T>::mult_madd(const std::vector<bigfield>& mul_left,
         return remainder;
     } else {
         // Constrain quotient to mitigate CRT overflow attacks
-        const size_t num_quotient_bits = get_quotient_max_bits({ DEFAULT_MAXIMUM_REMAINDER });
         quotient = bigfield(witness_t(ctx, fr(quotient_value.slice(0, NUM_LIMB_BITS * 2).lo)),
                             witness_t(ctx, fr(quotient_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 4).lo)),
                             false,
@@ -872,7 +979,7 @@ bigfield<C, T> bigfield<C, T>::mult_madd(const std::vector<bigfield>& mul_left,
         }
     };
 
-    unsafe_evaluate_multiple_multiply_add(mul_left, mul_right, to_add, quotient, { remainder });
+    unsafe_evaluate_multiple_multiply_add(mutable_mul_left, mutable_mul_right, to_add, quotient, { remainder });
 
     return remainder;
 }
@@ -957,11 +1064,6 @@ bigfield<C, T> bigfield<C, T>::msub_div(const std::vector<bigfield>& mul_left,
     if (sub_constant && products_constant && divisor.is_constant()) {
         return bigfield(ctx, uint256_t(result_value.lo.lo));
     }
-
-    /*uint1024_t sub_v(0);
-    for (const auto& sub : to_sub) {
-        sub_v += uint1024_t(sub.get_value());
-    }*/
 
     // Create the result witness
     bigfield result = create_from_u512_as_witness(ctx, result_value.lo);
@@ -1118,8 +1220,8 @@ bigfield<C, T> bigfield<C, T>::conditional_select(const bigfield& other, const b
  * This prevents our field arithmetic from overflowing the native modulus boundary, whilst ensuring we can
  * still use the chinese remainder theorem to validate field multiplications with a reduced number of range checks
  *
- * @param num_products The number of products a*b in the parent function that calls the reduction check. Needed to limit
- *overflow
+ * @param num_products The number of products a*b in the parent function that calls the reduction check. Needed to
+ *limit overflow
  **/
 template <typename C, typename T> void bigfield<C, T>::reduction_check(const size_t num_products) const
 {
@@ -1187,7 +1289,8 @@ template <typename C, typename T> void bigfield<C, T>::assert_is_in_field() cons
     // The way we use borrows here ensures that we are checking that modulus - binary_basis > 0.
     // We check that the result in each limb is > 0.
     // If the modulus part in this limb is smaller, we simply borrow the value from the higher limb.
-    // The prover can rearrange the borrows the way they like. The important thing is that the borrows are constrained.
+    // The prover can rearrange the borrows the way they like. The important thing is that the borrows are
+    // constrained.
     field_t<C> r0 = modulus_0 - binary_basis_limbs[0].element + static_cast<field_t<C>>(borrow_0) * shift_1;
     field_t<C> r1 = modulus_1 - binary_basis_limbs[1].element + static_cast<field_t<C>>(borrow_1) * shift_1 -
                     static_cast<field_t<C>>(borrow_0);
@@ -1258,14 +1361,13 @@ template <typename C, typename T> void bigfield<C, T>::assert_equal(const bigfie
 }
 
 // construct a proof that points are different mod p, when they are different mod r
-// WARNING: This method doesn't have perfect completeness - for points equal mod r (or with certain difference kp mod r)
-// but different mod p, you can't construct a proof.
-// The chances of an honest prover running afoul of this condition are extremely small (TODO: compute probability)
-// Note also that the number of constraints depends on how much the values have overflown beyond p
-// e.g. due to an addition chain
-// The function is based on the following. Suppose a-b = 0 mod p. Then a-b = k*p for k in a range [-R,L]
-// such that L*p>= a, R*p>=b. And also a-b = k*p mod r for such k. Thus we can verify a-b is non-zero mod p
-// by taking the product of such values (a-b-kp) and showing it's non-zero mod r
+// WARNING: This method doesn't have perfect completeness - for points equal mod r (or with certain difference kp
+// mod r) but different mod p, you can't construct a proof. The chances of an honest prover running afoul of this
+// condition are extremely small (TODO: compute probability) Note also that the number of constraints depends on how
+// much the values have overflown beyond p e.g. due to an addition chain The function is based on the following.
+// Suppose a-b = 0 mod p. Then a-b = k*p for k in a range [-R,L] such that L*p>= a, R*p>=b. And also a-b = k*p mod r
+// for such k. Thus we can verify a-b is non-zero mod p by taking the product of such values (a-b-kp) and showing
+// it's non-zero mod r
 template <typename C, typename T> void bigfield<C, T>::assert_is_not_equal(const bigfield& other) const
 {
     const auto get_overload_count = [target_modulus = modulus_u512](const uint512_t& maximum_value) {
@@ -1305,8 +1407,8 @@ template <typename C, typename T> void bigfield<C, T>::assert_is_not_equal(const
 
 // We reduce an element's mod 2^t representation (t=4*NUM_LIMB_BITS) to size 2^s for smallest s with 2^s>p
 // This is much cheaper than actually reducing mod p and suffices for addition chains (where we just need not to
-// overflow 2^t) We also reduce any "spillage" inside the first 3 limbs, so that their range is NUM_LIMB_BITS and not
-// larger
+// overflow 2^t) We also reduce any "spillage" inside the first 3 limbs, so that their range is NUM_LIMB_BITS and
+// not larger
 template <typename C, typename T> void bigfield<C, T>::self_reduce() const
 {
     // Warning: this assumes we have run circuit construction at least once in debug mode where large non reduced
@@ -1645,8 +1747,8 @@ void bigfield<C, T>::unsafe_evaluate_multiple_multiply_add(const std::vector<big
         max_hi += product_hi;
     }
 
-    // Compute the maximum number of bits in `max_lo` and `max_hi` - this defines the range constraint values we will
-    // need to apply to validate our product
+    // Compute the maximum number of bits in `max_lo` and `max_hi` - this defines the range constraint values we
+    // will need to apply to validate our product
     uint64_t max_lo_bits = (max_lo.get_msb() + 1);
     uint64_t max_hi_bits = max_hi.get_msb() + 1;
     // TurboPlonk range checks only work for even bit ranges, so make sure these values are even
@@ -1686,8 +1788,8 @@ void bigfield<C, T>::unsafe_evaluate_multiple_multiply_add(const std::vector<big
      *
      * We store these values in an "accumulator" vector in order to efficiently add them into a sum.
      * i.e. limb_0 =- field_t::accumulate(limb_0_accumulator)
-     * This costs us fewer gates than addition operations because we can add 2 values into a sum in a single TurboPlonk
-     *gate.
+     * This costs us fewer gates than addition operations because we can add 2 values into a sum in a single
+     *TurboPlonk gate.
      **/
     std::vector<field_t<C>> limb_0_accumulator;
     std::vector<field_t<C>> limb_2_accumulator;
@@ -1695,8 +1797,8 @@ void bigfield<C, T>::unsafe_evaluate_multiple_multiply_add(const std::vector<big
 
     // Add remaining products into the limb accumulators.
     // We negate the product values because the accumulator values itself will be negated
-    // TODO: why do we do this double negation exactly? seems a bit pointless. I think it stems from the fact that the
-    // accumulators originaly tracked the remainder term (which is negated)
+    // TODO: why do we do this double negation exactly? seems a bit pointless. I think it stems from the fact that
+    // the accumulators originaly tracked the remainder term (which is negated)
 
     for (size_t i = 1; i < num_multiplications; ++i) {
         field_t lo_2 = left[i].binary_basis_limbs[0].element * right[i].binary_basis_limbs[0].element;
@@ -1717,8 +1819,8 @@ void bigfield<C, T>::unsafe_evaluate_multiple_multiply_add(const std::vector<big
 
     // add cached products into the limb accumulators.
     // We negate the cache values because the accumulator values itself will be negated
-    // TODO: why do we do this double negation exactly? seems a bit pointless. I think it stems from the fact that the
-    // accumulators originaly tracked the remainder term (which is negated)
+    // TODO: why do we do this double negation exactly? seems a bit pointless. I think it stems from the fact that
+    // the accumulators originaly tracked the remainder term (which is negated)
 
     // Update the accumulators with the remainder terms. First check we actually have remainder terms!
     //(not present when we're checking a product is 0 mod p). See `assert_is_in_field`
@@ -1809,8 +1911,8 @@ void bigfield<C, T>::unsafe_evaluate_multiple_multiply_add(const std::vector<big
 
     linear_terms += -remainder_prime_limb;
 
-    // This is where we show our identity is zero mod r (to use Chinese Remainder Theorem we show it's zero mod r and
-    // mod 2^t)
+    // This is where we show our identity is zero mod r (to use Chinese Remainder Theorem we show it's zero mod r
+    // and mod 2^t)
     field_t<C>::evaluate_polynomial_identity(
         left[0].prime_basis_limb, right[0].prime_basis_limb, quotient.prime_basis_limb * neg_prime, linear_terms);
 
@@ -1994,11 +2096,9 @@ std::pair<uint512_t, uint512_t> bigfield<C, T>::compute_quotient_remainder_value
                                                                                   const std::vector<bigfield>& to_add)
 {
     uint512_t add_values(0);
-    bool add_constant = true;
     for (const auto& add_element : to_add) {
         add_element.reduction_check();
         add_values += add_element.get_value();
-        add_constant = add_constant && (add_element.is_constant());
     }
 
     const uint1024_t left(a.get_value());
@@ -2009,6 +2109,49 @@ std::pair<uint512_t, uint512_t> bigfield<C, T>::compute_quotient_remainder_value
     const auto [quotient_1024, remainder_1024] = (left * right + add_right).divmod(modulus);
 
     return { quotient_1024.lo, remainder_1024.lo };
+}
+
+template <typename C, typename T>
+uint512_t bigfield<C, T>::compute_maximum_quotient_value(const std::vector<uint512_t>& as,
+                                                         const std::vector<uint512_t>& bs,
+                                                         const std::vector<uint512_t>& to_add)
+{
+    ASSERT(as.size() == bs.size());
+    uint512_t add_values(0);
+    for (const auto& add_element : to_add) {
+        add_values += add_element;
+    }
+    uint1024_t product_sum(0);
+    for (size_t i = 0; i < as.size(); i++) {
+        product_sum += uint1024_t(as[i]) * uint1024_t(bs[i]);
+    }
+    const uint1024_t add_right(add_values);
+    const uint1024_t modulus(target_basis.modulus);
+
+    const auto [quotient_1024, remainder_1024] = (product_sum + add_right).divmod(modulus);
+
+    return quotient_1024.lo;
+}
+template <typename C, typename T>
+std::pair<bool, size_t> bigfield<C, T>::get_quotient_reduction_info(const std::vector<uint512_t>& as_max,
+                                                                    const std::vector<uint512_t>& bs_max,
+                                                                    const std::vector<bigfield>& to_add,
+                                                                    const std::vector<uint1024_t>& remainders_max)
+{
+    ASSERT(as_max.size() == bs_max.size());
+    // Check if the product sum can overflow CRT modulus
+    if (mul_product_overflows_crt_modulus(as_max, bs_max, to_add)) {
+        return std::pair<bool, size_t>(true, 0);
+    }
+
+    const size_t num_quotient_bits = get_quotient_max_bits(remainders_max);
+    // Get maximum value of quotient
+    const uint512_t maximum_quotient = compute_maximum_quotient_value(as_max, bs_max, {});
+    // Check if the quotient can fit into the range proof
+    if (maximum_quotient >= (uint512_t(1) << num_quotient_bits)) {
+        return std::pair<bool, size_t>(true, 0);
+    }
+    return std::pair<bool, size_t>(false, num_quotient_bits);
 }
 
 /**
@@ -2047,8 +2190,8 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::bad_mul(const b
         return remainder;
     } else {
         // when writing a*b = q*p + r we wish to enforce r<2^s for smallest s such that p<2^s
-        // hence the second constructor call is with can_overflow=false. This will allow using r in more additions mod
-        // 2^t without needing to apply the mod, where t=4*NUM_LIMB_BITS
+        // hence the second constructor call is with can_overflow=false. This will allow using r in more additions
+        // mod 2^t without needing to apply the mod, where t=4*NUM_LIMB_BITS
         const size_t num_quotient_bits = get_quotient_max_bits({ DEFAULT_MAXIMUM_REMAINDER });
         quotient = bigfield(witness_t(ctx, fr(quotient_value.slice(0, NUM_LIMB_BITS * 2).lo)),
                             witness_t(ctx, fr(quotient_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 4).lo)),
