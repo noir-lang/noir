@@ -1,9 +1,10 @@
 use super::{
-    foldl_with_span, parenthesized, then_commit, then_commit_ignore, ExprParser, NoirParser,
-    ParsedModule, ParserError, Precedence, TopLevelStatement,
+    foldl_with_span, parameter_name_recovery, parameter_recovery, parenthesized, then_commit,
+    then_commit_ignore, top_level_statement_recovery, ExprParser, NoirParser, ParsedModule,
+    ParserError, Precedence, TopLevelStatement,
 };
 use crate::lexer::Lexer;
-use crate::parser::{force, ignore_then_commit};
+use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::util::vecmap;
 use crate::{
@@ -42,6 +43,7 @@ fn program() -> impl NoirParser<ParsedModule> {
                 TopLevelStatement::Import(i) => program.push_import(i),
                 TopLevelStatement::Struct(s) => program.push_type(s),
                 TopLevelStatement::Impl(i) => program.push_impl(i),
+                TopLevelStatement::Error => (),
             }
             program
         })
@@ -55,6 +57,7 @@ fn top_level_statement() -> impl NoirParser<TopLevelStatement> {
         module_declaration().then_ignore(force(just(Token::Semicolon))),
         use_statement().then_ignore(force(just(Token::Semicolon))),
     ))
+    .recover_via(top_level_statement_recovery())
 }
 
 fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
@@ -79,9 +82,21 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
 }
 
 fn struct_definition() -> impl NoirParser<TopLevelStatement> {
-    keyword(Keyword::Struct)
+    use self::Keyword::Struct;
+    use Token::*;
+
+    let fields = struct_fields()
+        .delimited_by(just(LeftBrace), just(RightBrace))
+        .recover_with(nested_delimiters(
+            LeftBrace,
+            RightBrace,
+            [(LeftParen, RightParen), (LeftBracket, RightBracket)],
+            |_| vec![],
+        ));
+
+    keyword(Struct)
         .ignore_then(ident())
-        .then(struct_fields().delimited_by(just(Token::LeftBrace), just(Token::RightBrace)))
+        .then(fields)
         .map_with_span(|(name, fields), span| {
             TopLevelStatement::Struct(NoirStruct { name, fields, span })
         })
@@ -112,7 +127,11 @@ fn struct_fields() -> impl NoirParser<Vec<(Ident, UnresolvedType)>> {
 }
 
 fn function_parameters(allow_self: bool) -> impl NoirParser<Vec<(Pattern, UnresolvedType)>> {
-    let full_parameter = pattern().then_ignore(just(Token::Colon)).then(parse_type());
+    let typ = parse_type().recover_via(parameter_recovery());
+    let full_parameter = pattern()
+        .recover_via(parameter_name_recovery())
+        .then_ignore(just(Token::Colon))
+        .then(typ);
 
     let self_parameter = if allow_self {
         self_parameter().boxed()
@@ -120,10 +139,12 @@ fn function_parameters(allow_self: bool) -> impl NoirParser<Vec<(Pattern, Unreso
         nothing().boxed()
     };
 
-    full_parameter
-        .or(self_parameter)
+    let parameter = full_parameter.or(self_parameter);
+
+    parameter
         .separated_by(just(Token::Comma))
         .allow_trailing()
+        .labelled("parameter")
 }
 
 /// This parser always parses no input and fails
@@ -164,6 +185,7 @@ where
 {
     use Token::*;
     statement(expr_parser)
+        .recover_via(statement_recovery())
         .then(just(Semicolon).or_not().map_with_span(|s, span| (s, span)))
         .repeated()
         .validate(check_statements_require_semicolon)
@@ -172,7 +194,7 @@ where
             LeftBrace,
             RightBrace,
             [(LeftParen, RightParen), (LeftBracket, RightBracket)],
-            |_| vec![],
+            |_| vec![Statement::Error],
         ))
         .map(BlockExpression)
 }
@@ -334,6 +356,7 @@ fn pattern() -> impl NoirParser<Pattern> {
 
         choice((mut_pattern, tuple_pattern, struct_pattern, ident_pattern))
     })
+    .labelled("pattern")
 }
 
 fn assignment<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
@@ -1273,7 +1296,7 @@ mod test {
             ("let", 3, "let $error: unspecified = Error"),
             ("foo = one two three", 1, "foo = one"),
             ("constrain", 2, "Error"), // We don't recover 'constrain Error' since constrain needs a binary operator
-            ("constrain x ==", 2, "constrain (x == Error)"), // This gives a duplicate 'end of input' error currently
+            ("constrain x ==", 1, "constrain (x == Error)"),
         ];
 
         let show_errors = |v| vecmap(v, ToString::to_string).join("\n");

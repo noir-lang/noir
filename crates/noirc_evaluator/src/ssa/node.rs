@@ -7,6 +7,7 @@ use acvm::FieldElement;
 use arena;
 use noirc_frontend::hir_def::expr::HirBinaryOpKind;
 use noirc_frontend::node_interner::IdentId;
+use noirc_frontend::{Signedness, Type};
 use num_bigint::BigUint;
 use num_traits::One;
 
@@ -15,7 +16,7 @@ use num_traits::identities::Zero;
 use std::ops::Mul;
 
 use super::block::BlockId;
-use super::code_gen::IRGenerator;
+use super::context::SsaContext;
 
 pub trait Node: std::fmt::Display {
     fn get_type(&self) -> ObjectType;
@@ -102,7 +103,7 @@ pub struct NodeId(pub arena::Index);
 
 impl NodeId {
     pub fn dummy() -> NodeId {
-        NodeId(IRGenerator::dummy_id())
+        NodeId(SsaContext::dummy_id())
     }
 }
 
@@ -156,6 +157,23 @@ impl Variable {
     pub fn get_root(&self) -> NodeId {
         self.root.unwrap_or(self.id)
     }
+
+    pub fn new(
+        obj_type: ObjectType,
+        name: String,
+        def: Option<IdentId>,
+        parent_block: BlockId,
+    ) -> Variable {
+        Variable {
+            id: NodeId::dummy(),
+            obj_type,
+            name,
+            root: None,
+            def,
+            witness: None,
+            parent_block,
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -191,6 +209,34 @@ impl From<ObjectType> for NumericType {
     }
 }
 
+impl From<&Type> for ObjectType {
+    fn from(t: &noirc_frontend::Type) -> ObjectType {
+        match t {
+            Type::Bool => ObjectType::Boolean,
+            Type::FieldElement(_) => ObjectType::NativeField,
+            Type::Integer(_ftype, sign, bit_size) => {
+                assert!(
+                    *bit_size < super::integer::short_integer_max_bit_size(),
+                    "long integers are not yet supported"
+                );
+                match sign {
+                    Signedness::Signed => ObjectType::Signed(*bit_size),
+                    Signedness::Unsigned => ObjectType::Unsigned(*bit_size),
+                }
+            }
+            // TODO: We should probably not convert an array type into the element type
+            noirc_frontend::Type::Array(_, _, t) => ObjectType::from(t.as_ref()),
+            x => unimplemented!("Conversion to ObjectType is unimplemented for type {}", x),
+        }
+    }
+}
+
+impl From<Type> for ObjectType {
+    fn from(t: noirc_frontend::Type) -> ObjectType {
+        ObjectType::from(&t)
+    }
+}
+
 impl ObjectType {
     pub fn get_type_from_object(obj: &Object) -> ObjectType {
         match obj {
@@ -216,27 +262,7 @@ impl ObjectType {
         }
     }
 
-    pub fn from_type(t: &noirc_frontend::Type) -> ObjectType {
-        match t {
-            noirc_frontend::Type::FieldElement(_) => ObjectType::NativeField,
-            noirc_frontend::Type::Integer(_ftype, sign, bit_size) => {
-                assert!(
-                    *bit_size < super::integer::short_integer_max_bit_size(),
-                    "long integers are not yet supported"
-                );
-                match sign {
-                    noirc_frontend::Signedness::Signed => ObjectType::Signed(*bit_size),
-                    noirc_frontend::Signedness::Unsigned => ObjectType::Unsigned(*bit_size),
-                }
-            }
-            noirc_frontend::Type::Bool => ObjectType::Boolean,
-            noirc_frontend::Type::Array(_, _, t) => ObjectType::from_type(t),
-            x => {
-                let err = format!("currently we do not support type casting to {}", x);
-                todo!("{}", err);
-            }
-        }
-    }
+
 
     pub fn bits(&self) -> u32 {
         match self {

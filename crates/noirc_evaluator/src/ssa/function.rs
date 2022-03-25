@@ -8,15 +8,14 @@ use noirc_frontend::hir_def::function::Parameters;
 use noirc_frontend::hir_def::stmt::HirPattern;
 use noirc_frontend::node_interner::FuncId;
 
-use super::node::NodeId;
-use super::ssa_form;
 use super::{
-    code_gen::IRGenerator,
-    node::{self, ObjectType},
+    ssa_form,
+    context::SsaContext,
+    node::{self, ObjectType, NodeId}, code_gen::IRGenerator,
 };
 
 pub struct SSAFunction<'a> {
-    pub cfg: IRGenerator<'a>,
+    pub igen: IRGenerator<'a>,
     pub id: FuncId,
     //signature..
     pub arguments: Vec<NodeId>,
@@ -30,13 +29,13 @@ impl<'a> SSAFunction<'a> {
         env: &mut Environment,
     ) {
         for stmt in block {
-            self.cfg.evaluate_statement(env, stmt).unwrap();
+            self.igen.evaluate_statement(env, stmt).unwrap();
         }
     }
 
     pub fn new(func: FuncId, ctx: &'a noirc_frontend::hir::Context) -> SSAFunction<'a> {
         SSAFunction {
-            cfg: IRGenerator::new(ctx),
+            igen: IRGenerator::new(ctx),
             id: func,
             arguments: Vec::new(),
         }
@@ -44,11 +43,11 @@ impl<'a> SSAFunction<'a> {
 
     pub fn compile(&mut self) -> Option<NodeId> {
         //Optimisation
-        super::block::compute_dom(&mut self.cfg);
-        super::optim::cse(&mut self.cfg);
+        super::block::compute_dom(&mut self.igen.context);
+        super::optim::cse(&mut self.igen.context);
         //Unrolling
-        super::flatten::unroll_tree(&mut self.cfg);
-        super::optim::cse(&mut self.cfg)
+        super::flatten::unroll_tree(&mut self.igen.context);
+        super::optim::cse(&mut self.igen.context)
     }
 
     //generates an instruction for calling the function
@@ -58,14 +57,14 @@ impl<'a> SSAFunction<'a> {
         eval: &mut IRGenerator,
         env: &mut Environment,
     ) -> NodeId {
-        let call_id = eval.new_instruction(
+        let call_id = eval.context.new_instruction(
             NodeId::dummy(),
             NodeId::dummy(),
             node::Operation::Call(func),
             node::ObjectType::NotAnObject, //TODO how to get the function return type?
         );
         let ins_arguments = eval.expression_list_to_objects(env, arguments);
-        let call_ins = eval.get_mut_instruction(call_id);
+        let call_ins = eval.context.get_mut_instruction(call_id);
         call_ins.ins_arguments = ins_arguments;
         call_id
     }
@@ -73,7 +72,7 @@ impl<'a> SSAFunction<'a> {
     pub fn get_mapped_value(
         func_id: noirc_frontend::node_interner::FuncId,
         var: Option<&NodeId>,
-        irgen: &mut IRGenerator,
+        ctx: &mut SsaContext,
         inline_map: &HashMap<NodeId, NodeId>,
     ) -> NodeId {
         if let Some(&node_id) = var {
@@ -81,12 +80,12 @@ impl<'a> SSAFunction<'a> {
                 return node_id;
             }
             let mut my_const = None;
-            let node_obj_opt = irgen.functions_cfg[&func_id].cfg.try_get_node(node_id);
+            let node_obj_opt = ctx.functions_cfg[&func_id].igen.context.try_get_node(node_id);
             if let Some(node::NodeObj::Const(c)) = node_obj_opt {
                 my_const = Some((c.get_value_field(), c.value_type));
             }
             if let Some(c) = my_const {
-                irgen.get_or_create_const(c.0, c.1)
+                ctx.get_or_create_const(c.0, c.1)
             } else {
                 dbg!(&node_id);
                 *inline_map.get(&node_id).unwrap()
@@ -117,15 +116,15 @@ pub fn get_result_type(op: OPCODE) -> (u32, ObjectType) {
 pub fn call_low_level(
     op: OPCODE,
     call_expr: HirCallExpression,
-    eval: &mut IRGenerator,
+    igen: &mut IRGenerator,
     env: &mut Environment,
 ) -> NodeId {
     //Inputs
     let mut args: Vec<NodeId> = Vec::new();
 
     for arg in &call_expr.arguments {
-        if let Ok(lhs) = eval.expression_to_object(env, arg) {
-            args.push(lhs);
+        if let Ok(lhs) = igen.expression_to_object(env, arg) {
+            args.push(lhs.unwrap_id());     //TODO handle multiple values
         } else {
             panic!("error calling {}", op);
         }
@@ -136,7 +135,7 @@ pub fn call_low_level(
     let result_signature = get_result_type(op);
     let result_type = if result_signature.0 > 1 {
         //We create an array that will contain the result and set the res_type to point to that array
-        let result_index = eval.mem.create_new_array(
+        let result_index = igen.context.mem.create_new_array(
             result_signature.0,
             result_signature.1,
             &format!("{}_result", op),
@@ -149,7 +148,7 @@ pub fn call_low_level(
     //when the function returns an array, we use ins.res_type(array)
     //else we map ins.id to the returned witness
     //Call instruction
-    eval.new_instruction_with_multiple_operands(
+    igen.context.new_instruction_with_multiple_operands(
         &mut args,
         node::Operation::Intrinsic(op),
         result_type,
@@ -177,17 +176,17 @@ pub fn create_function<'a>(
             HirPattern::Struct(_, _, _) => todo!(),
         };
 
-        let node_id = ssa_form::create_function_parameter(&mut func.cfg, ident_id.unwrap());
+        let node_id = ssa_form::create_function_parameter(&mut func.igen, ident_id.unwrap());
         func.arguments.push(node_id);
     }
 
     func.parse_statements(block.statements(), env);
     let last = func.compile(); //unroll the function
-    add_return_instruction(&mut func.cfg, last);
+    add_return_instruction(&mut func.igen.context, last);
     func
 }
 
-pub fn add_return_instruction(cfg: &mut IRGenerator, last: Option<NodeId>) {
+pub fn add_return_instruction(cfg: &mut SsaContext, last: Option<NodeId>) {
     let last_id = last.unwrap_or_else(NodeId::dummy);
     let result = if last_id == NodeId::dummy() {
         Vec::new()

@@ -54,7 +54,7 @@ fn get_param_name(pattern: &HirPattern, interner: &NodeInterner) -> Option<Strin
 }
 
 #[derive(Debug, Clone)]
-pub struct Parameters(Vec<Param>);
+pub struct Parameters(pub Vec<Param>);
 
 impl Parameters {
     pub fn into_abi(self, interner: &NodeInterner) -> Abi {

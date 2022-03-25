@@ -32,8 +32,8 @@ impl ArraySize {
         !self.is_fixed()
     }
 
-    pub fn is_a_super_type_of(&self, argument: &ArraySize) -> bool {
-        (self.is_variable() && argument.is_fixed()) || (self == argument)
+    pub fn is_subtype_of(&self, argument: &ArraySize) -> bool {
+        (self.is_fixed() && argument.is_variable()) || (self == argument)
     }
 }
 

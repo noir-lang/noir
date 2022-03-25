@@ -1,7 +1,7 @@
 use super::{
     acir_gen::InternalVar,
     block::BlockId,
-    code_gen::IRGenerator,
+    context::SsaContext,
     mem,
     node::{self, Instruction, Node, NodeEval, NodeId, NodeObj, Operation},
 };
@@ -10,19 +10,19 @@ use std::collections::{HashMap, VecDeque};
 
 //returns the NodeObj index of a NodeEval object
 //if NodeEval is a constant, it may creates a new NodeObj corresponding to the constant value
-pub fn to_index(eval: &mut IRGenerator, obj: NodeEval) -> NodeId {
+pub fn to_index(ctx: &mut SsaContext, obj: NodeEval) -> NodeId {
     match obj {
-        NodeEval::Const(c, t) => eval.get_or_create_const(c, t),
+        NodeEval::Const(c, t) => ctx.get_or_create_const(c, t),
         NodeEval::VarOrInstruction(i) => i,
     }
 }
 
 // If NodeEval refers to a constant NodeObj, we return a constant NodeEval
-pub fn to_const(eval: &IRGenerator, obj: NodeEval) -> NodeEval {
+pub fn to_const(ctx: &SsaContext, obj: NodeEval) -> NodeEval {
     match obj {
         NodeEval::Const(_, _) => obj,
         NodeEval::VarOrInstruction(i) => {
-            if let Some(NodeObj::Const(c)) = eval.try_get_node(i) {
+            if let Some(NodeObj::Const(c)) = ctx.try_get_node(i) {
                 return NodeEval::Const(
                     FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be()),
                     c.get_type(),
@@ -34,12 +34,12 @@ pub fn to_const(eval: &IRGenerator, obj: NodeEval) -> NodeEval {
 }
 
 // Performs constant folding, arithmetic simplifications and move to standard form
-pub fn simplify(irgen: &mut IRGenerator, ins: &mut node::Instruction) {
+pub fn simplify(ctx: &mut SsaContext, ins: &mut node::Instruction) {
     //1. constant folding
-    let l_eval = to_const(irgen, NodeEval::VarOrInstruction(ins.lhs));
-    let r_eval = to_const(irgen, NodeEval::VarOrInstruction(ins.rhs));
+    let l_eval = to_const(ctx, NodeEval::VarOrInstruction(ins.lhs));
+    let r_eval = to_const(ctx, NodeEval::VarOrInstruction(ins.rhs));
     let idx = match ins.evaluate(&l_eval, &r_eval) {
-        NodeEval::Const(c, t) => irgen.get_or_create_const(c, t),
+        NodeEval::Const(c, t) => ctx.get_or_create_const(c, t),
         NodeEval::VarOrInstruction(i) => i,
     };
     if idx != ins.id {
@@ -55,7 +55,7 @@ pub fn simplify(irgen: &mut IRGenerator, ins: &mut node::Instruction) {
     ins.standard_form();
     match ins.operator {
         node::Operation::Cast => {
-            if let Some(lhs_obj) = irgen.try_get_node(ins.lhs) {
+            if let Some(lhs_obj) = ctx.try_get_node(ins.lhs) {
                 if lhs_obj.get_type() == ins.res_type {
                     ins.is_deleted = true;
                     ins.rhs = ins.lhs;
@@ -74,8 +74,8 @@ pub fn simplify(irgen: &mut IRGenerator, ins: &mut node::Instruction) {
         node::Operation::Constrain(op) => match op {
             node::ConstrainOp::Eq => {
                 if let (Some(a), Some(b)) = (
-                    mem::Memory::deref(irgen, ins.lhs),
-                    mem::Memory::deref(irgen, ins.rhs),
+                    mem::Memory::deref(ctx, ins.lhs),
+                    mem::Memory::deref(ctx, ins.rhs),
                 ) {
                     if a == b {
                         ins.is_deleted = true;
@@ -85,8 +85,8 @@ pub fn simplify(irgen: &mut IRGenerator, ins: &mut node::Instruction) {
             }
             node::ConstrainOp::Neq => {
                 if let (Some(a), Some(b)) = (
-                    mem::Memory::deref(irgen, ins.lhs),
-                    mem::Memory::deref(irgen, ins.rhs),
+                    mem::Memory::deref(ctx, ins.lhs),
+                    mem::Memory::deref(ctx, ins.rhs),
                 ) {
                     assert!(a != b);
                 }
@@ -95,13 +95,12 @@ pub fn simplify(irgen: &mut IRGenerator, ins: &mut node::Instruction) {
         _ => (),
     }
 
-    //3. left-overs (it requires &mut eval)
-
+    //3. left-overs (it requires &mut ctx)
     if let NodeEval::Const(r_const, r_type) = r_eval {
         match ins.operator {
             node::Operation::Udiv => {
                 //TODO handle other bitsize, not only u32!!
-                ins.rhs = irgen.get_or_create_const(
+                ins.rhs = ctx.get_or_create_const(
                     FieldElement::from((1_u32 / (r_const.to_u128() as u32)) as i128),
                     r_type,
                 );
@@ -109,14 +108,14 @@ pub fn simplify(irgen: &mut IRGenerator, ins: &mut node::Instruction) {
             }
             node::Operation::Sdiv => {
                 //TODO handle other bitsize, not only i32!!
-                ins.rhs = irgen.get_or_create_const(
+                ins.rhs = ctx.get_or_create_const(
                     FieldElement::from((1_i32 / (r_const.to_u128() as i32)) as i128),
                     r_type,
                 );
                 ins.operator = node::Operation::Mul
             }
             node::Operation::Div => {
-                ins.rhs = irgen.get_or_create_const(r_const.inverse(), r_type);
+                ins.rhs = ctx.get_or_create_const(r_const.inverse(), r_type);
                 ins.operator = node::Operation::Mul
             }
             node::Operation::Xor => {
@@ -135,7 +134,7 @@ pub fn simplify(irgen: &mut IRGenerator, ins: &mut node::Instruction) {
         }
         if let NodeEval::Const(r_const, _) = r_eval {
             if let Operation::Intrinsic(op) = ins.operator {
-                ins.rhs = evaluate_intrinsic(irgen, op, l_const, r_const);
+                ins.rhs = evaluate_intrinsic(ctx, op, l_const, r_const);
                 ins.is_deleted = true;
                 return;
             }
@@ -144,7 +143,7 @@ pub fn simplify(irgen: &mut IRGenerator, ins: &mut node::Instruction) {
 }
 
 pub fn evaluate_intrinsic(
-    irgen: &mut IRGenerator,
+    irgen: &mut SsaContext,
     op: acvm::acir::OPCODE,
     lhs: FieldElement,
     rhs: FieldElement,
@@ -194,7 +193,7 @@ pub fn evaluate_intrinsic(
 ////////////////////CSE////////////////////////////////////////
 
 pub fn find_similar_instruction(
-    igen: &IRGenerator,
+    igen: &SsaContext,
     lhs: NodeId,
     rhs: NodeId,
     prev_ins: &VecDeque<NodeId>,
@@ -210,7 +209,7 @@ pub fn find_similar_instruction(
 }
 
 pub fn find_similar_instruction_with_multiple_arguments(
-    igen: &IRGenerator,
+    igen: &SsaContext,
     lhs: NodeId,
     rhs: NodeId,
     ins_arg: &[NodeId],
@@ -231,7 +230,7 @@ pub fn find_similar_instruction_with_multiple_arguments(
 }
 
 pub fn find_similar_cast(
-    igen: &IRGenerator,
+    igen: &SsaContext,
     lhs: NodeId,
     res_type: node::ObjectType,
     prev_ins: &VecDeque<NodeId>,
@@ -256,7 +255,7 @@ pub enum CseAction {
 //- remove  => the instruction corresponding to the returned id should be removed
 //- keep    => keep the instruction
 pub fn find_similar_mem_instruction(
-    eval: &IRGenerator,
+    ctx: &SsaContext,
     op: node::Operation,
     ins_id: NodeId,
     lhs: NodeId,
@@ -266,7 +265,7 @@ pub fn find_similar_mem_instruction(
     match op {
         node::Operation::Load(_) => {
             for iter in anchor[&op].iter().rev() {
-                if let Some(ins_iter) = eval.try_get_instruction(*iter) {
+                if let Some(ins_iter) = ctx.try_get_instruction(*iter) {
                     match ins_iter.operator {
                         node::Operation::Load(_) => {
                             if ins_iter.lhs == lhs {
@@ -289,7 +288,7 @@ pub fn find_similar_mem_instruction(
         node::Operation::Store(x) => {
             let prev_ins = &anchor[&node::Operation::Load(x)];
             for iter in prev_ins.iter().rev() {
-                if let Some(ins_iter) = eval.try_get_instruction(*iter) {
+                if let Some(ins_iter) = ctx.try_get_instruction(*iter) {
                     match ins_iter.operator {
                         node::Operation::Load(_) => {
                             //TODO: If we know that ins.rhs value cannot be equal to ins_iter.rhs, we could continue instead
@@ -312,9 +311,10 @@ pub fn find_similar_mem_instruction(
     }
     (ins_id, CseAction::Keep)
 }
-pub fn propagate(eval: &IRGenerator, id: NodeId) -> NodeId {
+
+pub fn propagate(ctx: &SsaContext, id: NodeId) -> NodeId {
     let mut result = id;
-    if let Some(obj) = eval.try_get_instruction(id) {
+    if let Some(obj) = ctx.try_get_instruction(id) {
         if obj.operator == node::Operation::Ass || obj.is_deleted {
             result = obj.rhs;
         }
@@ -323,14 +323,14 @@ pub fn propagate(eval: &IRGenerator, id: NodeId) -> NodeId {
 }
 
 //common subexpression elimination, starting from the root
-pub fn cse(igen: &mut IRGenerator) -> Option<NodeId> {
+pub fn cse(igen: &mut SsaContext) -> Option<NodeId> {
     let mut anchor = HashMap::new();
     cse_tree(igen, igen.first_block, &mut anchor)
 }
 
 //Perform CSE for the provided block and then process its children following the dominator tree, passing around the anchor list.
 pub fn cse_tree(
-    igen: &mut IRGenerator,
+    igen: &mut SsaContext,
     block_id: BlockId,
     anchor: &mut HashMap<Operation, VecDeque<NodeId>>,
 ) -> Option<NodeId> {
@@ -356,20 +356,20 @@ pub fn anchor_push(op: node::Operation, anchor: &mut HashMap<node::Operation, Ve
 
 //Performs common subexpression elimination and copy propagation on a block
 pub fn block_cse(
-    igen: &mut IRGenerator,
+    ctx: &mut SsaContext,
     block_id: BlockId,
     anchor: &mut HashMap<Operation, VecDeque<NodeId>>,
     instructions: &mut Vec<NodeId>,
 ) -> Option<NodeId> {
     let mut new_list = Vec::new();
-    let bb = &igen[block_id];
+    let bb = &ctx[block_id];
 
     if instructions.is_empty() {
         instructions.append(&mut bb.instructions.clone());
     }
 
     for iter in instructions {
-        if let Some(ins) = igen.try_get_instruction(*iter) {
+        if let Some(ins) = ctx.try_get_instruction(*iter) {
             let mut to_delete = false;
             let mut i_lhs = ins.lhs;
             let mut i_rhs = ins.rhs;
@@ -384,10 +384,9 @@ pub fn block_cse(
             anchor_push(ins.operator, anchor);
             if node::is_binary(ins.operator) {
                 //binary operation:
-                i_lhs = propagate(igen, ins.lhs);
-                i_rhs = propagate(igen, ins.rhs);
-                if let Some(j) =
-                    find_similar_instruction(igen, i_lhs, i_rhs, &anchor[&ins.operator])
+                i_lhs = propagate(ctx, ins.lhs);
+                i_rhs = propagate(ctx, ins.rhs);
+                if let Some(j) = find_similar_instruction(ctx, i_lhs, i_rhs, &anchor[&ins.operator])
                 {
                     to_delete = true; //we want to delete ins but ins is immutable so we use the new_list instead
                     i_rhs = j;
@@ -398,10 +397,10 @@ pub fn block_cse(
             } else {
                 match ins.operator {
                     node::Operation::Load(_) | node::Operation::Store(_) => {
-                        i_lhs = propagate(igen, ins.lhs);
-                        i_rhs = propagate(igen, ins.rhs);
+                        i_lhs = propagate(ctx, ins.lhs);
+                        i_rhs = propagate(ctx, ins.rhs);
                         let (cse_id, cse_action) = find_similar_mem_instruction(
-                            igen,
+                            ctx,
                             ins.operator,
                             ins.id,
                             i_lhs,
@@ -425,13 +424,13 @@ pub fn block_cse(
                     }
                     node::Operation::Ass => {
                         //assignement
-                        i_rhs = propagate(igen, ins.rhs);
+                        i_rhs = propagate(ctx, ins.rhs);
                         to_delete = true;
                     }
                     node::Operation::Phi => {
                         // propagate phi arguments
                         for a in &ins.phi_arguments {
-                            phi_args.push((propagate(igen, a.0), a.1));
+                            phi_args.push((propagate(ctx, a.0), a.1));
                             if phi_args.last().unwrap().0 != a.0 {
                                 to_update_phi = true;
                             }
@@ -450,11 +449,11 @@ pub fn block_cse(
                     }
                     node::Operation::Cast => {
                         //Propagate cast argument
-                        i_lhs = propagate(igen, ins.lhs);
+                        i_lhs = propagate(ctx, ins.lhs);
                         i_rhs = i_lhs;
                         //Similar cast must have same type
                         if let Some(j) =
-                            find_similar_cast(igen, i_lhs, ins.res_type, &anchor[&ins.operator])
+                            find_similar_cast(ctx, i_lhs, ins.res_type, &anchor[&ins.operator])
                         {
                             to_delete = true; //we want to delete ins but ins is immutable so we use the new_list instead
                             i_rhs = j;
@@ -467,7 +466,7 @@ pub fn block_cse(
                         //No CSE for function calls because of possible side effect - TODO checks if a function has side effect when parsed and do cse for these.
                         //Propagate arguments:
                         for a in &ins.ins_arguments {
-                            let new_a = propagate(igen, *a);
+                            let new_a = propagate(ctx, *a);
                             if !to_update && new_a != *a {
                                 to_update = true;
                             }
@@ -478,16 +477,16 @@ pub fn block_cse(
                     node::Operation::Intrinsic(_) => {
                         //n.b this could be the default behovoir for binary operations
                         for a in &ins.ins_arguments {
-                            let new_a = propagate(igen, *a);
+                            let new_a = propagate(ctx, *a);
                             if !to_update && new_a != *a {
                                 to_update = true;
                             }
                             ins_args.push(new_a);
                         }
-                        i_lhs = propagate(igen, ins.lhs);
-                        i_rhs = propagate(igen, ins.rhs);
+                        i_lhs = propagate(ctx, ins.lhs);
+                        i_rhs = propagate(ctx, ins.rhs);
                         if let Some(j) = find_similar_instruction_with_multiple_arguments(
-                            igen,
+                            ctx,
                             i_lhs,
                             i_rhs,
                             &ins_args,
@@ -508,13 +507,13 @@ pub fn block_cse(
             }
 
             if to_update_phi {
-                let update = igen.get_mut_instruction(*iter);
+                let update = ctx.get_mut_instruction(*iter);
                 update.phi_arguments = phi_args;
             } else if to_delete || ins.lhs != i_lhs || ins.rhs != i_rhs || to_update {
                 //update i:
                 let ii_l = ins.lhs;
                 let ii_r = ins.rhs;
-                let update = igen.get_mut_instruction(*iter);
+                let update = ctx.get_mut_instruction(*iter);
                 update.lhs = i_lhs;
                 update.rhs = i_rhs;
                 update.is_deleted = to_delete;
@@ -526,11 +525,11 @@ pub fn block_cse(
                     operator: Operation::Ass,
                     lhs,
                     ..
-                }) = igen.try_get_instruction(ii_l)
+                }) = ctx.try_get_instruction(ii_l)
                 {
-                    if let Ok(lv) = igen.get_variable(*lhs) {
+                    if let Ok(lv) = ctx.get_variable(*lhs) {
                         let i_name = lv.name.clone();
-                        if let Some(p_ins) = igen.try_get_mut_instruction(i_lhs) {
+                        if let Some(p_ins) = ctx.try_get_mut_instruction(i_lhs) {
                             if p_ins.res_name.is_empty() {
                                 p_ins.res_name = i_name;
                             }
@@ -541,11 +540,11 @@ pub fn block_cse(
                     operator: Operation::Ass,
                     lhs,
                     ..
-                }) = igen.try_get_instruction(ii_r)
+                }) = ctx.try_get_instruction(ii_r)
                 {
-                    if let Ok(lv) = igen.get_variable(*lhs) {
+                    if let Ok(lv) = ctx.get_variable(*lhs) {
                         let i_name = lv.name.clone();
-                        if let Some(p_ins) = igen.try_get_mut_instruction(i_rhs) {
+                        if let Some(p_ins) = ctx.try_get_mut_instruction(i_rhs) {
                             if p_ins.res_name.is_empty() {
                                 p_ins.res_name = i_name;
                             }
@@ -558,24 +557,24 @@ pub fn block_cse(
     }
     let mut last = None;
     for i in new_list.iter().rev() {
-        if is_some(igen, *i) {
+        if is_some(ctx, *i) {
             last = Some(*i);
             break;
         }
     }
-    igen[block_id].instructions = new_list;
+    ctx[block_id].instructions = new_list;
     last
 }
 
-pub fn is_some(igen: &IRGenerator, id: NodeId) -> bool {
+pub fn is_some(ctx: &SsaContext, id: NodeId) -> bool {
     if id == NodeId::dummy() {
         return false;
     }
-    if let Some(ins) = igen.try_get_instruction(id) {
+    if let Some(ins) = ctx.try_get_instruction(id) {
         if ins.operator != node::Operation::Nop {
             return true;
         }
-    } else if igen.try_get_node(id).is_some() {
+    } else if ctx.try_get_node(id).is_some() {
         return true;
     }
     false
