@@ -22,6 +22,10 @@ bool_t<Composer> verify_signature(const stdlib::byte_array<Composer>& message,
     Fr r(sig.r);
     Fr s(sig.s);
 
+    // r and s should not be zero
+    r.assert_is_not_equal(Fr::zero());
+    s.assert_is_not_equal(Fr::zero());
+
     Fr u1 = z / s;
     Fr u2 = r / s;
 

@@ -228,10 +228,14 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::montgomery_ladder(const element& ot
  *
  * e.g. the term (lambda * (x3 - x1) + to_add.y) remains "quadratic" if we replace to_add.y with the above quadratic
  *relation
+ *
  **/
 template <typename C, class Fq, class Fr, class G>
 element<C, Fq, Fr, G> element<C, Fq, Fr, G>::montgomery_ladder(const chain_add_accumulator& to_add)
 {
+    if (to_add.is_element) {
+        throw_or_abort("An accumulator expected");
+    }
     x.assert_is_not_equal(to_add.x3_prev);
 
     // lambda = (y2 - y1) / (x2 - x1)
@@ -314,11 +318,15 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::double_montgomery_ladder(const elem
 
 /**
  * If we chain two iterations of the montgomery ladder together, we can squeeze out a non-native field reduction
+ *
  **/
 template <typename C, class Fq, class Fr, class G>
 element<C, Fq, Fr, G> element<C, Fq, Fr, G>::double_montgomery_ladder(const chain_add_accumulator& add1,
                                                                       const element& add2) const
 {
+    if (add1.is_element) {
+        throw_or_abort("An accumulator expected");
+    }
     add1.x3_prev.assert_is_not_equal(x);
     typename Fq::cached_product cache;
     Fq lambda_1 = Fq::msub_div(
@@ -365,11 +373,15 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::double_montgomery_ladder(const chai
 
 /**
  * If we chain two iterations of the montgomery ladder together, we can squeeze out a non-native field reduction
+ *
  **/
 template <typename C, class Fq, class Fr, class G>
 element<C, Fq, Fr, G> element<C, Fq, Fr, G>::double_montgomery_ladder(const chain_add_accumulator& add1,
                                                                       const chain_add_accumulator& add2) const
 {
+    if ((add1.is_element) || (add2.is_element)) {
+        throw_or_abort("An accumulator expected");
+    }
     add1.x3_prev.assert_is_not_equal(x);
     // add1.y = lambda_prev * (x1_prev - x3_prev) - y1_prev
     Fq lambda_1 = Fq::msub_div(
