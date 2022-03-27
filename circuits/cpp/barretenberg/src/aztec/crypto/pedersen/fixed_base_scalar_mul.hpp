@@ -11,6 +11,7 @@ grumpkin::g1::element fixed_base_scalar_mul(const barretenberg::fr& in, const si
 {
     auto gen_data = get_generator_data({ generator_index, 0 });
     barretenberg::fr scalar_multiplier = in.from_montgomery_form();
+    ASSERT(uint256_t(scalar_multiplier) != uint256_t(0));
 
     constexpr size_t num_quads_base = (num_bits - 1) >> 1;
     constexpr size_t num_quads = ((num_quads_base << 1) + 1 < num_bits) ? num_quads_base + 1 : num_quads_base;
@@ -18,20 +19,14 @@ grumpkin::g1::element fixed_base_scalar_mul(const barretenberg::fr& in, const si
 
     const crypto::pedersen::fixed_base_ladder* ladder = gen_data.get_ladder(num_bits);
 
-    barretenberg::fr scalar_multiplier_base = scalar_multiplier.to_montgomery_form();
-    if ((scalar_multiplier.data[0] & 1) == 0) {
-        barretenberg::fr two = barretenberg::fr::one() + barretenberg::fr::one();
-        scalar_multiplier_base = scalar_multiplier_base - two;
-    }
-    scalar_multiplier_base = scalar_multiplier_base.from_montgomery_form();
     uint64_t wnaf_entries[num_quads + 2] = { 0 };
     bool skew = false;
-    barretenberg::wnaf::fixed_wnaf<num_wnaf_bits, 1, 2>(&scalar_multiplier_base.data[0], &wnaf_entries[0], skew, 0);
+    barretenberg::wnaf::fixed_wnaf<num_wnaf_bits, 1, 2>(&scalar_multiplier.data[0], &wnaf_entries[0], skew, 0);
 
     grumpkin::g1::element accumulator;
     accumulator = grumpkin::g1::element(ladder[0].one);
     if (skew) {
-        accumulator += gen_data.generator;
+        accumulator -= gen_data.generator;
     }
 
     for (size_t i = 0; i < num_quads; ++i) {

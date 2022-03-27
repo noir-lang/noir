@@ -31,16 +31,7 @@ bool_t<Composer> check_subtree_membership(field_t<Composer> const& root,
                                           size_t at_height,
                                           bool const is_updating_tree = false)
 {
-    auto is_zero = value.is_zero();
-
-    // NOTICE: this function mutates any zero-valued leaves to be `-1`. This is important if pedersen commitments
-    // disallow zero-valued inputs (such as within this function).
-    //
-    // E.g. The claim circuit can legitimately produce a 2nd output commitment equal to zero. The sibling of such a leaf
-    // in the tree would be unspendable, since hashing up the tree would fail, since an input to pedersen would be zero.
-    // Hence why conversion to -1 is important here.
-    auto current = field_t<Composer>::conditional_assign(is_zero, (-field_t<Composer>(1)), value);
-
+    auto current = value;
     for (size_t i = at_height; i < hashes.size(); ++i) {
         // get the parity bit at this level of the tree (get_bit returns bool so we know this is 0 or 1)
         bool_t<Composer> path_bit = index[i];
@@ -52,7 +43,7 @@ bool_t<Composer> check_subtree_membership(field_t<Composer> const& root,
         // current iff path_bit If either of these does not hold, then the final computed merkle root will not match
         field_t<Composer> left = field_t<Composer>::conditional_assign(path_bit, hashes[i].first, current);
         field_t<Composer> right = field_t<Composer>::conditional_assign(path_bit, current, hashes[i].second);
-        current = pedersen<Composer>::compress_unsafe(left, right, 0, false, is_updating_tree);
+        current = pedersen<Composer>::compress_unsafe(left, right, 0, is_updating_tree);
     }
 
     return (current == root);
@@ -205,10 +196,6 @@ template <typename Composer> field_t<Composer> compute_tree_root(std::vector<fie
     ASSERT(input.size() > 0);
     ASSERT(!(input.size() & (input.size() - 1)) == true);
     auto layer = input;
-    for (auto& f : layer) {
-        auto is_zero = f.is_zero();
-        f = field_t<Composer>::conditional_assign(is_zero, (-field_t<Composer>(1)), f);
-    }
     while (layer.size() > 1) {
         std::vector<field_t<Composer>> next_layer(layer.size() / 2);
         for (size_t i = 0; i < next_layer.size(); ++i) {

@@ -84,10 +84,3 @@ TEST(pedersen, fixed_base_scalar_mul)
         EXPECT_EQ(result.y, pub_key.y);
     }
 }
-
-TEST(pedersen, compress_zero)
-{
-    grumpkin::fq zero(0);
-    auto result = compress_native({ zero, zero });
-    EXPECT_EQ(result, 0);
-}

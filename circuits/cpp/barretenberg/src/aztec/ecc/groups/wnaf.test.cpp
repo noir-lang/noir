@@ -48,6 +48,60 @@ TEST(wnaf, wnaf_zero)
     EXPECT_EQ(buffer[1], recovered_hi);
 }
 
+TEST(wnaf, wnaf_two_bit_window)
+{
+    /**
+     * We compute the 2-bit windowed NAF form of `input`.
+     */
+    uint256_t input = fr::random_element();
+    constexpr uint32_t window = 2;
+    constexpr uint32_t num_bits = 254;
+    constexpr uint32_t num_quads = (num_bits >> 1) + 1;
+    uint64_t wnaf[num_quads] = { 0 };
+    bool skew = false;
+    barretenberg::wnaf::fixed_wnaf<256, 1, window>(&input.data[0], wnaf, skew, 0);
+
+    /**
+     * For representing even numbers, we define a skew:
+     *
+     *        / false   if input is odd
+     * skew = |
+     *        \ true    if input is even
+     *
+     * The i-th quad value is defined as:
+     *
+     *        / -(2b + 1)   if sign = 1
+     * q[i] = |
+     *        \ (2b + 1)    if sign = 0
+     *
+     * where sign = ((wnaf[i] >> 31) == 0) and b = (wnaf[i] & 1).
+     * We can compute back the original number from the quads as:
+     *                127
+     *               -----
+     *               \
+     * R = -skew  +  |    4^{127 - i} . q[i].
+     *               /
+     *               -----
+     *                i=0
+     *
+     */
+    uint256_t recovered = 0;
+    uint256_t four_power = (uint256_t(1) << num_bits);
+    for (size_t i = 0; i < num_quads; i++) {
+        int extracted = 2 * (int(wnaf[i]) & 1) + 1;
+        bool sign = (wnaf[i] >> 31) == 0;
+
+        if (sign) {
+            recovered += uint256_t(uint64_t(extracted)) * four_power;
+        } else {
+            recovered -= uint256_t(uint64_t(extracted)) * four_power;
+        }
+        four_power >>= 2;
+    }
+    recovered -= skew;
+    EXPECT_EQ(recovered, input);
+}
+
 TEST(wnaf, wnaf_fixed)
 {
     uint256_t buffer = engine.get_random_uint256();

@@ -247,7 +247,7 @@ template <typename Composer> class Transcript {
             compression_buffer.push_back(working_element);
         }
 
-        field_pt T0 = pedersen::compress(compression_buffer, true);
+        field_pt T0 = pedersen::compress(compression_buffer);
         byte_array<Composer> compressed_buffer(T0);
 
         byte_array<Composer> base_hash = blake2s(compressed_buffer);

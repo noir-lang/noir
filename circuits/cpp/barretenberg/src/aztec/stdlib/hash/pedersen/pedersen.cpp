@@ -29,9 +29,6 @@ template <typename C> point<C> add_points(const point<C>& first, const point<C>&
 } // namespace
 
 /**
- * Edge case is if scalar multiplier is 0.
- * not neccessary to check if scalar multiplier is the output of a PRNG (e.g. SHA256)
- *
  * Description of function:
  * We begin with an fr element `in`, and create a wnaf representation of it (see validate_wnaf_is_in_field for detail on
  * this presentation, or page 4 in https://docs.zkproof.org/pages/standards/accepted-workshop3/proposal-turbo_plonk.pdf)
@@ -39,17 +36,17 @@ template <typename C> point<C> add_points(const point<C>& first, const point<C>&
  * additional skew bit s ∈ {0,1}. Note that we always have q_{127} = 1 since `in` is 254-bit field scalar.
  * For generators [g] and [g_aux] (selected according to hash_index), we define a Pedersen hash as follows:
  *
- *            127
- *            ===
- *            \            i
- * in = s  +  /    q_i . 4       =>    H(in) :=  A * [g] +  B * [g_aux]
- *            ===
- *            i=0
+ *             127
+ *             ===
+ *             \            i
+ * in = -s  +  /    q_i . 4       =>    H(in) :=  A * [g] +  B * [g_aux] + s * [g_skew]
+ *             ===
+ *             i=0
  *
  *                      126
  *                      ===
  *               125    \            (i - 2)
- * where A :=  4     +  /    q_i . 4            and    B := (q_1 . 4 + q_0 + s).
+ * where A :=  4     +  /    q_i . 4            and    B := (q_1 . 4 + q_0).
  *                      ===
  *                      i=2
  *
@@ -61,7 +58,6 @@ template <typename C> point<C> add_points(const point<C>& first, const point<C>&
 template <typename C>
 point<C> pedersen<C>::hash_single(const field_t& in,
                                   const generator_index_t hash_index,
-                                  const bool allow_zero_input,
                                   const bool validate_input_is_in_field)
 {
     C* ctx = in.context;
@@ -87,27 +83,20 @@ point<C> pedersen<C>::hash_single(const field_t& in,
     constexpr size_t initial_exponent = num_bits;
     const auto gen_data = crypto::pedersen::get_generator_data(hash_index);
     const crypto::pedersen::fixed_base_ladder* ladder = gen_data.get_hash_ladder(num_bits);
-    grumpkin::g1::affine_element generator = gen_data.aux_generator;
+    grumpkin::g1::affine_element skew_generator = gen_data.skew_generator;
 
     // Here n = num_quads = 127.
     // We have ladder[0] = 4^{n-2}[g], where g is a generator chosen for hashing.
     // Hence, we initialize the Pedersen hash with
     // When input scalar is odd:  P_0 = 4^{n-2}[g],
-    // When input scalar is even: P_1 = 4^{n-2}[g] + [g_aux].
+    // When input scalar is even: P_1 = 4^{n-2}[g] - [g_skew].
     // This is because the 128-th quad is always 1 and skew = 1 if scalar is even.
-    // See the full documentation for more details.
+    // See the full documentation (https://hackmd.io/gRsmqUGkSDOCI9O22qWXBA?view) for more details.
     grumpkin::g1::element origin_points[2];
     origin_points[0] = grumpkin::g1::element(ladder[0].one);
-    origin_points[1] = origin_points[0] + generator;
+    origin_points[1] = origin_points[0] - skew_generator;
     origin_points[1] = origin_points[1].normalize();
 
-    fr scalar_multiplier_base = scalar_multiplier.to_montgomery_form();
-
-    if ((scalar_multiplier.data[0] & 1) == 0) {
-        fr two = fr::one() + fr::one();
-        scalar_multiplier_base = scalar_multiplier_base - two;
-    }
-    scalar_multiplier_base = scalar_multiplier_base.from_montgomery_form();
     uint64_t wnaf_entries[num_quads + 1] = { 0 };
     bool skew = false; // will update to be the boolean "scalar is even"
 
@@ -119,9 +108,11 @@ point<C> pedersen<C>::hash_single(const field_t& in,
      i.e. most significant bit describes if wnaf is negative
     remaining value will be 0 or 1 which corresponds to 1 or 3
     */
-    barretenberg::wnaf::fixed_wnaf<num_wnaf_bits, 1, 2>(&scalar_multiplier_base.data[0], &wnaf_entries[0], skew, 0);
+    barretenberg::wnaf::fixed_wnaf<num_wnaf_bits, 1, 2>(&scalar_multiplier.data[0], &wnaf_entries[0], skew, 0);
 
-    fr accumulator_offset = (fr::one() + fr::one()).pow(static_cast<uint64_t>(initial_exponent)).invert();
+    // We are subtracting the skew from the reconstructed scalar from wnaf, so the accumulator offset must be
+    // (-4^{-127}).
+    fr accumulator_offset = -(fr::one() + fr::one()).pow(static_cast<uint64_t>(initial_exponent)).invert();
 
     // We need the accumulator offset to scale down the effect of accumulation on the skew term.
     fr origin_accumulators[2]{ fr::one(), accumulator_offset + fr::one() };
@@ -195,8 +186,8 @@ point<C> pedersen<C>::hash_single(const field_t& in,
      * +---------+---------+-----------+---------+
      *
      * For the gate i=0:
-     * Suppose skew s ∈ {0,1}. Initialisation point: P_s = (s + 4^n)[g] and we have:
-     * x_0 = (P_s).x, y_0 = (P_s).y, c = 4^{-n} and a_0 = 1 + s.4^{-n}.
+     * Suppose skew s ∈ {0,1}. Initialisation point: P_s = (-s + 4^n)[g] and we have:
+     * x_0 = (P_s).x, y_0 = (P_s).y, c = 4^{-n} and a_0 = 1 - s.4^{-n}.
      *
      * For gates i ∈ {1, 2, ..., n-1}
      * (x_{i+1}, y_{i+1})  =  (x_i, y_i)  +_{ecc}  x_{α,i}
@@ -257,18 +248,10 @@ point<C> pedersen<C>::hash_single(const field_t& in,
     result.y = field_t(ctx);
     result.y.witness_index = add_quad.b;
 
-    if (allow_zero_input) {
-        field_t reconstructed_scalar(ctx);
-        reconstructed_scalar.witness_index = add_quad.d;
-        field_t lhs = reconstructed_scalar * in;
-        field_t rhs = in * in;
-        lhs.assert_equal(rhs, "pedersen lhs != rhs");
-    } else {
-        field_t::from_witness_index(ctx, add_quad.d).assert_equal(in, "pedersen d != in");
-    }
+    field_t::from_witness_index(ctx, add_quad.d).assert_equal(in, "pedersen d != in");
 
     if (validate_input_is_in_field) {
-        validate_wnaf_is_in_field(ctx, accumulator_witnesses, in, allow_zero_input);
+        validate_wnaf_is_in_field(ctx, accumulator_witnesses);
     }
     return result;
 }
@@ -286,11 +269,7 @@ point<C> pedersen<C>::hash_single(const field_t& in,
  *
  * Total cost is ~36 gates
  **/
-template <typename C>
-void pedersen<C>::validate_wnaf_is_in_field(C* ctx,
-                                            const std::vector<uint32_t>& accumulator,
-                                            const field_t& in,
-                                            const bool allow_zero_input)
+template <typename C> void pedersen<C>::validate_wnaf_is_in_field(C* ctx, const std::vector<uint32_t>& accumulator)
 {
     /**
      * To validate that `w < r`, we use schoolbook subtraction
@@ -365,17 +344,23 @@ void pedersen<C>::validate_wnaf_is_in_field(C* ctx,
      *
      * The following table describes the range of values the above terms can take, if w < r
      *
+     * 1) w_hi contains 64 most significant quads (or 128 bits) excluding the skew term:
+     *   w_hi = (4^{64}.1 + 4^{63}.q_{126} + 4^{62}.q_{125} + ... + 4.q_{64} + q_{63})
+     *
+     * 2) w_lo contains the 63 least significant quads (or 126 bits):
+     *   w_lo = (4^{62}.q_{62} + 4^{61}.q_{61} + ... + 4.q_{1} + q_{0} - s)
+     *
      *   ----------------------------------------------
      *   | limb               | min value | max value |
      *   ----------------------------------------------
-     *   |                    |     126   |  126      |
-     *   | w.lo               |  -(2  - 1)| 2         |
+     *   |                    |       126 |   126     |
+     *   | w.lo               |     -2    | (2   - 1) |
      *   ----------------------------------------------
-     *   |                    |           |  129      |
-     *   | w.hi               |         1 | 2   - 1   |
+     *   |                    |           |   129     |
+     *   | w.hi               |         1 | (2   - 1) |
      *   ----------------------------------------------
-     *   |                126 |           |  255      |
-     *   | w.lo + w.hi * 2    |         1 | 2         |
+     *   |                126 |           |   255     |
+     *   | w.lo + w.hi * 2    |         0 | (2   - 1) |
      *   ----------------------------------------------
      *   |                    |    126    |    128    |
      *   | y.lo               | > 2   - 1 | < 2       |
@@ -407,7 +392,7 @@ void pedersen<C>::validate_wnaf_is_in_field(C* ctx,
     /**
      * We need to extract the skew term from accumulator[0]
      *
-     * We know that accumulator[0] is either 1 or (1 + 2^{-254})
+     * We know that accumulator[0] is either 1 or (1 - 2^{-254})
      *
      * Therefore  the 2^{-254} term in accumulator[0] will translate to a value of `1` when `input` is computed
      * This corresponds to `input` being an even number (without a skew term, wnaf represenatations can only express odd
@@ -420,7 +405,8 @@ void pedersen<C>::validate_wnaf_is_in_field(C* ctx,
 
     // is_even = 0 if input is odd
     // is_even = 1 if input is even
-    field_t is_even = (field_t::from_witness_index(ctx, accumulator[0]) - 1) * fr(uint256_t(1) << 254);
+    field_t is_even = -(field_t::from_witness_index(ctx, accumulator[0]) - 1) * fr(uint256_t(1) << 254);
+    is_even.create_range_constraint(1, "is_even is neither 0 nor 1");
 
     field_t high_limb_with_skew = field_t::from_witness_index(ctx, mid_index);
 
@@ -430,29 +416,16 @@ void pedersen<C>::validate_wnaf_is_in_field(C* ctx,
 
     /**
      *                                                         126
-     *    w.lo = reconstructed_input - (high_limb_with_skew * 2  - is_even)
+     *    w.lo = reconstructed_input - (high_limb_with_skew * 2  + is_even)
      *                          126
      *    y.lo = r.lo - w.lo + 2
      *                   126                                                          126
-     * => y.lo = r.lo + 2    - is_even - reconstructed_input + high_limb_with_skew * 2
+     * => y.lo = r.lo + 2    + is_even - reconstructed_input + high_limb_with_skew * 2
      *
      *  (we do not explicitly compute w.lo to save an addition gate)
      **/
 
-    field_t y_lo = (-reconstructed_input).add_two(high_limb_with_skew * shift + (r_lo + shift), -is_even);
-
-    /**
-     * If `allow_zero_input = true`, we need to handle the possibility the input is zero
-     *
-     * If the input is zero, the produced wnaf will be nonsense and may not be < r
-     * (the wnaf is not used when computing a pedersen hash of 0, additional constraints are used to handle this edge
-     *case). If the input is zero we must set `y.lo` and `y.hi` to 0 so the range checks do not fail
-     **/
-    bool_t input_not_zero;
-    if (allow_zero_input) {
-        input_not_zero = !in.is_zero();
-        y_lo *= input_not_zero;
-    }
+    field_t y_lo = (-reconstructed_input).add_two(high_limb_with_skew * shift + (r_lo + shift), is_even);
 
     // Validate y.lo is a 128-bit integer
     const auto y_lo_accumulators = ctx->decompose_into_base4_accumulators(y_lo.normalize().witness_index, 128);
@@ -462,14 +435,11 @@ void pedersen<C>::validate_wnaf_is_in_field(C* ctx,
 
     /**
      *                                           -126
-     *   w.hi = high_limb_with_skew - is_even * 2
+     *   w.hi = high_limb_with_skew + is_even * 2
      *
      *   y.hi = r.hi + (y.overlap - 1) - w.hi
      **/
-    field_t y_hi = (is_even * fr(uint256_t(1) << 126).invert()).add_two(-high_limb_with_skew, y_overlap + (r_hi));
-    if (allow_zero_input) {
-        y_hi *= input_not_zero;
-    }
+    field_t y_hi = (-is_even * fr(uint256_t(1) << 126).invert()).add_two(-high_limb_with_skew, y_overlap + (r_hi));
 
     // Validate y.hi is a 128-bit integer
     ctx->decompose_into_base4_accumulators(y_hi.normalize().witness_index, 128);
@@ -488,44 +458,11 @@ template <typename C> point<C> pedersen<C>::accumulate(const std::vector<point>&
     return accumulator;
 }
 
-template <typename C>
-point<C> pedersen<C>::conditionally_accumulate(const std::vector<point>& to_accumulate,
-                                               const std::vector<field_t>& inputs)
-{
-    if (to_accumulate.size() == 0) {
-        return point{ 0, 0 };
-    }
-
-    point accumulator = to_accumulate[0];
-    bool_t is_accumulator_zero = inputs[0].is_zero();
-
-    for (size_t i = 1; i < to_accumulate.size(); ++i) {
-        bool_t current_is_zero = inputs[i].is_zero();
-        bool_t initialize_instead_of_add = (is_accumulator_zero && !current_is_zero);
-
-        field_t lambda = (to_accumulate[i].y - accumulator.y) / (to_accumulate[i].x - accumulator.x);
-        field_t x_3 = lambda * lambda - (to_accumulate[i].x + accumulator.x);
-        field_t y_3 = lambda * (accumulator.x - x_3) - accumulator.y;
-
-        x_3 = field_t::conditional_assign(initialize_instead_of_add, to_accumulate[i].x, x_3);
-        y_3 = field_t::conditional_assign(initialize_instead_of_add, to_accumulate[i].y, y_3);
-        x_3 = field_t::conditional_assign(current_is_zero, accumulator.x, x_3);
-        y_3 = field_t::conditional_assign(current_is_zero, accumulator.y, y_3);
-        accumulator.x = x_3;
-        accumulator.y = y_3;
-        is_accumulator_zero = is_accumulator_zero && current_is_zero;
-    }
-
-    accumulator.x = field_t::conditional_assign(is_accumulator_zero, field_t(0), accumulator.x);
-    return accumulator;
-}
-
 // called unsafe because allowing the option of not validating the input elements are unique, i.e. <r
 template <typename C>
 field_t<C> pedersen<C>::compress_unsafe(const field_t& in_left,
                                         const field_t& in_right,
                                         const size_t hash_index,
-                                        const bool allow_zero_input,
                                         const bool validate_input_is_in_field)
 {
     if constexpr (C::type == waffle::ComposerType::PLOOKUP) {
@@ -535,19 +472,12 @@ field_t<C> pedersen<C>::compress_unsafe(const field_t& in_left,
     std::vector<point> accumulators;
     generator_index_t index_1 = { hash_index, 0 };
     generator_index_t index_2 = { hash_index, 1 };
-    accumulators.push_back(hash_single(in_left, index_1, allow_zero_input, validate_input_is_in_field));
-    accumulators.push_back(hash_single(in_right, index_2, allow_zero_input, validate_input_is_in_field));
-    if (allow_zero_input) {
-        std::vector<field_t> inputs;
-        inputs.push_back(in_left);
-        inputs.push_back(in_right);
-        return conditionally_accumulate(accumulators, inputs).x;
-    }
+    accumulators.push_back(hash_single(in_left, index_1, validate_input_is_in_field));
+    accumulators.push_back(hash_single(in_right, index_2, validate_input_is_in_field));
     return accumulate(accumulators).x;
 }
 
-template <typename C>
-point<C> pedersen<C>::commit(const std::vector<field_t>& inputs, const size_t hash_index, const bool allow_zero_input)
+template <typename C> point<C> pedersen<C>::commit(const std::vector<field_t>& inputs, const size_t hash_index)
 {
     if constexpr (C::type == waffle::ComposerType::PLOOKUP) {
         return pedersen_plookup<C>::commit(inputs);
@@ -556,25 +486,19 @@ point<C> pedersen<C>::commit(const std::vector<field_t>& inputs, const size_t ha
     std::vector<point> to_accumulate;
     for (size_t i = 0; i < inputs.size(); ++i) {
         generator_index_t index = { hash_index, i };
-        to_accumulate.push_back(hash_single(inputs[i], index, allow_zero_input));
-    }
-    if (allow_zero_input) {
-        return conditionally_accumulate(to_accumulate, inputs);
+        to_accumulate.push_back(hash_single(inputs[i], index));
     }
     return accumulate(to_accumulate);
 }
 
-template <typename C>
-field_t<C> pedersen<C>::compress(const std::vector<field_t>& inputs,
-                                 const bool allow_zero_input,
-                                 const size_t hash_index)
+template <typename C> field_t<C> pedersen<C>::compress(const std::vector<field_t>& inputs, const size_t hash_index)
 {
     if (C::type == waffle::ComposerType::PLOOKUP) {
         // TODO handle hash index in plookup. This is a tricky problem but
         // we can defer solving it until we migrate to UltraPlonk
         return pedersen_plookup<C>::compress(inputs);
     }
-    return commit(inputs, hash_index, allow_zero_input).x;
+    return commit(inputs, hash_index).x;
 }
 
 // If the input values are all zero, we return the array length instead of `0`
@@ -600,7 +524,7 @@ template <typename C> field_t<C> pedersen<C>::compress(const byte_array& input)
         field_t element = static_cast<field_t>(input.slice(i * bytes_per_element, bytes_to_slice));
         elements.emplace_back(element);
     }
-    field_t compressed = compress(elements, true, 0);
+    field_t compressed = compress(elements, 0);
 
     bool_t is_zero(true);
     for (const auto& element : elements) {

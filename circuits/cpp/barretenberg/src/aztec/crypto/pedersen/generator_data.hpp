@@ -45,6 +45,7 @@ typedef std::array<fixed_base_ladder, quad_length> ladder_t;
 struct generator_data {
     grumpkin::g1::affine_element generator;
     grumpkin::g1::affine_element aux_generator;
+    grumpkin::g1::affine_element skew_generator;
     ladder_t ladder;
     ladder_t aux_ladder;
     ladder_t hash_ladder;

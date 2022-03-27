@@ -55,7 +55,7 @@ inline fr get_hash_path_root(fr_hash_path const& input)
 
 inline fr zero_hash_at_height(size_t height)
 {
-    auto current = fr::neg_one();
+    auto current = fr(0);
     for (size_t i = 0; i < height; ++i) {
         current = compress_native(current, current);
     }

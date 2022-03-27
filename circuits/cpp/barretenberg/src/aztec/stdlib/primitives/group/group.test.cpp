@@ -38,6 +38,26 @@ TEST(stdlib_group, test_fixed_base_scalar_mul)
     EXPECT_EQ(proof_result, true);
 }
 
+TEST(stdlib_group, test_fixed_base_scalar_mul_zero_fails)
+{
+    auto scalar = uint256_t(0, 0, 0, 0);
+
+    Composer composer;
+    auto priv_key_witness = field_ct(witness_ct(&composer, fr(scalar)));
+    group_ct::fixed_base_scalar_mul<128>(priv_key_witness, 0);
+
+    auto prover = composer.create_prover();
+
+    printf("composer gates = %zu\n", composer.get_num_gates());
+    auto verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, false);
+    EXPECT_EQ(composer.err, "input scalar to fixed_base_scalar_mul_internal cannot be 0");
+}
+
 TEST(stdlib_group, test_fixed_base_scalar_mul_with_two_limbs)
 {
     const uint256_t scalar = engine.get_random_uint256();

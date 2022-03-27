@@ -14,8 +14,8 @@ inline auto complete_partial_commitment(field_ct const& partial_commitment,
                                         field_ct const& interaction_nonce,
                                         suint_ct const& fee)
 {
-    return pedersen::compress(
-        { partial_commitment, interaction_nonce, fee.value }, true, GeneratorIndex::CLAIM_NOTE_COMMITMENT);
+    return pedersen::compress({ partial_commitment, interaction_nonce, fee.value },
+                              GeneratorIndex::CLAIM_NOTE_COMMITMENT);
 }
 
 } // namespace claim

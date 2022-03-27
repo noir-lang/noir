@@ -16,8 +16,8 @@ inline auto create_partial_commitment(field_ct const& secret,
                                       suint_ct const& nonce,
                                       field_ct const& creator_pubkey)
 {
-    return pedersen::compress(
-        { secret, owner.x, owner.y, nonce.value, creator_pubkey }, true, GeneratorIndex::VALUE_NOTE_PARTIAL_COMMITMENT);
+    return pedersen::compress({ secret, owner.x, owner.y, nonce.value, creator_pubkey },
+                              GeneratorIndex::VALUE_NOTE_PARTIAL_COMMITMENT);
 }
 
 } // namespace value

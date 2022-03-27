@@ -15,7 +15,7 @@ static std::vector<fr> VALUES = []() {
 
 TEST(stdlib_merkle_tree, test_memory_store)
 {
-    fr e00 = fr::neg_one();
+    fr e00 = 0;
     fr e01 = VALUES[1];
     fr e02 = VALUES[2];
     fr e03 = VALUES[3];

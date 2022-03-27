@@ -13,7 +13,7 @@ MemoryTree::MemoryTree(size_t depth)
     hashes_.resize(total_size_ * 2 - 2);
 
     // Build the entire tree.
-    auto current = fr::neg_one();
+    auto current = fr(0);
     size_t layer_size = total_size_;
     for (size_t offset = 0; offset < hashes_.size(); offset += layer_size, layer_size /= 2) {
         for (size_t i = 0; i < layer_size; ++i) {
@@ -44,7 +44,7 @@ fr MemoryTree::update_element(size_t index, fr const& value)
 {
     size_t offset = 0;
     size_t layer_size = total_size_;
-    fr current = value == 0 ? fr::neg_one() : value;
+    fr current = value;
     for (size_t i = 0; i < depth_; ++i) {
         hashes_[offset + index] = current;
         index &= (~0ULL) - 1;

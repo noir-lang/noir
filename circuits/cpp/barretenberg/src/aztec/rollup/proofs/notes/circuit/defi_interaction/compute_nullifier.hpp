@@ -16,7 +16,6 @@ using namespace plonk::stdlib::types::turbo;
 inline field_ct compute_nullifier(field_ct const& defi_interaction_note_commitment, field_ct const& nonce)
 {
     return pedersen::compress(std::vector<field_ct>{ defi_interaction_note_commitment, nonce },
-                              true,
                               GeneratorIndex::DEFI_INTERACTION_NULLIFIER);
 }
 

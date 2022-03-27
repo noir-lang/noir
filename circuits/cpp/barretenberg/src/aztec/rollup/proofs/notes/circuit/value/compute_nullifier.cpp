@@ -30,7 +30,7 @@ field_ct compute_nullifier(field_ct const& note_commitment,
 
     // We compress the hash_inputs with Pedersen, because that's cheaper (constraint-wise) than compressing
     // the data directly with Blake2s in the next step.
-    const auto compressed_inputs = pedersen::compress(hash_inputs, true, GeneratorIndex::JOIN_SPLIT_NULLIFIER);
+    const auto compressed_inputs = pedersen::compress(hash_inputs, GeneratorIndex::JOIN_SPLIT_NULLIFIER);
 
     // Blake2s hash the compressed result. Without this it's possible to leak info from the pedersen compression.
     /** E.g. we can extract a representation of the hashed_pk:

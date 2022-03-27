@@ -19,48 +19,35 @@ template <typename ComposerContext> class pedersen {
 
     static point hash_single(const field_t& in,
                              const crypto::pedersen::generator_index_t hash_index,
-                             const bool allow_zero_input = false,
                              const bool validate_input_is_in_field = true);
     static point accumulate(const std::vector<point>& to_accumulate);
-    static point conditionally_accumulate(const std::vector<point>& to_accumulate, const std::vector<field_t>& inputs);
 
   public:
     // called unsafe because allowing the option of not validating the input elements are unique, i.e. <r
     static field_t compress_unsafe(const field_t& left,
                                    const field_t& right,
                                    const size_t hash_index,
-                                   const bool handle_edge_cases,
                                    const bool validate_input_is_in_field);
-    static field_t compress(const field_t& left,
-                            const field_t& right,
-                            const size_t hash_index = 0,
-                            const bool allow_zero_input = false)
+
+    static field_t compress(const field_t& left, const field_t& right, const size_t hash_index = 0)
     {
-        return compress_unsafe(left, right, hash_index, allow_zero_input, true);
+        return compress_unsafe(left, right, hash_index, true);
     }
 
-    static field_t compress(const std::vector<field_t>& inputs,
-                            const bool allow_zero_input = false,
-                            const size_t hash_index = 0);
+    static field_t compress(const std::vector<field_t>& inputs, const size_t hash_index = 0);
 
-    template <size_t T>
-    static field_t compress(const std::array<field_t, T>& inputs, const bool allow_zero_input = true)
+    template <size_t T> static field_t compress(const std::array<field_t, T>& inputs)
     {
         std::vector<field_t> in(inputs.begin(), inputs.end());
-        return compress(in, allow_zero_input);
+        return compress(in);
     }
 
     static field_t compress(const byte_array& inputs);
 
-    static void validate_wnaf_is_in_field(ComposerContext* ctx,
-                                          const std::vector<uint32_t>& accumulator,
-                                          const field_t& in,
-                                          const bool allow_zero_input);
+    static void validate_wnaf_is_in_field(ComposerContext* ctx, const std::vector<uint32_t>& accumulator);
 
   private:
-    static point commit(const std::vector<field_t>& inputs,
-                        const size_t hash_index = 0,
-                        const bool allow_zero_input = true);
+    static point commit(const std::vector<field_t>& inputs, const size_t hash_index = 0);
 };
 
 extern template class pedersen<waffle::StandardComposer>;

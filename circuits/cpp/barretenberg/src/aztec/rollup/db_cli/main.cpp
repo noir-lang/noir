@@ -58,7 +58,7 @@ class WorldStateDb {
         auto tree = trees_[get_request.tree_id];
         auto path = tree->get_hash_path(get_request.index);
         auto leaf = get_request.index & 0x1 ? path[0].second : path[0].first;
-        write(os, leaf == fr::neg_one() ? fr(0) : leaf);
+        write(os, leaf);
     }
 
     void get_path(std::istream& is, std::ostream& os)

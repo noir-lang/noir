@@ -69,7 +69,6 @@ struct note {
                                     total_output_value_b,
                                     interaction_nonce,
                                     interaction_result },
-                                  true,
                                   GeneratorIndex::DEFI_INTERACTION_NOTE_COMMITMENT);
     }
 };

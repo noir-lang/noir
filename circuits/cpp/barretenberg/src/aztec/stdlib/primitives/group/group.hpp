@@ -18,16 +18,13 @@ template <typename ComposerContext> class group {
     static auto fixed_base_scalar_mul(const field_t<ComposerContext>& lo, const field_t<ComposerContext>& hi);
 
     template <size_t num_bits>
-    static auto fixed_base_scalar_mul(const field_t<ComposerContext>& in,
-                                      const size_t generator_index,
-                                      const bool forbid_zero_input = true);
+    static auto fixed_base_scalar_mul(const field_t<ComposerContext>& in, const size_t generator_index);
 
   private:
     template <size_t num_bits>
     static auto fixed_base_scalar_mul_internal(const field_t<ComposerContext>& in,
                                                grumpkin::g1::affine_element const& generator,
-                                               fixed_base_ladder const* ladder,
-                                               const bool forbid_zero_input = true);
+                                               fixed_base_ladder const* ladder);
 };
 
 template <typename ComposerContext>
@@ -36,20 +33,18 @@ auto group<ComposerContext>::fixed_base_scalar_mul_g1(const field_t<ComposerCont
 {
     const auto ladder = get_g1_ladder(num_bits);
     auto generator = grumpkin::g1::one;
-    return group<ComposerContext>::fixed_base_scalar_mul_internal<num_bits>(in, generator, ladder, true);
+    return group<ComposerContext>::fixed_base_scalar_mul_internal<num_bits>(in, generator, ladder);
 }
 
 template <typename ComposerContext>
 template <size_t num_bits>
-auto group<ComposerContext>::fixed_base_scalar_mul(const field_t<ComposerContext>& in,
-                                                   const size_t generator_index,
-                                                   const bool forbid_zero_input)
+auto group<ComposerContext>::fixed_base_scalar_mul(const field_t<ComposerContext>& in, const size_t generator_index)
 {
     // we assume for fixed_base_scalar_mul we're interested in the gen at subindex 0
     generator_index_t index = { generator_index, 0 };
     auto gen_data = get_generator_data(index);
     return group<ComposerContext>::fixed_base_scalar_mul_internal<num_bits>(
-        in, gen_data.generator, gen_data.get_ladder(num_bits), forbid_zero_input);
+        in, gen_data.generator, gen_data.get_ladder(num_bits));
 }
 
 /**
@@ -88,10 +83,11 @@ template <typename ComposerContext>
 template <size_t num_bits>
 auto group<ComposerContext>::fixed_base_scalar_mul_internal(const field_t<ComposerContext>& in,
                                                             grumpkin::g1::affine_element const& generator,
-                                                            fixed_base_ladder const* ladder,
-                                                            const bool forbid_zero_input)
+                                                            fixed_base_ladder const* ladder)
 {
     auto scalar = in.normalize();
+    scalar.assert_is_not_zero("input scalar to fixed_base_scalar_mul_internal cannot be 0");
+
     auto ctx = in.context;
     ASSERT(ctx != nullptr);
     uint256_t scalar_multiplier(scalar.get_value());
@@ -110,22 +106,14 @@ auto group<ComposerContext>::fixed_base_scalar_mul_internal(const field_t<Compos
 
     grumpkin::g1::element origin_points[2];
     origin_points[0] = grumpkin::g1::element(ladder[0].one);
-    origin_points[1] = origin_points[0] + generator;
+    origin_points[1] = origin_points[0] - generator;
     origin_points[1] = origin_points[1].normalize();
-
-    fr scalar_multiplier_base = scalar.get_value();
-
-    if ((scalar_multiplier.data[0] & 1) == 0) {
-        fr two = fr::one() + fr::one();
-        scalar_multiplier_base = scalar_multiplier_base - two;
-    }
-    scalar_multiplier_base = scalar_multiplier_base.from_montgomery_form();
     uint64_t wnaf_entries[num_quads + 1] = { 0 };
     bool skew = false;
 
-    wnaf::fixed_wnaf<num_wnaf_bits, 1, 2>(&scalar_multiplier_base.data[0], &wnaf_entries[0], skew, 0);
+    wnaf::fixed_wnaf<num_wnaf_bits, 1, 2>(&scalar_multiplier.data[0], &wnaf_entries[0], skew, 0);
 
-    fr accumulator_offset = (fr::one() + fr::one()).pow(static_cast<uint64_t>(initial_exponent)).invert();
+    fr accumulator_offset = -(fr::one() + fr::one()).pow(static_cast<uint64_t>(initial_exponent)).invert();
 
     fr origin_accumulators[2]{ fr::one(), accumulator_offset + fr::one() };
 
@@ -215,7 +203,7 @@ auto group<ComposerContext>::fixed_base_scalar_mul_internal(const field_t<Compos
     accumulator_witnesses.push_back(add_quad.d);
 
     if (num_bits >= 254) {
-        plonk::stdlib::pedersen<ComposerContext>::validate_wnaf_is_in_field(ctx, accumulator_witnesses, scalar, true);
+        plonk::stdlib::pedersen<ComposerContext>::validate_wnaf_is_in_field(ctx, accumulator_witnesses);
     }
     aligned_free(multiplication_transcript);
     aligned_free(accumulator_transcript);
@@ -231,16 +219,7 @@ auto group<ComposerContext>::fixed_base_scalar_mul_internal(const field_t<Compos
 
     auto lhs = constructed_scalar;
     auto rhs = scalar;
-    if (!forbid_zero_input) {
-        // if forbid_zero_input == false, it is up to the calling function to correctly handle the case where the input
-        // = 0
-        auto is_zero = scalar.is_zero();
-        // If k = 0, our scalar multiplier is going to be nonsense.
-        // We need to conditionally validate that, if k != 0, the constructed scalar multiplier matches our input
-        // scalar.
-        lhs = constructed_scalar * (field_t<ComposerContext>(1) - field_t<ComposerContext>(is_zero));
-        rhs = scalar * (field_t<ComposerContext>(1) - field_t<ComposerContext>(is_zero));
-    }
+
     lhs.normalize();
     rhs.normalize();
     ctx->assert_equal(lhs.witness_index, rhs.witness_index, "scalars unequal");

@@ -16,6 +16,7 @@ constexpr size_t num_hash_indices = 32;
 constexpr size_t num_generators_per_hash_index = 8;
 constexpr size_t num_indexed_generators = num_hash_indices * num_generators_per_hash_index;
 constexpr size_t size_of_generator_data_array = hash_indices_generator_offset + num_indexed_generators;
+constexpr size_t num_generator_types = 3;
 
 std::vector<std::unique_ptr<generator_data>> global_generator_data;
 ladder_t g1_ladder;
@@ -80,26 +81,38 @@ void compute_fixed_base_ladder(const grumpkin::g1::affine_element& generator, la
     free(ladder_temp);
 }
 
-// We split the generators into generators and auxiliary generators. This will be convenient for the hash_single
-// method requiring two generators to hash a field element.
+/**
+ * We need to derive three kinds of generators:
+ *    1. generators (P[])
+ *    2. aux_generators (P_aux[])
+ *    3. skew_generators (P_skew[])
+ * We use three generators to hash a single field element in the hash_single method:
+ * H(f) = lambda * P[i]  +  gamma * P_aux[i]  -  skew * P_skew[i]
+ */
 template <size_t N> inline auto derive_generators()
 {
+    ASSERT((N % num_generator_types) == 0);
     std::vector<grumpkin::g1::affine_element> generators;
     std::vector<grumpkin::g1::affine_element> aux_generators;
+    std::vector<grumpkin::g1::affine_element> skew_generators;
     auto res = grumpkin::g1::derive_generators<N>();
-    for (size_t i = 0; i < N; i += 2) {
+    for (size_t i = 0; i < N; i += num_generator_types) {
         generators.push_back(res[i]);
         aux_generators.push_back(res[i + 1]);
+        skew_generators.push_back(res[i + 2]);
     }
-    return std::make_pair(generators, aux_generators);
+
+    return std::make_tuple(generators, aux_generators, skew_generators);
 }
 
 auto compute_generator_data(grumpkin::g1::affine_element const& generator,
-                            grumpkin::g1::affine_element const& aux_generator)
+                            grumpkin::g1::affine_element const& aux_generator,
+                            grumpkin::g1::affine_element const& skew_generator)
 {
     auto gen_data = std::make_unique<generator_data>();
     gen_data->generator = generator;
     gen_data->aux_generator = aux_generator;
+    gen_data->skew_generator = skew_generator;
 
     compute_fixed_base_ladder(generator, gen_data->ladder);
     compute_fixed_base_ladder(aux_generator, gen_data->aux_ladder);
@@ -193,16 +206,18 @@ void init_generator_data()
     }
     std::vector<grumpkin::g1::affine_element> generators;
     std::vector<grumpkin::g1::affine_element> aux_generators;
-    std::tie(generators, aux_generators) = derive_generators<size_of_generator_data_array * 2>();
+    std::vector<grumpkin::g1::affine_element> skew_generators;
+    std::tie(generators, aux_generators, skew_generators) =
+        derive_generators<size_of_generator_data_array * num_generator_types>();
 
     global_generator_data.resize(size_of_generator_data_array);
 
     for (size_t i = 0; i < num_default_generators; i++) {
-        global_generator_data[i] = compute_generator_data(generators[i], aux_generators[i]);
+        global_generator_data[i] = compute_generator_data(generators[i], aux_generators[i], skew_generators[i]);
     }
 
     for (size_t i = hash_indices_generator_offset; i < size_of_generator_data_array; i++) {
-        global_generator_data[i] = compute_generator_data(generators[i], aux_generators[i]);
+        global_generator_data[i] = compute_generator_data(generators[i], aux_generators[i], skew_generators[i]);
     }
 
     compute_fixed_base_ladder(grumpkin::g1::one, g1_ladder);
@@ -216,6 +231,25 @@ const fixed_base_ladder* get_g1_ladder(const size_t num_bits)
     return get_ladder_internal(g1_ladder, num_bits);
 }
 
+/**
+ * Generator indexing:
+ *
+ * Default generators:
+ * 0: P_0  P_1  P_2  ...  P_{2047}
+ *
+ * Hash-index dependent generators:
+ * 1:  P_{2048 + 0*8}   P_{2049}  ...  P_{2055}
+ * 2:  P_{2048 + 1*8}   P_{2048 + 1*8 + 1}   ...  P_{2048 + 1*8 + 7}
+ * 3:
+ * 4:
+ * .
+ * .
+ * .
+ * 31: P_{2048 + 30*8}  P_{2048 + 30*8 + 1}  ...  P_{2048 + 30*8 + 7}
+ * 32: P_{2048 + 31*8}  P_{2048 + 31*8 + 1}  ...  P_{2048 + 31*8 + 7}
+ *
+ * Total generators = 2048 + 32*8 = 2304
+ */
 generator_data const& get_generator_data(generator_index_t index)
 {
     init_generator_data();
@@ -223,7 +257,8 @@ generator_data const& get_generator_data(generator_index_t index)
         ASSERT(index.sub_index < num_default_generators);
         return *global_generator_data[index.sub_index];
     }
-    ASSERT(index.sub_index < num_indexed_generators);
+    ASSERT(index.index <= num_hash_indices);
+    ASSERT(index.sub_index < num_generators_per_hash_index);
     return *global_generator_data[hash_indices_generator_offset + ((index.index - 1) * num_generators_per_hash_index) +
                                   index.sub_index];
 }

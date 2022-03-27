@@ -20,20 +20,14 @@ grumpkin::g1::element hash_single(const barretenberg::fr& in, generator_index_t 
 
     const crypto::pedersen::fixed_base_ladder* ladder = gen_data.get_hash_ladder(num_bits);
 
-    barretenberg::fr scalar_multiplier_base = scalar_multiplier.to_montgomery_form();
-    if ((scalar_multiplier.data[0] & 1) == 0) {
-        barretenberg::fr two = barretenberg::fr::one() + barretenberg::fr::one();
-        scalar_multiplier_base = scalar_multiplier_base - two;
-    }
-    scalar_multiplier_base = scalar_multiplier_base.from_montgomery_form();
     uint64_t wnaf_entries[num_quads + 2] = { 0 };
     bool skew = false;
-    barretenberg::wnaf::fixed_wnaf<num_wnaf_bits, 1, 2>(&scalar_multiplier_base.data[0], &wnaf_entries[0], skew, 0);
+    barretenberg::wnaf::fixed_wnaf<num_wnaf_bits, 1, 2>(&scalar_multiplier.data[0], &wnaf_entries[0], skew, 0);
 
     grumpkin::g1::element accumulator;
     accumulator = grumpkin::g1::element(ladder[0].one);
     if (skew) {
-        accumulator += gen_data.aux_generator;
+        accumulator -= gen_data.skew_generator;
     }
 
     for (size_t i = 0; i < num_quads; ++i) {
@@ -42,9 +36,6 @@ grumpkin::g1::element hash_single(const barretenberg::fr& in, generator_index_t 
             ((entry & WNAF_MASK) == 1) ? ladder[i + 1].three : ladder[i + 1].one;
         uint64_t predicate = (entry >> 31U) & 1U;
         accumulator.self_mixed_add_or_sub(point_to_add, predicate);
-    }
-    if (in == barretenberg::fr(0)) {
-        accumulator.self_set_infinity();
     }
     return accumulator;
 }
@@ -118,10 +109,7 @@ grumpkin::fq compress_native_buffer_to_field(const std::vector<uint8_t>& input)
 
 grumpkin::fq compress_native(const std::vector<uint8_t>& input)
 {
-    // If input is all zeroes, set the hash output to equal the length of the input
-    // This is because, in our circuits, we cannot compute a pedersen hash of 0 as it produces a point at infinity
-    bool is_zero = std::all_of(input.begin(), input.end(), [](auto e) { return e == 0; });
-    return is_zero ? grumpkin::fq(input.size()) : compress_native_buffer_to_field(input);
+    return compress_native_buffer_to_field(input);
 }
 
 } // namespace pedersen

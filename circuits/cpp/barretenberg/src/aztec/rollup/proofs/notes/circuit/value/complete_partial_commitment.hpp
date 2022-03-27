@@ -17,7 +17,6 @@ inline auto complete_partial_commitment(field_ct const& value_note_partial_commi
                                         field_ct const& input_nullifier)
 {
     return pedersen::compress({ value_note_partial_commitment, value.value, asset_id.value, input_nullifier },
-                              true,
                               GeneratorIndex::VALUE_NOTE_COMMITMENT);
 }
 

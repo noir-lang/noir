@@ -20,7 +20,6 @@ inline auto commit(field_ct const& account_alias_id,
             account_public_key.x,
             signing_pub_key.x,
         },
-        true,
         GeneratorIndex::ACCOUNT_NOTE_COMMITMENT);
 }
 

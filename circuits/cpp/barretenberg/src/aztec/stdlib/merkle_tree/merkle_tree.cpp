@@ -30,7 +30,7 @@ MerkleTree<Store>::MerkleTree(Store& store, size_t depth, uint8_t tree_id)
     zero_hashes_.resize(depth);
 
     // Compute the zero values at each layer.
-    auto current = fr::neg_one();
+    auto current = fr(0);
     for (size_t i = 0; i < depth; ++i) {
         zero_hashes_[i] = current;
         current = compress_native(current, current);
@@ -136,7 +136,7 @@ template <typename Store> fr_hash_path MerkleTree<Store>::get_hash_path(index_t 
 
 template <typename Store> fr MerkleTree<Store>::update_element(index_t index, fr const& value)
 {
-    auto leaf = (value == 0) ? fr::neg_one() : value;
+    auto leaf = value;
     using serialize::write;
     std::vector<uint8_t> leaf_key;
     write(leaf_key, tree_id_);

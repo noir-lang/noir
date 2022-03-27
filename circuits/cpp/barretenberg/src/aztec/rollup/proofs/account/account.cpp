@@ -26,8 +26,8 @@ static std::shared_ptr<waffle::verification_key> verification_key;
 
 field_ct compute_account_alias_id_nullifier(suint_ct const& account_alias_id)
 {
-    return pedersen::compress(
-        std::vector<field_ct>{ account_alias_id.value }, true, notes::GeneratorIndex::ACCOUNT_ALIAS_ID_NULLIFIER);
+    return pedersen::compress(std::vector<field_ct>{ account_alias_id.value },
+                              notes::GeneratorIndex::ACCOUNT_ALIAS_ID_NULLIFIER);
 }
 
 void account_circuit(Composer& composer, account_tx const& tx)
@@ -82,7 +82,7 @@ void account_circuit(Composer& composer, account_tx const& tx)
                                               new_account_public_key.x,
                                               spending_public_key_1.x,
                                               spending_public_key_2.x };
-        const byte_array_ct message = pedersen::compress(to_compress, true);
+        const byte_array_ct message = pedersen::compress(to_compress);
         stdlib::schnorr::verify_signature(message, signer, signature);
         if (composer.failed && !composerAlreadyFailed) {
             // only assign this error if an error hasn't already been assigned.
