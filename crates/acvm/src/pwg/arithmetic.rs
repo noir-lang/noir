@@ -24,16 +24,18 @@ impl ArithmeticSolver {
     pub fn solve<'a>(
         initial_witness: &mut BTreeMap<Witness, FieldElement>,
         gate: &'a Arithmetic,
-    ) -> Option<&'a Arithmetic> {
+    ) {
         // Evaluate multiplication term
         let mul_result = ArithmeticSolver::solve_mul_term(gate, initial_witness);
         // Evaluate the fan-in terms
         let gate_status = ArithmeticSolver::solve_fan_in_term(gate, initial_witness);
 
         match (mul_result, gate_status) {
-            (MulTerm::TooManyUnknowns, _) => Some(gate),
-            (_, GateStatus::GateUnsolvable) => Some(gate),
-            (MulTerm::OneUnknown(_, _), GateStatus::GateSolvable(_, _)) => Some(gate),
+            (MulTerm::TooManyUnknowns, _)
+            | (_, GateStatus::GateUnsolvable)
+            | (MulTerm::OneUnknown(_, _), GateStatus::GateSolvable(_, _)) => {
+                unreachable!("ArithmeticSolver failed to solve {:?}", gate);
+            }
             (MulTerm::OneUnknown(partial_prod, unknown_var), GateStatus::GateSatisfied(sum)) => {
                 // We have one unknown in the mul term and the fan-in terms are solved.
                 // Hence the equation is solvable, since there is a single unknown
@@ -43,12 +45,10 @@ impl ArithmeticSolver {
                 let assignment = -(total_sum / partial_prod);
                 // Add this into the witness assignments
                 initial_witness.insert(unknown_var, assignment);
-                None
             }
             (MulTerm::Solved(_), GateStatus::GateSatisfied(_)) => {
                 // All the variables in the MulTerm are solved and the Fan-in is also solved
                 // There is nothing to solve
-                None
             }
             (
                 MulTerm::Solved(total_prod),
@@ -62,7 +62,6 @@ impl ArithmeticSolver {
                 let assignment = -(total_sum / coeff);
                 // Add this into the witness assignments
                 initial_witness.insert(unknown_var, assignment);
-                None
             }
         }
     }
@@ -178,8 +177,8 @@ fn arithmetic_smoke_test() {
     values.insert(c, FieldElement::from(1_i128));
     values.insert(d, FieldElement::from(1_i128));
 
-    assert!(ArithmeticSolver::solve(&mut values, &gate_a).is_none());
-    assert!(ArithmeticSolver::solve(&mut values, &gate_b).is_none());
+    ArithmeticSolver::solve(&mut values, &gate_a);
+    ArithmeticSolver::solve(&mut values, &gate_b);
 
     assert_eq!(values.get(&a).unwrap(), &FieldElement::from(4_i128));
 }
