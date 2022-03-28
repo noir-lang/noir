@@ -16,8 +16,8 @@ use acvm::FieldElement;
 use acvm::Language;
 use environment::{Environment, FuncContext};
 use errors::{RuntimeError, RuntimeErrorKind};
-use noirc_frontend::{hir::Context, hir_def::expr::HirIdent};
 use noirc_frontend::node_interner::{ExprId, FuncId, StmtId};
+use noirc_frontend::{hir::Context, hir_def::expr::HirIdent};
 use noirc_frontend::{
     hir_def::{
         expr::{
@@ -321,7 +321,11 @@ impl<'a> Evaluator<'a> {
 
     fn pattern_name(&self, pattern: &HirPattern) -> String {
         match pattern {
-            HirPattern::Identifier(ident) => self.context.def_interner.definition_name(ident.id).to_owned(),
+            HirPattern::Identifier(ident) => self
+                .context
+                .def_interner
+                .definition_name(ident.id)
+                .to_owned(),
             HirPattern::Mutable(pattern, _) => self.pattern_name(pattern),
             HirPattern::Tuple(_, _) => todo!("Implement tuples in the backend"),
             HirPattern::Struct(_, _, _) => todo!("Implement structs in the backend"),
@@ -532,7 +536,11 @@ impl<'a> Evaluator<'a> {
             env.start_scope();
 
             // Add indice to environment
-            let variable_name = self.context.def_interner.definition_name(for_expr.identifier.id).to_owned();
+            let variable_name = self
+                .context
+                .def_interner
+                .definition_name(for_expr.identifier.id)
+                .to_owned();
             env.store(variable_name, Object::Constants(indice));
 
             let block = self.expression_to_block(&for_expr.block);
@@ -600,7 +608,7 @@ impl<'a> Evaluator<'a> {
                 // Currently these only happen for arrays
                 let arr_name = self.context.def_interner.definition_name(indexed_expr.collection_name.id);
                 let ident_span = indexed_expr.collection_name.span;
-                let arr = env.get_array(&arr_name).map_err(|kind|kind.add_span(ident_span))?;
+                let arr = env.get_array(arr_name).map_err(|kind|kind.add_span(ident_span))?;
                 //
                 // Evaluate the index expression
                 let index_as_obj = self.expression_to_object(env, &indexed_expr.index)?;

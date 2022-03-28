@@ -19,9 +19,9 @@ struct ResolverMeta {
 
 use crate::hir_def::expr::{
     HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
-    HirConstructorExpression, HirForExpression, HirIfExpression, HirIndexExpression,
+    HirConstructorExpression, HirForExpression, HirIdent, HirIfExpression, HirIndexExpression,
     HirInfixExpression, HirLiteral, HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
-    HirUnaryOp, HirIdent,
+    HirUnaryOp,
 };
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -31,7 +31,7 @@ use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId};
 use crate::hir_def::expr::HirExpression;
 use crate::hir_def::stmt::{HirAssignStatement, HirPattern};
-use crate::node_interner::{ExprId, FuncId, NodeInterner, StmtId, StructId, DefinitionId};
+use crate::node_interner::{DefinitionId, ExprId, FuncId, NodeInterner, StmtId, StructId};
 use crate::util::vecmap;
 use crate::{
     hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
@@ -114,9 +114,7 @@ impl<'a> Resolver<'a> {
 
         for unused_var in unused_vars.iter() {
             if self.interner.definition_name(unused_var.id) != ERROR_IDENT {
-                self.push_err(ResolverError::UnusedVariable {
-                    ident: *unused_var,
-                });
+                self.push_err(ResolverError::UnusedVariable { ident: *unused_var });
             }
         }
     }
@@ -143,8 +141,13 @@ impl<'a> Resolver<'a> {
     }
 
     fn add_variable_decl(&mut self, name: Ident, mutable: bool) -> HirIdent {
-        let id = self.interner.push_definition(name.0.contents.clone(), mutable);
-        let ident = HirIdent { span: name.span(), id };
+        let id = self
+            .interner
+            .push_definition(name.0.contents.clone(), mutable);
+        let ident = HirIdent {
+            span: name.span(),
+            id,
+        };
 
         let scope = self.scopes.get_mut_scope();
         let resolver_meta = ResolverMeta {
@@ -370,7 +373,10 @@ impl<'a> Resolver<'a> {
                 // TODO: For loop variables are currently mutable by default since we haven't
                 //       yet implemented syntax for them to be optionally mutable.
                 let (identifier, block_id) = self.in_new_scope(|this| {
-                    (this.add_variable_decl(identifier, true), this.intern_block(block))
+                    (
+                        this.add_variable_decl(identifier, true),
+                        this.intern_block(block),
+                    )
                 });
 
                 HirExpression::For(HirForExpression {

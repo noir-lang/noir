@@ -4,7 +4,7 @@ use std::rc::Rc;
 use acvm::FieldElement;
 use noirc_errors::Span;
 
-use crate::node_interner::{ExprId, FuncId, StmtId, StructId, DefinitionId};
+use crate::node_interner::{DefinitionId, ExprId, FuncId, StmtId, StructId};
 use crate::{BinaryOp, BinaryOpKind, Ident, UnaryOp};
 
 use super::types::{StructType, Type};

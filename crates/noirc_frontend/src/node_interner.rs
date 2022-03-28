@@ -259,10 +259,7 @@ impl NodeInterner {
 
     pub fn push_definition(&mut self, name: String, mutable: bool) -> DefinitionId {
         let id = self.definitions.len();
-        self.definitions.push(DefinitionInfo {
-            name,
-            mutable,
-        });
+        self.definitions.push(DefinitionInfo { name, mutable });
 
         DefinitionId(id)
     }
@@ -344,7 +341,10 @@ impl NodeInterner {
 
     /// Returns the type of an item stored in the Interner or Error if it was not found.
     pub fn id_type(&self, index: impl Into<Index>) -> Type {
-        self.id_to_type.get(&index.into()).cloned().unwrap_or(Type::Error)
+        self.id_to_type
+            .get(&index.into())
+            .cloned()
+            .unwrap_or(Type::Error)
     }
 
     /// Returns the span of an item stored in the Interner

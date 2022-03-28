@@ -101,7 +101,10 @@ fn type_check_assign_stmt(
     let definition = interner.definition(ident_def);
     if !definition.mutable {
         errors.push(TypeCheckError::Unstructured {
-            msg: format!("Variable {} must be mutable to be assigned to", definition.name),
+            msg: format!(
+                "Variable {} must be mutable to be assigned to",
+                definition.name
+            ),
             span: assign_stmt.identifier.span,
         });
     }

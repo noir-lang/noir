@@ -1,9 +1,9 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use super::expr::{HirInfixExpression, HirIdent};
+use super::expr::{HirIdent, HirInfixExpression};
 use crate::node_interner::ExprId;
-use crate::{StructType, Type, Ident};
+use crate::{Ident, StructType, Type};
 use noirc_errors::Span;
 
 #[derive(Debug, Clone)]

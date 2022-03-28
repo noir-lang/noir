@@ -9,14 +9,14 @@ use super::super::errors::{RuntimeError, RuntimeErrorKind};
 use crate::object::Object;
 use acvm::FieldElement;
 use noirc_frontend::hir::Context;
-use noirc_frontend::hir_def::expr::{HirConstructorExpression, HirMemberAccess, HirIdent};
+use noirc_frontend::hir_def::expr::{HirConstructorExpression, HirIdent, HirMemberAccess};
 use noirc_frontend::hir_def::function::HirFunction;
 use noirc_frontend::hir_def::stmt::HirPattern;
 use noirc_frontend::hir_def::{
     expr::{HirBinaryOp, HirBinaryOpKind, HirExpression, HirForExpression, HirLiteral},
     stmt::{HirConstrainStatement, HirLetStatement, HirStatement},
 };
-use noirc_frontend::node_interner::{ExprId, NodeInterner, StmtId, DefinitionId};
+use noirc_frontend::node_interner::{DefinitionId, ExprId, NodeInterner, StmtId};
 use noirc_frontend::util::vecmap;
 use noirc_frontend::{FunctionKind, Type};
 
@@ -91,22 +91,15 @@ impl<'a> IRGenerator<'a> {
 
         let ident_name = self.ident_name(&ident);
         let obj = env.get(&ident_name);
-        let o_type = self
-            .context
-            .context
-            .def_interner
-            .id_type(ident.id);
+        let o_type = self.context.context.def_interner.id_type(ident.id);
 
         let var = match obj {
             Object::Array(a) => {
                 let obj_type = o_type.into();
                 //We should create an array from 'a' witnesses
-                self.context.mem.create_array_from_object(
-                    &a,
-                    ident.id,
-                    obj_type,
-                    &ident_name,
-                );
+                self.context
+                    .mem
+                    .create_array_from_object(&a, ident.id, obj_type, &ident_name);
                 let array_index = (self.context.mem.arrays.len() - 1) as u32;
                 node::Variable {
                     id: NodeId::dummy(),
@@ -310,9 +303,8 @@ impl<'a> IRGenerator<'a> {
             (HirPattern::Mutable(pattern, _), value) => self.bind_pattern(pattern, value),
             (pattern @ (HirPattern::Tuple(..) | HirPattern::Struct(..)), Value::Struct(exprs)) => {
                 assert_eq!(pattern.field_count(), exprs.len());
-                for ((pattern_name, pattern), (field_name, value)) in pattern
-                    .iter_fields()
-                    .zip(exprs)
+                for ((pattern_name, pattern), (field_name, value)) in
+                    pattern.iter_fields().zip(exprs)
                 {
                     assert_eq!(pattern_name, field_name);
                     self.bind_pattern(pattern, value);
@@ -443,7 +435,11 @@ impl<'a> IRGenerator<'a> {
     }
 
     fn ident_name(&self, ident: &HirIdent) -> String {
-        self.context.context.def_interner.definition_name(ident.id).to_owned()
+        self.context
+            .context
+            .def_interner
+            .definition_name(ident.id)
+            .to_owned()
     }
 
     // Let statements are used to declare higher level objects
@@ -692,7 +688,10 @@ impl<'a> IRGenerator<'a> {
         //We support only const range for now
         let start = self.context.get_as_constant(start_idx).unwrap();
         //TODO how should we handle scope (cf. start/end_for_loop)?
-        let iter_name = self.def_interner().definition_name(for_expr.identifier.id).to_owned();
+        let iter_name = self
+            .def_interner()
+            .definition_name(for_expr.identifier.id)
+            .to_owned();
         let iter_def = for_expr.identifier.id;
         let int_type = self.def_interner().id_type(iter_def);
         env.store(iter_name.clone(), Object::Constants(start));
