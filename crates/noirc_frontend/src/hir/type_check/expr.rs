@@ -1,3 +1,5 @@
+use noirc_errors::Span;
+
 use crate::{
     hir_def::{
         expr::{self, HirBinaryOp, HirExpression, HirLiteral},
@@ -42,21 +44,19 @@ pub(crate) fn type_check_expression(
                     );
 
                     // Check if the array is homogeneous
-                    if first_elem_type != Type::Error {
-                        for (index, elem_type) in elem_types.iter().enumerate().skip(1) {
-                            if *elem_type != first_elem_type && elem_type != &Type::Error {
-                                errors.push(
-                                    TypeCheckError::NonHomogeneousArray {
-                                        first_span: interner.expr_span(&arr.contents[0]),
-                                        first_type: first_elem_type.to_string(),
-                                        first_index: index,
-                                        second_span: interner.expr_span(&arr.contents[index]),
-                                        second_type: elem_type.to_string(),
-                                        second_index: index + 1,
-                                    }
-                                    .add_context("elements in an array must have the same type"),
-                                );
-                            }
+                    for (index, elem_type) in elem_types.iter().enumerate().skip(1) {
+                        if !elem_type.matches(&first_elem_type) {
+                            errors.push(
+                                TypeCheckError::NonHomogeneousArray {
+                                    first_span: interner.expr_span(&arr.contents[0]),
+                                    first_type: first_elem_type.to_string(),
+                                    first_index: index,
+                                    second_span: interner.expr_span(&arr.contents[index]),
+                                    second_type: elem_type.to_string(),
+                                    second_index: index + 1,
+                                }
+                                .add_context("elements in an array must have the same type"),
+                            );
                         }
                     }
 
@@ -93,12 +93,12 @@ pub(crate) fn type_check_expression(
         HirExpression::Index(index_expr) => {
             let ident_def = index_expr.collection_name.id;
             let index_type = type_check_expression(interner, &index_expr.index, errors);
-            if index_type != Type::CONSTANT && index_type != Type::Error {
-                let span = interner.id_span(&index_expr.index);
+
+            if !index_type.matches(&Type::CONSTANT) {
                 errors.push(TypeCheckError::TypeMismatch {
                     expected_typ: "const Field".to_owned(),
                     expr_typ: index_type.to_string(),
-                    expr_span: span,
+                    expr_span: interner.expr_span(&index_expr.index),
                 });
             }
 
@@ -146,20 +146,15 @@ pub(crate) fn type_check_expression(
         }
         HirExpression::Cast(cast_expr) => {
             // Evaluate the LHS
-            let _lhs_type = type_check_expression(interner, &cast_expr.lhs, errors);
-
-            // Then check that the type_of(LHS) can be casted to the RHS
-            // This is currently being done in the evaluator, we should move it all to here
-            // XXX(^) : Move checks for casting from runtime to here
-
-            // type_of(cast_expr) == type_of(cast_type)
-            cast_expr.r#type
+            let lhs_type = type_check_expression(interner, &cast_expr.lhs, errors);
+            let span = interner.expr_span(expr_id);
+            check_cast(lhs_type, cast_expr.r#type, span, errors)
         }
         HirExpression::For(for_expr) => {
             let start_range_type = type_check_expression(interner, &for_expr.start_range, errors);
             let end_range_type = type_check_expression(interner, &for_expr.end_range, errors);
 
-            if start_range_type != Type::FieldElement(FieldElementType::Constant) {
+            if !start_range_type.matches(&Type::CONSTANT) {
                 errors.push(
                     TypeCheckError::TypeCannotBeUsed {
                         typ: start_range_type.clone(),
@@ -170,7 +165,7 @@ pub(crate) fn type_check_expression(
                 );
             }
 
-            if end_range_type != Type::FieldElement(FieldElementType::Constant) {
+            if !end_range_type.matches(&Type::CONSTANT) {
                 errors.push(
                     TypeCheckError::TypeCannotBeUsed {
                         typ: end_range_type.clone(),
@@ -181,18 +176,21 @@ pub(crate) fn type_check_expression(
                 );
             }
 
-            // This check is only needed, if we decide to not have constant range bounds.
-            if start_range_type != end_range_type {
-                unimplemented!("start range and end range have different types.");
-            }
-            // The type of the identifier is equal to the type of the ranges
-            interner.push_definition_type(for_expr.identifier.id, start_range_type);
+            let var_type = if start_range_type.matches(&end_range_type) {
+                start_range_type
+            } else {
+                let msg = format!(
+                    "start range type '{}' does not match the end range type '{}'",
+                    start_range_type, end_range_type
+                );
+                let span = interner.expr_span(&for_expr.end_range);
+                errors.push(TypeCheckError::Unstructured { msg, span });
+                Type::Error
+            };
+
+            interner.push_definition_type(for_expr.identifier.id, var_type);
 
             let last_type = type_check_expression(interner, &for_expr.block, errors);
-
-            // XXX: In the release before this, we were using the start and end range to determine the number
-            // of iterations and marking the type as Fixed. Is this still necessary?
-            // It may be possible to do this properly again, once we do constant folding. Since the range will always be const expr
             Type::Array(
                 // The type is assumed to be private unless the user specifies
                 // that they want to make it public on the LHS with type annotations
@@ -209,7 +207,7 @@ pub(crate) fn type_check_expression(
                 let expr_type = super::stmt::type_check(interner, stmt, errors);
 
                 if i + 1 < statements.len() {
-                    if expr_type != Type::Unit && expr_type != Type::Error {
+                    if !expr_type.matches(&Type::Unit) {
                         let id = match interner.statement(stmt) {
                             crate::hir_def::stmt::HirStatement::Expression(expr) => expr,
                             _ => *expr_id,
@@ -245,6 +243,32 @@ pub(crate) fn type_check_expression(
 
     interner.push_expr_type(expr_id, typ.clone());
     typ
+}
+
+fn check_cast(from: Type, to: Type, span: Span, errors: &mut Vec<TypeCheckError>) -> Type {
+    match to {
+        Type::Integer(..) => (), // valid cast
+        Type::FieldElement(_) => (),
+        Type::Error => return Type::Error,
+        _ => {
+            let msg = "Only integer and Field types may be casted to".into();
+            errors.push(TypeCheckError::Unstructured { msg, span });
+            return Type::Error;
+        }
+    }
+
+    match from {
+        Type::Integer(..) => (),
+        Type::FieldElement(_) => (),
+        Type::Error => return Type::Error,
+        from => {
+            let msg = format!("Cannot cast type {} to a(n) {}", from, to);
+            errors.push(TypeCheckError::Unstructured { msg, span });
+            return Type::Error;
+        }
+    }
+
+    to
 }
 
 fn lookup_method(
@@ -391,7 +415,7 @@ fn check_if_expr(
     let cond_type = type_check_expression(interner, &if_expr.condition, errors);
     let then_type = type_check_expression(interner, &if_expr.consequence, errors);
 
-    if cond_type != Type::Bool {
+    if !cond_type.matches(&Type::Bool) {
         errors.push(TypeCheckError::TypeMismatch {
             expected_typ: Type::Bool.to_string(),
             expr_typ: cond_type.to_string(),
@@ -404,7 +428,7 @@ fn check_if_expr(
         Some(alternative) => {
             let else_type = type_check_expression(interner, &alternative, errors);
 
-            if then_type != else_type {
+            if !then_type.matches(&else_type) {
                 let mut err = TypeCheckError::TypeMismatch {
                     expected_typ: then_type.to_string(),
                     expr_typ: else_type.to_string(),

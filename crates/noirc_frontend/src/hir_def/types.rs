@@ -109,6 +109,14 @@ impl Type {
         }
     }
 
+    /// True if this type 'matches' another. Matching is more strict
+    /// than subtyping but less strict than Eq. In particular, a type
+    /// matches another iff it is exactly equal to the other type or
+    /// either type is the Error type.
+    pub fn matches(&self, other: &Type) -> bool {
+        self == other || self == &Type::Error || other == &Type::Error
+    }
+
     // A feature of the language is that `Field` is like an
     // `Any` type which allows you to pass in any type which
     // is fundamentally a field element. E.g all integer types
