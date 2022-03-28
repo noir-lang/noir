@@ -4,14 +4,14 @@ use noirc_abi::{AbiFEType, AbiType};
 use noirc_errors::Span;
 
 use crate::{
-    node_interner::{FuncId, TypeId},
+    node_interner::{FuncId, StructId},
     util::vecmap,
     ArraySize, FieldElementType, Ident, Signedness,
 };
 
 #[derive(Debug, Eq)]
 pub struct StructType {
-    pub id: TypeId,
+    pub id: StructId,
     pub name: Ident,
     pub fields: Vec<(Ident, Type)>,
     pub methods: HashMap<String, FuncId>,
@@ -25,7 +25,7 @@ impl PartialEq for StructType {
 }
 
 impl StructType {
-    pub fn new(id: TypeId, name: Ident, span: Span, fields: Vec<(Ident, Type)>) -> StructType {
+    pub fn new(id: StructId, name: Ident, span: Span, fields: Vec<(Ident, Type)>) -> StructType {
         StructType {
             id,
             fields,

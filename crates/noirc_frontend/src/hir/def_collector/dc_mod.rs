@@ -2,7 +2,7 @@ use fm::FileId;
 use noirc_errors::{CollectedErrors, CustomDiagnostic, DiagnosableError};
 
 use crate::{
-    graph::CrateId, hir::def_collector::dc_crate::UnresolvedStruct, node_interner::TypeId, Ident,
+    graph::CrateId, hir::def_collector::dc_crate::UnresolvedStruct, node_interner::StructId, Ident,
     NoirFunction, NoirImpl, NoirStruct, ParsedModule,
 };
 
@@ -149,7 +149,7 @@ impl<'a> ModCollector<'a> {
 
             // Create the corresponding module for the struct namespace
             let id = match self.push_child_module(&name, self.file_id, false) {
-                Ok(local_id) => TypeId(ModuleId { krate, local_id }),
+                Ok(local_id) => StructId(ModuleId { krate, local_id }),
                 Err(mut more_errors) => {
                     errors.append(&mut more_errors);
                     continue;

@@ -4,14 +4,14 @@ use std::rc::Rc;
 use acvm::FieldElement;
 use noirc_errors::Span;
 
-use crate::node_interner::{ExprId, FuncId, IdentId, StmtId, TypeId};
+use crate::node_interner::{ExprId, FuncId, StmtId, StructId, DefinitionId};
 use crate::{BinaryOp, BinaryOpKind, Ident, UnaryOp};
 
 use super::types::{StructType, Type};
 
 #[derive(Debug, Clone)]
 pub enum HirExpression {
-    Ident(IdentId),
+    Ident(HirIdent),
     Literal(HirLiteral),
     Block(HirBlockExpression),
     Prefix(HirPrefixExpression),
@@ -35,9 +35,15 @@ impl HirExpression {
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct HirIdent {
+    pub span: Span,
+    pub id: DefinitionId,
+}
+
 #[derive(Debug, Clone)]
 pub struct HirForExpression {
-    pub identifier: IdentId,
+    pub identifier: HirIdent,
     pub start_range: ExprId,
     pub end_range: ExprId,
     pub block: ExprId,
@@ -210,7 +216,7 @@ impl HirMethodCallExpression {
 
 #[derive(Debug, Clone)]
 pub struct HirConstructorExpression {
-    pub type_id: TypeId,
+    pub type_id: StructId,
     pub r#type: Rc<RefCell<StructType>>,
 
     // NOTE: It is tempting to make this a BTreeSet to force ordering of field
@@ -218,12 +224,12 @@ pub struct HirConstructorExpression {
     //       but doing so would force the order of evaluation of field
     //       arguments to be alphabetical rather than the ordering the user
     //       included in the source code.
-    pub fields: Vec<(IdentId, ExprId)>,
+    pub fields: Vec<(Ident, ExprId)>,
 }
 
 #[derive(Debug, Clone)]
 pub struct HirIndexExpression {
-    pub collection_name: IdentId,
+    pub collection_name: HirIdent,
     pub index: ExprId,
 }
 

@@ -56,7 +56,7 @@ pub fn bind_pattern(
     errors: &mut Vec<TypeCheckError>,
 ) {
     match pattern {
-        HirPattern::Identifier(id) => interner.push_ident_type(id, typ),
+        HirPattern::Identifier(ident) => interner.push_definition_type(ident.id, typ),
         HirPattern::Mutable(pattern, _) => bind_pattern(interner, pattern, typ, errors),
         HirPattern::Tuple(_fields, _span) => {
             todo!("Implement tuple types")
@@ -66,11 +66,11 @@ pub fn bind_pattern(
                 let mut pattern_fields = fields.clone();
                 let mut type_fields = inner.borrow().fields.clone();
 
-                pattern_fields.sort_by_key(|(id, _)| interner.ident(id));
+                pattern_fields.sort_by_key(|(ident, _)| ident.clone());
                 type_fields.sort_by_key(|(ident, _)| ident.clone());
 
                 for (pattern_field, type_field) in pattern_fields.into_iter().zip(type_fields) {
-                    assert_eq!(interner.ident(&pattern_field.0), type_field.0);
+                    assert_eq!(&pattern_field.0, &type_field.0);
                     bind_pattern(interner, &pattern_field.1, type_field.1, errors);
                 }
             }
@@ -95,16 +95,23 @@ fn type_check_assign_stmt(
 
     // To get the type of the identifier, we need to get the identifier which defined it
     // once a variable has a type, it cannot be changed
-    if let Some(ident_def) = interner.ident_def(&assign_stmt.identifier) {
-        let identifier_type = interner.id_type(&ident_def);
+    let ident_def = assign_stmt.identifier.id;
+    let identifier_type = interner.id_type(ident_def);
 
-        if expr_type != identifier_type {
-            errors.push(TypeCheckError::TypeMismatch {
-                expected_typ: identifier_type.to_string(),
-                expr_typ: expr_type.to_string(),
-                expr_span: interner.expr_span(&assign_stmt.expression),
-            });
-        }
+    let definition = interner.definition(ident_def);
+    if !definition.mutable {
+        errors.push(TypeCheckError::Unstructured {
+            msg: format!("Variable {} must be mutable to be assigned to", definition.name),
+            span: assign_stmt.identifier.span,
+        });
+    }
+
+    if expr_type != identifier_type {
+        errors.push(TypeCheckError::TypeMismatch {
+            expected_typ: identifier_type.to_string(),
+            expr_typ: expr_type.to_string(),
+            expr_span: interner.expr_span(&assign_stmt.expression),
+        });
     }
 }
 
