@@ -25,11 +25,9 @@ impl PartialWitnessGenerator for Plonk {
                 Gate::Arithmetic(arith) => {
                     ArithmeticSolver::solve(initial_witness, arith);
                 }
-                Gate::Range(_, _) => {
-                    // We do not need to solve for this gate, we have passed responsibility to the underlying
-                    // proof system for intermediate witness generation
-                    ()
-                }
+                // We do not need to solve for this gate, we have passed responsibility to the underlying
+                // proof system for intermediate witness generation
+                Gate::Range(_, _) => (),
                 Gate::And(and_gate) => {
                     LogicSolver::solve_and_gate(initial_witness, and_gate);
                 }
@@ -44,7 +42,7 @@ impl PartialWitnessGenerator for Plonk {
                         let val = initial_witness[x];
                         let inverse = val.inverse();
                         initial_witness.insert(*result, inverse);
-                    },
+                    }
                     Directive::Quotient { a, b, q, r } => {
                         let val_a = initial_witness[a];
                         let val_b = initial_witness[b];
@@ -54,14 +52,10 @@ impl PartialWitnessGenerator for Plonk {
                         let int_r = &int_a % &int_b;
                         let int_q = &int_a / &int_b;
 
-                        initial_witness.insert(
-                            *q,
-                            FieldElement::from_be_bytes_reduce(&int_q.to_bytes_be()),
-                        );
-                        initial_witness.insert(
-                            *r,
-                            FieldElement::from_be_bytes_reduce(&int_r.to_bytes_be()),
-                        );
+                        initial_witness
+                            .insert(*q, FieldElement::from_be_bytes_reduce(&int_q.to_bytes_be()));
+                        initial_witness
+                            .insert(*r, FieldElement::from_be_bytes_reduce(&int_r.to_bytes_be()));
                     }
                     Directive::Truncate { a, b, c, bit_size } => {
                         let val_a = initial_witness[a];
@@ -71,15 +65,11 @@ impl PartialWitnessGenerator for Plonk {
                         let int_b: BigUint = &int_a % &pow;
                         let int_c: BigUint = (&int_a - &int_b) / &pow;
 
-                        initial_witness.insert(
-                            *b,
-                            FieldElement::from_be_bytes_reduce(&int_b.to_bytes_be()),
-                        );
-                        initial_witness.insert(
-                            *c,
-                            FieldElement::from_be_bytes_reduce(&int_c.to_bytes_be()),
-                        );
-                    },
+                        initial_witness
+                            .insert(*b, FieldElement::from_be_bytes_reduce(&int_b.to_bytes_be()));
+                        initial_witness
+                            .insert(*c, FieldElement::from_be_bytes_reduce(&int_c.to_bytes_be()));
+                    }
                     Directive::Oddrange { a, b, r, bit_size } => {
                         let val_a = initial_witness[a];
                         let int_a = BigUint::from_bytes_be(&val_a.to_bytes());
@@ -89,15 +79,11 @@ impl PartialWitnessGenerator for Plonk {
                         let int_r = &int_a - &bb;
                         let int_b = &bb >> (bit_size - 1);
 
-                        initial_witness.insert(
-                            *b,
-                            FieldElement::from_be_bytes_reduce(&int_b.to_bytes_be()),
-                        );
-                        initial_witness.insert(
-                            *r,
-                            FieldElement::from_be_bytes_reduce(&int_r.to_bytes_be()),
-                        );
-                    },
+                        initial_witness
+                            .insert(*b, FieldElement::from_be_bytes_reduce(&int_b.to_bytes_be()));
+                        initial_witness
+                            .insert(*r, FieldElement::from_be_bytes_reduce(&int_r.to_bytes_be()));
+                    }
                 },
             }
         }

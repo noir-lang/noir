@@ -21,10 +21,7 @@ enum MulTerm {
 
 impl ArithmeticSolver {
     /// Derives the rest of the witness based on the initial low level variables
-    pub fn solve<'a>(
-        initial_witness: &mut BTreeMap<Witness, FieldElement>,
-        gate: &'a Arithmetic,
-    ) {
+    pub fn solve(initial_witness: &mut BTreeMap<Witness, FieldElement>, gate: &Arithmetic) {
         // Evaluate multiplication term
         let mul_result = ArithmeticSolver::solve_mul_term(gate, initial_witness);
         // Evaluate the fan-in terms
