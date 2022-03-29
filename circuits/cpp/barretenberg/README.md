@@ -1,6 +1,6 @@
 ## Barretenberg, an optimized elliptic curve library for the bn128 curve, and PLONK SNARK prover
 
-**this code is highly experimental, use at your own risk!**
+**This code is highly experimental, use at your own risk!**
 
 The structured reference string contains monomials up to x^{2^20}. This SRS was generated locally and is for testing and development purposes only!
 
