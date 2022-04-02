@@ -82,3 +82,17 @@ impl HirPattern {
         }
     }
 }
+
+/// Represents an Ast form that can be assigned to
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum HirLValue {
+    Ident(Ident),
+    MemberAccess {
+        object: Box<LValue>,
+        field_name: Ident,
+    },
+    Index {
+        array: Box<LValue>,
+        index: Expression,
+    },
+}

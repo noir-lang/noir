@@ -302,7 +302,7 @@ impl<'a> Resolver<'a> {
                 self.interner.push_stmt(stmt)
             }
             Statement::Assign(assign_stmt) => {
-                let identifier = self.find_variable(&assign_stmt.identifier);
+                let identifier = self.find_variable(&assign_stmt.lvalue);
                 let expression = self.resolve_expression(assign_stmt.expression);
                 let stmt = HirAssignStatement {
                     identifier,
