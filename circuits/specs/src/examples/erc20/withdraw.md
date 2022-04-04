@@ -14,7 +14,7 @@ Withdrawal is an example of a [L2 --> L1 call](../../architecture/contracts/l1-c
     - We don't need a 'success' callback in this example. If the money is successfully transferred, nothing else needs to happen on L2 after the L1 call succeeds (the money has already been nullified on L2).
     - We add a 'failure' callback to reinstate the private value note containing the `amount`, if the L1 tx fails.
       - This failure callback can either be a public function or private, depending on the developer's preferences. It can be public, since the 'amount' and 'recipient' are already public knowledge by this point. But it could also be private, which would then allow the user to hide that the callback has even been executed.
-        - In particular, in this example, the `customPublicInputs` will need to contain the `amount` and maybe also the `recipient`, as a way of forcing the callback to only reinstate the correct amount to the correct user.
+        - In particular, in this example, the `customPublicInputs` to the callback will need to contain the `amount` and maybe also the `recipient`, as a way of forcing the callback to only reinstate the correct amount to the correct user. Alternatively, the public input could have been the replacement commitment itself, which could have been created by the withdrawal circuit.
 - Recall that the initial call to L1 must go via the Portal Contract
   - ...So the Portal Contract will receive a call from RollupProcessor.sol
   - If successful, it will return some result data (of variable size), and the RollupProcessor will sha256 hash this data (the amount of data to hash might need to be bounded to prevent griefing attacks).

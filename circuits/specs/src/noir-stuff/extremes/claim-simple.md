@@ -30,7 +30,6 @@ contract L1_Portal_Contract {
 contract My_Contract_1 {
     secret mapping(address => uint) token_balances_a; // user => balance
     secret mapping(address => uint) token_balances_b; // user => balance
-    // interaction_id => (secret_slot => amount):
     mapping(uint => uint) total_deposits_a; // interaction_id => amount
     mapping(uint => uint) claimable_amounts_a; // interaction_id => amount
     mapping(uint => uint) claimable_amounts_b; // interaction_id => amount
@@ -48,6 +47,7 @@ contract My_Contract_1 {
         // a value into a secret storage slot, without them learning the owner,
         // secret, or (in the case of mappings/arrays) the storageSlot.
     }
+    // interaction_id => (secret_slot => amount):
     mapping(uint => mapping(secret_slot => DepositLog)) deposit_logs_a; 
 
 

@@ -1,0 +1,57 @@
+#pragma once
+#include <stddef.h>
+
+namespace aztec3 {
+
+constexpr size_t CUSTOM_PUBLIC_INPUTS_LENGTH = 8;
+constexpr size_t CUSTOM_OUTPUTS_LENGTH = 4;
+constexpr size_t EMITTED_PUBLIC_INPUTS_LENGTH = 4;
+constexpr size_t EMITTED_OUTPUTS_LENGTH = 4;
+
+constexpr size_t OUTPUT_COMMITMENTS_LENGTH = 4;
+constexpr size_t INPUT_NULLIFIERS_LENGTH = 4;
+
+constexpr size_t STATE_TRANSITIONS_LENGTH = 4;
+constexpr size_t STATE_READS_LENGTH = 4;
+
+constexpr size_t PRIVATE_CALL_STACK_LENGTH = 4;
+constexpr size_t PUBLIC_CALL_STACK_LENGTH = 4;
+constexpr size_t CONTRACT_DEPLOYMENT_CALL_STACK_LENGTH = 2;
+constexpr size_t PARTIAL_L1_CALL_STACK_LENGTH = 2;
+constexpr size_t CALLBACK_STACK_LENGTH = PARTIAL_L1_CALL_STACK_LENGTH;
+
+// Enumerate the hash_indices which are used for pedersen hashing
+// Start from 1 to avoid the default generators.
+enum GeneratorIndex {
+    COMMITMENT,
+    COMMITMENT_PLACEHOLDER, // for omitting some elements of the commitment when partially committing.
+    OUTER_COMMITMENT,
+    NULLIFIER_HASHED_PRIVATE_KEY,
+    NULLIFIER,
+    OUTER_NULLIFIER,
+    CONTRACT_ADDRESS,
+    FUNCTION_SIGNATURE,
+    CALL_ARGS,
+    L1_RESULT_PLACEHOLDER,
+    CALL_CONTEXT,
+    CALL_STACK_ITEM,
+    CALLBACK_STACK_ITEM,
+};
+
+// Enumerate the hash_sub_indices which are used for committing to private state note preimages.
+// Start from 1.
+enum PrivateStateNoteGeneratorIndex {
+    MAPPING_SLOT = 1,
+    MAPPING_SLOT_PLACEHOLDER, // for omitting some mapping key values when partially committing.
+    VALUE,
+    OWNER,
+    CREATOR,
+    SALT,
+    INPUT_NULLIFIER,
+    MEMO,
+    IS_REAL,
+};
+
+enum PrivateStateType { PARTITIONED = 1, WHOLE };
+
+} // namespace aztec3
