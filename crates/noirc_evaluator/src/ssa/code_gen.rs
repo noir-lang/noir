@@ -191,9 +191,9 @@ impl<'a> IRGenerator<'a> {
                 self.handle_let_statement(env, let_stmt)
             }
             HirStatement::Assign(assign_stmt) => {
-                let ident_def = self.def_interner().ident_def(&assign_stmt.identifier);
+                let ident_def = self.def_interner().ident_def(&assign_stmt.lvalue);
                 //////////////TODO temp this is needed because we don't parse main arguments
-                let ident_name = self.ident_name(&assign_stmt.identifier);
+                let ident_name = self.ident_name(&assign_stmt.lvalue);
 
                 let rhs = self.expression_to_object(env, &assign_stmt.expression)?;
 
@@ -205,7 +205,7 @@ impl<'a> IRGenerator<'a> {
                 } else {
                     //var is not defined,
                     //let's do it here for now...TODO
-                    let typ = self.def_interner().id_type(&assign_stmt.identifier);
+                    let typ = self.def_interner().id_type(&assign_stmt.lvalue);
                     self.bind_fresh_pattern(&ident_name, &typ, rhs);
                 }
 

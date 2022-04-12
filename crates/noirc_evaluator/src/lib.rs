@@ -346,7 +346,7 @@ impl<'a> Evaluator<'a> {
                 self.handle_definition(env, &let_stmt.pattern, &let_stmt.expression)
             }
             HirStatement::Assign(assign_stmt) => {
-                let ident = HirPattern::Identifier(assign_stmt.identifier);
+                let ident = HirPattern::Identifier(assign_stmt.lvalue);
                 self.handle_definition(env, &ident, &assign_stmt.expression)
             }
             HirStatement::Error => unreachable!(

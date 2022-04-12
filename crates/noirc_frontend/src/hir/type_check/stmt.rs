@@ -1,5 +1,7 @@
+use noirc_errors::Span;
+
 use crate::hir_def::stmt::{
-    HirAssignStatement, HirConstrainStatement, HirLetStatement, HirPattern, HirStatement,
+    HirAssignStatement, HirConstrainStatement, HirLetStatement, HirPattern, HirStatement, HirLValue,
 };
 use crate::hir_def::types::Type;
 use crate::node_interner::{ExprId, NodeInterner, StmtId};
@@ -92,19 +94,62 @@ fn type_check_assign_stmt(
     errors: &mut Vec<TypeCheckError>,
 ) {
     let expr_type = type_check_expression(interner, &assign_stmt.expression, errors);
+    let span = interner.expr_span(&assign_stmt.expression);
+    let lvalue_type = type_check_lvalue(interner, assign_stmt.lvalue, span, errors);
+}
 
-    // To get the type of the identifier, we need to get the identifier which defined it
-    // once a variable has a type, it cannot be changed
-    if let Some(ident_def) = interner.ident_def(&assign_stmt.identifier) {
-        let identifier_type = interner.id_type(&ident_def);
+fn type_check_lvalue(
+    interner: &mut NodeInterner,
+    lvalue: HirLValue,
+    assign_span: Span,
+    errors: &mut Vec<TypeCheckError>
+) -> Type {
+    match lvalue {
+        HirLValue::Ident(id) => {
+            if let Some(ident_def) = interner.ident_def(&id) {
+                interner.id_type(&ident_def)
+            } else {
+                Type::Error
+            }
+        },
+        HirLValue::MemberAccess { object, field_name } => {
+            let field_name = interner.ident_name(&field_name);
 
-        if !expr_type.matches(&identifier_type) {
-            errors.push(TypeCheckError::TypeMismatch {
-                expected_typ: identifier_type.to_string(),
-                expr_typ: expr_type.to_string(),
-                expr_span: interner.expr_span(&assign_stmt.expression),
-            });
-        }
+            let error = |typ| {
+                errors.push(TypeCheckError::Unstructured {
+                    msg: format!("Type {} has no member named {}", typ, field_name),
+                    span: assign_span,
+                });
+                Type::Error
+            };
+
+            match type_check_lvalue(interner, *object, assign_span, errors){
+                typ@Type::Struct(_, def) => {
+                    if let Some(field) = def.borrow().get_field(&field_name) {
+                        field.clone()
+                    } else {
+                        error(typ)
+                    }
+                }
+                Type::Error => Type::Error,
+                other => error(other),
+            }
+        },
+        HirLValue::Index { array, index } => {
+            match type_check_lvalue(interner, *array, assign_span, errors){
+                Type::Array(_, _, elem_type) => *elem_type,
+                Type::Error => Type::Error,
+                other => {
+                    // TODO: Need a better span here
+                    errors.push(TypeCheckError::TypeMismatch {
+                        expected_typ: "an array".to_string(),
+                        expr_typ: other.to_string(),
+                        expr_span: assign_span,
+                    });
+                    Type::Error
+                },
+            }
+        },
     }
 }
 
