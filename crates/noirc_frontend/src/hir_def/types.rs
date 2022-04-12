@@ -36,7 +36,8 @@ impl StructType {
     }
 
     pub fn get_field(&self, field_name: &str) -> Option<&Type> {
-        self.fields.iter()
+        self.fields
+            .iter()
             .find(|(name, _)| name.0.contents == field_name)
             .map(|(_, typ)| typ)
     }

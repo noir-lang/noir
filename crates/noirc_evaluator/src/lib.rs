@@ -16,8 +16,8 @@ use acvm::FieldElement;
 use acvm::Language;
 use environment::{Environment, FuncContext};
 use errors::{RuntimeError, RuntimeErrorKind};
-use noirc_frontend::hir::Context;
 use noirc_frontend::node_interner::{ExprId, FuncId, IdentId, StmtId};
+use noirc_frontend::{hir::Context, hir_def::stmt::HirLValue};
 use noirc_frontend::{
     hir_def::{
         expr::{
@@ -346,7 +346,12 @@ impl<'a> Evaluator<'a> {
                 self.handle_definition(env, &let_stmt.pattern, &let_stmt.expression)
             }
             HirStatement::Assign(assign_stmt) => {
-                let ident = HirPattern::Identifier(assign_stmt.lvalue);
+                let ident = HirPattern::Identifier(match assign_stmt.lvalue {
+                    HirLValue::Ident(ident) => ident,
+                    HirLValue::MemberAccess { .. } => unimplemented!(),
+                    HirLValue::Index { .. } => unimplemented!(),
+                });
+
                 self.handle_definition(env, &ident, &assign_stmt.expression)
             }
             HirStatement::Error => unreachable!(

@@ -11,7 +11,7 @@ use acvm::FieldElement;
 use noirc_frontend::hir::Context;
 use noirc_frontend::hir_def::expr::{HirConstructorExpression, HirMemberAccess};
 use noirc_frontend::hir_def::function::HirFunction;
-use noirc_frontend::hir_def::stmt::HirPattern;
+use noirc_frontend::hir_def::stmt::{HirLValue, HirPattern};
 use noirc_frontend::hir_def::{
     expr::{HirBinaryOp, HirBinaryOpKind, HirExpression, HirForExpression, HirLiteral},
     stmt::{HirConstrainStatement, HirLetStatement, HirStatement},
@@ -191,9 +191,8 @@ impl<'a> IRGenerator<'a> {
                 self.handle_let_statement(env, let_stmt)
             }
             HirStatement::Assign(assign_stmt) => {
-                let ident_def = self.def_interner().ident_def(&assign_stmt.lvalue);
-                //////////////TODO temp this is needed because we don't parse main arguments
-                let ident_name = self.ident_name(&assign_stmt.lvalue);
+                //////////////TODO name is needed because we don't parse main arguments
+                let (ident_def, ident_name) = self.lvalue_ident_def_and_name(&assign_stmt.lvalue);
 
                 let rhs = self.expression_to_object(env, &assign_stmt.expression)?;
 
@@ -205,7 +204,7 @@ impl<'a> IRGenerator<'a> {
                 } else {
                     //var is not defined,
                     //let's do it here for now...TODO
-                    let typ = self.def_interner().id_type(&assign_stmt.lvalue);
+                    let typ = self.lvalue_type(&assign_stmt.lvalue);
                     self.bind_fresh_pattern(&ident_name, &typ, rhs);
                 }
 
@@ -214,6 +213,25 @@ impl<'a> IRGenerator<'a> {
             HirStatement::Error => unreachable!(
                 "ice: compiler did not exit before codegen when a statement failed to parse"
             ),
+        }
+    }
+
+    fn lvalue_type(&self, lvalue: &HirLValue) -> Type {
+        match lvalue {
+            HirLValue::Ident(id) => self.def_interner().id_type(id),
+            HirLValue::MemberAccess { .. } => unimplemented!(),
+            HirLValue::Index { .. } => unimplemented!(),
+        }
+    }
+
+    fn lvalue_ident_def_and_name(&self, lvalue: &HirLValue) -> (Option<IdentId>, String) {
+        match lvalue {
+            HirLValue::Ident(id) => {
+                let def = self.def_interner().ident_def(id);
+                (def, self.ident_name(id))
+            }
+            HirLValue::MemberAccess { .. } => unimplemented!(),
+            HirLValue::Index { .. } => unimplemented!(),
         }
     }
 

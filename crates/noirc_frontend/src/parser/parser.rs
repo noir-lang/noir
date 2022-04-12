@@ -363,7 +363,7 @@ fn assignment<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
 {
-    let failable = lvalue()
+    let failable = lvalue(expr_parser.clone())
         .then_ignore(just(Token::Assign))
         .labelled("statement");
 
@@ -380,14 +380,17 @@ enum LValueRhs {
     Index(Expression),
 }
 
-fn lvalue() -> impl NoirParser<LValue> {
+fn lvalue<'a, P>(expr_parser: P) -> impl NoirParser<LValue>
+where
+    P: ExprParser + 'a,
+{
     let l_ident = ident().map(LValue::Ident);
 
     let l_member_rhs = just(Token::Dot)
         .ignore_then(ident())
         .map(LValueRhs::MemberAccess);
 
-    let l_index = expression()
+    let l_index = expr_parser
         .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
         .map(LValueRhs::Index);
 

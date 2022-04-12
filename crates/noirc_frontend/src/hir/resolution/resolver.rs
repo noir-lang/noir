@@ -30,7 +30,7 @@ use std::rc::Rc;
 use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId};
 use crate::hir_def::expr::HirExpression;
-use crate::hir_def::stmt::{HirAssignStatement, HirPattern, HirLValue};
+use crate::hir_def::stmt::{HirAssignStatement, HirLValue, HirPattern};
 use crate::node_interner::{ExprId, FuncId, IdentId, NodeInterner, StmtId, TypeId};
 use crate::util::vecmap;
 use crate::{
@@ -38,7 +38,7 @@ use crate::{
     BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
     Statement,
 };
-use crate::{NoirStruct, Path, Pattern, StructType, Type, UnresolvedType, ERROR_IDENT, LValue};
+use crate::{LValue, NoirStruct, Path, Pattern, StructType, Type, UnresolvedType, ERROR_IDENT};
 use noirc_errors::{Span, Spanned};
 
 use crate::hir::scope::{
@@ -321,12 +321,12 @@ impl<'a> Resolver<'a> {
                 let object = Box::new(self.resolve_lvalue(*object));
                 let field_name = self.interner.push_ident(field_name);
                 HirLValue::MemberAccess { object, field_name }
-            },
+            }
             LValue::Index { array, index } => {
                 let array = Box::new(self.resolve_lvalue(*array));
                 let index = self.resolve_expression(index);
                 HirLValue::Index { array, index }
-            },
+            }
         }
     }
 
