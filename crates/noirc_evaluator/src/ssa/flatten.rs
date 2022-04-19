@@ -459,31 +459,20 @@ pub fn inline_in_block(
         let mut cloned_ins = None;
         let mut array_func = None;
         let mut array_func_idx = u32::MAX;
-        if let Some(ins) = ctx.get_function_context(func_id)
-            .try_get_instruction(i_id)
-        {
+        if let Some(ins) = ctx.get_function_context(func_id).try_get_instruction(i_id) {
             cloned_ins = Some(ins.clone());
             if let node::ObjectType::Pointer(a) = ins.res_type {
                 //Arrays are mapped to array
-                array_func =
-                    Some(ctx.get_function_context(func_id).mem.arrays[a as usize].clone());
+                array_func = Some(ctx.get_function_context(func_id).mem.arrays[a as usize].clone());
                 array_func_idx = a;
             }
         }
 
         if let Some(clone) = cloned_ins {
-            let new_left = function::SSAFunction::get_mapped_value(
-                func_id,
-                Some(&clone.lhs),
-                ctx,
-                inline_map,
-            );
-            let new_right = function::SSAFunction::get_mapped_value(
-                func_id,
-                Some(&clone.rhs),
-                ctx,
-                inline_map,
-            );
+            let new_left =
+                function::SSAFunction::get_mapped_value(func_id, Some(&clone.lhs), ctx, inline_map);
+            let new_right =
+                function::SSAFunction::get_mapped_value(func_id, Some(&clone.rhs), ctx, inline_map);
             let new_arg = function::SSAFunction::get_mapped_value(
                 func_id,
                 clone.ins_arguments.first(),
@@ -492,7 +481,22 @@ pub fn inline_in_block(
             );
             //create the array if not mapped
             if let Some(a) = array_func {
-                if !array_map.contains_key(&array_func_idx) {
+                // if !array_map.contains_key(&array_func_idx) {
+                //     let i_pointer = ctx.mem.create_new_array(a.len, a.element_type, &a.name);
+                //     //We populate the array (if possible) using the inline map
+                //     for i in &a.values {
+                //         if let Some(f) = i.to_const() {
+                //             ctx.mem.arrays[i_pointer as usize]
+                //                 .values
+                //                 .push(super::acir_gen::InternalVar::from(f));
+                //         }
+                //         //todo: else use inline map.
+                //     }
+                //     array_map.insert(array_func_idx, i_pointer);
+                // }
+                if let std::collections::hash_map::Entry::Vacant(e) =
+                    array_map.entry(array_func_idx)
+                {
                     let i_pointer = ctx.mem.create_new_array(a.len, a.element_type, &a.name);
                     //We populate the array (if possible) using the inline map
                     for i in &a.values {
@@ -503,11 +507,8 @@ pub fn inline_in_block(
                         }
                         //todo: else use inline map.
                     }
-                    array_map.insert(array_func_idx, i_pointer);
-                    dbg!(&i_pointer);
-                    dbg!(&ctx.mem.arrays[i_pointer as usize]);
-                    dbg!(&a.values);
-                }
+                    e.insert(i_pointer);
+                };
             }
 
             match clone.operator {
@@ -515,8 +516,7 @@ pub fn inline_in_block(
                 //Return instruction:
                 Operation::Ret => {
                     //we need to find the corresponding result instruction in the target block (using ins.rhs) and replace it by ins.lhs
-                    if let Some(ret_id) =
-                        ctx[target_block_id].get_result_instruction(call_id, ctx)
+                    if let Some(ret_id) = ctx[target_block_id].get_result_instruction(call_id, ctx)
                     {
                         //we support only one result for now, should use 'ins.lhs.get_value()'
                         if let node::NodeObj::Instr(i) = &mut ctx[ret_id] {
@@ -547,12 +547,8 @@ pub fn inline_in_block(
                     let index_type = ctx[new_left].get_type();
                     let offset_id =
                         ctx.get_or_create_const(FieldElement::from(offset as i128), index_type);
-                    let adr_id = ctx.new_instruction(
-                        offset_id,
-                        new_left,
-                        node::Operation::Add,
-                        index_type,
-                    );
+                    let adr_id =
+                        ctx.new_instruction(offset_id, new_left, node::Operation::Add, index_type);
                     let new_ins = node::Instruction::new(
                         node::Operation::Load(array_map[&a]),
                         adr_id,
@@ -566,18 +562,13 @@ pub fn inline_in_block(
                 }
                 Operation::Store(a) => {
                     let b = array_map[&a];
-                    let offset = ctx.get_function_context(func_id).mem.arrays[a as usize]
-                        .adr
+                    let offset = ctx.get_function_context(func_id).mem.arrays[a as usize].adr
                         - ctx.mem.arrays[b as usize].adr;
                     let index_type = ctx[new_left].get_type();
                     let offset_id =
                         ctx.get_or_create_const(FieldElement::from(offset as i128), index_type);
-                    let adr_id = ctx.new_instruction(
-                        offset_id,
-                        new_left,
-                        node::Operation::Add,
-                        index_type,
-                    );
+                    let adr_id =
+                        ctx.new_instruction(offset_id, new_left, node::Operation::Add, index_type);
                     let new_ins = node::Instruction::new(
                         node::Operation::Store(array_map[&a]),
                         new_left,
@@ -606,10 +597,12 @@ pub fn inline_in_block(
                     let mut to_delete = false;
                     if new_ins.is_deleted {
                         result_id = new_ins.rhs;
-                        if array_map.contains_key(&array_func_idx) {
+                        if let std::collections::hash_map::Entry::Occupied(mut e) =
+                            array_map.entry(array_func_idx)
+                        {
                             if let node::ObjectType::Pointer(a) = ctx[result_id].get_type() {
                                 //we now map the array to rhs array
-                                array_map.insert(array_func_idx, a);
+                                e.insert(a);
                             }
                         }
                         if new_ins.rhs == new_ins.id {

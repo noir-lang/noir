@@ -136,7 +136,6 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut node::Instruction) {
             if let Operation::Intrinsic(op) = ins.operator {
                 ins.rhs = evaluate_intrinsic(ctx, op, l_const, r_const);
                 ins.is_deleted = true;
-                return;
             }
         }
     }

@@ -9,9 +9,10 @@ use noirc_frontend::hir_def::stmt::HirPattern;
 use noirc_frontend::node_interner::FuncId;
 
 use super::{
-    ssa_form,
+    code_gen::IRGenerator,
     context::SsaContext,
-    node::{self, ObjectType, NodeId}, code_gen::IRGenerator,
+    node::{self, NodeId, ObjectType},
+    ssa_form,
 };
 
 pub struct SSAFunction<'a> {
@@ -80,7 +81,10 @@ impl<'a> SSAFunction<'a> {
                 return node_id;
             }
             let mut my_const = None;
-            let node_obj_opt = ctx.functions_cfg[&func_id].igen.context.try_get_node(node_id);
+            let node_obj_opt = ctx.functions_cfg[&func_id]
+                .igen
+                .context
+                .try_get_node(node_id);
             if let Some(node::NodeObj::Const(c)) = node_obj_opt {
                 my_const = Some((c.get_value_field(), c.value_type));
             }
@@ -124,7 +128,7 @@ pub fn call_low_level(
 
     for arg in &call_expr.arguments {
         if let Ok(lhs) = igen.expression_to_object(env, arg) {
-            args.push(lhs.unwrap_id());     //TODO handle multiple values
+            args.push(lhs.unwrap_id()); //TODO handle multiple values
         } else {
             panic!("error calling {}", op);
         }

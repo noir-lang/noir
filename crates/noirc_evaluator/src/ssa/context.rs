@@ -2,12 +2,12 @@ use super::block::{BasicBlock, BlockId};
 use super::mem::Memory;
 use super::node::{Instruction, NodeId, NodeObj, ObjectType, Operation};
 use super::{block, flatten, integer, node, optim};
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashMap, HashSet};
 
 use super::super::errors::RuntimeError;
 use crate::ssa::acir_gen::Acir;
-use crate::ssa::node::Node;
 use crate::ssa::function;
+use crate::ssa::node::Node;
 use crate::Evaluator;
 use acvm::FieldElement;
 use noirc_frontend::hir::Context;
@@ -114,14 +114,12 @@ impl<'a> SsaContext<'a> {
             f.1.igen.context.print();
             //  ins_nb += b.instructions.len();
         }
-       // println!("*** TOTAL: {} instructions", ins_nb);
+        // println!("*** TOTAL: {} instructions", ins_nb);
     }
 
     pub fn context(&self) -> &'a Context {
         self.context
     }
-
-
 
     pub fn remove_block(&mut self, block: BlockId) {
         self.blocks.remove(block.0);
@@ -185,7 +183,6 @@ impl<'a> SsaContext<'a> {
         None
     }
 
-    
     pub fn get_function(&self, func_id: FuncId) -> Option<&'a function::SSAFunction> {
         if self.functions_cfg.contains_key(&func_id) {
             return Some(&self.functions_cfg[&func_id]);
@@ -199,8 +196,6 @@ impl<'a> SsaContext<'a> {
         }
         panic!("Invalid function id");
     }
-
-
 
     //todo handle errors
     fn get_instruction(&self, id: NodeId) -> &node::Instruction {
@@ -264,7 +259,6 @@ impl<'a> SsaContext<'a> {
         }
         id
     }
-
 
     pub fn new_instruction(
         &mut self,

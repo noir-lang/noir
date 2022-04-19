@@ -1,6 +1,6 @@
 
 # List of tests to be excluded (i.e not run), as their directory name in test_data
-exclude = ["6_array"]
+exclude = [] # 1_mul", "2_div", "3_add", "4_sub","5_over","6_array"
 
 # List of tests (as their directory name in test_data) expecting to fail: if the test pass, we report an error.
 fail = []

@@ -7,8 +7,8 @@ use std::collections::HashMap;
 use super::super::environment::Environment;
 use super::super::errors::{RuntimeError, RuntimeErrorKind};
 use crate::object::Object;
-use crate::ssa::{acir_gen::Acir, function};
-use crate::Evaluator;
+
+use crate::ssa::function;
 use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use noirc_frontend::hir::Context;
@@ -19,11 +19,9 @@ use noirc_frontend::hir_def::{
     expr::{HirBinaryOp, HirBinaryOpKind, HirExpression, HirForExpression, HirLiteral},
     stmt::{HirConstrainStatement, HirLetStatement, HirStatement},
 };
-use noirc_frontend::node_interner::{ExprId, FuncId, IdentId, NodeInterner, StmtId};
+use noirc_frontend::node_interner::{ExprId, IdentId, NodeInterner, StmtId};
 use noirc_frontend::util::vecmap;
-use noirc_frontend::{FunctionKind, IndexExpression, Type};
-use num_bigint::BigUint;
-use num_traits::{One, Zero};
+use noirc_frontend::{FunctionKind, Type};
 
 pub struct IRGenerator<'a> {
     pub context: SsaContext<'a>,
@@ -55,15 +53,12 @@ pub fn evaluate_main<'a>(
     igen: &mut IRGenerator<'a>,
     env: &mut Environment,
     main_func_body: HirFunction, //main function
-)// -> Result<SsaContext<'a>, RuntimeError>
- {
- //   let mut this = IRGenerator::new(context);
+) -> Result<(), RuntimeError> {
     let block = main_func_body.block(igen.def_interner());
     for stmt_id in block.statements() {
-        igen.evaluate_statement(env, stmt_id);
-    } 
- 
-  //  Ok(igen.context)
+        igen.evaluate_statement(env, stmt_id)?;
+    }
+    Ok(())
 }
 
 impl<'a> IRGenerator<'a> {
@@ -89,15 +84,23 @@ impl<'a> IRGenerator<'a> {
         }
     }
 
-
-    pub fn abi_array(&mut self, name: &String, ident_def: IdentId, el_type: Type, len: u128, witness: Vec<acvm::acir::native_types::Witness>){
-        self.context.mem.create_new_array(len as u32, el_type.into(), name);
+    pub fn abi_array(
+        &mut self,
+        name: &str,
+        ident_def: IdentId,
+        el_type: Type,
+        len: u128,
+        witness: Vec<acvm::acir::native_types::Witness>,
+    ) {
+        self.context
+            .mem
+            .create_new_array(len as u32, el_type.into(), name);
         let array_idx = (self.context.mem.arrays.len() - 1) as usize;
         self.context.mem.arrays[array_idx].def = ident_def;
-        self.context.mem.arrays[array_idx].values = vecmap(witness, |w| w.into() );
+        self.context.mem.arrays[array_idx].values = vecmap(witness, |w| w.into());
         let pointer = node::Variable {
             id: NodeId::dummy(),
-            name: name.clone(),
+            name: name.to_string(),
             obj_type: node::ObjectType::Pointer(array_idx as u32),
             root: None,
             def: Some(ident_def),
@@ -110,31 +113,35 @@ impl<'a> IRGenerator<'a> {
             .update_variable(v_id, v_id);
 
         let v_value = Value::Single(v_id);
-        self.variable_values.insert(ident_def, v_value);    //TODO ident_def or ident_id??
-
+        self.variable_values.insert(ident_def, v_value); //TODO ident_def or ident_id??
     }
 
-    pub fn abi_var(&mut self, name: &String, ident_def: IdentId, obj_type: node::ObjectType, witness: acvm::acir::native_types::Witness)  {
+    pub fn abi_var(
+        &mut self,
+        name: &str,
+        ident_def: IdentId,
+        obj_type: node::ObjectType,
+        witness: acvm::acir::native_types::Witness,
+    ) {
         //new variable - should be in a let statement? The let statement should set the type
-            let var = node::Variable {
-                id: NodeId::dummy(),
-                name: name.clone(),
-                obj_type,
-                root: None,
-                def: Some(ident_def),
-                witness: Some(witness),
-                parent_block: self.context.current_block,
-            };
-            let v_id = self.context.add_variable(var, None);
-            self.context
-                .get_current_block_mut()
-                .update_variable(v_id, v_id);
-                
-            let v_value = Value::Single(v_id);
-            dbg!(&v_value);
-            self.variable_values.insert(ident_def, v_value);    //TODO ident_def or ident_id??
-           
-dbg!(&ident_def);
+        let var = node::Variable {
+            id: NodeId::dummy(),
+            name: name.to_string(),
+            obj_type,
+            root: None,
+            def: Some(ident_def),
+            witness: Some(witness),
+            parent_block: self.context.current_block,
+        };
+        let v_id = self.context.add_variable(var, None);
+
+        self.context
+            .get_current_block_mut()
+            .update_variable(v_id, v_id);
+        dbg!(&self.context.get_current_block_mut());
+        let v_value = Value::Single(v_id);
+        dbg!(&v_value);
+        self.variable_values.insert(ident_def, v_value); //TODO ident_def or ident_id??
     }
 
     fn evaluate_identifier(&mut self, env: &mut Environment, ident_id: &IdentId) -> Value {
@@ -143,8 +150,8 @@ dbg!(&ident_def);
             let value = value.clone();
             return self.get_current_value(&value);
         }
-
-        let ident_name = dbg!(self.ident_name(ident_id));
+        let ident_name = self.ident_name(ident_id);
+        dbg!(&ident_name);
         let obj = env.get(&ident_name);
         let o_type = self
             .context
@@ -261,8 +268,8 @@ dbg!(&ident_def);
                 } else {
                     //var is not defined,
                     //let's do it here for now...TODO
-                  //  let obj = env.get(&ident_name);
-                 //   let obj_type = node::ObjectType::get_type_from_object(&obj);
+                    //  let obj = env.get(&ident_name);
+                    //   let obj_type = node::ObjectType::get_type_from_object(&obj);
                     let typ = self.def_interner().id_type(&ident_def.unwrap());
                     self.bind_fresh_pattern(&ident_name, &typ, rhs);
                 }
@@ -279,20 +286,26 @@ dbg!(&ident_def);
         &mut self,
         var_name: String,
         def: Option<IdentId>,
-        env: &mut Environment,
+        obj_type: node::ObjectType,
+        witness: Option<acvm::acir::native_types::Witness>,
     ) -> NodeId {
-        let obj = env.get(&var_name);
-        let obj_type = node::ObjectType::get_type_from_object(&obj);
+        dbg!(&var_name);
+        dbg!(&def);
         let new_var = node::Variable {
             id: NodeId::dummy(),
             obj_type,
             name: var_name,
             root: None,
             def,
-            witness: node::get_witness_from_object(&obj),
+            witness,
             parent_block: self.context.current_block,
         };
-        self.context.add_variable(new_var, None)
+        let v_id = self.context.add_variable(new_var, None);
+        if let Some(ident_def) = def {
+            let v_value = Value::Single(v_id);
+            self.variable_values.insert(ident_def, v_value);
+        }
+        v_id
     }
 
     // Add a constraint to constrain two expression together
@@ -386,12 +399,7 @@ dbg!(&ident_def);
     /// of creating fresh variables to expand `ident = (a, b, ...)` to `(i_a, i_b, ...) = (a, b, ...)`
     ///
     /// This function could use a clearer name
-    fn bind_fresh_pattern(
-        &mut self,
-        basename: &str,
-        typ: &Type,
-        value: Value,
-    ) -> Value {
+    fn bind_fresh_pattern(&mut self, basename: &str, typ: &Type, value: Value) -> Value {
         match value {
             Value::Single(node_id) => self.bind_variable(basename.to_owned(), None, typ, node_id),
             Value::Struct(field_values) => {
@@ -493,18 +501,12 @@ dbg!(&ident_def);
                     node::Operation::Ass,
                     r_type,
                 );
-                
                 self.update_variable_id(ls_root, new_var_id, result); //update the name and the value map
-                dbg!(&result);
-                Value::Single(result)
+                Value::Single(new_var_id)
             }
             (Value::Struct(lhs_fields), Value::Struct(rhs_fields)) => {
                 assert_eq!(lhs_fields.len(), rhs_fields.len());
-                // for (lhs_field, rhs_field) in lhs_fields.iter().zip(rhs_fields) {
-                //     assert_eq!(lhs_field.0, rhs_field.0);
-                //     self.assign_pattern(&lhs_field.1, rhs_field.1);
-                // }
-                let f = vecmap(lhs_fields.into_iter().zip(rhs_fields),
+                let f = vecmap(lhs_fields.iter().zip(rhs_fields),
                 |(lhs_field, rhs_field)| {
                      assert_eq!(lhs_field.0, rhs_field.0);
                 (rhs_field.0, self.assign_pattern(&lhs_field.1, rhs_field.1))
@@ -818,10 +820,10 @@ dbg!(&ident_def);
         let iter_name = self.def_interner().ident_name(&for_expr.identifier);
         let iter_def = self.def_interner().ident_def(&for_expr.identifier);
         let int_type = self.def_interner().id_type(&for_expr.identifier);
-
-        let iter_id = self.create_new_variable(iter_name, iter_def, env);
-        let iter_var = self.context.get_mut_variable(iter_id).unwrap();
         let iter_type = int_type.into();
+        let iter_id = self.create_new_variable(iter_name, iter_def, iter_type, None);
+        let iter_var = self.context.get_mut_variable(iter_id).unwrap();
+
         iter_var.obj_type = iter_type;
         let iter_ass =
             self.context
@@ -848,7 +850,6 @@ dbg!(&ident_def);
             node::Operation::Jeq,
             node::ObjectType::NotAnObject,
         );
-
         //Body
         let body_id = block::new_sealed_block(&mut self.context, block::BlockType::Normal);
         let block = match self.def_interner().expression(&for_expr.block) {
@@ -872,7 +873,6 @@ dbg!(&ident_def);
         let cur_block_id = self.context.current_block; //It should be the body block, except if the body has CFG statements
         let cur_block = &mut self.context[cur_block_id];
         cur_block.update_variable(iter_id, incr);
-
         //body.left = join
         cur_block.left = Some(join_idx);
         let join_mut = &mut self.context[join_idx];
@@ -886,7 +886,6 @@ dbg!(&ident_def);
         );
         //seal join
         ssa_form::seal_block(&mut self.context, join_idx);
-
         //exit block
         self.context.current_block = exit_id;
         let exit_first = self.context.get_current_block().get_first_instruction();

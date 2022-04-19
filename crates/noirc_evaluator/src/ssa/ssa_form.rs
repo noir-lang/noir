@@ -1,11 +1,10 @@
 use noirc_frontend::ArraySize;
 
-use crate::{environment::Environment, object::Object};
-
 use super::{
     block::BlockId,
+    code_gen::IRGenerator,
     context::SsaContext,
-    node::{self, NodeId}, code_gen::IRGenerator,
+    node::{self, NodeId},
 };
 
 // create phi arguments from the predecessors of the block (containing phi)
@@ -15,7 +14,6 @@ pub fn write_phi(ctx: &mut SsaContext, predecessors: &[BlockId], var: NodeId, ph
         let v = get_current_value_in_block(ctx, var, *b);
         result.push((v, *b));
     }
-
     let s2 = node::Instruction::simplify_phi(phi, &result);
     if let Some(phi_ins) = ctx.try_get_mut_instruction(phi) {
         assert!(phi_ins.phi_arguments.is_empty());
@@ -70,6 +68,7 @@ pub fn get_block_value(ctx: &mut SsaContext, root: NodeId, block_id: BlockId) ->
             get_block_value(ctx, root, pred[0])
         } else {
             let result = ctx.generate_empty_phi(block_id, root);
+            ctx[block_id].update_variable(root, result);
             write_phi(ctx, &pred, root, result);
             result
         }
@@ -93,62 +92,8 @@ pub fn get_current_value_in_block(
 }
 
 //Returns the current SSA value of a variable, recursively
-// pub fn get_current_value(igen: &mut IRGenerator, var_id: NodeId) -> NodeId {
-//     get_current_value_in_block(igen, var_id, igen.current_block)
-// }
 pub fn get_current_value(ctx: &mut SsaContext, var_id: NodeId) -> NodeId {
     get_current_value_in_block(ctx, var_id, ctx.current_block)
-}
-
-pub fn evaluate_identifier(
-    igen: &mut IRGenerator,
-    env: &mut Environment,
-    ident_id: &noirc_frontend::node_interner::IdentId,
-) -> NodeId {
-    let ident_name = igen.context.context().def_interner.ident_name(ident_id);
-    let ident_def = igen.context.context().def_interner.ident_def(ident_id);
-    let o_type = igen.context.context().def_interner.id_type(ident_def.unwrap());
-    //check if the variable is already created:
-    if let Some(var) = igen.find_variable(ident_def) {
-        let id = var.unwrap_id();   //TODO handle multiple values
-        return get_current_value(&mut igen.context, id);
-    }
-    let obj = env.get(&ident_name);
-    let obj = match obj {
-        Object::Array(a) => {
-            let obj_type = o_type.into();//node::ObjectType::from_type(&o_type);
-            //We should create an array from 'a' witnesses
-            igen.context.mem
-                .create_array_from_object(&a, ident_def.unwrap(), obj_type, &ident_name);
-            let array_index = (igen.context.mem.arrays.len() - 1) as u32;
-            node::Variable {
-                id: NodeId::dummy(),
-                name: ident_name.clone(),
-                obj_type: node::ObjectType::Pointer(array_index),
-                root: None,
-                def: ident_def,
-                witness: None,
-                parent_block: igen.context.current_block,
-            }
-        }
-        _ => {
-            let obj_type = node::ObjectType::get_type_from_object(&obj);
-            //new variable - should be in a let statement? The let statement should set the type
-            node::Variable {
-                id: NodeId::dummy(),
-                name: ident_name.clone(),
-                obj_type,
-                root: None,
-                def: ident_def,
-                witness: node::get_witness_from_object(&obj),
-                parent_block: igen.context.current_block,
-            }
-        }
-    };
-
-    let v_id = igen.context.add_variable(obj, None);
-    igen.context.get_current_block_mut().update_variable(v_id, v_id);
-    v_id
 }
 
 fn get_array_size(array_size: &ArraySize) -> u32 {
@@ -164,18 +109,23 @@ pub fn create_function_parameter(
 ) -> NodeId {
     let ident_name = igen.context.context().def_interner.ident_name(ident_id);
     let ident_def = igen.context.context().def_interner.ident_def(ident_id);
-    let o_type = igen.context.context().def_interner.id_type(ident_def.unwrap());
+    let o_type = igen
+        .context
+        .context()
+        .def_interner
+        .id_type(ident_def.unwrap());
     //check if the variable is already created:
     if let Some(var) = igen.find_variable(ident_def) {
-        let id = var.unwrap_id();   //TODO handle multiple values
+        let id = var.unwrap_id(); //TODO handle multiple values
         return get_current_value(&mut igen.context, id);
     }
     let obj_type = node::ObjectType::from(&o_type);
     let obj = match o_type {
         noirc_frontend::Type::Array(_, len, _) => {
-            let array_idx = igen.context
-                .mem
-                .create_new_array(get_array_size(&len), obj_type, &ident_name);
+            let array_idx =
+                igen.context
+                    .mem
+                    .create_new_array(get_array_size(&len), obj_type, &ident_name);
             node::Variable {
                 id: NodeId::dummy(),
                 name: ident_name.clone(),
@@ -191,7 +141,7 @@ pub fn create_function_parameter(
             node::Variable {
                 id: NodeId::dummy(),
                 name: ident_name.clone(),
-                obj_type: obj_type,
+                obj_type,
                 root: None,
                 def: ident_def,
                 witness: None,
@@ -200,6 +150,8 @@ pub fn create_function_parameter(
         }
     };
     let v_id = igen.context.add_variable(obj, None);
-    igen.context.get_current_block_mut().update_variable(v_id, v_id);
+    igen.context
+        .get_current_block_mut()
+        .update_variable(v_id, v_id);
     v_id
 }

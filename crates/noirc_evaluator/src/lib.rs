@@ -30,6 +30,7 @@ use noirc_frontend::{
 };
 use noirc_frontend::{FunctionKind, Type};
 use object::{Array, Integer, Object, RangedObject};
+use ssa::{code_gen::IRGenerator, node};
 pub struct Evaluator<'a> {
     // Why is this not u64?
     //
@@ -101,7 +102,8 @@ impl<'a> Evaluator<'a> {
         if interactive {
             self.evaluate_main_alt(&mut env, interactive)?;
         } else {
-            self.evaluate_main(&mut env)?;
+            // self.evaluate_main(&mut env)?;
+            self.evaluate_main_alt(&mut env, false)?;
         }
 
         let witness_index = self.current_witness_index();
@@ -200,14 +202,15 @@ impl<'a> Evaluator<'a> {
         env: &mut Environment,
         interactive: bool,
     ) -> Result<(), RuntimeError> {
-        self.parse_abi(env)?;
+        let mut igen = IRGenerator::new(self.context);
+        self.parse_abi_alt(env, &mut igen)?;
 
         // Now call the main function
         let main_func_body = self.context.def_interner.function(&self.main_function);
-        let mut ssa = ssa::code_gen::evaluate_main(self.context, env, main_func_body)?;
+        ssa::code_gen::evaluate_main(&mut igen, env, main_func_body)?;
 
         //Generates ACIR representation:
-        ssa.ir_to_acir(self, interactive)?;
+        igen.context.ir_to_acir(self, interactive)?;
         Ok(())
     }
 
@@ -315,6 +318,115 @@ impl<'a> Evaluator<'a> {
                 }
             }
         }
+
+        Ok(())
+    }
+
+    /// The ABI is the intermediate representation between Noir and types like Toml
+    /// Noted in the noirc_abi, it is possible to convert Toml -> NoirTypes
+    /// However, this intermediate representation is useful as it allows us to have
+    /// intermediate Types which the core type system does not know about like Strings.
+    fn parse_abi_alt(
+        &mut self,
+        _env: &mut Environment,
+        igen: &mut IRGenerator,
+    ) -> Result<(), RuntimeError> {
+        // XXX: Currently, the syntax only supports public witnesses
+        // u8 and arrays are assumed to be private
+        // This is not a short-coming of the ABI, but of the grammar
+        // The new grammar has been conceived, and will be implemented.
+
+        let func_meta = self.context.def_interner.function_meta(&self.main_function);
+        // XXX: We make the span very general here, so an error will underline all of the parameters in the span
+        // This maybe not be desireable in the long run, because we want to point to the exact place
+        let param_span = func_meta.parameters.span(&self.context.def_interner);
+        for param in &func_meta.parameters.0 {
+            match param.0 {
+                HirPattern::Identifier(ident_id) => {
+                    let name = self.context.def_interner.ident_name(&ident_id);
+                    let ident_def = self.context.def_interner.ident_def(&ident_id);
+                    match &param.1 {
+                        Type::FieldElement(ft) => {
+                            let witness = self.add_witness_to_cs();
+                            if ft.strict_eq(&FieldElementType::Public) {
+                                self.public_inputs.push(witness);
+                            }
+                            igen.abi_var(
+                                &name,
+                                ident_def.unwrap(),
+                                node::ObjectType::NativeField,
+                                witness,
+                            );
+                        }
+                        Type::Array(ft, array_size, typ) => {
+                            let mut witnesses = Vec::new();
+                            let mut element_width = None;
+                            if let Type::Integer(_, _, width) = typ.as_ref() {
+                                element_width = Some(*width);
+                            }
+                            match array_size.clone() {
+                                noirc_frontend::ArraySize::Variable => {
+                                    panic!("cannot have variable sized array in entry point")
+                                }
+                                noirc_frontend::ArraySize::Fixed(len) => {
+                                    for _ in 0..len {
+                                        let witness = self.add_witness_to_cs();
+                                        witnesses.push(witness);
+                                        if let Some(ww) = element_width {
+                                            ssa::acir_gen::range_constraint(witness, ww, self)
+                                                .map_err(|e| e.add_span(param_span))?;
+                                        }
+                                        if ft.strict_eq(&FieldElementType::Public) {
+                                            self.public_inputs.push(witness);
+                                        }
+                                    }
+                                    igen.abi_array(
+                                        &name,
+                                        ident_def.unwrap(),
+                                        *typ.clone(),
+                                        len,
+                                        witnesses,
+                                    );
+                                }
+                            }
+                        }
+                        Type::Integer(ft, sign, width) => {
+                            let witness = self.add_witness_to_cs();
+                            ssa::acir_gen::range_constraint(witness, *width, self)
+                                .map_err(|e| e.add_span(param_span))?;
+                            if ft.strict_eq(&FieldElementType::Public) {
+                                self.public_inputs.push(witness);
+                            }
+                            match sign {
+                                noirc_frontend::Signedness::Unsigned => igen.abi_var(
+                                    &name,
+                                    ident_def.unwrap(),
+                                    node::ObjectType::Unsigned(*width),
+                                    witness,
+                                ),
+                                noirc_frontend::Signedness::Signed => igen.abi_var(
+                                    &name,
+                                    ident_def.unwrap(),
+                                    node::ObjectType::Signed(*width),
+                                    witness,
+                                ),
+                            }
+                        }
+                        Type::Bool => todo!(),
+                        Type::Unit => todo!(),
+                        Type::Struct(_, _) => todo!(),
+                        Type::Tuple(_) => todo!(),
+                        Type::Error => todo!(),
+                        Type::Unspecified => todo!(),
+                    }
+                }
+                HirPattern::Mutable(_, _) => todo!(),
+                HirPattern::Tuple(_, _) => todo!(),
+                HirPattern::Struct(_, _, _) => todo!(),
+            }
+        }
+
+        //      self.public_inputs.clear();
 
         Ok(())
     }
