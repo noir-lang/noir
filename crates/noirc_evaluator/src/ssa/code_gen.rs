@@ -697,7 +697,7 @@ impl<'a> IRGenerator<'a> {
                     "cannot find a low level opcode with the name {} in the IR",
                     opcode_name
                 );
-                unreachable!(message);
+                unreachable!("{}", message);
             }
             Some(func) => func,
         };
