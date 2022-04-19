@@ -30,6 +30,8 @@ impl PartialWitnessGenerator for Plonk {
                 Gate::Arithmetic(arith) => {
                     ArithmeticSolver::solve(initial_witness, arith).is_some()
                 }
+                // We do not need to solve for this gate, we have passed responsibility to the underlying
+                // proof system for intermediate witness generation
                 Gate::Range(_, _) => {
                     // We do not need to solve for this gate, we have passed responsibility to the underlying
                     // proof system for intermediate witness generation
@@ -37,19 +39,16 @@ impl PartialWitnessGenerator for Plonk {
                 }
                 Gate::And(and_gate) => {
                     LogicSolver::solve_and_gate(initial_witness, and_gate);
-
                     // We compute the result because the other gates may want to use the assignment to generate their assignments
                     false
                 }
                 Gate::Xor(xor_gate) => {
                     LogicSolver::solve_xor_gate(initial_witness, xor_gate);
-
                     // We compute the result because the other gates may want to use the assignment to generate their assignments
                     false
                 }
                 Gate::GadgetCall(gc) => {
                     GadgetCaller::solve_gadget_call(initial_witness, gc)?;
-
                     false
                 }
                 Gate::Directive(directive) => match directive {
@@ -61,12 +60,12 @@ impl PartialWitnessGenerator for Plonk {
                             false
                         }
                     },
+
                     Directive::Quotient { a, b, q, r } => {
                         match (initial_witness.get(a), initial_witness.get(b)) {
                             (Some(val_a), Some(val_b)) => {
                                 let int_a = BigUint::from_bytes_be(&val_a.to_bytes());
                                 let int_b = BigUint::from_bytes_be(&val_b.to_bytes());
-
                                 let int_r = &int_a % &int_b;
                                 let int_q = &int_a / &int_b;
 

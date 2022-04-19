@@ -262,8 +262,6 @@ impl ObjectType {
         }
     }
 
-
-
     pub fn bits(&self) -> u32 {
         match self {
             ObjectType::Boolean => 1,

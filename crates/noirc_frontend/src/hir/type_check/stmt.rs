@@ -98,7 +98,7 @@ fn type_check_assign_stmt(
     if let Some(ident_def) = interner.ident_def(&assign_stmt.identifier) {
         let identifier_type = interner.id_type(&ident_def);
 
-        if expr_type != identifier_type {
+        if !expr_type.matches(&identifier_type) {
             errors.push(TypeCheckError::TypeMismatch {
                 expected_typ: identifier_type.to_string(),
                 expr_typ: expr_type.to_string(),
@@ -177,7 +177,7 @@ fn type_check_declaration(
 
     // Now check if LHS is the same type as the RHS
     // Importantly, we do not co-erce any types implicitly
-    if annotated_type != expr_type {
+    if !annotated_type.matches(&expr_type) {
         let expr_span = interner.expr_span(&rhs_expr);
         errors.push(TypeCheckError::TypeMismatch {
             expected_typ: annotated_type.to_string(),
@@ -186,7 +186,5 @@ fn type_check_declaration(
         });
     }
 
-    // At this point annotated type and user specified type are the same
-    // so we can return either. Cloning a Type is Cheap and may eventually be Copy
     expr_type
 }
