@@ -598,9 +598,15 @@ impl<'a> Evaluator<'a> {
             }
             HirExpression::Index(indexed_expr) => {
                 // Currently these only happen for arrays
-                let arr_name = self.context.def_interner.ident_name(&indexed_expr.collection_name);
-                let ident_span = self.context.def_interner.ident_span(&indexed_expr.collection_name);
+                let collection_name = match self.context.def_interner.expression(&indexed_expr.collection) {
+                    HirExpression::Ident(id) => id,
+                    other => unimplemented!("Array indexing with an lhs of '{:?}' is unimplemented in the interpreter, you must use an expression in the form `identifier[expression]` for now.", other)
+                };
+
+                let arr_name = self.context.def_interner.ident_name(&collection_name);
+                let ident_span = self.context.def_interner.ident_span(&collection_name);
                 let arr = env.get_array(&arr_name).map_err(|kind|kind.add_span(ident_span))?;
+
                 //
                 // Evaluate the index expression
                 let index_as_obj = self.expression_to_object(env, &indexed_expr.index)?;

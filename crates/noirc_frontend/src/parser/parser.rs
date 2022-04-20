@@ -379,10 +379,6 @@ fn parse_type() -> impl NoirParser<UnresolvedType> {
 }
 
 fn parse_type_no_field_element() -> impl NoirParser<UnresolvedType> {
-    // NOTE: Technically since we disallow multidimensional arrays our type parser
-    // does not strictly need to be recursive - we could manually unroll it by
-    // only parsing an integer or field type as our array elements. If/when Noir's
-    // types become truly recursive though this will be necessary
     recursive(|type_parser| parse_type_with_visibility(no_visibility(), type_parser))
 }
 
@@ -471,19 +467,9 @@ where
         .then(fixed_array_size().or_not())
         .then_ignore(just(Token::RightBracket))
         .then(type_parser)
-        .try_map(|((visibility, size), element_type), span| {
-            if let UnresolvedType::Array(..) = &element_type {
-                return Err(ParserError::with_reason(
-                    "Multi-dimensional arrays are currently unsupported".to_string(),
-                    span,
-                ));
-            }
+        .map(|((visibility, size), element_type)| {
             let size = size.unwrap_or(ArraySize::Variable);
-            Ok(UnresolvedType::Array(
-                visibility,
-                size,
-                Box::new(element_type),
-            ))
+            UnresolvedType::Array(visibility, size, Box::new(element_type))
         })
 }
 
@@ -558,16 +544,50 @@ where
     P: ExprParser + 'a,
 {
     recursive(move |term_parser| {
-        choice((
-            if_expr(expr_parser.clone()),
-            for_expr(expr_parser.clone()),
-            array_expr(expr_parser.clone()),
-            not(term_parser.clone()),
-            negation(term_parser),
-            block(expr_parser.clone()).map(ExpressionKind::Block),
-        ))
-        .map_with_span(Expression::new)
-        .or(value_or_cast(expr_parser))
+        choice((not(term_parser.clone()), negation(term_parser)))
+            .map_with_span(Expression::new)
+            // right-unary operators like a[0] or a.f bind more tightly than left-unary
+            // operators like  - or !, so that !a[0] is parsed as !(a[0]). This is a bit
+            // awkward for casts so -a as i32 actually binds as -(a as i32).
+            .or(atom_or_right_unary(expr_parser))
+    })
+}
+
+fn atom_or_right_unary<'a, P>(expr_parser: P) -> impl NoirParser<Expression> + 'a
+where
+    P: ExprParser + 'a,
+{
+    enum UnaryRhs {
+        ArrayIndex(Expression),
+        Cast(UnresolvedType),
+        MemberAccess((Ident, Option<Vec<Expression>>)),
+    }
+
+    // `[expr]` in `arr[expr]`
+    let array_rhs = expr_parser
+        .clone()
+        .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
+        .map(UnaryRhs::ArrayIndex);
+
+    // `as Type` in `atom as Type`
+    let cast_rhs = keyword(Keyword::As)
+        .ignore_then(parse_type_no_field_element())
+        .map(UnaryRhs::Cast)
+        .labelled("cast");
+
+    // `.foo` or `.foo(args)` in `atom.foo` or `atom.foo(args)`
+    let member_rhs = just(Token::Dot)
+        .ignore_then(field_name())
+        .then(parenthesized(expression_list(expr_parser.clone())).or_not())
+        .map(UnaryRhs::MemberAccess)
+        .labelled("field access");
+
+    let rhs = choice((array_rhs, cast_rhs, member_rhs));
+
+    foldl_with_span(atom(expr_parser), rhs, |lhs, rhs, span| match rhs {
+        UnaryRhs::ArrayIndex(index) => Expression::index(lhs, index, span),
+        UnaryRhs::Cast(r#type) => Expression::cast(lhs, r#type, span),
+        UnaryRhs::MemberAccess(field) => Expression::member_access_or_method_call(lhs, field, span),
     })
 }
 
@@ -657,21 +677,24 @@ where
         .map(|rhs| ExpressionKind::prefix(UnaryOp::Minus, rhs))
 }
 
-fn value<P>(expr_parser: P) -> impl NoirParser<Expression>
+fn atom<'a, P>(expr_parser: P) -> impl NoirParser<Expression> + 'a
 where
-    P: ExprParser,
+    P: ExprParser + 'a,
 {
     choice((
         function_call(expr_parser.clone()),
-        array_access(expr_parser.clone()),
+        if_expr(expr_parser.clone()),
+        for_expr(expr_parser.clone()),
+        array_expr(expr_parser.clone()),
         constructor(expr_parser.clone()),
+        block(expr_parser.clone()).map(ExpressionKind::Block),
         variable(),
         literal(),
     ))
     .map_with_span(Expression::new)
     .or(parenthesized(expr_parser.clone()))
     .or(tuple(expr_parser))
-    .labelled("value")
+    .labelled("atom")
 }
 
 fn tuple<P>(expr_parser: P) -> impl NoirParser<Expression>
@@ -680,23 +703,6 @@ where
 {
     parenthesized(expression_list(expr_parser))
         .map_with_span(|elements, span| Expression::new(ExpressionKind::Tuple(elements), span))
-}
-
-// Parses a value followed by 0 or more member accesses or method calls
-fn member_access<P>(expr_parser: P) -> impl NoirParser<Expression>
-where
-    P: ExprParser,
-{
-    let rhs = just(Token::Dot)
-        .ignore_then(field_name())
-        .then(parenthesized(expression_list(expr_parser.clone())).or_not())
-        .labelled("field access");
-
-    foldl_with_span(
-        value(expr_parser),
-        rhs,
-        Expression::member_access_or_method_call,
-    )
 }
 
 fn field_name() -> impl NoirParser<Ident> {
@@ -710,18 +716,6 @@ fn field_name() -> impl NoirParser<Ident> {
             }
         }),
     )
-}
-
-// Parses a member_access followed by 0 or more cast expressions
-fn value_or_cast<P>(expr_parser: P) -> impl NoirParser<Expression>
-where
-    P: ExprParser,
-{
-    let cast_rhs = keyword(Keyword::As)
-        .ignore_then(parse_type_no_field_element())
-        .labelled("cast");
-
-    foldl_with_span(member_access(expr_parser), cast_rhs, Expression::cast)
 }
 
 fn function_call<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
@@ -753,15 +747,6 @@ where
     let long_form = ident().then_ignore(just(Token::Colon)).then(expr_parser);
     let short_form = ident().map(|ident| (ident.clone(), ident.into()));
     long_form.or(short_form)
-}
-
-fn array_access<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
-where
-    P: ExprParser,
-{
-    ident()
-        .then(expr_parser.delimited_by(just(Token::LeftBracket), just(Token::RightBracket)))
-        .map(|(variable, index)| ExpressionKind::index(variable, index))
 }
 
 fn variable() -> impl NoirParser<ExpressionKind> {
@@ -904,16 +889,22 @@ mod test {
     #[test]
     fn parse_cast() {
         parse_all(
-            value_or_cast(expression()),
+            atom_or_right_unary(expression()),
             vec!["x as u8", "0 as Field", "(x + 3) as [8]Field"],
         );
-        parse_all_failing(value_or_cast(expression()), vec!["x as pub u8"]);
+        parse_all_failing(atom_or_right_unary(expression()), vec!["x as pub u8"]);
     }
 
     #[test]
     fn parse_array_index() {
-        let valid = vec!["x[9]", "y[x+a]", " foo [foo+5]", "baz[bar]"];
-        parse_all(array_access(expression()), valid);
+        let valid = vec![
+            "x[9]",
+            "y[x+a]",
+            " foo [foo+5]",
+            "baz[bar]",
+            "foo.bar[3] as Field .baz as i32 [7]",
+        ];
+        parse_all(atom_or_right_unary(expression()), valid);
     }
 
     fn expr_to_array(expr: ExpressionKind) -> ArrayLiteral {
@@ -1072,11 +1063,11 @@ mod test {
     #[test]
     fn parse_parenthesized_expression() {
         parse_all(
-            value(expression()),
+            atom(expression()),
             vec!["(0)", "(x+a)", "({(({{({(nested)})}}))})"],
         );
 
-        parse_all_failing(value(expression()), vec!["(x+a", "((x+a)", "(,)"]);
+        parse_all_failing(atom(expression()), vec!["(x+a", "((x+a)", "(,)"]);
     }
 
     #[test]

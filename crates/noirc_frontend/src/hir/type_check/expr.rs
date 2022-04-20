@@ -94,34 +94,31 @@ pub(crate) fn type_check_expression(
             }
         }
         HirExpression::Index(index_expr) => {
-            if let Some(ident_def) = interner.ident_def(&index_expr.collection_name) {
-                let index_type = type_check_expression(interner, &index_expr.index, errors);
-                if !index_type.matches(&Type::CONSTANT) {
-                    let span = interner.id_span(&index_expr.index);
+            let index_type = type_check_expression(interner, &index_expr.index, errors);
+            if !index_type.matches(&Type::CONSTANT) {
+                let span = interner.id_span(&index_expr.index);
+                errors.push(TypeCheckError::TypeMismatch {
+                    expected_typ: "const Field".to_owned(),
+                    expr_typ: index_type.to_string(),
+                    expr_span: span,
+                });
+            }
+
+            let lhs_type = type_check_expression(interner, &index_expr.collection, errors);
+            match lhs_type {
+                // XXX: We can check the array bounds here also, but it may be better to constant fold first
+                // and have ConstId instead of ExprId for constants
+                Type::Array(_, _, base_type) => *base_type,
+                Type::Error => Type::Error,
+                typ => {
+                    let span = interner.id_span(&index_expr.collection);
                     errors.push(TypeCheckError::TypeMismatch {
-                        expected_typ: "const Field".to_owned(),
-                        expr_typ: index_type.to_string(),
+                        expected_typ: "Array".to_owned(),
+                        expr_typ: typ.to_string(),
                         expr_span: span,
                     });
+                    Type::Error
                 }
-
-                match interner.id_type(&ident_def) {
-                    // XXX: We can check the array bounds here also, but it may be better to constant fold first
-                    // and have ConstId instead of ExprId for constants
-                    Type::Array(_, _, base_type) => *base_type,
-                    Type::Error => Type::Error,
-                    typ => {
-                        let span = interner.id_span(&index_expr.collection_name);
-                        errors.push(TypeCheckError::TypeMismatch {
-                            expected_typ: "Array".to_owned(),
-                            expr_typ: typ.to_string(),
-                            expr_span: span,
-                        });
-                        Type::Error
-                    }
-                }
-            } else {
-                Type::Error
             }
         }
         HirExpression::Call(call_expr) => {

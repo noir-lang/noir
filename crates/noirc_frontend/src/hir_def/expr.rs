@@ -223,7 +223,7 @@ pub struct HirConstructorExpression {
 
 #[derive(Debug, Clone)]
 pub struct HirIndexExpression {
-    pub collection_name: IdentId,
+    pub collection: ExprId,
     pub index: ExprId,
 }
 

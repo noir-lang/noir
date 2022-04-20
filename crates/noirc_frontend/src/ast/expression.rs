@@ -75,13 +75,6 @@ impl ExpressionKind {
         ExpressionKind::Constructor(Box::new(ConstructorExpression { type_name, fields }))
     }
 
-    pub fn index(collection_name: Ident, index: Expression) -> ExpressionKind {
-        ExpressionKind::Index(Box::new(IndexExpression {
-            collection_name,
-            index,
-        }))
-    }
-
     /// Returns true if the expression is a literal integer
     pub fn is_integer(&self) -> bool {
         self.as_integer().is_some()
@@ -175,11 +168,14 @@ impl Expression {
         Expression::new(kind, span)
     }
 
+    pub fn index(collection: Expression, index: Expression, span: Span) -> Expression {
+        let kind = ExpressionKind::Index(Box::new(IndexExpression { collection, index }));
+        Expression::new(kind, span)
+    }
+
     pub fn cast(lhs: Expression, r#type: UnresolvedType, span: Span) -> Expression {
-        Expression {
-            kind: ExpressionKind::Cast(Box::new(CastExpression { lhs, r#type })),
-            span,
-        }
+        let kind = ExpressionKind::Cast(Box::new(CastExpression { lhs, r#type }));
+        Expression::new(kind, span)
     }
 }
 
@@ -385,7 +381,7 @@ pub struct MemberAccessExpression {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct IndexExpression {
-    pub collection_name: Ident, // XXX: For now, this will be the name of the array, as we do not support other collections
+    pub collection: Expression, // XXX: For now, this will be the name of the array, as we do not support other collections
     pub index: Expression, // XXX: We accept two types of indices, either a normal integer or a constant
 }
 
@@ -483,7 +479,7 @@ impl Display for UnaryOp {
 
 impl Display for IndexExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}[{}]", self.collection_name, self.index)
+        write!(f, "{}[{}]", self.collection, self.index)
     }
 }
 
