@@ -4,14 +4,14 @@ use super::RuntimeError;
 use crate::object::Object;
 use crate::{Environment, Evaluator};
 use acvm::acir::circuit::gate::{GadgetCall, Gate};
-use acvm::acir::OPCODE;
+use acvm::acir::OpCode;
 use noirc_frontend::hir_def::expr::HirCallExpression;
 
 pub struct InsertRegularMerkleGadget;
 
 impl GadgetCaller for InsertRegularMerkleGadget {
-    fn name() -> OPCODE {
-        OPCODE::InsertRegularMerkle
+    fn name() -> OpCode {
+        OpCode::InsertRegularMerkle
     }
 
     fn call(

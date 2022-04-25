@@ -292,7 +292,7 @@ impl<'a> SsaContext<'a> {
             | Operation::Constrain(_)
             | Operation::Store(_) => ObjectType::NotAnObject,
             Operation::Load(adr) => self.mem.arrays[adr as usize].element_type,
-            Operation::Cast | Operation::Trunc => unreachable!("cannot determine result type"),
+            Operation::Cast | Operation::Truncate => unreachable!("cannot determine result type"),
             _ => lhs_type,
         }
     }

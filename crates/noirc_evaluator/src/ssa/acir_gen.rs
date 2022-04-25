@@ -195,10 +195,14 @@ impl Acir {
                 InternalVar::from(evaluate_xor(l_c, r_c, ins.res_type.bits(), evaluator))
             }
             Operation::Cast => l_c.clone(),
-            Operation::Ass | Operation::Jne | Operation::Jeq | Operation::Jmp | Operation::Phi => {
+            Operation::Assign
+            | Operation::Jne
+            | Operation::Jeq
+            | Operation::Jmp
+            | Operation::Phi => {
                 todo!("invalid instruction");
             }
-            Operation::Trunc => {
+            Operation::Truncate => {
                 assert!(is_const(&r_c.expression));
                 InternalVar::from(evaluate_truncate(
                     l_c,

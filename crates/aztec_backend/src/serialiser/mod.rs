@@ -7,7 +7,7 @@ use crate::barretenberg_rs::composer::{
 };
 use acvm::acir::circuit::{Circuit, Gate};
 use acvm::acir::native_types::Arithmetic;
-use acvm::acir::OPCODE;
+use acvm::acir::OpCode;
 use acvm::FieldElement;
 
 /// Converts an `IR` into the `StandardFormat` constraint system
@@ -59,7 +59,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
             }
             Gate::GadgetCall(gadget_call) => {
                 match gadget_call.name {
-                    OPCODE::SHA256 => {
+                    OpCode::SHA256 => {
                         let mut sha256_inputs: Vec<(i32, i32)> = Vec::new();
                         for input in gadget_call.inputs.iter() {
                             let witness_index = input.witness.witness_index() as i32;
@@ -86,7 +86,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
 
                         sha256_constraints.push(sha256_constraint);
                     }
-                    OPCODE::Blake2s => {
+                    OpCode::Blake2s => {
                         let mut blake2s_inputs: Vec<(i32, i32)> = Vec::new();
                         for input in gadget_call.inputs.iter() {
                             let witness_index = input.witness.witness_index() as i32;
@@ -113,7 +113,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
 
                         blake2s_constraints.push(blake2s_constraint);
                     }
-                    OPCODE::MerkleMembership => {
+                    OpCode::MerkleMembership => {
                         let mut inputs_iter = gadget_call.inputs.iter().peekable();
 
                         // root
@@ -165,7 +165,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
                         merkle_membership_constraints.push(constraint);
                     }
                     // copies merkle membership
-                    OPCODE::InsertRegularMerkle => {
+                    OpCode::InsertRegularMerkle => {
                         let mut inputs_iter = gadget_call.inputs.iter().peekable();
 
                         // root
@@ -216,7 +216,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
 
                         insert_merkle_constraints.push(constraint);
                     }
-                    OPCODE::SchnorrVerify => {
+                    OpCode::SchnorrVerify => {
                         let mut inputs_iter = gadget_call.inputs.iter().peekable();
 
                         // pub_key_x
@@ -266,8 +266,8 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
 
                         schnorr_constraints.push(constraint);
                     }
-                    OPCODE::AES => panic!("AES has not yet been implemented"),
-                    OPCODE::Pedersen => {
+                    OpCode::AES => panic!("AES has not yet been implemented"),
+                    OpCode::Pedersen => {
                         let mut inputs = Vec::new();
                         for scalar in gadget_call.inputs.iter() {
                             let scalar_index = scalar.witness.witness_index() as i32;
@@ -285,7 +285,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
 
                         pedersen_constraints.push(constraint);
                     }
-                    OPCODE::HashToField => {
+                    OpCode::HashToField => {
                         let mut hash_to_field_inputs: Vec<(i32, i32)> = Vec::new();
                         for input in gadget_call.inputs.iter() {
                             let witness_index = input.witness.witness_index() as i32;
@@ -304,7 +304,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
 
                         hash_to_field_constraints.push(hash_to_field_constraint);
                     }
-                    OPCODE::EcdsaSecp256k1 => {
+                    OpCode::EcdsaSecp256k1 => {
                         let mut inputs_iter = gadget_call.inputs.iter().peekable();
 
                         // public key x
@@ -356,7 +356,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
 
                         ecdsa_secp256k1_constraints.push(constraint);
                     }
-                    OPCODE::FixedBaseScalarMul => {
+                    OpCode::FixedBaseScalarMul => {
                         assert_eq!(gadget_call.inputs.len(), 1);
                         let scalar = gadget_call.inputs[0].witness.witness_index() as i32;
 

@@ -75,7 +75,7 @@ pub fn unroll_std_block(
                     i.operator, new_left, new_right, i.res_type, None, //TODO to fix later
                 );
                 match i.operator {
-                    Operation::Ass => {
+                    Operation::Assign => {
                         unreachable!("unsupported instruction type when unrolling: assign");
                         //To support assignments, we should create a new variable and updates the eval_map with it
                         //however assignments should have already been removed by copy propagation.

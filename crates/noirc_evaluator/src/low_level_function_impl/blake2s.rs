@@ -3,7 +3,7 @@ use crate::low_level_function_impl::object_to_wit_bits;
 use crate::object::{Array, Integer, Object};
 use crate::{Environment, Evaluator};
 use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
-use acvm::acir::OPCODE;
+use acvm::acir::OpCode;
 use noirc_frontend::hir_def::expr::HirCallExpression;
 
 use super::RuntimeError;
@@ -13,8 +13,8 @@ use super::RuntimeError;
 pub struct Blake2sGadget;
 
 impl GadgetCaller for Blake2sGadget {
-    fn name() -> OPCODE {
-        OPCODE::Blake2s
+    fn name() -> OpCode {
+        OpCode::Blake2s
     }
 
     fn call(

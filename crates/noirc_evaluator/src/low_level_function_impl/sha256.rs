@@ -2,7 +2,7 @@ use super::{object_to_wit_bits, GadgetCaller};
 use crate::object::{Array, Integer, Object};
 use crate::{Environment, Evaluator};
 use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
-use acvm::acir::OPCODE;
+use acvm::acir::OpCode;
 use noirc_frontend::hir_def::expr::HirCallExpression;
 
 use super::RuntimeError;
@@ -10,8 +10,8 @@ use super::RuntimeError;
 pub struct Sha256Gadget;
 
 impl GadgetCaller for Sha256Gadget {
-    fn name() -> OPCODE {
-        OPCODE::SHA256
+    fn name() -> OpCode {
+        OpCode::SHA256
     }
 
     fn call(

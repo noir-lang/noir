@@ -156,10 +156,10 @@ impl<'a> IRGenerator<'a> {
         //n.b. we do not verify rhs type as it should have been handled by the type checker.
 
         // Get the opcode from the infix operator
-        let opcode = node::to_operation(op.kind, ltype);
+        let opcode = node::to_binop(op.kind, ltype);
         // Get the result type from the opcode
         let optype = self.context.get_result_type(opcode, ltype);
-        if opcode == node::Operation::Ass {
+        if opcode == node::Operation::Assign {
             if let Some(lhs_ins) = self.context.try_get_mut_instruction(lhs) {
                 if let node::Operation::Load(array) = lhs_ins.operator {
                     //make it a store rhs
@@ -376,7 +376,7 @@ impl<'a> IRGenerator<'a> {
         //Assign rhs to lhs
         let result = self
             .context
-            .new_instruction(id, value_id, node::Operation::Ass, obj_type);
+            .new_instruction(id, value_id, node::Operation::Assign, obj_type);
         //This new variable should not be available in outer scopes.
         let cb = self.context.get_current_block_mut();
         cb.update_variable(id, result); //update the value array. n.b. we should not update the name as it is the first assignment (let)
@@ -426,7 +426,7 @@ impl<'a> IRGenerator<'a> {
                 let result = self.context.new_instruction(
                     new_var_id,
                     rhs_id,
-                    node::Operation::Ass,
+                    node::Operation::Assign,
                     r_type,
                 );
 
@@ -708,7 +708,7 @@ impl<'a> IRGenerator<'a> {
         let iter_type = self.context.get_object_type(iter_id);
         let iter_ass =
             self.context
-                .new_instruction(iter_id, start_idx, node::Operation::Ass, iter_type);
+                .new_instruction(iter_id, start_idx, node::Operation::Assign, iter_type);
         //We map the iterator to start_idx so that when we seal the join block, we will get the corrdect value.
         self.update_variable_id(iter_id, iter_ass, start_idx);
 

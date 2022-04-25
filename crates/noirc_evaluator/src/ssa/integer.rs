@@ -119,7 +119,7 @@ pub fn truncate(
         );
         //Create a new truncate instruction '(idx): obj trunc bit_size'
         //set current value of obj to idx
-        let mut i = Instruction::new(Operation::Trunc, obj_id, rhs_bitsize, obj_type, None);
+        let mut i = Instruction::new(Operation::Truncate, obj_id, rhs_bitsize, obj_type, None);
         if i.res_name.ends_with("_t") {
             //TODO we should use %t so that we can check for this substring (% is not a valid char for a variable name) in the name and then write name%t[number+1]
         }
@@ -347,7 +347,7 @@ pub fn block_overflow(
                     update_instruction = true;
                     trunc_size = FieldElement::from(ins.res_type.bits() as i128);
                     let mut mod_ins = Instruction::new(
-                        node::Operation::Trunc,
+                        node::Operation::Truncate,
                         l_id,
                         l_id,
                         ins.res_type,
@@ -514,12 +514,12 @@ pub fn get_max_value(ins: &Instruction, lhs_max: BigUint, rhs_max: BigUint) -> B
             let type_max = ins.res_type.max_size();
             BigUint::min(lhs_max, type_max)
         }
-        Operation::Trunc => BigUint::min(
+        Operation::Truncate => BigUint::min(
             lhs_max,
             BigUint::from(2_u32).pow(rhs_max.try_into().unwrap()) - BigUint::from(1_u32),
         ),
         //'a = b': a and b must be of same type.
-        Operation::Ass => rhs_max,
+        Operation::Assign => rhs_max,
         Operation::Nop | Operation::Jne | Operation::Jeq | Operation::Jmp => todo!(),
         Operation::Phi => BigUint::max(lhs_max, rhs_max), //TODO operands are in phi_arguments, not lhs/rhs!!
         Operation::Constrain(_) => BigUint::zero(),       //min(lhs_max, rhs_max),
@@ -529,9 +529,9 @@ pub fn get_max_value(ins: &Instruction, lhs_max: BigUint, rhs_max: BigUint) -> B
         Operation::Store(_) => BigUint::from(0_u32),
         Operation::Intrinsic(opcode) => {
             match opcode {
-                acvm::acir::OPCODE::SHA256
-                | acvm::acir::OPCODE::Blake2s
-                | acvm::acir::OPCODE::Pedersen => BigUint::zero(), //pointers do not overflow
+                acvm::acir::OpCode::SHA256
+                | acvm::acir::OpCode::Blake2s
+                | acvm::acir::OpCode::Pedersen => BigUint::zero(), //pointers do not overflow
                 _ => todo!(),
             }
         }

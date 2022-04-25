@@ -58,7 +58,6 @@ pub enum HirBinaryOpKind {
     And,
     Or,
     Xor,
-    MemberAccess,
     Assign,
 }
 

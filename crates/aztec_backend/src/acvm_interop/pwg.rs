@@ -19,7 +19,7 @@ impl PartialWitnessGenerator for Plonk {
         &self,
         initial_witness: &mut BTreeMap<Witness, FieldElement>,
         gates: Vec<acir::circuit::Gate>,
-    ) -> Result<(), acir::OPCODE> {
+    ) -> Result<(), acir::OpCode> {
         for gate in gates.into_iter() {
             match &gate {
                 Gate::Arithmetic(arith) => {

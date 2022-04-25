@@ -223,7 +223,7 @@ pub fn find_similar_mem_instruction(
 pub fn propagate(ctx: &SsaContext, id: NodeId) -> NodeId {
     let mut result = id;
     if let Some(obj) = ctx.try_get_instruction(id) {
-        if obj.operator == node::Operation::Ass || obj.is_deleted {
+        if obj.operator == node::Operation::Assign || obj.is_deleted {
             result = obj.rhs;
         }
     }
@@ -324,7 +324,7 @@ pub fn block_cse(
                             }
                         }
                     }
-                    node::Operation::Ass => {
+                    node::Operation::Assign => {
                         //assignement
                         i_rhs = propagate(ctx, ins.rhs);
                         to_delete = true;
@@ -373,7 +373,7 @@ pub fn block_cse(
                 update.is_deleted = to_delete;
                 //update instruction name - for debug/pretty print purposes only /////////////////////
                 if let Some(Instruction {
-                    operator: Operation::Ass,
+                    operator: Operation::Assign,
                     lhs,
                     ..
                 }) = ctx.try_get_instruction(ii_l)
@@ -388,7 +388,7 @@ pub fn block_cse(
                     }
                 }
                 if let Some(Instruction {
-                    operator: Operation::Ass,
+                    operator: Operation::Assign,
                     lhs,
                     ..
                 }) = ctx.try_get_instruction(ii_r)

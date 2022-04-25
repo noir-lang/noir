@@ -9,4 +9,4 @@ pub mod optimiser;
 pub mod opcode;
 
 pub use noir_field::FieldElement;
-pub use opcode::OPCODE;
+pub use opcode::OpCode;
