@@ -363,11 +363,11 @@ template <class T> void field<T>::asm_conditional_negate(field& r, const uint64_
                                                         "sbbq %%r9, %%r13 \n\t"
                                                         "sbbq %%r10, %%r14 \n\t"
                                                         "sbbq %%r11, %%r15 \n\t"
-                                                        "btq $0, %0 \n\t"
-                                                        "cmovcq %%r12, %%r8 \n\t"
-                                                        "cmovcq %%r13, %%r9 \n\t"
-                                                        "cmovcq %%r14, %%r10 \n\t"
-                                                        "cmovcq %%r15, %%r11 \n\t" STORE_FIELD_ELEMENT(
+                                                        "testq %0, %0 \n\t"
+                                                        "cmovnzq %%r12, %%r8 \n\t"
+                                                        "cmovnzq %%r13, %%r9 \n\t"
+                                                        "cmovnzq %%r14, %%r10 \n\t"
+                                                        "cmovnzq %%r15, %%r11 \n\t" STORE_FIELD_ELEMENT(
                                                             "%1", "%%r8", "%%r9", "%%r10", "%%r11")
             :
             : "r"(predicate),
