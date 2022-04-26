@@ -55,17 +55,17 @@ impl<'a> SSAFunction<'a> {
     pub fn call(
         func: FuncId,
         arguments: &[noirc_frontend::node_interner::ExprId],
-        eval: &mut IRGenerator,
+        igen: &mut IRGenerator,
         env: &mut Environment,
     ) -> NodeId {
-        let call_id = eval.context.new_instruction(
+        let call_id = igen.context.new_instruction(
             NodeId::dummy(),
             NodeId::dummy(),
             node::Operation::Call(func),
             node::ObjectType::NotAnObject, //TODO how to get the function return type?
         );
-        let ins_arguments = eval.expression_list_to_objects(env, arguments);
-        let call_ins = eval.context.get_mut_instruction(call_id);
+        let ins_arguments = igen.expression_list_to_objects(env, arguments);
+        let call_ins = igen.context.get_mut_instruction(call_id);
         call_ins.ins_arguments = ins_arguments;
         call_id
     }
@@ -100,6 +100,7 @@ impl<'a> SSAFunction<'a> {
     }
 }
 
+//Returns the number of elements and their type, of the output result corresponding to the OPCODE function.
 pub fn get_result_type(op: OPCODE) -> (u32, ObjectType) {
     match op {
         OPCODE::AES => (0, ObjectType::NotAnObject), //Not implemented
@@ -153,7 +154,7 @@ pub fn call_low_level(
     //else we map ins.id to the returned witness
     //Call instruction
     igen.context.new_instruction_with_multiple_operands(
-        &mut args,
+        args,
         node::Operation::Intrinsic(op),
         result_type,
     )

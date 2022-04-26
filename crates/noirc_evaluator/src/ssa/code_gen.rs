@@ -519,12 +519,12 @@ impl<'a> IRGenerator<'a> {
         }
     }
 
-    fn ident_name(&self, ident: &IdentId) -> String {
-        self.context.context.def_interner.ident_name(ident)
+    pub fn ident_name(&self, ident: &IdentId) -> String {
+        self.def_interner().ident_name(ident)
     }
 
-    fn ident_def(&self, ident: &IdentId) -> Option<IdentId> {
-        self.context.context.def_interner.ident_def(ident)
+    pub fn ident_def(&self, ident: &IdentId) -> Option<IdentId> {
+        self.def_interner().ident_def(ident)
     }
 
     // Let statements are used to declare higher level objects
@@ -648,8 +648,8 @@ impl<'a> IRGenerator<'a> {
                 let func_meta = self.def_interner().function_meta(&call_expr.func_id);
                 match func_meta.kind {
                     FunctionKind::Normal =>  {
-                        //Function defined inside the Noir program.           
-                        if self.context.get_function(call_expr.func_id).is_none() {
+                        //Function defined inside the Noir program.      
+                        if self.context.functions_cfg.get(&call_expr.func_id).is_none() {
                             let func = function::create_function(call_expr.func_id, self.context.context(), env, &func_meta.parameters);
                             self.context.functions_cfg.insert(call_expr.func_id, func);
                         }

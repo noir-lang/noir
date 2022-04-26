@@ -211,16 +211,12 @@ pub fn find_similar_instruction_with_multiple_arguments(
     igen: &SsaContext,
     lhs: NodeId,
     rhs: NodeId,
-    ins_arg: &[NodeId],
+    ins_args: &[NodeId],
     prev_ins: &VecDeque<NodeId>,
 ) -> Option<NodeId> {
     for iter in prev_ins {
         if let Some(ins) = igen.try_get_instruction(*iter) {
-            if ins.lhs == lhs
-                && ins.rhs == rhs
-                && ins.ins_arguments.len() == ins_arg.len()
-                && ins.ins_arguments.iter().zip(ins_arg).all(|(a, b)| *a == *b)
-            {
+            if ins.lhs == lhs && ins.rhs == rhs && ins.ins_arguments == ins_args {
                 return Some(*iter);
             }
         }

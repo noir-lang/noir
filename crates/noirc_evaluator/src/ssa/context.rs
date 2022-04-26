@@ -104,14 +104,15 @@ impl<'a> SsaContext<'a> {
         }
     }
 
-    pub fn print(&self) {
+    pub fn print(&self, text: &str) {
+        println!("{}", text);
         for (i, (_, b)) in self.blocks.iter().enumerate() {
             println!("************* Block n.{}", i);
             self.print_block(b);
         }
         for (_, f) in self.functions_cfg.iter().enumerate() {
             println!("************* FUNCTION n.{:?}", f.1.id);
-            f.1.igen.context.print();
+            f.1.igen.context.print("");
             //  ins_nb += b.instructions.len();
         }
         // println!("*** TOTAL: {} instructions", ins_nb);
@@ -183,18 +184,8 @@ impl<'a> SsaContext<'a> {
         None
     }
 
-    pub fn get_function(&self, func_id: FuncId) -> Option<&'a function::SSAFunction> {
-        if self.functions_cfg.contains_key(&func_id) {
-            return Some(&self.functions_cfg[&func_id]);
-        }
-        None
-    }
-
-    pub fn get_function_context(&self, func_id: FuncId) -> &'a SsaContext {
-        if self.functions_cfg.contains_key(&func_id) {
-            return &self.functions_cfg[&func_id].igen.context;
-        }
-        panic!("Invalid function id");
+    pub fn get_function_context(&self, func_id: FuncId) -> &SsaContext {
+        &self.functions_cfg[&func_id].igen.context
     }
 
     //todo handle errors
@@ -267,13 +258,13 @@ impl<'a> SsaContext<'a> {
         opcode: node::Operation,
         optype: node::ObjectType,
     ) -> NodeId {
-        let mut operands = vec![lhs, rhs];
-        self.new_instruction_with_multiple_operands(&mut operands, opcode, optype)
+        let operands = vec![lhs, rhs];
+        self.new_instruction_with_multiple_operands(operands, opcode, optype)
     }
 
     pub fn new_instruction_with_multiple_operands(
         &mut self,
-        operands: &mut Vec<NodeId>,
+        mut operands: Vec<NodeId>,
         opcode: node::Operation,
         optype: node::ObjectType,
     ) -> NodeId {
@@ -291,7 +282,7 @@ impl<'a> SsaContext<'a> {
         //Basic simplification
         optim::simplify(self, &mut i);
         if operands.len() > 2 {
-            i.ins_arguments = operands.clone();
+            i.ins_arguments = operands;
         }
         if i.is_deleted {
             return i.rhs;
@@ -378,11 +369,13 @@ impl<'a> SsaContext<'a> {
         self.blocks.iter().map(|(_id, block)| block)
     }
 
-    pub fn pause(interactive: bool) {
+    pub fn pause(&self, interactive: bool, before: &str, after: &str) {
         if_debug::if_debug!(if interactive {
+            self.print(before);
             let mut number = String::new();
             println!("Press enter to continue");
             std::io::stdin().read_line(&mut number).unwrap();
+            println!("{}", after);
         });
     }
 
@@ -393,37 +386,26 @@ impl<'a> SsaContext<'a> {
         interactive: bool,
     ) -> Result<(), RuntimeError> {
         //SSA
-        dbg!("SSA:");
-        self.print();
-        Self::pause(interactive);
+        self.pause(interactive, "SSA:", "CSE:");
 
         //Optimisation
         block::compute_dom(self);
-        dbg!("CSE:");
         optim::cse(self);
-        self.print();
-        Self::pause(interactive);
+        self.pause(interactive, "", "unrolling:");
         //Unrolling
-        dbg!("unrolling:");
         flatten::unroll_tree(self);
-        self.print();
-        Self::pause(interactive);
-        dbg!("inlining:");
+        self.pause(interactive, "", "inlining:");
         flatten::inline_tree(self);
         optim::cse(self);
-        self.print();
-        dbg!("4564564444444444444444444444444444444444444444444444444");
-        dbg!("overflow::");
         //Truncation
         integer::overflow_strategy(self);
-        self.print();
-        Self::pause(interactive);
+        self.pause(interactive, "overflow:", "");
         //ACIR
         self.acir(evaluator);
-        Self::pause(interactive);
-        dbg!("DONE");
-        dbg!(&evaluator.current_witness_index);
-
+        if_debug::if_debug!(if interactive {
+            dbg!("DONE");
+            dbg!(&evaluator.current_witness_index);
+        });
         Ok(())
     }
 

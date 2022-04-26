@@ -385,7 +385,7 @@ pub fn inline_tree(ctx: &mut SsaContext) {
 
 //inline all function calls of the block
 pub fn inline_block(ctx: &mut SsaContext, block_id: BlockId) {
-    let mut call_ins: Vec<NodeId> = Vec::new();
+    let mut call_ins = Vec::<NodeId>::new();
 
     for i in &ctx[block_id].instructions {
         if let Some(ins) = ctx.try_get_instruction(*i) {
@@ -415,15 +415,14 @@ pub fn inline(
     block: BlockId,
     call_id: NodeId,
 ) {
-    let ssa_func = ctx.get_function(func_id).unwrap();
-    //map nodes from the fonction cfg to the caller cfg
+    let ssa_func = ctx.functions_cfg.get(&func_id).unwrap();
+    //map nodes from the function cfg to the caller cfg
     let mut inline_map: HashMap<NodeId, NodeId> = HashMap::new();
     let mut array_map: HashMap<u32, u32> = HashMap::new();
     //1. map function parameters
     for (arg_caller, arg_function) in args.iter().zip(&ssa_func.arguments) {
         inline_map.insert(*arg_function, *arg_caller);
     }
-    // let func_block = &ssa_func.cfg[ssa_func.cfg.first_block];
     //2. inline in the block: we assume the function cfg is already flatened.
     let mut next_block = Some(ssa_func.igen.context.first_block);
     while let Some(next_b) = next_block {
@@ -456,19 +455,15 @@ pub fn inline_in_block(
     let next_block = block_func.left;
     let block_func_instructions = &block_func.instructions.clone();
     for &i_id in block_func_instructions {
-        let mut cloned_ins = None;
         let mut array_func = None;
         let mut array_func_idx = u32::MAX;
         if let Some(ins) = ctx.get_function_context(func_id).try_get_instruction(i_id) {
-            cloned_ins = Some(ins.clone());
+            let clone = ins.clone();
             if let node::ObjectType::Pointer(a) = ins.res_type {
-                //Arrays are mapped to array
+                //We need to map arrays to arrays via the array_map, we collect the data here to be mapped below.
                 array_func = Some(ctx.get_function_context(func_id).mem.arrays[a as usize].clone());
                 array_func_idx = a;
             }
-        }
-
-        if let Some(clone) = cloned_ins {
             let new_left =
                 function::SSAFunction::get_mapped_value(func_id, Some(&clone.lhs), ctx, inline_map);
             let new_right =
@@ -479,21 +474,8 @@ pub fn inline_in_block(
                 ctx,
                 inline_map,
             );
-            //create the array if not mapped
+            //Arrays are mapped to array. We create the array if not mapped
             if let Some(a) = array_func {
-                // if !array_map.contains_key(&array_func_idx) {
-                //     let i_pointer = ctx.mem.create_new_array(a.len, a.element_type, &a.name);
-                //     //We populate the array (if possible) using the inline map
-                //     for i in &a.values {
-                //         if let Some(f) = i.to_const() {
-                //             ctx.mem.arrays[i_pointer as usize]
-                //                 .values
-                //                 .push(super::acir_gen::InternalVar::from(f));
-                //         }
-                //         //todo: else use inline map.
-                //     }
-                //     array_map.insert(array_func_idx, i_pointer);
-                // }
                 if let std::collections::hash_map::Entry::Vacant(e) =
                     array_map.entry(array_func_idx)
                 {
@@ -536,7 +518,12 @@ pub fn inline_in_block(
                         }
                     }
                 }
-                Operation::Call(_) => todo!("function calling function is not yet supported"), //We mainly need to map the arguments and then decide how to recurse the function call.
+                Operation::Call(_) => todo!("function calling function is not yet supported"), //We mainly need to map the arguments and then decide how to recurse the function call. For instance:
+                // - map the call instruction into the main context (by mapping the arguments)
+                // - perform the inlining step as long as we map call instruction, but limit this step to a pre-defined maximum.
+                // - this should inline all the call instructions unless there is a call cycle (e.g a function calling itself)
+                // - if the pre-defined maximum is reach, output an error
+                // In a future improvement we could identify the cycles and see how they can be handled, e.g may be by using proof recursion.
                 Operation::Load(a) => {
                     //Compute the new address:
                     //TODO use relative addressing, but that requires a few changes, mainly in acir_gen.rs and integer.rs

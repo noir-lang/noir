@@ -102,8 +102,8 @@ impl<'a> Evaluator<'a> {
         if interactive {
             self.evaluate_main_alt(&mut env, interactive)?;
         } else {
-            // self.evaluate_main(&mut env)?;
-            self.evaluate_main_alt(&mut env, false)?;
+            self.evaluate_main(&mut env)?;
+            //self.evaluate_main_alt(&mut env, false)?;
         }
 
         let witness_index = self.current_witness_index();

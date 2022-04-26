@@ -511,7 +511,6 @@ impl Acir {
         b_idx: u32,
         evaluator: &mut Evaluator,
     ) -> Arithmetic {
-        dbg!(&evaluator.current_witness_index);
         let mut sum = Arithmetic::default();
 
         let a_values = self.load_array(a, a_idx, false, evaluator);
@@ -521,7 +520,6 @@ impl Acir {
             let diff_expr = subtract(&a_iter.expression, FieldElement::one(), &b_iter.expression);
 
             let diff_witness = evaluator.add_witness_to_cs();
-            dbg!(&diff_witness);
             let diff_var = InternalVar {
                 //in cache??
                 expression: diff_expr.clone(),
@@ -543,6 +541,7 @@ impl Acir {
         sum
     }
 
+    //Transform the arguments of intrinsic functions into witnesses
     pub fn prepare_inputs(
         &self,
         args: &[NodeId],

@@ -107,8 +107,8 @@ pub fn create_function_parameter(
     igen: &mut IRGenerator,
     ident_id: &noirc_frontend::node_interner::IdentId,
 ) -> NodeId {
-    let ident_name = igen.context.context().def_interner.ident_name(ident_id);
-    let ident_def = igen.context.context().def_interner.ident_def(ident_id);
+    let ident_name = igen.ident_name(ident_id);
+    let ident_def = igen.ident_def(ident_id);
     let o_type = igen
         .context
         .context()
