@@ -125,11 +125,10 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
         output_note_commitment1 = circuit::value::complete_partial_commitment(
             claim_note.value_note_partial_commitment, output_value_1, output_asset_id_1, nullifier1);
 
-        // If second_output_virtual, we:
-        //    - set asset_id_2 = 2^{30} + nonce
-        //    - check the output value of the second output note must be equal to that of the first output note
-        //    (output_value_a).
-        auto output_value_2 = suint_ct::conditional_assign(second_output_virtual, output_value_a, output_value_b);
+        // If the defi interaction was unsuccessful, refund the original value via output note 2 if input note 2 exists.
+        auto output_value_2 =
+            suint_ct::conditional_assign(interaction_success, output_value_b, claim_note_data.deposit_value);
+        // If second_output_virtual, we set asset_id_2 = 2^{30} + nonce
         auto output_asset_id_2_if_success =
             suint_ct::conditional_assign(second_output_virtual,
                                          virtual_note_flag + claim_note.defi_interaction_nonce,

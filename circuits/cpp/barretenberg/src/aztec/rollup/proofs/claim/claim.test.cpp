@@ -628,7 +628,7 @@ TEST_F(claim_tests, test_claim_for_virtual_note)
                                            .interaction_nonce = 0,
                                            .total_input_value = 100,
                                            .total_output_value_a = 300,
-                                           .total_output_value_b = 300,
+                                           .total_output_value_b = 400,
                                            .interaction_result = 1 };
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
@@ -1058,7 +1058,7 @@ TEST_F(claim_tests, test_claim_1_output_with_virtual_note_full_proof)
                                                .creator_pubkey = 0,
                                                .input_nullifier = nullifier1 };
 
-    const value_note expected_output_note2 = { .value = 20,
+    const value_note expected_output_note2 = { .value = 30,
                                                .asset_id =
                                                    static_cast<uint32_t>(1 << (MAX_NUM_ASSETS_BIT_LENGTH - 1)) + nonce,
                                                .nonce = 0,

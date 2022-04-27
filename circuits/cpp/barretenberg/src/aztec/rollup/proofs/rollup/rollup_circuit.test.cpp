@@ -1178,8 +1178,8 @@ TEST_F(rollup_tests, test_defi_loan_proofs)
      * Rollup 1: Create defi claim proofs for drawing 3 loans:
      */
     std::vector<native::defi_interaction::note> dins = {
-        { bids[0], NUM_BRIDGE_CALLS_PER_BLOCK, 370, 3700, 0, true },
-        { bids[1], NUM_BRIDGE_CALLS_PER_BLOCK + 1, 150, 3000, 0, true }
+        { bids[0], NUM_BRIDGE_CALLS_PER_BLOCK, 370, 3700, 3700, true },
+        { bids[1], NUM_BRIDGE_CALLS_PER_BLOCK + 1, 150, 3000, 3000, true }
     };
     uint32_t initial_din_index = context.start_next_root_rollup(dins);
 

@@ -24,7 +24,7 @@ auto create_account_leaf_data(fr const& account_alias_id,
 
 class join_split_tests : public ::testing::Test {
   protected:
-    static constexpr size_t ACCOUNT_INDEX = 12;
+    static constexpr size_t ACCOUNT_INDEX = 13;
     static void SetUpTestCase()
     {
         auto null_crs_factory = std::make_shared<waffle::ReferenceStringFactory>();
@@ -51,7 +51,7 @@ class join_split_tests : public ::testing::Test {
         value_notes[2] = { 90, asset_id, 1, user.owner.public_key, user.note_secret, 0, fr::random_element() };
         value_notes[3] = { 40, asset_id, 1, user.owner.public_key, user.note_secret, 0, fr::random_element() };
 
-        const uint32_t virtual_asset_id = (uint32_t(1) << (MAX_NUM_ASSETS_BIT_LENGTH - 1)) + defi_interaction_nonce;
+        const uint32_t virtual_asset_id = virtual_asset_id_flag + defi_interaction_nonce;
         value_notes[4] = { 100, virtual_asset_id, 0, user.owner.public_key, user.note_secret, 0, fr::random_element() };
         value_notes[5] = { 30, virtual_asset_id, 0, user.owner.public_key, user.note_secret, 0, fr::random_element() };
         value_notes[6] = {
@@ -69,6 +69,9 @@ class join_split_tests : public ::testing::Test {
                             0,  fr::random_element() };
         value_notes[11] = {
             100, virtual_asset_id, 0, user.owner.public_key, user.note_secret, 0, fr::random_element()
+        };
+        value_notes[12] = {
+            100, virtual_asset_id_flag + asset_id, 0, user.owner.public_key, user.note_secret, 0, fr::random_element()
         };
     }
 
@@ -108,10 +111,10 @@ class join_split_tests : public ::testing::Test {
      */
     join_split_tx create_join_split_tx(std::array<uint32_t, 2> const& input_indicies,
                                        std::array<value::value_note, 2> const& input_notes,
-                                       uint32_t tx_asset_id,
                                        uint32_t account_note_index = 0,
                                        uint32_t nonce = 0)
     {
+        uint32_t tx_asset_id = input_notes[0].asset_id;
         auto input_nullifier1 = compute_nullifier(input_notes[0].commit(), user.owner.private_key, true);
         auto input_nullifier2 = compute_nullifier(input_notes[1].commit(), user.owner.private_key, true);
         value::value_note output_note1 = { input_notes[0].value + input_notes[1].value,
@@ -161,30 +164,92 @@ class join_split_tests : public ::testing::Test {
         preload_account_notes(); // indicies: [ACCOUNT_INDEX, ACCOUNT_INDEX + 1]
         return create_join_split_tx(input_indicies,
                                     { value_notes[input_indicies[0]], value_notes[input_indicies[1]] },
-                                    asset_id,
                                     account_note_index,
                                     nonce);
     }
 
-    join_split_tx setup_two_virtual_input_notes()
+    join_split_tx setup_case_2()
     {
-        join_split_tx tx = simple_setup({ 4, 5 });
-        tx.output_note[0].asset_id = tx.input_note[0].asset_id;
-        tx.output_note[1].asset_id = tx.input_note[1].asset_id;
-        tx.asset_id = tx.input_note[0].asset_id;
+        join_split_tx tx = simple_setup();
+        // 150 in, fee is 10.
+        tx.proof_id = ProofIds::DEFI_DEPOSIT;
+        tx.output_note[1].value = 90;
+        tx.partial_claim_note.deposit_value = 50;
+        tx.partial_claim_note.input_nullifier = tx.output_note[0].input_nullifier;
+
+        const bridge_id bridge_id = { .bridge_address_id = 0,
+                                      .input_asset_id_a = tx.asset_id,
+                                      .input_asset_id_b = 0,
+                                      .output_asset_id_a = 0,
+                                      .output_asset_id_b = 1,
+                                      .config = bridge_id::bit_config{ .first_input_virtual = false,
+                                                                       .second_input_virtual = false,
+                                                                       .first_output_virtual = false,
+                                                                       .second_output_virtual = false,
+                                                                       .second_input_real = false,
+                                                                       .second_output_real = true },
+                                      .aux_data = 0 };
+
+        tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+
         return tx;
     }
 
-    join_split_tx setup_defi_case_5()
+    join_split_tx setup_case_3(bool is_send = false)
     {
-        join_split_tx tx = simple_setup({ 0, 4 });
+        join_split_tx tx = simple_setup({ 4, 5 });
+        tx.num_input_notes = 1;
+        tx.input_note[1].value = 0;
+        tx.output_note[0].value = tx.input_note[0].value;
+        tx.output_note[0].asset_id = tx.asset_id;
+        tx.output_note[1].asset_id = tx.asset_id;
+        tx.output_note[1].input_nullifier = compute_nullifier(tx.input_note[1].commit(), user.owner.private_key, false);
+
+        if (is_send) {
+            tx.proof_id = ProofIds::SEND;
+        } else {
+            tx.proof_id = ProofIds::DEFI_DEPOSIT;
+            tx.partial_claim_note.deposit_value = 90;
+            tx.partial_claim_note.input_nullifier = tx.output_note[0].input_nullifier;
+
+            bridge_id bridge_id = { .bridge_address_id = 0,
+                                    .input_asset_id_a = tx.input_note[0].asset_id - virtual_asset_id_flag,
+                                    .input_asset_id_b = 0,
+                                    .output_asset_id_a = 0,
+                                    .output_asset_id_b = 0,
+                                    .config = { .first_input_virtual = true,
+                                                .second_input_virtual = false,
+                                                .first_output_virtual = false,
+                                                .second_output_virtual = false,
+                                                .second_input_real = false,
+                                                .second_output_real = false },
+                                    .aux_data = 0 };
+            tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+        }
+
+        return tx;
+    }
+
+    join_split_tx setup_case_4()
+    {
+        join_split_tx tx = simple_setup({ 4, 5 });
+        return tx;
+    }
+
+    join_split_tx setup_defi_case_5(bool identical_trailing_asset_id = false)
+    {
+        uint32_t second_note_idx = 4;
+        if (identical_trailing_asset_id) {
+            second_note_idx = 12;
+        }
+        join_split_tx tx = simple_setup({ 0, second_note_idx });
         tx.proof_id = ProofIds::DEFI_DEPOSIT;
         tx.partial_claim_note.deposit_value = 90;
         tx.partial_claim_note.input_nullifier = tx.output_note[0].input_nullifier;
 
         bridge_id bridge_id = { .bridge_address_id = 0,
                                 .input_asset_id_a = tx.asset_id,
-                                .input_asset_id_b = defi_interaction_nonce,
+                                .input_asset_id_b = tx.input_note[1].asset_id - virtual_asset_id_flag,
                                 .output_asset_id_a = 0,
                                 .output_asset_id_b = 0,
                                 .config = { .first_input_virtual = false,
@@ -199,9 +264,7 @@ class join_split_tests : public ::testing::Test {
         return tx;
     }
 
-    join_split_tx setup_defi_case_6(bool bad_interaction_nonce = false,
-                                    bool bad_second_note_value = false,
-                                    bool duplicate_asset_ids = false)
+    join_split_tx setup_defi_case_6(bool bad_second_note_value = false, bool duplicate_asset_ids = false)
     {
         uint32_t second_note_idx = 6;
         if (bad_second_note_value) {
@@ -217,10 +280,7 @@ class join_split_tests : public ::testing::Test {
 
         bridge_id bridge_id = { .bridge_address_id = 0,
                                 .input_asset_id_a = tx.asset_id,
-                                .input_asset_id_b =
-                                    bad_interaction_nonce
-                                        ? 0
-                                        : tx.asset_id + 1, // defi interaction nonce == asset id of second input note
+                                .input_asset_id_b = tx.input_note[1].asset_id,
                                 .output_asset_id_a = 0,
                                 .output_asset_id_b = 0,
                                 .config = { .first_input_virtual = false,
@@ -235,9 +295,7 @@ class join_split_tests : public ::testing::Test {
         return tx;
     }
 
-    join_split_tx setup_defi_case_7(bool bad_interaction_nonce = false,
-                                    bool bad_second_note_value = false,
-                                    bool duplicate_asset_ids = false)
+    join_split_tx setup_defi_case_7(bool bad_second_note_value = false, bool duplicate_asset_ids = false)
     {
         uint32_t second_note_idx = 9;
         if (bad_second_note_value) {
@@ -253,23 +311,18 @@ class join_split_tests : public ::testing::Test {
         tx.output_note[0].asset_id = tx.input_note[0].asset_id;
         tx.output_note[1].asset_id = tx.input_note[0].asset_id;
         tx.asset_id = tx.input_note[0].asset_id;
-        bridge_id bridge_id = {
-            .bridge_address_id = 0,
-            .input_asset_id_a = tx.input_note[0].asset_id,
-            .input_asset_id_b =
-                bad_interaction_nonce
-                    ? 0
-                    : tx.input_note[1].asset_id, // defi interaction nonce == asset id of second input note
-            .output_asset_id_a = 0,
-            .output_asset_id_b = 0,
-            .config = { .first_input_virtual = true,
-                        .second_input_virtual = true,
-                        .first_output_virtual = false,
-                        .second_output_virtual = false,
-                        .second_input_real = false,
-                        .second_output_real = false },
-            .aux_data = 0
-        };
+        bridge_id bridge_id = { .bridge_address_id = 0,
+                                .input_asset_id_a = tx.input_note[0].asset_id - virtual_asset_id_flag,
+                                .input_asset_id_b = tx.input_note[1].asset_id - virtual_asset_id_flag,
+                                .output_asset_id_a = 0,
+                                .output_asset_id_b = 0,
+                                .config = { .first_input_virtual = true,
+                                            .second_input_virtual = true,
+                                            .first_output_virtual = false,
+                                            .second_output_virtual = false,
+                                            .second_input_real = false,
+                                            .second_output_real = false },
+                                .aux_data = 0 };
         tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
 
         return tx;
@@ -347,10 +400,11 @@ class join_split_tests : public ::testing::Test {
     rollup::fixtures::user_context user;
     std::unique_ptr<MemoryStore> store;
     std::unique_ptr<MerkleTree<MemoryStore>> tree;
-    value::value_note value_notes[12];
+    value::value_note value_notes[13];
     value::value_note dummy_value_notes[2];
     const uint32_t asset_id = 1;
     const uint32_t defi_interaction_nonce = 7;
+    const uint32_t virtual_asset_id_flag = (uint32_t(1) << (MAX_NUM_ASSETS_BIT_LENGTH - 1));
     const uint256_t max_value = notes::NOTE_VALUE_MAX;
 };
 
@@ -657,7 +711,7 @@ TEST_F(join_split_tests, test_different_input_note_asset_id_fails)
 
     auto result = sign_and_verify_logic(tx, user.owner.private_key);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(result.err, "unsupported case");
+    EXPECT_EQ(result.err, "can only defi deposit");
 }
 
 TEST_F(join_split_tests, test_different_output_note_asset_id_fails)
@@ -843,20 +897,26 @@ TEST_F(join_split_tests, test_tainted_output_owner_fails)
     EXPECT_FALSE(verify_proof(proof));
 }
 
-TEST_F(join_split_tests, test_invalid_bridge_id)
+// Defi deposit
+TEST_F(join_split_tests, test_defi_deposit_one_virtual_input)
 {
-    join_split_tx tx = simple_setup();
-    tx.proof_id = ProofIds::DEFI_DEPOSIT;
-    tx.partial_claim_note.deposit_value = 1;
+    join_split_tx tx = setup_case_3();
 
     auto result = sign_and_verify_logic(tx, user.owner.private_key);
-    EXPECT_FALSE(result.valid);
-    EXPECT_EQ(result.err, "asset ids don't match");
+    EXPECT_TRUE(result.valid);
 }
 
-TEST_F(join_split_tests, test_defi_deposit)
+TEST_F(join_split_tests, test_defi_deposit_one_real_one_virtual_inputs)
 {
     join_split_tx tx = setup_defi_case_5();
+
+    auto result = sign_and_verify_logic(tx, user.owner.private_key);
+    EXPECT_TRUE(result.valid);
+}
+
+TEST_F(join_split_tests, test_defi_deposit_one_real_one_virtual_inputs_same_ids)
+{
+    join_split_tx tx = setup_defi_case_5(true);
 
     auto result = sign_and_verify_logic(tx, user.owner.private_key);
     EXPECT_TRUE(result.valid);
@@ -880,38 +940,52 @@ TEST_F(join_split_tests, test_defi_deposit_two_virtual_inputs)
 
 TEST_F(join_split_tests, test_defi_deposit_two_virtual_inputs_different_values_fails)
 {
-    join_split_tx tx = setup_defi_case_7(false, true, false);
+    join_split_tx tx = setup_defi_case_7(true, false);
 
     auto result = sign_and_verify_logic(tx, user.owner.private_key);
     EXPECT_FALSE(result.valid);
     EXPECT_EQ(result.err, "input note values must match");
-}
-
-TEST_F(join_split_tests, test_defi_deposit_two_virtual_inputs_asset_id_not_bridge_interaction_nonce_fails)
-{
-    join_split_tx tx = setup_defi_case_7(true, false, false);
-
-    auto result = sign_and_verify_logic(tx, user.owner.private_key);
-    EXPECT_FALSE(result.valid);
-    EXPECT_EQ(result.err, "incorrect second input asset id in bridge id");
 }
 
 TEST_F(join_split_tests, test_defi_deposit_two_real_inputs_different_values_fails)
 {
-    join_split_tx tx = setup_defi_case_6(false, true, false);
+    join_split_tx tx = setup_defi_case_6(true, false);
 
     auto result = sign_and_verify_logic(tx, user.owner.private_key);
     EXPECT_FALSE(result.valid);
     EXPECT_EQ(result.err, "input note values must match");
 }
 
-TEST_F(join_split_tests, test_defi_deposit_two_real_inputs_asset_id_not_bridge_interaction_nonce_fails)
+TEST_F(join_split_tests, test_defi_deposit_identical_real_input_asset_ids_fails)
 {
-    join_split_tx tx = setup_defi_case_6(true, false, false);
+    join_split_tx tx = setup_case_2();
+
+    bridge_id bridge_id = { .bridge_address_id = 0,
+                            .input_asset_id_a = tx.asset_id,
+                            .input_asset_id_b = tx.asset_id,
+                            .output_asset_id_a = 111,
+                            .output_asset_id_b = 0,
+                            .config = bridge_id::bit_config{ .first_input_virtual = false,
+                                                             .second_input_virtual = false,
+                                                             .first_output_virtual = false,
+                                                             .second_output_virtual = false,
+                                                             .second_input_real = true,
+                                                             .second_output_real = false },
+                            .aux_data = 0 };
+    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
 
     auto result = sign_and_verify_logic(tx, user.owner.private_key);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(result.err, "incorrect second input asset id in bridge id");
+    EXPECT_EQ(result.err, "identical input asset ids in bridge id");
+}
+
+TEST_F(join_split_tests, test_defi_deposit_identical_virtual_input_asset_ids_fails)
+{
+    join_split_tx tx = setup_defi_case_7(false, true);
+
+    auto result = sign_and_verify_logic(tx, user.owner.private_key);
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(result.err, "can only send");
 }
 
 TEST_F(join_split_tests, test_defi_invalid_tx_fee_asset_id_fails)
@@ -1033,6 +1107,122 @@ TEST_F(join_split_tests, test_defi_allow_chain_1_fails)
     EXPECT_EQ(result.err, "cannot chain from a partial claim note");
 }
 
+// Bridge id data
+TEST_F(join_split_tests, test_defi_missing_second_asset_in_bridge_id_fails)
+{
+    join_split_tx tx = setup_defi_case_6();
+
+    bridge_id bridge_id = { .bridge_address_id = 0,
+                            .input_asset_id_a = tx.asset_id,
+                            .input_asset_id_b = 0,
+                            .output_asset_id_a = 0,
+                            .output_asset_id_b = 0,
+                            .config = bridge_id::bit_config{ .first_input_virtual = false,
+                                                             .second_input_virtual = false,
+                                                             .first_output_virtual = false,
+                                                             .second_output_virtual = false,
+                                                             .second_input_real = false,
+                                                             .second_output_real = false },
+                            .aux_data = 0 };
+    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+
+    auto result = sign_and_verify_logic(tx, user.owner.private_key);
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(result.err, "bridge_id_data differs from input notes' data: inconsistent second input asset");
+}
+
+TEST_F(join_split_tests, test_defi_wrong_first_asset_type_in_bridge_id_fails)
+{
+    join_split_tx tx = setup_case_3();
+
+    bridge_id bridge_id = { .bridge_address_id = 0,
+                            .input_asset_id_a = tx.asset_id,
+                            .input_asset_id_b = 0,
+                            .output_asset_id_a = 0,
+                            .output_asset_id_b = 0,
+                            .config = bridge_id::bit_config{ .first_input_virtual = false,
+                                                             .second_input_virtual = false,
+                                                             .first_output_virtual = false,
+                                                             .second_output_virtual = false,
+                                                             .second_input_real = false,
+                                                             .second_output_real = false },
+                            .aux_data = 0 };
+    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+
+    auto result = sign_and_verify_logic(tx, user.owner.private_key);
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(result.err, "bridge_id_data differs from input notes' data: inconsistent first input asset types");
+}
+
+TEST_F(join_split_tests, test_defi_wrong_second_asset_type_in_bridge_id_fails)
+{
+    join_split_tx tx = setup_defi_case_7();
+
+    bridge_id bridge_id = { .bridge_address_id = 0,
+                            .input_asset_id_a = tx.input_note[0].asset_id - virtual_asset_id_flag,
+                            .input_asset_id_b = tx.input_note[1].asset_id - virtual_asset_id_flag,
+                            .output_asset_id_a = 0,
+                            .output_asset_id_b = 0,
+                            .config = bridge_id::bit_config{ .first_input_virtual = true,
+                                                             .second_input_virtual = false,
+                                                             .first_output_virtual = false,
+                                                             .second_output_virtual = false,
+                                                             .second_input_real = true,
+                                                             .second_output_real = false },
+                            .aux_data = 0 };
+    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+
+    auto result = sign_and_verify_logic(tx, user.owner.private_key);
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(result.err, "bridge_id_data differs from input notes' data: inconsistent second input asset types");
+}
+
+TEST_F(join_split_tests, test_defi_wrong_first_asset_id_in_bridge_id_fails)
+{
+    join_split_tx tx = setup_defi_case_7();
+
+    bridge_id bridge_id = { .bridge_address_id = 0,
+                            .input_asset_id_a = tx.input_note[0].asset_id,
+                            .input_asset_id_b = tx.input_note[1].asset_id - virtual_asset_id_flag,
+                            .output_asset_id_a = 0,
+                            .output_asset_id_b = 0,
+                            .config = bridge_id::bit_config{ .first_input_virtual = true,
+                                                             .second_input_virtual = true,
+                                                             .first_output_virtual = false,
+                                                             .second_output_virtual = false,
+                                                             .second_input_real = false,
+                                                             .second_output_real = false },
+                            .aux_data = 0 };
+    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+
+    auto result = sign_and_verify_logic(tx, user.owner.private_key);
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(result.err, "bridge_id_data differs from input notes' data: inconsistent first input asset ids");
+}
+
+TEST_F(join_split_tests, test_defi_wrong_second_asset_id_in_bridge_id_fails)
+{
+    join_split_tx tx = setup_defi_case_7();
+
+    bridge_id bridge_id = { .bridge_address_id = 0,
+                            .input_asset_id_a = tx.input_note[0].asset_id - virtual_asset_id_flag,
+                            .input_asset_id_b = tx.input_note[1].asset_id,
+                            .output_asset_id_a = 0,
+                            .output_asset_id_b = 0,
+                            .config = bridge_id::bit_config{ .first_input_virtual = true,
+                                                             .second_input_virtual = true,
+                                                             .first_output_virtual = false,
+                                                             .second_output_virtual = false,
+                                                             .second_input_real = false,
+                                                             .second_output_real = false },
+                            .aux_data = 0 };
+    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+
+    auto result = sign_and_verify_logic(tx, user.owner.private_key);
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(result.err, "bridge_id_data differs from input notes' data: inconsistent second input asset ids");
+}
+
 // Virtual note repayment.
 TEST_F(join_split_tests, test_repayment_logic)
 {
@@ -1111,33 +1301,6 @@ TEST_F(join_split_tests, test_virtual_note_repay_unequal_value_fails)
     EXPECT_EQ(result.err, "input note values must match");
 }
 
-TEST_F(join_split_tests, test_repayment_incorrect_nonce_fails)
-{
-    join_split_tx tx = simple_setup({ 0, 4 });
-    tx.proof_id = ProofIds::DEFI_DEPOSIT;
-    tx.partial_claim_note.deposit_value = 90;
-    tx.partial_claim_note.input_nullifier = tx.output_note[0].input_nullifier;
-
-    bridge_id bridge_id = { .bridge_address_id = 0,
-                            .input_asset_id_a = tx.asset_id,
-                            .input_asset_id_b = defi_interaction_nonce + 1,
-                            .output_asset_id_a = 0,
-                            .output_asset_id_b = 0,
-                            .config = { .first_input_virtual = false,
-                                        .second_input_virtual = true,
-                                        .first_output_virtual = false,
-                                        .second_output_virtual = false,
-                                        .second_input_real = false,
-                                        .second_output_real = false },
-                            .aux_data = 0 };
-
-    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
-
-    auto result = sign_and_verify_logic(tx, user.owner.private_key);
-    EXPECT_FALSE(result.valid);
-    EXPECT_EQ(result.err, "incorrect second input asset id in bridge id");
-}
-
 TEST_F(join_split_tests, test_repayment_first_note_fails)
 {
     join_split_tx tx = simple_setup({ 4, 0 });
@@ -1168,14 +1331,14 @@ TEST_F(join_split_tests, test_repayment_first_note_fails)
 // Virtual note join-split.
 TEST_F(join_split_tests, test_virtual_note_split_logic)
 {
-    join_split_tx tx = setup_two_virtual_input_notes();
+    join_split_tx tx = setup_case_4();
 
     EXPECT_TRUE(sign_and_verify_logic(tx, user.owner.private_key).valid);
 }
 
 TEST_F(join_split_tests, test_virtual_note_can_only_send)
 {
-    join_split_tx tx = setup_two_virtual_input_notes();
+    join_split_tx tx = setup_case_4();
     tx.proof_id = ProofIds::WITHDRAW;
     tx.public_value = tx.input_note[0].value + tx.input_note[1].value;
     tx.public_owner = fr::random_element();
@@ -1185,22 +1348,16 @@ TEST_F(join_split_tests, test_virtual_note_can_only_send)
     EXPECT_EQ(result.err, "can only send");
 }
 
-TEST_F(join_split_tests, test_virtual_note_split_single_input_note)
+TEST_F(join_split_tests, test_send_one_virtual_note)
 {
-    join_split_tx tx = setup_two_virtual_input_notes();
-
-    tx.num_input_notes = 1;
-    tx.input_note[1].value = 0;
-    tx.output_note[0].value = tx.input_note[0].value >> 1;
-    tx.output_note[1].value = tx.input_note[0].value >> 2;
-    tx.output_note[1].input_nullifier = compute_nullifier(tx.input_note[1].commit(), user.owner.private_key, false);
+    join_split_tx tx = setup_case_3(true);
 
     EXPECT_TRUE(sign_and_verify_logic(tx, user.owner.private_key).valid);
 }
 
 TEST_F(join_split_tests, test_virtual_note_split_nonzero_public_value_fails)
 {
-    join_split_tx tx = setup_two_virtual_input_notes();
+    join_split_tx tx = setup_case_4();
     tx.public_value = 10;
 
     auto result = sign_and_verify_logic(tx, user.owner.private_key);
@@ -1210,7 +1367,7 @@ TEST_F(join_split_tests, test_virtual_note_split_nonzero_public_value_fails)
 
 TEST_F(join_split_tests, test_input_two_virtual_notes_fails)
 {
-    join_split_tx tx = setup_two_virtual_input_notes();
+    join_split_tx tx = setup_case_4();
     tx.input_note[1].asset_id = 3;
 
     auto result = sign_and_verify_logic(tx, user.owner.private_key);
@@ -1220,7 +1377,7 @@ TEST_F(join_split_tests, test_input_two_virtual_notes_fails)
 
 TEST_F(join_split_tests, test_virtual_note_split_tx_asset_id_inconsistent)
 {
-    join_split_tx tx = setup_two_virtual_input_notes();
+    join_split_tx tx = setup_case_4();
     tx.asset_id = 0;
 
     auto result = sign_and_verify_logic(tx, user.owner.private_key);
@@ -1228,6 +1385,7 @@ TEST_F(join_split_tests, test_virtual_note_split_tx_asset_id_inconsistent)
     EXPECT_EQ(result.err, "asset ids don't match");
 }
 
+// Full proofs
 TEST_F(join_split_tests, test_deposit_full_proof)
 {
     join_split_tx tx = zero_input_setup();
@@ -1337,27 +1495,8 @@ TEST_F(join_split_tests, test_private_send_full_proof)
 
 TEST_F(join_split_tests, test_defi_deposit_full_proof)
 {
-    join_split_tx tx = simple_setup();
-    // 150 in, fee is 10.
-    tx.proof_id = ProofIds::DEFI_DEPOSIT;
-    tx.output_note[1].value = 90;
-    tx.partial_claim_note.deposit_value = 50;
-    tx.partial_claim_note.input_nullifier = tx.output_note[0].input_nullifier;
-
-    const bridge_id bridge_id = { .bridge_address_id = 0,
-                                  .input_asset_id_a = tx.asset_id,
-                                  .input_asset_id_b = 0,
-                                  .output_asset_id_a = 0,
-                                  .output_asset_id_b = 1,
-                                  .config = bridge_id::bit_config{ .first_input_virtual = false,
-                                                                   .second_input_virtual = false,
-                                                                   .first_output_virtual = false,
-                                                                   .second_output_virtual = false,
-                                                                   .second_input_real = false,
-                                                                   .second_output_real = true },
-                                  .aux_data = 0 };
-
-    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+    auto tx = setup_case_2();
+    auto bridge_id = bridge_id::from_uint256_t(tx.partial_claim_note.bridge_id);
 
     auto proof = sign_and_create_proof(tx, user.owner.private_key);
 
@@ -1490,7 +1629,7 @@ TEST_F(join_split_tests, test_repayment_full_proof)
 
 TEST_F(join_split_tests, test_virtual_note_split_full_proof)
 {
-    join_split_tx tx = setup_two_virtual_input_notes();
+    join_split_tx tx = setup_case_4();
     ;
 
     auto proof = sign_and_create_proof(tx, user.owner.private_key);
