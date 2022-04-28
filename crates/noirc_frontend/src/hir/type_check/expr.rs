@@ -19,12 +19,9 @@ pub(crate) fn type_check_expression(
     errors: &mut Vec<TypeCheckError>,
 ) -> Type {
     let typ = match interner.expression(expr_id) {
-        HirExpression::Ident(ident_id) => {
+        HirExpression::Ident(ident) => {
             // If an Ident is used in an expression, it cannot be a declaration statement
-            match interner.ident_def(&ident_id) {
-                Some(ident_def_id) => interner.id_type(ident_def_id),
-                None => Type::Error,
-            }
+            interner.id_type(ident.id)
         }
         HirExpression::Literal(literal) => {
             match literal {
@@ -192,7 +189,7 @@ pub(crate) fn type_check_expression(
                 Type::Error
             };
 
-            interner.push_ident_type(&for_expr.identifier, var_type);
+            interner.push_definition_type(for_expr.identifier.id, var_type);
 
             let last_type = type_check_expression(interner, &for_expr.block, errors);
             Type::Array(
@@ -471,11 +468,11 @@ fn check_constructor(
     // Note that we use a Vec to store the original arguments (rather than a BTreeMap) to
     // preserve the evaluation order of the source code.
     let mut args = constructor.fields.clone();
-    args.sort_by_key(|arg| interner.ident(&arg.0));
+    args.sort_by_key(|arg| arg.0.clone());
 
-    for ((param_name, param_type), (arg_id, arg)) in typ.borrow().fields.iter().zip(args) {
+    for ((param_name, param_type), (arg_ident, arg)) in typ.borrow().fields.iter().zip(args) {
         // Sanity check to ensure we're matching against the same field
-        assert_eq!(param_name, &interner.ident(&arg_id));
+        assert_eq!(param_name, &arg_ident);
 
         let arg_type = type_check_expression(interner, &arg, errors);
 
