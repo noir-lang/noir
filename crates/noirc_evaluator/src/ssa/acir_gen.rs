@@ -618,14 +618,7 @@ impl Acir {
         let signature = opcode.definition();
 
         match opcode {
-            OPCODE::ToBits => {
-                let bit_size = cfg.get_as_constant(ins.rhs).unwrap().to_u128() as u32;
-                let l_c = self.substitute(ins.lhs, evaluator, cfg);
-                outputs = split(&l_c, bit_size, evaluator);
-                if let node::ObjectType::Pointer(a) = ins.res_type {
-                    self.memory_witness.insert(a, outputs.clone()); //TODO can we avoid the clone?
-                }
-            }
+            OPCODE::ToBits => todo!(),
             _ => {
                 match (signature.input_size, signature.output_size) {
                     (InputSize::Variable, OutputSize(y)) => {
@@ -752,6 +745,8 @@ pub fn evaluate_and(
     bit_size: u32,
     evaluator: &mut Evaluator,
 ) -> Arithmetic {
+
+
     let result = evaluator.add_witness_to_cs();
     let a_witness = generate_witness(&lhs, evaluator);
     let b_witness = generate_witness(&rhs, evaluator);
@@ -767,12 +762,16 @@ pub fn evaluate_and(
     Arithmetic::from(Linear::from_witness(result))
 }
 
+
+
 pub fn evaluate_xor(
     lhs: InternalVar,
     rhs: InternalVar,
     bit_size: u32,
     evaluator: &mut Evaluator,
-) -> Witness {
+) -> Arithmetic {
+
+
     let result = evaluator.add_witness_to_cs();
 
     let a_witness = generate_witness(&lhs, evaluator);
@@ -786,7 +785,7 @@ pub fn evaluate_xor(
             result,
             num_bits: bit_size,
         }));
-    result
+    from_witness(result)
 }
 
 pub fn evaluate_or(lhs: InternalVar, rhs: InternalVar, bit_size: u32) -> Arithmetic {
@@ -891,6 +890,7 @@ pub fn evaluate_udiv(
     //result = q
     //n.b a et b MUST have proper bit size
     //we need to know a bit size (so that q has the same)
+
     //generate witnesses
 
     //TODO: can we handle an arithmetic and not create a witness for a and b?

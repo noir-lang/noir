@@ -15,16 +15,6 @@ fn set_as_public(_input : Field) {}
 fn pow_const(_base : const Field, _exponent : const Field) -> const Field {}
 
 
-// fn pow(base : Field, exponent : Field) -> Field {
-//     let r: Field = 1 as Field;
-//     let b = dep::std::to_bits(exponent, 32 as u32);
-//     for i in 1..33 {
-//         r = r*r;
-//         r = (b[32-i] as Field)*(r*base) + (1-b[32-i] as Field)*r;
-//     };
-//     r
-// }
-
 // Precondition: x is a boolean
 // returns 1 if x is 0
 // returns 0 if x is 1
@@ -42,17 +32,3 @@ fn bool_not(x : Field) -> Field {
 fn bool_or(x : Field, y : Field) -> Field {
     x + y - (x * y)
 }
-
-
-#[foreign(to_bits)]
-fn to_bits(_x : Field, _bit_size: u32) -> [256]u1{}
-
-// impl Field {
-//     #[builtin(to_bits_field)]
-//     fn to_bits(self) -> []bool{}
-// }
-
-// impl u32 {
-//     #[builtin(to_bits_u32)]
-//     fn to_bits(self) -> []bool{}
-// }
