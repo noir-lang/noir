@@ -2,7 +2,7 @@ use super::{
     block::{self, BlockId},
     context::SsaContext,
     node::{self, Node, NodeEval, NodeId, NodeObj, Operation, BinaryOp},
-    optim::{self, simplify},
+    optim,
 };
 use acvm::FieldElement;
 use std::collections::HashMap;
@@ -55,11 +55,8 @@ pub fn unroll_block(
 ) -> Option<BlockId> {
     if ctx[block_to_unroll].is_join() {
         unroll_join(unrolled_instructions, eval_map, block_to_unroll, ctx)
-    } else if let Some(i) = unroll_std_block(unrolled_instructions, eval_map, block_to_unroll, ctx)
-    {
-        ctx.try_get_instruction(i).map(|ins| ins.parent_block)
     } else {
-        None
+        unroll_std_block(unrolled_instructions, eval_map, block_to_unroll, ctx)
     }
 }
 
@@ -95,21 +92,14 @@ pub fn unroll_std_block(
                     _ => {
                         let replacement = optim::simplify(igen, &mut new_ins);
 
-                        let result_id;
-                        let mut to_delete = false;
-                        if new_ins.is_deleted {
-                            result_id = new_ins.rhs;
-                            if new_ins.rhs == new_ins.id {
-                                to_delete = true;
-                            }
+                        let result_id = if let Some(replacement) = replacement {
+                            replacement
                         } else {
-                            result_id = igen.add_instruction(new_ins);
-                            unrolled_instructions.push(result_id);
-                        }
-                        //ignore self-deleted instructions
-                        if !to_delete {
-                            eval_map.insert(*i_id, NodeEval::VarOrInstruction(result_id));
-                        }
+                            let id = igen.add_instruction(new_ins);
+                            unrolled_instructions.push(id);
+                            id
+                        };
+                        eval_map.insert(*i_id, NodeEval::VarOrInstruction(result_id));
                     }
                 }
             }

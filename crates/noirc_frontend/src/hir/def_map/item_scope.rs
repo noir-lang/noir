@@ -1,6 +1,6 @@
 use super::{namespace::PerNs, ModuleDefId, ModuleId};
 use crate::{
-    node_interner::{FuncId, TypeId},
+    node_interner::{FuncId, StructId},
     Ident,
 };
 use std::collections::{hash_map::Entry, HashMap};
@@ -69,7 +69,7 @@ impl ItemScope {
     pub fn define_struct_def(
         &mut self,
         name: Ident,
-        local_id: TypeId,
+        local_id: StructId,
     ) -> Result<(), (Ident, Ident)> {
         self.add_definition(name, ModuleDefId::TypeId(local_id))
     }

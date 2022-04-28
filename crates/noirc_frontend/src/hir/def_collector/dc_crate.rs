@@ -10,7 +10,7 @@ use crate::hir::resolution::{
 };
 use crate::hir::type_check::type_check_func;
 use crate::hir::Context;
-use crate::node_interner::{FuncId, NodeInterner, TypeId};
+use crate::node_interner::{FuncId, NodeInterner, StructId};
 use crate::util::vecmap;
 use crate::{Ident, NoirFunction, NoirStruct, ParsedModule, Path, Type};
 use fm::FileId;
@@ -41,7 +41,7 @@ pub struct DefCollector {
     pub(crate) def_map: CrateDefMap,
     pub(crate) collected_imports: Vec<ImportDirective>,
     pub(crate) collected_functions: Vec<UnresolvedFunctions>,
-    pub(crate) collected_types: HashMap<TypeId, UnresolvedStruct>,
+    pub(crate) collected_types: HashMap<StructId, UnresolvedStruct>,
 
     /// collected impls maps the type name and the module id in which
     /// the impl is defined to the functions contained in that impl
@@ -219,7 +219,7 @@ fn collect_impls(
                 })
             }
 
-            if typ != TypeId::dummy_id() {
+            if typ != StructId::dummy_id() {
                 // Grab the scope defined by the struct type. Note that impls are a case
                 // where the scope the methods are added to is not the same as the scope
                 // they are resolved in.
@@ -249,7 +249,7 @@ fn collect_impls(
 /// so that expressions can access the fields of structs
 fn resolve_structs(
     context: &mut Context,
-    structs: HashMap<TypeId, UnresolvedStruct>,
+    structs: HashMap<StructId, UnresolvedStruct>,
     crate_id: CrateId,
     errors: &mut Vec<CollectedErrors>,
 ) {
@@ -318,13 +318,13 @@ fn resolve_impls(
 
         if let Some(typ) = self_type {
             for (file_id, method_id) in &ids {
-                let method_name = interner.function_meta(method_id).name;
+                let method_name = interner.function_name(method_id).to_owned();
                 let mut typ = typ.borrow_mut();
 
                 if let Some(first_fn) = typ.methods.insert(method_name, *method_id) {
                     let error = ResolverError::DuplicateDefinition {
-                        first_ident: interner.function_meta(&first_fn).name_id,
-                        second_ident: interner.function_meta(method_id).name_id,
+                        first_ident: interner.function_meta(&first_fn).name,
+                        second_ident: interner.function_meta(method_id).name,
                     };
 
                     errors.push(CollectedErrors {
@@ -346,7 +346,7 @@ fn resolve_functions(
     crate_id: CrateId,
     def_maps: &HashMap<CrateId, CrateDefMap>,
     collected_functions: Vec<UnresolvedFunctions>,
-    self_type: Option<TypeId>,
+    self_type: Option<StructId>,
     errors: &mut Vec<CollectedErrors>,
 ) -> Vec<(FileId, FuncId)> {
     let mut file_func_ids = Vec::new();

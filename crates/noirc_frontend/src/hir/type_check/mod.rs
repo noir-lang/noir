@@ -61,8 +61,9 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
 mod test {
     use std::collections::HashMap;
 
-    use noirc_errors::{Span, Spanned};
+    use noirc_errors::Span;
 
+    use crate::hir_def::expr::HirIdent;
     use crate::hir_def::stmt::HirLetStatement;
     use crate::hir_def::stmt::HirPattern::Identifier;
     use crate::hir_def::types::Type;
@@ -94,18 +95,29 @@ mod test {
         // let z = x + y;
         //
         // Push x variable
-        let x_id = interner.push_ident(Spanned::from(Span::default(), String::from("x")).into());
-        interner.linked_ident_to_def(x_id, x_id);
+        let x_id = interner.push_definition("x".into(), false);
+        let x = HirIdent {
+            id: x_id,
+            span: Span::default(),
+        };
+
         // Push y variable
-        let y_id = interner.push_ident(Spanned::from(Span::default(), String::from("y")).into());
-        interner.linked_ident_to_def(y_id, y_id);
+        let y_id = interner.push_definition("y".into(), false);
+        let y = HirIdent {
+            id: y_id,
+            span: Span::default(),
+        };
+
         // Push z variable
-        let z_id = interner.push_ident(Spanned::from(Span::default(), String::from("z")).into());
-        interner.linked_ident_to_def(z_id, z_id);
+        let z_id = interner.push_definition("z".into(), false);
+        let z = HirIdent {
+            id: z_id,
+            span: Span::default(),
+        };
 
         // Push x and y as expressions
-        let x_expr_id = interner.push_expr(HirExpression::Ident(x_id));
-        let y_expr_id = interner.push_expr(HirExpression::Ident(y_id));
+        let x_expr_id = interner.push_expr(HirExpression::Ident(x));
+        let y_expr_id = interner.push_expr(HirExpression::Ident(y));
 
         // Create Infix
         let operator = HirBinaryOp {
@@ -121,7 +133,7 @@ mod test {
 
         // Create let statement
         let let_stmt = HirLetStatement {
-            pattern: Identifier(z_id),
+            pattern: Identifier(z),
             r#type: Type::Unspecified,
             expression: expr_id,
         };
@@ -132,19 +144,19 @@ mod test {
         let func = HirFunction::unsafe_from_expr(expr_id);
         let func_id = interner.push_fn(func);
 
-        let name = "test_func".to_owned();
-        let fake_span = Span::single_char(0);
-        let name_id = interner.push_ident(Ident::from(Spanned::from(fake_span, name.clone())));
+        let name = HirIdent {
+            span: Span::default(),
+            id: interner.push_definition("test_func".into(), false),
+        };
 
         // Add function meta
         let func_meta = FuncMeta {
             name,
-            name_id,
             kind: FunctionKind::Normal,
             attributes: None,
             parameters: vec![
-                Param(Identifier(x_id), Type::WITNESS),
-                Param(Identifier(y_id), Type::WITNESS),
+                Param(Identifier(x), Type::WITNESS),
+                Param(Identifier(y), Type::WITNESS),
             ]
             .into(),
             return_type: Type::Unit,
