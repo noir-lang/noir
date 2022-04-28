@@ -1,6 +1,6 @@
 use super::block::{BasicBlock, BlockId};
 use super::mem::Memory;
-use super::node::{Instruction, NodeId, NodeObj, ObjectType, Operation};
+use super::node::{Instruction, NodeId, NodeObj, ObjectType, Operation, BinaryOp};
 use super::{block, flatten, integer, node, optim};
 use std::collections::HashSet;
 
@@ -57,6 +57,63 @@ impl<'a> SsaContext<'a> {
         }
     }
 
+    fn binary_to_string(&self, binary: &node::Binary) -> String {
+        let lhs = self.node_to_string(binary.lhs);
+        let rhs = self.node_to_string(binary.rhs);
+
+        let op = match &binary.operator {
+            BinaryOp::Add => "add",
+            BinaryOp::SafeAdd => "safeAdd",
+            BinaryOp::Sub { max_rhs_value } => "sub",
+            BinaryOp::SafeSub { max_rhs_value } => "safeSub",
+            BinaryOp::Mul => "mul",
+            BinaryOp::SafeMul => "safeMul",
+            BinaryOp::Udiv => "udiv",
+            BinaryOp::Sdiv => "sdiv",
+            BinaryOp::Urem => "urem",
+            BinaryOp::Srem => "srem",
+            BinaryOp::Div => "div",
+            BinaryOp::Eq => "eq",
+            BinaryOp::Ne => "ne",
+            BinaryOp::Ult => "ult",
+            BinaryOp::Ule => "ule",
+            BinaryOp::Slt => "slt",
+            BinaryOp::Sle => "sle",
+            BinaryOp::Lt => "lt",
+            BinaryOp::Lte => "lte",
+            BinaryOp::And => "and",
+            BinaryOp::Or => "or",
+            BinaryOp::Xor => "xor",
+            BinaryOp::Assign => "assign",
+            BinaryOp::Constrain(_) => "constrain",
+        };
+
+        format!("{} {}, {}", op, lhs, rhs)
+    }
+
+    fn operation_to_string(&self, op: &Operation) -> String {
+        match op {
+            Operation::Binary(binary) => self.binary_to_string(binary),
+            Operation::Cast(value) => format!("cast {}", self.node_to_string(*value)),
+            Operation::Truncate { value, bit_size } => format!("truncate {}, bitsize = {}", self.node_to_string(*value), bit_size),
+            Operation::Not(v) => format!("not {}", self.node_to_string(*v)),
+            Operation::Jne(v, b) => format!("jne {}, {:?}", self.node_to_string(*v), b),
+            Operation::Jeq(v, b) => format!("jeq {}, {:?}", self.node_to_string(*v), b),
+            Operation::Jmp(b) => format!("jmp {:?}", b),
+            Operation::Phi { root, block_args } => {
+                let mut s = format!("phi {}", self.node_to_string(*root));
+                for (value, block) in block_args {
+                    s += &format!(", {} from {:?}", self.node_to_string(*value), block);
+                }
+                s
+            }
+            Operation::Load { array, index } => format!("load array {}, index {}", array, self.node_to_string(*index)),
+            Operation::Store { array, index, value } => format!("store array {}, index {}, value {}", array, self.node_to_string(*index), self.node_to_string(*value)),
+            Operation::Intrinsic(opcode) => format!("intrinsic {}", opcode),
+            Operation::Nop => format!("nop"),
+        }
+    }
+
     pub fn print_block(&self, b: &block::BasicBlock) {
         for id in &b.instructions {
             let ins = self.get_instruction(*id);
@@ -68,21 +125,8 @@ impl<'a> SsaContext<'a> {
             if ins.is_deleted {
                 str_res += " -DELETED";
             }
-            let lhs_str = self.node_to_string(ins.lhs);
-            let rhs_str = self.node_to_string(ins.rhs);
-            let mut ins_str = format!("{} op:{:?} {}", lhs_str, ins.operator, rhs_str);
 
-            if ins.operator == node::Operation::Phi {
-                ins_str += "(";
-                for (v, b) in &ins.phi_arguments {
-                    ins_str += &format!(
-                        "{:?}:{:?}, ",
-                        v.0.into_raw_parts().0,
-                        b.0.into_raw_parts().0
-                    );
-                }
-                ins_str += ")";
-            }
+            let ins_str = self.operation_to_string(&ins.operator);
             println!("{}: {}", str_res, ins_str);
         }
     }
@@ -219,21 +263,21 @@ impl<'a> SsaContext<'a> {
         id
     }
 
-    pub fn new_instruction(
-        &mut self,
-        lhs: NodeId,
-        rhs: NodeId,
-        opcode: node::Operation,
-        optype: node::ObjectType,
-    ) -> NodeId {
+    pub fn new_instruction(&mut self, opcode: Operation, optype: ObjectType) -> NodeId {
         //Add a new instruction to the nodes arena
-        let mut i = node::Instruction::new(opcode, lhs, rhs, optype, Some(self.current_block));
+        let mut i = Instruction::new(opcode, optype, Some(self.current_block));
         //Basic simplification
         optim::simplify(self, &mut i);
         if i.is_deleted {
-            return i.rhs;
+            // TODO: can no longer return rhs here (nor should we)
+            // return i.rhs;
         }
         self.push_instruction(i)
+    }
+
+    pub fn new_binary_instruction(&mut self, operator: BinaryOp, lhs: NodeId, rhs: NodeId, optype: ObjectType) -> NodeId {
+        let operation = Operation::binary(operator, lhs, rhs);
+        self.new_instruction(operation, optype)
     }
 
     pub fn find_const_with_type(
@@ -270,29 +314,24 @@ impl<'a> SsaContext<'a> {
 
     //Return the type of the operation result, based on the left hand type
     pub fn get_result_type(&self, op: Operation, lhs_type: node::ObjectType) -> node::ObjectType {
+        use { Operation::*, BinaryOp::* };
         match op {
-            Operation::Eq
-            | Operation::Ne
-            | Operation::Ugt
-            | Operation::Uge
-            | Operation::Ult
-            | Operation::Ule
-            | Operation::Sgt
-            | Operation::Sge
-            | Operation::Slt
-            | Operation::Sle
-            | Operation::Lt
-            | Operation::Gt
-            | Operation::Lte
-            | Operation::Gte => ObjectType::Boolean,
-            Operation::Jne
-            | Operation::Jeq
-            | Operation::Jmp
+            Binary(node::Binary { operator: Eq, .. })
+            | Binary(node::Binary { operator: Ne, .. })
+            | Binary(node::Binary { operator: Ult, .. })
+            | Binary(node::Binary { operator: Ule, .. })
+            | Binary(node::Binary { operator: Slt, .. })
+            | Binary(node::Binary { operator: Sle, .. })
+            | Binary(node::Binary { operator: Lt, .. })
+            | Binary(node::Binary { operator: Lte, .. }) => ObjectType::Boolean,
+            Operation::Jne(_, _)
+            | Operation::Jeq(_, _)
+            | Operation::Jmp(_)
             | Operation::Nop
-            | Operation::Constrain(_)
-            | Operation::Store(_) => ObjectType::NotAnObject,
-            Operation::Load(adr) => self.mem.arrays[adr as usize].element_type,
-            Operation::Cast | Operation::Truncate => unreachable!("cannot determine result type"),
+            | Binary(node::Binary { operator: Constrain(_), .. })
+            | Operation::Store { .. } => ObjectType::NotAnObject,
+            Operation::Load { array, .. } => self.mem.arrays[array as usize].element_type,
+            Operation::Cast(_) | Operation::Truncate { .. } => unreachable!("cannot determine result type"),
             _ => lhs_type,
         }
     }
@@ -370,18 +409,20 @@ impl<'a> SsaContext<'a> {
         Acir::print_circuit(&evaluator.gates);
     }
 
-    pub fn generate_empty_phi(&mut self, target_block: BlockId, root: NodeId) -> NodeId {
+    pub fn generate_empty_phi(&mut self, target_block: BlockId, phi_root: NodeId) -> NodeId {
         //Ensure there is not already a phi for the variable (n.b. probably not usefull)
         for i in &self[target_block].instructions {
-            if let Some(ins) = self.try_get_instruction(*i) {
-                if ins.operator == node::Operation::Phi && ins.rhs == root {
+            match self.try_get_instruction(*i) {
+                Some(Instruction { operator: Operation::Phi { root, .. }, .. }) if *root == phi_root => {
                     return *i;
                 }
+                _ => (),
             }
         }
 
-        let v_type = self.get_object_type(root);
-        let new_phi = Instruction::new(Operation::Phi, root, root, v_type, Some(target_block));
+        let v_type = self.get_object_type(phi_root);
+        let operation = Operation::Phi { root: phi_root, block_args: vec![] };
+        let new_phi = Instruction::new(operation, v_type, Some(target_block));
         let phi_id = self.add_instruction(new_phi);
         self[target_block].instructions.insert(1, phi_id);
         phi_id

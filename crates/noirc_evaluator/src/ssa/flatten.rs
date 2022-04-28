@@ -1,11 +1,20 @@
 use super::{
     block::{self, BlockId},
     context::SsaContext,
-    node::{self, Node, NodeEval, NodeId, NodeObj, Operation},
-    optim,
+    node::{self, Node, NodeEval, NodeId, NodeObj, Operation, BinaryOp},
+    optim::{self, simplify},
 };
 use acvm::FieldElement;
 use std::collections::HashMap;
+
+//returns the NodeObj index of a NodeEval object
+//if NodeEval is a constant, it may creates a new NodeObj corresponding to the constant value
+fn to_index(ctx: &mut SsaContext, obj: NodeEval) -> NodeId {
+    match obj {
+        NodeEval::Const(c, t) => ctx.get_or_create_const(c, t),
+        NodeEval::VarOrInstruction(i) => i,
+    }
+}
 
 //Unroll the CFG
 pub fn unroll_tree(ctx: &mut SsaContext) {
@@ -19,32 +28,36 @@ pub fn unroll_tree(ctx: &mut SsaContext) {
 }
 
 //Update the block instruction list using the eval_map
-fn eval_block(block_id: BlockId, eval_map: &HashMap<NodeId, NodeEval>, igen: &mut SsaContext) {
-    for i in &igen[block_id].instructions.clone() {
-        //RIA
-        if let Some(ins) = igen.try_get_mut_instruction(*i) {
-            if let Some(value) = eval_map.get(&ins.rhs) {
-                ins.rhs = value.into_node_id().unwrap();
-            }
-            if let Some(value) = eval_map.get(&ins.lhs) {
-                ins.lhs = value.into_node_id().unwrap();
-            }
-            //TODO simplify(ctx, ins);
+fn eval_block(block_id: BlockId, eval_map: &HashMap<NodeId, NodeEval>, ctx: &mut SsaContext) {
+    for i in &ctx[block_id].instructions.clone() {
+        if let Some(ins) = ctx.try_get_mut_instruction(*i) {
+            ins.operator = update_operator(ctx, ins.operator, eval_map);
+            // TODO: simplify(ctx, ins);
         }
     }
+}
+
+fn update_operator(ctx: &mut SsaContext, operator: Operation, eval_map: &HashMap<NodeId, NodeEval>) -> Operation {
+    let update = |id| {
+        eval_map.get(&id)
+            .and_then(|value| value.into_node_id())
+            .unwrap_or(id)
+    };
+
+    operator.map_id(update)
 }
 
 pub fn unroll_block(
     unrolled_instructions: &mut Vec<NodeId>,
     eval_map: &mut HashMap<NodeId, NodeEval>,
     block_to_unroll: BlockId,
-    igen: &mut SsaContext,
+    ctx: &mut SsaContext,
 ) -> Option<BlockId> {
-    if igen[block_to_unroll].is_join() {
-        unroll_join(unrolled_instructions, eval_map, block_to_unroll, igen)
-    } else if let Some(i) = unroll_std_block(unrolled_instructions, eval_map, block_to_unroll, igen)
+    if ctx[block_to_unroll].is_join() {
+        unroll_join(unrolled_instructions, eval_map, block_to_unroll, ctx)
+    } else if let Some(i) = unroll_std_block(unrolled_instructions, eval_map, block_to_unroll, ctx)
     {
-        igen.try_get_instruction(i).map(|ins| ins.parent_block)
+        ctx.try_get_instruction(i).map(|ins| ins.parent_block)
     } else {
         None
     }
@@ -56,36 +69,32 @@ pub fn unroll_std_block(
     eval_map: &mut HashMap<NodeId, NodeEval>,
     block_to_unroll: BlockId,
     igen: &mut SsaContext,
-) -> Option<NodeId> //first instruction of the left block
+) -> Option<BlockId> // The left block
 {
     let block = &igen[block_to_unroll];
     let b_instructions = block.instructions.clone();
-    let mut next = None;
-    if let Some(left) = block.left {
-        if let Some(f) = igen[left].instructions.first() {
-            next = Some(*f);
-        }
-    }
+    let next = block.left;
+
     for i_id in &b_instructions {
         match &igen[*i_id] {
             node::NodeObj::Instr(i) => {
-                let new_left = get_current_value(i.lhs, eval_map).into_node_id().unwrap();
-                let new_right = get_current_value(i.rhs, eval_map).into_node_id().unwrap();
+                let new_op = i.operator.map_id(|id| get_current_value(id, eval_map).into_node_id().unwrap());
                 let mut new_ins = node::Instruction::new(
-                    i.operator, new_left, new_right, i.res_type, None, //TODO to fix later
+                    new_op, i.res_type, None, //TODO to fix later
                 );
                 match i.operator {
-                    Operation::Assign => {
+                    Operation::Binary(node::Binary { operator: BinaryOp::Assign, .. }) => {
                         unreachable!("unsupported instruction type when unrolling: assign");
                         //To support assignments, we should create a new variable and updates the eval_map with it
                         //however assignments should have already been removed by copy propagation.
                     }
-                    Operation::Jmp => {
-                        return Some(i.rhs);
+                    Operation::Jmp(block) => {
+                        return Some(block);
                     }
                     Operation::Nop => (),
                     _ => {
-                        optim::simplify(igen, &mut new_ins);
+                        let replacement = optim::simplify(igen, &mut new_ins);
+
                         let result_id;
                         let mut to_delete = false;
                         if new_ins.is_deleted {

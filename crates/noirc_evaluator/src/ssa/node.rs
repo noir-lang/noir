@@ -9,7 +9,7 @@ use noirc_frontend::hir_def::expr::HirBinaryOpKind;
 use noirc_frontend::node_interner::IdentId;
 use noirc_frontend::{Signedness, Type};
 use num_bigint::BigUint;
-use num_traits::{One, FromPrimitive};
+use num_traits::{FromPrimitive, One};
 
 use crate::object::Object;
 use std::ops::Mul;
@@ -319,6 +319,46 @@ impl NodeEval {
             NodeEval::Const(_, _) => None,
         }
     }
+
+    /// Returns is_zero, the field value if known, and the bitcount
+    pub fn evaluate(&self) -> (bool, Option<u128>, u32) {
+        match self {
+            &NodeEval::Const(c, t) => {
+                let (value, bitcount) = field_to_u128(c, t);
+                (c.is_zero(), Some(value), bitcount)
+            }
+            _ => (false, None, 0),
+        }
+    }
+
+    pub fn from_id(ctx: &SsaContext, id: NodeId) -> NodeEval {
+        match &ctx[id] {
+            NodeObj::Const(c) => {
+                let value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
+                NodeEval::Const(value, c.get_type())
+            },
+            _ => NodeEval::VarOrInstruction(id),
+        }
+    }
+
+    fn from_u128(value: u128, typ: ObjectType) -> NodeEval {
+        NodeEval::Const(value.into(), typ)
+    }
+}
+
+//Returns the field element as i128 and the bit size of the constant node
+pub fn field_to_u128(c: FieldElement, ctype: ObjectType) -> (u128, u32) {
+    match ctype {
+        ObjectType::Boolean => (if c.is_zero() { 0 } else { 1 }, 1),
+        ObjectType::NativeField => {
+            (c.to_u128(), 256) //TODO: handle elements that do not fit in 128 bits
+        }
+        ObjectType::Signed(b) | ObjectType::Unsigned(b) => {
+            assert!(b < 128); //we do not support integers bigger than 128 bits for now.
+            (c.to_u128(), b)
+        } //TODO check how to handle signed integers
+        _ => todo!(),
+    }
 }
 
 impl Instruction {
@@ -352,45 +392,20 @@ impl Instruction {
                 (false, false)
             }
             Operation::Truncate { .. } | Operation::Phi { .. } => (false, false),
-            Operation::Nop | Operation::Jne | Operation::Jeq | Operation::Jmp => (false, false),
-            Operation::Load(_) | Operation::Store(_) => (false, false),
+            Operation::Nop | Operation::Jne(..)| Operation::Jeq(..) | Operation::Jmp(..) => (false, false),
+            Operation::Load { .. } | Operation::Store { .. } => (false, false),
             Operation::Intrinsic(_) => (true, true), //TODO to check
         }
     }
 
-    //Returns the field element as i128 and the bit size of the constant node
-    pub fn get_const_value(c: FieldElement, ctype: ObjectType) -> (u128, u32) {
-        match ctype {
-            ObjectType::Boolean => (if c.is_zero() { 0 } else { 1 }, 1),
-            ObjectType::NativeField => {
-                (c.to_u128(), 256) //TODO: handle elements that do not fit in 128 bits
-            }
-            ObjectType::Signed(b) | ObjectType::Unsigned(b) => {
-                assert!(b < 128); //we do not support integers bigger than 128 bits for now.
-                (c.to_u128(), b)
-            } //TODO check how to handle signed integers
-            _ => todo!(),
-        }
-    }
-
-    pub fn node_evaluate(n: &NodeEval) -> (bool, Option<u128>, u32) {
-        match n {
-            &NodeEval::Const(c, t) => {
-                let cv = Instruction::get_const_value(c, t);
-                (c.is_zero(), Some(cv.0), cv.1)
-            }
-            _ => (false, None, 0),
-        }
-    }
-
     //Evaluate the instruction value when its operands are constant (constant folding)
-    pub fn evaluate(&self, l_eval: &NodeEval, r_eval: &NodeEval) -> NodeEval {
-        match self.operator {
-            Operation::Binary(binary) => return binary.evaluate(l_eval, r_eval, self.id, self.res_type),
-            Operation::Cast(..) => {
-                let (_, l_constant, _) = Instruction::node_evaluate(l_eval);
-
-                if let Some(l_const) = l_constant {
+    pub fn evaluate(&self, ctx: &mut SsaContext) -> NodeEval {
+        match &self.operator {
+            Operation::Binary(binary) => {
+                return binary.evaluate(ctx, self.id, self.res_type)
+            }
+            Operation::Cast(value) => {
+                if let Some(l_const) = ctx.get_const_value(*value) {
                     if self.res_type == ObjectType::NativeField {
                         return NodeEval::Const(FieldElement::from(l_const), self.res_type);
                     }
@@ -400,9 +415,8 @@ impl Instruction {
                     );
                 }
             }
-            Operation::Not(_) => {
-                let (_, l_constant, _) = Instruction::node_evaluate(l_eval);
-                if let Some(l_const) = l_constant {
+            Operation::Not(value) => {
+                if let Some(l_const) = ctx.get_const_value(*value) {
                     return NodeEval::Const(FieldElement::from(!l_const), self.res_type);
                 }
             }
@@ -459,6 +473,25 @@ impl Instruction {
     }
 }
 
+impl<'c> SsaContext<'c> {
+    fn get_const_value(&self, id: NodeId) -> Option<u128> {
+        match &self[id] {
+            NodeObj::Const(c) => c.value.try_into().ok(),
+            _ => None,
+        }
+    }
+
+    fn get_value_and_bitsize(&self, id: NodeId) -> Option<(FieldElement, u32)> {
+        match &self[id] {
+            NodeObj::Const(c) => {
+                let value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
+                Some((value, c.value_type.bits()))
+            }
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum ConstrainOp {
     Eq,
@@ -471,23 +504,20 @@ pub enum ConstrainOp {
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum Operation {
     Binary(Binary),
-    Cast(NodeId), //convert type
-    Truncate {
-        value: NodeId,
-        bit_size: u32,
-    }, //truncate
+    Cast(NodeId),                              //convert type
+    Truncate { value: NodeId, bit_size: u32 }, //truncate
 
     Not(NodeId), //(!) Bitwise Not
 
     //control flow
-    Jne, //jump on not equal
-    Jeq, //jump on equal
-    Jmp, //unconditional jump
-    Phi { block_args: Vec<(NodeId, BlockId)> },
+    Jne(NodeId, BlockId), //jump on not equal
+    Jeq(NodeId, BlockId), //jump on equal
+    Jmp(BlockId), //unconditional jump
+    Phi { root: NodeId, block_args: Vec<(NodeId, BlockId)> },
 
     //memory
-    Load(u32),
-    Store(u32),
+    Load { array: u32, index: NodeId },
+    Store { array: u32, index: NodeId, value: NodeId },
 
     Intrinsic(OpCode), //Custom implementation of usefull primitives which are more performant with Aztec backend
 
@@ -496,35 +526,35 @@ pub enum Operation {
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Binary {
-    lhs: NodeId,
-    rhs: NodeId,
-    operator: BinaryOp,
+    pub lhs: NodeId,
+    pub rhs: NodeId,
+    pub operator: BinaryOp,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum BinaryOp {
-    Add,     //(+)
-    SafeAdd, //(+) safe addition
-    Sub { max_rhs_value: BigUint }, //(-)
+    Add,                                //(+)
+    SafeAdd,                            //(+) safe addition
+    Sub { max_rhs_value: BigUint },     //(-)
     SafeSub { max_rhs_value: BigUint }, //(-) safe subtraction
-    Mul,     //(*)
-    SafeMul, //(*) safe multiplication
-    Udiv,    //(/) unsigned division
-    Sdiv,    //(/) signed division
-    Urem,    //(%) modulo; remainder of unsigned division
-    Srem,    //(%) remainder of signed division
-    Div,     //(/) field division
-    Eq,      //(==) equal
-    Ne,      //(!=) not equal
-    Ult,     //(<) unsigned less than
-    Ule,     //(<=) unsigned less or equal
-    Slt,     //(<) signed less than
-    Sle,     //(<=) signed less or equal
-    Lt,      //(<) field less
-    Lte,     //(<=) field less or equal
-    And,     //(&) Bitwise And
-    Or,      //(|) Bitwise Or
-    Xor,     //(^) Bitwise Xor
+    Mul,                                //(*)
+    SafeMul,                            //(*) safe multiplication
+    Udiv,                               //(/) unsigned division
+    Sdiv,                               //(/) signed division
+    Urem,                               //(%) modulo; remainder of unsigned division
+    Srem,                               //(%) remainder of signed division
+    Div,                                //(/) field division
+    Eq,                                 //(==) equal
+    Ne,                                 //(!=) not equal
+    Ult,                                //(<) unsigned less than
+    Ule,                                //(<=) unsigned less or equal
+    Slt,                                //(<) signed less than
+    Sle,                                //(<=) signed less or equal
+    Lt,                                 //(<) field less
+    Lte,                                //(<=) field less or equal
+    And,                                //(&) Bitwise And
+    Or,                                 //(|) Bitwise Or
+    Xor,                                //(^) Bitwise Xor
 
     Assign,
     Constrain(ConstrainOp), //write gates enforcing the ContrainOp to be true
@@ -535,31 +565,100 @@ impl Binary {
         Binary { operator, lhs, rhs }
     }
 
-    fn evaluate(&self, l_eval: &NodeEval, r_eval: &NodeEval, id: NodeId, res_type: ObjectType) -> NodeEval {
-        let (l_is_zero, l_constant, l_bsize) = Instruction::node_evaluate(l_eval);
-        let (r_is_zero, r_constant, r_bsize) = Instruction::node_evaluate(r_eval);
-        let r_is_const = r_constant.is_some();
-        let l_is_const = l_constant.is_some();
+    pub fn from_hir(
+        op_kind: HirBinaryOpKind,
+        op_type: ObjectType,
+        lhs: NodeId,
+        rhs: NodeId,
+    ) -> Binary {
+        let operator = match op_kind {
+            HirBinaryOpKind::Add => BinaryOp::Add,
+            HirBinaryOpKind::Subtract => BinaryOp::Sub {
+                max_rhs_value: BigUint::from_u8(0).unwrap(),
+            },
+            HirBinaryOpKind::Multiply => BinaryOp::Mul,
+            HirBinaryOpKind::Equal => BinaryOp::Eq,
+            HirBinaryOpKind::NotEqual => BinaryOp::Ne,
+            HirBinaryOpKind::And => BinaryOp::And,
+            HirBinaryOpKind::Or => BinaryOp::Or,
+            HirBinaryOpKind::Xor => BinaryOp::Xor,
+            HirBinaryOpKind::Divide => {
+                let num_type: NumericType = op_type.into();
+                match num_type {
+                    NumericType::Signed(_) => BinaryOp::Sdiv,
+                    NumericType::Unsigned(_) => BinaryOp::Udiv,
+                    NumericType::NativeField => BinaryOp::Div,
+                }
+            }
+            HirBinaryOpKind::Less => {
+                let num_type: NumericType = op_type.into();
+                match num_type {
+                    NumericType::Signed(_) => BinaryOp::Slt,
+                    NumericType::Unsigned(_) => BinaryOp::Ult,
+                    NumericType::NativeField => BinaryOp::Lt,
+                }
+            }
+            HirBinaryOpKind::LessEqual => {
+                let num_type: NumericType = op_type.into();
+                match num_type {
+                    NumericType::Signed(_) => BinaryOp::Sle,
+                    NumericType::Unsigned(_) => BinaryOp::Ult,
+                    NumericType::NativeField => BinaryOp::Lte,
+                }
+            }
+            HirBinaryOpKind::Greater => {
+                let num_type: NumericType = op_type.into();
+                match num_type {
+                    NumericType::Signed(_) => return Binary::new(BinaryOp::Sle, rhs, lhs),
+                    NumericType::Unsigned(_) => return Binary::new(BinaryOp::Ule, rhs, lhs),
+                    NumericType::NativeField => return Binary::new(BinaryOp::Lte, rhs, lhs),
+                }
+            }
+            HirBinaryOpKind::GreaterEqual => {
+                let num_type: NumericType = op_type.into();
+                match num_type {
+                    NumericType::Signed(_) => return Binary::new(BinaryOp::Slt, rhs, lhs),
+                    NumericType::Unsigned(_) => return Binary::new(BinaryOp::Ult, rhs, lhs),
+                    NumericType::NativeField => return Binary::new(BinaryOp::Lt, rhs, lhs),
+                }
+            }
+            HirBinaryOpKind::Assign => BinaryOp::Assign,
+        };
+
+        Binary::new(operator, lhs, rhs)
+    }
+
+    fn evaluate(
+        &self,
+        ctx: &mut SsaContext,
+        id: NodeId,
+        res_type: ObjectType,
+    ) -> NodeEval {
+        let lhs = ctx.get_value_and_bitsize(self.lhs);
+        let rhs = ctx.get_value_and_bitsize(self.rhs);
+
+        let l_is_zero = lhs.map_or(false, |x| x.0.is_zero());
+        let r_is_zero = rhs.map_or(false, |x| x.0.is_zero());
+
+        let l_eval = NodeEval::from_id(ctx, self.lhs);
+        let r_eval = NodeEval::from_id(ctx, self.rhs);
 
         match &self.operator {
             BinaryOp::Add | BinaryOp::SafeAdd => {
-                if r_is_zero {
-                    return *l_eval;
-                } else if l_is_zero {
-                    return *r_eval;
-                } else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
+                if l_is_zero {
+                    return r_eval;
+                } else if r_is_zero {
+                    return l_eval;
+                }
+
+                if let (Some((lhs, l_bits)), Some((rhs, r_bits))) = (lhs, rhs) {
                     //constant folding
-                    if l_bsize == 256 {
+                    if l_bits == 256 {
                         //NO modulo for field elements - May be we should have a different opcode?
-                        if let (NodeEval::Const(a, _), NodeEval::Const(b, _)) = (l_eval, r_eval) {
-                            let res_value = a.add(*b);
-                            return NodeEval::Const(res_value, res_type);
-                        }
-                        unreachable!();
+                        return NodeEval::Const(lhs + rhs, res_type);
                     }
-                    assert!(l_bsize == r_bsize);
-                    let res_value = (l_const + r_const) % (1_u128 << l_bsize) as u128;
-                    return NodeEval::Const(FieldElement::from(res_value), res_type);
+                    assert_eq!(l_bits, r_bits);
+                    return wrapping(lhs, rhs, l_bits, res_type, u128::add);
                 }
                 //if only one is const, we could try to do constant propagation but this will be handled by the arithmetization step anyways
                 //so it is probably not worth it.
@@ -567,52 +666,38 @@ impl Binary {
             }
             BinaryOp::Sub { .. } | BinaryOp::SafeSub { .. } => {
                 if r_is_zero {
-                    return *l_eval;
+                    return l_eval;
                 }
                 if self.lhs == self.rhs {
-                    return NodeEval::Const(FieldElement::zero(), res_type);
+                    return NodeEval::from_u128(0, res_type);
                 }
                 //constant folding
-                if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
-                    if l_bsize == 256 {
+                if let (Some((lhs, l_bits)), Some((rhs, r_bits))) = (lhs, rhs) {
+                    if l_bits == 256 {
                         //NO modulo for field elements - May be we should have a different opcode?
-                        if let (NodeEval::Const(a, _), NodeEval::Const(b, _)) = (l_eval, r_eval) {
-                            let res_value = a.add(-*b);
-                            return NodeEval::Const(res_value, res_type);
-                        }
-                        unreachable!();
+                        return NodeEval::Const(lhs - rhs, res_type);
                     }
-                    //if l_constant.is_some() && r_constant.is_some() {
-                    assert_eq!(l_bsize, r_bsize);
-
-                    let res_value =
-                        l_const.overflowing_sub(r_const).0 % (1_u128 << l_bsize) as u128;
-                    return NodeEval::Const(FieldElement::from(res_value), res_type);
+                    assert_eq!(l_bits, r_bits);
+                    return wrapping(lhs, rhs, l_bits, res_type, u128::wrapping_sub);
                 }
             }
             BinaryOp::Mul | BinaryOp::SafeMul => {
-                if r_is_zero {
-                    return *r_eval;
-                } else if l_is_zero {
-                    return *l_eval;
-                } else if l_is_const && l_constant.unwrap() == 1 {
-                    return *r_eval;
-                } else if r_is_const && r_constant.unwrap() == 1 {
-                    return *l_eval;
-                } else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
+                let l_is_one = lhs.map_or(false, |x| x.0.is_one());
+                let r_is_one = rhs.map_or(false, |x| x.0.is_one());
+
+                if l_is_zero || r_is_one {
+                    return l_eval;
+                } else if r_is_zero || l_is_one {
+                    return r_eval;
+                } else if let (Some((lhs, l_bits)), Some((rhs, r_bits))) = (lhs, rhs) {
                     //constant folding
-                    if l_bsize == 256 {
+                    if l_bits == 256 {
                         //NO modulo for field elements - May be we should have a different opcode?
-                        if let (NodeEval::Const(a, _), NodeEval::Const(b, _)) = (l_eval, r_eval) {
-                            let res_value = a.mul(*b);
-                            return NodeEval::Const(res_value, res_type);
-                        }
-                        unreachable!();
+                        return NodeEval::Const(lhs * rhs, res_type);
                     }
 
-                    assert!(l_bsize == r_bsize);
-                    let res_value = (l_const * r_const) % (1_u128 << l_bsize) as u128;
-                    return NodeEval::Const(FieldElement::from(res_value), res_type);
+                    assert_eq!(l_bits, r_bits);
+                    return wrapping(lhs, rhs, l_bits, res_type, u128::mul);
                 }
                 //if only one is const, we could try to do constant propagation but this will be handled by the arithmetization step anyways
                 //so it is probably not worth it.
@@ -621,12 +706,12 @@ impl Binary {
                 if r_is_zero {
                     todo!("Panic - division by zero");
                 } else if l_is_zero {
-                    return *l_eval; //TODO should we ensure rhs != 0 ???
+                    return l_eval;
                 }
                 //constant folding - TODO
-                else if l_constant.is_some() && r_constant.is_some() {
+                else if lhs.is_some() && rhs.is_some() {
                     todo!();
-                } else if r_constant.is_some() {
+                } else if rhs.is_some() {
                     //same as lhs*1/r
                     todo!();
                     //return (Some(self.lhs), None, None);
@@ -636,20 +721,20 @@ impl Binary {
                 if r_is_zero {
                     todo!("Panic - division by zero");
                 } else if l_is_zero {
-                    return *l_eval; //TODO what is the correct result? and should we ensure rhs != 0 ???
+                    return l_eval; //TODO what is the correct result?
                 }
                 //constant folding - TODO
-                else if l_constant.is_some() && r_constant.is_some() {
-                    todo!("divide l_constant/r_constant but take sign into account");
+                else if lhs.is_some() && rhs.is_some() {
+                    todo!("divide lhs/rhs but take sign into account");
                 }
             }
             BinaryOp::Ult => {
                 if r_is_zero {
                     return NodeEval::Const(FieldElement::zero(), ObjectType::Boolean);
                     //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
-                } else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
-                    assert!(l_bsize < 256); //comparisons are not implemented for field elements
-                    let res = if l_const < r_const {
+                } else if let (Some((lhs, l_bits)), Some((rhs, r_bits))) = (lhs, rhs) {
+                    assert!(l_bits < 256); //comparisons are not implemented for field elements
+                    let res = if lhs < rhs {
                         FieldElement::one()
                     } else {
                         FieldElement::zero()
@@ -661,9 +746,9 @@ impl Binary {
                 if l_is_zero {
                     return NodeEval::Const(FieldElement::one(), ObjectType::Boolean);
                     //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
-                } else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
-                    assert!(l_bsize < 256); //comparisons are not implemented for field elements
-                    let res = if l_const <= r_const {
+                } else if let (Some((lhs, l_bits)), Some((rhs, r_bits))) = (lhs, rhs) {
+                    assert!(l_bits < 256); //comparisons are not implemented for field elements
+                    let res = if lhs <= rhs {
                         FieldElement::one()
                     } else {
                         FieldElement::zero()
@@ -674,18 +759,8 @@ impl Binary {
             BinaryOp::Eq => {
                 if self.lhs == self.rhs {
                     return NodeEval::Const(FieldElement::one(), ObjectType::Boolean);
-                } else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
-                    if l_bsize == 256 {
-                        if let (NodeEval::Const(a, _), NodeEval::Const(b, _)) = (l_eval, r_eval) {
-                            if a == b {
-                                return NodeEval::Const(FieldElement::one(), ObjectType::Boolean);
-                            } else {
-                                return NodeEval::Const(FieldElement::zero(), ObjectType::Boolean);
-                            }
-                        }
-                        unreachable!();
-                    }
-                    if l_const == r_const {
+                } else if let (Some((lhs, l_bits)), Some((rhs, r_bits))) = (lhs, rhs) {
+                    if lhs == rhs {
                         return NodeEval::Const(FieldElement::one(), ObjectType::Boolean);
                     } else {
                         return NodeEval::Const(FieldElement::zero(), ObjectType::Boolean);
@@ -693,18 +768,10 @@ impl Binary {
                 }
             }
             BinaryOp::Ne => {
-                if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
-                    if l_bsize == 256 {
-                        if let (NodeEval::Const(a, _), NodeEval::Const(b, _)) = (l_eval, r_eval) {
-                            if a != b {
-                                return NodeEval::Const(FieldElement::one(), ObjectType::Boolean);
-                            } else {
-                                return NodeEval::Const(FieldElement::zero(), ObjectType::Boolean);
-                            }
-                        }
-                        unreachable!();
-                    }
-                    if l_const != r_const {
+                if self.lhs == self.rhs {
+                    return NodeEval::Const(FieldElement::zero(), ObjectType::Boolean);
+                } else if let (Some((lhs, l_bits)), Some((rhs, r_bits))) = (lhs, rhs) {
+                    if lhs != rhs {
                         return NodeEval::Const(FieldElement::one(), ObjectType::Boolean);
                     } else {
                         return NodeEval::Const(FieldElement::zero(), ObjectType::Boolean);
@@ -713,50 +780,43 @@ impl Binary {
             }
             BinaryOp::And => {
                 //Bitwise AND
-                if l_is_zero {
-                    return *l_eval;
+                if l_is_zero || self.lhs == self.rhs {
+                    return l_eval;
                 } else if r_is_zero {
-                    return *r_eval;
-                } else if self.lhs == self.rhs {
-                    return *l_eval;
-                } else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
-                    return NodeEval::Const(FieldElement::from(l_const & r_const), res_type);
+                    return r_eval;
+                } else if let (Some((lhs, _)), Some((rhs, _))) = (lhs, rhs) {
+                    return NodeEval::from_u128(lhs.to_u128() & rhs.to_u128(), res_type);
                 }
                 //TODO if boolean and not zero, also checks this is correct for field elements
             }
             BinaryOp::Or => {
                 //Bitwise OR
-                if l_is_zero {
-                    return *r_eval;
+                if l_is_zero || self.lhs == self.rhs {
+                    return r_eval;
                 } else if r_is_zero {
-                    return *l_eval;
-                } else if self.lhs == self.rhs {
-                    return *r_eval;
-                } else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
-                    return NodeEval::Const(FieldElement::from(l_const | r_const), res_type);
+                    return l_eval;
+                } else if let (Some((lhs, _)), Some((rhs, _))) = (lhs, rhs) {
+                    return NodeEval::from_u128(lhs.to_u128() | rhs.to_u128(), res_type);
                 }
                 //TODO if boolean and not zero, also checks this is correct for field elements
             }
             BinaryOp::Xor => {
                 if self.lhs == self.rhs {
                     return NodeEval::Const(FieldElement::zero(), res_type);
+                } else if l_is_zero {
+                    return r_eval;
+                } else if r_is_zero {
+                    return l_eval;
+                } else if let (Some((lhs, _)), Some((rhs, _))) = (lhs, rhs) {
+                    return NodeEval::from_u128(lhs.to_u128() ^ rhs.to_u128(), res_type);
                 }
-                if l_is_zero {
-                    return *r_eval;
-                }
-                if r_is_zero {
-                    return *l_eval;
-                }
-                if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
-                    return NodeEval::Const(FieldElement::from(l_const ^ r_const), res_type);
-                }
-                //TODO handle case when l_const is one (or r_const is one) by generating 'not rhs' instruction (or 'not lhs' instruction)
+                //TODO handle case when lhs is one (or rhs is one) by generating 'not rhs' instruction (or 'not lhs' instruction)
             }
             BinaryOp::Constrain(op) => {
-                if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
+                if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
                     match op {
-                        ConstrainOp::Eq => assert_eq!(l_const, r_const),
-                        ConstrainOp::Neq => assert_ne!(l_const, r_const),
+                        ConstrainOp::Eq => assert_eq!(lhs, rhs),
+                        ConstrainOp::Neq => assert_ne!(lhs, rhs),
                     }
                     //we can delete the instruction
                     return NodeEval::VarOrInstruction(NodeId::dummy());
@@ -771,7 +831,7 @@ impl Binary {
         NodeEval::VarOrInstruction(id)
     }
 
-    fn truncate_required(&self) -> (/*truncate_left*/bool, /*truncate_right*/bool) {
+    fn truncate_required(&self) -> (/*truncate_left*/ bool, /*truncate_right*/ bool) {
         match &self.operator {
             BinaryOp::Add => (false, false),
             BinaryOp::SafeAdd => (false, false),
@@ -786,18 +846,12 @@ impl Binary {
             BinaryOp::Div => (false, false),
             BinaryOp::Eq => (true, true),
             BinaryOp::Ne => (true, true),
-            BinaryOp::Ugt => (true, true),
-            BinaryOp::Uge => (true, true),
             BinaryOp::Ult => (true, true),
             BinaryOp::Ule => (true, true),
-            BinaryOp::Sgt => (true, true),
-            BinaryOp::Sge => (true, true),
             BinaryOp::Slt => (true, true),
             BinaryOp::Sle => (true, true),
             BinaryOp::Lt => (true, true),
-            BinaryOp::Gt => (true, true),
             BinaryOp::Lte => (true, true),
-            BinaryOp::Gte => (true, true),
             BinaryOp::And => (true, true),
             BinaryOp::Or => (true, true),
             BinaryOp::Xor => (true, true),
@@ -807,9 +861,47 @@ impl Binary {
     }
 }
 
+/// Perform f(lhs, rhs) and modulo the result by the max value for the given bitcount.
+fn wrapping<F>(lhs: FieldElement, rhs: FieldElement, bitcount: u32, res_type: ObjectType, f: F) -> NodeEval 
+    where F: FnOnce(u128, u128) -> u128
+{
+    let mut x = f(lhs.to_u128(), rhs.to_u128());
+    if bitcount != 256 {
+        x = x % (1_u128 << bitcount);
+    }
+    NodeEval::from_u128(x, res_type)
+}
+
 impl Operation {
     pub fn is_binary(&self) -> bool {
         matches!(self, Operation::Binary(..))
+    }
+
+    pub fn binary(op: BinaryOp, lhs: NodeId, rhs: NodeId) -> Self {
+        Operation::Binary(Binary::new(op, lhs, rhs))
+    }
+
+    pub fn map_id(self, f: impl FnMut(NodeId) -> NodeId) -> Operation {
+        use Operation::*;
+        match self {
+            Binary(self::Binary { lhs, rhs, operator }) => {
+                Binary(self::Binary { lhs: f(lhs), rhs: f(rhs), operator })
+            },
+            Cast(value) => Cast(f(value)),
+            Truncate { value, bit_size } => Truncate {
+                value: f(value),
+                bit_size,
+            },
+            Not(id) => Not(f(id)),
+            Jne(id, block) => Jne(f(id), block),
+            Jeq(id, block) => Jeq(f(id), block),
+            Jmp(block) => Jmp(block),
+            Phi { root, block_args } => Phi { root: f(root), block_args },
+            Load { array, index } => Load { array, index: f(index) },
+            Store { array, index, value } => Store { array, index: f(index), value: f(value) },
+            Intrinsic(i) => Intrinsic(i),
+            Nop => Nop,
+        }
     }
 }
 
@@ -829,62 +921,6 @@ impl BinaryOp {
                 | BinaryOp::Constrain(ConstrainOp::Eq | ConstrainOp::Neq)
         )
     }
-}
-
-pub fn to_binary(op_kind: HirBinaryOpKind, op_type: ObjectType, lhs: NodeId, rhs: NodeId) -> Binary {
-    let operator = match op_kind {
-        HirBinaryOpKind::Add => BinaryOp::Add,
-        HirBinaryOpKind::Subtract => BinaryOp::Sub { max_rhs_value: BigUint::from_u8(0).unwrap() },
-        HirBinaryOpKind::Multiply => BinaryOp::Mul,
-        HirBinaryOpKind::Equal => BinaryOp::Eq,
-        HirBinaryOpKind::NotEqual => BinaryOp::Ne,
-        HirBinaryOpKind::And => BinaryOp::And,
-        HirBinaryOpKind::Or => BinaryOp::Or,
-        HirBinaryOpKind::Xor => BinaryOp::Xor,
-        HirBinaryOpKind::Divide => {
-            let num_type: NumericType = op_type.into();
-            match num_type {
-                NumericType::Signed(_) => BinaryOp::Sdiv,
-                NumericType::Unsigned(_) => BinaryOp::Udiv,
-                NumericType::NativeField => BinaryOp::Div,
-            }
-        }
-        HirBinaryOpKind::Less => {
-            let num_type: NumericType = op_type.into();
-            match num_type {
-                NumericType::Signed(_) => BinaryOp::Slt,
-                NumericType::Unsigned(_) => BinaryOp::Ult,
-                NumericType::NativeField => BinaryOp::Lt,
-            }
-        }
-        HirBinaryOpKind::LessEqual => {
-            let num_type: NumericType = op_type.into();
-            match num_type {
-                NumericType::Signed(_) => BinaryOp::Sle,
-                NumericType::Unsigned(_) => BinaryOp::Ult,
-                NumericType::NativeField => BinaryOp::Lte,
-            }
-        }
-        HirBinaryOpKind::Greater => {
-            let num_type: NumericType = op_type.into();
-            match num_type {
-                NumericType::Signed(_) => return Binary::new(BinaryOp::Sle, rhs, lhs),
-                NumericType::Unsigned(_) => return Binary::new(BinaryOp::Ule, rhs, lhs),
-                NumericType::NativeField => return Binary::new(BinaryOp::Lte, rhs, lhs),
-            }
-        }
-        HirBinaryOpKind::GreaterEqual => {
-            let num_type: NumericType = op_type.into();
-            match num_type {
-                NumericType::Signed(_) => return Binary::new(BinaryOp::Slt, rhs, lhs),
-                NumericType::Unsigned(_) => return Binary::new(BinaryOp::Ult, rhs, lhs),
-                NumericType::NativeField => return Binary::new(BinaryOp::Lt, rhs, lhs),
-            }
-        }
-        HirBinaryOpKind::Assign => BinaryOp::Assign,
-    };
-
-    Binary::new(operator, lhs, rhs)
 }
 
 pub fn get_witness_from_object(obj: &Object) -> Option<Witness> {

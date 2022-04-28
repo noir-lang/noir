@@ -1,150 +1,76 @@
 use super::{
     block::BlockId,
     context::SsaContext,
-    mem,
-    node::{self, Instruction, Node, NodeEval, NodeId, NodeObj, Operation},
+    mem::Memory,
+    node::{self, Instruction, Node, NodeEval, NodeId, Operation, ConstrainOp, BinaryOp},
 };
-use acvm::FieldElement;
 use std::collections::{HashMap, VecDeque};
 
-//returns the NodeObj index of a NodeEval object
-//if NodeEval is a constant, it may creates a new NodeObj corresponding to the constant value
-pub fn to_index(ctx: &mut SsaContext, obj: NodeEval) -> NodeId {
-    match obj {
-        NodeEval::Const(c, t) => ctx.get_or_create_const(c, t),
-        NodeEval::VarOrInstruction(i) => i,
-    }
-}
-
-// If NodeEval refers to a constant NodeObj, we return a constant NodeEval
-pub fn to_const(ctx: &SsaContext, obj: NodeEval) -> NodeEval {
-    match obj {
-        NodeEval::Const(_, _) => obj,
-        NodeEval::VarOrInstruction(i) => {
-            if let Some(NodeObj::Const(c)) = ctx.try_get_node(i) {
-                return NodeEval::Const(
-                    FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be()),
-                    c.get_type(),
-                );
-            }
-            obj
-        }
-    }
-}
-
 // Performs constant folding, arithmetic simplifications and move to standard form
-pub fn simplify(ctx: &mut SsaContext, ins: &mut node::Instruction) {
+// Returns a new NodeId to replace with the current if the current is deleted.
+pub fn simplify(ctx: &mut SsaContext, ins: &mut node::Instruction) -> Option<NodeId> {
     //1. constant folding
-    let l_eval = to_const(ctx, NodeEval::VarOrInstruction(ins.lhs));
-    let r_eval = to_const(ctx, NodeEval::VarOrInstruction(ins.rhs));
-    let idx = match ins.evaluate(&l_eval, &r_eval) {
+    let idx = match ins.evaluate(ctx) {
         NodeEval::Const(c, t) => ctx.get_or_create_const(c, t),
         NodeEval::VarOrInstruction(i) => i,
     };
+
     if idx != ins.id {
         ins.is_deleted = true;
-        ins.rhs = idx;
         if idx == NodeId::dummy() {
             ins.operator = node::Operation::Nop;
         }
-        return;
+        return Some(idx);
     }
 
     //2. standard form
     ins.standard_form();
     match ins.operator {
-        node::Operation::Cast => {
-            if let Some(lhs_obj) = ctx.try_get_node(ins.lhs) {
-                if lhs_obj.get_type() == ins.res_type {
+        Operation::Cast(value_id) => {
+            if let Some(value) = ctx.try_get_node(value_id) {
+                if value.get_type() == ins.res_type {
                     ins.is_deleted = true;
-                    ins.rhs = ins.lhs;
-                    return;
+                    return Some(NodeId::dummy());
                 }
             }
         }
-        // node::Operation::Gte => {
-        //     //a>=b <=> Not(a<b)
-        //     let inv = eval.new_instruction(ins.lhs, ins.rhs, node::Operation::Lt, ins.res_type);
-        //     ins.lhs = eval.get_const(FieldElement::one(), ins.res_type);
-        //     ins.rhs = inv;
-        //     ins.operator = node::Operation::Sub; //n.b. no need to underflow here
-        //TODO: inv must be inserted before ins.
-        // }
-        node::Operation::Constrain(op) => match op {
-            node::ConstrainOp::Eq => {
-                if let (Some(a), Some(b)) = (
-                    mem::Memory::deref(ctx, ins.lhs),
-                    mem::Memory::deref(ctx, ins.rhs),
-                ) {
-                    if a == b {
-                        ins.is_deleted = true;
-                        ins.operator = node::Operation::Nop;
-                    }
+        Operation::Binary(node::Binary { operator: BinaryOp::Constrain(op), lhs, rhs }) => {
+            match (op, Memory::deref(ctx, lhs), Memory::deref(ctx, rhs)) {
+                (ConstrainOp::Eq, Some(lhs), Some(rhs)) if lhs == rhs => {
+                    ins.is_deleted = true;
+                    ins.operator = Operation::Nop;
                 }
-            }
-            node::ConstrainOp::Neq => {
-                if let (Some(a), Some(b)) = (
-                    mem::Memory::deref(ctx, ins.lhs),
-                    mem::Memory::deref(ctx, ins.rhs),
-                ) {
-                    assert!(a != b);
+                (ConstrainOp::Neq, Some(lhs), Some(rhs)) => {
+                    // TODO: Why are we asserting here? This seems like a valid case
+                    assert_ne!(lhs, rhs);
                 }
+                _ => (),
             }
         },
         _ => (),
     }
 
     //3. left-overs (it requires &mut ctx)
-    if let NodeEval::Const(r_const, r_type) = r_eval {
-        match ins.operator {
-            node::Operation::Udiv => {
-                //TODO handle other bitsize, not only u32!!
-                ins.rhs = ctx.get_or_create_const(
-                    FieldElement::from((1_u32 / (r_const.to_u128() as u32)) as i128),
-                    r_type,
-                );
-                ins.operator = node::Operation::Mul
-            }
-            node::Operation::Sdiv => {
-                //TODO handle other bitsize, not only i32!!
-                ins.rhs = ctx.get_or_create_const(
-                    FieldElement::from((1_i32 / (r_const.to_u128() as i32)) as i128),
-                    r_type,
-                );
-                ins.operator = node::Operation::Mul
-            }
-            node::Operation::Div => {
-                ins.rhs = ctx.get_or_create_const(r_const.inverse(), r_type);
-                ins.operator = node::Operation::Mul
-            }
-            node::Operation::Xor => {
-                if !r_const.is_zero() {
-                    ins.operator = node::Operation::Not;
-                    return;
-                }
-            }
-            _ => (),
+    if let Operation::Binary(node::Binary { operator: BinaryOp::Div, lhs, rhs }) = ins.operator {
+        if let NodeEval::Const(r_const, r_type) = NodeEval::from_id(ctx, rhs) {
+            let rhs = ctx.get_or_create_const(r_const.try_inverse().unwrap(), r_type);
+            ins.operator = Operation::Binary(node::Binary { operator: BinaryOp::Mul, lhs, rhs });
         }
     }
-    if let NodeEval::Const(l_const, _) = l_eval {
-        if !l_const.is_zero() && ins.operator == node::Operation::Xor {
-            ins.operator = node::Operation::Not;
-            ins.lhs = ins.rhs;
-        }
-    }
+
+    None
 }
 
 ////////////////////CSE////////////////////////////////////////
 
 pub fn find_similar_instruction(
     igen: &SsaContext,
-    lhs: NodeId,
-    rhs: NodeId,
+    operation: &Operation,
     prev_ins: &VecDeque<NodeId>,
 ) -> Option<NodeId> {
     for iter in prev_ins {
         if let Some(ins) = igen.try_get_instruction(*iter) {
-            if ins.lhs == lhs && ins.rhs == rhs {
+            if &ins.operator == operation {
                 return Some(*iter);
             }
         }
@@ -153,34 +79,30 @@ pub fn find_similar_instruction(
 }
 
 pub enum CseAction {
-    Replace, //replace the instruction
-    Remove,  //remove the instruction
-    Keep,    //keep the instruction
+    Replace { original: NodeId, replacement: NodeId },
+    Remove(NodeId),
+    Keep,
 }
 
-//Returns an id and an action:
-//- replace => the instruction should be replaced by the returned id
-//- remove  => the instruction corresponding to the returned id should be removed
-//- keep    => keep the instruction
 pub fn find_similar_mem_instruction(
     ctx: &SsaContext,
-    op: node::Operation,
+    op: &Operation,
     ins_id: NodeId,
     lhs: NodeId,
     rhs: NodeId,
     anchor: &HashMap<node::Operation, VecDeque<NodeId>>,
-) -> (NodeId, CseAction) {
+) -> CseAction {
     match op {
-        node::Operation::Load(_) => {
+        Operation::Load { array, index } => {
             for iter in anchor[&op].iter().rev() {
                 if let Some(ins_iter) = ctx.try_get_instruction(*iter) {
-                    match ins_iter.operator {
-                        node::Operation::Load(_) => {
+                    match &ins_iter.operator {
+                        Operation::Load { array, index: index2 } => {
                             if ins_iter.lhs == lhs {
-                                return (*iter, CseAction::Replace);
+                                return CseAction::Replace { original: ins_id, replacement: *iter };
                             }
                         }
-                        node::Operation::Store(_) => {
+                        Operation::Store(_) => {
                             if ins_iter.rhs == lhs {
                                 return (ins_iter.lhs, CseAction::Replace);
                             } else {
@@ -193,16 +115,16 @@ pub fn find_similar_mem_instruction(
                 }
             }
         }
-        node::Operation::Store(x) => {
-            let prev_ins = &anchor[&node::Operation::Load(x)];
+        Operation::Store(x) => {
+            let prev_ins = &anchor[&Operation::Load(x)];
             for iter in prev_ins.iter().rev() {
                 if let Some(ins_iter) = ctx.try_get_instruction(*iter) {
                     match ins_iter.operator {
-                        node::Operation::Load(_) => {
+                        Operation::Load(_) => {
                             //TODO: If we know that ins.rhs value cannot be equal to ins_iter.rhs, we could continue instead
                             return (ins_id, CseAction::Keep);
                         }
-                        node::Operation::Store(_) => {
+                        Operation::Store(_) => {
                             if ins_iter.rhs == rhs {
                                 return (*iter, CseAction::Remove);
                             } else {
@@ -217,13 +139,14 @@ pub fn find_similar_mem_instruction(
         }
         _ => unreachable!("invalid non memory operator"),
     }
-    (ins_id, CseAction::Keep)
+
+    CseAction::Keep
 }
 
 pub fn propagate(ctx: &SsaContext, id: NodeId) -> NodeId {
     let mut result = id;
     if let Some(obj) = ctx.try_get_instruction(id) {
-        if obj.operator == node::Operation::Assign || obj.is_deleted {
+        if obj.operator == Operation::Assign || obj.is_deleted {
             result = obj.rhs;
         }
     }
@@ -249,10 +172,10 @@ pub fn cse_tree(
     }
 }
 
-pub fn anchor_push(op: node::Operation, anchor: &mut HashMap<node::Operation, VecDeque<NodeId>>) {
+pub fn anchor_push(op: Operation, anchor: &mut HashMap<Operation, VecDeque<NodeId>>) {
     match op {
-        node::Operation::Store(x) => anchor
-            .entry(node::Operation::Load(x))
+        Operation::Store(x) => anchor
+            .entry(Operation::Load(x))
             .or_insert_with(VecDeque::new),
         _ => anchor.entry(op).or_insert_with(VecDeque::new),
     };
@@ -283,12 +206,13 @@ pub fn block_cse(
             if ins.is_deleted {
                 continue;
             }
+
             anchor_push(ins.operator, anchor);
-            if node::is_binary(ins.operator) {
+            if ins.operator.is_binary() {
                 //binary operation:
                 i_lhs = propagate(ctx, ins.lhs);
                 i_rhs = propagate(ctx, ins.rhs);
-                if let Some(j) = find_similar_instruction(ctx, i_lhs, i_rhs, &anchor[&ins.operator])
+                if let Some(j) = find_similar_instruction(ctx, &ins.operator, &anchor[&ins.operator])
                 {
                     to_delete = true; //we want to delete ins but ins is immutable so we use the new_list instead
                     i_rhs = j;
