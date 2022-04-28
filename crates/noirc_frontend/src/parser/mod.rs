@@ -237,7 +237,6 @@ impl Precedence {
     // XXX: Check the precedence is correct for operators
     fn token_precedence(tok: &Token) -> Option<Precedence> {
         let precedence = match tok {
-            Token::Assign => Precedence::Lowest,
             Token::Equal => Precedence::Lowest,
             Token::NotEqual => Precedence::Lowest,
             Token::Less => Precedence::LessGreater,

@@ -30,7 +30,7 @@ use std::rc::Rc;
 use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId};
 use crate::hir_def::expr::HirExpression;
-use crate::hir_def::stmt::{HirAssignStatement, HirPattern};
+use crate::hir_def::stmt::{HirAssignStatement, HirLValue, HirPattern};
 use crate::node_interner::{DefinitionId, ExprId, FuncId, NodeInterner, StmtId, StructId};
 use crate::util::vecmap;
 use crate::{
@@ -38,7 +38,7 @@ use crate::{
     BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
     Statement,
 };
-use crate::{NoirStruct, Path, Pattern, StructType, Type, UnresolvedType, ERROR_IDENT};
+use crate::{LValue, NoirStruct, Path, Pattern, StructType, Type, UnresolvedType, ERROR_IDENT};
 use noirc_errors::{Span, Spanned};
 
 use crate::hir::scope::{
@@ -301,15 +301,30 @@ impl<'a> Resolver<'a> {
                 self.interner.push_stmt(stmt)
             }
             Statement::Assign(assign_stmt) => {
-                let identifier = self.find_variable(&assign_stmt.identifier);
+                let identifier = self.resolve_lvalue(assign_stmt.lvalue);
                 let expression = self.resolve_expression(assign_stmt.expression);
                 let stmt = HirAssignStatement {
-                    identifier,
+                    lvalue: identifier,
                     expression,
                 };
                 self.interner.push_stmt(HirStatement::Assign(stmt))
             }
             Statement::Error => self.interner.push_stmt(HirStatement::Error),
+        }
+    }
+
+    fn resolve_lvalue(&mut self, lvalue: LValue) -> HirLValue {
+        match lvalue {
+            LValue::Ident(ident) => HirLValue::Ident(self.find_variable(&ident)),
+            LValue::MemberAccess { object, field_name } => {
+                let object = Box::new(self.resolve_lvalue(*object));
+                HirLValue::MemberAccess { object, field_name }
+            }
+            LValue::Index { array, index } => {
+                let array = Box::new(self.resolve_lvalue(*array));
+                let index = self.resolve_expression(index);
+                HirLValue::Index { array, index }
+            }
         }
     }
 

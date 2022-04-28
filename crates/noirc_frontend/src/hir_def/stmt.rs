@@ -15,7 +15,7 @@ pub struct HirLetStatement {
 
 #[derive(Debug, Clone)]
 pub struct HirAssignStatement {
-    pub identifier: HirIdent,
+    pub lvalue: HirLValue,
     pub expression: ExprId,
 }
 
@@ -78,4 +78,18 @@ impl HirPattern {
             ),
         }
     }
+}
+
+/// Represents an Ast form that can be assigned to
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum HirLValue {
+    Ident(HirIdent),
+    MemberAccess {
+        object: Box<HirLValue>,
+        field_name: Ident,
+    },
+    Index {
+        array: Box<HirLValue>,
+        index: ExprId,
+    },
 }

@@ -289,8 +289,22 @@ pub struct LetStatement {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AssignStatement {
-    pub identifier: Ident,
+    pub lvalue: LValue,
     pub expression: Expression,
+}
+
+/// Represents an Ast form that can be assigned to
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum LValue {
+    Ident(Ident),
+    MemberAccess {
+        object: Box<LValue>,
+        field_name: Ident,
+    },
+    Index {
+        array: Box<LValue>,
+        index: Expression,
+    },
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -341,7 +355,17 @@ impl Display for ConstrainStatement {
 
 impl Display for AssignStatement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} = {}", self.identifier, self.expression)
+        write!(f, "{} = {}", self.lvalue, self.expression)
+    }
+}
+
+impl Display for LValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LValue::Ident(ident) => ident.fmt(f),
+            LValue::MemberAccess { object, field_name } => write!(f, "{}.{}", object, field_name),
+            LValue::Index { array, index } => write!(f, "{}[{}]", array, index),
+        }
     }
 }
 
