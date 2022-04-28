@@ -13,8 +13,8 @@ use crate::{
 };
 use crate::{
     AssignStatement, BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, ForExpression,
-    FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, NoirFunction,
-    NoirImpl, NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp,
+    FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, LValue,
+    NoirFunction, NoirImpl, NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp,
 };
 
 use chumsky::prelude::*;
@@ -363,15 +363,49 @@ fn assignment<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
 {
-    let failable = ident()
+    let failable = lvalue(expr_parser.clone())
         .then_ignore(just(Token::Assign))
         .labelled("statement");
+
     then_commit(failable, expr_parser).map(|(identifier, expression)| {
         Statement::Assign(AssignStatement {
-            identifier,
+            lvalue: identifier,
             expression,
         })
     })
+}
+
+enum LValueRhs {
+    MemberAccess(Ident),
+    Index(Expression),
+}
+
+fn lvalue<'a, P>(expr_parser: P) -> impl NoirParser<LValue>
+where
+    P: ExprParser + 'a,
+{
+    let l_ident = ident().map(LValue::Ident);
+
+    let l_member_rhs = just(Token::Dot)
+        .ignore_then(ident())
+        .map(LValueRhs::MemberAccess);
+
+    let l_index = expr_parser
+        .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
+        .map(LValueRhs::Index);
+
+    l_ident
+        .then(l_member_rhs.or(l_index).repeated())
+        .foldl(|lvalue, rhs| match rhs {
+            LValueRhs::MemberAccess(field_name) => LValue::MemberAccess {
+                object: Box::new(lvalue),
+                field_name,
+            },
+            LValueRhs::Index(index) => LValue::Index {
+                array: Box::new(lvalue),
+                index,
+            },
+        })
 }
 
 fn parse_type() -> impl NoirParser<UnresolvedType> {

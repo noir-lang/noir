@@ -498,9 +498,9 @@ pub fn check_member_access(
 
     if let Type::Struct(_, s) = &lhs_type {
         let s = s.borrow();
-        if let Some(field) = s.fields.iter().find(|(name, _)| name == &access.rhs) {
+        if let Some(field) = s.get_field(&access.rhs.0.contents) {
             // TODO: Should the struct's visibility be applied to the field?
-            return field.1.clone();
+            return field.clone();
         }
     } else if let Type::Tuple(elements) = &lhs_type {
         if let Ok(index) = access.rhs.0.contents.parse::<usize>() {

@@ -1,5 +1,7 @@
+use noirc_errors::Span;
+
 use crate::hir_def::stmt::{
-    HirAssignStatement, HirConstrainStatement, HirLetStatement, HirPattern, HirStatement,
+    HirAssignStatement, HirConstrainStatement, HirLValue, HirLetStatement, HirPattern, HirStatement,
 };
 use crate::hir_def::types::Type;
 use crate::node_interner::{ExprId, NodeInterner, StmtId};
@@ -92,29 +94,76 @@ fn type_check_assign_stmt(
     errors: &mut Vec<TypeCheckError>,
 ) {
     let expr_type = type_check_expression(interner, &assign_stmt.expression, errors);
+    let span = interner.expr_span(&assign_stmt.expression);
+    let lvalue_type = type_check_lvalue(interner, assign_stmt.lvalue, span, errors);
 
-    // To get the type of the identifier, we need to get the identifier which defined it
-    // once a variable has a type, it cannot be changed
-    let ident_def = assign_stmt.identifier.id;
-    let identifier_type = interner.id_type(ident_def);
-
-    let definition = interner.definition(ident_def);
-    if !definition.mutable {
+    if !expr_type.matches(&lvalue_type) {
         errors.push(TypeCheckError::Unstructured {
             msg: format!(
-                "Variable {} must be mutable to be assigned to",
-                definition.name
+                "Cannot assign an expression of type {} to a value of type {}",
+                expr_type, lvalue_type
             ),
-            span: assign_stmt.identifier.span,
+            span: interner.expr_span(&assign_stmt.expression),
         });
     }
+}
 
-    if !expr_type.matches(&identifier_type) {
-        errors.push(TypeCheckError::TypeMismatch {
-            expected_typ: identifier_type.to_string(),
-            expr_typ: expr_type.to_string(),
-            expr_span: interner.expr_span(&assign_stmt.expression),
-        });
+fn type_check_lvalue(
+    interner: &mut NodeInterner,
+    lvalue: HirLValue,
+    assign_span: Span,
+    errors: &mut Vec<TypeCheckError>,
+) -> Type {
+    match lvalue {
+        HirLValue::Ident(ident) => interner.id_type(ident.id),
+        HirLValue::MemberAccess { object, field_name } => {
+            let result = type_check_lvalue(interner, *object, assign_span, errors);
+
+            let mut error = |typ| {
+                errors.push(TypeCheckError::Unstructured {
+                    msg: format!("Type {} has no member named {}", typ, field_name),
+                    span: field_name.span(),
+                });
+                Type::Error
+            };
+
+            match result {
+                Type::Struct(vis, def) => {
+                    if let Some(field) = def.borrow().get_field(&field_name.0.contents) {
+                        field.clone()
+                    } else {
+                        error(Type::Struct(vis, def.clone()))
+                    }
+                }
+                Type::Error => Type::Error,
+                other => error(other),
+            }
+        }
+        HirLValue::Index { array, index } => {
+            let index_type = type_check_expression(interner, &index, errors);
+            if !index_type.matches(&Type::CONSTANT) {
+                let span = interner.id_span(&index);
+                errors.push(TypeCheckError::TypeMismatch {
+                    expected_typ: "const Field".to_owned(),
+                    expr_typ: index_type.to_string(),
+                    expr_span: span,
+                });
+            }
+
+            match type_check_lvalue(interner, *array, assign_span, errors) {
+                Type::Array(_, _, elem_type) => *elem_type,
+                Type::Error => Type::Error,
+                other => {
+                    // TODO: Need a better span here
+                    errors.push(TypeCheckError::TypeMismatch {
+                        expected_typ: "an array".to_string(),
+                        expr_typ: other.to_string(),
+                        expr_span: assign_span,
+                    });
+                    Type::Error
+                }
+            }
+        }
     }
 }
 
