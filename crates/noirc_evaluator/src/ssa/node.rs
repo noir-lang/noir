@@ -6,7 +6,7 @@ use acvm::acir::OpCode;
 use acvm::FieldElement;
 use arena;
 use noirc_frontend::hir_def::expr::HirBinaryOpKind;
-use noirc_frontend::node_interner::IdentId;
+use noirc_frontend::node_interner::DefinitionId;
 use noirc_frontend::{Signedness, Type};
 use num_bigint::BigUint;
 use num_traits::{FromPrimitive, One};
@@ -140,7 +140,7 @@ pub struct Variable {
     pub name: String,
     //pub cur_value: arena::Index, //for generating the SSA form, current value of the object during parsing of the AST
     pub root: Option<NodeId>, //when generating SSA, assignment of an object creates a new one which is linked to the original one
-    pub def: Option<IdentId>, //TODO redundant with root - should it be an option?
+    pub def: Option<DefinitionId>, //TODO redundant with root - should it be an option?
     //TODO clarify where cur_value and root is stored, and also this:
     //  pub max_bits: u32,                  //max possible bit size of the expression
     //  pub max_value: Option<BigUInt>,     //maximum possible value of the expression, if less than max_bits
@@ -156,7 +156,7 @@ impl Variable {
     pub fn new(
         obj_type: ObjectType,
         name: String,
-        def: Option<IdentId>,
+        def: Option<DefinitionId>,
         parent_block: BlockId,
     ) -> Variable {
         Variable {
