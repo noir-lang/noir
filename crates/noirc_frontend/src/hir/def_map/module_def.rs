@@ -1,4 +1,4 @@
-use crate::node_interner::{FuncId, TypeId};
+use crate::node_interner::{FuncId, StructId};
 
 use super::ModuleId;
 
@@ -6,7 +6,7 @@ use super::ModuleId;
 pub enum ModuleDefId {
     ModuleId(ModuleId),
     FunctionId(FuncId),
-    TypeId(TypeId),
+    TypeId(StructId),
 }
 
 impl ModuleDefId {
@@ -17,7 +17,7 @@ impl ModuleDefId {
         }
     }
 
-    pub fn as_type(&self) -> Option<TypeId> {
+    pub fn as_type(&self) -> Option<StructId> {
         match self {
             ModuleDefId::TypeId(type_id) => Some(*type_id),
             _ => None,
@@ -67,13 +67,13 @@ impl TryFromModuleDefId for FuncId {
     }
 }
 
-impl TryFromModuleDefId for TypeId {
+impl TryFromModuleDefId for StructId {
     fn try_from(id: ModuleDefId) -> Option<Self> {
         id.as_type()
     }
 
     fn dummy_id() -> Self {
-        TypeId::dummy_id()
+        StructId::dummy_id()
     }
 
     fn description() -> String {

@@ -5,8 +5,6 @@ use std::rc::Rc;
 use arena::{Arena, Index};
 use noirc_errors::Span;
 
-use crate::Ident;
-
 use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::UnresolvedStruct;
 use crate::hir::def_map::{LocalModuleId, ModuleId};
@@ -18,12 +16,18 @@ use crate::hir_def::{
 };
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
-pub struct IdentId(Index);
+pub struct DefinitionId(usize);
 
-impl IdentId {
+impl DefinitionId {
     //dummy id for error reporting
-    pub fn dummy_id() -> IdentId {
-        IdentId(Index::from_raw_parts(std::usize::MAX, 0))
+    pub fn dummy_id() -> DefinitionId {
+        DefinitionId(std::usize::MAX)
+    }
+}
+
+impl From<DefinitionId> for Index {
+    fn from(id: DefinitionId) -> Self {
+        Index::from_raw_parts(id.0, u64::MAX)
     }
 }
 
@@ -51,14 +55,14 @@ impl FuncId {
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
-pub struct TypeId(pub ModuleId);
+pub struct StructId(pub ModuleId);
 
-impl TypeId {
+impl StructId {
     //dummy id for error reporting
     // This can be anything, as the program will ultimately fail
     // after resolution
-    pub fn dummy_id() -> TypeId {
-        TypeId(ModuleId {
+    pub fn dummy_id() -> StructId {
+        StructId(ModuleId {
             krate: CrateId::dummy_id(),
             local_id: LocalModuleId::dummy_id(),
         })
@@ -94,10 +98,8 @@ macro_rules! partialeq {
 
 into_index!(ExprId);
 into_index!(StmtId);
-into_index!(IdentId);
 
 partialeq!(ExprId);
-partialeq!(IdentId);
 partialeq!(StmtId);
 
 /// A Definition enum specifies anything that we can intern in the NodeInterner
@@ -107,7 +109,6 @@ partialeq!(StmtId);
 #[derive(Debug, Clone)]
 enum Node {
     Function(HirFunction),
-    Ident(Ident),
     Statement(HirStatement),
     Expression(HirExpression),
 }
@@ -117,19 +118,11 @@ pub struct NodeInterner {
     nodes: Arena<Node>,
     func_meta: HashMap<FuncId, FuncMeta>,
 
-    // Maps for span
-    // Each encountered variable has it's own span
-    // We therefore give each variable, it's own IdentId
-    //
-    // Maps IdentId to it's definition
-    // For `let x = EXPR` x will point to itself as a definition
-    ident_to_defs: HashMap<IdentId, IdentId>,
     // Map each `Index` to it's own span
     id_to_span: HashMap<Index, Span>,
-    // Map each IdentId to it's name
-    // This is a string right now, but once Strings are interned
-    // In the lexer, this will be a SymbolId
-    ident_to_name: HashMap<IdentId, String>,
+
+    // Maps each DefinitionId to a DefinitionInfo.
+    definitions: Vec<DefinitionInfo>,
 
     // Type checking map
     //
@@ -145,7 +138,13 @@ pub struct NodeInterner {
     // Each struct definition is possibly shared across multiple type nodes.
     // It is also mutated through the RefCell during name resolution to append
     // methods from impls to the type.
-    structs: HashMap<TypeId, Rc<RefCell<StructType>>>,
+    structs: HashMap<StructId, Rc<RefCell<StructType>>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct DefinitionInfo {
+    pub name: String,
+    pub mutable: bool,
 }
 
 impl Default for NodeInterner {
@@ -153,9 +152,8 @@ impl Default for NodeInterner {
         let mut interner = NodeInterner {
             nodes: Arena::default(),
             func_meta: HashMap::new(),
-            ident_to_defs: HashMap::new(),
             id_to_span: HashMap::new(),
-            ident_to_name: HashMap::new(),
+            definitions: vec![],
             id_to_type: HashMap::new(),
             structs: HashMap::new(),
         };
@@ -193,7 +191,7 @@ impl NodeInterner {
         self.id_to_type.insert(expr_id.into(), typ);
     }
 
-    pub fn push_empty_struct(&mut self, type_id: TypeId, typ: &UnresolvedStruct) {
+    pub fn push_empty_struct(&mut self, type_id: StructId, typ: &UnresolvedStruct) {
         self.structs.insert(
             type_id,
             Rc::new(RefCell::new(StructType {
@@ -206,7 +204,7 @@ impl NodeInterner {
         );
     }
 
-    pub fn update_struct<F>(&mut self, type_id: TypeId, f: F)
+    pub fn update_struct<F>(&mut self, type_id: StructId, f: F)
     where
         F: FnOnce(&mut StructType),
     {
@@ -223,9 +221,10 @@ impl NodeInterner {
     pub fn make_expr_type_unit(&mut self, expr_id: &ExprId) {
         self.id_to_type.insert(expr_id.into(), Type::Unit);
     }
+
     /// Store the type for an interned Identifier
-    pub fn push_ident_type(&mut self, ident_id: &IdentId, typ: Type) {
-        self.id_to_type.insert(ident_id.into(), typ);
+    pub fn push_definition_type(&mut self, definition_id: DefinitionId, typ: Type) {
+        self.id_to_type.insert(definition_id.into(), typ);
     }
 
     /// Intern an empty function.
@@ -258,40 +257,11 @@ impl NodeInterner {
         self.func_meta.insert(func_id, func_data);
     }
 
-    /// Interns an Identifier
-    pub fn push_ident(&mut self, ident: Ident) -> IdentId {
-        let span = ident.0.span();
-        let name = ident.0.contents.clone();
+    pub fn push_definition(&mut self, name: String, mutable: bool) -> DefinitionId {
+        let id = self.definitions.len();
+        self.definitions.push(DefinitionInfo { name, mutable });
 
-        let id = IdentId(self.nodes.insert(Node::Ident(ident)));
-
-        self.id_to_span.insert(id.into(), span);
-
-        // XXX: Once Strings are interned name will also be an Id
-        self.ident_to_name.insert(id, name);
-
-        // Note: These three maps are not invariant under their length
-        // consider the case that we only ever inserted functions
-        // the last two maps would be empty, while the first would be non-empty.
-
-        id
-    }
-    /// Links the Identifier to the Identifier which defined it.
-    pub fn linked_ident_to_def(&mut self, ident: IdentId, def: IdentId) {
-        self.ident_to_defs.insert(ident, def);
-    }
-    /// Finds the IdentifierId which declared/defined this IdentifierId
-    ///
-    /// Example:
-    ///
-    /// priv z = x + a;
-    /// priv k = z + b;
-    ///
-    /// Notice z is used twice. Each `z` has a unique IdentId
-    /// However, the first `z` is the one that defines it.
-    /// This function would return the Identifier of the first `z`
-    pub fn ident_def(&self, ident: &IdentId) -> Option<IdentId> {
-        self.ident_to_defs.get(ident).copied()
+        DefinitionId(id)
     }
 
     /// Returns the interned HIR function corresponding to `func_id`
@@ -308,12 +278,18 @@ impl NodeInterner {
             _ => panic!("ice: all function ids should correspond to a function in the interner"),
         }
     }
+
     /// Returns the interned meta data corresponding to `func_id`
     pub fn function_meta(&self, func_id: &FuncId) -> FuncMeta {
         self.func_meta
             .get(func_id)
             .cloned()
             .expect("ice: all function ids should have metadata")
+    }
+
+    pub fn function_name(&self, func_id: &FuncId) -> &str {
+        let name_id = self.function_meta(func_id).name.id;
+        self.definition_name(name_id)
     }
 
     /// Returns the interned statement corresponding to `stmt_id`
@@ -342,53 +318,35 @@ impl NodeInterner {
             }
         }
     }
-    /// Returns the interned identifier corresponding to `ident_id`
-    pub fn ident(&self, ident_id: &IdentId) -> Ident {
-        let def = self
-            .nodes
-            .get(ident_id.0)
-            .expect("ice: all ident ids should have definitions");
 
-        match def {
-            Node::Ident(ident) => ident.clone(),
-            _ => panic!("ice: all expression ids should correspond to a statement in the interner"),
-        }
+    pub fn definition(&self, id: DefinitionId) -> &DefinitionInfo {
+        &self.definitions[id.0]
     }
 
-    /// Returns the Identifier as a String
+    /// Returns the name of the definition
     ///
     /// This is needed as the Environment needs to map variable names to witness indices
-    pub fn ident_name(&self, ident_id: &IdentId) -> String {
-        self.ident_to_name
-            .get(ident_id)
-            .expect("ice: all ident ids should have names. This indicates a bug in the Resolver.")
-            .clone()
+    pub fn definition_name(&self, id: DefinitionId) -> &str {
+        &self.definition(id).name
     }
 
-    /// Returns the span of an identifier
-    pub fn ident_span(&self, ident_id: &IdentId) -> Span {
-        self.id_span(ident_id)
-    }
     /// Returns the span of an expression
     pub fn expr_span(&self, expr_id: &ExprId) -> Span {
         self.id_span(expr_id)
     }
 
-    pub fn get_struct(&self, id: TypeId) -> Rc<RefCell<StructType>> {
+    pub fn get_struct(&self, id: StructId) -> Rc<RefCell<StructType>> {
         self.structs[&id].clone()
     }
 
-    /// Returns the type of an item stored in the Interner.
-    //
-    // Why can we unwrap here?
-    // If the compiler is correct, it will not ask for an Id of an object
-    // which does not have a type. This will cause a panic.
-    // Since type checking always comes after resolution.
-    // If resolution is correct, we will always assign types to Identifiers before we use them.
-    // The same would go for Expressions.
+    /// Returns the type of an item stored in the Interner or Error if it was not found.
     pub fn id_type(&self, index: impl Into<Index>) -> Type {
-        self.id_to_type.get(&index.into()).cloned().unwrap()
+        self.id_to_type
+            .get(&index.into())
+            .cloned()
+            .unwrap_or(Type::Error)
     }
+
     /// Returns the span of an item stored in the Interner
     pub fn id_span(&self, index: impl Into<Index>) -> Span {
         self.id_to_span.get(&index.into()).copied().unwrap()
