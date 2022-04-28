@@ -613,7 +613,7 @@ impl<'a> Evaluator<'a> {
 
                 let arr_name = self.context.def_interner.definition_name(collection_name.id);
                 let ident_span = collection_name.span;
-                let arr = env.get_array(&arr_name).map_err(|kind|kind.add_span(ident_span))?;
+                let arr = env.get_array(arr_name).map_err(|kind|kind.add_span(ident_span))?;
 
                 //
                 // Evaluate the index expression
