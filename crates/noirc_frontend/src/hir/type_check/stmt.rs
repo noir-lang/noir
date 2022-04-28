@@ -58,7 +58,7 @@ pub fn bind_pattern(
     errors: &mut Vec<TypeCheckError>,
 ) {
     match pattern {
-        HirPattern::Identifier(id) => interner.push_ident_type(id, typ),
+        HirPattern::Identifier(ident) => interner.push_definition_type(ident.id, typ),
         HirPattern::Mutable(pattern, _) => bind_pattern(interner, pattern, typ, errors),
         HirPattern::Tuple(_fields, _span) => {
             todo!("Implement tuple types")
@@ -68,11 +68,11 @@ pub fn bind_pattern(
                 let mut pattern_fields = fields.clone();
                 let mut type_fields = inner.borrow().fields.clone();
 
-                pattern_fields.sort_by_key(|(id, _)| interner.ident(id));
+                pattern_fields.sort_by_key(|(ident, _)| ident.clone());
                 type_fields.sort_by_key(|(ident, _)| ident.clone());
 
                 for (pattern_field, type_field) in pattern_fields.into_iter().zip(type_fields) {
-                    assert_eq!(interner.ident(&pattern_field.0), type_field.0);
+                    assert_eq!(&pattern_field.0, &type_field.0);
                     bind_pattern(interner, &pattern_field.1, type_field.1, errors);
                 }
             }
@@ -115,28 +115,21 @@ fn type_check_lvalue(
     errors: &mut Vec<TypeCheckError>,
 ) -> Type {
     match lvalue {
-        HirLValue::Ident(id) => {
-            if let Some(ident_def) = interner.ident_def(&id) {
-                interner.id_type(&ident_def)
-            } else {
-                Type::Error
-            }
-        }
+        HirLValue::Ident(ident) => interner.id_type(ident.id),
         HirLValue::MemberAccess { object, field_name } => {
-            let field_name = interner.ident_name(&field_name);
             let result = type_check_lvalue(interner, *object, assign_span, errors);
 
             let mut error = |typ| {
                 errors.push(TypeCheckError::Unstructured {
                     msg: format!("Type {} has no member named {}", typ, field_name),
-                    span: assign_span,
+                    span: field_name.span(),
                 });
                 Type::Error
             };
 
             match result {
                 Type::Struct(vis, def) => {
-                    if let Some(field) = def.borrow().get_field(&field_name) {
+                    if let Some(field) = def.borrow().get_field(&field_name.0.contents) {
                         field.clone()
                     } else {
                         error(Type::Struct(vis, def.clone()))

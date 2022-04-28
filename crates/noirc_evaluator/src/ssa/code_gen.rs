@@ -9,14 +9,14 @@ use super::super::errors::{RuntimeError, RuntimeErrorKind};
 use crate::object::Object;
 use acvm::FieldElement;
 use noirc_frontend::hir::Context;
-use noirc_frontend::hir_def::expr::{HirConstructorExpression, HirMemberAccess};
+use noirc_frontend::hir_def::expr::{HirConstructorExpression, HirIdent, HirMemberAccess};
 use noirc_frontend::hir_def::function::HirFunction;
 use noirc_frontend::hir_def::stmt::{HirLValue, HirPattern};
 use noirc_frontend::hir_def::{
     expr::{HirBinaryOp, HirBinaryOpKind, HirExpression, HirForExpression, HirLiteral},
     stmt::{HirConstrainStatement, HirLetStatement, HirStatement},
 };
-use noirc_frontend::node_interner::{ExprId, IdentId, NodeInterner, StmtId};
+use noirc_frontend::node_interner::{DefinitionId, ExprId, NodeInterner, StmtId};
 use noirc_frontend::util::vecmap;
 use noirc_frontend::{FunctionKind, Type};
 
@@ -26,7 +26,7 @@ struct IRGenerator<'a> {
 
     /// The current value of a variable. Used for flattening structs
     /// into multiple variables/values
-    variable_values: HashMap<IdentId, Value>,
+    variable_values: HashMap<DefinitionId, Value>,
 }
 
 #[derive(Debug, Clone)]
@@ -69,8 +69,8 @@ impl<'a> IRGenerator<'a> {
         }
     }
 
-    fn find_variable(&self, variable_def: Option<IdentId>) -> Option<&Value> {
-        variable_def.and_then(|def| self.variable_values.get(&def))
+    fn find_variable(&self, variable_def: DefinitionId) -> Option<&Value> {
+        self.variable_values.get(&variable_def)
     }
 
     fn get_current_value(&mut self, value: &Value) -> Value {
@@ -83,38 +83,30 @@ impl<'a> IRGenerator<'a> {
         }
     }
 
-    fn evaluate_identifier(&mut self, env: &mut Environment, ident_id: &IdentId) -> Value {
-        let ident_def = self.ident_def(ident_id);
-        if let Some(value) = ident_def.and_then(|def| self.variable_values.get(&def)) {
+    fn evaluate_identifier(&mut self, env: &mut Environment, ident: HirIdent) -> Value {
+        if let Some(value) = self.variable_values.get(&ident.id) {
             let value = value.clone();
             return self.get_current_value(&value);
         }
 
-        let ident_name = dbg!(self.ident_name(ident_id));
+        let ident_name = self.ident_name(&ident);
         let obj = env.get(&ident_name);
-        let o_type = self
-            .context
-            .context
-            .def_interner
-            .id_type(ident_def.unwrap());
+        let o_type = self.context.context.def_interner.id_type(ident.id);
 
         let var = match obj {
             Object::Array(a) => {
                 let obj_type = o_type.into();
                 //We should create an array from 'a' witnesses
-                self.context.mem.create_array_from_object(
-                    &a,
-                    ident_def.unwrap(),
-                    obj_type,
-                    &ident_name,
-                );
+                self.context
+                    .mem
+                    .create_array_from_object(&a, ident.id, obj_type, &ident_name);
                 let array_index = (self.context.mem.arrays.len() - 1) as u32;
                 node::Variable {
                     id: NodeId::dummy(),
                     name: ident_name.clone(),
                     obj_type: node::ObjectType::Pointer(array_index),
                     root: None,
-                    def: ident_def,
+                    def: Some(ident.id),
                     witness: None,
                     parent_block: self.context.current_block,
                 }
@@ -127,7 +119,7 @@ impl<'a> IRGenerator<'a> {
                     name: ident_name.clone(),
                     obj_type,
                     root: None,
-                    def: ident_def,
+                    def: Some(ident.id),
                     witness: node::get_witness_from_object(&obj),
                     parent_block: self.context.current_block,
                 }
@@ -218,18 +210,15 @@ impl<'a> IRGenerator<'a> {
 
     fn lvalue_type(&self, lvalue: &HirLValue) -> Type {
         match lvalue {
-            HirLValue::Ident(id) => self.def_interner().id_type(id),
+            HirLValue::Ident(ident) => self.def_interner().id_type(ident.id),
             HirLValue::MemberAccess { .. } => unimplemented!(),
             HirLValue::Index { .. } => unimplemented!(),
         }
     }
 
-    fn lvalue_ident_def_and_name(&self, lvalue: &HirLValue) -> (Option<IdentId>, String) {
+    fn lvalue_ident_def_and_name(&self, lvalue: &HirLValue) -> (DefinitionId, String) {
         match lvalue {
-            HirLValue::Ident(id) => {
-                let def = self.def_interner().ident_def(id);
-                (def, self.ident_name(id))
-            }
+            HirLValue::Ident(ident) => (ident.id, self.ident_name(ident)),
             HirLValue::MemberAccess { .. } => unimplemented!(),
             HirLValue::Index { .. } => unimplemented!(),
         }
@@ -238,7 +227,7 @@ impl<'a> IRGenerator<'a> {
     fn create_new_variable(
         &mut self,
         var_name: String,
-        def: Option<IdentId>,
+        def: DefinitionId,
         env: &mut Environment,
     ) -> NodeId {
         let obj = env.get(&var_name);
@@ -248,7 +237,7 @@ impl<'a> IRGenerator<'a> {
             obj_type,
             name: var_name,
             root: None,
-            def,
+            def: Some(def),
             witness: node::get_witness_from_object(&obj),
             parent_block: self.context.current_block,
         };
@@ -314,25 +303,23 @@ impl<'a> IRGenerator<'a> {
     /// let bindings of struct variables, declaring a new variable for each field.
     fn bind_pattern(&mut self, pattern: &HirPattern, value: Value) {
         match (pattern, value) {
-            (HirPattern::Identifier(ident_id), Value::Single(node_id)) => {
-                let typ = self.def_interner().id_type(ident_id);
-                let variable_name = self.ident_name(ident_id);
-                let ident_def = self.ident_def(ident_id);
-                let value = self.bind_variable(variable_name, ident_def, &typ, node_id);
-                self.variable_values.insert(*ident_id, value);
+            (HirPattern::Identifier(ident), Value::Single(node_id)) => {
+                let typ = self.def_interner().id_type(ident.id);
+                let variable_name = self.ident_name(ident);
+                let value = self.bind_variable(variable_name, Some(ident.id), &typ, node_id);
+                self.variable_values.insert(ident.id, value);
             }
-            (HirPattern::Identifier(ident_id), value @ Value::Struct(_)) => {
-                let typ = self.def_interner().id_type(ident_id);
-                let name = self.ident_name(ident_id);
+            (HirPattern::Identifier(ident), value @ Value::Struct(_)) => {
+                let typ = self.def_interner().id_type(ident.id);
+                let name = self.ident_name(ident);
                 let value = self.bind_fresh_pattern(&name, &typ, value);
-                self.variable_values.insert(*ident_id, value);
+                self.variable_values.insert(ident.id, value);
             }
             (HirPattern::Mutable(pattern, _), value) => self.bind_pattern(pattern, value),
             (pattern @ (HirPattern::Tuple(..) | HirPattern::Struct(..)), Value::Struct(exprs)) => {
                 assert_eq!(pattern.field_count(), exprs.len());
-                for ((pattern_name, pattern), (field_name, value)) in pattern
-                    .iter_fields(&self.context.context.def_interner)
-                    .zip(exprs)
+                for ((pattern_name, pattern), (field_name, value)) in
+                    pattern.iter_fields().zip(exprs)
                 {
                     assert_eq!(pattern_name, field_name);
                     self.bind_pattern(pattern, value);
@@ -369,7 +356,7 @@ impl<'a> IRGenerator<'a> {
     fn bind_variable(
         &mut self,
         variable_name: String,
-        ident_def: Option<IdentId>,
+        definition_id: Option<DefinitionId>,
         typ: &Type,
         value_id: NodeId,
     ) -> Value {
@@ -377,7 +364,7 @@ impl<'a> IRGenerator<'a> {
 
         if matches!(obj_type, node::ObjectType::Pointer(_)) {
             if let Ok(rhs_mut) = self.context.get_mut_variable(value_id) {
-                rhs_mut.def = ident_def;
+                rhs_mut.def = definition_id;
                 rhs_mut.name = variable_name;
                 return Value::Single(value_id);
             }
@@ -386,7 +373,7 @@ impl<'a> IRGenerator<'a> {
         let new_var = Variable::new(
             obj_type,
             variable_name,
-            ident_def,
+            definition_id,
             self.context.current_block,
         );
         let id = self.context.add_variable(new_var, None);
@@ -462,12 +449,12 @@ impl<'a> IRGenerator<'a> {
         }
     }
 
-    fn ident_name(&self, ident: &IdentId) -> String {
-        self.context.context.def_interner.ident_name(ident)
-    }
-
-    fn ident_def(&self, ident: &IdentId) -> Option<IdentId> {
-        self.context.context.def_interner.ident_def(ident)
+    fn ident_name(&self, ident: &HirIdent) -> String {
+        self.context
+            .context
+            .def_interner
+            .definition_name(ident.id)
+            .to_owned()
     }
 
     // Let statements are used to declare higher level objects
@@ -522,7 +509,7 @@ impl<'a> IRGenerator<'a> {
                 Ok(Value::Single(self.context.add_variable(new_var, None)))
             },
             HirExpression::Ident(x) =>  {
-               Ok(self.evaluate_identifier(env, &x))
+               Ok(self.evaluate_identifier(env, x))
                 //n.b this creates a new variable if it does not exist, may be we should delegate this to explicit statements (let) - TODO
             },
             HirExpression::Infix(infx) => {
@@ -553,13 +540,13 @@ impl<'a> IRGenerator<'a> {
             },
             HirExpression::Index(indexed_expr) => {
                 // Currently these only happen for arrays
-                let arr_def = self.def_interner().ident_def(&indexed_expr.collection_name);
-                let arr_name = self.def_interner().ident_name(&indexed_expr.collection_name);
-                let ident_span = self.def_interner().ident_span(&indexed_expr.collection_name);
-                let arr_type = self.def_interner().id_type(arr_def.unwrap());
+                let arr_def = indexed_expr.collection_name.id;
+                let arr_name = self.def_interner().definition_name(indexed_expr.collection_name.id).to_owned();
+                let ident_span = indexed_expr.collection_name.span;
+                let arr_type = self.def_interner().id_type(arr_def);
                 let o_type = arr_type.into();
                 let mut array_index = self.context.mem.arrays.len() as u32;
-                let array = if let Some(moi) = self.context.mem.find_array(&arr_def) {
+                let array = if let Some(moi) = self.context.mem.find_array(&Some(arr_def)) {
                     array_index= self.context.mem.get_array_index(moi).unwrap();
                     moi
                 }
@@ -574,7 +561,7 @@ impl<'a> IRGenerator<'a> {
                  }
                 else {
                     let arr = env.get_array(&arr_name).map_err(|kind|kind.add_span(ident_span)).unwrap();
-                    self.context.mem.create_array_from_object(&arr, arr_def.unwrap(), o_type, &arr_name)
+                    self.context.mem.create_array_from_object(&arr, arr_def, o_type, &arr_name)
                 };
                 //let array = self.mem.get_or_create_array(&arr, arr_def.unwrap(), o_type, arr_name);
                 let address = array.adr;
@@ -630,7 +617,7 @@ impl<'a> IRGenerator<'a> {
             .fields
             .into_iter()
             .map(|(ident, field)| {
-                let field_name = self.ident_name(&ident);
+                let field_name = ident.0.contents;
                 Ok((field_name, self.expression_to_object(env, &field)?))
             })
             .collect::<Result<Vec<_>, _>>()?;
@@ -716,9 +703,12 @@ impl<'a> IRGenerator<'a> {
         //We support only const range for now
         let start = self.context.get_as_constant(start_idx).unwrap();
         //TODO how should we handle scope (cf. start/end_for_loop)?
-        let iter_name = self.def_interner().ident_name(&for_expr.identifier);
-        let iter_def = self.def_interner().ident_def(&for_expr.identifier);
-        let int_type = self.def_interner().id_type(&for_expr.identifier);
+        let iter_name = self
+            .def_interner()
+            .definition_name(for_expr.identifier.id)
+            .to_owned();
+        let iter_def = for_expr.identifier.id;
+        let int_type = self.def_interner().id_type(iter_def);
         env.store(iter_name.clone(), Object::Constants(start));
         let iter_id = self.create_new_variable(iter_name, iter_def, env);
         let iter_var = self.context.get_mut_variable(iter_id).unwrap();

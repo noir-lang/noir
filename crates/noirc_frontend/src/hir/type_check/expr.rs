@@ -19,12 +19,9 @@ pub(crate) fn type_check_expression(
     errors: &mut Vec<TypeCheckError>,
 ) -> Type {
     let typ = match interner.expression(expr_id) {
-        HirExpression::Ident(ident_id) => {
+        HirExpression::Ident(ident) => {
             // If an Ident is used in an expression, it cannot be a declaration statement
-            match interner.ident_def(&ident_id) {
-                Some(ident_def_id) => interner.id_type(ident_def_id),
-                None => Type::Error,
-            }
+            interner.id_type(ident.id)
         }
         HirExpression::Literal(literal) => {
             match literal {
@@ -94,34 +91,30 @@ pub(crate) fn type_check_expression(
             }
         }
         HirExpression::Index(index_expr) => {
-            if let Some(ident_def) = interner.ident_def(&index_expr.collection_name) {
-                let index_type = type_check_expression(interner, &index_expr.index, errors);
-                if !index_type.matches(&Type::CONSTANT) {
-                    let span = interner.id_span(&index_expr.index);
-                    errors.push(TypeCheckError::TypeMismatch {
-                        expected_typ: "const Field".to_owned(),
-                        expr_typ: index_type.to_string(),
-                        expr_span: span,
-                    });
-                }
+            let ident_def = index_expr.collection_name.id;
+            let index_type = type_check_expression(interner, &index_expr.index, errors);
 
-                match interner.id_type(&ident_def) {
-                    // XXX: We can check the array bounds here also, but it may be better to constant fold first
-                    // and have ConstId instead of ExprId for constants
-                    Type::Array(_, _, base_type) => *base_type,
-                    Type::Error => Type::Error,
-                    typ => {
-                        let span = interner.id_span(&index_expr.collection_name);
-                        errors.push(TypeCheckError::TypeMismatch {
-                            expected_typ: "Array".to_owned(),
-                            expr_typ: typ.to_string(),
-                            expr_span: span,
-                        });
-                        Type::Error
-                    }
+            if !index_type.matches(&Type::CONSTANT) {
+                errors.push(TypeCheckError::TypeMismatch {
+                    expected_typ: "const Field".to_owned(),
+                    expr_typ: index_type.to_string(),
+                    expr_span: interner.expr_span(&index_expr.index),
+                });
+            }
+
+            match interner.id_type(ident_def) {
+                // XXX: We can check the array bounds here also, but it may be better to constant fold first
+                // and have ConstId instead of ExprId for constants
+                Type::Array(_, _, base_type) => *base_type,
+                Type::Error => Type::Error,
+                typ => {
+                    errors.push(TypeCheckError::TypeMismatch {
+                        expected_typ: "Array".to_owned(),
+                        expr_typ: typ.to_string(),
+                        expr_span: index_expr.collection_name.span,
+                    });
+                    Type::Error
                 }
-            } else {
-                Type::Error
             }
         }
         HirExpression::Call(call_expr) => {
@@ -195,7 +188,7 @@ pub(crate) fn type_check_expression(
                 Type::Error
             };
 
-            interner.push_ident_type(&for_expr.identifier, var_type);
+            interner.push_definition_type(for_expr.identifier.id, var_type);
 
             let last_type = type_check_expression(interner, &for_expr.block, errors);
             Type::Array(
@@ -474,11 +467,11 @@ fn check_constructor(
     // Note that we use a Vec to store the original arguments (rather than a BTreeMap) to
     // preserve the evaluation order of the source code.
     let mut args = constructor.fields.clone();
-    args.sort_by_key(|arg| interner.ident(&arg.0));
+    args.sort_by_key(|arg| arg.0.clone());
 
-    for ((param_name, param_type), (arg_id, arg)) in typ.borrow().fields.iter().zip(args) {
+    for ((param_name, param_type), (arg_ident, arg)) in typ.borrow().fields.iter().zip(args) {
         // Sanity check to ensure we're matching against the same field
-        assert_eq!(param_name, &interner.ident(&arg_id));
+        assert_eq!(param_name, &arg_ident);
 
         let arg_type = type_check_expression(interner, &arg, errors);
 

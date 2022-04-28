@@ -1,9 +1,9 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use super::expr::HirInfixExpression;
-use crate::node_interner::{ExprId, IdentId, NodeInterner};
-use crate::{StructType, Type};
+use super::expr::{HirIdent, HirInfixExpression};
+use crate::node_interner::ExprId;
+use crate::{Ident, StructType, Type};
 use noirc_errors::Span;
 
 #[derive(Debug, Clone)]
@@ -41,10 +41,10 @@ pub enum HirStatement {
 
 #[derive(Debug, Clone)]
 pub enum HirPattern {
-    Identifier(IdentId),
+    Identifier(HirIdent),
     Mutable(Box<HirPattern>, Span),
     Tuple(Vec<HirPattern>, Span),
-    Struct(Rc<RefCell<StructType>>, Vec<(IdentId, HirPattern)>, Span),
+    Struct(Rc<RefCell<StructType>>, Vec<(Ident, HirPattern)>, Span),
 }
 
 impl HirPattern {
@@ -59,15 +59,12 @@ impl HirPattern {
 
     /// Iterate over the fields of this pattern.
     /// Panics if the type is not a struct or tuple.
-    pub fn iter_fields<'a>(
-        &'a self,
-        interner: &'a NodeInterner,
-    ) -> Box<dyn Iterator<Item = (String, &'a HirPattern)> + 'a> {
+    pub fn iter_fields<'a>(&'a self) -> Box<dyn Iterator<Item = (String, &'a HirPattern)> + 'a> {
         match self {
             HirPattern::Struct(_, fields, _) => Box::new(
                 fields
                     .iter()
-                    .map(move |(name_id, pattern)| (interner.ident_name(name_id), pattern)),
+                    .map(move |(name, pattern)| (name.0.contents.clone(), pattern)),
             ),
             HirPattern::Tuple(fields, _) => Box::new(
                 fields
@@ -86,10 +83,10 @@ impl HirPattern {
 /// Represents an Ast form that can be assigned to
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum HirLValue {
-    Ident(IdentId),
+    Ident(HirIdent),
     MemberAccess {
         object: Box<HirLValue>,
-        field_name: IdentId,
+        field_name: Ident,
     },
     Index {
         array: Box<HirLValue>,

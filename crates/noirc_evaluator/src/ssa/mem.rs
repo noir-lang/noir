@@ -2,7 +2,7 @@ use super::context::SsaContext;
 use super::node::{self, Node, NodeId};
 use acvm::acir::native_types::Witness;
 use acvm::FieldElement;
-use noirc_frontend::node_interner::IdentId;
+use noirc_frontend::node_interner::DefinitionId;
 use num_bigint::BigUint;
 use num_traits::ToPrimitive;
 use std::collections::HashMap;
@@ -23,7 +23,7 @@ pub struct MemArray {
     pub element_type: node::ObjectType, //type of elements
     pub witness: Vec<Witness>,
     pub name: String,
-    pub def: IdentId,
+    pub def: DefinitionId,
     pub len: u32,     //number of elements
     pub adr: u32,     //base address of the array
     pub max: BigUint, //Max possible value of array elements
@@ -39,7 +39,7 @@ impl MemArray {
         assert!(self.witness.is_empty() || self.witness.len() == self.len.try_into().unwrap());
     }
 
-    pub fn new(definition: IdentId, name: &str, of: node::ObjectType, len: u32) -> MemArray {
+    pub fn new(definition: DefinitionId, name: &str, of: node::ObjectType, len: u32) -> MemArray {
         assert!(len > 0);
         MemArray {
             element_type: of,
@@ -54,7 +54,7 @@ impl MemArray {
 }
 
 impl Memory {
-    pub fn find_array(&self, definition: &Option<IdentId>) -> Option<&MemArray> {
+    pub fn find_array(&self, definition: &Option<DefinitionId>) -> Option<&MemArray> {
         definition.and_then(|def| self.arrays.iter().find(|a| a.def == def))
     }
 
@@ -76,7 +76,7 @@ impl Memory {
     pub fn create_array_from_object(
         &mut self,
         array: &Array,
-        definition: IdentId,
+        definition: DefinitionId,
         el_type: node::ObjectType,
         arr_name: &str,
     ) -> &MemArray {
@@ -89,7 +89,7 @@ impl Memory {
     }
 
     pub fn create_new_array(&mut self, len: u32, el_type: node::ObjectType, arr_name: &str) -> u32 {
-        let mut new_array = MemArray::new(IdentId::dummy_id(), arr_name, el_type, len);
+        let mut new_array = MemArray::new(DefinitionId::dummy_id(), arr_name, el_type, len);
         new_array.adr = self.last_adr;
         self.arrays.push(new_array);
         self.last_adr += len;
