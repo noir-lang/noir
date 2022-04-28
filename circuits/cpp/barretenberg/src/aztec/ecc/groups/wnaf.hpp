@@ -125,7 +125,7 @@ inline uint64_t get_wnaf_bits(const uint64_t* scalar, const uint64_t bits, const
     const uint64_t bit_mask = (1UL << static_cast<uint64_t>(bits)) - 1UL;
 
     const uint64_t lo = (scalar[lo_limb_idx] >> lo_shift);
-    const uint64_t hi_shift = 64UL - (bit_position & 63UL);
+    const uint64_t hi_shift = bit_position ? 64UL - (bit_position & 63UL) : 0;
     const uint64_t hi = ((scalar[hi_limb_idx] << (hi_shift)));
     const uint64_t hi_mask = bit_mask & (0ULL - (lo_limb_idx != hi_limb_idx));
 
