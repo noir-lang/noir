@@ -2,7 +2,7 @@ use super::{
     block::BlockId,
     context::SsaContext,
     mem::Memory,
-    node::{self, Instruction, Node, NodeEval, NodeId, Operation, ConstrainOp, BinaryOp},
+    node::{self, BinaryOp, ConstrainOp, Instruction, Node, NodeEval, NodeId, Operation},
 };
 use std::collections::{HashMap, VecDeque};
 
@@ -34,7 +34,11 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut node::Instruction) -> Option<Nod
                 }
             }
         }
-        Operation::Binary(node::Binary { operator: BinaryOp::Constrain(op), lhs, rhs }) => {
+        Operation::Binary(node::Binary {
+            operator: BinaryOp::Constrain(op),
+            lhs,
+            rhs,
+        }) => {
             match (op, Memory::deref(ctx, lhs), Memory::deref(ctx, rhs)) {
                 (ConstrainOp::Eq, Some(lhs), Some(rhs)) if lhs == rhs => {
                     ins.is_deleted = true;
@@ -46,15 +50,24 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut node::Instruction) -> Option<Nod
                 }
                 _ => (),
             }
-        },
+        }
         _ => (),
     }
 
     //3. left-overs (it requires &mut ctx)
-    if let Operation::Binary(node::Binary { operator: BinaryOp::Div, lhs, rhs }) = ins.operator {
+    if let Operation::Binary(node::Binary {
+        operator: BinaryOp::Div,
+        lhs,
+        rhs,
+    }) = ins.operator
+    {
         if let NodeEval::Const(r_const, r_type) = NodeEval::from_id(ctx, rhs) {
             let rhs = ctx.get_or_create_const(r_const.try_inverse().unwrap(), r_type);
-            ins.operator = Operation::Binary(node::Binary { operator: BinaryOp::Mul, lhs, rhs });
+            ins.operator = Operation::Binary(node::Binary {
+                operator: BinaryOp::Mul,
+                lhs,
+                rhs,
+            });
         }
     }
 
@@ -111,7 +124,10 @@ pub fn find_similar_cast(
     None
 }
 pub enum CseAction {
-    Replace { original: NodeId, replacement: NodeId },
+    Replace {
+        original: NodeId,
+        replacement: NodeId,
+    },
     Remove(NodeId),
     Keep,
 }
@@ -129,16 +145,29 @@ pub fn find_similar_mem_instruction(
             for iter in anchor[&op].iter().rev() {
                 if let Some(ins_iter) = ctx.try_get_instruction(*iter) {
                     match &ins_iter.operator {
-                        Operation::Load { array, index: index2 } => {
+                        Operation::Load {
+                            array,
+                            index: index2,
+                        } => {
                             if index == index2 {
-                                return CseAction::Replace { original: ins_id, replacement: *iter };
+                                return CseAction::Replace {
+                                    original: ins_id,
+                                    replacement: *iter,
+                                };
                             }
                         }
-                        Operation::Store { array: array2, index: index2, value } => {
+                        Operation::Store {
+                            array: array2,
+                            index: index2,
+                            value,
+                        } => {
                             assert_eq!(array, array2);
 
                             if index == index2 {
-                                return CseAction::Replace { original: ins_id, replacement: *value };
+                                return CseAction::Replace {
+                                    original: ins_id,
+                                    replacement: *value,
+                                };
                             } else {
                                 //TODO: If we know that ins.lhs value cannot be equal to ins_iter.rhs, we could continue instead
                                 return CseAction::Keep;
@@ -149,16 +178,30 @@ pub fn find_similar_mem_instruction(
                 }
             }
         }
-        Operation::Store { array, index, value } => {
-            let prev_ins = &anchor[&Operation::Load { array: *array, index: *index }];
+        Operation::Store {
+            array,
+            index,
+            value,
+        } => {
+            let prev_ins = &anchor[&Operation::Load {
+                array: *array,
+                index: *index,
+            }];
             for node_id in prev_ins.iter().rev() {
                 if let Some(ins_iter) = ctx.try_get_instruction(*node_id) {
                     match ins_iter.operator {
-                        Operation::Load { array: array2, index: index2 } => {
+                        Operation::Load {
+                            array: array2,
+                            index: index2,
+                        } => {
                             //TODO: If we know that ins.rhs value cannot be equal to ins_iter.rhs, we could continue instead
                             return CseAction::Keep;
                         }
-                        Operation::Store { array: array2, index: index2, value: value2 } => {
+                        Operation::Store {
+                            array: array2,
+                            index: index2,
+                            value: value2,
+                        } => {
                             if *index == index2 {
                                 return CseAction::Remove(*node_id);
                             } else {
@@ -252,7 +295,8 @@ pub fn block_cse(
                 //binary operation:
                 i_lhs = propagate(ctx, ins.lhs);
                 i_rhs = propagate(ctx, ins.rhs);
-                if let Some(j) = find_similar_instruction(ctx, &ins.operator, &anchor[&ins.operator])
+                if let Some(j) =
+                    find_similar_instruction(ctx, &ins.operator, &anchor[&ins.operator])
                 {
                     to_delete = true; //we want to delete ins but ins is immutable so we use the new_list instead
                     i_rhs = j;
@@ -267,7 +311,7 @@ pub fn block_cse(
                         i_rhs = propagate(ctx, ins.rhs);
                         let (cse_id, cse_action) = find_similar_mem_instruction(
                             ctx,
-                            ins.operator,
+                            &ins.operator,
                             ins.id,
                             i_lhs,
                             i_rhs,

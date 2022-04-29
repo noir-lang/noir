@@ -2,10 +2,10 @@ use super::{
     block::BlockId,
     //block,
     context::SsaContext,
-    node::{self, Instruction, Node, NodeId, NodeObj, Operation, ObjectType},
+    node::{self, Instruction, Node, NodeId, NodeObj, ObjectType, Operation},
     optim,
 };
-use acvm::{FieldElement, acir::OpCode};
+use acvm::{acir::OpCode, FieldElement};
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
 use std::convert::TryInto;
@@ -273,10 +273,7 @@ pub fn block_overflow(
     for mut ins in instructions {
         if matches!(
             ins.operator,
-            Operation::Nop
-                | Operation::Call(_)
-                | Operation::Res
-                | Operation::Ret
+            Operation::Nop | Operation::Call(_) | Operation::Res | Operation::Ret
         ) {
             //For now we skip completely functions from overflow; that means arguments are NOT truncated.
             //The reasoning is that this is handled by doing the overflow strategy after the function has been inlined
@@ -602,9 +599,7 @@ pub fn get_max_value(ins: &Instruction, lhs_max: BigUint, rhs_max: BigUint) -> B
                 | OpCode::Pedersen
                 | OpCode::FixedBaseScalarMul
                 | OpCode::ToBits => BigUint::zero(), //pointers do not overflow
-                OpCode::SchnorrVerify | OpCode::EcdsaSecp256k1 => {
-                    BigUint::one()
-                } //verify returns 0 or 1
+                OpCode::SchnorrVerify | OpCode::EcdsaSecp256k1 => BigUint::one(), //verify returns 0 or 1
                 _ => todo!(),
             }
         }

@@ -1,5 +1,5 @@
 use super::context::SsaContext;
-use super::node::{Binary, BinaryOp, ConstrainOp, Node, NodeId, Operation, Variable, ObjectType};
+use super::node::{Binary, BinaryOp, ConstrainOp, Node, NodeId, ObjectType, Operation, Variable};
 use super::{block, node, ssa_form};
 use std::collections::HashMap;
 
@@ -8,6 +8,7 @@ use super::super::errors::{RuntimeError, RuntimeErrorKind};
 use crate::object::Object;
 
 use crate::ssa::function;
+use acvm::acir::OpCode;
 use acvm::FieldElement;
 use noirc_frontend::hir::Context;
 use noirc_frontend::hir_def::expr::{
@@ -206,7 +207,11 @@ impl<'a> IRGenerator<'a> {
         {
             if let Operation::Load { array, index } = lhs_ins.operator {
                 //make it a store rhs
-                lhs_ins.operator = Operation::Store { array, index, value: rhs };
+                lhs_ins.operator = Operation::Store {
+                    array,
+                    index,
+                    value: rhs,
+                };
                 return lhs;
             }
         }
@@ -435,7 +440,9 @@ impl<'a> IRGenerator<'a> {
         let id = self.context.add_variable(new_var, None);
 
         //Assign rhs to lhs
-        let result = self.context.new_binary_instruction(BinaryOp::Assign, id, value_id, obj_type);
+        let result = self
+            .context
+            .new_binary_instruction(BinaryOp::Assign, id, value_id, obj_type);
 
         //This new variable should not be available in outer scopes.
         let cb = self.context.get_current_block_mut();
@@ -681,7 +688,7 @@ impl<'a> IRGenerator<'a> {
         opcode_name: &str,
         call_expr: HirCallExpression,
     ) -> NodeId {
-        let func = match OPCODE::lookup(opcode_name) {
+        let func = match OpCode::lookup(opcode_name) {
             None => {
                 let message = format!(
                     "cannot find a low level opcode with the name {} in the IR",
@@ -825,7 +832,8 @@ impl<'a> IRGenerator<'a> {
         self.update_variable_id(iter_id, iter_ass, start_idx);
 
         //join block
-        let join_idx = block::new_unsealed_block(&mut self.context, block::BlockType::ForJoin, true);
+        let join_idx =
+            block::new_unsealed_block(&mut self.context, block::BlockType::ForJoin, true);
         let exit_id = block::new_sealed_block(&mut self.context, block::BlockType::Normal);
         self.context.current_block = join_idx;
 
@@ -838,11 +846,16 @@ impl<'a> IRGenerator<'a> {
         let notequal = Operation::binary(BinaryOp::Ne, phi, end_idx);
         let cond = self.context.new_instruction(notequal, ObjectType::Boolean);
 
-        let to_fix = self.context.new_instruction(Operation::Nop, ObjectType::NotAnObject);
+        let to_fix = self
+            .context
+            .new_instruction(Operation::Nop, ObjectType::NotAnObject);
 
         //Body
         let body_id = block::new_sealed_block(&mut self.context, block::BlockType::Normal);
-        self.context.try_get_mut_instruction(to_fix).unwrap().operator = Operation::Jeq(cond, body_id);
+        self.context
+            .try_get_mut_instruction(to_fix)
+            .unwrap()
+            .operator = Operation::Jeq(cond, body_id);
 
         let block = match self.def_interner().expression(&for_expr.block) {
             HirExpression::Block(block_expr) => block_expr,
@@ -872,7 +885,8 @@ impl<'a> IRGenerator<'a> {
         join_mut.predecessor.push(cur_block_id);
 
         //jump back to join
-        self.context.new_instruction(Operation::Jmp(join_idx), ObjectType::NotAnObject);
+        self.context
+            .new_instruction(Operation::Jmp(join_idx), ObjectType::NotAnObject);
 
         //seal join
         ssa_form::seal_block(&mut self.context, join_idx);

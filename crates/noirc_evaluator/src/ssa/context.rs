@@ -104,7 +104,11 @@ impl<'a> SsaContext<'a> {
         match op {
             Operation::Binary(binary) => self.binary_to_string(binary),
             Operation::Cast(value) => format!("cast {}", self.node_to_string(*value)),
-            Operation::Truncate { value, bit_size, max_bit_size } => {
+            Operation::Truncate {
+                value,
+                bit_size,
+                max_bit_size,
+            } => {
                 format!(
                     "truncate {}, bitsize = {}, max bitsize = {}",
                     self.node_to_string(*value),
@@ -128,7 +132,11 @@ impl<'a> SsaContext<'a> {
                 array,
                 self.node_to_string(*index)
             ),
-            Operation::Store { array, index, value } => {
+            Operation::Store {
+                array,
+                index,
+                value,
+            } => {
                 format!(
                     "store array {}, index {}, value {}",
                     array,
@@ -138,9 +146,15 @@ impl<'a> SsaContext<'a> {
             }
             Operation::Intrinsic(opcode, args) => format!("intrinsic {}({})", opcode, join(args)),
             Operation::Nop => format!("nop"),
-            Operation::Call(f) => format!("call {:?}", f),
+            Operation::Call(f, args) => format!("call {:?}({})", f, join(args)),
             Operation::Return(values) => format!("return ({})", join(values)),
-            Operation::Results(values) => format!("results ({})", join(values)),
+            Operation::Results {
+                call_instruction,
+                results,
+            } => {
+                let call = self.node_to_string(*call_instruction);
+                format!("results {} = ({})", call, join(results))
+            }
         }
     }
 
@@ -377,7 +391,10 @@ impl<'a> SsaContext<'a> {
             | Operation::Jeq(_, _)
             | Operation::Jmp(_)
             | Operation::Nop
-            | Binary(node::Binary { operator: Constrain(_), .. })
+            | Binary(node::Binary {
+                operator: Constrain(_),
+                ..
+            })
             | Operation::Store { .. } => ObjectType::NotAnObject,
             Operation::Load { array, .. } => self.mem.arrays[array as usize].element_type,
             Operation::Cast(_) | Operation::Truncate { .. } => {
@@ -463,9 +480,10 @@ impl<'a> SsaContext<'a> {
         //Ensure there is not already a phi for the variable (n.b. probably not usefull)
         for i in &self[target_block].instructions {
             match self.try_get_instruction(*i) {
-                Some(Instruction { operator: Operation::Phi { root, .. }, .. })
-                    if *root == phi_root =>
-                {
+                Some(Instruction {
+                    operator: Operation::Phi { root, .. },
+                    ..
+                }) if *root == phi_root => {
                     return *i;
                 }
                 _ => (),
@@ -473,7 +491,10 @@ impl<'a> SsaContext<'a> {
         }
 
         let v_type = self.get_object_type(phi_root);
-        let operation = Operation::Phi { root: phi_root, block_args: vec![] };
+        let operation = Operation::Phi {
+            root: phi_root,
+            block_args: vec![],
+        };
         let new_phi = Instruction::new(operation, v_type, Some(target_block));
         let phi_id = self.add_instruction(new_phi);
         self[target_block].instructions.insert(1, phi_id);

@@ -404,9 +404,9 @@ impl Instruction {
             }
             Operation::Load { .. } | Operation::Store { .. } => (false, false),
             Operation::Intrinsic(_, _) => (true, true), //TODO to check
-            Operation::Call(_) => (false, false), //return values are in the return statment, should we truncate function arguments? probably but not lhs and rhs anyways.
+            Operation::Call(_, _) => (false, false), //return values are in the return statment, should we truncate function arguments? probably but not lhs and rhs anyways.
             Operation::Return(_) => (true, false),
-            Operation::Results(_) => (false, false),
+            Operation::Results { .. } => (false, false),
         }
     }
 
@@ -541,9 +541,12 @@ pub enum Operation {
         block_args: Vec<(NodeId, BlockId)>,
     },
 
-    Call(noirc_frontend::node_interner::FuncId), //Call a function
-    Return(Vec<NodeId>),                         //Return value(s) from a function block
-    Results(Vec<NodeId>),                        //Get result(s) from a function call
+    Call(noirc_frontend::node_interner::FuncId, Vec<NodeId>), //Call a function
+    Return(Vec<NodeId>), //Return value(s) from a function block
+    Results {
+        call_instruction: NodeId,
+        results: Vec<NodeId>,
+    }, //Get result(s) from a function call
 
     //memory
     Load {
@@ -610,9 +613,9 @@ impl Binary {
     ) -> Binary {
         let operator = match op_kind {
             HirBinaryOpKind::Add => BinaryOp::Add,
-            HirBinaryOpKind::Subtract => {
-                BinaryOp::Sub { max_rhs_value: BigUint::from_u8(0).unwrap() }
-            }
+            HirBinaryOpKind::Subtract => BinaryOp::Sub {
+                max_rhs_value: BigUint::from_u8(0).unwrap(),
+            },
             HirBinaryOpKind::Multiply => BinaryOp::Mul,
             HirBinaryOpKind::Equal => BinaryOp::Eq,
             HirBinaryOpKind::NotEqual => BinaryOp::Ne,
@@ -932,25 +935,53 @@ impl Operation {
     pub fn map_id(self, f: impl FnMut(NodeId) -> NodeId) -> Operation {
         use Operation::*;
         match self {
-            Binary(self::Binary { lhs, rhs, operator }) => {
-                Binary(self::Binary { lhs: f(lhs), rhs: f(rhs), operator })
-            }
+            Binary(self::Binary { lhs, rhs, operator }) => Binary(self::Binary {
+                lhs: f(lhs),
+                rhs: f(rhs),
+                operator,
+            }),
             Cast(value) => Cast(f(value)),
-            Truncate { value, bit_size, max_bit_size } => {
-                Truncate { value: f(value), bit_size, max_bit_size }
-            }
+            Truncate {
+                value,
+                bit_size,
+                max_bit_size,
+            } => Truncate {
+                value: f(value),
+                bit_size,
+                max_bit_size,
+            },
             Not(id) => Not(f(id)),
             Jne(id, block) => Jne(f(id), block),
             Jeq(id, block) => Jeq(f(id), block),
             Jmp(block) => Jmp(block),
-            Phi { root, block_args } => Phi { root: f(root), block_args },
-            Load { array, index } => Load { array, index: f(index) },
-            Store { array, index, value } => Store { array, index: f(index), value: f(value) },
+            Phi { root, block_args } => Phi {
+                root: f(root),
+                block_args,
+            },
+            Load { array, index } => Load {
+                array,
+                index: f(index),
+            },
+            Store {
+                array,
+                index,
+                value,
+            } => Store {
+                array,
+                index: f(index),
+                value: f(value),
+            },
             Intrinsic(i, args) => Intrinsic(i, vecmap(args, f)),
             Nop => Nop,
-            Call(func_id) => Call(func_id),
+            Call(func_id, args) => Call(func_id, vecmap(args, f)),
             Return(values) => Return(vecmap(values, f)),
-            Results(values) => Results(vecmap(values, f)),
+            Results {
+                call_instruction,
+                results,
+            } => Results {
+                call_instruction: f(call_instruction),
+                results: vecmap(results, f),
+            },
         }
     }
 }

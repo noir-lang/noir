@@ -44,7 +44,11 @@ impl InternalVar {
     }
 
     fn new(expression: Arithmetic, witness: Option<Witness>, id: NodeId) -> InternalVar {
-        InternalVar { expression, witness, id: Some(id) }
+        InternalVar {
+            expression,
+            witness,
+            id: Some(id),
+        }
     }
 
     pub fn to_const(&self) -> Option<FieldElement> {
@@ -63,13 +67,21 @@ impl InternalVar {
 impl From<Arithmetic> for InternalVar {
     fn from(arith: Arithmetic) -> InternalVar {
         let w = is_unit(&arith);
-        InternalVar { expression: arith, witness: w, id: None }
+        InternalVar {
+            expression: arith,
+            witness: w,
+            id: None,
+        }
     }
 }
 
 impl From<Witness> for InternalVar {
     fn from(w: Witness) -> InternalVar {
-        InternalVar { expression: from_witness(w), witness: Some(w), id: None }
+        InternalVar {
+            expression: from_witness(w),
+            witness: Some(w),
+            id: None,
+        }
     }
 }
 
@@ -266,17 +278,21 @@ impl Acir {
             | i @ Operation::Jeq(..)
             | i @ Operation::Jmp(_)
             | i @ Operation::Phi { .. }
-            | i @ Operation::Results(_) => {
+            | i @ Operation::Results { .. } => {
                 unreachable!("Invalid instruction: {:?}", i);
             }
-            Operation::Truncate { value, bit_size, max_bit_size } => {
+            Operation::Truncate {
+                value,
+                bit_size,
+                max_bit_size,
+            } => {
                 let value = self.substitute(value, evaluator, ctx);
                 InternalVar::from(evaluate_truncate(value, bit_size, max_bit_size, evaluator))
             }
             Operation::Intrinsic(opcode, args) => {
                 InternalVar::from(self.evaluate_opcode(ins.id, opcode, &args, ctx, evaluator))
             }
-            Operation::Call(_) => unreachable!("call instruction should have been inlined"),
+            Operation::Call(..) => unreachable!("call instruction should have been inlined"),
             Operation::Return(_) => todo!(), //return from main
             Operation::Nop => InternalVar::default(),
             Operation::Load { array, index } => {
@@ -302,7 +318,11 @@ impl Acir {
                 }
             }
 
-            Operation::Store { array, index, value } => {
+            Operation::Store {
+                array,
+                index,
+                value,
+            } => {
                 //maps the address to the rhs if address is known at compile time
                 let index = self.substitute(index, evaluator, ctx);
                 let value = self.substitute(value, evaluator, ctx);
@@ -531,14 +551,20 @@ impl Acir {
                                 let address = array.adr + i;
                                 if self.memory_map.contains_key(&address) {
                                     if let Some(wit) = self.memory_map[&address].witness {
-                                        inputs.push(GadgetInput { witness: wit, num_bits });
+                                        inputs.push(GadgetInput {
+                                            witness: wit,
+                                            num_bits,
+                                        });
                                     } else {
                                         //TODO we should store the witnesses somewhere, else if the inputs are re-used
                                         //we will duplicate the witnesses.
                                         let (_, w) = evaluator.create_intermediate_variable(
                                             self.memory_map[&address].expression.clone(),
                                         );
-                                        inputs.push(GadgetInput { witness: w, num_bits });
+                                        inputs.push(GadgetInput {
+                                            witness: w,
+                                            num_bits,
+                                        });
                                     }
                                 } else {
                                     inputs.push(GadgetInput {
@@ -550,7 +576,10 @@ impl Acir {
                         }
                         _ => {
                             if let Some(w) = v.witness {
-                                inputs.push(GadgetInput { witness: w, num_bits: v.size_in_bits() });
+                                inputs.push(GadgetInput {
+                                    witness: w,
+                                    num_bits: v.size_in_bits(),
+                                });
                             } else {
                                 todo!("generate a witness");
                             }
@@ -848,7 +877,11 @@ pub fn evaluate_udiv(
     }));
     //r<b
     let r_expr = Arithmetic::from(Linear::from_witness(r_witness));
-    let r_var = InternalVar { expression: r_expr, witness: Some(r_witness), id: None };
+    let r_var = InternalVar {
+        expression: r_expr,
+        witness: Some(r_witness),
+        id: None,
+    };
     bound_check(&r_var, rhs, true, 32, evaluator); //TODO bit size! should be max(a.bit, b.bit)
                                                    //range check q<=a
     range_constraint(q_witness, 32, evaluator).unwrap_or_else(|err| {

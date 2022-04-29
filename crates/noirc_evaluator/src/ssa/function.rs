@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::environment::Environment;
-use acvm::acir::OPCODE;
+use acvm::acir::OpCode;
 use acvm::FieldElement;
 use noirc_frontend::hir_def::expr::HirCallExpression;
 use noirc_frontend::hir_def::function::Parameters;
@@ -58,16 +58,11 @@ impl<'a> SSAFunction<'a> {
         igen: &mut IRGenerator,
         env: &mut Environment,
     ) -> NodeId {
-        let call_id = igen.context.new_instruction(
-            NodeId::dummy(),
-            NodeId::dummy(),
-            node::Operation::Call(func),
+        let arguments = igen.expression_list_to_objects(env, arguments);
+        igen.context.new_instruction(
+            node::Operation::Call(func, arguments),
             node::ObjectType::NotAnObject, //TODO how to get the function return type?
-        );
-        let ins_arguments = igen.expression_list_to_objects(env, arguments);
-        let call_ins = igen.context.get_mut_instruction(call_id);
-        call_ins.ins_arguments = ins_arguments;
-        call_id
+        )
     }
 
     pub fn get_mapped_value(
@@ -101,25 +96,25 @@ impl<'a> SSAFunction<'a> {
 }
 
 //Returns the number of elements and their type, of the output result corresponding to the OPCODE function.
-pub fn get_result_type(op: OPCODE) -> (u32, ObjectType) {
+pub fn get_result_type(op: OpCode) -> (u32, ObjectType) {
     match op {
-        OPCODE::AES => (0, ObjectType::NotAnObject), //Not implemented
-        OPCODE::SHA256 => (32, ObjectType::Unsigned(8)),
-        OPCODE::Blake2s => (32, ObjectType::Unsigned(8)),
-        OPCODE::HashToField => (1, ObjectType::NativeField),
-        OPCODE::MerkleMembership => (1, ObjectType::NativeField), //or bool?
-        OPCODE::SchnorrVerify => (1, ObjectType::NativeField),    //or bool?
-        OPCODE::Pedersen => (2, ObjectType::NativeField),
-        OPCODE::EcdsaSecp256k1 => (1, ObjectType::NativeField), //field?
-        OPCODE::FixedBaseScalarMul => (2, ObjectType::NativeField),
-        OPCODE::InsertRegularMerkle => (1, ObjectType::NativeField), //field?
-        OPCODE::ToBits => (FieldElement::max_num_bits(), ObjectType::Boolean),
+        OpCode::AES => (0, ObjectType::NotAnObject), //Not implemented
+        OpCode::SHA256 => (32, ObjectType::Unsigned(8)),
+        OpCode::Blake2s => (32, ObjectType::Unsigned(8)),
+        OpCode::HashToField => (1, ObjectType::NativeField),
+        OpCode::MerkleMembership => (1, ObjectType::NativeField), //or bool?
+        OpCode::SchnorrVerify => (1, ObjectType::NativeField),    //or bool?
+        OpCode::Pedersen => (2, ObjectType::NativeField),
+        OpCode::EcdsaSecp256k1 => (1, ObjectType::NativeField), //field?
+        OpCode::FixedBaseScalarMul => (2, ObjectType::NativeField),
+        OpCode::InsertRegularMerkle => (1, ObjectType::NativeField), //field?
+        OpCode::ToBits => (FieldElement::max_num_bits(), ObjectType::Boolean),
     }
 }
 
 //Lowlevel functions with no more than 2 arguments
 pub fn call_low_level(
-    op: OPCODE,
+    op: OpCode,
     call_expr: HirCallExpression,
     igen: &mut IRGenerator,
     env: &mut Environment,
@@ -153,11 +148,8 @@ pub fn call_low_level(
     //when the function returns an array, we use ins.res_type(array)
     //else we map ins.id to the returned witness
     //Call instruction
-    igen.context.new_instruction_with_multiple_operands(
-        args,
-        node::Operation::Intrinsic(op),
-        result_type,
-    )
+    igen.context
+        .new_instruction(node::Operation::Intrinsic(op, args), result_type)
 }
 
 pub fn create_function<'a>(
@@ -194,16 +186,14 @@ pub fn create_function<'a>(
 pub fn add_return_instruction(cfg: &mut SsaContext, last: Option<NodeId>) {
     let last_id = last.unwrap_or_else(NodeId::dummy);
     let result = if last_id == NodeId::dummy() {
-        Vec::new()
+        vec![]
     } else {
         vec![last_id]
     };
     //Create return instruction based on the last statement of the function body
     let result_id = cfg.new_instruction(
-        NodeId::dummy(),
-        NodeId::dummy(),
-        node::Operation::Ret,
+        node::Operation::Return(result),
         node::ObjectType::NotAnObject,
     );
-    cfg.get_mut_instruction(result_id).ins_arguments = result; //n.b. should we keep the object type in the vector?
+    //n.b. should we keep the object type in the vector?
 }
