@@ -14,12 +14,12 @@
 #[derive(Debug, PartialEq, Eq)]
 struct ResolverMeta {
     num_times_used: usize,
-    id: IdentId,
+    ident: HirIdent,
 }
 
 use crate::hir_def::expr::{
     HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
-    HirConstructorExpression, HirForExpression, HirIfExpression, HirIndexExpression,
+    HirConstructorExpression, HirForExpression, HirIdent, HirIfExpression, HirIndexExpression,
     HirInfixExpression, HirLiteral, HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
     HirUnaryOp,
 };
@@ -30,15 +30,15 @@ use std::rc::Rc;
 use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId};
 use crate::hir_def::expr::HirExpression;
-use crate::hir_def::stmt::{HirAssignStatement, HirPattern};
-use crate::node_interner::{ExprId, FuncId, IdentId, NodeInterner, StmtId, TypeId};
+use crate::hir_def::stmt::{HirAssignStatement, HirLValue, HirPattern};
+use crate::node_interner::{DefinitionId, ExprId, FuncId, NodeInterner, StmtId, StructId};
 use crate::util::vecmap;
 use crate::{
     hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
     BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
     Statement,
 };
-use crate::{NoirStruct, Path, Pattern, StructType, Type, UnresolvedType, ERROR_IDENT};
+use crate::{LValue, NoirStruct, Path, Pattern, StructType, Type, UnresolvedType, ERROR_IDENT};
 use noirc_errors::{Span, Spanned};
 
 use crate::hir::scope::{
@@ -60,7 +60,7 @@ pub struct Resolver<'a> {
     path_resolver: &'a dyn PathResolver,
     def_maps: &'a HashMap<CrateId, CrateDefMap>,
     interner: &'a mut NodeInterner,
-    self_type: Option<TypeId>,
+    self_type: Option<StructId>,
     errors: Vec<ResolverError>,
 }
 
@@ -80,7 +80,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    pub fn set_self_type(&mut self, self_type: Option<TypeId>) {
+    pub fn set_self_type(&mut self, self_type: Option<StructId>) {
         self.self_type = self_type;
     }
 
@@ -113,15 +113,13 @@ impl<'a> Resolver<'a> {
         }
 
         for unused_var in unused_vars.iter() {
-            if self.interner.ident_name(unused_var) != ERROR_IDENT {
-                self.push_err(ResolverError::UnusedVariable {
-                    ident_id: *unused_var,
-                });
+            if self.interner.definition_name(unused_var.id) != ERROR_IDENT {
+                self.push_err(ResolverError::UnusedVariable { ident: *unused_var });
             }
         }
     }
 
-    fn check_for_unused_variables_in_local_scope(decl_map: Scope, unused_vars: &mut Vec<IdentId>) {
+    fn check_for_unused_variables_in_local_scope(decl_map: Scope, unused_vars: &mut Vec<HirIdent>) {
         let unused_variables = decl_map.filter(|(variable_name, metadata)| {
             let has_underscore_prefix = variable_name.starts_with('_'); // XXX: This is used for development mode, and will be removed
 
@@ -130,7 +128,7 @@ impl<'a> Resolver<'a> {
             }
             false
         });
-        unused_vars.extend(unused_variables.map(|(_, meta)| meta.id));
+        unused_vars.extend(unused_variables.map(|(_, meta)| meta.ident));
     }
 
     /// Run the given function in a new scope.
@@ -142,30 +140,30 @@ impl<'a> Resolver<'a> {
         ret
     }
 
-    fn add_variable_decl(&mut self, name: Ident) -> IdentId {
-        let id = self.interner.push_ident(name.clone());
-        // Variable was defined here, so it's definition links to itself
-        self.interner.linked_ident_to_def(id, id);
+    fn add_variable_decl(&mut self, name: Ident, mutable: bool) -> HirIdent {
+        let id = self
+            .interner
+            .push_definition(name.0.contents.clone(), mutable);
+        let ident = HirIdent {
+            span: name.span(),
+            id,
+        };
 
         let scope = self.scopes.get_mut_scope();
         let resolver_meta = ResolverMeta {
             num_times_used: 0,
-            id,
+            ident,
         };
-        let old_value = scope.add_key_value(name.0.contents, resolver_meta);
 
-        match old_value {
-            None => {
-                // New value, do nothing
-            }
-            Some(old_value) => {
-                self.push_err(ResolverError::DuplicateDefinition {
-                    first_ident: old_value.id,
-                    second_ident: id,
-                });
-            }
+        let old_value = scope.add_key_value(name.0.contents, resolver_meta);
+        if let Some(old_value) = old_value {
+            self.push_err(ResolverError::DuplicateDefinition {
+                first_ident: old_value.ident,
+                second_ident: ident,
+            });
         }
-        id
+
+        ident
     }
 
     // Checks for a variable having been declared before
@@ -175,27 +173,25 @@ impl<'a> Resolver<'a> {
     //
     // If a variable is not found, then an error is logged and a dummy id
     // is returned, for better error reporting UX
-    fn find_variable(&mut self, name: &Ident) -> IdentId {
-        // Give variable an IdentId. This is not a definition
-        let id = self.interner.push_ident(name.clone());
-
+    fn find_variable(&mut self, name: &Ident) -> HirIdent {
         // Find the definition for this Ident
         let scope_tree = self.scopes.current_scope_tree();
         let variable = scope_tree.find(&name.0.contents);
 
-        if let Some(variable_found) = variable {
+        let id = if let Some(variable_found) = variable {
             variable_found.num_times_used += 1;
-            self.interner.linked_ident_to_def(id, variable_found.id);
-            return id;
-        }
+            variable_found.ident.id
+        } else {
+            self.push_err(ResolverError::VariableNotDeclared {
+                name: name.0.contents.clone(),
+                span: name.0.span(),
+            });
 
-        let err = ResolverError::VariableNotDeclared {
-            name: name.0.contents.clone(),
-            span: name.0.span(),
+            DefinitionId::dummy_id()
         };
-        self.push_err(err);
 
-        IdentId::dummy_id()
+        let span = name.span();
+        HirIdent { span, id }
     }
 
     pub fn intern_function(&mut self, func: NoirFunction) -> (HirFunction, FuncMeta) {
@@ -251,7 +247,11 @@ impl<'a> Resolver<'a> {
     /// to be used in analysis and intern the function parameters
     fn extract_meta(&mut self, func: &NoirFunction) -> FuncMeta {
         let name = func.name().to_owned();
-        let name_id = self.interner.push_ident(func.name_ident().clone());
+
+        let span = func.name_ident().span();
+        let id = self.interner.push_definition(name, false);
+        let name = HirIdent { id, span };
+
         let attributes = func.attribute().cloned();
 
         let mut parameters = Vec::new();
@@ -265,7 +265,6 @@ impl<'a> Resolver<'a> {
 
         FuncMeta {
             name,
-            name_id,
             kind: func.kind,
             attributes,
             parameters: parameters.into(),
@@ -302,15 +301,30 @@ impl<'a> Resolver<'a> {
                 self.interner.push_stmt(stmt)
             }
             Statement::Assign(assign_stmt) => {
-                let identifier = self.find_variable(&assign_stmt.identifier);
+                let identifier = self.resolve_lvalue(assign_stmt.lvalue);
                 let expression = self.resolve_expression(assign_stmt.expression);
                 let stmt = HirAssignStatement {
-                    identifier,
+                    lvalue: identifier,
                     expression,
                 };
                 self.interner.push_stmt(HirStatement::Assign(stmt))
             }
             Statement::Error => self.interner.push_stmt(HirStatement::Error),
+        }
+    }
+
+    fn resolve_lvalue(&mut self, lvalue: LValue) -> HirLValue {
+        match lvalue {
+            LValue::Ident(ident) => HirLValue::Ident(self.find_variable(&ident)),
+            LValue::MemberAccess { object, field_name } => {
+                let object = Box::new(self.resolve_lvalue(*object));
+                HirLValue::MemberAccess { object, field_name }
+            }
+            LValue::Index { array, index } => {
+                let array = Box::new(self.resolve_lvalue(*array));
+                let index = self.resolve_expression(index);
+                HirLValue::Index { array, index }
+            }
         }
     }
 
@@ -371,8 +385,13 @@ impl<'a> Resolver<'a> {
                 let end_range = self.resolve_expression(for_expr.end_range);
                 let (identifier, block) = (for_expr.identifier, for_expr.block);
 
+                // TODO: For loop variables are currently mutable by default since we haven't
+                //       yet implemented syntax for them to be optionally mutable.
                 let (identifier, block_id) = self.in_new_scope(|this| {
-                    (this.add_variable_decl(identifier), this.intern_block(block))
+                    (
+                        this.add_variable_decl(identifier, true),
+                        this.intern_block(block),
+                    )
                 });
 
                 HirExpression::For(HirForExpression {
@@ -395,16 +414,15 @@ impl<'a> Resolver<'a> {
                 // If the Path is being used as an Expression, then it is referring to an Identifier
                 //
                 // This is currently not supported : const x = foo::bar::SOME_CONST + 10;
-                let ident_id = match path.as_ident() {
+                HirExpression::Ident(match path.as_ident() {
+                    Some(identifier) => self.find_variable(identifier),
                     None => {
                         self.push_err(ResolverError::PathIsNotIdent { span: path.span() });
-
-                        IdentId::dummy_id()
+                        let id = DefinitionId::dummy_id();
+                        let span = path.span();
+                        HirIdent { id, span }
                     }
-                    Some(identifier) => self.find_variable(identifier),
-                };
-
-                HirExpression::Ident(ident_id)
+                })
             }
             ExpressionKind::Block(block_expr) => self.resolve_block(block_expr),
             ExpressionKind::Constructor(constructor) => {
@@ -454,7 +472,7 @@ impl<'a> Resolver<'a> {
     fn resolve_pattern_mutable(&mut self, pattern: Pattern, mutable: Option<Span>) -> HirPattern {
         match pattern {
             Pattern::Identifier(name) => {
-                let id = self.add_variable_decl(name);
+                let id = self.add_variable_decl(name, mutable.is_some());
                 HirPattern::Identifier(id)
             }
             Pattern::Mutable(pattern, span) => {
@@ -492,11 +510,11 @@ impl<'a> Resolver<'a> {
     /// and constructor patterns.
     fn resolve_constructor_fields<T, U, F>(
         &mut self,
-        type_id: TypeId,
+        type_id: StructId,
         fields: Vec<(Ident, T)>,
         span: Span,
         mut resolve_function: F,
-    ) -> Vec<(IdentId, U)>
+    ) -> Vec<(Ident, U)>
     where
         F: FnMut(&mut Self, T) -> U,
     {
@@ -523,8 +541,7 @@ impl<'a> Resolver<'a> {
                 });
             }
 
-            let name_id = self.interner.push_ident(field);
-            ret.push((name_id, resolved));
+            ret.push((field, resolved));
         }
 
         if !unseen_fields.is_empty() {
@@ -541,11 +558,11 @@ impl<'a> Resolver<'a> {
         ret
     }
 
-    pub fn get_struct(&self, type_id: TypeId) -> Rc<RefCell<StructType>> {
+    pub fn get_struct(&self, type_id: StructId) -> Rc<RefCell<StructType>> {
         self.interner.get_struct(type_id)
     }
 
-    fn get_field_names_of_type(&self, type_id: TypeId) -> HashSet<Ident> {
+    fn get_field_names_of_type(&self, type_id: StructId) -> HashSet<Ident> {
         let typ = self.get_struct(type_id);
         let typ = typ.borrow();
         typ.fields.iter().map(|(name, _)| name.clone()).collect()
@@ -571,7 +588,7 @@ impl<'a> Resolver<'a> {
         self.lookup(path)
     }
 
-    fn lookup_type(&mut self, path: Path) -> TypeId {
+    fn lookup_type(&mut self, path: Path) -> StructId {
         let ident = path.as_ident();
         if ident.map_or(false, |i| i == "Self") {
             if let Some(id) = &self.self_type {
@@ -584,10 +601,10 @@ impl<'a> Resolver<'a> {
 
     pub fn lookup_struct(&mut self, path: Path) -> Option<Rc<RefCell<StructType>>> {
         let id = self.lookup_type(path);
-        (id != TypeId::dummy_id()).then(|| self.get_struct(id))
+        (id != StructId::dummy_id()).then(|| self.get_struct(id))
     }
 
-    pub fn lookup_type_for_impl(mut self, path: Path) -> (TypeId, Vec<ResolverError>) {
+    pub fn lookup_type_for_impl(mut self, path: Path) -> (StructId, Vec<ResolverError>) {
         (self.lookup_type(path), self.errors)
     }
 
@@ -710,12 +727,13 @@ mod test {
         let err = errors.pop().unwrap();
         // It should be regarding the unused variable
         match err {
-            ResolverError::UnusedVariable { ident_id } => {
-                assert_eq!(interner.ident_name(&ident_id), "y".to_owned());
+            ResolverError::UnusedVariable { ident } => {
+                assert_eq!(interner.definition_name(ident.id), "y".to_owned());
             }
             _ => unimplemented!("we should only have an unused var error"),
         }
     }
+
     #[test]
     fn resolve_unresolved_var() {
         let src = r#"
@@ -785,8 +803,8 @@ mod test {
         // `foo::bar` does not exist
         for err in errors {
             match &err {
-                ResolverError::UnusedVariable { ident_id } => {
-                    let name = interner.ident_name(ident_id);
+                ResolverError::UnusedVariable { ident } => {
+                    let name = interner.definition_name(ident.id);
                     assert_eq!(name, "z");
                 }
                 ResolverError::VariableNotDeclared { name, .. } => {

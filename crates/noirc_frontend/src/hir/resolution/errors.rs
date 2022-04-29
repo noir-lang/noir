@@ -2,20 +2,17 @@ use noirc_errors::CustomDiagnostic as Diagnostic;
 pub use noirc_errors::Span;
 use thiserror::Error;
 
-use crate::{
-    node_interner::{IdentId, NodeInterner},
-    Ident,
-};
+use crate::{hir_def::expr::HirIdent, node_interner::NodeInterner, Ident};
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum ResolverError {
     #[error("Duplicate definition")]
     DuplicateDefinition {
-        first_ident: IdentId,
-        second_ident: IdentId,
+        first_ident: HirIdent,
+        second_ident: HirIdent,
     },
     #[error("Unused variable")]
-    UnusedVariable { ident_id: IdentId },
+    UnusedVariable { ident: HirIdent },
     #[error("Could not find variable in this scope")]
     VariableNotDeclared { name: String, span: Span },
     #[error("path is not an identifier")]
@@ -59,10 +56,10 @@ impl ResolverError {
                 first_ident,
                 second_ident,
             } => {
-                let first_span = interner.ident_span(&first_ident);
-                let second_span = interner.ident_span(&second_ident);
+                let first_span = first_ident.span;
+                let second_span = second_ident.span;
 
-                let name = interner.ident_name(&first_ident);
+                let name = interner.definition_name(first_ident.id);
 
                 let mut diag = Diagnostic::simple_error(
                     format!("duplicate definitions of {} found", name),
@@ -72,14 +69,13 @@ impl ResolverError {
                 diag.add_secondary("second definition found here".to_string(), second_span);
                 diag
             }
-            ResolverError::UnusedVariable { ident_id } => {
-                let name = interner.ident_name(&ident_id);
-                let span = interner.ident_span(&ident_id);
+            ResolverError::UnusedVariable { ident } => {
+                let name = interner.definition_name(ident.id);
 
                 let mut diag = Diagnostic::simple_error(
                     format!("unused variable {}", name),
                     "unused variable ".to_string(),
-                    span,
+                    ident.span,
                 );
 
                 diag.add_note("A new variable usually means a constraint has been added and is being unused. \n For this reason, it is almost always a bug to declare a variable and not use it.".to_owned());

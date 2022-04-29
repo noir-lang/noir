@@ -1,9 +1,9 @@
 use noirc_abi::Abi;
 use noirc_errors::Span;
 
-use super::expr::{HirBlockExpression, HirExpression};
+use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
-use crate::node_interner::{ExprId, IdentId, NodeInterner};
+use crate::node_interner::{ExprId, NodeInterner};
 use crate::util::vecmap;
 use crate::Type;
 use crate::{token::Attribute, FunctionKind};
@@ -44,9 +44,9 @@ pub struct Param(pub HirPattern, pub Type);
 
 /// Attempts to retrieve the name of this parameter. Returns None
 /// if this parameter is a tuple or struct pattern.
-fn get_param_name(pattern: &HirPattern, interner: &NodeInterner) -> Option<String> {
+fn get_param_name<'a>(pattern: &HirPattern, interner: &'a NodeInterner) -> Option<&'a str> {
     match pattern {
-        HirPattern::Identifier(id) => Some(interner.ident_name(id)),
+        HirPattern::Identifier(ident) => Some(interner.definition_name(ident.id)),
         HirPattern::Mutable(pattern, _) => get_param_name(pattern, interner),
         HirPattern::Tuple(_, _) => None,
         HirPattern::Struct(_, _, _) => None,
@@ -60,16 +60,17 @@ impl Parameters {
     pub fn into_abi(self, interner: &NodeInterner) -> Abi {
         let parameters = vecmap(self.0, |param| {
             let param_name = get_param_name(&param.0, interner)
-                .expect("Abi for tuple and struct parameters is unimplemented");
+                .expect("Abi for tuple and struct parameters is unimplemented")
+                .to_owned();
             (param_name, param.1.as_abi_type())
         });
         noirc_abi::Abi { parameters }
     }
 
-    pub fn span(&self, interner: &NodeInterner) -> Span {
+    pub fn span(&self) -> Span {
         assert!(!self.is_empty());
         let mut spans = vecmap(&self.0, |param| match &param.0 {
-            HirPattern::Identifier(id) => interner.ident_span(id),
+            HirPattern::Identifier(ident) => ident.span,
             HirPattern::Mutable(_, span) => *span,
             HirPattern::Tuple(_, span) => *span,
             HirPattern::Struct(_, _, span) => *span,
@@ -111,8 +112,7 @@ impl From<Vec<Param>> for Parameters {
 }
 #[derive(Debug, Clone)]
 pub struct FuncMeta {
-    pub name: String,
-    pub name_id: IdentId,
+    pub name: HirIdent,
 
     pub kind: FunctionKind,
 

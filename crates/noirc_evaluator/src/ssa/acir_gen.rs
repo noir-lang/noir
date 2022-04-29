@@ -745,8 +745,6 @@ pub fn evaluate_and(
     bit_size: u32,
     evaluator: &mut Evaluator,
 ) -> Arithmetic {
-
-
     let result = evaluator.add_witness_to_cs();
     let a_witness = generate_witness(&lhs, evaluator);
     let b_witness = generate_witness(&rhs, evaluator);
@@ -762,16 +760,12 @@ pub fn evaluate_and(
     Arithmetic::from(Linear::from_witness(result))
 }
 
-
-
 pub fn evaluate_xor(
     lhs: InternalVar,
     rhs: InternalVar,
     bit_size: u32,
     evaluator: &mut Evaluator,
 ) -> Arithmetic {
-
-
     let result = evaluator.add_witness_to_cs();
 
     let a_witness = generate_witness(&lhs, evaluator);

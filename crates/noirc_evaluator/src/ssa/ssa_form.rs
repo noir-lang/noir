@@ -1,4 +1,4 @@
-use noirc_frontend::ArraySize;
+use noirc_frontend::{node_interner::DefinitionId, ArraySize};
 
 use super::{
     block::BlockId,
@@ -103,19 +103,11 @@ fn get_array_size(array_size: &ArraySize) -> u32 {
     }
 }
 
-pub fn create_function_parameter(
-    igen: &mut IRGenerator,
-    ident_id: &noirc_frontend::node_interner::IdentId,
-) -> NodeId {
-    let ident_name = igen.ident_name(ident_id);
-    let ident_def = igen.ident_def(ident_id);
-    let o_type = igen
-        .context
-        .context()
-        .def_interner
-        .id_type(ident_def.unwrap());
+pub fn create_function_parameter(igen: &mut IRGenerator, ident_id: &DefinitionId) -> NodeId {
+    let ident_name = igen.def_to_name(*ident_id);
+    let o_type = igen.def_interner().id_type(*ident_id);
     //check if the variable is already created:
-    if let Some(var) = igen.find_variable(ident_def) {
+    if let Some(var) = igen.find_variable(*ident_id) {
         let id = var.unwrap_id(); //TODO handle multiple values
         return get_current_value(&mut igen.context, id);
     }
@@ -131,7 +123,7 @@ pub fn create_function_parameter(
                 name: ident_name.clone(),
                 obj_type: node::ObjectType::Pointer(array_idx),
                 root: None,
-                def: ident_def,
+                def: Some(*ident_id),
                 witness: None,
                 parent_block: igen.context.current_block,
             }
@@ -143,7 +135,7 @@ pub fn create_function_parameter(
                 name: ident_name.clone(),
                 obj_type,
                 root: None,
-                def: ident_def,
+                def: Some(*ident_id),
                 witness: None,
                 parent_block: igen.context.current_block,
             }

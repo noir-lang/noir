@@ -181,7 +181,7 @@ pub fn create_function<'a>(
             HirPattern::Struct(_, _, _) => todo!(),
         };
 
-        let node_id = ssa_form::create_function_parameter(&mut func.igen, ident_id.unwrap());
+        let node_id = ssa_form::create_function_parameter(&mut func.igen, &ident_id.unwrap().id);
         func.arguments.push(node_id);
     }
     //dbg!(&func.arguments);

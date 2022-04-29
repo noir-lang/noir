@@ -17,7 +17,10 @@ use acvm::Language;
 use environment::{Environment, FuncContext};
 use errors::{RuntimeError, RuntimeErrorKind};
 use noirc_frontend::hir::Context;
-use noirc_frontend::node_interner::{ExprId, FuncId, IdentId, StmtId};
+use noirc_frontend::{
+    hir_def::{expr::HirIdent, stmt::HirLValue},
+    node_interner::{ExprId, FuncId, StmtId},
+};
 use noirc_frontend::{
     hir_def::{
         expr::{
@@ -175,9 +178,9 @@ impl<'a> Evaluator<'a> {
     // This is because, we currently do not have support for optimisations with polynomials of higher degree or higher fan-ins
     // XXX: One way to configure this in the future, is to count the fan-in/out and check if it is lower than the configured width
     // Either it is 1 * x + 0 or it is ax+b
-    fn evaluate_identifier(&mut self, ident_id: &IdentId, env: &mut Environment) -> Object {
-        let ident_name = self.context.def_interner.ident_name(ident_id);
-        env.get(&ident_name)
+    fn evaluate_identifier(&mut self, ident: HirIdent, env: &mut Environment) -> Object {
+        let ident_name = self.context.def_interner.definition_name(ident.id);
+        env.get(ident_name)
     }
 
     /// Compiles the AST into the intermediate format by evaluating the main function
@@ -226,7 +229,7 @@ impl<'a> Evaluator<'a> {
         let func_meta = self.context.def_interner.function_meta(&self.main_function);
         // XXX: We make the span very general here, so an error will underline all of the parameters in the span
         // This maybe not be desireable in the long run, because we want to point to the exact place
-        let param_span = func_meta.parameters.span(&self.context.def_interner);
+        let param_span = func_meta.parameters.span();
 
         let abi = func_meta.parameters.into_abi(&self.context.def_interner);
 
@@ -338,24 +341,19 @@ impl<'a> Evaluator<'a> {
         let func_meta = self.context.def_interner.function_meta(&self.main_function);
         // XXX: We make the span very general here, so an error will underline all of the parameters in the span
         // This maybe not be desireable in the long run, because we want to point to the exact place
-        let param_span = func_meta.parameters.span(&self.context.def_interner);
+        let param_span = func_meta.parameters.span();
         for param in &func_meta.parameters.0 {
             match param.0 {
                 HirPattern::Identifier(ident_id) => {
-                    let name = self.context.def_interner.ident_name(&ident_id);
-                    let ident_def = self.context.def_interner.ident_def(&ident_id);
+                    let name = self.context.def_interner.definition_name(ident_id.id);
+                    let ident_def = ident_id.id;
                     match &param.1 {
                         Type::FieldElement(ft) => {
                             let witness = self.add_witness_to_cs();
                             if ft.strict_eq(&FieldElementType::Public) {
                                 self.public_inputs.push(witness);
                             }
-                            igen.abi_var(
-                                &name,
-                                ident_def.unwrap(),
-                                node::ObjectType::NativeField,
-                                witness,
-                            );
+                            igen.abi_var(name, ident_def, node::ObjectType::NativeField, witness);
                         }
                         Type::Array(ft, array_size, typ) => {
                             let mut witnesses = Vec::new();
@@ -379,13 +377,7 @@ impl<'a> Evaluator<'a> {
                                             self.public_inputs.push(witness);
                                         }
                                     }
-                                    igen.abi_array(
-                                        &name,
-                                        ident_def.unwrap(),
-                                        *typ.clone(),
-                                        len,
-                                        witnesses,
-                                    );
+                                    igen.abi_array(name, ident_def, *typ.clone(), len, witnesses);
                                 }
                             }
                         }
@@ -398,14 +390,14 @@ impl<'a> Evaluator<'a> {
                             }
                             match sign {
                                 noirc_frontend::Signedness::Unsigned => igen.abi_var(
-                                    &name,
-                                    ident_def.unwrap(),
+                                    name,
+                                    ident_def,
                                     node::ObjectType::Unsigned(*width),
                                     witness,
                                 ),
                                 noirc_frontend::Signedness::Signed => igen.abi_var(
-                                    &name,
-                                    ident_def.unwrap(),
+                                    name,
+                                    ident_def,
                                     node::ObjectType::Signed(*width),
                                     witness,
                                 ),
@@ -430,7 +422,11 @@ impl<'a> Evaluator<'a> {
 
     fn pattern_name(&self, pattern: &HirPattern) -> String {
         match pattern {
-            HirPattern::Identifier(id) => self.context.def_interner.ident_name(id),
+            HirPattern::Identifier(ident) => self
+                .context
+                .def_interner
+                .definition_name(ident.id)
+                .to_owned(),
             HirPattern::Mutable(pattern, _) => self.pattern_name(pattern),
             HirPattern::Tuple(_, _) => todo!("Implement tuples in the backend"),
             HirPattern::Struct(_, _, _) => todo!("Implement structs in the backend"),
@@ -455,7 +451,12 @@ impl<'a> Evaluator<'a> {
                 self.handle_definition(env, &let_stmt.pattern, &let_stmt.expression)
             }
             HirStatement::Assign(assign_stmt) => {
-                let ident = HirPattern::Identifier(assign_stmt.identifier);
+                let ident = HirPattern::Identifier(match assign_stmt.lvalue {
+                    HirLValue::Ident(ident) => ident,
+                    HirLValue::MemberAccess { .. } => unimplemented!(),
+                    HirLValue::Index { .. } => unimplemented!(),
+                });
+
                 self.handle_definition(env, &ident, &assign_stmt.expression)
             }
             HirStatement::Error => unreachable!(
@@ -641,7 +642,11 @@ impl<'a> Evaluator<'a> {
             env.start_scope();
 
             // Add indice to environment
-            let variable_name = self.context.def_interner.ident_name(&for_expr.identifier);
+            let variable_name = self
+                .context
+                .def_interner
+                .definition_name(for_expr.identifier.id)
+                .to_owned();
             env.store(variable_name, Object::Constants(indice));
 
             let block = self.expression_to_block(&for_expr.block);
@@ -695,7 +700,7 @@ impl<'a> Evaluator<'a> {
             HirExpression::Literal(HirLiteral::Array(arr_lit)) => {
                 Ok(Object::Array(Array::from(self, env, arr_lit)?))
             }
-            HirExpression::Ident(x) => Ok(self.evaluate_identifier(&x, env)),
+            HirExpression::Ident(x) => Ok(self.evaluate_identifier(x, env)),
             HirExpression::Infix(infx) => {
                 let lhs = self.expression_to_object(env, &infx.lhs)?;
                 let rhs = self.expression_to_object(env, &infx.rhs)?;
@@ -707,9 +712,9 @@ impl<'a> Evaluator<'a> {
             }
             HirExpression::Index(indexed_expr) => {
                 // Currently these only happen for arrays
-                let arr_name = self.context.def_interner.ident_name(&indexed_expr.collection_name);
-                let ident_span = self.context.def_interner.ident_span(&indexed_expr.collection_name);
-                let arr = env.get_array(&arr_name).map_err(|kind|kind.add_span(ident_span))?;
+                let arr_name = self.context.def_interner.definition_name(indexed_expr.collection_name.id);
+                let ident_span = indexed_expr.collection_name.span;
+                let arr = env.get_array(arr_name).map_err(|kind|kind.add_span(ident_span))?;
                 //
                 // Evaluate the index expression
                 let index_as_obj = self.expression_to_object(env, &indexed_expr.index)?;

@@ -54,7 +54,6 @@ impl<'a> SsaContext<'a> {
         block
     }
 
-
     //Display an object for debugging puposes
     fn node_to_string(&self, id: NodeId) -> String {
         if let Some(var) = self.try_get_node(id) {
