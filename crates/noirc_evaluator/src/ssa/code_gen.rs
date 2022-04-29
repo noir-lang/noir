@@ -400,7 +400,7 @@ impl<'a> IRGenerator<'a> {
         let variable_id = *vname;
 
         if let Ok(nvar) = self.context.get_mut_variable(new_var) {
-            nvar.name = format!("{root_name}{variable_id}");
+            nvar.name = format!("{}{}", root_name, variable_id);
         }
     }
 

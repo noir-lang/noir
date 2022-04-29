@@ -208,6 +208,8 @@ pub enum BinaryOpKind {
     And,
     Or,
     Xor,
+    Shr,
+    Shl,
     // Assign is the only binary operator which cannot be used in a constrain statement
     Assign,
 }
@@ -244,6 +246,8 @@ impl BinaryOpKind {
             BinaryOpKind::Or => "|",
             BinaryOpKind::Xor => "^",
             BinaryOpKind::Assign => "=",
+            BinaryOpKind::Shr => ">>",
+            BinaryOpKind::Shl => "<<",
         }
     }
 
@@ -262,6 +266,8 @@ impl BinaryOpKind {
             BinaryOpKind::And => Token::Ampersand,
             BinaryOpKind::Or => Token::Pipe,
             BinaryOpKind::Xor => Token::Caret,
+            BinaryOpKind::Shl => Token::ShiftLeft,
+            BinaryOpKind::Shr => Token::ShiftRight,
             BinaryOpKind::Assign => Token::Assign,
         }
     }
@@ -273,6 +279,8 @@ impl From<&Token> for Option<BinaryOpKind> {
             Token::Plus => BinaryOpKind::Add,
             Token::Ampersand => BinaryOpKind::And,
             Token::Caret => BinaryOpKind::Xor,
+            Token::ShiftLeft => BinaryOpKind::Shl,
+            Token::ShiftRight => BinaryOpKind::Shr,
             Token::Pipe => BinaryOpKind::Or,
             Token::Minus => BinaryOpKind::Subtract,
             Token::Star => BinaryOpKind::Multiply,
@@ -553,6 +561,8 @@ impl Display for BinaryOpKind {
             BinaryOpKind::And => write!(f, "&"),
             BinaryOpKind::Or => write!(f, "|"),
             BinaryOpKind::Xor => write!(f, "^"),
+            BinaryOpKind::Shl => write!(f, "<<"),
+            BinaryOpKind::Shr => write!(f, ">>"),
             BinaryOpKind::Assign => write!(f, "="),
         }
     }

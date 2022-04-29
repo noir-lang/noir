@@ -226,9 +226,8 @@ pub(crate) fn type_check_expression(
 
             block_type
         }
-        HirExpression::Prefix(_) => {
-            // type_of(prefix_expr) == type_of(rhs_expression)
-            todo!("prefix expressions have not been implemented yet")
+        HirExpression::Prefix(prefix_expr) => {
+            type_check_expression(interner, &prefix_expr.rhs, errors)
         }
         HirExpression::If(if_expr) => check_if_expr(&if_expr, expr_id, interner, errors),
         HirExpression::Constructor(constructor) => {

@@ -248,6 +248,8 @@ impl Precedence {
             Token::Pipe => Precedence::Sum,
             Token::Plus => Precedence::Sum,
             Token::Minus => Precedence::Sum,
+            Token::ShiftLeft => Precedence::Sum, //TODO checks rust precedence which seems to be: sum >shift>and>xor>or
+            Token::ShiftRight => Precedence::Sum,
             Token::Slash => Precedence::Product,
             Token::Star => Precedence::Product,
             _ => return None,
