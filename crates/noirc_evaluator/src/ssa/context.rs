@@ -103,9 +103,7 @@ impl<'a> SsaContext<'a> {
         for (_, f) in self.functions_cfg.iter().enumerate() {
             println!("************* FUNCTION n.{:?}", f.1.id);
             f.1.igen.context.print("");
-            //  ins_nb += b.instructions.len();
         }
-        // println!("*** TOTAL: {} instructions", ins_nb);
     }
 
     pub fn context(&self) -> &'a Context {

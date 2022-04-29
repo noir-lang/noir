@@ -138,9 +138,7 @@ impl<'a> IRGenerator<'a> {
         self.context
             .get_current_block_mut()
             .update_variable(v_id, v_id);
-        dbg!(&self.context.get_current_block_mut());
         let v_value = Value::Single(v_id);
-        dbg!(&v_value);
         self.variable_values.insert(ident_def, v_value); //TODO ident_def or ident_id??
     }
 
@@ -151,7 +149,6 @@ impl<'a> IRGenerator<'a> {
             return self.get_current_value(&value);
         }
         let ident_name = self.ident_name(ident_id);
-        dbg!(&ident_name);
         let obj = env.get(&ident_name);
         let o_type = self
             .context
@@ -262,14 +259,11 @@ impl<'a> IRGenerator<'a> {
                     // We may be able to avoid cloning here if we change find_variable
                     // and assign_pattern to use only fields of self instead of `self` itself.
                     let lhs = lhs.clone();
-                    dbg!(&ident_def);
                     let result = self.assign_pattern(&lhs, rhs);
                     self.variable_values.insert(ident_def.unwrap(), result);
                 } else {
                     //var is not defined,
                     //let's do it here for now...TODO
-                    //  let obj = env.get(&ident_name);
-                    //   let obj_type = node::ObjectType::get_type_from_object(&obj);
                     let typ = self.def_interner().id_type(&ident_def.unwrap());
                     self.bind_fresh_pattern(&ident_name, &typ, rhs);
                 }
@@ -282,15 +276,13 @@ impl<'a> IRGenerator<'a> {
         }
     }
 
-    fn create_new_variable(
+    pub fn create_new_variable(
         &mut self,
         var_name: String,
         def: Option<IdentId>,
         obj_type: node::ObjectType,
         witness: Option<acvm::acir::native_types::Witness>,
     ) -> NodeId {
-        dbg!(&var_name);
-        dbg!(&def);
         let new_var = node::Variable {
             id: NodeId::dummy(),
             obj_type,
@@ -475,7 +467,6 @@ impl<'a> IRGenerator<'a> {
     fn assign_pattern(&mut self, lhs: &Value, rhs: Value) -> Value {
         match (lhs, rhs) {
             (Value::Single(lhs_id), Value::Single(rhs_id)) => {
-                dbg!(&lhs_id);
                 let lhs = self.context.get_variable(*lhs_id).unwrap();
 
                 //////////////////////////////----******************************************
@@ -719,7 +710,7 @@ impl<'a> IRGenerator<'a> {
                 self.context
                     .get_or_create_const(*f, node::ObjectType::NativeField) //TODO support integer literrals in the fronted: 30_u8
             }
-            _ => todo!(), // Array(HirArrayLiteral), Str(String),
+            _ => todo!(), //todo: add support for Array(HirArrayLiteral), Str(String)
         }
     }
 
@@ -770,7 +761,6 @@ impl<'a> IRGenerator<'a> {
                 access
             ),
             Value::Struct(fields) => {
-                dbg!(&access);
                 let field = dbg!(fields)
                     .into_iter()
                     .find(|(field_name, _)| *field_name == access.rhs.0.contents);

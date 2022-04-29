@@ -91,7 +91,7 @@ impl<'a> SSAFunction<'a> {
             if let Some(c) = my_const {
                 ctx.get_or_create_const(c.0, c.1)
             } else {
-                dbg!(&node_id);
+                //                dbg!(&node_id);
                 *inline_map.get(&node_id).unwrap()
             }
         } else {
@@ -176,7 +176,7 @@ pub fn create_function<'a>(
             HirPattern::Identifier(id) => Some(id),
             HirPattern::Mutable(_pattern, _) => {
                 unreachable!("mutable arguments are not supported yet")
-            } //get_param_name(pattern, interner),
+            }
             HirPattern::Tuple(_, _) => todo!(),
             HirPattern::Struct(_, _, _) => todo!(),
         };
@@ -184,7 +184,7 @@ pub fn create_function<'a>(
         let node_id = ssa_form::create_function_parameter(&mut func.igen, ident_id.unwrap());
         func.arguments.push(node_id);
     }
-
+    //dbg!(&func.arguments);
     func.parse_statements(block.statements(), env);
     let last = func.compile(); //unroll the function
     add_return_instruction(&mut func.igen.context, last);
@@ -203,7 +203,7 @@ pub fn add_return_instruction(cfg: &mut SsaContext, last: Option<NodeId>) {
         NodeId::dummy(),
         NodeId::dummy(),
         node::Operation::Ret,
-        node::ObjectType::NotAnObject, //cfg[last].get_type(),     //todo
+        node::ObjectType::NotAnObject,
     );
     cfg.get_mut_instruction(result_id).ins_arguments = result; //n.b. should we keep the object type in the vector?
 }

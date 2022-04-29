@@ -103,7 +103,6 @@ impl<'a> Evaluator<'a> {
             self.evaluate_main_alt(&mut env, interactive)?;
         } else {
             self.evaluate_main(&mut env)?;
-            //self.evaluate_main_alt(&mut env, false)?;
         }
 
         let witness_index = self.current_witness_index();
@@ -425,8 +424,6 @@ impl<'a> Evaluator<'a> {
                 HirPattern::Struct(_, _, _) => todo!(),
             }
         }
-
-        //      self.public_inputs.clear();
 
         Ok(())
     }

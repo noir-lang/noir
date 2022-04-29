@@ -449,7 +449,6 @@ pub fn inline_in_block(
     ctx: &mut SsaContext,
 ) -> Option<BlockId> {
     let mut new_instructions: Vec<NodeId> = Vec::new();
-    // let mut return_values: Vec<(NodeId,NodeId)> = Vec::new();
     let func_cfg = &ctx.get_function_context(func_id);
     let block_func = &func_cfg[block_id];
     let next_block = block_func.left;
