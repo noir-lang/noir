@@ -111,37 +111,15 @@ pub fn create_function_parameter(igen: &mut IRGenerator, ident_id: &DefinitionId
         let id = var.unwrap_id(); //TODO handle multiple values
         return get_current_value(&mut igen.context, id);
     }
-    let obj_type = node::ObjectType::from(&o_type);
-    let obj = match o_type {
-        noirc_frontend::Type::Array(_, len, _) => {
-            let array_idx =
-                igen.context
-                    .mem
-                    .create_new_array(get_array_size(&len), obj_type, &ident_name);
-            node::Variable {
-                id: NodeId::dummy(),
-                name: ident_name.clone(),
-                obj_type: node::ObjectType::Pointer(array_idx),
-                root: None,
-                def: Some(*ident_id),
-                witness: None,
-                parent_block: igen.context.current_block,
-            }
-        }
-        _ => {
-            //new variable - should be in a let statement? The let statement should set the type
-            node::Variable {
-                id: NodeId::dummy(),
-                name: ident_name.clone(),
-                obj_type,
-                root: None,
-                def: Some(*ident_id),
-                witness: None,
-                parent_block: igen.context.current_block,
-            }
-        }
-    };
-    let v_id = igen.context.add_variable(obj, None);
+    let mut obj_type = node::ObjectType::from(&o_type);
+    if let noirc_frontend::Type::Array(_, len, _) = o_type {
+        let array_idx =
+            igen.context
+                .mem
+                .create_new_array(get_array_size(&len), obj_type, &ident_name);
+        obj_type = node::ObjectType::Pointer(array_idx);
+    }
+    let v_id = igen.create_new_variable(ident_name.clone(), *ident_id, obj_type, None);
     igen.context
         .get_current_block_mut()
         .update_variable(v_id, v_id);

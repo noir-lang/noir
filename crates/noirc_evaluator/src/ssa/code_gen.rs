@@ -286,7 +286,7 @@ impl<'a> IRGenerator<'a> {
         }
     }
 
-    fn create_new_variable(
+    pub fn create_new_variable(
         &mut self,
         var_name: String,
         def: DefinitionId,
@@ -303,10 +303,8 @@ impl<'a> IRGenerator<'a> {
             parent_block: self.context.current_block,
         };
         let v_id = self.context.add_variable(new_var, None);
-        //a voir.. if let Some(ident_def) = def {
         let v_value = Value::Single(v_id);
         self.variable_values.insert(def, v_value);
-        //  }
         v_id
     }
 
