@@ -363,7 +363,7 @@ pub fn prefix_operand_type_rules(op: &HirUnaryOp, rhs_type: &Type) -> Result<Typ
     match op {
         HirUnaryOp::Minus => {
             if !matches!(rhs_type, Type::Integer(..)) {
-                return Err(format!("Only Integers can be used in a Minus expression"));
+                return Err("Only Integers can be used in a Minus expression".to_string());
             }
         }
         HirUnaryOp::Not => {
