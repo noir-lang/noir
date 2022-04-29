@@ -33,10 +33,10 @@ impl<F: PrimeField> std::fmt::Display for FieldElement<F> {
 impl<F: PrimeField> std::fmt::Debug for FieldElement<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if *self == -FieldElement::one() {
-            return write!(f, "-");
+            return write!(f, "-1");
         }
         if *self == FieldElement::one() {
-            return write!(f, "");
+            return write!(f, "1");
         }
 
         let big_f = BigUint::from_bytes_be(&self.to_bytes());

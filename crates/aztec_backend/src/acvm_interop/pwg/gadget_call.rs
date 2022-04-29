@@ -155,6 +155,7 @@ impl GadgetCaller {
                 initial_witness.insert(gadget_call.outputs[0], pub_x);
                 initial_witness.insert(gadget_call.outputs[1], pub_y);
             }
+            OPCODE::ToBits => unreachable!(),
         }
         Ok(())
     }

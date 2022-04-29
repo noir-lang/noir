@@ -7,6 +7,7 @@ use acvm::FieldElement;
 use arena;
 use noirc_frontend::hir_def::expr::HirBinaryOpKind;
 use noirc_frontend::node_interner::DefinitionId;
+use noirc_frontend::util::vecmap;
 use noirc_frontend::{Signedness, Type};
 use num_bigint::BigUint;
 use num_traits::{FromPrimitive, One};
@@ -131,6 +132,12 @@ pub struct Constant {
     pub value: BigUint,    //TODO use FieldElement instead
     pub value_str: String, //TODO ConstStr subtype
     pub value_type: ObjectType,
+}
+
+impl Constant {
+    pub fn get_value_field(&self) -> FieldElement {
+        FieldElement::from_be_bytes_reduce(&self.value.to_bytes_be())
+    }
 }
 
 #[derive(Debug)]
@@ -264,7 +271,7 @@ impl ObjectType {
             ObjectType::NotAnObject => 0,
             ObjectType::Signed(c) => *c,
             ObjectType::Unsigned(c) => *c,
-            ObjectType::Pointer(_) => unreachable!(),
+            ObjectType::Pointer(_) => 0,
         }
     }
 
@@ -336,7 +343,7 @@ impl NodeEval {
             NodeObj::Const(c) => {
                 let value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
                 NodeEval::Const(value, c.get_type())
-            },
+            }
             _ => NodeEval::VarOrInstruction(id),
         }
     }
@@ -392,9 +399,14 @@ impl Instruction {
                 (false, false)
             }
             Operation::Truncate { .. } | Operation::Phi { .. } => (false, false),
-            Operation::Nop | Operation::Jne(..)| Operation::Jeq(..) | Operation::Jmp(..) => (false, false),
+            Operation::Nop | Operation::Jne(..) | Operation::Jeq(..) | Operation::Jmp(..) => {
+                (false, false)
+            }
             Operation::Load { .. } | Operation::Store { .. } => (false, false),
-            Operation::Intrinsic(_) => (true, true), //TODO to check
+            Operation::Intrinsic(_, _) => (true, true), //TODO to check
+            Operation::Call(_) => (false, false), //return values are in the return statment, should we truncate function arguments? probably but not lhs and rhs anyways.
+            Operation::Return(_) => (true, false),
+            Operation::Results(_) => (false, false),
         }
     }
 
@@ -404,7 +416,8 @@ impl Instruction {
 
     //Evaluate the instruction value when its operands are constant (constant folding)
     pub fn evaluate_with<F>(&self, ctx: &SsaContext, eval_fn: F) -> NodeEval
-        where F: FnMut(&SsaContext, NodeId) -> NodeEval
+    where
+        F: FnMut(&SsaContext, NodeId) -> NodeEval,
     {
         match &self.operator {
             Operation::Binary(binary) => {
@@ -510,22 +523,40 @@ pub enum ConstrainOp {
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum Operation {
     Binary(Binary),
-    Cast(NodeId),                              //convert type
-    Truncate { value: NodeId, bit_size: u32, max_bit_size: u32 }, //truncate
+    Cast(NodeId), //convert type
+    Truncate {
+        value: NodeId,
+        bit_size: u32,
+        max_bit_size: u32,
+    }, //truncate
 
     Not(NodeId), //(!) Bitwise Not
 
     //control flow
     Jne(NodeId, BlockId), //jump on not equal
     Jeq(NodeId, BlockId), //jump on equal
-    Jmp(BlockId), //unconditional jump
-    Phi { root: NodeId, block_args: Vec<(NodeId, BlockId)> },
+    Jmp(BlockId),         //unconditional jump
+    Phi {
+        root: NodeId,
+        block_args: Vec<(NodeId, BlockId)>,
+    },
+
+    Call(noirc_frontend::node_interner::FuncId), //Call a function
+    Return(Vec<NodeId>),                         //Return value(s) from a function block
+    Results(Vec<NodeId>),                        //Get result(s) from a function call
 
     //memory
-    Load { array: u32, index: NodeId },
-    Store { array: u32, index: NodeId, value: NodeId },
+    Load {
+        array: u32,
+        index: NodeId,
+    },
+    Store {
+        array: u32,
+        index: NodeId,
+        value: NodeId,
+    },
 
-    Intrinsic(OpCode), //Custom implementation of usefull primitives which are more performant with Aztec backend
+    Intrinsic(OpCode, Vec<NodeId>), //Custom implementation of usefull primitives which are more performant with Aztec backend
 
     Nop, // no op
 }
@@ -579,9 +610,9 @@ impl Binary {
     ) -> Binary {
         let operator = match op_kind {
             HirBinaryOpKind::Add => BinaryOp::Add,
-            HirBinaryOpKind::Subtract => BinaryOp::Sub {
-                max_rhs_value: BigUint::from_u8(0).unwrap(),
-            },
+            HirBinaryOpKind::Subtract => {
+                BinaryOp::Sub { max_rhs_value: BigUint::from_u8(0).unwrap() }
+            }
             HirBinaryOpKind::Multiply => BinaryOp::Mul,
             HirBinaryOpKind::Equal => BinaryOp::Eq,
             HirBinaryOpKind::NotEqual => BinaryOp::Ne,
@@ -639,9 +670,10 @@ impl Binary {
         ctx: &SsaContext,
         id: NodeId,
         res_type: ObjectType,
-        eval_fn: F
-    ) -> NodeEval 
-        where F: FnMut(&SsaContext, NodeId) -> NodeEval
+        eval_fn: F,
+    ) -> NodeEval
+    where
+        F: FnMut(&SsaContext, NodeId) -> NodeEval,
     {
         let lhs = ctx.get_value_and_bitsize(self.lhs);
         let rhs = ctx.get_value_and_bitsize(self.rhs);
@@ -871,8 +903,15 @@ impl Binary {
 }
 
 /// Perform f(lhs, rhs) and modulo the result by the max value for the given bitcount.
-fn wrapping<F>(lhs: FieldElement, rhs: FieldElement, bitcount: u32, res_type: ObjectType, f: F) -> NodeEval 
-    where F: FnOnce(u128, u128) -> u128
+fn wrapping<F>(
+    lhs: FieldElement,
+    rhs: FieldElement,
+    bitcount: u32,
+    res_type: ObjectType,
+    f: F,
+) -> NodeEval
+where
+    F: FnOnce(u128, u128) -> u128,
 {
     let mut x = f(lhs.to_u128(), rhs.to_u128());
     if bitcount != 256 {
@@ -895,13 +934,11 @@ impl Operation {
         match self {
             Binary(self::Binary { lhs, rhs, operator }) => {
                 Binary(self::Binary { lhs: f(lhs), rhs: f(rhs), operator })
-            },
+            }
             Cast(value) => Cast(f(value)),
-            Truncate { value, bit_size, max_bit_size } => Truncate {
-                value: f(value),
-                bit_size,
-                max_bit_size,
-            },
+            Truncate { value, bit_size, max_bit_size } => {
+                Truncate { value: f(value), bit_size, max_bit_size }
+            }
             Not(id) => Not(f(id)),
             Jne(id, block) => Jne(f(id), block),
             Jeq(id, block) => Jeq(f(id), block),
@@ -909,8 +946,11 @@ impl Operation {
             Phi { root, block_args } => Phi { root: f(root), block_args },
             Load { array, index } => Load { array, index: f(index) },
             Store { array, index, value } => Store { array, index: f(index), value: f(value) },
-            Intrinsic(i) => Intrinsic(i),
+            Intrinsic(i, args) => Intrinsic(i, vecmap(args, f)),
             Nop => Nop,
+            Call(func_id) => Call(func_id),
+            Return(values) => Return(vecmap(values, f)),
+            Results(values) => Results(vecmap(values, f)),
         }
     }
 }

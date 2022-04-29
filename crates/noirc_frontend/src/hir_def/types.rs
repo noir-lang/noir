@@ -213,7 +213,11 @@ impl Type {
     pub fn can_be_used_in_constrain(&self) -> bool {
         matches!(
             self,
-            Type::FieldElement(_) | Type::Integer(_, _, _) | Type::Array(_, _, _) | Type::Error
+            Type::FieldElement(_)
+                | Type::Integer(_, _, _)
+                | Type::Array(_, _, _)
+                | Type::Error
+                | Type::Bool
         )
     }
 

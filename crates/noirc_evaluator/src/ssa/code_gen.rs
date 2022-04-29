@@ -6,9 +6,13 @@ use std::collections::HashMap;
 use super::super::environment::Environment;
 use super::super::errors::{RuntimeError, RuntimeErrorKind};
 use crate::object::Object;
+
+use crate::ssa::function;
 use acvm::FieldElement;
 use noirc_frontend::hir::Context;
-use noirc_frontend::hir_def::expr::{HirConstructorExpression, HirIdent, HirMemberAccess};
+use noirc_frontend::hir_def::expr::{
+    HirCallExpression, HirConstructorExpression, HirIdent, HirMemberAccess,
+};
 use noirc_frontend::hir_def::function::HirFunction;
 use noirc_frontend::hir_def::stmt::{HirLValue, HirPattern};
 use noirc_frontend::hir_def::{
@@ -19,8 +23,8 @@ use noirc_frontend::node_interner::{DefinitionId, ExprId, NodeInterner, StmtId};
 use noirc_frontend::util::vecmap;
 use noirc_frontend::{FunctionKind, Type};
 
-struct IRGenerator<'a> {
-    context: SsaContext<'a>,
+pub struct IRGenerator<'a> {
+    pub context: SsaContext<'a>,
     value_names: HashMap<NodeId, u32>,
 
     /// The current value of a variable. Used for flattening structs
@@ -35,7 +39,7 @@ pub enum Value {
 }
 
 impl Value {
-    fn unwrap_id(&self) -> NodeId {
+    pub fn unwrap_id(&self) -> NodeId {
         match self {
             Value::Single(id) => *id,
             Value::Struct(_) => panic!("Tried to unwrap a struct into a single value"),
@@ -43,20 +47,18 @@ impl Value {
     }
 }
 
-////////////////PARSING THE AST//////////////////////////////////////////////
+////////////////PARSING THE AST////////////////////////////////////////////////
 /// Compiles the AST into the intermediate format by evaluating the main function
 pub fn evaluate_main<'a>(
-    context: &'a Context,
+    igen: &mut IRGenerator<'a>,
     env: &mut Environment,
     main_func_body: HirFunction, //main function
-) -> Result<SsaContext<'a>, RuntimeError> {
-    let mut this = IRGenerator::new(context);
-    let block = main_func_body.block(this.def_interner());
+) -> Result<(), RuntimeError> {
+    let block = main_func_body.block(igen.def_interner());
     for stmt_id in block.statements() {
-        this.evaluate_statement(env, stmt_id)?;
+        igen.evaluate_statement(env, stmt_id)?;
     }
-
-    Ok(this.context)
+    Ok(())
 }
 
 impl<'a> IRGenerator<'a> {
@@ -68,7 +70,7 @@ impl<'a> IRGenerator<'a> {
         }
     }
 
-    fn find_variable(&self, variable_def: DefinitionId) -> Option<&Value> {
+    pub fn find_variable(&self, variable_def: DefinitionId) -> Option<&Value> {
         self.variable_values.get(&variable_def)
     }
 
@@ -80,6 +82,64 @@ impl<'a> IRGenerator<'a> {
                 (name.clone(), value)
             })),
         }
+    }
+
+    pub fn abi_array(
+        &mut self,
+        name: &str,
+        ident_def: DefinitionId,
+        el_type: Type,
+        len: u128,
+        witness: Vec<acvm::acir::native_types::Witness>,
+    ) {
+        self.context
+            .mem
+            .create_new_array(len as u32, el_type.into(), name);
+        let array_idx = (self.context.mem.arrays.len() - 1) as usize;
+        self.context.mem.arrays[array_idx].def = ident_def;
+        self.context.mem.arrays[array_idx].values = vecmap(witness, |w| w.into());
+        let pointer = node::Variable {
+            id: NodeId::dummy(),
+            name: name.to_string(),
+            obj_type: node::ObjectType::Pointer(array_idx as u32),
+            root: None,
+            def: Some(ident_def),
+            witness: None,
+            parent_block: self.context.current_block,
+        };
+        let v_id = self.context.add_variable(pointer, None);
+        self.context
+            .get_current_block_mut()
+            .update_variable(v_id, v_id);
+
+        let v_value = Value::Single(v_id);
+        self.variable_values.insert(ident_def, v_value); //TODO ident_def or ident_id??
+    }
+
+    pub fn abi_var(
+        &mut self,
+        name: &str,
+        ident_def: DefinitionId,
+        obj_type: node::ObjectType,
+        witness: acvm::acir::native_types::Witness,
+    ) {
+        //new variable - should be in a let statement? The let statement should set the type
+        let var = node::Variable {
+            id: NodeId::dummy(),
+            name: name.to_string(),
+            obj_type,
+            root: None,
+            def: Some(ident_def),
+            witness: Some(witness),
+            parent_block: self.context.current_block,
+        };
+        let v_id = self.context.add_variable(var, None);
+
+        self.context
+            .get_current_block_mut()
+            .update_variable(v_id, v_id);
+        let v_value = Value::Single(v_id);
+        self.variable_values.insert(ident_def, v_value); //TODO ident_def or ident_id??
     }
 
     fn evaluate_identifier(&mut self, env: &mut Environment, ident: HirIdent) -> Value {
@@ -133,7 +193,7 @@ impl<'a> IRGenerator<'a> {
         Value::Single(v_id)
     }
 
-    fn def_interner(&self) -> &NodeInterner {
+    pub fn def_interner(&self) -> &NodeInterner {
         &self.context.context.def_interner
     }
 
@@ -187,7 +247,8 @@ impl<'a> IRGenerator<'a> {
                     // We may be able to avoid cloning here if we change find_variable
                     // and assign_pattern to use only fields of self instead of `self` itself.
                     let lhs = lhs.clone();
-                    self.assign_pattern(&lhs, rhs);
+                    let result = self.assign_pattern(&lhs, rhs);
+                    self.variable_values.insert(ident_def, result);
                 } else {
                     //var is not defined,
                     //let's do it here for now...TODO
@@ -223,20 +284,24 @@ impl<'a> IRGenerator<'a> {
         &mut self,
         var_name: String,
         def: DefinitionId,
-        env: &mut Environment,
+        obj_type: node::ObjectType,
+        witness: Option<acvm::acir::native_types::Witness>,
     ) -> NodeId {
-        let obj = env.get(&var_name);
-        let obj_type = ObjectType::get_type_from_object(&obj);
         let new_var = node::Variable {
             id: NodeId::dummy(),
             obj_type,
             name: var_name,
             root: None,
             def: Some(def),
-            witness: node::get_witness_from_object(&obj),
+            witness,
             parent_block: self.context.current_block,
         };
-        self.context.add_variable(new_var, None)
+        let v_id = self.context.add_variable(new_var, None);
+        //a voir.. if let Some(ident_def) = def {
+        let v_value = Value::Single(v_id);
+        self.variable_values.insert(def, v_value);
+        //  }
+        v_id
     }
 
     // Add a constraint to constrain two expression together
@@ -390,13 +455,13 @@ impl<'a> IRGenerator<'a> {
         let variable_id = *vname;
 
         if let Ok(nvar) = self.context.get_mut_variable(new_var) {
-            nvar.name = format!("{root_name}{variable_id}");
+            nvar.name = format!("{}{}", root_name, variable_id);
         }
     }
 
     /// Similar to bind_pattern but recursively creates Assignment instructions for
     /// each value rather than defining new variables.
-    fn assign_pattern(&mut self, lhs: &Value, rhs: Value) {
+    fn assign_pattern(&mut self, lhs: &Value, rhs: Value) -> Value {
         match (lhs, rhs) {
             (Value::Single(lhs_id), Value::Single(rhs_id)) => {
                 let lhs = self.context.get_variable(*lhs_id).unwrap();
@@ -417,30 +482,36 @@ impl<'a> IRGenerator<'a> {
                 let new_var_id = self.context.add_variable(new_var, Some(ls_root));
 
                 let rhs = &self.context[rhs_id];
-                let r_type = rhs.get_type();
                 let operation = Operation::binary(BinaryOp::Assign, new_var_id, rhs_id);
                 let result = self.context.new_instruction(operation, rhs.get_type());
-
                 self.update_variable_id(ls_root, new_var_id, result); //update the name and the value map
+                Value::Single(new_var_id)
             }
             (Value::Struct(lhs_fields), Value::Struct(rhs_fields)) => {
                 assert_eq!(lhs_fields.len(), rhs_fields.len());
-                for (lhs_field, rhs_field) in lhs_fields.iter().zip(rhs_fields) {
-                    assert_eq!(lhs_field.0, rhs_field.0);
-                    self.assign_pattern(&lhs_field.1, rhs_field.1);
-                }
+                let f = vecmap(lhs_fields.iter().zip(rhs_fields),
+                |(lhs_field, rhs_field)| {
+                     assert_eq!(lhs_field.0, rhs_field.0);
+                (rhs_field.0, self.assign_pattern(&lhs_field.1, rhs_field.1))
+
+            });
+                Value::Struct(f)
             }
             (Value::Single(_), Value::Struct(_)) => unreachable!("variables with tuple/struct types should already be decomposed into multiple variables"),
             (Value::Struct(_), Value::Single(_)) => unreachable!("Uncaught type error, tried to assign a single value to a tuple/struct type"),
         }
     }
 
-    fn ident_name(&self, ident: &HirIdent) -> String {
+    pub fn def_to_name(&self, def: DefinitionId) -> String {
         self.context
             .context
             .def_interner
-            .definition_name(ident.id)
+            .definition_name(def)
             .to_owned()
+    }
+
+    pub fn ident_name(&self, ident: &HirIdent) -> String {
+        self.def_to_name(ident.id)
     }
 
     // Let statements are used to declare higher level objects
@@ -567,15 +638,20 @@ impl<'a> IRGenerator<'a> {
                 let func_meta = self.def_interner().function_meta(&call_expr.func_id);
                 match func_meta.kind {
                     FunctionKind::Normal =>  {
-                        //Function defined inside the Noir program.
-                        todo!();
+                        //Function defined inside the Noir program.      
+                        if self.context.functions_cfg.get(&call_expr.func_id).is_none() {
+                            let func = function::create_function(call_expr.func_id, self.context.context(), env, &func_meta.parameters);
+                            self.context.functions_cfg.insert(call_expr.func_id, func);
+                        }
+
+                    //generate a call instruction to the function cfg
+                    Ok(Value::Single(function::SSAFunction::call(call_expr.func_id ,&call_expr.arguments, self, env)))
                     },
                     FunctionKind::LowLevel => {
                     // We use it's func name to find out what intrinsic function to call
-                    todo!();
-                    //    let attribute = func_meta.attributes.expect("all low level functions must contain an attribute which contains the opcode which it links to");
-                    //    let opcode_name = attribute.foreign().expect("ice: function marked as foreign, but attribute kind does not match this");
-                    //    Ok(self.handle_stdlib(env, opcode_name, call_expr))
+                    let attribute = func_meta.attributes.expect("all low level functions must contain an attribute which contains the opcode which it links to");
+                    let opcode_name = attribute.foreign().expect("ice: function marked as foreign, but attribute kind does not match this");
+                    Ok(Value::Single(self.handle_lowlevel(env, opcode_name, call_expr)))
                     },
                     FunctionKind::Builtin => { todo!();
                     //     let attribute = func_meta.attributes.expect("all builtin functions must contain an attribute which contains the function name which it links to");
@@ -590,10 +666,50 @@ impl<'a> IRGenerator<'a> {
             HirExpression::Tuple(fields) => self.handle_tuple(env, fields),
             HirExpression::If(_) => todo!(),
             HirExpression::Prefix(_) => todo!(),
-            HirExpression::Literal(_) => todo!(),
+            HirExpression::Literal(l) => {
+                Ok(Value::Single(self.handle_literal(&l)))
+            },
             HirExpression::Block(_) => todo!("currently block expressions not in for/if branches are not being evaluated. In the future, we should be able to unify the eval_block and all places which require block_expr here"),
             HirExpression::Error => todo!(),
             HirExpression::MethodCall(_) => unreachable!("Method calls should be desugared before codegen"),
+        }
+    }
+
+    pub fn handle_lowlevel(
+        &mut self,
+        env: &mut Environment,
+        opcode_name: &str,
+        call_expr: HirCallExpression,
+    ) -> NodeId {
+        let func = match OPCODE::lookup(opcode_name) {
+            None => {
+                let message = format!(
+                    "cannot find a low level opcode with the name {} in the IR",
+                    opcode_name
+                );
+                unreachable!("{}", message);
+            }
+            Some(func) => func,
+        };
+        function::call_low_level(func, call_expr, self, env)
+    }
+
+    pub fn handle_literal(&mut self, l: &HirLiteral) -> NodeId {
+        match l {
+            HirLiteral::Bool(b) => {
+                if *b {
+                    self.context
+                        .get_or_create_const(FieldElement::one(), node::ObjectType::Unsigned(1))
+                } else {
+                    self.context
+                        .get_or_create_const(FieldElement::zero(), node::ObjectType::Unsigned(1))
+                }
+            }
+            HirLiteral::Integer(f) => {
+                self.context
+                    .get_or_create_const(*f, node::ObjectType::NativeField) //TODO support integer literrals in the fronted: 30_u8
+            }
+            _ => todo!(), //todo: add support for Array(HirArrayLiteral), Str(String)
         }
     }
 
@@ -644,7 +760,6 @@ impl<'a> IRGenerator<'a> {
                 access
             ),
             Value::Struct(fields) => {
-                dbg!(&access);
                 let field = dbg!(fields)
                     .into_iter()
                     .find(|(field_name, _)| *field_name == access.rhs.0.contents);
@@ -690,7 +805,6 @@ impl<'a> IRGenerator<'a> {
             .unwrap()
             .unwrap_id();
         //We support only const range for now
-        let start = self.context.get_as_constant(start_idx).unwrap();
         //TODO how should we handle scope (cf. start/end_for_loop)?
         let iter_name = self
             .def_interner()
@@ -698,10 +812,10 @@ impl<'a> IRGenerator<'a> {
             .to_owned();
         let iter_def = for_expr.identifier.id;
         let int_type = self.def_interner().id_type(iter_def);
-        env.store(iter_name.clone(), Object::Constants(start));
-        let iter_id = self.create_new_variable(iter_name, iter_def, env);
+        let iter_type = int_type.into();
+        let iter_id = self.create_new_variable(iter_name, iter_def, iter_type, None);
         let iter_var = self.context.get_mut_variable(iter_id).unwrap();
-        iter_var.obj_type = int_type.into();
+        iter_var.obj_type = iter_type;
         let iter_type = self.context.get_object_type(iter_id);
 
         let assign = Operation::binary(BinaryOp::Assign, iter_id, start_idx);
@@ -752,7 +866,6 @@ impl<'a> IRGenerator<'a> {
         let cur_block_id = self.context.current_block; //It should be the body block, except if the body has CFG statements
         let cur_block = &mut self.context[cur_block_id];
         cur_block.update_variable(iter_id, incr);
-
         //body.left = join
         cur_block.left = Some(join_idx);
         let join_mut = &mut self.context[join_idx];
@@ -763,7 +876,6 @@ impl<'a> IRGenerator<'a> {
 
         //seal join
         ssa_form::seal_block(&mut self.context, join_idx);
-
         //exit block
         self.context.current_block = exit_id;
         let exit_first = self.context.get_current_block().get_first_instruction();

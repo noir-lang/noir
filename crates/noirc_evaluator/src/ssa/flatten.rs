@@ -2,6 +2,7 @@ use super::{
     block::{self, BlockId},
     context::SsaContext,
     node::{self, Node, NodeEval, NodeId, NodeObj, Operation, BinaryOp},
+    function,
     optim,
 };
 use acvm::FieldElement;
@@ -375,4 +376,246 @@ fn evaluate_object(
             }
         }
     }
+}
+
+pub fn inline_tree(ctx: &mut SsaContext) {
+    //inline all function calls
+    inline_block(ctx, ctx.first_block);
+}
+
+//inline all function calls of the block
+pub fn inline_block(ctx: &mut SsaContext, block_id: BlockId) {
+    let mut call_ins = Vec::<NodeId>::new();
+
+    for i in &ctx[block_id].instructions {
+        if let Some(ins) = ctx.try_get_instruction(*i) {
+            if matches!(ins.operator, node::Operation::Call(_)) {
+                call_ins.push(*i);
+            }
+        }
+    }
+
+    for ins_id in call_ins {
+        let ins = ctx.try_get_instruction(ins_id).unwrap().clone();
+        if let node::Instruction {
+            operator: node::Operation::Call(f),
+            ..
+        } = ins
+        {
+            inline(f, &ins.ins_arguments, ctx, ins.parent_block, ins.id);
+        }
+    }
+}
+
+//inline a function call
+pub fn inline(
+    func_id: noirc_frontend::node_interner::FuncId,
+    args: &[NodeId],
+    ctx: &mut SsaContext,
+    block: BlockId,
+    call_id: NodeId,
+) {
+    let ssa_func = ctx.functions_cfg.get(&func_id).unwrap();
+    //map nodes from the function cfg to the caller cfg
+    let mut inline_map: HashMap<NodeId, NodeId> = HashMap::new();
+    let mut array_map: HashMap<u32, u32> = HashMap::new();
+    //1. map function parameters
+    for (arg_caller, arg_function) in args.iter().zip(&ssa_func.arguments) {
+        inline_map.insert(*arg_function, *arg_caller);
+    }
+    //2. inline in the block: we assume the function cfg is already flatened.
+    let mut next_block = Some(ssa_func.igen.context.first_block);
+    while let Some(next_b) = next_block {
+        next_block = inline_in_block(
+            next_b,
+            block,
+            &mut inline_map,
+            &mut array_map,
+            func_id,
+            call_id,
+            ctx,
+        );
+    }
+}
+
+//inline the given block of the function body into the target_block
+pub fn inline_in_block(
+    block_id: BlockId,
+    target_block_id: BlockId,
+    inline_map: &mut HashMap<NodeId, NodeId>,
+    array_map: &mut HashMap<u32, u32>,
+    func_id: noirc_frontend::node_interner::FuncId, //func_cfg: &IRGenerator,
+    call_id: NodeId,
+    ctx: &mut SsaContext,
+) -> Option<BlockId> {
+    let mut new_instructions: Vec<NodeId> = Vec::new();
+    let func_cfg = &ctx.get_function_context(func_id);
+    let block_func = &func_cfg[block_id];
+    let next_block = block_func.left;
+    let block_func_instructions = &block_func.instructions.clone();
+    for &i_id in block_func_instructions {
+        let mut array_func = None;
+        let mut array_func_idx = u32::MAX;
+        if let Some(ins) = ctx.get_function_context(func_id).try_get_instruction(i_id) {
+            let clone = ins.clone();
+            if let node::ObjectType::Pointer(a) = ins.res_type {
+                //We need to map arrays to arrays via the array_map, we collect the data here to be mapped below.
+                array_func = Some(ctx.get_function_context(func_id).mem.arrays[a as usize].clone());
+                array_func_idx = a;
+            }
+            let new_left =
+                function::SSAFunction::get_mapped_value(func_id, Some(&clone.lhs), ctx, inline_map);
+            let new_right =
+                function::SSAFunction::get_mapped_value(func_id, Some(&clone.rhs), ctx, inline_map);
+            let new_arg = function::SSAFunction::get_mapped_value(
+                func_id,
+                clone.ins_arguments.first(),
+                ctx,
+                inline_map,
+            );
+            //Arrays are mapped to array. We create the array if not mapped
+            if let Some(a) = array_func {
+                if let std::collections::hash_map::Entry::Vacant(e) =
+                    array_map.entry(array_func_idx)
+                {
+                    let i_pointer = ctx.mem.create_new_array(a.len, a.element_type, &a.name);
+                    //We populate the array (if possible) using the inline map
+                    for i in &a.values {
+                        if let Some(f) = i.to_const() {
+                            ctx.mem.arrays[i_pointer as usize]
+                                .values
+                                .push(super::acir_gen::InternalVar::from(f));
+                        }
+                        //todo: else use inline map.
+                    }
+                    e.insert(i_pointer);
+                };
+            }
+
+            match clone.operator {
+                Operation::Nop => (),
+                //Return instruction:
+                Operation::Ret => {
+                    //we need to find the corresponding result instruction in the target block (using ins.rhs) and replace it by ins.lhs
+                    if let Some(ret_id) = ctx[target_block_id].get_result_instruction(call_id, ctx)
+                    {
+                        //we support only one result for now, should use 'ins.lhs.get_value()'
+                        if let node::NodeObj::Instr(i) = &mut ctx[ret_id] {
+                            i.is_deleted = true;
+                            i.rhs = new_left; //Then we need to ensure there is a CSE.
+                        }
+                    } else {
+                        //we use the call instruction instead
+                        //we could use the ins_arguments to get the results here, and since we have the input arguments (in the ssafunction) we know how many there are.
+                        //for now the call instruction is replaced by the (one) result
+                        let call_ins = ctx.get_mut_instruction(call_id);
+                        call_ins.is_deleted = true;
+                        call_ins.rhs = new_arg;
+                        if array_map.contains_key(&array_func_idx) {
+                            let i_pointer = array_map[&array_func_idx];
+                            call_ins.res_type = node::ObjectType::Pointer(i_pointer);
+                        }
+                    }
+                }
+                Operation::Call(_) => todo!("function calling function is not yet supported"), //We mainly need to map the arguments and then decide how to recurse the function call. For instance:
+                // - map the call instruction into the main context (by mapping the arguments)
+                // - perform the inlining step as long as we map call instruction, but limit this step to a pre-defined maximum.
+                // - this should inline all the call instructions unless there is a call cycle (e.g a function calling itself)
+                // - if the pre-defined maximum is reach, output an error
+                // In a future improvement we could identify the cycles and see how they can be handled, e.g may be by using proof recursion.
+                Operation::Load(a) => {
+                    //Compute the new address:
+                    //TODO use relative addressing, but that requires a few changes, mainly in acir_gen.rs and integer.rs
+                    let b = array_map[&a];
+                    //n.b. this offset is always positive
+                    let offset = ctx.mem.arrays[b as usize].adr
+                        - ctx.get_function_context(func_id).mem.arrays[a as usize].adr;
+                    let index_type = ctx[new_left].get_type();
+                    let offset_id =
+                        ctx.get_or_create_const(FieldElement::from(offset as i128), index_type);
+                    let adr_id =
+                        ctx.new_instruction(offset_id, new_left, node::Operation::Add, index_type);
+                    let new_ins = node::Instruction::new(
+                        node::Operation::Load(array_map[&a]),
+                        adr_id,
+                        adr_id,
+                        clone.res_type,
+                        Some(target_block_id),
+                    );
+                    let result_id = ctx.add_instruction(new_ins);
+                    new_instructions.push(result_id);
+                    inline_map.insert(i_id, result_id);
+                }
+                Operation::Store(a) => {
+                    let b = array_map[&a];
+                    let offset = ctx.get_function_context(func_id).mem.arrays[a as usize].adr
+                        - ctx.mem.arrays[b as usize].adr;
+                    let index_type = ctx[new_left].get_type();
+                    let offset_id =
+                        ctx.get_or_create_const(FieldElement::from(offset as i128), index_type);
+                    let adr_id =
+                        ctx.new_instruction(offset_id, new_left, node::Operation::Add, index_type);
+                    let new_ins = node::Instruction::new(
+                        node::Operation::Store(array_map[&a]),
+                        new_left,
+                        adr_id,
+                        clone.res_type,
+                        Some(target_block_id),
+                    );
+                    let result_id = ctx.add_instruction(new_ins);
+                    new_instructions.push(result_id);
+                    inline_map.insert(i_id, result_id);
+                }
+                _ => {
+                    let mut new_ins = node::Instruction::new(
+                        clone.operator,
+                        new_left,
+                        new_right,
+                        clone.res_type,
+                        Some(target_block_id),
+                    );
+                    if array_map.contains_key(&array_func_idx) {
+                        let i_pointer = array_map[&array_func_idx];
+                        new_ins.res_type = node::ObjectType::Pointer(i_pointer);
+                    }
+                    optim::simplify(ctx, &mut new_ins);
+                    let result_id;
+                    let mut to_delete = false;
+                    if new_ins.is_deleted {
+                        result_id = new_ins.rhs;
+                        if let std::collections::hash_map::Entry::Occupied(mut e) =
+                            array_map.entry(array_func_idx)
+                        {
+                            if let node::ObjectType::Pointer(a) = ctx[result_id].get_type() {
+                                //we now map the array to rhs array
+                                e.insert(a);
+                            }
+                        }
+                        if new_ins.rhs == new_ins.id {
+                            to_delete = true;
+                        }
+                    } else {
+                        result_id = ctx.add_instruction(new_ins);
+                        new_instructions.push(result_id);
+                    }
+                    //ignore self-deleted instructions
+                    if !to_delete {
+                        inline_map.insert(i_id, result_id);
+                    }
+                }
+            }
+        }
+    }
+
+    // add instruction to target_block, at proper location (really need a linked list!)
+    let mut pos = ctx[target_block_id]
+        .instructions
+        .iter()
+        .position(|x| *x == call_id)
+        .unwrap();
+    for &new_id in &new_instructions {
+        ctx[target_block_id].instructions.insert(pos, new_id);
+        pos += 1;
+    }
+    next_block
 }

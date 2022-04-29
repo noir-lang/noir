@@ -1,15 +1,18 @@
 use super::block::{BasicBlock, BlockId};
 use super::mem::Memory;
-use super::node::{Instruction, NodeId, NodeObj, ObjectType, Operation, BinaryOp};
+use super::node::{BinaryOp, Instruction, NodeId, NodeObj, ObjectType, Operation};
 use super::{block, flatten, integer, node, optim};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use super::super::errors::RuntimeError;
 use crate::ssa::acir_gen::Acir;
+use crate::ssa::function;
 use crate::ssa::node::Node;
 use crate::Evaluator;
 use acvm::FieldElement;
 use noirc_frontend::hir::Context;
+use noirc_frontend::node_interner::FuncId;
+use noirc_frontend::util::vecmap;
 use num_bigint::BigUint;
 
 // This is a 'master' class for generating the SSA IR from the AST
@@ -24,6 +27,7 @@ pub struct SsaContext<'a> {
     pub nodes: arena::Arena<node::NodeObj>,
     pub sealed_blocks: HashSet<BlockId>,
     pub mem: Memory,
+    pub functions_cfg: HashMap<FuncId, function::SSAFunction<'a>>,
 }
 
 impl<'a> SsaContext<'a> {
@@ -36,8 +40,11 @@ impl<'a> SsaContext<'a> {
             nodes: arena::Arena::new(),
             sealed_blocks: HashSet::new(),
             mem: Memory::default(),
+            functions_cfg: HashMap::new(),
         };
         block::create_first_block(&mut pc);
+        pc.get_or_create_const(FieldElement::one(), node::ObjectType::Unsigned(1));
+        pc.get_or_create_const(FieldElement::zero(), node::ObjectType::Unsigned(1));
         pc
     }
 
@@ -92,11 +99,18 @@ impl<'a> SsaContext<'a> {
     }
 
     fn operation_to_string(&self, op: &Operation) -> String {
+        let join = |args: &[NodeId]| vecmap(args, |arg| self.node_to_string(*arg)).join(", ");
+
         match op {
             Operation::Binary(binary) => self.binary_to_string(binary),
             Operation::Cast(value) => format!("cast {}", self.node_to_string(*value)),
             Operation::Truncate { value, bit_size, max_bit_size } => {
-                format!("truncate {}, bitsize = {}, max bitsize = {}", self.node_to_string(*value), bit_size, max_bit_size)
+                format!(
+                    "truncate {}, bitsize = {}, max bitsize = {}",
+                    self.node_to_string(*value),
+                    bit_size,
+                    max_bit_size
+                )
             }
             Operation::Not(v) => format!("not {}", self.node_to_string(*v)),
             Operation::Jne(v, b) => format!("jne {}, {:?}", self.node_to_string(*v), b),
@@ -109,12 +123,24 @@ impl<'a> SsaContext<'a> {
                 }
                 s
             }
-            Operation::Load { array, index } => format!("load array {}, index {}", array, self.node_to_string(*index)),
+            Operation::Load { array, index } => format!(
+                "load array {}, index {}",
+                array,
+                self.node_to_string(*index)
+            ),
             Operation::Store { array, index, value } => {
-                format!("store array {}, index {}, value {}", array, self.node_to_string(*index), self.node_to_string(*value))
+                format!(
+                    "store array {}, index {}, value {}",
+                    array,
+                    self.node_to_string(*index),
+                    self.node_to_string(*value)
+                )
             }
-            Operation::Intrinsic(opcode) => format!("intrinsic {}", opcode),
+            Operation::Intrinsic(opcode, args) => format!("intrinsic {}({})", opcode, join(args)),
             Operation::Nop => format!("nop"),
+            Operation::Call(f) => format!("call {:?}", f),
+            Operation::Return(values) => format!("return ({})", join(values)),
+            Operation::Results(values) => format!("results ({})", join(values)),
         }
     }
 
@@ -135,11 +161,20 @@ impl<'a> SsaContext<'a> {
         }
     }
 
-    pub fn print(&self) {
+    pub fn print(&self, text: &str) {
+        println!("{}", text);
         for (i, (_, b)) in self.blocks.iter().enumerate() {
             println!("************* Block n.{}", i);
             self.print_block(b);
         }
+        for (_, f) in self.functions_cfg.iter().enumerate() {
+            println!("************* FUNCTION n.{:?}", f.1.id);
+            f.1.igen.context.print("");
+        }
+    }
+
+    pub fn context(&self) -> &'a Context {
+        self.context
     }
 
     pub fn remove_block(&mut self, block: BlockId) {
@@ -202,6 +237,10 @@ impl<'a> SsaContext<'a> {
             return Some(FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be()));
         }
         None
+    }
+
+    pub fn get_function_context(&self, func_id: FuncId) -> &SsaContext {
+        &self.functions_cfg[&func_id].igen.context
     }
 
     //todo handle errors
@@ -279,7 +318,13 @@ impl<'a> SsaContext<'a> {
         self.push_instruction(i)
     }
 
-    pub fn new_binary_instruction(&mut self, operator: BinaryOp, lhs: NodeId, rhs: NodeId, optype: ObjectType) -> NodeId {
+    pub fn new_binary_instruction(
+        &mut self,
+        operator: BinaryOp,
+        lhs: NodeId,
+        rhs: NodeId,
+        optype: ObjectType,
+    ) -> NodeId {
         let operation = Operation::binary(operator, lhs, rhs);
         self.new_instruction(operation, optype)
     }
@@ -318,7 +363,7 @@ impl<'a> SsaContext<'a> {
 
     //Return the type of the operation result, based on the left hand type
     pub fn get_result_type(&self, op: Operation, lhs_type: node::ObjectType) -> node::ObjectType {
-        use { Operation::*, BinaryOp::* };
+        use {BinaryOp::*, Operation::*};
         match op {
             Binary(node::Binary { operator: Eq, .. })
             | Binary(node::Binary { operator: Ne, .. })
@@ -335,7 +380,9 @@ impl<'a> SsaContext<'a> {
             | Binary(node::Binary { operator: Constrain(_), .. })
             | Operation::Store { .. } => ObjectType::NotAnObject,
             Operation::Load { array, .. } => self.mem.arrays[array as usize].element_type,
-            Operation::Cast(_) | Operation::Truncate { .. } => unreachable!("cannot determine result type"),
+            Operation::Cast(_) | Operation::Truncate { .. } => {
+                unreachable!("cannot determine result type")
+            }
             _ => lhs_type,
         }
     }
@@ -358,11 +405,13 @@ impl<'a> SsaContext<'a> {
         self.blocks.iter().map(|(_id, block)| block)
     }
 
-    pub fn pause(interactive: bool) {
+    pub fn pause(&self, interactive: bool, before: &str, after: &str) {
         if_debug::if_debug!(if interactive {
+            self.print(before);
             let mut number = String::new();
             println!("Press enter to continue");
             std::io::stdin().read_line(&mut number).unwrap();
+            println!("{}", after);
         });
     }
 
@@ -373,29 +422,26 @@ impl<'a> SsaContext<'a> {
         interactive: bool,
     ) -> Result<(), RuntimeError> {
         //SSA
-        dbg!("SSA:");
-        self.print();
-        Self::pause(interactive);
+        self.pause(interactive, "SSA:", "CSE:");
 
         //Optimisation
         block::compute_dom(self);
-        dbg!("CSE:");
         optim::cse(self);
-        self.print();
-        Self::pause(interactive);
+        self.pause(interactive, "", "unrolling:");
         //Unrolling
-        dbg!("unrolling:");
         flatten::unroll_tree(self);
-        self.print();
-        Self::pause(interactive);
+        self.pause(interactive, "", "inlining:");
+        flatten::inline_tree(self);
         optim::cse(self);
         //Truncation
         integer::overflow_strategy(self);
-        self.print();
-        Self::pause(interactive);
+        self.pause(interactive, "overflow:", "");
         //ACIR
         self.acir(evaluator);
-        dbg!("DONE");
+        if_debug::if_debug!(if interactive {
+            dbg!("DONE");
+            dbg!(&evaluator.current_witness_index);
+        });
         Ok(())
     }
 
@@ -417,7 +463,9 @@ impl<'a> SsaContext<'a> {
         //Ensure there is not already a phi for the variable (n.b. probably not usefull)
         for i in &self[target_block].instructions {
             match self.try_get_instruction(*i) {
-                Some(Instruction { operator: Operation::Phi { root, .. }, .. }) if *root == phi_root => {
+                Some(Instruction { operator: Operation::Phi { root, .. }, .. })
+                    if *root == phi_root =>
+                {
                     return *i;
                 }
                 _ => (),

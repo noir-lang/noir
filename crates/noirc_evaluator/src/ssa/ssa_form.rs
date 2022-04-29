@@ -1,7 +1,9 @@
 use crate::ssa::node::Operation;
+use noirc_frontend::{node_interner::DefinitionId, ArraySize};
 
 use super::{
     block::BlockId,
+    code_gen::IRGenerator,
     context::SsaContext,
     node::{self, NodeId},
 };
@@ -13,7 +15,6 @@ pub fn write_phi(ctx: &mut SsaContext, predecessors: &[BlockId], var: NodeId, ph
         let v = get_current_value_in_block(ctx, var, *b);
         result.push((v, *b));
     }
-
     let s2 = node::Instruction::simplify_phi(phi, &result);
     if let Some(phi_ins) = ctx.try_get_mut_instruction(phi) {
         let (phi_root, phi_args) = match &mut phi_ins.operator {
@@ -72,6 +73,7 @@ pub fn get_block_value(ctx: &mut SsaContext, root: NodeId, block_id: BlockId) ->
             get_block_value(ctx, root, pred[0])
         } else {
             let result = ctx.generate_empty_phi(block_id, root);
+            ctx[block_id].update_variable(root, result);
             write_phi(ctx, &pred, root, result);
             result
         }
@@ -97,4 +99,56 @@ pub fn get_current_value_in_block(
 //Returns the current SSA value of a variable, recursively
 pub fn get_current_value(ctx: &mut SsaContext, var_id: NodeId) -> NodeId {
     get_current_value_in_block(ctx, var_id, ctx.current_block)
+}
+
+fn get_array_size(array_size: &ArraySize) -> u32 {
+    match array_size {
+        ArraySize::Fixed(l) => *l as u32,
+        ArraySize::Variable => todo!(),
+    }
+}
+
+pub fn create_function_parameter(igen: &mut IRGenerator, ident_id: &DefinitionId) -> NodeId {
+    let ident_name = igen.def_to_name(*ident_id);
+    let o_type = igen.def_interner().id_type(*ident_id);
+    //check if the variable is already created:
+    if let Some(var) = igen.find_variable(*ident_id) {
+        let id = var.unwrap_id(); //TODO handle multiple values
+        return get_current_value(&mut igen.context, id);
+    }
+    let obj_type = node::ObjectType::from(&o_type);
+    let obj = match o_type {
+        noirc_frontend::Type::Array(_, len, _) => {
+            let array_idx =
+                igen.context
+                    .mem
+                    .create_new_array(get_array_size(&len), obj_type, &ident_name);
+            node::Variable {
+                id: NodeId::dummy(),
+                name: ident_name.clone(),
+                obj_type: node::ObjectType::Pointer(array_idx),
+                root: None,
+                def: Some(*ident_id),
+                witness: None,
+                parent_block: igen.context.current_block,
+            }
+        }
+        _ => {
+            //new variable - should be in a let statement? The let statement should set the type
+            node::Variable {
+                id: NodeId::dummy(),
+                name: ident_name.clone(),
+                obj_type,
+                root: None,
+                def: Some(*ident_id),
+                witness: None,
+                parent_block: igen.context.current_block,
+            }
+        }
+    };
+    let v_id = igen.context.add_variable(obj, None);
+    igen.context
+        .get_current_block_mut()
+        .update_variable(v_id, v_id);
+    v_id
 }

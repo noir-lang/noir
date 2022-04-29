@@ -13,6 +13,7 @@ pub enum OpCode {
     HashToField,
     EcdsaSecp256k1,
     FixedBaseScalarMul,
+    ToBits,
 }
 
 impl std::fmt::Display for OpCode {
@@ -34,6 +35,7 @@ impl OpCode {
             OpCode::EcdsaSecp256k1 => 7,
             OpCode::FixedBaseScalarMul => 8,
             OpCode::InsertRegularMerkle => 9,
+            OpCode::ToBits => 10,
         }
     }
     pub fn name(&self) -> &str {
@@ -48,6 +50,7 @@ impl OpCode {
             OpCode::EcdsaSecp256k1 => "ecdsa_secp256k1",
             OpCode::FixedBaseScalarMul => "fixed_base_scalar_mul",
             OpCode::InsertRegularMerkle => "insert_regular_merkle",
+            OpCode::ToBits => "to_bits",
         }
     }
     pub fn lookup(op_name: &str) -> Option<OpCode> {
@@ -61,6 +64,7 @@ impl OpCode {
             "ecdsa_secp256k1" => Some(OpCode::EcdsaSecp256k1),
             "fixed_base_scalar_mul" => Some(OpCode::FixedBaseScalarMul),
             "insert_regular_merkle" => Some(OpCode::InsertRegularMerkle),
+            "to_bits" => Some(OpCode::ToBits),
             _ => None,
         }
     }
@@ -116,6 +120,11 @@ impl OpCode {
             OpCode::InsertRegularMerkle => GadgetDefinition {
                 name: self.name().into(),
                 input_size: InputSize::Variable,
+                output_size: OutputSize(1),
+            },
+            OpCode::ToBits => GadgetDefinition {
+                name: self.name().into(),
+                input_size: InputSize::Fixed(2),
                 output_size: OutputSize(1),
             },
         }
