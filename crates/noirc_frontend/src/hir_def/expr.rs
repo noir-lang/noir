@@ -92,8 +92,8 @@ impl From<BinaryOpKind> for HirBinaryOpKind {
             BinaryOpKind::And => HirBinaryOpKind::And,
             BinaryOpKind::Or => HirBinaryOpKind::Or,
             BinaryOpKind::Xor => HirBinaryOpKind::Xor,
-            BinaryOpKind::Shl => HirBinaryOpKind::Shl,
-            BinaryOpKind::Shr => HirBinaryOpKind::Shr,
+            BinaryOpKind::ShiftLeft => HirBinaryOpKind::Shl,
+            BinaryOpKind::ShiftRight => HirBinaryOpKind::Shr,
             BinaryOpKind::Assign => HirBinaryOpKind::Assign,
         }
     }

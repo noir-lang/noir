@@ -165,16 +165,18 @@ impl<'a> Evaluator<'a> {
                 );
                 Err(err)
             }
-            HirBinaryOpKind::Or => {
-                let err = RuntimeErrorKind::Unimplemented("The Or operation is currently not implemented. First implement in Barretenberg.".to_owned());
-                Err(err)
+            HirBinaryOpKind::Or => Err(RuntimeErrorKind::Unimplemented(
+                "The Or operation is currently not implemented. First implement in Barretenberg."
+                    .to_owned(),
+            )),
+            HirBinaryOpKind::Shr | HirBinaryOpKind::Shl => Err(RuntimeErrorKind::Unimplemented(
+                "Bit shift operations are not currently implemented.".to_owned(),
+            )),
+            HirBinaryOpKind::MemberAccess => {
+                todo!("Member access for structs is unimplemented in the noir backend")
             }
-            HirBinaryOpKind::Shr | HirBinaryOpKind::Shl => {
-                let err = RuntimeErrorKind::Unimplemented("Bit shift operations are not currently implemented.".to_owned());
-                Err(err)
-            }
-            HirBinaryOpKind::MemberAccess => todo!("Member access for structs is unimplemented in the noir backend"),
-        }.map_err(|kind|kind.add_span(op.span))
+        }
+        .map_err(|kind| kind.add_span(op.span))
     }
 
     // When we evaluate an identifier , it will be a linear polynomial
