@@ -1,6 +1,6 @@
 use super::mem::{MemArray, Memory};
 use super::node::{BinaryOp, ConstrainOp, Instruction, Operation};
-use acvm::acir::OpCode;
+use acvm::acir::OPCODE;
 use acvm::FieldElement;
 
 use super::node::NodeId;
@@ -598,12 +598,12 @@ impl Acir {
     pub fn evaluate_opcode(
         &mut self,
         instruction_id: NodeId,
-        opcode: OpCode,
+        opcode: OPCODE,
         args: &[NodeId],
         cfg: &SsaContext,
         evaluator: &mut Evaluator,
     ) -> Arithmetic {
-        if opcode == OpCode::ToBits {
+        if opcode == OPCODE::ToBits {
             todo!();
         }
 

@@ -16,7 +16,7 @@ mod sha256;
 
 use super::RuntimeErrorKind;
 use acvm::acir::circuit::gate::GadgetInput;
-use acvm::acir::OpCode;
+use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use blake2s::Blake2sGadget;
 use ecdsa_secp256k1::EcdsaSecp256k1Gadget;
@@ -31,7 +31,7 @@ use schnorr::SchnorrVerifyGadget;
 use sha256::Sha256Gadget;
 
 pub trait GadgetCaller {
-    fn name() -> acvm::acir::OpCode;
+    fn name() -> acvm::acir::OPCODE;
     fn call(
         evaluator: &mut Evaluator,
         env: &mut Environment,
@@ -46,7 +46,7 @@ pub fn call_low_level(
     call_expr_span: (HirCallExpression, Span),
 ) -> Result<Object, RuntimeError> {
     let (call_expr, span) = call_expr_span;
-    let func = match OpCode::lookup(opcode_name) {
+    let func = match OPCODE::lookup(opcode_name) {
         None => {
             let message = format!(
                 "cannot find a low level opcode with the name {} in the IR",
@@ -60,15 +60,15 @@ pub fn call_low_level(
     };
 
     match func {
-        OpCode::SHA256 => Sha256Gadget::call(evaluator, env, call_expr),
-        OpCode::MerkleMembership => MerkleMembershipGadget::call(evaluator, env, call_expr),
-        OpCode::SchnorrVerify => SchnorrVerifyGadget::call(evaluator, env, call_expr),
-        OpCode::Blake2s => Blake2sGadget::call(evaluator, env, call_expr),
-        OpCode::Pedersen => PedersenGadget::call(evaluator, env, call_expr),
-        OpCode::EcdsaSecp256k1 => EcdsaSecp256k1Gadget::call(evaluator, env, call_expr),
-        OpCode::HashToField => HashToFieldGadget::call(evaluator, env, call_expr),
-        OpCode::FixedBaseScalarMul => FixedBaseScalarMulGadget::call(evaluator, env, call_expr),
-        OpCode::InsertRegularMerkle => InsertRegularMerkleGadget::call(evaluator, env, call_expr),
+        OPCODE::SHA256 => Sha256Gadget::call(evaluator, env, call_expr),
+        OPCODE::MerkleMembership => MerkleMembershipGadget::call(evaluator, env, call_expr),
+        OPCODE::SchnorrVerify => SchnorrVerifyGadget::call(evaluator, env, call_expr),
+        OPCODE::Blake2s => Blake2sGadget::call(evaluator, env, call_expr),
+        OPCODE::Pedersen => PedersenGadget::call(evaluator, env, call_expr),
+        OPCODE::EcdsaSecp256k1 => EcdsaSecp256k1Gadget::call(evaluator, env, call_expr),
+        OPCODE::HashToField => HashToFieldGadget::call(evaluator, env, call_expr),
+        OPCODE::FixedBaseScalarMul => FixedBaseScalarMulGadget::call(evaluator, env, call_expr),
+        OPCODE::InsertRegularMerkle => InsertRegularMerkleGadget::call(evaluator, env, call_expr),
         k => {
             let message = format!("The OPCODE {} exists, however, currently the compiler does not have a concrete implementation for it", k);
             Err(RuntimeErrorKind::UnstructuredError { message }.add_span(span))

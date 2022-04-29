@@ -3,15 +3,15 @@ use super::RuntimeError;
 use crate::object::Object;
 use crate::{Environment, Evaluator};
 use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
-use acvm::acir::OpCode;
+use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use noirc_frontend::hir_def::expr::HirCallExpression;
 
 pub struct MerkleMembershipGadget;
 
 impl GadgetCaller for MerkleMembershipGadget {
-    fn name() -> OpCode {
-        OpCode::MerkleMembership
+    fn name() -> OPCODE {
+        OPCODE::MerkleMembership
     }
 
     fn call(

@@ -8,7 +8,7 @@ use super::super::errors::{RuntimeError, RuntimeErrorKind};
 use crate::object::Object;
 
 use crate::ssa::function;
-use acvm::acir::OpCode;
+use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use noirc_frontend::hir::Context;
 use noirc_frontend::hir_def::expr::{
@@ -688,7 +688,7 @@ impl<'a> IRGenerator<'a> {
         opcode_name: &str,
         call_expr: HirCallExpression,
     ) -> NodeId {
-        let func = match OpCode::lookup(opcode_name) {
+        let func = match OPCODE::lookup(opcode_name) {
             None => {
                 let message = format!(
                     "cannot find a low level opcode with the name {} in the IR",

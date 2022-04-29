@@ -2,7 +2,7 @@ use super::{object_to_wit_bits, GadgetCaller};
 use crate::object::{Array, Object};
 use crate::{Environment, Evaluator};
 use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
-use acvm::acir::OpCode;
+use acvm::acir::OPCODE;
 use noirc_frontend::hir_def::expr::HirCallExpression;
 
 use super::RuntimeError;
@@ -10,8 +10,8 @@ use super::RuntimeError;
 pub struct HashToFieldGadget;
 
 impl GadgetCaller for HashToFieldGadget {
-    fn name() -> OpCode {
-        OpCode::HashToField
+    fn name() -> OPCODE {
+        OPCODE::HashToField
     }
 
     fn call(

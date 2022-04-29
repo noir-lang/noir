@@ -19,7 +19,7 @@ impl PartialWitnessGenerator for Plonk {
         &self,
         initial_witness: &mut BTreeMap<Witness, FieldElement>,
         gates: Vec<acir::circuit::Gate>,
-    ) -> Result<(), acir::OpCode> {
+    ) -> Result<(), acir::OPCODE> {
         if gates.is_empty() {
             return Ok(());
         }

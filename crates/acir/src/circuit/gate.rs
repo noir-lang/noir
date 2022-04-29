@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::native_types::{Arithmetic, Witness};
-use crate::OpCode;
+use crate::OPCODE;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AndGate {
@@ -170,7 +170,7 @@ pub struct GadgetInput {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GadgetCall {
-    pub name: OpCode,
+    pub name: OPCODE,
     pub inputs: Vec<GadgetInput>,
     pub outputs: Vec<Witness>,
 }

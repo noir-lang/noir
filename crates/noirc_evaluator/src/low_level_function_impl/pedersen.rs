@@ -4,15 +4,15 @@ use crate::low_level_function_impl::object_to_wit_bits;
 use crate::object::{Array, Object};
 use crate::{Environment, Evaluator};
 use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
-use acvm::acir::OpCode;
+use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use noirc_frontend::hir_def::expr::HirCallExpression;
 
 pub struct PedersenGadget;
 
 impl GadgetCaller for PedersenGadget {
-    fn name() -> OpCode {
-        OpCode::Pedersen
+    fn name() -> OPCODE {
+        OPCODE::Pedersen
     }
 
     fn call(

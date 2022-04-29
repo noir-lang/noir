@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Clone, Debug, Hash, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum OpCode {
+pub enum OPCODE {
     #[allow(clippy::upper_case_acronyms)]
     AES,
     SHA256,
@@ -16,85 +17,85 @@ pub enum OpCode {
     ToBits,
 }
 
-impl std::fmt::Display for OpCode {
+impl std::fmt::Display for OPCODE {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.name())
     }
 }
 
-impl OpCode {
+impl OPCODE {
     pub fn to_u16(self) -> u16 {
         match self {
-            OpCode::AES => 0,
-            OpCode::SHA256 => 1,
-            OpCode::MerkleMembership => 2,
-            OpCode::SchnorrVerify => 3,
-            OpCode::Blake2s => 4,
-            OpCode::Pedersen => 5,
-            OpCode::HashToField => 6,
-            OpCode::EcdsaSecp256k1 => 7,
-            OpCode::FixedBaseScalarMul => 8,
-            OpCode::InsertRegularMerkle => 9,
-            OpCode::ToBits => 10,
+            OPCODE::AES => 0,
+            OPCODE::SHA256 => 1,
+            OPCODE::MerkleMembership => 2,
+            OPCODE::SchnorrVerify => 3,
+            OPCODE::Blake2s => 4,
+            OPCODE::Pedersen => 5,
+            OPCODE::HashToField => 6,
+            OPCODE::EcdsaSecp256k1 => 7,
+            OPCODE::FixedBaseScalarMul => 8,
+            OPCODE::InsertRegularMerkle => 9,
+            OPCODE::ToBits => 10,
         }
     }
     pub fn name(&self) -> &str {
         match self {
-            OpCode::AES => "aes",
-            OpCode::SHA256 => "sha256",
-            OpCode::MerkleMembership => "merkle_membership",
-            OpCode::SchnorrVerify => "schnorr_verify",
-            OpCode::Blake2s => "blake2s",
-            OpCode::Pedersen => "pedersen",
-            OpCode::HashToField => "hash_to_field",
-            OpCode::EcdsaSecp256k1 => "ecdsa_secp256k1",
-            OpCode::FixedBaseScalarMul => "fixed_base_scalar_mul",
-            OpCode::InsertRegularMerkle => "insert_regular_merkle",
-            OpCode::ToBits => "to_bits",
+            OPCODE::AES => "aes",
+            OPCODE::SHA256 => "sha256",
+            OPCODE::MerkleMembership => "merkle_membership",
+            OPCODE::SchnorrVerify => "schnorr_verify",
+            OPCODE::Blake2s => "blake2s",
+            OPCODE::Pedersen => "pedersen",
+            OPCODE::HashToField => "hash_to_field",
+            OPCODE::EcdsaSecp256k1 => "ecdsa_secp256k1",
+            OPCODE::FixedBaseScalarMul => "fixed_base_scalar_mul",
+            OPCODE::InsertRegularMerkle => "insert_regular_merkle",
+            OPCODE::ToBits => "to_bits",
         }
     }
-    pub fn lookup(op_name: &str) -> Option<OpCode> {
+    pub fn lookup(op_name: &str) -> Option<OPCODE> {
         match op_name {
-            "sha256" => Some(OpCode::SHA256),
-            "merkle_membership" => Some(OpCode::MerkleMembership),
-            "schnorr_verify" => Some(OpCode::SchnorrVerify),
-            "blake2s" => Some(OpCode::Blake2s),
-            "pedersen" => Some(OpCode::Pedersen),
-            "hash_to_field" => Some(OpCode::HashToField),
-            "ecdsa_secp256k1" => Some(OpCode::EcdsaSecp256k1),
-            "fixed_base_scalar_mul" => Some(OpCode::FixedBaseScalarMul),
-            "insert_regular_merkle" => Some(OpCode::InsertRegularMerkle),
-            "to_bits" => Some(OpCode::ToBits),
+            "sha256" => Some(OPCODE::SHA256),
+            "merkle_membership" => Some(OPCODE::MerkleMembership),
+            "schnorr_verify" => Some(OPCODE::SchnorrVerify),
+            "blake2s" => Some(OPCODE::Blake2s),
+            "pedersen" => Some(OPCODE::Pedersen),
+            "hash_to_field" => Some(OPCODE::HashToField),
+            "ecdsa_secp256k1" => Some(OPCODE::EcdsaSecp256k1),
+            "fixed_base_scalar_mul" => Some(OPCODE::FixedBaseScalarMul),
+            "insert_regular_merkle" => Some(OPCODE::InsertRegularMerkle),
+            "to_bits" => Some(OPCODE::ToBits),
             _ => None,
         }
     }
     pub fn is_valid_opcode_name(op_name: &str) -> bool {
-        OpCode::lookup(op_name).is_some()
+        OPCODE::lookup(op_name).is_some()
     }
     pub fn definition(&self) -> GadgetDefinition {
         match self {
-            OpCode::AES => unimplemented!(),
-            OpCode::SHA256 => GadgetDefinition {
+            OPCODE::AES => unimplemented!(),
+            OPCODE::SHA256 => GadgetDefinition {
                 name: self.name().into(),
                 input_size: InputSize::Variable,
                 output_size: OutputSize(32),
             },
-            OpCode::Blake2s => GadgetDefinition {
+            OPCODE::Blake2s => GadgetDefinition {
                 name: self.name().into(),
                 input_size: InputSize::Variable,
                 output_size: OutputSize(32),
             },
-            OpCode::HashToField => GadgetDefinition {
+            OPCODE::HashToField => GadgetDefinition {
                 name: self.name().into(),
                 input_size: InputSize::Variable,
                 output_size: OutputSize(1),
             },
-            OpCode::MerkleMembership => GadgetDefinition {
+            OPCODE::MerkleMembership => GadgetDefinition {
                 name: self.name().into(),
                 input_size: InputSize::Variable,
                 output_size: OutputSize(1),
             },
-            OpCode::SchnorrVerify => GadgetDefinition {
+            OPCODE::SchnorrVerify => GadgetDefinition {
                 name: self.name().into(),
                 // XXX: input_size can be changed to fixed, once we hash
                 // the message before passing it to schnorr.
@@ -102,27 +103,27 @@ impl OpCode {
                 input_size: InputSize::Variable,
                 output_size: OutputSize(1),
             },
-            OpCode::Pedersen => GadgetDefinition {
+            OPCODE::Pedersen => GadgetDefinition {
                 name: self.name().into(),
                 input_size: InputSize::Variable,
                 output_size: OutputSize(2),
             },
-            OpCode::EcdsaSecp256k1 => GadgetDefinition {
+            OPCODE::EcdsaSecp256k1 => GadgetDefinition {
                 name: self.name().into(),
                 input_size: InputSize::Variable,
                 output_size: OutputSize(1),
             },
-            OpCode::FixedBaseScalarMul => GadgetDefinition {
+            OPCODE::FixedBaseScalarMul => GadgetDefinition {
                 name: self.name().into(),
                 input_size: InputSize::Fixed(1),
                 output_size: OutputSize(2),
             },
-            OpCode::InsertRegularMerkle => GadgetDefinition {
+            OPCODE::InsertRegularMerkle => GadgetDefinition {
                 name: self.name().into(),
                 input_size: InputSize::Variable,
                 output_size: OutputSize(1),
             },
-            OpCode::ToBits => GadgetDefinition {
+            OPCODE::ToBits => GadgetDefinition {
                 name: self.name().into(),
                 input_size: InputSize::Fixed(2),
                 output_size: OutputSize(1),

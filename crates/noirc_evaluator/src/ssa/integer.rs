@@ -5,7 +5,7 @@ use super::{
     node::{self, Instruction, Node, NodeId, NodeObj, ObjectType, Operation},
     optim,
 };
-use acvm::{acir::OpCode, FieldElement};
+use acvm::{acir::OPCODE, FieldElement};
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
 use std::convert::TryInto;
@@ -594,12 +594,12 @@ pub fn get_max_value(ins: &Instruction, lhs_max: BigUint, rhs_max: BigUint) -> B
         Operation::Res => todo!(),
         Operation::Intrinsic(opcode) => {
             match opcode {
-                OpCode::SHA256
-                | OpCode::Blake2s
-                | OpCode::Pedersen
-                | OpCode::FixedBaseScalarMul
-                | OpCode::ToBits => BigUint::zero(), //pointers do not overflow
-                OpCode::SchnorrVerify | OpCode::EcdsaSecp256k1 => BigUint::one(), //verify returns 0 or 1
+                OPCODE::SHA256
+                | OPCODE::Blake2s
+                | OPCODE::Pedersen
+                | OPCODE::FixedBaseScalarMul
+                | OPCODE::ToBits => BigUint::zero(), //pointers do not overflow
+                OPCODE::SchnorrVerify | OPCODE::EcdsaSecp256k1 => BigUint::one(), //verify returns 0 or 1
                 _ => todo!(),
             }
         }

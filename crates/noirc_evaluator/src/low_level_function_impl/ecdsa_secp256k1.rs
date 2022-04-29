@@ -3,7 +3,7 @@ use crate::low_level_function_impl::object_to_wit_bits;
 use crate::object::{Array, Object};
 use crate::{Environment, Evaluator};
 use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
-use acvm::acir::OpCode;
+use acvm::acir::OPCODE;
 use noirc_frontend::hir_def::expr::HirCallExpression;
 
 use super::RuntimeError;
@@ -11,8 +11,8 @@ use super::RuntimeError;
 pub struct EcdsaSecp256k1Gadget;
 
 impl GadgetCaller for EcdsaSecp256k1Gadget {
-    fn name() -> OpCode {
-        OpCode::EcdsaSecp256k1
+    fn name() -> OPCODE {
+        OPCODE::EcdsaSecp256k1
     }
 
     fn call(

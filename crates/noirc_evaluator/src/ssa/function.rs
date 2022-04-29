@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::environment::Environment;
-use acvm::acir::OpCode;
+use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use noirc_frontend::hir_def::expr::HirCallExpression;
 use noirc_frontend::hir_def::function::Parameters;
@@ -96,25 +96,25 @@ impl<'a> SSAFunction<'a> {
 }
 
 //Returns the number of elements and their type, of the output result corresponding to the OPCODE function.
-pub fn get_result_type(op: OpCode) -> (u32, ObjectType) {
+pub fn get_result_type(op: OPCODE) -> (u32, ObjectType) {
     match op {
-        OpCode::AES => (0, ObjectType::NotAnObject), //Not implemented
-        OpCode::SHA256 => (32, ObjectType::Unsigned(8)),
-        OpCode::Blake2s => (32, ObjectType::Unsigned(8)),
-        OpCode::HashToField => (1, ObjectType::NativeField),
-        OpCode::MerkleMembership => (1, ObjectType::NativeField), //or bool?
-        OpCode::SchnorrVerify => (1, ObjectType::NativeField),    //or bool?
-        OpCode::Pedersen => (2, ObjectType::NativeField),
-        OpCode::EcdsaSecp256k1 => (1, ObjectType::NativeField), //field?
-        OpCode::FixedBaseScalarMul => (2, ObjectType::NativeField),
-        OpCode::InsertRegularMerkle => (1, ObjectType::NativeField), //field?
-        OpCode::ToBits => (FieldElement::max_num_bits(), ObjectType::Boolean),
+        OPCODE::AES => (0, ObjectType::NotAnObject), //Not implemented
+        OPCODE::SHA256 => (32, ObjectType::Unsigned(8)),
+        OPCODE::Blake2s => (32, ObjectType::Unsigned(8)),
+        OPCODE::HashToField => (1, ObjectType::NativeField),
+        OPCODE::MerkleMembership => (1, ObjectType::NativeField), //or bool?
+        OPCODE::SchnorrVerify => (1, ObjectType::NativeField),    //or bool?
+        OPCODE::Pedersen => (2, ObjectType::NativeField),
+        OPCODE::EcdsaSecp256k1 => (1, ObjectType::NativeField), //field?
+        OPCODE::FixedBaseScalarMul => (2, ObjectType::NativeField),
+        OPCODE::InsertRegularMerkle => (1, ObjectType::NativeField), //field?
+        OPCODE::ToBits => (FieldElement::max_num_bits(), ObjectType::Boolean),
     }
 }
 
 //Lowlevel functions with no more than 2 arguments
 pub fn call_low_level(
-    op: OpCode,
+    op: OPCODE,
     call_expr: HirCallExpression,
     igen: &mut IRGenerator,
     env: &mut Environment,

@@ -9,7 +9,7 @@ use std::collections::BTreeMap;
 use acir::{
     circuit::{Circuit, Gate},
     native_types::Witness,
-    OpCode,
+    OPCODE,
 };
 
 // re-export acir
@@ -26,7 +26,7 @@ pub trait PartialWitnessGenerator {
         &self,
         initial_witness: &mut BTreeMap<Witness, FieldElement>,
         gates: Vec<Gate>,
-    ) -> Result<(), OpCode>;
+    ) -> Result<(), OPCODE>;
 }
 pub trait SmartContract {
     // Takes a verification  key and produces a smart contract

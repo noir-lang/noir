@@ -1,6 +1,6 @@
 use super::merkle::{flatten_path, MerkleTree};
 use crate::barretenberg_rs::Barretenberg;
-use acvm::acir::{circuit::gate::GadgetCall, native_types::Witness, OpCode};
+use acvm::acir::{circuit::gate::GadgetCall, native_types::Witness, OPCODE};
 use acvm::pwg::{self, input_to_value};
 use acvm::FieldElement;
 use blake2::Blake2s;
@@ -16,15 +16,15 @@ impl GadgetCaller {
     pub fn solve_gadget_call(
         initial_witness: &mut BTreeMap<Witness, FieldElement>,
         gadget_call: &GadgetCall,
-    ) -> Result<(), OpCode> {
+    ) -> Result<(), OPCODE> {
         match gadget_call.name {
-            OpCode::SHA256 => pwg::hash::sha256(initial_witness, gadget_call),
-            OpCode::Blake2s => pwg::hash::blake2s(initial_witness, gadget_call),
-            OpCode::EcdsaSecp256k1 => {
+            OPCODE::SHA256 => pwg::hash::sha256(initial_witness, gadget_call),
+            OPCODE::Blake2s => pwg::hash::blake2s(initial_witness, gadget_call),
+            OPCODE::EcdsaSecp256k1 => {
                 pwg::signature::ecdsa::secp256k1_prehashed(initial_witness, gadget_call)
             }
-            OpCode::AES => return Err(gadget_call.name),
-            OpCode::MerkleMembership => {
+            OPCODE::AES => return Err(gadget_call.name),
+            OPCODE::MerkleMembership => {
                 const SHOULD_INSERT: bool = false;
 
                 let merkle_data =
@@ -42,7 +42,7 @@ impl GadgetCaller {
 
                 initial_witness.insert(gadget_call.outputs[0], result);
             }
-            OpCode::InsertRegularMerkle => {
+            OPCODE::InsertRegularMerkle => {
                 const SHOULD_INSERT: bool = true;
 
                 let merkle_data =
@@ -54,7 +54,7 @@ impl GadgetCaller {
 
                 initial_witness.insert(gadget_call.outputs[0], new_root);
             }
-            OpCode::SchnorrVerify => {
+            OPCODE::SchnorrVerify => {
                 // In barretenberg, if the signature fails, then the whole thing fails.
                 //
                 use std::convert::TryInto;
@@ -103,7 +103,7 @@ impl GadgetCaller {
 
                 initial_witness.insert(gadget_call.outputs[0], result);
             }
-            OpCode::Pedersen => {
+            OPCODE::Pedersen => {
                 let inputs_iter = gadget_call.inputs.iter();
 
                 let scalars: Vec<_> = inputs_iter
@@ -116,7 +116,7 @@ impl GadgetCaller {
                 initial_witness.insert(gadget_call.outputs[0], res_x);
                 initial_witness.insert(gadget_call.outputs[1], res_y);
             }
-            OpCode::HashToField => {
+            OPCODE::HashToField => {
                 // Deal with Blake2s -- XXX: It's not possible for pwg to know that it is Blake2s
                 // We need to get this method from the backend
                 let mut hasher = Blake2s::new();
@@ -143,7 +143,7 @@ impl GadgetCaller {
 
                 initial_witness.insert(gadget_call.outputs[0], reduced_res);
             }
-            OpCode::FixedBaseScalarMul => {
+            OPCODE::FixedBaseScalarMul => {
                 let scalar = initial_witness.get(&gadget_call.inputs[0].witness);
                 let scalar = match scalar {
                     None => panic!("cannot find witness assignment for {:?}", scalar),

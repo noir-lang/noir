@@ -2,7 +2,7 @@ use std::convert::TryInto;
 use std::ops::Add;
 
 use acvm::acir::native_types::Witness;
-use acvm::acir::OpCode;
+use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use arena;
 use noirc_frontend::hir_def::expr::HirBinaryOpKind;
@@ -559,7 +559,7 @@ pub enum Operation {
         value: NodeId,
     },
 
-    Intrinsic(OpCode, Vec<NodeId>), //Custom implementation of usefull primitives which are more performant with Aztec backend
+    Intrinsic(OPCODE, Vec<NodeId>), //Custom implementation of usefull primitives which are more performant with Aztec backend
 
     Nop, // no op
 }
