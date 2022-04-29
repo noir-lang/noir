@@ -570,10 +570,26 @@ pub fn get_max_value(ins: &Instruction, lhs_max: BigUint, rhs_max: BigUint) -> B
         Operation::Gt => BigUint::one(),
         Operation::Lte => BigUint::one(),
         Operation::Gte => BigUint::one(),
-        Operation::And => ins.res_type.max_size(),
+        Operation::And => {
+            BigUint::from(2_u32).pow(u64::min(lhs_max.bits(), rhs_max.bits()) as u32)
+                - BigUint::one()
+        }
+        Operation::Xor | Operation::Or => {
+            BigUint::from(2_u32).pow(u64::min(lhs_max.bits(), rhs_max.bits()) as u32)
+                - BigUint::one()
+        }
         Operation::Not => ins.res_type.max_size(),
-        Operation::Or => ins.res_type.max_size(),
-        Operation::Xor => ins.res_type.max_size(),
+        Operation::Shr => BigUint::min(
+            BigUint::from(2_u32).pow((lhs_max.bits() + 1) as u32) - BigUint::one(),
+            ins.res_type.max_size(),
+        ),
+        Operation::Shl => {
+            if lhs_max.bits() >= 1 {
+                BigUint::from(2_u32).pow((lhs_max.bits() - 1) as u32) - BigUint::one()
+            } else {
+                BigUint::zero()
+            }
+        }
         //'a cast a' means we cast a into res_type of the instruction
         Operation::Cast => {
             let type_max = ins.res_type.max_size();
