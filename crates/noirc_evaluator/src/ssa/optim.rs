@@ -152,6 +152,38 @@ pub fn find_similar_instruction(
     None
 }
 
+pub fn find_similar_instruction_with_multiple_arguments(
+    igen: &SsaContext,
+    lhs: NodeId,
+    rhs: NodeId,
+    ins_args: &[NodeId],
+    prev_ins: &VecDeque<NodeId>,
+) -> Option<NodeId> {
+    for iter in prev_ins {
+        if let Some(ins) = igen.try_get_instruction(*iter) {
+            if ins.lhs == lhs && ins.rhs == rhs && ins.ins_arguments == ins_args {
+                return Some(*iter);
+            }
+        }
+    }
+    None
+}
+
+pub fn find_similar_cast(
+    igen: &SsaContext,
+    lhs: NodeId,
+    res_type: node::ObjectType,
+    prev_ins: &VecDeque<NodeId>,
+) -> Option<NodeId> {
+    for iter in prev_ins {
+        if let Some(ins) = igen.try_get_instruction(*iter) {
+            if ins.lhs == lhs && ins.res_type == res_type {
+                return Some(*iter);
+            }
+        }
+    }
+    None
+}
 pub enum CseAction {
     Replace, //replace the instruction
     Remove,  //remove the instruction
@@ -231,9 +263,9 @@ pub fn propagate(ctx: &SsaContext, id: NodeId) -> NodeId {
 }
 
 //common subexpression elimination, starting from the root
-pub fn cse(igen: &mut SsaContext) {
+pub fn cse(igen: &mut SsaContext) -> Option<NodeId> {
     let mut anchor = HashMap::new();
-    cse_tree(igen, igen.first_block, &mut anchor);
+    cse_tree(igen, igen.first_block, &mut anchor)
 }
 
 //Perform CSE for the provided block and then process its children following the dominator tree, passing around the anchor list.
@@ -241,12 +273,16 @@ pub fn cse_tree(
     igen: &mut SsaContext,
     block_id: BlockId,
     anchor: &mut HashMap<Operation, VecDeque<NodeId>>,
-) {
+) -> Option<NodeId> {
     let mut instructions = Vec::new();
-    block_cse(igen, block_id, anchor, &mut instructions);
+    let mut res = block_cse(igen, block_id, anchor, &mut instructions);
     for b in igen[block_id].dominated.clone() {
-        cse_tree(igen, b, &mut anchor.clone());
+        let sub_res = cse_tree(igen, b, &mut anchor.clone());
+        if sub_res.is_some() {
+            res = sub_res;
+        }
     }
+    res
 }
 
 pub fn anchor_push(op: node::Operation, anchor: &mut HashMap<node::Operation, VecDeque<NodeId>>) {
@@ -264,7 +300,7 @@ pub fn block_cse(
     block_id: BlockId,
     anchor: &mut HashMap<Operation, VecDeque<NodeId>>,
     instructions: &mut Vec<NodeId>,
-) {
+) -> Option<NodeId> {
     let mut new_list = Vec::new();
     let bb = &ctx[block_id];
 
@@ -278,7 +314,9 @@ pub fn block_cse(
             let mut i_lhs = ins.lhs;
             let mut i_rhs = ins.rhs;
             let mut phi_args = Vec::new();
+            let mut ins_args = Vec::new();
             let mut to_update_phi = false;
+            let mut to_update = false;
 
             if ins.is_deleted {
                 continue;
@@ -350,11 +388,59 @@ pub fn block_cse(
                         }
                     }
                     node::Operation::Cast => {
+                        //Propagate cast argument
                         i_lhs = propagate(ctx, ins.lhs);
-                        i_rhs = propagate(ctx, ins.rhs);
+                        i_rhs = i_lhs;
+                        //Similar cast must have same type
+                        if let Some(j) =
+                            find_similar_cast(ctx, i_lhs, ins.res_type, &anchor[&ins.operator])
+                        {
+                            to_delete = true; //we want to delete ins but ins is immutable so we use the new_list instead
+                            i_rhs = j;
+                        } else {
+                            new_list.push(*iter);
+                            anchor.get_mut(&ins.operator).unwrap().push_front(*iter);
+                        }
+                    }
+                    node::Operation::Call(_) | node::Operation::Ret => {
+                        //No CSE for function calls because of possible side effect - TODO checks if a function has side effect when parsed and do cse for these.
+                        //Propagate arguments:
+                        for a in &ins.ins_arguments {
+                            let new_a = propagate(ctx, *a);
+                            if !to_update && new_a != *a {
+                                to_update = true;
+                            }
+                            ins_args.push(new_a);
+                        }
                         new_list.push(*iter);
                     }
+                    node::Operation::Intrinsic(_) => {
+                        //n.b this could be the default behovoir for binary operations
+                        for a in &ins.ins_arguments {
+                            let new_a = propagate(ctx, *a);
+                            if !to_update && new_a != *a {
+                                to_update = true;
+                            }
+                            ins_args.push(new_a);
+                        }
+                        i_lhs = propagate(ctx, ins.lhs);
+                        i_rhs = propagate(ctx, ins.rhs);
+                        if let Some(j) = find_similar_instruction_with_multiple_arguments(
+                            ctx,
+                            i_lhs,
+                            i_rhs,
+                            &ins_args,
+                            &anchor[&ins.operator],
+                        ) {
+                            to_delete = true; //we want to delete ins but ins is immutable so we use the new_list instead
+                            i_rhs = j;
+                        } else {
+                            new_list.push(*iter);
+                            anchor.get_mut(&ins.operator).unwrap().push_front(*iter);
+                        }
+                    }
                     _ => {
+                        //TODO: checks we do not need to propagate res arguments
                         new_list.push(*iter);
                     }
                 }
@@ -363,7 +449,7 @@ pub fn block_cse(
             if to_update_phi {
                 let update = ctx.get_mut_instruction(*iter);
                 update.phi_arguments = phi_args;
-            } else if to_delete || ins.lhs != i_lhs || ins.rhs != i_rhs {
+            } else if to_delete || ins.lhs != i_lhs || ins.rhs != i_rhs || to_update {
                 //update i:
                 let ii_l = ins.lhs;
                 let ii_r = ins.rhs;
@@ -371,6 +457,9 @@ pub fn block_cse(
                 update.lhs = i_lhs;
                 update.rhs = i_rhs;
                 update.is_deleted = to_delete;
+                if to_update {
+                    update.ins_arguments = ins_args;
+                }
                 //update instruction name - for debug/pretty print purposes only /////////////////////
                 if let Some(Instruction {
                     operator: Operation::Ass,
@@ -406,6 +495,27 @@ pub fn block_cse(
             }
         }
     }
-
+    let mut last = None;
+    for i in new_list.iter().rev() {
+        if is_some(ctx, *i) {
+            last = Some(*i);
+            break;
+        }
+    }
     ctx[block_id].instructions = new_list;
+    last
+}
+
+pub fn is_some(ctx: &SsaContext, id: NodeId) -> bool {
+    if id == NodeId::dummy() {
+        return false;
+    }
+    if let Some(ins) = ctx.try_get_instruction(id) {
+        if ins.operator != node::Operation::Nop {
+            return true;
+        }
+    } else if ctx.try_get_node(id).is_some() {
+        return true;
+    }
+    false
 }

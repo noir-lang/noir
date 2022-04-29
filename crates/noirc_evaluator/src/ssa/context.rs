@@ -2,14 +2,16 @@ use super::block::{BasicBlock, BlockId};
 use super::mem::Memory;
 use super::node::{Instruction, NodeId, NodeObj, ObjectType, Operation};
 use super::{block, flatten, integer, node, optim};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use super::super::errors::RuntimeError;
 use crate::ssa::acir_gen::Acir;
+use crate::ssa::function;
 use crate::ssa::node::Node;
 use crate::Evaluator;
 use acvm::FieldElement;
 use noirc_frontend::hir::Context;
+use noirc_frontend::node_interner::FuncId;
 use num_bigint::BigUint;
 
 // This is a 'master' class for generating the SSA IR from the AST
@@ -24,6 +26,7 @@ pub struct SsaContext<'a> {
     pub nodes: arena::Arena<node::NodeObj>,
     pub sealed_blocks: HashSet<BlockId>,
     pub mem: Memory,
+    pub functions_cfg: HashMap<FuncId, function::SSAFunction<'a>>,
 }
 
 impl<'a> SsaContext<'a> {
@@ -36,8 +39,11 @@ impl<'a> SsaContext<'a> {
             nodes: arena::Arena::new(),
             sealed_blocks: HashSet::new(),
             mem: Memory::default(),
+            functions_cfg: HashMap::new(),
         };
         block::create_first_block(&mut pc);
+        pc.get_or_create_const(FieldElement::one(), node::ObjectType::Unsigned(1));
+        pc.get_or_create_const(FieldElement::zero(), node::ObjectType::Unsigned(1));
         pc
     }
 
@@ -87,11 +93,20 @@ impl<'a> SsaContext<'a> {
         }
     }
 
-    pub fn print(&self) {
+    pub fn print(&self, text: &str) {
+        println!("{}", text);
         for (i, (_, b)) in self.blocks.iter().enumerate() {
             println!("************* Block n.{}", i);
             self.print_block(b);
         }
+        for (_, f) in self.functions_cfg.iter().enumerate() {
+            println!("************* FUNCTION n.{:?}", f.1.id);
+            f.1.igen.context.print("");
+        }
+    }
+
+    pub fn context(&self) -> &'a Context {
+        self.context
     }
 
     pub fn remove_block(&mut self, block: BlockId) {
@@ -154,6 +169,10 @@ impl<'a> SsaContext<'a> {
             return Some(FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be()));
         }
         None
+    }
+
+    pub fn get_function_context(&self, func_id: FuncId) -> &SsaContext {
+        &self.functions_cfg[&func_id].igen.context
     }
 
     //todo handle errors
@@ -226,10 +245,32 @@ impl<'a> SsaContext<'a> {
         opcode: node::Operation,
         optype: node::ObjectType,
     ) -> NodeId {
+        let operands = vec![lhs, rhs];
+        self.new_instruction_with_multiple_operands(operands, opcode, optype)
+    }
+
+    pub fn new_instruction_with_multiple_operands(
+        &mut self,
+        mut operands: Vec<NodeId>,
+        opcode: node::Operation,
+        optype: node::ObjectType,
+    ) -> NodeId {
+        while operands.len() < 2 {
+            operands.push(NodeId::dummy());
+        }
         //Add a new instruction to the nodes arena
-        let mut i = node::Instruction::new(opcode, lhs, rhs, optype, Some(self.current_block));
+        let mut i = node::Instruction::new(
+            opcode,
+            operands[0],
+            operands[1],
+            optype,
+            Some(self.current_block),
+        );
         //Basic simplification
         optim::simplify(self, &mut i);
+        if operands.len() > 2 {
+            i.ins_arguments = operands;
+        }
         if i.is_deleted {
             return i.rhs;
         }
@@ -315,11 +356,13 @@ impl<'a> SsaContext<'a> {
         self.blocks.iter().map(|(_id, block)| block)
     }
 
-    pub fn pause(interactive: bool) {
+    pub fn pause(&self, interactive: bool, before: &str, after: &str) {
         if_debug::if_debug!(if interactive {
+            self.print(before);
             let mut number = String::new();
             println!("Press enter to continue");
             std::io::stdin().read_line(&mut number).unwrap();
+            println!("{}", after);
         });
     }
 
@@ -330,29 +373,26 @@ impl<'a> SsaContext<'a> {
         interactive: bool,
     ) -> Result<(), RuntimeError> {
         //SSA
-        dbg!("SSA:");
-        self.print();
-        Self::pause(interactive);
+        self.pause(interactive, "SSA:", "CSE:");
 
         //Optimisation
         block::compute_dom(self);
-        dbg!("CSE:");
         optim::cse(self);
-        self.print();
-        Self::pause(interactive);
+        self.pause(interactive, "", "unrolling:");
         //Unrolling
-        dbg!("unrolling:");
         flatten::unroll_tree(self);
-        self.print();
-        Self::pause(interactive);
+        self.pause(interactive, "", "inlining:");
+        flatten::inline_tree(self);
         optim::cse(self);
         //Truncation
         integer::overflow_strategy(self);
-        self.print();
-        Self::pause(interactive);
+        self.pause(interactive, "overflow:", "");
         //ACIR
         self.acir(evaluator);
-        dbg!("DONE");
+        if_debug::if_debug!(if interactive {
+            dbg!("DONE");
+            dbg!(&evaluator.current_witness_index);
+        });
         Ok(())
     }
 

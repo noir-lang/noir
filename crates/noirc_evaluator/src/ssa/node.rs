@@ -132,6 +132,12 @@ pub struct Constant {
     pub value_type: ObjectType,
 }
 
+impl Constant {
+    pub fn get_value_field(&self) -> FieldElement {
+        FieldElement::from_be_bytes_reduce(&self.value.to_bytes_be())
+    }
+}
+
 #[derive(Debug)]
 pub struct Variable {
     pub id: NodeId,
@@ -263,7 +269,7 @@ impl ObjectType {
             ObjectType::NotAnObject => 0,
             ObjectType::Signed(c) => *c,
             ObjectType::Unsigned(c) => *c,
-            ObjectType::Pointer(_) => unreachable!(),
+            ObjectType::Pointer(_) => 0,
         }
     }
 
@@ -295,7 +301,7 @@ pub struct Instruction {
     //temp: todo phi subtype
     pub phi_arguments: Vec<(NodeId, BlockId)>,
 
-    pub ins_arguments: Vec<arena::Index>,
+    pub ins_arguments: Vec<NodeId>,
 }
 
 impl std::fmt::Display for Instruction {
@@ -357,6 +363,22 @@ impl Instruction {
         }
     }
 
+    pub fn get_arguments(&self) -> Vec<NodeId> {
+        if !self.ins_arguments.is_empty() {
+            return self.ins_arguments.clone();
+        }
+        if self.lhs != NodeId::dummy() && self.rhs != NodeId::dummy() {
+            return vec![self.lhs, self.rhs];
+        }
+        if self.lhs != NodeId::dummy() {
+            return vec![self.lhs];
+        }
+        if self.rhs != NodeId::dummy() {
+            return vec![self.rhs];
+        }
+        Vec::new()
+    }
+
     //indicates whether the left and/or right operand of the instruction is required to be truncated to its bit-width
     pub fn truncate_required(&self, lhs_bits: u32, rhs_bits: u32) -> (bool, bool) {
         match self.operator {
@@ -404,6 +426,9 @@ impl Instruction {
             Operation::Constrain(_) => (true, true),
             Operation::Load(_) | Operation::Store(_) => (false, false),
             Operation::Intrinsic(_) => (true, true), //TODO to check
+            Operation::Call(_) => (false, false), //return values are in the return statment, should we truncate function arguments? probably but not lhs and rhs anyways.
+            Operation::Ret => (true, false),
+            Operation::Res => (false, false),
         }
     }
 
@@ -736,30 +761,30 @@ impl Instruction {
 
     pub fn standard_form(&mut self) {
         match self.operator {
-            //convert greater into less
+            //convert > into < and <= into >=
             Operation::Ugt => {
                 std::mem::swap(&mut self.rhs, &mut self.lhs);
                 self.operator = Operation::Ult
             }
-            Operation::Uge => {
+            Operation::Ule => {
                 std::mem::swap(&mut self.rhs, &mut self.lhs);
-                self.operator = Operation::Ule
+                self.operator = Operation::Uge
             }
             Operation::Sgt => {
                 std::mem::swap(&mut self.rhs, &mut self.lhs);
                 self.operator = Operation::Slt
             }
-            Operation::Sge => {
+            Operation::Sle => {
                 std::mem::swap(&mut self.rhs, &mut self.lhs);
-                self.operator = Operation::Sle
+                self.operator = Operation::Sge
             }
             Operation::Gt => {
                 std::mem::swap(&mut self.rhs, &mut self.lhs);
                 self.operator = Operation::Lt
             }
-            Operation::Gte => {
+            Operation::Lte => {
                 std::mem::swap(&mut self.rhs, &mut self.lhs);
-                self.operator = Operation::Lte
+                self.operator = Operation::Gte
             }
             Operation::Constrain(op) => match op {
                 ConstrainOp::Eq => {
@@ -831,9 +856,12 @@ pub enum Operation {
     //memory
     Load(u32),
     Store(u32),
-
+    //Functions
     Intrinsic(OPCODE), //Custom implementation of usefull primitives which are more performant with Aztec backend
-    //Call(noirc_frontend::node_interner::FuncId),
+    Call(noirc_frontend::node_interner::FuncId), //Call a function
+    Ret,               //Return value from a function block
+    Res,               //get result from a function call
+
     Constrain(ConstrainOp), //write gates enforcing the ContrainOp to be true
 
     Nop, // no op
@@ -891,6 +919,7 @@ pub fn is_binary(op_code: Operation) -> bool {
 
     //For the record:  Operation::not | Operation::cast => false | Operation::ass | Operation::trunc | Operation::nop
     //  | Operation::jne | Operation::jeq | Operation::jmp | Operation::phi | Operation::load | Operation::store
+    //  | Operation::Call(_) | Operation::Res | Operation::Ret
 }
 
 pub fn to_operation(op_kind: HirBinaryOpKind, op_type: ObjectType) -> Operation {
