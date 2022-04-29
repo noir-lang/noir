@@ -95,7 +95,9 @@ impl<'a> SsaContext<'a> {
         match op {
             Operation::Binary(binary) => self.binary_to_string(binary),
             Operation::Cast(value) => format!("cast {}", self.node_to_string(*value)),
-            Operation::Truncate { value, bit_size } => format!("truncate {}, bitsize = {}", self.node_to_string(*value), bit_size),
+            Operation::Truncate { value, bit_size, max_bit_size } => {
+                format!("truncate {}, bitsize = {}, max bitsize = {}", self.node_to_string(*value), bit_size, max_bit_size)
+            }
             Operation::Not(v) => format!("not {}", self.node_to_string(*v)),
             Operation::Jne(v, b) => format!("jne {}, {:?}", self.node_to_string(*v), b),
             Operation::Jeq(v, b) => format!("jeq {}, {:?}", self.node_to_string(*v), b),
@@ -108,7 +110,9 @@ impl<'a> SsaContext<'a> {
                 s
             }
             Operation::Load { array, index } => format!("load array {}, index {}", array, self.node_to_string(*index)),
-            Operation::Store { array, index, value } => format!("store array {}, index {}, value {}", array, self.node_to_string(*index), self.node_to_string(*value)),
+            Operation::Store { array, index, value } => {
+                format!("store array {}, index {}, value {}", array, self.node_to_string(*index), self.node_to_string(*value))
+            }
             Operation::Intrinsic(opcode) => format!("intrinsic {}", opcode),
             Operation::Nop => format!("nop"),
         }

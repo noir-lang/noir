@@ -98,16 +98,18 @@ pub fn find_similar_mem_instruction(
                 if let Some(ins_iter) = ctx.try_get_instruction(*iter) {
                     match &ins_iter.operator {
                         Operation::Load { array, index: index2 } => {
-                            if ins_iter.lhs == lhs {
+                            if index == index2 {
                                 return CseAction::Replace { original: ins_id, replacement: *iter };
                             }
                         }
-                        Operation::Store(_) => {
-                            if ins_iter.rhs == lhs {
-                                return (ins_iter.lhs, CseAction::Replace);
+                        Operation::Store { array: array2, index: index2, value } => {
+                            assert_eq!(array, array2);
+
+                            if index == index2 {
+                                return CseAction::Replace { original: ins_id, replacement: *value };
                             } else {
                                 //TODO: If we know that ins.lhs value cannot be equal to ins_iter.rhs, we could continue instead
-                                return (ins_id, CseAction::Keep);
+                                return CseAction::Keep;
                             }
                         }
                         _ => unreachable!("invalid operator in the memory anchor list"),
@@ -115,21 +117,21 @@ pub fn find_similar_mem_instruction(
                 }
             }
         }
-        Operation::Store(x) => {
-            let prev_ins = &anchor[&Operation::Load(x)];
-            for iter in prev_ins.iter().rev() {
-                if let Some(ins_iter) = ctx.try_get_instruction(*iter) {
+        Operation::Store { array, index, value } => {
+            let prev_ins = &anchor[&Operation::Load { array: *array, index: *index }];
+            for node_id in prev_ins.iter().rev() {
+                if let Some(ins_iter) = ctx.try_get_instruction(*node_id) {
                     match ins_iter.operator {
-                        Operation::Load(_) => {
+                        Operation::Load { array: array2, index: index2 } => {
                             //TODO: If we know that ins.rhs value cannot be equal to ins_iter.rhs, we could continue instead
-                            return (ins_id, CseAction::Keep);
+                            return CseAction::Keep;
                         }
-                        Operation::Store(_) => {
-                            if ins_iter.rhs == rhs {
-                                return (*iter, CseAction::Remove);
+                        Operation::Store { array: array2, index: index2, value: value2 } => {
+                            if *index == index2 {
+                                return CseAction::Remove(*node_id);
                             } else {
                                 //TODO: If we know that ins.rhs value cannot be equal to ins_iter.rhs, we could continue instead
-                                return (ins_id, CseAction::Keep);
+                                return CseAction::Keep;
                             }
                         }
                         _ => unreachable!("invalid operator in the memory anchor list"),

@@ -73,8 +73,6 @@ pub fn create_first_block(ctx: &mut SsaContext) {
     ctx.first_block = first_id;
     ctx.current_block = first_id;
     ctx.new_instruction(
-        NodeId::dummy(),
-        NodeId::dummy(),
         node::Operation::Nop,
         node::ObjectType::NotAnObject,
     );
@@ -96,8 +94,6 @@ pub fn new_sealed_block(ctx: &mut SsaContext, kind: BlockType) -> BlockId {
     cb.left = Some(new_id);
     ctx.current_block = new_id;
     ctx.new_instruction(
-        NodeId::dummy(),
-        NodeId::dummy(),
         node::Operation::Nop,
         node::ObjectType::NotAnObject,
     );
@@ -121,8 +117,6 @@ pub fn new_unsealed_block(ctx: &mut SsaContext, kind: BlockType, left: bool) -> 
 
     ctx.current_block = new_idx;
     ctx.new_instruction(
-        NodeId::dummy(),
-        NodeId::dummy(),
         node::Operation::Nop,
         node::ObjectType::NotAnObject,
     );

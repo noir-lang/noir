@@ -1,5 +1,5 @@
 use super::mem::{MemArray, Memory};
-use super::node::{Instruction, Operation};
+use super::node::{Instruction, Operation, BinaryOp};
 use acvm::FieldElement;
 
 use super::node::NodeId;
@@ -18,7 +18,6 @@ use crate::RuntimeErrorKind;
 use acvm::acir::circuit::gate::Directive;
 use acvm::acir::native_types::{Arithmetic, Linear, Witness};
 use num_bigint::BigUint;
-use std::convert::TryInto;
 
 #[derive(Default)]
 pub struct Acir {
@@ -126,116 +125,116 @@ impl Acir {
         if ins.operator == Operation::Nop {
             return;
         }
-        let l_c = self.substitute(ins.lhs, evaluator, ctx);
-        let r_c = self.substitute(ins.rhs, evaluator, ctx);
         let mut output = match ins.operator {
-            Operation::Add | Operation::SafeAdd => {
-                InternalVar::from(add(&l_c.expression, FieldElement::one(), &r_c.expression))
-            }
-            Operation::Sub | Operation::SafeSub => {
-                //we need the type of rhs and its max value, then:
-                //lhs-rhs+k*2^bit_size where k=ceil(max_value/2^bit_size)
-                let bit_size = ctx[ins.rhs].size_in_bits();
-                let r_big = BigUint::one() << bit_size;
-                let mut k = &ins.max_value / &r_big;
-                if &ins.max_value % &r_big != BigUint::zero() {
-                    k = &k + BigUint::one();
+            Operation::Binary(node::Binary { lhs, rhs, operator }) => {
+                let l_c = self.substitute(lhs, evaluator, ctx);
+                let r_c = self.substitute(rhs, evaluator, ctx);
+
+                match operator {
+                    BinaryOp::Add | BinaryOp::SafeAdd => {
+                        InternalVar::from(add(&l_c.expression, FieldElement::one(), &r_c.expression))
+                    }
+                    BinaryOp::Sub { max_rhs_value } | BinaryOp::SafeSub { max_rhs_value } => {
+                        //we need the type of rhs and its max value, then:
+                        //lhs-rhs+k*2^bit_size where k=ceil(max_value/2^bit_size)
+                        let bit_size = ctx[rhs].size_in_bits();
+                        let r_big = BigUint::one() << bit_size;
+                        let mut k = &max_rhs_value / &r_big;
+                        if &max_rhs_value % &r_big != BigUint::zero() {
+                            k = &k + BigUint::one();
+                        }
+                        k = &k * r_big;
+                        let f = FieldElement::from_be_bytes_reduce(&k.to_bytes_be());
+                        let mut output = add(
+                            &l_c.expression,
+                            FieldElement::from(-1_i128),
+                            &r_c.expression,
+                        );
+                        output.q_c += f;
+                        output.into()
+                    }
+                    BinaryOp::Mul | BinaryOp::SafeMul => {
+                        InternalVar::from(evaluate_mul(&l_c, &r_c, evaluator))
+                    }
+                    BinaryOp::Udiv => {
+                        let (q_wit, _) = evaluate_udiv(&l_c, &r_c, evaluator);
+                        InternalVar::from(q_wit)
+                    }
+                    BinaryOp::Sdiv => InternalVar::from(evaluate_sdiv(&l_c, &r_c, evaluator).0),
+                    BinaryOp::Urem => {
+                        let (_, r_wit) = evaluate_udiv(&l_c, &r_c, evaluator);
+                        InternalVar::from(r_wit)
+                    }
+                    BinaryOp::Srem => InternalVar::from(evaluate_sdiv(&l_c, &r_c, evaluator).1),
+                    BinaryOp::Div => InternalVar::from(mul(
+                        &l_c.expression,
+                        &from_witness(evaluate_inverse(&r_c.expression, evaluator)),
+                    )),
+                    BinaryOp::Eq => {
+                        InternalVar::from(self.evaluate_eq(lhs, rhs, &l_c, &r_c, ctx, evaluator))
+                    }
+                    BinaryOp::Ne => {
+                        InternalVar::from(self.evaluate_neq(lhs, rhs, &l_c, &r_c, ctx, evaluator))
+                    }
+                    BinaryOp::Ult => todo!(),
+                    BinaryOp::Ule => todo!(),
+                    BinaryOp::Slt => todo!(),
+                    BinaryOp::Sle => todo!(),
+                    BinaryOp::Lt => todo!(),
+                    BinaryOp::Lte => evaluate_cmp(&l_c, &r_c, 32, evaluator).into(), //TODO we need the bit_size from the instruction
+                    BinaryOp::And => {
+                        InternalVar::from(evaluate_and(l_c, r_c, ins.res_type.bits(), evaluator))
+                    }
+                    BinaryOp::Or => todo!(),
+                    BinaryOp::Xor => {
+                        InternalVar::from(evaluate_xor(l_c, r_c, ins.res_type.bits(), evaluator))
+                    }
+                    BinaryOp::Constrain(op) => match op {
+                        node::ConstrainOp::Eq => {
+                            InternalVar::from(self.equalize(lhs, rhs, &l_c, &r_c, ctx, evaluator))
+                        }
+                        node::ConstrainOp::Neq => {
+                            InternalVar::from(self.distinct(lhs, rhs, &l_c, &r_c, ctx, evaluator))
+                        }
+                    },
+                    i @ BinaryOp::Assign => unreachable!("Invalid Instruction: {:?}", i),
                 }
-                k = &k * r_big;
-                let f = FieldElement::from_be_bytes_reduce(&k.to_bytes_be());
-                let mut output = add(
-                    &l_c.expression,
-                    FieldElement::from(-1_i128),
-                    &r_c.expression,
-                );
-                output.q_c += f;
-                output.into()
             }
-            Operation::Mul | Operation::SafeMul => {
-                InternalVar::from(evaluate_mul(&l_c, &r_c, evaluator))
+            Operation::Not(_) => todo!(),
+            Operation::Cast(value) => self.substitute(value, evaluator, ctx),
+            i @ Operation::Jne(..)
+            | i @ Operation::Jeq(..)
+            | i @ Operation::Jmp(_)
+            | i @ Operation::Phi { .. } => {
+                unreachable!("Invalid instruction: {:?}", i);
             }
-            Operation::Udiv => {
-                let (q_wit, _) = evaluate_udiv(&l_c, &r_c, evaluator);
-                InternalVar::from(q_wit)
-            }
-            Operation::Sdiv => InternalVar::from(evaluate_sdiv(&l_c, &r_c, evaluator).0),
-            Operation::Urem => {
-                let (_, r_wit) = evaluate_udiv(&l_c, &r_c, evaluator);
-                InternalVar::from(r_wit)
-            }
-            Operation::Srem => InternalVar::from(evaluate_sdiv(&l_c, &r_c, evaluator).1),
-            Operation::Div => InternalVar::from(mul(
-                &l_c.expression,
-                &from_witness(evaluate_inverse(&r_c.expression, evaluator)),
-            )),
-            Operation::Eq => {
-                InternalVar::from(self.evaluate_eq(ins.lhs, ins.rhs, &l_c, &r_c, ctx, evaluator))
-            }
-            Operation::Ne => {
-                InternalVar::from(self.evaluate_neq(ins.lhs, ins.rhs, &l_c, &r_c, ctx, evaluator))
-            }
-            Operation::Ugt => todo!(),
-            Operation::Uge => todo!(),
-            Operation::Ult => todo!(),
-            Operation::Ule => todo!(),
-            Operation::Sgt => todo!(),
-            Operation::Sge => todo!(),
-            Operation::Slt => todo!(),
-            Operation::Sle => todo!(),
-            Operation::Lt => todo!(),
-            Operation::Gt => todo!(),
-            Operation::Lte => evaluate_cmp(&l_c, &r_c, 32, evaluator).into(), //TODO we need the bit_size from the instruction
-            Operation::Gte => evaluate_cmp(&r_c, &l_c, 32, evaluator).into(), //TODO we need the bit_size from the instruction
-            Operation::And => {
-                InternalVar::from(evaluate_and(l_c, r_c, ins.res_type.bits(), evaluator))
-            }
-            Operation::Not => todo!(),
-            Operation::Or => todo!(),
-            Operation::Xor => {
-                InternalVar::from(evaluate_xor(l_c, r_c, ins.res_type.bits(), evaluator))
-            }
-            Operation::Cast => l_c.clone(),
-            Operation::Assign
-            | Operation::Jne
-            | Operation::Jeq
-            | Operation::Jmp
-            | Operation::Phi => {
-                todo!("invalid instruction");
-            }
-            Operation::Truncate => {
-                assert!(is_const(&r_c.expression));
+            Operation::Truncate { value, bit_size, max_bit_size } => {
+                let value = self.substitute(value, evaluator, ctx);
                 InternalVar::from(evaluate_truncate(
-                    l_c,
-                    r_c.expression.q_c.to_u128().try_into().unwrap(),
-                    ins.bit_size,
+                    value,
+                    bit_size,
+                    max_bit_size,
                     evaluator,
                 ))
             }
             Operation::Intrinsic(_) => todo!("Intrinsic"),
             Operation::Nop => InternalVar::default(),
-            Operation::Constrain(op) => match op {
-                node::ConstrainOp::Eq => {
-                    InternalVar::from(self.equalize(ins.lhs, ins.rhs, &l_c, &r_c, ctx, evaluator))
-                }
-                node::ConstrainOp::Neq => {
-                    InternalVar::from(self.distinct(ins.lhs, ins.rhs, &l_c, &r_c, ctx, evaluator))
-                }
-            },
-            Operation::Load(array_idx) => {
+            Operation::Load { array, index } => {
                 //retrieves the value from the map if address is known at compile time:
                 //address = l_c and should be constant
+                let l_c = self.substitute(index, evaluator, ctx);
                 if let Some(val) = l_c.to_const() {
                     let address = mem::Memory::as_u32(val);
                     if self.memory_map.contains_key(&address) {
                         InternalVar::from(self.memory_map[&address].expression.clone())
                     } else {
                         //if not found, then it must be a witness (else it is non-initialised memory)
-                        let array = &ctx.mem.arrays[array_idx as usize];
-                        let index = (address - array.adr) as usize;
-                        let w = if array.witness.len() > index {
-                            array.witness[index]
+                        let mem_array = &ctx.mem.arrays[array as usize];
+                        let index = (address - mem_array.adr) as usize;
+                        let w = if mem_array.witness.len() > index {
+                            mem_array.witness[index]
                         } else {
-                            self.memory_witness[&array_idx][index]
+                            self.memory_witness[&array][index]
                         };
                         InternalVar::from(w)
                     }
@@ -244,11 +243,14 @@ impl Acir {
                 }
             }
 
-            Operation::Store(_) => {
+            Operation::Store { array, index, value } => {
                 //maps the address to the rhs if address is known at compile time
-                if let Some(val) = r_c.to_const() {
-                    let address = mem::Memory::as_u32(val);
-                    self.memory_map.insert(address, l_c);
+                let index = self.substitute(index, evaluator, ctx);
+                let value = self.substitute(value, evaluator, ctx);
+
+                if let Some(index) = index.to_const() {
+                    let address = mem::Memory::as_u32(index);
+                    self.memory_map.insert(address, value);
                     dbg!(&self.memory_map);
                     //we do not generate constraint, so no output.
                     InternalVar::default()

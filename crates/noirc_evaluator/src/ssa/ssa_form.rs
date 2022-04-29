@@ -1,3 +1,5 @@
+use crate::ssa::node::Operation;
+
 use super::{
     block::BlockId,
     context::SsaContext,
@@ -14,17 +16,22 @@ pub fn write_phi(ctx: &mut SsaContext, predecessors: &[BlockId], var: NodeId, ph
 
     let s2 = node::Instruction::simplify_phi(phi, &result);
     if let Some(phi_ins) = ctx.try_get_mut_instruction(phi) {
-        assert!(phi_ins.phi_arguments.is_empty());
+        let (phi_root, phi_args) = match &mut phi_ins.operator {
+            Operation::Phi { root, block_args } => (root, block_args),
+            _ => unreachable!(),
+        };
+
+        assert_eq!(phi_args.len(), 0);
         if let Some(s_phi) = s2 {
             if s_phi != phi {
                 //s2 != phi
                 phi_ins.is_deleted = true;
-                phi_ins.rhs = s_phi;
+                todo!("Replace phi with {:?}", ctx.try_get_mut_instruction(s_phi));
                 //eventually simplify recursively: if a phi instruction is in phi use list, call simplify_phi() on it
                 //but cse should deal with most of it.
             } else {
                 //s2 == phi
-                phi_ins.phi_arguments = result;
+                *phi_args = result;
             }
         } else {
             //s2 is None
@@ -39,9 +46,8 @@ pub fn seal_block(ctx: &mut SsaContext, block_id: BlockId) {
     let instructions = block.instructions.clone();
     for i in instructions {
         if let Some(ins) = ctx.try_get_instruction(i) {
-            let rhs = ins.rhs;
-            if ins.operator == node::Operation::Phi {
-                write_phi(ctx, &pred, rhs, i);
+            if let Operation::Phi { root, .. } = &ins.operator {
+                write_phi(ctx, &pred, *root, i);
             }
         }
     }

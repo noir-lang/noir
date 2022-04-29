@@ -398,11 +398,17 @@ impl Instruction {
         }
     }
 
+    pub fn evaluate(&self, ctx: &SsaContext) -> NodeEval {
+        self.evaluate_with(ctx, NodeEval::from_id)
+    }
+
     //Evaluate the instruction value when its operands are constant (constant folding)
-    pub fn evaluate(&self, ctx: &mut SsaContext) -> NodeEval {
+    pub fn evaluate_with<F>(&self, ctx: &SsaContext, eval_fn: F) -> NodeEval
+        where F: FnMut(&SsaContext, NodeId) -> NodeEval
+    {
         match &self.operator {
             Operation::Binary(binary) => {
-                return binary.evaluate(ctx, self.id, self.res_type)
+                return binary.evaluate(ctx, self.id, self.res_type, eval_fn)
             }
             Operation::Cast(value) => {
                 if let Some(l_const) = ctx.get_const_value(*value) {
@@ -505,7 +511,7 @@ pub enum ConstrainOp {
 pub enum Operation {
     Binary(Binary),
     Cast(NodeId),                              //convert type
-    Truncate { value: NodeId, bit_size: u32 }, //truncate
+    Truncate { value: NodeId, bit_size: u32, max_bit_size: u32 }, //truncate
 
     Not(NodeId), //(!) Bitwise Not
 
@@ -628,20 +634,23 @@ impl Binary {
         Binary::new(operator, lhs, rhs)
     }
 
-    fn evaluate(
+    fn evaluate<F>(
         &self,
-        ctx: &mut SsaContext,
+        ctx: &SsaContext,
         id: NodeId,
         res_type: ObjectType,
-    ) -> NodeEval {
+        eval_fn: F
+    ) -> NodeEval 
+        where F: FnMut(&SsaContext, NodeId) -> NodeEval
+    {
         let lhs = ctx.get_value_and_bitsize(self.lhs);
         let rhs = ctx.get_value_and_bitsize(self.rhs);
 
         let l_is_zero = lhs.map_or(false, |x| x.0.is_zero());
         let r_is_zero = rhs.map_or(false, |x| x.0.is_zero());
 
-        let l_eval = NodeEval::from_id(ctx, self.lhs);
-        let r_eval = NodeEval::from_id(ctx, self.rhs);
+        let l_eval = eval_fn(ctx, self.lhs);
+        let r_eval = eval_fn(ctx, self.rhs);
 
         match &self.operator {
             BinaryOp::Add | BinaryOp::SafeAdd => {
@@ -888,9 +897,10 @@ impl Operation {
                 Binary(self::Binary { lhs: f(lhs), rhs: f(rhs), operator })
             },
             Cast(value) => Cast(f(value)),
-            Truncate { value, bit_size } => Truncate {
+            Truncate { value, bit_size, max_bit_size } => Truncate {
                 value: f(value),
                 bit_size,
+                max_bit_size,
             },
             Not(id) => Not(f(id)),
             Jne(id, block) => Jne(f(id), block),
