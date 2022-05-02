@@ -362,12 +362,12 @@ fn type_check_function_call(
 pub fn prefix_operand_type_rules(op: &HirUnaryOp, rhs_type: &Type) -> Result<Type, String> {
     match op {
         HirUnaryOp::Minus => {
-            if !matches!(rhs_type, Type::Integer(..)) {
+            if !matches!(rhs_type, Type::Integer(..) | Type::Error) {
                 return Err("Only Integers can be used in a Minus expression".to_string());
             }
         }
         HirUnaryOp::Not => {
-            if !matches!(rhs_type, Type::Integer(..) | Type::Bool) {
+            if !matches!(rhs_type, Type::Integer(..) | Type::Bool | Type::Error) {
                 return Err("Only Integers or Bool can be used in a Not expression".to_string());
             }
         }
