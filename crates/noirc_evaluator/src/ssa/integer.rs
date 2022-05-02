@@ -47,7 +47,7 @@ pub fn get_instruction_max_operand(
                 if let Some(lhs_const) = ctx.get_as_constant(ins.lhs) {
                     let lhs_big = BigUint::from_bytes_be(&lhs_const.to_bytes());
                     if right_max <= lhs_big {
-                        //todo unsigned
+                        //TODO unsigned
                         return lhs_big;
                     }
                 }
@@ -393,9 +393,9 @@ pub fn block_overflow(
             && ins.res_type != ObjectType::NativeField
         {
             //let's truncate a and b:
-            //- insert truncate(lhs) dans la list des instructions
-            //- insert truncate(rhs) dans la list des instructions
-            //- update r_max et l_max
+            //- insert truncate(lhs) to the list of instructions
+            //- insert truncate(rhs) to the list of instructions
+            //- update r_max to l_max
             //n.b we could try to truncate only one of them, but then we should check if rhs==lhs.
             let l_trunc_max = add_to_truncate(
                 ctx,
