@@ -67,11 +67,14 @@ void populate_kate_element_map(typename Curve::Composer* ctx,
         case waffle::PolynomialSource::WITNESS: {
             const auto element = transcript.get_group_element(label);
             ASSERT(element.on_curve());
+            // g1_ct::from_witness validates that the point produced lies on the curve
             kate_g1_elements.insert({ label, g1_ct::from_witness(ctx, element) });
             break;
         }
         case waffle::PolynomialSource::SELECTOR: {
             const auto element = key->constraint_selectors.at(label);
+            // TODO: with user-defined circuits, we will need verify that the point
+            // lies on the curve with constraints
             if (!element.get_value().on_curve()) {
                 std::cerr << "c selector not on curve!" << std::endl;
             }
@@ -80,6 +83,8 @@ void populate_kate_element_map(typename Curve::Composer* ctx,
         }
         case waffle::PolynomialSource::PERMUTATION: {
             const auto element = key->permutation_selectors.at(label);
+            // TODO: with user-defined circuits, we will need verify that the point
+            // lies on the curve with constraints
             if (!element.get_value().on_curve()) {
                 std::cerr << "p selector not on curve!" << std::endl;
             }
@@ -258,10 +263,6 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
     std::vector<g1_ct> elements_to_add;
     for (const auto& [label, fr_value] : kate_fr_elements_at_zeta) {
         const auto& g1_value = kate_g1_elements[label];
-        // if (!g1_value.on_curve()) {
-        //     std::cerr << "error a" << std::endl;
-        //     continue; // TODO handle this
-        // }
         if (fr_value.get_value() == 0 && fr_value.witness_index != IS_CONSTANT) {
             std::cerr << "bad scalar zero at " << label << std::endl;
         }
