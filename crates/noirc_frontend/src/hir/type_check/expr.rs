@@ -2,7 +2,7 @@ use noirc_errors::Span;
 
 use crate::{
     hir_def::{
-        expr::{self, HirBinaryOp, HirExpression, HirLiteral},
+        expr::{self, HirBinaryOp, HirExpression, HirLiteral, HirUnaryOp},
         function::Param,
         types::Type,
     },
@@ -227,9 +227,19 @@ pub(crate) fn type_check_expression(
 
             block_type
         }
-        HirExpression::Prefix(_) => {
-            // type_of(prefix_expr) == type_of(rhs_expression)
-            todo!("prefix expressions have not been implemented yet")
+        HirExpression::Prefix(prefix_expr) => {
+            let rhs_type = type_check_expression(interner, &prefix_expr.rhs, errors);
+            match prefix_operand_type_rules(&prefix_expr.operator, &rhs_type) {
+                Ok(typ) => typ,
+                Err(msg) => {
+                    let rhs_span = interner.expr_span(&prefix_expr.rhs);
+                    errors.push(TypeCheckError::Unstructured {
+                        msg,
+                        span: rhs_span,
+                    });
+                    Type::Error
+                }
+            }
         }
         HirExpression::If(if_expr) => check_if_expr(&if_expr, expr_id, interner, errors),
         HirExpression::Constructor(constructor) => {
@@ -348,6 +358,22 @@ fn type_check_function_call(
         // The type of the call expression is the return type of the function being called
         func_meta.return_type
     }
+}
+
+pub fn prefix_operand_type_rules(op: &HirUnaryOp, rhs_type: &Type) -> Result<Type, String> {
+    match op {
+        HirUnaryOp::Minus => {
+            if !matches!(rhs_type, Type::Integer(..) | Type::Error) {
+                return Err("Only Integers can be used in a Minus expression".to_string());
+            }
+        }
+        HirUnaryOp::Not => {
+            if !matches!(rhs_type, Type::Integer(..) | Type::Bool | Type::Error) {
+                return Err("Only Integers or Bool can be used in a Not expression".to_string());
+            }
+        }
+    }
+    Ok(rhs_type.clone())
 }
 
 // Given a binary operator and another type. This method will produce the output type

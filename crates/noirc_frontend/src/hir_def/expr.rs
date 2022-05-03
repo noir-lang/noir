@@ -64,6 +64,8 @@ pub enum HirBinaryOpKind {
     And,
     Or,
     Xor,
+    Shl,
+    Shr,
     MemberAccess,
     Assign,
 }
@@ -90,6 +92,8 @@ impl From<BinaryOpKind> for HirBinaryOpKind {
             BinaryOpKind::And => HirBinaryOpKind::And,
             BinaryOpKind::Or => HirBinaryOpKind::Or,
             BinaryOpKind::Xor => HirBinaryOpKind::Xor,
+            BinaryOpKind::ShiftLeft => HirBinaryOpKind::Shl,
+            BinaryOpKind::ShiftRight => HirBinaryOpKind::Shr,
             BinaryOpKind::Assign => HirBinaryOpKind::Assign,
         }
     }
