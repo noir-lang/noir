@@ -40,9 +40,12 @@ template <typename Composer> struct blake2s_state {
 template <typename Composer> void blake2s_increment_counter(blake2s_state<Composer>& S, const uint32_t inc)
 {
     S.t[0] = S.t[0] + inc;
-    // TODO: Secure!? Think so as inc is known at "compile" time as it's derived from the msg length.
     const bool to_inc = S.t[0].get_value() < inc;
     S.t[1] = S.t[1] + (to_inc ? 1 : 0);
+    // We assert that t[0] and t[1] are circuit constants to ensure the incerementing depends only on the circuit and
+    // not on witness values
+    ASSERT(S.t[0].is_constant());
+    ASSERT(S.t[1].is_constant());
 }
 
 #define G(r, i, a, b, c, d)                                                                                            \
