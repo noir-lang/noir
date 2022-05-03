@@ -954,8 +954,8 @@ pub fn to_operation(op_kind: HirBinaryOpKind, op_type: ObjectType) -> Operation 
         HirBinaryOpKind::And => Operation::And,
         HirBinaryOpKind::Or => Operation::Or,
         HirBinaryOpKind::Xor => Operation::Xor,
-        // TODO TEMP need binary_ops PR   HirBinaryOpKind::ShiftLeft => Operation::Shl,
-        // TODO TEMP need binary_ops PR   HirBinaryOpKind::ShiftRight => Operation::Shr,
+        HirBinaryOpKind::ShiftLeft => Operation::Shl,
+        HirBinaryOpKind::ShiftRight => Operation::Shr,
         HirBinaryOpKind::Divide => {
             let num_type: NumericType = op_type.into();
             match num_type {
