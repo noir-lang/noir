@@ -611,9 +611,15 @@ impl<'a> IRGenerator<'a> {
             },
             HirExpression::Index(indexed_expr) => {
                 // Currently these only happen for arrays
-                let arr_def = indexed_expr.collection_name.id;
-                let arr_name = self.def_interner().definition_name(indexed_expr.collection_name.id).to_owned();
-                let ident_span = indexed_expr.collection_name.span;
+                let collection_name = match self.def_interner().expression(&indexed_expr.collection) {
+                    HirExpression::Ident(id) => id,
+                    other => todo!("Array indexing with an lhs of '{:?}' is unimplemented, you must use an expression in the form `identifier[expression]` for now.", other)
+                };
+
+                let arr_def = collection_name.id;
+                let arr_name = self.def_interner().definition_name(arr_def).to_owned();
+                let ident_span = collection_name.span;
+
                 let arr_type = self.def_interner().id_type(arr_def);
                 let o_type = arr_type.into();
                 let mut array_index = self.context.mem.arrays.len() as u32;
