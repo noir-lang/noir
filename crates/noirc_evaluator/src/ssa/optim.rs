@@ -128,9 +128,10 @@ pub fn find_similar_mem_instruction(
                 if let Some(ins_iter) = ctx.try_get_instruction(*iter) {
                     match &ins_iter.operator {
                         Operation::Load {
-                            array,
+                            array: array2,
                             index: index2,
                         } => {
+                            assert_eq!(array, array2);
                             assert_eq!(index, index2);
                             return CseAction::Replace {
                                 original: ins_id,
@@ -162,7 +163,7 @@ pub fn find_similar_mem_instruction(
         Operation::Store {
             array,
             index,
-            value,
+            value: _,
         } => {
             let prev_ins = &anchor[&Operation::Load {
                 array: *array,
@@ -172,16 +173,15 @@ pub fn find_similar_mem_instruction(
                 if let Some(ins_iter) = ctx.try_get_instruction(*node_id) {
                     match ins_iter.operator {
                         Operation::Load {
-                            array: array2,
-                            index: index2,
+                            ..
                         } => {
                             //TODO: If we know that ins.rhs value cannot be equal to ins_iter.rhs, we could continue instead
                             return CseAction::Keep;
                         }
                         Operation::Store {
-                            array: array2,
                             index: index2,
-                            value: value2,
+                            array: _,
+                            value: _,
                         } => {
                             if *index == index2 {
                                 return CseAction::Remove(*node_id);
@@ -202,7 +202,7 @@ pub fn find_similar_mem_instruction(
 }
 
 pub fn propagate(ctx: &SsaContext, id: NodeId) -> NodeId {
-    let mut result = id;
+    let result = id;
     if let Some(obj) = ctx.try_get_instruction(id) {
         if obj.is_deleted || matches!(obj.operator, Operation::Binary(node::Binary { operator: BinaryOp::Assign, .. })) {
             // result = obj.rhs;
@@ -237,7 +237,7 @@ pub fn cse_tree(
 
 pub fn anchor_push(op: Operation, anchor: &mut HashMap<Operation, VecDeque<NodeId>>) {
     match op {
-        Operation::Store { array, index, value } => anchor
+        Operation::Store { array, index, .. } => anchor
             // TODO: review correctness
             .entry(Operation::Load { array, index })
             .or_insert_with(VecDeque::new),
@@ -262,25 +262,24 @@ pub fn block_cse(
     for ins_id in instructions {
         if let Some(ins) = ctx.try_get_instruction(*ins_id) {
             let mut to_delete = false;
-            let mut to_update_phi = false;
 
             if ins.is_deleted {
                 continue;
             }
 
-            anchor_push(ins.operator, anchor);
+            anchor_push(ins.operator.clone(), anchor);
 
             let operator = ins.operator.map_id(|id| propagate(ctx, id));
 
             if operator.is_binary() {
                 //binary operation:
-                if let Some(j) = find_similar_instruction(ctx, &ins.operator, &anchor[&ins.operator]) {
-                    to_delete = true; //we want to delete ins but ins is immutable so we use the new_list instead
+                if let Some(_j) = find_similar_instruction(ctx, &ins.operator, &anchor[&ins.operator]) {
+                    // to_delete = true; //we want to delete ins but ins is immutable so we use the new_list instead
                     // i_rhs = j;
                     todo!("Refactor deletion");
-                } else if let Operation::Binary(node::Binary { operator: BinaryOp::Assign, lhs, rhs }) = operator {
+                } else if let Operation::Binary(node::Binary { operator: BinaryOp::Assign, .. }) = operator {
                     // i_rhs = propagate(ctx, ins.rhs);
-                    to_delete = true;
+                    // to_delete = true;
                     todo!("Refactor deletion");
                 } else {
                     new_list.push(*ins_id);
@@ -288,11 +287,11 @@ pub fn block_cse(
                 }
             } else {
                 match &operator {
-                    Operation::Load { index, .. } | Operation::Store { index, .. } => {
+                    Operation::Load { .. } | Operation::Store { .. } => {
                         match find_similar_mem_instruction(ctx, &operator, ins.id, anchor) {
                             CseAction::Keep => new_list.push(*ins_id),
-                            CseAction::Replace { original, replacement } => {
-                                to_delete = true;
+                            CseAction::Replace { original: _, replacement: _ } => {
+                                // to_delete = true;
                                 // i_rhs = replacement;
                                 todo!("Refactor deletion")
                             }
@@ -305,13 +304,13 @@ pub fn block_cse(
                             }
                         }
                     }
-                    Operation::Phi { root, block_args } => {
+                    Operation::Phi { block_args, .. } => {
                         // propagate phi arguments
                         if let Some(first) = Instruction::simplify_phi(ins.id, block_args) {
                             if first == ins.id {
                                 new_list.push(*ins_id);
                             } else {
-                                to_delete = true;
+                                // to_delete = true;
                                 // /i_rhs = first;
                                 todo!("Refactor deletion");
                             }
@@ -319,12 +318,12 @@ pub fn block_cse(
                             to_delete = true;
                         }
                     }
-                    Operation::Cast(value) => {
+                    Operation::Cast(_) => {
                         //Similar cast must have same type
-                        if let Some(j) =
+                        if let Some(_j) =
                             find_similar_cast(ctx, &operator, ins.res_type, &anchor[&operator])
                         {
-                            to_delete = true; //we want to delete ins but ins is immutable so we use the new_list instead
+                            // to_delete = true; //we want to delete ins but ins is immutable so we use the new_list instead
                             // i_rhs = j;
                             todo!("Refactor deletion");
                         } else {
@@ -332,15 +331,15 @@ pub fn block_cse(
                             anchor.get_mut(&operator).unwrap().push_front(*ins_id);
                         }
                     }
-                    Operation::Call(_, args) | Operation::Return(args) => {
+                    Operation::Call(..) | Operation::Return(..) => {
                         //No CSE for function calls because of possible side effect - TODO checks if a function has side effect when parsed and do cse for these.
                         //Propagate arguments:
                         new_list.push(*ins_id);
                     }
-                    Operation::Intrinsic(_, args) => {
+                    Operation::Intrinsic(..) => {
                         //n.b this could be the default behavior for binary operations
-                        if let Some(j) = find_similar_instruction(ctx, &operator, &anchor[&operator]) {
-                            to_delete = true; //we want to delete ins but ins is immutable so we use the new_list instead
+                        if let Some(_j) = find_similar_instruction(ctx, &operator, &anchor[&operator]) {
+                            // to_delete = true; //we want to delete ins but ins is immutable so we use the new_list instead
                             // i_rhs = j;
                             todo!("Refactor deletion")
                         } else {
@@ -361,7 +360,7 @@ pub fn block_cse(
         }
     }
 
-    let last = new_list.into_iter().rev().find(|id| is_some(ctx, *id));
+    let last = new_list.iter().copied().rev().find(|id| is_some(ctx, *id));
     ctx[block_id].instructions = new_list;
     last
 }

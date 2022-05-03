@@ -17,8 +17,8 @@ pub fn write_phi(ctx: &mut SsaContext, predecessors: &[BlockId], var: NodeId, ph
     }
     let s2 = node::Instruction::simplify_phi(phi, &result);
     if let Some(phi_ins) = ctx.try_get_mut_instruction(phi) {
-        let (phi_root, phi_args) = match &mut phi_ins.operator {
-            Operation::Phi { root, block_args } => (root, block_args),
+        let phi_args = match &mut phi_ins.operator {
+            Operation::Phi { block_args, .. } => block_args,
             _ => unreachable!(),
         };
 
@@ -48,7 +48,8 @@ pub fn seal_block(ctx: &mut SsaContext, block_id: BlockId) {
     for i in instructions {
         if let Some(ins) = ctx.try_get_instruction(i) {
             if let Operation::Phi { root, .. } = &ins.operator {
-                write_phi(ctx, &pred, *root, i);
+                let root = *root;
+                write_phi(ctx, &pred, root, i);
             }
         }
     }

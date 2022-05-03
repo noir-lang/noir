@@ -388,25 +388,22 @@ impl Instruction {
     }
 
     /// Indicates whether the left and/or right operand of the instruction is required to be truncated to its bit-width
-    pub fn truncate_required(&self, lhs_bits: u32, rhs_bits: u32) -> (bool, bool) {
-        match self.operator {
+    pub fn truncate_required(&self, cast_operation_lhs_bits: u32) -> bool {
+        match &self.operator {
             Operation::Binary(binary) => binary.truncate_required(),
-            Operation::Not(..) => (true, true),
+            Operation::Not(..) => true,
             Operation::Cast(..) => {
-                if self.res_type.bits() > lhs_bits {
-                    return (true, false);
-                }
-                (false, false)
+                self.res_type.bits() > cast_operation_lhs_bits
             }
-            Operation::Truncate { .. } | Operation::Phi { .. } => (false, false),
+            Operation::Truncate { .. } | Operation::Phi { .. } => false,
             Operation::Nop | Operation::Jne(..) | Operation::Jeq(..) | Operation::Jmp(..) => {
-                (false, false)
+                false
             }
-            Operation::Load { .. } | Operation::Store { .. } => (false, false),
-            Operation::Intrinsic(_, _) => (true, true), //TODO to check
-            Operation::Call(_, _) => (false, false), //return values are in the return statment, should we truncate function arguments? probably but not lhs and rhs anyways.
-            Operation::Return(_) => (true, false),
-            Operation::Results { .. } => (false, false),
+            Operation::Load { .. } | Operation::Store { .. } => false,
+            Operation::Intrinsic(_, _) => true, //TODO to check
+            Operation::Call(_, _) => false, //return values are in the return statment, should we truncate function arguments? probably but not lhs and rhs anyways.
+            Operation::Return(_) => true,
+            Operation::Results { .. } => false,
         }
     }
 
@@ -495,7 +492,7 @@ impl Instruction {
 impl<'c> SsaContext<'c> {
     fn get_const_value(&self, id: NodeId) -> Option<u128> {
         match &self[id] {
-            NodeObj::Const(c) => c.value.try_into().ok(),
+            NodeObj::Const(c) => c.value.clone().try_into().ok(),
             _ => None,
         }
     }
@@ -673,7 +670,7 @@ impl Binary {
         ctx: &SsaContext,
         id: NodeId,
         res_type: ObjectType,
-        eval_fn: F,
+        mut eval_fn: F,
     ) -> NodeEval
     where
         F: FnMut(&SsaContext, NodeId) -> NodeEval,
@@ -776,7 +773,7 @@ impl Binary {
                 if r_is_zero {
                     return NodeEval::Const(FieldElement::zero(), ObjectType::Boolean);
                     //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
-                } else if let (Some((lhs, l_bits)), Some((rhs, r_bits))) = (lhs, rhs) {
+                } else if let (Some((lhs, l_bits)), Some((rhs, _))) = (lhs, rhs) {
                     assert!(l_bits < 256); //comparisons are not implemented for field elements
                     let res = if lhs < rhs {
                         FieldElement::one()
@@ -790,7 +787,7 @@ impl Binary {
                 if l_is_zero {
                     return NodeEval::Const(FieldElement::one(), ObjectType::Boolean);
                     //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
-                } else if let (Some((lhs, l_bits)), Some((rhs, r_bits))) = (lhs, rhs) {
+                } else if let (Some((lhs, l_bits)), Some((rhs, _))) = (lhs, rhs) {
                     assert!(l_bits < 256); //comparisons are not implemented for field elements
                     let res = if lhs <= rhs {
                         FieldElement::one()
@@ -803,7 +800,7 @@ impl Binary {
             BinaryOp::Eq => {
                 if self.lhs == self.rhs {
                     return NodeEval::Const(FieldElement::one(), ObjectType::Boolean);
-                } else if let (Some((lhs, l_bits)), Some((rhs, r_bits))) = (lhs, rhs) {
+                } else if let (Some((lhs, _)), Some((rhs, _))) = (lhs, rhs) {
                     if lhs == rhs {
                         return NodeEval::Const(FieldElement::one(), ObjectType::Boolean);
                     } else {
@@ -814,7 +811,7 @@ impl Binary {
             BinaryOp::Ne => {
                 if self.lhs == self.rhs {
                     return NodeEval::Const(FieldElement::zero(), ObjectType::Boolean);
-                } else if let (Some((lhs, l_bits)), Some((rhs, r_bits))) = (lhs, rhs) {
+                } else if let (Some((lhs, _)), Some((rhs, _))) = (lhs, rhs) {
                     if lhs != rhs {
                         return NodeEval::Const(FieldElement::one(), ObjectType::Boolean);
                     } else {
@@ -875,32 +872,32 @@ impl Binary {
         NodeEval::VarOrInstruction(id)
     }
 
-    fn truncate_required(&self) -> (/*truncate_left*/ bool, /*truncate_right*/ bool) {
+    fn truncate_required(&self) -> bool {
         match &self.operator {
-            BinaryOp::Add => (false, false),
-            BinaryOp::SafeAdd => (false, false),
-            BinaryOp::Sub { .. } => (false, false),
-            BinaryOp::SafeSub { .. } => (false, false),
-            BinaryOp::Mul => (false, false),
-            BinaryOp::SafeMul => (false, false),
-            BinaryOp::Udiv => (true, true),
-            BinaryOp::Sdiv => (true, true),
-            BinaryOp::Urem => (true, true),
-            BinaryOp::Srem => (true, true),
-            BinaryOp::Div => (false, false),
-            BinaryOp::Eq => (true, true),
-            BinaryOp::Ne => (true, true),
-            BinaryOp::Ult => (true, true),
-            BinaryOp::Ule => (true, true),
-            BinaryOp::Slt => (true, true),
-            BinaryOp::Sle => (true, true),
-            BinaryOp::Lt => (true, true),
-            BinaryOp::Lte => (true, true),
-            BinaryOp::And => (true, true),
-            BinaryOp::Or => (true, true),
-            BinaryOp::Xor => (true, true),
-            BinaryOp::Constrain(..) => (true, true),
-            BinaryOp::Assign => (false, false),
+            BinaryOp::Add => false,
+            BinaryOp::SafeAdd => false,
+            BinaryOp::Sub { .. } => false,
+            BinaryOp::SafeSub { .. } => false,
+            BinaryOp::Mul => false,
+            BinaryOp::SafeMul => false,
+            BinaryOp::Udiv => true,
+            BinaryOp::Sdiv => true,
+            BinaryOp::Urem => true,
+            BinaryOp::Srem => true,
+            BinaryOp::Div => false,
+            BinaryOp::Eq => true,
+            BinaryOp::Ne => true,
+            BinaryOp::Ult => true,
+            BinaryOp::Ule => true,
+            BinaryOp::Slt => true,
+            BinaryOp::Sle => true,
+            BinaryOp::Lt => true,
+            BinaryOp::Lte => true,
+            BinaryOp::And => true,
+            BinaryOp::Or => true,
+            BinaryOp::Xor => true,
+            BinaryOp::Constrain(..) => true,
+            BinaryOp::Assign => false,
         }
     }
 }
@@ -932,55 +929,101 @@ impl Operation {
         Operation::Binary(Binary::new(op, lhs, rhs))
     }
 
-    pub fn map_id(self, f: impl FnMut(NodeId) -> NodeId) -> Operation {
+    pub fn map_id(&self, mut f: impl FnMut(NodeId) -> NodeId) -> Operation {
         use Operation::*;
         match self {
             Binary(self::Binary { lhs, rhs, operator }) => Binary(self::Binary {
-                lhs: f(lhs),
-                rhs: f(rhs),
-                operator,
+                lhs: f(*lhs),
+                rhs: f(*rhs),
+                operator: operator.clone(),
             }),
-            Cast(value) => Cast(f(value)),
+            Cast(value) => Cast(f(*value)),
             Truncate {
                 value,
                 bit_size,
                 max_bit_size,
             } => Truncate {
-                value: f(value),
-                bit_size,
-                max_bit_size,
+                value: f(*value),
+                bit_size: *bit_size,
+                max_bit_size: *max_bit_size,
             },
-            Not(id) => Not(f(id)),
-            Jne(id, block) => Jne(f(id), block),
-            Jeq(id, block) => Jeq(f(id), block),
-            Jmp(block) => Jmp(block),
+            Not(id) => Not(f(*id)),
+            Jne(id, block) => Jne(f(*id), *block),
+            Jeq(id, block) => Jeq(f(*id), *block),
+            Jmp(block) => Jmp(*block),
             Phi { root, block_args } => Phi {
-                root: f(root),
-                block_args,
+                root: f(*root),
+                block_args: vecmap(block_args, |(id, block)| (f(*id), *block)),
             },
             Load { array, index } => Load {
-                array,
-                index: f(index),
+                array: *array,
+                index: f(*index),
             },
             Store {
                 array,
                 index,
                 value,
             } => Store {
-                array,
-                index: f(index),
-                value: f(value),
+                array: *array,
+                index: f(*index),
+                value: f(*value),
             },
-            Intrinsic(i, args) => Intrinsic(i, vecmap(args, f)),
+            Intrinsic(i, args) => Intrinsic(*i, vecmap(args.iter().copied(), f)),
             Nop => Nop,
-            Call(func_id, args) => Call(func_id, vecmap(args, f)),
-            Return(values) => Return(vecmap(values, f)),
+            Call(func_id, args) => Call(*func_id, vecmap(args.iter().copied(), f)),
+            Return(values) => Return(vecmap(values.iter().copied(), f)),
             Results {
                 call_instruction,
                 results,
             } => Results {
-                call_instruction: f(call_instruction),
-                results: vecmap(results, f),
+                call_instruction: f(*call_instruction),
+                results: vecmap(results.iter().copied(), f),
+            },
+        }
+    }
+
+    /// This is the same as map_id but doesn't return a new Operation
+    pub fn for_each_id(&self, mut f: impl FnMut(NodeId)) {
+        use Operation::*;
+        match self {
+            Binary(self::Binary { lhs, rhs, .. }) => {
+                f(*lhs);
+                f(*rhs);
+            },
+            Cast(value) => f(*value),
+            Truncate {
+                value,
+                ..
+            } => f(*value),
+            Not(id) => f(*id),
+            Jne(id, _) => f(*id),
+            Jeq(id, _) => f(*id),
+            Jmp(_) => (),
+            Phi { root, block_args } => {
+                f(*root);
+                for (id, _block) in block_args {
+                    f(*id);
+                }
+            },
+            Load { index, .. } => f(*index),
+            Store {
+                index,
+                value,
+                ..
+            } => {
+                f(*index);
+                f(*value);
+            },
+            Intrinsic(_, args) => args.iter().copied().for_each(f),
+            Nop => (),
+            Call(_, args) => args.iter().copied().for_each(f),
+            Return(values) => values.iter().copied().for_each(f),
+            Results {
+                call_instruction,
+                results,
+            } => {
+                f(*call_instruction);
+                results.iter().copied().for_each(f);
             },
         }
     }

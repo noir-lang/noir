@@ -32,25 +32,22 @@ pub fn unroll_tree(ctx: &mut SsaContext) {
 fn eval_block(block_id: BlockId, eval_map: &HashMap<NodeId, NodeEval>, ctx: &mut SsaContext) {
     for i in &ctx[block_id].instructions.clone() {
         if let Some(ins) = ctx.try_get_mut_instruction(*i) {
-            ins.operator = update_operator(ctx, ins.operator, eval_map);
+            ins.operator = update_operator(&ins.operator, eval_map);
             // TODO: simplify(ctx, ins);
         }
     }
 }
 
 fn update_operator(
-    ctx: &mut SsaContext,
-    operator: Operation,
+    operator: &Operation,
     eval_map: &HashMap<NodeId, NodeEval>,
 ) -> Operation {
-    let update = |id| {
+    operator.map_id(|id| {
         eval_map
             .get(&id)
             .and_then(|value| value.into_node_id())
             .unwrap_or(id)
-    };
-
-    operator.map_id(update)
+    })
 }
 
 pub fn unroll_block(
@@ -182,13 +179,10 @@ pub fn outer_unroll(
         //2. map the Phis variables to their unrolled values:
         for ins in &block_instructions {
             if let Some(ins_obj) = ctx.try_get_instruction(*ins) {
-                if let Operation::Phi { root, block_args } = ins_obj.operator {
-                    if eval_map.contains_key(&root) {
-                        eval_map.insert(root, eval_map[&root]);
-                        //todo test with constants
-                    } else if eval_map.contains_key(&ins_obj.id) {
-                        //   unroll_map.insert(ins_obj.lhs, eval_map[&ins_obj.idx].to_index().unwrap());
-                        eval_map.insert(root, eval_map[&ins_obj.id]);
+                if let Operation::Phi { root, .. } = &ins_obj.operator {
+                    if let Some(node_eval) = eval_map.get(&ins_obj.id) {
+                        let node_eval = *node_eval;
+                        eval_map.entry(*root).or_insert(node_eval);
                         //todo test with constants
                     }
                 } else if ins_obj.operator != node::Operation::Nop {
@@ -239,13 +233,13 @@ fn evaluate_phi(
     for i in instructions {
         let mut to_process = Vec::new();
         if let Some(ins) = ctx.try_get_instruction(*i) {
-            if let Operation::Phi { root, block_args } = ins.operator {
-                for phi in &block_args {
-                    if phi.1 == from {
+            if let Operation::Phi { block_args, .. } = &ins.operator {
+                for (arg, block) in block_args {
+                    if *block == from {
                         //we evaluate the phi instruction value
                         to_process.push((
                             ins.id,
-                            evaluate_one(NodeEval::VarOrInstruction(phi.0), to, ctx),
+                            evaluate_one(NodeEval::VarOrInstruction(*arg), to, ctx),
                         ));
                     }
                 }
@@ -269,9 +263,9 @@ fn evaluate_conditional_jump(
     let jump_ins = ctx.try_get_instruction(jump).unwrap();
 
     let cond_id = match jump_ins.operator {
-        Operation::Jeq(cond_id, block) => cond_id,
-        Operation::Jne(cond_id, block) => cond_id,
-        Operation::Jmp(block) => return true,
+        Operation::Jeq(cond_id, _) => cond_id,
+        Operation::Jne(cond_id, _) => cond_id,
+        Operation::Jmp(_) => return true,
         _ => panic!("loop without conditional statement!"), //TODO shouldn't we return false instead?
     };
 
@@ -487,10 +481,10 @@ pub fn inline_in_block(
                 };
             }
 
-            match clone.operator {
+            match &clone.operator {
                 Operation::Nop => (),
                 //Return instruction:
-                Operation::Return(values) => {
+                Operation::Return(_) => {
                     //we need to find the corresponding result instruction in the target block (using ins.rhs) and replace it by ins.lhs
                     if let Some(ret_id) = ctx[target_block_id].get_result_instruction(call_id, ctx)
                     {
@@ -526,15 +520,15 @@ pub fn inline_in_block(
                     let b = array_map[&array];
                     //n.b. this offset is always positive
                     let offset = ctx.mem.arrays[b as usize].adr
-                        - ctx.get_function_context(func_id).mem.arrays[array as usize].adr;
-                    let index_type = ctx[index].get_type();
+                        - ctx.get_function_context(func_id).mem.arrays[*array as usize].adr;
+                    let index_type = ctx[*index].get_type();
                     let offset_id =
                         ctx.get_or_create_const(FieldElement::from(offset as i128), index_type);
 
                     let add = node::Binary {
                         operator: BinaryOp::Add,
                         lhs: offset_id,
-                        rhs: index,
+                        rhs: *index,
                     };
                     let adr_id = ctx.new_instruction(Operation::Binary(add), index_type);
                     let new_ins = Instruction::new(
@@ -555,23 +549,23 @@ pub fn inline_in_block(
                     value,
                 } => {
                     let b = array_map[&array];
-                    let offset = ctx.get_function_context(func_id).mem.arrays[array as usize].adr
+                    let offset = ctx.get_function_context(func_id).mem.arrays[*array as usize].adr
                         - ctx.mem.arrays[b as usize].adr;
-                    let index_type = ctx[index].get_type();
+                    let index_type = ctx[*index].get_type();
                     let offset_id =
                         ctx.get_or_create_const(FieldElement::from(offset as i128), index_type);
 
                     let add = node::Binary {
                         operator: BinaryOp::Add,
                         lhs: offset_id,
-                        rhs: index,
+                        rhs: *index,
                     };
                     let adr_id = ctx.new_instruction(Operation::Binary(add), index_type);
                     let new_ins = Instruction::new(
                         Operation::Store {
                             array: array_map[&array],
                             index: adr_id,
-                            value,
+                            value: *value,
                         },
                         clone.res_type,
                         Some(target_block_id),
@@ -591,27 +585,27 @@ pub fn inline_in_block(
 
                     optim::simplify(ctx, &mut new_ins);
                     let result_id: NodeId;
-                    let mut to_delete = false;
+                    let to_delete = false;
 
                     if new_ins.is_deleted {
                         // result_id = new_ins.rhs;
-                        if let std::collections::hash_map::Entry::Occupied(mut e) =
-                            array_map.entry(array_func_idx)
-                        {
-                            if let node::ObjectType::Pointer(a) = ctx[result_id].get_type() {
-                                //we now map the array to rhs array
-                                e.insert(a);
-                            }
-                        }
+                        // if let std::collections::hash_map::Entry::Occupied(mut e) =
+                        //     array_map.entry(array_func_idx)
+                        // {
+                        //     if let node::ObjectType::Pointer(a) = ctx[result_id].get_type() {
+                        //         //we now map the array to rhs array
+                        //         e.insert(a);
+                        //     }
+                        // }
                         // if new_ins.rhs == new_ins.id {
-                        if false {
-                            to_delete = true;
-                        }
+                        //     to_delete = true;
+                        // }
                         todo!("Refactor deletions")
                     } else {
                         result_id = ctx.add_instruction(new_ins);
                         new_instructions.push(result_id);
                     }
+
                     //ignore self-deleted instructions
                     if !to_delete {
                         inline_map.insert(i_id, result_id);

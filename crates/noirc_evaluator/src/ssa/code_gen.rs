@@ -220,7 +220,7 @@ impl<'a> IRGenerator<'a> {
         let binary = Binary::from_hir(op.kind, ltype, lhs, rhs);
         let opcode = Operation::Binary(binary);
 
-        let optype = self.context.get_result_type(opcode, ltype);
+        let optype = self.context.get_result_type(&opcode, ltype);
         self.context.new_instruction(opcode, optype)
     }
 
@@ -488,9 +488,9 @@ impl<'a> IRGenerator<'a> {
                 //ssa: we create a new variable a1 linked to a
                 let new_var_id = self.context.add_variable(new_var, Some(ls_root));
 
-                let rhs = &self.context[rhs_id];
+                let result_type = self.context[rhs_id].get_type();
                 let operation = Operation::binary(BinaryOp::Assign, new_var_id, rhs_id);
-                let result = self.context.new_instruction(operation, rhs.get_type());
+                let result = self.context.new_instruction(operation, result_type);
                 self.update_variable_id(ls_root, new_var_id, result); //update the name and the value map
                 Value::Single(new_var_id)
             }
@@ -613,7 +613,6 @@ impl<'a> IRGenerator<'a> {
                 let ident_span = indexed_expr.collection_name.span;
                 let arr_type = self.def_interner().id_type(arr_def);
                 let o_type = arr_type.into();
-                let mut array_index = self.context.mem.arrays.len() as u32;
 
                 let (array, array_index) = if let Some(array) = self.context.mem.find_array(arr_def) {
                     (array, self.context.mem.get_array_index(array).unwrap())
@@ -624,8 +623,8 @@ impl<'a> IRGenerator<'a> {
                     }
                 } else {
                     let arr = env.get_array(&arr_name).map_err(|kind|kind.add_span(ident_span)).unwrap();
-                    let array = self.context.mem.create_array_from_object(&arr, arr_def, o_type, &arr_name);
                     let index = self.context.mem.arrays.len() as u32;
+                    let array = self.context.mem.create_array_from_object(&arr, arr_def, o_type, &arr_name);
                     (array, index)
                 };
 
@@ -894,7 +893,7 @@ impl<'a> IRGenerator<'a> {
         self.context.current_block = exit_id;
         let exit_first = self.context.get_current_block().get_first_instruction();
         block::link_with_target(&mut self.context, join_idx, Some(exit_id), Some(body_id));
-        let first_instruction = self.context[body_id].get_first_instruction();
+
         Ok(Value::Single(exit_first)) //TODO what should we return???
     }
 }

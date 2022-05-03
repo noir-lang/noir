@@ -1,10 +1,9 @@
 use super::mem::{MemArray, Memory};
-use super::node::{BinaryOp, ConstrainOp, Instruction, Operation};
+use super::node::{BinaryOp, ConstrainOp, Instruction, Operation, ObjectType};
 use acvm::acir::OPCODE;
 use acvm::FieldElement;
 
 use super::node::NodeId;
-use acvm::acir::opcode::{InputSize, OutputSize};
 
 use num_traits::{One, Zero};
 use std::cmp::Ordering;
@@ -151,129 +150,10 @@ impl Acir {
             return;
         }
 
-        let mut output = match ins.operator {
-            Operation::Binary(node::Binary { lhs, rhs, operator }) => {
-                let l_c = self.substitute(lhs, evaluator, ctx);
-                let r_c = self.substitute(rhs, evaluator, ctx);
-
-                match operator {
-                    BinaryOp::Add | BinaryOp::SafeAdd => InternalVar::from(add(
-                        &l_c.expression,
-                        FieldElement::one(),
-                        &r_c.expression,
-                    )),
-                    BinaryOp::Sub { max_rhs_value } | BinaryOp::SafeSub { max_rhs_value } => {
-                        if ins.res_type == node::ObjectType::NativeField {
-                            InternalVar::from(subtract(
-                                &l_c.expression,
-                                FieldElement::one(),
-                                &r_c.expression,
-                            ))
-                        } else {
-                            //we need the type of rhs and its max value, then:
-                            //lhs-rhs+k*2^bit_size where k=ceil(max_value/2^bit_size)
-                            let bit_size = ctx[rhs].size_in_bits();
-                            let r_big = BigUint::one() << bit_size;
-                            let mut k = &max_rhs_value / &r_big;
-                            if &max_rhs_value % &r_big != BigUint::zero() {
-                                k = &k + BigUint::one();
-                            }
-                            k = &k * r_big;
-                            let f = FieldElement::from_be_bytes_reduce(&k.to_bytes_be());
-                            let mut sub_expr =
-                                subtract(&l_c.expression, FieldElement::one(), &r_c.expression);
-                            sub_expr.q_c += f;
-                            let mut sub_var = sub_expr.into();
-                            //TODO: uses interval analysis for more precise check
-                            if let Some(lhs_const) = l_c.to_const() {
-                                if max_rhs_value <= BigUint::from_bytes_be(&lhs_const.to_bytes()) {
-                                    sub_var = InternalVar::from(subtract(
-                                        &l_c.expression,
-                                        FieldElement::one(),
-                                        &r_c.expression,
-                                    ));
-                                }
-                            }
-                            sub_var
-                        }
-                    }
-                    BinaryOp::Mul | BinaryOp::SafeMul => {
-                        InternalVar::from(evaluate_mul(&l_c, &r_c, evaluator))
-                    }
-                    BinaryOp::Udiv => {
-                        let (q_wit, _) = evaluate_udiv(&l_c, &r_c, evaluator);
-                        InternalVar::from(q_wit)
-                    }
-                    BinaryOp::Sdiv => InternalVar::from(evaluate_sdiv(&l_c, &r_c, evaluator).0),
-                    BinaryOp::Urem => {
-                        let (_, r_wit) = evaluate_udiv(&l_c, &r_c, evaluator);
-                        InternalVar::from(r_wit)
-                    }
-                    BinaryOp::Srem => InternalVar::from(evaluate_sdiv(&l_c, &r_c, evaluator).1),
-                    BinaryOp::Div => InternalVar::from(mul(
-                        &l_c.expression,
-                        &from_witness(evaluate_inverse(&mut r_c, evaluator)),
-                    )),
-                    BinaryOp::Eq => {
-                        InternalVar::from(self.evaluate_eq(lhs, rhs, &l_c, &r_c, ctx, evaluator))
-                    }
-                    BinaryOp::Ne => {
-                        InternalVar::from(self.evaluate_neq(lhs, rhs, &l_c, &r_c, ctx, evaluator))
-                    }
-                    BinaryOp::Ult => {
-                        let size = ctx[lhs].size_in_bits();
-                        evaluate_cmp(&l_c, &r_c, size, false, evaluator).into()
-                    }
-                    BinaryOp::Ule => {
-                        let size = ctx[lhs].size_in_bits();
-                        let w = evaluate_cmp(&r_c, &l_c, size, false, evaluator);
-                        Arithmetic {
-                            mul_terms: Vec::new(),
-                            linear_combinations: vec![(-FieldElement::one(), w)],
-                            q_c: FieldElement::one(),
-                        }
-                        .into()
-                    }
-                    BinaryOp::Slt => {
-                        let s = ctx[lhs].size_in_bits();
-                        evaluate_cmp(&l_c, &r_c, s, true, evaluator).into()
-                    }
-                    BinaryOp::Sle => {
-                        let s = ctx[lhs].size_in_bits();
-                        let w = evaluate_cmp(&r_c, &l_c, s, true, evaluator);
-                        Arithmetic {
-                            mul_terms: Vec::new(),
-                            linear_combinations: vec![(-FieldElement::one(), w)],
-                            q_c: FieldElement::one(),
-                        }
-                        .into()
-                    }
-                    BinaryOp::Lt => todo!(),
-                    BinaryOp::Lte => {
-                        let size = ctx[lhs].size_in_bits();
-                        // TODO: Should this be signed?
-                        evaluate_cmp(&l_c, &r_c, size, false, evaluator).into()
-                    }
-                    BinaryOp::And => {
-                        InternalVar::from(evaluate_and(l_c, r_c, ins.res_type.bits(), evaluator))
-                    }
-                    BinaryOp::Or => InternalVar::from(evaluate_or(l_c, r_c, ins.res_type.bits())),
-                    BinaryOp::Xor => {
-                        InternalVar::from(evaluate_xor(l_c, r_c, ins.res_type.bits(), evaluator))
-                    }
-                    BinaryOp::Constrain(op) => match op {
-                        ConstrainOp::Eq => {
-                            InternalVar::from(self.equalize(lhs, rhs, &l_c, &r_c, ctx, evaluator))
-                        }
-                        ConstrainOp::Neq => {
-                            InternalVar::from(self.distinct(lhs, rhs, &l_c, &r_c, ctx, evaluator))
-                        }
-                    },
-                    i @ BinaryOp::Assign => unreachable!("Invalid Instruction: {:?}", i),
-                }
-            }
+        let mut output = match &ins.operator {
+            Operation::Binary(binary) => self.evaluate_binary(binary, ins.res_type, evaluator, ctx),
             Operation::Not(_) => todo!(),
-            Operation::Cast(value) => self.substitute(value, evaluator, ctx),
+            Operation::Cast(value) => self.substitute(*value, evaluator, ctx),
             i @ Operation::Jne(..)
             | i @ Operation::Jeq(..)
             | i @ Operation::Jmp(_)
@@ -286,11 +166,11 @@ impl Acir {
                 bit_size,
                 max_bit_size,
             } => {
-                let value = self.substitute(value, evaluator, ctx);
-                InternalVar::from(evaluate_truncate(value, bit_size, max_bit_size, evaluator))
+                let value = self.substitute(*value, evaluator, ctx);
+                InternalVar::from(evaluate_truncate(value, *bit_size, *max_bit_size, evaluator))
             }
             Operation::Intrinsic(opcode, args) => {
-                InternalVar::from(self.evaluate_opcode(ins.id, opcode, &args, ctx, evaluator))
+                InternalVar::from(self.evaluate_opcode(ins.id, *opcode, &args, ctx, evaluator))
             }
             Operation::Call(..) => unreachable!("call instruction should have been inlined"),
             Operation::Return(_) => todo!(), //return from main
@@ -298,14 +178,14 @@ impl Acir {
             Operation::Load { array, index } => {
                 //retrieves the value from the map if address is known at compile time:
                 //address = l_c and should be constant
-                let index = self.substitute(index, evaluator, ctx);
+                let index = self.substitute(*index, evaluator, ctx);
                 if let Some(index) = index.to_const() {
                     let address = mem::Memory::as_u32(index);
                     if self.memory_map.contains_key(&address) {
                         InternalVar::from(self.memory_map[&address].expression.clone())
                     } else {
                         //if not found, then it must be a witness (else it is non-initialised memory)
-                        let mem_array = &ctx.mem.arrays[array as usize];
+                        let mem_array = &ctx.mem.arrays[*array as usize];
                         let index = (address - mem_array.adr) as usize;
                         if mem_array.values.len() > index {
                             mem_array.values[index].clone()
@@ -319,13 +199,13 @@ impl Acir {
             }
 
             Operation::Store {
-                array,
+                array: _,
                 index,
                 value,
             } => {
                 //maps the address to the rhs if address is known at compile time
-                let index = self.substitute(index, evaluator, ctx);
-                let value = self.substitute(value, evaluator, ctx);
+                let index = self.substitute(*index, evaluator, ctx);
+                let value = self.substitute(*value, evaluator, ctx);
 
                 if let Some(index) = index.to_const() {
                     let address = mem::Memory::as_u32(index);
@@ -340,6 +220,132 @@ impl Acir {
         };
         output.id = Some(ins.id);
         self.arith_cache.insert(ins.id, output);
+    }
+
+    fn evaluate_binary(&mut self,
+        binary: &node::Binary,
+        res_type: ObjectType,
+        evaluator: &mut Evaluator,
+        ctx: &SsaContext,
+    ) -> InternalVar {
+        let l_c = self.substitute(binary.lhs, evaluator, ctx);
+        let r_c = self.substitute(binary.rhs, evaluator, ctx);
+
+        match &binary.operator {
+            BinaryOp::Add | BinaryOp::SafeAdd => InternalVar::from(add(
+                &l_c.expression,
+                FieldElement::one(),
+                &r_c.expression,
+            )),
+            BinaryOp::Sub { max_rhs_value } | BinaryOp::SafeSub { max_rhs_value } => {
+                if res_type == node::ObjectType::NativeField {
+                    InternalVar::from(subtract(
+                        &l_c.expression,
+                        FieldElement::one(),
+                        &r_c.expression,
+                    ))
+                } else {
+                    //we need the type of rhs and its max value, then:
+                    //lhs-rhs+k*2^bit_size where k=ceil(max_value/2^bit_size)
+                    let bit_size = ctx[binary.rhs].size_in_bits();
+                    let r_big = BigUint::one() << bit_size;
+                    let mut k = max_rhs_value / &r_big;
+                    if max_rhs_value % &r_big != BigUint::zero() {
+                        k = &k + BigUint::one();
+                    }
+                    k = &k * r_big;
+                    let f = FieldElement::from_be_bytes_reduce(&k.to_bytes_be());
+                    let mut sub_expr =
+                        subtract(&l_c.expression, FieldElement::one(), &r_c.expression);
+                    sub_expr.q_c += f;
+                    let mut sub_var = sub_expr.into();
+                    //TODO: uses interval analysis for more precise check
+                    if let Some(lhs_const) = l_c.to_const() {
+                        if max_rhs_value <= &BigUint::from_bytes_be(&lhs_const.to_bytes()) {
+                            sub_var = InternalVar::from(subtract(
+                                &l_c.expression,
+                                FieldElement::one(),
+                                &r_c.expression,
+                            ));
+                        }
+                    }
+                    sub_var
+                }
+            }
+            BinaryOp::Mul | BinaryOp::SafeMul => {
+                InternalVar::from(evaluate_mul(&l_c, &r_c, evaluator))
+            }
+            BinaryOp::Udiv => {
+                let (q_wit, _) = evaluate_udiv(&l_c, &r_c, evaluator);
+                InternalVar::from(q_wit)
+            }
+            BinaryOp::Sdiv => InternalVar::from(evaluate_sdiv(&l_c, &r_c, evaluator).0),
+            BinaryOp::Urem => {
+                let (_, r_wit) = evaluate_udiv(&l_c, &r_c, evaluator);
+                InternalVar::from(r_wit)
+            }
+            BinaryOp::Srem => InternalVar::from(evaluate_sdiv(&l_c, &r_c, evaluator).1),
+            BinaryOp::Div => InternalVar::from(mul(
+                &l_c.expression,
+                &from_witness(evaluate_inverse(r_c, evaluator)),
+            )),
+            BinaryOp::Eq => {
+                InternalVar::from(self.evaluate_eq(binary.lhs, binary.rhs, &l_c, &r_c, ctx, evaluator))
+            }
+            BinaryOp::Ne => {
+                InternalVar::from(self.evaluate_neq(binary.lhs, binary.rhs, &l_c, &r_c, ctx, evaluator))
+            }
+            BinaryOp::Ult => {
+                let size = ctx[binary.lhs].size_in_bits();
+                evaluate_cmp(&l_c, &r_c, size, false, evaluator).into()
+            }
+            BinaryOp::Ule => {
+                let size = ctx[binary.lhs].size_in_bits();
+                let w = evaluate_cmp(&r_c, &l_c, size, false, evaluator);
+                Arithmetic {
+                    mul_terms: Vec::new(),
+                    linear_combinations: vec![(-FieldElement::one(), w)],
+                    q_c: FieldElement::one(),
+                }
+                .into()
+            }
+            BinaryOp::Slt => {
+                let s = ctx[binary.lhs].size_in_bits();
+                evaluate_cmp(&l_c, &r_c, s, true, evaluator).into()
+            }
+            BinaryOp::Sle => {
+                let s = ctx[binary.lhs].size_in_bits();
+                let w = evaluate_cmp(&r_c, &l_c, s, true, evaluator);
+                Arithmetic {
+                    mul_terms: Vec::new(),
+                    linear_combinations: vec![(-FieldElement::one(), w)],
+                    q_c: FieldElement::one(),
+                }
+                .into()
+            }
+            BinaryOp::Lt => todo!(),
+            BinaryOp::Lte => {
+                let size = ctx[binary.lhs].size_in_bits();
+                // TODO: Should this be signed?
+                evaluate_cmp(&l_c, &r_c, size, false, evaluator).into()
+            }
+            BinaryOp::And => {
+                InternalVar::from(evaluate_and(l_c, r_c, res_type.bits(), evaluator))
+            }
+            BinaryOp::Or => InternalVar::from(evaluate_or(l_c, r_c, res_type.bits())),
+            BinaryOp::Xor => {
+                InternalVar::from(evaluate_xor(l_c, r_c, res_type.bits(), evaluator))
+            }
+            BinaryOp::Constrain(op) => match op {
+                ConstrainOp::Eq => {
+                    InternalVar::from(self.equalize(binary.lhs, binary.rhs, &l_c, &r_c, ctx, evaluator))
+                }
+                ConstrainOp::Neq => {
+                    InternalVar::from(self.distinct(binary.lhs, binary.rhs, &l_c, &r_c, ctx, evaluator))
+                }
+            },
+            i @ BinaryOp::Assign => unreachable!("Invalid Instruction: {:?}", i),
+        }
     }
 
     pub fn print_circuit(gates: &[Gate]) {
@@ -450,11 +456,11 @@ impl Acir {
             //If length are different, then the arrays are different
             if array_a.len == array_b.len {
                 let sum = self.zero_eq_array_sum(array_a, a, array_b, b, evaluator);
-                evaluate_inverse(&mut InternalVar::from(sum), evaluator);
+                evaluate_inverse(InternalVar::from(sum), evaluator);
             }
         } else {
             let diff = subtract(&l_c.expression, FieldElement::one(), &r_c.expression);
-            evaluate_inverse(&mut InternalVar::from(diff), evaluator);
+            evaluate_inverse(InternalVar::from(diff), evaluator);
         }
         Arithmetic::default()
     }
@@ -932,7 +938,7 @@ pub fn evaluate_zero_equality(x: &InternalVar, evaluator: &mut Evaluator) -> Wit
 }
 
 /// Creates a new witness and constrains it to be the inverse of x
-pub fn evaluate_inverse(x: &mut InternalVar, evaluator: &mut Evaluator) -> Witness {
+fn evaluate_inverse(mut x: InternalVar, evaluator: &mut Evaluator) -> Witness {
     // Create a fresh witness - n.b we could check if x is constant or not
     let inverse_witness = evaluator.add_witness_to_cs();
     let inverse_expr = from_witness(inverse_witness);

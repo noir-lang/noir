@@ -70,11 +70,11 @@ impl<'a> SsaContext<'a> {
 
         let op = match &binary.operator {
             BinaryOp::Add => "add",
-            BinaryOp::SafeAdd => "safeAdd",
-            BinaryOp::Sub { max_rhs_value } => "sub",
-            BinaryOp::SafeSub { max_rhs_value } => "safeSub",
+            BinaryOp::SafeAdd => "safe_add",
+            BinaryOp::Sub { .. } => "sub",
+            BinaryOp::SafeSub { .. } => "safe_sub",
             BinaryOp::Mul => "mul",
-            BinaryOp::SafeMul => "safeMul",
+            BinaryOp::SafeMul => "safe_mul",
             BinaryOp::Udiv => "udiv",
             BinaryOp::Sdiv => "sdiv",
             BinaryOp::Urem => "urem",
@@ -92,7 +92,8 @@ impl<'a> SsaContext<'a> {
             BinaryOp::Or => "or",
             BinaryOp::Xor => "xor",
             BinaryOp::Assign => "assign",
-            BinaryOp::Constrain(_) => "constrain",
+            BinaryOp::Constrain(node::ConstrainOp::Eq) => "constrain_eq",
+            BinaryOp::Constrain(node::ConstrainOp::Neq) => "constrain_neq",
         };
 
         format!("{} {}, {}", op, lhs, rhs)
@@ -376,7 +377,7 @@ impl<'a> SsaContext<'a> {
     }
 
     //Return the type of the operation result, based on the left hand type
-    pub fn get_result_type(&self, op: Operation, lhs_type: node::ObjectType) -> node::ObjectType {
+    pub fn get_result_type(&self, op: &Operation, lhs_type: node::ObjectType) -> node::ObjectType {
         use {BinaryOp::*, Operation::*};
         match op {
             Binary(node::Binary { operator: Eq, .. })
@@ -396,7 +397,7 @@ impl<'a> SsaContext<'a> {
                 ..
             })
             | Operation::Store { .. } => ObjectType::NotAnObject,
-            Operation::Load { array, .. } => self.mem.arrays[array as usize].element_type,
+            Operation::Load { array, .. } => self.mem.arrays[*array as usize].element_type,
             Operation::Cast(_) | Operation::Truncate { .. } => {
                 unreachable!("cannot determine result type")
             }
