@@ -69,7 +69,7 @@ class account_tests : public ::testing::Test {
         return alias_hash + (fr{ (uint64_t)account_nonce } * fr(2).pow(224));
     }
 
-    account_tx create_account_tx(uint32_t account_nonce = 0)
+    account_tx create_account_tx(uint32_t account_nonce, rollup::fixtures::grumpkin_key_pair& keys)
     {
         account_tx tx;
         tx.merkle_root = tree->root();
@@ -83,7 +83,7 @@ class account_tests : public ::testing::Test {
         tx.account_note_index = 0;
         tx.signing_pub_key = user.signing_keys[0].public_key;
         tx.account_note_path = tree->get_hash_path(0);
-        tx.sign(user.owner);
+        tx.sign(keys);
 
         return tx;
     }
@@ -117,20 +117,20 @@ class account_tests : public ::testing::Test {
 
 TEST_F(account_tests, test_create_account)
 {
-    auto tx = create_account_tx();
+    auto tx = create_account_tx(0, user.owner);
     EXPECT_TRUE(verify_logic(tx).valid);
 }
 
 TEST_F(account_tests, test_create_account_full_proof)
 {
-    auto tx = create_account_tx();
+    auto tx = create_account_tx(0, user.owner);
     EXPECT_TRUE(verify(tx));
 }
 
 TEST_F(account_tests, test_migrate_account)
 {
     preload_account_notes();
-    auto tx = create_account_tx(1);
+    auto tx = create_account_tx(1, user.owner);
     tx.account_note_index = 0;
     tx.sign(user.signing_keys[0]);
 
@@ -141,7 +141,7 @@ TEST_F(account_tests, test_migrate_account)
 
 TEST_F(account_tests, test_initial_account_not_migrated_fails)
 {
-    auto tx = create_account_tx();
+    auto tx = create_account_tx(0, user.owner);
     tx.migrate = false;
     tx.sign(user.owner);
 
@@ -154,7 +154,7 @@ TEST_F(account_tests, test_initial_account_not_migrated_fails)
 
 TEST_F(account_tests, test_wrong_account_key_pair_fails)
 {
-    auto tx = create_account_tx();
+    auto tx = create_account_tx(0, user.owner);
     auto keys = rollup::fixtures::create_key_pair(nullptr);
     tx.sign(keys); // sign the tx with the wrong signing private key
 
@@ -167,7 +167,7 @@ TEST_F(account_tests, test_wrong_account_key_pair_fails)
 TEST_F(account_tests, test_migrate_account_with_account_key_fails)
 {
     preload_account_notes();
-    auto tx = create_account_tx(1);
+    auto tx = create_account_tx(1, user.owner);
     // The `tx.signature`, by default, gets signed by the original account private key.
     // So if we change the public key with which to verify this signature, it should fail.
     // (Note, even without this change the tx would fail, because the `tx` we got back attests to an account note which
@@ -184,7 +184,7 @@ TEST_F(account_tests, test_migrate_account_with_account_key_fails)
 TEST_F(account_tests, test_alternative_signing_key_1)
 {
     preload_account_notes();
-    auto tx = create_account_tx(1);
+    auto tx = create_account_tx(1, user.owner);
     tx.migrate = false;
     tx.account_note_index = 0;
     tx.sign(user.signing_keys[0]);
@@ -195,7 +195,7 @@ TEST_F(account_tests, test_alternative_signing_key_1)
 TEST_F(account_tests, test_alternative_signing_key_2)
 {
     preload_account_notes();
-    auto tx = create_account_tx(1);
+    auto tx = create_account_tx(1, user.owner);
     tx.migrate = false;
     tx.account_note_index = 1;
     tx.account_note_path = tree->get_hash_path(1);
@@ -207,7 +207,7 @@ TEST_F(account_tests, test_alternative_signing_key_2)
 TEST_F(account_tests, test_wrong_alias_hash_fails)
 {
     preload_account_notes();
-    auto tx = create_account_tx(1);
+    auto tx = create_account_tx(1, user.owner);
     // The circuit will calculate an 'old' account note with the wrong alias, so the membership check should fail.
     tx.alias_hash = rollup::fixtures::generate_alias_hash("penguin"); // it's actually "pebble"
     tx.sign(user.signing_keys[0]);
@@ -222,7 +222,7 @@ TEST_F(account_tests, test_wrong_alias_hash_fails)
 TEST_F(account_tests, test_migrate_to_new_account_public_key)
 {
     preload_account_notes();
-    auto tx = create_account_tx(1);
+    auto tx = create_account_tx(1, user.owner);
     auto new_keys = rollup::fixtures::create_key_pair(nullptr);
     tx.new_account_public_key = new_keys.public_key;
     tx.sign(user.signing_keys[0]);
@@ -233,7 +233,7 @@ TEST_F(account_tests, test_migrate_to_new_account_public_key)
 TEST_F(account_tests, test_change_account_public_key_without_migrating_fails)
 {
     preload_account_notes();
-    auto tx = create_account_tx(1);
+    auto tx = create_account_tx(1, user.owner);
     auto new_keys = rollup::fixtures::create_key_pair(nullptr);
     tx.migrate = false;
     tx.new_account_public_key = new_keys.public_key;
@@ -246,7 +246,7 @@ TEST_F(account_tests, test_change_account_public_key_without_migrating_fails)
 
 TEST_F(account_tests, test_migrate_account_full_proof)
 {
-    auto tx = create_account_tx();
+    auto tx = create_account_tx(0, user.owner);
     auto prover = new_account_prover(tx, false);
     auto proof = prover.construct_proof();
     auto data = inner_proof_data(proof.proof_data);
@@ -278,7 +278,7 @@ TEST_F(account_tests, test_migrate_account_full_proof)
 TEST_F(account_tests, test_non_migrate_account_full_proof)
 {
     preload_account_notes();
-    auto tx = create_account_tx(1);
+    auto tx = create_account_tx(1, user.signing_keys[0]);
     tx.migrate = false;
     auto prover = new_account_prover(tx, false);
     auto proof = prover.construct_proof();

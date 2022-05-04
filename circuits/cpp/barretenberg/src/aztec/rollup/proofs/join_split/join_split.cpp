@@ -59,7 +59,8 @@ UnrolledProver new_join_split_prover(join_split_tx const& tx, bool mock)
     join_split_circuit(composer, tx);
 
     if (composer.failed) {
-        info("composer logic failed: ", composer.err);
+        std::string error = format("composer logic failed: ", composer.err);
+        throw_or_abort(error);
     }
 
     info("public inputs: ", composer.public_inputs.size());

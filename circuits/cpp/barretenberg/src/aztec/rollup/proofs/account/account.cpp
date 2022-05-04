@@ -202,7 +202,8 @@ UnrolledProver new_account_prover(account_tx const& tx, bool mock)
     account_circuit(composer, tx);
 
     if (composer.failed) {
-        info("composer logic failed: ", composer.err);
+        std::string error = format("composer logic failed: ", composer.err);
+        throw_or_abort(error);
     }
 
     info("composer gates: ", composer.get_num_gates());
