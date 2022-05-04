@@ -19,11 +19,7 @@ fn bound_check(
     upper_bound_included: bool,
     evaluator: &mut Evaluator,
 ) -> Result<Object, RuntimeErrorKind> {
-    let offset = if upper_bound_included {
-        FieldElement::zero()
-    } else {
-        FieldElement::one()
-    };
+    let offset = if upper_bound_included { FieldElement::zero() } else { FieldElement::one() };
 
     let integer = match (lower_bound, upper_bound) {
         (lower_bound, Object::Integer(y)) => {
@@ -35,11 +31,9 @@ fn bound_check(
             // This is done because, if the lower bound is a integer,
             // the compiler will complain as we cannot subtract an integer from a linear polynomial
             let lower_bound_as_arith =
-                lower_bound
-                    .to_arithmetic()
-                    .ok_or(RuntimeErrorKind::UnstructuredError {
-                        message: "invalid lower bound being used in bound check".to_string(),
-                    })?;
+                lower_bound.to_arithmetic().ok_or(RuntimeErrorKind::UnstructuredError {
+                    message: "invalid lower bound being used in bound check".to_string(),
+                })?;
 
             let k = handle_sub_op(
                 Object::Linear(x),

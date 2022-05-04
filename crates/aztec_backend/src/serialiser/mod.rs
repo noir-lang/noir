@@ -79,10 +79,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
                             let out_byte_index = out_byte.witness_index() as i32;
                             *res = out_byte_index
                         }
-                        let sha256_constraint = Sha256Constraint {
-                            inputs: sha256_inputs,
-                            result,
-                        };
+                        let sha256_constraint = Sha256Constraint { inputs: sha256_inputs, result };
 
                         sha256_constraints.push(sha256_constraint);
                     }
@@ -106,10 +103,8 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
                             let out_byte_index = out_byte.witness_index() as i32;
                             *res = out_byte_index
                         }
-                        let blake2s_constraint = Blake2sConstraint {
-                            inputs: blake2s_inputs,
-                            result,
-                        };
+                        let blake2s_constraint =
+                            Blake2sConstraint { inputs: blake2s_inputs, result };
 
                         blake2s_constraints.push(blake2s_constraint);
                     }
@@ -123,9 +118,8 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
                         };
                         // leaf
                         let leaf = {
-                            let leaf_input = inputs_iter
-                                .next()
-                                .expect("missing leaf to check membership for");
+                            let leaf_input =
+                                inputs_iter.next().expect("missing leaf to check membership for");
                             leaf_input.witness.witness_index() as i32
                         };
                         // index
@@ -154,13 +148,8 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
                         // result
                         let result = gadget_call.outputs[0].witness_index() as i32;
 
-                        let constraint = MerkleMembershipConstraint {
-                            hash_path,
-                            root,
-                            leaf,
-                            index,
-                            result,
-                        };
+                        let constraint =
+                            MerkleMembershipConstraint { hash_path, root, leaf, index, result };
 
                         merkle_membership_constraints.push(constraint);
                     }
@@ -175,9 +164,8 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
                         };
                         // leaf
                         let leaf = {
-                            let leaf_input = inputs_iter
-                                .next()
-                                .expect("missing leaf to check membership for");
+                            let leaf_input =
+                                inputs_iter.next().expect("missing leaf to check membership for");
                             leaf_input.witness.witness_index() as i32
                         };
                         // index
@@ -221,16 +209,14 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
 
                         // pub_key_x
                         let public_key_x = {
-                            let pub_key_x = inputs_iter
-                                .next()
-                                .expect("missing `x` component for public key");
+                            let pub_key_x =
+                                inputs_iter.next().expect("missing `x` component for public key");
                             pub_key_x.witness.witness_index() as i32
                         };
                         // pub_key_y
                         let public_key_y = {
-                            let pub_key_y = inputs_iter
-                                .next()
-                                .expect("missing `y` component for public key");
+                            let pub_key_y =
+                                inputs_iter.next().expect("missing `y` component for public key");
                             pub_key_y.witness.witness_index() as i32
                         };
                         // signature
@@ -277,11 +263,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
                         let result_x = gadget_call.outputs[0].witness_index() as i32;
                         let result_y = gadget_call.outputs[1].witness_index() as i32;
 
-                        let constraint = PedersenConstraint {
-                            inputs,
-                            result_x,
-                            result_y,
-                        };
+                        let constraint = PedersenConstraint { inputs, result_x, result_y };
 
                         pedersen_constraints.push(constraint);
                     }
@@ -297,10 +279,8 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
 
                         let result = gadget_call.outputs[0].witness_index() as i32;
 
-                        let hash_to_field_constraint = HashToFieldConstraint {
-                            inputs: hash_to_field_inputs,
-                            result,
-                        };
+                        let hash_to_field_constraint =
+                            HashToFieldConstraint { inputs: hash_to_field_inputs, result };
 
                         hash_to_field_constraints.push(hash_to_field_constraint);
                     }
@@ -364,11 +344,8 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
                         let pubkey_x = gadget_call.outputs[0].witness_index() as i32;
                         let pubkey_y = gadget_call.outputs[1].witness_index() as i32;
 
-                        let fixed_base_scalar_mul = FixedBaseScalarMulConstraint {
-                            scalar,
-                            pubkey_x,
-                            pubkey_y,
-                        };
+                        let fixed_base_scalar_mul =
+                            FixedBaseScalarMulConstraint { scalar, pubkey_x, pubkey_y };
 
                         fixed_base_scalar_mul_constraints.push(fixed_base_scalar_mul);
                     }
@@ -475,14 +452,5 @@ fn serialise_arithmetic_gates(gate: &Arithmetic) -> Constraint {
     // Add the qc term
     let qc = gate.q_c;
 
-    Constraint {
-        a,
-        b,
-        c,
-        qm,
-        ql,
-        qr,
-        qo,
-        qc,
-    }
+    Constraint { a, b, c, qm, ql, qr, qo, qc }
 }

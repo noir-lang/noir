@@ -9,10 +9,7 @@ pub struct PerNs {
 
 impl PerNs {
     pub fn types(t: ModuleDefId) -> PerNs {
-        PerNs {
-            types: Some((t, Visibility::Public)),
-            values: None,
-        }
+        PerNs { types: Some((t, Visibility::Public)), values: None }
     }
 
     pub fn take_types(self) -> Option<ModuleDefId> {
@@ -24,10 +21,7 @@ impl PerNs {
     }
 
     pub fn iter_defs(self) -> impl Iterator<Item = ModuleDefId> {
-        self.types
-            .map(|it| it.0)
-            .into_iter()
-            .chain(self.values.map(|it| it.0).into_iter())
+        self.types.map(|it| it.0).into_iter().chain(self.values.map(|it| it.0).into_iter())
     }
 
     pub fn iter_items(self) -> impl Iterator<Item = (ModuleDefId, Visibility)> {

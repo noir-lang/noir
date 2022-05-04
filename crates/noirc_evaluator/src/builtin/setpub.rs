@@ -22,11 +22,8 @@ impl BuiltInCaller for SetPub {
 
         // This can only be called in the main context
         if env.func_context != FuncContext::Main {
-            let func_name = evaluator
-                .context
-                .def_interner
-                .function_name(&call_expr.func_id)
-                .to_owned();
+            let func_name =
+                evaluator.context.def_interner.function_name(&call_expr.func_id).to_owned();
 
             return Err(RuntimeErrorKind::FunctionNonMainContext { func_name }.add_span(span));
         }

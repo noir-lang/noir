@@ -42,11 +42,7 @@ pub fn resolve_path(
     path: Path,
 ) -> Result<Option<ModuleDefId>, Ident> {
     // lets package up the path into an ImportDirective and resolve it using that
-    let import = ImportDirective {
-        module_id: module_id.local_id,
-        path,
-        alias: None,
-    };
+    let import = ImportDirective { module_id: module_id.local_id, path, alias: None };
 
     let def_map = &def_maps[&module_id.krate];
     let path_res = resolve_path_to_ns(&import, def_map, def_maps);

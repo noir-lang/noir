@@ -8,11 +8,7 @@ use thiserror::Error;
 #[derive(Error, Clone, Debug, PartialEq, Eq)]
 pub enum LexerErrorKind {
     #[error("An unexpected character {:?} was found.", found)]
-    UnexpectedCharacter {
-        span: Span,
-        expected: String,
-        found: char,
-    },
+    UnexpectedCharacter { span: Span, expected: String, found: char },
     #[error("NotADoubleChar : {:?} is not a double char token", found)]
     NotADoubleChar { span: Span, found: Token },
     #[error("InvalidIntegerLiteral : {:?} is not a integer", found)]

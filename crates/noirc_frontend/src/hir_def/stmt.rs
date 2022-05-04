@@ -62,20 +62,12 @@ impl HirPattern {
     pub fn iter_fields<'a>(&'a self) -> Box<dyn Iterator<Item = (String, &'a HirPattern)> + 'a> {
         match self {
             HirPattern::Struct(_, fields, _) => Box::new(
-                fields
-                    .iter()
-                    .map(move |(name, pattern)| (name.0.contents.clone(), pattern)),
+                fields.iter().map(move |(name, pattern)| (name.0.contents.clone(), pattern)),
             ),
-            HirPattern::Tuple(fields, _) => Box::new(
-                fields
-                    .iter()
-                    .enumerate()
-                    .map(|(i, field)| (i.to_string(), field)),
-            ),
-            other => panic!(
-                "Tried to iterate over the fields of '{:?}', which has none",
-                other
-            ),
+            HirPattern::Tuple(fields, _) => {
+                Box::new(fields.iter().enumerate().map(|(i, field)| (i.to_string(), field)))
+            }
+            other => panic!("Tried to iterate over the fields of '{:?}', which has none", other),
         }
     }
 }
@@ -84,12 +76,6 @@ impl HirPattern {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum HirLValue {
     Ident(HirIdent),
-    MemberAccess {
-        object: Box<HirLValue>,
-        field_name: Ident,
-    },
-    Index {
-        array: Box<HirLValue>,
-        index: ExprId,
-    },
+    MemberAccess { object: Box<HirLValue>, field_name: Ident },
+    Index { array: Box<HirLValue>, index: ExprId },
 }

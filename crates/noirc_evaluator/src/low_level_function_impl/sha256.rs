@@ -32,18 +32,11 @@ impl GadgetCaller for Sha256Gadget {
             contents.push(object);
         }
 
-        let sha256_gate = GadgetCall {
-            name: Sha256Gadget::name(),
-            inputs,
-            outputs,
-        };
+        let sha256_gate = GadgetCall { name: Sha256Gadget::name(), inputs, outputs };
 
         evaluator.gates.push(Gate::GadgetCall(sha256_gate));
 
-        let arr = Array {
-            length: contents.len() as u128,
-            contents,
-        };
+        let arr = Array { length: contents.len() as u128, contents };
 
         Ok(Object::Array(arr))
     }

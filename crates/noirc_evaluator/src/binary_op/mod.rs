@@ -43,11 +43,7 @@ pub fn invert(x: Object, evaluator: &mut Evaluator) -> Result<Object, RuntimeErr
     let should_be_one = handle_mul_op(x, inverse_obj.clone(), evaluator)?;
 
     // Constrain x * x_inv = 1
-    let _ = handle_equal_op(
-        should_be_one,
-        Object::Constants(FieldElement::one()),
-        evaluator,
-    );
+    let _ = handle_equal_op(should_be_one, Object::Constants(FieldElement::one()), evaluator);
 
     // Return inverse
     Ok(inverse_obj)
@@ -69,10 +65,7 @@ pub fn maybe_equal(
 
     // z = 1/u => uz = 1
     let z = evaluator.add_witness_to_cs();
-    evaluator.gates.push(Gate::Directive(Directive::Invert {
-        x: u_wit,
-        result: z,
-    }));
+    evaluator.gates.push(Gate::Directive(Directive::Invert { x: u_wit, result: z }));
 
     // y = 1 -uz
     let uz: Arithmetic = Linear::from_witness(u_wit) * Linear::from_witness(z);

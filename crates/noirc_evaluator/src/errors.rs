@@ -51,11 +51,7 @@ pub enum RuntimeErrorKind {
     Unimplemented(String),
 
     #[error("Unsupported operation error")]
-    UnsupportedOp {
-        op: String,
-        first_type: String,
-        second_type: String,
-    },
+    UnsupportedOp { op: String, first_type: String, second_type: String },
 }
 
 impl RuntimeErrorKind {
@@ -72,10 +68,7 @@ impl DiagnosableError for RuntimeError {
         match &self.kind {
             RuntimeErrorKind::ArrayOutOfBounds { index, bound } => Diagnostic::simple_error(
                 "index out of bounds".to_string(),
-                format!(
-                    "out of bounds error, index is {} but length is {}",
-                    index, bound
-                ),
+                format!("out of bounds error, index is {} but length is {}", index, bound),
                 span,
             ),
             RuntimeErrorKind::ArrayNotFound { found_type, name } => Diagnostic::simple_error(
@@ -86,18 +79,13 @@ impl DiagnosableError for RuntimeError {
             RuntimeErrorKind::UnstructuredError { message } => {
                 Diagnostic::simple_error("".to_owned(), message.to_string(), span)
             }
-            RuntimeErrorKind::UnsupportedOp {
-                op,
-                first_type,
-                second_type,
-            } => Diagnostic::simple_error(
-                "unsupported operation".to_owned(),
-                format!(
-                    "no support for {} with types {} and {}",
-                    op, first_type, second_type
-                ),
-                span,
-            ),
+            RuntimeErrorKind::UnsupportedOp { op, first_type, second_type } => {
+                Diagnostic::simple_error(
+                    "unsupported operation".to_owned(),
+                    format!("no support for {} with types {} and {}", op, first_type, second_type),
+                    span,
+                )
+            }
             RuntimeErrorKind::Spanless(message) => Diagnostic::from_message(message),
             RuntimeErrorKind::Unimplemented(message) => Diagnostic::from_message(message),
             RuntimeErrorKind::FunctionNonMainContext { func_name } => Diagnostic::simple_error(

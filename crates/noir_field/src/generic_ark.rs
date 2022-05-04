@@ -106,10 +106,7 @@ impl<'de, T: ark_ff::PrimeField> Deserialize<'de> for FieldElement<T> {
         let s = <&str>::deserialize(deserializer)?;
         match Self::from_hex(s) {
             Some(value) => Ok(value),
-            None => Err(serde::de::Error::custom(format!(
-                "Invalid hex for FieldElement: {}",
-                s
-            ))),
+            None => Err(serde::de::Error::custom(format!("Invalid hex for FieldElement: {}", s))),
         }
     }
 }

@@ -89,10 +89,7 @@ impl ItemScope {
         }
     }
     pub fn find_name(&self, name: &Ident) -> PerNs {
-        PerNs {
-            types: self.types.get(name).cloned(),
-            values: self.values.get(name).cloned(),
-        }
+        PerNs { types: self.types.get(name).cloned(), values: self.values.get(name).cloned() }
     }
 
     pub fn definitions(&self) -> Vec<ModuleDefId> {

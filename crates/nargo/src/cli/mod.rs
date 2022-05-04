@@ -34,39 +34,21 @@ pub fn start_cli() {
         .subcommand(
             App::new("new")
                 .about("Create a new binary project")
+                .arg(Arg::with_name("package_name").help("Name of the package").required(true))
                 .arg(
-                    Arg::with_name("package_name")
-                        .help("Name of the package")
-                        .required(true),
-                )
-                .arg(
-                    Arg::with_name("path")
-                        .help("The path to save the new project")
-                        .required(false),
+                    Arg::with_name("path").help("The path to save the new project").required(false),
                 ),
         )
         .subcommand(
             App::new("verify")
                 .about("Given a proof and a program, verify whether the proof is valid")
-                .arg(
-                    Arg::with_name("proof")
-                        .help("The proof to verify")
-                        .required(true),
-                ),
+                .arg(Arg::with_name("proof").help("The proof to verify").required(true)),
         )
         .subcommand(
             App::new("prove")
                 .about("Create proof for this program")
-                .arg(
-                    Arg::with_name("proof_name")
-                        .help("The name of the proof")
-                        .required(true),
-                )
-                .arg(
-                    Arg::with_name("interactive")
-                        .help("pause execution")
-                        .required(false),
-                ),
+                .arg(Arg::with_name("proof_name").help("The name of the proof").required(true))
+                .arg(Arg::with_name("interactive").help("pause execution").required(false)),
         )
         .get_matches();
 

@@ -24,11 +24,8 @@ impl GadgetCaller for HashToFieldGadget {
         let res_witness = evaluator.add_witness_to_cs();
         let res_object = Object::from_witness(res_witness);
 
-        let hash_to_field_gate = GadgetCall {
-            name: HashToFieldGadget::name(),
-            inputs,
-            outputs: vec![res_witness],
-        };
+        let hash_to_field_gate =
+            GadgetCall { name: HashToFieldGadget::name(), inputs, outputs: vec![res_witness] };
 
         evaluator.gates.push(Gate::GadgetCall(hash_to_field_gate));
 

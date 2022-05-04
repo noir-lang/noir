@@ -36,10 +36,7 @@ impl GadgetCaller for FixedBaseScalarMulGadget {
 
         evaluator.gates.push(Gate::GadgetCall(fixed_base_gate));
 
-        let arr = Array {
-            length: 2,
-            contents: vec![object_pubkey_x, object_pubkey_y],
-        };
+        let arr = Array { length: 2, contents: vec![object_pubkey_x, object_pubkey_y] };
 
         Ok(Object::Array(arr))
     }

@@ -49,8 +49,7 @@ impl<'a> SsaContext<'a> {
     }
 
     pub fn zero(&self) -> NodeId {
-        self.find_const_with_type(&BigUint::zero(), node::ObjectType::Unsigned(1))
-            .unwrap()
+        self.find_const_with_type(&BigUint::zero(), node::ObjectType::Unsigned(1)).unwrap()
     }
 
     pub fn insert_block(&mut self, block: BasicBlock) -> &mut BasicBlock {
@@ -87,11 +86,8 @@ impl<'a> SsaContext<'a> {
             if ins.operator == node::Operation::Phi {
                 ins_str += "(";
                 for (v, b) in &ins.phi_arguments {
-                    ins_str += &format!(
-                        "{:?}:{:?}, ",
-                        v.0.into_raw_parts().0,
-                        b.0.into_raw_parts().0
-                    );
+                    ins_str +=
+                        &format!("{:?}:{:?}, ", v.0.into_raw_parts().0, b.0.into_raw_parts().0);
                 }
                 ins_str += ")";
             }
@@ -183,13 +179,11 @@ impl<'a> SsaContext<'a> {
 
     //todo handle errors
     fn get_instruction(&self, id: NodeId) -> &node::Instruction {
-        self.try_get_instruction(id)
-            .expect("Index not found or not an instruction")
+        self.try_get_instruction(id).expect("Index not found or not an instruction")
     }
 
     pub fn get_mut_instruction(&mut self, id: NodeId) -> &mut node::Instruction {
-        self.try_get_mut_instruction(id)
-            .expect("Index not found or not an instruction")
+        self.try_get_mut_instruction(id).expect("Index not found or not an instruction")
     }
 
     pub fn try_get_instruction(&self, id: NodeId) -> Option<&node::Instruction> {

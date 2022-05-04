@@ -59,10 +59,7 @@ impl Memory {
     }
 
     pub fn get_array_index(&self, array: &MemArray) -> Option<u32> {
-        self.arrays
-            .iter()
-            .position(|x| x.adr == array.adr)
-            .map(|p| p as u32)
+        self.arrays.iter().position(|x| x.adr == array.adr).map(|p| p as u32)
     }
 
     //dereference a pointer

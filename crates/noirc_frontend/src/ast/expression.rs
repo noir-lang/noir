@@ -65,10 +65,7 @@ impl ExpressionKind {
     }
 
     pub fn function_call((func_name, arguments): (Path, Vec<Expression>)) -> ExpressionKind {
-        ExpressionKind::Call(Box::new(CallExpression {
-            func_name,
-            arguments,
-        }))
+        ExpressionKind::Call(Box::new(CallExpression { func_name, arguments }))
     }
 
     pub fn constructor((type_name, fields): (Path, Vec<(Ident, Expression)>)) -> ExpressionKind {
@@ -501,13 +498,7 @@ impl Display for CallExpression {
 impl Display for MethodCallExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let args = vecmap(&self.arguments, ToString::to_string);
-        write!(
-            f,
-            "{}.{}({})",
-            self.object,
-            self.method_name,
-            args.join(", ")
-        )
+        write!(f, "{}.{}({})", self.object, self.method_name, args.join(", "))
     }
 }
 
@@ -590,9 +581,7 @@ impl Display for FunctionDefinition {
             writeln!(f, "{}", attribute)?;
         }
 
-        let parameters = vecmap(&self.parameters, |(name, r#type)| {
-            format!("{}: {}", name, r#type)
-        });
+        let parameters = vecmap(&self.parameters, |(name, r#type)| format!("{}: {}", name, r#type));
 
         write!(
             f,
