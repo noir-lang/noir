@@ -651,10 +651,9 @@ impl<'a> IRGenerator<'a> {
                 let func_meta = self.def_interner().function_meta(&call_expr.func_id);
                 match func_meta.kind {
                     FunctionKind::Normal =>  {
-                        //Function defined inside the Noir program.      
-                        if self.context.functions_cfg.get(&call_expr.func_id).is_none() {
-                            let func = function::create_function(call_expr.func_id, self.context.context(), env, &func_meta.parameters);
-                            self.context.functions_cfg.insert(call_expr.func_id, func);
+                        if self.context.get_ssafunc(call_expr.func_id).is_none() {
+                            let func = function::create_function(self, call_expr.func_id, self.context.context(), env, &func_meta.parameters);
+                            self.context.functions.insert(call_expr.func_id, func);
                         }
 
                     //generate a call instruction to the function cfg

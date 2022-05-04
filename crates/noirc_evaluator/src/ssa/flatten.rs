@@ -1,7 +1,7 @@
 use super::{
     block::{self, BlockId},
     context::SsaContext,
-    function,
+    function::{self},
     node::{self, Node, NodeEval, NodeId, NodeObj, Operation},
     optim,
 };
@@ -9,9 +9,9 @@ use acvm::FieldElement;
 use std::collections::HashMap;
 
 //Unroll the CFG
-pub fn unroll_tree(ctx: &mut SsaContext) {
+pub fn unroll_tree(ctx: &mut SsaContext, first_block: BlockId) {
     //Calls outer_unroll() from the root node
-    let mut id = ctx.first_block;
+    let mut id = first_block;
     let mut unroll_ins = Vec::new();
     let mut eval_map = HashMap::new();
     while let Some(next) = outer_unroll(&mut unroll_ins, &mut eval_map, id, ctx) {
@@ -378,23 +378,29 @@ fn evaluate_object(
     }
 }
 
-pub fn inline_tree(ctx: &mut SsaContext) {
+pub fn inline_tree(ctx: &mut SsaContext) -> u32 {
     //inline all function calls
-    inline_block(ctx, ctx.first_block);
+    let mut retry = ctx.inline_tries;
+    while retry > 0 && !inline_block(ctx, ctx.first_block) {
+        retry -= 1;
+        optim::cse(ctx, ctx.first_block);
+    }
+    assert!(retry > 0, "Error - too many nested calls");
+    ctx.inline_tries - retry
 }
 
 //inline all function calls of the block
-pub fn inline_block(ctx: &mut SsaContext, block_id: BlockId) {
+//Return false if some inlined function performs a function call
+pub fn inline_block(ctx: &mut SsaContext, block_id: BlockId) -> bool {
     let mut call_ins = Vec::<NodeId>::new();
-
     for i in &ctx[block_id].instructions {
         if let Some(ins) = ctx.try_get_instruction(*i) {
-            if matches!(ins.operator, node::Operation::Call(_)) {
+            if !ins.is_deleted && matches!(ins.operator, node::Operation::Call(_)) {
                 call_ins.push(*i);
             }
         }
     }
-
+    let mut result = true;
     for ins_id in call_ins {
         let ins = ctx.try_get_instruction(ins_id).unwrap().clone();
         if let node::Instruction {
@@ -402,20 +408,25 @@ pub fn inline_block(ctx: &mut SsaContext, block_id: BlockId) {
             ..
         } = ins
         {
-            inline(f, &ins.ins_arguments, ctx, ins.parent_block, ins.id);
+            if !inline(f, &ins.ins_arguments, ctx, ins.parent_block, ins.id) {
+                result = false;
+            }
         }
     }
+    result
 }
 
 //inline a function call
+//Return false if the inlined function performs a function call
 pub fn inline(
     func_id: noirc_frontend::node_interner::FuncId,
     args: &[NodeId],
     ctx: &mut SsaContext,
     block: BlockId,
     call_id: NodeId,
-) {
-    let ssa_func = ctx.functions_cfg.get(&func_id).unwrap();
+) -> bool {
+    let ssa_func = ctx.get_ssafunc(func_id).unwrap();
+
     //map nodes from the function cfg to the caller cfg
     let mut inline_map: HashMap<NodeId, NodeId> = HashMap::new();
     let mut array_map: HashMap<u32, u32> = HashMap::new();
@@ -423,19 +434,25 @@ pub fn inline(
     for (arg_caller, arg_function) in args.iter().zip(&ssa_func.arguments) {
         inline_map.insert(*arg_function, *arg_caller);
     }
+    let mut result = true;
     //2. inline in the block: we assume the function cfg is already flatened.
-    let mut next_block = Some(ssa_func.igen.context.first_block);
+    let mut next_block = Some(ssa_func.entry_block);
     while let Some(next_b) = next_block {
+        let mut nested_call = false;
         next_block = inline_in_block(
             next_b,
             block,
             &mut inline_map,
             &mut array_map,
-            func_id,
             call_id,
+            &mut nested_call,
             ctx,
         );
+        if result && nested_call {
+            result = false
+        }
     }
+    result
 }
 
 //inline the given block of the function body into the target_block
@@ -444,31 +461,33 @@ pub fn inline_in_block(
     target_block_id: BlockId,
     inline_map: &mut HashMap<NodeId, NodeId>,
     array_map: &mut HashMap<u32, u32>,
-    func_id: noirc_frontend::node_interner::FuncId, //func_cfg: &IRGenerator,
     call_id: NodeId,
+    nested_call: &mut bool,
     ctx: &mut SsaContext,
 ) -> Option<BlockId> {
     let mut new_instructions: Vec<NodeId> = Vec::new();
-    let func_cfg = &ctx.get_function_context(func_id);
-    let block_func = &func_cfg[block_id];
+    let block_func = &ctx[block_id];
     let next_block = block_func.left;
     let block_func_instructions = &block_func.instructions.clone();
+    *nested_call = false;
     for &i_id in block_func_instructions {
         let mut array_func = None;
         let mut array_func_idx = u32::MAX;
-        if let Some(ins) = ctx.get_function_context(func_id).try_get_instruction(i_id) {
+        if let Some(ins) = ctx.try_get_instruction(i_id) {
+            if ins.is_deleted {
+                continue;
+            }
             let clone = ins.clone();
             if let node::ObjectType::Pointer(a) = ins.res_type {
                 //We need to map arrays to arrays via the array_map, we collect the data here to be mapped below.
-                array_func = Some(ctx.get_function_context(func_id).mem.arrays[a as usize].clone());
+                array_func = Some(ctx.mem.arrays[a as usize].clone());
                 array_func_idx = a;
             }
             let new_left =
-                function::SSAFunction::get_mapped_value(func_id, Some(&clone.lhs), ctx, inline_map);
+                function::SSAFunction::get_mapped_value(Some(&clone.lhs), ctx, inline_map);
             let new_right =
-                function::SSAFunction::get_mapped_value(func_id, Some(&clone.rhs), ctx, inline_map);
+                function::SSAFunction::get_mapped_value(Some(&clone.rhs), ctx, inline_map);
             let new_arg = function::SSAFunction::get_mapped_value(
-                func_id,
                 clone.ins_arguments.first(),
                 ctx,
                 inline_map,
@@ -517,7 +536,34 @@ pub fn inline_in_block(
                         }
                     }
                 }
-                Operation::Call(_) => todo!("function calling function is not yet supported"), //We mainly need to map the arguments and then decide how to recurse the function call. For instance:
+                Operation::Call(_) => {
+                    *nested_call = true;
+
+                    let mut new_ins = node::Instruction::new(
+                        clone.operator,
+                        new_left,
+                        new_right,
+                        clone.res_type,
+                        Some(target_block_id),
+                    );
+                    new_ins.ins_arguments = Vec::new();
+                    for i in clone.ins_arguments {
+                        new_ins
+                            .ins_arguments
+                            .push(function::SSAFunction::get_mapped_value(
+                                Some(&i),
+                                ctx,
+                                inline_map,
+                            ));
+                    }
+                    let result_id = ctx.add_instruction(new_ins);
+                    new_instructions.push(result_id);
+                    inline_map.insert(i_id, result_id);
+                    //TODO handle Res instruction?
+                }
+                // Operation::Res => {
+                // }
+                //We mainly need to map the arguments and then decide how to recurse the function call. For instance:
                 // - map the call instruction into the main context (by mapping the arguments)
                 // - perform the inlining step as long as we map call instruction, but limit this step to a pre-defined maximum.
                 // - this should inline all the call instructions unless there is a call cycle (e.g a function calling itself)
@@ -528,8 +574,7 @@ pub fn inline_in_block(
                     //TODO use relative addressing, but that requires a few changes, mainly in acir_gen.rs and integer.rs
                     let b = array_map[&a];
                     //n.b. this offset is always positive
-                    let offset = ctx.mem.arrays[b as usize].adr
-                        - ctx.get_function_context(func_id).mem.arrays[a as usize].adr;
+                    let offset = ctx.mem.arrays[b as usize].adr - ctx.mem.arrays[a as usize].adr;
                     let index_type = ctx[new_left].get_type();
                     let offset_id =
                         ctx.get_or_create_const(FieldElement::from(offset as i128), index_type);
@@ -548,8 +593,7 @@ pub fn inline_in_block(
                 }
                 Operation::Store(a) => {
                     let b = array_map[&a];
-                    let offset = ctx.get_function_context(func_id).mem.arrays[a as usize].adr
-                        - ctx.mem.arrays[b as usize].adr;
+                    let offset = ctx.mem.arrays[a as usize].adr - ctx.mem.arrays[b as usize].adr;
                     let index_type = ctx[new_left].get_type();
                     let offset_id =
                         ctx.get_or_create_const(FieldElement::from(offset as i128), index_type);
@@ -617,5 +661,6 @@ pub fn inline_in_block(
         ctx[target_block_id].instructions.insert(pos, new_id);
         pos += 1;
     }
+
     next_block
 }

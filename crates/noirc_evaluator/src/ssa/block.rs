@@ -75,20 +75,25 @@ impl BasicBlock {
             _ => false,
         })
     }
+
+    //Create the first block for a CFG
+    pub fn create_cfg(ctx: &mut SsaContext) -> BlockId {
+        let root_block = BasicBlock::new(BlockId::dummy(), BlockType::Normal);
+        let root_block = ctx.insert_block(root_block);
+        let root_id = root_block.id;
+        ctx.current_block = root_id;
+        ctx.new_instruction(
+            NodeId::dummy(),
+            NodeId::dummy(),
+            node::Operation::Nop,
+            node::ObjectType::NotAnObject,
+        );
+        root_id
+    }
 }
 
 pub fn create_first_block(ctx: &mut SsaContext) {
-    let first_block = BasicBlock::new(BlockId::dummy(), BlockType::Normal);
-    let first_block = ctx.insert_block(first_block);
-    let first_id = first_block.id;
-    ctx.first_block = first_id;
-    ctx.current_block = first_id;
-    ctx.new_instruction(
-        NodeId::dummy(),
-        NodeId::dummy(),
-        node::Operation::Nop,
-        node::ObjectType::NotAnObject,
-    );
+    ctx.first_block = BasicBlock::create_cfg(ctx);
 }
 
 //Creates a new sealed block (i.e whose predecessors are known)

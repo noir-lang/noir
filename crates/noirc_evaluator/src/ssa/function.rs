@@ -9,46 +9,47 @@ use noirc_frontend::hir_def::stmt::HirPattern;
 use noirc_frontend::node_interner::FuncId;
 
 use super::{
+    block::BlockId,
     code_gen::IRGenerator,
     context::SsaContext,
     node::{self, NodeId, ObjectType},
     ssa_form,
 };
 
-pub struct SSAFunction<'a> {
-    pub igen: IRGenerator<'a>,
+pub struct SSAFunction {
+    //pub igen: IRGenerator<'a>,
+    pub entry_block: BlockId,
     pub id: FuncId,
     //signature..
     pub arguments: Vec<NodeId>,
 }
 
-impl<'a> SSAFunction<'a> {
+impl SSAFunction {
     //Parse the AST function body into ssa form in cfg
     pub fn parse_statements(
-        &mut self,
+        igen: &mut IRGenerator,
         block: &[noirc_frontend::node_interner::StmtId],
         env: &mut Environment,
     ) {
         for stmt in block {
-            self.igen.evaluate_statement(env, stmt).unwrap();
+            igen.evaluate_statement(env, stmt).unwrap();
         }
     }
 
-    pub fn new(func: FuncId, ctx: &'a noirc_frontend::hir::Context) -> SSAFunction<'a> {
+    pub fn new(func: FuncId, block_id: BlockId) -> SSAFunction {
         SSAFunction {
-            igen: IRGenerator::new(ctx),
+            entry_block: block_id,
             id: func,
             arguments: Vec::new(),
         }
     }
 
-    pub fn compile(&mut self) -> Option<NodeId> {
+    pub fn compile(&self, igen: &mut IRGenerator) -> Option<NodeId> {
         //Optimisation
-        super::block::compute_dom(&mut self.igen.context);
-        super::optim::cse(&mut self.igen.context);
+        super::optim::cse(&mut igen.context, self.entry_block);
         //Unrolling
-        super::flatten::unroll_tree(&mut self.igen.context);
-        super::optim::cse(&mut self.igen.context)
+        super::flatten::unroll_tree(&mut igen.context, self.entry_block);
+        super::optim::cse(&mut igen.context, self.entry_block)
     }
 
     //generates an instruction for calling the function
@@ -71,7 +72,6 @@ impl<'a> SSAFunction<'a> {
     }
 
     pub fn get_mapped_value(
-        func_id: noirc_frontend::node_interner::FuncId,
         var: Option<&NodeId>,
         ctx: &mut SsaContext,
         inline_map: &HashMap<NodeId, NodeId>,
@@ -81,17 +81,13 @@ impl<'a> SSAFunction<'a> {
                 return node_id;
             }
             let mut my_const = None;
-            let node_obj_opt = ctx.functions_cfg[&func_id]
-                .igen
-                .context
-                .try_get_node(node_id);
+            let node_obj_opt = ctx.try_get_node(node_id);
             if let Some(node::NodeObj::Const(c)) = node_obj_opt {
                 my_const = Some((c.get_value_field(), c.value_type));
             }
             if let Some(c) = my_const {
                 ctx.get_or_create_const(c.0, c.1)
             } else {
-                //                dbg!(&node_id);
                 *inline_map.get(&node_id).unwrap()
             }
         } else {
@@ -160,16 +156,19 @@ pub fn call_low_level(
     )
 }
 
-pub fn create_function<'a>(
+pub fn create_function(
+    igen: &mut IRGenerator,
     func_id: FuncId,
-    context: &'a noirc_frontend::hir::Context,
+    context: &noirc_frontend::hir::Context,
     env: &mut Environment,
     parameters: &Parameters,
-) -> SSAFunction<'a> {
-    let mut func = SSAFunction::new(func_id, context);
+) -> SSAFunction {
+    let current_block = igen.context.current_block;
+    let func_block = super::block::BasicBlock::create_cfg(&mut igen.context);
+
+    let mut func = SSAFunction::new(func_id, func_block);
     let function = context.def_interner.function(&func_id);
     let block = function.block(&context.def_interner);
-
     //argumemts:
     for pat in parameters.iter() {
         let ident_id = match &pat.0 {
@@ -181,15 +180,17 @@ pub fn create_function<'a>(
             HirPattern::Struct(_, _, _) => todo!(),
         };
 
-        let node_id = ssa_form::create_function_parameter(&mut func.igen, &ident_id.unwrap().id);
+        let node_id = ssa_form::create_function_parameter(igen, &ident_id.unwrap().id);
         func.arguments.push(node_id);
     }
     //dbg!(&func.arguments);
-    func.parse_statements(block.statements(), env);
-    let last = func.compile(); //unroll the function
-    add_return_instruction(&mut func.igen.context, last);
+    SSAFunction::parse_statements(igen, block.statements(), env);
+    let last = func.compile(igen); //unroll the function
+    add_return_instruction(&mut igen.context, last);
+    igen.context.current_block = current_block;
     func
 }
+
 
 pub fn add_return_instruction(cfg: &mut SsaContext, last: Option<NodeId>) {
     let last_id = last.unwrap_or_else(NodeId::dummy);

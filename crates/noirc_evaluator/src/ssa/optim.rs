@@ -263,9 +263,9 @@ pub fn propagate(ctx: &SsaContext, id: NodeId) -> NodeId {
 }
 
 //common subexpression elimination, starting from the root
-pub fn cse(igen: &mut SsaContext) -> Option<NodeId> {
+pub fn cse(igen: &mut SsaContext, first_block: BlockId) -> Option<NodeId> {
     let mut anchor = HashMap::new();
-    cse_tree(igen, igen.first_block, &mut anchor)
+    cse_tree(igen, first_block, &mut anchor)
 }
 
 //Perform CSE for the provided block and then process its children following the dominator tree, passing around the anchor list.
