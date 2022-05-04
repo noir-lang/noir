@@ -13,7 +13,7 @@ use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use noirc_frontend::hir::Context;
 use noirc_frontend::hir_def::expr::{
-    HirCallExpression, HirConstructorExpression, HirIdent, HirMemberAccess,
+    HirCallExpression, HirConstructorExpression, HirIdent, HirMemberAccess, HirUnaryOp,
 };
 use noirc_frontend::hir_def::function::HirFunction;
 use noirc_frontend::hir_def::stmt::{HirLValue, HirPattern};
@@ -197,6 +197,24 @@ impl<'a> IRGenerator<'a> {
 
     pub fn def_interner(&self) -> &NodeInterner {
         &self.context.context.def_interner
+    }
+
+    fn evaluate_prefix_expression(
+        &mut self,
+        rhs: NodeId,
+        op: HirUnaryOp,
+    ) -> Result<NodeId, RuntimeError> {
+        let rtype = self.context.get_object_type(rhs);
+        match op {
+            HirUnaryOp::Minus => {
+                Ok(self
+                    .context
+                    .new_instruction(self.context.zero(), rhs, Operation::Sub, rtype))
+            }
+            HirUnaryOp::Not => Ok(self
+                .context
+                .new_instruction(rhs, rhs, Operation::Not, rtype)),
+        }
     }
 
     fn evaluate_infix_expression(
@@ -682,7 +700,10 @@ impl<'a> IRGenerator<'a> {
             HirExpression::MemberAccess(access) => self.handle_member_access(env, access),
             HirExpression::Tuple(fields) => self.handle_tuple(env, fields),
             HirExpression::If(_) => todo!(),
-            HirExpression::Prefix(_) => todo!(),
+            HirExpression::Prefix(prefix) => {
+                let rhs = self.expression_to_object(env, &prefix.rhs)?.unwrap_id();
+                self.evaluate_prefix_expression(rhs, prefix.operator).map(Value::Single)
+            },
             HirExpression::Literal(l) => {
                 Ok(Value::Single(self.handle_literal(&l)))
             },

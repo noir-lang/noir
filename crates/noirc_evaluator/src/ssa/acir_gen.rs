@@ -271,14 +271,15 @@ impl Acir {
                 .into()
             }
             Operation::Lt => todo!(),
-            Operation::Gt => unreachable!(),
-            Operation::Lte => unreachable!(),
-            Operation::Gte => unreachable!(),
+            Operation::Gte | Operation::Lte | Operation::Gt => unreachable!(),
+            Operation::Shl | Operation::Shr => unreachable!(),
             Operation::And => {
                 InternalVar::from(evaluate_and(l_c, r_c, ins.res_type.bits(), evaluator))
             }
             Operation::Not => todo!(),
-            Operation::Or => InternalVar::from(evaluate_or(l_c, r_c, ins.res_type.bits())),
+            Operation::Or => {
+                InternalVar::from(evaluate_or(l_c, r_c, ins.res_type.bits(), evaluator))
+            }
             Operation::Xor => {
                 InternalVar::from(evaluate_xor(l_c, r_c, ins.res_type.bits(), evaluator))
             }
@@ -293,12 +294,12 @@ impl Acir {
             }
             Operation::Trunc => {
                 assert!(is_const(&r_c.expression));
-                InternalVar::from(evaluate_truncate(
+                evaluate_truncate(
                     l_c,
                     r_c.expression.q_c.to_u128().try_into().unwrap(),
                     ins.bit_size,
                     evaluator,
-                ))
+                )
             }
             Operation::Intrinsic(opcode) => {
                 InternalVar::from(self.evaluate_opcode(ins, opcode, ctx, evaluator))
@@ -496,7 +497,11 @@ impl Acir {
                 FieldElement::from(-1_i128),
                 &r_c.expression,
             );
-            evaluator.gates.push(Gate::Arithmetic(output.clone()));
+            if is_const(&output) {
+                assert!(output.q_c == FieldElement::zero());
+            } else {
+                evaluator.gates.push(Gate::Arithmetic(output.clone()));
+            }
             output
         }
     }
@@ -618,7 +623,14 @@ impl Acir {
         let signature = opcode.definition();
 
         match opcode {
-            OPCODE::ToBits => todo!(),
+            OPCODE::ToBits => {
+                let bit_size = cfg.get_as_constant(ins.rhs).unwrap().to_u128() as u32;
+                let l_c = self.substitute(ins.lhs, evaluator, cfg);
+                outputs = split(&l_c, bit_size, evaluator);
+                if let node::ObjectType::Pointer(a) = ins.res_type {
+                    self.memory_witness.insert(a, outputs.clone()); //TODO can we avoid the clone?
+                }
+            }
             _ => {
                 match (signature.input_size, signature.output_size) {
                     (InputSize::Variable, OutputSize(y)) => {
@@ -739,12 +751,68 @@ pub fn split(lhs: &InternalVar, bit_size: u32, evaluator: &mut Evaluator) -> Vec
     result
 }
 
+fn const_and(
+    var: InternalVar,
+    b: FieldElement,
+    bit_size: u32,
+    evaluator: &mut Evaluator,
+) -> Arithmetic {
+    let a_bits = split(&var, bit_size, evaluator);
+    let mut result = Arithmetic::default();
+    let mut k = FieldElement::one();
+    let two = FieldElement::from(2_i128);
+    for (a_iter, b_iter) in a_bits.into_iter().zip(b.bits().iter().rev()) {
+        if *b_iter {
+            result = add(&result, k, &from_witness(a_iter));
+        }
+        k = k.mul(two);
+    }
+    result
+}
+
+fn const_xor(
+    var: InternalVar,
+    b: FieldElement,
+    bit_size: u32,
+    evaluator: &mut Evaluator,
+) -> Arithmetic {
+    let a_bits = split(&var, bit_size, evaluator);
+    let mut result = Arithmetic::default();
+    let mut k = FieldElement::one();
+    let two = FieldElement::from(2_i128);
+    for (a_iter, b_iter) in a_bits.into_iter().zip(b.bits()) {
+        if b_iter {
+            let c = subtract(
+                &Arithmetic {
+                    mul_terms: Vec::new(),
+                    linear_combinations: Vec::new(),
+                    q_c: FieldElement::one(),
+                },
+                FieldElement::one(),
+                &from_witness(a_iter),
+            );
+            result = add(&result, k, &c);
+        } else {
+            result = add(&result, k, &from_witness(a_iter));
+        }
+        k = k.mul(two);
+    }
+    result
+}
+
 pub fn evaluate_and(
     lhs: InternalVar,
     rhs: InternalVar,
     bit_size: u32,
     evaluator: &mut Evaluator,
 ) -> Arithmetic {
+    if let Some(r_c) = rhs.to_const() {
+        return const_and(lhs, r_c, bit_size, evaluator);
+    }
+    if let Some(l_c) = lhs.to_const() {
+        return const_and(rhs, l_c, bit_size, evaluator);
+    }
+
     let result = evaluator.add_witness_to_cs();
     let a_witness = generate_witness(&lhs, evaluator);
     let b_witness = generate_witness(&rhs, evaluator);
@@ -766,6 +834,13 @@ pub fn evaluate_xor(
     bit_size: u32,
     evaluator: &mut Evaluator,
 ) -> Arithmetic {
+    if let Some(r_c) = rhs.to_const() {
+        return const_xor(lhs, r_c, bit_size, evaluator);
+    }
+    if let Some(l_c) = lhs.to_const() {
+        return const_xor(rhs, l_c, bit_size, evaluator);
+    }
+
     let result = evaluator.add_witness_to_cs();
 
     let a_witness = generate_witness(&lhs, evaluator);
@@ -782,13 +857,29 @@ pub fn evaluate_xor(
     from_witness(result)
 }
 
-pub fn evaluate_or(lhs: InternalVar, rhs: InternalVar, bit_size: u32) -> Arithmetic {
-    if bit_size != 1 {
-        unreachable!("OR is only supported with boolean operands");
+pub fn evaluate_or(
+    lhs: InternalVar,
+    rhs: InternalVar,
+    bit_size: u32,
+    evaluator: &mut Evaluator,
+) -> Arithmetic {
+    if bit_size == 1 {
+        let sum = add(&lhs.expression, FieldElement::one(), &rhs.expression);
+        let mul = mul(&lhs.expression, &rhs.expression);
+        return subtract(&sum, FieldElement::one(), &mul);
     }
-    let sum = add(&lhs.expression, FieldElement::one(), &rhs.expression);
-    let mul = mul(&lhs.expression, &rhs.expression);
-    subtract(&sum, FieldElement::one(), &mul)
+
+    let lhs_bits = split(&lhs, bit_size, evaluator);
+    let rhs_bits = split(&rhs, bit_size, evaluator);
+    let mut result = Arithmetic::default();
+    let mut k = FieldElement::one();
+    let two = FieldElement::from(2_i128);
+    for (l_bit, r_bit) in lhs_bits.into_iter().zip(rhs_bits) {
+        let l_or_r = evaluate_or(l_bit.into(), r_bit.into(), 1, evaluator);
+        result = add(&result, k, &l_or_r);
+        k = k.mul(two);
+    }
+    result
 }
 
 //truncate lhs (a number whose value requires max_bits) into a rhs-bits number: i.e it returns b such that lhs mod 2^rhs is b
@@ -797,8 +888,15 @@ pub fn evaluate_truncate(
     rhs: u32,
     max_bits: u32,
     evaluator: &mut Evaluator,
-) -> Witness {
+) -> InternalVar {
     assert!(max_bits > rhs);
+    //0. Check for constant expression. This can happen through arithmetic simplifications
+    if let Some(a_c) = lhs.to_const() {
+        let mut a_big = BigUint::from_bytes_be(&a_c.to_bytes());
+        let two = BigUint::from(2_u32);
+        a_big %= two.pow(rhs);
+        return InternalVar::from(FieldElement::from_be_bytes_reduce(&a_big.to_bytes_be()));
+    }
     //1. Generate witnesses a,b,c
     //TODO: we should truncate the arithmetic expression (and so avoid having to create a witness)
     // if lhs is not a witness, but this requires a new truncate directive...TODO
@@ -828,7 +926,7 @@ pub fn evaluate_truncate(
     let a = &Arithmetic::from(Linear::from_witness(a_witness));
     let my_constraint = add(&res, -FieldElement::one(), a);
     evaluator.gates.push(Gate::Arithmetic(my_constraint));
-    b_witness
+    InternalVar::from(b_witness)
 }
 
 pub fn generate_witness(lhs: &InternalVar, evaluator: &mut Evaluator) -> Witness {
