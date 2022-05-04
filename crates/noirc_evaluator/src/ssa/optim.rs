@@ -1,4 +1,5 @@
 use super::{
+    acir_gen::InternalVar,
     block::BlockId,
     context::SsaContext,
     mem,
@@ -123,6 +124,21 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut node::Instruction) {
                     return;
                 }
             }
+            node::Operation::Shl => {
+                ins.operator = node::Operation::Mul;
+                //todo checks that 2^rhs does not overflow
+                ins.rhs = ctx.get_or_create_const(FieldElement::from(2_i128).pow(&r_const), r_type);
+                return;
+            }
+            node::Operation::Shr => {
+                if !matches!(ins.res_type, node::ObjectType::Unsigned(_)) {
+                    todo!("Right shift is only implemented for unsigned integers");
+                }
+                ins.operator = node::Operation::Udiv;
+                //todo checks that 2^rhs does not overflow
+                ins.rhs = ctx.get_or_create_const(FieldElement::from(2_i128).pow(&r_const), r_type);
+                return;
+            }
             _ => (),
         }
     }
@@ -131,6 +147,52 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut node::Instruction) {
             ins.operator = node::Operation::Not;
             ins.lhs = ins.rhs;
         }
+        if let NodeEval::Const(r_const, _) = r_eval {
+            if let Operation::Intrinsic(op) = ins.operator {
+                ins.rhs = evaluate_intrinsic(ctx, op, l_const, r_const);
+                ins.is_deleted = true;
+            }
+        }
+    }
+}
+
+fn evaluate_intrinsic(
+    irgen: &mut SsaContext,
+    op: acvm::acir::OPCODE,
+    lhs: FieldElement,
+    rhs: FieldElement,
+) -> NodeId {
+    match op {
+        acvm::acir::OPCODE::ToBits => {
+            let lhs_int = lhs.to_u128();
+            let rhs_int = rhs.to_u128() as u32;
+            let a =
+                irgen
+                    .mem
+                    .create_new_array(rhs_int, node::ObjectType::Unsigned(1), &String::new());
+            let pointer = node::Variable {
+                id: NodeId::dummy(),
+                obj_type: node::ObjectType::Pointer(a),
+                root: None,
+                name: String::new(),
+                def: None,
+                witness: None,
+                parent_block: irgen.current_block,
+            };
+            for i in 0..rhs_int {
+                if lhs_int & (1 << i) != 0 {
+                    irgen.mem.arrays[a as usize]
+                        .values
+                        .push(InternalVar::from(FieldElement::one()));
+                } else {
+                    irgen.mem.arrays[a as usize]
+                        .values
+                        .push(InternalVar::from(FieldElement::zero()));
+                }
+            }
+            irgen.add_variable(pointer, None)
+        }
+        _ => todo!(),
     }
 }
 

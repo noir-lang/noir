@@ -16,7 +16,7 @@ use acvm::FieldElement;
 use acvm::Language;
 use environment::{Environment, FuncContext};
 use errors::{RuntimeError, RuntimeErrorKind};
-use noirc_frontend::hir::Context;
+use noirc_frontend::{hir::Context, node_interner::DefinitionId};
 use noirc_frontend::{
     hir_def::{expr::HirIdent, stmt::HirLValue},
     node_interner::{ExprId, FuncId, StmtId},
@@ -330,6 +330,74 @@ impl<'a> Evaluator<'a> {
         Ok(())
     }
 
+    fn param_to_var(
+        &mut self,
+        name: &str,
+        def: DefinitionId,
+        param_type: &Type,
+        param_span: noirc_errors::Span,
+        igen: &mut IRGenerator,
+    ) -> Result<(), RuntimeError> {
+        match param_type {
+            Type::FieldElement(ft) => {
+                let witness = self.add_witness_to_cs();
+                if ft.strict_eq(&FieldElementType::Public) {
+                    self.public_inputs.push(witness);
+                }
+                igen.abi_var(name, def, node::ObjectType::NativeField, witness);
+            }
+            Type::Array(ft, array_size, typ) => {
+                let mut witnesses = Vec::new();
+                let mut element_width = None;
+                if let Type::Integer(_, _, width) = typ.as_ref() {
+                    element_width = Some(*width);
+                }
+                match array_size.clone() {
+                    noirc_frontend::ArraySize::Variable => {
+                        panic!("cannot have variable sized array in entry point")
+                    }
+                    noirc_frontend::ArraySize::Fixed(len) => {
+                        for _ in 0..len {
+                            let witness = self.add_witness_to_cs();
+                            witnesses.push(witness);
+                            if let Some(ww) = element_width {
+                                ssa::acir_gen::range_constraint(witness, ww, self)
+                                    .map_err(|e| e.add_span(param_span))?;
+                            }
+                            if ft.strict_eq(&FieldElementType::Public) {
+                                self.public_inputs.push(witness);
+                            }
+                        }
+                        igen.abi_array(name, def, *typ.clone(), len, witnesses);
+                    }
+                }
+            }
+            Type::Integer(ft, sign, width) => {
+                let witness = self.add_witness_to_cs();
+                ssa::acir_gen::range_constraint(witness, *width, self)
+                    .map_err(|e| e.add_span(param_span))?;
+                if ft.strict_eq(&FieldElementType::Public) {
+                    self.public_inputs.push(witness);
+                }
+                match sign {
+                    noirc_frontend::Signedness::Unsigned => {
+                        igen.abi_var(name, def, node::ObjectType::Unsigned(*width), witness)
+                    }
+                    noirc_frontend::Signedness::Signed => {
+                        igen.abi_var(name, def, node::ObjectType::Signed(*width), witness)
+                    }
+                }
+            }
+            Type::Bool => todo!(),
+            Type::Unit => todo!(),
+            Type::Struct(_, _) => todo!(),
+            Type::Tuple(_) => todo!(),
+            Type::Error => todo!(),
+            Type::Unspecified => todo!(),
+        }
+        Ok(())
+    }
+
     /// The ABI is the intermediate representation between Noir and types like Toml
     /// Noted in the noirc_abi, it is possible to convert Toml -> NoirTypes
     /// However, this intermediate representation is useful as it allows us to have
@@ -349,75 +417,19 @@ impl<'a> Evaluator<'a> {
         // This maybe not be desireable in the long run, because we want to point to the exact place
         let param_span = func_meta.parameters.span();
         for param in &func_meta.parameters.0 {
-            match param.0 {
+            match &param.0 {
                 HirPattern::Identifier(ident_id) => {
                     let name = self.context.def_interner.definition_name(ident_id.id);
                     let ident_def = ident_id.id;
-                    match &param.1 {
-                        Type::FieldElement(ft) => {
-                            let witness = self.add_witness_to_cs();
-                            if ft.strict_eq(&FieldElementType::Public) {
-                                self.public_inputs.push(witness);
-                            }
-                            igen.abi_var(name, ident_def, node::ObjectType::NativeField, witness);
-                        }
-                        Type::Array(ft, array_size, typ) => {
-                            let mut witnesses = Vec::new();
-                            let mut element_width = None;
-                            if let Type::Integer(_, _, width) = typ.as_ref() {
-                                element_width = Some(*width);
-                            }
-                            match array_size.clone() {
-                                noirc_frontend::ArraySize::Variable => {
-                                    panic!("cannot have variable sized array in entry point")
-                                }
-                                noirc_frontend::ArraySize::Fixed(len) => {
-                                    for _ in 0..len {
-                                        let witness = self.add_witness_to_cs();
-                                        witnesses.push(witness);
-                                        if let Some(ww) = element_width {
-                                            ssa::acir_gen::range_constraint(witness, ww, self)
-                                                .map_err(|e| e.add_span(param_span))?;
-                                        }
-                                        if ft.strict_eq(&FieldElementType::Public) {
-                                            self.public_inputs.push(witness);
-                                        }
-                                    }
-                                    igen.abi_array(name, ident_def, *typ.clone(), len, witnesses);
-                                }
-                            }
-                        }
-                        Type::Integer(ft, sign, width) => {
-                            let witness = self.add_witness_to_cs();
-                            ssa::acir_gen::range_constraint(witness, *width, self)
-                                .map_err(|e| e.add_span(param_span))?;
-                            if ft.strict_eq(&FieldElementType::Public) {
-                                self.public_inputs.push(witness);
-                            }
-                            match sign {
-                                noirc_frontend::Signedness::Unsigned => igen.abi_var(
-                                    name,
-                                    ident_def,
-                                    node::ObjectType::Unsigned(*width),
-                                    witness,
-                                ),
-                                noirc_frontend::Signedness::Signed => igen.abi_var(
-                                    name,
-                                    ident_def,
-                                    node::ObjectType::Signed(*width),
-                                    witness,
-                                ),
-                            }
-                        }
-                        Type::Bool => todo!(),
-                        Type::Unit => todo!(),
-                        Type::Struct(_, _) => todo!(),
-                        Type::Tuple(_) => todo!(),
-                        Type::Error => todo!(),
-                        Type::Unspecified => todo!(),
+                    self.param_to_var(name, ident_def, &param.1, param_span, igen)?;
+                }
+                HirPattern::Mutable(hir_pattern, span_pattern) => {
+                    if let HirPattern::Identifier(ident_id) = **hir_pattern {
+                        let name = self.context.def_interner.definition_name(ident_id.id);
+                        let ident_def = ident_id.id;
+                        self.param_to_var(name, ident_def, &param.1, *span_pattern, igen)?;
                     }
                 }
-                HirPattern::Mutable(_, _) => todo!(),
                 HirPattern::Tuple(_, _) => todo!(),
                 HirPattern::Struct(_, _, _) => todo!(),
             }

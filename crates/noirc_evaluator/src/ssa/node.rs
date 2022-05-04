@@ -407,10 +407,8 @@ impl Instruction {
             Operation::Gt => (true, true),
             Operation::Lte => (true, true),
             Operation::Gte => (true, true),
-            Operation::And => (true, true),
-            Operation::Not => (true, true),
-            Operation::Or => (true, true),
-            Operation::Xor => (true, true),
+            Operation::And | Operation::Not | Operation::Or => (true, true),
+            Operation::Xor | Operation::Shr | Operation::Shl => (true, true),
             Operation::Cast => {
                 if self.res_type.bits() > lhs_bits {
                     return (true, false);
@@ -711,6 +709,28 @@ impl Instruction {
                 }
                 //TODO handle case when l_const is one (or r_const is one) by generating 'not rhs' instruction (or 'not lhs' instruction)
             }
+            Operation::Shl => {
+                if l_is_zero {
+                    return *lhs;
+                }
+                if r_is_zero {
+                    return *lhs;
+                }
+                if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
+                    return NodeEval::Const(FieldElement::from(l_const << r_const), self.res_type);
+                }
+            }
+            Operation::Shr => {
+                if l_is_zero {
+                    return *lhs;
+                }
+                if r_is_zero {
+                    return *lhs;
+                }
+                if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
+                    return NodeEval::Const(FieldElement::from(l_const >> r_const), self.res_type);
+                }
+            }
             Operation::Cast => {
                 if let Some(l_const) = l_constant {
                     if self.res_type == ObjectType::NativeField {
@@ -844,6 +864,8 @@ pub enum Operation {
     Not,     //(!) Bitwise Not
     Or,      //(|) Bitwise Or
     Xor,     //(^) Bitwise Xor
+    Shl,     //(<<) Shift left
+    Shr,     //(<<) Shift right
     Cast,    //convert type
     Ass,     //assignement
     Trunc,   //truncate
@@ -932,6 +954,8 @@ pub fn to_operation(op_kind: HirBinaryOpKind, op_type: ObjectType) -> Operation 
         HirBinaryOpKind::And => Operation::And,
         HirBinaryOpKind::Or => Operation::Or,
         HirBinaryOpKind::Xor => Operation::Xor,
+        HirBinaryOpKind::Shl => Operation::Shl,
+        HirBinaryOpKind::Shr => Operation::Shr,
         HirBinaryOpKind::Divide => {
             let num_type: NumericType = op_type.into();
             match num_type {
@@ -974,7 +998,6 @@ pub fn to_operation(op_kind: HirBinaryOpKind, op_type: ObjectType) -> Operation 
         }
         HirBinaryOpKind::Assign => Operation::Ass,
         HirBinaryOpKind::MemberAccess => todo!(),
-        HirBinaryOpKind::Shl | HirBinaryOpKind::Shr => todo!(),
     }
 }
 
