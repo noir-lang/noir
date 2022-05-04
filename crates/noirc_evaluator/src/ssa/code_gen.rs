@@ -286,7 +286,7 @@ impl<'a> IRGenerator<'a> {
         }
     }
 
-    fn create_new_variable(
+    pub fn create_new_variable(
         &mut self,
         var_name: String,
         def: DefinitionId,
@@ -303,10 +303,8 @@ impl<'a> IRGenerator<'a> {
             parent_block: self.context.current_block,
         };
         let v_id = self.context.add_variable(new_var, None);
-        //a voir.. if let Some(ident_def) = def {
         let v_value = Value::Single(v_id);
         self.variable_values.insert(def, v_value);
-        //  }
         v_id
     }
 
@@ -613,9 +611,15 @@ impl<'a> IRGenerator<'a> {
             },
             HirExpression::Index(indexed_expr) => {
                 // Currently these only happen for arrays
-                let arr_def = indexed_expr.collection_name.id;
-                let arr_name = self.def_interner().definition_name(indexed_expr.collection_name.id).to_owned();
-                let ident_span = indexed_expr.collection_name.span;
+                let collection_name = match self.def_interner().expression(&indexed_expr.collection) {
+                    HirExpression::Ident(id) => id,
+                    other => todo!("Array indexing with an lhs of '{:?}' is unimplemented, you must use an expression in the form `identifier[expression]` for now.", other)
+                };
+
+                let arr_def = collection_name.id;
+                let arr_name = self.def_interner().definition_name(arr_def).to_owned();
+                let ident_span = collection_name.span;
+
                 let arr_type = self.def_interner().id_type(arr_def);
                 let o_type = arr_type.into();
                 let mut array_index = self.context.mem.arrays.len() as u32;

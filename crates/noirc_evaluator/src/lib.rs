@@ -166,12 +166,18 @@ impl<'a> Evaluator<'a> {
                 );
                 Err(err)
             }
-            HirBinaryOpKind::Or => {
-                let err = RuntimeErrorKind::Unimplemented("The Or operation is currently not implemented. First implement in Barretenberg.".to_owned());
-                Err(err)
+            HirBinaryOpKind::Or => Err(RuntimeErrorKind::Unimplemented(
+                "The Or operation is currently not implemented. First implement in Barretenberg."
+                    .to_owned(),
+            )),
+            HirBinaryOpKind::Shr | HirBinaryOpKind::Shl => Err(RuntimeErrorKind::Unimplemented(
+                "Bit shift operations are not currently implemented.".to_owned(),
+            )),
+            HirBinaryOpKind::MemberAccess => {
+                todo!("Member access for structs is unimplemented in the noir backend")
             }
-            HirBinaryOpKind::MemberAccess => todo!("Member access for structs is unimplemented in the noir backend"),
-        }.map_err(|kind|kind.add_span(op.span))
+        }
+        .map_err(|kind| kind.add_span(op.span))
     }
 
     // When we evaluate an identifier , it will be a linear polynomial
@@ -712,9 +718,15 @@ impl<'a> Evaluator<'a> {
             }
             HirExpression::Index(indexed_expr) => {
                 // Currently these only happen for arrays
-                let arr_name = self.context.def_interner.definition_name(indexed_expr.collection_name.id);
-                let ident_span = indexed_expr.collection_name.span;
+                let collection_name = match self.context.def_interner.expression(&indexed_expr.collection) {
+                    HirExpression::Ident(id) => id,
+                    other => unimplemented!("Array indexing with an lhs of '{:?}' is unimplemented in the interpreter, you must use an expression in the form `identifier[expression]` for now.", other)
+                };
+
+                let arr_name = self.context.def_interner.definition_name(collection_name.id);
+                let ident_span = collection_name.span;
                 let arr = env.get_array(arr_name).map_err(|kind|kind.add_span(ident_span))?;
+
                 //
                 // Evaluate the index expression
                 let index_as_obj = self.expression_to_object(env, &indexed_expr.index)?;

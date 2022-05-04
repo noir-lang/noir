@@ -38,14 +38,12 @@ impl PartialWitnessGenerator for Plonk {
                     false
                 }
                 Gate::And(and_gate) => {
-                    LogicSolver::solve_and_gate(initial_witness, and_gate);
+                    !LogicSolver::solve_and_gate(initial_witness, and_gate)
                     // We compute the result because the other gates may want to use the assignment to generate their assignments
-                    false
                 }
                 Gate::Xor(xor_gate) => {
-                    LogicSolver::solve_xor_gate(initial_witness, xor_gate);
+                    !LogicSolver::solve_xor_gate(initial_witness, xor_gate)
                     // We compute the result because the other gates may want to use the assignment to generate their assignments
-                    false
                 }
                 Gate::GadgetCall(gc) => {
                     GadgetCaller::solve_gadget_call(initial_witness, gc)?;

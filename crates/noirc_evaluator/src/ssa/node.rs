@@ -974,6 +974,7 @@ pub fn to_operation(op_kind: HirBinaryOpKind, op_type: ObjectType) -> Operation 
         }
         HirBinaryOpKind::Assign => Operation::Ass,
         HirBinaryOpKind::MemberAccess => todo!(),
+        HirBinaryOpKind::Shl | HirBinaryOpKind::Shr => todo!(),
     }
 }
 
