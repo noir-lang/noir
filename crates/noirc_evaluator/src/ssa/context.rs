@@ -13,7 +13,7 @@ use acvm::FieldElement;
 use noirc_frontend::hir::Context;
 use noirc_frontend::node_interner::FuncId;
 use num_bigint::BigUint;
-use num_traits::{Zero};
+use num_traits::Zero;
 
 // This is a 'master' class for generating the SSA IR from the AST
 // It contains all the data; the node objects representing the source code in the nodes arena
