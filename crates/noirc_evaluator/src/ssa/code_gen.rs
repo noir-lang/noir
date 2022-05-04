@@ -206,7 +206,11 @@ impl<'a> IRGenerator<'a> {
     ) -> Result<NodeId, RuntimeError> {
         let rtype = self.context.get_object_type(rhs);
         match op {
-            HirUnaryOp::Minus => todo!(), //todo: Ok(self.context.new_instruction(0, rhs, Operation::Sub, rtype))
+            HirUnaryOp::Minus => {
+                Ok(self
+                    .context
+                    .new_instruction(self.context.zero(), rhs, Operation::Sub, rtype))
+            }
             HirUnaryOp::Not => Ok(self
                 .context
                 .new_instruction(rhs, rhs, Operation::Not, rtype)),

@@ -294,12 +294,12 @@ impl Acir {
             }
             Operation::Trunc => {
                 assert!(is_const(&r_c.expression));
-                InternalVar::from(evaluate_truncate(
+                evaluate_truncate(
                     l_c,
                     r_c.expression.q_c.to_u128().try_into().unwrap(),
                     ins.bit_size,
                     evaluator,
-                ))
+                )
             }
             Operation::Intrinsic(opcode) => {
                 InternalVar::from(self.evaluate_opcode(ins, opcode, ctx, evaluator))
@@ -497,7 +497,11 @@ impl Acir {
                 FieldElement::from(-1_i128),
                 &r_c.expression,
             );
-            evaluator.gates.push(Gate::Arithmetic(output.clone()));
+            if is_const(&output) {
+                assert!(output.q_c == FieldElement::zero());
+            } else {
+                evaluator.gates.push(Gate::Arithmetic(output.clone()));
+            }
             output
         }
     }
@@ -884,8 +888,15 @@ pub fn evaluate_truncate(
     rhs: u32,
     max_bits: u32,
     evaluator: &mut Evaluator,
-) -> Witness {
+) -> InternalVar {
     assert!(max_bits > rhs);
+    //0. Check for constant expression. This can happen through arithmetic simplifications
+    if let Some(a_c) = lhs.to_const() {
+        let mut a_big = BigUint::from_bytes_be(&a_c.to_bytes());
+        let two = BigUint::from(2_u32);
+        a_big %= two.pow(rhs);
+        return InternalVar::from(FieldElement::from_be_bytes_reduce(&a_big.to_bytes_be()));
+    }
     //1. Generate witnesses a,b,c
     //TODO: we should truncate the arithmetic expression (and so avoid having to create a witness)
     // if lhs is not a witness, but this requires a new truncate directive...TODO
@@ -915,7 +926,7 @@ pub fn evaluate_truncate(
     let a = &Arithmetic::from(Linear::from_witness(a_witness));
     let my_constraint = add(&res, -FieldElement::one(), a);
     evaluator.gates.push(Gate::Arithmetic(my_constraint));
-    b_witness
+    InternalVar::from(b_witness)
 }
 
 pub fn generate_witness(lhs: &InternalVar, evaluator: &mut Evaluator) -> Witness {
