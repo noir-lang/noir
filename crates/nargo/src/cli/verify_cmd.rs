@@ -13,11 +13,7 @@ use std::{collections::BTreeMap, path::Path, path::PathBuf};
 pub const RESERVED_PUBLIC_ARR: &str = "setpub";
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
-    let proof_name = args
-        .subcommand_matches("verify")
-        .unwrap()
-        .value_of("proof")
-        .unwrap();
+    let proof_name = args.subcommand_matches("verify").unwrap().value_of("proof").unwrap();
     let mut proof_path = std::path::PathBuf::new();
     proof_path.push(Path::new(PROOFS_DIR));
 
@@ -48,10 +44,7 @@ fn process_abi_with_verifier_input(
         let value = pi_map
             .get(&param_name)
             .unwrap_or_else(|| {
-                panic!(
-                    "ABI expects the parameter `{}`, but this was not found",
-                    param_name
-                )
+                panic!("ABI expects the parameter `{}`, but this was not found", param_name)
             })
             .clone();
 

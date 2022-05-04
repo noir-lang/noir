@@ -96,39 +96,23 @@ mod test {
         //
         // Push x variable
         let x_id = interner.push_definition("x".into(), false);
-        let x = HirIdent {
-            id: x_id,
-            span: Span::default(),
-        };
+        let x = HirIdent { id: x_id, span: Span::default() };
 
         // Push y variable
         let y_id = interner.push_definition("y".into(), false);
-        let y = HirIdent {
-            id: y_id,
-            span: Span::default(),
-        };
+        let y = HirIdent { id: y_id, span: Span::default() };
 
         // Push z variable
         let z_id = interner.push_definition("z".into(), false);
-        let z = HirIdent {
-            id: z_id,
-            span: Span::default(),
-        };
+        let z = HirIdent { id: z_id, span: Span::default() };
 
         // Push x and y as expressions
         let x_expr_id = interner.push_expr(HirExpression::Ident(x));
         let y_expr_id = interner.push_expr(HirExpression::Ident(y));
 
         // Create Infix
-        let operator = HirBinaryOp {
-            span: Span::default(),
-            kind: HirBinaryOpKind::Add,
-        };
-        let expr = HirInfixExpression {
-            lhs: x_expr_id,
-            operator,
-            rhs: y_expr_id,
-        };
+        let operator = HirBinaryOp { span: Span::default(), kind: HirBinaryOpKind::Add };
+        let expr = HirInfixExpression { lhs: x_expr_id, operator, rhs: y_expr_id };
         let expr_id = interner.push_expr(HirExpression::Infix(expr));
 
         // Create let statement

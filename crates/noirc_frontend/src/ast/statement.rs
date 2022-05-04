@@ -67,10 +67,7 @@ impl From<SpannedToken> for Ident {
 
 impl From<Ident> for Expression {
     fn from(i: Ident) -> Expression {
-        Expression {
-            span: i.0.span(),
-            kind: ExpressionKind::Ident(i.0.contents),
-        }
+        Expression { span: i.0.span(), kind: ExpressionKind::Ident(i.0.contents) }
     }
 }
 
@@ -135,11 +132,7 @@ impl Statement {
     pub fn new_let(
         ((pattern, r#type), expression): ((Pattern, UnresolvedType), Expression),
     ) -> Statement {
-        Statement::Let(LetStatement {
-            pattern,
-            r#type,
-            expression,
-        })
+        Statement::Let(LetStatement { pattern, r#type, expression })
     }
 
     pub fn add_semicolon(
@@ -220,10 +213,7 @@ impl Path {
     /// Construct a PathKind::Plain from this single
     pub fn from_single(name: String, span: Span) -> Path {
         let segment = Ident::from(Spanned::from(span, name));
-        Path {
-            segments: vec![segment],
-            kind: PathKind::Plain,
-        }
+        Path { segments: vec![segment], kind: PathKind::Plain }
     }
 
     pub fn span(&self) -> Span {
@@ -297,14 +287,8 @@ pub struct AssignStatement {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum LValue {
     Ident(Ident),
-    MemberAccess {
-        object: Box<LValue>,
-        field_name: Ident,
-    },
-    Index {
-        array: Box<LValue>,
-        index: Expression,
-    },
+    MemberAccess { object: Box<LValue>, field_name: Ident },
+    Index { array: Box<LValue>, index: Expression },
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -339,11 +323,7 @@ impl Display for Statement {
 
 impl Display for LetStatement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "let {}: {} = {}",
-            self.pattern, self.r#type, self.expression
-        )
+        write!(f, "let {}: {} = {}", self.pattern, self.r#type, self.expression)
     }
 }
 

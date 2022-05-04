@@ -41,10 +41,7 @@ pub struct Resolver<'a> {
 
 impl<'a> Resolver<'a> {
     fn with_driver(driver: &mut Driver) -> Resolver {
-        Resolver {
-            cached_packages: HashMap::new(),
-            driver,
-        }
+        Resolver { cached_packages: HashMap::new(), driver }
     }
 
     /// Returns the Driver and the backend to use
@@ -118,12 +115,7 @@ impl<'a> Resolver<'a> {
             let (entry_path, crate_type) = super::lib_or_bin(dir_path)?;
             let cfg_path = super::find_package_config(dir_path)?;
             let cfg = super::toml::parse(cfg_path)?;
-            Ok(CachedDep {
-                entry_path,
-                crate_type,
-                cfg,
-                remote,
-            })
+            Ok(CachedDep { entry_path, crate_type, cfg, remote })
         }
 
         match dep {

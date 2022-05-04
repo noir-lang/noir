@@ -35,11 +35,7 @@ impl<'a> SSAFunction<'a> {
     }
 
     pub fn new(func: FuncId, ctx: &'a noirc_frontend::hir::Context) -> SSAFunction<'a> {
-        SSAFunction {
-            igen: IRGenerator::new(ctx),
-            id: func,
-            arguments: Vec::new(),
-        }
+        SSAFunction { igen: IRGenerator::new(ctx), id: func, arguments: Vec::new() }
     }
 
     pub fn compile(&mut self) -> Option<NodeId> {
@@ -81,10 +77,7 @@ impl<'a> SSAFunction<'a> {
                 return node_id;
             }
             let mut my_const = None;
-            let node_obj_opt = ctx.functions_cfg[&func_id]
-                .igen
-                .context
-                .try_get_node(node_id);
+            let node_obj_opt = ctx.functions_cfg[&func_id].igen.context.try_get_node(node_id);
             if let Some(node::NodeObj::Const(c)) = node_obj_opt {
                 my_const = Some((c.get_value_field(), c.value_type));
             }
@@ -193,11 +186,7 @@ pub fn create_function<'a>(
 
 pub fn add_return_instruction(cfg: &mut SsaContext, last: Option<NodeId>) {
     let last_id = last.unwrap_or_else(NodeId::dummy);
-    let result = if last_id == NodeId::dummy() {
-        Vec::new()
-    } else {
-        vec![last_id]
-    };
+    let result = if last_id == NodeId::dummy() { Vec::new() } else { vec![last_id] };
     //Create return instruction based on the last statement of the function body
     let result_id = cfg.new_instruction(
         NodeId::dummy(),

@@ -127,9 +127,7 @@ impl<K: std::hash::Hash + Eq + Clone, V> ScopeForest<K, V> {
         ScopeForest(vec![ScopeTree::new()])
     }
     pub fn current_scope_tree(&mut self) -> &mut ScopeTree<K, V> {
-        self.0
-            .last_mut()
-            .expect("ice: tried to fetch the current scope, however none was found")
+        self.0.last_mut().expect("ice: tried to fetch the current scope, however none was found")
     }
 
     /// Returns the last pushed scope from the current scope tree
@@ -151,9 +149,7 @@ impl<K: std::hash::Hash + Eq + Clone, V> ScopeForest<K, V> {
     /// Ending a function requires that we removes it's whole tree of scope
     /// This is by design the current scope, which is the last element in the vector
     pub fn end_function(&mut self) -> ScopeTree<K, V> {
-        self.0
-            .pop()
-            .expect("ice: expected a scope tree, however none was found")
+        self.0.pop().expect("ice: expected a scope tree, however none was found")
     }
 
     /// The beginning of a scope always correlates with the start of a block {}.

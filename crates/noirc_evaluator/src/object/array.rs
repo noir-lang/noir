@@ -28,17 +28,11 @@ impl Array {
             return Err(errs.pop().unwrap());
         }
 
-        Ok(Array {
-            contents: objects,
-            length: arr_lit.length,
-        })
+        Ok(Array { contents: objects, length: arr_lit.length })
     }
     pub fn get(&self, index: u128) -> Result<Object, RuntimeErrorKind> {
         if index >= self.length {
-            return Err(RuntimeErrorKind::ArrayOutOfBounds {
-                index,
-                bound: self.length,
-            });
+            return Err(RuntimeErrorKind::ArrayOutOfBounds { index, bound: self.length });
         };
 
         Ok(self.contents[index as usize].clone())
@@ -62,10 +56,7 @@ impl Array {
             contents.push(out_element);
         }
 
-        Ok(Array {
-            contents,
-            length: length as u128,
-        })
+        Ok(Array { contents, length: length as u128 })
     }
     /// Given two arrays A, B
     /// This method creates a new array C
@@ -82,10 +73,7 @@ impl Array {
             contents.push(out_element);
         }
 
-        Ok(Array {
-            contents,
-            length: length as u128,
-        })
+        Ok(Array { contents, length: length as u128 })
     }
 
     fn check_arr_len(lhs: &Array, rhs: &Array) -> Result<usize, RuntimeErrorKind> {
@@ -143,9 +131,8 @@ impl Array {
         // Then constrain the product to be equal to 0
 
         let mut predicates_iter = predicates.into_iter();
-        let mut result = predicates_iter
-            .next()
-            .expect("ice: arrays must have at least one element in them");
+        let mut result =
+            predicates_iter.next().expect("ice: arrays must have at least one element in them");
 
         for pred in predicates_iter {
             result = crate::binary_op::handle_mul_op(result, pred, evaluator)?;

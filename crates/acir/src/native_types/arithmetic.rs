@@ -47,27 +47,17 @@ impl Mul<&FieldElement> for &Arithmetic {
     type Output = Arithmetic;
     fn mul(self, rhs: &FieldElement) -> Self::Output {
         // Scale the mul terms
-        let mul_terms: Vec<_> = self
-            .mul_terms
-            .iter()
-            .map(|(q_m, w_l, w_r)| (*q_m * *rhs, *w_l, *w_r))
-            .collect();
+        let mul_terms: Vec<_> =
+            self.mul_terms.iter().map(|(q_m, w_l, w_r)| (*q_m * *rhs, *w_l, *w_r)).collect();
 
         // Scale the linear combinations terms
-        let lin_combinations: Vec<_> = self
-            .linear_combinations
-            .iter()
-            .map(|(q_l, w_l)| (*q_l * *rhs, *w_l))
-            .collect();
+        let lin_combinations: Vec<_> =
+            self.linear_combinations.iter().map(|(q_l, w_l)| (*q_l * *rhs, *w_l)).collect();
 
         // Scale the constant
         let q_c = self.q_c * *rhs;
 
-        Arithmetic {
-            mul_terms,
-            q_c,
-            linear_combinations: lin_combinations,
-        }
+        Arithmetic { mul_terms, q_c, linear_combinations: lin_combinations }
     }
 }
 impl Add<&FieldElement> for Arithmetic {
@@ -76,11 +66,7 @@ impl Add<&FieldElement> for Arithmetic {
         // Increase the constant
         let q_c = self.q_c + *rhs;
 
-        Arithmetic {
-            mul_terms: self.mul_terms,
-            q_c,
-            linear_combinations: self.linear_combinations,
-        }
+        Arithmetic { mul_terms: self.mul_terms, q_c, linear_combinations: self.linear_combinations }
     }
 }
 impl Sub<&FieldElement> for Arithmetic {
@@ -89,11 +75,7 @@ impl Sub<&FieldElement> for Arithmetic {
         // Increase the constant
         let q_c = self.q_c - *rhs;
 
-        Arithmetic {
-            mul_terms: self.mul_terms,
-            q_c,
-            linear_combinations: self.linear_combinations,
-        }
+        Arithmetic { mul_terms: self.mul_terms, q_c, linear_combinations: self.linear_combinations }
     }
 }
 
@@ -102,12 +84,8 @@ impl Add<&Arithmetic> for &Arithmetic {
     fn add(self, rhs: &Arithmetic) -> Arithmetic {
         // XXX(med) : Implement an efficient way to do this
 
-        let mul_terms: Vec<_> = self
-            .mul_terms
-            .iter()
-            .cloned()
-            .chain(rhs.mul_terms.iter().cloned())
-            .collect();
+        let mul_terms: Vec<_> =
+            self.mul_terms.iter().cloned().chain(rhs.mul_terms.iter().cloned()).collect();
 
         let linear_combinations: Vec<_> = self
             .linear_combinations
@@ -117,11 +95,7 @@ impl Add<&Arithmetic> for &Arithmetic {
             .collect();
         let q_c = self.q_c + rhs.q_c;
 
-        Arithmetic {
-            mul_terms,
-            linear_combinations,
-            q_c,
-        }
+        Arithmetic { mul_terms, linear_combinations, q_c }
     }
 }
 
@@ -130,24 +104,14 @@ impl Neg for &Arithmetic {
     fn neg(self) -> Self::Output {
         // XXX(med) : Implement an efficient way to do this
 
-        let mul_terms: Vec<_> = self
-            .mul_terms
-            .iter()
-            .map(|(q_m, w_l, w_r)| (-*q_m, *w_l, *w_r))
-            .collect();
+        let mul_terms: Vec<_> =
+            self.mul_terms.iter().map(|(q_m, w_l, w_r)| (-*q_m, *w_l, *w_r)).collect();
 
-        let linear_combinations: Vec<_> = self
-            .linear_combinations
-            .iter()
-            .map(|(q_k, w_k)| (-*q_k, *w_k))
-            .collect();
+        let linear_combinations: Vec<_> =
+            self.linear_combinations.iter().map(|(q_k, w_k)| (-*q_k, *w_k)).collect();
         let q_c = -self.q_c;
 
-        Arithmetic {
-            mul_terms,
-            linear_combinations,
-            q_c,
-        }
+        Arithmetic { mul_terms, linear_combinations, q_c }
     }
 }
 
@@ -160,11 +124,7 @@ impl Sub<&Arithmetic> for &Arithmetic {
 
 impl From<&FieldElement> for Arithmetic {
     fn from(constant: &FieldElement) -> Arithmetic {
-        Arithmetic {
-            q_c: *constant,
-            linear_combinations: Vec::new(),
-            mul_terms: Vec::new(),
-        }
+        Arithmetic { q_c: *constant, linear_combinations: Vec::new(), mul_terms: Vec::new() }
     }
 }
 impl From<&Linear> for Arithmetic {
@@ -209,9 +169,7 @@ impl Sub<&UnknownWitness> for &Arithmetic {
     type Output = Arithmetic;
     fn sub(self, rhs: &UnknownWitness) -> Arithmetic {
         let mut cloned = self.clone();
-        cloned
-            .linear_combinations
-            .insert(0, (-FieldElement::one(), rhs.as_witness()));
+        cloned.linear_combinations.insert(0, (-FieldElement::one(), rhs.as_witness()));
         cloned
     }
 }

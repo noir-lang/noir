@@ -27,22 +27,13 @@ pub enum FunctionKind {
 
 impl NoirFunction {
     pub fn normal(def: FunctionDefinition) -> NoirFunction {
-        NoirFunction {
-            kind: FunctionKind::Normal,
-            def,
-        }
+        NoirFunction { kind: FunctionKind::Normal, def }
     }
     pub fn builtin(def: FunctionDefinition) -> NoirFunction {
-        NoirFunction {
-            kind: FunctionKind::Builtin,
-            def,
-        }
+        NoirFunction { kind: FunctionKind::Builtin, def }
     }
     pub fn low_level(def: FunctionDefinition) -> NoirFunction {
-        NoirFunction {
-            kind: FunctionKind::LowLevel,
-            def,
-        }
+        NoirFunction { kind: FunctionKind::LowLevel, def }
     }
 
     pub fn return_type(&self) -> UnresolvedType {

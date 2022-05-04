@@ -75,11 +75,7 @@ impl std::fmt::Display for ParserError {
                 self.found
             )
         } else {
-            let expected = expected
-                .iter()
-                .map(ToString::to_string)
-                .collect::<Vec<_>>()
-                .join(", ");
+            let expected = expected.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ");
 
             write!(f, "Unexpected {}, expected one of {}", self.found, expected)
         }
@@ -107,10 +103,7 @@ impl chumsky::Error<Token> for ParserError {
         Iter: IntoIterator<Item = Option<Token>>,
     {
         ParserError {
-            expected_tokens: expected
-                .into_iter()
-                .map(|opt| opt.unwrap_or(Token::EOF))
-                .collect(),
+            expected_tokens: expected.into_iter().map(|opt| opt.unwrap_or(Token::EOF)).collect(),
             expected_labels: BTreeSet::new(),
             found: found.unwrap_or(Token::EOF),
             reason: None,

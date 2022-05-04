@@ -29,20 +29,14 @@ fn insert_root(db: &mut sled::Db, value: FieldElement) {
     db.insert("ROOT".as_bytes(), value.to_bytes()).unwrap();
 }
 fn fetch_root(db: &sled::Db) -> FieldElement {
-    let value = db
-        .get("ROOT".as_bytes())
-        .unwrap()
-        .expect("merkle root should always be present");
+    let value = db.get("ROOT".as_bytes()).unwrap().expect("merkle root should always be present");
     FieldElement::from_be_bytes_reduce(&value.to_vec())
 }
 fn insert_depth(db: &mut sled::Db, value: u32) {
     db.insert("DEPTH".as_bytes(), &value.to_be_bytes()).unwrap();
 }
 fn fetch_depth(db: &sled::Db) -> u32 {
-    let value = db
-        .get("DEPTH".as_bytes())
-        .unwrap()
-        .expect("depth should always be present");
+    let value = db.get("DEPTH".as_bytes()).unwrap().expect("depth should always be present");
     u32::from_be_bytes(value.to_vec().try_into().unwrap())
 }
 fn insert_empty_index(db: &mut sled::Db, index: u32) {
@@ -50,18 +44,12 @@ fn insert_empty_index(db: &mut sled::Db, index: u32) {
     let depth = fetch_depth(db);
     let total_size = 1 << depth;
     if index > total_size {
-        panic!(
-            "trying to insert at index {}, but total width is {}",
-            index, total_size
-        )
+        panic!("trying to insert at index {}, but total width is {}", index, total_size)
     }
     db.insert("EMPTY".as_bytes(), &index.to_be_bytes()).unwrap();
 }
 fn fetch_empty_index(db: &sled::Db) -> u32 {
-    let value = db
-        .get("EMPTY".as_bytes())
-        .unwrap()
-        .expect("empty index should always be present");
+    let value = db.get("EMPTY".as_bytes()).unwrap().expect("empty index should always be present");
     u32::from_be_bytes(value.to_vec().try_into().unwrap())
 }
 fn insert_preimage(db: &mut sled::Db, index: u32, value: Vec<u8>) {
@@ -75,10 +63,7 @@ fn fetch_preimage(db: &sled::Db, index: usize) -> Vec<u8> {
     let tree = db.open_tree("preimages").unwrap();
 
     let index = index as u128;
-    tree.get(&index.to_be_bytes())
-        .unwrap()
-        .map(|i_vec| i_vec.to_vec())
-        .unwrap()
+    tree.get(&index.to_be_bytes()).unwrap().map(|i_vec| i_vec.to_vec()).unwrap()
 }
 fn fetch_hash(db: &sled::Db, index: usize) -> FieldElement {
     let tree = db.open_tree("hashes").unwrap();
@@ -123,12 +108,7 @@ impl MerkleTree {
 
         let total_size = 1u32 << depth;
 
-        MerkleTree {
-            depth,
-            total_size,
-            barretenberg,
-            db,
-        }
+        MerkleTree { depth, total_size, barretenberg, db }
     }
     pub fn new<P: AsRef<Path>>(depth: u32, path: P) -> MerkleTree {
         let mut barretenberg = Barretenberg::new();
@@ -140,9 +120,7 @@ impl MerkleTree {
 
         let total_size = 1u32 << depth;
 
-        let mut hashes: Vec<_> = (0..total_size * 2 - 2)
-            .map(|_| FieldElement::zero())
-            .collect();
+        let mut hashes: Vec<_> = (0..total_size * 2 - 2).map(|_| FieldElement::zero()).collect();
 
         let zero_message = [0u8; 64];
         let pre_images = (0..total_size).map(|_| zero_message.to_vec());
@@ -174,12 +152,7 @@ impl MerkleTree {
         insert_depth(&mut db, depth);
         insert_empty_index(&mut db, 0);
 
-        MerkleTree {
-            depth,
-            total_size,
-            barretenberg,
-            db,
-        }
+        MerkleTree { depth, total_size, barretenberg, db }
     }
 
     pub fn get_hash_path(&self, mut index: usize) -> HashPath {
@@ -381,10 +354,7 @@ fn basic_interop_update() {
     tree.update_message(6, &vec![6; 64]);
     let root = tree.update_message(7, &vec![7; 64]);
 
-    assert_eq!(
-        "241fc8d893854e78dd2d427e534357fe02279f209193f0f82e13a3fd4e15375e",
-        root.to_hex()
-    );
+    assert_eq!("241fc8d893854e78dd2d427e534357fe02279f209193f0f82e13a3fd4e15375e", root.to_hex());
 
     let path = tree.get_hash_path(2);
 

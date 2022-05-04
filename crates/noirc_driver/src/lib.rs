@@ -20,9 +20,7 @@ pub struct CompiledProgram {
 
 impl Driver {
     pub fn new() -> Self {
-        Driver {
-            context: Context::default(),
-        }
+        Driver { context: Context::default() }
     }
 
     // This is here for backwards compatibility
@@ -60,16 +58,9 @@ impl Driver {
         crate_type: CrateType,
     ) -> CrateId {
         let dir_path = root_file.as_ref().to_path_buf();
-        let root_file_id = self
-            .context
-            .file_manager
-            .add_file(&dir_path, FileType::Root)
-            .unwrap();
+        let root_file_id = self.context.file_manager.add_file(&dir_path, FileType::Root).unwrap();
 
-        let crate_id = self
-            .context
-            .crate_graph
-            .add_crate_root(crate_type, root_file_id);
+        let crate_id = self.context.crate_graph.add_crate_root(crate_type, root_file_id);
 
         assert!(crate_id == LOCAL_CRATE);
 
@@ -84,20 +75,14 @@ impl Driver {
         crate_type: CrateType,
     ) -> CrateId {
         let dir_path = root_file.as_ref().to_path_buf();
-        let root_file_id = self
-            .context
-            .file_manager
-            .add_file(&dir_path, FileType::Root)
-            .unwrap();
+        let root_file_id = self.context.file_manager.add_file(&dir_path, FileType::Root).unwrap();
 
         // The first crate is always the local crate
         assert!(self.context.crate_graph.number_of_crates() != 0);
 
         // You can add any crate type to the crate graph
         // but you cannot depend on Binaries
-        self.context
-            .crate_graph
-            .add_crate_root(crate_type, root_file_id)
+        self.context.crate_graph.add_crate_root(crate_type, root_file_id)
     }
 
     /// Adds a edge in the crate graph for two crates
@@ -107,10 +92,7 @@ impl Driver {
 
         // Cannot depend on a binary
         if self.context.crate_graph.crate_type(depends_on) == CrateType::Binary {
-            panic!(
-                "crates cannot depend on binaries. {:?} is a binary crate",
-                crate_name
-            )
+            panic!("crates cannot depend on binaries. {:?} is a binary crate", crate_name)
         }
 
         self.context
@@ -174,9 +156,8 @@ impl Driver {
         };
 
         // All Binaries should have a main function
-        let main_function = local_crate
-            .main_function()
-            .expect("cannot compile a program with no main function");
+        let main_function =
+            local_crate.main_function().expect("cannot compile a program with no main function");
 
         // Create ABI for main function
         let func_meta = self.context.def_interner.function_meta(&main_function);
@@ -200,10 +181,7 @@ impl Driver {
             }
         };
 
-        CompiledProgram {
-            circuit,
-            abi: Some(abi),
-        }
+        CompiledProgram { circuit, abi: Some(abi) }
     }
 
     /// XXX: It is sub-optimal to add the std as a regular crate right now because

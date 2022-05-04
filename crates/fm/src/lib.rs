@@ -51,9 +51,7 @@ impl FileManager {
 
         let source = std::fs::read_to_string(&path_to_file).ok()?;
 
-        let file_id = self
-            .file_map
-            .add_file(path_to_file.to_path_buf().into(), source);
+        let file_id = self.file_map.add_file(path_to_file.to_path_buf().into(), source);
         let path_to_file = virtualise_path(path_to_file, file_type);
         self.register_path(file_id, path_to_file);
 
@@ -67,10 +65,7 @@ impl FileManager {
             "ice: the same file id was inserted into the file manager twice"
         );
         let old_value = self.path_to_id.insert(path, file_id);
-        assert!(
-            old_value.is_none(),
-            "ice: the same path was inserted into the file manager twice"
-        );
+        assert!(old_value.is_none(), "ice: the same path was inserted into the file manager twice");
     }
 
     pub fn fetch_file(&mut self, file_id: FileId) -> File {
@@ -96,12 +91,7 @@ impl FileManager {
             }
         }
 
-        Err(candidate_files
-            .remove(0)
-            .as_os_str()
-            .to_str()
-            .unwrap()
-            .to_owned())
+        Err(candidate_files.remove(0).as_os_str().to_str().unwrap().to_owned())
     }
 }
 
@@ -124,10 +114,8 @@ fn virtualise_path(path: &Path, file_type: FileType) -> VirtualPath {
         }
         FileType::Normal => {
             let base = path.parent().unwrap();
-            let path_no_ext: PathBuf = path
-                .file_stem()
-                .expect("ice: this should have been the path to a file")
-                .into();
+            let path_no_ext: PathBuf =
+                path.file_stem().expect("ice: this should have been the path to a file").into();
             base.join(path_no_ext)
         }
     };

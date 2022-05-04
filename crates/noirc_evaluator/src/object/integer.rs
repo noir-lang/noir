@@ -19,11 +19,7 @@ pub struct Integer {
 
 impl Integer {
     pub fn from_witness_unconstrained(witness: Witness, num_bits: u32) -> Integer {
-        Integer {
-            witness,
-            num_bits,
-            max_bits: num_bits,
-        }
+        Integer { witness, num_bits, max_bits: num_bits }
     }
 
     pub fn from_witness_unconstrained_with_max(
@@ -31,11 +27,7 @@ impl Integer {
         num_bits: u32,
         max_bits: u32,
     ) -> Integer {
-        Integer {
-            witness,
-            num_bits,
-            max_bits,
-        }
+        Integer { witness, num_bits, max_bits }
     }
 
     pub fn constrain(&self, evaluator: &mut Evaluator) -> Result<(), RuntimeErrorKind> {
@@ -70,18 +62,13 @@ impl Integer {
                 //Add the constraint a = r + 2^N*b
                 let mut f = FieldElement::from(2_i128);
                 f = f.pow(&FieldElement::from((self.num_bits - 1) as i128));
-                let res = Linear {
-                    add_scale: FieldElement::zero(),
-                    witness: b_witness,
-                    mul_scale: f,
-                }
-                .add(Linear::from_witness(r_witness));
+                let res =
+                    Linear { add_scale: FieldElement::zero(), witness: b_witness, mul_scale: f }
+                        .add(Linear::from_witness(r_witness));
                 let my_constraint = &res - &Arithmetic::from(Linear::from_witness(self.witness));
                 evaluator.gates.push(Gate::Arithmetic(my_constraint));
             } else {
-                evaluator
-                    .gates
-                    .push(Gate::Range(self.witness, self.num_bits));
+                evaluator.gates.push(Gate::Range(self.witness, self.num_bits));
             }
         }
         Ok(())
@@ -110,12 +97,8 @@ impl Integer {
         //2. Add the constraint a = b+2^Nc
         let mut f = FieldElement::from(2_i128);
         f = f.pow(&FieldElement::from(self.num_bits as i128));
-        let res = Linear {
-            add_scale: FieldElement::zero(),
-            witness: c_witness,
-            mul_scale: f,
-        }
-        .add(Linear::from_witness(b_witness));
+        let res = Linear { add_scale: FieldElement::zero(), witness: c_witness, mul_scale: f }
+            .add(Linear::from_witness(b_witness));
         let my_constraint = &res - &Arithmetic::from(Linear::from_witness(self.witness));
         evaluator.gates.push(Gate::Arithmetic(my_constraint));
         Ok(b_int)
@@ -152,9 +135,7 @@ impl Integer {
     pub fn constrain_zero(&self, evaluator: &mut Evaluator) {
         let witness_linear = Linear::from_witness(self.witness);
 
-        evaluator
-            .gates
-            .push(Gate::Arithmetic(witness_linear.into()))
+        evaluator.gates.push(Gate::Arithmetic(witness_linear.into()))
     }
 
     pub fn from_object(
@@ -184,9 +165,9 @@ impl Integer {
         evaluator: &mut Evaluator,
     ) -> Result<Integer, RuntimeErrorKind> {
         match poly {
-            Object::Arithmetic(arith) => Ok(Integer::from_arithmetic_with_max_bits(
-                arith, num_bits, max_bits, evaluator,
-            )),
+            Object::Arithmetic(arith) => {
+                Ok(Integer::from_arithmetic_with_max_bits(arith, num_bits, max_bits, evaluator))
+            }
             Object::Linear(linear) => Ok(Integer::from_arithmetic_with_max_bits(
                 linear.into(),
                 num_bits,
@@ -223,9 +204,8 @@ impl Integer {
             None => Integer::from_object(witness_rhs, self.num_bits, evaluator)?,
         };
 
-        let (new_bits, a_wit, b_wit) = self
-            .truncate_arguments(b_obj, evaluator, |x, y| u32::max(x, y) + 1)
-            .unwrap();
+        let (new_bits, a_wit, b_wit) =
+            self.truncate_arguments(b_obj, evaluator, |x, y| u32::max(x, y) + 1).unwrap();
 
         let res = binary_op::handle_add_op(
             Object::from_witness(a_wit),
@@ -295,17 +275,12 @@ impl Integer {
             num_bits,
             max_bits,
         );
-        let (new_bits, a_wit, b_wit) = self
-            .truncate_arguments(obj_rhs, evaluator, |x, y| u32::max(x, y) + 1)
-            .unwrap();
+        let (new_bits, a_wit, b_wit) =
+            self.truncate_arguments(obj_rhs, evaluator, |x, y| u32::max(x, y) + 1).unwrap();
 
         let mut f = FieldElement::from(2_i128);
         f = f.pow(&FieldElement::from((new_bits - 1) as i128));
-        let a_plus = Linear {
-            mul_scale: FieldElement::one(),
-            witness: a_wit,
-            add_scale: f,
-        };
+        let a_plus = Linear { mul_scale: FieldElement::one(), witness: a_wit, add_scale: f };
         // Add a gate which subtracts both integers
         let res = binary_op::handle_sub_op(
             Object::Linear(a_plus),
@@ -320,9 +295,8 @@ impl Integer {
         poly: Object,
         evaluator: &mut Evaluator,
     ) -> Result<Integer, RuntimeErrorKind> {
-        let b_object = poly
-            .integer()
-            .expect("expected the rhs to be an integer in division operator");
+        let b_object =
+            poly.integer().expect("expected the rhs to be an integer in division operator");
         //we need to truncate a and b
         let a = self.truncate(evaluator)?;
         let b = b_object.truncate(evaluator)?;
@@ -440,11 +414,7 @@ impl Integer {
 
         // Note: The result is not constrained to be `self.num_bits` because the underlying proof system will
         // force the result to be equal to the correct result of a & b
-        Ok(Integer {
-            witness: result,
-            num_bits: self.num_bits,
-            max_bits: self.num_bits,
-        })
+        Ok(Integer { witness: result, num_bits: self.num_bits, max_bits: self.num_bits })
     }
     pub fn xor(
         &self,
@@ -482,9 +452,8 @@ impl Integer {
             return Err(RuntimeErrorKind::UnstructuredError { message });
         }
 
-        let (new_bits, a_wit, b_wit) = self
-            .truncate_arguments(obj_rhs, evaluator, |x, y| x + y)
-            .unwrap();
+        let (new_bits, a_wit, b_wit) =
+            self.truncate_arguments(obj_rhs, evaluator, |x, y| x + y).unwrap();
         let res = binary_op::handle_mul_op(
             Object::from_witness(a_wit),
             Object::from_witness(b_wit),
@@ -526,11 +495,9 @@ fn extract_witness_and_num_bits(
     poly: Object,
 ) -> Result<(Object, u32, u32), RuntimeErrorKind> {
     let (object, bits, max_bits) = match &poly {
-        Object::Integer(integer_rhs) => (
-            Object::from_witness(integer_rhs.witness),
-            integer_rhs.num_bits,
-            integer_rhs.max_bits,
-        ),
+        Object::Integer(integer_rhs) => {
+            (Object::from_witness(integer_rhs.witness), integer_rhs.num_bits, integer_rhs.max_bits)
+        }
         Object::Linear(_) => (poly, num_bits, num_bits), //TODO: we do not know the bit size
         Object::Constants(c) => (Object::Constants(*c), num_bits, num_bits), // XXX: Here since we know the value of constant, we could get how many bits it is and do static checks
         k => {

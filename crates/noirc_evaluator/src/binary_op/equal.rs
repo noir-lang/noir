@@ -29,9 +29,7 @@ pub fn handle_equal_op(
         Object::Integer(integer) => {
             let truncated = integer.truncate(evaluator).unwrap();
             let witness_linear = Linear::from_witness(truncated.witness);
-            evaluator
-                .gates
-                .push(Gate::Arithmetic(witness_linear.into()))
+            evaluator.gates.push(Gate::Arithmetic(witness_linear.into()))
         }
         Object::Array(arr) => arr.constrain_zero(evaluator),
     }

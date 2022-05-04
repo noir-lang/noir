@@ -571,11 +571,8 @@ impl Instruction {
                     //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
                 } else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
                     assert!(l_bsize < 256); //comparisons are not implemented for field elements
-                    let res = if l_const >= r_const {
-                        FieldElement::one()
-                    } else {
-                        FieldElement::zero()
-                    };
+                    let res =
+                        if l_const >= r_const { FieldElement::one() } else { FieldElement::zero() };
                     return NodeEval::Const(res, ObjectType::Boolean);
                 }
             }
@@ -585,11 +582,8 @@ impl Instruction {
                     //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
                 } else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
                     assert!(l_bsize < 256); //comparisons are not implemented for field elements
-                    let res = if l_const < r_const {
-                        FieldElement::one()
-                    } else {
-                        FieldElement::zero()
-                    };
+                    let res =
+                        if l_const < r_const { FieldElement::one() } else { FieldElement::zero() };
                     return NodeEval::Const(res, ObjectType::Boolean);
                 }
             }
@@ -599,11 +593,8 @@ impl Instruction {
                     //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
                 } else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
                     assert!(l_bsize < 256); //comparisons are not implemented for field elements
-                    let res = if l_const <= r_const {
-                        FieldElement::one()
-                    } else {
-                        FieldElement::zero()
-                    };
+                    let res =
+                        if l_const <= r_const { FieldElement::one() } else { FieldElement::zero() };
                     return NodeEval::Const(res, ObjectType::Boolean);
                 }
             }
@@ -614,11 +605,8 @@ impl Instruction {
                 //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
                 } else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
                     assert!(l_bsize < 256); //comparisons are not implemented for field elements
-                    let res = if l_const > r_const {
-                        FieldElement::one()
-                    } else {
-                        FieldElement::zero()
-                    };
+                    let res =
+                        if l_const > r_const { FieldElement::one() } else { FieldElement::zero() };
                     return NodeEval::Const(res, ObjectType::Boolean);
                 }
             }
