@@ -131,7 +131,9 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut node::Instruction) {
                 return;
             }
             node::Operation::Shr => {
-                assert!(matches!(ins.res_type, node::ObjectType::Unsigned(_)));
+                if !matches!(ins.res_type, node::ObjectType::Unsigned(_)) {
+                    todo!("Right shift is only implemented for unsigned integers");
+                }
                 ins.operator = node::Operation::Udiv;
                 //todo checks that 2^rhs does not overflow
                 ins.rhs = ctx.get_or_create_const(FieldElement::from(2_i128).pow(&r_const), r_type);
@@ -154,7 +156,7 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut node::Instruction) {
     }
 }
 
-pub fn evaluate_intrinsic(
+fn evaluate_intrinsic(
     irgen: &mut SsaContext,
     op: acvm::acir::OPCODE,
     lhs: FieldElement,
@@ -164,14 +166,6 @@ pub fn evaluate_intrinsic(
         acvm::acir::OPCODE::ToBits => {
             let lhs_int = lhs.to_u128();
             let rhs_int = rhs.to_u128() as u32;
-            let mut bits = Vec::new();
-            for i in 0..rhs_int {
-                if lhs_int & (1 << i) != 0 {
-                    bits.push(irgen.one());
-                } else {
-                    bits.push(irgen.zero());
-                }
-            }
             let a =
                 irgen
                     .mem

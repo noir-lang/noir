@@ -269,7 +269,7 @@ pub fn block_overflow(
     }
     //since we process the block from the start, the block value map is not relevant
     let mut value_map = HashMap::new();
-    let mut delete_ins = false; //a virer apres le merge???
+    let mut delete_ins = false;
     for mut ins in instructions {
         if matches!(
             ins.operator,
@@ -575,7 +575,7 @@ pub fn get_max_value(ins: &Instruction, lhs_max: BigUint, rhs_max: BigUint) -> B
                 - BigUint::one()
         }
         Operation::Xor | Operation::Or => {
-            BigUint::from(2_u32).pow(u64::min(lhs_max.bits(), rhs_max.bits()) as u32)
+            BigUint::from(2_u32).pow(u64::max(lhs_max.bits(), rhs_max.bits()) as u32)
                 - BigUint::one()
         }
         Operation::Not => ins.res_type.max_size(),

@@ -13,7 +13,6 @@ use acvm::FieldElement;
 use noirc_frontend::hir::Context;
 use noirc_frontend::node_interner::FuncId;
 use num_bigint::BigUint;
-use num_traits::{One, Zero};
 
 // This is a 'master' class for generating the SSA IR from the AST
 // It contains all the data; the node objects representing the source code in the nodes arena
@@ -46,16 +45,6 @@ impl<'a> SsaContext<'a> {
         pc.get_or_create_const(FieldElement::one(), node::ObjectType::Unsigned(1));
         pc.get_or_create_const(FieldElement::zero(), node::ObjectType::Unsigned(1));
         pc
-    }
-
-    pub fn one(&self) -> NodeId {
-        self.find_const_with_type(&BigUint::one(), node::ObjectType::Unsigned(1))
-            .unwrap()
-    }
-
-    pub fn zero(&self) -> NodeId {
-        self.find_const_with_type(&BigUint::zero(), node::ObjectType::Unsigned(1))
-            .unwrap()
     }
 
     pub fn insert_block(&mut self, block: BasicBlock) -> &mut BasicBlock {
