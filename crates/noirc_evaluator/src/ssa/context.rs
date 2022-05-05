@@ -167,8 +167,8 @@ impl<'a> SsaContext<'a> {
             } else {
                 ins.res_name.clone()
             };
-            if ins.is_deleted {
-                str_res += " -DELETED";
+            if let Some(replacement) = ins.replacement {
+                str_res = format!("{} -REPLACED with id {:?}", str_res, replacement.0);
             }
 
             let ins_str = self.operation_to_string(&ins.operator);
@@ -326,9 +326,9 @@ impl<'a> SsaContext<'a> {
         let mut i = Instruction::new(opcode, optype, Some(self.current_block));
         //Basic simplification
         optim::simplify(self, &mut i);
-        if i.is_deleted {
-            // TODO: can no longer return rhs here (nor should we)
-            // return i.rhs;
+
+        if let Some(replacement) = i.replacement {
+            return replacement;
         }
         self.push_instruction(i)
     }

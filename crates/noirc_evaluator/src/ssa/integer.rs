@@ -252,7 +252,7 @@ fn block_overflow(
 
         //we propagate optimised loads - todo check if it is needed because there is cse at the end
         //We retrieve get_current_value() in case a previous truncate has updated the value map
-        ins.operator.map_id_mut(|id| {
+        ins.operator = ins.operator.map_id(|id| {
             let id = optim::propagate(ctx, id);
             let id = get_value_from_map(id, &value_map);
 
@@ -536,9 +536,4 @@ fn get_binary_max_value(binary: &node::Binary, res_type: ObjectType, max_map: &m
         BinaryOp::Assign => rhs_max.clone(),
         BinaryOp::Constrain(_) => BigUint::zero(),
     }
-}
-
-//indicates if the operation is a substraction, we need to check them for underflow
-pub fn is_sub(operator: &Operation) -> bool {
-    matches!(operator, Operation::Binary(node::Binary { operator: BinaryOp::Sub { .. } | BinaryOp::SafeSub { .. }, .. }))
 }

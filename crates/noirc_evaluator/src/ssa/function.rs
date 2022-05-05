@@ -191,7 +191,7 @@ pub fn add_return_instruction(cfg: &mut SsaContext, last: Option<NodeId>) {
         vec![last_id]
     };
     //Create return instruction based on the last statement of the function body
-    let result_id = cfg.new_instruction(
+    cfg.new_instruction(
         node::Operation::Return(result),
         node::ObjectType::NotAnObject,
     );

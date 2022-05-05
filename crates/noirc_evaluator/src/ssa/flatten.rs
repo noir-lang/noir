@@ -487,7 +487,7 @@ pub fn inline_in_block(
                 Operation::Return(values) => {
                     //we need to find the corresponding result instruction in the target block (using ins.rhs) and replace it by ins.lhs
                     let ret_id = ctx[target_block_id].get_result_instruction(call_id, ctx).unwrap();
-                    let mut i = ctx.get_mut_instruction(ret_id);
+                    let i = ctx.get_mut_instruction(ret_id);
                     if let Operation::Results { results, .. } = &mut i.operator {
                         *results = values.clone();
                     } else {

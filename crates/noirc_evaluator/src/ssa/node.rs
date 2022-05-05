@@ -329,17 +329,6 @@ impl NodeEval {
         }
     }
 
-    /// Returns is_zero, the field value if known, and the bitcount
-    pub fn evaluate(&self) -> (bool, Option<u128>, u32) {
-        match self {
-            &NodeEval::Const(c, t) => {
-                let (value, bitcount) = field_to_u128(c, t);
-                (c.is_zero(), Some(value), bitcount)
-            }
-            _ => (false, None, 0),
-        }
-    }
-
     pub fn from_id(ctx: &SsaContext, id: NodeId) -> NodeEval {
         match &ctx[id] {
             NodeObj::Const(c) => {
@@ -352,21 +341,6 @@ impl NodeEval {
 
     fn from_u128(value: u128, typ: ObjectType) -> NodeEval {
         NodeEval::Const(value.into(), typ)
-    }
-}
-
-//Returns the field element as i128 and the bit size of the constant node
-pub fn field_to_u128(c: FieldElement, ctype: ObjectType) -> (u128, u32) {
-    match ctype {
-        ObjectType::Boolean => (if c.is_zero() { 0 } else { 1 }, 1),
-        ObjectType::NativeField => {
-            (c.to_u128(), 256) //TODO: handle elements that do not fit in 128 bits
-        }
-        ObjectType::Signed(b) | ObjectType::Unsigned(b) => {
-            assert!(b < 128); //we do not support integers bigger than 128 bits for now.
-            (c.to_u128(), b)
-        } //TODO check how to handle signed integers
-        _ => todo!(),
     }
 }
 
