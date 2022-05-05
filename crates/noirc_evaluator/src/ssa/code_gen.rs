@@ -368,9 +368,9 @@ impl<'a> IRGenerator<'a> {
     fn bind_pattern(&mut self, pattern: &HirPattern, value: Value) {
         match (pattern, value) {
             (HirPattern::Identifier(ident), Value::Single(node_id)) => {
-                let typ = self.def_interner().id_type(ident.id);
+                let otype = self.context.get_object_type(node_id);
                 let variable_name = self.ident_name(ident);
-                let value = self.bind_variable(variable_name, Some(ident.id), &typ, node_id);
+                let value = self.bind_variable(variable_name, Some(ident.id), &otype, node_id);
                 self.variable_values.insert(ident.id, value);
             }
             (HirPattern::Identifier(ident), value @ Value::Struct(_)) => {
@@ -399,7 +399,10 @@ impl<'a> IRGenerator<'a> {
     /// This function could use a clearer name
     fn bind_fresh_pattern(&mut self, basename: &str, typ: &Type, value: Value) -> Value {
         match value {
-            Value::Single(node_id) => self.bind_variable(basename.to_owned(), None, typ, node_id),
+            Value::Single(node_id) => {
+                let otype = self.context.get_object_type(node_id);
+                self.bind_variable(basename.to_owned(), None, &otype, node_id)
+            }
             Value::Struct(field_values) => {
                 assert_eq!(field_values.len(), typ.num_elements());
                 let values = typ
@@ -421,11 +424,9 @@ impl<'a> IRGenerator<'a> {
         &mut self,
         variable_name: String,
         definition_id: Option<DefinitionId>,
-        typ: &Type,
+        obj_type: &node::ObjectType,
         value_id: NodeId,
     ) -> Value {
-        let obj_type = typ.into();
-
         if matches!(obj_type, node::ObjectType::Pointer(_)) {
             if let Ok(rhs_mut) = self.context.get_mut_variable(value_id) {
                 rhs_mut.def = definition_id;
@@ -435,11 +436,11 @@ impl<'a> IRGenerator<'a> {
         }
 
         let new_var =
-            Variable::new(obj_type, variable_name, definition_id, self.context.current_block);
+            Variable::new(*obj_type, variable_name, definition_id, self.context.current_block);
         let id = self.context.add_variable(new_var, None);
 
         //Assign rhs to lhs
-        let result = self.context.new_instruction(id, value_id, node::Operation::Ass, obj_type);
+        let result = self.context.new_instruction(id, value_id, node::Operation::Ass, *obj_type);
         //This new variable should not be available in outer scopes.
         let cb = self.context.get_current_block_mut();
         cb.update_variable(id, result); //update the value array. n.b. we should not update the name as it is the first assignment (let)

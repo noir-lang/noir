@@ -1,7 +1,7 @@
 use super::{
     block::{self, BlockId},
     context::SsaContext,
-    function::{self},
+    function,
     node::{self, Node, NodeEval, NodeId, NodeObj, Operation},
     optim,
 };
@@ -205,7 +205,7 @@ pub fn outer_unroll(
         }
         //we get the subgraph, however we could retrieve the list of processed blocks directly in unroll_join (cf. processed)
         if let Some(body_id) = b_right {
-            let sub_graph = block::bfs(body_id, block_id, igen);
+            let sub_graph = block::bfs(body_id, Some(block_id), igen);
             for b in sub_graph {
                 igen.remove_block(b);
             }
@@ -373,15 +373,47 @@ fn evaluate_object(
     }
 }
 
-pub fn inline_tree(ctx: &mut SsaContext) -> u32 {
+//inline main
+pub fn inline_tree(ctx: &mut SsaContext, block_id: BlockId) {
     //inline all function calls
     let mut retry = ctx.inline_tries;
     while retry > 0 && !inline_block(ctx, ctx.first_block) {
         retry -= 1;
-        optim::cse(ctx, ctx.first_block);
     }
     assert!(retry > 0, "Error - too many nested calls");
-    ctx.inline_tries - retry
+    for b in ctx[block_id].dominated.clone() {
+        inline_tree(ctx, b);
+    }
+}
+
+pub fn inline_cfg(ctx: &mut SsaContext, entry_block: BlockId) -> bool {
+    let mut result = true;
+    let func_cfg = block::bfs(entry_block, None, ctx);
+    for block_id in func_cfg {
+        if !inline_block(ctx, block_id) {
+            result = false;
+        }
+    }
+    result
+}
+
+//inline each function so that a function does not call anyy other function
+//There is probably an optimal order to use when inlining the functions
+//for now we inline all functions one time, and then recurse until no more function call
+pub fn inline_all_functions(ctx: &mut SsaContext) {
+    let mut nested_call = true;
+    let mut retry = ctx.inline_tries;
+    let func_cfg: Vec<BlockId> =
+        ctx.functions.keys().map(|k| ctx.functions[k].entry_block).collect();
+    while retry > 0 && nested_call {
+        retry -= 1;
+        nested_call = false;
+        for k in &func_cfg {
+            if !inline_cfg(ctx, *k) {
+                nested_call = true;
+            }
+        }
+    }
 }
 
 //inline all function calls of the block
@@ -404,6 +436,7 @@ pub fn inline_block(ctx: &mut SsaContext, block_id: BlockId) -> bool {
             }
         }
     }
+    optim::cse(ctx, block_id); //handles the deleted call instructions
     result
 }
 

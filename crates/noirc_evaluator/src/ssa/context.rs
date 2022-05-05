@@ -372,17 +372,17 @@ impl<'a> SsaContext<'a> {
         interactive: bool,
     ) -> Result<(), RuntimeError> {
         //SSA
-        self.pause(interactive, "SSA:", "CSE:");
-
+        self.pause(interactive, "SSA:", "inline functions");
+        flatten::inline_all_functions(self);
         //Optimisation
         block::compute_dom(self);
         optim::cse(self, self.first_block);
-        self.pause(interactive, "", "unrolling:");
+        self.pause(interactive, "CSE:", "unrolling:");
         //Unrolling
         flatten::unroll_tree(self, self.first_block);
         //Inlining
         self.pause(interactive, "", "inlining:");
-        flatten::inline_tree(self);
+        flatten::inline_tree(self, self.first_block);
         optim::cse(self, self.first_block);
         //Truncation
         integer::overflow_strategy(self);

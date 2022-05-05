@@ -41,6 +41,8 @@ impl SSAFunction {
     }
 
     pub fn compile(&self, igen: &mut IRGenerator) -> Option<NodeId> {
+        let function_cfg = super::block::bfs(self.entry_block, None, &igen.context);
+        super::block::compute_sub_dom(&mut igen.context, &function_cfg);
         //Optimisation
         super::optim::cse(&mut igen.context, self.entry_block);
         //Unrolling

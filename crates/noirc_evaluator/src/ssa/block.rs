@@ -187,8 +187,26 @@ pub fn compute_dom(ctx: &mut SsaContext) {
     }
 }
 
+pub fn compute_sub_dom(ctx: &mut SsaContext, blocks: &Vec<BlockId>) {
+    let mut dominator_link = HashMap::new();
+
+    for &block_id in blocks {
+        let block = &ctx[block_id];
+        if let Some(dom) = block.dominator {
+            dominator_link.entry(dom).or_insert_with(Vec::new).push(block.id);
+        }
+    }
+    //RIA
+    for (master, svec) in dominator_link {
+        let dom_b = &mut ctx[master];
+        for slave in svec {
+            dom_b.dominated.push(slave);
+        }
+    }
+}
+
 //breadth-first traversal of the CFG, from start, until we reach stop
-pub fn bfs(start: BlockId, stop: BlockId, ctx: &SsaContext) -> Vec<BlockId> {
+pub fn bfs(start: BlockId, stop: Option<BlockId>, ctx: &SsaContext) -> Vec<BlockId> {
     let mut result = vec![start]; //list of blocks in the visited subgraph
     let mut queue = VecDeque::new(); //Queue of elements to visit
     queue.push_back(start);
@@ -198,7 +216,12 @@ pub fn bfs(start: BlockId, stop: BlockId, ctx: &SsaContext) -> Vec<BlockId> {
 
         let mut test_and_push = |block_opt| {
             if let Some(block_id) = block_opt {
-                if block_id != stop && !result.contains(&block_id) {
+                if let Some(stop_id) = stop {
+                    if block_id == stop_id {
+                        return;
+                    }
+                }
+                if !result.contains(&block_id) {
                     result.push(block_id);
                     queue.push_back(block_id);
                 }
