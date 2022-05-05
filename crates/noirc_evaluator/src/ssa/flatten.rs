@@ -548,16 +548,7 @@ pub fn inline_in_block(
                     let result_id = ctx.add_instruction(new_ins);
                     new_instructions.push(result_id);
                     inline_map.insert(i_id, result_id);
-                    //TODO handle Res instruction?
                 }
-                // Operation::Res => {
-                // }
-                //We mainly need to map the arguments and then decide how to recurse the function call. For instance:
-                // - map the call instruction into the main context (by mapping the arguments)
-                // - perform the inlining step as long as we map call instruction, but limit this step to a pre-defined maximum.
-                // - this should inline all the call instructions unless there is a call cycle (e.g a function calling itself)
-                // - if the pre-defined maximum is reach, output an error
-                // In a future improvement we could identify the cycles and see how they can be handled, e.g may be by using proof recursion.
                 Operation::Load(a) => {
                     //Compute the new address:
                     //TODO use relative addressing, but that requires a few changes, mainly in acir_gen.rs and integer.rs
