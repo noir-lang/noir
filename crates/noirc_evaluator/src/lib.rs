@@ -170,7 +170,6 @@ impl<'a> Evaluator<'a> {
                 let err = RuntimeErrorKind::Unimplemented("The Or operation is currently not implemented. First implement in Barretenberg.".to_owned());
                 Err(err)
             }
-            HirBinaryOpKind::MemberAccess => todo!("Member access for structs is unimplemented in the noir backend"),
         }.map_err(|kind|kind.add_span(op.span))
     }
 

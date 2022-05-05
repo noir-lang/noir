@@ -54,8 +54,8 @@ impl MemArray {
 }
 
 impl Memory {
-    pub fn find_array(&self, definition: &Option<DefinitionId>) -> Option<&MemArray> {
-        definition.and_then(|def| self.arrays.iter().find(|a| a.def == def))
+    pub fn find_array(&self, definition: DefinitionId) -> Option<&MemArray> {
+        self.arrays.iter().find(|a| a.def == definition)
     }
 
     pub fn get_array_index(&self, array: &MemArray) -> Option<u32> {
