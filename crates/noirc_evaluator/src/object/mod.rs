@@ -57,16 +57,10 @@ impl Object {
                 Object::Linear(linear)
             }
             Object::Array(arr) => {
-                let negated_contents: Vec<_> = arr
-                    .contents
-                    .into_iter()
-                    .map(|element| element.negate())
-                    .collect();
+                let negated_contents: Vec<_> =
+                    arr.contents.into_iter().map(|element| element.negate()).collect();
 
-                Object::Array(Array {
-                    contents: negated_contents,
-                    length: arr.length,
-                })
+                Object::Array(Array { contents: negated_contents, length: arr.length })
             }
             Object::Arithmetic(arith) => Object::Arithmetic(-&arith),
             Object::Constants(constant) => Object::Constants(-constant),
@@ -166,10 +160,7 @@ impl Object {
     }
     // Returns true if the Object is linear
     pub fn is_linear(&self) -> bool {
-        matches!(
-            self,
-            Object::Linear(_) | Object::Constants(_) | Object::Integer(_)
-        )
+        matches!(self, Object::Linear(_) | Object::Constants(_) | Object::Integer(_))
     }
     pub fn from_witness(witness: Witness) -> Object {
         Object::Linear(Linear::from_witness(witness))
@@ -186,10 +177,7 @@ impl Object {
                     result.push(element.mul_constant(constant)?);
                 }
 
-                Object::Array(Array {
-                    contents: result,
-                    length: arr.length,
-                })
+                Object::Array(Array { contents: result, length: arr.length })
             }
             Object::Linear(lin) => Object::Linear(lin * &constant),
             Object::Integer(integer) => {

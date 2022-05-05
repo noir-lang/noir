@@ -53,10 +53,8 @@ pub fn call_builtin(
     let (call_expr, span) = call_expr_span;
     let func = match BuiltInFunctions::look_up_func_name(builtin_name) {
         None => {
-            let message = format!(
-                "cannot find a builtin function with the attribute name {}",
-                builtin_name
-            );
+            let message =
+                format!("cannot find a builtin function with the attribute name {}", builtin_name);
             return Err(RuntimeErrorKind::UnstructuredError { message }.add_span(span));
         }
         Some(func) => func,

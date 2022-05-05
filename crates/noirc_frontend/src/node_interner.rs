@@ -62,10 +62,7 @@ impl StructId {
     // This can be anything, as the program will ultimately fail
     // after resolution
     pub fn dummy_id() -> StructId {
-        StructId(ModuleId {
-            krate: CrateId::dummy_id(),
-            local_id: LocalModuleId::dummy_id(),
-        })
+        StructId(ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() })
     }
 }
 
@@ -237,10 +234,8 @@ impl NodeInterner {
     /// generate function identifiers and then we update at a later point in
     /// time.
     pub fn update_fn(&mut self, func_id: FuncId, hir_func: HirFunction) {
-        let def = self
-            .nodes
-            .get_mut(func_id.0)
-            .expect("ice: all function ids should have definitions");
+        let def =
+            self.nodes.get_mut(func_id.0).expect("ice: all function ids should have definitions");
 
         let func = match def {
             Node::Function(func) => func,
@@ -268,10 +263,7 @@ impl NodeInterner {
     //
     // Cloning HIR structures is cheap, so we return owned structures
     pub fn function(&self, func_id: &FuncId) -> HirFunction {
-        let def = self
-            .nodes
-            .get(func_id.0)
-            .expect("ice: all function ids should have definitions");
+        let def = self.nodes.get(func_id.0).expect("ice: all function ids should have definitions");
 
         match def {
             Node::Function(func) => func.clone(),
@@ -281,10 +273,7 @@ impl NodeInterner {
 
     /// Returns the interned meta data corresponding to `func_id`
     pub fn function_meta(&self, func_id: &FuncId) -> FuncMeta {
-        self.func_meta
-            .get(func_id)
-            .cloned()
-            .expect("ice: all function ids should have metadata")
+        self.func_meta.get(func_id).cloned().expect("ice: all function ids should have metadata")
     }
 
     pub fn function_name(&self, func_id: &FuncId) -> &str {
@@ -294,10 +283,8 @@ impl NodeInterner {
 
     /// Returns the interned statement corresponding to `stmt_id`
     pub fn statement(&self, stmt_id: &StmtId) -> HirStatement {
-        let def = self
-            .nodes
-            .get(stmt_id.0)
-            .expect("ice: all statement ids should have definitions");
+        let def =
+            self.nodes.get(stmt_id.0).expect("ice: all statement ids should have definitions");
 
         match def {
             Node::Statement(stmt) => stmt.clone(),
@@ -306,10 +293,8 @@ impl NodeInterner {
     }
     /// Returns the interned expression corresponding to `expr_id`
     pub fn expression(&self, expr_id: &ExprId) -> HirExpression {
-        let def = self
-            .nodes
-            .get(expr_id.0)
-            .expect("ice: all expression ids should have definitions");
+        let def =
+            self.nodes.get(expr_id.0).expect("ice: all expression ids should have definitions");
 
         match def {
             Node::Expression(expr) => expr.clone(),
@@ -341,10 +326,7 @@ impl NodeInterner {
 
     /// Returns the type of an item stored in the Interner or Error if it was not found.
     pub fn id_type(&self, index: impl Into<Index>) -> Type {
-        self.id_to_type
-            .get(&index.into())
-            .cloned()
-            .unwrap_or(Type::Error)
+        self.id_to_type.get(&index.into()).cloned().unwrap_or(Type::Error)
     }
 
     /// Returns the span of an item stored in the Interner

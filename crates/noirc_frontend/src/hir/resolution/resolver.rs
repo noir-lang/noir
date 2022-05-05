@@ -141,19 +141,11 @@ impl<'a> Resolver<'a> {
     }
 
     fn add_variable_decl(&mut self, name: Ident, mutable: bool) -> HirIdent {
-        let id = self
-            .interner
-            .push_definition(name.0.contents.clone(), mutable);
-        let ident = HirIdent {
-            span: name.span(),
-            id,
-        };
+        let id = self.interner.push_definition(name.0.contents.clone(), mutable);
+        let ident = HirIdent { span: name.span(), id };
 
         let scope = self.scopes.get_mut_scope();
-        let resolver_meta = ResolverMeta {
-            num_times_used: 0,
-            ident,
-        };
+        let resolver_meta = ResolverMeta { num_times_used: 0, ident };
 
         let old_value = scope.add_key_value(name.0.contents, resolver_meta);
         if let Some(old_value) = old_value {
@@ -236,9 +228,7 @@ impl<'a> Resolver<'a> {
         mut self,
         unresolved: NoirStruct,
     ) -> (Vec<(Ident, Type)>, Vec<ResolverError>) {
-        let fields = vecmap(unresolved.fields, |(ident, typ)| {
-            (ident, self.resolve_type(typ))
-        });
+        let fields = vecmap(unresolved.fields, |(ident, typ)| (ident, self.resolve_type(typ)));
 
         (fields, self.errors)
     }
@@ -303,10 +293,7 @@ impl<'a> Resolver<'a> {
             Statement::Assign(assign_stmt) => {
                 let identifier = self.resolve_lvalue(assign_stmt.lvalue);
                 let expression = self.resolve_expression(assign_stmt.expression);
-                let stmt = HirAssignStatement {
-                    lvalue: identifier,
-                    expression,
-                };
+                let stmt = HirAssignStatement { lvalue: identifier, expression };
                 self.interner.push_stmt(HirStatement::Assign(stmt))
             }
             Statement::Error => self.interner.push_stmt(HirStatement::Error),
@@ -370,11 +357,7 @@ impl<'a> Resolver<'a> {
                 let method = call_expr.method_name;
                 let object = self.resolve_expression(call_expr.object);
                 let arguments = vecmap(call_expr.arguments, |arg| self.resolve_expression(arg));
-                HirExpression::MethodCall(HirMethodCallExpression {
-                    arguments,
-                    method,
-                    object,
-                })
+                HirExpression::MethodCall(HirMethodCallExpression { arguments, method, object })
             }
             ExpressionKind::Cast(cast_expr) => HirExpression::Cast(HirCastExpression {
                 lhs: self.resolve_expression(cast_expr.lhs),
@@ -388,10 +371,7 @@ impl<'a> Resolver<'a> {
                 // TODO: For loop variables are currently mutable by default since we haven't
                 //       yet implemented syntax for them to be optionally mutable.
                 let (identifier, block_id) = self.in_new_scope(|this| {
-                    (
-                        this.add_variable_decl(identifier, true),
-                        this.intern_block(block),
-                    )
+                    (this.add_variable_decl(identifier, true), this.intern_block(block))
                 });
 
                 HirExpression::For(HirForExpression {
@@ -477,10 +457,7 @@ impl<'a> Resolver<'a> {
             }
             Pattern::Mutable(pattern, span) => {
                 if let Some(first_mut) = mutable {
-                    self.push_err(ResolverError::UnnecessaryMut {
-                        first_mut,
-                        second_mut: span,
-                    })
+                    self.push_err(ResolverError::UnnecessaryMut { first_mut, second_mut: span })
                 }
 
                 let pattern = self.resolve_pattern_mutable(*pattern, Some(span));
@@ -530,9 +507,7 @@ impl<'a> Resolver<'a> {
                 seen_fields.insert(field.clone());
             } else if seen_fields.contains(&field) {
                 // duplicate field
-                self.push_err(ResolverError::DuplicateField {
-                    field: field.clone(),
-                });
+                self.push_err(ResolverError::DuplicateField { field: field.clone() });
             } else {
                 // field not required by struct
                 self.push_err(ResolverError::NoSuchField {
@@ -547,10 +522,7 @@ impl<'a> Resolver<'a> {
         if !unseen_fields.is_empty() {
             self.push_err(ResolverError::MissingFields {
                 span,
-                missing_fields: unseen_fields
-                    .into_iter()
-                    .map(|field| field.to_string())
-                    .collect(),
+                missing_fields: unseen_fields.into_iter().map(|field| field.to_string()).collect(),
                 struct_definition: self.get_struct(type_id).borrow().name.clone(),
             });
         }
@@ -611,16 +583,10 @@ impl<'a> Resolver<'a> {
     fn resolve_path(&mut self, path: Path) -> Option<ModuleDefId> {
         let span = path.span();
         let name = path.as_string();
-        self.path_resolver
-            .resolve(self.def_maps, path)
-            .unwrap_or_else(|segment| {
-                self.push_err(ResolverError::PathUnresolved {
-                    name,
-                    span,
-                    segment,
-                });
-                None
-            })
+        self.path_resolver.resolve(self.def_maps, path).unwrap_or_else(|segment| {
+            self.push_err(ResolverError::PathUnresolved { name, span, segment });
+            None
+        })
     }
 
     fn resolve_block(&mut self, block_expr: BlockExpression) -> HirExpression {
@@ -857,11 +823,7 @@ mod test {
 
     fn path_unresolved_error(err: ResolverError, expected_unresolved_path: &str) {
         match err {
-            ResolverError::PathUnresolved {
-                span: _,
-                name,
-                segment: _,
-            } => {
+            ResolverError::PathUnresolved { span: _, name, segment: _ } => {
                 assert_eq!(name, expected_unresolved_path)
             }
             _ => unimplemented!("expected an unresolved path"),

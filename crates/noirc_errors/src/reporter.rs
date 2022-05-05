@@ -15,11 +15,7 @@ pub struct CustomDiagnostic {
 
 impl CustomDiagnostic {
     pub fn from_message(msg: &str) -> CustomDiagnostic {
-        Self {
-            message: msg.to_owned(),
-            secondaries: Vec::new(),
-            notes: Vec::new(),
-        }
+        Self { message: msg.to_owned(), secondaries: Vec::new(), notes: Vec::new() }
     }
 
     pub fn simple_error(
@@ -104,13 +100,7 @@ impl Reporter {
         let config = codespan_reporting::term::Config::default();
 
         for diagnostic in diagnostics.iter() {
-            term::emit(
-                &mut writer.lock(),
-                &config,
-                files.as_simple_files(),
-                diagnostic,
-            )
-            .unwrap();
+            term::emit(&mut writer.lock(), &config, files.as_simple_files(), diagnostic).unwrap();
         }
     }
 
@@ -119,16 +109,10 @@ impl Reporter {
             let writer = StandardStream::stderr(ColorChoice::Always);
             let mut writer = writer.lock();
 
-            writer
-                .set_color(ColorSpec::new().set_fg(Some(Color::Red)))
-                .unwrap();
+            writer.set_color(ColorSpec::new().set_fg(Some(Color::Red))).unwrap();
 
-            writeln!(
-                &mut writer,
-                "error: aborting due to {} previous errors",
-                error_count
-            )
-            .unwrap();
+            writeln!(&mut writer, "error: aborting due to {} previous errors", error_count)
+                .unwrap();
 
             std::process::exit(1);
         }

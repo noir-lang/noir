@@ -311,23 +311,11 @@ pub fn block_overflow(
         let to_truncate = ins.truncate_required(get_size_in_bits(l_obj), get_size_in_bits(r_obj));
         if to_truncate.0 && l_obj.is_some() && get_type(l_obj) != node::ObjectType::NativeField {
             //adds a new truncate(lhs) instruction
-            add_to_truncate(
-                ctx,
-                l_id,
-                get_size_in_bits(l_obj),
-                &mut truncate_map,
-                max_map,
-            );
+            add_to_truncate(ctx, l_id, get_size_in_bits(l_obj), &mut truncate_map, max_map);
         }
         if to_truncate.1 && r_obj.is_some() && get_type(r_obj) != node::ObjectType::NativeField {
             //adds a new truncate(rhs) instruction
-            add_to_truncate(
-                ctx,
-                r_id,
-                get_size_in_bits(r_obj),
-                &mut truncate_map,
-                max_map,
-            );
+            add_to_truncate(ctx, r_id, get_size_in_bits(r_obj), &mut truncate_map, max_map);
         }
         match ins.operator {
             node::Operation::Load(_) => {
@@ -400,20 +388,10 @@ pub fn block_overflow(
             //- insert truncate(rhs) dans la list des instructions
             //- update r_max et l_max
             //n.b we could try to truncate only one of them, but then we should check if rhs==lhs.
-            let l_trunc_max = add_to_truncate(
-                ctx,
-                l_id,
-                get_size_in_bits(l_obj),
-                &mut truncate_map,
-                max_map,
-            );
-            let r_trunc_max = add_to_truncate(
-                ctx,
-                r_id,
-                get_size_in_bits(r_obj),
-                &mut truncate_map,
-                max_map,
-            );
+            let l_trunc_max =
+                add_to_truncate(ctx, l_id, get_size_in_bits(l_obj), &mut truncate_map, max_map);
+            let r_trunc_max =
+                add_to_truncate(ctx, r_id, get_size_in_bits(r_obj), &mut truncate_map, max_map);
             ins_max = get_instruction_max_operand(
                 ctx,
                 &ins,

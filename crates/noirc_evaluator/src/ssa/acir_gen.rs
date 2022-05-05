@@ -44,11 +44,7 @@ impl InternalVar {
     }
 
     fn new(expression: Arithmetic, witness: Option<Witness>, id: NodeId) -> InternalVar {
-        InternalVar {
-            expression,
-            witness,
-            id: Some(id),
-        }
+        InternalVar { expression, witness, id: Some(id) }
     }
 
     pub fn to_const(&self) -> Option<FieldElement> {
@@ -59,29 +55,20 @@ impl InternalVar {
     }
 
     pub fn get_or_generate_witness(&mut self, evaluator: &mut Evaluator) -> Witness {
-        self.witness
-            .unwrap_or_else(|| generate_witness(self, evaluator))
+        self.witness.unwrap_or_else(|| generate_witness(self, evaluator))
     }
 }
 
 impl From<Arithmetic> for InternalVar {
     fn from(arith: Arithmetic) -> InternalVar {
         let w = is_unit(&arith);
-        InternalVar {
-            expression: arith,
-            witness: w,
-            id: None,
-        }
+        InternalVar { expression: arith, witness: w, id: None }
     }
 }
 
 impl From<Witness> for InternalVar {
     fn from(w: Witness) -> InternalVar {
-        InternalVar {
-            expression: from_witness(w),
-            witness: Some(w),
-            id: None,
-        }
+        InternalVar { expression: from_witness(w), witness: Some(w), id: None }
     }
 }
 
@@ -416,11 +403,8 @@ impl Acir {
                 }
             }
         } else {
-            let mut x = InternalVar::from(subtract(
-                &l_c.expression,
-                FieldElement::one(),
-                &r_c.expression,
-            ));
+            let mut x =
+                InternalVar::from(subtract(&l_c.expression, FieldElement::one(), &r_c.expression));
             x.witness = Some(generate_witness(&x, evaluator));
             from_witness(evaluate_zero_equality(&x, evaluator))
         }
@@ -492,11 +476,7 @@ impl Acir {
             }
             Arithmetic::default()
         } else {
-            let output = add(
-                &l_c.expression,
-                FieldElement::from(-1_i128),
-                &r_c.expression,
-            );
+            let output = add(&l_c.expression, FieldElement::from(-1_i128), &r_c.expression);
             if is_const(&output) {
                 assert!(output.q_c == FieldElement::zero());
             } else {
@@ -567,20 +547,14 @@ impl Acir {
                                 let address = array.adr + i;
                                 if self.memory_map.contains_key(&address) {
                                     if let Some(wit) = self.memory_map[&address].witness {
-                                        inputs.push(GadgetInput {
-                                            witness: wit,
-                                            num_bits,
-                                        });
+                                        inputs.push(GadgetInput { witness: wit, num_bits });
                                     } else {
                                         //TODO we should store the witnesses somewhere, else if the inputs are re-used
                                         //we will duplicate the witnesses.
                                         let (_, w) = evaluator.create_intermediate_variable(
                                             self.memory_map[&address].expression.clone(),
                                         );
-                                        inputs.push(GadgetInput {
-                                            witness: w,
-                                            num_bits,
-                                        });
+                                        inputs.push(GadgetInput { witness: w, num_bits });
                                     }
                                 } else {
                                     inputs.push(GadgetInput {
@@ -592,10 +566,7 @@ impl Acir {
                         }
                         _ => {
                             if let Some(w) = v.witness {
-                                inputs.push(GadgetInput {
-                                    witness: w,
-                                    num_bits: v.size_in_bits(),
-                                });
+                                inputs.push(GadgetInput { witness: w, num_bits: v.size_in_bits() });
                             } else {
                                 todo!("generate a witness");
                             }
@@ -817,14 +788,12 @@ pub fn evaluate_and(
     let a_witness = generate_witness(&lhs, evaluator);
     let b_witness = generate_witness(&rhs, evaluator);
     //TODO checks the cost of the gate vs bit_size (cf. #164)
-    evaluator
-        .gates
-        .push(Gate::And(acvm::acir::circuit::gate::AndGate {
-            a: a_witness,
-            b: b_witness,
-            result,
-            num_bits: bit_size,
-        }));
+    evaluator.gates.push(Gate::And(acvm::acir::circuit::gate::AndGate {
+        a: a_witness,
+        b: b_witness,
+        result,
+        num_bits: bit_size,
+    }));
     Arithmetic::from(Linear::from_witness(result))
 }
 
@@ -846,14 +815,12 @@ pub fn evaluate_xor(
     let a_witness = generate_witness(&lhs, evaluator);
     let b_witness = generate_witness(&rhs, evaluator);
     //TODO checks the cost of the gate vs bit_size (cf. #164)
-    evaluator
-        .gates
-        .push(Gate::Xor(acvm::acir::circuit::gate::XorGate {
-            a: a_witness,
-            b: b_witness,
-            result,
-            num_bits: bit_size,
-        }));
+    evaluator.gates.push(Gate::Xor(acvm::acir::circuit::gate::XorGate {
+        a: a_witness,
+        b: b_witness,
+        result,
+        num_bits: bit_size,
+    }));
     from_witness(result)
 }
 
@@ -958,16 +925,12 @@ pub fn evaluate_mul(lhs: &InternalVar, rhs: &InternalVar, evaluator: &mut Evalua
     //Generate intermediate variable
     //create new witness a and a gate: a = lhs
     let a = evaluator.add_witness_to_cs();
-    evaluator
-        .gates
-        .push(Gate::Arithmetic(&lhs.expression - &Arithmetic::from(&a)));
+    evaluator.gates.push(Gate::Arithmetic(&lhs.expression - &Arithmetic::from(&a)));
     //create new witness b and gate b = rhs
     let mut b = a;
     if !lhs.is_equal(rhs) {
         b = evaluator.add_witness_to_cs();
-        evaluator
-            .gates
-            .push(Gate::Arithmetic(&rhs.expression - &Arithmetic::from(&b)));
+        evaluator.gates.push(Gate::Arithmetic(&rhs.expression - &Arithmetic::from(&b)));
     }
     //return arith(mul=a*b)
     mul(&Arithmetic::from(&a), &Arithmetic::from(&b)) //TODO  &lhs.expression * &rhs.expression
@@ -1003,11 +966,7 @@ pub fn evaluate_udiv(
     }));
     //r<b
     let r_expr = Arithmetic::from(Linear::from_witness(r_witness));
-    let r_var = InternalVar {
-        expression: r_expr,
-        witness: Some(r_witness),
-        id: None,
-    };
+    let r_var = InternalVar { expression: r_expr, witness: Some(r_witness), id: None };
     bound_check(&r_var, rhs, true, 32, evaluator); //TODO bit size! should be max(a.bit, b.bit)
                                                    //range check q<=a
     range_constraint(q_witness, 32, evaluator).unwrap_or_else(|err| {
@@ -1033,10 +992,7 @@ pub fn evaluate_zero_equality(x: &InternalVar, evaluator: &mut Evaluator) -> Wit
     let x_witness = x.witness.unwrap(); //todo we need a witness because of the directive, but we should use an expression
 
     let m = evaluator.add_witness_to_cs(); //'inverse' of x
-    evaluator.gates.push(Gate::Directive(Directive::Invert {
-        x: x_witness,
-        result: m,
-    }));
+    evaluator.gates.push(Gate::Directive(Directive::Invert { x: x_witness, result: m }));
 
     //y=x*m         y is 1 if x is not null, and 0 else
     let y_witness = evaluator.add_witness_to_cs();
@@ -1063,10 +1019,9 @@ pub fn evaluate_inverse(x: &mut InternalVar, evaluator: &mut Evaluator) -> Witne
     let inverse_witness = evaluator.add_witness_to_cs();
     let inverse_expr = from_witness(inverse_witness);
     let x_witness = x.get_or_generate_witness(evaluator); //TODO avoid creating witnesses here.
-    evaluator.gates.push(Gate::Directive(Directive::Invert {
-        x: x_witness,
-        result: inverse_witness,
-    }));
+    evaluator
+        .gates
+        .push(Gate::Directive(Directive::Invert { x: x_witness, result: inverse_witness }));
 
     //x*inverse = 1
     Arithmetic::default();
@@ -1110,15 +1065,10 @@ pub fn mul(a: &Arithmetic, b: &Arithmetic) -> Arithmetic {
     while i1 < a.linear_combinations.len() && i2 < b.linear_combinations.len() {
         let coef_a = b.q_c * a.linear_combinations[i1].0;
         let coef_b = a.q_c * b.linear_combinations[i2].0;
-        match a.linear_combinations[i1]
-            .1
-            .cmp(&b.linear_combinations[i2].1)
-        {
+        match a.linear_combinations[i1].1.cmp(&b.linear_combinations[i2].1) {
             Ordering::Greater => {
                 if coef_b != FieldElement::zero() {
-                    output
-                        .linear_combinations
-                        .push((coef_b, b.linear_combinations[i2].1));
+                    output.linear_combinations.push((coef_b, b.linear_combinations[i2].1));
                 }
                 if i2 + 1 >= b.linear_combinations.len() {
                     i1 += 1;
@@ -1128,9 +1078,7 @@ pub fn mul(a: &Arithmetic, b: &Arithmetic) -> Arithmetic {
             }
             Ordering::Less => {
                 if coef_a != FieldElement::zero() {
-                    output
-                        .linear_combinations
-                        .push((coef_a, a.linear_combinations[i1].1));
+                    output.linear_combinations.push((coef_a, a.linear_combinations[i1].1));
                 }
                 if i1 + 1 >= a.linear_combinations.len() {
                     i2 += 1;
@@ -1140,9 +1088,7 @@ pub fn mul(a: &Arithmetic, b: &Arithmetic) -> Arithmetic {
             }
             Ordering::Equal => {
                 if coef_a + coef_b != FieldElement::zero() {
-                    output
-                        .linear_combinations
-                        .push((coef_a + coef_b, a.linear_combinations[i1].1));
+                    output.linear_combinations.push((coef_a + coef_b, a.linear_combinations[i1].1));
                 }
                 if (i1 + 1 >= a.linear_combinations.len())
                     && (i2 + 1 >= b.linear_combinations.len())
@@ -1178,16 +1124,11 @@ pub fn add(a: &Arithmetic, k: FieldElement, b: &Arithmetic) -> Arithmetic {
     let mut i1 = 0; //a
     let mut i2 = 0; //b
     while i1 < a.linear_combinations.len() && i2 < b.linear_combinations.len() {
-        match a.linear_combinations[i1]
-            .1
-            .cmp(&b.linear_combinations[i2].1)
-        {
+        match a.linear_combinations[i1].1.cmp(&b.linear_combinations[i2].1) {
             Ordering::Greater => {
                 let coef = b.linear_combinations[i2].0 * k;
                 if coef != FieldElement::zero() {
-                    output
-                        .linear_combinations
-                        .push((coef, b.linear_combinations[i2].1));
+                    output.linear_combinations.push((coef, b.linear_combinations[i2].1));
                 }
                 i2 += 1;
             }
@@ -1198,9 +1139,7 @@ pub fn add(a: &Arithmetic, k: FieldElement, b: &Arithmetic) -> Arithmetic {
             Ordering::Equal => {
                 let coef = a.linear_combinations[i1].0 + b.linear_combinations[i2].0 * k;
                 if coef != FieldElement::zero() {
-                    output
-                        .linear_combinations
-                        .push((coef, a.linear_combinations[i1].1));
+                    output.linear_combinations.push((coef, a.linear_combinations[i1].1));
                 }
                 i2 += 1;
                 i1 += 1;
@@ -1214,9 +1153,7 @@ pub fn add(a: &Arithmetic, k: FieldElement, b: &Arithmetic) -> Arithmetic {
     while i2 < b.linear_combinations.len() {
         let coef = b.linear_combinations[i2].0 * k;
         if coef != FieldElement::zero() {
-            output
-                .linear_combinations
-                .push((coef, b.linear_combinations[i2].1));
+            output.linear_combinations.push((coef, b.linear_combinations[i2].1));
         }
         i2 += 1;
     }
@@ -1231,9 +1168,7 @@ pub fn add(a: &Arithmetic, k: FieldElement, b: &Arithmetic) -> Arithmetic {
             Ordering::Greater => {
                 let coef = b.mul_terms[i2].0 * k;
                 if coef != FieldElement::zero() {
-                    output
-                        .mul_terms
-                        .push((coef, b.mul_terms[i2].1, b.mul_terms[i2].2));
+                    output.mul_terms.push((coef, b.mul_terms[i2].1, b.mul_terms[i2].2));
                 }
                 i2 += 1;
             }
@@ -1244,9 +1179,7 @@ pub fn add(a: &Arithmetic, k: FieldElement, b: &Arithmetic) -> Arithmetic {
             Ordering::Equal => {
                 let coef = a.mul_terms[i1].0 + b.mul_terms[i2].0 * k;
                 if coef != FieldElement::zero() {
-                    output
-                        .mul_terms
-                        .push((coef, a.mul_terms[i1].1, a.mul_terms[i1].2));
+                    output.mul_terms.push((coef, a.mul_terms[i1].1, a.mul_terms[i1].2));
                 }
                 i2 += 1;
                 i1 += 1;
@@ -1261,9 +1194,7 @@ pub fn add(a: &Arithmetic, k: FieldElement, b: &Arithmetic) -> Arithmetic {
     while i2 < b.mul_terms.len() {
         let coef = b.mul_terms[i2].0 * k;
         if coef != FieldElement::zero() {
-            output
-                .mul_terms
-                .push((coef, b.mul_terms[i2].1, b.mul_terms[i2].2));
+            output.mul_terms.push((coef, b.mul_terms[i2].1, b.mul_terms[i2].2));
         }
         i2 += 1;
     }
@@ -1278,13 +1209,9 @@ pub fn single_mul(w: Witness, b: &Arithmetic) -> Arithmetic {
     let mut i1 = 0;
     while i1 < b.linear_combinations.len() {
         if (w, b.linear_combinations[i1].1) < (b.linear_combinations[i1].1, w) {
-            output
-                .mul_terms
-                .push((b.linear_combinations[i1].0, w, b.linear_combinations[i1].1));
+            output.mul_terms.push((b.linear_combinations[i1].0, w, b.linear_combinations[i1].1));
         } else {
-            output
-                .mul_terms
-                .push((b.linear_combinations[i1].0, b.linear_combinations[i1].1, w));
+            output.mul_terms.push((b.linear_combinations[i1].0, b.linear_combinations[i1].1, w));
         }
         i1 += 1;
     }
@@ -1369,17 +1296,11 @@ fn bound_check(
     {
         todo!("ERROR");
     }
-    let offset = if strict {
-        FieldElement::one()
-    } else {
-        FieldElement::zero()
-    };
+    let offset = if strict { FieldElement::one() } else { FieldElement::zero() };
     let mut sub_expression = add(&b.expression, -FieldElement::one(), &a.expression); //a-b
     sub_expression.q_c += offset; //a-b+offset
     let w = evaluator.add_witness_to_cs(); //range_check requires a witness - TODO may be this can be avoided?
-    evaluator
-        .gates
-        .push(Gate::Arithmetic(&sub_expression - &Arithmetic::from(&w)));
+    evaluator.gates.push(Gate::Arithmetic(&sub_expression - &Arithmetic::from(&w)));
     range_constraint(w, bits, evaluator).unwrap_or_else(|err| {
         dbg!(err);
     });

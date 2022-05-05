@@ -194,11 +194,7 @@ pub fn create_function(
 
 pub fn add_return_instruction(cfg: &mut SsaContext, last: Option<NodeId>) {
     let last_id = last.unwrap_or_else(NodeId::dummy);
-    let result = if last_id == NodeId::dummy() {
-        Vec::new()
-    } else {
-        vec![last_id]
-    };
+    let result = if last_id == NodeId::dummy() { Vec::new() } else { vec![last_id] };
     //Create return instruction based on the last statement of the function body
     let result_id = cfg.new_instruction(
         NodeId::dummy(),

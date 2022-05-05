@@ -114,14 +114,10 @@ pub fn create_function_parameter(igen: &mut IRGenerator, ident_id: &DefinitionId
     let mut obj_type = node::ObjectType::from(&o_type);
     if let noirc_frontend::Type::Array(_, len, _) = o_type {
         let array_idx =
-            igen.context
-                .mem
-                .create_new_array(get_array_size(&len), obj_type, &ident_name);
+            igen.context.mem.create_new_array(get_array_size(&len), obj_type, &ident_name);
         obj_type = node::ObjectType::Pointer(array_idx);
     }
     let v_id = igen.create_new_variable(ident_name.clone(), *ident_id, obj_type, None);
-    igen.context
-        .get_current_block_mut()
-        .update_variable(v_id, v_id);
+    igen.context.get_current_block_mut().update_variable(v_id, v_id);
     v_id
 }

@@ -85,21 +85,18 @@ fn struct_definition() -> impl NoirParser<TopLevelStatement> {
     use self::Keyword::Struct;
     use Token::*;
 
-    let fields = struct_fields()
-        .delimited_by(just(LeftBrace), just(RightBrace))
-        .recover_with(nested_delimiters(
+    let fields = struct_fields().delimited_by(just(LeftBrace), just(RightBrace)).recover_with(
+        nested_delimiters(
             LeftBrace,
             RightBrace,
             [(LeftParen, RightParen), (LeftBracket, RightBracket)],
             |_| vec![],
-        ));
+        ),
+    );
 
-    keyword(Struct)
-        .ignore_then(ident())
-        .then(fields)
-        .map_with_span(|(name, fields), span| {
-            TopLevelStatement::Struct(NoirStruct { name, fields, span })
-        })
+    keyword(Struct).ignore_then(ident()).then(fields).map_with_span(|(name, fields), span| {
+        TopLevelStatement::Struct(NoirStruct { name, fields, span })
+    })
 }
 
 fn function_return_type() -> impl NoirParser<UnresolvedType> {
@@ -128,23 +125,14 @@ fn struct_fields() -> impl NoirParser<Vec<(Ident, UnresolvedType)>> {
 
 fn function_parameters(allow_self: bool) -> impl NoirParser<Vec<(Pattern, UnresolvedType)>> {
     let typ = parse_type().recover_via(parameter_recovery());
-    let full_parameter = pattern()
-        .recover_via(parameter_name_recovery())
-        .then_ignore(just(Token::Colon))
-        .then(typ);
+    let full_parameter =
+        pattern().recover_via(parameter_name_recovery()).then_ignore(just(Token::Colon)).then(typ);
 
-    let self_parameter = if allow_self {
-        self_parameter().boxed()
-    } else {
-        nothing().boxed()
-    };
+    let self_parameter = if allow_self { self_parameter().boxed() } else { nothing().boxed() };
 
     let parameter = full_parameter.or(self_parameter);
 
-    parameter
-        .separated_by(just(Token::Comma))
-        .allow_trailing()
-        .labelled("parameter")
+    parameter.separated_by(just(Token::Comma)).allow_trailing().labelled("parameter")
 }
 
 /// This parser always parses no input and fails
@@ -162,11 +150,7 @@ fn self_parameter() -> impl NoirParser<(Pattern, UnresolvedType)> {
                 UnresolvedType::Struct(FieldElementType::Private, path),
             ))
         }
-        _ => Err(ParserError::expected_label(
-            "parameter".to_owned(),
-            found,
-            span,
-        )),
+        _ => Err(ParserError::expected_label("parameter".to_owned(), found, span)),
     })
 }
 
@@ -218,9 +202,7 @@ fn optional_type_annotation() -> impl NoirParser<UnresolvedType> {
 }
 
 fn module_declaration() -> impl NoirParser<TopLevelStatement> {
-    keyword(Keyword::Mod)
-        .ignore_then(ident())
-        .map(TopLevelStatement::Module)
+    keyword(Keyword::Mod).ignore_then(ident()).map(TopLevelStatement::Module)
 }
 
 fn use_statement() -> impl NoirParser<TopLevelStatement> {
@@ -241,11 +223,7 @@ fn tokenkind(tokenkind: TokenKind) -> impl NoirParser<Token> {
         if found.kind() == tokenkind {
             Ok(found)
         } else {
-            Err(ParserError::expected_label(
-                tokenkind.to_string(),
-                found,
-                span,
-            ))
+            Err(ParserError::expected_label(tokenkind.to_string(), found, span))
         }
     })
 }
@@ -296,24 +274,22 @@ fn constrain<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
 {
-    ignore_then_commit(
-        keyword(Keyword::Constrain).labelled("statement"),
-        expr_parser,
+    ignore_then_commit(keyword(Keyword::Constrain).labelled("statement"), expr_parser).validate(
+        |expr, span, emit| match expr.kind.into_infix() {
+            Some(infix) if operator_disallowed_in_constrain(infix.operator.contents) => {
+                emit(ParserError::invalid_constrain_operator(infix.operator));
+                Statement::Error
+            }
+            None => {
+                emit(ParserError::with_reason(
+                    "Only an infix expression can follow the constrain keyword".to_string(),
+                    span,
+                ));
+                Statement::Error
+            }
+            Some(infix) => Statement::Constrain(ConstrainStatement(infix)),
+        },
     )
-    .validate(|expr, span, emit| match expr.kind.into_infix() {
-        Some(infix) if operator_disallowed_in_constrain(infix.operator.contents) => {
-            emit(ParserError::invalid_constrain_operator(infix.operator));
-            Statement::Error
-        }
-        None => {
-            emit(ParserError::with_reason(
-                "Only an infix expression can follow the constrain keyword".to_string(),
-                span,
-            ));
-            Statement::Error
-        }
-        Some(infix) => Statement::Constrain(ConstrainStatement(infix)),
-    })
 }
 
 fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
@@ -336,9 +312,7 @@ fn pattern() -> impl NoirParser<Pattern> {
             .map_with_span(|inner, span| Pattern::Mutable(Box::new(inner), span));
 
         let shortfield = ident().map(|name| (name.clone(), Pattern::Identifier(name)));
-        let longfield = ident()
-            .then_ignore(just(Token::Colon))
-            .then(pattern.clone());
+        let longfield = ident().then_ignore(just(Token::Colon)).then(pattern.clone());
 
         let struct_pattern_fields = longfield
             .or(shortfield)
@@ -363,15 +337,11 @@ fn assignment<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
 {
-    let failable = lvalue(expr_parser.clone())
-        .then_ignore(just(Token::Assign))
-        .labelled("statement");
+    let failable =
+        lvalue(expr_parser.clone()).then_ignore(just(Token::Assign)).labelled("statement");
 
     then_commit(failable, expr_parser).map(|(identifier, expression)| {
-        Statement::Assign(AssignStatement {
-            lvalue: identifier,
-            expression,
-        })
+        Statement::Assign(AssignStatement { lvalue: identifier, expression })
     })
 }
 
@@ -386,26 +356,18 @@ where
 {
     let l_ident = ident().map(LValue::Ident);
 
-    let l_member_rhs = just(Token::Dot)
-        .ignore_then(ident())
-        .map(LValueRhs::MemberAccess);
+    let l_member_rhs = just(Token::Dot).ignore_then(ident()).map(LValueRhs::MemberAccess);
 
     let l_index = expr_parser
         .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
         .map(LValueRhs::Index);
 
-    l_ident
-        .then(l_member_rhs.or(l_index).repeated())
-        .foldl(|lvalue, rhs| match rhs {
-            LValueRhs::MemberAccess(field_name) => LValue::MemberAccess {
-                object: Box::new(lvalue),
-                field_name,
-            },
-            LValueRhs::Index(index) => LValue::Index {
-                array: Box::new(lvalue),
-                index,
-            },
-        })
+    l_ident.then(l_member_rhs.or(l_index).repeated()).foldl(|lvalue, rhs| match rhs {
+        LValueRhs::MemberAccess(field_name) => {
+            LValue::MemberAccess { object: Box::new(lvalue), field_name }
+        }
+        LValueRhs::Index(index) => LValue::Index { array: Box::new(lvalue), index },
+    })
 }
 
 fn parse_type() -> impl NoirParser<UnresolvedType> {
@@ -461,9 +423,7 @@ fn field_type<P>(visibility_parser: P) -> impl NoirParser<UnresolvedType>
 where
     P: NoirParser<FieldElementType>,
 {
-    visibility_parser
-        .then_ignore(keyword(Keyword::Field))
-        .map(UnresolvedType::FieldElement)
+    visibility_parser.then_ignore(keyword(Keyword::Field)).map(UnresolvedType::FieldElement)
 }
 
 fn int_type<P>(visibility_parser: P) -> impl NoirParser<UnresolvedType>
@@ -473,11 +433,9 @@ where
     visibility_parser
         .then(filter_map(|span, token: Token| match token {
             Token::IntType(int_type) => Ok(int_type),
-            unexpected => Err(ParserError::expected_label(
-                "integer type".to_string(),
-                unexpected,
-                span,
-            )),
+            unexpected => {
+                Err(ParserError::expected_label("integer type".to_string(), unexpected, span))
+            }
         }))
         .map(|(visibility, int_type)| UnresolvedType::from_int_tok(visibility, &int_type))
 }
@@ -511,9 +469,7 @@ fn tuple_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>
 where
     T: NoirParser<UnresolvedType>,
 {
-    let fields = type_parser
-        .separated_by(just(Token::Comma))
-        .allow_trailing();
+    let fields = type_parser.separated_by(just(Token::Comma)).allow_trailing();
     parenthesized(fields).map(UnresolvedType::Tuple)
 }
 
@@ -552,10 +508,7 @@ fn create_infix_expression(lhs: Expression, (operator, rhs): (BinaryOp, Expressi
     let span = lhs.span.merge(rhs.span);
     let infix = Box::new(InfixExpression { lhs, operator, rhs });
 
-    Expression {
-        span,
-        kind: ExpressionKind::Infix(infix),
-    }
+    Expression { span, kind: ExpressionKind::Infix(infix) }
 }
 
 fn operator_with_precedence(precedence: Precedence) -> impl NoirParser<Spanned<BinaryOpKind>> {
@@ -564,11 +517,7 @@ fn operator_with_precedence(precedence: Precedence) -> impl NoirParser<Spanned<B
             let bin_op_kind: Option<BinaryOpKind> = (&token).into();
             Ok(Spanned::from(span, bin_op_kind.unwrap()))
         } else {
-            Err(ParserError::expected_label(
-                "binary operator".to_string(),
-                token,
-                span,
-            ))
+            Err(ParserError::expected_label("binary operator".to_string(), token, span))
         }
     })
 }
@@ -632,17 +581,9 @@ where
     keyword(Keyword::If)
         .ignore_then(expr_parser.clone())
         .then(block(expr_parser.clone()))
-        .then(
-            keyword(Keyword::Else)
-                .ignore_then(block(expr_parser))
-                .or_not(),
-        )
+        .then(keyword(Keyword::Else).ignore_then(block(expr_parser)).or_not())
         .map(|((condition, consequence), alternative)| {
-            ExpressionKind::If(Box::new(IfExpression {
-                condition,
-                consequence,
-                alternative,
-            }))
+            ExpressionKind::If(Box::new(IfExpression { condition, consequence, alternative }))
         })
 }
 
@@ -688,18 +629,14 @@ fn expression_list<P>(expr_parser: P) -> impl NoirParser<Vec<Expression>>
 where
     P: ExprParser,
 {
-    expr_parser
-        .separated_by(just(Token::Comma))
-        .allow_trailing()
+    expr_parser.separated_by(just(Token::Comma)).allow_trailing()
 }
 
 fn not<P>(term_parser: P) -> impl NoirParser<ExpressionKind>
 where
     P: ExprParser,
 {
-    just(Token::Bang)
-        .ignore_then(term_parser)
-        .map(|rhs| ExpressionKind::prefix(UnaryOp::Not, rhs))
+    just(Token::Bang).ignore_then(term_parser).map(|rhs| ExpressionKind::prefix(UnaryOp::Not, rhs))
 }
 
 fn negation<P>(term_parser: P) -> impl NoirParser<ExpressionKind>
@@ -740,25 +677,21 @@ where
 }
 
 fn field_name() -> impl NoirParser<Ident> {
-    ident().or(
-        tokenkind(TokenKind::Literal).validate(|token, span, emit| match token {
-            Token::Int(_) => Ident::from(Spanned::from(span, token.to_string())),
-            other => {
-                let reason = format!("Unexpected '{}', expected a field name", other);
-                emit(ParserError::with_reason(reason, span));
-                Ident::error(span)
-            }
-        }),
-    )
+    ident().or(tokenkind(TokenKind::Literal).validate(|token, span, emit| match token {
+        Token::Int(_) => Ident::from(Spanned::from(span, token.to_string())),
+        other => {
+            let reason = format!("Unexpected '{}', expected a field name", other);
+            emit(ParserError::with_reason(reason, span));
+            Ident::error(span)
+        }
+    }))
 }
 
 fn function_call<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
 where
     P: ExprParser,
 {
-    path()
-        .then(parenthesized(expression_list(expr_parser)))
-        .map(ExpressionKind::function_call)
+    path().then(parenthesized(expression_list(expr_parser))).map(ExpressionKind::function_call)
 }
 
 fn constructor<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
@@ -841,9 +774,7 @@ mod test {
     {
         let lexer = Lexer::new(program);
         let (tokens, lexer_errors) = lexer.lex();
-        let (opt, errs) = parser
-            .then_ignore(force(just(Token::EOF)))
-            .parse_recovery(tokens);
+        let (opt, errs) = parser.then_ignore(force(just(Token::EOF))).parse_recovery(tokens);
 
         let mut errors = vecmap(&lexer_errors, DiagnosableError::to_diagnostic);
         errors.extend(errs.iter().map(DiagnosableError::to_diagnostic));
@@ -911,12 +842,7 @@ mod test {
 
     #[test]
     fn parse_function_call() {
-        let valid = vec![
-            "std::hash ()",
-            " std::hash(x,y,a+b)",
-            "crate::foo (x)",
-            "hash (x,)",
-        ];
+        let valid = vec!["std::hash ()", " std::hash(x,y,a+b)", "crate::foo (x)", "hash (x,)"];
         parse_all(function_call(expression()), valid);
     }
 
@@ -1039,19 +965,13 @@ mod test {
         // Let statements are not type checked here, so the parser will accept as
         // long as it is a type. Other statements such as Public are type checked
         // Because for now, they can only have one type
-        parse_all(
-            declaration(expression()),
-            vec!["let x = y", "let x : u8 = y"],
-        );
+        parse_all(declaration(expression()), vec!["let x = y", "let x : u8 = y"]);
     }
 
     #[test]
     fn parse_invalid_pub() {
         // pub cannot be used to declare a statement
-        parse_all_failing(
-            statement(expression()),
-            vec!["pub x = y", "pub x : pub Field = y"],
-        );
+        parse_all_failing(statement(expression()), vec!["pub x = y", "pub x : pub Field = y"]);
     }
 
     #[test]
@@ -1086,46 +1006,29 @@ mod test {
 
         parse_all_failing(
             function_definition(false),
-            vec![
-                "fn x2( f: []Field,,) {}",
-                "fn ( f: []Field) {}",
-                "fn ( f: []Field) {}",
-            ],
+            vec!["fn x2( f: []Field,,) {}", "fn ( f: []Field) {}", "fn ( f: []Field) {}"],
         );
     }
 
     #[test]
     fn parse_parenthesized_expression() {
-        parse_all(
-            atom(expression()),
-            vec!["(0)", "(x+a)", "({(({{({(nested)})}}))})"],
-        );
+        parse_all(atom(expression()), vec!["(0)", "(x+a)", "({(({{({(nested)})}}))})"]);
 
         parse_all_failing(atom(expression()), vec!["(x+a", "((x+a)", "(,)"]);
     }
 
     #[test]
     fn parse_tuple() {
-        parse_all(
-            tuple(expression()),
-            vec!["()", "(x,)", "(a,b+2)", "(a,(b,c,),d,)"],
-        );
+        parse_all(tuple(expression()), vec!["()", "(x,)", "(a,b+2)", "(a,(b,c,),d,)"]);
     }
 
     #[test]
     fn parse_if_expr() {
-        parse_all(
-            if_expr(expression()),
-            vec!["if x + a {  } else {  }", "if x {}"],
-        );
+        parse_all(if_expr(expression()), vec!["if x + a {  } else {  }", "if x {}"]);
 
         parse_all_failing(
             if_expr(expression()),
-            vec![
-                "if (x / a) + 1 {} else",
-                "if foo then 1 else 2",
-                "if true { 1 }else 3",
-            ],
+            vec!["if (x / a) + 1 {} else", "if foo then 1 else 2", "if true { 1 }else 3"],
         );
     }
 
@@ -1211,22 +1114,13 @@ mod test {
 
         parse_all_failing(
             path(),
-            vec![
-                "dep",
-                "crate",
-                "crate::std::crate",
-                "foo::bar::crate",
-                "foo::dep",
-            ],
+            vec!["dep", "crate", "crate::std::crate", "foo::bar::crate", "foo::dep"],
         );
     }
 
     #[test]
     fn parse_unary() {
-        parse_all(
-            term(expression()),
-            vec!["!hello", "-hello", "--hello", "-!hello", "!-hello"],
-        );
+        parse_all(term(expression()), vec!["!hello", "-hello", "--hello", "-!hello", "!-hello"]);
         parse_all_failing(term(expression()), vec!["+hello", "/hello"]);
     }
 
@@ -1234,12 +1128,7 @@ mod test {
     fn parse_use() {
         parse_all(
             use_statement(),
-            vec![
-                "use std::hash",
-                "use std",
-                "use foo::bar as hello",
-                "use bar as bar",
-            ],
+            vec!["use std::hash", "use std", "use foo::bar as hello", "use bar as bar"],
         );
 
         parse_all_failing(

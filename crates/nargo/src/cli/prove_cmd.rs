@@ -13,15 +13,8 @@ use crate::{errors::CliError, resolver::Resolver};
 use super::{create_dir, write_to_file, PROOFS_DIR, PROOF_EXT, PROVER_INPUT_FILE};
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
-    let proof_name = args
-        .subcommand_matches("prove")
-        .unwrap()
-        .value_of("proof_name")
-        .unwrap();
-    let interactive = args
-        .subcommand_matches("prove")
-        .unwrap()
-        .value_of("interactive");
+    let proof_name = args.subcommand_matches("prove").unwrap().value_of("proof_name").unwrap();
+    let interactive = args.subcommand_matches("prove").unwrap().value_of("interactive");
     let mut is_interactive = false;
     if let Some(int) = interactive {
         if int == "i" {
@@ -64,10 +57,7 @@ fn process_abi_with_input(
         let value = witness_map
             .get(&param_name)
             .unwrap_or_else(|| {
-                panic!(
-                    "ABI expects the parameter `{}`, but this was not found",
-                    param_name
-                )
+                panic!("ABI expects the parameter `{}`, but this was not found", param_name)
             })
             .clone();
 

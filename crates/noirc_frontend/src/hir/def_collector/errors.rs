@@ -21,10 +21,7 @@ pub enum DefCollectorErrorKind {
 impl DiagnosableError for DefCollectorErrorKind {
     fn to_diagnostic(&self) -> Diagnostic {
         match self {
-            DefCollectorErrorKind::DuplicateFunction {
-                first_def,
-                second_def,
-            } => {
+            DefCollectorErrorKind::DuplicateFunction { first_def, second_def } => {
                 let first_span = first_def.0.span();
                 let second_span = second_def.0.span();
                 let func_name = &first_def.0.contents;
@@ -37,10 +34,7 @@ impl DiagnosableError for DefCollectorErrorKind {
                 diag.add_secondary("second definition found here".to_string(), second_span);
                 diag
             }
-            DefCollectorErrorKind::DuplicateModuleDecl {
-                first_def,
-                second_def,
-            } => {
+            DefCollectorErrorKind::DuplicateModuleDecl { first_def, second_def } => {
                 let first_span = first_def.0.span();
                 let second_span = second_def.0.span();
                 let mod_name = &first_def.0.contents;
@@ -53,10 +47,7 @@ impl DiagnosableError for DefCollectorErrorKind {
                 diag.add_secondary("second declaration found here".to_string(), second_span);
                 diag
             }
-            DefCollectorErrorKind::DuplicateImport {
-                first_def,
-                second_def,
-            } => {
+            DefCollectorErrorKind::DuplicateImport { first_def, second_def } => {
                 let first_span = first_def.0.span();
                 let second_span = second_def.0.span();
                 let import_name = &first_def.0.contents;

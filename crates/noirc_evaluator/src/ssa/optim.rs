@@ -73,10 +73,9 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut node::Instruction) {
         // }
         node::Operation::Constrain(op) => match op {
             node::ConstrainOp::Eq => {
-                if let (Some(a), Some(b)) = (
-                    mem::Memory::deref(ctx, ins.lhs),
-                    mem::Memory::deref(ctx, ins.rhs),
-                ) {
+                if let (Some(a), Some(b)) =
+                    (mem::Memory::deref(ctx, ins.lhs), mem::Memory::deref(ctx, ins.rhs))
+                {
                     if a == b {
                         ins.is_deleted = true;
                         ins.operator = node::Operation::Nop;
@@ -84,10 +83,9 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut node::Instruction) {
                 }
             }
             node::ConstrainOp::Neq => {
-                if let (Some(a), Some(b)) = (
-                    mem::Memory::deref(ctx, ins.lhs),
-                    mem::Memory::deref(ctx, ins.rhs),
-                ) {
+                if let (Some(a), Some(b)) =
+                    (mem::Memory::deref(ctx, ins.lhs), mem::Memory::deref(ctx, ins.rhs))
+                {
                     assert!(a != b);
                 }
             }
@@ -167,9 +165,7 @@ fn evaluate_intrinsic(
             let lhs_int = lhs.to_u128();
             let rhs_int = rhs.to_u128() as u32;
             let a =
-                irgen
-                    .mem
-                    .create_new_array(rhs_int, node::ObjectType::Unsigned(1), &String::new());
+                irgen.mem.create_new_array(rhs_int, node::ObjectType::Unsigned(1), &String::new());
             let pointer = node::Variable {
                 id: NodeId::dummy(),
                 obj_type: node::ObjectType::Pointer(a),
@@ -349,9 +345,9 @@ pub fn cse_tree(
 
 pub fn anchor_push(op: node::Operation, anchor: &mut HashMap<node::Operation, VecDeque<NodeId>>) {
     match op {
-        node::Operation::Store(x) => anchor
-            .entry(node::Operation::Load(x))
-            .or_insert_with(VecDeque::new),
+        node::Operation::Store(x) => {
+            anchor.entry(node::Operation::Load(x)).or_insert_with(VecDeque::new)
+        }
         _ => anchor.entry(op).or_insert_with(VecDeque::new),
     };
 }
@@ -523,11 +519,8 @@ pub fn block_cse(
                     update.ins_arguments = ins_args;
                 }
                 //update instruction name - for debug/pretty print purposes only /////////////////////
-                if let Some(Instruction {
-                    operator: Operation::Ass,
-                    lhs,
-                    ..
-                }) = ctx.try_get_instruction(ii_l)
+                if let Some(Instruction { operator: Operation::Ass, lhs, .. }) =
+                    ctx.try_get_instruction(ii_l)
                 {
                     if let Ok(lv) = ctx.get_variable(*lhs) {
                         let i_name = lv.name.clone();
@@ -538,11 +531,8 @@ pub fn block_cse(
                         }
                     }
                 }
-                if let Some(Instruction {
-                    operator: Operation::Ass,
-                    lhs,
-                    ..
-                }) = ctx.try_get_instruction(ii_r)
+                if let Some(Instruction { operator: Operation::Ass, lhs, .. }) =
+                    ctx.try_get_instruction(ii_r)
                 {
                     if let Ok(lv) = ctx.get_variable(*lhs) {
                         let i_name = lv.name.clone();

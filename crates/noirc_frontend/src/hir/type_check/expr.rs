@@ -27,9 +27,8 @@ pub(crate) fn type_check_expression(
             match literal {
                 HirLiteral::Array(arr) => {
                     // Type check the contents of the array
-                    let elem_types = vecmap(&arr.contents, |arg| {
-                        type_check_expression(interner, arg, errors)
-                    });
+                    let elem_types =
+                        vecmap(&arr.contents, |arg| type_check_expression(interner, arg, errors));
 
                     let first_elem_type = elem_types.get(0).cloned().unwrap_or(Type::Error);
 
@@ -82,10 +81,8 @@ pub(crate) fn type_check_expression(
                 Err(msg) => {
                     let lhs_span = interner.expr_span(&infix_expr.lhs);
                     let rhs_span = interner.expr_span(&infix_expr.rhs);
-                    errors.push(TypeCheckError::Unstructured {
-                        msg,
-                        span: lhs_span.merge(rhs_span),
-                    });
+                    errors
+                        .push(TypeCheckError::Unstructured { msg, span: lhs_span.merge(rhs_span) });
                     Type::Error
                 }
             }
@@ -119,9 +116,8 @@ pub(crate) fn type_check_expression(
             }
         }
         HirExpression::Call(call_expr) => {
-            let args = vecmap(&call_expr.arguments, |arg| {
-                type_check_expression(interner, arg, errors)
-            });
+            let args =
+                vecmap(&call_expr.arguments, |arg| type_check_expression(interner, arg, errors));
             type_check_function_call(interner, expr_id, &call_expr.func_id, args, errors)
         }
         HirExpression::MethodCall(method_call) => {
@@ -233,10 +229,7 @@ pub(crate) fn type_check_expression(
                 Ok(typ) => typ,
                 Err(msg) => {
                     let rhs_span = interner.expr_span(&prefix_expr.rhs);
-                    errors.push(TypeCheckError::Unstructured {
-                        msg,
-                        span: rhs_span,
-                    });
+                    errors.push(TypeCheckError::Unstructured { msg, span: rhs_span });
                     Type::Error
                 }
             }
@@ -247,9 +240,9 @@ pub(crate) fn type_check_expression(
         }
         HirExpression::MemberAccess(access) => check_member_access(access, interner, errors),
         HirExpression::Error => Type::Error,
-        HirExpression::Tuple(elements) => Type::Tuple(vecmap(&elements, |elem| {
-            type_check_expression(interner, elem, errors)
-        })),
+        HirExpression::Tuple(elements) => {
+            Type::Tuple(vecmap(&elements, |elem| type_check_expression(interner, elem, errors)))
+        }
     };
 
     interner.push_expr_type(expr_id, typ.clone());
@@ -312,10 +305,7 @@ fn lookup_method(
         other => {
             errors.push(TypeCheckError::Unstructured {
                 span: interner.expr_span(expr_id),
-                msg: format!(
-                    "Type '{}' must be a struct type to call methods on it",
-                    other
-                ),
+                msg: format!("Type '{}' must be a struct type to call methods on it", other),
             });
             None
         }

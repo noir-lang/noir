@@ -246,10 +246,7 @@ fn evaluate_phi(
         }
         //Update the evaluation map.
         for obj in to_process {
-            to.insert(
-                obj.0,
-                NodeEval::VarOrInstruction(optim::to_index(igen, obj.1)),
-            );
+            to.insert(obj.0, NodeEval::VarOrInstruction(optim::to_index(igen, obj.1)));
         }
     }
 }
@@ -278,9 +275,7 @@ fn evaluate_conditional_jump(
 
 //Retrieve the NodeEval value of the index in the evaluation map
 fn get_current_value(id: NodeId, value_array: &HashMap<NodeId, NodeEval>) -> NodeEval {
-    *value_array
-        .get(&id)
-        .unwrap_or(&NodeEval::VarOrInstruction(id))
+    *value_array.get(&id).unwrap_or(&NodeEval::VarOrInstruction(id))
 }
 
 //Same as get_current_value but for a NodeEval object instead of a NodeObj
@@ -403,11 +398,7 @@ pub fn inline_block(ctx: &mut SsaContext, block_id: BlockId) -> bool {
     let mut result = true;
     for ins_id in call_ins {
         let ins = ctx.try_get_instruction(ins_id).unwrap().clone();
-        if let node::Instruction {
-            operator: node::Operation::Call(f),
-            ..
-        } = ins
-        {
+        if let node::Instruction { operator: node::Operation::Call(f), .. } = ins {
             if !inline(f, &ins.ins_arguments, ctx, ins.parent_block, ins.id) {
                 result = false;
             }
@@ -439,15 +430,8 @@ pub fn inline(
     let mut next_block = Some(ssa_func.entry_block);
     while let Some(next_b) = next_block {
         let mut nested_call = false;
-        next_block = inline_in_block(
-            next_b,
-            block,
-            &mut inline_map,
-            &mut array_map,
-            call_id,
-            &mut nested_call,
-            ctx,
-        );
+        next_block = 
+        inline_in_block(next_b, block, &mut inline_map, &mut array_map, call_id, &mut nested_call, ctx);
         if result && nested_call {
             result = false
         }
@@ -652,11 +636,7 @@ pub fn inline_in_block(
     }
 
     // add instruction to target_block, at proper location (really need a linked list!)
-    let mut pos = ctx[target_block_id]
-        .instructions
-        .iter()
-        .position(|x| *x == call_id)
-        .unwrap();
+    let mut pos = ctx[target_block_id].instructions.iter().position(|x| *x == call_id).unwrap();
     for &new_id in &new_instructions {
         ctx[target_block_id].instructions.insert(pos, new_id);
         pos += 1;

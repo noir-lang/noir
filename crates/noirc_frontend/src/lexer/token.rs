@@ -268,11 +268,7 @@ impl IntType {
         let max_bits = FieldElement::max_num_bits();
 
         if str_as_u32 > max_bits {
-            return Err(LexerErrorKind::TooManyBits {
-                span,
-                max: max_bits,
-                got: str_as_u32,
-            });
+            return Err(LexerErrorKind::TooManyBits { span, max: max_bits, got: str_as_u32 });
         }
         if (str_as_u32 % 2 == 1) && (str_as_u32 > 1) {
             todo!("Barretenberg currently panics on odd integers bit widths such as u3, u5. u1 works as it is a type alias for bool, so we can use a bool gate for it");
@@ -314,10 +310,7 @@ impl Attribute {
             .collect();
 
         if word_segments.len() != 2 {
-            return Err(LexerErrorKind::MalformedFuncAttribute {
-                span,
-                found: word.to_owned(),
-            });
+            return Err(LexerErrorKind::MalformedFuncAttribute { span, found: word.to_owned() });
         }
 
         let attribute_type = word_segments[0];
@@ -327,10 +320,7 @@ impl Attribute {
             "foreign" => Token::Attribute(Attribute::Foreign(attribute_name.to_string())),
             "builtin" => Token::Attribute(Attribute::Builtin(attribute_name.to_string())),
             _ => {
-                return Err(LexerErrorKind::MalformedFuncAttribute {
-                    span,
-                    found: word.to_owned(),
-                })
+                return Err(LexerErrorKind::MalformedFuncAttribute { span, found: word.to_owned() })
             }
         };
         Ok(tok)

@@ -94,9 +94,7 @@ impl<'a> IRGenerator<'a> {
         len: u128,
         witness: Vec<acvm::acir::native_types::Witness>,
     ) {
-        self.context
-            .mem
-            .create_new_array(len as u32, el_type.into(), name);
+        self.context.mem.create_new_array(len as u32, el_type.into(), name);
         let array_idx = (self.context.mem.arrays.len() - 1) as usize;
         self.context.mem.arrays[array_idx].def = ident_def;
         self.context.mem.arrays[array_idx].values = vecmap(witness, |w| w.into());
@@ -110,9 +108,7 @@ impl<'a> IRGenerator<'a> {
             parent_block: self.context.current_block,
         };
         let v_id = self.context.add_variable(pointer, None);
-        self.context
-            .get_current_block_mut()
-            .update_variable(v_id, v_id);
+        self.context.get_current_block_mut().update_variable(v_id, v_id);
 
         let v_value = Value::Single(v_id);
         self.variable_values.insert(ident_def, v_value); //TODO ident_def or ident_id??
@@ -137,9 +133,7 @@ impl<'a> IRGenerator<'a> {
         };
         let v_id = self.context.add_variable(var, None);
 
-        self.context
-            .get_current_block_mut()
-            .update_variable(v_id, v_id);
+        self.context.get_current_block_mut().update_variable(v_id, v_id);
         let v_value = Value::Single(v_id);
         self.variable_values.insert(ident_def, v_value); //TODO ident_def or ident_id??
     }
@@ -158,9 +152,7 @@ impl<'a> IRGenerator<'a> {
             Object::Array(a) => {
                 let obj_type = o_type.into();
                 //We should create an array from 'a' witnesses
-                self.context
-                    .mem
-                    .create_array_from_object(&a, ident.id, obj_type, &ident_name);
+                self.context.mem.create_array_from_object(&a, ident.id, obj_type, &ident_name);
                 let array_index = (self.context.mem.arrays.len() - 1) as u32;
                 node::Variable {
                     id: NodeId::dummy(),
@@ -188,9 +180,7 @@ impl<'a> IRGenerator<'a> {
         };
 
         let v_id = self.context.add_variable(var, None);
-        self.context
-            .get_current_block_mut()
-            .update_variable(v_id, v_id);
+        self.context.get_current_block_mut().update_variable(v_id, v_id);
 
         Value::Single(v_id)
     }
@@ -207,13 +197,9 @@ impl<'a> IRGenerator<'a> {
         let rtype = self.context.get_object_type(rhs);
         match op {
             HirUnaryOp::Minus => {
-                Ok(self
-                    .context
-                    .new_instruction(self.context.zero(), rhs, Operation::Sub, rtype))
+                Ok(self.context.new_instruction(self.context.zero(), rhs, Operation::Sub, rtype))
             }
-            HirUnaryOp::Not => Ok(self
-                .context
-                .new_instruction(rhs, rhs, Operation::Not, rtype)),
+            HirUnaryOp::Not => Ok(self.context.new_instruction(rhs, rhs, Operation::Not, rtype)),
         }
     }
 
@@ -332,12 +318,8 @@ impl<'a> IRGenerator<'a> {
         env: &mut Environment,
         constrain_stmt: HirConstrainStatement,
     ) -> Result<(), RuntimeError> {
-        let lhs = self
-            .expression_to_object(env, &constrain_stmt.0.lhs)?
-            .unwrap_id();
-        let rhs = self
-            .expression_to_object(env, &constrain_stmt.0.rhs)?
-            .unwrap_id();
+        let lhs = self.expression_to_object(env, &constrain_stmt.0.lhs)?.unwrap_id();
+        let rhs = self.expression_to_object(env, &constrain_stmt.0.rhs)?.unwrap_id();
 
         match constrain_stmt.0.operator.kind {
             // HirBinaryOpKind::Add => binary_op::handle_add_op(lhs, rhs, self),
@@ -452,18 +434,12 @@ impl<'a> IRGenerator<'a> {
             }
         }
 
-        let new_var = Variable::new(
-            obj_type,
-            variable_name,
-            definition_id,
-            self.context.current_block,
-        );
+        let new_var =
+            Variable::new(obj_type, variable_name, definition_id, self.context.current_block);
         let id = self.context.add_variable(new_var, None);
 
         //Assign rhs to lhs
-        let result = self
-            .context
-            .new_instruction(id, value_id, node::Operation::Ass, obj_type);
+        let result = self.context.new_instruction(id, value_id, node::Operation::Ass, obj_type);
         //This new variable should not be available in outer scopes.
         let cb = self.context.get_current_block_mut();
         cb.update_variable(id, result); //update the value array. n.b. we should not update the name as it is the first assignment (let)
@@ -535,11 +511,7 @@ impl<'a> IRGenerator<'a> {
     }
 
     pub fn def_to_name(&self, def: DefinitionId) -> String {
-        self.context
-            .context
-            .def_interner
-            .definition_name(def)
-            .to_owned()
+        self.context.context.def_interner.definition_name(def).to_owned()
     }
 
     pub fn ident_name(&self, ident: &HirIdent) -> String {
@@ -743,8 +715,8 @@ impl<'a> IRGenerator<'a> {
                 }
             }
             HirLiteral::Integer(f) => {
-                self.context
-                    .get_or_create_const(*f, node::ObjectType::NativeField) //TODO support integer literrals in the fronted: 30_u8
+                self.context.get_or_create_const(*f, node::ObjectType::NativeField)
+                //TODO support integer literrals in the fronted: 30_u8
             }
             _ => todo!(), //todo: add support for Array(HirArrayLiteral), Str(String)
         }
@@ -843,10 +815,7 @@ impl<'a> IRGenerator<'a> {
             .unwrap_id();
         //We support only const range for now
         //TODO how should we handle scope (cf. start/end_for_loop)?
-        let iter_name = self
-            .def_interner()
-            .definition_name(for_expr.identifier.id)
-            .to_owned();
+        let iter_name = self.def_interner().definition_name(for_expr.identifier.id).to_owned();
         let iter_def = for_expr.identifier.id;
         let int_type = self.def_interner().id_type(iter_def);
         let iter_type = int_type.into();
@@ -855,8 +824,7 @@ impl<'a> IRGenerator<'a> {
 
         iter_var.obj_type = iter_type;
         let iter_ass =
-            self.context
-                .new_instruction(iter_id, start_idx, node::Operation::Ass, iter_type);
+            self.context.new_instruction(iter_id, start_idx, node::Operation::Ass, iter_type);
         //We map the iterator to start_idx so that when we seal the join block, we will get the corrdect value.
         self.update_variable_id(iter_id, iter_ass, start_idx);
 
@@ -871,8 +839,7 @@ impl<'a> IRGenerator<'a> {
         let phi = self.generate_empty_phi(join_idx, iter_id);
         self.update_variable_id(iter_id, iter_id, phi); //is it still needed?
         let cond =
-            self.context
-                .new_instruction(phi, end_idx, Operation::Ne, node::ObjectType::Boolean);
+            self.context.new_instruction(phi, end_idx, Operation::Ne, node::ObjectType::Boolean);
         let to_fix = self.context.new_instruction(
             cond,
             NodeId::dummy(),
@@ -893,12 +860,8 @@ impl<'a> IRGenerator<'a> {
         }
 
         //increment iter
-        let one = self
-            .context
-            .get_or_create_const(FieldElement::one(), iter_type);
-        let incr = self
-            .context
-            .new_instruction(phi, one, node::Operation::Add, iter_type);
+        let one = self.context.get_or_create_const(FieldElement::one(), iter_type);
+        let incr = self.context.new_instruction(phi, one, node::Operation::Add, iter_type);
         let cur_block_id = self.context.current_block; //It should be the body block, except if the body has CFG statements
         let cur_block = &mut self.context[cur_block_id];
         cur_block.update_variable(iter_id, incr);

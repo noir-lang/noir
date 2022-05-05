@@ -48,12 +48,8 @@ impl std::fmt::Debug for Gate {
         match self {
             Gate::Arithmetic(a) => {
                 for i in &a.mul_terms {
-                    result += &format!(
-                        "{:?}x{}*x{} + ",
-                        i.0,
-                        i.1.witness_index(),
-                        i.2.witness_index()
-                    );
+                    result +=
+                        &format!("{:?}x{}*x{} + ", i.0, i.1.witness_index(), i.2.witness_index());
                 }
                 for i in &a.linear_combinations {
                     result += &format!("{:?}x{} + ", i.0, i.1.witness_index());
@@ -66,12 +62,7 @@ impl std::fmt::Debug for Gate {
             Gate::Directive(Directive::Invert { x, result: r }) => {
                 result = format!("x{}=1/x{}, or 0", r.witness_index(), x.witness_index());
             }
-            Gate::Directive(Directive::Truncate {
-                a,
-                b,
-                c: _c,
-                bit_size,
-            }) => {
+            Gate::Directive(Directive::Truncate { a, b, c: _c, bit_size }) => {
                 result = format!(
                     "Truncate: x{} is x{} truncated to {} bits",
                     b.witness_index(),
@@ -123,41 +114,19 @@ impl std::fmt::Debug for Gate {
 /// Directives do not apply any constraints.
 pub enum Directive {
     //Inverts the value of x and stores it in the result variable
-    Invert {
-        x: Witness,
-        result: Witness,
-    },
+    Invert { x: Witness, result: Witness },
 
     //Performs euclidian division of a / b (as integers) and stores the quotient in q and the rest in r
-    Quotient {
-        a: Witness,
-        b: Witness,
-        q: Witness,
-        r: Witness,
-    },
+    Quotient { a: Witness, b: Witness, q: Witness, r: Witness },
 
     //Reduces the value of a modulo 2^bit_size and stores the result in b: a= c*2^bit_size + b
-    Truncate {
-        a: Witness,
-        b: Witness,
-        c: Witness,
-        bit_size: u32,
-    },
+    Truncate { a: Witness, b: Witness, c: Witness, bit_size: u32 },
 
     //Computes the highest bit b of a: a = b*2^(bit_size-1) + r, where a<2^bit_size, b is 0 or 1 and r<2^(bit_size-1)
-    Oddrange {
-        a: Witness,
-        b: Witness,
-        r: Witness,
-        bit_size: u32,
-    },
+    Oddrange { a: Witness, b: Witness, r: Witness, bit_size: u32 },
 
     //bit decomposition of a: a=\sum b[i]*2^i
-    Split {
-        a: Witness,
-        b: Vec<Witness>,
-        bit_size: u32,
-    },
+    Split { a: Witness, b: Vec<Witness>, bit_size: u32 },
 }
 
 // Note: Some gadgets will not use all of the witness

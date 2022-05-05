@@ -82,20 +82,11 @@ impl Dependency {
 
 impl CrateGraph {
     pub fn add_crate_root(&mut self, crate_type: CrateType, file_id: FileId) -> CrateId {
-        let mut roots_with_file_id = self
-            .arena
-            .iter()
-            .filter(|(_, crate_data)| crate_data.root_file_id == file_id);
-        assert!(
-            roots_with_file_id.next().is_none(),
-            "you cannot add the same file id twice"
-        );
+        let mut roots_with_file_id =
+            self.arena.iter().filter(|(_, crate_data)| crate_data.root_file_id == file_id);
+        assert!(roots_with_file_id.next().is_none(), "you cannot add the same file id twice");
 
-        let data = CrateData {
-            root_file_id: file_id,
-            crate_type,
-            dependencies: Vec::new(),
-        };
+        let data = CrateData { root_file_id: file_id, crate_type, dependencies: Vec::new() };
         let crate_id = CrateId(self.arena.len());
         let prev = self.arena.insert(crate_id, data);
         assert!(prev.is_none());
@@ -222,15 +213,9 @@ mod tests {
         let crate2 = graph.add_crate_root(CrateType::Library, file_ids[1]);
         let crate3 = graph.add_crate_root(CrateType::Library, file_ids[2]);
 
-        assert!(graph
-            .add_dep(crate1, CrateName::new("crate2").unwrap(), crate2)
-            .is_ok());
-        assert!(graph
-            .add_dep(crate2, CrateName::new("crate3").unwrap(), crate3)
-            .is_ok());
-        assert!(graph
-            .add_dep(crate3, CrateName::new("crate1").unwrap(), crate1)
-            .is_err());
+        assert!(graph.add_dep(crate1, CrateName::new("crate2").unwrap(), crate2).is_ok());
+        assert!(graph.add_dep(crate2, CrateName::new("crate3").unwrap(), crate3).is_ok());
+        assert!(graph.add_dep(crate3, CrateName::new("crate1").unwrap(), crate1).is_err());
     }
 
     #[test]
@@ -243,12 +228,8 @@ mod tests {
         let crate1 = graph.add_crate_root(CrateType::Library, file_id_0);
         let crate2 = graph.add_crate_root(CrateType::Library, file_id_1);
         let crate3 = graph.add_crate_root(CrateType::Library, file_id_2);
-        assert!(graph
-            .add_dep(crate1, CrateName::new("crate2").unwrap(), crate2)
-            .is_ok());
-        assert!(graph
-            .add_dep(crate2, CrateName::new("crate3").unwrap(), crate3)
-            .is_ok());
+        assert!(graph.add_dep(crate1, CrateName::new("crate2").unwrap(), crate2).is_ok());
+        assert!(graph.add_dep(crate2, CrateName::new("crate3").unwrap(), crate3).is_ok());
     }
     #[test]
     #[should_panic]
