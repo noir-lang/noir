@@ -37,11 +37,7 @@ impl SSAFunction {
     }
 
     pub fn new(func: FuncId, block_id: BlockId) -> SSAFunction {
-        SSAFunction {
-            entry_block: block_id,
-            id: func,
-            arguments: Vec::new(),
-        }
+        SSAFunction { entry_block: block_id, id: func, arguments: Vec::new() }
     }
 
     pub fn compile(&self, igen: &mut IRGenerator) -> Option<NodeId> {
@@ -190,7 +186,6 @@ pub fn create_function(
     igen.context.current_block = current_block;
     func
 }
-
 
 pub fn add_return_instruction(cfg: &mut SsaContext, last: Option<NodeId>) {
     let last_id = last.unwrap_or_else(NodeId::dummy);

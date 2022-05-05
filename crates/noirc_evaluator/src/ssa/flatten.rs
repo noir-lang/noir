@@ -430,8 +430,15 @@ pub fn inline(
     let mut next_block = Some(ssa_func.entry_block);
     while let Some(next_b) = next_block {
         let mut nested_call = false;
-        next_block = 
-        inline_in_block(next_b, block, &mut inline_map, &mut array_map, call_id, &mut nested_call, ctx);
+        next_block = inline_in_block(
+            next_b,
+            block,
+            &mut inline_map,
+            &mut array_map,
+            call_id,
+            &mut nested_call,
+            ctx,
+        );
         if result && nested_call {
             result = false
         }
@@ -532,13 +539,11 @@ pub fn inline_in_block(
                     );
                     new_ins.ins_arguments = Vec::new();
                     for i in clone.ins_arguments {
-                        new_ins
-                            .ins_arguments
-                            .push(function::SSAFunction::get_mapped_value(
-                                Some(&i),
-                                ctx,
-                                inline_map,
-                            ));
+                        new_ins.ins_arguments.push(function::SSAFunction::get_mapped_value(
+                            Some(&i),
+                            ctx,
+                            inline_map,
+                        ));
                     }
                     let result_id = ctx.add_instruction(new_ins);
                     new_instructions.push(result_id);
