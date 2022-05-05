@@ -118,15 +118,15 @@ pub fn find_similar_mem_instruction(
     anchor: &HashMap<node::Operation, VecDeque<NodeId>>,
 ) -> CseAction {
     match op {
-        Operation::Load { array, index } => {
+        Operation::Load { array_id, index } => {
             for iter in anchor[&op].iter().rev() {
                 if let Some(ins_iter) = ctx.try_get_instruction(*iter) {
                     match &ins_iter.operator {
                         Operation::Load {
-                            array: array2,
+                            array_id: array_id2,
                             index: index2,
                         } => {
-                            assert_eq!(array, array2);
+                            assert_eq!(array_id, array_id2);
                             assert_eq!(index, index2);
                             return CseAction::Replace {
                                 original: ins_id,
@@ -134,11 +134,11 @@ pub fn find_similar_mem_instruction(
                             };
                         }
                         Operation::Store {
-                            array: array2,
+                            array_id: array_id2,
                             index: index2,
                             value,
                         } => {
-                            assert_eq!(array, array2);
+                            assert_eq!(array_id, array_id2);
                             assert_eq!(index, index2);
                             if index == index2 {
                                 return CseAction::Replace {
@@ -156,12 +156,12 @@ pub fn find_similar_mem_instruction(
             }
         }
         Operation::Store {
-            array,
+            array_id,
             index,
             value: _,
         } => {
             let prev_ins = &anchor[&Operation::Load {
-                array: *array,
+                array_id: *array_id,
                 index: *index,
             }];
             for node_id in prev_ins.iter().rev() {
@@ -175,7 +175,7 @@ pub fn find_similar_mem_instruction(
                         }
                         Operation::Store {
                             index: index2,
-                            array: _,
+                            array_id: _,
                             value: _,
                         } => {
                             if *index == index2 {
@@ -235,9 +235,9 @@ pub fn cse_tree(
 
 pub fn anchor_push(op: Operation, anchor: &mut HashMap<Operation, VecDeque<NodeId>>) {
     match op {
-        Operation::Store { array, index, .. } => anchor
+        Operation::Store { array_id, index, .. } => anchor
             // TODO: review correctness
-            .entry(Operation::Load { array, index })
+            .entry(Operation::Load { array_id, index })
             .or_insert_with(VecDeque::new),
         _ => anchor.entry(op).or_insert_with(VecDeque::new),
     };

@@ -1,4 +1,4 @@
-use super::mem::{MemArray, Memory};
+use super::mem::{MemArray, Memory, ArrayId};
 use super::node::{BinaryOp, ConstrainOp, Instruction, Operation, ObjectType};
 use acvm::acir::OPCODE;
 use acvm::FieldElement;
@@ -24,7 +24,7 @@ use num_bigint::BigUint;
 pub struct Acir {
     pub arith_cache: HashMap<NodeId, InternalVar>,
     pub memory_map: HashMap<u32, InternalVar>, //maps memory adress to expression
-    pub memory_witness: HashMap<u32, Vec<Witness>>, //map arrays to their witness...temporary
+    pub memory_witness: HashMap<ArrayId, Vec<Witness>>, //map arrays to their witness...temporary
 }
 
 #[derive(Default, Clone, Debug)]
@@ -175,7 +175,7 @@ impl Acir {
             Operation::Call(..) => unreachable!("call instruction should have been inlined"),
             Operation::Return(_) => todo!(), //return from main
             Operation::Nop => InternalVar::default(),
-            Operation::Load { array, index } => {
+            Operation::Load { array_id, index } => {
                 //retrieves the value from the map if address is known at compile time:
                 //address = l_c and should be constant
                 let index = self.substitute(*index, evaluator, ctx);
@@ -185,12 +185,12 @@ impl Acir {
                         InternalVar::from(self.memory_map[&address].expression.clone())
                     } else {
                         //if not found, then it must be a witness (else it is non-initialised memory)
-                        let mem_array = &ctx.mem.arrays[*array as usize];
+                        let mem_array = &ctx.mem[*array_id];
                         let index = (address - mem_array.adr) as usize;
                         if mem_array.values.len() > index {
                             mem_array.values[index].clone()
                         } else {
-                            InternalVar::from(self.memory_witness[&array][index])
+                            InternalVar::from(self.memory_witness[&array_id][index])
                         }
                     }
                 } else {
@@ -199,7 +199,7 @@ impl Acir {
             }
 
             Operation::Store {
-                array: _,
+                array_id: _,
                 index,
                 value,
             } => {
@@ -359,7 +359,7 @@ impl Acir {
     pub fn load_array(
         &mut self,
         array: &MemArray,
-        array_index: u32,
+        array_index: ArrayId,
         create_witness: bool,
         evaluator: &mut Evaluator,
     ) -> Vec<InternalVar> {
@@ -393,8 +393,8 @@ impl Acir {
         evaluator: &mut Evaluator,
     ) -> Arithmetic {
         if let (Some(a), Some(b)) = (Memory::deref(ctx, lhs), Memory::deref(ctx, rhs)) {
-            let array_a = &ctx.mem.arrays[a as usize];
-            let array_b = &ctx.mem.arrays[b as usize];
+            let array_a = &ctx.mem[a];
+            let array_b = &ctx.mem[b];
 
             if array_a.len == array_b.len {
                 let mut x =
@@ -451,8 +451,8 @@ impl Acir {
         evaluator: &mut Evaluator,
     ) -> Arithmetic {
         if let (Some(a), Some(b)) = (Memory::deref(ctx, lhs), Memory::deref(ctx, rhs)) {
-            let array_a = &ctx.mem.arrays[a as usize];
-            let array_b = &ctx.mem.arrays[b as usize];
+            let array_a = &ctx.mem[a];
+            let array_b = &ctx.mem[b];
             //If length are different, then the arrays are different
             if array_a.len == array_b.len {
                 let sum = self.zero_eq_array_sum(array_a, a, array_b, b, evaluator);
@@ -476,8 +476,8 @@ impl Acir {
         evaluator: &mut Evaluator,
     ) -> Arithmetic {
         if let (Some(a), Some(b)) = (Memory::deref(ctx, lhs), Memory::deref(ctx, rhs)) {
-            let a_values = self.load_array(&ctx.mem.arrays[a as usize], a, false, evaluator);
-            let b_values = self.load_array(&ctx.mem.arrays[b as usize], b, false, evaluator);
+            let a_values = self.load_array(&ctx.mem[a], a, false, evaluator);
+            let b_values = self.load_array(&ctx.mem[b], b, false, evaluator);
             assert!(a_values.len() == b_values.len());
             for (a_iter, b_iter) in a_values.into_iter().zip(b_values) {
                 let array_diff =
@@ -501,9 +501,9 @@ impl Acir {
     fn zero_eq_array_sum(
         &mut self,
         a: &MemArray,
-        a_idx: u32,
+        a_idx: ArrayId,
         b: &MemArray,
-        b_idx: u32,
+        b_idx: ArrayId,
         evaluator: &mut Evaluator,
     ) -> Arithmetic {
         let mut sum = Arithmetic::default();
@@ -551,7 +551,7 @@ impl Acir {
                 node::NodeObj::Obj(v) => {
                     match l_obj.get_type() {
                         node::ObjectType::Pointer(a) => {
-                            let array = &cfg.mem.arrays[a as usize];
+                            let array = &cfg.mem[a];
                             let num_bits = array.element_type.bits();
                             for i in 0..array.len {
                                 let address = array.adr + i;

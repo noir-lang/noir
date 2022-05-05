@@ -17,6 +17,7 @@ use std::ops::Mul;
 
 use super::block::BlockId;
 use super::context::SsaContext;
+use super::mem::ArrayId;
 
 pub trait Node: std::fmt::Display {
     fn get_type(&self) -> ObjectType;
@@ -186,7 +187,7 @@ pub enum ObjectType {
     Boolean,
     Unsigned(u32), //bit size
     Signed(u32),   //bit size
-    Pointer(u32),  //array index
+    Pointer(ArrayId),
     //custom(u32),   //user-defined struct, u32 refers to the id of the type in...?todo
     //TODO big_int
     //TODO floats
@@ -531,11 +532,11 @@ pub enum Operation {
 
     //memory
     Load {
-        array: u32,
+        array_id: ArrayId,
         index: NodeId,
     },
     Store {
-        array: u32,
+        array_id: ArrayId,
         index: NodeId,
         value: NodeId,
     },
@@ -939,16 +940,16 @@ impl Operation {
                 root: f(*root),
                 block_args: vecmap(block_args, |(id, block)| (f(*id), *block)),
             },
-            Load { array, index } => Load {
-                array: *array,
+            Load { array_id: array, index } => Load {
+                array_id: *array,
                 index: f(*index),
             },
             Store {
-                array,
+                array_id: array,
                 index,
                 value,
             } => Store {
-                array: *array,
+                array_id: *array,
                 index: f(*index),
                 value: f(*value),
             },

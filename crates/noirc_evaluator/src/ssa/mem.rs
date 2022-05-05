@@ -13,10 +13,13 @@ use std::convert::TryInto;
 
 #[derive(Default)]
 pub struct Memory {
-    pub arrays: Vec<MemArray>,
+    arrays: Vec<MemArray>,
     pub last_adr: u32,                    //last address in 'memory'
     pub memory_map: HashMap<u32, NodeId>, //maps memory adress to expression
 }
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ArrayId(u32);
 
 #[derive(Debug, Clone)]
 pub struct MemArray {
@@ -58,15 +61,21 @@ impl Memory {
         self.arrays.iter().find(|a| a.def == definition)
     }
 
-    pub fn get_array_index(&self, array: &MemArray) -> Option<u32> {
+    /// Retrieves the ArrayId of the last array in Memory.
+    /// Panics if self does not contain at least 1 array.
+    pub fn last_id(&self) -> ArrayId {
+        ArrayId(self.arrays.len() as u32 - 1)
+    }
+
+    pub fn get_array_index(&self, array: &MemArray) -> Option<ArrayId> {
         self.arrays
             .iter()
             .position(|x| x.adr == array.adr)
-            .map(|p| p as u32)
+            .map(|p| ArrayId(p as u32))
     }
 
     //dereference a pointer
-    pub fn deref(ctx: &SsaContext, id: NodeId) -> Option<u32> {
+    pub fn deref(ctx: &SsaContext, id: NodeId) -> Option<ArrayId> {
         ctx.try_get_node(id).and_then(|var| match var.get_type() {
             node::ObjectType::Pointer(a) => Some(a),
             _ => None,
@@ -79,21 +88,22 @@ impl Memory {
         definition: DefinitionId,
         el_type: node::ObjectType,
         arr_name: &str,
-    ) -> &MemArray {
+    ) -> (&MemArray, ArrayId) {
         let len = u32::try_from(array.length).unwrap();
-        self.create_new_array(len, el_type, arr_name);
+        let id = self.create_new_array(len, el_type, arr_name);
         let mem_array = self.arrays.last_mut().unwrap();
         mem_array.set_witness(array);
         mem_array.def = definition;
-        self.arrays.last().unwrap()
+        (self.arrays.last().unwrap(), id)
     }
 
-    pub fn create_new_array(&mut self, len: u32, el_type: node::ObjectType, arr_name: &str) -> u32 {
+    pub fn create_new_array(&mut self, len: u32, el_type: node::ObjectType, arr_name: &str) -> ArrayId {
         let mut new_array = MemArray::new(DefinitionId::dummy_id(), arr_name, el_type, len);
         new_array.adr = self.last_adr;
+        let array_id = self.arrays.len() as u32;
         self.arrays.push(new_array);
         self.last_adr += len;
-        (self.arrays.len() - 1) as u32
+        ArrayId(array_id)
     }
 
     pub fn as_u32(value: FieldElement) -> u32 {
@@ -112,5 +122,19 @@ impl Memory {
             //Invalid memory address
         }
         None //Not a constant object
+    }
+}
+
+impl std::ops::Index<ArrayId> for Memory {
+    type Output = MemArray;
+
+    fn index(&self, index: ArrayId) -> &Self::Output {
+        &self.arrays[index.0 as usize]
+    }
+}
+
+impl std::ops::IndexMut<ArrayId> for Memory {
+    fn index_mut(&mut self, index: ArrayId) -> &mut Self::Output {
+        &mut self.arrays[index.0 as usize]
     }
 }

@@ -96,13 +96,15 @@ impl<'a> IRGenerator<'a> {
         self.context
             .mem
             .create_new_array(len as u32, el_type.into(), name);
-        let array_idx = (self.context.mem.arrays.len() - 1) as usize;
-        self.context.mem.arrays[array_idx].def = ident_def;
-        self.context.mem.arrays[array_idx].values = vecmap(witness, |w| w.into());
+
+        let array_idx = self.context.mem.last_id();
+
+        self.context.mem[array_idx].def = ident_def;
+        self.context.mem[array_idx].values = vecmap(witness, |w| w.into());
         let pointer = node::Variable {
             id: NodeId::dummy(),
             name: name.to_string(),
-            obj_type: node::ObjectType::Pointer(array_idx as u32),
+            obj_type: node::ObjectType::Pointer(array_idx),
             root: None,
             def: Some(ident_def),
             witness: None,
@@ -157,14 +159,14 @@ impl<'a> IRGenerator<'a> {
             Object::Array(a) => {
                 let obj_type = o_type.into();
                 //We should create an array from 'a' witnesses
-                self.context
+                let (_, array_id) = self.context
                     .mem
                     .create_array_from_object(&a, ident.id, obj_type, &ident_name);
-                let array_index = (self.context.mem.arrays.len() - 1) as u32;
+
                 node::Variable {
                     id: NodeId::dummy(),
                     name: ident_name.clone(),
-                    obj_type: ObjectType::Pointer(array_index),
+                    obj_type: ObjectType::Pointer(array_id),
                     root: None,
                     def: Some(ident.id),
                     witness: None,
@@ -205,10 +207,10 @@ impl<'a> IRGenerator<'a> {
         if let (HirBinaryOpKind::Assign, Some(lhs_ins)) =
             (op.kind, self.context.try_get_mut_instruction(lhs))
         {
-            if let Operation::Load { array, index } = lhs_ins.operator {
+            if let Operation::Load { array_id: array, index } = lhs_ins.operator {
                 //make it a store rhs
                 lhs_ins.operator = Operation::Store {
-                    array,
+                    array_id: array,
                     index,
                     value: rhs,
                 };
@@ -550,16 +552,16 @@ impl<'a> IRGenerator<'a> {
                 let arr_type = self.def_interner().id_type(expr_id);
                 let element_type = arr_type.into();    //WARNING array type!
 
-                let array_index = self.context.mem.create_new_array(arr_lit.length as u32, element_type, &String::new());
+                let array_id = self.context.mem.create_new_array(arr_lit.length as u32, element_type, &String::new());
                 //We parse the array definition
                 let elements = self.expression_list_to_objects(env, &arr_lit.contents);
-                let array = &mut self.context.mem.arrays[array_index as usize];
+                let array = &mut self.context.mem[array_id];
                 let array_adr = array.adr;
                 for (pos, object) in elements.into_iter().enumerate() {
                     //array.witness.push(node::get_witness_from_object(&object));
                     let lhs_adr = self.context.get_or_create_const(FieldElement::from((array_adr + pos as u32) as u128), ObjectType::Unsigned(32));
                     let store = Operation::Store {
-                        array: array_index,
+                        array_id,
                         index: lhs_adr,
                         value: object,
                     };
@@ -568,7 +570,7 @@ impl<'a> IRGenerator<'a> {
                 //Finally, we create a variable pointing to this MemArray
                 let new_var = node::Variable {
                     id: NodeId::dummy(),
-                    obj_type : ObjectType::Pointer(array_index),
+                    obj_type : ObjectType::Pointer(array_id),
                     name: String::new(),
                     root: None,
                     def: None,
@@ -618,14 +620,12 @@ impl<'a> IRGenerator<'a> {
                     (array, self.context.mem.get_array_index(array).unwrap())
                 } else if let Some(Value::Single(pointer)) = self.find_variable(arr_def) {
                     match self.context.get_object_type(*pointer) {
-                        ObjectType::Pointer(a_id) => (&self.context.mem.arrays[a_id as usize], a_id),
+                        ObjectType::Pointer(array_id) => (&self.context.mem[array_id], array_id),
                         _ => unreachable!(),
                     }
                 } else {
                     let arr = env.get_array(&arr_name).map_err(|kind|kind.add_span(ident_span)).unwrap();
-                    let index = self.context.mem.arrays.len() as u32;
-                    let array = self.context.mem.create_array_from_object(&arr, arr_def, o_type, &arr_name);
-                    (array, index)
+                    self.context.mem.create_array_from_object(&arr, arr_def, o_type, &arr_name)
                 };
 
                 let address = array.adr;
@@ -637,7 +637,7 @@ impl<'a> IRGenerator<'a> {
                 let base_adr = self.context.get_or_create_const(FieldElement::from(address as i128), index_type);
                 let adr_id = self.context.new_instruction(Operation::binary(BinaryOp::Add, base_adr, index_as_obj), index_type);
 
-                let load = Operation::Load { array: array_index, index: adr_id };
+                let load = Operation::Load { array_id: array_index, index: adr_id };
                 Ok(Value::Single(self.context.new_instruction(load, o_type)))
             },
             HirExpression::Call(call_expr) => {

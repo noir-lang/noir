@@ -128,19 +128,19 @@ impl<'a> SsaContext<'a> {
                 }
                 s
             }
-            Operation::Load { array, index } => format!(
-                "load array {}, index {}",
-                array,
+            Operation::Load { array_id, index } => format!(
+                "load {:?}, index {}",
+                array_id,
                 self.node_to_string(*index)
             ),
             Operation::Store {
-                array,
+                array_id,
                 index,
                 value,
             } => {
                 format!(
-                    "store array {}, index {}, value {}",
-                    array,
+                    "store {:?}, index {}, value {}",
+                    array_id,
                     self.node_to_string(*index),
                     self.node_to_string(*value)
                 )
@@ -397,7 +397,7 @@ impl<'a> SsaContext<'a> {
                 ..
             })
             | Operation::Store { .. } => ObjectType::NotAnObject,
-            Operation::Load { array, .. } => self.mem.arrays[*array as usize].element_type,
+            Operation::Load { array_id, .. } => self.mem[*array_id].element_type,
             Operation::Cast(_) | Operation::Truncate { .. } => {
                 unreachable!("cannot determine result type")
             }

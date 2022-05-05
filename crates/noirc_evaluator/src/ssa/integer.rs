@@ -3,7 +3,7 @@ use super::{
     //block,
     context::SsaContext,
     node::{self, Instruction, Node, NodeId, NodeObj, ObjectType, Operation, BinaryOp},
-    optim, mem::Memory,
+    optim, mem::{Memory, ArrayId},
 };
 use acvm::{acir::OPCODE, FieldElement};
 use noirc_frontend::util::vecmap;
@@ -40,7 +40,7 @@ fn get_instruction_max_operand(
     vmap: &HashMap<NodeId, NodeId>,
 ) -> BigUint {
     match &ins.operator {
-        Operation::Load { array, index } => get_load_max(ctx, *index, max_map, vmap, *array),
+        Operation::Load { array_id, index } => get_load_max(ctx, *index, max_map, vmap, *array_id),
         Operation::Binary(node::Binary { operator, lhs, rhs }) => {
             match operator {
                 BinaryOp::Sub { .. } => {
@@ -431,7 +431,7 @@ fn get_load_max(
     address: NodeId,
     max_map: &mut HashMap<NodeId, BigUint>,
     vmap: &HashMap<NodeId, NodeId>,
-    array: u32,
+    array: ArrayId,
     // obj_type: ObjectType,
 ) -> BigUint {
     if let Some(adr_as_const) = ctx.get_as_constant(address) {
@@ -440,7 +440,7 @@ fn get_load_max(
             return get_obj_max_value(ctx, value, max_map, vmap);
         }
     };
-    ctx.mem.arrays[array as usize].max.clone() //return array max
+    ctx.mem[array].max.clone() //return array max
                                                //  return obj_type.max_size();
 }
 

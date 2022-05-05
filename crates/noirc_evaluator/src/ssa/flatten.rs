@@ -2,8 +2,8 @@ use super::{
     block::{self, BlockId},
     context::SsaContext,
     function,
-    node::{self, BinaryOp, Instruction, Node, NodeEval, NodeId, NodeObj, Operation},
-    optim,
+    node::{self, BinaryOp, Instruction, Node, NodeEval, NodeId, NodeObj, Operation, ObjectType},
+    optim, mem::ArrayId,
 };
 use acvm::FieldElement;
 use std::collections::{hash_map::Entry, HashMap};
@@ -413,8 +413,8 @@ pub fn inline(
 ) {
     let ssa_func = ctx.functions_cfg.get(&func_id).unwrap();
     //map nodes from the function cfg to the caller cfg
-    let mut inline_map: HashMap<NodeId, NodeId> = HashMap::new();
-    let mut array_map: HashMap<u32, u32> = HashMap::new();
+    let mut inline_map = HashMap::<NodeId, NodeId>::new();
+    let mut array_map = HashMap::<ArrayId, ArrayId>::new();
     //1. map function parameters
     for (arg_caller, arg_function) in args.iter().zip(&ssa_func.arguments) {
         inline_map.insert(*arg_function, *arg_caller);
@@ -439,7 +439,7 @@ pub fn inline_in_block(
     block_id: BlockId,
     target_block_id: BlockId,
     inline_map: &mut HashMap<NodeId, NodeId>,
-    array_map: &mut HashMap<u32, u32>,
+    array_map: &mut HashMap<ArrayId, ArrayId>,
     func_id: noirc_frontend::node_interner::FuncId, //func_cfg: &IRGenerator,
     call_id: NodeId,
     ctx: &mut SsaContext,
@@ -450,14 +450,15 @@ pub fn inline_in_block(
     let next_block = block_func.left;
     let block_func_instructions = &block_func.instructions.clone();
     for &i_id in block_func_instructions {
-        let mut array_func = None;
-        let mut array_func_idx = u32::MAX;
         if let Some(ins) = ctx.get_function_context(func_id).try_get_instruction(i_id) {
+            let mut array = None;
+            let mut array_id = None;
             let mut clone = ins.clone();
-            if let node::ObjectType::Pointer(a) = ins.res_type {
+
+            if let node::ObjectType::Pointer(id) = ins.res_type {
                 //We need to map arrays to arrays via the array_map, we collect the data here to be mapped below.
-                array_func = Some(ctx.get_function_context(func_id).mem.arrays[a as usize].clone());
-                array_func_idx = a;
+                array = Some(ctx.get_function_context(func_id).mem[id].clone());
+                array_id = Some(id);
             }
 
             clone.operator.map_id_mut(|id| {
@@ -465,19 +466,19 @@ pub fn inline_in_block(
             });
 
             //Arrays are mapped to array. We create the array if not mapped
-            if let Some(a) = array_func {
-                if let Entry::Vacant(e) = array_map.entry(array_func_idx) {
-                    let i_pointer = ctx.mem.create_new_array(a.len, a.element_type, &a.name);
+            if let (Some(array), Some(array_id)) = (array, array_id) {
+                if let Entry::Vacant(e) = array_map.entry(array_id) {
+                    let new_id = ctx.mem.create_new_array(array.len, array.element_type, &array.name);
                     //We populate the array (if possible) using the inline map
-                    for i in &a.values {
+                    for i in &array.values {
                         if let Some(f) = i.to_const() {
-                            ctx.mem.arrays[i_pointer as usize]
+                            ctx.mem[new_id]
                                 .values
                                 .push(super::acir_gen::InternalVar::from(f));
                         }
                         //todo: else use inline map.
                     }
-                    e.insert(i_pointer);
+                    e.insert(new_id);
                 };
             }
 
@@ -500,13 +501,13 @@ pub fn inline_in_block(
                 // - this should inline all the call instructions unless there is a call cycle (e.g a function calling itself)
                 // - if the pre-defined maximum is reach, output an error
                 // In a future improvement we could identify the cycles and see how they can be handled, e.g may be by using proof recursion.
-                Operation::Load { array, index } => {
+                Operation::Load { array_id, index } => {
                     //Compute the new address:
                     //TODO use relative addressing, but that requires a few changes, mainly in acir_gen.rs and integer.rs
-                    let b = array_map[&array];
+                    let b = array_map[&array_id];
                     //n.b. this offset is always positive
-                    let offset = ctx.mem.arrays[b as usize].adr
-                        - ctx.get_function_context(func_id).mem.arrays[*array as usize].adr;
+                    let offset = ctx.mem[b].adr
+                        - ctx.get_function_context(func_id).mem[*array_id].adr;
                     let index_type = ctx[*index].get_type();
                     let offset_id =
                         ctx.get_or_create_const(FieldElement::from(offset as i128), index_type);
@@ -519,7 +520,7 @@ pub fn inline_in_block(
                     let adr_id = ctx.new_instruction(Operation::Binary(add), index_type);
                     let new_ins = Instruction::new(
                         Operation::Load {
-                            array: array_map[&array],
+                            array_id: array_map[&array_id],
                             index: adr_id,
                         },
                         clone.res_type,
@@ -530,13 +531,13 @@ pub fn inline_in_block(
                     inline_map.insert(i_id, result_id);
                 }
                 Operation::Store {
-                    array,
+                    array_id,
                     index,
                     value,
                 } => {
-                    let b = array_map[&array];
-                    let offset = ctx.get_function_context(func_id).mem.arrays[*array as usize].adr
-                        - ctx.mem.arrays[b as usize].adr;
+                    let b = array_map[&array_id];
+                    let offset = ctx.get_function_context(func_id).mem[*array_id].adr
+                        - ctx.mem[b].adr;
                     let index_type = ctx[*index].get_type();
                     let offset_id =
                         ctx.get_or_create_const(FieldElement::from(offset as i128), index_type);
@@ -549,7 +550,7 @@ pub fn inline_in_block(
                     let adr_id = ctx.new_instruction(Operation::Binary(add), index_type);
                     let new_ins = Instruction::new(
                         Operation::Store {
-                            array: array_map[&array],
+                            array_id: array_map[&array_id],
                             index: adr_id,
                             value: *value,
                         },
@@ -564,20 +565,21 @@ pub fn inline_in_block(
                     let mut new_ins =
                         Instruction::new(clone.operator, clone.res_type, Some(target_block_id));
 
-                    if array_map.contains_key(&array_func_idx) {
-                        let i_pointer = array_map[&array_func_idx];
-                        new_ins.res_type = node::ObjectType::Pointer(i_pointer);
+                    if let Some(id) = array_id {
+                        if let Some(new_id) = array_map.get(&id) {
+                            new_ins.res_type = node::ObjectType::Pointer(*new_id);
+                        }
                     }
 
                     optim::simplify(ctx, &mut new_ins);
 
                     if let Some(replacement) = new_ins.replacement {
-                        if let std::collections::hash_map::Entry::Occupied(mut e) =
-                            array_map.entry(array_func_idx)
-                        {
-                            if let node::ObjectType::Pointer(a) = ctx[replacement].get_type() {
-                                //we now map the array to rhs array
-                                e.insert(a);
+                        if let Some(id) = array_id {
+                            if let Entry::Occupied(mut entry) = array_map.entry(id) {
+                                if let ObjectType::Pointer(new_id) = ctx[replacement].get_type() {
+                                    //we now map the array to rhs array
+                                    entry.insert(new_id);
+                                }
                             }
                         }
 
