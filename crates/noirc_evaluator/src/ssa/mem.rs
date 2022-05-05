@@ -23,6 +23,7 @@ pub struct ArrayId(u32);
 
 #[derive(Debug, Clone)]
 pub struct MemArray {
+    pub id: ArrayId,
     pub element_type: node::ObjectType, //type of elements
     pub values: Vec<InternalVar>,
     pub name: String,
@@ -33,7 +34,7 @@ pub struct MemArray {
 }
 
 impl MemArray {
-    pub fn set_witness(&mut self, array: &Array) {
+    fn set_witness(&mut self, array: &Array) {
         for object in &array.contents {
             if let Some(w) = node::get_witness_from_object(object) {
                 self.values.push(w.into());
@@ -42,9 +43,10 @@ impl MemArray {
         assert!(self.values.is_empty() || self.values.len() == self.len.try_into().unwrap());
     }
 
-    pub fn new(definition: DefinitionId, name: &str, of: node::ObjectType, len: u32) -> MemArray {
+    fn new(id: ArrayId, definition: DefinitionId, name: &str, of: node::ObjectType, len: u32) -> MemArray {
         assert!(len > 0);
         MemArray {
+            id,
             element_type: of,
             name: name.to_string(),
             values: Vec::new(),
@@ -67,13 +69,6 @@ impl Memory {
         ArrayId(self.arrays.len() as u32 - 1)
     }
 
-    pub fn get_array_index(&self, array: &MemArray) -> Option<ArrayId> {
-        self.arrays
-            .iter()
-            .position(|x| x.adr == array.adr)
-            .map(|p| ArrayId(p as u32))
-    }
-
     //dereference a pointer
     pub fn deref(ctx: &SsaContext, id: NodeId) -> Option<ArrayId> {
         ctx.try_get_node(id).and_then(|var| match var.get_type() {
@@ -88,22 +83,22 @@ impl Memory {
         definition: DefinitionId,
         el_type: node::ObjectType,
         arr_name: &str,
-    ) -> (&MemArray, ArrayId) {
+    ) -> &MemArray {
         let len = u32::try_from(array.length).unwrap();
         let id = self.create_new_array(len, el_type, arr_name);
-        let mem_array = self.arrays.last_mut().unwrap();
+        let mem_array = &mut self[id];
         mem_array.set_witness(array);
         mem_array.def = definition;
-        (self.arrays.last().unwrap(), id)
+        mem_array
     }
 
     pub fn create_new_array(&mut self, len: u32, el_type: node::ObjectType, arr_name: &str) -> ArrayId {
-        let mut new_array = MemArray::new(DefinitionId::dummy_id(), arr_name, el_type, len);
+        let id = ArrayId(self.arrays.len() as u32);
+        let mut new_array = MemArray::new(id, DefinitionId::dummy_id(), arr_name, el_type, len);
         new_array.adr = self.last_adr;
-        let array_id = self.arrays.len() as u32;
         self.arrays.push(new_array);
         self.last_adr += len;
-        ArrayId(array_id)
+        id
     }
 
     pub fn as_u32(value: FieldElement) -> u32 {
