@@ -43,7 +43,7 @@ impl<'a> SsaContext<'a> {
             sealed_blocks: HashSet::new(),
             mem: Memory::default(),
             functions: HashMap::new(),
-            inline_tries: 3,
+            inline_tries: 10,
         };
         block::create_first_block(&mut pc);
         pc.get_or_create_const(FieldElement::one(), node::ObjectType::Unsigned(1));

@@ -344,7 +344,7 @@ pub fn block_overflow(
             node::Operation::Store(_) => {
                 if let Some(adr) = super::mem::Memory::to_u32(ctx, ins.lhs) {
                     //optimise static store
-                    memory_map.insert(adr, ins.lhs);
+                    memory_map.insert(adr, ins.rhs);
                     delete_ins = true;
                 }
             }
