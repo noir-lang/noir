@@ -8,14 +8,18 @@ use super::{
 use acvm::FieldElement;
 use std::collections::HashMap;
 
+// Number of allowed times for inlining function calls inside a code block.
+// If a function calls another function, the inlining of the first function will leave the second function call that needs to be inlined as well.
+// In case of recursive calls, this iterative inlining does not end so we arbitraty limit it. 100 nested calls should already support very complex programs.
+const MAX_INLINE_TRIES: u32 = 100;
+
 //Unroll the CFG
-pub fn unroll_tree(ctx: &mut SsaContext, first_block: BlockId) {
+pub fn unroll_tree(ctx: &mut SsaContext, mut block_id: BlockId) {
     //Calls outer_unroll() from the root node
-    let mut id = first_block;
     let mut unroll_ins = Vec::new();
     let mut eval_map = HashMap::new();
-    while let Some(next) = outer_unroll(&mut unroll_ins, &mut eval_map, id, ctx) {
-        id = next;
+    while let Some(next) = outer_unroll(&mut unroll_ins, &mut eval_map, block_id, ctx) {
+        block_id = next;
     }
 }
 
@@ -376,7 +380,7 @@ fn evaluate_object(
 //inline main
 pub fn inline_tree(ctx: &mut SsaContext, block_id: BlockId) {
     //inline all function calls
-    let mut retry = ctx.inline_tries;
+    let mut retry = MAX_INLINE_TRIES;
     while retry > 0 && !inline_block(ctx, ctx.first_block) {
         retry -= 1;
     }
@@ -386,7 +390,7 @@ pub fn inline_tree(ctx: &mut SsaContext, block_id: BlockId) {
     }
 }
 
-pub fn inline_cfg(ctx: &mut SsaContext, entry_block: BlockId) -> bool {
+fn inline_cfg(ctx: &mut SsaContext, entry_block: BlockId) -> bool {
     let mut result = true;
     let func_cfg = block::bfs(entry_block, None, ctx);
     for block_id in func_cfg {
@@ -402,9 +406,9 @@ pub fn inline_cfg(ctx: &mut SsaContext, entry_block: BlockId) -> bool {
 //for now we inline all functions one time, and then recurse until no more function call
 pub fn inline_all_functions(ctx: &mut SsaContext) {
     let mut nested_call = true;
-    let mut retry = ctx.inline_tries;
+    let mut retry = MAX_INLINE_TRIES;
     let func_cfg: Vec<BlockId> =
-        ctx.functions.keys().map(|k| ctx.functions[k].entry_block).collect();
+        noirc_frontend::util::vecmap(ctx.functions.values(), |f| f.entry_block);
     while retry > 0 && nested_call {
         retry -= 1;
         nested_call = false;
@@ -418,7 +422,7 @@ pub fn inline_all_functions(ctx: &mut SsaContext) {
 
 //inline all function calls of the block
 //Return false if some inlined function performs a function call
-pub fn inline_block(ctx: &mut SsaContext, block_id: BlockId) -> bool {
+fn inline_block(ctx: &mut SsaContext, block_id: BlockId) -> bool {
     let mut call_ins = Vec::<NodeId>::new();
     for i in &ctx[block_id].instructions {
         if let Some(ins) = ctx.try_get_instruction(*i) {
@@ -506,7 +510,14 @@ pub fn inline_in_block(
                 //We need to map arrays to arrays via the array_map, we collect the data here to be mapped below.
                 array_func = Some(ctx.mem.arrays[a as usize].clone());
                 array_func_idx = a;
+            } else if let Operation::Load(a) = ins.operator {
+                array_func = Some(ctx.mem.arrays[a as usize].clone());
+                array_func_idx = a;
+            } else if let Operation::Store(a) = ins.operator {
+                array_func = Some(ctx.mem.arrays[a as usize].clone());
+                array_func_idx = a;
             }
+
             let new_left =
                 function::SSAFunction::get_mapped_value(Some(&clone.lhs), ctx, inline_map);
             let new_right =

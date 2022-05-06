@@ -187,7 +187,7 @@ pub fn compute_dom(ctx: &mut SsaContext) {
     }
 }
 
-pub fn compute_sub_dom(ctx: &mut SsaContext, blocks: &Vec<BlockId>) {
+pub fn compute_sub_dom(ctx: &mut SsaContext, blocks: &[BlockId]) {
     let mut dominator_link = HashMap::new();
 
     for &block_id in blocks {
@@ -216,10 +216,8 @@ pub fn bfs(start: BlockId, stop: Option<BlockId>, ctx: &SsaContext) -> Vec<Block
 
         let mut test_and_push = |block_opt| {
             if let Some(block_id) = block_opt {
-                if let Some(stop_id) = stop {
-                    if block_id == stop_id {
-                        return;
-                    }
+                if stop == Some(block_id) {
+                    return;
                 }
                 if !result.contains(&block_id) {
                     result.push(block_id);

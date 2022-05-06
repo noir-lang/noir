@@ -17,7 +17,6 @@ use super::{
 };
 
 pub struct SSAFunction {
-    //pub igen: IRGenerator<'a>,
     pub entry_block: BlockId,
     pub id: FuncId,
     //signature..
