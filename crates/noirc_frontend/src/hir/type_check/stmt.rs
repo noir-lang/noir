@@ -119,10 +119,7 @@ fn type_check_lvalue(
             let definition = interner.definition(ident.id);
             if !definition.mutable {
                 errors.push(TypeCheckError::Unstructured {
-                    msg: format!(
-                        "Variable {} must be mutable to be assigned to",
-                        definition.name
-                    ),
+                    msg: format!("Variable {} must be mutable to be assigned to", definition.name),
                     span: ident.span,
                 });
             }
