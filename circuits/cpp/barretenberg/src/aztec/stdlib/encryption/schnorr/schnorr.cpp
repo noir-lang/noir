@@ -278,8 +278,9 @@ void verify_signature(const byte_array<C>& message, const point<C>& pub_key, con
     field_t<C> lambda = (R_1.y - R_2.y) / (R_1.x - R_2.x);
     field_t<C> x_3 = lambda * lambda - (R_1.x + R_2.x);
 
-    // build input (([s]g + [e]pub).x | message) to hash function
-    byte_array<C> hash_input(x_3);
+    // build input (pedersen(([s]g + [e]pub).x | pub.x | pub.y) | message) to hash function
+    // pedersen hash ([r].x | pub.x) to make sure the size of `hash_input` is <= 64 bytes for a 32 byte message
+    byte_array<C> hash_input(stdlib::pedersen<C>::compress({ x_3, pub_key.x, pub_key.y }));
     hash_input.write(message);
 
     // compute  e' = hash(([s]g + [e]pub).x | message)

@@ -127,6 +127,20 @@ constexpr bool affine_element<Fq, Fr, T>::operator==(const affine_element& other
     return both_infinity || ((x == other.x) && (y == other.y));
 }
 
+/**
+ * Comparison operators (for std::sort)
+ **/
+template <class Fq, class Fr, class T>
+constexpr bool affine_element<Fq, Fr, T>::operator>(const affine_element& other) const noexcept
+{
+    if (x > other.x) {
+        return true;
+    } else if (x == other.x && y > other.y) {
+        return true;
+    }
+    return false;
+}
+
 template <class Fq, class Fr, class T>
 template <typename BaseField, typename CompileTimeEnabled>
 std::pair<bool, affine_element<Fq, Fr, T>> affine_element<Fq, Fr, T>::hash_to_curve(const uint64_t seed) noexcept

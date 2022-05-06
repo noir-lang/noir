@@ -1,1 +1,1 @@
-barretenberg_module(stdlib_schnorr stdlib_blake2s stdlib_primitives)
+barretenberg_module(stdlib_schnorr stdlib_pedersen stdlib_blake2s stdlib_primitives)

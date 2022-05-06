@@ -10,6 +10,7 @@
 #include <crypto/blake2s/blake2s.hpp>
 #include <crypto/keccak/keccak.hpp>
 #include <crypto/sha256/sha256.hpp>
+#include <crypto/pedersen/pedersen.hpp>
 
 #include "../hashers/hashers.hpp"
 
@@ -34,9 +35,7 @@ template <typename Hash, typename Fq, typename Fr, typename G1>
 bool verify_signature(const std::string& message, const typename G1::affine_element& public_key, const signature& sig);
 
 template <typename Hash, typename Fq, typename Fr, typename G1>
-signature construct_signature(const std::string& message,
-                              const key_pair<Fr, G1>& account,
-                              numeric::random::Engine* engine = nullptr);
+signature construct_signature(const std::string& message, const key_pair<Fr, G1>& account);
 
 template <typename Hash, typename Fq, typename Fr, typename G1>
 signature_b construct_signature_b(const std::string& message, const key_pair<Fr, G1>& account);
@@ -67,6 +66,17 @@ template <typename B> inline void write(B& buf, signature const& sig)
     write(buf, sig.e);
 }
 
+inline void read(uint8_t const*& it, key_pair<grumpkin::fr, grumpkin::g1>& keypair)
+{
+    read(it, keypair.private_key);
+    read(it, keypair.public_key);
+}
+
+template <typename B> inline void write(B& buf, key_pair<grumpkin::fr, grumpkin::g1> const& keypair)
+{
+    write(buf, keypair.private_key);
+    write(buf, keypair.public_key);
+}
 } // namespace schnorr
 } // namespace crypto
 #include "./schnorr.tcc"

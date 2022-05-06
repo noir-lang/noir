@@ -108,9 +108,7 @@ template <typename WorldState> class JoinSplitTxFactory {
      * Computes the nullifiers for the input notes, and sets the results as the input nullifiers on the output notes.
      * Computes and sets the signature.
      */
-    void finalise_and_sign_tx(join_split_tx& tx,
-                              fixtures::grumpkin_key_pair const& signer,
-                              numeric::random::Engine* rand_engine = nullptr)
+    void finalise_and_sign_tx(join_split_tx& tx, fixtures::grumpkin_key_pair const& signer)
     {
         auto num_inputs = tx.num_input_notes;
         auto input_nullifier1 = compute_nullifier(tx.input_note[0].commit(), user.owner.private_key, num_inputs > 0);
@@ -118,7 +116,7 @@ template <typename WorldState> class JoinSplitTxFactory {
         tx.output_note[0].input_nullifier = input_nullifier1;
         tx.output_note[1].input_nullifier = input_nullifier2;
         tx.partial_claim_note.input_nullifier = tx.proof_id == ProofIds::DEFI_DEPOSIT ? input_nullifier1 : 0;
-        tx.signature = sign_join_split_tx(tx, signer, rand_engine);
+        tx.signature = sign_join_split_tx(tx, signer);
     }
 
     auto create_defi_deposit_tx(std::vector<uint32_t> in_note_idx,

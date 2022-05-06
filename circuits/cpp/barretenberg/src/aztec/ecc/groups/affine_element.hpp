@@ -58,6 +58,9 @@ template <typename Fq, typename Fr, typename Params> class alignas(64) affine_el
 
     constexpr affine_element operator-() const noexcept { return { x, -y }; }
 
+    constexpr bool operator>(const affine_element& other) const noexcept;
+    constexpr bool operator<(const affine_element& other) const noexcept { return (other > *this); }
+
     /**
      * @brief Serialize the point to the given buffer
      *

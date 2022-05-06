@@ -1,1 +1,1 @@
-barretenberg_module(crypto_schnorr crypto_blake2s crypto_keccak crypto_sha256 numeric)
+barretenberg_module(crypto_schnorr crypto_pedersen crypto_blake2s crypto_keccak crypto_sha256 numeric)

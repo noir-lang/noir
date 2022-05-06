@@ -12,7 +12,12 @@ namespace sha256 {
 using hash = std::array<uint8_t, 32>;
 
 hash sha256_block(const std::vector<uint8_t>& input);
-hash sha256(const std::vector<uint8_t>& input);
+
+template <typename T> hash sha256(const T& input);
+
+extern template hash sha256<std::vector<uint8_t>>(const std::vector<uint8_t>& input);
+extern template hash sha256<std::array<uint8_t, 32>>(const std::array<uint8_t, 32>& input);
+extern template hash sha256<std::string>(const std::string& input);
 
 inline barretenberg::fr sha256_to_field(std::vector<uint8_t> const& input)
 {

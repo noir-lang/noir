@@ -1,3 +1,4 @@
+add_subdirectory(hmac)
 add_subdirectory(blake2s)
 add_subdirectory(keccak)
 add_subdirectory(pedersen)

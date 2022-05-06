@@ -6,9 +6,7 @@ namespace rollup {
 namespace proofs {
 namespace join_split {
 
-signature sign_join_split_tx(join_split_tx const& tx,
-                             key_pair<grumpkin::fr, grumpkin::g1> const& keys,
-                             numeric::random::Engine* engine)
+signature sign_join_split_tx(join_split_tx const& tx, key_pair<grumpkin::fr, grumpkin::g1> const& keys)
 {
     fr compressed = compute_signing_data(tx);
 
@@ -17,7 +15,7 @@ signature sign_join_split_tx(join_split_tx const& tx,
 
     crypto::schnorr::signature signature =
         crypto::schnorr::construct_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(
-            std::string(message.begin(), message.end()), keys, engine);
+            std::string(message.begin(), message.end()), keys);
     return signature;
 }
 

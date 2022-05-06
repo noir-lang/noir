@@ -25,8 +25,11 @@ namespace barretenberg {
  * @tparam subgroup_field
  * @tparam GroupParams
  */
-template <typename coordinate_field, typename subgroup_field, typename GroupParams> class group {
+template <typename _coordinate_field, typename _subgroup_field, typename GroupParams> class group {
   public:
+    // hoist coordinate_field, subgroup_field into the public namespace
+    using coordinate_field = _coordinate_field;
+    using subgroup_field = _subgroup_field;
     typedef group_elements::element<coordinate_field, subgroup_field, GroupParams> element;
     typedef group_elements::affine_element<coordinate_field, subgroup_field, GroupParams> affine_element;
 
@@ -36,6 +39,8 @@ template <typename coordinate_field, typename subgroup_field, typename GroupPara
     static constexpr element one{ GroupParams::one_x, GroupParams::one_y, coordinate_field::one() };
     static constexpr element point_at_infinity = one.set_infinity();
     static constexpr affine_element affine_one{ GroupParams::one_x, GroupParams::one_y };
+    static constexpr affine_element affine_point_at_infinity = affine_one.set_infinity();
+
     static constexpr coordinate_field curve_a = GroupParams::a;
     static constexpr coordinate_field curve_b = GroupParams::b;
 

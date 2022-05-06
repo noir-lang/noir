@@ -10,8 +10,7 @@ namespace join_split {
 using namespace crypto::schnorr;
 
 signature sign_join_split_tx(proofs::join_split::join_split_tx const& tx,
-                             key_pair<grumpkin::fr, grumpkin::g1> const& keys,
-                             numeric::random::Engine* engine = nullptr);
+                             key_pair<grumpkin::fr, grumpkin::g1> const& keys);
 
 } // namespace join_split
 } // namespace proofs

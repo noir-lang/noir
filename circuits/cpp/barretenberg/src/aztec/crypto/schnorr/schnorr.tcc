@@ -1,5 +1,11 @@
 #pragma once
 
+#include <common/serialize.hpp>
+#include <ecc/curves/bn254/fq.hpp>
+#include <ecc/curves/bn254/fr.hpp>
+#include <ecc/fields/field.hpp>
+
+#include <crypto/hmac/hmac.hpp>
 namespace crypto {
 namespace schnorr {
 
@@ -15,24 +21,39 @@ namespace schnorr {
  * G1 comes with a notion of an 'affine element'.
  * @param message A standard library string reference.
  * @param account A private key-public key pair in Fr × {affine elements of G1}.
- * @param engine  An instance of numeric::random::Engine.
  * @return signature
  */
-
 template <typename Hash, typename Fq, typename Fr, typename G1>
-signature construct_signature(const std::string& message,
-                              const key_pair<Fr, G1>& account,
-                              numeric::random::Engine* engine)
+signature construct_signature(const std::string& message, const key_pair<Fr, G1>& account)
 {
     signature sig;
-    Fr k = Fr::random_element(engine); // TODO replace with HMAC
+    auto& public_key = account.public_key;
+    auto& private_key = account.private_key;
+
+    // use HMAC in PRF mode to derive 32-byte secret `k`
+    std::vector<uint8_t> pkey_buffer;
+    write(pkey_buffer, private_key);
+    std::array<uint8_t, Hash::OUTPUT_SIZE> k_buffer = crypto::hmac<Hash>(message, pkey_buffer);
+
+    Fr k = Fr::serialize_from_buffer(&k_buffer[0]);
     typename G1::affine_element R(G1::one * k);
 
-    std::vector<uint8_t> r(sizeof(Fq));
-    Fq::serialize_to_buffer(R.x, &r[0]);
-
     std::vector<uint8_t> message_buffer;
-    std::copy(r.begin(), r.end(), std::back_inserter(message_buffer));
+
+    /**
+     * Normal schorr param e = H(r.x || pub_key || message)
+     * But we want to keep hash preimage to <= 64 bytes for a 32 byte message
+     * (for performance reasons in our join-split circuit!)
+     *
+     * barretenberg schnorr defines e as the following:
+     *
+     * e = H(pedersen(r.x || pub_key.x || pub_key.y), message)
+     *
+     * pedersen is collision resistant => e can be modelled as randomly distributed
+     * as long as H can be modelled as a random oracle
+     */
+    Fq compressed_keys = crypto::pedersen::compress_native({ R.x, public_key.x, public_key.y });
+    write(message_buffer, compressed_keys);
     std::copy(message.begin(), message.end(), std::back_inserter(message_buffer));
 
     auto ev = Hash::hash(message_buffer);
@@ -40,78 +61,9 @@ signature construct_signature(const std::string& message,
 
     Fr e = Fr::serialize_from_buffer(&sig.e[0]);
 
-    Fr s = k - (account.private_key * e);
-
+    Fr s = k - (private_key * e);
     Fr::serialize_to_buffer(s, &sig.s[0]);
     return sig;
-}
-
-/**
- * @brief Construction used in the public key account recovery procedure.
- */
-template <typename Hash, typename Fq, typename Fr, typename G1>
-signature_b construct_signature_b(const std::string& message, const key_pair<Fr, G1>& account)
-{
-    signature_b sig;
-    Fr k = Fr::random_element(); // TODO replace with HMAC
-    typename G1::affine_element R(G1::one * k);
-    Fq::serialize_to_buffer(R.x, &sig.r[0]);
-
-    Fq yy = R.x.sqr() * R.x + G1::element::curve_b;
-    auto [is_square, y_candidate] = yy.sqrt();
-
-    // if the signer / verifier sqrt algorithm is consistent, this *should* work...
-    bool flip_sign = R.y != y_candidate;
-
-    sig.r[0] = sig.r[0] | static_cast<uint8_t>(flip_sign ? 128U : 0U);
-    std::vector<uint8_t> message_buffer;
-    std::copy(sig.r.begin(), sig.r.end(), std::back_inserter(message_buffer));
-    std::copy(message.begin(), message.end(), std::back_inserter(message_buffer));
-    auto e_vec = Hash::hash(message_buffer);
-
-    Fr e = Fr::serialize_from_buffer(&e_vec[0]);
-    Fr s = account.private_key - (k * e);
-
-    Fr::serialize_to_buffer(s, &sig.s[0]);
-    return sig;
-}
-
-/**
- * @brief Public key recovery function.
- */
-template <typename Hash, typename Fq, typename Fr, typename G1>
-typename G1::affine_element ecrecover(const std::string& message, const signature_b& sig)
-{
-    std::vector<uint8_t> message_buffer;
-    std::copy(sig.r.begin(), sig.r.end(), std::back_inserter(message_buffer));
-    std::copy(message.begin(), message.end(), std::back_inserter(message_buffer));
-    auto e_vec = Hash::hash(message_buffer);
-    Fr target_e = Fr::serialize_from_buffer(&e_vec[0]);
-
-    std::vector<uint8_t> r;
-    std::copy(sig.r.begin(), sig.r.end(), std::back_inserter(r));
-
-    bool flip_sign = (r[0] & 128U) == 128U;
-    r[0] = r[0] & 127U;
-    Fq r_x = Fq::serialize_from_buffer(&r[0]);
-    Fq r_yy = r_x.sqr() * r_x + G1::element::curve_b;
-    auto [is_square, r_y] = r_yy.sqrt();
-    if (!is_square) {
-        throw_or_abort("r is not a valid point");
-    }
-    if ((flip_sign)) {
-        r_y.self_neg();
-    }
-    typename G1::affine_element R{ r_x, r_y };
-    Fr s = Fr::serialize_from_buffer(&sig.s[0]);
-    typename G1::affine_element R1(G1::one * s);
-    typename G1::affine_element R2(typename G1::element(R) * target_e);
-    typename G1::element R2_jac{ R2.x, R2.y, Fq::one() };
-    typename G1::element key_jac;
-    key_jac = R2_jac + R1;
-    key_jac = key_jac.normalize();
-    typename G1::affine_element key{ key_jac.x, key_jac.y };
-    return key;
 }
 
 /**
@@ -120,26 +72,31 @@ typename G1::affine_element ecrecover(const std::string& message, const signatur
 template <typename Hash, typename Fq, typename Fr, typename G1>
 bool verify_signature(const std::string& message, const typename G1::affine_element& public_key, const signature& sig)
 {
-    // r = g^s . pub^e
-    // e = H(r, m)
+    using affine_element = typename G1::affine_element;
+    using element = typename G1::element;
+
+    if (!public_key.on_curve() || public_key.is_point_at_infinity()) {
+        return false;
+    }
+    // e = H(pedersen(r, pk.x, pk.y), m) r = x(R)
+    // R = g^s • pub^e
     Fr s = Fr::serialize_from_buffer(&sig.s[0]);
     Fr source_e = Fr::serialize_from_buffer(&sig.e[0]);
 
-    typename G1::affine_element R1(G1::one * s);
-    typename G1::affine_element R2(typename G1::element(public_key) * source_e);
-
-    typename G1::element R2_ele{ R2.x, R2.y, Fq::one() };
-
-    typename G1::element R;
-    R = R2_ele + R1;
-    R = R.normalize();
-
-    std::vector<uint8_t> r(sizeof(Fq));
-    Fq::serialize_to_buffer(R.x, &r[0]);
+    if (s == 0 || source_e == 0) {
+        return false;
+    }
+    affine_element R(element(public_key) * source_e + G1::one * s);
+    if (R.is_point_at_infinity()) {
+        // this result implies k == 0
+        return false;
+    }
+    Fq compressed_keys = crypto::pedersen::compress_native({ R.x, public_key.x, public_key.y });
 
     std::vector<uint8_t> message_buffer;
-    std::copy(r.begin(), r.end(), std::back_inserter(message_buffer));
+    write(message_buffer, compressed_keys);
     std::copy(message.begin(), message.end(), std::back_inserter(message_buffer));
+
     auto e_vec = Hash::hash(message_buffer);
     Fr target_e = Fr::serialize_from_buffer(&e_vec[0]);
 
