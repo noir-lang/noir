@@ -6,6 +6,7 @@ use super::{
     optim,
 };
 use acvm::FieldElement;
+use noirc_frontend::util::vecmap;
 use std::collections::HashMap;
 
 // Number of allowed times for inlining function calls inside a code block.
@@ -407,8 +408,7 @@ fn inline_cfg(ctx: &mut SsaContext, entry_block: BlockId) -> bool {
 pub fn inline_all_functions(ctx: &mut SsaContext) {
     let mut nested_call = true;
     let mut retry = MAX_INLINE_TRIES;
-    let func_cfg: Vec<BlockId> =
-        noirc_frontend::util::vecmap(ctx.functions.values(), |f| f.entry_block);
+    let func_cfg: Vec<BlockId> = vecmap(ctx.functions.values(), |f| f.entry_block);
     while retry > 0 && nested_call {
         retry -= 1;
         nested_call = false;
