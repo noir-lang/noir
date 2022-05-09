@@ -102,17 +102,12 @@ fn resolve_name_in_module(
     // There is a possibility that the import path is empty
     // In that case, early return
     if import_path.is_empty() {
-        let mod_id = ModuleId {
-            krate: def_map.krate,
-            local_id: starting_mod,
-        };
+        let mod_id = ModuleId { krate: def_map.krate, local_id: starting_mod };
         return PathResolution::Resolved(PerNs::types(mod_id.into()));
     }
 
     let mut import_path = import_path.iter();
-    let first_segment = import_path
-        .next()
-        .expect("ice: could not fetch first segment");
+    let first_segment = import_path.next().expect("ice: could not fetch first segment");
     let mut current_ns = current_mod.scope.find_name(first_segment);
     if current_ns.is_none() {
         return PathResolution::Unresolved(first_segment.clone());
@@ -169,15 +164,9 @@ fn resolve_external_dep(
     // Create an import directive for the dependency crate
     let path_without_crate_name = &path[1..]; // XXX: This will panic if the path is of the form `use dep::std` Ideal algorithm will not distinguish between crate and module
 
-    let path = Path {
-        segments: path_without_crate_name.to_vec(),
-        kind: PathKind::Plain,
-    };
-    let dep_directive = ImportDirective {
-        module_id: dep_module.local_id,
-        path,
-        alias: directive.alias.clone(),
-    };
+    let path = Path { segments: path_without_crate_name.to_vec(), kind: PathKind::Plain };
+    let dep_directive =
+        ImportDirective { module_id: dep_module.local_id, path, alias: directive.alias.clone() };
 
     let dep_def_map = def_maps.get(&dep_module.krate).unwrap();
 

@@ -56,27 +56,16 @@ impl MerkleMembershipGadget {
         let root = evaluator.expression_to_object(env, &root)?;
 
         // TODO: change this to convert RuntimeErrorKind into RuntimeError
-        let depth = depth
-            .constant()
-            .expect("expected depth to be a constant")
-            .to_u128();
+        let depth = depth.constant().expect("expected depth to be a constant").to_u128();
         let leaf_witness = leaf.witness().unwrap();
         let root_witness = root.witness().unwrap();
 
-        let mut inputs: Vec<GadgetInput> = vec![GadgetInput {
-            witness: root_witness,
-            num_bits: FieldElement::max_num_bits(),
-        }];
+        let mut inputs: Vec<GadgetInput> =
+            vec![GadgetInput { witness: root_witness, num_bits: FieldElement::max_num_bits() }];
 
-        inputs.push(GadgetInput {
-            witness: leaf_witness,
-            num_bits: FieldElement::max_num_bits(),
-        });
+        inputs.push(GadgetInput { witness: leaf_witness, num_bits: FieldElement::max_num_bits() });
         let index_witness = evaluator.add_witness_to_cs();
-        inputs.push(GadgetInput {
-            witness: index_witness,
-            num_bits: FieldElement::max_num_bits(),
-        });
+        inputs.push(GadgetInput { witness: index_witness, num_bits: FieldElement::max_num_bits() });
 
         // Add necessary amount of witnesses for the hashpath
         let arity = 2;

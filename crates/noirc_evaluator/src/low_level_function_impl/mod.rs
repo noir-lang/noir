@@ -48,10 +48,8 @@ pub fn call_low_level(
     let (call_expr, span) = call_expr_span;
     let func = match OPCODE::lookup(opcode_name) {
         None => {
-            let message = format!(
-                "cannot find a low level opcode with the name {} in the IR",
-                opcode_name
-            );
+            let message =
+                format!("cannot find a low level opcode with the name {} in the IR", opcode_name);
 
             return Err(RuntimeErrorKind::UnstructuredError { message }.add_span(span));
         }

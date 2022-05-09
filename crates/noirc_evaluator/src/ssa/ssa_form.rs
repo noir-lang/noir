@@ -120,9 +120,7 @@ pub fn create_function_parameter(igen: &mut IRGenerator, ident_id: &DefinitionId
     let obj = match o_type {
         noirc_frontend::Type::Array(_, len, _) => {
             let array_idx =
-                igen.context
-                    .mem
-                    .create_new_array(get_array_size(&len), obj_type, &ident_name);
+                igen.context.mem.create_new_array(get_array_size(&len), obj_type, &ident_name);
 
             node::Variable {
                 id: NodeId::dummy(),
@@ -148,8 +146,6 @@ pub fn create_function_parameter(igen: &mut IRGenerator, ident_id: &DefinitionId
         }
     };
     let v_id = igen.context.add_variable(obj, None);
-    igen.context
-        .get_current_block_mut()
-        .update_variable(v_id, v_id);
+    igen.context.get_current_block_mut().update_variable(v_id, v_id);
     v_id
 }

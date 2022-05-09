@@ -75,10 +75,7 @@ fn handle_linear_mul(
                 result.push(handle_linear_mul(linear, element, evaluator)?);
             }
 
-            Ok(Object::Array(Array {
-                contents: result,
-                length: arr.length,
-            }))
+            Ok(Object::Array(Array { contents: result, length: arr.length }))
         }
         Object::Null => Err(err_cannot_mul("()", "Witness")),
     }

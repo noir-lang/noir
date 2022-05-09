@@ -15,10 +15,7 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     };
     package_dir.push(Path::new(package_name));
     if package_dir.exists() {
-        let msg = format!(
-            "error: destination {} already exists",
-            package_dir.display()
-        );
+        let msg = format!("error: destination {} already exists", package_dir.display());
         return Err(CliError::DestinationAlreadyExists(msg));
     }
 
@@ -41,10 +38,7 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
 
     write_to_file(SETTINGS.as_bytes(), &package_dir.join(Path::new(PKG_FILE)));
     write_to_file(EXAMPLE.as_bytes(), &src_dir.join(Path::new("main.nr")));
-    println!(
-        "Project successfully created! Binary located at {}",
-        package_dir.display()
-    );
+    println!("Project successfully created! Binary located at {}", package_dir.display());
     Ok(())
 }
 

@@ -234,11 +234,7 @@ impl<'a> Evaluator<'a> {
 
         for (param_name, param_type) in abi.parameters.into_iter() {
             match param_type {
-                noirc_abi::AbiType::Array {
-                    visibility,
-                    length,
-                    typ,
-                } => {
+                noirc_abi::AbiType::Array { visibility, length, typ } => {
                     let mut elements = Vec::with_capacity(length as usize);
                     for _ in 0..length as usize {
                         let witness = self.add_witness_to_cs();
@@ -248,11 +244,7 @@ impl<'a> Evaluator<'a> {
 
                         // Constrain each element in the array to be equal to the type declared in the parameter
                         let object = match *typ {
-                            noirc_abi::AbiType::Integer {
-                                visibility: _,
-                                sign,
-                                width,
-                            } => {
+                            noirc_abi::AbiType::Integer { visibility: _, sign, width } => {
                                 // XXX: Since this is in an array, the visibility
                                 // XXX: should not be settable. By default, it will be Private
                                 // since if the user does not supply a visibility,
@@ -280,21 +272,14 @@ impl<'a> Evaluator<'a> {
 
                         elements.push(object);
                     }
-                    let arr = Array {
-                        contents: elements,
-                        length,
-                    };
+                    let arr = Array { contents: elements, length };
                     env.store(param_name, Object::Array(arr));
                 }
                 noirc_abi::AbiType::Field(noirc_abi::AbiFEType::Private) => {
                     let witness = self.add_witness_to_cs();
                     self.add_witness_to_env(param_name, witness, env);
                 }
-                noirc_abi::AbiType::Integer {
-                    visibility,
-                    sign,
-                    width,
-                } => {
+                noirc_abi::AbiType::Integer { visibility, sign, width } => {
                     let witness = self.add_witness_to_cs();
                     if visibility == noirc_abi::AbiFEType::Public {
                         self.public_inputs.push(witness);
@@ -306,9 +291,7 @@ impl<'a> Evaluator<'a> {
                     );
 
                     let integer = Integer::from_witness_unconstrained(witness, width);
-                    integer
-                        .constrain(self)
-                        .map_err(|kind| kind.add_span(param_span))?;
+                    integer.constrain(self).map_err(|kind| kind.add_span(param_span))?;
 
                     env.store(param_name, Object::Integer(integer));
                 }
@@ -421,11 +404,9 @@ impl<'a> Evaluator<'a> {
 
     fn pattern_name(&self, pattern: &HirPattern) -> String {
         match pattern {
-            HirPattern::Identifier(ident) => self
-                .context
-                .def_interner
-                .definition_name(ident.id)
-                .to_owned(),
+            HirPattern::Identifier(ident) => {
+                self.context.def_interner.definition_name(ident.id).to_owned()
+            }
             HirPattern::Mutable(pattern, _) => self.pattern_name(pattern),
             HirPattern::Tuple(_, _) => todo!("Implement tuples in the backend"),
             HirPattern::Struct(_, _, _) => todo!("Implement structs in the backend"),
@@ -497,8 +478,7 @@ impl<'a> Evaluator<'a> {
                 message: "only witnesses can be used in a private statement".to_string(),
             })
             .map_err(|kind| kind.add_span(rhs_span))?;
-        self.gates
-            .push(Gate::Arithmetic(&rhs_as_witness - &witness.to_unknown()));
+        self.gates.push(Gate::Arithmetic(&rhs_as_witness - &witness.to_unknown()));
 
         // Lets go through some possible scenarios to explain why the code is correct
         // 0: priv x = 5;
@@ -594,9 +574,7 @@ impl<'a> Evaluator<'a> {
                 // const can only be integers/Field elements, cannot involve the witness, so we can possibly move this to
                 // analysis. Right now it would not make a difference, since we are not compiling to an intermediate Noir format
                 let span = self.context.def_interner.expr_span(rhs);
-                let value = self
-                    .evaluate_integer(env, rhs)
-                    .map_err(|kind| kind.add_span(span))?;
+                let value = self.evaluate_integer(env, rhs).map_err(|kind| kind.add_span(span))?;
 
                 env.store(variable_name, value);
             }
@@ -641,18 +619,13 @@ impl<'a> Evaluator<'a> {
             env.start_scope();
 
             // Add indice to environment
-            let variable_name = self
-                .context
-                .def_interner
-                .definition_name(for_expr.identifier.id)
-                .to_owned();
+            let variable_name =
+                self.context.def_interner.definition_name(for_expr.identifier.id).to_owned();
             env.store(variable_name, Object::Constants(indice));
 
             let block = self.expression_to_block(&for_expr.block);
             let statements = block.statements();
-            let return_typ = self
-                .eval_block(env, statements)
-                .map_err(|err| err.remove_span())?;
+            let return_typ = self.eval_block(env, statements).map_err(|err| err.remove_span())?;
             contents.push(return_typ);
 
             env.end_scope();
@@ -674,17 +647,13 @@ impl<'a> Evaluator<'a> {
         env: &mut Environment,
         expr_id: &ExprId,
     ) -> Result<Object, RuntimeErrorKind> {
-        let polynomial = self
-            .expression_to_object(env, expr_id)
-            .map_err(|err| err.remove_span())?;
+        let polynomial =
+            self.expression_to_object(env, expr_id).map_err(|err| err.remove_span())?;
 
         if polynomial.is_constant() {
             return Ok(polynomial);
         }
-        return Err(RuntimeErrorKind::expected_type(
-            "constant",
-            polynomial.r#type(),
-        ));
+        return Err(RuntimeErrorKind::expected_type("constant", polynomial.r#type()));
     }
 
     pub(crate) fn expression_to_object(
@@ -818,10 +787,8 @@ impl<'a> Evaluator<'a> {
         env: &mut Environment,
         exprs: &[ExprId],
     ) -> (Vec<Object>, Vec<RuntimeError>) {
-        let (objects, errors): (Vec<_>, Vec<_>) = exprs
-            .iter()
-            .map(|expr| self.expression_to_object(env, expr))
-            .partition(Result::is_ok);
+        let (objects, errors): (Vec<_>, Vec<_>) =
+            exprs.iter().map(|expr| self.expression_to_object(env, expr)).partition(Result::is_ok);
 
         let objects: Vec<_> = objects.into_iter().map(Result::unwrap).collect();
         let errors: Vec<_> = errors.into_iter().map(Result::unwrap_err).collect();

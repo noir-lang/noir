@@ -105,11 +105,7 @@ impl<'a> SsaContext<'a> {
         match op {
             Operation::Binary(binary) => self.binary_to_string(binary),
             Operation::Cast(value) => format!("cast {}", self.node_to_string(*value)),
-            Operation::Truncate {
-                value,
-                bit_size,
-                max_bit_size,
-            } => {
+            Operation::Truncate { value, bit_size, max_bit_size } => {
                 format!(
                     "truncate {}, bitsize = {}, max bitsize = {}",
                     self.node_to_string(*value),
@@ -128,16 +124,10 @@ impl<'a> SsaContext<'a> {
                 }
                 s
             }
-            Operation::Load { array_id, index } => format!(
-                "load {:?}, index {}",
-                array_id,
-                self.node_to_string(*index)
-            ),
-            Operation::Store {
-                array_id,
-                index,
-                value,
-            } => {
+            Operation::Load { array_id, index } => {
+                format!("load {:?}, index {}", array_id, self.node_to_string(*index))
+            }
+            Operation::Store { array_id, index, value } => {
                 format!(
                     "store {:?}, index {}, value {}",
                     array_id,
@@ -149,10 +139,7 @@ impl<'a> SsaContext<'a> {
             Operation::Nop => format!("nop"),
             Operation::Call(f, args) => format!("call {:?}({})", f, join(args)),
             Operation::Return(values) => format!("return ({})", join(values)),
-            Operation::Results {
-                call_instruction,
-                results,
-            } => {
+            Operation::Results { call_instruction, results } => {
                 let call = self.node_to_string(*call_instruction);
                 format!("results {} = ({})", call, join(results))
             }
@@ -260,13 +247,11 @@ impl<'a> SsaContext<'a> {
 
     //todo handle errors
     fn get_instruction(&self, id: NodeId) -> &node::Instruction {
-        self.try_get_instruction(id)
-            .expect("Index not found or not an instruction")
+        self.try_get_instruction(id).expect("Index not found or not an instruction")
     }
 
     pub fn get_mut_instruction(&mut self, id: NodeId) -> &mut node::Instruction {
-        self.try_get_mut_instruction(id)
-            .expect("Index not found or not an instruction")
+        self.try_get_mut_instruction(id).expect("Index not found or not an instruction")
     }
 
     pub fn try_get_instruction(&self, id: NodeId) -> Option<&node::Instruction> {
@@ -392,10 +377,7 @@ impl<'a> SsaContext<'a> {
             | Operation::Jeq(_, _)
             | Operation::Jmp(_)
             | Operation::Nop
-            | Binary(node::Binary {
-                operator: Constrain(_),
-                ..
-            })
+            | Binary(node::Binary { operator: Constrain(_), .. })
             | Operation::Store { .. } => ObjectType::NotAnObject,
             Operation::Load { array_id, .. } => self.mem[*array_id].element_type,
             Operation::Cast(_) | Operation::Truncate { .. } => {
@@ -481,10 +463,9 @@ impl<'a> SsaContext<'a> {
         //Ensure there is not already a phi for the variable (n.b. probably not usefull)
         for i in &self[target_block].instructions {
             match self.try_get_instruction(*i) {
-                Some(Instruction {
-                    operator: Operation::Phi { root, .. },
-                    ..
-                }) if *root == phi_root => {
+                Some(Instruction { operator: Operation::Phi { root, .. }, .. })
+                    if *root == phi_root =>
+                {
                     return *i;
                 }
                 _ => (),
@@ -492,10 +473,7 @@ impl<'a> SsaContext<'a> {
         }
 
         let v_type = self.get_object_type(phi_root);
-        let operation = Operation::Phi {
-            root: phi_root,
-            block_args: vec![],
-        };
+        let operation = Operation::Phi { root: phi_root, block_args: vec![] };
         let new_phi = Instruction::new(operation, v_type, Some(target_block));
         let phi_id = self.add_instruction(new_phi);
         self[target_block].instructions.insert(1, phi_id);

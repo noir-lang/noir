@@ -36,10 +36,7 @@ impl GadgetCaller for PedersenGadget {
 
         evaluator.gates.push(Gate::GadgetCall(pedersen_gate));
 
-        let arr = Array {
-            length: 2,
-            contents: vec![object_pedersen_x, object_pedersen_y],
-        };
+        let arr = Array { length: 2, contents: vec![object_pedersen_x, object_pedersen_y] };
 
         Ok(Object::Array(arr))
     }

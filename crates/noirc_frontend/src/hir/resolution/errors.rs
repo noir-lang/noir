@@ -7,10 +7,7 @@ use crate::{hir_def::expr::HirIdent, node_interner::NodeInterner, Ident};
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum ResolverError {
     #[error("Duplicate definition")]
-    DuplicateDefinition {
-        first_ident: HirIdent,
-        second_ident: HirIdent,
-    },
+    DuplicateDefinition { first_ident: HirIdent, second_ident: HirIdent },
     #[error("Unused variable")]
     UnusedVariable { ident: HirIdent },
     #[error("Could not find variable in this scope")]
@@ -18,30 +15,15 @@ pub enum ResolverError {
     #[error("path is not an identifier")]
     PathIsNotIdent { span: Span },
     #[error("could not resolve path")]
-    PathUnresolved {
-        span: Span,
-        name: String,
-        segment: Ident,
-    },
+    PathUnresolved { span: Span, name: String, segment: Ident },
     #[error("Expected")]
-    Expected {
-        span: Span,
-        expected: String,
-        got: String,
-    },
+    Expected { span: Span, expected: String, got: String },
     #[error("Duplicate field in constructor")]
     DuplicateField { field: Ident },
     #[error("No such field in struct")]
-    NoSuchField {
-        field: Ident,
-        struct_definition: Ident,
-    },
+    NoSuchField { field: Ident, struct_definition: Ident },
     #[error("Missing fields from struct")]
-    MissingFields {
-        span: Span,
-        missing_fields: Vec<String>,
-        struct_definition: Ident,
-    },
+    MissingFields { span: Span, missing_fields: Vec<String>, struct_definition: Ident },
     #[error("Unneeded 'mut', pattern is already marked as mutable")]
     UnnecessaryMut { first_mut: Span, second_mut: Span },
 }
@@ -52,10 +34,7 @@ impl ResolverError {
     /// soundness of the generated program
     pub fn into_diagnostic(self, interner: &NodeInterner) -> Diagnostic {
         match self {
-            ResolverError::DuplicateDefinition {
-                first_ident,
-                second_ident,
-            } => {
+            ResolverError::DuplicateDefinition { first_ident, second_ident } => {
                 let first_span = first_ident.span;
                 let second_span = second_ident.span;
 
@@ -91,11 +70,7 @@ impl ResolverError {
                 String::new(),
                 span,
             ),
-            ResolverError::PathUnresolved {
-                span,
-                name,
-                segment,
-            } => {
+            ResolverError::PathUnresolved { span, name, segment } => {
                 let mut diag = Diagnostic::simple_error(
                     format!("could not resolve path '{}'", name),
                     String::new(),
@@ -111,11 +86,7 @@ impl ResolverError {
 
                 diag
             }
-            ResolverError::Expected {
-                span,
-                expected,
-                got,
-            } => Diagnostic::simple_error(
+            ResolverError::Expected { span, expected, got } => Diagnostic::simple_error(
                 format!("expected {} got {}", expected, got),
                 String::new(),
                 span,
@@ -125,15 +96,9 @@ impl ResolverError {
                 String::new(),
                 field.span(),
             ),
-            ResolverError::NoSuchField {
-                field,
-                struct_definition,
-            } => {
+            ResolverError::NoSuchField { field, struct_definition } => {
                 let mut error = Diagnostic::simple_error(
-                    format!(
-                        "no such field {} defined in struct {}",
-                        field, struct_definition
-                    ),
+                    format!("no such field {} defined in struct {}", field, struct_definition),
                     String::new(),
                     field.span(),
                 );
@@ -144,11 +109,7 @@ impl ResolverError {
                 );
                 error
             }
-            ResolverError::MissingFields {
-                span,
-                missing_fields,
-                struct_definition,
-            } => {
+            ResolverError::MissingFields { span, missing_fields, struct_definition } => {
                 let plural = if missing_fields.len() != 1 { "s" } else { "" };
                 let missing_fields = missing_fields.join(", ");
 
@@ -164,10 +125,7 @@ impl ResolverError {
                 );
                 error
             }
-            ResolverError::UnnecessaryMut {
-                first_mut,
-                second_mut,
-            } => {
+            ResolverError::UnnecessaryMut { first_mut, second_mut } => {
                 let mut error = Diagnostic::simple_error(
                     "'mut' here is not necessary".to_owned(),
                     "".to_owned(),

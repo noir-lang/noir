@@ -31,11 +31,7 @@ impl CRS {
         let g1_data = crs[G1_START..=g1_end].to_vec();
         let g2_data = crs[G2_START..=G2_END].to_vec();
 
-        CRS {
-            g1_data,
-            g2_data,
-            num_points,
-        }
+        CRS { g1_data, g2_data, num_points }
     }
 }
 
@@ -71,10 +67,8 @@ pub fn download_crs(mut path_to_transcript: std::path::PathBuf) {
 
     let url = "http://aztec-ignition.s3.amazonaws.com/MAIN%20IGNITION/sealed/transcript00.dat";
     use downloader::Downloader;
-    let mut downloader = Downloader::builder()
-        .download_folder(path_to_transcript.as_path())
-        .build()
-        .unwrap();
+    let mut downloader =
+        Downloader::builder().download_folder(path_to_transcript.as_path()).build().unwrap();
 
     let dl = downloader::Download::new(url);
     let dl = dl.progress(SimpleReporter::create());
@@ -98,9 +92,7 @@ struct SimpleReporter {
 
 impl SimpleReporter {
     fn create() -> std::sync::Arc<Self> {
-        std::sync::Arc::new(Self {
-            private: std::sync::Mutex::new(None),
-        })
+        std::sync::Arc::new(Self { private: std::sync::Mutex::new(None) })
     }
 }
 
@@ -113,10 +105,8 @@ impl downloader::progress::Reporter for SimpleReporter {
                 .progress_chars("##-"),
         );
 
-        let private = SimpleReporterPrivate {
-            started: std::time::Instant::now(),
-            progress_bar: bar,
-        };
+        let private =
+            SimpleReporterPrivate { started: std::time::Instant::now(), progress_bar: bar };
         println!("\nDownloading the Ignite SRS (340MB)\n");
 
         let mut guard = self.private.lock().unwrap();
@@ -136,10 +126,7 @@ impl downloader::progress::Reporter for SimpleReporter {
         let p = guard.as_mut().unwrap();
         p.progress_bar.finish();
         println!("Downloaded the SRS successfully!");
-        println!(
-            "Time Elapsed: {}",
-            indicatif::HumanDuration(p.started.elapsed())
-        );
+        println!("Time Elapsed: {}", indicatif::HumanDuration(p.started.elapsed()));
     }
 }
 

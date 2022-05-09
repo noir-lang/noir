@@ -12,9 +12,7 @@ pub fn create(vk_method: &str) -> String {
 fn template_replace(template: &str, values: &[&str]) -> String {
     let regex = Regex::new(r#"\$(\d+)"#).unwrap();
     let mut turbo_verifier_contract = regex
-        .replace_all(template, |captures: &Captures| {
-            values.get(index(captures)).unwrap_or(&"")
-        })
+        .replace_all(template, |captures: &Captures| values.get(index(captures)).unwrap_or(&""))
         .to_string();
 
     turbo_verifier_contract.push_str(cryptography_libraries());

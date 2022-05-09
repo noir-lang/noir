@@ -68,10 +68,7 @@ impl BasicBlock {
     pub fn get_result_instruction(&self, call_id: NodeId, ctx: &SsaContext) -> Option<NodeId> {
         self.instructions.iter().copied().find(|i| match ctx[*i] {
             NodeObj::Instr(Instruction {
-                operator:
-                    Operation::Results {
-                        call_instruction, ..
-                    },
+                operator: Operation::Results { call_instruction, .. },
                 ..
             }) => call_instruction == call_id,
             _ => false,
@@ -158,10 +155,7 @@ pub fn compute_dom(ctx: &mut SsaContext) {
 
     for block in ctx.iter_blocks() {
         if let Some(dom) = block.dominator {
-            dominator_link
-                .entry(dom)
-                .or_insert_with(Vec::new)
-                .push(block.id);
+            dominator_link.entry(dom).or_insert_with(Vec::new).push(block.id);
             // dom_block.dominated.push(idx);
         }
     }

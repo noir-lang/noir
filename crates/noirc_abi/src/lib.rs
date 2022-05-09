@@ -20,16 +20,8 @@ pub mod input_parser;
 /// support.
 pub enum AbiType {
     Field(AbiFEType),
-    Array {
-        visibility: AbiFEType,
-        length: u128,
-        typ: Box<AbiType>,
-    },
-    Integer {
-        visibility: AbiFEType,
-        sign: Sign,
-        width: u32,
-    },
+    Array { visibility: AbiFEType, length: u128, typ: Box<AbiType> },
+    Integer { visibility: AbiFEType, sign: Sign, width: u32 },
 }
 /// This is the same as the FieldElementType in AST, without constants.
 /// We don't want the ABI to depend on Noir, so types are not shared between the two
@@ -55,27 +47,15 @@ impl AbiType {
     pub fn num_elements(&self) -> usize {
         match self {
             AbiType::Field(_) | AbiType::Integer { .. } => 1,
-            AbiType::Array {
-                visibility: _,
-                length,
-                typ: _,
-            } => *length as usize,
+            AbiType::Array { visibility: _, length, typ: _ } => *length as usize,
         }
     }
 
     pub fn is_public(&self) -> bool {
         match self {
             AbiType::Field(fe_type) => fe_type == &AbiFEType::Public,
-            AbiType::Array {
-                visibility,
-                length: _,
-                typ: _,
-            } => visibility == &AbiFEType::Public,
-            AbiType::Integer {
-                visibility,
-                sign: _,
-                width: _,
-            } => visibility == &AbiFEType::Public,
+            AbiType::Array { visibility, length: _, typ: _ } => visibility == &AbiFEType::Public,
+            AbiType::Integer { visibility, sign: _, width: _ } => visibility == &AbiFEType::Public,
         }
     }
 }
@@ -96,11 +76,8 @@ impl Abi {
     /// ABI with only the public parameters
     #[must_use]
     pub fn public_abi(self) -> Abi {
-        let parameters: Vec<_> = self
-            .parameters
-            .into_iter()
-            .filter(|(_, param_type)| param_type.is_public())
-            .collect();
+        let parameters: Vec<_> =
+            self.parameters.into_iter().filter(|(_, param_type)| param_type.is_public()).collect();
         Abi { parameters }
     }
 }

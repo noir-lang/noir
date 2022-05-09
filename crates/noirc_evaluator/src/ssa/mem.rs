@@ -43,7 +43,13 @@ impl MemArray {
         assert!(self.values.is_empty() || self.values.len() == self.len.try_into().unwrap());
     }
 
-    fn new(id: ArrayId, definition: DefinitionId, name: &str, of: node::ObjectType, len: u32) -> MemArray {
+    fn new(
+        id: ArrayId,
+        definition: DefinitionId,
+        name: &str,
+        of: node::ObjectType,
+        len: u32,
+    ) -> MemArray {
         assert!(len > 0);
         MemArray {
             id,
@@ -92,7 +98,12 @@ impl Memory {
         mem_array
     }
 
-    pub fn create_new_array(&mut self, len: u32, el_type: node::ObjectType, arr_name: &str) -> ArrayId {
+    pub fn create_new_array(
+        &mut self,
+        len: u32,
+        el_type: node::ObjectType,
+        arr_name: &str,
+    ) -> ArrayId {
         let id = ArrayId(self.arrays.len() as u32);
         let mut new_array = MemArray::new(id, DefinitionId::dummy_id(), arr_name, el_type, len);
         new_array.adr = self.last_adr;

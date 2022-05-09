@@ -34,18 +34,11 @@ impl GadgetCaller for Blake2sGadget {
             contents.push(object);
         }
 
-        let blake2s_gate = GadgetCall {
-            name: Blake2sGadget::name(),
-            inputs,
-            outputs,
-        };
+        let blake2s_gate = GadgetCall { name: Blake2sGadget::name(), inputs, outputs };
 
         evaluator.gates.push(Gate::GadgetCall(blake2s_gate));
 
-        let arr = Array {
-            length: contents.len() as u128,
-            contents,
-        };
+        let arr = Array { length: contents.len() as u128, contents };
 
         Ok(Object::Array(arr))
     }

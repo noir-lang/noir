@@ -65,10 +65,7 @@ impl ExpressionKind {
     }
 
     pub fn function_call((func_name, arguments): (Path, Vec<Expression>)) -> ExpressionKind {
-        ExpressionKind::Call(Box::new(CallExpression {
-            func_name,
-            arguments,
-        }))
+        ExpressionKind::Call(Box::new(CallExpression { func_name, arguments }))
     }
 
     pub fn constructor((type_name, fields): (Path, Vec<(Ident, Expression)>)) -> ExpressionKind {
@@ -76,10 +73,7 @@ impl ExpressionKind {
     }
 
     pub fn index(collection_name: Ident, index: Expression) -> ExpressionKind {
-        ExpressionKind::Index(Box::new(IndexExpression {
-            collection_name,
-            index,
-        }))
+        ExpressionKind::Index(Box::new(IndexExpression { collection_name, index }))
     }
 
     /// Returns true if the expression is a literal integer
@@ -176,10 +170,7 @@ impl Expression {
     }
 
     pub fn cast(lhs: Expression, r#type: UnresolvedType, span: Span) -> Expression {
-        Expression {
-            kind: ExpressionKind::Cast(Box::new(CastExpression { lhs, r#type })),
-            span,
-        }
+        Expression { kind: ExpressionKind::Cast(Box::new(CastExpression { lhs, r#type })), span }
     }
 }
 
@@ -497,13 +488,7 @@ impl Display for CallExpression {
 impl Display for MethodCallExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let args = vecmap(&self.arguments, ToString::to_string);
-        write!(
-            f,
-            "{}.{}({})",
-            self.object,
-            self.method_name,
-            args.join(", ")
-        )
+        write!(f, "{}.{}({})", self.object, self.method_name, args.join(", "))
     }
 }
 
@@ -584,9 +569,7 @@ impl Display for FunctionDefinition {
             writeln!(f, "{}", attribute)?;
         }
 
-        let parameters = vecmap(&self.parameters, |(name, r#type)| {
-            format!("{}: {}", name, r#type)
-        });
+        let parameters = vecmap(&self.parameters, |(name, r#type)| format!("{}: {}", name, r#type));
 
         write!(
             f,

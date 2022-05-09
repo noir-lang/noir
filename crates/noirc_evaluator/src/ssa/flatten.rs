@@ -2,8 +2,9 @@ use super::{
     block::{self, BlockId},
     context::SsaContext,
     function,
-    node::{self, BinaryOp, Instruction, Node, NodeEval, NodeId, NodeObj, Operation, ObjectType},
-    optim, mem::ArrayId,
+    mem::ArrayId,
+    node::{self, BinaryOp, Instruction, Node, NodeEval, NodeId, NodeObj, ObjectType, Operation},
+    optim,
 };
 use acvm::FieldElement;
 use std::collections::{hash_map::Entry, HashMap};
@@ -38,16 +39,8 @@ fn eval_block(block_id: BlockId, eval_map: &HashMap<NodeId, NodeEval>, ctx: &mut
     }
 }
 
-fn update_operator(
-    operator: &Operation,
-    eval_map: &HashMap<NodeId, NodeEval>,
-) -> Operation {
-    operator.map_id(|id| {
-        eval_map
-            .get(&id)
-            .and_then(|value| value.into_node_id())
-            .unwrap_or(id)
-    })
+fn update_operator(operator: &Operation, eval_map: &HashMap<NodeId, NodeEval>) -> Operation {
+    operator.map_id(|id| eval_map.get(&id).and_then(|value| value.into_node_id()).unwrap_or(id))
 }
 
 pub fn unroll_block(
@@ -78,17 +71,13 @@ pub fn unroll_std_block(
     for i_id in &b_instructions {
         match &ctx[*i_id] {
             node::NodeObj::Instr(i) => {
-                let new_op = i
-                    .operator
-                    .map_id(|id| get_current_value(id, eval_map).into_node_id().unwrap());
+                let new_op =
+                    i.operator.map_id(|id| get_current_value(id, eval_map).into_node_id().unwrap());
                 let mut new_ins = node::Instruction::new(
                     new_op, i.res_type, None, //TODO to fix later
                 );
                 match i.operator {
-                    Operation::Binary(node::Binary {
-                        operator: BinaryOp::Assign,
-                        ..
-                    }) => {
+                    Operation::Binary(node::Binary { operator: BinaryOp::Assign, .. }) => {
                         unreachable!("unsupported instruction type when unrolling: assign");
                         //To support assignments, we should create a new variable and updates the eval_map with it
                         //however assignments should have already been removed by copy propagation.
@@ -270,9 +259,7 @@ fn evaluate_conditional_jump(
     };
 
     let cond = get_current_value(cond_id, value_array);
-    let cond = evaluate_object(cond, value_array, ctx)
-        .into_const_value()
-        .unwrap();
+    let cond = evaluate_object(cond, value_array, ctx).into_const_value().unwrap();
 
     match jump_ins.operator {
         node::Operation::Jeq { .. } => cond.is_zero(),
@@ -283,9 +270,7 @@ fn evaluate_conditional_jump(
 
 //Retrieve the NodeEval value of the index in the evaluation map
 fn get_current_value(id: NodeId, value_array: &HashMap<NodeId, NodeEval>) -> NodeEval {
-    *value_array
-        .get(&id)
-        .unwrap_or(&NodeEval::VarOrInstruction(id))
+    *value_array.get(&id).unwrap_or(&NodeEval::VarOrInstruction(id))
 }
 
 //Same as get_current_value but for a NodeEval object instead of a NodeObj
@@ -422,15 +407,8 @@ pub fn inline(
     //2. inline in the block: we assume the function cfg is already flatened.
     let mut next_block = Some(ssa_func.igen.context.first_block);
     while let Some(next_b) = next_block {
-        next_block = inline_in_block(
-            next_b,
-            block,
-            &mut inline_map,
-            &mut array_map,
-            func_id,
-            call_id,
-            ctx,
-        );
+        next_block =
+            inline_in_block(next_b, block, &mut inline_map, &mut array_map, func_id, call_id, ctx);
     }
 }
 
@@ -468,13 +446,12 @@ pub fn inline_in_block(
             //Arrays are mapped to array. We create the array if not mapped
             if let (Some(array), Some(array_id)) = (array, array_id) {
                 if let Entry::Vacant(e) = array_map.entry(array_id) {
-                    let new_id = ctx.mem.create_new_array(array.len, array.element_type, &array.name);
+                    let new_id =
+                        ctx.mem.create_new_array(array.len, array.element_type, &array.name);
                     //We populate the array (if possible) using the inline map
                     for i in &array.values {
                         if let Some(f) = i.to_const() {
-                            ctx.mem[new_id]
-                                .values
-                                .push(super::acir_gen::InternalVar::from(f));
+                            ctx.mem[new_id].values.push(super::acir_gen::InternalVar::from(f));
                         }
                         //todo: else use inline map.
                     }
@@ -506,23 +483,16 @@ pub fn inline_in_block(
                     //TODO use relative addressing, but that requires a few changes, mainly in acir_gen.rs and integer.rs
                     let b = array_map[&array_id];
                     //n.b. this offset is always positive
-                    let offset = ctx.mem[b].adr
-                        - ctx.get_function_context(func_id).mem[*array_id].adr;
+                    let offset =
+                        ctx.mem[b].adr - ctx.get_function_context(func_id).mem[*array_id].adr;
                     let index_type = ctx[*index].get_type();
                     let offset_id =
                         ctx.get_or_create_const(FieldElement::from(offset as i128), index_type);
 
-                    let add = node::Binary {
-                        operator: BinaryOp::Add,
-                        lhs: offset_id,
-                        rhs: *index,
-                    };
+                    let add = node::Binary { operator: BinaryOp::Add, lhs: offset_id, rhs: *index };
                     let adr_id = ctx.new_instruction(Operation::Binary(add), index_type);
                     let new_ins = Instruction::new(
-                        Operation::Load {
-                            array_id: array_map[&array_id],
-                            index: adr_id,
-                        },
+                        Operation::Load { array_id: array_map[&array_id], index: adr_id },
                         clone.res_type,
                         Some(target_block_id),
                     );
@@ -530,23 +500,15 @@ pub fn inline_in_block(
                     new_instructions.push(result_id);
                     inline_map.insert(i_id, result_id);
                 }
-                Operation::Store {
-                    array_id,
-                    index,
-                    value,
-                } => {
+                Operation::Store { array_id, index, value } => {
                     let b = array_map[&array_id];
-                    let offset = ctx.get_function_context(func_id).mem[*array_id].adr
-                        - ctx.mem[b].adr;
+                    let offset =
+                        ctx.get_function_context(func_id).mem[*array_id].adr - ctx.mem[b].adr;
                     let index_type = ctx[*index].get_type();
                     let offset_id =
                         ctx.get_or_create_const(FieldElement::from(offset as i128), index_type);
 
-                    let add = node::Binary {
-                        operator: BinaryOp::Add,
-                        lhs: offset_id,
-                        rhs: *index,
-                    };
+                    let add = node::Binary { operator: BinaryOp::Add, lhs: offset_id, rhs: *index };
                     let adr_id = ctx.new_instruction(Operation::Binary(add), index_type);
                     let new_ins = Instruction::new(
                         Operation::Store {
@@ -597,11 +559,7 @@ pub fn inline_in_block(
     }
 
     // add instruction to target_block, at proper location (really need a linked list!)
-    let mut pos = ctx[target_block_id]
-        .instructions
-        .iter()
-        .position(|x| *x == call_id)
-        .unwrap();
+    let mut pos = ctx[target_block_id].instructions.iter().position(|x| *x == call_id).unwrap();
 
     for &new_id in &new_instructions {
         ctx[target_block_id].instructions.insert(pos, new_id);

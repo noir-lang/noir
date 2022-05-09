@@ -97,10 +97,7 @@ impl From<BinaryOp> for HirBinaryOp {
     fn from(a: BinaryOp) -> HirBinaryOp {
         let kind: HirBinaryOpKind = a.contents.into();
 
-        HirBinaryOp {
-            span: a.span(),
-            kind,
-        }
+        HirBinaryOp { span: a.span(), kind }
     }
 }
 
@@ -206,10 +203,7 @@ impl HirMethodCallExpression {
         let mut arguments = vec![self.object];
         arguments.append(&mut self.arguments);
 
-        HirExpression::Call(HirCallExpression {
-            func_id: method_id,
-            arguments,
-        })
+        HirExpression::Call(HirCallExpression { func_id: method_id, arguments })
     }
 }
 

@@ -26,20 +26,11 @@ impl PartialEq for StructType {
 
 impl StructType {
     pub fn new(id: StructId, name: Ident, span: Span, fields: Vec<(Ident, Type)>) -> StructType {
-        StructType {
-            id,
-            fields,
-            name,
-            span,
-            methods: HashMap::new(),
-        }
+        StructType { id, fields, name, span, methods: HashMap::new() }
     }
 
     pub fn get_field(&self, field_name: &str) -> Option<&Type> {
-        self.fields
-            .iter()
-            .find(|(name, _)| name.0.contents == field_name)
-            .map(|(_, typ)| typ)
+        self.fields.iter().find(|(name, _)| name.0.contents == field_name).map(|(_, typ)| typ)
     }
 }
 
@@ -155,10 +146,7 @@ impl Type {
     }
 
     pub fn is_field_element(&self) -> bool {
-        matches!(
-            self,
-            Type::FieldElement(_) | Type::Bool | Type::Integer(_, _, _)
-        )
+        matches!(self, Type::FieldElement(_) | Type::Bool | Type::Integer(_, _, _))
     }
 
     /// Computes the number of elements in a Type
@@ -224,10 +212,7 @@ impl Type {
     // Base types are types in the language that are simply alias for a field element
     // Therefore they can be the operands in an infix comparison operator
     pub fn is_base_type(&self) -> bool {
-        matches!(
-            self,
-            Type::FieldElement(_) | Type::Integer(_, _, _) | Type::Error
-        )
+        matches!(self, Type::FieldElement(_) | Type::Integer(_, _, _) | Type::Error)
     }
 
     pub fn is_constant(&self) -> bool {
@@ -286,11 +271,7 @@ impl Type {
                     Signedness::Signed => noirc_abi::Sign::Signed,
                 };
 
-                AbiType::Integer {
-                    sign,
-                    width: *bit_width as u32,
-                    visibility: fet_to_abi(fe_type),
-                }
+                AbiType::Integer { sign, width: *bit_width as u32, visibility: fet_to_abi(fe_type) }
             }
             Type::Bool => panic!("currently, cannot have a bool in the entry point function"),
             Type::Error => unreachable!(),
@@ -309,17 +290,14 @@ impl Type {
             // only to have to call .into_iter again afterward. Trying to ellide
             // collecting to a Vec leads to us dropping the temporary Ref before
             // the iterator is returned
-            Type::Struct(_, def) => vecmap(def.borrow().fields.iter(), |(name, typ)| {
-                (name.to_string(), typ.clone())
-            }),
+            Type::Struct(_, def) => {
+                vecmap(def.borrow().fields.iter(), |(name, typ)| (name.to_string(), typ.clone()))
+            }
             Type::Tuple(fields) => {
                 let fields = fields.iter().enumerate();
                 vecmap(fields, |(i, field)| (i.to_string(), field.clone()))
             }
-            other => panic!(
-                "Tried to iterate over the fields of '{}', which has none",
-                other
-            ),
+            other => panic!("Tried to iterate over the fields of '{}', which has none", other),
         };
         fields.into_iter()
     }

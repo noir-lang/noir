@@ -29,10 +29,7 @@ impl Environment {
     /// This flag is used because there are some functions which should only be
     /// callable within the main context.
     pub fn new(func_context: FuncContext) -> Environment {
-        Environment {
-            func_context,
-            env: ScopeForest::new(),
-        }
+        Environment { func_context, env: ScopeForest::new() }
     }
 
     pub fn start_function_environment(&mut self) {
