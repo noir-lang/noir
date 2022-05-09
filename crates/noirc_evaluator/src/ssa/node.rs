@@ -15,6 +15,7 @@ use num_traits::{FromPrimitive, One};
 use crate::object::Object;
 use std::ops::Mul;
 
+use super::acir_gen::InternalVar;
 use super::block::BlockId;
 use super::context::SsaContext;
 use super::mem::ArrayId;
@@ -381,7 +382,7 @@ impl Instruction {
     }
 
     pub fn evaluate(&self, ctx: &SsaContext) -> NodeEval {
-        self.evaluate_with(ctx, NodeEval::from_id)
+        self.evaluate_with(ctx, |ctx, id| NodeEval::from_id(ctx, id))
     }
 
     //Evaluate the instruction value when its operands are constant (constant folding)
@@ -556,6 +557,8 @@ pub enum BinaryOp {
     And,                                //(&) Bitwise And
     Or,                                 //(|) Bitwise Or
     Xor,                                //(^) Bitwise Xor
+    Shl,                                //(<<) Shift left
+    Shr,                                //(<<) Shift right
 
     Assign,
     Constrain(ConstrainOp), //write gates enforcing the ContrainOp to be true
@@ -624,6 +627,8 @@ impl Binary {
                 }
             }
             HirBinaryOpKind::Assign => BinaryOp::Assign,
+            HirBinaryOpKind::Shl => BinaryOp::Shl,
+            HirBinaryOpKind::Shr => BinaryOp::Shr,
         };
 
         Binary::new(operator, lhs, rhs)
@@ -809,6 +814,28 @@ impl Binary {
                 }
                 //TODO handle case when lhs is one (or rhs is one) by generating 'not rhs' instruction (or 'not lhs' instruction)
             }
+            BinaryOp::Shl => {
+                if l_is_zero {
+                    return l_eval;
+                }
+                if r_is_zero {
+                    return l_eval;
+                }
+                if let (Some((lhs, _)), Some((rhs, _))) = (lhs, rhs) {
+                    return NodeEval::from_u128(lhs.to_u128() << rhs.to_u128(), res_type);
+                }
+            }
+            BinaryOp::Shr => {
+                if l_is_zero {
+                    return l_eval;
+                }
+                if r_is_zero {
+                    return l_eval;
+                }
+                if let (Some((lhs, _)), Some((rhs, _))) = (lhs, rhs) {
+                    return NodeEval::from_u128(lhs.to_u128() >> rhs.to_u128(), res_type);
+                }
+            }
             BinaryOp::Constrain(op) => {
                 if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
                     match op {
@@ -854,6 +881,8 @@ impl Binary {
             BinaryOp::Xor => true,
             BinaryOp::Constrain(..) => true,
             BinaryOp::Assign => false,
+            BinaryOp::Shl => true,
+            BinaryOp::Shr => true,
         }
     }
 }

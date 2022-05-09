@@ -521,10 +521,26 @@ fn get_binary_max_value(
         BinaryOp::Sle => BigUint::one(),
         BinaryOp::Lt => BigUint::one(),
         BinaryOp::Lte => BigUint::one(),
-        BinaryOp::And => res_type.max_size(),
-        BinaryOp::Or => res_type.max_size(),
-        BinaryOp::Xor => res_type.max_size(),
+        BinaryOp::And => {
+            BigUint::from(2_u32).pow(u64::min(lhs_max.bits(), rhs_max.bits()) as u32)
+                - BigUint::one()
+        }
+        BinaryOp::Or | BinaryOp::Xor => {
+            BigUint::from(2_u32).pow(u64::max(lhs_max.bits(), rhs_max.bits()) as u32)
+                - BigUint::one()
+        }
         BinaryOp::Assign => rhs_max.clone(),
         BinaryOp::Constrain(_) => BigUint::zero(),
+        BinaryOp::Shr => BigUint::min(
+            BigUint::from(2_u32).pow((lhs_max.bits() + 1) as u32) - BigUint::one(),
+            res_type.max_size(),
+        ),
+        BinaryOp::Shl => {
+            if lhs_max.bits() >= 1 {
+                BigUint::from(2_u32).pow((lhs_max.bits() - 1) as u32) - BigUint::one()
+            } else {
+                BigUint::zero()
+            }
+        }
     }
 }

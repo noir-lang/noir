@@ -86,6 +86,10 @@ pub enum Token {
     Ampersand,
     // ^
     Caret,
+    // <<
+    ShiftLeft,
+    // >>
+    ShiftRight,
     // .
     Dot,
     // ..
@@ -153,6 +157,8 @@ impl fmt::Display for Token {
             Token::Percent => write!(f, "%"),
             Token::Ampersand => write!(f, "&"),
             Token::Caret => write!(f, "^"),
+            Token::ShiftLeft => write!(f, "<<"),
+            Token::ShiftRight => write!(f, ">>"),
             Token::Dot => write!(f, "."),
             Token::DoubleDot => write!(f, ".."),
             Token::LeftParen => write!(f, "("),

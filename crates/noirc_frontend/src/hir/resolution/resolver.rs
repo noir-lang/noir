@@ -387,7 +387,7 @@ impl<'a> Resolver<'a> {
                 alternative: if_expr.alternative.map(|e| self.intern_block(e)),
             }),
             ExpressionKind::Index(indexed_expr) => HirExpression::Index(HirIndexExpression {
-                collection_name: self.find_variable(&indexed_expr.collection_name),
+                collection: self.resolve_expression(indexed_expr.collection),
                 index: self.resolve_expression(indexed_expr.index),
             }),
             ExpressionKind::Path(path) => {

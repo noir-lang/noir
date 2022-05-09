@@ -160,8 +160,30 @@ impl<'a> Lexer<'a> {
         let spanned_prev_token = prev_token.clone().into_single_span(self.position);
         match prev_token {
             Token::Dot => self.single_double_peek_token('.', prev_token, Token::DoubleDot),
-            Token::Less => self.single_double_peek_token('=', prev_token, Token::LessEqual),
-            Token::Greater => self.single_double_peek_token('=', prev_token, Token::GreaterEqual),
+            Token::Less => {
+                let start = self.position;
+                if self.peek_char_is('=') {
+                    self.next_char();
+                    Ok(Token::LessEqual.into_span(start, start + 1))
+                } else if self.peek_char_is('<') {
+                    self.next_char();
+                    Ok(Token::ShiftLeft.into_span(start, start + 1))
+                } else {
+                    Ok(prev_token.into_single_span(start))
+                }
+            }
+            Token::Greater => {
+                let start = self.position;
+                if self.peek_char_is('=') {
+                    self.next_char();
+                    Ok(Token::GreaterEqual.into_span(start, start + 1))
+                } else if self.peek_char_is('>') {
+                    self.next_char();
+                    Ok(Token::ShiftRight.into_span(start, start + 1))
+                } else {
+                    Ok(prev_token.into_single_span(start))
+                }
+            }
             Token::Bang => self.single_double_peek_token('=', prev_token, Token::NotEqual),
             Token::Assign => self.single_double_peek_token('=', prev_token, Token::Equal),
             Token::Minus => self.single_double_peek_token('>', prev_token, Token::Arrow),
@@ -343,7 +365,7 @@ impl<'a> Iterator for Lexer<'a> {
 
 #[test]
 fn test_single_double_char() {
-    let input = "! != + ( ) { } [ ] | , ; : :: < <= > >= & - -> . .. % / * = ==";
+    let input = "! != + ( ) { } [ ] | , ; : :: < <= > >= & - -> . .. % / * = == << >>";
 
     let expected = vec![
         Token::Bang,
@@ -374,6 +396,8 @@ fn test_single_double_char() {
         Token::Star,
         Token::Assign,
         Token::Equal,
+        Token::ShiftLeft,
+        Token::ShiftRight,
         Token::EOF,
     ];
 

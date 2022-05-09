@@ -226,10 +226,10 @@ fn evaluate_phi(
                 for (arg, block) in block_args {
                     if *block == from {
                         //we evaluate the phi instruction value
-                        to_process.push((
-                            ins.id,
-                            evaluate_one(NodeEval::VarOrInstruction(*arg), to, ctx),
-                        ));
+                        let arg = *arg;
+                        let id = ins.id;
+                        to_process
+                            .push((id, evaluate_one(NodeEval::VarOrInstruction(arg), to, ctx)));
                     }
                 }
             } else if ins.operator != node::Operation::Nop {
@@ -247,7 +247,7 @@ fn evaluate_phi(
 fn evaluate_conditional_jump(
     jump: NodeId,
     value_array: &mut HashMap<NodeId, NodeEval>,
-    ctx: &SsaContext,
+    ctx: &mut SsaContext,
 ) -> bool {
     let jump_ins = ctx.try_get_instruction(jump).unwrap();
 
@@ -560,7 +560,6 @@ pub fn inline_in_block(
 
     // add instruction to target_block, at proper location (really need a linked list!)
     let mut pos = ctx[target_block_id].instructions.iter().position(|x| *x == call_id).unwrap();
-
     for &new_id in &new_instructions {
         ctx[target_block_id].instructions.insert(pos, new_id);
         pos += 1;

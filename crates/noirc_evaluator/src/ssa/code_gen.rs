@@ -12,7 +12,7 @@ use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use noirc_frontend::hir::Context;
 use noirc_frontend::hir_def::expr::{
-    HirCallExpression, HirConstructorExpression, HirIdent, HirMemberAccess,
+    HirCallExpression, HirConstructorExpression, HirIdent, HirMemberAccess, HirUnaryOp,
 };
 use noirc_frontend::hir_def::function::HirFunction;
 use noirc_frontend::hir_def::stmt::{HirLValue, HirPattern};
@@ -23,6 +23,8 @@ use noirc_frontend::hir_def::{
 use noirc_frontend::node_interner::{DefinitionId, ExprId, NodeInterner, StmtId};
 use noirc_frontend::util::vecmap;
 use noirc_frontend::{FunctionKind, Type};
+use num_bigint::BigUint;
+use num_traits::Zero;
 
 pub struct IRGenerator<'a> {
     pub context: SsaContext<'a>,
@@ -191,6 +193,24 @@ impl<'a> IRGenerator<'a> {
         &self.context.context.def_interner
     }
 
+    fn evaluate_prefix_expression(
+        &mut self,
+        rhs: NodeId,
+        op: HirUnaryOp,
+    ) -> Result<NodeId, RuntimeError> {
+        let rtype = self.context.get_object_type(rhs);
+        match op {
+            HirUnaryOp::Minus => {
+                let lhs = self.context.zero();
+                // TODO: Perhaps this should be +infinity instead?
+                let operator = BinaryOp::Sub { max_rhs_value: BigUint::zero() };
+                let op = Operation::Binary(node::Binary { operator, lhs, rhs });
+                Ok(self.context.new_instruction(op, rtype))
+            }
+            HirUnaryOp::Not => Ok(self.context.new_instruction(Operation::Not(rhs), rtype)),
+        }
+    }
+
     fn evaluate_infix_expression(&mut self, lhs: NodeId, rhs: NodeId, op: HirBinaryOp) -> NodeId {
         let ltype = self.context.get_object_type(lhs);
         //n.b. we do not verify rhs type as it should have been handled by the type checker.
@@ -274,7 +294,7 @@ impl<'a> IRGenerator<'a> {
         }
     }
 
-    fn create_new_variable(
+    pub fn create_new_variable(
         &mut self,
         var_name: String,
         def: DefinitionId,
@@ -291,10 +311,8 @@ impl<'a> IRGenerator<'a> {
             parent_block: self.context.current_block,
         };
         let v_id = self.context.add_variable(new_var, None);
-        //a voir.. if let Some(ident_def) = def {
         let v_value = Value::Single(v_id);
         self.variable_values.insert(def, v_value);
-        //  }
         v_id
     }
 
@@ -583,9 +601,15 @@ impl<'a> IRGenerator<'a> {
             },
             HirExpression::Index(indexed_expr) => {
                 // Currently these only happen for arrays
-                let arr_def = indexed_expr.collection_name.id;
-                let arr_name = self.def_interner().definition_name(indexed_expr.collection_name.id).to_owned();
-                let ident_span = indexed_expr.collection_name.span;
+                let collection_name = match self.def_interner().expression(&indexed_expr.collection) {
+                    HirExpression::Ident(id) => id,
+                    other => todo!("Array indexing with an lhs of '{:?}' is unimplemented, you must use an expression in the form `identifier[expression]` for now.", other)
+                };
+
+                let arr_def = collection_name.id;
+                let arr_name = self.def_interner().definition_name(arr_def).to_owned();
+                let ident_span = collection_name.span;
+
                 let arr_type = self.def_interner().id_type(arr_def);
                 let o_type = arr_type.into();
 
@@ -645,7 +669,10 @@ impl<'a> IRGenerator<'a> {
             HirExpression::MemberAccess(access) => self.handle_member_access(env, access),
             HirExpression::Tuple(fields) => self.handle_tuple(env, fields),
             HirExpression::If(_) => todo!(),
-            HirExpression::Prefix(_) => todo!(),
+            HirExpression::Prefix(prefix) => {
+                let rhs = self.expression_to_object(env, &prefix.rhs)?.unwrap_id();
+                self.evaluate_prefix_expression(rhs, prefix.operator).map(Value::Single)
+            },
             HirExpression::Literal(l) => {
                 Ok(Value::Single(self.handle_literal(&l)))
             },
@@ -793,7 +820,6 @@ impl<'a> IRGenerator<'a> {
         let iter_id = self.create_new_variable(iter_name, iter_def, iter_type, None);
         let iter_var = self.context.get_mut_variable(iter_id).unwrap();
         iter_var.obj_type = iter_type;
-        let iter_type = self.context.get_object_type(iter_id);
 
         let assign = Operation::binary(BinaryOp::Assign, iter_id, start_idx);
         let iter_ass = self.context.new_instruction(assign, iter_type);

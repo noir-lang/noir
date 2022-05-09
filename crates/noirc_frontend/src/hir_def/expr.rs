@@ -64,6 +64,8 @@ pub enum HirBinaryOpKind {
     And,
     Or,
     Xor,
+    Shl,
+    Shr,
     Assign,
 }
 
@@ -89,6 +91,8 @@ impl From<BinaryOpKind> for HirBinaryOpKind {
             BinaryOpKind::And => HirBinaryOpKind::And,
             BinaryOpKind::Or => HirBinaryOpKind::Or,
             BinaryOpKind::Xor => HirBinaryOpKind::Xor,
+            BinaryOpKind::ShiftLeft => HirBinaryOpKind::Shl,
+            BinaryOpKind::ShiftRight => HirBinaryOpKind::Shr,
             BinaryOpKind::Assign => HirBinaryOpKind::Assign,
         }
     }
@@ -222,7 +226,7 @@ pub struct HirConstructorExpression {
 
 #[derive(Debug, Clone)]
 pub struct HirIndexExpression {
-    pub collection_name: HirIdent,
+    pub collection: ExprId,
     pub index: ExprId,
 }
 

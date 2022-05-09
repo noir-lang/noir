@@ -1,8 +1,14 @@
+use acvm::FieldElement;
+
 use super::{
+    acir_gen::InternalVar,
     block::BlockId,
     context::SsaContext,
     mem::Memory,
-    node::{self, BinaryOp, ConstrainOp, Instruction, Node, NodeEval, NodeId, Operation},
+    node::{
+        self, BinaryOp, ConstrainOp, Instruction, Node, NodeEval, NodeId, ObjectType, Operation,
+        Variable,
+    },
 };
 use std::collections::{HashMap, VecDeque};
 
@@ -10,17 +16,17 @@ use std::collections::{HashMap, VecDeque};
 // Returns a new NodeId to replace with the current if the current is deleted.
 pub fn simplify(ctx: &mut SsaContext, ins: &mut node::Instruction) -> Option<NodeId> {
     //1. constant folding
-    let idx = match ins.evaluate(ctx) {
+    let new_id = match ins.evaluate(ctx) {
         NodeEval::Const(c, t) => ctx.get_or_create_const(c, t),
         NodeEval::VarOrInstruction(i) => i,
     };
 
-    if idx != ins.id {
-        ins.replacement = Some(idx);
-        if idx == NodeId::dummy() {
+    if new_id != ins.id {
+        ins.replacement = Some(new_id);
+        if new_id == NodeId::dummy() {
             ins.delete();
         }
-        return Some(idx);
+        return Some(new_id);
     }
 
     //2. standard form
@@ -46,16 +52,87 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut node::Instruction) -> Option<Nod
     }
 
     //3. left-overs (it requires &mut ctx)
-    if let Operation::Binary(node::Binary { operator: BinaryOp::Div, lhs, rhs }) = ins.operator {
-        if let NodeEval::Const(r_const, r_type) = NodeEval::from_id(ctx, rhs) {
-            let rhs = ctx.get_or_create_const(r_const.try_inverse().unwrap(), r_type);
-            ins.operator = Operation::Binary(node::Binary { operator: BinaryOp::Mul, lhs, rhs });
+    if let Operation::Binary(binary) = &mut ins.operator {
+        if let NodeEval::Const(r_const, r_type) = NodeEval::from_id(ctx, binary.rhs) {
+            match &binary.operator {
+                BinaryOp::Udiv => {
+                    //TODO handle other bitsize, not only u128!!
+                    let inverse = FieldElement::from(1 / r_const.to_u128());
+                    binary.rhs = ctx.get_or_create_const(inverse, r_type);
+                    binary.operator = BinaryOp::Mul;
+                }
+                BinaryOp::Sdiv => {
+                    //TODO handle other bitsize, not only u128!!
+                    let inverse = FieldElement::from(1 / r_const.to_u128());
+                    binary.rhs = ctx.get_or_create_const(inverse, r_type);
+                    binary.operator = BinaryOp::Mul;
+                }
+                BinaryOp::Div => {
+                    binary.rhs = ctx.get_or_create_const(r_const.inverse(), r_type);
+                    binary.operator = BinaryOp::Mul;
+                }
+                BinaryOp::Shl => {
+                    binary.operator = BinaryOp::Mul;
+                    //todo checks that 2^rhs does not overflow
+                    binary.rhs =
+                        ctx.get_or_create_const(FieldElement::from(2_i128).pow(&r_const), r_type);
+                }
+                BinaryOp::Shr => {
+                    if !matches!(ins.res_type, node::ObjectType::Unsigned(_)) {
+                        todo!("Right shift is only implemented for unsigned integers");
+                    }
+                    binary.operator = BinaryOp::Udiv;
+                    //todo checks that 2^rhs does not overflow
+                    binary.rhs =
+                        ctx.get_or_create_const(FieldElement::from(2_i128).pow(&r_const), r_type);
+                }
+                _ => (),
+            }
+        }
+    }
+
+    if let Operation::Intrinsic(opcode, args) = &ins.operator {
+        let args = args
+            .iter()
+            .map(|arg| NodeEval::from_id(ctx, *arg).into_const_value().map(|f| f.to_u128()));
+
+        if let Some(args) = args.collect() {
+            evaluate_intrinsic(ctx, *opcode, args);
         }
     }
 
     None
 }
 
+fn evaluate_intrinsic(ctx: &mut SsaContext, op: acvm::acir::OPCODE, args: Vec<u128>) -> NodeEval {
+    match op {
+        acvm::acir::OPCODE::ToBits => {
+            let bit_count = args[1] as u32;
+            let array_id = ctx.mem.create_new_array(bit_count, ObjectType::Unsigned(1), "");
+            let pointer = Variable {
+                id: NodeId::dummy(),
+                obj_type: ObjectType::Pointer(array_id),
+                root: None,
+                name: String::new(),
+                def: None,
+                witness: None,
+                parent_block: ctx.current_block,
+            };
+
+            for i in 0..bit_count {
+                if args[0] & (1 << i) != 0 {
+                    ctx.mem[array_id].values.push(InternalVar::from(FieldElement::one()));
+                } else {
+                    ctx.mem[array_id].values.push(InternalVar::from(FieldElement::zero()));
+                }
+            }
+
+            let new_var = ctx.add_variable(pointer, None);
+            NodeEval::VarOrInstruction(new_var)
+        }
+        _ => todo!(),
+    }
+}
 ////////////////////CSE////////////////////////////////////////
 
 pub fn find_similar_instruction(
