@@ -128,11 +128,9 @@ impl<'a> SsaContext<'a> {
                 }
                 s
             }
-            Operation::Load { array_id, index } => format!(
-                "load {:?}, index {}",
-                array_id,
-                self.node_to_string(*index)
-            ),
+            Operation::Load { array_id, index } => {
+                format!("load {:?}, index {}", array_id, self.node_to_string(*index))
+            }
             Operation::Store {
                 array_id,
                 index,

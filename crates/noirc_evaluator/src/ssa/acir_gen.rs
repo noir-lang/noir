@@ -1,5 +1,5 @@
-use super::mem::{MemArray, Memory, ArrayId};
-use super::node::{BinaryOp, ConstrainOp, Instruction, Operation, ObjectType};
+use super::mem::{ArrayId, MemArray, Memory};
+use super::node::{BinaryOp, ConstrainOp, Instruction, ObjectType, Operation};
 use acvm::acir::OPCODE;
 use acvm::FieldElement;
 
@@ -167,7 +167,12 @@ impl Acir {
                 max_bit_size,
             } => {
                 let value = self.substitute(*value, evaluator, ctx);
-                InternalVar::from(evaluate_truncate(value, *bit_size, *max_bit_size, evaluator))
+                InternalVar::from(evaluate_truncate(
+                    value,
+                    *bit_size,
+                    *max_bit_size,
+                    evaluator,
+                ))
             }
             Operation::Intrinsic(opcode, args) => {
                 InternalVar::from(self.evaluate_opcode(ins.id, *opcode, &args, ctx, evaluator))
@@ -222,7 +227,8 @@ impl Acir {
         self.arith_cache.insert(ins.id, output);
     }
 
-    fn evaluate_binary(&mut self,
+    fn evaluate_binary(
+        &mut self,
         binary: &node::Binary,
         res_type: ObjectType,
         evaluator: &mut Evaluator,
@@ -232,11 +238,9 @@ impl Acir {
         let r_c = self.substitute(binary.rhs, evaluator, ctx);
 
         match &binary.operator {
-            BinaryOp::Add | BinaryOp::SafeAdd => InternalVar::from(add(
-                &l_c.expression,
-                FieldElement::one(),
-                &r_c.expression,
-            )),
+            BinaryOp::Add | BinaryOp::SafeAdd => {
+                InternalVar::from(add(&l_c.expression, FieldElement::one(), &r_c.expression))
+            }
             BinaryOp::Sub { max_rhs_value } | BinaryOp::SafeSub { max_rhs_value } => {
                 if res_type == node::ObjectType::NativeField {
                     InternalVar::from(subtract(
@@ -289,12 +293,12 @@ impl Acir {
                 &l_c.expression,
                 &from_witness(evaluate_inverse(r_c, evaluator)),
             )),
-            BinaryOp::Eq => {
-                InternalVar::from(self.evaluate_eq(binary.lhs, binary.rhs, &l_c, &r_c, ctx, evaluator))
-            }
-            BinaryOp::Ne => {
-                InternalVar::from(self.evaluate_neq(binary.lhs, binary.rhs, &l_c, &r_c, ctx, evaluator))
-            }
+            BinaryOp::Eq => InternalVar::from(
+                self.evaluate_eq(binary.lhs, binary.rhs, &l_c, &r_c, ctx, evaluator),
+            ),
+            BinaryOp::Ne => InternalVar::from(
+                self.evaluate_neq(binary.lhs, binary.rhs, &l_c, &r_c, ctx, evaluator),
+            ),
             BinaryOp::Ult => {
                 let size = ctx[binary.lhs].size_in_bits();
                 evaluate_cmp(&l_c, &r_c, size, false, evaluator).into()
@@ -329,20 +333,16 @@ impl Acir {
                 // TODO: Should this be signed?
                 evaluate_cmp(&l_c, &r_c, size, false, evaluator).into()
             }
-            BinaryOp::And => {
-                InternalVar::from(evaluate_and(l_c, r_c, res_type.bits(), evaluator))
-            }
+            BinaryOp::And => InternalVar::from(evaluate_and(l_c, r_c, res_type.bits(), evaluator)),
             BinaryOp::Or => InternalVar::from(evaluate_or(l_c, r_c, res_type.bits())),
-            BinaryOp::Xor => {
-                InternalVar::from(evaluate_xor(l_c, r_c, res_type.bits(), evaluator))
-            }
+            BinaryOp::Xor => InternalVar::from(evaluate_xor(l_c, r_c, res_type.bits(), evaluator)),
             BinaryOp::Constrain(op) => match op {
-                ConstrainOp::Eq => {
-                    InternalVar::from(self.equalize(binary.lhs, binary.rhs, &l_c, &r_c, ctx, evaluator))
-                }
-                ConstrainOp::Neq => {
-                    InternalVar::from(self.distinct(binary.lhs, binary.rhs, &l_c, &r_c, ctx, evaluator))
-                }
+                ConstrainOp::Eq => InternalVar::from(
+                    self.equalize(binary.lhs, binary.rhs, &l_c, &r_c, ctx, evaluator),
+                ),
+                ConstrainOp::Neq => InternalVar::from(
+                    self.distinct(binary.lhs, binary.rhs, &l_c, &r_c, ctx, evaluator),
+                ),
             },
             i @ BinaryOp::Assign => unreachable!("Invalid Instruction: {:?}", i),
         }
@@ -396,8 +396,7 @@ impl Acir {
             let array_b = &ctx.mem[b];
 
             if array_a.len == array_b.len {
-                let mut x =
-                    InternalVar::from(self.zero_eq_array_sum(array_a, array_b, evaluator));
+                let mut x = InternalVar::from(self.zero_eq_array_sum(array_a, array_b, evaluator));
                 x.witness = Some(generate_witness(&x, evaluator));
                 from_witness(evaluate_zero_equality(&x, evaluator))
             } else {

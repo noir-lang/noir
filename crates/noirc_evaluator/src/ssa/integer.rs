@@ -2,8 +2,9 @@ use super::{
     block::BlockId,
     //block,
     context::SsaContext,
-    node::{self, Instruction, Node, NodeId, NodeObj, ObjectType, Operation, BinaryOp},
-    optim, mem::{Memory, ArrayId},
+    mem::{ArrayId, Memory},
+    node::{self, BinaryOp, Instruction, Node, NodeId, NodeObj, ObjectType, Operation},
+    optim,
 };
 use acvm::{acir::OPCODE, FieldElement};
 use noirc_frontend::util::vecmap;
@@ -123,11 +124,15 @@ fn truncate(
         //TODO is max_bit_size leaking some info????
         //Create a new truncate instruction '(idx): obj trunc bit_size'
         //set current value of obj to idx
-        let mut i = Instruction::new(Operation::Truncate {
-            value: obj_id,
-            bit_size: v_max.bits() as u32,
-            max_bit_size, 
-        }, obj_type, None);
+        let mut i = Instruction::new(
+            Operation::Truncate {
+                value: obj_id,
+                bit_size: v_max.bits() as u32,
+                max_bit_size,
+            },
+            obj_type,
+            None,
+        );
 
         if i.res_name.ends_with("_t") {
             //TODO we should use %t so that we can check for this substring (% is not a valid char for a variable name) in the name and then write name%t[number+1]
@@ -310,13 +315,12 @@ fn block_overflow(
                     let max = get_obj_max_value(ctx, value_id, max_map, &value_map);
                     let maxbits = max.bits() as u32;
 
-                    if ins.res_type.bits() < get_size_in_bits(obj)
-                        && maxbits > ins.res_type.bits()
+                    if ins.res_type.bits() < get_size_in_bits(obj) && maxbits > ins.res_type.bits()
                     {
                         //we need to truncate
-                        ins.operator = Operation::Truncate { 
-                            value: value_id, 
-                            bit_size: maxbits, 
+                        ins.operator = Operation::Truncate {
+                            value: value_id,
+                            bit_size: maxbits,
                             max_bit_size: ins.res_type.bits(),
                         };
                     }
@@ -336,24 +340,14 @@ fn block_overflow(
             //n.b we could try to truncate only one of them, but then we should check if rhs==lhs.
             ins.operator.for_each_id(|id| {
                 let obj = ctx.try_get_node(id);
-                add_to_truncate(
-                    ctx,
-                    id,
-                    get_size_in_bits(obj),
-                    &mut truncate_map,
-                    max_map,
-                );
+                add_to_truncate(ctx, id, get_size_in_bits(obj), &mut truncate_map, max_map);
             });
 
-            ins_max = get_instruction_max_operand(
-                ctx,
-                &ins,
-                max_map,
-                &value_map,
-            );
+            ins_max = get_instruction_max_operand(ctx, &ins, max_map, &value_map);
 
             if ins_max.bits() >= FieldElement::max_num_bits().into() {
-                panic!("The bit size for this instruction is too big for the field: {}\n{}",
+                panic!(
+                    "The bit size for this instruction is too big for the field: {}\n{}",
                     ins_max.bits(),
                     ins,
                 );
@@ -371,13 +365,14 @@ fn block_overflow(
 
         if !delete_ins {
             new_list.push(ins.id);
-            ins.operator.map_id_mut(|id| get_value_from_map(id, &value_map));
+            ins.operator
+                .map_id_mut(|id| get_value_from_map(id, &value_map));
 
             if let Operation::Binary(node::Binary {
                 rhs,
                 operator: BinaryOp::Sub { max_rhs_value } | BinaryOp::SafeSub { max_rhs_value },
                 ..
-            }) = &mut ins.operator 
+            }) = &mut ins.operator
             {
                 //for now we pass the max value to the instruction, we could also keep the max_map e.g in the block (or max in each nodeobj)
                 //sub operations require the max value to ensure it does not underflow
@@ -441,7 +436,7 @@ fn get_load_max(
         }
     };
     ctx.mem[array].max.clone() //return array max
-                                               //  return obj_type.max_size();
+                               //  return obj_type.max_size();
 }
 
 //Returns the max value of an operation from an upper bound of left and right hand sides
@@ -455,12 +450,14 @@ fn get_max_value(ins: &Instruction, max_map: &mut HashMap<NodeId, BigUint>) -> B
             let type_max = ins.res_type.max_size();
             BigUint::min(max_map[value_id].clone(), type_max)
         }
-        Operation::Truncate { value, max_bit_size, .. } => {
-            BigUint::min(
-                max_map[value].clone(),
-                BigUint::from(2_u32).pow(*max_bit_size) - BigUint::from(1_u32),
-            )
-        }
+        Operation::Truncate {
+            value,
+            max_bit_size,
+            ..
+        } => BigUint::min(
+            max_map[value].clone(),
+            BigUint::from(2_u32).pow(*max_bit_size) - BigUint::from(1_u32),
+        ),
         Operation::Nop | Operation::Jne(..) | Operation::Jeq(..) | Operation::Jmp(_) => todo!(),
         Operation::Phi { root, block_args } => {
             let mut max = max_map[root].clone();
@@ -498,7 +495,11 @@ fn get_max_value(ins: &Instruction, max_map: &mut HashMap<NodeId, BigUint>) -> B
     max_value
 }
 
-fn get_binary_max_value(binary: &node::Binary, res_type: ObjectType, max_map: &mut HashMap<NodeId, BigUint>) -> BigUint {
+fn get_binary_max_value(
+    binary: &node::Binary,
+    res_type: ObjectType,
+    max_map: &mut HashMap<NodeId, BigUint>,
+) -> BigUint {
     let lhs_max = &max_map[&binary.lhs];
     let rhs_max = &max_map[&binary.rhs];
 

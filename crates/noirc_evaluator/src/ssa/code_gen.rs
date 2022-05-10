@@ -159,9 +159,10 @@ impl<'a> IRGenerator<'a> {
             Object::Array(a) => {
                 let obj_type = o_type.into();
                 //We should create an array from 'a' witnesses
-                let array = self.context
-                    .mem
-                    .create_array_from_object(&a, ident.id, obj_type, &ident_name);
+                let array =
+                    self.context
+                        .mem
+                        .create_array_from_object(&a, ident.id, obj_type, &ident_name);
 
                 node::Variable {
                     id: NodeId::dummy(),

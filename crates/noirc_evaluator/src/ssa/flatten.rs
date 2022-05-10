@@ -2,8 +2,9 @@ use super::{
     block::{self, BlockId},
     context::SsaContext,
     function,
-    node::{self, BinaryOp, Instruction, Node, NodeEval, NodeId, NodeObj, Operation, ObjectType},
-    optim, mem::ArrayId,
+    mem::ArrayId,
+    node::{self, BinaryOp, Instruction, Node, NodeEval, NodeId, NodeObj, ObjectType, Operation},
+    optim,
 };
 use acvm::FieldElement;
 use std::collections::{hash_map::Entry, HashMap};
@@ -38,10 +39,7 @@ fn eval_block(block_id: BlockId, eval_map: &HashMap<NodeId, NodeEval>, ctx: &mut
     }
 }
 
-fn update_operator(
-    operator: &Operation,
-    eval_map: &HashMap<NodeId, NodeEval>,
-) -> Operation {
+fn update_operator(operator: &Operation, eval_map: &HashMap<NodeId, NodeEval>) -> Operation {
     operator.map_id(|id| {
         eval_map
             .get(&id)
@@ -466,7 +464,9 @@ pub fn inline_in_block(
             //Arrays are mapped to array. We create the array if not mapped
             if let Some(array) = &array {
                 if let Entry::Vacant(e) = array_map.entry(array.id) {
-                    let new_id = ctx.mem.create_new_array(array.len, array.element_type, &array.name);
+                    let new_id =
+                        ctx.mem
+                            .create_new_array(array.len, array.element_type, &array.name);
                     //We populate the array (if possible) using the inline map
                     for i in &array.values {
                         if let Some(f) = i.to_const() {
@@ -485,7 +485,9 @@ pub fn inline_in_block(
                 //Return instruction:
                 Operation::Return(values) => {
                     //we need to find the corresponding result instruction in the target block (using ins.rhs) and replace it by ins.lhs
-                    let ret_id = ctx[target_block_id].get_result_instruction(call_id, ctx).unwrap();
+                    let ret_id = ctx[target_block_id]
+                        .get_result_instruction(call_id, ctx)
+                        .unwrap();
                     let i = ctx.get_mut_instruction(ret_id);
                     if let Operation::Results { results, .. } = &mut i.operator {
                         *results = values.clone();
@@ -504,8 +506,8 @@ pub fn inline_in_block(
                     //TODO use relative addressing, but that requires a few changes, mainly in acir_gen.rs and integer.rs
                     let b = array_map[&array_id];
                     //n.b. this offset is always positive
-                    let offset = ctx.mem[b].adr
-                        - ctx.get_function_context(func_id).mem[*array_id].adr;
+                    let offset =
+                        ctx.mem[b].adr - ctx.get_function_context(func_id).mem[*array_id].adr;
                     let index_type = ctx[*index].get_type();
                     let offset_id =
                         ctx.get_or_create_const(FieldElement::from(offset as i128), index_type);
@@ -534,8 +536,8 @@ pub fn inline_in_block(
                     value,
                 } => {
                     let b = array_map[&array_id];
-                    let offset = ctx.get_function_context(func_id).mem[*array_id].adr
-                        - ctx.mem[b].adr;
+                    let offset =
+                        ctx.get_function_context(func_id).mem[*array_id].adr - ctx.mem[b].adr;
                     let index_type = ctx[*index].get_type();
                     let offset_id =
                         ctx.get_or_create_const(FieldElement::from(offset as i128), index_type);
