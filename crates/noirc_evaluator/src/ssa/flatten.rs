@@ -452,13 +452,11 @@ pub fn inline_in_block(
     for &i_id in block_func_instructions {
         if let Some(ins) = ctx.get_function_context(func_id).try_get_instruction(i_id) {
             let mut array = None;
-            let mut array_id = None;
             let mut clone = ins.clone();
 
             if let node::ObjectType::Pointer(id) = ins.res_type {
                 //We need to map arrays to arrays via the array_map, we collect the data here to be mapped below.
                 array = Some(ctx.get_function_context(func_id).mem[id].clone());
-                array_id = Some(id);
             }
 
             clone.operator.map_id_mut(|id| {
@@ -466,8 +464,8 @@ pub fn inline_in_block(
             });
 
             //Arrays are mapped to array. We create the array if not mapped
-            if let (Some(array), Some(array_id)) = (array, array_id) {
-                if let Entry::Vacant(e) = array_map.entry(array_id) {
+            if let Some(array) = &array {
+                if let Entry::Vacant(e) = array_map.entry(array.id) {
                     let new_id = ctx.mem.create_new_array(array.len, array.element_type, &array.name);
                     //We populate the array (if possible) using the inline map
                     for i in &array.values {
@@ -565,8 +563,8 @@ pub fn inline_in_block(
                     let mut new_ins =
                         Instruction::new(clone.operator, clone.res_type, Some(target_block_id));
 
-                    if let Some(id) = array_id {
-                        if let Some(new_id) = array_map.get(&id) {
+                    if let Some(array) = &array {
+                        if let Some(new_id) = array_map.get(&array.id) {
                             new_ins.res_type = node::ObjectType::Pointer(*new_id);
                         }
                     }
@@ -574,8 +572,8 @@ pub fn inline_in_block(
                     optim::simplify(ctx, &mut new_ins);
 
                     if let Some(replacement) = new_ins.replacement {
-                        if let Some(id) = array_id {
-                            if let Entry::Occupied(mut entry) = array_map.entry(id) {
+                        if let Some(array) = &array {
+                            if let Entry::Occupied(mut entry) = array_map.entry(array.id) {
                                 if let ObjectType::Pointer(new_id) = ctx[replacement].get_type() {
                                     //we now map the array to rhs array
                                     entry.insert(new_id);
