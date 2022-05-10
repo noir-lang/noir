@@ -1,4 +1,5 @@
 use super::block::{BasicBlock, BlockId};
+use super::function::SSAFunction;
 use super::mem::Memory;
 use super::node::{BinaryOp, Instruction, NodeId, NodeObj, ObjectType, Operation};
 use super::{block, flatten, integer, node, optim};
@@ -28,7 +29,7 @@ pub struct SsaContext<'a> {
     pub nodes: arena::Arena<node::NodeObj>,
     pub sealed_blocks: HashSet<BlockId>,
     pub mem: Memory,
-    pub functions_cfg: HashMap<FuncId, function::SSAFunction<'a>>,
+    pub functions: HashMap<FuncId, function::SSAFunction>,
 }
 
 impl<'a> SsaContext<'a> {
@@ -41,7 +42,7 @@ impl<'a> SsaContext<'a> {
             nodes: arena::Arena::new(),
             sealed_blocks: HashSet::new(),
             mem: Memory::default(),
-            functions_cfg: HashMap::new(),
+            functions: HashMap::new(),
         };
         block::create_first_block(&mut pc);
         pc.get_or_create_const(FieldElement::one(), node::ObjectType::Unsigned(1));
@@ -176,10 +177,6 @@ impl<'a> SsaContext<'a> {
             println!("************* Block n.{}", i);
             self.print_block(b);
         }
-        for (_, f) in self.functions_cfg.iter().enumerate() {
-            println!("************* FUNCTION n.{:?}", f.1.id);
-            f.1.igen.context.print("");
-        }
     }
 
     pub fn context(&self) -> &'a Context {
@@ -224,6 +221,10 @@ impl<'a> SsaContext<'a> {
         id
     }
 
+    pub fn get_ssafunc(&'a self, func_id: FuncId) -> Option<&SSAFunction> {
+        self.functions.get(&func_id)
+    }
+
     pub fn dummy_id() -> arena::Index {
         arena::Index::from_raw_parts(std::usize::MAX, 0)
     }
@@ -246,10 +247,6 @@ impl<'a> SsaContext<'a> {
             return Some(FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be()));
         }
         None
-    }
-
-    pub fn get_function_context(&self, func_id: FuncId) -> &SsaContext {
-        &self.functions_cfg[&func_id].igen.context
     }
 
     //todo handle errors
@@ -426,17 +423,21 @@ impl<'a> SsaContext<'a> {
         enable_logging: bool,
     ) -> Result<(), RuntimeError> {
         //SSA
-        self.log(enable_logging, "SSA:", "CSE:");
+        self.log(enable_logging, "SSA:", "inline functions");
+        flatten::inline_all_functions(self);
 
         //Optimisation
         block::compute_dom(self);
-        optim::cse(self);
-        self.log(enable_logging, "", "unrolling:");
+        optim::cse(self, self.first_block);
+        self.log(enable_logging, "CSE:", "unrolling:");
         //Unrolling
-        flatten::unroll_tree(self);
+        flatten::unroll_tree(self, self.first_block);
+
+        //Inlining
         self.log(enable_logging, "", "inlining:");
-        flatten::inline_tree(self);
-        optim::cse(self);
+        flatten::inline_tree(self, self.first_block);
+        optim::cse(self, self.first_block);
+
         //Truncation
         integer::overflow_strategy(self);
         self.log(enable_logging, "overflow:", "");

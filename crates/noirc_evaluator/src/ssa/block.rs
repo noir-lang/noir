@@ -74,15 +74,23 @@ impl BasicBlock {
             _ => false,
         })
     }
+
+    //Create the first block for a CFG
+    pub fn create_cfg(ctx: &mut SsaContext) -> BlockId {
+        let root_block = BasicBlock::new(BlockId::dummy(), BlockType::Normal);
+        let root_block = ctx.insert_block(root_block);
+        let root_id = root_block.id;
+        ctx.current_block = root_id;
+        ctx.new_instruction(
+            node::Operation::Nop,
+            node::ObjectType::NotAnObject,
+        );
+        root_id
+    }
 }
 
 pub fn create_first_block(ctx: &mut SsaContext) {
-    let first_block = BasicBlock::new(BlockId::dummy(), BlockType::Normal);
-    let first_block = ctx.insert_block(first_block);
-    let first_id = first_block.id;
-    ctx.first_block = first_id;
-    ctx.current_block = first_id;
-    ctx.new_instruction(node::Operation::Nop, node::ObjectType::NotAnObject);
+    ctx.first_block = BasicBlock::create_cfg(ctx);
 }
 
 //Creates a new sealed block (i.e whose predecessors are known)
@@ -168,8 +176,26 @@ pub fn compute_dom(ctx: &mut SsaContext) {
     }
 }
 
+pub fn compute_sub_dom(ctx: &mut SsaContext, blocks: &[BlockId]) {
+    let mut dominator_link = HashMap::new();
+
+    for &block_id in blocks {
+        let block = &ctx[block_id];
+        if let Some(dom) = block.dominator {
+            dominator_link.entry(dom).or_insert_with(Vec::new).push(block.id);
+        }
+    }
+    //RIA
+    for (master, svec) in dominator_link {
+        let dom_b = &mut ctx[master];
+        for slave in svec {
+            dom_b.dominated.push(slave);
+        }
+    }
+}
+
 //breadth-first traversal of the CFG, from start, until we reach stop
-pub fn bfs(start: BlockId, stop: BlockId, ctx: &SsaContext) -> Vec<BlockId> {
+pub fn bfs(start: BlockId, stop: Option<BlockId>, ctx: &SsaContext) -> Vec<BlockId> {
     let mut result = vec![start]; //list of blocks in the visited subgraph
     let mut queue = VecDeque::new(); //Queue of elements to visit
     queue.push_back(start);
@@ -179,7 +205,10 @@ pub fn bfs(start: BlockId, stop: BlockId, ctx: &SsaContext) -> Vec<BlockId> {
 
         let mut test_and_push = |block_opt| {
             if let Some(block_id) = block_opt {
-                if block_id != stop && !result.contains(&block_id) {
+                if stop == Some(block_id) {
+                    return;
+                }
+                if !result.contains(&block_id) {
                     result.push(block_id);
                     queue.push_back(block_id);
                 }
