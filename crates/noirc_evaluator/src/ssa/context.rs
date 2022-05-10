@@ -413,13 +413,10 @@ impl<'a> SsaContext<'a> {
     }
 
     pub fn pause(&self, interactive: bool, before: &str, after: &str) {
-        if_debug::if_debug!(if interactive {
+        if interactive {
             self.print(before);
-            let mut number = String::new();
-            println!("Press enter to continue");
-            std::io::stdin().read_line(&mut number).unwrap();
             println!("{}", after);
-        });
+        }
     }
 
     //Optimise, flatten and truncate IR and then generates ACIR representation from it

@@ -102,8 +102,8 @@ impl<'a> Evaluator<'a> {
         let mut env = Environment::new(FuncContext::Main);
 
         // First evaluate the main function
-        if interactive {
-            self.evaluate_main_alt(&mut env, interactive)?;
+        if true {
+            self.evaluate_main_alt(&mut env, true)?;
         } else {
             self.evaluate_main(&mut env)?;
         }

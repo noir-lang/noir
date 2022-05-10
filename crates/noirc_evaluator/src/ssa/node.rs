@@ -365,11 +365,11 @@ impl Instruction {
     }
 
     /// Indicates whether the left and/or right operand of the instruction is required to be truncated to its bit-width
-    pub fn truncate_required(&self, cast_operation_lhs_bits: u32) -> bool {
+    pub fn truncate_required(&self) -> bool {
         match &self.operator {
             Operation::Binary(binary) => binary.truncate_required(),
             Operation::Not(..) => true,
-            Operation::Cast(..) => self.res_type.bits() > cast_operation_lhs_bits,
+            Operation::Cast(..) => true,
             Operation::Truncate { .. } | Operation::Phi { .. } => false,
             Operation::Nop | Operation::Jne(..) | Operation::Jeq(..) | Operation::Jmp(..) => false,
             Operation::Load { .. } | Operation::Store { .. } => false,

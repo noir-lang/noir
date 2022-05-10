@@ -110,7 +110,7 @@ fn get_obj_max_value(
 fn truncate(
     ctx: &mut SsaContext,
     obj_id: NodeId,
-    max_bit_size: u32,
+    bit_size: u32,
     max_map: &mut HashMap<NodeId, BigUint>,
 ) -> Option<NodeId> {
     // get type
@@ -120,12 +120,15 @@ fn truncate(
     //ensure truncate is needed:
     let v_max = &max_map[&obj_id];
 
-    if *v_max >= BigUint::one() << max_bit_size {
+    if *v_max >= BigUint::one() << bit_size {
         //TODO is max_bit_size leaking some info????
         //Create a new truncate instruction '(idx): obj trunc bit_size'
         //set current value of obj to idx
+        let max_bit_size = v_max.bits() as u32;
+        assert!((v_max.bits() as u32) <= max_bit_size, "truncate: bitsize = {} must be less than max_bit_size {}", v_max.bits(), max_bit_size);
+
         let mut i = Instruction::new(
-            Operation::Truncate { value: obj_id, bit_size: v_max.bits() as u32, max_bit_size },
+            Operation::Truncate { value: obj_id, bit_size, max_bit_size },
             obj_type,
             None,
         );
@@ -135,7 +138,7 @@ fn truncate(
         }
         i.res_name = obj_name + "_t";
         let i_id = ctx.add_instruction(i);
-        max_map.insert(i_id, BigUint::from((1_u128 << max_bit_size) - 1));
+        max_map.insert(i_id, BigUint::from((1_u128 << bit_size) - 1));
         Some(i_id)
         //we now need to call fix_truncate(), it is done in a separate function in order to not overwhelm the arguments list.
     } else {
@@ -165,7 +168,7 @@ fn add_to_truncate(
     obj_id: NodeId,
     bit_size: u32,
     to_truncate: &mut HashMap<NodeId, u32>,
-    max_map: &HashMap<NodeId, BigUint>,
+    max_map: &mut HashMap<NodeId, BigUint>,
 ) {
     let v_max = &max_map[&obj_id];
     if *v_max >= BigUint::one() << bit_size {
@@ -177,6 +180,9 @@ fn add_to_truncate(
             None => bit_size,
         };
         to_truncate.insert(obj_id, truncate_bits);
+
+        // let new_max = (BigUint::one() << truncate_bits) - BigUint::one();
+        // max_map.insert(obj_id, new_max);
     }
 }
 
@@ -251,21 +257,41 @@ fn block_overflow(
 
         //we propagate optimised loads - todo check if it is needed because there is cse at the end
         //We retrieve get_current_value() in case a previous truncate has updated the value map
-        ins.operator = ins.operator.map_id(|id| {
+        let should_truncate = ins.truncate_required();
+        let ins_max_bits = get_instruction_max(ctx, &ins, max_map, &value_map).bits();
+        let res_type = ins.res_type;
+
+        ins.operator.map_id_mut(|id| {
             let id = optim::propagate(ctx, id);
             let id = get_value_from_map(id, &value_map);
 
             get_obj_max_value(ctx, id, max_map, &value_map);
             let obj = ctx.try_get_node(id);
-            let should_truncate = ins.truncate_required(get_size_in_bits(obj));
 
             if should_truncate && obj.is_some() && get_type(obj) != ObjectType::NativeField {
                 //adds a new truncate(lhs) instruction
+                add_to_truncate(ctx, id, get_size_in_bits(obj), &mut truncate_map, max_map);
+            } else if ins_max_bits >= FieldElement::max_num_bits() as u64 && res_type != ObjectType::NativeField {
                 add_to_truncate(ctx, id, get_size_in_bits(obj), &mut truncate_map, max_map);
             }
 
             id
         });
+
+        // let ins_max = get_instruction_max(ctx, &ins, max_map, &value_map);
+        // if ins_max.bits() >= (FieldElement::max_num_bits() as u64)
+        //     && ins.res_type != ObjectType::NativeField
+        // {
+        //     //let's truncate a and b:
+        //     //- insert truncate(lhs) to the list of instructions
+        //     //- insert truncate(rhs) to the list of instructions
+        //     //- update r_max to l_max
+        //     //n.b we could try to truncate only one of them, but then we should check if rhs==lhs.
+        //     ins.operator.for_each_id(|id| {
+        //         let obj = ctx.try_get_node(id);
+        //         add_to_truncate(ctx, id, get_size_in_bits(obj), &mut truncate_map, max_map);
+        //     });
+        // }
 
         let mut replacement = None;
         let mut delete_ins = false;
@@ -321,31 +347,6 @@ fn block_overflow(
                 }
             }
             _ => (),
-        }
-
-        let mut ins_max = get_instruction_max(ctx, &ins, max_map, &value_map);
-        if ins_max.bits() >= (FieldElement::max_num_bits() as u64)
-            && ins.res_type != ObjectType::NativeField
-        {
-            //let's truncate a and b:
-            //- insert truncate(lhs) to the list of instructions
-            //- insert truncate(rhs) to the list of instructions
-            //- update r_max to l_max
-            //n.b we could try to truncate only one of them, but then we should check if rhs==lhs.
-            ins.operator.for_each_id(|id| {
-                let obj = ctx.try_get_node(id);
-                add_to_truncate(ctx, id, get_size_in_bits(obj), &mut truncate_map, max_map);
-            });
-
-            ins_max = get_instruction_max_operand(ctx, &ins, max_map, &value_map);
-
-            if ins_max.bits() >= FieldElement::max_num_bits().into() {
-                panic!(
-                    "The bit size for this instruction is too big for the field: {}\n{}",
-                    ins_max.bits(),
-                    ins,
-                );
-            }
         }
 
         process_to_truncate(

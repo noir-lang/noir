@@ -824,7 +824,8 @@ pub fn evaluate_truncate(
     max_bits: u32,
     evaluator: &mut Evaluator,
 ) -> InternalVar {
-    assert!(max_bits > rhs);
+    assert!(max_bits > rhs, "max_bits = {}, rhs = {}", max_bits, rhs);
+
     //0. Check for constant expression. This can happen through arithmetic simplifications
     if let Some(a_c) = lhs.to_const() {
         let mut a_big = BigUint::from_bytes_be(&a_c.to_bytes());
