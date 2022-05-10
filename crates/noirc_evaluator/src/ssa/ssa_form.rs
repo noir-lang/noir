@@ -123,6 +123,7 @@ pub fn create_function_parameter(igen: &mut IRGenerator, ident_id: &DefinitionId
                 igen.context
                     .mem
                     .create_new_array(get_array_size(&len), obj_type, &ident_name);
+
             node::Variable {
                 id: NodeId::dummy(),
                 name: ident_name.clone(),

@@ -17,6 +17,7 @@ use std::ops::Mul;
 
 use super::block::BlockId;
 use super::context::SsaContext;
+use super::mem::ArrayId;
 
 pub trait Node: std::fmt::Display {
     fn get_type(&self) -> ObjectType;
@@ -186,7 +187,7 @@ pub enum ObjectType {
     Boolean,
     Unsigned(u32), //bit size
     Signed(u32),   //bit size
-    Pointer(u32),  //array index
+    Pointer(ArrayId),
     //custom(u32),   //user-defined struct, u32 refers to the id of the type in...?todo
     //TODO big_int
     //TODO floats
@@ -368,13 +369,9 @@ impl Instruction {
         match &self.operator {
             Operation::Binary(binary) => binary.truncate_required(),
             Operation::Not(..) => true,
-            Operation::Cast(..) => {
-                self.res_type.bits() > cast_operation_lhs_bits
-            }
+            Operation::Cast(..) => self.res_type.bits() > cast_operation_lhs_bits,
             Operation::Truncate { .. } | Operation::Phi { .. } => false,
-            Operation::Nop | Operation::Jne(..) | Operation::Jeq(..) | Operation::Jmp(..) => {
-                false
-            }
+            Operation::Nop | Operation::Jne(..) | Operation::Jeq(..) | Operation::Jmp(..) => false,
             Operation::Load { .. } | Operation::Store { .. } => false,
             Operation::Intrinsic(_, _) => true, //TODO to check
             Operation::Call(_, _) => false, //return values are in the return statment, should we truncate function arguments? probably but not lhs and rhs anyways.
@@ -531,11 +528,11 @@ pub enum Operation {
 
     //memory
     Load {
-        array: u32,
+        array_id: ArrayId,
         index: NodeId,
     },
     Store {
-        array: u32,
+        array_id: ArrayId,
         index: NodeId,
         value: NodeId,
     },
@@ -939,16 +936,19 @@ impl Operation {
                 root: f(*root),
                 block_args: vecmap(block_args, |(id, block)| (f(*id), *block)),
             },
-            Load { array, index } => Load {
-                array: *array,
+            Load {
+                array_id: array,
+                index,
+            } => Load {
+                array_id: *array,
                 index: f(*index),
             },
             Store {
-                array,
+                array_id: array,
                 index,
                 value,
             } => Store {
-                array: *array,
+                array_id: *array,
                 index: f(*index),
                 value: f(*value),
             },
@@ -973,12 +973,9 @@ impl Operation {
             Binary(self::Binary { lhs, rhs, .. }) => {
                 *lhs = f(*lhs);
                 *rhs = f(*rhs);
-            },
+            }
             Cast(value) => *value = f(*value),
-            Truncate {
-                value,
-                ..
-            } => *value = f(*value),
+            Truncate { value, .. } => *value = f(*value),
             Not(id) => *id = f(*id),
             Jne(id, _) => *id = f(*id),
             Jeq(id, _) => *id = f(*id),
@@ -988,21 +985,17 @@ impl Operation {
                 for (id, _block) in block_args {
                     *id = f(*id);
                 }
-            },
+            }
             Load { index, .. } => *index = f(*index),
-            Store {
-                index,
-                value,
-                ..
-            } => {
+            Store { index, value, .. } => {
                 *index = f(*index);
                 *value = f(*value);
-            },
+            }
             Intrinsic(_, args) => {
                 for arg in args {
                     *arg = f(*arg);
                 }
-            },
+            }
             Nop => (),
             Call(_, args) => {
                 for arg in args {
@@ -1022,7 +1015,7 @@ impl Operation {
                 for result in results {
                     *result = f(*result);
                 }
-            },
+            }
         }
     }
 
@@ -1033,12 +1026,9 @@ impl Operation {
             Binary(self::Binary { lhs, rhs, .. }) => {
                 f(*lhs);
                 f(*rhs);
-            },
+            }
             Cast(value) => f(*value),
-            Truncate {
-                value,
-                ..
-            } => f(*value),
+            Truncate { value, .. } => f(*value),
             Not(id) => f(*id),
             Jne(id, _) => f(*id),
             Jeq(id, _) => f(*id),
@@ -1048,16 +1038,12 @@ impl Operation {
                 for (id, _block) in block_args {
                     f(*id);
                 }
-            },
+            }
             Load { index, .. } => f(*index),
-            Store {
-                index,
-                value,
-                ..
-            } => {
+            Store { index, value, .. } => {
                 f(*index);
                 f(*value);
-            },
+            }
             Intrinsic(_, args) => args.iter().copied().for_each(f),
             Nop => (),
             Call(_, args) => args.iter().copied().for_each(f),
@@ -1068,7 +1054,7 @@ impl Operation {
             } => {
                 f(*call_instruction);
                 results.iter().copied().for_each(f);
-            },
+            }
         }
     }
 }

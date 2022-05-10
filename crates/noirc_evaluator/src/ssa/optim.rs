@@ -38,14 +38,12 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut node::Instruction) -> Option<Nod
             operator: BinaryOp::Constrain(op),
             lhs,
             rhs,
-        }) => {
-            match (op, Memory::deref(ctx, lhs), Memory::deref(ctx, rhs)) {
-                (ConstrainOp::Eq, Some(lhs), Some(rhs)) if lhs == rhs => {
-                    ins.delete();
-                }
-                _ => (),
+        }) => match (op, Memory::deref(ctx, lhs), Memory::deref(ctx, rhs)) {
+            (ConstrainOp::Eq, Some(lhs), Some(rhs)) if lhs == rhs => {
+                ins.delete();
             }
-        }
+            _ => (),
+        },
         _ => (),
     }
 
@@ -118,15 +116,15 @@ pub fn find_similar_mem_instruction(
     anchor: &HashMap<node::Operation, VecDeque<NodeId>>,
 ) -> CseAction {
     match op {
-        Operation::Load { array, index } => {
+        Operation::Load { array_id, index } => {
             for iter in anchor[&op].iter().rev() {
                 if let Some(ins_iter) = ctx.try_get_instruction(*iter) {
                     match &ins_iter.operator {
                         Operation::Load {
-                            array: array2,
+                            array_id: array_id2,
                             index: index2,
                         } => {
-                            assert_eq!(array, array2);
+                            assert_eq!(array_id, array_id2);
                             assert_eq!(index, index2);
                             return CseAction::Replace {
                                 original: ins_id,
@@ -134,11 +132,11 @@ pub fn find_similar_mem_instruction(
                             };
                         }
                         Operation::Store {
-                            array: array2,
+                            array_id: array_id2,
                             index: index2,
                             value,
                         } => {
-                            assert_eq!(array, array2);
+                            assert_eq!(array_id, array_id2);
                             assert_eq!(index, index2);
                             if index == index2 {
                                 return CseAction::Replace {
@@ -156,26 +154,24 @@ pub fn find_similar_mem_instruction(
             }
         }
         Operation::Store {
-            array,
+            array_id,
             index,
             value: _,
         } => {
             let prev_ins = &anchor[&Operation::Load {
-                array: *array,
+                array_id: *array_id,
                 index: *index,
             }];
             for node_id in prev_ins.iter().rev() {
                 if let Some(ins_iter) = ctx.try_get_instruction(*node_id) {
                     match ins_iter.operator {
-                        Operation::Load {
-                            ..
-                        } => {
+                        Operation::Load { .. } => {
                             //TODO: If we know that ins.rhs value cannot be equal to ins_iter.rhs, we could continue instead
                             return CseAction::Keep;
                         }
                         Operation::Store {
                             index: index2,
-                            array: _,
+                            array_id: _,
                             value: _,
                         } => {
                             if *index == index2 {
@@ -199,7 +195,12 @@ pub fn find_similar_mem_instruction(
 pub fn propagate(ctx: &SsaContext, id: NodeId) -> NodeId {
     let mut result = id;
     if let Some(obj) = ctx.try_get_instruction(id) {
-        if let Operation::Binary(node::Binary { operator: BinaryOp::Assign, rhs, .. }) = &obj.operator {
+        if let Operation::Binary(node::Binary {
+            operator: BinaryOp::Assign,
+            rhs,
+            ..
+        }) = &obj.operator
+        {
             result = *rhs;
         }
 
@@ -235,9 +236,11 @@ pub fn cse_tree(
 
 pub fn anchor_push(op: Operation, anchor: &mut HashMap<Operation, VecDeque<NodeId>>) {
     match op {
-        Operation::Store { array, index, .. } => anchor
+        Operation::Store {
+            array_id, index, ..
+        } => anchor
             // TODO: review correctness
-            .entry(Operation::Load { array, index })
+            .entry(Operation::Load { array_id, index })
             .or_insert_with(VecDeque::new),
         _ => anchor.entry(op).or_insert_with(VecDeque::new),
     };
@@ -271,9 +274,16 @@ pub fn block_cse(
 
             if operator.is_binary() {
                 //binary operation:
-                if let Some(similar) = find_similar_instruction(ctx, &ins.operator, &anchor[&ins.operator]) {
+                if let Some(similar) =
+                    find_similar_instruction(ctx, &ins.operator, &anchor[&ins.operator])
+                {
                     replacement = Some(similar);
-                } else if let Operation::Binary(node::Binary { operator: BinaryOp::Assign, rhs, .. }) = operator {
+                } else if let Operation::Binary(node::Binary {
+                    operator: BinaryOp::Assign,
+                    rhs,
+                    ..
+                }) = operator
+                {
                     replacement = Some(propagate(ctx, rhs));
                 } else {
                     new_list.push(*ins_id);
@@ -284,7 +294,10 @@ pub fn block_cse(
                     Operation::Load { .. } | Operation::Store { .. } => {
                         match find_similar_mem_instruction(ctx, &operator, ins.id, anchor) {
                             CseAction::Keep => new_list.push(*ins_id),
-                            CseAction::Replace { original, replacement: replace_with } => {
+                            CseAction::Replace {
+                                original,
+                                replacement: replace_with,
+                            } => {
                                 assert_eq!(original, *ins_id);
                                 replacement = Some(replace_with);
                             }
@@ -327,7 +340,9 @@ pub fn block_cse(
                     }
                     Operation::Intrinsic(..) => {
                         //n.b this could be the default behavior for binary operations
-                        if let Some(similar) = find_similar_instruction(ctx, &operator, &anchor[&operator]) {
+                        if let Some(similar) =
+                            find_similar_instruction(ctx, &operator, &anchor[&operator])
+                        {
                             replacement = Some(similar);
                         } else {
                             new_list.push(*ins_id);
