@@ -292,8 +292,10 @@ pub struct Instruction {
     pub operator: Operation,
     pub res_type: ObjectType, //result type
     pub parent_block: BlockId,
-    pub is_deleted: bool,
     pub res_name: String,
+
+    /// Set to Some(id) if this instruction is to be replaced by another
+    pub replacement: Option<NodeId>,
 }
 
 impl std::fmt::Display for Instruction {
@@ -327,17 +329,6 @@ impl NodeEval {
         }
     }
 
-    /// Returns is_zero, the field value if known, and the bitcount
-    pub fn evaluate(&self) -> (bool, Option<u128>, u32) {
-        match self {
-            &NodeEval::Const(c, t) => {
-                let (value, bitcount) = field_to_u128(c, t);
-                (c.is_zero(), Some(value), bitcount)
-            }
-            _ => (false, None, 0),
-        }
-    }
-
     pub fn from_id(ctx: &SsaContext, id: NodeId) -> NodeEval {
         match &ctx[id] {
             NodeObj::Const(c) => {
@@ -350,21 +341,6 @@ impl NodeEval {
 
     fn from_u128(value: u128, typ: ObjectType) -> NodeEval {
         NodeEval::Const(value.into(), typ)
-    }
-}
-
-//Returns the field element as i128 and the bit size of the constant node
-pub fn field_to_u128(c: FieldElement, ctype: ObjectType) -> (u128, u32) {
-    match ctype {
-        ObjectType::Boolean => (if c.is_zero() { 0 } else { 1 }, 1),
-        ObjectType::NativeField => {
-            (c.to_u128(), 256) //TODO: handle elements that do not fit in 128 bits
-        }
-        ObjectType::Signed(b) | ObjectType::Unsigned(b) => {
-            assert!(b < 128); //we do not support integers bigger than 128 bits for now.
-            (c.to_u128(), b)
-        } //TODO check how to handle signed integers
-        _ => todo!(),
     }
 }
 
@@ -382,8 +358,8 @@ impl Instruction {
             operator: op_code,
             res_type: r_type,
             res_name: String::new(),
-            is_deleted: false,
             parent_block: p_block,
+            replacement: None,
         }
     }
 
@@ -463,6 +439,15 @@ impl Instruction {
         same
     }
 
+    /// Delete this instruciton by mutating it into a Operation::Nop
+    pub fn delete(&mut self) {
+        self.operator = Operation::Nop;
+    }
+
+    pub fn is_deleted(&self) -> bool {
+        self.operator == Operation::Nop || self.replacement.is_some()
+    }
+
     pub fn standard_form(&mut self) {
         match &mut self.operator {
             Operation::Binary(binary) => {
@@ -470,8 +455,7 @@ impl Instruction {
                     match op {
                         ConstrainOp::Eq => {
                             if binary.rhs == binary.rhs {
-                                self.is_deleted = true;
-                                self.operator = Operation::Nop;
+                                self.delete();
                                 return;
                             }
                         }
@@ -978,6 +962,66 @@ impl Operation {
             } => Results {
                 call_instruction: f(*call_instruction),
                 results: vecmap(results.iter().copied(), f),
+            },
+        }
+    }
+
+    /// Mutate each contained NodeId in place using the given function f
+    pub fn map_id_mut(&mut self, mut f: impl FnMut(NodeId) -> NodeId) {
+        use Operation::*;
+        match self {
+            Binary(self::Binary { lhs, rhs, .. }) => {
+                *lhs = f(*lhs);
+                *rhs = f(*rhs);
+            },
+            Cast(value) => *value = f(*value),
+            Truncate {
+                value,
+                ..
+            } => *value = f(*value),
+            Not(id) => *id = f(*id),
+            Jne(id, _) => *id = f(*id),
+            Jeq(id, _) => *id = f(*id),
+            Jmp(_) => (),
+            Phi { root, block_args } => {
+                f(*root);
+                for (id, _block) in block_args {
+                    *id = f(*id);
+                }
+            },
+            Load { index, .. } => *index = f(*index),
+            Store {
+                index,
+                value,
+                ..
+            } => {
+                *index = f(*index);
+                *value = f(*value);
+            },
+            Intrinsic(_, args) => {
+                for arg in args {
+                    *arg = f(*arg);
+                }
+            },
+            Nop => (),
+            Call(_, args) => {
+                for arg in args {
+                    *arg = f(*arg);
+                }
+            }
+            Return(values) => {
+                for value in values {
+                    *value = f(*value);
+                }
+            }
+            Results {
+                call_instruction,
+                results,
+            } => {
+                *call_instruction = f(*call_instruction);
+                for result in results {
+                    *result = f(*result);
+                }
             },
         }
     }

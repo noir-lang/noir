@@ -16,9 +16,9 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut node::Instruction) -> Option<Nod
     };
 
     if idx != ins.id {
-        ins.is_deleted = true;
+        ins.replacement = Some(idx);
         if idx == NodeId::dummy() {
-            ins.operator = node::Operation::Nop;
+            ins.delete();
         }
         return Some(idx);
     }
@@ -29,7 +29,7 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut node::Instruction) -> Option<Nod
         Operation::Cast(value_id) => {
             if let Some(value) = ctx.try_get_node(value_id) {
                 if value.get_type() == ins.res_type {
-                    ins.is_deleted = true;
+                    ins.delete();
                     return Some(NodeId::dummy());
                 }
             }
@@ -41,12 +41,7 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut node::Instruction) -> Option<Nod
         }) => {
             match (op, Memory::deref(ctx, lhs), Memory::deref(ctx, rhs)) {
                 (ConstrainOp::Eq, Some(lhs), Some(rhs)) if lhs == rhs => {
-                    ins.is_deleted = true;
-                    ins.operator = Operation::Nop;
-                }
-                (ConstrainOp::Neq, Some(lhs), Some(rhs)) => {
-                    // TODO: Why are we asserting here? This seems like a valid case
-                    assert_ne!(lhs, rhs);
+                    ins.delete();
                 }
                 _ => (),
             }
@@ -202,11 +197,14 @@ pub fn find_similar_mem_instruction(
 }
 
 pub fn propagate(ctx: &SsaContext, id: NodeId) -> NodeId {
-    let result = id;
+    let mut result = id;
     if let Some(obj) = ctx.try_get_instruction(id) {
-        if obj.is_deleted || matches!(obj.operator, Operation::Binary(node::Binary { operator: BinaryOp::Assign, .. })) {
-            // result = obj.rhs;
-            todo!("Refactor deletion")
+        if let Operation::Binary(node::Binary { operator: BinaryOp::Assign, rhs, .. }) = &obj.operator {
+            result = *rhs;
+        }
+
+        if let Some(replacement) = obj.replacement {
+            result = replacement;
         }
     }
     result
@@ -261,26 +259,22 @@ pub fn block_cse(
 
     for ins_id in instructions {
         if let Some(ins) = ctx.try_get_instruction(*ins_id) {
-            let mut to_delete = false;
-
-            if ins.is_deleted {
+            if ins.is_deleted() {
                 continue;
             }
-
             anchor_push(ins.operator.clone(), anchor);
 
             let operator = ins.operator.map_id(|id| propagate(ctx, id));
 
+            let mut to_delete = false;
+            let mut replacement = None;
+
             if operator.is_binary() {
                 //binary operation:
-                if let Some(_j) = find_similar_instruction(ctx, &ins.operator, &anchor[&ins.operator]) {
-                    // to_delete = true; //we want to delete ins but ins is immutable so we use the new_list instead
-                    // i_rhs = j;
-                    todo!("Refactor deletion");
-                } else if let Operation::Binary(node::Binary { operator: BinaryOp::Assign, .. }) = operator {
-                    // i_rhs = propagate(ctx, ins.rhs);
-                    // to_delete = true;
-                    todo!("Refactor deletion");
+                if let Some(similar) = find_similar_instruction(ctx, &ins.operator, &anchor[&ins.operator]) {
+                    replacement = Some(similar);
+                } else if let Operation::Binary(node::Binary { operator: BinaryOp::Assign, rhs, .. }) = operator {
+                    replacement = Some(propagate(ctx, rhs));
                 } else {
                     new_list.push(*ins_id);
                     anchor.get_mut(&ins.operator).unwrap().push_front(*ins_id);
@@ -290,10 +284,9 @@ pub fn block_cse(
                     Operation::Load { .. } | Operation::Store { .. } => {
                         match find_similar_mem_instruction(ctx, &operator, ins.id, anchor) {
                             CseAction::Keep => new_list.push(*ins_id),
-                            CseAction::Replace { original: _, replacement: _ } => {
-                                // to_delete = true;
-                                // i_rhs = replacement;
-                                todo!("Refactor deletion")
+                            CseAction::Replace { original, replacement: replace_with } => {
+                                assert_eq!(original, *ins_id);
+                                replacement = Some(replace_with);
                             }
                             CseAction::Remove(id_to_remove) => {
                                 new_list.push(*ins_id);
@@ -310,9 +303,7 @@ pub fn block_cse(
                             if first == ins.id {
                                 new_list.push(*ins_id);
                             } else {
-                                // to_delete = true;
-                                // /i_rhs = first;
-                                todo!("Refactor deletion");
+                                replacement = Some(first);
                             }
                         } else {
                             to_delete = true;
@@ -320,12 +311,10 @@ pub fn block_cse(
                     }
                     Operation::Cast(_) => {
                         //Similar cast must have same type
-                        if let Some(_j) =
+                        if let Some(similar) =
                             find_similar_cast(ctx, &operator, ins.res_type, &anchor[&operator])
                         {
-                            // to_delete = true; //we want to delete ins but ins is immutable so we use the new_list instead
-                            // i_rhs = j;
-                            todo!("Refactor deletion");
+                            replacement = Some(similar);
                         } else {
                             new_list.push(*ins_id);
                             anchor.get_mut(&operator).unwrap().push_front(*ins_id);
@@ -338,10 +327,8 @@ pub fn block_cse(
                     }
                     Operation::Intrinsic(..) => {
                         //n.b this could be the default behavior for binary operations
-                        if let Some(_j) = find_similar_instruction(ctx, &operator, &anchor[&operator]) {
-                            // to_delete = true; //we want to delete ins but ins is immutable so we use the new_list instead
-                            // i_rhs = j;
-                            todo!("Refactor deletion")
+                        if let Some(similar) = find_similar_instruction(ctx, &operator, &anchor[&operator]) {
+                            replacement = Some(similar);
                         } else {
                             new_list.push(*ins_id);
                             anchor.get_mut(&operator).unwrap().push_front(*ins_id);
@@ -356,7 +343,10 @@ pub fn block_cse(
 
             let update = ctx.get_mut_instruction(*ins_id);
             update.operator = operator;
-            update.is_deleted = to_delete;
+            update.replacement = replacement;
+            if to_delete {
+                update.delete();
+            }
         }
     }
 

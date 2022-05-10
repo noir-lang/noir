@@ -460,7 +460,7 @@ pub fn inline_in_block(
                 array_func_idx = a;
             }
 
-            clone.operator = clone.operator.map_id(|id| {
+            clone.operator.map_id_mut(|id| {
                 function::SSAFunction::get_mapped_value(func_id, Some(&id), ctx, inline_map)
             });
 
@@ -484,28 +484,14 @@ pub fn inline_in_block(
             match &clone.operator {
                 Operation::Nop => (),
                 //Return instruction:
-                Operation::Return(_) => {
+                Operation::Return(values) => {
                     //we need to find the corresponding result instruction in the target block (using ins.rhs) and replace it by ins.lhs
-                    if let Some(ret_id) = ctx[target_block_id].get_result_instruction(call_id, ctx)
-                    {
-                        //we support only one result for now, should use 'ins.lhs.get_value()'
-                        if let NodeObj::Instr(i) = &mut ctx[ret_id] {
-                            i.is_deleted = true;
-                            // i.rhs = new_left; //Then we need to ensure there is a CSE.
-                            todo!("Refactor deletions")
-                        }
+                    let ret_id = ctx[target_block_id].get_result_instruction(call_id, ctx).unwrap();
+                    let i = ctx.get_mut_instruction(ret_id);
+                    if let Operation::Results { results, .. } = &mut i.operator {
+                        *results = values.clone();
                     } else {
-                        //we use the call instruction instead
-                        //we could use the ins_arguments to get the results here, and since we have the input arguments (in the ssafunction) we know how many there are.
-                        //for now the call instruction is replaced by the (one) result
-                        let call_ins = ctx.get_mut_instruction(call_id);
-                        call_ins.is_deleted = true;
-                        // call_ins.rhs = new_arg;
-                        if array_map.contains_key(&array_func_idx) {
-                            let i_pointer = array_map[&array_func_idx];
-                            call_ins.res_type = node::ObjectType::Pointer(i_pointer);
-                        }
-                        todo!("Refactor deletions")
+                        unreachable!()
                     }
                 }
                 Operation::Call(..) => todo!("function calling function is not yet supported"), //We mainly need to map the arguments and then decide how to recurse the function call. For instance:
@@ -584,30 +570,23 @@ pub fn inline_in_block(
                     }
 
                     optim::simplify(ctx, &mut new_ins);
-                    let result_id: NodeId;
-                    let to_delete = false;
 
-                    if new_ins.is_deleted {
-                        // result_id = new_ins.rhs;
-                        // if let std::collections::hash_map::Entry::Occupied(mut e) =
-                        //     array_map.entry(array_func_idx)
-                        // {
-                        //     if let node::ObjectType::Pointer(a) = ctx[result_id].get_type() {
-                        //         //we now map the array to rhs array
-                        //         e.insert(a);
-                        //     }
-                        // }
-                        // if new_ins.rhs == new_ins.id {
-                        //     to_delete = true;
-                        // }
-                        todo!("Refactor deletions")
+                    if let Some(replacement) = new_ins.replacement {
+                        if let std::collections::hash_map::Entry::Occupied(mut e) =
+                            array_map.entry(array_func_idx)
+                        {
+                            if let node::ObjectType::Pointer(a) = ctx[replacement].get_type() {
+                                //we now map the array to rhs array
+                                e.insert(a);
+                            }
+                        }
+
+                        if replacement != new_ins.id {
+                            inline_map.insert(i_id, replacement);
+                        }
                     } else {
-                        result_id = ctx.add_instruction(new_ins);
+                        let result_id = ctx.add_instruction(new_ins);
                         new_instructions.push(result_id);
-                    }
-
-                    //ignore self-deleted instructions
-                    if !to_delete {
                         inline_map.insert(i_id, result_id);
                     }
                 }

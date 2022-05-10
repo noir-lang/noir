@@ -240,7 +240,6 @@ fn block_overflow(
 
     //since we process the block from the start, the block value map is not relevant
     let mut value_map = HashMap::new();
-    let mut delete_ins = false; //a virer apres le merge???
     for mut ins in instructions {
         if matches!(
             ins.operator,
@@ -253,15 +252,10 @@ fn block_overflow(
 
         //we propagate optimised loads - todo check if it is needed because there is cse at the end
         //We retrieve get_current_value() in case a previous truncate has updated the value map
-        let new_operator = ins.operator.map_id(|id| {
+        ins.operator = ins.operator.map_id(|id| {
             let id = optim::propagate(ctx, id);
-            get_value_from_map(id, &value_map)
-        });
+            let id = get_value_from_map(id, &value_map);
 
-        let mut update_instruction = ins.operator != new_operator;
-        ins.operator = new_operator;
-
-        ins.operator.for_each_id(|id| {
             get_obj_max_value(ctx, id, max_map, &value_map);
             let obj = ctx.try_get_node(id);
             let should_truncate = ins.truncate_required(get_size_in_bits(obj));
@@ -270,25 +264,28 @@ fn block_overflow(
                 //adds a new truncate(lhs) instruction
                 add_to_truncate(ctx, id, get_size_in_bits(obj), &mut truncate_map, max_map);
             }
+
+            id
         });
+
+        let mut replacement = None;
+        let mut delete_ins = false;
 
         match ins.operator {
             Operation::Load { index, .. } => {
                 //TODO we use a local memory map for now but it should be used in arguments
                 //for instance, the join block of a IF should merge the two memorymaps using the condition value
                 if let Some(adr) = Memory::to_u32(ctx, index) {
-                    if let Some(_val) = memory_map.get(&adr) {
+                    if let Some(val) = memory_map.get(&adr) {
                         //optimise static load
-                        ins.is_deleted = true;
-                        // ins.rhs = *val;
-                        todo!("Refactor deletion");
+                        replacement = Some(*val);
                     }
                 }
             }
-            Operation::Store { index, .. } => {
+            Operation::Store { index, value, .. } => {
                 if let Some(adr) = Memory::to_u32(ctx, index) {
                     //optimise static store
-                    memory_map.insert(adr, index);
+                    memory_map.insert(adr, value);
                     delete_ins = true;
                 }
             }
@@ -308,24 +305,21 @@ fn block_overflow(
                 let obj = ctx.try_get_node(value_id);
 
                 if ins.res_type == get_type(obj) {
-                    ins.is_deleted = true;
-                    // ins.rhs = ins.lhs;
-                    todo!("Refactor deletion");
-                }
+                    replacement = Some(value_id);
+                } else {
+                    let max = get_obj_max_value(ctx, value_id, max_map, &value_map);
+                    let maxbits = max.bits() as u32;
 
-                let max = get_obj_max_value(ctx, value_id, max_map, &value_map);
-                let maxbits = max.bits() as u32;
-
-                if ins.res_type.bits() < get_size_in_bits(obj)
-                    && maxbits > ins.res_type.bits()
-                {
-                    //we need to truncate
-                    update_instruction = true;
-                    ins.operator = Operation::Truncate { 
-                        value: value_id, 
-                        bit_size: maxbits, 
-                        max_bit_size: ins.res_type.bits(),
-                    };
+                    if ins.res_type.bits() < get_size_in_bits(obj)
+                        && maxbits > ins.res_type.bits()
+                    {
+                        //we need to truncate
+                        ins.operator = Operation::Truncate { 
+                            value: value_id, 
+                            bit_size: maxbits, 
+                            max_bit_size: ins.res_type.bits(),
+                        };
+                    }
                 }
             }
             _ => (),
@@ -365,6 +359,7 @@ fn block_overflow(
                 );
             }
         }
+
         process_to_truncate(
             ctx,
             &mut new_list,
@@ -374,34 +369,25 @@ fn block_overflow(
             &mut value_map,
         );
 
-        if delete_ins {
-            delete_ins = false;
-        } else {
+        if !delete_ins {
             new_list.push(ins.id);
-            let new_operator = ins.operator.map_id(|id| get_value_from_map(id, &value_map));
+            ins.operator.map_id_mut(|id| get_value_from_map(id, &value_map));
 
-            if new_operator != ins.operator || is_sub(&ins.operator) {
-                update_instruction = true;
+            if let Operation::Binary(node::Binary {
+                rhs,
+                operator: BinaryOp::Sub { max_rhs_value } | BinaryOp::SafeSub { max_rhs_value },
+                ..
+            }) = &mut ins.operator 
+            {
+                //for now we pass the max value to the instruction, we could also keep the max_map e.g in the block (or max in each nodeobj)
+                //sub operations require the max value to ensure it does not underflow
+                *max_rhs_value = max_map[&rhs].clone();
+                //we may do that in future when the max_map becomes more used elsewhere (for other optim)
             }
 
-            if update_instruction {
-                ins.operator = new_operator;
-
-                if let Operation::Binary(node::Binary {
-                    rhs,
-                    operator: BinaryOp::Sub { max_rhs_value } | BinaryOp::SafeSub { max_rhs_value },
-                    ..
-                }) = &mut ins.operator 
-                {
-                    //for now we pass the max value to the instruction, we could also keep the max_map e.g in the block (or max in each nodeobj)
-                    //sub operations require the max value to ensure it does not underflow
-                    *max_rhs_value = max_map[&rhs].clone();
-                    //we may do that in future when the max_map becomes more used elsewhere (for other optim)
-                }
-
-                let old_ins = ctx.try_get_mut_instruction(ins.id).unwrap();
-                *old_ins = ins;
-            }
+            let id = replacement.unwrap_or(ins.id);
+            let old_ins = ctx.try_get_mut_instruction(id).unwrap();
+            *old_ins = ins;
         }
     }
 
@@ -550,9 +536,4 @@ fn get_binary_max_value(binary: &node::Binary, res_type: ObjectType, max_map: &m
         BinaryOp::Assign => rhs_max.clone(),
         BinaryOp::Constrain(_) => BigUint::zero(),
     }
-}
-
-//indicates if the operation is a substraction, we need to check them for underflow
-pub fn is_sub(operator: &Operation) -> bool {
-    matches!(operator, Operation::Binary(node::Binary { operator: BinaryOp::Sub { .. } | BinaryOp::SafeSub { .. }, .. }))
 }
