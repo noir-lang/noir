@@ -115,7 +115,17 @@ fn type_check_lvalue(
     errors: &mut Vec<TypeCheckError>,
 ) -> Type {
     match lvalue {
-        HirLValue::Ident(ident) => interner.id_type(ident.id),
+        HirLValue::Ident(ident) => {
+            let definition = interner.definition(ident.id);
+            if !definition.mutable {
+                errors.push(TypeCheckError::Unstructured {
+                    msg: format!("Variable {} must be mutable to be assigned to", definition.name),
+                    span: ident.span,
+                });
+            }
+
+            interner.id_type(ident.id)
+        }
         HirLValue::MemberAccess { object, field_name } => {
             let result = type_check_lvalue(interner, *object, assign_span, errors);
 
