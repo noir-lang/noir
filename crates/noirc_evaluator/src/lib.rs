@@ -96,14 +96,14 @@ impl<'a> Evaluator<'a> {
     pub fn compile(
         mut self,
         np_language: Language,
-        interactive: bool,
+        enable_logging: bool,
     ) -> Result<Circuit, RuntimeError> {
         // create a new environment for the main context
         let mut env = Environment::new(FuncContext::Main);
 
         // First evaluate the main function
-        if true {
-            self.evaluate_main_alt(&mut env, true)?;
+        if enable_logging {
+            self.evaluate_main_alt(&mut env, enable_logging)?;
         } else {
             self.evaluate_main(&mut env)?;
         }
@@ -205,7 +205,7 @@ impl<'a> Evaluator<'a> {
     pub fn evaluate_main_alt(
         &mut self,
         env: &mut Environment,
-        interactive: bool,
+        enable_logging: bool,
     ) -> Result<(), RuntimeError> {
         let mut igen = IRGenerator::new(self.context);
         self.parse_abi_alt(env, &mut igen)?;
@@ -215,7 +215,7 @@ impl<'a> Evaluator<'a> {
         ssa::code_gen::evaluate_main(&mut igen, env, main_func_body)?;
 
         //Generates ACIR representation:
-        igen.context.ir_to_acir(self, interactive)?;
+        igen.context.ir_to_acir(self, enable_logging)?;
         Ok(())
     }
 

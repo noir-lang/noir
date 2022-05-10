@@ -412,8 +412,8 @@ impl<'a> SsaContext<'a> {
         self.blocks.iter().map(|(_id, block)| block)
     }
 
-    pub fn pause(&self, interactive: bool, before: &str, after: &str) {
-        if interactive {
+    pub fn log(&self, show_log: bool, before: &str, after: &str) {
+        if show_log {
             self.print(before);
             println!("{}", after);
         }
@@ -423,29 +423,29 @@ impl<'a> SsaContext<'a> {
     pub fn ir_to_acir(
         &mut self,
         evaluator: &mut Evaluator,
-        interactive: bool,
+        enable_logging: bool,
     ) -> Result<(), RuntimeError> {
         //SSA
-        self.pause(interactive, "SSA:", "CSE:");
+        self.log(enable_logging, "SSA:", "CSE:");
 
         //Optimisation
         block::compute_dom(self);
         optim::cse(self);
-        self.pause(interactive, "", "unrolling:");
+        self.log(enable_logging, "", "unrolling:");
         //Unrolling
         flatten::unroll_tree(self);
-        self.pause(interactive, "", "inlining:");
+        self.log(enable_logging, "", "inlining:");
         flatten::inline_tree(self);
         optim::cse(self);
         //Truncation
         integer::overflow_strategy(self);
-        self.pause(interactive, "overflow:", "");
+        self.log(enable_logging, "overflow:", "");
         //ACIR
         self.acir(evaluator);
-        if_debug::if_debug!(if interactive {
-            dbg!("DONE");
+        if enable_logging {
+            println!("DONE");
             dbg!(&evaluator.current_witness_index);
-        });
+        }
         Ok(())
     }
 
