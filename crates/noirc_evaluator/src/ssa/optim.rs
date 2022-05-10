@@ -180,7 +180,7 @@ pub fn find_similar_mem_instruction(
 ) -> CseAction {
     match op {
         Operation::Load { array_id, index } => {
-            for iter in anchor[&op].iter().rev() {
+            for iter in anchor[op].iter().rev() {
                 if let Some(ins_iter) = ctx.try_get_instruction(*iter) {
                     match &ins_iter.operator {
                         Operation::Load { array_id: array_id2, index: index2 } => {

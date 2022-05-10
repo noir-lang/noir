@@ -150,10 +150,10 @@ impl Acir {
             }
             Operation::Truncate { value, bit_size, max_bit_size } => {
                 let value = self.substitute(*value, evaluator, ctx);
-                InternalVar::from(evaluate_truncate(value, *bit_size, *max_bit_size, evaluator))
+                evaluate_truncate(value, *bit_size, *max_bit_size, evaluator)
             }
             Operation::Intrinsic(opcode, args) => {
-                let v = self.evaluate_opcode(ins.id, *opcode, &args, ins.res_type, ctx, evaluator);
+                let v = self.evaluate_opcode(ins.id, *opcode, args, ins.res_type, ctx, evaluator);
                 InternalVar::from(v)
             }
             Operation::Call(..) => unreachable!("call instruction should have been inlined"),
@@ -174,7 +174,7 @@ impl Acir {
                         if mem_array.values.len() > index {
                             mem_array.values[index].clone()
                         } else {
-                            InternalVar::from(self.memory_witness[&array_id][index])
+                            InternalVar::from(self.memory_witness[array_id][index])
                         }
                     }
                 } else {

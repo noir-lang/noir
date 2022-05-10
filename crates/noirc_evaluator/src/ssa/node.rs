@@ -15,7 +15,6 @@ use num_traits::{FromPrimitive, One};
 use crate::object::Object;
 use std::ops::Mul;
 
-use super::acir_gen::InternalVar;
 use super::block::BlockId;
 use super::context::SsaContext;
 use super::mem::ArrayId;
@@ -382,7 +381,7 @@ impl Instruction {
     }
 
     pub fn evaluate(&self, ctx: &SsaContext) -> NodeEval {
-        self.evaluate_with(ctx, |ctx, id| NodeEval::from_id(ctx, id))
+        self.evaluate_with(ctx, NodeEval::from_id)
     }
 
     //Evaluate the instruction value when its operands are constant (constant folding)
@@ -447,26 +446,23 @@ impl Instruction {
     }
 
     pub fn standard_form(&mut self) {
-        match &mut self.operator {
-            Operation::Binary(binary) => {
-                if let BinaryOp::Constrain(op) = &binary.operator {
-                    match op {
-                        ConstrainOp::Eq => {
-                            if binary.rhs == binary.rhs {
-                                self.delete();
-                                return;
-                            }
+        if let Operation::Binary(binary) = &mut self.operator {
+            if let BinaryOp::Constrain(op) = &binary.operator {
+                match op {
+                    ConstrainOp::Eq => {
+                        if binary.lhs == binary.rhs {
+                            self.delete();
+                            return;
                         }
-                        // TODO: Why are we asserting here?
-                        ConstrainOp::Neq => assert_ne!(binary.lhs, binary.rhs),
                     }
-                }
-
-                if binary.operator.is_commutative() && binary.rhs < binary.lhs {
-                    std::mem::swap(&mut binary.rhs, &mut binary.lhs);
+                    // TODO: Why are we asserting here?
+                    ConstrainOp::Neq => assert_ne!(binary.lhs, binary.rhs),
                 }
             }
-            _ => (),
+
+            if binary.operator.is_commutative() && binary.rhs < binary.lhs {
+                std::mem::swap(&mut binary.rhs, &mut binary.lhs);
+            }
         }
     }
 }
@@ -535,30 +531,39 @@ pub struct Binary {
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum BinaryOp {
-    Add,                                //(+)
-    SafeAdd,                            //(+) safe addition
-    Sub { max_rhs_value: BigUint },     //(-)
-    SafeSub { max_rhs_value: BigUint }, //(-) safe subtraction
-    Mul,                                //(*)
-    SafeMul,                            //(*) safe multiplication
-    Udiv,                               //(/) unsigned division
-    Sdiv,                               //(/) signed division
-    Urem,                               //(%) modulo; remainder of unsigned division
-    Srem,                               //(%) remainder of signed division
-    Div,                                //(/) field division
-    Eq,                                 //(==) equal
-    Ne,                                 //(!=) not equal
-    Ult,                                //(<) unsigned less than
-    Ule,                                //(<=) unsigned less or equal
-    Slt,                                //(<) signed less than
-    Sle,                                //(<=) signed less or equal
-    Lt,                                 //(<) field less
-    Lte,                                //(<=) field less or equal
-    And,                                //(&) Bitwise And
-    Or,                                 //(|) Bitwise Or
-    Xor,                                //(^) Bitwise Xor
-    Shl,                                //(<<) Shift left
-    Shr,                                //(<<) Shift right
+    Add, //(+)
+    #[allow(dead_code)]
+    SafeAdd, //(+) safe addition
+    Sub {
+        max_rhs_value: BigUint,
+    }, //(-)
+    #[allow(dead_code)]
+    SafeSub {
+        max_rhs_value: BigUint,
+    }, //(-) safe subtraction
+    Mul, //(*)
+    #[allow(dead_code)]
+    SafeMul, //(*) safe multiplication
+    Udiv, //(/) unsigned division
+    Sdiv, //(/) signed division
+    #[allow(dead_code)]
+    Urem, //(%) modulo; remainder of unsigned division
+    #[allow(dead_code)]
+    Srem, //(%) remainder of signed division
+    Div, //(/) field division
+    Eq,  //(==) equal
+    Ne,  //(!=) not equal
+    Ult, //(<) unsigned less than
+    Ule, //(<=) unsigned less or equal
+    Slt, //(<) signed less than
+    Sle, //(<=) signed less or equal
+    Lt,  //(<) field less
+    Lte, //(<=) field less or equal
+    And, //(&) Bitwise And
+    Or,  //(|) Bitwise Or
+    Xor, //(^) Bitwise Xor
+    Shl, //(<<) Shift left
+    Shr, //(<<) Shift right
 
     Assign,
     Constrain(ConstrainOp), //write gates enforcing the ContrainOp to be true
@@ -720,10 +725,10 @@ impl Binary {
                 }
                 //constant folding - TODO
                 else if lhs.is_some() && rhs.is_some() {
-                    todo!();
+                    todo!("Constant folding for division");
                 } else if rhs.is_some() {
                     //same as lhs*1/r
-                    todo!();
+                    todo!("Constant folding for division rhs");
                     //return (Some(self.lhs), None, None);
                 }
             }
@@ -900,7 +905,7 @@ where
 {
     let mut x = f(lhs.to_u128(), rhs.to_u128());
     if bitcount != 256 {
-        x = x % (1_u128 << bitcount);
+        x %= 1_u128 << bitcount;
     }
     NodeEval::from_u128(x, res_type)
 }

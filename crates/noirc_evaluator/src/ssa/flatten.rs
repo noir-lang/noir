@@ -481,7 +481,7 @@ pub fn inline_in_block(
                 Operation::Load { array_id, index } => {
                     //Compute the new address:
                     //TODO use relative addressing, but that requires a few changes, mainly in acir_gen.rs and integer.rs
-                    let b = array_map[&array_id];
+                    let b = array_map[array_id];
                     //n.b. this offset is always positive
                     let offset =
                         ctx.mem[b].adr - ctx.get_function_context(func_id).mem[*array_id].adr;
@@ -492,7 +492,7 @@ pub fn inline_in_block(
                     let add = node::Binary { operator: BinaryOp::Add, lhs: offset_id, rhs: *index };
                     let adr_id = ctx.new_instruction(Operation::Binary(add), index_type);
                     let new_ins = Instruction::new(
-                        Operation::Load { array_id: array_map[&array_id], index: adr_id },
+                        Operation::Load { array_id: array_map[array_id], index: adr_id },
                         clone.res_type,
                         Some(target_block_id),
                     );
@@ -501,7 +501,7 @@ pub fn inline_in_block(
                     inline_map.insert(i_id, result_id);
                 }
                 Operation::Store { array_id, index, value } => {
-                    let b = array_map[&array_id];
+                    let b = array_map[array_id];
                     let offset =
                         ctx.get_function_context(func_id).mem[*array_id].adr - ctx.mem[b].adr;
                     let index_type = ctx[*index].get_type();
@@ -512,7 +512,7 @@ pub fn inline_in_block(
                     let adr_id = ctx.new_instruction(Operation::Binary(add), index_type);
                     let new_ins = Instruction::new(
                         Operation::Store {
-                            array_id: array_map[&array_id],
+                            array_id: array_map[array_id],
                             index: adr_id,
                             value: *value,
                         },

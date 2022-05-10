@@ -143,7 +143,7 @@ impl<'a> SsaContext<'a> {
                 )
             }
             Operation::Intrinsic(opcode, args) => format!("intrinsic {}({})", opcode, join(args)),
-            Operation::Nop => format!("nop"),
+            Operation::Nop => "nop".into(),
             Operation::Call(f, args) => format!("call {:?}({})", f, join(args)),
             Operation::Return(values) => format!("return ({})", join(values)),
             Operation::Results { call_instruction, results } => {

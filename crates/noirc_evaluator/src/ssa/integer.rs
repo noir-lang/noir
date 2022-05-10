@@ -49,7 +49,7 @@ fn get_instruction_max_operand(
                     if matches!(ins.res_type, ObjectType::Unsigned(_)) {
                         if let Some(lhs_const) = ctx.get_as_constant(*lhs) {
                             let lhs_big = BigUint::from_bytes_be(&lhs_const.to_bytes());
-                            if max_map[&rhs] <= lhs_big {
+                            if max_map[rhs] <= lhs_big {
                                 //TODO unsigned
                                 return lhs_big;
                             }
@@ -177,7 +177,6 @@ fn add_to_truncate(
             None => bit_size,
         };
         to_truncate.insert(obj_id, truncate_bits);
-        return;
     }
 }
 
@@ -370,7 +369,7 @@ fn block_overflow(
             {
                 //for now we pass the max value to the instruction, we could also keep the max_map e.g in the block (or max in each nodeobj)
                 //sub operations require the max value to ensure it does not underflow
-                *max_rhs_value = max_map[&rhs].clone();
+                *max_rhs_value = max_map[rhs].clone();
                 //we may do that in future when the max_map becomes more used elsewhere (for other optim)
             }
 
