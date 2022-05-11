@@ -266,39 +266,24 @@ fn block_overflow(
         let ins_max_bits = get_instruction_max(ctx, &ins, max_map, &value_map).bits();
         let res_type = ins.res_type;
 
+        let too_many_bits = ins_max_bits >= FieldElement::max_num_bits() as u64
+            && res_type != ObjectType::NativeField;
+
         ins.operator.map_id_mut(|id| {
             let id = optim::propagate(ctx, id);
             let id = get_value_from_map(id, &value_map);
 
             get_obj_max_value(ctx, id, max_map, &value_map);
             let obj = ctx.try_get_node(id);
+            let should_truncate_obj =
+                should_truncate && obj.is_some() && get_type(obj) != ObjectType::NativeField;
 
-            if should_truncate && obj.is_some() && get_type(obj) != ObjectType::NativeField {
-                //adds a new truncate(lhs) instruction
-                add_to_truncate(ctx, id, get_size_in_bits(obj), &mut truncate_map, max_map);
-            } else if ins_max_bits >= FieldElement::max_num_bits() as u64
-                && res_type != ObjectType::NativeField
-            {
+            if should_truncate_obj || too_many_bits {
                 add_to_truncate(ctx, id, get_size_in_bits(obj), &mut truncate_map, max_map);
             }
 
             id
         });
-
-        // let ins_max = get_instruction_max(ctx, &ins, max_map, &value_map);
-        // if ins_max.bits() >= (FieldElement::max_num_bits() as u64)
-        //     && ins.res_type != ObjectType::NativeField
-        // {
-        //     //let's truncate a and b:
-        //     //- insert truncate(lhs) to the list of instructions
-        //     //- insert truncate(rhs) to the list of instructions
-        //     //- update r_max to l_max
-        //     //n.b we could try to truncate only one of them, but then we should check if rhs==lhs.
-        //     ins.operator.for_each_id(|id| {
-        //         let obj = ctx.try_get_node(id);
-        //         add_to_truncate(ctx, id, get_size_in_bits(obj), &mut truncate_map, max_map);
-        //     });
-        // }
 
         let mut replacement = None;
         let mut delete_ins = false;
