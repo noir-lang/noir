@@ -183,14 +183,12 @@ pub fn find_similar_mem_instruction(
             for iter in anchor[op].iter().rev() {
                 if let Some(ins_iter) = ctx.try_get_instruction(*iter) {
                     match &ins_iter.operator {
-                        Operation::Load { array_id: array_id2, index: index2 } => {
+                        Operation::Load { array_id: array_id2, index: _ } => {
                             assert_eq!(array_id, array_id2);
-                            assert_eq!(index, index2);
                             return CseAction::Replace { original: ins_id, replacement: *iter };
                         }
                         Operation::Store { array_id: array_id2, index: index2, value } => {
                             assert_eq!(array_id, array_id2);
-                            assert_eq!(index, index2);
                             if index == index2 {
                                 return CseAction::Replace {
                                     original: ins_id,

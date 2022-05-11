@@ -81,10 +81,7 @@ impl BasicBlock {
         let root_block = ctx.insert_block(root_block);
         let root_id = root_block.id;
         ctx.current_block = root_id;
-        ctx.new_instruction(
-            node::Operation::Nop,
-            node::ObjectType::NotAnObject,
-        );
+        ctx.new_instruction(node::Operation::Nop, node::ObjectType::NotAnObject);
         root_id
     }
 }

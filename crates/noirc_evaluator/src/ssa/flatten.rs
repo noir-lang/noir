@@ -633,7 +633,12 @@ fn new_cloned_instruction(original: Instruction, block: BlockId) -> Instruction 
     Instruction::new(original.operator, original.res_type, Some(block))
 }
 
-fn push_instruction(ctx: &mut SsaContext, instruction: Instruction, new_instructions: &mut Vec<NodeId>, inline_map: &mut HashMap<NodeId, NodeId>) {
+fn push_instruction(
+    ctx: &mut SsaContext,
+    instruction: Instruction,
+    new_instructions: &mut Vec<NodeId>,
+    inline_map: &mut HashMap<NodeId, NodeId>,
+) {
     let old_id = instruction.id;
     let new_id = ctx.add_instruction(instruction);
     new_instructions.push(new_id);

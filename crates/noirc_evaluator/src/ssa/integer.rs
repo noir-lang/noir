@@ -125,7 +125,12 @@ fn truncate(
         //Create a new truncate instruction '(idx): obj trunc bit_size'
         //set current value of obj to idx
         let max_bit_size = v_max.bits() as u32;
-        assert!((v_max.bits() as u32) <= max_bit_size, "truncate: bitsize = {} must be less than max_bit_size {}", v_max.bits(), max_bit_size);
+        assert!(
+            (v_max.bits() as u32) <= max_bit_size,
+            "truncate: bitsize = {} must be less than max_bit_size {}",
+            v_max.bits(),
+            max_bit_size
+        );
 
         let mut i = Instruction::new(
             Operation::Truncate { value: obj_id, bit_size, max_bit_size },
@@ -271,7 +276,9 @@ fn block_overflow(
             if should_truncate && obj.is_some() && get_type(obj) != ObjectType::NativeField {
                 //adds a new truncate(lhs) instruction
                 add_to_truncate(ctx, id, get_size_in_bits(obj), &mut truncate_map, max_map);
-            } else if ins_max_bits >= FieldElement::max_num_bits() as u64 && res_type != ObjectType::NativeField {
+            } else if ins_max_bits >= FieldElement::max_num_bits() as u64
+                && res_type != ObjectType::NativeField
+            {
                 add_to_truncate(ctx, id, get_size_in_bits(obj), &mut truncate_map, max_map);
             }
 
