@@ -375,8 +375,7 @@ fn block_overflow(
     update_value_array(ctx, block_id, &value_map);
 
     //We run another round of CSE for the block in order to remove possible duplicated truncates, this will assign 'new_list' to the block instructions
-    let mut anchor = HashMap::new();
-    optim::block_cse(ctx, block_id, &mut anchor, &mut new_list);
+    optim::cse_block(ctx, block_id, &mut new_list);
 }
 
 fn update_value_array(ctx: &mut SsaContext, block_id: BlockId, vmap: &HashMap<NodeId, NodeId>) {

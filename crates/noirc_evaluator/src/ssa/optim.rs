@@ -10,7 +10,11 @@ use super::{
         Variable,
     },
 };
-use std::collections::{HashMap, VecDeque};
+use std::{
+    borrow::Cow,
+    collections::{HashMap, VecDeque},
+    mem::{discriminant, Discriminant},
+};
 
 // Performs constant folding, arithmetic simplifications and move to standard form
 // Returns a new NodeId to replace with the current if the current is deleted.
@@ -172,24 +176,28 @@ pub enum CseAction {
     Keep,
 }
 
-pub fn find_similar_mem_instruction(
+fn find_similar_mem_instruction(
     ctx: &SsaContext,
     op: &Operation,
     ins_id: NodeId,
-    anchor: &HashMap<node::Operation, VecDeque<NodeId>>,
+    anchor: &mut Anchor,
 ) -> CseAction {
     match op {
         Operation::Load { array_id, index } => {
-            for iter in anchor[op].iter().rev() {
+            for iter in anchor.get_all(op).iter().rev() {
                 if let Some(ins_iter) = ctx.try_get_instruction(*iter) {
                     match &ins_iter.operator {
                         Operation::Load { array_id: array_id2, index: _ } => {
-                            assert_eq!(array_id, array_id2);
-                            return CseAction::Replace { original: ins_id, replacement: *iter };
+                            if array_id != array_id2 {
+                                continue;
+                            } else {
+                                return CseAction::Replace { original: ins_id, replacement: *iter };
+                            }
                         }
                         Operation::Store { array_id: array_id2, index: index2, value } => {
-                            assert_eq!(array_id, array_id2);
-                            if index == index2 {
+                            if array_id != array_id2 {
+                                continue;
+                            } else if index == index2 {
                                 return CseAction::Replace {
                                     original: ins_id,
                                     replacement: *value,
@@ -205,16 +213,21 @@ pub fn find_similar_mem_instruction(
             }
         }
         Operation::Store { array_id, index, value: _ } => {
-            let prev_ins = &anchor[&Operation::Load { array_id: *array_id, index: *index }];
-            for node_id in prev_ins.iter().rev() {
+            let fake_load = Operation::Load { array_id: *array_id, index: *index };
+            for node_id in anchor.get_all(&fake_load).iter().rev() {
                 if let Some(ins_iter) = ctx.try_get_instruction(*node_id) {
                     match ins_iter.operator {
-                        Operation::Load { .. } => {
+                        Operation::Load { array_id: array_id2, .. } => {
+                            if array_id != &array_id2 {
+                                continue;
+                            }
                             //TODO: If we know that ins.rhs value cannot be equal to ins_iter.rhs, we could continue instead
                             return CseAction::Keep;
                         }
-                        Operation::Store { index: index2, array_id: _, value: _ } => {
-                            if *index == index2 {
+                        Operation::Store { index: index2, array_id: array_id2, .. } => {
+                            if array_id != &array_id2 {
+                                continue;
+                            } else if *index == index2 {
                                 return CseAction::Remove(*node_id);
                             } else {
                                 //TODO: If we know that ins.rhs value cannot be equal to ins_iter.rhs, we could continue instead
@@ -250,18 +263,41 @@ pub fn propagate(ctx: &SsaContext, id: NodeId) -> NodeId {
 
 //common subexpression elimination, starting from the root
 pub fn cse(igen: &mut SsaContext, first_block: BlockId) -> Option<NodeId> {
-    let mut anchor = HashMap::new();
+    let mut anchor = Anchor::default();
     cse_tree(igen, first_block, &mut anchor)
 }
 
+/// A list of instructions with the same Operation variant, ordered by the order
+/// they appear in their respective blocks.
+#[derive(Default, Clone)]
+struct Anchor {
+    map: HashMap<Discriminant<Operation>, VecDeque<NodeId>>,
+}
+
+impl Anchor {
+    fn push_front(&mut self, op: &Operation, id: NodeId) {
+        let key = match op {
+            Operation::Store { array_id, index, .. } => {
+                let fake_load = Operation::Load { array_id: *array_id, index: *index };
+                discriminant(&fake_load)
+            }
+            _ => discriminant(op),
+        };
+        self.map.entry(key).or_insert_with(VecDeque::new).push_front(id);
+    }
+
+    fn get_all(&self, op: &Operation) -> Cow<VecDeque<NodeId>> {
+        match self.map.get(&discriminant(op)) {
+            Some(vec) => Cow::Borrowed(vec),
+            None => Cow::Owned(VecDeque::new()),
+        }
+    }
+}
+
 //Perform CSE for the provided block and then process its children following the dominator tree, passing around the anchor list.
-pub fn cse_tree(
-    igen: &mut SsaContext,
-    block_id: BlockId,
-    anchor: &mut HashMap<Operation, VecDeque<NodeId>>,
-) -> Option<NodeId> {
+fn cse_tree(igen: &mut SsaContext, block_id: BlockId, anchor: &mut Anchor) -> Option<NodeId> {
     let mut instructions = Vec::new();
-    let mut res = block_cse(igen, block_id, anchor, &mut instructions);
+    let mut res = cse_block_with_anchor(igen, block_id, &mut instructions, anchor);
     for b in igen[block_id].dominated.clone() {
         let sub_res = cse_tree(igen, b, &mut anchor.clone());
         if sub_res.is_some() {
@@ -271,22 +307,20 @@ pub fn cse_tree(
     res
 }
 
-pub fn anchor_push(op: Operation, anchor: &mut HashMap<Operation, VecDeque<NodeId>>) {
-    match op {
-        Operation::Store { array_id, index, .. } => anchor
-            // TODO: review correctness
-            .entry(Operation::Load { array_id, index })
-            .or_insert_with(VecDeque::new),
-        _ => anchor.entry(op).or_insert_with(VecDeque::new),
-    };
+pub fn cse_block(
+    ctx: &mut SsaContext,
+    block_id: BlockId,
+    instructions: &mut Vec<NodeId>,
+) -> Option<NodeId> {
+    cse_block_with_anchor(ctx, block_id, instructions, &mut Anchor::default())
 }
 
 //Performs common subexpression elimination and copy propagation on a block
-pub fn block_cse(
+fn cse_block_with_anchor(
     ctx: &mut SsaContext,
     block_id: BlockId,
-    anchor: &mut HashMap<Operation, VecDeque<NodeId>>,
     instructions: &mut Vec<NodeId>,
+    anchor: &mut Anchor,
 ) -> Option<NodeId> {
     let mut new_list = Vec::new();
     let bb = &ctx[block_id];
@@ -300,7 +334,6 @@ pub fn block_cse(
             if ins.is_deleted() {
                 continue;
             }
-            anchor_push(ins.operator.clone(), anchor);
 
             let operator = ins.operator.map_id(|id| propagate(ctx, id));
 
@@ -308,10 +341,8 @@ pub fn block_cse(
             let mut replacement = None;
 
             if operator.is_binary() {
-                //binary operation:
-                if let Some(similar) =
-                    find_similar_instruction(ctx, &ins.operator, &anchor[&ins.operator])
-                {
+                let variants = anchor.get_all(&ins.operator);
+                if let Some(similar) = find_similar_instruction(ctx, &ins.operator, &variants) {
                     replacement = Some(similar);
                 } else if let Operation::Binary(node::Binary {
                     operator: BinaryOp::Assign,
@@ -322,7 +353,7 @@ pub fn block_cse(
                     replacement = Some(propagate(ctx, rhs));
                 } else {
                     new_list.push(*ins_id);
-                    anchor.get_mut(&ins.operator).unwrap().push_front(*ins_id);
+                    anchor.push_front(&ins.operator, *ins_id);
                 }
             } else {
                 match &operator {
@@ -356,13 +387,16 @@ pub fn block_cse(
                     }
                     Operation::Cast(_) => {
                         //Similar cast must have same type
-                        if let Some(similar) =
-                            find_similar_cast(ctx, &operator, ins.res_type, &anchor[&operator])
-                        {
+                        if let Some(similar) = find_similar_cast(
+                            ctx,
+                            &operator,
+                            ins.res_type,
+                            &anchor.get_all(&operator),
+                        ) {
                             replacement = Some(similar);
                         } else {
                             new_list.push(*ins_id);
-                            anchor.get_mut(&operator).unwrap().push_front(*ins_id);
+                            anchor.push_front(&operator, *ins_id);
                         }
                     }
                     Operation::Call(..) | Operation::Return(..) => {
@@ -373,12 +407,12 @@ pub fn block_cse(
                     Operation::Intrinsic(..) => {
                         //n.b this could be the default behavior for binary operations
                         if let Some(similar) =
-                            find_similar_instruction(ctx, &operator, &anchor[&operator])
+                            find_similar_instruction(ctx, &operator, &anchor.get_all(&operator))
                         {
                             replacement = Some(similar);
                         } else {
                             new_list.push(*ins_id);
-                            anchor.get_mut(&operator).unwrap().push_front(*ins_id);
+                            anchor.push_front(&operator, *ins_id);
                         }
                     }
                     _ => {
