@@ -1,6 +1,5 @@
-use super::block::BlockId;
 use super::context::SsaContext;
-use super::node::{ConstrainOp, Instruction, Node, NodeId, Operation, Variable};
+use super::node::{Binary, BinaryOp, ConstrainOp, Node, NodeId, ObjectType, Operation, Variable};
 use super::{block, node, ssa_form};
 use std::collections::HashMap;
 
@@ -24,6 +23,8 @@ use noirc_frontend::hir_def::{
 use noirc_frontend::node_interner::{DefinitionId, ExprId, NodeInterner, StmtId};
 use noirc_frontend::util::vecmap;
 use noirc_frontend::{FunctionKind, Type};
+use num_bigint::BigUint;
+use num_traits::Zero;
 
 pub struct IRGenerator<'a> {
     pub context: SsaContext<'a>,
@@ -95,13 +96,15 @@ impl<'a> IRGenerator<'a> {
         witness: Vec<acvm::acir::native_types::Witness>,
     ) {
         self.context.mem.create_new_array(len as u32, el_type.into(), name);
-        let array_idx = (self.context.mem.arrays.len() - 1) as usize;
-        self.context.mem.arrays[array_idx].def = ident_def;
-        self.context.mem.arrays[array_idx].values = vecmap(witness, |w| w.into());
+
+        let array_idx = self.context.mem.last_id();
+
+        self.context.mem[array_idx].def = ident_def;
+        self.context.mem[array_idx].values = vecmap(witness, |w| w.into());
         let pointer = node::Variable {
             id: NodeId::dummy(),
             name: name.to_string(),
-            obj_type: node::ObjectType::Pointer(array_idx as u32),
+            obj_type: node::ObjectType::Pointer(array_idx),
             root: None,
             def: Some(ident_def),
             witness: None,
@@ -152,12 +155,13 @@ impl<'a> IRGenerator<'a> {
             Object::Array(a) => {
                 let obj_type = o_type.into();
                 //We should create an array from 'a' witnesses
-                self.context.mem.create_array_from_object(&a, ident.id, obj_type, &ident_name);
-                let array_index = (self.context.mem.arrays.len() - 1) as u32;
+                let array =
+                    self.context.mem.create_array_from_object(&a, ident.id, obj_type, &ident_name);
+
                 node::Variable {
                     id: NodeId::dummy(),
                     name: ident_name.clone(),
-                    obj_type: node::ObjectType::Pointer(array_index),
+                    obj_type: ObjectType::Pointer(array.id),
                     root: None,
                     def: Some(ident.id),
                     witness: None,
@@ -165,7 +169,7 @@ impl<'a> IRGenerator<'a> {
                 }
             }
             _ => {
-                let obj_type = node::ObjectType::get_type_from_object(&obj);
+                let obj_type = ObjectType::get_type_from_object(&obj);
                 //new variable - should be in a let statement? The let statement should set the type
                 node::Variable {
                     id: NodeId::dummy(),
@@ -197,36 +201,36 @@ impl<'a> IRGenerator<'a> {
         let rtype = self.context.get_object_type(rhs);
         match op {
             HirUnaryOp::Minus => {
-                Ok(self.context.new_instruction(self.context.zero(), rhs, Operation::Sub, rtype))
+                let lhs = self.context.zero();
+                // TODO: Perhaps this should be +infinity instead?
+                let operator = BinaryOp::Sub { max_rhs_value: BigUint::zero() };
+                let op = Operation::Binary(node::Binary { operator, lhs, rhs });
+                Ok(self.context.new_instruction(op, rtype))
             }
-            HirUnaryOp::Not => Ok(self.context.new_instruction(rhs, rhs, Operation::Not, rtype)),
+            HirUnaryOp::Not => Ok(self.context.new_instruction(Operation::Not(rhs), rtype)),
         }
     }
 
-    fn evaluate_infix_expression(
-        &mut self,
-        lhs: NodeId,
-        rhs: NodeId,
-        op: HirBinaryOp,
-    ) -> Result<NodeId, RuntimeError> {
+    fn evaluate_infix_expression(&mut self, lhs: NodeId, rhs: NodeId, op: HirBinaryOp) -> NodeId {
         let ltype = self.context.get_object_type(lhs);
         //n.b. we do not verify rhs type as it should have been handled by the type checker.
 
-        // Get the opcode from the infix operator
-        let opcode = node::to_operation(op.kind, ltype);
-        // Get the result type from the opcode
-        let optype = self.context.get_result_type(opcode, ltype);
-        if opcode == node::Operation::Ass {
-            if let Some(lhs_ins) = self.context.try_get_mut_instruction(lhs) {
-                if let node::Operation::Load(array) = lhs_ins.operator {
-                    //make it a store rhs
-                    lhs_ins.operator = node::Operation::Store(array);
-                    lhs_ins.lhs = rhs;
-                    return Ok(lhs);
-                }
+        if let (HirBinaryOpKind::Assign, Some(lhs_ins)) =
+            (op.kind, self.context.try_get_mut_instruction(lhs))
+        {
+            if let Operation::Load { array_id, index } = lhs_ins.operator {
+                //make it a store rhs
+                lhs_ins.operator = Operation::Store { array_id, index, value: rhs };
+                return lhs;
             }
         }
-        Ok(self.context.new_instruction(lhs, rhs, opcode, optype))
+
+        // Get the opcode from the infix operator
+        let binary = Binary::from_hir(op.kind, ltype, lhs, rhs);
+        let opcode = Operation::Binary(binary);
+
+        let optype = self.context.get_result_type(&opcode, ltype);
+        self.context.new_instruction(opcode, optype)
     }
 
     pub fn evaluate_statement(
@@ -327,16 +331,12 @@ impl<'a> IRGenerator<'a> {
             // HirBinaryOpKind::Multiply => binary_op::handle_mul_op(lhs, rhs, self),
             // HirBinaryOpKind::Divide => binary_op::handle_div_op(lhs, rhs, self),
             HirBinaryOpKind::NotEqual => Ok(self.context.new_instruction(
-                lhs,
-                rhs,
-                node::Operation::Constrain(ConstrainOp::Neq),
-                node::ObjectType::NotAnObject,
+                Operation::binary(BinaryOp::Constrain(ConstrainOp::Neq), lhs, rhs),
+                ObjectType::NotAnObject,
             )),
             HirBinaryOpKind::Equal => Ok(self.context.new_instruction(
-                lhs,
-                rhs,
-                node::Operation::Constrain(ConstrainOp::Eq),
-                node::ObjectType::NotAnObject,
+                Operation::binary(BinaryOp::Constrain(ConstrainOp::Eq), lhs, rhs),
+                ObjectType::NotAnObject,
             )),
             HirBinaryOpKind::And => todo!(),
             // HirBinaryOpKind::Xor => binary_op::handle_xor_op(lhs, rhs, self),
@@ -427,7 +427,7 @@ impl<'a> IRGenerator<'a> {
         obj_type: node::ObjectType,
         value_id: NodeId,
     ) -> Value {
-        if matches!(obj_type, node::ObjectType::Pointer(_)) {
+        if matches!(obj_type, ObjectType::Pointer(_)) {
             if let Ok(rhs_mut) = self.context.get_mut_variable(value_id) {
                 rhs_mut.def = definition_id;
                 rhs_mut.name = variable_name;
@@ -440,7 +440,8 @@ impl<'a> IRGenerator<'a> {
         let id = self.context.add_variable(new_var, None);
 
         //Assign rhs to lhs
-        let result = self.context.new_instruction(id, value_id, node::Operation::Ass, obj_type);
+        let result = self.context.new_binary_instruction(BinaryOp::Assign, id, value_id, obj_type);
+
         //This new variable should not be available in outer scopes.
         let cb = self.context.get_current_block_mut();
         cb.update_variable(id, result); //update the value array. n.b. we should not update the name as it is the first assignment (let)
@@ -485,14 +486,9 @@ impl<'a> IRGenerator<'a> {
                 //ssa: we create a new variable a1 linked to a
                 let new_var_id = self.context.add_variable(new_var, Some(ls_root));
 
-                let rhs = &self.context[rhs_id];
-                let r_type = rhs.get_type();
-                let result = self.context.new_instruction(
-                    new_var_id,
-                    rhs_id,
-                    node::Operation::Ass,
-                    r_type,
-                );
+                let result_type = self.context[rhs_id].get_type();
+                let operation = Operation::binary(BinaryOp::Assign, new_var_id, rhs_id);
+                let result = self.context.new_instruction(operation, result_type);
                 self.update_variable_id(ls_root, new_var_id, result); //update the name and the value map
                 Value::Single(new_var_id)
             }
@@ -548,20 +544,25 @@ impl<'a> IRGenerator<'a> {
                 let arr_type = self.def_interner().id_type(expr_id);
                 let element_type = arr_type.into();    //WARNING array type!
 
-                let array_index = self.context.mem.create_new_array(arr_lit.length as u32, element_type, &String::new());
+                let array_id = self.context.mem.create_new_array(arr_lit.length as u32, element_type, &String::new());
                 //We parse the array definition
                 let elements = self.expression_list_to_objects(env, &arr_lit.contents);
-                let array = &mut self.context.mem.arrays[array_index as usize];
+                let array = &mut self.context.mem[array_id];
                 let array_adr = array.adr;
                 for (pos, object) in elements.into_iter().enumerate() {
                     //array.witness.push(node::get_witness_from_object(&object));
-                    let lhs_adr = self.context.get_or_create_const(FieldElement::from((array_adr + pos as u32) as u128), node::ObjectType::Unsigned(32));
-                    self.context.new_instruction(object, lhs_adr, node::Operation::Store(array_index), element_type);
+                    let lhs_adr = self.context.get_or_create_const(FieldElement::from((array_adr + pos as u32) as u128), ObjectType::Unsigned(32));
+                    let store = Operation::Store {
+                        array_id,
+                        index: lhs_adr,
+                        value: object,
+                    };
+                    self.context.new_instruction(store, element_type);
                 }
                 //Finally, we create a variable pointing to this MemArray
                 let new_var = node::Variable {
                     id: NodeId::dummy(),
-                    obj_type : node::ObjectType::Pointer(array_index),
+                    obj_type : ObjectType::Pointer(array_id),
                     name: String::new(),
                     root: None,
                     def: None,
@@ -580,14 +581,13 @@ impl<'a> IRGenerator<'a> {
                 // for e.g. struct == struct in the future
                 let lhs = self.expression_to_object(env, &infx.lhs)?.unwrap_id();
                 let rhs = self.expression_to_object(env, &infx.rhs)?.unwrap_id();
-                self.evaluate_infix_expression(lhs, rhs, infx.operator)
-                    .map(Value::Single)
+                Ok(Value::Single(self.evaluate_infix_expression(lhs, rhs, infx.operator)))
             },
             HirExpression::Cast(cast_expr) => {
                 let lhs = self.expression_to_object(env, &cast_expr.lhs)?.unwrap_id();
                 let rtype = cast_expr.r#type.into();
 
-                Ok(Value::Single(self.context.new_instruction(lhs, lhs, Operation::Cast, rtype)))
+                Ok(Value::Single(self.context.new_instruction(Operation::Cast(lhs), rtype)))
 
                 //We should generate a cast instruction and handle properly type conversion:
                 // unsigned integer to field ; ok, just checks if bit size over FieldElement::max_num_bits()
@@ -613,25 +613,20 @@ impl<'a> IRGenerator<'a> {
 
                 let arr_type = self.def_interner().id_type(arr_def);
                 let o_type = arr_type.into();
-                let mut array_index = self.context.mem.arrays.len() as u32;
-                let array = if let Some(moi) = self.context.mem.find_array(&Some(arr_def)) {
-                    array_index= self.context.mem.get_array_index(moi).unwrap();
-                    moi
-                }
-                 else if let Some(Value::Single(pointer)) = self.find_variable(arr_def) {
+
+                let array = if let Some(array) = self.context.mem.find_array(arr_def) {
+                    array
+                } else if let Some(Value::Single(pointer)) = self.find_variable(arr_def) {
                     match self.context.get_object_type(*pointer) {
-                        node::ObjectType::Pointer(a_id) => {
-                            array_index = a_id;
-                            &self.context.mem.arrays[a_id as usize]
-                        }
+                        ObjectType::Pointer(array_id) => &self.context.mem[array_id],
                         _ => unreachable!(),
                     }
-                 }
-                else {
+                } else {
                     let arr = env.get_array(&arr_name).map_err(|kind|kind.add_span(ident_span)).unwrap();
                     self.context.mem.create_array_from_object(&arr, arr_def, o_type, &arr_name)
                 };
-                //let array = self.mem.get_or_create_array(&arr, arr_def.unwrap(), o_type, arr_name);
+
+                let array_id = array.id;
                 let address = array.adr;
 
                 // Evaluate the index expression
@@ -639,8 +634,10 @@ impl<'a> IRGenerator<'a> {
 
                 let index_type = self.context.get_object_type(index_as_obj);
                 let base_adr = self.context.get_or_create_const(FieldElement::from(address as i128), index_type);
-                let adr_id = self.context.new_instruction(base_adr, index_as_obj, node::Operation::Add, index_type);
-                Ok(Value::Single(self.context.new_instruction(adr_id, adr_id, node::Operation::Load(array_index), o_type)))
+                let adr_id = self.context.new_instruction(Operation::binary(BinaryOp::Add, base_adr, index_as_obj), index_type);
+
+                let load = Operation::Load { array_id, index: adr_id };
+                Ok(Value::Single(self.context.new_instruction(load, o_type)))
             },
             HirExpression::Call(call_expr) => {
                 let func_meta = self.def_interner().function_meta(&call_expr.func_id);
@@ -822,10 +819,11 @@ impl<'a> IRGenerator<'a> {
         let iter_type = int_type.into();
         let iter_id = self.create_new_variable(iter_name, iter_def, iter_type, None);
         let iter_var = self.context.get_mut_variable(iter_id).unwrap();
-
         iter_var.obj_type = iter_type;
-        let iter_ass =
-            self.context.new_instruction(iter_id, start_idx, node::Operation::Ass, iter_type);
+
+        let assign = Operation::binary(BinaryOp::Assign, iter_id, start_idx);
+        let iter_ass = self.context.new_instruction(assign, iter_type);
+
         //We map the iterator to start_idx so that when we seal the join block, we will get the corrdect value.
         self.update_variable_id(iter_id, iter_ass, start_idx);
 
@@ -834,21 +832,23 @@ impl<'a> IRGenerator<'a> {
             block::new_unsealed_block(&mut self.context, block::BlockType::ForJoin, true);
         let exit_id = block::new_sealed_block(&mut self.context, block::BlockType::Normal);
         self.context.current_block = join_idx;
+
         //should parse a for_expr.condition statement that should evaluate to bool, but
         //we only supports i=start;i!=end for now
         //we generate the phi for the iterator because the iterator is manually created
-        let phi = self.generate_empty_phi(join_idx, iter_id);
+        let phi = self.context.generate_empty_phi(join_idx, iter_id);
         self.update_variable_id(iter_id, iter_id, phi); //is it still needed?
-        let cond =
-            self.context.new_instruction(phi, end_idx, Operation::Ne, node::ObjectType::Boolean);
-        let to_fix = self.context.new_instruction(
-            cond,
-            NodeId::dummy(),
-            node::Operation::Jeq,
-            node::ObjectType::NotAnObject,
-        );
+
+        let notequal = Operation::binary(BinaryOp::Ne, phi, end_idx);
+        let cond = self.context.new_instruction(notequal, ObjectType::Boolean);
+
+        let to_fix = self.context.new_instruction(Operation::Nop, ObjectType::NotAnObject);
+
         //Body
         let body_id = block::new_sealed_block(&mut self.context, block::BlockType::Normal);
+        self.context.try_get_mut_instruction(to_fix).unwrap().operator =
+            Operation::Jeq(cond, body_id);
+
         let block = match self.def_interner().expression(&for_expr.block) {
             HirExpression::Block(block_expr) => block_expr,
             _ => panic!("ice: expected a block expression"),
@@ -862,7 +862,10 @@ impl<'a> IRGenerator<'a> {
 
         //increment iter
         let one = self.context.get_or_create_const(FieldElement::one(), iter_type);
-        let incr = self.context.new_instruction(phi, one, node::Operation::Add, iter_type);
+
+        let incr_op = Operation::binary(BinaryOp::Add, phi, one);
+        let incr = self.context.new_instruction(incr_op, iter_type);
+
         let cur_block_id = self.context.current_block; //It should be the body block, except if the body has CFG statements
         let cur_block = &mut self.context[cur_block_id];
         cur_block.update_variable(iter_id, incr);
@@ -870,38 +873,17 @@ impl<'a> IRGenerator<'a> {
         cur_block.left = Some(join_idx);
         let join_mut = &mut self.context[join_idx];
         join_mut.predecessor.push(cur_block_id);
+
         //jump back to join
-        self.context.new_instruction(
-            NodeId::dummy(),
-            self.context[join_idx].get_first_instruction(),
-            node::Operation::Jmp,
-            node::ObjectType::NotAnObject,
-        );
+        self.context.new_instruction(Operation::Jmp(join_idx), ObjectType::NotAnObject);
+
         //seal join
         ssa_form::seal_block(&mut self.context, join_idx);
         //exit block
         self.context.current_block = exit_id;
         let exit_first = self.context.get_current_block().get_first_instruction();
         block::link_with_target(&mut self.context, join_idx, Some(exit_id), Some(body_id));
-        let first_instruction = self.context[body_id].get_first_instruction();
-        self.context.try_get_mut_instruction(to_fix).unwrap().rhs = first_instruction;
+
         Ok(Value::Single(exit_first)) //TODO what should we return???
-    }
-
-    pub fn generate_empty_phi(&mut self, target_block: BlockId, root: NodeId) -> NodeId {
-        //Ensure there is not already a phi for the variable (n.b. probably not usefull)
-        for i in &self.context[target_block].instructions {
-            if let Some(ins) = self.context.try_get_instruction(*i) {
-                if ins.operator == node::Operation::Phi && ins.rhs == root {
-                    return *i;
-                }
-            }
-        }
-
-        let v_type = self.context.get_object_type(root);
-        let new_phi = Instruction::new(Operation::Phi, root, root, v_type, Some(target_block));
-        let phi_id = self.context.add_instruction(new_phi);
-        self.context[target_block].instructions.insert(1, phi_id);
-        phi_id
     }
 }

@@ -48,7 +48,11 @@ pub fn start_cli() {
             App::new("prove")
                 .about("Create proof for this program")
                 .arg(Arg::with_name("proof_name").help("The name of the proof").required(true))
-                .arg(Arg::with_name("interactive").help("pause execution").required(false)),
+                .arg(
+                    Arg::with_name("show-ssa")
+                        .long("show-ssa")
+                        .help("Emit debug information for the intermediate SSA IR"),
+                ),
         )
         .get_matches();
 
