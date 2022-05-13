@@ -119,19 +119,20 @@ impl Type {
     // `Any` type which allows you to pass in any type which
     // is fundamentally a field element. E.g all integer types
     pub fn is_subtype_of(&self, other: &Type) -> bool {
+        use FieldElementType::*;
+        use Type::*;
+
         // Avoid reporting duplicate errors
-        if self == &Type::Error || other == &Type::Error {
+        if self == &Error || other == &Error {
             return true;
         }
 
         // Any field element type is a subtype of `priv Field`
-        if let Type::FieldElement(FieldElementType::Private) = other {
+        if other == &FieldElement(Private) {
             return self.is_field_element();
         }
 
-        if let (Type::Array(_, arg_size, arg_type), Type::Array(_, param_size, param_type)) =
-            (self, other)
-        {
+        if let (Array(_, arg_size, arg_type), Array(_, param_size, param_type)) = (self, other) {
             // We require array elements to be exactly equal, though an array with known
             // length is a subtype of an array with an unknown length. Originally arrays were
             // covariant (so []i32 <: []Field), but it was changed to be more like rusts and
@@ -142,7 +143,14 @@ impl Type {
         // XXX: Should we also allow functions that ask for u16
         // to accept u8? We would need to pad the bit decomposition
         // if so.
-        self == other
+        match (self, other) {
+            // Const types are subtypes of non-const types
+            (FieldElement(Constant), FieldElement(_)) => true,
+            (Integer(Constant, self_sign, self_bits), Integer(_, other_sign, other_bits)) => {
+                self_sign == other_sign && self_bits == other_bits
+            }
+            (this, other) => this == other,
+        }
     }
 
     pub fn is_field_element(&self) -> bool {
