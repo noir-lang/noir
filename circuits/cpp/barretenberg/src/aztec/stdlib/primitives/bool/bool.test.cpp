@@ -313,6 +313,31 @@ TEST(stdlib_bool, implies)
     EXPECT_EQ(result, true);
 }
 
+TEST(stdlib_bool, implies_both_ways)
+{
+    waffle::StandardComposer composer = waffle::StandardComposer();
+    for (size_t j = 0; j < 4; ++j) {
+        bool lhs_constant = (bool)(j % 2);
+        bool rhs_constant = (bool)(j > 1 ? true : false);
+
+        for (size_t i = 0; i < 4; ++i) {
+            bool a_val = (bool)(i % 2);
+            bool b_val = (bool)(i > 1 ? true : false);
+            bool_t a = lhs_constant ? bool_t(a_val) : (witness_t(&composer, a_val));
+            bool_t b = rhs_constant ? bool_t(b_val) : (witness_t(&composer, b_val));
+            bool_t c = a.implies_both_ways(b);
+            EXPECT_EQ(c.get_value(), !(a.get_value() ^ b.get_value()));
+        }
+    }
+    waffle::Prover prover = composer.preprocess();
+    waffle::Verifier verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof);
+    EXPECT_EQ(result, true);
+}
+
 TEST(stdlib_bool, test_simple_proof)
 {
     waffle::StandardComposer composer = waffle::StandardComposer();

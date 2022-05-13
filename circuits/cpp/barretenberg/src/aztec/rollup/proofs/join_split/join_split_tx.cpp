@@ -24,7 +24,7 @@ void write(std::vector<uint8_t>& buf, join_split_tx const& tx)
 
     write(buf, tx.account_private_key);
     write(buf, tx.alias_hash);
-    write(buf, tx.nonce);
+    write(buf, tx.account_nonce);
     write(buf, tx.account_note_index);
     write(buf, tx.account_note_path);
     write(buf, tx.signing_pub_key);
@@ -52,7 +52,7 @@ void read(uint8_t const*& it, join_split_tx& tx)
 
     read(it, tx.account_private_key);
     read(it, tx.alias_hash);
-    read(it, tx.nonce);
+    read(it, tx.account_nonce);
     read(it, tx.account_note_index);
     read(it, tx.account_note_path);
     read(it, tx.signing_pub_key);
@@ -82,7 +82,7 @@ std::ostream& operator<<(std::ostream& os, join_split_tx const& tx)
               << "partial_claim_note: " << tx.partial_claim_note << "\n"
               << "account_private_key: " << tx.account_private_key << "\n"
               << "alias_hash: " << tx.alias_hash << "\n"
-              << "nonce: " << tx.nonce << "\n"
+              << "nonce: " << tx.account_nonce << "\n"
               << "account_note_index: " << tx.account_note_index << "\n"
               << "account_note_path: " << tx.account_note_path << "\n"
               << "signing_pub_key: " << tx.signing_pub_key << "\n"

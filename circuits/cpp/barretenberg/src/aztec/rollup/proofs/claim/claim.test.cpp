@@ -75,6 +75,7 @@ class claim_tests : public ::testing::Test {
     std::unique_ptr<MerkleTree<MemoryStore>> data_tree;
     std::unique_ptr<MerkleTree<MemoryStore>> defi_tree;
     const uint32_t asset_id = 1;
+    const uint32_t empty_virtual_asset_id = uint32_t(1) << (MAX_NUM_ASSETS_BIT_LENGTH - 1);
 };
 
 TEST_F(claim_tests, test_claim)
@@ -608,13 +609,12 @@ TEST_F(claim_tests, test_claim_for_virtual_note)
                                   .input_asset_id_a = 0,
                                   .input_asset_id_b = 0,
                                   .output_asset_id_a = 0,
-                                  .output_asset_id_b = 0,
-                                  .config = bridge_id::bit_config{ .first_input_virtual = false,
-                                                                   .second_input_virtual = false,
-                                                                   .first_output_virtual = false,
-                                                                   .second_output_virtual = true, // <--
-                                                                   .second_input_real = false,
-                                                                   .second_output_real = false },
+                                  .output_asset_id_b = empty_virtual_asset_id,
+                                  .config =
+                                      bridge_id::bit_config{
+                                          .second_input_in_use = false,
+                                          .second_output_in_use = true // <--
+                                      },
                                   .aux_data = 0 };
     const claim_note note1 = { .deposit_value = 10,
                                .bridge_id = bridge_id.to_uint256_t(),
@@ -644,16 +644,12 @@ TEST_F(claim_tests, test_claim_for_virtual_note)
 TEST_F(claim_tests, test_first_input_note_virtual)
 {
     const bridge_id bridge_id = { .bridge_address_id = 0,
-                                  .input_asset_id_a = 0,
+                                  .input_asset_id_a = empty_virtual_asset_id, // <--
                                   .input_asset_id_b = 0,
                                   .output_asset_id_a = 111,
                                   .output_asset_id_b = 222,
-                                  .config = bridge_id::bit_config{ .first_input_virtual = true, // <--
-                                                                   .second_input_virtual = false,
-                                                                   .first_output_virtual = false,
-                                                                   .second_output_virtual = false,
-                                                                   .second_input_real = false,
-                                                                   .second_output_real = false },
+                                  .config = bridge_id::bit_config{ .second_input_in_use = false,
+                                                                   .second_output_in_use = true },
                                   .aux_data = 0 };
 
     const claim_note note1 = { .deposit_value = 10,
@@ -684,14 +680,10 @@ TEST_F(claim_tests, test_first_output_note_virtual)
     const bridge_id bridge_id = { .bridge_address_id = 0,
                                   .input_asset_id_a = 0,
                                   .input_asset_id_b = 0,
-                                  .output_asset_id_a = 111,
+                                  .output_asset_id_a = empty_virtual_asset_id, // <--
                                   .output_asset_id_b = 222,
-                                  .config = bridge_id::bit_config{ .first_input_virtual = false,
-                                                                   .second_input_virtual = false,
-                                                                   .first_output_virtual = true, // <--
-                                                                   .second_output_virtual = false,
-                                                                   .second_input_real = false,
-                                                                   .second_output_real = false },
+                                  .config = bridge_id::bit_config{ .second_input_in_use = false,
+                                                                   .second_output_in_use = true },
                                   .aux_data = 0 };
 
     const claim_note note1 = { .deposit_value = 10,
@@ -717,19 +709,15 @@ TEST_F(claim_tests, test_first_output_note_virtual)
     EXPECT_EQ(tx.get_output_notes()[0], result.public_inputs[InnerProofFields::NOTE_COMMITMENT1]);
 }
 
-TEST_F(claim_tests, test_second_input_note_virtual_and_real_fails)
+TEST_F(claim_tests, test_second_input_note_nonzero_and_not_in_use_fails)
 {
     const bridge_id bridge_id = { .bridge_address_id = 0,
                                   .input_asset_id_a = 0,
-                                  .input_asset_id_b = 0,
+                                  .input_asset_id_b = empty_virtual_asset_id, // <--
                                   .output_asset_id_a = 111,
                                   .output_asset_id_b = 222,
-                                  .config = bridge_id::bit_config{ .first_input_virtual = false,
-                                                                   .second_input_virtual = true, // <--
-                                                                   .first_output_virtual = false,
-                                                                   .second_output_virtual = false,
-                                                                   .second_input_real = true, // <--
-                                                                   .second_output_real = false },
+                                  .config = bridge_id::bit_config{ .second_input_in_use = false, // <--
+                                                                   .second_output_in_use = false },
                                   .aux_data = 0 };
 
     const claim_note note1 = { .deposit_value = 10,
@@ -752,22 +740,21 @@ TEST_F(claim_tests, test_second_input_note_virtual_and_real_fails)
 
     auto result = verify_logic(tx, cd);
     EXPECT_FALSE(result.logic_verified);
-    EXPECT_EQ(result.err, "Contradiction: second_input_virtual AND second_input_real cannot both be true");
+    EXPECT_EQ(result.err, "Expected second_input_in_use, given input_asset_id_b != 0");
 }
 
-TEST_F(claim_tests, test_second_output_note_virtual_and_real_fails)
+TEST_F(claim_tests, test_second_output_note_nonzero_and_not_in_use_fails)
 {
     const bridge_id bridge_id = { .bridge_address_id = 0,
                                   .input_asset_id_a = 0,
                                   .input_asset_id_b = 0,
                                   .output_asset_id_a = 111,
-                                  .output_asset_id_b = 222,
-                                  .config = bridge_id::bit_config{ .first_input_virtual = false,
-                                                                   .second_input_virtual = false,
-                                                                   .first_output_virtual = false,
-                                                                   .second_output_virtual = true, // <--
-                                                                   .second_input_real = false,
-                                                                   .second_output_real = true }, // <--
+                                  .output_asset_id_b = empty_virtual_asset_id, // <--
+                                  .config =
+                                      bridge_id::bit_config{
+                                          .second_input_in_use = false,
+                                          .second_output_in_use = false // <--
+                                      },
                                   .aux_data = 0 };
 
     const claim_note note1 = { .deposit_value = 10,
@@ -790,22 +777,55 @@ TEST_F(claim_tests, test_second_output_note_virtual_and_real_fails)
 
     auto result = verify_logic(tx, cd);
     EXPECT_FALSE(result.logic_verified);
-    EXPECT_EQ(result.err, "Contradiction: second_output_virtual AND second_output_real cannot both be true");
+    EXPECT_EQ(result.err, "Expected second_output_in_use, given output_asset_id_b != 0");
 }
 
-TEST_F(claim_tests, test_second_output_real_means_asset_ids_equal_fails)
+TEST_F(claim_tests, test_second_input_in_use_means_asset_ids_equal_fails)
+{
+    const bridge_id bridge_id = { .bridge_address_id = 0,
+                                  .input_asset_id_a = 0,
+                                  .input_asset_id_b = 0, // <-- equal
+                                  .output_asset_id_a = 0,
+                                  .output_asset_id_b = 0,
+                                  .config = bridge_id::bit_config{ .second_input_in_use = true, // <--
+                                                                   .second_output_in_use = false },
+                                  .aux_data = 0 };
+
+    const claim_note note1 = { .deposit_value = 10,
+                               .bridge_id = bridge_id.to_uint256_t(),
+                               .defi_interaction_nonce = 0,
+                               .fee = 0,
+                               .value_note_partial_commitment =
+                                   create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
+                               .input_nullifier = fr::random_element() };
+
+    const defi_interaction::note note2 = { .bridge_id = bridge_id.to_uint256_t(),
+                                           .interaction_nonce = 0,
+                                           .total_input_value = 100,
+                                           .total_output_value_a = 200,
+                                           .total_output_value_b = 300,
+                                           .interaction_result = 1 };
+    append_note(note1, data_tree);
+    append_note(note2, defi_tree);
+    claim_tx tx = create_claim_tx(note1, 0, 0, note2);
+
+    auto result = verify_logic(tx, cd);
+    EXPECT_FALSE(result.logic_verified);
+    EXPECT_EQ(result.err, "input asset ids must be different for the second bridge input to be in-use");
+}
+
+TEST_F(claim_tests, test_second_output_in_use_means_real_output_asset_ids_equal_fails)
 {
     const bridge_id bridge_id = { .bridge_address_id = 0,
                                   .input_asset_id_a = 0,
                                   .input_asset_id_b = 0,
                                   .output_asset_id_a = 111,
                                   .output_asset_id_b = 111, // <-- equal
-                                  .config = bridge_id::bit_config{ .first_input_virtual = false,
-                                                                   .second_input_virtual = false,
-                                                                   .first_output_virtual = false,
-                                                                   .second_output_virtual = false,
-                                                                   .second_input_real = false,
-                                                                   .second_output_real = true }, // <--
+                                  .config =
+                                      bridge_id::bit_config{
+                                          .second_input_in_use = false,
+                                          .second_output_in_use = true // <--
+                                      },
                                   .aux_data = 0 };
 
     const claim_note note1 = { .deposit_value = 10,
@@ -828,7 +848,111 @@ TEST_F(claim_tests, test_second_output_real_means_asset_ids_equal_fails)
 
     auto result = verify_logic(tx, cd);
     EXPECT_FALSE(result.logic_verified);
-    EXPECT_EQ(result.err, "second_output_real == true AND both output asset ids are identical");
+    EXPECT_EQ(result.err, "real output asset ids must be different for the second bridge output to be in-use");
+}
+
+TEST_F(claim_tests, test_second_output_in_use_and_virtual_output_asset_ids_equal)
+{
+    const bridge_id bridge_id = { .bridge_address_id = 0,
+                                  .input_asset_id_a = 0,
+                                  .input_asset_id_b = 0,
+                                  .output_asset_id_a = empty_virtual_asset_id,
+                                  .output_asset_id_b = empty_virtual_asset_id, // <-- equal
+                                  .config =
+                                      bridge_id::bit_config{
+                                          .second_input_in_use = false,
+                                          .second_output_in_use = true // <--
+                                      },
+                                  .aux_data = 0 };
+
+    const claim_note note1 = { .deposit_value = 10,
+                               .bridge_id = bridge_id.to_uint256_t(),
+                               .defi_interaction_nonce = 0,
+                               .fee = 0,
+                               .value_note_partial_commitment =
+                                   create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
+                               .input_nullifier = fr::random_element() };
+
+    const defi_interaction::note note2 = { .bridge_id = bridge_id.to_uint256_t(),
+                                           .interaction_nonce = 0,
+                                           .total_input_value = 100,
+                                           .total_output_value_a = 200,
+                                           .total_output_value_b = 300,
+                                           .interaction_result = 1 };
+    append_note(note1, data_tree);
+    append_note(note2, defi_tree);
+    claim_tx tx = create_claim_tx(note1, 0, 0, note2);
+
+    auto result = verify_logic(tx, cd);
+    EXPECT_TRUE(result.logic_verified);
+}
+
+TEST_F(claim_tests, test_first_bridge_output_virtual_but_invalid_placeholder_fails)
+{
+    const bridge_id bridge_id = { .bridge_address_id = 0,
+                                  .input_asset_id_a = 0,
+                                  .input_asset_id_b = 0,
+                                  .output_asset_id_a = empty_virtual_asset_id + 1, // should be 2 ** 29.
+                                  .output_asset_id_b = 0,
+                                  .config = bridge_id::bit_config{ .second_input_in_use = false,
+                                                                   .second_output_in_use = false },
+                                  .aux_data = 0 };
+
+    const claim_note note1 = { .deposit_value = 10,
+                               .bridge_id = bridge_id.to_uint256_t(),
+                               .defi_interaction_nonce = 0,
+                               .fee = 0,
+                               .value_note_partial_commitment =
+                                   create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
+                               .input_nullifier = fr::random_element() };
+
+    const defi_interaction::note note2 = { .bridge_id = bridge_id.to_uint256_t(),
+                                           .interaction_nonce = 0,
+                                           .total_input_value = 100,
+                                           .total_output_value_a = 200,
+                                           .total_output_value_b = 300,
+                                           .interaction_result = 1 };
+    append_note(note1, data_tree);
+    append_note(note2, defi_tree);
+    claim_tx tx = create_claim_tx(note1, 0, 0, note2);
+
+    auto result = verify_logic(tx, cd);
+    EXPECT_FALSE(result.logic_verified);
+    EXPECT_EQ(result.err, "output_asset_id_a detected as virtual, but has incorrect placeholder value");
+}
+
+TEST_F(claim_tests, test_second_bridge_output_virtual_but_invalid_placeholder_fails)
+{
+    const bridge_id bridge_id = { .bridge_address_id = 0,
+                                  .input_asset_id_a = 0,
+                                  .input_asset_id_b = 0,
+                                  .output_asset_id_a = empty_virtual_asset_id,
+                                  .output_asset_id_b = empty_virtual_asset_id + 1, // should be 2 ** 29.
+                                  .config = bridge_id::bit_config{ .second_input_in_use = false,
+                                                                   .second_output_in_use = true },
+                                  .aux_data = 0 };
+
+    const claim_note note1 = { .deposit_value = 10,
+                               .bridge_id = bridge_id.to_uint256_t(),
+                               .defi_interaction_nonce = 0,
+                               .fee = 0,
+                               .value_note_partial_commitment =
+                                   create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
+                               .input_nullifier = fr::random_element() };
+
+    const defi_interaction::note note2 = { .bridge_id = bridge_id.to_uint256_t(),
+                                           .interaction_nonce = 0,
+                                           .total_input_value = 100,
+                                           .total_output_value_a = 200,
+                                           .total_output_value_b = 300,
+                                           .interaction_result = 1 };
+    append_note(note1, data_tree);
+    append_note(note2, defi_tree);
+    claim_tx tx = create_claim_tx(note1, 0, 0, note2);
+
+    auto result = verify_logic(tx, cd);
+    EXPECT_FALSE(result.logic_verified);
+    EXPECT_EQ(result.err, "output_asset_id_b detected as virtual, but has incorrect placeholder value");
 }
 
 TEST_F(claim_tests, test_claim_2_outputs_full_proof)
@@ -838,12 +962,8 @@ TEST_F(claim_tests, test_claim_2_outputs_full_proof)
                                   .input_asset_id_b = 0,
                                   .output_asset_id_a = 111,
                                   .output_asset_id_b = 222,
-                                  .config = bridge_id::bit_config{ .first_input_virtual = false,
-                                                                   .second_input_virtual = false,
-                                                                   .first_output_virtual = false,
-                                                                   .second_output_virtual = false,
-                                                                   .second_input_real = false,
-                                                                   .second_output_real = true },
+                                  .config = bridge_id::bit_config{ .second_input_in_use = false,
+                                                                   .second_output_in_use = true },
                                   .aux_data = 0 };
 
     // Create some values for our circuit that are large enough to properly test the ratio checks.
@@ -897,7 +1017,7 @@ TEST_F(claim_tests, test_claim_2_outputs_full_proof)
 
     const value_note expected_output_note1 = { .value = tx.output_value_a,
                                                .asset_id = bridge_id.output_asset_id_a,
-                                               .nonce = 0,
+                                               .account_nonce = 0,
                                                .owner = user.owner.public_key,
                                                .secret = user.note_secret,
                                                .creator_pubkey = 0,
@@ -905,7 +1025,7 @@ TEST_F(claim_tests, test_claim_2_outputs_full_proof)
 
     const value_note expected_output_note2 = { .value = tx.output_value_b,
                                                .asset_id = bridge_id.output_asset_id_b,
-                                               .nonce = 0,
+                                               .account_nonce = 0,
                                                .owner = user.owner.public_key,
                                                .secret = user.note_secret,
                                                .creator_pubkey = 0,
@@ -936,13 +1056,9 @@ TEST_F(claim_tests, test_claim_1_output_full_proof)
                                   .input_asset_id_a = 0,
                                   .input_asset_id_b = 0,
                                   .output_asset_id_a = 111,
-                                  .output_asset_id_b = 222,
-                                  .config = bridge_id::bit_config{ .first_input_virtual = false,
-                                                                   .second_input_virtual = false,
-                                                                   .first_output_virtual = false,
-                                                                   .second_output_virtual = false,
-                                                                   .second_input_real = false,
-                                                                   .second_output_real = false },
+                                  .output_asset_id_b = 0,
+                                  .config = bridge_id::bit_config{ .second_input_in_use = false,
+                                                                   .second_output_in_use = false },
                                   .aux_data = 0 };
     const uint32_t claim_fee = 8;
 
@@ -973,7 +1089,7 @@ TEST_F(claim_tests, test_claim_1_output_full_proof)
 
     const value_note expected_output_note1 = { .value = 20,
                                                .asset_id = bridge_id.output_asset_id_a,
-                                               .nonce = 0,
+                                               .account_nonce = 0,
                                                .owner = user.owner.public_key,
                                                .secret = user.note_secret,
                                                .creator_pubkey = 0,
@@ -1005,27 +1121,23 @@ TEST_F(claim_tests, test_claim_1_output_with_virtual_note_full_proof)
                                   .input_asset_id_a = 0,
                                   .input_asset_id_b = 0,
                                   .output_asset_id_a = 111,
-                                  .output_asset_id_b = 222,
-                                  .config = bridge_id::bit_config{ .first_input_virtual = false,
-                                                                   .second_input_virtual = false,
-                                                                   .first_output_virtual = false,
-                                                                   .second_output_virtual = true,
-                                                                   .second_input_real = false,
-                                                                   .second_output_real = false },
+                                  .output_asset_id_b = empty_virtual_asset_id,
+                                  .config = bridge_id::bit_config{ .second_input_in_use = false,
+                                                                   .second_output_in_use = true },
                                   .aux_data = 0 };
     const uint32_t claim_fee = 8;
-    const uint64_t nonce = 2;
+    const uint64_t defi_interaction_nonce = 2;
 
     const claim_note note1 = { .deposit_value = 10,
                                .bridge_id = bridge_id.to_uint256_t(),
-                               .defi_interaction_nonce = nonce,
+                               .defi_interaction_nonce = defi_interaction_nonce,
                                .fee = claim_fee,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
                                .input_nullifier = fr::random_element() };
 
     const defi_interaction::note note2 = { .bridge_id = bridge_id.to_uint256_t(),
-                                           .interaction_nonce = nonce,
+                                           .interaction_nonce = defi_interaction_nonce,
                                            .total_input_value = 100,
                                            .total_output_value_a = 200,
                                            .total_output_value_b = 300,
@@ -1052,16 +1164,16 @@ TEST_F(claim_tests, test_claim_1_output_with_virtual_note_full_proof)
 
     const value_note expected_output_note1 = { .value = 20,
                                                .asset_id = bridge_id.output_asset_id_a,
-                                               .nonce = 0,
+                                               .account_nonce = 0,
                                                .owner = user.owner.public_key,
                                                .secret = user.note_secret,
                                                .creator_pubkey = 0,
                                                .input_nullifier = nullifier1 };
 
     const value_note expected_output_note2 = { .value = 30,
-                                               .asset_id =
-                                                   static_cast<uint32_t>(1 << (MAX_NUM_ASSETS_BIT_LENGTH - 1)) + nonce,
-                                               .nonce = 0,
+                                               .asset_id = static_cast<uint32_t>(1 << (MAX_NUM_ASSETS_BIT_LENGTH - 1)) +
+                                                           defi_interaction_nonce,
+                                               .account_nonce = 0,
                                                .owner = user.owner.public_key,
                                                .secret = user.note_secret,
                                                .creator_pubkey = 0,
@@ -1092,12 +1204,8 @@ TEST_F(claim_tests, test_claim_refund_full_proof)
                                   .input_asset_id_b = 0,
                                   .output_asset_id_a = 111,
                                   .output_asset_id_b = 222,
-                                  .config = bridge_id::bit_config{ .first_input_virtual = false,
-                                                                   .second_input_virtual = false,
-                                                                   .first_output_virtual = false,
-                                                                   .second_output_virtual = false,
-                                                                   .second_input_real = false,
-                                                                   .second_output_real = false },
+                                  .config = bridge_id::bit_config{ .second_input_in_use = false,
+                                                                   .second_output_in_use = true },
                                   .aux_data = 0 };
 
     const claim_note note1 = { .deposit_value = 10,
@@ -1127,7 +1235,7 @@ TEST_F(claim_tests, test_claim_refund_full_proof)
 
     const value_note expected_output_note1 = { .value = 10,
                                                .asset_id = bridge_id.input_asset_id_a,
-                                               .nonce = 0,
+                                               .account_nonce = 0,
                                                .owner = user.owner.public_key,
                                                .secret = user.note_secret,
                                                .creator_pubkey = 0,
@@ -1158,26 +1266,40 @@ TEST_F(claim_tests, test_claim_refund_full_proof)
 // For less verbose code, we set up some default test data here. Individual elements of the test_data can then be
 // modified in each test.
 class test_data {
+  private:
+    const uint32_t empty_virtual_asset_id = (uint32_t(1) << (MAX_NUM_ASSETS_BIT_LENGTH - 1));
+
   public:
     bridge_id bid;
     claim_note note1;
     defi_interaction::note note2;
 
-    test_data(rollup::fixtures::user_context user)
+    struct virtual_flags {
+        bool in1 = false;
+        bool in2 = false;
+        bool out1 = false;
+        bool out2 = false;
+    };
+
+    struct in_use_flags {
+        bool in2 = false;
+        bool out2 = false;
+    };
+
+    test_data(rollup::fixtures::user_context user,
+              virtual_flags virtual_flags = { false, false, false, false },
+              in_use_flags in_use = { false, false })
     {
         bid = { .bridge_address_id = 123,
-                .input_asset_id_a = 456,
-                .input_asset_id_b = 0,
-                .output_asset_id_a = 111,
-                .output_asset_id_b = 222,
-                .config = bridge_id::bit_config{ .first_input_virtual = false,
-                                                 .second_input_virtual = false,
-                                                 .first_output_virtual = false,
-                                                 .second_output_virtual = false,
-                                                 .second_input_real = false,
-                                                 .second_output_real = false },
+                .input_asset_id_a = 456 + (virtual_flags.in1 ? empty_virtual_asset_id : 0),
+                .input_asset_id_b = (in_use.in2 ? 789 : 0) + (virtual_flags.in2 ? empty_virtual_asset_id : 0),
+                .output_asset_id_a = virtual_flags.out1 ? empty_virtual_asset_id : 111,
+                .output_asset_id_b = in_use.out2 ? (virtual_flags.out2 ? empty_virtual_asset_id : 222) : 0,
+                .config =
+                    bridge_id::bit_config{ .second_input_in_use = in_use.in2, .second_output_in_use = in_use.out2 },
                 .aux_data = 0 };
 
+        // claim note:
         note1 = { .deposit_value = 10,
                   .bridge_id = bid.to_uint256_t(),
                   .defi_interaction_nonce = 0,
@@ -1186,6 +1308,7 @@ class test_data {
                       create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
                   .input_nullifier = fr::random_element() };
 
+        // defi interaction note:
         note2 = { .bridge_id = bid.to_uint256_t(),
                   .interaction_nonce = 0,
                   .total_input_value = 100,
@@ -1203,7 +1326,7 @@ class test_data {
 TEST_F(claim_tests, test_total_input_value_out_of_range_fails)
 {
     test_data test_data(user);
-    uint256_t total_input_value = uint256_t(1) << 253;
+    uint256_t total_input_value = uint256_t(1) << 253; // <--
     test_data.note2.total_input_value = total_input_value;
     append_note(test_data.note1, data_tree);
     append_note(test_data.note2, defi_tree);
@@ -1217,7 +1340,7 @@ TEST_F(claim_tests, test_total_input_value_out_of_range_fails)
 TEST_F(claim_tests, test_total_output_value_a_out_of_range_fails)
 {
     test_data test_data(user);
-    uint256_t total_output_value_a = uint256_t(1) << 253;
+    uint256_t total_output_value_a = uint256_t(1) << 253; // <--
     test_data.note2.total_output_value_a = total_output_value_a;
     append_note(test_data.note1, data_tree);
     append_note(test_data.note2, defi_tree);
@@ -1231,7 +1354,7 @@ TEST_F(claim_tests, test_total_output_value_a_out_of_range_fails)
 TEST_F(claim_tests, test_total_output_value_b_out_of_range_fails)
 {
     test_data test_data(user);
-    uint256_t total_output_value_b = uint256_t(1) << 253;
+    uint256_t total_output_value_b = uint256_t(1) << 253; // <--
     test_data.note2.total_output_value_b = total_output_value_b;
     append_note(test_data.note1, data_tree);
     append_note(test_data.note2, defi_tree);
@@ -1245,7 +1368,7 @@ TEST_F(claim_tests, test_total_output_value_b_out_of_range_fails)
 TEST_F(claim_tests, test_deposit_value_out_of_range_fails)
 {
     test_data test_data(user);
-    uint256_t deposit_value = uint256_t(1) << 253;
+    uint256_t deposit_value = uint256_t(1) << 253; // <--
     test_data.note1.deposit_value = deposit_value;
     append_note(test_data.note1, data_tree);
     append_note(test_data.note2, defi_tree);
@@ -1259,7 +1382,7 @@ TEST_F(claim_tests, test_deposit_value_out_of_range_fails)
 TEST_F(claim_tests, test_fee_out_of_range_fails)
 {
     test_data test_data(user);
-    uint256_t fee = uint256_t(1) << 253;
+    uint256_t fee = uint256_t(1) << 253; // <--
     test_data.note1.fee = fee;
     append_note(test_data.note1, data_tree);
     append_note(test_data.note2, defi_tree);
@@ -1272,8 +1395,7 @@ TEST_F(claim_tests, test_fee_out_of_range_fails)
 
 TEST_F(claim_tests, test_refund_one_virtual)
 {
-    test_data test_data(user);
-    test_data.bid.config.first_input_virtual = true;
+    test_data test_data(user, { .in1 = true });
     test_data.note2.interaction_result = false;
     append_note(test_data.note1, data_tree);
     append_note(test_data.note2, defi_tree);
@@ -1287,9 +1409,7 @@ TEST_F(claim_tests, test_refund_one_virtual)
 
 TEST_F(claim_tests, test_refund_two_virtual)
 {
-    test_data test_data(user);
-    test_data.bid.config.first_input_virtual = true;
-    test_data.bid.config.second_input_virtual = true;
+    test_data test_data(user, { .in1 = true, .in2 = true }, { .in2 = true });
     test_data.note2.interaction_result = false;
     append_note(test_data.note1, data_tree);
     append_note(test_data.note2, defi_tree);
@@ -1303,9 +1423,8 @@ TEST_F(claim_tests, test_refund_two_virtual)
 
 TEST_F(claim_tests, test_refund_one_real)
 {
-    test_data test_data(user);
+    test_data test_data(user, {}, { .out2 = true });
     test_data.note2.interaction_result = false;
-    test_data.bid.config.second_output_real = true;
     append_note(test_data.note1, data_tree);
     append_note(test_data.note2, defi_tree);
     claim_tx tx = create_claim_tx(test_data.note1, 0, 0, test_data.note2);
@@ -1318,9 +1437,8 @@ TEST_F(claim_tests, test_refund_one_real)
 
 TEST_F(claim_tests, test_refund_two_real)
 {
-    test_data test_data(user);
+    test_data test_data(user, {}, { .out2 = true });
     test_data.note2.interaction_result = false;
-    test_data.bid.config.second_input_real = true;
     append_note(test_data.note1, data_tree);
     append_note(test_data.note2, defi_tree);
     claim_tx tx = create_claim_tx(test_data.note1, 0, 0, test_data.note2);
@@ -1333,11 +1451,8 @@ TEST_F(claim_tests, test_refund_two_real)
 
 TEST_F(claim_tests, test_refund_virtual_real)
 {
-    test_data test_data(user);
+    test_data test_data(user, { .in1 = true }, { .in2 = true });
     test_data.note2.interaction_result = false;
-    test_data.bid.config.first_input_virtual = true;
-    test_data.bid.config.second_input_real = true;
-    test_data.bid.config.second_input_virtual = false;
 
     append_note(test_data.note1, data_tree);
     append_note(test_data.note2, defi_tree);
@@ -1351,11 +1466,8 @@ TEST_F(claim_tests, test_refund_virtual_real)
 
 TEST_F(claim_tests, test_refund_real_virtual)
 {
-    test_data test_data(user);
+    test_data test_data(user, { .in2 = true }, { .in2 = true });
     test_data.note2.interaction_result = false;
-    test_data.bid.config.first_input_virtual = false;
-    test_data.bid.config.second_input_real = false;
-    test_data.bid.config.second_input_virtual = true;
 
     append_note(test_data.note1, data_tree);
     append_note(test_data.note2, defi_tree);
@@ -1369,8 +1481,7 @@ TEST_F(claim_tests, test_refund_real_virtual)
 
 TEST_F(claim_tests, test_one_virtual)
 {
-    test_data test_data(user);
-    test_data.bid.config.first_output_virtual = true;
+    test_data test_data(user, { .out1 = true });
     append_note(test_data.note1, data_tree);
     append_note(test_data.note2, defi_tree);
     claim_tx tx = create_claim_tx(test_data.note1, 0, 0, test_data.note2);
@@ -1383,9 +1494,7 @@ TEST_F(claim_tests, test_one_virtual)
 
 TEST_F(claim_tests, test_two_virtual)
 {
-    test_data test_data(user);
-    test_data.bid.config.first_output_virtual = true;
-    test_data.bid.config.second_output_virtual = true;
+    test_data test_data(user, { .out1 = true, .out2 = true }, { .out2 = true });
     append_note(test_data.note1, data_tree);
     append_note(test_data.note2, defi_tree);
     claim_tx tx = create_claim_tx(test_data.note1, 0, 0, test_data.note2);
@@ -1398,9 +1507,7 @@ TEST_F(claim_tests, test_two_virtual)
 
 TEST_F(claim_tests, test_one_real)
 {
-    test_data test_data(user);
-    test_data.bid.config.first_input_virtual = true;
-    test_data.bid.config.second_output_real = true;
+    test_data test_data(user, { .in1 = true });
     append_note(test_data.note1, data_tree);
     append_note(test_data.note2, defi_tree);
     claim_tx tx = create_claim_tx(test_data.note1, 0, 0, test_data.note2);
@@ -1413,8 +1520,7 @@ TEST_F(claim_tests, test_one_real)
 
 TEST_F(claim_tests, test_two_real)
 {
-    test_data test_data(user);
-    test_data.bid.config.second_output_real = true;
+    test_data test_data(user, {}, { .out2 = true });
     append_note(test_data.note1, data_tree);
     append_note(test_data.note2, defi_tree);
     claim_tx tx = create_claim_tx(test_data.note1, 0, 0, test_data.note2);
@@ -1427,11 +1533,7 @@ TEST_F(claim_tests, test_two_real)
 
 TEST_F(claim_tests, test_virtual_real)
 {
-    test_data test_data(user);
-    test_data.bid.config.first_output_virtual = true;
-    test_data.bid.config.second_output_real = true;
-    test_data.bid.config.second_output_virtual = false;
-
+    test_data test_data(user, { .out1 = true, .out2 = true }, { .out2 = true });
     append_note(test_data.note1, data_tree);
     append_note(test_data.note2, defi_tree);
     claim_tx tx = create_claim_tx(test_data.note1, 0, 0, test_data.note2);
@@ -1444,11 +1546,7 @@ TEST_F(claim_tests, test_virtual_real)
 
 TEST_F(claim_tests, test_real_virtual)
 {
-    test_data test_data(user);
-    test_data.bid.config.first_output_virtual = false;
-    test_data.bid.config.second_output_real = false;
-    test_data.bid.config.second_output_virtual = true;
-
+    test_data test_data(user, { .out2 = true }, { .out2 = true });
     append_note(test_data.note1, data_tree);
     append_note(test_data.note2, defi_tree);
     claim_tx tx = create_claim_tx(test_data.note1, 0, 0, test_data.note2);

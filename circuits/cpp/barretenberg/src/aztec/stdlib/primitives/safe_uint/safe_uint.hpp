@@ -229,6 +229,7 @@ template <typename ComposerContext> class safe_uint_t {
     std::array<safe_uint_t<ComposerContext>, 3> slice(const uint8_t msb, const uint8_t lsb) const;
     void set_public() const { value.set_public(); }
     operator field_ct() { return value; }
+    operator field_ct() const { return value; }
     safe_uint_t operator+(const safe_uint_t& other) const;
     safe_uint_t operator*(const safe_uint_t& other) const;
     bool_ct operator==(const safe_uint_t& other) const;

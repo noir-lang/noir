@@ -39,6 +39,8 @@ template <typename ComposerContext> class bool_t {
 
     bool_t implies(const bool_t& other) const;
 
+    bool_t implies_both_ways(const bool_t& other) const;
+
     // self ops
     void operator|=(const bool_t& other) { *this = operator|(other); }
 

@@ -44,7 +44,7 @@ join_split_tx noop_tx()
     tx.signing_pub_key = pub_key;
     tx.account_private_key = priv_key;
     tx.alias_hash = 0;
-    tx.nonce = 0;
+    tx.account_nonce = 0;
     tx.backward_link = fr::zero();
     tx.allow_chain = 0;
 

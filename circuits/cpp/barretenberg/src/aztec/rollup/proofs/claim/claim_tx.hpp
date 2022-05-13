@@ -1,4 +1,5 @@
 #pragma once
+#include "../notes/native/asset_id.hpp"
 #include "../notes/native/value/complete_partial_commitment.hpp"
 #include "../notes/native/claim/claim_note.hpp"
 #include "../notes/native/claim/compute_nullifier.hpp"
@@ -35,22 +36,18 @@ struct claim_tx {
         const auto virtual_flag = static_cast<uint32_t>(1 << (MAX_NUM_ASSETS_BIT_LENGTH - 1));
         const auto bridge_id = notes::native::bridge_id::from_uint256_t(claim_note.bridge_id);
 
-        const auto success = defi_interaction_note.interaction_result;
+        const bool& success = defi_interaction_note.interaction_result;
 
-        const auto asset_id_a_good = bridge_id.config.first_output_virtual
-                                         ? virtual_flag + defi_interaction_note.interaction_nonce
-                                         : bridge_id.output_asset_id_a;
-        const auto asset_id_b_good = bridge_id.config.second_output_virtual
-                                         ? virtual_flag + defi_interaction_note.interaction_nonce
-                                         : bridge_id.output_asset_id_b;
+        const bool first_output_virtual = notes::native::get_asset_id_flag(bridge_id.output_asset_id_a);
+        const bool second_output_virtual = notes::native::get_asset_id_flag(bridge_id.output_asset_id_b);
 
-        const auto asset_id_a_bad = bridge_id.config.first_input_virtual
-                                        ? virtual_flag + defi_interaction_note.interaction_nonce
-                                        : bridge_id.input_asset_id_a;
+        const auto asset_id_a_good =
+            first_output_virtual ? virtual_flag + defi_interaction_note.interaction_nonce : bridge_id.output_asset_id_a;
+        const auto asset_id_b_good = second_output_virtual ? virtual_flag + defi_interaction_note.interaction_nonce
+                                                           : bridge_id.output_asset_id_b;
 
-        const auto asset_id_b_bad = bridge_id.config.first_input_virtual
-                                        ? virtual_flag + defi_interaction_note.interaction_nonce
-                                        : bridge_id.input_asset_id_b;
+        const auto& asset_id_a_bad = bridge_id.input_asset_id_a;
+        const auto& asset_id_b_bad = bridge_id.input_asset_id_b;
 
         const auto asset_id_a = success ? asset_id_a_good : asset_id_a_bad;
         const auto asset_id_b = success ? asset_id_b_good : asset_id_b_bad;
@@ -68,9 +65,7 @@ struct claim_tx {
             notes::native::defi_interaction::compute_nullifier(defi_interaction_note.commit(), claim_note.commit()));
 
         bool has_output_two =
-            success && (bridge_id.config.second_output_real || bridge_id.config.second_output_virtual);
-        has_output_two = has_output_two ||
-                         (!success && (bridge_id.config.second_input_real || bridge_id.config.second_input_virtual));
+            (success && bridge_id.config.second_output_in_use) || (!success && bridge_id.config.second_input_in_use);
         return { output_note_a, has_output_two ? output_note_b : 0 };
     }
 };

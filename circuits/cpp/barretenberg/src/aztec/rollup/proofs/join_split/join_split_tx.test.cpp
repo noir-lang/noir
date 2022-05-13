@@ -23,7 +23,7 @@ TEST(client_proofs_join_split_tx, test_serialization)
     tx.num_input_notes = 2;
     tx.account_private_key = grumpkin::fr::random_element();
     tx.alias_hash = 0;
-    tx.nonce = 456;
+    tx.account_nonce = 456;
     tx.old_data_root = fr::random_element();
     for (size_t i = 0; i < 32; ++i) {
         tx.account_note_path.push_back(std::make_pair(fr::random_element(), fr::random_element()));

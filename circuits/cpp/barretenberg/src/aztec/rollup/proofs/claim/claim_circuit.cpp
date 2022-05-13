@@ -30,7 +30,7 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
      *   - expansion of bridge_id
      *     - expansion of the bridge_id's bit_config
      *       - sense checks on the bit_config's values
-     *         (certain bits aren't yet allowed, and some bits can contradict each other)
+     *         (some bits can contradict each other)
      */
     const auto claim_note_data = circuit::claim::claim_note_witness_data(composer, tx.claim_note);
     const auto claim_note = circuit::claim::claim_note(claim_note_data);
@@ -41,18 +41,19 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
      *   - expansion of bridge_id
      *     - expansion of the bridge_id's bit_config
      *       - sense checks on the bit_config's values
-     *         (certain bits aren't yet allowed, and some bits can contradict each other)
+     *         (some bits can contradict each other)
      */
     const auto defi_interaction_note = circuit::defi_interaction::note({ composer, tx.defi_interaction_note });
     const auto output_value_a =
         suint_ct(witness_ct(&composer, tx.output_value_a), NOTE_VALUE_BIT_LENGTH, "output_value_a");
     const auto output_value_b =
         suint_ct(witness_ct(&composer, tx.output_value_b), NOTE_VALUE_BIT_LENGTH, "output_value_b");
-    const auto second_output_real = claim_note_data.bridge_id_data.config.second_output_real;
-    const auto first_output_virtual = claim_note_data.bridge_id_data.config.first_output_virtual;
-    const auto second_output_virtual = claim_note_data.bridge_id_data.config.second_output_virtual;
-    const auto second_input_virtual = claim_note_data.bridge_id_data.config.second_input_virtual;
-    const auto second_input_real = claim_note_data.bridge_id_data.config.second_input_real;
+
+    // const bool_ct& second_input_virtual = claim_note_data.bridge_id_data.config.second_input_virtual;
+    const bool_ct first_output_virtual = circuit::get_asset_id_flag(claim_note_data.bridge_id_data.output_asset_id_a);
+    const bool_ct second_output_virtual = circuit::get_asset_id_flag(claim_note_data.bridge_id_data.output_asset_id_b);
+    const bool_ct& second_input_in_use = claim_note_data.bridge_id_data.config.second_input_in_use;
+    const bool_ct& second_output_in_use = claim_note_data.bridge_id_data.config.second_output_in_use;
 
     {
         // Don't support zero deposits (because they're illogical):
@@ -78,22 +79,22 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
 
         // Check that (deposit * total_output_value_a) == (output_value_a * total_input_value)
         // Rearranging, this ensures output_value_a == (deposit / total_input_value) * total_output_value_a
-        auto rc1 = ratio_check(composer,
-                               { .a1 = claim_note.deposit_value.value,
-                                 .a2 = defi_interaction_note.total_input_value.value,
-                                 .b1 = output_value_a.value,
-                                 .b2 = defi_interaction_note.total_output_value_a.value });
-        auto valid1 = (output_value_a == 0 && defi_interaction_note.total_output_value_a == 0) || rc1;
+        const bool_ct rc1 = ratio_check(composer,
+                                        { .a1 = claim_note.deposit_value.value,
+                                          .a2 = defi_interaction_note.total_input_value.value,
+                                          .b1 = output_value_a.value,
+                                          .b2 = defi_interaction_note.total_output_value_a.value });
+        const bool_ct valid1 = (output_value_a == 0 && defi_interaction_note.total_output_value_a == 0) || rc1;
         valid1.assert_equal(true, "ratio check 1 failed");
 
         // Check that (deposit * total_output_value_b) == (output_value_b * total_input_value)
         // Rearranging, this ensures output_value_b == (deposit / total_input_value) * total_output_value_b
-        auto rc2 = ratio_check(composer,
-                               { .a1 = claim_note.deposit_value.value,
-                                 .a2 = defi_interaction_note.total_input_value.value,
-                                 .b1 = output_value_b.value,
-                                 .b2 = defi_interaction_note.total_output_value_b.value });
-        auto valid2 = (output_value_b == 0 && defi_interaction_note.total_output_value_b == 0) || rc2;
+        const bool_ct rc2 = ratio_check(composer,
+                                        { .a1 = claim_note.deposit_value.value,
+                                          .a2 = defi_interaction_note.total_input_value.value,
+                                          .b1 = output_value_b.value,
+                                          .b2 = defi_interaction_note.total_output_value_b.value });
+        const bool_ct valid2 = (output_value_b == 0 && defi_interaction_note.total_output_value_b == 0) || rc2;
         valid2.assert_equal(true, "ratio check 2 failed");
     }
 
@@ -112,41 +113,40 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
         // Compute output notes.
         const auto virtual_note_flag = suint_ct(uint256_t(1) << (MAX_NUM_ASSETS_BIT_LENGTH - 1));
 
-        // If the defi interaction was unsuccessful, refund the original value via output note 1.
-        auto interaction_success = defi_interaction_note.interaction_result;
-        auto output_value_1 =
+        // If the defi interaction was unsuccessful, refund the original defi_deposit_value (which was denominated in
+        // bridge input_asset_id_a) via output note 1.
+        const bool_ct& interaction_success = defi_interaction_note.interaction_result;
+        const auto output_value_1 =
             suint_ct::conditional_assign(interaction_success, output_value_a, claim_note_data.deposit_value);
-        auto output_asset_id_1_if_success =
+        const auto output_asset_id_1_if_success =
             suint_ct::conditional_assign(first_output_virtual,
                                          virtual_note_flag + claim_note.defi_interaction_nonce,
                                          claim_note_data.bridge_id_data.output_asset_id_a);
-        auto output_asset_id_1 = suint_ct::conditional_assign(
+        const auto output_asset_id_1 = suint_ct::conditional_assign(
             interaction_success, output_asset_id_1_if_success, claim_note_data.bridge_id_data.input_asset_id_a);
         output_note_commitment1 = circuit::value::complete_partial_commitment(
             claim_note.value_note_partial_commitment, output_value_1, output_asset_id_1, nullifier1);
 
-        // If the defi interaction was unsuccessful, refund the original value via output note 2 if input note 2 exists.
-        auto output_value_2 =
+        // If the defi interaction was unsuccessful, refund the original defi_deposit_value (which was denominated in
+        // bridge input_asset_id_b) via output note 2, and only if there was a second input asset to the bridge.
+        const auto output_value_2 =
             suint_ct::conditional_assign(interaction_success, output_value_b, claim_note_data.deposit_value);
-        // If second_output_virtual, we set asset_id_2 = 2^{30} + nonce
-        auto output_asset_id_2_if_success =
+        const auto output_asset_id_2_if_success =
             suint_ct::conditional_assign(second_output_virtual,
                                          virtual_note_flag + claim_note.defi_interaction_nonce,
                                          claim_note_data.bridge_id_data.output_asset_id_b);
-        auto output_asset_id_2 = suint_ct::conditional_assign(
+        const auto output_asset_id_2 = suint_ct::conditional_assign(
             interaction_success, output_asset_id_2_if_success, claim_note_data.bridge_id_data.input_asset_id_b);
         output_note_commitment2 = circuit::value::complete_partial_commitment(
             claim_note.value_note_partial_commitment, output_value_2, output_asset_id_2, nullifier2);
 
-        // Zero the output_note_commitment2 if: it's not used; or if the defi interaction was unsuccessful.
-        auto is_output_note_2_in_use =
-            interaction_success &&
-            (second_output_virtual ^ second_output_real); // Note, the case of both being true is a contradiction which
-                                                          // is caught in bridge_id.hpp.
-        auto is_input_note_2_in_use = !interaction_success && (second_input_virtual ^ second_input_real);
+        // We zero the output_note_commitment2 in two cases:
+        //   - if the bridge interaction succeeded and returned a second output asset; or
+        //   - if the bridge interaction failed and no second asset was ever sent to the bridge.
+        const bool_ct is_bridge_output_b_in_use = interaction_success && second_output_in_use;
+        const bool_ct was_bridge_input_b_in_use = !interaction_success && second_input_in_use;
 
-        auto output_note_2_exists = is_output_note_2_in_use ^ is_input_note_2_in_use;
-        // TODO: CHECK NOTES RECOVERED IF FAIL FOR ALL TOPOLOGIES
+        const bool_ct output_note_2_exists = is_bridge_output_b_in_use || was_bridge_input_b_in_use;
 
         output_note_commitment2 = output_note_commitment2 * output_note_2_exists;
     }
@@ -162,17 +162,17 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
         // Existence checks
 
         // Check claim note exists:
-        auto claim_exists = check_membership(data_root,
-                                             claim_note_path,
-                                             claim_note.commitment,
-                                             claim_note_index.value.decompose_into_bits(DATA_TREE_DEPTH));
+        const bool_ct claim_exists = check_membership(data_root,
+                                                      claim_note_path,
+                                                      claim_note.commitment,
+                                                      claim_note_index.value.decompose_into_bits(DATA_TREE_DEPTH));
         claim_exists.assert_equal(true, "claim note not a member");
 
         // Check defi interaction note exists:
-        const auto din_exists = check_membership(defi_root,
-                                                 defi_interaction_note_path,
-                                                 defi_interaction_note.commitment,
-                                                 defi_note_index.value.decompose_into_bits(DEFI_TREE_DEPTH));
+        const bool_ct din_exists = check_membership(defi_root,
+                                                    defi_interaction_note_path,
+                                                    defi_interaction_note.commitment,
+                                                    defi_note_index.value.decompose_into_bits(DEFI_TREE_DEPTH));
         din_exists.assert_equal(true, "defi interaction note not a member");
     }
 

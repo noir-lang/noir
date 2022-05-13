@@ -14,7 +14,7 @@ namespace native {
  * The bridge_id structure (with bit-lengths) is defined as follows:
  *
  * (auxData || bitConfig || inputAssetB || outputAssetB || outputAssetA || inputAssetA || bridgeAddressId)
- *     64          32            32              30              30             30              32
+ *     64          32            30              30              30             30              32
  *
  * bridgeAddressId : 32-bit integer mapped to a bridge contract address
  * inputAssetA     : (if real) First output asset id. (if virtual) Defi interaction nonce when a loan/LP position was
@@ -34,30 +34,25 @@ struct bridge_id {
     static constexpr uint256_t aux_data_shift = bitconfig_shift + DEFI_BRIDGE_BITCONFIG_LEN;
 
     /**
+     * The 32-bit bit_config comprises the following:
+     *
      * | bit | meaning |
-     * |  0  | firstInputVirtual (currently always false) |
-     * |  1  | secondInputVirtual |
-     * |  2  | firstOutputVirtual |
-     * |  3  | secondOutputVirtual |
-     * |  4  | secondInputReal | is first output note valid and real?
-     * |  5  | secondOutputReal | is second output note valid and real?
+     * |  0  | second_input_in_use   |
+     * |  1  | second_output_in_use  |
+     *
+     * (The 0th bit is the least significant bit)
+     *
+     * Note: the first input and the first output are both always in_use when doing a defi deposit, so
+     * we don't need a bit for first_input_in_use nor for first_output_in_use.
      */
     struct bit_config {
-        bool first_input_virtual = false;
-        bool second_input_virtual = false;
-        bool first_output_virtual = false;
-        bool second_output_virtual = false;
-        bool second_input_real = false;
-        bool second_output_real = false;
+        bool second_input_in_use = false;
+        bool second_output_in_use = false;
 
         bool operator==(const bit_config& other) const
         {
-            bool res = (first_input_virtual == other.first_input_virtual);
-            res = res && (second_input_virtual == other.second_input_virtual);
-            res = res && (first_output_virtual == other.first_output_virtual);
-            res = res && (second_output_virtual == other.second_output_virtual);
-            res = res && (second_input_real == other.second_input_real);
-            res = res && (second_output_real == other.second_output_real);
+            bool res = (second_input_in_use == other.second_input_in_use);
+            res = res && (second_output_in_use == other.second_output_in_use);
             return res;
         }
 
@@ -69,12 +64,8 @@ struct bridge_id {
             constexpr auto input_asset_id_b_shift = output_asset_id_b_shift + DEFI_BRIDGE_OUTPUT_B_ASSET_ID_LEN;
             constexpr auto bitconfig_shift = input_asset_id_b_shift + DEFI_BRIDGE_INPUT_B_ASSET_ID_LEN;
 
-            uint256_t result(first_input_virtual);
-            result += uint256_t(second_input_virtual) << 1;
-            result += uint256_t(first_output_virtual) << 2;
-            result += uint256_t(second_output_virtual) << 3;
-            result += uint256_t(second_input_real) << 4;
-            result += uint256_t(second_output_real) << 5;
+            uint256_t result(second_input_in_use);
+            result += uint256_t(second_output_in_use) << 1;
             result = result << bitconfig_shift;
             return result;
         }
@@ -90,12 +81,8 @@ struct bridge_id {
             uint32_t config_u32 = uint32_t((bridge_id >> bitconfig_shift) & bitconfig_mask);
 
             bit_config result;
-            result.first_input_virtual = config_u32 & 1ULL;
-            result.second_input_virtual = (config_u32 >> 1) & 1ULL;
-            result.first_output_virtual = (config_u32 >> 2) & 1ULL;
-            result.second_output_virtual = (config_u32 >> 3) & 1ULL;
-            result.second_input_real = (config_u32 >> 4) & 1ULL;
-            result.second_output_real = (config_u32 >> 5) & 1ULL;
+            result.second_input_in_use = config_u32 & 1ULL;
+            result.second_output_in_use = (config_u32 >> 1) & 1ULL;
             return result;
         }
     };
@@ -175,12 +162,8 @@ struct bridge_id {
 
 inline std::ostream& operator<<(std::ostream& os, bridge_id::bit_config const& config)
 {
-    os << "  first_input_virtual: " << config.first_input_virtual << ",\n"
-       << "  second_input_virtual: " << config.second_input_virtual << ",\n"
-       << "  first_output_virtual: " << config.first_output_virtual << ",\n"
-       << "  second_output_virtual: " << config.second_output_virtual << ",\n"
-       << "  second_input_real: " << config.second_input_real << ",\n"
-       << "  second_output_real: " << config.second_output_real << ",\n";
+    os << "  second_input_in_use: " << config.second_input_in_use << ",\n"
+       << "  second_output_in_use: " << config.second_output_in_use << ",\n";
     return os;
 }
 

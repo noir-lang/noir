@@ -1,3 +1,4 @@
+#include "asset_id.hpp"
 #include "bridge_id.hpp"
 #include "account/index.hpp"
 #include "claim/index.hpp"

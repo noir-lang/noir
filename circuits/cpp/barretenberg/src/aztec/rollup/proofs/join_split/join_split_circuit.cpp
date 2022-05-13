@@ -29,142 +29,123 @@ field_ct process_input_note(field_ct const& account_private_key,
                             suint_ct const& index,
                             value::value_note const& note,
                             bool_ct is_propagated,
-                            bool_ct is_real)
+                            bool_ct is_note_in_use)
 {
-    bool_ct valid_value = note.value == 0 || is_real;
+    const bool_ct valid_value = note.value == 0 || is_note_in_use;
     valid_value.assert_equal(true, "padding note non zero");
 
-    auto exists = merkle_tree::check_membership(
+    const bool_ct exists = merkle_tree::check_membership(
         merkle_root, hash_path, note.commitment, index.value.decompose_into_bits(DATA_TREE_DEPTH));
-    auto valid = exists || is_propagated || !is_real;
+    const bool_ct valid = exists || is_propagated || !is_note_in_use;
     valid.assert_equal(true, "input note not a member");
 
-    return compute_nullifier(note.commitment, account_private_key, is_real);
+    return compute_nullifier(note.commitment, account_private_key, is_note_in_use);
 }
 
 join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
 {
-    auto is_deposit = inputs.proof_id == field_ct(ProofIds::DEPOSIT);
-    auto is_withdraw = inputs.proof_id == field_ct(ProofIds::WITHDRAW);
-    auto is_send = inputs.proof_id == field_ct(ProofIds::SEND);
-    auto is_public_tx = is_deposit || is_withdraw;
-    auto is_defi_deposit = inputs.proof_id == field_ct(ProofIds::DEFI_DEPOSIT);
-    auto not_defi_deposit = !is_defi_deposit;
-    auto input_note1 = value::value_note(inputs.input_note1);
-    auto input_note2 = value::value_note(inputs.input_note2);
-    auto output_note1 = value::value_note(inputs.output_note1);
-    auto output_note2 = value::value_note(inputs.output_note2);
-    auto partial_claim_note =
-        claim::partial_claim_note(inputs.partial_claim_note, inputs.input_note1.owner, inputs.input_note1.nonce);
-    auto output_note1_commitment =
-        field_ct::conditional_assign(is_defi_deposit, partial_claim_note.partial_commitment, output_note1.commitment);
-    auto public_asset_id = inputs.asset_id * is_public_tx;
-    auto public_input = inputs.public_value * is_deposit;
-    auto public_output = inputs.public_value * is_withdraw;
-    auto defi_deposit_value = inputs.partial_claim_note.deposit_value * is_defi_deposit;
-    auto bridge_id = partial_claim_note.bridge_id * is_defi_deposit;
-    auto inote1_valid = inputs.num_input_notes == 1 || inputs.num_input_notes == 2;
-    auto inote2_valid = inputs.num_input_notes == 2;
-    auto inote1_value = input_note1.value;
-    auto inote2_value = input_note2.value;
-    auto onote1_value = output_note1.value * not_defi_deposit;
-    auto onote2_value = output_note2.value;
+    const bool_ct is_deposit = inputs.proof_id == field_ct(ProofIds::DEPOSIT);
+    const bool_ct is_withdraw = inputs.proof_id == field_ct(ProofIds::WITHDRAW);
+    const bool_ct is_send = inputs.proof_id == field_ct(ProofIds::SEND);
+    const bool_ct is_defi_deposit = inputs.proof_id == field_ct(ProofIds::DEFI_DEPOSIT);
+    const bool_ct not_defi_deposit = !is_defi_deposit;
+    const bool_ct is_public_tx = is_deposit || is_withdraw;
+
+    const auto public_asset_id = inputs.asset_id * is_public_tx;
+    const auto public_input = inputs.public_value * is_deposit;
+    const auto public_output = inputs.public_value * is_withdraw;
+
+    const auto input_note_1 = value::value_note(inputs.input_note1);
+    const auto input_note_2 = value::value_note(inputs.input_note2);
+    const auto output_note_1 = value::value_note(inputs.output_note1);
+    const auto output_note_2 = value::value_note(inputs.output_note2);
+
+    const auto partial_claim_note = claim::partial_claim_note(
+        inputs.partial_claim_note, inputs.input_note1.owner, inputs.input_note1.account_nonce);
+
+    const auto output_note_1_commitment =
+        field_ct::conditional_assign(is_defi_deposit, partial_claim_note.partial_commitment, output_note_1.commitment);
+
+    const auto defi_deposit_value = inputs.partial_claim_note.deposit_value * is_defi_deposit;
+    const auto bridge_id = partial_claim_note.bridge_id * is_defi_deposit;
+
+    const bool_ct no_input_notes = inputs.num_input_notes == 0;
+    const bool_ct one_input_note = inputs.num_input_notes == 1;
+    const bool_ct two_input_notes = inputs.num_input_notes == 2;
+    (no_input_notes || one_input_note || two_input_notes).assert_equal(true, "invalid num_input_notes");
+    const bool_ct input_note_1_in_use = one_input_note || two_input_notes;
+    const bool_ct& input_note_2_in_use = two_input_notes;
+
+    const bool_ct equal_input_asset_ids = input_note_1.asset_id == input_note_2.asset_id;
+    const bool_ct different_input_asset_ids = !equal_input_asset_ids;
+
+    const auto& input_note_1_value = input_note_1.value;
+    auto input_note_2_value = input_note_2.value;
+    const auto output_note_1_value = output_note_1.value * not_defi_deposit;
+    const auto& output_note_2_value = output_note_2.value;
 
     // Check public value and owner are not zero for deposit and withdraw, otherwise they must be zero.
-    (is_public_tx == inputs.public_value.is_zero()).assert_equal(false, "public value incorrect");
-    (is_public_tx == inputs.public_owner.is_zero()).assert_equal(false, "public owner incorrect");
+    (is_public_tx == inputs.public_value.is_zero()).assert_equal(false, "public value invalid");
+    (is_public_tx == inputs.public_owner.is_zero()).assert_equal(false, "public owner invalid");
 
     // Constrain the proof id.
     inputs.proof_id.assert_is_in_set({ field_ct(ProofIds::DEPOSIT),
                                        field_ct(ProofIds::WITHDRAW),
                                        field_ct(ProofIds::SEND),
                                        field_ct(ProofIds::DEFI_DEPOSIT) },
-                                     "incorrect proof id");
-
-    // Circuit operates in one of several cases. Assert we're only in one of these cases and rules apply.
-    {
-        // Case 0: 0 input notes, all notes have same asset ids, can only DEPOSIT.
-        const auto case0 = !inote1_valid && !inote2_valid;
-        // Case 1: 1 real asset note, all notes have same asset ids, any function.
-        const auto case1 = !input_note1.is_virtual && inote1_valid && !inote2_valid;
-        // Case 2: 2 real asset notes, all notes have same asset ids, any function
-        const auto case2 = !input_note1.is_virtual && !input_note2.is_virtual && inote2_valid &&
-                           (input_note1.asset_id == input_note2.asset_id);
-        // Case 3: 1 virtual asset note, all notes have same asset ids, can only SEND or DEFI_DEPOSIT.
-        const auto case3 = input_note1.is_virtual && inote1_valid && !inote2_valid;
-        // Case 4: 2 virtual asset notes, all notes have same asset ids, can only SEND.
-        const auto case4 = input_note1.is_virtual && input_note2.is_virtual && inote2_valid &&
-                           (input_note1.asset_id == input_note2.asset_id);
-        // Case 5: 1st note real, 2nd note virtual, different input asset ids allowed, fee asset id must equal
-        // real input not asset id, values equal, can only DEFI_DEPOSIT, virtual notes interaction nonce must
-        // match that in the bridge id.
-        const auto case5 = !input_note1.is_virtual && input_note2.is_virtual && inote2_valid;
-        // Case 6: 2 real asset notes, notes have different asset ids. only DEFI_DEPOSIT
-        const auto case6 = !input_note1.is_virtual && !input_note2.is_virtual && inote2_valid &&
-                           (input_note1.asset_id != input_note2.asset_id);
-        // Case 7: 2 virtual asset notes, notes have different asset ids, only DEFI_DEPOSIT.
-        const auto case7 = input_note1.is_virtual && input_note2.is_virtual && inote2_valid &&
-                           (input_note1.asset_id != input_note2.asset_id);
-
-        // Check we are exactly one of the defined cases.
-        (field_ct(case0) + case1 + case2 + case3 + case4 + case5 + case6 + case7).assert_equal(1, "unsupported case");
-
-        // Assert case rules.
-        (case0).must_imply(is_deposit, "can only deposit");
-        (case1 || case2).must_imply((is_deposit || is_send || is_withdraw || is_defi_deposit), "unknown function");
-        (case3).must_imply(is_send || is_defi_deposit, "can only send or defi deposit");
-        (case4).must_imply(is_send, "can only send");
-        (case5 || case6 || case7).must_imply(is_defi_deposit, "can only defi deposit");
-
-        (case5 || case6 || case7).must_imply(inote1_value == inote2_value, "input note values must match");
-
-        const auto asset_ids_match = inputs.asset_id == input_note1.asset_id &&
-                                     inputs.asset_id == output_note1.asset_id &&
-                                     inputs.asset_id == output_note2.asset_id;
-        (asset_ids_match).assert_equal(true, "asset ids don't match");
-        (case0 || case1 || case2 || case3 || case4)
-            .must_imply(input_note1.asset_id == input_note2.asset_id, "input asset ids don't match");
-
-        // Don't consider second note value for case5/case6/case7 in the input/output balancing equations.
-        inote2_value *= !(case5 || case6 || case7);
-    }
-
-    // Prevent deposits of 0 into the defi bridge (simply because it's illogical).
-    // @dev This check is mirrored in the claim_circuit, so if you ever remove this check, you _must_ remove it
-    // from there as well, to prevent user funds from becoming 'unclaimable'.
-    is_defi_deposit.must_imply(defi_deposit_value != 0, "defi deposit value of zero not allowed");
-
-    // Check the ids and types of input assets in the bridge id.
-    const auto& bridge_id_data = inputs.partial_claim_note.bridge_id_data;
-    const auto bridge_inote2_valid =
-        bridge_id_data.config.second_input_real || bridge_id_data.config.second_input_virtual;
-    const auto bridge_input_asset_id_a =
-        suint_ct::conditional_assign(input_note1.is_virtual, input_note1.virtual_note_nonce, input_note1.asset_id);
-    const auto bridge_input_asset_id_b =
-        suint_ct::conditional_assign(input_note2.is_virtual, input_note2.virtual_note_nonce, input_note2.asset_id);
-    (input_note1.asset_id != input_note2.asset_id)
-        .must_imply(bridge_inote2_valid,
-                    "bridge_id_data differs from input notes' data: inconsistent second input asset");
-    is_defi_deposit.must_imply(bridge_id_data.config.first_input_virtual == input_note1.is_virtual,
-                               "bridge_id_data differs from input notes' data: inconsistent first input asset types");
-    is_defi_deposit.must_imply(!bridge_inote2_valid ||
-                                   bridge_id_data.config.second_input_virtual == input_note2.is_virtual,
-                               "bridge_id_data differs from input notes' data: inconsistent second input asset types");
-    is_defi_deposit.must_imply(bridge_id_data.input_asset_id_a == bridge_input_asset_id_a,
-                               "bridge_id_data differs from input notes' data: inconsistent first input asset ids");
-    is_defi_deposit.must_imply(!bridge_inote2_valid || bridge_id_data.input_asset_id_b == bridge_input_asset_id_b,
-                               "bridge_id_data differs from input notes' data: inconsistent second input asset ids");
-    is_defi_deposit.must_imply(
-        !bridge_inote2_valid || bridge_id_data.input_asset_id_a != bridge_id_data.input_asset_id_b ||
-            bridge_id_data.config.first_input_virtual != bridge_id_data.config.second_input_virtual,
-        "identical input asset ids in bridge id");
+                                     "invalid proof id");
 
     // Check we're not joining the same input note.
-    input_note1.commitment.assert_not_equal(input_note2.commitment, "joining same note");
+    input_note_1.commitment.assert_not_equal(input_note_2.commitment, "joining same note");
+
+    no_input_notes.must_imply(is_deposit, "can only deposit");
+
+    const bool_ct asset_ids_match = inputs.asset_id == input_note_1.asset_id &&
+                                    inputs.asset_id == output_note_1.asset_id &&
+                                    inputs.asset_id == output_note_2.asset_id;
+    (asset_ids_match).assert_equal(true, "asset ids don't match");
+
+    (input_note_2_in_use && (is_deposit || is_send || is_withdraw))
+        .must_imply(equal_input_asset_ids, "input asset ids must match unless defi-depositing");
+
+    // defi-deposit checks
+    {
+        // Prevent deposits of 0 into the defi bridge (simply because it's illogical).
+        // @dev This check is mirrored in the claim_circuit, so if you ever remove this check, you _must_ remove it
+        // from there as well, to prevent user funds from becoming 'unclaimable'.
+        is_defi_deposit.must_imply(defi_deposit_value != 0, "Expected a nonzero defi_deposit_value for a defi-deposit");
+
+        (is_defi_deposit && input_note_2_in_use && different_input_asset_ids)
+            .must_imply(defi_deposit_value == input_note_2_value, "all of input note 2 must be defi-deposited");
+
+        // Check the bridge_id's data mirrors the input notes' data:
+        const auto& bridge_id_data = inputs.partial_claim_note.bridge_id_data;
+
+        is_defi_deposit.must_imply(
+            bridge_id_data.input_asset_id_a == input_note_1.asset_id,
+            "Expected bridge_id_data.input_asset_id_a == input_note_1.asset_id for a defi-deposit");
+
+        // Note: the opposite of this check isn't true: input_note_2_in_use does not necessarily imply the second input
+        // to the bridge will be in-use, since both input notes could be of the same asset_id (and hence will be joined
+        // into the bridge's first input).
+        (bridge_id_data.config.second_input_in_use)
+            .must_imply(input_note_2_in_use,
+                        "Expected input_note_2_in_use, given bridge_id_data.config.second_input_in_use");
+
+        (input_note_2_in_use && different_input_asset_ids)
+            .must_imply(bridge_id_data.config.second_input_in_use,
+                        "Expected bridge_id_data.config.second_input_in_use, given input_note_2_in_use && "
+                        "different_input_asset_ids");
+
+        (bridge_id_data.config.second_input_in_use)
+            .must_imply(bridge_id_data.input_asset_id_b == input_note_2.asset_id,
+                        "Expected bridge_id_data.input_asset_id_b == input_note_2.asset_id, given "
+                        "bridge_id_data.config.second_input_in_use");
+    }
 
     // Transaction chaining.
-    bool_ct note1_propagated = inputs.backward_link == input_note1.commitment;
-    bool_ct note2_propagated = inputs.backward_link == input_note2.commitment;
+    bool_ct note1_propagated = inputs.backward_link == input_note_1.commitment;
+    bool_ct note2_propagated = inputs.backward_link == input_note_2.commitment;
     {
         // Ensure backward_link isn't some nonzero value which is unrelated to either input:
         bool_ct backward_link_in_use = inputs.backward_link != 0;
@@ -178,82 +159,108 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
         (inputs.allow_chain == 0 || allow_chain_1 || allow_chain_2).assert_equal(true, "allow_chain out of range");
 
         // When allowing chaining, ensure propagation is to one's self (and not to some other user).
-        point_ct self = input_note1.owner;
-        allow_chain_1.must_imply(output_note1.owner == self, "inter-user chaining disallowed");
-        allow_chain_2.must_imply(output_note2.owner == self, "inter-user chaining disallowed");
+        point_ct self = input_note_1.owner;
+        allow_chain_1.must_imply(output_note_1.owner == self, "inter-user chaining disallowed");
+        allow_chain_2.must_imply(output_note_2.owner == self, "inter-user chaining disallowed");
 
         // Prevent chaining from a partial claim note.
         is_defi_deposit.must_imply(!allow_chain_1, "cannot chain from a partial claim note");
     }
 
+    // For defi deposits with two input notes, don't consider second note's value in the input/output value
+    // balancing equations below:
+    input_note_2_value *= !(is_defi_deposit && input_note_2_in_use && different_input_asset_ids);
+
     // Derive tx_fee.
-    suint_ct total_in_value = public_input + inote1_value + inote2_value;
-    suint_ct total_out_value = public_output + onote1_value + onote2_value + defi_deposit_value;
-    suint_ct tx_fee = total_in_value.subtract(total_out_value, TX_FEE_BIT_LENGTH, "total_in_value < total_out_value");
+    const suint_ct total_in_value = public_input + input_note_1_value + input_note_2_value;
+    const suint_ct total_out_value = public_output + output_note_1_value + output_note_2_value + defi_deposit_value;
 
-    // Verify input notes have the same account public key and nonce.
-    input_note1.owner.assert_equal(input_note2.owner, "input note owners don't match");
-    input_note1.nonce.assert_equal(input_note2.nonce, "input note nonces don't match");
+    const suint_ct tx_fee =
+        total_in_value.subtract(total_out_value, TX_FEE_BIT_LENGTH, "total_in_value < total_out_value");
+    /**
+     * Note: the above subtraction (which disallows underflow) implicitly checks that input_note_1_value >=
+     * input_note_2_value in the case of a defi_deposit with two different input note asset_ids.
+     * For a defi deposit with two different input note asset_ids:
+     *    public_input == public_output == 0
+     *    in2_value == defi_deposit_value
+     *    in2_value is ignored (zeroed) from the above balancing equation.
+     *    out1_value is ignored (zeroed) for defi deposits
+     * So in such cases:
+     *    tx_fee = (in1_value + in2_value) - (out1_value + out2_value + defi_deposit_value)
+     * => tx_fee = (in1_value + 0) - (0 + out2_value + in2_value)
+     * => in1_value = tx_fee + out2_value + in2_value
+     * => in1_value >= in2_value
+     */
 
-    // And thus check both input notes have the correct public key (derived from the private key) and nonce.
+    // Verify input notes have the same account public key and account_nonce.
+    input_note_1.owner.assert_equal(input_note_2.owner, "input note owners don't match");
+    input_note_1.account_nonce.assert_equal(input_note_2.account_nonce, "input note account_nonces don't match");
+
+    // And thus check both input notes have the correct public key (derived from the private key) and
+    // account_nonce.
     inputs.account_private_key.assert_is_not_zero("account private key is zero");
     auto account_public_key = group_ct::fixed_base_scalar_mul_g1<254>(inputs.account_private_key);
-    account_public_key.assert_equal(input_note1.owner, "account_private_key incorrect");
-    inputs.nonce.assert_equal(input_note1.nonce, "nonce incorrect");
+    account_public_key.assert_equal(input_note_1.owner, "account_private_key incorrect");
+    inputs.account_nonce.assert_equal(input_note_1.account_nonce, "account_nonce incorrect");
 
     // Verify output notes creator_pubkey is either account_public_key.x or 0.
-    account_public_key.x.assert_equal(
-        account_public_key.x.madd(output_note1.creator_pubkey.is_zero(), output_note1.creator_pubkey),
-        "output note 1 creator_pubkey mismatch");
-    account_public_key.x.assert_equal(
-        account_public_key.x.madd(output_note2.creator_pubkey.is_zero(), output_note2.creator_pubkey),
-        "output note 2 creator_pubkey mismatch");
+    output_note_1.creator_pubkey.assert_is_in_set({ field_ct(0), account_public_key.x },
+                                                  "output note 1 creator_pubkey mismatch");
+    output_note_2.creator_pubkey.assert_is_in_set({ field_ct(0), account_public_key.x },
+                                                  "output note 2 creator_pubkey mismatch");
 
-    // Signer is the account public key if account nonce is 0, else it's the given signing key.
-    bool_ct zero_nonce = inputs.nonce.is_zero();
-    point_ct signer = { field_ct::conditional_assign(zero_nonce, account_public_key.x, inputs.signing_pub_key.x),
-                        field_ct::conditional_assign(zero_nonce, account_public_key.y, inputs.signing_pub_key.y) };
+    // Signer is the account public key if account_nonce is 0, else it's the given signing key.
+    const bool_ct zero_account_nonce = inputs.account_nonce.is_zero();
+    const point_ct signer = {
+        field_ct::conditional_assign(zero_account_nonce, account_public_key.x, inputs.signing_pub_key.x),
+        field_ct::conditional_assign(zero_account_nonce, account_public_key.y, inputs.signing_pub_key.y)
+    };
 
-    // Verify that the signing key account note exists if nonce > 0.
+    // Verify that the signing key account note exists if account_nonce > 0.
     {
-        auto account_alias_id = inputs.alias_hash + (inputs.nonce * suint_ct(uint256_t(1) << 224));
-        auto account_note_data = account::account_note(account_alias_id.value, account_public_key, signer);
-        auto signing_key_exists =
+        const auto account_alias_id = inputs.alias_hash + (inputs.account_nonce * suint_ct(uint256_t(1) << 224));
+        const auto account_note_data = account::account_note(account_alias_id.value, account_public_key, signer);
+        const bool_ct signing_key_exists =
             merkle_tree::check_membership(inputs.merkle_root,
                                           inputs.account_note_path,
                                           account_note_data.commitment,
                                           inputs.account_note_index.value.decompose_into_bits(DATA_TREE_DEPTH));
-        (signing_key_exists || zero_nonce).assert_equal(true, "account check_membership failed");
+        (signing_key_exists || zero_account_nonce).assert_equal(true, "account check_membership failed");
     }
 
     // Verify each input note exists in the tree, and compute nullifiers.
-    field_ct nullifier1 = process_input_note(inputs.account_private_key,
-                                             inputs.merkle_root,
-                                             inputs.input_path1,
-                                             inputs.input_note1_index,
-                                             input_note1,
-                                             note1_propagated,
-                                             inote1_valid);
+    const field_ct nullifier1 = process_input_note(inputs.account_private_key,
+                                                   inputs.merkle_root,
+                                                   inputs.input_path1,
+                                                   inputs.input_note1_index,
+                                                   input_note_1,
+                                                   note1_propagated,
+                                                   input_note_1_in_use);
 
-    field_ct nullifier2 = process_input_note(inputs.account_private_key,
-                                             inputs.merkle_root,
-                                             inputs.input_path2,
-                                             inputs.input_note2_index,
-                                             input_note2,
-                                             note2_propagated,
-                                             inote2_valid);
+    const field_ct nullifier2 = process_input_note(inputs.account_private_key,
+                                                   inputs.merkle_root,
+                                                   inputs.input_path2,
+                                                   inputs.input_note2_index,
+                                                   input_note_2,
+                                                   note2_propagated,
+                                                   input_note_2_in_use);
 
-    // Assert that input nullifiers in the output note commitments equal the input note nullifiers.
-    output_note1.input_nullifier.assert_equal(nullifier1, "output note 1 has incorrect input nullifier");
-    output_note2.input_nullifier.assert_equal(nullifier2, "output note 2 has incorrect input nullifier");
+    // Assert that input nullifiers in the output note commitments equal the input notes' nullifiers.
+    output_note_1.input_nullifier.assert_equal(nullifier1, "output note 1 has incorrect input nullifier");
+    output_note_2.input_nullifier.assert_equal(nullifier2, "output note 2 has incorrect input nullifier");
     partial_claim_note.input_nullifier.assert_equal(nullifier1 * is_defi_deposit,
-                                                    "claim note has incorrect input nullifier");
+                                                    "partial claim note has incorrect input nullifier");
 
+    /// Q: Why do we need to verify a signature in the circuit? Why doesn't it suffice to simply compute the public key
+    /// from its secret key, as a way of showing willingness to spend the notes?
+    /// A: By passing a signature to the circuit, the 'signing private key' doesn't need to be passed to the proof
+    /// construction software. This is useful for multisigs, offline signing, etc., so that the proof construction
+    /// software (or machine) doesn't have access to the signing private key.
     verify_signature(inputs.public_value.value,
                      inputs.public_owner,
                      public_asset_id.value,
-                     output_note1_commitment,
-                     output_note2.commitment,
+                     output_note_1_commitment,
+                     output_note_2.commitment,
                      nullifier1,
                      nullifier2,
                      signer,
@@ -261,7 +268,7 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
                      inputs.allow_chain,
                      inputs.signature);
 
-    return { nullifier1, nullifier2, output_note1_commitment, output_note2.commitment, public_asset_id,
+    return { nullifier1, nullifier2, output_note_1_commitment, output_note_2.commitment, public_asset_id,
              tx_fee,     bridge_id,  defi_deposit_value };
 }
 
@@ -279,6 +286,8 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
         .input_note2 = value::witness_data(composer, tx.input_note[1]),
         .output_note1 = value::witness_data(composer, tx.output_note[0]),
         .output_note2 = value::witness_data(composer, tx.output_note[1]),
+        // Construction of partial_claim_note_witness_data includes construction of bridge_id, which contains many
+        // constraints on the bridge_id's format and the bit_config's format:
         .partial_claim_note = claim::partial_claim_note_witness_data(composer, tx.partial_claim_note),
         .signing_pub_key = { .x = witness_ct(&composer, tx.signing_pub_key.x),
                              .y = witness_ct(&composer, tx.signing_pub_key.y) },
@@ -291,7 +300,7 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
         .account_note_path = merkle_tree::create_witness_hash_path(composer, tx.account_note_path),
         .account_private_key = witness_ct(&composer, static_cast<fr>(tx.account_private_key)),
         .alias_hash = suint_ct(witness_ct(&composer, tx.alias_hash), ALIAS_HASH_BIT_LENGTH, "alias_hash"),
-        .nonce = suint_ct(witness_ct(&composer, tx.nonce), ACCOUNT_NONCE_BIT_LENGTH, "account_nonce"),
+        .account_nonce = suint_ct(witness_ct(&composer, tx.account_nonce), ACCOUNT_NONCE_BIT_LENGTH, "account_nonce"),
         .backward_link = witness_ct(&composer, tx.backward_link),
         .allow_chain = witness_ct(&composer, tx.allow_chain),
     };

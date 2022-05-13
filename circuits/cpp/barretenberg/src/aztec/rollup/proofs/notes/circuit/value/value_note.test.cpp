@@ -19,11 +19,12 @@ TEST(value_note, commits)
     note_value = note_value.to_montgomery_form();
 
     uint32_t asset_id_value = 666;
-    uint32_t nonce_value = 1;
+    uint32_t account_nonce_value = 1;
 
-    native::value::value_note note = {
-        note_value, asset_id_value, nonce_value, user.owner.public_key, user.note_secret, 0, fr::random_element()
-    };
+    native::value::value_note note = { note_value,          asset_id_value,
+                                       account_nonce_value, user.owner.public_key,
+                                       user.note_secret,    0,
+                                       fr::random_element() };
     auto expected = note.commit();
     auto circuit_note = circuit::value::value_note(witness_data(composer, note));
 
@@ -49,11 +50,12 @@ TEST(value_note, commits_with_0_value)
 
     fr note_value(0);
     uint32_t asset_id_value = 0x2abbccddULL; // needs to be less than 30 bits
-    uint32_t nonce_value(0);
+    uint32_t account_nonce_value(0);
 
-    native::value::value_note note = {
-        note_value, asset_id_value, nonce_value, user.owner.public_key, user.note_secret, 0, fr::random_element()
-    };
+    native::value::value_note note = { note_value,          asset_id_value,
+                                       account_nonce_value, user.owner.public_key,
+                                       user.note_secret,    0,
+                                       fr::random_element() };
     auto expected = note.commit();
     auto circuit_note = circuit::value::value_note(witness_data(composer, note));
 
@@ -79,11 +81,12 @@ TEST(value_note, commit_with_oversized_asset_id_fails)
 
     fr note_value(0);
     uint32_t asset_id_value = (1 << 30);
-    uint32_t nonce_value(0);
+    uint32_t account_nonce_value(0);
 
-    native::value::value_note note = {
-        note_value, asset_id_value, nonce_value, user.owner.public_key, user.note_secret, 0, fr::random_element()
-    };
+    native::value::value_note note = { note_value,          asset_id_value,
+                                       account_nonce_value, user.owner.public_key,
+                                       user.note_secret,    0,
+                                       fr::random_element() };
     auto expected = note.commit();
     auto circuit_note = circuit::value::value_note(witness_data(composer, note));
 

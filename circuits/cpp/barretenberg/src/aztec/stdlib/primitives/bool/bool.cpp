@@ -430,6 +430,14 @@ void bool_t<ComposerContext>::must_imply(const bool_t& other, std::string const&
     (this->implies(other)).assert_equal(true, msg);
 }
 
+// A "double-implication" (<=>),
+// a.k.a "iff", a.k.a. "biconditional"
+template <typename ComposerContext>
+bool_t<ComposerContext> bool_t<ComposerContext>::implies_both_ways(const bool_t<ComposerContext>& other) const
+{
+    return (!(*this) ^ other); // P <=> Q is equiv. to !(P ^ Q) (not(P xor Q)).
+}
+
 template <typename ComposerContext> bool_t<ComposerContext> bool_t<ComposerContext>::normalize() const
 {
     if (is_constant() || !witness_inverted) {

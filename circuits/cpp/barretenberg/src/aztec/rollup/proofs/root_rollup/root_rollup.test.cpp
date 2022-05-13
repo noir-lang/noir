@@ -141,35 +141,25 @@ class root_rollup_tests : public ::testing::Test {
         context.append_value_notes({ 100, 50 }, aid3);
         context.start_next_root_rollup();
 
-        const notes::native::bridge_id bid2 = {
-            .bridge_address_id = 1,
-            .input_asset_id_a = aid2,
-            .input_asset_id_b = 0,
-            .output_asset_id_a = 0,
-            .output_asset_id_b = 1,
-            .config = notes::native::bridge_id::bit_config{ .first_input_virtual = false,
-                                                            .second_input_virtual = false,
-                                                            .first_output_virtual = false,
-                                                            .second_output_virtual = false,
-                                                            .second_input_real = false,
-                                                            .second_output_real = true },
-            .aux_data = 0
-        };
+        const notes::native::bridge_id bid2 = { .bridge_address_id = 1,
+                                                .input_asset_id_a = aid2,
+                                                .input_asset_id_b = 0,
+                                                .output_asset_id_a = 0,
+                                                .output_asset_id_b = 1,
+                                                .config =
+                                                    notes::native::bridge_id::bit_config{
+                                                        .second_input_in_use = false, .second_output_in_use = true },
+                                                .aux_data = 0 };
 
-        const notes::native::bridge_id bid3 = {
-            .bridge_address_id = 2,
-            .input_asset_id_a = aid3,
-            .input_asset_id_b = 0,
-            .output_asset_id_a = 0,
-            .output_asset_id_b = 1,
-            .config = notes::native::bridge_id::bit_config{ .first_input_virtual = false,
-                                                            .second_input_virtual = false,
-                                                            .first_output_virtual = false,
-                                                            .second_output_virtual = false,
-                                                            .second_input_real = false,
-                                                            .second_output_real = true },
-            .aux_data = 0
-        };
+        const notes::native::bridge_id bid3 = { .bridge_address_id = 2,
+                                                .input_asset_id_a = aid3,
+                                                .input_asset_id_b = 0,
+                                                .output_asset_id_a = 0,
+                                                .output_asset_id_b = 1,
+                                                .config =
+                                                    notes::native::bridge_id::bit_config{
+                                                        .second_input_in_use = false, .second_output_in_use = true },
+                                                .aux_data = 0 };
 
         auto js_proof1 = context.create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 - 7 }); // fee = 7
         auto js_proof2 =

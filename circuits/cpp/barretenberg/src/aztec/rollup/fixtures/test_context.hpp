@@ -67,35 +67,41 @@ class TestContext {
                                                  uint256_t public_output = 0,
                                                  uint32_t account_note_idx = 0,
                                                  uint32_t asset_id = 0,
-                                                 uint32_t nonce = 0)
+                                                 uint32_t account_nonce = 0)
     {
-        auto tx = js_tx_factory.create_join_split_tx(
-            in_note_idx, in_note_value, out_note_value, public_input, public_output, account_note_idx, asset_id, nonce);
-        auto signer = nonce ? user.signing_keys[0] : user.owner;
+        auto tx = js_tx_factory.create_join_split_tx(in_note_idx,
+                                                     in_note_value,
+                                                     out_note_value,
+                                                     public_input,
+                                                     public_output,
+                                                     account_note_idx,
+                                                     asset_id,
+                                                     account_nonce);
+        auto signer = account_nonce ? user.signing_keys[0] : user.owner;
         js_tx_factory.finalise_and_sign_tx(tx, signer);
         return join_split::create_proof(tx, js_cd);
     }
 
-    std::vector<uint8_t> create_defi_proof(std::vector<uint32_t> in_note_idx,
-                                           std::vector<uint32_t> in_note_value,
-                                           std::array<uint32_t, 2> out_note_value,
+    std::vector<uint8_t> create_defi_proof(std::vector<uint32_t> in_note_indices,
+                                           std::vector<uint32_t> in_note_values,
+                                           std::array<uint32_t, 2> out_note_values,
                                            uint256_t bridge_id,
                                            uint32_t asset_id = 0,
-                                           uint32_t nonce = 0,
+                                           uint32_t account_nonce = 0,
                                            uint32_t virtual_asset_id = 0)
     {
 
         auto tx = js_tx_factory.create_defi_deposit_tx(
-            in_note_idx, in_note_value, out_note_value, bridge_id, asset_id, virtual_asset_id);
-        auto signer = nonce ? user.signing_keys[0] : user.owner;
+            in_note_indices, in_note_values, out_note_values, bridge_id, asset_id, virtual_asset_id);
+        auto signer = account_nonce ? user.signing_keys[0] : user.owner;
         js_tx_factory.finalise_and_sign_tx(tx, signer);
         return join_split::create_proof(tx, js_cd);
     }
 
-    std::vector<uint8_t> create_account_proof(uint32_t nonce = 0, uint32_t account_note_idx = 0)
+    std::vector<uint8_t> create_account_proof(uint32_t account_nonce = 0, uint32_t account_note_idx = 0)
     {
-        auto tx = account_tx_factory.create_tx(nonce, account_note_idx);
-        auto signer = nonce ? user.signing_keys[0] : user.owner;
+        auto tx = account_tx_factory.create_tx(account_nonce, account_note_idx);
+        auto signer = account_nonce ? user.signing_keys[0] : user.owner;
         return account::create_proof(tx, signer, account_cd);
     }
 

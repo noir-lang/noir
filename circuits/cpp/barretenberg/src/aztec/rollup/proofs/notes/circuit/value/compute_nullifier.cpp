@@ -12,7 +12,7 @@ using namespace plonk::stdlib::types::turbo;
 
 field_ct compute_nullifier(field_ct const& note_commitment,
                            field_ct const& account_private_key,
-                           bool_ct const& is_real_note)
+                           bool_ct const& is_note_in_use)
 {
     // Hashing the private key in this way enables the following use case:
     // - A user can demonstrate to a 3rd party that they have spent a note, by providing the hashed_private_key and the
@@ -25,7 +25,7 @@ field_ct compute_nullifier(field_ct const& note_commitment,
         note_commitment,
         hashed_private_key.x,
         hashed_private_key.y,
-        is_real_note,
+        is_note_in_use,
     };
 
     // We compress the hash_inputs with Pedersen, because that's cheaper (constraint-wise) than compressing
@@ -35,8 +35,8 @@ field_ct compute_nullifier(field_ct const& note_commitment,
     // Blake2s hash the compressed result. Without this it's possible to leak info from the pedersen compression.
     /** E.g. we can extract a representation of the hashed_pk:
      * Paraphrasing, if:
-     *     nullifier = note_comm * G1 + hashed_pk * G2 + is_real_note * G3
-     * Then an observer can derive hashed_pk * G2 = nullifier - note_comm * G1 - is_real_note * G3
+     *     nullifier = note_comm * G1 + hashed_pk * G2 + is_note_in_use * G3
+     * Then an observer can derive hashed_pk * G2 = nullifier - note_comm * G1 - is_note_in_use * G3
      * They can derive this for every tx, to link which txs are being sent by the same user.
      * Notably, at the point someone withdraws, the observer would be able to connect `hashed_pk * G2` with a specific
      * eth address.

@@ -1,6 +1,7 @@
 barretenberg_module(
   rollup_proofs_claim
   rollup_proofs_inner_proof_data
+  rollup_proofs_notes
   crypto_schnorr
   stdlib_blake2s
   stdlib_sha256
