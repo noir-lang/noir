@@ -250,29 +250,36 @@ pub(crate) fn type_check_expression(
 }
 
 fn check_cast(from: Type, to: Type, span: Span, errors: &mut Vec<TypeCheckError>) -> Type {
-    match to {
-        Type::Integer(..) => (), // valid cast
-        Type::FieldElement(_) => (),
+    let is_const = match from {
+        Type::Integer(vis, _, _) => vis == FieldElementType::Constant,
+        Type::FieldElement(vis) => vis == FieldElementType::Constant,
         Type::Error => return Type::Error,
+        from => {
+            let msg = format!(
+                "Cannot cast type {}, 'as' is only for primitive field or integer types",
+                from
+            );
+            errors.push(TypeCheckError::Unstructured { msg, span });
+            return Type::Error;
+        }
+    };
+
+    match to {
+        Type::Integer(to_vis, sign, bits) => {
+            let new_vis = if is_const { FieldElementType::Constant } else { to_vis };
+            Type::Integer(new_vis, sign, bits)
+        }
+        Type::FieldElement(to_vis) => {
+            let new_vis = if is_const { FieldElementType::Constant } else { to_vis };
+            Type::FieldElement(new_vis)
+        }
+        Type::Error => Type::Error,
         _ => {
             let msg = "Only integer and Field types may be casted to".into();
             errors.push(TypeCheckError::Unstructured { msg, span });
-            return Type::Error;
+            Type::Error
         }
     }
-
-    match from {
-        Type::Integer(..) => (),
-        Type::FieldElement(_) => (),
-        Type::Error => return Type::Error,
-        from => {
-            let msg = format!("Cannot cast type {} to a(n) {}", from, to);
-            errors.push(TypeCheckError::Unstructured { msg, span });
-            return Type::Error;
-        }
-    }
-
-    to
 }
 
 fn lookup_method(
