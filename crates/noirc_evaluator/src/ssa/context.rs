@@ -62,7 +62,7 @@ impl<'a> SsaContext<'a> {
     }
 
     //Display an object for debugging puposes
-    fn node_to_string(&self, id: NodeId) -> String {
+    pub fn node_to_string(&self, id: NodeId) -> String {
         if let Some(var) = self.try_get_node(id) {
             return format!("{}", var);
         } else {
@@ -145,12 +145,10 @@ impl<'a> SsaContext<'a> {
             }
             Operation::Intrinsic(opcode, args) => format!("intrinsic {}({})", opcode, join(args)),
             Operation::Nop => "nop".into(),
-            Operation::Call(f, args) => format!("call {:?}({})", f, join(args)),
-            Operation::Return(values) => format!("return ({})", join(values)),
-            Operation::Results { call_instruction, results } => {
-                let call = self.node_to_string(*call_instruction);
-                format!("results {} = ({})", call, join(results))
+            Operation::Call { func_id, args, results } => {
+                format!("{} = call {:?}({})", join(results), func_id, join(args))
             }
+            Operation::Return(values) => format!("return ({})", join(values)),
         }
     }
 
@@ -171,8 +169,7 @@ impl<'a> SsaContext<'a> {
         }
     }
 
-    pub fn print(&self, text: &str) {
-        println!("{}", text);
+    fn print(&self) {
         for (i, (_, b)) in self.blocks.iter().enumerate() {
             println!("************* Block n.{}", i);
             self.print_block(b);
@@ -409,10 +406,10 @@ impl<'a> SsaContext<'a> {
         self.blocks.iter().map(|(_id, block)| block)
     }
 
-    pub fn log(&self, show_log: bool, before: &str, after: &str) {
+    pub fn log(&self, show_log: bool, before: &str) {
         if show_log {
-            self.print(before);
-            println!("{}", after);
+            println!("\n{}", before);
+            self.print();
         }
     }
 
@@ -423,24 +420,29 @@ impl<'a> SsaContext<'a> {
         enable_logging: bool,
     ) -> Result<(), RuntimeError> {
         //SSA
-        self.log(enable_logging, "SSA:", "inline functions");
+        self.log(enable_logging, "Initial SSA:");
+
         flatten::inline_all_functions(self);
+        self.log(enable_logging, "After inline_all_functions:");
 
         //Optimisation
         block::compute_dom(self);
         optim::cse(self, self.first_block);
-        self.log(enable_logging, "CSE:", "unrolling:");
+        self.log(enable_logging, "CSE:");
+
         //Unrolling
         flatten::unroll_tree(self, self.first_block);
+        self.log(enable_logging, "Loop Unrolling:");
 
         //Inlining
-        self.log(enable_logging, "", "inlining:");
         flatten::inline_tree(self, self.first_block);
         optim::cse(self, self.first_block);
+        self.log(enable_logging, "Inlining:");
 
         //Truncation
         integer::overflow_strategy(self);
-        self.log(enable_logging, "overflow:", "");
+        self.log(enable_logging, "Overflow Handling:");
+
         //ACIR
         self.acir(evaluator);
         if enable_logging {

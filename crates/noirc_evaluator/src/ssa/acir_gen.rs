@@ -144,8 +144,7 @@ impl Acir {
             i @ Operation::Jne(..)
             | i @ Operation::Jeq(..)
             | i @ Operation::Jmp(_)
-            | i @ Operation::Phi { .. }
-            | i @ Operation::Results { .. } => {
+            | i @ Operation::Phi { .. } => {
                 unreachable!("Invalid instruction: {:?}", i);
             }
             Operation::Truncate { value, bit_size, max_bit_size } => {
@@ -156,7 +155,7 @@ impl Acir {
                 let v = self.evaluate_opcode(ins.id, *opcode, args, ins.res_type, ctx, evaluator);
                 InternalVar::from(v)
             }
-            Operation::Call(..) => unreachable!("call instruction should have been inlined"),
+            Operation::Call { .. } => unreachable!("call instruction should have been inlined"),
             Operation::Return(_) => todo!(), //return from main
             Operation::Nop => InternalVar::default(),
             Operation::Load { array_id, index } => {
@@ -459,6 +458,7 @@ impl Acir {
         } else {
             let output = add(&l_c.expression, FieldElement::from(-1_i128), &r_c.expression);
             if is_const(&output) {
+                // TODO: This gives horrible error messages when it fails
                 assert_eq!(output.q_c, FieldElement::zero());
             } else {
                 evaluator.gates.push(Gate::Arithmetic(output.clone()));

@@ -10,9 +10,9 @@ use noirc_frontend::node_interner::FuncId;
 
 use super::{
     block::BlockId,
-    code_gen::IRGenerator,
+    code_gen::{IRGenerator, Value},
     context::SsaContext,
-    node::{self, NodeId, ObjectType},
+    node::{self, NodeId, ObjectType, Operation},
     ssa_form,
 };
 
@@ -51,16 +51,33 @@ impl SSAFunction {
 
     //generates an instruction for calling the function
     pub fn call(
-        func: FuncId,
+        func_id: FuncId,
         arguments: &[noirc_frontend::node_interner::ExprId],
         igen: &mut IRGenerator,
         env: &mut Environment,
-    ) -> NodeId {
-        let arguments = igen.expression_list_to_objects(env, arguments);
+    ) -> Value {
+        let args = igen.expression_list_to_objects(env, arguments);
+
+        // TODO: Need to create multiple returns for functions with struct return types
+        let var = node::Variable {
+            id: NodeId::dummy(),
+            name: "result".into(),
+            obj_type: ObjectType::NotAnObject,
+            root: None,
+            def: None,
+            witness: None,
+            parent_block: igen.context.current_block,
+        };
+
+        let result = igen.context.add_variable(var, None);
+        igen.context.get_current_block_mut().update_variable(result, result);
+
         igen.context.new_instruction(
-            node::Operation::Call(func, arguments),
-            node::ObjectType::NotAnObject, //TODO how to get the function return type?
-        )
+            Operation::Call { func_id, args, results: vec![result] },
+            ObjectType::NotAnObject, //TODO how to get the function return type?
+        );
+
+        Value::Single(result)
     }
 
     pub fn get_mapped_value(
@@ -78,9 +95,11 @@ impl SSAFunction {
                 my_const = Some((c.get_value_field(), c.value_type));
             }
             if let Some(c) = my_const {
+                println!("Get or create const {} for id {:?}", c.0, node_id);
                 ctx.get_or_create_const(c.0, c.1)
             } else {
-                *inline_map.get(&node_id).unwrap()
+                println!("Checking inline_map for id {:?}", node_id);
+                inline_map.get(&node_id).copied().unwrap_or_else(NodeId::dummy)
             }
         } else {
             NodeId::dummy()

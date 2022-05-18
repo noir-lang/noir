@@ -93,12 +93,7 @@ fn get_obj_max_value(
     let obj = &ctx[id];
 
     let result = match obj {
-        NodeObj::Obj(v) => {
-            if v.size_in_bits() > 100 {
-                dbg!(&v);
-            }
-            (BigUint::one() << v.size_in_bits()) - BigUint::one()
-        } //TODO check for signed type
+        NodeObj::Obj(v) => (BigUint::one() << v.size_in_bits()) - BigUint::one(), //TODO check for signed type
         NodeObj::Instr(i) => get_instruction_max(ctx, i, max_map, vmap),
         NodeObj::Const(c) => c.value.clone(), //TODO panic for string constants
     };
@@ -251,10 +246,7 @@ fn block_overflow(
     //since we process the block from the start, the block value map is not relevant
     let mut value_map = HashMap::new();
     for mut ins in instructions {
-        if matches!(
-            ins.operator,
-            Operation::Nop | Operation::Call(..) | Operation::Results { .. } | Operation::Return(_)
-        ) {
+        if matches!(ins.operator, Operation::Nop | Operation::Call { .. } | Operation::Return(_)) {
             //For now we skip completely functions from overflow; that means arguments are NOT truncated.
             //The reasoning is that this is handled by doing the overflow strategy after the function has been inlined
             continue;
@@ -449,9 +441,8 @@ fn get_max_value(ins: &Instruction, max_map: &mut HashMap<NodeId, BigUint>) -> B
         }
         Operation::Load { .. } => unreachable!(),
         Operation::Store { .. } => BigUint::zero(),
-        Operation::Call(..) => ins.res_type.max_size(), //TODO interval analysis but we also need to get the arguments (ins_arguments)
+        Operation::Call { .. } => ins.res_type.max_size(), //TODO interval analysis but we also need to get the arguments (ins_arguments)
         Operation::Return(_) => todo!(),
-        Operation::Results { .. } => todo!(),
         Operation::Intrinsic(opcode, _) => {
             match opcode {
                 OPCODE::SHA256

@@ -6,7 +6,7 @@ use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use arena;
 use noirc_frontend::hir_def::expr::HirBinaryOpKind;
-use noirc_frontend::node_interner::DefinitionId;
+use noirc_frontend::node_interner::{DefinitionId, FuncId};
 use noirc_frontend::util::vecmap;
 use noirc_frontend::{Signedness, Type};
 use num_bigint::BigUint;
@@ -110,7 +110,7 @@ impl NodeId {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum NodeObj {
     Obj(Variable),
     Instr(Instruction),
@@ -127,7 +127,7 @@ impl NodeObj {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Constant {
     pub id: NodeId,
     pub value: BigUint,    //TODO use FieldElement instead
@@ -141,7 +141,7 @@ impl Constant {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Variable {
     pub id: NodeId,
     pub obj_type: ObjectType,
@@ -331,8 +331,8 @@ impl NodeEval {
     }
 
     pub fn from_id(ctx: &SsaContext, id: NodeId) -> NodeEval {
-        match &ctx[id] {
-            NodeObj::Const(c) => {
+        match ctx.nodes.get(id.0) {
+            Some(NodeObj::Const(c)) => {
                 let value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
                 NodeEval::Const(value, c.get_type())
             }
@@ -374,9 +374,8 @@ impl Instruction {
             Operation::Nop | Operation::Jne(..) | Operation::Jeq(..) | Operation::Jmp(..) => false,
             Operation::Load { .. } | Operation::Store { .. } => false,
             Operation::Intrinsic(_, _) => true, //TODO to check
-            Operation::Call(_, _) => false, //return values are in the return statment, should we truncate function arguments? probably but not lhs and rhs anyways.
+            Operation::Call { .. } => false, //return values are in the return statment, should we truncate function arguments? probably but not lhs and rhs anyways.
             Operation::Return(_) => true,
-            Operation::Results { .. } => false,
         }
     }
 
@@ -476,8 +475,8 @@ impl<'c> SsaContext<'c> {
     }
 
     fn get_value_and_bitsize(&self, id: NodeId) -> Option<(FieldElement, u32)> {
-        match &self[id] {
-            NodeObj::Const(c) => {
+        match self.nodes.get(id.0) {
+            Some(NodeObj::Const(c)) => {
                 let value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
                 Some((value, c.value_type.bits()))
             }
@@ -509,9 +508,8 @@ pub enum Operation {
     Jmp(BlockId),         //unconditional jump
     Phi { root: NodeId, block_args: Vec<(NodeId, BlockId)> },
 
-    Call(noirc_frontend::node_interner::FuncId, Vec<NodeId>), //Call a function
+    Call { func_id: FuncId, args: Vec<NodeId>, results: Vec<NodeId> }, //Call a function
     Return(Vec<NodeId>), //Return value(s) from a function block
-    Results { call_instruction: NodeId, results: Vec<NodeId> }, //Get result(s) from a function call
 
     //memory
     Load { array_id: ArrayId, index: NodeId },
@@ -943,12 +941,12 @@ impl Operation {
             }
             Intrinsic(i, args) => Intrinsic(*i, vecmap(args.iter().copied(), f)),
             Nop => Nop,
-            Call(func_id, args) => Call(*func_id, vecmap(args.iter().copied(), f)),
+            Call { func_id, args, results } => {
+                let args = vecmap(args.iter().copied(), &mut f);
+                let results = vecmap(results.iter().copied(), f);
+                Call { func_id: *func_id, args, results }
+            }
             Return(values) => Return(vecmap(values.iter().copied(), f)),
-            Results { call_instruction, results } => Results {
-                call_instruction: f(*call_instruction),
-                results: vecmap(results.iter().copied(), f),
-            },
         }
     }
 
@@ -983,20 +981,17 @@ impl Operation {
                 }
             }
             Nop => (),
-            Call(_, args) => {
+            Call { args, results, .. } => {
                 for arg in args {
                     *arg = f(*arg);
+                }
+                for result in results {
+                    *result = f(*result);
                 }
             }
             Return(values) => {
                 for value in values {
                     *value = f(*value);
-                }
-            }
-            Results { call_instruction, results } => {
-                *call_instruction = f(*call_instruction);
-                for result in results {
-                    *result = f(*result);
                 }
             }
         }
@@ -1029,12 +1024,15 @@ impl Operation {
             }
             Intrinsic(_, args) => args.iter().copied().for_each(f),
             Nop => (),
-            Call(_, args) => args.iter().copied().for_each(f),
-            Return(values) => values.iter().copied().for_each(f),
-            Results { call_instruction, results } => {
-                f(*call_instruction);
-                results.iter().copied().for_each(f);
+            Call { args, results, .. } => {
+                for arg in args {
+                    f(*arg)
+                }
+                for result in results {
+                    f(*result)
+                }
             }
+            Return(values) => values.iter().copied().for_each(f),
         }
     }
 }

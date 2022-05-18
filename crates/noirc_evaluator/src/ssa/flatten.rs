@@ -419,8 +419,8 @@ fn inline_block(ctx: &mut SsaContext, block_id: BlockId) -> bool {
     for i in &ctx[block_id].instructions {
         if let Some(ins) = ctx.try_get_instruction(*i) {
             if !ins.is_deleted() {
-                if let Operation::Call(f, args) = &ins.operator {
-                    call_ins.push((ins.id, *f, args.clone(), ins.parent_block));
+                if let Operation::Call { func_id, args, .. } = &ins.operator {
+                    call_ins.push((ins.id, *func_id, args.clone(), ins.parent_block));
                 }
             }
         }
@@ -511,7 +511,9 @@ pub fn inline_in_block(
             }
 
             clone.operator.map_id_mut(|id| {
-                function::SSAFunction::get_mapped_value(Some(&id), ctx, inline_map)
+                let mapped = function::SSAFunction::get_mapped_value(Some(&id), ctx, inline_map);
+                println!("{} is mapped to {}", ctx.node_to_string(id), ctx.node_to_string(mapped));
+                mapped
             });
 
             //Arrays are mapped to array. We create the array if not mapped
@@ -535,15 +537,21 @@ pub fn inline_in_block(
                 //Return instruction:
                 Operation::Return(values) => {
                     //we need to find the corresponding result instruction in the target block (using ins.rhs) and replace it by ins.lhs
-                    let ret_id = ctx[target_block_id].get_result_instruction(call_id, ctx).unwrap();
-                    let i = ctx.get_mut_instruction(ret_id);
-                    if let Operation::Results { results, .. } = &mut i.operator {
-                        *results = values.clone();
+                    let call_ins = ctx.get_mut_instruction(call_id);
+                    if let Operation::Call { results, .. } = &mut call_ins.operator {
+                        assert_eq!(values.len(), results.len());
+                        let results = results.clone();
+
+                        for (result, value) in results.into_iter().zip(values) {
+                            let value = ctx[*value].clone();
+                            let result = &mut ctx[result];
+                            *result = value;
+                        }
                     } else {
                         unreachable!()
                     }
                 }
-                Operation::Call(..) => {
+                Operation::Call { .. } => {
                     *nested_call = true;
                     let new_ins = new_cloned_instruction(clone, target_block_id);
                     push_instruction(ctx, new_ins, &mut new_instructions, inline_map);
@@ -596,6 +604,8 @@ pub fn inline_in_block(
                         }
                     }
 
+                    println!("Looking at id {:?}", i_id);
+
                     optim::simplify(ctx, &mut new_ins);
 
                     if let Some(replacement) = new_ins.replacement {
@@ -630,7 +640,10 @@ pub fn inline_in_block(
 }
 
 fn new_cloned_instruction(original: Instruction, block: BlockId) -> Instruction {
-    Instruction::new(original.operator, original.res_type, Some(block))
+    let mut clone = Instruction::new(original.operator, original.res_type, Some(block));
+    // Take the original's ID, it will be used to map it as a replacement in push_instruction later
+    clone.id = original.id;
+    clone
 }
 
 fn push_instruction(
@@ -642,5 +655,7 @@ fn push_instruction(
     let old_id = instruction.id;
     let new_id = ctx.add_instruction(instruction);
     new_instructions.push(new_id);
+
+    println!("Pushing replacement {:?} for id {:?}", new_id, old_id);
     inline_map.insert(old_id, new_id);
 }

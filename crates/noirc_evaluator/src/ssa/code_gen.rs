@@ -648,19 +648,20 @@ impl<'a> IRGenerator<'a> {
                             self.context.functions.insert(call_expr.func_id, func);
                         }
 
-                    //generate a call instruction to the function cfg
-                    Ok(Value::Single(function::SSAFunction::call(call_expr.func_id ,&call_expr.arguments, self, env)))
+                        //generate a call instruction to the function cfg
+                        Ok(function::SSAFunction::call(call_expr.func_id ,&call_expr.arguments, self, env))
                     },
                     FunctionKind::LowLevel => {
-                    // We use it's func name to find out what intrinsic function to call
-                    let attribute = func_meta.attributes.expect("all low level functions must contain an attribute which contains the opcode which it links to");
-                    let opcode_name = attribute.foreign().expect("ice: function marked as foreign, but attribute kind does not match this");
-                    Ok(Value::Single(self.handle_lowlevel(env, opcode_name, call_expr)))
+                        // We use it's func name to find out what intrinsic function to call
+                        let attribute = func_meta.attributes.expect("all low level functions must contain an attribute which contains the opcode which it links to");
+                        let opcode_name = attribute.foreign().expect("ice: function marked as foreign, but attribute kind does not match this");
+                        Ok(Value::Single(self.handle_lowlevel(env, opcode_name, call_expr)))
                     },
-                    FunctionKind::Builtin => { todo!();
-                    //     let attribute = func_meta.attributes.expect("all builtin functions must contain an attribute which contains the function name which it links to");
-                    //     let builtin_name = attribute.builtin().expect("ice: function marked as a builtin, but attribute kind does not match this");
-                    //     builtin::call_builtin(self, env, builtin_name, (call_expr,span))
+                    FunctionKind::Builtin => {
+                        todo!();
+                        //     let attribute = func_meta.attributes.expect("all builtin functions must contain an attribute which contains the function name which it links to");
+                        //     let builtin_name = attribute.builtin().expect("ice: function marked as a builtin, but attribute kind does not match this");
+                        //     builtin::call_builtin(self, env, builtin_name, (call_expr,span))
                     },
                  }
             },

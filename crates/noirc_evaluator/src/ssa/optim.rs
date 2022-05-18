@@ -399,7 +399,7 @@ fn cse_block_with_anchor(
                             anchor.push_front(&operator, *ins_id);
                         }
                     }
-                    Operation::Call(..) | Operation::Return(..) => {
+                    Operation::Call { .. } | Operation::Return(..) => {
                         //No CSE for function calls because of possible side effect - TODO checks if a function has side effect when parsed and do cse for these.
                         //Propagate arguments:
                         new_list.push(*ins_id);
