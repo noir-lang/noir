@@ -95,10 +95,8 @@ impl SSAFunction {
                 my_const = Some((c.get_value_field(), c.value_type));
             }
             if let Some(c) = my_const {
-                println!("Get or create const {} for id {:?}", c.0, node_id);
                 ctx.get_or_create_const(c.0, c.1)
             } else {
-                println!("Checking inline_map for id {:?}", node_id);
                 inline_map.get(&node_id).copied().unwrap_or_else(NodeId::dummy)
             }
         } else {

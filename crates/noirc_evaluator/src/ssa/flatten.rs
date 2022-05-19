@@ -511,9 +511,7 @@ pub fn inline_in_block(
             }
 
             clone.operator.map_id_mut(|id| {
-                let mapped = function::SSAFunction::get_mapped_value(Some(&id), ctx, inline_map);
-                println!("{} is mapped to {}", ctx.node_to_string(id), ctx.node_to_string(mapped));
-                mapped
+                function::SSAFunction::get_mapped_value(Some(&id), ctx, inline_map)
             });
 
             //Arrays are mapped to array. We create the array if not mapped
@@ -604,8 +602,6 @@ pub fn inline_in_block(
                         }
                     }
 
-                    println!("Looking at id {:?}", i_id);
-
                     optim::simplify(ctx, &mut new_ins);
 
                     if let Some(replacement) = new_ins.replacement {
@@ -655,7 +651,5 @@ fn push_instruction(
     let old_id = instruction.id;
     let new_id = ctx.add_instruction(instruction);
     new_instructions.push(new_id);
-
-    println!("Pushing replacement {:?} for id {:?}", new_id, old_id);
     inline_map.insert(old_id, new_id);
 }
