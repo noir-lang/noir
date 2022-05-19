@@ -1013,7 +1013,6 @@ mod test {
     #[test]
     fn parse_parenthesized_expression() {
         parse_all(atom(expression()), vec!["(0)", "(x+a)", "({(({{({(nested)})}}))})"]);
-
         parse_all_failing(atom(expression()), vec!["(x+a", "((x+a)", "(,)"]);
     }
 

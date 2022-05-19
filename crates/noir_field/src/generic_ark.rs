@@ -188,6 +188,10 @@ impl<F: PrimeField> FieldElement<F> {
         FieldElement(inv)
     }
 
+    pub fn try_inverse(mut self) -> Option<Self> {
+        self.0.inverse_in_place().map(|f| FieldElement(*f))
+    }
+
     // XXX: This method is used while this field element
     // implementation is not generic.
     pub fn into_repr(self) -> F {

@@ -2,12 +2,22 @@ use super::{
     block::{self, BlockId},
     context::SsaContext,
     function,
-    node::{self, Node, NodeEval, NodeId, NodeObj, Operation},
+    mem::ArrayId,
+    node::{self, BinaryOp, Instruction, Node, NodeEval, NodeId, NodeObj, ObjectType, Operation},
     optim,
 };
 use acvm::FieldElement;
+use std::collections::{hash_map::Entry, HashMap};
+
+//returns the NodeObj index of a NodeEval object
+//if NodeEval is a constant, it may creates a new NodeObj corresponding to the constant value
+fn to_index(ctx: &mut SsaContext, obj: NodeEval) -> NodeId {
+    match obj {
+        NodeEval::Const(c, t) => ctx.get_or_create_const(c, t),
+        NodeEval::VarOrInstruction(i) => i,
+    }
+}
 use noirc_frontend::util::vecmap;
-use std::collections::HashMap;
 
 // Number of allowed times for inlining function calls inside a code block.
 // If a function calls another function, the inlining of the first function will leave the second function call that needs to be inlined as well.
@@ -25,34 +35,29 @@ pub fn unroll_tree(ctx: &mut SsaContext, mut block_id: BlockId) {
 }
 
 //Update the block instruction list using the eval_map
-fn eval_block(block_id: BlockId, eval_map: &HashMap<NodeId, NodeEval>, igen: &mut SsaContext) {
-    for i in &igen[block_id].instructions.clone() {
-        //RIA
-        if let Some(ins) = igen.try_get_mut_instruction(*i) {
-            if let Some(value) = eval_map.get(&ins.rhs) {
-                ins.rhs = value.into_node_id().unwrap();
-            }
-            if let Some(value) = eval_map.get(&ins.lhs) {
-                ins.lhs = value.into_node_id().unwrap();
-            }
-            //TODO simplify(ctx, ins);
+fn eval_block(block_id: BlockId, eval_map: &HashMap<NodeId, NodeEval>, ctx: &mut SsaContext) {
+    for i in &ctx[block_id].instructions.clone() {
+        if let Some(ins) = ctx.try_get_mut_instruction(*i) {
+            ins.operator = update_operator(&ins.operator, eval_map);
+            // TODO: simplify(ctx, ins);
         }
     }
+}
+
+fn update_operator(operator: &Operation, eval_map: &HashMap<NodeId, NodeEval>) -> Operation {
+    operator.map_id(|id| eval_map.get(&id).and_then(|value| value.into_node_id()).unwrap_or(id))
 }
 
 pub fn unroll_block(
     unrolled_instructions: &mut Vec<NodeId>,
     eval_map: &mut HashMap<NodeId, NodeEval>,
     block_to_unroll: BlockId,
-    igen: &mut SsaContext,
+    ctx: &mut SsaContext,
 ) -> Option<BlockId> {
-    if igen[block_to_unroll].is_join() {
-        unroll_join(unrolled_instructions, eval_map, block_to_unroll, igen)
-    } else if let Some(i) = unroll_std_block(unrolled_instructions, eval_map, block_to_unroll, igen)
-    {
-        igen.try_get_instruction(i).map(|ins| ins.parent_block)
+    if ctx[block_to_unroll].is_join() {
+        unroll_join(unrolled_instructions, eval_map, block_to_unroll, ctx)
     } else {
-        None
+        unroll_std_block(unrolled_instructions, eval_map, block_to_unroll, ctx)
     }
 }
 
@@ -61,52 +66,42 @@ pub fn unroll_std_block(
     unrolled_instructions: &mut Vec<NodeId>,
     eval_map: &mut HashMap<NodeId, NodeEval>,
     block_to_unroll: BlockId,
-    igen: &mut SsaContext,
-) -> Option<NodeId> //first instruction of the left block
+    ctx: &mut SsaContext,
+) -> Option<BlockId> // The left block
 {
-    let block = &igen[block_to_unroll];
+    let block = &ctx[block_to_unroll];
     let b_instructions = block.instructions.clone();
-    let mut next = None;
-    if let Some(left) = block.left {
-        if let Some(f) = igen[left].instructions.first() {
-            next = Some(*f);
-        }
-    }
+    let next = block.left;
+
     for i_id in &b_instructions {
-        match &igen[*i_id] {
+        match &ctx[*i_id] {
             node::NodeObj::Instr(i) => {
-                let new_left = get_current_value(i.lhs, eval_map).into_node_id().unwrap();
-                let new_right = get_current_value(i.rhs, eval_map).into_node_id().unwrap();
+                let new_op =
+                    i.operator.map_id(|id| get_current_value(id, eval_map).into_node_id().unwrap());
                 let mut new_ins = node::Instruction::new(
-                    i.operator, new_left, new_right, i.res_type, None, //TODO to fix later
+                    new_op, i.res_type, None, //TODO to fix later
                 );
                 match i.operator {
-                    Operation::Ass => {
+                    Operation::Binary(node::Binary { operator: BinaryOp::Assign, .. }) => {
                         unreachable!("unsupported instruction type when unrolling: assign");
                         //To support assignments, we should create a new variable and updates the eval_map with it
                         //however assignments should have already been removed by copy propagation.
                     }
-                    Operation::Jmp => {
-                        return Some(i.rhs);
+                    Operation::Jmp(block) => {
+                        return Some(block);
                     }
                     Operation::Nop => (),
                     _ => {
-                        optim::simplify(igen, &mut new_ins);
-                        let result_id;
-                        let mut to_delete = false;
-                        if new_ins.is_deleted {
-                            result_id = new_ins.rhs;
-                            if new_ins.rhs == new_ins.id {
-                                to_delete = true;
-                            }
+                        let replacement = optim::simplify(ctx, &mut new_ins);
+
+                        let result_id = if let Some(replacement) = replacement {
+                            replacement
                         } else {
-                            result_id = igen.add_instruction(new_ins);
-                            unrolled_instructions.push(result_id);
-                        }
-                        //ignore self-deleted instructions
-                        if !to_delete {
-                            eval_map.insert(*i_id, NodeEval::VarOrInstruction(result_id));
-                        }
+                            let id = ctx.add_instruction(new_ins);
+                            unrolled_instructions.push(id);
+                            id
+                        };
+                        eval_map.insert(*i_id, NodeEval::VarOrInstruction(result_id));
                     }
                 }
             }
@@ -125,10 +120,10 @@ pub fn unroll_join(
     unrolled_instructions: &mut Vec<NodeId>,
     eval_map: &mut HashMap<NodeId, NodeEval>,
     block_to_unroll: BlockId,
-    igen: &mut SsaContext,
+    ctx: &mut SsaContext,
 ) -> Option<BlockId> {
     //Returns the exit block of the loop
-    let join = &igen[block_to_unroll];
+    let join = &ctx[block_to_unroll];
     let join_instructions = join.instructions.clone();
     let join_left = join.left; //XXX.clone();
     let prev = *join.predecessor.first().unwrap(); //todo predecessor.first or .last?
@@ -141,12 +136,12 @@ pub fn unroll_join(
     }
     while {
         //evaluate the join  block:
-        evaluate_phi(&join_instructions, from, eval_map, igen);
-        evaluate_conditional_jump(*join_instructions.last().unwrap(), eval_map, igen)
+        evaluate_phi(&join_instructions, from, eval_map, ctx);
+        evaluate_conditional_jump(*join_instructions.last().unwrap(), eval_map, ctx)
     } {
         from = block_to_unroll;
         let mut b_id = body_id;
-        while let Some(next) = unroll_block(unrolled_instructions, eval_map, b_id, igen) {
+        while let Some(next) = unroll_block(unrolled_instructions, eval_map, b_id, ctx) {
             //process next block:
             from = b_id;
             b_id = next;
@@ -164,27 +159,24 @@ pub fn outer_unroll(
     unroll_ins: &mut Vec<NodeId>, //unrolled instructions
     eval_map: &mut HashMap<NodeId, NodeEval>,
     block_id: BlockId, //block to unroll
-    igen: &mut SsaContext,
+    ctx: &mut SsaContext,
 ) -> Option<BlockId> //next block
 {
     assert!(unroll_ins.is_empty());
-    let block = &igen[block_id];
+    let block = &ctx[block_id];
     let b_right = block.right;
     let b_left = block.left;
     let block_instructions = block.instructions.clone();
     if block.is_join() {
         //1. unroll the block into the unroll_ins
-        unroll_join(unroll_ins, eval_map, block_id, igen);
+        unroll_join(unroll_ins, eval_map, block_id, ctx);
         //2. map the Phis variables to their unrolled values:
         for ins in &block_instructions {
-            if let Some(ins_obj) = igen.try_get_instruction(*ins) {
-                if ins_obj.operator == node::Operation::Phi {
-                    if eval_map.contains_key(&ins_obj.rhs) {
-                        eval_map.insert(ins_obj.lhs, eval_map[&ins_obj.rhs]);
-                        //todo test with constants
-                    } else if eval_map.contains_key(&ins_obj.id) {
-                        //   unroll_map.insert(ins_obj.lhs, eval_map[&ins_obj.idx].to_index().unwrap());
-                        eval_map.insert(ins_obj.lhs, eval_map[&ins_obj.id]);
+            if let Some(ins_obj) = ctx.try_get_instruction(*ins) {
+                if let Operation::Phi { root, .. } = &ins_obj.operator {
+                    if let Some(node_eval) = eval_map.get(&ins_obj.id) {
+                        let node_eval = *node_eval;
+                        eval_map.entry(*root).or_insert(node_eval);
                         //todo test with constants
                     }
                 } else if ins_obj.operator != node::Operation::Nop {
@@ -194,9 +186,9 @@ pub fn outer_unroll(
         }
         //3. Merge the unrolled blocks into the join
         for ins in unroll_ins.iter() {
-            igen[*ins].set_id(*ins);
+            ctx[*ins].set_id(*ins);
         }
-        let join_mut = &mut igen[block_id];
+        let join_mut = &mut ctx[block_id];
         join_mut.instructions = unroll_ins.clone();
         join_mut.right = None;
         join_mut.kind = block::BlockType::Normal;
@@ -210,9 +202,9 @@ pub fn outer_unroll(
         }
         //we get the subgraph, however we could retrieve the list of processed blocks directly in unroll_join (cf. processed)
         if let Some(body_id) = b_right {
-            let sub_graph = block::bfs(body_id, Some(block_id), igen);
+            let sub_graph = block::bfs(body_id, Some(block_id), ctx);
             for b in sub_graph {
-                igen.remove_block(b);
+                ctx.remove_block(b);
             }
         }
 
@@ -220,7 +212,7 @@ pub fn outer_unroll(
         unroll_ins.clear();
     } else {
         //We update block instructions from the eval_map
-        eval_block(block_id, eval_map, igen);
+        eval_block(block_id, eval_map, ctx);
     }
     b_left //returns the next block to process
 }
@@ -230,19 +222,19 @@ fn evaluate_phi(
     instructions: &[NodeId],
     from: BlockId,
     to: &mut HashMap<NodeId, NodeEval>,
-    igen: &mut SsaContext,
+    ctx: &mut SsaContext,
 ) {
     for i in instructions {
         let mut to_process = Vec::new();
-        if let Some(ins) = igen.try_get_instruction(*i) {
-            if ins.operator == node::Operation::Phi {
-                for phi in &ins.phi_arguments {
-                    if phi.1 == from {
+        if let Some(ins) = ctx.try_get_instruction(*i) {
+            if let Operation::Phi { block_args, .. } = &ins.operator {
+                for (arg, block) in block_args {
+                    if *block == from {
                         //we evaluate the phi instruction value
-                        to_process.push((
-                            ins.id,
-                            evaluate_one(NodeEval::VarOrInstruction(phi.0), to, igen),
-                        ));
+                        let arg = *arg;
+                        let id = ins.id;
+                        to_process
+                            .push((id, evaluate_one(NodeEval::VarOrInstruction(arg), to, ctx)));
                     }
                 }
             } else if ins.operator != node::Operation::Nop {
@@ -251,7 +243,7 @@ fn evaluate_phi(
         }
         //Update the evaluation map.
         for obj in to_process {
-            to.insert(obj.0, NodeEval::VarOrInstruction(optim::to_index(igen, obj.1)));
+            to.insert(obj.0, NodeEval::VarOrInstruction(to_index(ctx, obj.1)));
         }
     }
 }
@@ -260,22 +252,25 @@ fn evaluate_phi(
 fn evaluate_conditional_jump(
     jump: NodeId,
     value_array: &mut HashMap<NodeId, NodeEval>,
-    ctx: &SsaContext,
+    ctx: &mut SsaContext,
 ) -> bool {
     let jump_ins = ctx.try_get_instruction(jump).unwrap();
-    let lhs = get_current_value(jump_ins.lhs, value_array);
-    let cond = evaluate_object(lhs, value_array, ctx);
-    if let Some(cond_const) = cond.into_const_value() {
-        let result = !cond_const.is_zero();
-        match jump_ins.operator {
-            node::Operation::Jeq => return result,
-            node::Operation::Jne => return !result,
-            node::Operation::Jmp => return true,
-            _ => panic!("loop without conditional statement!"), //TODO shouldn't we return false instead?
-        }
-    }
 
-    unreachable!("Condition should be constant");
+    let cond_id = match jump_ins.operator {
+        Operation::Jeq(cond_id, _) => cond_id,
+        Operation::Jne(cond_id, _) => cond_id,
+        Operation::Jmp(_) => return true,
+        _ => panic!("loop without conditional statement!"), //TODO shouldn't we return false instead?
+    };
+
+    let cond = get_current_value(cond_id, value_array);
+    let cond = evaluate_object(cond, value_array, ctx).into_const_value().unwrap();
+
+    match jump_ins.operator {
+        node::Operation::Jeq { .. } => cond.is_zero(),
+        node::Operation::Jne { .. } => !cond.is_zero(),
+        _ => unreachable!(),
+    }
 }
 
 //Retrieve the NodeEval value of the index in the evaluation map
@@ -298,28 +293,26 @@ fn get_current_value_for_node_eval(
 fn evaluate_one(
     obj: NodeEval,
     value_array: &HashMap<NodeId, NodeEval>,
-    igen: &SsaContext,
+    ctx: &SsaContext,
 ) -> NodeEval {
     match get_current_value_for_node_eval(obj, value_array) {
         NodeEval::Const(_, _) => obj,
         NodeEval::VarOrInstruction(obj_id) => {
-            if igen.try_get_node(obj_id).is_none() {
+            if ctx.try_get_node(obj_id).is_none() {
                 return obj;
             }
 
-            match &igen[obj_id] {
+            match &ctx[obj_id] {
                 NodeObj::Instr(i) => {
-                    if i.operator == node::Operation::Phi {
+                    if let Operation::Phi { .. } = i.operator {
                         //n.b phi are handled before, else we should know which block we come from
                         dbg!(i.id);
                         return NodeEval::VarOrInstruction(i.id);
                     }
 
-                    let lhs = get_current_value(i.lhs, value_array);
-                    let lhr = get_current_value(i.rhs, value_array);
-                    let result = i.evaluate(&lhs, &lhr);
+                    let result = i.evaluate(ctx);
                     if let NodeEval::VarOrInstruction(idx) = result {
-                        if igen.try_get_node(idx).is_none() {
+                        if ctx.try_get_node(idx).is_none() {
                             return NodeEval::VarOrInstruction(obj_id);
                         }
                     }
@@ -339,30 +332,30 @@ fn evaluate_one(
 fn evaluate_object(
     obj: NodeEval,
     value_array: &HashMap<NodeId, NodeEval>,
-    igen: &SsaContext,
+    ctx: &SsaContext,
 ) -> NodeEval {
     match get_current_value_for_node_eval(obj, value_array) {
         NodeEval::Const(_, _) => obj,
         NodeEval::VarOrInstruction(obj_id) => {
-            if igen.try_get_node(obj_id).is_none() {
+            if ctx.try_get_node(obj_id).is_none() {
                 dbg!(obj_id);
                 return obj;
             }
 
-            match &igen[obj_id] {
+            match &ctx[obj_id] {
                 NodeObj::Instr(i) => {
-                    if i.operator == Operation::Phi {
+                    if let Operation::Phi { .. } = i.operator {
                         dbg!(i.id);
                         return NodeEval::VarOrInstruction(i.id);
                     }
+
                     //n.b phi are handled before, else we should know which block we come from
-                    let lhs =
-                        evaluate_object(get_current_value(i.lhs, value_array), value_array, igen);
-                    let lhr =
-                        evaluate_object(get_current_value(i.rhs, value_array), value_array, igen);
-                    let result = i.evaluate(&lhs, &lhr);
+                    let result = i.evaluate_with(ctx, |ctx, id| {
+                        evaluate_object(get_current_value(id, value_array), value_array, ctx)
+                    });
+
                     if let NodeEval::VarOrInstruction(idx) = result {
-                        if igen.try_get_node(idx).is_none() {
+                        if ctx.try_get_node(idx).is_none() {
                             return NodeEval::VarOrInstruction(obj_id);
                         }
                     }
@@ -420,24 +413,22 @@ pub fn inline_all_functions(ctx: &mut SsaContext) {
     }
 }
 
-//inline all function calls of the block
 //Return false if some inlined function performs a function call
 fn inline_block(ctx: &mut SsaContext, block_id: BlockId) -> bool {
-    let mut call_ins = Vec::<NodeId>::new();
+    let mut call_ins = vec![];
     for i in &ctx[block_id].instructions {
         if let Some(ins) = ctx.try_get_instruction(*i) {
-            if !ins.is_deleted && matches!(ins.operator, node::Operation::Call(_)) {
-                call_ins.push(*i);
+            if !ins.is_deleted() {
+                if let Operation::Call(f, args) = &ins.operator {
+                    call_ins.push((ins.id, *f, args.clone(), ins.parent_block));
+                }
             }
         }
     }
     let mut result = true;
-    for ins_id in call_ins {
-        let ins = ctx.try_get_instruction(ins_id).unwrap().clone();
-        if let node::Instruction { operator: node::Operation::Call(f), .. } = ins {
-            if !inline(f, &ins.ins_arguments, ctx, ins.parent_block, ins.id) {
-                result = false;
-            }
+    for (ins_id, f, args, parent_block) in call_ins {
+        if !inline(f, &args, ctx, parent_block, ins_id) {
+            result = false;
         }
     }
     optim::cse(ctx, block_id); //handles the deleted call instructions
@@ -456,8 +447,8 @@ pub fn inline(
     let ssa_func = ctx.get_ssafunc(func_id).unwrap();
 
     //map nodes from the function cfg to the caller cfg
-    let mut inline_map: HashMap<NodeId, NodeId> = HashMap::new();
-    let mut array_map: HashMap<u32, u32> = HashMap::new();
+    let mut inline_map = HashMap::<NodeId, NodeId>::new();
+    let mut array_map = HashMap::<ArrayId, ArrayId>::new();
     //1. map function parameters
     for (arg_caller, arg_function) in args.iter().zip(&ssa_func.arguments) {
         inline_map.insert(*arg_function, *arg_caller);
@@ -488,7 +479,7 @@ pub fn inline_in_block(
     block_id: BlockId,
     target_block_id: BlockId,
     inline_map: &mut HashMap<NodeId, NodeId>,
-    array_map: &mut HashMap<u32, u32>,
+    array_map: &mut HashMap<ArrayId, ArrayId>,
     call_id: NodeId,
     nested_call: &mut bool,
     ctx: &mut SsaContext,
@@ -499,176 +490,129 @@ pub fn inline_in_block(
     let block_func_instructions = &block_func.instructions.clone();
     *nested_call = false;
     for &i_id in block_func_instructions {
-        let mut array_func = None;
-        let mut array_func_idx = u32::MAX;
         if let Some(ins) = ctx.try_get_instruction(i_id) {
-            if ins.is_deleted {
+            if ins.is_deleted() {
                 continue;
             }
-            let clone = ins.clone();
-            if let node::ObjectType::Pointer(a) = ins.res_type {
+            let mut array = None;
+            let mut array_id = None;
+            let mut clone = ins.clone();
+
+            if let node::ObjectType::Pointer(id) = ins.res_type {
                 //We need to map arrays to arrays via the array_map, we collect the data here to be mapped below.
-                array_func = Some(ctx.mem.arrays[a as usize].clone());
-                array_func_idx = a;
-            } else if let Operation::Load(a) = ins.operator {
-                array_func = Some(ctx.mem.arrays[a as usize].clone());
-                array_func_idx = a;
-            } else if let Operation::Store(a) = ins.operator {
-                array_func = Some(ctx.mem.arrays[a as usize].clone());
-                array_func_idx = a;
+                array = Some(ctx.mem[id].clone());
+                array_id = Some(id);
+            } else if let Operation::Load { array_id: id, .. } = ins.operator {
+                array = Some(ctx.mem[id].clone());
+                array_id = Some(id);
+            } else if let Operation::Store { array_id: id, .. } = ins.operator {
+                array = Some(ctx.mem[id].clone());
+                array_id = Some(id);
             }
 
-            let new_left =
-                function::SSAFunction::get_mapped_value(Some(&clone.lhs), ctx, inline_map);
-            let new_right =
-                function::SSAFunction::get_mapped_value(Some(&clone.rhs), ctx, inline_map);
-            let new_arg = function::SSAFunction::get_mapped_value(
-                clone.ins_arguments.first(),
-                ctx,
-                inline_map,
-            );
+            clone.operator.map_id_mut(|id| {
+                function::SSAFunction::get_mapped_value(Some(&id), ctx, inline_map)
+            });
+
             //Arrays are mapped to array. We create the array if not mapped
-            if let Some(a) = array_func {
-                if let std::collections::hash_map::Entry::Vacant(e) =
-                    array_map.entry(array_func_idx)
-                {
-                    let i_pointer = ctx.mem.create_new_array(a.len, a.element_type, &a.name);
+            if let (Some(array), Some(array_id)) = (array, array_id) {
+                if let Entry::Vacant(e) = array_map.entry(array_id) {
+                    let new_id =
+                        ctx.mem.create_new_array(array.len, array.element_type, &array.name);
                     //We populate the array (if possible) using the inline map
-                    for i in &a.values {
+                    for i in &array.values {
                         if let Some(f) = i.to_const() {
-                            ctx.mem.arrays[i_pointer as usize]
-                                .values
-                                .push(super::acir_gen::InternalVar::from(f));
+                            ctx.mem[new_id].values.push(super::acir_gen::InternalVar::from(f));
                         }
                         //todo: else use inline map.
                     }
-                    e.insert(i_pointer);
+                    e.insert(new_id);
                 };
             }
 
-            match clone.operator {
+            match &clone.operator {
                 Operation::Nop => (),
                 //Return instruction:
-                Operation::Ret => {
+                Operation::Return(values) => {
                     //we need to find the corresponding result instruction in the target block (using ins.rhs) and replace it by ins.lhs
-                    if let Some(ret_id) = ctx[target_block_id].get_result_instruction(call_id, ctx)
-                    {
-                        //we support only one result for now, should use 'ins.lhs.get_value()'
-                        if let node::NodeObj::Instr(i) = &mut ctx[ret_id] {
-                            i.is_deleted = true;
-                            i.rhs = new_left; //Then we need to ensure there is a CSE.
-                        }
+                    let ret_id = ctx[target_block_id].get_result_instruction(call_id, ctx).unwrap();
+                    let i = ctx.get_mut_instruction(ret_id);
+                    if let Operation::Results { results, .. } = &mut i.operator {
+                        *results = values.clone();
                     } else {
-                        //we use the call instruction instead
-                        //we could use the ins_arguments to get the results here, and since we have the input arguments (in the ssafunction) we know how many there are.
-                        //for now the call instruction is replaced by the (one) result
-                        let call_ins = ctx.get_mut_instruction(call_id);
-                        call_ins.is_deleted = true;
-                        call_ins.rhs = new_arg;
-                        if array_map.contains_key(&array_func_idx) {
-                            let i_pointer = array_map[&array_func_idx];
-                            call_ins.res_type = node::ObjectType::Pointer(i_pointer);
-                        }
+                        unreachable!()
                     }
                 }
-                Operation::Call(_) => {
+                Operation::Call(..) => {
                     *nested_call = true;
-
-                    let mut new_ins = node::Instruction::new(
-                        clone.operator,
-                        new_left,
-                        new_right,
-                        clone.res_type,
-                        Some(target_block_id),
-                    );
-                    new_ins.ins_arguments = Vec::new();
-                    for i in clone.ins_arguments {
-                        new_ins.ins_arguments.push(function::SSAFunction::get_mapped_value(
-                            Some(&i),
-                            ctx,
-                            inline_map,
-                        ));
-                    }
-                    let result_id = ctx.add_instruction(new_ins);
-                    new_instructions.push(result_id);
-                    inline_map.insert(i_id, result_id);
+                    let new_ins = new_cloned_instruction(clone, target_block_id);
+                    push_instruction(ctx, new_ins, &mut new_instructions, inline_map);
                 }
-                Operation::Load(a) => {
+                Operation::Load { array_id, index } => {
                     //Compute the new address:
                     //TODO use relative addressing, but that requires a few changes, mainly in acir_gen.rs and integer.rs
-                    let b = array_map[&a];
+                    let b = array_map[array_id];
                     //n.b. this offset is always positive
-                    let offset = ctx.mem.arrays[b as usize].adr - ctx.mem.arrays[a as usize].adr;
-                    let index_type = ctx[new_left].get_type();
+                    let offset = ctx.mem[b].adr - ctx.mem[*array_id].adr;
+                    let index_type = ctx[*index].get_type();
                     let offset_id =
                         ctx.get_or_create_const(FieldElement::from(offset as i128), index_type);
-                    let adr_id =
-                        ctx.new_instruction(offset_id, new_left, node::Operation::Add, index_type);
-                    let new_ins = node::Instruction::new(
-                        node::Operation::Load(array_map[&a]),
-                        adr_id,
-                        adr_id,
+
+                    let add = node::Binary { operator: BinaryOp::Add, lhs: offset_id, rhs: *index };
+                    let adr_id = ctx.new_instruction(Operation::Binary(add), index_type);
+                    let new_ins = Instruction::new(
+                        Operation::Load { array_id: array_map[array_id], index: adr_id },
                         clone.res_type,
                         Some(target_block_id),
                     );
-                    let result_id = ctx.add_instruction(new_ins);
-                    new_instructions.push(result_id);
-                    inline_map.insert(i_id, result_id);
+                    push_instruction(ctx, new_ins, &mut new_instructions, inline_map);
                 }
-                Operation::Store(a) => {
-                    let b = array_map[&a];
-                    let offset = ctx.mem.arrays[a as usize].adr - ctx.mem.arrays[b as usize].adr;
-                    let index_type = ctx[new_left].get_type();
+                Operation::Store { array_id, index, value } => {
+                    let b = array_map[array_id];
+                    let offset = ctx.mem[*array_id].adr - ctx.mem[b].adr;
+                    let index_type = ctx[*index].get_type();
                     let offset_id =
                         ctx.get_or_create_const(FieldElement::from(offset as i128), index_type);
-                    let adr_id =
-                        ctx.new_instruction(offset_id, new_left, node::Operation::Add, index_type);
-                    let new_ins = node::Instruction::new(
-                        node::Operation::Store(array_map[&a]),
-                        new_left,
-                        adr_id,
+
+                    let add = node::Binary { operator: BinaryOp::Add, lhs: offset_id, rhs: *index };
+                    let adr_id = ctx.new_instruction(Operation::Binary(add), index_type);
+                    let new_ins = Instruction::new(
+                        Operation::Store {
+                            array_id: array_map[array_id],
+                            index: adr_id,
+                            value: *value,
+                        },
                         clone.res_type,
                         Some(target_block_id),
                     );
-                    let result_id = ctx.add_instruction(new_ins);
-                    new_instructions.push(result_id);
-                    inline_map.insert(i_id, result_id);
+                    push_instruction(ctx, new_ins, &mut new_instructions, inline_map);
                 }
                 _ => {
-                    let mut new_ins = node::Instruction::new(
-                        clone.operator,
-                        new_left,
-                        new_right,
-                        clone.res_type,
-                        Some(target_block_id),
-                    );
-                    if array_map.contains_key(&array_func_idx) {
-                        let i_pointer = array_map[&array_func_idx];
-                        new_ins.res_type = node::ObjectType::Pointer(i_pointer);
+                    let mut new_ins = new_cloned_instruction(clone, target_block_id);
+
+                    if let Some(id) = array_id {
+                        if let Some(new_id) = array_map.get(&id) {
+                            new_ins.res_type = node::ObjectType::Pointer(*new_id);
+                        }
                     }
+
                     optim::simplify(ctx, &mut new_ins);
-                    let result_id;
-                    let mut to_delete = false;
-                    if new_ins.is_deleted {
-                        result_id = new_ins.rhs;
-                        if let std::collections::hash_map::Entry::Occupied(mut e) =
-                            array_map.entry(array_func_idx)
-                        {
-                            if let node::ObjectType::Pointer(a) = ctx[result_id].get_type() {
-                                //we now map the array to rhs array
-                                e.insert(a);
+
+                    if let Some(replacement) = new_ins.replacement {
+                        if let Some(id) = array_id {
+                            if let Entry::Occupied(mut entry) = array_map.entry(id) {
+                                if let ObjectType::Pointer(new_id) = ctx[replacement].get_type() {
+                                    //we now map the array to rhs array
+                                    entry.insert(new_id);
+                                }
                             }
                         }
-                        if new_ins.rhs == new_ins.id {
-                            to_delete = true;
+
+                        if replacement != new_ins.id {
+                            inline_map.insert(i_id, replacement);
                         }
                     } else {
-                        result_id = ctx.add_instruction(new_ins);
-                        new_instructions.push(result_id);
-                    }
-                    //ignore self-deleted instructions
-                    if !to_delete {
-                        inline_map.insert(i_id, result_id);
+                        push_instruction(ctx, new_ins, &mut new_instructions, inline_map);
                     }
                 }
             }
@@ -683,4 +627,20 @@ pub fn inline_in_block(
     }
 
     next_block
+}
+
+fn new_cloned_instruction(original: Instruction, block: BlockId) -> Instruction {
+    Instruction::new(original.operator, original.res_type, Some(block))
+}
+
+fn push_instruction(
+    ctx: &mut SsaContext,
+    instruction: Instruction,
+    new_instructions: &mut Vec<NodeId>,
+    inline_map: &mut HashMap<NodeId, NodeId>,
+) {
+    let old_id = instruction.id;
+    let new_id = ctx.add_instruction(instruction);
+    new_instructions.push(new_id);
+    inline_map.insert(old_id, new_id);
 }
