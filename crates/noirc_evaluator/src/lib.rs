@@ -96,14 +96,14 @@ impl<'a> Evaluator<'a> {
     pub fn compile(
         mut self,
         np_language: Language,
-        enable_logging: bool,
+        interactive: bool,
     ) -> Result<Circuit, RuntimeError> {
         // create a new environment for the main context
         let mut env = Environment::new(FuncContext::Main);
 
         // First evaluate the main function
-        if enable_logging {
-            self.evaluate_main_alt(&mut env, enable_logging)?;
+        if interactive {
+            self.evaluate_main_alt(&mut env, interactive)?;
         } else {
             self.evaluate_main(&mut env)?;
         }
@@ -173,6 +173,9 @@ impl<'a> Evaluator<'a> {
             HirBinaryOpKind::Shr | HirBinaryOpKind::Shl => Err(RuntimeErrorKind::Unimplemented(
                 "Bit shift operations are not currently implemented.".to_owned(),
             )),
+            HirBinaryOpKind::MemberAccess => {
+                todo!("Member access for structs is unimplemented in the noir backend")
+            }
         }
         .map_err(|kind| kind.add_span(op.span))
     }
@@ -205,7 +208,7 @@ impl<'a> Evaluator<'a> {
     pub fn evaluate_main_alt(
         &mut self,
         env: &mut Environment,
-        enable_logging: bool,
+        interactive: bool,
     ) -> Result<(), RuntimeError> {
         let mut igen = IRGenerator::new(self.context);
         self.parse_abi_alt(env, &mut igen)?;
@@ -215,7 +218,7 @@ impl<'a> Evaluator<'a> {
         ssa::code_gen::evaluate_main(&mut igen, env, main_func_body)?;
 
         //Generates ACIR representation:
-        igen.context.ir_to_acir(self, enable_logging)?;
+        igen.context.ir_to_acir(self, interactive)?;
         Ok(())
     }
 

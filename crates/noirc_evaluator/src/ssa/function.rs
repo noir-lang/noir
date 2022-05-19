@@ -56,11 +56,16 @@ impl SSAFunction {
         igen: &mut IRGenerator,
         env: &mut Environment,
     ) -> NodeId {
-        let arguments = igen.expression_list_to_objects(env, arguments);
-        igen.context.new_instruction(
-            node::Operation::Call(func, arguments),
+        let call_id = igen.context.new_instruction(
+            NodeId::dummy(),
+            NodeId::dummy(),
+            node::Operation::Call(func),
             node::ObjectType::NotAnObject, //TODO how to get the function return type?
-        )
+        );
+        let ins_arguments = igen.expression_list_to_objects(env, arguments);
+        let call_ins = igen.context.get_mut_instruction(call_id);
+        call_ins.ins_arguments = ins_arguments;
+        call_id
     }
 
     pub fn get_mapped_value(
@@ -141,7 +146,11 @@ pub fn call_low_level(
     //when the function returns an array, we use ins.res_type(array)
     //else we map ins.id to the returned witness
     //Call instruction
-    igen.context.new_instruction(node::Operation::Intrinsic(op, args), result_type)
+    igen.context.new_instruction_with_multiple_operands(
+        args,
+        node::Operation::Intrinsic(op),
+        result_type,
+    )
 }
 
 pub fn create_function(
@@ -181,8 +190,13 @@ pub fn create_function(
 
 pub fn add_return_instruction(cfg: &mut SsaContext, last: Option<NodeId>) {
     let last_id = last.unwrap_or_else(NodeId::dummy);
-    let result = if last_id == NodeId::dummy() { vec![] } else { vec![last_id] };
+    let result = if last_id == NodeId::dummy() { Vec::new() } else { vec![last_id] };
     //Create return instruction based on the last statement of the function body
-    cfg.new_instruction(node::Operation::Return(result), node::ObjectType::NotAnObject);
-    //n.b. should we keep the object type in the vector?
+    let result_id = cfg.new_instruction(
+        NodeId::dummy(),
+        NodeId::dummy(),
+        node::Operation::Ret,
+        node::ObjectType::NotAnObject,
+    );
+    cfg.get_mut_instruction(result_id).ins_arguments = result; //n.b. should we keep the object type in the vector?
 }

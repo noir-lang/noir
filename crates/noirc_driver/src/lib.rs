@@ -139,7 +139,7 @@ impl Driver {
     pub fn into_compiled_program(
         mut self,
         np_language: acvm::Language,
-        show_ssa: bool,
+        interactive: bool,
     ) -> CompiledProgram {
         self.build();
         // First find the local crate
@@ -166,7 +166,7 @@ impl Driver {
         let evaluator = Evaluator::new(main_function, &self.context);
 
         // Compile Program
-        let circuit = match evaluator.compile(np_language, show_ssa) {
+        let circuit = match evaluator.compile(np_language, interactive) {
             Ok(circuit) => circuit,
             Err(err) => {
                 // The FileId here will be the file id of the file with the main file
