@@ -3,11 +3,12 @@ use std::collections::HashMap;
 use crate::environment::Environment;
 use acvm::acir::OPCODE;
 use acvm::FieldElement;
-use noirc_frontend::hir_def::expr::HirCallExpression;
+use noirc_frontend::hir_def::expr::{HirCallExpression, HirIdent};
 use noirc_frontend::hir_def::function::Parameters;
 use noirc_frontend::hir_def::stmt::HirPattern;
 use noirc_frontend::node_interner::FuncId;
 
+use super::code_gen::Value;
 use super::{
     block::BlockId,
     code_gen::IRGenerator,
@@ -16,11 +17,14 @@ use super::{
     ssa_form,
 };
 
+#[derive(Clone, Debug)]
 pub struct SSAFunction {
     pub entry_block: BlockId,
     pub id: FuncId,
-    //signature..
+    pub index: u32,
+    //signature:
     pub arguments: Vec<NodeId>,
+    pub result: Vec<ObjectType>,
 }
 
 impl SSAFunction {
@@ -29,24 +33,37 @@ impl SSAFunction {
         igen: &mut IRGenerator,
         block: &[noirc_frontend::node_interner::StmtId],
         env: &mut Environment,
-    ) {
+    ) -> Value {
+        let mut last_value = Value::dummy();
         for stmt in block {
-            igen.evaluate_statement(env, stmt).unwrap();
+            last_value = igen.evaluate_statement(env, stmt).unwrap();
+        }
+        last_value
+    }
+
+    pub fn new(func: FuncId, block_id: BlockId, index: u32) -> SSAFunction {
+        SSAFunction {
+            entry_block: block_id,
+            id: func,
+            arguments: Vec::new(),
+            result: Vec::new(),
+            index,
         }
     }
 
-    pub fn new(func: FuncId, block_id: BlockId) -> SSAFunction {
-        SSAFunction { entry_block: block_id, id: func, arguments: Vec::new() }
-    }
-
-    pub fn compile(&self, igen: &mut IRGenerator) -> Option<NodeId> {
+    pub fn compile(&self, igen: &mut IRGenerator, last: NodeId) -> Option<NodeId> {
         let function_cfg = super::block::bfs(self.entry_block, None, &igen.context);
         super::block::compute_sub_dom(&mut igen.context, &function_cfg);
         //Optimisation
         super::optim::cse(&mut igen.context, self.entry_block);
         //Unrolling
-        super::flatten::unroll_tree(&mut igen.context, self.entry_block);
-        super::optim::cse(&mut igen.context, self.entry_block)
+        let eval = super::flatten::unroll_tree(&mut igen.context, self.entry_block);
+        super::optim::cse(&mut igen.context, self.entry_block);
+        if eval.contains_key(&last) {
+            eval[&last].into_node_id()
+        } else {
+            Some(last)
+        }
     }
 
     //generates an instruction for calling the function
@@ -56,15 +73,17 @@ impl SSAFunction {
         igen: &mut IRGenerator,
         env: &mut Environment,
     ) -> NodeId {
+        let otype = igen.context.functions[&func].result[0];
+        let ins_arguments = igen.expression_list_to_objects(env, arguments);
         let call_id = igen.context.new_instruction(
             NodeId::dummy(),
             NodeId::dummy(),
             node::Operation::Call(func),
-            node::ObjectType::NotAnObject, //TODO how to get the function return type?
+            otype,
         );
-        let ins_arguments = igen.expression_list_to_objects(env, arguments);
+
         let call_ins = igen.context.get_mut_instruction(call_id);
-        call_ins.ins_arguments = ins_arguments;
+        call_ins.ins_arguments = CallStack { arguments: ins_arguments, return_values: Vec::new() };
         call_id
     }
 
@@ -84,12 +103,26 @@ impl SSAFunction {
             }
             if let Some(c) = my_const {
                 ctx.get_or_create_const(c.0, c.1)
+            } else if let Some(id) = inline_map.get(&node_id) {
+                *id
             } else {
-                *inline_map.get(&node_id).unwrap()
+                ssa_form::get_current_value(ctx, node_id)
             }
         } else {
             NodeId::dummy()
         }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct CallStack {
+    pub arguments: Vec<NodeId>,
+    pub return_values: Vec<NodeId>,
+}
+
+impl CallStack {
+    pub fn new() -> CallStack {
+        CallStack { arguments: Vec::new(), return_values: Vec::new() }
     }
 }
 
@@ -153,50 +186,131 @@ pub fn call_low_level(
     )
 }
 
+pub fn param_to_ident(patern: &HirPattern) -> &HirIdent {
+    match &patern {
+        HirPattern::Identifier(id) => id,
+        HirPattern::Mutable(pattern, _) => param_to_ident(pattern.as_ref()),
+        HirPattern::Tuple(_, _) => todo!(),
+        HirPattern::Struct(_, _, _) => todo!(),
+    }
+}
+
 pub fn create_function(
     igen: &mut IRGenerator,
     func_id: FuncId,
     context: &noirc_frontend::hir::Context,
     env: &mut Environment,
     parameters: &Parameters,
-) -> SSAFunction {
+    index: u32,
+) {
     let current_block = igen.context.current_block;
+    let current_function = igen.function_context;
     let func_block = super::block::BasicBlock::create_cfg(&mut igen.context);
 
-    let mut func = SSAFunction::new(func_id, func_block);
+    let mut func = SSAFunction::new(func_id, func_block, index);
+
     let function = context.def_interner.function(&func_id);
     let block = function.block(&context.def_interner);
     //argumemts:
     for pat in parameters.iter() {
-        let ident_id = match &pat.0 {
-            HirPattern::Identifier(id) => Some(id),
-            HirPattern::Mutable(_pattern, _) => {
-                unreachable!("mutable arguments are not supported yet")
-            }
-            HirPattern::Tuple(_, _) => todo!(),
-            HirPattern::Struct(_, _, _) => todo!(),
-        };
-
-        let node_id = ssa_form::create_function_parameter(igen, &ident_id.unwrap().id);
+        let ident_id = param_to_ident(&pat.0);
+        let node_id = ssa_form::create_function_parameter(igen, &ident_id.id);
         func.arguments.push(node_id);
     }
-    //dbg!(&func.arguments);
-    SSAFunction::parse_statements(igen, block.statements(), env);
-    let last = func.compile(igen); //unroll the function
-    add_return_instruction(&mut igen.context, last);
+    igen.function_context = Some(index);
+    igen.context.functions.insert(func_id, func.clone());
+    let last_value = SSAFunction::parse_statements(igen, block.statements(), env);
+    let last_id = igen.single_value(&last_value); //we do not support structures for now
+    let last_mapped = func.compile(igen, last_id); //unroll the function
+    let rtt = add_return_instruction(&mut igen.context, last_mapped);
+    func.result.push(rtt);
+    igen.context.functions.insert(func_id, func);
     igen.context.current_block = current_block;
-    func
+    igen.function_context = current_function;
 }
 
-pub fn add_return_instruction(cfg: &mut SsaContext, last: Option<NodeId>) {
-    let last_id = last.unwrap_or_else(NodeId::dummy);
-    let result = if last_id == NodeId::dummy() { Vec::new() } else { vec![last_id] };
+pub fn value_to_node_id(input: &Value) -> Vec<NodeId> {
+    match input {
+        Value::Single(id) => vec![*id],
+        Value::Struct(v) => v.iter().map(|i| value_to_node_id(&i.1)).flatten().collect(),
+    }
+}
+
+pub fn add_return_instruction(ctx: &mut SsaContext, last: Option<NodeId>) -> ObjectType {
+    let mut results = Vec::new();
+    if let Some(last_id) = last {
+        results.push(last_id);
+    }
     //Create return instruction based on the last statement of the function body
-    let result_id = cfg.new_instruction(
-        NodeId::dummy(),
-        NodeId::dummy(),
+    let mut ret = node::Instruction::new(
         node::Operation::Ret,
+        NodeId::dummy(),
+        NodeId::dummy(),
         node::ObjectType::NotAnObject,
+        Some(ctx.current_block),
     );
-    cfg.get_mut_instruction(result_id).ins_arguments = result; //n.b. should we keep the object type in the vector?
+    let mut rtt = ObjectType::NotAnObject;
+    if !results.is_empty() && results[0] != NodeId::dummy() {
+        rtt = ctx.get_object_type(results[0]);
+    }
+    ret.ins_arguments = CallStack { arguments: results, return_values: Vec::new() };
+    ctx.push_instruction(ret);
+    rtt
+}
+
+pub fn update_call_graph(call_graph: &mut Vec<Vec<u8>>, a: u32, b: u32) {
+    let caller = a as usize;
+    let callee = b as usize;
+    let max = caller.max(callee) + 1;
+    while call_graph.len() < max {
+        call_graph.push(vec![0; max]);
+    }
+
+    for i in call_graph.iter_mut() {
+        while i.len() < max {
+            i.push(0);
+        }
+    }
+
+    call_graph[caller][callee] = 1;
+}
+
+fn is_leaf(call_graph: &[Vec<u8>], i: usize) -> bool {
+    for j in 0..call_graph[i].len() {
+        if call_graph[i][j] == 1 {
+            return false;
+        }
+    }
+    true
+}
+
+fn get_new_leaf(ctx: &SsaContext, processed: &[usize]) -> (usize, FuncId) {
+    for f in ctx.functions.values() {
+        if !processed.contains(&(f.index as usize)) && is_leaf(&ctx.call_graph, f.index as usize) {
+            return (f.index as usize, f.id);
+        }
+    }
+    unimplemented!("Recursive function call is not supported");
+}
+
+//inline all functions of the call graph such that every inlining operates with a flatenned function
+pub fn inline_all(ctx: &mut SsaContext) {
+    let l = ctx.call_graph.len();
+    let mut processed = Vec::new();
+    while processed.len() < l {
+        let i = get_new_leaf(ctx, &processed);
+        let i_entry = ctx.functions[&i.1].entry_block;
+        let mut to_inline = Vec::new();
+        for f in ctx.functions.values() {
+            if ctx.call_graph[f.index as usize][i.0] == 1 {
+                to_inline.push((f.id, f.index as usize));
+            }
+        }
+        for j in to_inline {
+            super::inline::inline_cfg(ctx, i_entry, Some(j.0));
+            ctx.call_graph[j.1][i.0] = 0;
+        }
+        processed.push(i.0);
+    }
+    ctx.call_graph.clear();
 }

@@ -219,7 +219,7 @@ pub fn find_similar_instruction_with_multiple_arguments(
 ) -> Option<NodeId> {
     for iter in prev_ins {
         if let Some(ins) = igen.try_get_instruction(*iter) {
-            if ins.lhs == lhs && ins.rhs == rhs && ins.ins_arguments == ins_args {
+            if ins.lhs == lhs && ins.rhs == rhs && ins.ins_arguments.arguments == ins_args {
                 return Some(*iter);
             }
         }
@@ -463,7 +463,7 @@ pub fn block_cse(
                     node::Operation::Call(_) | node::Operation::Ret => {
                         //No CSE for function calls because of possible side effect - TODO checks if a function has side effect when parsed and do cse for these.
                         //Propagate arguments:
-                        for a in &ins.ins_arguments {
+                        for a in &ins.ins_arguments.arguments {
                             let new_a = propagate(ctx, *a);
                             if !to_update && new_a != *a {
                                 to_update = true;
@@ -474,7 +474,7 @@ pub fn block_cse(
                     }
                     node::Operation::Intrinsic(_) => {
                         //n.b this could be the default behovoir for binary operations
-                        for a in &ins.ins_arguments {
+                        for a in &ins.ins_arguments.arguments {
                             let new_a = propagate(ctx, *a);
                             if !to_update && new_a != *a {
                                 to_update = true;
@@ -516,7 +516,7 @@ pub fn block_cse(
                 update.rhs = i_rhs;
                 update.is_deleted = to_delete;
                 if to_update {
-                    update.ins_arguments = ins_args;
+                    update.ins_arguments.arguments = ins_args;
                 }
                 //update instruction name - for debug/pretty print purposes only /////////////////////
                 if let Some(Instruction { operator: Operation::Ass, lhs, .. }) =

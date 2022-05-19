@@ -1,7 +1,7 @@
 //Basic tests for arrays 
 
-fn main(x : [5]u32 , y : [5]u32 , z : u32, t : u32) {  
-   let c = 2301 as u32;
+fn main(x : [5]u32 , y : [5]u32 , mut z : u32, t : u32) {  
+   let mut c = 2301 as u32;
    //t= t+x[0]-x[0];
    z=y[4];
    //Test 1: 

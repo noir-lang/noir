@@ -329,7 +329,6 @@ impl Acir {
                 if let Some(val) = r_c.to_const() {
                     let address = mem::Memory::as_u32(val);
                     self.memory_map.insert(address, l_c);
-                    dbg!(&self.memory_map);
                     //we do not generate constraint, so no output.
                     InternalVar::default()
                 } else {
@@ -574,8 +573,16 @@ impl Acir {
                     }
                 }
                 _ => {
-                    dbg!(&l_obj);
-                    unreachable!("invalid input")
+                    if self.arith_cache.contains_key(a) {
+                        if let Some(w) = self.arith_cache[a].clone().witness {
+                            inputs.push(GadgetInput { witness: w, num_bits: l_obj.size_in_bits() });
+                        } else {
+                            todo!();
+                        }
+                    } else {
+                        dbg!(&l_obj);
+                        unreachable!("invalid input")
+                    }
                 }
             }
         }

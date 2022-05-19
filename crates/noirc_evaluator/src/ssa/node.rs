@@ -17,6 +17,7 @@ use std::ops::Mul;
 
 use super::block::BlockId;
 use super::context::SsaContext;
+use super::function::CallStack;
 
 pub trait Node: std::fmt::Display {
     fn get_type(&self) -> ObjectType;
@@ -301,7 +302,7 @@ pub struct Instruction {
     //temp: todo phi subtype
     pub phi_arguments: Vec<(NodeId, BlockId)>,
 
-    pub ins_arguments: Vec<NodeId>,
+    pub ins_arguments: super::function::CallStack,
 }
 
 impl std::fmt::Display for Instruction {
@@ -359,13 +360,13 @@ impl Instruction {
             bit_size: 0,
             max_value: BigUint::zero(),
             phi_arguments: Vec::new(),
-            ins_arguments: Vec::new(),
+            ins_arguments: CallStack::new(),
         }
     }
 
     pub fn get_arguments(&self) -> Vec<NodeId> {
-        if !self.ins_arguments.is_empty() {
-            return self.ins_arguments.clone();
+        if !self.ins_arguments.arguments.is_empty() {
+            return self.ins_arguments.arguments.clone();
         }
         if self.lhs != NodeId::dummy() && self.rhs != NodeId::dummy() {
             return vec![self.lhs, self.rhs];
@@ -441,7 +442,9 @@ impl Instruction {
                 assert!(b < 128); //we do not support integers bigger than 128 bits for now.
                 (c.to_u128(), b)
             } //TODO check how to handle signed integers
-            _ => todo!(),
+            _ => {
+                todo!()
+            }
         }
     }
 

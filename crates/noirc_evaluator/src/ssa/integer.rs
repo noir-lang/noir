@@ -213,7 +213,8 @@ fn update_ins_parameters(
     if let Some(max_v) = max_value {
         ins.max_value = max_v;
     }
-    ins.ins_arguments = ins_arg;
+    ins.ins_arguments =
+        super::function::CallStack { arguments: ins_arg, return_values: Vec::new() };
 }
 
 fn update_ins(ctx: &mut SsaContext, id: NodeId, copy_from: &node::Instruction) {
@@ -330,10 +331,9 @@ pub fn block_overflow(
                 }
             }
             node::Operation::Store(_) => {
-                if let Some(adr) = super::mem::Memory::to_u32(ctx, ins.lhs) {
+                if let Some(adr) = super::mem::Memory::to_u32(ctx, ins.rhs) {
                     //optimise static store
-                    memory_map.insert(adr, ins.rhs);
-                    delete_ins = true;
+                    memory_map.insert(adr, ins.lhs);
                 }
             }
             node::Operation::Cast => {
@@ -400,7 +400,7 @@ pub fn block_overflow(
                 max_map,
                 &value_map,
             );
-            if ins_max.bits() >= FieldElement::max_num_bits().into() {
+            if ins_max.bits() > FieldElement::max_num_bits().into() {
                 let message = format!(
                     "Require big int implementation, the bit size is too big for the field: {}, {}",
                     l_trunc_max.bits(),
@@ -427,7 +427,7 @@ pub fn block_overflow(
                 update_instruction = true;
             }
 
-            for a in &ins.ins_arguments {
+            for a in &ins.ins_arguments.arguments {
                 let a_new = get_value_from_map(*a, &value_map);
                 if !update_instruction && *a != a_new {
                     update_instruction = true;
@@ -579,7 +579,9 @@ pub fn get_max_value(ins: &Instruction, lhs_max: BigUint, rhs_max: BigUint) -> B
         ),
         //'a = b': a and b must be of same type.
         Operation::Ass => rhs_max,
-        Operation::Nop | Operation::Jne | Operation::Jeq | Operation::Jmp => todo!(),
+        Operation::Nop | Operation::Jne | Operation::Jeq | Operation::Jmp => {
+            todo!();
+        }
         Operation::Phi => BigUint::max(lhs_max, rhs_max), //TODO operands are in phi_arguments, not lhs/rhs!!
         Operation::Constrain(_) => BigUint::zero(),       //min(lhs_max, rhs_max),
         Operation::Load(_) => {
@@ -596,10 +598,12 @@ pub fn get_max_value(ins: &Instruction, lhs_max: BigUint, rhs_max: BigUint) -> B
                 | acvm::acir::OPCODE::Pedersen
                 | acvm::acir::OPCODE::FixedBaseScalarMul
                 | acvm::acir::OPCODE::ToBits => BigUint::zero(), //pointers do not overflow
-                acvm::acir::OPCODE::SchnorrVerify | acvm::acir::OPCODE::EcdsaSecp256k1 => {
-                    BigUint::one()
-                } //verify returns 0 or 1
-                _ => todo!(),
+                acvm::acir::OPCODE::SchnorrVerify
+                | acvm::acir::OPCODE::EcdsaSecp256k1
+                | acvm::acir::OPCODE::MerkleMembership => BigUint::one(), //verify returns 0 or 1
+                _ => {
+                    todo!()
+                }
             }
         }
     };
