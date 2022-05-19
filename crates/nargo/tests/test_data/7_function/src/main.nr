@@ -46,9 +46,20 @@ fn pow(base : Field, exponent : Field) -> Field {
     r
 }
 
+fn test3(x: [3]u8) -> [3]u8 {
+      let mut buffer: [3]u8 = [0 as u8,0 as u8, 0 as u8];
+       for i in 0..3   {
+       buffer[i as u32] = x[i as u32] ;
+     };
+     buffer
+}
 
 fn main(x : u32 , y : u32 , a : Field) {  
    test0(a);
    test1(a);
    test2(x,y);
+
+     let b: [3]u8 =[0 as u8, 5 as u8, 2 as u8];
+     let c = test3(b);
+     constrain b == c;
 }

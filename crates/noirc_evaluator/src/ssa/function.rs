@@ -258,19 +258,23 @@ pub fn add_return_instruction(ctx: &mut SsaContext, last: Option<NodeId>) -> Obj
     rtt
 }
 
+pub fn resize_graph(call_graph: &mut Vec<Vec<u8>>, size: usize) {
+    while call_graph.len() < size {
+        call_graph.push(vec![0; size]);
+    }
+
+    for i in call_graph.iter_mut() {
+        while i.len() < size {
+            i.push(0);
+        }
+    }
+}
+
 pub fn update_call_graph(call_graph: &mut Vec<Vec<u8>>, a: u32, b: u32) {
     let caller = a as usize;
     let callee = b as usize;
     let max = caller.max(callee) + 1;
-    while call_graph.len() < max {
-        call_graph.push(vec![0; max]);
-    }
-
-    for i in call_graph.iter_mut() {
-        while i.len() < max {
-            i.push(0);
-        }
-    }
+    resize_graph(call_graph, max);
 
     call_graph[caller][callee] = 1;
 }
@@ -295,6 +299,7 @@ fn get_new_leaf(ctx: &SsaContext, processed: &[usize]) -> (usize, FuncId) {
 
 //inline all functions of the call graph such that every inlining operates with a flatenned function
 pub fn inline_all(ctx: &mut SsaContext) {
+    resize_graph(&mut ctx.call_graph, ctx.functions.len());
     let l = ctx.call_graph.len();
     let mut processed = Vec::new();
     while processed.len() < l {

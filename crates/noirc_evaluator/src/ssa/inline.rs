@@ -93,11 +93,15 @@ impl StackFrame {
         self.stack.push(ins_id);
     }
 
-    pub fn map(&self, array_idx: u32) -> u32 {
-        self.array_map[&array_idx]
+    pub fn get_or_default(&self, array_idx: u32) -> u32 {
+        if let Some(&b) = self.try_get(array_idx) {
+            b
+        } else {
+            array_idx
+        }
     }
 
-    pub fn get_array(&self, array_idx: u32) -> Option<&u32> {
+    pub fn try_get(&self, array_idx: u32) -> Option<&u32> {
         self.array_map.get(&array_idx)
     }
 
@@ -178,7 +182,6 @@ pub fn inline_in_block(
     let block_func_instructions = &block_func.instructions.clone();
     *nested_call = false;
     for &i_id in block_func_instructions {
-        let mut array_func = None;
         let mut array_func_idx = u32::MAX;
         if let Some(ins) = ctx.try_get_instruction(i_id) {
             if ins.is_deleted {
@@ -186,14 +189,7 @@ pub fn inline_in_block(
             }
             let clone = ins.clone();
             if let node::ObjectType::Pointer(a) = ins.res_type {
-                //We need to map arrays to arrays via the array_map, we collect the data here to be mapped below.
-                array_func = Some(ctx.mem.arrays[a as usize].clone());
-                array_func_idx = a;
-            } else if let Operation::Load(a) = ins.operator {
-                array_func = Some(ctx.mem.arrays[a as usize].clone());
-                array_func_idx = a;
-            } else if let Operation::Store(a) = ins.operator {
-                array_func = Some(ctx.mem.arrays[a as usize].clone());
+                //We collect data here for potential mapping using the array_map below.
                 array_func_idx = a;
             }
 
@@ -206,24 +202,6 @@ pub fn inline_in_block(
                 ctx,
                 inline_map,
             );
-            //Arrays are mapped to array. We create the array if not mapped
-            if let Some(a) = array_func {
-                if let std::collections::hash_map::Entry::Vacant(e) =
-                    stack_frame.array_map.entry(array_func_idx)
-                {
-                    let i_pointer = ctx.mem.create_new_array(a.len, a.element_type, &a.name);
-                    //We populate the array (if possible) using the inline map
-                    for i in &a.values {
-                        if let Some(f) = i.to_const() {
-                            ctx.mem.arrays[i_pointer as usize]
-                                .values
-                                .push(super::acir_gen::InternalVar::from(f));
-                        }
-                        //todo: else use inline map.
-                    }
-                    e.insert(i_pointer);
-                };
-            }
 
             match clone.operator {
                 Operation::Nop => (),
@@ -248,7 +226,7 @@ pub fn inline_in_block(
                         let call_ins = ctx.get_mut_instruction(call_id);
                         call_ins.is_deleted = true;
                         call_ins.rhs = new_arg;
-                        if let Some(&i_pointer) = stack_frame.get_array(array_func_idx) {
+                        if let Some(&i_pointer) = stack_frame.try_get(array_func_idx) {
                             call_ins.res_type = node::ObjectType::Pointer(i_pointer);
                         }
                     }
@@ -280,7 +258,7 @@ pub fn inline_in_block(
                 Operation::Load(a) => {
                     //Compute the new address:
                     //TODO use relative addressing, but that requires a few changes, mainly in acir_gen.rs and integer.rs
-                    let b = stack_frame.map(a);
+                    let b = stack_frame.get_or_default(a);
                     //n.b. this offset is always positive
                     let offset = ctx.mem.arrays[b as usize].adr - ctx.mem.arrays[a as usize].adr;
                     let index_type = ctx[new_left].get_type();
@@ -300,7 +278,7 @@ pub fn inline_in_block(
                     inline_map.insert(i_id, result_id);
                 }
                 Operation::Store(a) => {
-                    let b = stack_frame.map(a);
+                    let b = stack_frame.get_or_default(a);
                     let offset = ctx.mem.arrays[b as usize].adr - ctx.mem.arrays[a as usize].adr;
                     let index_type = ctx[new_right].get_type();
                     let offset_id =
@@ -326,7 +304,8 @@ pub fn inline_in_block(
                         clone.res_type,
                         Some(target_block_id),
                     );
-                    if let Some(&i_pointer) = stack_frame.get_array(array_func_idx) {
+                    let i_pointer = stack_frame.get_or_default(array_func_idx);
+                    if (i_pointer as usize) < ctx.mem.arrays.len() {
                         new_ins.res_type = node::ObjectType::Pointer(i_pointer);
                     }
                     optim::simplify(ctx, &mut new_ins);

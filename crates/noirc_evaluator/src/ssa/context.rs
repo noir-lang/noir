@@ -625,7 +625,7 @@ impl<'a> SsaContext<'a> {
         let rhs_type = self.get_object_type(rhs);
         if let ObjectType::Pointer(a) = lhs_type {
             //Array
-            let &b = stack_frame.get_array(a).unwrap_or(&a);
+            let b = stack_frame.get_or_default(a);
             self.memcpy_inline(ObjectType::Pointer(b), rhs_type, stack_frame);
             lhs
         } else {
