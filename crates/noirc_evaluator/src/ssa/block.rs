@@ -1,6 +1,6 @@
 use super::{
     context::SsaContext,
-    node::{self, Instruction, NodeId, NodeObj, Operation},
+    node::{self, NodeId},
 };
 use std::collections::{HashMap, VecDeque};
 
@@ -67,10 +67,9 @@ impl BasicBlock {
 
     pub fn get_result_instruction(&self, call_id: NodeId, ctx: &SsaContext) -> Option<NodeId> {
         self.instructions.iter().copied().find(|i| match ctx[*i] {
-            NodeObj::Instr(Instruction {
-                operator: Operation::Results { call_instruction, .. },
-                ..
-            }) => call_instruction == call_id,
+            node::NodeObj::Instr(node::Instruction {
+                operator: node::Operation::Res, lhs, ..
+            }) => lhs == call_id,
             _ => false,
         })
     }
@@ -81,7 +80,12 @@ impl BasicBlock {
         let root_block = ctx.insert_block(root_block);
         let root_id = root_block.id;
         ctx.current_block = root_id;
-        ctx.new_instruction(node::Operation::Nop, node::ObjectType::NotAnObject);
+        ctx.new_instruction(
+            NodeId::dummy(),
+            NodeId::dummy(),
+            node::Operation::Nop,
+            node::ObjectType::NotAnObject,
+        );
         root_id
     }
 }
@@ -105,7 +109,12 @@ pub fn new_sealed_block(ctx: &mut SsaContext, kind: BlockType) -> BlockId {
     let cb = ctx.get_current_block_mut();
     cb.left = Some(new_id);
     ctx.current_block = new_id;
-    ctx.new_instruction(node::Operation::Nop, node::ObjectType::NotAnObject);
+    ctx.new_instruction(
+        NodeId::dummy(),
+        NodeId::dummy(),
+        node::Operation::Nop,
+        node::ObjectType::NotAnObject,
+    );
     new_id
 }
 
@@ -125,7 +134,12 @@ pub fn new_unsealed_block(ctx: &mut SsaContext, kind: BlockType, left: bool) -> 
     }
 
     ctx.current_block = new_idx;
-    ctx.new_instruction(node::Operation::Nop, node::ObjectType::NotAnObject);
+    ctx.new_instruction(
+        NodeId::dummy(),
+        NodeId::dummy(),
+        node::Operation::Nop,
+        node::ObjectType::NotAnObject,
+    );
     new_idx
 }
 

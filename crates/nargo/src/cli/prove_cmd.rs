@@ -13,21 +13,26 @@ use crate::{errors::CliError, resolver::Resolver};
 use super::{create_dir, write_to_file, PROOFS_DIR, PROOF_EXT, PROVER_INPUT_FILE};
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
-    let args = args.subcommand_matches("prove").unwrap();
-    let proof_name = args.value_of("proof_name").unwrap();
-    let show_ssa = args.is_present("show-ssa");
-    prove(proof_name, show_ssa)
+    let proof_name = args.subcommand_matches("prove").unwrap().value_of("proof_name").unwrap();
+    let interactive = args.subcommand_matches("prove").unwrap().value_of("interactive");
+    let mut is_interactive = false;
+    if let Some(int) = interactive {
+        if int == "i" {
+            is_interactive = true;
+        }
+    }
+    prove(proof_name, is_interactive)
 }
 
 /// In Barretenberg, the proof system adds a zero witness in the first index,
 /// So when we add witness values, their index start from 1.
 const WITNESS_OFFSET: u32 = 1;
 
-fn prove(proof_name: &str, show_ssa: bool) -> Result<(), CliError> {
+fn prove(proof_name: &str, interactive: bool) -> Result<(), CliError> {
     let curr_dir = std::env::current_dir().unwrap();
     let mut proof_path = PathBuf::new();
     proof_path.push(PROOFS_DIR);
-    let result = prove_with_path(proof_name, curr_dir, proof_path, show_ssa);
+    let result = prove_with_path(proof_name, curr_dir, proof_path, interactive);
     match result {
         Ok(_) => Ok(()),
         Err(e) => Err(e),
@@ -84,11 +89,11 @@ pub fn prove_with_path<P: AsRef<Path>>(
     proof_name: &str,
     program_dir: P,
     proof_dir: P,
-    show_ssa: bool,
+    interactive: bool,
 ) -> Result<PathBuf, CliError> {
     let driver = Resolver::resolve_root_config(program_dir.as_ref())?;
     let backend = crate::backends::ConcreteBackend;
-    let compiled_program = driver.into_compiled_program(backend.np_language(), show_ssa);
+    let compiled_program = driver.into_compiled_program(backend.np_language(), interactive);
 
     // Parse the initial witness values
     let witness_map = noirc_abi::input_parser::Format::Toml.parse(program_dir, PROVER_INPUT_FILE);
