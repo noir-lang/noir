@@ -263,7 +263,7 @@ pub fn block_overflow(
     let mut truncate_map = HashMap::new();
     let mut modify_ins = None;
     let mut trunc_size = FieldElement::zero();
-
+    let mut modified = false;
     //RIA...
     for iter in &ctx[block_id].instructions {
         instructions.push((*ctx.try_get_instruction(*iter).unwrap()).clone());
@@ -289,8 +289,8 @@ pub fn block_overflow(
         //we propagate optimised loads - todo check if it is needed because there is cse at the end
         if node::is_binary(ins.operator) {
             //binary operation:
-            i_lhs = optim::propagate(ctx, ins.lhs);
-            i_rhs = optim::propagate(ctx, ins.rhs);
+            i_lhs = optim::propagate(ctx, ins.lhs, &mut modified);
+            i_rhs = optim::propagate(ctx, ins.rhs, &mut modified);
         }
         //We retrieve get_current_value() in case a previous truncate has updated the value map
         let r_id = get_value_from_map(i_rhs, &value_map);
@@ -462,7 +462,8 @@ pub fn block_overflow(
 
     //We run another round of CSE for the block in order to remove possible duplicated truncates, this will assign 'new_list' to the block instructions
     let mut anchor = HashMap::new();
-    optim::block_cse(ctx, block_id, &mut anchor, &mut new_list);
+    let mut modified = false;
+    optim::block_cse(ctx, block_id, &mut anchor, &mut new_list, &mut modified);
 }
 
 fn update_value_array(ctx: &mut SsaContext, block_id: BlockId, vmap: &HashMap<NodeId, NodeId>) {

@@ -55,10 +55,10 @@ impl SSAFunction {
         let function_cfg = super::block::bfs(self.entry_block, None, &igen.context);
         super::block::compute_sub_dom(&mut igen.context, &function_cfg);
         //Optimisation
-        super::optim::cse(&mut igen.context, self.entry_block);
+        super::optim::full_cse(&mut igen.context, self.entry_block);
         //Unrolling
         let eval = super::flatten::unroll_tree(&mut igen.context, self.entry_block);
-        super::optim::cse(&mut igen.context, self.entry_block);
+        super::optim::full_cse(&mut igen.context, self.entry_block);
         if eval.contains_key(&last) {
             eval[&last].into_node_id()
         } else {

@@ -15,7 +15,7 @@ use acvm::FieldElement;
 use noirc_frontend::hir::Context;
 use noirc_frontend::node_interner::FuncId;
 use num_bigint::BigUint;
-use num_traits::Zero;
+use num_traits::{One, Zero};
 
 // This is a 'master' class for generating the SSA IR from the AST
 // It contains all the data; the node objects representing the source code in the nodes arena
@@ -56,6 +56,18 @@ impl<'a> SsaContext<'a> {
 
     pub fn zero(&self) -> NodeId {
         self.find_const_with_type(&BigUint::zero(), node::ObjectType::Unsigned(1)).unwrap()
+    }
+
+    pub fn one(&self) -> NodeId {
+        self.find_const_with_type(&BigUint::one(), node::ObjectType::Unsigned(1)).unwrap()
+    }
+
+    pub fn zero_type(&mut self, obj_type: ObjectType) -> NodeId {
+        self.get_or_create_const(FieldElement::zero(), obj_type)
+    }
+
+    pub fn one_type(&mut self, obj_type: ObjectType) -> NodeId {
+        self.get_or_create_const(FieldElement::one(), obj_type)
     }
 
     pub fn insert_block(&mut self, block: BasicBlock) -> &mut BasicBlock {
@@ -420,14 +432,14 @@ impl<'a> SsaContext<'a> {
         function::inline_all(self);
         //Optimisation
         block::compute_dom(self);
-        optim::cse(self, self.first_block);
+        optim::full_cse(self, self.first_block);
         self.pause(interactive, "CSE:", "unrolling:");
         //Unrolling
         flatten::unroll_tree(self, self.first_block);
         //Inlining
         self.pause(interactive, "", "inlining:");
         inline::inline_tree(self, self.first_block);
-        optim::cse(self, self.first_block);
+        optim::full_cse(self, self.first_block);
 
         //Truncation
         integer::overflow_strategy(self);
@@ -481,6 +493,7 @@ impl<'a> SsaContext<'a> {
             let len = self.mem.arrays[a as usize].len;
             let adr_a = self.mem.arrays[a as usize].adr;
             let adr_b = self.mem.arrays[b as usize].adr;
+            let e_type = self.mem.arrays[b as usize].element_type;
             for i in 0..len {
                 let idx_b = self.get_or_create_const(
                     FieldElement::from((adr_b + i) as i128),
@@ -490,7 +503,7 @@ impl<'a> SsaContext<'a> {
                     FieldElement::from((adr_a + i) as i128),
                     ObjectType::Unsigned(32),
                 );
-                let load = self.new_instruction(idx_b, idx_b, Operation::Load(b), r_type);
+                let load = self.new_instruction(idx_b, idx_b, Operation::Load(b), e_type);
                 self.new_instruction(load, idx_a, Operation::Store(a), l_type);
             }
         } else {
@@ -590,6 +603,7 @@ impl<'a> SsaContext<'a> {
             let len = self.mem.arrays[a as usize].len;
             let adr_a = self.mem.arrays[a as usize].adr;
             let adr_b = self.mem.arrays[b as usize].adr;
+            let e_type = self.mem.arrays[b as usize].element_type;
             for i in 0..len {
                 let idx_b = self.get_or_create_const(
                     FieldElement::from((adr_b + i) as i128),
@@ -603,7 +617,7 @@ impl<'a> SsaContext<'a> {
                     idx_b,
                     idx_b,
                     Operation::Load(b),
-                    r_type,
+                    e_type,
                     stack_frame,
                 );
                 self.new_instruction_inline(load, idx_a, Operation::Store(a), l_type, stack_frame);
