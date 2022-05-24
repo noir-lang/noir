@@ -131,7 +131,7 @@ pub fn inline(
     let mut stack_frame = StackFrame::new(block);
 
     //1. return values
-    for (arg_caller, arg_function) in args.return_values.iter().zip(&ssa_func.result) {
+    for (arg_caller, arg_function) in args.return_values.iter().zip(&ssa_func.result_types) {
         if let node::ObjectType::Pointer(a) = arg_function {
             if let node::ObjectType::Pointer(b) = ctx.get_object_type(*arg_caller) {
                 stack_frame.array_map.insert(*a, b);

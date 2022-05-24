@@ -24,7 +24,7 @@ pub struct SSAFunction {
     pub index: u32,
     //signature:
     pub arguments: Vec<NodeId>,
-    pub result: Vec<ObjectType>,
+    pub result_types: Vec<ObjectType>,
 }
 
 impl SSAFunction {
@@ -46,7 +46,7 @@ impl SSAFunction {
             entry_block: block_id,
             id: func,
             arguments: Vec::new(),
-            result: Vec::new(),
+            result_types: Vec::new(),
             index,
         }
     }
@@ -75,7 +75,7 @@ impl SSAFunction {
         igen: &mut IRGenerator,
         env: &mut Environment,
     ) -> NodeId {
-        let otype = igen.context.functions[&func].result[0];
+        let otype = igen.context.functions[&func].result_types[0];
         let ins_arguments = igen.expression_list_to_objects(env, arguments);
         let call_id = igen.context.new_instruction(
             NodeId::dummy(),
@@ -225,7 +225,7 @@ pub fn create_function(
     let last_id = last_value.single_value(); //we do not support structures for now
     let last_mapped = func.compile(igen, last_id); //unroll the function
     let rtt = add_return_instruction(&mut igen.context, last_mapped);
-    func.result.push(rtt);
+    func.result_types.push(rtt);
     igen.context.functions.insert(func_id, func);
     igen.context.current_block = current_block;
     igen.function_context = current_function;
