@@ -200,7 +200,8 @@ impl<'a> IRGenerator<'a> {
         let rtype = self.context.get_object_type(rhs);
         match op {
             HirUnaryOp::Minus => {
-                Ok(self.context.new_instruction(self.context.zero(), rhs, Operation::Sub, rtype))
+                let lhs = self.context.zero_type(rtype);
+                Ok(self.context.new_instruction(lhs, rhs, Operation::Sub, rtype))
             }
             HirUnaryOp::Not => Ok(self.context.new_instruction(rhs, rhs, Operation::Not, rtype)),
         }
@@ -277,16 +278,15 @@ impl<'a> IRGenerator<'a> {
             if let node::ObjectType::Pointer(a_id) = self.context.get_object_type(lhs[0]) {
                 let index_val = self.expression_to_object(env, &index).unwrap();
                 let index = self.single_value(&index_val);
+                let o_type = self.context.get_object_type(index);
                 let base_adr = self.context.mem.arrays[a_id as usize].adr;
-                let base_adr_const = self.context.get_or_create_const(
-                    FieldElement::from(base_adr as i128),
-                    node::ObjectType::Unsigned(32),
-                );
+                let base_adr_const =
+                    self.context.get_or_create_const(FieldElement::from(base_adr as i128), o_type);
                 let adr_id = self.context.new_instruction(
                     base_adr_const,
                     index,
                     node::Operation::Add,
-                    node::ObjectType::Unsigned(32),
+                    o_type,
                 );
                 return (a_id, adr_id);
             }
@@ -565,7 +565,7 @@ impl<'a> IRGenerator<'a> {
                 let array_adr = array.adr;
                 for (pos, object) in elements.into_iter().enumerate() {
                     //array.witness.push(node::get_witness_from_object(&object));
-                    let lhs_adr = self.context.get_or_create_const(FieldElement::from((array_adr + pos as u32) as u128), node::ObjectType::Unsigned(32));
+                    let lhs_adr = self.context.get_or_create_const(FieldElement::from((array_adr + pos as u32) as u128), node::ObjectType::NativeField);
                     self.context.new_instruction(object, lhs_adr, node::Operation::Store(array_index), element_type);
                 }
                 //Finally, we create a variable pointing to this MemArray
@@ -622,7 +622,8 @@ impl<'a> IRGenerator<'a> {
                 let ident_span = collection_name.span;
 
                 let arr_type = self.def_interner().id_type(arr_def);
-                let o_type = arr_type.into();
+                let o_type: node::ObjectType = arr_type.into();
+                let e_type = o_type.deref(&self.context);
                 let mut array_index = self.context.mem.arrays.len() as u32;
                 let array = if let Some(moi) = self.context.mem.find_array(&Some(arr_def)) {
                     array_index= self.context.mem.get_array_index(moi).unwrap();
@@ -652,7 +653,7 @@ impl<'a> IRGenerator<'a> {
                 let index_type = self.context.get_object_type(index_as_obj);
                 let base_adr = self.context.get_or_create_const(FieldElement::from(address as i128), index_type);
                 let adr_id = self.context.new_instruction(base_adr, index_as_obj, node::Operation::Add, index_type);
-                Ok(Value::Single(self.context.new_instruction(adr_id, adr_id, node::Operation::Load(array_index), o_type)))
+                Ok(Value::Single(self.context.new_instruction(adr_id, adr_id, node::Operation::Load(array_index), e_type)))
             },
             HirExpression::Call(call_expr) => {
                 let func_meta = self.def_interner().function_meta(&call_expr.func_id);
@@ -723,11 +724,9 @@ impl<'a> IRGenerator<'a> {
         match l {
             HirLiteral::Bool(b) => {
                 if *b {
-                    self.context
-                        .get_or_create_const(FieldElement::one(), node::ObjectType::Unsigned(1))
+                    self.context.one()
                 } else {
-                    self.context
-                        .get_or_create_const(FieldElement::zero(), node::ObjectType::Unsigned(1))
+                    self.context.zero()
                 }
             }
             HirLiteral::Integer(f) => {
@@ -875,7 +874,7 @@ impl<'a> IRGenerator<'a> {
         }
 
         //increment iter
-        let one = self.context.get_or_create_const(FieldElement::one(), iter_type);
+        let one = self.context.one_type(iter_type);
         let incr = self.context.new_instruction(phi, one, node::Operation::Add, iter_type);
         let cur_block_id = self.context.current_block; //It should be the body block, except if the body has CFG statements
         let cur_block = &mut self.context[cur_block_id];

@@ -310,11 +310,12 @@ pub fn find_similar_mem_instruction(
     (ins_id, CseAction::Keep)
 }
 
-pub fn propagate(ctx: &SsaContext, id: NodeId) -> NodeId {
+pub fn propagate(ctx: &SsaContext, id: NodeId, modified: &mut bool) -> NodeId {
     let mut result = id;
     if let Some(obj) = ctx.try_get_instruction(id) {
         if obj.operator == node::Operation::Ass || obj.is_deleted {
             result = obj.rhs;
+            *modified = true;
         }
     }
     result
@@ -323,7 +324,20 @@ pub fn propagate(ctx: &SsaContext, id: NodeId) -> NodeId {
 //common subexpression elimination, starting from the root
 pub fn cse(igen: &mut SsaContext, first_block: BlockId) -> Option<NodeId> {
     let mut anchor = HashMap::new();
-    cse_tree(igen, first_block, &mut anchor)
+    let mut modified = false;
+    cse_tree(igen, first_block, &mut anchor, &mut modified)
+}
+
+//perform common subexpression elimination until there is no more change
+pub fn full_cse(igen: &mut SsaContext, first_block: BlockId) -> Option<NodeId> {
+    let mut modified = true;
+    let mut result = None;
+    while modified {
+        modified = false;
+        let mut anchor = HashMap::new();
+        result = cse_tree(igen, first_block, &mut anchor, &mut modified);
+    }
+    result
 }
 
 //Perform CSE for the provided block and then process its children following the dominator tree, passing around the anchor list.
@@ -331,11 +345,12 @@ pub fn cse_tree(
     igen: &mut SsaContext,
     block_id: BlockId,
     anchor: &mut HashMap<Operation, VecDeque<NodeId>>,
+    modified: &mut bool,
 ) -> Option<NodeId> {
     let mut instructions = Vec::new();
-    let mut res = block_cse(igen, block_id, anchor, &mut instructions);
+    let mut res = block_cse(igen, block_id, anchor, &mut instructions, modified);
     for b in igen[block_id].dominated.clone() {
-        let sub_res = cse_tree(igen, b, &mut anchor.clone());
+        let sub_res = cse_tree(igen, b, &mut anchor.clone(), modified);
         if sub_res.is_some() {
             res = sub_res;
         }
@@ -358,6 +373,7 @@ pub fn block_cse(
     block_id: BlockId,
     anchor: &mut HashMap<Operation, VecDeque<NodeId>>,
     instructions: &mut Vec<NodeId>,
+    modified: &mut bool,
 ) -> Option<NodeId> {
     let mut new_list = Vec::new();
     let bb = &ctx[block_id];
@@ -382,12 +398,14 @@ pub fn block_cse(
             anchor_push(ins.operator, anchor);
             if node::is_binary(ins.operator) {
                 //binary operation:
-                i_lhs = propagate(ctx, ins.lhs);
-                i_rhs = propagate(ctx, ins.rhs);
+                i_lhs = propagate(ctx, ins.lhs, modified);
+                i_rhs = propagate(ctx, ins.rhs, modified);
                 if let Some(j) = find_similar_instruction(ctx, i_lhs, i_rhs, &anchor[&ins.operator])
                 {
                     to_delete = true; //we want to delete ins but ins is immutable so we use the new_list instead
                     i_rhs = j;
+                    debug_assert!(j != ins.id);
+                    *modified = true;
                 } else {
                     new_list.push(*iter);
                     anchor.get_mut(&ins.operator).unwrap().push_front(*iter);
@@ -395,8 +413,8 @@ pub fn block_cse(
             } else {
                 match ins.operator {
                     node::Operation::Load(_) | node::Operation::Store(_) => {
-                        i_lhs = propagate(ctx, ins.lhs);
-                        i_rhs = propagate(ctx, ins.rhs);
+                        i_lhs = propagate(ctx, ins.lhs, modified);
+                        i_rhs = propagate(ctx, ins.rhs, modified);
                         let (cse_id, cse_action) = find_similar_mem_instruction(
                             ctx,
                             ins.operator,
@@ -410,25 +428,27 @@ pub fn block_cse(
                             CseAction::Replace => {
                                 to_delete = true;
                                 i_rhs = cse_id;
+                                *modified = true;
                             }
                             CseAction::Remove => {
                                 new_list.push(*iter);
                                 // TODO if not found, it should be removed from other blocks; we could keep a list of instructions to remove
                                 if let Some(pos) = new_list.iter().position(|x| *x == cse_id) {
                                     new_list.remove(pos);
+                                    *modified = true;
                                 }
                             }
                         }
                     }
                     node::Operation::Ass => {
                         //assignement
-                        i_rhs = propagate(ctx, ins.rhs);
+                        i_rhs = propagate(ctx, ins.rhs, modified);
                         to_delete = true;
                     }
                     node::Operation::Phi => {
                         // propagate phi arguments
                         for a in &ins.phi_arguments {
-                            phi_args.push((propagate(ctx, a.0), a.1));
+                            phi_args.push((propagate(ctx, a.0, modified), a.1));
                             if phi_args.last().unwrap().0 != a.0 {
                                 to_update_phi = true;
                             }
@@ -440,6 +460,7 @@ pub fn block_cse(
                                 to_delete = true;
                                 i_rhs = first;
                                 to_update_phi = false;
+                                *modified = true;
                             }
                         } else {
                             to_delete = true;
@@ -447,7 +468,7 @@ pub fn block_cse(
                     }
                     node::Operation::Cast => {
                         //Propagate cast argument
-                        i_lhs = propagate(ctx, ins.lhs);
+                        i_lhs = propagate(ctx, ins.lhs, modified);
                         i_rhs = i_lhs;
                         //Similar cast must have same type
                         if let Some(j) =
@@ -455,6 +476,7 @@ pub fn block_cse(
                         {
                             to_delete = true; //we want to delete ins but ins is immutable so we use the new_list instead
                             i_rhs = j;
+                            *modified = true;
                         } else {
                             new_list.push(*iter);
                             anchor.get_mut(&ins.operator).unwrap().push_front(*iter);
@@ -464,7 +486,7 @@ pub fn block_cse(
                         //No CSE for function calls because of possible side effect - TODO checks if a function has side effect when parsed and do cse for these.
                         //Propagate arguments:
                         for a in &ins.ins_arguments.arguments {
-                            let new_a = propagate(ctx, *a);
+                            let new_a = propagate(ctx, *a, modified);
                             if !to_update && new_a != *a {
                                 to_update = true;
                             }
@@ -475,14 +497,14 @@ pub fn block_cse(
                     node::Operation::Intrinsic(_) => {
                         //n.b this could be the default behovoir for binary operations
                         for a in &ins.ins_arguments.arguments {
-                            let new_a = propagate(ctx, *a);
+                            let new_a = propagate(ctx, *a, modified);
                             if !to_update && new_a != *a {
                                 to_update = true;
                             }
                             ins_args.push(new_a);
                         }
-                        i_lhs = propagate(ctx, ins.lhs);
-                        i_rhs = propagate(ctx, ins.rhs);
+                        i_lhs = propagate(ctx, ins.lhs, modified);
+                        i_rhs = propagate(ctx, ins.rhs, modified);
                         if let Some(j) = find_similar_instruction_with_multiple_arguments(
                             ctx,
                             i_lhs,
@@ -492,6 +514,7 @@ pub fn block_cse(
                         ) {
                             to_delete = true; //we want to delete ins but ins is immutable so we use the new_list instead
                             i_rhs = j;
+                            *modified = true;
                         } else {
                             new_list.push(*iter);
                             anchor.get_mut(&ins.operator).unwrap().push_front(*iter);
