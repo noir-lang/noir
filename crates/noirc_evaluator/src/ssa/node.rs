@@ -263,13 +263,6 @@ impl ObjectType {
         }
     }
 
-    pub fn deref(&self, ctx: &SsaContext) -> ObjectType {
-        match self {
-            ObjectType::Pointer(a) => ctx.mem.arrays[*a as usize].element_type,
-            _ => *self,
-        }
-    }
-
     pub fn bits(&self) -> u32 {
         match self {
             ObjectType::Boolean => 1,
@@ -437,8 +430,7 @@ impl Instruction {
             Operation::Trunc | Operation::Phi => (false, false),
             Operation::Nop | Operation::Jne | Operation::Jeq | Operation::Jmp => (false, false),
             Operation::Constrain(_) => (true, true),
-            Operation::Load(_) => (false, false),
-            Operation::Store(_) => (true, false),
+            Operation::Load(_) | Operation::Store(_) => (false, false),
             Operation::Intrinsic(_) => (true, true), //TODO to check
             Operation::Call(_) => (false, false), //return values are in the return statment, should we truncate function arguments? probably but not lhs and rhs anyways.
             Operation::Ret => (true, false),
@@ -557,43 +549,20 @@ impl Instruction {
                 //if only one is const, we could try to do constant propagation but this will be handled by the arithmetization step anyways
                 //so it is probably not worth it.
             }
-            Operation::Udiv => {
-                if r_is_zero {
-                    todo!("Panic - division by zero");
-                } else if l_is_zero {
-                    return *lhs; //TODO should we ensure rhs != 0 ???
-                }
-                //constant folding
-                else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
-                    return NodeEval::Const(FieldElement::from(l_const / r_const), self.res_type);
-                }
-            }
-            Operation::Div => {
+            Operation::Udiv | Operation::Sdiv | Operation::Div => {
                 if r_is_zero {
                     todo!("Panic - division by zero");
                 } else if l_is_zero {
                     return *lhs; //TODO should we ensure rhs != 0 ???
                 }
                 //constant folding - TODO
-                else if let (Some(l_const), Some(r_const)) = (l_constant, r_constant) {
-                    return NodeEval::Const(
-                        FieldElement::from(l_const) / FieldElement::from(r_const),
-                        self.res_type,
-                    );
+                else if l_constant.is_some() && r_constant.is_some() {
+                    todo!();
+                } else if r_constant.is_some() {
+                    //same as lhs*1/r
+                    todo!("");
+                    //return (Some(self.lhs), None, None);
                 }
-                //  else if r_constant.is_some() {
-                //     //same as lhs*1/r
-                //     todo!("");
-                //     //return (Some(self.lhs), None, None);
-                // }
-            }
-            Operation::Sdiv => {
-                if r_is_zero {
-                    todo!("Panic - division by zero");
-                } else if l_is_zero {
-                    return *lhs; //TODO should we ensure rhs != 0 ???
-                }
-                //constant folding...TODO
             }
             Operation::Urem | Operation::Srem => {
                 if r_is_zero {

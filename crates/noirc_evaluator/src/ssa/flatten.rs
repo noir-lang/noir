@@ -294,7 +294,6 @@ fn evaluate_one(
     value_array: &HashMap<NodeId, NodeEval>,
     igen: &SsaContext,
 ) -> NodeEval {
-    let mut modified = false;
     match get_current_value_for_node_eval(obj, value_array) {
         NodeEval::Const(_, _) => obj,
         NodeEval::VarOrInstruction(obj_id) => {
@@ -304,12 +303,9 @@ fn evaluate_one(
 
             match &igen[obj_id] {
                 NodeObj::Instr(i) => {
-                    let new_id = optim::propagate(igen, obj_id, &mut modified);
-                    if new_id != obj_id {
-                        return evaluate_one(NodeEval::VarOrInstruction(new_id), value_array, igen);
-                    }
                     if i.operator == node::Operation::Phi {
                         //n.b phi are handled before, else we should know which block we come from
+                        dbg!(i.id);
                         return NodeEval::VarOrInstruction(i.id);
                     }
 

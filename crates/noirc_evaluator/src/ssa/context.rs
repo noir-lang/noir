@@ -15,7 +15,7 @@ use acvm::FieldElement;
 use noirc_frontend::hir::Context;
 use noirc_frontend::node_interner::FuncId;
 use num_bigint::BigUint;
-use num_traits::{One, Zero};
+use num_traits::Zero;
 
 // This is a 'master' class for generating the SSA IR from the AST
 // It contains all the data; the node objects representing the source code in the nodes arena
@@ -58,18 +58,6 @@ impl<'a> SsaContext<'a> {
         self.find_const_with_type(&BigUint::zero(), node::ObjectType::Unsigned(1)).unwrap()
     }
 
-    pub fn one(&self) -> NodeId {
-        self.find_const_with_type(&BigUint::one(), node::ObjectType::Unsigned(1)).unwrap()
-    }
-
-    pub fn zero_type(&mut self, obj_type: ObjectType) -> NodeId {
-        self.get_or_create_const(FieldElement::zero(), obj_type)
-    }
-
-    pub fn one_type(&mut self, obj_type: ObjectType) -> NodeId {
-        self.get_or_create_const(FieldElement::one(), obj_type)
-    }
-
     pub fn insert_block(&mut self, block: BasicBlock) -> &mut BasicBlock {
         let id = self.blocks.insert(block);
         let block = &mut self.blocks[id];
@@ -106,12 +94,6 @@ impl<'a> SsaContext<'a> {
                 for (v, b) in &ins.phi_arguments {
                     ins_str +=
                         &format!("{:?}:{:?}, ", v.0.into_raw_parts().0, b.0.into_raw_parts().0);
-                }
-                ins_str += ")";
-            } else if !ins.ins_arguments.arguments.is_empty() {
-                ins_str += "(";
-                for v in &ins.ins_arguments.arguments {
-                    ins_str += &format!("{:?}, ", v.0.into_raw_parts().0);
                 }
                 ins_str += ")";
             }
@@ -438,15 +420,14 @@ impl<'a> SsaContext<'a> {
         function::inline_all(self);
         //Optimisation
         block::compute_dom(self);
-        optim::full_cse(self, self.first_block);
-
+        optim::cse(self, self.first_block);
         self.pause(interactive, "CSE:", "unrolling:");
         //Unrolling
         flatten::unroll_tree(self, self.first_block);
         //Inlining
         self.pause(interactive, "", "inlining:");
         inline::inline_tree(self, self.first_block);
-        optim::full_cse(self, self.first_block);
+        optim::cse(self, self.first_block);
 
         //Truncation
         integer::overflow_strategy(self);
@@ -500,7 +481,6 @@ impl<'a> SsaContext<'a> {
             let len = self.mem.arrays[a as usize].len;
             let adr_a = self.mem.arrays[a as usize].adr;
             let adr_b = self.mem.arrays[b as usize].adr;
-            let e_type = self.mem.arrays[b as usize].element_type;
             for i in 0..len {
                 let idx_b = self.get_or_create_const(
                     FieldElement::from((adr_b + i) as i128),
@@ -510,7 +490,7 @@ impl<'a> SsaContext<'a> {
                     FieldElement::from((adr_a + i) as i128),
                     ObjectType::Unsigned(32),
                 );
-                let load = self.new_instruction(idx_b, idx_b, Operation::Load(b), e_type);
+                let load = self.new_instruction(idx_b, idx_b, Operation::Load(b), r_type);
                 self.new_instruction(load, idx_a, Operation::Store(a), l_type);
             }
         } else {
@@ -610,7 +590,6 @@ impl<'a> SsaContext<'a> {
             let len = self.mem.arrays[a as usize].len;
             let adr_a = self.mem.arrays[a as usize].adr;
             let adr_b = self.mem.arrays[b as usize].adr;
-            let e_type = self.mem.arrays[b as usize].element_type;
             for i in 0..len {
                 let idx_b = self.get_or_create_const(
                     FieldElement::from((adr_b + i) as i128),
@@ -624,7 +603,7 @@ impl<'a> SsaContext<'a> {
                     idx_b,
                     idx_b,
                     Operation::Load(b),
-                    e_type,
+                    r_type,
                     stack_frame,
                 );
                 self.new_instruction_inline(load, idx_a, Operation::Store(a), l_type, stack_frame);
