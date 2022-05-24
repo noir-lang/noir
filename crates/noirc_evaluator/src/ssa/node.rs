@@ -284,7 +284,7 @@ impl ObjectType {
         }
     }
 
-    pub fn into_pointer(&self) -> u32 {
+    pub fn type_to_pointer(&self) -> u32 {
         match self {
             ObjectType::Pointer(a) => *a,
             _ => unreachable!("Type is not a pointer",),

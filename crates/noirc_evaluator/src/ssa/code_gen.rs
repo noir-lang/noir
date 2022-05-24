@@ -282,15 +282,21 @@ impl<'a> IRGenerator<'a> {
         let val = self.find_variable(ident_def).unwrap();
         let lhs = val.to_node_ids();
         assert!(lhs.len() == 1);
-        let a_id = self.context.get_object_type(lhs[0]).into_pointer();
+        let a_id = self.context.get_object_type(lhs[0]).type_to_pointer();
         let index_val = self.expression_to_object(env, &index).unwrap();
         let index = index_val.single_value();
         let base_adr = self.context.mem.arrays[a_id as usize].adr;
-        let base_adr_const =
-            self.context.get_or_create_const(FieldElement::from(base_adr as i128), node::ObjectType::Unsigned(32));
-        let adr_id =
-            self.context.new_instruction(base_adr_const, index, node::Operation::Add, node::ObjectType::Unsigned(32));
-        return (a_id, adr_id);
+        let base_adr_const = self.context.get_or_create_const(
+            FieldElement::from(base_adr as i128),
+            node::ObjectType::Unsigned(32),
+        );
+        let adr_id = self.context.new_instruction(
+            base_adr_const,
+            index,
+            node::Operation::Add,
+            node::ObjectType::Unsigned(32),
+        );
+        (a_id, adr_id)
     }
 
     fn lvalue_ident_def(&self, lvalue: &HirLValue) -> DefinitionId {
@@ -482,11 +488,7 @@ impl<'a> IRGenerator<'a> {
                 let val = self.find_variable(ident_def).unwrap();
                 let rhs_id = rhs.single_value();
                 let lhs_id = val.single_value();
-                return Ok(Value::Single(self.context.handle_assign(
-                    lhs_id,
-                    Some(array_idx),
-                    rhs_id,
-                )));
+                Ok(Value::Single(self.context.handle_assign(lhs_id, Some(array_idx), rhs_id)))
             }
         }
     }
