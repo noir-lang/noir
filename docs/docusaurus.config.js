@@ -8,7 +8,7 @@ const darkCodeTheme = require('prism-react-renderer/themes/dracula');
 const config = {
   title: 'Aztec Docs',
   tagline: 'Scalable privacy on Ethereum',
-  url: 'https://docs.aztec.network',
+  url: 'https://fantastic-carnival.netlify.app',
   baseUrl: '/',
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
