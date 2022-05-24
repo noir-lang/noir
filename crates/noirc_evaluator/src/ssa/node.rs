@@ -1,5 +1,4 @@
 use std::convert::TryInto;
-use std::ops::Add;
 
 use acvm::acir::native_types::Witness;
 use acvm::acir::OPCODE;
@@ -13,7 +12,6 @@ use num_bigint::BigUint;
 use num_traits::{FromPrimitive, One};
 
 use crate::object::Object;
-use std::ops::Mul;
 
 use super::block::BlockId;
 use super::context::SsaContext;
@@ -666,12 +664,8 @@ impl Binary {
 
                 if let (Some((lhs, l_bits)), Some((rhs, r_bits))) = (lhs, rhs) {
                     //constant folding
-                    if l_bits == 256 {
-                        //NO modulo for field elements - May be we should have a different opcode?
-                        return NodeEval::Const(lhs + rhs, res_type);
-                    }
                     assert_eq!(l_bits, r_bits);
-                    return wrapping(lhs, rhs, l_bits, res_type, u128::add);
+                    return NodeEval::Const(wrap(lhs + rhs, l_bits), res_type);
                 }
                 //if only one is const, we could try to do constant propagation but this will be handled by the arithmetization step anyways
                 //so it is probably not worth it.
@@ -686,12 +680,8 @@ impl Binary {
                 }
                 //constant folding
                 if let (Some((lhs, l_bits)), Some((rhs, r_bits))) = (lhs, rhs) {
-                    if l_bits == 256 {
-                        //NO modulo for field elements - May be we should have a different opcode?
-                        return NodeEval::Const(lhs - rhs, res_type);
-                    }
                     assert_eq!(l_bits, r_bits);
-                    return wrapping(lhs, rhs, l_bits, res_type, u128::wrapping_sub);
+                    return NodeEval::Const(wrap(lhs - rhs, l_bits), res_type);
                 }
             }
             BinaryOp::Mul | BinaryOp::SafeMul => {
@@ -703,14 +693,8 @@ impl Binary {
                 } else if r_is_zero || l_is_one {
                     return r_eval;
                 } else if let (Some((lhs, l_bits)), Some((rhs, r_bits))) = (lhs, rhs) {
-                    //constant folding
-                    if l_bits == 256 {
-                        //NO modulo for field elements - May be we should have a different opcode?
-                        return NodeEval::Const(lhs * rhs, res_type);
-                    }
-
                     assert_eq!(l_bits, r_bits);
-                    return wrapping(lhs, rhs, l_bits, res_type, u128::mul);
+                    return NodeEval::Const(wrap(lhs * rhs, l_bits), res_type);
                 }
                 //if only one is const, we could try to do constant propagation but this will be handled by the arithmetization step anyways
                 //so it is probably not worth it.
@@ -890,22 +874,31 @@ impl Binary {
     }
 }
 
-/// Perform f(lhs, rhs) and modulo the result by the max value for the given bitcount.
-fn wrapping<F>(
-    lhs: FieldElement,
-    rhs: FieldElement,
-    bitcount: u32,
-    res_type: ObjectType,
-    f: F,
-) -> NodeEval
-where
-    F: FnOnce(u128, u128) -> u128,
-{
-    let mut x = f(lhs.to_u128(), rhs.to_u128());
+fn wrap(value: FieldElement, bitcount: u32) -> FieldElement {
     if bitcount != 256 {
-        x %= 1_u128 << bitcount;
+        assert!(bitcount < 256);
+
+        let mut bytes = value.to_bytes();
+        let remainder = bitcount % 8;
+        let fits_evenly = remainder == 0;
+        let adjustment = if !fits_evenly { 1 } else { 0 };
+
+        let bitcount = bitcount as usize;
+        for i in 0 .. bytes.len() - bitcount / 8 - adjustment {
+            bytes[i] = 0;
+        }
+
+        // If the bits dont fit into an even amount of bytes we
+        // have to adjust the last byte manually
+        if !fits_evenly {
+            let last_index = bytes.len() - bitcount / 8 - 1;
+            bytes[last_index] %= 1 << remainder;
+        }
+
+        FieldElement::from_be_bytes_reduce(&bytes)
+    } else {
+        value
     }
-    NodeEval::from_u128(x, res_type)
 }
 
 impl Operation {
