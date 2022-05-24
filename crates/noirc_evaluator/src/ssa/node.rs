@@ -290,6 +290,13 @@ impl ObjectType {
             _ => (BigUint::one() << self.bits()) - BigUint::one(),
         }
     }
+
+    pub fn into_pointer(&self) -> u32 {
+        match self {
+            ObjectType::Pointer(a) => *a,
+            _ => unreachable!("Type is not a pointer",),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]

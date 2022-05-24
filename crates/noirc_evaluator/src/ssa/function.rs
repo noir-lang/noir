@@ -57,7 +57,7 @@ impl SSAFunction {
         //Optimisation
         igen.context.print_block(&igen.context[self.entry_block]);
         super::optim::full_cse(&mut igen.context, self.entry_block);
-        
+
         //Unrolling
         let eval = super::flatten::unroll_tree(&mut igen.context, self.entry_block);
         super::optim::full_cse(&mut igen.context, self.entry_block);
@@ -222,20 +222,13 @@ pub fn create_function(
     igen.function_context = Some(index);
     igen.context.functions.insert(func_id, func.clone());
     let last_value = SSAFunction::parse_statements(igen, block.statements(), env);
-    let last_id = igen.single_value(&last_value); //we do not support structures for now
+    let last_id = last_value.single_value(); //we do not support structures for now
     let last_mapped = func.compile(igen, last_id); //unroll the function
     let rtt = add_return_instruction(&mut igen.context, last_mapped);
     func.result.push(rtt);
     igen.context.functions.insert(func_id, func);
     igen.context.current_block = current_block;
     igen.function_context = current_function;
-}
-
-pub fn value_to_node_id(input: &Value) -> Vec<NodeId> {
-    match input {
-        Value::Single(id) => vec![*id],
-        Value::Struct(v) => v.iter().map(|i| value_to_node_id(&i.1)).flatten().collect(),
-    }
 }
 
 pub fn add_return_instruction(ctx: &mut SsaContext, last: Option<NodeId>) -> ObjectType {
@@ -272,13 +265,13 @@ pub fn resize_graph(call_graph: &mut Vec<Vec<u8>>, size: usize) {
     }
 }
 
-pub fn update_call_graph(call_graph: &mut Vec<Vec<u8>>, a: u32, b: u32) {
-    let caller = a as usize;
-    let callee = b as usize;
-    let max = caller.max(callee) + 1;
+pub fn update_call_graph(call_graph: &mut Vec<Vec<u8>>, caller: u32, callee: u32) {
+    let a = caller as usize;
+    let b = callee as usize;
+    let max = a.max(b) + 1;
     resize_graph(call_graph, max);
 
-    call_graph[caller][callee] = 1;
+    call_graph[a][b] = 1;
 }
 
 fn is_leaf(call_graph: &[Vec<u8>], i: usize) -> bool {

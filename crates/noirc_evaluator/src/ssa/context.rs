@@ -514,9 +514,7 @@ impl<'a> SsaContext<'a> {
                 self.new_instruction(load, idx_a, Operation::Store(a), l_type);
             }
         } else {
-            dbg!(&l_type);
-            dbg!(&r_type);
-            unreachable!("invalid type, expected arrays");
+            unreachable!("invalid type, expected arrays, got {:?} and {:?}", l_type, r_type);
         }
     }
 

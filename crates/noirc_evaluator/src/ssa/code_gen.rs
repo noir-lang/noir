@@ -50,6 +50,20 @@ impl Value {
     pub fn dummy() -> Value {
         Value::Single(NodeId::dummy())
     }
+
+    pub fn single_value(&self) -> NodeId {
+        match self {
+            Value::Single(id) => *id,
+            Value::Struct(_) => unreachable!("Not a single value"),
+        }
+    }
+
+    pub fn to_node_ids(&self) -> Vec<NodeId> {
+        match self {
+            Value::Single(id) => vec![*id],
+            Value::Struct(v) => v.iter().flat_map(|i| i.1.to_node_ids()).collect(),
+        }
+    }
 }
 
 ////////////////PARSING THE AST////////////////////////////////////////////////
@@ -259,12 +273,6 @@ impl<'a> IRGenerator<'a> {
         }
     }
 
-    pub fn single_value(&self, val: &Value) -> NodeId {
-        let nodes = function::value_to_node_id(val);
-        assert!(nodes.len() == 1);
-        nodes[0]
-    }
-
     fn evaluate_indexed_value(
         &mut self,
         array: &HirLValue,
@@ -272,26 +280,19 @@ impl<'a> IRGenerator<'a> {
         env: &mut Environment,
     ) -> (u32, NodeId) {
         let ident_def = self.lvalue_ident_def(array);
-        if let Some(val) = self.find_variable(ident_def) {
-            let lhs = function::value_to_node_id(val);
-            assert!(lhs.len() == 1);
-            if let node::ObjectType::Pointer(a_id) = self.context.get_object_type(lhs[0]) {
-                let index_val = self.expression_to_object(env, &index).unwrap();
-                let index = self.single_value(&index_val);
-                let o_type = self.context.get_object_type(index);
-                let base_adr = self.context.mem.arrays[a_id as usize].adr;
-                let base_adr_const =
-                    self.context.get_or_create_const(FieldElement::from(base_adr as i128), o_type);
-                let adr_id = self.context.new_instruction(
-                    base_adr_const,
-                    index,
-                    node::Operation::Add,
-                    o_type,
-                );
-                return (a_id, adr_id);
-            }
-        }
-        unreachable!();
+        let val = self.find_variable(ident_def).unwrap();
+        let lhs = val.to_node_ids();
+        assert!(lhs.len() == 1);
+        let a_id = self.context.get_object_type(lhs[0]).into_pointer();
+        let index_val = self.expression_to_object(env, &index).unwrap();
+        let index = index_val.single_value();
+        let o_type = self.context.get_object_type(index);
+        let base_adr = self.context.mem.arrays[a_id as usize].adr;
+        let base_adr_const =
+            self.context.get_or_create_const(FieldElement::from(base_adr as i128), o_type);
+        let adr_id =
+            self.context.new_instruction(base_adr_const, index, node::Operation::Add, o_type);
+        return (a_id, adr_id);
     }
 
     fn lvalue_ident_def(&self, lvalue: &HirLValue) -> DefinitionId {
@@ -469,30 +470,25 @@ impl<'a> IRGenerator<'a> {
 
         match lvalue {
             HirLValue::Ident(_) => {
-                if let Some(lhs) = self.find_variable(ident_def) {
-                    // We may be able to avoid cloning here if we change find_variable
-                    // and assign_pattern to use only fields of self instead of `self` itself.
-                    let lhs = lhs.clone();
-                    let result = self.assign_pattern(&lhs, rhs); //ca va flattener
-                    self.variable_values.insert(ident_def, result);
-                    Ok(lhs)
-                } else {
-                    unreachable!();
-                }
+                let lhs = self.find_variable(ident_def).unwrap();
+                // We may be able to avoid cloning here if we change find_variable
+                // and assign_pattern to use only fields of self instead of `self` itself.
+                let lhs = lhs.clone();
+                let result = self.assign_pattern(&lhs, rhs);
+                self.variable_values.insert(ident_def, result);
+                Ok(lhs)
             }
             HirLValue::MemberAccess { .. } => unimplemented!(),
             HirLValue::Index { array, index } => {
                 let (_, array_idx) = self.evaluate_indexed_value(array.as_ref(), index, env);
-                if let Some(val) = self.find_variable(ident_def) {
-                    let rhs_id = self.single_value(&rhs);
-                    let lhs_id = self.single_value(val);
-                    return Ok(Value::Single(self.context.handle_assign(
-                        lhs_id,
-                        Some(array_idx),
-                        rhs_id,
-                    )));
-                }
-                unreachable!();
+                let val = self.find_variable(ident_def).unwrap();
+                let rhs_id = rhs.single_value();
+                let lhs_id = val.single_value();
+                return Ok(Value::Single(self.context.handle_assign(
+                    lhs_id,
+                    Some(array_idx),
+                    rhs_id,
+                )));
             }
         }
     }
@@ -635,9 +631,7 @@ impl<'a> IRGenerator<'a> {
                             array_index = a_id;
                             &self.context.mem.arrays[a_id as usize]
                         }
-                        _ => {
-                            unreachable!()}
-                            ,
+                        _ => unreachable!(),
                     }
                  }
                 else {
