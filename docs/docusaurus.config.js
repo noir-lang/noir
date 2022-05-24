@@ -53,8 +53,12 @@ const config = {
         disableSwitch: true,
         respectPrefersColorScheme: false,
       },
+      docs: {
+        sidebar: {
+          hideable: true,
+        }
+      },
       navbar: {
-        title: 'Docs',
         logo: {
           alt: 'Aztec Logo',
           src: 'img/aztec-logo.9cde8ae1.svg',
@@ -62,16 +66,16 @@ const config = {
         items: [
           {
             type: 'doc',
-            docId: 'intro',
+            docId: 'how-aztec-works/intro',
             position: 'left',
-            label: 'Tutorial',
+            label: 'How Aztec Works',
           },
-          {to: '/blog', label: 'Blog', position: 'left'},
           {
-            href: 'https://github.com/facebook/docusaurus',
-            label: 'GitHub',
-            position: 'right',
-          },
+            type: 'doc',
+            docId: 'guides/overview',
+            position: 'left',
+            label: 'Guides',
+          }
         ],
       },
       footer: {
@@ -81,8 +85,8 @@ const config = {
             title: 'Docs',
             items: [
               {
-                label: 'Tutorial',
-                to: '/docs/intro',
+                label: 'Intro',
+                to: '/docs/how-aztec-works/intro',
               },
             ],
           },
@@ -90,34 +94,30 @@ const config = {
             title: 'Community',
             items: [
               {
-                label: 'Stack Overflow',
-                href: 'https://stackoverflow.com/questions/tagged/docusaurus',
-              },
-              {
                 label: 'Discord',
-                href: 'https://discordapp.com/invite/docusaurus',
+                href: 'https://discord.gg/UDtJr9u',
               },
               {
                 label: 'Twitter',
-                href: 'https://twitter.com/docusaurus',
+                href: 'https://twitter.com/aztecnetwork',
               },
+              {
+                label: 'Plonk Cafe',
+                href: 'https://www.plonk.cafe/'
+              }
             ],
           },
           {
             title: 'More',
             items: [
               {
-                label: 'Blog',
-                to: '/blog',
-              },
-              {
                 label: 'GitHub',
-                href: 'https://github.com/facebook/docusaurus',
+                href: 'https://github.com/AztecProtocol',
               },
             ],
           },
         ],
-        copyright: `Copyright © ${new Date().getFullYear()} My Project, Inc. Built with Docusaurus.`,
+        copyright: `Copyright © ${new Date().getFullYear()} Aztec, Built with Docusaurus.`,
       },
       prism: {
         theme: lightCodeTheme,
