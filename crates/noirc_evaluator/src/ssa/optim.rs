@@ -258,23 +258,23 @@ pub fn find_similar_mem_instruction(
     ins_id: NodeId,
     lhs: NodeId,
     rhs: NodeId,
-    anchor: &HashMap<node::Operation, VecDeque<NodeId>>,
+    prev_ins: &VecDeque<NodeId>,
 ) -> (NodeId, CseAction) {
     match op {
         node::Operation::Load(_) => {
-            for iter in anchor[&op].iter().rev() {
+            for iter in prev_ins.iter() {
                 if let Some(ins_iter) = ctx.try_get_instruction(*iter) {
                     match ins_iter.operator {
                         node::Operation::Load(_) => {
-                            if ins_iter.lhs == lhs {
+                            if !ctx.maybe_distinct(ins_iter.lhs, lhs) {
                                 return (*iter, CseAction::Replace);
                             }
                         }
                         node::Operation::Store(_) => {
-                            if ins_iter.rhs == lhs {
+                            if !ctx.maybe_distinct(ins_iter.rhs, lhs) {
                                 return (ins_iter.lhs, CseAction::Replace);
-                            } else {
-                                //TODO: If we know that ins.lhs value cannot be equal to ins_iter.rhs, we could continue instead
+                            }
+                            if ctx.maybe_equal(ins_iter.rhs, lhs) {
                                 return (ins_id, CseAction::Keep);
                             }
                         }
@@ -283,20 +283,20 @@ pub fn find_similar_mem_instruction(
                 }
             }
         }
-        node::Operation::Store(x) => {
-            let prev_ins = &anchor[&node::Operation::Load(x)];
-            for iter in prev_ins.iter().rev() {
+        node::Operation::Store(_) => {
+            for iter in prev_ins.iter() {
                 if let Some(ins_iter) = ctx.try_get_instruction(*iter) {
                     match ins_iter.operator {
                         node::Operation::Load(_) => {
-                            //TODO: If we know that ins.rhs value cannot be equal to ins_iter.rhs, we could continue instead
-                            return (ins_id, CseAction::Keep);
+                            if ctx.maybe_equal(ins_iter.rhs, rhs) {
+                                return (ins_id, CseAction::Keep);
+                            }
                         }
                         node::Operation::Store(_) => {
-                            if ins_iter.rhs == rhs {
+                            if !ctx.maybe_distinct(ins_iter.rhs, rhs) {
                                 return (*iter, CseAction::Remove);
-                            } else {
-                                //TODO: If we know that ins.rhs value cannot be equal to ins_iter.rhs, we could continue instead
+                            }
+                            if ctx.maybe_equal(ins_iter.rhs, rhs) {
                                 return (ins_id, CseAction::Keep);
                             }
                         }
@@ -412,25 +412,39 @@ pub fn block_cse(
                 }
             } else {
                 match ins.operator {
-                    node::Operation::Load(_) | node::Operation::Store(_) => {
+                    node::Operation::Load(x) | node::Operation::Store(x) => {
                         i_lhs = propagate(ctx, ins.lhs, modified);
                         i_rhs = propagate(ctx, ins.rhs, modified);
+
+                        let prev_ins = &anchor[&node::Operation::Load(x)];
+
                         let (cse_id, cse_action) = find_similar_mem_instruction(
                             ctx,
                             ins.operator,
                             ins.id,
                             i_lhs,
                             i_rhs,
-                            anchor,
+                            prev_ins,
                         );
+
                         match cse_action {
-                            CseAction::Keep => new_list.push(*iter),
+                            CseAction::Keep => {
+                                anchor
+                                    .get_mut(&node::Operation::Load(x))
+                                    .unwrap()
+                                    .push_front(*iter);
+                                new_list.push(*iter);
+                            }
                             CseAction::Replace => {
                                 to_delete = true;
                                 i_rhs = cse_id;
                                 *modified = true;
                             }
                             CseAction::Remove => {
+                                anchor
+                                    .get_mut(&node::Operation::Load(x))
+                                    .unwrap()
+                                    .push_front(*iter);
                                 new_list.push(*iter);
                                 // TODO if not found, it should be removed from other blocks; we could keep a list of instructions to remove
                                 if let Some(pos) = new_list.iter().position(|x| *x == cse_id) {

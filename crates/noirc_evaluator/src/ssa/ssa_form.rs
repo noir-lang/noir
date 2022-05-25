@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use noirc_frontend::{node_interner::DefinitionId, ArraySize};
 
 use super::{
@@ -47,6 +49,24 @@ pub fn seal_block(ctx: &mut SsaContext, block_id: BlockId) {
             }
         }
     }
+
+    if pred.len() > 1 {
+        let mut u: HashSet<u32> = HashSet::new();
+        for block in pred {
+            u.extend(ctx[block].written_arrays(ctx));
+        }
+        for array in u {
+            let i = node::Instruction::new(
+                node::Operation::Store(array),
+                NodeId::dummy(),
+                NodeId::dummy(),
+                node::ObjectType::NotAnObject,
+                Some(block_id),
+            );
+            ctx.insert_instruction_after_phi(i, block_id);
+        }
+    }
+
     ctx.sealed_blocks.insert(block_id);
 }
 

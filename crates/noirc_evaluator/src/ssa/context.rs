@@ -49,8 +49,8 @@ impl<'a> SsaContext<'a> {
             call_graph: Vec::new(),
         };
         block::create_first_block(&mut pc);
-        pc.get_or_create_const(FieldElement::one(), node::ObjectType::Unsigned(1));
-        pc.get_or_create_const(FieldElement::zero(), node::ObjectType::Unsigned(1));
+        pc.one_type(node::ObjectType::Unsigned(1));
+        pc.zero_type(node::ObjectType::Unsigned(1));
         pc
     }
 
@@ -149,6 +149,26 @@ impl<'a> SsaContext<'a> {
         if let NodeObj::Instr(_) = &self[id] {
             self.get_current_block_mut().instructions.push(id);
         }
+        id
+    }
+
+    /// Adds the instruction to self.nodes and insert it after phi instructions of the provided block
+    pub fn insert_instruction_after_phi(
+        &mut self,
+        instruction: node::Instruction,
+        block: BlockId,
+    ) -> NodeId {
+        let id = self.add_instruction(instruction);
+        let mut pos = 0;
+        for i in &self[block].instructions {
+            if let Some(Instruction { operator: op, .. }) = self.try_get_instruction(*i) {
+                if *op != Operation::Nop && *op != Operation::Phi {
+                    break;
+                }
+            }
+            pos += 1;
+        }
+        self[block].instructions.insert(pos, id);
         id
     }
 
@@ -266,6 +286,39 @@ impl<'a> SsaContext<'a> {
         if let Ok(nvar) = self.get_mut_variable(new_var) {
             nvar.name = format!("{}{}", root_name, variable_id);
         }
+    }
+
+    //Returns true if a may be distinct from b, and false else
+    pub fn maybe_distinct(&self, a: NodeId, b: NodeId) -> bool {
+        if a == NodeId::dummy() || b == NodeId::dummy() {
+            return true;
+        }
+        if a == b {
+            return false;
+        }
+        if let (Some(a_value), Some(b_value)) = (self.get_as_constant(a), self.get_as_constant(b)) {
+            if a_value == b_value {
+                return false;
+            }
+        }
+        true
+    }
+
+    //Returns true is a may be equal to b, and false else
+    pub fn maybe_equal(&self, a: NodeId, b: NodeId) -> bool {
+        if a == NodeId::dummy() || b == NodeId::dummy() {
+            return true;
+        }
+
+        if a == b {
+            return true;
+        }
+        if let (Some(a_value), Some(b_value)) = (self.get_as_constant(a), self.get_as_constant(b)) {
+            if a_value != b_value {
+                return false;
+            }
+        }
+        true
     }
 
     pub fn new_instruction(

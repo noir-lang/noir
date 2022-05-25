@@ -2,7 +2,7 @@ use super::{
     context::SsaContext,
     node::{self, NodeId},
 };
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 #[derive(PartialEq, Debug)]
 pub enum BlockType {
@@ -87,6 +87,18 @@ impl BasicBlock {
             node::ObjectType::NotAnObject,
         );
         root_id
+    }
+
+    pub fn written_arrays(&self, ctx: &SsaContext) -> HashSet<u32> {
+        let mut result = HashSet::new();
+        for i in &self.instructions {
+            if let Some(node::Instruction { operator: node::Operation::Store(x), .. }) =
+                ctx.try_get_instruction(*i)
+            {
+                result.insert(*x);
+            }
+        }
+        result
     }
 }
 
