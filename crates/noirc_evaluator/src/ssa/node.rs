@@ -522,6 +522,56 @@ pub enum Operation {
     Nop, // no op
 }
 
+#[derive(Copy, Clone, Hash, PartialEq, Eq)]
+pub enum Opcode {
+    Add,
+    SafeAdd,
+    Sub,
+    SafeSub,
+    Mul,
+    SafeMul,
+    Udiv,
+    Sdiv,
+    Urem,
+    Srem,
+    Div,
+    Eq,
+    Ne,
+    Ult,
+    Ule,
+    Slt,
+    Sle,
+    Lt,
+    Lte,
+    And,
+    Or,
+    Xor,
+    Shl,
+    Shr,
+    Assign,
+    Constrain(ConstrainOp),
+
+    Cast,     //convert type
+    Truncate, //truncate
+    Not,      //(!) Bitwise Not
+
+    //control flow
+    Jne, //jump on not equal
+    Jeq, //jump on equal
+    Jmp, //unconditional jump
+    Phi,
+
+    Call(noirc_frontend::node_interner::FuncId), //Call a function
+    Return,                                      //Return value(s) from a function block
+    Results,                                     //Get result(s) from a function call
+
+    //memory
+    Load(ArrayId),
+    Store(ArrayId),
+    Intrinsic(OPCODE), //Custom implementation of usefull primitives which are more performant with Aztec backend
+    Nop,               // no op
+}
+
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Binary {
     pub lhs: NodeId,
@@ -1035,6 +1085,53 @@ impl Operation {
                 f(*call_instruction);
                 results.iter().copied().for_each(f);
             }
+        }
+    }
+
+    pub fn opcode(&self) -> Opcode {
+        match self {
+            Operation::Binary(binary) => match &binary.operator {
+                BinaryOp::Add => Opcode::Add,
+                BinaryOp::SafeAdd => Opcode::SafeAdd,
+                BinaryOp::Sub { .. } => Opcode::Sub,
+                BinaryOp::SafeSub { .. } => Opcode::SafeSub,
+                BinaryOp::Mul => Opcode::Mul,
+                BinaryOp::SafeMul => Opcode::SafeMul,
+                BinaryOp::Udiv => Opcode::Udiv,
+                BinaryOp::Sdiv => Opcode::Sdiv,
+                BinaryOp::Urem => Opcode::Urem,
+                BinaryOp::Srem => Opcode::Srem,
+                BinaryOp::Div => Opcode::Div,
+                BinaryOp::Eq => Opcode::Eq,
+                BinaryOp::Ne => Opcode::Ne,
+                BinaryOp::Ult => Opcode::Ult,
+                BinaryOp::Ule => Opcode::Ule,
+                BinaryOp::Slt => Opcode::Slt,
+                BinaryOp::Sle => Opcode::Sle,
+                BinaryOp::Lt => Opcode::Lt,
+                BinaryOp::Lte => Opcode::Lte,
+                BinaryOp::And => Opcode::And,
+                BinaryOp::Or => Opcode::Or,
+                BinaryOp::Xor => Opcode::Xor,
+                BinaryOp::Shl => Opcode::Shl,
+                BinaryOp::Shr => Opcode::Shr,
+                BinaryOp::Assign => Opcode::Assign,
+                BinaryOp::Constrain(op) => Opcode::Constrain(*op),
+            },
+            Operation::Cast(_) => Opcode::Cast,
+            Operation::Truncate { .. } => Opcode::Truncate,
+            Operation::Not(_) => Opcode::Not,
+            Operation::Jne(_, _) => Opcode::Jne,
+            Operation::Jeq(_, _) => Opcode::Jeq,
+            Operation::Jmp(_) => Opcode::Jmp,
+            Operation::Phi { .. } => Opcode::Phi,
+            Operation::Call(id, _) => Opcode::Call(*id),
+            Operation::Return(_) => Opcode::Return,
+            Operation::Results { .. } => Opcode::Results,
+            Operation::Load { array_id, .. } => Opcode::Load(*array_id),
+            Operation::Store { array_id, .. } => Opcode::Store(*array_id),
+            Operation::Intrinsic(opcode, _) => Opcode::Intrinsic(*opcode),
+            Operation::Nop => Opcode::Nop,
         }
     }
 }

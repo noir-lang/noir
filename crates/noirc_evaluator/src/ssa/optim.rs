@@ -6,14 +6,13 @@ use super::{
     context::SsaContext,
     mem::Memory,
     node::{
-        self, BinaryOp, ConstrainOp, Instruction, Node, NodeEval, NodeId, ObjectType, Operation,
-        Variable,
+        self, BinaryOp, ConstrainOp, Instruction, Node, NodeEval, NodeId, ObjectType, Opcode,
+        Operation, Variable,
     },
 };
 use std::{
     borrow::Cow,
     collections::{HashMap, VecDeque},
-    mem::{discriminant, Discriminant},
 };
 
 // Performs constant folding, arithmetic simplifications and move to standard form
@@ -184,7 +183,7 @@ fn find_similar_mem_instruction(
 ) -> CseAction {
     match op {
         Operation::Load { array_id, index } => {
-            for iter in anchor.get_all(op).iter().rev() {
+            for iter in anchor.get_all(op.opcode()).iter().rev() {
                 if let Some(ins_iter) = ctx.try_get_instruction(*iter) {
                     match &ins_iter.operator {
                         Operation::Load { array_id: array_id2, index: _ } => {
@@ -213,8 +212,8 @@ fn find_similar_mem_instruction(
             }
         }
         Operation::Store { array_id, index, value: _ } => {
-            let fake_load = Operation::Load { array_id: *array_id, index: *index };
-            for node_id in anchor.get_all(&fake_load).iter().rev() {
+            let opcode = Opcode::Load(*array_id);
+            for node_id in anchor.get_all(opcode).iter().rev() {
                 if let Some(ins_iter) = ctx.try_get_instruction(*node_id) {
                     match ins_iter.operator {
                         Operation::Load { array_id: array_id2, .. } => {
@@ -271,23 +270,20 @@ pub fn cse(igen: &mut SsaContext, first_block: BlockId) -> Option<NodeId> {
 /// they appear in their respective blocks.
 #[derive(Default, Clone)]
 struct Anchor {
-    map: HashMap<Discriminant<Operation>, VecDeque<NodeId>>,
+    map: HashMap<Opcode, VecDeque<NodeId>>,
 }
 
 impl Anchor {
     fn push_front(&mut self, op: &Operation, id: NodeId) {
         let key = match op {
-            Operation::Store { array_id, index, .. } => {
-                let fake_load = Operation::Load { array_id: *array_id, index: *index };
-                discriminant(&fake_load)
-            }
-            _ => discriminant(op),
+            Operation::Store { array_id, .. } => Opcode::Load(*array_id),
+            _ => op.opcode(),
         };
         self.map.entry(key).or_insert_with(VecDeque::new).push_front(id);
     }
 
-    fn get_all(&self, op: &Operation) -> Cow<VecDeque<NodeId>> {
-        match self.map.get(&discriminant(op)) {
+    fn get_all(&self, opcode: Opcode) -> Cow<VecDeque<NodeId>> {
+        match self.map.get(&opcode) {
             Some(vec) => Cow::Borrowed(vec),
             None => Cow::Owned(VecDeque::new()),
         }
@@ -341,7 +337,7 @@ fn cse_block_with_anchor(
             let mut replacement = None;
 
             if operator.is_binary() {
-                let variants = anchor.get_all(&ins.operator);
+                let variants = anchor.get_all(ins.operator.opcode());
                 if let Some(similar) = find_similar_instruction(ctx, &ins.operator, &variants) {
                     replacement = Some(similar);
                 } else if let Operation::Binary(node::Binary {
@@ -391,7 +387,7 @@ fn cse_block_with_anchor(
                             ctx,
                             &operator,
                             ins.res_type,
-                            &anchor.get_all(&operator),
+                            &anchor.get_all(Opcode::Cast),
                         ) {
                             replacement = Some(similar);
                         } else {
@@ -406,9 +402,11 @@ fn cse_block_with_anchor(
                     }
                     Operation::Intrinsic(..) => {
                         //n.b this could be the default behavior for binary operations
-                        if let Some(similar) =
-                            find_similar_instruction(ctx, &operator, &anchor.get_all(&operator))
-                        {
+                        if let Some(similar) = find_similar_instruction(
+                            ctx,
+                            &operator,
+                            &anchor.get_all(operator.opcode()),
+                        ) {
                             replacement = Some(similar);
                         } else {
                             new_list.push(*ins_id);
