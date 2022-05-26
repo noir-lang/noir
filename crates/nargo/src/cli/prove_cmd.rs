@@ -88,8 +88,6 @@ pub fn prove_with_path<P: AsRef<Path>>(
 ) -> Result<PathBuf, CliError> {
     let driver = Resolver::resolve_root_config(program_dir.as_ref())?;
     let backend = crate::backends::ConcreteBackend;
-
-        println!("into_compiled_program(_, {})", show_ssa);
     let compiled_program = driver.into_compiled_program(backend.np_language(), show_ssa);
 
     // Parse the initial witness values
