@@ -332,8 +332,8 @@ fn block_overflow(
                         //we need to truncate
                         ins.operator = Operation::Truncate {
                             value: value_id,
-                            bit_size: maxbits,
-                            max_bit_size: ins.res_type.bits(),
+                            bit_size: ins.res_type.bits(),
+                            max_bit_size: maxbits,
                         };
                     }
                 }
