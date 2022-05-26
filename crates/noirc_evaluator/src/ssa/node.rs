@@ -559,7 +559,6 @@ pub enum Opcode {
 
     Call(noirc_frontend::node_interner::FuncId), //Call a function
     Return,                                      //Return value(s) from a function block
-    Results,                                     //Get result(s) from a function call
 
     //memory
     Load(ArrayId),
@@ -1116,9 +1115,8 @@ impl Operation {
             Operation::Jeq(_, _) => Opcode::Jeq,
             Operation::Jmp(_) => Opcode::Jmp,
             Operation::Phi { .. } => Opcode::Phi,
-            Operation::Call(id, _) => Opcode::Call(*id),
+            Operation::Call { func_id, .. } => Opcode::Call(*func_id),
             Operation::Return(_) => Opcode::Return,
-            Operation::Results { .. } => Opcode::Results,
             Operation::Load { array_id, .. } => Opcode::Load(*array_id),
             Operation::Store { array_id, .. } => Opcode::Store(*array_id),
             Operation::Intrinsic(opcode, _) => Opcode::Intrinsic(*opcode),
