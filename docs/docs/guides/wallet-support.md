@@ -1,5 +1,4 @@
 ---
-id: wallet-support
 title: Supporting Aztec in your Ethereum Wallet
 sidebar_position: 2
 ---
