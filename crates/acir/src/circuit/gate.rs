@@ -44,69 +44,60 @@ impl Gate {
 
 impl std::fmt::Debug for Gate {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut result = String::new();
         match self {
             Gate::Arithmetic(a) => {
                 for i in &a.mul_terms {
-                    result +=
-                        &format!("{:?}x{}*x{} + ", i.0, i.1.witness_index(), i.2.witness_index());
+                    write!(f, "{:?}x{}*x{} + ", i.0, i.1.witness_index(), i.2.witness_index())?;
                 }
                 for i in &a.linear_combinations {
-                    result += &format!("{:?}x{} + ", i.0, i.1.witness_index());
+                    write!(f, "{:?}x{} + ", i.0, i.1.witness_index())?;
                 }
-                result += &format!("{:?} = 0", a.q_c);
+                write!(f, "{:?} = 0", a.q_c)
             }
             Gate::Range(w, s) => {
-                result = format!("x{} is {} bits", w.witness_index(), s);
+                write!(f, "x{} is {} bits", w.witness_index(), s)
             }
             Gate::Directive(Directive::Invert { x, result: r }) => {
-                result = format!("x{}=1/x{}, or 0", r.witness_index(), x.witness_index());
+                write!(f, "x{}=1/x{}, or 0", r.witness_index(), x.witness_index())
             }
             Gate::Directive(Directive::Truncate { a, b, c: _c, bit_size }) => {
-                result = format!(
+                write!(f, 
                     "Truncate: x{} is x{} truncated to {} bits",
                     b.witness_index(),
                     a.witness_index(),
                     bit_size
-                );
+                )
             }
             Gate::Directive(Directive::Quotient { a, b, q, r }) => {
-                result = format!(
+                write!(f, 
                     "Euclidian division: x{} = x{}*x{} + x{}",
                     a.witness_index(),
                     q.witness_index(),
                     b.witness_index(),
                     r.witness_index()
-                );
+                )
             }
             Gate::Directive(Directive::Oddrange { a, b, r, bit_size }) => {
-                result = format!(
+                write!(f, 
                     "Oddrange: x{} = x{}*2^{} + x{}",
                     a.witness_index(),
                     b.witness_index(),
                     bit_size,
                     r.witness_index()
-                );
+                )
             }
-            Gate::And(g) => {
-                dbg!(&g);
-            }
-            Gate::Xor(g) => {
-                dbg!(&g);
-            }
-            Gate::GadgetCall(g) => {
-                dbg!(&g);
-            }
+            Gate::And(g) => write!(f, "{:?}", g),
+            Gate::Xor(g) => write!(f, "{:?}", g),
+            Gate::GadgetCall(g) => write!(f, "{:?}", g),
             Gate::Directive(Directive::Split { a, b, bit_size: _ }) => {
-                result = format!(
+                write!(f, 
                     "Split: x{} into x{}...x{}",
                     a.witness_index(),
                     b.first().unwrap().witness_index(),
                     b.last().unwrap().witness_index(),
-                );
+                )
             }
         }
-        write!(f, "{}", result)
     }
 }
 
