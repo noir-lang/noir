@@ -1,6 +1,5 @@
 ---
 title: Supporting Aztec in your Ethereum Wallet
-sidebar_position: 2
 ---
 
 How to add support for Aztec.
