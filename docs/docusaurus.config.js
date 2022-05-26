@@ -10,6 +10,7 @@ const config = {
   tagline: 'Scalable privacy on Ethereum',
   url: 'https://unrivaled-valkyrie-76d819.netlify.app',
   baseUrl: '/',
+  trailingSlash: false,
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
   favicon: 'img/favicon-32x32.03b28206.png',
@@ -37,7 +38,9 @@ const config = {
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
           editUrl: 'https://github.com/critesjosh/fantastic-carnival',
+          routeBasePath: '/',
         },
+        blog: false,
         theme: {
           customCss: require.resolve('./src/css/custom.css'),
         },
@@ -66,16 +69,10 @@ const config = {
         items: [
           {
             type: 'doc',
-            docId: 'how-aztec-works/intro',
+            docId: 'intro',
             position: 'left',
-            label: 'How Aztec Works',
+            label: 'Docs',
           },
-          {
-            type: 'doc',
-            docId: 'guides/overview',
-            position: 'left',
-            label: 'Guides',
-          }
         ],
       },
       footer: {
