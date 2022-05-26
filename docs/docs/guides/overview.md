@@ -1,5 +1,4 @@
 ---
-id: overview
 title: Guides Overview
 sidebar_position: 1
 ---
