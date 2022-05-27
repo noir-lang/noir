@@ -190,7 +190,6 @@ impl Acir {
                 if let Some(index) = index.to_const() {
                     let address = mem::Memory::as_u32(index);
                     self.memory_map.insert(address, value);
-                    dbg!(&self.memory_map);
                     //we do not generate constraint, so no output.
                     InternalVar::default()
                 } else {

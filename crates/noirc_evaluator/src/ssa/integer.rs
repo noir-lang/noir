@@ -93,12 +93,7 @@ fn get_obj_max_value(
     let obj = &ctx[id];
 
     let result = match obj {
-        NodeObj::Obj(v) => {
-            if v.size_in_bits() > 100 {
-                dbg!(&v);
-            }
-            (BigUint::one() << v.size_in_bits()) - BigUint::one()
-        } //TODO check for signed type
+        NodeObj::Obj(v) => (BigUint::one() << v.size_in_bits()) - BigUint::one(), //TODO check for signed type
         NodeObj::Instr(i) => get_instruction_max(ctx, i, max_map, vmap),
         NodeObj::Const(c) => c.value.clone(), //TODO panic for string constants
     };
@@ -303,7 +298,10 @@ fn block_overflow(
                 if let Some(adr) = Memory::to_u32(ctx, index) {
                     //optimise static store
                     memory_map.insert(adr, value);
-                    delete_ins = true;
+
+                    // Optimizing out stores is temporarily disabled due to errors in the
+                    // pedersen example and '5' example
+                    delete_ins = false;
                 }
             }
             Operation::Cast(value_id) => {
