@@ -295,7 +295,10 @@ fn block_overflow(
                 if let Some(adr) = Memory::to_u32(ctx, index) {
                     //optimise static store
                     memory_map.insert(adr, value);
-                    delete_ins = true;
+
+                    // Optimizing out stores is temporarily disabled due to errors in the
+                    // pedersen example and '5' example
+                    delete_ins = false;
                 }
             }
             Operation::Cast(value_id) => {
