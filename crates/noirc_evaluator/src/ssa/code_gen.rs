@@ -12,7 +12,8 @@ use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use noirc_frontend::hir::Context;
 use noirc_frontend::hir_def::expr::{
-    HirCallExpression, HirConstructorExpression, HirIdent, HirMemberAccess, HirUnaryOp,
+    HirBlockExpression, HirCallExpression, HirConstructorExpression, HirIdent, HirMemberAccess,
+    HirUnaryOp,
 };
 use noirc_frontend::hir_def::function::HirFunction;
 use noirc_frontend::hir_def::stmt::{HirLValue, HirPattern};
@@ -48,6 +49,15 @@ impl Value {
             Value::Struct(_) => panic!("Tried to unwrap a struct into a single value"),
         }
     }
+
+    pub fn flatten(self) -> Vec<NodeId> {
+        match self {
+            Value::Single(id) => vec![id],
+            Value::Struct(fields) => {
+                fields.into_iter().flat_map(|(_, value)| value.flatten()).collect()
+            }
+        }
+    }
 }
 
 ////////////////PARSING THE AST////////////////////////////////////////////////
@@ -58,9 +68,7 @@ pub fn evaluate_main<'a>(
     main_func_body: HirFunction, //main function
 ) -> Result<(), RuntimeError> {
     let block = main_func_body.block(igen.def_interner());
-    for stmt_id in block.statements() {
-        igen.evaluate_statement(env, stmt_id)?;
-    }
+    igen.evaluate_block(block, env);
     Ok(())
 }
 
@@ -233,23 +241,35 @@ impl<'a> IRGenerator<'a> {
         self.context.new_instruction(opcode, optype)
     }
 
+    //Parse the AST function body into ssa form in cfg
+    pub fn evaluate_block(&mut self, block: HirBlockExpression, env: &mut Environment) -> Value {
+        let mut last = None;
+
+        for stmt in block.statements() {
+            last = self.evaluate_statement(env, stmt).unwrap();
+        }
+
+        last.unwrap_or(Value::Single(NodeId::dummy()))
+    }
+
     pub fn evaluate_statement(
         &mut self,
         env: &mut Environment,
         stmt_id: &StmtId,
-    ) -> Result<(), RuntimeError> {
+    ) -> Result<Option<Value>, RuntimeError> {
         let statement = self.def_interner().statement(stmt_id);
         match statement {
             HirStatement::Constrain(constrain_stmt) => {
-                self.handle_constrain_statement(env, constrain_stmt)
+                self.handle_constrain_statement(env, constrain_stmt)?;
+                Ok(None)
             }
             HirStatement::Expression(expr) | HirStatement::Semi(expr) => {
-                self.expression_to_object(env, &expr)?;
-                Ok(())
+                self.expression_to_object(env, &expr).map(Some)
             }
             HirStatement::Let(let_stmt) => {
                 // let statements are used to declare a higher level object
-                self.handle_let_statement(env, let_stmt)
+                self.handle_let_statement(env, let_stmt)?;
+                Ok(None)
             }
             HirStatement::Assign(assign_stmt) => {
                 //////////////TODO name is needed because we don't parse main arguments
@@ -270,7 +290,7 @@ impl<'a> IRGenerator<'a> {
                     self.bind_fresh_pattern(&ident_name, &typ, rhs);
                 }
 
-                Ok(())
+                Ok(None)
             }
             HirStatement::Error => unreachable!(
                 "ice: compiler did not exit before codegen when a statement failed to parse"
@@ -538,31 +558,34 @@ impl<'a> IRGenerator<'a> {
                 let int_type = self.def_interner().id_type(expr_id);
                 let element_type = int_type.into();
                 Ok(Value::Single(self.context.get_or_create_const(x, element_type)))
-            },
+            }
             HirExpression::Literal(HirLiteral::Array(arr_lit)) => {
                 //We create a MemArray
                 let arr_type = self.def_interner().id_type(expr_id);
-                let element_type = arr_type.into();    //WARNING array type!
+                let element_type = arr_type.into(); //WARNING array type!
 
-                let array_id = self.context.mem.create_new_array(arr_lit.length as u32, element_type, &String::new());
+                let array_id = self.context.mem.create_new_array(
+                    arr_lit.length as u32,
+                    element_type,
+                    &String::new(),
+                );
                 //We parse the array definition
                 let elements = self.expression_list_to_objects(env, &arr_lit.contents);
                 let array = &mut self.context.mem[array_id];
                 let array_adr = array.adr;
                 for (pos, object) in elements.into_iter().enumerate() {
                     //array.witness.push(node::get_witness_from_object(&object));
-                    let lhs_adr = self.context.get_or_create_const(FieldElement::from((array_adr + pos as u32) as u128), ObjectType::Unsigned(32));
-                    let store = Operation::Store {
-                        array_id,
-                        index: lhs_adr,
-                        value: object,
-                    };
+                    let lhs_adr = self.context.get_or_create_const(
+                        FieldElement::from((array_adr + pos as u32) as u128),
+                        ObjectType::Unsigned(32),
+                    );
+                    let store = Operation::Store { array_id, index: lhs_adr, value: object };
                     self.context.new_instruction(store, element_type);
                 }
                 //Finally, we create a variable pointing to this MemArray
                 let new_var = node::Variable {
                     id: NodeId::dummy(),
-                    obj_type : ObjectType::Pointer(array_id),
+                    obj_type: ObjectType::Pointer(array_id),
                     name: String::new(),
                     root: None,
                     def: None,
@@ -570,11 +593,11 @@ impl<'a> IRGenerator<'a> {
                     parent_block: self.context.current_block,
                 };
                 Ok(Value::Single(self.context.add_variable(new_var, None)))
-            },
-            HirExpression::Ident(x) =>  {
-               Ok(self.evaluate_identifier(env, x))
+            }
+            HirExpression::Ident(x) => {
+                Ok(self.evaluate_identifier(env, x))
                 //n.b this creates a new variable if it does not exist, may be we should delegate this to explicit statements (let) - TODO
-            },
+            }
             HirExpression::Infix(infx) => {
                 // Note: using .into_id() here disallows structs/tuples in infix expressions.
                 // The type checker currently disallows this as well but we may want to allow
@@ -582,7 +605,7 @@ impl<'a> IRGenerator<'a> {
                 let lhs = self.expression_to_object(env, &infx.lhs)?.unwrap_id();
                 let rhs = self.expression_to_object(env, &infx.rhs)?.unwrap_id();
                 Ok(Value::Single(self.evaluate_infix_expression(lhs, rhs, infx.operator)))
-            },
+            }
             HirExpression::Cast(cast_expr) => {
                 let lhs = self.expression_to_object(env, &cast_expr.lhs)?.unwrap_id();
                 let rtype = cast_expr.r#type.into();
@@ -599,7 +622,7 @@ impl<'a> IRGenerator<'a> {
                 // integer to other integer type: checks rust rules TODO
                 // else... Not supported (for now).
                 //binary_op::handle_cast_op(self,lhs, cast_expr.r#type).map_err(|kind|kind.add_span(span))
-            },
+            }
             HirExpression::Index(indexed_expr) => {
                 // Currently these only happen for arrays
                 let collection_name = match self.def_interner().expression(&indexed_expr.collection) {
@@ -622,7 +645,8 @@ impl<'a> IRGenerator<'a> {
                         _ => unreachable!(),
                     }
                 } else {
-                    let arr = env.get_array(&arr_name).map_err(|kind|kind.add_span(ident_span)).unwrap();
+                    let arr =
+                        env.get_array(&arr_name).map_err(|kind| kind.add_span(ident_span)).unwrap();
                     self.context.mem.create_array_from_object(&arr, arr_def, o_type, &arr_name)
                 };
 
@@ -633,39 +657,57 @@ impl<'a> IRGenerator<'a> {
                 let index_as_obj = self.expression_to_object(env, &indexed_expr.index)?.unwrap_id();
 
                 let index_type = self.context.get_object_type(index_as_obj);
-                let base_adr = self.context.get_or_create_const(FieldElement::from(address as i128), index_type);
-                let adr_id = self.context.new_instruction(Operation::binary(BinaryOp::Add, base_adr, index_as_obj), index_type);
+                let base_adr = self
+                    .context
+                    .get_or_create_const(FieldElement::from(address as i128), index_type);
+                let adr_id = self.context.new_instruction(
+                    Operation::binary(BinaryOp::Add, base_adr, index_as_obj),
+                    index_type,
+                );
 
                 let load = Operation::Load { array_id, index: adr_id };
                 Ok(Value::Single(self.context.new_instruction(load, o_type)))
-            },
+            }
             HirExpression::Call(call_expr) => {
                 let func_meta = self.def_interner().function_meta(&call_expr.func_id);
                 match func_meta.kind {
-                    FunctionKind::Normal =>  {
+                    FunctionKind::Normal => {
                         if self.context.get_ssafunc(call_expr.func_id).is_none() {
-                            let func = function::create_function(self, call_expr.func_id, self.context.context(), env, &func_meta.parameters);
+                            let func = function::create_function(
+                                self,
+                                call_expr.func_id,
+                                self.context.context(),
+                                env,
+                                &func_meta.parameters,
+                            );
                             self.context.functions.insert(call_expr.func_id, func);
                         }
 
                         //generate a call instruction to the function cfg
-                        Ok(function::SSAFunction::call(call_expr.func_id ,&call_expr.arguments, self, env))
-                    },
+                        Ok(function::SSAFunction::call(
+                            call_expr.func_id,
+                            &call_expr.arguments,
+                            self,
+                            env,
+                        ))
+                    }
                     FunctionKind::LowLevel => {
                         // We use it's func name to find out what intrinsic function to call
                         let attribute = func_meta.attributes.expect("all low level functions must contain an attribute which contains the opcode which it links to");
                         let opcode_name = attribute.foreign().expect("ice: function marked as foreign, but attribute kind does not match this");
                         Ok(Value::Single(self.handle_lowlevel(env, opcode_name, call_expr)))
-                    },
+                    }
                     FunctionKind::Builtin => {
                         todo!();
                         //     let attribute = func_meta.attributes.expect("all builtin functions must contain an attribute which contains the function name which it links to");
                         //     let builtin_name = attribute.builtin().expect("ice: function marked as a builtin, but attribute kind does not match this");
                         //     builtin::call_builtin(self, env, builtin_name, (call_expr,span))
-                    },
-                 }
-            },
-            HirExpression::For(for_expr) => self.handle_for_expr(env,for_expr).map_err(|kind|kind.add_span(span)),
+                    }
+                }
+            }
+            HirExpression::For(for_expr) => {
+                self.handle_for_expr(env, for_expr).map_err(|kind| kind.add_span(span))
+            }
             HirExpression::Constructor(constructor) => self.handle_constructor(env, constructor),
             HirExpression::MemberAccess(access) => self.handle_member_access(env, access),
             HirExpression::Tuple(fields) => self.handle_tuple(env, fields),
@@ -673,13 +715,13 @@ impl<'a> IRGenerator<'a> {
             HirExpression::Prefix(prefix) => {
                 let rhs = self.expression_to_object(env, &prefix.rhs)?.unwrap_id();
                 self.evaluate_prefix_expression(rhs, prefix.operator).map(Value::Single)
-            },
-            HirExpression::Literal(l) => {
-                Ok(Value::Single(self.handle_literal(&l)))
-            },
-            HirExpression::Block(_) => todo!("currently block expressions not in for/if branches are not being evaluated. In the future, we should be able to unify the eval_block and all places which require block_expr here"),
+            }
+            HirExpression::Literal(l) => Ok(Value::Single(self.handle_literal(&l))),
+            HirExpression::Block(block) => Ok(self.evaluate_block(block, env)),
             HirExpression::Error => todo!(),
-            HirExpression::MethodCall(_) => unreachable!("Method calls should be desugared before codegen"),
+            HirExpression::MethodCall(_) => {
+                unreachable!("Method calls should be desugared before codegen")
+            }
         }
     }
 

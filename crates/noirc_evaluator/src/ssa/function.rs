@@ -24,29 +24,18 @@ pub struct SSAFunction {
 }
 
 impl SSAFunction {
-    //Parse the AST function body into ssa form in cfg
-    pub fn parse_statements(
-        igen: &mut IRGenerator,
-        block: &[noirc_frontend::node_interner::StmtId],
-        env: &mut Environment,
-    ) {
-        for stmt in block {
-            igen.evaluate_statement(env, stmt).unwrap();
-        }
-    }
-
     pub fn new(func: FuncId, block_id: BlockId) -> SSAFunction {
         SSAFunction { entry_block: block_id, id: func, arguments: Vec::new() }
     }
 
-    pub fn compile(&self, igen: &mut IRGenerator) -> Option<NodeId> {
+    fn compile(&self, igen: &mut IRGenerator) {
         let function_cfg = super::block::bfs(self.entry_block, None, &igen.context);
         super::block::compute_sub_dom(&mut igen.context, &function_cfg);
         //Optimisation
         super::optim::cse(&mut igen.context, self.entry_block);
         //Unrolling
         super::flatten::unroll_tree(&mut igen.context, self.entry_block);
-        super::optim::cse(&mut igen.context, self.entry_block)
+        super::optim::cse(&mut igen.context, self.entry_block);
     }
 
     //generates an instruction for calling the function
@@ -188,18 +177,16 @@ pub fn create_function(
         let node_id = ssa_form::create_function_parameter(igen, &ident_id.unwrap().id);
         func.arguments.push(node_id);
     }
-    //dbg!(&func.arguments);
-    SSAFunction::parse_statements(igen, block.statements(), env);
-    let last = func.compile(igen); //unroll the function
-    add_return_instruction(&mut igen.context, last);
+
+    let ret = igen.evaluate_block(block, env);
+    add_return_instruction(&mut igen.context, ret);
+
+    func.compile(igen); //unroll the function
     igen.context.current_block = current_block;
     func
 }
 
-pub fn add_return_instruction(cfg: &mut SsaContext, last: Option<NodeId>) {
-    let last_id = last.unwrap_or_else(NodeId::dummy);
-    let result = if last_id == NodeId::dummy() { vec![] } else { vec![last_id] };
-    //Create return instruction based on the last statement of the function body
-    cfg.new_instruction(node::Operation::Return(result), node::ObjectType::NotAnObject);
-    //n.b. should we keep the object type in the vector?
+fn add_return_instruction(cfg: &mut SsaContext, last: Value) {
+    let ret = node::Operation::Return(last.flatten());
+    cfg.new_instruction(ret, node::ObjectType::NotAnObject);
 }
