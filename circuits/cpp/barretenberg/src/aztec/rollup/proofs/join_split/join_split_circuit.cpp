@@ -111,7 +111,7 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
     // defi-deposit checks
     {
         // Prevent deposits of 0 into the defi bridge (simply because it's illogical).
-        // @dev This check is mirrored in the claim_circuit, so if you ever remove this check, you _must_ remove it
+        // This check is mirrored in the claim_circuit, so if you ever remove this check, you _must_ remove it
         // from there as well, to prevent user funds from becoming 'unclaimable'.
         is_defi_deposit.must_imply(defi_deposit_value != 0, "Expected a nonzero defi_deposit_value for a defi-deposit");
 
@@ -251,11 +251,11 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
     partial_claim_note.input_nullifier.assert_equal(nullifier1 * is_defi_deposit,
                                                     "partial claim note has incorrect input nullifier");
 
-    /// Q: Why do we need to verify a signature in the circuit? Why doesn't it suffice to simply compute the public key
-    /// from its secret key, as a way of showing willingness to spend the notes?
-    /// A: By passing a signature to the circuit, the 'signing private key' doesn't need to be passed to the proof
-    /// construction software. This is useful for multisigs, offline signing, etc., so that the proof construction
-    /// software (or machine) doesn't have access to the signing private key.
+    // Q: Why do we need to verify a signature in the circuit? Why doesn't it suffice to simply compute the public key
+    // from its secret key, as a way of showing willingness to spend the notes?
+    // A: By passing a signature to the circuit, the 'signing private key' doesn't need to be passed to the proof
+    // construction software. This is useful for multisigs, offline signing, etc., so that the proof construction
+    // software (or machine) doesn't have access to the signing private key.
     verify_signature(inputs.public_value.value,
                      inputs.public_owner,
                      public_asset_id.value,
