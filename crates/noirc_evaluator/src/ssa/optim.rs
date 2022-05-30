@@ -96,22 +96,6 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut node::Instruction) {
     //3. left-overs (it requires &mut ctx)
     if let NodeEval::Const(r_const, r_type) = r_eval {
         match ins.operator {
-            node::Operation::Udiv => {
-                //TODO handle other bitsize, not only u32!!
-                ins.rhs = ctx.get_or_create_const(
-                    FieldElement::from((1_u32 / (r_const.to_u128() as u32)) as i128),
-                    r_type,
-                );
-                ins.operator = node::Operation::Mul
-            }
-            node::Operation::Sdiv => {
-                //TODO handle other bitsize, not only i32!!
-                ins.rhs = ctx.get_or_create_const(
-                    FieldElement::from((1_i32 / (r_const.to_u128() as i32)) as i128),
-                    r_type,
-                );
-                ins.operator = node::Operation::Mul
-            }
             node::Operation::Div => {
                 ins.rhs = ctx.get_or_create_const(r_const.inverse(), r_type);
                 ins.operator = node::Operation::Mul
@@ -377,7 +361,7 @@ pub fn block_cse(
 ) -> Option<NodeId> {
     let mut new_list = Vec::new();
     let bb = &ctx[block_id];
-
+    let is_join = bb.predecessor.len() > 1;
     if instructions.is_empty() {
         instructions.append(&mut bb.instructions.clone());
     }
@@ -413,6 +397,9 @@ pub fn block_cse(
             } else {
                 match ins.operator {
                     node::Operation::Load(x) | node::Operation::Store(x) => {
+                        if !is_join && ins.is_dummy() && ins.operator == node::Operation::Store(x) {
+                            continue;
+                        }
                         i_lhs = propagate(ctx, ins.lhs, modified);
                         i_rhs = propagate(ctx, ins.rhs, modified);
 

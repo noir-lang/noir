@@ -851,6 +851,10 @@ impl Instruction {
             std::mem::swap(&mut self.rhs, &mut self.lhs);
         }
     }
+
+    pub fn is_dummy(&self) -> bool {
+        self.lhs == NodeId::dummy() && self.rhs == NodeId::dummy()
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
