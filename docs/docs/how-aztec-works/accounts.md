@@ -6,7 +6,11 @@ Accounts in Aztec.
 
 ## A Technical Primer on Accounts
 
-Accounts in Aztec work differently than accounts in Ethereum. There are two main parts to each Aztec account, the privacy account associated with nonce 0 and the spending account associated with nonce 1. Both of these accounts have the same public key and are differentiated by the nonce.
+Accounts in Aztec work differently than accounts in Ethereum.
+
+There are two main parts to each Aztec account, the privacy account associated with nonce 0 and the spending account associated with nonce 1. Both of these accounts have the same public key and are differentiated by the nonce.
+
+Additionally, Aztec uses a different curve than Ethereum for SNARK efficient operations. This means that you cannot use an Ethereum private key directly for signing Aztec transactions or a public key for deriving an account address. Specifically, Aztec uses the Grumpkin curve, see [the yellow paper](https://hackmd.io/@aztec-network/ByzgNxBfd#2-Grumpkin---A-curve-on-top-of-BN-254-for-SNARK-efficient-group-operations) for more information.
 
 In [zk.money](https://zk.money), Aztec accounts are generated using Ethereum accounts by having a user sign a message and deriving the Aztec keys from the signed message. Different messages are used to generate different keys.
 
