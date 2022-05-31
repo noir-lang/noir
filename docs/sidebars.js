@@ -36,21 +36,21 @@ const sidebars = {
         'how-aztec-works/faq'
       ],
     },
-    {
-      type: 'category',
-      label: 'Guides',
-      link:{
-        type: 'generated-index',
-      },
-      items: [
-        'guides/overview',
-        'guides/wallet-support',
-        'guides/create-bridge',
-        'guides/element-review',
-        'guides/lido-review',
-        'guides/goerli-testing',
-      ],
-    },
+    // {
+    //   type: 'category',
+    //   label: 'Guides',
+    //   link:{
+    //     type: 'generated-index',
+    //   },
+    //   items: [
+    //     'guides/overview',
+    //     'guides/wallet-support',
+    //     'guides/create-bridge',
+    //     'guides/element-review',
+    //     'guides/lido-review',
+    //     'guides/goerli-testing',
+    //   ],
+    // },
     {
       type: 'category',
       label: 'SDK',
@@ -58,26 +58,13 @@ const sidebars = {
         type: 'generated-index',
       },
       items: [
-        'guides/overview',
-        'guides/wallet-support',
-        'guides/create-bridge',
-        'guides/element-review',
-        'guides/lido-review',
-        'guides/goerli-testing',
+        'sdk/overview',
+        'sdk/how-to-use',
+        'sdk/defi',
+
       ],
     },
   ],
-
-  // But you can create a sidebar manually
-  /*
-  tutorialSidebar: [
-    {
-      type: 'category',
-      label: 'Tutorial',
-      items: ['hello'],
-    },
-  ],
-   */
 };
 
 module.exports = sidebars;
