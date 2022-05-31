@@ -61,7 +61,8 @@ impl std::fmt::Debug for Gate {
                 write!(f, "x{}=1/x{}, or 0", r.witness_index(), x.witness_index())
             }
             Gate::Directive(Directive::Truncate { a, b, c: _c, bit_size }) => {
-                write!(f, 
+                write!(
+                    f,
                     "Truncate: x{} is x{} truncated to {} bits",
                     b.witness_index(),
                     a.witness_index(),
@@ -69,7 +70,8 @@ impl std::fmt::Debug for Gate {
                 )
             }
             Gate::Directive(Directive::Quotient { a, b, q, r }) => {
-                write!(f, 
+                write!(
+                    f,
                     "Euclidian division: x{} = x{}*x{} + x{}",
                     a.witness_index(),
                     q.witness_index(),
@@ -78,7 +80,8 @@ impl std::fmt::Debug for Gate {
                 )
             }
             Gate::Directive(Directive::Oddrange { a, b, r, bit_size }) => {
-                write!(f, 
+                write!(
+                    f,
                     "Oddrange: x{} = x{}*2^{} + x{}",
                     a.witness_index(),
                     b.witness_index(),
@@ -90,7 +93,8 @@ impl std::fmt::Debug for Gate {
             Gate::Xor(g) => write!(f, "{:?}", g),
             Gate::GadgetCall(g) => write!(f, "{:?}", g),
             Gate::Directive(Directive::Split { a, b, bit_size: _ }) => {
-                write!(f, 
+                write!(
+                    f,
                     "Split: x{} into x{}...x{}",
                     a.witness_index(),
                     b.first().unwrap().witness_index(),
