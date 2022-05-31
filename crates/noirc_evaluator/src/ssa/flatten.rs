@@ -38,7 +38,7 @@ pub fn unroll_tree(ctx: &mut SsaContext, mut block_id: BlockId) {
 fn eval_block(block_id: BlockId, eval_map: &HashMap<NodeId, NodeEval>, ctx: &mut SsaContext) {
     for i in &ctx[block_id].instructions.clone() {
         if let Some(ins) = ctx.try_get_mut_instruction(*i) {
-            ins.operator = update_operator(&ins.operator, eval_map);
+            ins.operation = update_operator(&ins.operation, eval_map);
             // TODO: simplify(ctx, ins);
         }
     }
@@ -76,12 +76,13 @@ pub fn unroll_std_block(
     for i_id in &b_instructions {
         match &ctx[*i_id] {
             node::NodeObj::Instr(i) => {
-                let new_op =
-                    i.operator.map_id(|id| get_current_value(id, eval_map).into_node_id().unwrap());
+                let new_op = i
+                    .operation
+                    .map_id(|id| get_current_value(id, eval_map).into_node_id().unwrap());
                 let mut new_ins = node::Instruction::new(
                     new_op, i.res_type, None, //TODO to fix later
                 );
-                match i.operator {
+                match i.operation {
                     Operation::Binary(node::Binary { operator: BinaryOp::Assign, .. }) => {
                         unreachable!("unsupported instruction type when unrolling: assign");
                         //To support assignments, we should create a new variable and updates the eval_map with it
@@ -173,13 +174,13 @@ pub fn outer_unroll(
         //2. map the Phis variables to their unrolled values:
         for ins in &block_instructions {
             if let Some(ins_obj) = ctx.try_get_instruction(*ins) {
-                if let Operation::Phi { root, .. } = &ins_obj.operator {
+                if let Operation::Phi { root, .. } = &ins_obj.operation {
                     if let Some(node_eval) = eval_map.get(&ins_obj.id) {
                         let node_eval = *node_eval;
                         eval_map.entry(*root).or_insert(node_eval);
                         //todo test with constants
                     }
-                } else if ins_obj.operator != node::Operation::Nop {
+                } else if ins_obj.operation != node::Operation::Nop {
                     break; //no more phis
                 }
             }
@@ -227,7 +228,7 @@ fn evaluate_phi(
     for i in instructions {
         let mut to_process = Vec::new();
         if let Some(ins) = ctx.try_get_instruction(*i) {
-            if let Operation::Phi { block_args, .. } = &ins.operator {
+            if let Operation::Phi { block_args, .. } = &ins.operation {
                 for (arg, block) in block_args {
                     if *block == from {
                         //we evaluate the phi instruction value
@@ -237,7 +238,7 @@ fn evaluate_phi(
                             .push((id, evaluate_one(NodeEval::VarOrInstruction(arg), to, ctx)));
                     }
                 }
-            } else if ins.operator != node::Operation::Nop {
+            } else if ins.operation != node::Operation::Nop {
                 break; //phi instructions are placed at the beginning (and after the first dummy instruction)
             }
         }
@@ -256,21 +257,16 @@ fn evaluate_conditional_jump(
 ) -> bool {
     let jump_ins = ctx.try_get_instruction(jump).unwrap();
 
-    let cond_id = match jump_ins.operator {
-        Operation::Jeq(cond_id, _) => cond_id,
-        Operation::Jne(cond_id, _) => cond_id,
+    let (cond_id, should_jump): (_, fn(FieldElement) -> bool) = match jump_ins.operation {
+        Operation::Jeq(cond_id, _) => (cond_id, |field| field.is_zero()),
+        Operation::Jne(cond_id, _) => (cond_id, |field| !field.is_zero()),
         Operation::Jmp(_) => return true,
         _ => panic!("loop without conditional statement!"), //TODO shouldn't we return false instead?
     };
 
     let cond = get_current_value(cond_id, value_array);
     let cond = evaluate_object(cond, value_array, ctx).into_const_value().unwrap();
-
-    match jump_ins.operator {
-        node::Operation::Jeq { .. } => cond.is_zero(),
-        node::Operation::Jne { .. } => !cond.is_zero(),
-        _ => unreachable!(),
-    }
+    should_jump(cond)
 }
 
 //Retrieve the NodeEval value of the index in the evaluation map
@@ -304,7 +300,7 @@ fn evaluate_one(
 
             match &ctx[obj_id] {
                 NodeObj::Instr(i) => {
-                    if let Operation::Phi { .. } = i.operator {
+                    if let Operation::Phi { .. } = i.operation {
                         //n.b phi are handled before, else we should know which block we come from
                         dbg!(i.id);
                         return NodeEval::VarOrInstruction(i.id);
@@ -344,7 +340,7 @@ fn evaluate_object(
 
             match &ctx[obj_id] {
                 NodeObj::Instr(i) => {
-                    if let Operation::Phi { .. } = i.operator {
+                    if let Operation::Phi { .. } = i.operation {
                         dbg!(i.id);
                         return NodeEval::VarOrInstruction(i.id);
                     }
@@ -419,7 +415,7 @@ fn inline_block(ctx: &mut SsaContext, block_id: BlockId) -> bool {
     for i in &ctx[block_id].instructions {
         if let Some(ins) = ctx.try_get_instruction(*i) {
             if !ins.is_deleted() {
-                if let Operation::Call(f, args) = &ins.operator {
+                if let Operation::Call(f, args) = &ins.operation {
                     call_ins.push((ins.id, *f, args.clone(), ins.parent_block));
                 }
             }
@@ -502,15 +498,15 @@ pub fn inline_in_block(
                 //We need to map arrays to arrays via the array_map, we collect the data here to be mapped below.
                 array = Some(ctx.mem[id].clone());
                 array_id = Some(id);
-            } else if let Operation::Load { array_id: id, .. } = ins.operator {
+            } else if let Operation::Load { array_id: id, .. } = ins.operation {
                 array = Some(ctx.mem[id].clone());
                 array_id = Some(id);
-            } else if let Operation::Store { array_id: id, .. } = ins.operator {
+            } else if let Operation::Store { array_id: id, .. } = ins.operation {
                 array = Some(ctx.mem[id].clone());
                 array_id = Some(id);
             }
 
-            clone.operator.map_id_mut(|id| {
+            clone.operation.map_id_mut(|id| {
                 function::SSAFunction::get_mapped_value(Some(&id), ctx, inline_map)
             });
 
@@ -530,14 +526,14 @@ pub fn inline_in_block(
                 };
             }
 
-            match &clone.operator {
+            match &clone.operation {
                 Operation::Nop => (),
                 //Return instruction:
                 Operation::Return(values) => {
                     //we need to find the corresponding result instruction in the target block (using ins.rhs) and replace it by ins.lhs
                     let ret_id = ctx[target_block_id].get_result_instruction(call_id, ctx).unwrap();
                     let i = ctx.get_mut_instruction(ret_id);
-                    if let Operation::Results { results, .. } = &mut i.operator {
+                    if let Operation::Results { results, .. } = &mut i.operation {
                         *results = values.clone();
                     } else {
                         unreachable!()
@@ -630,7 +626,7 @@ pub fn inline_in_block(
 }
 
 fn new_cloned_instruction(original: Instruction, block: BlockId) -> Instruction {
-    Instruction::new(original.operator, original.res_type, Some(block))
+    Instruction::new(original.operation, original.res_type, Some(block))
 }
 
 fn push_instruction(

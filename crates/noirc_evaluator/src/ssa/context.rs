@@ -166,7 +166,7 @@ impl<'a> SsaContext<'a> {
                 str_res = format!("{} -REPLACED with id {:?}", str_res, replacement.0);
             }
 
-            let ins_str = self.operation_to_string(&ins.operator);
+            let ins_str = self.operation_to_string(&ins.operation);
             println!("{}: {}", str_res, ins_str);
         }
     }
@@ -468,7 +468,7 @@ impl<'a> SsaContext<'a> {
         //Ensure there is not already a phi for the variable (n.b. probably not usefull)
         for i in &self[target_block].instructions {
             match self.try_get_instruction(*i) {
-                Some(Instruction { operator: Operation::Phi { root, .. }, .. })
+                Some(Instruction { operation: Operation::Phi { root, .. }, .. })
                     if *root == phi_root =>
                 {
                     return *i;

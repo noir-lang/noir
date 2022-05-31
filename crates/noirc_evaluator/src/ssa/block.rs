@@ -68,7 +68,7 @@ impl BasicBlock {
     pub fn get_result_instruction(&self, call_id: NodeId, ctx: &SsaContext) -> Option<NodeId> {
         self.instructions.iter().copied().find(|i| match ctx[*i] {
             NodeObj::Instr(Instruction {
-                operator: Operation::Results { call_instruction, .. },
+                operation: Operation::Results { call_instruction, .. },
                 ..
             }) => call_instruction == call_id,
             _ => false,

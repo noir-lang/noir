@@ -34,12 +34,12 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut node::Instruction) -> Option<Nod
 
     //2. standard form
     ins.standard_form();
-    match ins.operator {
+    match ins.operation {
         Operation::Cast(value_id) => {
             if let Some(value) = ctx.try_get_node(value_id) {
                 if value.get_type() == ins.res_type {
-                    ins.delete();
-                    return Some(NodeId::dummy());
+                    ins.replacement = Some(value_id);
+                    return Some(value_id);
                 }
             }
         }
@@ -55,21 +55,9 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut node::Instruction) -> Option<Nod
     }
 
     //3. left-overs (it requires &mut ctx)
-    if let Operation::Binary(binary) = &mut ins.operator {
+    if let Operation::Binary(binary) = &mut ins.operation {
         if let NodeEval::Const(r_const, r_type) = NodeEval::from_id(ctx, binary.rhs) {
             match &binary.operator {
-                BinaryOp::Udiv => {
-                    //TODO handle other bitsize, not only u128!!
-                    let inverse = FieldElement::from(1 / r_const.to_u128());
-                    binary.rhs = ctx.get_or_create_const(inverse, r_type);
-                    binary.operator = BinaryOp::Mul;
-                }
-                BinaryOp::Sdiv => {
-                    //TODO handle other bitsize, not only u128!!
-                    let inverse = FieldElement::from(1 / r_const.to_u128());
-                    binary.rhs = ctx.get_or_create_const(inverse, r_type);
-                    binary.operator = BinaryOp::Mul;
-                }
                 BinaryOp::Div => {
                     binary.rhs = ctx.get_or_create_const(r_const.inverse(), r_type);
                     binary.operator = BinaryOp::Mul;
@@ -94,7 +82,7 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut node::Instruction) -> Option<Nod
         }
     }
 
-    if let Operation::Intrinsic(opcode, args) = &ins.operator {
+    if let Operation::Intrinsic(opcode, args) = &ins.operation {
         let args = args
             .iter()
             .map(|arg| NodeEval::from_id(ctx, *arg).into_const_value().map(|f| f.to_u128()));
@@ -145,7 +133,7 @@ pub fn find_similar_instruction(
 ) -> Option<NodeId> {
     for iter in prev_ins {
         if let Some(ins) = igen.try_get_instruction(*iter) {
-            if &ins.operator == operation {
+            if &ins.operation == operation {
                 return Some(*iter);
             }
         }
@@ -161,7 +149,7 @@ pub fn find_similar_cast(
 ) -> Option<NodeId> {
     for iter in prev_ins {
         if let Some(ins) = igen.try_get_instruction(*iter) {
-            if &ins.operator == operator && ins.res_type == res_type {
+            if &ins.operation == operator && ins.res_type == res_type {
                 return Some(*iter);
             }
         }
@@ -185,7 +173,7 @@ fn find_similar_mem_instruction(
         Operation::Load { array_id, index } => {
             for iter in anchor.get_all(op.opcode()).iter().rev() {
                 if let Some(ins_iter) = ctx.try_get_instruction(*iter) {
-                    match &ins_iter.operator {
+                    match &ins_iter.operation {
                         Operation::Load { array_id: array_id2, index: _ } => {
                             if array_id != array_id2 {
                                 continue;
@@ -215,7 +203,7 @@ fn find_similar_mem_instruction(
             let opcode = Opcode::Load(*array_id);
             for node_id in anchor.get_all(opcode).iter().rev() {
                 if let Some(ins_iter) = ctx.try_get_instruction(*node_id) {
-                    match ins_iter.operator {
+                    match ins_iter.operation {
                         Operation::Load { array_id: array_id2, .. } => {
                             if array_id != &array_id2 {
                                 continue;
@@ -248,7 +236,7 @@ pub fn propagate(ctx: &SsaContext, id: NodeId) -> NodeId {
     let mut result = id;
     if let Some(obj) = ctx.try_get_instruction(id) {
         if let Operation::Binary(node::Binary { operator: BinaryOp::Assign, rhs, .. }) =
-            &obj.operator
+            &obj.operation
         {
             result = *rhs;
         }
@@ -331,14 +319,14 @@ fn cse_block_with_anchor(
                 continue;
             }
 
-            let operator = ins.operator.map_id(|id| propagate(ctx, id));
+            let operator = ins.operation.map_id(|id| propagate(ctx, id));
 
             let mut to_delete = false;
             let mut replacement = None;
 
             if operator.is_binary() {
-                let variants = anchor.get_all(ins.operator.opcode());
-                if let Some(similar) = find_similar_instruction(ctx, &ins.operator, &variants) {
+                let variants = anchor.get_all(ins.operation.opcode());
+                if let Some(similar) = find_similar_instruction(ctx, &ins.operation, &variants) {
                     replacement = Some(similar);
                 } else if let Operation::Binary(node::Binary {
                     operator: BinaryOp::Assign,
@@ -349,7 +337,7 @@ fn cse_block_with_anchor(
                     replacement = Some(propagate(ctx, rhs));
                 } else {
                     new_list.push(*ins_id);
-                    anchor.push_front(&ins.operator, *ins_id);
+                    anchor.push_front(&ins.operation, *ins_id);
                 }
             } else {
                 match &operator {
@@ -421,7 +409,7 @@ fn cse_block_with_anchor(
             }
 
             let update = ctx.get_mut_instruction(*ins_id);
-            update.operator = operator;
+            update.operation = operator;
             update.replacement = replacement;
             if to_delete {
                 update.delete();
@@ -439,7 +427,7 @@ pub fn is_some(ctx: &SsaContext, id: NodeId) -> bool {
         return false;
     }
     if let Some(ins) = ctx.try_get_instruction(id) {
-        if ins.operator != Operation::Nop {
+        if ins.operation != Operation::Nop {
             return true;
         }
     } else if ctx.try_get_node(id).is_some() {

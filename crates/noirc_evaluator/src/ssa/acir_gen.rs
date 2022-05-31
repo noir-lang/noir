@@ -53,7 +53,7 @@ impl InternalVar {
         None
     }
 
-    pub fn get_or_generate_witness(&mut self, evaluator: &mut Evaluator) -> Witness {
+    pub fn get_or_generate_witness(&self, evaluator: &mut Evaluator) -> Witness {
         self.witness.unwrap_or_else(|| generate_witness(self, evaluator))
     }
 }
@@ -133,11 +133,11 @@ impl Acir {
         evaluator: &mut Evaluator,
         ctx: &SsaContext,
     ) {
-        if ins.operator == Operation::Nop {
+        if ins.operation == Operation::Nop {
             return;
         }
 
-        let mut output = match &ins.operator {
+        let mut output = match &ins.operation {
             Operation::Binary(binary) => self.evaluate_binary(binary, ins.res_type, evaluator, ctx),
             Operation::Not(_) => todo!(),
             Operation::Cast(value) => self.substitute(*value, evaluator, ctx),
@@ -982,7 +982,7 @@ pub fn evaluate_zero_equality(x: &InternalVar, evaluator: &mut Evaluator) -> Wit
 }
 
 /// Creates a new witness and constrains it to be the inverse of x
-fn evaluate_inverse(mut x: InternalVar, evaluator: &mut Evaluator) -> Witness {
+fn evaluate_inverse(x: InternalVar, evaluator: &mut Evaluator) -> Witness {
     // Create a fresh witness - n.b we could check if x is constant or not
     let inverse_witness = evaluator.add_witness_to_cs();
     let inverse_expr = from_witness(inverse_witness);

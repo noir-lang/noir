@@ -218,9 +218,9 @@ impl<'a> IRGenerator<'a> {
         if let (HirBinaryOpKind::Assign, Some(lhs_ins)) =
             (op.kind, self.context.try_get_mut_instruction(lhs))
         {
-            if let Operation::Load { array_id, index } = lhs_ins.operator {
+            if let Operation::Load { array_id, index } = lhs_ins.operation {
                 //make it a store rhs
-                lhs_ins.operator = Operation::Store { array_id, index, value: rhs };
+                lhs_ins.operation = Operation::Store { array_id, index, value: rhs };
                 return lhs;
             }
         }
@@ -846,7 +846,7 @@ impl<'a> IRGenerator<'a> {
 
         //Body
         let body_id = block::new_sealed_block(&mut self.context, block::BlockType::Normal);
-        self.context.try_get_mut_instruction(to_fix).unwrap().operator =
+        self.context.try_get_mut_instruction(to_fix).unwrap().operation =
             Operation::Jeq(cond, body_id);
 
         let block = match self.def_interner().expression(&for_expr.block) {

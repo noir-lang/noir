@@ -27,7 +27,7 @@ fn get_instruction_max(
     max_map: &mut HashMap<NodeId, BigUint>,
     vmap: &HashMap<NodeId, NodeId>,
 ) -> BigUint {
-    ins.operator.for_each_id(|id| {
+    ins.operation.for_each_id(|id| {
         get_obj_max_value(ctx, id, max_map, vmap);
     });
     get_instruction_max_operand(ctx, ins, max_map, vmap)
@@ -40,7 +40,7 @@ fn get_instruction_max_operand(
     max_map: &mut HashMap<NodeId, BigUint>,
     vmap: &HashMap<NodeId, NodeId>,
 ) -> BigUint {
-    match &ins.operator {
+    match &ins.operation {
         Operation::Load { array_id, index } => get_load_max(ctx, *index, max_map, vmap, *array_id),
         Operation::Binary(node::Binary { operator, lhs, rhs }) => {
             match operator {
@@ -121,9 +121,9 @@ fn truncate(
         //set current value of obj to idx
         let max_bit_size = v_max.bits() as u32;
         assert!(
-            (v_max.bits() as u32) <= max_bit_size,
+            bit_size <= max_bit_size,
             "truncate: bitsize = {} must be less than max_bit_size {}",
-            v_max.bits(),
+            bit_size,
             max_bit_size
         );
 
@@ -168,7 +168,7 @@ fn add_to_truncate(
     obj_id: NodeId,
     bit_size: u32,
     to_truncate: &mut HashMap<NodeId, u32>,
-    max_map: &mut HashMap<NodeId, BigUint>,
+    max_map: &HashMap<NodeId, BigUint>,
 ) {
     let v_max = &max_map[&obj_id];
     if *v_max >= BigUint::one() << bit_size {
@@ -180,9 +180,6 @@ fn add_to_truncate(
             None => bit_size,
         };
         to_truncate.insert(obj_id, truncate_bits);
-
-        // let new_max = (BigUint::one() << truncate_bits) - BigUint::one();
-        // max_map.insert(obj_id, new_max);
     }
 }
 
@@ -247,7 +244,7 @@ fn block_overflow(
     let mut value_map = HashMap::new();
     for mut ins in instructions {
         if matches!(
-            ins.operator,
+            ins.operation,
             Operation::Nop | Operation::Call(..) | Operation::Results { .. } | Operation::Return(_)
         ) {
             //For now we skip completely functions from overflow; that means arguments are NOT truncated.
@@ -264,7 +261,7 @@ fn block_overflow(
         let too_many_bits = ins_max_bits >= FieldElement::max_num_bits() as u64
             && res_type != ObjectType::NativeField;
 
-        ins.operator.map_id_mut(|id| {
+        ins.operation.map_id_mut(|id| {
             let id = optim::propagate(ctx, id);
             let id = get_value_from_map(id, &value_map);
 
@@ -283,7 +280,7 @@ fn block_overflow(
         let mut replacement = None;
         let mut delete_ins = false;
 
-        match ins.operator {
+        match ins.operation {
             Operation::Load { index, .. } => {
                 //TODO we use a local memory map for now but it should be used in arguments
                 //for instance, the join block of a IF should merge the two memorymaps using the condition value
@@ -328,7 +325,7 @@ fn block_overflow(
                     if ins.res_type.bits() < get_size_in_bits(obj) && maxbits > ins.res_type.bits()
                     {
                         //we need to truncate
-                        ins.operator = Operation::Truncate {
+                        ins.operation = Operation::Truncate {
                             value: value_id,
                             bit_size: ins.res_type.bits(),
                             max_bit_size: maxbits,
@@ -350,13 +347,13 @@ fn block_overflow(
 
         if !delete_ins {
             new_list.push(ins.id);
-            ins.operator.map_id_mut(|id| get_value_from_map(id, &value_map));
+            ins.operation.map_id_mut(|id| get_value_from_map(id, &value_map));
 
             if let Operation::Binary(node::Binary {
                 rhs,
                 operator: BinaryOp::Sub { max_rhs_value } | BinaryOp::SafeSub { max_rhs_value },
                 ..
-            }) = &mut ins.operator
+            }) = &mut ins.operation
             {
                 //for now we pass the max value to the instruction, we could also keep the max_map e.g in the block (or max in each nodeobj)
                 //sub operations require the max value to ensure it does not underflow
@@ -425,7 +422,7 @@ fn get_load_max(
 //Returns the max value of an operation from an upper bound of left and right hand sides
 //Function is used to check for overflows over the field size, this is why we use BigUint.
 fn get_max_value(ins: &Instruction, max_map: &mut HashMap<NodeId, BigUint>) -> BigUint {
-    let max_value = match &ins.operator {
+    let max_value = match &ins.operation {
         Operation::Binary(binary) => get_binary_max_value(binary, ins.res_type, max_map),
         Operation::Not(_) => ins.res_type.max_size(),
         //'a cast a' means we cast a into res_type of the instruction
