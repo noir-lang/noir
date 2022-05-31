@@ -1,0 +1,135 @@
+---
+title: Scalability
+---
+import Image from '@theme/IdealImage';
+
+Our goal at Aztec is to make privacy a no-brainer. That's why our rollup is designed to give you fully private Ethereum transactions at dramatically lower cost than mainnet.
+
+We consider privacy a critical missing component of Ethereum's scalability roadmap, given that its user functionality is non-economic in nature.
+
+But privacy must also be affordable, and in order to understand how we'll get to privacy for cheap, we need to do a deeper study of rollup economics.
+
+## 📖 Background on Ethereum scaling
+
+You might already be familiar with the difference between the two consensus Ethereum scaling solutions: Optimistic Rollups (ORUs) and zkRollups (ZKRs). I'll let Vitalik explain [here](https://vitalik.ca/general/2021/01/05/rollup.html).
+
+But in case you want my take, here's the basic trade-off between Optimistic Rollups and zkRollups:
+
+## 😅 Optimistic
+
+Optimistic rollup block producers post an Ethereum transaction containing a state root. The ecosystem “optimistically” takes the state of the system to be valid.
+
+During a 7 day challenge period, anyone can prove the invalidity of the state transition by downloading the block of transactions and comparing the previous Merkle root state to the new Merkle root state.
+
+If there is an invalid state transition, they can submit a fraud proof, causing the block producer to be slashed and the blockchain state to be rolled back to its original state.
+
+Note that the cost of executing transactions with an optimistic rollup is very close to free, since it's essentially the cost of computation as done by a single sequencer (just like, a computer somewhere). However, there is still a variable cost of posting data to Ethereum.
+
+## ⚫ Zero-knowledge
+
+In a zero-knowledge rollup, the rollup incurs a significant fixed cost. Rather than passively awaiting fraud proofs, ZKRs proactively post a succinct zero knowledge proof to Ethereum Layer 1 validating a set of off-chain computations (a “validity proof”).
+
+While the security of off-chain transactions in a zkRollup is unimpeachable due to the deterministic nature of zero knowledge proofs, there must be sufficiently high transaction throughput to amortize the cost of posting the proof to Ethereum.
+
+Tl;dr:
+
+- **Optimistic:** no fixed costs, finality delayed by 7 day challenge & withdrawal period; in case of fraud, blockchain state gets rolled back
+- **zk:** high fixed costs, finality limited by speed of rollup, no challenge or withdrawal period, no possible fraud (caveat: as long as the cryptography works as intended)
+
+## 🧮 Simple rollup math
+
+Aztec, of course is a zero-knowledge rollup. (In fact, it's a recursive zk-rollup–a zk-zk-rollup, but we'll get to that).
+
+That means it does incur the fixed cost of posting a SNARK-based proof to Ethereum. But it also means it's highly scalable.
+
+## 📈 Scalability
+
+What do we mean by scalability? In a blockchain context, **scalability means the marginal cost of transactions goes down with each incremental transaction.** The faster the marginal cost falls, the more scalable something is.
+
+In terms of cost, optimistic rollups have no fixed expense, but over a large enough number of transactions, zkRollups quickly overcome their fixed cost disadvantage and win over optimistic roll-ups with superior data compression.
+
+So: zkRollups are more scalable.
+
+Now, if you think about most Layer 1's, including Ethereum, they're anti-scalable. The more transactions go through Ethereum, the higher the cost of each marginal transaction.
+
+## ➗ zkRollups for kids
+Here's a school child's diagram of the scalability equation for Aztec and other zkRollups:
+
+<Image img={require('/img/rollup-tx-cost.png')} />
+
+Hopefully this gives you a picture of how Aztec's path to scaling our own rollup:
+
+- Reduce the cost of posting a rollup (we control this)
+- Increase the number of transactions per rollup (we mostly control this)
+- Lower the per-transaction cost of posting call data (we don't control this for Ethereum, but we can select a lower-cost data availability solution)
+
+Let's tackle these one by one, compare the current system relative to performance a year ago, and discuss what they mean for future network performance.
+
+## 💸 Cost of posting rollups
+In Aztec's current technological paradigm, an improvement of our proving system called UltraPlonk, the cost of posting a proof to Ethereum is approximately 550,000 gas, ~30% cheaper than it was when [zk.money](https://zk.money) was first launched.
+
+We anticipate this coming down to ~180,000 gas with the advent of our next-generation proving system, [super secret code name redacted].
+
+## 🚌 Transactions per rollup
+Our current system was recently upgraded from 112 transactions per rollup at zk.money's launch to 896 transactions per rollup, an improvement in throughput of 8x.
+
+The way Aztec worked under the hood prior to this most recent upgrade is:
+
+- A proof is generated client-side in-browser
+- 28 client proofs are then aggregated into an “inner” rollup proof
+- 4 inner rollup proofs are then aggregated into an “outer” rollup proof
+
+That “outer” rollup proof is then verified in what we call the root rollup circuit — the circuit that establishes the validity of all the underlying work that goes into ensuring execution on Aztec happened as expected. Then that final proof gets posted on-chain for posterity.
+
+It's proofs on proofs on proofs.
+
+<Image img={require('/img/proofs-on-proofs.png')} />
+
+For the release of Aztec Connect SDK, we've increased the outer rollup's capacity to 32 inner proofs by optimizing the outer rollup circuit. 28 * 32 = 896. Magic.
+
+That's why we go through all this headache, writing circuits that can efficiently verify recursive Plonk proofs.
+
+If you're following so far, the share of rollup costs per transaction fell from:
+
+- 750k / 112 = 6,700 gas; to
+- 550k / 896 = 614 gas → an 11x improvement!
+
+We think that's well worth inventing novel forms of cryptography.
+
+## ☎ Per-txn cost of call data
+In addition to the proof, which validates Aztec's off-chain transactions, Aztec also has to post call data¹ for each transaction, such that anyone can reconstruct the state of Aztec's rollup and prove the validity of off-chain computation.
+
+Currently, the cost of posting call data to Ethereum is 16 gas per byte. Vitalik has submitted [EIP-4488](https://eips.ethereum.org/EIPS/eip-4488) lowering the cost of call data to 3 gas per byte, while there's another proposal, confusingly named [EIP-4844](https://eips.ethereum.org/EIPS/eip-4844), which offers a new data format specifically designed to lower the cost to rollups of posting data on Ethereum.
+
+Aztec broadly supports efforts to reduce the cost of data on Ethereum, and we'll discuss the minutiae of the two EIPs in a separate post.
+
+For now, it's true for our architecture that scaling costs beyond a few hundred transactions asymptotically approach the cost of call data. ([reference](https://twitter.com/adeets_22/status/1485671418687803394))
+
+Note that the chain on which Aztec posts call data is critical for security, because data availability is of chief concern in case Aztec's rollup provider ceases to function and system state needs to be reconstructed once the provider comes back online.
+
+Note that while a rollup provider going down can only freeze users' funds in place, with no ability to steal funds, recomputing blockchain state can only happen if state is available (hence data availability).
+
+That's why for the foreseeable future, we intend to post the rollup's state to Ethereum–it is for now the Lindy-est, most secure chain with consistent and proven uptime. We're also excited about exploring our own first-party offchain data availability solution and 3rd-party chains like Celestia.
+
+For now, an Aztec transaction requires the storage of a number of items on-chain:
+
+- Transaction viewing keys (8,480 gas)²
+- Join-split call data (2,064 gas)³
+- For DeFi transactions, call data for deposit and claim (2,064 * 2)⁴
+- Total: 14,672 gas
+
+## 🕔 Recap & what the future holds
+Aztec's zkRollup has scaled efficiently since the launch of zk.money on mainnet. The impending launch of the Aztec Connect SDK brings up to 100x cost savings for Ethereum DeFi services, all while offering full privacy.
+
+The cost of a private transaction on Aztec will always be cheaper than the cost of a public transaction on Ethereum, despite the added complexity of encrypted transactions — you always get privacy for free (or better than free).
+
+The one elephant in the room is data cost on Ethereum. Call data represents the vast majority (88.8%) of the gas cost for a DeFi transaction. And over time, as proof verification costs fall and the rollup scales further, call data will represent nearly 100% of transaction costs.
+
+At that point, scaling Aztec will also mean optimizing Ethereum.
+
+Notes:
+
+1. Call data is currently the cheapest form of data storage on Ethereum. It’s a special form of memory used to store function parameters (hence “call” data, because it’s used to call external functions).
+2. Viewing keys are required to view encrypted transactions and read the details of a transaction. Unlike state, they’re not critical for system liveness.
+3. The join-split circuit is a simple formula that ensures Aztec encrypted notes are added (joined) and divided (split) correctly. It follows the simple equivalence (a + b) = (c + d).
+4. The DeFi circuit ensures assets are correctly delivered to the Aztec Rollup (deposited) and returned from the Aztec Rollup (withdrawn).
