@@ -1,0 +1,65 @@
+---
+title: Setup
+---
+import Image from '@theme/IdealImage';
+
+Setting up the SDK.
+
+This explainer will frequently reference code snippets from [this reference repository](https://github.com/critesjosh/aztec-sdk-starter). You can pull this repo and follow along to run the examples yourself.
+
+The following examples are written in Typescript and assuming a Nodejs execution context. For a browser context example you can refer to the `web-app` directory in the linked repo.
+
+## Provider Setup
+
+You need to set up a connection to an Ethereum network and import a private key, since this is assuming a Nodejs context.
+
+```ts title="/src/index.ts"
+const ethersProvider = new JsonRpcProvider(process.env.ETHEREUM_HOST);
+const ethereumProvider: EthereumProvider = new EthersAdapter(ethersProvider);
+const walletProvider = new WalletProvider(ethereumProvider);
+walletProvider.addAccount(Buffer.from(process.env.ETHEREUM_PRIVATE_KEY, "hex"));
+```
+
+## SDK setup
+
+Once the provider is set up you can create an instance of the Aztec SDK with one line, specifying the rollup host. When working on the Goerli Ethereum testnet, the corresponding rollup endpoint is:
+
+```shell
+https://api.aztec.network/aztec-connect-testnet/falafel
+```
+
+```ts title="/src/index.ts"
+const setupSdk = async () => {
+  sdk = await createAztecSdk(walletProvider, {
+    serverUrl: process.env.ROLLUP_HOST,
+    pollInterval: 1000,
+    memoryDb: true,
+    flavour: SdkFlavour.PLAIN,  // Node environment
+    minConfirmation: 1,         // ETH block confirmations
+  });
+
+  await sdk.run();
+};
+```
+
+You can see how to do something similar in a browser context in the `web-app` directory of the reference repo [here](https://github.com/critesjosh/aztec-sdk-starter/blob/3abc0b24b0570198a7c5492f7de8d7f452c910fa/web-app/pages/index.tsx#L53).
+
+## Browser debugging
+
+If you have the `debug` flag set to `bb:*` to log output during development, make sure the browser console log level includes "verbose" to be able to see all of the output.
+
+<Image img={require('/img/browser-dev-log.png')} />
+
+---
+
+You can enable debugging when you create the SDK instance.
+
+```ts
+const sdk = await createAztecSdk(ethereumProvider, {
+    serverUrl: "https://api.aztec.network/aztec-connect-testnet/falafel", // goerli testnet
+    pollInterval: 1000,
+    memoryDb: true,
+    debug: "bb:*",
+    minConfirmation: 1, // ETH block confirmations
+});
+```
