@@ -1,0 +1,212 @@
+---
+title: Privacy Architecture
+---
+import Image from '@theme/IdealImage';
+
+__Fully Confidential Ethereum Transactions: Aztec Network's Privacy Architecture__
+
+_An overview of how Aztec preserves privacy._
+
+<Image img={require('/img/zkmoney-envelope.jpeg')} />
+
+[Aztec](https://aztec.network/) is a privacy-first zero-knowledge rollup on Ethereum: that means it's the only [Layer 2](https://ethereum.org/en/developers/docs/scaling/layer-2-rollups/) built from the ground up to be fully privacy preserving.
+
+To understand the paradigm-changing nature of private transactions and why it's important to build privacy directly into a network's architecture, we have to first discuss why Ethereum is not private.
+
+### Ethereum: A Public Blockchain
+
+You might've heard of the term public ledger, which consists of two parts: accounts and balances.
+
+The most primitive transaction on Ethereum is sending Ether from one account (address) to another. The way the network keeps track of this is by incrementing one account's balance and decrementing the other's — in other words, the ETH doesn't really “move” in any sense.
+
+Let's look at an example transaction in detail: say my man snoopdogg.eth wants to send a transaction to cozomomedici.eth.
+
+<Image img={require('/img/snoop-medici.png')} />
+
+Here's how it shakes out: Snoop starts with 100 ETH and his account is debited 20 ETH. Cozomo starts with 0 ETH and his account is credited 20 ETH. Snoop's ending account balance is 80 ETH. Cozomo's is 20 ETH. Transfer complete.
+
+<Image img={require('/img/snoop-ledger.png')} />
+
+We can see a representation of credits and debits for each account right on etherscan.io, with the “ins” and “outs” tracked in public for everyone to see. Here's the recent transaction history for an ENS named twinkienft.eth (a name I quite like):
+
+<Image img={require('/img/etherscan.png')} />
+
+You might be wondering: “Who's twinkienft.eth?” I don't have a clue, but I can see all their transactions! If you go to [etherscan.io](https://etherscan.io/) you can witness all transactions being written to the blockchain.
+
+<Image img={require('/img/etherscan-frontpage.png')} />
+
+*0x9dae… right on the front-page of etherscan.io!*
+
+You can see the obvious problem here. Not only can we see all account transactions, we can see all the amounts, assets, and counterparties.
+
+That's in fact the power of public blockchains! Due to their public nature they are eminently auditable and verifiable.
+
+But that means if someone's privacy is compromised, whether intentionally or by accident — we know their entire transaction history.
+
+Cracking the public transaction graph is big business: companies like [Chainalysis](https://www.chainalysis.com/) and [Nansen](https://www.nansen.ai/) run sophisticated forensic analysis to associate various wallets, monitor activity, and make probabilistic assumptions about who owns what.
+
+Imagine if every time you swiped a credit card to buy a croissant you showed every person in the world your bank statement. That'd be, like, pretty goofy, right?
+
+That's the state of Ethereum today.
+
+### The Obvious Answer: Encrypted Accounts
+“Uhm, okay,” I hear you saying. “This is so easy to solve, just encrypt the accounts, balances, and owners.” Duh, idiot! How could I be so stupid.
+
+Except let's actually talk through how encrypted accounts would work:
+
+Recall the ledger from before. With encrypted accounts and transactions, it would instead look like this:
+
+<Image img={require('/img/encrypted-ledger.png')} />
+
+*Useful.*
+
+How would the network check the accounting, ensuring no double spend or collusive funny business? It turns out solving this is pretty f-ing hard!
+
+Back to our businessmen Snoop & Cozomo to help us figure it out. If they need to do a transaction, they'll have to interact, since the network can't help check that they did a valid transaction.
+
+If it did, someone somewhere would have knowledge of what went down. Instead, Snoop initiates the interaction:
+
+1. Snoop requests Cozomo's encrypted account state
+2. Cozomo sends the encrypted state to Snoop
+3. Snoop decrypts Cozomo's state, confirming the pre-transaction balance
+4. Snoop sends an encrypted payment to Cozomo
+5. Cozomo sends his updated encrypted state to Snoop
+6. Snoop decrypts Cozomo's new state, confirming the post-transaction balance (and that Cozomo actually got the $$ he was promised)
+
+This elaborate dance has serious drawbacks: it's expensive, it's time consuming, and you can only dance with one person at a time — both parties have to be online at the same time to facilitate.
+
+Worst of all, at the end of this dual-sided dialogue, neither party has convinced the rest of the world of anything — they've only mutually validated their one transaction.
+
+*Non bene.*
+
+### Ain't Note Fun?
+But hol' up — what if we flipped the attribution structure on its head? Ethereum defaults to an account model where an account has a balance. In other words, look up the account, and you get the balance.
+
+What if we instead structured it to say a certain amount of money — described by a note — HAS an owner? Look up the note, and see who it belongs to.
+
+<Image img={require('/img/note-owner.png')} />
+
+*Account has balance → note has owner.*
+
+This is how Bitcoin works and it's called [UTXO](https://en.wikipedia.org/wiki/Unspent_transaction_output) (unspent transaction output). But forget the terminology. Think of UTXO's as cash (bank notes).
+
+Let's think for a second about why cash is inherently more secure and private — or more precisely, more secure and private than account-based systems.
+
+Got it? It's secure because only the two parties transacting the cash know that ownership has changed hands! Everyone else in the entire universe can be kept in the dark.
+
+You can think of a cash transaction as **a change in ownership of an object** (the note), whereas an accounting transaction is **a change in the state of two accounts.**
+
+<Image img={require('/img/blue-notes.png')} />
+
+*What an ownership change looks like for an encrypted note, probably.*
+
+When an Aztec transaction processes, rather than doing an account balance update (incrementing and decrementing balance), the network simply re-assigns ownership for a given note.
+
+Why is this helpful? Well it turns out it's *way easier* to encrypt a note, because it really only needs two things written on it: how much it's worth, and who it's owned by. When it changes hands, you scribble out the old owner's name and write the new owner's name. *Ecco qua!*
+
+### Simple Transfers on Aztec
+So what exactly happens in a simple note transaction?
+
+Say Snoop has two 50 ETH notes totaling 100 ETH and Cozomo has 0 notes.
+
+Snoop's two 50 ETH notes need to be destroyed, and two new notes created: an 80 ETH note that stays with Snoop, and a 20 ETH note that goes on to its new owner, Cozomo.
+
+But how can privacy be preserved if the values of the notes have to be revealed?
+
+Well — they don't! Not publicly at least. Of course, Snoop and Cozomo know the value of their transaction, just like an exchange of cash, but they don't have to reveal it to the world.
+
+To protect their mutual privacy, Snoop publishes the transaction with a **lock that he knows only Cozomo can unlock with his private key.** The analogy here is kind of like putting the note in a little lock box. Of course, they both know what's in the box (20 ETH), so Snoop has to trust Cozomo not to shout from the rooftop, “Someone just sent me 20 ETH!”
+
+But otherwise, the note that was assigned new ownership goes back into a data structure holding all the notes that were ever created — a [Merkle Tree hash](https://en.wikipedia.org/wiki/Merkle_tree), which we'll cover in brief below.
+
+<Image img={require('/img/chests.png')} />
+
+*What the state of the system looks like to an observer — the values and owners of each note fully encrypted.*
+
+### Good Housekeeping
+
+We know that Snoop destroyed two notes, created two new ones, and then sent one of the two new notes to his friend Cozomo. How can we make sure the two of them don't collude to, for instance, double-spend? What if Snoop destroyed two notes worth 100 ETH in total, and created two new notes worth 200 ETH in total? Or, hell, an arbitrarily large amount?
+
+Recall the two steps:
+
+1. Snoop destroys two 50 ETH notes and creates a 20 ETH note and an 80 ETH note
+2. Snoop sends the 20 ETH note to Cozomo
+
+To ensure nothing fishy happens in step 1, all Snoop needs to do is prove to the system (Aztec) that the two notes he intends to create are equivalent in value to the two notes he intends to destroy.
+
+This is known as a join-split transaction, and it conforms to this simple equivalence: __A + B = C + D.__
+
+__Here comes the psycho part. Buckle up.__
+
+In order to prove that the output notes (C + D) are equivalent in value to the input notes (A + B, or 100 ETH), Snoop generates a [zero-knowledge proof](https://en.wikipedia.org/wiki/Zero-knowledge_proof) (ZKP) locally, in his browser.
+
+The black magic of ZKPs¹ means __he can prove the equivalence A + B = C + D without revealing any of their individual values.__
+
+Aztec then validates the proof and says, “By the powers of Zero Knowledge, this must be true,” at which point the smart contract destroys the two input notes, generates the two output notes, and records the new output notes as an encrypted commitment in the note registry.
+
+### Proving Ownership
+
+It's worth discussing how ownership of notes is proven in Aztec, which has analogies to Ethereum-world. How do you prove you control access to an address in Ethereum? You sign a message using your wallet.
+
+How do you prove you control access to a note in Aztec? With a very very fancy cryptographic signature called a zero knowledge proof.
+
+The proof says, “Somewhere in Aztec's state, there: a) exists a note with a certain value, and b) I own it.”
+
+And how's the state of the Aztec system stored? In two [Merkle Trees](https://en.wikipedia.org/wiki/Merkle_tree):
+
+- A note tree, containing all the notes that have ever been created; and
+- A nullifier tree, containing all the notes that have ever been destroyed
+
+Saying you own a note indicates to Aztec that the note exists in the note tree, and that no corresponding note-nullifier exists in the nullifier tree.
+
+When we talk about “destroying” a note, that actually means _adding_ a nullifier to the nullifier tree rather than deleting a note from the note tree.
+
+<Image img={require('/img/merkle-tree.png')} />
+
+_A humble Merkle Tree._
+
+In order to send notes that I've proven I own, an entirely new Merkle tree (and Merkle root) is created. Once the Merkle roots of both the note tree and nullifier tree have moved to new values — in other words, the state of the system has been updated — those roots are published (settled) on Ethereum's main chain and the transactions are deemed recorded.
+
+### Face Down, Bottom's Up
+
+I hope this gives you a solid grounding for understanding why privacy is challenging: we need to __verify__ that transactions are legitimate and properly executed without __violating__ or exposing user data.
+
+These unique constraints mean privacy-preserving architecture must be constructed from the ground up. Aztec is the only L2 built this way — with privacy protected by its core architecture and facilitated by the magic of zero knowledge. *Grazie mille!*
+
+Notes
+
+1. Want to a basic primer on zero-knowledge proofs? Check out [this helpful YouTube video](https://www.youtube.com/watch?v=0Sy6nb72gCk), [this illustrated primer](https://blog.cryptographyengineering.com/2014/11/27/zero-knowledge-proofs-illustrated-primer/) or Packy McCormick's [piece on the magic of ZK's](https://www.notboring.co/p/zero-knowledge).
+
+This article was originally published on Medium [here](https://medium.com/aztec-protocol/fully-confidential-ethereum-transactions-aztec-networks-privacy-architecture-274f968b13d4).
+
+## Frequenty Asked Questions
+
+### What are 'private transactions'?
+
+Transactions within the Aztec rollup are hidden from observers and the Aztec rollup provider. Both the identities of sender/recipient and the values transferred are encrypted.
+
+<Image img={require('/img/private-txs.png')} />
+
+---
+
+### Are deposits private?
+
+When you deposit into our rollup, people can see the Eth address you deposited from, and how much you deposited. They cannot see the identity of the Aztec address you deposited into.
+
+---
+
+### Are withdrawals private?
+
+When you withdraw to a regular ETH address, the address you withdrew to is shown on the block explorer. Using this data, the withdrawn amount can be traced.
+
+<Image img={require('/img/private-withdraw.png')} />
+
+These 6 characters are the last 6 characters of the withdrawal address
+
+**For privacy, you need to withdraw to a different Ethereum address.** Use a different address than the one you fund or register zk.money username with.
+
+---
+
+### What information about my transaction will be shown on explorer like Etherscan?
+
+It will show the funds were sent from an “Aztec Contract / Private Rollup”.

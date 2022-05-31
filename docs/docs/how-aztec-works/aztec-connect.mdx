@@ -1,0 +1,128 @@
+---
+title: Aztec Connect
+---
+import Image from '@theme/IdealImage';
+
+
+__Dollars and Sense: Cheap Privacy with Aztec Connect__
+
+How Aztec Connect grants Ethereum cheap privacy today.
+
+<Image img={require('/img/aztec-bridge.png')} />
+
+Aztec is laser-focused on shipping Aztec Connect, a set of tools connecting Ethereum DeFi protocols to Aztec's private rollup, allowing for composable, private DeFi to be done on Ethereum for the first time ever.
+
+Aztec Connect is able to unlock private DeFi with the help of three components:
+
+1. __Layer 1 DeFi protocols__: your favorite Ethereum protocols like Lido, Element, Aave, Compound, Uniswap, and more
+2. __Aztec Connect Bridge Contracts__: an interface that enables the Aztec rollup contract to talk to Layer 1 DeFi protocols
+3. __Aztec Connect SDK__: allows users to create & submit transactions to the Aztec rollup. Think of this as a crypto library for application front-ends — the zk-equivalent of ethers.js, which lets users send transactions to Ethereum nodes via their favorite applications.
+
+The Aztec Connect toolkit essentially functions [like a proxy service](https://medium.com/aztec-protocol/private-defi-with-the-aztec-connect-bridge-76c3da76d982) for DeFi— allowing anyone to deposit into Aztec's system, interact with Ethereum DeFi, and rely on the trusted contracts, liquidity, and execution of Layer 1, while also adding cheap privacy.
+
+## ✈️ Aztec Connect Supercharges Layer 1 DeFi
+Aztec Connect relies on Layer 1 for transaction execution, using DeFi batching to achieve cost savings. These design decisions represent serious benefits to our partners:
+
+- No additional audits; no redeployment of core contracts
+- Simple ~100–200 line Bridge Contract interfaces to enable cost savings
+- Retention of Layer 1 liquidity and composability
+
+This last point bears repeating: unlike alt-L1 EVM implementations or L2's with their own execution environment, Aztec Connect allows developers to gain access to cheap privacy today, retaining composability with other protocols.
+
+Take [Element.fi](http://element.fi/) for example. Element fixed-rate vaults are integrated with and built on top of a huge number of existing protocols:
+
+- MakerDAO
+- Yearn
+- Curve
+
+In order for Element to retain similar levels of composability, liquidity, and functionality on a new chain, those protocols would have to collectively migrate in a coordinated fashion. In Element CTO 
+[jonny rhea](https://medium.com/u/916b1bfb656?source=post_page-----f35db037a04--------------------------------)
+'s own words:
+
+> What's unique about Aztec is that their rollups interact directly with existing smart contracts and liquidity on mainnet. So, the integration with Aztec will allow us to avoid liquidity fragmentation because it postpones the necessity of deploying Element Finance on multiple L2 networks.
+
+Cheap privacy, today. So how do we lower costs if everything executes on L1? Simple: by using our zkRollup to spread the costs of not only proof verification for privacy but also DeFi transaction costs across large number of users.
+
+This means the formula for understanding cost savings is incredibly straightforward:
+
+## 🍰 Layer 1 Execution Costs
+
+Remember the simple formula for rollup math [from our last post](https://medium.com/aztec-protocol/privacy-for-pennies-scaling-aztecs-zkrollup-9f2b36615cc6)? That math holds for all Aztec deposits, withdrawals, and internal sends. Just like other rollups, off-chain execution costs are amortized over a very large number of transactions.
+
+Aztec Connect is an extension of batching from just deposits, withdrawals and sends to all kinds of DeFi transactions.
+
+And the more transactions occur, the more rollups fill up and “ship” down to L1, reducing system latency and transaction costs:
+
+<Image img={require('/img/flywheel.png')} />
+
+_The Aztec rollup flywheel._
+
+## 📩 Privacy for All
+
+Because rollups are amortized across all network transactions, including deposits, withdrawals, internal transactions, and DeFi, we anticipate sufficient transaction throughput to make rollup verification — and therefore privacy —very close to free for the user.
+
+DeFi transactions will be cheaper in direct relation to batch size, with gas savings being 1/n, where n is the number of users in a given batch.
+
+From the above, we can come to an Ultimate Calculation™ for the cost of Aztec Connect transactions at launch:
+
+- Share of rollup verification costs (896 txn rollup): 614 gas
+- Call data costs: 14,672 gas
+- __Total cost of privacy__: 15,376 (less than the 21,000 base transaction cost on Ethereum, meaning private transactions are always cheaper than L1)
+- Cost of DeFi transaction: L1 execution cost (~500,000 gas in the case of Element vault entry) / batch size (say 50 users per rollup) = 10,000 gas
+- __Total transaction cost: ~24,672 gas__ (95% cost savings over L1, or 20x cheaper) or ~$3.70 in today's gas regime
+
+In plain English:
+
+- __Privacy is free.__ It will always be cheaper to do an Aztec private transaction than a Layer 1 Ethereum transaction.
+- __Cost savings are roughly ~1/n__, where n is the size of the DeFi transaction batch.
+
+## 🤑 Spinning the DeFi Flywheel
+
+Remember the rollup flywheel from above? DeFi interactions have a similar flywheel effect. It takes time to aggregate users in a batch to access cost savings.
+
+That's why we're starting with vault entry (Element.fi) and Staking (Lido), use cases that lend themselves to large batches and don't demand immediate settlement.
+
+In order to deliver steady-state performance as the flywheel starts spinning, we are committed to backstopping transaction batch speed. That means from day 0, it will seem like batches are running full.
+
+We've already pursued grants with some of the leading DeFi projects, including Compound, Aave, and Lido, to backstop DeFi batch timing and ensure users get maximum cost savings.
+
+Even if a batch doesn't fill, it will fire across to L1 and execute, with us and our partners covering any remaining cost.
+
+[Polynya](https://medium.com/u/923c922a6d67?source=post_page-----f35db037a04--------------------------------) puts it best [in a post](https://twitter.com/epolynya/status/1474990044154793984?ref_src=twsrc%5Etfw%7Ctwcamp%5Etweetembed%7Ctwterm%5E1474990044154793984%7Ctwgr%5E%7Ctwcon%5Es1_&ref_url=https%3A%2F%2Fcdn.embedly.com%2Fwidgets%2Fmedia.html%3Ftype%3Dtext2Fhtmlkey%3Da19fcc184b9711e1b4764040d3dc5c07schema%3Dtwitterurl%3Dhttps3A%2F%2Ftwitter.com%2Fepolynya%2Fstatus%2F1474990044154793984image%3Dhttps3A%2F%2Fi.embed.ly%2F1%2Fimage3Furl3Dhttps253A252F252Fabs.twimg.com252Ferrors252Flogo46x38.png26key3Da19fcc184b9711e1b4764040d3dc5c07) about loss-leading as a way to bootstrap rollup speed and throughput:
+
+> Showerthought: ZKRs should be loss-leading, with  max ~$0.10 transaction fees* for the end user. Verification price capped at ~250 gas. Cost to rollup: $12,000/day, decreasing rapidly with growing activity, with break-even at 3.33 TPS*. From there, tx fees will keep decreasing.
+
+We have experience here — we already did it for private payments on [zk.money](http://zk.money/). Initial rollups on zk.money didn't run full, but we backstopped rollup timing until throughput caught up. It worked. What happened when we made sure users had the best experience from day 0? Over 1,000 full rollups since mid-November.
+
+## 🧗 Continuous Improvement: Kaizen for Connect
+
+It's worth noting that a full 1/3 of the call data costs for a DeFi transaction come from posting transaction viewing keys on Ethereum.
+
+We plan to implement an off-chain viewing key system later this year, which will cut the total cost of call data by ~58%. That means the total cost of privacy will go from 15,376 gas to 6,896 gas on Aztec Connect.
+
+With Aztec Connect, privacy on Ethereum isn't just free, it's better than free.
+
+## 📕 Tl;dr
+Aztec Connect is a transformative set of tools that showcase what is possible with our back-end zk architecture. It leans on L1 execution and contracts to bring privacy and cost savings to DeFi projects immediately, without having to redeploy and re-audit.
+
+- Privacy is free
+- DeFi fees are reduced proportionally with batch size
+- Fees are fixed to their cheap, long-term level and backstopped by Aztec and our partners
+
+From day 0 users will experience cost savings as if transaction batches are running full, whether they are or not. Meaning 95%+ cost savings on the most popular DeFi transactions.
+
+Aztec Connect extends the functionality of our network beyond private payments, showcasing cheap private DeFi today. It is a gigantic step toward our vision for generalized private smart contracts: Noir.
+
+Stay tuned.
+
+---
+
+## 🏗 Build with Aztec Connect
+
+Are you a developer who wants to bring privacy to your favorite DeFi protocol? If you build it, we'll fund it.
+
+Aztec Grants Program: https://airtable.com/shrvglCZ24jaH73oe
+
+Connect Starter: https://github.com/AztecProtocol/aztec-connect-starter.
+
+Help make privacy a no-brainer.
