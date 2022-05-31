@@ -28,6 +28,7 @@ const sidebars = {
       collapsed: false,
       items: [
         'how-aztec-works/privacy',
+        'how-aztec-works/scalability',
         'how-aztec-works/aztec-connect',
         'how-aztec-works/accounts',
         'how-aztec-works/tokens',
@@ -38,6 +39,21 @@ const sidebars = {
     {
       type: 'category',
       label: 'Guides',
+      link:{
+        type: 'generated-index',
+      },
+      items: [
+        'guides/overview',
+        'guides/wallet-support',
+        'guides/create-bridge',
+        'guides/element-review',
+        'guides/lido-review',
+        'guides/goerli-testing',
+      ],
+    },
+    {
+      type: 'category',
+      label: 'SDK',
       link:{
         type: 'generated-index',
       },
