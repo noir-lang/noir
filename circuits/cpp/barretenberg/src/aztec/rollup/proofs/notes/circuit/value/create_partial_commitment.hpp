@@ -13,10 +13,10 @@ using namespace plonk::stdlib::types::turbo;
 
 inline auto create_partial_commitment(field_ct const& secret,
                                       point_ct const& owner,
-                                      suint_ct const& account_nonce,
+                                      bool_ct const& account_required,
                                       field_ct const& creator_pubkey)
 {
-    return pedersen::compress({ secret, owner.x, owner.y, account_nonce.value, creator_pubkey },
+    return pedersen::compress({ secret, owner.x, owner.y, account_required, creator_pubkey },
                               GeneratorIndex::VALUE_NOTE_PARTIAL_COMMITMENT);
 }
 

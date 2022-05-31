@@ -416,23 +416,37 @@ TEST_F(rollup_tests, test_1_account_proof_in_1_rollup)
 {
     size_t rollup_size = 1;
 
-    auto create_account = context.create_account_proof();
+    auto create_account = context.create_new_account_proof();
     auto rollup = create_rollup_tx(context.world_state, rollup_size, { create_account });
     auto result = verify_logic(rollup, rollup_1_keyless);
 
     EXPECT_TRUE(result.logic_verified);
 }
 
-TEST_F(rollup_tests, test_reuse_nullified_account_alias_id_fails)
+TEST_F(rollup_tests, test_reuse_nullified_account_alias_hash_fails)
 {
     size_t rollup_size = 1;
 
     context.append_account_notes();
-    auto account_alias_id = fixtures::generate_account_alias_id(context.user.alias_hash, 0);
-    context.nullify_account_alias_id(account_alias_id);
+    context.nullify_account_alias_hash(context.user.alias_hash);
     context.start_next_root_rollup();
 
-    auto account_proof = context.create_account_proof();
+    auto account_proof = context.create_new_account_proof();
+    auto rollup = create_rollup_tx(context.world_state, rollup_size, { account_proof });
+    auto result = verify_logic(rollup, rollup_1_keyless);
+
+    EXPECT_FALSE(result.logic_verified);
+}
+
+TEST_F(rollup_tests, test_reuse_nullified_account_public_key_fails)
+{
+    size_t rollup_size = 1;
+
+    context.append_account_notes();
+    context.nullify_account_public_key(context.user.owner.public_key);
+    context.start_next_root_rollup();
+
+    auto account_proof = context.create_new_account_proof();
     auto rollup = create_rollup_tx(context.world_state, rollup_size, { account_proof });
     auto result = verify_logic(rollup, rollup_1_keyless);
 
@@ -480,7 +494,7 @@ TEST_F(rollup_tests, test_1_js_proof_1_account_proof_in_2_rollup)
     context.append_value_notes({ 0, 0, 100, 50, 80, 60 });
     context.start_next_root_rollup();
     auto join_split_proof = context.create_join_split_proof({ 4, 5 }, { 100, 50 }, { 70, 80 });
-    auto account_proof = context.create_account_proof();
+    auto account_proof = context.create_migrate_account_proof();
     auto txs = std::vector{ join_split_proof, account_proof };
 
     auto rollup = create_rollup_tx(context.world_state, rollup_size, txs);
@@ -1017,7 +1031,7 @@ TEST_F(rollup_tests, test_defi_interaction_nonce_added_to_claim_notes)
     // Check regular join-split output note1 unchanged (as we change it for defi deposits).
     notes::native::value::value_note note1 = { .value = 70,
                                                .asset_id = 0,
-                                               .account_nonce = 0,
+                                               .account_required = false,
                                                .owner = context.user.owner.public_key,
                                                .secret = context.user.note_secret,
                                                .creator_pubkey = 0,
@@ -1026,7 +1040,7 @@ TEST_F(rollup_tests, test_defi_interaction_nonce_added_to_claim_notes)
 
     notes::native::value::value_note note2 = { .value = 73,
                                                .asset_id = 0,
-                                               .account_nonce = 0,
+                                               .account_required = false,
                                                .owner = context.user.owner.public_key,
                                                .secret = context.user.note_secret,
                                                .creator_pubkey = 0,
@@ -1082,7 +1096,7 @@ TEST_F(rollup_tests, test_defi_claim_proofs)
     rollup::rollup_proof_data data(result.public_inputs);
 
     // js, acc and defi proofs to be rolled up with claim proofs
-    auto acc_proof = context.create_account_proof(0, data.data_start_index + 8);
+    auto acc_proof = context.create_add_signing_keys_to_account_proof(data.data_start_index + 8);
     auto js_proof = context.create_join_split_proof({}, {}, { 100, 30 }, 130);
     const notes::native::bridge_id bid1 = {
         .bridge_address_id = 0,

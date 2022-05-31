@@ -10,13 +10,13 @@ namespace account {
 
 using namespace plonk::stdlib::types::turbo;
 
-inline auto commit(field_ct const& account_alias_id,
+inline auto commit(field_ct const& account_alias_hash,
                    point_ct const& account_public_key,
                    point_ct const& signing_pub_key)
 {
     return pedersen::compress(
         {
-            account_alias_id,
+            account_alias_hash,
             account_public_key.x,
             signing_pub_key.x,
         },

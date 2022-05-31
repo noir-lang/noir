@@ -23,7 +23,7 @@ template <typename WorldState> class JoinSplitTxFactory {
                               uint256_t public_output = 0,
                               uint32_t account_note_idx = 0,
                               uint32_t asset_id = 0,
-                              uint32_t account_nonce = 0,
+                              bool account_required = 0,
                               uint32_t virtual_asset_id = 0)
     {
         auto num_inputs = in_idx.size();
@@ -32,10 +32,23 @@ template <typename WorldState> class JoinSplitTxFactory {
 
         auto asset_id2 = (virtual_asset_id >> (MAX_NUM_ASSETS_BIT_LENGTH - 1)) == 1 ? virtual_asset_id : asset_id;
         value::value_note input_note1 = {
-            0, asset_id, account_nonce, sender, fr::random_element(), 0, fr::random_element()
+            .value = 0,
+            .asset_id = asset_id,
+            .account_required = account_required,
+            .owner = sender,
+            .secret = fr::random_element(),
+            .creator_pubkey = 0,
+            .input_nullifier = fr::random_element(),
         };
-        value::value_note input_note2 = { 0, asset_id2,           account_nonce, sender, fr::random_element(),
-                                          0, fr::random_element() };
+        value::value_note input_note2 = {
+            .value = 0,
+            .asset_id = asset_id2,
+            .account_required = account_required,
+            .owner = sender,
+            .secret = fr::random_element(),
+            .creator_pubkey = 0,
+            .input_nullifier = fr::random_element(),
+        };
 
         switch (num_inputs) {
         case 0:
@@ -44,37 +57,65 @@ template <typename WorldState> class JoinSplitTxFactory {
         case 1:
             in_idx.resize(2);
             in_idx[1] = in_idx[0] + 1; // Not used, can't be the same as in_idx[0].
-            input_note1 = { in_value[0],
-                            asset_id,
-                            account_nonce,
-                            sender,
-                            user.note_secret,
-                            0,
-                            world_state.input_nullifiers[in_idx[0]] };
-            input_note2 = { 0, asset_id, account_nonce, sender, fr::random_element(), 0, fr::random_element() };
+            input_note1 = {
+                .value = in_value[0],
+                .asset_id = asset_id,
+                .account_required = account_required,
+                .owner = sender,
+                .secret = user.note_secret,
+                .creator_pubkey = 0,
+                .input_nullifier = world_state.input_nullifiers[in_idx[0]],
+            };
+            input_note2 = {
+                .value = 0,
+                .asset_id = asset_id,
+                .account_required = account_required,
+                .owner = sender,
+                .secret = fr::random_element(),
+                .creator_pubkey = 0,
+                .input_nullifier = fr::random_element(),
+            };
             break;
         case 2:
-            input_note1 = { in_value[0],
-                            asset_id,
-                            account_nonce,
-                            sender,
-                            user.note_secret,
-                            0,
-                            world_state.input_nullifiers[in_idx[0]] };
-            input_note2 = { in_value[1],
-                            asset_id2,
-                            account_nonce,
-                            sender,
-                            user.note_secret,
-                            0,
-                            world_state.input_nullifiers[in_idx[1]] };
+            input_note1 = {
+                .value = in_value[0],
+                .asset_id = asset_id,
+                .account_required = account_required,
+                .owner = sender,
+                .secret = user.note_secret,
+                .creator_pubkey = 0,
+                .input_nullifier = world_state.input_nullifiers[in_idx[0]],
+            };
+            input_note2 = {
+                .value = in_value[1],
+                .asset_id = asset_id2,
+                .account_required = account_required,
+                .owner = sender,
+                .secret = user.note_secret,
+                .creator_pubkey = 0,
+                .input_nullifier = world_state.input_nullifiers[in_idx[1]],
+            };
             break;
         }
 
         value::value_note output_note1 = {
-            out_value[0], asset_id, account_nonce, receiver, user.note_secret, 0, fr(0)
+            .value = out_value[0],
+            .asset_id = asset_id,
+            .account_required = account_required,
+            .owner = receiver,
+            .secret = user.note_secret,
+            .creator_pubkey = 0,
+            .input_nullifier = fr(0),
         };
-        value::value_note output_note2 = { out_value[1], asset_id, account_nonce, sender, user.note_secret, 0, fr(0) };
+        value::value_note output_note2 = {
+            .value = out_value[1],
+            .asset_id = asset_id,
+            .account_required = account_required,
+            .owner = sender,
+            .secret = user.note_secret,
+            .creator_pubkey = 0,
+            .input_nullifier = fr(0),
+        };
         notes::native::claim::partial_claim_note_data partial_claim_note = { 0, 0, user.note_secret, fr(0) };
 
         auto get_proof_id = [&]() -> uint32_t {
@@ -112,7 +153,7 @@ template <typename WorldState> class JoinSplitTxFactory {
         tx.signing_pub_key = user.signing_keys[0].public_key;
         tx.account_private_key = user.owner.private_key;
         tx.alias_hash = 0;
-        tx.account_nonce = account_nonce;
+        tx.account_required = account_required;
         tx.partial_claim_note = partial_claim_note;
         tx.backward_link = fr::zero();
         tx.allow_chain = 0;

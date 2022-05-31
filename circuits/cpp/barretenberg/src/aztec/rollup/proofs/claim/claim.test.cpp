@@ -86,7 +86,7 @@ TEST_F(claim_tests, test_claim)
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
-                               .input_nullifier = fr::random_element() };
+                               .input_nullifier = fr::random_element(&engine) };
 
     const defi_interaction::note note2 = { .bridge_id = 0,
                                            .interaction_nonce = 0,
@@ -118,7 +118,7 @@ TEST_F(claim_tests, test_theft_via_field_overflow_fails_1)
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
-                               .input_nullifier = fr::random_element() };
+                               .input_nullifier = fr::random_element(&engine) };
 
     const defi_interaction::note note2 = { .bridge_id = 0,
                                            .interaction_nonce = 0,
@@ -153,7 +153,7 @@ TEST_F(claim_tests, test_theft_via_field_overflow_fails_2)
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
-                               .input_nullifier = fr::random_element() };
+                               .input_nullifier = fr::random_element(&engine) };
 
     const defi_interaction::note note2 = { .bridge_id = 0,
                                            .interaction_nonce = 0,
@@ -184,7 +184,7 @@ TEST_F(claim_tests, test_integer_division_works)
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
-                               .input_nullifier = fr::random_element() };
+                               .input_nullifier = fr::random_element(&engine) };
 
     const defi_interaction::note note2 = { .bridge_id = 0,
                                            .interaction_nonce = 0,
@@ -210,7 +210,7 @@ TEST_F(claim_tests, test_outputs_larger_than_252_bits_fails)
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
-                               .input_nullifier = fr::random_element() };
+                               .input_nullifier = fr::random_element(&engine) };
 
     const defi_interaction::note note2 = { .bridge_id = 0,
                                            .interaction_nonce = 0,
@@ -234,7 +234,7 @@ TEST_F(claim_tests, test_zero_deposit_fails)
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
-                               .input_nullifier = fr::random_element() };
+                               .input_nullifier = fr::random_element(&engine) };
 
     const defi_interaction::note note2 = { .bridge_id = 0,
                                            .interaction_nonce = 0,
@@ -267,7 +267,7 @@ TEST_F(claim_tests, test_theft_via_zero_equality_fails)
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
-                               .input_nullifier = fr::random_element() };
+                               .input_nullifier = fr::random_element(&engine) };
     const defi_interaction::note note2 = { .bridge_id = 0,
                                            .interaction_nonce = 0,
                                            .total_input_value = 1,
@@ -294,7 +294,7 @@ TEST_F(claim_tests, test_deposit_greater_than_total_fails)
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
-                               .input_nullifier = fr::random_element() };
+                               .input_nullifier = fr::random_element(&engine) };
     const defi_interaction::note note2 = { .bridge_id = 0,
                                            .interaction_nonce = 0,
                                            .total_input_value = 10,
@@ -319,7 +319,7 @@ TEST_F(claim_tests, test_output_value_greater_than_total_fails)
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
-                               .input_nullifier = fr::random_element() };
+                               .input_nullifier = fr::random_element(&engine) };
     const defi_interaction::note note2 = { .bridge_id = 0,
                                            .interaction_nonce = 0,
                                            .total_input_value = 10,
@@ -344,7 +344,7 @@ TEST_F(claim_tests, test_zero_output_value_fails)
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
-                               .input_nullifier = fr::random_element() };
+                               .input_nullifier = fr::random_element(&engine) };
 
     const defi_interaction::note note2 = { .bridge_id = 0,
                                            .interaction_nonce = 0,
@@ -371,7 +371,7 @@ TEST_F(claim_tests, test_zero_total_output_value_fails)
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
-                               .input_nullifier = fr::random_element() };
+                               .input_nullifier = fr::random_element(&engine) };
 
     const defi_interaction::note note2 = { .bridge_id = 0,
                                            .interaction_nonce = 0,
@@ -405,7 +405,7 @@ TEST_F(claim_tests, test_unmatching_ratio_a_fails)
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
-                               .input_nullifier = fr::random_element() };
+                               .input_nullifier = fr::random_element(&engine) };
 
     const defi_interaction::note note2 = { .bridge_id = 0,
                                            .interaction_nonce = 0,
@@ -432,7 +432,7 @@ TEST_F(claim_tests, test_unmatching_ratio_b_fails)
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
-                               .input_nullifier = fr::random_element() };
+                               .input_nullifier = fr::random_element(&engine) };
 
     const defi_interaction::note note2 = { .bridge_id = 0,
                                            .interaction_nonce = 0,
@@ -459,7 +459,7 @@ TEST_F(claim_tests, test_unmatching_bridge_ids_fails)
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
-                               .input_nullifier = fr::random_element() };
+                               .input_nullifier = fr::random_element(&engine) };
 
     const defi_interaction::note note2 = { .bridge_id = 1, // mismatch
                                            .interaction_nonce = 0,
@@ -485,7 +485,7 @@ TEST_F(claim_tests, test_unmatching_interaction_nonces_fails)
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
-                               .input_nullifier = fr::random_element() };
+                               .input_nullifier = fr::random_element(&engine) };
 
     const defi_interaction::note note2 = { .bridge_id = 0,
                                            .interaction_nonce = 1, // mismatch
@@ -511,7 +511,7 @@ TEST_F(claim_tests, test_missing_claim_note_fails)
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
-                               .input_nullifier = fr::random_element() };
+                               .input_nullifier = fr::random_element(&engine) };
 
     const defi_interaction::note note2 = { .bridge_id = 0,
                                            .interaction_nonce = 0,
@@ -537,7 +537,7 @@ TEST_F(claim_tests, test_missing_interaction_note_fails)
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
-                               .input_nullifier = fr::random_element() };
+                               .input_nullifier = fr::random_element(&engine) };
 
     const defi_interaction::note note2 = { .bridge_id = 0,
                                            .interaction_nonce = 0,
@@ -563,7 +563,7 @@ TEST_F(claim_tests, test_defi_note_incorrect_index_fails)
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
-                               .input_nullifier = fr::random_element() };
+                               .input_nullifier = fr::random_element(&engine) };
 
     append_note(note1, data_tree);
 
@@ -622,7 +622,7 @@ TEST_F(claim_tests, test_claim_for_virtual_note)
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
-                               .input_nullifier = fr::random_element() };
+                               .input_nullifier = fr::random_element(&engine) };
 
     const defi_interaction::note note2 = { .bridge_id = bridge_id.to_uint256_t(),
                                            .interaction_nonce = 0,
@@ -658,7 +658,7 @@ TEST_F(claim_tests, test_first_input_note_virtual)
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
-                               .input_nullifier = fr::random_element() };
+                               .input_nullifier = fr::random_element(&engine) };
 
     const defi_interaction::note note2 = { .bridge_id = bridge_id.to_uint256_t(),
                                            .interaction_nonce = 0,
@@ -692,7 +692,7 @@ TEST_F(claim_tests, test_first_output_note_virtual)
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
-                               .input_nullifier = fr::random_element() };
+                               .input_nullifier = fr::random_element(&engine) };
 
     const defi_interaction::note note2 = { .bridge_id = bridge_id.to_uint256_t(),
                                            .interaction_nonce = 0,
@@ -726,7 +726,7 @@ TEST_F(claim_tests, test_second_input_note_nonzero_and_not_in_use_fails)
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
-                               .input_nullifier = fr::random_element() };
+                               .input_nullifier = fr::random_element(&engine) };
 
     const defi_interaction::note note2 = { .bridge_id = bridge_id.to_uint256_t(),
                                            .interaction_nonce = 0,
@@ -763,7 +763,7 @@ TEST_F(claim_tests, test_second_output_note_nonzero_and_not_in_use_fails)
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
-                               .input_nullifier = fr::random_element() };
+                               .input_nullifier = fr::random_element(&engine) };
 
     const defi_interaction::note note2 = { .bridge_id = bridge_id.to_uint256_t(),
                                            .interaction_nonce = 0,
@@ -797,7 +797,7 @@ TEST_F(claim_tests, test_second_input_in_use_means_asset_ids_equal_fails)
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
-                               .input_nullifier = fr::random_element() };
+                               .input_nullifier = fr::random_element(&engine) };
 
     const defi_interaction::note note2 = { .bridge_id = bridge_id.to_uint256_t(),
                                            .interaction_nonce = 0,
@@ -834,7 +834,7 @@ TEST_F(claim_tests, test_second_output_in_use_means_real_output_asset_ids_equal_
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
-                               .input_nullifier = fr::random_element() };
+                               .input_nullifier = fr::random_element(&engine) };
 
     const defi_interaction::note note2 = { .bridge_id = bridge_id.to_uint256_t(),
                                            .interaction_nonce = 0,
@@ -871,7 +871,7 @@ TEST_F(claim_tests, test_second_output_in_use_and_virtual_output_asset_ids_equal
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
-                               .input_nullifier = fr::random_element() };
+                               .input_nullifier = fr::random_element(&engine) };
 
     const defi_interaction::note note2 = { .bridge_id = bridge_id.to_uint256_t(),
                                            .interaction_nonce = 0,
@@ -904,7 +904,7 @@ TEST_F(claim_tests, test_first_bridge_output_virtual_but_invalid_placeholder_fai
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
-                               .input_nullifier = fr::random_element() };
+                               .input_nullifier = fr::random_element(&engine) };
 
     const defi_interaction::note note2 = { .bridge_id = bridge_id.to_uint256_t(),
                                            .interaction_nonce = 0,
@@ -938,7 +938,7 @@ TEST_F(claim_tests, test_second_bridge_output_virtual_but_invalid_placeholder_fa
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
-                               .input_nullifier = fr::random_element() };
+                               .input_nullifier = fr::random_element(&engine) };
 
     const defi_interaction::note note2 = { .bridge_id = bridge_id.to_uint256_t(),
                                            .interaction_nonce = 0,
@@ -990,7 +990,7 @@ TEST_F(claim_tests, test_claim_2_outputs_full_proof)
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
-                               .input_nullifier = fr::random_element() };
+                               .input_nullifier = fr::random_element(&engine) };
 
     const defi_interaction::note note2 = { .bridge_id = bridge_id.to_uint256_t(),
                                            .interaction_nonce = 0,
@@ -1017,7 +1017,7 @@ TEST_F(claim_tests, test_claim_2_outputs_full_proof)
 
     const value_note expected_output_note1 = { .value = tx.output_value_a,
                                                .asset_id = bridge_id.output_asset_id_a,
-                                               .account_nonce = 0,
+                                               .account_required = false,
                                                .owner = user.owner.public_key,
                                                .secret = user.note_secret,
                                                .creator_pubkey = 0,
@@ -1025,7 +1025,7 @@ TEST_F(claim_tests, test_claim_2_outputs_full_proof)
 
     const value_note expected_output_note2 = { .value = tx.output_value_b,
                                                .asset_id = bridge_id.output_asset_id_b,
-                                               .account_nonce = 0,
+                                               .account_required = false,
                                                .owner = user.owner.public_key,
                                                .secret = user.note_secret,
                                                .creator_pubkey = 0,
@@ -1068,7 +1068,7 @@ TEST_F(claim_tests, test_claim_1_output_full_proof)
                                .fee = claim_fee,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
-                               .input_nullifier = fr::random_element() };
+                               .input_nullifier = fr::random_element(&engine) };
 
     const defi_interaction::note note2 = { .bridge_id = bridge_id.to_uint256_t(),
                                            .interaction_nonce = 0,
@@ -1089,7 +1089,7 @@ TEST_F(claim_tests, test_claim_1_output_full_proof)
 
     const value_note expected_output_note1 = { .value = 20,
                                                .asset_id = bridge_id.output_asset_id_a,
-                                               .account_nonce = 0,
+                                               .account_required = false,
                                                .owner = user.owner.public_key,
                                                .secret = user.note_secret,
                                                .creator_pubkey = 0,
@@ -1134,7 +1134,7 @@ TEST_F(claim_tests, test_claim_1_output_with_virtual_note_full_proof)
                                .fee = claim_fee,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
-                               .input_nullifier = fr::random_element() };
+                               .input_nullifier = fr::random_element(&engine) };
 
     const defi_interaction::note note2 = { .bridge_id = bridge_id.to_uint256_t(),
                                            .interaction_nonce = defi_interaction_nonce,
@@ -1164,7 +1164,7 @@ TEST_F(claim_tests, test_claim_1_output_with_virtual_note_full_proof)
 
     const value_note expected_output_note1 = { .value = 20,
                                                .asset_id = bridge_id.output_asset_id_a,
-                                               .account_nonce = 0,
+                                               .account_required = false,
                                                .owner = user.owner.public_key,
                                                .secret = user.note_secret,
                                                .creator_pubkey = 0,
@@ -1173,7 +1173,7 @@ TEST_F(claim_tests, test_claim_1_output_with_virtual_note_full_proof)
     const value_note expected_output_note2 = { .value = 30,
                                                .asset_id = static_cast<uint32_t>(1 << (MAX_NUM_ASSETS_BIT_LENGTH - 1)) +
                                                            defi_interaction_nonce,
-                                               .account_nonce = 0,
+                                               .account_required = false,
                                                .owner = user.owner.public_key,
                                                .secret = user.note_secret,
                                                .creator_pubkey = 0,
@@ -1214,7 +1214,7 @@ TEST_F(claim_tests, test_claim_refund_full_proof)
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
-                               .input_nullifier = fr::random_element() };
+                               .input_nullifier = fr::random_element(&engine) };
 
     const defi_interaction::note note2 = { .bridge_id = bridge_id.to_uint256_t(),
                                            .interaction_nonce = 0,
@@ -1235,7 +1235,7 @@ TEST_F(claim_tests, test_claim_refund_full_proof)
 
     const value_note expected_output_note1 = { .value = 10,
                                                .asset_id = bridge_id.input_asset_id_a,
-                                               .account_nonce = 0,
+                                               .account_required = false,
                                                .owner = user.owner.public_key,
                                                .secret = user.note_secret,
                                                .creator_pubkey = 0,
@@ -1306,7 +1306,7 @@ class test_data {
                   .fee = 0,
                   .value_note_partial_commitment =
                       create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
-                  .input_nullifier = fr::random_element() };
+                  .input_nullifier = fr::random_element(&engine) };
 
         // defi interaction note:
         note2 = { .bridge_id = bid.to_uint256_t(),

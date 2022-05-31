@@ -21,8 +21,8 @@ TEST(client_proofs_account_tx, test_serialization)
     tx.new_signing_pub_key_1 = grumpkin::g1::element::random_element();
     tx.new_signing_pub_key_2 = grumpkin::g1::element::random_element();
     tx.alias_hash = 0;
-    tx.account_nonce = 3;
-    tx.migrate = true;
+    tx.create = true;
+    tx.migrate = false;
     tx.account_note_index = 123;
     tx.signing_pub_key = grumpkin::g1::one * grumpkin::fr::random_element();
 

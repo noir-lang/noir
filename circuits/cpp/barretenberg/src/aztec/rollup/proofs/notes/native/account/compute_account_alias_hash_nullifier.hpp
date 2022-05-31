@@ -11,10 +11,10 @@ namespace account {
 
 using namespace barretenberg;
 
-inline fr compute_account_alias_id_nullifier(fr const& account_alias_id)
+inline fr compute_account_alias_hash_nullifier(fr const& alias_hash)
 {
-    return crypto::pedersen::compress_native(std::vector<fr>{ account_alias_id },
-                                             notes::GeneratorIndex::ACCOUNT_ALIAS_ID_NULLIFIER);
+    return crypto::pedersen::compress_native(std::vector<fr>{ alias_hash },
+                                             notes::GeneratorIndex::ACCOUNT_ALIAS_HASH_NULLIFIER);
 }
 
 } // namespace account

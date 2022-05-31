@@ -16,7 +16,7 @@ struct value_note {
     suint_ct value;
     field_ct secret;
     suint_ct asset_id;
-    suint_ct account_nonce;
+    bool_ct account_required;
     field_ct input_nullifier;
     field_ct commitment;
     field_ct creator_pubkey;
@@ -26,7 +26,7 @@ struct value_note {
         , value(note.value)
         , secret(note.secret)
         , asset_id(note.asset_id)
-        , account_nonce(note.account_nonce)
+        , account_required(note.account_required)
         , input_nullifier(note.input_nullifier)
         , commitment(value::commit(note))
         , creator_pubkey(note.creator_pubkey)

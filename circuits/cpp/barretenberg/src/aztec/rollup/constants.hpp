@@ -19,7 +19,6 @@ constexpr size_t ASSET_ID_BIT_LENGTH = 30;
 constexpr size_t MAX_NUM_ASSETS_BIT_LENGTH = 30;
 constexpr size_t MAX_NUM_ASSETS = 1 << MAX_NUM_ASSETS_BIT_LENGTH;
 constexpr size_t ALIAS_HASH_BIT_LENGTH = 224;
-constexpr size_t ACCOUNT_NONCE_BIT_LENGTH = 28;
 
 constexpr uint32_t NUM_BRIDGE_CALLS_PER_BLOCK = 32;
 constexpr uint32_t NUM_INTERACTION_RESULTS_PER_BLOCK = 32;

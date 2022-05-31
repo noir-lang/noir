@@ -27,7 +27,7 @@ struct join_split_tx {
 
     grumpkin::fr account_private_key;
     barretenberg::fr alias_hash;
-    uint32_t account_nonce;
+    bool account_required;
     uint32_t account_note_index;
     merkle_tree::fr_hash_path account_note_path;
     grumpkin::g1::affine_element signing_pub_key;

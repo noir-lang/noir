@@ -16,7 +16,7 @@ using namespace barretenberg;
 struct value_note {
     uint256_t value;
     uint32_t asset_id;
-    uint32_t account_nonce;
+    bool account_required;
     grumpkin::g1::affine_element owner;
     barretenberg::fr secret;
     barretenberg::fr creator_pubkey;
@@ -26,7 +26,7 @@ struct value_note {
 
     auto commit() const
     {
-        auto partial = create_partial_commitment(secret, owner, account_nonce, creator_pubkey);
+        auto partial = create_partial_commitment(secret, owner, account_required, creator_pubkey);
         return complete_partial_commitment(partial, value, asset_id, input_nullifier);
     }
 };
@@ -34,7 +34,7 @@ struct value_note {
 inline std::ostream& operator<<(std::ostream& os, value_note const& note)
 {
     os << "{ owner_x: " << note.owner.x << ", owner_y: " << note.owner.y << ", view_key: " << note.secret
-       << ", value: " << note.value << ", asset_id: " << note.asset_id << ", nonce: " << note.account_nonce
+       << ", value: " << note.value << ", asset_id: " << note.asset_id << ", nonce: " << note.account_required
        << ", creator_pubkey: " << note.creator_pubkey << ", input_nullifier: " << note.input_nullifier << " }";
     return os;
 }
@@ -44,7 +44,7 @@ inline void read(uint8_t const*& it, value_note& note)
     using serialize::read;
     read(it, note.value);
     read(it, note.asset_id);
-    read(it, note.account_nonce);
+    read(it, note.account_required);
     read(it, note.owner);
     read(it, note.secret);
     read(it, note.creator_pubkey);
@@ -56,7 +56,7 @@ inline void write(std::vector<uint8_t>& buf, value_note const& note)
     using serialize::write;
     write(buf, note.value);
     write(buf, note.asset_id);
-    write(buf, note.account_nonce);
+    write(buf, note.account_required);
     write(buf, note.owner);
     write(buf, note.secret);
     write(buf, note.creator_pubkey);

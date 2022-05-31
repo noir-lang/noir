@@ -23,12 +23,12 @@ struct partial_claim_note {
 
     partial_claim_note(partial_claim_note_witness_data const& data,
                        point_ct const& owner,
-                       suint_ct const& owner_account_nonce)
+                       bool_ct const& owner_account_required)
     {
         deposit_value = data.deposit_value;
         bridge_id = data.bridge_id_data.to_safe_uint();
         value_note_partial_commitment =
-            value::create_partial_commitment(data.note_secret, owner, owner_account_nonce, 0);
+            value::create_partial_commitment(data.note_secret, owner, owner_account_required, 0);
         input_nullifier = data.input_nullifier;
         partial_commitment =
             create_partial_commitment(deposit_value, bridge_id, value_note_partial_commitment, input_nullifier);

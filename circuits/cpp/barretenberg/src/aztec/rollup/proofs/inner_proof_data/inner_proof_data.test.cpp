@@ -11,20 +11,20 @@ auto& rand_engine = numeric::random::get_debug_engine();
 TEST(client_proofs_inner_proof_data, test_proof_to_data)
 {
     uint256_t proof_id = 0;
-    auto note1 = fr::random_element();
-    auto note2 = fr::random_element();
-    auto merkle_root = fr::random_element();
+    auto note1 = fr::random_element(&rand_engine);
+    auto note2 = fr::random_element(&rand_engine);
+    auto merkle_root = fr::random_element(&rand_engine);
     uint256_t nullifier1 = rand_engine.get_random_uint256();
     uint256_t nullifier2 = rand_engine.get_random_uint256();
     uint256_t public_value = rand_engine.get_random_uint256();
-    auto public_owner = fr::random_element();
+    auto public_owner = fr::random_element(&rand_engine);
     uint256_t asset_id = 1;
     uint256_t tx_fee = rand_engine.get_random_uint256();
     uint256_t tx_fee_asset_id = 2;
     uint256_t bridge_id = rand_engine.get_random_uint256();
     uint256_t defi_deposit_value = rand_engine.get_random_uint256();
-    auto defi_root = fr::random_element();
-    auto backward_link = fr::random_element();
+    auto defi_root = fr::random_element(&rand_engine);
+    auto backward_link = fr::random_element(&rand_engine);
     uint256_t allow_chain = 0;
 
     using serialize::write;

@@ -61,7 +61,7 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
     const auto output_note_2 = value::value_note(inputs.output_note2);
 
     const auto partial_claim_note = claim::partial_claim_note(
-        inputs.partial_claim_note, inputs.input_note1.owner, inputs.input_note1.account_nonce);
+        inputs.partial_claim_note, inputs.input_note1.owner, inputs.input_note1.account_required);
 
     const auto output_note_1_commitment =
         field_ct::conditional_assign(is_defi_deposit, partial_claim_note.partial_commitment, output_note_1.commitment);
@@ -192,16 +192,17 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
      * => in1_value >= in2_value
      */
 
-    // Verify input notes have the same account public key and account_nonce.
+    // Verify input notes have the same account public key and account_required.
     input_note_1.owner.assert_equal(input_note_2.owner, "input note owners don't match");
-    input_note_1.account_nonce.assert_equal(input_note_2.account_nonce, "input note account_nonces don't match");
+    input_note_1.account_required.assert_equal(input_note_2.account_required,
+                                               "input note account_required don't match");
 
     // And thus check both input notes have the correct public key (derived from the private key) and
-    // account_nonce.
+    // account_required.
     inputs.account_private_key.assert_is_not_zero("account private key is zero");
     auto account_public_key = group_ct::fixed_base_scalar_mul_g1<254>(inputs.account_private_key);
     account_public_key.assert_equal(input_note_1.owner, "account_private_key incorrect");
-    inputs.account_nonce.assert_equal(input_note_1.account_nonce, "account_nonce incorrect");
+    inputs.account_required.assert_equal(input_note_1.account_required, "account_required incorrect");
 
     // Verify output notes creator_pubkey is either account_public_key.x or 0.
     output_note_1.creator_pubkey.assert_is_in_set({ field_ct(0), account_public_key.x },
@@ -209,23 +210,20 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
     output_note_2.creator_pubkey.assert_is_in_set({ field_ct(0), account_public_key.x },
                                                   "output note 2 creator_pubkey mismatch");
 
-    // Signer is the account public key if account_nonce is 0, else it's the given signing key.
-    const bool_ct zero_account_nonce = inputs.account_nonce.is_zero();
-    const point_ct signer = {
-        field_ct::conditional_assign(zero_account_nonce, account_public_key.x, inputs.signing_pub_key.x),
-        field_ct::conditional_assign(zero_account_nonce, account_public_key.y, inputs.signing_pub_key.y)
-    };
+    // Signer is the account public key if account_required is false, else it's the given signing key.
+    const point_ct signer =
+        point_ct::conditional_assign(inputs.account_required, inputs.signing_pub_key, account_public_key);
 
-    // Verify that the signing key account note exists if account_nonce > 0.
+    // Verify that the signing key account note exists if account_required == true.
     {
-        const auto account_alias_id = inputs.alias_hash + (inputs.account_nonce * suint_ct(uint256_t(1) << 224));
-        const auto account_note_data = account::account_note(account_alias_id.value, account_public_key, signer);
+        const auto account_alias_hash = inputs.alias_hash;
+        const auto account_note_data = account::account_note(account_alias_hash.value, account_public_key, signer);
         const bool_ct signing_key_exists =
             merkle_tree::check_membership(inputs.merkle_root,
                                           inputs.account_note_path,
                                           account_note_data.commitment,
                                           inputs.account_note_index.value.decompose_into_bits(DATA_TREE_DEPTH));
-        (signing_key_exists || zero_account_nonce).assert_equal(true, "account check_membership failed");
+        (signing_key_exists || !inputs.account_required).assert_equal(true, "account check_membership failed");
     }
 
     // Verify each input note exists in the tree, and compute nullifiers.
@@ -300,7 +298,7 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
         .account_note_path = merkle_tree::create_witness_hash_path(composer, tx.account_note_path),
         .account_private_key = witness_ct(&composer, static_cast<fr>(tx.account_private_key)),
         .alias_hash = suint_ct(witness_ct(&composer, tx.alias_hash), ALIAS_HASH_BIT_LENGTH, "alias_hash"),
-        .account_nonce = suint_ct(witness_ct(&composer, tx.account_nonce), ACCOUNT_NONCE_BIT_LENGTH, "account_nonce"),
+        .account_required = bool_ct(witness_ct(&composer, tx.account_required)),
         .backward_link = witness_ct(&composer, tx.backward_link),
         .allow_chain = witness_ct(&composer, tx.allow_chain),
     };

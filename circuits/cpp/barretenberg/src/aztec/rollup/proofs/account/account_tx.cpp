@@ -1,5 +1,6 @@
 #include "account_tx.hpp"
 #include <crypto/pedersen/pedersen.hpp>
+#include "../notes/constants.hpp"
 
 namespace rollup {
 namespace proofs {
@@ -9,11 +10,30 @@ using namespace barretenberg;
 using namespace crypto::schnorr;
 using namespace crypto::pedersen;
 
+fr account_tx::compute_account_alias_hash_nullifier() const
+{
+    if (create) {
+        return compress_native({ alias_hash }, rollup::proofs::notes::GeneratorIndex::ACCOUNT_ALIAS_HASH_NULLIFIER);
+    }
+    return 0;
+}
+
+fr account_tx::compute_account_public_key_nullifier() const
+{
+    if (create || migrate) {
+        return compress_native({ new_account_public_key.x, new_account_public_key.y },
+                               rollup::proofs::notes::GeneratorIndex::ACCOUNT_PUBLIC_KEY_NULLIFIER);
+    }
+    return 0;
+}
+
 void account_tx::sign(key_pair<grumpkin::fr, grumpkin::g1> const& keys)
 {
+    auto nullifier_1 = compute_account_alias_hash_nullifier();
+    auto nullifier_2 = compute_account_public_key_nullifier();
     std::vector<grumpkin::fq> to_compress = {
-        account_alias_id(),      account_public_key.x,    new_account_public_key.x,
-        new_signing_pub_key_1.x, new_signing_pub_key_2.x,
+        alias_hash,  account_public_key.x, new_account_public_key.x, new_signing_pub_key_1.x, new_signing_pub_key_2.x,
+        nullifier_1, nullifier_2
     };
     fr compressed = compress_native(to_compress);
     auto message = to_buffer(compressed);
@@ -31,7 +51,7 @@ void write(std::vector<uint8_t>& buf, account_tx const& tx)
     write(buf, tx.new_signing_pub_key_1);
     write(buf, tx.new_signing_pub_key_2);
     write(buf, tx.alias_hash);
-    write(buf, tx.account_nonce);
+    write(buf, tx.create);
     write(buf, tx.migrate);
     write(buf, tx.account_note_index);
     write(buf, tx.account_note_path);
@@ -48,7 +68,7 @@ void read(uint8_t const*& buf, account_tx& tx)
     read(buf, tx.new_signing_pub_key_1);
     read(buf, tx.new_signing_pub_key_2);
     read(buf, tx.alias_hash);
-    read(buf, tx.account_nonce);
+    read(buf, tx.create);
     read(buf, tx.migrate);
     read(buf, tx.account_note_index);
     read(buf, tx.account_note_path);
@@ -64,7 +84,7 @@ std::ostream& operator<<(std::ostream& os, account_tx const& tx)
               << "new_signing_pub_key_1: " << tx.new_signing_pub_key_1 << "\n"
               << "new_signing_pub_key_2: " << tx.new_signing_pub_key_2 << "\n"
               << "alias_hash: " << tx.alias_hash << "\n"
-              << "account_nonce: " << tx.account_nonce << "\n"
+              << "create: " << tx.create << "\n"
               << "migrate: " << tx.migrate << "\n"
               << "account_note_index: " << tx.account_note_index << "\n"
               << "account_note_path: " << tx.account_note_path << "\n"

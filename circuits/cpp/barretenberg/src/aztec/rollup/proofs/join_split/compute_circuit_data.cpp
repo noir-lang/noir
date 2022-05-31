@@ -38,13 +38,18 @@ join_split_tx noop_tx()
     tx.input_path = { gibberish_path, gibberish_path };
     tx.input_note = { input_note1, input_note2 };
     tx.output_note = { output_note1, output_note2 };
-    tx.partial_claim_note = { 0, 0, fr::random_element(), 0 };
+    tx.partial_claim_note = {
+        .deposit_value = 0,
+        .bridge_id = 0,
+        .note_secret = fr::random_element(),
+        .input_nullifier = 0,
+    };
     tx.account_note_index = 0;
     tx.account_note_path = gibberish_path;
     tx.signing_pub_key = pub_key;
     tx.account_private_key = priv_key;
     tx.alias_hash = 0;
-    tx.account_nonce = 0;
+    tx.account_required = false;
     tx.backward_link = fr::zero();
     tx.allow_chain = 0;
 

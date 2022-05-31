@@ -28,6 +28,11 @@ class TestContext {
         , js_cd(js_cd)
         , account_cd(account_cd)
         , claim_cd(claim_cd)
+        , extra_key_pairs{
+            fixtures::create_key_pair(rand_engine), fixtures::create_key_pair(rand_engine),
+            fixtures::create_key_pair(rand_engine), fixtures::create_key_pair(rand_engine),
+            fixtures::create_key_pair(rand_engine),
+        }
     {}
 
     void append_value_notes(std::vector<uint32_t> const& values, uint32_t asset_id = 0)
@@ -44,20 +49,28 @@ class TestContext {
 
     void append_account_notes()
     {
-        auto account_alias_id = fixtures::generate_account_alias_id(user.alias_hash, 1);
-        native::account::account_note note1 = { account_alias_id,
-                                                user.owner.public_key,
-                                                user.signing_keys[0].public_key };
-        native::account::account_note note2 = { account_alias_id,
-                                                user.owner.public_key,
-                                                user.signing_keys[1].public_key };
+        native::account::account_note note1 = {
+            .alias_hash = user.alias_hash,
+            .owner_key = user.owner.public_key,
+            .signing_key = user.signing_keys[0].public_key,
+        };
+        native::account::account_note note2 = {
+            .alias_hash = user.alias_hash,
+            .owner_key = user.owner.public_key,
+            .signing_key = user.signing_keys[1].public_key,
+        };
         world_state.append_data_note(note1);
         world_state.append_data_note(note2);
     }
 
-    void nullify_account_alias_id(fr const& account_alias_id)
+    void nullify_account_alias_hash(fr const& account_alias_hash)
     {
-        world_state.nullify(native::account::compute_account_alias_id_nullifier(account_alias_id));
+        world_state.nullify(native::account::compute_account_alias_hash_nullifier(account_alias_hash));
+    }
+
+    void nullify_account_public_key(grumpkin::g1::affine_element const& account_public_key)
+    {
+        world_state.nullify(native::account::compute_account_public_key_nullifier(account_public_key));
     }
 
     std::vector<uint8_t> create_join_split_proof(std::vector<uint32_t> in_note_idx,
@@ -67,7 +80,7 @@ class TestContext {
                                                  uint256_t public_output = 0,
                                                  uint32_t account_note_idx = 0,
                                                  uint32_t asset_id = 0,
-                                                 uint32_t account_nonce = 0)
+                                                 bool account_required = false)
     {
         auto tx = js_tx_factory.create_join_split_tx(in_note_idx,
                                                      in_note_value,
@@ -76,8 +89,8 @@ class TestContext {
                                                      public_output,
                                                      account_note_idx,
                                                      asset_id,
-                                                     account_nonce);
-        auto signer = account_nonce ? user.signing_keys[0] : user.owner;
+                                                     account_required);
+        auto signer = account_required ? user.signing_keys[0] : user.owner;
         js_tx_factory.finalise_and_sign_tx(tx, signer);
         return join_split::create_proof(tx, js_cd);
     }
@@ -87,22 +100,38 @@ class TestContext {
                                            std::array<uint32_t, 2> out_note_values,
                                            uint256_t bridge_id,
                                            uint32_t asset_id = 0,
-                                           uint32_t account_nonce = 0,
+                                           bool account_required = false,
                                            uint32_t virtual_asset_id = 0)
     {
 
         auto tx = js_tx_factory.create_defi_deposit_tx(
             in_note_indices, in_note_values, out_note_values, bridge_id, asset_id, virtual_asset_id);
-        auto signer = account_nonce ? user.signing_keys[0] : user.owner;
+        auto signer = account_required ? user.signing_keys[0] : user.owner;
         js_tx_factory.finalise_and_sign_tx(tx, signer);
         return join_split::create_proof(tx, js_cd);
     }
 
-    std::vector<uint8_t> create_account_proof(uint32_t account_nonce = 0, uint32_t account_note_idx = 0)
+    std::vector<uint8_t> create_new_account_proof(uint32_t account_note_idx = 0)
     {
-        auto tx = account_tx_factory.create_tx(account_nonce, account_note_idx);
-        auto signer = account_nonce ? user.signing_keys[0] : user.owner;
-        return account::create_proof(tx, signer, account_cd);
+        auto tx = account_tx_factory.create_new_account_tx(account_note_idx);
+        return account::create_proof(tx, user.owner, account_cd);
+    }
+
+    std::vector<uint8_t> create_add_signing_keys_to_account_proof(uint32_t account_note_idx = 0)
+    {
+        grumpkin::g1::affine_element new_signing_keys[2] = { extra_key_pairs[0].public_key,
+                                                             extra_key_pairs[1].public_key };
+        auto tx = account_tx_factory.create_add_signing_keys_to_account_tx(new_signing_keys, account_note_idx);
+        return account::create_proof(tx, user.signing_keys[0], account_cd);
+    }
+
+    std::vector<uint8_t> create_migrate_account_proof(uint32_t account_note_idx = 0)
+    {
+        grumpkin::g1::affine_element new_owner_key = extra_key_pairs[0].public_key;
+        grumpkin::g1::affine_element new_signing_keys[2] = { extra_key_pairs[1].public_key,
+                                                             extra_key_pairs[2].public_key };
+        auto tx = account_tx_factory.create_migrate_account_tx(new_owner_key, new_signing_keys, account_note_idx);
+        return account::create_proof(tx, user.signing_keys[0], account_cd);
     }
 
     auto create_claim_tx(uint256_t bridge_id,
@@ -168,6 +197,7 @@ class TestContext {
     account::circuit_data const& account_cd;
     claim::circuit_data const& claim_cd;
     std::vector<native::defi_interaction::note> defi_interactions;
+    std::array<fixtures::grumpkin_key_pair, 5> extra_key_pairs;
 };
 
 } // namespace fixtures

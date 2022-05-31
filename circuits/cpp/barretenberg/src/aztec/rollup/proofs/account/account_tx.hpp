@@ -17,7 +17,7 @@ struct account_tx {
     grumpkin::g1::affine_element new_signing_pub_key_1 = grumpkin::g1::affine_one;
     grumpkin::g1::affine_element new_signing_pub_key_2 = grumpkin::g1::affine_one;
     barretenberg::fr alias_hash;
-    uint32_t account_nonce;
+    bool create;
     bool migrate;
 
     uint32_t account_note_index;
@@ -25,11 +25,8 @@ struct account_tx {
     grumpkin::g1::affine_element signing_pub_key = grumpkin::g1::affine_one;
     crypto::schnorr::signature signature;
 
-    barretenberg::fr account_alias_id() const
-    {
-        return alias_hash + (barretenberg::fr{ (uint64_t)account_nonce } * barretenberg::fr(2).pow(224));
-    }
-
+    fr compute_account_alias_hash_nullifier() const;
+    fr compute_account_public_key_nullifier() const;
     void sign(crypto::schnorr::key_pair<grumpkin::fr, grumpkin::g1> const& keys);
 
     bool operator==(account_tx const&) const = default;

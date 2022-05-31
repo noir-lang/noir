@@ -8,17 +8,17 @@ namespace notes {
 namespace native {
 namespace account {
 
-grumpkin::fq generate_account_commitment(const barretenberg::fr& account_alias_id,
+grumpkin::fq generate_account_commitment(const barretenberg::fr& alias_hash,
                                          const barretenberg::fr& owner_x,
                                          const barretenberg::fr& signing_x)
 {
-    return crypto::pedersen::compress_native({ account_alias_id, owner_x, signing_x },
+    return crypto::pedersen::compress_native({ alias_hash, owner_x, signing_x },
                                              GeneratorIndex::ACCOUNT_NOTE_COMMITMENT);
 }
 
 grumpkin::fq account_note::commit() const
 {
-    return generate_account_commitment(account_alias_id, owner_key.x, signing_key.x);
+    return generate_account_commitment(alias_hash, owner_key.x, signing_key.x);
 }
 
 } // namespace account

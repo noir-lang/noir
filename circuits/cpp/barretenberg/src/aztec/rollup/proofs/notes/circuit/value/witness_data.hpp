@@ -16,7 +16,7 @@ struct witness_data {
     suint_ct value;
     field_ct secret;
     suint_ct asset_id;
-    suint_ct account_nonce;
+    bool_ct account_required;
     field_ct creator_pubkey;
     field_ct input_nullifier;
 
@@ -27,7 +27,7 @@ struct witness_data {
         owner.y = witness_ct(&composer, note.owner.y);
         value = suint_ct(witness_ct(&composer, note.value), NOTE_VALUE_BIT_LENGTH, "note_value");
         asset_id = suint_ct(witness_ct(&composer, note.asset_id), ASSET_ID_BIT_LENGTH, "asset_id");
-        account_nonce = suint_ct(witness_ct(&composer, note.account_nonce), NONCE_BIT_LENGTH, "account_nonce");
+        account_required = bool_ct(witness_ct(&composer, note.account_required));
         creator_pubkey = witness_ct(&composer, note.creator_pubkey);
         input_nullifier = witness_ct(&composer, note.input_nullifier);
     }

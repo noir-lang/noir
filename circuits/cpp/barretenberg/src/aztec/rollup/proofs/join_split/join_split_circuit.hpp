@@ -33,7 +33,7 @@ struct join_split_inputs {
     merkle_tree::hash_path account_note_path;
     field_ct account_private_key;
     suint_ct alias_hash;
-    suint_ct account_nonce;
+    bool_ct account_required;
     field_ct backward_link;
     field_ct allow_chain;
 };

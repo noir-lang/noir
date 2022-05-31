@@ -1,14 +1,16 @@
+#include "account.hpp"
+
 #include "../../constants.hpp"
 #include "../../fixtures/user_context.hpp"
-#include "account.hpp"
 #include "../inner_proof_data/inner_proof_data.hpp"
 #include "../notes/constants.hpp"
 #include "../notes/native/index.hpp"
+
 #include <common/streams.hpp>
 #include <common/test.hpp>
+#include <plonk/proof_system/proving_key/serialize.hpp>
 #include <stdlib/merkle_tree/memory_store.hpp>
 #include <stdlib/merkle_tree/merkle_tree.hpp>
-#include <plonk/proof_system/proving_key/serialize.hpp>
 
 using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
@@ -32,7 +34,8 @@ class account_tests : public ::testing::Test {
     {
         store = std::make_unique<MemoryStore>();
         tree = std::make_unique<MerkleTree<MemoryStore>>(*store, 32);
-        user = rollup::fixtures::create_user_context();
+        alice = rollup::fixtures::create_user_context();
+        bob = rollup::fixtures::create_user_context();
     }
 
     /**
@@ -40,36 +43,36 @@ class account_tests : public ::testing::Test {
      */
     void preload_account_notes()
     {
-        auto account_alias_id = rollup::fixtures::generate_account_alias_id(user.alias_hash, 1);
         tree->update_element(
             tree->size(),
-            create_account_leaf_data(account_alias_id, user.owner.public_key, user.signing_keys[0].public_key));
+            create_account_leaf_data(alice.alias_hash, alice.owner.public_key, alice.signing_keys[0].public_key));
         tree->update_element(
             tree->size(),
-            create_account_leaf_data(account_alias_id, user.owner.public_key, user.signing_keys[1].public_key));
+            create_account_leaf_data(alice.alias_hash, alice.owner.public_key, alice.signing_keys[1].public_key));
     }
 
-    fr create_account_leaf_data(fr const& account_alias_id,
+    fr create_account_leaf_data(fr const& account_alias_hash,
                                 grumpkin::g1::affine_element const& owner_key,
                                 grumpkin::g1::affine_element const& signing_key)
     {
-        return account_note{ account_alias_id, owner_key, signing_key }.commit();
+        return account_note{ account_alias_hash, owner_key, signing_key }.commit();
     }
 
-    uint256_t compute_account_alias_id_nullifier(fr const& account_alias_id)
+    uint256_t compute_account_alias_hash_nullifier(fr const& account_alias_hash)
     {
-        const std::vector<fr> hash_elements{ account_alias_id };
+        const std::vector<fr> hash_elements{ account_alias_hash };
         auto result =
-            crypto::pedersen::compress_native(hash_elements, notes::GeneratorIndex::ACCOUNT_ALIAS_ID_NULLIFIER);
+            crypto::pedersen::compress_native(hash_elements, notes::GeneratorIndex::ACCOUNT_ALIAS_HASH_NULLIFIER);
         return uint256_t(result);
     }
 
-    fr compute_account_alias_id(barretenberg::fr alias_hash, uint32_t account_nonce)
+    uint256_t compute_account_public_key_nullifier(grumpkin::g1::affine_element const& account_public_key)
     {
-        return alias_hash + (fr{ (uint64_t)account_nonce } * fr(2).pow(224));
+        return crypto::pedersen::compress_native({ account_public_key.x, account_public_key.y },
+                                                 notes::GeneratorIndex::ACCOUNT_PUBLIC_KEY_NULLIFIER);
     }
 
-    account_tx create_account_tx(uint32_t account_nonce, rollup::fixtures::grumpkin_key_pair& keys)
+    account_tx create_new_account_tx(const rollup::fixtures::user_context& user)
     {
         account_tx tx;
         tx.merkle_root = tree->root();
@@ -78,13 +81,51 @@ class account_tests : public ::testing::Test {
         tx.new_signing_pub_key_1 = user.signing_keys[0].public_key;
         tx.new_signing_pub_key_2 = user.signing_keys[1].public_key;
         tx.alias_hash = user.alias_hash;
-        tx.account_nonce = account_nonce;
+        tx.create = true;
+        tx.migrate = false;
+        tx.account_note_index = 0;
+        tx.signing_pub_key = user.owner.public_key;
+        tx.account_note_path = tree->get_hash_path(0);
+        tx.sign(user.owner);
+        return tx;
+    }
+
+    account_tx create_migrate_account_tx(const rollup::fixtures::user_context& user,
+                                         const rollup::fixtures::grumpkin_key_pair& new_account_key,
+                                         const rollup::fixtures::grumpkin_key_pair new_signing_keys[2])
+    {
+        account_tx tx;
+        tx.merkle_root = tree->root();
+        tx.account_public_key = user.owner.public_key;
+        tx.new_account_public_key = new_account_key.public_key;
+        tx.new_signing_pub_key_1 = new_signing_keys[0].public_key;
+        tx.new_signing_pub_key_2 = new_signing_keys[1].public_key;
+        tx.alias_hash = user.alias_hash;
+        tx.create = false;
         tx.migrate = true;
         tx.account_note_index = 0;
         tx.signing_pub_key = user.signing_keys[0].public_key;
         tx.account_note_path = tree->get_hash_path(0);
-        tx.sign(keys);
+        tx.sign(user.signing_keys[0]);
+        return tx;
+    }
 
+    account_tx create_add_signing_keys_account_tx(const rollup::fixtures::user_context& user,
+                                                  const rollup::fixtures::grumpkin_key_pair new_signing_keys[2])
+    {
+        account_tx tx;
+        tx.merkle_root = tree->root();
+        tx.account_public_key = user.owner.public_key;
+        tx.new_account_public_key = user.owner.public_key;
+        tx.new_signing_pub_key_1 = new_signing_keys[0].public_key;
+        tx.new_signing_pub_key_2 = new_signing_keys[1].public_key;
+        tx.alias_hash = user.alias_hash;
+        tx.create = false;
+        tx.migrate = false;
+        tx.account_note_index = 0;
+        tx.signing_pub_key = user.signing_keys[0].public_key;
+        tx.account_note_path = tree->get_hash_path(0);
+        tx.sign(user.signing_keys[0]);
         return tx;
     }
 
@@ -110,51 +151,43 @@ class account_tests : public ::testing::Test {
         return { !composer.failed, composer.err };
     }
 
-    rollup::fixtures::user_context user;
+    rollup::fixtures::user_context alice;
+    rollup::fixtures::user_context bob;
     std::unique_ptr<MemoryStore> store;
     std::unique_ptr<MerkleTree<MemoryStore>> tree;
 };
 
 TEST_F(account_tests, test_create_account)
 {
-    auto tx = create_account_tx(0, user.owner);
+    auto tx = create_new_account_tx(alice);
     EXPECT_TRUE(verify_logic(tx).valid);
-}
-
-TEST_F(account_tests, test_create_account_full_proof)
-{
-    auto tx = create_account_tx(0, user.owner);
-    EXPECT_TRUE(verify(tx));
 }
 
 TEST_F(account_tests, test_migrate_account)
 {
     preload_account_notes();
-    auto tx = create_account_tx(1, user.owner);
-    tx.account_note_index = 0;
-    tx.sign(user.signing_keys[0]);
+    auto tx = create_migrate_account_tx(alice, bob.owner, bob.signing_keys);
 
     EXPECT_TRUE(verify_logic(tx).valid);
 }
 
-// Initial migration (account_nonce = 0)
+// Initial migration
 
-TEST_F(account_tests, test_initial_account_not_migrated_fails)
+TEST_F(account_tests, test_account_with_create_and_migrate_fails)
 {
-    auto tx = create_account_tx(0, user.owner);
-    tx.migrate = false;
-    tx.sign(user.owner);
+    auto tx = create_migrate_account_tx(alice, bob.owner, bob.signing_keys);
+    tx.create = true;
 
     auto result = verify_logic(tx);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(result.err, "account must be migrated");
+    EXPECT_EQ(result.err, "cannot both create and migrate an account");
 }
 
 // Signature
 
 TEST_F(account_tests, test_wrong_account_key_pair_fails)
 {
-    auto tx = create_account_tx(0, user.owner);
+    auto tx = create_new_account_tx(bob);
     auto keys = rollup::fixtures::create_key_pair(nullptr);
     tx.sign(keys); // sign the tx with the wrong signing private key
 
@@ -167,16 +200,17 @@ TEST_F(account_tests, test_wrong_account_key_pair_fails)
 TEST_F(account_tests, test_migrate_account_with_account_key_fails)
 {
     preload_account_notes();
-    auto tx = create_account_tx(1, user.owner);
-    // The `tx.signature`, by default, gets signed by the original account private key.
-    // So if we change the public key with which to verify this signature, it should fail.
-    // (Note, even without this change the tx would fail, because the `tx` we got back attests to an account note which
-    // doesn't exist in the tree).
-    tx.signing_pub_key = user.signing_keys[0].public_key;
+    auto tx = create_migrate_account_tx(alice, bob.owner, bob.signing_keys);
+
+    // Set the signing key to equal the owner public key and sign with the public key.
+    // The signature will be correct, but the circuit will look for an account note
+    // with the "wrong" owner public key
+    tx.signing_pub_key = alice.owner.public_key;
+    tx.sign(alice.owner);
 
     auto result = verify_logic(tx);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(result.err, "verify signature failed");
+    EXPECT_EQ(result.err, "account check_membership failed");
 }
 
 // Account membership
@@ -184,10 +218,7 @@ TEST_F(account_tests, test_migrate_account_with_account_key_fails)
 TEST_F(account_tests, test_alternative_signing_key_1)
 {
     preload_account_notes();
-    auto tx = create_account_tx(1, user.owner);
-    tx.migrate = false;
-    tx.account_note_index = 0;
-    tx.sign(user.signing_keys[0]);
+    auto tx = create_add_signing_keys_account_tx(alice, bob.signing_keys);
 
     EXPECT_TRUE(verify_logic(tx).valid);
 }
@@ -195,11 +226,10 @@ TEST_F(account_tests, test_alternative_signing_key_1)
 TEST_F(account_tests, test_alternative_signing_key_2)
 {
     preload_account_notes();
-    auto tx = create_account_tx(1, user.owner);
-    tx.migrate = false;
+    auto tx = create_add_signing_keys_account_tx(alice, bob.signing_keys);
     tx.account_note_index = 1;
     tx.account_note_path = tree->get_hash_path(1);
-    tx.sign(user.signing_keys[1]);
+    tx.sign(alice.signing_keys[1]);
 
     EXPECT_TRUE(verify_logic(tx).valid);
 }
@@ -207,14 +237,36 @@ TEST_F(account_tests, test_alternative_signing_key_2)
 TEST_F(account_tests, test_wrong_alias_hash_fails)
 {
     preload_account_notes();
-    auto tx = create_account_tx(1, user.owner);
+    auto tx = create_add_signing_keys_account_tx(alice, bob.signing_keys);
     // The circuit will calculate an 'old' account note with the wrong alias, so the membership check should fail.
     tx.alias_hash = rollup::fixtures::generate_alias_hash("penguin"); // it's actually "pebble"
-    tx.sign(user.signing_keys[0]);
+    tx.sign(alice.signing_keys[0]);
 
     auto result = verify_logic(tx);
     EXPECT_FALSE(result.valid);
     EXPECT_EQ(result.err, "account check_membership failed");
+}
+
+TEST_F(account_tests, test_account_key_equals_spending_key_1_fails)
+{
+    auto tx = create_new_account_tx(alice);
+    tx.new_signing_pub_key_1 = alice.owner.public_key;
+    tx.sign(alice.owner);
+
+    auto result = verify_logic(tx);
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(result.err, "account note 1: public key matches spending key");
+}
+
+TEST_F(account_tests, test_account_key_equals_spending_key_2_fails)
+{
+    auto tx = create_new_account_tx(alice);
+    tx.new_signing_pub_key_2 = alice.owner.public_key;
+    tx.sign(alice.owner);
+
+    auto result = verify_logic(tx);
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(result.err, "account note 2: public key matches spending key");
 }
 
 // Account public key
@@ -222,10 +274,8 @@ TEST_F(account_tests, test_wrong_alias_hash_fails)
 TEST_F(account_tests, test_migrate_to_new_account_public_key)
 {
     preload_account_notes();
-    auto tx = create_account_tx(1, user.owner);
     auto new_keys = rollup::fixtures::create_key_pair(nullptr);
-    tx.new_account_public_key = new_keys.public_key;
-    tx.sign(user.signing_keys[0]);
+    auto tx = create_migrate_account_tx(alice, new_keys, alice.signing_keys);
 
     EXPECT_TRUE(verify_logic(tx).valid);
 }
@@ -233,36 +283,35 @@ TEST_F(account_tests, test_migrate_to_new_account_public_key)
 TEST_F(account_tests, test_change_account_public_key_without_migrating_fails)
 {
     preload_account_notes();
-    auto tx = create_account_tx(1, user.owner);
-    auto new_keys = rollup::fixtures::create_key_pair(nullptr);
+    auto tx = create_migrate_account_tx(alice, bob.owner, bob.signing_keys);
     tx.migrate = false;
-    tx.new_account_public_key = new_keys.public_key;
-    tx.sign(user.signing_keys[0]);
+    // regen signature as `nullifier_1 = 0` if migrate == false
+    tx.sign(alice.signing_keys[0]);
 
     auto result = verify_logic(tx);
     EXPECT_FALSE(result.valid);
     EXPECT_EQ(result.err, "cannot change account keys unless migrating");
 }
 
-TEST_F(account_tests, test_migrate_account_full_proof)
+TEST_F(account_tests, test_create_account_when_account_exists_creates_nullifier_collision)
 {
-    auto tx = create_account_tx(0, user.owner);
+    preload_account_notes();
+    auto tx = create_new_account_tx(alice);
     auto prover = new_account_prover(tx, false);
     auto proof = prover.construct_proof();
     auto data = inner_proof_data(proof.proof_data);
 
-    auto new_account_alias_id = compute_account_alias_id(tx.alias_hash, tx.account_nonce + 1);
-    auto note1_commitment =
-        account_note{ new_account_alias_id, tx.account_public_key, tx.new_signing_pub_key_1 }.commit();
-    auto note2_commitment =
-        account_note{ new_account_alias_id, tx.account_public_key, tx.new_signing_pub_key_2 }.commit();
+    EXPECT_TRUE(verify_logic(tx).valid);
+    EXPECT_TRUE(verify_proof(proof));
+
+    auto note1_commitment = account_note{ tx.alias_hash, tx.account_public_key, tx.new_signing_pub_key_1 }.commit();
+    auto note2_commitment = account_note{ tx.alias_hash, tx.account_public_key, tx.new_signing_pub_key_2 }.commit();
 
     EXPECT_EQ(data.proof_id, ProofIds::ACCOUNT);
     EXPECT_EQ(data.note_commitment1, note1_commitment);
     EXPECT_EQ(data.note_commitment2, note2_commitment);
-    EXPECT_EQ(data.nullifier1, compute_account_alias_id_nullifier(tx.account_alias_id()));
-    EXPECT_EQ(data.nullifier2, uint256_t(0));
-    EXPECT_EQ(data.public_value, uint256_t(0));
+    EXPECT_EQ(data.nullifier2, compute_account_public_key_nullifier(alice.owner.public_key)); // public key of new acct
+    EXPECT_EQ(data.public_value, 0);
     EXPECT_EQ(data.public_owner, fr(0));
     EXPECT_EQ(data.asset_id, uint256_t(0));
     EXPECT_EQ(data.merkle_root, tx.merkle_root);
@@ -273,21 +322,94 @@ TEST_F(account_tests, test_migrate_account_full_proof)
     EXPECT_EQ(data.defi_root, fr(0));
     EXPECT_EQ(data.backward_link, fr(0));
     EXPECT_EQ(data.allow_chain, uint256_t(0));
+
+    // Validate output nullifier = nullifier of alice's alias_hash
+    EXPECT_EQ(data.nullifier1, compute_account_alias_hash_nullifier(alice.alias_hash));
 }
 
-TEST_F(account_tests, test_non_migrate_account_full_proof)
+TEST_F(account_tests, test_create_account_full_proof)
 {
-    preload_account_notes();
-    auto tx = create_account_tx(1, user.signing_keys[0]);
-    tx.migrate = false;
+    auto tx = create_new_account_tx(alice);
     auto prover = new_account_prover(tx, false);
     auto proof = prover.construct_proof();
     auto data = inner_proof_data(proof.proof_data);
 
-    auto note1_commitment =
-        account_note{ tx.account_alias_id(), tx.account_public_key, tx.new_signing_pub_key_1 }.commit();
-    auto note2_commitment =
-        account_note{ tx.account_alias_id(), tx.account_public_key, tx.new_signing_pub_key_2 }.commit();
+    auto note1_commitment = account_note{ tx.alias_hash, tx.account_public_key, tx.new_signing_pub_key_1 }.commit();
+    auto note2_commitment = account_note{ tx.alias_hash, tx.account_public_key, tx.new_signing_pub_key_2 }.commit();
+
+    EXPECT_EQ(data.proof_id, ProofIds::ACCOUNT);
+    EXPECT_EQ(data.note_commitment1, note1_commitment);
+    EXPECT_EQ(data.note_commitment2, note2_commitment);
+    EXPECT_EQ(data.nullifier1, compute_account_alias_hash_nullifier(tx.alias_hash));
+    EXPECT_EQ(data.nullifier2, compute_account_public_key_nullifier(alice.owner.public_key)); // public key of new acct
+    EXPECT_EQ(data.public_value, 0);
+    EXPECT_EQ(data.public_owner, fr(0));
+    EXPECT_EQ(data.asset_id, uint256_t(0));
+    EXPECT_EQ(data.merkle_root, tx.merkle_root);
+    EXPECT_EQ(data.tx_fee, uint256_t(0));
+    EXPECT_EQ(data.tx_fee_asset_id, uint256_t(0));
+    EXPECT_EQ(data.bridge_id, uint256_t(0));
+    EXPECT_EQ(data.defi_deposit_value, uint256_t(0));
+    EXPECT_EQ(data.defi_root, fr(0));
+    EXPECT_EQ(data.backward_link, fr(0));
+    EXPECT_EQ(data.allow_chain, uint256_t(0));
+
+    EXPECT_TRUE(verify_proof(proof));
+}
+
+TEST_F(account_tests, test_migrate_account_full_proof)
+{
+    preload_account_notes();
+    const auto& new_account_key = bob.owner;
+    const auto& new_signing_keys = bob.signing_keys;
+    auto tx = create_migrate_account_tx(alice, new_account_key, new_signing_keys);
+    auto prover = new_account_prover(tx, false);
+    auto proof = prover.construct_proof();
+    auto data = inner_proof_data(proof.proof_data);
+
+    auto note1_commitment = account_note{ .alias_hash = tx.alias_hash,
+                                          .owner_key = new_account_key.public_key,
+                                          .signing_key = new_signing_keys[0].public_key }
+                                .commit();
+
+    auto note2_commitment = account_note{ .alias_hash = tx.alias_hash,
+                                          .owner_key = new_account_key.public_key,
+                                          .signing_key = new_signing_keys[1].public_key }
+                                .commit();
+
+    EXPECT_EQ(data.proof_id, ProofIds::ACCOUNT);
+    EXPECT_EQ(data.note_commitment1, note1_commitment);
+    EXPECT_EQ(data.note_commitment2, note2_commitment);
+    EXPECT_EQ(data.nullifier1, 0);
+    // nullifier2 = public key of new account
+    EXPECT_EQ(data.nullifier2, compute_account_public_key_nullifier(new_account_key.public_key));
+    EXPECT_EQ(data.public_value, 0);
+    EXPECT_EQ(data.public_owner, fr(0));
+    EXPECT_EQ(data.asset_id, uint256_t(0));
+    EXPECT_EQ(data.merkle_root, tx.merkle_root);
+    EXPECT_EQ(data.tx_fee, uint256_t(0));
+    EXPECT_EQ(data.tx_fee_asset_id, uint256_t(0));
+    EXPECT_EQ(data.bridge_id, uint256_t(0));
+    EXPECT_EQ(data.defi_deposit_value, uint256_t(0));
+    EXPECT_EQ(data.defi_root, fr(0));
+    EXPECT_EQ(data.backward_link, fr(0));
+    EXPECT_EQ(data.allow_chain, uint256_t(0));
+
+    EXPECT_TRUE(verify_proof(proof));
+}
+
+TEST_F(account_tests, test_add_signing_keys_to_account_full_proof)
+{
+    preload_account_notes();
+    const auto& new_signing_keys = bob.signing_keys;
+    auto tx = create_add_signing_keys_account_tx(alice, new_signing_keys);
+
+    auto prover = new_account_prover(tx, false);
+    auto proof = prover.construct_proof();
+    auto data = inner_proof_data(proof.proof_data);
+
+    auto note1_commitment = account_note{ tx.alias_hash, tx.account_public_key, tx.new_signing_pub_key_1 }.commit();
+    auto note2_commitment = account_note{ tx.alias_hash, tx.account_public_key, tx.new_signing_pub_key_2 }.commit();
 
     EXPECT_EQ(data.proof_id, ProofIds::ACCOUNT);
     EXPECT_EQ(data.note_commitment1, note1_commitment);
@@ -305,4 +427,6 @@ TEST_F(account_tests, test_non_migrate_account_full_proof)
     EXPECT_EQ(data.defi_root, fr(0));
     EXPECT_EQ(data.backward_link, fr(0));
     EXPECT_EQ(data.allow_chain, uint256_t(0));
+
+    EXPECT_TRUE(verify_proof(proof));
 }

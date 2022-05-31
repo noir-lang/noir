@@ -138,7 +138,7 @@ HEAVY_TEST_F(rollup_full_tests, test_1_js_proof_1_account_proof_in_2_rollup_full
     context.start_next_root_rollup();
 
     auto join_split_proof = context.create_join_split_proof({ 4, 5 }, { 100, 50 }, { 70, 110 - tx_fee }, 30);
-    auto account_proof = context.create_account_proof();
+    auto account_proof = context.create_add_signing_keys_to_account_proof();
     auto txs = std::vector<std::vector<uint8_t>>{ join_split_proof, account_proof };
     auto rollup = create_rollup_tx(context.world_state, rollup_size, txs);
     auto rollup_circuit_data =

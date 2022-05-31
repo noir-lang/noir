@@ -13,13 +13,13 @@ extern "C" {
 WASM_EXPORT void notes__value_note_partial_commitment(uint8_t const* note_secret_buffer,
                                                       uint8_t const* public_key_buffer,
                                                       uint8_t const* creator_pubkey_buffer,
-                                                      uint32_t nonce,
+                                                      bool account_required,
                                                       uint8_t* output)
 {
     auto note_secret = from_buffer<fr>(note_secret_buffer);
     auto public_key = from_buffer<grumpkin::g1::affine_element>(public_key_buffer);
     auto creator_pubkey = from_buffer<fr>(creator_pubkey_buffer);
-    auto partial_state = value::create_partial_commitment(note_secret, public_key, nonce, creator_pubkey);
+    auto partial_state = value::create_partial_commitment(note_secret, public_key, account_required, creator_pubkey);
     write(output, partial_state);
 }
 
@@ -128,22 +128,29 @@ WASM_EXPORT void notes__batch_decrypt_notes(uint8_t const* encrypted_notes_buffe
     }
 }
 
-WASM_EXPORT void notes__account_note_commitment(uint8_t const* account_alias_id_buffer,
+WASM_EXPORT void notes__account_note_commitment(uint8_t const* account_alias_hash_buffer,
                                                 uint8_t const* owner_key_buf,
                                                 uint8_t const* signing_key_buf,
                                                 uint8_t* output)
 {
-    auto account_alias_id = from_buffer<barretenberg::fr>(account_alias_id_buffer);
+    auto account_alias_hash = from_buffer<barretenberg::fr>(account_alias_hash_buffer);
     auto owner_key = from_buffer<grumpkin::g1::affine_element>(owner_key_buf);
     auto signing_key = from_buffer<grumpkin::g1::affine_element>(signing_key_buf);
-    auto note_commitment = account::generate_account_commitment(account_alias_id, owner_key.x, signing_key.x);
+    auto note_commitment = account::generate_account_commitment(account_alias_hash, owner_key.x, signing_key.x);
     write(output, note_commitment);
 }
 
-WASM_EXPORT void notes__compute_account_alias_id_nullifier(uint8_t const* id_buffer, uint8_t* output)
+WASM_EXPORT void notes__compute_account_alias_hash_nullifier(uint8_t const* id_buffer, uint8_t* output)
 {
-    auto account_alias_id = from_buffer<barretenberg::fr>(id_buffer);
-    auto nullifier = account::compute_account_alias_id_nullifier(account_alias_id);
+    auto account_alias_hash = from_buffer<barretenberg::fr>(id_buffer);
+    auto nullifier = account::compute_account_alias_hash_nullifier(account_alias_hash);
+    write(output, nullifier);
+}
+
+WASM_EXPORT void notes__compute_account_public_key_nullifier(uint8_t const* public_key_buffer, uint8_t* output)
+{
+    auto account_public_key = from_buffer<grumpkin::g1::affine_element>(public_key_buffer);
+    auto nullifier = account::compute_account_public_key_nullifier(account_public_key);
     write(output, nullifier);
 }
 }

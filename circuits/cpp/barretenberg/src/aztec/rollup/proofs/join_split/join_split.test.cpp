@@ -16,11 +16,11 @@ using namespace plonk::stdlib::merkle_tree;
 using namespace rollup::proofs::notes::native;
 using key_pair = rollup::fixtures::grumpkin_key_pair;
 
-auto create_account_leaf_data(fr const& account_alias_id,
+auto create_account_leaf_data(fr const& account_alias_hash,
                               grumpkin::g1::affine_element const& owner_key,
                               grumpkin::g1::affine_element const& signing_key)
 {
-    return notes::native::account::account_note{ account_alias_id, owner_key, signing_key }.commit();
+    return notes::native::account::account_note{ account_alias_hash, owner_key, signing_key }.commit();
 }
 
 class join_split_tests : public ::testing::Test {
@@ -42,7 +42,7 @@ class join_split_tests : public ::testing::Test {
 
         default_value_note = { .value = 100,
                                .asset_id = asset_id,
-                               .account_nonce = 0,
+                               .account_required = false,
                                .owner = user.owner.public_key,
                                .secret = user.note_secret,
                                .creator_pubkey = 0,
@@ -60,10 +60,10 @@ class join_split_tests : public ::testing::Test {
         value_notes[1].creator_pubkey = rollup::fixtures::create_key_pair(nullptr).public_key.x;
 
         value_notes[2].value = 90;
-        value_notes[2].account_nonce = 1,
+        value_notes[2].account_required = true,
 
         value_notes[3].value = 40;
-        value_notes[3].account_nonce = 1;
+        value_notes[3].account_required = true;
 
         const uint32_t virtual_asset_id = virtual_asset_id_flag + defi_interaction_nonce;
 
@@ -111,13 +111,12 @@ class join_split_tests : public ::testing::Test {
      */
     void preload_account_notes()
     {
-        auto account_alias_id = rollup::fixtures::generate_account_alias_id(user.alias_hash, 1);
         tree->update_element(
             tree->size(),
-            create_account_leaf_data(account_alias_id, user.owner.public_key, user.signing_keys[0].public_key));
+            create_account_leaf_data(user.alias_hash, user.owner.public_key, user.signing_keys[0].public_key));
         tree->update_element(
             tree->size(),
-            create_account_leaf_data(account_alias_id, user.owner.public_key, user.signing_keys[1].public_key));
+            create_account_leaf_data(user.alias_hash, user.owner.public_key, user.signing_keys[1].public_key));
     }
 
     /**
@@ -143,21 +142,21 @@ class join_split_tests : public ::testing::Test {
     join_split_tx create_join_split_tx(std::array<uint32_t, 2> const& input_indices,
                                        std::array<value::value_note, 2> const& input_notes,
                                        uint32_t account_note_index = 0,
-                                       uint32_t account_nonce = 0)
+                                       bool account_required = false)
     {
         uint32_t tx_asset_id = input_notes[0].asset_id;
         auto input_nullifier1 = compute_nullifier(input_notes[0].commit(), user.owner.private_key, true);
         auto input_nullifier2 = compute_nullifier(input_notes[1].commit(), user.owner.private_key, true);
         value::value_note output_note1 = { .value = input_notes[0].value + input_notes[1].value,
                                            .asset_id = tx_asset_id,
-                                           .account_nonce = account_nonce,
+                                           .account_required = account_required,
                                            .owner = user.owner.public_key,
                                            .secret = user.note_secret,
                                            .creator_pubkey = 0,
                                            .input_nullifier = input_nullifier1 };
         value::value_note output_note2 = { .value = 0,
                                            .asset_id = tx_asset_id,
-                                           .account_nonce = account_nonce,
+                                           .account_required = account_required,
                                            .owner = user.owner.public_key,
                                            .secret = user.note_secret,
                                            .creator_pubkey = 0,
@@ -179,8 +178,8 @@ class join_split_tests : public ::testing::Test {
         tx.asset_id = tx_asset_id;
         tx.account_private_key = user.owner.private_key;
         tx.partial_claim_note.input_nullifier = 0;
-        tx.alias_hash = !account_nonce ? rollup::fixtures::generate_alias_hash("penguin") : user.alias_hash;
-        tx.account_nonce = account_nonce;
+        tx.alias_hash = !account_required ? rollup::fixtures::generate_alias_hash("penguin") : user.alias_hash;
+        tx.account_required = account_required;
         // default to no chaining:
         tx.backward_link = 0;
         tx.allow_chain = 0;
@@ -193,7 +192,7 @@ class join_split_tests : public ::testing::Test {
      */
     join_split_tx simple_setup(std::array<uint32_t, 2> const& input_indices = { 0, 1 },
                                uint32_t account_note_index = 0,
-                               uint32_t account_nonce = 0)
+                               bool account_required = false)
     {
         // The tree, user and notes are initialised in SetUp().
         preload_value_notes();
@@ -201,15 +200,15 @@ class join_split_tests : public ::testing::Test {
         return create_join_split_tx(input_indices,
                                     { value_notes[input_indices[0]], value_notes[input_indices[1]] },
                                     account_note_index,
-                                    account_nonce);
+                                    account_required);
 
         /** Default tx:
          * SEND tx
          * public_value = 0
-         * input_note_1:  value = 100, asset_id = 1, account_nonce = 0
-         * input_note_2:  value = 50,  asset_id = 1, account_nonce = 0
-         * output_note_1: value = 150, asset_id = 1, account_nonce = 0, same owner as inputs
-         * output_note_2: value = 0,   asset_id = 1, account_nonce = 0, same owner as inputs
+         * input_note_1:  value = 100, asset_id = 1, account_required = 0
+         * input_note_2:  value = 50,  asset_id = 1, account_required = 0
+         * output_note_1: value = 150, asset_id = 1, account_required = 0, same owner as inputs
+         * output_note_2: value = 0,   asset_id = 1, account_required = 0, same owner as inputs
          */
     }
 
@@ -239,7 +238,7 @@ class join_split_tests : public ::testing::Test {
         tx.partial_claim_note.input_nullifier = 0;
         tx.account_private_key = user.owner.private_key;
         tx.alias_hash = rollup::fixtures::generate_alias_hash("penguin");
-        tx.account_nonce = 0;
+        tx.account_required = false;
         tx.account_note_index = 0;
         tx.account_note_path = tree->get_hash_path(0);
         tx.signing_pub_key = user.signing_keys[0].public_key;
@@ -382,20 +381,20 @@ class join_split_tests : public ::testing::Test {
  *
  * - "input note owners don't match"
  *     - different owners in the two input notes
- * - "input note account_nonces don't match"
- *     - different account_nonces in the two input notes
+ * - "input note account_required don't match"
+ *     - different account_required in the two input notes
  * - "account private key is zero"
  *     - set inputs.account_private_key = 0
  * - "account_private_key incorrect"
  *     - input an incorrect inputs.account_private_key, relative to the input_note_1.owner
- * - "account_nonce incorrect"
- *     - set inputs.account_nonce != input_note_1.account_nonce
+ * - "account_required incorrect"
+ *     - set inputs.account_required != input_note_1.account_required
  * - "output note 1 creator_pubkey mismatch"
  *     - set the output_note_1.creator_pubkey to be different from input_note_1.owner (and nonzero)
  * - "output note 2 creator_pubkey mismatch"
  *     - set the output_note_2.creator_pubkey to be different from input_note_1.owner (and nonzero)
  * - "account check_membership failed"
- *     - signing_key_exists = false  AND inputs.account_nonce.is_zero() = false
+ *     - signing_key_exists = false  AND !inputs.account_required = false
  *
  * NOTE
  *
@@ -882,13 +881,16 @@ TEST_F(join_split_tests, test_propagated_input_note1_no_double_spend)
     // Let's try to double-spend input_note[0]:
     tx.input_note[1] = tx.input_note[0];
 
-    tx.output_note[0] = { tx.input_note[0].value,           tx.input_note[0].asset_id, tx.input_note[0].account_nonce,
-                          tx.input_note[0].owner,           tx.input_note[0].secret,   tx.input_note[0].creator_pubkey,
-                          tx.output_note[0].input_nullifier };
-    tx.output_note[1] = { tx.input_note[0].value,           tx.input_note[0].asset_id,
-                          tx.input_note[0].account_nonce,   tx.input_note[0].owner,
-                          tx.input_note[0].secret + 1,      tx.input_note[0].creator_pubkey,
-                          tx.output_note[0].input_nullifier };
+    tx.output_note[0] = {
+        tx.input_note[0].value,           tx.input_note[0].asset_id, tx.input_note[0].account_required,
+        tx.input_note[0].owner,           tx.input_note[0].secret,   tx.input_note[0].creator_pubkey,
+        tx.output_note[0].input_nullifier
+    };
+    tx.output_note[1] = {
+        tx.input_note[0].value,           tx.input_note[0].asset_id,   tx.input_note[0].account_required,
+        tx.input_note[0].owner,           tx.input_note[0].secret + 1, tx.input_note[0].creator_pubkey,
+        tx.output_note[0].input_nullifier
+    };
 
     auto result = sign_and_verify_logic(tx, user.owner);
 
@@ -999,13 +1001,13 @@ TEST_F(join_split_tests, test_different_input_note_owners_fails)
     EXPECT_EQ(result.err, "input note owners don't match");
 }
 
-TEST_F(join_split_tests, test_different_input_note_account_nonces_fails)
+TEST_F(join_split_tests, test_different_input_note_account_requireds_fails)
 {
     join_split_tx tx = simple_setup({ 1, 2 });
 
     auto result = sign_and_verify_logic(tx, user.owner);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(result.err, "input note account_nonces don't match");
+    EXPECT_EQ(result.err, "input note account_required don't match");
 }
 
 // Test omitted, because circle ci test is terminated when reaching this ASSERT.
@@ -1026,12 +1028,12 @@ TEST_F(join_split_tests, test_spend_notes_with_registered_account)
     EXPECT_TRUE(sign_and_verify_logic(tx, user.signing_keys[0]).valid);
 }
 
-TEST_F(join_split_tests, test_different_note_account_nonce_vs_account_nonce_fails)
+TEST_F(join_split_tests, test_different_note_account_required_vs_account_required_fails)
 {
     join_split_tx tx = simple_setup({ 2, 3 }, ACCOUNT_INDEX, 0);
     auto result = sign_and_verify_logic(tx, user.owner);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(result.err, "account_nonce incorrect");
+    EXPECT_EQ(result.err, "account_required incorrect");
 }
 
 TEST_F(join_split_tests, test_wrong_input_note_owner_fails)
@@ -1106,7 +1108,7 @@ TEST_F(join_split_tests, test_wrong_public_owner_sig_fail)
     EXPECT_EQ(result.err, "verify signature failed");
 }
 
-TEST_F(join_split_tests, test_spend_zero_nonce_notes_with_signing_key_fails)
+TEST_F(join_split_tests, test_spend_notes_with_signing_key_when_account_required_is_false_fails)
 {
     join_split_tx tx = simple_setup();
     auto result = sign_and_verify_logic(tx, user.signing_keys[0]);
@@ -2332,7 +2334,7 @@ TEST_F(join_split_tests, test_defi_deposit_full_proof)
     auto proof_data = inner_proof_data(proof.proof_data);
 
     auto partial_value_commitment = value::create_partial_commitment(
-        tx.partial_claim_note.note_secret, tx.input_note[0].owner, tx.input_note[0].account_nonce, 0);
+        tx.partial_claim_note.note_secret, tx.input_note[0].owner, tx.input_note[0].account_required, 0);
     claim::claim_note claim_note = {
         tx.partial_claim_note.deposit_value,  tx.partial_claim_note.bridge_id, 0, 0, partial_value_commitment,
         tx.partial_claim_note.input_nullifier
@@ -2394,7 +2396,7 @@ TEST_F(join_split_tests, test_repayment_full_proof)
     auto proof_data = inner_proof_data(proof.proof_data);
 
     auto partial_commitment = value::create_partial_commitment(
-        tx.partial_claim_note.note_secret, tx.input_note[0].owner, tx.input_note[0].account_nonce, 0);
+        tx.partial_claim_note.note_secret, tx.input_note[0].owner, tx.input_note[0].account_required, 0);
     claim::claim_note claim_note = {
         tx.partial_claim_note.deposit_value,  tx.partial_claim_note.bridge_id, 0, 0, partial_commitment,
         tx.partial_claim_note.input_nullifier

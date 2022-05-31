@@ -24,6 +24,13 @@ template <typename Composer> struct point {
         this->y.assert_equal(rhs.y, msg);
     }
 
+    void assert_not_equal(const point& rhs, std::string const& msg = "point:assert_not_equal") const
+    {
+        const auto lhs_eq = this->x == rhs.x;
+        const auto rhs_eq = this->y == rhs.y;
+        field_t<Composer>(lhs_eq && rhs_eq).assert_is_zero(msg);
+    }
+
     static point conditional_assign(const bool_t<Composer>& predicate, const point& lhs, const point& rhs)
     {
         return { field_t<Composer>::conditional_assign(predicate, lhs.x, rhs.x),
