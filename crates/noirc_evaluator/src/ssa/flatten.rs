@@ -71,9 +71,14 @@ pub fn unroll_std_block(
             node::NodeObj::Instr(i) => {
                 let new_left = get_current_value(i.lhs, eval_map).into_node_id().unwrap();
                 let new_right = get_current_value(i.rhs, eval_map).into_node_id().unwrap();
-                let mut new_ins = node::Instruction::new(
-                    i.operator, new_left, new_right, i.res_type, None, //TODO to fix later
-                );
+                let mut new_ins =
+                    node::Instruction::new(i.operator, new_left, new_right, i.res_type, None);
+                for i in &i.ins_arguments.arguments {
+                    new_ins
+                        .ins_arguments
+                        .arguments
+                        .push(get_current_value(*i, eval_map).into_node_id().unwrap());
+                }
                 match i.operator {
                     Operation::Ass => {
                         unreachable!("unsupported instruction type when unrolling: assign");
@@ -188,7 +193,7 @@ pub fn outer_unroll(
         }
         //3. Merge the unrolled blocks into the join
         for ins in unroll_ins.iter() {
-            igen[*ins].set_id(*ins);
+            igen[*ins].set_id_and_parent(*ins, block_id);
         }
         let join_mut = &mut igen[block_id];
         join_mut.instructions = unroll_ins.clone();
@@ -203,12 +208,18 @@ pub fn outer_unroll(
             join_mut.dominated.clear();
         }
         //we get the subgraph, however we could retrieve the list of processed blocks directly in unroll_join (cf. processed)
+        let mut sub_graph2 = Vec::new();
         if let Some(body_id) = b_right {
             let sub_graph = block::bfs(body_id, Some(block_id), igen);
             for b in sub_graph {
                 igen.remove_block(b);
+                sub_graph2.push(b);
             }
         }
+
+        //update the predecessors of the block
+        let join_mut2 = &mut igen[block_id];
+        join_mut2.predecessor.retain(|i| !sub_graph2.contains(i));
 
         //5.Finally we clear the unroll_list and go the the next block
         unroll_ins.clear();

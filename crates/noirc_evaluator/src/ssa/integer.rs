@@ -591,7 +591,9 @@ pub fn get_max_value(ins: &Instruction, lhs_max: BigUint, rhs_max: BigUint) -> B
         Operation::Store(_) => BigUint::zero(),
         Operation::Call(_) => ins.res_type.max_size(), //TODO interval analysis but we also need to get the arguments (ins_arguments)
         Operation::Ret => todo!(),
-        Operation::Res => todo!(),
+        Operation::Res => {
+            unreachable!("Functions must have been inlined before checking for overflows")
+        }
         Operation::Intrinsic(opcode) => {
             match opcode {
                 acvm::acir::OPCODE::SHA256

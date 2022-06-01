@@ -233,7 +233,7 @@ pub fn bfs(start: BlockId, stop: Option<BlockId>, ctx: &SsaContext) -> Vec<Block
                 if stop == Some(block_id) {
                     return;
                 }
-                if !result.contains(&block_id) {
+                if block_id != BlockId::dummy() && !result.contains(&block_id) {
                     result.push(block_id);
                     queue.push_back(block_id);
                 }
