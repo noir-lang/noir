@@ -4,7 +4,7 @@ title: Register Accounts
 
 Register an Aztec spending account.
 
-Please review the [Accounts overview](../../how-aztec-works/accounts) and [Add User](./add-user) pages if you haven't already.
+Please review the [Accounts overview](../../how-aztec-works/accounts) and [Add User](./add-account) pages if you haven't already.
 
 As mentioned in the above pages, there is an important difference between the account nonce identifiers 0 and 1 in the Aztec account system. The privacy key associated with nonce 0 is used to decrypt notes, calculate balances and track transactions associated with an account. The signing keys associated with account nonce 1 are used to spend notes on behalf of a user.
 
