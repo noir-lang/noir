@@ -1,6 +1,3 @@
----
-title: AztecSdkUser
----
 ```ts
 class AztecSdkUser {
     id: AccountId;
