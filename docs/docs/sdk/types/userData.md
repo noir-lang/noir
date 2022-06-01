@@ -1,7 +1,3 @@
----
-title: UserData
----
-
 ```ts
 UserData {
   id: AccountId;

@@ -1,6 +1,3 @@
----
-title: SchnorrSigner
----
 ```ts
 class SchnorrSigner implements Signer {
     private schnorr;

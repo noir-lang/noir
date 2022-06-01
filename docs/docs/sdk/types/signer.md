@@ -1,6 +1,3 @@
----
-title: Signer
----
 ```ts
 Signer {
     getPublicKey(): GrumpkinAddress;

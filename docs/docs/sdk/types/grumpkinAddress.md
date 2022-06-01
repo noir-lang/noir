@@ -1,6 +1,3 @@
----
-title: GrumpkinAddress
----
 ```ts
 class GrumpkinAddress {
     private buffer;
