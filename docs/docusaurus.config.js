@@ -35,7 +35,7 @@ const config = {
       ({
         docs: {
           sidebarPath: require.resolve('./sidebars.js'),
-          editUrl: 'https://github.com/AztecProtocol/docs',
+          editUrl: 'https://github.com/AztecProtocol/docs/edit/main/',
           routeBasePath: '/',
         },
         blog: false,
