@@ -62,11 +62,11 @@ impl SSAFunction {
         if eval.contains_key(&last) {
             eval[&last].into_node_id()
         } else {
-            let mut result = NodeId::dummy();
+            let mut is_modified = true;
             let mut last = last;
-            while result != last {
-                result = last;
-                last = crate::ssa::optim::propagate(&igen.context, last);
+            while is_modified {
+                is_modified = false;
+                last = crate::ssa::optim::propagate(&igen.context, last, &mut is_modified);
             }
             Some(last)
         }
