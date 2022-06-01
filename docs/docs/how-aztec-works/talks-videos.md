@@ -2,6 +2,8 @@
 title: Talks and Videos
 ---
 
+Talks and Videos from the Aztec community.
+
 - Bankless [Aztec - Joe Andrews (CPO) and Zac Williamson (CTO)](https://www.youtube.com/watch?v=NyBwdcIMT0M)
 - Epicenter [Tom Pocock & Zac Williamson: AZTEC Protocol – Bringing Zero-Knowledge Transactions to Ethereum](https://podcasts.apple.com/us/podcast/tom-pocock-zac-williamson-aztec-protocol-bringing-zero/id792338939?i=1000471465052)
 - Epicenter [Joe Andrews & Zac Williamson: Aztec Protocol – Bringing Scalable Privacy to DeFi](https://podcasts.apple.com/dk/podcast/joe-andrews-zac-williamson-aztec-protocol-bringing/id792338939?i=1000532298424&l=fr)

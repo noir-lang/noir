@@ -4,7 +4,7 @@ title: FAQ
 
 # Frequently Asked Questions
 
-## General
+## General Questions
 
 ### What happens when I shield a token?
 
