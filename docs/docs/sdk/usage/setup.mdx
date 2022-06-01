@@ -15,7 +15,7 @@ You need to set up a connection to an Ethereum network and import a private key,
 
 ```ts title="/src/index.ts"
 const ethersProvider = new JsonRpcProvider(process.env.ETHEREUM_HOST);
-const ethereumProvider: EthereumProvider = new EthersAdapter(ethersProvider);
+const ethereumProvider = new EthersAdapter(ethersProvider);
 const walletProvider = new WalletProvider(ethereumProvider);
 walletProvider.addAccount(Buffer.from(process.env.ETHEREUM_PRIVATE_KEY, "hex"));
 ```
