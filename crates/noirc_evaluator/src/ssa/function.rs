@@ -62,6 +62,12 @@ impl SSAFunction {
         if eval.contains_key(&last) {
             eval[&last].into_node_id()
         } else {
+            let mut result = NodeId::dummy();
+            let mut last = last;
+            while result != last {
+                result = last;
+                last = crate::ssa::optim::propagate(&igen.context, last);
+            }
             Some(last)
         }
     }
@@ -91,6 +97,7 @@ impl SSAFunction {
         var: Option<&NodeId>,
         ctx: &mut SsaContext,
         inline_map: &HashMap<NodeId, NodeId>,
+        block_id: BlockId,
     ) -> NodeId {
         if let Some(&node_id) = var {
             if node_id == NodeId::dummy() {
@@ -106,7 +113,7 @@ impl SSAFunction {
             } else if let Some(id) = inline_map.get(&node_id) {
                 *id
             } else {
-                ssa_form::get_current_value(ctx, node_id)
+                ssa_form::get_current_value_in_block(ctx, node_id, block_id)
             }
         } else {
             NodeId::dummy()
@@ -297,15 +304,17 @@ pub fn inline_all(ctx: &mut SsaContext) {
     let mut processed = Vec::new();
     while processed.len() < l {
         let i = get_new_leaf(ctx, &processed);
-        let i_entry = ctx.functions[&i.1].entry_block;
+        if !processed.is_empty() {
+            super::optim::cse(ctx, ctx.functions[&i.1].entry_block);
+        }
         let mut to_inline = Vec::new();
         for f in ctx.functions.values() {
             if ctx.call_graph[f.index as usize][i.0] == 1 {
-                to_inline.push((f.id, f.index as usize));
+                to_inline.push((f.entry_block, f.index as usize));
             }
         }
         for j in to_inline {
-            super::inline::inline_cfg(ctx, i_entry, Some(j.0));
+            super::inline::inline_cfg(ctx, j.0, Some(i.1));
             ctx.call_graph[j.1][i.0] = 0;
         }
         processed.push(i.0);
