@@ -72,7 +72,7 @@ const sidebars = {
             "sdk/usage/deposit",
             "sdk/usage/transfer",
             "sdk/usage/withdraw",
-            "sdk/usage/defi",
+            // "sdk/usage/defi",
           ],
         },
         {
