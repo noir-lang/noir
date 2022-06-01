@@ -68,7 +68,7 @@ AztecSdk.addUser(privateKey: Buffer, accountNonce?: number, noSync?: boolean): P
 
 | Return Type | Description |
 | --------- | ----------- |
-| [AztecSdkUser](../types/AztecSdkUser.md) | A user instance with apis bound to the user's account id. |
+| [AztecSdkUser](../types/AztecSdkUser) | A user instance with apis bound to the user's account id. |
 
 ## Get User
 
@@ -80,4 +80,4 @@ user.getUserData();
 
 | Return Type | Description |
 | --------- | ----------- |
-| [UserData](./../types/UserData.md) | Info about the current user. |
+| [UserData](./../types/UserData) | Info about the current user. |
