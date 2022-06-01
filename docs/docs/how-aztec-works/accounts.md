@@ -12,13 +12,19 @@ There are two main parts to each Aztec account, the privacy account associated w
 
 Additionally, Aztec uses a different curve than Ethereum for SNARK efficient operations. This means that you cannot use an Ethereum private key directly for signing Aztec transactions or a public key for deriving an account address. Specifically, Aztec uses the Grumpkin curve, see [the yellow paper](https://hackmd.io/@aztec-network/ByzgNxBfd#2-Grumpkin---A-curve-on-top-of-BN-254-for-SNARK-efficient-group-operations) for more information.
 
-In [zk.money](https://zk.money), Aztec accounts are generated using Ethereum accounts by having a user sign a message and deriving the Aztec keys from the signed message. Different messages are used to generate different keys.
+In [zk.money](https://zk.money), Aztec accounts are generated using Ethereum accounts by having a user sign a message and deriving the Aztec keys from the signed message. Different messages are used to generate different keys (privacy and spending keys).
+
+## Users And Accounts
+
+Users in Aztec will have at least 2 accounts, a privacy account and a spending account.
+
+This can be confusing when using the SDK. For example, to [add accounts to the SDK](./../sdk/usage/add-account) use the `sdk.addUser(privacyKey, nonce)` method. This method actually adds an account with the specified key and nonce and it is standard for someone to have 2 of these accounts. The accounts have the same key, one with nonce 0 (privacy account) and another with nonce 1 (spending account).
 
 ### Privacy Account
 
 The privacy account is the first account that is generated for an Aztec user.
 
-The private key associated with this account can be used to decrypt notes for both the privacy account (nonce 0) and the spending account (nonce 1). The private key is used to spend notes associated with the privacy account and register a spending account. Typically the privacy account does not handle funds and is used only to create a spending account and decrypt notes. This allows for basic account abstractions by creating a separation of the key required to decrypt notes and the key required to spend notes.
+The private key associated with this account can be used to decrypt notes for both the privacy account (nonce 0) and the spending account (nonce 1). The private key can be used to spend notes associated with the privacy account and register a spending account. **Typically the privacy account does not handle funds and is used only to create a spending account and decrypt notes.** This allows for basic account abstraction by creating a separation of the key required to decrypt notes (privacy key) and the key required to spend notes (spending key).
 
 ### Spending Account
 
