@@ -74,7 +74,9 @@ fn inline_block(ctx: &mut SsaContext, block_id: BlockId, to_inline: Option<FuncI
             }
         }
     }
-    optim::cse(ctx, block_id); //handles the deleted call instructions
+    if to_inline.is_none() {
+        optim::cse(ctx, block_id); //handles the deleted call instructions
+    }
     result
 }
 
@@ -143,7 +145,7 @@ pub fn inline(
 
     //2. by copy parameters:
     for (&arg_caller, &arg_function) in args.arguments.iter().zip(&func_arg) {
-        ctx.handle_assign_inline(arg_function, arg_caller, &mut stack_frame);
+        ctx.handle_assign_inline(arg_function, arg_caller, &mut stack_frame, block);
     }
 
     let mut result = true;
@@ -193,14 +195,23 @@ pub fn inline_in_block(
                 array_func_idx = a;
             }
 
-            let new_left =
-                function::SSAFunction::get_mapped_value(Some(&clone.lhs), ctx, inline_map);
-            let new_right =
-                function::SSAFunction::get_mapped_value(Some(&clone.rhs), ctx, inline_map);
+            let new_left = function::SSAFunction::get_mapped_value(
+                Some(&clone.lhs),
+                ctx,
+                inline_map,
+                target_block_id,
+            );
+            let new_right = function::SSAFunction::get_mapped_value(
+                Some(&clone.rhs),
+                ctx,
+                inline_map,
+                target_block_id,
+            );
             let new_arg = function::SSAFunction::get_mapped_value(
                 clone.ins_arguments.arguments.first(),
                 ctx,
                 inline_map,
+                target_block_id,
             );
 
             match clone.operator {
@@ -248,6 +259,7 @@ pub fn inline_in_block(
                             Some(&i),
                             ctx,
                             inline_map,
+                            target_block_id,
                         ));
                     }
                     new_ins.ins_arguments = call_stack;
@@ -295,6 +307,9 @@ pub fn inline_in_block(
                     let result_id = ctx.add_instruction(new_ins);
                     stack_frame.push(result_id);
                     inline_map.insert(i_id, result_id);
+                }
+                Operation::Phi => {
+                    unreachable!("Phi instructions should have been simplified");
                 }
                 _ => {
                     let mut new_ins = node::Instruction::new(

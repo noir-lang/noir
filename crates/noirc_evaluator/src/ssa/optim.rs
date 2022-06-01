@@ -518,6 +518,10 @@ pub fn block_cse(
                 if to_update {
                     update.ins_arguments.arguments = ins_args;
                 }
+                let mut update2 = update.clone();
+                simplify(ctx, &mut update2);
+                let update3 = ctx.get_mut_instruction(*iter);
+                *update3 = update2;
                 //update instruction name - for debug/pretty print purposes only /////////////////////
                 if let Some(Instruction { operator: Operation::Ass, lhs, .. }) =
                     ctx.try_get_instruction(ii_l)

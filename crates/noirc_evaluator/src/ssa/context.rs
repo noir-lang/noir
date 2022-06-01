@@ -240,12 +240,17 @@ impl<'a> SsaContext<'a> {
         id
     }
 
-    //same as update_variable but using the var index instead of var
-    pub fn update_variable_id(&mut self, var_id: NodeId, new_var: NodeId, new_value: NodeId) {
+    pub fn update_variable_id_in_block(
+        &mut self,
+        var_id: NodeId,
+        new_var: NodeId,
+        new_value: NodeId,
+        block_id: BlockId,
+    ) {
         let root_id = self.get_root_value(var_id);
         let root = self.get_variable(root_id).unwrap();
         let root_name = root.name.clone();
-        let cb = self.get_current_block_mut();
+        let cb = &mut self[block_id];
         cb.update_variable(var_id, new_value);
         let v_name = self.value_names.entry(var_id).or_insert(0);
         *v_name += 1;
@@ -254,6 +259,11 @@ impl<'a> SsaContext<'a> {
         if let Ok(nvar) = self.get_mut_variable(new_var) {
             nvar.name = format!("{}{}", root_name, variable_id);
         }
+    }
+
+    //same as update_variable but using the var index instead of var
+    pub fn update_variable_id(&mut self, var_id: NodeId, new_var: NodeId, new_value: NodeId) {
+        self.update_variable_id_in_block(var_id, new_var, new_value, self.current_block);
     }
 
     pub fn new_instruction(
@@ -618,6 +628,7 @@ impl<'a> SsaContext<'a> {
         lhs: NodeId,
         rhs: NodeId,
         stack_frame: &mut inline::StackFrame,
+        block_id: BlockId,
     ) -> NodeId {
         let lhs_type = self.get_object_type(lhs);
         let rhs_type = self.get_object_type(rhs);
@@ -630,7 +641,7 @@ impl<'a> SsaContext<'a> {
             //new ssa
             let lhs_obj = self.get_variable(lhs).unwrap();
             let new_var = node::Variable {
-                id: lhs,
+                id: NodeId::dummy(),
                 obj_type: lhs_type,
                 name: String::new(),
                 root: None,
@@ -649,7 +660,7 @@ impl<'a> SsaContext<'a> {
                 rhs_type,
                 stack_frame,
             );
-            self.update_variable_id(ls_root, new_var_id, result); //update the name and the value map
+            self.update_variable_id_in_block(ls_root, new_var_id, result, block_id); //update the name and the value map
             result
         }
     }
