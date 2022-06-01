@@ -69,6 +69,10 @@ const sidebars = {
             "sdk/usage/setup",
             "sdk/usage/add-user",
             "sdk/usage/register-user",
+            "sdk/usage/deposit",
+            "sdk/usage/transfer",
+            "sdk/usage/withdraw",
+            "sdk/usage/defi",
           ],
         },
         {
@@ -81,7 +85,6 @@ const sidebars = {
             },
           ]
         },
-        "sdk/defi",
       ],
     },
   ],
