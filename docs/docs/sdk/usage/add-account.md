@@ -1,5 +1,5 @@
 ---
-title: Add a User to the SDK
+title: Add Accounts to the SDK
 ---
 
 Add a user with the privacy key.
@@ -27,15 +27,15 @@ and taking the first 32 bytes of the resulting signed message. You can find an e
 With the privacy key, adding the user to the SDK is as simple as passing the key and the nonce for the account.
 
 ```ts
-const user0 = await sdk.addUser(privateKey, 0);
-const user1 = await sdk.addUser(privateKey, 1);
+const account0 = await AztecSdk.addUser(privacyKey, 0);
+const account1 = await AztecSdk.addUser(privacyKey, 1);
 ```
 
 Now just make sure the SDK has synced and you can read account balances:
 
 ```ts
-await user1.awaitSynchronised();
-const ethBalance = await user1.getBalance(sdk.getAssetIdBySymbol("ETH"))
+await account1.awaitSynchronised();
+const ethBalance = await account1.getBalance(AztecSdk.getAssetIdBySymbol("ETH"))
 ```
 
 ## Spending Keys
@@ -45,7 +45,7 @@ A spending key is required to spend notes on the network. By default, the spendi
 You can create an Aztec signer by passing the signing key to the `createSchnorrSigner(privateKey: Buffer)` method. It returns a signer that you can pass to various `Controllers` to sign transactions on the network on behalf of the account.
 
 ```ts
-const signer1 = await sdk.createSchnorrSigner(signingPrivateKey);
+const signer1 = await AztecSdk.createSchnorrSigner(signingPrivateKey);
 ```
 
 Like privacy keys, spending keys can be 32 random bytes, but zk.money generates them deterministically from Ethereum accounts by deriving them from a signed message. The message used for creating signing keys is:
@@ -68,7 +68,7 @@ AztecSdk.addUser(privateKey: Buffer, accountNonce?: number, noSync?: boolean): P
 
 | Return Type | Description |
 | --------- | ----------- |
-| [AztecSdkUser](../types/aztecSdkUser.md) | A user instance with apis bound to the user's account id. |
+| [AztecSdkUser](../types/AztecSdkUser.md) | A user instance with apis bound to the user's account id. |
 
 ## Get User
 
@@ -80,4 +80,4 @@ user.getUserData();
 
 | Return Type | Description |
 | --------- | ----------- |
-| [UserData](./../types/userData.md) | Info about the current user. |
+| [UserData](./../types/UserData.md) | Info about the current user. |
