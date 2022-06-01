@@ -116,11 +116,13 @@ pub enum NodeObj {
 }
 
 impl NodeObj {
-    pub fn set_id(&mut self, new_id: NodeId) {
+    pub fn set_id_and_parent(&mut self, new_id: NodeId, block: BlockId) {
         match self {
-            NodeObj::Obj(obj) => obj.id = new_id,
-            NodeObj::Instr(inst) => inst.id = new_id,
-            NodeObj::Const(c) => c.id = new_id,
+            NodeObj::Instr(inst) => {
+                inst.id = new_id;
+                inst.parent_block = block;
+            }
+            _ => unreachable!("Expected instruction, got {}", self),
         }
     }
 }
