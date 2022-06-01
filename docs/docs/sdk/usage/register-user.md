@@ -8,7 +8,7 @@ As mentioned in the above pages, there is an important difference between the ac
 
 Account with nonce 1 must be registered on the network before it can be used. The SDK makes it easy to register a new account using the `RegisterController`.
 
-## RegisterController
+## RegisterController Setup
 
 You can find the type definition of the RegisterController class [here](../types/RegisterController).
 
@@ -51,6 +51,10 @@ AztecSdk.createRegisterController(
 Once the `RegisterController` has been created, you can use it to deposit funds, create proofs, and sign and send transactions. For example:
 
 ```ts
+const assetId = sdk.getAssetIdByAddress(tokenAddress);
+const deposit = { assetId, value: tokenQuantity };
+const txFee = (await sdk.getRegisterFees(deposit))[TxSettlementTime.NEXT_ROLLUP];
+
 const controller = await sdk.createRegisterController(
     user,
     signer,

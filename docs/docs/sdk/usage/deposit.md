@@ -6,6 +6,8 @@ The SDK comes with a `DepositController` that makes it easy to create and track 
 
 Deposits require sending Ethereum transactions from a user's account to the Aztec deposit contract.
 
+### Controller Setup
+
 ```ts
 AztecSdk.createDepositController(
     userId: AccountId,   // Aztec account Id to deposit funds to
@@ -17,6 +19,8 @@ AztecSdk.createDepositController(
     provider?: EthereumProvider)
         : Promise<DepositController>
 ```
+
+### Executing a Deposit
 
 The complete deposit flow for Ether using the `DepositController` looks like this: 
 
@@ -43,6 +47,9 @@ await tokenDepositController.awaitDepositFundsToContract();
 await tokenDepositController.send();
 ```
 
+You can review the complete reference script [here](https://github.com/critesjosh/aztec-sdk-starter/blob/main/src/shield.ts).
+
+#### Required Approvals
+
 When depositing an ERC-20 token like DAI, you will need to approve Aztec as an authorized spender before depositing. The `DepositController` includes a method for this, `DepositController.approve()` which will request approval for the amount required for the deposit.
 
-You can review the complete reference script [here](https://github.com/critesjosh/aztec-sdk-starter/blob/main/src/shield.ts).
