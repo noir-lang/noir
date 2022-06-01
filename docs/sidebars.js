@@ -77,7 +77,7 @@ const sidebars = {
         },
         {
           type: "category",
-          label: "Types",
+          label: "Types, Classes, Interfaces",
           link:{
             type: "generated-index"
           },
