@@ -20,6 +20,20 @@ constexpr size_t CONTRACT_DEPLOYMENT_CALL_STACK_LENGTH = 2;
 constexpr size_t PARTIAL_L1_CALL_STACK_LENGTH = 2;
 constexpr size_t CALLBACK_STACK_LENGTH = PARTIAL_L1_CALL_STACK_LENGTH;
 
+constexpr size_t KERNEL_OUTPUT_COMMITMENTS_LENGTH = 16;
+constexpr size_t KERNEL_INPUT_NULLIFIERS_LENGTH = 16;
+constexpr size_t KERNEL_PRIVATE_CALL_STACK_LENGTH = 8;
+constexpr size_t KERNEL_PUBLIC_CALL_STACK_LENGTH = 8;
+constexpr size_t KERNEL_CONTRACT_DEPLOYMENT_CALL_STACK_LENGTH = 4;
+constexpr size_t KERNEL_L1_CALL_STACK_LENGTH = 4;
+constexpr size_t KERNEL_CALLBACK_STACK_LENGTH = KERNEL_L1_CALL_STACK_LENGTH;
+constexpr size_t KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH = 4;
+
+constexpr size_t VK_TREE_HEIGHT = 3;
+constexpr size_t CONTRACT_TREE_HEIGHT = 4;
+constexpr size_t PRIVATE_DATA_TREE_HEIGHT = 8;
+constexpr size_t NULLIFIER_TREE_HEIGHT = 8;
+
 // Enumerate the hash_indices which are used for pedersen hashing
 // Start from 1 to avoid the default generators.
 enum GeneratorIndex {

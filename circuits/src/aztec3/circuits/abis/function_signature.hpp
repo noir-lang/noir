@@ -45,6 +45,17 @@ template <typename NCT> struct FunctionSignature {
         return function_signature;
     };
 
+    void set_public()
+    {
+        static_assert(!(std::is_same<NativeTypes, NCT>::value));
+
+        contract_address.to_field().set_public();
+        fr(vk_index).set_public();
+        fr(is_private).set_public();
+        fr(is_constructor).set_public();
+        fr(is_callback).set_public();
+    }
+
     fr hash()
     {
         std::vector<fr> inputs = {

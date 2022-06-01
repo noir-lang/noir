@@ -48,7 +48,7 @@ template <typename Composer> class ContractFactory {
                 .vk_index = uint32(i),
                 .is_private = function.is_private,
                 .is_constructor = function.is_constructor,
-            }; // TODO: do I need to create witnesses?
+            };
         }
     };
 

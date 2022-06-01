@@ -7,7 +7,7 @@
 
 namespace aztec3::circuits::apps {
 
-using plonk::stdlib::witness_t;
+// using plonk::stdlib::witness_t;
 using plonk::stdlib::types::CircuitTypes;
 using NT = plonk::stdlib::types::NativeTypes;
 
@@ -16,10 +16,10 @@ template <typename Composer> class PrivateStateFactory {
     typedef typename CT::fr fr;
 
   public:
-    Composer& composer;
+    Composer& composer; // TODO: can we remove this?
     OracleWrapperInterface<Composer>& oracle;
     const std::string contract_name;
-    fr private_state_counter;
+    fr private_state_counter = 0;
 
     std::map<std::string, PrivateStateVar<Composer>> private_state_vars;
     std::vector<PrivateStateNote<Composer>> private_state_notes;
@@ -31,11 +31,7 @@ template <typename Composer> class PrivateStateFactory {
                                   std::string contract_name)
         : composer(composer)
         , oracle(oracle)
-        , contract_name(contract_name)
-    {
-        private_state_counter = witness_t<Composer>(&composer, 0);
-        private_state_counter.assert_is_zero();
-    };
+        , contract_name(contract_name){};
 
     PrivateStateVar<Composer>& new_private_state(std::string const& name,
                                                  PrivateStateType const& private_state_type = PARTITIONED)

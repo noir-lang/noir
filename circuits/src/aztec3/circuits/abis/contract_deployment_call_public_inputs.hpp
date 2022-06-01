@@ -6,8 +6,8 @@
 #include <stdlib/types/circuit_types.hpp>
 #include <stdlib/types/convert.hpp>
 #include "../../constants.hpp"
-#include "./executed_callback.hpp"
-#include "./callback_stack_item.hpp"
+#include "executed_callback.hpp"
+#include "callback_stack_item.hpp"
 
 namespace aztec3::circuits::abis {
 

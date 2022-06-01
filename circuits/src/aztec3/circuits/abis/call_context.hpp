@@ -39,6 +39,19 @@ template <typename NCT> struct CallContext {
         return call_context;
     };
 
+    template <typename Composer> CallContext<NativeTypes> to_native_type() const
+    {
+        static_assert(std::is_same<CircuitTypes<Composer>, NCT>::value);
+        auto to_nt = [&](auto& e) { return plonk::stdlib::types::to_nt<Composer>(e); };
+
+        CallContext<NativeTypes> call_context = {
+            to_nt(msg_sender),
+            to_nt(storage_contract_address),
+        };
+
+        return call_context;
+    };
+
     fr hash()
     {
         std::vector<fr> inputs = {
@@ -57,9 +70,9 @@ template <typename NCT> struct CallContext {
         storage_contract_address.to_field().assert_is_zero();
     }
 
-    template <typename Composer> void set_public()
+    void set_public()
     {
-        static_assert((std::is_same<CircuitTypes<Composer>, NCT>::value));
+        static_assert(!(std::is_same<NativeTypes, NCT>::value));
 
         msg_sender.to_field().set_public();
         storage_contract_address.to_field().set_public();

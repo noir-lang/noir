@@ -8,7 +8,7 @@ namespace aztec3::circuits::apps::test_apps::escrow {
 
 using aztec3::circuits::abis::PrivateCircuitPublicInputs;
 
-void deposit(
+PrivateCircuitPublicInputs<NT> deposit(
     Composer& composer, OracleWrapper& oracle, NT::fr const& _amount, NT::fr const& _asset_id, NT::fr const& _memo)
 {
     CT::fr amount = to_ct(composer, _amount);
@@ -46,10 +46,15 @@ void deposit(
     public_inputs.pay_fee_from_l1 = to_ct(composer, true);
     CT::fr(*public_inputs.pay_fee_from_l1)
         .assert_equal(1); /// TODO: Ugly way of hard-coding a witness. Is there a nicer way?
+    public_inputs.called_from_l1 = to_ct(composer, true);
+    CT::fr(*public_inputs.called_from_l1)
+        .assert_equal(1); /// TODO: Ugly way of hard-coding a witness. Is there a nicer way?
 
     public_inputs.set_public(composer);
 
     info("public inputs: ", public_inputs);
+
+    return public_inputs.to_native_type<Composer>();
 };
 
 } // namespace aztec3::circuits::apps::test_apps::escrow

@@ -40,6 +40,21 @@ template <typename NCT> struct CallbackStackItem {
         return callback_stack_item;
     };
 
+    template <typename Composer> CallbackStackItem<NativeTypes> to_native_type() const
+    {
+        static_assert(std::is_same<CircuitTypes<Composer>, NCT>::value);
+        auto to_nt = [&](auto& e) { return plonk::stdlib::types::to_nt<Composer>(e); };
+
+        CallbackStackItem<NativeTypes> callback_stack_item = {
+            to_nt(callback_public_key),
+            to_nt(success_callback_call_hash),
+            to_nt(failure_callback_call_hash),
+            to_nt(success_result_arg_map_acc),
+        };
+
+        return callback_stack_item;
+    };
+
     template <typename Composer> void assert_is_zero()
     {
         static_assert((std::is_same<CircuitTypes<Composer>, NCT>::value));

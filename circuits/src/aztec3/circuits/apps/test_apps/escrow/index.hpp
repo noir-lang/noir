@@ -1,6 +1,6 @@
 #include "init.hpp"
-#include "states.hpp"
-#include "events.hpp"
+#include "contract.hpp"
 #include "deposit.hpp"
 #include "transfer.hpp"
 #include "withdraw.hpp"
+#include "withdraw_failure_callback.hpp"

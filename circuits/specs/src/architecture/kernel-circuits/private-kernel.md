@@ -103,16 +103,16 @@ TODO: less nesting! (Or, in practice, we'll modularise this all into neat functi
 
 Base case:
 * if `start.privateCallCount == 0`:
-    * Require previous kernel data to be empty.
+    * Require previous kernel data to be empty. Can't do this - the `verify_proof()` function needs a valid dummy proof and vk to verify.
     * Validate that `start.privateCallStack.length == 1 && start.publicCallStack.length == 0 && start.contractDeploymentCallStack.length == 0 && start.l1CallStack.length == 0`
         - TBD: to allow the option of a fee payment, we might require `start.privateCallStack.length` to be "1" or "2, where one tx has an `isFeePayment` indicator". We could even allow any number of initial private calls on the stack, but that's a pretty big deviation from the ethereum tx model.
-    * Pop the only (TBD) `privateCallStackItemHash` off the `start.privateCallStack`.
+    * Pop the only (TBD) `privateCallHash` off the `start.privateCallStack`.
         - If `privateCall.functionSignature.isConstructor == true`:
             - then we don't need a signature from the user, since this entire 'callstack' has been instantiated by a Contract Deployment kernel snark (which itself will have been signed by the user).
             - Set `constants.isConstructorRecursion := true` - This public input will percolate to, and be checked by. the Contract Deployment Kernel Circuit which calls this constructor. This check is required to prevent a person from circumventing the ECDSA signature check by simply setting `isConstructor = true` when making a private call. If this aggregated kernel snark reaches the rollup circuit without this flag being reset to `false` by the Contract Deployment Kernel Circuit (to say "yes, this kernel was indeed a constructor for a Contract Deployment Kernel Circuit"), then the entire tx will be rejected by the rollup circuit.
         - Else:
             - Set `constants.isConstructorRecursion := false`
-            - Verify the ECDSA `signature`, with `message := privateCallStackItemHash` and `signer := privateCall.callContext.msgSender`.
+            - Verify the ECDSA `signature`, with `message := privateCallHash` and `signer := privateCall.callContext.msgSender`.
             - Validate the `callContext`. Usually the correctness of a callContext is checked between the `privateCall` and all the new calls it makes (see later in this logic). That means for this 'Base case', those checks haven't been done for this `privateCall` (since there was no prior iteration of this kernel circuit to make those checks).
                 - If `privateCall.isDelegateCall == true || privateCall.isStaticCall == true`:
                     - Revert - a user cannot make a delegateCall or staticCall.

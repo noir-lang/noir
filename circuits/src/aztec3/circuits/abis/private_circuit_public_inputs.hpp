@@ -47,6 +47,48 @@ template <typename NCT> class PrivateCircuitPublicInputs {
     opt_boolean pay_fee_from_public_l2;
     opt_boolean called_from_l1;
 
+    PrivateCircuitPublicInputs<NCT>(){};
+
+    PrivateCircuitPublicInputs<NCT>(
+        std::optional<CallContext<NCT>> const& call_context,
+
+        std::array<opt_fr, CUSTOM_PUBLIC_INPUTS_LENGTH> const& custom_public_inputs,
+        std::array<opt_fr, EMITTED_PUBLIC_INPUTS_LENGTH> const& emitted_public_inputs,
+
+        std::optional<ExecutedCallback<NCT>> const& executed_callback,
+
+        std::array<opt_fr, OUTPUT_COMMITMENTS_LENGTH> const& output_commitments,
+        std::array<opt_fr, INPUT_NULLIFIERS_LENGTH> const& input_nullifiers,
+
+        std::array<opt_fr, PRIVATE_CALL_STACK_LENGTH> const& private_call_stack,
+        std::array<opt_fr, PUBLIC_CALL_STACK_LENGTH> const& public_call_stack,
+        std::array<opt_fr, CONTRACT_DEPLOYMENT_CALL_STACK_LENGTH> const& contract_deployment_call_stack,
+        std::array<opt_fr, PARTIAL_L1_CALL_STACK_LENGTH> const& partial_l1_call_stack,
+        std::array<std::optional<CallbackStackItem<NCT>>, CALLBACK_STACK_LENGTH> const& callback_stack,
+
+        opt_fr const& old_private_data_tree_root,
+
+        opt_boolean const& is_fee_payment,
+        opt_boolean const& pay_fee_from_l1,
+        opt_boolean const& pay_fee_from_public_l2,
+        opt_boolean const& called_from_l1)
+        : call_context(call_context)
+        , custom_public_inputs(custom_public_inputs)
+        , emitted_public_inputs(emitted_public_inputs)
+        , executed_callback(executed_callback)
+        , output_commitments(output_commitments)
+        , input_nullifiers(input_nullifiers)
+        , private_call_stack(private_call_stack)
+        , public_call_stack(public_call_stack)
+        , contract_deployment_call_stack(contract_deployment_call_stack)
+        , partial_l1_call_stack(partial_l1_call_stack)
+        , callback_stack(callback_stack)
+        , old_private_data_tree_root(old_private_data_tree_root)
+        , is_fee_payment(is_fee_payment)
+        , pay_fee_from_l1(pay_fee_from_l1)
+        , pay_fee_from_public_l2(pay_fee_from_public_l2)
+        , called_from_l1(called_from_l1){};
+
     bool operator==(PrivateCircuitPublicInputs<NCT> const&) const = default;
 
     static PrivateCircuitPublicInputs<NCT> create()
@@ -127,18 +169,18 @@ template <typename NCT> class PrivateCircuitPublicInputs {
 
     template <typename Composer> void set_public(Composer& composer)
     {
-        static_assert((std::is_same<CircuitTypes<Composer>, NCT>::value));
+        static_assert(!(std::is_same<NativeTypes, NCT>::value));
 
         make_unused_inputs_zero(composer);
 
         // Optional members are guaranteed to be nonempty from here.
 
-        (*call_context).template set_public<Composer>();
+        (*call_context).set_public();
 
         set_array_public(custom_public_inputs);
         set_array_public(emitted_public_inputs);
 
-        (*executed_callback).template set_public<Composer>();
+        (*executed_callback).set_public();
 
         set_array_public(output_commitments);
         set_array_public(input_nullifiers);
@@ -157,6 +199,7 @@ template <typename NCT> class PrivateCircuitPublicInputs {
         fr(*called_from_l1).set_public();
     }
 
+    // TODO: can't use designated constructor anymore, so need to copy the to_native_type() function methodology below.
     template <typename Composer>
     PrivateCircuitPublicInputs<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
     {
@@ -164,29 +207,70 @@ template <typename NCT> class PrivateCircuitPublicInputs {
 
         // Capture the composer:
         auto to_ct = [&](auto& e) { return plonk::stdlib::types::to_ct(composer, e); };
-        auto to_circuit_type = [&](auto& e) { return e.to_circuit_type(composer); };
+        auto to_circuit_type = [&](auto& e) {
+            return e ? std::make_optional((*e).to_circuit_type(composer)) : std::nullopt;
+        };
 
         PrivateCircuitPublicInputs<CircuitTypes<Composer>> pis = {
-            .call_context = to_circuit_type(call_context),
+            to_circuit_type(call_context),
 
-            .custom_public_inputs = to_ct(custom_public_inputs),
-            .emitted_public_inputs = to_ct(emitted_public_inputs),
+            to_ct(custom_public_inputs),
+            to_ct(emitted_public_inputs),
 
-            .executed_callback = to_circuit_type(executed_callback),
+            to_circuit_type(executed_callback),
 
-            .output_commitments = to_ct(output_commitments),
-            .input_nullifiers = to_ct(input_nullifiers),
+            to_ct(output_commitments),
+            to_ct(input_nullifiers),
 
-            .private_call_stack = to_ct(private_call_stack),
-            .public_call_stack = to_ct(public_call_stack),
-            .contract_deployment_call_stack = to_ct(contract_deployment_call_stack),
-            .partial_l1_call_stack = to_ct(partial_l1_call_stack),
-            .callback_stack = map(callback_stack, to_circuit_type),
+            to_ct(private_call_stack),
+            to_ct(public_call_stack),
+            to_ct(contract_deployment_call_stack),
+            to_ct(partial_l1_call_stack),
+            map(callback_stack, to_circuit_type),
 
-            .is_fee_payment = to_ct(is_fee_payment),
-            .pay_fee_from_l1 = to_ct(pay_fee_from_l1),
-            .pay_fee_from_public_l2 = to_ct(pay_fee_from_public_l2),
-            .called_from_l1 = to_ct(called_from_l1),
+            to_ct(old_private_data_tree_root),
+
+            to_ct(is_fee_payment),
+            to_ct(pay_fee_from_l1),
+            to_ct(pay_fee_from_public_l2),
+            to_ct(called_from_l1),
+        };
+
+        return pis;
+    };
+
+    template <typename Composer> PrivateCircuitPublicInputs<NativeTypes> to_native_type() const
+    {
+        static_assert(std::is_same<CircuitTypes<Composer>, NCT>::value);
+        auto to_nt = [&](auto& e) { return plonk::stdlib::types::to_nt<Composer>(e); };
+        auto to_native_type = []<typename T>(const std::optional<T>& e) {
+            return e ? std::make_optional((*e).template to_native_type<Composer>()) : std::nullopt;
+        };
+        // auto to_native_type = [&]<typename T>(T& e) { return e.to_native_type(); };
+
+        PrivateCircuitPublicInputs<NativeTypes> pis = {
+            to_native_type(call_context),
+
+            to_nt(custom_public_inputs),
+            to_nt(emitted_public_inputs),
+
+            to_native_type(executed_callback),
+
+            to_nt(output_commitments),
+            to_nt(input_nullifiers),
+
+            to_nt(private_call_stack),
+            to_nt(public_call_stack),
+            to_nt(contract_deployment_call_stack),
+            to_nt(partial_l1_call_stack),
+            map(callback_stack, to_native_type),
+
+            to_nt(old_private_data_tree_root),
+
+            to_nt(is_fee_payment),
+            to_nt(pay_fee_from_l1),
+            to_nt(pay_fee_from_public_l2),
+            to_nt(called_from_l1),
         };
 
         return pis;
@@ -321,7 +405,7 @@ template <typename NCT> class PrivateCircuitPublicInputs {
             (*e).template set_public<Composer>();
         }
     }
-};
+}; // namespace aztec3::circuits::abis
 
 template <typename NCT> void read(uint8_t const*& it, PrivateCircuitPublicInputs<NCT>& private_circuit_public_inputs)
 {

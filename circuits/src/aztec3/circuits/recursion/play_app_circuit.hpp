@@ -1,6 +1,6 @@
 #include <stdlib/types/turbo.hpp>
 
-namespace aztec3::circuits::kernel {
+namespace aztec3::circuits::recursion {
 
 using namespace plonk::stdlib::types::turbo;
 // using plonk::stdlib::recursion::recursion_output;
@@ -17,4 +17,4 @@ void play_app_circuit(Composer& composer, barretenberg::fr const& a_in, barreten
     d.set_public();
 };
 
-} // namespace aztec3::circuits::kernel
+} // namespace aztec3::circuits::recursion

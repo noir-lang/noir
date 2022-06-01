@@ -36,6 +36,19 @@ template <typename NCT> struct ExecutedCallback {
         return executed_callback;
     };
 
+    template <typename Composer> ExecutedCallback<NativeTypes> to_native_type() const
+    {
+        static_assert(std::is_same<CircuitTypes<Composer>, NCT>::value);
+        auto to_nt = [&](auto& e) { return plonk::stdlib::types::to_nt<Composer>(e); };
+
+        ExecutedCallback<NativeTypes> executed_callback = {
+            to_nt(l1_result_hash),
+            to_nt(l1_results_tree_leaf_index),
+        };
+
+        return executed_callback;
+    };
+
     template <typename Composer> void assert_is_zero()
     {
         static_assert((std::is_same<CircuitTypes<Composer>, NCT>::value));
@@ -44,9 +57,9 @@ template <typename NCT> struct ExecutedCallback {
         fr(l1_results_tree_leaf_index).assert_is_zero();
     }
 
-    template <typename Composer> void set_public()
+    void set_public()
     {
-        static_assert((std::is_same<CircuitTypes<Composer>, NCT>::value));
+        static_assert(!(std::is_same<NativeTypes, NCT>::value));
 
         l1_result_hash.set_public();
         fr(l1_results_tree_leaf_index).set_public();

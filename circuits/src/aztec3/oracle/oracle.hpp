@@ -16,15 +16,21 @@ template <typename DB> class NativeOracleInterface {
   public:
     DB& db;
 
-    NativeOracleInterface(DB& db, NT::fr const& contract_address, NT::address const& msg_sender)
+    NativeOracleInterface(DB& db,
+                          NT::fr const& contract_address,
+                          //   NT::fr const& portal_contract_address,
+                          NT::address const& msg_sender)
         : db(db)
         , call_context({
               .msg_sender = msg_sender,
               .storage_contract_address = contract_address,
-          }){};
+          })
+        // , portal_contract_address(portal_contract_address)
+        {};
 
     NativeOracleInterface(DB& db,
                           NT::fr const& contract_address,
+                          //   NT::fr const& portal_contract_address,
                           NT::address const& msg_sender,
                           std::optional<NT::fr> msg_sender_private_key)
         : db(db)
@@ -32,6 +38,7 @@ template <typename DB> class NativeOracleInterface {
               .msg_sender = msg_sender,
               .storage_contract_address = contract_address,
           })
+        // , portal_contract_address(portal_contract_address)
         , msg_sender_private_key(msg_sender_private_key){};
 
     NT::fr get_msg_sender_private_key()
@@ -45,6 +52,15 @@ template <typename DB> class NativeOracleInterface {
         msg_sender_private_key_already_got = true;
         return *msg_sender_private_key;
     };
+
+    // NT::fr get_portal_contract_address()
+    // {
+    //     if (portal_contract_address_already_got) {
+    //         throw_or_abort(already_got_error);
+    //     }
+    //     portal_contract_address_already_got = true;
+    //     return portal_contract_address;
+    // };
 
     CallContext<NT> get_call_context()
     {
@@ -76,10 +92,12 @@ template <typename DB> class NativeOracleInterface {
 
     // A circuit doesn't know its own address, so we need to track the address from 'outside'.
     CallContext<NT> call_context;
+    // NT::fr portal_contract_address;
     std::optional<NT::fr> msg_sender_private_key;
 
     // Ensure functions called only once:
     bool call_context_already_got = false;
+    // bool portal_contract_address_already_got = false;
     bool msg_sender_private_key_already_got = false;
     std::string already_got_error = "Your circuit has already accessed this value. Don't ask the oracle twice, since "
                                     "it shouldn't be trusted, and could lead to circuit bugs";

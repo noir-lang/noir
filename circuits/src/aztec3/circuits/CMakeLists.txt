@@ -1,3 +1,5 @@
 add_subdirectory(apps)
 add_subdirectory(abis)
 add_subdirectory(kernel)
+add_subdirectory(rollup)
+add_subdirectory(recursion)

@@ -5,8 +5,8 @@
 #include <stdlib/types/circuit_types.hpp>
 #include <common/map.hpp>
 #include "../../constants.hpp"
-#include "./state_transition.hpp"
-#include "./state_read.hpp"
+#include "state_transition.hpp"
+#include "state_read.hpp"
 // #include "./executed_callback.hpp"
 // #include "./callback_stack_item.hpp"
 

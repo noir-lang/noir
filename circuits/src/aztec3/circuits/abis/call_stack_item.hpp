@@ -1,8 +1,8 @@
 #pragma once
-#include "./function_signature.hpp"
-#include "./call_context.hpp"
-#include "./private_circuit_public_inputs.hpp"
-#include "./public_circuit_public_inputs.hpp"
+#include "function_signature.hpp"
+#include "call_context.hpp"
+#include "private_circuit_public_inputs.hpp"
+#include "public_circuit_public_inputs.hpp"
 #include <stdlib/primitives/witness/witness.hpp>
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
