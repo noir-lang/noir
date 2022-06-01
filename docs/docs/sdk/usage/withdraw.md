@@ -2,6 +2,8 @@
 title: Withdraw Assets
 ---
 
+Withdraw assets from Aztec to Ethereum.
+
 Use the `WithdrawController` to withdraw assets from Aztec to Ethereum.
 
 You can find the interface of the `WithdrawController` [here](../types/WithdrawController).

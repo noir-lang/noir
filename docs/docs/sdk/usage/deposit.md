@@ -2,6 +2,8 @@
 title: Shield Assets (Deposit)
 ---
 
+Deposit Assets from Ethereum to Aztec.
+
 The SDK comes with a `DepositController` that makes it easy to create and track deposit transactions from Ethereum to Aztec.
 
 Deposits require sending Ethereum transactions from a user's account to the Aztec deposit contract.

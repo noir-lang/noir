@@ -2,6 +2,8 @@
 title: Transfer Notes
 ---
 
+Transfer asset notes on the Aztec network.
+
 Use the `TransferController` to spend notes within the Aztec rollup.
 
 You can find the type definition of the `TransferController` class [here](../types/TransferController).

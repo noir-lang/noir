@@ -2,7 +2,7 @@
 title: Add Accounts to the SDK
 ---
 
-Add a user with the privacy key.
+Add accounts with the privacy key.
 
 Because all notes representing value on Aztec network are encrypted, the SDK requires access to a user's privacy key in order to decrypt the notes and calculate a user's balance.
 
