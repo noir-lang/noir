@@ -933,7 +933,7 @@ fn wrap(value: FieldElement, bitcount: u32) -> FieldElement {
         let adjustment = if !fits_evenly { 1 } else { 0 };
 
         let bitcount = bitcount as usize;
-        for i in 0 .. bytes.len() - bitcount / 8 - adjustment {
+        for i in 0..bytes.len() - bitcount / 8 - adjustment {
             bytes[i] = 0;
         }
 

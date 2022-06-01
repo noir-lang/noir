@@ -249,7 +249,7 @@ impl<'a> IRGenerator<'a> {
             last = self.evaluate_statement(env, stmt).unwrap();
         }
 
-        last.unwrap_or(Value::Single(NodeId::dummy()))
+        last.unwrap_or_else(|| Value::Single(NodeId::dummy()))
     }
 
     pub fn evaluate_statement(

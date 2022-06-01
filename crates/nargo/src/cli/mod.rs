@@ -94,7 +94,7 @@ fn write_to_file(bytes: &[u8], path: &Path) -> String {
 // helper function which tests noir programs by trying to generate a proof and verify it
 pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> bool {
     let tmp_dir = TempDir::new("p_and_v_tests").unwrap();
-        println!("prove_with_path(_, {})", show_ssa);
+    println!("prove_with_path(_, {})", show_ssa);
     let proof_path =
         prove_cmd::prove_with_path(proof_name, prg_dir, &tmp_dir.into_path(), show_ssa).unwrap();
 
