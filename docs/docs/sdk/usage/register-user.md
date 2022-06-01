@@ -8,7 +8,11 @@ As mentioned in the above pages, there is an important difference between the ac
 
 Account with nonce 1 must be registered on the network before it can be used. The SDK makes it easy to register a new account using the `RegisterController`.
 
+## RegisterController
+
 You can find the type definition of the RegisterController class [here](../types/RegisterController).
+
+`AztecSdk.createRegisterController`
 
 ```ts
 AztecSdk.createRegisterController(
@@ -24,9 +28,25 @@ AztecSdk.createRegisterController(
         : Promise<RegisterController>;
 ```
 
-The `AssetValue` [type](../types/AssetValue) specifies the type and amount of an Aztec asset note.
+### Inputs
+
+| Arguments | Type | Description |
+| --------- | ---- | ----------- |
+| userId | [AccountId](../types/AccountId) | The AccountId of the account with nonce 0 registering the new account. |
+| userSigner | [Signer](../types/Signer) | The signer for AccountId with nonce 0. |
+| alias | string | The alias to register the new account with. This is typically a human-readable, easy to remember identifier. |
+| signingPublicKey | [GrumpkinAddress](../types/GrumpkinAddress) | The public key for the new account. Users must remember the corresponding private key (or the derivation method). |
+| recoveryPublicKey | [GrumpkinAddress](../types/GrumpkinAddress) | An optional recovery key that allows the account to be recovered if the `signingPublicKey` is lost. |
+| deposit | [AssetValue](../types/AssetValue) | The `assetId` (number) and `value` (bigint) to deposit. |
+| fee | [AssetValue](../types/AssetValue) | The network fee for registering the account. |
+| depositor | [EthAddress](../types/EthAddress) | The Ethereum account from which to deposit the funds. |
+| provider | [EthereumProvider](../types/EthereumProvider) | Optional Ethereum Provider. |
+
+### Calculating Fees
 
 `(await AztecSdk.getRegisterFees(deposit: AssetValue))[settlementTime: TxSettlementTime]` will help determine how much the transaction will cost. Settlement time can either be `NEXT_ROLLUP` or `INSTANT`. `INSTANT` is more expensive because it indicates you will pay for the rollup to settle "instantly" (on the order of minutes rather than hours) rather than waiting for it to fill up with other transactions. When there are more transactions in the rollup, users are splitting the cost among more transactions so each one is cheaper.
+
+### Full Registration Flow
 
 Once the `RegisterController` has been created, you can use it to deposit funds, create proofs, and sign and send transactions. For example:
 
