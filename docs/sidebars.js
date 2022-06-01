@@ -67,7 +67,7 @@ const sidebars = {
           },
           items: [
             "sdk/usage/setup",
-            "sdk/usage/add-user",
+            "sdk/usage/add-account",
             "sdk/usage/register-user",
             "sdk/usage/deposit",
             "sdk/usage/transfer",
