@@ -8,7 +8,7 @@ const darkCodeTheme = require('prism-react-renderer/themes/dracula');
 const config = {
   title: 'Aztec Docs',
   tagline: 'Scalable privacy on Ethereum',
-  url: 'https://unrivaled-valkyrie-76d819.netlify.app',
+  url: 'https://docs.aztec.network',
   baseUrl: '/',
   trailingSlash: false,
   onBrokenLinks: 'throw',
@@ -35,9 +35,7 @@ const config = {
       ({
         docs: {
           sidebarPath: require.resolve('./sidebars.js'),
-          // Please change this to your repo.
-          // Remove this to remove the "edit this page" links.
-          editUrl: 'https://github.com/critesjosh/fantastic-carnival',
+          editUrl: 'https://github.com/AztecProtocol/docs',
           routeBasePath: '/',
         },
         blog: false,
