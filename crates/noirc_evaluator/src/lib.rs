@@ -102,7 +102,7 @@ impl<'a> Evaluator<'a> {
         let mut env = Environment::new(FuncContext::Main);
 
         // First evaluate the main function
-        if true {
+        if enable_logging {
             self.evaluate_main_alt(&mut env, enable_logging)?;
         } else {
             self.evaluate_main(&mut env)?;

@@ -158,7 +158,7 @@ pub fn find_similar_cast(
 }
 
 pub enum CseAction {
-    Replace { original: NodeId, replacement: NodeId },
+    ReplaceWith(NodeId),
     Remove(NodeId),
     Keep,
 }
@@ -166,7 +166,6 @@ pub enum CseAction {
 fn find_similar_mem_instruction(
     ctx: &SsaContext,
     op: &Operation,
-    ins_id: NodeId,
     anchor: &mut Anchor,
 ) -> CseAction {
     match op {
@@ -175,20 +174,13 @@ fn find_similar_mem_instruction(
                 if let Some(ins_iter) = ctx.try_get_instruction(*iter) {
                     match &ins_iter.operation {
                         Operation::Load { array_id: array_id2, index: _ } => {
-                            if array_id != array_id2 {
-                                continue;
-                            } else {
-                                return CseAction::Replace { original: ins_id, replacement: *iter };
-                            }
+                            assert_eq!(array_id, array_id2);
+                            return CseAction::ReplaceWith(*iter);
                         }
                         Operation::Store { array_id: array_id2, index: index2, value } => {
-                            if array_id != array_id2 {
-                                continue;
-                            } else if index == index2 {
-                                return CseAction::Replace {
-                                    original: ins_id,
-                                    replacement: *value,
-                                };
+                            assert_eq!(array_id, array_id2);
+                            if index == index2 {
+                                return CseAction::ReplaceWith(*value);
                             } else {
                                 //TODO: If we know that ins.lhs value cannot be equal to ins_iter.rhs, we could continue instead
                                 return CseAction::Keep;
@@ -205,16 +197,13 @@ fn find_similar_mem_instruction(
                 if let Some(ins_iter) = ctx.try_get_instruction(*node_id) {
                     match ins_iter.operation {
                         Operation::Load { array_id: array_id2, .. } => {
-                            if array_id != &array_id2 {
-                                continue;
-                            }
+                            assert_eq!(*array_id, array_id2);
                             //TODO: If we know that ins.rhs value cannot be equal to ins_iter.rhs, we could continue instead
                             return CseAction::Keep;
                         }
                         Operation::Store { index: index2, array_id: array_id2, .. } => {
-                            if array_id != &array_id2 {
-                                continue;
-                            } else if *index == index2 {
+                            assert_eq!(*array_id, array_id2);
+                            if *index == index2 {
                                 return CseAction::Remove(*node_id);
                             } else {
                                 //TODO: If we know that ins.rhs value cannot be equal to ins_iter.rhs, we could continue instead
@@ -233,19 +222,16 @@ fn find_similar_mem_instruction(
 }
 
 pub fn propagate(ctx: &SsaContext, id: NodeId) -> NodeId {
-    let mut result = id;
     if let Some(obj) = ctx.try_get_instruction(id) {
-        if let Operation::Binary(node::Binary { operator: BinaryOp::Assign, rhs, .. }) =
+        if let Some(replacement) = obj.replacement {
+            return replacement;
+        } else if let Operation::Binary(node::Binary { operator: BinaryOp::Assign, rhs, .. }) =
             &obj.operation
         {
-            result = *rhs;
-        }
-
-        if let Some(replacement) = obj.replacement {
-            result = replacement;
+            return *rhs;
         }
     }
-    result
+    id
 }
 
 //common subexpression elimination, starting from the root
@@ -324,87 +310,78 @@ fn cse_block_with_anchor(
             let mut to_delete = false;
             let mut replacement = None;
 
-            if operator.is_binary() {
-                let variants = anchor.get_all(ins.operation.opcode());
-                if let Some(similar) = find_similar_instruction(ctx, &ins.operation, &variants) {
-                    replacement = Some(similar);
-                } else if let Operation::Binary(node::Binary {
-                    operator: BinaryOp::Assign,
-                    rhs,
-                    ..
-                }) = operator
-                {
-                    replacement = Some(propagate(ctx, rhs));
-                } else {
-                    new_list.push(*ins_id);
-                    anchor.push_front(&ins.operation, *ins_id);
+            match &operator {
+                Operation::Binary(binary) => {
+                    let variants = anchor.get_all(binary.opcode());
+                    if let Some(similar) = find_similar_instruction(ctx, &operator, &variants) {
+                        replacement = Some(similar);
+                    } else if binary.operator == BinaryOp::Assign {
+                        replacement = Some(binary.rhs);
+                    } else {
+                        new_list.push(*ins_id);
+                        anchor.push_front(&ins.operation, *ins_id);
+                    }
                 }
-            } else {
-                match &operator {
-                    Operation::Load { .. } | Operation::Store { .. } => {
-                        match find_similar_mem_instruction(ctx, &operator, ins.id, anchor) {
-                            CseAction::Keep => new_list.push(*ins_id),
-                            CseAction::Replace { original, replacement: replace_with } => {
-                                assert_eq!(original, *ins_id);
-                                replacement = Some(replace_with);
-                            }
-                            CseAction::Remove(id_to_remove) => {
-                                new_list.push(*ins_id);
-                                // TODO if not found, it should be removed from other blocks; we could keep a list of instructions to remove
-                                if let Some(id) = new_list.iter().position(|x| *x == id_to_remove) {
-                                    new_list.remove(id);
-                                }
-                            }
+                Operation::Load { .. } | Operation::Store { .. } => {
+                    match find_similar_mem_instruction(ctx, &operator, anchor) {
+                        CseAction::Keep => new_list.push(*ins_id),
+                        CseAction::ReplaceWith(new_id) => {
+                            replacement = Some(new_id);
                         }
-                    }
-                    Operation::Phi { block_args, .. } => {
-                        // propagate phi arguments
-                        if let Some(first) = Instruction::simplify_phi(ins.id, block_args) {
-                            if first == ins.id {
-                                new_list.push(*ins_id);
-                            } else {
-                                replacement = Some(first);
-                            }
-                        } else {
-                            to_delete = true;
-                        }
-                    }
-                    Operation::Cast(_) => {
-                        //Similar cast must have same type
-                        if let Some(similar) = find_similar_cast(
-                            ctx,
-                            &operator,
-                            ins.res_type,
-                            &anchor.get_all(Opcode::Cast),
-                        ) {
-                            replacement = Some(similar);
-                        } else {
+                        CseAction::Remove(id_to_remove) => {
                             new_list.push(*ins_id);
-                            anchor.push_front(&operator, *ins_id);
+                            // TODO if not found, it should be removed from other blocks; we could keep a list of instructions to remove
+                            if let Some(id) = new_list.iter().position(|x| *x == id_to_remove) {
+                                new_list.remove(id);
+                            }
                         }
                     }
-                    Operation::Call(..) | Operation::Return(..) => {
-                        //No CSE for function calls because of possible side effect - TODO checks if a function has side effect when parsed and do cse for these.
-                        //Propagate arguments:
-                        new_list.push(*ins_id);
-                    }
-                    Operation::Intrinsic(..) => {
-                        //n.b this could be the default behavior for binary operations
-                        if let Some(similar) = find_similar_instruction(
-                            ctx,
-                            &operator,
-                            &anchor.get_all(operator.opcode()),
-                        ) {
-                            replacement = Some(similar);
-                        } else {
+                }
+                Operation::Phi { block_args, .. } => {
+                    // propagate phi arguments
+                    if let Some(first) = Instruction::simplify_phi(ins.id, block_args) {
+                        if first == ins.id {
                             new_list.push(*ins_id);
-                            anchor.push_front(&operator, *ins_id);
+                        } else {
+                            replacement = Some(first);
                         }
+                    } else {
+                        to_delete = true;
                     }
-                    _ => {
-                        //TODO: checks we do not need to propagate res arguments
+                }
+                Operation::Cast(_) => {
+                    //Similar cast must have same type
+                    if let Some(similar) = find_similar_cast(
+                        ctx,
+                        &operator,
+                        ins.res_type,
+                        &anchor.get_all(Opcode::Cast),
+                    ) {
+                        replacement = Some(similar);
+                    } else {
                         new_list.push(*ins_id);
+                        anchor.push_front(&operator, *ins_id);
                     }
+                }
+                Operation::Call(..) | Operation::Return(..) => {
+                    //No CSE for function calls because of possible side effect - TODO checks if a function has side effect when parsed and do cse for these.
+                    //Propagate arguments:
+                    new_list.push(*ins_id);
+                }
+                Operation::Intrinsic(..) => {
+                    //n.b this could be the default behavior for binary operations
+                    if let Some(similar) =
+                        find_similar_instruction(ctx, &operator, &anchor.get_all(operator.opcode()))
+                    {
+                        replacement = Some(similar);
+                    } else {
+                        new_list.push(*ins_id);
+                        anchor.push_front(&operator, *ins_id);
+                    }
+                }
+                _ => {
+                    //TODO: checks we do not need to propagate res arguments
+                    new_list.push(*ins_id);
                 }
             }
 

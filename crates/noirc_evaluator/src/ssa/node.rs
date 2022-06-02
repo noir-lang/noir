@@ -934,6 +934,37 @@ impl Binary {
             BinaryOp::Shr => true,
         }
     }
+
+    pub fn opcode(&self) -> Opcode {
+        match &self.operator {
+            BinaryOp::Add => Opcode::Add,
+            BinaryOp::SafeAdd => Opcode::SafeAdd,
+            BinaryOp::Sub { .. } => Opcode::Sub,
+            BinaryOp::SafeSub { .. } => Opcode::SafeSub,
+            BinaryOp::Mul => Opcode::Mul,
+            BinaryOp::SafeMul => Opcode::SafeMul,
+            BinaryOp::Udiv => Opcode::Udiv,
+            BinaryOp::Sdiv => Opcode::Sdiv,
+            BinaryOp::Urem => Opcode::Urem,
+            BinaryOp::Srem => Opcode::Srem,
+            BinaryOp::Div => Opcode::Div,
+            BinaryOp::Eq => Opcode::Eq,
+            BinaryOp::Ne => Opcode::Ne,
+            BinaryOp::Ult => Opcode::Ult,
+            BinaryOp::Ule => Opcode::Ule,
+            BinaryOp::Slt => Opcode::Slt,
+            BinaryOp::Sle => Opcode::Sle,
+            BinaryOp::Lt => Opcode::Lt,
+            BinaryOp::Lte => Opcode::Lte,
+            BinaryOp::And => Opcode::And,
+            BinaryOp::Or => Opcode::Or,
+            BinaryOp::Xor => Opcode::Xor,
+            BinaryOp::Shl => Opcode::Shl,
+            BinaryOp::Shr => Opcode::Shr,
+            BinaryOp::Assign => Opcode::Assign,
+            BinaryOp::Constrain(op) => Opcode::Constrain(*op),
+        }
+    }
 }
 
 /// Perform the given numeric operation and modulo the result by the max value for the given bitcount
@@ -955,10 +986,6 @@ fn wrapping(
 }
 
 impl Operation {
-    pub fn is_binary(&self) -> bool {
-        matches!(self, Operation::Binary(..))
-    }
-
     pub fn binary(op: BinaryOp, lhs: NodeId, rhs: NodeId) -> Self {
         Operation::Binary(Binary::new(op, lhs, rhs))
     }
@@ -1084,34 +1111,7 @@ impl Operation {
 
     pub fn opcode(&self) -> Opcode {
         match self {
-            Operation::Binary(binary) => match &binary.operator {
-                BinaryOp::Add => Opcode::Add,
-                BinaryOp::SafeAdd => Opcode::SafeAdd,
-                BinaryOp::Sub { .. } => Opcode::Sub,
-                BinaryOp::SafeSub { .. } => Opcode::SafeSub,
-                BinaryOp::Mul => Opcode::Mul,
-                BinaryOp::SafeMul => Opcode::SafeMul,
-                BinaryOp::Udiv => Opcode::Udiv,
-                BinaryOp::Sdiv => Opcode::Sdiv,
-                BinaryOp::Urem => Opcode::Urem,
-                BinaryOp::Srem => Opcode::Srem,
-                BinaryOp::Div => Opcode::Div,
-                BinaryOp::Eq => Opcode::Eq,
-                BinaryOp::Ne => Opcode::Ne,
-                BinaryOp::Ult => Opcode::Ult,
-                BinaryOp::Ule => Opcode::Ule,
-                BinaryOp::Slt => Opcode::Slt,
-                BinaryOp::Sle => Opcode::Sle,
-                BinaryOp::Lt => Opcode::Lt,
-                BinaryOp::Lte => Opcode::Lte,
-                BinaryOp::And => Opcode::And,
-                BinaryOp::Or => Opcode::Or,
-                BinaryOp::Xor => Opcode::Xor,
-                BinaryOp::Shl => Opcode::Shl,
-                BinaryOp::Shr => Opcode::Shr,
-                BinaryOp::Assign => Opcode::Assign,
-                BinaryOp::Constrain(op) => Opcode::Constrain(*op),
-            },
+            Operation::Binary(binary) => binary.opcode(),
             Operation::Cast(_) => Opcode::Cast,
             Operation::Truncate { .. } => Opcode::Truncate,
             Operation::Not(_) => Opcode::Not,
