@@ -1,5 +1,5 @@
 use super::block::{BasicBlock, BlockId};
-use super::function::SSAFunction;
+use super::function::{FuncIndex, SSAFunction};
 use super::inline::StackFrame;
 use super::mem::Memory;
 use super::node::{Instruction, NodeId, NodeObj, ObjectType, Operation};
@@ -31,6 +31,7 @@ pub struct SsaContext<'a> {
     pub sealed_blocks: HashSet<BlockId>,
     pub mem: Memory,
     pub functions: HashMap<FuncId, function::SSAFunction>,
+    //Adjacency Matrix of the call graph; list of rows where each row indicates the functions called by the function whose FuncIndex is the row number
     pub call_graph: Vec<Vec<u8>>,
 }
 
@@ -56,6 +57,10 @@ impl<'a> SsaContext<'a> {
 
     pub fn zero(&self) -> NodeId {
         self.find_const_with_type(&BigUint::zero(), node::ObjectType::Unsigned(1)).unwrap()
+    }
+
+    pub fn get_function_index(&self) -> FuncIndex {
+        FuncIndex::new(self.functions.values().len())
     }
 
     pub fn insert_block(&mut self, block: BasicBlock) -> &mut BasicBlock {
