@@ -1,6 +1,6 @@
 use super::{
     context::SsaContext,
-    node::{self, Instruction, NodeId, NodeObj, Operation},
+    node::{self, NodeId},
 };
 use std::collections::{HashMap, VecDeque};
 
@@ -63,16 +63,6 @@ impl BasicBlock {
 
     pub fn is_join(&self) -> bool {
         self.kind == BlockType::ForJoin
-    }
-
-    pub fn get_result_instruction(&self, call_id: NodeId, ctx: &SsaContext) -> Option<NodeId> {
-        self.instructions.iter().copied().find(|i| match ctx[*i] {
-            NodeObj::Instr(Instruction {
-                operation: Operation::Results { call_instruction, .. },
-                ..
-            }) => call_instruction == call_id,
-            _ => false,
-        })
     }
 
     //Create the first block for a CFG

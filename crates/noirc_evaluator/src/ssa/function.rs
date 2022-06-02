@@ -57,9 +57,14 @@ impl SSAFunction {
         env: &mut Environment,
     ) -> NodeId {
         let arguments = igen.expression_list_to_objects(env, arguments);
+        let call_instruction = igen
+            .context
+            .new_instruction(node::Operation::Call(func, arguments), node::ObjectType::NotAnObject);
+
+        //TODO how to get the function return type?
         igen.context.new_instruction(
-            node::Operation::Call(func, arguments),
-            node::ObjectType::NotAnObject, //TODO how to get the function return type?
+            node::Operation::Result { call_instruction, index: 0 },
+            node::ObjectType::NotAnObject,
         )
     }
 

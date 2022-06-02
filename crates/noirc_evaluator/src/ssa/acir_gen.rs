@@ -145,7 +145,7 @@ impl Acir {
             | i @ Operation::Jeq(..)
             | i @ Operation::Jmp(_)
             | i @ Operation::Phi { .. }
-            | i @ Operation::Results { .. } => {
+            | i @ Operation::Result { .. } => {
                 unreachable!("Invalid instruction: {:?}", i);
             }
             Operation::Truncate { value, bit_size, max_bit_size } => {

@@ -375,7 +375,7 @@ impl Instruction {
             Operation::Intrinsic(_, _) => true, //TODO to check
             Operation::Call(_, _) => false, //return values are in the return statment, should we truncate function arguments? probably but not lhs and rhs anyways.
             Operation::Return(_) => true,
-            Operation::Results { .. } => false,
+            Operation::Result { .. } => false,
         }
     }
 
@@ -507,7 +507,7 @@ pub enum Operation {
 
     Call(noirc_frontend::node_interner::FuncId, Vec<NodeId>), //Call a function
     Return(Vec<NodeId>), //Return value(s) from a function block
-    Results { call_instruction: NodeId, results: Vec<NodeId> }, //Get result(s) from a function call
+    Result { call_instruction: NodeId, index: u32 }, //Get result index n from a function call
 
     //memory
     Load { array_id: ArrayId, index: NodeId },
@@ -1016,10 +1016,9 @@ impl Operation {
             Nop => Nop,
             Call(func_id, args) => Call(*func_id, vecmap(args.iter().copied(), f)),
             Return(values) => Return(vecmap(values.iter().copied(), f)),
-            Results { call_instruction, results } => Results {
-                call_instruction: f(*call_instruction),
-                results: vecmap(results.iter().copied(), f),
-            },
+            Result { call_instruction, index } => {
+                Result { call_instruction: f(*call_instruction), index: *index }
+            }
         }
     }
 
@@ -1064,11 +1063,8 @@ impl Operation {
                     *value = f(*value);
                 }
             }
-            Results { call_instruction, results } => {
+            Result { call_instruction, index: _ } => {
                 *call_instruction = f(*call_instruction);
-                for result in results {
-                    *result = f(*result);
-                }
             }
         }
     }
@@ -1102,9 +1098,8 @@ impl Operation {
             Nop => (),
             Call(_, args) => args.iter().copied().for_each(f),
             Return(values) => values.iter().copied().for_each(f),
-            Results { call_instruction, results } => {
+            Result { call_instruction, .. } => {
                 f(*call_instruction);
-                results.iter().copied().for_each(f);
             }
         }
     }
@@ -1121,7 +1116,7 @@ impl Operation {
             Operation::Phi { .. } => Opcode::Phi,
             Operation::Call(id, _) => Opcode::Call(*id),
             Operation::Return(_) => Opcode::Return,
-            Operation::Results { .. } => Opcode::Results,
+            Operation::Result { .. } => Opcode::Results,
             Operation::Load { array_id, .. } => Opcode::Load(*array_id),
             Operation::Store { array_id, .. } => Opcode::Store(*array_id),
             Operation::Intrinsic(opcode, _) => Opcode::Intrinsic(*opcode),

@@ -147,9 +147,9 @@ impl<'a> SsaContext<'a> {
             Operation::Nop => "nop".into(),
             Operation::Call(f, args) => format!("call {:?}({})", f, join(args)),
             Operation::Return(values) => format!("return ({})", join(values)),
-            Operation::Results { call_instruction, results } => {
+            Operation::Result { call_instruction, index } => {
                 let call = self.node_to_string(*call_instruction);
-                format!("results {} = ({})", call, join(results))
+                format!("result {} of {}", index, call)
             }
         }
     }
@@ -292,6 +292,23 @@ impl<'a> SsaContext<'a> {
             },
             _ => Err("Invalid id"),
         }
+    }
+
+    pub fn get_result_instruction(
+        &mut self,
+        target: BlockId,
+        call_instruction: NodeId,
+        index: u32,
+    ) -> Option<&mut Instruction> {
+        for id in &self.blocks[target.0].instructions {
+            if let Some(NodeObj::Instr(i)) = self.nodes.get(id.0) {
+                if i.operation == (Operation::Result { call_instruction, index }) {
+                    let id = *id;
+                    return self.try_get_mut_instruction(id);
+                }
+            }
+        }
+        None
     }
 
     pub fn get_root_value(&self, id: NodeId) -> NodeId {

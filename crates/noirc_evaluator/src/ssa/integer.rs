@@ -245,7 +245,7 @@ fn block_overflow(
     for mut ins in instructions {
         if matches!(
             ins.operation,
-            Operation::Nop | Operation::Call(..) | Operation::Results { .. } | Operation::Return(_)
+            Operation::Nop | Operation::Call(..) | Operation::Result { .. } | Operation::Return(_)
         ) {
             //For now we skip completely functions from overflow; that means arguments are NOT truncated.
             //The reasoning is that this is handled by doing the overflow strategy after the function has been inlined
@@ -446,7 +446,7 @@ fn get_max_value(ins: &Instruction, max_map: &mut HashMap<NodeId, BigUint>) -> B
         Operation::Store { .. } => BigUint::zero(),
         Operation::Call(..) => ins.res_type.max_size(), //TODO interval analysis but we also need to get the arguments (ins_arguments)
         Operation::Return(_) => todo!(),
-        Operation::Results { .. } => todo!(),
+        Operation::Result { .. } => todo!(),
         Operation::Intrinsic(opcode, _) => {
             match opcode {
                 OPCODE::SHA256
