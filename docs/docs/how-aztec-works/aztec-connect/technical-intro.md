@@ -46,7 +46,7 @@ The `auxData` field can be used to provide data to the bridge contract, such as 
 
 ### Bridge Contract Interface
 
-```solidity
+```ts
 // SPDX-License-Identifier: GPL-2.0-only
 // Copyright 2020 Spilsbury Holdings Ltd
 pragma solidity >=0.6.6 <0.8.0;
