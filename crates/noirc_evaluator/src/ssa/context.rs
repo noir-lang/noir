@@ -32,6 +32,7 @@ pub struct SsaContext<'a> {
     pub mem: Memory,
     pub functions: HashMap<FuncId, function::SSAFunction>,
     pub call_graph: Vec<Vec<u8>>,
+    dummy_store: HashMap<u32, NodeId>,
 }
 
 impl<'a> SsaContext<'a> {
@@ -47,6 +48,7 @@ impl<'a> SsaContext<'a> {
             mem: Memory::default(),
             functions: HashMap::new(),
             call_graph: Vec::new(),
+            dummy_store: HashMap::new(),
         };
         block::create_first_block(&mut pc);
         pc.one_type(node::ObjectType::Unsigned(1));
@@ -68,6 +70,10 @@ impl<'a> SsaContext<'a> {
 
     pub fn one_type(&mut self, obj_type: ObjectType) -> NodeId {
         self.get_or_create_const(FieldElement::one(), obj_type)
+    }
+
+    pub fn get_dummy_store(&self, a: u32) -> NodeId {
+        *self.dummy_store.get(&a).unwrap()
     }
 
     pub fn insert_block(&mut self, block: BasicBlock) -> &mut BasicBlock {
@@ -594,6 +600,18 @@ impl<'a> SsaContext<'a> {
                 return self.handle_assign(lhs, index, ret);
             } else {
                 call_stack.return_values.push(lhs);
+                if let ObjectType::Pointer(a) = lhs_type {
+                     //dummy store for a
+                                                    let dummy_store = node::Instruction::new(
+                                                        node::Operation::Store(a),
+                                                        NodeId::dummy(),
+                                                        NodeId::dummy(),
+                                                        node::ObjectType::NotAnObject,
+                                                        None,
+                                                    );
+                    let id = self.add_instruction(dummy_store);
+                    self.dummy_store.insert(a, id);
+                }
                 return lhs;
             }
         }

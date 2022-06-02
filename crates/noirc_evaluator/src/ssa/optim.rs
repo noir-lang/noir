@@ -493,6 +493,17 @@ pub fn block_cse(
                             }
                             ins_args.push(new_a);
                         }
+                        //Add dummy store for functions that modify arrays
+                        for i in &ins.ins_arguments.return_values {
+                            if let node::ObjectType::Pointer(a) = ctx.get_object_type(*i) {
+                                anchor_push(node::Operation::Load(a), anchor);
+                                let id = ctx.get_dummy_store(a);
+                                    anchor
+                                    .get_mut(&node::Operation::Load(a))
+                                    .unwrap()
+                                    .push_front(id);
+                            }
+                        }
                         new_list.push(*iter);
                     }
                     node::Operation::Intrinsic(_) => {
