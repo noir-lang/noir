@@ -85,7 +85,7 @@ impl SSAFunction {
             if let Some(c) = my_const {
                 ctx.get_or_create_const(c.0, c.1)
             } else {
-                *inline_map.get(&node_id).unwrap()
+                inline_map[&node_id]
             }
         } else {
             NodeId::dummy()

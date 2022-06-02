@@ -633,7 +633,10 @@ pub fn inline_in_block(
 }
 
 fn new_cloned_instruction(original: Instruction, block: BlockId) -> Instruction {
-    Instruction::new(original.operation, original.res_type, Some(block))
+    let mut clone = Instruction::new(original.operation, original.res_type, Some(block));
+    // Take the original's ID, it will be used to map it as a replacement in push_instruction later
+    clone.id = original.id;
+    clone
 }
 
 fn push_instruction(

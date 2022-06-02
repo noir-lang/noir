@@ -446,7 +446,7 @@ fn get_max_value(ins: &Instruction, max_map: &mut HashMap<NodeId, BigUint>) -> B
         Operation::Store { .. } => BigUint::zero(),
         Operation::Call(..) => ins.res_type.max_size(), //TODO interval analysis but we also need to get the arguments (ins_arguments)
         Operation::Return(_) => todo!(),
-        Operation::Result { .. } => todo!(),
+        Operation::Result { .. } => ins.res_type.max_size(),
         Operation::Intrinsic(opcode, _) => {
             match opcode {
                 OPCODE::SHA256
