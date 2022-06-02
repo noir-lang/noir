@@ -29,7 +29,17 @@ const sidebars = {
       items: [
         "how-aztec-works/privacy",
         "how-aztec-works/scalability",
-        "how-aztec-works/aztec-connect",
+        {
+          type: "category",
+          label: "Aztec Connect",
+          link: {
+            type: "doc",
+            id: "how-aztec-works/aztec-connect/aztec-connect",
+          },
+          items:[
+            "how-aztec-works/aztec-connect/technical-intro"
+          ]
+        },
         "how-aztec-works/accounts",
         "how-aztec-works/tokens",
         "how-aztec-works/talks-videos",
