@@ -1,5 +1,6 @@
 use super::block::BlockId;
 use super::context::SsaContext;
+use super::function::FuncIndex;
 use super::node::{ConstrainOp, Instruction, NodeId, Operation, Variable};
 use super::{block, node, ssa_form};
 use std::collections::HashMap;
@@ -27,7 +28,7 @@ use noirc_frontend::{FunctionKind, Type};
 
 pub struct IRGenerator<'a> {
     pub context: SsaContext<'a>,
-    pub function_context: Option<u32>,
+    pub function_context: Option<FuncIndex>,
     /// The current value of a variable. Used for flattening structs
     /// into multiple variables/values
     variable_values: HashMap<DefinitionId, Value>,
@@ -650,10 +651,10 @@ impl<'a> IRGenerator<'a> {
                 match func_meta.kind {
                     FunctionKind::Normal =>  {
                         if self.context.get_ssafunc(call_expr.func_id).is_none() {
-                            let index = self.context.functions.values().len() as u32;
+                            let index = self.context.get_function_index();
                             function::create_function(self, call_expr.func_id, self.context.context(), env, &func_meta.parameters, index);
                         }
-                        let callee = self.context.get_ssafunc(call_expr.func_id).unwrap().index;
+                        let callee = self.context.get_ssafunc(call_expr.func_id).unwrap().idx;
                         //generate a call instruction to the function cfg
                         if let Some(caller) = self.function_context {
                             function::update_call_graph(&mut self.context.call_graph, caller, callee);

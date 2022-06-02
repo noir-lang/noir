@@ -17,11 +17,24 @@ use super::{
     ssa_form,
 };
 
+#[derive(Clone, Debug, PartialEq, Copy)]
+pub struct FuncIndex(usize);
+
+impl FuncIndex {
+    pub fn new(idx: usize) -> FuncIndex {
+        FuncIndex(idx)
+    }
+
+    pub fn get_index(&self) -> usize {
+        self.0
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct SSAFunction {
     pub entry_block: BlockId,
     pub id: FuncId,
-    pub index: u32,
+    pub idx: FuncIndex,
     //signature:
     pub arguments: Vec<NodeId>,
     pub result_types: Vec<ObjectType>,
@@ -41,13 +54,13 @@ impl SSAFunction {
         last_value
     }
 
-    pub fn new(func: FuncId, block_id: BlockId, index: u32) -> SSAFunction {
+    pub fn new(func: FuncId, block_id: BlockId, idx: FuncIndex) -> SSAFunction {
         SSAFunction {
             entry_block: block_id,
             id: func,
             arguments: Vec::new(),
             result_types: Vec::new(),
-            index,
+            idx,
         }
     }
 
@@ -208,7 +221,7 @@ pub fn create_function(
     context: &noirc_frontend::hir::Context,
     env: &mut Environment,
     parameters: &Parameters,
-    index: u32,
+    index: FuncIndex,
 ) {
     let current_block = igen.context.current_block;
     let current_function = igen.function_context;
@@ -270,28 +283,28 @@ pub fn resize_graph(call_graph: &mut Vec<Vec<u8>>, size: usize) {
     }
 }
 
-pub fn update_call_graph(call_graph: &mut Vec<Vec<u8>>, caller: u32, callee: u32) {
-    let a = caller as usize;
-    let b = callee as usize;
+pub fn update_call_graph(call_graph: &mut Vec<Vec<u8>>, caller: FuncIndex, callee: FuncIndex) {
+    let a = caller.get_index();
+    let b = callee.get_index();
     let max = a.max(b) + 1;
     resize_graph(call_graph, max);
 
     call_graph[a][b] = 1;
 }
 
-fn is_leaf(call_graph: &[Vec<u8>], i: usize) -> bool {
-    for j in 0..call_graph[i].len() {
-        if call_graph[i][j] == 1 {
+fn is_leaf(call_graph: &[Vec<u8>], i: FuncIndex) -> bool {
+    for j in 0..call_graph[i.get_index()].len() {
+        if call_graph[i.get_index()][j] == 1 {
             return false;
         }
     }
     true
 }
 
-fn get_new_leaf(ctx: &SsaContext, processed: &[usize]) -> (usize, FuncId) {
+fn get_new_leaf(ctx: &SsaContext, processed: &[FuncIndex]) -> (FuncIndex, FuncId) {
     for f in ctx.functions.values() {
-        if !processed.contains(&(f.index as usize)) && is_leaf(&ctx.call_graph, f.index as usize) {
-            return (f.index as usize, f.id);
+        if !processed.contains(&(f.idx)) && is_leaf(&ctx.call_graph, f.idx) {
+            return (f.idx, f.id);
         }
     }
     unimplemented!("Recursive function call is not supported");
@@ -309,13 +322,13 @@ pub fn inline_all(ctx: &mut SsaContext) {
         }
         let mut to_inline = Vec::new();
         for f in ctx.functions.values() {
-            if ctx.call_graph[f.index as usize][i.0] == 1 {
-                to_inline.push((f.entry_block, f.index as usize));
+            if ctx.call_graph[f.idx.get_index()][i.0.get_index()] == 1 {
+                to_inline.push((f.entry_block, f.idx));
             }
         }
         for j in to_inline {
             super::inline::inline_cfg(ctx, j.0, Some(i.1));
-            ctx.call_graph[j.1][i.0] = 0;
+            ctx.call_graph[j.1.get_index()][i.0.get_index()] = 0;
         }
         processed.push(i.0);
     }

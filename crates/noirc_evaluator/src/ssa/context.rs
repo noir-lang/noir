@@ -1,5 +1,5 @@
 use super::block::{BasicBlock, BlockId};
-use super::function::SSAFunction;
+use super::function::{FuncIndex, SSAFunction};
 use super::inline::StackFrame;
 use super::mem::Memory;
 use super::node::{Instruction, NodeId, NodeObj, ObjectType, Operation};
@@ -31,6 +31,7 @@ pub struct SsaContext<'a> {
     pub sealed_blocks: HashSet<BlockId>,
     pub mem: Memory,
     pub functions: HashMap<FuncId, function::SSAFunction>,
+    //Adjacency Matrix of the call graph; list of rows where each row indicates the functions called by the function whose FuncIndex is the row number
     pub call_graph: Vec<Vec<u8>>,
     dummy_store: HashMap<u32, NodeId>,
 }
@@ -74,6 +75,10 @@ impl<'a> SsaContext<'a> {
 
     pub fn get_dummy_store(&self, a: u32) -> NodeId {
         *self.dummy_store.get(&a).unwrap()
+    }
+
+    pub fn get_function_index(&self) -> FuncIndex {
+        FuncIndex::new(self.functions.values().len())
     }
 
     pub fn insert_block(&mut self, block: BasicBlock) -> &mut BasicBlock {
@@ -331,7 +336,7 @@ impl<'a> SsaContext<'a> {
         }
         true
     }
-    
+
     //same as update_variable but using the var index instead of var
     pub fn update_variable_id(&mut self, var_id: NodeId, new_var: NodeId, new_value: NodeId) {
         self.update_variable_id_in_block(var_id, new_var, new_value, self.current_block);
@@ -601,14 +606,14 @@ impl<'a> SsaContext<'a> {
             } else {
                 call_stack.return_values.push(lhs);
                 if let ObjectType::Pointer(a) = lhs_type {
-                     //dummy store for a
-                                                    let dummy_store = node::Instruction::new(
-                                                        node::Operation::Store(a),
-                                                        NodeId::dummy(),
-                                                        NodeId::dummy(),
-                                                        node::ObjectType::NotAnObject,
-                                                        None,
-                                                    );
+                    //dummy store for a
+                    let dummy_store = node::Instruction::new(
+                        node::Operation::Store(a),
+                        NodeId::dummy(),
+                        NodeId::dummy(),
+                        node::ObjectType::NotAnObject,
+                        None,
+                    );
                     let id = self.add_instruction(dummy_store);
                     self.dummy_store.insert(a, id);
                 }
