@@ -498,10 +498,7 @@ pub fn block_cse(
                             if let node::ObjectType::Pointer(a) = ctx.get_object_type(*i) {
                                 anchor_push(node::Operation::Load(a), anchor);
                                 let id = ctx.get_dummy_store(a);
-                                    anchor
-                                    .get_mut(&node::Operation::Load(a))
-                                    .unwrap()
-                                    .push_front(id);
+                                anchor.get_mut(&node::Operation::Load(a)).unwrap().push_front(id);
                             }
                         }
                         new_list.push(*iter);

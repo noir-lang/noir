@@ -271,7 +271,8 @@ pub fn inline_in_block(
                     //Compute the new address:
                     //TODO use relative addressing, but that requires a few changes, mainly in acir_gen.rs and integer.rs
                     let b = stack_frame.get_or_default(a);
-                    let offset = ctx.mem.arrays[b as usize].adr as i32 - ctx.mem.arrays[a as usize].adr as i32;
+                    let offset = ctx.mem.arrays[b as usize].adr as i32
+                        - ctx.mem.arrays[a as usize].adr as i32;
                     let index_type = ctx[new_left].get_type();
                     let offset_id =
                         ctx.get_or_create_const(FieldElement::from(offset as i128), index_type);
@@ -290,7 +291,8 @@ pub fn inline_in_block(
                 }
                 Operation::Store(a) => {
                     let b = stack_frame.get_or_default(a);
-                    let offset = ctx.mem.arrays[b as usize].adr as i32 - ctx.mem.arrays[a as usize].adr as i32;
+                    let offset = ctx.mem.arrays[b as usize].adr as i32
+                        - ctx.mem.arrays[a as usize].adr as i32;
                     let index_type = ctx[new_right].get_type();
                     let offset_id =
                         ctx.get_or_create_const(FieldElement::from(offset as i128), index_type);
