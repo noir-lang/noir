@@ -299,12 +299,11 @@ impl<'a> SsaContext<'a> {
         target: BlockId,
         call_instruction: NodeId,
         index: u32,
-    ) -> Option<&mut Instruction> {
+    ) -> Option<NodeId> {
         for id in &self.blocks[target.0].instructions {
             if let Some(NodeObj::Instr(i)) = self.nodes.get(id.0) {
                 if i.operation == (Operation::Result { call_instruction, index }) {
-                    let id = *id;
-                    return self.try_get_mut_instruction(id);
+                    return Some(*id);
                 }
             }
         }
