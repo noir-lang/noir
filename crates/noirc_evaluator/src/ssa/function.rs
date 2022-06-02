@@ -8,7 +8,6 @@ use noirc_frontend::hir_def::function::Parameters;
 use noirc_frontend::hir_def::stmt::HirPattern;
 use noirc_frontend::node_interner::FuncId;
 
-use super::code_gen::Value;
 use super::{
     block::BlockId,
     code_gen::IRGenerator,
@@ -41,19 +40,6 @@ pub struct SSAFunction {
 }
 
 impl SSAFunction {
-    //Parse the AST function body into ssa form in cfg
-    pub fn parse_statements(
-        igen: &mut IRGenerator,
-        block: &[noirc_frontend::node_interner::StmtId],
-        env: &mut Environment,
-    ) -> Value {
-        let mut last_value = Value::dummy();
-        for stmt in block {
-            last_value = igen.evaluate_statement(env, stmt).unwrap();
-        }
-        last_value
-    }
-
     pub fn new(func: FuncId, block_id: BlockId, idx: FuncIndex) -> SSAFunction {
         SSAFunction {
             entry_block: block_id,
@@ -239,7 +225,7 @@ pub fn create_function(
     }
     igen.function_context = Some(index);
     igen.context.functions.insert(func_id, func.clone());
-    let last_value = SSAFunction::parse_statements(igen, block.statements(), env);
+    let last_value = igen.parse_block(block.statements(), env);
     let last_id = last_value.single_value(); //we do not support structures for now
     let last_mapped = func.compile(igen, last_id); //unroll the function
     let rtt = add_return_instruction(&mut igen.context, last_mapped);

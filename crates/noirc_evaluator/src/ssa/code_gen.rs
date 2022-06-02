@@ -908,4 +908,17 @@ impl<'a> IRGenerator<'a> {
         self.context[target_block].instructions.insert(1, phi_id);
         phi_id
     }
+
+    //Parse a block of AST statements into ssa form
+    pub fn parse_block(
+        &mut self,
+        block: &[noirc_frontend::node_interner::StmtId],
+        env: &mut Environment,
+    ) -> Value {
+        let mut last_value = Value::dummy();
+        for stmt in block {
+            last_value = self.evaluate_statement(env, stmt).unwrap();
+        }
+        last_value
+    }
 }
