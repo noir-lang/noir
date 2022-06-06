@@ -224,7 +224,11 @@ pub(crate) fn type_check_expression(
     typ
 }
 
-fn type_check_index_expression(interner: &mut NodeInterner, index_expr: expr::HirIndexExpression, errors: &mut Vec<TypeCheckError>) -> Type {
+fn type_check_index_expression(
+    interner: &mut NodeInterner,
+    index_expr: expr::HirIndexExpression,
+    errors: &mut Vec<TypeCheckError>,
+) -> Type {
     let index_type = type_check_expression(interner, &index_expr.index, errors);
     if !index_type.matches(&Type::CONSTANT) {
         let span = interner.id_span(&index_expr.index);
