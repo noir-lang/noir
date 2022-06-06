@@ -3,7 +3,9 @@ use super::{
     context::SsaContext,
     function,
     mem::ArrayId,
-    node::{self, BinaryOp, Instruction, Node, NodeEval, NodeId, NodeObj, ObjectType, Operation},
+    node::{
+        self, BinaryOp, Instruction, Mark, Node, NodeEval, NodeId, NodeObj, ObjectType, Operation,
+    },
     optim,
 };
 use acvm::FieldElement;
@@ -601,7 +603,7 @@ pub fn inline_in_block(
 
                     optim::simplify(ctx, &mut new_ins);
 
-                    if let Some(replacement) = new_ins.replacement {
+                    if let Mark::ReplaceWith(replacement) = new_ins.mark {
                         if let Some(id) = array_id {
                             if let Entry::Occupied(mut entry) = array_map.entry(id) {
                                 if let ObjectType::Pointer(new_id) = ctx[replacement].get_type() {

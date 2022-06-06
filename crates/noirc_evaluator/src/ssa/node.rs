@@ -293,9 +293,14 @@ pub struct Instruction {
     pub res_type: ObjectType, //result type
     pub parent_block: BlockId,
     pub res_name: String,
+    pub mark: Mark,
+}
 
-    /// Set to Some(id) if this instruction is to be replaced by another
-    pub replacement: Option<NodeId>,
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum Mark {
+    None,
+    Deleted,
+    ReplaceWith(NodeId),
 }
 
 impl std::fmt::Display for Instruction {
@@ -359,7 +364,7 @@ impl Instruction {
             res_type: r_type,
             res_name: String::new(),
             parent_block: p_block,
-            replacement: None,
+            mark: Mark::None,
         }
     }
 
@@ -435,13 +440,8 @@ impl Instruction {
         same
     }
 
-    /// Delete this instruciton by mutating it into a Operation::Nop
-    pub fn delete(&mut self) {
-        self.operation = Operation::Nop;
-    }
-
     pub fn is_deleted(&self) -> bool {
-        self.operation == Operation::Nop || self.replacement.is_some()
+        !matches!(self.mark, Mark::None)
     }
 
     pub fn standard_form(&mut self) {
@@ -450,7 +450,7 @@ impl Instruction {
                 match op {
                     ConstrainOp::Eq => {
                         if binary.lhs == binary.rhs {
-                            self.delete();
+                            self.operation = Operation::Nop;
                             return;
                         }
                     }

@@ -8,7 +8,7 @@ use std::collections::{HashMap, HashSet};
 use super::super::errors::RuntimeError;
 use crate::ssa::acir_gen::Acir;
 use crate::ssa::function;
-use crate::ssa::node::Node;
+use crate::ssa::node::{Mark, Node};
 use crate::Evaluator;
 use acvm::FieldElement;
 use noirc_frontend::hir::Context;
@@ -162,7 +162,7 @@ impl<'a> SsaContext<'a> {
             } else {
                 ins.res_name.clone()
             };
-            if let Some(replacement) = ins.replacement {
+            if let Mark::ReplaceWith(replacement) = ins.mark {
                 str_res = format!("{} -REPLACED with id {:?}", str_res, replacement.0);
             }
 
@@ -332,7 +332,7 @@ impl<'a> SsaContext<'a> {
         //Basic simplification
         optim::simplify(self, &mut i);
 
-        if let Some(replacement) = i.replacement {
+        if let Mark::ReplaceWith(replacement) = i.mark {
             return replacement;
         }
         self.push_instruction(i)

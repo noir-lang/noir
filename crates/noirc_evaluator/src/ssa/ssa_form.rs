@@ -1,4 +1,4 @@
-use crate::ssa::node::Operation;
+use crate::ssa::node::{Mark, Operation};
 use noirc_frontend::{node_interner::DefinitionId, ArraySize};
 
 use super::{
@@ -25,8 +25,7 @@ pub fn write_phi(ctx: &mut SsaContext, predecessors: &[BlockId], var: NodeId, ph
         assert_eq!(phi_args.len(), 0);
         if let Some(s_phi) = s2 {
             if s_phi != phi {
-                phi_ins.delete();
-                phi_ins.replacement = Some(s_phi);
+                phi_ins.mark = Mark::ReplaceWith(s_phi);
                 //eventually simplify recursively: if a phi instruction is in phi use list, call simplify_phi() on it
                 //but cse should deal with most of it.
             } else {
@@ -35,7 +34,7 @@ pub fn write_phi(ctx: &mut SsaContext, predecessors: &[BlockId], var: NodeId, ph
             }
         } else {
             //s2 is None
-            phi_ins.delete();
+            phi_ins.mark = Mark::Deleted;
         }
     }
 }

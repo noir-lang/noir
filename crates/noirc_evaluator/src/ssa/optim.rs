@@ -6,7 +6,7 @@ use super::{
     context::SsaContext,
     mem::Memory,
     node::{
-        self, BinaryOp, ConstrainOp, Instruction, Node, NodeEval, NodeId, ObjectType, Opcode,
+        self, BinaryOp, ConstrainOp, Instruction, Mark, Node, NodeEval, NodeId, ObjectType, Opcode,
         Operation, Variable,
     },
 };
@@ -25,10 +25,8 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut node::Instruction) -> Option<Nod
     };
 
     if new_id != ins.id {
-        ins.replacement = Some(new_id);
-        if new_id == NodeId::dummy() {
-            ins.delete();
-        }
+        use Mark::*;
+        ins.mark = if new_id == NodeId::dummy() { Deleted } else { ReplaceWith(new_id) };
         return Some(new_id);
     }
 
@@ -38,7 +36,7 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut node::Instruction) -> Option<Nod
         Operation::Cast(value_id) => {
             if let Some(value) = ctx.try_get_node(value_id) {
                 if value.get_type() == ins.res_type {
-                    ins.replacement = Some(value_id);
+                    ins.mark = Mark::ReplaceWith(value_id);
                     return Some(value_id);
                 }
             }
@@ -46,7 +44,7 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut node::Instruction) -> Option<Nod
         Operation::Binary(node::Binary { operator: BinaryOp::Constrain(op), lhs, rhs }) => {
             match (op, Memory::deref(ctx, lhs), Memory::deref(ctx, rhs)) {
                 (ConstrainOp::Eq, Some(lhs), Some(rhs)) if lhs == rhs => {
-                    ins.delete();
+                    ins.mark = Mark::Deleted;
                 }
                 _ => (),
             }
@@ -223,7 +221,7 @@ fn find_similar_mem_instruction(
 
 pub fn propagate(ctx: &SsaContext, id: NodeId) -> NodeId {
     if let Some(obj) = ctx.try_get_instruction(id) {
-        if let Some(replacement) = obj.replacement {
+        if let Mark::ReplaceWith(replacement) = obj.mark {
             return replacement;
         } else if let Operation::Binary(node::Binary { operator: BinaryOp::Assign, rhs, .. }) =
             &obj.operation
@@ -307,16 +305,15 @@ fn cse_block_with_anchor(
 
             let operator = ins.operation.map_id(|id| propagate(ctx, id));
 
-            let mut to_delete = false;
-            let mut replacement = None;
+            let mut new_mark = Mark::None;
 
             match &operator {
                 Operation::Binary(binary) => {
                     let variants = anchor.get_all(binary.opcode());
                     if let Some(similar) = find_similar_instruction(ctx, &operator, &variants) {
-                        replacement = Some(similar);
+                        new_mark = Mark::ReplaceWith(similar);
                     } else if binary.operator == BinaryOp::Assign {
-                        replacement = Some(binary.rhs);
+                        new_mark = Mark::ReplaceWith(binary.rhs);
                     } else {
                         new_list.push(*ins_id);
                         anchor.push_front(&ins.operation, *ins_id);
@@ -326,7 +323,7 @@ fn cse_block_with_anchor(
                     match find_similar_mem_instruction(ctx, &operator, anchor) {
                         CseAction::Keep => new_list.push(*ins_id),
                         CseAction::ReplaceWith(new_id) => {
-                            replacement = Some(new_id);
+                            new_mark = Mark::ReplaceWith(new_id);
                         }
                         CseAction::Remove(id_to_remove) => {
                             new_list.push(*ins_id);
@@ -343,10 +340,10 @@ fn cse_block_with_anchor(
                         if first == ins.id {
                             new_list.push(*ins_id);
                         } else {
-                            replacement = Some(first);
+                            new_mark = Mark::ReplaceWith(first);
                         }
                     } else {
-                        to_delete = true;
+                        new_mark = Mark::Deleted;
                     }
                 }
                 Operation::Cast(_) => {
@@ -357,7 +354,7 @@ fn cse_block_with_anchor(
                         ins.res_type,
                         &anchor.get_all(Opcode::Cast),
                     ) {
-                        replacement = Some(similar);
+                        new_mark = Mark::ReplaceWith(similar);
                     } else {
                         new_list.push(*ins_id);
                         anchor.push_front(&operator, *ins_id);
@@ -373,7 +370,7 @@ fn cse_block_with_anchor(
                     if let Some(similar) =
                         find_similar_instruction(ctx, &operator, &anchor.get_all(operator.opcode()))
                     {
-                        replacement = Some(similar);
+                        new_mark = Mark::ReplaceWith(similar);
                     } else {
                         new_list.push(*ins_id);
                         anchor.push_front(&operator, *ins_id);
@@ -387,9 +384,9 @@ fn cse_block_with_anchor(
 
             let update = ctx.get_mut_instruction(*ins_id);
             update.operation = operator;
-            update.replacement = replacement;
-            if to_delete {
-                update.delete();
+            update.mark = new_mark;
+            if new_mark == Mark::Deleted {
+                update.operation = Operation::Nop;
             }
         }
     }
