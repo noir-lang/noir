@@ -308,7 +308,7 @@ fn evaluate_one(
                         return NodeEval::VarOrInstruction(i.id);
                     }
 
-                    let result = i.evaluate(ctx);
+                    let result = i.evaluate_with(ctx, |_, id| get_current_value(id, value_array));
                     if let NodeEval::VarOrInstruction(idx) = result {
                         if ctx.try_get_node(idx).is_none() {
                             return NodeEval::VarOrInstruction(obj_id);
