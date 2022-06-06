@@ -49,6 +49,16 @@ template <typename NCT> struct ExecutedCallback {
         return executed_callback;
     };
 
+    fr hash() const
+    {
+        std::vector<fr> inputs = {
+            l1_result_hash,
+            fr(l1_results_tree_leaf_index),
+        };
+
+        return NCT::compress(inputs, GeneratorIndex::EXECUTED_CALLBACK);
+    }
+
     template <typename Composer> void assert_is_zero()
     {
         static_assert((std::is_same<CircuitTypes<Composer>, NCT>::value));

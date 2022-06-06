@@ -23,6 +23,7 @@ enum class CallType {
 
 template <typename NCT, CallType call_type> struct CallStackItem {
     typedef typename NCT::boolean boolean;
+    typedef typename NCT::fr fr;
 
     template <typename T>
     using PublicInputs = typename std::
@@ -59,6 +60,16 @@ template <typename NCT, CallType call_type> struct CallStackItem {
 
         return call_stack_item;
     };
+
+    fr hash() const
+    {
+        std::vector<fr> inputs = {
+            function_signature.hash(), public_inputs.hash(), call_context.hash(),
+            fr(is_delegate_call),      fr(is_static_call),
+        };
+
+        return NCT::compress(inputs, GeneratorIndex::CALL_STACK_ITEM);
+    }
 };
 
 template <typename NCT, CallType call_type>

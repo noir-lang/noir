@@ -52,7 +52,7 @@ template <typename NCT> struct CallContext {
         return call_context;
     };
 
-    fr hash()
+    fr hash() const
     {
         std::vector<fr> inputs = {
             msg_sender.to_field(),

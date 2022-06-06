@@ -17,7 +17,7 @@ template <typename NCT> struct PublicInputs {
     typedef typename NCT::fr fr;
     typedef typename NCT::boolean boolean;
 
-    AccumulatedData<NCT> end; // Remove, since same as start? Or maybe remove `.start` from PrivateInputs?
+    AccumulatedData<NCT> end;
     ConstantData<NCT> constants;
     boolean is_private = true; // TODO: might need to instantiate from witness!
     boolean is_public = false;

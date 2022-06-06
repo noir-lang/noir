@@ -83,7 +83,7 @@ TEST(private_kernel_tests, test_deposit)
 
     UnrolledProver deposit_prover = deposit_composer.create_unrolled_prover();
     NT::Proof deposit_proof = deposit_prover.construct_proof();
-    info("deposit_proof: ", deposit_proof.proof_data);
+    // info("\ndeposit_proof: ", deposit_proof.proof_data);
 
     std::shared_ptr<NT::VK> deposit_vk = deposit_composer.compute_verification_key();
 
@@ -118,7 +118,7 @@ TEST(private_kernel_tests, test_deposit)
 
     UnrolledProver mock_prover = mock_composer.create_unrolled_prover();
     NT::Proof mock_proof = mock_prover.construct_proof();
-    info("mock_proof: ", mock_proof.proof_data);
+    // info("\nmock_proof: ", mock_proof.proof_data);
 
     std::shared_ptr<NT::VK> mock_vk = mock_composer.compute_verification_key();
 
@@ -129,14 +129,31 @@ TEST(private_kernel_tests, test_deposit)
     NativeOracle private_kernel_oracle = NativeOracle(db, escrow_contract_address, msg_sender, msg_sender_private_key);
     OracleWrapper private_kernel_oracle_wrapper = OracleWrapper(private_kernel_composer, private_kernel_oracle);
 
+    const CallStackItem<NT, CallType::Private> deposit_call_stack_item{
+        .function_signature =
+            FunctionSignature<NT>{
+                .contract_address = escrow_contract_address,
+                .vk_index = 0, // TODO: deduce this from a NT state_factory.
+                .is_private = true,
+                // .is_constructor = false,
+                // .is_callback = false,
+            },
+        .public_inputs = deposit_public_inputs,
+        .call_context = *deposit_public_inputs.call_context,
+        //   .is_delegate_call = false,
+        //   .is_static_call = false,
+    };
+
     // PrivateInputs<NT> private_inputs;
     PrivateInputs<NT> private_inputs = {
         .start =
             AccumulatedData<NT>{
                 .private_call_stack =
                     std::array<fr, KERNEL_PRIVATE_CALL_STACK_LENGTH>{
-                        987654321, 0, 0, 0, 0, 0, 0, 0 } }, // AccumulatedData starts out mostly empty, since nothing
-                                                            // has been accumulated through kernel recursion yet.
+                        deposit_call_stack_item.hash(), 0, 0, 0, 0, 0, 0, 0 } }, // AccumulatedData starts out mostly
+                                                                                 // empty, since nothing has been
+                                                                                 // accumulated through kernel recursion
+                                                                                 // yet.
         .previous_kernel =
             PreviousKernelData<NT>{
                 .public_inputs =
@@ -146,8 +163,6 @@ TEST(private_kernel_tests, test_deposit)
                             ConstantData<NT>{
                                 .old_tree_roots =
                                     OldTreeRoots<NT>{
-                                        // TODO: this needs to be populated from the start, if the roots
-                                        // are used in any of the functions being recursed-through.
                                         // .private_data_tree_root =
                                         // .contract_tree_root =
                                         // .l1_results_tree_root =
@@ -158,7 +173,7 @@ TEST(private_kernel_tests, test_deposit)
                                 .executed_callback = ExecutedCallback<NT>{},
                                 .globals = Globals<NT>{},
                             },
-                        .is_private = true,
+                        // .is_private = true,
                         // .is_public = false,
                         // .is_contract_deployment = false,
                     },
@@ -167,22 +182,7 @@ TEST(private_kernel_tests, test_deposit)
             },
         .private_call =
             PrivateCallData<NT>{
-                .call_stack_item =
-                    CallStackItem<NT, CallType::Private>{
-                        .function_signature =
-                            FunctionSignature<NT>{
-                                .contract_address = escrow_contract_address,
-                                .vk_index = 0, // TODO: deduce this from a NT state_factory.
-                                .is_private = true,
-                                // .is_constructor = false,
-                                // .is_callback = false,
-                            },
-                        .public_inputs = deposit_public_inputs,
-                        .call_context =
-                            CallContext<NT>{
-                                .msg_sender = msg_sender,
-                                .storage_contract_address = escrow_contract_address,
-                            } },
+                .call_stack_item = deposit_call_stack_item,
                 .proof = deposit_proof,
                 .vk = deposit_vk,
                 // .vk_path TODO

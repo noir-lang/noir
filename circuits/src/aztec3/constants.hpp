@@ -46,10 +46,13 @@ enum GeneratorIndex {
     CONTRACT_ADDRESS,
     FUNCTION_SIGNATURE,
     CALL_ARGS,
+    EXECUTED_CALLBACK,
     L1_RESULT_PLACEHOLDER,
     CALL_CONTEXT,
     CALL_STACK_ITEM,
     CALLBACK_STACK_ITEM,
+    PRIVATE_CIRCUIT_PUBLIC_INPUTS,
+    PUBLIC_CIRCUIT_PUBLIC_INPUTS,
 };
 
 // Enumerate the hash_sub_indices which are used for committing to private state note preimages.

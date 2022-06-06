@@ -91,6 +91,8 @@ template <typename Composer> class address_t {
         return *this;
     }
 
+    bool_t<Composer> operator==(const address_t& other) const { return this->to_field() == other.to_field(); }
+
     field_t<Composer> to_field() const { return address_; }
 
     void assert_equal(const address_t& rhs, std::string const& msg = "address_t::assert_equal") const

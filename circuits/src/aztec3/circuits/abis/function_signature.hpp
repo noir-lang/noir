@@ -56,7 +56,7 @@ template <typename NCT> struct FunctionSignature {
         fr(is_callback).set_public();
     }
 
-    fr hash()
+    fr hash() const
     {
         std::vector<fr> inputs = {
             contract_address.to_field(), fr(vk_index), fr(is_private), fr(is_constructor), fr(is_callback),

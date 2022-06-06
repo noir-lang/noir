@@ -74,6 +74,18 @@ template <typename NCT> struct CallbackStackItem {
         failure_callback_call_hash.set_public();
         success_result_arg_map_acc.set_public();
     }
+
+    fr hash() const
+    {
+        std::vector<fr> inputs = {
+            callback_public_key.to_field(),
+            success_callback_call_hash,
+            failure_callback_call_hash,
+            success_result_arg_map_acc,
+        };
+
+        return NCT::compress(inputs, GeneratorIndex::CALLBACK_STACK_ITEM);
+    }
 };
 
 template <typename NCT> void read(uint8_t const*& it, CallbackStackItem<NCT>& callback_stack_item)

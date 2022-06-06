@@ -81,8 +81,6 @@ TEST(play_tests, test_play_recursive_2_proof_gen)
     waffle::plonk_proof app_proof = app_prover.construct_proof();
     std::shared_ptr<waffle::verification_key> app_vk = app_composer.compute_verification_key();
 
-    info("Hi 1");
-
     //*******************************************************************************
 
     Composer dummy_circuit_composer;
@@ -96,26 +94,19 @@ TEST(play_tests, test_play_recursive_2_proof_gen)
     waffle::plonk_proof dummy_circuit_proof = dummy_circuit_prover.construct_proof();
     std::shared_ptr<waffle::verification_key> dummy_circuit_vk = dummy_circuit_composer.compute_verification_key();
 
-    info("Hi 2");
-
     //*******************************************************************************
 
     Composer recursion_1_composer = Composer("../srs_db/ignition", 0);
     recursion_output<bn254> recursion_1_output =
         play_recursive_circuit_2(recursion_1_composer, app_vk, app_proof, dummy_circuit_vk, dummy_circuit_proof);
 
-    info("Hi 3");
-    info("recursion 1 composer gates: ", recursion_1_composer.n);
-
     if (recursion_1_composer.failed) {
         info("recursion_1 circuit logic failed: ", recursion_1_composer.err);
     }
 
     UnrolledProver recursion_1_prover = recursion_1_composer.create_unrolled_prover();
-    info("Hi 4");
 
     waffle::plonk_proof recursion_1_proof = recursion_1_prover.construct_proof();
-    info("Hi 5");
 
     std::shared_ptr<waffle::verification_key> recursion_1_vk = recursion_1_composer.compute_verification_key();
 

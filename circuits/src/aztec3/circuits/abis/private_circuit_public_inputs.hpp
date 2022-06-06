@@ -9,7 +9,8 @@
 #include "call_context.hpp"
 #include "executed_callback.hpp"
 #include "callback_stack_item.hpp"
-
+#include <crypto/pedersen/generator_data.hpp>
+#include <stdlib/hash/pedersen/pedersen.hpp>
 namespace aztec3::circuits::abis {
 
 using plonk::stdlib::witness_t;
@@ -276,8 +277,66 @@ template <typename NCT> class PrivateCircuitPublicInputs {
         return pis;
     };
 
+    fr hash() const
+    {
+        auto to_hashes = []<typename T>(const std::optional<T>& e) {
+            if (!e) {
+                throw_or_abort("Value is nullopt");
+            }
+            return (*e).hash();
+        };
+
+        std::vector<fr> inputs;
+
+        inputs.push_back((*call_context).hash());
+
+        spread_arr_opt_into_vec(custom_public_inputs, inputs);
+        spread_arr_opt_into_vec(emitted_public_inputs, inputs);
+
+        inputs.push_back((*executed_callback).hash());
+
+        spread_arr_opt_into_vec(output_commitments, inputs);
+        spread_arr_opt_into_vec(input_nullifiers, inputs);
+
+        spread_arr_opt_into_vec(private_call_stack, inputs);
+        spread_arr_opt_into_vec(public_call_stack, inputs);
+        spread_arr_opt_into_vec(contract_deployment_call_stack, inputs);
+        spread_arr_opt_into_vec(partial_l1_call_stack, inputs);
+        spread_arr_into_vec(map(callback_stack, to_hashes), inputs);
+
+        inputs.push_back(*old_private_data_tree_root);
+
+        inputs.push_back(fr(*is_fee_payment));
+        inputs.push_back(fr(*pay_fee_from_l1));
+        inputs.push_back(fr(*pay_fee_from_public_l2));
+        inputs.push_back(fr(*called_from_l1));
+
+        return NCT::compress(inputs, GeneratorIndex::PRIVATE_CIRCUIT_PUBLIC_INPUTS);
+    }
+
   private:
     bool all_elements_populated = false;
+
+    template <size_t SIZE>
+    void spread_arr_opt_into_vec(std::array<std::optional<fr>, SIZE> const& arr, std::vector<fr>& vec) const
+    {
+        auto get_opt_value = [](const std::optional<fr>& e) {
+            if (!e) {
+                throw_or_abort("Value is nullopt");
+            }
+            return *e;
+        };
+
+        std::array<fr, SIZE> arr_values = map(arr, get_opt_value);
+        const auto arr_size = sizeof(arr_values) / sizeof(fr);
+        vec.insert(vec.end(), &arr_values[0], &arr_values[0] + arr_size);
+    }
+
+    template <size_t SIZE> void spread_arr_into_vec(std::array<fr, SIZE> const& arr, std::vector<fr>& vec) const
+    {
+        const auto arr_size = sizeof(arr) / sizeof(fr);
+        vec.insert(vec.end(), &arr[0], &arr[0] + arr_size);
+    }
 
     /// TODO: unused?
     // template <typename Composer> bool check_all_elements_populated()
