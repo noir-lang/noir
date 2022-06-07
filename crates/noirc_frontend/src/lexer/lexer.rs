@@ -90,6 +90,18 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    fn pipe(&mut self) -> SpannedTokenResult {
+        if self.peek_char_is('|') {
+            // Note: when we issue this error the first '&' will already be consumed
+            // and the next token issued will be the next '&' which is likely what the
+            // programmer intended anyway.
+            let span = Span::new(self.position..self.position + 1);
+            Err(LexerErrorKind::LogicalOr { span })
+        } else {
+            self.single_char_token(Token::Pipe)
+        }
+    }
+
     pub fn next_token(&mut self) -> SpannedTokenResult {
         match self.next_char() {
             Some(x) if { x.is_whitespace() } => {
@@ -105,6 +117,7 @@ impl<'a> Lexer<'a> {
             Some('!') => self.glue(Token::Bang),
             Some('-') => self.glue(Token::Minus),
             Some('&') => self.ampersand(),
+            Some('|') => self.pipe(),
             Some('%') => self.single_char_token(Token::Percent),
             Some('^') => self.single_char_token(Token::Caret),
             Some(';') => self.single_char_token(Token::Semicolon),
@@ -114,7 +127,6 @@ impl<'a> Lexer<'a> {
             Some(',') => self.single_char_token(Token::Comma),
             Some('+') => self.single_char_token(Token::Plus),
             Some('{') => self.single_char_token(Token::LeftBrace),
-            Some('|') => self.single_char_token(Token::Pipe),
             Some('}') => self.single_char_token(Token::RightBrace),
             Some('[') => self.single_char_token(Token::LeftBracket),
             Some(']') => self.single_char_token(Token::RightBracket),
