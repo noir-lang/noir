@@ -1,4 +1,4 @@
-FROM ubuntu:latest AS builder
+FROM ubuntu:focal AS builder
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential wget git libssl-dev cmake curl
 RUN curl https://wasmtime.dev/install.sh -sSf | bash /dev/stdin --version v0.25.0
 WORKDIR /usr/src/barretenberg/src
