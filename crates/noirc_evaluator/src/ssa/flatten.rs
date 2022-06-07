@@ -95,16 +95,22 @@ pub fn unroll_std_block(
                     }
                     Operation::Nop => (),
                     _ => {
-                        let replacement = optim::simplify(ctx, &mut new_ins);
+                        optim::simplify(ctx, &mut new_ins);
 
-                        let result_id = if let Some(replacement) = replacement {
-                            replacement
-                        } else {
-                            let id = ctx.add_instruction(new_ins);
-                            unrolled_instructions.push(id);
-                            id
-                        };
-                        eval_map.insert(*i_id, NodeEval::VarOrInstruction(result_id));
+                        match new_ins.mark {
+                            Mark::None => {
+                                let id = ctx.add_instruction(new_ins);
+                                unrolled_instructions.push(id);
+                                eval_map.insert(*i_id, NodeEval::VarOrInstruction(id));
+                            }
+                            Mark::Deleted => (),
+                            Mark::ReplaceWith(replacement) => {
+                                // TODO: Should we insert into unrolled_instructions as well?
+                                // If optim::simplify replaces with a constant then we should not,
+                                // otherwise it may make sense if it is not already inserted.
+                                eval_map.insert(*i_id, NodeEval::VarOrInstruction(replacement));
+                            }
+                        }
                     }
                 }
             }

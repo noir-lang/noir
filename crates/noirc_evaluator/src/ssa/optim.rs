@@ -16,8 +16,8 @@ use std::{
 };
 
 // Performs constant folding, arithmetic simplifications and move to standard form
-// Returns a new NodeId to replace with the current if the current is deleted.
-pub fn simplify(ctx: &mut SsaContext, ins: &mut node::Instruction) -> Option<NodeId> {
+// Modifies ins.mark with whether the instruction should be deleted, replaced, or neither
+pub fn simplify(ctx: &mut SsaContext, ins: &mut node::Instruction) {
     //1. constant folding
     let new_id = match ins.evaluate(ctx) {
         NodeEval::Const(c, t) => ctx.get_or_create_const(c, t),
@@ -27,7 +27,7 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut node::Instruction) -> Option<Nod
     if new_id != ins.id {
         use Mark::*;
         ins.mark = if new_id == NodeId::dummy() { Deleted } else { ReplaceWith(new_id) };
-        return Some(new_id);
+        return;
     }
 
     //2. standard form
@@ -37,7 +37,7 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut node::Instruction) -> Option<Nod
             if let Some(value) = ctx.try_get_node(value_id) {
                 if value.get_type() == ins.res_type {
                     ins.mark = Mark::ReplaceWith(value_id);
-                    return Some(value_id);
+                    return;
                 }
             }
         }
@@ -86,14 +86,12 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut node::Instruction) -> Option<Nod
             .map(|arg| NodeEval::from_id(ctx, *arg).into_const_value().map(|f| f.to_u128()));
 
         if let Some(args) = args.collect() {
-            evaluate_intrinsic(ctx, *opcode, args);
+            ins.mark = Mark::ReplaceWith(evaluate_intrinsic(ctx, *opcode, args));
         }
     }
-
-    None
 }
 
-fn evaluate_intrinsic(ctx: &mut SsaContext, op: acvm::acir::OPCODE, args: Vec<u128>) -> NodeEval {
+fn evaluate_intrinsic(ctx: &mut SsaContext, op: acvm::acir::OPCODE, args: Vec<u128>) -> NodeId {
     match op {
         acvm::acir::OPCODE::ToBits => {
             let bit_count = args[1] as u32;
@@ -116,8 +114,7 @@ fn evaluate_intrinsic(ctx: &mut SsaContext, op: acvm::acir::OPCODE, args: Vec<u1
                 }
             }
 
-            let new_var = ctx.add_variable(pointer, None);
-            NodeEval::VarOrInstruction(new_var)
+            ctx.add_variable(pointer, None)
         }
         _ => todo!(),
     }
