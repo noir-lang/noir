@@ -57,7 +57,7 @@ fn get_param_name<'a>(pattern: &HirPattern, interner: &'a NodeInterner) -> Optio
 pub struct Parameters(pub Vec<Param>);
 
 impl Parameters {
-    pub fn into_abi(self, interner: &NodeInterner) -> Abi {
+    fn into_abi(self, interner: &NodeInterner) -> Abi {
         let parameters = vecmap(self.0, |param| {
             let param_name = get_param_name(&param.0, interner)
                 .expect("Abi for tuple and struct parameters is unimplemented")
@@ -134,5 +134,14 @@ impl FuncMeta {
             FunctionKind::LowLevel | FunctionKind::Builtin => true,
             FunctionKind::Normal => false,
         }
+    }
+
+    pub fn into_abi(self, interner: &NodeInterner) -> Abi {
+        let mut abi = self.parameters.into_abi(interner);
+        if self.return_type != Type::Unit {
+            let typ = self.return_type.as_abi_type();
+            abi.parameters.push((NodeInterner::main_return_name().into(), typ));
+        }
+        abi
     }
 }

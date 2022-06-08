@@ -13,7 +13,7 @@ use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use noirc_frontend::hir::Context;
 use noirc_frontend::hir_def::expr::{
-    HirCallExpression, HirConstructorExpression, HirIdent, HirMemberAccess, HirUnaryOp,
+    HirCallExpression, HirConstructorExpression, HirIdent, HirMemberAccess, HirUnaryOp, HirBlockExpression,
 };
 use noirc_frontend::hir_def::function::HirFunction;
 use noirc_frontend::hir_def::stmt::{HirLValue, HirPattern};
@@ -55,11 +55,22 @@ pub fn evaluate_main<'a>(
     igen: &mut IRGenerator<'a>,
     env: &mut Environment,
     main_func_body: HirFunction, //main function
+    constrain_main_return: bool,
 ) -> Result<(), RuntimeError> {
     let block = main_func_body.block(igen.def_interner());
-    for stmt_id in block.statements() {
-        igen.evaluate_statement(env, stmt_id)?;
+    let actual_return = igen.evaluate_block(env, block)?;
+
+    if constrain_main_return {
+        let expected_return = igen.find_variable(NodeInterner::main_return_id()).unwrap().unwrap_id();
+
+        igen.context.new_instruction(
+            expected_return,
+            actual_return.unwrap_id(),
+            node::Operation::Constrain(ConstrainOp::Eq),
+            node::ObjectType::NotAnObject,
+        );
     }
+
     Ok(())
 }
 
@@ -233,19 +244,20 @@ impl<'a> IRGenerator<'a> {
         &mut self,
         env: &mut Environment,
         stmt_id: &StmtId,
-    ) -> Result<(), RuntimeError> {
+    ) -> Result<Option<Value>, RuntimeError> {
         let statement = self.def_interner().statement(stmt_id);
-        match statement {
+        let value = match statement {
             HirStatement::Constrain(constrain_stmt) => {
-                self.handle_constrain_statement(env, constrain_stmt)
+                self.handle_constrain_statement(env, constrain_stmt)?;
+                None
             }
             HirStatement::Expression(expr) | HirStatement::Semi(expr) => {
-                self.expression_to_object(env, &expr)?;
-                Ok(())
+                Some(self.expression_to_object(env, &expr)?)
             }
             HirStatement::Let(let_stmt) => {
                 // let statements are used to declare a higher level object
-                self.handle_let_statement(env, let_stmt)
+                self.handle_let_statement(env, let_stmt)?;
+                None
             }
             HirStatement::Assign(assign_stmt) => {
                 //////////////TODO name is needed because we don't parse main arguments
@@ -266,12 +278,13 @@ impl<'a> IRGenerator<'a> {
                     self.bind_fresh_pattern(&ident_name, &typ, rhs);
                 }
 
-                Ok(())
+                None
             }
             HirStatement::Error => unreachable!(
                 "ice: compiler did not exit before codegen when a statement failed to parse"
             ),
-        }
+        };
+        Ok(value)
     }
 
     fn lvalue_type(&self, lvalue: &HirLValue) -> Type {
@@ -679,10 +692,25 @@ impl<'a> IRGenerator<'a> {
             HirExpression::Literal(l) => {
                 Ok(Value::Single(self.handle_literal(&l)))
             },
-            HirExpression::Block(_) => todo!("currently block expressions not in for/if branches are not being evaluated. In the future, we should be able to unify the eval_block and all places which require block_expr here"),
+            HirExpression::Block(block) => self.evaluate_block(env, block),
             HirExpression::Error => todo!(),
             HirExpression::MethodCall(_) => unreachable!("Method calls should be desugared before codegen"),
         }
+    }
+
+    fn evaluate_block(
+        &mut self,
+        env: &mut Environment,
+        block: HirBlockExpression, //main function
+    ) -> Result<Value, RuntimeError> {
+        // TODO: Should we have a different representation than NodeId::dummy for the unit value?
+        let mut last = Value::Single(NodeId::dummy());
+
+        for stmt_id in block.statements() {
+            last = self.evaluate_statement(env, stmt_id)?
+                .unwrap_or(Value::Single(NodeId::dummy()));
+        }
+        Ok(last)
     }
 
     pub fn handle_lowlevel(
@@ -855,10 +883,8 @@ impl<'a> IRGenerator<'a> {
         };
         let body_block1 = &mut self.context[body_id];
         body_block1.update_variable(iter_id, phi); //TODO try with just a get_current_value(iter)
-        let statements = block.statements();
-        for stmt in statements {
-            self.evaluate_statement(env, stmt).unwrap(); //TODO return the error
-        }
+
+        self.evaluate_block(env, block).unwrap();
 
         //increment iter
         let one = self.context.get_or_create_const(FieldElement::one(), iter_type);

@@ -16,7 +16,7 @@ use acvm::FieldElement;
 use acvm::Language;
 use environment::{Environment, FuncContext};
 use errors::{RuntimeError, RuntimeErrorKind};
-use noirc_frontend::{hir::Context, node_interner::DefinitionId};
+use noirc_frontend::{hir::Context, node_interner::{DefinitionId, NodeInterner}};
 use noirc_frontend::{
     hir_def::{expr::HirIdent, stmt::HirLValue},
     node_interner::{ExprId, FuncId, StmtId},
@@ -211,11 +211,11 @@ impl<'a> Evaluator<'a> {
         interactive: bool,
     ) -> Result<(), RuntimeError> {
         let mut igen = IRGenerator::new(self.context);
-        self.parse_abi_alt(env, &mut igen)?;
+        let constrain_main_return = self.parse_abi_alt(env, &mut igen)?;
 
         // Now call the main function
         let main_func_body = self.context.def_interner.function(&self.main_function);
-        ssa::code_gen::evaluate_main(&mut igen, env, main_func_body)?;
+        ssa::code_gen::evaluate_main(&mut igen, env, main_func_body, constrain_main_return)?;
 
         //Generates ACIR representation:
         igen.context.ir_to_acir(self, interactive)?;
@@ -237,7 +237,7 @@ impl<'a> Evaluator<'a> {
         // This maybe not be desireable in the long run, because we want to point to the exact place
         let param_span = func_meta.parameters.span();
 
-        let abi = func_meta.parameters.into_abi(&self.context.def_interner);
+        let abi = func_meta.into_abi(&self.context.def_interner);
 
         for (param_name, param_type) in abi.parameters.into_iter() {
             match param_type {
@@ -389,7 +389,7 @@ impl<'a> Evaluator<'a> {
         &mut self,
         _env: &mut Environment,
         igen: &mut IRGenerator,
-    ) -> Result<(), RuntimeError> {
+    ) -> Result<bool, RuntimeError> {
         // XXX: Currently, the syntax only supports public witnesses
         // u8 and arrays are assumed to be private
         // This is not a short-coming of the ABI, but of the grammar
@@ -418,7 +418,15 @@ impl<'a> Evaluator<'a> {
             }
         }
 
-        Ok(())
+        let constrain_main_return = func_meta.return_type != Type::Unit;
+        if constrain_main_return {
+            // Must create a fake variable for the return from main to turn it into a pub parameter.
+            let ident_def = NodeInterner::main_return_id();
+            let ident_name = NodeInterner::main_return_name();
+            self.param_to_var(ident_name, ident_def, &func_meta.return_type, param_span, igen)?;
+        }
+
+        Ok(constrain_main_return)
     }
 
     fn pattern_name(&self, pattern: &HirPattern) -> String {

@@ -13,7 +13,18 @@ use crate::hir_def::{
     expr::HirExpression,
     function::{FuncMeta, HirFunction},
     stmt::HirStatement,
+
 };
+
+/// The DefinitionId for the return value of the main function.
+/// Used within the ssa pass to put constraints on the "return" value
+/// optionally specified in the prover toml.
+const MAIN_RETURN_ID: DefinitionId = DefinitionId(0);
+
+/// Name of the definition pointed to by MAIN_RETURN_ID.
+/// The name of this variable is deliberately a keyword so that
+/// it cannot be referred to normally.
+const MAIN_RETURN_NAME: &str = "return";
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub struct DefinitionId(usize);
@@ -158,6 +169,13 @@ impl Default for NodeInterner {
         // An empty block expression is used often, we add this into the `node` on startup
         let expr_id = interner.push_expr(HirExpression::empty_block());
         assert_eq!(expr_id, ExprId::empty_block_id());
+
+        // Push a fake definition for the public return from main.
+        // Only needed here because the evaluator uses an immutable reference to the interner
+        // This is given the name 'return' which is a keyword to prevent it from being accessed
+        // normally.
+        let return_id = interner.push_definition(MAIN_RETURN_NAME.into(), false);
+        assert_eq!(return_id, MAIN_RETURN_ID);
 
         interner
     }
@@ -338,5 +356,13 @@ impl NodeInterner {
     pub fn replace_expr(&mut self, id: &ExprId, new: HirExpression) {
         let old = self.nodes.get_mut(id.into()).unwrap();
         *old = Node::Expression(new);
+    }
+
+    pub fn main_return_id() -> DefinitionId {
+        MAIN_RETURN_ID
+    }
+
+    pub fn main_return_name() -> &'static str {
+        MAIN_RETURN_NAME
     }
 }
