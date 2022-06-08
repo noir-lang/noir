@@ -11,3 +11,4 @@ Talks and Videos from the Aztec community.
 - Zero Knowledge Podcast [Episode 75: Exploring Aztec with Zac Williamson](https://zeroknowledge.fm/75-2/)
 - [How Plookup is used for sha256](https://www.youtube.com/watch?v=nz_VdPbCT64&t=906s&ab_channel=DystopiaLabs)
 - [ZK HACK #5 - Introduction to Aztec Connect](https://www.youtube.com/watch?v=Cs9cI2v1hdE#t=1m36s&ab_channel=ZeroKnowledge)
+- [Privacy on blockchains and future of rollups | Joe from Aztec](https://www.youtube.com/watch?v=3ZxyHTlkH9E) Feb 11, 2022 on [DeFi 2.71](https://www.youtube.com/channel/UC9nRBkM8vq1y7_0jNbfLQaw)
