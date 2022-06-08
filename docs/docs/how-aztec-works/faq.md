@@ -28,7 +28,7 @@ Your tokens simply get a zkSNARK “shield”, which anonymises any related data
 
 ### Is there a transaction limit on zk.money?
 
-Currently, users are limited to shielding and sending **up to $100,000 at a time**.** 
+Currently, users are limited to shielding **up to 5 $ETH or 10,000 $DAI at a time**.** 
 
 ---
 
