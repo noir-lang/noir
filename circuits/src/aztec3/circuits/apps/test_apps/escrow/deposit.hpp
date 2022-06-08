@@ -4,9 +4,9 @@
 
 namespace aztec3::circuits::apps::test_apps::escrow {
 
-using aztec3::circuits::abis::PrivateCircuitPublicInputs;
+using aztec3::circuits::abis::OptionalPrivateCircuitPublicInputs;
 
-PrivateCircuitPublicInputs<NT> deposit(
+OptionalPrivateCircuitPublicInputs<NT> deposit(
     Composer& composer, OracleWrapper& oracle, NT::fr const& _amount, NT::fr const& _asset_id, NT::fr const& _memo);
 
 } // namespace aztec3::circuits::apps::test_apps::escrow

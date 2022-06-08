@@ -20,8 +20,8 @@ template <typename NCT> struct PreviousKernelData {
     typedef typename NCT::fr fr;
     typedef typename NCT::VK VK;
 
-    PublicInputs<NCT> public_inputs;
-    NativeTypes::Proof proof; // TODO: how to express proof as native/circuit type when it gets used as a buffer?
+    PublicInputs<NCT> public_inputs; // TODO: not needed as already contained in proof?
+    NativeTypes::Proof proof;        // TODO: how to express proof as native/circuit type when it gets used as a buffer?
     std::shared_ptr<VK> vk;
     fr vk_index;
     std::array<fr, VK_TREE_HEIGHT> vk_path;

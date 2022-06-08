@@ -52,6 +52,12 @@ template <typename NCT> struct ConstantData {
         executed_callback.set_public();
         globals.set_public();
     }
+
+    // template <typename Composer> void set_private_data_tree_root(typename CircuitTypes<Composer>::fr const& value)
+    // {
+    //     old_tree_roots.private_data_tree_root.assert_equal(0, "Cannot edit a nonzero constant.");
+    //     old_tree_roots.private_data_tree_root = value;
+    // }
 };
 
 } // namespace aztec3::circuits::abis::private_kernel

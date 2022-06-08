@@ -28,6 +28,14 @@ template <typename NCT> struct AccumulatedData {
     std::array<fr, KERNEL_OUTPUT_COMMITMENTS_LENGTH> output_commitments;
     std::array<fr, KERNEL_INPUT_NULLIFIERS_LENGTH> input_nullifiers;
 
+    // template <typename Composer>
+    // typename CircuitTypes<Composer>::boolean operator==(const AccumulatedData<CircuitTypes<Composer>>& other) const {
+    //     //AggregationObject
+    //     {
+
+    //     }
+    // }
+
     template <typename Composer> AccumulatedData<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
     {
         typedef CircuitTypes<Composer> CT;

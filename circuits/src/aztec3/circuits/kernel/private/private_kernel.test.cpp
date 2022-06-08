@@ -37,7 +37,7 @@ using aztec3::circuits::abis::CallStackItem;
 using aztec3::circuits::abis::CallType;
 using aztec3::circuits::abis::ExecutedCallback;
 using aztec3::circuits::abis::FunctionSignature;
-using aztec3::circuits::abis::PrivateCircuitPublicInputs;
+using aztec3::circuits::abis::OptionalPrivateCircuitPublicInputs;
 using aztec3::circuits::abis::private_kernel::AccumulatedData;
 using aztec3::circuits::abis::private_kernel::ConstantData;
 using aztec3::circuits::abis::private_kernel::Globals;
@@ -78,7 +78,7 @@ TEST(private_kernel_tests, test_deposit)
     auto asset_id = NT::fr(1);
     auto memo = NT::fr(999);
 
-    PrivateCircuitPublicInputs<NT> deposit_public_inputs =
+    OptionalPrivateCircuitPublicInputs<NT> deposit_public_inputs =
         deposit(deposit_composer, deposit_oracle_wrapper, amount, asset_id, memo);
 
     UnrolledProver deposit_prover = deposit_composer.create_unrolled_prover();
@@ -138,7 +138,7 @@ TEST(private_kernel_tests, test_deposit)
                 // .is_constructor = false,
                 // .is_callback = false,
             },
-        .public_inputs = deposit_public_inputs,
+        .public_inputs = deposit_public_inputs.remove_optionality(),
         .call_context = *deposit_public_inputs.call_context,
         //   .is_delegate_call = false,
         //   .is_static_call = false,
@@ -146,19 +146,29 @@ TEST(private_kernel_tests, test_deposit)
 
     // PrivateInputs<NT> private_inputs;
     PrivateInputs<NT> private_inputs = {
-        .start =
-            AccumulatedData<NT>{
-                .private_call_stack =
-                    std::array<fr, KERNEL_PRIVATE_CALL_STACK_LENGTH>{
-                        deposit_call_stack_item.hash(), 0, 0, 0, 0, 0, 0, 0 } }, // AccumulatedData starts out mostly
-                                                                                 // empty, since nothing has been
-                                                                                 // accumulated through kernel recursion
-                                                                                 // yet.
+        // .start =
+        //     AccumulatedData<NT>{
+        //         .private_call_stack =
+        //             std::array<fr, KERNEL_PRIVATE_CALL_STACK_LENGTH>{
+        //                 deposit_call_stack_item.hash(), 0, 0, 0, 0, 0, 0, 0 } }, // AccumulatedData starts out mostly
+        //                                                                          // empty, since nothing has been
+        //                                                                          // accumulated through kernel
+        //                                                                          recursion
+        //                                                                          // yet.
         .previous_kernel =
             PreviousKernelData<NT>{
                 .public_inputs =
                     PublicInputs<NT>{
-                        .end = AccumulatedData<NT>{},
+                        .end =
+                            AccumulatedData<NT>{
+                                .private_call_stack =
+                                    std::array<fr, KERNEL_PRIVATE_CALL_STACK_LENGTH>{
+                                        deposit_call_stack_item.hash(), 0, 0, 0, 0, 0, 0, 0 } }, // AccumulatedData
+                                                                                                 // starts out mostly
+                                                                                                 // empty, since nothing
+                                                                                                 // has been accumulated
+                                                                                                 // through kernel
+                                                                                                 // recursion yet.
                         .constants =
                             ConstantData<NT>{
                                 .old_tree_roots =

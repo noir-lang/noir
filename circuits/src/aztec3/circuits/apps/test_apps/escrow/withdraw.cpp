@@ -8,7 +8,7 @@
 
 namespace aztec3::circuits::apps::test_apps::escrow {
 
-using aztec3::circuits::abis::PrivateCircuitPublicInputs;
+using aztec3::circuits::abis::OptionalPrivateCircuitPublicInputs;
 
 void withdraw(Composer& composer,
               OracleWrapper& oracle,
@@ -71,7 +71,7 @@ void withdraw(Composer& composer,
 
     // Assign circuit-specific public inputs ****************************************
 
-    auto public_inputs = PrivateCircuitPublicInputs<CT>::create();
+    auto public_inputs = OptionalPrivateCircuitPublicInputs<CT>::create();
 
     public_inputs.call_context = oracle.get_call_context(); /// TODO: can this be abstracted away out of this body?
 

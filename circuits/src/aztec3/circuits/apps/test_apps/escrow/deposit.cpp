@@ -6,9 +6,9 @@
 
 namespace aztec3::circuits::apps::test_apps::escrow {
 
-using aztec3::circuits::abis::PrivateCircuitPublicInputs;
+using aztec3::circuits::abis::OptionalPrivateCircuitPublicInputs;
 
-PrivateCircuitPublicInputs<NT> deposit(
+OptionalPrivateCircuitPublicInputs<NT> deposit(
     Composer& composer, OracleWrapper& oracle, NT::fr const& _amount, NT::fr const& _asset_id, NT::fr const& _memo)
 {
     CT::fr amount = to_ct(composer, _amount);
@@ -32,7 +32,7 @@ PrivateCircuitPublicInputs<NT> deposit(
     contract.finalise();
 
     // TODO: maybe pass `oracle` to this `create()` function as well?
-    auto public_inputs = PrivateCircuitPublicInputs<CT>::create();
+    auto public_inputs = OptionalPrivateCircuitPublicInputs<CT>::create();
 
     public_inputs.call_context = oracle.get_call_context(); /// TODO: can this be abstracted away out of this body?
 

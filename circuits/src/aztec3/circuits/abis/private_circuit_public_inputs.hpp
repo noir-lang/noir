@@ -18,7 +18,114 @@ using plonk::stdlib::types::CircuitTypes;
 using plonk::stdlib::types::NativeTypes;
 
 template <typename NCT> class PrivateCircuitPublicInputs {
-    typedef typename NCT::address address;
+    typedef typename NCT::fr fr;
+    typedef typename NCT::boolean boolean;
+
+  public:
+    CallContext<NCT> call_context;
+
+    std::array<fr, CUSTOM_PUBLIC_INPUTS_LENGTH> custom_public_inputs;
+    std::array<fr, EMITTED_PUBLIC_INPUTS_LENGTH> emitted_public_inputs;
+
+    ExecutedCallback<NCT> executed_callback;
+
+    std::array<fr, OUTPUT_COMMITMENTS_LENGTH> output_commitments;
+    std::array<fr, INPUT_NULLIFIERS_LENGTH> input_nullifiers;
+
+    std::array<fr, PRIVATE_CALL_STACK_LENGTH> private_call_stack;
+    std::array<fr, PUBLIC_CALL_STACK_LENGTH> public_call_stack;
+    std::array<fr, CONTRACT_DEPLOYMENT_CALL_STACK_LENGTH> contract_deployment_call_stack;
+    std::array<fr, PARTIAL_L1_CALL_STACK_LENGTH> partial_l1_call_stack;
+    std::array<CallbackStackItem<NCT>, CALLBACK_STACK_LENGTH> callback_stack;
+
+    fr old_private_data_tree_root;
+
+    boolean is_fee_payment;
+    boolean pay_fee_from_l1;
+    boolean pay_fee_from_public_l2;
+    boolean called_from_l1;
+
+    template <typename Composer>
+    PrivateCircuitPublicInputs<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
+    {
+        static_assert((std::is_same<NativeTypes, NCT>::value));
+
+        // Capture the composer:
+        auto to_ct = [&](auto& e) { return plonk::stdlib::types::to_ct(composer, e); };
+        auto to_circuit_type = [&](auto& e) { return e.to_circuit_type(composer); };
+
+        PrivateCircuitPublicInputs<CircuitTypes<Composer>> pis = {
+            to_circuit_type(call_context),
+
+            to_ct(custom_public_inputs),
+            to_ct(emitted_public_inputs),
+
+            to_circuit_type(executed_callback),
+
+            to_ct(output_commitments),
+            to_ct(input_nullifiers),
+
+            to_ct(private_call_stack),
+            to_ct(public_call_stack),
+            to_ct(contract_deployment_call_stack),
+            to_ct(partial_l1_call_stack),
+            map(callback_stack, to_circuit_type),
+
+            to_ct(old_private_data_tree_root),
+
+            to_ct(is_fee_payment),
+            to_ct(pay_fee_from_l1),
+            to_ct(pay_fee_from_public_l2),
+            to_ct(called_from_l1),
+        };
+
+        return pis;
+    };
+
+    fr hash() const
+    {
+        auto to_hashes = []<typename T>(const T& e) { return e.hash(); };
+
+        std::vector<fr> inputs;
+
+        inputs.push_back(call_context.hash());
+
+        spread_arr_into_vec(custom_public_inputs, inputs);
+        spread_arr_into_vec(emitted_public_inputs, inputs);
+
+        inputs.push_back(executed_callback.hash());
+
+        spread_arr_into_vec(output_commitments, inputs);
+        spread_arr_into_vec(input_nullifiers, inputs);
+
+        spread_arr_into_vec(private_call_stack, inputs);
+        spread_arr_into_vec(public_call_stack, inputs);
+        spread_arr_into_vec(contract_deployment_call_stack, inputs);
+        spread_arr_into_vec(partial_l1_call_stack, inputs);
+        spread_arr_into_vec(map(callback_stack, to_hashes), inputs);
+
+        inputs.push_back(old_private_data_tree_root);
+
+        inputs.push_back(fr(is_fee_payment));
+        inputs.push_back(fr(pay_fee_from_l1));
+        inputs.push_back(fr(pay_fee_from_public_l2));
+        inputs.push_back(fr(called_from_l1));
+
+        return NCT::compress(inputs, GeneratorIndex::PRIVATE_CIRCUIT_PUBLIC_INPUTS);
+    }
+
+    template <size_t SIZE> void spread_arr_into_vec(std::array<fr, SIZE> const& arr, std::vector<fr>& vec) const
+    {
+        const auto arr_size = sizeof(arr) / sizeof(fr);
+        vec.insert(vec.end(), &arr[0], &arr[0] + arr_size);
+    }
+};
+
+// It's been extremely useful for all members here to be std::optional. It allows test app circuits to be very
+// quickly drafted without worrying about any of the public inputs which aren't relevant to that circuit. Any values
+// which aren't set by the circuit can then be safely set to zero when calling `set_public` (by checking for
+// std::nullopt)
+template <typename NCT> class OptionalPrivateCircuitPublicInputs {
     typedef typename NCT::fr fr;
     typedef typename NCT::boolean boolean;
     typedef typename std::optional<fr> opt_fr;
@@ -48,9 +155,9 @@ template <typename NCT> class PrivateCircuitPublicInputs {
     opt_boolean pay_fee_from_public_l2;
     opt_boolean called_from_l1;
 
-    PrivateCircuitPublicInputs<NCT>(){};
+    OptionalPrivateCircuitPublicInputs<NCT>(){};
 
-    PrivateCircuitPublicInputs<NCT>(
+    OptionalPrivateCircuitPublicInputs<NCT>(
         std::optional<CallContext<NCT>> const& call_context,
 
         std::array<opt_fr, CUSTOM_PUBLIC_INPUTS_LENGTH> const& custom_public_inputs,
@@ -90,12 +197,12 @@ template <typename NCT> class PrivateCircuitPublicInputs {
         , pay_fee_from_public_l2(pay_fee_from_public_l2)
         , called_from_l1(called_from_l1){};
 
-    bool operator==(PrivateCircuitPublicInputs<NCT> const&) const = default;
+    bool operator==(OptionalPrivateCircuitPublicInputs<NCT> const&) const = default;
 
-    static PrivateCircuitPublicInputs<NCT> create()
+    static OptionalPrivateCircuitPublicInputs<NCT> create()
     {
 
-        auto new_inputs = PrivateCircuitPublicInputs<NCT>();
+        auto new_inputs = OptionalPrivateCircuitPublicInputs<NCT>();
 
         new_inputs.call_context = std::nullopt;
 
@@ -200,9 +307,8 @@ template <typename NCT> class PrivateCircuitPublicInputs {
         fr(*called_from_l1).set_public();
     }
 
-    // TODO: can't use designated constructor anymore, so need to copy the to_native_type() function methodology below.
     template <typename Composer>
-    PrivateCircuitPublicInputs<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
+    OptionalPrivateCircuitPublicInputs<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
     {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
@@ -212,7 +318,7 @@ template <typename NCT> class PrivateCircuitPublicInputs {
             return e ? std::make_optional((*e).to_circuit_type(composer)) : std::nullopt;
         };
 
-        PrivateCircuitPublicInputs<CircuitTypes<Composer>> pis = {
+        OptionalPrivateCircuitPublicInputs<CircuitTypes<Composer>> pis = {
             to_circuit_type(call_context),
 
             to_ct(custom_public_inputs),
@@ -240,7 +346,7 @@ template <typename NCT> class PrivateCircuitPublicInputs {
         return pis;
     };
 
-    template <typename Composer> PrivateCircuitPublicInputs<NativeTypes> to_native_type() const
+    template <typename Composer> OptionalPrivateCircuitPublicInputs<NativeTypes> to_native_type() const
     {
         static_assert(std::is_same<CircuitTypes<Composer>, NCT>::value);
         auto to_nt = [&](auto& e) { return plonk::stdlib::types::to_nt<Composer>(e); };
@@ -249,7 +355,7 @@ template <typename NCT> class PrivateCircuitPublicInputs {
         };
         // auto to_native_type = [&]<typename T>(T& e) { return e.to_native_type(); };
 
-        PrivateCircuitPublicInputs<NativeTypes> pis = {
+        OptionalPrivateCircuitPublicInputs<NativeTypes> pis = {
             to_native_type(call_context),
 
             to_nt(custom_public_inputs),
@@ -312,6 +418,37 @@ template <typename NCT> class PrivateCircuitPublicInputs {
         inputs.push_back(fr(*called_from_l1));
 
         return NCT::compress(inputs, GeneratorIndex::PRIVATE_CIRCUIT_PUBLIC_INPUTS);
+    }
+
+    // We can remove optionality when using the inputs in a kernel or rollup circuit, for ease of use.
+    PrivateCircuitPublicInputs<NCT> remove_optionality() const
+    {
+        auto get_value = [&](auto& e) { return e.value(); };
+
+        return PrivateCircuitPublicInputs<NCT>{
+            .call_context = call_context.value(),
+
+            .custom_public_inputs = map(custom_public_inputs, get_value),
+            .emitted_public_inputs = map(emitted_public_inputs, get_value),
+
+            .executed_callback = executed_callback.value(),
+
+            .output_commitments = map(output_commitments, get_value),
+            .input_nullifiers = map(input_nullifiers, get_value),
+
+            .private_call_stack = map(private_call_stack, get_value),
+            .public_call_stack = map(public_call_stack, get_value),
+            .contract_deployment_call_stack = map(contract_deployment_call_stack, get_value),
+            .partial_l1_call_stack = map(partial_l1_call_stack, get_value),
+            .callback_stack = map(callback_stack, get_value),
+
+            .old_private_data_tree_root = old_private_data_tree_root.value(),
+
+            .is_fee_payment = is_fee_payment.value(),
+            .pay_fee_from_l1 = pay_fee_from_l1.value(),
+            .pay_fee_from_public_l2 = pay_fee_from_public_l2.value(),
+            .called_from_l1 = called_from_l1.value(),
+        };
     }
 
   private:
@@ -466,11 +603,12 @@ template <typename NCT> class PrivateCircuitPublicInputs {
     }
 }; // namespace aztec3::circuits::abis
 
-template <typename NCT> void read(uint8_t const*& it, PrivateCircuitPublicInputs<NCT>& private_circuit_public_inputs)
+template <typename NCT>
+void read(uint8_t const*& it, OptionalPrivateCircuitPublicInputs<NCT>& private_circuit_public_inputs)
 {
     using serialize::read;
 
-    PrivateCircuitPublicInputs<NCT>& pis = private_circuit_public_inputs;
+    OptionalPrivateCircuitPublicInputs<NCT>& pis = private_circuit_public_inputs;
     read(it, pis.call_context);
     read(it, pis.custom_public_inputs);
     read(it, pis.emitted_public_inputs);
@@ -490,11 +628,11 @@ template <typename NCT> void read(uint8_t const*& it, PrivateCircuitPublicInputs
 };
 
 template <typename NCT>
-void write(std::vector<uint8_t>& buf, PrivateCircuitPublicInputs<NCT> const& private_circuit_public_inputs)
+void write(std::vector<uint8_t>& buf, OptionalPrivateCircuitPublicInputs<NCT> const& private_circuit_public_inputs)
 {
     using serialize::write;
 
-    PrivateCircuitPublicInputs<NCT> const& pis = private_circuit_public_inputs;
+    OptionalPrivateCircuitPublicInputs<NCT> const& pis = private_circuit_public_inputs;
 
     write(buf, pis.call_context);
     write(buf, pis.custom_public_inputs);
@@ -515,10 +653,10 @@ void write(std::vector<uint8_t>& buf, PrivateCircuitPublicInputs<NCT> const& pri
 };
 
 template <typename NCT>
-std::ostream& operator<<(std::ostream& os, PrivateCircuitPublicInputs<NCT> const& private_circuit_public_inputs)
+std::ostream& operator<<(std::ostream& os, OptionalPrivateCircuitPublicInputs<NCT> const& private_circuit_public_inputs)
 
 {
-    PrivateCircuitPublicInputs<NCT> const& pis = private_circuit_public_inputs;
+    OptionalPrivateCircuitPublicInputs<NCT> const& pis = private_circuit_public_inputs;
     return os << "call_context: " << pis.call_context << "\n"
               << "custom_public_inputs: " << pis.custom_public_inputs << "\n"
               << "emitted_public_inputs: " << pis.emitted_public_inputs << "\n"

@@ -18,7 +18,7 @@ template <typename NCT> struct PrivateInputs {
     typedef typename NCT::fr fr;
 
     // Signature signature; // TODO!
-    AccumulatedData<NCT> start;
+    // AccumulatedData<NCT> start;
     PreviousKernelData<NCT> previous_kernel;
     PrivateCallData<NCT> private_call;
 
@@ -28,7 +28,7 @@ template <typename NCT> struct PrivateInputs {
 
         PrivateInputs<CircuitTypes<Composer>> private_inputs = {
             // signature.to_circuit_type();
-            start.to_circuit_type(composer),
+            // start.to_circuit_type(composer),
             previous_kernel.to_circuit_type(composer),
             private_call.to_circuit_type(composer),
         };

@@ -6,7 +6,7 @@
 
 namespace aztec3::circuits::apps::test_apps::escrow {
 
-using aztec3::circuits::abis::PrivateCircuitPublicInputs;
+using aztec3::circuits::abis::OptionalPrivateCircuitPublicInputs;
 
 void withdraw_failure_callback(Composer& composer,
                                OracleWrapper& oracle,
@@ -37,7 +37,7 @@ void withdraw_failure_callback(Composer& composer,
     contract.finalise();
 
     // TODO: maybe pass `oracle` to this `create()` function as well?
-    auto public_inputs = PrivateCircuitPublicInputs<CT>::create();
+    auto public_inputs = OptionalPrivateCircuitPublicInputs<CT>::create();
 
     public_inputs.call_context = oracle.get_call_context(); /// TODO: can this be abstracted away out of this body?
 
