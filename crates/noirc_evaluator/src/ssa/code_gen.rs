@@ -13,7 +13,8 @@ use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use noirc_frontend::hir::Context;
 use noirc_frontend::hir_def::expr::{
-    HirCallExpression, HirConstructorExpression, HirIdent, HirMemberAccess, HirUnaryOp, HirBlockExpression,
+    HirBlockExpression, HirCallExpression, HirConstructorExpression, HirIdent, HirMemberAccess,
+    HirUnaryOp,
 };
 use noirc_frontend::hir_def::function::HirFunction;
 use noirc_frontend::hir_def::stmt::{HirLValue, HirPattern};
@@ -61,7 +62,8 @@ pub fn evaluate_main<'a>(
     let actual_return = igen.evaluate_block(env, block)?;
 
     if constrain_main_return {
-        let expected_return = igen.find_variable(NodeInterner::main_return_id()).unwrap().unwrap_id();
+        let expected_return =
+            igen.find_variable(NodeInterner::main_return_id()).unwrap().unwrap_id();
 
         igen.context.new_instruction(
             expected_return,
@@ -555,26 +557,38 @@ impl<'a> IRGenerator<'a> {
                 let int_type = self.def_interner().id_type(expr_id);
                 let element_type = int_type.into();
                 Ok(Value::Single(self.context.get_or_create_const(x, element_type)))
-            },
+            }
             HirExpression::Literal(HirLiteral::Array(arr_lit)) => {
                 //We create a MemArray
                 let arr_type = self.def_interner().id_type(expr_id);
-                let element_type = arr_type.into();    //WARNING array type!
+                let element_type = arr_type.into(); //WARNING array type!
 
-                let array_index = self.context.mem.create_new_array(arr_lit.length as u32, element_type, &String::new());
+                let array_index = self.context.mem.create_new_array(
+                    arr_lit.length as u32,
+                    element_type,
+                    &String::new(),
+                );
                 //We parse the array definition
                 let elements = self.expression_list_to_objects(env, &arr_lit.contents);
                 let array = &mut self.context.mem.arrays[array_index as usize];
                 let array_adr = array.adr;
                 for (pos, object) in elements.into_iter().enumerate() {
                     //array.witness.push(node::get_witness_from_object(&object));
-                    let lhs_adr = self.context.get_or_create_const(FieldElement::from((array_adr + pos as u32) as u128), node::ObjectType::Unsigned(32));
-                    self.context.new_instruction(object, lhs_adr, node::Operation::Store(array_index), element_type);
+                    let lhs_adr = self.context.get_or_create_const(
+                        FieldElement::from((array_adr + pos as u32) as u128),
+                        node::ObjectType::Unsigned(32),
+                    );
+                    self.context.new_instruction(
+                        object,
+                        lhs_adr,
+                        node::Operation::Store(array_index),
+                        element_type,
+                    );
                 }
                 //Finally, we create a variable pointing to this MemArray
                 let new_var = node::Variable {
                     id: NodeId::dummy(),
-                    obj_type : node::ObjectType::Pointer(array_index),
+                    obj_type: node::ObjectType::Pointer(array_index),
                     name: String::new(),
                     root: None,
                     def: None,
@@ -582,20 +596,19 @@ impl<'a> IRGenerator<'a> {
                     parent_block: self.context.current_block,
                 };
                 Ok(Value::Single(self.context.add_variable(new_var, None)))
-            },
-            HirExpression::Ident(x) =>  {
-               Ok(self.evaluate_identifier(env, x))
+            }
+            HirExpression::Ident(x) => {
+                Ok(self.evaluate_identifier(env, x))
                 //n.b this creates a new variable if it does not exist, may be we should delegate this to explicit statements (let) - TODO
-            },
+            }
             HirExpression::Infix(infx) => {
                 // Note: using .into_id() here disallows structs/tuples in infix expressions.
                 // The type checker currently disallows this as well but we may want to allow
                 // for e.g. struct == struct in the future
                 let lhs = self.expression_to_object(env, &infx.lhs)?.unwrap_id();
                 let rhs = self.expression_to_object(env, &infx.rhs)?.unwrap_id();
-                self.evaluate_infix_expression(lhs, rhs, infx.operator)
-                    .map(Value::Single)
-            },
+                self.evaluate_infix_expression(lhs, rhs, infx.operator).map(Value::Single)
+            }
             HirExpression::Cast(cast_expr) => {
                 let lhs = self.expression_to_object(env, &cast_expr.lhs)?.unwrap_id();
                 let rtype = cast_expr.r#type.into();
@@ -612,7 +625,7 @@ impl<'a> IRGenerator<'a> {
                 // integer to other integer type: checks rust rules TODO
                 // else... Not supported (for now).
                 //binary_op::handle_cast_op(self,lhs, cast_expr.r#type).map_err(|kind|kind.add_span(span))
-            },
+            }
             HirExpression::Index(indexed_expr) => {
                 // Currently these only happen for arrays
                 let collection_name = match self.def_interner().expression(&indexed_expr.collection) {
@@ -628,10 +641,9 @@ impl<'a> IRGenerator<'a> {
                 let o_type = arr_type.into();
                 let mut array_index = self.context.mem.arrays.len() as u32;
                 let array = if let Some(moi) = self.context.mem.find_array(&Some(arr_def)) {
-                    array_index= self.context.mem.get_array_index(moi).unwrap();
+                    array_index = self.context.mem.get_array_index(moi).unwrap();
                     moi
-                }
-                 else if let Some(Value::Single(pointer)) = self.find_variable(arr_def) {
+                } else if let Some(Value::Single(pointer)) = self.find_variable(arr_def) {
                     match self.context.get_object_type(*pointer) {
                         node::ObjectType::Pointer(a_id) => {
                             array_index = a_id;
@@ -639,9 +651,9 @@ impl<'a> IRGenerator<'a> {
                         }
                         _ => unreachable!(),
                     }
-                 }
-                else {
-                    let arr = env.get_array(&arr_name).map_err(|kind|kind.add_span(ident_span)).unwrap();
+                } else {
+                    let arr =
+                        env.get_array(&arr_name).map_err(|kind| kind.add_span(ident_span)).unwrap();
                     self.context.mem.create_array_from_object(&arr, arr_def, o_type, &arr_name)
                 };
                 //let array = self.mem.get_or_create_array(&arr, arr_def.unwrap(), o_type, arr_name);
@@ -651,36 +663,62 @@ impl<'a> IRGenerator<'a> {
                 let index_as_obj = self.expression_to_object(env, &indexed_expr.index)?.unwrap_id();
 
                 let index_type = self.context.get_object_type(index_as_obj);
-                let base_adr = self.context.get_or_create_const(FieldElement::from(address as i128), index_type);
-                let adr_id = self.context.new_instruction(base_adr, index_as_obj, node::Operation::Add, index_type);
-                Ok(Value::Single(self.context.new_instruction(adr_id, adr_id, node::Operation::Load(array_index), o_type)))
-            },
+                let base_adr = self
+                    .context
+                    .get_or_create_const(FieldElement::from(address as i128), index_type);
+                let adr_id = self.context.new_instruction(
+                    base_adr,
+                    index_as_obj,
+                    node::Operation::Add,
+                    index_type,
+                );
+                Ok(Value::Single(self.context.new_instruction(
+                    adr_id,
+                    adr_id,
+                    node::Operation::Load(array_index),
+                    o_type,
+                )))
+            }
             HirExpression::Call(call_expr) => {
                 let func_meta = self.def_interner().function_meta(&call_expr.func_id);
                 match func_meta.kind {
-                    FunctionKind::Normal =>  {
+                    FunctionKind::Normal => {
                         if self.context.get_ssafunc(call_expr.func_id).is_none() {
-                            let func = function::create_function(self, call_expr.func_id, self.context.context(), env, &func_meta.parameters);
+                            let func = function::create_function(
+                                self,
+                                call_expr.func_id,
+                                self.context.context(),
+                                env,
+                                &func_meta.parameters,
+                            );
                             self.context.functions.insert(call_expr.func_id, func);
                         }
 
-                    //generate a call instruction to the function cfg
-                    Ok(Value::Single(function::SSAFunction::call(call_expr.func_id ,&call_expr.arguments, self, env)))
-                    },
+                        //generate a call instruction to the function cfg
+                        Ok(Value::Single(function::SSAFunction::call(
+                            call_expr.func_id,
+                            &call_expr.arguments,
+                            self,
+                            env,
+                        )))
+                    }
                     FunctionKind::LowLevel => {
-                    // We use it's func name to find out what intrinsic function to call
-                    let attribute = func_meta.attributes.expect("all low level functions must contain an attribute which contains the opcode which it links to");
-                    let opcode_name = attribute.foreign().expect("ice: function marked as foreign, but attribute kind does not match this");
-                    Ok(Value::Single(self.handle_lowlevel(env, opcode_name, call_expr)))
-                    },
-                    FunctionKind::Builtin => { todo!();
-                    //     let attribute = func_meta.attributes.expect("all builtin functions must contain an attribute which contains the function name which it links to");
-                    //     let builtin_name = attribute.builtin().expect("ice: function marked as a builtin, but attribute kind does not match this");
-                    //     builtin::call_builtin(self, env, builtin_name, (call_expr,span))
-                    },
-                 }
-            },
-            HirExpression::For(for_expr) => self.handle_for_expr(env,for_expr).map_err(|kind|kind.add_span(span)),
+                        // We use it's func name to find out what intrinsic function to call
+                        let attribute = func_meta.attributes.expect("all low level functions must contain an attribute which contains the opcode which it links to");
+                        let opcode_name = attribute.foreign().expect("ice: function marked as foreign, but attribute kind does not match this");
+                        Ok(Value::Single(self.handle_lowlevel(env, opcode_name, call_expr)))
+                    }
+                    FunctionKind::Builtin => {
+                        todo!();
+                        //     let attribute = func_meta.attributes.expect("all builtin functions must contain an attribute which contains the function name which it links to");
+                        //     let builtin_name = attribute.builtin().expect("ice: function marked as a builtin, but attribute kind does not match this");
+                        //     builtin::call_builtin(self, env, builtin_name, (call_expr,span))
+                    }
+                }
+            }
+            HirExpression::For(for_expr) => {
+                self.handle_for_expr(env, for_expr).map_err(|kind| kind.add_span(span))
+            }
             HirExpression::Constructor(constructor) => self.handle_constructor(env, constructor),
             HirExpression::MemberAccess(access) => self.handle_member_access(env, access),
             HirExpression::Tuple(fields) => self.handle_tuple(env, fields),
@@ -688,13 +726,13 @@ impl<'a> IRGenerator<'a> {
             HirExpression::Prefix(prefix) => {
                 let rhs = self.expression_to_object(env, &prefix.rhs)?.unwrap_id();
                 self.evaluate_prefix_expression(rhs, prefix.operator).map(Value::Single)
-            },
-            HirExpression::Literal(l) => {
-                Ok(Value::Single(self.handle_literal(&l)))
-            },
+            }
+            HirExpression::Literal(l) => Ok(Value::Single(self.handle_literal(&l))),
             HirExpression::Block(block) => self.evaluate_block(env, block),
             HirExpression::Error => todo!(),
-            HirExpression::MethodCall(_) => unreachable!("Method calls should be desugared before codegen"),
+            HirExpression::MethodCall(_) => {
+                unreachable!("Method calls should be desugared before codegen")
+            }
         }
     }
 
@@ -707,8 +745,9 @@ impl<'a> IRGenerator<'a> {
         let mut last = Value::Single(NodeId::dummy());
 
         for stmt_id in block.statements() {
-            last = self.evaluate_statement(env, stmt_id)?
-                .unwrap_or(Value::Single(NodeId::dummy()));
+            last = self
+                .evaluate_statement(env, stmt_id)?
+                .unwrap_or_else(|| Value::Single(NodeId::dummy()));
         }
         Ok(last)
     }

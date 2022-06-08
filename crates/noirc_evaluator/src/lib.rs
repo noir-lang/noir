@@ -16,7 +16,10 @@ use acvm::FieldElement;
 use acvm::Language;
 use environment::{Environment, FuncContext};
 use errors::{RuntimeError, RuntimeErrorKind};
-use noirc_frontend::{hir::Context, node_interner::{DefinitionId, NodeInterner}};
+use noirc_frontend::{
+    hir::Context,
+    node_interner::{DefinitionId, NodeInterner},
+};
 use noirc_frontend::{
     hir_def::{expr::HirIdent, stmt::HirLValue},
     node_interner::{ExprId, FuncId, StmtId},

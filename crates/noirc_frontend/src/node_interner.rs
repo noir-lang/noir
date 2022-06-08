@@ -13,7 +13,6 @@ use crate::hir_def::{
     expr::HirExpression,
     function::{FuncMeta, HirFunction},
     stmt::HirStatement,
-
 };
 
 /// The DefinitionId for the return value of the main function.
