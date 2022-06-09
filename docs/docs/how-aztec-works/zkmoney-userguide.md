@@ -31,9 +31,10 @@ Your username is a recognizable alias that makes it easy for your friends to sen
 - Write it down! Aztec does not keep a record, it is all encrypted. Only you know it.
 - If you've forgotten your alias, you cannot re-register a new one.
 
-![image](https://user-images.githubusercontent.com/15220860/172760386-bc32708c-bdf2-4310-bc5d-b9bc90082fdf.png)
-
 ⚠️ Write down your alias! Losing your alias means losing account access! ⚠️
+
+
+![image](https://user-images.githubusercontent.com/15220860/172760386-bc32708c-bdf2-4310-bc5d-b9bc90082fdf.png)
 
 Click "Register" to register your account. This may take several minutes. Do not close the window until you see the dashboard.
 
