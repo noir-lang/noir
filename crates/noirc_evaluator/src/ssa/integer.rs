@@ -253,7 +253,7 @@ fn block_overflow(
 
         //we propagate optimised loads - todo check if it is needed because there is cse at the end
         //We retrieve get_current_value() in case a previous truncate has updated the value map
-        let should_truncate = ins.truncate_required();
+        let should_truncate_ins = ins.truncate_required();
         let ins_max_bits = get_instruction_max(ctx, &ins, max_map, &value_map).bits();
         let res_type = ins.res_type;
 
@@ -262,12 +262,12 @@ fn block_overflow(
 
         ins.operation.for_each_id(|id| {
             get_obj_max_value(ctx, id, max_map, &value_map);
-            let obj = ctx.try_get_node(id);
-            let should_truncate_obj =
-                should_truncate && obj.is_some() && get_type(obj) != ObjectType::NativeField;
+            let arg = ctx.try_get_node(id);
+            let should_truncate_arg =
+                should_truncate_ins && arg.is_some() && get_type(arg) != ObjectType::NativeField;
 
-            if should_truncate_obj || too_many_bits {
-                add_to_truncate(ctx, id, get_size_in_bits(obj), &mut truncate_map, max_map);
+            if should_truncate_arg || too_many_bits {
+                add_to_truncate(ctx, id, get_size_in_bits(arg), &mut truncate_map, max_map);
             }
         });
 
