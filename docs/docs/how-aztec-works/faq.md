@@ -14,7 +14,9 @@ Your tokens simply get a zkSNARK “shield”, which anonymises any related data
 
 1. Send zkETH/DAI to a username (@name) on zk.money. The recipient will get zkETH/DAI.
 
-2. Send zkETH/DAI to any Ethereum address outside of zk.money - the wallet will receive regular ETH/DAI tokens. (Etherscan will show the funds were sent from Aztec’s contract, which doesn’t expose the sender 🕵️).
+2. Send zkETH/DAI to any Ethereum address outside of zk.money - the wallet will receive regular ETH/DAI tokens. (Etherscan will show the funds were sent from Aztec’s contract, which doesn’t expose the sender 🕵️. If you have trouble seeing the funds on the public transaction log, please  click the "Internal Txn" tab).
+
+<img width="545" alt="image" src="https://user-images.githubusercontent.com/15220860/172720151-19349841-17b6-4861-a101-eacd5724144d.png">
 
 ---
 
@@ -28,7 +30,7 @@ Your tokens simply get a zkSNARK “shield”, which anonymises any related data
 
 ### Is there a transaction limit on zk.money?
 
-Currently, users are limited to shielding and sending **up to $100,000 at a time**.** 
+Currently, users are limited to shielding **up to 5 $ETH or 10,000 $DAI at a time**.** 
 
 ---
 
