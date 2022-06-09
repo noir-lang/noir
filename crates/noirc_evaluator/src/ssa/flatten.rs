@@ -266,8 +266,8 @@ fn evaluate_conditional_jump(
     let jump_ins = ctx.try_get_instruction(jump).unwrap();
 
     let (cond_id, should_jump): (_, fn(FieldElement) -> bool) = match jump_ins.operation {
-        Operation::Jeq(cond_id, _) => (cond_id, |field| field.is_zero()),
-        Operation::Jne(cond_id, _) => (cond_id, |field| !field.is_zero()),
+        Operation::Jeq(cond_id, _) => (cond_id, |field| !field.is_zero()),
+        Operation::Jne(cond_id, _) => (cond_id, |field| field.is_zero()),
         Operation::Jmp(_) => return true,
         _ => panic!("loop without conditional statement!"), //TODO shouldn't we return false instead?
     };
