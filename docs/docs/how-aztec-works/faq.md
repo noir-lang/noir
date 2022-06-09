@@ -16,7 +16,7 @@ Your tokens simply get a zkSNARK “shield”, which anonymises any related data
 
 2. Send zkETH/DAI to any Ethereum address outside of zk.money - the wallet will receive regular ETH/DAI tokens. (Etherscan will show the funds were sent from Aztec’s contract, which doesn’t expose the sender 🕵️. If you have trouble seeing the funds on the public transaction log, please  click the "Internal Txn" tab).
 
-<img width="545" alt="image" src="https://user-images.githubusercontent.com/15220860/172720151-19349841-17b6-4861-a101-eacd5724144d.png">
+![](https://user-images.githubusercontent.com/15220860/172720151-19349841-17b6-4861-a101-eacd5724144d.png)
 
 ---
 
@@ -168,6 +168,7 @@ Our new UltraPlonk research will reduce the costs of internal sends by 3x, which
 Aztec doesn’t make any money from transaction fees on the platform, surplus transaction fees accumulate on a smart contract and are used to subsided future transactions in busy periods with high gas prices.
 
 ---
+
 ### Have other questions?
 
-Join our [Discord channel](https://discord.com/invite/UDtJr9u) and get an answer from the community
+Join our [Discord channel](https://discord.com/invite/UDtJr9u) and get an answer from the community.
