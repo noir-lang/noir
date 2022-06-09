@@ -1,4 +1,7 @@
-# zk.money User Guide
+---
+title: zk.money User Guide
+---
+
 Welcome to the new zk.money!
 
 Here you can find all information about zk.money and how to use it safely. We recommend going through the docs before using the app.

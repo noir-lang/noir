@@ -43,6 +43,7 @@ const sidebars = {
         "how-aztec-works/accounts",
         "how-aztec-works/tokens",
         "how-aztec-works/talks-videos",
+        "how-aztec-works/zkmoney-userguide",
         "how-aztec-works/faq",
       ],
     },
