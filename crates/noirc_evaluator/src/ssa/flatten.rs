@@ -540,18 +540,8 @@ pub fn inline_in_block(
                 Operation::Return(values) => {
                     //we need to find the corresponding result instruction in the target block (using ins.rhs) and replace it by ins.lhs
                     for (i, value) in values.iter().enumerate() {
-                        let mut value = match ctx.try_get_instruction(*value) {
-                            Some(ins) => ins.clone(),
-                            None => unreachable!(
-                                "No instruction for index {:?}, current op = {:?}, all ins = {:?}",
-                                value, clone.operation, block_func_instructions
-                            ),
-                        };
-
-                        value.id =
-                            ctx.get_result_instruction(target_block_id, call_id, i as u32).unwrap();
-                        value.parent_block = target_block_id;
-                        push_instruction(ctx, value, &mut new_instructions, inline_map);
+                        ctx.get_result_instruction(target_block_id, call_id, i as u32)
+                            .unwrap().mark = Mark::ReplaceWith(*value);
                     }
                 }
                 Operation::Call(..) => {
