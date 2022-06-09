@@ -202,7 +202,6 @@ impl<'a> IRGenerator<'a> {
         match op {
             HirUnaryOp::Minus => {
                 let lhs = self.context.zero();
-                // TODO: Perhaps this should be +infinity instead?
                 let operator = BinaryOp::Sub { max_rhs_value: BigUint::zero() };
                 let op = Operation::Binary(node::Binary { operator, lhs, rhs });
                 Ok(self.context.new_instruction(op, rtype))
