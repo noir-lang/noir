@@ -145,16 +145,6 @@ One small side note, the rollup provider receives a refund for the gas cost of t
 
 We wanted to try and encourage a fee market and create a flow where Aztec does not make money from the fees, instead of a user overpaying, that payment helps to subsidise future transactions. As more rollup providers come online we will be changing this.
 
-### What are the fees for a private transaction on zk.money?
-
-Slow : ? zkETH | ~4 hours
-
-Average : ? zkETH | ~3 hours
-
-Fast : ? zkETH | ~2 hours
-
-Instant : ? zkETH | ~5 minutes
-
 ### How much do transactions cost?
 
 - Deposit: 51,000 gas
