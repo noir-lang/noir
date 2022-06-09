@@ -120,12 +120,6 @@ fn truncate(
         //Create a new truncate instruction '(idx): obj trunc bit_size'
         //set current value of obj to idx
         let max_bit_size = v_max.bits() as u32;
-        assert!(
-            bit_size <= max_bit_size,
-            "truncate: bitsize = {} must be less than max_bit_size {}",
-            bit_size,
-            max_bit_size
-        );
 
         let mut i = Instruction::new(
             Operation::Truncate { value: obj_id, bit_size, max_bit_size },
