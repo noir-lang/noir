@@ -541,7 +541,8 @@ pub fn inline_in_block(
                     //we need to find the corresponding result instruction in the target block (using ins.rhs) and replace it by ins.lhs
                     for (i, value) in values.iter().enumerate() {
                         ctx.get_result_instruction(target_block_id, call_id, i as u32)
-                            .unwrap().mark = Mark::ReplaceWith(*value);
+                            .unwrap()
+                            .mark = Mark::ReplaceWith(*value);
                     }
                 }
                 Operation::Call(..) => {
