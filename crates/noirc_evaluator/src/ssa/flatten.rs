@@ -275,7 +275,10 @@ fn evaluate_conditional_jump(
     let cond = get_current_value(cond_id, value_array);
     let cond = match evaluate_object(cond, value_array, ctx).into_const_value() {
         Some(c) => c,
-        None => unreachable!("Conditional jump argument is non-const: {:?}", evaluate_object(cond, value_array, ctx)),
+        None => unreachable!(
+            "Conditional jump argument is non-const: {:?}",
+            evaluate_object(cond, value_array, ctx)
+        ),
     };
 
     should_jump(cond)

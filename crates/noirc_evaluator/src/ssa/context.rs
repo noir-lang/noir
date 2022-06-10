@@ -128,7 +128,11 @@ impl<'a> SsaContext<'a> {
             Operation::Phi { root, block_args } => {
                 let mut s = format!("phi {}", self.node_to_string(*root));
                 for (value, block) in block_args {
-                    s += &format!(", {} from block {}", self.node_to_string(*value), block.0.into_raw_parts().0);
+                    s += &format!(
+                        ", {} from block {}",
+                        self.node_to_string(*value),
+                        block.0.into_raw_parts().0
+                    );
                 }
                 s
             }
