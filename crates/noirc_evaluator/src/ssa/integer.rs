@@ -253,7 +253,7 @@ fn block_overflow(
 
         //we propagate optimised loads - todo check if it is needed because there is cse at the end
         //We retrieve get_current_value() in case a previous truncate has updated the value map
-        let should_truncate_ins = ins.truncate_required();
+        let should_truncate_ins = ins.truncate_required(ctx);
         let ins_max_bits = get_instruction_max(ctx, &ins, max_map, &value_map).bits();
         let res_type = ins.res_type;
 

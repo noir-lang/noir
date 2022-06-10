@@ -369,11 +369,15 @@ impl Instruction {
     }
 
     /// Indicates whether the left and/or right operand of the instruction is required to be truncated to its bit-width
-    pub fn truncate_required(&self) -> bool {
+    pub fn truncate_required(&self, ctx: &SsaContext) -> bool {
         match &self.operation {
             Operation::Binary(binary) => binary.truncate_required(),
             Operation::Not(..) => true,
-            Operation::Cast(..) => true,
+            Operation::Cast(value_id) => {
+                let obj = ctx.try_get_node(*value_id);
+                let bits = obj.map_or(0, |obj| obj.size_in_bits());
+                self.res_type.bits() > bits
+            }
             Operation::Truncate { .. } | Operation::Phi { .. } => false,
             Operation::Nop | Operation::Jne(..) | Operation::Jeq(..) | Operation::Jmp(..) => false,
             Operation::Load { .. } | Operation::Store { .. } => false,
