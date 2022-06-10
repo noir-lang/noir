@@ -128,7 +128,7 @@ impl<'a> SsaContext<'a> {
             Operation::Phi { root, block_args } => {
                 let mut s = format!("phi {}", self.node_to_string(*root));
                 for (value, block) in block_args {
-                    s += &format!(", {} from {:?}", self.node_to_string(*value), block);
+                    s += &format!(", {} from block {}", self.node_to_string(*value), block.0.into_raw_parts().0);
                 }
                 s
             }
@@ -440,24 +440,24 @@ impl<'a> SsaContext<'a> {
         enable_logging: bool,
     ) -> Result<(), RuntimeError> {
         //SSA
-        self.log(enable_logging, "SSA:", "inline functions");
+        self.log(enable_logging, "SSA:", "\ninline functions");
         flatten::inline_all_functions(self);
 
         //Optimisation
         block::compute_dom(self);
         optim::cse(self, self.first_block);
-        self.log(enable_logging, "CSE:", "unrolling:");
+        self.log(enable_logging, "\nCSE:", "\nunrolling:");
         //Unrolling
         flatten::unroll_tree(self, self.first_block);
 
         //Inlining
-        self.log(enable_logging, "", "inlining:");
+        self.log(enable_logging, "", "\ninlining:");
         flatten::inline_tree(self, self.first_block);
         optim::cse(self, self.first_block);
 
         //Truncation
         integer::overflow_strategy(self);
-        self.log(enable_logging, "overflow:", "");
+        self.log(enable_logging, "\noverflow:", "");
         //ACIR
         self.acir(evaluator);
         if enable_logging {
