@@ -393,7 +393,7 @@ impl Instruction {
     }
 
     //Evaluate the instruction value when its operands are constant (constant folding)
-    pub fn evaluate_with<F>(&self, ctx: &SsaContext, eval_fn: F) -> NodeEval
+    pub fn evaluate_with<F>(&self, ctx: &SsaContext, mut eval_fn: F) -> NodeEval
     where
         F: FnMut(&SsaContext, NodeId) -> NodeEval,
     {
@@ -402,18 +402,20 @@ impl Instruction {
                 return binary.evaluate(ctx, self.id, self.res_type, eval_fn)
             }
             Operation::Cast(value) => {
-                if let Some(l_const) = ctx.get_const_value(*value) {
+                if let Some(l_const) = eval_fn(ctx, *value).into_const_value() {
                     if self.res_type == ObjectType::NativeField {
-                        return NodeEval::Const(FieldElement::from(l_const), self.res_type);
+                        return NodeEval::Const(l_const, self.res_type);
+                    } else if let Some(l_const) = l_const.try_into_u128() {
+                        return NodeEval::Const(
+                            FieldElement::from(l_const % (1_u128 << self.res_type.bits())),
+                            self.res_type,
+                        );
                     }
-                    return NodeEval::Const(
-                        FieldElement::from(l_const % (1_u128 << self.res_type.bits())),
-                        self.res_type,
-                    );
                 }
             }
             Operation::Not(value) => {
-                if let Some(l_const) = ctx.get_const_value(*value) {
+                let obj = eval_fn(ctx, *value).into_const_value();
+                if let Some(l_const) = obj.and_then(|field| field.try_into_u128()) {
                     return NodeEval::Const(FieldElement::from(!l_const), self.res_type);
                 }
             }
@@ -465,22 +467,6 @@ impl Instruction {
             if binary.operator.is_commutative() && binary.rhs < binary.lhs {
                 std::mem::swap(&mut binary.rhs, &mut binary.lhs);
             }
-        }
-    }
-}
-
-impl<'c> SsaContext<'c> {
-    fn get_const_value(&self, id: NodeId) -> Option<u128> {
-        match &self[id] {
-            NodeObj::Const(c) => c.value.clone().try_into().ok(),
-            _ => None,
-        }
-    }
-
-    fn get_const_field(&self, id: NodeId) -> Option<FieldElement> {
-        match &self[id] {
-            NodeObj::Const(c) => Some(FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be())),
-            _ => None,
         }
     }
 }
@@ -701,8 +687,8 @@ impl Binary {
         let l_eval = eval_fn(ctx, self.lhs);
         let r_eval = eval_fn(ctx, self.rhs);
 
-        let lhs = ctx.get_const_field(self.lhs);
-        let rhs = ctx.get_const_field(self.rhs);
+        let lhs = l_eval.into_const_value();
+        let rhs = r_eval.into_const_value();
 
         let l_is_zero = lhs.map_or(false, |x| x.is_zero());
         let r_is_zero = rhs.map_or(false, |x| x.is_zero());
