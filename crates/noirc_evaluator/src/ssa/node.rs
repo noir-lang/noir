@@ -454,7 +454,6 @@ impl Instruction {
                             return;
                         }
                     }
-                    // TODO: Why are we asserting here?
                     ConstrainOp::Neq => assert_ne!(binary.lhs, binary.rhs),
                 }
             }

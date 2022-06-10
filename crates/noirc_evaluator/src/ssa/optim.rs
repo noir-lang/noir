@@ -46,6 +46,9 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut node::Instruction) {
                 (ConstrainOp::Eq, Some(lhs), Some(rhs)) if lhs == rhs => {
                     ins.mark = Mark::Deleted;
                 }
+                (ConstrainOp::Neq, Some(lhs), Some(rhs)) => {
+                    assert_ne!(lhs, rhs);
+                }
                 _ => (),
             }
         }
