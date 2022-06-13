@@ -1,2 +1,2 @@
 edition = "2018"
-use_small_heuristics="Max"
+use_small_heuristics = "Max"

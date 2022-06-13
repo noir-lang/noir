@@ -1,18 +1,19 @@
 use super::block::{BasicBlock, BlockId};
 use super::function::SSAFunction;
 use super::mem::Memory;
-use super::node::{Instruction, NodeId, NodeObj, ObjectType, Operation};
+use super::node::{BinaryOp, Instruction, NodeId, NodeObj, ObjectType, Operation};
 use super::{block, flatten, integer, node, optim};
 use std::collections::{HashMap, HashSet};
 
 use super::super::errors::RuntimeError;
 use crate::ssa::acir_gen::Acir;
 use crate::ssa::function;
-use crate::ssa::node::Node;
+use crate::ssa::node::{Mark, Node};
 use crate::Evaluator;
 use acvm::FieldElement;
 use noirc_frontend::hir::Context;
 use noirc_frontend::node_interner::FuncId;
+use noirc_frontend::util::vecmap;
 use num_bigint::BigUint;
 use num_traits::Zero;
 
@@ -69,6 +70,94 @@ impl<'a> SsaContext<'a> {
         }
     }
 
+    fn binary_to_string(&self, binary: &node::Binary) -> String {
+        let lhs = self.node_to_string(binary.lhs);
+        let rhs = self.node_to_string(binary.rhs);
+
+        let op = match &binary.operator {
+            BinaryOp::Add => "add",
+            BinaryOp::SafeAdd => "safe_add",
+            BinaryOp::Sub { .. } => "sub",
+            BinaryOp::SafeSub { .. } => "safe_sub",
+            BinaryOp::Mul => "mul",
+            BinaryOp::SafeMul => "safe_mul",
+            BinaryOp::Udiv => "udiv",
+            BinaryOp::Sdiv => "sdiv",
+            BinaryOp::Urem => "urem",
+            BinaryOp::Srem => "srem",
+            BinaryOp::Div => "div",
+            BinaryOp::Eq => "eq",
+            BinaryOp::Ne => "ne",
+            BinaryOp::Ult => "ult",
+            BinaryOp::Ule => "ule",
+            BinaryOp::Slt => "slt",
+            BinaryOp::Sle => "sle",
+            BinaryOp::Lt => "lt",
+            BinaryOp::Lte => "lte",
+            BinaryOp::And => "and",
+            BinaryOp::Or => "or",
+            BinaryOp::Xor => "xor",
+            BinaryOp::Assign => "assign",
+            BinaryOp::Constrain(node::ConstrainOp::Eq) => "constrain_eq",
+            BinaryOp::Constrain(node::ConstrainOp::Neq) => "constrain_neq",
+            BinaryOp::Shl => "shl",
+            BinaryOp::Shr => "shr",
+        };
+
+        format!("{} {}, {}", op, lhs, rhs)
+    }
+
+    fn operation_to_string(&self, op: &Operation) -> String {
+        let join = |args: &[NodeId]| vecmap(args, |arg| self.node_to_string(*arg)).join(", ");
+
+        match op {
+            Operation::Binary(binary) => self.binary_to_string(binary),
+            Operation::Cast(value) => format!("cast {}", self.node_to_string(*value)),
+            Operation::Truncate { value, bit_size, max_bit_size } => {
+                format!(
+                    "truncate {}, bitsize = {}, max bitsize = {}",
+                    self.node_to_string(*value),
+                    bit_size,
+                    max_bit_size
+                )
+            }
+            Operation::Not(v) => format!("not {}", self.node_to_string(*v)),
+            Operation::Jne(v, b) => format!("jne {}, {:?}", self.node_to_string(*v), b),
+            Operation::Jeq(v, b) => format!("jeq {}, {:?}", self.node_to_string(*v), b),
+            Operation::Jmp(b) => format!("jmp {:?}", b),
+            Operation::Phi { root, block_args } => {
+                let mut s = format!("phi {}", self.node_to_string(*root));
+                for (value, block) in block_args {
+                    s += &format!(
+                        ", {} from block {}",
+                        self.node_to_string(*value),
+                        block.0.into_raw_parts().0
+                    );
+                }
+                s
+            }
+            Operation::Load { array_id, index } => {
+                format!("load {:?}, index {}", array_id, self.node_to_string(*index))
+            }
+            Operation::Store { array_id, index, value } => {
+                format!(
+                    "store {:?}, index {}, value {}",
+                    array_id,
+                    self.node_to_string(*index),
+                    self.node_to_string(*value)
+                )
+            }
+            Operation::Intrinsic(opcode, args) => format!("intrinsic {}({})", opcode, join(args)),
+            Operation::Nop => "nop".into(),
+            Operation::Call(f, args) => format!("call {:?}({})", f, join(args)),
+            Operation::Return(values) => format!("return ({})", join(values)),
+            Operation::Result { call_instruction, index } => {
+                let call = self.node_to_string(*call_instruction);
+                format!("result {} of {}", index, call)
+            }
+        }
+    }
+
     pub fn print_block(&self, b: &block::BasicBlock) {
         for id in &b.instructions {
             let ins = self.get_instruction(*id);
@@ -77,21 +166,11 @@ impl<'a> SsaContext<'a> {
             } else {
                 ins.res_name.clone()
             };
-            if ins.is_deleted {
-                str_res += " -DELETED";
+            if let Mark::ReplaceWith(replacement) = ins.mark {
+                str_res = format!("{} -REPLACED with id {:?}", str_res, replacement.0);
             }
-            let lhs_str = self.node_to_string(ins.lhs);
-            let rhs_str = self.node_to_string(ins.rhs);
-            let mut ins_str = format!("{} op:{:?} {}", lhs_str, ins.operator, rhs_str);
 
-            if ins.operator == node::Operation::Phi {
-                ins_str += "(";
-                for (v, b) in &ins.phi_arguments {
-                    ins_str +=
-                        &format!("{:?}:{:?}, ", v.0.into_raw_parts().0, b.0.into_raw_parts().0);
-                }
-                ins_str += ")";
-            }
+            let ins_str = self.operation_to_string(&ins.operation);
             println!("{}: {}", str_res, ins_str);
         }
     }
@@ -219,6 +298,23 @@ impl<'a> SsaContext<'a> {
         }
     }
 
+    pub fn get_result_instruction(
+        &mut self,
+        target: BlockId,
+        call_instruction: NodeId,
+        index: u32,
+    ) -> Option<&mut Instruction> {
+        for id in &self.blocks[target.0].instructions {
+            if let Some(NodeObj::Instr(i)) = self.nodes.get(id.0) {
+                if i.operation == (Operation::Result { call_instruction, index }) {
+                    let id = *id;
+                    return self.try_get_mut_instruction(id);
+                }
+            }
+        }
+        None
+    }
+
     pub fn get_root_value(&self, id: NodeId) -> NodeId {
         self.get_variable(id).map(|v| v.get_root()).unwrap_or(id)
     }
@@ -235,43 +331,27 @@ impl<'a> SsaContext<'a> {
         id
     }
 
-    pub fn new_instruction(
-        &mut self,
-        lhs: NodeId,
-        rhs: NodeId,
-        opcode: node::Operation,
-        optype: node::ObjectType,
-    ) -> NodeId {
-        let operands = vec![lhs, rhs];
-        self.new_instruction_with_multiple_operands(operands, opcode, optype)
-    }
-
-    pub fn new_instruction_with_multiple_operands(
-        &mut self,
-        mut operands: Vec<NodeId>,
-        opcode: node::Operation,
-        optype: node::ObjectType,
-    ) -> NodeId {
-        while operands.len() < 2 {
-            operands.push(NodeId::dummy());
-        }
+    pub fn new_instruction(&mut self, opcode: Operation, optype: ObjectType) -> NodeId {
         //Add a new instruction to the nodes arena
-        let mut i = node::Instruction::new(
-            opcode,
-            operands[0],
-            operands[1],
-            optype,
-            Some(self.current_block),
-        );
+        let mut i = Instruction::new(opcode, optype, Some(self.current_block));
         //Basic simplification
         optim::simplify(self, &mut i);
-        if operands.len() > 2 {
-            i.ins_arguments = operands;
-        }
-        if i.is_deleted {
-            return i.rhs;
+
+        if let Mark::ReplaceWith(replacement) = i.mark {
+            return replacement;
         }
         self.push_instruction(i)
+    }
+
+    pub fn new_binary_instruction(
+        &mut self,
+        operator: BinaryOp,
+        lhs: NodeId,
+        rhs: NodeId,
+        optype: ObjectType,
+    ) -> NodeId {
+        let operation = Operation::binary(operator, lhs, rhs);
+        self.new_instruction(operation, optype)
     }
 
     pub fn find_const_with_type(
@@ -307,30 +387,27 @@ impl<'a> SsaContext<'a> {
     }
 
     //Return the type of the operation result, based on the left hand type
-    pub fn get_result_type(&self, op: Operation, lhs_type: node::ObjectType) -> node::ObjectType {
+    pub fn get_result_type(&self, op: &Operation, lhs_type: node::ObjectType) -> node::ObjectType {
+        use {BinaryOp::*, Operation::*};
         match op {
-            Operation::Eq
-            | Operation::Ne
-            | Operation::Ugt
-            | Operation::Uge
-            | Operation::Ult
-            | Operation::Ule
-            | Operation::Sgt
-            | Operation::Sge
-            | Operation::Slt
-            | Operation::Sle
-            | Operation::Lt
-            | Operation::Gt
-            | Operation::Lte
-            | Operation::Gte => ObjectType::Boolean,
-            Operation::Jne
-            | Operation::Jeq
-            | Operation::Jmp
+            Binary(node::Binary { operator: Eq, .. })
+            | Binary(node::Binary { operator: Ne, .. })
+            | Binary(node::Binary { operator: Ult, .. })
+            | Binary(node::Binary { operator: Ule, .. })
+            | Binary(node::Binary { operator: Slt, .. })
+            | Binary(node::Binary { operator: Sle, .. })
+            | Binary(node::Binary { operator: Lt, .. })
+            | Binary(node::Binary { operator: Lte, .. }) => ObjectType::Boolean,
+            Operation::Jne(_, _)
+            | Operation::Jeq(_, _)
+            | Operation::Jmp(_)
             | Operation::Nop
-            | Operation::Constrain(_)
-            | Operation::Store(_) => ObjectType::NotAnObject,
-            Operation::Load(adr) => self.mem.arrays[adr as usize].element_type,
-            Operation::Cast | Operation::Trunc => unreachable!("cannot determine result type"),
+            | Binary(node::Binary { operator: Constrain(_), .. })
+            | Operation::Store { .. } => ObjectType::NotAnObject,
+            Operation::Load { array_id, .. } => self.mem[*array_id].element_type,
+            Operation::Cast(_) | Operation::Truncate { .. } => {
+                unreachable!("cannot determine result type")
+            }
             _ => lhs_type,
         }
     }
@@ -353,44 +430,44 @@ impl<'a> SsaContext<'a> {
         self.blocks.iter().map(|(_id, block)| block)
     }
 
-    pub fn pause(&self, interactive: bool, before: &str, after: &str) {
-        if_debug::if_debug!(if interactive {
+    pub fn log(&self, show_log: bool, before: &str, after: &str) {
+        if show_log {
             self.print(before);
-            let mut number = String::new();
-            println!("Press enter to continue");
-            std::io::stdin().read_line(&mut number).unwrap();
             println!("{}", after);
-        });
+        }
     }
 
     //Optimise, flatten and truncate IR and then generates ACIR representation from it
     pub fn ir_to_acir(
         &mut self,
         evaluator: &mut Evaluator,
-        interactive: bool,
+        enable_logging: bool,
     ) -> Result<(), RuntimeError> {
         //SSA
-        self.pause(interactive, "SSA:", "inline functions");
+        self.log(enable_logging, "SSA:", "\ninline functions");
         flatten::inline_all_functions(self);
+
         //Optimisation
         block::compute_dom(self);
         optim::cse(self, self.first_block);
-        self.pause(interactive, "CSE:", "unrolling:");
+        self.log(enable_logging, "\nCSE:", "\nunrolling:");
         //Unrolling
         flatten::unroll_tree(self, self.first_block);
+
         //Inlining
-        self.pause(interactive, "", "inlining:");
+        self.log(enable_logging, "", "\ninlining:");
         flatten::inline_tree(self, self.first_block);
         optim::cse(self, self.first_block);
+
         //Truncation
         integer::overflow_strategy(self);
-        self.pause(interactive, "overflow:", "");
+        self.log(enable_logging, "\noverflow:", "");
         //ACIR
         self.acir(evaluator);
-        if_debug::if_debug!(if interactive {
-            dbg!("DONE");
+        if enable_logging {
+            println!("DONE");
             dbg!(&evaluator.current_witness_index);
-        });
+        }
         Ok(())
     }
 
@@ -408,18 +485,22 @@ impl<'a> SsaContext<'a> {
         Acir::print_circuit(&evaluator.gates);
     }
 
-    pub fn generate_empty_phi(&mut self, target_block: BlockId, root: NodeId) -> NodeId {
+    pub fn generate_empty_phi(&mut self, target_block: BlockId, phi_root: NodeId) -> NodeId {
         //Ensure there is not already a phi for the variable (n.b. probably not usefull)
         for i in &self[target_block].instructions {
-            if let Some(ins) = self.try_get_instruction(*i) {
-                if ins.operator == node::Operation::Phi && ins.rhs == root {
+            match self.try_get_instruction(*i) {
+                Some(Instruction { operation: Operation::Phi { root, .. }, .. })
+                    if *root == phi_root =>
+                {
                     return *i;
                 }
+                _ => (),
             }
         }
 
-        let v_type = self.get_object_type(root);
-        let new_phi = Instruction::new(Operation::Phi, root, root, v_type, Some(target_block));
+        let v_type = self.get_object_type(phi_root);
+        let operation = Operation::Phi { root: phi_root, block_args: vec![] };
+        let new_phi = Instruction::new(operation, v_type, Some(target_block));
         let phi_id = self.add_instruction(new_phi);
         self[target_block].instructions.insert(1, phi_id);
         phi_id
