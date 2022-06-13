@@ -373,6 +373,7 @@ impl Instruction {
         match &self.operation {
             Operation::Binary(binary) => binary.truncate_required(),
             Operation::Not(..) => true,
+            Operation::Constrain(..) => true,
             Operation::Cast(value_id) => {
                 let obj = ctx.try_get_node(*value_id);
                 let bits = obj.map_or(0, |obj| obj.size_in_bits());
@@ -419,6 +420,17 @@ impl Instruction {
                     return NodeEval::Const(FieldElement::from(!l_const), self.res_type);
                 }
             }
+            Operation::Constrain(value) => {
+                if let Some(obj) = eval_fn(ctx, *value).into_const_value() {
+                    if obj.is_one() {
+                        // Delete the constrain, it is always true
+                        return NodeEval::VarOrInstruction(NodeId::dummy());
+                    } else {
+                        // TODO: #231 Provide better error messages for constraints that always fail
+                        assert!(!obj.is_zero());
+                    }
+                }
+            }
             Operation::Phi { .. } => (), //Phi are simplified by simply_phi() later on; they must not be simplified here
             _ => (),
         }
@@ -452,30 +464,11 @@ impl Instruction {
 
     pub fn standard_form(&mut self) {
         if let Operation::Binary(binary) = &mut self.operation {
-            if let BinaryOp::Constrain(op) = &binary.operator {
-                match op {
-                    ConstrainOp::Eq => {
-                        if binary.lhs == binary.rhs {
-                            self.operation = Operation::Nop;
-                            return;
-                        }
-                    }
-                    ConstrainOp::Neq => assert_ne!(binary.lhs, binary.rhs),
-                }
-            }
-
             if binary.operator.is_commutative() && binary.rhs < binary.lhs {
                 std::mem::swap(&mut binary.rhs, &mut binary.lhs);
             }
         }
     }
-}
-
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
-pub enum ConstrainOp {
-    Eq,
-    Neq,
-    //Cmp...
 }
 
 //adapted from LLVM IR
@@ -487,6 +480,7 @@ pub enum Operation {
     Truncate { value: NodeId, bit_size: u32, max_bit_size: u32 }, //truncate
 
     Not(NodeId), //(!) Bitwise Not
+    Constrain(NodeId),
 
     //control flow
     Jne(NodeId, BlockId), //jump on not equal
@@ -534,7 +528,7 @@ pub enum Opcode {
     Shl,
     Shr,
     Assign,
-    Constrain(ConstrainOp),
+    Constrain,
 
     Cast,     //convert type
     Truncate, //truncate
@@ -601,7 +595,6 @@ pub enum BinaryOp {
     Shr, //(<<) Shift right
 
     Assign,
-    Constrain(ConstrainOp), //write gates enforcing the ContrainOp to be true
 }
 
 impl Binary {
@@ -878,16 +871,6 @@ impl Binary {
                     return NodeEval::from_u128(lhs.to_u128() >> rhs.to_u128(), res_type);
                 }
             }
-            BinaryOp::Constrain(op) => {
-                if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
-                    match op {
-                        ConstrainOp::Eq => assert_eq!(lhs, rhs),
-                        ConstrainOp::Neq => assert_ne!(lhs, rhs),
-                    }
-                    //we can delete the instruction
-                    return NodeEval::VarOrInstruction(NodeId::dummy());
-                }
-            }
             BinaryOp::Assign => (),
         }
         NodeEval::VarOrInstruction(id)
@@ -917,7 +900,6 @@ impl Binary {
             BinaryOp::And => true,
             BinaryOp::Or => true,
             BinaryOp::Xor => true,
-            BinaryOp::Constrain(..) => true,
             BinaryOp::Assign => false,
             BinaryOp::Shl => true,
             BinaryOp::Shr => true,
@@ -951,7 +933,6 @@ impl Binary {
             BinaryOp::Shl => Opcode::Shl,
             BinaryOp::Shr => Opcode::Shr,
             BinaryOp::Assign => Opcode::Assign,
-            BinaryOp::Constrain(op) => Opcode::Constrain(*op),
         }
     }
 }
@@ -990,6 +971,7 @@ impl Operation {
                 Truncate { value: f(*value), bit_size: *bit_size, max_bit_size: *max_bit_size }
             }
             Not(id) => Not(f(*id)),
+            Constrain(id) => Constrain(f(*id)),
             Jne(id, block) => Jne(f(*id), *block),
             Jeq(id, block) => Jeq(f(*id), *block),
             Jmp(block) => Jmp(*block),
@@ -1022,6 +1004,7 @@ impl Operation {
             Cast(value) => *value = f(*value),
             Truncate { value, .. } => *value = f(*value),
             Not(id) => *id = f(*id),
+            Constrain(id) => *id = f(*id),
             Jne(id, _) => *id = f(*id),
             Jeq(id, _) => *id = f(*id),
             Jmp(_) => (),
@@ -1069,6 +1052,7 @@ impl Operation {
             Cast(value) => f(*value),
             Truncate { value, .. } => f(*value),
             Not(id) => f(*id),
+            Constrain(id) => f(*id),
             Jne(id, _) => f(*id),
             Jeq(id, _) => f(*id),
             Jmp(_) => (),
@@ -1099,6 +1083,7 @@ impl Operation {
             Operation::Cast(_) => Opcode::Cast,
             Operation::Truncate { .. } => Opcode::Truncate,
             Operation::Not(_) => Opcode::Not,
+            Operation::Constrain(_) => Opcode::Constrain,
             Operation::Jne(_, _) => Opcode::Jne,
             Operation::Jeq(_, _) => Opcode::Jeq,
             Operation::Jmp(_) => Opcode::Jmp,
@@ -1125,9 +1110,6 @@ impl BinaryOp {
                 | BinaryOp::And
                 | BinaryOp::Or
                 | BinaryOp::Xor
-                // This isn't a match-all pattern in case more ops are ever added
-                // that aren't commutative
-                | BinaryOp::Constrain(ConstrainOp::Eq | ConstrainOp::Neq)
         )
     }
 }

@@ -2,7 +2,7 @@ use noirc_errors::Span;
 
 use crate::{
     hir_def::{
-        expr::{self, HirBinaryOp, HirExpression, HirLiteral, HirUnaryOp},
+        expr::{self, HirBinaryOp, HirBinaryOpKind, HirExpression, HirLiteral, HirUnaryOp},
         function::Param,
         types::Type,
     },
@@ -381,7 +381,7 @@ pub fn infix_operand_type_rules(
     other: &Type,
 ) -> Result<Type, String> {
     if op.kind.is_comparator() {
-        return comparator_operand_type_rules(lhs_type, other);
+        return comparator_operand_type_rules(lhs_type, other, op.kind);
     }
 
     use {FieldElementType::*, Type::*};
@@ -559,7 +559,11 @@ fn field_type_rules(lhs: &FieldElementType, rhs: &FieldElementType) -> FieldElem
     }
 }
 
-pub fn comparator_operand_type_rules(lhs_type: &Type, other: &Type) -> Result<Type, String> {
+pub fn comparator_operand_type_rules(
+    lhs_type: &Type,
+    other: &Type,
+    op: HirBinaryOpKind,
+) -> Result<Type, String> {
     use {FieldElementType::*, Type::*};
     match (lhs_type, other)  {
         (Integer(_, sign_x, bit_width_x), Integer(_, sign_y, bit_width_y)) => {
@@ -577,7 +581,7 @@ pub fn comparator_operand_type_rules(lhs_type: &Type, other: &Type) -> Result<Ty
         (Integer(..), FieldElement(Public)) | ( FieldElement(Public), Integer(..) ) => {
             Err("Cannot use an integer and a public variable in a binary operation, try converting the public into an integer".to_string())
         }
-        (Integer(_, _, _), FieldElement(Constant))| (FieldElement(Constant),Integer(_, _, _)) => {
+        (int, FieldElement(Constant))| (FieldElement(Constant), int) if int.is_field_element() => {
             Ok(Bool)
         }
         (Integer(..), typ) | (typ,Integer(..)) => {
@@ -588,7 +592,6 @@ pub fn comparator_operand_type_rules(lhs_type: &Type, other: &Type) -> Result<Ty
         (FieldElement(Private), FieldElement(_)) | (FieldElement(_), FieldElement(Private)) => Ok(Bool),
         // Public types are added as witnesses under the hood
         (FieldElement(Public), FieldElement(_)) | (FieldElement(_), FieldElement(Public)) => Ok(Bool),
-        (FieldElement(Constant), FieldElement(Constant))  => Ok(Bool),
 
         // <= and friends are technically valid for booleans, just not very useful
         (Bool, Bool) => Ok(Bool),
@@ -596,6 +599,18 @@ pub fn comparator_operand_type_rules(lhs_type: &Type, other: &Type) -> Result<Ty
         // Avoid reporting errors multiple times
         (Error, _) | (_,Error) => Ok(Error),
         (Unspecified, _) | (_,Unspecified) => Ok(Unspecified),
+
+        // Special-case == and != for arrays
+        (Array(_, x_size, x_type), Array(_, y_size, y_type)) if op == HirBinaryOpKind::Equal || op == HirBinaryOpKind::NotEqual => {
+            if !x_type.matches(y_type) {
+                return Err(format!("Cannot compare {} and {}, the element types differ", lhs_type, other));
+            }
+            if x_size != y_size {
+                return Err(format!("Can only compare arrays of the same length. Here LHS is of length {}, and RHS is {} ", 
+                    x_size, y_size));
+            }
+            Ok(Bool)
+        }
         (lhs, rhs) => Err(format!("Unsupported types for comparison: {} and {}", lhs, rhs)),
     }
 }

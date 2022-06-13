@@ -18,7 +18,7 @@ struct ResolverMeta {
 }
 
 use crate::hir_def::expr::{
-    HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
+    HirArrayLiteral, HirBlockExpression, HirCallExpression, HirCastExpression,
     HirConstructorExpression, HirForExpression, HirIdent, HirIfExpression, HirIndexExpression,
     HirInfixExpression, HirLiteral, HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
     HirUnaryOp,
@@ -274,11 +274,8 @@ impl<'a> Resolver<'a> {
                 self.interner.push_stmt(HirStatement::Let(let_stmt))
             }
             Statement::Constrain(constrain_stmt) => {
-                let lhs = self.resolve_expression(constrain_stmt.0.lhs);
-                let operator: HirBinaryOp = constrain_stmt.0.operator.into();
-                let rhs = self.resolve_expression(constrain_stmt.0.rhs);
-
-                let stmt = HirConstrainStatement(HirInfixExpression { lhs, operator, rhs });
+                let expr_id = self.resolve_expression(constrain_stmt.0);
+                let stmt = HirConstrainStatement(expr_id);
 
                 self.interner.push_stmt(HirStatement::Constrain(stmt))
             }

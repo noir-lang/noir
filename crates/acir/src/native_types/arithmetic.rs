@@ -41,6 +41,14 @@ impl Arithmetic {
     pub fn num_mul_terms(&self) -> usize {
         self.mul_terms.len()
     }
+
+    pub fn from_field(q_c: FieldElement) -> Arithmetic {
+        Self { q_c, ..Default::default() }
+    }
+
+    pub fn one() -> Arithmetic {
+        Self::from_field(FieldElement::one())
+    }
 }
 
 impl Mul<&FieldElement> for &Arithmetic {

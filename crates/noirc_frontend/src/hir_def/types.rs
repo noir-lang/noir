@@ -205,18 +205,6 @@ impl Type {
             || self == &Type::Error
     }
 
-    // Returns true if the Type can be used in a Constrain statement
-    pub fn can_be_used_in_constrain(&self) -> bool {
-        matches!(
-            self,
-            Type::FieldElement(_)
-                | Type::Integer(_, _, _)
-                | Type::Array(_, _, _)
-                | Type::Error
-                | Type::Bool
-        )
-    }
-
     // Base types are types in the language that are simply alias for a field element
     // Therefore they can be the operands in an infix comparison operator
     pub fn is_base_type(&self) -> bool {
