@@ -1,4 +1,3 @@
-fn main(x: Field) -> Field {
+fn main(x: Field) -> pub Field {
     x
-}
-    
+}    

@@ -142,6 +142,16 @@ impl FuncMeta {
             let typ = self.return_type.as_abi_type();
             abi.parameters.push((NodeInterner::main_return_name().into(), typ));
         }
+
+        println!(
+            "Returning abi with params [{}]",
+            abi.parameters
+                .iter()
+                .map(|(name, typ)| format!("{}: {:?}", name, typ))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+
         abi
     }
 }

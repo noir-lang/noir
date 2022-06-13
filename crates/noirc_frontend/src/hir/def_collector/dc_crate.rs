@@ -101,6 +101,7 @@ impl DefCollector {
         collect_defs(&mut def_collector, ast, root_file_id, crate_root, crate_id, context, errors);
 
         // Add the current crate to the collection of DefMaps
+        let main_id = def_collector.def_map.main_function();
         context.def_maps.insert(crate_id, def_collector.def_map);
 
         // Resolve unresolved imports collected from the crate
@@ -164,8 +165,8 @@ impl DefCollector {
         );
 
         // Type check all of the functions in the crate
-        type_check_functions(&mut context.def_interner, file_func_ids, errors);
-        type_check_functions(&mut context.def_interner, file_method_ids, errors);
+        type_check_functions(&mut context.def_interner, file_func_ids, main_id, errors);
+        type_check_functions(&mut context.def_interner, file_method_ids, main_id, errors);
     }
 }
 
@@ -352,13 +353,15 @@ fn resolve_functions(
 fn type_check_functions(
     interner: &mut NodeInterner,
     file_func_ids: Vec<(FileId, FuncId)>,
+    main_function: Option<FuncId>,
     errors: &mut Vec<CollectedErrors>,
 ) {
     file_func_ids
         .into_iter()
         .map(|(file_id, func_id)| {
-            let errors =
-                vecmap(type_check_func(interner, func_id), |error| error.into_diagnostic(interner));
+            let errors = vecmap(type_check_func(interner, func_id, main_function), |error| {
+                error.into_diagnostic(interner)
+            });
 
             CollectedErrors { file_id, errors }
         })
