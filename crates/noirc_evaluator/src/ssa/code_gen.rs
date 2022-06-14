@@ -215,7 +215,7 @@ impl<'a> IRGenerator<'a> {
         let rtype = self.context.get_object_type(rhs);
         match op {
             HirUnaryOp::Minus => {
-                let lhs = self.context.zero_type(rtype);
+                let lhs = self.context.zero_with_type(rtype);
                 Ok(self.context.new_instruction(lhs, rhs, Operation::Sub, rtype))
             }
             HirUnaryOp::Not => Ok(self.context.new_instruction(rhs, rhs, Operation::Not, rtype)),
