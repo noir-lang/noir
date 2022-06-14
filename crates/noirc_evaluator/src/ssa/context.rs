@@ -52,8 +52,8 @@ impl<'a> SsaContext<'a> {
             dummy_store: HashMap::new(),
         };
         block::create_first_block(&mut pc);
-        pc.one_type(node::ObjectType::Unsigned(1));
-        pc.zero_type(node::ObjectType::Unsigned(1));
+        pc.one_with_type(node::ObjectType::Unsigned(1));
+        pc.zero_with_type(node::ObjectType::Unsigned(1));
         pc
     }
 
@@ -65,16 +65,16 @@ impl<'a> SsaContext<'a> {
         self.find_const_with_type(&BigUint::one(), node::ObjectType::Unsigned(1)).unwrap()
     }
 
-    pub fn zero_type(&mut self, obj_type: ObjectType) -> NodeId {
+    pub fn zero_with_type(&mut self, obj_type: ObjectType) -> NodeId {
         self.get_or_create_const(FieldElement::zero(), obj_type)
     }
 
-    pub fn one_type(&mut self, obj_type: ObjectType) -> NodeId {
+    pub fn one_with_type(&mut self, obj_type: ObjectType) -> NodeId {
         self.get_or_create_const(FieldElement::one(), obj_type)
     }
 
     pub fn get_dummy_store(&self, a: u32) -> NodeId {
-        *self.dummy_store.get(&a).unwrap()
+        self.dummy_store[&a]
     }
 
     pub fn get_function_index(&self) -> FuncIndex {
@@ -320,7 +320,7 @@ impl<'a> SsaContext<'a> {
         true
     }
 
-    //Returns true is a may be equal to b, and false else
+    //Returns true if a may be equal to b, and false otherwise
     pub fn maybe_equal(&self, a: NodeId, b: NodeId) -> bool {
         if a == NodeId::dummy() || b == NodeId::dummy() {
             return true;
