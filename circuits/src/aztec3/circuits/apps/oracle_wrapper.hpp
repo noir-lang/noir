@@ -30,7 +30,7 @@ template <typename Composer> class OracleWrapperInterface {
         : composer(composer)
         , oracle(oracle){};
 
-    fr get_msg_sender_private_key()
+    fr& get_msg_sender_private_key()
     {
         if (msg_sender_private_key) {
             return *msg_sender_private_key;
@@ -40,7 +40,7 @@ template <typename Composer> class OracleWrapperInterface {
         return *msg_sender_private_key;
     };
 
-    CallContext<CT> get_call_context()
+    CallContext<CT>& get_call_context()
     {
         if (call_context) {
             return *call_context;
@@ -49,9 +49,9 @@ template <typename Composer> class OracleWrapperInterface {
         return *call_context;
     };
 
-    address get_msg_sender() { return get_call_context().msg_sender; };
+    address& get_msg_sender() { return get_call_context().msg_sender; };
 
-    address get_this_contract_address() { return get_call_context().storage_contract_address; };
+    address& get_this_contract_address() { return get_call_context().storage_contract_address; };
 
     fr generate_salt() const { return plonk::stdlib::types::to_ct(composer, oracle.generate_salt()); }
 

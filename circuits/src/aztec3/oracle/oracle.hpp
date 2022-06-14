@@ -19,25 +19,61 @@ template <typename DB> class NativeOracleInterface {
     NativeOracleInterface(DB& db,
                           NT::fr const& contract_address,
                           //   NT::fr const& portal_contract_address,
-                          NT::address const& msg_sender)
+                          NT::address const& msg_sender,
+                          NT::boolean const& is_delegate_call = false,
+                          NT::boolean const& is_static_call = false,
+                          NT::boolean const& is_fee_payment = false,
+                          NT::boolean const& pay_fee_from_l1 = false,
+                          NT::boolean const& pay_fee_from_public_l2 = false,
+                          NT::boolean const& called_from_l1 = false,
+                          NT::boolean const& called_from_public_l2 = false)
         : db(db)
         , call_context({
               .msg_sender = msg_sender,
               .storage_contract_address = contract_address,
+              .is_delegate_call = is_delegate_call,
+              .is_static_call = is_static_call,
+              .is_fee_payment = is_fee_payment,
+              .pay_fee_from_l1 = pay_fee_from_l1,
+              .pay_fee_from_public_l2 = pay_fee_from_public_l2,
+              .called_from_l1 = called_from_l1,
+              .called_from_public_l2 = called_from_public_l2,
           })
         // , portal_contract_address(portal_contract_address)
         {};
 
+    // Include the msg_sender_private_key
     NativeOracleInterface(DB& db,
                           NT::fr const& contract_address,
                           //   NT::fr const& portal_contract_address,
                           NT::address const& msg_sender,
-                          std::optional<NT::fr> msg_sender_private_key)
+                          std::optional<NT::fr> msg_sender_private_key,
+                          NT::boolean const& is_delegate_call = false,
+                          NT::boolean const& is_static_call = false,
+                          NT::boolean const& is_fee_payment = false,
+                          NT::boolean const& pay_fee_from_l1 = false,
+                          NT::boolean const& pay_fee_from_public_l2 = false,
+                          NT::boolean const& called_from_l1 = false,
+                          NT::boolean const& called_from_public_l2 = false)
         : db(db)
         , call_context({
               .msg_sender = msg_sender,
               .storage_contract_address = contract_address,
+              .is_delegate_call = is_delegate_call,
+              .is_static_call = is_static_call,
+              .is_fee_payment = is_fee_payment,
+              .pay_fee_from_l1 = pay_fee_from_l1,
+              .pay_fee_from_public_l2 = pay_fee_from_public_l2,
+              .called_from_l1 = called_from_l1,
+              .called_from_public_l2 = called_from_public_l2,
           })
+        // , portal_contract_address(portal_contract_address)
+        , msg_sender_private_key(msg_sender_private_key){};
+
+    // CallContext as struct
+    NativeOracleInterface(DB& db, CallContext<NT> call_context, std::optional<NT::fr> msg_sender_private_key)
+        : db(db)
+        , call_context(call_context)
         // , portal_contract_address(portal_contract_address)
         , msg_sender_private_key(msg_sender_private_key){};
 

@@ -20,7 +20,6 @@ TEST(abi_tests, test_native_function_signature)
         .vk_index = 11,
         .is_private = false,
         .is_constructor = false,
-        .is_callback = false,
     };
 
     info("function signature: ", function_signature);
@@ -38,7 +37,6 @@ TEST(abi_tests, test_native_to_circuit_function_signature)
         .vk_index = 11,
         .is_private = false,
         .is_constructor = false,
-        .is_callback = false,
     };
 
     info("function signature: ", native_function_signature);
@@ -142,7 +140,6 @@ TEST(abi_tests, test_native_call_stack_item)
             .vk_index = 11,
             .is_private = false,
             .is_constructor = false,
-            .is_callback = false,
         },
         .public_inputs = public_inputs,
         .call_context = {
@@ -179,7 +176,6 @@ TEST(abi_tests, test_native_to_circuit_call_stack_item)
             .vk_index = 11,
             .is_private = false,
             .is_constructor = false,
-            .is_callback = false,
         },
         .public_inputs = public_inputs,
         .call_context = {

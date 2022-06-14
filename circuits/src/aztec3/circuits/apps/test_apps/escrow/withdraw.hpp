@@ -9,7 +9,6 @@ void withdraw(Composer& composer,
               NT::fr const& _asset_id,
               NT::fr const& _memo,
               NT::fr const& _l1_withdrawal_address,
-              NT::fr const& _fee,
-              NT::boolean const& _is_fee_payment);
+              NT::fr const& _fee);
 
 } // namespace aztec3::circuits::apps::test_apps::escrow

@@ -10,7 +10,6 @@ void transfer(Composer& composer,
               NT::fr const& _asset_id,
               NT::fr const& _memo,
               NT::boolean const& _reveal_msg_sender_to_recipient,
-              NT::fr const& _fee,
-              NT::boolean const& _is_fee_payment);
+              NT::fr const& _fee);
 
 } // namespace aztec3::circuits::apps::test_apps::escrow

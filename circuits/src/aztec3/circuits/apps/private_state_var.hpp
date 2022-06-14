@@ -20,11 +20,14 @@ template <typename Composer> class PrivateStateVar {
     typedef typename CT::address address;
     typedef typename CT::grumpkin_point grumpkin_point;
 
-    PrivateStateFactory<Composer>* state_factory;
+    PrivateStateFactory<Composer>*
+        state_factory; // Pointer, because PrivateStateVar can't hold a reference (because it gets initialised as a
+                       // member of a map within PrivateStateFactory, so might not be passed data upon initialisation)
     PrivateStateType private_state_type;
     std::string name;
     fr start_slot;
-    grumpkin_point slot_point; /// TODO: make this std::optional (since mappings won't have this)
+    grumpkin_point slot_point; /// TODO: make this std::optional (since mapping vars won't have this (only specific
+                               /// mapping values will))?
 
     // A mapping var (in particular) can point to many private_states:
     std::map<NativeTypes::fr, PrivateStateVar<Composer>> private_states;

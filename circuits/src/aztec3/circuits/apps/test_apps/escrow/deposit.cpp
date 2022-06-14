@@ -43,13 +43,6 @@ OptionalPrivateCircuitPublicInputs<NT> deposit(
     public_inputs.set_commitments(contract.private_state_factory.commitments);
     public_inputs.set_nullifiers(contract.private_state_factory.nullifiers);
 
-    public_inputs.pay_fee_from_l1 = to_ct(composer, true);
-    CT::fr(*public_inputs.pay_fee_from_l1)
-        .assert_equal(1); /// TODO: Ugly way of hard-coding a witness. Is there a nicer way?
-    public_inputs.called_from_l1 = to_ct(composer, true);
-    CT::fr(*public_inputs.called_from_l1)
-        .assert_equal(1); /// TODO: Ugly way of hard-coding a witness. Is there a nicer way?
-
     public_inputs.set_public(composer);
 
     info("public inputs: ", public_inputs);

@@ -15,8 +15,7 @@ void transfer(Composer& composer,
               NT::fr const& _asset_id,
               NT::fr const& _memo,
               NT::boolean const& _reveal_msg_sender_to_recipient,
-              NT::fr const& _fee,
-              NT::boolean const& _is_fee_payment)
+              NT::fr const& _fee)
 {
     info("\n\nin transfer...");
 
@@ -28,7 +27,6 @@ void transfer(Composer& composer,
     CT::fr memo = to_ct(composer, _memo);
     CT::boolean reveal_msg_sender_to_recipient = to_ct(composer, _reveal_msg_sender_to_recipient);
     CT::fr fee = to_ct(composer, _fee);
-    CT::boolean is_fee_payment = to_ct(composer, _is_fee_payment);
 
     // Get states and globals *******************************************************
 
@@ -75,7 +73,6 @@ void transfer(Composer& composer,
     public_inputs.custom_public_inputs[3] = memo;
     public_inputs.custom_public_inputs[4] = CT::fr(reveal_msg_sender_to_recipient);
     public_inputs.custom_public_inputs[5] = fee;
-    public_inputs.custom_public_inputs[6] = is_fee_payment;
 
     public_inputs.emitted_public_inputs[0] = CT::fr::copy_as_new_witness(composer, fee);
     public_inputs.emitted_public_inputs[1] = CT::fr::copy_as_new_witness(composer, asset_id);
@@ -85,8 +82,6 @@ void transfer(Composer& composer,
 
     /// TODO: merkle membership check
     // public_inputs.old_private_data_tree_root
-
-    public_inputs.is_fee_payment = CT::boolean(CT::fr::copy_as_new_witness(composer, is_fee_payment));
 
     public_inputs.set_public(composer);
 

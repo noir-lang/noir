@@ -60,10 +60,6 @@ template <typename Composer> class ContractFactory {
         return function_signatures[name];
     }
 
-    // FunctionSignature<CircuitTypes<Composer>> get_function_signature_by_name(std::string const& name) {
-
-    // }
-
     void import_l1_function(L1FunctionStruct<Composer> const& l1_function_struct)
     {
         L1Function<Composer> l1_function = L1Function<Composer>(this, l1_function_struct);

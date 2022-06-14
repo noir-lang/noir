@@ -140,8 +140,7 @@ void validate_inputs(PrivateInputs<CT> const& private_inputs, PublicInputs<CT>& 
     {
         is_recursive_case.must_imply(private_inputs.previous_kernel.public_inputs.is_private == true,
                                      "Cannot verify a non-private kernel snark in the private kernel circuit");
-        is_recursive_case.must_imply(private_inputs.private_call.call_stack_item.function_signature.is_callback ==
-                                         false,
+        is_recursive_case.must_imply(private_inputs.private_call.call_stack_item.call_context.is_callback == false,
                                      "A callback must be executed as the first tx in the recursion");
         is_recursive_case.must_imply(private_inputs.private_call.call_stack_item.function_signature.is_constructor ==
                                          false,
@@ -286,7 +285,7 @@ void private_kernel_circuit(Composer& composer, OracleWrapper& oracle, PrivateIn
 
     public_inputs.constants.is_callback_recursion =
         CT::boolean::conditional_assign(is_base_case,
-                                        private_inputs.private_call.call_stack_item.function_signature.is_callback,
+                                        private_inputs.private_call.call_stack_item.call_context.is_callback,
                                         private_inputs.previous_kernel.public_inputs.constants.is_callback_recursion);
 
     public_inputs.end.aggregation_object = aggregation_object;

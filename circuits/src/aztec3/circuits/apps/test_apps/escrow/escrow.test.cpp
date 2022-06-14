@@ -55,7 +55,13 @@ TEST(escrow_tests, test_transfer)
         NT::fr(uint256_t(0x01071e9a23e0f7edULL, 0x5d77b35d1830fa3eULL, 0xc6ba3660bb1f0c0bULL, 0x2ef9f7f09867fd6eULL));
     const NT::fr msg_sender_private_key = 123456789;
 
-    NativeOracle oracle = NativeOracle(db, contract_address, msg_sender, msg_sender_private_key);
+    CallContext<NT> call_context = {
+        .msg_sender = msg_sender,
+        .storage_contract_address = contract_address,
+        .is_fee_payment = true,
+    };
+
+    NativeOracle oracle = NativeOracle(db, call_context, msg_sender_private_key);
     OracleWrapper oracle_wrapper = OracleWrapper(composer, oracle);
 
     auto amount = NT::fr(5);
@@ -64,9 +70,8 @@ TEST(escrow_tests, test_transfer)
     auto memo = NT::fr(999);
     auto reveal_msg_sender_to_recipient = true;
     auto fee = NT::fr(2);
-    auto is_fee_payment = fee > 0;
 
-    transfer(composer, oracle_wrapper, amount, to, asset_id, memo, reveal_msg_sender_to_recipient, fee, is_fee_payment);
+    transfer(composer, oracle_wrapper, amount, to, asset_id, memo, reveal_msg_sender_to_recipient, fee);
 
     info("computed witness: ", composer.computed_witness);
     info("witness: ", composer.witness);
@@ -88,7 +93,13 @@ TEST(escrow_tests, test_withdraw)
         NT::fr(uint256_t(0x01071e9a23e0f7edULL, 0x5d77b35d1830fa3eULL, 0xc6ba3660bb1f0c0bULL, 0x2ef9f7f09867fd6eULL));
     const NT::fr msg_sender_private_key = 123456789;
 
-    NativeOracle oracle = NativeOracle(db, contract_address, msg_sender, msg_sender_private_key);
+    CallContext<NT> call_context = {
+        .msg_sender = msg_sender,
+        .storage_contract_address = contract_address,
+        .is_fee_payment = true,
+    };
+
+    NativeOracle oracle = NativeOracle(db, call_context, msg_sender_private_key);
     OracleWrapper oracle_wrapper = OracleWrapper(composer, oracle);
 
     auto amount = NT::fr(5);
@@ -96,9 +107,8 @@ TEST(escrow_tests, test_withdraw)
     auto memo = NT::fr(999);
     auto l1_withdrawal_address = NT::fr(657756);
     auto fee = NT::fr(2);
-    auto is_fee_payment = fee > 0;
 
-    withdraw(composer, oracle_wrapper, amount, asset_id, memo, l1_withdrawal_address, fee, is_fee_payment);
+    withdraw(composer, oracle_wrapper, amount, asset_id, memo, l1_withdrawal_address, fee);
 
     info("computed witness: ", composer.computed_witness);
     info("witness: ", composer.witness);

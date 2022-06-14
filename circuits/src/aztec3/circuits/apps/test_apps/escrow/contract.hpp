@@ -16,7 +16,7 @@ inline ContractFactory<Composer> init(Composer& composer, OracleWrapper& oracle)
         { .name = "deposit", .is_private = true },
         { .name = "transfer", .is_private = true },
         { .name = "withdraw", .is_private = true },
-        // not needed, but it's helping me figure out success cases:
+        // success case not needed in this app, but it's helping me figure out success cases:
         { .name = "withdraw_success_callback", .is_private = true },
         { .name = "withdraw_failure_callback", .is_private = true },
     });

@@ -40,11 +40,6 @@ template <typename NCT> class PrivateCircuitPublicInputs {
 
     fr old_private_data_tree_root;
 
-    boolean is_fee_payment;
-    boolean pay_fee_from_l1;
-    boolean pay_fee_from_public_l2;
-    boolean called_from_l1;
-
     template <typename Composer>
     PrivateCircuitPublicInputs<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
     {
@@ -72,11 +67,6 @@ template <typename NCT> class PrivateCircuitPublicInputs {
             map(callback_stack, to_circuit_type),
 
             to_ct(old_private_data_tree_root),
-
-            to_ct(is_fee_payment),
-            to_ct(pay_fee_from_l1),
-            to_ct(pay_fee_from_public_l2),
-            to_ct(called_from_l1),
         };
 
         return pis;
@@ -105,11 +95,6 @@ template <typename NCT> class PrivateCircuitPublicInputs {
         spread_arr_into_vec(map(callback_stack, to_hashes), inputs);
 
         inputs.push_back(old_private_data_tree_root);
-
-        inputs.push_back(fr(is_fee_payment));
-        inputs.push_back(fr(pay_fee_from_l1));
-        inputs.push_back(fr(pay_fee_from_public_l2));
-        inputs.push_back(fr(called_from_l1));
 
         return NCT::compress(inputs, GeneratorIndex::PRIVATE_CIRCUIT_PUBLIC_INPUTS);
     }
@@ -150,11 +135,6 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
     opt_fr old_private_data_tree_root;
 
-    opt_boolean is_fee_payment;
-    opt_boolean pay_fee_from_l1;
-    opt_boolean pay_fee_from_public_l2;
-    opt_boolean called_from_l1;
-
     OptionalPrivateCircuitPublicInputs<NCT>(){};
 
     OptionalPrivateCircuitPublicInputs<NCT>(
@@ -174,12 +154,7 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
         std::array<opt_fr, PARTIAL_L1_CALL_STACK_LENGTH> const& partial_l1_call_stack,
         std::array<std::optional<CallbackStackItem<NCT>>, CALLBACK_STACK_LENGTH> const& callback_stack,
 
-        opt_fr const& old_private_data_tree_root,
-
-        opt_boolean const& is_fee_payment,
-        opt_boolean const& pay_fee_from_l1,
-        opt_boolean const& pay_fee_from_public_l2,
-        opt_boolean const& called_from_l1)
+        opt_fr const& old_private_data_tree_root)
         : call_context(call_context)
         , custom_public_inputs(custom_public_inputs)
         , emitted_public_inputs(emitted_public_inputs)
@@ -191,11 +166,7 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
         , contract_deployment_call_stack(contract_deployment_call_stack)
         , partial_l1_call_stack(partial_l1_call_stack)
         , callback_stack(callback_stack)
-        , old_private_data_tree_root(old_private_data_tree_root)
-        , is_fee_payment(is_fee_payment)
-        , pay_fee_from_l1(pay_fee_from_l1)
-        , pay_fee_from_public_l2(pay_fee_from_public_l2)
-        , called_from_l1(called_from_l1){};
+        , old_private_data_tree_root(old_private_data_tree_root){};
 
     bool operator==(OptionalPrivateCircuitPublicInputs<NCT> const&) const = default;
 
@@ -267,11 +238,6 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
         make_unused_element_zero(composer, old_private_data_tree_root);
 
-        make_unused_element_zero(composer, is_fee_payment);
-        make_unused_element_zero(composer, pay_fee_from_l1);
-        make_unused_element_zero(composer, pay_fee_from_public_l2);
-        make_unused_element_zero(composer, called_from_l1);
-
         all_elements_populated = true;
     }
 
@@ -300,11 +266,6 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
         set_array_public(callback_stack);
 
         (*old_private_data_tree_root).set_public();
-
-        fr(*is_fee_payment).set_public();
-        fr(*pay_fee_from_l1).set_public();
-        fr(*pay_fee_from_public_l2).set_public();
-        fr(*called_from_l1).set_public();
     }
 
     template <typename Composer>
@@ -336,11 +297,6 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
             map(callback_stack, to_circuit_type),
 
             to_ct(old_private_data_tree_root),
-
-            to_ct(is_fee_payment),
-            to_ct(pay_fee_from_l1),
-            to_ct(pay_fee_from_public_l2),
-            to_ct(called_from_l1),
         };
 
         return pis;
@@ -373,11 +329,6 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
             map(callback_stack, to_native_type),
 
             to_nt(old_private_data_tree_root),
-
-            to_nt(is_fee_payment),
-            to_nt(pay_fee_from_l1),
-            to_nt(pay_fee_from_public_l2),
-            to_nt(called_from_l1),
         };
 
         return pis;
@@ -412,11 +363,6 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
         inputs.push_back(*old_private_data_tree_root);
 
-        inputs.push_back(fr(*is_fee_payment));
-        inputs.push_back(fr(*pay_fee_from_l1));
-        inputs.push_back(fr(*pay_fee_from_public_l2));
-        inputs.push_back(fr(*called_from_l1));
-
         return NCT::compress(inputs, GeneratorIndex::PRIVATE_CIRCUIT_PUBLIC_INPUTS);
     }
 
@@ -443,11 +389,6 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
             .callback_stack = map(callback_stack, get_value),
 
             .old_private_data_tree_root = old_private_data_tree_root.value(),
-
-            .is_fee_payment = is_fee_payment.value(),
-            .pay_fee_from_l1 = pay_fee_from_l1.value(),
-            .pay_fee_from_public_l2 = pay_fee_from_public_l2.value(),
-            .called_from_l1 = called_from_l1.value(),
         };
     }
 
@@ -575,17 +516,6 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
         }
     }
 
-    //     template <typename Composer>
-    // void make_unused_element_zero(Composer& composer, std::optional<CallContext<CircuitTypes<Composer>>>& element)
-    // {
-    //     static_assert((std::is_same<CircuitTypes<Composer>, NCT>::value));
-
-    //     if (!element) {
-    //         element = CallContext<NativeTypes>::empty().to_circuit_type(composer);
-    //         (*element).template assert_is_zero<Composer>();
-    //     }
-    // }
-
     // Make sure this is only called by functions which have implemented a "CT only" check.
     template <typename T, size_t SIZE> void set_array_public(std::array<std::optional<T>, SIZE>& arr)
     {
@@ -621,10 +551,6 @@ void read(uint8_t const*& it, OptionalPrivateCircuitPublicInputs<NCT>& private_c
     read(it, pis.partial_l1_call_stack);
     read(it, pis.callback_stack);
     read(it, pis.old_private_data_tree_root);
-    read(it, pis.is_fee_payment);
-    read(it, pis.pay_fee_from_l1);
-    read(it, pis.pay_fee_from_public_l2);
-    read(it, pis.called_from_l1);
 };
 
 template <typename NCT>
@@ -646,10 +572,6 @@ void write(std::vector<uint8_t>& buf, OptionalPrivateCircuitPublicInputs<NCT> co
     write(buf, pis.partial_l1_call_stack);
     write(buf, pis.callback_stack);
     write(buf, pis.old_private_data_tree_root);
-    write(buf, pis.is_fee_payment);
-    write(buf, pis.pay_fee_from_l1);
-    write(buf, pis.pay_fee_from_public_l2);
-    write(buf, pis.called_from_l1);
 };
 
 template <typename NCT>
@@ -668,11 +590,7 @@ std::ostream& operator<<(std::ostream& os, OptionalPrivateCircuitPublicInputs<NC
               << "contract_deployment_call_stack: " << pis.contract_deployment_call_stack << "\n"
               << "partial_l1_call_stack: " << pis.partial_l1_call_stack << "\n"
               << "callbck_stack: " << pis.callback_stack << "\n"
-              << "old_private_data_tree_root: " << pis.old_private_data_tree_root << "\n"
-              << "is_fee_payment: " << pis.is_fee_payment << "\n"
-              << "pay_fee_from_l1: " << pis.pay_fee_from_l1 << "\n"
-              << "pay_fee_from_public_l2: " << pis.pay_fee_from_public_l2 << "\n"
-              << "called_from_l1: " << pis.called_from_l1 << "\n";
+              << "old_private_data_tree_root: " << pis.old_private_data_tree_root << "\n";
 }
 
 } // namespace aztec3::circuits::abis

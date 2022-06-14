@@ -20,7 +20,10 @@ template <typename NCT> struct OptionallyRevealedData {
     std::array<fr, EMITTED_PUBLIC_INPUTS_LENGTH> emitted_public_inputs;
     fr vk_hash;
     fr portal_contract_address; // an ETH address
-    // BOOLS TOO!
+    boolean pay_fee_from_l1;
+    boolean pay_fee_from_public_l2;
+    boolean called_from_l1;
+    boolean called_from_public_l2;
 
     template <typename Composer>
     OptionallyRevealedData<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
@@ -33,7 +36,9 @@ template <typename NCT> struct OptionallyRevealedData {
         OptionallyRevealedData<CircuitTypes<Composer>> data = {
             to_ct(call_stack_item_hash),    function_signature.to_circuit_type(composer),
             to_ct(emitted_public_inputs),   to_ct(vk_hash),
-            to_ct(portal_contract_address),
+            to_ct(portal_contract_address), to_ct(pay_fee_from_l1),
+            to_ct(pay_fee_from_public_l2),  to_ct(called_from_l1),
+            to_ct(called_from_public_l2),
         };
 
         return data;

@@ -24,8 +24,6 @@ template <typename NCT> struct FunctionSignature {
     uint32 vk_index;
     boolean is_private = false;
     boolean is_constructor = false;
-    boolean is_callback = false; // TODO: move this to be with is_delegate_call and is_static_call, since it's a runtime
-                                 // bool, rather than a constant property of the function.
 
     bool operator==(FunctionSignature<NCT> const&) const = default;
 
@@ -39,7 +37,10 @@ template <typename NCT> struct FunctionSignature {
         auto to_ct = [&](auto& e) { return plonk::stdlib::types::to_ct(composer, e); };
 
         FunctionSignature<CircuitTypes<Composer>> function_signature = {
-            to_ct(contract_address), to_ct(vk_index), to_ct(is_private), to_ct(is_constructor), to_ct(is_callback),
+            to_ct(contract_address),
+            to_ct(vk_index),
+            to_ct(is_private),
+            to_ct(is_constructor),
         };
 
         return function_signature;
@@ -53,13 +54,15 @@ template <typename NCT> struct FunctionSignature {
         fr(vk_index).set_public();
         fr(is_private).set_public();
         fr(is_constructor).set_public();
-        fr(is_callback).set_public();
     }
 
     fr hash() const
     {
         std::vector<fr> inputs = {
-            contract_address.to_field(), fr(vk_index), fr(is_private), fr(is_constructor), fr(is_callback),
+            contract_address.to_field(),
+            fr(vk_index),
+            fr(is_private),
+            fr(is_constructor),
         };
 
         return NCT::compress(inputs, GeneratorIndex::FUNCTION_SIGNATURE);
@@ -74,7 +77,6 @@ template <typename NCT> void read(uint8_t const*& it, FunctionSignature<NCT>& fu
     read(it, function_signature.vk_index);
     read(it, function_signature.is_private);
     read(it, function_signature.is_constructor);
-    read(it, function_signature.is_callback);
 };
 
 template <typename NCT> void write(std::vector<uint8_t>& buf, FunctionSignature<NCT> const& function_signature)
@@ -85,7 +87,6 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, FunctionSignature<
     write(buf, function_signature.vk_index);
     write(buf, function_signature.is_private);
     write(buf, function_signature.is_constructor);
-    write(buf, function_signature.is_callback);
 };
 
 template <typename NCT> std::ostream& operator<<(std::ostream& os, FunctionSignature<NCT> const& function_signature)
@@ -93,8 +94,7 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, FunctionSigna
     return os << "contract_address: " << function_signature.contract_address << "\n"
               << "vk_index: " << function_signature.vk_index << "\n"
               << "is_private: " << function_signature.is_private << "\n"
-              << "is_constructor: " << function_signature.is_constructor << "\n"
-              << "is_callback: " << function_signature.is_callback << "\n";
+              << "is_constructor: " << function_signature.is_constructor << "\n";
 }
 
 } // namespace aztec3::circuits::abis
