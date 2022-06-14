@@ -1182,7 +1182,7 @@ mod test {
             ("let = ", 2, "let $error: unspecified = Error"),
             ("let", 3, "let $error: unspecified = Error"),
             ("foo = one two three", 1, "foo = one"),
-            ("constrain", 2, "Error"), // We don't recover 'constrain Error' since constrain needs a binary operator
+            ("constrain", 1, "constrain Error"),
             ("constrain x ==", 1, "constrain (x == Error)"),
         ];
 
