@@ -304,7 +304,7 @@ pub fn inline_all(ctx: &mut SsaContext) {
     while processed.len() < l {
         let i = get_new_leaf(ctx, &processed);
         if !processed.is_empty() {
-            super::optim::cse(ctx, ctx.functions[&i.1].entry_block);
+            super::optim::full_cse(ctx, ctx.functions[&i.1].entry_block);
         }
         let mut to_inline = Vec::new();
         for f in ctx.functions.values() {

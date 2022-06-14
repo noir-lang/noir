@@ -98,6 +98,7 @@ impl<'a> SsaContext<'a> {
     }
 
     pub fn print_block(&self, b: &block::BasicBlock) {
+        println!("************* Block n.{}", b.id.0.into_raw_parts().0);
         for id in &b.instructions {
             let ins = self.get_instruction(*id);
             let mut str_res = if ins.res_name.is_empty() {
@@ -126,8 +127,7 @@ impl<'a> SsaContext<'a> {
 
     pub fn print(&self, text: &str) {
         println!("{}", text);
-        for (i, (_, b)) in self.blocks.iter().enumerate() {
-            println!("************* Block n.{}", i);
+        for (_, b) in self.blocks.iter() {
             self.print_block(b);
         }
     }

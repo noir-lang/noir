@@ -24,7 +24,7 @@ const MAX_INLINE_TRIES: u32 = 100;
 pub fn inline_tree(ctx: &mut SsaContext, block_id: BlockId) {
     //inline all function calls
     let mut retry = MAX_INLINE_TRIES;
-    while retry > 0 && !inline_block(ctx, ctx.first_block, None) {
+    while retry > 0 && !inline_block(ctx, block_id, None) {
         retry -= 1;
     }
     assert!(retry > 0, "Error - too many nested calls");

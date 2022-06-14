@@ -558,11 +558,11 @@ pub fn get_max_value(ins: &Instruction, lhs_max: BigUint, rhs_max: BigUint) -> B
                 - BigUint::one()
         }
         Operation::Not => ins.res_type.max_size(),
-        Operation::Shr => BigUint::min(
+        Operation::Shl => BigUint::min(
             BigUint::from(2_u32).pow((lhs_max.bits() + 1) as u32) - BigUint::one(),
             ins.res_type.max_size(),
         ),
-        Operation::Shl => {
+        Operation::Shr => {
             if lhs_max.bits() >= 1 {
                 BigUint::from(2_u32).pow((lhs_max.bits() - 1) as u32) - BigUint::one()
             } else {

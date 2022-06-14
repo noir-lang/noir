@@ -237,8 +237,8 @@ fn evaluate_phi(
     to: &mut HashMap<NodeId, NodeEval>,
     igen: &mut SsaContext,
 ) {
+    let mut to_process = Vec::new();
     for i in instructions {
-        let mut to_process = Vec::new();
         if let Some(ins) = igen.try_get_instruction(*i) {
             if ins.operator == node::Operation::Phi {
                 for phi in &ins.phi_arguments {
@@ -254,10 +254,10 @@ fn evaluate_phi(
                 break; //phi instructions are placed at the beginning (and after the first dummy instruction)
             }
         }
-        //Update the evaluation map.
-        for obj in to_process {
-            to.insert(obj.0, NodeEval::VarOrInstruction(optim::to_index(igen, obj.1)));
-        }
+    }
+    //Update the evaluation map.
+    for obj in to_process {
+        to.insert(obj.0, NodeEval::VarOrInstruction(optim::to_index(igen, obj.1)));
     }
 }
 

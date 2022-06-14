@@ -35,6 +35,9 @@ pub fn to_const(ctx: &SsaContext, obj: NodeEval) -> NodeEval {
 
 // Performs constant folding, arithmetic simplifications and move to standard form
 pub fn simplify(ctx: &mut SsaContext, ins: &mut node::Instruction) {
+    if ins.is_deleted {
+        return;
+    }
     //1. constant folding
     let l_eval = to_const(ctx, NodeEval::VarOrInstruction(ins.lhs));
     let r_eval = to_const(ctx, NodeEval::VarOrInstruction(ins.rhs));
@@ -95,40 +98,12 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut node::Instruction) {
 
     //3. left-overs (it requires &mut ctx)
     if let NodeEval::Const(r_const, r_type) = r_eval {
-        match ins.operator {
-            node::Operation::Div => {
-                ins.rhs = ctx.get_or_create_const(r_const.inverse(), r_type);
-                ins.operator = node::Operation::Mul
-            }
-            node::Operation::Xor => {
-                if !r_const.is_zero() {
-                    ins.operator = node::Operation::Not;
-                    return;
-                }
-            }
-            node::Operation::Shl => {
-                ins.operator = node::Operation::Mul;
-                //todo checks that 2^rhs does not overflow
-                ins.rhs = ctx.get_or_create_const(FieldElement::from(2_i128).pow(&r_const), r_type);
-                return;
-            }
-            node::Operation::Shr => {
-                if !matches!(ins.res_type, node::ObjectType::Unsigned(_)) {
-                    todo!("Right shift is only implemented for unsigned integers");
-                }
-                ins.operator = node::Operation::Udiv;
-                //todo checks that 2^rhs does not overflow
-                ins.rhs = ctx.get_or_create_const(FieldElement::from(2_i128).pow(&r_const), r_type);
-                return;
-            }
-            _ => (),
+        if ins.operator == node::Operation::Div {
+            ins.rhs = ctx.get_or_create_const(r_const.inverse(), r_type);
+            ins.operator = node::Operation::Mul
         }
     }
     if let NodeEval::Const(l_const, _) = l_eval {
-        if !l_const.is_zero() && ins.operator == node::Operation::Xor {
-            ins.operator = node::Operation::Not;
-            ins.lhs = ins.rhs;
-        }
         if let NodeEval::Const(r_const, _) = r_eval {
             if let Operation::Intrinsic(op) = ins.operator {
                 ins.rhs = evaluate_intrinsic(ctx, op, l_const, r_const);
@@ -186,7 +161,7 @@ pub fn find_similar_instruction(
 ) -> Option<NodeId> {
     for iter in prev_ins {
         if let Some(ins) = igen.try_get_instruction(*iter) {
-            if ins.lhs == lhs && ins.rhs == rhs {
+            if ins.lhs == lhs && ins.rhs == rhs && !ins.is_deleted {
                 return Some(*iter);
             }
         }
@@ -219,7 +194,7 @@ pub fn find_similar_cast(
 ) -> Option<NodeId> {
     for iter in prev_ins {
         if let Some(ins) = igen.try_get_instruction(*iter) {
-            if ins.lhs == lhs && ins.res_type == res_type {
+            if ins.lhs == lhs && ins.res_type == res_type && !ins.is_deleted {
                 return Some(*iter);
             }
         }
@@ -397,11 +372,12 @@ pub fn block_cse(
             } else {
                 match ins.operator {
                     node::Operation::Load(x) | node::Operation::Store(x) => {
+                        i_lhs = propagate(ctx, ins.lhs, modified);
+                        i_rhs = propagate(ctx, ins.rhs, modified);
+
                         if !is_join && ins.is_dummy() && ins.operator == node::Operation::Store(x) {
                             continue;
                         }
-                        i_lhs = propagate(ctx, ins.lhs, modified);
-                        i_rhs = propagate(ctx, ins.rhs, modified);
 
                         let prev_ins = &anchor[&node::Operation::Load(x)];
 
