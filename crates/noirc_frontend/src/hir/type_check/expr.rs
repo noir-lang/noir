@@ -88,32 +88,7 @@ pub(crate) fn type_check_expression(
             }
         }
         HirExpression::Index(index_expr) => {
-            let index_type = type_check_expression(interner, &index_expr.index, errors);
-            if !index_type.matches(&Type::CONSTANT) {
-                let span = interner.id_span(&index_expr.index);
-                errors.push(TypeCheckError::TypeMismatch {
-                    expected_typ: "const Field".to_owned(),
-                    expr_typ: index_type.to_string(),
-                    expr_span: span,
-                });
-            }
-
-            let lhs_type = type_check_expression(interner, &index_expr.collection, errors);
-            match lhs_type {
-                // XXX: We can check the array bounds here also, but it may be better to constant fold first
-                // and have ConstId instead of ExprId for constants
-                Type::Array(_, _, base_type) => *base_type,
-                Type::Error => Type::Error,
-                typ => {
-                    let span = interner.id_span(&index_expr.collection);
-                    errors.push(TypeCheckError::TypeMismatch {
-                        expected_typ: "Array".to_owned(),
-                        expr_typ: typ.to_string(),
-                        expr_span: span,
-                    });
-                    Type::Error
-                }
-            }
+            type_check_index_expression(interner, index_expr, errors)
         }
         HirExpression::Call(call_expr) => {
             let args =
@@ -158,7 +133,7 @@ pub(crate) fn type_check_expression(
                         place: "for loop",
                         span: interner.expr_span(&for_expr.start_range),
                     }
-                    .add_context("currently the range in a loop must be constant literal"),
+                    .add_context("The range of a loop must be const (known at compile-time)"),
                 );
             }
 
@@ -169,7 +144,7 @@ pub(crate) fn type_check_expression(
                         place: "for loop",
                         span: interner.expr_span(&for_expr.end_range),
                     }
-                    .add_context("currently the range in a loop must be constant literal"),
+                    .add_context("The range of a loop must be const (known at compile-time)"),
                 );
             }
 
@@ -249,6 +224,48 @@ pub(crate) fn type_check_expression(
     typ
 }
 
+fn type_check_index_expression(
+    interner: &mut NodeInterner,
+    index_expr: expr::HirIndexExpression,
+    errors: &mut Vec<TypeCheckError>,
+) -> Type {
+    let index_type = type_check_expression(interner, &index_expr.index, errors);
+    if !index_type.matches(&Type::CONSTANT) {
+        let span = interner.id_span(&index_expr.index);
+        // Specialize the error in the case the user has a Field, just not a const one.
+        let error = if index_type.is_field_element() {
+            TypeCheckError::Unstructured {
+                msg: format!("Array index must be const (known at compile-time), but here a non-const {} was used instead", index_type),
+                span,
+            }
+        } else {
+            TypeCheckError::TypeMismatch {
+                expected_typ: "const Field".to_owned(),
+                expr_typ: index_type.to_string(),
+                expr_span: span,
+            }
+        };
+        errors.push(error);
+    }
+
+    let lhs_type = type_check_expression(interner, &index_expr.collection, errors);
+    match lhs_type {
+        // XXX: We can check the array bounds here also, but it may be better to constant fold first
+        // and have ConstId instead of ExprId for constants
+        Type::Array(_, _, base_type) => *base_type,
+        Type::Error => Type::Error,
+        typ => {
+            let span = interner.id_span(&index_expr.collection);
+            errors.push(TypeCheckError::TypeMismatch {
+                expected_typ: "Array".to_owned(),
+                expr_typ: typ.to_string(),
+                expr_span: span,
+            });
+            Type::Error
+        }
+    }
+}
+
 fn check_cast(from: Type, to: Type, span: Span, errors: &mut Vec<TypeCheckError>) -> Type {
     let is_const = match from {
         Type::Integer(vis, _, _) => vis == FieldElementType::Constant,
@@ -309,6 +326,9 @@ fn lookup_method(
         // If we fail to resolve the object to a struct type, we have no way of type
         // checking its arguments as we can't even resolve the name of the function
         Type::Error => None,
+
+        // In the future we could support methods for non-struct types if we have a context
+        // (in the interner?) essentially resembling HashMap<Type, Methods>
         other => {
             errors.push(TypeCheckError::Unstructured {
                 span: interner.expr_span(expr_id),
