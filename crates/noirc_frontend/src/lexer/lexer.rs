@@ -80,13 +80,21 @@ impl<'a> Lexer<'a> {
 
     fn ampersand(&mut self) -> SpannedTokenResult {
         if self.peek_char_is('&') {
-            // Note: when we issue this error the first '&' will already be consumed
-            // and the next token issued will be the next '&' which is likely what the
-            // programmer intended anyway.
+            // When we issue this error the first '&' will already be consumed
+            // and the next token issued will be the next '&'.
             let span = Span::new(self.position..self.position + 1);
             Err(LexerErrorKind::LogicalAnd { span })
         } else {
             self.single_char_token(Token::Ampersand)
+        }
+    }
+
+    fn pipe(&mut self) -> SpannedTokenResult {
+        if self.peek_char_is('|') {
+            let span = Span::new(self.position..self.position + 1);
+            Err(LexerErrorKind::LogicalOr { span })
+        } else {
+            self.single_char_token(Token::Pipe)
         }
     }
 
@@ -105,6 +113,7 @@ impl<'a> Lexer<'a> {
             Some('!') => self.glue(Token::Bang),
             Some('-') => self.glue(Token::Minus),
             Some('&') => self.ampersand(),
+            Some('|') => self.pipe(),
             Some('%') => self.single_char_token(Token::Percent),
             Some('^') => self.single_char_token(Token::Caret),
             Some(';') => self.single_char_token(Token::Semicolon),
@@ -114,7 +123,6 @@ impl<'a> Lexer<'a> {
             Some(',') => self.single_char_token(Token::Comma),
             Some('+') => self.single_char_token(Token::Plus),
             Some('{') => self.single_char_token(Token::LeftBrace),
-            Some('|') => self.single_char_token(Token::Pipe),
             Some('}') => self.single_char_token(Token::RightBrace),
             Some('[') => self.single_char_token(Token::LeftBracket),
             Some(']') => self.single_char_token(Token::RightBracket),
