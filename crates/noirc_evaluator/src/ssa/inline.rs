@@ -24,7 +24,7 @@ const MAX_INLINE_TRIES: u32 = 100;
 pub fn inline_tree(ctx: &mut SsaContext, block_id: BlockId) {
     //inline all function calls
     let mut retry = MAX_INLINE_TRIES;
-    while retry > 0 && !inline_block(ctx, ctx.first_block, None) {
+    while retry > 0 && !inline_block(ctx, block_id, None) {
         retry -= 1;
     }
     assert!(retry > 0, "Error - too many nested calls");
@@ -271,8 +271,8 @@ pub fn inline_in_block(
                     //Compute the new address:
                     //TODO use relative addressing, but that requires a few changes, mainly in acir_gen.rs and integer.rs
                     let b = stack_frame.get_or_default(a);
-                    //n.b. this offset is always positive
-                    let offset = ctx.mem.arrays[b as usize].adr - ctx.mem.arrays[a as usize].adr;
+                    let offset = ctx.mem.arrays[b as usize].adr as i32
+                        - ctx.mem.arrays[a as usize].adr as i32;
                     let index_type = ctx[new_left].get_type();
                     let offset_id =
                         ctx.get_or_create_const(FieldElement::from(offset as i128), index_type);
@@ -291,7 +291,8 @@ pub fn inline_in_block(
                 }
                 Operation::Store(a) => {
                     let b = stack_frame.get_or_default(a);
-                    let offset = ctx.mem.arrays[b as usize].adr - ctx.mem.arrays[a as usize].adr;
+                    let offset = ctx.mem.arrays[b as usize].adr as i32
+                        - ctx.mem.arrays[a as usize].adr as i32;
                     let index_type = ctx[new_right].get_type();
                     let offset_id =
                         ctx.get_or_create_const(FieldElement::from(offset as i128), index_type);

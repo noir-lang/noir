@@ -54,18 +54,18 @@ impl SSAFunction {
         let function_cfg = super::block::bfs(self.entry_block, None, &igen.context);
         super::block::compute_sub_dom(&mut igen.context, &function_cfg);
         //Optimisation
-        super::optim::cse(&mut igen.context, self.entry_block);
+        super::optim::full_cse(&mut igen.context, self.entry_block);
         //Unrolling
         let eval = super::flatten::unroll_tree(&mut igen.context, self.entry_block);
-        super::optim::cse(&mut igen.context, self.entry_block);
+        super::optim::full_cse(&mut igen.context, self.entry_block);
         if eval.contains_key(&last) {
             eval[&last].into_node_id()
         } else {
-            let mut result = NodeId::dummy();
+            let mut is_modified = true;
             let mut last = last;
-            while result != last {
-                result = last;
-                last = crate::ssa::optim::propagate(&igen.context, last);
+            while is_modified {
+                is_modified = false;
+                last = crate::ssa::optim::propagate(&igen.context, last, &mut is_modified);
             }
             Some(last)
         }
@@ -304,7 +304,7 @@ pub fn inline_all(ctx: &mut SsaContext) {
     while processed.len() < l {
         let i = get_new_leaf(ctx, &processed);
         if !processed.is_empty() {
-            super::optim::cse(ctx, ctx.functions[&i.1].entry_block);
+            super::optim::full_cse(ctx, ctx.functions[&i.1].entry_block);
         }
         let mut to_inline = Vec::new();
         for f in ctx.functions.values() {
