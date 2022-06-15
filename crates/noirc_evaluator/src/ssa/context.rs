@@ -588,9 +588,6 @@ impl<'a> SsaContext<'a> {
     pub fn handle_assign(&mut self, lhs: NodeId, index: Option<NodeId>, rhs: NodeId) -> NodeId {
         let lhs_type = self.get_object_type(lhs);
         let rhs_type = self.get_object_type(rhs);
-        let i = 0;
-        let i_obj =
-            self.get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
         if let Some(Instruction {
             operator: Operation::Call(_), ins_arguments: call_stack, ..
         }) = self.try_get_mut_instruction(rhs)
@@ -601,7 +598,8 @@ impl<'a> SsaContext<'a> {
                 } else {
                     lhs_type
                 };
-                let ret = self.new_instruction(rhs, i_obj, Operation::Res, obj_type);
+                let zero = self.zero_with_type(ObjectType::Unsigned(32));
+                let ret = self.new_instruction(rhs, zero, Operation::Res, obj_type);
                 return self.handle_assign(lhs, index, ret);
             } else {
                 call_stack.return_values.push(lhs);

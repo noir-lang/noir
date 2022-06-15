@@ -508,9 +508,7 @@ impl<'a> IRGenerator<'a> {
                 Value::Struct(f)
             }
             (Value::Single(_), Value::Struct(_)) => unreachable!("variables with tuple/struct types should already be decomposed into multiple variables"),
-            (Value::Struct(_), Value::Single(_)) => {
-                unimplemented!();
-            },
+            (Value::Struct(_), Value::Single(_)) => unreachable!("Uncaught type error, tried to assign a single value to a tuple/struct type"),
         }
     }
 
