@@ -232,7 +232,7 @@ fn type_check_constrain_stmt(
 fn type_check_declaration(
     interner: &mut NodeInterner,
     rhs_expr: ExprId,
-    mut annotated_type: Type,
+    annotated_type: Type,
     errors: &mut Vec<TypeCheckError>,
 ) -> Type {
     // Type check the expression on the RHS
@@ -240,20 +240,19 @@ fn type_check_declaration(
 
     // First check if the LHS is unspecified
     // If so, then we give it the same type as the expression
-    if annotated_type == Type::Unspecified {
-        annotated_type = expr_type.clone();
-    };
-
-    // Now check if LHS is the same type as the RHS
-    // Importantly, we do not co-erce any types implicitly
-    if !annotated_type.matches(&expr_type) {
-        let expr_span = interner.expr_span(&rhs_expr);
-        errors.push(TypeCheckError::TypeMismatch {
-            expected_typ: annotated_type.to_string(),
-            expr_typ: expr_type.to_string(),
-            expr_span,
-        });
+    if annotated_type != Type::Unspecified {
+        // Now check if LHS is the same type as the RHS
+        // Importantly, we do not co-erce any types implicitly
+        if !expr_type.is_subtype_of(&annotated_type) {
+            let expr_span = interner.expr_span(&rhs_expr);
+            errors.push(TypeCheckError::TypeMismatch {
+                expected_typ: annotated_type.to_string(),
+                expr_typ: expr_type.to_string(),
+                expr_span,
+            });
+        }
+        annotated_type
+    } else {
+        expr_type
     }
-
-    expr_type
 }
