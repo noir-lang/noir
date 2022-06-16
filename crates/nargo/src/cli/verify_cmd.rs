@@ -31,7 +31,7 @@ fn verify(proof_name: &str) -> Result<bool, CliError> {
     proof_path.push(PROOFS_DIR);
     proof_path.push(Path::new(proof_name));
     proof_path.set_extension(PROOF_EXT);
-    verify_with_path(&curr_dir, &proof_path)
+    verify_with_path(&curr_dir, &proof_path, false)
 }
 
 fn process_abi_with_verifier_input(
@@ -77,11 +77,15 @@ pub fn add_dummy_setpub_arr(abi: &mut Abi) {
     abi.parameters.push((RESERVED_PUBLIC_ARR.into(), dummy_arr));
 }
 
-pub fn verify_with_path<P: AsRef<Path>>(program_dir: P, proof_path: P) -> Result<bool, CliError> {
+pub fn verify_with_path<P: AsRef<Path>>(
+    program_dir: P,
+    proof_path: P,
+    show_ssa: bool,
+) -> Result<bool, CliError> {
     let driver = Resolver::resolve_root_config(program_dir.as_ref())?;
     let backend = crate::backends::ConcreteBackend;
 
-    let compiled_program = driver.into_compiled_program(backend.np_language(), false);
+    let compiled_program = driver.into_compiled_program(backend.np_language(), show_ssa);
 
     let mut public_abi = compiled_program.abi.clone().unwrap().public_abi();
     add_dummy_setpub_arr(&mut public_abi);

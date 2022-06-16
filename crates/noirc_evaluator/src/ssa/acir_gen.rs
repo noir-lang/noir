@@ -1,10 +1,9 @@
-use super::mem::{MemArray, Memory};
-use super::node::{Instruction, Operation};
+use super::mem::{ArrayId, MemArray, Memory};
+use super::node::{BinaryOp, ConstrainOp, Instruction, ObjectType, Operation};
+use acvm::acir::OPCODE;
 use acvm::FieldElement;
 
 use super::node::NodeId;
-use acvm::acir::opcode::{InputSize, OutputSize};
-use acvm::acir::OPCODE;
 
 use num_traits::{One, Zero};
 use std::cmp::Ordering;
@@ -20,13 +19,12 @@ use crate::RuntimeErrorKind;
 use acvm::acir::circuit::gate::{Directive, GadgetCall, GadgetInput};
 use acvm::acir::native_types::{Arithmetic, Linear, Witness};
 use num_bigint::BigUint;
-use std::convert::TryInto;
 
 #[derive(Default)]
 pub struct Acir {
     pub arith_cache: HashMap<NodeId, InternalVar>,
     pub memory_map: HashMap<u32, InternalVar>, //maps memory adress to expression
-    pub memory_witness: HashMap<u32, Vec<Witness>>, //map arrays to their witness...temporary
+    pub memory_witness: HashMap<ArrayId, Vec<Witness>>, //map arrays to their witness...temporary
 }
 
 #[derive(Default, Clone, Debug)]
@@ -36,6 +34,7 @@ pub struct InternalVar {
     witness: Option<Witness>,
     id: Option<NodeId>,
 }
+
 impl InternalVar {
     pub fn is_equal(&self, b: &InternalVar) -> bool {
         (self.id.is_some() && self.id == b.id)
@@ -54,7 +53,7 @@ impl InternalVar {
         None
     }
 
-    pub fn get_or_generate_witness(&mut self, evaluator: &mut Evaluator) -> Witness {
+    pub fn get_or_generate_witness(&self, evaluator: &mut Evaluator) -> Witness {
         self.witness.unwrap_or_else(|| generate_witness(self, evaluator))
     }
 }
@@ -134,17 +133,90 @@ impl Acir {
         evaluator: &mut Evaluator,
         ctx: &SsaContext,
     ) {
-        if ins.operator == Operation::Nop {
+        if ins.operation == Operation::Nop {
             return;
         }
-        let l_c = self.substitute(ins.lhs, evaluator, ctx);
-        let mut r_c = self.substitute(ins.rhs, evaluator, ctx);
-        let mut output = match ins.operator {
-            Operation::Add | Operation::SafeAdd => {
+
+        let mut output = match &ins.operation {
+            Operation::Binary(binary) => self.evaluate_binary(binary, ins.res_type, evaluator, ctx),
+            Operation::Not(_) => todo!(),
+            Operation::Cast(value) => self.substitute(*value, evaluator, ctx),
+            i @ Operation::Jne(..)
+            | i @ Operation::Jeq(..)
+            | i @ Operation::Jmp(_)
+            | i @ Operation::Phi { .. }
+            | i @ Operation::Result { .. } => {
+                unreachable!("Invalid instruction: {:?}", i);
+            }
+            Operation::Truncate { value, bit_size, max_bit_size } => {
+                let value = self.substitute(*value, evaluator, ctx);
+                evaluate_truncate(value, *bit_size, *max_bit_size, evaluator)
+            }
+            Operation::Intrinsic(opcode, args) => {
+                let v = self.evaluate_opcode(ins.id, *opcode, args, ins.res_type, ctx, evaluator);
+                InternalVar::from(v)
+            }
+            Operation::Call(..) => unreachable!("call instruction should have been inlined"),
+            Operation::Return(_) => todo!(), //return from main
+            Operation::Nop => InternalVar::default(),
+            Operation::Load { array_id, index } => {
+                //retrieves the value from the map if address is known at compile time:
+                //address = l_c and should be constant
+                let index = self.substitute(*index, evaluator, ctx);
+                if let Some(index) = index.to_const() {
+                    let address = mem::Memory::as_u32(index);
+                    if self.memory_map.contains_key(&address) {
+                        InternalVar::from(self.memory_map[&address].expression.clone())
+                    } else {
+                        //if not found, then it must be a witness (else it is non-initialised memory)
+                        let mem_array = &ctx.mem[*array_id];
+                        let index = (address - mem_array.adr) as usize;
+                        if mem_array.values.len() > index {
+                            mem_array.values[index].clone()
+                        } else {
+                            InternalVar::from(self.memory_witness[array_id][index])
+                        }
+                    }
+                } else {
+                    todo!("dynamic arrays are not implemented yet");
+                }
+            }
+
+            Operation::Store { array_id: _, index, value } => {
+                //maps the address to the rhs if address is known at compile time
+                let index = self.substitute(*index, evaluator, ctx);
+                let value = self.substitute(*value, evaluator, ctx);
+
+                if let Some(index) = index.to_const() {
+                    let address = mem::Memory::as_u32(index);
+                    self.memory_map.insert(address, value);
+                    //we do not generate constraint, so no output.
+                    InternalVar::default()
+                } else {
+                    todo!("dynamic arrays are not implemented yet");
+                }
+            }
+        };
+        output.id = Some(ins.id);
+        self.arith_cache.insert(ins.id, output);
+    }
+
+    fn evaluate_binary(
+        &mut self,
+        binary: &node::Binary,
+        res_type: ObjectType,
+        evaluator: &mut Evaluator,
+        ctx: &SsaContext,
+    ) -> InternalVar {
+        let l_c = self.substitute(binary.lhs, evaluator, ctx);
+        let r_c = self.substitute(binary.rhs, evaluator, ctx);
+
+        match &binary.operator {
+            BinaryOp::Add | BinaryOp::SafeAdd => {
                 InternalVar::from(add(&l_c.expression, FieldElement::one(), &r_c.expression))
             }
-            Operation::Sub | Operation::SafeSub => {
-                if ins.res_type == node::ObjectType::NativeField {
+            BinaryOp::Sub { max_rhs_value } | BinaryOp::SafeSub { max_rhs_value } => {
+                if res_type == node::ObjectType::NativeField {
                     InternalVar::from(subtract(
                         &l_c.expression,
                         FieldElement::one(),
@@ -153,10 +225,10 @@ impl Acir {
                 } else {
                     //we need the type of rhs and its max value, then:
                     //lhs-rhs+k*2^bit_size where k=ceil(max_value/2^bit_size)
-                    let bit_size = ctx[ins.rhs].size_in_bits();
+                    let bit_size = ctx[binary.rhs].size_in_bits();
                     let r_big = BigUint::one() << bit_size;
-                    let mut k = &ins.max_value / &r_big;
-                    if &ins.max_value % &r_big != BigUint::zero() {
+                    let mut k = max_rhs_value / &r_big;
+                    if max_rhs_value % &r_big != BigUint::zero() {
                         k = &k + BigUint::one();
                     }
                     k = &k * r_big;
@@ -167,7 +239,7 @@ impl Acir {
                     let mut sub_var = sub_expr.into();
                     //TODO: uses interval analysis for more precise check
                     if let Some(lhs_const) = l_c.to_const() {
-                        if ins.max_value <= BigUint::from_bytes_be(&lhs_const.to_bytes()) {
+                        if max_rhs_value <= &BigUint::from_bytes_be(&lhs_const.to_bytes()) {
                             sub_var = InternalVar::from(subtract(
                                 &l_c.expression,
                                 FieldElement::one(),
@@ -178,36 +250,36 @@ impl Acir {
                     sub_var
                 }
             }
-            Operation::Mul | Operation::SafeMul => {
+            BinaryOp::Mul | BinaryOp::SafeMul => {
                 InternalVar::from(evaluate_mul(&l_c, &r_c, evaluator))
             }
-            Operation::Udiv => {
+            BinaryOp::Udiv => {
                 let (q_wit, _) = evaluate_udiv(&l_c, &r_c, evaluator);
                 InternalVar::from(q_wit)
             }
-            Operation::Sdiv => InternalVar::from(evaluate_sdiv(&l_c, &r_c, evaluator).0),
-            Operation::Urem => {
+            BinaryOp::Sdiv => InternalVar::from(evaluate_sdiv(&l_c, &r_c, evaluator).0),
+            BinaryOp::Urem => {
                 let (_, r_wit) = evaluate_udiv(&l_c, &r_c, evaluator);
                 InternalVar::from(r_wit)
             }
-            Operation::Srem => InternalVar::from(evaluate_sdiv(&l_c, &r_c, evaluator).1),
-            Operation::Div => InternalVar::from(mul(
+            BinaryOp::Srem => InternalVar::from(evaluate_sdiv(&l_c, &r_c, evaluator).1),
+            BinaryOp::Div => InternalVar::from(mul(
                 &l_c.expression,
-                &from_witness(evaluate_inverse(&mut r_c, evaluator)),
+                &from_witness(evaluate_inverse(r_c, evaluator)),
             )),
-            Operation::Eq => {
-                InternalVar::from(self.evaluate_eq(ins.lhs, ins.rhs, &l_c, &r_c, ctx, evaluator))
+            BinaryOp::Eq => InternalVar::from(
+                self.evaluate_eq(binary.lhs, binary.rhs, &l_c, &r_c, ctx, evaluator),
+            ),
+            BinaryOp::Ne => InternalVar::from(
+                self.evaluate_neq(binary.lhs, binary.rhs, &l_c, &r_c, ctx, evaluator),
+            ),
+            BinaryOp::Ult => {
+                let size = ctx[binary.lhs].size_in_bits();
+                evaluate_cmp(&l_c, &r_c, size, false, evaluator).into()
             }
-            Operation::Ne => {
-                InternalVar::from(self.evaluate_neq(ins.lhs, ins.rhs, &l_c, &r_c, ctx, evaluator))
-            }
-            Operation::Ugt => {
-                let s = ctx[ins.lhs].size_in_bits();
-                evaluate_cmp(&r_c, &l_c, s, false, evaluator).into()
-            }
-            Operation::Uge => {
-                let s = ctx[ins.lhs].size_in_bits();
-                let w = evaluate_cmp(&l_c, &r_c, s, false, evaluator);
+            BinaryOp::Ule => {
+                let size = ctx[binary.lhs].size_in_bits();
+                let w = evaluate_cmp(&r_c, &l_c, size, false, evaluator);
                 Arithmetic {
                     mul_terms: Vec::new(),
                     linear_combinations: vec![(-FieldElement::one(), w)],
@@ -215,40 +287,12 @@ impl Acir {
                 }
                 .into()
             }
-            Operation::Ult => {
-                let s = ctx[ins.lhs].size_in_bits();
-                evaluate_cmp(&l_c, &r_c, s, false, evaluator).into()
-            }
-            Operation::Ule => {
-                let s = ctx[ins.lhs].size_in_bits();
-                let w = evaluate_cmp(&r_c, &l_c, s, false, evaluator);
-                Arithmetic {
-                    mul_terms: Vec::new(),
-                    linear_combinations: vec![(-FieldElement::one(), w)],
-                    q_c: FieldElement::one(),
-                }
-                .into()
-            }
-            Operation::Sgt => {
-                let s = ctx[ins.lhs].size_in_bits();
-                evaluate_cmp(&r_c, &l_c, s, true, evaluator).into()
-            }
-            Operation::Sge => {
-                let s = ctx[ins.lhs].size_in_bits();
-                let w = evaluate_cmp(&l_c, &r_c, s, true, evaluator);
-                Arithmetic {
-                    mul_terms: Vec::new(),
-                    linear_combinations: vec![(-FieldElement::one(), w)],
-                    q_c: FieldElement::one(),
-                }
-                .into()
-            }
-            Operation::Slt => {
-                let s = ctx[ins.lhs].size_in_bits();
+            BinaryOp::Slt => {
+                let s = ctx[binary.lhs].size_in_bits();
                 evaluate_cmp(&l_c, &r_c, s, true, evaluator).into()
             }
-            Operation::Sle => {
-                let s = ctx[ins.lhs].size_in_bits();
+            BinaryOp::Sle => {
+                let s = ctx[binary.lhs].size_in_bits();
                 let w = evaluate_cmp(&r_c, &l_c, s, true, evaluator);
                 Arithmetic {
                     mul_terms: Vec::new(),
@@ -257,87 +301,26 @@ impl Acir {
                 }
                 .into()
             }
-            Operation::Lt => todo!(),
-            Operation::Gte | Operation::Lte | Operation::Gt => unreachable!(),
-            Operation::Shl | Operation::Shr => unreachable!(),
-            Operation::And => {
-                InternalVar::from(evaluate_and(l_c, r_c, ins.res_type.bits(), evaluator))
+            BinaryOp::Lt => todo!(),
+            BinaryOp::Lte => {
+                let size = ctx[binary.lhs].size_in_bits();
+                // TODO: Should this be signed?
+                evaluate_cmp(&l_c, &r_c, size, false, evaluator).into()
             }
-            Operation::Not => todo!(),
-            Operation::Or => {
-                InternalVar::from(evaluate_or(l_c, r_c, ins.res_type.bits(), evaluator))
-            }
-            Operation::Xor => {
-                InternalVar::from(evaluate_xor(l_c, r_c, ins.res_type.bits(), evaluator))
-            }
-            Operation::Cast => l_c.clone(),
-            Operation::Ass
-            | Operation::Jne
-            | Operation::Jeq
-            | Operation::Jmp
-            | Operation::Phi
-            | Operation::Res => {
-                unreachable!("invalid instruction");
-            }
-            Operation::Trunc => {
-                assert!(is_const(&r_c.expression));
-                evaluate_truncate(
-                    l_c,
-                    r_c.expression.q_c.to_u128().try_into().unwrap(),
-                    ins.bit_size,
-                    evaluator,
-                )
-            }
-            Operation::Intrinsic(opcode) => {
-                InternalVar::from(self.evaluate_opcode(ins, opcode, ctx, evaluator))
-            }
-            Operation::Call(_) => unreachable!("call instruction should have been inlined"),
-            Operation::Ret => todo!(), //return from main
-            Operation::Nop => InternalVar::default(),
-            Operation::Constrain(op) => match op {
-                node::ConstrainOp::Eq => {
-                    InternalVar::from(self.equalize(ins.lhs, ins.rhs, &l_c, &r_c, ctx, evaluator))
-                }
-                node::ConstrainOp::Neq => {
-                    InternalVar::from(self.distinct(ins.lhs, ins.rhs, &l_c, &r_c, ctx, evaluator))
-                }
+            BinaryOp::And => InternalVar::from(evaluate_and(l_c, r_c, res_type.bits(), evaluator)),
+            BinaryOp::Or => InternalVar::from(evaluate_or(l_c, r_c, res_type.bits(), evaluator)),
+            BinaryOp::Xor => InternalVar::from(evaluate_xor(l_c, r_c, res_type.bits(), evaluator)),
+            BinaryOp::Constrain(op) => match op {
+                ConstrainOp::Eq => InternalVar::from(
+                    self.equalize(binary.lhs, binary.rhs, &l_c, &r_c, ctx, evaluator),
+                ),
+                ConstrainOp::Neq => InternalVar::from(
+                    self.distinct(binary.lhs, binary.rhs, &l_c, &r_c, ctx, evaluator),
+                ),
             },
-            Operation::Load(array_idx) => {
-                //retrieves the value from the map if address is known at compile time:
-                //address = l_c and should be constant
-                if let Some(val) = l_c.to_const() {
-                    let address = mem::Memory::as_u32(val);
-                    if self.memory_map.contains_key(&address) {
-                        InternalVar::from(self.memory_map[&address].expression.clone())
-                    } else {
-                        //if not found, then it must be a witness (else it is non-initialised memory)
-                        let array = &ctx.mem.arrays[array_idx as usize];
-                        let index = (address - array.adr) as usize;
-                        if array.values.len() > index {
-                            array.values[index].clone()
-                        } else {
-                            InternalVar::from(self.memory_witness[&array_idx][index])
-                        }
-                    }
-                } else {
-                    todo!("dynamic arrays are not implemented yet");
-                }
-            }
-
-            Operation::Store(_) => {
-                //maps the address to the rhs if address is known at compile time
-                if let Some(val) = r_c.to_const() {
-                    let address = mem::Memory::as_u32(val);
-                    self.memory_map.insert(address, l_c);
-                    //we do not generate constraint, so no output.
-                    InternalVar::default()
-                } else {
-                    todo!("dynamic arrays are not implemented yet");
-                }
-            }
-        };
-        output.id = Some(ins.id);
-        self.arith_cache.insert(ins.id, output);
+            BinaryOp::Shl | BinaryOp::Shr => unreachable!(),
+            i @ BinaryOp::Assign => unreachable!("Invalid Instruction: {:?}", i),
+        }
     }
 
     pub fn print_circuit(gates: &[Gate]) {
@@ -351,7 +334,6 @@ impl Acir {
     pub fn load_array(
         &mut self,
         array: &MemArray,
-        array_index: u32,
         create_witness: bool,
         evaluator: &mut Evaluator,
     ) -> Vec<InternalVar> {
@@ -365,7 +347,7 @@ impl Acir {
                         self.memory_map.get_mut(&address).unwrap().witness = Some(w);
                     }
                     self.memory_map[&address].clone()
-                } else if let Some(memory) = self.memory_witness.get(&array_index) {
+                } else if let Some(memory) = self.memory_witness.get(&array.id) {
                     let w = memory[i as usize];
                     w.into()
                 } else {
@@ -385,12 +367,11 @@ impl Acir {
         evaluator: &mut Evaluator,
     ) -> Arithmetic {
         if let (Some(a), Some(b)) = (Memory::deref(ctx, lhs), Memory::deref(ctx, rhs)) {
-            let array_a = &ctx.mem.arrays[a as usize];
-            let array_b = &ctx.mem.arrays[b as usize];
+            let array_a = &ctx.mem[a];
+            let array_b = &ctx.mem[b];
 
             if array_a.len == array_b.len {
-                let mut x =
-                    InternalVar::from(self.zero_eq_array_sum(array_a, a, array_b, b, evaluator));
+                let mut x = InternalVar::from(self.zero_eq_array_sum(array_a, array_b, evaluator));
                 x.witness = Some(generate_witness(&x, evaluator));
                 from_witness(evaluate_zero_equality(&x, evaluator))
             } else {
@@ -440,16 +421,16 @@ impl Acir {
         evaluator: &mut Evaluator,
     ) -> Arithmetic {
         if let (Some(a), Some(b)) = (Memory::deref(ctx, lhs), Memory::deref(ctx, rhs)) {
-            let array_a = &ctx.mem.arrays[a as usize];
-            let array_b = &ctx.mem.arrays[b as usize];
+            let array_a = &ctx.mem[a];
+            let array_b = &ctx.mem[b];
             //If length are different, then the arrays are different
             if array_a.len == array_b.len {
-                let sum = self.zero_eq_array_sum(array_a, a, array_b, b, evaluator);
-                evaluate_inverse(&mut InternalVar::from(sum), evaluator);
+                let sum = self.zero_eq_array_sum(array_a, array_b, evaluator);
+                evaluate_inverse(InternalVar::from(sum), evaluator);
             }
         } else {
             let diff = subtract(&l_c.expression, FieldElement::one(), &r_c.expression);
-            evaluate_inverse(&mut InternalVar::from(diff), evaluator);
+            evaluate_inverse(InternalVar::from(diff), evaluator);
         }
         Arithmetic::default()
     }
@@ -465,8 +446,8 @@ impl Acir {
         evaluator: &mut Evaluator,
     ) -> Arithmetic {
         if let (Some(a), Some(b)) = (Memory::deref(ctx, lhs), Memory::deref(ctx, rhs)) {
-            let a_values = self.load_array(&ctx.mem.arrays[a as usize], a, false, evaluator);
-            let b_values = self.load_array(&ctx.mem.arrays[b as usize], b, false, evaluator);
+            let a_values = self.load_array(&ctx.mem[a], false, evaluator);
+            let b_values = self.load_array(&ctx.mem[b], false, evaluator);
             assert!(a_values.len() == b_values.len());
             for (a_iter, b_iter) in a_values.into_iter().zip(b_values) {
                 let array_diff =
@@ -477,7 +458,7 @@ impl Acir {
         } else {
             let output = add(&l_c.expression, FieldElement::from(-1_i128), &r_c.expression);
             if is_const(&output) {
-                assert!(output.q_c == FieldElement::zero());
+                assert_eq!(output.q_c, FieldElement::zero());
             } else {
                 evaluator.gates.push(Gate::Arithmetic(output.clone()));
             }
@@ -490,15 +471,13 @@ impl Acir {
     fn zero_eq_array_sum(
         &mut self,
         a: &MemArray,
-        a_idx: u32,
         b: &MemArray,
-        b_idx: u32,
         evaluator: &mut Evaluator,
     ) -> Arithmetic {
         let mut sum = Arithmetic::default();
 
-        let a_values = self.load_array(a, a_idx, false, evaluator);
-        let b_values = self.load_array(b, b_idx, false, evaluator);
+        let a_values = self.load_array(a, false, evaluator);
+        let b_values = self.load_array(b, false, evaluator);
 
         for (a_iter, b_iter) in a_values.into_iter().zip(b_values) {
             let diff_expr = subtract(&a_iter.expression, FieldElement::one(), &b_iter.expression);
@@ -540,7 +519,7 @@ impl Acir {
                 node::NodeObj::Obj(v) => {
                     match l_obj.get_type() {
                         node::ObjectType::Pointer(a) => {
-                            let array = &cfg.mem.arrays[a as usize];
+                            let array = &cfg.mem[a];
                             let num_bits = array.element_type.bits();
                             for i in 0..array.len {
                                 let address = array.adr + i;
@@ -591,44 +570,28 @@ impl Acir {
 
     pub fn evaluate_opcode(
         &mut self,
-        ins: &Instruction,
+        instruction_id: NodeId,
         opcode: OPCODE,
+        args: &[NodeId],
+        res_type: ObjectType,
         cfg: &SsaContext,
         evaluator: &mut Evaluator,
     ) -> Arithmetic {
-        let inputs;
         let outputs;
-        let signature = opcode.definition();
-
         match opcode {
             OPCODE::ToBits => {
-                let bit_size = cfg.get_as_constant(ins.rhs).unwrap().to_u128() as u32;
-                let l_c = self.substitute(ins.lhs, evaluator, cfg);
+                let bit_size = cfg.get_as_constant(args[1]).unwrap().to_u128() as u32;
+                let l_c = self.substitute(args[0], evaluator, cfg);
                 outputs = split(&l_c, bit_size, evaluator);
-                if let node::ObjectType::Pointer(a) = ins.res_type {
+                if let node::ObjectType::Pointer(a) = res_type {
                     self.memory_witness.insert(a, outputs.clone()); //TODO can we avoid the clone?
                 }
             }
             _ => {
-                match (signature.input_size, signature.output_size) {
-                    (InputSize::Variable, OutputSize(y)) => {
-                        inputs = self.prepare_inputs(&ins.get_arguments(), cfg, evaluator);
-                        outputs = self.prepare_outputs(ins.id, y as u32, cfg, evaluator);
-                    }
-                    (InputSize::Fixed(x), OutputSize(y)) => match x {
-                        1 => {
-                            inputs = self.prepare_inputs(&[ins.lhs], cfg, evaluator);
-                            outputs = self.prepare_outputs(ins.id, y as u32, cfg, evaluator);
-                        }
-                        2 => {
-                            inputs = self.prepare_inputs(&[ins.lhs, ins.rhs], cfg, evaluator);
-                            outputs = self.prepare_outputs(ins.id, y as u32, cfg, evaluator);
-                        }
-                        _ => {
-                            todo!();
-                        }
-                    },
-                }
+                let inputs = self.prepare_inputs(args, cfg, evaluator);
+                let output_count = opcode.definition().output_size.0 as u32;
+                outputs = self.prepare_outputs(instruction_id, output_count, cfg, evaluator);
+
                 let call_gate = GadgetCall {
                     name: opcode,
                     inputs,                   //witness + bit size
@@ -639,10 +602,11 @@ impl Acir {
         }
 
         if outputs.len() == 1 {
-            return from_witness(outputs[0]);
+            from_witness(outputs[0])
+        } else {
+            //if there are more than one witness returned, the result is inside ins.res_type as a pointer to an array
+            Arithmetic::default()
         }
-        //if there are more than one witness returned, the result is inside ins.res_type as a pointer to an array
-        Arithmetic::default()
     }
 
     pub fn prepare_outputs(
@@ -863,7 +827,8 @@ pub fn evaluate_truncate(
     max_bits: u32,
     evaluator: &mut Evaluator,
 ) -> InternalVar {
-    assert!(max_bits > rhs);
+    assert!(max_bits > rhs, "max_bits = {}, rhs = {}", max_bits, rhs);
+
     //0. Check for constant expression. This can happen through arithmetic simplifications
     if let Some(a_c) = lhs.to_const() {
         let mut a_big = BigUint::from_bytes_be(&a_c.to_bytes());
@@ -1021,7 +986,7 @@ pub fn evaluate_zero_equality(x: &InternalVar, evaluator: &mut Evaluator) -> Wit
 }
 
 /// Creates a new witness and constrains it to be the inverse of x
-pub fn evaluate_inverse(x: &mut InternalVar, evaluator: &mut Evaluator) -> Witness {
+fn evaluate_inverse(x: InternalVar, evaluator: &mut Evaluator) -> Witness {
     // Create a fresh witness - n.b we could check if x is constant or not
     let inverse_witness = evaluator.add_witness_to_cs();
     let inverse_expr = from_witness(inverse_witness);

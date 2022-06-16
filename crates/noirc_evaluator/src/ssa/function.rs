@@ -79,17 +79,8 @@ impl SSAFunction {
         env: &mut Environment,
     ) -> NodeId {
         let otype = igen.context.functions[&func].result_types[0];
-        let ins_arguments = igen.expression_list_to_objects(env, arguments);
-        let call_id = igen.context.new_instruction(
-            NodeId::dummy(),
-            NodeId::dummy(),
-            node::Operation::Call(func),
-            otype,
-        );
-
-        let call_ins = igen.context.get_mut_instruction(call_id);
-        call_ins.ins_arguments = CallStack { arguments: ins_arguments, return_values: Vec::new() };
-        call_id
+        let arguments = igen.expression_list_to_objects(env, arguments);
+        igen.context.new_instruction(node::Operation::Call(func, arguments, Vec::new()), otype)
     }
 
     pub fn get_mapped_value(
@@ -117,18 +108,6 @@ impl SSAFunction {
         } else {
             NodeId::dummy()
         }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct CallStack {
-    pub arguments: Vec<NodeId>,
-    pub return_values: Vec<NodeId>,
-}
-
-impl CallStack {
-    pub fn new() -> CallStack {
-        CallStack { arguments: Vec::new(), return_values: Vec::new() }
     }
 }
 
@@ -185,11 +164,7 @@ pub fn call_low_level(
     //when the function returns an array, we use ins.res_type(array)
     //else we map ins.id to the returned witness
     //Call instruction
-    igen.context.new_instruction_with_multiple_operands(
-        args,
-        node::Operation::Intrinsic(op),
-        result_type,
-    )
+    igen.context.new_instruction(node::Operation::Intrinsic(op, args), result_type)
 }
 
 pub fn param_to_ident(patern: &HirPattern) -> &HirIdent {
@@ -233,28 +208,6 @@ pub fn create_function(
     igen.context.functions.insert(func_id, func);
     igen.context.current_block = current_block;
     igen.function_context = current_function;
-}
-
-pub fn add_return_instruction(ctx: &mut SsaContext, last: Option<NodeId>) -> ObjectType {
-    let mut results = Vec::new();
-    if let Some(last_id) = last {
-        results.push(last_id);
-    }
-    //Create return instruction based on the last statement of the function body
-    let mut ret = node::Instruction::new(
-        node::Operation::Ret,
-        NodeId::dummy(),
-        NodeId::dummy(),
-        node::ObjectType::NotAnObject,
-        Some(ctx.current_block),
-    );
-    let mut rtt = ObjectType::NotAnObject;
-    if !results.is_empty() && results[0] != NodeId::dummy() {
-        rtt = ctx.get_object_type(results[0]);
-    }
-    ret.ins_arguments = CallStack { arguments: results, return_values: Vec::new() };
-    ctx.push_instruction(ret);
-    rtt
 }
 
 pub fn resize_graph(call_graph: &mut Vec<Vec<u8>>, size: usize) {
@@ -319,4 +272,18 @@ pub fn inline_all(ctx: &mut SsaContext) {
         processed.push(i.0);
     }
     ctx.call_graph.clear();
+}
+
+pub fn add_return_instruction(ctx: &mut SsaContext, last: Option<NodeId>) -> ObjectType {
+    let last_id = last.unwrap_or_else(NodeId::dummy);
+    let result = if last_id == NodeId::dummy() { vec![] } else { vec![last_id] };
+    let mut rtt = ObjectType::NotAnObject;
+    //  XXX est ce que rtt sert toujours a qqchosee??
+    if !result.is_empty() && result[0] != NodeId::dummy() {
+        rtt = ctx.get_object_type(result[0]);
+    }
+    //Create return instruction based on the last statement of the function body
+    ctx.new_instruction(node::Operation::Return(result), node::ObjectType::NotAnObject);
+    //n.b. should we keep the object type in the vector?
+    rtt
 }

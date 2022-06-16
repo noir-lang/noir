@@ -65,15 +65,6 @@ impl BasicBlock {
         self.kind == BlockType::ForJoin
     }
 
-    pub fn get_result_instruction(&self, call_id: NodeId, ctx: &SsaContext) -> Option<NodeId> {
-        self.instructions.iter().copied().find(|i| match ctx[*i] {
-            node::NodeObj::Instr(node::Instruction {
-                operator: node::Operation::Res, lhs, ..
-            }) => lhs == call_id,
-            _ => false,
-        })
-    }
-
     //Create the first block for a CFG
     pub fn create_cfg(ctx: &mut SsaContext) -> BlockId {
         let root_block = BasicBlock::new(BlockId::dummy(), BlockType::Normal);
@@ -82,20 +73,17 @@ impl BasicBlock {
         let root_id = root_block.id;
         ctx.current_block = root_id;
         ctx.sealed_blocks.insert(root_id);
-        ctx.new_instruction(
-            NodeId::dummy(),
-            NodeId::dummy(),
-            node::Operation::Nop,
-            node::ObjectType::NotAnObject,
-        );
+        ctx.new_instruction(node::Operation::Nop, node::ObjectType::NotAnObject);
         root_id
     }
 
-    pub fn written_arrays(&self, ctx: &SsaContext) -> HashSet<u32> {
+    pub fn written_arrays(&self, ctx: &SsaContext) -> HashSet<super::mem::ArrayId> {
         let mut result = HashSet::new();
         for i in &self.instructions {
-            if let Some(node::Instruction { operator: node::Operation::Store(x), .. }) =
-                ctx.try_get_instruction(*i)
+            if let Some(node::Instruction {
+                operation: node::Operation::Store { array_id: x, .. },
+                ..
+            }) = ctx.try_get_instruction(*i)
             {
                 result.insert(*x);
             }
@@ -123,12 +111,7 @@ pub fn new_sealed_block(ctx: &mut SsaContext, kind: BlockType) -> BlockId {
     let cb = ctx.get_current_block_mut();
     cb.left = Some(new_id);
     ctx.current_block = new_id;
-    ctx.new_instruction(
-        NodeId::dummy(),
-        NodeId::dummy(),
-        node::Operation::Nop,
-        node::ObjectType::NotAnObject,
-    );
+    ctx.new_instruction(node::Operation::Nop, node::ObjectType::NotAnObject);
     new_id
 }
 
@@ -148,12 +131,7 @@ pub fn new_unsealed_block(ctx: &mut SsaContext, kind: BlockType, left: bool) -> 
     }
 
     ctx.current_block = new_idx;
-    ctx.new_instruction(
-        NodeId::dummy(),
-        NodeId::dummy(),
-        node::Operation::Nop,
-        node::ObjectType::NotAnObject,
-    );
+    ctx.new_instruction(node::Operation::Nop, node::ObjectType::NotAnObject);
     new_idx
 }
 

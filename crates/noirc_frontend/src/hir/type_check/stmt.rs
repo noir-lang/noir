@@ -97,7 +97,7 @@ fn type_check_assign_stmt(
     let span = interner.expr_span(&assign_stmt.expression);
     let lvalue_type = type_check_lvalue(interner, assign_stmt.lvalue, span, errors);
 
-    if !expr_type.matches(&lvalue_type) {
+    if !expr_type.is_subtype_of(&lvalue_type) {
         errors.push(TypeCheckError::Unstructured {
             msg: format!(
                 "Cannot assign an expression of type {} to a value of type {}",
