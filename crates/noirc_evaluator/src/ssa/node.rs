@@ -360,6 +360,15 @@ impl NodeEval {
         }
     }
 
+    //returns the NodeObj index of a NodeEval object
+    //if NodeEval is a constant, it may creates a new NodeObj corresponding to the constant value
+    pub fn to_index(self, ctx: &mut SsaContext) -> NodeId {
+        match self {
+            NodeEval::Const(c, t) => ctx.get_or_create_const(c, t),
+            NodeEval::VarOrInstruction(i) => i,
+        }
+    }
+
     pub fn from_id(ctx: &SsaContext, id: NodeId) -> NodeEval {
         match &ctx[id] {
             NodeObj::Const(c) => {

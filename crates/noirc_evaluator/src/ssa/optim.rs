@@ -22,10 +22,7 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) {
         return;
     }
     //1. constant folding
-    let new_id = match ins.evaluate(ctx) {
-        NodeEval::Const(c, t) => ctx.get_or_create_const(c, t),
-        NodeEval::VarOrInstruction(i) => i,
-    };
+    let new_id = ins.evaluate(ctx).to_index(ctx);
 
     if new_id != ins.id {
         use Mark::*;

@@ -7,15 +7,6 @@ use super::{
 use acvm::FieldElement;
 use std::collections::HashMap;
 
-//returns the NodeObj index of a NodeEval object
-//if NodeEval is a constant, it may creates a new NodeObj corresponding to the constant value
-fn to_index(ctx: &mut SsaContext, obj: NodeEval) -> NodeId {
-    match obj {
-        NodeEval::Const(c, t) => ctx.get_or_create_const(c, t),
-        NodeEval::VarOrInstruction(i) => i,
-    }
-}
-
 //Unroll the CFG
 pub fn unroll_tree(ctx: &mut SsaContext, mut block_id: BlockId) -> HashMap<NodeId, NodeEval> {
     //Calls outer_unroll() from the root node
@@ -250,7 +241,7 @@ fn evaluate_phi(
     }
     //Update the evaluation map.
     for obj in to_process {
-        to.insert(obj.0, NodeEval::VarOrInstruction(to_index(ctx, obj.1)));
+        to.insert(obj.0, NodeEval::VarOrInstruction(obj.1.to_index(ctx)));
     }
 }
 
