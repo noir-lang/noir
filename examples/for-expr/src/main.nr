@@ -12,6 +12,6 @@ fn main(x : Field, y : Field) {
        z
     };
 
-    constrain k == j[1];
+    constrain 40 == j[1];
 }
     
