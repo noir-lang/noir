@@ -668,6 +668,15 @@ impl<'a> SsaContext<'a> {
         }
     }
 
+    //This function handles assignment statements of the form lhs = rhs, depending on the nature of the arguments:
+    // lhs can be: standard variable, array, array element (in which case we have an index)
+    // rhs can be: standard variable, array, array element (depending on lhs type), call instruction, intrinsic, other instruction
+    // For instance:
+    // - if lhs and rhs are standard variables, we create a new ssa variable of lhs
+    // - if lhs is an array element, we generate a store instruction
+    // - if lhs and rhs are arrays, we perfom a copy of rhs into lhs,
+    // - if lhs is an array and rhs is a call instruction, we indicate in the call that lhs is the returned array (so that no copy is needed because the inlining will use it)
+    // ...
     pub fn handle_assign(&mut self, lhs: NodeId, index: Option<NodeId>, rhs: NodeId) -> NodeId {
         let lhs_type = self.get_object_type(lhs);
         let rhs_type = self.get_object_type(rhs);
