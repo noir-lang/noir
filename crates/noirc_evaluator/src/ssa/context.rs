@@ -566,8 +566,6 @@ impl<'a> SsaContext<'a> {
     pub fn log(&self, show_log: bool, before: &str, after: &str) {
         if show_log {
             self.print(before);
-            let mut number = String::new();
-            std::io::stdin().read_line(&mut number).unwrap();
             println!("{}", after);
         }
     }
@@ -705,18 +703,6 @@ impl<'a> SsaContext<'a> {
                 return lhs;
             }
         }
-        // if let Some(Instruction {
-        //     operation: Operation::Result{index: res_index, ..},res_type,..}) = self.try_get_mut_instruction(rhs)
-        // {
-        //     if index.is_some() || !matches!(lhs_type, ObjectType::Pointer(_)) {
-        //         *res_type = if let ObjectType::Pointer(a) = lhs_type {
-        //             self.mem[a].element_type
-        //         } else {
-        //             lhs_type
-        //         };
-
-        //     }
-        // }
         if let Some(idx) = index {
             if let ObjectType::Pointer(a) = lhs_type {
                 //Store

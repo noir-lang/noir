@@ -17,15 +17,11 @@ use super::{
 };
 
 #[derive(Clone, Debug, PartialEq, Copy)]
-pub struct FuncIndex(usize);
+pub struct FuncIndex(pub usize);
 
 impl FuncIndex {
     pub fn new(idx: usize) -> FuncIndex {
         FuncIndex(idx)
-    }
-
-    pub fn get_index(&self) -> usize {
-        self.0
     }
 }
 
@@ -201,7 +197,7 @@ pub fn create_function(
     igen.function_context = Some(index);
     igen.context.functions.insert(func_id, func.clone());
     let last_value = igen.parse_block(block.statements(), env);
-    let last_id = last_value.single_value(); //we do not support structures for now
+    let last_id = last_value.unwrap_id(); //we do not support structures for now
     let last_mapped = func.compile(igen, last_id); //unroll the function
     let rtt = add_return_instruction(&mut igen.context, last_mapped);
     func.result_types.push(rtt);
@@ -223,8 +219,8 @@ pub fn resize_graph(call_graph: &mut Vec<Vec<u8>>, size: usize) {
 }
 
 pub fn update_call_graph(call_graph: &mut Vec<Vec<u8>>, caller: FuncIndex, callee: FuncIndex) {
-    let a = caller.get_index();
-    let b = callee.get_index();
+    let a = caller.0;
+    let b = callee.0;
     let max = a.max(b) + 1;
     resize_graph(call_graph, max);
 
@@ -232,8 +228,8 @@ pub fn update_call_graph(call_graph: &mut Vec<Vec<u8>>, caller: FuncIndex, calle
 }
 
 fn is_leaf(call_graph: &[Vec<u8>], i: FuncIndex) -> bool {
-    for j in 0..call_graph[i.get_index()].len() {
-        if call_graph[i.get_index()][j] == 1 {
+    for j in 0..call_graph[i.0].len() {
+        if call_graph[i.0][j] == 1 {
             return false;
         }
     }
@@ -261,13 +257,13 @@ pub fn inline_all(ctx: &mut SsaContext) {
         }
         let mut to_inline = Vec::new();
         for f in ctx.functions.values() {
-            if ctx.call_graph[f.idx.get_index()][i.0.get_index()] == 1 {
+            if ctx.call_graph[f.idx.0][i.0 .0] == 1 {
                 to_inline.push((f.entry_block, f.idx));
             }
         }
         for j in to_inline {
             super::inline::inline_cfg(ctx, j.0, Some(i.1));
-            ctx.call_graph[j.1.get_index()][i.0.get_index()] = 0;
+            ctx.call_graph[j.1 .0][i.0 .0] = 0;
         }
         processed.push(i.0);
     }

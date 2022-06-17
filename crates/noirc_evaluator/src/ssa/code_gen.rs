@@ -54,13 +54,6 @@ impl Value {
         Value::Single(NodeId::dummy())
     }
 
-    pub fn single_value(&self) -> NodeId {
-        match self {
-            Value::Single(id) => *id,
-            Value::Struct(_) => unreachable!("Not a single value"),
-        }
-    }
-
     pub fn to_node_ids(&self) -> Vec<NodeId> {
         match self {
             Value::Single(id) => vec![*id],
@@ -289,7 +282,7 @@ impl<'a> IRGenerator<'a> {
         assert!(lhs.len() == 1);
         let a_id = self.context.get_object_type(lhs[0]).type_to_pointer();
         let index_val = self.expression_to_object(env, &index).unwrap();
-        let index = index_val.single_value();
+        let index = index_val.unwrap_id();
         let o_type = self.context.get_object_type(index);
         let base_adr = self.context.mem[a_id].adr;
         let base_adr_const =
@@ -482,8 +475,8 @@ impl<'a> IRGenerator<'a> {
             HirLValue::Index { array, index } => {
                 let (_, array_idx) = self.evaluate_indexed_value(array.as_ref(), index, env);
                 let val = self.find_variable(ident_def).unwrap();
-                let rhs_id = rhs.single_value();
-                let lhs_id = val.single_value();
+                let rhs_id = rhs.unwrap_id();
+                let lhs_id = val.unwrap_id();
                 Ok(Value::Single(self.context.handle_assign(lhs_id, Some(array_idx), rhs_id)))
             }
         }
