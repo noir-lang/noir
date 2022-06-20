@@ -156,7 +156,6 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, CallContext<N
 {
     return os << "msg_sender: " << call_context.msg_sender << "\n"
               << "storage_contract_address: " << call_context.storage_contract_address << "\n"
-              << "storage_contract_address: " << call_context.storage_contract_address << "\n"
               << "is_delegate_call: " << call_context.is_delegate_call << "\n"
               << "is_static_call: " << call_context.is_static_call << "\n"
               << "is_callback: " << call_context.is_callback << "\n"

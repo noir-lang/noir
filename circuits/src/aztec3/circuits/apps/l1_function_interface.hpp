@@ -16,7 +16,7 @@ using plonk::stdlib::types::NativeTypes;
 template <typename Composer> class ContractFactory;
 
 // We use the struct to retain designated initialisation, to make contract creation more readable.
-template <typename Composer> struct L1FunctionStruct {
+template <typename Composer> struct L1FunctionInterfaceStruct {
     typedef typename CircuitTypes<Composer>::fr fr;
 
     std::string function_name;
@@ -24,7 +24,7 @@ template <typename Composer> struct L1FunctionStruct {
     size_t num_params = 0;
 };
 
-template <typename Composer> class L1Function {
+template <typename Composer> class L1FunctionInterface {
     typedef typename CircuitTypes<Composer>::fr fr;
 
   public:
@@ -33,16 +33,17 @@ template <typename Composer> class L1Function {
     fr function_selector;
     size_t num_params;
 
-    L1Function(){};
+    L1FunctionInterface(){};
 
-    L1Function(ContractFactory<Composer>* contract_factory, L1FunctionStruct<Composer> const& l1_fn_struct)
+    L1FunctionInterface(ContractFactory<Composer>* contract_factory,
+                        L1FunctionInterfaceStruct<Composer> const& l1_fn_struct)
         : contract_factory(contract_factory)
         , function_name(l1_fn_struct.function_name)
         , function_selector(l1_fn_struct.function_selector)
         , num_params(l1_fn_struct.num_params)
     {}
 
-    // L1Function(L1Function<Composer> const& l1_function)
+    // L1FunctionInterface(L1FunctionInterface<Composer> const& l1_function)
     //     : contract_factory(l1_function.contract_factory)
     //     , function_name(l1_function.function_name)
     //     , function_selector(l1_function.function_selector)
@@ -54,4 +55,4 @@ template <typename Composer> class L1Function {
 
 } // namespace aztec3::circuits::apps
 
-#include "l1_function.tpp"
+#include "l1_function_interface.tpp"

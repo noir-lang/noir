@@ -1,6 +1,7 @@
 #include "deposit.hpp"
 #include "contract.hpp"
 #include <aztec3/circuits/apps/private_state_note.hpp>
+// #include <aztec3/circuits/apps/function_executor.hpp>
 #include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
 // #include <aztec3/circuits/abis/call_context.hpp>
 
@@ -17,9 +18,9 @@ OptionalPrivateCircuitPublicInputs<NT> deposit(
 
     CT::address msg_sender = oracle.get_msg_sender();
 
-    auto contract = init(composer, oracle);
+    auto env = init(composer, oracle);
 
-    auto& balances = contract.get_private_state("balances");
+    auto& balances = env.get_private_state("balances");
 
     balances.at({ msg_sender.to_field(), asset_id })
         .add({
@@ -29,25 +30,18 @@ OptionalPrivateCircuitPublicInputs<NT> deposit(
             .memo = memo,
         });
 
-    contract.finalise();
-
-    // TODO: maybe pass `oracle` to this `create()` function as well?
-    auto public_inputs = OptionalPrivateCircuitPublicInputs<CT>::create();
-
-    public_inputs.call_context = oracle.get_call_context(); /// TODO: can this be abstracted away out of this body?
+    auto& public_inputs = env.private_circuit_public_inputs;
 
     public_inputs.custom_public_inputs[0] = amount;
     public_inputs.custom_public_inputs[1] = asset_id;
     public_inputs.custom_public_inputs[2] = memo;
 
-    public_inputs.set_commitments(contract.private_state_factory.commitments);
-    public_inputs.set_nullifiers(contract.private_state_factory.nullifiers);
-
-    public_inputs.set_public(composer);
+    env.finalise();
 
     info("public inputs: ", public_inputs);
 
     return public_inputs.to_native_type<Composer>();
+    // TODO: also return note preimages and nullifier preimages.
 };
 
 } // namespace aztec3::circuits::apps::test_apps::escrow

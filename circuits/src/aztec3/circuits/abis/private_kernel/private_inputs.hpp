@@ -16,8 +16,9 @@ using std::is_same;
 
 template <typename NCT> struct PrivateInputs {
     typedef typename NCT::fr fr;
+    // typedef typename NCT::signature Signature;
 
-    // Signature signature; // TODO!
+    // Signature signature;
     // AccumulatedData<NCT> start;
     PreviousKernelData<NCT> previous_kernel;
     PrivateCallData<NCT> private_call;
@@ -27,7 +28,7 @@ template <typename NCT> struct PrivateInputs {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
         PrivateInputs<CircuitTypes<Composer>> private_inputs = {
-            // signature.to_circuit_type();
+            // plonk::stdlib::schnorr::convert_signature(&composer, signature),
             // start.to_circuit_type(composer),
             previous_kernel.to_circuit_type(composer),
             private_call.to_circuit_type(composer),

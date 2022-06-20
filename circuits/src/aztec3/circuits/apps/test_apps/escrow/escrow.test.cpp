@@ -33,7 +33,8 @@ TEST(escrow_tests, test_deposit)
     auto asset_id = NT::fr(1);
     auto memo = NT::fr(999);
 
-    deposit(composer, oracle_wrapper, amount, asset_id, memo);
+    auto result = deposit(composer, oracle_wrapper, amount, asset_id, memo);
+    info("result: ", result);
 
     info("computed witness: ", composer.computed_witness);
     info("witness: ", composer.witness);

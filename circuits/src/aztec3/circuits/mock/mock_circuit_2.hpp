@@ -10,12 +10,6 @@
 
 namespace aztec3::circuits::mock {
 
-// *****************************************
-
-// MIKE! TODO! This is the wrong PublicInputs class to use! Use the private kernel's PublicINputs!!!
-
-//*******************************************
-
 using aztec3::circuits::abis::private_kernel::PublicInputs;
 using NT = plonk::stdlib::types::NativeTypes;
 using plonk::stdlib::pedersen;

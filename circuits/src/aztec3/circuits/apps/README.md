@@ -43,3 +43,36 @@ contract_factory
                                 Only at this stage are the commitments (and partial commitments)
                                 and nullifiers computed.
 ```
+
+ContractFactory<Composer>
+- Composer& composer;
+- OracleWrapperInterface<Composer>& oracle;
+- const std::string contract_name;
+- PrivateStateFactory<Composer> private_state_factory;
+- std::map<std::string, FunctionSignature<CT>> function_signatures;
+- std::map<std::string, L1FunctionInterface<Composer>> l1_functions;
+
+PrivateStateFactory<Composer>
+- Composer& composer;
+- OracleWrapperInterface<Composer>& oracle;
+- const std::string contract_name;
+- fr private_state_counter = 0;
+- std::map<std::string, PrivateStateVar<Composer>> private_state_vars;
+- std::vector<PrivateStateNote<Composer>> private_state_notes;
+- std::vector<fr> commitments;
+- std::vector<fr> nullifiers;
+
+PrivateStateVar<Composer>
+- PrivateStateFactory<Composer>* state_factory;
+- PrivateStateType private_state_type;
+- std::string name;
+- fr start_slot;
+- grumpkin_point slot_point;
+- std::map<NativeTypes::fr, PrivateStateVar<Composer>> private_states;
+- bool is_mapping = false;
+- std::optional<std::vector<std::string>> mapping_key_names = std::nullopt;
+- bool is_partial_slot = false;
+
+PrivateStateNote<Composer>
+- PrivateStateVar<Composer>& private_state_var;
+- PrivateStateNotePreimage<CT> preimage;

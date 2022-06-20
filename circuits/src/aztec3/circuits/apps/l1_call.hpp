@@ -3,7 +3,7 @@
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
 #include <stdlib/types/convert.hpp>
-#include "l1_function.hpp"
+#include "l1_function_interface.hpp"
 // #include <crypto/pedersen/generator_data.hpp>
 // #include <stdlib/hash/pedersen/pedersen.hpp>
 
@@ -17,12 +17,12 @@ template <typename Composer> class L1Call {
     typedef typename CircuitTypes<Composer>::fr fr;
 
   public:
-    L1Function& l1_function;
+    L1FunctionInterface& l1_function;
     std::vector<fr> args;
     fr hash_of_argument_encodings;
     fr partial_l1_call_stack_item; // keccak(function_selector, hash_of_argument_encodings)
 
-    L1Call(L1Function const& l1_function, std::vector<fr> const& args)
+    L1Call(L1FunctionInterface const& l1_function, std::vector<fr> const& args)
         : l1_function(l1_function)
         , args(args)
     {

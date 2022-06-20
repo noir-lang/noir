@@ -30,7 +30,7 @@ template <typename NCT, CallType call_type> struct CallStackItem {
         conditional<call_type == CallType::Public, PublicCircuitPublicInputs<T>, PrivateCircuitPublicInputs<T>>::type;
 
     FunctionSignature<NCT> function_signature;
-    PublicInputs<NCT> public_inputs; // TODO: can we just do args?
+    PublicInputs<NCT> public_inputs;
     CallContext<NCT> call_context;
     boolean is_delegate_call = false;
     boolean is_static_call = false;

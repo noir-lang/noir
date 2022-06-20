@@ -1,6 +1,7 @@
 #pragma once
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
+#include "nullifier_preimage.hpp"
 
 namespace aztec3::circuits::apps {
 
@@ -57,12 +58,15 @@ template <typename Composer> class PrivateStateNote {
     };
 
     fr compute_commitment() const;
+
     grumpkin_point compute_partial_commitment() const;
 
-    fr compute_nullifier(fr const& owner_private_key);
+    std::pair<fr, NullifierPreimage<CT>> compute_nullifier(fr const& owner_private_key);
+
     static fr compute_nullifier(fr const& commitment,
                                 fr const& owner_private_key,
                                 boolean const& is_real_commitment = true);
+
     static fr compute_dummy_nullifier(fr const& dummy_commitment, fr const& owner_private_key);
 
   private:
@@ -71,6 +75,7 @@ template <typename Composer> class PrivateStateNote {
     std::optional<grumpkin_point> partial_commitment;
     std::optional<fr> commitment;
     std::optional<fr> nullifier;
+    std::optional<NullifierPreimage<CT>> nullifier_preimage;
 };
 
 // // template <typename NCT, typename B> PrivateStateNote<NCT> from_buffer(B const& buffer, size_t offset = 0)

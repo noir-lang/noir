@@ -271,16 +271,16 @@ void PrivateStateVar<Composer>::subtract(PrivateStateOperand<CircuitTypes<Compos
     auto minuend_note_2 = PrivateStateNote<Composer>(*this, minuend_preimage_2, true);
 
     fr msg_sender_private_key = oracle.get_msg_sender_private_key();
-    fr minuend_nullifier_1 = minuend_note_1.compute_nullifier(msg_sender_private_key);
-    fr minuend_nullifier_2 = minuend_note_2.compute_nullifier(msg_sender_private_key);
+    auto [minuend_nullifier_1, minuend_nullifier_preimage_1] = minuend_note_1.compute_nullifier(msg_sender_private_key);
+    auto [minuend_nullifier_2, minuend_nullifier_preimage_2] = minuend_note_2.compute_nullifier(msg_sender_private_key);
 
     /// TODO: merkle membership proofs for the two minuend notes.
 
     auto difference_note = PrivateStateNote<Composer>(*this, difference_preimage);
 
     state_factory->push_new_note(difference_note);
-    state_factory->push_new_nullifier(minuend_nullifier_1);
-    state_factory->push_new_nullifier(minuend_nullifier_2);
+    state_factory->push_new_nullifier_data(minuend_nullifier_1, minuend_nullifier_preimage_1);
+    state_factory->push_new_nullifier_data(minuend_nullifier_2, minuend_nullifier_preimage_2);
 }
 
 // template class PrivateStateVar<waffle::TurboComposer>;

@@ -1,6 +1,7 @@
 #include "transfer.hpp"
 #include "contract.hpp"
 #include <aztec3/circuits/apps/private_state_note.hpp>
+// #include <aztec3/circuits/apps/function_executor.hpp>
 #include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
 // #include <aztec3/circuits/abis/call_context.hpp>
 
@@ -8,14 +9,14 @@ namespace aztec3::circuits::apps::test_apps::escrow {
 
 using aztec3::circuits::abis::OptionalPrivateCircuitPublicInputs;
 
-void transfer(Composer& composer,
-              OracleWrapper& oracle,
-              NT::fr const& _amount,
-              NT::address const& _to,
-              NT::fr const& _asset_id,
-              NT::fr const& _memo,
-              NT::boolean const& _reveal_msg_sender_to_recipient,
-              NT::fr const& _fee)
+OptionalPrivateCircuitPublicInputs<NT> transfer(Composer& composer,
+                                                OracleWrapper& oracle,
+                                                NT::fr const& _amount,
+                                                NT::address const& _to,
+                                                NT::fr const& _asset_id,
+                                                NT::fr const& _memo,
+                                                NT::boolean const& _reveal_msg_sender_to_recipient,
+                                                NT::fr const& _fee)
 {
     info("\n\nin transfer...");
 
@@ -32,9 +33,9 @@ void transfer(Composer& composer,
 
     CT::address msg_sender = oracle.get_msg_sender();
 
-    auto contract = init(composer, oracle);
+    auto env = init(composer, oracle);
 
-    auto& balances = contract.get_private_state("balances");
+    auto& balances = env.get_private_state("balances");
 
     // Circuit-specific logic *******************************************************
 
@@ -57,15 +58,9 @@ void transfer(Composer& composer,
             .memo = memo,
         });
 
-    // Finalise state_factory *******************************************************
-
-    contract.finalise();
-
     // Assign circuit-specific public inputs ****************************************
 
-    auto public_inputs = OptionalPrivateCircuitPublicInputs<CT>::create();
-
-    public_inputs.call_context = oracle.get_call_context(); /// TODO: can this be abstracted away out of this body?
+    auto& public_inputs = env.private_circuit_public_inputs;
 
     public_inputs.custom_public_inputs[0] = amount;
     public_inputs.custom_public_inputs[1] = to.to_field();
@@ -77,15 +72,16 @@ void transfer(Composer& composer,
     public_inputs.emitted_public_inputs[0] = CT::fr::copy_as_new_witness(composer, fee);
     public_inputs.emitted_public_inputs[1] = CT::fr::copy_as_new_witness(composer, asset_id);
 
-    public_inputs.set_commitments(contract.private_state_factory.commitments);
-    public_inputs.set_nullifiers(contract.private_state_factory.nullifiers);
-
     /// TODO: merkle membership check
     // public_inputs.old_private_data_tree_root
 
-    public_inputs.set_public(composer);
+    // Finalise *********************************************************************
+
+    env.finalise();
 
     info("public inputs: ", public_inputs);
+
+    return public_inputs.to_native_type<Composer>();
 };
 
 } // namespace aztec3::circuits::apps::test_apps::escrow

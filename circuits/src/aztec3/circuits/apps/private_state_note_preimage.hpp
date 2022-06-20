@@ -93,6 +93,6 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, PrivateStateN
               << "is_real: " << preimage.is_real << "\n";
 }
 
-template <typename NCT> using MappingKeyValues = std::map<std::string, std::optional<typename NCT::fr>>;
+// template <typename NCT> using MappingKeyValues = std::map<std::string, std::optional<typename NCT::fr>>;
 
 } // namespace aztec3::circuits::apps

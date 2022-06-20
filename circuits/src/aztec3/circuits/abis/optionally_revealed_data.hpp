@@ -53,6 +53,10 @@ template <typename NCT> struct OptionallyRevealedData {
         set_array_public(emitted_public_inputs);
         vk_hash.set_public();
         portal_contract_address.set_public();
+        fr(pay_fee_from_l1).set_public();
+        fr(pay_fee_from_public_l2).set_public();
+        fr(called_from_l1).set_public();
+        fr(called_from_public_l2).set_public();
     }
 
     template <typename T, size_t SIZE> void set_array_public(std::array<T, SIZE>& arr)

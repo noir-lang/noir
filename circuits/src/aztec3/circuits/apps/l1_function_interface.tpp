@@ -13,7 +13,8 @@ using plonk::stdlib::witness_t;
 using plonk::stdlib::types::CircuitTypes;
 using plonk::stdlib::types::NativeTypes;
 
-template <typename Composer> std::pair<L1Promise<Composer>, L1Result> L1Function<Composer>::call(std::vector<fr> args)
+template <typename Composer>
+std::pair<L1Promise<Composer>, L1Result> L1FunctionInterface<Composer>::call(std::vector<fr> args)
 {
     if (args.size() != num_params) {
         throw_or_abort("Incorrect number of args");

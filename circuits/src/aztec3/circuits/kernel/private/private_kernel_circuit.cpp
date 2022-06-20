@@ -71,7 +71,8 @@ CT::AggregationObject verify_proofs(Composer& composer,
     Aggregator::aggregate(&composer,
                           private_inputs.previous_kernel.vk,
                           private_inputs.previous_kernel.proof,
-                          num_private_kernel_public_inputs);
+                          num_private_kernel_public_inputs,
+                          aggregation_object);
 
     return aggregation_object;
 }

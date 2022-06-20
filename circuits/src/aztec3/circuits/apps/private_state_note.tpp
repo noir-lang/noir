@@ -59,8 +59,6 @@ template <typename Composer> typename CircuitTypes<Composer>::fr PrivateStateNot
         return *commitment;
     }
 
-    info("preimage: ", preimage);
-
     grumpkin_point slot_point = private_state_var.slot_point;
 
     std::vector<fr> inputs;
@@ -161,7 +159,8 @@ typename CircuitTypes<Composer>::grumpkin_point PrivateStateNote<Composer>::comp
 }
 
 template <typename Composer>
-typename CircuitTypes<Composer>::fr PrivateStateNote<Composer>::compute_nullifier(fr const& owner_private_key)
+std::pair<typename CircuitTypes<Composer>::fr, NullifierPreimage<CircuitTypes<Composer>>> PrivateStateNote<
+    Composer>::compute_nullifier(fr const& owner_private_key)
 {
     if (is_partial) {
         throw_or_abort("Can't nullify a partial note.");
@@ -170,11 +169,16 @@ typename CircuitTypes<Composer>::fr PrivateStateNote<Composer>::compute_nullifie
         throw_or_abort("Commitment not yet calculated. Call compute_commitment() or change how you initialise this "
                        "note to include the `commit_on_init` bool.");
     }
-    if (nullifier.has_value()) {
-        return *nullifier;
+    if (nullifier && nullifier_preimage) {
+        return std::make_pair(*nullifier, *nullifier_preimage);
     }
     nullifier = PrivateStateNote<Composer>::compute_nullifier(*commitment, owner_private_key, preimage.is_real);
-    return *nullifier;
+    nullifier_preimage = {
+        *commitment,
+        owner_private_key,
+        preimage.is_real,
+    };
+    return std::make_pair(*nullifier, *nullifier_preimage);
 };
 
 template <typename Composer>

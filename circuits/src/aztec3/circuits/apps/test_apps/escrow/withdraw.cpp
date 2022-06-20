@@ -10,13 +10,13 @@ namespace aztec3::circuits::apps::test_apps::escrow {
 
 using aztec3::circuits::abis::OptionalPrivateCircuitPublicInputs;
 
-void withdraw(Composer& composer,
-              OracleWrapper& oracle,
-              NT::fr const& _amount,
-              NT::fr const& _asset_id,
-              NT::fr const& _memo,
-              NT::fr const& _l1_withdrawal_address,
-              NT::fr const& _fee)
+OptionalPrivateCircuitPublicInputs<NT> withdraw(Composer& composer,
+                                                OracleWrapper& oracle,
+                                                NT::fr const& _amount,
+                                                NT::fr const& _asset_id,
+                                                NT::fr const& _memo,
+                                                NT::fr const& _l1_withdrawal_address,
+                                                NT::fr const& _fee)
 {
     info("\n\nin withdraw...");
 
@@ -32,9 +32,9 @@ void withdraw(Composer& composer,
 
     CT::address msg_sender = oracle.get_msg_sender();
 
-    auto contract = init(composer, oracle);
+    auto env = init(composer, oracle);
 
-    auto& balances = contract.get_private_state("balances");
+    auto& balances = env.get_private_state("balances");
 
     // Circuit-specific logic *******************************************************
 
@@ -46,7 +46,7 @@ void withdraw(Composer& composer,
             .memo = memo,
         });
 
-    auto& l1_withdraw_function = contract.get_l1_function("withdraw");
+    auto& l1_withdraw_function = env.get_l1_function("withdraw");
 
     auto [l1_promise, l1_result] = l1_withdraw_function.call({ asset_id, amount, msg_sender.to_field() });
     l1_promise.on_success("withdraw_success_callback",
@@ -63,15 +63,9 @@ void withdraw(Composer& composer,
                               memo,
                           });
 
-    // Finalise state_factory *******************************************************
-
-    contract.finalise();
-
     // Assign circuit-specific public inputs ****************************************
 
-    auto public_inputs = OptionalPrivateCircuitPublicInputs<CT>::create();
-
-    public_inputs.call_context = oracle.get_call_context(); /// TODO: can this be abstracted away out of this body?
+    auto& public_inputs = env.private_circuit_public_inputs;
 
     public_inputs.custom_public_inputs[0] = amount;
     public_inputs.custom_public_inputs[1] = asset_id;
@@ -83,15 +77,14 @@ void withdraw(Composer& composer,
     public_inputs.emitted_public_inputs[1] = CT::fr::copy_as_new_witness(composer, asset_id);
     public_inputs.emitted_public_inputs[2] = CT::fr::copy_as_new_witness(composer, fee);
 
-    public_inputs.set_commitments(contract.private_state_factory.commitments);
-    public_inputs.set_nullifiers(contract.private_state_factory.nullifiers);
+    env.finalise();
 
     /// TODO: merkle membership check
     // public_inputs.old_private_data_tree_root
 
-    public_inputs.set_public(composer);
-
     info("public inputs: ", public_inputs);
+
+    return public_inputs.to_native_type<Composer>();
 };
 
 } // namespace aztec3::circuits::apps::test_apps::escrow

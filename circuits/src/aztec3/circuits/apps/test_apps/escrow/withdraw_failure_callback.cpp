@@ -22,9 +22,9 @@ void withdraw_failure_callback(Composer& composer,
 
     CT::address msg_sender = oracle.get_msg_sender();
 
-    auto contract = init(composer, oracle);
+    auto env = init(composer, oracle);
 
-    auto& balances = contract.get_private_state("balances");
+    auto& balances = env.get_private_state("balances");
 
     balances.at({ owner_address.to_field(), asset_id })
         .add({
@@ -34,22 +34,14 @@ void withdraw_failure_callback(Composer& composer,
             .memo = memo,
         });
 
-    contract.finalise();
-
-    // TODO: maybe pass `oracle` to this `create()` function as well?
-    auto public_inputs = OptionalPrivateCircuitPublicInputs<CT>::create();
-
-    public_inputs.call_context = oracle.get_call_context(); /// TODO: can this be abstracted away out of this body?
+    auto& public_inputs = env.private_circuit_public_inputs;
 
     public_inputs.custom_public_inputs[0] = asset_id;
     public_inputs.custom_public_inputs[1] = amount;
     public_inputs.custom_public_inputs[2] = owner_address.to_field();
     public_inputs.custom_public_inputs[3] = memo;
 
-    public_inputs.set_commitments(contract.private_state_factory.commitments);
-    public_inputs.set_nullifiers(contract.private_state_factory.nullifiers);
-
-    public_inputs.set_public(composer);
+    env.finalise();
 
     info("public inputs: ", public_inputs);
 };

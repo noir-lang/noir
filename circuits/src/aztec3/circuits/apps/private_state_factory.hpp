@@ -1,9 +1,10 @@
 #pragma once
+#include <aztec3/constants.hpp>
 #include <stdlib/types/convert.hpp>
+#include "nullifier_preimage.hpp"
 #include "private_state_note.hpp"
 #include "private_state_var.hpp"
 #include "oracle_wrapper.hpp"
-#include <aztec3/constants.hpp>
 
 namespace aztec3::circuits::apps {
 
@@ -22,9 +23,10 @@ template <typename Composer> class PrivateStateFactory {
     fr private_state_counter = 0;
 
     std::map<std::string, PrivateStateVar<Composer>> private_state_vars;
-    std::vector<PrivateStateNote<Composer>> private_state_notes;
-    std::vector<fr> commitments;
-    std::vector<fr> nullifiers;
+    std::vector<PrivateStateNote<Composer>> new_private_state_notes;
+    std::vector<fr> new_commitments;
+    std::vector<NullifierPreimage<CT>> new_nullifier_preimages;
+    std::vector<fr> new_nullifiers;
 
     PrivateStateFactory<Composer>(Composer& composer,
                                   OracleWrapperInterface<Composer>& oracle,
@@ -61,18 +63,25 @@ template <typename Composer> class PrivateStateFactory {
 
     void finalise()
     {
-        if (private_state_notes.size() > nullifiers.size()) {
-            // We want to create more commitments than the number of nullifiers we've created so-far. But we want to
-            // inject an input_nullifier into each new commitment. So, let's create more dummy nullifiers.
+
+        if (new_private_state_notes.size() > new_nullifiers.size()) {
+            // We've created more commitments than nullifiers so far. But we want to inject an input_nullifier into each
+            // new commitment. So, let's create more dummy nullifiers.
             const auto& msg_sender_private_key = oracle.get_msg_sender_private_key();
-            for (size_t i = nullifiers.size(); i < private_state_notes.size(); ++i) {
-                nullifiers.push_back(PrivateStateNote<Composer>::compute_dummy_nullifier(
-                    oracle.generate_random_element(), msg_sender_private_key));
+            for (size_t i = new_nullifiers.size(); i < new_private_state_notes.size(); ++i) {
+                auto dummy_commitment = oracle.generate_random_element();
+                new_nullifiers.push_back(
+                    PrivateStateNote<Composer>::compute_dummy_nullifier(dummy_commitment, msg_sender_private_key));
+                new_nullifier_preimages.push_back(NullifierPreimage<CT>{
+                    dummy_commitment,
+                    msg_sender_private_key,
+                    false,
+                });
             }
         }
-        for (size_t i = 0; i < private_state_notes.size(); ++i) {
-            private_state_notes[i].preimage.input_nullifier = nullifiers[i];
-            commitments.push_back(private_state_notes[i].compute_commitment());
+        for (size_t i = 0; i < new_private_state_notes.size(); ++i) {
+            new_private_state_notes[i].preimage.input_nullifier = new_nullifiers[i];
+            new_commitments.push_back(new_private_state_notes[i].compute_commitment());
         }
     }
 
@@ -86,12 +95,16 @@ template <typename Composer> class PrivateStateFactory {
 
     void push_new_note(PrivateStateNote<Composer> const private_state_note)
     {
-        private_state_notes.push_back(private_state_note);
+        new_private_state_notes.push_back(private_state_note);
     }
 
-    void push_new_commitment(fr const& commitment) { commitments.push_back(commitment); }
+    void push_new_nullifier_data(fr nullifier, NullifierPreimage<CT> nullifier_preimage)
+    {
+        new_nullifiers.push_back(nullifier);
+        new_nullifier_preimages.push_back(nullifier_preimage);
+    }
 
-    void push_new_nullifier(fr const& nullifier) { nullifiers.push_back(nullifier); }
+    std::vector<PrivateStateNote<Composer>> get_notes() { return new_private_state_notes; }
 };
 
 } // namespace aztec3::circuits::apps
