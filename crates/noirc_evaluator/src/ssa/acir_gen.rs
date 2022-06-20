@@ -552,8 +552,16 @@ impl Acir {
                     }
                 }
                 _ => {
-                    dbg!(&l_obj);
-                    unreachable!("invalid input")
+                    if self.arith_cache.contains_key(a) {
+                        if let Some(w) = self.arith_cache[a].clone().witness {
+                            inputs.push(GadgetInput { witness: w, num_bits: l_obj.size_in_bits() });
+                        } else {
+                            todo!();
+                        }
+                    } else {
+                        dbg!(&l_obj);
+                        unreachable!("invalid input")
+                    }
                 }
             }
         }
@@ -569,10 +577,6 @@ impl Acir {
         cfg: &SsaContext,
         evaluator: &mut Evaluator,
     ) -> Arithmetic {
-        if opcode == OPCODE::ToBits {
-            todo!();
-        }
-
         let outputs;
         match opcode {
             OPCODE::ToBits => {
