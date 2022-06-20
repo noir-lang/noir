@@ -117,11 +117,13 @@ pub enum NodeObj {
 }
 
 impl NodeObj {
-    pub fn set_id(&mut self, new_id: NodeId) {
+    pub fn set_id_and_parent(&mut self, new_id: NodeId, block: BlockId) {
         match self {
-            NodeObj::Obj(obj) => obj.id = new_id,
-            NodeObj::Instr(inst) => inst.id = new_id,
-            NodeObj::Const(c) => c.id = new_id,
+            NodeObj::Instr(inst) => {
+                inst.id = new_id;
+                inst.parent_block = block;
+            }
+            _ => unreachable!("Expected instruction, got {}", self),
         }
     }
 }
@@ -284,6 +286,30 @@ impl ObjectType {
             _ => (BigUint::one() << self.bits()) - BigUint::one(),
         }
     }
+
+    pub fn deref(&self, ctx: &SsaContext) -> ObjectType {
+        match self {
+            ObjectType::Pointer(a) => ctx.mem[*a].element_type,
+            _ => *self,
+        }
+    }
+
+    pub fn type_to_pointer(&self) -> ArrayId {
+        match self {
+            ObjectType::Pointer(a) => *a,
+            _ => unreachable!("Type is not a pointer",),
+        }
+    }
+
+    pub fn field_to_type(&self, f: FieldElement) -> u128 {
+        match self {
+            ObjectType::NativeField | ObjectType::NotAnObject | ObjectType::Pointer(_) => {
+                unreachable!()
+            }
+            ObjectType::Signed(_) => todo!(),
+            _ => f.to_u128() % self.bits() as u128,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -334,6 +360,15 @@ impl NodeEval {
         }
     }
 
+    //returns the NodeObj index of a NodeEval object
+    //if NodeEval is a constant, it may creates a new NodeObj corresponding to the constant value
+    pub fn to_index(self, ctx: &mut SsaContext) -> NodeId {
+        match self {
+            NodeEval::Const(c, t) => ctx.get_or_create_const(c, t),
+            NodeEval::VarOrInstruction(i) => i,
+        }
+    }
+
     pub fn from_id(ctx: &SsaContext, id: NodeId) -> NodeEval {
         match &ctx[id] {
             NodeObj::Const(c) => {
@@ -380,9 +415,10 @@ impl Instruction {
             }
             Operation::Truncate { .. } | Operation::Phi { .. } => false,
             Operation::Nop | Operation::Jne(..) | Operation::Jeq(..) | Operation::Jmp(..) => false,
-            Operation::Load { .. } | Operation::Store { .. } => false,
+            Operation::Load { .. } => false,
+            Operation::Store { .. } => true,
             Operation::Intrinsic(_, _) => true, //TODO to check
-            Operation::Call(_, _) => false, //return values are in the return statment, should we truncate function arguments? probably but not lhs and rhs anyways.
+            Operation::Call(_, _, _) => false, //return values are in the return statment, should we truncate function arguments? probably but not lhs and rhs anyways.
             Operation::Return(_) => true,
             Operation::Result { .. } => false,
         }
@@ -493,12 +529,10 @@ pub enum Operation {
     Jeq(NodeId, BlockId), //jump on equal
     Jmp(BlockId),         //unconditional jump
     Phi { root: NodeId, block_args: Vec<(NodeId, BlockId)> },
-
-    Call(noirc_frontend::node_interner::FuncId, Vec<NodeId>), //Call a function
+    Call(noirc_frontend::node_interner::FuncId, Vec<NodeId>, Vec<ArrayId>), //Call a function
     Return(Vec<NodeId>), //Return value(s) from a function block
     Result { call_instruction: NodeId, index: u32 }, //Get result index n from a function call
 
-    //memory
     Load { array_id: ArrayId, index: NodeId },
     Store { array_id: ArrayId, index: NodeId, value: NodeId },
 
@@ -734,19 +768,40 @@ impl Binary {
                 //if only one is const, we could try to do constant propagation but this will be handled by the arithmetization step anyways
                 //so it is probably not worth it.
             }
-            BinaryOp::Udiv | BinaryOp::Sdiv | BinaryOp::Div => {
+
+            BinaryOp::Udiv => {
                 if r_is_zero {
                     todo!("Panic - division by zero");
                 } else if l_is_zero {
-                    return l_eval;
+                    return l_eval; //TODO should we ensure rhs != 0 ???
+                }
+                //constant folding
+                else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
+                    let lhs = res_type.field_to_type(lhs);
+                    let rhs = res_type.field_to_type(rhs);
+                    return NodeEval::Const(FieldElement::from(lhs / rhs), res_type);
+                }
+            }
+            BinaryOp::Div => {
+                if r_is_zero {
+                    todo!("Panic - division by zero");
+                } else if l_is_zero {
+                    return l_eval; //TODO should we ensure rhs != 0 ???
                 }
                 //constant folding - TODO
+                else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
+                    return NodeEval::Const(lhs / rhs, res_type);
+                }
+            }
+            BinaryOp::Sdiv => {
+                if r_is_zero {
+                    todo!("Panic - division by zero");
+                } else if l_is_zero {
+                    return l_eval; //TODO should we ensure rhs != 0 ???
+                }
+                //constant folding...TODO
                 else if lhs.is_some() && rhs.is_some() {
                     todo!("Constant folding for division");
-                } else if rhs.is_some() {
-                    //same as lhs*1/r
-                    todo!("Constant folding for division rhs");
-                    //return (Some(self.lhs), None, None);
                 }
             }
             BinaryOp::Urem | BinaryOp::Srem => {
@@ -979,6 +1034,15 @@ impl Operation {
         Operation::Binary(Binary::new(op, lhs, rhs))
     }
 
+    pub fn is_dummy_store(&self) -> bool {
+        match self {
+            Operation::Store { index, value, .. } => {
+                *index == NodeId::dummy() && *value == NodeId::dummy()
+            }
+            _ => false,
+        }
+    }
+
     pub fn map_id(&self, mut f: impl FnMut(NodeId) -> NodeId) -> Operation {
         use Operation::*;
         match self {
@@ -1003,7 +1067,9 @@ impl Operation {
             }
             Intrinsic(i, args) => Intrinsic(*i, vecmap(args.iter().copied(), f)),
             Nop => Nop,
-            Call(func_id, args) => Call(*func_id, vecmap(args.iter().copied(), f)),
+            Call(func_id, args, returned_array) => {
+                Call(*func_id, vecmap(args.iter().copied(), f), returned_array.clone())
+            }
             Return(values) => Return(vecmap(values.iter().copied(), f)),
             Result { call_instruction, index } => {
                 Result { call_instruction: f(*call_instruction), index: *index }
@@ -1042,7 +1108,7 @@ impl Operation {
                 }
             }
             Nop => (),
-            Call(_, args) => {
+            Call(_, args, _) => {
                 for arg in args {
                     *arg = f(*arg);
                 }
@@ -1085,7 +1151,7 @@ impl Operation {
             }
             Intrinsic(_, args) => args.iter().copied().for_each(f),
             Nop => (),
-            Call(_, args) => args.iter().copied().for_each(f),
+            Call(_, args, _) => args.iter().copied().for_each(f),
             Return(values) => values.iter().copied().for_each(f),
             Result { call_instruction, .. } => {
                 f(*call_instruction);
@@ -1103,7 +1169,7 @@ impl Operation {
             Operation::Jeq(_, _) => Opcode::Jeq,
             Operation::Jmp(_) => Opcode::Jmp,
             Operation::Phi { .. } => Opcode::Phi,
-            Operation::Call(id, _) => Opcode::Call(*id),
+            Operation::Call(id, _, _) => Opcode::Call(*id),
             Operation::Return(_) => Opcode::Return,
             Operation::Result { .. } => Opcode::Results,
             Operation::Load { array_id, .. } => Opcode::Load(*array_id),

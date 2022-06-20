@@ -4,6 +4,7 @@ pub mod code_gen;
 pub mod context;
 pub mod flatten;
 pub mod function;
+pub mod inline;
 pub mod integer;
 pub mod mem;
 pub mod node;

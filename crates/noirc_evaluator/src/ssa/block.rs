@@ -2,7 +2,7 @@ use super::{
     context::SsaContext,
     node::{self, NodeId},
 };
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 #[derive(PartialEq, Debug)]
 pub enum BlockType {
@@ -69,10 +69,26 @@ impl BasicBlock {
     pub fn create_cfg(ctx: &mut SsaContext) -> BlockId {
         let root_block = BasicBlock::new(BlockId::dummy(), BlockType::Normal);
         let root_block = ctx.insert_block(root_block);
+        root_block.predecessor = Vec::new();
         let root_id = root_block.id;
         ctx.current_block = root_id;
+        ctx.sealed_blocks.insert(root_id);
         ctx.new_instruction(node::Operation::Nop, node::ObjectType::NotAnObject);
         root_id
+    }
+
+    pub fn written_arrays(&self, ctx: &SsaContext) -> HashSet<super::mem::ArrayId> {
+        let mut result = HashSet::new();
+        for i in &self.instructions {
+            if let Some(node::Instruction {
+                operation: node::Operation::Store { array_id: x, .. },
+                ..
+            }) = ctx.try_get_instruction(*i)
+            {
+                result.insert(*x);
+            }
+        }
+        result
     }
 }
 
@@ -195,7 +211,7 @@ pub fn bfs(start: BlockId, stop: Option<BlockId>, ctx: &SsaContext) -> Vec<Block
                 if stop == Some(block_id) {
                     return;
                 }
-                if !result.contains(&block_id) {
+                if block_id != BlockId::dummy() && !result.contains(&block_id) {
                     result.push(block_id);
                     queue.push_back(block_id);
                 }
