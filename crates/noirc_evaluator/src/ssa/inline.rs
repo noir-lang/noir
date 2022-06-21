@@ -215,10 +215,19 @@ pub fn inline_in_block(
                             ctx.get_result_instruction_mut(target_block_id, call_id, i as u32)
                                 .unwrap()
                                 .mark = Mark::ReplaceWith(*value);
+                            let call_ins = ctx.get_mut_instruction(call_id);
+                            call_ins.mark = Mark::Deleted;
+                        } else {
+                            //TODO - when implementing multiple return values: to remove and use result instruction instead
+                            let call_ins = ctx.get_mut_instruction(call_id);
+                            call_ins.mark = Mark::ReplaceWith(*value);
+                            if let Some(a_id) = array_id {
+                                if let Some(&i_pointer) = stack_frame.try_get(a_id) {
+                                    call_ins.res_type = node::ObjectType::Pointer(i_pointer);
+                                }
+                            }
                         }
                     }
-                    let call_ins = ctx.get_mut_instruction(call_id);
-                    call_ins.mark = Mark::Deleted;
                 }
                 Operation::Call(..) => {
                     *nested_call = true;
