@@ -35,7 +35,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     let function_last_type = type_check_expression(interner, func_as_expr, &mut errors);
 
     // Check declared return type and actual return type
-    if !can_ignore_ret { 
+    if !can_ignore_ret {
         function_last_type.unify(declared_return_type, &mut || {
             let func_span = interner.id_span(func_as_expr); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
             errors.push(TypeCheckError::TypeMismatch {

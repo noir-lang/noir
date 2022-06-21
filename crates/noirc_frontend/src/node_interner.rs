@@ -5,7 +5,6 @@ use std::rc::Rc;
 use arena::{Arena, Index};
 use noirc_errors::Span;
 
-use crate::TypeVariableId;
 use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::UnresolvedStruct;
 use crate::hir::def_map::{LocalModuleId, ModuleId};
@@ -15,6 +14,7 @@ use crate::hir_def::{
     function::{FuncMeta, HirFunction},
     stmt::HirStatement,
 };
+use crate::TypeVariableId;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub struct DefinitionId(usize);

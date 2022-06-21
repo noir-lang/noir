@@ -131,6 +131,7 @@ impl Type {
         }
     }
 
+    #[allow(clippy::result_unit_err)]
     pub fn try_bind_to_polymorphic_int(&self, var: &TypeVariable) -> Result<(), ()> {
         let target_id = match &*var.borrow() {
             TypeBinding::Bound(_) => unreachable!(),
@@ -138,8 +139,7 @@ impl Type {
         };
 
         match self {
-            Type::FieldElement(_)
-            | Type::Integer(_, _, _) => {
+            Type::FieldElement(_) | Type::Integer(_, _, _) => {
                 *var.borrow_mut() = TypeBinding::Bound(self.clone());
                 Ok(())
             }
@@ -154,7 +154,7 @@ impl Type {
                     }
                 }
             }
-            _ => Err(())
+            _ => Err(()),
         }
     }
 
@@ -166,14 +166,11 @@ impl Type {
     pub fn unify(&self, other: &Type, error: &mut impl FnMut()) -> bool {
         use Type::*;
         match (self, other) {
-            (Error, _)
-            | (_, Error) => true,
+            (Error, _) | (_, Error) => true,
 
-            (Unspecified, _)
-            | (_, Unspecified) => unreachable!(),
+            (Unspecified, _) | (_, Unspecified) => unreachable!(),
 
-            (PolymorphicInteger(binding), other)
-            | (other, PolymorphicInteger(binding)) => {
+            (PolymorphicInteger(binding), other) | (other, PolymorphicInteger(binding)) => {
                 // If it is already bound, unify against what it is bound to
                 if let TypeBinding::Bound(link) = &*binding.borrow() {
                     return link.unify(other, error);
@@ -194,7 +191,7 @@ impl Type {
                 } else {
                     elem_a.unify(elem_b, error)
                 }
-            },
+            }
 
             (Tuple(elems_a), Tuple(elems_b)) => {
                 if elems_a.len() != elems_b.len() {
@@ -208,7 +205,7 @@ impl Type {
                     }
                     true
                 }
-            },
+            }
 
             // No recursive unify call for struct fields. Don't want
             // to mutate shared type variables within struct definitions.
@@ -220,7 +217,7 @@ impl Type {
                 } else {
                     true
                 }
-            },
+            }
 
             (other_a, other_b) => {
                 let success = other_a == other_b;
@@ -288,7 +285,13 @@ impl Type {
     }
 
     pub fn is_field_element(&self) -> bool {
-        matches!(self, Type::FieldElement(_) | Type::Bool | Type::Integer(_, _, _) | Type::PolymorphicInteger(_))
+        matches!(
+            self,
+            Type::FieldElement(_)
+                | Type::Bool
+                | Type::Integer(_, _, _)
+                | Type::PolymorphicInteger(_)
+        )
     }
 
     /// Computes the number of elements in a Type
@@ -409,12 +412,10 @@ impl Type {
 
                 AbiType::Integer { sign, width: *bit_width as u32, visibility: fet_to_abi(fe_type) }
             }
-            Type::PolymorphicInteger(binding) => {
-                match &*binding.borrow() {
-                    TypeBinding::Bound(typ) => typ.as_abi_type(),
-                    TypeBinding::Unbound(_) => Type::DEFAULT_INT_TYPE.as_abi_type(),
-                }
-            }
+            Type::PolymorphicInteger(binding) => match &*binding.borrow() {
+                TypeBinding::Bound(typ) => typ.as_abi_type(),
+                TypeBinding::Unbound(_) => Type::DEFAULT_INT_TYPE.as_abi_type(),
+            },
             Type::Bool => panic!("currently, cannot have a bool in the entry point function"),
             Type::Error => unreachable!(),
             Type::Unspecified => unreachable!(),
