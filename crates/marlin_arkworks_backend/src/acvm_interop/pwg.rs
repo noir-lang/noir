@@ -64,7 +64,7 @@ impl PartialWitnessGenerator for Marlin {
                         }
                     }
                     acir::circuit::gate::Directive::Quotient { a, b, q, r } => {
-                        match (initial_witness.get(a), initial_witness.get(b)) {
+                        match (a.get_value(initial_witness), b.get_value(initial_witness)) {
                             (Some(val_a), Some(val_b)) => {
                                 let int_a = BigUint::from_bytes_be(&val_a.to_bytes());
                                 let int_b = BigUint::from_bytes_be(&val_b.to_bytes());

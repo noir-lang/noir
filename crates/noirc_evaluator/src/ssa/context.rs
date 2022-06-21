@@ -598,6 +598,7 @@ impl<'a> SsaContext<'a> {
         //ACIR
         self.acir(evaluator);
         if enable_logging {
+            Acir::print_circuit(&evaluator.gates);
             println!("DONE");
             dbg!(&evaluator.current_witness_index);
         }
@@ -615,7 +616,6 @@ impl<'a> SsaContext<'a> {
             //TODO we should rather follow the jumps
             fb = block.left.map(|block_id| &self[block_id]);
         }
-        Acir::print_circuit(&evaluator.gates);
     }
 
     pub fn generate_empty_phi(&mut self, target_block: BlockId, phi_root: NodeId) -> NodeId {

@@ -56,6 +56,10 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) {
     }
 
     //3. left-overs (it requires &mut ctx)
+    if ins.is_deleted() {
+        return;
+    }
+
     if let Operation::Binary(binary) = &mut ins.operation {
         if let NodeEval::Const(r_const, r_type) = NodeEval::from_id(ctx, binary.rhs) {
             if binary.operator == BinaryOp::Div {

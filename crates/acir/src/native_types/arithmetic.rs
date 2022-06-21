@@ -34,12 +34,44 @@ impl Default for Arithmetic {
     }
 }
 
+impl std::fmt::Display for Arithmetic {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        if self.mul_terms.is_empty() && self.linear_combinations.len() == 1 && self.q_c.is_zero() {
+            write!(f, "x{}", self.linear_combinations[0].1.witness_index())
+        } else {
+            write!(f, "%{:?}%", crate::circuit::gate::Gate::Arithmetic(self.clone()))
+        }
+    }
+}
+
 impl Arithmetic {
     pub const fn can_defer_constraint(&self) -> bool {
         false
     }
     pub fn num_mul_terms(&self) -> usize {
         self.mul_terms.len()
+    }
+
+    pub fn get_value(
+        &self,
+        initial_witness: &std::collections::BTreeMap<Witness, FieldElement>,
+    ) -> Option<FieldElement> {
+        let mut result = self.q_c;
+        for i in &self.linear_combinations {
+            if let Some(f) = initial_witness.get(&i.1) {
+                result += i.0 * *f;
+            } else {
+                return None;
+            }
+        }
+        for i in &self.mul_terms {
+            if let (Some(f), Some(g)) = (initial_witness.get(&i.1), initial_witness.get(&i.2)) {
+                result += i.0 * *f * *g;
+            } else {
+                return None;
+            }
+        }
+        Some(result)
     }
 }
 

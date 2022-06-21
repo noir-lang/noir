@@ -288,6 +288,28 @@ fn block_overflow(
                     memory_map.insert(adr, value);
                 }
             }
+            Operation::Binary(node::Binary { operator: BinaryOp::Shl, lhs, rhs }) => {
+                if let Some(r_const) = ctx.get_as_constant(rhs) {
+                    let r_type = ctx[rhs].get_type();
+                    let rhs =
+                        ctx.get_or_create_const(FieldElement::from(2_i128).pow(&r_const), r_type);
+                    ins.operation =
+                        Operation::Binary(node::Binary { lhs, rhs, operator: BinaryOp::Mul });
+                }
+            }
+            Operation::Binary(node::Binary { operator: BinaryOp::Shr, lhs, rhs }) => {
+                if !matches!(ins.res_type, node::ObjectType::Unsigned(_)) {
+                    todo!("Right shift is only implemented for unsigned integers");
+                }
+                if let Some(r_const) = ctx.get_as_constant(rhs) {
+                    let r_type = ctx[rhs].get_type();
+                    let rhs =
+                        ctx.get_or_create_const(FieldElement::from(2_i128).pow(&r_const), r_type);
+                    //todo checks that 2^rhs does not overflow
+                    ins.operation =
+                        Operation::Binary(node::Binary { lhs, rhs, operator: BinaryOp::Udiv });
+                }
+            }
             Operation::Cast(value_id) => {
                 // TODO for now the types we support here are only all integer types (field, signed, unsigned, bool)
                 // so a cast would normally translate to a truncate.
