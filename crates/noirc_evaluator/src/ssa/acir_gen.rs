@@ -913,29 +913,15 @@ pub fn evaluate_udiv(
     rhs: &InternalVar,
     evaluator: &mut Evaluator,
 ) -> (Witness, Witness) {
-    //a = q*b+r, a= lhs, et b= rhs
-    //result = q
-    //n.b a et b MUST have proper bit size
-    //we need to know a bit size (so that q has the same)
-
-    //generate witnesses
-
-    //TODO: can we handle an arithmetic and not create a witness for a and b?
-    let a_witness = generate_witness(lhs, evaluator); //TODO we should set lhs.witness = a.witness and lhs.expression= 1*w
-
-    //TODO: can we handle an arithmetic and not create a witness for a and b?
-    let b_witness = generate_witness(rhs, evaluator);
-
     let q_witness = evaluator.add_witness_to_cs();
     let r_witness = evaluator.add_witness_to_cs();
-
-    //TODO not in master...
     evaluator.gates.push(Gate::Directive(Directive::Quotient {
-        a: a_witness,
-        b: b_witness,
+        a: lhs.expression.clone(),
+        b: rhs.expression.clone(),
         q: q_witness,
         r: r_witness,
     }));
+
     //r<b
     let r_expr = Arithmetic::from(Linear::from_witness(r_witness));
     let r_var = InternalVar { expression: r_expr, witness: Some(r_witness), id: None };
@@ -943,17 +929,12 @@ pub fn evaluate_udiv(
                                                    //range check q<=a
     range_constraint(q_witness, 32, evaluator).unwrap_or_else(|err| {
         dbg!(err);
-    }); //todo bit size should be a.bits
-        // a-b*q-r = 0
-    let div_eucl = add(
-        &lhs.expression,
-        -FieldElement::one(),
-        &Arithmetic {
-            mul_terms: vec![(FieldElement::one(), b_witness, q_witness)],
-            linear_combinations: vec![(FieldElement::one(), r_witness)],
-            q_c: FieldElement::zero(),
-        },
-    );
+    });
+    //todo bit size should be a.bits
+    // a-b*q-r = 0
+    let mut d = mul(&rhs.expression, &Arithmetic::from(&q_witness));
+    d = add(&d, FieldElement::one(), &Arithmetic::from(&r_witness));
+    let div_eucl = subtract(&lhs.expression, FieldElement::one(), &d);
 
     evaluator.gates.push(Gate::Arithmetic(div_eucl));
     (q_witness, r_witness)
