@@ -226,6 +226,12 @@ impl From<&Type> for ObjectType {
                     Signedness::Unsigned => ObjectType::Unsigned(*bit_size),
                 }
             }
+            Type::PolymorphicInteger(binding) => {
+                match &*binding.borrow() {
+                    noirc_frontend::TypeBinding::Bound(typ) => typ.into(),
+                    noirc_frontend::TypeBinding::Unbound(_) => Type::DEFAULT_INT_TYPE.into(),
+                }
+            }
             // TODO: We should probably not convert an array type into the element type
             noirc_frontend::Type::Array(_, _, t) => ObjectType::from(t.as_ref()),
             x => unimplemented!("Conversion to ObjectType is unimplemented for type {}", x),
