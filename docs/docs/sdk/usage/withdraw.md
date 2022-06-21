@@ -38,7 +38,7 @@ AztecSdk.createWithdrawController(
 
 ### Fees
 
-Fees for withdrawals are calculated using a similar method as for [registrations](register-user#calculating-fees), deposits and [transfers](transfer#transfer-fees), but using the `getWithdrawalFees` method.
+Fees for withdrawals are calculated using a similar method as for [registrations](register-#calculating-fees), deposits and [transfers](transfer#transfer-fees), but using the `getWithdrawalFees` method.
 
 ### Executing a Withdrawal
 
