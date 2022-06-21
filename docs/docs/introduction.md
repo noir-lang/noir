@@ -18,7 +18,7 @@ That’s why we’re building Aztec Network to deliver privacy without compromis
 
 ## Zk.money
 
-Our first product is [zk.money](https://zk.money), a private transfer protocol built on Aztec. Since launch, zk.money has had over 20,000 registered users, 225,000+ transactions, and $35 million in total deposits, all while being 96% cheaper than existing private transfer protocols.
+Our first product is [zk.money](https://zk.money), a private transfer protocol built on Aztec. Since launch, zk.money has had over 75,000 registered users, 225,000+ transactions, and over $80 million in total transactions, all while being 96% cheaper than existing private transfer protocols.
 
 You can view some of the latest statistics on the [block explorer](https://explorer.aztec.network/) and on [Dune Analytics](https://dune.com/flashback/Aztec-2).
 

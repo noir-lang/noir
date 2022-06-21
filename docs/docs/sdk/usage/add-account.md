@@ -2,9 +2,9 @@
 title: Add Accounts to the SDK
 ---
 
-Add accounts with the privacy key.
+Add accounts with the account (privacy) key.
 
-Because all notes representing value on Aztec network are encrypted, the SDK requires access to a user's privacy key in order to decrypt the notes and calculate a user's balance.
+Because all notes representing value on Aztec network are encrypted, the SDK requires access to a user's account key in order to decrypt the notes and calculate the account balance.
 
 Please review [the page on Accounts](../../how-aztec-works/accounts.md) if you haven't already as it will help you understand the difference between Ethereum and Aztec accounts.
 
@@ -14,70 +14,82 @@ Aztec will support the same elliptic curve as Ethereum in the future so Ethereum
 
 :::
 
-## Privacy Keys
+## Account Keys
 
-Privacy keys can be any random 32 bytes. Zk.money generates keys deterministically from Ethereum accounts by deriving the keys from signed messages.
+Privacy keys can be any random 32 bytes. The SDK allows you to generate keys deterministically from Ethereum accounts by deriving Aztec keys from signed Ethereum messages.
 
-You can generate the privacy key from an Ethereum key by signing this message:
+### Generate
+
+You can generate the account key from an Ethereum private key by signing this message:
 
 `Sign this message to generate your Aztec Privacy Key. This key lets the application decrypt your balance on Aztec.\n\nIMPORTANT: Only sign this message if you trust the application.`
 
-and taking the first 32 bytes of the resulting signed message. You can find an example [here](https://github.com/critesjosh/aztec-sdk-starter/blob/3abc0b24b0570198a7c5492f7de8d7f452c910fa/src/aztecKeys.ts#L21).
-
-With the privacy key, adding the user to the SDK is as simple as passing the key and the nonce for the account.
+and taking the first 32 bytes of the resulting signed message. You can find an example in the SDK [here](https://github.com/AztecProtocol/aztec-connect/blob/ec87601503c6425b6a578a19117ead5a582df91c/sdk/src/aztec_sdk/aztec_sdk.ts#L196).
 
 ```ts
-const account0 = await AztecSdk.addUser(privacyKey, 0);
-const account1 = await AztecSdk.addUser(privacyKey, 1);
+const { publicKey, privateKey } = sdk.generateAccountKeyPair(ethereumAccount);
 ```
 
-Now just make sure the SDK has synced and you can read account balances:
+### Add to SDK
+
+With the account key, adding the user to the SDK is as simple as passing the key and the nonce for the account.
 
 ```ts
-await account1.awaitSynchronised();
-const ethBalance = await account1.getBalance(AztecSdk.getAssetIdBySymbol("ETH"))
+const account = await AztecSdk.addUser(accountKey);
+```
+
+### Read
+
+Now just make sure the SDK account has synced and you can read account balances:
+
+```ts
+await account.awaitSynchronised();
+const zkEthBalance = await account.getBalance(AztecSdk.getAssetIdBySymbol("ETH"));
 ```
 
 ## Spending Keys
 
-A spending key is required to spend notes on the network. By default, the spending key is the same as the privacy key at nonce 0, so it is considered best practice to register a new account (same public key, but with nonce 1) with a new spending key. You can read more about registering new accounts for users on the [Register Users page](./register-user). Here, we will briefly review how to add an account that has already been registered to the SDK.
+The account key can be used to spend notes on the network until you register a spending a key for the account. Once a spending key has been registered, the account key can only be used to decrypt notes. This creates a useful separation between account (or "viewing/privacy keys") and spending keys.
+
+It is considered best practice to register a new spending key as soon as possible. You can read more about registering new accounts for users on the [Register Users page](./register-user). Here, we will briefly review how to add a spending key to the SDK that has already been registered.
 
 You can create an Aztec signer by passing the signing key to the `createSchnorrSigner(privateKey: Buffer)` method. It returns a signer that you can pass to various `Controllers` to sign transactions on the network on behalf of the account.
 
 ```ts
-const signer1 = await AztecSdk.createSchnorrSigner(signingPrivateKey);
+const signer = await AztecSdk.createSchnorrSigner(signingPrivateKey);
 ```
 
-Like privacy keys, spending keys can be 32 random bytes, but zk.money generates them deterministically from Ethereum accounts by deriving them from a signed message. The message used for creating signing keys is:
+Like account keys, spending keys can be 32 random bytes, but the SDK allows you to generate them deterministically from Ethereum accounts by deriving them from a signed message. The message used for creating signing keys is:
 
 `Sign this message to generate your Aztec Spending Key. This key lets the application spend your funds on Aztec.\n\nIMPORTANT: Only sign this message if you trust the application.`
 
-You can see an example in the reference repo [here](https://github.com/critesjosh/aztec-sdk-starter/blob/b4611c001133e2ef35180a2953e5651354315834/src/index.ts#L89).
+You can see an example in the SDK source code [here](https://github.com/AztecProtocol/aztec-connect/blob/ec87601503c6425b6a578a19117ead5a582df91c/sdk/src/aztec_sdk/aztec_sdk.ts#L205).
 
 ## Add User
 
 ```ts
-AztecSdk.addUser(privateKey: Buffer, accountNonce?: number, noSync?: boolean): Promise<AztecSdkUser>
+AztecSdk.addUser(accountPrivateKey: Buffer, noSync?: boolean): Promise<AztecSdkUser>;
 ```
 
 | Arguments | Type | Description |
 | --------- | ---- | ----------- |
 | privateKey | Buffer | The privacy key of the user. |
-| nonce | number (optional) | The nonce of the user. Default to the latest nonce. |
 | noSync | boolean | Whether to skip sync. Default is `false`.  |
 
 | Return Type | Description |
 | --------- | ----------- |
-| [AztecSdkUser](../types/AztecSdkUser) | A user instance with apis bound to the user's account id. |
+| [AztecSdkUser](../types/sdk/AztecSdkUser) | A user instance with apis bound to the user's account id. |
 
 ## Get User
 
 ```ts
-AztecSdk.getUserData(userId: AccountId): UserData
-// or
-user.getUserData();
+AztecSdk.getUser(userId: GrumpkinAddress): Promise<AztecSdkUser>;
 ```
+
+| Arguments | Type | Description |
+| --------- | ---- | ----------- |
+| userId | [GrumpkinAddress](../types/barretenberg/GrumpkinAddress) | The public key of the user. |
 
 | Return Type | Description |
 | --------- | ----------- |
-| [UserData](./../types/UserData) | Info about the current user. |
+| [AztecSdkUser](./../types/sdk/AztecSdkUser) | A user instance with apis bound to the user's account id. |

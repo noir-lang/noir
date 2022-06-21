@@ -4,7 +4,7 @@ title: Overview
 
 The Aztec SDK is the gateway for developers to access the Aztec network and benefit from low gas fees and privacy on Ethereum. The SDK connects to Ethereum and our zk-rollup service and can be integrated with a few lines code.
 
-The SDK is designed to abstract away the complexities of zero-knowledge proofs from the developer and end users. It provides a simple API for creating accounts, depositing and withdrawing tokens anonymously. The core transfer inside the SDK is private by default.
+The SDK is designed to abstract away the complexities of zero-knowledge proofs from the developer and end users. It provides a simple API for creating accounts, depositing and withdrawing tokens and interacting with Ethereum smart contracts anonymously. Core transfers inside the SDK are private by default.
 
 Under the hood the SDK keeps track of a users private balances across multiples assets and provides easy to use helper methods to the developer to create seamless private UI's.
 
@@ -15,9 +15,9 @@ The SDK is written in Typescript and requires a Javascript context (web browser,
 The Aztec SDK has many capabilities, many of which are associated with the following user actions:
 
 - Connect to the Aztec network
-- Add user accounts to decrypt notes and show user balances
+- Add accounts to decrypt notes and show balances
 - Register new accounts
-- Handle signing key to spend notes or withdraw assets to Ethereum
+- Handle signing keys to spend notes or withdraw assets to Ethereum
 - Query Aztec transaction fees and specify settlement time
 - Lookup user aliases associated with spending account to make transfering assets easier
 - Migrate accounts to a new public key
@@ -25,21 +25,25 @@ The Aztec SDK has many capabilities, many of which are associated with the follo
 
 ## Controllers
 
-Most of the above capabilities are possible through the use of `Controllers`. Controllers make it easy to prompt users for relevant transactions when an action requires an Ethereum transaction and create proofs / send transactions to the Aztec network.
+Most of the above capabilities are possible through the use of `Controllers`. Controllers make it easy to prompt users for relevant transactions when an action requires an Ethereum transaction or signature and create proofs or send transactions to the Aztec network.
 
-Some of examples of common controllers are the `RegisterController` for registering accounts, the `DepositController` for sending Ether or tokens to an Aztec account from an Ethereum account and the `TransferController` for spending notes on the Aztec network.
+For example, the `RegisterController` is used for registering accounts, the `DepositController` for sending Ether or tokens to an Aztec account from an Ethereum account and the `TransferController` for spending notes within the Aztec network.
+
+## Accounts
+
+Aztec accounts may have two or more associated private keys. A new Aztec account should register a unique spending key before handling funds. Please review the [account overview page](../how-aztec-works/accounts) for a high level overview or dig into the code in the [Add Accounts to the SDK page](./usage/add-account).
 
 ## SDK Flavours
 
 The SDK comes in 3 flavours. The users environment will typically automatically determine which flavour is used, but it is good to be aware of them because they do have tradeoffs.
 
-The SDK is set up in browsers in an iframe. This allows for additional protection of users keys by creating a nested browsing context that isn't accessible to the application directly (when using the `HOSTED` flavour of the SDK).
+In [zk.money](https://zk.money), the SDK is set up in browsers in an iframe. This allows for protection of users keys by creating a nested browsing context that isn't accessible to the application directly--it uses the `HOSTED` flavour of the SDK.
 
 ### Hosted
 
 The `HOSTED` flavour is dependent on being able to access the SDK via a URL endpoint. In the case of zk.money, the endpoint is `https://sdk.aztec.network` where the Aztec team hosts an instance of the SDK.
 
-When accessing the SDK via this method, users are trusting the provider at that URL with proper management of their Aztec keys. The host also chooses which rollup provider the SDK talks to.
+When accessing the SDK via this method, users are trusting the provider at that URL with proper management of their Aztec keys. The host also chooses which rollup provider the SDK talks to (ie mainnet vs a testnet).
 
 This is the most common way to connect to the network with the SDK right now. This may change as the number of users and applications on the network increases.
 
