@@ -275,7 +275,7 @@ fn check_cast(from: Type, to: Type, span: Span, errors: &mut Vec<TypeCheckError>
                 TypeBinding::Unbound(_) => {
                     // Don't bind the type variable here. Since we're casting, we can cast from any
                     // integer, and this already represents any integer.
-                    false
+                    true
                 },
             }
         }
