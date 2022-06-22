@@ -15,7 +15,7 @@ fn main(x: [5]u32, y: [5]u32, mut z: u32, t: u32) {
    //Test 2:
    c = 2301 as u32;
    for i in 0..5 {
-      c = t+2;
+      c = t+2 as u32;
       c = z*z*x[i];
       z  = z + x[i]*y[i] - c;
    };
