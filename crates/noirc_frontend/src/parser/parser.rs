@@ -963,17 +963,10 @@ mod test {
 
     #[test]
     fn parse_array_sugar() {
-        let valid = vec![
-            "[0;7]",
-            "[(1, 2); 4]",
-        ];
+        let valid = vec!["[0;7]", "[(1, 2); 4]"];
         parse_all(array_expr(expression()), valid);
 
-        let invalid = vec![
-            "[0;;4]",
-            "[5; 3+2]",
-            "[1; a]",
-        ];
+        let invalid = vec!["[0;;4]", "[5; 3+2]", "[1; a]"];
         parse_all_failing(array_expr(expression()), invalid);
     }
 
