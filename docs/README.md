@@ -1,4 +1,12 @@
-# Website
+# Aztec docs
+
+You can view the latest successful build here. https://transcendent-marshmallow-2f922f.netlify.app/
+
+The official docs site at https://docs.aztec.network is built from a private repo, but this repo should be equivalent.
+
+Built with docusaurus.
+
+## Docusaurus
 
 This website is built using [Docusaurus 2](https://docusaurus.io/), a modern static website generator.
 
