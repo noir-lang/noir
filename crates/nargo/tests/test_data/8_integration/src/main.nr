@@ -1,5 +1,5 @@
 fn matrix_mul_2(a: [4]u32, b:[4]u32) ->[4]u32{
-    let mut c:[4]u32 = [0 as u32, 0 as u32, 0 as u32, 0 as u32, ];
+    let mut c:[4]u32 = [0 as u32; 4];
     for i in 0..2 {
         for j in 0..2 {
             c[i+2*j] = 0 as u32;
@@ -12,16 +12,7 @@ fn matrix_mul_2(a: [4]u32, b:[4]u32) ->[4]u32{
 }
 
 fn matrix_mul_10(a: [100]u32, b:[100]u32) ->[100]u32{
-    let mut c:[100]u32 = [0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 
-    0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 
-    0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 
-    0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 
-    0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 
-    0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 
-    0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 
-    0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 
-    0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 
-    0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, ];
+    let mut c:[100]u32 = [0 as u32; 100];
     for i in 0..10 {
         for j in 0..10 {
             c[i+10*j] = 0 as u32;
