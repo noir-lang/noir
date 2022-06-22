@@ -6,7 +6,7 @@ Register an Aztec spending key.
 
 Please review the [Accounts overview](../../how-aztec-works/accounts) and [Add User](./add-account) pages if you haven't already.
 
-As mentioned in the above pages, there is an important difference between the account (privacy) keys and spending keys. The account key is used to decrypt notes, calculate balances and track transactions associated with an account. The signing key associated with an account is used to spend notes associated with an account.
+As mentioned in the above pages, there is an important difference between the account (privacy) keys and spending keys. The account key is used to decrypt notes, calculate balances and track transactions associated with an account. The spending key associated with an account is used to spend notes associated with an account.
 
 A spending key must be registered on the network before it can be used. The SDK makes it easy to register a new spending key using the `RegisterController`.
 
@@ -42,8 +42,8 @@ AztecSdk.createRegisterController(
 | deposit | [AssetValue](../types/barretenberg/AssetValue) | The `assetId` (number) and `value` (bigint) to deposit. |
 | fee | [AssetValue](../types/barretenberg/AssetValue) | The network fee for registering the account. |
 | depositor | [EthAddress](../types/barretenberg/EthAddress) | The Ethereum account from which to deposit the funds. |
-| feePayer? | [FeePayer](../types/sdk/FeePayer) | Optional account to pay the registration fee. |
-| provider? | [EthereumProvider](../types/barretenberg/EthereumProvider) | Optional Ethereum Provider. |
+| feePayer? | [FeePayer](../types/sdk/FeePayer) | Optional account to pay the registration fee if the fee is to be paid with funds in Aztec instead of Ethereum. Relevant when depositing assets that can't be used for fees in Aztec (deposit wstETH, pay fees with zkETH) |
+| provider? | [EthereumProvider](../types/barretenberg/EthereumProvider) | Optional Ethereum Provider. When unspecified it defaults to the provider used in setup (`createAztecSdk`). |
 
 #### Returns
 
@@ -54,6 +54,8 @@ AztecSdk.createRegisterController(
 ### Calculating Fees
 
 `(await AztecSdk.getRegisterFees(deposit: AssetValue))[settlementTime: TxSettlementTime]` will help determine how much the transaction will cost. Settlement time can either be `NEXT_ROLLUP` or `INSTANT`. `INSTANT` is more expensive because it indicates you will pay for the rollup to settle "instantly" (on the order of minutes rather than hours) rather than waiting for it to fill up with other transactions. When there are more transactions in the rollup, users are splitting the cost among more transactions so each one is cheaper.
+
+Note that the cost of `INSTANT` is the same regardless of how full hte rollup is at the time of requesting the quote.
 
 ### Full Registration Flow
 

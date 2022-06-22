@@ -2,7 +2,7 @@
 title: Overview
 ---
 
-The Aztec SDK is the gateway for developers to access the Aztec network and benefit from low gas fees and privacy on Ethereum. The SDK connects to Ethereum and our zk-rollup service and can be integrated with a few lines code.
+The Aztec SDK is the gateway for developers to access the Aztec network and benefit from low gas fees and privacy on Ethereum. The SDK connects to Ethereum and our zk-rollup service and can be integrated with a few lines of code.
 
 The SDK is designed to abstract away the complexities of zero-knowledge proofs from the developer and end users. It provides a simple API for creating accounts, depositing and withdrawing tokens and interacting with Ethereum smart contracts anonymously. Core transfers inside the SDK are private by default.
 
@@ -37,21 +37,24 @@ Aztec accounts may have two or more associated private keys. A new Aztec account
 
 The SDK comes in 3 flavours. The users environment will typically automatically determine which flavour is used, but it is good to be aware of them because they do have tradeoffs.
 
-In [zk.money](https://zk.money), the SDK is set up in browsers in an iframe. This allows for protection of users keys by creating a nested browsing context that isn't accessible to the application directly--it uses the `HOSTED` flavour of the SDK.
+In [zk.money](https://zk.money), the SDK is set up as `PLAIN`.
 
-### Hosted
-
-The `HOSTED` flavour is dependent on being able to access the SDK via a URL endpoint. In the case of zk.money, the endpoint is `https://sdk.aztec.network` where the Aztec team hosts an instance of the SDK.
-
-When accessing the SDK via this method, users are trusting the provider at that URL with proper management of their Aztec keys. The host also chooses which rollup provider the SDK talks to (ie mainnet vs a testnet).
-
-This is the most common way to connect to the network with the SDK right now. This may change as the number of users and applications on the network increases.
-
-### Shared worker
-
-An application can make the SDK availble to users via `SHARED_WORKER` if the SDK at the `HOSTED` endpoint is unavailable.
-
-This option is preferred over `PLAIN` because it allows similar work to be shared. For example, if you were using `PLAIN` in multiple tabs, each tab would be doing the same work. The `SHARED_WORKER` is more efficient in terms of networking and storage.
 ### Plain
 
 `PLAIN` is used with a node backend or gets used in the iframe if shared workers are not supported in the execution context.
+
+### Shared worker
+
+An application can make the SDK available to users via `SHARED_WORKER` if the SDK at the `HOSTED` endpoint is unavailable.
+
+This option is preferred over `PLAIN` because it allows similar work to be shared. For example, if you were using `PLAIN` in multiple tabs, each tab would be doing the same work. The `SHARED_WORKER` is more efficient in terms of networking and storage.
+
+### Hosted
+
+`HOSTED` does everything that the `SHARED_WORKER` does plus more, except in the case that your browser does not support shared workers. You can check shared worker browser compatibility [here](https://developer.mozilla.org/en-US/docs/Web/API/SharedWorker#browser_compatibility).
+
+The `HOSTED` flavour is dependent on being able to access the SDK via a URL endpoint. The endpoint is `https://sdk.aztec.network`, where the Aztec team hosts an instance of the SDK.
+
+When accessing the SDK via this method, users are trusting the provider at that URL with proper management of their Aztec keys within their browsers. The host also chooses which rollup provider the SDK talks to (ie mainnet vs a testnet).
+
+This flavor needs more testing before it is considered production grade.

@@ -1,4 +1,6 @@
-# Infinite Privacy (Sets)
+---
+title: Infinite Privacy (Sets)
+---
 
 In the last article in our series on Aztec’s privacy architecture, we explored how a private network is even possible on a public blockchain.
 
@@ -11,6 +13,7 @@ But zk.money also offers private internal transfers and will soon offer a full s
 The addition of these anonymizing activities means Aztec will offer a large and dynamic privacy set that will become increasingly more difficult to de-anonymize —a concept we like to call Infinite Privacy.
 
 ## The Infinite City
+
 Imagine Aztec as a walled city. All an outside observer can see is users entering and leaving Aztec via our bridge.
 
 Within the walls of the city, users can exchange assets with fully private transactions. Neither the network nor its participants can see the senders and recipients of transactions, nor their amounts.
@@ -22,6 +25,7 @@ Because Aztec allows for these two new anonymizing activities — internal trans
 That’s a very good thing.
 
 ## Sleuthing and Deducing
+
 Let’s put ourselves in the shoes of an adversary attempting to run de-anonymizing transaction graph analysis.
 
 As an observer watching Ethereum activity, we might watch deposits to and from Aztec, and attempt to deduce what set of deposits a certain withdrawal might belong to.
@@ -33,6 +37,7 @@ Once the privacy set you belong to approaches 1, the probability an observer kno
 Let’s talk through an example.
 
 ## Anonymity Sets 101: Mixer Math
+
 Pretend Aztec were a simple privacy mixer without internal transactions, and we were internet sleuths trying to de-anonymize the network 🕵.️
 
 If we saw someone withdraw 1 ETH, we’d know for certain that they’d deposited at least 1 ETH into the mixer. Because there are no internal transfers, aggregation of multiple deposits into a larger withdrawal simply isn’t possible.
@@ -47,19 +52,21 @@ The answer to the question of who the 1 ETH withdrawal could be in this case wou
 
 
 ## The privacy set in a world without internal transfers.
+
 Of course, the probability that a 1-ETH withdrawer came from the 1 ETH deposit set is much higher than the probability that she came from the >1 ETH deposit set, for a purely behavioral reason:
 
 It’s annoying to break 5-, 10-, or 30-ETH deposits into smaller 1 ETH withdrawals. It’s much simpler to do one big monolithic withdrawal.
 
 So as sophisticated sleuths, our investigative instincts would say that there is some non-zero but small probability that the withdrawer deposited an amount >1 ETH, with that probability diminishing for larger deposits:
-![image](https://user-images.githubusercontent.com/15220860/174936543-5f6c3606-2271-41de-a5db-c4c73724cea6.png)
 
+![image](https://user-images.githubusercontent.com/15220860/174936543-5f6c3606-2271-41de-a5db-c4c73724cea6.png)
 
 This is an example of a simple probability distribution — and the “spikier” it is, the more certainty an adversary has about user behaviors.
 
 In this case, based on observations of other privacy mixers and other comparable behaviors on Defi, a forensic analyst might think the probability of a 1 ETH withdrawal coming from a 5 ETH deposit is 5x lower than the probability of a 1 ETH withdrawal coming from a 1 ETH deposit.
 
 ## Standing In or Standing Out
+
 Let’s establish a rough heuristic guide to thinking about privacy sets:
 
 In order to figure out how to blend in, figure out how to stand out, and then do the opposite.
@@ -75,6 +82,7 @@ I sum our conclusions in this extremely sophisticated 2x2 matrix of behaviors:
 
 
 ## Very. Sophisticated.
+
 So given what we know, how as a collective can we introduce more uncertainty into the adversary’s analysis?
 
 Increase the size of each deposit set, especially large deposits
@@ -116,7 +124,6 @@ Using Aztec Connect, you can bridge funds back to Layer 1 and make shielded asse
 
 With a simple conventional privacy mixer, you deposit funds and simply wait — for what, you ask? For the anonymity set to grow! Meanwhile, deposited funds are completely unproductive. Capital efficiency, schmapital efficiency.
 
-
 Here are some arbitrary possible examples of using private assets while they are inside the system:
 
 Staking ETH in Lido for stETH, depositing it in the stETH-ETH pool and getting double yield
@@ -127,19 +134,21 @@ This is just a teaser! We’ll cover Aztec Connect in depth later in this series
 Bridging back to Ethereum functionally has the same privacy-set-expanding benefits as having new users deposit fresh funds or having you deposit more funds, while being privacy-protected.
 
 This spreads out the probability distribution:
+
 ![image](https://user-images.githubusercontent.com/15220860/174936603-8563d1dc-3404-49bc-8f6d-1ff216bf0062.png)
 
 And makes it less and less likely that you belong to any one given depositor set. Imagine depositing 0.1 ETH and (3, 3)ing on OlympusDAO until your OHM is worth 1 ETH! Now you’ve really thrown off the scent.
 
 ## Purify Before Entering
+
 Now, what Aztec doesn’t do is protect users on mainnet, and poor security hygiene on Ethereum can hurt user privacy.
 
 But there’s some good news here — simply follow privacy best-practices.
 
 Let’s start with one of the biggest no-no’s for any privacy preservation system: withdrawing to the same address.
 
-
 **Don’t do this.**
+
 Why is withdrawing to the same address “bad?” In addition to reducing your own anonymity, you’re basically screwing everyone else over. You’re reducing the anonymity set by removing yourself from it, saying, “I’m taking my ball back.”
 
 Now there’s no way your deposit could actually be the source of anyone else’s withdrawal but your own!

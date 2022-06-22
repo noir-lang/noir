@@ -40,6 +40,8 @@ AztecSdk.createWithdrawController(
 
 Fees for withdrawals are calculated using a similar method as for [registrations](register#calculating-fees), deposits and [transfers](transfer#transfer-fees), but using the `getWithdrawalFees` method.
 
+`getWithdrawalFees` has a second optional argument `reciepient?: EthAddress`. This is used to check if the recipient address is a contract wallet, for which the fees are higher.
+
 ### Executing a Withdrawal
 
 A withdrawal setup and execution looks like this:

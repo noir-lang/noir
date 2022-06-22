@@ -33,8 +33,8 @@ AztecSdk.createDepositController(
 | fee | [AssetValue](../types/barretenberg/AssetValue) | Type and amount for the Aztec transaction fee. |
 | recipient | [GrupmkinAddress](../types/barretenberg/GrumpkinAddress) | The account public key of the Aztec account. |
 | recipientSpendingKeyRequired? | boolean | Optional flag that specifies whether the recipient account should already be registered. Defaults to `true`.|
-| feePayer | [FeePayer](../types/sdk/FeePayer) | Optional input that can specify an alternative Aztec account to pay tx fee. |
-| provider | [EthereumProvider](../types/barretenberg/EthereumProvider) | Ethereum provider. |
+| feePayer? | [FeePayer](../types/sdk/FeePayer) | Optional account to pay the registration fee if the fee is to be paid with funds in Aztec instead of Ethereum. Relevant when depositing assets that can't be used for fees in Aztec (deposit wstETH, pay fees with zkETH) |
+| provider? | [EthereumProvider](../types/barretenberg/EthereumProvider) | Optional Ethereum Provider. When unspecified it defaults to the provider used in setup (`createAztecSdk`). |
 
 #### Returns
 
@@ -63,13 +63,15 @@ const tokenDepositController = sdk.createDepositController(
 );
 await tokenDepositController.createProof();
 await tokenDepositController.sign();
-// check if there are pending depsoits
+// check if there are pending deposits
 if ((await tokenDepositController.getPendingFunds()) < tokenQuantity) {
     await tokenDepositController.depositFundsToContract();
     await tokenDepositController.awaitDepositFundsToContract();
 }
 let txId = await tokenDepositController.send();
 ```
+
+Not all ERC-20s (specifically DAI) have correctly implemented the permit spec. So in the case of DAI you call `depositFundsToContractWithNonStandardPermit` instead of `depositFundsToContract`.
 
 You can review the complete reference script [here](https://github.com/critesjosh/aztec-sdk-starter/blob/mainnet-fork/src/latest/shieldAssets.ts).
 

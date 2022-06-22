@@ -35,7 +35,7 @@ const { publicKey, privateKey } = sdk.generateAccountKeyPair(ethereumAccount);
 With the account key, adding the user to the SDK is as simple as passing the key and the nonce for the account.
 
 ```ts
-const account = await AztecSdk.addUser(accountKey);
+const account = await sdk.addUser(accountKey);
 ```
 
 ### Read
@@ -44,19 +44,19 @@ Now just make sure the SDK account has synced and you can read account balances:
 
 ```ts
 await account.awaitSynchronised();
-const zkEthBalance = await account.getBalance(AztecSdk.getAssetIdBySymbol("ETH"));
+const zkEthBalance = await account.getBalance(sdk.getAssetIdBySymbol("ETH"));
 ```
 
 ## Spending Keys
 
-The account key can be used to spend notes on the network until you register a spending a key for the account. Once a spending key has been registered, the account key can only be used to decrypt notes. This creates a useful separation between account (or "viewing/privacy keys") and spending keys.
+Once a spending key has been registered, either the account key or a registered spending key can be used to spend notes. This creates a useful separation between account (or "viewing/privacy keys") and spending keys. The sender of a note can specify whether the note is spendable by the account key or a registered spending key. This is specified with the `recipientSpendingKeyRequired` flag when setting up a controller. See the [TransferController](./transfer#controller-setup) for an example.
 
 It is considered best practice to register a new spending key as soon as possible. You can read more about registering new accounts for users on the [Register Users page](./register). Here, we will briefly review how to add a spending key to the SDK that has already been registered.
 
 You can create an Aztec signer by passing the signing key to the `createSchnorrSigner(privateKey: Buffer)` method. It returns a signer that you can pass to various `Controllers` to sign transactions on the network on behalf of the account.
 
 ```ts
-const signer = await AztecSdk.createSchnorrSigner(signingPrivateKey);
+const signer = await sdk.createSchnorrSigner(signingPrivateKey);
 ```
 
 Like account keys, spending keys can be 32 random bytes, but the SDK allows you to generate them deterministically from Ethereum accounts by deriving them from a signed message. The message used for creating signing keys is:
@@ -68,7 +68,7 @@ You can see an example in the SDK source code [here](https://github.com/AztecPro
 ## Add User
 
 ```ts
-AztecSdk.addUser(accountPrivateKey: Buffer, noSync?: boolean): Promise<AztecSdkUser>;
+sdk.addUser(accountPrivateKey: Buffer, noSync?: boolean): Promise<AztecSdkUser>;
 ```
 
 | Arguments | Type | Description |
@@ -83,7 +83,7 @@ AztecSdk.addUser(accountPrivateKey: Buffer, noSync?: boolean): Promise<AztecSdkU
 ## Get User
 
 ```ts
-AztecSdk.getUser(userId: GrumpkinAddress): Promise<AztecSdkUser>;
+sdk.getUser(userId: GrumpkinAddress): Promise<AztecSdkUser>;
 ```
 
 | Arguments | Type | Description |
