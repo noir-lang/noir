@@ -4,6 +4,7 @@ use acvm::acir::native_types::Witness;
 use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use arena;
+use noirc_errors::Span;
 use noirc_frontend::hir_def::expr::HirBinaryOpKind;
 use noirc_frontend::node_interner::DefinitionId;
 use noirc_frontend::util::vecmap;
@@ -503,8 +504,8 @@ pub enum Operation {
     Result { call_instruction: NodeId, index: u32 }, //Get result index n from a function call
 
     //memory
-    Load { array_id: ArrayId, index: NodeId },
-    Store { array_id: ArrayId, index: NodeId, value: NodeId },
+    Load { array_id: ArrayId, index: NodeId, span: Option<Span> },
+    Store { array_id: ArrayId, index: NodeId, value: NodeId, span: Option<Span> },
 
     Intrinsic(OPCODE, Vec<NodeId>), //Custom implementation of usefull primitives which are more performant with Aztec backend
 
@@ -1001,9 +1002,11 @@ impl Operation {
                 root: f(*root),
                 block_args: vecmap(block_args, |(id, block)| (f(*id), *block)),
             },
-            Load { array_id: array, index } => Load { array_id: *array, index: f(*index) },
-            Store { array_id: array, index, value } => {
-                Store { array_id: *array, index: f(*index), value: f(*value) }
+            Load { array_id: array, index, span } => {
+                Load { array_id: *array, index: f(*index), span: *span }
+            }
+            Store { array_id: array, index, value, span } => {
+                Store { array_id: *array, index: f(*index), value: f(*value), span: *span }
             }
             Intrinsic(i, args) => Intrinsic(*i, vecmap(args.iter().copied(), f)),
             Nop => Nop,

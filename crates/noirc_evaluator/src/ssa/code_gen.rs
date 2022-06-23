@@ -217,9 +217,9 @@ impl<'a> IRGenerator<'a> {
         if let (HirBinaryOpKind::Assign, Some(lhs_ins)) =
             (op.kind, self.context.try_get_mut_instruction(lhs))
         {
-            if let Operation::Load { array_id, index } = lhs_ins.operation {
+            if let Operation::Load { array_id, index, span } = lhs_ins.operation {
                 //make it a store rhs
-                lhs_ins.operation = Operation::Store { array_id, index, value: rhs };
+                lhs_ins.operation = Operation::Store { array_id, index, value: rhs, span };
                 return lhs;
             }
         }
@@ -548,14 +548,12 @@ impl<'a> IRGenerator<'a> {
                 let elements = self.expression_list_to_objects(env, &arr_lit.contents);
                 let array = &mut self.context.mem[array_id];
                 let array_adr = array.adr;
-                for (pos, object) in elements.into_iter().enumerate() {
+                for ((pos, value), element_id) in elements.into_iter().enumerate().zip(&arr_lit.contents) {
+                    let span = Some(self.def_interner().id_span(element_id));
                     //array.witness.push(node::get_witness_from_object(&object));
-                    let lhs_adr = self.context.get_or_create_const(FieldElement::from((array_adr + pos as u32) as u128), ObjectType::Unsigned(32));
-                    let store = Operation::Store {
-                        array_id,
-                        index: lhs_adr,
-                        value: object,
-                    };
+                    let index = self.context.get_or_create_const(FieldElement::from((array_adr + pos as u32) as u128), ObjectType::Unsigned(32));
+
+                    let store = Operation::Store { array_id, index, value, span };
                     self.context.new_instruction(store, element_type);
                 }
                 //Finally, we create a variable pointing to this MemArray
@@ -633,9 +631,10 @@ impl<'a> IRGenerator<'a> {
 
                 let index_type = self.context.get_object_type(index_as_obj);
                 let base_adr = self.context.get_or_create_const(FieldElement::from(address as i128), index_type);
-                let adr_id = self.context.new_instruction(Operation::binary(BinaryOp::Add, base_adr, index_as_obj), index_type);
+                let index = self.context.new_instruction(Operation::binary(BinaryOp::Add, base_adr, index_as_obj), index_type);
+                let span = Some(self.def_interner().id_span(expr_id));
 
-                let load = Operation::Load { array_id, index: adr_id };
+                let load = Operation::Load { array_id, index, span };
                 Ok(Value::Single(self.context.new_instruction(load, o_type)))
             },
             HirExpression::Call(call_expr) => {

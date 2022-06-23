@@ -136,16 +136,13 @@ impl<'a> SsaContext<'a> {
                 }
                 s
             }
-            Operation::Load { array_id, index } => {
+            Operation::Load { array_id, index, .. } => {
                 format!("load {:?}, index {}", array_id, self.node_to_string(*index))
             }
-            Operation::Store { array_id, index, value } => {
-                format!(
-                    "store {:?}, index {}, value {}",
-                    array_id,
-                    self.node_to_string(*index),
-                    self.node_to_string(*value)
-                )
+            Operation::Store { array_id, index, value, .. } => {
+                let index = self.node_to_string(*index);
+                let value = self.node_to_string(*value);
+                format!("store {:?}, index {}, value {}", array_id, index, value)
             }
             Operation::Intrinsic(opcode, args) => format!("intrinsic {}({})", opcode, join(args)),
             Operation::Nop => "nop".into(),

@@ -557,7 +557,7 @@ pub fn inline_in_block(
                     let new_ins = new_cloned_instruction(clone, target_block_id);
                     push_instruction(ctx, new_ins, &mut new_instructions, inline_map);
                 }
-                Operation::Load { array_id, index } => {
+                Operation::Load { array_id, index, span } => {
                     //Compute the new address:
                     //TODO use relative addressing, but that requires a few changes, mainly in acir_gen.rs and integer.rs
                     let b = array_map[array_id];
@@ -569,14 +569,16 @@ pub fn inline_in_block(
 
                     let add = node::Binary { operator: BinaryOp::Add, lhs: offset_id, rhs: *index };
                     let adr_id = ctx.new_instruction(Operation::Binary(add), index_type);
+                    let span = *span;
+
                     let new_ins = Instruction::new(
-                        Operation::Load { array_id: array_map[array_id], index: adr_id },
+                        Operation::Load { array_id: array_map[array_id], index: adr_id, span },
                         clone.res_type,
                         Some(target_block_id),
                     );
                     push_instruction(ctx, new_ins, &mut new_instructions, inline_map);
                 }
-                Operation::Store { array_id, index, value } => {
+                Operation::Store { array_id, index, value, span } => {
                     let b = array_map[array_id];
                     let offset = ctx.mem[*array_id].adr - ctx.mem[b].adr;
                     let index_type = ctx[*index].get_type();
@@ -585,12 +587,11 @@ pub fn inline_in_block(
 
                     let add = node::Binary { operator: BinaryOp::Add, lhs: offset_id, rhs: *index };
                     let adr_id = ctx.new_instruction(Operation::Binary(add), index_type);
+                    let array_id = array_map[array_id];
+                    let span = *span;
+
                     let new_ins = Instruction::new(
-                        Operation::Store {
-                            array_id: array_map[array_id],
-                            index: adr_id,
-                            value: *value,
-                        },
+                        Operation::Store { array_id, index: adr_id, value: *value, span },
                         clone.res_type,
                         Some(target_block_id),
                     );

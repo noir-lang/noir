@@ -167,15 +167,15 @@ fn find_similar_mem_instruction(
     anchor: &mut Anchor,
 ) -> CseAction {
     match op {
-        Operation::Load { array_id, index } => {
+        Operation::Load { array_id, index, .. } => {
             for iter in anchor.get_all(op.opcode()).iter().rev() {
                 if let Some(ins_iter) = ctx.try_get_instruction(*iter) {
                     match &ins_iter.operation {
-                        Operation::Load { array_id: array_id2, index: _ } => {
+                        Operation::Load { array_id: array_id2, index: _, .. } => {
                             assert_eq!(array_id, array_id2);
                             return CseAction::ReplaceWith(*iter);
                         }
-                        Operation::Store { array_id: array_id2, index: index2, value } => {
+                        Operation::Store { array_id: array_id2, index: index2, value, .. } => {
                             assert_eq!(array_id, array_id2);
                             if index == index2 {
                                 return CseAction::ReplaceWith(*value);
@@ -189,7 +189,7 @@ fn find_similar_mem_instruction(
                 }
             }
         }
-        Operation::Store { array_id, index, value: _ } => {
+        Operation::Store { array_id, index, value: _, .. } => {
             let opcode = Opcode::Load(*array_id);
             for node_id in anchor.get_all(opcode).iter().rev() {
                 if let Some(ins_iter) = ctx.try_get_instruction(*node_id) {

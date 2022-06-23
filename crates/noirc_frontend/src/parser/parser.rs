@@ -407,10 +407,7 @@ fn visibility(field: FieldElementType) -> impl NoirParser<FieldElementType> {
 }
 
 fn optional_visibility() -> impl NoirParser<FieldElementType> {
-    choice((
-        visibility(FieldElementType::Public),
-        no_visibility(),
-    ))
+    choice((visibility(FieldElementType::Public), no_visibility()))
 }
 
 fn field_type<P>(visibility_parser: P) -> impl NoirParser<UnresolvedType>

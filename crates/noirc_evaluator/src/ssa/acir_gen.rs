@@ -159,7 +159,7 @@ impl Acir {
             Operation::Call(..) => unreachable!("call instruction should have been inlined"),
             Operation::Return(_) => todo!(), //return from main
             Operation::Nop => InternalVar::default(),
-            Operation::Load { array_id, index } => {
+            Operation::Load { array_id, index, span: _ } => {
                 //retrieves the value from the map if address is known at compile time:
                 //address = l_c and should be constant
                 let index = self.substitute(*index, evaluator, ctx);
@@ -182,7 +182,7 @@ impl Acir {
                 }
             }
 
-            Operation::Store { array_id: _, index, value } => {
+            Operation::Store { array_id: _, index, value, span: _ } => {
                 //maps the address to the rhs if address is known at compile time
                 let index = self.substitute(*index, evaluator, ctx);
                 let value = self.substitute(*value, evaluator, ctx);

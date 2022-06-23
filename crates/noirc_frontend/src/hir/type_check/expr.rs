@@ -129,23 +129,19 @@ pub(crate) fn type_check_expression(
             let end_range_type = type_check_expression(interner, &for_expr.end_range, errors);
 
             start_range_type.unify(&Type::WITNESS, &mut || {
-                errors.push(
-                    TypeCheckError::TypeMismatch {
-                        expected_typ: "Field".into(),
-                        expr_typ: start_range_type.to_string(),
-                        expr_span: interner.expr_span(&for_expr.start_range),
-                    }
-                );
+                errors.push(TypeCheckError::TypeMismatch {
+                    expected_typ: "Field".into(),
+                    expr_typ: start_range_type.to_string(),
+                    expr_span: interner.expr_span(&for_expr.start_range),
+                });
             });
 
             end_range_type.unify(&Type::WITNESS, &mut || {
-                errors.push(
-                    TypeCheckError::TypeMismatch {
-                        expected_typ: "Field".into(),
-                        expr_typ: end_range_type.to_string(),
-                        expr_span: interner.expr_span(&for_expr.end_range),
-                    }
-                );
+                errors.push(TypeCheckError::TypeMismatch {
+                    expected_typ: "Field".into(),
+                    expr_typ: end_range_type.to_string(),
+                    expr_span: interner.expr_span(&for_expr.end_range),
+                });
             });
 
             interner.push_definition_type(for_expr.identifier.id, start_range_type);
@@ -247,9 +243,7 @@ fn type_check_index_expression(
 
 fn check_cast(from: Type, to: Type, span: Span, errors: &mut Vec<TypeCheckError>) -> Type {
     match from {
-        Type::Integer(_, _, _)
-        | Type::FieldElement(_)
-        | Type::PolymorphicInteger(_) => (),
+        Type::Integer(_, _, _) | Type::FieldElement(_) | Type::PolymorphicInteger(_) => (),
         Type::Error => return Type::Error,
         from => {
             let msg = format!(

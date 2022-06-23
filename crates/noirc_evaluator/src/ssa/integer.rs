@@ -41,7 +41,9 @@ fn get_instruction_max_operand(
     vmap: &HashMap<NodeId, NodeId>,
 ) -> BigUint {
     match &ins.operation {
-        Operation::Load { array_id, index } => get_load_max(ctx, *index, max_map, vmap, *array_id),
+        Operation::Load { array_id, index, .. } => {
+            get_load_max(ctx, *index, max_map, vmap, *array_id)
+        }
         Operation::Binary(node::Binary { operator, lhs, rhs }) => {
             match operator {
                 BinaryOp::Sub { .. } => {
