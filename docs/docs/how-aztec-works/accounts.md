@@ -6,9 +6,15 @@ Accounts in Aztec.
 
 ## A Technical Primer on Accounts
 
-Accounts in Aztec work differently than accounts in Ethereum.
+There are two main parts to each Aztec account, the account (private/public key pair) and signers. The account is associated with a privacy key that can be used to decrypt [value notes](../glossary#value-notes) (assets on Aztec). The signers are associated with spending keys (or signing keys) which can be used to send notes from the associated account.
 
-There are two main parts to each Aztec account, the account and the signer. The account is associated with a privacy key that can be used to decrypt account notes (assets on Aztec). The signer is associated with a spending key (or signing key) which can be used to send notes on the Aztec network.
+An account is just a private/public key pair until it is registered (see the [account registration](#account-registration) section below.) Before an account is registered, the private key is used to decrypt account notes as well as send value notes. The account will **not** have any registered spending keys or an [account alias](#account-alias) until is is registered. Once an account is registered, value notes that are sent to the account can either be marked to be spent by the account private key or the spending keys. It is a best practice for a sender to mark value notes as spendable by the spending keys when an account is registered.
+
+The SDK abstracts away much of this complexity to make it easier for developers to follow best practices. For example, when you look up an account by alias (meaning the account has been registered) a transfer automatically marks the notes as spendable by the recipients spending keys. You can still choose to mark value notes sent to an account as spendable by the account private key, but this is not recommended because the recipient have shared that key with an application in order to allow it to decrypt value notes to calculate their note balances.
+
+### Compared to Ethereum
+
+Accounts in Aztec work differently than accounts in Ethereum.
 
 Aztec uses a different curve than Ethereum for SNARK efficient operations. This means that you cannot use an Ethereum private key directly for signing Aztec transactions or a public key for deriving an account address. Specifically, Aztec uses the Grumpkin curve, see [the yellow paper](https://hackmd.io/@aztec-network/ByzgNxBfd#2-Grumpkin---A-curve-on-top-of-BN-254-for-SNARK-efficient-group-operations) for more information.
 
