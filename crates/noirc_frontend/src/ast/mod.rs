@@ -52,24 +52,13 @@ impl std::fmt::Display for ArraySize {
 pub enum FieldElementType {
     Private,
     Public,
-    Constant,
 }
 
 impl PartialEq for FieldElementType {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (FieldElementType::Private, FieldElementType::Private) => true,
-            (FieldElementType::Public, FieldElementType::Public) => true,
-            (FieldElementType::Constant, FieldElementType::Constant) => true,
-            // The reason we manually implement this, is so that Private and Public
-            // are seen as equal
-            (FieldElementType::Private, FieldElementType::Public) => true,
-            (FieldElementType::Public, FieldElementType::Private) => true,
-            (FieldElementType::Private, FieldElementType::Constant) => false,
-            (FieldElementType::Public, FieldElementType::Constant) => false,
-            (FieldElementType::Constant, FieldElementType::Private) => false,
-            (FieldElementType::Constant, FieldElementType::Public) => false,
-        }
+    fn eq(&self, _other: &Self) -> bool {
+        // The reason we manually implement this, is so that Private and Public
+        // are seen as equal
+        true
     }
 }
 
@@ -87,7 +76,6 @@ impl FieldElementType {
         match self {
             FieldElementType::Private => panic!("No Keyword for a Private FieldElementType"),
             FieldElementType::Public => Keyword::Pub,
-            FieldElementType::Constant => Keyword::Const,
         }
     }
 }
@@ -96,7 +84,6 @@ impl std::fmt::Display for FieldElementType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             FieldElementType::Private => write!(f, "priv"),
-            FieldElementType::Constant => write!(f, "const"),
             FieldElementType::Public => write!(f, "pub"),
         }
     }
@@ -124,7 +111,6 @@ pub enum UnresolvedType {
 impl UnresolvedType {
     // These are here so that the code is more readable.
     pub const WITNESS: UnresolvedType = UnresolvedType::FieldElement(FieldElementType::Private);
-    pub const CONSTANT: UnresolvedType = UnresolvedType::FieldElement(FieldElementType::Constant);
     pub const PUBLIC: UnresolvedType = UnresolvedType::FieldElement(FieldElementType::Public);
 }
 
@@ -139,7 +125,6 @@ impl std::fmt::Display for UnresolvedType {
         let vis_str = |vis| match vis {
             FieldElementType::Private => "",
             FieldElementType::Public => "pub ",
-            FieldElementType::Constant => "const ",
         };
 
         use UnresolvedType::*;

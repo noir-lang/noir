@@ -128,35 +128,24 @@ pub(crate) fn type_check_expression(
             let start_range_type = type_check_expression(interner, &for_expr.start_range, errors);
             let end_range_type = type_check_expression(interner, &for_expr.end_range, errors);
 
-            start_range_type.unify(&Type::CONSTANT, &mut || {
+            start_range_type.unify(&Type::WITNESS, &mut || {
                 errors.push(
-                    TypeCheckError::TypeCannotBeUsed {
-                        typ: start_range_type.clone(),
-                        place: "for loop",
-                        span: interner.expr_span(&for_expr.start_range),
+                    TypeCheckError::TypeMismatch {
+                        expected_typ: "Field".into(),
+                        expr_typ: start_range_type.to_string(),
+                        expr_span: interner.expr_span(&for_expr.start_range),
                     }
-                    .add_context("The range of a loop must be const (known at compile-time)"),
                 );
             });
 
-            end_range_type.unify(&Type::CONSTANT, &mut || {
+            end_range_type.unify(&Type::WITNESS, &mut || {
                 errors.push(
-                    TypeCheckError::TypeCannotBeUsed {
-                        typ: end_range_type.clone(),
-                        place: "for loop",
-                        span: interner.expr_span(&for_expr.end_range),
+                    TypeCheckError::TypeMismatch {
+                        expected_typ: "Field".into(),
+                        expr_typ: end_range_type.to_string(),
+                        expr_span: interner.expr_span(&for_expr.end_range),
                     }
-                    .add_context("The range of a loop must be const (known at compile-time)"),
                 );
-            });
-
-            start_range_type.unify(&end_range_type, &mut || {
-                let msg = format!(
-                    "start range type '{}' does not match the end range type '{}'",
-                    start_range_type, end_range_type
-                );
-                let span = interner.expr_span(&for_expr.end_range);
-                errors.push(TypeCheckError::Unstructured { msg, span });
             });
 
             interner.push_definition_type(for_expr.identifier.id, start_range_type);
@@ -229,22 +218,13 @@ fn type_check_index_expression(
     errors: &mut Vec<TypeCheckError>,
 ) -> Type {
     let index_type = type_check_expression(interner, &index_expr.index, errors);
-    index_type.unify(&Type::CONSTANT, &mut || {
-        let span = interner.id_span(&index_expr.index);
-        // Specialize the error in the case the user has a Field, just not a const one.
-        let error = if index_type.is_field_element() {
-            TypeCheckError::Unstructured {
-                msg: format!("Array index must be const (known at compile-time), but here a non-const {} was used instead", index_type),
-                span,
-            }
-        } else {
-            TypeCheckError::TypeMismatch {
-                expected_typ: "const Field".to_owned(),
-                expr_typ: index_type.to_string(),
-                expr_span: span,
-            }
-        };
-        errors.push(error);
+    index_type.unify(&Type::WITNESS, &mut || {
+        let expr_span = interner.id_span(&index_expr.index);
+        errors.push(TypeCheckError::TypeMismatch {
+            expected_typ: "Field".to_owned(),
+            expr_typ: index_type.to_string(),
+            expr_span,
+        });
     });
 
     let lhs_type = type_check_expression(interner, &index_expr.collection, errors);
@@ -266,19 +246,10 @@ fn type_check_index_expression(
 }
 
 fn check_cast(from: Type, to: Type, span: Span, errors: &mut Vec<TypeCheckError>) -> Type {
-    let is_const = match from {
-        Type::Integer(vis, _, _) => vis == FieldElementType::Constant,
-        Type::FieldElement(vis) => vis == FieldElementType::Constant,
-        Type::PolymorphicInteger(binding) => {
-            match &*binding.borrow() {
-                TypeBinding::Bound(from) => return check_cast(from.clone(), to, span, errors),
-                TypeBinding::Unbound(_) => {
-                    // Don't bind the type variable here. Since we're casting, we can cast from any
-                    // integer, and this already represents any integer.
-                    true
-                }
-            }
-        }
+    match from {
+        Type::Integer(_, _, _)
+        | Type::FieldElement(_)
+        | Type::PolymorphicInteger(_) => (),
         Type::Error => return Type::Error,
         from => {
             let msg = format!(
@@ -288,17 +259,11 @@ fn check_cast(from: Type, to: Type, span: Span, errors: &mut Vec<TypeCheckError>
             errors.push(TypeCheckError::Unstructured { msg, span });
             return Type::Error;
         }
-    };
+    }
 
     match to {
-        Type::Integer(to_vis, sign, bits) => {
-            let new_vis = if is_const { FieldElementType::Constant } else { to_vis };
-            Type::Integer(new_vis, sign, bits)
-        }
-        Type::FieldElement(to_vis) => {
-            let new_vis = if is_const { FieldElementType::Constant } else { to_vis };
-            Type::FieldElement(new_vis)
-        }
+        Type::Integer(to_vis, sign, bits) => Type::Integer(to_vis, sign, bits),
+        Type::FieldElement(to_vis) => Type::FieldElement(to_vis),
         Type::Error => Type::Error,
         _ => {
             let msg = "Only integer and Field types may be casted to".into();
@@ -431,10 +396,6 @@ pub fn infix_operand_type_rules(
         (Integer(..), FieldElement(Public)) | ( FieldElement(Public), Integer(..) ) => {
             Err("Cannot use an integer and a public variable in a binary operation, try converting the public into an integer".to_string())
         }
-        (Integer(int_field_type,sign_x, bit_width_x), FieldElement(Constant))| (FieldElement(Constant),Integer(int_field_type,sign_x, bit_width_x)) => {
-            let field_type = field_type_rules(int_field_type, &Constant);
-            Ok(Integer(field_type,*sign_x, *bit_width_x))
-        }
         (PolymorphicInteger(a), other) => {
             if let TypeBinding::Bound(binding) = &*a.borrow() {
                 return infix_operand_type_rules(binding, op, other);
@@ -473,9 +434,7 @@ pub fn infix_operand_type_rules(
         (FieldElement(Private), _) | (_,FieldElement(Private)) => Ok(FieldElement(Private)),
         // Public types are added as witnesses under the hood
         (FieldElement(Public), _) | (_,FieldElement(Public)) => Ok(FieldElement(Private)),
-        (Bool, _) | (_,Bool) => Ok(Bool),
-        //
-        (FieldElement(Constant), FieldElement(Constant))  => Ok(FieldElement(Constant)),
+        (Bool, Bool) => Ok(Bool),
     }
 }
 
@@ -598,13 +557,8 @@ fn field_type_rules(lhs: &FieldElementType, rhs: &FieldElementType) -> FieldElem
     match (lhs, rhs) {
         (Private, Private) => Private,
         (Private, Public) => Private,
-        (Private, Constant) => Private,
         (Public, Private) => Private,
         (Public, Public) => Public,
-        (Public, Constant) => Public,
-        (Constant, Private) => Private,
-        (Constant, Public) => Public,
-        (Constant, Constant) => Constant,
     }
 }
 
@@ -625,9 +579,6 @@ pub fn comparator_operand_type_rules(lhs_type: &Type, other: &Type) -> Result<Ty
         }
         (Integer(..), FieldElement(Public)) | ( FieldElement(Public), Integer(..) ) => {
             Err("Cannot use an integer and a public variable in a binary operation, try converting the public into an integer".to_string())
-        }
-        (Integer(_, _, _), FieldElement(Constant))| (FieldElement(Constant),Integer(_, _, _)) => {
-            Ok(Bool)
         }
         (PolymorphicInteger(a), other) => {
             if let TypeBinding::Bound(binding) = &*a.borrow() {
@@ -656,8 +607,7 @@ pub fn comparator_operand_type_rules(lhs_type: &Type, other: &Type) -> Result<Ty
         // If either side contains a witness, then the final result will be a witness
         (FieldElement(Private), FieldElement(_)) | (FieldElement(_), FieldElement(Private)) => Ok(Bool),
         // Public types are added as witnesses under the hood
-        (FieldElement(Public), FieldElement(_)) | (FieldElement(_), FieldElement(Public)) => Ok(Bool),
-        (FieldElement(Constant), FieldElement(Constant))  => Ok(Bool),
+        (FieldElement(Public), FieldElement(Public)) => Ok(Bool),
 
         // <= and friends are technically valid for booleans, just not very useful
         (Bool, Bool) => Ok(Bool),

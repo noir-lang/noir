@@ -12,7 +12,7 @@ fn set_as_public(_input : Field) {}
 // ^ means to the power of and not xor
 // Note that this function may wrap around
 #[builtin(pow_const)]
-fn pow_const(_base : const Field, _exponent : const Field) -> const Field {}
+fn pow_const(_base : Field, _exponent : Field) -> Field {}
 
 #[foreign(to_bits)]
 fn to_bits(_x : Field, _bit_size: u32) -> [256]u1{}

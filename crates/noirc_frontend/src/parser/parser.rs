@@ -114,7 +114,7 @@ fn attribute() -> impl NoirParser<Attribute> {
 }
 
 fn struct_fields() -> impl NoirParser<Vec<(Ident, UnresolvedType)>> {
-    let type_parser = parse_type_with_visibility(optional_const(), parse_type_no_field_element());
+    let type_parser = parse_type_with_visibility(no_visibility(), parse_type_no_field_element());
 
     ident()
         .then_ignore(just(Token::Colon))
@@ -409,14 +409,8 @@ fn visibility(field: FieldElementType) -> impl NoirParser<FieldElementType> {
 fn optional_visibility() -> impl NoirParser<FieldElementType> {
     choice((
         visibility(FieldElementType::Public),
-        visibility(FieldElementType::Constant),
         no_visibility(),
     ))
-}
-
-// This is primarily for struct fields which cannot be public
-fn optional_const() -> impl NoirParser<FieldElementType> {
-    visibility(FieldElementType::Constant).or(no_visibility())
 }
 
 fn field_type<P>(visibility_parser: P) -> impl NoirParser<UnresolvedType>

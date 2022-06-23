@@ -587,14 +587,6 @@ impl<'a> Evaluator<'a> {
         // we can extend into a separate (generic) module
 
         match self.context.def_interner.id_type(rhs) {
-            Type::FieldElement(FieldElementType::Constant) => {
-                // const can only be integers/Field elements, cannot involve the witness, so we can possibly move this to
-                // analysis. Right now it would not make a difference, since we are not compiling to an intermediate Noir format
-                let span = self.context.def_interner.expr_span(rhs);
-                let value = self.evaluate_integer(env, rhs).map_err(|kind| kind.add_span(span))?;
-
-                env.store(variable_name, value);
-            }
             Type::Array(..) => {
                 let rhs_poly = self.expression_to_object(env, rhs)?;
                 match rhs_poly {

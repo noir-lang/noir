@@ -151,10 +151,10 @@ fn type_check_lvalue(
         }
         HirLValue::Index { array, index } => {
             let index_type = type_check_expression(interner, &index, errors);
-            index_type.unify(&Type::CONSTANT, &mut || {
+            index_type.unify(&Type::WITNESS, &mut || {
                 let span = interner.id_span(&index);
                 errors.push(TypeCheckError::TypeMismatch {
-                    expected_typ: "const Field".to_owned(),
+                    expected_typ: "Field".to_owned(),
                     expr_typ: index_type.to_string(),
                     expr_span: span,
                 });

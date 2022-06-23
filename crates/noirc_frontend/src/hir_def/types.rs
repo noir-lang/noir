@@ -70,7 +70,6 @@ impl Type {
     // These are here so that the code is more readable.
     // Type::WITNESS vs Type::FieldElement(FieldElementType::Private)
     pub const WITNESS: Type = Type::FieldElement(FieldElementType::Private);
-    pub const CONSTANT: Type = Type::FieldElement(FieldElementType::Constant);
     pub const PUBLIC: Type = Type::FieldElement(FieldElementType::Public);
 
     pub const DEFAULT_INT_TYPE: Type = Type::WITNESS;
@@ -87,7 +86,6 @@ impl std::fmt::Display for Type {
         let vis_str = |vis| match vis {
             FieldElementType::Private => "",
             FieldElementType::Public => "pub ",
-            FieldElementType::Constant => "const ",
         };
 
         match self {
@@ -257,9 +255,6 @@ impl Type {
         // to accept u8? We would need to pad the bit decomposition
         // if so.
         match (self, other) {
-            // Const types are subtypes of non-const types
-            (FieldElement(Constant), FieldElement(_)) => true,
-
             (PolymorphicInteger(a), other) => {
                 if let TypeBinding::Bound(binding) = &*a.borrow() {
                     return binding.make_subtype_of(other);
@@ -276,10 +271,6 @@ impl Type {
 
             // Any field element type is a subtype of `priv Field`
             (this, FieldElement(Private)) => this.is_field_element(),
-
-            (Integer(Constant, self_sign, self_bits), Integer(_, other_sign, other_bits)) => {
-                self_sign == other_sign && self_bits == other_bits
-            }
             (this, other) => this == other,
         }
     }
@@ -348,22 +339,6 @@ impl Type {
         )
     }
 
-    // Base types are types in the language that are simply alias for a field element
-    // Therefore they can be the operands in an infix comparison operator
-    pub fn is_base_type(&self) -> bool {
-        matches!(self, Type::FieldElement(_) | Type::Integer(_, _, _) | Type::Error)
-    }
-
-    pub fn is_constant(&self) -> bool {
-        // XXX: Currently no such thing as a const array
-        matches!(
-            self,
-            Type::FieldElement(FieldElementType::Constant)
-                | Type::Integer(FieldElementType::Constant, _, _)
-                | Type::Error
-        )
-    }
-
     pub fn is_public(&self) -> bool {
         matches!(
             self,
@@ -371,11 +346,6 @@ impl Type {
                 | Type::Integer(FieldElementType::Public, _, _)
                 | Type::Array(FieldElementType::Public, _, _)
         )
-    }
-
-    // Returns true, if both type can be used in an infix expression
-    pub fn can_be_used_for_infix(&self, other: &Type) -> bool {
-        self.is_base_type() && other.is_base_type()
     }
 
     // Note; use strict_eq instead of partial_eq when comparing field types
@@ -386,9 +356,6 @@ impl Type {
             match fe {
                 FieldElementType::Private => noirc_abi::AbiFEType::Private,
                 FieldElementType::Public => noirc_abi::AbiFEType::Public,
-                FieldElementType::Constant => {
-                    panic!("constant field in the ABI, this is not allowed!")
-                }
             }
         }
 
