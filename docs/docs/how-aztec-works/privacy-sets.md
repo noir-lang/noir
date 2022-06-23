@@ -89,7 +89,8 @@ Increase the size of each deposit set, especially large deposits
 “Spread out” the probability that the withdrawal could have come from any deposit set!
 Simple mixers focus on #1. Let’s talk about what #2 adds.
 
-Internal Transfers: The Inner Sanctum
+### Internal Transfers: The Inner Sanctum
+
 There is a big caveat here that differentiates our current zk.money front-end from mixers — there is a possibility that your anonymity set includes deposits that are smaller than your withdrawal amount.
 
 How? Because internal transfers.
@@ -113,7 +114,8 @@ That’s why the internal economy of Aztec matters, and why Aztec Connect — a 
 
 Internal transfers muddy up anonymity set calculations, but only if there are a sufficient number of internal transfers and a large enough quantity of deposits in the system.
 
-Aztec Connect: The Bridge to Infinity
+## Aztec Connect: The Bridge to Infinity
+
 Now let’s introduce the idea of Aztec Connect, an expansion of zk.money’s functionality to include batch interactions with any Layer 1 smart contract.
 
 That means to begin with, any Layer 1 Defi functionality will be available to Aztec users.
@@ -126,9 +128,10 @@ With a simple conventional privacy mixer, you deposit funds and simply wait — 
 
 Here are some arbitrary possible examples of using private assets while they are inside the system:
 
-Staking ETH in Lido for stETH, depositing it in the stETH-ETH pool and getting double yield
-Entering into an Element.fi fixed rate yield vault
-Swapping ETH for OHM on OlympusDAO, staking for sOHM, and (3, 3)ing privately
+- Staking ETH in Lido for stETH, depositing it in the stETH-ETH pool and getting double yield
+- Entering into an Element.fi fixed rate yield vault
+- Swapping ETH for OHM on OlympusDAO, staking for sOHM, and (3, 3)ing privately
+
 This is just a teaser! We’ll cover Aztec Connect in depth later in this series, but for now I want to focus on the idea that investing capital for yield on Aztec will grow the value locked in the system.
 
 Bridging back to Ethereum functionally has the same privacy-set-expanding benefits as having new users deposit fresh funds or having you deposit more funds, while being privacy-protected.
