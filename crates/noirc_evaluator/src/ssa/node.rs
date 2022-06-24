@@ -215,8 +215,8 @@ impl From<&Type> for ObjectType {
     fn from(t: &noirc_frontend::Type) -> ObjectType {
         match t {
             Type::Bool => ObjectType::Boolean,
-            Type::FieldElement(_) => ObjectType::NativeField,
-            Type::Integer(_ftype, sign, bit_size) => {
+            Type::FieldElement(..) => ObjectType::NativeField,
+            Type::Integer(_, _ftype, sign, bit_size) => {
                 assert!(
                     *bit_size < super::integer::short_integer_max_bit_size(),
                     "long integers are not yet supported"
@@ -226,7 +226,7 @@ impl From<&Type> for ObjectType {
                     Signedness::Unsigned => ObjectType::Unsigned(*bit_size),
                 }
             }
-            Type::PolymorphicInteger(binding) => match &*binding.borrow() {
+            Type::PolymorphicInteger(_, binding) => match &*binding.borrow() {
                 noirc_frontend::TypeBinding::Bound(typ) => typ.into(),
                 noirc_frontend::TypeBinding::Unbound(_) => Type::DEFAULT_INT_TYPE.into(),
             },

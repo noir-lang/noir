@@ -80,7 +80,7 @@ impl IsConst {
         match self {
             IsConst::Yes(span) | IsConst::No(span) => *span = Some(new_span),
             IsConst::Maybe(_, binding) => {
-                if let Some(binding) = &*binding.borrow() {
+                if let Some(binding) = &mut *binding.borrow_mut() {
                     binding.set_span(new_span);
                 }
             }
@@ -90,16 +90,13 @@ impl IsConst {
     /// Try to unify these two IsConst constraints. Returns true on success.
     pub fn unify(&self, other: &Self, span: Span) -> bool {
         match (self, other) {
-            (IsConst::Yes(_), IsConst::Yes(_))
-            | (IsConst::No(_), IsConst::No(_)) => true,
+            (IsConst::Yes(_), IsConst::Yes(_)) | (IsConst::No(_), IsConst::No(_)) => true,
 
-            (IsConst::Yes(_), IsConst::No(_))
-            | (IsConst::No(_), IsConst::Yes(_)) => false,
+            (IsConst::Yes(_), IsConst::No(_)) | (IsConst::No(_), IsConst::Yes(_)) => false,
 
             (IsConst::Maybe(id1, _), IsConst::Maybe(id2, _)) if id1 == id2 => true,
 
-            (IsConst::Maybe(id, binding), other)
-            | (other, IsConst::Maybe(id, binding)) => {
+            (IsConst::Maybe(_, binding), other) | (other, IsConst::Maybe(_, binding)) => {
                 if let Some(binding) = &*binding.borrow() {
                     return binding.unify(other, span);
                 }
@@ -108,7 +105,7 @@ impl IsConst {
                 clone.set_span(span);
                 *binding.borrow_mut() = Some(clone);
                 true
-            },
+            }
         }
     }
 
@@ -126,8 +123,7 @@ impl IsConst {
 
             (IsConst::Maybe(id1, _), IsConst::Maybe(id2, _)) if id1 == id2 => self.clone(),
 
-            (IsConst::Maybe(id, binding), other)
-            | (other, IsConst::Maybe(id, binding)) => {
+            (IsConst::Maybe(_, binding), other) | (other, IsConst::Maybe(_, binding)) => {
                 if let Some(binding) = &*binding.borrow() {
                     return binding.and(other, span);
                 }
@@ -136,7 +132,7 @@ impl IsConst {
                 clone.set_span(span);
                 *binding.borrow_mut() = Some(clone);
                 other.clone()
-            },
+            }
         }
     }
 }
@@ -230,7 +226,12 @@ impl Type {
     }
 
     /// Returns true on success
-    pub fn try_bind_to_polymorphic_int(&self, var: &TypeVariable, var_const: &IsConst, span: Span) -> bool {
+    pub fn try_bind_to_polymorphic_int(
+        &self,
+        var: &TypeVariable,
+        var_const: &IsConst,
+        span: Span,
+    ) -> bool {
         let target_id = match &*var.borrow() {
             TypeBinding::Bound(_) => unreachable!(),
             TypeBinding::Unbound(id) => *id,
@@ -245,7 +246,9 @@ impl Type {
             }
             Type::PolymorphicInteger(is_const, self_var) => {
                 match &*self_var.borrow() {
-                    TypeBinding::Bound(typ) => typ.try_bind_to_polymorphic_int(var, var_const, span),
+                    TypeBinding::Bound(typ) => {
+                        typ.try_bind_to_polymorphic_int(var, var_const, span)
+                    }
                     // Avoid infinitely recursive bindings
                     TypeBinding::Unbound(id) if *id == target_id => true,
                     TypeBinding::Unbound(_) => {

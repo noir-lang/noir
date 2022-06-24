@@ -205,11 +205,13 @@ impl<'a> Resolver<'a> {
 
     fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
         match typ {
-            UnresolvedType::FieldElement(vis) => Type::FieldElement(vis),
+            UnresolvedType::FieldElement(is_const, vis) => Type::FieldElement(is_const, vis),
             UnresolvedType::Array(vis, size, elem) => {
                 Type::Array(vis, size, Box::new(self.resolve_type(*elem)))
             }
-            UnresolvedType::Integer(vis, sign, bits) => Type::Integer(vis, sign, bits),
+            UnresolvedType::Integer(is_const, vis, sign, bits) => {
+                Type::Integer(is_const, vis, sign, bits)
+            }
             UnresolvedType::Bool => Type::Bool,
             UnresolvedType::Unit => Type::Unit,
             UnresolvedType::Unspecified => Type::Unspecified,

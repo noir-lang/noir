@@ -15,6 +15,7 @@ pub use structure::*;
 use crate::{
     token::{IntType, Keyword},
     util::vecmap,
+    IsConst,
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -55,7 +56,7 @@ pub enum FieldElementType {
 }
 
 impl PartialEq for FieldElementType {
-    fn eq(&self, other: &Self) -> bool {
+    fn eq(&self, _other: &Self) -> bool {
         // The reason we manually implement this, is so that Private and Public
         // are seen as equal
         true
@@ -94,9 +95,9 @@ impl std::fmt::Display for FieldElementType {
 /// for structs within, but are otherwise identical to Types.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum UnresolvedType {
-    FieldElement(FieldElementType),
+    FieldElement(IsConst, FieldElementType),
     Array(FieldElementType, ArraySize, Box<UnresolvedType>), // [4]Witness = Array(4, Witness)
-    Integer(FieldElementType, Signedness, u32),              // u32 = Integer(unsigned, 32)
+    Integer(IsConst, FieldElementType, Signedness, u32),     // u32 = Integer(unsigned, 32)
     Bool,
     Unit,
     Struct(FieldElementType, Path),
@@ -110,8 +111,10 @@ pub enum UnresolvedType {
 
 impl UnresolvedType {
     // These are here so that the code is more readable.
-    pub const WITNESS: UnresolvedType = UnresolvedType::FieldElement(FieldElementType::Private);
-    pub const PUBLIC: UnresolvedType = UnresolvedType::FieldElement(FieldElementType::Public);
+    pub const WITNESS: UnresolvedType =
+        UnresolvedType::FieldElement(IsConst::No(None), FieldElementType::Private);
+    pub const PUBLIC: UnresolvedType =
+        UnresolvedType::FieldElement(IsConst::No(None), FieldElementType::Public);
 }
 
 impl Recoverable for UnresolvedType {
@@ -129,11 +132,11 @@ impl std::fmt::Display for UnresolvedType {
 
         use UnresolvedType::*;
         match self {
-            FieldElement(fe_type) => write!(f, "{}Field", vis_str(*fe_type)),
+            FieldElement(is_const, fe_type) => write!(f, "{}{}Field", is_const, vis_str(*fe_type)),
             Array(fe_type, size, typ) => write!(f, "{}{}{}", vis_str(*fe_type), size, typ),
-            Integer(fe_type, sign, num_bits) => match sign {
-                Signedness::Signed => write!(f, "{}i{}", vis_str(*fe_type), num_bits),
-                Signedness::Unsigned => write!(f, "{}u{}", vis_str(*fe_type), num_bits),
+            Integer(is_const, fe_type, sign, num_bits) => match sign {
+                Signedness::Signed => write!(f, "{}{}i{}", is_const, vis_str(*fe_type), num_bits),
+                Signedness::Unsigned => write!(f, "{}{}u{}", is_const, vis_str(*fe_type), num_bits),
             },
             Struct(fe_type, s) => write!(f, "{}{}", vis_str(*fe_type), s),
             Tuple(elements) => {
@@ -149,11 +152,15 @@ impl std::fmt::Display for UnresolvedType {
 }
 
 impl UnresolvedType {
-    pub fn from_int_tok(field_type: FieldElementType, int_tok: &IntType) -> UnresolvedType {
+    pub fn from_int_tok(
+        is_const: IsConst,
+        field_type: FieldElementType,
+        int_tok: &IntType,
+    ) -> UnresolvedType {
         use {IntType::*, UnresolvedType::Integer};
         match int_tok {
-            Signed(num_bits) => Integer(field_type, Signedness::Signed, *num_bits),
-            Unsigned(num_bits) => Integer(field_type, Signedness::Unsigned, *num_bits),
+            Signed(num_bits) => Integer(is_const, field_type, Signedness::Signed, *num_bits),
+            Unsigned(num_bits) => Integer(is_const, field_type, Signedness::Unsigned, *num_bits),
         }
     }
 }

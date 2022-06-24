@@ -10,7 +10,7 @@ use crate::{
     },
     node_interner::{ExprId, FuncId, NodeInterner},
     util::vecmap,
-    ArraySize, FieldElementType, TypeBinding, IsConst,
+    ArraySize, FieldElementType, IsConst, TypeBinding,
 };
 
 use super::errors::TypeCheckError;
@@ -70,7 +70,7 @@ pub(crate) fn type_check_expression(
                     let id = interner.next_type_variable_id();
                     Type::PolymorphicInteger(
                         IsConst::Maybe(id, Rc::new(RefCell::new(None))),
-                        Rc::new(RefCell::new(TypeBinding::Unbound(id)))
+                        Rc::new(RefCell::new(TypeBinding::Unbound(id))),
                     )
                 }
                 HirLiteral::Str(_) => unimplemented!(
@@ -274,12 +274,10 @@ fn check_cast(from: Type, to: Type, span: Span, errors: &mut Vec<TypeCheckError>
     let is_const = match from {
         Type::Integer(is_const, ..) => is_const,
         Type::FieldElement(is_const, _) => is_const,
-        Type::PolymorphicInteger(is_const, binding) => {
-            match &*binding.borrow() {
-                TypeBinding::Bound(from) => return check_cast(from.clone(), to, span, errors),
-                TypeBinding::Unbound(_) => is_const,
-            }
-        }
+        Type::PolymorphicInteger(is_const, binding) => match &*binding.borrow() {
+            TypeBinding::Bound(from) => return check_cast(from.clone(), to, span, errors),
+            TypeBinding::Unbound(_) => is_const,
+        },
         Type::Error => return Type::Error,
         from => {
             let msg = format!(
@@ -423,7 +421,7 @@ pub fn infix_operand_type_rules(
     other: &Type,
 ) -> Result<Type, String> {
     if op.kind.is_comparator() {
-        return comparator_operand_type_rules(lhs_type, other);
+        return comparator_operand_type_rules(lhs_type, other, op.span);
     }
 
     use {FieldElementType::*, Type::*};
@@ -444,12 +442,6 @@ pub fn infix_operand_type_rules(
         }
         (Integer(..), FieldElement(_, Public)) | ( FieldElement(_, Public), Integer(..) ) => {
             Err("Cannot use an integer and a public variable in a binary operation, try converting the public into an integer".to_string())
-        }
-        (Integer(is_const_x, int_field_type,sign_x, bit_width_x), FieldElement(is_const_y, Constant))
-        | (FieldElement(is_const_y, Constant), Integer(is_const_x, int_field_type,sign_x, bit_width_x)) => {
-            let field_type = field_type_rules(int_field_type, &Constant);
-            let is_const = is_const_x.and(is_const_y, op.span);
-            Ok(Integer(is_const, field_type,*sign_x, *bit_width_x))
         }
         (PolymorphicInteger(is_const, a), other) => {
             if let TypeBinding::Bound(binding) = &*a.borrow() {
@@ -491,6 +483,8 @@ pub fn infix_operand_type_rules(
         }
 
         (Bool, Bool) => Ok(Bool),
+
+        (lhs, rhs) => Err(format!("Unsupported types for binary operation: {} and {}", lhs, rhs)),
     }
 }
 
@@ -503,11 +497,12 @@ fn check_if_expr(
     let cond_type = type_check_expression(interner, &if_expr.condition, errors);
     let then_type = type_check_expression(interner, &if_expr.consequence, errors);
 
-    cond_type.unify(&Type::Bool, &mut || {
+    let expr_span = interner.expr_span(&if_expr.condition);
+    cond_type.unify(&Type::Bool, expr_span, &mut || {
         errors.push(TypeCheckError::TypeMismatch {
             expected_typ: Type::Bool.to_string(),
             expr_typ: cond_type.to_string(),
-            expr_span: interner.expr_span(&if_expr.condition),
+            expr_span,
         });
     });
 
@@ -516,11 +511,12 @@ fn check_if_expr(
         Some(alternative) => {
             let else_type = type_check_expression(interner, &alternative, errors);
 
-            then_type.unify(&else_type, &mut || {
+            let expr_span = interner.expr_span(expr_id);
+            then_type.unify(&else_type, expr_span, &mut || {
                 let mut err = TypeCheckError::TypeMismatch {
                     expected_typ: then_type.to_string(),
                     expr_typ: else_type.to_string(),
-                    expr_span: interner.expr_span(expr_id),
+                    expr_span,
                 };
 
                 let context = if then_type == Type::Unit {
@@ -563,8 +559,8 @@ fn check_constructor(
 
         let arg_type = type_check_expression(interner, &arg, errors);
 
-        if !arg_type.make_subtype_of(param_type) {
-            let span = interner.expr_span(expr_id);
+        let span = interner.expr_span(expr_id);
+        if !arg_type.make_subtype_of(param_type, span) {
             errors.push(TypeCheckError::TypeMismatch {
                 expected_typ: param_type.to_string(),
                 expr_typ: arg_type.to_string(),
@@ -613,20 +609,19 @@ fn field_type_rules(lhs: &FieldElementType, rhs: &FieldElementType) -> FieldElem
     match (lhs, rhs) {
         (Private, Private) => Private,
         (Private, Public) => Private,
-        (Private, Constant) => Private,
         (Public, Private) => Private,
         (Public, Public) => Public,
-        (Public, Constant) => Public,
-        (Constant, Private) => Private,
-        (Constant, Public) => Public,
-        (Constant, Constant) => Constant,
     }
 }
 
-pub fn comparator_operand_type_rules(lhs_type: &Type, other: &Type) -> Result<Type, String> {
-    use {FieldElementType::*, Type::*};
+pub fn comparator_operand_type_rules(
+    lhs_type: &Type,
+    other: &Type,
+    span: Span,
+) -> Result<Type, String> {
+    use Type::*;
     match (lhs_type, other)  {
-        (Integer(_, sign_x, bit_width_x), Integer(_, sign_y, bit_width_y)) => {
+        (Integer(_, _, sign_x, bit_width_x), Integer(_, _, sign_y, bit_width_y)) => {
             if sign_x != sign_y {
                 return Err(format!("Integers must have the same signedness LHS is {:?}, RHS is {:?} ", sign_x, sign_y))
             }
@@ -635,30 +630,24 @@ pub fn comparator_operand_type_rules(lhs_type: &Type, other: &Type) -> Result<Ty
             }
             Ok(Bool)
         }
-        (Integer(..), FieldElement(Private)) | ( FieldElement(Private), Integer(..) ) => {
-            Err("Cannot use an integer and a witness in a binary operation, try converting the witness into an integer".to_string())
+        (Integer(..), FieldElement(..)) | ( FieldElement(..), Integer(..) ) => {
+            Err("Cannot use an integer and a Field in a binary operation, try converting the Field into an integer first".to_string())
         }
-        (Integer(..), FieldElement(Public)) | ( FieldElement(Public), Integer(..) ) => {
-            Err("Cannot use an integer and a public variable in a binary operation, try converting the public into an integer".to_string())
-        }
-        (Integer(_, _, _), FieldElement(Constant))| (FieldElement(Constant),Integer(_, _, _)) => {
-            Ok(Bool)
-        }
-        (PolymorphicInteger(a), other) => {
+        (PolymorphicInteger(is_const, a), other) => {
             if let TypeBinding::Bound(binding) = &*a.borrow() {
-                return comparator_operand_type_rules(binding, other);
+                return comparator_operand_type_rules(binding, other, span);
             }
-            if other.try_bind_to_polymorphic_int(a).is_ok() {
+            if other.try_bind_to_polymorphic_int(a, is_const, span) {
                 Ok(Bool)
             } else {
                 Err(format!("Types in a binary operation should match, but found {} and {}", a.borrow(), other))
             }
         }
-        (other, PolymorphicInteger(b)) => {
+        (other, PolymorphicInteger(is_const, b)) => {
             if let TypeBinding::Bound(binding) = &*b.borrow() {
-                return comparator_operand_type_rules(other, binding);
+                return comparator_operand_type_rules(other, binding, span);
             }
-            if other.try_bind_to_polymorphic_int(b).is_ok() {
+            if other.try_bind_to_polymorphic_int(b, is_const, span) {
                 Ok(Bool)
             } else {
                 Err(format!("Types in a binary operation should match, but found {} and {}", other, b.borrow()))
@@ -667,19 +656,15 @@ pub fn comparator_operand_type_rules(lhs_type: &Type, other: &Type) -> Result<Ty
         (Integer(..), typ) | (typ,Integer(..)) => {
             Err(format!("Integer cannot be used with type {}", typ))
         }
-        // If no side contains an integer. Then we check if either side contains a witness
-        // If either side contains a witness, then the final result will be a witness
-        (FieldElement(Private), FieldElement(_)) | (FieldElement(_), FieldElement(Private)) => Ok(Bool),
-        // Public types are added as witnesses under the hood
-        (FieldElement(Public), FieldElement(_)) | (FieldElement(_), FieldElement(Public)) => Ok(Bool),
-        (FieldElement(Constant), FieldElement(Constant))  => Ok(Bool),
+
+        (FieldElement(..), FieldElement(..)) => Ok(Bool),
 
         // <= and friends are technically valid for booleans, just not very useful
         (Bool, Bool) => Ok(Bool),
 
         // Avoid reporting errors multiple times
-        (Error, _) | (_,Error) => Ok(Error),
-        (Unspecified, _) | (_,Unspecified) => Ok(Unspecified),
+        (Error, _) | (_,Error) => Ok(Bool),
+        (Unspecified, _) | (_,Unspecified) => Ok(Bool),
         (lhs, rhs) => Err(format!("Unsupported types for comparison: {} and {}", lhs, rhs)),
     }
 }
@@ -697,11 +682,12 @@ fn check_param_argument(
         unreachable!("arg type type cannot be a variable sized array. This is not supported.")
     }
 
-    if !arg_type.make_subtype_of(param_type) {
+    let expr_span = interner.expr_span(&expr_id);
+    if !arg_type.make_subtype_of(param_type, expr_span) {
         errors.push(TypeCheckError::TypeMismatch {
             expected_typ: param_type.to_string(),
             expr_typ: arg_type.to_string(),
-            expr_span: interner.expr_span(&expr_id),
+            expr_span,
         });
     }
 }

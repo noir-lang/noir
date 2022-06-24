@@ -13,7 +13,7 @@ use crate::{
 };
 use crate::{
     AssignStatement, BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, ForExpression,
-    FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, LValue,
+    FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, IsConst, LValue,
     NoirFunction, NoirImpl, NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp,
 };
 
@@ -114,7 +114,7 @@ fn attribute() -> impl NoirParser<Attribute> {
 }
 
 fn struct_fields() -> impl NoirParser<Vec<(Ident, UnresolvedType)>> {
-    let type_parser = parse_type_with_visibility(optional_const(), parse_type_no_field_element());
+    let type_parser = parse_type_with_visibility(no_visibility(), parse_type_no_field_element());
 
     ident()
         .then_ignore(just(Token::Colon))
@@ -407,23 +407,24 @@ fn visibility(field: FieldElementType) -> impl NoirParser<FieldElementType> {
 }
 
 fn optional_visibility() -> impl NoirParser<FieldElementType> {
-    choice((
-        visibility(FieldElementType::Public),
-        visibility(FieldElementType::Constant),
-        no_visibility(),
-    ))
+    choice((visibility(FieldElementType::Public), no_visibility()))
 }
 
-// This is primarily for struct fields which cannot be public
-fn optional_const() -> impl NoirParser<FieldElementType> {
-    visibility(FieldElementType::Constant).or(no_visibility())
+fn maybe_const() -> impl NoirParser<IsConst> {
+    keyword(Keyword::Const).or_not().map(|opt| match opt {
+        Some(_) => IsConst::Yes(None),
+        None => IsConst::No(None),
+    })
 }
 
 fn field_type<P>(visibility_parser: P) -> impl NoirParser<UnresolvedType>
 where
     P: NoirParser<FieldElementType>,
 {
-    visibility_parser.then_ignore(keyword(Keyword::Field)).map(UnresolvedType::FieldElement)
+    visibility_parser
+        .then(maybe_const())
+        .then_ignore(keyword(Keyword::Field))
+        .map(|(vis, is_const)| UnresolvedType::FieldElement(is_const, vis))
 }
 
 fn int_type<P>(visibility_parser: P) -> impl NoirParser<UnresolvedType>
@@ -431,13 +432,16 @@ where
     P: NoirParser<FieldElementType>,
 {
     visibility_parser
+        .then(maybe_const())
         .then(filter_map(|span, token: Token| match token {
             Token::IntType(int_type) => Ok(int_type),
             unexpected => {
                 Err(ParserError::expected_label("integer type".to_string(), unexpected, span))
             }
         }))
-        .map(|(visibility, int_type)| UnresolvedType::from_int_tok(visibility, &int_type))
+        .map(|((visibility, is_const), int_type)| {
+            UnresolvedType::from_int_tok(is_const, visibility, &int_type)
+        })
 }
 
 fn struct_type<P>(visibility_parser: P) -> impl NoirParser<UnresolvedType>
