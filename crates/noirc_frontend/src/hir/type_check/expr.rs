@@ -10,7 +10,7 @@ use crate::{
     },
     node_interner::{ExprId, FuncId, NodeInterner},
     util::vecmap,
-    ArraySize, FieldElementType, TypeBinding,
+    ArraySize, FieldElementType, TypeBinding, IsConst,
 };
 
 use super::errors::TypeCheckError;
@@ -46,13 +46,15 @@ pub(crate) fn type_check_expression(
 
                     // Check if the array is homogeneous
                     for (index, elem_type) in elem_types.iter().enumerate().skip(1) {
-                        elem_type.unify(&first_elem_type, &mut || {
+                        let span = interner.expr_span(&arr.contents[index]);
+
+                        elem_type.unify(&first_elem_type, span, &mut || {
                             errors.push(
                                 TypeCheckError::NonHomogeneousArray {
                                     first_span: interner.expr_span(&arr.contents[0]),
                                     first_type: first_elem_type.to_string(),
                                     first_index: index,
-                                    second_span: interner.expr_span(&arr.contents[index]),
+                                    second_span: span,
                                     second_type: elem_type.to_string(),
                                     second_index: index + 1,
                                 }
@@ -66,7 +68,10 @@ pub(crate) fn type_check_expression(
                 HirLiteral::Bool(_) => Type::Bool,
                 HirLiteral::Integer(_) => {
                     let id = interner.next_type_variable_id();
-                    Type::PolymorphicInteger(Rc::new(RefCell::new(TypeBinding::Unbound(id))))
+                    Type::PolymorphicInteger(
+                        IsConst::Maybe(id, Rc::new(RefCell::new(None))),
+                        Rc::new(RefCell::new(TypeBinding::Unbound(id)))
+                    )
                 }
                 HirLiteral::Str(_) => unimplemented!(
                     "[Coming Soon] : Currently string literal types have not been implemented"
@@ -128,35 +133,32 @@ pub(crate) fn type_check_expression(
             let start_range_type = type_check_expression(interner, &for_expr.start_range, errors);
             let end_range_type = type_check_expression(interner, &for_expr.end_range, errors);
 
-            start_range_type.unify(&Type::CONSTANT, &mut || {
+            let span = interner.expr_span(&for_expr.start_range);
+            start_range_type.unify(&Type::CONSTANT, span, &mut || {
                 errors.push(
                     TypeCheckError::TypeCannotBeUsed {
                         typ: start_range_type.clone(),
                         place: "for loop",
-                        span: interner.expr_span(&for_expr.start_range),
+                        span,
                     }
+                    // TODO: Grab the span within start_range_type's IsConst field to find where
+                    //       the requirement was that made it non-const
                     .add_context("The range of a loop must be const (known at compile-time)"),
                 );
             });
 
-            end_range_type.unify(&Type::CONSTANT, &mut || {
+            let span = interner.expr_span(&for_expr.end_range);
+            end_range_type.unify(&Type::CONSTANT, span, &mut || {
                 errors.push(
                     TypeCheckError::TypeCannotBeUsed {
                         typ: end_range_type.clone(),
                         place: "for loop",
-                        span: interner.expr_span(&for_expr.end_range),
+                        span,
                     }
+                    // TODO: Grab the span within start_range_type's IsConst field to find where
+                    //       the requirement was that made it non-const
                     .add_context("The range of a loop must be const (known at compile-time)"),
                 );
-            });
-
-            start_range_type.unify(&end_range_type, &mut || {
-                let msg = format!(
-                    "start range type '{}' does not match the end range type '{}'",
-                    start_range_type, end_range_type
-                );
-                let span = interner.expr_span(&for_expr.end_range);
-                errors.push(TypeCheckError::Unstructured { msg, span });
             });
 
             interner.push_definition_type(for_expr.identifier.id, start_range_type);
@@ -178,16 +180,18 @@ pub(crate) fn type_check_expression(
                 let expr_type = super::stmt::type_check(interner, stmt, errors);
 
                 if i + 1 < statements.len() {
-                    expr_type.unify(&Type::Unit, &mut || {
-                        let id = match interner.statement(stmt) {
-                            crate::hir_def::stmt::HirStatement::Expression(expr) => expr,
-                            _ => *expr_id,
-                        };
+                    let id = match interner.statement(stmt) {
+                        crate::hir_def::stmt::HirStatement::Expression(expr) => expr,
+                        _ => *expr_id,
+                    };
 
+                    let span = interner.expr_span(&id);
+
+                    expr_type.unify(&Type::Unit, span, &mut || {
                         errors.push(TypeCheckError::TypeMismatch {
                             expected_typ: Type::Unit.to_string(),
                             expr_typ: expr_type.to_string(),
-                            expr_span: interner.expr_span(&id),
+                            expr_span: span,
                         });
                     });
                 } else {
@@ -229,10 +233,11 @@ fn type_check_index_expression(
     errors: &mut Vec<TypeCheckError>,
 ) -> Type {
     let index_type = type_check_expression(interner, &index_expr.index, errors);
-    index_type.unify(&Type::CONSTANT, &mut || {
-        let span = interner.id_span(&index_expr.index);
+    let span = interner.id_span(&index_expr.index);
+
+    index_type.unify(&Type::CONSTANT, span, &mut || {
         // Specialize the error in the case the user has a Field, just not a const one.
-        let error = if index_type.is_field_element() {
+        let error = if matches!(index_type, Type::FieldElement(..)) {
             TypeCheckError::Unstructured {
                 msg: format!("Array index must be const (known at compile-time), but here a non-const {} was used instead", index_type),
                 span,
@@ -267,16 +272,12 @@ fn type_check_index_expression(
 
 fn check_cast(from: Type, to: Type, span: Span, errors: &mut Vec<TypeCheckError>) -> Type {
     let is_const = match from {
-        Type::Integer(vis, _, _) => vis == FieldElementType::Constant,
-        Type::FieldElement(vis) => vis == FieldElementType::Constant,
-        Type::PolymorphicInteger(binding) => {
+        Type::Integer(is_const, ..) => is_const,
+        Type::FieldElement(is_const, _) => is_const,
+        Type::PolymorphicInteger(is_const, binding) => {
             match &*binding.borrow() {
                 TypeBinding::Bound(from) => return check_cast(from.clone(), to, span, errors),
-                TypeBinding::Unbound(_) => {
-                    // Don't bind the type variable here. Since we're casting, we can cast from any
-                    // integer, and this already represents any integer.
-                    true
-                }
+                TypeBinding::Unbound(_) => is_const,
             }
         }
         Type::Error => return Type::Error,
@@ -291,13 +292,25 @@ fn check_cast(from: Type, to: Type, span: Span, errors: &mut Vec<TypeCheckError>
     };
 
     match to {
-        Type::Integer(to_vis, sign, bits) => {
-            let new_vis = if is_const { FieldElementType::Constant } else { to_vis };
-            Type::Integer(new_vis, sign, bits)
+        Type::Integer(dest_is_const, to_vis, sign, bits) => {
+            if matches!(dest_is_const, IsConst::Yes(_)) {
+                if !is_const.unify(&dest_is_const, span) {
+                    let msg = "Cannot cast to a const type, argument to cast is non-const (not known at compile-time)".into();
+                    errors.push(TypeCheckError::Unstructured { msg, span });
+                }
+            }
+
+            Type::Integer(is_const, to_vis, sign, bits)
         }
-        Type::FieldElement(to_vis) => {
-            let new_vis = if is_const { FieldElementType::Constant } else { to_vis };
-            Type::FieldElement(new_vis)
+        Type::FieldElement(dest_is_const, to_vis) => {
+            if matches!(dest_is_const, IsConst::Yes(_)) {
+                if !is_const.unify(&dest_is_const, span) {
+                    let msg = "Cannot cast to a const type, argument to cast is non-const (not known at compile-time)".into();
+                    errors.push(TypeCheckError::Unstructured { msg, span });
+                }
+            }
+
+            Type::FieldElement(is_const, to_vis)
         }
         Type::Error => Type::Error,
         _ => {
@@ -415,7 +428,7 @@ pub fn infix_operand_type_rules(
 
     use {FieldElementType::*, Type::*};
     match (lhs_type, other)  {
-        (Integer(lhs_field_type, sign_x, bit_width_x), Integer(rhs_field_type, sign_y, bit_width_y)) => {
+        (Integer(is_const_x, lhs_field_type, sign_x, bit_width_x), Integer(is_const_y, rhs_field_type, sign_y, bit_width_y)) => {
             let field_type = field_type_rules(lhs_field_type, rhs_field_type);
             if sign_x != sign_y {
                 return Err(format!("Integers must have the same signedness LHS is {:?}, RHS is {:?} ", sign_x, sign_y))
@@ -423,33 +436,36 @@ pub fn infix_operand_type_rules(
             if bit_width_x != bit_width_y {
                 return Err(format!("Integers must have the same bit width LHS is {}, RHS is {} ", bit_width_x, bit_width_y))
             }
-            Ok(Integer(field_type, *sign_x, *bit_width_x))
+            let is_const = is_const_x.and(is_const_y, op.span);
+            Ok(Integer(is_const, field_type, *sign_x, *bit_width_x))
         }
-        (Integer(..), FieldElement(Private)) | ( FieldElement(Private), Integer(..) ) => {
+        (Integer(..), FieldElement(_, Private)) | ( FieldElement(_, Private), Integer(..) ) => {
             Err("Cannot use an integer and a witness in a binary operation, try converting the witness into an integer".to_string())
         }
-        (Integer(..), FieldElement(Public)) | ( FieldElement(Public), Integer(..) ) => {
+        (Integer(..), FieldElement(_, Public)) | ( FieldElement(_, Public), Integer(..) ) => {
             Err("Cannot use an integer and a public variable in a binary operation, try converting the public into an integer".to_string())
         }
-        (Integer(int_field_type,sign_x, bit_width_x), FieldElement(Constant))| (FieldElement(Constant),Integer(int_field_type,sign_x, bit_width_x)) => {
+        (Integer(is_const_x, int_field_type,sign_x, bit_width_x), FieldElement(is_const_y, Constant))
+        | (FieldElement(is_const_y, Constant), Integer(is_const_x, int_field_type,sign_x, bit_width_x)) => {
             let field_type = field_type_rules(int_field_type, &Constant);
-            Ok(Integer(field_type,*sign_x, *bit_width_x))
+            let is_const = is_const_x.and(is_const_y, op.span);
+            Ok(Integer(is_const, field_type,*sign_x, *bit_width_x))
         }
-        (PolymorphicInteger(a), other) => {
+        (PolymorphicInteger(is_const, a), other) => {
             if let TypeBinding::Bound(binding) = &*a.borrow() {
                 return infix_operand_type_rules(binding, op, other);
             }
-            if other.try_bind_to_polymorphic_int(a).is_ok() {
+            if other.try_bind_to_polymorphic_int(a, is_const, op.span) {
                 Ok(other.clone())
             } else {
                 Err(format!("Types in a binary operation should match, but found {} and {}", a.borrow(), other))
             }
         }
-        (other, PolymorphicInteger(b)) => {
+        (other, PolymorphicInteger(is_const, b)) => {
             if let TypeBinding::Bound(binding) = &*b.borrow() {
                 return infix_operand_type_rules(other, op, binding);
             }
-            if other.try_bind_to_polymorphic_int(b).is_ok() {
+            if other.try_bind_to_polymorphic_int(b, is_const, op.span) {
                 Ok(other.clone())
             } else {
                 Err(format!("Types in a binary operation should match, but found {} and {}", other, b.borrow()))
@@ -467,15 +483,14 @@ pub fn infix_operand_type_rules(
         (Error, _) | (_,Error) => Ok(Error),
         (Unspecified, _) | (_,Unspecified) => Ok(Unspecified),
         (Unit, _) | (_,Unit) => Ok(Unit),
-        //
-        // If no side contains an integer. Then we check if either side contains a witness
-        // If either side contains a witness, then the final result will be a witness
-        (FieldElement(Private), _) | (_,FieldElement(Private)) => Ok(FieldElement(Private)),
-        // Public types are added as witnesses under the hood
-        (FieldElement(Public), _) | (_,FieldElement(Public)) => Ok(FieldElement(Private)),
-        (Bool, _) | (_,Bool) => Ok(Bool),
-        //
-        (FieldElement(Constant), FieldElement(Constant))  => Ok(FieldElement(Constant)),
+
+        // The result of two Fields is always a witness
+        (FieldElement(is_const_x, _), FieldElement(is_const_y, _)) => {
+            let is_const = is_const_x.and(is_const_y, op.span);
+            Ok(FieldElement(is_const, Private))
+        }
+
+        (Bool, Bool) => Ok(Bool),
     }
 }
 

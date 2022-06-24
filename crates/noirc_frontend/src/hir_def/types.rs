@@ -42,10 +42,10 @@ impl std::fmt::Display for StructType {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {
-    FieldElement(FieldElementType),
+    FieldElement(IsConst, FieldElementType),
     Array(FieldElementType, ArraySize, Box<Type>), // [4]Witness = Array(4, Witness)
-    Integer(FieldElementType, Signedness, u32),    // u32 = Integer(unsigned, 32)
-    PolymorphicInteger(TypeVariable),
+    Integer(IsConst, FieldElementType, Signedness, u32), // u32 = Integer(unsigned, 32)
+    PolymorphicInteger(IsConst, TypeVariable),
     Bool,
     Unit,
     Struct(FieldElementType, Rc<RefCell<StructType>>),
@@ -66,12 +66,88 @@ pub enum TypeBinding {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct TypeVariableId(pub usize);
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum IsConst {
+    // Yes and No variants have optional spans representing the location in the source code
+    // which caused them to be const.
+    Yes(Option<Span>),
+    No(Option<Span>),
+    Maybe(TypeVariableId, Rc<RefCell<Option<IsConst>>>),
+}
+
+impl IsConst {
+    fn set_span(&mut self, new_span: Span) {
+        match self {
+            IsConst::Yes(span) | IsConst::No(span) => *span = Some(new_span),
+            IsConst::Maybe(_, binding) => {
+                if let Some(binding) = &*binding.borrow() {
+                    binding.set_span(new_span);
+                }
+            }
+        }
+    }
+
+    /// Try to unify these two IsConst constraints. Returns true on success.
+    pub fn unify(&self, other: &Self, span: Span) -> bool {
+        match (self, other) {
+            (IsConst::Yes(_), IsConst::Yes(_))
+            | (IsConst::No(_), IsConst::No(_)) => true,
+
+            (IsConst::Yes(_), IsConst::No(_))
+            | (IsConst::No(_), IsConst::Yes(_)) => false,
+
+            (IsConst::Maybe(id1, _), IsConst::Maybe(id2, _)) if id1 == id2 => true,
+
+            (IsConst::Maybe(id, binding), other)
+            | (other, IsConst::Maybe(id, binding)) => {
+                if let Some(binding) = &*binding.borrow() {
+                    return binding.unify(other, span);
+                }
+
+                let mut clone = other.clone();
+                clone.set_span(span);
+                *binding.borrow_mut() = Some(clone);
+                true
+            },
+        }
+    }
+
+    /// Combine these two IsConsts together, returning
+    /// - IsConst::Yes if both are Yes,
+    /// - IsConst::No if either are No,
+    /// - or if both are Maybe, unify them both and return the lhs.
+    pub fn and(&self, other: &Self, span: Span) -> Self {
+        match (self, other) {
+            (IsConst::Yes(_), IsConst::Yes(_)) => IsConst::Yes(Some(span)),
+
+            (IsConst::No(_), IsConst::No(_))
+            | (IsConst::Yes(_), IsConst::No(_))
+            | (IsConst::No(_), IsConst::Yes(_)) => IsConst::No(Some(span)),
+
+            (IsConst::Maybe(id1, _), IsConst::Maybe(id2, _)) if id1 == id2 => self.clone(),
+
+            (IsConst::Maybe(id, binding), other)
+            | (other, IsConst::Maybe(id, binding)) => {
+                if let Some(binding) = &*binding.borrow() {
+                    return binding.and(other, span);
+                }
+
+                let mut clone = other.clone();
+                clone.set_span(span);
+                *binding.borrow_mut() = Some(clone);
+                other.clone()
+            },
+        }
+    }
+}
+
 impl Type {
     // These are here so that the code is more readable.
     // Type::WITNESS vs Type::FieldElement(FieldElementType::Private)
-    pub const WITNESS: Type = Type::FieldElement(FieldElementType::Private);
-    pub const CONSTANT: Type = Type::FieldElement(FieldElementType::Constant);
-    pub const PUBLIC: Type = Type::FieldElement(FieldElementType::Public);
+    pub const WITNESS: Type = Type::FieldElement(IsConst::No(None), FieldElementType::Private);
+    pub const PUBLIC: Type = Type::FieldElement(IsConst::No(None), FieldElementType::Public);
+
+    pub const CONSTANT: Type = Type::FieldElement(IsConst::Yes(None), FieldElementType::Private);
 
     pub const DEFAULT_INT_TYPE: Type = Type::WITNESS;
 }
@@ -87,17 +163,18 @@ impl std::fmt::Display for Type {
         let vis_str = |vis| match vis {
             FieldElementType::Private => "",
             FieldElementType::Public => "pub ",
-            FieldElementType::Constant => "const ",
         };
 
         match self {
-            Type::FieldElement(fe_type) => write!(f, "{}Field", vis_str(*fe_type)),
+            Type::FieldElement(is_const, fe_type) => {
+                write!(f, "{}{}Field", is_const, vis_str(*fe_type))
+            }
             Type::Array(fe_type, size, typ) => write!(f, "{}{}{}", vis_str(*fe_type), size, typ),
-            Type::Integer(fe_type, sign, num_bits) => match sign {
-                Signedness::Signed => write!(f, "{}i{}", vis_str(*fe_type), num_bits),
-                Signedness::Unsigned => write!(f, "{}u{}", vis_str(*fe_type), num_bits),
+            Type::Integer(is_const, fe_type, sign, num_bits) => match sign {
+                Signedness::Signed => write!(f, "{}{}i{}", is_const, vis_str(*fe_type), num_bits),
+                Signedness::Unsigned => write!(f, "{}{}u{}", is_const, vis_str(*fe_type), num_bits),
             },
-            Type::PolymorphicInteger(binding) => write!(f, "{}", binding.borrow()),
+            Type::PolymorphicInteger(_, binding) => write!(f, "{}", binding.borrow()),
             Type::Struct(vis, s) => write!(f, "{}{}", vis_str(*vis), s.borrow()),
             Type::Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
@@ -120,41 +197,66 @@ impl std::fmt::Display for TypeBinding {
     }
 }
 
-impl Type {
-    // Returns true if the Type can be used in a Private statement
-    pub fn can_be_used_in_priv(&self) -> bool {
+impl std::fmt::Display for IsConst {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Type::FieldElement(FieldElementType::Private) => true,
-            Type::Integer(field_type, _, _) => field_type == &FieldElementType::Private,
-            Type::Error => true,
-            _ => false,
+            IsConst::Yes(_) => write!(f, "const "),
+            IsConst::No(_) => Ok(()),
+            IsConst::Maybe(_, binding) => match &*binding.borrow() {
+                Some(binding) => binding.fmt(f),
+                None => write!(f, "const "),
+            },
+        }
+    }
+}
+
+impl Type {
+    /// Mutate the span for IsConst to track where constness is required for better
+    /// error messages that show both the erroring callsite and the callsite before
+    /// which required the variable to be const or non-const.
+    fn set_const_span(&mut self, new_span: Span) {
+        match self {
+            Type::FieldElement(is_const, _) | Type::Integer(is_const, _, _, _) => {
+                is_const.set_span(new_span)
+            }
+            Type::PolymorphicInteger(span, binding) => {
+                if let TypeBinding::Bound(binding) = &mut *binding.borrow_mut() {
+                    return binding.set_const_span(new_span);
+                }
+                span.set_span(new_span);
+            }
+            _ => unreachable!(),
         }
     }
 
-    #[allow(clippy::result_unit_err)]
-    pub fn try_bind_to_polymorphic_int(&self, var: &TypeVariable) -> Result<(), ()> {
+    /// Returns true on success
+    pub fn try_bind_to_polymorphic_int(&self, var: &TypeVariable, var_const: &IsConst, span: Span) -> bool {
         let target_id = match &*var.borrow() {
             TypeBinding::Bound(_) => unreachable!(),
             TypeBinding::Unbound(id) => *id,
         };
 
         match self {
-            Type::FieldElement(_) | Type::Integer(_, _, _) => {
-                *var.borrow_mut() = TypeBinding::Bound(self.clone());
-                Ok(())
+            Type::FieldElement(is_const, ..) | Type::Integer(is_const, ..) => {
+                let mut clone = self.clone();
+                clone.set_const_span(span);
+                *var.borrow_mut() = TypeBinding::Bound(clone);
+                is_const.unify(var_const, span)
             }
-            Type::PolymorphicInteger(self_var) => {
+            Type::PolymorphicInteger(is_const, self_var) => {
                 match &*self_var.borrow() {
-                    TypeBinding::Bound(typ) => typ.try_bind_to_polymorphic_int(var),
+                    TypeBinding::Bound(typ) => typ.try_bind_to_polymorphic_int(var, var_const, span),
                     // Avoid infinitely recursive bindings
-                    TypeBinding::Unbound(id) if *id == target_id => Ok(()),
+                    TypeBinding::Unbound(id) if *id == target_id => true,
                     TypeBinding::Unbound(_) => {
-                        *var.borrow_mut() = TypeBinding::Bound(self.clone());
-                        Ok(())
+                        let mut clone = self.clone();
+                        clone.set_const_span(span);
+                        *var.borrow_mut() = TypeBinding::Bound(clone);
+                        is_const.unify(var_const, span)
                     }
                 }
             }
-            _ => Err(()),
+            _ => false,
         }
     }
 
@@ -163,21 +265,22 @@ impl Type {
     /// than subtyping but less strict than Eq. Returns true if the unification
     /// succeeded. Note that any bindings performed in a failed unification are
     /// not undone. This may cause further type errors later on.
-    pub fn unify(&self, other: &Type, error: &mut impl FnMut()) -> bool {
+    pub fn unify(&self, other: &Type, span: Span, error: &mut impl FnMut()) -> bool {
         use Type::*;
         match (self, other) {
             (Error, _) | (_, Error) => true,
 
             (Unspecified, _) | (_, Unspecified) => unreachable!(),
 
-            (PolymorphicInteger(binding), other) | (other, PolymorphicInteger(binding)) => {
+            (PolymorphicInteger(is_const, binding), other)
+            | (other, PolymorphicInteger(is_const, binding)) => {
                 // If it is already bound, unify against what it is bound to
                 if let TypeBinding::Bound(link) = &*binding.borrow() {
-                    return link.unify(other, error);
+                    return link.unify(other, span, error);
                 }
 
                 // Otherwise, check it is unified against an integer and bind it
-                let success = other.try_bind_to_polymorphic_int(binding).is_ok();
+                let success = other.try_bind_to_polymorphic_int(binding, is_const, span);
                 if !success {
                     error();
                 }
@@ -189,7 +292,7 @@ impl Type {
                     error();
                     false
                 } else {
-                    elem_a.unify(elem_b, error)
+                    elem_a.unify(elem_b, span, error)
                 }
             }
 
@@ -199,7 +302,7 @@ impl Type {
                     false
                 } else {
                     for (a, b) in elems_a.iter().zip(elems_b) {
-                        if !a.unify(b, error) {
+                        if !a.unify(b, span, error) {
                             return false;
                         }
                     }
@@ -236,8 +339,7 @@ impl Type {
     // This is 'make_subtype_of' rather than 'is_subtype_of' to
     // allude to the side effects it has with setting any integer
     // type variables contained within to other values
-    pub fn make_subtype_of(&self, other: &Type) -> bool {
-        use FieldElementType::*;
+    pub fn make_subtype_of(&self, other: &Type, span: Span) -> bool {
         use Type::*;
 
         // Avoid reporting duplicate errors
@@ -257,41 +359,22 @@ impl Type {
         // to accept u8? We would need to pad the bit decomposition
         // if so.
         match (self, other) {
-            // Const types are subtypes of non-const types
-            (FieldElement(Constant), FieldElement(_)) => true,
-
-            (PolymorphicInteger(a), other) => {
+            (PolymorphicInteger(is_const, a), other) => {
                 if let TypeBinding::Bound(binding) = &*a.borrow() {
-                    return binding.make_subtype_of(other);
+                    return binding.make_subtype_of(other, span);
                 }
-                other.try_bind_to_polymorphic_int(a).is_ok()
+                other.try_bind_to_polymorphic_int(a, is_const, span)
             }
 
-            (other, PolymorphicInteger(b)) => {
+            (other, PolymorphicInteger(is_const, b)) => {
                 if let TypeBinding::Bound(binding) = &*b.borrow() {
-                    return other.make_subtype_of(binding);
+                    return other.make_subtype_of(binding, span);
                 }
-                other.try_bind_to_polymorphic_int(b).is_ok()
+                other.try_bind_to_polymorphic_int(b, is_const, span)
             }
 
-            // Any field element type is a subtype of `priv Field`
-            (this, FieldElement(Private)) => this.is_field_element(),
-
-            (Integer(Constant, self_sign, self_bits), Integer(_, other_sign, other_bits)) => {
-                self_sign == other_sign && self_bits == other_bits
-            }
             (this, other) => this == other,
         }
-    }
-
-    pub fn is_field_element(&self) -> bool {
-        matches!(
-            self,
-            Type::FieldElement(_)
-                | Type::Bool
-                | Type::Integer(_, _, _)
-                | Type::PolymorphicInteger(_)
-        )
     }
 
     /// Computes the number of elements in a Type
@@ -303,14 +386,26 @@ impl Type {
                 unreachable!("ice : this method is only ever called when we want to compare the prover inputs with the ABI in main. The ABI should not have variable input. The program should be compiled before calling this"),
             Type::Struct(_, s) => s.borrow().fields.len(),
             Type::Tuple(fields) => fields.len(),
-            Type::FieldElement(_)
-            | Type::Integer(_, _, _)
-            | Type::PolymorphicInteger(_)
+            Type::FieldElement(..)
+            | Type::Integer(..)
+            | Type::PolymorphicInteger(..)
             | Type::Bool
             | Type::Error
             | Type::Unspecified
             | Type::Unit => 1,
         }
+    }
+
+    pub fn can_be_used_in_constrain(&self) -> bool {
+        matches!(
+            self,
+            Type::FieldElement(..)
+                | Type::Integer(..)
+                | Type::PolymorphicInteger(..)
+                | Type::Array(_, _, _)
+                | Type::Error
+                | Type::Bool
+        )
     }
 
     pub fn is_fixed_sized_array(&self) -> bool {
@@ -335,47 +430,13 @@ impl Type {
         }
     }
 
-    // Returns true if the Type can be used in a Constrain statement
-    pub fn can_be_used_in_constrain(&self) -> bool {
-        matches!(
-            self,
-            Type::FieldElement(_)
-                | Type::PolymorphicInteger(_)
-                | Type::Integer(_, _, _)
-                | Type::Array(_, _, _)
-                | Type::Error
-                | Type::Bool
-        )
-    }
-
-    // Base types are types in the language that are simply alias for a field element
-    // Therefore they can be the operands in an infix comparison operator
-    pub fn is_base_type(&self) -> bool {
-        matches!(self, Type::FieldElement(_) | Type::Integer(_, _, _) | Type::Error)
-    }
-
-    pub fn is_constant(&self) -> bool {
-        // XXX: Currently no such thing as a const array
-        matches!(
-            self,
-            Type::FieldElement(FieldElementType::Constant)
-                | Type::Integer(FieldElementType::Constant, _, _)
-                | Type::Error
-        )
-    }
-
     pub fn is_public(&self) -> bool {
         matches!(
             self,
-            Type::FieldElement(FieldElementType::Public)
-                | Type::Integer(FieldElementType::Public, _, _)
+            Type::FieldElement(_, FieldElementType::Public)
+                | Type::Integer(_, FieldElementType::Public, _, _)
                 | Type::Array(FieldElementType::Public, _, _)
         )
-    }
-
-    // Returns true, if both type can be used in an infix expression
-    pub fn can_be_used_for_infix(&self, other: &Type) -> bool {
-        self.is_base_type() && other.is_base_type()
     }
 
     // Note; use strict_eq instead of partial_eq when comparing field types
@@ -386,14 +447,11 @@ impl Type {
             match fe {
                 FieldElementType::Private => noirc_abi::AbiFEType::Private,
                 FieldElementType::Public => noirc_abi::AbiFEType::Public,
-                FieldElementType::Constant => {
-                    panic!("constant field in the ABI, this is not allowed!")
-                }
             }
         }
 
         match self {
-            Type::FieldElement(fe_type) => AbiType::Field(fet_to_abi(fe_type)),
+            Type::FieldElement(_, fe_type) => AbiType::Field(fet_to_abi(fe_type)),
             Type::Array(fe_type, size, typ) => match size {
                 ArraySize::Variable => {
                     panic!("cannot have variable sized array in entry point")
@@ -404,7 +462,7 @@ impl Type {
                     typ: Box::new(typ.as_abi_type()),
                 },
             },
-            Type::Integer(fe_type, sign, bit_width) => {
+            Type::Integer(_, fe_type, sign, bit_width) => {
                 let sign = match sign {
                     Signedness::Unsigned => noirc_abi::Sign::Unsigned,
                     Signedness::Signed => noirc_abi::Sign::Signed,
@@ -412,7 +470,7 @@ impl Type {
 
                 AbiType::Integer { sign, width: *bit_width as u32, visibility: fet_to_abi(fe_type) }
             }
-            Type::PolymorphicInteger(binding) => match &*binding.borrow() {
+            Type::PolymorphicInteger(_, binding) => match &*binding.borrow() {
                 TypeBinding::Bound(typ) => typ.as_abi_type(),
                 TypeBinding::Unbound(_) => Type::DEFAULT_INT_TYPE.as_abi_type(),
             },

@@ -97,14 +97,14 @@ fn type_check_assign_stmt(
     let span = interner.expr_span(&assign_stmt.expression);
     let lvalue_type = type_check_lvalue(interner, assign_stmt.lvalue, span, errors);
 
-    if !expr_type.make_subtype_of(&lvalue_type) {
-        errors.push(TypeCheckError::Unstructured {
-            msg: format!(
-                "Cannot assign an expression of type {} to a value of type {}",
-                expr_type, lvalue_type
-            ),
-            span: interner.expr_span(&assign_stmt.expression),
-        });
+    let span = interner.expr_span(&assign_stmt.expression);
+    if !expr_type.make_subtype_of(&lvalue_type, span) {
+        let msg = format!(
+            "Cannot assign an expression of type {} to a value of type {}",
+            expr_type, lvalue_type
+        );
+
+        errors.push(TypeCheckError::Unstructured { msg, span });
     }
 }
 
@@ -151,12 +151,13 @@ fn type_check_lvalue(
         }
         HirLValue::Index { array, index } => {
             let index_type = type_check_expression(interner, &index, errors);
-            index_type.unify(&Type::CONSTANT, &mut || {
-                let span = interner.id_span(&index);
+            let expr_span= interner.id_span(&index);
+
+            index_type.unify(&Type::CONSTANT, expr_span, &mut || {
                 errors.push(TypeCheckError::TypeMismatch {
                     expected_typ: "const Field".to_owned(),
                     expr_typ: index_type.to_string(),
-                    expr_span: span,
+                    expr_span,
                 });
             });
 
@@ -243,8 +244,8 @@ fn type_check_declaration(
     if annotated_type != Type::Unspecified {
         // Now check if LHS is the same type as the RHS
         // Importantly, we do not co-erce any types implicitly
-        if !expr_type.make_subtype_of(&annotated_type) {
-            let expr_span = interner.expr_span(&rhs_expr);
+        let expr_span = interner.expr_span(&rhs_expr);
+        if !expr_type.make_subtype_of(&annotated_type, expr_span) {
             errors.push(TypeCheckError::TypeMismatch {
                 expected_typ: annotated_type.to_string(),
                 expr_typ: expr_type.to_string(),
