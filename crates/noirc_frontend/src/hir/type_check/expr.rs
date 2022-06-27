@@ -437,11 +437,8 @@ pub fn infix_operand_type_rules(
             let is_const = is_const_x.and(is_const_y, op.span);
             Ok(Integer(is_const, field_type, *sign_x, *bit_width_x))
         }
-        (Integer(..), FieldElement(_, Private)) | ( FieldElement(_, Private), Integer(..) ) => {
-            Err("Cannot use an integer and a witness in a binary operation, try converting the witness into an integer".to_string())
-        }
-        (Integer(..), FieldElement(_, Public)) | ( FieldElement(_, Public), Integer(..) ) => {
-            Err("Cannot use an integer and a public variable in a binary operation, try converting the public into an integer".to_string())
+        (Integer(..), FieldElement(_, _)) | ( FieldElement(_, _), Integer(..) ) => {
+            Err("Cannot use an integer and a Field in a binary operation, try converting the Field into an integer".to_string())
         }
         (PolymorphicInteger(is_const, a), other) => {
             if let TypeBinding::Bound(binding) = &*a.borrow() {

@@ -245,13 +245,15 @@ impl Type {
                 is_const.unify(var_const, span)
             }
             Type::PolymorphicInteger(is_const, self_var) => {
-                match &*self_var.borrow() {
+                let borrow = self_var.borrow();
+                match &*borrow {
                     TypeBinding::Bound(typ) => {
                         typ.try_bind_to_polymorphic_int(var, var_const, span)
                     }
                     // Avoid infinitely recursive bindings
                     TypeBinding::Unbound(id) if *id == target_id => true,
                     TypeBinding::Unbound(_) => {
+                        drop(borrow);
                         let mut clone = self.clone();
                         clone.set_const_span(span);
                         *var.borrow_mut() = TypeBinding::Bound(clone);
