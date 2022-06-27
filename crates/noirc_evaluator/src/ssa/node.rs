@@ -456,25 +456,8 @@ impl Instruction {
             Operation::Not(value) => {
                 if let Some(l_const) = eval_fn(ctx, *value).into_const_value() {
                     let l = self.res_type.field_to_type(l_const).to_u128();
-                    let bit_string = format!("{:b}", l);
-                    let mut k = 1;
-                    let mut not_l = 0;
-                    let mut count = 0;
-                    for c in bit_string.chars().into_iter().rev() {
-                        if count >= self.res_type.bits() {
-                            break;
-                        }
-                        if c == '0' {
-                            not_l += k;
-                        }
-                        k = k << 1;
-                        count += 1;
-                    }
-                    for _i in count..self.res_type.bits() {
-                        not_l += k;
-                        k = k << 1;
-                    }
-                    return NodeEval::Const(FieldElement::from(not_l as i128), self.res_type);
+                    let max = (1_u128 << self.res_type.bits()) - 1;
+                    return NodeEval::Const(FieldElement::from((!l) & max), self.res_type);
                 }
             }
             Operation::Phi { .. } => (), //Phi are simplified by simply_phi() later on; they must not be simplified here
