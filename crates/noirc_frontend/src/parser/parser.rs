@@ -163,6 +163,14 @@ fn implementation() -> impl NoirParser<TopLevelStatement> {
         .map(|(type_path, methods)| TopLevelStatement::Impl(NoirImpl { type_path, methods }))
 }
 
+fn block_expr<'a, P>(expr_parser: P) -> impl NoirParser<Expression> + 'a
+where
+    P: ExprParser + 'a,
+{
+    block(expr_parser).map(ExpressionKind::Block)
+        .map_with_span(Expression::new)
+}
+
 fn block<'a, P>(expr_parser: P) -> impl NoirParser<BlockExpression> + 'a
 where
     P: ExprParser + 'a,
@@ -584,8 +592,8 @@ where
 {
     keyword(Keyword::If)
         .ignore_then(expr_parser.clone())
-        .then(block(expr_parser.clone()))
-        .then(keyword(Keyword::Else).ignore_then(block(expr_parser)).or_not())
+        .then(block_expr(expr_parser.clone()))
+        .then(keyword(Keyword::Else).ignore_then(block_expr(expr_parser)).or_not())
         .map(|((condition, consequence), alternative)| {
             ExpressionKind::If(Box::new(IfExpression { condition, consequence, alternative }))
         })
@@ -601,7 +609,7 @@ where
         .then(expr_parser.clone())
         .then_ignore(just(Token::DoubleDot))
         .then(expr_parser.clone())
-        .then(block(expr_parser))
+        .then(block_expr(expr_parser))
         .map(|(((identifier, start_range), end_range), block)| {
             ExpressionKind::For(Box::new(ForExpression {
                 identifier,

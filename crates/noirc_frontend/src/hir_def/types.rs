@@ -269,6 +269,16 @@ impl Type {
     /// succeeded. Note that any bindings performed in a failed unification are
     /// not undone. This may cause further type errors later on.
     pub fn unify(&self, other: &Type, span: Span, error: &mut impl FnMut()) -> bool {
+        let success = self.try_unify(other, span);
+        if !success {
+            error();
+        }
+        success
+    }
+
+    /// `try_unify` is a bit of a misnomer since although errors are not committed,
+    /// any unified bindings are on success.
+    fn try_unify(&self, other: &Type, span: Span) -> bool {
         use Type::*;
         match (self, other) {
             (Error, _) | (_, Error) => true,
@@ -279,59 +289,42 @@ impl Type {
             | (other, PolymorphicInteger(is_const, binding)) => {
                 // If it is already bound, unify against what it is bound to
                 if let TypeBinding::Bound(link) = &*binding.borrow() {
-                    return link.unify(other, span, error);
+                    return link.try_unify(other, span);
                 }
 
                 // Otherwise, check it is unified against an integer and bind it
-                let success = other.try_bind_to_polymorphic_int(binding, is_const, span);
-                if !success {
-                    error();
-                }
-                success
+                other.try_bind_to_polymorphic_int(binding, is_const, span)
             }
 
-            (Array(vis_a, len_a, elem_a), Array(vis_b, len_b, elem_b)) => {
-                if vis_a != vis_b || len_a != len_b {
-                    error();
-                    false
-                } else {
-                    elem_a.unify(elem_b, span, error)
-                }
+            (Array(_, len_a, elem_a), Array(_, len_b, elem_b)) => {
+                len_a == len_b && elem_a.try_unify(elem_b, span)
             }
 
             (Tuple(elems_a), Tuple(elems_b)) => {
                 if elems_a.len() != elems_b.len() {
-                    error();
                     false
                 } else {
-                    for (a, b) in elems_a.iter().zip(elems_b) {
-                        if !a.unify(b, span, error) {
-                            return false;
-                        }
-                    }
-                    true
+                    elems_a.iter().zip(elems_b)
+                        .all(|(a, b)| a.try_unify(b, span))
                 }
             }
 
-            // No recursive unify call for struct fields. Don't want
+            // No recursive try_unify call for struct fields. Don't want
             // to mutate shared type variables within struct definitions.
             // This isn't possible currently but will be once noir gets generic types
-            (Struct(vis_a, fields_a), Struct(vis_b, fields_b)) => {
-                if vis_a != vis_b || fields_a != fields_b {
-                    error();
-                    false
-                } else {
-                    true
-                }
+            (Struct(_, fields_a), Struct(_, fields_b)) => {
+                fields_a == fields_b
             }
 
-            (other_a, other_b) => {
-                let success = other_a == other_b;
-                if !success {
-                    error();
-                }
-                success
+            (FieldElement(const_a, _), FieldElement(const_b, _)) => {
+                const_a.unify(const_b, span)
             }
+
+            (Integer(const_a, _, signed_a, bits_a), Integer(const_b, _, signed_b, bits_b)) => {
+                signed_a == signed_b && bits_a == bits_b && const_a.unify(const_b, span)
+            }
+
+            (other_a, other_b) => other_a == other_b,
         }
     }
 
@@ -374,6 +367,14 @@ impl Type {
                     return other.make_subtype_of(binding, span);
                 }
                 other.try_bind_to_polymorphic_int(b, is_const, span)
+            }
+
+            (FieldElement(const_a, _), FieldElement(const_b, _)) => {
+                const_a.unify(const_b, span)
+            }
+
+            (Integer(const_a, _, signed_a, bits_a), Integer(const_b, _, signed_b, bits_b)) => {
+                signed_a == signed_b && bits_a == bits_b && const_a.unify(const_b, span)
             }
 
             (this, other) => this == other,

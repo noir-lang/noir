@@ -373,7 +373,7 @@ impl<'a> Resolver<'a> {
                 // TODO: For loop variables are currently mutable by default since we haven't
                 //       yet implemented syntax for them to be optionally mutable.
                 let (identifier, block_id) = self.in_new_scope(|this| {
-                    (this.add_variable_decl(identifier, true), this.intern_block(block))
+                    (this.add_variable_decl(identifier, true), this.resolve_expression(block))
                 });
 
                 HirExpression::For(HirForExpression {
@@ -385,8 +385,8 @@ impl<'a> Resolver<'a> {
             }
             ExpressionKind::If(if_expr) => HirExpression::If(HirIfExpression {
                 condition: self.resolve_expression(if_expr.condition),
-                consequence: self.intern_block(if_expr.consequence),
-                alternative: if_expr.alternative.map(|e| self.intern_block(e)),
+                consequence: self.resolve_expression(if_expr.consequence),
+                alternative: if_expr.alternative.map(|e| self.resolve_expression(e)),
             }),
             ExpressionKind::Index(indexed_expr) => HirExpression::Index(HirIndexExpression {
                 collection: self.resolve_expression(indexed_expr.collection),
