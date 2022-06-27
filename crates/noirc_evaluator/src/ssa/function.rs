@@ -8,6 +8,7 @@ use noirc_frontend::hir_def::function::Parameters;
 use noirc_frontend::hir_def::stmt::HirPattern;
 use noirc_frontend::node_interner::FuncId;
 
+use super::node::Node;
 use super::{
     block::BlockId,
     code_gen::IRGenerator,
@@ -31,40 +32,32 @@ pub struct SSAFunction {
     pub id: FuncId,
     pub idx: FuncIndex,
     //signature:
+    pub name: String,
     pub arguments: Vec<NodeId>,
     pub result_types: Vec<ObjectType>,
 }
 
 impl SSAFunction {
-    pub fn new(func: FuncId, block_id: BlockId, idx: FuncIndex) -> SSAFunction {
+    pub fn new(func: FuncId, name: &str, block_id: BlockId, idx: FuncIndex) -> SSAFunction {
         SSAFunction {
             entry_block: block_id,
             id: func,
+            name: name.to_string(),
             arguments: Vec::new(),
             result_types: Vec::new(),
             idx,
         }
     }
 
-    pub fn compile(&self, igen: &mut IRGenerator, last: NodeId) -> Option<NodeId> {
+    pub fn compile(&self, igen: &mut IRGenerator) -> Option<NodeId> {
         let function_cfg = super::block::bfs(self.entry_block, None, &igen.context);
         super::block::compute_sub_dom(&mut igen.context, &function_cfg);
         //Optimisation
         super::optim::full_cse(&mut igen.context, self.entry_block);
         //Unrolling
-        let eval = super::flatten::unroll_tree(&mut igen.context, self.entry_block);
+        super::flatten::unroll_tree(&mut igen.context, self.entry_block);
         super::optim::full_cse(&mut igen.context, self.entry_block);
-        if eval.contains_key(&last) {
-            eval[&last].into_node_id()
-        } else {
-            let mut is_modified = true;
-            let mut last = last;
-            while is_modified {
-                is_modified = false;
-                last = crate::ssa::optim::propagate(&igen.context, last, &mut is_modified);
-            }
-            Some(last)
-        }
+        None
     }
 
     //generates an instruction for calling the function
@@ -73,10 +66,28 @@ impl SSAFunction {
         arguments: &[noirc_frontend::node_interner::ExprId],
         igen: &mut IRGenerator,
         env: &mut Environment,
-    ) -> NodeId {
-        let otype = igen.context.functions[&func].result_types[0];
+    ) -> Vec<NodeId> {
         let arguments = igen.expression_list_to_objects(env, arguments);
-        igen.context.new_instruction(node::Operation::Call(func, arguments, Vec::new()), otype)
+        for a in &arguments {
+            if let Some(obj) = igen.context.try_get_node(*a) {
+                if let ObjectType::Pointer(a) = obj.get_type() {
+                    igen.context.add_dummy_load(a);
+                }
+            }
+        }
+        let call_instruction = igen.context.new_instruction(
+            node::Operation::Call(func, arguments, Vec::new()),
+            ObjectType::NotAnObject,
+        );
+        let rtt = igen.context.functions[&func].result_types.clone();
+        let mut result = Vec::new();
+        for i in rtt.iter().enumerate() {
+            result.push(igen.context.new_instruction(
+                node::Operation::Result { call_instruction, index: i.0 as u32 },
+                *i.1,
+            ));
+        }
+        result
     }
 
     pub fn get_mapped_value(
@@ -175,6 +186,7 @@ pub fn param_to_ident(patern: &HirPattern) -> &HirIdent {
 pub fn create_function(
     igen: &mut IRGenerator,
     func_id: FuncId,
+    name: &str,
     context: &noirc_frontend::hir::Context,
     env: &mut Environment,
     parameters: &Parameters,
@@ -184,7 +196,7 @@ pub fn create_function(
     let current_function = igen.function_context;
     let func_block = super::block::BasicBlock::create_cfg(&mut igen.context);
 
-    let mut func = SSAFunction::new(func_id, func_block, index);
+    let mut func = SSAFunction::new(func_id, name, func_block, index);
 
     let function = context.def_interner.function(&func_id);
     let block = function.block(&context.def_interner);
@@ -197,10 +209,21 @@ pub fn create_function(
     igen.function_context = Some(index);
     igen.context.functions.insert(func_id, func.clone());
     let last_value = igen.parse_block(block.statements(), env);
-    let last_id = last_value.unwrap_id(); //we do not support structures for now
-    let last_mapped = func.compile(igen, last_id); //unroll the function
-    let rtt = add_return_instruction(&mut igen.context, last_mapped);
-    func.result_types.push(rtt);
+    let returned_values = last_value.to_node_ids();
+    for i in &returned_values {
+        if let Some(node) = igen.context.try_get_node(*i) {
+            func.result_types.push(node.get_type());
+            if let ObjectType::Pointer(a) = node.get_type() {
+                igen.context.add_dummy_store(a);
+            }
+        } else {
+            func.result_types.push(ObjectType::NotAnObject);
+        }
+    }
+    igen.context
+        .new_instruction(node::Operation::Return(returned_values), node::ObjectType::NotAnObject);
+    func.compile(igen); //unroll the function
+
     igen.context.functions.insert(func_id, func);
     igen.context.current_block = current_block;
     igen.function_context = current_function;
@@ -268,18 +291,4 @@ pub fn inline_all(ctx: &mut SsaContext) {
         processed.push(i.0);
     }
     ctx.call_graph.clear();
-}
-
-pub fn add_return_instruction(ctx: &mut SsaContext, last: Option<NodeId>) -> ObjectType {
-    let last_id = last.unwrap_or_else(NodeId::dummy);
-    let result = if last_id == NodeId::dummy() { vec![] } else { vec![last_id] };
-    let mut rtt = ObjectType::NotAnObject;
-    //  XXX est ce que rtt sert toujours a qqchosee??
-    if !result.is_empty() && result[0] != NodeId::dummy() {
-        rtt = ctx.get_object_type(result[0]);
-    }
-    //Create return instruction based on the last statement of the function body
-    ctx.new_instruction(node::Operation::Return(result), node::ObjectType::NotAnObject);
-    //n.b. should we keep the object type in the vector?
-    rtt
 }
