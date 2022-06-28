@@ -439,9 +439,9 @@ impl<'a> Evaluator<'a> {
             HirStatement::Constrain(constrain_stmt) => {
                 self.handle_constrain_statement(env, constrain_stmt)
             }
-            HirStatement::Expression(expr) | HirStatement::Semi(expr) => {
-                self.expression_to_object(env, &expr)
-            }
+            HirStatement::Expression(expr)
+            | HirStatement::Semi(expr)
+            | HirStatement::Return(expr) => self.expression_to_object(env, &expr),
             HirStatement::Let(let_stmt) => {
                 // let statements are used to declare a higher level object
                 self.handle_definition(env, &let_stmt.pattern, &let_stmt.expression)
