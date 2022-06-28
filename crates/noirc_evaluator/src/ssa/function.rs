@@ -8,6 +8,8 @@ use noirc_frontend::hir_def::function::Parameters;
 use noirc_frontend::hir_def::stmt::HirPattern;
 use noirc_frontend::node_interner::FuncId;
 
+use super::code_gen::Value;
+use super::node::Operation;
 use super::{
     block::BlockId,
     code_gen::IRGenerator,
@@ -46,25 +48,14 @@ impl SSAFunction {
         }
     }
 
-    pub fn compile(&self, igen: &mut IRGenerator, last: NodeId) -> Option<NodeId> {
+    pub fn compile(&self, igen: &mut IRGenerator) {
         let function_cfg = super::block::bfs(self.entry_block, None, &igen.context);
         super::block::compute_sub_dom(&mut igen.context, &function_cfg);
         //Optimisation
         super::optim::full_cse(&mut igen.context, self.entry_block);
         //Unrolling
-        let eval = super::flatten::unroll_tree(&mut igen.context, self.entry_block);
+        super::flatten::unroll_tree(&mut igen.context, self.entry_block);
         super::optim::full_cse(&mut igen.context, self.entry_block);
-        if eval.contains_key(&last) {
-            eval[&last].into_node_id()
-        } else {
-            let mut is_modified = true;
-            let mut last = last;
-            while is_modified {
-                is_modified = false;
-                last = crate::ssa::optim::propagate(&igen.context, last, &mut is_modified);
-            }
-            Some(last)
-        }
     }
 
     //generates an instruction for calling the function
@@ -197,10 +188,10 @@ pub fn create_function(
     igen.function_context = Some(index);
     igen.context.functions.insert(func_id, func.clone());
     let last_value = igen.parse_block(block.statements(), env);
-    let last_id = last_value.unwrap_id(); //we do not support structures for now
-    let last_mapped = func.compile(igen, last_id); //unroll the function
-    let rtt = add_return_instruction(&mut igen.context, last_mapped);
-    func.result_types.push(rtt);
+    add_return_instruction(&mut igen.context, last_value);
+    func.result_types.push(ObjectType::NotAnObject);
+
+    func.compile(igen); //unroll the function
     igen.context.functions.insert(func_id, func);
     igen.context.current_block = current_block;
     igen.function_context = current_function;
@@ -270,16 +261,11 @@ pub fn inline_all(ctx: &mut SsaContext) {
     ctx.call_graph.clear();
 }
 
-pub fn add_return_instruction(ctx: &mut SsaContext, last: Option<NodeId>) -> ObjectType {
-    let last_id = last.unwrap_or_else(NodeId::dummy);
-    let result = if last_id == NodeId::dummy() { vec![] } else { vec![last_id] };
-    let mut rtt = ObjectType::NotAnObject;
-    //  XXX est ce que rtt sert toujours a qqchosee??
-    if !result.is_empty() && result[0] != NodeId::dummy() {
-        rtt = ctx.get_object_type(result[0]);
+pub fn add_return_instruction(ctx: &mut SsaContext, value: Value) {
+    let last = *ctx[ctx.current_block].instructions.last().unwrap();
+    let last = ctx.try_get_instruction(last).unwrap();
+    if !matches!(last.operation, Operation::Return(_)) {
+        let ret = node::Operation::Return(value.to_node_ids());
+        ctx.new_instruction(ret, node::ObjectType::NotAnObject);
     }
-    //Create return instruction based on the last statement of the function body
-    //ctx.new_instruction(node::Operation::Return(result), node::ObjectType::NotAnObject);
-    //n.b. should we keep the object type in the vector?
-    rtt
 }
