@@ -435,24 +435,15 @@ pub fn infix_operand_type_rules(
             let field_type = field_type_rules(int_field_type, &Constant);
             Ok(Integer(field_type,*sign_x, *bit_width_x))
         }
-        (PolymorphicInteger(a), other) => {
-            if let TypeBinding::Bound(binding) = &*a.borrow() {
+        (PolymorphicInteger(int), other)
+        | (other, PolymorphicInteger(int)) => {
+            if let TypeBinding::Bound(binding) = &*int.borrow() {
                 return infix_operand_type_rules(binding, op, other);
             }
-            if other.try_bind_to_polymorphic_int(a).is_ok() {
+            if other.try_bind_to_polymorphic_int(int).is_ok() {
                 Ok(other.clone())
             } else {
-                Err(format!("Types in a binary operation should match, but found {} and {}", a.borrow(), other))
-            }
-        }
-        (other, PolymorphicInteger(b)) => {
-            if let TypeBinding::Bound(binding) = &*b.borrow() {
-                return infix_operand_type_rules(other, op, binding);
-            }
-            if other.try_bind_to_polymorphic_int(b).is_ok() {
-                Ok(other.clone())
-            } else {
-                Err(format!("Types in a binary operation should match, but found {} and {}", other, b.borrow()))
+                Err(format!("Types in a binary operation should match, but found {} and {}", int.borrow(), other))
             }
         }
         (Integer(..), typ) | (typ,Integer(..)) => {
@@ -629,24 +620,15 @@ pub fn comparator_operand_type_rules(lhs_type: &Type, other: &Type) -> Result<Ty
         (Integer(_, _, _), FieldElement(Constant))| (FieldElement(Constant),Integer(_, _, _)) => {
             Ok(Bool)
         }
-        (PolymorphicInteger(a), other) => {
-            if let TypeBinding::Bound(binding) = &*a.borrow() {
+        (PolymorphicInteger(int), other)
+        | (other, PolymorphicInteger(int)) => {
+            if let TypeBinding::Bound(binding) = &*int.borrow() {
                 return comparator_operand_type_rules(binding, other);
             }
-            if other.try_bind_to_polymorphic_int(a).is_ok() {
+            if other.try_bind_to_polymorphic_int(int).is_ok() {
                 Ok(Bool)
             } else {
-                Err(format!("Types in a binary operation should match, but found {} and {}", a.borrow(), other))
-            }
-        }
-        (other, PolymorphicInteger(b)) => {
-            if let TypeBinding::Bound(binding) = &*b.borrow() {
-                return comparator_operand_type_rules(other, binding);
-            }
-            if other.try_bind_to_polymorphic_int(b).is_ok() {
-                Ok(Bool)
-            } else {
-                Err(format!("Types in a binary operation should match, but found {} and {}", other, b.borrow()))
+                Err(format!("Types in a binary operation should match, but found {} and {}", int.borrow(), other))
             }
         }
         (Integer(..), typ) | (typ,Integer(..)) => {
