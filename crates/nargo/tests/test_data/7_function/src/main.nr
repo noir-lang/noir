@@ -55,9 +55,16 @@ fn test3(x: [3]u8) -> [3]u8 {
 }
 
 fn main(x : u32 , y : u32 , a : Field) {  
-   test0(a);
-   test1(a);
-   test2(x as Field,y);
+     let my_block = { 
+          let mut ab = f2(a);
+          ab = ab + a;
+          (x,ab)
+     };
+     constrain my_block.1 == 4;
+     
+     test0(a);
+     test1(a);
+     test2(x as Field,y);
 
      let b: [3]u8 =[0 as u8, 5 as u8, 2 as u8];
      let c = test3(b);
