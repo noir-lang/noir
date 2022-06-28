@@ -1,5 +1,5 @@
 fn matrix_mul_2(a: [4]u32, b:[4]u32) ->[4]u32{
-    let mut c:[4]u32 = [0 as u32, 0 as u32, 0 as u32, 0 as u32, ];
+    let mut c:[4]u32 = [0 as u32; 4];
     for i in 0..2 {
         for j in 0..2 {
             c[i+2*j] = 0 as u32;
@@ -12,16 +12,7 @@ fn matrix_mul_2(a: [4]u32, b:[4]u32) ->[4]u32{
 }
 
 fn matrix_mul_10(a: [100]u32, b:[100]u32) ->[100]u32{
-    let mut c:[100]u32 = [0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 
-    0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 
-    0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 
-    0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 
-    0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 
-    0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 
-    0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 
-    0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 
-    0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 
-    0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, 0 as u32, ];
+    let mut c:[100]u32 = [0 as u32; 100];
     for i in 0..10 {
         for j in 0..10 {
             c[i+10*j] = 0 as u32;
@@ -157,44 +148,25 @@ fn too(x: u32) -> u32 {
 }
 
 fn test6(x: [32]u8) ->  [8]u32 {
-  let mut sha_m : [64]u32 = [0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,
-  0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,
-  0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,
-  0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,
-  0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,
-  0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,0 as u32,
-    0 as u32,0 as u32,0 as u32,0 as u32];
+    let mut sha_m : [64]u32 = [0 as u32; 64];
 
-  let mut sha_hash: [8]u32 = [
-    1 as u32, 2 as u32, 3 as u32, 4 as u32,
-    5 as u32, 6 as u32, 7 as u32, 8 as u32];
+    let mut sha_hash: [8]u32 = [
+        1 as u32, 2 as u32, 3 as u32, 4 as u32,
+        5 as u32, 6 as u32, 7 as u32, 8 as u32
+    ];
 
+    let mut buffer: [64]u8 = [0 as u8; 64];
 
-    let mut buffer: [64]u8 = 
-    [0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,
-0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,
-0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,
-0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,
-0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,
-0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,0 as u8,
-      0 as u8,0 as u8,0 as u8,0 as u8];
-
-       for i in 0..32   {  
+    for i in 0..32 {  
        buffer[i as u32] = x[i as u32];
     };
 
     sha_m = iterate6_1(sha_m, buffer);
-
     sha_hash = iterate6_2(sha_m, sha_hash);
-
     sha_hash
 }
 
-
-fn iterate6_1(mut sha_m: [64]u32
-, next_chunk: [64]u8
-) -> [64]u32 {
-
+fn iterate6_1(mut sha_m: [64]u32, next_chunk: [64]u8) -> [64]u32 {
     let mut j = 0;
     for i in 0..16 {
         j = (i ) * 4;
@@ -208,32 +180,28 @@ fn iterate6_1(mut sha_m: [64]u32
 }
 
 fn iterate6_2(sha_m: [64]u32, mut hash: [8]u32) -> [8]u32 {
-
-
     let mut t1: u32 = 0 as u32;
     let mut t2: u32 = 0 as u32;
     let mut a: u32 = 1 as u32;
-    let mut b: u32 =2 as u32;
-    let mut c: u32 =3 as u32;
-    let mut d: u32 =4 as u32;
-    let mut e: u32 =5 as u32;
-    let mut f: u32 =6 as u32;
-    let mut g: u32 =7 as u32;
-    let mut h: u32 =8 as u32;
+    let mut b: u32 = 2 as u32;
+    let mut c: u32 = 3 as u32;
+    let mut d: u32 = 4 as u32;
+    let mut e: u32 = 5 as u32;
+    let mut f: u32 = 6 as u32;
+    let mut g: u32 = 7 as u32;
+    let mut h: u32 = 8 as u32;
 
-
-
-    for i in 0..11{ 
+    for i in 0..11 { 
         t1 = h+ep1(e)+ch(e, f, g)+sha_m[i];
         t2 = epo(a)+maj(a, b, c);
-         h = g;
-         g = f;
+        h = g;
+        g = f;
         f = e;
         e = d+t1;
         d = c;
-         c = b;
-         b = a;
-         a = t1+t2;
+        c = b;
+        b = a;
+        a = t1+t2;
     };
 
     hash[0] = hash[0]+a;

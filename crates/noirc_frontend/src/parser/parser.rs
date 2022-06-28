@@ -1,3 +1,6 @@
+use std::convert::TryInto;
+use std::iter::repeat;
+
 use super::{
     foldl_with_span, parameter_name_recovery, parameter_recovery, parenthesized, then_commit,
     then_commit_ignore, top_level_statement_recovery, ExprParser, NoirParser, ParsedModule,
@@ -13,7 +16,7 @@ use crate::{
 };
 use crate::{
     AssignStatement, BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, ForExpression,
-    FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, LValue,
+    FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, LValue, Literal,
     NoirFunction, NoirImpl, NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp,
 };
 
@@ -612,6 +615,14 @@ fn array_expr<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
 where
     P: ExprParser,
 {
+    standard_array(expr_parser.clone()).or(array_sugar(expr_parser))
+}
+
+/// [a, b, c, ...]
+fn standard_array<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
+where
+    P: ExprParser,
+{
     expression_list(expr_parser)
         .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
         .validate(|elems, span, emit| {
@@ -623,6 +634,58 @@ where
             }
             ExpressionKind::array(elems)
         })
+}
+
+/// [a; N]
+fn array_sugar<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
+where
+    P: ExprParser,
+{
+    expr_parser
+        .then_ignore(just(Token::Semicolon))
+        .then(literal())
+        .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
+        .validate(|(lhs, count), span, emit| {
+            let count = validate_array_count(count, span, emit);
+
+            // Desugar the array by replicating the lhs 'count' times. TODO: This is inefficient
+            // for large arrays.
+            let name = "$array_element";
+            let pattern = Pattern::Identifier(name.into());
+            let decl = Statement::new_let(((pattern, UnresolvedType::Unspecified), lhs));
+
+            let variable = Expression::new(ExpressionKind::Ident(name.into()), span);
+            let elems = repeat(variable).take(count).collect();
+            let array = ExpressionKind::array(elems);
+            let array = Statement::Expression(Expression::new(array, span));
+
+            ExpressionKind::Block(BlockExpression(vec![decl, array]))
+        })
+}
+
+fn validate_array_count(
+    count: ExpressionKind,
+    span: Span,
+    emit: &mut dyn FnMut(ParserError),
+) -> usize {
+    match count {
+        ExpressionKind::Literal(Literal::Integer(x)) => {
+            x.try_into_u128().and_then(|x| x.try_into().ok()).unwrap_or_else(|| {
+                emit(ParserError::with_reason(
+                    "Array length must be able to fit within a usize".to_owned(),
+                    span,
+                ));
+                1
+            })
+        }
+        _ => {
+            emit(ParserError::with_reason(
+                "Array length must be an integer literal".to_owned(),
+                span,
+            ));
+            1
+        }
+    }
 }
 
 fn expression_list<P>(expr_parser: P) -> impl NoirParser<Vec<Expression>>
@@ -896,6 +959,15 @@ mod test {
             array_expr(expression()),
             vec!["0,1,2,3,4]", "[[0,1,2,3,4]", "[0,1,2,,]", "[0,1,2,3,4"],
         );
+    }
+
+    #[test]
+    fn parse_array_sugar() {
+        let valid = vec!["[0;7]", "[(1, 2); 4]"];
+        parse_all(array_expr(expression()), valid);
+
+        let invalid = vec!["[0;;4]", "[5; 3+2]", "[1; a]"];
+        parse_all_failing(array_expr(expression()), invalid);
     }
 
     #[test]
