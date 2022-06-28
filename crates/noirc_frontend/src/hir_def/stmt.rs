@@ -36,6 +36,7 @@ pub enum HirStatement {
     Assign(HirAssignStatement),
     Expression(ExprId),
     Semi(ExprId),
+    Return(ExprId),
     Error,
 }
 

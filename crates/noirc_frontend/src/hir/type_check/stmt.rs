@@ -46,6 +46,9 @@ pub(crate) fn type_check(
             type_check_constrain_stmt(interner, constrain_stmt, errors)
         }
         HirStatement::Assign(assign_stmt) => type_check_assign_stmt(interner, assign_stmt, errors),
+        HirStatement::Return(expr_id) => {
+            return type_check_expression(interner, &expr_id, errors);
+        }
         HirStatement::Error => (),
     }
     Type::Unit

@@ -279,7 +279,7 @@ pub fn add_return_instruction(ctx: &mut SsaContext, last: Option<NodeId>) -> Obj
         rtt = ctx.get_object_type(result[0]);
     }
     //Create return instruction based on the last statement of the function body
-    ctx.new_instruction(node::Operation::Return(result), node::ObjectType::NotAnObject);
+    //ctx.new_instruction(node::Operation::Return(result), node::ObjectType::NotAnObject);
     //n.b. should we keep the object type in the vector?
     rtt
 }

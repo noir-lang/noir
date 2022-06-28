@@ -192,7 +192,7 @@ impl<'a> Resolver<'a> {
         let hir_func = match func.kind {
             FunctionKind::Builtin | FunctionKind::LowLevel => HirFunction::empty(),
             FunctionKind::Normal => {
-                let expr_id = self.intern_block(func.def.body);
+                let expr_id = self.intern_fn_block(func.def.body);
 
                 self.interner.push_expr_span(expr_id, func.def.span);
 
@@ -597,6 +597,29 @@ impl<'a> Resolver<'a> {
 
     fn intern_block(&mut self, block: BlockExpression) -> ExprId {
         let hir_block = self.resolve_block(block);
+        self.interner.push_expr(hir_block)
+    }
+
+    fn resolve_block_with_return(&mut self, block_expr: BlockExpression) -> HirExpression {
+        let mut statements =
+            self.in_new_scope(|this| vecmap(block_expr.0, |stmt| this.intern_stmt(stmt)));
+        let last_stmt = statements.last();
+        if let Some(stmt_id) = last_stmt {
+            let statement = self.interner.statement(stmt_id);
+            match statement {
+                HirStatement::Expression(x) | HirStatement::Semi(x) => {
+                    let ret_id = self.interner.push_stmt(HirStatement::Return(x));
+                    statements.pop();
+                    statements.push(ret_id);
+                }
+                _ => (),
+            }
+        }
+        HirExpression::Block(HirBlockExpression(statements))
+    }
+
+    fn intern_fn_block(&mut self, block: BlockExpression) -> ExprId {
+        let hir_block = self.resolve_block_with_return(block);
         self.interner.push_expr(hir_block)
     }
 }

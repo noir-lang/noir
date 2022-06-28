@@ -54,6 +54,10 @@ fn test3(x: [3]u8) -> [3]u8 {
      buffer
 }
 
+fn testme(x: u32) -> u32 {
+     x+1
+}
+
 fn main(x : u32 , y : u32 , a : Field) {  
    test0(a);
    test1(a);
@@ -62,4 +66,7 @@ fn main(x : u32 , y : u32 , a : Field) {
      let b: [3]u8 =[0 as u8, 5 as u8, 2 as u8];
      let c = test3(b);
      constrain b == c;
+
+     let z = testme(x);
+     constrain z== 60;
 }

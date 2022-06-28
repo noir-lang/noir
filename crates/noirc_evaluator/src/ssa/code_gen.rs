@@ -264,6 +264,7 @@ impl<'a> IRGenerator<'a> {
             HirStatement::Assign(assign_stmt) => {
                 self.handle_assign_statement(assign_stmt.lvalue, assign_stmt.expression, env)
             }
+            HirStatement::Return(expr) => self.handle_return_statement(env, &expr),
             HirStatement::Error => unreachable!(
                 "ice: compiler did not exit before codegen when a statement failed to parse"
             ),
@@ -521,6 +522,20 @@ impl<'a> IRGenerator<'a> {
         let rhs = self.expression_to_object(env, &let_stmt.expression)?;
         self.bind_pattern(&let_stmt.pattern, rhs);
         Ok(Value::dummy())
+    }
+
+    // Let statements are used to declare higher level objects
+    fn handle_return_statement(
+        &mut self,
+        env: &mut Environment,
+        expr: &ExprId,
+    ) -> Result<Value, RuntimeError> {
+        let return_values = self.expression_to_object(env, expr)?;
+        let ret_id = self.context.new_instruction(
+            node::Operation::Return(return_values.to_node_ids()),
+            node::ObjectType::NotAnObject,
+        );
+        Ok(Value::Single(ret_id))
     }
 
     pub(crate) fn expression_to_object(
