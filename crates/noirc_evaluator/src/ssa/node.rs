@@ -1,5 +1,6 @@
 use std::convert::TryInto;
 
+use crate::object::Object;
 use acvm::acir::native_types::Witness;
 use acvm::acir::OPCODE;
 use acvm::FieldElement;
@@ -10,9 +11,8 @@ use noirc_frontend::util::vecmap;
 use noirc_frontend::{Signedness, Type};
 use num_bigint::BigUint;
 use num_traits::{FromPrimitive, One};
-
-use crate::object::Object;
 use std::ops::{Add, Mul, Sub};
+use std::ops::{BitAnd, BitOr, BitXor, Shl, Shr};
 
 use super::block::BlockId;
 use super::context::SsaContext;
@@ -117,11 +117,13 @@ pub enum NodeObj {
 }
 
 impl NodeObj {
-    pub fn set_id(&mut self, new_id: NodeId) {
+    pub fn set_id_and_parent(&mut self, new_id: NodeId, block: BlockId) {
         match self {
-            NodeObj::Obj(obj) => obj.id = new_id,
-            NodeObj::Instr(inst) => inst.id = new_id,
-            NodeObj::Const(c) => c.id = new_id,
+            NodeObj::Instr(inst) => {
+                inst.id = new_id;
+                inst.parent_block = block;
+            }
+            _ => unreachable!("Expected instruction, got {}", self),
         }
     }
 }
@@ -288,6 +290,34 @@ impl ObjectType {
             _ => (BigUint::one() << self.bits()) - BigUint::one(),
         }
     }
+
+    pub fn deref(&self, ctx: &SsaContext) -> ObjectType {
+        match self {
+            ObjectType::Pointer(a) => ctx.mem[*a].element_type,
+            _ => *self,
+        }
+    }
+
+    pub fn type_to_pointer(&self) -> ArrayId {
+        match self {
+            ObjectType::Pointer(a) => *a,
+            _ => unreachable!("Type is not a pointer",),
+        }
+    }
+
+    pub fn field_to_type(&self, f: FieldElement) -> FieldElement {
+        match self {
+            ObjectType::NotAnObject | ObjectType::Pointer(_) => {
+                unreachable!()
+            }
+            ObjectType::NativeField => f,
+            ObjectType::Signed(_) => todo!(),
+            _ => {
+                assert!(self.bits() < 128);
+                FieldElement::from(f.to_u128() % (1_u128 << self.bits()))
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -338,6 +368,15 @@ impl NodeEval {
         }
     }
 
+    //returns the NodeObj index of a NodeEval object
+    //if NodeEval is a constant, it may creates a new NodeObj corresponding to the constant value
+    pub fn to_index(self, ctx: &mut SsaContext) -> NodeId {
+        match self {
+            NodeEval::Const(c, t) => ctx.get_or_create_const(c, t),
+            NodeEval::VarOrInstruction(i) => i,
+        }
+    }
+
     pub fn from_id(ctx: &SsaContext, id: NodeId) -> NodeEval {
         match &ctx[id] {
             NodeObj::Const(c) => {
@@ -384,9 +423,10 @@ impl Instruction {
             }
             Operation::Truncate { .. } | Operation::Phi { .. } => false,
             Operation::Nop | Operation::Jne(..) | Operation::Jeq(..) | Operation::Jmp(..) => false,
-            Operation::Load { .. } | Operation::Store { .. } => false,
+            Operation::Load { .. } => false,
+            Operation::Store { .. } => true,
             Operation::Intrinsic(_, _) => true, //TODO to check
-            Operation::Call(_, _) => false, //return values are in the return statment, should we truncate function arguments? probably but not lhs and rhs anyways.
+            Operation::Call(_, _, _) => false, //return values are in the return statment, should we truncate function arguments? probably but not lhs and rhs anyways.
             Operation::Return(_) => true,
             Operation::Result { .. } => false,
         }
@@ -418,9 +458,10 @@ impl Instruction {
                 }
             }
             Operation::Not(value) => {
-                let obj = eval_fn(ctx, *value).into_const_value();
-                if let Some(l_const) = obj.and_then(|field| field.try_into_u128()) {
-                    return NodeEval::Const(FieldElement::from(!l_const), self.res_type);
+                if let Some(l_const) = eval_fn(ctx, *value).into_const_value() {
+                    let l = self.res_type.field_to_type(l_const).to_u128();
+                    let max = (1_u128 << self.res_type.bits()) - 1;
+                    return NodeEval::Const(FieldElement::from((!l) & max), self.res_type);
                 }
             }
             Operation::Phi { .. } => (), //Phi are simplified by simply_phi() later on; they must not be simplified here
@@ -497,12 +538,10 @@ pub enum Operation {
     Jeq(NodeId, BlockId), //jump on equal
     Jmp(BlockId),         //unconditional jump
     Phi { root: NodeId, block_args: Vec<(NodeId, BlockId)> },
-
-    Call(noirc_frontend::node_interner::FuncId, Vec<NodeId>), //Call a function
+    Call(noirc_frontend::node_interner::FuncId, Vec<NodeId>, Vec<ArrayId>), //Call a function
     Return(Vec<NodeId>), //Return value(s) from a function block
     Result { call_instruction: NodeId, index: u32 }, //Get result index n from a function call
 
-    //memory
     Load { array_id: ArrayId, index: NodeId },
     Store { array_id: ArrayId, index: NodeId, value: NodeId },
 
@@ -602,7 +641,7 @@ pub enum BinaryOp {
     Or,  //(|) Bitwise Or
     Xor, //(^) Bitwise Xor
     Shl, //(<<) Shift left
-    Shr, //(<<) Shift right
+    Shr, //(>>) Shift right
 
     Assign,
     Constrain(ConstrainOp), //write gates enforcing the ContrainOp to be true
@@ -690,6 +729,8 @@ impl Binary {
     {
         let l_eval = eval_fn(ctx, self.lhs);
         let r_eval = eval_fn(ctx, self.rhs);
+        let l_type = ctx.get_object_type(self.lhs);
+        let r_type = ctx.get_object_type(self.rhs);
 
         let lhs = l_eval.into_const_value();
         let rhs = r_eval.into_const_value();
@@ -704,9 +745,9 @@ impl Binary {
                 } else if r_is_zero {
                     return l_eval;
                 }
-
+                assert_eq!(l_type, r_type);
                 if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
-                    return wrapping(lhs, rhs, res_type, u128::add, Add::add);
+                    return wrapping(lhs, rhs, l_type, u128::add, Add::add);
                 }
                 //if only one is const, we could try to do constant propagation but this will be handled by the arithmetization step anyways
                 //so it is probably not worth it.
@@ -727,7 +768,7 @@ impl Binary {
             BinaryOp::Mul | BinaryOp::SafeMul => {
                 let l_is_one = lhs.map_or(false, |x| x.is_one());
                 let r_is_one = rhs.map_or(false, |x| x.is_one());
-
+                assert_eq!(l_type, r_type);
                 if l_is_zero || r_is_one {
                     return l_eval;
                 } else if r_is_zero || l_is_one {
@@ -738,19 +779,40 @@ impl Binary {
                 //if only one is const, we could try to do constant propagation but this will be handled by the arithmetization step anyways
                 //so it is probably not worth it.
             }
-            BinaryOp::Udiv | BinaryOp::Sdiv | BinaryOp::Div => {
+
+            BinaryOp::Udiv => {
                 if r_is_zero {
                     todo!("Panic - division by zero");
                 } else if l_is_zero {
-                    return l_eval;
+                    return l_eval; //TODO should we ensure rhs != 0 ???
+                }
+                //constant folding
+                else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
+                    let lhs = res_type.field_to_type(lhs).to_u128();
+                    let rhs = res_type.field_to_type(rhs).to_u128();
+                    return NodeEval::Const(FieldElement::from(lhs / rhs), res_type);
+                }
+            }
+            BinaryOp::Div => {
+                if r_is_zero {
+                    todo!("Panic - division by zero");
+                } else if l_is_zero {
+                    return l_eval; //TODO should we ensure rhs != 0 ???
                 }
                 //constant folding - TODO
+                else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
+                    return NodeEval::Const(lhs / rhs, res_type);
+                }
+            }
+            BinaryOp::Sdiv => {
+                if r_is_zero {
+                    todo!("Panic - division by zero");
+                } else if l_is_zero {
+                    return l_eval; //TODO should we ensure rhs != 0 ???
+                }
+                //constant folding...TODO
                 else if lhs.is_some() && rhs.is_some() {
                     todo!("Constant folding for division");
-                } else if rhs.is_some() {
-                    //same as lhs*1/r
-                    todo!("Constant folding for division rhs");
-                    //return (Some(self.lhs), None, None);
                 }
             }
             BinaryOp::Urem | BinaryOp::Srem => {
@@ -833,7 +895,7 @@ impl Binary {
                 } else if r_is_zero {
                     return r_eval;
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
-                    return NodeEval::from_u128(lhs.to_u128() & rhs.to_u128(), res_type);
+                    return wrapping(lhs, rhs, res_type, u128::bitand, field_op_not_allowed);
                 }
                 //TODO if boolean and not zero, also checks this is correct for field elements
             }
@@ -844,7 +906,7 @@ impl Binary {
                 } else if r_is_zero {
                     return l_eval;
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
-                    return NodeEval::from_u128(lhs.to_u128() | rhs.to_u128(), res_type);
+                    return wrapping(lhs, rhs, res_type, u128::bitor, field_op_not_allowed);
                 }
                 //TODO if boolean and not zero, also checks this is correct for field elements
             }
@@ -856,7 +918,7 @@ impl Binary {
                 } else if r_is_zero {
                     return l_eval;
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
-                    return NodeEval::from_u128(lhs.to_u128() ^ rhs.to_u128(), res_type);
+                    return wrapping(lhs, rhs, res_type, u128::bitxor, field_op_not_allowed);
                 }
                 //TODO handle case when lhs is one (or rhs is one) by generating 'not rhs' instruction (or 'not lhs' instruction)
             }
@@ -868,7 +930,7 @@ impl Binary {
                     return l_eval;
                 }
                 if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
-                    return NodeEval::from_u128(lhs.to_u128() << rhs.to_u128(), res_type);
+                    return wrapping(lhs, rhs, res_type, u128::shl, field_op_not_allowed);
                 }
             }
             BinaryOp::Shr => {
@@ -879,11 +941,13 @@ impl Binary {
                     return l_eval;
                 }
                 if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
-                    return NodeEval::from_u128(lhs.to_u128() >> rhs.to_u128(), res_type);
+                    return wrapping(lhs, rhs, res_type, u128::shr, field_op_not_allowed);
                 }
             }
             BinaryOp::Constrain(op) => {
                 if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
+                    let lhs = l_type.field_to_type(lhs);
+                    let rhs = r_type.field_to_type(rhs);
                     match op {
                         ConstrainOp::Eq => assert_eq!(lhs, rhs),
                         ConstrainOp::Neq => assert_ne!(lhs, rhs),
@@ -970,17 +1034,33 @@ fn wrapping(
     field_op: impl FnOnce(FieldElement, FieldElement) -> FieldElement,
 ) -> NodeEval {
     if res_type != ObjectType::NativeField {
-        let mut x = u128_op(lhs.to_u128(), rhs.to_u128());
-        x %= 1_u128 << res_type.bits();
+        let type_modulo = 1_u128 << res_type.bits();
+        let lhs = lhs.to_u128() % type_modulo;
+        let rhs = rhs.to_u128() % type_modulo;
+        let mut x = u128_op(lhs, rhs);
+        x %= type_modulo;
         NodeEval::from_u128(x, res_type)
     } else {
         NodeEval::Const(field_op(lhs, rhs), res_type)
     }
 }
 
+fn field_op_not_allowed(_lhs: FieldElement, _rhs: FieldElement) -> FieldElement {
+    unreachable!("operation not allowed for FieldElement");
+}
+
 impl Operation {
     pub fn binary(op: BinaryOp, lhs: NodeId, rhs: NodeId) -> Self {
         Operation::Binary(Binary::new(op, lhs, rhs))
+    }
+
+    pub fn is_dummy_store(&self) -> bool {
+        match self {
+            Operation::Store { index, value, .. } => {
+                *index == NodeId::dummy() && *value == NodeId::dummy()
+            }
+            _ => false,
+        }
     }
 
     pub fn map_id(&self, mut f: impl FnMut(NodeId) -> NodeId) -> Operation {
@@ -1007,7 +1087,9 @@ impl Operation {
             }
             Intrinsic(i, args) => Intrinsic(*i, vecmap(args.iter().copied(), f)),
             Nop => Nop,
-            Call(func_id, args) => Call(*func_id, vecmap(args.iter().copied(), f)),
+            Call(func_id, args, returned_array) => {
+                Call(*func_id, vecmap(args.iter().copied(), f), returned_array.clone())
+            }
             Return(values) => Return(vecmap(values.iter().copied(), f)),
             Result { call_instruction, index } => {
                 Result { call_instruction: f(*call_instruction), index: *index }
@@ -1046,7 +1128,7 @@ impl Operation {
                 }
             }
             Nop => (),
-            Call(_, args) => {
+            Call(_, args, _) => {
                 for arg in args {
                     *arg = f(*arg);
                 }
@@ -1089,7 +1171,7 @@ impl Operation {
             }
             Intrinsic(_, args) => args.iter().copied().for_each(f),
             Nop => (),
-            Call(_, args) => args.iter().copied().for_each(f),
+            Call(_, args, _) => args.iter().copied().for_each(f),
             Return(values) => values.iter().copied().for_each(f),
             Result { call_instruction, .. } => {
                 f(*call_instruction);
@@ -1107,7 +1189,7 @@ impl Operation {
             Operation::Jeq(_, _) => Opcode::Jeq,
             Operation::Jmp(_) => Opcode::Jmp,
             Operation::Phi { .. } => Opcode::Phi,
-            Operation::Call(id, _) => Opcode::Call(*id),
+            Operation::Call(id, _, _) => Opcode::Call(*id),
             Operation::Return(_) => Opcode::Return,
             Operation::Result { .. } => Opcode::Results,
             Operation::Load { array_id, .. } => Opcode::Load(*array_id),

@@ -1,8 +1,9 @@
 use super::block::{BasicBlock, BlockId};
-use super::function::SSAFunction;
-use super::mem::Memory;
+use super::function::{FuncIndex, SSAFunction};
+use super::inline::StackFrame;
+use super::mem::{ArrayId, Memory};
 use super::node::{BinaryOp, Instruction, NodeId, NodeObj, ObjectType, Operation};
-use super::{block, flatten, integer, node, optim};
+use super::{block, flatten, inline, integer, node, optim};
 use std::collections::{HashMap, HashSet};
 
 use super::super::errors::RuntimeError;
@@ -15,7 +16,7 @@ use noirc_frontend::hir::Context;
 use noirc_frontend::node_interner::FuncId;
 use noirc_frontend::util::vecmap;
 use num_bigint::BigUint;
-use num_traits::Zero;
+use num_traits::{One, Zero};
 
 // This is a 'master' class for generating the SSA IR from the AST
 // It contains all the data; the node objects representing the source code in the nodes arena
@@ -27,9 +28,14 @@ pub struct SsaContext<'a> {
     pub current_block: BlockId,
     blocks: arena::Arena<block::BasicBlock>,
     pub nodes: arena::Arena<node::NodeObj>,
+    value_names: HashMap<NodeId, u32>,
     pub sealed_blocks: HashSet<BlockId>,
     pub mem: Memory,
     pub functions: HashMap<FuncId, function::SSAFunction>,
+    //Adjacency Matrix of the call graph; list of rows where each row indicates the functions called by the function whose FuncIndex is the row number
+    pub call_graph: Vec<Vec<u8>>,
+    dummy_store: HashMap<ArrayId, NodeId>,
+    dummy_load: HashMap<ArrayId, NodeId>,
 }
 
 impl<'a> SsaContext<'a> {
@@ -40,18 +46,66 @@ impl<'a> SsaContext<'a> {
             current_block: BlockId::dummy(),
             blocks: arena::Arena::new(),
             nodes: arena::Arena::new(),
+            value_names: HashMap::new(),
             sealed_blocks: HashSet::new(),
             mem: Memory::default(),
             functions: HashMap::new(),
+            call_graph: Vec::new(),
+            dummy_store: HashMap::new(),
+            dummy_load: HashMap::new(),
         };
         block::create_first_block(&mut pc);
-        pc.get_or_create_const(FieldElement::one(), node::ObjectType::Unsigned(1));
-        pc.get_or_create_const(FieldElement::zero(), node::ObjectType::Unsigned(1));
+        pc.one_with_type(node::ObjectType::Unsigned(1));
+        pc.zero_with_type(node::ObjectType::Unsigned(1));
         pc
     }
 
     pub fn zero(&self) -> NodeId {
         self.find_const_with_type(&BigUint::zero(), node::ObjectType::Unsigned(1)).unwrap()
+    }
+
+    pub fn one(&self) -> NodeId {
+        self.find_const_with_type(&BigUint::one(), node::ObjectType::Unsigned(1)).unwrap()
+    }
+
+    pub fn zero_with_type(&mut self, obj_type: ObjectType) -> NodeId {
+        self.get_or_create_const(FieldElement::zero(), obj_type)
+    }
+
+    pub fn one_with_type(&mut self, obj_type: ObjectType) -> NodeId {
+        self.get_or_create_const(FieldElement::one(), obj_type)
+    }
+
+    pub fn get_dummy_store(&self, a: ArrayId) -> NodeId {
+        self.dummy_store[&a]
+    }
+
+    pub fn get_dummy_load(&self, a: ArrayId) -> NodeId {
+        self.dummy_load[&a]
+    }
+
+    #[allow(clippy::map_entry)]
+    pub fn add_dummy_load(&mut self, a: ArrayId) {
+        if !self.dummy_load.contains_key(&a) {
+            let op_a = Operation::Load { array_id: a, index: NodeId::dummy() };
+            let dummy_load = node::Instruction::new(op_a, self.mem[a].element_type, None);
+            let id = self.add_instruction(dummy_load);
+            self.dummy_load.insert(a, id);
+        }
+    }
+    #[allow(clippy::map_entry)]
+    pub fn add_dummy_store(&mut self, a: ArrayId) {
+        if !self.dummy_store.contains_key(&a) {
+            let op_a =
+                Operation::Store { array_id: a, index: NodeId::dummy(), value: NodeId::dummy() };
+            let dummy_store = node::Instruction::new(op_a, node::ObjectType::NotAnObject, None);
+            let id = self.add_instruction(dummy_store);
+            self.dummy_store.insert(a, id);
+        }
+    }
+
+    pub fn get_function_index(&self) -> FuncIndex {
+        FuncIndex::new(self.functions.values().len())
     }
 
     pub fn insert_block(&mut self, block: BasicBlock) -> &mut BasicBlock {
@@ -107,7 +161,7 @@ impl<'a> SsaContext<'a> {
         format!("{} {}, {}", op, lhs, rhs)
     }
 
-    fn operation_to_string(&self, op: &Operation) -> String {
+    pub fn operation_to_string(&self, op: &Operation) -> String {
         let join = |args: &[NodeId]| vecmap(args, |arg| self.node_to_string(*arg)).join(", ");
 
         match op {
@@ -149,7 +203,7 @@ impl<'a> SsaContext<'a> {
             }
             Operation::Intrinsic(opcode, args) => format!("intrinsic {}({})", opcode, join(args)),
             Operation::Nop => "nop".into(),
-            Operation::Call(f, args) => format!("call {:?}({})", f, join(args)),
+            Operation::Call(f, args, ar) => format!("call {:?}({}) _ {:?}", f, join(args), ar),
             Operation::Return(values) => format!("return ({})", join(values)),
             Operation::Result { call_instruction, index } => {
                 let call = self.node_to_string(*call_instruction);
@@ -159,6 +213,7 @@ impl<'a> SsaContext<'a> {
     }
 
     pub fn print_block(&self, b: &block::BasicBlock) {
+        println!("************* Block n.{}", b.id.0.into_raw_parts().0);
         for id in &b.instructions {
             let ins = self.get_instruction(*id);
             let mut str_res = if ins.res_name.is_empty() {
@@ -168,8 +223,9 @@ impl<'a> SsaContext<'a> {
             };
             if let Mark::ReplaceWith(replacement) = ins.mark {
                 str_res = format!("{} -REPLACED with id {:?}", str_res, replacement.0);
+            } else if ins.is_deleted() {
+                str_res = format!("{}: DELETED", str_res);
             }
-
             let ins_str = self.operation_to_string(&ins.operation);
             println!("{}: {}", str_res, ins_str);
         }
@@ -177,8 +233,7 @@ impl<'a> SsaContext<'a> {
 
     pub fn print(&self, text: &str) {
         println!("{}", text);
-        for (i, (_, b)) in self.blocks.iter().enumerate() {
-            println!("************* Block n.{}", i);
+        for (_, b) in self.blocks.iter() {
             self.print_block(b);
         }
     }
@@ -211,6 +266,27 @@ impl<'a> SsaContext<'a> {
         if let NodeObj::Instr(_) = &self[id] {
             self.get_current_block_mut().instructions.push(id);
         }
+        id
+    }
+
+    /// Adds the instruction to self.nodes and insert it after phi instructions of the provided block
+    pub fn insert_instruction_after_phi(
+        &mut self,
+        instruction: node::Instruction,
+        block: BlockId,
+    ) -> NodeId {
+        let id = self.add_instruction(instruction);
+        let mut pos = 0;
+        for i in &self[block].instructions {
+            if let Some(ins) = self.try_get_instruction(*i) {
+                let op = ins.operation.opcode();
+                if op != node::Opcode::Nop && op != node::Opcode::Phi {
+                    break;
+                }
+            }
+            pos += 1;
+        }
+        self[block].instructions.insert(pos, id);
         id
     }
 
@@ -298,7 +374,7 @@ impl<'a> SsaContext<'a> {
         }
     }
 
-    pub fn get_result_instruction(
+    pub fn get_result_instruction_mut(
         &mut self,
         target: BlockId,
         call_instruction: NodeId,
@@ -329,6 +405,65 @@ impl<'a> SsaContext<'a> {
             _ => unreachable!(),
         }
         id
+    }
+
+    pub fn update_variable_id_in_block(
+        &mut self,
+        var_id: NodeId,
+        new_var: NodeId,
+        new_value: NodeId,
+        block_id: BlockId,
+    ) {
+        let root_id = self.get_root_value(var_id);
+        let root = self.get_variable(root_id).unwrap();
+        let root_name = root.name.clone();
+        let cb = &mut self[block_id];
+        cb.update_variable(var_id, new_value);
+        let v_name = self.value_names.entry(var_id).or_insert(0);
+        *v_name += 1;
+        let variable_id = *v_name;
+
+        if let Ok(nvar) = self.get_mut_variable(new_var) {
+            nvar.name = format!("{}{}", root_name, variable_id);
+        }
+    }
+
+    //Returns true if a may be distinct from b, and false else
+    pub fn maybe_distinct(&self, a: NodeId, b: NodeId) -> bool {
+        if a == NodeId::dummy() || b == NodeId::dummy() {
+            return true;
+        }
+        if a == b {
+            return false;
+        }
+        if let (Some(a_value), Some(b_value)) = (self.get_as_constant(a), self.get_as_constant(b)) {
+            if a_value == b_value {
+                return false;
+            }
+        }
+        true
+    }
+
+    //Returns true if a may be equal to b, and false otherwise
+    pub fn maybe_equal(&self, a: NodeId, b: NodeId) -> bool {
+        if a == NodeId::dummy() || b == NodeId::dummy() {
+            return true;
+        }
+
+        if a == b {
+            return true;
+        }
+        if let (Some(a_value), Some(b_value)) = (self.get_as_constant(a), self.get_as_constant(b)) {
+            if a_value != b_value {
+                return false;
+            }
+        }
+        true
+    }
+
+    //same as update_variable but using the var index instead of var
+    pub fn update_variable_id(&mut self, var_id: NodeId, new_var: NodeId, new_value: NodeId) {
+        self.update_variable_id_in_block(var_id, new_var, new_value, self.current_block);
     }
 
     pub fn new_instruction(&mut self, opcode: Operation, optype: ObjectType) -> NodeId {
@@ -412,6 +547,30 @@ impl<'a> SsaContext<'a> {
         }
     }
 
+    pub fn new_array(
+        &mut self,
+        name: &str,
+        element_type: ObjectType,
+        len: u32,
+        def_id: Option<noirc_frontend::node_interner::DefinitionId>,
+    ) -> NodeId {
+        let array_index = self.mem.create_new_array(len, element_type, name);
+        //we create a variable pointing to this MemArray
+        let new_var = node::Variable {
+            id: NodeId::dummy(),
+            obj_type: node::ObjectType::Pointer(array_index),
+            name: name.to_string(),
+            root: None,
+            def: def_id,
+            witness: None,
+            parent_block: self.current_block,
+        };
+        if let Some(def) = def_id {
+            self.mem[array_index].def = def;
+        }
+        self.add_variable(new_var, None)
+    }
+
     //blocks/////////////////////////
     pub fn try_get_block_mut(&mut self, id: BlockId) -> Option<&mut block::BasicBlock> {
         self.blocks.get_mut(id.0)
@@ -445,19 +604,19 @@ impl<'a> SsaContext<'a> {
     ) -> Result<(), RuntimeError> {
         //SSA
         self.log(enable_logging, "SSA:", "\ninline functions");
-        flatten::inline_all_functions(self);
+        function::inline_all(self);
 
         //Optimisation
         block::compute_dom(self);
-        optim::cse(self, self.first_block);
+        optim::full_cse(self, self.first_block);
         self.log(enable_logging, "\nCSE:", "\nunrolling:");
         //Unrolling
         flatten::unroll_tree(self, self.first_block);
 
         //Inlining
         self.log(enable_logging, "", "\ninlining:");
-        flatten::inline_tree(self, self.first_block);
-        optim::cse(self, self.first_block);
+        inline::inline_tree(self, self.first_block);
+        optim::full_cse(self, self.first_block);
 
         //Truncation
         integer::overflow_strategy(self);
@@ -465,6 +624,7 @@ impl<'a> SsaContext<'a> {
         //ACIR
         self.acir(evaluator);
         if enable_logging {
+            Acir::print_circuit(&evaluator.gates);
             println!("DONE");
             dbg!(&evaluator.current_witness_index);
         }
@@ -482,7 +642,6 @@ impl<'a> SsaContext<'a> {
             //TODO we should rather follow the jumps
             fb = block.left.map(|block_id| &self[block_id]);
         }
-        Acir::print_circuit(&evaluator.gates);
     }
 
     pub fn generate_empty_phi(&mut self, target_block: BlockId, phi_root: NodeId) -> NodeId {
@@ -504,6 +663,179 @@ impl<'a> SsaContext<'a> {
         let phi_id = self.add_instruction(new_phi);
         self[target_block].instructions.insert(1, phi_id);
         phi_id
+    }
+
+    fn memcpy(&mut self, l_type: ObjectType, r_type: ObjectType) {
+        if l_type == r_type {
+            return;
+        }
+
+        if let (ObjectType::Pointer(a), ObjectType::Pointer(b)) = (l_type, r_type) {
+            let len = self.mem[a].len;
+            let adr_a = self.mem[a].adr;
+            let adr_b = self.mem[b].adr;
+            let e_type = self.mem[b].element_type;
+            for i in 0..len {
+                let idx_b = self.get_or_create_const(
+                    FieldElement::from((adr_b + i) as i128),
+                    ObjectType::Unsigned(32),
+                );
+                let idx_a = self.get_or_create_const(
+                    FieldElement::from((adr_a + i) as i128),
+                    ObjectType::Unsigned(32),
+                );
+                let op_b = Operation::Load { array_id: b, index: idx_b };
+                let load = self.new_instruction(op_b, e_type);
+                let op_a = Operation::Store { array_id: a, index: idx_a, value: load };
+                self.new_instruction(op_a, l_type);
+            }
+        } else {
+            unreachable!("invalid type, expected arrays, got {:?} and {:?}", l_type, r_type);
+        }
+    }
+
+    //This function handles assignment statements of the form lhs = rhs, depending on the nature of the arguments:
+    // lhs can be: standard variable, array, array element (in which case we have an index)
+    // rhs can be: standard variable, array, array element (depending on lhs type), call instruction, intrinsic, other instruction
+    // For instance:
+    // - if lhs and rhs are standard variables, we create a new ssa variable of lhs
+    // - if lhs is an array element, we generate a store instruction
+    // - if lhs and rhs are arrays, we perfom a copy of rhs into lhs,
+    // - if lhs is an array and rhs is a call instruction, we indicate in the call that lhs is the returned array (so that no copy is needed because the inlining will use it)
+    // ...
+    pub fn handle_assign(&mut self, lhs: NodeId, index: Option<NodeId>, rhs: NodeId) -> NodeId {
+        let lhs_type = self.get_object_type(lhs);
+        let rhs_type = self.get_object_type(rhs);
+
+        if let Some(idx) = index {
+            if let ObjectType::Pointer(a) = lhs_type {
+                //Store
+                let op_a = Operation::Store { array_id: a, index: idx, value: rhs };
+                return self.new_instruction(op_a, self.mem[a].element_type);
+            } else {
+                unreachable!("Index expression must be for an array");
+            }
+        } else if matches!(lhs_type, ObjectType::Pointer(_)) {
+            if let Some(Instruction {
+                operation: Operation::Intrinsic(_, _),
+                res_type: rtype,
+                ..
+            }) = self.try_get_mut_instruction(rhs)
+            {
+                *rtype = lhs_type;
+            } else {
+                self.memcpy(lhs_type, rhs_type);
+                return lhs;
+            }
+        }
+        let lhs_obj = self.get_variable(lhs).unwrap();
+        let new_var = node::Variable {
+            id: lhs,
+            obj_type: lhs_type,
+            name: String::new(),
+            root: None,
+            def: lhs_obj.def,
+            witness: None,
+            parent_block: self.current_block,
+        };
+        let ls_root = lhs_obj.get_root();
+        //ssa: we create a new variable a1 linked to a
+        let new_var_id = self.add_variable(new_var, Some(ls_root));
+        let op = Operation::Binary(node::Binary {
+            lhs: new_var_id,
+            rhs,
+            operator: node::BinaryOp::Assign,
+        });
+        let result = self.new_instruction(op, rhs_type);
+        self.update_variable_id(ls_root, new_var_id, result); //update the name and the value map
+        new_var_id
+    }
+
+    fn new_instruction_inline(
+        &mut self,
+        operation: node::Operation,
+        optype: node::ObjectType,
+        stack_frame: &mut StackFrame,
+    ) -> NodeId {
+        let i = node::Instruction::new(operation, optype, Some(stack_frame.block));
+        let ins_id = self.add_instruction(i);
+        stack_frame.push(ins_id);
+        ins_id
+    }
+
+    fn memcpy_inline(
+        &mut self,
+        l_type: ObjectType,
+        r_type: ObjectType,
+        stack_frame: &mut StackFrame,
+    ) {
+        if l_type == r_type {
+            return;
+        }
+
+        if let (ObjectType::Pointer(a), ObjectType::Pointer(b)) = (l_type, r_type) {
+            let len = self.mem[a].len;
+            let adr_a = self.mem[a].adr;
+            let adr_b = self.mem[b].adr;
+            let e_type = self.mem[b].element_type;
+            for i in 0..len {
+                let idx_b = self.get_or_create_const(
+                    FieldElement::from((adr_b + i) as i128),
+                    ObjectType::Unsigned(32),
+                );
+                let idx_a = self.get_or_create_const(
+                    FieldElement::from((adr_a + i) as i128),
+                    ObjectType::Unsigned(32),
+                );
+                let op_b = Operation::Load { array_id: b, index: idx_b };
+                let load = self.new_instruction_inline(op_b, e_type, stack_frame);
+                let op_a = Operation::Store { array_id: a, index: idx_a, value: load };
+                self.new_instruction_inline(op_a, l_type, stack_frame);
+            }
+        } else {
+            unreachable!("invalid type, expected arrays");
+        }
+    }
+
+    pub fn handle_assign_inline(
+        &mut self,
+        lhs: NodeId,
+        rhs: NodeId,
+        stack_frame: &mut inline::StackFrame,
+        block_id: BlockId,
+    ) -> NodeId {
+        let lhs_type = self.get_object_type(lhs);
+        let rhs_type = self.get_object_type(rhs);
+        if let ObjectType::Pointer(a) = lhs_type {
+            //Array
+            let b = stack_frame.get_or_default(a);
+            self.memcpy_inline(ObjectType::Pointer(b), rhs_type, stack_frame);
+            lhs
+        } else {
+            //new ssa
+            let lhs_obj = self.get_variable(lhs).unwrap();
+            let new_var = node::Variable {
+                id: NodeId::dummy(),
+                obj_type: lhs_type,
+                name: String::new(),
+                root: None,
+                def: lhs_obj.def,
+                witness: None,
+                parent_block: self.current_block,
+            };
+            let ls_root = lhs_obj.get_root();
+            //ssa: we create a new variable a1 linked to a
+            let new_var_id = self.add_variable(new_var, Some(ls_root));
+            //ass
+            let op = Operation::Binary(node::Binary {
+                lhs: new_var_id,
+                rhs,
+                operator: node::BinaryOp::Assign,
+            });
+            let result = self.new_instruction_inline(op, rhs_type, stack_frame);
+            self.update_variable_id_in_block(ls_root, new_var_id, result, block_id); //update the name and the value map
+            result
+        }
     }
 }
 
