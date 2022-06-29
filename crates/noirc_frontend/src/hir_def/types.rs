@@ -151,6 +151,19 @@ impl IsConst {
             }
         }
     }
+
+    pub fn is_const(&self) -> bool {
+        match self {
+            IsConst::Yes(_) => true,
+            IsConst::No(_) => false,
+            IsConst::Maybe(_, binding) => {
+                if let Some(binding) = &*binding.borrow() {
+                    return binding.is_const();
+                }
+                true
+            }
+        }
+    }
 }
 
 impl Type {
@@ -290,8 +303,14 @@ impl Type {
 
     fn is_const(&self) -> bool {
         match self {
-            Type::FieldElement(IsConst::Yes(_), _) => true,
-            Type::Integer(IsConst::Yes(_), ..) => true,
+            Type::FieldElement(is_const, _) => is_const.is_const(),
+            Type::Integer(is_const, ..) => is_const.is_const(),
+            Type::PolymorphicInteger(is_const, binding) => {
+                if let TypeBinding::Bound(binding) = &*binding.borrow() {
+                    return binding.is_const();
+                }
+                is_const.is_const()
+            }
             _ => false,
         }
     }
@@ -309,25 +328,24 @@ impl Type {
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
         if let Err(err_span) = self.try_unify(expected, span) {
-            Self::issue_errors(expected, span, err_span, errors, make_error)
+            Self::issue_errors(expected, err_span, errors, make_error)
         }
     }
 
     fn issue_errors(
         expected: &Type,
-        span: Span,
         err_span: SpanKind,
         errors: &mut Vec<TypeCheckError>,
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
         errors.push(make_error());
 
-        match dbg!((expected.is_const(), err_span)) {
+        match (expected.is_const(), err_span) {
             (true, SpanKind::NonConst(span)) => {
                 let msg = "The value is non-const because of this expression, which uses another non-const value".into();
                 errors.push(TypeCheckError::Unstructured { msg, span });
             }
-            (false, SpanKind::Const(_)) => {
+            (false, SpanKind::Const(span)) => {
                 let msg = "The value is const because of this expression, which forces the value to be const".into();
                 errors.push(TypeCheckError::Unstructured { msg, span });
             }
@@ -416,7 +434,7 @@ impl Type {
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
         if let Err(err_span) = self.is_subtype_of(expected, span) {
-            Self::issue_errors(expected, span, err_span, errors, make_error)
+            Self::issue_errors(expected, err_span, errors, make_error)
         }
     }
 

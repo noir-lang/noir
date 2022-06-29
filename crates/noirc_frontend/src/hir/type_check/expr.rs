@@ -278,21 +278,17 @@ fn check_cast(from: Type, to: Type, span: Span, errors: &mut Vec<TypeCheckError>
 
     match to {
         Type::Integer(dest_is_const, to_vis, sign, bits) => {
-            if matches!(dest_is_const, IsConst::Yes(_)) {
-                if is_const.unify(&dest_is_const, span).is_err() {
-                    let msg = "Cannot cast to a const type, argument to cast is non-const (not known at compile-time)".into();
-                    errors.push(TypeCheckError::Unstructured { msg, span });
-                }
+            if dest_is_const.is_const() && is_const.unify(&dest_is_const, span).is_err() {
+                let msg = "Cannot cast to a const type, argument to cast is non-const (not known at compile-time)".into();
+                errors.push(TypeCheckError::Unstructured { msg, span });
             }
 
             Type::Integer(is_const, to_vis, sign, bits)
         }
         Type::FieldElement(dest_is_const, to_vis) => {
-            if matches!(dest_is_const, IsConst::Yes(_)) {
-                if is_const.unify(&dest_is_const, span).is_err() {
-                    let msg = "Cannot cast to a const type, argument to cast is non-const (not known at compile-time)".into();
-                    errors.push(TypeCheckError::Unstructured { msg, span });
-                }
+            if dest_is_const.is_const() && is_const.unify(&dest_is_const, span).is_err() {
+                let msg = "Cannot cast to a const type, argument to cast is non-const (not known at compile-time)".into();
+                errors.push(TypeCheckError::Unstructured { msg, span });
             }
 
             Type::FieldElement(is_const, to_vis)
@@ -632,7 +628,7 @@ pub fn comparator_operand_type_rules(
                 Err(format!("Types in a binary operation should match, but found {} and {}", other, b.borrow()))
             }
         }
-        (Integer(..), typ) | (typ,Integer(..)) => {
+        (Integer(..), typ) | (typ, Integer(..)) => {
             Err(format!("Integer cannot be used with type {}", typ))
         }
 
@@ -642,8 +638,8 @@ pub fn comparator_operand_type_rules(
         (Bool, Bool) => Ok(Bool),
 
         // Avoid reporting errors multiple times
-        (Error, _) | (_,Error) => Ok(Bool),
-        (Unspecified, _) | (_,Unspecified) => Ok(Bool),
+        (Error, _) | (_, Error) => Ok(Bool),
+        (Unspecified, _) | (_, Unspecified) => Ok(Bool),
         (lhs, rhs) => Err(format!("Unsupported types for comparison: {} and {}", lhs, rhs)),
     }
 }
