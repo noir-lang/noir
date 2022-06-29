@@ -54,6 +54,26 @@ fn test3(x: [3]u8) -> [3]u8 {
      buffer
 }
 
+fn test_multiple(x: u32, y: u32) -> (u32, u32)
+{
+    (y,x)
+}
+
+fn test_multiple2() -> my_struct
+{
+     my_struct{a:5 as u32, b:7 as u32}
+}
+
+fn test_multiple3(x: u32, y: u32)
+{
+     constrain x == y;
+}
+
+struct my_struct {
+     a: u32,
+     b: u32,
+}
+
 fn main(x : u32 , y : u32 , a : Field) {  
      let my_block = { 
           let mut ab = f2(a);
@@ -69,4 +89,10 @@ fn main(x : u32 , y : u32 , a : Field) {
      let b: [3]u8 =[0 as u8, 5 as u8, 2 as u8];
      let c = test3(b);
      constrain b == c;
+
+     let e = test_multiple(x,y) ;
+     constrain e.1==e.0+54 as u32;
+     let d = test_multiple2();
+     constrain d.b == d.a + 2 as u32;
+     test_multiple3(y,y);
 }
