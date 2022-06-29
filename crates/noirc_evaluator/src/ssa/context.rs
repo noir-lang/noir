@@ -35,6 +35,7 @@ pub struct SsaContext<'a> {
     //Adjacency Matrix of the call graph; list of rows where each row indicates the functions called by the function whose FuncIndex is the row number
     pub call_graph: Vec<Vec<u8>>,
     dummy_store: HashMap<ArrayId, NodeId>,
+    dummy_load: HashMap<ArrayId, NodeId>,
 }
 
 impl<'a> SsaContext<'a> {
@@ -51,6 +52,7 @@ impl<'a> SsaContext<'a> {
             functions: HashMap::new(),
             call_graph: Vec::new(),
             dummy_store: HashMap::new(),
+            dummy_load: HashMap::new(),
         };
         block::create_first_block(&mut pc);
         pc.one_with_type(node::ObjectType::Unsigned(1));
@@ -76,6 +78,30 @@ impl<'a> SsaContext<'a> {
 
     pub fn get_dummy_store(&self, a: ArrayId) -> NodeId {
         self.dummy_store[&a]
+    }
+
+    pub fn get_dummy_load(&self, a: ArrayId) -> NodeId {
+        self.dummy_load[&a]
+    }
+
+    #[allow(clippy::map_entry)]
+    pub fn add_dummy_load(&mut self, a: ArrayId) {
+        if !self.dummy_load.contains_key(&a) {
+            let op_a = Operation::Load { array_id: a, index: NodeId::dummy() };
+            let dummy_load = node::Instruction::new(op_a, self.mem[a].element_type, None);
+            let id = self.add_instruction(dummy_load);
+            self.dummy_load.insert(a, id);
+        }
+    }
+    #[allow(clippy::map_entry)]
+    pub fn add_dummy_store(&mut self, a: ArrayId) {
+        if !self.dummy_store.contains_key(&a) {
+            let op_a =
+                Operation::Store { array_id: a, index: NodeId::dummy(), value: NodeId::dummy() };
+            let dummy_store = node::Instruction::new(op_a, node::ObjectType::NotAnObject, None);
+            let id = self.add_instruction(dummy_store);
+            self.dummy_store.insert(a, id);
+        }
     }
 
     pub fn get_function_index(&self) -> FuncIndex {
@@ -680,38 +706,7 @@ impl<'a> SsaContext<'a> {
     pub fn handle_assign(&mut self, lhs: NodeId, index: Option<NodeId>, rhs: NodeId) -> NodeId {
         let lhs_type = self.get_object_type(lhs);
         let rhs_type = self.get_object_type(rhs);
-        if let Some(Instruction { operation: Operation::Call(_, _, returned_array), .. }) =
-            self.try_get_mut_instruction(rhs)
-        {
-            if index.is_some() || !matches!(lhs_type, ObjectType::Pointer(_)) {
-                let obj_type = if let ObjectType::Pointer(a) = lhs_type {
-                    self.mem[a].element_type
-                } else {
-                    lhs_type
-                };
-                let op_res = Operation::Result { call_instruction: rhs, index: 0 };
-                let ret = self.new_instruction(op_res, obj_type);
-                return self.handle_assign(lhs, index, ret);
-            } else {
-                if let ObjectType::Pointer(a) = lhs_type {
-                    returned_array.push(a);
-                    //dummy store for a
-                    #[allow(clippy::map_entry)]
-                    if !self.dummy_store.contains_key(&a) {
-                        let op_a = Operation::Store {
-                            array_id: a,
-                            index: NodeId::dummy(),
-                            value: NodeId::dummy(),
-                        };
-                        let dummy_store =
-                            node::Instruction::new(op_a, node::ObjectType::NotAnObject, None);
-                        let id = self.add_instruction(dummy_store);
-                        self.dummy_store.insert(a, id);
-                    }
-                }
-                return lhs;
-            }
-        }
+
         if let Some(idx) = index {
             if let ObjectType::Pointer(a) = lhs_type {
                 //Store

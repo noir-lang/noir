@@ -442,7 +442,6 @@ impl<'a> IRGenerator<'a> {
                 Variable::new(obj_type, variable_name, definition_id, self.context.current_block);
             self.context.add_variable(new_var, None)
         };
-
         //Assign rhs to lhs
         Value::Single(self.context.handle_assign(id, None, value_id))
     }
@@ -642,14 +641,36 @@ impl<'a> IRGenerator<'a> {
                     FunctionKind::Normal =>  {
                         if self.context.get_ssafunc(call_expr.func_id).is_none() {
                             let index = self.context.get_function_index();
-                            function::create_function(self, call_expr.func_id, self.context.context(), env, &func_meta.parameters, index);
+                            let fname = self.def_interner().function_name(&call_expr.func_id).to_string();
+                            function::create_function(self, call_expr.func_id, fname.as_str(), self.context.context(), env, &func_meta.parameters, index);
                         }
                         let callee = self.context.get_ssafunc(call_expr.func_id).unwrap().idx;
                         //generate a call instruction to the function cfg
                         if let Some(caller) = self.function_context {
                             function::update_call_graph(&mut self.context.call_graph, caller, callee);
                         }
-                        Ok(Value::Single(function::SSAFunction::call(call_expr.func_id ,&call_expr.arguments, self, env)))
+                        let result = function::SSAFunction::call(call_expr.func_id ,&call_expr.arguments, self, env);
+                        let val = match func_meta.return_type {
+                            Type::Tuple(_) => {
+                                let mut tuple = Vec::new();
+                                for i in result.iter().enumerate() {
+                                    tuple.push((i.0.to_string(), Value::Single(*i.1)))
+                                }
+                                Value::Struct(tuple)
+                            },
+                            Type::Struct(_,ref typ) => {
+                                let typ = typ.borrow();
+                                let mut my_struct = Vec::new();
+                                for i in typ.fields.iter().zip(result) {
+                                    my_struct.push((i.0.0.0.contents.clone(), Value::Single(i.1)));
+
+                                }
+                                Value::Struct(my_struct)
+                            },
+                            Type::Error | Type::Unspecified => unreachable!(),
+                            _ => Value::Single(result[0]),
+                        };
+                        Ok(val)
                     },
                     FunctionKind::LowLevel => {
                     // We use it's func name to find out what intrinsic function to call
