@@ -1,5 +1,6 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
+use crate::hir::type_check::TypeCheckError;
 use noirc_abi::{AbiFEType, AbiType};
 use noirc_errors::Span;
 
@@ -75,6 +76,15 @@ pub enum IsConst {
     Maybe(TypeVariableId, Rc<RefCell<Option<IsConst>>>),
 }
 
+/// Internal enum for `unify` to remember the type context of each span
+/// to provide better error messages
+#[derive(Debug)]
+pub enum SpanKind {
+    Const(Span),
+    NonConst(Span),
+    None,
+}
+
 impl IsConst {
     fn set_span(&mut self, new_span: Span) {
         match self {
@@ -87,14 +97,20 @@ impl IsConst {
         }
     }
 
-    /// Try to unify these two IsConst constraints. Returns true on success.
-    pub fn unify(&self, other: &Self, span: Span) -> bool {
+    /// Try to unify these two IsConst constraints.
+    pub fn unify(&self, other: &Self, span: Span) -> Result<(), SpanKind> {
         match (self, other) {
-            (IsConst::Yes(_), IsConst::Yes(_)) | (IsConst::No(_), IsConst::No(_)) => true,
+            (IsConst::Yes(_), IsConst::Yes(_)) | (IsConst::No(_), IsConst::No(_)) => Ok(()),
 
-            (IsConst::Yes(_), IsConst::No(_)) | (IsConst::No(_), IsConst::Yes(_)) => false,
+            (IsConst::Yes(y), IsConst::No(n)) | (IsConst::No(n), IsConst::Yes(y)) => {
+                Err(match (y, n) {
+                    (_, Some(span)) => SpanKind::NonConst(*span),
+                    (Some(span), _) => SpanKind::Const(*span),
+                    _ => SpanKind::None,
+                })
+            }
 
-            (IsConst::Maybe(id1, _), IsConst::Maybe(id2, _)) if id1 == id2 => true,
+            (IsConst::Maybe(id1, _), IsConst::Maybe(id2, _)) if id1 == id2 => Ok(()),
 
             (IsConst::Maybe(_, binding), other) | (other, IsConst::Maybe(_, binding)) => {
                 if let Some(binding) = &*binding.borrow() {
@@ -104,7 +120,7 @@ impl IsConst {
                 let mut clone = other.clone();
                 clone.set_span(span);
                 *binding.borrow_mut() = Some(clone);
-                true
+                Ok(())
             }
         }
     }
@@ -138,14 +154,21 @@ impl IsConst {
 }
 
 impl Type {
-    // These are here so that the code is more readable.
-    // Type::WITNESS vs Type::FieldElement(FieldElementType::Private)
-    pub const WITNESS: Type = Type::FieldElement(IsConst::No(None), FieldElementType::Private);
-    pub const PUBLIC: Type = Type::FieldElement(IsConst::No(None), FieldElementType::Public);
+    pub fn witness(span: Option<Span>) -> Type {
+        Type::FieldElement(IsConst::No(span), FieldElementType::Private)
+    }
 
-    pub const CONSTANT: Type = Type::FieldElement(IsConst::Yes(None), FieldElementType::Private);
+    pub fn public(span: Option<Span>) -> Type {
+        Type::FieldElement(IsConst::No(span), FieldElementType::Public)
+    }
 
-    pub const DEFAULT_INT_TYPE: Type = Type::WITNESS;
+    pub fn constant(span: Option<Span>) -> Type {
+        Type::FieldElement(IsConst::Yes(span), FieldElementType::Private)
+    }
+
+    pub fn default_int_type(span: Option<Span>) -> Type {
+        Type::witness(span)
+    }
 }
 
 impl From<&Type> for AbiType {
@@ -210,7 +233,7 @@ impl Type {
     /// Mutate the span for IsConst to track where constness is required for better
     /// error messages that show both the erroring callsite and the callsite before
     /// which required the variable to be const or non-const.
-    fn set_const_span(&mut self, new_span: Span) {
+    pub fn set_const_span(&mut self, new_span: Span) {
         match self {
             Type::FieldElement(is_const, _) | Type::Integer(is_const, _, _, _) => {
                 is_const.set_span(new_span)
@@ -221,7 +244,7 @@ impl Type {
                 }
                 span.set_span(new_span);
             }
-            _ => unreachable!(),
+            _ => (),
         }
     }
 
@@ -231,7 +254,7 @@ impl Type {
         var: &TypeVariable,
         var_const: &IsConst,
         span: Span,
-    ) -> bool {
+    ) -> Result<(), SpanKind> {
         let target_id = match &*var.borrow() {
             TypeBinding::Bound(_) => unreachable!(),
             TypeBinding::Unbound(id) => *id,
@@ -251,7 +274,7 @@ impl Type {
                         typ.try_bind_to_polymorphic_int(var, var_const, span)
                     }
                     // Avoid infinitely recursive bindings
-                    TypeBinding::Unbound(id) if *id == target_id => true,
+                    TypeBinding::Unbound(id) if *id == target_id => Ok(()),
                     TypeBinding::Unbound(_) => {
                         drop(borrow);
                         let mut clone = self.clone();
@@ -261,6 +284,14 @@ impl Type {
                     }
                 }
             }
+            _ => Err(SpanKind::None),
+        }
+    }
+
+    fn is_const(&self) -> bool {
+        match self {
+            Type::FieldElement(IsConst::Yes(_), _) => true,
+            Type::Integer(IsConst::Yes(_), ..) => true,
             _ => false,
         }
     }
@@ -270,20 +301,46 @@ impl Type {
     /// than subtyping but less strict than Eq. Returns true if the unification
     /// succeeded. Note that any bindings performed in a failed unification are
     /// not undone. This may cause further type errors later on.
-    pub fn unify(&self, other: &Type, span: Span, error: &mut impl FnMut()) -> bool {
-        let success = self.try_unify(other, span);
-        if !success {
-            error();
+    pub fn unify(
+        &self,
+        expected: &Type,
+        span: Span,
+        errors: &mut Vec<TypeCheckError>,
+        make_error: impl FnOnce() -> TypeCheckError,
+    ) {
+        if let Err(err_span) = self.try_unify(expected, span) {
+            Self::issue_errors(expected, span, err_span, errors, make_error)
         }
-        success
+    }
+
+    fn issue_errors(
+        expected: &Type,
+        span: Span,
+        err_span: SpanKind,
+        errors: &mut Vec<TypeCheckError>,
+        make_error: impl FnOnce() -> TypeCheckError,
+    ) {
+        errors.push(make_error());
+
+        match dbg!((expected.is_const(), err_span)) {
+            (true, SpanKind::NonConst(span)) => {
+                let msg = "The value is non-const because of this expression, which uses another non-const value".into();
+                errors.push(TypeCheckError::Unstructured { msg, span });
+            }
+            (false, SpanKind::Const(_)) => {
+                let msg = "The value is const because of this expression, which forces the value to be const".into();
+                errors.push(TypeCheckError::Unstructured { msg, span });
+            }
+            _ => (),
+        }
     }
 
     /// `try_unify` is a bit of a misnomer since although errors are not committed,
     /// any unified bindings are on success.
-    fn try_unify(&self, other: &Type, span: Span) -> bool {
+    fn try_unify(&self, other: &Type, span: Span) -> Result<(), SpanKind> {
         use Type::*;
         match (self, other) {
-            (Error, _) | (_, Error) => true,
+            (Error, _) | (_, Error) => Ok(()),
 
             (Unspecified, _) | (_, Unspecified) => unreachable!(),
 
@@ -299,15 +356,21 @@ impl Type {
             }
 
             (Array(_, len_a, elem_a), Array(_, len_b, elem_b)) => {
-                len_a == len_b && elem_a.try_unify(elem_b, span)
+                if len_a == len_b {
+                    elem_a.try_unify(elem_b, span)
+                } else {
+                    Err(SpanKind::None)
+                }
             }
 
             (Tuple(elems_a), Tuple(elems_b)) => {
                 if elems_a.len() != elems_b.len() {
-                    false
+                    Err(SpanKind::None)
                 } else {
-                    elems_a.iter().zip(elems_b)
-                        .all(|(a, b)| a.try_unify(b, span))
+                    for (a, b) in elems_a.iter().zip(elems_b) {
+                        a.try_unify(b, span)?;
+                    }
+                    Ok(())
                 }
             }
 
@@ -315,34 +378,54 @@ impl Type {
             // to mutate shared type variables within struct definitions.
             // This isn't possible currently but will be once noir gets generic types
             (Struct(_, fields_a), Struct(_, fields_b)) => {
-                fields_a == fields_b
+                if fields_a == fields_b {
+                    Ok(())
+                } else {
+                    Err(SpanKind::None)
+                }
             }
 
-            (FieldElement(const_a, _), FieldElement(const_b, _)) => {
-                const_a.unify(const_b, span)
-            }
+            (FieldElement(const_a, _), FieldElement(const_b, _)) => const_a.unify(const_b, span),
 
             (Integer(const_a, _, signed_a, bits_a), Integer(const_b, _, signed_b, bits_b)) => {
-                signed_a == signed_b && bits_a == bits_b && const_a.unify(const_b, span)
+                if signed_a == signed_b && bits_a == bits_b {
+                    const_a.unify(const_b, span)
+                } else {
+                    Err(SpanKind::None)
+                }
             }
 
-            (other_a, other_b) => other_a == other_b,
+            (other_a, other_b) => {
+                if other_a == other_b {
+                    Ok(())
+                } else {
+                    Err(SpanKind::None)
+                }
+            }
         }
     }
 
-    // A feature of the language is that `Field` is like an
-    // `Any` type which allows you to pass in any type which
-    // is fundamentally a field element. E.g all integer types
-    //
-    // This is 'make_subtype_of' rather than 'is_subtype_of' to
-    // allude to the side effects it has with setting any integer
-    // type variables contained within to other values
-    pub fn make_subtype_of(&self, other: &Type, span: Span) -> bool {
+    /// A feature of the language is that `Field` is like an
+    /// `Any` type which allows you to pass in any type which
+    /// is fundamentally a field element. E.g all integer types
+    pub fn make_subtype_of(
+        &self,
+        expected: &Type,
+        span: Span,
+        errors: &mut Vec<TypeCheckError>,
+        make_error: impl FnOnce() -> TypeCheckError,
+    ) {
+        if let Err(err_span) = self.is_subtype_of(expected, span) {
+            Self::issue_errors(expected, span, err_span, errors, make_error)
+        }
+    }
+
+    fn is_subtype_of(&self, other: &Type, span: Span) -> Result<(), SpanKind> {
         use Type::*;
 
         // Avoid reporting duplicate errors
         if self == &Error || other == &Error {
-            return true;
+            return Ok(());
         }
 
         if let (Array(_, arg_size, arg_type), Array(_, param_size, param_type)) = (self, other) {
@@ -350,37 +433,17 @@ impl Type {
             // length is a subtype of an array with an unknown length. Originally arrays were
             // covariant (so []i32 <: []Field), but it was changed to be more like rusts and
             // require explicit casts.
-            return arg_type == param_type && arg_size.is_subtype_of(param_size);
+            if arg_type == param_type && arg_size.is_subtype_of(param_size) {
+                return Ok(());
+            } else {
+                return Err(SpanKind::None);
+            };
         }
 
         // XXX: Should we also allow functions that ask for u16
         // to accept u8? We would need to pad the bit decomposition
         // if so.
-        match (self, other) {
-            (PolymorphicInteger(is_const, a), other) => {
-                if let TypeBinding::Bound(binding) = &*a.borrow() {
-                    return binding.make_subtype_of(other, span);
-                }
-                other.try_bind_to_polymorphic_int(a, is_const, span)
-            }
-
-            (other, PolymorphicInteger(is_const, b)) => {
-                if let TypeBinding::Bound(binding) = &*b.borrow() {
-                    return other.make_subtype_of(binding, span);
-                }
-                other.try_bind_to_polymorphic_int(b, is_const, span)
-            }
-
-            (FieldElement(const_a, _), FieldElement(const_b, _)) => {
-                const_a.unify(const_b, span)
-            }
-
-            (Integer(const_a, _, signed_a, bits_a), Integer(const_b, _, signed_b, bits_b)) => {
-                signed_a == signed_b && bits_a == bits_b && const_a.unify(const_b, span)
-            }
-
-            (this, other) => this == other,
-        }
+        self.try_unify(other, span)
     }
 
     /// Computes the number of elements in a Type
@@ -478,7 +541,7 @@ impl Type {
             }
             Type::PolymorphicInteger(_, binding) => match &*binding.borrow() {
                 TypeBinding::Bound(typ) => typ.as_abi_type(),
-                TypeBinding::Unbound(_) => Type::DEFAULT_INT_TYPE.as_abi_type(),
+                TypeBinding::Unbound(_) => Type::default_int_type(None).as_abi_type(),
             },
             Type::Bool => panic!("currently, cannot have a bool in the entry point function"),
             Type::Error => unreachable!(),

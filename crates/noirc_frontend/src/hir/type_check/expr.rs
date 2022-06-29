@@ -48,18 +48,16 @@ pub(crate) fn type_check_expression(
                     for (index, elem_type) in elem_types.iter().enumerate().skip(1) {
                         let span = interner.expr_span(&arr.contents[index]);
 
-                        elem_type.unify(&first_elem_type, span, &mut || {
-                            errors.push(
-                                TypeCheckError::NonHomogeneousArray {
-                                    first_span: interner.expr_span(&arr.contents[0]),
-                                    first_type: first_elem_type.to_string(),
-                                    first_index: index,
-                                    second_span: span,
-                                    second_type: elem_type.to_string(),
-                                    second_index: index + 1,
-                                }
-                                .add_context("elements in an array must have the same type"),
-                            );
+                        elem_type.unify(&first_elem_type, span, errors, || {
+                            TypeCheckError::NonHomogeneousArray {
+                                first_span: interner.expr_span(&arr.contents[0]),
+                                first_type: first_elem_type.to_string(),
+                                first_index: index,
+                                second_span: span,
+                                second_type: elem_type.to_string(),
+                                second_index: index + 1,
+                            }
+                            .add_context("elements in an array must have the same type")
                         });
                     }
 
@@ -134,31 +132,23 @@ pub(crate) fn type_check_expression(
             let end_range_type = type_check_expression(interner, &for_expr.end_range, errors);
 
             let span = interner.expr_span(&for_expr.start_range);
-            start_range_type.unify(&Type::CONSTANT, span, &mut || {
-                errors.push(
-                    TypeCheckError::TypeCannotBeUsed {
-                        typ: start_range_type.clone(),
-                        place: "for loop",
-                        span,
-                    }
-                    // TODO: Grab the span within start_range_type's IsConst field to find where
-                    //       the requirement was that made it non-const
-                    .add_context("The range of a loop must be const (known at compile-time)"),
-                );
+            start_range_type.unify(&Type::constant(Some(span)), span, errors, || {
+                TypeCheckError::TypeCannotBeUsed {
+                    typ: start_range_type.clone(),
+                    place: "for loop",
+                    span,
+                }
+                .add_context("The range of a loop must be const (known at compile-time)")
             });
 
             let span = interner.expr_span(&for_expr.end_range);
-            end_range_type.unify(&Type::CONSTANT, span, &mut || {
-                errors.push(
-                    TypeCheckError::TypeCannotBeUsed {
-                        typ: end_range_type.clone(),
-                        place: "for loop",
-                        span,
-                    }
-                    // TODO: Grab the span within start_range_type's IsConst field to find where
-                    //       the requirement was that made it non-const
-                    .add_context("The range of a loop must be const (known at compile-time)"),
-                );
+            end_range_type.unify(&Type::constant(Some(span)), span, errors, || {
+                TypeCheckError::TypeCannotBeUsed {
+                    typ: end_range_type.clone(),
+                    place: "for loop",
+                    span,
+                }
+                .add_context("The range of a loop must be const (known at compile-time)")
             });
 
             interner.push_definition_type(for_expr.identifier.id, start_range_type);
@@ -187,12 +177,10 @@ pub(crate) fn type_check_expression(
 
                     let span = interner.expr_span(&id);
 
-                    expr_type.unify(&Type::Unit, span, &mut || {
-                        errors.push(TypeCheckError::TypeMismatch {
-                            expected_typ: Type::Unit.to_string(),
-                            expr_typ: expr_type.to_string(),
-                            expr_span: span,
-                        });
+                    expr_type.unify(&Type::Unit, span, errors, || TypeCheckError::TypeMismatch {
+                        expected_typ: Type::Unit.to_string(),
+                        expr_typ: expr_type.to_string(),
+                        expr_span: span,
                     });
                 } else {
                     block_type = expr_type;
@@ -235,9 +223,9 @@ fn type_check_index_expression(
     let index_type = type_check_expression(interner, &index_expr.index, errors);
     let span = interner.id_span(&index_expr.index);
 
-    index_type.unify(&Type::CONSTANT, span, &mut || {
+    index_type.unify(&Type::constant(Some(span)), span, errors, || {
         // Specialize the error in the case the user has a Field, just not a const one.
-        let error = if matches!(index_type, Type::FieldElement(..)) {
+        if matches!(index_type, Type::FieldElement(..)) {
             TypeCheckError::Unstructured {
                 msg: format!("Array index must be const (known at compile-time), but here a non-const {} was used instead", index_type),
                 span,
@@ -248,8 +236,7 @@ fn type_check_index_expression(
                 expr_typ: index_type.to_string(),
                 expr_span: span,
             }
-        };
-        errors.push(error);
+        }
     });
 
     let lhs_type = type_check_expression(interner, &index_expr.collection, errors);
@@ -292,7 +279,7 @@ fn check_cast(from: Type, to: Type, span: Span, errors: &mut Vec<TypeCheckError>
     match to {
         Type::Integer(dest_is_const, to_vis, sign, bits) => {
             if matches!(dest_is_const, IsConst::Yes(_)) {
-                if !is_const.unify(&dest_is_const, span) {
+                if is_const.unify(&dest_is_const, span).is_err() {
                     let msg = "Cannot cast to a const type, argument to cast is non-const (not known at compile-time)".into();
                     errors.push(TypeCheckError::Unstructured { msg, span });
                 }
@@ -302,7 +289,7 @@ fn check_cast(from: Type, to: Type, span: Span, errors: &mut Vec<TypeCheckError>
         }
         Type::FieldElement(dest_is_const, to_vis) => {
             if matches!(dest_is_const, IsConst::Yes(_)) {
-                if !is_const.unify(&dest_is_const, span) {
+                if is_const.unify(&dest_is_const, span).is_err() {
                     let msg = "Cannot cast to a const type, argument to cast is non-const (not known at compile-time)".into();
                     errors.push(TypeCheckError::Unstructured { msg, span });
                 }
@@ -444,7 +431,7 @@ pub fn infix_operand_type_rules(
             if let TypeBinding::Bound(binding) = &*a.borrow() {
                 return infix_operand_type_rules(binding, op, other);
             }
-            if other.try_bind_to_polymorphic_int(a, is_const, op.span) {
+            if other.try_bind_to_polymorphic_int(a, is_const, op.span).is_ok() {
                 Ok(other.clone())
             } else {
                 Err(format!("Types in a binary operation should match, but found {} and {}", a.borrow(), other))
@@ -454,7 +441,7 @@ pub fn infix_operand_type_rules(
             if let TypeBinding::Bound(binding) = &*b.borrow() {
                 return infix_operand_type_rules(other, op, binding);
             }
-            if other.try_bind_to_polymorphic_int(b, is_const, op.span) {
+            if other.try_bind_to_polymorphic_int(b, is_const, op.span).is_ok() {
                 Ok(other.clone())
             } else {
                 Err(format!("Types in a binary operation should match, but found {} and {}", other, b.borrow()))
@@ -495,12 +482,10 @@ fn check_if_expr(
     let then_type = type_check_expression(interner, &if_expr.consequence, errors);
 
     let expr_span = interner.expr_span(&if_expr.condition);
-    cond_type.unify(&Type::Bool, expr_span, &mut || {
-        errors.push(TypeCheckError::TypeMismatch {
-            expected_typ: Type::Bool.to_string(),
-            expr_typ: cond_type.to_string(),
-            expr_span,
-        });
+    cond_type.unify(&Type::Bool, expr_span, errors, || TypeCheckError::TypeMismatch {
+        expected_typ: Type::Bool.to_string(),
+        expr_typ: cond_type.to_string(),
+        expr_span,
     });
 
     match if_expr.alternative {
@@ -509,8 +494,8 @@ fn check_if_expr(
             let else_type = type_check_expression(interner, &alternative, errors);
 
             let expr_span = interner.expr_span(expr_id);
-            then_type.unify(&else_type, expr_span, &mut || {
-                let mut err = TypeCheckError::TypeMismatch {
+            then_type.unify(&else_type, expr_span, errors, || {
+                let err = TypeCheckError::TypeMismatch {
                     expected_typ: then_type.to_string(),
                     expr_typ: else_type.to_string(),
                     expr_span,
@@ -524,8 +509,7 @@ fn check_if_expr(
                     "Expected the types of both if branches to be equal"
                 };
 
-                err = err.add_context(context);
-                errors.push(err);
+                err.add_context(context)
             });
 
             then_type
@@ -557,13 +541,11 @@ fn check_constructor(
         let arg_type = type_check_expression(interner, &arg, errors);
 
         let span = interner.expr_span(expr_id);
-        if !arg_type.make_subtype_of(param_type, span) {
-            errors.push(TypeCheckError::TypeMismatch {
-                expected_typ: param_type.to_string(),
-                expr_typ: arg_type.to_string(),
-                expr_span: span,
-            });
-        }
+        arg_type.make_subtype_of(param_type, span, errors, || TypeCheckError::TypeMismatch {
+            expected_typ: param_type.to_string(),
+            expr_typ: arg_type.to_string(),
+            expr_span: span,
+        });
     }
 
     // TODO: Should a constructor expr always result in a Private type?
@@ -634,7 +616,7 @@ pub fn comparator_operand_type_rules(
             if let TypeBinding::Bound(binding) = &*a.borrow() {
                 return comparator_operand_type_rules(binding, other, span);
             }
-            if other.try_bind_to_polymorphic_int(a, is_const, span) {
+            if other.try_bind_to_polymorphic_int(a, is_const, span).is_ok() {
                 Ok(Bool)
             } else {
                 Err(format!("Types in a binary operation should match, but found {} and {}", a.borrow(), other))
@@ -644,7 +626,7 @@ pub fn comparator_operand_type_rules(
             if let TypeBinding::Bound(binding) = &*b.borrow() {
                 return comparator_operand_type_rules(other, binding, span);
             }
-            if other.try_bind_to_polymorphic_int(b, is_const, span) {
+            if other.try_bind_to_polymorphic_int(b, is_const, span).is_ok() {
                 Ok(Bool)
             } else {
                 Err(format!("Types in a binary operation should match, but found {} and {}", other, b.borrow()))
@@ -680,11 +662,9 @@ fn check_param_argument(
     }
 
     let expr_span = interner.expr_span(&expr_id);
-    if !arg_type.make_subtype_of(param_type, expr_span) {
-        errors.push(TypeCheckError::TypeMismatch {
-            expected_typ: param_type.to_string(),
-            expr_typ: arg_type.to_string(),
-            expr_span,
-        });
-    }
+    arg_type.make_subtype_of(param_type, expr_span, errors, || TypeCheckError::TypeMismatch {
+        expected_typ: param_type.to_string(),
+        expr_typ: arg_type.to_string(),
+        expr_span,
+    });
 }

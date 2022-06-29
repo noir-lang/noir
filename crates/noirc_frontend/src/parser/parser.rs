@@ -167,8 +167,7 @@ fn block_expr<'a, P>(expr_parser: P) -> impl NoirParser<Expression> + 'a
 where
     P: ExprParser + 'a,
 {
-    block(expr_parser).map(ExpressionKind::Block)
-        .map_with_span(Expression::new)
+    block(expr_parser).map(ExpressionKind::Block).map_with_span(Expression::new)
 }
 
 fn block<'a, P>(expr_parser: P) -> impl NoirParser<BlockExpression> + 'a
