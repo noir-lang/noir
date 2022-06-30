@@ -14,6 +14,7 @@ use crate::hir_def::{
     function::{FuncMeta, HirFunction},
     stmt::HirStatement,
 };
+use crate::TypeVariableId;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub struct DefinitionId(usize);
@@ -136,6 +137,8 @@ pub struct NodeInterner {
     // It is also mutated through the RefCell during name resolution to append
     // methods from impls to the type.
     structs: HashMap<StructId, Rc<RefCell<StructType>>>,
+
+    next_type_variable_id: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -153,6 +156,7 @@ impl Default for NodeInterner {
             definitions: vec![],
             id_to_type: HashMap::new(),
             structs: HashMap::new(),
+            next_type_variable_id: 0,
         };
 
         // An empty block expression is used often, we add this into the `node` on startup
@@ -338,5 +342,11 @@ impl NodeInterner {
     pub fn replace_expr(&mut self, id: &ExprId, new: HirExpression) {
         let old = self.nodes.get_mut(id.into()).unwrap();
         *old = Node::Expression(new);
+    }
+
+    pub fn next_type_variable_id(&mut self) -> TypeVariableId {
+        let id = self.next_type_variable_id;
+        self.next_type_variable_id += 1;
+        TypeVariableId(id)
     }
 }

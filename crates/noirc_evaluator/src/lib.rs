@@ -368,6 +368,7 @@ impl<'a> Evaluator<'a> {
                     }
                 }
             }
+            Type::PolymorphicInteger(_) => unreachable!(),
             Type::Bool => todo!(),
             Type::Unit => todo!(),
             Type::Struct(_, _) => todo!(),
