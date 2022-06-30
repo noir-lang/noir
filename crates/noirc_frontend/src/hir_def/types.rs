@@ -125,6 +125,48 @@ impl IsConst {
         }
     }
 
+    /// Try to unify these two IsConst constraints.
+    pub fn is_subtype_of(&self, other: &Self, span: Span) -> Result<(), SpanKind> {
+        match (self, other) {
+            (IsConst::Yes(_), IsConst::Yes(_)) 
+            | (IsConst::No(_), IsConst::No(_))
+
+            // This is the only differing case between this and IsConst::unify
+            | (IsConst::Yes(_), IsConst::No(_)) => Ok(()),
+
+            (IsConst::No(n), IsConst::Yes(y)) => {
+                Err(match (y, n) {
+                    (_, Some(span)) => SpanKind::NonConst(*span),
+                    (Some(span), _) => SpanKind::Const(*span),
+                    _ => SpanKind::None,
+                })
+            }
+
+            (IsConst::Maybe(id1, _), IsConst::Maybe(id2, _)) if id1 == id2 => Ok(()),
+
+            (IsConst::Maybe(_, binding), other) => {
+                if let Some(binding) = &*binding.borrow() {
+                    return binding.is_subtype_of(other, span);
+                }
+
+                let mut clone = other.clone();
+                clone.set_span(span);
+                *binding.borrow_mut() = Some(clone);
+                Ok(())
+            }
+            (other, IsConst::Maybe(_, binding)) => {
+                if let Some(binding) = &*binding.borrow() {
+                    return other.is_subtype_of(binding, span);
+                }
+
+                let mut clone = other.clone();
+                clone.set_span(span);
+                *binding.borrow_mut() = Some(clone);
+                Ok(())
+            }
+        }
+    }
+
     /// Combine these two IsConsts together, returning
     /// - IsConst::Yes if both are Yes,
     /// - IsConst::No if either are No,
@@ -440,28 +482,77 @@ impl Type {
 
     fn is_subtype_of(&self, other: &Type, span: Span) -> Result<(), SpanKind> {
         use Type::*;
+        match (self, other) {
+            (Error, _) | (_, Error) => Ok(()),
 
-        // Avoid reporting duplicate errors
-        if self == &Error || other == &Error {
-            return Ok(());
+            (Unspecified, _) | (_, Unspecified) => unreachable!(),
+
+            (PolymorphicInteger(is_const, binding), other) => {
+                if let TypeBinding::Bound(link) = &*binding.borrow() {
+                    return link.is_subtype_of(other, span);
+                }
+
+                // Otherwise, check it is unified against an integer and bind it
+                other.try_bind_to_polymorphic_int(binding, is_const, span)
+            }
+            // These needs to be a separate case to keep the argument order of is_subtype_of
+            (other, PolymorphicInteger(is_const, binding)) => {
+                if let TypeBinding::Bound(link) = &*binding.borrow() {
+                    return other.is_subtype_of(link, span);
+                }
+
+                other.try_bind_to_polymorphic_int(binding, is_const, span)
+            }
+
+            (Array(_, len_a, elem_a), Array(_, len_b, elem_b)) => {
+                if len_a.is_subtype_of(len_b) {
+                    elem_a.is_subtype_of(elem_b, span)
+                } else {
+                    Err(SpanKind::None)
+                }
+            }
+
+            (Tuple(elems_a), Tuple(elems_b)) => {
+                if elems_a.len() != elems_b.len() {
+                    Err(SpanKind::None)
+                } else {
+                    for (a, b) in elems_a.iter().zip(elems_b) {
+                        a.is_subtype_of(b, span)?;
+                    }
+                    Ok(())
+                }
+            }
+
+            // No recursive try_unify call needed for struct fields, we just
+            // check the struct ids match.
+            (Struct(_, struct_a), Struct(_, struct_b)) => {
+                if struct_a == struct_b {
+                    Ok(())
+                } else {
+                    Err(SpanKind::None)
+                }
+            }
+
+            (FieldElement(const_a, _), FieldElement(const_b, _)) => {
+                const_a.is_subtype_of(const_b, span)
+            }
+
+            (Integer(const_a, _, signed_a, bits_a), Integer(const_b, _, signed_b, bits_b)) => {
+                if signed_a == signed_b && bits_a == bits_b {
+                    const_a.is_subtype_of(const_b, span)
+                } else {
+                    Err(SpanKind::None)
+                }
+            }
+
+            (other_a, other_b) => {
+                if other_a == other_b {
+                    Ok(())
+                } else {
+                    Err(SpanKind::None)
+                }
+            }
         }
-
-        if let (Array(_, arg_size, arg_type), Array(_, param_size, param_type)) = (self, other) {
-            // We require array elements to be exactly equal, though an array with known
-            // length is a subtype of an array with an unknown length. Originally arrays were
-            // covariant (so []i32 <: []Field), but it was changed to be more like rusts and
-            // require explicit casts.
-            if arg_type == param_type && arg_size.is_subtype_of(param_size) {
-                return Ok(());
-            } else {
-                return Err(SpanKind::None);
-            };
-        }
-
-        // XXX: Should we also allow functions that ask for u16
-        // to accept u8? We would need to pad the bit decomposition
-        // if so.
-        self.try_unify(other, span)
     }
 
     /// Computes the number of elements in a Type
