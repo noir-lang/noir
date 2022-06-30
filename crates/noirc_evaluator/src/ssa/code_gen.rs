@@ -540,18 +540,17 @@ impl<'a> IRGenerator<'a> {
                 let array = &mut self.context.mem[array_id];
                 let array_adr = array.adr;
                 for (pos, object) in elements.into_iter().enumerate() {
-                    let lhs_adr = self.context.get_or_create_const(FieldElement::from((array_adr + pos as u32) as u128), ObjectType::NativeField);
-                    let store = Operation::Store {
-                        array_id,
-                        index: lhs_adr,
-                        value: object,
-                    };
+                    let lhs_adr = self.context.get_or_create_const(
+                        FieldElement::from((array_adr + pos as u32) as u128),
+                        ObjectType::NativeField,
+                    );
+                    let store = Operation::Store { array_id, index: lhs_adr, value: object };
                     self.context.new_instruction(store, element_type);
                 }
                 Ok(Value::Single(new_var))
-            },
-            HirExpression::Ident(x) =>  {
-               Ok(self.evaluate_identifier(env, x))
+            }
+            HirExpression::Ident(x) => {
+                Ok(self.evaluate_identifier(env, x))
                 //n.b this creates a new variable if it does not exist, may be we should delegate this to explicit statements (let) - TODO
             }
             HirExpression::Infix(infx) => {
@@ -601,7 +600,8 @@ impl<'a> IRGenerator<'a> {
                         _ => unreachable!(),
                     }
                 } else {
-                    let arr = env.get_array(&arr_name).map_err(|kind|kind.add_span(ident_span)).unwrap();
+                    let arr =
+                        env.get_array(&arr_name).map_err(|kind| kind.add_span(ident_span)).unwrap();
                     self.context.create_array_from_object(&arr, arr_def, o_type, &arr_name);
                     let array_id = self.context.mem.last_id();
                     &self.context.mem[array_id]
