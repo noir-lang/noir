@@ -53,9 +53,11 @@ AztecSdk.createRegisterController(
 
 ### Calculating Fees
 
+Registering an account costs a fee to cover gas costs for posting calldata on Ethereum as well as to prevent alias squatting.
+
 `(await AztecSdk.getRegisterFees(deposit: AssetValue))[settlementTime: TxSettlementTime]` will help determine how much the transaction will cost. Settlement time can either be `NEXT_ROLLUP` or `INSTANT`. `INSTANT` is more expensive because it indicates you will pay for the rollup to settle "instantly" (on the order of minutes rather than hours) rather than waiting for it to fill up with other transactions. When there are more transactions in the rollup, users are splitting the cost among more transactions so each one is cheaper.
 
-Note that the cost of `INSTANT` is the same regardless of how full hte rollup is at the time of requesting the quote.
+Note that the cost of `INSTANT` is the same regardless of how full the rollup is at the time of requesting the quote. The settlement time is inferred from the fee a user pays, it is not explicitly sent to the controller.
 
 ### Full Registration Flow
 

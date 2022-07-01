@@ -2,7 +2,6 @@
 class AddSpendingKeyController {
     readonly userId: GrumpkinAddress;
     private readonly userSigner;
-    readonly alias: string;
     readonly spendingPublicKey1: GrumpkinAddress;
     readonly spendingPublicKey2: GrumpkinAddress | undefined;
     readonly fee: AssetValue;
@@ -10,7 +9,7 @@ class AddSpendingKeyController {
     private proofOutput;
     private feeProofOutput?;
     private txIds;
-    constructor(userId: GrumpkinAddress, userSigner: Signer, alias: string, spendingPublicKey1: GrumpkinAddress, spendingPublicKey2: GrumpkinAddress | undefined, fee: AssetValue, core: CoreSdkInterface);
+    constructor(userId: GrumpkinAddress, userSigner: Signer, spendingPublicKey1: GrumpkinAddress, spendingPublicKey2: GrumpkinAddress | undefined, fee: AssetValue, core: CoreSdkInterface);
     createProof(): Promise<void>;
     send(): Promise<TxId>;
     awaitSettlement(timeout?: number): Promise<void>;

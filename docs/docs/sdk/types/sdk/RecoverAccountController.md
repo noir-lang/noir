@@ -1,6 +1,5 @@
 ```ts
 class RecoverAccountController {
-    readonly alias: string;
     readonly recoveryPayload: RecoveryPayload;
     readonly depositValue: AssetValue;
     readonly fee: AssetValue;
@@ -9,7 +8,7 @@ class RecoverAccountController {
     private depositController?;
     private proofOutput;
     private txIds;
-    constructor(alias: string, recoveryPayload: RecoveryPayload, depositValue: AssetValue, fee: AssetValue, depositor: EthAddress, core: CoreSdkInterface, blockchain: ClientEthereumBlockchain, provider: EthereumProvider);
+    constructor(recoveryPayload: RecoveryPayload, depositValue: AssetValue, fee: AssetValue, depositor: EthAddress, core: CoreSdkInterface, blockchain: ClientEthereumBlockchain, provider: EthereumProvider);
     getPendingFunds(): Promise<bigint>;
     getRequiredFunds(): Promise<bigint>;
     getPublicAllowance(): Promise<bigint>;
