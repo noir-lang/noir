@@ -10,9 +10,44 @@ An Aztec account is the user primitive on the network. An account is identified 
 
 The private key associated with an account can be used to decrypt notes. The private key can also be used to register a distinct spending keys 1 time. See the [Accounts](how-aztec-works/accounts.md) page for more information.
 
+### Account Migration
+
+Used when a user loses access to their [Account Keys](#account-key). This allows a user to keep their alias while setting new account key, spending key and recovery key.
+
+**Accounts can only be migrated 1 time.**
+
 ### Account Note
 
 The accounts registered by users on Aztec are represented by account notes. An account note associates spending keys and aliases with an account. The spending key is used to sign transactions.
+
+### Account Recovery
+
+Used when a user loses access to all of their registered [Spending keys](#spending-key).
+
+### Asset Ids
+
+Asset Ids are unique numbers that correspond to various assets in Aztec.
+
+| Asset | Id |
+| --- | --- |
+| ETH | 0 |
+| DAI | 1 |
+| wstETH | 2 |
+
+### Rollup Processor
+
+This service is responsible for:
+
+- Watching for rollup blocks on Ethereum and updating the representation of Aztec state accordingly
+- Listening for and storing transactions from users, verifying they're valid, have correct fees, etc.
+- Constructing new rollups at the appropriate time or when enough transactions are received
+- Publishing of rollups to an Ethereum chain
+
+You can find the reference implementation [here](https://github.com/AztecProtocol/aztec-connect/tree/master/falafel).
+
+### Rollup Processor Contract
+
+This is the smart contract on Ethereum that holds user deposits, facilitates interactions with other Ethereum contracts from Aztec and processes Aztec rollup blocks. You can find the contract on Etherscan [here](https://etherscan.io/address/0xff1f2b4adb9df6fc8eafecdcbf96a2b351680455).
 
 ### Spending Key
 
