@@ -68,13 +68,6 @@ impl SSAFunction {
         env: &mut Environment,
     ) -> Vec<NodeId> {
         let arguments = igen.expression_list_to_objects(env, arguments);
-        for a in &arguments {
-            if let Some(obj) = igen.context.try_get_node(*a) {
-                if let ObjectType::Pointer(a) = obj.get_type() {
-                    igen.context.add_dummy_load(a);
-                }
-            }
-        }
         let call_instruction = igen.context.new_instruction(
             node::Operation::Call(func, arguments, Vec::new()),
             ObjectType::NotAnObject,
@@ -213,9 +206,6 @@ pub fn create_function(
     for i in &returned_values {
         if let Some(node) = igen.context.try_get_node(*i) {
             func.result_types.push(node.get_type());
-            if let ObjectType::Pointer(a) = node.get_type() {
-                igen.context.add_dummy_store(a);
-            }
         } else {
             func.result_types.push(ObjectType::NotAnObject);
         }

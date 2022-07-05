@@ -61,7 +61,7 @@ fn test_multiple(x: u32, y: u32) -> (u32, u32)
 
 fn test_multiple2() -> my_struct
 {
-     my_struct{a:5, b:7}
+     my_struct{a:5 as u32, b:7 as u32}
 }
 
 fn test_multiple3(x: u32, y: u32)
@@ -109,13 +109,15 @@ fn main(x : u32 , y : u32 , a : Field) {
      test1(a);
      test2(x as Field,y);
 
-     let b: [3]u8 =[0 as u8, 5 as u8, 2 as u8];
+     let mut b: [3]u8 =[0 as u8, 5 as u8, 2 as u8];
      let c = test3(b);
      constrain b == c;
-
+     b[0] = 1 as u8;
+     let cc = test3(b);
+     constrain c != cc;
      let e = test_multiple(x,y) ;
-     constrain e.1==e.0+54;
+     constrain e.1==e.0+54 as u32;
      let d = test_multiple2();
-     constrain d.b == d.a + 2;
+     constrain d.b == d.a + 2 as u32;
      test_multiple3(y,y);
 }

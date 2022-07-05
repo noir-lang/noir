@@ -7,7 +7,6 @@ use noirc_frontend::ArraySize;
 use num_bigint::BigUint;
 use num_traits::ToPrimitive;
 use std::collections::HashMap;
-use std::convert::TryFrom;
 
 use crate::Array;
 use std::convert::TryInto;
@@ -35,7 +34,7 @@ pub struct MemArray {
 }
 
 impl MemArray {
-    fn set_witness(&mut self, array: &Array) {
+    pub fn set_witness(&mut self, array: &Array) {
         for object in &array.contents {
             if let Some(w) = node::get_witness_from_object(object) {
                 self.values.push(w.into());
@@ -82,21 +81,6 @@ impl Memory {
             node::ObjectType::Pointer(a) => Some(a),
             _ => None,
         })
-    }
-
-    pub fn create_array_from_object(
-        &mut self,
-        array: &Array,
-        definition: DefinitionId,
-        el_type: node::ObjectType,
-        arr_name: &str,
-    ) -> &MemArray {
-        let len = u32::try_from(array.length).unwrap();
-        let id = self.create_new_array(len, el_type, arr_name);
-        let mem_array = &mut self[id];
-        mem_array.set_witness(array);
-        mem_array.def = definition;
-        mem_array
     }
 
     pub fn create_new_array(
