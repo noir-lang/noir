@@ -7,7 +7,7 @@ use super::{
     mem::Memory,
     node::{
         self, Binary, BinaryOp, ConstrainOp, Instruction, Mark, Node, NodeEval, NodeId, ObjectType,
-        Opcode, Operation, Variable,
+        Opcode, Operation,
     },
 };
 use std::{
@@ -56,6 +56,10 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) {
     }
 
     //3. left-overs (it requires &mut ctx)
+    if ins.is_deleted() {
+        return;
+    }
+
     if let Operation::Binary(binary) = &mut ins.operation {
         if let NodeEval::Const(r_const, r_type) = NodeEval::from_id(ctx, binary.rhs) {
             if binary.operator == BinaryOp::Div {
@@ -80,16 +84,8 @@ fn evaluate_intrinsic(ctx: &mut SsaContext, op: acvm::acir::OPCODE, args: Vec<u1
     match op {
         acvm::acir::OPCODE::ToBits => {
             let bit_count = args[1] as u32;
-            let array_id = ctx.mem.create_new_array(bit_count, ObjectType::Unsigned(1), "");
-            let pointer = Variable {
-                id: NodeId::dummy(),
-                obj_type: ObjectType::Pointer(array_id),
-                root: None,
-                name: String::new(),
-                def: None,
-                witness: None,
-                parent_block: ctx.current_block,
-            };
+            let pointer_id = ctx.new_array("", ObjectType::Unsigned(1), bit_count, None);
+            let array_id = ctx.mem.last_id();
 
             for i in 0..bit_count {
                 if args[0] & (1 << i) != 0 {
@@ -98,8 +94,7 @@ fn evaluate_intrinsic(ctx: &mut SsaContext, op: acvm::acir::OPCODE, args: Vec<u1
                     ctx.mem[array_id].values.push(InternalVar::from(FieldElement::zero()));
                 }
             }
-
-            ctx.add_variable(pointer, None)
+            pointer_id
         }
         _ => todo!(),
     }
@@ -308,17 +303,31 @@ fn cse_block_with_anchor(
 
             match &operator {
                 Operation::Binary(binary) => {
-                    let variants = anchor.get_all(binary.opcode());
-                    if let Some(similar) = find_similar_instruction(ctx, &operator, &variants) {
-                        debug_assert!(similar != ins.id);
-                        *modified = true;
-                        new_mark = Mark::ReplaceWith(similar);
-                    } else if binary.operator == BinaryOp::Assign {
-                        *modified = true;
-                        new_mark = Mark::ReplaceWith(binary.rhs);
-                    } else {
+                    if let ObjectType::Pointer(a) = ctx.get_object_type(binary.lhs) {
+                        //No CSE for arrays because they are not in SSA form
+                        //We could improve this in future by checking if the arrays are immutable or not modified in-between
+                        let id = ctx.get_dummy_load(a);
+                        anchor.push_front(Opcode::Load(a), id);
+
+                        if let ObjectType::Pointer(a) = ctx.get_object_type(binary.rhs) {
+                            let id = ctx.get_dummy_load(a);
+                            anchor.push_front(Opcode::Load(a), id);
+                        }
+
                         new_list.push(*ins_id);
-                        anchor.push_front(ins.operation.opcode(), *ins_id);
+                    } else {
+                        let variants = anchor.get_all(binary.opcode());
+                        if let Some(similar) = find_similar_instruction(ctx, &operator, &variants) {
+                            debug_assert!(similar != ins.id);
+                            *modified = true;
+                            new_mark = Mark::ReplaceWith(similar);
+                        } else if binary.operator == BinaryOp::Assign {
+                            *modified = true;
+                            new_mark = Mark::ReplaceWith(binary.rhs);
+                        } else {
+                            new_list.push(*ins_id);
+                            anchor.push_front(ins.operation.opcode(), *ins_id);
+                        }
                     }
                 }
                 Operation::Load { array_id: x, .. } | Operation::Store { array_id: x, .. } => {
@@ -375,26 +384,65 @@ fn cse_block_with_anchor(
                         anchor.push_front(operator.opcode(), *ins_id);
                     }
                 }
-                Operation::Call(_, _, returned_array) => {
+                Operation::Call(func, arguments, returned_array) => {
                     //No CSE for function calls because of possible side effect - TODO checks if a function has side effect when parsed and do cse for these.
                     //Add dummy store for functions that modify arrays
                     for a in returned_array {
                         let id = ctx.get_dummy_store(*a);
                         anchor.push_front(Opcode::Load(*a), id);
                     }
+                    if let Some(f) = ctx.get_ssafunc(*func) {
+                        for typ in &f.result_types {
+                            if let ObjectType::Pointer(a) = typ {
+                                let id = ctx.get_dummy_store(*a);
+                                anchor.push_front(Opcode::Load(*a), id);
+                            }
+                        }
+                    }
+                    //Add dunmmy load for function arguments:
+                    for arg in arguments {
+                        if let Some(obj) = ctx.try_get_node(*arg) {
+                            if let ObjectType::Pointer(a) = obj.get_type() {
+                                let id = ctx.get_dummy_load(a);
+                                anchor.push_front(Opcode::Load(a), id);
+                            }
+                        }
+                    }
                     new_list.push(*ins_id);
                 }
                 Operation::Return(..) => new_list.push(*ins_id),
-                Operation::Intrinsic(..) => {
-                    //n.b this could be the default behavior for binary operations
-                    if let Some(similar) =
-                        find_similar_instruction(ctx, &operator, &anchor.get_all(operator.opcode()))
-                    {
-                        *modified = true;
-                        new_mark = Mark::ReplaceWith(similar);
+                Operation::Intrinsic(_, args) => {
+                    //Add dunmmy load for function arguments and enable CSE only if no array in argument
+                    let mut activate_cse = true;
+                    for arg in args {
+                        if let Some(obj) = ctx.try_get_node(*arg) {
+                            if let ObjectType::Pointer(a) = obj.get_type() {
+                                let id = ctx.get_dummy_load(a);
+                                anchor.push_front(Opcode::Load(a), id);
+                                activate_cse = false;
+                            }
+                        }
+                    }
+                    if let ObjectType::Pointer(a) = ins.res_type {
+                        let id = ctx.get_dummy_store(a);
+                        anchor.push_front(Opcode::Load(a), id);
+                        activate_cse = false;
+                    }
+
+                    if activate_cse {
+                        if let Some(similar) = find_similar_instruction(
+                            ctx,
+                            &operator,
+                            &anchor.get_all(operator.opcode()),
+                        ) {
+                            *modified = true;
+                            new_mark = Mark::ReplaceWith(similar);
+                        } else {
+                            new_list.push(*ins_id);
+                            anchor.push_front(operator.opcode(), *ins_id);
+                        }
                     } else {
                         new_list.push(*ins_id);
-                        anchor.push_front(operator.opcode(), *ins_id);
                     }
                 }
                 _ => {

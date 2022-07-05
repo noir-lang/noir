@@ -9,7 +9,8 @@ use dep::std;
 
 fn main(x : [5]u8, result : pub [32]u8) {
 
-     let digest = std::hash::sha256(x);
-     
+     let mut digest = std::hash::sha256(x);
+     digest[0] = 5 as u8;
+     digest = std::hash::sha256(x);
      constrain digest == result;
 }

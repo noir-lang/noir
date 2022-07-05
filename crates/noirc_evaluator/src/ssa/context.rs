@@ -17,6 +17,7 @@ use noirc_frontend::node_interner::FuncId;
 use noirc_frontend::util::vecmap;
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
+use std::convert::TryFrom;
 
 // This is a 'master' class for generating the SSA IR from the AST
 // It contains all the data; the node objects representing the source code in the nodes arena
@@ -35,6 +36,7 @@ pub struct SsaContext<'a> {
     //Adjacency Matrix of the call graph; list of rows where each row indicates the functions called by the function whose FuncIndex is the row number
     pub call_graph: Vec<Vec<u8>>,
     dummy_store: HashMap<ArrayId, NodeId>,
+    dummy_load: HashMap<ArrayId, NodeId>,
 }
 
 impl<'a> SsaContext<'a> {
@@ -51,6 +53,7 @@ impl<'a> SsaContext<'a> {
             functions: HashMap::new(),
             call_graph: Vec::new(),
             dummy_store: HashMap::new(),
+            dummy_load: HashMap::new(),
         };
         block::create_first_block(&mut pc);
         pc.one_with_type(node::ObjectType::Unsigned(1));
@@ -76,6 +79,30 @@ impl<'a> SsaContext<'a> {
 
     pub fn get_dummy_store(&self, a: ArrayId) -> NodeId {
         self.dummy_store[&a]
+    }
+
+    pub fn get_dummy_load(&self, a: ArrayId) -> NodeId {
+        self.dummy_load[&a]
+    }
+
+    #[allow(clippy::map_entry)]
+    pub fn add_dummy_load(&mut self, a: ArrayId) {
+        if !self.dummy_load.contains_key(&a) {
+            let op_a = Operation::Load { array_id: a, index: NodeId::dummy() };
+            let dummy_load = node::Instruction::new(op_a, self.mem[a].element_type, None);
+            let id = self.add_instruction(dummy_load);
+            self.dummy_load.insert(a, id);
+        }
+    }
+    #[allow(clippy::map_entry)]
+    pub fn add_dummy_store(&mut self, a: ArrayId) {
+        if !self.dummy_store.contains_key(&a) {
+            let op_a =
+                Operation::Store { array_id: a, index: NodeId::dummy(), value: NodeId::dummy() };
+            let dummy_store = node::Instruction::new(op_a, node::ObjectType::NotAnObject, None);
+            let id = self.add_instruction(dummy_store);
+            self.dummy_store.insert(a, id);
+        }
     }
 
     pub fn get_function_index(&self) -> FuncIndex {
@@ -529,6 +556,8 @@ impl<'a> SsaContext<'a> {
         def_id: Option<noirc_frontend::node_interner::DefinitionId>,
     ) -> NodeId {
         let array_index = self.mem.create_new_array(len, element_type, name);
+        self.add_dummy_load(array_index);
+        self.add_dummy_store(array_index);
         //we create a variable pointing to this MemArray
         let new_var = node::Variable {
             id: NodeId::dummy(),
@@ -545,6 +574,20 @@ impl<'a> SsaContext<'a> {
         self.add_variable(new_var, None)
     }
 
+    pub fn create_array_from_object(
+        &mut self,
+        array: &crate::object::Array,
+        definition: noirc_frontend::node_interner::DefinitionId,
+        el_type: node::ObjectType,
+        arr_name: &str,
+    ) -> NodeId {
+        let len = u32::try_from(array.length).unwrap();
+        let result = self.new_array(arr_name, el_type, len, Some(definition));
+        let array_id = self.mem.last_id();
+        self.mem[array_id].set_witness(array);
+
+        result
+    }
     //blocks/////////////////////////
     pub fn try_get_block_mut(&mut self, id: BlockId) -> Option<&mut block::BasicBlock> {
         self.blocks.get_mut(id.0)
@@ -598,6 +641,7 @@ impl<'a> SsaContext<'a> {
         //ACIR
         self.acir(evaluator);
         if enable_logging {
+            Acir::print_circuit(&evaluator.gates);
             println!("DONE");
             dbg!(&evaluator.current_witness_index);
         }
@@ -615,7 +659,6 @@ impl<'a> SsaContext<'a> {
             //TODO we should rather follow the jumps
             fb = block.left.map(|block_id| &self[block_id]);
         }
-        Acir::print_circuit(&evaluator.gates);
     }
 
     pub fn generate_empty_phi(&mut self, target_block: BlockId, phi_root: NodeId) -> NodeId {
@@ -680,38 +723,7 @@ impl<'a> SsaContext<'a> {
     pub fn handle_assign(&mut self, lhs: NodeId, index: Option<NodeId>, rhs: NodeId) -> NodeId {
         let lhs_type = self.get_object_type(lhs);
         let rhs_type = self.get_object_type(rhs);
-        if let Some(Instruction { operation: Operation::Call(_, _, returned_array), .. }) =
-            self.try_get_mut_instruction(rhs)
-        {
-            if index.is_some() || !matches!(lhs_type, ObjectType::Pointer(_)) {
-                let obj_type = if let ObjectType::Pointer(a) = lhs_type {
-                    self.mem[a].element_type
-                } else {
-                    lhs_type
-                };
-                let op_res = Operation::Result { call_instruction: rhs, index: 0 };
-                let ret = self.new_instruction(op_res, obj_type);
-                return self.handle_assign(lhs, index, ret);
-            } else {
-                if let ObjectType::Pointer(a) = lhs_type {
-                    returned_array.push(a);
-                    //dummy store for a
-                    #[allow(clippy::map_entry)]
-                    if !self.dummy_store.contains_key(&a) {
-                        let op_a = Operation::Store {
-                            array_id: a,
-                            index: NodeId::dummy(),
-                            value: NodeId::dummy(),
-                        };
-                        let dummy_store =
-                            node::Instruction::new(op_a, node::ObjectType::NotAnObject, None);
-                        let id = self.add_instruction(dummy_store);
-                        self.dummy_store.insert(a, id);
-                    }
-                }
-                return lhs;
-            }
-        }
+
         if let Some(idx) = index {
             if let ObjectType::Pointer(a) = lhs_type {
                 //Store
@@ -728,6 +740,7 @@ impl<'a> SsaContext<'a> {
             }) = self.try_get_mut_instruction(rhs)
             {
                 *rtype = lhs_type;
+                return lhs;
             } else {
                 self.memcpy(lhs_type, rhs_type);
                 return lhs;
