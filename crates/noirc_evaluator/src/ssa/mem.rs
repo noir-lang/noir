@@ -3,6 +3,7 @@ use super::context::SsaContext;
 use super::node::{self, Node, NodeId};
 use acvm::FieldElement;
 use noirc_frontend::node_interner::DefinitionId;
+use noirc_frontend::ArraySize;
 use num_bigint::BigUint;
 use num_traits::ToPrimitive;
 use std::collections::HashMap;
@@ -142,5 +143,12 @@ impl std::ops::Index<ArrayId> for Memory {
 impl std::ops::IndexMut<ArrayId> for Memory {
     fn index_mut(&mut self, index: ArrayId) -> &mut Self::Output {
         &mut self.arrays[index.0 as usize]
+    }
+}
+
+pub fn get_array_size(array_size: &ArraySize) -> u32 {
+    match array_size {
+        ArraySize::Fixed(l) => *l as u32,
+        ArraySize::Variable => todo!(),
     }
 }

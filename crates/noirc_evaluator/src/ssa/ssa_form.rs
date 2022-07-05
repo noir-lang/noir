@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use crate::ssa::node::{Mark, Operation};
-use noirc_frontend::{node_interner::DefinitionId, ArraySize};
+use noirc_frontend::node_interner::DefinitionId;
 
 use super::{
     block::BlockId,
@@ -119,28 +119,15 @@ pub fn get_current_value(ctx: &mut SsaContext, var_id: NodeId) -> NodeId {
     get_current_value_in_block(ctx, var_id, ctx.current_block)
 }
 
-fn get_array_size(array_size: &ArraySize) -> u32 {
-    match array_size {
-        ArraySize::Fixed(l) => *l as u32,
-        ArraySize::Variable => todo!(),
-    }
-}
-
-pub fn create_function_parameter(igen: &mut IRGenerator, ident_id: &DefinitionId) -> NodeId {
+pub fn create_function_parameter(igen: &mut IRGenerator, ident_id: &DefinitionId) -> Vec<NodeId> {
     let ident_name = igen.def_to_name(*ident_id);
     let o_type = igen.def_interner().id_type(*ident_id);
     //check if the variable is already created:
-    if let Some(var) = igen.find_variable(*ident_id) {
-        let id = var.unwrap_id(); //TODO handle multiple values
-        return get_current_value(&mut igen.context, id);
-    }
-    let mut obj_type = node::ObjectType::from(&o_type);
-    if let noirc_frontend::Type::Array(_, len, _) = o_type {
-        let array_idx =
-            igen.context.mem.create_new_array(get_array_size(&len), obj_type, &ident_name);
-        obj_type = node::ObjectType::Pointer(array_idx);
-    }
-    let v_id = igen.create_new_variable(ident_name.clone(), *ident_id, obj_type, None);
-    igen.context.get_current_block_mut().update_variable(v_id, v_id);
-    v_id
+    let val = if let Some(var) = igen.find_variable(*ident_id) {
+        let clone_var = var.clone();
+        igen.get_current_value(&clone_var)
+    } else {
+        igen.create_new_value(&o_type, &ident_name, Some(*ident_id))
+    };
+    val.to_node_ids()
 }

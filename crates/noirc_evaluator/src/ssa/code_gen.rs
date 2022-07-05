@@ -60,6 +60,15 @@ impl Value {
             Value::Struct(v) => v.iter().flat_map(|i| i.1.to_node_ids()).collect(),
         }
     }
+
+    pub fn get_field_member(&self, field_name: &str) -> &Value {
+        match self {
+            Value::Single(_) => {
+                unreachable!("Runtime type error, expected struct but found a single value")
+            }
+            Value::Struct(v) => &v.iter().find(|(name, _)| *name == *field_name).unwrap().1,
+        }
+    }
 }
 
 ////////////////PARSING THE AST////////////////////////////////////////////////
@@ -86,10 +95,14 @@ impl<'a> IRGenerator<'a> {
     }
 
     pub fn find_variable(&self, variable_def: DefinitionId) -> Option<&Value> {
-        self.variable_values.get(&variable_def)
+        if variable_def != DefinitionId::dummy_id() {
+            self.variable_values.get(&variable_def)
+        } else {
+            None
+        }
     }
 
-    fn get_current_value(&mut self, value: &Value) -> Value {
+    pub fn get_current_value(&mut self, value: &Value) -> Value {
         match value {
             Value::Single(id) => Value::Single(ssa_form::get_current_value(&mut self.context, *id)),
             Value::Struct(fields) => Value::Struct(vecmap(fields, |(name, value)| {
@@ -295,7 +308,7 @@ impl<'a> IRGenerator<'a> {
     fn lvalue_ident_def(&self, lvalue: &HirLValue) -> DefinitionId {
         match lvalue {
             HirLValue::Ident(ident) => ident.id,
-            HirLValue::MemberAccess { .. } => unimplemented!(),
+            HirLValue::MemberAccess { object: o, .. } => self.lvalue_ident_def(o),
             HirLValue::Index { array, index: _ } => self.lvalue_ident_def(array.as_ref()),
         }
     }
@@ -303,7 +316,7 @@ impl<'a> IRGenerator<'a> {
     pub fn create_new_variable(
         &mut self,
         var_name: String,
-        def: DefinitionId,
+        def: Option<DefinitionId>,
         obj_type: node::ObjectType,
         witness: Option<acvm::acir::native_types::Witness>,
     ) -> NodeId {
@@ -312,14 +325,78 @@ impl<'a> IRGenerator<'a> {
             obj_type,
             name: var_name,
             root: None,
-            def: Some(def),
+            def,
             witness,
             parent_block: self.context.current_block,
         };
         let v_id = self.context.add_variable(new_var, None);
         let v_value = Value::Single(v_id);
-        self.variable_values.insert(def, v_value);
+        if let Some(def) = def {
+            self.variable_values.insert(def, v_value);
+        }
         v_id
+    }
+
+    //Helper function for create_new_value()
+    fn insert_new_struct(
+        &mut self,
+        def: Option<DefinitionId>,
+        values: Vec<(String, Value)>,
+    ) -> Value {
+        let result = Value::Struct(values);
+        if let Some(def_id) = def {
+            self.variable_values.insert(def_id, result.clone());
+        }
+        result
+    }
+
+    pub fn create_new_value(
+        &mut self,
+        typ: &noirc_frontend::Type,
+        base_name: &str,
+        def: Option<DefinitionId>,
+    ) -> Value {
+        match typ {
+            noirc_frontend::Type::Struct(_, t) => {
+                let mut values = Vec::new();
+                for i in &t.borrow().fields {
+                    let name = format!("{}.{}", base_name, i.0 .0.contents);
+                    let val = self.create_new_value(&i.1, &name, None);
+                    values.push((i.0 .0.contents.clone(), val));
+                }
+                self.insert_new_struct(def, values)
+            }
+            noirc_frontend::Type::Tuple(v) => {
+                let mut values = Vec::new();
+                for i in v.iter().enumerate() {
+                    let name = format!("{}.{}", base_name, i.0);
+                    let val = self.create_new_value(i.1, &name, None);
+                    values.push((i.0.to_string(), val));
+                }
+                self.insert_new_struct(def, values)
+            }
+            noirc_frontend::Type::Array(_, len, _) => {
+                {
+                    //TODO support array of structs
+                    let mut obj_type = node::ObjectType::from(typ);
+                    let array_idx = self.context.mem.create_new_array(
+                        super::mem::get_array_size(len),
+                        obj_type,
+                        base_name,
+                    );
+                    obj_type = node::ObjectType::Pointer(array_idx);
+                    let v_id = self.create_new_variable(base_name.to_string(), def, obj_type, None);
+                    self.context.get_current_block_mut().update_variable(v_id, v_id);
+                    Value::Single(v_id)
+                }
+            }
+            _ => {
+                let obj_type = node::ObjectType::from(typ);
+                let v_id = self.create_new_variable(base_name.to_string(), def, obj_type, None);
+                self.context.get_current_block_mut().update_variable(v_id, v_id);
+                Value::Single(v_id)
+            }
+        }
     }
 
     // Add a constraint to constrain two expression together
@@ -411,16 +488,15 @@ impl<'a> IRGenerator<'a> {
             }
             Value::Struct(field_values) => {
                 assert_eq!(field_values.len(), typ.num_elements());
-                let values = typ
-                    .iter_fields()
-                    .zip(field_values)
-                    .map(|((field_name, field_type), (value_name, field_value))| {
-                        assert_eq!(field_name, value_name);
-                        let name = format!("{}.{}", basename, field_name);
-                        let value = self.bind_fresh_pattern(&name, &field_type, field_value);
-                        (field_name, value)
-                    })
-                    .collect();
+                let mut values = Vec::new();
+                for t in typ.iter_fields() {
+                    let v = &field_values.iter().find(|f| f.0 == t.0).unwrap().1;
+                    let name = format!("{}.{}", basename, t.0);
+                    let field_type = typ.get_field_type(&t.0);
+                    let value = self.bind_fresh_pattern(&name, &field_type, v.clone());
+                    values.push((t.0, value));
+                }
+
                 Value::Struct(values)
             }
         }
@@ -470,7 +546,12 @@ impl<'a> IRGenerator<'a> {
                 self.variable_values.insert(ident_def, result);
                 Ok(lhs)
             }
-            HirLValue::MemberAccess { .. } => unimplemented!(),
+            HirLValue::MemberAccess { field_name: name, .. } => {
+                let val = self.find_variable(ident_def).unwrap();
+                let value = val.get_field_member(&name.0.contents).clone();
+                let result = self.assign_pattern(&value, rhs);
+                Ok(result)
+            }
             HirLValue::Index { array, index } => {
                 let (_, array_idx) = self.evaluate_indexed_value(array.as_ref(), index, env);
                 let val = self.find_variable(ident_def).unwrap();
@@ -538,27 +619,30 @@ impl<'a> IRGenerator<'a> {
             HirExpression::Literal(HirLiteral::Array(arr_lit)) => {
                 //We create a MemArray
                 let arr_type = self.def_interner().id_type(expr_id);
-                let element_type = arr_type.into();    //WARNING array type!
+                let element_type = arr_type.into(); //WARNING array type!
 
-                let array_id = self.context.mem.create_new_array(arr_lit.length as u32, element_type, &String::new());
+                let array_id = self.context.mem.create_new_array(
+                    arr_lit.length as u32,
+                    element_type,
+                    &String::new(),
+                );
                 //We parse the array definition
                 let elements = self.expression_list_to_objects(env, &arr_lit.contents);
                 let array = &mut self.context.mem[array_id];
                 let array_adr = array.adr;
                 for (pos, object) in elements.into_iter().enumerate() {
                     //array.witness.push(node::get_witness_from_object(&object));
-                    let lhs_adr = self.context.get_or_create_const(FieldElement::from((array_adr + pos as u32) as u128), ObjectType::NativeField);
-                    let store = Operation::Store {
-                        array_id,
-                        index: lhs_adr,
-                        value: object,
-                    };
+                    let lhs_adr = self.context.get_or_create_const(
+                        FieldElement::from((array_adr + pos as u32) as u128),
+                        ObjectType::NativeField,
+                    );
+                    let store = Operation::Store { array_id, index: lhs_adr, value: object };
                     self.context.new_instruction(store, element_type);
                 }
                 //Finally, we create a variable pointing to this MemArray
                 let new_var = node::Variable {
                     id: NodeId::dummy(),
-                    obj_type : ObjectType::Pointer(array_id),
+                    obj_type: ObjectType::Pointer(array_id),
                     name: String::new(),
                     root: None,
                     def: None,
@@ -566,11 +650,11 @@ impl<'a> IRGenerator<'a> {
                     parent_block: self.context.current_block,
                 };
                 Ok(Value::Single(self.context.add_variable(new_var, None)))
-            },
-            HirExpression::Ident(x) =>  {
-               Ok(self.evaluate_identifier(env, x))
+            }
+            HirExpression::Ident(x) => {
+                Ok(self.evaluate_identifier(env, x))
                 //n.b this creates a new variable if it does not exist, may be we should delegate this to explicit statements (let) - TODO
-            },
+            }
             HirExpression::Infix(infx) => {
                 // Note: using .into_id() here disallows structs/tuples in infix expressions.
                 // The type checker currently disallows this as well but we may want to allow
@@ -595,7 +679,7 @@ impl<'a> IRGenerator<'a> {
                 // integer to other integer type: checks rust rules TODO
                 // else... Not supported (for now).
                 //binary_op::handle_cast_op(self,lhs, cast_expr.r#type).map_err(|kind|kind.add_span(span))
-            },
+            }
             HirExpression::Index(indexed_expr) => {
                 // Currently these only happen for arrays
                 let collection_name = match self.def_interner().expression(&indexed_expr.collection) {
@@ -618,7 +702,8 @@ impl<'a> IRGenerator<'a> {
                         _ => unreachable!(),
                     }
                 } else {
-                    let arr = env.get_array(&arr_name).map_err(|kind|kind.add_span(ident_span)).unwrap();
+                    let arr =
+                        env.get_array(&arr_name).map_err(|kind| kind.add_span(ident_span)).unwrap();
                     self.context.mem.create_array_from_object(&arr, arr_def, o_type, &arr_name)
                 };
 
@@ -629,27 +714,50 @@ impl<'a> IRGenerator<'a> {
                 let index_as_obj = self.expression_to_object(env, &indexed_expr.index)?.unwrap_id();
 
                 let index_type = self.context.get_object_type(index_as_obj);
-                let base_adr = self.context.get_or_create_const(FieldElement::from(address as i128), index_type);
-                let adr_id = self.context.new_instruction(Operation::binary(BinaryOp::Add, base_adr, index_as_obj), index_type);
+                let base_adr = self
+                    .context
+                    .get_or_create_const(FieldElement::from(address as i128), index_type);
+                let adr_id = self.context.new_instruction(
+                    Operation::binary(BinaryOp::Add, base_adr, index_as_obj),
+                    index_type,
+                );
 
                 let load = Operation::Load { array_id, index: adr_id };
                 Ok(Value::Single(self.context.new_instruction(load, e_type)))
-            },
+            }
             HirExpression::Call(call_expr) => {
                 let func_meta = self.def_interner().function_meta(&call_expr.func_id);
                 match func_meta.kind {
-                    FunctionKind::Normal =>  {
+                    FunctionKind::Normal => {
                         if self.context.get_ssafunc(call_expr.func_id).is_none() {
                             let index = self.context.get_function_index();
-                            let fname = self.def_interner().function_name(&call_expr.func_id).to_string();
-                            function::create_function(self, call_expr.func_id, fname.as_str(), self.context.context(), env, &func_meta.parameters, index);
+                            let fname =
+                                self.def_interner().function_name(&call_expr.func_id).to_string();
+                            function::create_function(
+                                self,
+                                call_expr.func_id,
+                                fname.as_str(),
+                                self.context.context(),
+                                env,
+                                &func_meta.parameters,
+                                index,
+                            );
                         }
                         let callee = self.context.get_ssafunc(call_expr.func_id).unwrap().idx;
                         //generate a call instruction to the function cfg
                         if let Some(caller) = self.function_context {
-                            function::update_call_graph(&mut self.context.call_graph, caller, callee);
+                            function::update_call_graph(
+                                &mut self.context.call_graph,
+                                caller,
+                                callee,
+                            );
                         }
-                        let result = function::SSAFunction::call(call_expr.func_id ,&call_expr.arguments, self, env);
+                        let result = function::SSAFunction::call(
+                            call_expr.func_id,
+                            &call_expr.arguments,
+                            self,
+                            env,
+                        );
                         let val = match func_meta.return_type {
                             Type::Tuple(_) => {
                                 let mut tuple = Vec::new();
@@ -657,35 +765,38 @@ impl<'a> IRGenerator<'a> {
                                     tuple.push((i.0.to_string(), Value::Single(*i.1)))
                                 }
                                 Value::Struct(tuple)
-                            },
-                            Type::Struct(_,ref typ) => {
+                            }
+                            Type::Struct(_, ref typ) => {
                                 let typ = typ.borrow();
                                 let mut my_struct = Vec::new();
                                 for i in typ.fields.iter().zip(result) {
-                                    my_struct.push((i.0.0.0.contents.clone(), Value::Single(i.1)));
-
+                                    my_struct
+                                        .push((i.0 .0 .0.contents.clone(), Value::Single(i.1)));
                                 }
                                 Value::Struct(my_struct)
-                            },
+                            }
                             Type::Error | Type::Unspecified => unreachable!(),
                             _ => Value::Single(result[0]),
                         };
                         Ok(val)
-                    },
+                    }
                     FunctionKind::LowLevel => {
-                    // We use it's func name to find out what intrinsic function to call
+                        // We use it's func name to find out what intrinsic function to call
                         let attribute = func_meta.attributes.expect("all low level functions must contain an attribute which contains the opcode which it links to");
                         let opcode_name = attribute.foreign().expect("ice: function marked as foreign, but attribute kind does not match this");
                         Ok(Value::Single(self.handle_lowlevel(env, opcode_name, call_expr)))
-                    },
-                        FunctionKind::Builtin => { todo!();
-                    //     let attribute = func_meta.attributes.expect("all builtin functions must contain an attribute which contains the function name which it links to");
-                    //     let builtin_name = attribute.builtin().expect("ice: function marked as a builtin, but attribute kind does not match this");
-                    //     builtin::call_builtin(self, env, builtin_name, (call_expr,span))
-                    },
-                 }
-            },
-            HirExpression::For(for_expr) => self.handle_for_expr(env,for_expr).map_err(|kind|kind.add_span(span)),
+                    }
+                    FunctionKind::Builtin => {
+                        todo!();
+                        //     let attribute = func_meta.attributes.expect("all builtin functions must contain an attribute which contains the function name which it links to");
+                        //     let builtin_name = attribute.builtin().expect("ice: function marked as a builtin, but attribute kind does not match this");
+                        //     builtin::call_builtin(self, env, builtin_name, (call_expr,span))
+                    }
+                }
+            }
+            HirExpression::For(for_expr) => {
+                self.handle_for_expr(env, for_expr).map_err(|kind| kind.add_span(span))
+            }
             HirExpression::Constructor(constructor) => self.handle_constructor(env, constructor),
             HirExpression::MemberAccess(access) => self.handle_member_access(env, access),
             HirExpression::Tuple(fields) => self.handle_tuple(env, fields),
@@ -693,13 +804,13 @@ impl<'a> IRGenerator<'a> {
             HirExpression::Prefix(prefix) => {
                 let rhs = self.expression_to_object(env, &prefix.rhs)?.unwrap_id();
                 self.evaluate_prefix_expression(rhs, prefix.operator).map(Value::Single)
-            },
-            HirExpression::Literal(l) => {
-                Ok(Value::Single(self.handle_literal(&l)))
-            },
+            }
+            HirExpression::Literal(l) => Ok(Value::Single(self.handle_literal(&l))),
             HirExpression::Block(_) => todo!("currently block expressions not in for/if branches are not being evaluated. In the future, we should be able to unify the eval_block and all places which require block_expr here"),
             HirExpression::Error => todo!(),
-            HirExpression::MethodCall(_) => unreachable!("Method calls should be desugared before codegen"),
+            HirExpression::MethodCall(_) => {
+                unreachable!("Method calls should be desugared before codegen")
+            }
         }
     }
 
@@ -779,38 +890,28 @@ impl<'a> IRGenerator<'a> {
         env: &mut Environment,
         access: HirMemberAccess,
     ) -> Result<Value, RuntimeError> {
-        match self.expression_to_object(env, &access.lhs)? {
-            Value::Single(_) => unreachable!(
-                "Runtime type error, expected struct but found a single value for {:?}",
-                access
-            ),
-            Value::Struct(fields) => {
-                let field = dbg!(fields)
-                    .into_iter()
-                    .find(|(field_name, _)| *field_name == access.rhs.0.contents);
-
-                Ok(field.unwrap().1)
-            }
-        }
+        let value = self.expression_to_object(env, &access.lhs)?;
+        Ok(value.get_field_member(&access.rhs.0.contents).clone())
     }
 
-    //TODO generate phi instructions
     pub fn expression_list_to_objects(
         &mut self,
         env: &mut Environment,
         exprs: &[ExprId],
     ) -> Vec<NodeId> {
-        exprs
-            .iter()
-            .map(|expr| {
-                match self.expression_to_object(env, expr) {
-                    Ok(Value::Single(id)) => id,
-                    // TODO: Can we have arrays of structs? How should we store each element if
-                    // structs don't exist in ssa?
-                    other => panic!("Unexpected {:?} while codegening ssa array elements", other),
+        let mut result = Vec::new();
+        for expr in exprs {
+            match self.expression_to_object(env, expr) {
+                Ok(Value::Single(id)) => result.push(id),
+                Ok(Value::Struct(fields)) => {
+                    for f in fields {
+                        result.extend(f.1.to_node_ids());
+                    }
                 }
-            })
-            .collect::<Vec<_>>()
+                other => panic!("Unexpected {:?} while listing ssa elements", other),
+            }
+        }
+        result
     }
 
     fn handle_for_expr(
@@ -835,7 +936,7 @@ impl<'a> IRGenerator<'a> {
         let iter_def = for_expr.identifier.id;
         let int_type = self.def_interner().id_type(iter_def);
         let iter_type = int_type.into();
-        let iter_id = self.create_new_variable(iter_name, iter_def, iter_type, None);
+        let iter_id = self.create_new_variable(iter_name, Some(iter_def), iter_type, None);
         let iter_var = self.context.get_mut_variable(iter_id).unwrap();
         iter_var.obj_type = iter_type;
 

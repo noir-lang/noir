@@ -203,8 +203,8 @@ pub fn create_function(
     //argumemts:
     for pat in parameters.iter() {
         let ident_id = param_to_ident(&pat.0);
-        let node_id = ssa_form::create_function_parameter(igen, &ident_id.id);
-        func.arguments.push(node_id);
+        let node_ids = ssa_form::create_function_parameter(igen, &ident_id.id);
+        func.arguments.extend(node_ids);
     }
     igen.function_context = Some(index);
     igen.context.functions.insert(func_id, func.clone());
