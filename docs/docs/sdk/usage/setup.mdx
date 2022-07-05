@@ -9,6 +9,18 @@ This explainer will frequently reference code snippets from [this reference repo
 
 The following examples are written in Typescript and assume a Nodejs execution context. For a browser context example you can refer to the `web-app` directory in the linked repo.
 
+## Install
+
+```shell
+npm install @aztec/sdk
+```
+
+Once the SDK is installed, import it into your project. Using Typescript is highly recommended.
+
+```ts
+import { createAztecSdk } from "@aztec/sdk";
+```
+
 ## Provider Setup
 
 You need to set up a connection to an Ethereum network and import a private key. Since this is assuming a Nodejs context there is no direct access to an Ethereum wallet.
