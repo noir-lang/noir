@@ -85,7 +85,7 @@ const config = {
           },
           {
             type: 'doc',
-            docId: 'how-aztec-works/zk-money/userguide',
+            docId: 'zk-money/userguide',
             label: 'Zk.money'
           }
         ],
