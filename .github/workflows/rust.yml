@@ -31,7 +31,7 @@ jobs:
           override: true
 
       - name: Install dependencies
-        run: brew update && brew install libomp
+        run: brew update && brew install llvm libomp
         
       - name: Run cargo check
         uses: actions-rs/cargo@v1
