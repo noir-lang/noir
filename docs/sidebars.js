@@ -49,7 +49,11 @@ const sidebars = {
         'how-aztec-works/accounts',
         'how-aztec-works/tokens',
         'how-aztec-works/talks-videos',
-        'how-aztec-works/zkmoney-userguide',
+        {
+          type: 'category',
+          label: 'zk.money',
+          items: [ 'how-aztec-works/zk-money/userguide', 'how-aztec-works/zk-money/fees']
+        },
         'how-aztec-works/faq',
 
       ],
