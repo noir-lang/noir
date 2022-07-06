@@ -1,4 +1,4 @@
-# zk.money Fees
+# Fees
 
 ## Fee Calculation
 

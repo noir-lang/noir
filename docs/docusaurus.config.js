@@ -81,8 +81,13 @@ const config = {
             type: 'doc',
             docId: 'intro',
             position: 'left',
-            label: 'Docs',
+            label: 'Aztec Protocol',
           },
+          {
+            type: 'doc',
+            docId: 'how-aztec-works/zk-money/userguide',
+            label: 'Zk.money'
+          }
         ],
       },
       footer: {
