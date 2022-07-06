@@ -46,7 +46,6 @@ impl SSAFunction {
             arguments: Vec::new(),
             result_types: Vec::new(),
             idx,
-            // modified_array_arg: HashSet::new(),
         }
     }
 
