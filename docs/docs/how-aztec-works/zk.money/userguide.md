@@ -1,6 +1,4 @@
----
-title: zk.money User Guide
----
+# zk.money User Guide
 
 Welcome to the new zk.money!
 
