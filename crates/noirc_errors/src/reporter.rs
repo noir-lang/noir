@@ -22,7 +22,12 @@ pub enum DiagnosticKind {
 
 impl CustomDiagnostic {
     pub fn from_message(msg: &str) -> CustomDiagnostic {
-        Self { message: msg.to_owned(), secondaries: Vec::new(), notes: Vec::new(), kind: DiagnosticKind::Error }
+        Self {
+            message: msg.to_owned(),
+            secondaries: Vec::new(),
+            notes: Vec::new(),
+            kind: DiagnosticKind::Error,
+        }
     }
 
     pub fn simple_error(
