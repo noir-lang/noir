@@ -128,7 +128,7 @@ impl IsConst {
     /// Try to unify these two IsConst constraints.
     pub fn is_subtype_of(&self, other: &Self, span: Span) -> Result<(), SpanKind> {
         match (self, other) {
-            (IsConst::Yes(_), IsConst::Yes(_)) 
+            (IsConst::Yes(_), IsConst::Yes(_))
             | (IsConst::No(_), IsConst::No(_))
 
             // This is the only differing case between this and IsConst::unify
