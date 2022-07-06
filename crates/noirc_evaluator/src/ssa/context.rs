@@ -724,6 +724,29 @@ impl<'a> SsaContext<'a> {
         let lhs_type = self.get_object_type(lhs);
         let rhs_type = self.get_object_type(rhs);
 
+        let mut ret_array = None;
+        if let Some(Instruction {
+            operation: Operation::Result { call_instruction: func, index: idx },
+            ..
+        }) = self.try_get_instruction(rhs)
+        {
+            if index.is_none() {
+                if let ObjectType::Pointer(a) = lhs_type {
+                    ret_array = Some((*func, a, *idx));
+                }
+            }
+        }
+        if let Some((func, a, idx)) = ret_array {
+            if let Some(Instruction { operation: Operation::Call(_, _, returned_array), .. }) =
+                self.try_get_mut_instruction(func)
+            {
+                returned_array.push((a, idx));
+            }
+            if let Some(i) = self.try_get_mut_instruction(rhs) {
+                i.mark = Mark::ReplaceWith(lhs);
+            }
+            return lhs;
+        }
         if let Some(idx) = index {
             if let ObjectType::Pointer(a) = lhs_type {
                 //Store

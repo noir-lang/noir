@@ -538,7 +538,7 @@ pub enum Operation {
     Jeq(NodeId, BlockId), //jump on equal
     Jmp(BlockId),         //unconditional jump
     Phi { root: NodeId, block_args: Vec<(NodeId, BlockId)> },
-    Call(noirc_frontend::node_interner::FuncId, Vec<NodeId>, Vec<ArrayId>), //Call a function
+    Call(noirc_frontend::node_interner::FuncId, Vec<NodeId>, Vec<(ArrayId, u32)>), //Call a function
     Return(Vec<NodeId>), //Return value(s) from a function block
     Result { call_instruction: NodeId, index: u32 }, //Get result index n from a function call
 
@@ -550,7 +550,7 @@ pub enum Operation {
     Nop, // no op
 }
 
-#[derive(Copy, Clone, Hash, PartialEq, Eq)]
+#[derive(Copy, Clone, Hash, PartialEq, Eq, Debug)]
 pub enum Opcode {
     Add,
     SafeAdd,

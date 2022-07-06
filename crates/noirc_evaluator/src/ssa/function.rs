@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap};
 
 use crate::environment::Environment;
 use acvm::acir::OPCODE;
@@ -33,7 +33,7 @@ pub struct SSAFunction {
     pub idx: FuncIndex,
     //signature:
     pub name: String,
-    pub arguments: Vec<NodeId>,
+    pub arguments: Vec<(NodeId, bool)>,
     pub result_types: Vec<ObjectType>,
 }
 
@@ -46,10 +46,11 @@ impl SSAFunction {
             arguments: Vec::new(),
             result_types: Vec::new(),
             idx,
+            // modified_array_arg: HashSet::new(),
         }
     }
 
-    pub fn compile(&self, igen: &mut IRGenerator) -> Option<NodeId> {
+    pub fn compile(&self, igen: &mut IRGenerator) {
         let function_cfg = super::block::bfs(self.entry_block, None, &igen.context);
         super::block::compute_sub_dom(&mut igen.context, &function_cfg);
         //Optimisation
@@ -57,7 +58,6 @@ impl SSAFunction {
         //Unrolling
         super::flatten::unroll_tree(&mut igen.context, self.entry_block);
         super::optim::full_cse(&mut igen.context, self.entry_block);
-        None
     }
 
     //generates an instruction for calling the function
@@ -167,10 +167,10 @@ pub fn call_low_level(
     igen.context.new_instruction(node::Operation::Intrinsic(op, args), result_type)
 }
 
-pub fn param_to_ident(patern: &HirPattern) -> &HirIdent {
+pub fn param_to_ident(patern: &HirPattern, mutable: bool) -> (&HirIdent, bool) {
     match &patern {
-        HirPattern::Identifier(id) => id,
-        HirPattern::Mutable(pattern, _) => param_to_ident(pattern.as_ref()),
+        HirPattern::Identifier(id) => (id, mutable),
+        HirPattern::Mutable(pattern, _) => param_to_ident(pattern.as_ref(), true),
         HirPattern::Tuple(_, _) => todo!(),
         HirPattern::Struct(_, _, _) => todo!(),
     }
@@ -195,9 +195,11 @@ pub fn create_function(
     let block = function.block(&context.def_interner);
     //argumemts:
     for pat in parameters.iter() {
-        let ident_id = param_to_ident(&pat.0);
-        let node_id = ssa_form::create_function_parameter(igen, &ident_id.id);
-        func.arguments.push(node_id);
+        //For now we use the mut property of the argument to indicate if it is modified or not
+        //TODO: check instead in the function body whether there is a store for the array
+        let ident_id = param_to_ident(&pat.0, false);
+        let node_id = ssa_form::create_function_parameter(igen, &ident_id.0.id);
+        func.arguments.push((node_id, ident_id.1));
     }
     igen.function_context = Some(index);
     igen.context.functions.insert(func_id, func.clone());
