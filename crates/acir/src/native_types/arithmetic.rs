@@ -34,6 +34,16 @@ impl Default for Arithmetic {
     }
 }
 
+impl std::fmt::Display for Arithmetic {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        if self.mul_terms.is_empty() && self.linear_combinations.len() == 1 && self.q_c.is_zero() {
+            write!(f, "x{}", self.linear_combinations[0].1.witness_index())
+        } else {
+            write!(f, "%{:?}%", crate::circuit::gate::Gate::Arithmetic(self.clone()))
+        }
+    }
+}
+
 impl Arithmetic {
     pub const fn can_defer_constraint(&self) -> bool {
         false

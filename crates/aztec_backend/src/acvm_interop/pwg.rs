@@ -60,7 +60,10 @@ impl PartialWitnessGenerator for Plonk {
                     },
 
                     Directive::Quotient { a, b, q, r } => {
-                        match (initial_witness.get(a), initial_witness.get(b)) {
+                        match (
+                            Self::get_value(a, initial_witness),
+                            Self::get_value(b, initial_witness),
+                        ) {
                             (Some(val_a), Some(val_b)) => {
                                 let int_a = BigUint::from_bytes_be(&val_a.to_bytes());
                                 let int_b = BigUint::from_bytes_be(&val_b.to_bytes());

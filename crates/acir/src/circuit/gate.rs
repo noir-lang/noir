@@ -72,10 +72,10 @@ impl std::fmt::Debug for Gate {
             Gate::Directive(Directive::Quotient { a, b, q, r }) => {
                 write!(
                     f,
-                    "Euclidian division: x{} = x{}*x{} + x{}",
-                    a.witness_index(),
+                    "Euclidian division: {} = x{}*{} + x{}",
+                    a,
                     q.witness_index(),
-                    b.witness_index(),
+                    b,
                     r.witness_index()
                 )
             }
@@ -112,7 +112,7 @@ pub enum Directive {
     Invert { x: Witness, result: Witness },
 
     //Performs euclidian division of a / b (as integers) and stores the quotient in q and the rest in r
-    Quotient { a: Witness, b: Witness, q: Witness, r: Witness },
+    Quotient { a: Arithmetic, b: Arithmetic, q: Witness, r: Witness },
 
     //Reduces the value of a modulo 2^bit_size and stores the result in b: a= c*2^bit_size + b
     Truncate { a: Witness, b: Witness, c: Witness, bit_size: u32 },
