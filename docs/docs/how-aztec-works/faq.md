@@ -6,16 +6,6 @@ title: FAQ
 
 ## General Questions
 
-### What happens when I shield a token?
-
-Aztec has an offchain UTXO architecture that functions like cash. Shielding a token functionally means depositing it into Aztec's Ethereum smart contracts, which then communicate with Aztec's offchain UTXO state system to generate cash-like encrypted notes.
-
-The entire system accounts for a user's claim on Layer 1 tokens and assets via a fully encrypted state system (kind of like the briefcase of IOU's from Dumb and Dumber: https://www.youtube.com/watch?v=7GSXbgfKFWg). 
-
-When assets are deposited to Aztec, withdrawn from Aztec, sent within Aztec, or exchanged for other assets via Aztec Connect, the state tree is updated with new encrypted notes. Because no one can peer inside a note except its owner, user identity and account balance is fully preserved.
-
-For more information on Aztec's UTXO architecture, see this blog post: https://medium.com/aztec-protocol/fully-confidential-ethereum-transactions-aztec-networks-privacy-architecture-274f968b13d4
-
 **Your transaction can go in two directions:**
 
 1. Send zkETH/DAI to a username (@name) on zk.money. The recipient will get zkETH/DAI.
