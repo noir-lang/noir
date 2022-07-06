@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 
 acvm = { path = "../acvm", features = ["bn254"] }
-barretenberg_wrapper = { git = "https://github.com/AztecProtocol/barretenberg", rev = "8ae6e2f9a47d9992e24e911bacba48a80c8f20a3" }
+barretenberg_wrapper = { git = "https://github.com/AztecProtocol/barretenberg", rev = "a8afdf0870f090426b633c29fc076e062f21a428" }
 
 sha2 = "0.9.3"
 blake2 = "0.9.1"
