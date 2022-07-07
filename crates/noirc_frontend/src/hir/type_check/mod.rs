@@ -116,6 +116,7 @@ mod test {
         let operator = HirBinaryOp { span: Span::default(), kind: HirBinaryOpKind::Add };
         let expr = HirInfixExpression { lhs: x_expr_id, operator, rhs: y_expr_id };
         let expr_id = interner.push_expr(HirExpression::Infix(expr));
+        interner.push_expr_span(expr_id, Span::single_char(0));
 
         // Create let statement
         let let_stmt = HirLetStatement {
@@ -125,6 +126,7 @@ mod test {
         };
         let stmt_id = interner.push_stmt(HirStatement::Let(let_stmt));
         let expr_id = interner.push_expr(HirExpression::Block(HirBlockExpression(vec![stmt_id])));
+        interner.push_expr_span(expr_id, Span::single_char(0));
 
         // Create function to enclose the let statement
         let func = HirFunction::unsafe_from_expr(expr_id);
