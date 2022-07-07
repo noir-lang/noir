@@ -527,12 +527,7 @@ impl<'a> IRGenerator<'a> {
                 let arr_type = self.def_interner().id_type(expr_id);
                 let element_type = arr_type.into(); //WARNING array type!
 
-                let new_var = self.context.new_array(
-                    &String::new(),
-                    element_type,
-                    arr_lit.length as u32,
-                    None,
-                );
+                let new_var = self.context.new_array("", element_type, arr_lit.length as u32, None);
                 let array_id = self.context.mem.last_id();
 
                 //We parse the array definition
