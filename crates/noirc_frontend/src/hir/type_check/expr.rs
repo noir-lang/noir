@@ -1,3 +1,5 @@
+use std::{cell::RefCell, rc::Rc};
+
 use noirc_errors::Span;
 
 use crate::{
@@ -8,7 +10,7 @@ use crate::{
     },
     node_interner::{ExprId, FuncId, NodeInterner},
     util::vecmap,
-    ArraySize, FieldElementType,
+    ArraySize, FieldElementType, TypeBinding,
 };
 
 use super::errors::TypeCheckError;
@@ -44,7 +46,7 @@ pub(crate) fn type_check_expression(
 
                     // Check if the array is homogeneous
                     for (index, elem_type) in elem_types.iter().enumerate().skip(1) {
-                        if !elem_type.matches(&first_elem_type) {
+                        elem_type.unify(&first_elem_type, &mut || {
                             errors.push(
                                 TypeCheckError::NonHomogeneousArray {
                                     first_span: interner.expr_span(&arr.contents[0]),
@@ -56,15 +58,15 @@ pub(crate) fn type_check_expression(
                                 }
                                 .add_context("elements in an array must have the same type"),
                             );
-                        }
+                        });
                     }
 
                     arr_type
                 }
                 HirLiteral::Bool(_) => Type::Bool,
                 HirLiteral::Integer(_) => {
-                    // Literal integers will always be a constant, since the lexer was able to parse the integer
-                    Type::FieldElement(FieldElementType::Constant)
+                    let id = interner.next_type_variable_id();
+                    Type::PolymorphicInteger(Rc::new(RefCell::new(TypeBinding::Unbound(id))))
                 }
                 HirLiteral::Str(_) => unimplemented!(
                     "[Coming Soon] : Currently string literal types have not been implemented"
@@ -88,32 +90,7 @@ pub(crate) fn type_check_expression(
             }
         }
         HirExpression::Index(index_expr) => {
-            let index_type = type_check_expression(interner, &index_expr.index, errors);
-            if !index_type.matches(&Type::CONSTANT) {
-                let span = interner.id_span(&index_expr.index);
-                errors.push(TypeCheckError::TypeMismatch {
-                    expected_typ: "const Field".to_owned(),
-                    expr_typ: index_type.to_string(),
-                    expr_span: span,
-                });
-            }
-
-            let lhs_type = type_check_expression(interner, &index_expr.collection, errors);
-            match lhs_type {
-                // XXX: We can check the array bounds here also, but it may be better to constant fold first
-                // and have ConstId instead of ExprId for constants
-                Type::Array(_, _, base_type) => *base_type,
-                Type::Error => Type::Error,
-                typ => {
-                    let span = interner.id_span(&index_expr.collection);
-                    errors.push(TypeCheckError::TypeMismatch {
-                        expected_typ: "Array".to_owned(),
-                        expr_typ: typ.to_string(),
-                        expr_span: span,
-                    });
-                    Type::Error
-                }
-            }
+            type_check_index_expression(interner, index_expr, errors)
         }
         HirExpression::Call(call_expr) => {
             let args =
@@ -151,41 +128,38 @@ pub(crate) fn type_check_expression(
             let start_range_type = type_check_expression(interner, &for_expr.start_range, errors);
             let end_range_type = type_check_expression(interner, &for_expr.end_range, errors);
 
-            if !start_range_type.matches(&Type::CONSTANT) {
+            start_range_type.unify(&Type::CONSTANT, &mut || {
                 errors.push(
                     TypeCheckError::TypeCannotBeUsed {
                         typ: start_range_type.clone(),
                         place: "for loop",
                         span: interner.expr_span(&for_expr.start_range),
                     }
-                    .add_context("currently the range in a loop must be constant literal"),
+                    .add_context("The range of a loop must be const (known at compile-time)"),
                 );
-            }
+            });
 
-            if !end_range_type.matches(&Type::CONSTANT) {
+            end_range_type.unify(&Type::CONSTANT, &mut || {
                 errors.push(
                     TypeCheckError::TypeCannotBeUsed {
                         typ: end_range_type.clone(),
                         place: "for loop",
                         span: interner.expr_span(&for_expr.end_range),
                     }
-                    .add_context("currently the range in a loop must be constant literal"),
+                    .add_context("The range of a loop must be const (known at compile-time)"),
                 );
-            }
+            });
 
-            let var_type = if start_range_type.matches(&end_range_type) {
-                start_range_type
-            } else {
+            start_range_type.unify(&end_range_type, &mut || {
                 let msg = format!(
                     "start range type '{}' does not match the end range type '{}'",
                     start_range_type, end_range_type
                 );
                 let span = interner.expr_span(&for_expr.end_range);
                 errors.push(TypeCheckError::Unstructured { msg, span });
-                Type::Error
-            };
+            });
 
-            interner.push_definition_type(for_expr.identifier.id, var_type);
+            interner.push_definition_type(for_expr.identifier.id, start_range_type);
 
             let last_type = type_check_expression(interner, &for_expr.block, errors);
             Type::Array(
@@ -204,7 +178,7 @@ pub(crate) fn type_check_expression(
                 let expr_type = super::stmt::type_check(interner, stmt, errors);
 
                 if i + 1 < statements.len() {
-                    if !expr_type.matches(&Type::Unit) {
+                    expr_type.unify(&Type::Unit, &mut || {
                         let id = match interner.statement(stmt) {
                             crate::hir_def::stmt::HirStatement::Expression(expr) => expr,
                             _ => *expr_id,
@@ -215,7 +189,7 @@ pub(crate) fn type_check_expression(
                             expr_typ: expr_type.to_string(),
                             expr_span: interner.expr_span(&id),
                         });
-                    }
+                    });
                 } else {
                     block_type = expr_type;
                 }
@@ -249,10 +223,62 @@ pub(crate) fn type_check_expression(
     typ
 }
 
+fn type_check_index_expression(
+    interner: &mut NodeInterner,
+    index_expr: expr::HirIndexExpression,
+    errors: &mut Vec<TypeCheckError>,
+) -> Type {
+    let index_type = type_check_expression(interner, &index_expr.index, errors);
+    index_type.unify(&Type::CONSTANT, &mut || {
+        let span = interner.id_span(&index_expr.index);
+        // Specialize the error in the case the user has a Field, just not a const one.
+        let error = if index_type.is_field_element() {
+            TypeCheckError::Unstructured {
+                msg: format!("Array index must be const (known at compile-time), but here a non-const {} was used instead", index_type),
+                span,
+            }
+        } else {
+            TypeCheckError::TypeMismatch {
+                expected_typ: "const Field".to_owned(),
+                expr_typ: index_type.to_string(),
+                expr_span: span,
+            }
+        };
+        errors.push(error);
+    });
+
+    let lhs_type = type_check_expression(interner, &index_expr.collection, errors);
+    match lhs_type {
+        // XXX: We can check the array bounds here also, but it may be better to constant fold first
+        // and have ConstId instead of ExprId for constants
+        Type::Array(_, _, base_type) => *base_type,
+        Type::Error => Type::Error,
+        typ => {
+            let span = interner.id_span(&index_expr.collection);
+            errors.push(TypeCheckError::TypeMismatch {
+                expected_typ: "Array".to_owned(),
+                expr_typ: typ.to_string(),
+                expr_span: span,
+            });
+            Type::Error
+        }
+    }
+}
+
 fn check_cast(from: Type, to: Type, span: Span, errors: &mut Vec<TypeCheckError>) -> Type {
     let is_const = match from {
         Type::Integer(vis, _, _) => vis == FieldElementType::Constant,
         Type::FieldElement(vis) => vis == FieldElementType::Constant,
+        Type::PolymorphicInteger(binding) => {
+            match &*binding.borrow() {
+                TypeBinding::Bound(from) => return check_cast(from.clone(), to, span, errors),
+                TypeBinding::Unbound(_) => {
+                    // Don't bind the type variable here. Since we're casting, we can cast from any
+                    // integer, and this already represents any integer.
+                    true
+                }
+            }
+        }
         Type::Error => return Type::Error,
         from => {
             let msg = format!(
@@ -309,6 +335,9 @@ fn lookup_method(
         // If we fail to resolve the object to a struct type, we have no way of type
         // checking its arguments as we can't even resolve the name of the function
         Type::Error => None,
+
+        // In the future we could support methods for non-struct types if we have a context
+        // (in the interner?) essentially resembling HashMap<Type, Methods>
         other => {
             errors.push(TypeCheckError::Unstructured {
                 span: interner.expr_span(expr_id),
@@ -406,6 +435,17 @@ pub fn infix_operand_type_rules(
             let field_type = field_type_rules(int_field_type, &Constant);
             Ok(Integer(field_type,*sign_x, *bit_width_x))
         }
+        (PolymorphicInteger(int), other)
+        | (other, PolymorphicInteger(int)) => {
+            if let TypeBinding::Bound(binding) = &*int.borrow() {
+                return infix_operand_type_rules(binding, op, other);
+            }
+            if other.try_bind_to_polymorphic_int(int).is_ok() {
+                Ok(other.clone())
+            } else {
+                Err(format!("Types in a binary operation should match, but found {} and {}", int.borrow(), other))
+            }
+        }
         (Integer(..), typ) | (typ,Integer(..)) => {
             Err(format!("Integer cannot be used with type {}", typ))
         }
@@ -439,20 +479,20 @@ fn check_if_expr(
     let cond_type = type_check_expression(interner, &if_expr.condition, errors);
     let then_type = type_check_expression(interner, &if_expr.consequence, errors);
 
-    if !cond_type.matches(&Type::Bool) {
+    cond_type.unify(&Type::Bool, &mut || {
         errors.push(TypeCheckError::TypeMismatch {
             expected_typ: Type::Bool.to_string(),
             expr_typ: cond_type.to_string(),
             expr_span: interner.expr_span(&if_expr.condition),
         });
-    }
+    });
 
     match if_expr.alternative {
         None => Type::Unit,
         Some(alternative) => {
             let else_type = type_check_expression(interner, &alternative, errors);
 
-            if !then_type.matches(&else_type) {
+            then_type.unify(&else_type, &mut || {
                 let mut err = TypeCheckError::TypeMismatch {
                     expected_typ: then_type.to_string(),
                     expr_typ: else_type.to_string(),
@@ -469,7 +509,7 @@ fn check_if_expr(
 
                 err = err.add_context(context);
                 errors.push(err);
-            }
+            });
 
             then_type
         }
@@ -499,7 +539,7 @@ fn check_constructor(
 
         let arg_type = type_check_expression(interner, &arg, errors);
 
-        if !arg_type.is_subtype_of(param_type) {
+        if !arg_type.make_subtype_of(param_type) {
             let span = interner.expr_span(expr_id);
             errors.push(TypeCheckError::TypeMismatch {
                 expected_typ: param_type.to_string(),
@@ -584,6 +624,17 @@ pub fn comparator_operand_type_rules(
         (int, FieldElement(Constant))| (FieldElement(Constant), int) if int.is_field_element() => {
             Ok(Bool)
         }
+        (PolymorphicInteger(int), other)
+        | (other, PolymorphicInteger(int)) => {
+            if let TypeBinding::Bound(binding) = &*int.borrow() {
+                return comparator_operand_type_rules(binding, other, op);
+            }
+            if other.try_bind_to_polymorphic_int(int).is_ok() {
+                Ok(Bool)
+            } else {
+                Err(format!("Types in a binary operation should match, but found {} and {}", int.borrow(), other))
+            }
+        }
         (Integer(..), typ) | (typ,Integer(..)) => {
             Err(format!("Integer cannot be used with type {}", typ))
         }
@@ -602,9 +653,12 @@ pub fn comparator_operand_type_rules(
 
         // Special-case == and != for arrays
         (Array(_, x_size, x_type), Array(_, y_size, y_type)) if op == HirBinaryOpKind::Equal || op == HirBinaryOpKind::NotEqual => {
-            if !x_type.matches(y_type) {
-                return Err(format!("Cannot compare {} and {}, the element types differ", lhs_type, other));
-            }
+            let mut result = Ok(Bool);
+            x_type.unify(y_type, &mut || {
+                result = Err(format!("Cannot compare {} and {}, the element types differ", lhs_type, other));
+            });
+            result?;
+
             if x_size != y_size {
                 return Err(format!("Can only compare arrays of the same length. Here LHS is of length {}, and RHS is {} ", 
                     x_size, y_size));
@@ -628,7 +682,7 @@ fn check_param_argument(
         unreachable!("arg type type cannot be a variable sized array. This is not supported.")
     }
 
-    if !arg_type.is_subtype_of(param_type) {
+    if !arg_type.make_subtype_of(param_type) {
         errors.push(TypeCheckError::TypeMismatch {
             expected_typ: param_type.to_string(),
             expr_typ: arg_type.to_string(),

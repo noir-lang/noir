@@ -45,6 +45,7 @@ pub enum Type {
     FieldElement(FieldElementType),
     Array(FieldElementType, ArraySize, Box<Type>), // [4]Witness = Array(4, Witness)
     Integer(FieldElementType, Signedness, u32),    // u32 = Integer(unsigned, 32)
+    PolymorphicInteger(TypeVariable),
     Bool,
     Unit,
     Struct(FieldElementType, Rc<RefCell<StructType>>),
@@ -54,12 +55,25 @@ pub enum Type {
     Unspecified, // This is for when the user declares a variable without specifying it's type
 }
 
+type TypeVariable = Rc<RefCell<TypeBinding>>;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TypeBinding {
+    Bound(Type),
+    Unbound(TypeVariableId),
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct TypeVariableId(pub usize);
+
 impl Type {
     // These are here so that the code is more readable.
     // Type::WITNESS vs Type::FieldElement(FieldElementType::Private)
     pub const WITNESS: Type = Type::FieldElement(FieldElementType::Private);
     pub const CONSTANT: Type = Type::FieldElement(FieldElementType::Constant);
     pub const PUBLIC: Type = Type::FieldElement(FieldElementType::Public);
+
+    pub const DEFAULT_INT_TYPE: Type = Type::WITNESS;
 }
 
 impl From<&Type> for AbiType {
@@ -83,6 +97,7 @@ impl std::fmt::Display for Type {
                 Signedness::Signed => write!(f, "{}i{}", vis_str(*fe_type), num_bits),
                 Signedness::Unsigned => write!(f, "{}u{}", vis_str(*fe_type), num_bits),
             },
+            Type::PolymorphicInteger(binding) => write!(f, "{}", binding.borrow()),
             Type::Struct(vis, s) => write!(f, "{}{}", vis_str(*vis), s.borrow()),
             Type::Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
@@ -92,6 +107,15 @@ impl std::fmt::Display for Type {
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
             Type::Unspecified => write!(f, "unspecified"),
+        }
+    }
+}
+
+impl std::fmt::Display for TypeBinding {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TypeBinding::Bound(typ) => typ.fmt(f),
+            TypeBinding::Unbound(_) => write!(f, "Field"),
         }
     }
 }
@@ -107,29 +131,118 @@ impl Type {
         }
     }
 
-    /// True if this type 'matches' another. Matching is more strict
-    /// than subtyping but less strict than Eq. In particular, a type
-    /// matches another iff it is exactly equal to the other type or
-    /// either type is the Error type.
-    pub fn matches(&self, other: &Type) -> bool {
-        self == other || self == &Type::Error || other == &Type::Error
+    #[allow(clippy::result_unit_err)]
+    pub fn try_bind_to_polymorphic_int(&self, var: &TypeVariable) -> Result<(), ()> {
+        let target_id = match &*var.borrow() {
+            TypeBinding::Bound(_) => unreachable!(),
+            TypeBinding::Unbound(id) => *id,
+        };
+
+        match self {
+            Type::FieldElement(_) | Type::Integer(_, _, _) => {
+                *var.borrow_mut() = TypeBinding::Bound(self.clone());
+                Ok(())
+            }
+            Type::PolymorphicInteger(self_var) => {
+                match &*self_var.borrow() {
+                    TypeBinding::Bound(typ) => typ.try_bind_to_polymorphic_int(var),
+                    // Avoid infinitely recursive bindings
+                    TypeBinding::Unbound(id) if *id == target_id => Ok(()),
+                    TypeBinding::Unbound(_) => {
+                        *var.borrow_mut() = TypeBinding::Bound(self.clone());
+                        Ok(())
+                    }
+                }
+            }
+            _ => Err(()),
+        }
+    }
+
+    /// Try to unify this type with another, setting any type variables found
+    /// equal to the other type in the process. Unification is more strict
+    /// than subtyping but less strict than Eq. Returns true if the unification
+    /// succeeded. Note that any bindings performed in a failed unification are
+    /// not undone. This may cause further type errors later on.
+    pub fn unify(&self, other: &Type, error: &mut impl FnMut()) -> bool {
+        use Type::*;
+        match (self, other) {
+            (Error, _) | (_, Error) => true,
+
+            (Unspecified, _) | (_, Unspecified) => unreachable!(),
+
+            (PolymorphicInteger(binding), other) | (other, PolymorphicInteger(binding)) => {
+                // If it is already bound, unify against what it is bound to
+                if let TypeBinding::Bound(link) = &*binding.borrow() {
+                    return link.unify(other, error);
+                }
+
+                // Otherwise, check it is unified against an integer and bind it
+                let success = other.try_bind_to_polymorphic_int(binding).is_ok();
+                if !success {
+                    error();
+                }
+                success
+            }
+
+            (Array(vis_a, len_a, elem_a), Array(vis_b, len_b, elem_b)) => {
+                if vis_a != vis_b || len_a != len_b {
+                    error();
+                    false
+                } else {
+                    elem_a.unify(elem_b, error)
+                }
+            }
+
+            (Tuple(elems_a), Tuple(elems_b)) => {
+                if elems_a.len() != elems_b.len() {
+                    error();
+                    false
+                } else {
+                    for (a, b) in elems_a.iter().zip(elems_b) {
+                        if !a.unify(b, error) {
+                            return false;
+                        }
+                    }
+                    true
+                }
+            }
+
+            // No recursive unify call for struct fields. Don't want
+            // to mutate shared type variables within struct definitions.
+            // This isn't possible currently but will be once noir gets generic types
+            (Struct(vis_a, fields_a), Struct(vis_b, fields_b)) => {
+                if vis_a != vis_b || fields_a != fields_b {
+                    error();
+                    false
+                } else {
+                    true
+                }
+            }
+
+            (other_a, other_b) => {
+                let success = other_a == other_b;
+                if !success {
+                    error();
+                }
+                success
+            }
+        }
     }
 
     // A feature of the language is that `Field` is like an
     // `Any` type which allows you to pass in any type which
     // is fundamentally a field element. E.g all integer types
-    pub fn is_subtype_of(&self, other: &Type) -> bool {
+    //
+    // This is 'make_subtype_of' rather than 'is_subtype_of' to
+    // allude to the side effects it has with setting any integer
+    // type variables contained within to other values
+    pub fn make_subtype_of(&self, other: &Type) -> bool {
         use FieldElementType::*;
         use Type::*;
 
         // Avoid reporting duplicate errors
         if self == &Error || other == &Error {
             return true;
-        }
-
-        // Any field element type is a subtype of `priv Field`
-        if other == &FieldElement(Private) {
-            return self.is_field_element();
         }
 
         if let (Array(_, arg_size, arg_type), Array(_, param_size, param_type)) = (self, other) {
@@ -146,6 +259,24 @@ impl Type {
         match (self, other) {
             // Const types are subtypes of non-const types
             (FieldElement(Constant), FieldElement(_)) => true,
+
+            (PolymorphicInteger(a), other) => {
+                if let TypeBinding::Bound(binding) = &*a.borrow() {
+                    return binding.make_subtype_of(other);
+                }
+                other.try_bind_to_polymorphic_int(a).is_ok()
+            }
+
+            (other, PolymorphicInteger(b)) => {
+                if let TypeBinding::Bound(binding) = &*b.borrow() {
+                    return other.make_subtype_of(binding);
+                }
+                other.try_bind_to_polymorphic_int(b).is_ok()
+            }
+
+            // Any field element type is a subtype of `priv Field`
+            (this, FieldElement(Private)) => this.is_field_element(),
+
             (Integer(Constant, self_sign, self_bits), Integer(_, other_sign, other_bits)) => {
                 self_sign == other_sign && self_bits == other_bits
             }
@@ -154,7 +285,13 @@ impl Type {
     }
 
     pub fn is_field_element(&self) -> bool {
-        matches!(self, Type::FieldElement(_) | Type::Bool | Type::Integer(_, _, _))
+        matches!(
+            self,
+            Type::FieldElement(_)
+                | Type::Bool
+                | Type::Integer(_, _, _)
+                | Type::PolymorphicInteger(_)
+        )
     }
 
     /// Computes the number of elements in a Type
@@ -168,6 +305,7 @@ impl Type {
             Type::Tuple(fields) => fields.len(),
             Type::FieldElement(_)
             | Type::Integer(_, _, _)
+            | Type::PolymorphicInteger(_)
             | Type::Bool
             | Type::Error
             | Type::Unspecified
@@ -197,15 +335,6 @@ impl Type {
         }
     }
 
-    // Returns true if the Type can be used in a Let statement
-    pub fn can_be_used_in_let(&self) -> bool {
-        self.is_fixed_sized_array()
-            || self.is_variable_sized_array()
-            || matches!(self, &Type::Struct(..))
-            || self == &Type::Error
-    }
-
-    // Base types are types in the language that are simply alias for a field element
     // Therefore they can be the operands in an infix comparison operator
     pub fn is_base_type(&self) -> bool {
         matches!(self, Type::FieldElement(_) | Type::Integer(_, _, _) | Type::Error)
@@ -269,6 +398,10 @@ impl Type {
 
                 AbiType::Integer { sign, width: *bit_width as u32, visibility: fet_to_abi(fe_type) }
             }
+            Type::PolymorphicInteger(binding) => match &*binding.borrow() {
+                TypeBinding::Bound(typ) => typ.as_abi_type(),
+                TypeBinding::Unbound(_) => Type::DEFAULT_INT_TYPE.as_abi_type(),
+            },
             Type::Bool => panic!("currently, cannot have a bool in the entry point function"),
             Type::Error => unreachable!(),
             Type::Unspecified => unreachable!(),

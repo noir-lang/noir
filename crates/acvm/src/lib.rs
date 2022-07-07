@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 
 use acir::{
     circuit::{Circuit, Gate},
-    native_types::Witness,
+    native_types::{Arithmetic, Witness},
     OPCODE,
 };
 
@@ -27,7 +27,30 @@ pub trait PartialWitnessGenerator {
         initial_witness: &mut BTreeMap<Witness, FieldElement>,
         gates: Vec<Gate>,
     ) -> Result<(), OPCODE>;
+
+    fn get_value(
+        a: &Arithmetic,
+        initial_witness: &std::collections::BTreeMap<Witness, FieldElement>,
+    ) -> Option<FieldElement> {
+        let mut result = a.q_c;
+        for i in &a.linear_combinations {
+            if let Some(f) = initial_witness.get(&i.1) {
+                result += i.0 * *f;
+            } else {
+                return None;
+            }
+        }
+        for i in &a.mul_terms {
+            if let (Some(f), Some(g)) = (initial_witness.get(&i.1), initial_witness.get(&i.2)) {
+                result += i.0 * *f * *g;
+            } else {
+                return None;
+            }
+        }
+        Some(result)
+    }
 }
+
 pub trait SmartContract {
     // Takes a verification  key and produces a smart contract
     // The platform indicator allows a backend to support multiple smart contract platforms

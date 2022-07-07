@@ -97,7 +97,7 @@ fn type_check_assign_stmt(
     let span = interner.expr_span(&assign_stmt.expression);
     let lvalue_type = type_check_lvalue(interner, assign_stmt.lvalue, span, errors);
 
-    if !expr_type.is_subtype_of(&lvalue_type) {
+    if !expr_type.make_subtype_of(&lvalue_type) {
         errors.push(TypeCheckError::Unstructured {
             msg: format!(
                 "Cannot assign an expression of type {} to a value of type {}",
@@ -151,14 +151,14 @@ fn type_check_lvalue(
         }
         HirLValue::Index { array, index } => {
             let index_type = type_check_expression(interner, &index, errors);
-            if !index_type.matches(&Type::CONSTANT) {
+            index_type.unify(&Type::CONSTANT, &mut || {
                 let span = interner.id_span(&index);
                 errors.push(TypeCheckError::TypeMismatch {
                     expected_typ: "const Field".to_owned(),
                     expr_typ: index_type.to_string(),
                     expr_span: span,
                 });
-            }
+            });
 
             match type_check_lvalue(interner, *array, assign_span, errors) {
                 Type::Array(_, _, elem_type) => *elem_type,
@@ -196,13 +196,13 @@ fn type_check_constrain_stmt(
 ) {
     let expr_type = type_check_expression(interner, &stmt.0, errors);
 
-    if !expr_type.matches(&Type::Bool) {
-        errors.push(TypeCheckError::TypeCannotBeUsed {
-            typ: expr_type,
-            place: "constrain statement",
-            span: interner.expr_span(&stmt.0),
+    expr_type.unify(&Type::Bool, &mut || {
+        errors.push(TypeCheckError::TypeMismatch {
+            expr_typ: expr_type.to_string(),
+            expected_typ: Type::Bool.to_string(),
+            expr_span: interner.expr_span(&stmt.0),
         });
-    }
+    });
 }
 
 /// All declaration statements check that the user specified type(UST) is equal to the
@@ -211,7 +211,7 @@ fn type_check_constrain_stmt(
 fn type_check_declaration(
     interner: &mut NodeInterner,
     rhs_expr: ExprId,
-    mut annotated_type: Type,
+    annotated_type: Type,
     errors: &mut Vec<TypeCheckError>,
 ) -> Type {
     // Type check the expression on the RHS
@@ -219,20 +219,19 @@ fn type_check_declaration(
 
     // First check if the LHS is unspecified
     // If so, then we give it the same type as the expression
-    if annotated_type == Type::Unspecified {
-        annotated_type = expr_type.clone();
-    };
-
-    // Now check if LHS is the same type as the RHS
-    // Importantly, we do not co-erce any types implicitly
-    if !annotated_type.matches(&expr_type) {
-        let expr_span = interner.expr_span(&rhs_expr);
-        errors.push(TypeCheckError::TypeMismatch {
-            expected_typ: annotated_type.to_string(),
-            expr_typ: expr_type.to_string(),
-            expr_span,
-        });
+    if annotated_type != Type::Unspecified {
+        // Now check if LHS is the same type as the RHS
+        // Importantly, we do not co-erce any types implicitly
+        if !expr_type.make_subtype_of(&annotated_type) {
+            let expr_span = interner.expr_span(&rhs_expr);
+            errors.push(TypeCheckError::TypeMismatch {
+                expected_typ: annotated_type.to_string(),
+                expr_typ: expr_type.to_string(),
+                expr_span,
+            });
+        }
+        annotated_type
+    } else {
+        expr_type
     }
-
-    expr_type
 }
