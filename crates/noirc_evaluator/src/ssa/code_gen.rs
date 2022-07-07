@@ -107,26 +107,10 @@ impl<'a> IRGenerator<'a> {
         len: u128,
         witness: Vec<acvm::acir::native_types::Witness>,
     ) {
-        self.context.mem.create_new_array(len as u32, el_type.into(), name);
-
+        let v_id = self.new_array(name, el_type.into(), len as u32, ident_def);
         let array_idx = self.context.mem.last_id();
-
-        self.context.mem[array_idx].def = ident_def;
         self.context.mem[array_idx].values = vecmap(witness, |w| w.into());
-        let pointer = node::Variable {
-            id: NodeId::dummy(),
-            name: name.to_string(),
-            obj_type: node::ObjectType::Pointer(array_idx),
-            root: None,
-            def: Some(ident_def),
-            witness: None,
-            parent_block: self.context.current_block,
-        };
-        let v_id = self.context.add_variable(pointer, None);
         self.context.get_current_block_mut().update_variable(v_id, v_id);
-
-        let v_value = Value::Single(v_id);
-        self.variable_values.insert(ident_def, v_value); //TODO ident_def or ident_id??
     }
 
     pub fn abi_var(
@@ -163,39 +147,30 @@ impl<'a> IRGenerator<'a> {
         let obj = env.get(&ident_name);
         let o_type = self.context.context.def_interner.id_type(ident.id);
 
-        let var = match obj {
+        let v_id = match obj {
             Object::Array(a) => {
                 let obj_type = o_type.into();
                 //We should create an array from 'a' witnesses
-                let array =
-                    self.context.mem.create_array_from_object(&a, ident.id, obj_type, &ident_name);
-
-                node::Variable {
-                    id: NodeId::dummy(),
-                    name: ident_name.clone(),
-                    obj_type: ObjectType::Pointer(array.id),
-                    root: None,
-                    def: Some(ident.id),
-                    witness: None,
-                    parent_block: self.context.current_block,
-                }
+                self.context.create_array_from_object(&a, ident.id, obj_type, &ident_name)
             }
             _ => {
                 let obj_type = ObjectType::get_type_from_object(&obj);
                 //new variable - should be in a let statement? The let statement should set the type
-                node::Variable {
-                    id: NodeId::dummy(),
-                    name: ident_name.clone(),
-                    obj_type,
-                    root: None,
-                    def: Some(ident.id),
-                    witness: node::get_witness_from_object(&obj),
-                    parent_block: self.context.current_block,
-                }
+                self.context.add_variable(
+                    node::Variable {
+                        id: NodeId::dummy(),
+                        name: ident_name.clone(),
+                        obj_type,
+                        root: None,
+                        def: Some(ident.id),
+                        witness: node::get_witness_from_object(&obj),
+                        parent_block: self.context.current_block,
+                    },
+                    None,
+                )
             }
         };
 
-        let v_id = self.context.add_variable(var, None);
         self.context.get_current_block_mut().update_variable(v_id, v_id);
 
         Value::Single(v_id)
@@ -320,6 +295,18 @@ impl<'a> IRGenerator<'a> {
         let v_value = Value::Single(v_id);
         self.variable_values.insert(def, v_value);
         v_id
+    }
+
+    pub fn new_array(
+        &mut self,
+        name: &str,
+        element_type: ObjectType,
+        len: u32,
+        def_id: noirc_frontend::node_interner::DefinitionId,
+    ) -> NodeId {
+        let id = self.context.new_array(name, element_type, len, Some(def_id));
+        self.variable_values.insert(def_id, super::code_gen::Value::Single(id));
+        id
     }
 
     // Add a constraint to constrain two expression together
@@ -534,43 +521,33 @@ impl<'a> IRGenerator<'a> {
                 let int_type = self.def_interner().id_type(expr_id);
                 let element_type = int_type.into();
                 Ok(Value::Single(self.context.get_or_create_const(x, element_type)))
-            },
+            }
             HirExpression::Literal(HirLiteral::Array(arr_lit)) => {
                 //We create a MemArray
                 let arr_type = self.def_interner().id_type(expr_id);
-                let element_type = arr_type.into();    //WARNING array type!
+                let element_type = arr_type.into(); //WARNING array type!
 
-                let array_id = self.context.mem.create_new_array(arr_lit.length as u32, element_type, &String::new());
+                let new_var = self.context.new_array("", element_type, arr_lit.length as u32, None);
+                let array_id = self.context.mem.last_id();
+
                 //We parse the array definition
                 let elements = self.expression_list_to_objects(env, &arr_lit.contents);
                 let array = &mut self.context.mem[array_id];
                 let array_adr = array.adr;
                 for (pos, object) in elements.into_iter().enumerate() {
-                    //array.witness.push(node::get_witness_from_object(&object));
-                    let lhs_adr = self.context.get_or_create_const(FieldElement::from((array_adr + pos as u32) as u128), ObjectType::NativeField);
-                    let store = Operation::Store {
-                        array_id,
-                        index: lhs_adr,
-                        value: object,
-                    };
+                    let lhs_adr = self.context.get_or_create_const(
+                        FieldElement::from((array_adr + pos as u32) as u128),
+                        ObjectType::NativeField,
+                    );
+                    let store = Operation::Store { array_id, index: lhs_adr, value: object };
                     self.context.new_instruction(store, element_type);
                 }
-                //Finally, we create a variable pointing to this MemArray
-                let new_var = node::Variable {
-                    id: NodeId::dummy(),
-                    obj_type : ObjectType::Pointer(array_id),
-                    name: String::new(),
-                    root: None,
-                    def: None,
-                    witness: None,
-                    parent_block: self.context.current_block,
-                };
-                Ok(Value::Single(self.context.add_variable(new_var, None)))
-            },
-            HirExpression::Ident(x) =>  {
-               Ok(self.evaluate_identifier(env, x))
+                Ok(Value::Single(new_var))
+            }
+            HirExpression::Ident(x) => {
+                Ok(self.evaluate_identifier(env, x))
                 //n.b this creates a new variable if it does not exist, may be we should delegate this to explicit statements (let) - TODO
-            },
+            }
             HirExpression::Infix(infx) => {
                 // Note: using .into_id() here disallows structs/tuples in infix expressions.
                 // The type checker currently disallows this as well but we may want to allow
@@ -578,7 +555,7 @@ impl<'a> IRGenerator<'a> {
                 let lhs = self.expression_to_object(env, &infx.lhs)?.unwrap_id();
                 let rhs = self.expression_to_object(env, &infx.rhs)?.unwrap_id();
                 Ok(Value::Single(self.evaluate_infix_expression(lhs, rhs, infx.operator)))
-            },
+            }
             HirExpression::Cast(cast_expr) => {
                 let lhs = self.expression_to_object(env, &cast_expr.lhs)?.unwrap_id();
                 let rtype = cast_expr.r#type.into();
@@ -595,7 +572,7 @@ impl<'a> IRGenerator<'a> {
                 // integer to other integer type: checks rust rules TODO
                 // else... Not supported (for now).
                 //binary_op::handle_cast_op(self,lhs, cast_expr.r#type).map_err(|kind|kind.add_span(span))
-            },
+            }
             HirExpression::Index(indexed_expr) => {
                 // Currently these only happen for arrays
                 let collection_name = match self.def_interner().expression(&indexed_expr.collection) {
@@ -618,8 +595,11 @@ impl<'a> IRGenerator<'a> {
                         _ => unreachable!(),
                     }
                 } else {
-                    let arr = env.get_array(&arr_name).map_err(|kind|kind.add_span(ident_span)).unwrap();
-                    self.context.mem.create_array_from_object(&arr, arr_def, o_type, &arr_name)
+                    let arr =
+                        env.get_array(&arr_name).map_err(|kind| kind.add_span(ident_span)).unwrap();
+                    self.context.create_array_from_object(&arr, arr_def, o_type, &arr_name);
+                    let array_id = self.context.mem.last_id();
+                    &self.context.mem[array_id]
                 };
 
                 let array_id = array.id;
@@ -629,27 +609,50 @@ impl<'a> IRGenerator<'a> {
                 let index_as_obj = self.expression_to_object(env, &indexed_expr.index)?.unwrap_id();
 
                 let index_type = self.context.get_object_type(index_as_obj);
-                let base_adr = self.context.get_or_create_const(FieldElement::from(address as i128), index_type);
-                let adr_id = self.context.new_instruction(Operation::binary(BinaryOp::Add, base_adr, index_as_obj), index_type);
+                let base_adr = self
+                    .context
+                    .get_or_create_const(FieldElement::from(address as i128), index_type);
+                let adr_id = self.context.new_instruction(
+                    Operation::binary(BinaryOp::Add, base_adr, index_as_obj),
+                    index_type,
+                );
 
                 let load = Operation::Load { array_id, index: adr_id };
                 Ok(Value::Single(self.context.new_instruction(load, e_type)))
-            },
+            }
             HirExpression::Call(call_expr) => {
                 let func_meta = self.def_interner().function_meta(&call_expr.func_id);
                 match func_meta.kind {
-                    FunctionKind::Normal =>  {
+                    FunctionKind::Normal => {
                         if self.context.get_ssafunc(call_expr.func_id).is_none() {
                             let index = self.context.get_function_index();
-                            let fname = self.def_interner().function_name(&call_expr.func_id).to_string();
-                            function::create_function(self, call_expr.func_id, fname.as_str(), self.context.context(), env, &func_meta.parameters, index);
+                            let fname =
+                                self.def_interner().function_name(&call_expr.func_id).to_string();
+                            function::create_function(
+                                self,
+                                call_expr.func_id,
+                                fname.as_str(),
+                                self.context.context(),
+                                env,
+                                &func_meta.parameters,
+                                index,
+                            );
                         }
                         let callee = self.context.get_ssafunc(call_expr.func_id).unwrap().idx;
                         //generate a call instruction to the function cfg
                         if let Some(caller) = self.function_context {
-                            function::update_call_graph(&mut self.context.call_graph, caller, callee);
+                            function::update_call_graph(
+                                &mut self.context.call_graph,
+                                caller,
+                                callee,
+                            );
                         }
-                        let result = function::SSAFunction::call(call_expr.func_id ,&call_expr.arguments, self, env);
+                        let result = function::SSAFunction::call(
+                            call_expr.func_id,
+                            &call_expr.arguments,
+                            self,
+                            env,
+                        );
                         let val = match func_meta.return_type {
                             Type::Tuple(_) => {
                                 let mut tuple = Vec::new();
@@ -657,35 +660,38 @@ impl<'a> IRGenerator<'a> {
                                     tuple.push((i.0.to_string(), Value::Single(*i.1)))
                                 }
                                 Value::Struct(tuple)
-                            },
-                            Type::Struct(_,ref typ) => {
+                            }
+                            Type::Struct(_, ref typ) => {
                                 let typ = typ.borrow();
                                 let mut my_struct = Vec::new();
                                 for i in typ.fields.iter().zip(result) {
-                                    my_struct.push((i.0.0.0.contents.clone(), Value::Single(i.1)));
-
+                                    my_struct
+                                        .push((i.0 .0 .0.contents.clone(), Value::Single(i.1)));
                                 }
                                 Value::Struct(my_struct)
-                            },
+                            }
                             Type::Error | Type::Unspecified => unreachable!(),
                             _ => Value::Single(result[0]),
                         };
                         Ok(val)
-                    },
+                    }
                     FunctionKind::LowLevel => {
-                    // We use it's func name to find out what intrinsic function to call
+                        // We use it's func name to find out what intrinsic function to call
                         let attribute = func_meta.attributes.expect("all low level functions must contain an attribute which contains the opcode which it links to");
                         let opcode_name = attribute.foreign().expect("ice: function marked as foreign, but attribute kind does not match this");
                         Ok(Value::Single(self.handle_lowlevel(env, opcode_name, call_expr)))
-                    },
-                        FunctionKind::Builtin => { todo!();
-                    //     let attribute = func_meta.attributes.expect("all builtin functions must contain an attribute which contains the function name which it links to");
-                    //     let builtin_name = attribute.builtin().expect("ice: function marked as a builtin, but attribute kind does not match this");
-                    //     builtin::call_builtin(self, env, builtin_name, (call_expr,span))
-                    },
-                 }
-            },
-            HirExpression::For(for_expr) => self.handle_for_expr(env,for_expr).map_err(|kind|kind.add_span(span)),
+                    }
+                    FunctionKind::Builtin => {
+                        todo!();
+                        //     let attribute = func_meta.attributes.expect("all builtin functions must contain an attribute which contains the function name which it links to");
+                        //     let builtin_name = attribute.builtin().expect("ice: function marked as a builtin, but attribute kind does not match this");
+                        //     builtin::call_builtin(self, env, builtin_name, (call_expr,span))
+                    }
+                }
+            }
+            HirExpression::For(for_expr) => {
+                self.handle_for_expr(env, for_expr).map_err(|kind| kind.add_span(span))
+            }
             HirExpression::Constructor(constructor) => self.handle_constructor(env, constructor),
             HirExpression::MemberAccess(access) => self.handle_member_access(env, access),
             HirExpression::Tuple(fields) => self.handle_tuple(env, fields),
@@ -693,13 +699,13 @@ impl<'a> IRGenerator<'a> {
             HirExpression::Prefix(prefix) => {
                 let rhs = self.expression_to_object(env, &prefix.rhs)?.unwrap_id();
                 self.evaluate_prefix_expression(rhs, prefix.operator).map(Value::Single)
-            },
-            HirExpression::Literal(l) => {
-                Ok(Value::Single(self.handle_literal(&l)))
-            },
-            HirExpression::Block(_) => todo!("currently block expressions not in for/if branches are not being evaluated. In the future, we should be able to unify the eval_block and all places which require block_expr here"),
+            }
+            HirExpression::Literal(l) => Ok(Value::Single(self.handle_literal(&l))),
+            HirExpression::Block(block) => Ok(self.parse_block(block.statements(), env)),
             HirExpression::Error => todo!(),
-            HirExpression::MethodCall(_) => unreachable!("Method calls should be desugared before codegen"),
+            HirExpression::MethodCall(_) => {
+                unreachable!("Method calls should be desugared before codegen")
+            }
         }
     }
 

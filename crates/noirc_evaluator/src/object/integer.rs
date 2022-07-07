@@ -307,8 +307,8 @@ impl Integer {
         let r_int = Integer::from_witness_unconstrained(r_witness, b.num_bits);
         let q_int = Integer::from_witness_unconstrained(q_witness, a.num_bits);
         evaluator.gates.push(Gate::Directive(Directive::Quotient {
-            a: a.witness,
-            b: b.witness,
+            a: Arithmetic::from(&a.witness),
+            b: Arithmetic::from(&b.witness),
             q: q_witness,
             r: r_witness,
         }));

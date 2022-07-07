@@ -17,6 +17,7 @@ use noirc_frontend::node_interner::FuncId;
 use noirc_frontend::util::vecmap;
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
+use std::convert::TryFrom;
 
 // This is a 'master' class for generating the SSA IR from the AST
 // It contains all the data; the node objects representing the source code in the nodes arena
@@ -182,8 +183,9 @@ impl<'a> SsaContext<'a> {
             Operation::Phi { root, block_args } => {
                 let mut s = format!("phi {}", self.node_to_string(*root));
                 for (value, block) in block_args {
-                    s += &format!(
-                        ", {} from block {}",
+                    s = format!(
+                        "{}, {} from block {}",
+                        s,
                         self.node_to_string(*value),
                         block.0.into_raw_parts().0
                     );
@@ -555,6 +557,8 @@ impl<'a> SsaContext<'a> {
         def_id: Option<noirc_frontend::node_interner::DefinitionId>,
     ) -> NodeId {
         let array_index = self.mem.create_new_array(len, element_type, name);
+        self.add_dummy_load(array_index);
+        self.add_dummy_store(array_index);
         //we create a variable pointing to this MemArray
         let new_var = node::Variable {
             id: NodeId::dummy(),
@@ -571,6 +575,20 @@ impl<'a> SsaContext<'a> {
         self.add_variable(new_var, None)
     }
 
+    pub fn create_array_from_object(
+        &mut self,
+        array: &crate::object::Array,
+        definition: noirc_frontend::node_interner::DefinitionId,
+        el_type: node::ObjectType,
+        arr_name: &str,
+    ) -> NodeId {
+        let len = u32::try_from(array.length).unwrap();
+        let result = self.new_array(arr_name, el_type, len, Some(definition));
+        let array_id = self.mem.last_id();
+        self.mem[array_id].set_witness(array);
+
+        result
+    }
     //blocks/////////////////////////
     pub fn try_get_block_mut(&mut self, id: BlockId) -> Option<&mut block::BasicBlock> {
         self.blocks.get_mut(id.0)
@@ -723,6 +741,7 @@ impl<'a> SsaContext<'a> {
             }) = self.try_get_mut_instruction(rhs)
             {
                 *rtype = lhs_type;
+                return lhs;
             } else {
                 self.memcpy(lhs_type, rhs_type);
                 return lhs;

@@ -328,8 +328,9 @@ impl<'a> Lexer<'a> {
         Ok(ident_token.into_span(start, end))
     }
     fn eat_digit(&mut self, initial_char: char) -> SpannedTokenResult {
-        let (integer_str, start, end) = self
-            .eat_while(Some(initial_char), |ch| ch.is_digit(10) | ch.is_digit(16) | (ch == 'x'));
+        let (integer_str, start, end) = self.eat_while(Some(initial_char), |ch| {
+            ch.is_ascii_digit() | ch.is_ascii_hexdigit() | (ch == 'x')
+        });
 
         let integer = match FieldElement::try_from_str(&integer_str) {
             None => {

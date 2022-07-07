@@ -24,7 +24,6 @@ use num_bigint::BigUint;
 pub struct Acir {
     pub arith_cache: HashMap<NodeId, InternalVar>,
     pub memory_map: HashMap<u32, InternalVar>, //maps memory adress to expression
-    pub memory_witness: HashMap<ArrayId, Vec<Witness>>, //map arrays to their witness...temporary
 }
 
 #[derive(Default, Clone, Debug)]
@@ -187,11 +186,11 @@ impl Acir {
                         if mem_array.values.len() > index {
                             mem_array.values[index].clone()
                         } else {
-                            InternalVar::from(self.memory_witness[array_id][index])
+                            unreachable!("Could not find value at index {}", index);
                         }
                     }
                 } else {
-                    todo!("dynamic arrays are not implemented yet");
+                    unimplemented!("dynamic arrays are not implemented yet");
                 }
             }
 
@@ -360,14 +359,20 @@ impl Acir {
                         self.memory_map.get_mut(&address).unwrap().witness = Some(w);
                     }
                     self.memory_map[&address].clone()
-                } else if let Some(memory) = self.memory_witness.get(&array.id) {
-                    let w = memory[i as usize];
-                    w.into()
                 } else {
                     array.values[i as usize].clone()
                 }
             })
             .collect()
+    }
+
+    //Map the outputs into the array
+    fn map_array(&mut self, a: ArrayId, outputs: &[Witness], ctx: &SsaContext) {
+        let adr = ctx.mem[a].adr;
+        for i in outputs.iter().enumerate() {
+            let var = InternalVar::from(*i.1);
+            self.memory_map.insert(adr + i.0 as u32, var);
+        }
     }
 
     pub fn evaluate_neq(
@@ -587,23 +592,23 @@ impl Acir {
         opcode: OPCODE,
         args: &[NodeId],
         res_type: ObjectType,
-        cfg: &SsaContext,
+        ctx: &SsaContext,
         evaluator: &mut Evaluator,
     ) -> Arithmetic {
         let outputs;
         match opcode {
             OPCODE::ToBits => {
-                let bit_size = cfg.get_as_constant(args[1]).unwrap().to_u128() as u32;
-                let l_c = self.substitute(args[0], evaluator, cfg);
+                let bit_size = ctx.get_as_constant(args[1]).unwrap().to_u128() as u32;
+                let l_c = self.substitute(args[0], evaluator, ctx);
                 outputs = split(&l_c, bit_size, evaluator);
                 if let node::ObjectType::Pointer(a) = res_type {
-                    self.memory_witness.insert(a, outputs.clone()); //TODO can we avoid the clone?
+                    self.map_array(a, &outputs, ctx);
                 }
             }
             _ => {
-                let inputs = self.prepare_inputs(args, cfg, evaluator);
+                let inputs = self.prepare_inputs(args, ctx, evaluator);
                 let output_count = opcode.definition().output_size.0 as u32;
-                outputs = self.prepare_outputs(instruction_id, output_count, cfg, evaluator);
+                outputs = self.prepare_outputs(instruction_id, output_count, ctx, evaluator);
 
                 let call_gate = GadgetCall {
                     name: opcode,
@@ -638,7 +643,7 @@ impl Acir {
 
         let l_obj = ctx.try_get_node(pointer).unwrap();
         if let node::ObjectType::Pointer(a) = l_obj.get_type() {
-            self.memory_witness.insert(a, outputs.clone()); //TODO can we avoid the clone?
+            self.map_array(a, &outputs, ctx);
         }
         outputs
     }
@@ -963,29 +968,15 @@ pub fn evaluate_udiv(
     rhs: &InternalVar,
     evaluator: &mut Evaluator,
 ) -> (Witness, Witness) {
-    //a = q*b+r, a= lhs, et b= rhs
-    //result = q
-    //n.b a et b MUST have proper bit size
-    //we need to know a bit size (so that q has the same)
-
-    //generate witnesses
-
-    //TODO: can we handle an arithmetic and not create a witness for a and b?
-    let a_witness = generate_witness(lhs, evaluator); //TODO we should set lhs.witness = a.witness and lhs.expression= 1*w
-
-    //TODO: can we handle an arithmetic and not create a witness for a and b?
-    let b_witness = generate_witness(rhs, evaluator);
-
     let q_witness = evaluator.add_witness_to_cs();
     let r_witness = evaluator.add_witness_to_cs();
-
-    //TODO not in master...
     evaluator.gates.push(Gate::Directive(Directive::Quotient {
-        a: a_witness,
-        b: b_witness,
+        a: lhs.expression.clone(),
+        b: rhs.expression.clone(),
         q: q_witness,
         r: r_witness,
     }));
+
     //r<b
     let r_expr = Arithmetic::from(Linear::from_witness(r_witness));
     let r_var = InternalVar { expression: r_expr, witness: Some(r_witness), id: None };
@@ -993,17 +984,12 @@ pub fn evaluate_udiv(
                                                    //range check q<=a
     range_constraint(q_witness, 32, evaluator).unwrap_or_else(|err| {
         dbg!(err);
-    }); //todo bit size should be a.bits
-        // a-b*q-r = 0
-    let div_eucl = add(
-        &lhs.expression,
-        -FieldElement::one(),
-        &Arithmetic {
-            mul_terms: vec![(FieldElement::one(), b_witness, q_witness)],
-            linear_combinations: vec![(FieldElement::one(), r_witness)],
-            q_c: FieldElement::zero(),
-        },
-    );
+    });
+    //todo bit size should be a.bits
+    // a-b*q-r = 0
+    let mut d = mul(&rhs.expression, &Arithmetic::from(&q_witness));
+    d = add(&d, FieldElement::one(), &Arithmetic::from(&r_witness));
+    let div_eucl = subtract(&lhs.expression, FieldElement::one(), &d);
 
     evaluator.gates.push(Gate::Arithmetic(div_eucl));
     (q_witness, r_witness)
