@@ -12,7 +12,7 @@ env:
 jobs:
   check_n_test:
 
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -31,7 +31,7 @@ jobs:
           override: true
 
       - name: Install dependencies
-        run: brew update && brew install libomp
+        run: sudo apt update && sudo apt install libomp-dev
         
       - name: Run cargo check
         uses: actions-rs/cargo@v1
