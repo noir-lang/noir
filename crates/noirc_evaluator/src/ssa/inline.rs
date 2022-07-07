@@ -339,6 +339,7 @@ impl node::Operation {
         block_id: BlockId,
     ) {
         match self {
+            //default way to handle arrays dunring inlining; we map arrays using the stack_frame
             Operation::Binary(_) => {
                 self.map_id_mut(|id| {
                     if let Some(a) = Memory::deref(ctx, id) {
@@ -361,7 +362,15 @@ impl node::Operation {
                     function::SSAFunction::get_mapped_value(Some(&id), ctx, inline_map, block_id)
                 });
             }
-            _ => {
+            //However we deliberately not use the default case to force review of the behavior if a new type of operation is added.
+            //These types do not handle arrays:
+            Operation::Cast(_) | Operation::Truncate { .. } | Operation::Not(_) | Operation::Nop
+            | Operation::Jne(_,_) | Operation::Jeq(_,_) | Operation::Jmp(_) |  Operation::Phi { .. }
+            //These types handle arrays via their return type (done in inline_in_block)
+            | Operation::Intrinsic(_,_) |  Operation::Result { .. }
+            //These types handle arrays in a specific way (done in inline_in_block)
+            | Operation::Return(_) | Operation::Load {.. } | Operation::Store { .. } | Operation::Call(_,_,_)
+            => {
                 self.map_id_mut(|id| {
                     function::SSAFunction::get_mapped_value(Some(&id), ctx, inline_map, block_id)
                 });
