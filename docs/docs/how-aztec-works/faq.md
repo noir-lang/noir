@@ -153,8 +153,6 @@ We wanted to try and encourage a fee market and create a flow where Aztec does n
 - Internal send: 17,000 gas
 - Withdraw: 5,000 gas for ETH to EOA 30,000 gas to contract.
 
-Our new UltraPlonk research will reduce the costs of internal sends by 3x, which we plan to deploy by August 2021.
-
 ### Do I pay any fees to Aztec for my zkETH/DAI transactions?
 
 Aztec doesn’t make any money from transaction fees on the platform, surplus transaction fees accumulate on a smart contract and are used to subsided future transactions in busy periods with high gas prices.
