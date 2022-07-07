@@ -115,7 +115,8 @@ const sidebars = {
   ],
   zkmoneySidebar: [
     "zk-money/userguide", 
-    "zk-money/fees"],
+    "zk-money/fees",
+    "zk-money/troubleshooting"],
 };
 
 module.exports = sidebars;
