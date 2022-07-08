@@ -36,7 +36,7 @@ AztecSdk.createDefiController(
 
 ## BridgeId Setup
 
-A bridge `addressId` is required to setup a `BridgeId`.
+A bridge `addressId` is required to setup a [BridgeId](../types/barretenberg/BridgeId). The `addressId` is just a number associated with the bridge. It increments by 1 as new bridges are deployed to Ethereum and added to the rollup processor contract.
 
 You can get the bridge `addressId`s from the published [Deployed Bridge Info table](https://github.com/AztecProtocol/aztec-connect-bridges#deployed-bridge-info).
 
