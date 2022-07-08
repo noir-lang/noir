@@ -3,7 +3,7 @@ use indexmap::IndexMap;
 use crate::Language;
 use acir::{
     circuit::{Circuit, Gate},
-    native_types::{Arithmetic, Witness},
+    native_types::{Expression, Witness},
     optimiser::{CSatOptimiser, GeneralOptimiser},
 };
 
@@ -23,11 +23,11 @@ pub fn compile(acir: Circuit, np_language: Language) -> Circuit {
     let mut next_witness_index = acir.current_witness_index + 1;
     for gate in acir.gates {
         match gate {
-            Gate::Arithmetic(arith) => {
-                let mut intermediate_variables: IndexMap<Witness, Arithmetic> = IndexMap::new();
+            Gate::Arithmetic(arith_expr) => {
+                let mut intermediate_variables: IndexMap<Witness, Expression> = IndexMap::new();
 
-                let arith =
-                    optimiser.optimise(arith, &mut intermediate_variables, next_witness_index);
+                let arith_expr =
+                    optimiser.optimise(arith_expr, &mut intermediate_variables, next_witness_index);
 
                 // Update next_witness counter
                 next_witness_index += intermediate_variables.len() as u32;
@@ -35,7 +35,7 @@ pub fn compile(acir: Circuit, np_language: Language) -> Circuit {
                 for (_, gate) in intermediate_variables.into_iter() {
                     optimised_gates.push(Gate::Arithmetic(gate));
                 }
-                optimised_gates.push(Gate::Arithmetic(arith));
+                optimised_gates.push(Gate::Arithmetic(arith_expr));
             }
             other_gate => optimised_gates.push(other_gate),
         }

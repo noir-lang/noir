@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 
 use acir::{
     circuit::{Circuit, Gate},
-    native_types::{Arithmetic, Witness},
+    native_types::{Expression, Witness},
     OPCODE,
 };
 
@@ -29,7 +29,7 @@ pub trait PartialWitnessGenerator {
     ) -> Result<(), OPCODE>;
 
     fn get_value(
-        a: &Arithmetic,
+        a: &Expression,
         initial_witness: &std::collections::BTreeMap<Witness, FieldElement>,
     ) -> Option<FieldElement> {
         let mut result = a.q_c;

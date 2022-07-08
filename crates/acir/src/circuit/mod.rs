@@ -52,7 +52,7 @@ mod test {
         let circuit = Circuit {
             current_witness_index: 0,
             gates: vec![
-                Gate::Arithmetic(crate::native_types::Arithmetic {
+                Gate::Arithmetic(crate::native_types::Expression {
                     mul_terms: vec![],
                     linear_combinations: vec![],
                     q_c: FieldElement::from_hex("FFFF").unwrap(),
