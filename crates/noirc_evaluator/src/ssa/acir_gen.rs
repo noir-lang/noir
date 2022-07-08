@@ -127,13 +127,10 @@ impl Acir {
         let mut output = match &ins.operation {
             Operation::Binary(binary) => self.evaluate_binary(binary, ins.res_type, evaluator, ctx),
             Operation::Constrain(value) => {
-                let mut value = self.substitute(*value, evaluator, ctx);
-                if value.witness.is_none() {
-                    value.witness = Some(generate_witness(&value, evaluator));
-                }
-                let eq_zero = from_witness(evaluate_zero_equality(&value, evaluator));
-                // != 0
-                subtract(&Arithmetic::one(), FieldElement::one(), &eq_zero).into()
+                let value = self.substitute(*value, evaluator, ctx);
+                let subtract = subtract(&Arithmetic::one(), FieldElement::one(), &value.expression);
+                evaluator.gates.push(Gate::Arithmetic(subtract));
+                value
             }
             Operation::Not(value) => {
                 let a = (1_u128 << ins.res_type.bits()) - 1;
