@@ -602,36 +602,31 @@ impl<'a> IRGenerator<'a> {
                 let int_type = self.def_interner().id_type(expr_id);
                 let element_type = int_type.into();
                 Ok(Value::Single(self.context.get_or_create_const(x, element_type)))
-            },
+            }
             HirExpression::Literal(HirLiteral::Array(arr_lit)) => {
                 //We create a MemArray
                 let arr_type = self.def_interner().id_type(expr_id);
                 let element_type = arr_type.into(); //WARNING array type!
 
-                let new_var = self.context.new_array(
-                    &String::new(),
-                    element_type,
-                    arr_lit.length as u32,
-                    None,
-                );
+                let new_var = self.context.new_array("", element_type, arr_lit.length as u32, None);
                 let array_id = self.context.mem.last_id();
+
                 //We parse the array definition
                 let elements = self.expression_list_to_objects(env, &arr_lit.contents);
                 let array = &mut self.context.mem[array_id];
                 let array_adr = array.adr;
                 for (pos, object) in elements.into_iter().enumerate() {
-                    let lhs_adr = self.context.get_or_create_const(FieldElement::from((array_adr + pos as u32) as u128), ObjectType::NativeField);
-                    let store = Operation::Store {
-                        array_id,
-                        index: lhs_adr,
-                        value: object,
-                    };
+                    let lhs_adr = self.context.get_or_create_const(
+                        FieldElement::from((array_adr + pos as u32) as u128),
+                        ObjectType::NativeField,
+                    );
+                    let store = Operation::Store { array_id, index: lhs_adr, value: object };
                     self.context.new_instruction(store, element_type);
                 }
                 Ok(Value::Single(new_var))
-            },
-            HirExpression::Ident(x) =>  {
-               Ok(self.evaluate_identifier(env, x))
+            }
+            HirExpression::Ident(x) => {
+                Ok(self.evaluate_identifier(env, x))
                 //n.b this creates a new variable if it does not exist, may be we should delegate this to explicit statements (let) - TODO
             }
             HirExpression::Infix(infx) => {
@@ -641,7 +636,7 @@ impl<'a> IRGenerator<'a> {
                 let lhs = self.expression_to_object(env, &infx.lhs)?.unwrap_id();
                 let rhs = self.expression_to_object(env, &infx.rhs)?.unwrap_id();
                 Ok(Value::Single(self.evaluate_infix_expression(lhs, rhs, infx.operator)))
-            },
+            }
             HirExpression::Cast(cast_expr) => {
                 let lhs = self.expression_to_object(env, &cast_expr.lhs)?.unwrap_id();
                 let rtype = cast_expr.r#type.into();
@@ -681,7 +676,8 @@ impl<'a> IRGenerator<'a> {
                         _ => unreachable!(),
                     }
                 } else {
-                    let arr = env.get_array(&arr_name).map_err(|kind|kind.add_span(ident_span)).unwrap();
+                    let arr =
+                        env.get_array(&arr_name).map_err(|kind| kind.add_span(ident_span)).unwrap();
                     self.context.create_array_from_object(&arr, arr_def, o_type, &arr_name);
                     let array_id = self.context.mem.last_id();
                     &self.context.mem[array_id]
@@ -786,7 +782,7 @@ impl<'a> IRGenerator<'a> {
                 self.evaluate_prefix_expression(rhs, prefix.operator).map(Value::Single)
             }
             HirExpression::Literal(l) => Ok(Value::Single(self.handle_literal(&l))),
-            HirExpression::Block(_) => todo!("currently block expressions not in for/if branches are not being evaluated. In the future, we should be able to unify the eval_block and all places which require block_expr here"),
+            HirExpression::Block(block) => Ok(self.parse_block(block.statements(), env)),
             HirExpression::Error => todo!(),
             HirExpression::MethodCall(_) => {
                 unreachable!("Method calls should be desugared before codegen")
