@@ -877,15 +877,8 @@ impl<'a> IRGenerator<'a> {
     ) -> Vec<NodeId> {
         let mut result = Vec::new();
         for expr in exprs {
-            match self.expression_to_object(env, expr) {
-                Ok(Value::Single(id)) => result.push(id),
-                Ok(Value::Struct(fields)) => {
-                    for f in fields {
-                        result.extend(f.1.to_node_ids());
-                    }
-                }
-                other => panic!("Unexpected {:?} while listing ssa elements", other),
-            }
+            let value = self.expression_to_object(env, expr);
+            result.extend(value.unwrap().to_node_ids());
         }
         result
     }
