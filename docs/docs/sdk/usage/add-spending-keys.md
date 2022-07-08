@@ -4,6 +4,8 @@ title: Add Spending Keys
 
 Add spending keys to a registered Aztec account.
 
+The [Accounts page](../../how-aztec-works/accounts) contains helpful context if you are unfamiliar with how Aztec accounts work.
+
 There is no limit to the number of spending keys that can be added to an Aztec account. This decreases the need for insecure key sharing between devices. For example, you can register a unique spending key on each one of your devices for the same Aztec account, so you don't have to copy and paste private keys.
 
 You can also use the [AddSpendingKeyController](../types/sdk/AddSpendingKeyController) to add additional recovery public keys to an account after it has been registered. Read more about account recovery [here](account-recovery).

@@ -30,7 +30,7 @@ The privacy account is the first account that is generated for an Aztec user.
 
 The private key associated with this account can be used to decrypt notes. The private key can also be used to register a distinct spending key. This allows for account abstraction by creating a separation between the key required to decrypt notes (privacy key) and the key required to spend notes (spending key). If a spending has not been registered, the account private key can be used.
 
-Accounts can be identified by their alias or their public key. You can read more about aliases below.
+Accounts can be identified by their alias or their public key. You can read more about aliases below. You can also find more information in the [SDK section on account keys](../sdk/usage/add-account#account-keys).
 
 ### Spending keys (signer)
 
@@ -42,6 +42,8 @@ Registering a spending key has an associated fee as it typically includes a toke
 
 You can add as many spending keys to an account as you want. This allows you to spend notes from the same account from multiple devices without having to share sensitive private keys across devices.
 
+Read more about creating and using spending keys in the SDK docs [here](./../sdk/usage/add-account#spending-keys).
+
 ### Account Registration
 
 To register a new account, you need to choose an alias and a new spending public key. Optionally, you can include a recovery account public key and a deposit.
@@ -50,7 +52,7 @@ Generally, an account with a registered spending key is considered safer than ac
 
 Most users will typically use an account with a registered spending key and are thus considered "safe". There are use cases (airdrops) where you might want to use an account that has not yet registered a spending key and is using the default account key for both note decryption and spending. So it is possible to use the system without registering your account.
 
-When you use an unregistered account, your notes are marked as spendable by the account key. It's the sender that defines wether notes are marked spendable with the account key. A sender can check whether an account has registered spending keys before specifying the spending key.
+When you use an unregistered account, your notes are marked as spendable by the account key. It's the sender that defines whether notes are marked spendable with the account key. A sender can check whether an account has registered spending keys before specifying the spending key.
 
 You cannot mix the spending of these notes. You can send unspent notes from the default account to yourself, but marked as spendable by the signing key.
 
@@ -59,6 +61,8 @@ The SDK tries to abstract much of this complexity away and presents everything t
 If you want to know exactly what you can spend in one transaction, you have to tell the SDK whether your interested in the unregistered or registered balances.
 
 When actually creating the zero knowledge proof, the SDK infers which balance you're drawing from based on whether you give it a spending key or the account key.
+
+Read more about account registration with the SDK on [this page](../sdk/usage/register).
 
 ### Account Alias
 
@@ -79,6 +83,8 @@ Account migration allows you to keep your alias and just update your account (pr
 If you lose access to all of your spending keys for an account, the designated recovery account can help you recover access and register a new spending key that you have access to.
 
 This recovery information is created and registered with the account during the account registration step.
+
+Read more about account recovery with the SDK on [this page](../sdk/usage/account-recovery).
 
 ## Frequently Asked Questions
 
