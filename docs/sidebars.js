@@ -90,6 +90,8 @@ const sidebars = {
             "sdk/usage/setup",
             "sdk/usage/add-account",
             "sdk/usage/register",
+            "sdk/usage/add-spending-keys",
+            "sdk/usage/account-recovery",
             "sdk/usage/deposit",
             "sdk/usage/transfer",
             "sdk/usage/withdraw",
