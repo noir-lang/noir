@@ -167,12 +167,24 @@ pub fn call_low_level(
     igen.context.new_instruction(node::Operation::Intrinsic(op, args), result_type)
 }
 
-pub fn param_to_ident(patern: &HirPattern) -> &HirIdent {
+pub fn param_to_ident(patern: &HirPattern) -> Vec<&HirIdent> {
     match &patern {
-        HirPattern::Identifier(id) => id,
+        HirPattern::Identifier(id) => vec![id],
         HirPattern::Mutable(pattern, _) => param_to_ident(pattern.as_ref()),
-        HirPattern::Tuple(_, _) => todo!(),
-        HirPattern::Struct(_, _, _) => todo!(),
+        HirPattern::Tuple(v, _) => {
+            let mut result = Vec::new();
+            for pattern in v {
+                result.extend(param_to_ident(pattern));
+            }
+            result
+        }
+        HirPattern::Struct(_, v, _) => {
+            let mut result = Vec::new();
+            for (_, pattern) in v {
+                result.extend(param_to_ident(pattern));
+            }
+            result
+        }
     }
 }
 
@@ -195,9 +207,11 @@ pub fn create_function(
     let block = function.block(&context.def_interner);
     //argumemts:
     for pat in parameters.iter() {
-        let ident_id = param_to_ident(&pat.0);
-        let node_id = ssa_form::create_function_parameter(igen, &ident_id.id);
-        func.arguments.push(node_id);
+        let ident_ids = param_to_ident(&pat.0);
+        for def in ident_ids {
+            let node_ids = ssa_form::create_function_parameter(igen, &def.id);
+            func.arguments.extend(node_ids);
+        }
     }
     igen.function_context = Some(index);
     igen.context.functions.insert(func_id, func.clone());

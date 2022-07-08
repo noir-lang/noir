@@ -680,4 +680,17 @@ impl Type {
         };
         fields.into_iter()
     }
+
+    /// Retrieves the type of the given field name
+    /// Panics if the type is not a struct or tuple.
+    pub fn get_field_type(&self, field_name: &str) -> Type {
+        match self {
+            Type::Struct(_, def) => def.borrow().get_field(field_name).unwrap().clone(),
+            Type::Tuple(fields) => {
+                let mut fields = fields.iter().enumerate();
+                fields.find(|(i, _)| i.to_string() == *field_name).unwrap().1.clone()
+            }
+            other => panic!("Tried to iterate over the fields of '{}', which has none", other),
+        }
+    }
 }
