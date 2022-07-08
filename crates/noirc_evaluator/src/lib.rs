@@ -102,11 +102,7 @@ impl<'a> Evaluator<'a> {
         let mut env = Environment::new(FuncContext::Main);
 
         // First evaluate the main function
-        if enable_logging {
-            self.evaluate_main_alt(&mut env, enable_logging)?;
-        } else {
-            self.evaluate_main(&mut env)?;
-        }
+        self.evaluate_main_alt(&mut env, enable_logging)?;
 
         let witness_index = self.current_witness_index();
 
