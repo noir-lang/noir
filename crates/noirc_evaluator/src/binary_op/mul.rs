@@ -1,4 +1,4 @@
-use crate::{Expression, Array, Evaluator, Linear, Object, RuntimeErrorKind};
+use crate::{Array, Evaluator, Expression, Linear, Object, RuntimeErrorKind};
 
 ///   Dealing with multiplication
 /// - Multiplying an arithmetic gate with anything else except a constant requires an intermediate variable
