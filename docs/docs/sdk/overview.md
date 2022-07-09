@@ -1,5 +1,5 @@
 ---
-title: Overview
+title: SDK Overview
 ---
 
 The Aztec SDK is the gateway for developers to access the Aztec network and benefit from low gas fees and privacy on Ethereum. The SDK connects to Ethereum and our zk-rollup service and can be integrated with a few lines of code.
