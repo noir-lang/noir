@@ -3,9 +3,8 @@ fn main(x: Field) {
     let array = [0, 1, 2, 3];
 
     // Error here:
-    // let foo = my_const + x;
-    // constrain array[foo] == x;
-    constrain array[my_const - 1] == 1;
+    let foo = my_const + x;
+    constrain array[foo] == x;
 
     let my_const2 = 3;
     constrain array[my_const2] == 3;
