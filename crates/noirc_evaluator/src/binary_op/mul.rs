@@ -1,4 +1,4 @@
-use crate::{Arithmetic, Array, Evaluator, Linear, Object, RuntimeErrorKind};
+use crate::{Array, Evaluator, Expression, Linear, Object, RuntimeErrorKind};
 
 ///   Dealing with multiplication
 /// - Multiplying an arithmetic gate with anything else except a constant requires an intermediate variable
@@ -41,7 +41,7 @@ fn err_cannot_mul(first_type: &'static str, second_type: &'static str) -> Runtim
 }
 
 fn handle_arithmetic_mul(
-    arith: Arithmetic,
+    arith: Expression,
     polynomial: Object,
     evaluator: &mut Evaluator,
 ) -> Result<Object, RuntimeErrorKind> {
