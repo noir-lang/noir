@@ -797,7 +797,10 @@ impl<'a> IRGenerator<'a> {
         call_expr: HirCallExpression,
     ) -> NodeId {
         let func = match OPCODE::lookup(opcode_name) {
-            None => unreachable!("cannot find a low level opcode with the name {} in the IR", opcode_name),
+            None => unreachable!(
+                "cannot find a low level opcode with the name {} in the IR",
+                opcode_name
+            ),
             Some(func) => func,
         };
         function::call_low_level(func, call_expr, self, env)
@@ -940,7 +943,7 @@ impl<'a> IRGenerator<'a> {
         let body_block1 = &mut self.context[body_id];
         body_block1.update_variable(iter_id, phi); //TODO try with just a get_current_value(iter)
 
-        self.codegen_block(&block.statements(), env);
+        self.codegen_block(block.statements(), env);
 
         //increment iter
         let one = self.context.get_or_create_const(FieldElement::one(), iter_type);
