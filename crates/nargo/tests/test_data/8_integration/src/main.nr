@@ -47,7 +47,7 @@ fn iterate1(mut a0: u32) -> u32{
     let mut h: u32 =4 as u32;
 
 
-    for i in 0..2 {
+    for _i in 0..2 {
        t1 = h;
         h = g;
         g = f;
@@ -74,15 +74,12 @@ fn iterate2(mut hash: [8]u32) -> [8]u32 {
     let mut t1: u32 = 0 as u32;
   
     let mut a: u32 = hash[0];
-    let mut b: u32 = hash[1];
-    let mut c: u32 = hash[2];
-    let mut d: u32 = hash[3];
     let mut e: u32 = hash[4];
     let mut f: u32 = hash[5];
     let mut g: u32 = hash[6];
     let mut h: u32 = hash[7];
 
-    for i in 0..2 { 
+    for _i in 0..2 { 
        t1 = ch2(e, f);
          h = g;
          g = f;
@@ -105,7 +102,7 @@ fn iterate3( mut hash: [8]u32) -> [8]u32 {
     let mut g: u32 =hash[6];
     let mut h: u32 =hash[7];
 
-    for i in 0..3 { 
+    for _i in 0..3 { 
         t1 = ep2(e)+ch2(e, f);
          h = g;
          g = f;
@@ -158,7 +155,7 @@ fn test6(x: [32]u8) ->  [8]u32 {
     let mut buffer: [64]u8 = [0 as u8; 64];
 
     for i in 0..32 {  
-       buffer[i as u32] = x[i as u32];
+       buffer[i] = x[i];
     };
 
     sha_m = iterate6_1(sha_m, buffer);
@@ -231,21 +228,21 @@ fn maj(x: u32, y: u32, z: u32) -> u32 {
 
 
 fn epo(x: u32) -> u32 {
-    (rot_right(x, 2 as u32) ^ rot_right(x, 13 as u32) ^ rot_right(x, 22 as u32))
+    (rot_right(x, 2) ^ rot_right(x, 13) ^ rot_right(x, 22))
 }
 
 fn ep1(x: u32) -> u32 {
-   (rot_right(x, 6 as u32) ^ rot_right(x, 11 as u32) ^ rot_right(x, 25 as u32))
+   (rot_right(x, 6) ^ rot_right(x, 11) ^ rot_right(x, 25))
 }
 
 
 fn sig0(x: u32) -> u32 {
-    (rot_right(x, 7 as u32) ^ rot_right(x, 18 as u32) ^ (x >> 3 as u32))
+    (rot_right(x, 7) ^ rot_right(x, 18) ^ (x >> 3))
 }
 
 
 fn sig1(x: u32) -> u32 {
-    (rot_right(x, 17 as u32) ^ rot_right(x, 19 as u32) ^ (x >> 10 as u32))
+    (rot_right(x, 17) ^ rot_right(x, 19) ^ (x >> 10))
 }
 
 
@@ -261,17 +258,17 @@ fn main(a: [100]u32,b: [100]u32, c: [4]u32, mut d: [4]u32, m: [32]u8){
     a = test4(a);
     constrain a[3] == 20;
     a =test4(c);
-    constrain a[3] == c[1]*(10 as u32);
+    constrain a[3] == c[1]*10;
 
     d[0] = d[0] + c[0];
     d[0] = d[0] + c[1];
     constrain d[0] == 2739986880;
 
-    let h = iterate1(1 as u32);
+    let h = iterate1(1);
     constrain h == 4;
 
     let x = d;
-    array_noteq(x, [d[0],d[1],d[2],0 as u32]);
+    array_noteq(x, [d[0],d[1],d[2],0]);
 
     let mut h5 : [4]Field = [d[0] as Field,d[1] as Field,d[2] as Field,d[3] as Field];
     let t5 =  test3(h5);
