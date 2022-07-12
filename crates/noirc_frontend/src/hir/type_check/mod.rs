@@ -54,19 +54,16 @@ pub fn type_check_func(
     if main_id == Some(func_id) {
         if !declared_return_type.is_public() && declared_return_type != &crate::Type::Unit {
             errors.push(TypeCheckError::Unstructured {
-                msg: format!(
-                    "Return type of main must be a 'pub' type since it is exposed to the verifier"
-                ),
+                msg: "Return type of main must be a 'pub' type since it is exposed to the verifier"
+                    .into(),
                 span: interner.id_span(func_as_expr),
             });
         }
-    } else {
-        if declared_return_type.is_public() {
-            errors.push(TypeCheckError::PublicReturnType {
-                typ: declared_return_type.clone(),
-                span: interner.id_span(func_as_expr),
-            });
-        }
+    } else if declared_return_type.is_public() {
+        errors.push(TypeCheckError::PublicReturnType {
+            typ: declared_return_type.clone(),
+            span: interner.id_span(func_as_expr),
+        });
     }
 
     errors
