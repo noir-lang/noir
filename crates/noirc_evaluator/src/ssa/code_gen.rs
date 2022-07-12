@@ -354,7 +354,8 @@ impl<'a> IRGenerator<'a> {
                 {
                     //TODO support array of structs
                     let obj_type = node::ObjectType::from(typ);
-                    let v_id =self.new_array(base_name, obj_type, super::mem::get_array_size(len), def);
+                    let v_id =
+                        self.new_array(base_name, obj_type, super::mem::get_array_size(len), def);
                     Value::Single(v_id)
                 }
             }
