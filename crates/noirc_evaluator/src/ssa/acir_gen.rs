@@ -72,7 +72,7 @@ impl From<Witness> for InternalVar {
 
 impl From<FieldElement> for InternalVar {
     fn from(f: FieldElement) -> InternalVar {
-        InternalVar { expression: Arithmetic::from_field(f), witness: None, id: None }
+        InternalVar { expression: Expression::from_field(f), witness: None, id: None }
     }
 }
 
@@ -92,7 +92,7 @@ impl Acir {
         let var = match ctx.try_get_node(id) {
             Some(node::NodeObj::Const(c)) => {
                 let f_value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be()); //TODO const should be a field
-                let expr = Arithmetic::from_field(f_value);
+                let expr = Expression::from_field(f_value);
                 InternalVar::new(expr, None, id)
             }
             Some(node::NodeObj::Obj(v)) => match v.get_type() {
@@ -128,7 +128,7 @@ impl Acir {
             Operation::Binary(binary) => self.evaluate_binary(binary, ins.res_type, evaluator, ctx),
             Operation::Constrain(value) => {
                 let value = self.substitute(*value, evaluator, ctx);
-                let subtract = subtract(&Arithmetic::one(), FieldElement::one(), &value.expression);
+                let subtract = subtract(&Expression::one(), FieldElement::one(), &value.expression);
                 evaluator.gates.push(Gate::Arithmetic(subtract));
                 value
             }
@@ -380,7 +380,7 @@ impl Acir {
                 from_witness(evaluate_zero_equality(&x, evaluator))
             } else {
                 //If length are different, then the arrays are different
-                Arithmetic::one()
+                Expression::one()
             }
         } else {
             let mut x =
@@ -398,9 +398,9 @@ impl Acir {
         r_c: &InternalVar,
         ctx: &SsaContext,
         evaluator: &mut Evaluator,
-    ) -> Arithmetic {
+    ) -> Expression {
         let neq = self.evaluate_neq(lhs, rhs, l_c, r_c, ctx, evaluator);
-        subtract(&Arithmetic::one(), FieldElement::one(), &neq)
+        subtract(&Expression::one(), FieldElement::one(), &neq)
     }
 
     //Generates gates for the expression: \sum_i(zero_eq(A[i]-B[i]))
@@ -661,7 +661,7 @@ fn const_xor(
     let two = FieldElement::from(2_i128);
     for (a_iter, b_iter) in a_bits.into_iter().zip(b.bits().iter().rev()) {
         if *b_iter {
-            let c = subtract(&Arithmetic::one(), FieldElement::one(), &from_witness(a_iter));
+            let c = subtract(&Expression::one(), FieldElement::one(), &from_witness(a_iter));
             result = add(&result, k, &c);
         } else {
             result = add(&result, k, &from_witness(a_iter));
@@ -947,7 +947,7 @@ fn evaluate_inverse(x: InternalVar, evaluator: &mut Evaluator) -> Witness {
     evaluator.gates.push(Gate::Arithmetic(add(
         &mul(&from_witness(x_witness), &inverse_expr),
         FieldElement::one(),
-        &Arithmetic::from_field(FieldElement::from(-1_i128)),
+        &Expression::from_field(FieldElement::from(-1_i128)),
     )));
     inverse_witness
 }
@@ -963,7 +963,7 @@ pub fn mul(a: &Expression, b: &Expression) -> Expression {
         todo!("PANIC");
     }
 
-    let mut output = Arithmetic::from_field(a.q_c * b.q_c);
+    let mut output = Expression::from_field(a.q_c * b.q_c);
 
     //TODO to optimise...
     for lc in &a.linear_combinations {

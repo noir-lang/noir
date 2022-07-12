@@ -52,11 +52,11 @@ impl Expression {
         self.mul_terms.len()
     }
 
-    pub fn from_field(q_c: FieldElement) -> Arithmetic {
+    pub fn from_field(q_c: FieldElement) -> Expression {
         Self { q_c, ..Default::default() }
     }
 
-    pub fn one() -> Arithmetic {
+    pub fn one() -> Expression {
         Self::from_field(FieldElement::one())
     }
 }
