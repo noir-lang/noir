@@ -10,7 +10,7 @@ use acvm::{acir::OPCODE, FieldElement};
 use noirc_frontend::util::vecmap;
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
-use std::{convert::TryInto, collections::BTreeMap};
+use std::{collections::BTreeMap, convert::TryInto};
 use std::{collections::HashMap, ops::Neg};
 
 //Returns the maximum bit size of short integers
