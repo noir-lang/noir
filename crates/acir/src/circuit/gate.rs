@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::native_types::{Arithmetic, Witness};
+use crate::native_types::{Expression, Witness};
 use crate::OPCODE;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -22,7 +22,7 @@ pub struct XorGate {
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 // XXX: Gate does not capture what this is anymore. I think IR/OPCODE would be a better name
 pub enum Gate {
-    Arithmetic(Arithmetic),
+    Arithmetic(Expression),
     Range(Witness, u32),
     And(AndGate),
     Xor(XorGate),
@@ -34,10 +34,10 @@ impl Gate {
     pub fn is_arithmetic(&self) -> bool {
         matches!(self, Gate::Arithmetic(_))
     }
-    pub fn arithmetic(self) -> Arithmetic {
+    pub fn arithmetic(self) -> Expression {
         match self {
             Gate::Arithmetic(gate) => gate,
-            _ => panic!("tried to convert a non arithmetic gate to an Arithmetic struct"),
+            _ => panic!("tried to convert a non arithmetic gate to an Expression struct"),
         }
     }
 }
@@ -112,7 +112,7 @@ pub enum Directive {
     Invert { x: Witness, result: Witness },
 
     //Performs euclidian division of a / b (as integers) and stores the quotient in q and the rest in r
-    Quotient { a: Arithmetic, b: Arithmetic, q: Witness, r: Witness },
+    Quotient { a: Expression, b: Expression, q: Witness, r: Witness },
 
     //Reduces the value of a modulo 2^bit_size and stores the result in b: a= c*2^bit_size + b
     Truncate { a: Witness, b: Witness, c: Witness, bit_size: u32 },
