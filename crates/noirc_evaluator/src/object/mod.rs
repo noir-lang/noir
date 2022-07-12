@@ -5,7 +5,7 @@ pub use array::Array;
 pub use integer::Integer;
 
 use acvm::acir::circuit::gate::Gate;
-use acvm::acir::native_types::{Arithmetic, Linear, Witness};
+use acvm::acir::native_types::{Expression, Linear, Witness};
 use acvm::FieldElement;
 
 use crate::Evaluator;
@@ -17,7 +17,7 @@ pub enum Object {
     Null,
     Integer(Integer),
     Array(Array),
-    Arithmetic(Arithmetic),
+    Arithmetic(Expression),
     Constants(FieldElement),
     Linear(Linear), // These will be selector * witness(var_name) + selector // Note that this is not a gate e.g `5x+6` does not apply a gate
 }
@@ -68,7 +68,7 @@ impl Object {
         }
     }
     // Converts a Object into an arithmetic object
-    pub fn to_arithmetic(&self) -> Option<Arithmetic> {
+    pub fn to_arithmetic(&self) -> Option<Expression> {
         match self {
             Object::Null => None,
             Object::Integer(integer) => Some(Linear::from_witness(integer.witness).into()),
@@ -91,13 +91,13 @@ impl Object {
         matches!(self, Object::Constants(_))
     }
 
-    pub fn arithmetic(&self) -> Option<&Arithmetic> {
+    pub fn arithmetic(&self) -> Option<&Expression> {
         match self {
             Object::Arithmetic(x) => Some(x),
             _ => None,
         }
     }
-    pub fn extract_private_witness(self) -> Option<Arithmetic> {
+    pub fn extract_private_witness(self) -> Option<Expression> {
         match self {
             Object::Arithmetic(x) => Some(x),
             Object::Linear(x) => Some(x.into()),

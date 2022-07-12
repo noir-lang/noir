@@ -46,7 +46,8 @@ mod tests {
                 match test_name {
                     Ok(str) => {
                         if c.path().is_dir() && !conf_data["exclude"].contains(&str) {
-                            let r = nargo::cli::prove_and_verify("pp", &c.path());
+                            println!("prove_and_verify(_, true)");
+                            let r = nargo::cli::prove_and_verify("pp", &c.path(), true);
                             if conf_data["fail"].contains(&str) {
                                 assert!(!r, "{:?} should not succeed", c.file_name());
                             } else {

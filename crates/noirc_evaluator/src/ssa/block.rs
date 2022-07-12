@@ -2,7 +2,7 @@ use super::{
     context::SsaContext,
     node::{self, NodeId},
 };
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 #[derive(PartialEq, Debug)]
 pub enum BlockType {
@@ -65,28 +65,30 @@ impl BasicBlock {
         self.kind == BlockType::ForJoin
     }
 
-    pub fn get_result_instruction(&self, call_id: NodeId, ctx: &SsaContext) -> Option<NodeId> {
-        self.instructions.iter().copied().find(|i| match ctx[*i] {
-            node::NodeObj::Instr(node::Instruction {
-                operator: node::Operation::Res, lhs, ..
-            }) => lhs == call_id,
-            _ => false,
-        })
-    }
-
     //Create the first block for a CFG
     pub fn create_cfg(ctx: &mut SsaContext) -> BlockId {
         let root_block = BasicBlock::new(BlockId::dummy(), BlockType::Normal);
         let root_block = ctx.insert_block(root_block);
+        root_block.predecessor = Vec::new();
         let root_id = root_block.id;
         ctx.current_block = root_id;
-        ctx.new_instruction(
-            NodeId::dummy(),
-            NodeId::dummy(),
-            node::Operation::Nop,
-            node::ObjectType::NotAnObject,
-        );
+        ctx.sealed_blocks.insert(root_id);
+        ctx.new_instruction(node::Operation::Nop, node::ObjectType::NotAnObject);
         root_id
+    }
+
+    pub fn written_arrays(&self, ctx: &SsaContext) -> HashSet<super::mem::ArrayId> {
+        let mut result = HashSet::new();
+        for i in &self.instructions {
+            if let Some(node::Instruction {
+                operation: node::Operation::Store { array_id: x, .. },
+                ..
+            }) = ctx.try_get_instruction(*i)
+            {
+                result.insert(*x);
+            }
+        }
+        result
     }
 }
 
@@ -109,12 +111,7 @@ pub fn new_sealed_block(ctx: &mut SsaContext, kind: BlockType) -> BlockId {
     let cb = ctx.get_current_block_mut();
     cb.left = Some(new_id);
     ctx.current_block = new_id;
-    ctx.new_instruction(
-        NodeId::dummy(),
-        NodeId::dummy(),
-        node::Operation::Nop,
-        node::ObjectType::NotAnObject,
-    );
+    ctx.new_instruction(node::Operation::Nop, node::ObjectType::NotAnObject);
     new_id
 }
 
@@ -134,12 +131,7 @@ pub fn new_unsealed_block(ctx: &mut SsaContext, kind: BlockType, left: bool) -> 
     }
 
     ctx.current_block = new_idx;
-    ctx.new_instruction(
-        NodeId::dummy(),
-        NodeId::dummy(),
-        node::Operation::Nop,
-        node::ObjectType::NotAnObject,
-    );
+    ctx.new_instruction(node::Operation::Nop, node::ObjectType::NotAnObject);
     new_idx
 }
 
@@ -219,7 +211,7 @@ pub fn bfs(start: BlockId, stop: Option<BlockId>, ctx: &SsaContext) -> Vec<Block
                 if stop == Some(block_id) {
                     return;
                 }
-                if !result.contains(&block_id) {
+                if block_id != BlockId::dummy() && !result.contains(&block_id) {
                     result.push(block_id);
                     queue.push_back(block_id);
                 }

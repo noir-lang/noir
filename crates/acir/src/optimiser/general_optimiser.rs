@@ -1,9 +1,9 @@
-use crate::native_types::{Arithmetic, Witness};
+use crate::native_types::{Expression, Witness};
 use indexmap::IndexMap;
 use noir_field::FieldElement;
 pub struct GeneralOpt;
 impl GeneralOpt {
-    pub fn optimise(gate: Arithmetic) -> Arithmetic {
+    pub fn optimise(gate: Expression) -> Expression {
         // XXX: Perhaps this optimisation can be done on the fly
         let gate = remove_zero_coefficients(gate);
         simplify_mul_terms(gate)
@@ -11,7 +11,7 @@ impl GeneralOpt {
 }
 
 // Remove all terms with zero as a coefficient
-pub fn remove_zero_coefficients(mut gate: Arithmetic) -> Arithmetic {
+pub fn remove_zero_coefficients(mut gate: Expression) -> Expression {
     // Check the mul terms
     gate.mul_terms = gate.mul_terms.into_iter().filter(|(scale, _, _)| !scale.is_zero()).collect();
 
@@ -23,7 +23,7 @@ pub fn remove_zero_coefficients(mut gate: Arithmetic) -> Arithmetic {
 }
 
 // Simplifies all mul terms with the same bi-variate variables
-pub fn simplify_mul_terms(mut gate: Arithmetic) -> Arithmetic {
+pub fn simplify_mul_terms(mut gate: Expression) -> Expression {
     let mut hash_map: IndexMap<(Witness, Witness), FieldElement> = IndexMap::new();
 
     // Canonicalise the ordering of the multiplication, lets just order by variable name

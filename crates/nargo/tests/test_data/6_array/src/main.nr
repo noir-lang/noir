@@ -1,20 +1,21 @@
 //Basic tests for arrays 
 
-fn main(x : [5]u32 , y : [5]u32 , z : u32, t : u32) {  
-   let c = 2301 as u32;
+fn main(x: [5]u32, y: [5]u32, mut z: u32, t: u32) {  
+   let mut c = (z-z+2301) as u32;
+
    //t= t+x[0]-x[0];
    z=y[4];
    //Test 1: 
    for i in 0..5 {
       c = z*z*y[i];
-      z  = z - c;
+      z = z - c;
    };
    constrain (z==0);    //y[4]=0, so c and z are always 0
 
    //Test 2:
    c = 2301 as u32;
    for i in 0..5 {
-      c = t+2;
+      c = t+2 as u32;
       c = z*z*x[i];
       z  = z + x[i]*y[i] - c;
    };

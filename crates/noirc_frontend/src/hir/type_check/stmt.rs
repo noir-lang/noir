@@ -97,15 +97,15 @@ fn type_check_assign_stmt(
     let span = interner.expr_span(&assign_stmt.expression);
     let lvalue_type = type_check_lvalue(interner, assign_stmt.lvalue, span, errors);
 
-    if !expr_type.is_subtype_of(&lvalue_type) {
-        errors.push(TypeCheckError::Unstructured {
-            msg: format!(
-                "Cannot assign an expression of type {} to a value of type {}",
-                expr_type, lvalue_type
-            ),
-            span: interner.expr_span(&assign_stmt.expression),
-        });
-    }
+    let span = interner.expr_span(&assign_stmt.expression);
+    expr_type.make_subtype_of(&lvalue_type, span, errors, || {
+        let msg = format!(
+            "Cannot assign an expression of type {} to a value of type {}",
+            expr_type, lvalue_type
+        );
+
+        TypeCheckError::Unstructured { msg, span }
+    });
 }
 
 fn type_check_lvalue(
@@ -151,14 +151,15 @@ fn type_check_lvalue(
         }
         HirLValue::Index { array, index } => {
             let index_type = type_check_expression(interner, &index, errors);
-            if !index_type.matches(&Type::CONSTANT) {
-                let span = interner.id_span(&index);
-                errors.push(TypeCheckError::TypeMismatch {
+            let expr_span = interner.id_span(&index);
+
+            index_type.unify(&Type::constant(Some(expr_span)), expr_span, errors, || {
+                TypeCheckError::TypeMismatch {
                     expected_typ: "const Field".to_owned(),
                     expr_typ: index_type.to_string(),
-                    expr_span: span,
-                });
-            }
+                    expr_span,
+                }
+            });
 
             match type_check_lvalue(interner, *array, assign_span, errors) {
                 Type::Array(_, _, elem_type) => *elem_type,
@@ -182,8 +183,10 @@ fn type_check_let_stmt(
     let_stmt: HirLetStatement,
     errors: &mut Vec<TypeCheckError>,
 ) {
-    let resolved_type =
+    let mut resolved_type =
         type_check_declaration(interner, let_stmt.expression, let_stmt.r#type, errors);
+
+    resolved_type.set_const_span(interner.expr_span(&let_stmt.expression));
 
     // Set the type of the pattern to be equal to the annotated type
     bind_pattern(interner, &let_stmt.pattern, resolved_type, errors);
@@ -232,7 +235,7 @@ fn type_check_constrain_stmt(
 fn type_check_declaration(
     interner: &mut NodeInterner,
     rhs_expr: ExprId,
-    mut annotated_type: Type,
+    annotated_type: Type,
     errors: &mut Vec<TypeCheckError>,
 ) -> Type {
     // Type check the expression on the RHS
@@ -240,20 +243,19 @@ fn type_check_declaration(
 
     // First check if the LHS is unspecified
     // If so, then we give it the same type as the expression
-    if annotated_type == Type::Unspecified {
-        annotated_type = expr_type.clone();
-    };
-
-    // Now check if LHS is the same type as the RHS
-    // Importantly, we do not co-erce any types implicitly
-    if !annotated_type.matches(&expr_type) {
+    if annotated_type != Type::Unspecified {
+        // Now check if LHS is the same type as the RHS
+        // Importantly, we do not co-erce any types implicitly
         let expr_span = interner.expr_span(&rhs_expr);
-        errors.push(TypeCheckError::TypeMismatch {
-            expected_typ: annotated_type.to_string(),
-            expr_typ: expr_type.to_string(),
-            expr_span,
+        expr_type.make_subtype_of(&annotated_type, expr_span, errors, || {
+            TypeCheckError::TypeMismatch {
+                expected_typ: annotated_type.to_string(),
+                expr_typ: expr_type.to_string(),
+                expr_span,
+            }
         });
+        annotated_type
+    } else {
+        expr_type
     }
-
-    expr_type
 }

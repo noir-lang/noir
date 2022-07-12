@@ -1,3 +1,6 @@
+use std::convert::TryInto;
+use std::iter::repeat;
+
 use super::{
     foldl_with_span, parameter_name_recovery, parameter_recovery, parenthesized, then_commit,
     then_commit_ignore, top_level_statement_recovery, ExprParser, NoirParser, ParsedModule,
@@ -13,8 +16,8 @@ use crate::{
 };
 use crate::{
     AssignStatement, BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, ForExpression,
-    FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, LValue,
-    NoirFunction, NoirImpl, NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp,
+    FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, IsConst, LValue,
+    Literal, NoirFunction, NoirImpl, NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp,
 };
 
 use chumsky::prelude::*;
@@ -114,7 +117,7 @@ fn attribute() -> impl NoirParser<Attribute> {
 }
 
 fn struct_fields() -> impl NoirParser<Vec<(Ident, UnresolvedType)>> {
-    let type_parser = parse_type_with_visibility(optional_const(), parse_type_no_field_element());
+    let type_parser = parse_type_with_visibility(no_visibility(), parse_type_no_field_element());
 
     ident()
         .then_ignore(just(Token::Colon))
@@ -161,6 +164,13 @@ fn implementation() -> impl NoirParser<TopLevelStatement> {
         .then(function_definition(true).repeated())
         .then_ignore(just(Token::RightBrace))
         .map(|(type_path, methods)| TopLevelStatement::Impl(NoirImpl { type_path, methods }))
+}
+
+fn block_expr<'a, P>(expr_parser: P) -> impl NoirParser<Expression> + 'a
+where
+    P: ExprParser + 'a,
+{
+    block(expr_parser).map(ExpressionKind::Block).map_with_span(Expression::new)
 }
 
 fn block<'a, P>(expr_parser: P) -> impl NoirParser<BlockExpression> + 'a
@@ -407,23 +417,24 @@ fn visibility(field: FieldElementType) -> impl NoirParser<FieldElementType> {
 }
 
 fn optional_visibility() -> impl NoirParser<FieldElementType> {
-    choice((
-        visibility(FieldElementType::Public),
-        visibility(FieldElementType::Constant),
-        no_visibility(),
-    ))
+    choice((visibility(FieldElementType::Public), no_visibility()))
 }
 
-// This is primarily for struct fields which cannot be public
-fn optional_const() -> impl NoirParser<FieldElementType> {
-    visibility(FieldElementType::Constant).or(no_visibility())
+fn maybe_const() -> impl NoirParser<IsConst> {
+    keyword(Keyword::Const).or_not().map(|opt| match opt {
+        Some(_) => IsConst::Yes(None),
+        None => IsConst::No(None),
+    })
 }
 
 fn field_type<P>(visibility_parser: P) -> impl NoirParser<UnresolvedType>
 where
     P: NoirParser<FieldElementType>,
 {
-    visibility_parser.then_ignore(keyword(Keyword::Field)).map(UnresolvedType::FieldElement)
+    visibility_parser
+        .then(maybe_const())
+        .then_ignore(keyword(Keyword::Field))
+        .map(|(vis, is_const)| UnresolvedType::FieldElement(is_const, vis))
 }
 
 fn int_type<P>(visibility_parser: P) -> impl NoirParser<UnresolvedType>
@@ -431,13 +442,16 @@ where
     P: NoirParser<FieldElementType>,
 {
     visibility_parser
+        .then(maybe_const())
         .then(filter_map(|span, token: Token| match token {
             Token::IntType(int_type) => Ok(int_type),
             unexpected => {
                 Err(ParserError::expected_label("integer type".to_string(), unexpected, span))
             }
         }))
-        .map(|(visibility, int_type)| UnresolvedType::from_int_tok(visibility, &int_type))
+        .map(|((visibility, is_const), int_type)| {
+            UnresolvedType::from_int_tok(is_const, visibility, &int_type)
+        })
 }
 
 fn struct_type<P>(visibility_parser: P) -> impl NoirParser<UnresolvedType>
@@ -580,8 +594,8 @@ where
 {
     keyword(Keyword::If)
         .ignore_then(expr_parser.clone())
-        .then(block(expr_parser.clone()))
-        .then(keyword(Keyword::Else).ignore_then(block(expr_parser)).or_not())
+        .then(block_expr(expr_parser.clone()))
+        .then(keyword(Keyword::Else).ignore_then(block_expr(expr_parser)).or_not())
         .map(|((condition, consequence), alternative)| {
             ExpressionKind::If(Box::new(IfExpression { condition, consequence, alternative }))
         })
@@ -597,7 +611,7 @@ where
         .then(expr_parser.clone())
         .then_ignore(just(Token::DoubleDot))
         .then(expr_parser.clone())
-        .then(block(expr_parser))
+        .then(block_expr(expr_parser))
         .map(|(((identifier, start_range), end_range), block)| {
             ExpressionKind::For(Box::new(ForExpression {
                 identifier,
@@ -612,6 +626,14 @@ fn array_expr<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
 where
     P: ExprParser,
 {
+    standard_array(expr_parser.clone()).or(array_sugar(expr_parser))
+}
+
+/// [a, b, c, ...]
+fn standard_array<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
+where
+    P: ExprParser,
+{
     expression_list(expr_parser)
         .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
         .validate(|elems, span, emit| {
@@ -623,6 +645,58 @@ where
             }
             ExpressionKind::array(elems)
         })
+}
+
+/// [a; N]
+fn array_sugar<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
+where
+    P: ExprParser,
+{
+    expr_parser
+        .then_ignore(just(Token::Semicolon))
+        .then(literal())
+        .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
+        .validate(|(lhs, count), span, emit| {
+            let count = validate_array_count(count, span, emit);
+
+            // Desugar the array by replicating the lhs 'count' times. TODO: This is inefficient
+            // for large arrays.
+            let name = "$array_element";
+            let pattern = Pattern::Identifier(name.into());
+            let decl = Statement::new_let(((pattern, UnresolvedType::Unspecified), lhs));
+
+            let variable = Expression::new(ExpressionKind::Ident(name.into()), span);
+            let elems = repeat(variable).take(count).collect();
+            let array = ExpressionKind::array(elems);
+            let array = Statement::Expression(Expression::new(array, span));
+
+            ExpressionKind::Block(BlockExpression(vec![decl, array]))
+        })
+}
+
+fn validate_array_count(
+    count: ExpressionKind,
+    span: Span,
+    emit: &mut dyn FnMut(ParserError),
+) -> usize {
+    match count {
+        ExpressionKind::Literal(Literal::Integer(x)) => {
+            x.try_into_u128().and_then(|x| x.try_into().ok()).unwrap_or_else(|| {
+                emit(ParserError::with_reason(
+                    "Array length must be able to fit within a usize".to_owned(),
+                    span,
+                ));
+                1
+            })
+        }
+        _ => {
+            emit(ParserError::with_reason(
+                "Array length must be an integer literal".to_owned(),
+                span,
+            ));
+            1
+        }
+    }
 }
 
 fn expression_list<P>(expr_parser: P) -> impl NoirParser<Vec<Expression>>
@@ -899,6 +973,15 @@ mod test {
     }
 
     #[test]
+    fn parse_array_sugar() {
+        let valid = vec!["[0;7]", "[(1, 2); 4]"];
+        parse_all(array_expr(expression()), valid);
+
+        let invalid = vec!["[0;;4]", "[5; 3+2]", "[1; a]"];
+        parse_all_failing(array_expr(expression()), invalid);
+    }
+
+    #[test]
     fn parse_block() {
         parse_with(block(expression()), "{ [0,1,2,3,4] }").unwrap();
 
@@ -1013,7 +1096,6 @@ mod test {
     #[test]
     fn parse_parenthesized_expression() {
         parse_all(atom(expression()), vec!["(0)", "(x+a)", "({(({{({(nested)})}}))})"]);
-
         parse_all_failing(atom(expression()), vec!["(x+a", "((x+a)", "(,)"]);
     }
 

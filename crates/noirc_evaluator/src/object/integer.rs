@@ -2,7 +2,7 @@ use crate::binary_op;
 use crate::binary_op::bound_check;
 use crate::{AndGate, Evaluator, FieldElement, XorGate};
 use crate::{Gate, Object};
-use acvm::acir::native_types::{Arithmetic, Linear, Witness};
+use acvm::acir::native_types::{Expression, Linear, Witness};
 
 use super::RuntimeErrorKind;
 use acvm::acir::circuit::gate::Directive;
@@ -65,7 +65,7 @@ impl Integer {
                 let res =
                     Linear { add_scale: FieldElement::zero(), witness: b_witness, mul_scale: f }
                         .add(Linear::from_witness(r_witness));
-                let my_constraint = &res - &Arithmetic::from(Linear::from_witness(self.witness));
+                let my_constraint = &res - &Expression::from(Linear::from_witness(self.witness));
                 evaluator.gates.push(Gate::Arithmetic(my_constraint));
             } else {
                 evaluator.gates.push(Gate::Range(self.witness, self.num_bits));
@@ -99,24 +99,24 @@ impl Integer {
         f = f.pow(&FieldElement::from(self.num_bits as i128));
         let res = Linear { add_scale: FieldElement::zero(), witness: c_witness, mul_scale: f }
             .add(Linear::from_witness(b_witness));
-        let my_constraint = &res - &Arithmetic::from(Linear::from_witness(self.witness));
+        let my_constraint = &res - &Expression::from(Linear::from_witness(self.witness));
         evaluator.gates.push(Gate::Arithmetic(my_constraint));
         Ok(b_int)
     }
 
-    pub fn from_arithmetic(arith: Arithmetic, num_bits: u32, evaluator: &mut Evaluator) -> Integer {
+    pub fn from_arithmetic(arith: Expression, num_bits: u32, evaluator: &mut Evaluator) -> Integer {
         // We can only range constrain witness variables, so create an intermediate variable, constraint it to the arithmetic gate
         // then cast it as an integer
         let (intermediate, witness) = evaluator.create_intermediate_variable(arith.clone());
 
-        let rhs_arith = Arithmetic::from(intermediate.linear().unwrap());
+        let rhs_arith = Expression::from(intermediate.linear().unwrap());
         evaluator.gates.push(Gate::Arithmetic(&arith - &rhs_arith));
 
         Integer::from_witness_unconstrained(witness, num_bits)
     }
 
     pub fn from_arithmetic_with_max_bits(
-        arith: Arithmetic,
+        arith: Expression,
         num_bits: u32,
         max_bits: u32,
         evaluator: &mut Evaluator,
@@ -125,7 +125,7 @@ impl Integer {
         // then cast it as an integer
         let (intermediate, witness) = evaluator.create_intermediate_variable(arith.clone());
 
-        let rhs_arith = Arithmetic::from(intermediate.linear().unwrap());
+        let rhs_arith = Expression::from(intermediate.linear().unwrap());
         evaluator.gates.push(Gate::Arithmetic(&arith - &rhs_arith));
 
         Integer::from_witness_unconstrained_with_max(witness, num_bits, max_bits)
@@ -307,8 +307,8 @@ impl Integer {
         let r_int = Integer::from_witness_unconstrained(r_witness, b.num_bits);
         let q_int = Integer::from_witness_unconstrained(q_witness, a.num_bits);
         evaluator.gates.push(Gate::Directive(Directive::Quotient {
-            a: a.witness,
-            b: b.witness,
+            a: Expression::from(&a.witness),
+            b: Expression::from(&b.witness),
             q: q_witness,
             r: r_witness,
         }));
@@ -323,9 +323,9 @@ impl Integer {
         q_int.constrain(evaluator)?; //we need to bound q so we use the fact that q<=a
         bound_check::handle_less_than_op(Object::Integer(r_int), b_copy, evaluator)?; //r < b
                                                                                       // a-b*q-r = 0
-        let res = Arithmetic::from(Linear::from_witness(a.witness));
+        let res = Expression::from(Linear::from_witness(a.witness));
         let eucl_div_constraint = &res
-            - &Arithmetic {
+            - &Expression {
                 mul_terms: vec![(FieldElement::one(), b.witness, q_witness)],
                 linear_combinations: vec![(FieldElement::one(), r_witness)],
                 q_c: FieldElement::zero(),

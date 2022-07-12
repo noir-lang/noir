@@ -181,11 +181,20 @@ impl<F: PrimeField> FieldElement<F> {
         let bytes = self.to_bytes();
         u128::from_be_bytes(bytes[16..32].try_into().unwrap())
     }
+
+    pub fn try_into_u128(self) -> Option<u128> {
+        self.fits_in_u128().then(|| self.to_u128())
+    }
+
     /// Computes the inverse or returns zero if the inverse does not exist
     /// Before using this FieldElement, please ensure that this behaviour is necessary
     pub fn inverse(&self) -> FieldElement<F> {
         let inv = self.0.inverse().unwrap_or_else(F::zero);
         FieldElement(inv)
+    }
+
+    pub fn try_inverse(mut self) -> Option<Self> {
+        self.0.inverse_in_place().map(|f| FieldElement(*f))
     }
 
     // XXX: This method is used while this field element

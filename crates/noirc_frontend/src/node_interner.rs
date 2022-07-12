@@ -14,6 +14,7 @@ use crate::hir_def::{
     function::{FuncMeta, HirFunction},
     stmt::HirStatement,
 };
+use crate::TypeVariableId;
 
 /// The DefinitionId for the return value of the main function.
 /// Used within the ssa pass to put constraints on the "return" value
@@ -146,6 +147,8 @@ pub struct NodeInterner {
     // It is also mutated through the RefCell during name resolution to append
     // methods from impls to the type.
     structs: HashMap<StructId, Rc<RefCell<StructType>>>,
+
+    next_type_variable_id: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -163,6 +166,7 @@ impl Default for NodeInterner {
             definitions: vec![],
             id_to_type: HashMap::new(),
             structs: HashMap::new(),
+            next_type_variable_id: 0,
         };
 
         // An empty block expression is used often, we add this into the `node` on startup
@@ -363,5 +367,11 @@ impl NodeInterner {
 
     pub fn main_return_name() -> &'static str {
         MAIN_RETURN_NAME
+    }
+
+    pub fn next_type_variable_id(&mut self) -> TypeVariableId {
+        let id = self.next_type_variable_id;
+        self.next_type_variable_id += 1;
+        TypeVariableId(id)
     }
 }
