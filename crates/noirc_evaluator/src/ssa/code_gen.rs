@@ -1,7 +1,7 @@
 use super::context::SsaContext;
 use super::function::FuncIndex;
 use super::mem::ArrayId;
-use super::node::{Binary, BinaryOp, ConstrainOp, NodeId, ObjectType, Operation, Variable};
+use super::node::{Binary, BinaryOp, NodeId, ObjectType, Operation, Variable};
 use super::{block, node, ssa_form};
 use std::collections::HashMap;
 
@@ -120,7 +120,7 @@ impl<'a> IRGenerator<'a> {
         len: u128,
         witness: Vec<acvm::acir::native_types::Witness>,
     ) {
-        let v_id = self.new_array(name, el_type.into(), len as u32, ident_def);
+        let v_id = self.new_array(name, el_type.into(), len as u32, Some(ident_def));
         let array_idx = self.context.mem.last_id();
         self.context.mem[array_idx].values = vecmap(witness, |w| w.into());
         self.context.get_current_block_mut().update_variable(v_id, v_id);
@@ -353,15 +353,9 @@ impl<'a> IRGenerator<'a> {
             noirc_frontend::Type::Array(_, len, _) => {
                 {
                     //TODO support array of structs
-                    let mut obj_type = node::ObjectType::from(typ);
-                    let array_idx = self.context.mem.create_new_array(
-                        super::mem::get_array_size(len),
-                        obj_type,
-                        base_name,
-                    );
-                    obj_type = node::ObjectType::Pointer(array_idx);
-                    let v_id = self.create_new_variable(base_name.to_string(), def, obj_type, None);
-                    self.context.get_current_block_mut().update_variable(v_id, v_id);
+                    let obj_type = node::ObjectType::from(typ);
+                    let v_id =
+                        self.new_array(base_name, obj_type, super::mem::get_array_size(len), def);
                     Value::Single(v_id)
                 }
             }
@@ -379,10 +373,12 @@ impl<'a> IRGenerator<'a> {
         name: &str,
         element_type: ObjectType,
         len: u32,
-        def_id: noirc_frontend::node_interner::DefinitionId,
+        def_id: Option<noirc_frontend::node_interner::DefinitionId>,
     ) -> NodeId {
-        let id = self.context.new_array(name, element_type, len, Some(def_id));
-        self.variable_values.insert(def_id, super::code_gen::Value::Single(id));
+        let id = self.context.new_array(name, element_type, len, def_id);
+        if let Some(def) = def_id {
+            self.variable_values.insert(def, super::code_gen::Value::Single(id));
+        }
         id
     }
 
@@ -392,43 +388,8 @@ impl<'a> IRGenerator<'a> {
         env: &mut Environment,
         constrain_stmt: HirConstrainStatement,
     ) -> Result<Value, RuntimeError> {
-        let lhs = self.expression_to_object(env, &constrain_stmt.0.lhs)?.unwrap_id();
-        let rhs = self.expression_to_object(env, &constrain_stmt.0.rhs)?.unwrap_id();
-
-        match constrain_stmt.0.operator.kind {
-            // HirBinaryOpKind::Add => binary_op::handle_add_op(lhs, rhs, self),
-            // HirBinaryOpKind::Subtract => binary_op::handle_sub_op(lhs, rhs, self),
-            // HirBinaryOpKind::Multiply => binary_op::handle_mul_op(lhs, rhs, self),
-            // HirBinaryOpKind::Divide => binary_op::handle_div_op(lhs, rhs, self),
-            HirBinaryOpKind::NotEqual => Ok(self.context.new_instruction(
-                Operation::binary(BinaryOp::Constrain(ConstrainOp::Neq), lhs, rhs),
-                ObjectType::NotAnObject,
-            )),
-            HirBinaryOpKind::Equal => Ok(self.context.new_instruction(
-                Operation::binary(BinaryOp::Constrain(ConstrainOp::Eq), lhs, rhs),
-                ObjectType::NotAnObject,
-            )),
-            HirBinaryOpKind::And => todo!(),
-            // HirBinaryOpKind::Xor => binary_op::handle_xor_op(lhs, rhs, self),
-            HirBinaryOpKind::Less => todo!(), // Ok(self.new_instruction(lhs, rhs, node::Operation::LtGate, node::ObjectType::NotAnObject)),
-            HirBinaryOpKind::LessEqual => todo!(),
-            HirBinaryOpKind::Greater => todo!(),
-            HirBinaryOpKind::GreaterEqual => {
-                todo!();
-            }
-            HirBinaryOpKind::Assign => Err(RuntimeErrorKind::Spanless(
-                "The Binary operation `=` can only be used in declaration statements".to_string(),
-            )),
-            HirBinaryOpKind::Or => Err(RuntimeErrorKind::Unimplemented(
-                "The Or operation is currently not implemented. First implement in Barretenberg."
-                    .to_owned(),
-            )),
-            _ => Err(RuntimeErrorKind::Unimplemented(
-                "The operation is currently not supported in a constrain statement".to_owned(),
-            )),
-        }
-        .map_err(|kind| kind.add_span(constrain_stmt.0.operator.span))?;
-
+        let cond = self.expression_to_object(env, &constrain_stmt.0)?.unwrap_id();
+        self.context.new_instruction(Operation::Constrain(cond), ObjectType::NotAnObject);
         Ok(Value::dummy())
     }
 

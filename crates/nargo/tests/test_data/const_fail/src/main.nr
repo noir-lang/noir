@@ -9,8 +9,7 @@ fn main(x: Field) {
     let my_const2 = 3;
     constrain array[my_const2] == 3;
 
-    // Using a const where a non-const is expected
+    // Using a const where a non-const is expected should be fine
     main(my_const2);
-
     constrain x != 0;
 }

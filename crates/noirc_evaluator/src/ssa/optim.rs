@@ -4,10 +4,8 @@ use super::{
     acir_gen::InternalVar,
     block::BlockId,
     context::SsaContext,
-    mem::Memory,
     node::{
-        self, Binary, BinaryOp, ConstrainOp, Instruction, Mark, Node, NodeEval, NodeId, ObjectType,
-        Opcode, Operation,
+        Binary, BinaryOp, Instruction, Mark, Node, NodeEval, NodeId, ObjectType, Opcode, Operation,
     },
 };
 use std::{
@@ -32,27 +30,13 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) {
 
     //2. standard form
     ins.standard_form();
-    match ins.operation {
-        Operation::Cast(value_id) => {
-            if let Some(value) = ctx.try_get_node(value_id) {
-                if value.get_type() == ins.res_type {
-                    ins.mark = Mark::ReplaceWith(value_id);
-                    return;
-                }
+    if let Operation::Cast(value_id) = ins.operation {
+        if let Some(value) = ctx.try_get_node(value_id) {
+            if value.get_type() == ins.res_type {
+                ins.mark = Mark::ReplaceWith(value_id);
+                return;
             }
         }
-        Operation::Binary(node::Binary { operator: BinaryOp::Constrain(op), lhs, rhs }) => {
-            match (op, Memory::deref(ctx, lhs), Memory::deref(ctx, rhs)) {
-                (ConstrainOp::Eq, Some(lhs), Some(rhs)) if lhs == rhs => {
-                    ins.mark = Mark::Deleted;
-                }
-                (ConstrainOp::Neq, Some(lhs), Some(rhs)) => {
-                    assert_ne!(lhs, rhs);
-                }
-                _ => (),
-            }
-        }
-        _ => (),
     }
 
     //3. left-overs (it requires &mut ctx)
@@ -388,8 +372,8 @@ fn cse_block_with_anchor(
                     //No CSE for function calls because of possible side effect - TODO checks if a function has side effect when parsed and do cse for these.
                     //Add dummy store for functions that modify arrays
                     for a in returned_array {
-                        let id = ctx.get_dummy_store(*a);
-                        anchor.push_front(Opcode::Load(*a), id);
+                        let id = ctx.get_dummy_store(a.0);
+                        anchor.push_front(Opcode::Load(a.0), id);
                     }
                     if let Some(f) = ctx.get_ssafunc(*func) {
                         for typ in &f.result_types {
