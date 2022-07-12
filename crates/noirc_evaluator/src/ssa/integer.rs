@@ -229,7 +229,11 @@ fn block_overflow(
     // The instructions are insterted in a duplicate list( because of rust ownership..), which we use for
     // processing another cse round for the block because the truncates may be duplicated.
     let mut new_list = Vec::new();
+
+    // This needs to be a BTreeMap and not a HashMap so that it can have a deterministic order
+    // when we collect it into a Vec later on
     let mut truncate_map = BTreeMap::new();
+
     let mut modified = false;
     let instructions =
         vecmap(&ctx[block_id].instructions, |id| ctx.try_get_instruction(*id).unwrap().clone());
