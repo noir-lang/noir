@@ -4,10 +4,8 @@ use super::{
     acir_gen::InternalVar,
     block::BlockId,
     context::SsaContext,
-    mem::Memory,
     node::{
-        self, Binary, BinaryOp, ConstrainOp, Instruction, Mark, Node, NodeEval, NodeId, ObjectType,
-        Opcode, Operation,
+        Binary, BinaryOp, Instruction, Mark, Node, NodeEval, NodeId, ObjectType, Opcode, Operation,
     },
 };
 use std::{
@@ -32,27 +30,13 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) {
 
     //2. standard form
     ins.standard_form();
-    match ins.operation {
-        Operation::Cast(value_id) => {
-            if let Some(value) = ctx.try_get_node(value_id) {
-                if value.get_type() == ins.res_type {
-                    ins.mark = Mark::ReplaceWith(value_id);
-                    return;
-                }
+    if let Operation::Cast(value_id) = ins.operation {
+        if let Some(value) = ctx.try_get_node(value_id) {
+            if value.get_type() == ins.res_type {
+                ins.mark = Mark::ReplaceWith(value_id);
+                return;
             }
         }
-        Operation::Binary(node::Binary { operator: BinaryOp::Constrain(op), lhs, rhs }) => {
-            match (op, Memory::deref(ctx, lhs), Memory::deref(ctx, rhs)) {
-                (ConstrainOp::Eq, Some(lhs), Some(rhs)) if lhs == rhs => {
-                    ins.mark = Mark::Deleted;
-                }
-                (ConstrainOp::Neq, Some(lhs), Some(rhs)) => {
-                    assert_ne!(lhs, rhs);
-                }
-                _ => (),
-            }
-        }
-        _ => (),
     }
 
     //3. left-overs (it requires &mut ctx)

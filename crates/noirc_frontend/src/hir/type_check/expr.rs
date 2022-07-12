@@ -4,7 +4,7 @@ use noirc_errors::Span;
 
 use crate::{
     hir_def::{
-        expr::{self, HirBinaryOp, HirExpression, HirLiteral, HirUnaryOp},
+        expr::{self, HirBinaryOp, HirBinaryOpKind, HirExpression, HirLiteral, HirUnaryOp},
         function::Param,
         types::Type,
     },
@@ -81,7 +81,7 @@ pub(crate) fn type_check_expression(
             let lhs_type = type_check_expression(interner, &infix_expr.lhs, errors);
             let rhs_type = type_check_expression(interner, &infix_expr.rhs, errors);
 
-            match infix_operand_type_rules(&lhs_type, &infix_expr.operator, &rhs_type) {
+            match infix_operand_type_rules(&lhs_type, &infix_expr.operator, &rhs_type, errors) {
                 Ok(typ) => typ,
                 Err(msg) => {
                     let lhs_span = interner.expr_span(&infix_expr.lhs);
@@ -401,9 +401,10 @@ pub fn infix_operand_type_rules(
     lhs_type: &Type,
     op: &HirBinaryOp,
     rhs_type: &Type,
+    errors: &mut Vec<TypeCheckError>,
 ) -> Result<Type, String> {
     if op.kind.is_comparator() {
-        return comparator_operand_type_rules(lhs_type, rhs_type, op.span);
+        return comparator_operand_type_rules(lhs_type, rhs_type, op, errors);
     }
 
     use {FieldElementType::*, Type::*};
@@ -425,7 +426,7 @@ pub fn infix_operand_type_rules(
         (PolymorphicInteger(is_const, int), other)
         | (other, PolymorphicInteger(is_const, int)) => {
             if let TypeBinding::Bound(binding) = &*int.borrow() {
-                return infix_operand_type_rules(binding, op, other);
+                return infix_operand_type_rules(binding, op, other, errors);
             }
             if other.try_bind_to_polymorphic_int(int, is_const, op.span).is_ok() {
                 Ok(other.clone())
@@ -582,8 +583,10 @@ fn field_type_rules(lhs: &FieldElementType, rhs: &FieldElementType) -> FieldElem
 pub fn comparator_operand_type_rules(
     lhs_type: &Type,
     rhs_type: &Type,
-    span: Span,
+    op: &HirBinaryOp,
+    errors: &mut Vec<TypeCheckError>,
 ) -> Result<Type, String> {
+    use HirBinaryOpKind::{Equal, NotEqual};
     use Type::*;
     match (lhs_type, rhs_type)  {
         (Integer(_, _, sign_x, bit_width_x), Integer(_, _, sign_y, bit_width_y)) => {
@@ -601,9 +604,9 @@ pub fn comparator_operand_type_rules(
         (PolymorphicInteger(is_const, int), other)
         | (other, PolymorphicInteger(is_const, int)) => {
             if let TypeBinding::Bound(binding) = &*int.borrow() {
-                return comparator_operand_type_rules(other, binding, span);
+                return comparator_operand_type_rules(other, binding, op, errors);
             }
-            if other.try_bind_to_polymorphic_int(int, is_const, span).is_ok() {
+            if other.try_bind_to_polymorphic_int(int, is_const, op.span).is_ok() {
                 Ok(Bool)
             } else {
                 Err(format!("Types in a binary operation should match, but found {} and {}", lhs_type, rhs_type))
@@ -612,15 +615,30 @@ pub fn comparator_operand_type_rules(
         (Integer(..), typ) | (typ,Integer(..)) => {
             Err(format!("Integer cannot be used with type {}", typ))
         }
-
         (FieldElement(..), FieldElement(..)) => Ok(Bool),
 
         // <= and friends are technically valid for booleans, just not very useful
         (Bool, Bool) => Ok(Bool),
 
         // Avoid reporting errors multiple times
-        (Error, _) | (_, Error) => Ok(Bool),
-        (Unspecified, _) | (_, Unspecified) => Ok(Bool),
+        (Error, _) | (_,Error) => Ok(Bool),
+        (Unspecified, _) | (_,Unspecified) => Ok(Bool),
+
+        // Special-case == and != for arrays
+        (Array(_, x_size, x_type), Array(_, y_size, y_type)) if matches!(op.kind, Equal | NotEqual) => {
+            x_type.unify(y_type, op.span, errors, &mut || {
+                TypeCheckError::Unstructured {
+                    msg: format!("Cannot compare {} and {}, the array element types differ", lhs_type, rhs_type),
+                    span: op.span,
+                }
+            });
+
+            if x_size != y_size {
+                return Err(format!("Can only compare arrays of the same length. Here LHS is of length {}, and RHS is {} ", 
+                    x_size, y_size));
+            }
+            Ok(Bool)
+        }
         (lhs, rhs) => Err(format!("Unsupported types for comparison: {} and {}", lhs, rhs)),
     }
 }
