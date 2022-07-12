@@ -5,6 +5,8 @@ use acvm::acir::native_types::Witness;
 use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use arena;
+use noirc_errors::Span;
+use noirc_frontend::hir::def_map::ModuleId;
 use noirc_frontend::hir_def::expr::HirBinaryOpKind;
 use noirc_frontend::node_interner::DefinitionId;
 use noirc_frontend::util::vecmap;
@@ -497,7 +499,7 @@ impl Instruction {
 
     pub fn standard_form(&mut self) {
         if let Operation::Binary(binary) = &mut self.operation {
-            if let BinaryOp::Constrain(op) = &binary.operator {
+            if let BinaryOp::Constrain(op, ..) = &binary.operator {
                 match op {
                     ConstrainOp::Eq => {
                         if binary.lhs == binary.rhs {
@@ -644,7 +646,7 @@ pub enum BinaryOp {
     Shr, //(>>) Shift right
 
     Assign,
-    Constrain(ConstrainOp), //write gates enforcing the ContrainOp to be true
+    Constrain(ConstrainOp, Span, ModuleId), //write gates enforcing the ContrainOp to be true
 }
 
 impl Binary {
@@ -944,7 +946,7 @@ impl Binary {
                     return wrapping(lhs, rhs, res_type, u128::shr, field_op_not_allowed);
                 }
             }
-            BinaryOp::Constrain(op) => {
+            BinaryOp::Constrain(op, ..) => {
                 if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
                     let lhs = l_type.field_to_type(lhs);
                     let rhs = r_type.field_to_type(rhs);
@@ -1019,7 +1021,7 @@ impl Binary {
             BinaryOp::Shl => Opcode::Shl,
             BinaryOp::Shr => Opcode::Shr,
             BinaryOp::Assign => Opcode::Assign,
-            BinaryOp::Constrain(op) => Opcode::Constrain(*op),
+            BinaryOp::Constrain(op, span, module) => Opcode::Constrain(*op),
         }
     }
 }
@@ -1213,7 +1215,7 @@ impl BinaryOp {
                 | BinaryOp::Xor
                 // This isn't a match-all pattern in case more ops are ever added
                 // that aren't commutative
-                | BinaryOp::Constrain(ConstrainOp::Eq | ConstrainOp::Neq)
+                | BinaryOp::Constrain(ConstrainOp::Eq | ConstrainOp::Neq, ..)
         )
     }
 }

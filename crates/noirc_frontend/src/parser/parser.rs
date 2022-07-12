@@ -297,7 +297,7 @@ where
                 ));
                 Statement::Error
             }
-            Some(infix) => Statement::Constrain(ConstrainStatement(infix)),
+            Some(infix) => Statement::Constrain(ConstrainStatement(infix, span)),
         },
     )
 }

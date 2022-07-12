@@ -57,7 +57,7 @@ fn get_instruction_max_operand(
                     }
                     get_max_value(ins, max_map)
                 }
-                BinaryOp::Constrain(_) => {
+                BinaryOp::Constrain(..) => {
                     //ContrainOp::Eq :
                     //TODO... we should update the max_map AFTER the truncate is processed (else it breaks it)
                     // let min = BigUint::min(left_max.clone(), right_max.clone());
@@ -536,7 +536,7 @@ fn get_binary_max_value(
                 - BigUint::one()
         }
         BinaryOp::Assign => rhs_max.clone(),
-        BinaryOp::Constrain(_) => BigUint::zero(),
+        BinaryOp::Constrain(..) => BigUint::zero(),
         BinaryOp::Shl => BigUint::min(
             BigUint::from(2_u32).pow((lhs_max.bits() + 1) as u32) - BigUint::one(),
             res_type.max_size(),

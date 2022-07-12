@@ -20,7 +20,7 @@ pub struct HirAssignStatement {
 }
 
 #[derive(Debug, Clone)]
-pub struct HirConstrainStatement(pub HirInfixExpression);
+pub struct HirConstrainStatement(pub HirInfixExpression, pub Span);
 
 #[derive(Debug, Clone)]
 pub struct BinaryStatement {

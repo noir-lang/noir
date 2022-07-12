@@ -322,7 +322,7 @@ impl Acir {
             BinaryOp::And => InternalVar::from(evaluate_and(l_c, r_c, res_type.bits(), evaluator)),
             BinaryOp::Or => InternalVar::from(evaluate_or(l_c, r_c, res_type.bits(), evaluator)),
             BinaryOp::Xor => InternalVar::from(evaluate_xor(l_c, r_c, res_type.bits(), evaluator)),
-            BinaryOp::Constrain(op) => match op {
+            BinaryOp::Constrain(op, ..) => match op {
                 ConstrainOp::Eq => InternalVar::from(
                     self.equalize(binary.lhs, binary.rhs, &l_c, &r_c, ctx, evaluator),
                 ),

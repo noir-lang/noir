@@ -266,40 +266,32 @@ impl<'a> Resolver<'a> {
     }
 
     pub fn intern_stmt(&mut self, stmt: Statement) -> StmtId {
-        match stmt {
-            Statement::Let(let_stmt) => {
-                let let_stmt = HirLetStatement {
-                    pattern: self.resolve_pattern(let_stmt.pattern),
-                    r#type: self.resolve_type(let_stmt.r#type),
-                    expression: self.resolve_expression(let_stmt.expression),
-                };
-                self.interner.push_stmt(HirStatement::Let(let_stmt))
-            }
+        let stmt = match stmt {
+            Statement::Let(let_stmt) => HirStatement::Let(HirLetStatement {
+                pattern: self.resolve_pattern(let_stmt.pattern),
+                r#type: self.resolve_type(let_stmt.r#type),
+                expression: self.resolve_expression(let_stmt.expression),
+            }),
             Statement::Constrain(constrain_stmt) => {
                 let lhs = self.resolve_expression(constrain_stmt.0.lhs);
                 let operator: HirBinaryOp = constrain_stmt.0.operator.into();
                 let rhs = self.resolve_expression(constrain_stmt.0.rhs);
+                let span = constrain_stmt.1;
 
-                let stmt = HirConstrainStatement(HirInfixExpression { lhs, operator, rhs });
-
-                self.interner.push_stmt(HirStatement::Constrain(stmt))
+                let stmt = HirConstrainStatement(HirInfixExpression { lhs, operator, rhs }, span);
+                HirStatement::Constrain(stmt)
             }
-            Statement::Expression(expr) => {
-                let stmt = HirStatement::Expression(self.resolve_expression(expr));
-                self.interner.push_stmt(stmt)
-            }
-            Statement::Semi(expr) => {
-                let stmt = HirStatement::Semi(self.resolve_expression(expr));
-                self.interner.push_stmt(stmt)
-            }
+            Statement::Expression(expr) => HirStatement::Expression(self.resolve_expression(expr)),
+            Statement::Semi(expr) => HirStatement::Semi(self.resolve_expression(expr)),
             Statement::Assign(assign_stmt) => {
                 let identifier = self.resolve_lvalue(assign_stmt.lvalue);
                 let expression = self.resolve_expression(assign_stmt.expression);
                 let stmt = HirAssignStatement { lvalue: identifier, expression };
-                self.interner.push_stmt(HirStatement::Assign(stmt))
+                HirStatement::Assign(stmt)
             }
-            Statement::Error => self.interner.push_stmt(HirStatement::Error),
-        }
+            Statement::Error => HirStatement::Error,
+        };
+        self.interner.push_stmt(stmt)
     }
 
     fn resolve_lvalue(&mut self, lvalue: LValue) -> HirLValue {

@@ -292,7 +292,7 @@ pub enum LValue {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ConstrainStatement(pub InfixExpression);
+pub struct ConstrainStatement(pub InfixExpression, pub Span);
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Pattern {

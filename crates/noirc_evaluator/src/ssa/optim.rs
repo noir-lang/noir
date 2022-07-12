@@ -32,8 +32,10 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) {
 
     //2. standard form
     ins.standard_form();
+
+    use {BinaryOp::Constrain, Operation::*};
     match ins.operation {
-        Operation::Cast(value_id) => {
+        Cast(value_id) => {
             if let Some(value) = ctx.try_get_node(value_id) {
                 if value.get_type() == ins.res_type {
                     ins.mark = Mark::ReplaceWith(value_id);
@@ -41,7 +43,7 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) {
                 }
             }
         }
-        Operation::Binary(node::Binary { operator: BinaryOp::Constrain(op), lhs, rhs }) => {
+        Binary(node::Binary { operator: Constrain(op, span, module), lhs, rhs }) => {
             match (op, Memory::deref(ctx, lhs), Memory::deref(ctx, rhs)) {
                 (ConstrainOp::Eq, Some(lhs), Some(rhs)) if lhs == rhs => {
                     ins.mark = Mark::Deleted;

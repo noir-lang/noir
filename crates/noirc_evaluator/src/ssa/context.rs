@@ -153,8 +153,8 @@ impl<'a> SsaContext<'a> {
             BinaryOp::Or => "or",
             BinaryOp::Xor => "xor",
             BinaryOp::Assign => "assign",
-            BinaryOp::Constrain(node::ConstrainOp::Eq) => "constrain_eq",
-            BinaryOp::Constrain(node::ConstrainOp::Neq) => "constrain_neq",
+            BinaryOp::Constrain(node::ConstrainOp::Eq, ..) => "constrain_eq",
+            BinaryOp::Constrain(node::ConstrainOp::Neq, ..) => "constrain_neq",
             BinaryOp::Shl => "shl",
             BinaryOp::Shr => "shr",
         };
@@ -539,7 +539,7 @@ impl<'a> SsaContext<'a> {
             | Operation::Jeq(_, _)
             | Operation::Jmp(_)
             | Operation::Nop
-            | Binary(node::Binary { operator: Constrain(_), .. })
+            | Binary(node::Binary { operator: Constrain(..), .. })
             | Operation::Store { .. } => ObjectType::NotAnObject,
             Operation::Load { array_id, .. } => self.mem[*array_id].element_type,
             Operation::Cast(_) | Operation::Truncate { .. } => {
