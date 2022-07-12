@@ -388,8 +388,8 @@ fn cse_block_with_anchor(
                     //No CSE for function calls because of possible side effect - TODO checks if a function has side effect when parsed and do cse for these.
                     //Add dummy store for functions that modify arrays
                     for a in returned_array {
-                        let id = ctx.get_dummy_store(*a);
-                        anchor.push_front(Opcode::Load(*a), id);
+                        let id = ctx.get_dummy_store(a.0);
+                        anchor.push_front(Opcode::Load(a.0), id);
                     }
                     if let Some(f) = ctx.get_ssafunc(*func) {
                         for typ in &f.result_types {
