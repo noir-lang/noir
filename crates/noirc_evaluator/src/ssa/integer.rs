@@ -10,7 +10,7 @@ use acvm::{acir::OPCODE, FieldElement};
 use noirc_frontend::util::vecmap;
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
-use std::convert::TryInto;
+use std::{collections::BTreeMap, convert::TryInto};
 use std::{collections::HashMap, ops::Neg};
 
 //Returns the maximum bit size of short integers
@@ -156,7 +156,7 @@ fn add_to_truncate(
     ctx: &SsaContext,
     obj_id: NodeId,
     bit_size: u32,
-    to_truncate: &mut HashMap<NodeId, u32>,
+    to_truncate: &mut BTreeMap<NodeId, u32>,
     max_map: &HashMap<NodeId, BigUint>,
 ) {
     let v_max = &max_map[&obj_id];
@@ -176,7 +176,7 @@ fn add_to_truncate(
 fn process_to_truncate(
     ctx: &mut SsaContext,
     new_list: &mut Vec<NodeId>,
-    to_truncate: &mut HashMap<NodeId, u32>,
+    to_truncate: &mut BTreeMap<NodeId, u32>,
     max_map: &mut HashMap<NodeId, BigUint>,
     block_idx: BlockId,
     vmap: &mut HashMap<NodeId, NodeId>,
@@ -224,7 +224,11 @@ fn block_overflow(
     // The instructions are insterted in a duplicate list( because of rust ownership..), which we use for
     // processing another cse round for the block because the truncates may be duplicated.
     let mut new_list = Vec::new();
-    let mut truncate_map = HashMap::new();
+
+    // This needs to be a BTreeMap and not a HashMap so that it can have a deterministic order
+    // when we collect it into a Vec later on
+    let mut truncate_map = BTreeMap::new();
+
     let mut modified = false;
     let instructions =
         vecmap(&ctx[block_id].instructions, |id| ctx.try_get_instruction(*id).unwrap().clone());

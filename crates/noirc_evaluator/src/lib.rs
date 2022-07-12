@@ -11,7 +11,7 @@ use acvm::acir::circuit::{
     gate::{AndGate, Gate, XorGate},
     Circuit, PublicInputs,
 };
-use acvm::acir::native_types::{Arithmetic, Linear, Witness};
+use acvm::acir::native_types::{Expression, Linear, Witness};
 use acvm::FieldElement;
 use acvm::Language;
 use environment::{Environment, FuncContext};
@@ -102,11 +102,7 @@ impl<'a> Evaluator<'a> {
         let mut env = Environment::new(FuncContext::Main);
 
         // First evaluate the main function
-        if enable_logging {
-            self.evaluate_main_alt(&mut env, enable_logging)?;
-        } else {
-            self.evaluate_main(&mut env)?;
-        }
+        self.evaluate_main_alt(&mut env, enable_logging)?;
 
         let witness_index = self.current_witness_index();
 
@@ -127,7 +123,7 @@ impl<'a> Evaluator<'a> {
     // instead
     pub fn create_intermediate_variable(
         &mut self,
-        arithmetic_gate: Arithmetic,
+        arithmetic_gate: Expression,
     ) -> (Object, Witness) {
         // Create a unique witness name and add witness to the constraint system
         let inter_var_witness = self.add_witness_to_cs();

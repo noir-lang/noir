@@ -31,7 +31,7 @@ fn test1(mut a : Field){
 fn test2(z : Field, t : u32 ) { 
      let a = z + t as Field;
      constrain a == 64;
-     let e = pow(z,t);
+     let e = pow(z,t as Field);
      constrain e ==714924299;
 }
 
