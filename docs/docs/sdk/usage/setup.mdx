@@ -42,6 +42,12 @@ Once the provider is set up you can create an instance of the Aztec SDK, specify
 https://api.aztec.network/aztec-connect-testnet/falafel
 ```
 
+You can connect to the Aztec rollup provider that is connected to Ethereum at:
+
+```shell
+https://api.aztec.network/aztec-connect-prod/falafel
+```
+
 ```ts title="/src/latest/index.ts"
 const setupSdk = async () => {
   sdk = await createAztecSdk(walletProvider, {
