@@ -25,16 +25,26 @@ impl GadgetCaller {
             }
             OPCODE::AES => return Err(gadget_call.name),
             OPCODE::MerkleMembership => {
+                // let mut inputs_iter = gadget_call.inputs.iter();
+
+                // let _root = inputs_iter.next().expect("expected a root");
+                // let root = *input_to_value(initial_witness, _root);
+            
+                // let _leaf = inputs_iter.next().expect("expected a leaf");
+                // let leaf = *input_to_value(initial_witness, _leaf);
+            
+                // let _index = inputs_iter.next().expect("expected the depth parameter");
+                // let index = *input_to_value(initial_witness, _index);
+
                 const SHOULD_INSERT: bool = false;
 
                 let merkle_data =
                     process_merkle_gadget(initial_witness, gadget_call, SHOULD_INSERT);
                 assert!(merkle_data.new_root.is_none());
 
-                let hash_path = flatten_path(merkle_data.hashpath);
-
+                // let hash_path = flatten_path(merkle_data.hashpath);
                 let result = MerkleTree::check_membership(
-                    hash_path.iter().collect(),
+                    merkle_data.hashpath.iter().collect(),
                     &merkle_data.old_root,
                     &merkle_data.index,
                     &merkle_data.leaf,
@@ -153,7 +163,7 @@ impl GadgetCaller {
 }
 
 struct MerkleData {
-    hashpath: super::merkle::HashPath,
+    hashpath: Vec<FieldElement>,
     old_root: FieldElement,
     new_root: Option<FieldElement>,
     leaf: FieldElement,
@@ -173,61 +183,45 @@ fn process_merkle_gadget(
     let leaf = *input_to_value(initial_witness, _leaf);
 
     let _index = inputs_iter.next().expect("expected the depth parameter");
-    // The value of index should not be set yet; it was created in the evaluator
+    let index = *input_to_value(initial_witness, _index);
 
-    let hashpath_indices: Vec<_> = inputs_iter.collect();
-    let arity = 2;
-    let depth = hashpath_indices.len() / arity;
+    let path: Vec<_> = inputs_iter
+        .map(|input| *input_to_value(initial_witness, input))
+        .collect();
 
-    // TODO: We either need to hardcode this on a known program path
-    // TODO or allow the user to input it somehow in a settings file.
-    let mut merkle_tree = MerkleTree::from_path("../data/merkle_db");
-    let expected_merkle_root = merkle_tree.root();
-    let expected_depth = merkle_tree.depth();
-
-    assert_eq!(
-        root,
-        expected_merkle_root,
-        "the merkle root provided does not match the merkle root in your db, got {} expected {}",
-        root.to_hex(),
-        expected_merkle_root.to_hex()
-    );
-    assert_eq!(
-        depth as u32, expected_depth,
-        "the depth provided does not match the merkle depth in your db, got {} expected {}",
-        depth, expected_depth
-    );
-
-    let (index, new_root) = if should_insert {
+    let new_root = if should_insert {
         // To insert, we first fetch the index of the fist empty leaf
         // Then we insert into the trie to compute the new root
         // It should be inserted into that same empty spot
-        let _index = merkle_tree.find_index_for_empty_leaf();
-        let new_root = merkle_tree.update_leaf(_index, leaf);
+        // let _index = merkle_tree.find_index_for_empty_leaf();
+        // let new_root = merkle_tree.update_leaf(_index, leaf);
+        
+        // To insert we first check that the index we want to insert into of the current merkle tree is empty
+        assert!(MerkleTree::check_membership(
+            path.iter().collect(), 
+            &root, 
+            &index, 
+            &FieldElement::zero()).is_one() 
+        );
 
-        (_index, Some(new_root))
+        // TODO: generate new root
+        let (new_hash_path, new_root) = MerkleTree::insert_leaf(
+            path.iter().collect(),
+            &index,
+            &leaf
+        );
+
+        assert!(MerkleTree::check_membership(
+            new_hash_path.iter().collect(),
+            &new_root,
+            &index,
+            &leaf).is_one()
+        );
+
+        Some(new_root)
     } else {
-        let _index = merkle_tree.find_index_from_leaf(&leaf).unwrap_or_else(|| {
-            panic!("could not find leaf in the merkle tree. {} not found", leaf.to_hex())
-        });
-        (_index, None)
+        None
     };
 
-    let index_fr = FieldElement::from(index as i128);
-    // Set the index here
-    initial_witness.insert(_index.witness, index_fr);
-
-    // Update hashpath
-    let path = merkle_tree.get_hash_path(index);
-
-    let mut hashpath_indices = hashpath_indices.iter();
-    for (left_hash, right_hash) in path.iter().copied() {
-        let left = hashpath_indices.next().unwrap().witness;
-        let right = hashpath_indices.next().unwrap().witness;
-
-        initial_witness.insert(left, left_hash);
-        initial_witness.insert(right, right_hash);
-    }
-
-    MerkleData { hashpath: path, old_root: root, new_root, leaf, index: index_fr }
+    MerkleData { hashpath: path, old_root: root, new_root, leaf, index}
 }

@@ -1,6 +1,6 @@
-use super::GadgetCaller;
+use super::{object_to_wit_bits, GadgetCaller};
 use super::RuntimeError;
-use crate::object::Object;
+use crate::object::{Object, Array};
 use crate::{Environment, Evaluator};
 use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
 use acvm::acir::OPCODE;
@@ -45,36 +45,37 @@ impl MerkleMembershipGadget {
         env: &mut Environment,
         mut call_expr: HirCallExpression,
     ) -> Result<Vec<GadgetInput>, RuntimeError> {
-        assert_eq!(call_expr.arguments.len(), 3);
+        assert_eq!(call_expr.arguments.len(), 4);
 
-        let depth = call_expr.arguments.pop().unwrap();
+        let hash_path = call_expr.arguments.pop().unwrap();
+        let index = call_expr.arguments.pop().unwrap();
         let leaf = call_expr.arguments.pop().unwrap();
         let root = call_expr.arguments.pop().unwrap();
 
-        let depth = evaluator.expression_to_object(env, &depth)?;
+        let hash_path = Array::from_expression(evaluator, env, &hash_path)?;
+        let index = evaluator.expression_to_object(env, &index)?;
         let leaf = evaluator.expression_to_object(env, &leaf)?;
-        let root = evaluator.expression_to_object(env, &root)?;
-
-        // TODO: change this to convert RuntimeErrorKind into RuntimeError
-        let depth = depth.constant().expect("expected depth to be a constant").to_u128();
+        let root = evaluator.expression_to_object(env, &root)?;    
+        
+        let index_witness = index.witness().unwrap();
         let leaf_witness = leaf.witness().unwrap();
         let root_witness = root.witness().unwrap();
 
-        let mut inputs: Vec<GadgetInput> =
+        let mut inputs: Vec<GadgetInput> = 
             vec![GadgetInput { witness: root_witness, num_bits: FieldElement::max_num_bits() }];
 
         inputs.push(GadgetInput { witness: leaf_witness, num_bits: FieldElement::max_num_bits() });
-        let index_witness = evaluator.add_witness_to_cs();
-        inputs.push(GadgetInput { witness: index_witness, num_bits: FieldElement::max_num_bits() });
 
-        // Add necessary amount of witnesses for the hashpath
-        let arity = 2;
-        let num_hash_items = arity * depth;
-        for _ in 0..num_hash_items {
-            inputs.push(GadgetInput {
-                witness: evaluator.add_witness_to_cs(),
-                num_bits: FieldElement::max_num_bits(),
-            });
+        // let index_witness = evaluator.add_witness_to_cs();
+        inputs.push(GadgetInput{ witness: index_witness, num_bits: FieldElement::max_num_bits() });
+
+        for element in hash_path.contents.into_iter() {
+            let gadget_inp = object_to_wit_bits(&element);
+            assert_eq!(
+                gadget_inp.num_bits,
+                FieldElement::max_num_bits()
+            );
+            inputs.push(gadget_inp);
         }
 
         Ok(inputs)

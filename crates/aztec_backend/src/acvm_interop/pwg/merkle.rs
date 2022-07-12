@@ -272,6 +272,45 @@ impl MerkleTree {
         }
     }
 
+    pub fn insert_leaf(
+        hash_path: Vec<&FieldElement>,
+        index: &FieldElement,
+        leaf: &FieldElement,
+    ) -> (Vec<FieldElement>, FieldElement) {
+        assert!(hash_path.len() % 2 == 0);
+
+        let mut barretenberg = Barretenberg::new();
+
+        let mut index_bits = index.bits();
+        index_bits.reverse();
+
+        let mut new_hash_path: Vec<FieldElement> = hash_path.clone().into_iter().map(|elem| *elem).collect();
+        // let mut new_hash_path = hash_path.clone();
+
+        let mut current = *leaf;
+
+        let chunks = hash_path.chunks(2).enumerate();
+        for (i, path_pair) in chunks {
+            let path_bit = index_bits[i];
+            let mut hash_left = path_pair[0];
+            let mut hash_right = path_pair[1];
+
+            let is_left = (&current == hash_left) & !path_bit;
+            let is_right = (&current == hash_right) & path_bit;
+
+            if is_left {
+                hash_left = &current;
+                new_hash_path[0] = current;
+            } else if is_right {
+                hash_right = &current;
+                new_hash_path[1] = current; 
+            }
+            current = compress_native(&mut barretenberg, hash_left, hash_right);
+        }
+
+        (new_hash_path, current)
+    }
+
     pub fn root(&self) -> FieldElement {
         fetch_root(&self.db)
     }

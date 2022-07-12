@@ -5,8 +5,10 @@
 // and the hashpath proves this
 // Currently we assume that it is a binary tree, so depth k implies a width of 2^k
 // XXX: In the future we can add an arity parameter
+// #[foreign(merkle_membership)]
+// fn check_membership(_root : Field, _leaf : Field, _depth : Field) -> Field {}
 #[foreign(merkle_membership)]
-fn check_membership(_root : Field, _leaf : Field, _depth : Field) -> Field {}
+fn check_membership(_root : Field, _leaf : Field, _index : Field, _hash_path: []Field) -> Field {}
 
 // This only works for regular merkle trees, not sparse ones
 // For sparse ones, this would be update_membership
@@ -16,5 +18,7 @@ fn check_membership(_root : Field, _leaf : Field, _depth : Field) -> Field {}
 // this method will insert into the underlying database and then create a merkle tree membership proof
 // and then return the new root
 // The root is only here to check the underlying database. No constraints are applied to the root
+// #[foreign(insert_regular_merkle)]
+// fn insert(_root : Field, _leaf : Field, _depth : Field) -> Field {}
 #[foreign(insert_regular_merkle)]
-fn insert(_root : Field, _leaf : Field, _depth : Field) -> Field {}
+fn insert(_root : Field, _leaf : Field, _index : Field, _hash_path: []Field) -> Field {}
