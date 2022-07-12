@@ -6,7 +6,7 @@ mod stmt;
 // If polymorphism is never need, then Wands algorithm should be powerful enough to accommodate
 // all foreseeable types, if it is needed then we would need to switch to Hindley-Milner type or maybe bidirectional
 
-use errors::TypeCheckError;
+pub use errors::TypeCheckError;
 use expr::type_check_expression;
 
 use crate::node_interner::{FuncId, NodeInterner};
@@ -36,13 +36,13 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
 
     // Check declared return type and actual return type
     if !can_ignore_ret {
-        function_last_type.unify(declared_return_type, &mut || {
-            let func_span = interner.id_span(func_as_expr); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
-            errors.push(TypeCheckError::TypeMismatch {
+        let func_span = interner.id_span(func_as_expr); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
+        function_last_type.unify(declared_return_type, func_span, &mut errors, || {
+            TypeCheckError::TypeMismatch {
                 expected_typ: declared_return_type.to_string(),
                 expr_typ: function_last_type.to_string(),
                 expr_span: func_span,
-            });
+            }
         });
     }
 
@@ -116,6 +116,7 @@ mod test {
         let operator = HirBinaryOp { span: Span::default(), kind: HirBinaryOpKind::Add };
         let expr = HirInfixExpression { lhs: x_expr_id, operator, rhs: y_expr_id };
         let expr_id = interner.push_expr(HirExpression::Infix(expr));
+        interner.push_expr_span(expr_id, Span::single_char(0));
 
         // Create let statement
         let let_stmt = HirLetStatement {
@@ -125,6 +126,7 @@ mod test {
         };
         let stmt_id = interner.push_stmt(HirStatement::Let(let_stmt));
         let expr_id = interner.push_expr(HirExpression::Block(HirBlockExpression(vec![stmt_id])));
+        interner.push_expr_span(expr_id, Span::single_char(0));
 
         // Create function to enclose the let statement
         let func = HirFunction::unsafe_from_expr(expr_id);
@@ -141,8 +143,8 @@ mod test {
             kind: FunctionKind::Normal,
             attributes: None,
             parameters: vec![
-                Param(Identifier(x), Type::WITNESS),
-                Param(Identifier(y), Type::WITNESS),
+                Param(Identifier(x), Type::witness(None)),
+                Param(Identifier(y), Type::witness(None)),
             ]
             .into(),
             return_type: Type::Unit,

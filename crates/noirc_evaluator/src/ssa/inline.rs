@@ -78,7 +78,6 @@ fn inline_block(ctx: &mut SsaContext, block_id: BlockId, to_inline: Option<FuncI
     }
 
     if to_inline.is_none() {
-        ctx.print_block(&ctx[block_id]);
         optim::cse(ctx, block_id); //handles the deleted call instructions
     }
     result

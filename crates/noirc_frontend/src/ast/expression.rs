@@ -181,7 +181,7 @@ pub struct ForExpression {
     pub identifier: Ident,
     pub start_range: Expression,
     pub end_range: Expression,
-    pub block: BlockExpression,
+    pub block: Expression,
 }
 
 pub type BinaryOp = Spanned<BinaryOpKind>;
@@ -339,8 +339,8 @@ pub struct CastExpression {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct IfExpression {
     pub condition: Expression,
-    pub consequence: BlockExpression,
-    pub alternative: Option<BlockExpression>,
+    pub consequence: Expression,
+    pub alternative: Option<Expression>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

@@ -11,12 +11,12 @@ use acvm::acir::circuit::{
     gate::{AndGate, Gate, XorGate},
     Circuit, PublicInputs,
 };
-use acvm::acir::native_types::{Arithmetic, Linear, Witness};
+use acvm::acir::native_types::{Expression, Linear, Witness};
 use acvm::FieldElement;
 use acvm::Language;
 use environment::{Environment, FuncContext};
 use errors::{RuntimeError, RuntimeErrorKind};
-use noirc_frontend::{hir::Context, node_interner::DefinitionId};
+use noirc_frontend::{hir::Context, node_interner::DefinitionId, IsConst};
 use noirc_frontend::{
     hir_def::{expr::HirIdent, stmt::HirLValue},
     node_interner::{ExprId, FuncId, StmtId},
@@ -102,11 +102,7 @@ impl<'a> Evaluator<'a> {
         let mut env = Environment::new(FuncContext::Main);
 
         // First evaluate the main function
-        if enable_logging {
-            self.evaluate_main_alt(&mut env, enable_logging)?;
-        } else {
-            self.evaluate_main(&mut env)?;
-        }
+        self.evaluate_main_alt(&mut env, enable_logging)?;
 
         let witness_index = self.current_witness_index();
 
@@ -127,7 +123,7 @@ impl<'a> Evaluator<'a> {
     // instead
     pub fn create_intermediate_variable(
         &mut self,
-        arithmetic_gate: Arithmetic,
+        arithmetic_gate: Expression,
     ) -> (Object, Witness) {
         // Create a unique witness name and add witness to the constraint system
         let inter_var_witness = self.add_witness_to_cs();
@@ -319,7 +315,7 @@ impl<'a> Evaluator<'a> {
         igen: &mut IRGenerator,
     ) -> Result<(), RuntimeError> {
         match param_type {
-            Type::FieldElement(ft) => {
+            Type::FieldElement(_, ft) => {
                 let witness = self.add_witness_to_cs();
                 if ft.strict_eq(&FieldElementType::Public) {
                     self.public_inputs.push(witness);
@@ -329,7 +325,7 @@ impl<'a> Evaluator<'a> {
             Type::Array(ft, array_size, typ) => {
                 let mut witnesses = Vec::new();
                 let mut element_width = None;
-                if let Type::Integer(_, _, width) = typ.as_ref() {
+                if let Type::Integer(_, _, _, width) = typ.as_ref() {
                     element_width = Some(*width);
                 }
                 match array_size.clone() {
@@ -352,7 +348,7 @@ impl<'a> Evaluator<'a> {
                     }
                 }
             }
-            Type::Integer(ft, sign, width) => {
+            Type::Integer(_, ft, sign, width) => {
                 let witness = self.add_witness_to_cs();
                 ssa::acir_gen::range_constraint(witness, *width, self)
                     .map_err(|e| e.add_span(param_span))?;
@@ -368,7 +364,7 @@ impl<'a> Evaluator<'a> {
                     }
                 }
             }
-            Type::PolymorphicInteger(_) => unreachable!(),
+            Type::PolymorphicInteger(..) => unreachable!(),
             Type::Bool => todo!(),
             Type::Unit => todo!(),
             Type::Struct(_, _) => todo!(),
@@ -587,7 +583,7 @@ impl<'a> Evaluator<'a> {
         // we can extend into a separate (generic) module
 
         match self.context.def_interner.id_type(rhs) {
-            Type::FieldElement(FieldElementType::Constant) => {
+            Type::FieldElement(IsConst::Yes(_), _) => {
                 // const can only be integers/Field elements, cannot involve the witness, so we can possibly move this to
                 // analysis. Right now it would not make a difference, since we are not compiling to an intermediate Noir format
                 let span = self.context.def_interner.expr_span(rhs);

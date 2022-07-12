@@ -166,12 +166,24 @@ pub fn call_low_level(
     igen.context.new_instruction(node::Operation::Intrinsic(op, args), result_type)
 }
 
-pub fn param_to_ident(patern: &HirPattern, mutable: bool) -> (&HirIdent, bool) {
+pub fn param_to_ident(patern: &HirPattern, mutable: bool) -> Vec<(&HirIdent, bool)> {
     match &patern {
-        HirPattern::Identifier(id) => (id, mutable),
+        HirPattern::Identifier(id) => vec![(id, mutable)],
         HirPattern::Mutable(pattern, _) => param_to_ident(pattern.as_ref(), true),
-        HirPattern::Tuple(_, _) => todo!(),
-        HirPattern::Struct(_, _, _) => todo!(),
+        HirPattern::Tuple(v, _) => {
+            let mut result = Vec::new();
+            for pattern in v {
+                result.extend(param_to_ident(pattern, mutable));
+            }
+            result
+        }
+        HirPattern::Struct(_, v, _) => {
+            let mut result = Vec::new();
+            for (_, pattern) in v {
+                result.extend(param_to_ident(pattern, mutable));
+            }
+            result
+        }
     }
 }
 
@@ -196,10 +208,14 @@ pub fn create_function(
     for pat in parameters.iter() {
         //For now we use the mut property of the argument to indicate if it is modified or not
         //TODO: check instead in the function body whether there is a store for the array
-        let ident_id = param_to_ident(&pat.0, false);
-        let node_id = ssa_form::create_function_parameter(igen, &ident_id.0.id);
-        func.arguments.push((node_id, ident_id.1));
+        let ident_ids = param_to_ident(&pat.0, false);
+        for def in ident_ids {
+            let node_ids = ssa_form::create_function_parameter(igen, &def.0.id);
+            let e: Vec<(NodeId, bool)> = node_ids.iter().map(|n| (*n, def.1)).collect();
+            func.arguments.extend(e);
+        }
     }
+
     igen.function_context = Some(index);
     igen.context.functions.insert(func_id, func.clone());
     let last_value = igen.parse_block(block.statements(), env);

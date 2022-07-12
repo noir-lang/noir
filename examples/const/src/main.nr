@@ -1,12 +1,17 @@
-use dep::std;
-
-fn main(message : [10]u8, pub_key_x : Field, pub_key_y : Field, signature : [64]u8) {
-    let mut x = std::schnorr::verify_signature(pub_key_x,pub_key_y,signature, message);
-    x = 3; 
-
+fn main(x: Field) {
     let my_const = 2;
-    let foo: const u32 = my_const as u32 + 1;
+    let array = [0, 1, 2, 3];
 
-    // message = [0, 1, 2, 3, ...]
-    constrain message[foo as Field] == x;
+    // Error here:
+    // let foo = my_const + x;
+    // constrain array[foo] == x;
+    constrain array[my_const - 1] == 1;
+
+    let my_const2 = 3;
+    constrain array[my_const2] == 3;
+
+    // Using a const where a non-const is expected
+    main(my_const2);
+
+    constrain x != 0;
 }
