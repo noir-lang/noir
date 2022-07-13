@@ -25,24 +25,12 @@ impl GadgetCaller {
             }
             OPCODE::AES => return Err(gadget_call.name),
             OPCODE::MerkleMembership => {
-                // let mut inputs_iter = gadget_call.inputs.iter();
-
-                // let _root = inputs_iter.next().expect("expected a root");
-                // let root = *input_to_value(initial_witness, _root);
-            
-                // let _leaf = inputs_iter.next().expect("expected a leaf");
-                // let leaf = *input_to_value(initial_witness, _leaf);
-            
-                // let _index = inputs_iter.next().expect("expected the depth parameter");
-                // let index = *input_to_value(initial_witness, _index);
-
                 const SHOULD_INSERT: bool = false;
 
                 let merkle_data =
                     process_merkle_gadget(initial_witness, gadget_call, SHOULD_INSERT);
                 assert!(merkle_data.new_root.is_none());
 
-                // let hash_path = flatten_path(merkle_data.hashpath);
                 let result = MerkleTree::check_membership(
                     merkle_data.hashpath.iter().collect(),
                     &merkle_data.old_root,
@@ -190,27 +178,22 @@ fn process_merkle_gadget(
         .collect();
 
     let new_root = if should_insert {
-        // To insert, we first fetch the index of the fist empty leaf
-        // Then we insert into the trie to compute the new root
-        // It should be inserted into that same empty spot
-        // let _index = merkle_tree.find_index_for_empty_leaf();
-        // let new_root = merkle_tree.update_leaf(_index, leaf);
-        
-        // To insert we first check that the index we want to insert into of the current merkle tree is empty
+        // To insert we first check that the index we want to insert into the current merkle tree is empty
         assert!(MerkleTree::check_membership(
             path.iter().collect(), 
             &root, 
             &index, 
-            &FieldElement::zero()).is_one() 
+            &leaf).is_zero() 
         );
 
-        // TODO: generate new root
+        // Generate updated root and hash path upon insertion of node into tree
         let (new_hash_path, new_root) = MerkleTree::insert_leaf(
             path.iter().collect(),
             &index,
             &leaf
         );
 
+        // Verify that the new root and hash path contain the leaf at the specific index
         assert!(MerkleTree::check_membership(
             new_hash_path.iter().collect(),
             &new_root,
