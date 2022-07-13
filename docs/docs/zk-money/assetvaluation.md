@@ -1,6 +1,6 @@
 # Asset Valuation
 
-All dollar valuation seen in zk.money are derived with use of oracles provided by [Chainlink](https://chain.link/).
+All dollar valuations seen in zk.money are derived with use of oracles provided by [Chainlink](https://chain.link/).
 
 | Asset | Chainlink Oracle                                                                                     |
 | ----- | ---------------------------------------------------------------------------------------------------- |
