@@ -164,7 +164,7 @@ impl Array {
             Object::Array(arr) => Ok(arr),
             _ => {
                 let span = evaluator.context.def_interner.expr_span(expr_id);
-                Err(RuntimeErrorKind::expected_type("array", object.r#type()).add_span(span))
+                Err(RuntimeErrorKind::expected_type("array", object.r#type()).add_location(span))
             }
         }
     }

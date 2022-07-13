@@ -22,8 +22,8 @@ impl BuiltInCaller for PowConst {
         let base_object = evaluator.expression_to_object(env, &base)?;
         let exponent_object = evaluator.expression_to_object(env, &exponent)?;
 
-        let base = base_object.constant().map_err(|kind| kind.add_span(span))?;
-        let exp = exponent_object.constant().map_err(|kind| kind.add_span(span))?;
+        let base = base_object.constant().map_err(|kind| kind.add_location(span))?;
+        let exp = exponent_object.constant().map_err(|kind| kind.add_location(span))?;
 
         let result = Object::Constants(base.pow(&exp));
 

@@ -24,7 +24,8 @@ impl BuiltInCaller for PredicateEq {
         let lhs_obj = evaluator.expression_to_object(env, &lhs)?;
         let rhs_obj = evaluator.expression_to_object(env, &rhs)?;
 
-        let pred = maybe_equal(lhs_obj, rhs_obj, evaluator).map_err(|kind| kind.add_span(span))?;
+        let pred =
+            maybe_equal(lhs_obj, rhs_obj, evaluator).map_err(|kind| kind.add_location(span))?;
         Ok(Object::from_witness(pred.witness))
     }
 }

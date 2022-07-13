@@ -51,7 +51,7 @@ pub fn call_low_level(
             let message =
                 format!("cannot find a low level opcode with the name {} in the IR", opcode_name);
 
-            return Err(RuntimeErrorKind::UnstructuredError { message }.add_span(span));
+            return Err(RuntimeErrorKind::UnstructuredError { message }.add_location(span));
         }
 
         Some(func) => func,
@@ -69,7 +69,7 @@ pub fn call_low_level(
         OPCODE::InsertRegularMerkle => InsertRegularMerkleGadget::call(evaluator, env, call_expr),
         k => {
             let message = format!("The OPCODE {} exists, however, currently the compiler does not have a concrete implementation for it", k);
-            Err(RuntimeErrorKind::UnstructuredError { message }.add_span(span))
+            Err(RuntimeErrorKind::UnstructuredError { message }.add_location(span))
         }
     }
 }

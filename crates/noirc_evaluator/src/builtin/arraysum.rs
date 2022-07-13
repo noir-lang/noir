@@ -25,14 +25,14 @@ impl BuiltInCaller for ArraySum {
         // ArraySum should only take a single parameter, which is an array. This should have been caught by the compiler in the analysis phase
         let arr = Array::from_expression(evaluator, env, &arr_expr)?;
 
-        let mut result = arr.get(0).map_err(|kind| kind.add_span(span))?;
+        let mut result = arr.get(0).map_err(|kind| kind.add_location(span))?;
         for i in 1..arr.contents.len() {
             result = binary_op::handle_add_op(
                 result,
-                arr.get(i as u128).map_err(|kind| kind.add_span(span))?,
+                arr.get(i as u128).map_err(|kind| kind.add_location(span))?,
                 evaluator,
             )
-            .map_err(|kind| kind.add_span(span))?;
+            .map_err(|kind| kind.add_location(span))?;
         }
 
         Ok(result)

@@ -4,7 +4,7 @@ use crate::lexer::token::SpannedToken;
 use crate::parser::ParserError;
 use crate::token::Token;
 use crate::util::vecmap;
-use crate::{Expression, ExpressionKind, InfixExpression, UnresolvedType};
+use crate::{Expression, ExpressionKind, UnresolvedType};
 use noirc_errors::{Span, Spanned};
 
 /// This is used when an identifier fails to parse in the parser.
@@ -292,7 +292,7 @@ pub enum LValue {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ConstrainStatement(pub InfixExpression, pub Span);
+pub struct ConstrainStatement(pub Expression);
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Pattern {

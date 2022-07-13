@@ -51,6 +51,7 @@ fn test3(x: [3]u8) -> [3]u8 {
        for i in 0..3   {
        buffer[i] = x[i] ;
      };
+     constrain buffer == x;
      buffer
 }
 

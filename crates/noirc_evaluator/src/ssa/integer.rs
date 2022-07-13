@@ -43,31 +43,26 @@ fn get_instruction_max_operand(
     match &ins.operation {
         Operation::Load { array_id, index } => get_load_max(ctx, *index, max_map, vmap, *array_id),
         Operation::Binary(node::Binary { operator, lhs, rhs }) => {
-            match operator {
-                BinaryOp::Sub { .. } => {
-                    //TODO uses interval analysis instead
-                    if matches!(ins.res_type, ObjectType::Unsigned(_)) {
-                        if let Some(lhs_const) = ctx.get_as_constant(*lhs) {
-                            let lhs_big = BigUint::from_bytes_be(&lhs_const.to_bytes());
-                            if max_map[rhs] <= lhs_big {
-                                //TODO unsigned
-                                return lhs_big;
-                            }
+            if let BinaryOp::Sub { .. } = operator {
+                //TODO uses interval analysis instead
+                if matches!(ins.res_type, ObjectType::Unsigned(_)) {
+                    if let Some(lhs_const) = ctx.get_as_constant(*lhs) {
+                        let lhs_big = BigUint::from_bytes_be(&lhs_const.to_bytes());
+                        if max_map[rhs] <= lhs_big {
+                            //TODO unsigned
+                            return lhs_big;
                         }
                     }
-                    get_max_value(ins, max_map)
                 }
-                BinaryOp::Constrain(..) => {
-                    //ContrainOp::Eq :
-                    //TODO... we should update the max_map AFTER the truncate is processed (else it breaks it)
-                    // let min = BigUint::min(left_max.clone(), right_max.clone());
-                    // max_map.insert(ins.lhs, min.clone());
-                    // max_map.insert(ins.rhs, min);
-                    get_max_value(ins, max_map)
-                }
-                _ => get_max_value(ins, max_map),
             }
+            get_max_value(ins, max_map)
         }
+        // Operation::Constrain(_) => {
+        //ContrainOp::Eq :
+        //TODO... we should update the max_map AFTER the truncate is processed (else it breaks it)
+        // let min = BigUint::min(left_max.clone(), right_max.clone());
+        // max_map.insert(ins.lhs, min.clone());
+        // max_map.insert(ins.rhs, min);
         _ => get_max_value(ins, max_map),
     }
 }
@@ -441,6 +436,7 @@ fn get_max_value(ins: &Instruction, max_map: &mut HashMap<NodeId, BigUint>) -> B
     let max_value = match &ins.operation {
         Operation::Binary(binary) => get_binary_max_value(binary, ins.res_type, max_map),
         Operation::Not(_) => ins.res_type.max_size(),
+        Operation::Constrain(..) => BigUint::zero(),
         //'a cast a' means we cast a into res_type of the instruction
         Operation::Cast(value_id) => {
             let type_max = ins.res_type.max_size();
@@ -536,7 +532,6 @@ fn get_binary_max_value(
                 - BigUint::one()
         }
         BinaryOp::Assign => rhs_max.clone(),
-        BinaryOp::Constrain(..) => BigUint::zero(),
         BinaryOp::Shl => BigUint::min(
             BigUint::from(2_u32).pow((lhs_max.bits() + 1) as u32) - BigUint::one(),
             res_type.max_size(),

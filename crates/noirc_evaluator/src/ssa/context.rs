@@ -153,8 +153,6 @@ impl<'a> SsaContext<'a> {
             BinaryOp::Or => "or",
             BinaryOp::Xor => "xor",
             BinaryOp::Assign => "assign",
-            BinaryOp::Constrain(node::ConstrainOp::Eq, ..) => "constrain_eq",
-            BinaryOp::Constrain(node::ConstrainOp::Neq, ..) => "constrain_neq",
             BinaryOp::Shl => "shl",
             BinaryOp::Shr => "shr",
         };
@@ -177,6 +175,7 @@ impl<'a> SsaContext<'a> {
                 )
             }
             Operation::Not(v) => format!("not {}", self.node_to_string(*v)),
+            Operation::Constrain(v, ..) => format!("constrain {}", self.node_to_string(*v)),
             Operation::Jne(v, b) => format!("jne {}, {:?}", self.node_to_string(*v), b),
             Operation::Jeq(v, b) => format!("jeq {}, {:?}", self.node_to_string(*v), b),
             Operation::Jmp(b) => format!("jmp {:?}", b),
@@ -539,7 +538,7 @@ impl<'a> SsaContext<'a> {
             | Operation::Jeq(_, _)
             | Operation::Jmp(_)
             | Operation::Nop
-            | Binary(node::Binary { operator: Constrain(..), .. })
+            | Operation::Constrain(..)
             | Operation::Store { .. } => ObjectType::NotAnObject,
             Operation::Load { array_id, .. } => self.mem[*array_id].element_type,
             Operation::Cast(_) | Operation::Truncate { .. } => {
@@ -725,6 +724,29 @@ impl<'a> SsaContext<'a> {
         let lhs_type = self.get_object_type(lhs);
         let rhs_type = self.get_object_type(rhs);
 
+        let mut ret_array = None;
+        if let Some(Instruction {
+            operation: Operation::Result { call_instruction: func, index: idx },
+            ..
+        }) = self.try_get_instruction(rhs)
+        {
+            if index.is_none() {
+                if let ObjectType::Pointer(a) = lhs_type {
+                    ret_array = Some((*func, a, *idx));
+                }
+            }
+        }
+        if let Some((func, a, idx)) = ret_array {
+            if let Some(Instruction { operation: Operation::Call(_, _, returned_array), .. }) =
+                self.try_get_mut_instruction(func)
+            {
+                returned_array.push((a, idx));
+            }
+            if let Some(i) = self.try_get_mut_instruction(rhs) {
+                i.mark = Mark::ReplaceWith(lhs);
+            }
+            return lhs;
+        }
         if let Some(idx) = index {
             if let ObjectType::Pointer(a) = lhs_type {
                 //Store

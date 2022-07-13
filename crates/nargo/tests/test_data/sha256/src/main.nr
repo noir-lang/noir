@@ -12,7 +12,7 @@
 // This can be done in ACIR!
 use dep::std;
 
-fn main(x : Field, result : [32]Field) {
+fn main(x : Field, result : [32]u8) {
 
     // We use the `as` keyword here to denote the fact that we want to take just the first byte from the x Field
     // The padding is taken care of by the program

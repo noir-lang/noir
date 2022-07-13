@@ -1,7 +1,7 @@
 use super::context::SsaContext;
 use super::function::FuncIndex;
 use super::mem::ArrayId;
-use super::node::{Binary, BinaryOp, ConstrainOp, NodeId, ObjectType, Operation, Variable};
+use super::node::{Binary, BinaryOp, NodeId, ObjectType, Operation, Variable};
 use super::{block, node, ssa_form};
 use std::collections::HashMap;
 
@@ -120,7 +120,7 @@ impl<'a> IRGenerator<'a> {
         len: u128,
         witness: Vec<acvm::acir::native_types::Witness>,
     ) {
-        let v_id = self.new_array(name, el_type.into(), len as u32, ident_def);
+        let v_id = self.new_array(name, el_type.into(), len as u32, Some(ident_def));
         let array_idx = self.context.mem.last_id();
         self.context.mem[array_idx].values = vecmap(witness, |w| w.into());
         self.context.get_current_block_mut().update_variable(v_id, v_id);
@@ -353,15 +353,9 @@ impl<'a> IRGenerator<'a> {
             noirc_frontend::Type::Array(_, len, _) => {
                 {
                     //TODO support array of structs
-                    let mut obj_type = node::ObjectType::from(typ);
-                    let array_idx = self.context.mem.create_new_array(
-                        super::mem::get_array_size(len),
-                        obj_type,
-                        base_name,
-                    );
-                    obj_type = node::ObjectType::Pointer(array_idx);
-                    let v_id = self.create_new_variable(base_name.to_string(), def, obj_type, None);
-                    self.context.get_current_block_mut().update_variable(v_id, v_id);
+                    let obj_type = node::ObjectType::from(typ);
+                    let v_id =
+                        self.new_array(base_name, obj_type, super::mem::get_array_size(len), def);
                     Value::Single(v_id)
                 }
             }
@@ -379,10 +373,12 @@ impl<'a> IRGenerator<'a> {
         name: &str,
         element_type: ObjectType,
         len: u32,
-        def_id: noirc_frontend::node_interner::DefinitionId,
+        def_id: Option<noirc_frontend::node_interner::DefinitionId>,
     ) -> NodeId {
-        let id = self.context.new_array(name, element_type, len, Some(def_id));
-        self.variable_values.insert(def_id, super::code_gen::Value::Single(id));
+        let id = self.context.new_array(name, element_type, len, def_id);
+        if let Some(def) = def_id {
+            self.variable_values.insert(def, super::code_gen::Value::Single(id));
+        }
         id
     }
 
@@ -390,41 +386,12 @@ impl<'a> IRGenerator<'a> {
     fn handle_constrain_statement(
         &mut self,
         env: &mut Environment,
-        constrain_stmt: HirConstrainStatement,
+        constrain: HirConstrainStatement,
     ) -> Result<Value, RuntimeError> {
-        let lhs = self.expression_to_object(env, &constrain_stmt.0.lhs)?.unwrap_id();
-        let rhs = self.expression_to_object(env, &constrain_stmt.0.rhs)?.unwrap_id();
-
-        let span = constrain_stmt.1;
-
-        let constrain_op = match constrain_stmt.0.operator.kind {
-            // HirBinaryOpKind::Add => binary_op::handle_add_op(lhs, rhs, self),
-            // HirBinaryOpKind::Subtract => binary_op::handle_sub_op(lhs, rhs, self),
-            // HirBinaryOpKind::Multiply => binary_op::handle_mul_op(lhs, rhs, self),
-            // HirBinaryOpKind::Divide => binary_op::handle_div_op(lhs, rhs, self),
-            HirBinaryOpKind::NotEqual => Ok(ConstrainOp::Neq),
-            HirBinaryOpKind::Equal => Ok(ConstrainOp::Eq),
-            HirBinaryOpKind::And => todo!(),
-            // HirBinaryOpKind::Xor => binary_op::handle_xor_op(lhs, rhs, self),
-            HirBinaryOpKind::Less => todo!(), // Ok(self.new_instruction(lhs, rhs, node::Operation::LtGate, node::ObjectType::NotAnObject)),
-            HirBinaryOpKind::LessEqual => todo!(),
-            HirBinaryOpKind::Greater => todo!(),
-            HirBinaryOpKind::GreaterEqual => {
-                todo!();
-            }
-            HirBinaryOpKind::Or => Err(RuntimeErrorKind::Unimplemented(
-                "The Or operation is currently not implemented. First implement in Barretenberg."
-                    .to_owned(),
-            )),
-            _ => Err(RuntimeErrorKind::Unimplemented(
-                "The operation is currently not supported in a constrain statement".to_owned(),
-            )),
-        }
-        .map_err(|kind| kind.add_span(constrain_stmt.0.operator.span))?;
-
-        let op = BinaryOp::Constrain(constrain_op, span, module);
-        self.context.new_instruction(Operation::binary(op, lhs, rhs), ObjectType::NotAnObject);
-
+        let cond = self.expression_to_object(env, &constrain.0)?.unwrap_id();
+        let span = self.def_interner().expr_span(&constrain.0);
+        let operation = Operation::Constrain(cond, span, constrain.1);
+        self.context.new_instruction(operation, ObjectType::NotAnObject);
         Ok(Value::dummy())
     }
 
@@ -672,8 +639,10 @@ impl<'a> IRGenerator<'a> {
                         _ => unreachable!(),
                     }
                 } else {
-                    let arr =
-                        env.get_array(&arr_name).map_err(|kind| kind.add_span(ident_span)).unwrap();
+                    let arr = env
+                        .get_array(&arr_name)
+                        .map_err(|kind| kind.add_location(ident_span))
+                        .unwrap();
                     self.context.create_array_from_object(&arr, arr_def, o_type, &arr_name);
                     let array_id = self.context.mem.last_id();
                     &self.context.mem[array_id]
@@ -767,7 +736,7 @@ impl<'a> IRGenerator<'a> {
                 }
             }
             HirExpression::For(for_expr) => {
-                self.handle_for_expr(env, for_expr).map_err(|kind| kind.add_span(span))
+                self.handle_for_expr(env, for_expr).map_err(|kind| kind.add_location(span))
             }
             HirExpression::Constructor(constructor) => self.handle_constructor(env, constructor),
             HirExpression::MemberAccess(access) => self.handle_member_access(env, access),

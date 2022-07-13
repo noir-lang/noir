@@ -120,7 +120,7 @@ fn type_check_lvalue(
             if !definition.mutable {
                 errors.push(TypeCheckError::Unstructured {
                     msg: format!("Variable {} must be mutable to be assigned to", definition.name),
-                    span: ident.span,
+                    span: ident.location.span,
                 });
             }
 
@@ -197,36 +197,14 @@ fn type_check_constrain_stmt(
     stmt: HirConstrainStatement,
     errors: &mut Vec<TypeCheckError>,
 ) {
-    let lhs_type = type_check_expression(interner, &stmt.0.lhs, errors);
-    let rhs_type = type_check_expression(interner, &stmt.0.rhs, errors);
+    let expr_type = type_check_expression(interner, &stmt.0, errors);
+    let expr_span = interner.expr_span(&stmt.0);
 
-    // Since constrain statements are not expressions, we disallow non-comparison binary operators
-    if !stmt.0.operator.kind.is_comparator() {
-        errors.push(
-            TypeCheckError::OpCannotBeUsed {
-                op: stmt.0.operator,
-                place: "constrain statement",
-                span: stmt.0.operator.span,
-            }
-            .add_context("only comparison operators can be used in a constrain statement"),
-        );
-    };
-
-    if !lhs_type.can_be_used_in_constrain() {
-        errors.push(TypeCheckError::TypeCannotBeUsed {
-            typ: lhs_type,
-            place: "constrain statement",
-            span: interner.expr_span(&stmt.0.lhs),
-        });
-    }
-
-    if !rhs_type.can_be_used_in_constrain() {
-        errors.push(TypeCheckError::TypeCannotBeUsed {
-            typ: rhs_type,
-            place: "constrain statement",
-            span: interner.expr_span(&stmt.0.rhs),
-        });
-    }
+    expr_type.unify(&Type::Bool, expr_span, errors, &mut || TypeCheckError::TypeMismatch {
+        expr_typ: expr_type.to_string(),
+        expected_typ: Type::Bool.to_string(),
+        expr_span,
+    });
 }
 
 /// All declaration statements check that the user specified type(UST) is equal to the

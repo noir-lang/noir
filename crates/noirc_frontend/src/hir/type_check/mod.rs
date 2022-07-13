@@ -63,7 +63,8 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
 mod test {
     use std::collections::HashMap;
 
-    use noirc_errors::Span;
+    use fm::FileId;
+    use noirc_errors::{Location, Span};
 
     use crate::hir_def::expr::HirIdent;
     use crate::hir_def::stmt::HirLetStatement;
@@ -98,22 +99,27 @@ mod test {
         //
         // Push x variable
         let x_id = interner.push_definition("x".into(), false);
-        let x = HirIdent { id: x_id, span: Span::default() };
+
+        // Safety: The FileId in a location isn't used for tests
+        let file = FileId::default();
+        let location = Location::new(Span::default(), file);
+
+        let x = HirIdent { id: x_id, location };
 
         // Push y variable
         let y_id = interner.push_definition("y".into(), false);
-        let y = HirIdent { id: y_id, span: Span::default() };
+        let y = HirIdent { id: y_id, location };
 
         // Push z variable
         let z_id = interner.push_definition("z".into(), false);
-        let z = HirIdent { id: z_id, span: Span::default() };
+        let z = HirIdent { id: z_id, location };
 
         // Push x and y as expressions
         let x_expr_id = interner.push_expr(HirExpression::Ident(x));
         let y_expr_id = interner.push_expr(HirExpression::Ident(y));
 
         // Create Infix
-        let operator = HirBinaryOp { span: Span::default(), kind: HirBinaryOpKind::Add };
+        let operator = HirBinaryOp { location, kind: HirBinaryOpKind::Add };
         let expr = HirInfixExpression { lhs: x_expr_id, operator, rhs: y_expr_id };
         let expr_id = interner.push_expr(HirExpression::Infix(expr));
         interner.push_expr_span(expr_id, Span::single_char(0));
@@ -132,16 +138,14 @@ mod test {
         let func = HirFunction::unsafe_from_expr(expr_id);
         let func_id = interner.push_fn(func);
 
-        let name = HirIdent {
-            span: Span::default(),
-            id: interner.push_definition("test_func".into(), false),
-        };
+        let name = HirIdent { location, id: interner.push_definition("test_func".into(), false) };
 
         // Add function meta
         let func_meta = FuncMeta {
             name,
             kind: FunctionKind::Normal,
             attributes: None,
+            file,
             parameters: vec![
                 Param(Identifier(x), Type::witness(None)),
                 Param(Identifier(y), Type::witness(None)),
@@ -256,9 +260,10 @@ mod test {
         }
 
         let def_maps: HashMap<CrateId, CrateDefMap> = HashMap::new();
+        let file = FileId::default();
 
         let func_meta = vecmap(program.functions, |nf| {
-            let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps);
+            let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
             let (hir_func, func_meta, resolver_errors) = resolver.resolve_function(nf);
             assert_eq!(resolver_errors, vec![]);
             (hir_func, func_meta)
