@@ -116,9 +116,12 @@ const sidebars = {
     "glossary",
   ],
   zkmoneySidebar: [
-    "zk-money/userguide", 
+    "zk-money/userguide",
     "zk-money/fees",
-    "zk-money/troubleshooting"],
+    "zk-money/assetvaluation",
+    "zk-money/troubleshooting",
+    "zk-money/june2021update",
+  ],
 };
 
 module.exports = sidebars;
