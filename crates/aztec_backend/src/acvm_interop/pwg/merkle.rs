@@ -286,19 +286,10 @@ impl MerkleTree {
 
         let mut updated_path: Vec<FieldElement> = Vec::new();
         let mut current = *leaf;
-
-        let mut path_bit = index_bits[0];
-        let (hash_left, hash_right) = if path_bit == false {
-            (current, *hash_path[1])
-        } else {
-            (*hash_path[0], current)
-        };
-        current = compress_native(&mut barretenberg, &hash_left, &hash_right);
-        updated_path.extend([hash_left, hash_right]);
         
-        let chunks = hash_path.chunks(2).enumerate().skip(1);
+        let chunks = hash_path.chunks(2).enumerate();
         for (i, path_pair) in chunks {
-            path_bit = index_bits[i];
+            let path_bit = index_bits[i];
             let (hash_left, hash_right) = if path_bit == false {
                 (current, *path_pair[1])
             } else {
