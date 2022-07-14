@@ -173,34 +173,25 @@ fn process_merkle_gadget(
     let _index = inputs_iter.next().expect("expected an index");
     let index = *input_to_value(initial_witness, _index);
 
-    let path: Vec<_> = inputs_iter
-        .map(|input| *input_to_value(initial_witness, input))
-        .collect();
+    let path: Vec<_> = inputs_iter.map(|input| *input_to_value(initial_witness, input)).collect();
 
     let new_root = if should_insert {
         // To insert we first check that the index we want to insert into the current merkle tree is empty
-        assert!(MerkleTree::check_membership(
-            path.iter().collect(), 
-            &root, 
-            &index, 
-            &leaf).is_zero() 
-        );
+        assert!(MerkleTree::check_membership(path.iter().collect(), &root, &index, &leaf).is_zero());
 
         // Generate updated root and hash path upon insertion of node into tree
-        let (new_hash_path, new_root) = MerkleTree::insert_leaf(
-            path.iter().collect(),
-            &index,
-            &leaf
-        );
+        let (new_hash_path, new_root) =
+            MerkleTree::insert_leaf(path.iter().collect(), &index, &leaf);
 
         // Verify that the new root and hash path contain the leaf at the specific index
         assert!(MerkleTree::check_membership(
             new_hash_path.iter().collect(),
             &new_root,
             &index,
-            &leaf).is_one()
-        );
-        
+            &leaf
+        )
+        .is_one());
+
         for (i, hash) in path.iter().enumerate() {
             println!("generated hash {}: {}", i, hash.to_hex().as_str());
         }
@@ -211,6 +202,5 @@ fn process_merkle_gadget(
         None
     };
 
-
-    MerkleData { hashpath: path, old_root: root, new_root, leaf, index}
+    MerkleData { hashpath: path, old_root: root, new_root, leaf, index }
 }

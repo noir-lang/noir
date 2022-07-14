@@ -1,6 +1,6 @@
-use super::{object_to_wit_bits, GadgetCaller};
 use super::RuntimeError;
-use crate::object::{Object, Array};
+use super::{object_to_wit_bits, GadgetCaller};
+use crate::object::{Array, Object};
 use crate::{Environment, Evaluator};
 use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
 use acvm::acir::OPCODE;
@@ -55,26 +55,23 @@ impl MerkleMembershipGadget {
         let hash_path = Array::from_expression(evaluator, env, &hash_path)?;
         let index = evaluator.expression_to_object(env, &index)?;
         let leaf = evaluator.expression_to_object(env, &leaf)?;
-        let root = evaluator.expression_to_object(env, &root)?;    
-        
+        let root = evaluator.expression_to_object(env, &root)?;
+
         let index_witness = index.witness().unwrap();
         let leaf_witness = leaf.witness().unwrap();
         let root_witness = root.witness().unwrap();
 
-        let mut inputs: Vec<GadgetInput> = 
+        let mut inputs: Vec<GadgetInput> =
             vec![GadgetInput { witness: root_witness, num_bits: FieldElement::max_num_bits() }];
 
         inputs.push(GadgetInput { witness: leaf_witness, num_bits: FieldElement::max_num_bits() });
 
         // let index_witness = evaluator.add_witness_to_cs();
-        inputs.push(GadgetInput{ witness: index_witness, num_bits: FieldElement::max_num_bits() });
+        inputs.push(GadgetInput { witness: index_witness, num_bits: FieldElement::max_num_bits() });
 
         for element in hash_path.contents.into_iter() {
             let gadget_inp = object_to_wit_bits(&element);
-            assert_eq!(
-                gadget_inp.num_bits,
-                FieldElement::max_num_bits()
-            );
+            assert_eq!(gadget_inp.num_bits, FieldElement::max_num_bits());
             inputs.push(gadget_inp);
         }
 

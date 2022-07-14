@@ -286,15 +286,12 @@ impl MerkleTree {
 
         let mut updated_path: Vec<FieldElement> = Vec::new();
         let mut current = *leaf;
-        
+
         let chunks = hash_path.chunks(2).enumerate();
         for (i, path_pair) in chunks {
             let path_bit = index_bits[i];
-            let (hash_left, hash_right) = if path_bit == false {
-                (current, *path_pair[1])
-            } else {
-                (*path_pair[0], current)
-            };
+            let (hash_left, hash_right) =
+                if path_bit == false { (current, *path_pair[1]) } else { (*path_pair[0], current) };
             current = compress_native(&mut barretenberg, &hash_left, &hash_right);
             updated_path.extend([hash_left, hash_right]);
         }
@@ -476,7 +473,8 @@ fn check_membership() {
 
         let hash_path_before_update = flatten_path(tree.get_hash_path(index_as_usize));
         let hash_path_ref = hash_path_before_update.iter().collect();
-        let (generated_hash_path, generated_root) = MerkleTree::insert_leaf(hash_path_ref, &index, &leaf);
+        let (generated_hash_path, generated_root) =
+            MerkleTree::insert_leaf(hash_path_ref, &index, &leaf);
 
         let mut root = tree.root();
         if test_vector.should_update_tree {
@@ -495,11 +493,7 @@ fn check_membership() {
             }
         }
 
-        assert!(
-            is_leaf_in_true == test_vector.result,
-            "{}",
-            test_vector.error_msg
-        );
+        assert!(is_leaf_in_true == test_vector.result, "{}", test_vector.error_msg);
     }
 }
 
@@ -523,21 +517,24 @@ fn insert_leaf() {
         println!("hash b4 update {}: {}", i, hash.to_hex().as_str());
     }
     assert!(MerkleTree::check_membership(
-        hash_path_before_update.iter().collect(), 
-        &root_before_update, 
-        &index, 
-        &leaf).is_zero() 
-    );
+        hash_path_before_update.iter().collect(),
+        &root_before_update,
+        &index,
+        &leaf
+    )
+    .is_zero());
 
     let hash_path_ref = hash_path_before_update.iter().collect();
-    let (generated_hash_path, generated_root) = MerkleTree::insert_leaf(hash_path_ref, &index, &leaf);
+    let (generated_hash_path, generated_root) =
+        MerkleTree::insert_leaf(hash_path_ref, &index, &leaf);
 
     assert!(MerkleTree::check_membership(
-        generated_hash_path.iter().collect(), 
-        &generated_root, 
-        &index, 
-        &leaf).is_one()
-    );
+        generated_hash_path.iter().collect(),
+        &generated_root,
+        &index,
+        &leaf
+    )
+    .is_one());
 
     for (i, hash) in generated_hash_path.iter().enumerate() {
         println!("generated hash {}: {}", i, hash.to_hex().as_str());
