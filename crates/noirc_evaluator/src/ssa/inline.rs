@@ -339,7 +339,8 @@ impl node::Operation {
     ) {
         match self {
             //default way to handle arrays dunring inlining; we map arrays using the stack_frame
-            Operation::Binary(_) => {
+            Operation::Binary(_)
+            | Operation::Constrain(..) => {
                 self.map_id_mut(|id| {
                     if let Some(a) = Memory::deref(ctx, id) {
                         let b = stack_frame.get_or_default(a);

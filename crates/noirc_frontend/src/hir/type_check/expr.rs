@@ -63,11 +63,11 @@ pub(crate) fn type_check_expression(
 
                     arr_type
                 }
-                HirLiteral::Bool(_) => Type::Bool,
+                HirLiteral::Bool(_) => Type::Bool(IsConst::new(interner)),
                 HirLiteral::Integer(_) => {
                     let id = interner.next_type_variable_id();
                     Type::PolymorphicInteger(
-                        IsConst::Maybe(id, Rc::new(RefCell::new(None))),
+                        IsConst::new(interner),
                         Rc::new(RefCell::new(TypeBinding::Unbound(id))),
                     )
                 }
@@ -264,6 +264,8 @@ fn check_cast(from: Type, to: Type, span: Span, errors: &mut Vec<TypeCheckError>
             TypeBinding::Bound(from) => return check_cast(from.clone(), to, span, errors),
             TypeBinding::Unbound(_) => is_const,
         },
+        // TODO: Track const for bools
+        Type::Bool(is_const) => is_const,
         Type::Error => return Type::Error,
         from => {
             let msg = format!(
@@ -291,6 +293,13 @@ fn check_cast(from: Type, to: Type, span: Span, errors: &mut Vec<TypeCheckError>
             }
 
             Type::FieldElement(is_const, to_vis)
+        }
+        Type::Bool(dest_is_const) => {
+            if dest_is_const.is_const() && is_const.unify(&dest_is_const, span).is_err() {
+                let msg = "Cannot cast to a const type, argument to cast is non-const (not known at compile-time)".into();
+                errors.push(TypeCheckError::Unstructured { msg, span });
+            }
+            Type::Bool(dest_is_const)
         }
         Type::Error => Type::Error,
         _ => {
@@ -387,7 +396,7 @@ pub fn prefix_operand_type_rules(op: &HirUnaryOp, rhs_type: &Type) -> Result<Typ
             }
         }
         HirUnaryOp::Not => {
-            if !matches!(rhs_type, Type::Integer(..) | Type::Bool | Type::Error) {
+            if !matches!(rhs_type, Type::Integer(..) | Type::Bool(_) | Type::Error) {
                 return Err("Only Integers or Bool can be used in a Not expression".to_string());
             }
         }
@@ -428,7 +437,7 @@ pub fn infix_operand_type_rules(
             if let TypeBinding::Bound(binding) = &*int.borrow() {
                 return infix_operand_type_rules(binding, op, other, errors);
             }
-            if other.try_bind_to_polymorphic_int(int, is_const, op.span).is_ok() {
+            if other.try_bind_to_polymorphic_int(int, is_const, op.span).is_ok() || other == &Type::Error {
                 Ok(other.clone())
             } else {
                 Err(format!("Types in a binary operation should match, but found {} and {}", lhs_type, rhs_type))
@@ -453,7 +462,7 @@ pub fn infix_operand_type_rules(
             Ok(FieldElement(is_const, Private))
         }
 
-        (Bool, Bool) => Ok(Bool),
+        (Bool(is_const_x), Bool(is_const_y)) => Ok(Bool(is_const_x.and(is_const_y, op.span))),
 
         (lhs, rhs) => Err(format!("Unsupported types for binary operation: {} and {}", lhs, rhs)),
     }
@@ -469,10 +478,12 @@ fn check_if_expr(
     let then_type = type_check_expression(interner, &if_expr.consequence, errors);
 
     let expr_span = interner.expr_span(&if_expr.condition);
-    cond_type.unify(&Type::Bool, expr_span, errors, || TypeCheckError::TypeMismatch {
-        expected_typ: Type::Bool.to_string(),
-        expr_typ: cond_type.to_string(),
-        expr_span,
+    cond_type.unify(&Type::Bool(IsConst::new(interner)), expr_span, errors, || {
+        TypeCheckError::TypeMismatch {
+            expected_typ: Type::Bool(IsConst::No(None)).to_string(),
+            expr_typ: cond_type.to_string(),
+            expr_span,
+        }
     });
 
     match if_expr.alternative {
@@ -589,14 +600,15 @@ pub fn comparator_operand_type_rules(
     use HirBinaryOpKind::{Equal, NotEqual};
     use Type::*;
     match (lhs_type, rhs_type)  {
-        (Integer(_, _, sign_x, bit_width_x), Integer(_, _, sign_y, bit_width_y)) => {
+        (Integer(is_const_x, _, sign_x, bit_width_x), Integer(is_const_y, _, sign_y, bit_width_y)) => {
             if sign_x != sign_y {
                 return Err(format!("Integers must have the same signedness LHS is {:?}, RHS is {:?} ", sign_x, sign_y))
             }
             if bit_width_x != bit_width_y {
                 return Err(format!("Integers must have the same bit width LHS is {}, RHS is {} ", bit_width_x, bit_width_y))
             }
-            Ok(Bool)
+            let is_const = is_const_x.and(is_const_y, op.span);
+            Ok(Bool(is_const))
         }
         (Integer(..), FieldElement(..)) | ( FieldElement(..), Integer(..) ) => {
             Err("Cannot use an integer and a Field in a binary operation, try converting the Field into an integer first".to_string())
@@ -606,8 +618,8 @@ pub fn comparator_operand_type_rules(
             if let TypeBinding::Bound(binding) = &*int.borrow() {
                 return comparator_operand_type_rules(other, binding, op, errors);
             }
-            if other.try_bind_to_polymorphic_int(int, is_const, op.span).is_ok() {
-                Ok(Bool)
+            if other.try_bind_to_polymorphic_int(int, is_const, op.span).is_ok() || other == &Type::Error {
+                Ok(Bool(is_const.clone()))
             } else {
                 Err(format!("Types in a binary operation should match, but found {} and {}", lhs_type, rhs_type))
             }
@@ -615,14 +627,20 @@ pub fn comparator_operand_type_rules(
         (Integer(..), typ) | (typ,Integer(..)) => {
             Err(format!("Integer cannot be used with type {}", typ))
         }
-        (FieldElement(..), FieldElement(..)) => Ok(Bool),
+        (FieldElement(is_const_x, ..), FieldElement(is_const_y, ..)) => {
+            let is_const = is_const_x.and(is_const_y, op.span);
+            Ok(Bool(is_const))
+        }
 
         // <= and friends are technically valid for booleans, just not very useful
-        (Bool, Bool) => Ok(Bool),
+        (Bool(is_const_x), Bool(is_const_y)) => {
+            let is_const = is_const_x.and(is_const_y, op.span);
+            Ok(Bool(is_const))
+        }
 
         // Avoid reporting errors multiple times
-        (Error, _) | (_,Error) => Ok(Bool),
-        (Unspecified, _) | (_,Unspecified) => Ok(Bool),
+        (Error, _) | (_,Error) => Ok(Bool(IsConst::Yes(None))),
+        (Unspecified, _) | (_,Unspecified) => Ok(Bool(IsConst::Yes(None))),
 
         // Special-case == and != for arrays
         (Array(_, x_size, x_type), Array(_, y_size, y_type)) if matches!(op.kind, Equal | NotEqual) => {
@@ -637,7 +655,9 @@ pub fn comparator_operand_type_rules(
                 return Err(format!("Can only compare arrays of the same length. Here LHS is of length {}, and RHS is {} ", 
                     x_size, y_size));
             }
-            Ok(Bool)
+
+            // We could check if all elements of all arrays are const but I am lazy
+            Ok(Bool(IsConst::No(Some(op.span))))
         }
         (lhs, rhs) => Err(format!("Unsupported types for comparison: {} and {}", lhs, rhs)),
     }

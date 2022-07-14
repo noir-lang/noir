@@ -216,7 +216,7 @@ impl From<ObjectType> for NumericType {
 impl From<&Type> for ObjectType {
     fn from(t: &noirc_frontend::Type) -> ObjectType {
         match t {
-            Type::Bool => ObjectType::Boolean,
+            Type::Bool(_) => ObjectType::Boolean,
             Type::FieldElement(..) => ObjectType::NativeField,
             Type::Integer(_, _ftype, sign, bit_size) => {
                 assert!(

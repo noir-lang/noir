@@ -376,6 +376,7 @@ where
         struct_type(visibility_parser.clone()),
         array_type(visibility_parser, recursive_type_parser.clone()),
         tuple_type(recursive_type_parser),
+        bool_type(),
     ))
 }
 
@@ -409,6 +410,10 @@ where
         .then(maybe_const())
         .then_ignore(keyword(Keyword::Field))
         .map(|(vis, is_const)| UnresolvedType::FieldElement(is_const, vis))
+}
+
+fn bool_type() -> impl NoirParser<UnresolvedType> {
+    maybe_const().then_ignore(keyword(Keyword::Bool)).map(UnresolvedType::Bool)
 }
 
 fn int_type<P>(visibility_parser: P) -> impl NoirParser<UnresolvedType>
