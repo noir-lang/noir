@@ -512,11 +512,16 @@ fn insert_leaf() {
     let index = FieldElement::try_from_str("0").unwrap();
     let index_as_usize: usize = "0".parse().unwrap();
 
-    let message = &vec![1; 64];
+    let message = &vec![2; 64];
     let leaf = hash(message);
+    println!("leaf: {}", leaf.to_hex().as_str());
 
     let root_before_update = tree.root();
+    println!("root_before_update: {}", root_before_update.to_hex().as_str());
     let hash_path_before_update = flatten_path(tree.get_hash_path(index_as_usize));
+    for (i, hash) in hash_path_before_update.iter().enumerate() {
+        println!("hash b4 update {}: {}", i, hash.to_hex().as_str());
+    }
     assert!(MerkleTree::check_membership(
         hash_path_before_update.iter().collect(), 
         &root_before_update, 
@@ -533,6 +538,11 @@ fn insert_leaf() {
         &index, 
         &leaf).is_one()
     );
+
+    for (i, hash) in generated_hash_path.iter().enumerate() {
+        println!("generated hash {}: {}", i, hash.to_hex().as_str());
+    }
+    println!("generated_root: {}", generated_root.to_hex().as_str());
 
     let expected_root = tree.update_message(index_as_usize, message);
     assert_eq!(generated_root.to_hex().as_str(), expected_root.to_hex().as_str());

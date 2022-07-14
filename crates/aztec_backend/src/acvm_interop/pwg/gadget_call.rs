@@ -170,7 +170,7 @@ fn process_merkle_gadget(
     let _leaf = inputs_iter.next().expect("expected a leaf");
     let leaf = *input_to_value(initial_witness, _leaf);
 
-    let _index = inputs_iter.next().expect("expected the depth parameter");
+    let _index = inputs_iter.next().expect("expected an index");
     let index = *input_to_value(initial_witness, _index);
 
     let path: Vec<_> = inputs_iter
@@ -200,11 +200,17 @@ fn process_merkle_gadget(
             &index,
             &leaf).is_one()
         );
+        
+        for (i, hash) in path.iter().enumerate() {
+            println!("generated hash {}: {}", i, hash.to_hex().as_str());
+        }
+        println!("generated_root: {}", new_root.to_hex().as_str());
 
         Some(new_root)
     } else {
         None
     };
+
 
     MerkleData { hashpath: path, old_root: root, new_root, leaf, index}
 }
