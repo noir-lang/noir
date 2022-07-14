@@ -36,9 +36,8 @@ impl GadgetCaller {
                 let _index = inputs_iter.next().expect("expected an index");
                 let index = input_to_value(initial_witness, _index);
 
-                let hash_path: Vec<_> = inputs_iter
-                    .map(|input| input_to_value(initial_witness, input))
-                    .collect();
+                let hash_path: Vec<_> =
+                    inputs_iter.map(|input| input_to_value(initial_witness, input)).collect();
                 let result = MerkleTree::check_membership_new(hash_path, root, index, leaf);
 
                 initial_witness.insert(gadget_call.outputs[0], result);
@@ -47,7 +46,7 @@ impl GadgetCaller {
                 // TODO: get rid of this OPCODE in entirety, a merkle tree update can be proven with just merkle membership proofs
                 // const SHOULD_INSERT: bool = true;
 
-                // let merkle_data = 
+                // let merkle_data =
                 //     process_merkle_gadget(initial_witness, gadget_call, SHOULD_INSERT);
 
                 // let new_root =

@@ -503,7 +503,8 @@ fn basic_interop_update() {
 // }
 
 #[test]
-fn insert_leaf() { // This test was simply used to fetch example hash paths. Run with `cargo test insert_leaf -- --nocapture` to print hashes
+fn insert_leaf() {
+    // This test was simply used to fetch example hash paths. Run with `cargo test insert_leaf -- --nocapture` to print hashes
     use tempfile::tempdir;
     let temp_dir = tempdir().unwrap();
     let mut tree = MerkleTree::new(3, &temp_dir);
@@ -521,7 +522,7 @@ fn insert_leaf() { // This test was simply used to fetch example hash paths. Run
     for (i, hash) in hash_path_before_update.iter().enumerate() {
         println!("hash b4 update {}: {}", i, hash.to_hex().as_str());
     }
-    
+
     let expected_root = tree.update_message(index_as_usize, message);
     let hash_path_after_update = flatten_path(tree.get_hash_path(index_as_usize));
     for (i, hash) in hash_path_after_update.iter().enumerate() {
