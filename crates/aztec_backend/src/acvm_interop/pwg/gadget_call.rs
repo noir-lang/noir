@@ -25,31 +25,35 @@ impl GadgetCaller {
             }
             OPCODE::AES => return Err(gadget_call.name),
             OPCODE::MerkleMembership => {
-                const SHOULD_INSERT: bool = false;
+                let mut inputs_iter = gadget_call.inputs.iter();
 
-                let merkle_data =
-                    process_merkle_gadget(initial_witness, gadget_call, SHOULD_INSERT);
-                assert!(merkle_data.new_root.is_none());
+                let _root = inputs_iter.next().expect("expected a root");
+                let root = input_to_value(initial_witness, _root);
 
-                let result = MerkleTree::check_membership(
-                    merkle_data.hashpath.iter().collect(),
-                    &merkle_data.old_root,
-                    &merkle_data.index,
-                    &merkle_data.leaf,
-                );
+                let _leaf = inputs_iter.next().expect("expected a leaf");
+                let leaf = input_to_value(initial_witness, _leaf);
+
+                let _index = inputs_iter.next().expect("expected an index");
+                let index = input_to_value(initial_witness, _index);
+
+                let hash_path: Vec<_> = inputs_iter
+                    .map(|input| input_to_value(initial_witness, input))
+                    .collect();
+                let result = MerkleTree::check_membership_new(hash_path, root, index, leaf);
 
                 initial_witness.insert(gadget_call.outputs[0], result);
             }
             OPCODE::InsertRegularMerkle => {
-                const SHOULD_INSERT: bool = true;
+                // TODO: get rid of this OPCODE in entirety, a merkle tree update can be proven with just merkle membership proofs
+                // const SHOULD_INSERT: bool = true;
 
-                let merkle_data =
-                    process_merkle_gadget(initial_witness, gadget_call, SHOULD_INSERT);
+                // let merkle_data = 
+                //     process_merkle_gadget(initial_witness, gadget_call, SHOULD_INSERT);
 
-                let new_root =
-                    merkle_data.new_root.expect("new root should be computed for insertions");
+                // let new_root =
+                //     merkle_data.new_root.expect("new root should be computed for insertions");
 
-                initial_witness.insert(gadget_call.outputs[0], new_root);
+                // initial_witness.insert(gadget_call.outputs[0], new_root);
             }
             OPCODE::SchnorrVerify => {
                 // In barretenberg, if the signature fails, then the whole thing fails.
@@ -150,57 +154,58 @@ impl GadgetCaller {
     }
 }
 
-struct MerkleData {
-    hashpath: Vec<FieldElement>,
-    old_root: FieldElement,
-    new_root: Option<FieldElement>,
-    leaf: FieldElement,
-    index: FieldElement,
-}
-fn process_merkle_gadget(
-    initial_witness: &mut BTreeMap<Witness, FieldElement>,
-    gadget_call: &GadgetCall,
-    should_insert: bool,
-) -> MerkleData {
-    let mut inputs_iter = gadget_call.inputs.iter();
+// TODO: this will most likely all be deleted with the insert OPCODE
+// struct MerkleData {
+//     hashpath: Vec<FieldElement>,
+//     old_root: FieldElement,
+//     new_root: Option<FieldElement>,
+//     leaf: FieldElement,
+//     index: FieldElement,
+// }
+// fn process_merkle_gadget(
+//     initial_witness: &mut BTreeMap<Witness, FieldElement>,
+//     gadget_call: &GadgetCall,
+//     should_insert: bool,
+// ) -> MerkleData {
+//     let mut inputs_iter = gadget_call.inputs.iter();
 
-    let _root = inputs_iter.next().expect("expected a root");
-    let root = *input_to_value(initial_witness, _root);
+//     let _root = inputs_iter.next().expect("expected a root");
+//     let root = *input_to_value(initial_witness, _root);
 
-    let _leaf = inputs_iter.next().expect("expected a leaf");
-    let leaf = *input_to_value(initial_witness, _leaf);
+//     let _leaf = inputs_iter.next().expect("expected a leaf");
+//     let leaf = *input_to_value(initial_witness, _leaf);
 
-    let _index = inputs_iter.next().expect("expected an index");
-    let index = *input_to_value(initial_witness, _index);
+//     let _index = inputs_iter.next().expect("expected an index");
+//     let index = *input_to_value(initial_witness, _index);
 
-    let path: Vec<_> = inputs_iter.map(|input| *input_to_value(initial_witness, input)).collect();
+//     let path: Vec<_> = inputs_iter.map(|input| *input_to_value(initial_witness, input)).collect();
 
-    let new_root = if should_insert {
-        // To insert we first check that the index we want to insert into the current merkle tree is empty
-        assert!(MerkleTree::check_membership(path.iter().collect(), &root, &index, &leaf).is_zero());
+//     let new_root = if should_insert {
+//         // To insert we first check that the index we want to insert into the current merkle tree is empty
+//         assert!(MerkleTree::check_membership(path.iter().collect(), &root, &index, &leaf).is_zero());
 
-        // Generate updated root and hash path upon insertion of node into tree
-        let (new_hash_path, new_root) =
-            MerkleTree::insert_leaf(path.iter().collect(), &index, &leaf);
+//         // Generate updated root and hash path upon insertion of node into tree
+//         let (new_hash_path, new_root) =
+//             MerkleTree::insert_leaf(path.iter().collect(), &index, &leaf);
 
-        // Verify that the new root and hash path contain the leaf at the specific index
-        assert!(MerkleTree::check_membership(
-            new_hash_path.iter().collect(),
-            &new_root,
-            &index,
-            &leaf
-        )
-        .is_one());
+//         // Verify that the new root and hash path contain the leaf at the specific index
+//         assert!(MerkleTree::check_membership(
+//             new_hash_path.iter().collect(),
+//             &new_root,
+//             &index,
+//             &leaf
+//         )
+//         .is_one());
 
-        for (i, hash) in path.iter().enumerate() {
-            println!("generated hash {}: {}", i, hash.to_hex().as_str());
-        }
-        println!("generated_root: {}", new_root.to_hex().as_str());
+//         for (i, hash) in path.iter().enumerate() {
+//             println!("generated hash {}: {}", i, hash.to_hex().as_str());
+//         }
+//         println!("generated_root: {}", new_root.to_hex().as_str());
 
-        Some(new_root)
-    } else {
-        None
-    };
+//         Some(new_root)
+//     } else {
+//         None
+//     };
 
-    MerkleData { hashpath: path, old_root: root, new_root, leaf, index }
-}
+//     MerkleData { hashpath: path, old_root: root, new_root, leaf, index }
+// }
