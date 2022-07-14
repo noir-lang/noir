@@ -1,3 +1,5 @@
+use crate::errors::RuntimeError;
+
 use super::{
     block::BlockId,
     //block,
@@ -192,10 +194,10 @@ fn process_to_truncate(
 }
 
 //Add required truncate instructions on all blocks
-pub fn overflow_strategy(ctx: &mut SsaContext) {
+pub fn overflow_strategy(ctx: &mut SsaContext) -> Result<(), RuntimeError> {
     let mut max_map: HashMap<NodeId, BigUint> = HashMap::new();
     let mut memory_map = HashMap::new();
-    tree_overflow(ctx, ctx.first_block, &mut max_map, &mut memory_map);
+    tree_overflow(ctx, ctx.first_block, &mut max_map, &mut memory_map)
 }
 
 //implement overflow strategy following the dominator tree
@@ -204,12 +206,13 @@ fn tree_overflow(
     b_idx: BlockId,
     max_map: &mut HashMap<NodeId, BigUint>,
     memory_map: &mut HashMap<u32, NodeId>,
-) {
-    block_overflow(ctx, b_idx, max_map, memory_map);
+) -> Result<(), RuntimeError> {
+    block_overflow(ctx, b_idx, max_map, memory_map)?;
     //TODO: Handle IF statements in there:
     for b in ctx[b_idx].dominated.clone() {
-        tree_overflow(ctx, b, &mut max_map.clone(), &mut memory_map.clone());
+        tree_overflow(ctx, b, &mut max_map.clone(), &mut memory_map.clone())?;
     }
+    Ok(())
 }
 
 //overflow strategy for one block
@@ -218,7 +221,7 @@ fn block_overflow(
     block_id: BlockId,
     max_map: &mut HashMap<NodeId, BigUint>,
     memory_map: &mut HashMap<u32, NodeId>,
-) {
+) -> Result<(), RuntimeError> {
     //for each instruction, we compute the resulting max possible value (in term of the field representation of the operation)
     //when it is over the field charac, or if the instruction requires it, then we insert truncate instructions
     // The instructions are insterted in a duplicate list( because of rust ownership..), which we use for
@@ -381,7 +384,8 @@ fn block_overflow(
 
     //We run another round of CSE for the block in order to remove possible duplicated truncates, this will assign 'new_list' to the block instructions
     let mut modified = false;
-    optim::cse_block(ctx, block_id, &mut new_list, &mut modified);
+    optim::cse_block(ctx, block_id, &mut new_list, &mut modified)?;
+    Ok(())
 }
 
 fn update_value_array(ctx: &mut SsaContext, block_id: BlockId, vmap: &HashMap<NodeId, NodeId>) {

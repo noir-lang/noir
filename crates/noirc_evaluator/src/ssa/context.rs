@@ -625,22 +625,22 @@ impl<'a> SsaContext<'a> {
     ) -> Result<(), RuntimeError> {
         //SSA
         self.log(enable_logging, "SSA:", "\ninline functions");
-        function::inline_all(self);
+        function::inline_all(self)?;
 
         //Optimisation
         block::compute_dom(self);
-        optim::full_cse(self, self.first_block);
+        optim::full_cse(self, self.first_block)?;
         self.log(enable_logging, "\nCSE:", "\nunrolling:");
         //Unrolling
-        flatten::unroll_tree(self, self.first_block);
+        flatten::unroll_tree(self, self.first_block)?;
 
         //Inlining
         self.log(enable_logging, "", "\ninlining:");
-        inline::inline_tree(self, self.first_block);
-        optim::full_cse(self, self.first_block);
+        inline::inline_tree(self, self.first_block)?;
+        optim::full_cse(self, self.first_block)?;
 
         //Truncation
-        integer::overflow_strategy(self);
+        integer::overflow_strategy(self)?;
         self.log(enable_logging, "\noverflow:", "");
         //ACIR
         self.acir(evaluator);
@@ -776,7 +776,7 @@ impl<'a> SsaContext<'a> {
                 *rtype = lhs_type;
                 return Ok(lhs);
             } else {
-                self.memcpy(lhs_type, rhs_type);
+                self.memcpy(lhs_type, rhs_type)?;
                 return Ok(lhs);
             }
         }
