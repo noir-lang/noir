@@ -151,7 +151,7 @@ fn type_check_lvalue(
         }
         HirLValue::Index { array, index } => {
             let index_type = type_check_expression(interner, &index, errors);
-            let expr_span = interner.id_span(&index);
+            let expr_span = interner.expr_span(&index);
 
             index_type.unify(&Type::constant(Some(expr_span)), expr_span, errors, || {
                 TypeCheckError::TypeMismatch {

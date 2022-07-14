@@ -46,14 +46,14 @@ pub(crate) fn type_check_expression(
 
                     // Check if the array is homogeneous
                     for (index, elem_type) in elem_types.iter().enumerate().skip(1) {
-                        let span = interner.expr_span(&arr.contents[index]);
+                        let location = interner.expr_location(&arr.contents[index]);
 
-                        elem_type.unify(&first_elem_type, span, errors, || {
+                        elem_type.unify(&first_elem_type, location.span, errors, || {
                             TypeCheckError::NonHomogeneousArray {
-                                first_span: interner.expr_span(&arr.contents[0]),
+                                first_span: interner.expr_location(&arr.contents[0]).span,
                                 first_type: first_elem_type.to_string(),
                                 first_index: index,
-                                second_span: span,
+                                second_span: location.span,
                                 second_type: elem_type.to_string(),
                                 second_index: index + 1,
                             }
@@ -220,7 +220,7 @@ fn type_check_index_expression(
     errors: &mut Vec<TypeCheckError>,
 ) -> Type {
     let index_type = type_check_expression(interner, &index_expr.index, errors);
-    let span = interner.id_span(&index_expr.index);
+    let span = interner.expr_span(&index_expr.index);
 
     index_type.unify(&Type::constant(Some(span)), span, errors, || {
         // Specialize the error in the case the user has a Field, just not a const one.
@@ -245,7 +245,7 @@ fn type_check_index_expression(
         Type::Array(_, _, base_type) => *base_type,
         Type::Error => Type::Error,
         typ => {
-            let span = interner.id_span(&index_expr.collection);
+            let span = interner.expr_span(&index_expr.collection);
             errors.push(TypeCheckError::TypeMismatch {
                 expected_typ: "Array".to_owned(),
                 expr_typ: typ.to_string(),

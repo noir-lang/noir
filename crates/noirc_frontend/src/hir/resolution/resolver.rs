@@ -198,9 +198,7 @@ impl<'a> Resolver<'a> {
             FunctionKind::Builtin | FunctionKind::LowLevel => HirFunction::empty(),
             FunctionKind::Normal => {
                 let expr_id = self.intern_block(func.def.body);
-
-                self.interner.push_expr_span(expr_id, func.def.span);
-
+                self.interner.push_expr_location(expr_id, func.def.span, self.file);
                 HirFunction::unsafe_from_expr(expr_id)
             }
         };
@@ -436,7 +434,7 @@ impl<'a> Resolver<'a> {
         };
 
         let expr_id = self.interner.push_expr(hir_expr);
-        self.interner.push_expr_span(expr_id, expr.span);
+        self.interner.push_expr_location(expr_id, expr.span, self.file);
         expr_id
     }
 

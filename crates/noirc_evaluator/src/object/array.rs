@@ -163,7 +163,7 @@ impl Array {
         match object {
             Object::Array(arr) => Ok(arr),
             _ => {
-                let span = evaluator.context.def_interner.expr_span(expr_id);
+                let span = evaluator.context.def_interner.expr_location(expr_id);
                 Err(RuntimeErrorKind::expected_type("array", object.r#type()).add_location(span))
             }
         }

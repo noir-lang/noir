@@ -16,7 +16,7 @@ use acvm::FieldElement;
 use acvm::Language;
 use environment::{Environment, FuncContext};
 use errors::{RuntimeError, RuntimeErrorKind};
-use fm::FileId;
+use noirc_errors::Location;
 use noirc_frontend::{hir::Context, node_interner::DefinitionId, IsConst};
 use noirc_frontend::{
     hir_def::{expr::HirIdent, stmt::HirLValue},
@@ -172,7 +172,7 @@ impl<'a> Evaluator<'a> {
                 "Bit shift operations are not currently implemented.".to_owned(),
             )),
         }
-        .map_err(|kind| kind.add_location(op.span, op.file))
+        .map_err(|kind| kind.add_location(op.location))
     }
 
     // When we evaluate an identifier , it will be a linear polynomial
@@ -232,7 +232,7 @@ impl<'a> Evaluator<'a> {
         // This maybe not be desireable in the long run, because we want to point to the exact place
 
         let param_span = func_meta.parameters.span();
-        let file = func_meta.file;
+        let param_location = Location::new(param_span, func_meta.file);
 
         let abi = func_meta.parameters.into_abi(&self.context.def_interner);
 
@@ -263,7 +263,7 @@ impl<'a> Evaluator<'a> {
                                 let integer = Integer::from_witness_unconstrained(witness, width);
                                 integer
                                     .constrain(self)
-                                    .map_err(|kind| kind.add_location(param_span, file))?;
+                                    .map_err(|kind| kind.add_location(param_location))?;
                                 Object::Integer(integer)
                             }
                             noirc_abi::AbiType::Field(noirc_abi::AbiFEType::Private) => {
@@ -295,7 +295,7 @@ impl<'a> Evaluator<'a> {
                     );
 
                     let integer = Integer::from_witness_unconstrained(witness, width);
-                    integer.constrain(self).map_err(|kind| kind.add_location(param_span, file))?;
+                    integer.constrain(self).map_err(|kind| kind.add_location(param_location))?;
 
                     env.store(param_name, Object::Integer(integer));
                 }
@@ -315,8 +315,7 @@ impl<'a> Evaluator<'a> {
         name: &str,
         def: DefinitionId,
         param_type: &Type,
-        param_span: noirc_errors::Span,
-        file: FileId,
+        param_location: Location,
         igen: &mut IRGenerator,
     ) -> Result<(), RuntimeError> {
         match param_type {
@@ -343,7 +342,7 @@ impl<'a> Evaluator<'a> {
                             witnesses.push(witness);
                             if let Some(ww) = element_width {
                                 ssa::acir_gen::range_constraint(witness, ww, self)
-                                    .map_err(|e| e.add_location(param_span, file))?;
+                                    .map_err(|e| e.add_location(param_location))?;
                             }
                             if ft.strict_eq(&FieldElementType::Public) {
                                 self.public_inputs.push(witness);
@@ -356,7 +355,7 @@ impl<'a> Evaluator<'a> {
             Type::Integer(_, ft, sign, width) => {
                 let witness = self.add_witness_to_cs();
                 ssa::acir_gen::range_constraint(witness, *width, self)
-                    .map_err(|e| e.add_location(param_span, file))?;
+                    .map_err(|e| e.add_location(param_location))?;
                 if ft.strict_eq(&FieldElementType::Public) {
                     self.public_inputs.push(witness);
                 }
@@ -393,25 +392,21 @@ impl<'a> Evaluator<'a> {
         // u8 and arrays are assumed to be private
         // This is not a short-coming of the ABI, but of the grammar
         // The new grammar has been conceived, and will be implemented.
-
         let func_meta = self.context.def_interner.function_meta(&self.main_function);
-        let file = func_meta.file;
 
-        // XXX: We make the span very general here, so an error will underline all of the parameters in the span
-        // This maybe not be desireable in the long run, because we want to point to the exact place
-        let param_span = func_meta.parameters.span();
         for param in &func_meta.parameters.0 {
             match &param.0 {
-                HirPattern::Identifier(ident_id) => {
-                    let name = self.context.def_interner.definition_name(ident_id.id);
-                    let ident_def = ident_id.id;
-                    self.param_to_var(name, ident_def, &param.1, param_span, file, igen)?;
+                HirPattern::Identifier(ident) => {
+                    let name = self.context.def_interner.definition_name(ident.id);
+                    let ident_def = ident.id;
+                    self.param_to_var(name, ident_def, &param.1, ident.location, igen)?;
                 }
                 HirPattern::Mutable(hir_pattern, span_pattern) => {
                     if let HirPattern::Identifier(ident_id) = **hir_pattern {
                         let name = self.context.def_interner.definition_name(ident_id.id);
                         let ident_def = ident_id.id;
-                        self.param_to_var(name, ident_def, &param.1, *span_pattern, file, igen)?;
+                        let location = Location::new(*span_pattern, func_meta.file);
+                        self.param_to_var(name, ident_def, &param.1, location, igen)?;
                     }
                 }
                 HirPattern::Tuple(_, _) => todo!(),
@@ -474,7 +469,7 @@ impl<'a> Evaluator<'a> {
         variable_name: String,
         rhs: &ExprId,
     ) -> Result<Object, RuntimeError> {
-        let rhs_span = self.context.def_interner.expr_span(rhs);
+        let rhs_span = self.context.def_interner.expr_location(rhs);
         let rhs_poly = self.expression_to_object(env, rhs)?;
 
         // We do not store it in the environment yet, because it may need to be casted to an integer
@@ -553,7 +548,7 @@ impl<'a> Evaluator<'a> {
             Type::FieldElement(IsConst::Yes(_), _) => {
                 // const can only be integers/Field elements, cannot involve the witness, so we can possibly move this to
                 // analysis. Right now it would not make a difference, since we are not compiling to an intermediate Noir format
-                let span = self.context.def_interner.expr_span(rhs);
+                let span = self.context.def_interner.expr_location(rhs);
                 let value =
                     self.evaluate_integer(env, rhs).map_err(|kind| kind.add_location(span))?;
 
@@ -642,7 +637,7 @@ impl<'a> Evaluator<'a> {
         env: &mut Environment,
         expr_id: &ExprId,
     ) -> Result<Object, RuntimeError> {
-        let span = self.context.def_interner.expr_span(expr_id);
+        let loc = self.context.def_interner.expr_location(expr_id);
 
         match self.context.def_interner.expression(expr_id) {
             HirExpression::Literal(HirLiteral::Integer(x)) => Ok(Object::Constants(x)),
@@ -657,7 +652,7 @@ impl<'a> Evaluator<'a> {
             }
             HirExpression::Cast(cast_expr) => {
                 let lhs = self.expression_to_object(env, &cast_expr.lhs)?;
-                binary_op::handle_cast_op(self,lhs, cast_expr.r#type).map_err(|kind|kind.add_location(span))
+                binary_op::handle_cast_op(self,lhs, cast_expr.r#type).map_err(|kind|kind.add_location(loc))
             }
             HirExpression::Index(indexed_expr) => {
                 // Currently these only happen for arrays
@@ -667,8 +662,8 @@ impl<'a> Evaluator<'a> {
                 };
 
                 let arr_name = self.context.def_interner.definition_name(collection_name.id);
-                let ident_span = collection_name.span;
-                let arr = env.get_array(arr_name).map_err(|kind|kind.add_location(ident_span))?;
+                let ident_location = collection_name.location;
+                let arr = env.get_array(arr_name).map_err(|kind|kind.add_location(ident_location))?;
 
                 //
                 // Evaluate the index expression
@@ -679,7 +674,7 @@ impl<'a> Evaluator<'a> {
                 };
                 //
                 let index_as_u128 = index_as_constant.to_u128();
-                arr.get(index_as_u128).map_err(|kind|kind.add_location(span))
+                arr.get(index_as_u128).map_err(|kind|kind.add_location(loc))
             }
             HirExpression::Call(call_expr) => {
 
@@ -693,16 +688,16 @@ impl<'a> Evaluator<'a> {
                     FunctionKind::LowLevel => {
                         let attribute = func_meta.attributes.expect("all low level functions must contain an attribute which contains the opcode which it links to");
                         let opcode_name = attribute.foreign().expect("ice: function marked as foreign, but attribute kind does not match this");
-                        low_level_function_impl::call_low_level(self, env, opcode_name, (call_expr, span))
+                        low_level_function_impl::call_low_level(self, env, opcode_name, call_expr, loc)
                     },
                     FunctionKind::Builtin => {
                         let attribute = func_meta.attributes.expect("all builtin functions must contain an attribute which contains the function name which it links to");
                         let builtin_name = attribute.builtin().expect("ice: function marked as a builtin, but attribute kind does not match this");
-                        builtin::call_builtin(self, env, builtin_name, (call_expr,span))
+                        builtin::call_builtin(self, env, builtin_name, call_expr, loc)
                     },
                 }
             }
-            HirExpression::For(for_expr) => self.handle_for_expr(env,for_expr).map_err(|kind|kind.add_location(span)),
+            HirExpression::For(for_expr) => self.handle_for_expr(env,for_expr).map_err(|kind|kind.add_location(loc)),
             HirExpression::If(_) => todo!("If expressions are currently unimplemented"),
             HirExpression::Prefix(_) => todo!("Prefix expressions are currently unimplemented"),
             HirExpression::Literal(HirLiteral::Str(_)) => todo!("string literals are currently unimplemented"),

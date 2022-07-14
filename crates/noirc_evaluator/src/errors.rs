@@ -1,4 +1,3 @@
-use fm::FileId;
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::DiagnosableError;
 use noirc_errors::Location;
@@ -65,7 +64,7 @@ impl RuntimeErrorKind {
 
 impl DiagnosableError for RuntimeError {
     fn to_diagnostic(&self) -> Diagnostic {
-        let span = self.location;
+        let span = self.location.span;
         match &self.kind {
             RuntimeErrorKind::ArrayOutOfBounds { index, bound } => Diagnostic::simple_error(
                 "index out of bounds".to_string(),

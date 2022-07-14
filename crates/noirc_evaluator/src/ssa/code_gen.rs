@@ -389,8 +389,8 @@ impl<'a> IRGenerator<'a> {
         constrain: HirConstrainStatement,
     ) -> Result<Value, RuntimeError> {
         let cond = self.expression_to_object(env, &constrain.0)?.unwrap_id();
-        let span = self.def_interner().expr_span(&constrain.0);
-        let operation = Operation::Constrain(cond, span, constrain.1);
+        let location = self.def_interner().expr_location(&constrain.0);
+        let operation = Operation::Constrain(cond, location);
         self.context.new_instruction(operation, ObjectType::NotAnObject);
         Ok(Value::dummy())
     }
@@ -559,7 +559,7 @@ impl<'a> IRGenerator<'a> {
         expr_id: &ExprId,
     ) -> Result<Value, RuntimeError> {
         let expr = self.def_interner().expression(expr_id);
-        let span = self.def_interner().expr_span(expr_id);
+        let location = self.def_interner().expr_location(expr_id);
         match expr {
             HirExpression::Literal(HirLiteral::Integer(x)) => {
                 let int_type = self.def_interner().id_type(expr_id);
@@ -626,7 +626,7 @@ impl<'a> IRGenerator<'a> {
 
                 let arr_def = collection_name.id;
                 let arr_name = self.def_interner().definition_name(arr_def).to_owned();
-                let ident_span = collection_name.span;
+                let ident_loc = collection_name.location;
 
                 let arr_type = self.def_interner().id_type(arr_def);
                 let o_type: node::ObjectType = arr_type.into();
@@ -641,7 +641,7 @@ impl<'a> IRGenerator<'a> {
                 } else {
                     let arr = env
                         .get_array(&arr_name)
-                        .map_err(|kind| kind.add_location(ident_span))
+                        .map_err(|kind| kind.add_location(ident_loc))
                         .unwrap();
                     self.context.create_array_from_object(&arr, arr_def, o_type, &arr_name);
                     let array_id = self.context.mem.last_id();
@@ -736,7 +736,7 @@ impl<'a> IRGenerator<'a> {
                 }
             }
             HirExpression::For(for_expr) => {
-                self.handle_for_expr(env, for_expr).map_err(|kind| kind.add_location(span))
+                self.handle_for_expr(env, for_expr).map_err(|kind| kind.add_location(location))
             }
             HirExpression::Constructor(constructor) => self.handle_constructor(env, constructor),
             HirExpression::MemberAccess(access) => self.handle_member_access(env, access),

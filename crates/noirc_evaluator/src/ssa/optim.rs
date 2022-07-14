@@ -1,5 +1,7 @@
 use acvm::FieldElement;
 
+use crate::errors::RuntimeError;
+
 use super::{
     acir_gen::InternalVar,
     block::BlockId,
@@ -15,17 +17,17 @@ use std::{
 
 // Performs constant folding, arithmetic simplifications and move to standard form
 // Modifies ins.mark with whether the instruction should be deleted, replaced, or neither
-pub fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) {
+pub fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) -> Result<(), RuntimeError> {
     if ins.is_deleted() {
-        return;
+        return Ok(());
     }
     //1. constant folding
-    let new_id = ins.evaluate(ctx).to_index(ctx);
+    let new_id = ins.evaluate(ctx)?.to_index(ctx);
 
     if new_id != ins.id {
         use Mark::*;
         ins.mark = if new_id == NodeId::dummy() { Deleted } else { ReplaceWith(new_id) };
-        return;
+        return Ok(());
     }
 
     //2. standard form
@@ -34,14 +36,14 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) {
         if let Some(value) = ctx.try_get_node(value_id) {
             if value.get_type() == ins.res_type {
                 ins.mark = Mark::ReplaceWith(value_id);
-                return;
+                return Ok(());
             }
         }
     }
 
     //3. left-overs (it requires &mut ctx)
     if ins.is_deleted() {
-        return;
+        return Ok(());
     }
 
     if let Operation::Binary(binary) = &mut ins.operation {
@@ -62,6 +64,8 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) {
             ins.mark = Mark::ReplaceWith(evaluate_intrinsic(ctx, *opcode, args));
         }
     }
+
+    Ok(())
 }
 
 fn evaluate_intrinsic(ctx: &mut SsaContext, op: acvm::acir::OPCODE, args: Vec<u128>) -> NodeId {

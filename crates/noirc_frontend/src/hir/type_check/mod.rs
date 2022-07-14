@@ -36,7 +36,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
 
     // Check declared return type and actual return type
     if !can_ignore_ret {
-        let func_span = interner.id_span(func_as_expr); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
+        let func_span = interner.expr_span(func_as_expr); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
         function_last_type.unify(declared_return_type, func_span, &mut errors, || {
             TypeCheckError::TypeMismatch {
                 expected_typ: declared_return_type.to_string(),
@@ -50,7 +50,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     if declared_return_type.is_public() {
         errors.push(TypeCheckError::PublicReturnType {
             typ: declared_return_type.clone(),
-            span: interner.id_span(func_as_expr),
+            span: interner.expr_span(func_as_expr),
         });
     }
 
@@ -122,7 +122,7 @@ mod test {
         let operator = HirBinaryOp { location, kind: HirBinaryOpKind::Add };
         let expr = HirInfixExpression { lhs: x_expr_id, operator, rhs: y_expr_id };
         let expr_id = interner.push_expr(HirExpression::Infix(expr));
-        interner.push_expr_span(expr_id, Span::single_char(0));
+        interner.push_expr_location(expr_id, Span::single_char(0), file);
 
         // Create let statement
         let let_stmt = HirLetStatement {
@@ -132,7 +132,7 @@ mod test {
         };
         let stmt_id = interner.push_stmt(HirStatement::Let(let_stmt));
         let expr_id = interner.push_expr(HirExpression::Block(HirBlockExpression(vec![stmt_id])));
-        interner.push_expr_span(expr_id, Span::single_char(0));
+        interner.push_expr_location(expr_id, Span::single_char(0), file);
 
         // Create function to enclose the let statement
         let func = HirFunction::unsafe_from_expr(expr_id);
