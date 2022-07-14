@@ -476,7 +476,7 @@ impl Instruction {
                     if obj.is_one() {
                         // Delete the constrain, it is always true
                         return Ok(NodeEval::VarOrInstruction(NodeId::dummy()));
-                    } else if !obj.is_zero() {
+                    } else if obj.is_zero() {
                         return Err(RuntimeErrorKind::UnstructuredError {
                             message: "Constraint is always false".into(),
                         }
