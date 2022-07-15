@@ -338,7 +338,7 @@ impl node::Operation {
         block_id: BlockId,
     ) {
         match self {
-            //default way to handle arrays dunring inlining; we map arrays using the stack_frame
+            //default way to handle arrays during inlining; we map arrays using the stack_frame
             Operation::Binary(_)
             | Operation::Constrain(..) => {
                 self.map_id_mut(|id| {
