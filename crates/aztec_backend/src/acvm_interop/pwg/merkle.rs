@@ -293,7 +293,7 @@ impl MerkleTree {
         for (i, path_pair) in chunks {
             let path_bit = index_bits[i];
             let (hash_left, hash_right) =
-                if path_bit == false { (current, *path_pair[1]) } else { (*path_pair[0], current) };
+                if !path_bit { (current, *path_pair[1]) } else { (*path_pair[0], current) };
             current = compress_native(&mut barretenberg, &hash_left, &hash_right);
             updated_path.extend([hash_left, hash_right]);
         }

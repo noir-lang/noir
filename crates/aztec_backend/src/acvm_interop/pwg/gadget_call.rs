@@ -1,4 +1,4 @@
-use super::merkle::{flatten_path, MerkleTree};
+use super::merkle::MerkleTree;
 use crate::barretenberg_rs::Barretenberg;
 use acvm::acir::{circuit::gate::GadgetCall, native_types::Witness, OPCODE};
 use acvm::pwg::{self, input_to_value};
