@@ -234,6 +234,8 @@ impl MerkleTree {
         fetch_preimage(&self.db, index)
     }
 
+    // TODO: alter this method so that it only processes one hash per level rather than overriding
+    // the one of leaves for each level of the hash path
     pub fn check_membership(
         hash_path: Vec<&FieldElement>,
         root: &FieldElement,
@@ -249,53 +251,12 @@ impl MerkleTree {
 
         let mut current = *leaf;
 
-        let mut is_member = true;
-
-        let chunks = hash_path.chunks(2).enumerate();
-        for (i, path_pair) in chunks {
-            let path_bit = index_bits[i];
-
-            let hash_left = path_pair[0];
-            let hash_right = path_pair[1];
-
-            let is_left = (&current == hash_left) & !path_bit;
-            let is_right = (&current == hash_right) & path_bit;
-            is_member &= is_left ^ is_right;
-            current = compress_native(&mut barretenberg, hash_left, hash_right);
-        }
-        is_member &= &current == root;
-
-        if is_member {
-            FieldElement::one()
-        } else {
-            FieldElement::zero()
-        }
-    }
-
-    // TODO: rename this method
-    pub fn check_membership_new(
-        hash_path: Vec<&FieldElement>,
-        root: &FieldElement,
-        index: &FieldElement,
-        leaf: &FieldElement,
-    ) -> FieldElement {
-        assert!(hash_path.len() % 2 == 0);
-
-        let mut barretenberg = Barretenberg::new();
-
-        let mut index_bits = index.bits();
-        index_bits.reverse();
-
-        let mut updated_path: Vec<FieldElement> = Vec::new();
-        let mut current = *leaf;
-
         let chunks = hash_path.chunks(2).enumerate();
         for (i, path_pair) in chunks {
             let path_bit = index_bits[i];
             let (hash_left, hash_right) =
                 if !path_bit { (current, *path_pair[1]) } else { (*path_pair[0], current) };
             current = compress_native(&mut barretenberg, &hash_left, &hash_right);
-            updated_path.extend([hash_left, hash_right]);
         }
         if &current == root {
             FieldElement::one()
@@ -483,7 +444,7 @@ fn check_membership() {
 
         let hash_path = flatten_path(tree.get_hash_path(index_as_usize));
         let hash_path_ref = hash_path.iter().collect();
-        let result = MerkleTree::check_membership_new(hash_path_ref, &root, &index, &leaf);
+        let result = MerkleTree::check_membership(hash_path_ref, &root, &index, &leaf);
         let is_leaf_in_true = result == FieldElement::one();
 
         assert!(is_leaf_in_true == test_vector.result, "{}", test_vector.error_msg);

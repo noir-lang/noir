@@ -38,7 +38,7 @@ impl GadgetCaller {
 
                 let hash_path: Vec<_> =
                     inputs_iter.map(|input| input_to_value(initial_witness, input)).collect();
-                let result = MerkleTree::check_membership_new(hash_path, root, index, leaf);
+                let result = MerkleTree::check_membership(hash_path, root, index, leaf);
 
                 initial_witness.insert(gadget_call.outputs[0], result);
             }
