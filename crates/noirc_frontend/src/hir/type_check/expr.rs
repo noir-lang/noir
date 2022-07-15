@@ -264,7 +264,6 @@ fn check_cast(from: Type, to: Type, span: Span, errors: &mut Vec<TypeCheckError>
             TypeBinding::Bound(from) => return check_cast(from.clone(), to, span, errors),
             TypeBinding::Unbound(_) => is_const,
         },
-        // TODO: Track const for bools
         Type::Bool(is_const) => is_const,
         Type::Error => return Type::Error,
         from => {
