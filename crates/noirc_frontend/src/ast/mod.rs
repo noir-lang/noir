@@ -12,11 +12,7 @@ use noirc_errors::Span;
 pub use statement::*;
 pub use structure::*;
 
-use crate::{
-    token::{IntType, Keyword},
-    util::vecmap,
-    IsConst,
-};
+use crate::{token::IntType, util::vecmap, IsConst};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ArraySize {
@@ -47,74 +43,23 @@ impl std::fmt::Display for ArraySize {
     }
 }
 
-/// FieldElementType refers to how the Compiler type is interpreted by the proof system
-/// Example: FieldElementType::Private means that the Compiler type is seen as a witness/witnesses
-#[derive(Debug, Eq, Copy, Clone)]
-pub enum FieldElementType {
-    Private,
-    Public,
-}
-
-impl PartialEq for FieldElementType {
-    fn eq(&self, _other: &Self) -> bool {
-        // The reason we manually implement this, is so that Private and Public
-        // are seen as equal
-        true
-    }
-}
-
-impl FieldElementType {
-    // In the majority of places, public and private are
-    // interchangeable. The place where the difference does matter is
-    // when witnesses are being added to the constraint system.
-    // For the compiler, the appropriate place would be in the ABI
-    pub fn strict_eq(&self, other: &FieldElementType) -> bool {
-        std::mem::discriminant(self) == std::mem::discriminant(other)
-    }
-
-    /// Return the corresponding keyword for this field type
-    pub fn as_keyword(self) -> Keyword {
-        match self {
-            FieldElementType::Private => panic!("No Keyword for a Private FieldElementType"),
-            FieldElementType::Public => Keyword::Pub,
-        }
-    }
-}
-
-impl std::fmt::Display for FieldElementType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            FieldElementType::Private => write!(f, "priv"),
-            FieldElementType::Public => write!(f, "pub"),
-        }
-    }
-}
-
 /// The parser parses types as 'UnresolvedType's which
 /// require name resolution to resolve any typenames used
 /// for structs within, but are otherwise identical to Types.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum UnresolvedType {
-    FieldElement(IsConst, FieldElementType),
-    Array(FieldElementType, ArraySize, Box<UnresolvedType>), // [4]Witness = Array(4, Witness)
-    Integer(IsConst, FieldElementType, Signedness, u32),     // u32 = Integer(unsigned, 32)
+    FieldElement(IsConst),
+    Array(ArraySize, Box<UnresolvedType>), // [4]Witness = Array(4, Witness)
+    Integer(IsConst, Signedness, u32),     // u32 = Integer(unsigned, 32)
     Bool,
     Unit,
-    Struct(FieldElementType, Path),
+    Struct(Path),
 
     // Note: Tuples have no FieldElementType, instead each of their elements may have one.
     Tuple(Vec<UnresolvedType>),
 
     Unspecified, // This is for when the user declares a variable without specifying it's type
     Error,
-}
-
-impl UnresolvedType {
-    // These are here so that the code is more readable.
-    pub const WITNESS: UnresolvedType =
-        UnresolvedType::FieldElement(IsConst::No(None), FieldElementType::Private);
-    pub const PUBLIC: UnresolvedType =
-        UnresolvedType::FieldElement(IsConst::No(None), FieldElementType::Public);
 }
 
 impl Recoverable for UnresolvedType {
@@ -125,20 +70,15 @@ impl Recoverable for UnresolvedType {
 
 impl std::fmt::Display for UnresolvedType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let vis_str = |vis| match vis {
-            FieldElementType::Private => "",
-            FieldElementType::Public => "pub ",
-        };
-
         use UnresolvedType::*;
         match self {
-            FieldElement(is_const, fe_type) => write!(f, "{}{}Field", is_const, vis_str(*fe_type)),
-            Array(fe_type, size, typ) => write!(f, "{}{}{}", vis_str(*fe_type), size, typ),
-            Integer(is_const, fe_type, sign, num_bits) => match sign {
-                Signedness::Signed => write!(f, "{}{}i{}", is_const, vis_str(*fe_type), num_bits),
-                Signedness::Unsigned => write!(f, "{}{}u{}", is_const, vis_str(*fe_type), num_bits),
+            FieldElement(is_const) => write!(f, "{}Field", is_const),
+            Array(size, typ) => write!(f, "{}{}", size, typ),
+            Integer(is_const, sign, num_bits) => match sign {
+                Signedness::Signed => write!(f, "{}i{}", is_const, num_bits),
+                Signedness::Unsigned => write!(f, "{}u{}", is_const, num_bits),
             },
-            Struct(fe_type, s) => write!(f, "{}{}", vis_str(*fe_type), s),
+            Struct(s) => write!(f, "{}", s),
             Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
                 write!(f, "({})", elements.join(", "))
@@ -152,15 +92,11 @@ impl std::fmt::Display for UnresolvedType {
 }
 
 impl UnresolvedType {
-    pub fn from_int_tok(
-        is_const: IsConst,
-        field_type: FieldElementType,
-        int_tok: &IntType,
-    ) -> UnresolvedType {
+    pub fn from_int_token(token: (IsConst, IntType)) -> UnresolvedType {
         use {IntType::*, UnresolvedType::Integer};
-        match int_tok {
-            Signed(num_bits) => Integer(is_const, field_type, Signedness::Signed, *num_bits),
-            Unsigned(num_bits) => Integer(is_const, field_type, Signedness::Unsigned, *num_bits),
+        match token.1 {
+            Signed(num_bits) => Integer(token.0, Signedness::Signed, num_bits),
+            Unsigned(num_bits) => Integer(token.0, Signedness::Unsigned, num_bits),
         }
     }
 }

@@ -40,7 +40,7 @@ impl HirFunction {
 
 /// An interned function parameter from a function definition
 #[derive(Debug, Clone)]
-pub struct Param(pub HirPattern, pub Type);
+pub struct Param(pub HirPattern, pub Type, pub noirc_abi::AbiFEType);
 
 /// Attempts to retrieve the name of this parameter. Returns None
 /// if this parameter is a tuple or struct pattern.
@@ -62,7 +62,7 @@ impl Parameters {
             let param_name = get_param_name(&param.0, interner)
                 .expect("Abi for tuple and struct parameters is unimplemented")
                 .to_owned();
-            (param_name, param.1.as_abi_type())
+            (param_name, param.1.as_abi_type(param.2))
         });
         noirc_abi::Abi { parameters }
     }

@@ -218,7 +218,7 @@ impl From<&Type> for ObjectType {
         match t {
             Type::Bool => ObjectType::Boolean,
             Type::FieldElement(..) => ObjectType::NativeField,
-            Type::Integer(_, _ftype, sign, bit_size) => {
+            Type::Integer(_, sign, bit_size) => {
                 assert!(
                     *bit_size < super::integer::short_integer_max_bit_size(),
                     "long integers are not yet supported"
@@ -233,7 +233,7 @@ impl From<&Type> for ObjectType {
                 noirc_frontend::TypeBinding::Unbound(_) => Type::default_int_type(None).into(),
             },
             // TODO: We should probably not convert an array type into the element type
-            noirc_frontend::Type::Array(_, _, t) => ObjectType::from(t.as_ref()),
+            noirc_frontend::Type::Array(_, t) => ObjectType::from(t.as_ref()),
             x => unimplemented!("Conversion to ObjectType is unimplemented for type {}", x),
         }
     }

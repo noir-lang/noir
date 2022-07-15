@@ -205,19 +205,17 @@ impl<'a> Resolver<'a> {
 
     fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
         match typ {
-            UnresolvedType::FieldElement(is_const, vis) => Type::FieldElement(is_const, vis),
-            UnresolvedType::Array(vis, size, elem) => {
-                Type::Array(vis, size, Box::new(self.resolve_type(*elem)))
+            UnresolvedType::FieldElement(is_const) => Type::FieldElement(is_const),
+            UnresolvedType::Array(size, elem) => {
+                Type::Array(size, Box::new(self.resolve_type(*elem)))
             }
-            UnresolvedType::Integer(is_const, vis, sign, bits) => {
-                Type::Integer(is_const, vis, sign, bits)
-            }
+            UnresolvedType::Integer(is_const, sign, bits) => Type::Integer(is_const, sign, bits),
             UnresolvedType::Bool => Type::Bool,
             UnresolvedType::Unit => Type::Unit,
             UnresolvedType::Unspecified => Type::Unspecified,
             UnresolvedType::Error => Type::Error,
-            UnresolvedType::Struct(vis, path) => match self.lookup_struct(path) {
-                Some(definition) => Type::Struct(vis, definition),
+            UnresolvedType::Struct(path) => match self.lookup_struct(path) {
+                Some(definition) => Type::Struct(definition),
                 None => Type::Error,
             },
             UnresolvedType::Tuple(fields) => {
@@ -247,10 +245,10 @@ impl<'a> Resolver<'a> {
         let attributes = func.attribute().cloned();
 
         let mut parameters = Vec::new();
-        for (pattern, typ) in func.parameters().iter().cloned() {
+        for (pattern, typ, visibility) in func.parameters().iter().cloned() {
             let pattern = self.resolve_pattern(pattern);
             let typ = self.resolve_type(typ);
-            parameters.push(Param(pattern, typ));
+            parameters.push(Param(pattern, typ, visibility));
         }
 
         let return_type = self.resolve_type(func.return_type());

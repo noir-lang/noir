@@ -7,7 +7,7 @@ use noirc_errors::Span;
 use crate::{
     node_interner::{FuncId, StructId},
     util::vecmap,
-    ArraySize, FieldElementType, Ident, Signedness,
+    ArraySize, Ident, Signedness,
 };
 
 #[derive(Debug, Eq)]
@@ -43,13 +43,13 @@ impl std::fmt::Display for StructType {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {
-    FieldElement(IsConst, FieldElementType),
-    Array(FieldElementType, ArraySize, Box<Type>), // [4]Witness = Array(4, Witness)
-    Integer(IsConst, FieldElementType, Signedness, u32), // u32 = Integer(unsigned, 32)
+    FieldElement(IsConst),
+    Array(ArraySize, Box<Type>),       // [4]Witness = Array(4, Witness)
+    Integer(IsConst, Signedness, u32), // u32 = Integer(unsigned, 32)
     PolymorphicInteger(IsConst, TypeVariable),
     Bool,
     Unit,
-    Struct(FieldElementType, Rc<RefCell<StructType>>),
+    Struct(Rc<RefCell<StructType>>),
     Tuple(Vec<Type>),
 
     Error,
@@ -209,47 +209,32 @@ impl IsConst {
 }
 
 impl Type {
-    pub fn witness(span: Option<Span>) -> Type {
-        Type::FieldElement(IsConst::No(span), FieldElementType::Private)
-    }
-
-    pub fn public(span: Option<Span>) -> Type {
-        Type::FieldElement(IsConst::No(span), FieldElementType::Public)
+    pub fn field(span: Option<Span>) -> Type {
+        Type::FieldElement(IsConst::No(span))
     }
 
     pub fn constant(span: Option<Span>) -> Type {
-        Type::FieldElement(IsConst::Yes(span), FieldElementType::Private)
+        Type::FieldElement(IsConst::Yes(span))
     }
 
     pub fn default_int_type(span: Option<Span>) -> Type {
-        Type::witness(span)
-    }
-}
-
-impl From<&Type> for AbiType {
-    fn from(ty: &Type) -> AbiType {
-        ty.as_abi_type()
+        Type::field(span)
     }
 }
 
 impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let vis_str = |vis| match vis {
-            FieldElementType::Private => "",
-            FieldElementType::Public => "pub ",
-        };
-
         match self {
-            Type::FieldElement(is_const, fe_type) => {
-                write!(f, "{}{}Field", is_const, vis_str(*fe_type))
+            Type::FieldElement(is_const) => {
+                write!(f, "{}Field", is_const)
             }
-            Type::Array(fe_type, size, typ) => write!(f, "{}{}{}", vis_str(*fe_type), size, typ),
-            Type::Integer(is_const, fe_type, sign, num_bits) => match sign {
-                Signedness::Signed => write!(f, "{}{}i{}", is_const, vis_str(*fe_type), num_bits),
-                Signedness::Unsigned => write!(f, "{}{}u{}", is_const, vis_str(*fe_type), num_bits),
+            Type::Array(size, typ) => write!(f, "{}{}", size, typ),
+            Type::Integer(is_const, sign, num_bits) => match sign {
+                Signedness::Signed => write!(f, "{}i{}", is_const, num_bits),
+                Signedness::Unsigned => write!(f, "{}u{}", is_const, num_bits),
             },
             Type::PolymorphicInteger(_, binding) => write!(f, "{}", binding.borrow()),
-            Type::Struct(vis, s) => write!(f, "{}{}", vis_str(*vis), s.borrow()),
+            Type::Struct(s) => write!(f, "{}", s.borrow()),
             Type::Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
                 write!(f, "({})", elements.join(", "))
@@ -290,7 +275,7 @@ impl Type {
     /// which required the variable to be const or non-const.
     pub fn set_const_span(&mut self, new_span: Span) {
         match self {
-            Type::FieldElement(is_const, _) | Type::Integer(is_const, _, _, _) => {
+            Type::FieldElement(is_const) | Type::Integer(is_const, _, _) => {
                 is_const.set_span(new_span)
             }
             Type::PolymorphicInteger(span, binding) => {
@@ -345,7 +330,7 @@ impl Type {
 
     fn is_const(&self) -> bool {
         match self {
-            Type::FieldElement(is_const, _) => is_const.is_const(),
+            Type::FieldElement(is_const) => is_const.is_const(),
             Type::Integer(is_const, ..) => is_const.is_const(),
             Type::PolymorphicInteger(is_const, binding) => {
                 if let TypeBinding::Bound(binding) = &*binding.borrow() {
@@ -415,7 +400,7 @@ impl Type {
                 other.try_bind_to_polymorphic_int(binding, is_const, span)
             }
 
-            (Array(_, len_a, elem_a), Array(_, len_b, elem_b)) => {
+            (Array(len_a, elem_a), Array(len_b, elem_b)) => {
                 if len_a == len_b {
                     elem_a.try_unify(elem_b, span)
                 } else {
@@ -437,7 +422,7 @@ impl Type {
             // No recursive try_unify call for struct fields. Don't want
             // to mutate shared type variables within struct definitions.
             // This isn't possible currently but will be once noir gets generic types
-            (Struct(_, fields_a), Struct(_, fields_b)) => {
+            (Struct(fields_a), Struct(fields_b)) => {
                 if fields_a == fields_b {
                     Ok(())
                 } else {
@@ -445,9 +430,9 @@ impl Type {
                 }
             }
 
-            (FieldElement(const_a, _), FieldElement(const_b, _)) => const_a.unify(const_b, span),
+            (FieldElement(const_a), FieldElement(const_b)) => const_a.unify(const_b, span),
 
-            (Integer(const_a, _, signed_a, bits_a), Integer(const_b, _, signed_b, bits_b)) => {
+            (Integer(const_a, signed_a, bits_a), Integer(const_b, signed_b, bits_b)) => {
                 if signed_a == signed_b && bits_a == bits_b {
                     const_a.unify(const_b, span)
                 } else {
@@ -504,7 +489,7 @@ impl Type {
                 other.try_bind_to_polymorphic_int(binding, is_const, span)
             }
 
-            (Array(_, len_a, elem_a), Array(_, len_b, elem_b)) => {
+            (Array(len_a, elem_a), Array(len_b, elem_b)) => {
                 if len_a.is_subtype_of(len_b) {
                     elem_a.is_subtype_of(elem_b, span)
                 } else {
@@ -525,7 +510,7 @@ impl Type {
 
             // No recursive try_unify call needed for struct fields, we just
             // check the struct ids match.
-            (Struct(_, struct_a), Struct(_, struct_b)) => {
+            (Struct(struct_a), Struct(struct_b)) => {
                 if struct_a == struct_b {
                     Ok(())
                 } else {
@@ -533,11 +518,9 @@ impl Type {
                 }
             }
 
-            (FieldElement(const_a, _), FieldElement(const_b, _)) => {
-                const_a.is_subtype_of(const_b, span)
-            }
+            (FieldElement(const_a), FieldElement(const_b)) => const_a.is_subtype_of(const_b, span),
 
-            (Integer(const_a, _, signed_a, bits_a), Integer(const_b, _, signed_b, bits_b)) => {
+            (Integer(const_a, signed_a, bits_a), Integer(const_b, signed_b, bits_b)) => {
                 if signed_a == signed_b && bits_a == bits_b {
                     const_a.is_subtype_of(const_b, span)
                 } else {
@@ -559,10 +542,10 @@ impl Type {
     /// Arrays, structs, and tuples will be the only data structures to return more than one
     pub fn num_elements(&self) -> usize {
         match self {
-            Type::Array(_, ArraySize::Fixed(fixed_size), _) => *fixed_size as usize,
-            Type::Array(_, ArraySize::Variable, _) =>
+            Type::Array(ArraySize::Fixed(fixed_size), _) => *fixed_size as usize,
+            Type::Array(ArraySize::Variable, _) =>
                 unreachable!("ice : this method is only ever called when we want to compare the prover inputs with the ABI in main. The ABI should not have variable input. The program should be compiled before calling this"),
-            Type::Struct(_, s) => s.borrow().fields.len(),
+            Type::Struct(s) => s.borrow().fields.len(),
             Type::Tuple(fields) => fields.len(),
             Type::FieldElement(..)
             | Type::Integer(..)
@@ -580,7 +563,7 @@ impl Type {
             Type::FieldElement(..)
                 | Type::Integer(..)
                 | Type::PolymorphicInteger(..)
-                | Type::Array(_, _, _)
+                | Type::Array(_, _)
                 | Type::Error
                 | Type::Bool
         )
@@ -603,60 +586,43 @@ impl Type {
 
     fn array(&self) -> Option<(&ArraySize, &Type)> {
         match self {
-            Type::Array(_, sized, typ) => Some((sized, typ)),
+            Type::Array(sized, typ) => Some((sized, typ)),
             _ => None,
         }
     }
 
-    pub fn is_public(&self) -> bool {
-        matches!(
-            self,
-            Type::FieldElement(_, FieldElementType::Public)
-                | Type::Integer(_, FieldElementType::Public, _, _)
-                | Type::Array(FieldElementType::Public, _, _)
-        )
-    }
-
     // Note; use strict_eq instead of partial_eq when comparing field types
     // in this method, you most likely want to distinguish between public and private
-    pub fn as_abi_type(&self) -> AbiType {
-        // converts a field element type
-        fn fet_to_abi(fe: &FieldElementType) -> AbiFEType {
-            match fe {
-                FieldElementType::Private => noirc_abi::AbiFEType::Private,
-                FieldElementType::Public => noirc_abi::AbiFEType::Public,
-            }
-        }
-
+    pub fn as_abi_type(&self, fe_type: AbiFEType) -> AbiType {
         match self {
-            Type::FieldElement(_, fe_type) => AbiType::Field(fet_to_abi(fe_type)),
-            Type::Array(fe_type, size, typ) => match size {
+            Type::FieldElement(_) => AbiType::Field(fe_type),
+            Type::Array(size, typ) => match size {
                 ArraySize::Variable => {
                     panic!("cannot have variable sized array in entry point")
                 }
                 ArraySize::Fixed(length) => AbiType::Array {
-                    visibility: fet_to_abi(fe_type),
+                    visibility: fe_type,
                     length: *length,
-                    typ: Box::new(typ.as_abi_type()),
+                    typ: Box::new(typ.as_abi_type(fe_type)),
                 },
             },
-            Type::Integer(_, fe_type, sign, bit_width) => {
+            Type::Integer(_, sign, bit_width) => {
                 let sign = match sign {
                     Signedness::Unsigned => noirc_abi::Sign::Unsigned,
                     Signedness::Signed => noirc_abi::Sign::Signed,
                 };
 
-                AbiType::Integer { sign, width: *bit_width as u32, visibility: fet_to_abi(fe_type) }
+                AbiType::Integer { sign, width: *bit_width as u32, visibility: fe_type }
             }
             Type::PolymorphicInteger(_, binding) => match &*binding.borrow() {
-                TypeBinding::Bound(typ) => typ.as_abi_type(),
-                TypeBinding::Unbound(_) => Type::default_int_type(None).as_abi_type(),
+                TypeBinding::Bound(typ) => typ.as_abi_type(fe_type),
+                TypeBinding::Unbound(_) => Type::default_int_type(None).as_abi_type(fe_type),
             },
             Type::Bool => panic!("currently, cannot have a bool in the entry point function"),
             Type::Error => unreachable!(),
             Type::Unspecified => unreachable!(),
             Type::Unit => unreachable!(),
-            Type::Struct(_, _) => todo!("as_abi_type not yet implemented for struct types"),
+            Type::Struct(_) => todo!("as_abi_type not yet implemented for struct types"),
             Type::Tuple(_) => todo!("as_abi_type not yet implemented for tuple types"),
         }
     }
@@ -669,7 +635,7 @@ impl Type {
             // only to have to call .into_iter again afterward. Trying to ellide
             // collecting to a Vec leads to us dropping the temporary Ref before
             // the iterator is returned
-            Type::Struct(_, def) => {
+            Type::Struct(def) => {
                 vecmap(def.borrow().fields.iter(), |(name, typ)| (name.to_string(), typ.clone()))
             }
             Type::Tuple(fields) => {
@@ -685,7 +651,7 @@ impl Type {
     /// Panics if the type is not a struct or tuple.
     pub fn get_field_type(&self, field_name: &str) -> Type {
         match self {
-            Type::Struct(_, def) => def.borrow().get_field(field_name).unwrap().clone(),
+            Type::Struct(def) => def.borrow().get_field(field_name).unwrap().clone(),
             Type::Tuple(fields) => {
                 let mut fields = fields.iter().enumerate();
                 fields.find(|(i, _)| i.to_string() == *field_name).unwrap().1.clone()

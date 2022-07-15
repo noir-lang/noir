@@ -347,7 +347,7 @@ pub struct IfExpression {
 pub struct FunctionDefinition {
     pub name: Ident,
     pub attribute: Option<Attribute>, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
-    pub parameters: Vec<(Pattern, UnresolvedType)>,
+    pub parameters: Vec<(Pattern, UnresolvedType, noirc_abi::AbiFEType)>,
     pub body: BlockExpression,
     pub span: Span,
     pub return_type: UnresolvedType,
@@ -581,7 +581,9 @@ impl Display for FunctionDefinition {
             writeln!(f, "{}", attribute)?;
         }
 
-        let parameters = vecmap(&self.parameters, |(name, r#type)| format!("{}: {}", name, r#type));
+        let parameters = vecmap(&self.parameters, |(name, r#type, visibility)| {
+            format!("{}: {} {}", name, visibility, r#type)
+        });
 
         write!(
             f,

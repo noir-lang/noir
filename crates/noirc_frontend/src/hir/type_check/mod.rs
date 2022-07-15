@@ -46,14 +46,6 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
         });
     }
 
-    // Return type cannot be public
-    if declared_return_type.is_public() {
-        errors.push(TypeCheckError::PublicReturnType {
-            typ: declared_return_type.clone(),
-            span: interner.id_span(func_as_expr),
-        });
-    }
-
     errors
 }
 
@@ -143,8 +135,8 @@ mod test {
             kind: FunctionKind::Normal,
             attributes: None,
             parameters: vec![
-                Param(Identifier(x), Type::witness(None)),
-                Param(Identifier(y), Type::witness(None)),
+                Param(Identifier(x), Type::field(None), noirc_abi::AbiFEType::Private),
+                Param(Identifier(y), Type::field(None), noirc_abi::AbiFEType::Private),
             ]
             .into(),
             return_type: Type::Unit,

@@ -10,7 +10,7 @@ use crate::{
     },
     node_interner::{ExprId, FuncId, NodeInterner},
     util::vecmap,
-    ArraySize, FieldElementType, IsConst, TypeBinding,
+    ArraySize, IsConst, TypeBinding,
 };
 
 use super::errors::TypeCheckError;
@@ -37,9 +37,6 @@ pub(crate) fn type_check_expression(
                     // Specify the type of the Array
                     // Note: This assumes that the array is homogeneous, which will be checked next
                     let arr_type = Type::Array(
-                        // The FieldElement type is assumed to be private unless the user
-                        // adds type annotations that say otherwise.
-                        FieldElementType::Private,
                         ArraySize::Fixed(elem_types.len() as u128),
                         Box::new(first_elem_type.clone()),
                     );
@@ -154,13 +151,7 @@ pub(crate) fn type_check_expression(
             interner.push_definition_type(for_expr.identifier.id, start_range_type);
 
             let last_type = type_check_expression(interner, &for_expr.block, errors);
-            Type::Array(
-                // The type is assumed to be private unless the user specifies
-                // that they want to make it public on the LHS with type annotations
-                FieldElementType::Private,
-                ArraySize::Variable,
-                Box::new(last_type),
-            )
+            Type::Array(ArraySize::Variable, Box::new(last_type))
         }
         HirExpression::Block(block_expr) => {
             let mut block_type = Type::Unit;
@@ -242,7 +233,7 @@ fn type_check_index_expression(
     match lhs_type {
         // XXX: We can check the array bounds here also, but it may be better to constant fold first
         // and have ConstId instead of ExprId for constants
-        Type::Array(_, _, base_type) => *base_type,
+        Type::Array(_, base_type) => *base_type,
         Type::Error => Type::Error,
         typ => {
             let span = interner.id_span(&index_expr.collection);
@@ -259,7 +250,7 @@ fn type_check_index_expression(
 fn check_cast(from: Type, to: Type, span: Span, errors: &mut Vec<TypeCheckError>) -> Type {
     let is_const = match from {
         Type::Integer(is_const, ..) => is_const,
-        Type::FieldElement(is_const, _) => is_const,
+        Type::FieldElement(is_const) => is_const,
         Type::PolymorphicInteger(is_const, binding) => match &*binding.borrow() {
             TypeBinding::Bound(from) => return check_cast(from.clone(), to, span, errors),
             TypeBinding::Unbound(_) => is_const,
@@ -276,21 +267,21 @@ fn check_cast(from: Type, to: Type, span: Span, errors: &mut Vec<TypeCheckError>
     };
 
     match to {
-        Type::Integer(dest_is_const, to_vis, sign, bits) => {
+        Type::Integer(dest_is_const, sign, bits) => {
             if dest_is_const.is_const() && is_const.unify(&dest_is_const, span).is_err() {
                 let msg = "Cannot cast to a const type, argument to cast is non-const (not known at compile-time)".into();
                 errors.push(TypeCheckError::Unstructured { msg, span });
             }
 
-            Type::Integer(is_const, to_vis, sign, bits)
+            Type::Integer(is_const, sign, bits)
         }
-        Type::FieldElement(dest_is_const, to_vis) => {
+        Type::FieldElement(dest_is_const) => {
             if dest_is_const.is_const() && is_const.unify(&dest_is_const, span).is_err() {
                 let msg = "Cannot cast to a const type, argument to cast is non-const (not known at compile-time)".into();
                 errors.push(TypeCheckError::Unstructured { msg, span });
             }
 
-            Type::FieldElement(is_const, to_vis)
+            Type::FieldElement(is_const)
         }
         Type::Error => Type::Error,
         _ => {
@@ -309,7 +300,7 @@ fn lookup_method(
     errors: &mut Vec<TypeCheckError>,
 ) -> Option<FuncId> {
     match object_type {
-        Type::Struct(_, ref typ) => {
+        Type::Struct(ref typ) => {
             let typ = typ.borrow();
             match typ.methods.get(method_name) {
                 Some(method_id) => Some(*method_id),
@@ -407,10 +398,9 @@ pub fn infix_operand_type_rules(
         return comparator_operand_type_rules(lhs_type, rhs_type, op, errors);
     }
 
-    use {FieldElementType::*, Type::*};
+    use Type::*;
     match (lhs_type, rhs_type)  {
-        (Integer(is_const_x, lhs_field_type, sign_x, bit_width_x), Integer(is_const_y, rhs_field_type, sign_y, bit_width_y)) => {
-            let field_type = field_type_rules(lhs_field_type, rhs_field_type);
+        (Integer(is_const_x, sign_x, bit_width_x), Integer(is_const_y, sign_y, bit_width_y)) => {
             if sign_x != sign_y {
                 return Err(format!("Integers must have the same signedness LHS is {:?}, RHS is {:?} ", sign_x, sign_y))
             }
@@ -418,9 +408,9 @@ pub fn infix_operand_type_rules(
                 return Err(format!("Integers must have the same bit width LHS is {}, RHS is {} ", bit_width_x, bit_width_y))
             }
             let is_const = is_const_x.and(is_const_y, op.span);
-            Ok(Integer(is_const, field_type, *sign_x, *bit_width_x))
+            Ok(Integer(is_const, *sign_x, *bit_width_x))
         }
-        (Integer(..), FieldElement(_, _)) | ( FieldElement(_, _), Integer(..) ) => {
+        (Integer(..), FieldElement(..)) | (FieldElement(..), Integer(..)) => {
             Err("Cannot use an integer and a Field in a binary operation, try converting the Field into an integer".to_string())
         }
         (PolymorphicInteger(is_const, int), other)
@@ -448,9 +438,9 @@ pub fn infix_operand_type_rules(
         (Unit, _) | (_,Unit) => Ok(Unit),
 
         // The result of two Fields is always a witness
-        (FieldElement(is_const_x, _), FieldElement(is_const_y, _)) => {
+        (FieldElement(is_const_x), FieldElement(is_const_y)) => {
             let is_const = is_const_x.and(is_const_y, op.span);
-            Ok(FieldElement(is_const, Private))
+            Ok(FieldElement(is_const))
         }
 
         (Bool, Bool) => Ok(Bool),
@@ -535,8 +525,7 @@ fn check_constructor(
         });
     }
 
-    // TODO: Should a constructor expr always result in a Private type?
-    Type::Struct(FieldElementType::Private, typ.clone())
+    Type::Struct(typ.clone())
 }
 
 pub fn check_member_access(
@@ -546,7 +535,7 @@ pub fn check_member_access(
 ) -> Type {
     let lhs_type = type_check_expression(interner, &access.lhs, errors);
 
-    if let Type::Struct(_, s) = &lhs_type {
+    if let Type::Struct(s) = &lhs_type {
         let s = s.borrow();
         if let Some(field) = s.get_field(&access.rhs.0.contents) {
             // TODO: Should the struct's visibility be applied to the field?
@@ -570,16 +559,6 @@ pub fn check_member_access(
     Type::Error
 }
 
-fn field_type_rules(lhs: &FieldElementType, rhs: &FieldElementType) -> FieldElementType {
-    use FieldElementType::*;
-    match (lhs, rhs) {
-        (Private, Private) => Private,
-        (Private, Public) => Private,
-        (Public, Private) => Private,
-        (Public, Public) => Public,
-    }
-}
-
 pub fn comparator_operand_type_rules(
     lhs_type: &Type,
     rhs_type: &Type,
@@ -589,7 +568,7 @@ pub fn comparator_operand_type_rules(
     use HirBinaryOpKind::{Equal, NotEqual};
     use Type::*;
     match (lhs_type, rhs_type)  {
-        (Integer(_, _, sign_x, bit_width_x), Integer(_, _, sign_y, bit_width_y)) => {
+        (Integer(_, sign_x, bit_width_x), Integer(_, sign_y, bit_width_y)) => {
             if sign_x != sign_y {
                 return Err(format!("Integers must have the same signedness LHS is {:?}, RHS is {:?} ", sign_x, sign_y))
             }
@@ -625,7 +604,7 @@ pub fn comparator_operand_type_rules(
         (Unspecified, _) | (_,Unspecified) => Ok(Bool),
 
         // Special-case == and != for arrays
-        (Array(_, x_size, x_type), Array(_, y_size, y_type)) if matches!(op.kind, Equal | NotEqual) => {
+        (Array(x_size, x_type), Array(y_size, y_type)) if matches!(op.kind, Equal | NotEqual) => {
             x_type.unify(y_type, op.span, errors, &mut || {
                 TypeCheckError::Unstructured {
                     msg: format!("Cannot compare {} and {}, the array element types differ", lhs_type, rhs_type),

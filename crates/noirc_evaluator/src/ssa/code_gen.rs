@@ -332,7 +332,7 @@ impl<'a> IRGenerator<'a> {
         def: Option<DefinitionId>,
     ) -> Value {
         match typ {
-            noirc_frontend::Type::Struct(_, t) => {
+            noirc_frontend::Type::Struct(t) => {
                 let mut values = Vec::new();
                 for i in &t.borrow().fields {
                     let name = format!("{}.{}", base_name, i.0 .0.contents);
@@ -350,7 +350,7 @@ impl<'a> IRGenerator<'a> {
                 }
                 self.insert_new_struct(def, values)
             }
-            noirc_frontend::Type::Array(_, len, _) => {
+            noirc_frontend::Type::Array(len, _) => {
                 {
                     //TODO support array of structs
                     let obj_type = node::ObjectType::from(typ);
@@ -703,7 +703,7 @@ impl<'a> IRGenerator<'a> {
                                 }
                                 Value::Struct(tuple)
                             }
-                            Type::Struct(_, ref typ) => {
+                            Type::Struct(ref typ) => {
                                 let typ = typ.borrow();
                                 let mut my_struct = Vec::new();
                                 for i in typ.fields.iter().zip(result) {
