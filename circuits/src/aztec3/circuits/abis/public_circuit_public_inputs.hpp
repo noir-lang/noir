@@ -23,7 +23,7 @@ template <typename NCT> struct PublicCircuitPublicInputs {
 
     // address msg_sender; // TODO!
 
-    std::array<fr, CUSTOM_PUBLIC_INPUTS_LENGTH> custom_public_inputs;
+    std::array<fr, CUSTOM_INPUTS_LENGTH> custom_inputs;
     std::array<fr, CUSTOM_OUTPUTS_LENGTH> custom_outputs;
 
     std::array<fr, EMITTED_PUBLIC_INPUTS_LENGTH> emitted_public_inputs;
@@ -52,7 +52,7 @@ template <typename NCT> struct PublicCircuitPublicInputs {
     static PublicCircuitPublicInputs<NCT> empty()
     {
         PublicCircuitPublicInputs<NCT> pis = {
-            std::array<fr, CUSTOM_PUBLIC_INPUTS_LENGTH>::fill(0),
+            std::array<fr, CUSTOM_INPUTS_LENGTH>::fill(0),
             std::array<fr, CUSTOM_OUTPUTS_LENGTH>::fill(0),
 
             std::array<fr, EMITTED_PUBLIC_INPUTS_LENGTH>::fill(0),
@@ -84,7 +84,7 @@ template <typename NCT> struct PublicCircuitPublicInputs {
         auto to_circuit_type = [&](auto& e) { return e.to_circuit_type(composer); };
 
         PublicCircuitPublicInputs<CircuitTypes<Composer>> pis = {
-            .custom_public_inputs = to_ct(custom_public_inputs),
+            .custom_inputs = to_ct(custom_inputs),
             .custom_outputs = to_ct(custom_outputs),
             .emitted_public_inputs = to_ct(emitted_public_inputs),
             .emitted_outputs = to_ct(emitted_outputs),
@@ -115,7 +115,7 @@ template <typename NCT> void read(uint8_t const*& it, PublicCircuitPublicInputs<
     using serialize::read;
 
     PublicCircuitPublicInputs<NCT>& pis = private_circuit_public_inputs;
-    read(it, pis.custom_public_inputs);
+    read(it, pis.custom_inputs);
     read(it, pis.custom_outputs);
     read(it, pis.emitted_public_inputs);
     read(it, pis.emitted_ouputs);
@@ -139,7 +139,7 @@ void write(std::vector<uint8_t>& buf, PublicCircuitPublicInputs<NCT> const& priv
 
     PublicCircuitPublicInputs<NCT> const& pis = private_circuit_public_inputs;
 
-    write(buf, pis.custom_public_inputs);
+    write(buf, pis.custom_inputs);
     write(buf, pis.custom_outputs);
     write(buf, pis.emitted_public_inputs);
     write(buf, pis.emitted_ouputs);
@@ -161,7 +161,7 @@ std::ostream& operator<<(std::ostream& os, PublicCircuitPublicInputs<NCT> const&
 
 {
     PublicCircuitPublicInputs<NCT> const& pis = private_circuit_public_inputs;
-    return os << "custom_public_inputs: " << pis.custom_public_inputs << "\n"
+    return os << "custom_inputs: " << pis.custom_inputs << "\n"
               << "custom_outputs: " << pis.custom_outputs << "\n"
               << "emitted_public_inputs: " << pis.emitted_public_inputs << "\n"
               << "emitted_outputs: " << pis.emitted_outputs << "\n"

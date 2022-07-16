@@ -20,7 +20,7 @@ std::pair<L1Promise<Composer>, L1Result> L1FunctionInterface<Composer>::call(std
         throw_or_abort("Incorrect number of args");
     }
 
-    auto promise = L1Promise<Composer>(*contract_factory);
+    auto promise = L1Promise<Composer>(*contract);
     L1Result result;
     return std::make_pair(promise, result);
 }

@@ -4,6 +4,7 @@
 #include <stdlib/types/circuit_types.hpp>
 #include <stdlib/types/native_types.hpp>
 #include <aztec3/oracle/oracle.hpp>
+#include <aztec3/circuits/apps/function_executor.hpp>
 #include <aztec3/circuits/apps/oracle_wrapper.hpp>
 
 namespace aztec3::circuits::apps::test_apps::escrow {

@@ -1,6 +1,7 @@
 #pragma once
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
+// #include "function_executor.hpp"
 #include "private_state_note.hpp"
 #include "private_state_note_preimage.hpp"
 #include "private_state_operand.hpp"
@@ -11,7 +12,8 @@ namespace aztec3::circuits::apps {
 using plonk::stdlib::types::CircuitTypes;
 using plonk::stdlib::types::NativeTypes;
 
-template <typename Composer> class PrivateStateFactory;
+// template <typename Composer> class PrivateStateFactory;
+template <typename Composer> class FunctionExecutionContext;
 
 template <typename Composer> class PrivateStateVar {
   public:
@@ -20,9 +22,10 @@ template <typename Composer> class PrivateStateVar {
     typedef typename CT::address address;
     typedef typename CT::grumpkin_point grumpkin_point;
 
-    PrivateStateFactory<Composer>*
-        state_factory; // Pointer, because PrivateStateVar can't hold a reference (because it gets initialised as a
-                       // member of a map within PrivateStateFactory, so might not be passed data upon initialisation)
+    FunctionExecutionContext<Composer>*
+        exec_ctx; // Pointer, because PrivateStateVar can't hold a reference (because it gets initialised as a member of
+                  // a map within PrivateStateFactory, so might not be passed data upon initialisation)
+
     PrivateStateType private_state_type;
     std::string name;
     fr start_slot;
@@ -40,7 +43,7 @@ template <typename Composer> class PrivateStateVar {
     PrivateStateVar(){};
 
     PrivateStateVar(PrivateStateVar<Composer> const& private_state_var)
-        : state_factory(private_state_var.state_factory)
+        : exec_ctx(private_state_var.exec_ctx)
         , private_state_type(private_state_var.private_state_type)
         , name(private_state_var.name)
         , start_slot(private_state_var.start_slot)
@@ -50,11 +53,11 @@ template <typename Composer> class PrivateStateVar {
         , is_partial_slot(private_state_var.is_partial_slot){};
 
     // For initialising a basic fr state:
-    PrivateStateVar(PrivateStateFactory<Composer>* state_factory,
+    PrivateStateVar(FunctionExecutionContext<Composer>* exec_ctx,
                     PrivateStateType const& private_state_type,
                     std::string const& name,
                     fr const& start_slot)
-        : state_factory(state_factory)
+        : exec_ctx(exec_ctx)
         , private_state_type(private_state_type)
         , name(name)
         , start_slot(start_slot)
@@ -63,12 +66,12 @@ template <typename Composer> class PrivateStateVar {
     };
 
     // For initialising a mapping var:
-    PrivateStateVar(PrivateStateFactory<Composer>* state_factory,
+    PrivateStateVar(FunctionExecutionContext<Composer>* exec_ctx,
                     PrivateStateType const& private_state_type,
                     std::string const& name,
                     fr const start_slot,
                     std::vector<std::string> const& mapping_key_names)
-        : state_factory(state_factory)
+        : exec_ctx(exec_ctx)
         , private_state_type(private_state_type)
         , name(name)
         , start_slot(start_slot)
@@ -108,13 +111,13 @@ template <typename Composer> class PrivateStateVar {
     grumpkin_point compute_start_slot_point();
 
     // For initialising an fr state from within a mapping:
-    PrivateStateVar(PrivateStateFactory<Composer>* state_factory,
+    PrivateStateVar(FunctionExecutionContext<Composer>* exec_ctx,
                     PrivateStateType const& private_state_type,
                     std::string const& name,
                     fr const& start_slot,
                     grumpkin_point const& slot_point,
                     bool const& is_partial_slot)
-        : state_factory(state_factory)
+        : exec_ctx(exec_ctx)
         , private_state_type(private_state_type)
         , name(name)
         , start_slot(start_slot)
@@ -134,5 +137,5 @@ template <typename Composer> class PrivateStateVar {
 // - We retain implicit instantiation of templates, meaning we can pick and choose (with static_assert) which class
 // methods support native,
 //   circuit or both types.
-// - We don't implement method definitions in this file, to avoid a circular dependency with state_factory.hpp.
+// - We don't implement method definitions in this file, to avoid a circular dependency with function_executor.hpp.
 #include "private_state_var.tpp"

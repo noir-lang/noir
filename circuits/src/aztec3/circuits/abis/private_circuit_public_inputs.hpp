@@ -24,7 +24,9 @@ template <typename NCT> class PrivateCircuitPublicInputs {
   public:
     CallContext<NCT> call_context;
 
-    std::array<fr, CUSTOM_PUBLIC_INPUTS_LENGTH> custom_public_inputs;
+    std::array<fr, CUSTOM_INPUTS_LENGTH> custom_inputs;
+    std::array<fr, CUSTOM_OUTPUTS_LENGTH> custom_outputs;
+
     std::array<fr, EMITTED_PUBLIC_INPUTS_LENGTH> emitted_public_inputs;
 
     ExecutedCallback<NCT> executed_callback;
@@ -52,7 +54,9 @@ template <typename NCT> class PrivateCircuitPublicInputs {
         PrivateCircuitPublicInputs<CircuitTypes<Composer>> pis = {
             to_circuit_type(call_context),
 
-            to_ct(custom_public_inputs),
+            to_ct(custom_inputs),
+            to_ct(custom_outputs),
+
             to_ct(emitted_public_inputs),
 
             to_circuit_type(executed_callback),
@@ -80,7 +84,9 @@ template <typename NCT> class PrivateCircuitPublicInputs {
 
         inputs.push_back(call_context.hash());
 
-        spread_arr_into_vec(custom_public_inputs, inputs);
+        spread_arr_into_vec(custom_inputs, inputs);
+        spread_arr_into_vec(custom_outputs, inputs);
+
         spread_arr_into_vec(emitted_public_inputs, inputs);
 
         inputs.push_back(executed_callback.hash());
@@ -119,7 +125,9 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
   public:
     std::optional<CallContext<NCT>> call_context;
 
-    std::array<opt_fr, CUSTOM_PUBLIC_INPUTS_LENGTH> custom_public_inputs;
+    std::array<opt_fr, CUSTOM_INPUTS_LENGTH> custom_inputs;
+    std::array<opt_fr, CUSTOM_OUTPUTS_LENGTH> custom_outputs;
+
     std::array<opt_fr, EMITTED_PUBLIC_INPUTS_LENGTH> emitted_public_inputs;
 
     std::optional<ExecutedCallback<NCT>> executed_callback;
@@ -140,7 +148,9 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
     OptionalPrivateCircuitPublicInputs<NCT>(
         std::optional<CallContext<NCT>> const& call_context,
 
-        std::array<opt_fr, CUSTOM_PUBLIC_INPUTS_LENGTH> const& custom_public_inputs,
+        std::array<opt_fr, CUSTOM_INPUTS_LENGTH> const& custom_inputs,
+        std::array<opt_fr, CUSTOM_OUTPUTS_LENGTH> const& custom_outputs,
+
         std::array<opt_fr, EMITTED_PUBLIC_INPUTS_LENGTH> const& emitted_public_inputs,
 
         std::optional<ExecutedCallback<NCT>> const& executed_callback,
@@ -156,7 +166,8 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
         opt_fr const& old_private_data_tree_root)
         : call_context(call_context)
-        , custom_public_inputs(custom_public_inputs)
+        , custom_inputs(custom_inputs)
+        , custom_outputs(custom_outputs)
         , emitted_public_inputs(emitted_public_inputs)
         , executed_callback(executed_callback)
         , output_commitments(output_commitments)
@@ -177,7 +188,9 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
         new_inputs.call_context = std::nullopt;
 
-        new_inputs.custom_public_inputs.fill(std::nullopt);
+        new_inputs.custom_inputs.fill(std::nullopt);
+        new_inputs.custom_outputs.fill(std::nullopt);
+
         new_inputs.emitted_public_inputs.fill(std::nullopt);
 
         new_inputs.executed_callback = std::nullopt;
@@ -222,7 +235,9 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
         make_unused_element_zero(composer, call_context);
 
-        make_unused_array_elements_zero(composer, custom_public_inputs);
+        make_unused_array_elements_zero(composer, custom_inputs);
+        make_unused_array_elements_zero(composer, custom_outputs);
+
         make_unused_array_elements_zero(composer, emitted_public_inputs);
 
         make_unused_element_zero(composer, executed_callback);
@@ -251,7 +266,9 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
         (*call_context).set_public();
 
-        set_array_public(custom_public_inputs);
+        set_array_public(custom_inputs);
+        set_array_public(custom_outputs);
+
         set_array_public(emitted_public_inputs);
 
         (*executed_callback).set_public();
@@ -282,7 +299,9 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
         OptionalPrivateCircuitPublicInputs<CircuitTypes<Composer>> pis = {
             to_circuit_type(call_context),
 
-            to_ct(custom_public_inputs),
+            to_ct(custom_inputs),
+            to_ct(custom_outputs),
+
             to_ct(emitted_public_inputs),
 
             to_circuit_type(executed_callback),
@@ -314,7 +333,9 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
         OptionalPrivateCircuitPublicInputs<NativeTypes> pis = {
             to_native_type(call_context),
 
-            to_nt(custom_public_inputs),
+            to_nt(custom_inputs),
+            to_nt(custom_outputs),
+
             to_nt(emitted_public_inputs),
 
             to_native_type(executed_callback),
@@ -347,7 +368,9 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
         inputs.push_back((*call_context).hash());
 
-        spread_arr_opt_into_vec(custom_public_inputs, inputs);
+        spread_arr_opt_into_vec(custom_inputs, inputs);
+        spread_arr_opt_into_vec(custom_outputs, inputs);
+
         spread_arr_opt_into_vec(emitted_public_inputs, inputs);
 
         inputs.push_back((*executed_callback).hash());
@@ -374,7 +397,9 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
         return PrivateCircuitPublicInputs<NCT>{
             .call_context = call_context.value(),
 
-            .custom_public_inputs = map(custom_public_inputs, get_value),
+            .custom_inputs = map(custom_inputs, get_value),
+            .custom_outputs = map(custom_outputs, get_value),
+
             .emitted_public_inputs = map(emitted_public_inputs, get_value),
 
             .executed_callback = executed_callback.value(),
@@ -415,50 +440,6 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
         const auto arr_size = sizeof(arr) / sizeof(fr);
         vec.insert(vec.end(), &arr[0], &arr[0] + arr_size);
     }
-
-    /// TODO: unused?
-    // template <typename Composer> bool check_all_elements_populated()
-    // {
-    //     static_assert((std::is_same<CircuitTypes<Composer>, NCT>::value));
-
-    //     bool check_if_populated = [&]<typename T>(std::optional<T>& e) {
-    //         if (!e) {
-    //             return false;
-    //         }
-    //         return true;
-    //     };
-
-    //     bool still_populated = true;
-
-    //     // call_context is not optional.
-
-    //     still_populated &= std::all_of(custom_public_inputs.begin(), custom_public_inputs.end(), check_if_populated);
-    //     still_populated &= std::all_of(emitted_public_inputs.begin(), emitted_public_inputs.end(),
-    //     check_if_populated);
-
-    //     // executed_callback.make_unused_inputs_zero(composer);
-
-    //     still_populated &= std::all_of(output_commitments.begin(), output_commitments.end(), check_if_populated);
-    //     still_populated &= std::all_of(input_nullifiers.begin(), input_nullifiers.end(), check_if_populated);
-
-    //     still_populated &= std::all_of(private_call_stack.begin(), private_call_stack.end(), check_if_populated);
-    //     still_populated &= std::all_of(public_call_stack.begin(), public_call_stack.end(), check_if_populated);
-    //     still_populated &= std::all_of(
-    //         contract_deployment_call_stack.begin(), contract_deployment_call_stack.end(), check_if_populated);
-    //     still_populated &= std::all_of(partial_l1_call_stack.begin(), partial_l1_call_stack.end(),
-    //     check_if_populated); still_populated &= std::all_of(callback_stack.begin(), callback_stack.end(),
-    //     check_if_populated);
-
-    //     still_populated &= check_if_populated(old_private_data_tree_root);
-    //     still_populated &= check_if_populated(is_fee_payment);
-    //     still_populated &= check_if_populated(pay_fee_from_l1);
-    //     still_populated &= check_if_populated(pay_fee_from_public_l2);
-    //     still_populated &= check_if_populated(called_from_l1);
-
-    //     all_elements_populated = still_populated;
-
-    //     return all_elements_populated;
-    // }
 
     template <typename Composer, typename T, size_t SIZE>
     void make_unused_array_elements_zero(Composer& composer, std::array<std::optional<T>, SIZE>& arr)
@@ -540,7 +521,8 @@ void read(uint8_t const*& it, OptionalPrivateCircuitPublicInputs<NCT>& private_c
 
     OptionalPrivateCircuitPublicInputs<NCT>& pis = private_circuit_public_inputs;
     read(it, pis.call_context);
-    read(it, pis.custom_public_inputs);
+    read(it, pis.custom_inputs);
+    read(it, pis.custom_outputs);
     read(it, pis.emitted_public_inputs);
     read(it, pis.executed_callback);
     read(it, pis.output_commitments);
@@ -561,7 +543,8 @@ void write(std::vector<uint8_t>& buf, OptionalPrivateCircuitPublicInputs<NCT> co
     OptionalPrivateCircuitPublicInputs<NCT> const& pis = private_circuit_public_inputs;
 
     write(buf, pis.call_context);
-    write(buf, pis.custom_public_inputs);
+    write(buf, pis.custom_inputs);
+    write(buf, pis.custom_outputs);
     write(buf, pis.emitted_public_inputs);
     write(buf, pis.executed_callback);
     write(buf, pis.output_commitments);
@@ -580,7 +563,8 @@ std::ostream& operator<<(std::ostream& os, OptionalPrivateCircuitPublicInputs<NC
 {
     OptionalPrivateCircuitPublicInputs<NCT> const& pis = private_circuit_public_inputs;
     return os << "call_context: " << pis.call_context << "\n"
-              << "custom_public_inputs: " << pis.custom_public_inputs << "\n"
+              << "custom_inputs: " << pis.custom_inputs << "\n"
+              << "custom_outputs: " << pis.custom_outputs << "\n"
               << "emitted_public_inputs: " << pis.emitted_public_inputs << "\n"
               << "executed_callback: " << pis.executed_callback << "\n"
               << "output_commitments: " << pis.output_commitments << "\n"

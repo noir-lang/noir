@@ -20,7 +20,8 @@ template <typename NCT> struct FunctionSignature {
     typedef typename NCT::grumpkin_point grumpkin_point;
     typedef typename NCT::fr fr;
 
-    address contract_address;
+    // address contract_address; // TODO: remove contract_address from function_signature? The other stuff is all known
+    // before deployment.
     uint32 vk_index;
     boolean is_private = false;
     boolean is_constructor = false;
@@ -37,7 +38,7 @@ template <typename NCT> struct FunctionSignature {
         auto to_ct = [&](auto& e) { return plonk::stdlib::types::to_ct(composer, e); };
 
         FunctionSignature<CircuitTypes<Composer>> function_signature = {
-            to_ct(contract_address),
+            // to_ct(contract_address),
             to_ct(vk_index),
             to_ct(is_private),
             to_ct(is_constructor),
@@ -50,7 +51,7 @@ template <typename NCT> struct FunctionSignature {
     {
         static_assert(!(std::is_same<NativeTypes, NCT>::value));
 
-        contract_address.to_field().set_public();
+        // contract_address.to_field().set_public();
         fr(vk_index).set_public();
         fr(is_private).set_public();
         fr(is_constructor).set_public();
@@ -59,7 +60,7 @@ template <typename NCT> struct FunctionSignature {
     fr hash() const
     {
         std::vector<fr> inputs = {
-            contract_address.to_field(),
+            // contract_address.to_field(),
             fr(vk_index),
             fr(is_private),
             fr(is_constructor),
@@ -73,7 +74,7 @@ template <typename NCT> void read(uint8_t const*& it, FunctionSignature<NCT>& fu
 {
     using serialize::read;
 
-    read(it, function_signature.contract_address);
+    // read(it, function_signature.contract_address);
     read(it, function_signature.vk_index);
     read(it, function_signature.is_private);
     read(it, function_signature.is_constructor);
@@ -83,7 +84,7 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, FunctionSignature<
 {
     using serialize::write;
 
-    write(buf, function_signature.contract_address);
+    // write(buf, function_signature.contract_address);
     write(buf, function_signature.vk_index);
     write(buf, function_signature.is_private);
     write(buf, function_signature.is_constructor);
@@ -91,8 +92,7 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, FunctionSignature<
 
 template <typename NCT> std::ostream& operator<<(std::ostream& os, FunctionSignature<NCT> const& function_signature)
 {
-    return os << "contract_address: " << function_signature.contract_address << "\n"
-              << "vk_index: " << function_signature.vk_index << "\n"
+    return os << "vk_index: " << function_signature.vk_index << "\n"
               << "is_private: " << function_signature.is_private << "\n"
               << "is_constructor: " << function_signature.is_constructor << "\n";
 }

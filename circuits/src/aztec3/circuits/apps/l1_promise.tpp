@@ -21,7 +21,6 @@ void L1Promise<Composer>::on_success(std::string const& function_name,
                                      std::vector<std::variant<fr, size_t>> const& args)
 {
     // construct success_callback_call_hash and success_result_arg_map_acc
-    // auto& oracle = contract_factory.oracle;
 
     std::vector<std::pair<fr, generator_index_t>> arg_input_pairs;
 
@@ -41,7 +40,7 @@ void L1Promise<Composer>::on_success(std::string const& function_name,
     // TODO: do this calc in the CallStackItem struct instead, once we know whether we can simply hash args instead of
     // the whole set of public inputs.
 
-    auto function_signature = contract_factory.get_function_signature_by_name(function_name);
+    auto function_signature = contract.get_function_signature_by_name(function_name);
 
     fr function_signature_hash = function_signature.hash();
     fr arg_hash = CT::compress(arg_input_pairs);
@@ -59,7 +58,6 @@ template <typename Composer>
 void L1Promise<Composer>::on_failure(std::string const& function_name, std::vector<fr> const& args)
 {
     // construct failure_callback_call_hash
-    // auto& oracle = contract_factory.oracle;
 
     std::vector<std::pair<fr, generator_index_t>> arg_input_pairs;
 
@@ -69,7 +67,7 @@ void L1Promise<Composer>::on_failure(std::string const& function_name, std::vect
 
     // TODO: do this calc in the CallStackItem struct instead, once we know whether we can simply hash args instead of
     // the whole set of public inputs.
-    auto function_signature = contract_factory.get_function_signature_by_name(function_name);
+    auto function_signature = contract.get_function_signature_by_name(function_name);
 
     fr function_signature_hash = function_signature.hash();
     fr arg_hash = CT::compress(arg_input_pairs);

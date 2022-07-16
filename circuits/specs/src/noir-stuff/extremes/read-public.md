@@ -53,7 +53,7 @@ fn my_private_function(
         called_from_l1: false,
     }
 ) {
-    let amount = PUBLIC_INPUTS.custom_public_inputs.amount;
+    let amount = PUBLIC_INPUTS.custom_inputs.amount;
 
 // Perform the calculation:
     require(x_storage_slot == 1);

@@ -17,7 +17,7 @@ using plonk::stdlib::witness_t;
 using plonk::stdlib::types::CircuitTypes;
 using plonk::stdlib::types::NativeTypes;
 
-template <typename Composer> class ContractFactory;
+template <typename Composer> class Contract;
 
 template <typename Composer> class L1Promise {
     typedef CircuitTypes<Composer> CT;
@@ -26,11 +26,11 @@ template <typename Composer> class L1Promise {
     typedef typename CT::boolean boolean;
 
   public:
-    ContractFactory<Composer>& contract_factory;
+    Contract<Composer>& contract;
     CallbackStackItem<CT> callback_stack_item;
 
-    L1Promise(ContractFactory<Composer>& contract_factory)
-        : contract_factory(contract_factory)
+    L1Promise(Contract<Composer>& contract)
+        : contract(contract)
     {}
 
     void on_success(std::string const& function_name, std::vector<std::variant<fr, size_t>> const& args);

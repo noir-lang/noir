@@ -74,12 +74,13 @@ TEST(private_kernel_tests, test_deposit)
     NativeOracle deposit_oracle = NativeOracle(db, escrow_contract_address, msg_sender, msg_sender_private_key);
     OracleWrapper deposit_oracle_wrapper = OracleWrapper(deposit_composer, deposit_oracle);
 
+    FunctionExecutionContext deposit_ctx(deposit_composer, deposit_oracle_wrapper);
+
     auto amount = NT::fr(5);
     auto asset_id = NT::fr(1);
     auto memo = NT::fr(999);
 
-    OptionalPrivateCircuitPublicInputs<NT> deposit_public_inputs =
-        deposit(deposit_composer, deposit_oracle_wrapper, amount, asset_id, memo);
+    OptionalPrivateCircuitPublicInputs<NT> deposit_public_inputs = deposit(deposit_ctx, amount, asset_id, memo);
 
     UnrolledProver deposit_prover = deposit_composer.create_unrolled_prover();
     NT::Proof deposit_proof = deposit_prover.construct_proof();
@@ -132,7 +133,7 @@ TEST(private_kernel_tests, test_deposit)
     const CallStackItem<NT, CallType::Private> deposit_call_stack_item{
         .function_signature =
             FunctionSignature<NT>{
-                .contract_address = escrow_contract_address,
+                // .contract_address = escrow_contract_address,
                 .vk_index = 0, // TODO: deduce this from a NT state_factory.
                 .is_private = true,
                 // .is_constructor = false,

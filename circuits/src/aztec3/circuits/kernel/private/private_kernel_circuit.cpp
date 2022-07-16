@@ -131,9 +131,9 @@ void validate_inputs(PrivateInputs<CT> const& private_inputs, PublicInputs<CT>& 
                                 "A user cannot make a delegatecall or staticcall");
 
         // The below also prevents delegatecall/staticcall
-        is_base_case.must_imply(private_inputs.private_call.call_stack_item.call_context.storage_contract_address ==
-                                    private_inputs.private_call.call_stack_item.function_signature.contract_address,
-                                "Storage contract address must be that of the called contract in the base case");
+        // is_base_case.must_imply(private_inputs.private_call.call_stack_item.call_context.storage_contract_address ==
+        //                             private_inputs.private_call.call_stack_item.function_signature.contract_address,
+        //                         "Storage contract address must be that of the called contract in the base case");
 
         // TODO: privatelyExecutedCallback logic and checks
     }

@@ -7,8 +7,8 @@
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
 #include <stdlib/types/convert.hpp>
+// #include "function_executor.hpp"
 #include "oracle_wrapper.hpp"
-#include "private_state_factory.hpp"
 #include "private_state_note.hpp"
 #include "private_state_note_preimage.hpp"
 #include "private_state_operand.hpp"
@@ -139,7 +139,7 @@ PrivateStateVar<Composer>& PrivateStateVar<Composer>::at(std::vector<std::option
     }
 
     PrivateStateVar<Composer> new_state =
-        PrivateStateVar<Composer>(state_factory, private_state_type, name, start_slot, new_slot_point, is_partial_slot);
+        PrivateStateVar<Composer>(exec_ctx, private_state_type, name, start_slot, new_slot_point, is_partial_slot);
 
     private_states[lookup] = new_state;
 
@@ -191,7 +191,7 @@ template <typename Composer>
 void PrivateStateVar<Composer>::validate_operand(PrivateStateOperand<CT> const& operand) const
 {
     if (operand.creator_address) {
-        auto& oracle = state_factory->oracle;
+        auto& oracle = exec_ctx->oracle;
         const auto& msg_sender = oracle.get_msg_sender();
         (*operand.creator_address).assert_is_in_set({ msg_sender, address(0) });
     }
@@ -203,7 +203,7 @@ void PrivateStateVar<Composer>::add(PrivateStateOperand<CircuitTypes<Composer>> 
     arithmetic_checks();
     validate_operand(operand);
 
-    auto& oracle = state_factory->oracle;
+    auto& oracle = exec_ctx->oracle;
     auto& composer = oracle.composer;
 
     PrivateStateNotePreimage<CT> new_note_preimage = PrivateStateNotePreimage<CT>{
@@ -213,14 +213,14 @@ void PrivateStateVar<Composer>::add(PrivateStateOperand<CircuitTypes<Composer>> 
         .owner_address = operand.owner_address,
         .creator_address = operand.creator_address,
         .salt = oracle.generate_salt(),
-        // .input_nullifier = // this will be injected by the state_factory
+        // .input_nullifier = // this will be injected by the exec_ctx
         .memo = operand.memo,
         .is_real = plonk::stdlib::types::to_ct(composer, true),
     };
 
     auto new_note = PrivateStateNote<Composer>(*this, new_note_preimage);
 
-    state_factory->push_new_note(new_note);
+    exec_ctx->push_new_note(new_note);
 }
 
 template <typename Composer>
@@ -231,7 +231,7 @@ void PrivateStateVar<Composer>::subtract(PrivateStateOperand<CircuitTypes<Compos
 
     // Terminology: difference = minuend - subtrahend
 
-    auto& oracle = state_factory->oracle;
+    auto& oracle = exec_ctx->oracle;
     auto& composer = oracle.composer;
 
     const fr& subtrahend = operand.value;
@@ -262,7 +262,7 @@ void PrivateStateVar<Composer>::subtract(PrivateStateOperand<CircuitTypes<Compos
         .owner_address = operand.owner_address,
         .creator_address = operand.creator_address,
         .salt = oracle.generate_salt(),
-        // .input_nullifier = // this will be injected by the state_factory upon `finalise()`
+        // .input_nullifier = // this will be injected by the exec_ctx upon `finalise()`
         .memo = operand.memo,
         .is_real = plonk::stdlib::types::to_ct(composer, true),
     };
@@ -278,9 +278,9 @@ void PrivateStateVar<Composer>::subtract(PrivateStateOperand<CircuitTypes<Compos
 
     auto difference_note = PrivateStateNote<Composer>(*this, difference_preimage);
 
-    state_factory->push_new_note(difference_note);
-    state_factory->push_new_nullifier_data(minuend_nullifier_1, minuend_nullifier_preimage_1);
-    state_factory->push_new_nullifier_data(minuend_nullifier_2, minuend_nullifier_preimage_2);
+    exec_ctx->push_new_note(difference_note);
+    exec_ctx->push_new_nullifier_data(minuend_nullifier_1, minuend_nullifier_preimage_1);
+    exec_ctx->push_new_nullifier_data(minuend_nullifier_2, minuend_nullifier_preimage_2);
 }
 
 // template class PrivateStateVar<waffle::TurboComposer>;

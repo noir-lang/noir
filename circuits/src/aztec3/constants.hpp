@@ -3,7 +3,7 @@
 
 namespace aztec3 {
 
-constexpr size_t CUSTOM_PUBLIC_INPUTS_LENGTH = 8;
+constexpr size_t CUSTOM_INPUTS_LENGTH = 8;
 constexpr size_t CUSTOM_OUTPUTS_LENGTH = 4;
 constexpr size_t EMITTED_PUBLIC_INPUTS_LENGTH = 4;
 constexpr size_t EMITTED_OUTPUTS_LENGTH = 4;

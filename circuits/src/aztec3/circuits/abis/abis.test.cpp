@@ -16,7 +16,7 @@ class abi_tests : public ::testing::Test {};
 TEST(abi_tests, test_native_function_signature)
 {
     FunctionSignature<NT> function_signature = {
-        .contract_address = 10,
+        // .contract_address = 10,
         .vk_index = 11,
         .is_private = false,
         .is_constructor = false,
@@ -33,7 +33,7 @@ TEST(abi_tests, test_native_function_signature)
 TEST(abi_tests, test_native_to_circuit_function_signature)
 {
     FunctionSignature<NT> native_function_signature = {
-        .contract_address = 10,
+        // .contract_address = 10,
         .vk_index = 11,
         .is_private = false,
         .is_constructor = false,
@@ -75,7 +75,7 @@ TEST(abi_tests, test_native_to_circuit_call_context)
 TEST(abi_tests, test_native_public_inputs)
 {
     PublicCircuitPublicInputs<NT> public_inputs = {
-        .custom_public_inputs = { 1, 2, 3, 4, 5, 6, 7, 8 },
+        .custom_inputs = { 1, 2, 3, 4, 5, 6, 7, 8 },
         .custom_outputs = { 9, 10, 11, 12 },
         .emitted_public_inputs = { 13, 14, 15, 16 },
         .emitted_outputs = { 17, 18, 19, 20 },
@@ -95,7 +95,7 @@ TEST(abi_tests, test_native_public_inputs)
 TEST(abi_tests, test_native_to_circuit_public_circuit_public_inputs)
 {
     PublicCircuitPublicInputs<NT> native_public_inputs = {
-        .custom_public_inputs = { 1, 2, 3, 4, 5, 6, 7, 8 },
+        .custom_inputs = { 1, 2, 3, 4, 5, 6, 7, 8 },
         .custom_outputs = { 9, 10, 11, 12 },
         .emitted_public_inputs = { 13, 14, 15, 16 },
         .emitted_outputs = { 17, 18, 19, 20 },
@@ -120,7 +120,7 @@ TEST(abi_tests, test_native_to_circuit_public_circuit_public_inputs)
 TEST(abi_tests, test_native_call_stack_item)
 {
     PublicCircuitPublicInputs<NT> public_inputs = {
-        .custom_public_inputs = { 1, 2, 3, 4, 5, 6, 7, 8 },
+        .custom_inputs = { 1, 2, 3, 4, 5, 6, 7, 8 },
         .custom_outputs = { 9, 10, 11, 12 },
         .emitted_public_inputs = { 13, 14, 15, 16 },
         .emitted_outputs = { 17, 18, 19, 20 },
@@ -136,7 +136,7 @@ TEST(abi_tests, test_native_call_stack_item)
 
     CallStackItem<NT, CallType::Public> call_stack_item = {
         .function_signature = {
-            .contract_address = 10,
+            // .contract_address = 10,
             .vk_index = 11,
             .is_private = false,
             .is_constructor = false,
@@ -156,7 +156,7 @@ TEST(abi_tests, test_native_call_stack_item)
 TEST(abi_tests, test_native_to_circuit_call_stack_item)
 {
     PublicCircuitPublicInputs<NT> public_inputs = {
-        .custom_public_inputs = { 1, 2, 3, 4, 5, 6, 7, 8 },
+        .custom_inputs = { 1, 2, 3, 4, 5, 6, 7, 8 },
         .custom_outputs = { 9, 10, 11, 12 },
         .emitted_public_inputs = { 13, 14, 15, 16 },
         .emitted_outputs = { 17, 18, 19, 20 },
@@ -172,7 +172,7 @@ TEST(abi_tests, test_native_to_circuit_call_stack_item)
 
     CallStackItem<NT, CallType::Public> native_call_stack_item = {
         .function_signature = {
-            .contract_address = 10,
+            // .contract_address = 10,
             .vk_index = 11,
             .is_private = false,
             .is_constructor = false,

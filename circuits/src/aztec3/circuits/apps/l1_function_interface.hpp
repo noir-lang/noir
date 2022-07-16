@@ -13,7 +13,7 @@ using plonk::stdlib::witness_t;
 using plonk::stdlib::types::CircuitTypes;
 using plonk::stdlib::types::NativeTypes;
 
-template <typename Composer> class ContractFactory;
+template <typename Composer> class Contract;
 
 // We use the struct to retain designated initialisation, to make contract creation more readable.
 template <typename Composer> struct L1FunctionInterfaceStruct {
@@ -28,23 +28,22 @@ template <typename Composer> class L1FunctionInterface {
     typedef typename CircuitTypes<Composer>::fr fr;
 
   public:
-    ContractFactory<Composer>* contract_factory;
+    Contract<Composer>* contract;
     std::string function_name;
     fr function_selector;
     size_t num_params;
 
     L1FunctionInterface(){};
 
-    L1FunctionInterface(ContractFactory<Composer>* contract_factory,
-                        L1FunctionInterfaceStruct<Composer> const& l1_fn_struct)
-        : contract_factory(contract_factory)
+    L1FunctionInterface(Contract<Composer>* contract, L1FunctionInterfaceStruct<Composer> const& l1_fn_struct)
+        : contract(contract)
         , function_name(l1_fn_struct.function_name)
         , function_selector(l1_fn_struct.function_selector)
         , num_params(l1_fn_struct.num_params)
     {}
 
     // L1FunctionInterface(L1FunctionInterface<Composer> const& l1_function)
-    //     : contract_factory(l1_function.contract_factory)
+    //     : contract(l1_function.contract)
     //     , function_name(l1_function.function_name)
     //     , function_selector(l1_function.function_selector)
     //     , num_params(l1_function.num_params)

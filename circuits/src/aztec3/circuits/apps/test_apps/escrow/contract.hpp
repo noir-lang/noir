@@ -1,13 +1,14 @@
 #pragma once
-#include "init.hpp"
 #include <aztec3/circuits/apps/contract_factory.hpp>
 #include <aztec3/circuits/apps/function.hpp>
+#include <aztec3/circuits/apps/function_executor.hpp>
+#include "init.hpp"
 
 namespace aztec3::circuits::apps::test_apps::escrow {
 
-inline ContractFactory<Composer> init(Composer& composer, OracleWrapper& oracle)
+inline Contract<Composer> init_contract(FunctionExecutionContext<Composer>& exec_ctx)
 {
-    ContractFactory<Composer> contract(composer, oracle, "Escrow");
+    Contract<Composer> contract(exec_ctx, "Escrow");
 
     contract.new_private_state("balances", { "owner", "asset_id" });
 
@@ -27,6 +28,7 @@ inline ContractFactory<Composer> init(Composer& composer, OracleWrapper& oracle)
         .num_params = 3,
     });
 
+    // TODO: create a new FunctionExecutor(contract) and return it.
     return contract;
 }
 

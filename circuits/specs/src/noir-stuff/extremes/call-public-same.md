@@ -110,8 +110,8 @@ fn my_private_function(
         called_from_l1: false,
     }
 ) {
-    let a = PUBLIC_INPUTS.custom_public_inputs.a;
-    let b = PUBLIC_INPUTS.custom_public_inputs.b;
+    let a = PUBLIC_INPUTS.custom_inputs.a;
+    let b = PUBLIC_INPUTS.custom_inputs.b;
 
     let c = a + b;
 
@@ -128,9 +128,9 @@ fn my_private_function(
     assert(call_stack_item.function_signature.vkIndex == 0);
 
     // Check the correct parameters are being passed to the function:
-    assert(call_stack_item.public_inputs.custom_public_inputs[0] == a);
-    assert(call_stack_item.public_inputs.custom_public_inputs[1] == b);
-    assert(call_stack_item.public_inputs.custom_public_inputs[2] == c);
+    assert(call_stack_item.public_inputs.custom_inputs[0] == a);
+    assert(call_stack_item.public_inputs.custom_inputs[1] == b);
+    assert(call_stack_item.public_inputs.custom_inputs[2] == c);
 
     // The call context will be checked in the kernel snark, so we don't need
     // to check it here.
