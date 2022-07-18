@@ -20,7 +20,7 @@ template <typename NCT> struct CallContext {
 
     address msg_sender;
     address storage_contract_address;
-    address tx_origin;
+    address tx_origin = msg_sender;
 
     boolean is_delegate_call;
     boolean is_static_call;

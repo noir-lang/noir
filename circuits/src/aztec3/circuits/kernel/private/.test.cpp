@@ -64,14 +64,16 @@ TEST(private_kernel_tests, test_deposit)
     const NT::fr escrow_contract_leaf_index = 1;
     const NT::fr escrow_portal_contract_address = 23456;
 
+    const NT::fr msg_sender_private_key = 123456789;
     const NT::address msg_sender =
         NT::fr(uint256_t(0x01071e9a23e0f7edULL, 0x5d77b35d1830fa3eULL, 0xc6ba3660bb1f0c0bULL, 0x2ef9f7f09867fd6eULL));
-    const NT::fr msg_sender_private_key = 123456789;
+    const NT::address tx_origin = msg_sender;
 
     Composer deposit_composer;
     DB db;
 
-    NativeOracle deposit_oracle = NativeOracle(db, escrow_contract_address, msg_sender, msg_sender_private_key);
+    NativeOracle deposit_oracle =
+        NativeOracle(db, escrow_contract_address, msg_sender, tx_origin, msg_sender_private_key);
     OracleWrapper deposit_oracle_wrapper = OracleWrapper(deposit_composer, deposit_oracle);
 
     FunctionExecutionContext deposit_ctx(deposit_composer, deposit_oracle_wrapper);

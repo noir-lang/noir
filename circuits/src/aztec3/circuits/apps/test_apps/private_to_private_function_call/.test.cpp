@@ -4,9 +4,9 @@
 
 namespace aztec3::circuits::apps::test_apps::private_to_private_function_call {
 
-class escrow_tests : public ::testing::Test {};
+class private_to_private_function_call_tests : public ::testing::Test {};
 
-TEST(escrow_tests, test_deposit)
+TEST(private_to_private_function_call_tests, test_private_to_private_function_call)
 {
 
     Composer fn1_composer;

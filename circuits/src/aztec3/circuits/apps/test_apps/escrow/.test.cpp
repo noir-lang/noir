@@ -20,8 +20,9 @@ TEST(escrow_tests, test_deposit)
     const NT::fr msg_sender_private_key = 123456789;
     const NT::address msg_sender =
         NT::fr(uint256_t(0x01071e9a23e0f7edULL, 0x5d77b35d1830fa3eULL, 0xc6ba3660bb1f0c0bULL, 0x2ef9f7f09867fd6eULL));
+    const NT::address tx_origin = msg_sender;
 
-    NativeOracle oracle = NativeOracle(db, contract_address, msg_sender, msg_sender_private_key);
+    NativeOracle oracle = NativeOracle(db, contract_address, msg_sender, tx_origin, msg_sender_private_key);
     OracleWrapper oracle_wrapper = OracleWrapper(composer, oracle);
 
     FunctionExecutionContext<Composer> exec_ctx(composer, oracle_wrapper);
@@ -52,10 +53,12 @@ TEST(escrow_tests, test_transfer)
     const NT::fr msg_sender_private_key = 123456789;
     const NT::address msg_sender =
         NT::fr(uint256_t(0x01071e9a23e0f7edULL, 0x5d77b35d1830fa3eULL, 0xc6ba3660bb1f0c0bULL, 0x2ef9f7f09867fd6eULL));
+    const NT::address tx_origin = msg_sender;
 
     CallContext<NT> call_context = {
         .msg_sender = msg_sender,
         .storage_contract_address = contract_address,
+        .tx_origin = msg_sender,
         .is_fee_payment = true,
     };
 
@@ -96,6 +99,7 @@ TEST(escrow_tests, test_withdraw)
     CallContext<NT> call_context = {
         .msg_sender = msg_sender,
         .storage_contract_address = contract_address,
+        .tx_origin = msg_sender,
         .is_fee_payment = true,
     };
 
