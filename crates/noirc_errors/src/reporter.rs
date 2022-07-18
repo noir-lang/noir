@@ -4,6 +4,7 @@ use codespan_reporting::term;
 use codespan_reporting::term::termcolor::{
     Color, ColorChoice, ColorSpec, StandardStream, WriteColor,
 };
+use fm::FileId;
 use std::io::Write;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -71,7 +72,7 @@ pub struct Reporter;
 
 impl Reporter {
     pub fn with_diagnostics(
-        file_id: usize,
+        file_id: FileId,
         files: &fm::FileManager,
         diagnostics: &[CustomDiagnostic],
     ) {
@@ -85,7 +86,8 @@ impl Reporter {
                     .map(|sl| {
                         let start_span = sl.span.start() as usize;
                         let end_span = sl.span.end() as usize + 1;
-                        Label::secondary(file_id, start_span..end_span).with_message(&sl.message)
+                        Label::secondary(file_id.as_usize(), start_span..end_span)
+                            .with_message(&sl.message)
                     })
                     .collect();
 

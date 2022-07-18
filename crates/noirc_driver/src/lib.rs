@@ -115,11 +115,7 @@ impl Driver {
         let mut error_count = 0;
         for errors in &errs {
             error_count += errors.errors.len();
-            Reporter::with_diagnostics(
-                errors.file_id.as_usize(),
-                &self.context.file_manager,
-                &errors.errors,
-            );
+            Reporter::with_diagnostics(errors.file_id, &self.context.file_manager, &errors.errors);
         }
 
         Reporter::finish(error_count);
@@ -142,11 +138,6 @@ impl Driver {
         show_ssa: bool,
     ) -> CompiledProgram {
         self.build();
-        // First find the local crate
-        // There is always a local crate
-        let local_crate = self.context.def_map(LOCAL_CRATE).unwrap();
-        let file_id = local_crate.root_file_id().as_usize();
-
         // Check the crate type
         // We don't panic here to allow users to `evaluate` libraries
         // which will do nothing
@@ -154,6 +145,9 @@ impl Driver {
             println!("cannot compile crate into a program as the local crate is not a binary. For libraries, please use the build command");
             std::process::exit(1);
         };
+
+        // Find the local crate, one should always be present
+        let local_crate = self.context.def_map(LOCAL_CRATE).unwrap();
 
         // All Binaries should have a main function
         let main_function =
@@ -172,7 +166,7 @@ impl Driver {
                 // The FileId here will be the file id of the file with the main file
                 // Errors will be shown at the callsite without a stacktrace
                 Reporter::with_diagnostics(
-                    file_id,
+                    err.location.file,
                     &self.context.file_manager,
                     &[err.to_diagnostic()],
                 );
