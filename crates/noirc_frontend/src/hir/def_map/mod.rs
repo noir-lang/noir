@@ -108,6 +108,10 @@ impl CrateDefMap {
         let root_module = &self.modules()[self.root.0];
         root_module.origin.into()
     }
+
+    pub fn module_file_id(&self, module_id: LocalModuleId) -> FileId {
+        self.modules[module_id.0].origin.file_id()
+    }
 }
 
 /// Given a FileId, fetch the File, from the FileManager and parse it's content
