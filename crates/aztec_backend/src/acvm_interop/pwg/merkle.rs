@@ -242,7 +242,7 @@ impl MerkleTree {
         index: &FieldElement,
         leaf: &FieldElement,
     ) -> FieldElement {
-        assert!(hash_path.len() % 2 == 0);
+        // assert!(hash_path.len() % 2 == 0);
 
         let mut barretenberg = Barretenberg::new();
 
@@ -251,11 +251,17 @@ impl MerkleTree {
 
         let mut current = *leaf;
 
-        let chunks = hash_path.chunks(2).enumerate();
-        for (i, path_pair) in chunks {
+        // let chunks = hash_path.chunks(2).enumerate();
+        // for (i, path_pair) in chunks {
+        //     let path_bit = index_bits[i];
+        //     let (hash_left, hash_right) =
+        //         if !path_bit { (current, *path_pair[1]) } else { (*path_pair[0], current) };
+        //     current = compress_native(&mut barretenberg, &hash_left, &hash_right);
+        // }
+        for (i, path_elem) in hash_path.into_iter().enumerate() {
             let path_bit = index_bits[i];
             let (hash_left, hash_right) =
-                if !path_bit { (current, *path_pair[1]) } else { (*path_pair[0], current) };
+                if !path_bit { (current, *path_elem) } else { (*path_elem, current) };
             current = compress_native(&mut barretenberg, &hash_left, &hash_right);
         }
         if &current == root {

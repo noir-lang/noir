@@ -132,16 +132,10 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
                         }
 
                         let mut hash_path = Vec::new();
-                        while let (Some(path_left), path_right_option) =
-                            (inputs_iter.next(), inputs_iter.next())
-                        {
-                            let path_right = path_right_option
-                                .expect("iterator contains an odd amount of items");
+                        while let Some(path_elem) = inputs_iter.next() {
+                            let path_elem_index = path_elem.witness.witness_index() as i32;
 
-                            let path_left_index = path_left.witness.witness_index() as i32;
-                            let path_right_index = path_right.witness.witness_index() as i32;
-
-                            hash_path.push((path_left_index, path_right_index));
+                            hash_path.push(path_elem_index);
                         }
 
                         // result
