@@ -66,7 +66,6 @@ impl MerkleMembershipGadget {
 
         inputs.push(GadgetInput { witness: leaf_witness, num_bits: FieldElement::max_num_bits() });
 
-        // let index_witness = evaluator.add_witness_to_cs();
         inputs.push(GadgetInput { witness: index_witness, num_bits: FieldElement::max_num_bits() });
 
         for element in hash_path.contents.into_iter() {
