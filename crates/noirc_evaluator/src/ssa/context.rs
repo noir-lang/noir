@@ -1,4 +1,5 @@
 use super::block::{BasicBlock, BlockId};
+use super::conditional::DecisionTree;
 use super::function::{FuncIndex, SSAFunction};
 use super::inline::StackFrame;
 use super::mem::{ArrayId, Memory};
@@ -56,17 +57,17 @@ impl<'a> SsaContext<'a> {
             dummy_load: HashMap::new(),
         };
         block::create_first_block(&mut pc);
-        pc.one_with_type(node::ObjectType::Unsigned(1));
-        pc.zero_with_type(node::ObjectType::Unsigned(1));
+        pc.one_with_type(node::ObjectType::Boolean);
+        pc.zero_with_type(node::ObjectType::Boolean);
         pc
     }
 
     pub fn zero(&self) -> NodeId {
-        self.find_const_with_type(&BigUint::zero(), node::ObjectType::Unsigned(1)).unwrap()
+        self.find_const_with_type(&BigUint::zero(), node::ObjectType::Boolean).unwrap()
     }
 
     pub fn one(&self) -> NodeId {
-        self.find_const_with_type(&BigUint::one(), node::ObjectType::Unsigned(1)).unwrap()
+        self.find_const_with_type(&BigUint::one(), node::ObjectType::Boolean).unwrap()
     }
 
     pub fn zero_with_type(&mut self, obj_type: ObjectType) -> NodeId {
@@ -128,7 +129,7 @@ impl<'a> SsaContext<'a> {
     fn binary_to_string(&self, binary: &node::Binary) -> String {
         let lhs = self.node_to_string(binary.lhs);
         let rhs = self.node_to_string(binary.rhs);
-
+        let my_string;
         let op = match &binary.operator {
             BinaryOp::Add => "add",
             BinaryOp::SafeAdd => "safe_add",
@@ -157,6 +158,10 @@ impl<'a> SsaContext<'a> {
             BinaryOp::Constrain(node::ConstrainOp::Neq) => "constrain_neq",
             BinaryOp::Shl => "shl",
             BinaryOp::Shr => "shr",
+            BinaryOp::Cond(a) => {
+                my_string = format!("cond({})", self.node_to_string(*a));
+                my_string.as_str()
+            }
         };
 
         format!("{} {}, {}", op, lhs, rhs)
@@ -215,6 +220,7 @@ impl<'a> SsaContext<'a> {
 
     pub fn print_block(&self, b: &block::BasicBlock) {
         println!("************* Block n.{}", b.id.0.into_raw_parts().0);
+        println!("Assumption:{:?}", b.assumption);
         for id in &b.instructions {
             let ins = self.get_instruction(*id);
             let mut str_res = if ins.res_name.is_empty() {
@@ -330,8 +336,7 @@ impl<'a> SsaContext<'a> {
         None
     }
 
-    //todo handle errors
-    fn get_instruction(&self, id: NodeId) -> &node::Instruction {
+    pub fn get_instruction(&self, id: NodeId) -> &node::Instruction {
         self.try_get_instruction(id).expect("Index not found or not an instruction")
     }
 
@@ -630,8 +635,13 @@ impl<'a> SsaContext<'a> {
         //Unrolling
         flatten::unroll_tree(self, self.first_block);
 
+        //reduce conditionals
+        let mut decision = DecisionTree::new(self);
+        decision.make_decision_tree(self);
+        decision.reduce(self, decision.root);
+
         //Inlining
-        self.log(enable_logging, "", "\ninlining:");
+        self.log(enable_logging, "reduce", "\ninlining:");
         inline::inline_tree(self, self.first_block);
         optim::full_cse(self, self.first_block);
 
@@ -781,7 +791,7 @@ impl<'a> SsaContext<'a> {
         ins_id
     }
 
-    fn memcpy_inline(
+    pub fn memcpy_inline(
         &mut self,
         l_type: ObjectType,
         r_type: ObjectType,

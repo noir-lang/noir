@@ -515,7 +515,7 @@ impl<'a> IRGenerator<'a> {
         expr_id: &ExprId,
     ) -> Result<Value, RuntimeError> {
         let expr = self.def_interner().expression(expr_id);
-        let span = self.def_interner().expr_span(expr_id);
+
         match expr {
             HirExpression::Literal(HirLiteral::Integer(x)) => {
                 let int_type = self.def_interner().id_type(expr_id);
@@ -695,12 +695,18 @@ impl<'a> IRGenerator<'a> {
                 }
             }
             HirExpression::For(for_expr) => {
+                let span = self.def_interner().expr_span(expr_id);
                 self.handle_for_expr(env, for_expr).map_err(|kind| kind.add_span(span))
             }
             HirExpression::Constructor(constructor) => self.handle_constructor(env, constructor),
             HirExpression::MemberAccess(access) => self.handle_member_access(env, access),
             HirExpression::Tuple(fields) => self.handle_tuple(env, fields),
-            HirExpression::If(_) => todo!(),
+            HirExpression::If(if_expr) => self.handle_if_expr(
+                env,
+                &if_expr.condition,
+                &if_expr.consequence,
+                if_expr.alternative,
+            ),
             HirExpression::Prefix(prefix) => {
                 let rhs = self.expression_to_object(env, &prefix.rhs)?.unwrap_id();
                 self.evaluate_prefix_expression(rhs, prefix.operator).map(Value::Single)
@@ -859,7 +865,7 @@ impl<'a> IRGenerator<'a> {
         //join block
         let join_idx =
             block::new_unsealed_block(&mut self.context, block::BlockType::ForJoin, true);
-        let exit_id = block::new_sealed_block(&mut self.context, block::BlockType::Normal);
+        let exit_id = block::new_sealed_block(&mut self.context, block::BlockType::Normal, true);
         self.context.current_block = join_idx;
 
         //should parse a for_expr.condition statement that should evaluate to bool, but
@@ -874,7 +880,7 @@ impl<'a> IRGenerator<'a> {
         let to_fix = self.context.new_instruction(Operation::Nop, ObjectType::NotAnObject);
 
         //Body
-        let body_id = block::new_sealed_block(&mut self.context, block::BlockType::Normal);
+        let body_id = block::new_sealed_block(&mut self.context, block::BlockType::Normal, true);
         self.context.try_get_mut_instruction(to_fix).unwrap().operation =
             Operation::Jeq(cond, body_id);
 
@@ -927,5 +933,57 @@ impl<'a> IRGenerator<'a> {
             last_value = self.evaluate_statement(env, stmt).unwrap();
         }
         last_value
+    }
+
+    fn handle_if_expr(
+        &mut self,
+        env: &mut Environment,
+        cond: &ExprId,
+        cons: &ExprId,
+        alternative: Option<ExprId>,
+    ) -> Result<Value, RuntimeError> {
+        //jump instruction
+        let entry_block = self.context.current_block;
+        let condition = self
+            .expression_to_object(env, cond)
+            .map_err(|err| err.remove_span())
+            .unwrap()
+            .unwrap_id();
+        let jump_op = Operation::Jeq(condition, block::BlockId::dummy());
+        let jump_ins = self.context.new_instruction(jump_op, ObjectType::NotAnObject);
+
+        //Then block
+        block::new_sealed_block(&mut self.context, block::BlockType::Normal, true);
+        //Parse statements of THEN branch
+        self.expression_to_object(env, cons).map_err(|err| err.remove_span()).unwrap();
+
+        //Exit block
+        let exit_block =
+            block::new_unsealed_block(&mut self.context, block::BlockType::IfJoin, true);
+        self.context[entry_block].dominated.push(exit_block);
+
+        //Else block
+        self.context.current_block = entry_block;
+        let block2 = block::new_sealed_block(&mut self.context, block::BlockType::Normal, false);
+        self.context[entry_block].right = Some(block2);
+        //Fixup the jump
+        if let node::Instruction { operation: Operation::Jeq(_, target), .. } =
+            self.context.get_mut_instruction(jump_ins)
+        {
+            *target = block2;
+        }
+        //Parse statements of ELSE branch
+        if let Some(alt) = alternative {
+            self.expression_to_object(env, &alt).map_err(|err| err.remove_span()).unwrap();
+        }
+        //Connect with the exit block
+        self.context.get_current_block_mut().left = Some(exit_block);
+
+        //Exit block plumbing
+        self.context.current_block = exit_block;
+        self.context.get_current_block_mut().predecessor.push(block2);
+        ssa_form::seal_block(&mut self.context, exit_block);
+        //
+        Ok(Value::dummy())
     }
 }

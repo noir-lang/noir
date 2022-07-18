@@ -544,5 +544,6 @@ fn get_binary_max_value(
                 BigUint::zero()
             }
         }
+        BinaryOp::Cond(_) => lhs_max.max(rhs_max).clone(),
     }
 }

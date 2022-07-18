@@ -330,6 +330,16 @@ impl Acir {
                     self.distinct(binary.lhs, binary.rhs, &l_c, &r_c, ctx, evaluator),
                 ),
             },
+            BinaryOp::Cond(a) => {
+                let cond = self.substitute(*a, evaluator, ctx);
+                let sub = subtract(&l_c.expression, FieldElement::one(), &r_c.expression);
+                let result = add(
+                    &mul_with_witness(evaluator, &cond.expression, &sub),
+                    FieldElement::one(),
+                    &r_c.expression,
+                );
+                result.into()
+            }
             BinaryOp::Shl | BinaryOp::Shr => unreachable!(),
             i @ BinaryOp::Assign => unreachable!("Invalid Instruction: {:?}", i),
         }
@@ -1049,13 +1059,32 @@ pub fn is_const(expr: &Arithmetic) -> bool {
     expr.mul_terms.is_empty() && expr.linear_combinations.is_empty()
 }
 
+pub fn mul_with_witness(evaluator: &mut Evaluator, a: &Arithmetic, b: &Arithmetic) -> Arithmetic {
+    let a_arith;
+    let a2 = if !a.mul_terms.is_empty() {
+        let a_witness = evaluator.add_witness_to_cs();
+        a_arith = Arithmetic::from(&a_witness);
+        evaluator.gates.push(Gate::Arithmetic(a - &a_arith));
+        &a_arith
+    } else {
+        a
+    };
+    let b_arith;
+    let b2 = if !b.mul_terms.is_empty() {
+        let b_witness = evaluator.add_witness_to_cs();
+        b_arith = Arithmetic::from(&b_witness);
+        evaluator.gates.push(Gate::Arithmetic(b - &b_arith));
+        &b_arith
+    } else {
+        b
+    };
+    mul(a2, b2)
+}
 //a*b
-
 pub fn mul(a: &Arithmetic, b: &Arithmetic) -> Arithmetic {
     if !(a.mul_terms.is_empty() && b.mul_terms.is_empty()) {
-        todo!("PANIC");
+        unreachable!("Can only multiply linear terms");
     }
-
     let mut output = Arithmetic {
         mul_terms: Vec::new(),
         linear_combinations: Vec::new(),
@@ -1079,39 +1108,21 @@ pub fn mul(a: &Arithmetic, b: &Arithmetic) -> Arithmetic {
                 if coef_b != FieldElement::zero() {
                     output.linear_combinations.push((coef_b, b.linear_combinations[i2].1));
                 }
-                if i2 + 1 >= b.linear_combinations.len() {
-                    i1 += 1;
-                } else {
-                    i2 += 1;
-                }
+                i2 += 1;
             }
             Ordering::Less => {
                 if coef_a != FieldElement::zero() {
                     output.linear_combinations.push((coef_a, a.linear_combinations[i1].1));
                 }
-                if i1 + 1 >= a.linear_combinations.len() {
-                    i2 += 1;
-                } else {
-                    i1 += 1;
-                }
+                i1 += 1;
             }
             Ordering::Equal => {
                 if coef_a + coef_b != FieldElement::zero() {
                     output.linear_combinations.push((coef_a + coef_b, a.linear_combinations[i1].1));
                 }
-                if (i1 + 1 >= a.linear_combinations.len())
-                    && (i2 + 1 >= b.linear_combinations.len())
-                {
-                    i1 += 1;
-                    i2 += 1;
-                } else {
-                    if i1 + 1 < a.linear_combinations.len() {
-                        i1 += 1;
-                    }
-                    if i2 + 1 < a.linear_combinations.len() {
-                        i2 += 1;
-                    }
-                }
+
+                i1 += 1;
+                i2 += 1;
             }
         }
     }

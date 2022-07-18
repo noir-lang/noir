@@ -578,6 +578,7 @@ pub enum Opcode {
     Shr,
     Assign,
     Constrain(ConstrainOp),
+    Cond,
 
     Cast,     //convert type
     Truncate, //truncate
@@ -645,6 +646,7 @@ pub enum BinaryOp {
 
     Assign,
     Constrain(ConstrainOp), //write gates enforcing the ContrainOp to be true
+    Cond(NodeId),
 }
 
 impl Binary {
@@ -957,6 +959,16 @@ impl Binary {
                 }
             }
             BinaryOp::Assign => (),
+            BinaryOp::Cond(a) => {
+                let a_eval = eval_fn(ctx, *a);
+                if let Some(a_const) = a_eval.into_const_value() {
+                    if a_const.is_zero() {
+                        return r_eval;
+                    } else {
+                        return l_eval;
+                    }
+                }
+            }
         }
         NodeEval::VarOrInstruction(id)
     }
@@ -989,6 +1001,7 @@ impl Binary {
             BinaryOp::Assign => false,
             BinaryOp::Shl => true,
             BinaryOp::Shr => true,
+            BinaryOp::Cond(_) => false,
         }
     }
 
@@ -1020,6 +1033,7 @@ impl Binary {
             BinaryOp::Shr => Opcode::Shr,
             BinaryOp::Assign => Opcode::Assign,
             BinaryOp::Constrain(op) => Opcode::Constrain(*op),
+            BinaryOp::Cond(_) => Opcode::Cond,
         }
     }
 }
