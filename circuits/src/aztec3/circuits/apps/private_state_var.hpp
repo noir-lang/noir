@@ -1,7 +1,6 @@
 #pragma once
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
-// #include "function_executor.hpp"
 #include "private_state_note.hpp"
 #include "private_state_note_preimage.hpp"
 #include "private_state_operand.hpp"
@@ -137,5 +136,6 @@ template <typename Composer> class PrivateStateVar {
 // - We retain implicit instantiation of templates, meaning we can pick and choose (with static_assert) which class
 // methods support native,
 //   circuit or both types.
-// - We don't implement method definitions in this file, to avoid a circular dependency with function_executor.hpp.
+// - We don't implement method definitions in this file, to avoid a circular dependency with
+// function_execution_context.hpp.
 #include "private_state_var.tpp"

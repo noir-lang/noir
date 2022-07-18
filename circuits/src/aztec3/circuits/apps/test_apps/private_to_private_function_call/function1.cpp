@@ -1,6 +1,6 @@
 #include "function1.hpp"
 #include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
-#include <aztec3/circuits/apps/function_executor.hpp>
+#include <aztec3/circuits/apps/function_execution_context.hpp>
 #include "contract.hpp"
 
 namespace aztec3::circuits::apps::test_apps::private_to_private_function_call {

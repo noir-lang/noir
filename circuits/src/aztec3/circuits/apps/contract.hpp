@@ -1,11 +1,7 @@
 #pragma once
 // #include <common/container.hpp>
 // #include <aztec3/constants.hpp>
-// #include <stdlib/types/convert.hpp>
 #include <aztec3/circuits/abis/function_signature.hpp>
-// #include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
-// #include "function_executor.hpp"
-// #include "private_state_note.hpp"
 #include "function_declaration.hpp"
 #include "private_state_var.hpp"
 #include "l1_function_interface.hpp"
@@ -78,4 +74,4 @@ template <typename Composer> class Contract {
 // methods support native,
 //   circuit or both types.
 // - We don't implement method definitions in this file, to avoid a circular dependency with exec_ctx.hpp.
-#include "contract_factory.tpp"
+#include "contract.tpp"

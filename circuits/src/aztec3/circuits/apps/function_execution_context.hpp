@@ -4,7 +4,7 @@
 #include <stdlib/types/convert.hpp>
 #include <aztec3/circuits/abis/function_signature.hpp>
 #include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
-#include "contract_factory.hpp"
+#include "contract.hpp"
 #include "nullifier_preimage.hpp"
 #include "oracle_wrapper.hpp"
 #include "private_state_note.hpp"

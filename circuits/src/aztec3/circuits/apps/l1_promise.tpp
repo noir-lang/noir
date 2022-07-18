@@ -6,7 +6,7 @@
 #include <stdlib/types/circuit_types.hpp>
 #include <stdlib/types/convert.hpp>
 #include <aztec3/circuits/abis/function_signature.hpp>
-#include "contract_factory.hpp"
+#include "contract.hpp"
 #include "l1_result.hpp"
 
 namespace aztec3::circuits::apps {

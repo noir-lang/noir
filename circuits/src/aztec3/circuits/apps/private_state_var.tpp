@@ -1,4 +1,4 @@
-// #include "private_state_var.hpp"
+#pragma once
 // #include <common/container.hpp>
 #include <common/streams.hpp>
 #include <common/map.hpp>
@@ -7,7 +7,6 @@
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
 #include <stdlib/types/convert.hpp>
-// #include "function_executor.hpp"
 #include "oracle_wrapper.hpp"
 #include "private_state_note.hpp"
 #include "private_state_note_preimage.hpp"

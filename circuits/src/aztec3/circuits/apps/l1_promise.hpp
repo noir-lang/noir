@@ -7,7 +7,6 @@
 #include <stdlib/types/circuit_types.hpp>
 #include <stdlib/types/convert.hpp>
 #include <aztec3/circuits/abis/callback_stack_item.hpp>
-// #include "contract_factory.hpp" // TODO: circular dependency?
 #include "l1_result.hpp"
 
 namespace aztec3::circuits::apps {

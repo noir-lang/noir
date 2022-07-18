@@ -1,9 +1,8 @@
-// #pragma once
 #include <stdlib/primitives/witness/witness.hpp>
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
 #include <stdlib/types/convert.hpp>
-#include "contract_factory.hpp" // TODO: circular dependency?
+#include "contract.hpp"
 #include "l1_promise.hpp"
 #include "l1_result.hpp"
 
