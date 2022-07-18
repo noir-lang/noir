@@ -368,7 +368,7 @@ impl<'a> Evaluator<'a> {
                 }
             }
             Type::PolymorphicInteger(..) => unreachable!(),
-            Type::Bool => todo!(),
+            Type::Bool(_) => todo!(),
             Type::Unit => todo!(),
             Type::Struct(_) => todo!(),
             Type::Tuple(_) => todo!(),

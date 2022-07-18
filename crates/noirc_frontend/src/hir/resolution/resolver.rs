@@ -213,7 +213,7 @@ impl<'a> Resolver<'a> {
                 Type::Array(size, Box::new(self.resolve_type(*elem)))
             }
             UnresolvedType::Integer(is_const, sign, bits) => Type::Integer(is_const, sign, bits),
-            UnresolvedType::Bool => Type::Bool,
+            UnresolvedType::Bool(is_const) => Type::Bool(is_const),
             UnresolvedType::Unit => Type::Unit,
             UnresolvedType::Unspecified => Type::Unspecified,
             UnresolvedType::Error => Type::Error,

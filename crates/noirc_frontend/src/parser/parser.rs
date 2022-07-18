@@ -372,6 +372,7 @@ where
         struct_type(),
         array_type(recursive_type_parser.clone()),
         tuple_type(recursive_type_parser),
+        bool_type(),
     ))
 }
 
@@ -391,6 +392,10 @@ fn maybe_const() -> impl NoirParser<IsConst> {
 
 fn field_type() -> impl NoirParser<UnresolvedType> {
     maybe_const().then_ignore(keyword(Keyword::Field)).map(UnresolvedType::FieldElement)
+}
+
+fn bool_type() -> impl NoirParser<UnresolvedType> {
+    maybe_const().then_ignore(keyword(Keyword::Bool)).map(UnresolvedType::Bool)
 }
 
 fn int_type() -> impl NoirParser<UnresolvedType> {
