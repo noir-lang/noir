@@ -6,9 +6,10 @@
 // #include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
 // #include "function_executor.hpp"
 // #include "private_state_note.hpp"
+#include "function_declaration.hpp"
 #include "private_state_var.hpp"
-#include "function.hpp"
 #include "l1_function_interface.hpp"
+
 // #include "oracle_wrapper.hpp"
 
 namespace aztec3::circuits::apps {
@@ -45,7 +46,7 @@ template <typename Composer> class Contract {
         exec_ctx.register_contract(this);
     }
 
-    void set_functions(std::vector<Function<CT>> const& functions);
+    void set_functions(std::vector<FunctionDeclaration<CT>> const& functions);
 
     // TODO: return some Function class which has a `call` method...
     // FunctionSignature<CT> get_function(std::string name) { return function_signature[name]; }

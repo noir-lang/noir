@@ -20,6 +20,7 @@ template <typename DB> class NativeOracleInterface {
                           NT::fr const& contract_address,
                           //   NT::fr const& portal_contract_address,
                           NT::address const& msg_sender,
+                          NT::address const& tx_origin,
                           NT::boolean const& is_delegate_call = false,
                           NT::boolean const& is_static_call = false,
                           NT::boolean const& is_fee_payment = false,
@@ -31,6 +32,7 @@ template <typename DB> class NativeOracleInterface {
         , call_context({
               .msg_sender = msg_sender,
               .storage_contract_address = contract_address,
+              .tx_origin = tx_origin,
               .is_delegate_call = is_delegate_call,
               .is_static_call = is_static_call,
               .is_fee_payment = is_fee_payment,
@@ -47,6 +49,7 @@ template <typename DB> class NativeOracleInterface {
                           NT::fr const& contract_address,
                           //   NT::fr const& portal_contract_address,
                           NT::address const& msg_sender,
+                          NT::address const& tx_origin,
                           std::optional<NT::fr> msg_sender_private_key,
                           NT::boolean const& is_delegate_call = false,
                           NT::boolean const& is_static_call = false,
@@ -59,6 +62,7 @@ template <typename DB> class NativeOracleInterface {
         , call_context({
               .msg_sender = msg_sender,
               .storage_contract_address = contract_address,
+              .tx_origin = tx_origin,
               .is_delegate_call = is_delegate_call,
               .is_static_call = is_static_call,
               .is_fee_payment = is_fee_payment,

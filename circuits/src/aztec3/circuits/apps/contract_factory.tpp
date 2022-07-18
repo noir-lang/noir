@@ -7,7 +7,7 @@
 #include "function_executor.hpp"
 // #include "private_state_note.hpp"
 #include "private_state_var.hpp"
-#include "function.hpp"
+#include "function_declaration.hpp"
 #include "l1_function_interface.hpp"
 // #include "oracle_wrapper.hpp"
 
@@ -20,7 +20,7 @@ using aztec3::circuits::abis::FunctionSignature;
 // using aztec3::circuits::abis::OptionalPrivateCircuitPublicInputs;
 
 template <typename Composer>
-void Contract<Composer>::set_functions(std::vector<Function<CircuitTypes<Composer>>> const& functions)
+void Contract<Composer>::set_functions(std::vector<FunctionDeclaration<CircuitTypes<Composer>>> const& functions)
 {
     for (uint32_t i = 0; i < functions.size(); ++i) {
         const auto& function = functions[i];

@@ -20,6 +20,7 @@ template <typename NCT> struct CallContext {
 
     address msg_sender;
     address storage_contract_address;
+    address tx_origin;
 
     boolean is_delegate_call;
     boolean is_static_call;
@@ -34,10 +35,14 @@ template <typename NCT> struct CallContext {
 
     boolean operator==(CallContext<NCT> const& other) const
     {
-        return msg_sender == other.msg_sender && storage_contract_address == other.storage_contract_address;
+        return msg_sender == other.msg_sender && storage_contract_address == other.storage_contract_address &&
+               tx_origin == other.tx_origin && is_delegate_call == other.is_delegate_call &&
+               is_static_call == other.is_static_call && is_callback == other.is_callback &&
+               is_fee_payment == other.is_fee_payment && pay_fee_from_l1 == other.pay_fee_from_l1 &&
+               called_from_public_l2 == other.called_from_public_l2;
     };
 
-    static CallContext<NCT> empty() { return { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }; };
+    static CallContext<NCT> empty() { return { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }; };
 
     template <typename Composer> CallContext<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
     {
@@ -47,10 +52,9 @@ template <typename NCT> struct CallContext {
         auto to_ct = [&](auto& e) { return plonk::stdlib::types::to_ct(composer, e); };
 
         CallContext<CircuitTypes<Composer>> call_context = {
-            to_ct(msg_sender),       to_ct(storage_contract_address),
-            to_ct(is_delegate_call), to_ct(is_static_call),
-            to_ct(is_callback),      to_ct(is_fee_payment),
-            to_ct(pay_fee_from_l1),  to_ct(pay_fee_from_public_l2),
+            to_ct(msg_sender),       to_ct(storage_contract_address), to_ct(tx_origin),
+            to_ct(is_delegate_call), to_ct(is_static_call),           to_ct(is_callback),
+            to_ct(is_fee_payment),   to_ct(pay_fee_from_l1),          to_ct(pay_fee_from_public_l2),
             to_ct(called_from_l1),   to_ct(called_from_public_l2),
 
         };
@@ -64,10 +68,9 @@ template <typename NCT> struct CallContext {
         auto to_nt = [&](auto& e) { return plonk::stdlib::types::to_nt<Composer>(e); };
 
         CallContext<NativeTypes> call_context = {
-            to_nt(msg_sender),       to_nt(storage_contract_address),
-            to_nt(is_delegate_call), to_nt(is_static_call),
-            to_nt(is_callback),      to_nt(is_fee_payment),
-            to_nt(pay_fee_from_l1),  to_nt(pay_fee_from_public_l2),
+            to_nt(msg_sender),       to_nt(storage_contract_address), to_nt(tx_origin),
+            to_nt(is_delegate_call), to_nt(is_static_call),           to_nt(is_callback),
+            to_nt(is_fee_payment),   to_nt(pay_fee_from_l1),          to_nt(pay_fee_from_public_l2),
             to_nt(called_from_l1),   to_nt(called_from_public_l2),
         };
 
@@ -77,11 +80,12 @@ template <typename NCT> struct CallContext {
     fr hash() const
     {
         std::vector<fr> inputs = {
-            msg_sender.to_field(), storage_contract_address.to_field(),
-            fr(is_delegate_call),  fr(is_static_call),
-            fr(is_callback),       fr(is_fee_payment),
-            fr(pay_fee_from_l1),   fr(pay_fee_from_public_l2),
-            fr(called_from_l1),    fr(called_from_public_l2),
+            msg_sender.to_field(),      storage_contract_address.to_field(),
+            tx_origin.to_field(),       fr(is_delegate_call),
+            fr(is_static_call),         fr(is_callback),
+            fr(is_fee_payment),         fr(pay_fee_from_l1),
+            fr(pay_fee_from_public_l2), fr(called_from_l1),
+            fr(called_from_public_l2),
         };
 
         return NCT::compress(inputs, GeneratorIndex::CALL_CONTEXT);
@@ -93,6 +97,7 @@ template <typename NCT> struct CallContext {
 
         msg_sender.to_field().assert_is_zero();
         storage_contract_address.to_field().assert_is_zero();
+        tx_origin.to_field().assert_is_zero();
         fr(is_delegate_call).assert_is_zero();
         fr(is_static_call).assert_is_zero();
         fr(is_callback).assert_is_zero();
@@ -109,6 +114,7 @@ template <typename NCT> struct CallContext {
 
         msg_sender.to_field().set_public();
         storage_contract_address.to_field().set_public();
+        tx_origin.to_field().set_public();
         fr(is_delegate_call).set_public();
         fr(is_static_call).set_public();
         fr(is_callback).set_public();
@@ -126,6 +132,7 @@ template <typename NCT> void read(uint8_t const*& it, CallContext<NCT>& call_con
 
     read(it, call_context.msg_sender);
     read(it, call_context.storage_contract_address);
+    read(it, call_context.tx_origin);
     read(it, call_context.is_delegate_call);
     read(it, call_context.is_static_call);
     read(it, call_context.is_callback);
@@ -142,6 +149,7 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, CallContext<NCT> c
 
     write(buf, call_context.msg_sender);
     write(buf, call_context.storage_contract_address);
+    write(buf, call_context.tx_origin);
     write(buf, call_context.is_delegate_call);
     write(buf, call_context.is_static_call);
     write(buf, call_context.is_callback);
@@ -156,6 +164,7 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, CallContext<N
 {
     return os << "msg_sender: " << call_context.msg_sender << "\n"
               << "storage_contract_address: " << call_context.storage_contract_address << "\n"
+              << "tx_origin: " << call_context.tx_origin << "\n"
               << "is_delegate_call: " << call_context.is_delegate_call << "\n"
               << "is_static_call: " << call_context.is_static_call << "\n"
               << "is_callback: " << call_context.is_callback << "\n"

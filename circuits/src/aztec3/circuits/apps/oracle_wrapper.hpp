@@ -26,6 +26,9 @@ template <typename Composer> class OracleWrapperInterface {
   public:
     Composer& composer;
     NativeOracle& oracle;
+
+    // Initialise from Native.
+    // Used when initialising for a user's first call.
     OracleWrapperInterface(Composer& composer, NativeOracle& oracle)
         : composer(composer)
         , oracle(oracle){};
@@ -52,6 +55,8 @@ template <typename Composer> class OracleWrapperInterface {
     address& get_msg_sender() { return get_call_context().msg_sender; };
 
     address& get_this_contract_address() { return get_call_context().storage_contract_address; };
+
+    address& get_tx_origin() { return get_call_context().tx_origin; };
 
     fr generate_salt() const { return plonk::stdlib::types::to_ct(composer, oracle.generate_salt()); }
 

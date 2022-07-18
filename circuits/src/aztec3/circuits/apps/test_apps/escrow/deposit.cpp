@@ -1,6 +1,6 @@
+#include "deposit.hpp"
 #include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
 #include <aztec3/circuits/apps/function_executor.hpp>
-#include "deposit.hpp"
 #include "contract.hpp"
 
 namespace aztec3::circuits::apps::test_apps::escrow {

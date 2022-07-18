@@ -10,7 +10,7 @@ using plonk::stdlib::witness_t;
 using plonk::stdlib::types::CircuitTypes;
 using plonk::stdlib::types::NativeTypes;
 
-template <typename NCT> struct Function {
+template <typename NCT> struct FunctionDeclaration {
     typedef typename NCT::boolean boolean;
 
     std::string name;

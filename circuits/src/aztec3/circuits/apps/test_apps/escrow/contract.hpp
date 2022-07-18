@@ -1,6 +1,6 @@
 #pragma once
 #include <aztec3/circuits/apps/contract_factory.hpp>
-#include <aztec3/circuits/apps/function.hpp>
+#include <aztec3/circuits/apps/function_declaration.hpp>
 #include <aztec3/circuits/apps/function_executor.hpp>
 #include "init.hpp"
 

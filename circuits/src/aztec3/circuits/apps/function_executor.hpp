@@ -9,7 +9,7 @@
 #include "oracle_wrapper.hpp"
 #include "private_state_note.hpp"
 // #include "private_state_var.hpp"
-// #include "function.hpp"
+// #include "function_declaration.hpp"
 // #include "l1_function_interface.hpp"
 
 namespace aztec3::circuits::apps {

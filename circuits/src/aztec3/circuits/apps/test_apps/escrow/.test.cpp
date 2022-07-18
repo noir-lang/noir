@@ -2,16 +2,9 @@
 #include <common/test.hpp>
 // #include <common/serialize.hpp>
 // #include <stdlib/types/turbo.hpp>
-// #include <aztec3/oracle/oracle.hpp>
-// #include <aztec3/circuits/apps/oracle_wrapper.hpp>
 // #include <numeric/random/engine.hpp>
 #include "index.hpp"
 #include "contract.hpp"
-
-// #include "deposit.hpp"
-// #include <aztec3/constants.hpp>
-// #include <crypto/pedersen/pedersen.hpp>
-// #include <stdlib/hash/pedersen/pedersen.hpp>
 
 namespace aztec3::circuits::apps::test_apps::escrow {
 

@@ -7,8 +7,10 @@
 
 // using aztec3::circuits::abis::OptionalPrivateCircuitPublicInputs;
 
-// OptionalPrivateCircuitPublicInputs<NT> function1(
-//     Composer& composer, OracleWrapper& oracle, NT::fr const& _d, NT::fr const& _e, NT::fr const& _f)
+// OptionalPrivateCircuitPublicInputs<NT> function1(FunctionExecutionContext<Composer>& exec_ctx,
+//                                                  NT::fr const& _d,
+//                                                  NT::fr const& _e,
+//                                                  NT::fr const& _f)
 // {
 //     CT::fr d = to_ct(composer, _d);
 //     CT::fr e = to_ct(composer, _e);

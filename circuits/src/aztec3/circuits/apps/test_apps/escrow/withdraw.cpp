@@ -1,9 +1,8 @@
+#include "withdraw.hpp"
 #include <aztec3/circuits/apps/private_state_note.hpp>
 #include <aztec3/circuits/apps/l1_promise.hpp>
 #include <aztec3/circuits/apps/l1_result.hpp>
 #include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
-// #include <aztec3/circuits/abis/call_context.hpp>
-#include "withdraw.hpp"
 #include "contract.hpp"
 
 namespace aztec3::circuits::apps::test_apps::escrow {
