@@ -185,7 +185,7 @@ impl SchnorrConstraint {
 }
 #[derive(Clone, Hash, Debug)]
 pub struct MerkleMembershipConstraint {
-    pub hash_path: Vec<(i32, i32)>,
+    pub hash_path: Vec<i32>,
     pub root: i32,
     pub leaf: i32,
     pub index: i32,
@@ -198,12 +198,11 @@ impl MerkleMembershipConstraint {
 
         // On the C++ side, it is being deserialized as a single vector
         // So the given length is doubled
-        let hash_path_len = (self.hash_path.len() * 2) as u32;
+        let hash_path_len = self.hash_path.len() as u32;
 
         buffer.extend_from_slice(&hash_path_len.to_be_bytes());
         for constraint in self.hash_path.iter() {
-            buffer.extend_from_slice(&constraint.0.to_be_bytes());
-            buffer.extend_from_slice(&constraint.1.to_be_bytes());
+            buffer.extend_from_slice(&constraint.to_be_bytes());
         }
 
         buffer.extend_from_slice(&self.root.to_be_bytes());
