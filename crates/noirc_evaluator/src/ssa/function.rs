@@ -33,7 +33,7 @@ pub struct SSAFunction {
     pub idx: FuncIndex,
     //signature:
     pub name: String,
-    pub arguments: Vec<NodeId>,
+    pub arguments: Vec<(NodeId, bool)>,
     pub result_types: Vec<ObjectType>,
 }
 
@@ -49,7 +49,7 @@ impl SSAFunction {
         }
     }
 
-    pub fn compile(&self, igen: &mut IRGenerator) -> Option<NodeId> {
+    pub fn compile(&self, igen: &mut IRGenerator) {
         let function_cfg = super::block::bfs(self.entry_block, None, &igen.context);
         super::block::compute_sub_dom(&mut igen.context, &function_cfg);
         //Optimisation
@@ -57,7 +57,6 @@ impl SSAFunction {
         //Unrolling
         super::flatten::unroll_tree(&mut igen.context, self.entry_block);
         super::optim::full_cse(&mut igen.context, self.entry_block);
-        None
     }
 
     //generates an instruction for calling the function
@@ -167,21 +166,21 @@ pub fn call_low_level(
     igen.context.new_instruction(node::Operation::Intrinsic(op, args), result_type)
 }
 
-pub fn param_to_ident(patern: &HirPattern) -> Vec<&HirIdent> {
+pub fn param_to_ident(patern: &HirPattern, mutable: bool) -> Vec<(&HirIdent, bool)> {
     match &patern {
-        HirPattern::Identifier(id) => vec![id],
-        HirPattern::Mutable(pattern, _) => param_to_ident(pattern.as_ref()),
+        HirPattern::Identifier(id) => vec![(id, mutable)],
+        HirPattern::Mutable(pattern, _) => param_to_ident(pattern.as_ref(), true),
         HirPattern::Tuple(v, _) => {
             let mut result = Vec::new();
             for pattern in v {
-                result.extend(param_to_ident(pattern));
+                result.extend(param_to_ident(pattern, mutable));
             }
             result
         }
         HirPattern::Struct(_, v, _) => {
             let mut result = Vec::new();
             for (_, pattern) in v {
-                result.extend(param_to_ident(pattern));
+                result.extend(param_to_ident(pattern, mutable));
             }
             result
         }
@@ -207,12 +206,16 @@ pub fn create_function(
     let block = function.block(&context.def_interner);
     //argumemts:
     for pat in parameters.iter() {
-        let ident_ids = param_to_ident(&pat.0);
+        //For now we use the mut property of the argument to indicate if it is modified or not
+        //TODO: check instead in the function body whether there is a store for the array
+        let ident_ids = param_to_ident(&pat.0, false);
         for def in ident_ids {
-            let node_ids = ssa_form::create_function_parameter(igen, &def.id);
-            func.arguments.extend(node_ids);
+            let node_ids = ssa_form::create_function_parameter(igen, &def.0.id);
+            let e: Vec<(NodeId, bool)> = node_ids.iter().map(|n| (*n, def.1)).collect();
+            func.arguments.extend(e);
         }
     }
+
     igen.function_context = Some(index);
     igen.context.functions.insert(func_id, func.clone());
     let last_value = igen.codegen_block(block.statements(), env);
