@@ -1,4 +1,5 @@
 use codespan::Span as ByteSpan;
+use fm::FileId;
 use std::{
     hash::{Hash, Hasher},
     ops::Range,
@@ -109,5 +110,17 @@ impl chumsky::Span for Span {
 
     fn end(&self) -> Self::Offset {
         self.end()
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct Location {
+    pub span: Span,
+    pub file: FileId,
+}
+
+impl Location {
+    pub fn new(span: Span, file: FileId) -> Self {
+        Self { span, file }
     }
 }

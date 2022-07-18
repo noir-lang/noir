@@ -22,7 +22,7 @@ use ecdsa_secp256k1::EcdsaSecp256k1Gadget;
 use fixed_based_scalar_mul::FixedBaseScalarMulGadget;
 use hash_to_field::HashToFieldGadget;
 use merkle_membership::MerkleMembershipGadget;
-use noirc_errors::Span;
+use noirc_errors::Location;
 use noirc_frontend::hir_def::expr::HirCallExpression;
 use pedersen::PedersenGadget;
 use schnorr::SchnorrVerifyGadget;
@@ -41,19 +41,15 @@ pub fn call_low_level(
     evaluator: &mut Evaluator,
     env: &mut Environment,
     opcode_name: &str,
-    call_expr_span: (HirCallExpression, Span),
+    call_expr: HirCallExpression,
+    location: Location,
 ) -> Result<Object, RuntimeError> {
-    let (call_expr, span) = call_expr_span;
-    let func = match OPCODE::lookup(opcode_name) {
-        None => {
-            let message =
-                format!("cannot find a low level opcode with the name {} in the IR", opcode_name);
+    let func = OPCODE::lookup(opcode_name).ok_or_else(|| {
+        let message =
+            format!("cannot find a low level opcode with the name {} in the IR", opcode_name);
 
-            return Err(RuntimeErrorKind::UnstructuredError { message }.add_span(span));
-        }
-
-        Some(func) => func,
-    };
+        RuntimeErrorKind::UnstructuredError { message }.add_location(location)
+    })?;
 
     match func {
         OPCODE::SHA256 => Sha256Gadget::call(evaluator, env, call_expr),
@@ -64,9 +60,9 @@ pub fn call_low_level(
         OPCODE::EcdsaSecp256k1 => EcdsaSecp256k1Gadget::call(evaluator, env, call_expr),
         OPCODE::HashToField => HashToFieldGadget::call(evaluator, env, call_expr),
         OPCODE::FixedBaseScalarMul => FixedBaseScalarMulGadget::call(evaluator, env, call_expr),
-        k => {
-            let message = format!("The OPCODE {} exists, however, currently the compiler does not have a concrete implementation for it", k);
-            Err(RuntimeErrorKind::UnstructuredError { message }.add_span(span))
+        op => {
+            let message = format!("The OPCODE {} exists, however, currently the compiler does not have a concrete implementation for it", op);
+            Err(RuntimeErrorKind::UnstructuredError { message }.add_location(location))
         }
     }
 }

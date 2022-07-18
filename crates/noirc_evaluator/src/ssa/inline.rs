@@ -3,16 +3,19 @@ use std::collections::{hash_map::Entry, HashMap};
 use acvm::FieldElement;
 use noirc_frontend::node_interner::FuncId;
 
-use crate::ssa::{
-    node::{Node, Operation},
-    optim,
+use crate::{
+    errors::RuntimeError,
+    ssa::{
+        node::{Node, Operation},
+        optim,
+    },
 };
 
 use super::{
     block::{self, BlockId},
     context::SsaContext,
     function,
-    mem::ArrayId,
+    mem::{ArrayId, Memory},
     node::{self, Instruction, Mark, NodeId},
 };
 
@@ -22,31 +25,40 @@ use super::{
 const MAX_INLINE_TRIES: u32 = 100;
 
 //inline main
-pub fn inline_tree(ctx: &mut SsaContext, block_id: BlockId) {
+pub fn inline_tree(ctx: &mut SsaContext, block_id: BlockId) -> Result<(), RuntimeError> {
     //inline all function calls
     let mut retry = MAX_INLINE_TRIES;
-    while retry > 0 && !inline_block(ctx, block_id, None) {
+    while retry > 0 && !inline_block(ctx, block_id, None)? {
         retry -= 1;
     }
     assert!(retry > 0, "Error - too many nested calls");
     for b in ctx[block_id].dominated.clone() {
-        inline_tree(ctx, b);
+        inline_tree(ctx, b)?;
     }
+    Ok(())
 }
 
-pub fn inline_cfg(ctx: &mut SsaContext, entry_block: BlockId, to_inline: Option<FuncId>) -> bool {
+pub fn inline_cfg(
+    ctx: &mut SsaContext,
+    entry_block: BlockId,
+    to_inline: Option<FuncId>,
+) -> Result<bool, RuntimeError> {
     let mut result = true;
     let func_cfg = block::bfs(entry_block, None, ctx);
     for block_id in func_cfg {
-        if !inline_block(ctx, block_id, to_inline) {
+        if !inline_block(ctx, block_id, to_inline)? {
             result = false;
         }
     }
-    result
+    Ok(result)
 }
 
 //Return false if some inlined function performs a function call
-fn inline_block(ctx: &mut SsaContext, block_id: BlockId, to_inline: Option<FuncId>) -> bool {
+fn inline_block(
+    ctx: &mut SsaContext,
+    block_id: BlockId,
+    to_inline: Option<FuncId>,
+) -> Result<bool, RuntimeError> {
     let mut call_ins = vec![];
     for i in &ctx[block_id].instructions {
         if let Some(ins) = ctx.try_get_instruction(*i) {
@@ -72,15 +84,15 @@ fn inline_block(ctx: &mut SsaContext, block_id: BlockId, to_inline: Option<FuncI
     let mut result = true;
     for (ins_id, f, args, arrays, parent_block) in call_ins {
         let f_copy = ctx.get_ssafunc(f).unwrap().clone();
-        if !inline(ctx, &f_copy, &args, &arrays, parent_block, ins_id) {
+        if !inline(ctx, &f_copy, &args, &arrays, parent_block, ins_id)? {
             result = false;
         }
     }
 
     if to_inline.is_none() {
-        optim::cse(ctx, block_id); //handles the deleted call instructions
+        optim::cse(ctx, block_id)?; //handles the deleted call instructions
     }
-    result
+    Ok(result)
 }
 
 pub struct StackFrame {
@@ -127,10 +139,10 @@ pub fn inline(
     ctx: &mut SsaContext,
     ssa_func: &function::SSAFunction,
     args: &[NodeId],
-    arrays: &[ArrayId],
+    arrays: &[(ArrayId, u32)],
     block: BlockId,
     call_id: NodeId,
-) -> bool {
+) -> Result<bool, RuntimeError> {
     let func_arg = ssa_func.arguments.clone();
 
     //map nodes from the function cfg to the caller cfg
@@ -138,15 +150,24 @@ pub fn inline(
     let mut stack_frame = StackFrame::new(block);
 
     //1. return arrays
-    for (arg_caller, arg_function) in arrays.iter().zip(&ssa_func.result_types) {
-        if let node::ObjectType::Pointer(a) = arg_function {
-            stack_frame.array_map.insert(*a, *arg_caller);
+    for arg_caller in arrays.iter() {
+        if let node::ObjectType::Pointer(a) = ssa_func.result_types[arg_caller.1 as usize] {
+            stack_frame.array_map.insert(a, arg_caller.0);
         }
     }
 
     //2. by copy parameters:
     for (&arg_caller, &arg_function) in args.iter().zip(&func_arg) {
-        ctx.handle_assign_inline(arg_function, arg_caller, &mut stack_frame, block);
+        //pass by-ref const array arguments
+        if let node::ObjectType::Pointer(x) = ctx.get_object_type(arg_function.0) {
+            if let node::ObjectType::Pointer(y) = ctx.get_object_type(arg_caller) {
+                if !arg_function.1 && !stack_frame.array_map.contains_key(&x) {
+                    stack_frame.array_map.insert(x, y);
+                    continue;
+                }
+            }
+        }
+        ctx.handle_assign_inline(arg_function.0, arg_caller, &mut stack_frame, block);
     }
 
     let mut result = true;
@@ -162,12 +183,12 @@ pub fn inline(
             call_id,
             &mut nested_call,
             ctx,
-        );
+        )?;
         if result && nested_call {
             result = false
         }
     }
-    result
+    Ok(result)
 }
 
 //inline the given block of the function body into the target_block
@@ -179,7 +200,7 @@ pub fn inline_in_block(
     call_id: NodeId,
     nested_call: &mut bool,
     ctx: &mut SsaContext,
-) -> Option<BlockId> {
+) -> Result<Option<BlockId>, RuntimeError> {
     let block_func = &ctx[block_id];
     let next_block = block_func.left;
     let block_func_instructions = &block_func.instructions.clone();
@@ -197,9 +218,7 @@ pub fn inline_in_block(
                 array_id = Some(id);
             }
 
-            clone.operation.map_id_mut(|id| {
-                function::SSAFunction::get_mapped_value(Some(&id), ctx, inline_map, target_block_id)
-            });
+            clone.operation.map_values_for_inlining(ctx, inline_map, stack_frame, target_block_id);
 
             match &clone.operation {
                 Operation::Nop => (),
@@ -235,7 +254,7 @@ pub fn inline_in_block(
 
                     let add =
                         node::Binary { operator: node::BinaryOp::Add, lhs: offset_id, rhs: *index };
-                    let adr_id = ctx.new_instruction(Operation::Binary(add), index_type);
+                    let adr_id = ctx.new_instruction(Operation::Binary(add), index_type)?;
                     let mut new_ins = Instruction::new(
                         Operation::Load { array_id: b, index: adr_id },
                         clone.res_type,
@@ -253,7 +272,7 @@ pub fn inline_in_block(
 
                     let add =
                         node::Binary { operator: node::BinaryOp::Add, lhs: offset_id, rhs: *index };
-                    let adr_id = ctx.new_instruction(Operation::Binary(add), index_type);
+                    let adr_id = ctx.new_instruction(Operation::Binary(add), index_type)?;
                     let mut new_ins = Instruction::new(
                         Operation::Store { array_id: b, index: adr_id, value: *value },
                         clone.res_type,
@@ -273,7 +292,8 @@ pub fn inline_in_block(
                         new_ins.res_type = node::ObjectType::Pointer(new_id);
                     }
 
-                    optim::simplify(ctx, &mut new_ins);
+                    optim::simplify(ctx, &mut new_ins)?;
+
                     if let Mark::ReplaceWith(replacement) = new_ins.mark {
                         if let Some(id) = array_id {
                             if let Entry::Occupied(mut entry) = stack_frame.array_map.entry(id) {
@@ -300,7 +320,7 @@ pub fn inline_in_block(
 
     // add instruction to target_block, at proper location (really need a linked list!)
     stack_frame.apply(ctx, target_block_id, call_id);
-    next_block
+    Ok(next_block)
 }
 
 fn new_cloned_instruction(original: Instruction, block: BlockId) -> Instruction {
@@ -320,4 +340,54 @@ fn push_instruction(
     let new_id = ctx.add_instruction(instruction);
     stack_frame.push(new_id);
     inline_map.insert(old_id, new_id);
+}
+
+impl node::Operation {
+    pub fn map_values_for_inlining(
+        &mut self,
+        ctx: &mut SsaContext,
+        inline_map: &HashMap<NodeId, NodeId>,
+        stack_frame: &StackFrame,
+        block_id: BlockId,
+    ) {
+        match self {
+            //default way to handle arrays during inlining; we map arrays using the stack_frame
+            Operation::Binary(_)
+            | Operation::Constrain(..) => {
+                self.map_id_mut(|id| {
+                    if let Some(a) = Memory::deref(ctx, id) {
+                        let b = stack_frame.get_or_default(a);
+                        if b != a {
+                            let new_var = node::Variable {
+                                id: NodeId::dummy(),
+                                obj_type: node::ObjectType::Pointer(b),
+                                name: String::new(),
+                                root: None,
+                                def: None,
+                                witness: None,
+                                parent_block: block_id,
+                            };
+                            return ctx.add_variable(new_var, None);
+                        } else {
+                            return id;
+                        }
+                    }
+                    function::SSAFunction::get_mapped_value(Some(&id), ctx, inline_map, block_id)
+                });
+            }
+            //However we deliberately not use the default case to force review of the behavior if a new type of operation is added.
+            //These types do not handle arrays:
+            Operation::Cast(_) | Operation::Truncate { .. } | Operation::Not(_) | Operation::Nop
+            | Operation::Jne(_,_) | Operation::Jeq(_,_) | Operation::Jmp(_) |  Operation::Phi { .. }
+            //These types handle arrays via their return type (done in inline_in_block)
+            | Operation::Intrinsic(_,_) |  Operation::Result { .. }
+            //These types handle arrays in a specific way (done in inline_in_block)
+            | Operation::Return(_) | Operation::Load {.. } | Operation::Store { .. } | Operation::Call(_,_,_)
+            => {
+                self.map_id_mut(|id| {
+                    function::SSAFunction::get_mapped_value(Some(&id), ctx, inline_map, block_id)
+                });
+            }
+        }
+    }
 }

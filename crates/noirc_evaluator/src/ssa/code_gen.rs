@@ -1,12 +1,12 @@
 use super::context::SsaContext;
 use super::function::FuncIndex;
 use super::mem::ArrayId;
-use super::node::{Binary, BinaryOp, ConstrainOp, NodeId, ObjectType, Operation, Variable};
+use super::node::{Binary, BinaryOp, NodeId, ObjectType, Operation, Variable};
 use super::{block, node, ssa_form};
 use std::collections::HashMap;
 
 use super::super::environment::Environment;
-use super::super::errors::{RuntimeError, RuntimeErrorKind};
+use super::super::errors::RuntimeError;
 use crate::object::Object;
 
 use crate::ssa::function;
@@ -120,7 +120,7 @@ impl<'a> IRGenerator<'a> {
         len: u128,
         witness: Vec<acvm::acir::native_types::Witness>,
     ) {
-        let v_id = self.new_array(name, el_type.into(), len as u32, ident_def);
+        let v_id = self.new_array(name, el_type.into(), len as u32, Some(ident_def));
         let array_idx = self.context.mem.last_id();
         self.context.mem[array_idx].values = vecmap(witness, |w| w.into());
         self.context.get_current_block_mut().update_variable(v_id, v_id);
@@ -204,13 +204,18 @@ impl<'a> IRGenerator<'a> {
                 let lhs = self.context.zero_with_type(rtype);
                 let operator = BinaryOp::Sub { max_rhs_value: BigUint::zero() };
                 let op = Operation::Binary(node::Binary { operator, lhs, rhs });
-                Ok(self.context.new_instruction(op, rtype))
+                self.context.new_instruction(op, rtype)
             }
-            HirUnaryOp::Not => Ok(self.context.new_instruction(Operation::Not(rhs), rtype)),
+            HirUnaryOp::Not => self.context.new_instruction(Operation::Not(rhs), rtype),
         }
     }
 
-    fn evaluate_infix_expression(&mut self, lhs: NodeId, rhs: NodeId, op: HirBinaryOp) -> NodeId {
+    fn evaluate_infix_expression(
+        &mut self,
+        lhs: NodeId,
+        rhs: NodeId,
+        op: HirBinaryOp,
+    ) -> Result<NodeId, RuntimeError> {
         let ltype = self.context.get_object_type(lhs);
         //n.b. we do not verify rhs type as it should have been handled by the type checker.
 
@@ -220,7 +225,7 @@ impl<'a> IRGenerator<'a> {
             if let Operation::Load { array_id, index } = lhs_ins.operation {
                 //make it a store rhs
                 lhs_ins.operation = Operation::Store { array_id, index, value: rhs };
-                return lhs;
+                return Ok(lhs);
             }
         }
 
@@ -263,7 +268,7 @@ impl<'a> IRGenerator<'a> {
         array: &HirLValue,
         index: ExprId,
         env: &mut Environment,
-    ) -> (ArrayId, NodeId) {
+    ) -> Result<(ArrayId, NodeId), RuntimeError> {
         let ident_def = self.lvalue_ident_def(array);
         let val = self.find_variable(ident_def).unwrap();
         let lhs = val.to_node_ids();
@@ -276,8 +281,8 @@ impl<'a> IRGenerator<'a> {
         let base_adr_const =
             self.context.get_or_create_const(FieldElement::from(base_adr as i128), o_type);
         let adr_id =
-            self.context.new_binary_instruction(BinaryOp::Add, base_adr_const, index, o_type);
-        (a_id, adr_id)
+            self.context.new_binary_instruction(BinaryOp::Add, base_adr_const, index, o_type)?;
+        Ok((a_id, adr_id))
     }
 
     fn lvalue_ident_def(&self, lvalue: &HirLValue) -> DefinitionId {
@@ -353,15 +358,9 @@ impl<'a> IRGenerator<'a> {
             noirc_frontend::Type::Array(_, len, _) => {
                 {
                     //TODO support array of structs
-                    let mut obj_type = node::ObjectType::from(typ);
-                    let array_idx = self.context.mem.create_new_array(
-                        super::mem::get_array_size(len),
-                        obj_type,
-                        base_name,
-                    );
-                    obj_type = node::ObjectType::Pointer(array_idx);
-                    let v_id = self.create_new_variable(base_name.to_string(), def, obj_type, None);
-                    self.context.get_current_block_mut().update_variable(v_id, v_id);
+                    let obj_type = node::ObjectType::from(typ);
+                    let v_id =
+                        self.new_array(base_name, obj_type, super::mem::get_array_size(len), def);
                     Value::Single(v_id)
                 }
             }
@@ -379,10 +378,12 @@ impl<'a> IRGenerator<'a> {
         name: &str,
         element_type: ObjectType,
         len: u32,
-        def_id: noirc_frontend::node_interner::DefinitionId,
+        def_id: Option<noirc_frontend::node_interner::DefinitionId>,
     ) -> NodeId {
-        let id = self.context.new_array(name, element_type, len, Some(def_id));
-        self.variable_values.insert(def_id, super::code_gen::Value::Single(id));
+        let id = self.context.new_array(name, element_type, len, def_id);
+        if let Some(def) = def_id {
+            self.variable_values.insert(def, super::code_gen::Value::Single(id));
+        }
         id
     }
 
@@ -390,84 +391,57 @@ impl<'a> IRGenerator<'a> {
     fn handle_constrain_statement(
         &mut self,
         env: &mut Environment,
-        constrain_stmt: HirConstrainStatement,
+        constrain: HirConstrainStatement,
     ) -> Result<Value, RuntimeError> {
-        let lhs = self.expression_to_object(env, &constrain_stmt.0.lhs)?.unwrap_id();
-        let rhs = self.expression_to_object(env, &constrain_stmt.0.rhs)?.unwrap_id();
-
-        match constrain_stmt.0.operator.kind {
-            // HirBinaryOpKind::Add => binary_op::handle_add_op(lhs, rhs, self),
-            // HirBinaryOpKind::Subtract => binary_op::handle_sub_op(lhs, rhs, self),
-            // HirBinaryOpKind::Multiply => binary_op::handle_mul_op(lhs, rhs, self),
-            // HirBinaryOpKind::Divide => binary_op::handle_div_op(lhs, rhs, self),
-            HirBinaryOpKind::NotEqual => Ok(self.context.new_instruction(
-                Operation::binary(BinaryOp::Constrain(ConstrainOp::Neq), lhs, rhs),
-                ObjectType::NotAnObject,
-            )),
-            HirBinaryOpKind::Equal => Ok(self.context.new_instruction(
-                Operation::binary(BinaryOp::Constrain(ConstrainOp::Eq), lhs, rhs),
-                ObjectType::NotAnObject,
-            )),
-            HirBinaryOpKind::And => todo!(),
-            // HirBinaryOpKind::Xor => binary_op::handle_xor_op(lhs, rhs, self),
-            HirBinaryOpKind::Less => todo!(), // Ok(self.new_instruction(lhs, rhs, node::Operation::LtGate, node::ObjectType::NotAnObject)),
-            HirBinaryOpKind::LessEqual => todo!(),
-            HirBinaryOpKind::Greater => todo!(),
-            HirBinaryOpKind::GreaterEqual => {
-                todo!();
-            }
-            HirBinaryOpKind::Assign => Err(RuntimeErrorKind::Spanless(
-                "The Binary operation `=` can only be used in declaration statements".to_string(),
-            )),
-            HirBinaryOpKind::Or => Err(RuntimeErrorKind::Unimplemented(
-                "The Or operation is currently not implemented. First implement in Barretenberg."
-                    .to_owned(),
-            )),
-            _ => Err(RuntimeErrorKind::Unimplemented(
-                "The operation is currently not supported in a constrain statement".to_owned(),
-            )),
-        }
-        .map_err(|kind| kind.add_span(constrain_stmt.0.operator.span))?;
-
+        let cond = self.expression_to_object(env, &constrain.0)?.unwrap_id();
+        let location = self.def_interner().expr_location(&constrain.0);
+        let operation = Operation::Constrain(cond, location);
+        self.context.new_instruction(operation, ObjectType::NotAnObject)?;
         Ok(Value::dummy())
     }
 
     /// Flatten the pattern and value, binding each identifier in the pattern
     /// to a single NodeId in the corresponding Value. This effectively flattens
     /// let bindings of struct variables, declaring a new variable for each field.
-    fn bind_pattern(&mut self, pattern: &HirPattern, value: Value) {
+    fn bind_pattern(&mut self, pattern: &HirPattern, value: Value) -> Result<(), RuntimeError> {
         match (pattern, value) {
             (HirPattern::Identifier(ident), Value::Single(node_id)) => {
                 let otype = self.context.get_object_type(node_id);
                 let variable_name = self.ident_name(ident);
-                let value = self.bind_variable(variable_name, Some(ident.id), otype, node_id);
+                let value = self.bind_variable(variable_name, Some(ident.id), otype, node_id)?;
                 self.variable_values.insert(ident.id, value);
             }
             (HirPattern::Identifier(ident), value @ Value::Struct(_)) => {
                 let typ = self.def_interner().id_type(ident.id);
                 let name = self.ident_name(ident);
-                let value = self.bind_fresh_pattern(&name, &typ, value);
+                let value = self.bind_fresh_pattern(&name, &typ, value)?;
                 self.variable_values.insert(ident.id, value);
             }
-            (HirPattern::Mutable(pattern, _), value) => self.bind_pattern(pattern, value),
+            (HirPattern::Mutable(pattern, _), value) => self.bind_pattern(pattern, value)?,
             (pattern @ (HirPattern::Tuple(..) | HirPattern::Struct(..)), Value::Struct(exprs)) => {
                 assert_eq!(pattern.field_count(), exprs.len());
                 for ((pattern_name, pattern), (field_name, value)) in
                     pattern.iter_fields().zip(exprs)
                 {
                     assert_eq!(pattern_name, field_name);
-                    self.bind_pattern(pattern, value);
+                    self.bind_pattern(pattern, value)?;
                 }
             }
             _ => unreachable!(),
         }
+        Ok(())
     }
 
     /// This function is a recursive helper for bind_pattern which takes care
     /// of creating fresh variables to expand `ident = (a, b, ...)` to `(i_a, i_b, ...) = (a, b, ...)`
     ///
     /// This function could use a clearer name
-    fn bind_fresh_pattern(&mut self, basename: &str, typ: &Type, value: Value) -> Value {
+    fn bind_fresh_pattern(
+        &mut self,
+        basename: &str,
+        typ: &Type,
+        value: Value,
+    ) -> Result<Value, RuntimeError> {
         match value {
             Value::Single(node_id) => {
                 let otype = self.context.get_object_type(node_id);
@@ -480,11 +454,11 @@ impl<'a> IRGenerator<'a> {
                     let v = &field_values.iter().find(|f| f.0 == t.0).unwrap().1;
                     let name = format!("{}.{}", basename, t.0);
                     let field_type = typ.get_field_type(&t.0);
-                    let value = self.bind_fresh_pattern(&name, &field_type, v.clone());
+                    let value = self.bind_fresh_pattern(&name, &field_type, v.clone())?;
                     values.push((t.0, value));
                 }
 
-                Value::Struct(values)
+                Ok(Value::Struct(values))
             }
         }
     }
@@ -495,7 +469,7 @@ impl<'a> IRGenerator<'a> {
         definition_id: Option<DefinitionId>,
         obj_type: node::ObjectType,
         value_id: NodeId,
-    ) -> Value {
+    ) -> Result<Value, RuntimeError> {
         let id = if let node::ObjectType::Pointer(a) = obj_type {
             let len = self.context.mem[a].len;
             let el_type = self.context.mem[a].element_type;
@@ -506,7 +480,7 @@ impl<'a> IRGenerator<'a> {
             self.context.add_variable(new_var, None)
         };
         //Assign rhs to lhs
-        Value::Single(self.context.handle_assign(id, None, value_id))
+        Ok(Value::Single(self.context.handle_assign(id, None, value_id)?))
     }
 
     //same as update_variable but using the var index instead of var
@@ -529,42 +503,43 @@ impl<'a> IRGenerator<'a> {
                 // We may be able to avoid cloning here if we change find_variable
                 // and assign_pattern to use only fields of self instead of `self` itself.
                 let lhs = lhs.clone();
-                let result = self.assign_pattern(&lhs, rhs);
+                let result = self.assign_pattern(&lhs, rhs)?;
                 self.variable_values.insert(ident_def, result);
                 Ok(lhs)
             }
             HirLValue::MemberAccess { field_name: name, .. } => {
                 let val = self.find_variable(ident_def).unwrap();
                 let value = val.get_field_member(&name.0.contents).clone();
-                let result = self.assign_pattern(&value, rhs);
+                let result = self.assign_pattern(&value, rhs)?;
                 Ok(result)
             }
             HirLValue::Index { array, index } => {
-                let (_, array_idx) = self.evaluate_indexed_value(array.as_ref(), index, env);
+                let (_, array_idx) = self.evaluate_indexed_value(array.as_ref(), index, env)?;
                 let val = self.find_variable(ident_def).unwrap();
                 let rhs_id = rhs.unwrap_id();
                 let lhs_id = val.unwrap_id();
-                Ok(Value::Single(self.context.handle_assign(lhs_id, Some(array_idx), rhs_id)))
+                Ok(Value::Single(self.context.handle_assign(lhs_id, Some(array_idx), rhs_id)?))
             }
         }
     }
 
     /// Similar to bind_pattern but recursively creates Assignment instructions for
     /// each value rather than defining new variables.
-    fn assign_pattern(&mut self, lhs: &Value, rhs: Value) -> Value {
+    fn assign_pattern(&mut self, lhs: &Value, rhs: Value) -> Result<Value, RuntimeError> {
         match (lhs, rhs) {
             (Value::Single(lhs_id), Value::Single(rhs_id)) => {
-                Value::Single(self.context.handle_assign(*lhs_id, None, rhs_id))
+                Ok(Value::Single(self.context.handle_assign(*lhs_id, None, rhs_id)?))
             }
             (Value::Struct(lhs_fields), Value::Struct(rhs_fields)) => {
                 assert_eq!(lhs_fields.len(), rhs_fields.len());
-                let f = vecmap(lhs_fields.iter().zip(rhs_fields),
-                |(lhs_field, rhs_field)| {
-                     assert_eq!(lhs_field.0, rhs_field.0);
-                (rhs_field.0, self.assign_pattern(&lhs_field.1, rhs_field.1))
+                let mut fields = vec![];
 
-            });
-                Value::Struct(f)
+                for (lhs_field, rhs_field) in lhs_fields.iter().zip(rhs_fields) {
+                    assert_eq!(lhs_field.0, rhs_field.0);
+                    let assigned = self.assign_pattern(&lhs_field.1, rhs_field.1)?;
+                    fields.push((rhs_field.0, assigned));
+                }
+                Ok(Value::Struct(fields))
             }
             (Value::Single(_), Value::Struct(_)) => unreachable!("variables with tuple/struct types should already be decomposed into multiple variables"),
             (Value::Struct(_), Value::Single(_)) => unreachable!("Uncaught type error, tried to assign a single value to a tuple/struct type"),
@@ -586,7 +561,7 @@ impl<'a> IRGenerator<'a> {
         let_stmt: HirLetStatement,
     ) -> Result<Value, RuntimeError> {
         let rhs = self.expression_to_object(env, &let_stmt.expression)?;
-        self.bind_pattern(&let_stmt.pattern, rhs);
+        self.bind_pattern(&let_stmt.pattern, rhs)?;
         Ok(Value::dummy())
     }
 
@@ -596,7 +571,6 @@ impl<'a> IRGenerator<'a> {
         expr_id: &ExprId,
     ) -> Result<Value, RuntimeError> {
         let expr = self.def_interner().expression(expr_id);
-        let span = self.def_interner().expr_span(expr_id);
         match expr {
             HirExpression::Literal(HirLiteral::Integer(x)) => {
                 let int_type = self.def_interner().id_type(expr_id);
@@ -621,7 +595,7 @@ impl<'a> IRGenerator<'a> {
                         ObjectType::NativeField,
                     );
                     let store = Operation::Store { array_id, index: lhs_adr, value: object };
-                    self.context.new_instruction(store, element_type);
+                    self.context.new_instruction(store, element_type)?;
                 }
                 Ok(Value::Single(new_var))
             }
@@ -635,13 +609,13 @@ impl<'a> IRGenerator<'a> {
                 // for e.g. struct == struct in the future
                 let lhs = self.expression_to_object(env, &infx.lhs)?.unwrap_id();
                 let rhs = self.expression_to_object(env, &infx.rhs)?.unwrap_id();
-                Ok(Value::Single(self.evaluate_infix_expression(lhs, rhs, infx.operator)))
+                Ok(Value::Single(self.evaluate_infix_expression(lhs, rhs, infx.operator)?))
             }
             HirExpression::Cast(cast_expr) => {
                 let lhs = self.expression_to_object(env, &cast_expr.lhs)?.unwrap_id();
                 let rtype = cast_expr.r#type.into();
 
-                Ok(Value::Single(self.context.new_instruction(Operation::Cast(lhs), rtype)))
+                Ok(Value::Single(self.context.new_instruction(Operation::Cast(lhs), rtype)?))
 
                 //We should generate a cast instruction and handle properly type conversion:
                 // unsigned integer to field ; ok, just checks if bit size over FieldElement::max_num_bits()
@@ -663,7 +637,7 @@ impl<'a> IRGenerator<'a> {
 
                 let arr_def = collection_name.id;
                 let arr_name = self.def_interner().definition_name(arr_def).to_owned();
-                let ident_span = collection_name.span;
+                let ident_loc = collection_name.location;
 
                 let arr_type = self.def_interner().id_type(arr_def);
                 let o_type: node::ObjectType = arr_type.into();
@@ -676,8 +650,10 @@ impl<'a> IRGenerator<'a> {
                         _ => unreachable!(),
                     }
                 } else {
-                    let arr =
-                        env.get_array(&arr_name).map_err(|kind| kind.add_span(ident_span)).unwrap();
+                    let arr = env
+                        .get_array(&arr_name)
+                        .map_err(|kind| kind.add_location(ident_loc))
+                        .unwrap();
                     self.context.create_array_from_object(&arr, arr_def, o_type, &arr_name);
                     let array_id = self.context.mem.last_id();
                     &self.context.mem[array_id]
@@ -696,10 +672,10 @@ impl<'a> IRGenerator<'a> {
                 let adr_id = self.context.new_instruction(
                     Operation::binary(BinaryOp::Add, base_adr, index_as_obj),
                     index_type,
-                );
+                )?;
 
                 let load = Operation::Load { array_id, index: adr_id };
-                Ok(Value::Single(self.context.new_instruction(load, e_type)))
+                Ok(Value::Single(self.context.new_instruction(load, e_type)?))
             }
             HirExpression::Call(call_expr) => {
                 let func_meta = self.def_interner().function_meta(&call_expr.func_id);
@@ -717,7 +693,7 @@ impl<'a> IRGenerator<'a> {
                                 env,
                                 &func_meta.parameters,
                                 index,
-                            );
+                            )?;
                         }
                         let callee = self.context.get_ssafunc(call_expr.func_id).unwrap().idx;
                         //generate a call instruction to the function cfg
@@ -728,16 +704,16 @@ impl<'a> IRGenerator<'a> {
                                 callee,
                             );
                         }
-                        let result = function::SSAFunction::call(
+                        let results = function::SSAFunction::call(
                             call_expr.func_id,
                             &call_expr.arguments,
                             self,
                             env,
-                        );
+                        )?;
                         let val = match func_meta.return_type {
                             Type::Tuple(_) => {
                                 let mut tuple = Vec::new();
-                                for i in result.iter().enumerate() {
+                                for i in results.iter().enumerate() {
                                     tuple.push((i.0.to_string(), Value::Single(*i.1)))
                                 }
                                 Value::Struct(tuple)
@@ -745,14 +721,14 @@ impl<'a> IRGenerator<'a> {
                             Type::Struct(_, ref typ) => {
                                 let typ = typ.borrow();
                                 let mut my_struct = Vec::new();
-                                for i in typ.fields.iter().zip(result) {
+                                for i in typ.fields.iter().zip(results) {
                                     my_struct
                                         .push((i.0 .0 .0.contents.clone(), Value::Single(i.1)));
                                 }
                                 Value::Struct(my_struct)
                             }
                             Type::Error | Type::Unspecified => unreachable!(),
-                            _ => Value::Single(result[0]),
+                            _ => Value::Single(results[0]),
                         };
                         Ok(val)
                     }
@@ -760,7 +736,7 @@ impl<'a> IRGenerator<'a> {
                         // We use it's func name to find out what intrinsic function to call
                         let attribute = func_meta.attributes.expect("all low level functions must contain an attribute which contains the opcode which it links to");
                         let opcode_name = attribute.foreign().expect("ice: function marked as foreign, but attribute kind does not match this");
-                        Ok(Value::Single(self.handle_lowlevel(env, opcode_name, call_expr)))
+                        Ok(Value::Single(self.handle_lowlevel(env, opcode_name, call_expr)?))
                     }
                     FunctionKind::Builtin => {
                         todo!();
@@ -770,9 +746,7 @@ impl<'a> IRGenerator<'a> {
                     }
                 }
             }
-            HirExpression::For(for_expr) => {
-                self.handle_for_expr(env, for_expr).map_err(|kind| kind.add_span(span))
-            }
+            HirExpression::For(for_expr) => self.handle_for_expr(env, for_expr),
             HirExpression::Constructor(constructor) => self.handle_constructor(env, constructor),
             HirExpression::MemberAccess(access) => self.handle_member_access(env, access),
             HirExpression::Tuple(fields) => self.handle_tuple(env, fields),
@@ -795,8 +769,9 @@ impl<'a> IRGenerator<'a> {
         env: &mut Environment,
         opcode_name: &str,
         call_expr: HirCallExpression,
-    ) -> NodeId {
-        let func = match OPCODE::lookup(opcode_name) {
+    ) -> Result<NodeId, RuntimeError> {
+        match OPCODE::lookup(opcode_name) {
+            Some(func) => function::call_low_level(func, call_expr, self, env),
             None => {
                 let message = format!(
                     "cannot find a low level opcode with the name {} in the IR",
@@ -804,9 +779,7 @@ impl<'a> IRGenerator<'a> {
                 );
                 unreachable!("{}", message);
             }
-            Some(func) => func,
-        };
-        function::call_low_level(func, call_expr, self, env)
+        }
     }
 
     pub fn handle_literal(&mut self, l: &HirLiteral) -> NodeId {
@@ -887,18 +860,12 @@ impl<'a> IRGenerator<'a> {
         &mut self,
         env: &mut Environment,
         for_expr: HirForExpression,
-    ) -> Result<Value, RuntimeErrorKind> {
+    ) -> Result<Value, RuntimeError> {
         //we add the ' i = start' instruction (in the block before the join)
-        let start_idx = self
-            .expression_to_object(env, &for_expr.start_range)
-            .map_err(|err| err.remove_span())
-            .unwrap()
-            .unwrap_id();
-        let end_idx = self
-            .expression_to_object(env, &for_expr.end_range)
-            .map_err(|err| err.remove_span())
-            .unwrap()
-            .unwrap_id();
+        let start_idx = self.expression_to_object(env, &for_expr.start_range).unwrap().unwrap_id();
+
+        let end_idx = self.expression_to_object(env, &for_expr.end_range).unwrap().unwrap_id();
+
         //We support only const range for now
         //TODO how should we handle scope (cf. start/end_for_loop)?
         let iter_name = self.def_interner().definition_name(for_expr.identifier.id).to_owned();
@@ -910,7 +877,7 @@ impl<'a> IRGenerator<'a> {
         iter_var.obj_type = iter_type;
 
         let assign = Operation::binary(BinaryOp::Assign, iter_id, start_idx);
-        let iter_ass = self.context.new_instruction(assign, iter_type);
+        let iter_ass = self.context.new_instruction(assign, iter_type)?;
 
         //We map the iterator to start_idx so that when we seal the join block, we will get the corrdect value.
         self.update_variable_id(iter_id, iter_ass, start_idx);
@@ -928,9 +895,9 @@ impl<'a> IRGenerator<'a> {
         self.update_variable_id(iter_id, iter_id, phi); //is it still needed?
 
         let notequal = Operation::binary(BinaryOp::Ne, phi, end_idx);
-        let cond = self.context.new_instruction(notequal, ObjectType::Boolean);
+        let cond = self.context.new_instruction(notequal, ObjectType::Boolean)?;
 
-        let to_fix = self.context.new_instruction(Operation::Nop, ObjectType::NotAnObject);
+        let to_fix = self.context.new_instruction(Operation::Nop, ObjectType::NotAnObject)?;
 
         //Body
         let body_id = block::new_sealed_block(&mut self.context, block::BlockType::Normal);
@@ -952,7 +919,7 @@ impl<'a> IRGenerator<'a> {
         let one = self.context.get_or_create_const(FieldElement::one(), iter_type);
 
         let incr_op = Operation::binary(BinaryOp::Add, phi, one);
-        let incr = self.context.new_instruction(incr_op, iter_type);
+        let incr = self.context.new_instruction(incr_op, iter_type)?;
 
         let cur_block_id = self.context.current_block; //It should be the body block, except if the body has CFG statements
         let cur_block = &mut self.context[cur_block_id];
@@ -963,7 +930,7 @@ impl<'a> IRGenerator<'a> {
         join_mut.predecessor.push(cur_block_id);
 
         //jump back to join
-        self.context.new_instruction(Operation::Jmp(join_idx), ObjectType::NotAnObject);
+        self.context.new_instruction(Operation::Jmp(join_idx), ObjectType::NotAnObject)?;
 
         //seal join
         ssa_form::seal_block(&mut self.context, join_idx);

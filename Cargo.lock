@@ -1134,6 +1134,7 @@ version = "0.1.0"
 dependencies = [
  "acvm",
  "arena",
+ "fm",
  "lazy_static",
  "noirc_abi",
  "noirc_errors",

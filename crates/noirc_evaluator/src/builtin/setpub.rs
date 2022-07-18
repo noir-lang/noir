@@ -1,4 +1,4 @@
-use noirc_errors::Span;
+use noirc_errors::Location;
 use noirc_frontend::hir_def::expr::HirCallExpression;
 
 use super::BuiltInCaller;
@@ -11,10 +11,9 @@ impl BuiltInCaller for SetPub {
     fn call(
         evaluator: &mut Evaluator,
         env: &mut Environment,
-        call_expr_span: (HirCallExpression, Span),
+        mut call_expr: HirCallExpression,
+        location: Location,
     ) -> Result<Object, RuntimeError> {
-        let (mut call_expr, span) = call_expr_span;
-
         assert_eq!(call_expr.arguments.len(), 1);
         let expr = call_expr.arguments.pop().unwrap();
 
@@ -25,7 +24,9 @@ impl BuiltInCaller for SetPub {
             let func_name =
                 evaluator.context.def_interner.function_name(&call_expr.func_id).to_owned();
 
-            return Err(RuntimeErrorKind::FunctionNonMainContext { func_name }.add_span(span));
+            return Err(
+                RuntimeErrorKind::FunctionNonMainContext { func_name }.add_location(location)
+            );
         }
 
         let witness = object.witness().expect("expected a witness");
