@@ -215,7 +215,7 @@ impl<'a> Resolver<'a> {
             UnresolvedType::Integer(is_const, vis, sign, bits) => {
                 Type::Integer(is_const, vis, sign, bits)
             }
-            UnresolvedType::Bool => Type::Bool,
+            UnresolvedType::Bool(is_const) => Type::Bool(is_const),
             UnresolvedType::Unit => Type::Unit,
             UnresolvedType::Unspecified => Type::Unspecified,
             UnresolvedType::Error => Type::Error,
