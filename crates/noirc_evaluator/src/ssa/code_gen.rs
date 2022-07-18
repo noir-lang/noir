@@ -244,9 +244,7 @@ impl<'a> IRGenerator<'a> {
     ) -> Result<Value, RuntimeError> {
         let statement = self.def_interner().statement(stmt_id);
         match statement {
-            HirStatement::Constrain(constrain_stmt) => {
-                self.codegen_constrain(env, constrain_stmt)
-            }
+            HirStatement::Constrain(constrain_stmt) => self.codegen_constrain(env, constrain_stmt),
             HirStatement::Expression(expr) | HirStatement::Semi(expr) => {
                 self.codegen_expression(env, &expr)
             }
