@@ -441,7 +441,6 @@ fn check_membership() {
         let index_as_usize: usize = test_vector.index.parse().unwrap();
 
         let leaf = hash(&test_vector.message);
-        println!("leaf: {}", leaf.to_hex().as_str());
 
         let mut root = tree.root();
         if test_vector.should_update_tree {
