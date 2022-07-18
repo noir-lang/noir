@@ -377,6 +377,7 @@ pub enum Keyword {
     // Field types
     Pub,
     Const,
+    Bool,
     //
     SetPub,
     //
@@ -409,6 +410,7 @@ impl fmt::Display for Keyword {
             Keyword::Pub => write!(f, "pub"),
             Keyword::Field => write!(f, "Field"),
             Keyword::Const => write!(f, "const"),
+            Keyword::Bool => write!(f, "bool"),
         }
     }
 }
@@ -442,6 +444,7 @@ impl Keyword {
 
             // Native Types
             "Field" => Keyword::Field,
+            "bool" => Keyword::Bool,
 
             "true" => return Some(Token::Bool(true)),
             "false" => return Some(Token::Bool(false)),
