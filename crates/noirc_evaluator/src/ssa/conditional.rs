@@ -115,7 +115,6 @@ impl DecisionTree {
         let pvalue = self[assumption.parent].value.unwrap();
         let condition = self[assumption.parent].condition;
         let ins = if self.is_true_branch(block.assumption) {
-            dbg!(&ctx[pvalue]);
             DecisionTree::new_instruction_after_phi(
                 ctx,
                 block_id,
@@ -363,13 +362,21 @@ impl DecisionTree {
                         todo!();
                     }
                 }
-                Operation::Binary(bin_op) => {
-                    if let BinaryOp::Constrain(_) = bin_op.operator {
-                        if ass_value != ctx.one() {
-                            dbg!(&ctx[ass_value]);
-                            dbg!(&assumption);
-                            todo!();
-                        }
+                Operation::Constrain(expr) => {
+                    if ass_value != ctx.one() {
+                        let pos = ctx[block]
+                            .instructions
+                            .iter()
+                            .position(|value| *value == ins.id)
+                            .unwrap();
+                        let operation =
+                            Operation::binary(BinaryOp::Cond(ass_value), *expr, ctx.one());
+                        let cond = ctx.add_instruction(Instruction::new(
+                            operation,
+                            ObjectType::Boolean,
+                            Some(block),
+                        ));
+                        ctx[block].instructions.insert(pos, cond);
                     }
                 }
                 _ => (),
