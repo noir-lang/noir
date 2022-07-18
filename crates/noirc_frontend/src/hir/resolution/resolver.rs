@@ -18,7 +18,7 @@ struct ResolverMeta {
 }
 
 use crate::hir_def::expr::{
-    HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
+    HirArrayLiteral, HirBlockExpression, HirCallExpression, HirCastExpression,
     HirConstructorExpression, HirForExpression, HirIdent, HirIfExpression, HirIndexExpression,
     HirInfixExpression, HirLiteral, HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
     HirUnaryOp,
@@ -205,11 +205,13 @@ impl<'a> Resolver<'a> {
 
     fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
         match typ {
-            UnresolvedType::FieldElement(vis) => Type::FieldElement(vis),
+            UnresolvedType::FieldElement(is_const, vis) => Type::FieldElement(is_const, vis),
             UnresolvedType::Array(vis, size, elem) => {
                 Type::Array(vis, size, Box::new(self.resolve_type(*elem)))
             }
-            UnresolvedType::Integer(vis, sign, bits) => Type::Integer(vis, sign, bits),
+            UnresolvedType::Integer(is_const, vis, sign, bits) => {
+                Type::Integer(is_const, vis, sign, bits)
+            }
             UnresolvedType::Bool => Type::Bool,
             UnresolvedType::Unit => Type::Unit,
             UnresolvedType::Unspecified => Type::Unspecified,
@@ -274,11 +276,8 @@ impl<'a> Resolver<'a> {
                 self.interner.push_stmt(HirStatement::Let(let_stmt))
             }
             Statement::Constrain(constrain_stmt) => {
-                let lhs = self.resolve_expression(constrain_stmt.0.lhs);
-                let operator: HirBinaryOp = constrain_stmt.0.operator.into();
-                let rhs = self.resolve_expression(constrain_stmt.0.rhs);
-
-                let stmt = HirConstrainStatement(HirInfixExpression { lhs, operator, rhs });
+                let expr_id = self.resolve_expression(constrain_stmt.0);
+                let stmt = HirConstrainStatement(expr_id);
 
                 self.interner.push_stmt(HirStatement::Constrain(stmt))
             }
@@ -371,7 +370,7 @@ impl<'a> Resolver<'a> {
                 // TODO: For loop variables are currently mutable by default since we haven't
                 //       yet implemented syntax for them to be optionally mutable.
                 let (identifier, block_id) = self.in_new_scope(|this| {
-                    (this.add_variable_decl(identifier, true), this.intern_block(block))
+                    (this.add_variable_decl(identifier, true), this.resolve_expression(block))
                 });
 
                 HirExpression::For(HirForExpression {
@@ -383,8 +382,8 @@ impl<'a> Resolver<'a> {
             }
             ExpressionKind::If(if_expr) => HirExpression::If(HirIfExpression {
                 condition: self.resolve_expression(if_expr.condition),
-                consequence: self.intern_block(if_expr.consequence),
-                alternative: if_expr.alternative.map(|e| self.intern_block(e)),
+                consequence: self.resolve_expression(if_expr.consequence),
+                alternative: if_expr.alternative.map(|e| self.resolve_expression(e)),
             }),
             ExpressionKind::Index(indexed_expr) => HirExpression::Index(HirIndexExpression {
                 collection: self.resolve_expression(indexed_expr.collection),

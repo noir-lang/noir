@@ -31,7 +31,7 @@ fn test1(mut a : Field){
 fn test2(z : Field, t : u32 ) { 
      let a = z + t as Field;
      constrain a == 64;
-     let e = pow(z,t);
+     let e = pow(z,t as Field);
      constrain e ==714924299;
 }
 
@@ -49,8 +49,9 @@ fn pow(base : Field, exponent : Field) -> Field {
 fn test3(x: [3]u8) -> [3]u8 {
       let mut buffer: [3]u8 = [0 as u8,0 as u8, 0 as u8];
        for i in 0..3   {
-       buffer[i as u32] = x[i as u32] ;
+       buffer[i] = x[i] ;
      };
+     constrain buffer == x;
      buffer
 }
 
@@ -73,8 +74,38 @@ struct my_struct {
      a: u32,
      b: u32,
 }
+struct my2 {
+     aa: my_struct,
+     bb: my_struct,
+}
+
+fn test_multiple4(s : my_struct) {
+     constrain s.a == s.b+2;
+
+}
+
+fn test_multiple5(a: (u32, u32)) {
+     constrain a.0 == a.1+2;
+}
+
+
+fn test_multiple6(a: my2, b: my_struct, c: (my2, my_struct)) {
+     test_multiple4(a.aa);
+     test_multiple5((b.a, b.b));
+     constrain c.0.aa.a == c.1.a;
+}
 
 fn main(x : u32 , y : u32 , a : Field) {  
+     let mut ss: my_struct =  my_struct{ b:x,a:x+2,};
+     test_multiple4(ss);
+     test_multiple5((ss.a,ss.b));
+     let my: my2 = my2{
+          aa: ss,
+          bb: ss,
+     };
+     ss.a = 61;
+     test_multiple6(my, ss, (my,ss));
+
      let my_block = { 
           let mut ab = f2(a);
           ab = ab + a;

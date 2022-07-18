@@ -14,7 +14,7 @@ use std::ops::Neg;
 
 use acvm::acir::{
     circuit::{gate::Directive, Gate},
-    native_types::{Arithmetic, Linear},
+    native_types::{Expression, Linear},
 };
 pub use add::handle_add_op;
 pub use and::handle_and_op;
@@ -68,12 +68,12 @@ pub fn maybe_equal(
     evaluator.gates.push(Gate::Directive(Directive::Invert { x: u_wit, result: z }));
 
     // y = 1 -uz
-    let uz: Arithmetic = Linear::from_witness(u_wit) * Linear::from_witness(z);
+    let uz: Expression = Linear::from_witness(u_wit) * Linear::from_witness(z);
     let gate = uz.neg() + &FieldElement::one();
     let (_, y) = evaluator.create_intermediate_variable(gate);
 
     // yu = 0
-    let gate: Arithmetic = Linear::from_witness(u_wit) * Linear::from_witness(y);
+    let gate: Expression = Linear::from_witness(u_wit) * Linear::from_witness(y);
     evaluator.gates.push(Gate::Arithmetic(gate));
 
     // We know that y is a boolean

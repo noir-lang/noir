@@ -217,8 +217,8 @@ impl From<&Type> for ObjectType {
     fn from(t: &noirc_frontend::Type) -> ObjectType {
         match t {
             Type::Bool => ObjectType::Boolean,
-            Type::FieldElement(_) => ObjectType::NativeField,
-            Type::Integer(_ftype, sign, bit_size) => {
+            Type::FieldElement(..) => ObjectType::NativeField,
+            Type::Integer(_, _ftype, sign, bit_size) => {
                 assert!(
                     *bit_size < super::integer::short_integer_max_bit_size(),
                     "long integers are not yet supported"
@@ -228,9 +228,9 @@ impl From<&Type> for ObjectType {
                     Signedness::Unsigned => ObjectType::Unsigned(*bit_size),
                 }
             }
-            Type::PolymorphicInteger(binding) => match &*binding.borrow() {
+            Type::PolymorphicInteger(_, binding) => match &*binding.borrow() {
                 noirc_frontend::TypeBinding::Bound(typ) => typ.into(),
-                noirc_frontend::TypeBinding::Unbound(_) => Type::DEFAULT_INT_TYPE.into(),
+                noirc_frontend::TypeBinding::Unbound(_) => Type::default_int_type(None).into(),
             },
             // TODO: We should probably not convert an array type into the element type
             noirc_frontend::Type::Array(_, _, t) => ObjectType::from(t.as_ref()),
@@ -416,6 +416,7 @@ impl Instruction {
         match &self.operation {
             Operation::Binary(binary) => binary.truncate_required(),
             Operation::Not(..) => true,
+            Operation::Constrain(..) => true,
             Operation::Cast(value_id) => {
                 let obj = ctx.try_get_node(*value_id);
                 let bits = obj.map_or(0, |obj| obj.size_in_bits());
@@ -464,6 +465,17 @@ impl Instruction {
                     return NodeEval::Const(FieldElement::from((!l) & max), self.res_type);
                 }
             }
+            Operation::Constrain(value) => {
+                if let Some(obj) = eval_fn(ctx, *value).into_const_value() {
+                    if obj.is_one() {
+                        // Delete the constrain, it is always true
+                        return NodeEval::VarOrInstruction(NodeId::dummy());
+                    } else {
+                        // TODO: #231 Provide better error messages for constraints that always fail
+                        assert!(!obj.is_zero());
+                    }
+                }
+            }
             Operation::Phi { .. } => (), //Phi are simplified by simply_phi() later on; they must not be simplified here
             _ => (),
         }
@@ -497,30 +509,11 @@ impl Instruction {
 
     pub fn standard_form(&mut self) {
         if let Operation::Binary(binary) = &mut self.operation {
-            if let BinaryOp::Constrain(op) = &binary.operator {
-                match op {
-                    ConstrainOp::Eq => {
-                        if binary.lhs == binary.rhs {
-                            self.operation = Operation::Nop;
-                            return;
-                        }
-                    }
-                    ConstrainOp::Neq => assert_ne!(binary.lhs, binary.rhs),
-                }
-            }
-
             if binary.operator.is_commutative() && binary.rhs < binary.lhs {
                 std::mem::swap(&mut binary.rhs, &mut binary.lhs);
             }
         }
     }
-}
-
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
-pub enum ConstrainOp {
-    Eq,
-    Neq,
-    //Cmp...
 }
 
 //adapted from LLVM IR
@@ -532,13 +525,14 @@ pub enum Operation {
     Truncate { value: NodeId, bit_size: u32, max_bit_size: u32 }, //truncate
 
     Not(NodeId), //(!) Bitwise Not
+    Constrain(NodeId),
 
     //control flow
     Jne(NodeId, BlockId), //jump on not equal
     Jeq(NodeId, BlockId), //jump on equal
     Jmp(BlockId),         //unconditional jump
     Phi { root: NodeId, block_args: Vec<(NodeId, BlockId)> },
-    Call(noirc_frontend::node_interner::FuncId, Vec<NodeId>, Vec<ArrayId>), //Call a function
+    Call(noirc_frontend::node_interner::FuncId, Vec<NodeId>, Vec<(ArrayId, u32)>), //Call a function
     Return(Vec<NodeId>), //Return value(s) from a function block
     Result { call_instruction: NodeId, index: u32 }, //Get result index n from a function call
 
@@ -550,7 +544,7 @@ pub enum Operation {
     Nop, // no op
 }
 
-#[derive(Copy, Clone, Hash, PartialEq, Eq)]
+#[derive(Copy, Clone, Hash, PartialEq, Eq, Debug)]
 pub enum Opcode {
     Add,
     SafeAdd,
@@ -577,9 +571,8 @@ pub enum Opcode {
     Shl,
     Shr,
     Assign,
-    Constrain(ConstrainOp),
     Cond,
-
+    Constrain,
     Cast,     //convert type
     Truncate, //truncate
     Not,      //(!) Bitwise Not
@@ -645,7 +638,6 @@ pub enum BinaryOp {
     Shr, //(>>) Shift right
 
     Assign,
-    Constrain(ConstrainOp), //write gates enforcing the ContrainOp to be true
     Cond(NodeId),
 }
 
@@ -946,18 +938,6 @@ impl Binary {
                     return wrapping(lhs, rhs, res_type, u128::shr, field_op_not_allowed);
                 }
             }
-            BinaryOp::Constrain(op) => {
-                if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
-                    let lhs = l_type.field_to_type(lhs);
-                    let rhs = r_type.field_to_type(rhs);
-                    match op {
-                        ConstrainOp::Eq => assert_eq!(lhs, rhs),
-                        ConstrainOp::Neq => assert_ne!(lhs, rhs),
-                    }
-                    //we can delete the instruction
-                    return NodeEval::VarOrInstruction(NodeId::dummy());
-                }
-            }
             BinaryOp::Assign => (),
             BinaryOp::Cond(a) => {
                 let a_eval = eval_fn(ctx, *a);
@@ -997,7 +977,6 @@ impl Binary {
             BinaryOp::And => true,
             BinaryOp::Or => true,
             BinaryOp::Xor => true,
-            BinaryOp::Constrain(..) => true,
             BinaryOp::Assign => false,
             BinaryOp::Shl => true,
             BinaryOp::Shr => true,
@@ -1032,7 +1011,6 @@ impl Binary {
             BinaryOp::Shl => Opcode::Shl,
             BinaryOp::Shr => Opcode::Shr,
             BinaryOp::Assign => Opcode::Assign,
-            BinaryOp::Constrain(op) => Opcode::Constrain(*op),
             BinaryOp::Cond(_) => Opcode::Cond,
         }
     }
@@ -1088,6 +1066,7 @@ impl Operation {
                 Truncate { value: f(*value), bit_size: *bit_size, max_bit_size: *max_bit_size }
             }
             Not(id) => Not(f(*id)),
+            Constrain(id) => Constrain(f(*id)),
             Jne(id, block) => Jne(f(*id), *block),
             Jeq(id, block) => Jeq(f(*id), *block),
             Jmp(block) => Jmp(*block),
@@ -1122,6 +1101,7 @@ impl Operation {
             Cast(value) => *value = f(*value),
             Truncate { value, .. } => *value = f(*value),
             Not(id) => *id = f(*id),
+            Constrain(id) => *id = f(*id),
             Jne(id, _) => *id = f(*id),
             Jeq(id, _) => *id = f(*id),
             Jmp(_) => (),
@@ -1169,6 +1149,7 @@ impl Operation {
             Cast(value) => f(*value),
             Truncate { value, .. } => f(*value),
             Not(id) => f(*id),
+            Constrain(id) => f(*id),
             Jne(id, _) => f(*id),
             Jeq(id, _) => f(*id),
             Jmp(_) => (),
@@ -1199,6 +1180,7 @@ impl Operation {
             Operation::Cast(_) => Opcode::Cast,
             Operation::Truncate { .. } => Opcode::Truncate,
             Operation::Not(_) => Opcode::Not,
+            Operation::Constrain(_) => Opcode::Constrain,
             Operation::Jne(_, _) => Opcode::Jne,
             Operation::Jeq(_, _) => Opcode::Jeq,
             Operation::Jmp(_) => Opcode::Jmp,
@@ -1225,9 +1207,6 @@ impl BinaryOp {
                 | BinaryOp::And
                 | BinaryOp::Or
                 | BinaryOp::Xor
-                // This isn't a match-all pattern in case more ops are ever added
-                // that aren't commutative
-                | BinaryOp::Constrain(ConstrainOp::Eq | ConstrainOp::Neq)
         )
     }
 }

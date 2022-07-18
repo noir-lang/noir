@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use super::expr::{HirIdent, HirInfixExpression};
+use super::expr::HirIdent;
 use crate::node_interner::ExprId;
 use crate::{Ident, StructType, Type};
 use noirc_errors::Span;
@@ -20,7 +20,7 @@ pub struct HirAssignStatement {
 }
 
 #[derive(Debug, Clone)]
-pub struct HirConstrainStatement(pub HirInfixExpression);
+pub struct HirConstrainStatement(pub ExprId);
 
 #[derive(Debug, Clone)]
 pub struct BinaryStatement {

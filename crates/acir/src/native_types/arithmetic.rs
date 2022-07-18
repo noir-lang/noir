@@ -13,7 +13,7 @@ use super::witness::UnknownWitness;
 // In the multiplication polynomial
 // XXX: If we allow the degree of the quotient polynomial to be arbitrary, then we will need a vector of wire values
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Arithmetic {
+pub struct Expression {
     // To avoid having to create intermediate variables pre-optimisation
     // We collect all of the multiplication terms in the arithmetic gate
     // A multiplication term if of the form q_M * wL * wR
@@ -24,9 +24,9 @@ pub struct Arithmetic {
     pub q_c: FieldElement,
 }
 
-impl Default for Arithmetic {
-    fn default() -> Arithmetic {
-        Arithmetic {
+impl Default for Expression {
+    fn default() -> Expression {
+        Expression {
             mul_terms: Vec::new(),
             linear_combinations: Vec::new(),
             q_c: FieldElement::zero(),
@@ -34,7 +34,7 @@ impl Default for Arithmetic {
     }
 }
 
-impl std::fmt::Display for Arithmetic {
+impl std::fmt::Display for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if self.mul_terms.is_empty() && self.linear_combinations.len() == 1 && self.q_c.is_zero() {
             write!(f, "x{}", self.linear_combinations[0].1.witness_index())
@@ -44,17 +44,25 @@ impl std::fmt::Display for Arithmetic {
     }
 }
 
-impl Arithmetic {
+impl Expression {
     pub const fn can_defer_constraint(&self) -> bool {
         false
     }
     pub fn num_mul_terms(&self) -> usize {
         self.mul_terms.len()
     }
+
+    pub fn from_field(q_c: FieldElement) -> Expression {
+        Self { q_c, ..Default::default() }
+    }
+
+    pub fn one() -> Expression {
+        Self::from_field(FieldElement::one())
+    }
 }
 
-impl Mul<&FieldElement> for &Arithmetic {
-    type Output = Arithmetic;
+impl Mul<&FieldElement> for &Expression {
+    type Output = Expression;
     fn mul(self, rhs: &FieldElement) -> Self::Output {
         // Scale the mul terms
         let mul_terms: Vec<_> =
@@ -67,31 +75,31 @@ impl Mul<&FieldElement> for &Arithmetic {
         // Scale the constant
         let q_c = self.q_c * *rhs;
 
-        Arithmetic { mul_terms, q_c, linear_combinations: lin_combinations }
+        Expression { mul_terms, q_c, linear_combinations: lin_combinations }
     }
 }
-impl Add<&FieldElement> for Arithmetic {
-    type Output = Arithmetic;
+impl Add<&FieldElement> for Expression {
+    type Output = Expression;
     fn add(self, rhs: &FieldElement) -> Self::Output {
         // Increase the constant
         let q_c = self.q_c + *rhs;
 
-        Arithmetic { mul_terms: self.mul_terms, q_c, linear_combinations: self.linear_combinations }
+        Expression { mul_terms: self.mul_terms, q_c, linear_combinations: self.linear_combinations }
     }
 }
-impl Sub<&FieldElement> for Arithmetic {
-    type Output = Arithmetic;
+impl Sub<&FieldElement> for Expression {
+    type Output = Expression;
     fn sub(self, rhs: &FieldElement) -> Self::Output {
         // Increase the constant
         let q_c = self.q_c - *rhs;
 
-        Arithmetic { mul_terms: self.mul_terms, q_c, linear_combinations: self.linear_combinations }
+        Expression { mul_terms: self.mul_terms, q_c, linear_combinations: self.linear_combinations }
     }
 }
 
-impl Add<&Arithmetic> for &Arithmetic {
-    type Output = Arithmetic;
-    fn add(self, rhs: &Arithmetic) -> Arithmetic {
+impl Add<&Expression> for &Expression {
+    type Output = Expression;
+    fn add(self, rhs: &Expression) -> Expression {
         // XXX(med) : Implement an efficient way to do this
 
         let mul_terms: Vec<_> =
@@ -105,12 +113,12 @@ impl Add<&Arithmetic> for &Arithmetic {
             .collect();
         let q_c = self.q_c + rhs.q_c;
 
-        Arithmetic { mul_terms, linear_combinations, q_c }
+        Expression { mul_terms, linear_combinations, q_c }
     }
 }
 
-impl Neg for &Arithmetic {
-    type Output = Arithmetic;
+impl Neg for &Expression {
+    type Output = Expression;
     fn neg(self) -> Self::Output {
         // XXX(med) : Implement an efficient way to do this
 
@@ -121,70 +129,70 @@ impl Neg for &Arithmetic {
             self.linear_combinations.iter().map(|(q_k, w_k)| (-*q_k, *w_k)).collect();
         let q_c = -self.q_c;
 
-        Arithmetic { mul_terms, linear_combinations, q_c }
+        Expression { mul_terms, linear_combinations, q_c }
     }
 }
 
-impl Sub<&Arithmetic> for &Arithmetic {
-    type Output = Arithmetic;
-    fn sub(self, rhs: &Arithmetic) -> Arithmetic {
+impl Sub<&Expression> for &Expression {
+    type Output = Expression;
+    fn sub(self, rhs: &Expression) -> Expression {
         self + &-rhs
     }
 }
 
-impl From<&FieldElement> for Arithmetic {
-    fn from(constant: &FieldElement) -> Arithmetic {
-        Arithmetic { q_c: *constant, linear_combinations: Vec::new(), mul_terms: Vec::new() }
+impl From<&FieldElement> for Expression {
+    fn from(constant: &FieldElement) -> Expression {
+        Expression { q_c: *constant, linear_combinations: Vec::new(), mul_terms: Vec::new() }
     }
 }
-impl From<&Linear> for Arithmetic {
-    fn from(lin: &Linear) -> Arithmetic {
-        Arithmetic {
+impl From<&Linear> for Expression {
+    fn from(lin: &Linear) -> Expression {
+        Expression {
             q_c: lin.add_scale,
             linear_combinations: vec![(lin.mul_scale, lin.witness)],
             mul_terms: Vec::new(),
         }
     }
 }
-impl From<Linear> for Arithmetic {
-    fn from(lin: Linear) -> Arithmetic {
-        Arithmetic::from(&lin)
+impl From<Linear> for Expression {
+    fn from(lin: Linear) -> Expression {
+        Expression::from(&lin)
     }
 }
-impl From<&Witness> for Arithmetic {
-    fn from(wit: &Witness) -> Arithmetic {
+impl From<&Witness> for Expression {
+    fn from(wit: &Witness) -> Expression {
         Linear::from_witness(*wit).into()
     }
 }
 
-impl Add<&Arithmetic> for &Linear {
-    type Output = Arithmetic;
-    fn add(self, rhs: &Arithmetic) -> Arithmetic {
-        &Arithmetic::from(self) + rhs
+impl Add<&Expression> for &Linear {
+    type Output = Expression;
+    fn add(self, rhs: &Expression) -> Expression {
+        &Expression::from(self) + rhs
     }
 }
-impl Add<&Linear> for &Arithmetic {
-    type Output = Arithmetic;
-    fn add(self, rhs: &Linear) -> Arithmetic {
-        &Arithmetic::from(rhs) + self
+impl Add<&Linear> for &Expression {
+    type Output = Expression;
+    fn add(self, rhs: &Linear) -> Expression {
+        &Expression::from(rhs) + self
     }
 }
-impl Sub<&Witness> for &Arithmetic {
-    type Output = Arithmetic;
-    fn sub(self, rhs: &Witness) -> Arithmetic {
-        self - &Arithmetic::from(rhs)
+impl Sub<&Witness> for &Expression {
+    type Output = Expression;
+    fn sub(self, rhs: &Witness) -> Expression {
+        self - &Expression::from(rhs)
     }
 }
-impl Sub<&UnknownWitness> for &Arithmetic {
-    type Output = Arithmetic;
-    fn sub(self, rhs: &UnknownWitness) -> Arithmetic {
+impl Sub<&UnknownWitness> for &Expression {
+    type Output = Expression;
+    fn sub(self, rhs: &UnknownWitness) -> Expression {
         let mut cloned = self.clone();
         cloned.linear_combinations.insert(0, (-FieldElement::one(), rhs.as_witness()));
         cloned
     }
 }
 
-impl Arithmetic {
+impl Expression {
     // Checks if this polynomial can fit into one arithmetic identity
     pub fn fits_in_one_identity(&self, width: usize) -> bool {
         // A Polynomial with more than one mul term cannot fit into one gate

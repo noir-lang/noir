@@ -1,4 +1,4 @@
-use acir::native_types::{Arithmetic, Witness};
+use acir::native_types::{Expression, Witness};
 use noir_field::FieldElement;
 use std::collections::BTreeMap;
 
@@ -23,8 +23,8 @@ impl ArithmeticSolver {
     /// Derives the rest of the witness based on the initial low level variables
     pub fn solve<'a>(
         initial_witness: &mut BTreeMap<Witness, FieldElement>,
-        gate: &'a Arithmetic,
-    ) -> Option<&'a Arithmetic> {
+        gate: &'a Expression,
+    ) -> Option<&'a Expression> {
         // Evaluate multiplication term
         let mul_result = ArithmeticSolver::solve_mul_term(gate, initial_witness);
         // Evaluate the fan-in terms
@@ -72,7 +72,7 @@ impl ArithmeticSolver {
     /// XXX: Do we need to account for the case where 5xy + 6x = 0 ? We do not know y, but it can be solved given x . But I believe x can be solved with another gate
     /// XXX: What about making a mul gate = a constant 5xy + 7 = 0 ? This is the same as the above.
     fn solve_mul_term(
-        arith_gate: &Arithmetic,
+        arith_gate: &Expression,
         witness_assignments: &BTreeMap<Witness, FieldElement>,
     ) -> MulTerm {
         // First note that the mul term can only contain one/zero term
@@ -103,7 +103,7 @@ impl ArithmeticSolver {
     /// Returns None, if there is more than one unknown variable
     /// We cannot assign
     fn solve_fan_in_term(
-        arith_gate: &Arithmetic,
+        arith_gate: &Expression,
         witness_assignments: &BTreeMap<Witness, FieldElement>,
     ) -> GateStatus {
         // This is assuming that the fan-in is more than 0
@@ -151,7 +151,7 @@ fn arithmetic_smoke_test() {
     let d = Witness(3);
 
     // a = b + c + d;
-    let gate_a = Arithmetic {
+    let gate_a = Expression {
         mul_terms: vec![],
         linear_combinations: vec![
             (FieldElement::one(), a),
@@ -163,7 +163,7 @@ fn arithmetic_smoke_test() {
     };
 
     let e = Witness(4);
-    let gate_b = Arithmetic {
+    let gate_b = Expression {
         mul_terms: vec![],
         linear_combinations: vec![
             (FieldElement::one(), e),

@@ -1,7 +1,7 @@
 use super::context::SsaContext;
 use super::function::FuncIndex;
 use super::mem::ArrayId;
-use super::node::{Binary, BinaryOp, ConstrainOp, NodeId, ObjectType, Operation, Variable};
+use super::node::{Binary, BinaryOp, NodeId, ObjectType, Operation, Variable};
 use super::{block, node, ssa_form};
 use std::collections::HashMap;
 
@@ -60,6 +60,15 @@ impl Value {
             Value::Struct(v) => v.iter().flat_map(|i| i.1.to_node_ids()).collect(),
         }
     }
+
+    pub fn get_field_member(&self, field_name: &str) -> &Value {
+        match self {
+            Value::Single(_) => {
+                unreachable!("Runtime type error, expected struct but found a single value")
+            }
+            Value::Struct(v) => &v.iter().find(|(name, _)| *name == *field_name).unwrap().1,
+        }
+    }
 }
 
 ////////////////PARSING THE AST////////////////////////////////////////////////
@@ -86,10 +95,14 @@ impl<'a> IRGenerator<'a> {
     }
 
     pub fn find_variable(&self, variable_def: DefinitionId) -> Option<&Value> {
-        self.variable_values.get(&variable_def)
+        if variable_def != DefinitionId::dummy_id() {
+            self.variable_values.get(&variable_def)
+        } else {
+            None
+        }
     }
 
-    fn get_current_value(&mut self, value: &Value) -> Value {
+    pub fn get_current_value(&mut self, value: &Value) -> Value {
         match value {
             Value::Single(id) => Value::Single(ssa_form::get_current_value(&mut self.context, *id)),
             Value::Struct(fields) => Value::Struct(vecmap(fields, |(name, value)| {
@@ -107,7 +120,7 @@ impl<'a> IRGenerator<'a> {
         len: u128,
         witness: Vec<acvm::acir::native_types::Witness>,
     ) {
-        let v_id = self.new_array(name, el_type.into(), len as u32, ident_def);
+        let v_id = self.new_array(name, el_type.into(), len as u32, Some(ident_def));
         let array_idx = self.context.mem.last_id();
         self.context.mem[array_idx].values = vecmap(witness, |w| w.into());
         self.context.get_current_block_mut().update_variable(v_id, v_id);
@@ -270,7 +283,7 @@ impl<'a> IRGenerator<'a> {
     fn lvalue_ident_def(&self, lvalue: &HirLValue) -> DefinitionId {
         match lvalue {
             HirLValue::Ident(ident) => ident.id,
-            HirLValue::MemberAccess { .. } => unimplemented!(),
+            HirLValue::MemberAccess { object: o, .. } => self.lvalue_ident_def(o),
             HirLValue::Index { array, index: _ } => self.lvalue_ident_def(array.as_ref()),
         }
     }
@@ -278,7 +291,7 @@ impl<'a> IRGenerator<'a> {
     pub fn create_new_variable(
         &mut self,
         var_name: String,
-        def: DefinitionId,
+        def: Option<DefinitionId>,
         obj_type: node::ObjectType,
         witness: Option<acvm::acir::native_types::Witness>,
     ) -> NodeId {
@@ -287,14 +300,72 @@ impl<'a> IRGenerator<'a> {
             obj_type,
             name: var_name,
             root: None,
-            def: Some(def),
+            def,
             witness,
             parent_block: self.context.current_block,
         };
         let v_id = self.context.add_variable(new_var, None);
         let v_value = Value::Single(v_id);
-        self.variable_values.insert(def, v_value);
+        if let Some(def) = def {
+            self.variable_values.insert(def, v_value);
+        }
         v_id
+    }
+
+    //Helper function for create_new_value()
+    fn insert_new_struct(
+        &mut self,
+        def: Option<DefinitionId>,
+        values: Vec<(String, Value)>,
+    ) -> Value {
+        let result = Value::Struct(values);
+        if let Some(def_id) = def {
+            self.variable_values.insert(def_id, result.clone());
+        }
+        result
+    }
+
+    pub fn create_new_value(
+        &mut self,
+        typ: &noirc_frontend::Type,
+        base_name: &str,
+        def: Option<DefinitionId>,
+    ) -> Value {
+        match typ {
+            noirc_frontend::Type::Struct(_, t) => {
+                let mut values = Vec::new();
+                for i in &t.borrow().fields {
+                    let name = format!("{}.{}", base_name, i.0 .0.contents);
+                    let val = self.create_new_value(&i.1, &name, None);
+                    values.push((i.0 .0.contents.clone(), val));
+                }
+                self.insert_new_struct(def, values)
+            }
+            noirc_frontend::Type::Tuple(v) => {
+                let mut values = Vec::new();
+                for i in v.iter().enumerate() {
+                    let name = format!("{}.{}", base_name, i.0);
+                    let val = self.create_new_value(i.1, &name, None);
+                    values.push((i.0.to_string(), val));
+                }
+                self.insert_new_struct(def, values)
+            }
+            noirc_frontend::Type::Array(_, len, _) => {
+                {
+                    //TODO support array of structs
+                    let obj_type = node::ObjectType::from(typ);
+                    let v_id =
+                        self.new_array(base_name, obj_type, super::mem::get_array_size(len), def);
+                    Value::Single(v_id)
+                }
+            }
+            _ => {
+                let obj_type = node::ObjectType::from(typ);
+                let v_id = self.create_new_variable(base_name.to_string(), def, obj_type, None);
+                self.context.get_current_block_mut().update_variable(v_id, v_id);
+                Value::Single(v_id)
+            }
+        }
     }
 
     pub fn new_array(
@@ -302,10 +373,12 @@ impl<'a> IRGenerator<'a> {
         name: &str,
         element_type: ObjectType,
         len: u32,
-        def_id: noirc_frontend::node_interner::DefinitionId,
+        def_id: Option<noirc_frontend::node_interner::DefinitionId>,
     ) -> NodeId {
-        let id = self.context.new_array(name, element_type, len, Some(def_id));
-        self.variable_values.insert(def_id, super::code_gen::Value::Single(id));
+        let id = self.context.new_array(name, element_type, len, def_id);
+        if let Some(def) = def_id {
+            self.variable_values.insert(def, super::code_gen::Value::Single(id));
+        }
         id
     }
 
@@ -315,43 +388,8 @@ impl<'a> IRGenerator<'a> {
         env: &mut Environment,
         constrain_stmt: HirConstrainStatement,
     ) -> Result<Value, RuntimeError> {
-        let lhs = self.expression_to_object(env, &constrain_stmt.0.lhs)?.unwrap_id();
-        let rhs = self.expression_to_object(env, &constrain_stmt.0.rhs)?.unwrap_id();
-
-        match constrain_stmt.0.operator.kind {
-            // HirBinaryOpKind::Add => binary_op::handle_add_op(lhs, rhs, self),
-            // HirBinaryOpKind::Subtract => binary_op::handle_sub_op(lhs, rhs, self),
-            // HirBinaryOpKind::Multiply => binary_op::handle_mul_op(lhs, rhs, self),
-            // HirBinaryOpKind::Divide => binary_op::handle_div_op(lhs, rhs, self),
-            HirBinaryOpKind::NotEqual => Ok(self.context.new_instruction(
-                Operation::binary(BinaryOp::Constrain(ConstrainOp::Neq), lhs, rhs),
-                ObjectType::NotAnObject,
-            )),
-            HirBinaryOpKind::Equal => Ok(self.context.new_instruction(
-                Operation::binary(BinaryOp::Constrain(ConstrainOp::Eq), lhs, rhs),
-                ObjectType::NotAnObject,
-            )),
-            HirBinaryOpKind::And => todo!(),
-            // HirBinaryOpKind::Xor => binary_op::handle_xor_op(lhs, rhs, self),
-            HirBinaryOpKind::Less => todo!(), // Ok(self.new_instruction(lhs, rhs, node::Operation::LtGate, node::ObjectType::NotAnObject)),
-            HirBinaryOpKind::LessEqual => todo!(),
-            HirBinaryOpKind::Greater => todo!(),
-            HirBinaryOpKind::GreaterEqual => {
-                todo!();
-            }
-            HirBinaryOpKind::Assign => Err(RuntimeErrorKind::Spanless(
-                "The Binary operation `=` can only be used in declaration statements".to_string(),
-            )),
-            HirBinaryOpKind::Or => Err(RuntimeErrorKind::Unimplemented(
-                "The Or operation is currently not implemented. First implement in Barretenberg."
-                    .to_owned(),
-            )),
-            _ => Err(RuntimeErrorKind::Unimplemented(
-                "The operation is currently not supported in a constrain statement".to_owned(),
-            )),
-        }
-        .map_err(|kind| kind.add_span(constrain_stmt.0.operator.span))?;
-
+        let cond = self.expression_to_object(env, &constrain_stmt.0)?.unwrap_id();
+        self.context.new_instruction(Operation::Constrain(cond), ObjectType::NotAnObject);
         Ok(Value::dummy())
     }
 
@@ -398,16 +436,15 @@ impl<'a> IRGenerator<'a> {
             }
             Value::Struct(field_values) => {
                 assert_eq!(field_values.len(), typ.num_elements());
-                let values = typ
-                    .iter_fields()
-                    .zip(field_values)
-                    .map(|((field_name, field_type), (value_name, field_value))| {
-                        assert_eq!(field_name, value_name);
-                        let name = format!("{}.{}", basename, field_name);
-                        let value = self.bind_fresh_pattern(&name, &field_type, field_value);
-                        (field_name, value)
-                    })
-                    .collect();
+                let mut values = Vec::new();
+                for t in typ.iter_fields() {
+                    let v = &field_values.iter().find(|f| f.0 == t.0).unwrap().1;
+                    let name = format!("{}.{}", basename, t.0);
+                    let field_type = typ.get_field_type(&t.0);
+                    let value = self.bind_fresh_pattern(&name, &field_type, v.clone());
+                    values.push((t.0, value));
+                }
+
                 Value::Struct(values)
             }
         }
@@ -457,7 +494,12 @@ impl<'a> IRGenerator<'a> {
                 self.variable_values.insert(ident_def, result);
                 Ok(lhs)
             }
-            HirLValue::MemberAccess { .. } => unimplemented!(),
+            HirLValue::MemberAccess { field_name: name, .. } => {
+                let val = self.find_variable(ident_def).unwrap();
+                let value = val.get_field_member(&name.0.contents).clone();
+                let result = self.assign_pattern(&value, rhs);
+                Ok(result)
+            }
             HirLValue::Index { array, index } => {
                 let (_, array_idx) = self.evaluate_indexed_value(array.as_ref(), index, env);
                 let val = self.find_variable(ident_def).unwrap();
@@ -527,12 +569,7 @@ impl<'a> IRGenerator<'a> {
                 let arr_type = self.def_interner().id_type(expr_id);
                 let element_type = arr_type.into(); //WARNING array type!
 
-                let new_var = self.context.new_array(
-                    &String::new(),
-                    element_type,
-                    arr_lit.length as u32,
-                    None,
-                );
+                let new_var = self.context.new_array("", element_type, arr_lit.length as u32, None);
                 let array_id = self.context.mem.last_id();
 
                 //We parse the array definition
@@ -796,38 +833,21 @@ impl<'a> IRGenerator<'a> {
         env: &mut Environment,
         access: HirMemberAccess,
     ) -> Result<Value, RuntimeError> {
-        match self.expression_to_object(env, &access.lhs)? {
-            Value::Single(_) => unreachable!(
-                "Runtime type error, expected struct but found a single value for {:?}",
-                access
-            ),
-            Value::Struct(fields) => {
-                let field = dbg!(fields)
-                    .into_iter()
-                    .find(|(field_name, _)| *field_name == access.rhs.0.contents);
-
-                Ok(field.unwrap().1)
-            }
-        }
+        let value = self.expression_to_object(env, &access.lhs)?;
+        Ok(value.get_field_member(&access.rhs.0.contents).clone())
     }
 
-    //TODO generate phi instructions
     pub fn expression_list_to_objects(
         &mut self,
         env: &mut Environment,
         exprs: &[ExprId],
     ) -> Vec<NodeId> {
-        exprs
-            .iter()
-            .map(|expr| {
-                match self.expression_to_object(env, expr) {
-                    Ok(Value::Single(id)) => id,
-                    // TODO: Can we have arrays of structs? How should we store each element if
-                    // structs don't exist in ssa?
-                    other => panic!("Unexpected {:?} while codegening ssa array elements", other),
-                }
-            })
-            .collect::<Vec<_>>()
+        let mut result = Vec::new();
+        for expr in exprs {
+            let value = self.expression_to_object(env, expr);
+            result.extend(value.unwrap().to_node_ids());
+        }
+        result
     }
 
     fn handle_for_expr(
@@ -852,7 +872,7 @@ impl<'a> IRGenerator<'a> {
         let iter_def = for_expr.identifier.id;
         let int_type = self.def_interner().id_type(iter_def);
         let iter_type = int_type.into();
-        let iter_id = self.create_new_variable(iter_name, iter_def, iter_type, None);
+        let iter_id = self.create_new_variable(iter_name, Some(iter_def), iter_type, None);
         let iter_var = self.context.get_mut_variable(iter_id).unwrap();
         iter_var.obj_type = iter_type;
 
