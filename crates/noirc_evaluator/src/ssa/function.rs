@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::environment::Environment;
+use crate::errors::RuntimeError;
 use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use noirc_frontend::hir_def::expr::{HirCallExpression, HirIdent};
@@ -49,14 +50,15 @@ impl SSAFunction {
         }
     }
 
-    pub fn compile(&self, igen: &mut IRGenerator) {
+    pub fn compile(&self, igen: &mut IRGenerator) -> Result<(), RuntimeError> {
         let function_cfg = super::block::bfs(self.entry_block, None, &igen.context);
         super::block::compute_sub_dom(&mut igen.context, &function_cfg);
         //Optimisation
-        super::optim::full_cse(&mut igen.context, self.entry_block);
+        super::optim::full_cse(&mut igen.context, self.entry_block)?;
         //Unrolling
-        super::flatten::unroll_tree(&mut igen.context, self.entry_block);
-        super::optim::full_cse(&mut igen.context, self.entry_block);
+        super::flatten::unroll_tree(&mut igen.context, self.entry_block)?;
+        super::optim::full_cse(&mut igen.context, self.entry_block)?;
+        Ok(())
     }
 
     //generates an instruction for calling the function
@@ -65,21 +67,21 @@ impl SSAFunction {
         arguments: &[noirc_frontend::node_interner::ExprId],
         igen: &mut IRGenerator,
         env: &mut Environment,
-    ) -> Vec<NodeId> {
+    ) -> Result<Vec<NodeId>, RuntimeError> {
         let arguments = igen.expression_list_to_objects(env, arguments);
         let call_instruction = igen.context.new_instruction(
             node::Operation::Call(func, arguments, Vec::new()),
             ObjectType::NotAnObject,
-        );
+        )?;
         let rtt = igen.context.functions[&func].result_types.clone();
         let mut result = Vec::new();
         for i in rtt.iter().enumerate() {
             result.push(igen.context.new_instruction(
                 node::Operation::Result { call_instruction, index: i.0 as u32 },
                 *i.1,
-            ));
+            )?);
         }
-        result
+        Ok(result)
     }
 
     pub fn get_mapped_value(
@@ -133,7 +135,7 @@ pub fn call_low_level(
     call_expr: HirCallExpression,
     igen: &mut IRGenerator,
     env: &mut Environment,
-) -> NodeId {
+) -> Result<NodeId, RuntimeError> {
     //Inputs
     let mut args: Vec<NodeId> = Vec::new();
 
@@ -195,7 +197,7 @@ pub fn create_function(
     env: &mut Environment,
     parameters: &Parameters,
     index: FuncIndex,
-) {
+) -> Result<(), RuntimeError> {
     let current_block = igen.context.current_block;
     let current_function = igen.function_context;
     let func_block = super::block::BasicBlock::create_cfg(&mut igen.context);
@@ -228,12 +230,13 @@ pub fn create_function(
         }
     }
     igen.context
-        .new_instruction(node::Operation::Return(returned_values), node::ObjectType::NotAnObject);
-    func.compile(igen); //unroll the function
+        .new_instruction(node::Operation::Return(returned_values), node::ObjectType::NotAnObject)?;
+    func.compile(igen)?; //unroll the function
 
     igen.context.functions.insert(func_id, func);
     igen.context.current_block = current_block;
     igen.function_context = current_function;
+    Ok(())
 }
 
 pub fn resize_graph(call_graph: &mut Vec<Vec<u8>>, size: usize) {
@@ -276,14 +279,14 @@ fn get_new_leaf(ctx: &SsaContext, processed: &[FuncIndex]) -> (FuncIndex, FuncId
 }
 
 //inline all functions of the call graph such that every inlining operates with a flatenned function
-pub fn inline_all(ctx: &mut SsaContext) {
+pub fn inline_all(ctx: &mut SsaContext) -> Result<(), RuntimeError> {
     resize_graph(&mut ctx.call_graph, ctx.functions.len());
     let l = ctx.call_graph.len();
     let mut processed = Vec::new();
     while processed.len() < l {
         let i = get_new_leaf(ctx, &processed);
         if !processed.is_empty() {
-            super::optim::full_cse(ctx, ctx.functions[&i.1].entry_block);
+            super::optim::full_cse(ctx, ctx.functions[&i.1].entry_block)?;
         }
         let mut to_inline = Vec::new();
         for f in ctx.functions.values() {
@@ -291,11 +294,12 @@ pub fn inline_all(ctx: &mut SsaContext) {
                 to_inline.push((f.entry_block, f.idx));
             }
         }
-        for j in to_inline {
-            super::inline::inline_cfg(ctx, j.0, Some(i.1));
-            ctx.call_graph[j.1 .0][i.0 .0] = 0;
+        for (block_id, func_id) in to_inline {
+            super::inline::inline_cfg(ctx, block_id, Some(i.1))?;
+            ctx.call_graph[func_id.0][i.0 .0] = 0;
         }
         processed.push(i.0);
     }
     ctx.call_graph.clear();
+    Ok(())
 }

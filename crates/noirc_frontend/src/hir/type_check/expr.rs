@@ -43,14 +43,14 @@ pub(crate) fn type_check_expression(
 
                     // Check if the array is homogeneous
                     for (index, elem_type) in elem_types.iter().enumerate().skip(1) {
-                        let span = interner.expr_span(&arr.contents[index]);
+                        let location = interner.expr_location(&arr.contents[index]);
 
-                        elem_type.unify(&first_elem_type, span, errors, || {
+                        elem_type.unify(&first_elem_type, location.span, errors, || {
                             TypeCheckError::NonHomogeneousArray {
-                                first_span: interner.expr_span(&arr.contents[0]),
+                                first_span: interner.expr_location(&arr.contents[0]).span,
                                 first_type: first_elem_type.to_string(),
                                 first_index: index,
-                                second_span: span,
+                                second_span: location.span,
                                 second_type: elem_type.to_string(),
                                 second_index: index + 1,
                             }
@@ -211,7 +211,7 @@ fn type_check_index_expression(
     errors: &mut Vec<TypeCheckError>,
 ) -> Type {
     let index_type = type_check_expression(interner, &index_expr.index, errors);
-    let span = interner.id_span(&index_expr.index);
+    let span = interner.expr_span(&index_expr.index);
 
     index_type.unify(&Type::constant(Some(span)), span, errors, || {
         // Specialize the error in the case the user has a Field, just not a const one.
@@ -236,7 +236,7 @@ fn type_check_index_expression(
         Type::Array(_, base_type) => *base_type,
         Type::Error => Type::Error,
         typ => {
-            let span = interner.id_span(&index_expr.collection);
+            let span = interner.expr_span(&index_expr.collection);
             errors.push(TypeCheckError::TypeMismatch {
                 expected_typ: "Array".to_owned(),
                 expr_typ: typ.to_string(),
@@ -407,7 +407,7 @@ pub fn infix_operand_type_rules(
             if bit_width_x != bit_width_y {
                 return Err(format!("Integers must have the same bit width LHS is {}, RHS is {} ", bit_width_x, bit_width_y))
             }
-            let is_const = is_const_x.and(is_const_y, op.span);
+            let is_const = is_const_x.and(is_const_y, op.location.span);
             Ok(Integer(is_const, *sign_x, *bit_width_x))
         }
         (Integer(..), FieldElement(..)) | (FieldElement(..), Integer(..)) => {
@@ -418,7 +418,7 @@ pub fn infix_operand_type_rules(
             if let TypeBinding::Bound(binding) = &*int.borrow() {
                 return infix_operand_type_rules(binding, op, other, errors);
             }
-            if other.try_bind_to_polymorphic_int(int, is_const, op.span).is_ok() {
+            if other.try_bind_to_polymorphic_int(int, is_const, op.location.span).is_ok() {
                 Ok(other.clone())
             } else {
                 Err(format!("Types in a binary operation should match, but found {} and {}", lhs_type, rhs_type))
@@ -439,7 +439,7 @@ pub fn infix_operand_type_rules(
 
         // The result of two Fields is always a witness
         (FieldElement(is_const_x), FieldElement(is_const_y)) => {
-            let is_const = is_const_x.and(is_const_y, op.span);
+            let is_const = is_const_x.and(is_const_y, op.location.span);
             Ok(FieldElement(is_const))
         }
 
@@ -585,7 +585,7 @@ pub fn comparator_operand_type_rules(
             if let TypeBinding::Bound(binding) = &*int.borrow() {
                 return comparator_operand_type_rules(other, binding, op, errors);
             }
-            if other.try_bind_to_polymorphic_int(int, is_const, op.span).is_ok() {
+            if other.try_bind_to_polymorphic_int(int, is_const, op.location.span).is_ok() {
                 Ok(Bool)
             } else {
                 Err(format!("Types in a binary operation should match, but found {} and {}", lhs_type, rhs_type))
@@ -605,10 +605,10 @@ pub fn comparator_operand_type_rules(
 
         // Special-case == and != for arrays
         (Array(x_size, x_type), Array(y_size, y_type)) if matches!(op.kind, Equal | NotEqual) => {
-            x_type.unify(y_type, op.span, errors, &mut || {
+            x_type.unify(y_type, op.location.span, errors, &mut || {
                 TypeCheckError::Unstructured {
                     msg: format!("Cannot compare {} and {}, the array element types differ", lhs_type, rhs_type),
-                    span: op.span,
+                    span: op.location.span,
                 }
             });
 
