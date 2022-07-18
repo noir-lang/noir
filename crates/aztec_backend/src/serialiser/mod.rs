@@ -132,7 +132,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
                         }
 
                         let mut hash_path = Vec::new();
-                        while let Some(path_elem) = inputs_iter.next() {
+                        for path_elem in inputs_iter {
                             let path_elem_index = path_elem.witness.witness_index() as i32;
 
                             hash_path.push(path_elem_index);
