@@ -1,11 +1,11 @@
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::DiagnosableError;
-use noirc_errors::Span;
+use noirc_errors::Location;
 use thiserror::Error;
 
 #[derive(Debug)]
 pub struct RuntimeError {
-    pub span: Span,
+    pub location: Location,
     pub kind: RuntimeErrorKind,
 }
 
@@ -22,8 +22,8 @@ impl RuntimeError {
 }
 
 impl RuntimeErrorKind {
-    pub fn add_span(self, span: Span) -> RuntimeError {
-        RuntimeError { span, kind: self }
+    pub fn add_location(self, location: Location) -> RuntimeError {
+        RuntimeError { location, kind: self }
     }
 }
 
@@ -64,7 +64,7 @@ impl RuntimeErrorKind {
 
 impl DiagnosableError for RuntimeError {
     fn to_diagnostic(&self) -> Diagnostic {
-        let span = self.span;
+        let span = self.location.span;
         match &self.kind {
             RuntimeErrorKind::ArrayOutOfBounds { index, bound } => Diagnostic::simple_error(
                 "index out of bounds".to_string(),

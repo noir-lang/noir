@@ -1,6 +1,6 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use crate::hir::type_check::TypeCheckError;
+use crate::{hir::type_check::TypeCheckError, node_interner::NodeInterner};
 use noirc_abi::{AbiFEType, AbiType};
 use noirc_errors::Span;
 
@@ -47,7 +47,7 @@ pub enum Type {
     Array(FieldElementType, ArraySize, Box<Type>), // [4]Witness = Array(4, Witness)
     Integer(IsConst, FieldElementType, Signedness, u32), // u32 = Integer(unsigned, 32)
     PolymorphicInteger(IsConst, TypeVariable),
-    Bool,
+    Bool(IsConst),
     Unit,
     Struct(FieldElementType, Rc<RefCell<StructType>>),
     Tuple(Vec<Type>),
@@ -86,6 +86,11 @@ pub enum SpanKind {
 }
 
 impl IsConst {
+    pub fn new(interner: &mut NodeInterner) -> Self {
+        let id = interner.next_type_variable_id();
+        Self::Maybe(id, Rc::new(RefCell::new(None)))
+    }
+
     fn set_span(&mut self, new_span: Span) {
         match self {
             IsConst::Yes(span) | IsConst::No(span) => *span = Some(new_span),
@@ -254,7 +259,7 @@ impl std::fmt::Display for Type {
                 let elements = vecmap(elements, ToString::to_string);
                 write!(f, "({})", elements.join(", "))
             }
-            Type::Bool => write!(f, "bool"),
+            Type::Bool(is_const) => write!(f, "{}bool", is_const),
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
             Type::Unspecified => write!(f, "unspecified"),
@@ -455,6 +460,8 @@ impl Type {
                 }
             }
 
+            (Bool(const_a), Bool(const_b)) => const_a.unify(const_b, span),
+
             (other_a, other_b) => {
                 if other_a == other_b {
                     Ok(())
@@ -545,6 +552,8 @@ impl Type {
                 }
             }
 
+            (Bool(const_a), Bool(const_b)) => const_a.is_subtype_of(const_b, span),
+
             (other_a, other_b) => {
                 if other_a == other_b {
                     Ok(())
@@ -567,23 +576,11 @@ impl Type {
             Type::FieldElement(..)
             | Type::Integer(..)
             | Type::PolymorphicInteger(..)
-            | Type::Bool
+            | Type::Bool(_)
             | Type::Error
             | Type::Unspecified
             | Type::Unit => 1,
         }
-    }
-
-    pub fn can_be_used_in_constrain(&self) -> bool {
-        matches!(
-            self,
-            Type::FieldElement(..)
-                | Type::Integer(..)
-                | Type::PolymorphicInteger(..)
-                | Type::Array(_, _, _)
-                | Type::Error
-                | Type::Bool
-        )
     }
 
     pub fn is_fixed_sized_array(&self) -> bool {
@@ -593,6 +590,7 @@ impl Type {
         };
         sized.is_fixed()
     }
+
     pub fn is_variable_sized_array(&self) -> bool {
         let (sized, _) = match self.array() {
             None => return false,
@@ -652,7 +650,7 @@ impl Type {
                 TypeBinding::Bound(typ) => typ.as_abi_type(),
                 TypeBinding::Unbound(_) => Type::default_int_type(None).as_abi_type(),
             },
-            Type::Bool => panic!("currently, cannot have a bool in the entry point function"),
+            Type::Bool(_) => panic!("currently, cannot have a bool in the entry point function"),
             Type::Error => unreachable!(),
             Type::Unspecified => unreachable!(),
             Type::Unit => unreachable!(),

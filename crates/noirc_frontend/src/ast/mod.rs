@@ -98,7 +98,7 @@ pub enum UnresolvedType {
     FieldElement(IsConst, FieldElementType),
     Array(FieldElementType, ArraySize, Box<UnresolvedType>), // [4]Witness = Array(4, Witness)
     Integer(IsConst, FieldElementType, Signedness, u32),     // u32 = Integer(unsigned, 32)
-    Bool,
+    Bool(IsConst),
     Unit,
     Struct(FieldElementType, Path),
 
@@ -143,7 +143,7 @@ impl std::fmt::Display for UnresolvedType {
                 let elements = vecmap(elements, ToString::to_string);
                 write!(f, "({})", elements.join(", "))
             }
-            Bool => write!(f, "bool"),
+            Bool(is_const) => write!(f, "{}bool", is_const),
             Unit => write!(f, "()"),
             Error => write!(f, "error"),
             Unspecified => write!(f, "unspecified"),

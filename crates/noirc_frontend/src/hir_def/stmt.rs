@@ -4,6 +4,7 @@ use std::rc::Rc;
 use super::expr::HirIdent;
 use crate::node_interner::ExprId;
 use crate::{Ident, StructType, Type};
+use fm::FileId;
 use noirc_errors::Span;
 
 #[derive(Debug, Clone)]
@@ -20,7 +21,7 @@ pub struct HirAssignStatement {
 }
 
 #[derive(Debug, Clone)]
-pub struct HirConstrainStatement(pub ExprId);
+pub struct HirConstrainStatement(pub ExprId, pub FileId);
 
 #[derive(Debug, Clone)]
 pub struct BinaryStatement {
