@@ -9,7 +9,7 @@ pub(crate) fn parse<P: AsRef<Path>>(
 ) -> Result<BTreeMap<String, InputValue>, String> {
     let path_to_toml = path_to_toml.as_ref();
     if !path_to_toml.exists() {
-        return Err(format!("cannot find input file at located {}", path_to_toml.display()));
+        return Err(format!("cannot find input file at located {}, run nargo build to generate the missing Prover and/or Verifier toml files", path_to_toml.display()));
     }
 
     // Get input.toml file as a string
@@ -90,14 +90,15 @@ fn parse_str(value: &str) -> Result<FieldElement, String> {
             Some(val) => Ok(val),
         }
     } else {
-        let val: i128 =
-            match value.parse() {
-                Err(msg) => return Err(format!(
+        let val: i128 = match value.parse() {
+            Err(msg) => {
+                return Err(format!(
                     "Expected witness values to be integers, provided value `{}` causes `{}` error",
                     value, msg
-                )),
-                Ok(parsed_val) => parsed_val,
-            };
+                ))
+            }
+            Ok(parsed_val) => parsed_val,
+        };
         Ok(FieldElement::from(val))
     }
 }

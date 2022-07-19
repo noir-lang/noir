@@ -95,12 +95,7 @@ pub fn verify_with_path<P: AsRef<Path>>(
         let curr_dir = program_dir;
         public_inputs = noirc_abi::input_parser::Format::Toml
             .parse(curr_dir, VERIFIER_INPUT_FILE)
-            .or_else(|err_msg| {
-                return Err(CliError::Generic(format!(
-                    "{}, run nargo build if missing a Verifier.toml file",
-                    err_msg
-                )));
-            })?;
+            .or_else(|err_msg| Err(CliError::Generic(err_msg)))?;
     }
 
     if num_pub_params != public_inputs.len() {
