@@ -268,38 +268,12 @@ where
     ))
 }
 
-fn operator_disallowed_in_constrain(operator: BinaryOpKind) -> bool {
-    [
-        BinaryOpKind::And,
-        BinaryOpKind::Subtract,
-        BinaryOpKind::Divide,
-        BinaryOpKind::Multiply,
-        BinaryOpKind::Or,
-        BinaryOpKind::Assign,
-    ]
-    .contains(&operator)
-}
-
 fn constrain<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
 {
-    ignore_then_commit(keyword(Keyword::Constrain).labelled("statement"), expr_parser).validate(
-        |expr, span, emit| match expr.kind.into_infix() {
-            Some(infix) if operator_disallowed_in_constrain(infix.operator.contents) => {
-                emit(ParserError::invalid_constrain_operator(infix.operator));
-                Statement::Error
-            }
-            None => {
-                emit(ParserError::with_reason(
-                    "Only an infix expression can follow the constrain keyword".to_string(),
-                    span,
-                ));
-                Statement::Error
-            }
-            Some(infix) => Statement::Constrain(ConstrainStatement(infix)),
-        },
-    )
+    ignore_then_commit(keyword(Keyword::Constrain).labelled("statement"), expr_parser)
+        .map(|expr| Statement::Constrain(ConstrainStatement(expr)))
 }
 
 fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
@@ -402,6 +376,7 @@ where
         struct_type(visibility_parser.clone()),
         array_type(visibility_parser, recursive_type_parser.clone()),
         tuple_type(recursive_type_parser),
+        bool_type(),
     ))
 }
 
@@ -435,6 +410,10 @@ where
         .then(maybe_const())
         .then_ignore(keyword(Keyword::Field))
         .map(|(vis, is_const)| UnresolvedType::FieldElement(is_const, vis))
+}
+
+fn bool_type() -> impl NoirParser<UnresolvedType> {
+    maybe_const().then_ignore(keyword(Keyword::Bool)).map(UnresolvedType::Bool)
 }
 
 fn int_type<P>(visibility_parser: P) -> impl NoirParser<UnresolvedType>
@@ -1291,7 +1270,7 @@ mod test {
             ("let = ", 2, "let $error: unspecified = Error"),
             ("let", 3, "let $error: unspecified = Error"),
             ("foo = one two three", 1, "foo = one"),
-            ("constrain", 2, "Error"), // We don't recover 'constrain Error' since constrain needs a binary operator
+            ("constrain", 1, "constrain Error"),
             ("constrain x ==", 1, "constrain (x == Error)"),
         ];
 

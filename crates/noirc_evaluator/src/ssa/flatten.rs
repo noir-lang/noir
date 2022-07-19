@@ -1,3 +1,5 @@
+use crate::errors::RuntimeError;
+
 use super::{
     block::{self, BlockId},
     context::SsaContext,
@@ -8,14 +10,17 @@ use acvm::FieldElement;
 use std::collections::HashMap;
 
 //Unroll the CFG
-pub fn unroll_tree(ctx: &mut SsaContext, mut block_id: BlockId) -> HashMap<NodeId, NodeEval> {
+pub fn unroll_tree(
+    ctx: &mut SsaContext,
+    mut block_id: BlockId,
+) -> Result<HashMap<NodeId, NodeEval>, RuntimeError> {
     //Calls outer_unroll() from the root node
     let mut unroll_ins = Vec::new();
     let mut eval_map = HashMap::new();
-    while let Some(next) = outer_unroll(&mut unroll_ins, &mut eval_map, block_id, ctx) {
+    while let Some(next) = outer_unroll(&mut unroll_ins, &mut eval_map, block_id, ctx)? {
         block_id = next;
     }
-    eval_map
+    Ok(eval_map)
 }
 
 //Update the block instruction list using the eval_map
@@ -37,7 +42,7 @@ pub fn unroll_block(
     eval_map: &mut HashMap<NodeId, NodeEval>,
     block_to_unroll: BlockId,
     ctx: &mut SsaContext,
-) -> Option<BlockId> {
+) -> Result<Option<BlockId>, RuntimeError> {
     if ctx[block_to_unroll].is_join() {
         unroll_join(unrolled_instructions, eval_map, block_to_unroll, ctx)
     } else {
@@ -51,7 +56,7 @@ pub fn unroll_std_block(
     eval_map: &mut HashMap<NodeId, NodeEval>,
     block_to_unroll: BlockId,
     ctx: &mut SsaContext,
-) -> Option<BlockId> // The left block
+) -> Result<Option<BlockId>, RuntimeError> // The left block
 {
     let block = &ctx[block_to_unroll];
     let b_instructions = block.instructions.clone();
@@ -73,11 +78,11 @@ pub fn unroll_std_block(
                         //however assignments should have already been removed by copy propagation.
                     }
                     Operation::Jmp(block) => {
-                        return Some(block);
+                        return Ok(Some(block));
                     }
                     Operation::Nop => (),
                     _ => {
-                        optim::simplify(ctx, &mut new_ins);
+                        optim::simplify(ctx, &mut new_ins)?;
 
                         match new_ins.mark {
                             Mark::None => {
@@ -99,7 +104,7 @@ pub fn unroll_std_block(
             _ => todo!(), //ERROR
         }
     }
-    next
+    Ok(next)
 }
 
 //Unroll a for loop: exit <- join <--> body
@@ -112,7 +117,7 @@ pub fn unroll_join(
     eval_map: &mut HashMap<NodeId, NodeEval>,
     block_to_unroll: BlockId,
     ctx: &mut SsaContext,
-) -> Option<BlockId> {
+) -> Result<Option<BlockId>, RuntimeError> {
     //Returns the exit block of the loop
     let join = &ctx[block_to_unroll];
     let join_instructions = join.instructions.clone();
@@ -127,12 +132,12 @@ pub fn unroll_join(
     }
     while {
         //evaluate the join  block:
-        evaluate_phi(&join_instructions, from, eval_map, ctx);
-        evaluate_conditional_jump(*join_instructions.last().unwrap(), eval_map, ctx)
+        evaluate_phi(&join_instructions, from, eval_map, ctx)?;
+        evaluate_conditional_jump(*join_instructions.last().unwrap(), eval_map, ctx)?
     } {
         from = block_to_unroll;
         let mut b_id = body_id;
-        while let Some(next) = unroll_block(unrolled_instructions, eval_map, b_id, ctx) {
+        while let Some(next) = unroll_block(unrolled_instructions, eval_map, b_id, ctx)? {
             //process next block:
             from = b_id;
             b_id = next;
@@ -142,7 +147,7 @@ pub fn unroll_join(
             }
         }
     }
-    join_left
+    Ok(join_left)
 }
 
 // Unrolling outer loops, i.e non-nested loops
@@ -151,7 +156,7 @@ pub fn outer_unroll(
     eval_map: &mut HashMap<NodeId, NodeEval>,
     block_id: BlockId, //block to unroll
     ctx: &mut SsaContext,
-) -> Option<BlockId> //next block
+) -> Result<Option<BlockId>, RuntimeError> //next block
 {
     assert!(unroll_ins.is_empty());
     let block = &ctx[block_id];
@@ -160,7 +165,7 @@ pub fn outer_unroll(
     let block_instructions = block.instructions.clone();
     if block.is_join() {
         //1. unroll the block into the unroll_ins
-        unroll_join(unroll_ins, eval_map, block_id, ctx);
+        unroll_join(unroll_ins, eval_map, block_id, ctx)?;
         //2. map the Phis variables to their unrolled values:
         for ins in &block_instructions {
             if let Some(ins_obj) = ctx.try_get_instruction(*ins) {
@@ -211,7 +216,7 @@ pub fn outer_unroll(
         //We update block instructions from the eval_map
         eval_block(block_id, eval_map, ctx);
     }
-    b_left //returns the next block to process
+    Ok(b_left) //returns the next block to process
 }
 
 //evaluate phi instruction, coming from 'from' block; retrieve the argument corresponding to the block, evaluates it and update the evaluation map
@@ -220,7 +225,7 @@ fn evaluate_phi(
     from: BlockId,
     to: &mut HashMap<NodeId, NodeEval>,
     ctx: &mut SsaContext,
-) {
+) -> Result<(), RuntimeError> {
     let mut to_process = Vec::new();
     for i in instructions {
         if let Some(ins) = ctx.try_get_instruction(*i) {
@@ -231,7 +236,7 @@ fn evaluate_phi(
                         let arg = *arg;
                         let id = ins.id;
                         to_process
-                            .push((id, evaluate_one(NodeEval::VarOrInstruction(arg), to, ctx)));
+                            .push((id, evaluate_one(NodeEval::VarOrInstruction(arg), to, ctx)?));
                     }
                 }
             } else if ins.operation != node::Operation::Nop {
@@ -243,6 +248,7 @@ fn evaluate_phi(
     for obj in to_process {
         to.insert(obj.0, NodeEval::VarOrInstruction(obj.1.to_index(ctx)));
     }
+    Ok(())
 }
 
 //returns true if we should jump
@@ -250,18 +256,18 @@ fn evaluate_conditional_jump(
     jump: NodeId,
     value_array: &mut HashMap<NodeId, NodeEval>,
     ctx: &mut SsaContext,
-) -> bool {
+) -> Result<bool, RuntimeError> {
     let jump_ins = ctx.try_get_instruction(jump).unwrap();
 
     let (cond_id, should_jump): (_, fn(FieldElement) -> bool) = match jump_ins.operation {
         Operation::Jeq(cond_id, _) => (cond_id, |field| !field.is_zero()),
         Operation::Jne(cond_id, _) => (cond_id, |field| field.is_zero()),
-        Operation::Jmp(_) => return true,
+        Operation::Jmp(_) => return Ok(true),
         _ => panic!("loop without conditional statement!"), //TODO shouldn't we return false instead?
     };
 
     let cond = get_current_value(cond_id, value_array);
-    let cond = match evaluate_object(cond, value_array, ctx).into_const_value() {
+    let cond = match evaluate_object(cond, value_array, ctx)?.into_const_value() {
         Some(c) => c,
         None => unreachable!(
             "Conditional jump argument is non-const: {:?}",
@@ -269,7 +275,7 @@ fn evaluate_conditional_jump(
         ),
     };
 
-    should_jump(cond)
+    Ok(should_jump(cond))
 }
 
 //Retrieve the NodeEval value of the index in the evaluation map
@@ -293,13 +299,13 @@ fn evaluate_one(
     obj: NodeEval,
     value_array: &HashMap<NodeId, NodeEval>,
     ctx: &SsaContext,
-) -> NodeEval {
+) -> Result<NodeEval, RuntimeError> {
     let mut modified = false;
     match get_current_value_for_node_eval(obj, value_array) {
-        NodeEval::Const(_, _) => obj,
+        NodeEval::Const(_, _) => Ok(obj),
         NodeEval::VarOrInstruction(obj_id) => {
             if ctx.try_get_node(obj_id).is_none() {
-                return obj;
+                return Ok(obj);
             }
 
             match &ctx[obj_id] {
@@ -311,22 +317,24 @@ fn evaluate_one(
                     if let Operation::Phi { .. } = i.operation {
                         //n.b phi are handled before, else we should know which block we come from
                         dbg!(i.id);
-                        return NodeEval::VarOrInstruction(i.id);
+                        return Ok(NodeEval::VarOrInstruction(i.id));
                     }
 
-                    let result = i.evaluate_with(ctx, |_, id| get_current_value(id, value_array));
+                    let result =
+                        i.evaluate_with(ctx, |_, id| Ok(get_current_value(id, value_array)))?;
+
                     if let NodeEval::VarOrInstruction(idx) = result {
                         if ctx.try_get_node(idx).is_none() {
-                            return NodeEval::VarOrInstruction(obj_id);
+                            return Ok(NodeEval::VarOrInstruction(obj_id));
                         }
                     }
-                    result
+                    Ok(result)
                 }
                 NodeObj::Const(c) => {
                     let value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
-                    NodeEval::Const(value, c.get_type())
+                    Ok(NodeEval::Const(value, c.get_type()))
                 }
-                NodeObj::Obj(_) => NodeEval::VarOrInstruction(obj_id),
+                NodeObj::Obj(_) => Ok(NodeEval::VarOrInstruction(obj_id)),
             }
         }
     }
@@ -337,39 +345,39 @@ fn evaluate_object(
     obj: NodeEval,
     value_array: &HashMap<NodeId, NodeEval>,
     ctx: &SsaContext,
-) -> NodeEval {
+) -> Result<NodeEval, RuntimeError> {
     match get_current_value_for_node_eval(obj, value_array) {
-        NodeEval::Const(_, _) => obj,
+        NodeEval::Const(_, _) => Ok(obj),
         NodeEval::VarOrInstruction(obj_id) => {
             if ctx.try_get_node(obj_id).is_none() {
                 dbg!(obj_id);
-                return obj;
+                return Ok(obj);
             }
 
             match &ctx[obj_id] {
                 NodeObj::Instr(i) => {
                     if let Operation::Phi { .. } = i.operation {
                         dbg!(i.id);
-                        return NodeEval::VarOrInstruction(i.id);
+                        return Ok(NodeEval::VarOrInstruction(i.id));
                     }
 
                     //n.b phi are handled before, else we should know which block we come from
                     let result = i.evaluate_with(ctx, |ctx, id| {
                         evaluate_object(get_current_value(id, value_array), value_array, ctx)
-                    });
+                    })?;
 
                     if let NodeEval::VarOrInstruction(idx) = result {
                         if ctx.try_get_node(idx).is_none() {
-                            return NodeEval::VarOrInstruction(obj_id);
+                            return Ok(NodeEval::VarOrInstruction(obj_id));
                         }
                     }
-                    result
+                    Ok(result)
                 }
                 NodeObj::Const(c) => {
                     let value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
-                    NodeEval::Const(value, c.get_type())
+                    Ok(NodeEval::Const(value, c.get_type()))
                 }
-                NodeObj::Obj(_) => NodeEval::VarOrInstruction(obj_id),
+                NodeObj::Obj(_) => Ok(NodeEval::VarOrInstruction(obj_id)),
             }
         }
     }

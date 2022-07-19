@@ -1,5 +1,5 @@
 use noirc_abi::Abi;
-use noirc_errors::Span;
+use noirc_errors::{Location, Span};
 
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
@@ -70,7 +70,7 @@ impl Parameters {
     pub fn span(&self) -> Span {
         assert!(!self.is_empty());
         let mut spans = vecmap(&self.0, |param| match &param.0 {
-            HirPattern::Identifier(ident) => ident.span,
+            HirPattern::Identifier(ident) => ident.location.span,
             HirPattern::Mutable(_, span) => *span,
             HirPattern::Tuple(_, span) => *span,
             HirPattern::Struct(_, _, span) => *span,
@@ -119,6 +119,8 @@ pub struct FuncMeta {
     pub attributes: Option<Attribute>,
     pub parameters: Parameters,
     pub return_type: Type,
+
+    pub location: Location,
 
     // This flag is needed for the attribute check pass
     pub has_body: bool,

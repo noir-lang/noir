@@ -16,6 +16,7 @@ use acvm::FieldElement;
 use acvm::Language;
 use environment::{Environment, FuncContext};
 use errors::{RuntimeError, RuntimeErrorKind};
+use noirc_errors::Location;
 use noirc_frontend::{
     hir::Context,
     node_interner::{DefinitionId, NodeInterner},
@@ -138,6 +139,7 @@ impl<'a> Evaluator<'a> {
         self.gates.push(Gate::Arithmetic(constraint));
         (inter_var_object, inter_var_witness)
     }
+
     pub fn evaluate_infix_expression(
         &mut self,
         lhs: Object,
@@ -174,7 +176,7 @@ impl<'a> Evaluator<'a> {
                 "Bit shift operations are not currently implemented.".to_owned(),
             )),
         }
-        .map_err(|kind| kind.add_span(op.span))
+        .map_err(|kind| kind.add_location(op.location))
     }
 
     // When we evaluate an identifier , it will be a linear polynomial
@@ -208,11 +210,12 @@ impl<'a> Evaluator<'a> {
         enable_logging: bool,
     ) -> Result<(), RuntimeError> {
         let mut igen = IRGenerator::new(self.context);
-        let constrain_main_return = self.parse_abi_alt(env, &mut igen)?;
+        self.parse_abi_alt(env, &mut igen)?;
 
         // Now call the main function
         let main_func_body = self.context.def_interner.function(&self.main_function);
-        ssa::code_gen::evaluate_main(&mut igen, env, main_func_body, constrain_main_return)?;
+        let location = self.context.def_interner.function_meta(&self.main_function).location;
+        ssa::code_gen::evaluate_main(&mut igen, env, main_func_body, location)?;
 
         //Generates ACIR representation:
         igen.context.ir_to_acir(self, enable_logging)?;
@@ -232,7 +235,9 @@ impl<'a> Evaluator<'a> {
         let func_meta = self.context.def_interner.function_meta(&self.main_function);
         // XXX: We make the span very general here, so an error will underline all of the parameters in the span
         // This maybe not be desireable in the long run, because we want to point to the exact place
+
         let param_span = func_meta.parameters.span();
+        let param_location = Location::new(param_span, func_meta.location.file);
 
         let abi = func_meta.into_abi(&self.context.def_interner);
 
@@ -263,7 +268,7 @@ impl<'a> Evaluator<'a> {
                                 let integer = Integer::from_witness_unconstrained(witness, width);
                                 integer
                                     .constrain(self)
-                                    .map_err(|kind| kind.add_span(param_span))?;
+                                    .map_err(|kind| kind.add_location(param_location))?;
                                 Object::Integer(integer)
                             }
                             noirc_abi::AbiType::Field(noirc_abi::AbiFEType::Private) => {
@@ -295,7 +300,7 @@ impl<'a> Evaluator<'a> {
                     );
 
                     let integer = Integer::from_witness_unconstrained(witness, width);
-                    integer.constrain(self).map_err(|kind| kind.add_span(param_span))?;
+                    integer.constrain(self).map_err(|kind| kind.add_location(param_location))?;
 
                     env.store(param_name, Object::Integer(integer));
                 }
@@ -315,7 +320,7 @@ impl<'a> Evaluator<'a> {
         name: &str,
         def: DefinitionId,
         param_type: &Type,
-        param_span: noirc_errors::Span,
+        param_location: Location,
         igen: &mut IRGenerator,
     ) -> Result<(), RuntimeError> {
         match param_type {
@@ -342,7 +347,7 @@ impl<'a> Evaluator<'a> {
                             witnesses.push(witness);
                             if let Some(ww) = element_width {
                                 ssa::acir_gen::range_constraint(witness, ww, self)
-                                    .map_err(|e| e.add_span(param_span))?;
+                                    .map_err(|e| e.add_location(param_location))?;
                             }
                             if ft.strict_eq(&FieldElementType::Public) {
                                 self.public_inputs.push(witness);
@@ -355,7 +360,7 @@ impl<'a> Evaluator<'a> {
             Type::Integer(_, ft, sign, width) => {
                 let witness = self.add_witness_to_cs();
                 ssa::acir_gen::range_constraint(witness, *width, self)
-                    .map_err(|e| e.add_span(param_span))?;
+                    .map_err(|e| e.add_location(param_location))?;
                 if ft.strict_eq(&FieldElementType::Public) {
                     self.public_inputs.push(witness);
                 }
@@ -369,7 +374,7 @@ impl<'a> Evaluator<'a> {
                 }
             }
             Type::PolymorphicInteger(..) => unreachable!(),
-            Type::Bool => todo!(),
+            Type::Bool(_) => todo!(),
             Type::Unit => todo!(),
             Type::Struct(_, _) => todo!(),
             Type::Tuple(_) => todo!(),
@@ -387,28 +392,26 @@ impl<'a> Evaluator<'a> {
         &mut self,
         _env: &mut Environment,
         igen: &mut IRGenerator,
-    ) -> Result<bool, RuntimeError> {
+    ) -> Result<(), RuntimeError> {
         // XXX: Currently, the syntax only supports public witnesses
         // u8 and arrays are assumed to be private
         // This is not a short-coming of the ABI, but of the grammar
         // The new grammar has been conceived, and will be implemented.
-
         let func_meta = self.context.def_interner.function_meta(&self.main_function);
-        // XXX: We make the span very general here, so an error will underline all of the parameters in the span
-        // This maybe not be desireable in the long run, because we want to point to the exact place
-        let param_span = func_meta.parameters.span();
+
         for param in &func_meta.parameters.0 {
             match &param.0 {
-                HirPattern::Identifier(ident_id) => {
-                    let name = self.context.def_interner.definition_name(ident_id.id);
-                    let ident_def = ident_id.id;
-                    self.param_to_var(name, ident_def, &param.1, param_span, igen)?;
+                HirPattern::Identifier(ident) => {
+                    let name = self.context.def_interner.definition_name(ident.id);
+                    let ident_def = ident.id;
+                    self.param_to_var(name, ident_def, &param.1, ident.location, igen)?;
                 }
                 HirPattern::Mutable(hir_pattern, span_pattern) => {
                     if let HirPattern::Identifier(ident_id) = **hir_pattern {
                         let name = self.context.def_interner.definition_name(ident_id.id);
                         let ident_def = ident_id.id;
-                        self.param_to_var(name, ident_def, &param.1, *span_pattern, igen)?;
+                        let location = Location::new(*span_pattern, func_meta.location.file);
+                        self.param_to_var(name, ident_def, &param.1, location, igen)?;
                     }
                 }
                 HirPattern::Tuple(_, _) => todo!(),
@@ -416,15 +419,20 @@ impl<'a> Evaluator<'a> {
             }
         }
 
-        let constrain_main_return = func_meta.return_type != Type::Unit;
-        if constrain_main_return {
+        if func_meta.return_type != Type::Unit {
             // Must create a fake variable for the return from main to turn it into a pub parameter.
             let ident_def = NodeInterner::main_return_id();
             let ident_name = NodeInterner::main_return_name();
-            self.param_to_var(ident_name, ident_def, &func_meta.return_type, param_span, igen)?;
+            self.param_to_var(
+                ident_name,
+                ident_def,
+                &func_meta.return_type,
+                func_meta.location,
+                igen,
+            )?;
         }
 
-        Ok(constrain_main_return)
+        Ok(())
     }
 
     fn pattern_name(&self, pattern: &HirPattern) -> String {
@@ -479,7 +487,7 @@ impl<'a> Evaluator<'a> {
         variable_name: String,
         rhs: &ExprId,
     ) -> Result<Object, RuntimeError> {
-        let rhs_span = self.context.def_interner.expr_span(rhs);
+        let rhs_span = self.context.def_interner.expr_location(rhs);
         let rhs_poly = self.expression_to_object(env, rhs)?;
 
         // We do not store it in the environment yet, because it may need to be casted to an integer
@@ -502,7 +510,7 @@ impl<'a> Evaluator<'a> {
             .ok_or(RuntimeErrorKind::UnstructuredError {
                 message: "only witnesses can be used in a private statement".to_string(),
             })
-            .map_err(|kind| kind.add_span(rhs_span))?;
+            .map_err(|kind| kind.add_location(rhs_span))?;
         self.gates.push(Gate::Arithmetic(&rhs_as_witness - &witness.to_unknown()));
 
         // Lets go through some possible scenarios to explain why the code is correct
@@ -538,47 +546,7 @@ impl<'a> Evaluator<'a> {
         env: &mut Environment,
         constrain_stmt: HirConstrainStatement,
     ) -> Result<Object, RuntimeError> {
-        let lhs_poly = self.expression_to_object(env, &constrain_stmt.0.lhs)?;
-        let rhs_poly = self.expression_to_object(env, &constrain_stmt.0.rhs)?;
-
-        // Evaluate the constrain infix statement
-        let _ = self.evaluate_infix_expression(
-            lhs_poly.clone(),
-            rhs_poly.clone(),
-            constrain_stmt.0.operator,
-        )?;
-
-        // The code below is an optimisation strategy for when either side is of the form
-        //
-        // constrain x == 4
-        // constrain y == 4t + m
-        //
-        // In the above extracts, we can use interpret x as a constant and y as a constant.
-        //
-        // We should also check for unused witnesses and transform the circuit, so
-        // that you do not need to compute them.
-        //
-        // XXX: We could probably move this into equal folder, as it is an optimisation that only applies to it
-        // Moreover: This could be moved to ACVM.
-        if constrain_stmt.0.operator.kind == HirBinaryOpKind::Equal {
-            // Check if we have any lone variables and then if the other side is a linear/constant
-            let (lhs_unit_witness, rhs) =
-                match (lhs_poly.is_unit_witness(), rhs_poly.is_unit_witness()) {
-                    (true, _) => (lhs_poly.witness(), rhs_poly),
-                    (_, true) => (rhs_poly.witness(), lhs_poly),
-                    (_, _) => (None, Object::Null),
-                };
-
-            if let Some(unit_wit) = lhs_unit_witness {
-                // Check if the RHS is linear or constant
-                if rhs.is_linear() | rhs.is_constant() {
-                    // The alternative can happen if the element is from an array
-                    if let Some(var_name) = env.find_with_value(&unit_wit) {
-                        env.store(var_name, rhs)
-                    }
-                }
-            }
-        };
+        self.expression_to_object(env, &constrain_stmt.0)?;
         Ok(Object::Null)
     }
 
@@ -598,8 +566,9 @@ impl<'a> Evaluator<'a> {
             Type::FieldElement(IsConst::Yes(_), _) => {
                 // const can only be integers/Field elements, cannot involve the witness, so we can possibly move this to
                 // analysis. Right now it would not make a difference, since we are not compiling to an intermediate Noir format
-                let span = self.context.def_interner.expr_span(rhs);
-                let value = self.evaluate_integer(env, rhs).map_err(|kind| kind.add_span(span))?;
+                let span = self.context.def_interner.expr_location(rhs);
+                let value =
+                    self.evaluate_integer(env, rhs).map_err(|kind| kind.add_location(span))?;
 
                 env.store(variable_name, value);
             }
@@ -686,7 +655,7 @@ impl<'a> Evaluator<'a> {
         env: &mut Environment,
         expr_id: &ExprId,
     ) -> Result<Object, RuntimeError> {
-        let span = self.context.def_interner.expr_span(expr_id);
+        let loc = self.context.def_interner.expr_location(expr_id);
 
         match self.context.def_interner.expression(expr_id) {
             HirExpression::Literal(HirLiteral::Integer(x)) => Ok(Object::Constants(x)),
@@ -701,7 +670,7 @@ impl<'a> Evaluator<'a> {
             }
             HirExpression::Cast(cast_expr) => {
                 let lhs = self.expression_to_object(env, &cast_expr.lhs)?;
-                binary_op::handle_cast_op(self,lhs, cast_expr.r#type).map_err(|kind|kind.add_span(span))
+                binary_op::handle_cast_op(self,lhs, cast_expr.r#type).map_err(|kind|kind.add_location(loc))
             }
             HirExpression::Index(indexed_expr) => {
                 // Currently these only happen for arrays
@@ -711,8 +680,8 @@ impl<'a> Evaluator<'a> {
                 };
 
                 let arr_name = self.context.def_interner.definition_name(collection_name.id);
-                let ident_span = collection_name.span;
-                let arr = env.get_array(arr_name).map_err(|kind|kind.add_span(ident_span))?;
+                let ident_location = collection_name.location;
+                let arr = env.get_array(arr_name).map_err(|kind|kind.add_location(ident_location))?;
 
                 //
                 // Evaluate the index expression
@@ -723,7 +692,7 @@ impl<'a> Evaluator<'a> {
                 };
                 //
                 let index_as_u128 = index_as_constant.to_u128();
-                arr.get(index_as_u128).map_err(|kind|kind.add_span(span))
+                arr.get(index_as_u128).map_err(|kind|kind.add_location(loc))
             }
             HirExpression::Call(call_expr) => {
 
@@ -737,16 +706,16 @@ impl<'a> Evaluator<'a> {
                     FunctionKind::LowLevel => {
                         let attribute = func_meta.attributes.expect("all low level functions must contain an attribute which contains the opcode which it links to");
                         let opcode_name = attribute.foreign().expect("ice: function marked as foreign, but attribute kind does not match this");
-                        low_level_function_impl::call_low_level(self, env, opcode_name, (call_expr, span))
+                        low_level_function_impl::call_low_level(self, env, opcode_name, call_expr, loc)
                     },
                     FunctionKind::Builtin => {
                         let attribute = func_meta.attributes.expect("all builtin functions must contain an attribute which contains the function name which it links to");
                         let builtin_name = attribute.builtin().expect("ice: function marked as a builtin, but attribute kind does not match this");
-                        builtin::call_builtin(self, env, builtin_name, (call_expr,span))
+                        builtin::call_builtin(self, env, builtin_name, call_expr, loc)
                     },
                 }
             }
-            HirExpression::For(for_expr) => self.handle_for_expr(env,for_expr).map_err(|kind|kind.add_span(span)),
+            HirExpression::For(for_expr) => self.handle_for_expr(env,for_expr).map_err(|kind|kind.add_location(loc)),
             HirExpression::If(_) => todo!("If expressions are currently unimplemented"),
             HirExpression::Prefix(_) => todo!("Prefix expressions are currently unimplemented"),
             HirExpression::Literal(HirLiteral::Str(_)) => todo!("string literals are currently unimplemented"),

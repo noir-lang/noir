@@ -2,7 +2,8 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use acvm::FieldElement;
-use noirc_errors::Span;
+use fm::FileId;
+use noirc_errors::Location;
 
 use crate::node_interner::{DefinitionId, ExprId, FuncId, StmtId, StructId};
 use crate::{BinaryOp, BinaryOpKind, Ident, UnaryOp};
@@ -37,7 +38,7 @@ impl HirExpression {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct HirIdent {
-    pub span: Span,
+    pub location: Location,
     pub id: DefinitionId,
 }
 
@@ -71,8 +72,8 @@ pub enum HirBinaryOpKind {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct HirBinaryOp {
-    pub span: Span,
     pub kind: HirBinaryOpKind,
+    pub location: Location,
 }
 
 impl From<BinaryOpKind> for HirBinaryOpKind {
@@ -97,11 +98,12 @@ impl From<BinaryOpKind> for HirBinaryOpKind {
         }
     }
 }
-impl From<BinaryOp> for HirBinaryOp {
-    fn from(a: BinaryOp) -> HirBinaryOp {
-        let kind: HirBinaryOpKind = a.contents.into();
 
-        HirBinaryOp { span: a.span(), kind }
+impl HirBinaryOp {
+    pub fn new(op: BinaryOp, file: FileId) -> Self {
+        let kind: HirBinaryOpKind = op.contents.into();
+        let location = Location::new(op.span(), file);
+        HirBinaryOp { location, kind }
     }
 }
 

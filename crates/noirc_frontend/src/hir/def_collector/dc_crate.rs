@@ -185,8 +185,10 @@ fn collect_impls(
         let path_resolver =
             StandardPathResolver::new(ModuleId { local_id: *module_id, krate: crate_id });
 
+        let file = def_maps[&crate_id].module_file_id(*module_id);
+
         for unresolved in methods {
-            let resolver = Resolver::new(interner, &path_resolver, def_maps);
+            let resolver = Resolver::new(interner, &path_resolver, def_maps, file);
             let (typ, more_errors) = resolver.lookup_type_for_impl(path.clone());
             if !more_errors.is_empty() {
                 errors.push(CollectedErrors {
@@ -253,8 +255,11 @@ fn resolve_struct_fields(
     let path_resolver =
         StandardPathResolver::new(ModuleId { local_id: unresolved.module_id, krate });
 
-    let (typ, errs) = Resolver::new(&mut context.def_interner, &path_resolver, &context.def_maps)
-        .resolve_struct_fields(unresolved.struct_def);
+    let file = unresolved.file_id;
+
+    let (typ, errs) =
+        Resolver::new(&mut context.def_interner, &path_resolver, &context.def_maps, file)
+            .resolve_struct_fields(unresolved.struct_def);
 
     if !errs.is_empty() {
         errors.push(CollectedErrors {
@@ -279,7 +284,9 @@ fn resolve_impls(
         let path_resolver =
             StandardPathResolver::new(ModuleId { local_id: module_id, krate: crate_id });
 
-        let mut resolver = Resolver::new(interner, &path_resolver, def_maps);
+        let file = def_maps[&crate_id].module_file_id(module_id);
+
+        let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
         let self_type = resolver.lookup_struct(path);
         let self_type_id = self_type.as_ref().map(|typ| typ.borrow().id);
 
@@ -332,7 +339,7 @@ fn resolve_functions(
             let path_resolver =
                 StandardPathResolver::new(ModuleId { local_id: mod_id, krate: crate_id });
 
-            let mut resolver = Resolver::new(interner, &path_resolver, def_maps);
+            let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file_id);
             resolver.set_self_type(self_type);
 
             let (hir_func, func_meta, errs) = resolver.resolve_function(func);

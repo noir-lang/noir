@@ -1,5 +1,5 @@
 use super::mem::{ArrayId, MemArray, Memory};
-use super::node::{BinaryOp, ConstrainOp, Instruction, ObjectType, Operation};
+use super::node::{BinaryOp, Instruction, ObjectType, Operation};
 use acvm::acir::OPCODE;
 use acvm::FieldElement;
 
@@ -72,15 +72,7 @@ impl From<Witness> for InternalVar {
 
 impl From<FieldElement> for InternalVar {
     fn from(f: FieldElement) -> InternalVar {
-        InternalVar {
-            expression: Expression {
-                mul_terms: Vec::new(),
-                linear_combinations: Vec::new(),
-                q_c: f,
-            },
-            witness: None,
-            id: None,
-        }
+        InternalVar { expression: Expression::from_field(f), witness: None, id: None }
     }
 }
 
@@ -100,11 +92,7 @@ impl Acir {
         let var = match ctx.try_get_node(id) {
             Some(node::NodeObj::Const(c)) => {
                 let f_value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be()); //TODO const should be a field
-                let expr = Expression {
-                    mul_terms: Vec::new(),
-                    linear_combinations: Vec::new(),
-                    q_c: f_value, //TODO handle other types
-                };
+                let expr = Expression::from_field(f_value);
                 InternalVar::new(expr, None, id)
             }
             Some(node::NodeObj::Obj(v)) => match v.get_type() {
@@ -138,6 +126,12 @@ impl Acir {
 
         let mut output = match &ins.operation {
             Operation::Binary(binary) => self.evaluate_binary(binary, ins.res_type, evaluator, ctx),
+            Operation::Constrain(value, ..) => {
+                let value = self.substitute(*value, evaluator, ctx);
+                let subtract = subtract(&Expression::one(), FieldElement::one(), &value.expression);
+                evaluator.gates.push(Gate::Arithmetic(subtract));
+                value
+            }
             Operation::Not(value) => {
                 let a = (1_u128 << ins.res_type.bits()) - 1;
                 let l_c = self.substitute(*value, evaluator, ctx);
@@ -322,14 +316,6 @@ impl Acir {
             BinaryOp::And => InternalVar::from(evaluate_and(l_c, r_c, res_type.bits(), evaluator)),
             BinaryOp::Or => InternalVar::from(evaluate_or(l_c, r_c, res_type.bits(), evaluator)),
             BinaryOp::Xor => InternalVar::from(evaluate_xor(l_c, r_c, res_type.bits(), evaluator)),
-            BinaryOp::Constrain(op) => match op {
-                ConstrainOp::Eq => InternalVar::from(
-                    self.equalize(binary.lhs, binary.rhs, &l_c, &r_c, ctx, evaluator),
-                ),
-                ConstrainOp::Neq => InternalVar::from(
-                    self.distinct(binary.lhs, binary.rhs, &l_c, &r_c, ctx, evaluator),
-                ),
-            },
             BinaryOp::Shl | BinaryOp::Shr => unreachable!(),
             i @ BinaryOp::Assign => unreachable!("Invalid Instruction: {:?}", i),
         }
@@ -394,11 +380,7 @@ impl Acir {
                 from_witness(evaluate_zero_equality(&x, evaluator))
             } else {
                 //If length are different, then the arrays are different
-                Expression {
-                    mul_terms: Vec::new(),
-                    linear_combinations: Vec::new(),
-                    q_c: FieldElement::one(),
-                }
+                Expression::one()
             }
         } else {
             let mut x =
@@ -417,71 +399,8 @@ impl Acir {
         ctx: &SsaContext,
         evaluator: &mut Evaluator,
     ) -> Expression {
-        subtract(
-            &Expression {
-                mul_terms: Vec::new(),
-                linear_combinations: Vec::new(),
-                q_c: FieldElement::one(),
-            },
-            FieldElement::one(),
-            &self.evaluate_neq(lhs, rhs, l_c, r_c, ctx, evaluator),
-        )
-    }
-
-    //Constraint lhs to be different than rhs
-    pub fn distinct(
-        &mut self,
-        lhs: NodeId,
-        rhs: NodeId,
-        l_c: &InternalVar,
-        r_c: &InternalVar,
-        ctx: &SsaContext,
-        evaluator: &mut Evaluator,
-    ) -> Expression {
-        if let (Some(a), Some(b)) = (Memory::deref(ctx, lhs), Memory::deref(ctx, rhs)) {
-            let array_a = &ctx.mem[a];
-            let array_b = &ctx.mem[b];
-            //If length are different, then the arrays are different
-            if array_a.len == array_b.len {
-                let sum = self.zero_eq_array_sum(array_a, array_b, evaluator);
-                evaluate_inverse(InternalVar::from(sum), evaluator);
-            }
-        } else {
-            let diff = subtract(&l_c.expression, FieldElement::one(), &r_c.expression);
-            evaluate_inverse(InternalVar::from(diff), evaluator);
-        }
-        Expression::default()
-    }
-
-    //Constraint lhs to be equal to rhs
-    pub fn equalize(
-        &mut self,
-        lhs: NodeId,
-        rhs: NodeId,
-        l_c: &InternalVar,
-        r_c: &InternalVar,
-        ctx: &SsaContext,
-        evaluator: &mut Evaluator,
-    ) -> Expression {
-        if let (Some(a), Some(b)) = (Memory::deref(ctx, lhs), Memory::deref(ctx, rhs)) {
-            let a_values = self.load_array(&ctx.mem[a], false, evaluator);
-            let b_values = self.load_array(&ctx.mem[b], false, evaluator);
-            assert!(a_values.len() == b_values.len());
-            for (a_iter, b_iter) in a_values.into_iter().zip(b_values) {
-                let array_diff =
-                    subtract(&a_iter.expression, FieldElement::one(), &b_iter.expression);
-                evaluator.gates.push(Gate::Arithmetic(array_diff));
-            }
-            Expression::default()
-        } else {
-            let output = add(&l_c.expression, FieldElement::from(-1_i128), &r_c.expression);
-            if is_const(&output) {
-                assert_eq!(output.q_c, FieldElement::zero());
-            } else {
-                evaluator.gates.push(Gate::Arithmetic(output.clone()));
-            }
-            output
-        }
+        let neq = self.evaluate_neq(lhs, rhs, l_c, r_c, ctx, evaluator);
+        subtract(&Expression::one(), FieldElement::one(), &neq)
     }
 
     //Generates gates for the expression: \sum_i(zero_eq(A[i]-B[i]))
@@ -742,15 +661,7 @@ fn const_xor(
     let two = FieldElement::from(2_i128);
     for (a_iter, b_iter) in a_bits.into_iter().zip(b.bits().iter().rev()) {
         if *b_iter {
-            let c = subtract(
-                &Expression {
-                    mul_terms: Vec::new(),
-                    linear_combinations: Vec::new(),
-                    q_c: FieldElement::one(),
-                },
-                FieldElement::one(),
-                &from_witness(a_iter),
-            );
+            let c = subtract(&Expression::one(), FieldElement::one(), &from_witness(a_iter));
             result = add(&result, k, &c);
         } else {
             result = add(&result, k, &from_witness(a_iter));
@@ -1036,11 +947,7 @@ fn evaluate_inverse(x: InternalVar, evaluator: &mut Evaluator) -> Witness {
     evaluator.gates.push(Gate::Arithmetic(add(
         &mul(&from_witness(x_witness), &inverse_expr),
         FieldElement::one(),
-        &Expression {
-            mul_terms: Vec::new(),
-            linear_combinations: Vec::new(),
-            q_c: FieldElement::from(-1_i128),
-        },
+        &Expression::from_field(FieldElement::from(-1_i128)),
     )));
     inverse_witness
 }
@@ -1056,11 +963,7 @@ pub fn mul(a: &Expression, b: &Expression) -> Expression {
         todo!("PANIC");
     }
 
-    let mut output = Expression {
-        mul_terms: Vec::new(),
-        linear_combinations: Vec::new(),
-        q_c: a.q_c * b.q_c, //constant term
-    };
+    let mut output = Expression::from_field(a.q_c * b.q_c);
 
     //TODO to optimise...
     for lc in &a.linear_combinations {

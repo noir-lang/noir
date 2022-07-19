@@ -1,3 +1,5 @@
+use crate::errors::RuntimeError;
+
 use super::{
     block::BlockId,
     //block,
@@ -43,31 +45,26 @@ fn get_instruction_max_operand(
     match &ins.operation {
         Operation::Load { array_id, index } => get_load_max(ctx, *index, max_map, vmap, *array_id),
         Operation::Binary(node::Binary { operator, lhs, rhs }) => {
-            match operator {
-                BinaryOp::Sub { .. } => {
-                    //TODO uses interval analysis instead
-                    if matches!(ins.res_type, ObjectType::Unsigned(_)) {
-                        if let Some(lhs_const) = ctx.get_as_constant(*lhs) {
-                            let lhs_big = BigUint::from_bytes_be(&lhs_const.to_bytes());
-                            if max_map[rhs] <= lhs_big {
-                                //TODO unsigned
-                                return lhs_big;
-                            }
+            if let BinaryOp::Sub { .. } = operator {
+                //TODO uses interval analysis instead
+                if matches!(ins.res_type, ObjectType::Unsigned(_)) {
+                    if let Some(lhs_const) = ctx.get_as_constant(*lhs) {
+                        let lhs_big = BigUint::from_bytes_be(&lhs_const.to_bytes());
+                        if max_map[rhs] <= lhs_big {
+                            //TODO unsigned
+                            return lhs_big;
                         }
                     }
-                    get_max_value(ins, max_map)
                 }
-                BinaryOp::Constrain(_) => {
-                    //ContrainOp::Eq :
-                    //TODO... we should update the max_map AFTER the truncate is processed (else it breaks it)
-                    // let min = BigUint::min(left_max.clone(), right_max.clone());
-                    // max_map.insert(ins.lhs, min.clone());
-                    // max_map.insert(ins.rhs, min);
-                    get_max_value(ins, max_map)
-                }
-                _ => get_max_value(ins, max_map),
             }
+            get_max_value(ins, max_map)
         }
+        // Operation::Constrain(_) => {
+        //ContrainOp::Eq :
+        //TODO... we should update the max_map AFTER the truncate is processed (else it breaks it)
+        // let min = BigUint::min(left_max.clone(), right_max.clone());
+        // max_map.insert(ins.lhs, min.clone());
+        // max_map.insert(ins.rhs, min);
         _ => get_max_value(ins, max_map),
     }
 }
@@ -197,10 +194,10 @@ fn process_to_truncate(
 }
 
 //Add required truncate instructions on all blocks
-pub fn overflow_strategy(ctx: &mut SsaContext) {
+pub fn overflow_strategy(ctx: &mut SsaContext) -> Result<(), RuntimeError> {
     let mut max_map: HashMap<NodeId, BigUint> = HashMap::new();
     let mut memory_map = HashMap::new();
-    tree_overflow(ctx, ctx.first_block, &mut max_map, &mut memory_map);
+    tree_overflow(ctx, ctx.first_block, &mut max_map, &mut memory_map)
 }
 
 //implement overflow strategy following the dominator tree
@@ -209,12 +206,13 @@ fn tree_overflow(
     b_idx: BlockId,
     max_map: &mut HashMap<NodeId, BigUint>,
     memory_map: &mut HashMap<u32, NodeId>,
-) {
-    block_overflow(ctx, b_idx, max_map, memory_map);
+) -> Result<(), RuntimeError> {
+    block_overflow(ctx, b_idx, max_map, memory_map)?;
     //TODO: Handle IF statements in there:
     for b in ctx[b_idx].dominated.clone() {
-        tree_overflow(ctx, b, &mut max_map.clone(), &mut memory_map.clone());
+        tree_overflow(ctx, b, &mut max_map.clone(), &mut memory_map.clone())?;
     }
+    Ok(())
 }
 
 //overflow strategy for one block
@@ -223,7 +221,7 @@ fn block_overflow(
     block_id: BlockId,
     max_map: &mut HashMap<NodeId, BigUint>,
     memory_map: &mut HashMap<u32, NodeId>,
-) {
+) -> Result<(), RuntimeError> {
     //for each instruction, we compute the resulting max possible value (in term of the field representation of the operation)
     //when it is over the field charac, or if the instruction requires it, then we insert truncate instructions
     // The instructions are insterted in a duplicate list( because of rust ownership..), which we use for
@@ -386,7 +384,8 @@ fn block_overflow(
 
     //We run another round of CSE for the block in order to remove possible duplicated truncates, this will assign 'new_list' to the block instructions
     let mut modified = false;
-    optim::cse_block(ctx, block_id, &mut new_list, &mut modified);
+    optim::cse_block(ctx, block_id, &mut new_list, &mut modified)?;
+    Ok(())
 }
 
 fn update_value_array(ctx: &mut SsaContext, block_id: BlockId, vmap: &HashMap<NodeId, NodeId>) {
@@ -441,6 +440,7 @@ fn get_max_value(ins: &Instruction, max_map: &mut HashMap<NodeId, BigUint>) -> B
     let max_value = match &ins.operation {
         Operation::Binary(binary) => get_binary_max_value(binary, ins.res_type, max_map),
         Operation::Not(_) => ins.res_type.max_size(),
+        Operation::Constrain(..) => BigUint::zero(),
         //'a cast a' means we cast a into res_type of the instruction
         Operation::Cast(value_id) => {
             let type_max = ins.res_type.max_size();
@@ -536,7 +536,6 @@ fn get_binary_max_value(
                 - BigUint::one()
         }
         BinaryOp::Assign => rhs_max.clone(),
-        BinaryOp::Constrain(_) => BigUint::zero(),
         BinaryOp::Shl => BigUint::min(
             BigUint::from(2_u32).pow((lhs_max.bits() + 1) as u32) - BigUint::one(),
             res_type.max_size(),
