@@ -17,7 +17,8 @@ use crate::{
 use crate::{
     AssignStatement, BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, ForExpression,
     FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, IsConst, LValue,
-    Literal, NoirFunction, NoirImpl, NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp,
+    Literal, NoirContract, NoirFunction, NoirImpl, NoirStruct, Path, PathKind, Pattern,
+    Recoverable, UnaryOp,
 };
 
 use chumsky::prelude::*;
@@ -46,6 +47,7 @@ fn program() -> impl NoirParser<ParsedModule> {
                 TopLevelStatement::Import(i) => program.push_import(i),
                 TopLevelStatement::Struct(s) => program.push_type(s),
                 TopLevelStatement::Impl(i) => program.push_impl(i),
+                TopLevelStatement::Contract(c) => program.push_contract(c),
                 TopLevelStatement::Error => (),
             }
             program
@@ -57,6 +59,7 @@ fn top_level_statement() -> impl NoirParser<TopLevelStatement> {
         function_definition(false).map(TopLevelStatement::Function),
         struct_definition(),
         implementation(),
+        contract(),
         module_declaration().then_ignore(force(just(Token::Semicolon))),
         use_statement().then_ignore(force(just(Token::Semicolon))),
     ))
@@ -164,6 +167,15 @@ fn implementation() -> impl NoirParser<TopLevelStatement> {
         .then(function_definition(true).repeated())
         .then_ignore(just(Token::RightBrace))
         .map(|(type_path, methods)| TopLevelStatement::Impl(NoirImpl { type_path, methods }))
+}
+
+fn contract() -> impl NoirParser<TopLevelStatement> {
+    keyword(Keyword::Contract)
+        .ignore_then(ident())
+        .then_ignore(just(Token::LeftBrace))
+        .then(function_definition(false).repeated())
+        .then_ignore(just(Token::RightBrace))
+        .map(|(name, functions)| TopLevelStatement::Contract(NoirContract { name, functions }))
 }
 
 fn block_expr<'a, P>(expr_parser: P) -> impl NoirParser<Expression> + 'a

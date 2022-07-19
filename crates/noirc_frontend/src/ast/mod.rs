@@ -1,3 +1,4 @@
+mod contract;
 /// This module contains two Ident structures, due to the fact that an identifier may or may not return a value
 /// statement::Ident does not return a value, while Expression::Ident does.
 mod expression;
@@ -8,6 +9,7 @@ mod structure;
 pub use expression::*;
 pub use function::*;
 
+pub use contract::*;
 use noirc_errors::Span;
 pub use statement::*;
 pub use structure::*;

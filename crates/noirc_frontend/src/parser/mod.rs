@@ -4,7 +4,7 @@ mod parser;
 
 use crate::token::{Keyword, Token};
 use crate::{ast::ImportStatement, Expression, NoirStruct};
-use crate::{Ident, NoirFunction, NoirImpl, Recoverable, Statement};
+use crate::{Ident, NoirContract, NoirFunction, NoirImpl, Recoverable, Statement};
 
 use chumsky::prelude::*;
 use chumsky::primitive::Container;
@@ -19,6 +19,7 @@ pub(crate) enum TopLevelStatement {
     Import(ImportStatement),
     Struct(NoirStruct),
     Impl(NoirImpl),
+    Contract(NoirContract),
     Error,
 }
 
@@ -196,6 +197,7 @@ pub struct ParsedModule {
     pub functions: Vec<NoirFunction>,
     pub types: Vec<NoirStruct>,
     pub impls: Vec<NoirImpl>,
+    pub contracts: Vec<NoirContract>,
     pub module_decls: Vec<Ident>,
 }
 
@@ -218,6 +220,10 @@ impl ParsedModule {
 
     fn push_module_decl(&mut self, mod_name: Ident) {
         self.module_decls.push(mod_name);
+    }
+
+    fn push_contract(&mut self, contract: NoirContract) {
+        self.contracts.push(contract);
     }
 }
 
@@ -285,6 +291,7 @@ impl std::fmt::Display for TopLevelStatement {
             TopLevelStatement::Import(i) => i.fmt(f),
             TopLevelStatement::Struct(s) => s.fmt(f),
             TopLevelStatement::Impl(i) => i.fmt(f),
+            TopLevelStatement::Contract(c) => c.fmt(f),
             TopLevelStatement::Error => write!(f, "error"),
         }
     }
