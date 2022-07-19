@@ -34,14 +34,14 @@ fn toml_map_to_field(
             TomlTypes::String(string) => {
                 let new_value = parse_str(&string)?;
                 let old_value = field_map.insert(parameter.clone(), InputValue::Field(new_value));
-                if !old_value.is_none() {
+                if old_value.is_some() {
                     return Err(format!("duplicate variable name {}", parameter));
                 }
             }
             TomlTypes::Integer(integer) => {
                 let new_value = parse_str(&integer.to_string())?;
                 let old_value = field_map.insert(parameter.clone(), InputValue::Field(new_value));
-                if !old_value.is_none() {
+                if old_value.is_some() {
                     return Err(format!("duplicate variable name {}", parameter));
                 }
             }
@@ -50,7 +50,7 @@ fn toml_map_to_field(
                     arr_num.into_iter().map(|elem_num| parse_str(&elem_num.to_string())).collect();
                 let old_value =
                     field_map.insert(parameter.clone(), InputValue::Vec(array_elements?));
-                if !old_value.is_none() {
+                if old_value.is_some() {
                     return Err(format!("duplicate variable name {}", parameter));
                 }
             }
@@ -59,7 +59,7 @@ fn toml_map_to_field(
                     arr_str.into_iter().map(|elem_str| parse_str(&elem_str)).collect();
                 let old_value =
                     field_map.insert(parameter.clone(), InputValue::Vec(array_elements?));
-                if !old_value.is_none() {
+                if old_value.is_some() {
                     return Err(format!("duplicate variable name {}", parameter));
                 }
             }
@@ -85,20 +85,9 @@ enum TomlTypes {
 
 fn parse_str(value: &str) -> Result<FieldElement, String> {
     if value.starts_with("0x") {
-        match FieldElement::from_hex(value) {
-            None => Err(format!("Could not parse hex value {}", value)),
-            Some(val) => Ok(val),
-        }
+        FieldElement::from_hex(value).ok_or(format!("Could not parse hex value {}", value))
     } else {
-        let val: i128 = match value.parse() {
-            Err(msg) => {
-                return Err(format!(
-                    "Expected witness values to be integers, provided value `{}` causes `{}` error",
-                    value, msg
-                ))
-            }
-            Ok(parsed_val) => parsed_val,
-        };
+        let val: i128 = value.parse().map_err(|err_msg| format!("Expected witness values to be integers, provided value `{}` causes `{}` error", value, err_msg))?;
         Ok(FieldElement::from(val))
     }
 }
