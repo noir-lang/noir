@@ -87,7 +87,12 @@ fn parse_str(value: &str) -> Result<FieldElement, String> {
     if value.starts_with("0x") {
         FieldElement::from_hex(value).ok_or(format!("Could not parse hex value {}", value))
     } else {
-        let val: i128 = value.parse().map_err(|err_msg| format!("Expected witness values to be integers, provided value `{}` causes `{}` error", value, err_msg))?;
+        let val: i128 = value.parse().map_err(|err_msg| {
+            format!(
+                "Expected witness values to be integers, provided value `{}` causes `{}` error",
+                value, err_msg
+            )
+        })?;
         Ok(FieldElement::from(val))
     }
 }
