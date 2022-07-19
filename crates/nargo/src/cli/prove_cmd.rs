@@ -91,13 +91,14 @@ pub fn prove_with_path<P: AsRef<Path>>(
     let compiled_program = driver.into_compiled_program(backend.np_language(), show_ssa);
 
     // Parse the initial witness values
-    let witness_map = noirc_abi::input_parser::Format::Toml.parse(program_dir, PROVER_INPUT_FILE).or_else(
-        |err_msg| { return Err(CliError::Generic(format!(
+    let witness_map = noirc_abi::input_parser::Format::Toml
+        .parse(program_dir, PROVER_INPUT_FILE)
+        .or_else(|err_msg| {
+        return Err(CliError::Generic(format!(
             "{}, run nargo build if missing a Prover.toml file",
             err_msg
         )));
-        }
-    )?;
+    })?;
 
     // Check that enough witness values were supplied
     let num_params = compiled_program.abi.as_ref().unwrap().num_parameters();

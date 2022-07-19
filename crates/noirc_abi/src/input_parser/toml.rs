@@ -4,7 +4,9 @@ use std::{collections::BTreeMap, path::Path};
 
 use super::InputValue;
 
-pub(crate) fn parse<P: AsRef<Path>>(path_to_toml: P) -> Result<BTreeMap<String, InputValue>, String> {
+pub(crate) fn parse<P: AsRef<Path>>(
+    path_to_toml: P,
+) -> Result<BTreeMap<String, InputValue>, String> {
     let path_to_toml = path_to_toml.as_ref();
     if !path_to_toml.exists() {
         return Err(format!("cannot find input file at located {}", path_to_toml.display()));
@@ -22,25 +24,25 @@ pub(crate) fn parse<P: AsRef<Path>>(path_to_toml: P) -> Result<BTreeMap<String, 
 
 /// Converts the Toml mapping to the native representation that the compiler
 /// understands for Inputs
-fn toml_map_to_field(toml_map: BTreeMap<String, TomlTypes>) -> Result<BTreeMap<String, InputValue>, String> {
+fn toml_map_to_field(
+    toml_map: BTreeMap<String, TomlTypes>,
+) -> Result<BTreeMap<String, InputValue>, String> {
     let mut field_map = BTreeMap::new();
 
     for (parameter, value) in toml_map {
         match value {
             TomlTypes::String(string) => {
-                let new_value = parse_str(&string)?;       
-                let old_value =
-                    field_map.insert(parameter.clone(), InputValue::Field(new_value));
+                let new_value = parse_str(&string)?;
+                let old_value = field_map.insert(parameter.clone(), InputValue::Field(new_value));
                 if !old_value.is_none() {
-                    return Err(format!("duplicate variable name {}", parameter))
+                    return Err(format!("duplicate variable name {}", parameter));
                 }
             }
             TomlTypes::Integer(integer) => {
                 let new_value = parse_str(&integer.to_string())?;
-                let old_value = field_map
-                    .insert(parameter.clone(), InputValue::Field(new_value));
+                let old_value = field_map.insert(parameter.clone(), InputValue::Field(new_value));
                 if !old_value.is_none() {
-                    return Err(format!("duplicate variable name {}", parameter))
+                    return Err(format!("duplicate variable name {}", parameter));
                 }
             }
             TomlTypes::ArrayNum(arr_num) => {
@@ -49,8 +51,8 @@ fn toml_map_to_field(toml_map: BTreeMap<String, TomlTypes>) -> Result<BTreeMap<S
                 let old_value =
                     field_map.insert(parameter.clone(), InputValue::Vec(array_elements?));
                 if !old_value.is_none() {
-                    return Err(format!("duplicate variable name {}", parameter))
-                }           
+                    return Err(format!("duplicate variable name {}", parameter));
+                }
             }
             TomlTypes::ArrayString(arr_str) => {
                 let array_elements: Result<Vec<_>, _> =
@@ -58,8 +60,8 @@ fn toml_map_to_field(toml_map: BTreeMap<String, TomlTypes>) -> Result<BTreeMap<S
                 let old_value =
                     field_map.insert(parameter.clone(), InputValue::Vec(array_elements?));
                 if !old_value.is_none() {
-                    return Err(format!("duplicate variable name {}", parameter))
-                }            
+                    return Err(format!("duplicate variable name {}", parameter));
+                }
             }
         }
     }
@@ -85,13 +87,17 @@ fn parse_str(value: &str) -> Result<FieldElement, String> {
     if value.starts_with("0x") {
         match FieldElement::from_hex(value) {
             None => Err(format!("Could not parse hex value {}", value)),
-            Some(val) => Ok(val)
+            Some(val) => Ok(val),
         }
     } else {
-        let val: i128 = match value.parse() {
-            Err(msg) => return Err(format!("Expected witness values to be integers, provided value `{}` causes `{}` error", value, msg)),
-            Ok(parsed_val) => parsed_val
-        };
+        let val: i128 =
+            match value.parse() {
+                Err(msg) => return Err(format!(
+                    "Expected witness values to be integers, provided value `{}` causes `{}` error",
+                    value, msg
+                )),
+                Ok(parsed_val) => parsed_val,
+            };
         Ok(FieldElement::from(val))
     }
 }

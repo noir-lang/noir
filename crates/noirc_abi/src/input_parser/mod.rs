@@ -51,7 +51,11 @@ impl Format {
 }
 
 impl Format {
-    pub fn parse<P: AsRef<Path>>(&self, path: P, file_name: &str) -> Result<BTreeMap<String, InputValue>, String> {
+    pub fn parse<P: AsRef<Path>>(
+        &self,
+        path: P,
+        file_name: &str,
+    ) -> Result<BTreeMap<String, InputValue>, String> {
         match self {
             Format::Toml => {
                 let mut dir_path = path.as_ref().to_path_buf();
