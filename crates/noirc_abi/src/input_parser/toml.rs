@@ -33,40 +33,46 @@ fn toml_map_to_field(
         match value {
             TomlTypes::String(string) => {
                 let new_value = parse_str(&string)?;
-                let old_value = field_map.insert(parameter.clone(), InputValue::Field(new_value));
-                if old_value.is_some() {
-                    return Err(format!("duplicate variable name {}", parameter));
-                }
+                check_toml_map_duplicates(&mut field_map, parameter, InputValue::Field(new_value))?
             }
             TomlTypes::Integer(integer) => {
                 let new_value = parse_str(&integer.to_string())?;
-                let old_value = field_map.insert(parameter.clone(), InputValue::Field(new_value));
-                if old_value.is_some() {
-                    return Err(format!("duplicate variable name {}", parameter));
-                }
+                check_toml_map_duplicates(&mut field_map, parameter, InputValue::Field(new_value))?
             }
             TomlTypes::ArrayNum(arr_num) => {
                 let array_elements: Result<Vec<_>, _> =
                     arr_num.into_iter().map(|elem_num| parse_str(&elem_num.to_string())).collect();
-                let old_value =
-                    field_map.insert(parameter.clone(), InputValue::Vec(array_elements?));
-                if old_value.is_some() {
-                    return Err(format!("duplicate variable name {}", parameter));
-                }
+                check_toml_map_duplicates(
+                    &mut field_map,
+                    parameter,
+                    InputValue::Vec(array_elements?),
+                )?
             }
             TomlTypes::ArrayString(arr_str) => {
                 let array_elements: Result<Vec<_>, _> =
                     arr_str.into_iter().map(|elem_str| parse_str(&elem_str)).collect();
-                let old_value =
-                    field_map.insert(parameter.clone(), InputValue::Vec(array_elements?));
-                if old_value.is_some() {
-                    return Err(format!("duplicate variable name {}", parameter));
-                }
+                check_toml_map_duplicates(
+                    &mut field_map,
+                    parameter,
+                    InputValue::Vec(array_elements?),
+                )?
             }
         }
     }
 
     Ok(field_map)
+}
+
+fn check_toml_map_duplicates(
+    field_map: &mut BTreeMap<String, InputValue>,
+    parameter: String,
+    new_value: InputValue,
+) -> Result<(), String> {
+    let old_value = field_map.insert(parameter.clone(), new_value);
+    if old_value.is_some() {
+        return Err(format!("duplicate variable name {}", parameter));
+    }
+    Ok(())
 }
 
 #[derive(Debug, Deserialize)]
