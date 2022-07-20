@@ -17,7 +17,11 @@ use acvm::Language;
 use environment::{Environment, FuncContext};
 use errors::{RuntimeError, RuntimeErrorKind};
 use noirc_errors::Location;
-use noirc_frontend::{hir::Context, node_interner::DefinitionId, IsConst};
+use noirc_frontend::{
+    hir::Context,
+    node_interner::{DefinitionId, NodeInterner},
+    IsConst,
+};
 use noirc_frontend::{
     hir_def::{expr::HirIdent, stmt::HirLValue},
     node_interner::{ExprId, FuncId, StmtId},
@@ -210,7 +214,8 @@ impl<'a> Evaluator<'a> {
 
         // Now call the main function
         let main_func_body = self.context.def_interner.function(&self.main_function);
-        ssa::code_gen::evaluate_main(&mut igen, env, main_func_body)?;
+        let location = self.context.def_interner.function_meta(&self.main_function).location;
+        ssa::code_gen::evaluate_main(&mut igen, env, main_func_body, location)?;
 
         //Generates ACIR representation:
         igen.context.ir_to_acir(self, enable_logging)?;
@@ -232,9 +237,9 @@ impl<'a> Evaluator<'a> {
         // This maybe not be desireable in the long run, because we want to point to the exact place
 
         let param_span = func_meta.parameters.span();
-        let param_location = Location::new(param_span, func_meta.file);
+        let param_location = Location::new(param_span, func_meta.location.file);
 
-        let abi = func_meta.parameters.into_abi(&self.context.def_interner);
+        let abi = func_meta.into_abi(&self.context.def_interner);
 
         for (param_name, param_type) in abi.parameters.into_iter() {
             match param_type {
@@ -405,13 +410,26 @@ impl<'a> Evaluator<'a> {
                     if let HirPattern::Identifier(ident_id) = **hir_pattern {
                         let name = self.context.def_interner.definition_name(ident_id.id);
                         let ident_def = ident_id.id;
-                        let location = Location::new(*span_pattern, func_meta.file);
+                        let location = Location::new(*span_pattern, func_meta.location.file);
                         self.param_to_var(name, ident_def, &param.1, location, igen)?;
                     }
                 }
                 HirPattern::Tuple(_, _) => todo!(),
                 HirPattern::Struct(_, _, _) => todo!(),
             }
+        }
+
+        if func_meta.return_type != Type::Unit {
+            // Must create a fake variable for the return from main to turn it into a pub parameter.
+            let ident_def = NodeInterner::main_return_id();
+            let ident_name = NodeInterner::main_return_name();
+            self.param_to_var(
+                ident_name,
+                ident_def,
+                &func_meta.return_type,
+                func_meta.location,
+                igen,
+            )?;
         }
 
         Ok(())

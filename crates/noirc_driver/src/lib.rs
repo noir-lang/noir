@@ -127,7 +127,7 @@ impl Driver {
         let main_function = local_crate.main_function()?;
 
         let func_meta = self.context.def_interner.function_meta(&main_function);
-        let abi = func_meta.parameters.into_abi(&self.context.def_interner);
+        let abi = func_meta.into_abi(&self.context.def_interner);
 
         Some(abi)
     }
@@ -155,7 +155,7 @@ impl Driver {
 
         // Create ABI for main function
         let func_meta = self.context.def_interner.function_meta(&main_function);
-        let abi = func_meta.parameters.into_abi(&self.context.def_interner);
+        let abi = func_meta.into_abi(&self.context.def_interner);
 
         let evaluator = Evaluator::new(main_function, &self.context);
 
