@@ -93,13 +93,17 @@ pub fn verify_with_path<P: AsRef<Path>>(
     let mut public_inputs = BTreeMap::new();
     if num_pub_params != 0 {
         let curr_dir = program_dir;
-        public_inputs = noirc_abi::input_parser::Format::Toml.parse(curr_dir, VERIFIER_INPUT_FILE);
+        public_inputs = noirc_abi::input_parser::Format::Toml
+            .parse(curr_dir, VERIFIER_INPUT_FILE)
+            .map_err(CliError::from)?;
     }
 
     if num_pub_params != public_inputs.len() {
+        // return Err(CliError::Generic(format!("")));
         panic!(
-            "Expected {} number of values, but got {} number of values",
+            "Expected {} number of values in {}.toml, but got {} number of values",
             num_pub_params,
+            VERIFIER_INPUT_FILE,
             public_inputs.len()
         )
     }

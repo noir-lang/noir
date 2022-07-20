@@ -262,7 +262,7 @@ impl<'a> Resolver<'a> {
             name,
             kind: func.kind,
             attributes,
-            file: self.file,
+            location,
             parameters: parameters.into(),
             return_type,
             has_body: !func.def.body.is_empty(),

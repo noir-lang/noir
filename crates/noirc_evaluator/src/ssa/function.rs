@@ -68,7 +68,7 @@ impl SSAFunction {
         igen: &mut IRGenerator,
         env: &mut Environment,
     ) -> Result<Vec<NodeId>, RuntimeError> {
-        let arguments = igen.expression_list_to_objects(env, arguments);
+        let arguments = igen.codegen_expression_list(env, arguments);
         let call_instruction = igen.context.new_instruction(
             node::Operation::Call(func, arguments, Vec::new()),
             ObjectType::NotAnObject,
@@ -139,7 +139,7 @@ pub fn call_low_level(
     let mut args: Vec<NodeId> = Vec::new();
 
     for arg in &call_expr.arguments {
-        if let Ok(lhs) = igen.expression_to_object(env, arg) {
+        if let Ok(lhs) = igen.codegen_expression(env, arg) {
             args.push(lhs.unwrap_id()); //TODO handle multiple values
         } else {
             panic!("error calling {}", op);
@@ -219,7 +219,7 @@ pub fn create_function(
 
     igen.function_context = Some(index);
     igen.context.functions.insert(func_id, func.clone());
-    let last_value = igen.parse_block(block.statements(), env);
+    let last_value = igen.codegen_block(block.statements(), env);
     let returned_values = last_value.to_node_ids();
     for i in &returned_values {
         if let Some(node) = igen.context.try_get_node(*i) {
