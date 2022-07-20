@@ -19,6 +19,7 @@ pub(crate) enum TopLevelStatement {
     Import(ImportStatement),
     Struct(NoirStruct),
     Impl(NoirImpl),
+    SubModule(SubModule),
     Error,
 }
 
@@ -181,7 +182,7 @@ fn parameter_name_recovery<T: Recoverable + Clone>() -> impl NoirParser<T> {
 fn top_level_statement_recovery() -> impl NoirParser<TopLevelStatement> {
     none_of([Token::Semicolon, Token::RightBrace, Token::EOF])
         .repeated()
-        .ignore_then(one_of([Token::Semicolon, Token::RightBrace]))
+        .ignore_then(one_of([Token::Semicolon]))
         .map(|_| TopLevelStatement::Error)
 }
 
@@ -197,6 +198,13 @@ pub struct ParsedModule {
     pub types: Vec<NoirStruct>,
     pub impls: Vec<NoirImpl>,
     pub module_decls: Vec<Ident>,
+    pub submodules: Vec<SubModule>,
+}
+
+#[derive(Clone, Debug)]
+pub struct SubModule {
+    pub name: Ident,
+    pub contents: ParsedModule,
 }
 
 impl ParsedModule {
@@ -218,6 +226,10 @@ impl ParsedModule {
 
     fn push_module_decl(&mut self, mod_name: Ident) {
         self.module_decls.push(mod_name);
+    }
+
+    fn push_submodule(&mut self, submodule: SubModule) {
+        self.submodules.push(submodule);
     }
 }
 
@@ -285,7 +297,50 @@ impl std::fmt::Display for TopLevelStatement {
             TopLevelStatement::Import(i) => i.fmt(f),
             TopLevelStatement::Struct(s) => s.fmt(f),
             TopLevelStatement::Impl(i) => i.fmt(f),
+            TopLevelStatement::SubModule(s) => s.fmt(f),
             TopLevelStatement::Error => write!(f, "error"),
         }
+    }
+}
+
+impl std::fmt::Display for ParsedModule {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for decl in &self.module_decls {
+            write!(f, "mod {};\n", decl)?;
+        }
+
+        for import in &self.imports {
+            write!(f, "{}", import)?;
+        }
+
+        for type_ in &self.types {
+            write!(f, "{}", type_)?;
+        }
+
+        for function in &self.functions {
+            write!(f, "{}", function)?;
+        }
+
+        for impl_ in &self.impls {
+            write!(f, "{}", impl_)?;
+        }
+
+        for submodule in &self.submodules {
+            write!(f, "{}", submodule)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl std::fmt::Display for SubModule {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "mod {} {{", self.name)?;
+
+        for line in self.contents.to_string().lines() {
+            write!(f, "\n    {}", line)?;
+        }
+
+        write!(f, "\n}}")
     }
 }
