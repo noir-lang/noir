@@ -306,7 +306,7 @@ impl std::fmt::Display for TopLevelStatement {
 impl std::fmt::Display for ParsedModule {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for decl in &self.module_decls {
-            write!(f, "mod {};\n", decl)?;
+            writeln!(f, "mod {};", decl)?;
         }
 
         for import in &self.imports {

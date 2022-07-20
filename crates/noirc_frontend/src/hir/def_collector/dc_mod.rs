@@ -2,8 +2,8 @@ use fm::FileId;
 use noirc_errors::{CollectedErrors, CustomDiagnostic, DiagnosableError};
 
 use crate::{
-    graph::CrateId, hir::def_collector::dc_crate::UnresolvedStruct, node_interner::StructId, Ident,
-    NoirFunction, NoirImpl, NoirStruct, ParsedModule, parser::SubModule,
+    graph::CrateId, hir::def_collector::dc_crate::UnresolvedStruct, node_interner::StructId,
+    parser::SubModule, Ident, NoirFunction, NoirImpl, NoirStruct, ParsedModule,
 };
 
 use super::{
@@ -169,7 +169,7 @@ impl<'a> ModCollector<'a> {
         crate_id: CrateId,
         submodules: Vec<SubModule>,
         file_id: FileId,
-        errors: &mut Vec<CollectedErrors>
+        errors: &mut Vec<CollectedErrors>,
     ) {
         for submodule in submodules {
             match self.push_child_module(&submodule.name, file_id, true) {
