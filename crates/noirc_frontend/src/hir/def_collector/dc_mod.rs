@@ -3,7 +3,7 @@ use noirc_errors::{CollectedErrors, CustomDiagnostic, DiagnosableError};
 
 use crate::{
     graph::CrateId, hir::def_collector::dc_crate::UnresolvedStruct, node_interner::StructId, Ident,
-    NoirFunction, NoirImpl, NoirStruct, ParsedModule,
+    NoirContract, NoirFunction, NoirImpl, NoirStruct, ParsedModule,
 };
 
 use super::{
@@ -49,8 +49,10 @@ pub fn collect_defs<'a>(
 
     collector.collect_structs(ast.types, crate_id, errors);
 
-    let errors_in_same_file = collector.collect_functions(context, ast.functions);
+    let mut errors_in_same_file = collector.collect_functions(context, ast.functions);
     collector.collect_impls(context, ast.impls);
+
+    errors_in_same_file.append(&mut collector.collect_contracts(context, ast.contracts));
 
     if !errors_in_same_file.is_empty() {
         errors.push(CollectedErrors { file_id: collector.file_id, errors: errors_in_same_file });
@@ -72,6 +74,17 @@ impl<'a> ModCollector<'a> {
             let methods = self.def_collector.collected_impls.entry(key).or_default();
             methods.push(unresolved_functions);
         }
+    }
+
+    fn collect_contracts(
+        &mut self,
+        context: &mut Context,
+        contracts: Vec<NoirContract>,
+    ) -> Vec<CustomDiagnostic> {
+        contracts
+            .into_iter()
+            .flat_map(|contract| self.collect_functions(context, contract.functions))
+            .collect()
     }
 
     fn collect_functions(
