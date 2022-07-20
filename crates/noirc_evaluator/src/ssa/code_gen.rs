@@ -77,11 +77,25 @@ pub fn evaluate_main<'a>(
     igen: &mut IRGenerator<'a>,
     env: &mut Environment,
     main_func_body: HirFunction, //main function
+    location: noirc_errors::Location,
 ) -> Result<(), RuntimeError> {
     let block = main_func_body.block(igen.def_interner());
-    for stmt_id in block.statements() {
-        igen.codegen_statement(env, stmt_id)?;
+    let actual_return = igen.codegen_block(block.statements(), env);
+
+    if let Some(expected_return) = igen.find_variable(NodeInterner::main_return_id()) {
+        let expected_return = expected_return.unwrap_id();
+
+        let eq = igen.context.new_binary_instruction(
+            BinaryOp::Eq,
+            expected_return,
+            actual_return.unwrap_id(),
+            node::ObjectType::Boolean,
+        )?;
+
+        igen.context
+            .new_instruction(Operation::Constrain(eq, location), node::ObjectType::NotAnObject)?;
     }
+
     Ok(())
 }
 
@@ -503,22 +517,21 @@ impl<'a> IRGenerator<'a> {
                 let lhs = lhs.clone();
                 let result = self.assign_pattern(&lhs, rhs)?;
                 self.variable_values.insert(ident_def, result);
-                Ok(lhs)
             }
             HirLValue::MemberAccess { field_name: name, .. } => {
                 let val = self.find_variable(ident_def).unwrap();
                 let value = val.get_field_member(&name.0.contents).clone();
-                let result = self.assign_pattern(&value, rhs)?;
-                Ok(result)
+                self.assign_pattern(&value, rhs)?;
             }
             HirLValue::Index { array, index } => {
                 let (_, array_idx) = self.codegen_indexed_value(array.as_ref(), index, env)?;
                 let val = self.find_variable(ident_def).unwrap();
                 let rhs_id = rhs.unwrap_id();
                 let lhs_id = val.unwrap_id();
-                Ok(Value::Single(self.context.handle_assign(lhs_id, Some(array_idx), rhs_id)?))
+                self.context.handle_assign(lhs_id, Some(array_idx), rhs_id)?;
             }
         }
+        Ok(Value::dummy())
     }
 
     /// Similar to bind_pattern but recursively creates Assignment instructions for
