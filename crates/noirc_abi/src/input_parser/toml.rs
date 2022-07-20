@@ -71,14 +71,13 @@ fn check_toml_map_duplicates(
     parameter: String,
     new_value: InputValue,
 ) -> Result<(), InputParserError> {
-    let old_value = field_map.insert(parameter.clone(), new_value);
-    if old_value.is_some() {
-        return Err(InputParserError::DuplicateVariableName(format!(
+    match field_map.insert(parameter.clone(), new_value) {
+        Some(_) => Err(InputParserError::DuplicateVariableName(format!(
             "duplicate variable name {}",
             parameter
-        )));
+        ))),
+        None => Ok(()),
     }
-    Ok(())
 }
 
 #[derive(Debug, Deserialize)]
