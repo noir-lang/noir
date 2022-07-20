@@ -69,7 +69,7 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
         .then(parenthesized(function_parameters(allow_self)))
         .then(function_return_type())
         .then(block(expression()))
-        .map(|((((attribute, name), parameters), return_type), body)| {
+        .map(|((((attribute, name), parameters), (return_visibility, return_type)), body)| {
             FunctionDefinition {
                 span: name.0.span(),
                 name,
@@ -77,6 +77,7 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
                 parameters,
                 body,
                 return_type,
+                return_visibility,
             }
             .into()
         })
@@ -100,11 +101,12 @@ fn struct_definition() -> impl NoirParser<TopLevelStatement> {
     })
 }
 
-fn function_return_type() -> impl NoirParser<UnresolvedType> {
+fn function_return_type() -> impl NoirParser<(AbiFEType, UnresolvedType)> {
     just(Token::Arrow)
-        .ignore_then(parse_type())
+        .ignore_then(optional_visibility())
+        .then(parse_type())
         .or_not()
-        .map(|r#type| r#type.unwrap_or(UnresolvedType::Unit))
+        .map(|ret| ret.unwrap_or((AbiFEType::Private, UnresolvedType::Unit)))
 }
 
 fn attribute() -> impl NoirParser<Attribute> {

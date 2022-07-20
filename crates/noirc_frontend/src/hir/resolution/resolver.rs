@@ -260,9 +260,10 @@ impl<'a> Resolver<'a> {
             name,
             kind: func.kind,
             attributes,
-            file: self.file,
+            location,
             parameters: parameters.into(),
             return_type,
+            return_visibility: func.def.return_visibility,
             has_body: !func.def.body.is_empty(),
         }
     }

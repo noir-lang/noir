@@ -137,7 +137,7 @@ mod test {
             name,
             kind: FunctionKind::Normal,
             attributes: None,
-            file,
+            location,
             parameters: vec![
                 Param(Identifier(x), Type::field(None), noirc_abi::AbiFEType::Private),
                 Param(Identifier(y), Type::field(None), noirc_abi::AbiFEType::Private),
@@ -148,7 +148,7 @@ mod test {
         };
         interner.push_fn_meta(func_meta, func_id);
 
-        let errors = super::type_check_func(&mut interner, func_id);
+        let errors = super::type_check_func(&mut interner, func_id, None);
         assert!(errors.is_empty());
     }
 
@@ -267,7 +267,8 @@ mod test {
         }
 
         // Type check section
-        let errors = super::type_check_func(&mut interner, func_ids.first().cloned().unwrap());
+        let errors =
+            super::type_check_func(&mut interner, func_ids.first().cloned().unwrap(), None);
         assert_eq!(errors, vec![]);
     }
 }

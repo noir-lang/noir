@@ -1,6 +1,5 @@
-use fm::FileId;
-use noirc_abi::Abi;
-use noirc_errors::Span;
+use noirc_abi::{Abi, AbiFEType};
+use noirc_errors::{Location, Span};
 
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
@@ -58,7 +57,7 @@ fn get_param_name<'a>(pattern: &HirPattern, interner: &'a NodeInterner) -> Optio
 pub struct Parameters(pub Vec<Param>);
 
 impl Parameters {
-    pub fn into_abi(self, interner: &NodeInterner) -> Abi {
+    fn into_abi(self, interner: &NodeInterner) -> Abi {
         let parameters = vecmap(self.0, |param| {
             let param_name = get_param_name(&param.0, interner)
                 .expect("Abi for tuple and struct parameters is unimplemented")
@@ -120,8 +119,9 @@ pub struct FuncMeta {
     pub attributes: Option<Attribute>,
     pub parameters: Parameters,
     pub return_type: Type,
+    pub return_visibility: AbiFEType,
 
-    pub file: FileId,
+    pub location: Location,
 
     // This flag is needed for the attribute check pass
     pub has_body: bool,
@@ -137,5 +137,15 @@ impl FuncMeta {
             FunctionKind::LowLevel | FunctionKind::Builtin => true,
             FunctionKind::Normal => false,
         }
+    }
+
+    pub fn into_abi(self, interner: &NodeInterner) -> Abi {
+        let mut abi = self.parameters.into_abi(interner);
+        if self.return_type != Type::Unit {
+            let typ = self.return_type.as_abi_type(self.return_visibility);
+            abi.parameters.push((NodeInterner::main_return_name().into(), typ));
+        }
+
+        abi
     }
 }

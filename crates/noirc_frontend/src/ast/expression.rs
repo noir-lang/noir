@@ -351,6 +351,7 @@ pub struct FunctionDefinition {
     pub body: BlockExpression,
     pub span: Span,
     pub return_type: UnresolvedType,
+    pub return_visibility: noirc_abi::AbiFEType,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

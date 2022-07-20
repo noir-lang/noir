@@ -97,9 +97,11 @@ pub fn verify_with_path<P: AsRef<Path>>(
     }
 
     if num_pub_params != public_inputs.len() {
+        // return Err(CliError::Generic(format!("")));
         panic!(
-            "Expected {} number of values, but got {} number of values",
+            "Expected {} number of values in {}.toml, but got {} number of values",
             num_pub_params,
+            VERIFIER_INPUT_FILE,
             public_inputs.len()
         )
     }

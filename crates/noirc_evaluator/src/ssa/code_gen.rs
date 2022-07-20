@@ -77,11 +77,25 @@ pub fn evaluate_main<'a>(
     igen: &mut IRGenerator<'a>,
     env: &mut Environment,
     main_func_body: HirFunction, //main function
+    location: noirc_errors::Location,
 ) -> Result<(), RuntimeError> {
     let block = main_func_body.block(igen.def_interner());
-    for stmt_id in block.statements() {
-        igen.evaluate_statement(env, stmt_id)?;
+    let actual_return = igen.codegen_block(block.statements(), env);
+
+    if let Some(expected_return) = igen.find_variable(NodeInterner::main_return_id()) {
+        let expected_return = expected_return.unwrap_id();
+
+        let eq = igen.context.new_binary_instruction(
+            BinaryOp::Eq,
+            expected_return,
+            actual_return.unwrap_id(),
+            node::ObjectType::Boolean,
+        )?;
+
+        igen.context
+            .new_instruction(Operation::Constrain(eq, location), node::ObjectType::NotAnObject)?;
     }
+
     Ok(())
 }
 
@@ -150,7 +164,7 @@ impl<'a> IRGenerator<'a> {
         self.variable_values.insert(ident_def, v_value); //TODO ident_def or ident_id??
     }
 
-    fn evaluate_identifier(&mut self, env: &mut Environment, ident: HirIdent) -> Value {
+    fn codegen_identifier(&mut self, env: &mut Environment, ident: HirIdent) -> Value {
         if let Some(value) = self.variable_values.get(&ident.id) {
             let value = value.clone();
             return self.get_current_value(&value);
@@ -193,7 +207,7 @@ impl<'a> IRGenerator<'a> {
         &self.context.context.def_interner
     }
 
-    fn evaluate_prefix_expression(
+    fn codegen_prefix_expression(
         &mut self,
         rhs: NodeId,
         op: HirUnaryOp,
@@ -210,7 +224,7 @@ impl<'a> IRGenerator<'a> {
         }
     }
 
-    fn evaluate_infix_expression(
+    fn codegen_infix_expression(
         &mut self,
         lhs: NodeId,
         rhs: NodeId,
@@ -237,25 +251,23 @@ impl<'a> IRGenerator<'a> {
         self.context.new_instruction(opcode, optype)
     }
 
-    pub fn evaluate_statement(
+    pub fn codegen_statement(
         &mut self,
         env: &mut Environment,
         stmt_id: &StmtId,
     ) -> Result<Value, RuntimeError> {
         let statement = self.def_interner().statement(stmt_id);
         match statement {
-            HirStatement::Constrain(constrain_stmt) => {
-                self.handle_constrain_statement(env, constrain_stmt)
-            }
+            HirStatement::Constrain(constrain_stmt) => self.codegen_constrain(env, constrain_stmt),
             HirStatement::Expression(expr) | HirStatement::Semi(expr) => {
-                self.expression_to_object(env, &expr)
+                self.codegen_expression(env, &expr)
             }
             HirStatement::Let(let_stmt) => {
                 // let statements are used to declare a higher level object
-                self.handle_let_statement(env, let_stmt)
+                self.codegen_let(env, let_stmt)
             }
             HirStatement::Assign(assign_stmt) => {
-                self.handle_assign_statement(assign_stmt.lvalue, assign_stmt.expression, env)
+                self.codegen_assign(assign_stmt.lvalue, assign_stmt.expression, env)
             }
             HirStatement::Error => unreachable!(
                 "ice: compiler did not exit before codegen when a statement failed to parse"
@@ -263,7 +275,7 @@ impl<'a> IRGenerator<'a> {
         }
     }
 
-    fn evaluate_indexed_value(
+    fn codegen_indexed_value(
         &mut self,
         array: &HirLValue,
         index: ExprId,
@@ -274,7 +286,7 @@ impl<'a> IRGenerator<'a> {
         let lhs = val.to_node_ids();
         assert!(lhs.len() == 1);
         let a_id = self.context.get_object_type(lhs[0]).type_to_pointer();
-        let index_val = self.expression_to_object(env, &index).unwrap();
+        let index_val = self.codegen_expression(env, &index).unwrap();
         let index = index_val.unwrap_id();
         let o_type = self.context.get_object_type(index);
         let base_adr = self.context.mem[a_id].adr;
@@ -388,12 +400,12 @@ impl<'a> IRGenerator<'a> {
     }
 
     // Add a constraint to constrain two expression together
-    fn handle_constrain_statement(
+    fn codegen_constrain(
         &mut self,
         env: &mut Environment,
         constrain: HirConstrainStatement,
     ) -> Result<Value, RuntimeError> {
-        let cond = self.expression_to_object(env, &constrain.0)?.unwrap_id();
+        let cond = self.codegen_expression(env, &constrain.0)?.unwrap_id();
         let location = self.def_interner().expr_location(&constrain.0);
         let operation = Operation::Constrain(cond, location);
         self.context.new_instruction(operation, ObjectType::NotAnObject)?;
@@ -488,14 +500,14 @@ impl<'a> IRGenerator<'a> {
         self.context.update_variable_id(var_id, new_var, new_value);
     }
 
-    fn handle_assign_statement(
+    fn codegen_assign(
         &mut self,
         lvalue: HirLValue,
         rexpr: ExprId,
         env: &mut Environment,
     ) -> Result<Value, RuntimeError> {
         let ident_def = self.lvalue_ident_def(&lvalue);
-        let rhs = self.expression_to_object(env, &rexpr)?;
+        let rhs = self.codegen_expression(env, &rexpr)?;
 
         match lvalue {
             HirLValue::Ident(_) => {
@@ -505,22 +517,21 @@ impl<'a> IRGenerator<'a> {
                 let lhs = lhs.clone();
                 let result = self.assign_pattern(&lhs, rhs)?;
                 self.variable_values.insert(ident_def, result);
-                Ok(lhs)
             }
             HirLValue::MemberAccess { field_name: name, .. } => {
                 let val = self.find_variable(ident_def).unwrap();
                 let value = val.get_field_member(&name.0.contents).clone();
-                let result = self.assign_pattern(&value, rhs)?;
-                Ok(result)
+                self.assign_pattern(&value, rhs)?;
             }
             HirLValue::Index { array, index } => {
-                let (_, array_idx) = self.evaluate_indexed_value(array.as_ref(), index, env)?;
+                let (_, array_idx) = self.codegen_indexed_value(array.as_ref(), index, env)?;
                 let val = self.find_variable(ident_def).unwrap();
                 let rhs_id = rhs.unwrap_id();
                 let lhs_id = val.unwrap_id();
-                Ok(Value::Single(self.context.handle_assign(lhs_id, Some(array_idx), rhs_id)?))
+                self.context.handle_assign(lhs_id, Some(array_idx), rhs_id)?;
             }
         }
+        Ok(Value::dummy())
     }
 
     /// Similar to bind_pattern but recursively creates Assignment instructions for
@@ -555,17 +566,17 @@ impl<'a> IRGenerator<'a> {
     }
 
     // Let statements are used to declare higher level objects
-    fn handle_let_statement(
+    fn codegen_let(
         &mut self,
         env: &mut Environment,
         let_stmt: HirLetStatement,
     ) -> Result<Value, RuntimeError> {
-        let rhs = self.expression_to_object(env, &let_stmt.expression)?;
+        let rhs = self.codegen_expression(env, &let_stmt.expression)?;
         self.bind_pattern(&let_stmt.pattern, rhs)?;
         Ok(Value::dummy())
     }
 
-    pub(crate) fn expression_to_object(
+    pub(crate) fn codegen_expression(
         &mut self,
         env: &mut Environment,
         expr_id: &ExprId,
@@ -586,7 +597,7 @@ impl<'a> IRGenerator<'a> {
                 let array_id = self.context.mem.last_id();
 
                 //We parse the array definition
-                let elements = self.expression_list_to_objects(env, &arr_lit.contents);
+                let elements = self.codegen_expression_list(env, &arr_lit.contents);
                 let array = &mut self.context.mem[array_id];
                 let array_adr = array.adr;
                 for (pos, object) in elements.into_iter().enumerate() {
@@ -600,19 +611,19 @@ impl<'a> IRGenerator<'a> {
                 Ok(Value::Single(new_var))
             }
             HirExpression::Ident(x) => {
-                Ok(self.evaluate_identifier(env, x))
+                Ok(self.codegen_identifier(env, x))
                 //n.b this creates a new variable if it does not exist, may be we should delegate this to explicit statements (let) - TODO
             }
             HirExpression::Infix(infx) => {
                 // Note: using .into_id() here disallows structs/tuples in infix expressions.
                 // The type checker currently disallows this as well but we may want to allow
                 // for e.g. struct == struct in the future
-                let lhs = self.expression_to_object(env, &infx.lhs)?.unwrap_id();
-                let rhs = self.expression_to_object(env, &infx.rhs)?.unwrap_id();
-                Ok(Value::Single(self.evaluate_infix_expression(lhs, rhs, infx.operator)?))
+                let lhs = self.codegen_expression(env, &infx.lhs)?.unwrap_id();
+                let rhs = self.codegen_expression(env, &infx.rhs)?.unwrap_id();
+                Ok(Value::Single(self.codegen_infix_expression(lhs, rhs, infx.operator)?))
             }
             HirExpression::Cast(cast_expr) => {
-                let lhs = self.expression_to_object(env, &cast_expr.lhs)?.unwrap_id();
+                let lhs = self.codegen_expression(env, &cast_expr.lhs)?.unwrap_id();
                 let rtype = cast_expr.r#type.into();
 
                 Ok(Value::Single(self.context.new_instruction(Operation::Cast(lhs), rtype)?))
@@ -647,7 +658,7 @@ impl<'a> IRGenerator<'a> {
                 } else if let Some(Value::Single(pointer)) = self.find_variable(arr_def) {
                     match self.context.get_object_type(*pointer) {
                         ObjectType::Pointer(array_id) => &self.context.mem[array_id],
-                        _ => unreachable!(),
+                        other => unreachable!("Expected Pointer type, found {:?}", other),
                     }
                 } else {
                     let arr = env
@@ -663,7 +674,7 @@ impl<'a> IRGenerator<'a> {
                 let address = array.adr;
 
                 // Evaluate the index expression
-                let index_as_obj = self.expression_to_object(env, &indexed_expr.index)?.unwrap_id();
+                let index_as_obj = self.codegen_expression(env, &indexed_expr.index)?.unwrap_id();
 
                 let index_type = self.context.get_object_type(index_as_obj);
                 let base_adr = self
@@ -736,27 +747,27 @@ impl<'a> IRGenerator<'a> {
                         // We use it's func name to find out what intrinsic function to call
                         let attribute = func_meta.attributes.expect("all low level functions must contain an attribute which contains the opcode which it links to");
                         let opcode_name = attribute.foreign().expect("ice: function marked as foreign, but attribute kind does not match this");
-                        Ok(Value::Single(self.handle_lowlevel(env, opcode_name, call_expr)?))
+                        Ok(Value::Single(self.codegen_lowlevel(env, opcode_name, call_expr)?))
                     }
                     FunctionKind::Builtin => {
-                        todo!();
-                        //     let attribute = func_meta.attributes.expect("all builtin functions must contain an attribute which contains the function name which it links to");
-                        //     let builtin_name = attribute.builtin().expect("ice: function marked as a builtin, but attribute kind does not match this");
-                        //     builtin::call_builtin(self, env, builtin_name, (call_expr,span))
+                        todo!()
+                        // let attribute = func_meta.attributes.expect("all builtin functions must contain an attribute which contains the function name which it links to");
+                        // let builtin_name = attribute.builtin().expect("ice: function marked as a builtin, but attribute kind does not match this");
+                        // builtin::call_builtin(self, env, builtin_name, (call_expr,span))
                     }
                 }
             }
-            HirExpression::For(for_expr) => self.handle_for_expr(env, for_expr),
-            HirExpression::Constructor(constructor) => self.handle_constructor(env, constructor),
-            HirExpression::MemberAccess(access) => self.handle_member_access(env, access),
-            HirExpression::Tuple(fields) => self.handle_tuple(env, fields),
+            HirExpression::For(for_expr) => self.codegen_for(env, for_expr),
+            HirExpression::Constructor(constructor) => self.codegen_constructor(env, constructor),
+            HirExpression::MemberAccess(access) => self.codegen_member_access(env, access),
+            HirExpression::Tuple(fields) => self.codegen_tuple(env, fields),
             HirExpression::If(_) => todo!(),
             HirExpression::Prefix(prefix) => {
-                let rhs = self.expression_to_object(env, &prefix.rhs)?.unwrap_id();
-                self.evaluate_prefix_expression(rhs, prefix.operator).map(Value::Single)
+                let rhs = self.codegen_expression(env, &prefix.rhs)?.unwrap_id();
+                self.codegen_prefix_expression(rhs, prefix.operator).map(Value::Single)
             }
-            HirExpression::Literal(l) => Ok(Value::Single(self.handle_literal(&l))),
-            HirExpression::Block(block) => Ok(self.parse_block(block.statements(), env)),
+            HirExpression::Literal(l) => Ok(Value::Single(self.codegen_literal(&l))),
+            HirExpression::Block(block) => Ok(self.codegen_block(block.statements(), env)),
             HirExpression::Error => todo!(),
             HirExpression::MethodCall(_) => {
                 unreachable!("Method calls should be desugared before codegen")
@@ -764,7 +775,7 @@ impl<'a> IRGenerator<'a> {
         }
     }
 
-    pub fn handle_lowlevel(
+    pub fn codegen_lowlevel(
         &mut self,
         env: &mut Environment,
         opcode_name: &str,
@@ -773,16 +784,15 @@ impl<'a> IRGenerator<'a> {
         match OPCODE::lookup(opcode_name) {
             Some(func) => function::call_low_level(func, call_expr, self, env),
             None => {
-                let message = format!(
+                unreachable!(
                     "cannot find a low level opcode with the name {} in the IR",
                     opcode_name
-                );
-                unreachable!("{}", message);
+                )
             }
         }
     }
 
-    pub fn handle_literal(&mut self, l: &HirLiteral) -> NodeId {
+    pub fn codegen_literal(&mut self, l: &HirLiteral) -> NodeId {
         match l {
             HirLiteral::Bool(b) => {
                 if *b {
@@ -798,7 +808,7 @@ impl<'a> IRGenerator<'a> {
         }
     }
 
-    fn handle_constructor(
+    fn codegen_constructor(
         &mut self,
         env: &mut Environment,
         constructor: HirConstructorExpression,
@@ -808,7 +818,7 @@ impl<'a> IRGenerator<'a> {
             .into_iter()
             .map(|(ident, field)| {
                 let field_name = ident.0.contents;
-                Ok((field_name, self.expression_to_object(env, &field)?))
+                Ok((field_name, self.codegen_expression(env, &field)?))
             })
             .collect::<Result<Vec<_>, _>>()?;
 
@@ -816,7 +826,7 @@ impl<'a> IRGenerator<'a> {
     }
 
     /// A tuple is much the same as a constructor, we just give it fields with numbered names
-    fn handle_tuple(
+    fn codegen_tuple(
         &mut self,
         env: &mut Environment,
         fields: Vec<ExprId>,
@@ -827,44 +837,43 @@ impl<'a> IRGenerator<'a> {
             .map(|(i, field)| {
                 // Tuple field names are 0..n-1 where n = the length of the tuple
                 let field_name = i.to_string();
-                Ok((field_name, self.expression_to_object(env, &field)?))
+                Ok((field_name, self.codegen_expression(env, &field)?))
             })
             .collect::<Result<Vec<_>, _>>()?;
 
         Ok(Value::Struct(fields))
     }
 
-    fn handle_member_access(
+    fn codegen_member_access(
         &mut self,
         env: &mut Environment,
         access: HirMemberAccess,
     ) -> Result<Value, RuntimeError> {
-        let value = self.expression_to_object(env, &access.lhs)?;
+        let value = self.codegen_expression(env, &access.lhs)?;
         Ok(value.get_field_member(&access.rhs.0.contents).clone())
     }
 
-    pub fn expression_list_to_objects(
+    pub fn codegen_expression_list(
         &mut self,
         env: &mut Environment,
         exprs: &[ExprId],
     ) -> Vec<NodeId> {
         let mut result = Vec::new();
         for expr in exprs {
-            let value = self.expression_to_object(env, expr);
+            let value = self.codegen_expression(env, expr);
             result.extend(value.unwrap().to_node_ids());
         }
         result
     }
 
-    fn handle_for_expr(
+    fn codegen_for(
         &mut self,
         env: &mut Environment,
         for_expr: HirForExpression,
     ) -> Result<Value, RuntimeError> {
-        //we add the ' i = start' instruction (in the block before the join)
-        let start_idx = self.expression_to_object(env, &for_expr.start_range).unwrap().unwrap_id();
-
-        let end_idx = self.expression_to_object(env, &for_expr.end_range).unwrap().unwrap_id();
+        //we add the 'i = start' instruction (in the block before the join)
+        let start_idx = self.codegen_expression(env, &for_expr.start_range).unwrap().unwrap_id();
+        let end_idx = self.codegen_expression(env, &for_expr.end_range).unwrap().unwrap_id();
 
         //We support only const range for now
         //TODO how should we handle scope (cf. start/end_for_loop)?
@@ -908,12 +917,11 @@ impl<'a> IRGenerator<'a> {
             HirExpression::Block(block_expr) => block_expr,
             _ => panic!("ice: expected a block expression"),
         };
+
         let body_block1 = &mut self.context[body_id];
         body_block1.update_variable(iter_id, phi); //TODO try with just a get_current_value(iter)
-        let statements = block.statements();
-        for stmt in statements {
-            self.evaluate_statement(env, stmt).unwrap(); //TODO return the error
-        }
+
+        self.codegen_block(block.statements(), env);
 
         //increment iter
         let one = self.context.get_or_create_const(FieldElement::one(), iter_type);
@@ -924,6 +932,7 @@ impl<'a> IRGenerator<'a> {
         let cur_block_id = self.context.current_block; //It should be the body block, except if the body has CFG statements
         let cur_block = &mut self.context[cur_block_id];
         cur_block.update_variable(iter_id, incr);
+
         //body.left = join
         cur_block.left = Some(join_idx);
         let join_mut = &mut self.context[join_idx];
@@ -934,6 +943,7 @@ impl<'a> IRGenerator<'a> {
 
         //seal join
         ssa_form::seal_block(&mut self.context, join_idx);
+
         //exit block
         self.context.current_block = exit_id;
         let exit_first = self.context.get_current_block().get_first_instruction();
@@ -943,14 +953,14 @@ impl<'a> IRGenerator<'a> {
     }
 
     //Parse a block of AST statements into ssa form
-    pub fn parse_block(
+    pub fn codegen_block(
         &mut self,
         block: &[noirc_frontend::node_interner::StmtId],
         env: &mut Environment,
     ) -> Value {
         let mut last_value = Value::dummy();
         for stmt in block {
-            last_value = self.evaluate_statement(env, stmt).unwrap();
+            last_value = self.codegen_statement(env, stmt).unwrap();
         }
         last_value
     }
