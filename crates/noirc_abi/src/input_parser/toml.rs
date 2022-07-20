@@ -9,7 +9,7 @@ pub(crate) fn parse<P: AsRef<Path>>(
 ) -> Result<BTreeMap<String, InputValue>, InputParserError> {
     let path_to_toml = path_to_toml.as_ref();
     if !path_to_toml.exists() {
-        return Err(InputParserError::MissingTomlFile(path_to_toml.display().to_string()));
+        return Err(InputParserError::MissingTomlFile(path_to_toml.to_path_buf()));
     }
     // Get input.toml file as a string
     let input_as_string = std::fs::read_to_string(path_to_toml).unwrap();
