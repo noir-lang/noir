@@ -9,19 +9,14 @@ pub(crate) fn parse<P: AsRef<Path>>(
 ) -> Result<BTreeMap<String, InputValue>, InputParserError> {
     let path_to_toml = path_to_toml.as_ref();
     if !path_to_toml.exists() {
-        return Err(InputParserError::MissingTomlFile(format!("cannot find input file at located {}, run nargo build to generate the missing Prover and/or Verifier toml files", path_to_toml.display())));
+        return Err(InputParserError::MissingTomlFile(path_to_toml.display().to_string()));
     }
     // Get input.toml file as a string
     let input_as_string = std::fs::read_to_string(path_to_toml).unwrap();
 
     // Parse input.toml into a BTreeMap, converting the argument to field elements
-    let data: BTreeMap<String, TomlTypes> =
-        toml::from_str(&input_as_string).map_err(|err_msg| {
-            InputParserError::ParseTomlMap(format!(
-                "input.toml file is badly formed, could not parse, {}",
-                err_msg
-            ))
-        })?;
+    let data: BTreeMap<String, TomlTypes> = toml::from_str(&input_as_string)
+        .map_err(|err_msg| InputParserError::ParseTomlMap(err_msg.to_string()))?;
     toml_map_to_field(data)
 }
 
@@ -72,10 +67,7 @@ fn check_toml_map_duplicates(
     new_value: InputValue,
 ) -> Result<(), InputParserError> {
     match field_map.insert(parameter.clone(), new_value) {
-        Some(_) => Err(InputParserError::DuplicateVariableName(format!(
-            "duplicate variable name {}",
-            parameter
-        ))),
+        Some(_) => Err(InputParserError::DuplicateVariableName(parameter)),
         None => Ok(()),
     }
 }
@@ -96,16 +88,11 @@ enum TomlTypes {
 
 fn parse_str(value: &str) -> Result<FieldElement, InputParserError> {
     if value.starts_with("0x") {
-        FieldElement::from_hex(value).ok_or_else(|| {
-            InputParserError::ParseStr(format!("Could not parse hex value {}", value))
-        })
+        FieldElement::from_hex(value).ok_or_else(|| InputParserError::ParseHexStr(value.to_owned()))
     } else {
-        let val: i128 = value.parse().map_err(|err_msg| {
-            InputParserError::ParseStr(format!(
-                "Expected witness values to be integers, provided value `{}` causes `{}` error",
-                value, err_msg
-            ))
-        })?;
+        let val: i128 = value
+            .parse::<i128>()
+            .map_err(|err_msg| InputParserError::ParseStr(err_msg.to_string()))?;
         Ok(FieldElement::from(val))
     }
 }

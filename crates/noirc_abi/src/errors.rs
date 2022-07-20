@@ -3,11 +3,18 @@ pub enum InputParserError {
     MissingTomlFile(String),
     ParseTomlMap(String),
     ParseStr(String),
+    ParseHexStr(String),
     DuplicateVariableName(String),
 }
 
 impl std::fmt::Display for InputParserError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        match self {
+            InputParserError::MissingTomlFile(err_msg) => write!(f, "cannot find input file at located {}, run nargo build to generate the missing Prover and/or Verifier toml files", err_msg),
+            InputParserError::ParseTomlMap(err_msg) => write!(f, "input.toml file is badly formed, could not parse, {}", err_msg),
+            InputParserError::ParseStr(err_msg) => write!(f, "Expected witness values to be integers, provided value causes `{}` error", err_msg),
+            InputParserError::ParseHexStr(err_msg) => write!(f, "Could not parse hex value {}", err_msg),
+            InputParserError::DuplicateVariableName(err_msg) => write!(f, "duplicate variable name {}", err_msg)
+        }
     }
 }
