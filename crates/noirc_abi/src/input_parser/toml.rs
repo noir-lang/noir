@@ -1,24 +1,27 @@
+use super::InputValue;
+use crate::errors::InputParserError;
 use acvm::FieldElement;
 use serde_derive::Deserialize;
 use std::{collections::BTreeMap, path::Path};
 
-use super::InputValue;
-
 pub(crate) fn parse<P: AsRef<Path>>(
     path_to_toml: P,
-) -> Result<BTreeMap<String, InputValue>, String> {
+) -> Result<BTreeMap<String, InputValue>, InputParserError> {
     let path_to_toml = path_to_toml.as_ref();
     if !path_to_toml.exists() {
-        return Err(format!("cannot find input file at located {}, run nargo build to generate the missing Prover and/or Verifier toml files", path_to_toml.display()));
+        return Err(InputParserError::MissingTomlFile(format!("cannot find input file at located {}, run nargo build to generate the missing Prover and/or Verifier toml files", path_to_toml.display())));
     }
-
     // Get input.toml file as a string
     let input_as_string = std::fs::read_to_string(path_to_toml).unwrap();
 
     // Parse input.toml into a BTreeMap, converting the argument to field elements
     let data: BTreeMap<String, TomlTypes> =
-        toml::from_str(&input_as_string).expect("input.toml file is badly formed, could not parse");
-
+        toml::from_str(&input_as_string).map_err(|err_msg| {
+            InputParserError::ParseTomlMap(format!(
+                "input.toml file is badly formed, could not parse, {}",
+                err_msg
+            ))
+        })?;
     toml_map_to_field(data)
 }
 
@@ -26,7 +29,7 @@ pub(crate) fn parse<P: AsRef<Path>>(
 /// understands for Inputs
 fn toml_map_to_field(
     toml_map: BTreeMap<String, TomlTypes>,
-) -> Result<BTreeMap<String, InputValue>, String> {
+) -> Result<BTreeMap<String, InputValue>, InputParserError> {
     let mut field_map = BTreeMap::new();
 
     for (parameter, value) in toml_map {
@@ -67,10 +70,13 @@ fn check_toml_map_duplicates(
     field_map: &mut BTreeMap<String, InputValue>,
     parameter: String,
     new_value: InputValue,
-) -> Result<(), String> {
+) -> Result<(), InputParserError> {
     let old_value = field_map.insert(parameter.clone(), new_value);
     if old_value.is_some() {
-        return Err(format!("duplicate variable name {}", parameter));
+        return Err(InputParserError::DuplicateVariableName(format!(
+            "duplicate variable name {}",
+            parameter
+        )));
     }
     Ok(())
 }
@@ -89,15 +95,17 @@ enum TomlTypes {
     ArrayString(Vec<String>),
 }
 
-fn parse_str(value: &str) -> Result<FieldElement, String> {
+fn parse_str(value: &str) -> Result<FieldElement, InputParserError> {
     if value.starts_with("0x") {
-        FieldElement::from_hex(value).ok_or(format!("Could not parse hex value {}", value))
+        FieldElement::from_hex(value).ok_or_else(|| {
+            InputParserError::ParseStr(format!("Could not parse hex value {}", value))
+        })
     } else {
         let val: i128 = value.parse().map_err(|err_msg| {
-            format!(
+            InputParserError::ParseStr(format!(
                 "Expected witness values to be integers, provided value `{}` causes `{}` error",
                 value, err_msg
-            )
+            ))
         })?;
         Ok(FieldElement::from(val))
     }

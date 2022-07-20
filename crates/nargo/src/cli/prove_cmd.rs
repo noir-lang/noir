@@ -93,7 +93,7 @@ pub fn prove_with_path<P: AsRef<Path>>(
     // Parse the initial witness values
     let witness_map = noirc_abi::input_parser::Format::Toml
         .parse(program_dir, PROVER_INPUT_FILE)
-        .map_err(CliError::Generic)?;
+        .map_err(CliError::from)?;
 
     // Check that enough witness values were supplied
     let num_params = compiled_program.abi.as_ref().unwrap().num_parameters();
