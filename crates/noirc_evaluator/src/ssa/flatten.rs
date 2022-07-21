@@ -8,14 +8,29 @@ use acvm::FieldElement;
 use std::collections::HashMap;
 
 //Unroll the CFG
-pub fn unroll_tree(ctx: &mut SsaContext, mut block_id: BlockId) -> HashMap<NodeId, NodeEval> {
+pub fn unroll_tree(ctx: &mut SsaContext, block_id: BlockId) -> HashMap<NodeId, NodeEval> {
     //Calls outer_unroll() from the root node
-    let mut unroll_ins = Vec::new();
-    let mut eval_map = HashMap::new();
-    while let Some(next) = outer_unroll(&mut unroll_ins, &mut eval_map, block_id, ctx) {
-        block_id = next;
+    let mut unroll_ctx = UnrollContext {
+        deprecated: Vec::new(),
+        to_unroll: block_id,
+        unroll_into: BlockId::dummy(), //on unroll le body dans un new_block qui est cree dans le unroll_join
+        eval_map: HashMap::new(),
+        to_process: vec![block_id],
+    };
+
+    assert!(!ctx[block_id].is_join());
+
+    while !unroll_ctx.to_process.is_empty() {
+        unroll_ctx.to_unroll = unroll_ctx.to_process.pop().unwrap();
+        outer_unroll(&mut unroll_ctx, ctx);
     }
-    eval_map
+
+    for b in unroll_ctx.deprecated {
+        ctx.remove_block(b);
+    }
+    block::compute_dom(ctx);
+
+    unroll_ctx.eval_map
 }
 
 //Update the block instruction list using the eval_map
@@ -32,65 +47,108 @@ fn update_operator(operator: &Operation, eval_map: &HashMap<NodeId, NodeEval>) -
     operator.map_id(|id| eval_map.get(&id).and_then(|value| value.into_node_id()).unwrap_or(id))
 }
 
-pub fn unroll_block(
-    unrolled_instructions: &mut Vec<NodeId>,
-    eval_map: &mut HashMap<NodeId, NodeEval>,
-    block_to_unroll: BlockId,
-    ctx: &mut SsaContext,
-) -> Option<BlockId> {
-    if ctx[block_to_unroll].is_join() {
-        unroll_join(unrolled_instructions, eval_map, block_to_unroll, ctx)
+// Unrolling outer loops, i.e non-nested loops
+pub fn outer_unroll(unroll_ctx: &mut UnrollContext, ctx: &mut SsaContext) -> Option<BlockId> //next block
+{
+    let block = &ctx[unroll_ctx.to_unroll];
+    let b_left = block.left;
+    let b_right = block.right;
+
+    if block.is_join() {
+        //1. unroll the block into the unroll_ins
+        unroll_until(ctx, unroll_ctx, b_left.unwrap()); //...
+        unroll_ctx.to_process.push(unroll_ctx.to_unroll);
     } else {
-        unroll_std_block(unrolled_instructions, eval_map, block_to_unroll, ctx)
+        if unroll_ctx.unroll_into != BlockId::dummy() {
+            unroll_std_block(ctx, unroll_ctx);
+        } else {
+            //We update block instructions from the eval_map
+            eval_block(unroll_ctx.to_unroll, &unroll_ctx.eval_map, ctx);
+            if let Some(bb_left) = b_left {
+                unroll_ctx.to_unroll = bb_left;
+            }
+        }
+        if let Some(l) = b_left {
+            unroll_ctx.to_process.push(l);
+        }
+        if let Some(r) = b_right {
+            unroll_ctx.to_process.push(r);
+        }
     }
+    if let Some(bb_left) = b_left {
+        assert_eq!(unroll_ctx.to_unroll, bb_left);
+    }
+
+    b_left //returns the next block to process
+}
+
+//Unroll from unroll_ctx.to_unroll until it reaches unroll_ctx.unroll_into
+pub fn unroll_until(ctx: &mut SsaContext, unroll_ctx: &mut UnrollContext, end: BlockId) -> BlockId {
+    let mut b = unroll_ctx.to_unroll;
+    let mut prev = BlockId::dummy();
+
+    while b != end {
+        assert_ne!(b, BlockId::dummy(), "could not reach end block");
+        prev = b;
+
+        match ctx[b].kind {
+            block::BlockType::ForJoin => {
+                unroll_join(ctx, unroll_ctx);
+            }
+            _ => {
+                if ctx[b].right.is_some() {
+                    dbg!(&b);
+                    crate::ssa::conditional::unroll_if(ctx, unroll_ctx);
+                    dbg!(&unroll_ctx.to_unroll);
+                } else {
+                    unroll_std_block(ctx, unroll_ctx);
+                }
+            }
+        }
+        b = unroll_ctx.to_unroll;
+    }
+    prev
 }
 
 //unroll a normal block by generating new instructions into the unroll_ins list, using and updating the eval_map
-pub fn unroll_std_block(
-    unrolled_instructions: &mut Vec<NodeId>,
-    eval_map: &mut HashMap<NodeId, NodeEval>,
-    block_to_unroll: BlockId,
-    ctx: &mut SsaContext,
-) -> Option<BlockId> // The left block
+pub fn unroll_std_block(ctx: &mut SsaContext, unroll_ctx: &mut UnrollContext) -> Option<BlockId> // The left block
 {
-    let block = &ctx[block_to_unroll];
+    let block = &ctx[unroll_ctx.to_unroll];
     let b_instructions = block.instructions.clone();
-    let next = block.left;
+    let next = block.left.unwrap_or_else(BlockId::dummy);
+    ctx.current_block = unroll_ctx.unroll_into;
 
     for i_id in &b_instructions {
         match &ctx[*i_id] {
             node::NodeObj::Instr(i) => {
-                let new_op = i
-                    .operation
-                    .map_id(|id| get_current_value(id, eval_map).into_node_id().unwrap());
-                let mut new_ins = node::Instruction::new(
-                    new_op, i.res_type, None, //TODO to fix later
-                );
+                let new_op = i.operation.map_id(|id| {
+                    get_current_value(id, &unroll_ctx.eval_map).into_node_id().unwrap()
+                });
+                let mut new_ins =
+                    node::Instruction::new(new_op, i.res_type, Some(unroll_ctx.unroll_into));
                 match i.operation {
                     Operation::Binary(node::Binary { operator: BinaryOp::Assign, .. }) => {
                         unreachable!("unsupported instruction type when unrolling: assign");
                         //To support assignments, we should create a new variable and updates the eval_map with it
                         //however assignments should have already been removed by copy propagation.
                     }
-                    Operation::Jmp(block) => {
-                        return Some(block);
-                    }
+                    Operation::Jmp(block) => assert_eq!(block, next),
                     Operation::Nop => (),
                     _ => {
                         optim::simplify(ctx, &mut new_ins);
-
                         match new_ins.mark {
                             Mark::None => {
-                                let id = ctx.add_instruction(new_ins);
-                                unrolled_instructions.push(id);
-                                eval_map.insert(*i_id, NodeEval::VarOrInstruction(id));
+                                let id = ctx.push_instruction(new_ins);
+                                unroll_ctx.eval_map.insert(*i_id, NodeEval::VarOrInstruction(id));
                             }
                             Mark::Deleted => (),
                             Mark::ReplaceWith(replacement) => {
                                 // TODO: Should we insert into unrolled_instructions as well?
                                 // If optim::simplify replaces with a constant then we should not,
                                 // otherwise it may make sense if it is not already inserted.
-                                eval_map.insert(*i_id, NodeEval::VarOrInstruction(replacement));
+                                unroll_ctx
+                                    .eval_map
+                                    .insert(*i_id, NodeEval::VarOrInstruction(replacement));
                             }
                         }
                     }
@@ -99,119 +157,71 @@ pub fn unroll_std_block(
             _ => todo!(), //ERROR
         }
     }
-    next
+    if unroll_ctx.to_unroll != unroll_ctx.unroll_into
+        && !unroll_ctx.deprecated.contains(&unroll_ctx.to_unroll)
+    {
+        unroll_ctx.deprecated.push(unroll_ctx.to_unroll);
+    }
+    unroll_ctx.to_unroll = next;
+    Some(next)
 }
 
-//Unroll a for loop: exit <- join <--> body
-//join block is given in argumemt, it will evaluate the join condition, starting from 'start' until it reaches 'end'
-//and write the unrolled instructions of the body block into the unroll_ins list
-//If the body does not ends with a jump back to the join block, we continue to unroll the next block, until we reach the join.
-//If there is a nested loop, unroll_block will call recursively unroll_join, keeping unroll list and eval map from the previous one
-pub fn unroll_join(
-    unrolled_instructions: &mut Vec<NodeId>,
-    eval_map: &mut HashMap<NodeId, NodeEval>,
-    block_to_unroll: BlockId,
-    ctx: &mut SsaContext,
-) -> Option<BlockId> {
-    //Returns the exit block of the loop
-    let join = &ctx[block_to_unroll];
-    let join_instructions = join.instructions.clone();
-    let join_left = join.left; //XXX.clone();
-    let prev = *join.predecessor.first().unwrap(); //todo predecessor.first or .last?
+pub fn unroll_join(ssa_ctx: &mut SsaContext, unroll_ctx: &mut UnrollContext) -> BlockId {
+    let join_id = unroll_ctx.to_unroll;
+    let join = &ssa_ctx[unroll_ctx.to_unroll];
 
-    let mut from = prev; //todo caller?
+    let r = join.right.unwrap();
+
+    let join_instructions = join.instructions.clone();
+    let join_left = join.left.unwrap();
+    let mut prev = *join.predecessor.first().unwrap();
+
+    let mut from = prev;
     assert!(join.is_join());
     let body_id = join.right.unwrap();
-    if unrolled_instructions.is_empty() {
-        unrolled_instructions.push(*join_instructions.first().unwrap()); //TODO is it needed? we also should assert it is a nop instruction.
+    let toto = unroll_ctx.to_unroll;
+    if unroll_ctx.unroll_into != BlockId::dummy() {
+        prev = unroll_ctx.unroll_into;
     }
+    ssa_ctx.current_block = prev;
+    let new_body = block::new_sealed_block(ssa_ctx, block::BlockType::Normal, true);
+    let prev_block = ssa_ctx.try_get_block_mut(prev).unwrap();
+    prev_block.dominated = vec![new_body];
+    unroll_ctx.unroll_into = new_body;
     while {
         //evaluate the join  block:
-        evaluate_phi(&join_instructions, from, eval_map, ctx);
-        evaluate_conditional_jump(*join_instructions.last().unwrap(), eval_map, ctx)
+        evaluate_phi(&join_instructions, from, &mut unroll_ctx.eval_map, ssa_ctx);
+        evaluate_conditional_jump(*join_instructions.last().unwrap(), &unroll_ctx.eval_map, ssa_ctx)
     } {
-        from = block_to_unroll;
-        let mut b_id = body_id;
-        while let Some(next) = unroll_block(unrolled_instructions, eval_map, b_id, ctx) {
-            //process next block:
-            from = b_id;
-            b_id = next;
-            if b_id == block_to_unroll {
-                //looping back to the join block; we are done
-                break;
-            }
-        }
+        unroll_ctx.to_unroll = body_id;
+        from = unroll_until(ssa_ctx, unroll_ctx, toto);
     }
+
+    debug_assert!(ssa_ctx.current_block == unroll_ctx.unroll_into);
+    let next_block = block::new_sealed_block(ssa_ctx, block::BlockType::Normal, true);
+    unroll_ctx.deprecate(join_id);
+    unroll_ctx.deprecate(r);
+
+    unroll_ctx.unroll_into = next_block;
+    unroll_ctx.to_unroll = join_left;
     join_left
 }
 
-// Unrolling outer loops, i.e non-nested loops
-pub fn outer_unroll(
-    unroll_ins: &mut Vec<NodeId>, //unrolled instructions
-    eval_map: &mut HashMap<NodeId, NodeEval>,
-    block_id: BlockId, //block to unroll
-    ctx: &mut SsaContext,
-) -> Option<BlockId> //next block
-{
-    assert!(unroll_ins.is_empty());
-    let block = &ctx[block_id];
-    let b_right = block.right;
-    let b_left = block.left;
-    let block_instructions = block.instructions.clone();
-    if block.is_join() {
-        //1. unroll the block into the unroll_ins
-        unroll_join(unroll_ins, eval_map, block_id, ctx);
-        //2. map the Phis variables to their unrolled values:
-        for ins in &block_instructions {
-            if let Some(ins_obj) = ctx.try_get_instruction(*ins) {
-                if let Operation::Phi { root, .. } = &ins_obj.operation {
-                    if let Some(node_eval) = eval_map.get(&ins_obj.id) {
-                        let node_eval = *node_eval;
-                        eval_map.entry(*root).or_insert(node_eval);
-                        //todo test with constants
-                    }
-                } else if ins_obj.operation != node::Operation::Nop {
-                    break; //no more phis
-                }
-            }
-        }
-        //3. Merge the unrolled blocks into the join
-        for ins in unroll_ins.iter() {
-            ctx[*ins].set_id_and_parent(*ins, block_id);
-        }
-        let join_mut = &mut ctx[block_id];
-        join_mut.instructions = unroll_ins.clone();
-        join_mut.right = None;
-        join_mut.kind = block::BlockType::Normal;
+#[derive(Debug)]
+pub struct UnrollContext {
+    pub deprecated: Vec<BlockId>,
+    pub to_unroll: BlockId,
+    pub unroll_into: BlockId,
+    pub eval_map: HashMap<NodeId, NodeEval>,
+    pub to_process: Vec<BlockId>,
+}
 
-        //4. Remove the right sub-graph of the join block
-        //Note that this is not done in unroll_join because in case of nested loops we need to unroll_join a block several times.
-        if b_left.is_some() {
-            join_mut.dominated = vec![b_left.unwrap()];
-        } else {
-            join_mut.dominated.clear();
+impl UnrollContext {
+    pub fn deprecate(&mut self, block_id: BlockId) {
+        if !self.deprecated.contains(&block_id) {
+            self.deprecated.push(block_id);
         }
-        //we get the subgraph, however we could retrieve the list of processed blocks directly in unroll_join (cf. processed)
-        let mut sub_graph2 = Vec::new();
-        if let Some(body_id) = b_right {
-            let sub_graph = block::bfs(body_id, Some(block_id), ctx);
-            for b in sub_graph {
-                ctx.remove_block(b);
-                sub_graph2.push(b);
-            }
-        }
-
-        //update the predecessors of the block
-        let join_mut2 = &mut ctx[block_id];
-        join_mut2.predecessor.retain(|i| !sub_graph2.contains(i));
-
-        //5.Finally we clear the unroll_list and go the the next block
-        unroll_ins.clear();
-    } else {
-        //We update block instructions from the eval_map
-        eval_block(block_id, eval_map, ctx);
     }
-    b_left //returns the next block to process
 }
 
 //evaluate phi instruction, coming from 'from' block; retrieve the argument corresponding to the block, evaluates it and update the evaluation map
@@ -248,7 +258,7 @@ fn evaluate_phi(
 //returns true if we should jump
 fn evaluate_conditional_jump(
     jump: NodeId,
-    value_array: &mut HashMap<NodeId, NodeEval>,
+    value_array: &HashMap<NodeId, NodeEval>,
     ctx: &mut SsaContext,
 ) -> bool {
     let jump_ins = ctx.try_get_instruction(jump).unwrap();

@@ -236,6 +236,9 @@ impl<'a> SsaContext<'a> {
             let ins_str = self.operation_to_string(&ins.operation);
             println!("{}: {}", str_res, ins_str);
         }
+        if b.left.is_some() {
+            println!("Next block: {}", b.left.unwrap().0.into_raw_parts().0);
+        }
     }
 
     pub fn print(&self, text: &str) {

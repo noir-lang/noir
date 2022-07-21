@@ -6,6 +6,7 @@ use crate::ssa::node::ObjectType;
 use super::{
     block::{self, BlockId, BlockType},
     context::SsaContext,
+    flatten::{self, UnrollContext},
     inline::StackFrame,
     node::{self, BinaryOp, Instruction, NodeId, Operation},
 };
@@ -383,4 +384,66 @@ impl DecisionTree {
             }
         }
     }
+}
+
+//unroll an if sub-graph
+pub fn unroll_if(ctx: &mut SsaContext, unroll_ctx: &mut UnrollContext) -> BlockId {
+    //1. find the join block
+    let if_block = &ctx[unroll_ctx.to_unroll];
+    let left = if_block.left.unwrap();
+    let right = if_block.right.unwrap();
+    debug_assert!(if_block.kind == BlockType::Normal);
+    let exit = block::find_join(ctx, if_block.left.unwrap(), if_block.right.unwrap());
+
+    //2. create the IF subgraph
+    //the unroll_into is required and will be used as the prev block
+    assert_ne!(unroll_ctx.unroll_into, BlockId::dummy());
+    let (new_entry, new_exit) = create_if_subgraph(ctx, unroll_ctx.unroll_into);
+    unroll_ctx.unroll_into = new_entry;
+
+    //3 Process the entry_block
+    flatten::unroll_std_block(ctx, unroll_ctx);
+
+    //4. Process the THEN branch
+    let then_block = ctx[new_entry].left.unwrap();
+    let else_block = ctx[new_entry].right.unwrap();
+    unroll_ctx.to_unroll = left;
+    unroll_ctx.unroll_into = then_block;
+    flatten::unroll_until(ctx, unroll_ctx, exit);
+
+    //Plug to the exit:
+    ctx[unroll_ctx.unroll_into].left = Some(new_exit);
+    ctx[new_exit].predecessor.push(unroll_ctx.unroll_into);
+
+    //5. Process the ELSE branch
+    unroll_ctx.to_unroll = right;
+    unroll_ctx.unroll_into = else_block;
+    flatten::unroll_until(ctx, unroll_ctx, exit);
+    ctx[unroll_ctx.unroll_into].left = Some(new_exit);
+    ctx[new_exit].predecessor.push(unroll_ctx.unroll_into);
+
+    //6. Prepare the process for the JOIN
+    unroll_ctx.to_unroll = exit;
+    unroll_ctx.unroll_into = new_exit;
+
+    exit
+}
+
+//create the subgraph for unrolling IF statement
+fn create_if_subgraph(ctx: &mut SsaContext, prev_block: BlockId) -> (BlockId, BlockId) {
+    //Entry block
+    ctx.current_block = prev_block;
+    let new_entry = block::new_sealed_block(ctx, block::BlockType::Normal, true);
+    //Then block
+    ctx.current_block = new_entry;
+    block::new_sealed_block(ctx, block::BlockType::Normal, true);
+    //Else block
+    ctx.current_block = new_entry;
+    let new_else = block::new_sealed_block(ctx, block::BlockType::Normal, false);
+    //Exit block
+    let new_exit = block::new_sealed_block(ctx, block::BlockType::IfJoin, false);
+    ctx[new_exit].dominator = Some(new_entry);
+    ctx[new_entry].right = Some(new_else);
+
+    (new_entry, new_exit)
 }

@@ -879,7 +879,7 @@ impl<'a> IRGenerator<'a> {
         let assign = Operation::binary(BinaryOp::Assign, iter_id, start_idx);
         let iter_ass = self.context.new_instruction(assign, iter_type);
 
-        //We map the iterator to start_idx so that when we seal the join block, we will get the corrdect value.
+        //We map the iterator to start_idx so that when we seal the join block, we will get the correct value.
         self.update_variable_id(iter_id, iter_ass, start_idx);
 
         //join block
