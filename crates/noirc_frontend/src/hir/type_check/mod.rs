@@ -144,11 +144,12 @@ mod test {
             ]
             .into(),
             return_type: Type::Unit,
+            return_visibility: noirc_abi::AbiFEType::Private,
             has_body: true,
         };
         interner.push_fn_meta(func_meta, func_id);
 
-        let errors = super::type_check_func(&mut interner, func_id, None);
+        let errors = super::type_check_func(&mut interner, func_id);
         assert!(errors.is_empty());
     }
 
@@ -267,8 +268,7 @@ mod test {
         }
 
         // Type check section
-        let errors =
-            super::type_check_func(&mut interner, func_ids.first().cloned().unwrap(), None);
+        let errors = super::type_check_func(&mut interner, func_ids.first().cloned().unwrap());
         assert_eq!(errors, vec![]);
     }
 }
