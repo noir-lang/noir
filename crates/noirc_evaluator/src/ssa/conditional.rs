@@ -99,7 +99,7 @@ impl DecisionTree {
     ) -> NodeId {
         let operation = Operation::binary(operator, lhs, rhs);
         let mut i = Instruction::new(operation, typ, Some(block_id));
-        super::optim::simplify(ctx, &mut i);
+        super::optim::simplify(ctx, &mut i).unwrap();
         if let node::Mark::ReplaceWith(replacement) = i.mark {
             return replacement;
         }
@@ -273,7 +273,7 @@ impl DecisionTree {
         let mut ins = ctx[left].instructions.clone();
         ins.extend(&ctx[right].instructions);
         let mut modified = false;
-        super::optim::cse_block(ctx, left, &mut ins, &mut modified);
+        super::optim::cse_block(ctx, left, &mut ins, &mut modified).unwrap();
 
         //housekeeping...
         let if_block = &mut ctx[if_block_id];
@@ -308,11 +308,11 @@ impl DecisionTree {
                     if block_kind == BlockType::IfJoin {
                         assert_eq!(block_args.len(), 2);
                         let ins2 = ctx.get_mut_instruction(*i);
-                        ins2.operation = Operation::binary(
-                            BinaryOp::Cond(assumption.condition),
-                            block_args[0].0,
-                            block_args[1].0,
-                        );
+                        ins2.operation = Operation::Cond {
+                            condition: assumption.condition,
+                            lhs: block_args[0].0,
+                            rhs: block_args[1].0,
+                        }
                     }
                 }
 
@@ -328,7 +328,8 @@ impl DecisionTree {
                             .position(|value| *value == ins.id)
                             .unwrap();
                         ctx[block].instructions.insert(pos - 1, dummy);
-                        let operation = Operation::binary(BinaryOp::Cond(ass_value), *value, dummy);
+                        let operation =
+                            Operation::Cond { condition: ass_value, lhs: *value, rhs: dummy };
                         let cond =
                             ctx.add_instruction(Instruction::new(operation, e_type, Some(block)));
                         ctx[block].instructions.insert(pos, cond);
@@ -363,7 +364,7 @@ impl DecisionTree {
                         todo!();
                     }
                 }
-                Operation::Constrain(expr) => {
+                Operation::Constrain(expr, _) => {
                     if ass_value != ctx.one() {
                         let pos = ctx[block]
                             .instructions
@@ -371,7 +372,7 @@ impl DecisionTree {
                             .position(|value| *value == ins.id)
                             .unwrap();
                         let operation =
-                            Operation::binary(BinaryOp::Cond(ass_value), *expr, ctx.one());
+                            Operation::Cond { condition: ass_value, lhs: *expr, rhs: ctx.one() };
                         let cond = ctx.add_instruction(Instruction::new(
                             operation,
                             ObjectType::Boolean,

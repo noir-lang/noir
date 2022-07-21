@@ -77,7 +77,7 @@ impl BasicBlock {
         let root_id = root_block.id;
         ctx.current_block = root_id;
         ctx.sealed_blocks.insert(root_id);
-        ctx.new_instruction(node::Operation::Nop, node::ObjectType::NotAnObject);
+        ctx.new_instruction(node::Operation::Nop, node::ObjectType::NotAnObject).unwrap();
         root_id
     }
 
@@ -118,7 +118,7 @@ pub fn new_sealed_block(ctx: &mut SsaContext, kind: BlockType, left: bool) -> Bl
         cb.left = Some(new_id);
     }
     ctx.current_block = new_id;
-    ctx.new_instruction(node::Operation::Nop, node::ObjectType::NotAnObject);
+    ctx.new_instruction(node::Operation::Nop, node::ObjectType::NotAnObject).unwrap();
     new_id
 }
 
@@ -138,7 +138,7 @@ pub fn new_unsealed_block(ctx: &mut SsaContext, kind: BlockType, left: bool) -> 
     }
 
     ctx.current_block = new_idx;
-    ctx.new_instruction(node::Operation::Nop, node::ObjectType::NotAnObject);
+    ctx.new_instruction(node::Operation::Nop, node::ObjectType::NotAnObject).unwrap();
     new_idx
 }
 
@@ -321,7 +321,7 @@ pub fn merge_path(ctx: &mut SsaContext, start: BlockId, end: BlockId) -> VecDequ
         }
         //we assign the concatened list of instructions to the start block, using a CSE pass
         let mut modified = false;
-        super::optim::cse_block(ctx, start, &mut instructions, &mut modified);
+        super::optim::cse_block(ctx, start, &mut instructions, &mut modified).unwrap();
         //Wires start to end
         rewire_block_left(ctx, start, end);
         removed_blocks.pop_front();

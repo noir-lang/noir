@@ -115,11 +115,7 @@ impl Driver {
         let mut error_count = 0;
         for errors in &errs {
             error_count += errors.errors.len();
-            Reporter::with_diagnostics(
-                errors.file_id.as_usize(),
-                &self.context.file_manager,
-                &errors.errors,
-            );
+            Reporter::with_diagnostics(errors.file_id, &self.context.file_manager, &errors.errors);
         }
 
         Reporter::finish(error_count);
@@ -131,7 +127,7 @@ impl Driver {
         let main_function = local_crate.main_function()?;
 
         let func_meta = self.context.def_interner.function_meta(&main_function);
-        let abi = func_meta.parameters.into_abi(&self.context.def_interner);
+        let abi = func_meta.into_abi(&self.context.def_interner);
 
         Some(abi)
     }
@@ -142,11 +138,6 @@ impl Driver {
         show_ssa: bool,
     ) -> CompiledProgram {
         self.build();
-        // First find the local crate
-        // There is always a local crate
-        let local_crate = self.context.def_map(LOCAL_CRATE).unwrap();
-        let file_id = local_crate.root_file_id().as_usize();
-
         // Check the crate type
         // We don't panic here to allow users to `evaluate` libraries
         // which will do nothing
@@ -155,13 +146,16 @@ impl Driver {
             std::process::exit(1);
         };
 
+        // Find the local crate, one should always be present
+        let local_crate = self.context.def_map(LOCAL_CRATE).unwrap();
+
         // All Binaries should have a main function
         let main_function =
             local_crate.main_function().expect("cannot compile a program with no main function");
 
         // Create ABI for main function
         let func_meta = self.context.def_interner.function_meta(&main_function);
-        let abi = func_meta.parameters.into_abi(&self.context.def_interner);
+        let abi = func_meta.into_abi(&self.context.def_interner);
 
         let evaluator = Evaluator::new(main_function, &self.context);
 
@@ -172,7 +166,7 @@ impl Driver {
                 // The FileId here will be the file id of the file with the main file
                 // Errors will be shown at the callsite without a stacktrace
                 Reporter::with_diagnostics(
-                    file_id,
+                    err.location.file,
                     &self.context.file_manager,
                     &[err.to_diagnostic()],
                 );

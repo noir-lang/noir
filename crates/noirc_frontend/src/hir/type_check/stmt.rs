@@ -5,6 +5,7 @@ use crate::hir_def::stmt::{
 };
 use crate::hir_def::types::Type;
 use crate::node_interner::{ExprId, NodeInterner, StmtId};
+use crate::IsConst;
 
 use super::{errors::TypeCheckError, expr::type_check_expression};
 
@@ -120,7 +121,7 @@ fn type_check_lvalue(
             if !definition.mutable {
                 errors.push(TypeCheckError::Unstructured {
                     msg: format!("Variable {} must be mutable to be assigned to", definition.name),
-                    span: ident.span,
+                    span: ident.location.span,
                 });
             }
 
@@ -151,7 +152,7 @@ fn type_check_lvalue(
         }
         HirLValue::Index { array, index } => {
             let index_type = type_check_expression(interner, &index, errors);
-            let expr_span = interner.id_span(&index);
+            let expr_span = interner.expr_span(&index);
 
             index_type.unify(&Type::constant(Some(expr_span)), expr_span, errors, || {
                 TypeCheckError::TypeMismatch {
@@ -200,10 +201,12 @@ fn type_check_constrain_stmt(
     let expr_type = type_check_expression(interner, &stmt.0, errors);
     let expr_span = interner.expr_span(&stmt.0);
 
-    expr_type.unify(&Type::Bool, expr_span, errors, &mut || TypeCheckError::TypeMismatch {
-        expr_typ: expr_type.to_string(),
-        expected_typ: Type::Bool.to_string(),
-        expr_span,
+    expr_type.unify(&Type::Bool(IsConst::new(interner)), expr_span, errors, &mut || {
+        TypeCheckError::TypeMismatch {
+            expr_typ: expr_type.to_string(),
+            expected_typ: Type::Bool(IsConst::No(None)).to_string(),
+            expr_span,
+        }
     });
 }
 

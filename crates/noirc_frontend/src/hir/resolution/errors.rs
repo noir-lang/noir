@@ -35,8 +35,8 @@ impl ResolverError {
     pub fn into_diagnostic(self, interner: &NodeInterner) -> Diagnostic {
         match self {
             ResolverError::DuplicateDefinition { first_ident, second_ident } => {
-                let first_span = first_ident.span;
-                let second_span = second_ident.span;
+                let first_span = first_ident.location.span;
+                let second_span = second_ident.location.span;
 
                 let name = interner.definition_name(first_ident.id);
 
@@ -54,7 +54,7 @@ impl ResolverError {
                 let mut diag = Diagnostic::simple_error(
                     format!("unused variable {}", name),
                     "unused variable ".to_string(),
-                    ident.span,
+                    ident.location.span,
                 );
 
                 diag.add_note("A new variable usually means a constraint has been added and is being unused. \n For this reason, it is almost always a bug to declare a variable and not use it.".to_owned());

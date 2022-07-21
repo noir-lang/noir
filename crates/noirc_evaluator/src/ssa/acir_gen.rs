@@ -126,7 +126,7 @@ impl Acir {
 
         let mut output = match &ins.operation {
             Operation::Binary(binary) => self.evaluate_binary(binary, ins.res_type, evaluator, ctx),
-            Operation::Constrain(value) => {
+            Operation::Constrain(value, ..) => {
                 let value = self.substitute(*value, evaluator, ctx);
                 let subtract = subtract(&Expression::one(), FieldElement::one(), &value.expression);
                 evaluator.gates.push(Gate::Arithmetic(subtract));
@@ -164,6 +164,18 @@ impl Acir {
             }
             Operation::Call(..) => unreachable!("call instruction should have been inlined"),
             Operation::Return(_) => todo!(), //return from main
+            Operation::Cond { condition, lhs, rhs } => {
+                let cond = self.substitute(*condition, evaluator, ctx);
+                let l_c = self.substitute(*lhs, evaluator, ctx);
+                let r_c = self.substitute(*rhs, evaluator, ctx);
+                let sub = subtract(&l_c.expression, FieldElement::one(), &r_c.expression);
+                let result = add(
+                    &mul_with_witness(evaluator, &cond.expression, &sub),
+                    FieldElement::one(),
+                    &r_c.expression,
+                );
+                result.into()
+            }
             Operation::Nop => InternalVar::default(),
             Operation::Load { array_id, index } => {
                 //retrieves the value from the map if address is known at compile time:
@@ -316,16 +328,6 @@ impl Acir {
             BinaryOp::And => InternalVar::from(evaluate_and(l_c, r_c, res_type.bits(), evaluator)),
             BinaryOp::Or => InternalVar::from(evaluate_or(l_c, r_c, res_type.bits(), evaluator)),
             BinaryOp::Xor => InternalVar::from(evaluate_xor(l_c, r_c, res_type.bits(), evaluator)),
-            BinaryOp::Cond(a) => {
-                let cond = self.substitute(*a, evaluator, ctx);
-                let sub = subtract(&l_c.expression, FieldElement::one(), &r_c.expression);
-                let result = add(
-                    &mul_with_witness(evaluator, &cond.expression, &sub),
-                    FieldElement::one(),
-                    &r_c.expression,
-                );
-                result.into()
-            }
             BinaryOp::Shl | BinaryOp::Shr => unreachable!(),
             i @ BinaryOp::Assign => unreachable!("Invalid Instruction: {:?}", i),
         }
