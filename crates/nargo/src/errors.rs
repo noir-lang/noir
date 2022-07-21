@@ -1,3 +1,4 @@
+use noirc_abi::errors::InputParserError;
 use std::io::Write;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
@@ -23,5 +24,11 @@ impl CliError {
         writeln!(&mut stderr, "{}", msg).expect("cannot write to stderr");
 
         std::process::exit(0)
+    }
+}
+
+impl From<InputParserError> for CliError {
+    fn from(error: InputParserError) -> Self {
+        CliError::Generic(error.to_string())
     }
 }
