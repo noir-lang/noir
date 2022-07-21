@@ -97,9 +97,7 @@ pub fn unroll_until(ctx: &mut SsaContext, unroll_ctx: &mut UnrollContext, end: B
             }
             _ => {
                 if ctx[b].right.is_some() {
-                    dbg!(&b);
                     crate::ssa::conditional::unroll_if(ctx, unroll_ctx);
-                    dbg!(&unroll_ctx.to_unroll);
                 } else {
                     unroll_std_block(ctx, unroll_ctx);
                 }
