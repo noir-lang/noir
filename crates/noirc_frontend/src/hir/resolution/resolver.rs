@@ -18,7 +18,7 @@ struct ResolverMeta {
 }
 
 use crate::hir_def::expr::{
-    HirArrayLiteral, HirBlockExpression, HirCallExpression, HirCastExpression,
+    HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
     HirConstructorExpression, HirForExpression, HirIdent, HirIfExpression, HirIndexExpression,
     HirInfixExpression, HirLiteral, HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
     HirUnaryOp,
@@ -39,7 +39,8 @@ use crate::{
     Statement,
 };
 use crate::{LValue, NoirStruct, Path, Pattern, StructType, Type, UnresolvedType, ERROR_IDENT};
-use noirc_errors::{Span, Spanned};
+use fm::FileId;
+use noirc_errors::{Location, Span, Spanned};
 
 use crate::hir::scope::{
     Scope as GenericScope, ScopeForest as GenericScopeForest, ScopeTree as GenericScopeTree,
@@ -62,6 +63,7 @@ pub struct Resolver<'a> {
     interner: &'a mut NodeInterner,
     self_type: Option<StructId>,
     errors: Vec<ResolverError>,
+    file: FileId,
 }
 
 impl<'a> Resolver<'a> {
@@ -69,6 +71,7 @@ impl<'a> Resolver<'a> {
         interner: &'a mut NodeInterner,
         path_resolver: &'a dyn PathResolver,
         def_maps: &'a HashMap<CrateId, CrateDefMap>,
+        file: FileId,
     ) -> Resolver<'a> {
         Self {
             path_resolver,
@@ -77,6 +80,7 @@ impl<'a> Resolver<'a> {
             interner,
             self_type: None,
             errors: Vec::new(),
+            file,
         }
     }
 
@@ -142,7 +146,8 @@ impl<'a> Resolver<'a> {
 
     fn add_variable_decl(&mut self, name: Ident, mutable: bool) -> HirIdent {
         let id = self.interner.push_definition(name.0.contents.clone(), mutable);
-        let ident = HirIdent { span: name.span(), id };
+        let location = Location::new(name.span(), self.file);
+        let ident = HirIdent { location, id };
 
         let scope = self.scopes.get_mut_scope();
         let resolver_meta = ResolverMeta { num_times_used: 0, ident };
@@ -182,8 +187,8 @@ impl<'a> Resolver<'a> {
             DefinitionId::dummy_id()
         };
 
-        let span = name.span();
-        HirIdent { span, id }
+        let location = Location::new(name.span(), self.file);
+        HirIdent { location, id }
     }
 
     pub fn intern_function(&mut self, func: NoirFunction) -> (HirFunction, FuncMeta) {
@@ -193,9 +198,7 @@ impl<'a> Resolver<'a> {
             FunctionKind::Builtin | FunctionKind::LowLevel => HirFunction::empty(),
             FunctionKind::Normal => {
                 let expr_id = self.intern_block(func.def.body);
-
-                self.interner.push_expr_span(expr_id, func.def.span);
-
+                self.interner.push_expr_location(expr_id, func.def.span, self.file);
                 HirFunction::unsafe_from_expr(expr_id)
             }
         };
@@ -212,7 +215,7 @@ impl<'a> Resolver<'a> {
             UnresolvedType::Integer(is_const, vis, sign, bits) => {
                 Type::Integer(is_const, vis, sign, bits)
             }
-            UnresolvedType::Bool => Type::Bool,
+            UnresolvedType::Bool(is_const) => Type::Bool(is_const),
             UnresolvedType::Unit => Type::Unit,
             UnresolvedType::Unspecified => Type::Unspecified,
             UnresolvedType::Error => Type::Error,
@@ -240,9 +243,9 @@ impl<'a> Resolver<'a> {
     fn extract_meta(&mut self, func: &NoirFunction) -> FuncMeta {
         let name = func.name().to_owned();
 
-        let span = func.name_ident().span();
+        let location = Location::new(func.name_ident().span(), self.file);
         let id = self.interner.push_definition(name, false);
-        let name = HirIdent { id, span };
+        let name = HirIdent { id, location };
 
         let attributes = func.attribute().cloned();
 
@@ -259,6 +262,7 @@ impl<'a> Resolver<'a> {
             name,
             kind: func.kind,
             attributes,
+            location,
             parameters: parameters.into(),
             return_type,
             has_body: !func.def.body.is_empty(),
@@ -266,37 +270,27 @@ impl<'a> Resolver<'a> {
     }
 
     pub fn intern_stmt(&mut self, stmt: Statement) -> StmtId {
-        match stmt {
-            Statement::Let(let_stmt) => {
-                let let_stmt = HirLetStatement {
-                    pattern: self.resolve_pattern(let_stmt.pattern),
-                    r#type: self.resolve_type(let_stmt.r#type),
-                    expression: self.resolve_expression(let_stmt.expression),
-                };
-                self.interner.push_stmt(HirStatement::Let(let_stmt))
-            }
+        let stmt = match stmt {
+            Statement::Let(let_stmt) => HirStatement::Let(HirLetStatement {
+                pattern: self.resolve_pattern(let_stmt.pattern),
+                r#type: self.resolve_type(let_stmt.r#type),
+                expression: self.resolve_expression(let_stmt.expression),
+            }),
             Statement::Constrain(constrain_stmt) => {
                 let expr_id = self.resolve_expression(constrain_stmt.0);
-                let stmt = HirConstrainStatement(expr_id);
-
-                self.interner.push_stmt(HirStatement::Constrain(stmt))
+                HirStatement::Constrain(HirConstrainStatement(expr_id, self.file))
             }
-            Statement::Expression(expr) => {
-                let stmt = HirStatement::Expression(self.resolve_expression(expr));
-                self.interner.push_stmt(stmt)
-            }
-            Statement::Semi(expr) => {
-                let stmt = HirStatement::Semi(self.resolve_expression(expr));
-                self.interner.push_stmt(stmt)
-            }
+            Statement::Expression(expr) => HirStatement::Expression(self.resolve_expression(expr)),
+            Statement::Semi(expr) => HirStatement::Semi(self.resolve_expression(expr)),
             Statement::Assign(assign_stmt) => {
                 let identifier = self.resolve_lvalue(assign_stmt.lvalue);
                 let expression = self.resolve_expression(assign_stmt.expression);
                 let stmt = HirAssignStatement { lvalue: identifier, expression };
-                self.interner.push_stmt(HirStatement::Assign(stmt))
+                HirStatement::Assign(stmt)
             }
-            Statement::Error => self.interner.push_stmt(HirStatement::Error),
-        }
+            Statement::Error => HirStatement::Error,
+        };
+        self.interner.push_stmt(stmt)
     }
 
     fn resolve_lvalue(&mut self, lvalue: LValue) -> HirLValue {
@@ -342,7 +336,7 @@ impl<'a> Resolver<'a> {
 
                 HirExpression::Infix(HirInfixExpression {
                     lhs,
-                    operator: infix.operator.into(),
+                    operator: HirBinaryOp::new(infix.operator, self.file),
                     rhs,
                 })
             }
@@ -398,8 +392,8 @@ impl<'a> Resolver<'a> {
                     None => {
                         self.push_err(ResolverError::PathIsNotIdent { span: path.span() });
                         let id = DefinitionId::dummy_id();
-                        let span = path.span();
-                        HirIdent { id, span }
+                        let location = Location::new(path.span(), self.file);
+                        HirIdent { id, location }
                     }
                 })
             }
@@ -440,7 +434,7 @@ impl<'a> Resolver<'a> {
         };
 
         let expr_id = self.interner.push_expr(hir_expr);
-        self.interner.push_expr_span(expr_id, expr.span);
+        self.interner.push_expr_location(expr_id, expr.span, self.file);
         expr_id
     }
 
@@ -608,6 +602,8 @@ mod test {
 
     use std::collections::HashMap;
 
+    use fm::FileId;
+
     use crate::{hir::resolution::errors::ResolverError, Ident};
 
     use crate::graph::CrateId;
@@ -642,10 +638,11 @@ mod test {
         }
 
         let def_maps: HashMap<CrateId, CrateDefMap> = HashMap::new();
+        let file = FileId::default();
 
         let mut errors = Vec::new();
         for func in program.functions {
-            let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps);
+            let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
             let (_, _, err) = resolver.resolve_function(func);
             errors.extend(err);
         }

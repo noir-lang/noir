@@ -101,6 +101,7 @@ impl DefCollector {
         collect_defs(&mut def_collector, ast, root_file_id, crate_root, crate_id, context, errors);
 
         // Add the current crate to the collection of DefMaps
+        let main_id = def_collector.def_map.main_function();
         context.def_maps.insert(crate_id, def_collector.def_map);
 
         // Resolve unresolved imports collected from the crate
@@ -164,8 +165,8 @@ impl DefCollector {
         );
 
         // Type check all of the functions in the crate
-        type_check_functions(&mut context.def_interner, file_func_ids, errors);
-        type_check_functions(&mut context.def_interner, file_method_ids, errors);
+        type_check_functions(&mut context.def_interner, file_func_ids, main_id, errors);
+        type_check_functions(&mut context.def_interner, file_method_ids, main_id, errors);
     }
 }
 
@@ -184,8 +185,10 @@ fn collect_impls(
         let path_resolver =
             StandardPathResolver::new(ModuleId { local_id: *module_id, krate: crate_id });
 
+        let file = def_maps[&crate_id].module_file_id(*module_id);
+
         for unresolved in methods {
-            let resolver = Resolver::new(interner, &path_resolver, def_maps);
+            let resolver = Resolver::new(interner, &path_resolver, def_maps, file);
             let (typ, more_errors) = resolver.lookup_type_for_impl(path.clone());
             if !more_errors.is_empty() {
                 errors.push(CollectedErrors {
@@ -252,8 +255,11 @@ fn resolve_struct_fields(
     let path_resolver =
         StandardPathResolver::new(ModuleId { local_id: unresolved.module_id, krate });
 
-    let (typ, errs) = Resolver::new(&mut context.def_interner, &path_resolver, &context.def_maps)
-        .resolve_struct_fields(unresolved.struct_def);
+    let file = unresolved.file_id;
+
+    let (typ, errs) =
+        Resolver::new(&mut context.def_interner, &path_resolver, &context.def_maps, file)
+            .resolve_struct_fields(unresolved.struct_def);
 
     if !errs.is_empty() {
         errors.push(CollectedErrors {
@@ -278,7 +284,9 @@ fn resolve_impls(
         let path_resolver =
             StandardPathResolver::new(ModuleId { local_id: module_id, krate: crate_id });
 
-        let mut resolver = Resolver::new(interner, &path_resolver, def_maps);
+        let file = def_maps[&crate_id].module_file_id(module_id);
+
+        let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
         let self_type = resolver.lookup_struct(path);
         let self_type_id = self_type.as_ref().map(|typ| typ.borrow().id);
 
@@ -331,7 +339,7 @@ fn resolve_functions(
             let path_resolver =
                 StandardPathResolver::new(ModuleId { local_id: mod_id, krate: crate_id });
 
-            let mut resolver = Resolver::new(interner, &path_resolver, def_maps);
+            let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file_id);
             resolver.set_self_type(self_type);
 
             let (hir_func, func_meta, errs) = resolver.resolve_function(func);
@@ -352,13 +360,15 @@ fn resolve_functions(
 fn type_check_functions(
     interner: &mut NodeInterner,
     file_func_ids: Vec<(FileId, FuncId)>,
+    main_function: Option<FuncId>,
     errors: &mut Vec<CollectedErrors>,
 ) {
     file_func_ids
         .into_iter()
         .map(|(file_id, func_id)| {
-            let errors =
-                vecmap(type_check_func(interner, func_id), |error| error.into_diagnostic(interner));
+            let errors = vecmap(type_check_func(interner, func_id, main_function), |error| {
+                error.into_diagnostic(interner)
+            });
 
             CollectedErrors { file_id, errors }
         })

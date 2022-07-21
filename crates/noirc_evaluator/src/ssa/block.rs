@@ -77,7 +77,7 @@ impl BasicBlock {
         let root_id = root_block.id;
         ctx.current_block = root_id;
         ctx.sealed_blocks.insert(root_id);
-        ctx.new_instruction(node::Operation::Nop, node::ObjectType::NotAnObject);
+        ctx.new_instruction(node::Operation::Nop, node::ObjectType::NotAnObject).unwrap();
         root_id
     }
 
@@ -118,7 +118,7 @@ pub fn new_sealed_block(ctx: &mut SsaContext, kind: BlockType, left: bool) -> Bl
         cb.left = Some(new_id);
     }
     ctx.current_block = new_id;
-    ctx.new_instruction(node::Operation::Nop, node::ObjectType::NotAnObject);
+    ctx.new_instruction(node::Operation::Nop, node::ObjectType::NotAnObject).unwrap();
     new_id
 }
 
@@ -138,7 +138,7 @@ pub fn new_unsealed_block(ctx: &mut SsaContext, kind: BlockType, left: bool) -> 
     }
 
     ctx.current_block = new_idx;
-    ctx.new_instruction(node::Operation::Nop, node::ObjectType::NotAnObject);
+    ctx.new_instruction(node::Operation::Nop, node::ObjectType::NotAnObject).unwrap();
     new_idx
 }
 

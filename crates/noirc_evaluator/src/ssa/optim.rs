@@ -1,5 +1,7 @@
 use acvm::FieldElement;
 
+use crate::errors::RuntimeError;
+
 use super::{
     acir_gen::InternalVar,
     block::BlockId,
@@ -15,17 +17,17 @@ use std::{
 
 // Performs constant folding, arithmetic simplifications and move to standard form
 // Modifies ins.mark with whether the instruction should be deleted, replaced, or neither
-pub fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) {
+pub fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) -> Result<(), RuntimeError> {
     if ins.is_deleted() {
-        return;
+        return Ok(());
     }
     //1. constant folding
-    let new_id = ins.evaluate(ctx).to_index(ctx);
+    let new_id = ins.evaluate(ctx)?.to_index(ctx);
 
     if new_id != ins.id {
         use Mark::*;
         ins.mark = if new_id == NodeId::dummy() { Deleted } else { ReplaceWith(new_id) };
-        return;
+        return Ok(());
     }
 
     //2. standard form
@@ -34,14 +36,14 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) {
         if let Some(value) = ctx.try_get_node(value_id) {
             if value.get_type() == ins.res_type {
                 ins.mark = Mark::ReplaceWith(value_id);
-                return;
+                return Ok(());
             }
         }
     }
 
     //3. left-overs (it requires &mut ctx)
     if ins.is_deleted() {
-        return;
+        return Ok(());
     }
 
     if let Operation::Binary(binary) = &mut ins.operation {
@@ -62,6 +64,8 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) {
             ins.mark = Mark::ReplaceWith(evaluate_intrinsic(ctx, *opcode, args));
         }
     }
+
+    Ok(())
 }
 
 fn evaluate_intrinsic(ctx: &mut SsaContext, op: acvm::acir::OPCODE, args: Vec<u128>) -> NodeId {
@@ -195,7 +199,7 @@ pub fn propagate(ctx: &SsaContext, id: NodeId, modified: &mut bool) -> NodeId {
 }
 
 //common subexpression elimination, starting from the root
-pub fn cse(igen: &mut SsaContext, first_block: BlockId) -> Option<NodeId> {
+pub fn cse(igen: &mut SsaContext, first_block: BlockId) -> Result<Option<NodeId>, RuntimeError> {
     let mut anchor = Anchor::default();
     let mut modified = false;
     cse_tree(igen, first_block, &mut anchor, &mut modified)
@@ -207,28 +211,31 @@ fn cse_tree(
     block_id: BlockId,
     anchor: &mut Anchor,
     modified: &mut bool,
-) -> Option<NodeId> {
+) -> Result<Option<NodeId>, RuntimeError> {
     let mut instructions = Vec::new();
-    let mut res = cse_block_with_anchor(igen, block_id, &mut instructions, anchor, modified);
+    let mut res = cse_block_with_anchor(igen, block_id, &mut instructions, anchor, modified)?;
     for b in igen[block_id].dominated.clone() {
-        let sub_res = cse_tree(igen, b, &mut anchor.clone(), modified);
+        let sub_res = cse_tree(igen, b, &mut anchor.clone(), modified)?;
         if sub_res.is_some() {
             res = sub_res;
         }
     }
-    res
+    Ok(res)
 }
 
 //perform common subexpression elimination until there is no more change
-pub fn full_cse(igen: &mut SsaContext, first_block: BlockId) -> Option<NodeId> {
+pub fn full_cse(
+    igen: &mut SsaContext,
+    first_block: BlockId,
+) -> Result<Option<NodeId>, RuntimeError> {
     let mut modified = true;
     let mut result = None;
     while modified {
         modified = false;
         let mut anchor = Anchor::default();
-        result = cse_tree(igen, first_block, &mut anchor, &mut modified);
+        result = cse_tree(igen, first_block, &mut anchor, &mut modified)?;
     }
-    result
+    Ok(result)
 }
 
 /// A list of instructions with the same Operation variant, ordered by the order
@@ -256,7 +263,7 @@ pub fn cse_block(
     block_id: BlockId,
     instructions: &mut Vec<NodeId>,
     modified: &mut bool,
-) -> Option<NodeId> {
+) -> Result<Option<NodeId>, RuntimeError> {
     cse_block_with_anchor(ctx, block_id, instructions, &mut Anchor::default(), modified)
 }
 
@@ -267,7 +274,7 @@ fn cse_block_with_anchor(
     instructions: &mut Vec<NodeId>,
     anchor: &mut Anchor,
     modified: &mut bool,
-) -> Option<NodeId> {
+) -> Result<Option<NodeId>, RuntimeError> {
     let mut new_list = Vec::new();
     let bb = &ctx[block_id];
     let is_join = bb.predecessor.len() > 1;
@@ -444,7 +451,7 @@ fn cse_block_with_anchor(
             }
 
             let mut update2 = update.clone();
-            simplify(ctx, &mut update2);
+            simplify(ctx, &mut update2)?;
             let update3 = ctx.get_mut_instruction(*ins_id);
             *update3 = update2;
         }
@@ -452,7 +459,7 @@ fn cse_block_with_anchor(
 
     let last = new_list.iter().copied().rev().find(|id| is_some(ctx, *id));
     ctx[block_id].instructions = new_list;
-    last
+    Ok(last)
 }
 
 pub fn is_some(ctx: &SsaContext, id: NodeId) -> bool {

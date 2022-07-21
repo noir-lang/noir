@@ -126,7 +126,7 @@ impl Acir {
 
         let mut output = match &ins.operation {
             Operation::Binary(binary) => self.evaluate_binary(binary, ins.res_type, evaluator, ctx),
-            Operation::Constrain(value) => {
+            Operation::Constrain(value, ..) => {
                 let value = self.substitute(*value, evaluator, ctx);
                 let subtract = subtract(&Expression::one(), FieldElement::one(), &value.expression);
                 evaluator.gates.push(Gate::Arithmetic(subtract));

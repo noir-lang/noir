@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use arena::{Arena, Index};
-use noirc_errors::Span;
+use fm::FileId;
+use noirc_errors::{Location, Span};
 
 use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::UnresolvedStruct;
@@ -15,6 +16,16 @@ use crate::hir_def::{
     stmt::HirStatement,
 };
 use crate::TypeVariableId;
+
+/// The DefinitionId for the return value of the main function.
+/// Used within the ssa pass to put constraints on the "return" value
+/// optionally specified in the prover toml.
+const MAIN_RETURN_ID: DefinitionId = DefinitionId(0);
+
+/// Name of the definition pointed to by MAIN_RETURN_ID.
+/// The name of this variable is deliberately a keyword so that
+/// it cannot be referred to normally.
+const MAIN_RETURN_NAME: &str = "return";
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub struct DefinitionId(usize);
@@ -116,8 +127,8 @@ pub struct NodeInterner {
     nodes: Arena<Node>,
     func_meta: HashMap<FuncId, FuncMeta>,
 
-    // Map each `Index` to it's own span
-    id_to_span: HashMap<Index, Span>,
+    // Map each `Index` to it's own location
+    id_to_location: HashMap<Index, Location>,
 
     // Maps each DefinitionId to a DefinitionInfo.
     definitions: Vec<DefinitionInfo>,
@@ -152,7 +163,7 @@ impl Default for NodeInterner {
         let mut interner = NodeInterner {
             nodes: Arena::default(),
             func_meta: HashMap::new(),
-            id_to_span: HashMap::new(),
+            id_to_location: HashMap::new(),
             definitions: vec![],
             id_to_type: HashMap::new(),
             structs: HashMap::new(),
@@ -162,6 +173,13 @@ impl Default for NodeInterner {
         // An empty block expression is used often, we add this into the `node` on startup
         let expr_id = interner.push_expr(HirExpression::empty_block());
         assert_eq!(expr_id, ExprId::empty_block_id());
+
+        // Push a fake definition for the public return from main.
+        // Only needed here because the evaluator uses an immutable reference to the interner
+        // This is given the name 'return' which is a keyword to prevent it from being accessed
+        // normally.
+        let return_id = interner.push_definition(MAIN_RETURN_NAME.into(), false);
+        assert_eq!(return_id, MAIN_RETURN_ID);
 
         interner
     }
@@ -178,10 +196,12 @@ impl NodeInterner {
     pub fn push_expr(&mut self, expr: HirExpression) -> ExprId {
         ExprId(self.nodes.insert(Node::Expression(expr)))
     }
+
     /// Stores the span for an interned expression.
-    pub fn push_expr_span(&mut self, expr_id: ExprId, span: Span) {
-        self.id_to_span.insert(expr_id.into(), span);
+    pub fn push_expr_location(&mut self, expr_id: ExprId, span: Span, file: FileId) {
+        self.id_to_location.insert(expr_id.into(), Location::new(span, file));
     }
+
     /// Interns a HIR Function.
     pub fn push_fn(&mut self, func: HirFunction) -> FuncId {
         FuncId(self.nodes.insert(Node::Function(func)))
@@ -319,9 +339,12 @@ impl NodeInterner {
         &self.definition(id).name
     }
 
-    /// Returns the span of an expression
     pub fn expr_span(&self, expr_id: &ExprId) -> Span {
-        self.id_span(expr_id)
+        self.id_location(expr_id).span
+    }
+
+    pub fn expr_location(&self, expr_id: &ExprId) -> Location {
+        self.id_location(expr_id)
     }
 
     pub fn get_struct(&self, id: StructId) -> Rc<RefCell<StructType>> {
@@ -334,14 +357,22 @@ impl NodeInterner {
     }
 
     /// Returns the span of an item stored in the Interner
-    pub fn id_span(&self, index: impl Into<Index>) -> Span {
-        self.id_to_span.get(&index.into()).copied().unwrap()
+    pub fn id_location(&self, index: impl Into<Index>) -> Location {
+        self.id_to_location.get(&index.into()).copied().unwrap()
     }
 
     /// Replaces the HirExpression at the given ExprId with a new HirExpression
     pub fn replace_expr(&mut self, id: &ExprId, new: HirExpression) {
         let old = self.nodes.get_mut(id.into()).unwrap();
         *old = Node::Expression(new);
+    }
+
+    pub fn main_return_id() -> DefinitionId {
+        MAIN_RETURN_ID
+    }
+
+    pub fn main_return_name() -> &'static str {
+        MAIN_RETURN_NAME
     }
 
     pub fn next_type_variable_id(&mut self) -> TypeVariableId {
