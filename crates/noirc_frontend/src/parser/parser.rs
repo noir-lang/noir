@@ -4,7 +4,7 @@ use std::iter::repeat;
 use super::{
     foldl_with_span, parameter_name_recovery, parameter_recovery, parenthesized, then_commit,
     then_commit_ignore, top_level_statement_recovery, ExprParser, NoirParser, ParsedModule,
-    ParserError, Precedence, TopLevelStatement,
+    ParserError, Precedence, SubModule, TopLevelStatement,
 };
 use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
@@ -28,39 +28,57 @@ pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<CustomDiagnosti
     let (tokens, lexing_errors) = lexer.lex();
     let mut errors = vecmap(&lexing_errors, DiagnosableError::to_diagnostic);
 
-    let (module, parsing_errors) = program().parse_recovery(tokens);
+    let (module, parsing_errors) = program().parse_recovery_verbose(tokens);
     errors.extend(parsing_errors.iter().map(DiagnosableError::to_diagnostic));
 
     (module.unwrap(), errors)
 }
 
 fn program() -> impl NoirParser<ParsedModule> {
-    empty()
-        .map(move |_| ParsedModule::default())
-        .then(top_level_statement().repeated())
-        .then_ignore(force(just(Token::EOF)))
-        .foldl(|mut program, statement| {
-            match statement {
-                TopLevelStatement::Function(f) => program.push_function(f),
-                TopLevelStatement::Module(m) => program.push_module_decl(m),
-                TopLevelStatement::Import(i) => program.push_import(i),
-                TopLevelStatement::Struct(s) => program.push_type(s),
-                TopLevelStatement::Impl(i) => program.push_impl(i),
-                TopLevelStatement::Error => (),
-            }
-            program
-        })
+    module().then_ignore(force(just(Token::EOF)))
 }
 
-fn top_level_statement() -> impl NoirParser<TopLevelStatement> {
+fn module() -> impl NoirParser<ParsedModule> {
+    recursive(|module_parser| {
+        empty()
+            .map(|_| ParsedModule::default())
+            .then(top_level_statement(module_parser).repeated())
+            .foldl(|mut program, statement| {
+                match statement {
+                    TopLevelStatement::Function(f) => program.push_function(f),
+                    TopLevelStatement::Module(m) => program.push_module_decl(m),
+                    TopLevelStatement::Import(i) => program.push_import(i),
+                    TopLevelStatement::Struct(s) => program.push_type(s),
+                    TopLevelStatement::Impl(i) => program.push_impl(i),
+                    TopLevelStatement::SubModule(s) => program.push_submodule(s),
+                    TopLevelStatement::Error => (),
+                }
+                program
+            })
+    })
+}
+
+fn top_level_statement(
+    module_parser: impl NoirParser<ParsedModule>,
+) -> impl NoirParser<TopLevelStatement> {
     choice((
         function_definition(false).map(TopLevelStatement::Function),
         struct_definition(),
         implementation(),
+        submodule(module_parser),
         module_declaration().then_ignore(force(just(Token::Semicolon))),
         use_statement().then_ignore(force(just(Token::Semicolon))),
     ))
     .recover_via(top_level_statement_recovery())
+}
+
+fn submodule(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<TopLevelStatement> {
+    keyword(Keyword::Mod)
+        .ignore_then(ident())
+        .then_ignore(just(Token::LeftBrace))
+        .then(module_parser)
+        .then_ignore(just(Token::RightBrace))
+        .map(|(name, contents)| TopLevelStatement::SubModule(SubModule { name, contents }))
 }
 
 fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
