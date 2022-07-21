@@ -129,7 +129,6 @@ impl<'a> SsaContext<'a> {
     fn binary_to_string(&self, binary: &node::Binary) -> String {
         let lhs = self.node_to_string(binary.lhs);
         let rhs = self.node_to_string(binary.rhs);
-        let my_string;
         let op = match &binary.operator {
             BinaryOp::Add => "add",
             BinaryOp::SafeAdd => "safe_add",
@@ -156,10 +155,6 @@ impl<'a> SsaContext<'a> {
             BinaryOp::Assign => "assign",
             BinaryOp::Shl => "shl",
             BinaryOp::Shr => "shr",
-            BinaryOp::Cond(a) => {
-                my_string = format!("cond({})", self.node_to_string(*a));
-                my_string.as_str()
-            }
         };
 
         format!("{} {}, {}", op, lhs, rhs)
@@ -195,6 +190,11 @@ impl<'a> SsaContext<'a> {
                     );
                 }
                 s
+            }
+            Operation::Cond { condition, lhs, rhs } => {
+                let lhs = self.node_to_string(*lhs);
+                let rhs = self.node_to_string(*rhs);
+                format!("cond({}) {}, {}", self.node_to_string(*condition), lhs, rhs)
             }
             Operation::Load { array_id, index } => {
                 format!("load {:?}, index {}", array_id, self.node_to_string(*index))

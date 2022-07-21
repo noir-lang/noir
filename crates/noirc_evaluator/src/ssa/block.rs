@@ -318,7 +318,7 @@ pub fn merge_path(ctx: &mut SsaContext, start: BlockId, end: BlockId) -> VecDequ
         }
         //we assign the concatened list of instructions to the start block, using a CSE pass
         let mut modified = false;
-        super::optim::cse_block(ctx, start, &mut instructions, &mut modified);
+        super::optim::cse_block(ctx, start, &mut instructions, &mut modified).unwrap();
         //Wires start to end
         rewire_block_left(ctx, start, end);
         removed_blocks.pop_front();

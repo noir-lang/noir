@@ -425,7 +425,11 @@ impl Instruction {
                 self.res_type.bits() > bits
             }
             Operation::Truncate { .. } | Operation::Phi { .. } => false,
-            Operation::Nop | Operation::Jne(..) | Operation::Jeq(..) | Operation::Jmp(..) => false,
+            Operation::Nop
+            | Operation::Jne(..)
+            | Operation::Jeq(..)
+            | Operation::Jmp(..)
+            | Operation::Cond { .. } => false,
             Operation::Load { .. } => false,
             Operation::Store { .. } => true,
             Operation::Intrinsic(_, _) => true, //TODO to check
@@ -543,6 +547,7 @@ pub enum Operation {
     Call(noirc_frontend::node_interner::FuncId, Vec<NodeId>, Vec<(ArrayId, u32)>), //Call a function
     Return(Vec<NodeId>), //Return value(s) from a function block
     Result { call_instruction: NodeId, index: u32 }, //Get result index n from a function call
+    Cond { condition: NodeId, lhs: NodeId, rhs: NodeId },
 
     Load { array_id: ArrayId, index: NodeId },
     Store { array_id: ArrayId, index: NodeId, value: NodeId },
@@ -646,7 +651,6 @@ pub enum BinaryOp {
     Shr, //(>>) Shift right
 
     Assign,
-    Cond(NodeId),
 }
 
 impl Binary {
@@ -947,16 +951,6 @@ impl Binary {
                 }
             }
             BinaryOp::Assign => (),
-            BinaryOp::Cond(a) => {
-                let a_eval = eval_fn(ctx, *a);
-                if let Some(a_const) = a_eval.into_const_value() {
-                    if a_const.is_zero() {
-                        return r_eval;
-                    } else {
-                        return l_eval;
-                    }
-                }
-            }
         }
         Ok(NodeEval::VarOrInstruction(id))
     }
@@ -988,7 +982,6 @@ impl Binary {
             BinaryOp::Assign => false,
             BinaryOp::Shl => true,
             BinaryOp::Shr => true,
-            BinaryOp::Cond(_) => false,
         }
     }
 
@@ -1019,7 +1012,6 @@ impl Binary {
             BinaryOp::Shl => Opcode::Shl,
             BinaryOp::Shr => Opcode::Shr,
             BinaryOp::Assign => Opcode::Assign,
-            BinaryOp::Cond(_) => Opcode::Cond,
         }
     }
 }
@@ -1082,6 +1074,9 @@ impl Operation {
                 root: f(*root),
                 block_args: vecmap(block_args, |(id, block)| (f(*id), *block)),
             },
+            Cond { condition, lhs, rhs } => {
+                Cond { condition: f(*condition), lhs: f(*lhs), rhs: f(*rhs) }
+            }
             Load { array_id: array, index } => Load { array_id: *array, index: f(*index) },
             Store { array_id: array, index, value } => {
                 Store { array_id: *array, index: f(*index), value: f(*value) }
@@ -1118,6 +1113,11 @@ impl Operation {
                 for (id, _block) in block_args {
                     *id = f(*id);
                 }
+            }
+            Cond { condition, lhs, rhs } => {
+                *condition = f(*condition);
+                *lhs = f(*lhs);
+                *rhs = f(*rhs)
             }
             Load { index, .. } => *index = f(*index),
             Store { index, value, .. } => {
@@ -1167,6 +1167,11 @@ impl Operation {
                     f(*id);
                 }
             }
+            Cond { condition, lhs, rhs } => {
+                f(*condition);
+                f(*lhs);
+                f(*rhs);
+            }
             Load { index, .. } => f(*index),
             Store { index, value, .. } => {
                 f(*index);
@@ -1193,6 +1198,7 @@ impl Operation {
             Operation::Jeq(_, _) => Opcode::Jeq,
             Operation::Jmp(_) => Opcode::Jmp,
             Operation::Phi { .. } => Opcode::Phi,
+            Operation::Cond { .. } => Opcode::Cond,
             Operation::Call(id, _, _) => Opcode::Call(*id),
             Operation::Return(_) => Opcode::Return,
             Operation::Result { .. } => Opcode::Results,
