@@ -319,8 +319,8 @@ impl DecisionTree {
                         let ins2 = ctx.get_mut_instruction(*i);
                         ins2.operation = Operation::Cond {
                             condition: assumption.condition,
-                            lhs: block_args[0].0,
-                            rhs: block_args[1].0,
+                            val_true: block_args[0].0,
+                            val_false: block_args[1].0,
                         }
                     }
                 }
@@ -337,8 +337,11 @@ impl DecisionTree {
                             .position(|value| *value == ins.id)
                             .unwrap();
                         ctx[block].instructions.insert(pos - 1, dummy);
-                        let operation =
-                            Operation::Cond { condition: ass_value, lhs: *value, rhs: dummy };
+                        let operation = Operation::Cond {
+                            condition: ass_value,
+                            val_true: *value,
+                            val_false: dummy,
+                        };
                         let cond =
                             ctx.add_instruction(Instruction::new(operation, e_type, Some(block)));
                         ctx[block].instructions.insert(pos, cond);
@@ -380,8 +383,11 @@ impl DecisionTree {
                             .iter()
                             .position(|value| *value == ins.id)
                             .unwrap();
-                        let operation =
-                            Operation::Cond { condition: ass_value, lhs: *expr, rhs: ctx.one() };
+                        let operation = Operation::Cond {
+                            condition: ass_value,
+                            val_true: *expr,
+                            val_false: ctx.one(),
+                        };
                         let cond = ctx.add_instruction(Instruction::new(
                             operation,
                             ObjectType::Boolean,

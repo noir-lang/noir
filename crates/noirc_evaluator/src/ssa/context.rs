@@ -191,7 +191,7 @@ impl<'a> SsaContext<'a> {
                 }
                 s
             }
-            Operation::Cond { condition, lhs, rhs } => {
+            Operation::Cond { condition, val_true: lhs, val_false: rhs } => {
                 let lhs = self.node_to_string(*lhs);
                 let rhs = self.node_to_string(*rhs);
                 format!("cond({}) {}, {}", self.node_to_string(*condition), lhs, rhs)

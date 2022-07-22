@@ -547,7 +547,7 @@ pub enum Operation {
     Call(noirc_frontend::node_interner::FuncId, Vec<NodeId>, Vec<(ArrayId, u32)>), //Call a function
     Return(Vec<NodeId>), //Return value(s) from a function block
     Result { call_instruction: NodeId, index: u32 }, //Get result index n from a function call
-    Cond { condition: NodeId, lhs: NodeId, rhs: NodeId },
+    Cond { condition: NodeId, val_true: NodeId, val_false: NodeId },
 
     Load { array_id: ArrayId, index: NodeId },
     Store { array_id: ArrayId, index: NodeId, value: NodeId },
@@ -1074,8 +1074,8 @@ impl Operation {
                 root: f(*root),
                 block_args: vecmap(block_args, |(id, block)| (f(*id), *block)),
             },
-            Cond { condition, lhs, rhs } => {
-                Cond { condition: f(*condition), lhs: f(*lhs), rhs: f(*rhs) }
+            Cond { condition, val_true: lhs, val_false: rhs } => {
+                Cond { condition: f(*condition), val_true: f(*lhs), val_false: f(*rhs) }
             }
             Load { array_id: array, index } => Load { array_id: *array, index: f(*index) },
             Store { array_id: array, index, value } => {
@@ -1114,7 +1114,7 @@ impl Operation {
                     *id = f(*id);
                 }
             }
-            Cond { condition, lhs, rhs } => {
+            Cond { condition, val_true: lhs, val_false: rhs } => {
                 *condition = f(*condition);
                 *lhs = f(*lhs);
                 *rhs = f(*rhs)
@@ -1167,7 +1167,7 @@ impl Operation {
                     f(*id);
                 }
             }
-            Cond { condition, lhs, rhs } => {
+            Cond { condition, val_true: lhs, val_false: rhs } => {
                 f(*condition);
                 f(*lhs);
                 f(*rhs);
