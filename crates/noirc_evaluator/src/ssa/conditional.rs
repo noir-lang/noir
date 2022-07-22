@@ -412,7 +412,6 @@ pub fn unroll_if(
     let if_block = &ctx[unroll_ctx.to_unroll];
     let left = if_block.left.unwrap();
     let right = if_block.right.unwrap();
-    dbg!(&if_block.kind);
     debug_assert!(if_block.kind == BlockType::Normal);
     let exit = block::find_join(ctx, if_block.left.unwrap(), if_block.right.unwrap());
 

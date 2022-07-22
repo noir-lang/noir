@@ -316,7 +316,6 @@ fn evaluate_one(
                     }
                     if let Operation::Phi { .. } = i.operation {
                         //n.b phi are handled before, else we should know which block we come from
-                        dbg!(i.id);
                         return Ok(NodeEval::VarOrInstruction(i.id));
                     }
 
