@@ -378,7 +378,7 @@ impl node::Operation {
             //However we deliberately not use the default case to force review of the behavior if a new type of operation is added.
             //These types do not handle arrays:
             Operation::Cast(_) | Operation::Truncate { .. } | Operation::Not(_) | Operation::Nop
-            | Operation::Jne(_,_) | Operation::Jeq(_,_) | Operation::Jmp(_) |  Operation::Phi { .. }
+            | Operation::Jne(_,_) | Operation::Jeq(_,_) | Operation::Jmp(_) |  Operation::Phi { .. } | Operation::Cond { .. }
             //These types handle arrays via their return type (done in inline_in_block)
             | Operation::Intrinsic(_,_) |  Operation::Result { .. }
             //These types handle arrays in a specific way (done in inline_in_block)

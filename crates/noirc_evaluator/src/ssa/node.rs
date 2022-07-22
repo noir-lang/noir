@@ -425,7 +425,11 @@ impl Instruction {
                 self.res_type.bits() > bits
             }
             Operation::Truncate { .. } | Operation::Phi { .. } => false,
-            Operation::Nop | Operation::Jne(..) | Operation::Jeq(..) | Operation::Jmp(..) => false,
+            Operation::Nop
+            | Operation::Jne(..)
+            | Operation::Jeq(..)
+            | Operation::Jmp(..)
+            | Operation::Cond { .. } => false,
             Operation::Load { .. } => false,
             Operation::Store { .. } => true,
             Operation::Intrinsic(_, _) => true, //TODO to check
@@ -543,6 +547,7 @@ pub enum Operation {
     Call(noirc_frontend::node_interner::FuncId, Vec<NodeId>, Vec<(ArrayId, u32)>), //Call a function
     Return(Vec<NodeId>), //Return value(s) from a function block
     Result { call_instruction: NodeId, index: u32 }, //Get result index n from a function call
+    Cond { condition: NodeId, val_true: NodeId, val_false: NodeId },
 
     Load { array_id: ArrayId, index: NodeId },
     Store { array_id: ArrayId, index: NodeId, value: NodeId },
@@ -579,8 +584,8 @@ pub enum Opcode {
     Shl,
     Shr,
     Assign,
+    Cond,
     Constrain,
-
     Cast,     //convert type
     Truncate, //truncate
     Not,      //(!) Bitwise Not
@@ -1069,6 +1074,9 @@ impl Operation {
                 root: f(*root),
                 block_args: vecmap(block_args, |(id, block)| (f(*id), *block)),
             },
+            Cond { condition, val_true: lhs, val_false: rhs } => {
+                Cond { condition: f(*condition), val_true: f(*lhs), val_false: f(*rhs) }
+            }
             Load { array_id: array, index } => Load { array_id: *array, index: f(*index) },
             Store { array_id: array, index, value } => {
                 Store { array_id: *array, index: f(*index), value: f(*value) }
@@ -1105,6 +1113,11 @@ impl Operation {
                 for (id, _block) in block_args {
                     *id = f(*id);
                 }
+            }
+            Cond { condition, val_true: lhs, val_false: rhs } => {
+                *condition = f(*condition);
+                *lhs = f(*lhs);
+                *rhs = f(*rhs)
             }
             Load { index, .. } => *index = f(*index),
             Store { index, value, .. } => {
@@ -1154,6 +1167,11 @@ impl Operation {
                     f(*id);
                 }
             }
+            Cond { condition, val_true: lhs, val_false: rhs } => {
+                f(*condition);
+                f(*lhs);
+                f(*rhs);
+            }
             Load { index, .. } => f(*index),
             Store { index, value, .. } => {
                 f(*index);
@@ -1180,6 +1198,7 @@ impl Operation {
             Operation::Jeq(_, _) => Opcode::Jeq,
             Operation::Jmp(_) => Opcode::Jmp,
             Operation::Phi { .. } => Opcode::Phi,
+            Operation::Cond { .. } => Opcode::Cond,
             Operation::Call(id, _, _) => Opcode::Call(*id),
             Operation::Return(_) => Opcode::Return,
             Operation::Result { .. } => Opcode::Results,

@@ -1,13 +1,15 @@
 use super::{
+    conditional::AssumptionId,
     context::SsaContext,
     node::{self, NodeId},
 };
 use std::collections::{HashMap, HashSet, VecDeque};
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum BlockType {
     Normal,
     ForJoin,
+    IfJoin,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -30,6 +32,7 @@ pub struct BasicBlock {
     pub right: Option<BlockId>,     //jump successor
     pub instructions: Vec<NodeId>,
     pub value_map: HashMap<NodeId, NodeId>, //for generating the ssa form
+    pub assumption: AssumptionId,
 }
 
 impl BasicBlock {
@@ -44,6 +47,7 @@ impl BasicBlock {
             dominator: None,
             dominated: Vec::new(),
             kind,
+            assumption: AssumptionId::dummy(),
         }
     }
 
@@ -98,7 +102,8 @@ pub fn create_first_block(ctx: &mut SsaContext) {
 
 //Creates a new sealed block (i.e whose predecessors are known)
 //It is not suitable for the first block because it uses the current block.
-pub fn new_sealed_block(ctx: &mut SsaContext, kind: BlockType) -> BlockId {
+//if left is true, the new block is left to the current block
+pub fn new_sealed_block(ctx: &mut SsaContext, kind: BlockType, left: bool) -> BlockId {
     let current_block = ctx.current_block;
     let new_block = BasicBlock::new(ctx.current_block, kind);
     let new_block = ctx.insert_block(new_block);
@@ -108,8 +113,10 @@ pub fn new_sealed_block(ctx: &mut SsaContext, kind: BlockType) -> BlockId {
     ctx.sealed_blocks.insert(new_id);
 
     //update current block
-    let cb = ctx.get_current_block_mut();
-    cb.left = Some(new_id);
+    if left {
+        let cb = ctx.get_current_block_mut();
+        cb.left = Some(new_id);
+    }
     ctx.current_block = new_id;
     ctx.new_instruction(node::Operation::Nop, node::ObjectType::NotAnObject).unwrap();
     new_id
@@ -223,4 +230,99 @@ pub fn bfs(start: BlockId, stop: Option<BlockId>, ctx: &SsaContext) -> Vec<Block
     }
 
     result
+}
+
+pub fn find_join(ctx: &SsaContext, b1: BlockId, b2: BlockId) -> BlockId {
+    if b1 == b2 {
+        return b1;
+    }
+    let mut process_left = vec![b1];
+    let mut process_right = vec![b2];
+    let mut descendants = HashMap::new();
+    while !process_left.is_empty() || !process_right.is_empty() {
+        if let Some(block) = process_son(ctx, true, &mut descendants, &mut process_left) {
+            return block;
+        }
+        if let Some(block) = process_son(ctx, false, &mut descendants, &mut process_right) {
+            return block;
+        }
+    }
+    unreachable!("no join");
+}
+
+fn process_son(
+    ctx: &SsaContext,
+    left: bool,
+    descendants: &mut HashMap<BlockId, bool>,
+    to_process: &mut Vec<BlockId>,
+) -> Option<BlockId> {
+    if let Some(block) = to_process.pop() {
+        if descendants.contains_key(&block) {
+            if descendants[&block] && left {
+                return None; //cycle
+            }
+            if !descendants[&block] && !left {
+                return None; //cycle
+            }
+            return Some(block);
+        }
+        descendants.insert(block, left);
+        if let Some(left) = ctx[block].left {
+            to_process.push(left);
+        }
+        if let Some(right) = ctx[block].right {
+            to_process.push(right);
+        }
+    }
+    None
+}
+
+pub fn rewire_block_left(ctx: &mut SsaContext, block_id: BlockId, left: BlockId) {
+    let block = &mut ctx[block_id];
+    if let Some(old_left) = block.left {
+        if left == old_left {
+            return;
+        }
+        let i = block.dominated.iter().position(|value| *value == old_left).unwrap();
+        block.dominated.swap_remove(i);
+    }
+    block.left = Some(left);
+    assert!(block.right != Some(left));
+    block.dominated.push(left);
+    ctx[left].predecessor.push(block_id);
+    if ctx[left].predecessor.len() == 1 {
+        ctx[left].dominator = Some(block_id);
+    }
+}
+
+//merge subgraph from start to end in one block, excluding end
+pub fn merge_path(ctx: &mut SsaContext, start: BlockId, end: BlockId) -> VecDeque<BlockId> {
+    let mut removed_blocks = VecDeque::new();
+    if start != end {
+        let mut next = start;
+        let mut instructions = Vec::new();
+        let mut block = &ctx[start];
+        while next != end {
+            if block.dominated.len() > 1 || block.right.is_some() {
+                dbg!(&block);
+                unreachable!("non sequential block sequence");
+            }
+            block = &ctx[next];
+            removed_blocks.push_back(next);
+            instructions.extend(&block.instructions);
+            if let Some(left) = block.left {
+                next = left;
+            } else {
+                unreachable!("cannot reach block {:?}", end);
+            }
+        }
+        //we assign the concatened list of instructions to the start block, using a CSE pass
+        let mut modified = false;
+        super::optim::cse_block(ctx, start, &mut instructions, &mut modified).unwrap();
+        //Wires start to end
+        rewire_block_left(ctx, start, end);
+        removed_blocks.pop_front();
+    }
+    //housekeeping for the caller
+    removed_blocks
 }

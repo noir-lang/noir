@@ -1,5 +1,7 @@
 # List of tests to be excluded (i.e not run), as their directory name in test_data
-exclude = ["8_integration", "const_fail"]
+# "1_mul", "2_div","3_add","4_sub","5_over", "6","6_array", "7_function","7","8_integration", "assign_ex", "bool_not", "bool_or", "pedersen_check", "pred_eq", "schnorr", "sha256", "tuples"
+exclude = ["const_fail"]
+
 
 # List of tests (as their directory name in test_data) expecting to fail: if the test pass, we report an error.
 fail = ["range_fail"]

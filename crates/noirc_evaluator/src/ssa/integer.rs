@@ -458,6 +458,11 @@ fn get_max_value(ins: &Instruction, max_map: &mut HashMap<NodeId, BigUint>) -> B
             }
             max
         }
+        Operation::Cond { condition: _, val_true: lhs, val_false: rhs } => {
+            let lhs_max = &max_map[lhs];
+            let rhs_max = &max_map[rhs];
+            lhs_max.max(rhs_max).clone()
+        }
         Operation::Load { .. } => unreachable!(),
         Operation::Store { .. } => BigUint::zero(),
         Operation::Call(..) => ins.res_type.max_size(), //TODO interval analysis but we also need to get the arguments (ins_arguments)
