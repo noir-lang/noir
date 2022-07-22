@@ -645,7 +645,7 @@ impl<'a> SsaContext<'a> {
         //reduce conditionals
         let mut decision = DecisionTree::new(self);
         decision.make_decision_tree(self);
-        decision.reduce(self, decision.root);
+        decision.reduce(self, decision.root)?;
 
         //Inlining
         self.log(enable_logging, "reduce", "\ninlining:");
