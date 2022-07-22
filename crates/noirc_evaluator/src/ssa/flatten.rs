@@ -169,19 +169,18 @@ pub fn unroll_join(
     let mut prev = *join.predecessor.first().unwrap();
 
     let mut from = prev;
-
     assert!(join.is_join());
     let body_id = join.right.unwrap();
     let end = unroll_ctx.to_unroll;
     if unroll_ctx.unroll_into != BlockId::dummy() {
         prev = unroll_ctx.unroll_into;
     }
-
     ssa_ctx.current_block = prev;
     let new_body = block::new_sealed_block(ssa_ctx, block::BlockType::Normal, true);
     let prev_block = ssa_ctx.try_get_block_mut(prev).unwrap();
     prev_block.dominated = vec![new_body];
     unroll_ctx.unroll_into = new_body;
+    
     while {
         //evaluate the join  block:
         evaluate_phi(&join_instructions, from, &mut unroll_ctx.eval_map, ssa_ctx)?;
