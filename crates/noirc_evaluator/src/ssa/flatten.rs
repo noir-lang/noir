@@ -14,23 +14,20 @@ pub fn unroll_tree(
     ctx: &mut SsaContext,
     block_id: BlockId,
 ) -> Result<HashMap<NodeId, NodeEval>, RuntimeError> {
-    //Calls outer_unroll() from the root node
+    //call unroll_tree from the root
+    assert!(!ctx[block_id].is_join());
     let mut unroll_ctx = UnrollContext {
         deprecated: Vec::new(),
         to_unroll: block_id,
-        unroll_into: BlockId::dummy(), //on unroll le body dans un new_block qui est cree dans le unroll_join
+        unroll_into: block_id,
         eval_map: HashMap::new(),
-        to_process: vec![block_id],
     };
-
-    assert!(!ctx[block_id].is_join());
-
-    while !unroll_ctx.to_process.is_empty() {
-        unroll_ctx.to_unroll = unroll_ctx.to_process.pop().unwrap();
-        outer_unroll(&mut unroll_ctx, ctx)?;
+    while unroll_ctx.to_unroll != BlockId::dummy() {
+        unroll_block(ctx, &mut unroll_ctx)?;
     }
-
+    //clean-up
     for b in unroll_ctx.deprecated {
+        debug_assert!(b != ctx.first_block);
         ctx.remove_block(b);
     }
     block::compute_dom(ctx);
@@ -52,44 +49,6 @@ fn update_operator(operator: &Operation, eval_map: &HashMap<NodeId, NodeEval>) -
     operator.map_id(|id| eval_map.get(&id).and_then(|value| value.into_node_id()).unwrap_or(id))
 }
 
-// Unrolling outer loops, i.e non-nested loops
-pub fn outer_unroll(
-    unroll_ctx: &mut UnrollContext,
-    ctx: &mut SsaContext,
-) -> Result<Option<BlockId>, RuntimeError> //next block
-{
-    let block = &ctx[unroll_ctx.to_unroll];
-    let b_left = block.left;
-    let b_right = block.right;
-
-    if block.is_join() {
-        //1. unroll the block into the unroll_ins
-        unroll_until(ctx, unroll_ctx, b_left.unwrap())?;
-        unroll_ctx.to_process.push(unroll_ctx.to_unroll);
-    } else {
-        if unroll_ctx.unroll_into != BlockId::dummy() {
-            unroll_std_block(ctx, unroll_ctx)?;
-        } else {
-            //We update block instructions from the eval_map
-            eval_block(unroll_ctx.to_unroll, &unroll_ctx.eval_map, ctx);
-            if let Some(bb_left) = b_left {
-                unroll_ctx.to_unroll = bb_left;
-            }
-        }
-        if let Some(l) = b_left {
-            unroll_ctx.to_process.push(l);
-        }
-        if let Some(r) = b_right {
-            unroll_ctx.to_process.push(r);
-        }
-    }
-    if let Some(bb_left) = b_left {
-        assert_eq!(unroll_ctx.to_unroll, bb_left);
-    }
-
-    Ok(b_left) //returns the next block to process
-}
-
 //Unroll from unroll_ctx.to_unroll until it reaches unroll_ctx.unroll_into
 pub fn unroll_until(
     ctx: &mut SsaContext,
@@ -102,30 +61,47 @@ pub fn unroll_until(
     while b != end {
         assert_ne!(b, BlockId::dummy(), "could not reach end block");
         prev = b;
-
-        match ctx[b].kind {
-            block::BlockType::ForJoin => {
-                unroll_join(ctx, unroll_ctx)?;
-            }
-            _ => {
-                if ctx[b].right.is_some() {
-                    crate::ssa::conditional::unroll_if(ctx, unroll_ctx)?;
-                } else {
-                    unroll_std_block(ctx, unroll_ctx)?;
-                }
-            }
-        }
+        unroll_block(ctx, unroll_ctx)?;
         b = unroll_ctx.to_unroll;
     }
     Ok(prev)
 }
 
-//unroll a normal block by generating new instructions into the unroll_ins list, using and updating the eval_map
+pub fn unroll_block(
+    ctx: &mut SsaContext,
+    unroll_ctx: &mut UnrollContext,
+) -> Result<(), RuntimeError> {
+    match ctx[unroll_ctx.to_unroll].kind {
+        block::BlockType::ForJoin => {
+            unroll_join(ctx, unroll_ctx)?;
+        }
+        _ => {
+            if ctx[unroll_ctx.to_unroll].right.is_some() {
+                if unroll_ctx.unroll_into == BlockId::dummy() {
+                    unroll_ctx.unroll_into = unroll_ctx.to_unroll;
+                }
+                crate::ssa::conditional::unroll_if(ctx, unroll_ctx)?;
+            } else {
+                unroll_std_block(ctx, unroll_ctx)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+//unroll a normal block by generating new instructions into the target block, or by updating its instructions if no target is specified, using and updating the eval_map
 pub fn unroll_std_block(
     ctx: &mut SsaContext,
     unroll_ctx: &mut UnrollContext,
 ) -> Result<Option<BlockId>, RuntimeError> // The left block
 {
+    if unroll_ctx.to_unroll == unroll_ctx.unroll_into {
+        //We update block instructions from the eval_map
+        eval_block(unroll_ctx.to_unroll, &unroll_ctx.eval_map, ctx);
+        let block = &ctx[unroll_ctx.to_unroll];
+        unroll_ctx.to_unroll = block.left.unwrap_or_else(BlockId::dummy);
+        return Ok(block.left);
+    }
     let block = &ctx[unroll_ctx.to_unroll];
     let b_instructions = block.instructions.clone();
     let next = block.left.unwrap_or_else(BlockId::dummy);
@@ -193,12 +169,14 @@ pub fn unroll_join(
     let mut prev = *join.predecessor.first().unwrap();
 
     let mut from = prev;
+
     assert!(join.is_join());
     let body_id = join.right.unwrap();
     let end = unroll_ctx.to_unroll;
     if unroll_ctx.unroll_into != BlockId::dummy() {
         prev = unroll_ctx.unroll_into;
     }
+
     ssa_ctx.current_block = prev;
     let new_body = block::new_sealed_block(ssa_ctx, block::BlockType::Normal, true);
     let prev_block = ssa_ctx.try_get_block_mut(prev).unwrap();
@@ -216,7 +194,6 @@ pub fn unroll_join(
         unroll_ctx.to_unroll = body_id;
         from = unroll_until(ssa_ctx, unroll_ctx, end)?;
     }
-
     debug_assert!(ssa_ctx.current_block == unroll_ctx.unroll_into);
     let next_block = block::new_sealed_block(ssa_ctx, block::BlockType::Normal, true);
     unroll_ctx.deprecate(join_id);
@@ -233,7 +210,6 @@ pub struct UnrollContext {
     pub to_unroll: BlockId,
     pub unroll_into: BlockId,
     pub eval_map: HashMap<NodeId, NodeEval>,
-    pub to_process: Vec<BlockId>,
 }
 
 impl UnrollContext {

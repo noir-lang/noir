@@ -1,7 +1,7 @@
 use num_bigint::BigUint;
 use num_traits::One;
 
-use crate::ssa::node::ObjectType;
+use crate::{errors::RuntimeError, ssa::node::ObjectType};
 
 use super::{
     block::{self, BlockId, BlockType},
@@ -239,23 +239,32 @@ impl DecisionTree {
         }
     }
 
-    pub fn reduce(&mut self, ctx: &mut SsaContext, node_id: AssumptionId) {
+    pub fn reduce(
+        &mut self,
+        ctx: &mut SsaContext,
+        node_id: AssumptionId,
+    ) -> Result<(), RuntimeError> {
         //reduce children
         let assumption = self[node_id].clone();
         for i in assumption.val_true {
-            self.reduce(ctx, i);
+            self.reduce(ctx, i)?;
         }
         for i in assumption.val_false {
-            self.reduce(ctx, i);
+            self.reduce(ctx, i)?;
         }
         //reduce the node
         if assumption.entry_block != BlockId::dummy() {
-            DecisionTree::reduce_sub_graph(ctx, assumption.entry_block, assumption.exit_block);
+            DecisionTree::reduce_sub_graph(ctx, assumption.entry_block, assumption.exit_block)?;
         }
+        Ok(())
     }
 
     //reduce if sub graph
-    pub fn reduce_sub_graph(ctx: &mut SsaContext, if_block_id: BlockId, exit_block_id: BlockId) {
+    pub fn reduce_sub_graph(
+        ctx: &mut SsaContext,
+        if_block_id: BlockId,
+        exit_block_id: BlockId,
+    ) -> Result<(), RuntimeError> {
         //basic reduction as a first step (i.e no optimisation)
         let if_block = &ctx[if_block_id];
         let mut to_remove = Vec::new();
@@ -273,7 +282,7 @@ impl DecisionTree {
         let mut ins = ctx[left].instructions.clone();
         ins.extend(&ctx[right].instructions);
         let mut modified = false;
-        super::optim::cse_block(ctx, left, &mut ins, &mut modified).unwrap();
+        super::optim::cse_block(ctx, left, &mut ins, &mut modified)?;
 
         //housekeeping...
         let if_block = &mut ctx[if_block_id];
@@ -288,6 +297,7 @@ impl DecisionTree {
         for i in to_remove {
             ctx.remove_block(i);
         }
+        Ok(())
     }
 
     pub fn conditionalize_block(&self, ctx: &mut SsaContext, block: BlockId) {
@@ -388,29 +398,49 @@ impl DecisionTree {
 }
 
 //unroll an if sub-graph
-pub fn unroll_if(ctx: &mut SsaContext, unroll_ctx: &mut UnrollContext) -> BlockId {
+pub fn unroll_if(
+    ctx: &mut SsaContext,
+    unroll_ctx: &mut UnrollContext,
+) -> Result<BlockId, RuntimeError> {
     //1. find the join block
     let if_block = &ctx[unroll_ctx.to_unroll];
     let left = if_block.left.unwrap();
     let right = if_block.right.unwrap();
+    dbg!(&if_block.kind);
     debug_assert!(if_block.kind == BlockType::Normal);
     let exit = block::find_join(ctx, if_block.left.unwrap(), if_block.right.unwrap());
 
+    // simple mode:
+    if unroll_ctx.unroll_into == BlockId::dummy() || unroll_ctx.unroll_into == unroll_ctx.to_unroll
+    {
+        unroll_ctx.unroll_into = unroll_ctx.to_unroll;
+        flatten::unroll_std_block(ctx, unroll_ctx)?;
+        unroll_ctx.to_unroll = left;
+        unroll_ctx.unroll_into = left;
+        flatten::unroll_std_block(ctx, unroll_ctx)?;
+        unroll_ctx.to_unroll = right;
+        unroll_ctx.unroll_into = right;
+        flatten::unroll_std_block(ctx, unroll_ctx)?;
+        unroll_ctx.to_unroll = exit;
+        unroll_ctx.unroll_into = exit;
+        return Ok(exit);
+    }
+
     //2. create the IF subgraph
     //the unroll_into is required and will be used as the prev block
-    assert_ne!(unroll_ctx.unroll_into, BlockId::dummy());
-    let (new_entry, new_exit) = create_if_subgraph(ctx, unroll_ctx.unroll_into);
+    let prev = unroll_ctx.unroll_into;
+    let (new_entry, new_exit) = create_if_subgraph(ctx, prev);
     unroll_ctx.unroll_into = new_entry;
 
     //3 Process the entry_block
-    flatten::unroll_std_block(ctx, unroll_ctx);
+    flatten::unroll_std_block(ctx, unroll_ctx)?;
 
     //4. Process the THEN branch
     let then_block = ctx[new_entry].left.unwrap();
     let else_block = ctx[new_entry].right.unwrap();
     unroll_ctx.to_unroll = left;
     unroll_ctx.unroll_into = then_block;
-    flatten::unroll_until(ctx, unroll_ctx, exit);
+    flatten::unroll_until(ctx, unroll_ctx, exit)?;
 
     //Plug to the exit:
     ctx[unroll_ctx.unroll_into].left = Some(new_exit);
@@ -419,7 +449,7 @@ pub fn unroll_if(ctx: &mut SsaContext, unroll_ctx: &mut UnrollContext) -> BlockI
     //5. Process the ELSE branch
     unroll_ctx.to_unroll = right;
     unroll_ctx.unroll_into = else_block;
-    flatten::unroll_until(ctx, unroll_ctx, exit);
+    flatten::unroll_until(ctx, unroll_ctx, exit)?;
     ctx[unroll_ctx.unroll_into].left = Some(new_exit);
     ctx[new_exit].predecessor.push(unroll_ctx.unroll_into);
 
@@ -427,7 +457,7 @@ pub fn unroll_if(ctx: &mut SsaContext, unroll_ctx: &mut UnrollContext) -> BlockI
     unroll_ctx.to_unroll = exit;
     unroll_ctx.unroll_into = new_exit;
 
-    exit
+    Ok(exit)
 }
 
 //create the subgraph for unrolling IF statement
