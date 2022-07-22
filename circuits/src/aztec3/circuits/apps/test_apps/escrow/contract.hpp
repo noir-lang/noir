@@ -22,6 +22,7 @@ inline Contract<Composer> init_contract(FunctionExecutionContext<Composer>& exec
         { .name = "withdraw_failure_callback", .is_private = true },
     });
 
+    // TODO: this L1 declaration interface is just to get something working.
     contract.import_l1_function({
         .function_name = "withdraw",
         .function_selector = 12345,

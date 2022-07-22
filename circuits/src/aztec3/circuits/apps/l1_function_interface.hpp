@@ -48,9 +48,18 @@ template <typename Composer> class L1FunctionInterface {
     //     , num_params(l1_function.num_params)
     // {}
 
-    std::pair<L1Promise<Composer>, L1Result> call(std::vector<fr> args);
+    std::pair<L1Promise<Composer>, L1Result> call(std::vector<fr> args)
+    {
+        if (args.size() != num_params) {
+            throw_or_abort("Incorrect number of args");
+        }
+
+        auto promise = L1Promise<Composer>(*contract);
+        L1Result result;
+        return std::make_pair(promise, result);
+    }
 };
 
 } // namespace aztec3::circuits::apps
 
-#include "l1_function_interface.tpp"
+// #include "l1_function_interface.tpp"
