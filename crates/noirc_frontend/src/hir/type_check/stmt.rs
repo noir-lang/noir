@@ -65,7 +65,7 @@ pub fn bind_pattern(
             todo!("Implement tuple types")
         }
         HirPattern::Struct(struct_type, fields, span) => match typ {
-            Type::Struct(_, inner) if &inner == struct_type => {
+            Type::Struct(inner) if &inner == struct_type => {
                 let mut pattern_fields = fields.clone();
                 let mut type_fields = inner.borrow().fields.clone();
 
@@ -139,11 +139,11 @@ fn type_check_lvalue(
             };
 
             match result {
-                Type::Struct(vis, def) => {
+                Type::Struct(def) => {
                     if let Some(field) = def.borrow().get_field(&field_name.0.contents) {
                         field.clone()
                     } else {
-                        error(Type::Struct(vis, def.clone()))
+                        error(Type::Struct(def.clone()))
                     }
                 }
                 Type::Error => Type::Error,
@@ -163,7 +163,7 @@ fn type_check_lvalue(
             });
 
             match type_check_lvalue(interner, *array, assign_span, errors) {
-                Type::Array(_, _, elem_type) => *elem_type,
+                Type::Array(_, elem_type) => *elem_type,
                 Type::Error => Type::Error,
                 other => {
                     // TODO: Need a better span here

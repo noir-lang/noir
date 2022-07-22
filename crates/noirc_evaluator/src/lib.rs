@@ -16,17 +16,10 @@ use acvm::FieldElement;
 use acvm::Language;
 use environment::{Environment, FuncContext};
 use errors::{RuntimeError, RuntimeErrorKind};
+use noirc_abi::AbiFEType;
 use noirc_errors::Location;
 use noirc_frontend::{
     hir::Context,
-    node_interner::{DefinitionId, NodeInterner},
-    IsConst,
-};
-use noirc_frontend::{
-    hir_def::{expr::HirIdent, stmt::HirLValue},
-    node_interner::{ExprId, FuncId, StmtId},
-};
-use noirc_frontend::{
     hir_def::{
         expr::{
             HirBinaryOp, HirBinaryOpKind, HirBlockExpression, HirCallExpression, HirExpression,
@@ -34,7 +27,11 @@ use noirc_frontend::{
         },
         stmt::{HirConstrainStatement, HirPattern, HirStatement},
     },
-    FieldElementType,
+    node_interner::{DefinitionId, NodeInterner},
+};
+use noirc_frontend::{
+    hir_def::{expr::HirIdent, stmt::HirLValue},
+    node_interner::{ExprId, FuncId, StmtId},
 };
 use noirc_frontend::{FunctionKind, Type};
 use object::{Array, Integer, Object, RangedObject};
@@ -319,22 +316,23 @@ impl<'a> Evaluator<'a> {
         &mut self,
         name: &str,
         def: DefinitionId,
+        param_visibility: AbiFEType,
         param_type: &Type,
         param_location: Location,
         igen: &mut IRGenerator,
     ) -> Result<(), RuntimeError> {
         match param_type {
-            Type::FieldElement(_, ft) => {
+            Type::FieldElement(..) => {
                 let witness = self.add_witness_to_cs();
-                if ft.strict_eq(&FieldElementType::Public) {
+                if param_visibility == AbiFEType::Public {
                     self.public_inputs.push(witness);
                 }
                 igen.abi_var(name, def, node::ObjectType::NativeField, witness);
             }
-            Type::Array(ft, array_size, typ) => {
+            Type::Array(array_size, typ) => {
                 let mut witnesses = Vec::new();
                 let mut element_width = None;
-                if let Type::Integer(_, _, _, width) = typ.as_ref() {
+                if let Type::Integer(_, _, width) = typ.as_ref() {
                     element_width = Some(*width);
                 }
                 match array_size.clone() {
@@ -349,7 +347,7 @@ impl<'a> Evaluator<'a> {
                                 ssa::acir_gen::range_constraint(witness, ww, self)
                                     .map_err(|e| e.add_location(param_location))?;
                             }
-                            if ft.strict_eq(&FieldElementType::Public) {
+                            if param_visibility == AbiFEType::Public {
                                 self.public_inputs.push(witness);
                             }
                         }
@@ -357,11 +355,11 @@ impl<'a> Evaluator<'a> {
                     }
                 }
             }
-            Type::Integer(_, ft, sign, width) => {
+            Type::Integer(_, sign, width) => {
                 let witness = self.add_witness_to_cs();
                 ssa::acir_gen::range_constraint(witness, *width, self)
                     .map_err(|e| e.add_location(param_location))?;
-                if ft.strict_eq(&FieldElementType::Public) {
+                if param_visibility == AbiFEType::Public {
                     self.public_inputs.push(witness);
                 }
                 match sign {
@@ -376,7 +374,7 @@ impl<'a> Evaluator<'a> {
             Type::PolymorphicInteger(..) => unreachable!(),
             Type::Bool(_) => todo!(),
             Type::Unit => todo!(),
-            Type::Struct(_, _) => todo!(),
+            Type::Struct(_) => todo!(),
             Type::Tuple(_) => todo!(),
             Type::Error => todo!(),
             Type::Unspecified => todo!(),
@@ -404,14 +402,14 @@ impl<'a> Evaluator<'a> {
                 HirPattern::Identifier(ident) => {
                     let name = self.context.def_interner.definition_name(ident.id);
                     let ident_def = ident.id;
-                    self.param_to_var(name, ident_def, &param.1, ident.location, igen)?;
+                    self.param_to_var(name, ident_def, param.2, &param.1, ident.location, igen)?;
                 }
                 HirPattern::Mutable(hir_pattern, span_pattern) => {
                     if let HirPattern::Identifier(ident_id) = **hir_pattern {
                         let name = self.context.def_interner.definition_name(ident_id.id);
                         let ident_def = ident_id.id;
                         let location = Location::new(*span_pattern, func_meta.location.file);
-                        self.param_to_var(name, ident_def, &param.1, location, igen)?;
+                        self.param_to_var(name, ident_def, param.2, &param.1, location, igen)?;
                     }
                 }
                 HirPattern::Tuple(_, _) => todo!(),
@@ -426,6 +424,7 @@ impl<'a> Evaluator<'a> {
             self.param_to_var(
                 ident_name,
                 ident_def,
+                func_meta.return_visibility,
                 &func_meta.return_type,
                 func_meta.location,
                 igen,
@@ -561,9 +560,8 @@ impl<'a> Evaluator<'a> {
 
         // XXX: Currently we only support arrays using this, when other types are introduced
         // we can extend into a separate (generic) module
-
         match self.context.def_interner.id_type(rhs) {
-            Type::FieldElement(IsConst::Yes(_), _) => {
+            Type::FieldElement(is_const) if is_const.is_const() => {
                 // const can only be integers/Field elements, cannot involve the witness, so we can possibly move this to
                 // analysis. Right now it would not make a difference, since we are not compiling to an intermediate Noir format
                 let span = self.context.def_interner.expr_location(rhs);

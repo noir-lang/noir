@@ -164,7 +164,7 @@ impl Acir {
             }
             Operation::Call(..) => unreachable!("call instruction should have been inlined"),
             Operation::Return(_) => todo!(), //return from main
-            Operation::Cond { condition, lhs, rhs } => {
+            Operation::Cond { condition, val_true: lhs, val_false: rhs } => {
                 let cond = self.substitute(*condition, evaluator, ctx);
                 let l_c = self.substitute(*lhs, evaluator, ctx);
                 let r_c = self.substitute(*rhs, evaluator, ctx);

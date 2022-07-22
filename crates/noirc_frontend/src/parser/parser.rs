@@ -4,16 +4,13 @@ use std::iter::repeat;
 use super::{
     foldl_with_span, parameter_name_recovery, parameter_recovery, parenthesized, then_commit,
     then_commit_ignore, top_level_statement_recovery, ExprParser, NoirParser, ParsedModule,
-    ParserError, Precedence, TopLevelStatement,
+    ParserError, Precedence, SubModule, TopLevelStatement,
 };
+use crate::ast::{ArraySize, Expression, ExpressionKind, Statement, UnresolvedType};
 use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::util::vecmap;
-use crate::{
-    ast::{ArraySize, Expression, ExpressionKind, Statement, UnresolvedType},
-    FieldElementType,
-};
 use crate::{
     AssignStatement, BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, ForExpression,
     FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, IsConst, LValue,
@@ -21,6 +18,7 @@ use crate::{
 };
 
 use chumsky::prelude::*;
+use noirc_abi::AbiFEType;
 use noirc_errors::{CustomDiagnostic, DiagnosableError, Span, Spanned};
 
 pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<CustomDiagnostic>) {
@@ -28,39 +26,57 @@ pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<CustomDiagnosti
     let (tokens, lexing_errors) = lexer.lex();
     let mut errors = vecmap(&lexing_errors, DiagnosableError::to_diagnostic);
 
-    let (module, parsing_errors) = program().parse_recovery(tokens);
+    let (module, parsing_errors) = program().parse_recovery_verbose(tokens);
     errors.extend(parsing_errors.iter().map(DiagnosableError::to_diagnostic));
 
     (module.unwrap(), errors)
 }
 
 fn program() -> impl NoirParser<ParsedModule> {
-    empty()
-        .map(move |_| ParsedModule::default())
-        .then(top_level_statement().repeated())
-        .then_ignore(force(just(Token::EOF)))
-        .foldl(|mut program, statement| {
-            match statement {
-                TopLevelStatement::Function(f) => program.push_function(f),
-                TopLevelStatement::Module(m) => program.push_module_decl(m),
-                TopLevelStatement::Import(i) => program.push_import(i),
-                TopLevelStatement::Struct(s) => program.push_type(s),
-                TopLevelStatement::Impl(i) => program.push_impl(i),
-                TopLevelStatement::Error => (),
-            }
-            program
-        })
+    module().then_ignore(force(just(Token::EOF)))
 }
 
-fn top_level_statement() -> impl NoirParser<TopLevelStatement> {
+fn module() -> impl NoirParser<ParsedModule> {
+    recursive(|module_parser| {
+        empty()
+            .map(|_| ParsedModule::default())
+            .then(top_level_statement(module_parser).repeated())
+            .foldl(|mut program, statement| {
+                match statement {
+                    TopLevelStatement::Function(f) => program.push_function(f),
+                    TopLevelStatement::Module(m) => program.push_module_decl(m),
+                    TopLevelStatement::Import(i) => program.push_import(i),
+                    TopLevelStatement::Struct(s) => program.push_type(s),
+                    TopLevelStatement::Impl(i) => program.push_impl(i),
+                    TopLevelStatement::SubModule(s) => program.push_submodule(s),
+                    TopLevelStatement::Error => (),
+                }
+                program
+            })
+    })
+}
+
+fn top_level_statement(
+    module_parser: impl NoirParser<ParsedModule>,
+) -> impl NoirParser<TopLevelStatement> {
     choice((
         function_definition(false).map(TopLevelStatement::Function),
         struct_definition(),
         implementation(),
+        submodule(module_parser),
         module_declaration().then_ignore(force(just(Token::Semicolon))),
         use_statement().then_ignore(force(just(Token::Semicolon))),
     ))
     .recover_via(top_level_statement_recovery())
+}
+
+fn submodule(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<TopLevelStatement> {
+    keyword(Keyword::Mod)
+        .ignore_then(ident())
+        .then_ignore(just(Token::LeftBrace))
+        .then(module_parser)
+        .then_ignore(just(Token::RightBrace))
+        .map(|(name, contents)| TopLevelStatement::SubModule(SubModule { name, contents }))
 }
 
 fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
@@ -71,7 +87,7 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
         .then(parenthesized(function_parameters(allow_self)))
         .then(function_return_type())
         .then(block(expression()))
-        .map(|((((attribute, name), parameters), return_type), body)| {
+        .map(|((((attribute, name), parameters), (return_visibility, return_type)), body)| {
             FunctionDefinition {
                 span: name.0.span(),
                 name,
@@ -79,6 +95,7 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
                 parameters,
                 body,
                 return_type,
+                return_visibility,
             }
             .into()
         })
@@ -102,11 +119,12 @@ fn struct_definition() -> impl NoirParser<TopLevelStatement> {
     })
 }
 
-fn function_return_type() -> impl NoirParser<UnresolvedType> {
+fn function_return_type() -> impl NoirParser<(AbiFEType, UnresolvedType)> {
     just(Token::Arrow)
-        .ignore_then(parse_type())
+        .ignore_then(optional_visibility())
+        .then(parse_type())
         .or_not()
-        .map(|r#type| r#type.unwrap_or(UnresolvedType::Unit))
+        .map(|ret| ret.unwrap_or((AbiFEType::Private, UnresolvedType::Unit)))
 }
 
 fn attribute() -> impl NoirParser<Attribute> {
@@ -117,19 +135,24 @@ fn attribute() -> impl NoirParser<Attribute> {
 }
 
 fn struct_fields() -> impl NoirParser<Vec<(Ident, UnresolvedType)>> {
-    let type_parser = parse_type_with_visibility(no_visibility(), parse_type_no_field_element());
-
     ident()
         .then_ignore(just(Token::Colon))
-        .then(type_parser)
+        .then(parse_type())
         .separated_by(just(Token::Comma))
         .allow_trailing()
 }
 
-fn function_parameters(allow_self: bool) -> impl NoirParser<Vec<(Pattern, UnresolvedType)>> {
+fn function_parameters(
+    allow_self: bool,
+) -> impl NoirParser<Vec<(Pattern, UnresolvedType, AbiFEType)>> {
     let typ = parse_type().recover_via(parameter_recovery());
-    let full_parameter =
-        pattern().recover_via(parameter_name_recovery()).then_ignore(just(Token::Colon)).then(typ);
+
+    let full_parameter = pattern()
+        .recover_via(parameter_name_recovery())
+        .then_ignore(just(Token::Colon))
+        .then(optional_visibility())
+        .then(typ)
+        .map(|((name, visibility), typ)| (name, typ, visibility));
 
     let self_parameter = if allow_self { self_parameter().boxed() } else { nothing().boxed() };
 
@@ -143,15 +166,12 @@ fn nothing<T>() -> impl NoirParser<T> {
     one_of([]).map(|_| unreachable!())
 }
 
-fn self_parameter() -> impl NoirParser<(Pattern, UnresolvedType)> {
+fn self_parameter() -> impl NoirParser<(Pattern, UnresolvedType, AbiFEType)> {
     filter_map(move |span, found: Token| match found {
         Token::Ident(ref word) if word == "self" => {
             let ident = Ident::new(found, span);
             let path = Path::from_single("Self".to_owned(), span);
-            Ok((
-                Pattern::Identifier(ident),
-                UnresolvedType::Struct(FieldElementType::Private, path),
-            ))
+            Ok((Pattern::Identifier(ident), UnresolvedType::Struct(path), AbiFEType::Private))
         }
         _ => Err(ParserError::expected_label("parameter".to_owned(), found, span)),
     })
@@ -355,44 +375,32 @@ where
 }
 
 fn parse_type() -> impl NoirParser<UnresolvedType> {
-    parse_type_with_visibility(optional_visibility(), parse_type_no_field_element())
+    parse_type_inner(parse_type_no_field_element())
 }
 
 fn parse_type_no_field_element() -> impl NoirParser<UnresolvedType> {
-    recursive(|type_parser| parse_type_with_visibility(no_visibility(), type_parser))
+    recursive(parse_type_inner)
 }
 
-fn parse_type_with_visibility<V, T>(
-    visibility_parser: V,
-    recursive_type_parser: T,
-) -> impl NoirParser<UnresolvedType>
+fn parse_type_inner<T>(recursive_type_parser: T) -> impl NoirParser<UnresolvedType>
 where
-    V: NoirParser<FieldElementType>,
     T: NoirParser<UnresolvedType>,
 {
     choice((
-        field_type(visibility_parser.clone()),
-        int_type(visibility_parser.clone()),
-        struct_type(visibility_parser.clone()),
-        array_type(visibility_parser, recursive_type_parser.clone()),
+        field_type(),
+        int_type(),
+        struct_type(),
+        array_type(recursive_type_parser.clone()),
         tuple_type(recursive_type_parser),
         bool_type(),
     ))
 }
 
-// Parse nothing, just return a FieldElementType::Private
-fn no_visibility() -> impl NoirParser<FieldElementType> {
-    empty().map(|_| FieldElementType::Private)
-}
-
-// Returns a parser that parses any FieldElementType that satisfies
-// the given predicate
-fn visibility(field: FieldElementType) -> impl NoirParser<FieldElementType> {
-    keyword(field.as_keyword()).map(move |_| field)
-}
-
-fn optional_visibility() -> impl NoirParser<FieldElementType> {
-    choice((visibility(FieldElementType::Public), no_visibility()))
+fn optional_visibility() -> impl NoirParser<AbiFEType> {
+    keyword(Keyword::Pub).or_not().map(|opt| match opt {
+        Some(_) => AbiFEType::Public,
+        None => AbiFEType::Private,
+    })
 }
 
 fn maybe_const() -> impl NoirParser<IsConst> {
@@ -402,59 +410,40 @@ fn maybe_const() -> impl NoirParser<IsConst> {
     })
 }
 
-fn field_type<P>(visibility_parser: P) -> impl NoirParser<UnresolvedType>
-where
-    P: NoirParser<FieldElementType>,
-{
-    visibility_parser
-        .then(maybe_const())
-        .then_ignore(keyword(Keyword::Field))
-        .map(|(vis, is_const)| UnresolvedType::FieldElement(is_const, vis))
+fn field_type() -> impl NoirParser<UnresolvedType> {
+    maybe_const().then_ignore(keyword(Keyword::Field)).map(UnresolvedType::FieldElement)
 }
 
 fn bool_type() -> impl NoirParser<UnresolvedType> {
     maybe_const().then_ignore(keyword(Keyword::Bool)).map(UnresolvedType::Bool)
 }
 
-fn int_type<P>(visibility_parser: P) -> impl NoirParser<UnresolvedType>
-where
-    P: NoirParser<FieldElementType>,
-{
-    visibility_parser
-        .then(maybe_const())
+fn int_type() -> impl NoirParser<UnresolvedType> {
+    maybe_const()
         .then(filter_map(|span, token: Token| match token {
             Token::IntType(int_type) => Ok(int_type),
             unexpected => {
                 Err(ParserError::expected_label("integer type".to_string(), unexpected, span))
             }
         }))
-        .map(|((visibility, is_const), int_type)| {
-            UnresolvedType::from_int_tok(is_const, visibility, &int_type)
-        })
+        .map(UnresolvedType::from_int_token)
 }
 
-fn struct_type<P>(visibility_parser: P) -> impl NoirParser<UnresolvedType>
-where
-    P: NoirParser<FieldElementType>,
-{
-    visibility_parser
-        .then(path())
-        .map(|(visibility, path)| UnresolvedType::Struct(visibility, path))
+fn struct_type() -> impl NoirParser<UnresolvedType> {
+    path().map(UnresolvedType::Struct)
 }
 
-fn array_type<V, T>(visibility_parser: V, type_parser: T) -> impl NoirParser<UnresolvedType>
+fn array_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>
 where
-    V: NoirParser<FieldElementType>,
     T: NoirParser<UnresolvedType>,
 {
-    visibility_parser
-        .then_ignore(just(Token::LeftBracket))
-        .then(fixed_array_size().or_not())
+    just(Token::LeftBracket)
+        .ignore_then(fixed_array_size().or_not())
         .then_ignore(just(Token::RightBracket))
         .then(type_parser)
-        .map(|((visibility, size), element_type)| {
+        .map(|(size, element_type)| {
             let size = size.unwrap_or(ArraySize::Variable);
-            UnresolvedType::Array(visibility, size, Box::new(element_type))
+            UnresolvedType::Array(size, Box::new(element_type))
         })
 }
 

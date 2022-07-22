@@ -15,11 +15,7 @@ use self::stmt::bind_pattern;
 
 /// Type checks a function and assigns the
 /// appropriate types to expressions in a side table
-pub fn type_check_func(
-    interner: &mut NodeInterner,
-    func_id: FuncId,
-    main_id: Option<FuncId>,
-) -> Vec<TypeCheckError> {
+pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<TypeCheckError> {
     // First fetch the metadata and add the types for parameters
     // Note that we do not look for the defining Identifier for a parameter,
     // since we know that it is the parameter itself
@@ -47,22 +43,6 @@ pub fn type_check_func(
                 expr_typ: function_last_type.to_string(),
                 expr_span: func_span,
             }
-        });
-    }
-
-    // Return type cannot be public unless it is the main function in which case it must be
-    if main_id == Some(func_id) {
-        if !declared_return_type.is_public() && declared_return_type != &crate::Type::Unit {
-            errors.push(TypeCheckError::Unstructured {
-                msg: "Return type of main must be a 'pub' type since it is exposed to the verifier"
-                    .into(),
-                span: interner.expr_location(func_as_expr).span,
-            });
-        }
-    } else if declared_return_type.is_public() {
-        errors.push(TypeCheckError::PublicReturnType {
-            typ: declared_return_type.clone(),
-            span: interner.expr_span(func_as_expr),
         });
     }
 
@@ -159,16 +139,17 @@ mod test {
             attributes: None,
             location,
             parameters: vec![
-                Param(Identifier(x), Type::witness(None)),
-                Param(Identifier(y), Type::witness(None)),
+                Param(Identifier(x), Type::field(None), noirc_abi::AbiFEType::Private),
+                Param(Identifier(y), Type::field(None), noirc_abi::AbiFEType::Private),
             ]
             .into(),
             return_type: Type::Unit,
+            return_visibility: noirc_abi::AbiFEType::Private,
             has_body: true,
         };
         interner.push_fn_meta(func_meta, func_id);
 
-        let errors = super::type_check_func(&mut interner, func_id, None);
+        let errors = super::type_check_func(&mut interner, func_id);
         assert!(errors.is_empty());
     }
 
@@ -287,8 +268,7 @@ mod test {
         }
 
         // Type check section
-        let errors =
-            super::type_check_func(&mut interner, func_ids.first().cloned().unwrap(), None);
+        let errors = super::type_check_func(&mut interner, func_ids.first().cloned().unwrap());
         assert_eq!(errors, vec![]);
     }
 }
