@@ -1,7 +1,7 @@
 use num_bigint::BigUint;
 use num_traits::One;
 
-use crate::ssa::node::ObjectType;
+use crate::{errors::RuntimeError, ssa::node::ObjectType};
 
 use super::{
     block::{self, BlockId, BlockType},
@@ -238,23 +238,32 @@ impl DecisionTree {
         }
     }
 
-    pub fn reduce(&mut self, ctx: &mut SsaContext, node_id: AssumptionId) {
+    pub fn reduce(
+        &mut self,
+        ctx: &mut SsaContext,
+        node_id: AssumptionId,
+    ) -> Result<(), RuntimeError> {
         //reduce children
         let assumption = self[node_id].clone();
         for i in assumption.val_true {
-            self.reduce(ctx, i);
+            self.reduce(ctx, i)?;
         }
         for i in assumption.val_false {
-            self.reduce(ctx, i);
+            self.reduce(ctx, i)?;
         }
         //reduce the node
         if assumption.entry_block != BlockId::dummy() {
-            DecisionTree::reduce_sub_graph(ctx, assumption.entry_block, assumption.exit_block);
+            DecisionTree::reduce_sub_graph(ctx, assumption.entry_block, assumption.exit_block)?;
         }
+        Ok(())
     }
 
     //reduce if sub graph
-    pub fn reduce_sub_graph(ctx: &mut SsaContext, if_block_id: BlockId, exit_block_id: BlockId) {
+    pub fn reduce_sub_graph(
+        ctx: &mut SsaContext,
+        if_block_id: BlockId,
+        exit_block_id: BlockId,
+    ) -> Result<(), RuntimeError> {
         //basic reduction as a first step (i.e no optimisation)
         let if_block = &ctx[if_block_id];
         let mut to_remove = Vec::new();
@@ -272,7 +281,7 @@ impl DecisionTree {
         let mut ins = ctx[left].instructions.clone();
         ins.extend(&ctx[right].instructions);
         let mut modified = false;
-        super::optim::cse_block(ctx, left, &mut ins, &mut modified).unwrap();
+        super::optim::cse_block(ctx, left, &mut ins, &mut modified)?;
 
         //housekeeping...
         let if_block = &mut ctx[if_block_id];
@@ -287,6 +296,7 @@ impl DecisionTree {
         for i in to_remove {
             ctx.remove_block(i);
         }
+        Ok(())
     }
 
     pub fn conditionalize_block(&self, ctx: &mut SsaContext, block: BlockId) {
