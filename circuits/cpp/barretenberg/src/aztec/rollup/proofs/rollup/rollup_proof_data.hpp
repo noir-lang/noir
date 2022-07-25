@@ -21,8 +21,8 @@ enum {
     NEW_DATA_ROOTS_ROOT,
     OLD_DEFI_ROOT,
     NEW_DEFI_ROOT,
-    DEFI_BRIDGE_IDS,
-    DEFI_BRIDGE_DEPOSITS = DEFI_BRIDGE_IDS + NUM_BRIDGE_CALLS_PER_BLOCK,
+    DEFI_BRIDGE_CALL_DATAS,
+    DEFI_BRIDGE_DEPOSITS = DEFI_BRIDGE_CALL_DATAS + NUM_BRIDGE_CALLS_PER_BLOCK,
     ASSET_IDS = DEFI_BRIDGE_DEPOSITS + NUM_BRIDGE_CALLS_PER_BLOCK,
     TOTAL_TX_FEES = ASSET_IDS + NUM_ASSETS,
     INPUTS_HASH = TOTAL_TX_FEES + NUM_ASSETS,
@@ -43,7 +43,7 @@ enum {
     NEW_DATA_ROOTS_ROOT = RollupProofFields::NEW_DATA_ROOTS_ROOT * 32,
     OLD_DEFI_ROOT = RollupProofFields::OLD_DEFI_ROOT * 32,
     NEW_DEFI_ROOT = RollupProofFields::NEW_DEFI_ROOT * 32,
-    DEFI_BRIDGE_IDS = RollupProofFields::DEFI_BRIDGE_IDS * 32,
+    DEFI_BRIDGE_CALL_DATAS = RollupProofFields::DEFI_BRIDGE_CALL_DATAS * 32,
     DEFI_BRIDGE_DEPOSITS = RollupProofFields::DEFI_BRIDGE_DEPOSITS * 32,
     ASSET_IDS = RollupProofFields::ASSET_IDS * 32,
     TOTAL_TX_FEES = RollupProofFields::TOTAL_TX_FEES * 32,
@@ -90,7 +90,7 @@ struct rollup_proof_data {
     fr new_data_roots_root;
     fr old_defi_root;
     fr new_defi_root;
-    std::array<uint256_t, NUM_BRIDGE_CALLS_PER_BLOCK> bridge_ids;
+    std::array<uint256_t, NUM_BRIDGE_CALLS_PER_BLOCK> bridge_call_datas;
     std::array<uint256_t, NUM_BRIDGE_CALLS_PER_BLOCK> deposit_sums;
     std::array<uint256_t, NUM_ASSETS> asset_ids;
     std::array<uint256_t, NUM_ASSETS> total_tx_fees;
@@ -122,7 +122,7 @@ inline std::ostream& operator<<(std::ostream& os, rollup_proof_data const& data)
         << "  new_data_roots_root: " << data.new_data_roots_root << "\n"
         << "  old_defi_root: " << data.old_defi_root << "\n"
         << "  new_defi_root: " << data.new_defi_root << "\n"
-        << "  bridge_ids: " << data.bridge_ids << "\n"
+        << "  bridge_call_datas: " << data.bridge_call_datas << "\n"
         << "  deposit_sums: " << data.deposit_sums << "\n"
         << "  asset_ids: " << data.asset_ids << "\n"
         << "  total_tx_fees: " << data.total_tx_fees << "\n"

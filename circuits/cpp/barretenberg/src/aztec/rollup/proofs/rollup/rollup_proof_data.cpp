@@ -52,7 +52,7 @@ void rollup_proof_data::populate_from_fields(std::vector<fr> const& fields)
     old_defi_root = fields[RollupProofFields::OLD_DEFI_ROOT];
     new_defi_root = fields[RollupProofFields::NEW_DEFI_ROOT];
     for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
-        bridge_ids[i] = fields[RollupProofFields::DEFI_BRIDGE_IDS + i];
+        bridge_call_datas[i] = fields[RollupProofFields::DEFI_BRIDGE_CALL_DATAS + i];
     }
     for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
         deposit_sums[i] = fields[RollupProofFields::DEFI_BRIDGE_DEPOSITS + i];

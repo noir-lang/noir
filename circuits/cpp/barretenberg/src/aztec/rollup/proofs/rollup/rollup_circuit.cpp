@@ -51,21 +51,22 @@ field_ct check_nullifiers_inserted(Composer& composer,
 /**
  * Processes a defi deposit proof.
  * - We only process join split proofs with a proof_id == ProofIds::DEFI_DEPOSIT (otherwise noop).
- * - Ensure that the bridge_id matches one within the of set of bridge_ids.
+ * - Ensure that the bridge_call_data matches one within the of set of bridge_call_datas.
  * - Accumulate the deposit value in relevant defi_deposit_sums slot. These later become public inputs.
  * - Modify the claim note commitment (output_note_1 commitment) to add the relevant interaction nonce to it.
  */
 auto process_defi_deposit(Composer& composer,
                           field_ct const& rollup_id,
                           std::vector<field_ct>& public_inputs,
-                          std::vector<suint_ct> const& bridge_ids,
+                          std::vector<suint_ct> const& bridge_call_datas,
                           std::vector<suint_ct>& defi_deposit_sums,
                           field_ct const& num_defi_interactions)
 {
     field_ct defi_interaction_nonce = (rollup_id * NUM_BRIDGE_CALLS_PER_BLOCK);
 
     const auto proof_id = public_inputs[InnerProofFields::PROOF_ID];
-    const suint_ct bridge_id(public_inputs[InnerProofFields::BRIDGE_ID], DEFI_BRIDGE_ID_BIT_LENGTH, "bridge_id");
+    const suint_ct bridge_call_data(
+        public_inputs[InnerProofFields::BRIDGE_CALL_DATA], DEFI_BRIDGE_CALL_DATA_BIT_LENGTH, "bridge_call_data");
     const suint_ct deposit_value(
         public_inputs[InnerProofFields::DEFI_DEPOSIT_VALUE], DEFI_DEPOSIT_VALUE_BIT_LENGTH, "defi_deposit");
     const auto is_defi_deposit = proof_id == field_ct(ProofIds::DEFI_DEPOSIT);
@@ -73,7 +74,7 @@ auto process_defi_deposit(Composer& composer,
     /**
      * There is one defi_interaction_nonce for each interaction ('bridge call').
      * The defi deposit being processed by this function will belong to one of these bridge calls
-     * (based on the bridge_id) - say it's the k-th bridge call of this rollup.
+     * (based on the bridge_call_data) - say it's the k-th bridge call of this rollup.
      * Then the defi_interaction_nonce = rollup_id * NUM_BRIDGE_CALLS_PER_BLOCK + k.
      */
     field_ct note_defi_interaction_nonce = defi_interaction_nonce;
@@ -82,7 +83,7 @@ auto process_defi_deposit(Composer& composer,
     for (uint32_t k = 0; k < NUM_BRIDGE_CALLS_PER_BLOCK; k++) {
         auto is_real = uint32_ct(k) < num_defi_interactions;
 
-        const auto matches = bridge_id == bridge_ids[k] && is_real;
+        const auto matches = bridge_call_data == bridge_call_datas[k] && is_real;
         num_matched += matches;
 
         defi_deposit_sums[k] += deposit_value * is_defi_deposit * matches;
@@ -90,10 +91,10 @@ auto process_defi_deposit(Composer& composer,
     }
     note_defi_interaction_nonce *= is_defi_deposit;
 
-    // Assert this proof matched a single bridge_id.
-    auto is_valid_bridge_id = num_matched == 1 || !is_defi_deposit;
-    is_valid_bridge_id.assert_equal(true,
-                                    format("proof bridge id matched ", uint64_t(num_matched.get_value()), " times"));
+    // Assert this proof matched a single bridge_call_data.
+    auto is_valid_bridge_call_data = num_matched == 1 || !is_defi_deposit;
+    is_valid_bridge_call_data.assert_equal(
+        true, format("proof bridge call data matched ", uint64_t(num_matched.get_value()), " times"));
 
     // Compute claim fee which to be added to the claim note.
     const suint_ct tx_fee(public_inputs[InnerProofFields::TX_FEE], TX_FEE_BIT_LENGTH, "tx_fee");
@@ -286,19 +287,19 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
 
     const auto new_defi_root = field_ct(witness_ct(&composer, rollup.new_defi_root));
     const auto num_defi_interactions = field_ct(witness_ct(&composer, rollup.num_defi_interactions));
-    auto bridge_ids = map(rollup.bridge_ids, [&](auto& bid) {
-        return suint_ct(witness_ct(&composer, bid), DEFI_BRIDGE_ID_BIT_LENGTH, "bridge_id");
+    auto bridge_call_datas = map(rollup.bridge_call_datas, [&](auto& bid) {
+        return suint_ct(witness_ct(&composer, bid), DEFI_BRIDGE_CALL_DATA_BIT_LENGTH, "bridge_call_data");
     });
     const auto recursive_manifest = Composer::create_unrolled_manifest(verification_keys[0]->num_public_inputs);
 
     const auto num_asset_ids = field_ct(witness_ct(&composer, rollup.num_asset_ids));
     auto asset_ids = map(rollup.asset_ids, [&](auto& aid) { return field_ct(witness_ct(&composer, aid)); });
-    // Zero any input bridge_ids that are outside scope, and check in scope bridge_ids are not zero.
+    // Zero any input bridge_call_datas that are outside scope, and check in scope bridge_call_datas are not zero.
     for (uint32_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; i++) {
         auto in_scope = uint32_ct(i) < num_defi_interactions;
-        bridge_ids[i] *= in_scope;
-        auto valid = !in_scope || bridge_ids[i] != 0;
-        valid.assert_equal(true, "bridge_id out of scope");
+        bridge_call_datas[i] *= in_scope;
+        auto valid = !in_scope || bridge_call_datas[i] != 0;
+        valid.assert_equal(true, "bridge_call_data out of scope");
     }
 
     // Input asset_ids that are outside scope are set to 2^{30} (NUM_MAX_ASSETS).
@@ -347,7 +348,7 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
         }
 
         auto tx_fee = process_defi_deposit(
-            composer, rollup_id, public_inputs, bridge_ids, defi_deposit_sums, num_defi_interactions);
+            composer, rollup_id, public_inputs, bridge_call_datas, defi_deposit_sums, num_defi_interactions);
 
         process_claims(public_inputs, new_defi_root);
 
@@ -412,7 +413,7 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
     add_zero_public_inputs(composer, 1); // old_defi_root
     new_defi_root.set_public();
     for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
-        bridge_ids[i].set_public();
+        bridge_call_datas[i].set_public();
     }
     for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
         defi_deposit_sums[i].set_public();

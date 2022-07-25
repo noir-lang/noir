@@ -23,7 +23,7 @@ enum {
     MERKLE_ROOT,
     TX_FEE,
     TX_FEE_ASSET_ID,
-    BRIDGE_ID,
+    BRIDGE_CALL_DATA,
     DEFI_DEPOSIT_VALUE,
     DEFI_ROOT,
     BACKWARD_LINK,
@@ -45,7 +45,7 @@ enum {
     MERKLE_ROOT = InnerProofFields::MERKLE_ROOT * 32,
     TX_FEE = InnerProofFields::TX_FEE * 32,
     TX_FEE_ASSET_ID = InnerProofFields::TX_FEE_ASSET_ID * 32,
-    BRIDGE_ID = InnerProofFields::BRIDGE_ID * 32,
+    BRIDGE_CALL_DATA = InnerProofFields::BRIDGE_CALL_DATA * 32,
     DEFI_DEPOSIT_VALUE = InnerProofFields::DEFI_DEPOSIT_VALUE * 32,
     DEFI_ROOT = InnerProofFields::DEFI_ROOT * 32,
     BACKWARD_LINK = InnerProofFields::BACKWARD_LINK * 32,
@@ -66,7 +66,7 @@ struct inner_proof_data {
     barretenberg::fr merkle_root;
     uint256_t tx_fee;
     uint256_t tx_fee_asset_id;
-    uint256_t bridge_id;
+    uint256_t bridge_call_data;
     uint256_t defi_deposit_value;
     barretenberg::fr defi_root;
 
@@ -91,7 +91,7 @@ inline std::ostream& operator<<(std::ostream& os, inner_proof_data const& data)
         << "  merkle_root: " << data.merkle_root << "\n"
         << "  tx_fee: " << data.tx_fee << "\n"
         << "  tx_fee_asset_id: " << data.tx_fee_asset_id << "\n"
-        << "  bridge_id: " << data.bridge_id << "\n"
+        << "  bridge_call_data: " << data.bridge_call_data << "\n"
         << "  defi_deposit_value: " << data.defi_deposit_value << "\n"
         << "  defi_root: " << data.defi_root << "\n"
         << "  backward_link: " << data.backward_link << "\n"

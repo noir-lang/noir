@@ -28,7 +28,7 @@ TEST(rollup_tx, test_serialization)
     rollup.data_roots_indicies = std::vector(rollup.num_txs, 0U);
 
     rollup.new_defi_root = fr::random_element();
-    rollup.bridge_ids = { 0, 1, 2, 3 };
+    rollup.bridge_call_datas = { 0, 1, 2, 3 };
     rollup.asset_ids = { 4, 5, 6, 7 };
 
     auto buf = to_buffer(rollup);
@@ -52,6 +52,6 @@ TEST(rollup_tx, test_serialization)
     EXPECT_EQ(result.data_roots_indicies, rollup.data_roots_indicies);
 
     EXPECT_EQ(result.new_defi_root, rollup.new_defi_root);
-    EXPECT_EQ(result.bridge_ids, rollup.bridge_ids);
+    EXPECT_EQ(result.bridge_call_datas, rollup.bridge_call_datas);
     EXPECT_EQ(result.asset_ids, rollup.asset_ids);
 }

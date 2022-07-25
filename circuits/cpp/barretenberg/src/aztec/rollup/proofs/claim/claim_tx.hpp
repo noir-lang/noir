@@ -34,20 +34,20 @@ struct claim_tx {
     std::array<fr, 2> get_output_notes()
     {
         const auto virtual_flag = static_cast<uint32_t>(1 << (MAX_NUM_ASSETS_BIT_LENGTH - 1));
-        const auto bridge_id = notes::native::bridge_id::from_uint256_t(claim_note.bridge_id);
+        const auto bridge_call_data = notes::native::bridge_call_data::from_uint256_t(claim_note.bridge_call_data);
 
         const bool& success = defi_interaction_note.interaction_result;
 
-        const bool first_output_virtual = notes::native::get_asset_id_flag(bridge_id.output_asset_id_a);
-        const bool second_output_virtual = notes::native::get_asset_id_flag(bridge_id.output_asset_id_b);
+        const bool first_output_virtual = notes::native::get_asset_id_flag(bridge_call_data.output_asset_id_a);
+        const bool second_output_virtual = notes::native::get_asset_id_flag(bridge_call_data.output_asset_id_b);
 
-        const auto asset_id_a_good =
-            first_output_virtual ? virtual_flag + defi_interaction_note.interaction_nonce : bridge_id.output_asset_id_a;
+        const auto asset_id_a_good = first_output_virtual ? virtual_flag + defi_interaction_note.interaction_nonce
+                                                          : bridge_call_data.output_asset_id_a;
         const auto asset_id_b_good = second_output_virtual ? virtual_flag + defi_interaction_note.interaction_nonce
-                                                           : bridge_id.output_asset_id_b;
+                                                           : bridge_call_data.output_asset_id_b;
 
-        const auto& asset_id_a_bad = bridge_id.input_asset_id_a;
-        const auto& asset_id_b_bad = bridge_id.input_asset_id_b;
+        const auto& asset_id_a_bad = bridge_call_data.input_asset_id_a;
+        const auto& asset_id_b_bad = bridge_call_data.input_asset_id_b;
 
         const auto asset_id_a = success ? asset_id_a_good : asset_id_a_bad;
         const auto asset_id_b = success ? asset_id_b_good : asset_id_b_bad;
@@ -64,8 +64,8 @@ struct claim_tx {
             asset_id_b,
             notes::native::defi_interaction::compute_nullifier(defi_interaction_note.commit(), claim_note.commit()));
 
-        bool has_output_two =
-            (success && bridge_id.config.second_output_in_use) || (!success && bridge_id.config.second_input_in_use);
+        bool has_output_two = (success && bridge_call_data.config.second_output_in_use) ||
+                              (!success && bridge_call_data.config.second_input_in_use);
         return { output_note_a, has_output_two ? output_note_b : 0 };
     }
 };

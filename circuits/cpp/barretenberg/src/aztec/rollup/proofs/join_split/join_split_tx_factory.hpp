@@ -180,14 +180,14 @@ template <typename WorldState> class JoinSplitTxFactory {
     auto create_defi_deposit_tx(std::vector<uint32_t> in_note_indices,
                                 std::vector<uint32_t> in_note_values,
                                 std::array<uint32_t, 2> out_note_values,
-                                uint256_t bridge_id,
+                                uint256_t bridge_call_data,
                                 uint32_t asset_id = 0,
                                 uint32_t virtual_asset_id = 0)
     {
         auto tx = create_join_split_tx(
             in_note_indices, in_note_values, out_note_values, 0, 0, 0, asset_id, 0, virtual_asset_id);
         tx.proof_id = ProofIds::DEFI_DEPOSIT;
-        tx.partial_claim_note.bridge_id = bridge_id;
+        tx.partial_claim_note.bridge_call_data = bridge_call_data;
         tx.partial_claim_note.deposit_value = tx.output_note[0].value;
         tx.partial_claim_note.note_secret = user.note_secret;
         tx.output_note[0].value = 0;

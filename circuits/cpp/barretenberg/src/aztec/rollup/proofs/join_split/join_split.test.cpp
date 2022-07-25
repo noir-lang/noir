@@ -285,13 +285,14 @@ class join_split_tests : public ::testing::Test {
     rollup::fixtures::user_context user;
     std::unique_ptr<MemoryStore> store;
     std::unique_ptr<MerkleTree<MemoryStore>> tree;
-    bridge_id empty_bridge_id = { .bridge_address_id = 0,
-                                  .input_asset_id_a = 0,
-                                  .input_asset_id_b = 0,
-                                  .output_asset_id_a = 0,
-                                  .output_asset_id_b = 0,
-                                  .config = { .second_input_in_use = false, .second_output_in_use = false },
-                                  .aux_data = 0 };
+    bridge_call_data empty_bridge_call_data = { .bridge_address_id = 0,
+                                                .input_asset_id_a = 0,
+                                                .input_asset_id_b = 0,
+                                                .output_asset_id_a = 0,
+                                                .output_asset_id_b = 0,
+                                                .config = { .second_input_in_use = false,
+                                                            .second_output_in_use = false },
+                                                .aux_data = 0 };
     value::value_note default_value_note;
     value::value_note value_notes[14];
     const uint32_t asset_id = 1;
@@ -303,7 +304,7 @@ class join_split_tests : public ::testing::Test {
 /**
  * List of negative tests - ways of triggering each error message:
  *
- * BRIDGE ID
+ * BRIDGE CALL DATA
  *
  * - "Expected second_input_in_use, given input_asset_id_b != 0"
  *     - input_asset_id_b != 0, but config.second_input_in_use = false;
@@ -358,15 +359,18 @@ class join_split_tests : public ::testing::Test {
  * - "all of input note 2 must be defi-deposited"
  *     - (is_defi_deposit && input_note_2_in_use && different_input_asset_ids), but
  *       defi_deposit_value != input_note_2_value
- * - "Expected bridge_id_data.input_asset_id_a == input_note_1.asset_id for a defi-deposit"
- *     - is_defi_deposit, but bridge_id_data.input_asset_id_a != input_note_1.asset_id
- * - "Expected input_note_2_in_use, given bridge_id_data.config.second_input_in_use"
- *     - bridge_id_data.config.second_input_in_use, but input_note_2_in_use = false
- * - "Expected bridge_id_data.config.second_input_in_use, given input_note_2_in_use && different_input_asset_ids"
- *     - input_note_2_in_use && different_input_asset_ids, but bridge_id_data.config.second_input_in_use = false,
- * - "Expected bridge_id_data.input_asset_id_b == input_note_2.asset_id, given
- *    bridge_id_data.config.second_input_in_use"
- *     - bridge_id_data.config.second_input_in_use, but bridge_id_data.input_asset_id_b != input_note_2.asset_id
+ * - "Expected bridge_call_data_local.input_asset_id_a == input_note_1.asset_id for a defi-deposit"
+ *     - is_defi_deposit, but bridge_call_data_local.input_asset_id_a != input_note_1.asset_id
+ * - "Expected input_note_2_in_use, given bridge_call_data_local.config.second_input_in_use"
+ *     - bridge_call_data_local.config.second_input_in_use, but input_note_2_in_use = false
+ * - "Expected bridge_call_data_local.config.second_input_in_use, given input_note_2_in_use &&
+ * different_input_asset_ids"
+ *     - input_note_2_in_use && different_input_asset_ids, but bridge_call_data_local.config.second_input_in_use =
+ * false,
+ * - "Expected bridge_call_data_local.input_asset_id_b == input_note_2.asset_id, given
+ *    bridge_call_data_local.config.second_input_in_use"
+ *     - bridge_call_data_local.config.second_input_in_use, but bridge_call_data_local.input_asset_id_b !=
+ * input_note_2.asset_id
  *
  * TRANSACTION CHAINING CHECKS
  *
@@ -478,9 +482,9 @@ TEST_F(join_split_tests, test_defi_deposit_public_value_invalid_fails)
 
     tx.public_value = 1; // <-- invalid - should be 0
 
-    bridge_id bridge_id = empty_bridge_id;
-    bridge_id.input_asset_id_a = tx.input_note[0].asset_id;
-    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+    bridge_call_data bridge_call_data = empty_bridge_call_data;
+    bridge_call_data.input_asset_id_a = tx.input_note[0].asset_id;
+    tx.partial_claim_note.bridge_call_data = bridge_call_data.to_uint256_t();
 
     auto result = sign_and_verify_logic(tx, user.owner);
     EXPECT_FALSE(result.valid);
@@ -532,9 +536,9 @@ TEST_F(join_split_tests, test_defi_deposit_public_owner_invalid_fails)
 
     tx.public_owner = 1; // <-- invalid - should be 0
 
-    bridge_id bridge_id = empty_bridge_id;
-    bridge_id.input_asset_id_a = tx.input_note[0].asset_id;
-    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+    bridge_call_data bridge_call_data = empty_bridge_call_data;
+    bridge_call_data.input_asset_id_a = tx.input_note[0].asset_id;
+    tx.partial_claim_note.bridge_call_data = bridge_call_data.to_uint256_t();
 
     auto result = sign_and_verify_logic(tx, user.owner);
     EXPECT_FALSE(result.valid);
@@ -1224,9 +1228,9 @@ TEST_F(join_split_tests, test_defi_deposit_one_virtual_input)
     tx.partial_claim_note.deposit_value = 90;
     tx.partial_claim_note.input_nullifier = tx.output_note[0].input_nullifier;
 
-    bridge_id bridge_id = empty_bridge_id;
-    bridge_id.input_asset_id_a = tx.input_note[0].asset_id;
-    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+    bridge_call_data bridge_call_data = empty_bridge_call_data;
+    bridge_call_data.input_asset_id_a = tx.input_note[0].asset_id;
+    tx.partial_claim_note.bridge_call_data = bridge_call_data.to_uint256_t();
 
     /**
      * tx represents:
@@ -1248,11 +1252,11 @@ TEST_F(join_split_tests, test_defi_deposit_one_real_one_virtual_inputs)
     tx.partial_claim_note.deposit_value = 90;
     tx.partial_claim_note.input_nullifier = tx.output_note[0].input_nullifier;
 
-    bridge_id bridge_id = empty_bridge_id;
-    bridge_id.input_asset_id_a = tx.input_note[0].asset_id;
-    bridge_id.input_asset_id_b = tx.input_note[1].asset_id;
-    bridge_id.config.second_input_in_use = true;
-    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+    bridge_call_data bridge_call_data = empty_bridge_call_data;
+    bridge_call_data.input_asset_id_a = tx.input_note[0].asset_id;
+    bridge_call_data.input_asset_id_b = tx.input_note[1].asset_id;
+    bridge_call_data.config.second_input_in_use = true;
+    tx.partial_claim_note.bridge_call_data = bridge_call_data.to_uint256_t();
 
     /**
      * tx represents:
@@ -1275,11 +1279,11 @@ TEST_F(join_split_tests, test_defi_deposit_one_virtual_one_real_inputs)
     tx.partial_claim_note.deposit_value = 110;
     tx.partial_claim_note.input_nullifier = tx.output_note[0].input_nullifier;
 
-    bridge_id bridge_id = empty_bridge_id;
-    bridge_id.input_asset_id_a = tx.input_note[0].asset_id;
-    bridge_id.input_asset_id_b = tx.input_note[1].asset_id;
-    bridge_id.config.second_input_in_use = true;
-    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+    bridge_call_data bridge_call_data = empty_bridge_call_data;
+    bridge_call_data.input_asset_id_a = tx.input_note[0].asset_id;
+    bridge_call_data.input_asset_id_b = tx.input_note[1].asset_id;
+    bridge_call_data.config.second_input_in_use = true;
+    tx.partial_claim_note.bridge_call_data = bridge_call_data.to_uint256_t();
 
     /**
      * tx represents:
@@ -1301,11 +1305,11 @@ TEST_F(join_split_tests, test_defi_deposit_one_real_one_virtual_inputs_same_asse
     tx.partial_claim_note.deposit_value = 90;
     tx.partial_claim_note.input_nullifier = tx.output_note[0].input_nullifier;
 
-    bridge_id bridge_id = empty_bridge_id;
-    bridge_id.input_asset_id_a = tx.input_note[0].asset_id;
-    bridge_id.input_asset_id_b = tx.input_note[1].asset_id;
-    bridge_id.config.second_input_in_use = true;
-    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+    bridge_call_data bridge_call_data = empty_bridge_call_data;
+    bridge_call_data.input_asset_id_a = tx.input_note[0].asset_id;
+    bridge_call_data.input_asset_id_b = tx.input_note[1].asset_id;
+    bridge_call_data.config.second_input_in_use = true;
+    tx.partial_claim_note.bridge_call_data = bridge_call_data.to_uint256_t();
 
     /**
      * tx represents:
@@ -1328,11 +1332,11 @@ TEST_F(join_split_tests, test_defi_deposit_two_real_inputs_different_asset_ids)
     tx.partial_claim_note.deposit_value = 90;
     tx.partial_claim_note.input_nullifier = tx.output_note[0].input_nullifier;
 
-    bridge_id bridge_id = empty_bridge_id;
-    bridge_id.input_asset_id_a = tx.input_note[0].asset_id;
-    bridge_id.input_asset_id_b = tx.input_note[1].asset_id;
-    bridge_id.config.second_input_in_use = true;
-    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+    bridge_call_data bridge_call_data = empty_bridge_call_data;
+    bridge_call_data.input_asset_id_a = tx.input_note[0].asset_id;
+    bridge_call_data.input_asset_id_b = tx.input_note[1].asset_id;
+    bridge_call_data.config.second_input_in_use = true;
+    tx.partial_claim_note.bridge_call_data = bridge_call_data.to_uint256_t();
 
     /**
      * tx represents:
@@ -1355,11 +1359,11 @@ TEST_F(join_split_tests, test_defi_deposit_two_virtual_inputs_different_asset_id
     tx.partial_claim_note.deposit_value = 90;
     tx.partial_claim_note.input_nullifier = tx.output_note[0].input_nullifier;
 
-    bridge_id bridge_id = empty_bridge_id;
-    bridge_id.input_asset_id_a = tx.input_note[0].asset_id;
-    bridge_id.input_asset_id_b = tx.input_note[1].asset_id;
-    bridge_id.config.second_input_in_use = true;
-    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+    bridge_call_data bridge_call_data = empty_bridge_call_data;
+    bridge_call_data.input_asset_id_a = tx.input_note[0].asset_id;
+    bridge_call_data.input_asset_id_b = tx.input_note[1].asset_id;
+    bridge_call_data.config.second_input_in_use = true;
+    tx.partial_claim_note.bridge_call_data = bridge_call_data.to_uint256_t();
 
     /**
      * tx represents:
@@ -1383,11 +1387,11 @@ TEST_F(join_split_tests,
     tx.partial_claim_note.deposit_value = 90;
     tx.partial_claim_note.input_nullifier = tx.output_note[0].input_nullifier;
 
-    bridge_id bridge_id = empty_bridge_id;
-    bridge_id.input_asset_id_a = tx.input_note[0].asset_id;
-    bridge_id.input_asset_id_b = tx.input_note[1].asset_id;
-    bridge_id.config.second_input_in_use = true;
-    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+    bridge_call_data bridge_call_data = empty_bridge_call_data;
+    bridge_call_data.input_asset_id_a = tx.input_note[0].asset_id;
+    bridge_call_data.input_asset_id_b = tx.input_note[1].asset_id;
+    bridge_call_data.config.second_input_in_use = true;
+    tx.partial_claim_note.bridge_call_data = bridge_call_data.to_uint256_t();
 
     /**
      * tx represents:
@@ -1412,11 +1416,11 @@ TEST_F(join_split_tests, test_defi_deposit_two_real_inputs_different_asset_ids_a
     tx.partial_claim_note.deposit_value = 90;
     tx.partial_claim_note.input_nullifier = tx.output_note[0].input_nullifier;
 
-    bridge_id bridge_id = empty_bridge_id;
-    bridge_id.input_asset_id_a = tx.input_note[0].asset_id;
-    bridge_id.input_asset_id_b = tx.input_note[1].asset_id;
-    bridge_id.config.second_input_in_use = true;
-    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+    bridge_call_data bridge_call_data = empty_bridge_call_data;
+    bridge_call_data.input_asset_id_a = tx.input_note[0].asset_id;
+    bridge_call_data.input_asset_id_b = tx.input_note[1].asset_id;
+    bridge_call_data.config.second_input_in_use = true;
+    tx.partial_claim_note.bridge_call_data = bridge_call_data.to_uint256_t();
 
     /**
      * tx represents:
@@ -1441,11 +1445,11 @@ TEST_F(join_split_tests, test_defi_deposit_two_real_inputs_different_asset_ids_a
     tx.partial_claim_note.deposit_value = 95;
     tx.partial_claim_note.input_nullifier = tx.output_note[0].input_nullifier;
 
-    bridge_id bridge_id = empty_bridge_id;
-    bridge_id.input_asset_id_a = tx.input_note[0].asset_id;
-    bridge_id.input_asset_id_b = tx.input_note[1].asset_id;
-    bridge_id.config.second_input_in_use = true;
-    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+    bridge_call_data bridge_call_data = empty_bridge_call_data;
+    bridge_call_data.input_asset_id_a = tx.input_note[0].asset_id;
+    bridge_call_data.input_asset_id_b = tx.input_note[1].asset_id;
+    bridge_call_data.config.second_input_in_use = true;
+    tx.partial_claim_note.bridge_call_data = bridge_call_data.to_uint256_t();
 
     /**
      * tx represents:
@@ -1470,11 +1474,11 @@ TEST_F(join_split_tests, test_defi_invalid_tx_fee_asset_id_fails)
     tx.partial_claim_note.deposit_value = 90;
     tx.partial_claim_note.input_nullifier = tx.output_note[0].input_nullifier;
 
-    bridge_id bridge_id = empty_bridge_id;
-    bridge_id.input_asset_id_a = tx.input_note[0].asset_id;
-    bridge_id.input_asset_id_b = tx.input_note[1].asset_id;
-    bridge_id.config.second_input_in_use = true;
-    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+    bridge_call_data bridge_call_data = empty_bridge_call_data;
+    bridge_call_data.input_asset_id_a = tx.input_note[0].asset_id;
+    bridge_call_data.input_asset_id_b = tx.input_note[1].asset_id;
+    bridge_call_data.config.second_input_in_use = true;
+    tx.partial_claim_note.bridge_call_data = bridge_call_data.to_uint256_t();
 
     tx.asset_id = 666; // <-- different fee asset_id from both input notes.
 
@@ -1501,9 +1505,9 @@ TEST_F(join_split_tests, test_defi_deposit_of_zero_fails)
     tx.output_note[1].value = 0;
     tx.partial_claim_note.deposit_value = 0; // <-- should be > 0
 
-    bridge_id bridge_id = empty_bridge_id;
-    bridge_id.input_asset_id_a = tx.input_note[0].asset_id;
-    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+    bridge_call_data bridge_call_data = empty_bridge_call_data;
+    bridge_call_data.input_asset_id_a = tx.input_note[0].asset_id;
+    tx.partial_claim_note.bridge_call_data = bridge_call_data.to_uint256_t();
 
     auto result = sign_and_verify_logic(tx, user.owner);
     EXPECT_FALSE(result.valid);
@@ -1519,9 +1523,9 @@ TEST_F(join_split_tests, test_defi_non_zero_output_note_1_ignored)
     tx.partial_claim_note.deposit_value = 50;
     tx.partial_claim_note.input_nullifier = tx.output_note[0].input_nullifier;
 
-    bridge_id bridge_id = empty_bridge_id;
-    bridge_id.input_asset_id_a = tx.input_note[0].asset_id;
-    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+    bridge_call_data bridge_call_data = empty_bridge_call_data;
+    bridge_call_data.input_asset_id_a = tx.input_note[0].asset_id;
+    tx.partial_claim_note.bridge_call_data = bridge_call_data.to_uint256_t();
 
     /**
      * tx represents:
@@ -1544,9 +1548,9 @@ TEST_F(join_split_tests, test_defi_allow_chain_1_fails)
     tx.partial_claim_note.deposit_value = 50;
     tx.partial_claim_note.input_nullifier = tx.output_note[0].input_nullifier;
 
-    bridge_id bridge_id = empty_bridge_id;
-    bridge_id.input_asset_id_a = tx.input_note[0].asset_id;
-    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+    bridge_call_data bridge_call_data = empty_bridge_call_data;
+    bridge_call_data.input_asset_id_a = tx.input_note[0].asset_id;
+    tx.partial_claim_note.bridge_call_data = bridge_call_data.to_uint256_t();
 
     tx.allow_chain = 1;
 
@@ -1577,9 +1581,9 @@ TEST_F(join_split_tests, test_defi_deposit_incorrect_input_nullifier_in_partial_
     tx.partial_claim_note.deposit_value = 90;
     tx.partial_claim_note.input_nullifier = 1; // incorrect nullifier
 
-    bridge_id bridge_id = empty_bridge_id;
-    bridge_id.input_asset_id_a = tx.input_note[0].asset_id;
-    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+    bridge_call_data bridge_call_data = empty_bridge_call_data;
+    bridge_call_data.input_asset_id_a = tx.input_note[0].asset_id;
+    tx.partial_claim_note.bridge_call_data = bridge_call_data.to_uint256_t();
 
     /**
      * tx represents:
@@ -1595,10 +1599,10 @@ TEST_F(join_split_tests, test_defi_deposit_incorrect_input_nullifier_in_partial_
 }
 
 // *************************************************************************************************************
-// Bridge id checks
+// BridgeCallData checks
 // *************************************************************************************************************
 
-TEST_F(join_split_tests, test_defi_deposit_bridge_id_second_bridge_input_nonzero_but_not_in_use_fails)
+TEST_F(join_split_tests, test_defi_deposit_bridge_call_data_second_bridge_input_nonzero_but_not_in_use_fails)
 {
     join_split_tx tx = simple_setup({ 0, 11 });
 
@@ -1606,11 +1610,11 @@ TEST_F(join_split_tests, test_defi_deposit_bridge_id_second_bridge_input_nonzero
     tx.partial_claim_note.deposit_value = 90;
     tx.partial_claim_note.input_nullifier = tx.output_note[0].input_nullifier;
 
-    bridge_id bridge_id = empty_bridge_id;
-    bridge_id.input_asset_id_a = tx.input_note[0].asset_id;
-    bridge_id.input_asset_id_b = tx.input_note[1].asset_id;
-    bridge_id.config.second_input_in_use = false; // <-- to cause the contradiction
-    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+    bridge_call_data bridge_call_data = empty_bridge_call_data;
+    bridge_call_data.input_asset_id_a = tx.input_note[0].asset_id;
+    bridge_call_data.input_asset_id_b = tx.input_note[1].asset_id;
+    bridge_call_data.config.second_input_in_use = false; // <-- to cause the contradiction
+    tx.partial_claim_note.bridge_call_data = bridge_call_data.to_uint256_t();
 
     /**
      * tx represents:
@@ -1626,7 +1630,7 @@ TEST_F(join_split_tests, test_defi_deposit_bridge_id_second_bridge_input_nonzero
     EXPECT_EQ(result.err, "Expected second_input_in_use, given input_asset_id_b != 0");
 }
 
-TEST_F(join_split_tests, test_defi_deposit_bridge_id_second_bridge_output_nonzero_but_not_in_use_fails)
+TEST_F(join_split_tests, test_defi_deposit_bridge_call_data_second_bridge_output_nonzero_but_not_in_use_fails)
 {
     join_split_tx tx = simple_setup({ 4, 13 });
 
@@ -1638,11 +1642,11 @@ TEST_F(join_split_tests, test_defi_deposit_bridge_id_second_bridge_output_nonzer
     tx.partial_claim_note.deposit_value = 90;
     tx.partial_claim_note.input_nullifier = tx.output_note[0].input_nullifier;
 
-    bridge_id bridge_id = empty_bridge_id;
-    bridge_id.input_asset_id_a = tx.input_note[0].asset_id;
-    bridge_id.output_asset_id_b = virtual_asset_id_flag;
-    bridge_id.config.second_output_in_use = false; // <-- to cause the contradiction
-    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+    bridge_call_data bridge_call_data = empty_bridge_call_data;
+    bridge_call_data.input_asset_id_a = tx.input_note[0].asset_id;
+    bridge_call_data.output_asset_id_b = virtual_asset_id_flag;
+    bridge_call_data.config.second_output_in_use = false; // <-- to cause the contradiction
+    tx.partial_claim_note.bridge_call_data = bridge_call_data.to_uint256_t();
 
     /**
      * tx represents:
@@ -1667,11 +1671,11 @@ TEST_F(join_split_tests, test_defi_deposit_second_bridge_input_in_use_but_same_b
     tx.partial_claim_note.input_nullifier = tx.output_note[0].input_nullifier;
     tx.output_note[1].value = 90;
 
-    bridge_id bridge_id = empty_bridge_id;
-    bridge_id.input_asset_id_a = tx.input_note[0].asset_id;
-    bridge_id.input_asset_id_b = tx.input_note[1].asset_id; // <-- same asset_id
-    bridge_id.config.second_input_in_use = true;
-    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+    bridge_call_data bridge_call_data = empty_bridge_call_data;
+    bridge_call_data.input_asset_id_a = tx.input_note[0].asset_id;
+    bridge_call_data.input_asset_id_b = tx.input_note[1].asset_id; // <-- same asset_id
+    bridge_call_data.config.second_input_in_use = true;
+    tx.partial_claim_note.bridge_call_data = bridge_call_data.to_uint256_t();
 
     /**
      * tx represents:
@@ -1701,13 +1705,13 @@ TEST_F(join_split_tests, test_defi_deposit_second_bridge_output_in_use_and_same_
     tx.partial_claim_note.deposit_value = 90;
     tx.partial_claim_note.input_nullifier = tx.output_note[0].input_nullifier;
 
-    bridge_id bridge_id = empty_bridge_id;
-    bridge_id.input_asset_id_a = tx.input_note[0].asset_id;
-    bridge_id.output_asset_id_a = virtual_asset_id_flag;
-    bridge_id.output_asset_id_b =
+    bridge_call_data bridge_call_data = empty_bridge_call_data;
+    bridge_call_data.input_asset_id_a = tx.input_note[0].asset_id;
+    bridge_call_data.output_asset_id_a = virtual_asset_id_flag;
+    bridge_call_data.output_asset_id_b =
         virtual_asset_id_flag; // <-- same, but that's ok, since they're virtual asset_id placeholders.
-    bridge_id.config.second_output_in_use = true;
-    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+    bridge_call_data.config.second_output_in_use = true;
+    tx.partial_claim_note.bridge_call_data = bridge_call_data.to_uint256_t();
 
     /**
      * tx represents:
@@ -1734,12 +1738,12 @@ TEST_F(join_split_tests, test_defi_deposit_second_bridge_output_in_use_but_same_
     tx.partial_claim_note.deposit_value = 90;
     tx.partial_claim_note.input_nullifier = tx.output_note[0].input_nullifier;
 
-    bridge_id bridge_id = empty_bridge_id;
-    bridge_id.input_asset_id_a = tx.input_note[0].asset_id;
-    bridge_id.output_asset_id_a = asset_id;
-    bridge_id.output_asset_id_b = asset_id; // <-- same - not ok, since they're both real output asset_ids
-    bridge_id.config.second_output_in_use = true;
-    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+    bridge_call_data bridge_call_data = empty_bridge_call_data;
+    bridge_call_data.input_asset_id_a = tx.input_note[0].asset_id;
+    bridge_call_data.output_asset_id_a = asset_id;
+    bridge_call_data.output_asset_id_b = asset_id; // <-- same - not ok, since they're both real output asset_ids
+    bridge_call_data.config.second_output_in_use = true;
+    tx.partial_claim_note.bridge_call_data = bridge_call_data.to_uint256_t();
 
     /**
      * tx represents:
@@ -1768,10 +1772,10 @@ TEST_F(join_split_tests, test_defi_deposit_first_bridge_output_asset_id_virtual_
     tx.partial_claim_note.deposit_value = 90;
     tx.partial_claim_note.input_nullifier = tx.output_note[0].input_nullifier;
 
-    bridge_id bridge_id = empty_bridge_id;
-    bridge_id.input_asset_id_a = tx.input_note[0].asset_id;
-    bridge_id.output_asset_id_a = virtual_asset_id_flag + 1; // should just be virtual_asset_id_flag (=2**29)
-    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+    bridge_call_data bridge_call_data = empty_bridge_call_data;
+    bridge_call_data.input_asset_id_a = tx.input_note[0].asset_id;
+    bridge_call_data.output_asset_id_a = virtual_asset_id_flag + 1; // should just be virtual_asset_id_flag (=2**29)
+    tx.partial_claim_note.bridge_call_data = bridge_call_data.to_uint256_t();
 
     /**
      * tx represents:
@@ -1799,12 +1803,12 @@ TEST_F(join_split_tests, test_defi_deposit_second_bridge_output_asset_id_virtual
     tx.partial_claim_note.deposit_value = 90;
     tx.partial_claim_note.input_nullifier = tx.output_note[0].input_nullifier;
 
-    bridge_id bridge_id = empty_bridge_id;
-    bridge_id.input_asset_id_a = tx.input_note[0].asset_id;
-    bridge_id.output_asset_id_a = virtual_asset_id_flag;
-    bridge_id.output_asset_id_b = virtual_asset_id_flag + 1; // should just be virtual_asset_id_flag (=2**29)
-    bridge_id.config.second_output_in_use = true;
-    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+    bridge_call_data bridge_call_data = empty_bridge_call_data;
+    bridge_call_data.input_asset_id_a = tx.input_note[0].asset_id;
+    bridge_call_data.output_asset_id_a = virtual_asset_id_flag;
+    bridge_call_data.output_asset_id_b = virtual_asset_id_flag + 1; // should just be virtual_asset_id_flag (=2**29)
+    bridge_call_data.config.second_output_in_use = true;
+    tx.partial_claim_note.bridge_call_data = bridge_call_data.to_uint256_t();
 
     /**
      * tx represents:
@@ -1821,10 +1825,10 @@ TEST_F(join_split_tests, test_defi_deposit_second_bridge_output_asset_id_virtual
 }
 
 // *************************************************************************************************************
-// Bridge id data vs input note data
+// BridgeCallData data vs input note data
 // *************************************************************************************************************
 
-TEST_F(join_split_tests, test_defi_wrong_first_asset_id_in_bridge_id_fails)
+TEST_F(join_split_tests, test_defi_wrong_first_asset_id_in_bridge_call_data_fails)
 {
     join_split_tx tx = simple_setup({ 4, 13 });
 
@@ -1836,9 +1840,9 @@ TEST_F(join_split_tests, test_defi_wrong_first_asset_id_in_bridge_id_fails)
     tx.partial_claim_note.deposit_value = 90;
     tx.partial_claim_note.input_nullifier = tx.output_note[0].input_nullifier;
 
-    bridge_id bridge_id = empty_bridge_id;
-    bridge_id.input_asset_id_a = tx.input_note[0].asset_id + 1; // wrong asset_id vs input notes
-    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+    bridge_call_data bridge_call_data = empty_bridge_call_data;
+    bridge_call_data.input_asset_id_a = tx.input_note[0].asset_id + 1; // wrong asset_id vs input notes
+    tx.partial_claim_note.bridge_call_data = bridge_call_data.to_uint256_t();
 
     /**
      * tx represents:
@@ -1850,10 +1854,11 @@ TEST_F(join_split_tests, test_defi_wrong_first_asset_id_in_bridge_id_fails)
 
     auto result = sign_and_verify_logic(tx, user.owner);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(result.err, "Expected bridge_id_data.input_asset_id_a == input_note_1.asset_id for a defi-deposit");
+    EXPECT_EQ(result.err,
+              "Expected bridge_call_data_local.input_asset_id_a == input_note_1.asset_id for a defi-deposit");
 }
 
-TEST_F(join_split_tests, test_defi_bridge_id_config_second_input_in_use_but_input_note_2_not_in_use_fails)
+TEST_F(join_split_tests, test_defi_bridge_call_data_config_second_input_in_use_but_input_note_2_not_in_use_fails)
 {
     join_split_tx tx = simple_setup({ 4, 13 });
 
@@ -1865,11 +1870,11 @@ TEST_F(join_split_tests, test_defi_bridge_id_config_second_input_in_use_but_inpu
     tx.partial_claim_note.deposit_value = 90;
     tx.partial_claim_note.input_nullifier = tx.output_note[0].input_nullifier;
 
-    bridge_id bridge_id = empty_bridge_id;
-    bridge_id.input_asset_id_a = tx.input_note[0].asset_id;
-    bridge_id.config.second_input_in_use =
+    bridge_call_data bridge_call_data = empty_bridge_call_data;
+    bridge_call_data.input_asset_id_a = tx.input_note[0].asset_id;
+    bridge_call_data.config.second_input_in_use =
         true; // <-- causes error, since there's no input note 2 that can be fed into the second bridge input.
-    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+    tx.partial_claim_note.bridge_call_data = bridge_call_data.to_uint256_t();
 
     /**
      * tx represents:
@@ -1881,10 +1886,10 @@ TEST_F(join_split_tests, test_defi_bridge_id_config_second_input_in_use_but_inpu
 
     auto result = sign_and_verify_logic(tx, user.owner);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(result.err, "Expected input_note_2_in_use, given bridge_id_data.config.second_input_in_use");
+    EXPECT_EQ(result.err, "Expected input_note_2_in_use, given bridge_call_data_local.config.second_input_in_use");
 }
 
-TEST_F(join_split_tests, test_defi_missing_second_asset_in_bridge_id_fails)
+TEST_F(join_split_tests, test_defi_missing_second_asset_in_bridge_call_data_fails)
 {
     join_split_tx tx = simple_setup({ 0, 11 });
 
@@ -1892,27 +1897,27 @@ TEST_F(join_split_tests, test_defi_missing_second_asset_in_bridge_id_fails)
     tx.partial_claim_note.deposit_value = 90;
     tx.partial_claim_note.input_nullifier = tx.output_note[0].input_nullifier;
 
-    bridge_id bridge_id = empty_bridge_id;
-    bridge_id.input_asset_id_a = tx.input_note[0].asset_id;
-    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+    bridge_call_data bridge_call_data = empty_bridge_call_data;
+    bridge_call_data.input_asset_id_a = tx.input_note[0].asset_id;
+    tx.partial_claim_note.bridge_call_data = bridge_call_data.to_uint256_t();
 
     /**
      * tx represents:
      *   - 100 in1 (real)
      *   - 90 in2 (virtual)
      *   - 90 deposited via bridge input 1 (real)
-     *   - 90 SHOULD BE deposited via bridge input 2 (virtual), but bridge_id is incorrect.
+     *   - 90 SHOULD BE deposited via bridge input 2 (virtual), but bridge_call_data is incorrect.
      *   - 10 paid as fee (in1's asset_id)
      */
 
     auto result = sign_and_verify_logic(tx, user.owner);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(
-        result.err,
-        "Expected bridge_id_data.config.second_input_in_use, given input_note_2_in_use && different_input_asset_ids");
+    EXPECT_EQ(result.err,
+              "Expected bridge_call_data_local.config.second_input_in_use, given input_note_2_in_use && "
+              "different_input_asset_ids");
 }
 
-TEST_F(join_split_tests, test_defi_wrong_second_asset_id_in_bridge_id_fails)
+TEST_F(join_split_tests, test_defi_wrong_second_asset_id_in_bridge_call_data_fails)
 {
     join_split_tx tx = simple_setup({ 4, 9 });
 
@@ -1920,26 +1925,26 @@ TEST_F(join_split_tests, test_defi_wrong_second_asset_id_in_bridge_id_fails)
     tx.partial_claim_note.deposit_value = 90;
     tx.partial_claim_note.input_nullifier = tx.output_note[0].input_nullifier;
 
-    bridge_id bridge_id = empty_bridge_id;
-    bridge_id.input_asset_id_a = tx.input_note[0].asset_id;
-    bridge_id.input_asset_id_b = tx.input_note[1].asset_id + 1; // <-- wrong asset_id, vs input note 2's asset_id
-    bridge_id.config.second_input_in_use = true;
-    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+    bridge_call_data bridge_call_data = empty_bridge_call_data;
+    bridge_call_data.input_asset_id_a = tx.input_note[0].asset_id;
+    bridge_call_data.input_asset_id_b = tx.input_note[1].asset_id + 1; // <-- wrong asset_id, vs input note 2's asset_id
+    bridge_call_data.config.second_input_in_use = true;
+    tx.partial_claim_note.bridge_call_data = bridge_call_data.to_uint256_t();
 
     /**
      * tx represents:
      *   - 100 in1 (virtual)
      *   - 90 in2 (virtual, different asset_id = virtual_asset_id + 1)
      *   - 90 deposited via bridge input 1
-     *   - 90 deposited via bridge input 2 (but bridge_id is incorrect)
+     *   - 90 deposited via bridge input 2 (but bridge_call_data is incorrect)
      *   - 10 paid as fee (in1's asset_id)
      */
 
     auto result = sign_and_verify_logic(tx, user.owner);
     EXPECT_FALSE(result.valid);
     EXPECT_EQ(result.err,
-              "Expected bridge_id_data.input_asset_id_b == input_note_2.asset_id, given "
-              "bridge_id_data.config.second_input_in_use");
+              "Expected bridge_call_data_local.input_asset_id_b == input_note_2.asset_id, given "
+              "bridge_call_data_local.config.second_input_in_use");
 }
 
 // *************************************************************************************************************
@@ -1955,11 +1960,11 @@ TEST_F(join_split_tests, test_repayment_logic)
     tx.partial_claim_note.input_nullifier = tx.output_note[0].input_nullifier;
     tx.output_note[1].value = 10; // <-- repaying some value back to the defi-depositor
 
-    bridge_id bridge_id = empty_bridge_id;
-    bridge_id.input_asset_id_a = tx.input_note[0].asset_id;
-    bridge_id.input_asset_id_b = virtual_asset_id_flag + defi_interaction_nonce; // virtual_asset_id
-    bridge_id.config.second_input_in_use = true;
-    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+    bridge_call_data bridge_call_data = empty_bridge_call_data;
+    bridge_call_data.input_asset_id_a = tx.input_note[0].asset_id;
+    bridge_call_data.input_asset_id_b = virtual_asset_id_flag + defi_interaction_nonce; // virtual_asset_id
+    bridge_call_data.config.second_input_in_use = true;
+    tx.partial_claim_note.bridge_call_data = bridge_call_data.to_uint256_t();
 
     /**
      * tx represents:
@@ -1982,11 +1987,11 @@ TEST_F(join_split_tests, test_virtual_note_repay_different_asset_id_fail)
     tx.partial_claim_note.input_nullifier = tx.output_note[0].input_nullifier;
     tx.output_note[1].asset_id = 3; // <-- different from any of the input notes' asset_ids
 
-    bridge_id bridge_id = empty_bridge_id;
-    bridge_id.input_asset_id_a = tx.input_note[0].asset_id;
-    bridge_id.input_asset_id_b = virtual_asset_id_flag + defi_interaction_nonce; // virtual_asset_id
-    bridge_id.config.second_input_in_use = true;
-    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+    bridge_call_data bridge_call_data = empty_bridge_call_data;
+    bridge_call_data.input_asset_id_a = tx.input_note[0].asset_id;
+    bridge_call_data.input_asset_id_b = virtual_asset_id_flag + defi_interaction_nonce; // virtual_asset_id
+    bridge_call_data.config.second_input_in_use = true;
+    tx.partial_claim_note.bridge_call_data = bridge_call_data.to_uint256_t();
 
     /**
      * tx represents:
@@ -2009,11 +2014,11 @@ TEST_F(join_split_tests, test_real_input_value_lt_virtual_input_value_fails)
     tx.partial_claim_note.deposit_value = 90;
     tx.partial_claim_note.input_nullifier = tx.output_note[0].input_nullifier;
 
-    bridge_id bridge_id = empty_bridge_id;
-    bridge_id.input_asset_id_a = tx.input_note[0].asset_id;
-    bridge_id.input_asset_id_b = tx.input_note[1].asset_id;
-    bridge_id.config.second_input_in_use = true;
-    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+    bridge_call_data bridge_call_data = empty_bridge_call_data;
+    bridge_call_data.input_asset_id_a = tx.input_note[0].asset_id;
+    bridge_call_data.input_asset_id_b = tx.input_note[1].asset_id;
+    bridge_call_data.config.second_input_in_use = true;
+    tx.partial_claim_note.bridge_call_data = bridge_call_data.to_uint256_t();
 
     /**
      * tx represents:
@@ -2208,7 +2213,7 @@ TEST_F(join_split_tests, test_deposit_full_proof)
     EXPECT_EQ(proof_data.merkle_root, tree->root());
     EXPECT_EQ(proof_data.tx_fee, uint256_t(3));
     EXPECT_EQ(proof_data.tx_fee_asset_id, tx.asset_id);
-    EXPECT_EQ(proof_data.bridge_id, uint256_t(0));
+    EXPECT_EQ(proof_data.bridge_call_data, uint256_t(0));
     EXPECT_EQ(proof_data.defi_deposit_value, uint256_t(0));
     EXPECT_EQ(proof_data.defi_root, fr(0));
 
@@ -2253,7 +2258,7 @@ TEST_F(join_split_tests, test_withdraw_full_proof)
     EXPECT_EQ(proof_data.merkle_root, tree->root());
     EXPECT_EQ(proof_data.tx_fee, uint256_t(3));
     EXPECT_EQ(proof_data.tx_fee_asset_id, tx.asset_id);
-    EXPECT_EQ(proof_data.bridge_id, uint256_t(0));
+    EXPECT_EQ(proof_data.bridge_call_data, uint256_t(0));
     EXPECT_EQ(proof_data.defi_deposit_value, uint256_t(0));
     EXPECT_EQ(proof_data.defi_root, fr(0));
 
@@ -2294,7 +2299,7 @@ TEST_F(join_split_tests, test_private_send_full_proof)
     EXPECT_EQ(proof_data.merkle_root, tree->root());
     EXPECT_EQ(proof_data.tx_fee, uint256_t(3));
     EXPECT_EQ(proof_data.tx_fee_asset_id, tx.asset_id);
-    EXPECT_EQ(proof_data.bridge_id, uint256_t(0));
+    EXPECT_EQ(proof_data.bridge_call_data, uint256_t(0));
     EXPECT_EQ(proof_data.defi_deposit_value, uint256_t(0));
     EXPECT_EQ(proof_data.defi_root, fr(0));
     EXPECT_EQ(proof_data.backward_link, fr(0));
@@ -2312,11 +2317,11 @@ TEST_F(join_split_tests, test_defi_deposit_full_proof)
     tx.partial_claim_note.input_nullifier = tx.output_note[0].input_nullifier;
     tx.output_note[1].value = 90;
 
-    bridge_id bridge_id = empty_bridge_id;
-    bridge_id.input_asset_id_a = tx.input_note[0].asset_id;
-    bridge_id.output_asset_id_b = 1;
-    bridge_id.config.second_output_in_use = true;
-    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+    bridge_call_data bridge_call_data = empty_bridge_call_data;
+    bridge_call_data.input_asset_id_a = tx.input_note[0].asset_id;
+    bridge_call_data.output_asset_id_b = 1;
+    bridge_call_data.config.second_output_in_use = true;
+    tx.partial_claim_note.bridge_call_data = bridge_call_data.to_uint256_t();
 
     /**
      * tx represents:
@@ -2336,7 +2341,7 @@ TEST_F(join_split_tests, test_defi_deposit_full_proof)
     auto partial_value_commitment = value::create_partial_commitment(
         tx.partial_claim_note.note_secret, tx.input_note[0].owner, tx.input_note[0].account_required, 0);
     claim::claim_note claim_note = {
-        tx.partial_claim_note.deposit_value,  tx.partial_claim_note.bridge_id, 0, 0, partial_value_commitment,
+        tx.partial_claim_note.deposit_value,  tx.partial_claim_note.bridge_call_data, 0, 0, partial_value_commitment,
         tx.partial_claim_note.input_nullifier
     };
 
@@ -2357,8 +2362,8 @@ TEST_F(join_split_tests, test_defi_deposit_full_proof)
     EXPECT_EQ(proof_data.asset_id, uint256_t(0));
     EXPECT_EQ(proof_data.merkle_root, tree->root());
     EXPECT_EQ(proof_data.tx_fee, uint256_t(10));
-    EXPECT_EQ(proof_data.tx_fee_asset_id, bridge_id.input_asset_id_a);
-    EXPECT_EQ(proof_data.bridge_id, tx.partial_claim_note.bridge_id);
+    EXPECT_EQ(proof_data.tx_fee_asset_id, bridge_call_data.input_asset_id_a);
+    EXPECT_EQ(proof_data.bridge_call_data, tx.partial_claim_note.bridge_call_data);
     EXPECT_EQ(proof_data.defi_deposit_value, tx.partial_claim_note.deposit_value);
     EXPECT_EQ(proof_data.defi_root, fr(0));
 
@@ -2374,11 +2379,11 @@ TEST_F(join_split_tests, test_repayment_full_proof)
     tx.partial_claim_note.input_nullifier = tx.output_note[0].input_nullifier;
     tx.output_note[1].value = 10; // <-- repaying some value back to the defi-depositor
 
-    bridge_id bridge_id = empty_bridge_id;
-    bridge_id.input_asset_id_a = tx.input_note[0].asset_id;
-    bridge_id.input_asset_id_b = virtual_asset_id_flag + defi_interaction_nonce; // virtual_asset_id
-    bridge_id.config.second_input_in_use = true;
-    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+    bridge_call_data bridge_call_data = empty_bridge_call_data;
+    bridge_call_data.input_asset_id_a = tx.input_note[0].asset_id;
+    bridge_call_data.input_asset_id_b = virtual_asset_id_flag + defi_interaction_nonce; // virtual_asset_id
+    bridge_call_data.config.second_input_in_use = true;
+    tx.partial_claim_note.bridge_call_data = bridge_call_data.to_uint256_t();
 
     /**
      * tx represents:
@@ -2389,7 +2394,7 @@ TEST_F(join_split_tests, test_repayment_full_proof)
      *   - 10 out2 (repay back to depositor in in1's asset_id)
      */
 
-    tx.partial_claim_note.bridge_id = bridge_id.to_uint256_t();
+    tx.partial_claim_note.bridge_call_data = bridge_call_data.to_uint256_t();
     tx.partial_claim_note.input_nullifier = tx.output_note[0].input_nullifier;
 
     auto proof = sign_and_create_proof(tx, user.owner);
@@ -2398,7 +2403,7 @@ TEST_F(join_split_tests, test_repayment_full_proof)
     auto partial_commitment = value::create_partial_commitment(
         tx.partial_claim_note.note_secret, tx.input_note[0].owner, tx.input_note[0].account_required, 0);
     claim::claim_note claim_note = {
-        tx.partial_claim_note.deposit_value,  tx.partial_claim_note.bridge_id, 0, 0, partial_commitment,
+        tx.partial_claim_note.deposit_value,  tx.partial_claim_note.bridge_call_data, 0, 0, partial_commitment,
         tx.partial_claim_note.input_nullifier
     };
 
@@ -2419,8 +2424,8 @@ TEST_F(join_split_tests, test_repayment_full_proof)
     EXPECT_EQ(proof_data.asset_id, uint256_t(0));
     EXPECT_EQ(proof_data.merkle_root, tree->root());
     EXPECT_EQ(proof_data.tx_fee, uint256_t(0));
-    EXPECT_EQ(proof_data.tx_fee_asset_id, bridge_id.input_asset_id_a);
-    EXPECT_EQ(proof_data.bridge_id, tx.partial_claim_note.bridge_id);
+    EXPECT_EQ(proof_data.tx_fee_asset_id, bridge_call_data.input_asset_id_a);
+    EXPECT_EQ(proof_data.bridge_call_data, tx.partial_claim_note.bridge_call_data);
     EXPECT_EQ(proof_data.defi_deposit_value, tx.partial_claim_note.deposit_value);
     EXPECT_EQ(proof_data.defi_root, fr(0));
 

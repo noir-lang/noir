@@ -81,14 +81,14 @@ class claim_tests : public ::testing::Test {
 TEST_F(claim_tests, test_claim)
 {
     const claim_note note1 = { .deposit_value = 10,
-                               .bridge_id = 0,
+                               .bridge_call_data = 0,
                                .defi_interaction_nonce = 0,
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
                                .input_nullifier = fr::random_element(&engine) };
 
-    const defi_interaction::note note2 = { .bridge_id = 0,
+    const defi_interaction::note note2 = { .bridge_call_data = 0,
                                            .interaction_nonce = 0,
                                            .total_input_value = 100,
                                            .total_output_value_a = 200,
@@ -113,14 +113,14 @@ TEST_F(claim_tests, test_theft_via_field_overflow_fails_1)
         0xA1F0FAC9F8000001ULL, 0x9419F4243CDCB848ULL, 0xDC2822DB40C0AC2EULL, 0x183227397098D014ULL); // 2^(-1)
 
     const claim_note note1 = { .deposit_value = 1,
-                               .bridge_id = 0,
+                               .bridge_call_data = 0,
                                .defi_interaction_nonce = 0,
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
                                .input_nullifier = fr::random_element(&engine) };
 
-    const defi_interaction::note note2 = { .bridge_id = 0,
+    const defi_interaction::note note2 = { .bridge_call_data = 0,
                                            .interaction_nonce = 0,
                                            .total_input_value = 2,
                                            .total_output_value_a = 1,
@@ -148,14 +148,14 @@ TEST_F(claim_tests, test_theft_via_field_overflow_fails_2)
         0x507c2274294c1badULL, 0x11d7301ca7b2f039ULL, 0x21a0384b1d6cfdbcULL, 0x00a768d809f64ad0ULL); // 74^(-1)
 
     const claim_note note1 = { .deposit_value = 1,
-                               .bridge_id = 0,
+                               .bridge_call_data = 0,
                                .defi_interaction_nonce = 0,
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
                                .input_nullifier = fr::random_element(&engine) };
 
-    const defi_interaction::note note2 = { .bridge_id = 0,
+    const defi_interaction::note note2 = { .bridge_call_data = 0,
                                            .interaction_nonce = 0,
                                            .total_input_value = 74,
                                            .total_output_value_a = 1,
@@ -179,14 +179,14 @@ TEST_F(claim_tests, test_integer_division_works)
     // Tests to ensure the circuit copes with residuals correctly.
 
     const claim_note note1 = { .deposit_value = 3,
-                               .bridge_id = 0,
+                               .bridge_call_data = 0,
                                .defi_interaction_nonce = 0,
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
                                .input_nullifier = fr::random_element(&engine) };
 
-    const defi_interaction::note note2 = { .bridge_id = 0,
+    const defi_interaction::note note2 = { .bridge_call_data = 0,
                                            .interaction_nonce = 0,
                                            .total_input_value = 9,
                                            .total_output_value_a = 10,
@@ -205,14 +205,14 @@ TEST_F(claim_tests, test_outputs_larger_than_252_bits_fails)
         0x43E1F593F0000001ULL, 0x2833E84879B97091ULL, 0xB85045B68181585DULL, 0x30644E72E131A029ULL); // field modulus
 
     const claim_note note1 = { .deposit_value = 1,
-                               .bridge_id = 0,
+                               .bridge_call_data = 0,
                                .defi_interaction_nonce = 0,
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
                                .input_nullifier = fr::random_element(&engine) };
 
-    const defi_interaction::note note2 = { .bridge_id = 0,
+    const defi_interaction::note note2 = { .bridge_call_data = 0,
                                            .interaction_nonce = 0,
                                            .total_input_value = 1,
                                            .total_output_value_a = r - 1,
@@ -229,14 +229,14 @@ TEST_F(claim_tests, test_outputs_larger_than_252_bits_fails)
 TEST_F(claim_tests, test_zero_deposit_fails)
 {
     const claim_note note1 = { .deposit_value = 0,
-                               .bridge_id = 0,
+                               .bridge_call_data = 0,
                                .defi_interaction_nonce = 0,
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
                                .input_nullifier = fr::random_element(&engine) };
 
-    const defi_interaction::note note2 = { .bridge_id = 0,
+    const defi_interaction::note note2 = { .bridge_call_data = 0,
                                            .interaction_nonce = 0,
                                            .total_input_value = 1,
                                            .total_output_value_a = 1,
@@ -262,13 +262,13 @@ TEST_F(claim_tests, test_theft_via_zero_equality_fails)
     uint256_t MAX_252_BIT_VALUE(
         0xffffffffffffffffULL, 0xffffffffffffffffULL, 0xffffffffffffffffULL, 0x00ffffffffffffffULL);
     const claim_note note1 = { .deposit_value = 0,
-                               .bridge_id = 0,
+                               .bridge_call_data = 0,
                                .defi_interaction_nonce = 0,
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
                                .input_nullifier = fr::random_element(&engine) };
-    const defi_interaction::note note2 = { .bridge_id = 0,
+    const defi_interaction::note note2 = { .bridge_call_data = 0,
                                            .interaction_nonce = 0,
                                            .total_input_value = 1,
                                            .total_output_value_a = 1,
@@ -289,13 +289,13 @@ TEST_F(claim_tests, test_theft_via_zero_equality_fails)
 TEST_F(claim_tests, test_deposit_greater_than_total_fails)
 {
     const claim_note note1 = { .deposit_value = 100,
-                               .bridge_id = 0,
+                               .bridge_call_data = 0,
                                .defi_interaction_nonce = 0,
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
                                .input_nullifier = fr::random_element(&engine) };
-    const defi_interaction::note note2 = { .bridge_id = 0,
+    const defi_interaction::note note2 = { .bridge_call_data = 0,
                                            .interaction_nonce = 0,
                                            .total_input_value = 10,
                                            .total_output_value_a = 10,
@@ -314,13 +314,13 @@ TEST_F(claim_tests, test_deposit_greater_than_total_fails)
 TEST_F(claim_tests, test_output_value_greater_than_total_fails)
 {
     const claim_note note1 = { .deposit_value = 10,
-                               .bridge_id = 0,
+                               .bridge_call_data = 0,
                                .defi_interaction_nonce = 0,
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
                                .input_nullifier = fr::random_element(&engine) };
-    const defi_interaction::note note2 = { .bridge_id = 0,
+    const defi_interaction::note note2 = { .bridge_call_data = 0,
                                            .interaction_nonce = 0,
                                            .total_input_value = 10,
                                            .total_output_value_a = 10,
@@ -339,14 +339,14 @@ TEST_F(claim_tests, test_output_value_greater_than_total_fails)
 TEST_F(claim_tests, test_zero_output_value_fails)
 {
     const claim_note note1 = { .deposit_value = 1,
-                               .bridge_id = 0,
+                               .bridge_call_data = 0,
                                .defi_interaction_nonce = 0,
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
                                .input_nullifier = fr::random_element(&engine) };
 
-    const defi_interaction::note note2 = { .bridge_id = 0,
+    const defi_interaction::note note2 = { .bridge_call_data = 0,
                                            .interaction_nonce = 0,
                                            .total_input_value = 1,
                                            .total_output_value_a = 1,
@@ -366,14 +366,14 @@ TEST_F(claim_tests, test_zero_output_value_fails)
 TEST_F(claim_tests, test_zero_total_output_value_fails)
 {
     const claim_note note1 = { .deposit_value = 1,
-                               .bridge_id = 0,
+                               .bridge_call_data = 0,
                                .defi_interaction_nonce = 0,
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
                                .input_nullifier = fr::random_element(&engine) };
 
-    const defi_interaction::note note2 = { .bridge_id = 0,
+    const defi_interaction::note note2 = { .bridge_call_data = 0,
                                            .interaction_nonce = 0,
                                            .total_input_value = 1,
                                            .total_output_value_a = 0,
@@ -400,14 +400,14 @@ TEST_F(claim_tests, test_zero_total_output_value_fails)
 TEST_F(claim_tests, test_unmatching_ratio_a_fails)
 {
     const claim_note note1 = { .deposit_value = 10,
-                               .bridge_id = 0,
+                               .bridge_call_data = 0,
                                .defi_interaction_nonce = 0,
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
                                .input_nullifier = fr::random_element(&engine) };
 
-    const defi_interaction::note note2 = { .bridge_id = 0,
+    const defi_interaction::note note2 = { .bridge_call_data = 0,
                                            .interaction_nonce = 0,
                                            .total_input_value = 100,
                                            .total_output_value_a = 200,
@@ -427,14 +427,14 @@ TEST_F(claim_tests, test_unmatching_ratio_a_fails)
 TEST_F(claim_tests, test_unmatching_ratio_b_fails)
 {
     const claim_note note1 = { .deposit_value = 10,
-                               .bridge_id = 0,
+                               .bridge_call_data = 0,
                                .defi_interaction_nonce = 0,
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
                                .input_nullifier = fr::random_element(&engine) };
 
-    const defi_interaction::note note2 = { .bridge_id = 0,
+    const defi_interaction::note note2 = { .bridge_call_data = 0,
                                            .interaction_nonce = 0,
                                            .total_input_value = 100,
                                            .total_output_value_a = 200,
@@ -451,17 +451,17 @@ TEST_F(claim_tests, test_unmatching_ratio_b_fails)
     EXPECT_EQ(result.err, "ratio check 2 failed");
 }
 
-TEST_F(claim_tests, test_unmatching_bridge_ids_fails)
+TEST_F(claim_tests, test_unmatching_bridge_call_datas_fails)
 {
     const claim_note note1 = { .deposit_value = 10,
-                               .bridge_id = 0,
+                               .bridge_call_data = 0,
                                .defi_interaction_nonce = 0,
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
                                .input_nullifier = fr::random_element(&engine) };
 
-    const defi_interaction::note note2 = { .bridge_id = 1, // mismatch
+    const defi_interaction::note note2 = { .bridge_call_data = 1, // mismatch
                                            .interaction_nonce = 0,
                                            .total_input_value = 100,
                                            .total_output_value_a = 200,
@@ -474,20 +474,20 @@ TEST_F(claim_tests, test_unmatching_bridge_ids_fails)
 
     auto result = verify_logic(tx, cd);
     EXPECT_FALSE(result.logic_verified);
-    EXPECT_EQ(result.err, "note bridge ids don't match");
+    EXPECT_EQ(result.err, "note bridge call datas don't match");
 }
 
 TEST_F(claim_tests, test_unmatching_interaction_nonces_fails)
 {
     const claim_note note1 = { .deposit_value = 10,
-                               .bridge_id = 0,
+                               .bridge_call_data = 0,
                                .defi_interaction_nonce = 0,
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
                                .input_nullifier = fr::random_element(&engine) };
 
-    const defi_interaction::note note2 = { .bridge_id = 0,
+    const defi_interaction::note note2 = { .bridge_call_data = 0,
                                            .interaction_nonce = 1, // mismatch
                                            .total_input_value = 100,
                                            .total_output_value_a = 200,
@@ -506,14 +506,14 @@ TEST_F(claim_tests, test_unmatching_interaction_nonces_fails)
 TEST_F(claim_tests, test_missing_claim_note_fails)
 {
     const claim_note note1 = { .deposit_value = 10,
-                               .bridge_id = 0,
+                               .bridge_call_data = 0,
                                .defi_interaction_nonce = 0,
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
                                .input_nullifier = fr::random_element(&engine) };
 
-    const defi_interaction::note note2 = { .bridge_id = 0,
+    const defi_interaction::note note2 = { .bridge_call_data = 0,
                                            .interaction_nonce = 0,
                                            .total_input_value = 100,
                                            .total_output_value_a = 200,
@@ -532,14 +532,14 @@ TEST_F(claim_tests, test_missing_claim_note_fails)
 TEST_F(claim_tests, test_missing_interaction_note_fails)
 {
     const claim_note note1 = { .deposit_value = 10,
-                               .bridge_id = 0,
+                               .bridge_call_data = 0,
                                .defi_interaction_nonce = 0,
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
                                .input_nullifier = fr::random_element(&engine) };
 
-    const defi_interaction::note note2 = { .bridge_id = 0,
+    const defi_interaction::note note2 = { .bridge_call_data = 0,
                                            .interaction_nonce = 0,
                                            .total_input_value = 100,
                                            .total_output_value_a = 200,
@@ -558,7 +558,7 @@ TEST_F(claim_tests, test_missing_interaction_note_fails)
 TEST_F(claim_tests, test_defi_note_incorrect_index_fails)
 {
     const claim_note note1 = { .deposit_value = 10,
-                               .bridge_id = 0,
+                               .bridge_call_data = 0,
                                .defi_interaction_nonce = 25,
                                .fee = 0,
                                .value_note_partial_commitment =
@@ -569,7 +569,7 @@ TEST_F(claim_tests, test_defi_note_incorrect_index_fails)
 
     // add some notes to the defi tree
     for (uint32_t i = 0; i < 32; i++) {
-        const defi_interaction::note empty_note = { .bridge_id = 0,
+        const defi_interaction::note empty_note = { .bridge_call_data = 0,
                                                     .interaction_nonce = 0,
                                                     .total_input_value = 0,
                                                     .total_output_value_a = 0,
@@ -581,7 +581,7 @@ TEST_F(claim_tests, test_defi_note_incorrect_index_fails)
     // create some actual notes
     std::vector<defi_interaction::note> defi_notes;
     for (uint32_t i = 0; i < 32; i++) {
-        const defi_interaction::note note = { .bridge_id = 0,
+        const defi_interaction::note note = { .bridge_call_data = 0,
                                               .interaction_nonce = i,
                                               .total_input_value = 100 + i,
                                               .total_output_value_a = 200 + i,
@@ -605,26 +605,26 @@ TEST_F(claim_tests, test_defi_note_incorrect_index_fails)
 
 TEST_F(claim_tests, test_claim_for_virtual_note)
 {
-    const bridge_id bridge_id = { .bridge_address_id = 0,
-                                  .input_asset_id_a = 0,
-                                  .input_asset_id_b = 0,
-                                  .output_asset_id_a = 0,
-                                  .output_asset_id_b = empty_virtual_asset_id,
-                                  .config =
-                                      bridge_id::bit_config{
-                                          .second_input_in_use = false,
-                                          .second_output_in_use = true // <--
-                                      },
-                                  .aux_data = 0 };
+    const bridge_call_data bridge_call_data = { .bridge_address_id = 0,
+                                                .input_asset_id_a = 0,
+                                                .input_asset_id_b = 0,
+                                                .output_asset_id_a = 0,
+                                                .output_asset_id_b = empty_virtual_asset_id,
+                                                .config =
+                                                    bridge_call_data::bit_config{
+                                                        .second_input_in_use = false,
+                                                        .second_output_in_use = true // <--
+                                                    },
+                                                .aux_data = 0 };
     const claim_note note1 = { .deposit_value = 10,
-                               .bridge_id = bridge_id.to_uint256_t(),
+                               .bridge_call_data = bridge_call_data.to_uint256_t(),
                                .defi_interaction_nonce = 0,
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
                                .input_nullifier = fr::random_element(&engine) };
 
-    const defi_interaction::note note2 = { .bridge_id = bridge_id.to_uint256_t(),
+    const defi_interaction::note note2 = { .bridge_call_data = bridge_call_data.to_uint256_t(),
                                            .interaction_nonce = 0,
                                            .total_input_value = 100,
                                            .total_output_value_a = 300,
@@ -643,24 +643,24 @@ TEST_F(claim_tests, test_claim_for_virtual_note)
 
 TEST_F(claim_tests, test_first_input_note_virtual)
 {
-    const bridge_id bridge_id = { .bridge_address_id = 0,
-                                  .input_asset_id_a = empty_virtual_asset_id, // <--
-                                  .input_asset_id_b = 0,
-                                  .output_asset_id_a = 111,
-                                  .output_asset_id_b = 222,
-                                  .config = bridge_id::bit_config{ .second_input_in_use = false,
-                                                                   .second_output_in_use = true },
-                                  .aux_data = 0 };
+    const bridge_call_data bridge_call_data = { .bridge_address_id = 0,
+                                                .input_asset_id_a = empty_virtual_asset_id, // <--
+                                                .input_asset_id_b = 0,
+                                                .output_asset_id_a = 111,
+                                                .output_asset_id_b = 222,
+                                                .config = bridge_call_data::bit_config{ .second_input_in_use = false,
+                                                                                        .second_output_in_use = true },
+                                                .aux_data = 0 };
 
     const claim_note note1 = { .deposit_value = 10,
-                               .bridge_id = bridge_id.to_uint256_t(),
+                               .bridge_call_data = bridge_call_data.to_uint256_t(),
                                .defi_interaction_nonce = 0,
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
                                .input_nullifier = fr::random_element(&engine) };
 
-    const defi_interaction::note note2 = { .bridge_id = bridge_id.to_uint256_t(),
+    const defi_interaction::note note2 = { .bridge_call_data = bridge_call_data.to_uint256_t(),
                                            .interaction_nonce = 0,
                                            .total_input_value = 100,
                                            .total_output_value_a = 200,
@@ -677,24 +677,24 @@ TEST_F(claim_tests, test_first_input_note_virtual)
 
 TEST_F(claim_tests, test_first_output_note_virtual)
 {
-    const bridge_id bridge_id = { .bridge_address_id = 0,
-                                  .input_asset_id_a = 0,
-                                  .input_asset_id_b = 0,
-                                  .output_asset_id_a = empty_virtual_asset_id, // <--
-                                  .output_asset_id_b = 222,
-                                  .config = bridge_id::bit_config{ .second_input_in_use = false,
-                                                                   .second_output_in_use = true },
-                                  .aux_data = 0 };
+    const bridge_call_data bridge_call_data = { .bridge_address_id = 0,
+                                                .input_asset_id_a = 0,
+                                                .input_asset_id_b = 0,
+                                                .output_asset_id_a = empty_virtual_asset_id, // <--
+                                                .output_asset_id_b = 222,
+                                                .config = bridge_call_data::bit_config{ .second_input_in_use = false,
+                                                                                        .second_output_in_use = true },
+                                                .aux_data = 0 };
 
     const claim_note note1 = { .deposit_value = 10,
-                               .bridge_id = bridge_id.to_uint256_t(),
+                               .bridge_call_data = bridge_call_data.to_uint256_t(),
                                .defi_interaction_nonce = 0,
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
                                .input_nullifier = fr::random_element(&engine) };
 
-    const defi_interaction::note note2 = { .bridge_id = bridge_id.to_uint256_t(),
+    const defi_interaction::note note2 = { .bridge_call_data = bridge_call_data.to_uint256_t(),
                                            .interaction_nonce = 0,
                                            .total_input_value = 100,
                                            .total_output_value_a = 200,
@@ -711,24 +711,25 @@ TEST_F(claim_tests, test_first_output_note_virtual)
 
 TEST_F(claim_tests, test_second_input_note_nonzero_and_not_in_use_fails)
 {
-    const bridge_id bridge_id = { .bridge_address_id = 0,
-                                  .input_asset_id_a = 0,
-                                  .input_asset_id_b = empty_virtual_asset_id, // <--
-                                  .output_asset_id_a = 111,
-                                  .output_asset_id_b = 222,
-                                  .config = bridge_id::bit_config{ .second_input_in_use = false, // <--
-                                                                   .second_output_in_use = false },
-                                  .aux_data = 0 };
+    const bridge_call_data bridge_call_data = { .bridge_address_id = 0,
+                                                .input_asset_id_a = 0,
+                                                .input_asset_id_b = empty_virtual_asset_id, // <--
+                                                .output_asset_id_a = 111,
+                                                .output_asset_id_b = 222,
+                                                .config =
+                                                    bridge_call_data::bit_config{ .second_input_in_use = false, // <--
+                                                                                  .second_output_in_use = false },
+                                                .aux_data = 0 };
 
     const claim_note note1 = { .deposit_value = 10,
-                               .bridge_id = bridge_id.to_uint256_t(),
+                               .bridge_call_data = bridge_call_data.to_uint256_t(),
                                .defi_interaction_nonce = 0,
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
                                .input_nullifier = fr::random_element(&engine) };
 
-    const defi_interaction::note note2 = { .bridge_id = bridge_id.to_uint256_t(),
+    const defi_interaction::note note2 = { .bridge_call_data = bridge_call_data.to_uint256_t(),
                                            .interaction_nonce = 0,
                                            .total_input_value = 100,
                                            .total_output_value_a = 200,
@@ -745,27 +746,27 @@ TEST_F(claim_tests, test_second_input_note_nonzero_and_not_in_use_fails)
 
 TEST_F(claim_tests, test_second_output_note_nonzero_and_not_in_use_fails)
 {
-    const bridge_id bridge_id = { .bridge_address_id = 0,
-                                  .input_asset_id_a = 0,
-                                  .input_asset_id_b = 0,
-                                  .output_asset_id_a = 111,
-                                  .output_asset_id_b = empty_virtual_asset_id, // <--
-                                  .config =
-                                      bridge_id::bit_config{
-                                          .second_input_in_use = false,
-                                          .second_output_in_use = false // <--
-                                      },
-                                  .aux_data = 0 };
+    const bridge_call_data bridge_call_data = { .bridge_address_id = 0,
+                                                .input_asset_id_a = 0,
+                                                .input_asset_id_b = 0,
+                                                .output_asset_id_a = 111,
+                                                .output_asset_id_b = empty_virtual_asset_id, // <--
+                                                .config =
+                                                    bridge_call_data::bit_config{
+                                                        .second_input_in_use = false,
+                                                        .second_output_in_use = false // <--
+                                                    },
+                                                .aux_data = 0 };
 
     const claim_note note1 = { .deposit_value = 10,
-                               .bridge_id = bridge_id.to_uint256_t(),
+                               .bridge_call_data = bridge_call_data.to_uint256_t(),
                                .defi_interaction_nonce = 0,
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
                                .input_nullifier = fr::random_element(&engine) };
 
-    const defi_interaction::note note2 = { .bridge_id = bridge_id.to_uint256_t(),
+    const defi_interaction::note note2 = { .bridge_call_data = bridge_call_data.to_uint256_t(),
                                            .interaction_nonce = 0,
                                            .total_input_value = 100,
                                            .total_output_value_a = 200,
@@ -782,24 +783,25 @@ TEST_F(claim_tests, test_second_output_note_nonzero_and_not_in_use_fails)
 
 TEST_F(claim_tests, test_second_input_in_use_means_asset_ids_equal_fails)
 {
-    const bridge_id bridge_id = { .bridge_address_id = 0,
-                                  .input_asset_id_a = 0,
-                                  .input_asset_id_b = 0, // <-- equal
-                                  .output_asset_id_a = 0,
-                                  .output_asset_id_b = 0,
-                                  .config = bridge_id::bit_config{ .second_input_in_use = true, // <--
-                                                                   .second_output_in_use = false },
-                                  .aux_data = 0 };
+    const bridge_call_data bridge_call_data = { .bridge_address_id = 0,
+                                                .input_asset_id_a = 0,
+                                                .input_asset_id_b = 0, // <-- equal
+                                                .output_asset_id_a = 0,
+                                                .output_asset_id_b = 0,
+                                                .config =
+                                                    bridge_call_data::bit_config{ .second_input_in_use = true, // <--
+                                                                                  .second_output_in_use = false },
+                                                .aux_data = 0 };
 
     const claim_note note1 = { .deposit_value = 10,
-                               .bridge_id = bridge_id.to_uint256_t(),
+                               .bridge_call_data = bridge_call_data.to_uint256_t(),
                                .defi_interaction_nonce = 0,
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
                                .input_nullifier = fr::random_element(&engine) };
 
-    const defi_interaction::note note2 = { .bridge_id = bridge_id.to_uint256_t(),
+    const defi_interaction::note note2 = { .bridge_call_data = bridge_call_data.to_uint256_t(),
                                            .interaction_nonce = 0,
                                            .total_input_value = 100,
                                            .total_output_value_a = 200,
@@ -816,27 +818,27 @@ TEST_F(claim_tests, test_second_input_in_use_means_asset_ids_equal_fails)
 
 TEST_F(claim_tests, test_second_output_in_use_means_real_output_asset_ids_equal_fails)
 {
-    const bridge_id bridge_id = { .bridge_address_id = 0,
-                                  .input_asset_id_a = 0,
-                                  .input_asset_id_b = 0,
-                                  .output_asset_id_a = 111,
-                                  .output_asset_id_b = 111, // <-- equal
-                                  .config =
-                                      bridge_id::bit_config{
-                                          .second_input_in_use = false,
-                                          .second_output_in_use = true // <--
-                                      },
-                                  .aux_data = 0 };
+    const bridge_call_data bridge_call_data = { .bridge_address_id = 0,
+                                                .input_asset_id_a = 0,
+                                                .input_asset_id_b = 0,
+                                                .output_asset_id_a = 111,
+                                                .output_asset_id_b = 111, // <-- equal
+                                                .config =
+                                                    bridge_call_data::bit_config{
+                                                        .second_input_in_use = false,
+                                                        .second_output_in_use = true // <--
+                                                    },
+                                                .aux_data = 0 };
 
     const claim_note note1 = { .deposit_value = 10,
-                               .bridge_id = bridge_id.to_uint256_t(),
+                               .bridge_call_data = bridge_call_data.to_uint256_t(),
                                .defi_interaction_nonce = 0,
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
                                .input_nullifier = fr::random_element(&engine) };
 
-    const defi_interaction::note note2 = { .bridge_id = bridge_id.to_uint256_t(),
+    const defi_interaction::note note2 = { .bridge_call_data = bridge_call_data.to_uint256_t(),
                                            .interaction_nonce = 0,
                                            .total_input_value = 100,
                                            .total_output_value_a = 200,
@@ -853,27 +855,27 @@ TEST_F(claim_tests, test_second_output_in_use_means_real_output_asset_ids_equal_
 
 TEST_F(claim_tests, test_second_output_in_use_and_virtual_output_asset_ids_equal)
 {
-    const bridge_id bridge_id = { .bridge_address_id = 0,
-                                  .input_asset_id_a = 0,
-                                  .input_asset_id_b = 0,
-                                  .output_asset_id_a = empty_virtual_asset_id,
-                                  .output_asset_id_b = empty_virtual_asset_id, // <-- equal
-                                  .config =
-                                      bridge_id::bit_config{
-                                          .second_input_in_use = false,
-                                          .second_output_in_use = true // <--
-                                      },
-                                  .aux_data = 0 };
+    const bridge_call_data bridge_call_data = { .bridge_address_id = 0,
+                                                .input_asset_id_a = 0,
+                                                .input_asset_id_b = 0,
+                                                .output_asset_id_a = empty_virtual_asset_id,
+                                                .output_asset_id_b = empty_virtual_asset_id, // <-- equal
+                                                .config =
+                                                    bridge_call_data::bit_config{
+                                                        .second_input_in_use = false,
+                                                        .second_output_in_use = true // <--
+                                                    },
+                                                .aux_data = 0 };
 
     const claim_note note1 = { .deposit_value = 10,
-                               .bridge_id = bridge_id.to_uint256_t(),
+                               .bridge_call_data = bridge_call_data.to_uint256_t(),
                                .defi_interaction_nonce = 0,
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
                                .input_nullifier = fr::random_element(&engine) };
 
-    const defi_interaction::note note2 = { .bridge_id = bridge_id.to_uint256_t(),
+    const defi_interaction::note note2 = { .bridge_call_data = bridge_call_data.to_uint256_t(),
                                            .interaction_nonce = 0,
                                            .total_input_value = 100,
                                            .total_output_value_a = 200,
@@ -889,24 +891,24 @@ TEST_F(claim_tests, test_second_output_in_use_and_virtual_output_asset_ids_equal
 
 TEST_F(claim_tests, test_first_bridge_output_virtual_but_invalid_placeholder_fails)
 {
-    const bridge_id bridge_id = { .bridge_address_id = 0,
-                                  .input_asset_id_a = 0,
-                                  .input_asset_id_b = 0,
-                                  .output_asset_id_a = empty_virtual_asset_id + 1, // should be 2 ** 29.
-                                  .output_asset_id_b = 0,
-                                  .config = bridge_id::bit_config{ .second_input_in_use = false,
-                                                                   .second_output_in_use = false },
-                                  .aux_data = 0 };
+    const bridge_call_data bridge_call_data = { .bridge_address_id = 0,
+                                                .input_asset_id_a = 0,
+                                                .input_asset_id_b = 0,
+                                                .output_asset_id_a = empty_virtual_asset_id + 1, // should be 2 ** 29.
+                                                .output_asset_id_b = 0,
+                                                .config = bridge_call_data::bit_config{ .second_input_in_use = false,
+                                                                                        .second_output_in_use = false },
+                                                .aux_data = 0 };
 
     const claim_note note1 = { .deposit_value = 10,
-                               .bridge_id = bridge_id.to_uint256_t(),
+                               .bridge_call_data = bridge_call_data.to_uint256_t(),
                                .defi_interaction_nonce = 0,
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
                                .input_nullifier = fr::random_element(&engine) };
 
-    const defi_interaction::note note2 = { .bridge_id = bridge_id.to_uint256_t(),
+    const defi_interaction::note note2 = { .bridge_call_data = bridge_call_data.to_uint256_t(),
                                            .interaction_nonce = 0,
                                            .total_input_value = 100,
                                            .total_output_value_a = 200,
@@ -923,24 +925,24 @@ TEST_F(claim_tests, test_first_bridge_output_virtual_but_invalid_placeholder_fai
 
 TEST_F(claim_tests, test_second_bridge_output_virtual_but_invalid_placeholder_fails)
 {
-    const bridge_id bridge_id = { .bridge_address_id = 0,
-                                  .input_asset_id_a = 0,
-                                  .input_asset_id_b = 0,
-                                  .output_asset_id_a = empty_virtual_asset_id,
-                                  .output_asset_id_b = empty_virtual_asset_id + 1, // should be 2 ** 29.
-                                  .config = bridge_id::bit_config{ .second_input_in_use = false,
-                                                                   .second_output_in_use = true },
-                                  .aux_data = 0 };
+    const bridge_call_data bridge_call_data = { .bridge_address_id = 0,
+                                                .input_asset_id_a = 0,
+                                                .input_asset_id_b = 0,
+                                                .output_asset_id_a = empty_virtual_asset_id,
+                                                .output_asset_id_b = empty_virtual_asset_id + 1, // should be 2 ** 29.
+                                                .config = bridge_call_data::bit_config{ .second_input_in_use = false,
+                                                                                        .second_output_in_use = true },
+                                                .aux_data = 0 };
 
     const claim_note note1 = { .deposit_value = 10,
-                               .bridge_id = bridge_id.to_uint256_t(),
+                               .bridge_call_data = bridge_call_data.to_uint256_t(),
                                .defi_interaction_nonce = 0,
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
                                .input_nullifier = fr::random_element(&engine) };
 
-    const defi_interaction::note note2 = { .bridge_id = bridge_id.to_uint256_t(),
+    const defi_interaction::note note2 = { .bridge_call_data = bridge_call_data.to_uint256_t(),
                                            .interaction_nonce = 0,
                                            .total_input_value = 100,
                                            .total_output_value_a = 200,
@@ -957,14 +959,14 @@ TEST_F(claim_tests, test_second_bridge_output_virtual_but_invalid_placeholder_fa
 
 TEST_F(claim_tests, test_claim_2_outputs_full_proof)
 {
-    const bridge_id bridge_id = { .bridge_address_id = 0,
-                                  .input_asset_id_a = 0,
-                                  .input_asset_id_b = 0,
-                                  .output_asset_id_a = 111,
-                                  .output_asset_id_b = 222,
-                                  .config = bridge_id::bit_config{ .second_input_in_use = false,
-                                                                   .second_output_in_use = true },
-                                  .aux_data = 0 };
+    const bridge_call_data bridge_call_data = { .bridge_address_id = 0,
+                                                .input_asset_id_a = 0,
+                                                .input_asset_id_b = 0,
+                                                .output_asset_id_a = 111,
+                                                .output_asset_id_b = 222,
+                                                .config = bridge_call_data::bit_config{ .second_input_in_use = false,
+                                                                                        .second_output_in_use = true },
+                                                .aux_data = 0 };
 
     // Create some values for our circuit that are large enough to properly test the ratio checks.
     // The defi deposit value must be atmost 242 bits (since we sum up defi deposits in rollup circuit).
@@ -985,14 +987,14 @@ TEST_F(claim_tests, test_claim_2_outputs_full_proof)
 
     // Create and add a claim note, and a defi interaction note, to the data tree.
     const claim_note note1 = { .deposit_value = input_value,
-                               .bridge_id = bridge_id.to_uint256_t(),
+                               .bridge_call_data = bridge_call_data.to_uint256_t(),
                                .defi_interaction_nonce = 0,
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
                                .input_nullifier = fr::random_element(&engine) };
 
-    const defi_interaction::note note2 = { .bridge_id = bridge_id.to_uint256_t(),
+    const defi_interaction::note note2 = { .bridge_call_data = bridge_call_data.to_uint256_t(),
                                            .interaction_nonce = 0,
                                            .total_input_value = total_input,
                                            .total_output_value_a = total_output_a,
@@ -1016,7 +1018,7 @@ TEST_F(claim_tests, test_claim_2_outputs_full_proof)
     auto proof_data = inner_proof_data(result.proof_data);
 
     const value_note expected_output_note1 = { .value = tx.output_value_a,
-                                               .asset_id = bridge_id.output_asset_id_a,
+                                               .asset_id = bridge_call_data.output_asset_id_a,
                                                .account_required = false,
                                                .owner = user.owner.public_key,
                                                .secret = user.note_secret,
@@ -1024,7 +1026,7 @@ TEST_F(claim_tests, test_claim_2_outputs_full_proof)
                                                .input_nullifier = nullifier1 };
 
     const value_note expected_output_note2 = { .value = tx.output_value_b,
-                                               .asset_id = bridge_id.output_asset_id_b,
+                                               .asset_id = bridge_call_data.output_asset_id_b,
                                                .account_required = false,
                                                .owner = user.owner.public_key,
                                                .secret = user.note_secret,
@@ -1042,8 +1044,8 @@ TEST_F(claim_tests, test_claim_2_outputs_full_proof)
     EXPECT_EQ(proof_data.asset_id, uint256_t(0));
     EXPECT_EQ(proof_data.merkle_root, data_tree->root());
     EXPECT_EQ(proof_data.tx_fee, uint256_t(0));
-    EXPECT_EQ(proof_data.tx_fee_asset_id, bridge_id.input_asset_id_a);
-    EXPECT_EQ(proof_data.bridge_id, tx.claim_note.bridge_id);
+    EXPECT_EQ(proof_data.tx_fee_asset_id, bridge_call_data.input_asset_id_a);
+    EXPECT_EQ(proof_data.bridge_call_data, tx.claim_note.bridge_call_data);
     EXPECT_EQ(proof_data.defi_deposit_value, uint256_t(0));
     EXPECT_EQ(proof_data.defi_root, defi_tree->root());
     EXPECT_EQ(proof_data.backward_link, fr(0));
@@ -1052,25 +1054,25 @@ TEST_F(claim_tests, test_claim_2_outputs_full_proof)
 
 TEST_F(claim_tests, test_claim_1_output_full_proof)
 {
-    const bridge_id bridge_id = { .bridge_address_id = 0,
-                                  .input_asset_id_a = 0,
-                                  .input_asset_id_b = 0,
-                                  .output_asset_id_a = 111,
-                                  .output_asset_id_b = 0,
-                                  .config = bridge_id::bit_config{ .second_input_in_use = false,
-                                                                   .second_output_in_use = false },
-                                  .aux_data = 0 };
+    const bridge_call_data bridge_call_data = { .bridge_address_id = 0,
+                                                .input_asset_id_a = 0,
+                                                .input_asset_id_b = 0,
+                                                .output_asset_id_a = 111,
+                                                .output_asset_id_b = 0,
+                                                .config = bridge_call_data::bit_config{ .second_input_in_use = false,
+                                                                                        .second_output_in_use = false },
+                                                .aux_data = 0 };
     const uint32_t claim_fee = 8;
 
     const claim_note note1 = { .deposit_value = 10,
-                               .bridge_id = bridge_id.to_uint256_t(),
+                               .bridge_call_data = bridge_call_data.to_uint256_t(),
                                .defi_interaction_nonce = 0,
                                .fee = claim_fee,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
                                .input_nullifier = fr::random_element(&engine) };
 
-    const defi_interaction::note note2 = { .bridge_id = bridge_id.to_uint256_t(),
+    const defi_interaction::note note2 = { .bridge_call_data = bridge_call_data.to_uint256_t(),
                                            .interaction_nonce = 0,
                                            .total_input_value = 100,
                                            .total_output_value_a = 200,
@@ -1088,7 +1090,7 @@ TEST_F(claim_tests, test_claim_1_output_full_proof)
     uint256_t nullifier2 = defi_interaction::compute_nullifier(note2.commit(), note1.commit());
 
     const value_note expected_output_note1 = { .value = 20,
-                                               .asset_id = bridge_id.output_asset_id_a,
+                                               .asset_id = bridge_call_data.output_asset_id_a,
                                                .account_required = false,
                                                .owner = user.owner.public_key,
                                                .secret = user.note_secret,
@@ -1105,8 +1107,8 @@ TEST_F(claim_tests, test_claim_1_output_full_proof)
     EXPECT_EQ(proof_data.asset_id, uint256_t(0));
     EXPECT_EQ(proof_data.merkle_root, data_tree->root());
     EXPECT_EQ(proof_data.tx_fee, claim_fee);
-    EXPECT_EQ(proof_data.tx_fee_asset_id, bridge_id.input_asset_id_a);
-    EXPECT_EQ(proof_data.bridge_id, tx.claim_note.bridge_id);
+    EXPECT_EQ(proof_data.tx_fee_asset_id, bridge_call_data.input_asset_id_a);
+    EXPECT_EQ(proof_data.bridge_call_data, tx.claim_note.bridge_call_data);
     EXPECT_EQ(proof_data.defi_deposit_value, uint256_t(0));
     EXPECT_EQ(proof_data.defi_root, defi_tree->root());
     EXPECT_EQ(proof_data.backward_link, fr(0));
@@ -1117,33 +1119,33 @@ TEST_F(claim_tests, test_claim_1_output_full_proof)
 
 TEST_F(claim_tests, test_claim_1_output_with_virtual_note_full_proof)
 {
-    const bridge_id bridge_id = { .bridge_address_id = 0,
-                                  .input_asset_id_a = 0,
-                                  .input_asset_id_b = 0,
-                                  .output_asset_id_a = 111,
-                                  .output_asset_id_b = empty_virtual_asset_id,
-                                  .config = bridge_id::bit_config{ .second_input_in_use = false,
-                                                                   .second_output_in_use = true },
-                                  .aux_data = 0 };
+    const bridge_call_data bridge_call_data = { .bridge_address_id = 0,
+                                                .input_asset_id_a = 0,
+                                                .input_asset_id_b = 0,
+                                                .output_asset_id_a = 111,
+                                                .output_asset_id_b = empty_virtual_asset_id,
+                                                .config = bridge_call_data::bit_config{ .second_input_in_use = false,
+                                                                                        .second_output_in_use = true },
+                                                .aux_data = 0 };
     const uint32_t claim_fee = 8;
     const uint64_t defi_interaction_nonce = 2;
 
     const claim_note note1 = { .deposit_value = 10,
-                               .bridge_id = bridge_id.to_uint256_t(),
+                               .bridge_call_data = bridge_call_data.to_uint256_t(),
                                .defi_interaction_nonce = defi_interaction_nonce,
                                .fee = claim_fee,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
                                .input_nullifier = fr::random_element(&engine) };
 
-    const defi_interaction::note note2 = { .bridge_id = bridge_id.to_uint256_t(),
+    const defi_interaction::note note2 = { .bridge_call_data = bridge_call_data.to_uint256_t(),
                                            .interaction_nonce = defi_interaction_nonce,
                                            .total_input_value = 100,
                                            .total_output_value_a = 200,
                                            .total_output_value_b = 300,
                                            .interaction_result = 1 };
 
-    const defi_interaction::note dummy = { .bridge_id = 0,
+    const defi_interaction::note dummy = { .bridge_call_data = 0,
                                            .interaction_nonce = 0,
                                            .total_input_value = 100,
                                            .total_output_value_a = 100,
@@ -1163,7 +1165,7 @@ TEST_F(claim_tests, test_claim_1_output_with_virtual_note_full_proof)
     uint256_t nullifier2 = defi_interaction::compute_nullifier(note2.commit(), note1.commit());
 
     const value_note expected_output_note1 = { .value = 20,
-                                               .asset_id = bridge_id.output_asset_id_a,
+                                               .asset_id = bridge_call_data.output_asset_id_a,
                                                .account_required = false,
                                                .owner = user.owner.public_key,
                                                .secret = user.note_secret,
@@ -1187,10 +1189,10 @@ TEST_F(claim_tests, test_claim_1_output_with_virtual_note_full_proof)
     EXPECT_EQ(proof_data.nullifier2, nullifier2);
     EXPECT_EQ(proof_data.public_value, uint256_t(0));
     EXPECT_EQ(proof_data.public_owner, fr(0));
-    EXPECT_EQ(proof_data.bridge_id, tx.claim_note.bridge_id);
+    EXPECT_EQ(proof_data.bridge_call_data, tx.claim_note.bridge_call_data);
     EXPECT_EQ(proof_data.tx_fee, claim_fee);
-    EXPECT_EQ(proof_data.tx_fee_asset_id, bridge_id.input_asset_id_a);
-    EXPECT_EQ(proof_data.bridge_id, tx.claim_note.bridge_id);
+    EXPECT_EQ(proof_data.tx_fee_asset_id, bridge_call_data.input_asset_id_a);
+    EXPECT_EQ(proof_data.bridge_call_data, tx.claim_note.bridge_call_data);
     EXPECT_EQ(proof_data.defi_deposit_value, uint256_t(0));
     EXPECT_EQ(proof_data.defi_root, defi_tree->root());
 
@@ -1199,24 +1201,24 @@ TEST_F(claim_tests, test_claim_1_output_with_virtual_note_full_proof)
 
 TEST_F(claim_tests, test_claim_refund_full_proof)
 {
-    const bridge_id bridge_id = { .bridge_address_id = 0,
-                                  .input_asset_id_a = 0,
-                                  .input_asset_id_b = 0,
-                                  .output_asset_id_a = 111,
-                                  .output_asset_id_b = 222,
-                                  .config = bridge_id::bit_config{ .second_input_in_use = false,
-                                                                   .second_output_in_use = true },
-                                  .aux_data = 0 };
+    const bridge_call_data bridge_call_data = { .bridge_address_id = 0,
+                                                .input_asset_id_a = 0,
+                                                .input_asset_id_b = 0,
+                                                .output_asset_id_a = 111,
+                                                .output_asset_id_b = 222,
+                                                .config = bridge_call_data::bit_config{ .second_input_in_use = false,
+                                                                                        .second_output_in_use = true },
+                                                .aux_data = 0 };
 
     const claim_note note1 = { .deposit_value = 10,
-                               .bridge_id = bridge_id.to_uint256_t(),
+                               .bridge_call_data = bridge_call_data.to_uint256_t(),
                                .defi_interaction_nonce = 0,
                                .fee = 0,
                                .value_note_partial_commitment =
                                    create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
                                .input_nullifier = fr::random_element(&engine) };
 
-    const defi_interaction::note note2 = { .bridge_id = bridge_id.to_uint256_t(),
+    const defi_interaction::note note2 = { .bridge_call_data = bridge_call_data.to_uint256_t(),
                                            .interaction_nonce = 0,
                                            .total_input_value = 100,
                                            .total_output_value_a = 200,
@@ -1234,7 +1236,7 @@ TEST_F(claim_tests, test_claim_refund_full_proof)
     uint256_t nullifier2 = defi_interaction::compute_nullifier(note2.commit(), note1.commit());
 
     const value_note expected_output_note1 = { .value = 10,
-                                               .asset_id = bridge_id.input_asset_id_a,
+                                               .asset_id = bridge_call_data.input_asset_id_a,
                                                .account_required = false,
                                                .owner = user.owner.public_key,
                                                .secret = user.note_secret,
@@ -1251,8 +1253,8 @@ TEST_F(claim_tests, test_claim_refund_full_proof)
     EXPECT_EQ(proof_data.asset_id, uint256_t(0));
     EXPECT_EQ(proof_data.merkle_root, data_tree->root());
     EXPECT_EQ(proof_data.tx_fee, uint256_t(0));
-    EXPECT_EQ(proof_data.tx_fee_asset_id, bridge_id.input_asset_id_a);
-    EXPECT_EQ(proof_data.bridge_id, tx.claim_note.bridge_id);
+    EXPECT_EQ(proof_data.tx_fee_asset_id, bridge_call_data.input_asset_id_a);
+    EXPECT_EQ(proof_data.bridge_call_data, tx.claim_note.bridge_call_data);
     EXPECT_EQ(proof_data.defi_deposit_value, uint256_t(0));
     EXPECT_EQ(proof_data.defi_root, defi_tree->root());
     EXPECT_EQ(proof_data.backward_link, fr(0));
@@ -1270,7 +1272,7 @@ class test_data {
     const uint32_t empty_virtual_asset_id = (uint32_t(1) << (MAX_NUM_ASSETS_BIT_LENGTH - 1));
 
   public:
-    bridge_id bid;
+    bridge_call_data bid;
     claim_note note1;
     defi_interaction::note note2;
 
@@ -1295,13 +1297,13 @@ class test_data {
                 .input_asset_id_b = (in_use.in2 ? 789 : 0) + (virtual_flags.in2 ? empty_virtual_asset_id : 0),
                 .output_asset_id_a = virtual_flags.out1 ? empty_virtual_asset_id : 111,
                 .output_asset_id_b = in_use.out2 ? (virtual_flags.out2 ? empty_virtual_asset_id : 222) : 0,
-                .config =
-                    bridge_id::bit_config{ .second_input_in_use = in_use.in2, .second_output_in_use = in_use.out2 },
+                .config = bridge_call_data::bit_config{ .second_input_in_use = in_use.in2,
+                                                        .second_output_in_use = in_use.out2 },
                 .aux_data = 0 };
 
         // claim note:
         note1 = { .deposit_value = 10,
-                  .bridge_id = bid.to_uint256_t(),
+                  .bridge_call_data = bid.to_uint256_t(),
                   .defi_interaction_nonce = 0,
                   .fee = 0,
                   .value_note_partial_commitment =
@@ -1309,7 +1311,7 @@ class test_data {
                   .input_nullifier = fr::random_element(&engine) };
 
         // defi interaction note:
-        note2 = { .bridge_id = bid.to_uint256_t(),
+        note2 = { .bridge_call_data = bid.to_uint256_t(),
                   .interaction_nonce = 0,
                   .total_input_value = 100,
                   .total_output_value_a = 200,
@@ -1318,8 +1320,8 @@ class test_data {
     };
 };
 
-// Elements of bridge_id are implicitly range-constrained by the bit-shifting in bridge_id.hpp (since bits outside of
-// the valid ranges are ignored)
+// Elements of bridge_call_data are implicitly range-constrained by the bit-shifting in bridge_call_data.hpp (since bits
+// outside of the valid ranges are ignored)
 
 // Can't create tests which attempt to exceed 32-bit range for values which are 'fed in' as uint32_t
 

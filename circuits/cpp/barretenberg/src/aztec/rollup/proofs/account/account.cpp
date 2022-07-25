@@ -134,7 +134,7 @@ void account_circuit(Composer& composer, account_tx const& tx)
     const field_ct asset_id = witness_ct(&composer, 0);
     const field_ct tx_fee = witness_ct(&composer, 0);
     const field_ct tx_fee_asset_id = witness_ct(&composer, 0);
-    const field_ct bridge_id = witness_ct(&composer, 0);
+    const field_ct bridge_call_data = witness_ct(&composer, 0);
     const field_ct defi_deposit_value = witness_ct(&composer, 0);
     const field_ct defi_root = witness_ct(&composer, 0);
     const field_ct backward_link = witness_ct(&composer, 0);
@@ -144,7 +144,7 @@ void account_circuit(Composer& composer, account_tx const& tx)
     asset_id.assert_is_zero();
     tx_fee.assert_is_zero();
     tx_fee_asset_id.assert_is_zero();
-    bridge_id.assert_is_zero();
+    bridge_call_data.assert_is_zero();
     defi_deposit_value.assert_is_zero();
     defi_root.assert_is_zero();
     backward_link.assert_is_zero();
@@ -164,7 +164,7 @@ void account_circuit(Composer& composer, account_tx const& tx)
     data_tree_root.set_public();
     tx_fee.set_public();
     tx_fee_asset_id.set_public();
-    bridge_id.set_public();
+    bridge_call_data.set_public();
     defi_deposit_value.set_public();
     defi_root.set_public();
     backward_link.set_public();

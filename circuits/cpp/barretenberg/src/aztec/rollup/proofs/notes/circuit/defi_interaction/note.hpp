@@ -13,8 +13,8 @@ using namespace plonk::stdlib::types::turbo;
 
 struct note {
 
-    // compress bridge_id to field
-    suint_ct bridge_id;
+    // compress bridge_call_data to field
+    suint_ct bridge_call_data;
 
     // 32 bits
     suint_ct interaction_nonce;
@@ -25,7 +25,7 @@ struct note {
     // 252 bits
     suint_ct total_output_value_a;
 
-    // 252 bits. Force this to be 0 if bridge_id only uses 1 output note
+    // 252 bits. Force this to be 0 if bridge_call_data only uses 1 output note
     suint_ct total_output_value_b;
 
     // if interaction failed, re-create original deposit note
@@ -35,7 +35,7 @@ struct note {
     field_ct commitment;
 
     note(witness_data const& note)
-        : bridge_id(note.bridge_id_data.to_safe_uint())
+        : bridge_call_data(note.bridge_call_data_local.to_safe_uint())
         , interaction_nonce(note.interaction_nonce)
         , total_input_value(note.total_input_value)
         , total_output_value_a(note.total_output_value_a)
@@ -50,7 +50,7 @@ struct note {
     {
         byte_array_ct arr(&composer);
 
-        arr.write(bridge_id * is_real);
+        arr.write(bridge_call_data * is_real);
         arr.write(interaction_nonce * is_real);
         arr.write(total_input_value * is_real);
         arr.write(total_output_value_a * is_real);
@@ -63,7 +63,7 @@ struct note {
   private:
     field_ct compute_commitment()
     {
-        return pedersen::compress({ bridge_id,
+        return pedersen::compress({ bridge_call_data,
                                     total_input_value,
                                     total_output_value_a,
                                     total_output_value_b,

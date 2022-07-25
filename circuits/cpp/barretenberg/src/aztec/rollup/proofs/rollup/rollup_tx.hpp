@@ -45,7 +45,7 @@ struct rollup_tx {
     // The defi root after inserting the interaction notes.
     fr new_defi_root;
     // All defi deposits must match one of these.
-    std::vector<uint256_t> bridge_ids;
+    std::vector<uint256_t> bridge_call_datas;
 
     // Each asset must match one of these.
     std::vector<uint256_t> asset_ids;
@@ -83,7 +83,7 @@ template <typename B> inline void read(B& buf, rollup_tx& tx)
     read(buf, tx.data_roots_indicies);
 
     read(buf, tx.new_defi_root);
-    read(buf, tx.bridge_ids);
+    read(buf, tx.bridge_call_datas);
     read(buf, tx.asset_ids);
 }
 
@@ -111,7 +111,7 @@ template <typename B> inline void write(B& buf, rollup_tx const& tx)
     write(buf, tx.data_roots_indicies);
 
     write(buf, tx.new_defi_root);
-    write(buf, tx.bridge_ids);
+    write(buf, tx.bridge_call_datas);
     write(buf, tx.asset_ids);
 }
 
@@ -150,7 +150,7 @@ inline std::ostream& operator<<(std::ostream& os, rollup_tx const& tx)
     }
     os << "data_roots_indicies: " << tx.data_roots_indicies;
     os << "new_defi_root: " << tx.new_defi_root << "\n";
-    os << "bridge_ids: " << tx.bridge_ids;
+    os << "bridge_call_datas: " << tx.bridge_call_datas;
     os << "asset_ids: " << tx.asset_ids;
     return os;
 }

@@ -1,7 +1,7 @@
 #pragma once
 #include <stdlib/types/turbo.hpp>
 #include "../../native/defi_interaction/note.hpp"
-#include "../bridge_id.hpp"
+#include "../bridge_call_data.hpp"
 
 namespace rollup {
 namespace proofs {
@@ -12,7 +12,7 @@ namespace defi_interaction {
 using namespace plonk::stdlib::types::turbo;
 
 struct witness_data {
-    bridge_id bridge_id_data;
+    bridge_call_data bridge_call_data_local;
     suint_ct interaction_nonce;
     suint_ct total_input_value;
     suint_ct total_output_value_a;
@@ -21,7 +21,7 @@ struct witness_data {
 
     witness_data(Composer& composer, native::defi_interaction::note const& note_data)
     {
-        bridge_id_data = bridge_id(&composer, note_data.bridge_id);
+        bridge_call_data_local = bridge_call_data(&composer, note_data.bridge_call_data);
         interaction_nonce = suint_ct(
             witness_ct(&composer, note_data.interaction_nonce), DEFI_INTERACTION_NONCE_BIT_LENGTH, "interaction_nonce");
         total_input_value =

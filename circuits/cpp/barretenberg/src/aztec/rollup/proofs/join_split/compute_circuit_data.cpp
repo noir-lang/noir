@@ -40,7 +40,7 @@ join_split_tx noop_tx()
     tx.output_note = { output_note1, output_note2 };
     tx.partial_claim_note = {
         .deposit_value = 0,
-        .bridge_id = 0,
+        .bridge_call_data = 0,
         .note_secret = fr::random_element(),
         .input_nullifier = 0,
     };

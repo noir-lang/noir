@@ -131,39 +131,39 @@ void check_asset_ids_and_accumulate_tx_fees(Composer& composer,
     }
 }
 
-void check_bridge_ids_and_accumulate_defi_deposits(Composer& composer,
-                                                   uint32_t const i,
-                                                   std::vector<field_ct>& defi_deposit_sums,
-                                                   std::vector<field_ct> const& bridge_ids,
-                                                   std::vector<field_ct> const& public_inputs,
-                                                   bool_ct const& is_real)
+void check_bridge_call_datas_and_accumulate_defi_deposits(Composer& composer,
+                                                          uint32_t const i,
+                                                          std::vector<field_ct>& defi_deposit_sums,
+                                                          std::vector<field_ct> const& bridge_call_datas,
+                                                          std::vector<field_ct> const& public_inputs,
+                                                          bool_ct const& is_real)
 {
-    // Check every real tx rollup proof has correct bridge id.
+    // Check every real tx rollup proof has correct bridge call data.
     for (size_t j = 0; j < NUM_BRIDGE_CALLS_PER_BLOCK; j++) {
 
         field_ct num_matched(&composer, 0);
-        auto inner_bridge_id = public_inputs[rollup::RollupProofFields::DEFI_BRIDGE_IDS + j];
+        auto inner_bridge_call_data = public_inputs[rollup::RollupProofFields::DEFI_BRIDGE_CALL_DATAS + j];
         auto inner_defi_deposit_sum = public_inputs[rollup::RollupProofFields::DEFI_BRIDGE_DEPOSITS + j];
-        auto is_bridge_id_zero = inner_bridge_id.is_zero();
+        auto is_bridge_call_data_zero = inner_bridge_call_data.is_zero();
 
         for (uint32_t k = 0; k < NUM_BRIDGE_CALLS_PER_BLOCK; k++) {
-            const auto matches = (inner_bridge_id == bridge_ids[k]);
+            const auto matches = (inner_bridge_call_data == bridge_call_datas[k]);
             num_matched += matches;
 
-            // Sum the real tx rollup proof's tx fee according to the matched bridge_id.
-            defi_deposit_sums[k] += (inner_defi_deposit_sum * matches * !is_bridge_id_zero);
+            // Sum the real tx rollup proof's tx fee according to the matched bridge_call_data.
+            defi_deposit_sums[k] += (inner_defi_deposit_sum * matches * !is_bridge_call_data_zero);
         }
 
-        // Assert that the tx rollup proof's bridge_id matched a single bridge_id.
-        auto is_valid_bridge_id = !is_real || (num_matched == 1 || is_bridge_id_zero);
-        is_valid_bridge_id.assert_equal(true,
-                                        format("rollup proof ",
-                                               i,
-                                               "'s bridge id at index ",
-                                               j,
-                                               " matched ",
-                                               uint64_t(num_matched.get_value()),
-                                               " times."));
+        // Assert that the tx rollup proof's bridge_call_data matched a single bridge_call_data.
+        auto is_valid_bridge_call_data = !is_real || (num_matched == 1 || is_bridge_call_data_zero);
+        is_valid_bridge_call_data.assert_equal(true,
+                                               format("rollup proof ",
+                                                      i,
+                                                      "'s bridge call data at index ",
+                                                      j,
+                                                      " matched ",
+                                                      uint64_t(num_matched.get_value()),
+                                                      " times."));
     }
 }
 
@@ -244,7 +244,8 @@ circuit_result_data root_rollup_circuit(Composer& composer,
     const auto old_defi_root = field_ct(witness_ct(&composer, tx.old_defi_root));
     const auto new_defi_root = field_ct(witness_ct(&composer, tx.new_defi_root));
     const auto old_defi_path = create_witness_hash_path(composer, tx.old_defi_path);
-    const auto bridge_ids = map(tx.bridge_ids, [&](auto& bid) { return field_ct(witness_ct(&composer, bid)); });
+    const auto bridge_call_datas =
+        map(tx.bridge_call_datas, [&](auto& bid) { return field_ct(witness_ct(&composer, bid)); });
     const auto asset_ids = map(tx.asset_ids, [&](auto& aid) { return field_ct(witness_ct(&composer, aid)); });
     const auto defi_interaction_notes = map(tx.defi_interaction_notes, [&](auto n) {
         return circuit::defi_interaction::note(circuit::defi_interaction::witness_data(composer, n));
@@ -296,8 +297,8 @@ circuit_result_data root_rollup_circuit(Composer& composer,
         check_asset_ids_and_accumulate_tx_fees(composer, i, total_tx_fees, asset_ids, public_inputs, is_real);
 
         // Accumulate defi deposits.
-        check_bridge_ids_and_accumulate_defi_deposits(
-            composer, i, defi_deposit_sums, bridge_ids, public_inputs, is_real);
+        check_bridge_call_datas_and_accumulate_defi_deposits(
+            composer, i, defi_deposit_sums, bridge_call_datas, public_inputs, is_real);
 
         assert_inner_proof_sequential(num_inner_txs_pow2,
                                       i,
@@ -346,7 +347,7 @@ circuit_result_data root_rollup_circuit(Composer& composer,
                                              rollup_beneficiary,
                                              num_inner_proofs_pow2 };
     auto header_fields = join({ header_fields1,
-                                bridge_ids,
+                                bridge_call_datas,
                                 defi_deposit_sums,
                                 asset_ids,
                                 total_tx_fees,

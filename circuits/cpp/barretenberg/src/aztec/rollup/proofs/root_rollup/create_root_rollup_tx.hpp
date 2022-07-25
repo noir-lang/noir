@@ -17,7 +17,7 @@ inline void pad_root_rollup_tx(root_rollup_tx& rollup, circuit_data const& circu
     rollup.rollups.resize(circuit_data.num_inner_rollups, circuit_data.inner_rollup_circuit_data.padding_proof);
     rollup.num_previous_defi_interactions = rollup.defi_interaction_notes.size();
     rollup.defi_interaction_notes.resize(NUM_BRIDGE_CALLS_PER_BLOCK);
-    rollup.bridge_ids.resize(NUM_BRIDGE_CALLS_PER_BLOCK);
+    rollup.bridge_call_datas.resize(NUM_BRIDGE_CALLS_PER_BLOCK);
     rollup.asset_ids.resize(NUM_ASSETS, MAX_NUM_ASSETS);
 }
 
@@ -26,7 +26,7 @@ inline root_rollup_tx create_root_rollup_tx(WorldState& world_state,
                                             fr old_defi_root,
                                             plonk::stdlib::merkle_tree::fr_hash_path const& old_defi_path,
                                             std::vector<std::vector<uint8_t>> const& inner_rollups,
-                                            std::vector<uint256_t> const& bridge_ids = {},
+                                            std::vector<uint256_t> const& bridge_call_datas = {},
                                             std::vector<uint256_t> const& asset_ids = { 0 },
                                             std::vector<native::defi_interaction::note> const& interaction_notes = {},
                                             fr rollup_beneficiary = 0)
@@ -51,7 +51,7 @@ inline root_rollup_tx create_root_rollup_tx(WorldState& world_state,
     tx.old_defi_path = old_defi_path;
     tx.new_defi_root = defi_tree.root();
 
-    tx.bridge_ids = bridge_ids;
+    tx.bridge_call_datas = bridge_call_datas;
     tx.asset_ids = asset_ids;
     tx.defi_interaction_notes = interaction_notes;
     tx.rollup_beneficiary = rollup_beneficiary;

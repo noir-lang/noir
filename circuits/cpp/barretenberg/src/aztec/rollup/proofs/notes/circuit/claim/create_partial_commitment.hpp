@@ -12,11 +12,11 @@ namespace claim {
 using namespace plonk::stdlib::types::turbo;
 
 inline auto create_partial_commitment(field_ct const& deposit_value,
-                                      field_ct const& bridge_id,
+                                      field_ct const& bridge_call_data,
                                       field_ct const& value_note_partial_commitment,
                                       field_ct const& input_nullifier)
 {
-    return pedersen::compress({ deposit_value, bridge_id, value_note_partial_commitment, input_nullifier },
+    return pedersen::compress({ deposit_value, bridge_call_data, value_note_partial_commitment, input_nullifier },
                               GeneratorIndex::CLAIM_NOTE_PARTIAL_COMMITMENT);
 }
 

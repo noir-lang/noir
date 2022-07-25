@@ -98,14 +98,14 @@ class TestContext {
     std::vector<uint8_t> create_defi_proof(std::vector<uint32_t> in_note_indices,
                                            std::vector<uint32_t> in_note_values,
                                            std::array<uint32_t, 2> out_note_values,
-                                           uint256_t bridge_id,
+                                           uint256_t bridge_call_data,
                                            uint32_t asset_id = 0,
                                            bool account_required = false,
                                            uint32_t virtual_asset_id = 0)
     {
 
         auto tx = js_tx_factory.create_defi_deposit_tx(
-            in_note_indices, in_note_values, out_note_values, bridge_id, asset_id, virtual_asset_id);
+            in_note_indices, in_note_values, out_note_values, bridge_call_data, asset_id, virtual_asset_id);
         auto signer = account_required ? user.signing_keys[0] : user.owner;
         js_tx_factory.finalise_and_sign_tx(tx, signer);
         return join_split::create_proof(tx, js_cd);
@@ -134,7 +134,7 @@ class TestContext {
         return account::create_proof(tx, user.signing_keys[0], account_cd);
     }
 
-    auto create_claim_tx(uint256_t bridge_id,
+    auto create_claim_tx(uint256_t bridge_call_data,
                          uint256_t deposit_value,
                          uint32_t claim_note_index,
                          uint32_t defi_note_index,
@@ -144,20 +144,20 @@ class TestContext {
         auto partial_state =
             notes::native::value::create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0);
         notes::native::claim::claim_note claim_note = {
-            deposit_value, bridge_id,     defi_note.interaction_nonce,
-            fee,           partial_state, world_state.input_nullifiers[claim_note_index]
+            deposit_value, bridge_call_data, defi_note.interaction_nonce,
+            fee,           partial_state,    world_state.input_nullifiers[claim_note_index]
         };
         return claim_tx_factory.create_claim_tx(
             world_state.defi_tree.root(), claim_note_index, defi_note_index, claim_note, defi_note);
     }
 
-    std::vector<uint8_t> create_claim_proof(uint256_t bridge_id,
+    std::vector<uint8_t> create_claim_proof(uint256_t bridge_call_data,
                                             uint256_t deposit_value,
                                             uint32_t claim_note_index,
                                             uint32_t defi_note_index,
                                             uint256_t fee)
     {
-        auto tx = create_claim_tx(bridge_id, deposit_value, claim_note_index, defi_note_index, fee);
+        auto tx = create_claim_tx(bridge_call_data, deposit_value, claim_note_index, defi_note_index, fee);
         return claim::create_proof(tx, claim_cd);
     }
 

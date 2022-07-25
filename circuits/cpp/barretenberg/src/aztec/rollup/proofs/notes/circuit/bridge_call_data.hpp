@@ -1,6 +1,6 @@
 #pragma once
 #include <stdlib/types/turbo.hpp>
-#include "../native/bridge_id.hpp"
+#include "../native/bridge_call_data.hpp"
 #include "./asset_id.hpp"
 #include "../constants.hpp"
 
@@ -18,7 +18,7 @@ constexpr uint32_t output_asset_id_b_shift = output_asset_id_a_shift + DEFI_BRID
 constexpr uint32_t bitconfig_shift = output_asset_id_b_shift + DEFI_BRIDGE_OUTPUT_B_ASSET_ID_LEN;
 constexpr uint32_t aux_data_shift = bitconfig_shift + DEFI_BRIDGE_BITCONFIG_LEN;
 
-struct bridge_id {
+struct bridge_call_data {
 
     /**
      * The 32-bit bit_config comprises the following:
@@ -37,12 +37,12 @@ struct bridge_id {
         bool_ct second_output_in_use;
 
         bit_config(){};
-        bit_config(Composer* composer, uint256_t const& bridge_id)
+        bit_config(Composer* composer, uint256_t const& bridge_call_data)
         {
             ASSERT(composer != nullptr);
 
             constexpr auto bitconfig_mask = (1ULL << DEFI_BRIDGE_BITCONFIG_LEN) - 1;
-            uint32_t config_u32 = uint32_t((bridge_id >> bitconfig_shift) & bitconfig_mask);
+            uint32_t config_u32 = uint32_t((bridge_call_data >> bitconfig_shift) & bitconfig_mask);
             second_input_in_use = witness_ct(composer, config_u32 & 1ULL);
             second_output_in_use = witness_ct(composer, (config_u32 >> 1) & 1ULL);
         }
@@ -59,7 +59,7 @@ struct bridge_id {
     };
 
     /**
-     * The 248-bit bridge_id comprises the following:
+     * The 248-bit bridge_call_data comprises the following:
      *
      *| aux_data | config | input_asset_id_b | output_asset_id_b | output_asst_id_a | input_asset_id_a |bridge_adress_id
      * ---------- -------- ------------------ ------------------- ------------------ ------------------ ----------------
@@ -87,26 +87,26 @@ struct bridge_id {
     // 64-bit auxiliary data to be passed on to the bridge contract.
     suint_ct aux_data = 0;
 
-    bridge_id(){};
-    bridge_id(Composer* composer, const native::bridge_id& native_id)
-        : bridge_id(composer, native_id.to_uint256_t())
+    bridge_call_data(){};
+    bridge_call_data(Composer* composer, const native::bridge_call_data& native_id)
+        : bridge_call_data(composer, native_id.to_uint256_t())
     {}
 
-    bridge_id(Composer* composer, uint256_t const& bridge_id)
+    bridge_call_data(Composer* composer, uint256_t const& bridge_call_data)
     {
         // constants
         constexpr auto one = uint256_t(1);
 
-        auto bridge_address_id_value = bridge_id & uint256_t((one << DEFI_BRIDGE_ADDRESS_ID_LEN) - 1);
+        auto bridge_address_id_value = bridge_call_data & uint256_t((one << DEFI_BRIDGE_ADDRESS_ID_LEN) - 1);
         auto input_asset_id_a_value =
-            (bridge_id >> input_asset_id_a_shift) & uint256_t((one << DEFI_BRIDGE_INPUT_A_ASSET_ID_LEN) - 1);
+            (bridge_call_data >> input_asset_id_a_shift) & uint256_t((one << DEFI_BRIDGE_INPUT_A_ASSET_ID_LEN) - 1);
         auto input_asset_id_b_value =
-            (bridge_id >> input_asset_id_b_shift) & uint256_t((one << DEFI_BRIDGE_INPUT_B_ASSET_ID_LEN) - 1);
+            (bridge_call_data >> input_asset_id_b_shift) & uint256_t((one << DEFI_BRIDGE_INPUT_B_ASSET_ID_LEN) - 1);
         auto output_asset_id_a_value =
-            (bridge_id >> output_asset_id_a_shift) & uint256_t((one << DEFI_BRIDGE_OUTPUT_A_ASSET_ID_LEN) - 1);
+            (bridge_call_data >> output_asset_id_a_shift) & uint256_t((one << DEFI_BRIDGE_OUTPUT_A_ASSET_ID_LEN) - 1);
         auto output_asset_id_b_value =
-            (bridge_id >> output_asset_id_b_shift) & uint256_t((one << DEFI_BRIDGE_OUTPUT_B_ASSET_ID_LEN) - 1);
-        auto aux_data_value = (bridge_id >> aux_data_shift) & uint256_t((one << DEFI_BRIDGE_AUX_DATA) - 1);
+            (bridge_call_data >> output_asset_id_b_shift) & uint256_t((one << DEFI_BRIDGE_OUTPUT_B_ASSET_ID_LEN) - 1);
+        auto aux_data_value = (bridge_call_data >> aux_data_shift) & uint256_t((one << DEFI_BRIDGE_AUX_DATA) - 1);
 
         bridge_address_id =
             suint_ct(witness_ct(composer, bridge_address_id_value), DEFI_BRIDGE_ADDRESS_ID_LEN, "bridge_address");
@@ -120,7 +120,7 @@ struct bridge_id {
             witness_ct(composer, output_asset_id_b_value), DEFI_BRIDGE_OUTPUT_B_ASSET_ID_LEN, "output_asset_id_b");
         aux_data = suint_ct(witness_ct(composer, aux_data_value), DEFI_BRIDGE_AUX_DATA, "aux_data");
 
-        config = bit_config(composer, bridge_id);
+        config = bit_config(composer, bridge_call_data);
 
         validate_bit_config();
     }
@@ -164,9 +164,9 @@ struct bridge_id {
          * equal to `2**29`. Obviously, this means we can't then enforce that both output virtual asset_ids are
          * different, since they'll actually always be equal placeholder values.
          *
-         * Note also: the virtual asset_id placeholders are contained in both the claim note's bridge_id and the defi
-         * interaction note's bridge_id. The correct virtual asset_ids (which contain the defi interaction nonce) are
-         * only calculated in the claim circuit, when generating the output notes of the claim.
+         * Note also: the virtual asset_id placeholders are contained in both the claim note's bridge_call_data and the
+         * defi interaction note's bridge_call_data. The correct virtual asset_ids (which contain the defi interaction
+         * nonce) are only calculated in the claim circuit, when generating the output notes of the claim.
          */
         const bool_ct first_output_virtual = get_asset_id_flag(output_asset_id_a);
         const bool_ct second_output_virtual = get_asset_id_flag(output_asset_id_b);
@@ -197,22 +197,22 @@ struct bridge_id {
     }
 };
 
-inline std::ostream& operator<<(std::ostream& os, bridge_id::bit_config const& config)
+inline std::ostream& operator<<(std::ostream& os, bridge_call_data::bit_config const& config)
 {
     os << "  second_input_in_use: " << config.second_input_in_use << ",\n"
        << "  second_output_in_use: " << config.second_output_in_use << ",\n";
     return os;
 }
 
-inline std::ostream& operator<<(std::ostream& os, bridge_id const& bridge_id)
+inline std::ostream& operator<<(std::ostream& os, bridge_call_data const& bridge_call_data)
 {
     os << "{\n"
-       << "  bridge_address_id: " << bridge_id.bridge_address_id << ",\n"
-       << "  input_asset_id_a: " << bridge_id.input_asset_id_a << ",\n"
-       << "  input_asset_id_b: " << bridge_id.input_asset_id_b << ",\n"
-       << "  output_asset_id_a: " << bridge_id.output_asset_id_a << ",\n"
-       << "  output_asset_id_b: " << bridge_id.output_asset_id_b << ",\n"
-       << bridge_id.config << "  aux_data: " << bridge_id.aux_data << "\n}";
+       << "  bridge_address_id: " << bridge_call_data.bridge_address_id << ",\n"
+       << "  input_asset_id_a: " << bridge_call_data.input_asset_id_a << ",\n"
+       << "  input_asset_id_b: " << bridge_call_data.input_asset_id_b << ",\n"
+       << "  output_asset_id_a: " << bridge_call_data.output_asset_id_a << ",\n"
+       << "  output_asset_id_b: " << bridge_call_data.output_asset_id_b << ",\n"
+       << bridge_call_data.config << "  aux_data: " << bridge_call_data.aux_data << "\n}";
     return os;
 }
 

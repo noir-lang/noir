@@ -20,7 +20,7 @@ barretenberg::fr compute_signing_data(join_split_tx const& tx)
 
     auto partial_value_note_commitment = value::create_partial_commitment(
         tx.partial_claim_note.note_secret, tx.input_note[0].owner, tx.input_note[0].account_required, 0);
-    claim::claim_note claim_note = { tx.partial_claim_note.deposit_value, tx.partial_claim_note.bridge_id,      0, 0,
+    claim::claim_note claim_note = { tx.partial_claim_note.deposit_value, tx.partial_claim_note.bridge_call_data, 0, 0,
                                      partial_value_note_commitment,       tx.partial_claim_note.input_nullifier };
     const grumpkin::fq input_note_1 = tx.input_note[0].commit();
     const grumpkin::fq input_note_2 = tx.input_note[1].commit();

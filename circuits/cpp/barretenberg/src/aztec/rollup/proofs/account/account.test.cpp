@@ -317,7 +317,7 @@ TEST_F(account_tests, test_create_account_when_account_exists_creates_nullifier_
     EXPECT_EQ(data.merkle_root, tx.merkle_root);
     EXPECT_EQ(data.tx_fee, uint256_t(0));
     EXPECT_EQ(data.tx_fee_asset_id, uint256_t(0));
-    EXPECT_EQ(data.bridge_id, uint256_t(0));
+    EXPECT_EQ(data.bridge_call_data, uint256_t(0));
     EXPECT_EQ(data.defi_deposit_value, uint256_t(0));
     EXPECT_EQ(data.defi_root, fr(0));
     EXPECT_EQ(data.backward_link, fr(0));
@@ -348,7 +348,7 @@ TEST_F(account_tests, test_create_account_full_proof)
     EXPECT_EQ(data.merkle_root, tx.merkle_root);
     EXPECT_EQ(data.tx_fee, uint256_t(0));
     EXPECT_EQ(data.tx_fee_asset_id, uint256_t(0));
-    EXPECT_EQ(data.bridge_id, uint256_t(0));
+    EXPECT_EQ(data.bridge_call_data, uint256_t(0));
     EXPECT_EQ(data.defi_deposit_value, uint256_t(0));
     EXPECT_EQ(data.defi_root, fr(0));
     EXPECT_EQ(data.backward_link, fr(0));
@@ -389,7 +389,7 @@ TEST_F(account_tests, test_migrate_account_full_proof)
     EXPECT_EQ(data.merkle_root, tx.merkle_root);
     EXPECT_EQ(data.tx_fee, uint256_t(0));
     EXPECT_EQ(data.tx_fee_asset_id, uint256_t(0));
-    EXPECT_EQ(data.bridge_id, uint256_t(0));
+    EXPECT_EQ(data.bridge_call_data, uint256_t(0));
     EXPECT_EQ(data.defi_deposit_value, uint256_t(0));
     EXPECT_EQ(data.defi_root, fr(0));
     EXPECT_EQ(data.backward_link, fr(0));
@@ -422,7 +422,7 @@ TEST_F(account_tests, test_add_signing_keys_to_account_full_proof)
     EXPECT_EQ(data.merkle_root, tx.merkle_root);
     EXPECT_EQ(data.tx_fee, uint256_t(0));
     EXPECT_EQ(data.tx_fee_asset_id, uint256_t(0));
-    EXPECT_EQ(data.bridge_id, uint256_t(0));
+    EXPECT_EQ(data.bridge_call_data, uint256_t(0));
     EXPECT_EQ(data.defi_deposit_value, uint256_t(0));
     EXPECT_EQ(data.defi_root, fr(0));
     EXPECT_EQ(data.backward_link, fr(0));

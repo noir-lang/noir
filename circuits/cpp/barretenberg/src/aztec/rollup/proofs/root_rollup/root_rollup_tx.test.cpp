@@ -25,7 +25,7 @@ TEST(root_rollup_tx, test_serialization)
     rollup.old_defi_root = fr::random_element();
     rollup.old_defi_path = fr_hash_path(DEFI_TREE_DEPTH, random_pair);
 
-    rollup.bridge_ids = { 1, 2, 3, 4 };
+    rollup.bridge_call_datas = { 1, 2, 3, 4 };
     rollup.asset_ids = { 5, 6, 7 };
 
     rollup.rollup_beneficiary = 100;
@@ -44,7 +44,7 @@ TEST(root_rollup_tx, test_serialization)
     EXPECT_EQ(result.old_defi_root, rollup.old_defi_root);
     EXPECT_EQ(result.new_defi_root, rollup.new_defi_root);
     EXPECT_EQ(result.old_defi_path, rollup.old_defi_path);
-    EXPECT_EQ(result.bridge_ids, rollup.bridge_ids);
+    EXPECT_EQ(result.bridge_call_datas, rollup.bridge_call_datas);
     EXPECT_EQ(result.asset_ids, rollup.asset_ids);
     EXPECT_EQ(result.defi_interaction_notes, rollup.defi_interaction_notes);
     EXPECT_EQ(result.rollup_beneficiary, rollup.rollup_beneficiary);

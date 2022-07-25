@@ -44,7 +44,7 @@ circuit_data get_circuit_data(size_t num_inner_rollups,
         root_rollup.old_defi_root = fr::random_element();
         root_rollup.new_defi_root = fr::random_element();
         root_rollup.old_defi_path = gibberish_defi_path;
-        root_rollup.bridge_ids.resize(NUM_BRIDGE_CALLS_PER_BLOCK);
+        root_rollup.bridge_call_datas.resize(NUM_BRIDGE_CALLS_PER_BLOCK);
         root_rollup.asset_ids.resize(NUM_ASSETS, MAX_NUM_ASSETS);
         root_rollup.defi_interaction_notes.resize(NUM_BRIDGE_CALLS_PER_BLOCK);
         root_rollup.num_previous_defi_interactions = 0;

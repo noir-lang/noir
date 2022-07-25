@@ -3,7 +3,7 @@
 #include "../../native/claim/claim_note.hpp"
 #include "../../native/claim/claim_note_tx_data.hpp"
 #include "../../constants.hpp"
-#include "../bridge_id.hpp"
+#include "../bridge_call_data.hpp"
 
 namespace rollup {
 namespace proofs {
@@ -19,7 +19,7 @@ using namespace plonk::stdlib::types::turbo;
  */
 struct claim_note_witness_data {
     suint_ct deposit_value;
-    bridge_id bridge_id_data;
+    bridge_call_data bridge_call_data_local;
     suint_ct defi_interaction_nonce;
     suint_ct fee;
     field_ct value_note_partial_commitment;
@@ -29,7 +29,7 @@ struct claim_note_witness_data {
     {
         deposit_value =
             suint_ct(witness_ct(&composer, note_data.deposit_value), DEFI_DEPOSIT_VALUE_BIT_LENGTH, "deposit_value");
-        bridge_id_data = bridge_id(&composer, note_data.bridge_id);
+        bridge_call_data_local = bridge_call_data(&composer, note_data.bridge_call_data);
         defi_interaction_nonce = suint_ct(witness_ct(&composer, note_data.defi_interaction_nonce),
                                           DEFI_INTERACTION_NONCE_BIT_LENGTH,
                                           "defi_interaction_nonce");
@@ -45,7 +45,7 @@ struct claim_note_witness_data {
  */
 struct partial_claim_note_witness_data {
     suint_ct deposit_value;
-    bridge_id bridge_id_data;
+    bridge_call_data bridge_call_data_local;
     field_ct note_secret;
     field_ct input_nullifier;
 
@@ -54,7 +54,7 @@ struct partial_claim_note_witness_data {
     {
         deposit_value =
             suint_ct(witness_ct(&composer, note_data.deposit_value), DEFI_DEPOSIT_VALUE_BIT_LENGTH, "deposit_value");
-        bridge_id_data = bridge_id(&composer, note_data.bridge_id);
+        bridge_call_data_local = bridge_call_data(&composer, note_data.bridge_call_data);
         note_secret = witness_ct(&composer, note_data.note_secret);
         input_nullifier = witness_ct(&composer, note_data.input_nullifier);
     }
@@ -62,7 +62,8 @@ struct partial_claim_note_witness_data {
 
 inline std::ostream& operator<<(std::ostream& os, partial_claim_note_witness_data const& tx)
 {
-    return os << "{ deposit_value: " << tx.deposit_value << ", bridge_id: " << tx.bridge_id_data.to_safe_uint() << " }";
+    return os << "{ deposit_value: " << tx.deposit_value
+              << ", bridge_call_data: " << tx.bridge_call_data_local.to_safe_uint() << " }";
 }
 } // namespace claim
 } // namespace circuit

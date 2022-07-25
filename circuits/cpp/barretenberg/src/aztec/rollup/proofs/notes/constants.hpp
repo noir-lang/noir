@@ -13,7 +13,7 @@ constexpr size_t DEFI_INTERACTION_NONCE_BIT_LENGTH = 30; // must match the bit l
 constexpr size_t NOTE_VALUE_BIT_LENGTH = 252;
 constexpr uint256_t NOTE_VALUE_MAX = (uint256_t(1) << NOTE_VALUE_BIT_LENGTH) - 1;
 constexpr size_t DEFI_DEPOSIT_VALUE_BIT_LENGTH = MAX_NO_WRAP_INTEGER_BIT_LENGTH - MAX_TXS_BIT_LENGTH;
-constexpr size_t DEFI_BRIDGE_ID_BIT_LENGTH = 250;
+constexpr size_t DEFI_BRIDGE_CALL_DATA_BIT_LENGTH = 250;
 
 // Start from 1 to avoid the default generators.
 enum GeneratorIndex {

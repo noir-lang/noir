@@ -27,8 +27,8 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
     /**
      * Conversion to `claim_note_witness_data` contains:
      *   - range constraints on the claim note's attributes
-     *   - expansion of bridge_id
-     *     - expansion of the bridge_id's bit_config
+     *   - expansion of bridge_call_data
+     *     - expansion of the bridge_call_data's bit_config
      *       - sense checks on the bit_config's values
      *         (some bits can contradict each other)
      */
@@ -38,8 +38,8 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
     /**
      * Implicit conversion to `defi_interaction::witness_data` includes:
      *   - range constraints on the defi_interaction_note's attributes
-     *   - expansion of bridge_id
-     *     - expansion of the bridge_id's bit_config
+     *   - expansion of bridge_call_data
+     *     - expansion of the bridge_call_data's bit_config
      *       - sense checks on the bit_config's values
      *         (some bits can contradict each other)
      */
@@ -49,11 +49,13 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
     const auto output_value_b =
         suint_ct(witness_ct(&composer, tx.output_value_b), NOTE_VALUE_BIT_LENGTH, "output_value_b");
 
-    // const bool_ct& second_input_virtual = claim_note_data.bridge_id_data.config.second_input_virtual;
-    const bool_ct first_output_virtual = circuit::get_asset_id_flag(claim_note_data.bridge_id_data.output_asset_id_a);
-    const bool_ct second_output_virtual = circuit::get_asset_id_flag(claim_note_data.bridge_id_data.output_asset_id_b);
-    const bool_ct& second_input_in_use = claim_note_data.bridge_id_data.config.second_input_in_use;
-    const bool_ct& second_output_in_use = claim_note_data.bridge_id_data.config.second_output_in_use;
+    // const bool_ct& second_input_virtual = claim_note_data.bridge_call_data_local.config.second_input_virtual;
+    const bool_ct first_output_virtual =
+        circuit::get_asset_id_flag(claim_note_data.bridge_call_data_local.output_asset_id_a);
+    const bool_ct second_output_virtual =
+        circuit::get_asset_id_flag(claim_note_data.bridge_call_data_local.output_asset_id_b);
+    const bool_ct& second_input_in_use = claim_note_data.bridge_call_data_local.config.second_input_in_use;
+    const bool_ct& second_output_in_use = claim_note_data.bridge_call_data_local.config.second_output_in_use;
 
     {
         // Don't support zero deposits (because they're illogical):
@@ -121,9 +123,9 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
         const auto output_asset_id_1_if_success =
             suint_ct::conditional_assign(first_output_virtual,
                                          virtual_note_flag + claim_note.defi_interaction_nonce,
-                                         claim_note_data.bridge_id_data.output_asset_id_a);
+                                         claim_note_data.bridge_call_data_local.output_asset_id_a);
         const auto output_asset_id_1 = suint_ct::conditional_assign(
-            interaction_success, output_asset_id_1_if_success, claim_note_data.bridge_id_data.input_asset_id_a);
+            interaction_success, output_asset_id_1_if_success, claim_note_data.bridge_call_data_local.input_asset_id_a);
         output_note_commitment1 = circuit::value::complete_partial_commitment(
             claim_note.value_note_partial_commitment, output_value_1, output_asset_id_1, nullifier1);
 
@@ -134,9 +136,9 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
         const auto output_asset_id_2_if_success =
             suint_ct::conditional_assign(second_output_virtual,
                                          virtual_note_flag + claim_note.defi_interaction_nonce,
-                                         claim_note_data.bridge_id_data.output_asset_id_b);
+                                         claim_note_data.bridge_call_data_local.output_asset_id_b);
         const auto output_asset_id_2 = suint_ct::conditional_assign(
-            interaction_success, output_asset_id_2_if_success, claim_note_data.bridge_id_data.input_asset_id_b);
+            interaction_success, output_asset_id_2_if_success, claim_note_data.bridge_call_data_local.input_asset_id_b);
         output_note_commitment2 = circuit::value::complete_partial_commitment(
             claim_note.value_note_partial_commitment, output_value_2, output_asset_id_2, nullifier2);
 
@@ -153,7 +155,8 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
 
     {
         // Check claim note and interaction note are related.
-        claim_note.bridge_id.assert_equal(defi_interaction_note.bridge_id, "note bridge ids don't match");
+        claim_note.bridge_call_data.assert_equal(defi_interaction_note.bridge_call_data,
+                                                 "note bridge call datas don't match");
         claim_note.defi_interaction_nonce.assert_equal(defi_interaction_note.interaction_nonce,
                                                        "note nonces don't match");
     }
@@ -201,8 +204,8 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
     asset_id.set_public();     // 0
     data_root.set_public();
     claim_note.fee.set_public();
-    claim_note_data.bridge_id_data.input_asset_id_a.set_public();
-    claim_note.bridge_id.set_public();
+    claim_note_data.bridge_call_data_local.input_asset_id_a.set_public();
+    claim_note.bridge_call_data.set_public();
     defi_deposit_value.set_public(); // 0
     defi_root.set_public();
     backward_link.set_public(); // 0

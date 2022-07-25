@@ -67,7 +67,7 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
         field_ct::conditional_assign(is_defi_deposit, partial_claim_note.partial_commitment, output_note_1.commitment);
 
     const auto defi_deposit_value = inputs.partial_claim_note.deposit_value * is_defi_deposit;
-    const auto bridge_id = partial_claim_note.bridge_id * is_defi_deposit;
+    const auto bridge_call_data = partial_claim_note.bridge_call_data * is_defi_deposit;
 
     const bool_ct no_input_notes = inputs.num_input_notes == 0;
     const bool_ct one_input_note = inputs.num_input_notes == 1;
@@ -118,29 +118,29 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
         (is_defi_deposit && input_note_2_in_use && different_input_asset_ids)
             .must_imply(defi_deposit_value == input_note_2_value, "all of input note 2 must be defi-deposited");
 
-        // Check the bridge_id's data mirrors the input notes' data:
-        const auto& bridge_id_data = inputs.partial_claim_note.bridge_id_data;
+        // Check the bridge_call_data's data mirrors the input notes' data:
+        const auto& bridge_call_data_local = inputs.partial_claim_note.bridge_call_data_local;
 
         is_defi_deposit.must_imply(
-            bridge_id_data.input_asset_id_a == input_note_1.asset_id,
-            "Expected bridge_id_data.input_asset_id_a == input_note_1.asset_id for a defi-deposit");
+            bridge_call_data_local.input_asset_id_a == input_note_1.asset_id,
+            "Expected bridge_call_data_local.input_asset_id_a == input_note_1.asset_id for a defi-deposit");
 
         // Note: the opposite of this check isn't true: input_note_2_in_use does not necessarily imply the second input
         // to the bridge will be in-use, since both input notes could be of the same asset_id (and hence will be joined
         // into the bridge's first input).
-        (bridge_id_data.config.second_input_in_use)
+        (bridge_call_data_local.config.second_input_in_use)
             .must_imply(input_note_2_in_use,
-                        "Expected input_note_2_in_use, given bridge_id_data.config.second_input_in_use");
+                        "Expected input_note_2_in_use, given bridge_call_data_local.config.second_input_in_use");
 
         (input_note_2_in_use && different_input_asset_ids)
-            .must_imply(bridge_id_data.config.second_input_in_use,
-                        "Expected bridge_id_data.config.second_input_in_use, given input_note_2_in_use && "
+            .must_imply(bridge_call_data_local.config.second_input_in_use,
+                        "Expected bridge_call_data_local.config.second_input_in_use, given input_note_2_in_use && "
                         "different_input_asset_ids");
 
-        (bridge_id_data.config.second_input_in_use)
-            .must_imply(bridge_id_data.input_asset_id_b == input_note_2.asset_id,
-                        "Expected bridge_id_data.input_asset_id_b == input_note_2.asset_id, given "
-                        "bridge_id_data.config.second_input_in_use");
+        (bridge_call_data_local.config.second_input_in_use)
+            .must_imply(bridge_call_data_local.input_asset_id_b == input_note_2.asset_id,
+                        "Expected bridge_call_data_local.input_asset_id_b == input_note_2.asset_id, given "
+                        "bridge_call_data_local.config.second_input_in_use");
     }
 
     // Transaction chaining.
@@ -266,8 +266,8 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
                      inputs.allow_chain,
                      inputs.signature);
 
-    return { nullifier1, nullifier2, output_note_1_commitment, output_note_2.commitment, public_asset_id,
-             tx_fee,     bridge_id,  defi_deposit_value };
+    return { nullifier1,      nullifier2, output_note_1_commitment, output_note_2.commitment,
+             public_asset_id, tx_fee,     bridge_call_data,         defi_deposit_value };
 }
 
 void join_split_circuit(Composer& composer, join_split_tx const& tx)
@@ -284,8 +284,8 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
         .input_note2 = value::witness_data(composer, tx.input_note[1]),
         .output_note1 = value::witness_data(composer, tx.output_note[0]),
         .output_note2 = value::witness_data(composer, tx.output_note[1]),
-        // Construction of partial_claim_note_witness_data includes construction of bridge_id, which contains many
-        // constraints on the bridge_id's format and the bit_config's format:
+        // Construction of partial_claim_note_witness_data includes construction of bridge_call_data, which contains
+        // many constraints on the bridge_call_data's format and the bit_config's format:
         .partial_claim_note = claim::partial_claim_note_witness_data(composer, tx.partial_claim_note),
         .signing_pub_key = { .x = witness_ct(&composer, tx.signing_pub_key.x),
                              .y = witness_ct(&composer, tx.signing_pub_key.y) },
@@ -321,7 +321,7 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
     inputs.merkle_root.set_public();
     outputs.tx_fee.set_public();
     inputs.asset_id.set_public();
-    outputs.bridge_id.set_public();
+    outputs.bridge_call_data.set_public();
     outputs.defi_deposit_value.set_public();
     defi_root.set_public();
     inputs.backward_link.set_public();

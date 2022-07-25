@@ -45,7 +45,7 @@ struct join_split_outputs {
     field_ct output_note2;
     field_ct public_asset_id;
     field_ct tx_fee;
-    field_ct bridge_id;
+    field_ct bridge_call_data;
     field_ct defi_deposit_value;
 };
 

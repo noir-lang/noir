@@ -49,15 +49,16 @@ class rollup_tests : public ::testing::Test {
         context.append_value_notes({ 100, 50 });
         context.start_next_root_rollup();
 
-        const notes::native::bridge_id bid = { .bridge_address_id = 0,
-                                               .input_asset_id_a = 0,
-                                               .input_asset_id_b = 0,
-                                               .output_asset_id_a = 111,
-                                               .output_asset_id_b = 222,
-                                               .config =
-                                                   notes::native::bridge_id::bit_config{ .second_input_in_use = false,
-                                                                                         .second_output_in_use = true },
-                                               .aux_data = 0 };
+        const notes::native::bridge_call_data bid = {
+            .bridge_address_id = 0,
+            .input_asset_id_a = 0,
+            .input_asset_id_b = 0,
+            .output_asset_id_a = 111,
+            .output_asset_id_b = 222,
+            .config = notes::native::bridge_call_data::bit_config{ .second_input_in_use = false,
+                                                                   .second_output_in_use = true },
+            .aux_data = 0
+        };
         // MIKE started here
         auto defi_proof1 = context.create_defi_proof({ 0, 1 }, { 100, 50 }, { 40, 110 }, bid);
 
@@ -71,25 +72,27 @@ class rollup_tests : public ::testing::Test {
         context.append_value_notes({ 200, 40 }, 13);
         context.start_next_root_rollup();
 
-        const notes::native::bridge_id bid1 = { .bridge_address_id = 0,
-                                                .input_asset_id_a = 8,
-                                                .input_asset_id_b = 0,
-                                                .output_asset_id_a = 0,
-                                                .output_asset_id_b = 1,
-                                                .config =
-                                                    notes::native::bridge_id::bit_config{
-                                                        .second_input_in_use = false, .second_output_in_use = true },
-                                                .aux_data = 0 };
+        const notes::native::bridge_call_data bid1 = {
+            .bridge_address_id = 0,
+            .input_asset_id_a = 8,
+            .input_asset_id_b = 0,
+            .output_asset_id_a = 0,
+            .output_asset_id_b = 1,
+            .config = notes::native::bridge_call_data::bit_config{ .second_input_in_use = false,
+                                                                   .second_output_in_use = true },
+            .aux_data = 0
+        };
 
-        const notes::native::bridge_id bid2 = { .bridge_address_id = 1,
-                                                .input_asset_id_a = 13,
-                                                .input_asset_id_b = 0,
-                                                .output_asset_id_a = 0,
-                                                .output_asset_id_b = 1,
-                                                .config =
-                                                    notes::native::bridge_id::bit_config{
-                                                        .second_input_in_use = false, .second_output_in_use = true },
-                                                .aux_data = 0 };
+        const notes::native::bridge_call_data bid2 = {
+            .bridge_address_id = 1,
+            .input_asset_id_a = 13,
+            .input_asset_id_b = 0,
+            .output_asset_id_a = 0,
+            .output_asset_id_b = 1,
+            .config = notes::native::bridge_call_data::bit_config{ .second_input_in_use = false,
+                                                                   .second_output_in_use = true },
+            .aux_data = 0
+        };
         auto js_proof = context.create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 73 });         // fee = 7
         auto defi_proof1 = context.create_defi_proof({ 2, 3 }, { 100, 50 }, { 40, 100 }, bid1, 8);  // fee = 10
         auto defi_proof2 = context.create_defi_proof({ 4, 5 }, { 100, 50 }, { 30, 80 }, bid1, 8);   // fee = 40
@@ -105,25 +108,27 @@ class rollup_tests : public ::testing::Test {
         context.append_value_notes({ 100, 50 }, 1);
         context.start_next_root_rollup();
 
-        const notes::native::bridge_id bid1 = { .bridge_address_id = 0,
-                                                .input_asset_id_a = 0,
-                                                .input_asset_id_b = 0,
-                                                .output_asset_id_a = 2,
-                                                .output_asset_id_b = virtual_asset_id_flag,
-                                                .config =
-                                                    notes::native::bridge_id::bit_config{
-                                                        .second_input_in_use = false, .second_output_in_use = true },
-                                                .aux_data = 0 };
+        const notes::native::bridge_call_data bid1 = {
+            .bridge_address_id = 0,
+            .input_asset_id_a = 0,
+            .input_asset_id_b = 0,
+            .output_asset_id_a = 2,
+            .output_asset_id_b = virtual_asset_id_flag,
+            .config = notes::native::bridge_call_data::bit_config{ .second_input_in_use = false,
+                                                                   .second_output_in_use = true },
+            .aux_data = 0
+        };
 
-        const notes::native::bridge_id bid2 = { .bridge_address_id = 1,
-                                                .input_asset_id_a = 1,
-                                                .input_asset_id_b = 0,
-                                                .output_asset_id_a = 3,
-                                                .output_asset_id_b = virtual_asset_id_flag,
-                                                .config =
-                                                    notes::native::bridge_id::bit_config{
-                                                        .second_input_in_use = false, .second_output_in_use = true },
-                                                .aux_data = 0 };
+        const notes::native::bridge_call_data bid2 = {
+            .bridge_address_id = 1,
+            .input_asset_id_a = 1,
+            .input_asset_id_b = 0,
+            .output_asset_id_a = 3,
+            .output_asset_id_b = virtual_asset_id_flag,
+            .config = notes::native::bridge_call_data::bit_config{ .second_input_in_use = false,
+                                                                   .second_output_in_use = true },
+            .aux_data = 0
+        };
         auto defi_proof1 = context.create_defi_proof({ 0, 1 }, { 150, 50 }, { 180, 0 }, bid1, 0); // fee = 20
         auto defi_proof2 = context.create_defi_proof({ 2, 3 }, { 40, 160 }, { 190, 0 }, bid1, 0); // fee = 10
         auto defi_proof3 = context.create_defi_proof({ 4, 5 }, { 100, 50 }, { 150, 0 }, bid2, 1); // fee = 0
@@ -145,25 +150,27 @@ class rollup_tests : public ::testing::Test {
         context.append_value_notes({ 200, 40 }, 25); // not a fee paying asset
         context.start_next_root_rollup();
 
-        const notes::native::bridge_id bid1 = { .bridge_address_id = 0,
-                                                .input_asset_id_a = 8,
-                                                .input_asset_id_b = 0,
-                                                .output_asset_id_a = 0,
-                                                .output_asset_id_b = 1,
-                                                .config =
-                                                    notes::native::bridge_id::bit_config{
-                                                        .second_input_in_use = false, .second_output_in_use = true },
-                                                .aux_data = 0 };
+        const notes::native::bridge_call_data bid1 = {
+            .bridge_address_id = 0,
+            .input_asset_id_a = 8,
+            .input_asset_id_b = 0,
+            .output_asset_id_a = 0,
+            .output_asset_id_b = 1,
+            .config = notes::native::bridge_call_data::bit_config{ .second_input_in_use = false,
+                                                                   .second_output_in_use = true },
+            .aux_data = 0
+        };
 
-        const notes::native::bridge_id bid2 = { .bridge_address_id = 2,
-                                                .input_asset_id_a = 25,
-                                                .input_asset_id_b = 0,
-                                                .output_asset_id_a = 0,
-                                                .output_asset_id_b = 1,
-                                                .config =
-                                                    notes::native::bridge_id::bit_config{
-                                                        .second_input_in_use = false, .second_output_in_use = true },
-                                                .aux_data = 0 };
+        const notes::native::bridge_call_data bid2 = {
+            .bridge_address_id = 2,
+            .input_asset_id_a = 25,
+            .input_asset_id_b = 0,
+            .output_asset_id_a = 0,
+            .output_asset_id_b = 1,
+            .config = notes::native::bridge_call_data::bit_config{ .second_input_in_use = false,
+                                                                   .second_output_in_use = true },
+            .aux_data = 0
+        };
         auto js_proof = context.create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 73 });         // fee = 7
         auto defi_proof1 = context.create_defi_proof({ 2, 3 }, { 100, 50 }, { 40, 100 }, bid1, 8);  // fee = 10
         auto defi_proof2 = context.create_defi_proof({ 4, 5 }, { 100, 50 }, { 30, 80 }, bid1, 8);   // fee = 40
@@ -968,28 +975,28 @@ TEST_F(rollup_tests, test_defi_proof_in_rollup)
     ASSERT_TRUE(result.logic_verified);
 }
 
-TEST_F(rollup_tests, test_defi_bridge_id_zero_fails)
+TEST_F(rollup_tests, test_defi_bridge_call_data_zero_fails)
 {
     auto tx = create_tx_with_1_defi();
-    tx.bridge_ids = { 0 };
+    tx.bridge_call_datas = { 0 };
     auto result = verify_logic(tx, rollup_1_keyless);
 
     ASSERT_FALSE(result.logic_verified);
 }
 
-TEST_F(rollup_tests, test_defi_bridge_id_repeated_fails)
+TEST_F(rollup_tests, test_defi_bridge_call_data_repeated_fails)
 {
     auto tx = create_tx_with_1_defi();
-    tx.bridge_ids.push_back(tx.bridge_ids[0]);
+    tx.bridge_call_datas.push_back(tx.bridge_call_datas[0]);
     auto result = verify_logic(tx, rollup_1_keyless);
 
     ASSERT_FALSE(result.logic_verified);
 }
 
-TEST_F(rollup_tests, test_defi_bridge_id_unmatched_fails)
+TEST_F(rollup_tests, test_defi_bridge_call_data_unmatched_fails)
 {
     auto tx = create_tx_with_1_defi();
-    tx.bridge_ids[0] = { 1, 2, 0, 0 };
+    tx.bridge_call_datas[0] = { 1, 2, 0, 0 };
     auto result = verify_logic(tx, rollup_1_keyless);
 
     ASSERT_FALSE(result.logic_verified);
@@ -1004,10 +1011,10 @@ TEST_F(rollup_tests, test_defi_deposit_sums_accumulated)
     auto rollup_data = rollup_proof_data(result.public_inputs);
 
     // Check correct defi deposit_sums.
-    EXPECT_EQ(rollup_data.bridge_ids[0], tx.bridge_ids[0]);
-    EXPECT_EQ(rollup_data.bridge_ids[1], tx.bridge_ids[1]);
-    EXPECT_EQ(rollup_data.bridge_ids[2], 0);
-    EXPECT_EQ(rollup_data.bridge_ids[3], 0);
+    EXPECT_EQ(rollup_data.bridge_call_datas[0], tx.bridge_call_datas[0]);
+    EXPECT_EQ(rollup_data.bridge_call_datas[1], tx.bridge_call_datas[1]);
+    EXPECT_EQ(rollup_data.bridge_call_datas[2], 0);
+    EXPECT_EQ(rollup_data.bridge_call_datas[3], 0);
     EXPECT_EQ(rollup_data.deposit_sums[0], 70);
     EXPECT_EQ(rollup_data.deposit_sums[1], 20);
     EXPECT_EQ(rollup_data.deposit_sums[2], 0);
@@ -1057,7 +1064,7 @@ TEST_F(rollup_tests, test_defi_interaction_nonce_added_to_claim_notes)
         auto partial_state = notes::native::value::create_partial_commitment(
             context.user.note_secret, context.user.owner.public_key, 0, 0);
         notes::native::claim::claim_note claim_note = { .deposit_value = defi_proof_data.defi_deposit_value,
-                                                        .bridge_id = defi_proof_data.bridge_id,
+                                                        .bridge_call_data = defi_proof_data.bridge_call_data,
                                                         .defi_interaction_nonce = claim_note_interaction_nonce,
                                                         .fee = claim_fees[i],
                                                         .value_note_partial_commitment = partial_state,
@@ -1074,18 +1081,18 @@ TEST_F(rollup_tests, test_defi_interaction_nonce_added_to_claim_notes)
 TEST_F(rollup_tests, test_defi_claim_proofs)
 {
     auto rollup1_tx = create_tx_with_3_defi();
-    auto bids = rollup1_tx.bridge_ids;
+    auto bids = rollup1_tx.bridge_call_datas;
     auto asset_ids = rollup1_tx.asset_ids;
     auto result = verify_logic(rollup1_tx, rollup_4_keyless);
     ASSERT_TRUE(result.logic_verified);
 
-    std::vector<native::defi_interaction::note> dins = { { .bridge_id = bids[0],
+    std::vector<native::defi_interaction::note> dins = { { .bridge_call_data = bids[0],
                                                            .interaction_nonce = 0,
                                                            .total_input_value = 70,
                                                            .total_output_value_a = 700,
                                                            .total_output_value_b = 7000,
                                                            .interaction_result = true },
-                                                         { .bridge_id = bids[1],
+                                                         { .bridge_call_data = bids[1],
                                                            .interaction_nonce = 1,
                                                            .total_input_value = 20,
                                                            .total_output_value_a = 2,
@@ -1098,15 +1105,15 @@ TEST_F(rollup_tests, test_defi_claim_proofs)
     // js, acc and defi proofs to be rolled up with claim proofs
     auto acc_proof = context.create_add_signing_keys_to_account_proof(data.data_start_index + 8);
     auto js_proof = context.create_join_split_proof({}, {}, { 100, 30 }, 130);
-    const notes::native::bridge_id bid1 = {
-        .bridge_address_id = 0,
-        .input_asset_id_a = 0,
-        .input_asset_id_b = 0,
-        .output_asset_id_a = 0,
-        .output_asset_id_b = 1,
-        .config = notes::native::bridge_id::bit_config{ .second_input_in_use = false, .second_output_in_use = true },
-        .aux_data = 0
-    };
+    const notes::native::bridge_call_data bid1 = { .bridge_address_id = 0,
+                                                   .input_asset_id_a = 0,
+                                                   .input_asset_id_b = 0,
+                                                   .output_asset_id_a = 0,
+                                                   .output_asset_id_b = 1,
+                                                   .config =
+                                                       notes::native::bridge_call_data::bit_config{
+                                                           .second_input_in_use = false, .second_output_in_use = true },
+                                                   .aux_data = 0 };
     bids.push_back(bid1);
     auto defi_proof1 =
         context.create_defi_proof({ data.data_start_index, data.data_start_index + 1 }, { 70, 73 }, { 120, 23 }, bid1);
@@ -1122,7 +1129,7 @@ TEST_F(rollup_tests, test_defi_claim_proofs)
         auto claim_note_index = data.data_start_index + uint32_t(2 * i);
         auto inner_tx = inner_proof_data(rollup1_tx.txs[i]);
         auto defi_note_index = initial_din_index + indices[i - 1];
-        return context.create_claim_proof(inner_tx.bridge_id,
+        return context.create_claim_proof(inner_tx.bridge_call_data,
                                           inner_tx.defi_deposit_value,
                                           claim_note_index,
                                           defi_note_index, // defi proofs are offset by one
@@ -1148,7 +1155,7 @@ TEST_F(rollup_tests, test_defi_loan_proofs)
      * +-------------------------------------------------------------------------+
      */
     auto rollup1_tx = create_tx_with_defi_loan();
-    auto bids = rollup1_tx.bridge_ids;
+    auto bids = rollup1_tx.bridge_call_datas;
     auto asset_ids = rollup1_tx.asset_ids;
     auto result = verify_logic(rollup1_tx, rollup_4_keyless);
     ASSERT_TRUE(result.logic_verified);
@@ -1191,15 +1198,15 @@ TEST_F(rollup_tests, test_defi_loan_proofs)
     // Loan number 1 repayment
     const uint32_t opening_nonce1 = NUM_BRIDGE_CALLS_PER_BLOCK;
 
-    const notes::native::bridge_id bid1 = {
-        .bridge_address_id = 0,
-        .input_asset_id_a = 2,
-        .input_asset_id_b = virtual_asset_id_flag + opening_nonce1,
-        .output_asset_id_a = 0,
-        .output_asset_id_b = 0,
-        .config = notes::native::bridge_id::bit_config{ .second_input_in_use = true, .second_output_in_use = false },
-        .aux_data = 0
-    };
+    const notes::native::bridge_call_data bid1 = { .bridge_address_id = 0,
+                                                   .input_asset_id_a = 2,
+                                                   .input_asset_id_b = virtual_asset_id_flag + opening_nonce1,
+                                                   .output_asset_id_a = 0,
+                                                   .output_asset_id_b = 0,
+                                                   .config =
+                                                       notes::native::bridge_call_data::bit_config{
+                                                           .second_input_in_use = true, .second_output_in_use = false },
+                                                   .aux_data = 0 };
     const uint32_t virtual_asset_id1 = (uint32_t(1) << 29) + opening_nonce1;
     auto loan_repay_proof1 = context.create_defi_proof({ data2.data_start_index + 0, data2.data_start_index + 1 },
                                                        { 1800, 1800 },
@@ -1210,15 +1217,15 @@ TEST_F(rollup_tests, test_defi_loan_proofs)
                                                        virtual_asset_id1);
     // Loan number 3 repayment
     const uint32_t opening_nonce2 = opening_nonce1 + 1;
-    const notes::native::bridge_id bid2 = {
-        .bridge_address_id = 0,
-        .input_asset_id_a = 3,
-        .input_asset_id_b = virtual_asset_id_flag + opening_nonce2,
-        .output_asset_id_a = 1,
-        .output_asset_id_b = 0,
-        .config = notes::native::bridge_id::bit_config{ .second_input_in_use = true, .second_output_in_use = false },
-        .aux_data = 0
-    };
+    const notes::native::bridge_call_data bid2 = { .bridge_address_id = 0,
+                                                   .input_asset_id_a = 3,
+                                                   .input_asset_id_b = virtual_asset_id_flag + opening_nonce2,
+                                                   .output_asset_id_a = 1,
+                                                   .output_asset_id_b = 0,
+                                                   .config =
+                                                       notes::native::bridge_call_data::bit_config{
+                                                           .second_input_in_use = true, .second_output_in_use = false },
+                                                   .aux_data = 0 };
     const uint32_t virtual_asset_id2 = (uint32_t(1) << 29) + opening_nonce2;
     auto loan_repay_proof2 = context.create_defi_proof({ data2.data_start_index + 4, data2.data_start_index + 5 },
                                                        { 3000, 3000 },
@@ -1303,7 +1310,7 @@ TEST_F(rollup_tests, test_defi_loan_proofs)
 TEST_F(rollup_tests, test_defi_claim_proof_has_valid_defi_root)
 {
     auto rollup1_tx = create_tx_with_1_defi();
-    auto bids = rollup1_tx.bridge_ids;
+    auto bids = rollup1_tx.bridge_call_datas;
     auto result = verify_logic(rollup1_tx, rollup_1_keyless);
     ASSERT_TRUE(result.logic_verified);
 
@@ -1315,7 +1322,7 @@ TEST_F(rollup_tests, test_defi_claim_proof_has_valid_defi_root)
 
     // Create claim proof with trash defi root.
     auto inner_tx = inner_proof_data(rollup1_tx.txs[0]);
-    auto tx = context.create_claim_tx(inner_tx.bridge_id, inner_tx.defi_deposit_value, 2, initial_din_index, 0);
+    auto tx = context.create_claim_tx(inner_tx.bridge_call_data, inner_tx.defi_deposit_value, 2, initial_din_index, 0);
     tx.defi_root = fr::random_element();
     auto claim_proof = claim::create_proof(tx, context.claim_cd);
 

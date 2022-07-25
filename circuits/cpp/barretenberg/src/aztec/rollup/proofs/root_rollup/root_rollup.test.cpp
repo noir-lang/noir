@@ -72,8 +72,8 @@ class root_rollup_tests : public ::testing::Test {
 
     root_rollup_tx create_root_rollup_tx(std::string const& test_name,
                                          RollupStructure const& rollup_structure,
-                                         std::vector<std::vector<uint256_t>> bridge_ids = { {}, {}, {} },
-                                         std::vector<uint256_t> bridge_ids_union = {},
+                                         std::vector<std::vector<uint256_t>> bridge_call_datas = { {}, {}, {} },
+                                         std::vector<uint256_t> bridge_call_datas_union = {},
                                          std::vector<std::vector<uint256_t>> asset_ids = { { 0 }, { 0 }, { 0 } },
                                          std::vector<uint256_t> asset_ids_union = { 0 },
                                          std::vector<native::defi_interaction::note> const& interaction_notes = {})
@@ -86,8 +86,8 @@ class root_rollup_tests : public ::testing::Test {
         std::vector<std::vector<uint8_t>> inner_data;
         for (size_t i = 0; i < rollup_structure.size(); ++i) {
             auto tx_proofs = rollup_structure[i];
-            auto rollup =
-                rollup::create_rollup_tx(context.world_state, INNER_ROLLUP_TXS, tx_proofs, bridge_ids[i], asset_ids[i]);
+            auto rollup = rollup::create_rollup_tx(
+                context.world_state, INNER_ROLLUP_TXS, tx_proofs, bridge_call_datas[i], asset_ids[i]);
             auto fixture_name = format(test_name, "_rollup", rollup_id, "_inner", inner_data.size());
             auto proof_data = compute_or_load_rollup(fixture_name, rollup);
             if (proof_data.empty()) {
@@ -101,7 +101,7 @@ class root_rollup_tests : public ::testing::Test {
                                                   old_defi_root,
                                                   old_defi_path,
                                                   inner_data,
-                                                  bridge_ids_union,
+                                                  bridge_call_datas_union,
                                                   asset_ids_union,
                                                   interaction_notes);
     }
@@ -141,25 +141,27 @@ class root_rollup_tests : public ::testing::Test {
         context.append_value_notes({ 100, 50 }, aid3);
         context.start_next_root_rollup();
 
-        const notes::native::bridge_id bid2 = { .bridge_address_id = 1,
-                                                .input_asset_id_a = aid2,
-                                                .input_asset_id_b = 0,
-                                                .output_asset_id_a = 0,
-                                                .output_asset_id_b = 1,
-                                                .config =
-                                                    notes::native::bridge_id::bit_config{
-                                                        .second_input_in_use = false, .second_output_in_use = true },
-                                                .aux_data = 0 };
+        const notes::native::bridge_call_data bid2 = {
+            .bridge_address_id = 1,
+            .input_asset_id_a = aid2,
+            .input_asset_id_b = 0,
+            .output_asset_id_a = 0,
+            .output_asset_id_b = 1,
+            .config = notes::native::bridge_call_data::bit_config{ .second_input_in_use = false,
+                                                                   .second_output_in_use = true },
+            .aux_data = 0
+        };
 
-        const notes::native::bridge_id bid3 = { .bridge_address_id = 2,
-                                                .input_asset_id_a = aid3,
-                                                .input_asset_id_b = 0,
-                                                .output_asset_id_a = 0,
-                                                .output_asset_id_b = 1,
-                                                .config =
-                                                    notes::native::bridge_id::bit_config{
-                                                        .second_input_in_use = false, .second_output_in_use = true },
-                                                .aux_data = 0 };
+        const notes::native::bridge_call_data bid3 = {
+            .bridge_address_id = 2,
+            .input_asset_id_a = aid3,
+            .input_asset_id_b = 0,
+            .output_asset_id_a = 0,
+            .output_asset_id_b = 1,
+            .config = notes::native::bridge_call_data::bit_config{ .second_input_in_use = false,
+                                                                   .second_output_in_use = true },
+            .aux_data = 0
+        };
 
         auto js_proof1 = context.create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 - 7 }); // fee = 7
         auto js_proof2 =
@@ -310,28 +312,28 @@ TEST_F(root_rollup_tests, test_asset_ids_reordering)
     ASSERT_TRUE(result.logic_verified);
 }
 
-TEST_F(root_rollup_tests, test_bridge_ids_missing_fails)
+TEST_F(root_rollup_tests, test_bridge_call_datas_missing_fails)
 {
     auto tx_data = create_full_logic_root_rollup_tx();
-    tx_data.bridge_ids[0] = tx_data.bridge_ids[1]; // bridge_ids = [bid3, bid3, 0, 0]
+    tx_data.bridge_call_datas[0] = tx_data.bridge_call_datas[1]; // bridge_call_datas = [bid3, bid3, 0, 0]
 
     auto result = verify_logic(tx_data, root_rollup_cd);
     ASSERT_FALSE(result.logic_verified);
 }
 
-TEST_F(root_rollup_tests, test_bridge_ids_repeating_fails)
+TEST_F(root_rollup_tests, test_bridge_call_datas_repeating_fails)
 {
     auto tx_data = create_full_logic_root_rollup_tx();
-    tx_data.bridge_ids[1] = tx_data.bridge_ids[0]; // bridge_ids = [bid2, bid2, 0, 0]
+    tx_data.bridge_call_datas[1] = tx_data.bridge_call_datas[0]; // bridge_call_datas = [bid2, bid2, 0, 0]
 
     auto result = verify_logic(tx_data, root_rollup_cd);
     ASSERT_FALSE(result.logic_verified);
 }
 
-TEST_F(root_rollup_tests, test_bridge_ids_reordering)
+TEST_F(root_rollup_tests, test_bridge_call_datas_reordering)
 {
     auto tx_data = create_full_logic_root_rollup_tx();
-    std::swap(tx_data.bridge_ids[1], tx_data.bridge_ids[0]); // bridge_ids = [bid3, bid2, 0, 0]
+    std::swap(tx_data.bridge_call_datas[1], tx_data.bridge_call_datas[0]); // bridge_call_datas = [bid3, bid2, 0, 0]
 
     auto result = verify_logic(tx_data, root_rollup_cd);
     ASSERT_TRUE(result.logic_verified);
@@ -345,10 +347,10 @@ TEST_F(root_rollup_tests, test_full_logic)
     ASSERT_TRUE(result.logic_verified);
 
     root_rollup_broadcast_data rollup_data = result.broadcast_data;
-    EXPECT_EQ(rollup_data.bridge_ids[0], fr(tx_data.bridge_ids[0]));
-    EXPECT_EQ(rollup_data.bridge_ids[1], fr(tx_data.bridge_ids[1]));
-    EXPECT_EQ(rollup_data.bridge_ids[2], 0);
-    EXPECT_EQ(rollup_data.bridge_ids[3], 0);
+    EXPECT_EQ(rollup_data.bridge_call_datas[0], fr(tx_data.bridge_call_datas[0]));
+    EXPECT_EQ(rollup_data.bridge_call_datas[1], fr(tx_data.bridge_call_datas[1]));
+    EXPECT_EQ(rollup_data.bridge_call_datas[2], 0);
+    EXPECT_EQ(rollup_data.bridge_call_datas[3], 0);
     EXPECT_EQ(rollup_data.deposit_sums[0], 80);
     EXPECT_EQ(rollup_data.deposit_sums[1], 20);
     EXPECT_EQ(rollup_data.deposit_sums[2], 0);

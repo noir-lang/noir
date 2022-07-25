@@ -2,7 +2,7 @@
 #include <common/serialize.hpp>
 #include <crypto/pedersen/pedersen.hpp>
 #include <ecc/curves/grumpkin/grumpkin.hpp>
-#include "../bridge_id.hpp"
+#include "../bridge_call_data.hpp"
 
 namespace rollup {
 namespace proofs {
@@ -11,7 +11,7 @@ namespace native {
 namespace defi_interaction {
 
 struct note {
-    uint256_t bridge_id;
+    uint256_t bridge_call_data;
     uint32_t interaction_nonce;
     uint256_t total_input_value;
     uint256_t total_output_value_a;
@@ -24,7 +24,7 @@ struct note {
 
     auto commit() const
     {
-        return crypto::pedersen::compress_native({ bridge_id,
+        return crypto::pedersen::compress_native({ bridge_call_data,
                                                    total_input_value,
                                                    total_output_value_a,
                                                    total_output_value_b,
@@ -39,7 +39,7 @@ struct note {
     {
         std::vector<uint8_t> buf;
 
-        write(buf, bridge_id);
+        write(buf, bridge_call_data);
         write(buf, uint256_t(interaction_nonce));
         write(buf, total_input_value);
         write(buf, total_output_value_a);
@@ -52,7 +52,7 @@ struct note {
 
 inline std::ostream& operator<<(std::ostream& os, note const& note)
 {
-    os << "{ bridge_id: " << note.bridge_id << ", total_input_value: " << note.total_input_value
+    os << "{ bridge_call_data: " << note.bridge_call_data << ", total_input_value: " << note.total_input_value
        << ", total_output_value_a: " << note.total_output_value_a
        << ", total_output_value_b: " << note.total_output_value_b << ", interaction_nonce: " << note.interaction_nonce
        << ", interaction_result: " << note.interaction_result << " }";
@@ -62,7 +62,7 @@ inline std::ostream& operator<<(std::ostream& os, note const& note)
 template <typename B> inline void read(B& buf, note& note)
 {
     using serialize::read;
-    read(buf, note.bridge_id);
+    read(buf, note.bridge_call_data);
     read(buf, note.total_input_value);
     read(buf, note.total_output_value_a);
     read(buf, note.total_output_value_b);
@@ -73,7 +73,7 @@ template <typename B> inline void read(B& buf, note& note)
 template <typename B> inline void write(B& buf, note const& note)
 {
     using serialize::write;
-    write(buf, note.bridge_id);
+    write(buf, note.bridge_call_data);
     write(buf, note.total_input_value);
     write(buf, note.total_output_value_a);
     write(buf, note.total_output_value_b);

@@ -37,8 +37,8 @@ struct root_rollup_tx {
     fr new_defi_root;
     fr_hash_path old_defi_path;
 
-    // Set of bridge ids. Inner proofs bridge ids must match.
-    std::vector<uint256_t> bridge_ids;
+    // Set of bridge call datas. Inner proofs bridge call datas must match.
+    std::vector<uint256_t> bridge_call_datas;
 
     // Set of asset ids. Inner proofs asset ids must match.
     std::vector<uint256_t> asset_ids;
@@ -71,7 +71,7 @@ template <typename B> inline void read(B& buf, root_rollup_tx& tx)
     read(buf, tx.new_defi_root);
     read(buf, tx.old_defi_path);
 
-    read(buf, tx.bridge_ids);
+    read(buf, tx.bridge_call_datas);
     read(buf, tx.asset_ids);
     read(buf, tx.defi_interaction_notes);
     read(buf, tx.rollup_beneficiary);
@@ -92,7 +92,7 @@ template <typename B> inline void write(B& buf, root_rollup_tx const& tx)
     write(buf, tx.new_defi_root);
     write(buf, tx.old_defi_path);
 
-    write(buf, tx.bridge_ids);
+    write(buf, tx.bridge_call_datas);
     write(buf, tx.asset_ids);
     write(buf, tx.defi_interaction_notes);
     write(buf, tx.rollup_beneficiary);
@@ -112,13 +112,13 @@ inline std::ostream& operator<<(std::ostream& os, root_rollup_tx const& tx)
     os << "old_defi_root: " << tx.old_defi_root << "\n";
     os << "old_defi_path: " << tx.old_defi_path << "\n";
 
-    os << "bridge_ids: " << tx.bridge_ids << "\n";
+    os << "bridge_call_datas: " << tx.bridge_call_datas << "\n";
     os << "asset_ids: " << tx.asset_ids << "\n";
 
     size_t i = 0;
     for (auto defi_note : tx.defi_interaction_notes) {
         os << "defi_interaction_" << i << ":\n";
-        os << "    bridge_id: " << defi_note.bridge_id << "\n";
+        os << "    bridge_call_data: " << defi_note.bridge_call_data << "\n";
         os << "    interaction_nonce: " << defi_note.interaction_nonce << "\n";
         os << "    total_input_value: " << defi_note.total_input_value << "\n";
         os << "    total_output_value_a: " << defi_note.total_output_value_a << "\n";

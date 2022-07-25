@@ -16,7 +16,7 @@ inner_proof_data::inner_proof_data(std::vector<uint8_t> const& proof_data)
     merkle_root = from_buffer<fr>(proof_data, InnerProofOffsets::MERKLE_ROOT);
     tx_fee = from_buffer<uint256_t>(proof_data, InnerProofOffsets::TX_FEE);
     tx_fee_asset_id = from_buffer<uint256_t>(proof_data, InnerProofOffsets::TX_FEE_ASSET_ID);
-    bridge_id = from_buffer<uint256_t>(proof_data, InnerProofOffsets::BRIDGE_ID);
+    bridge_call_data = from_buffer<uint256_t>(proof_data, InnerProofOffsets::BRIDGE_CALL_DATA);
     defi_deposit_value = from_buffer<uint256_t>(proof_data, InnerProofOffsets::DEFI_DEPOSIT_VALUE);
     defi_root = from_buffer<fr>(proof_data, InnerProofOffsets::DEFI_ROOT);
     backward_link = from_buffer<fr>(proof_data, InnerProofOffsets::BACKWARD_LINK);

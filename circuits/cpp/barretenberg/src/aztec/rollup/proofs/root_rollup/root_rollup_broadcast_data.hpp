@@ -19,8 +19,8 @@ enum {
     NEW_DATA_ROOTS_ROOT,
     OLD_DEFI_ROOT,
     NEW_DEFI_ROOT,
-    DEFI_BRIDGE_IDS,
-    DEFI_BRIDGE_DEPOSITS = DEFI_BRIDGE_IDS + NUM_BRIDGE_CALLS_PER_BLOCK,
+    DEFI_BRIDGE_CALL_DATAS,
+    DEFI_BRIDGE_DEPOSITS = DEFI_BRIDGE_CALL_DATAS + NUM_BRIDGE_CALLS_PER_BLOCK,
     ASSET_IDS = DEFI_BRIDGE_DEPOSITS + NUM_BRIDGE_CALLS_PER_BLOCK,
     TOTAL_TX_FEES = ASSET_IDS + NUM_ASSETS,
     DEFI_INTERACTION_NOTES = TOTAL_TX_FEES + NUM_ASSETS,
@@ -79,7 +79,7 @@ struct root_rollup_broadcast_data {
     fr old_defi_root;
     fr new_defi_root;
     fr rollup_beneficiary;
-    std::array<fr, NUM_BRIDGE_CALLS_PER_BLOCK> bridge_ids;
+    std::array<fr, NUM_BRIDGE_CALLS_PER_BLOCK> bridge_call_datas;
     std::array<fr, NUM_BRIDGE_CALLS_PER_BLOCK> deposit_sums;
     std::array<fr, NUM_ASSETS> asset_ids;
     std::array<fr, NUM_ASSETS> total_tx_fees;
@@ -111,7 +111,7 @@ template <typename B> inline void read(B& buf, root_rollup_broadcast_data& data)
     read(buf, data.old_defi_root);
     read(buf, data.new_defi_root);
 
-    read(buf, data.bridge_ids);
+    read(buf, data.bridge_call_datas);
     read(buf, data.deposit_sums);
     read(buf, data.asset_ids);
     read(buf, data.total_tx_fees);
@@ -141,7 +141,7 @@ template <typename B> inline void write(B& buf, root_rollup_broadcast_data const
     write(buf, data.old_defi_root);
     write(buf, data.new_defi_root);
 
-    write(buf, data.bridge_ids);
+    write(buf, data.bridge_call_datas);
     write(buf, data.deposit_sums);
     write(buf, data.asset_ids);
     write(buf, data.total_tx_fees);

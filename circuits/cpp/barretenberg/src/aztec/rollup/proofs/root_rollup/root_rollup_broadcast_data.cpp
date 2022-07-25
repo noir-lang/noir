@@ -22,7 +22,7 @@ root_rollup_broadcast_data::root_rollup_broadcast_data(std::vector<fr> const& fi
     old_defi_root = fields[RootRollupBroadcastFields::OLD_DEFI_ROOT];
     new_defi_root = fields[RootRollupBroadcastFields::NEW_DEFI_ROOT];
     for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
-        bridge_ids[i] = fields[RootRollupBroadcastFields::DEFI_BRIDGE_IDS + i];
+        bridge_call_datas[i] = fields[RootRollupBroadcastFields::DEFI_BRIDGE_CALL_DATAS + i];
     }
     for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
         deposit_sums[i] = fields[RootRollupBroadcastFields::DEFI_BRIDGE_DEPOSITS + i];

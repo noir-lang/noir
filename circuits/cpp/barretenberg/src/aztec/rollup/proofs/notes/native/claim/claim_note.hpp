@@ -4,7 +4,7 @@
 #include <ecc/curves/grumpkin/grumpkin.hpp>
 #include "create_partial_commitment.hpp"
 #include "complete_partial_commitment.hpp"
-#include "../bridge_id.hpp"
+#include "../bridge_call_data.hpp"
 
 namespace rollup {
 namespace proofs {
@@ -14,7 +14,7 @@ namespace claim {
 
 struct claim_note {
     uint256_t deposit_value;
-    uint256_t bridge_id;
+    uint256_t bridge_call_data;
     uint32_t defi_interaction_nonce;
     uint256_t fee;
     grumpkin::fq value_note_partial_commitment;
@@ -26,7 +26,8 @@ struct claim_note {
 
     grumpkin::fq partial_commit() const
     {
-        return create_partial_commitment(deposit_value, bridge_id, value_note_partial_commitment, input_nullifier);
+        return create_partial_commitment(
+            deposit_value, bridge_call_data, value_note_partial_commitment, input_nullifier);
     }
 };
 
@@ -34,7 +35,7 @@ template <typename B> inline void read(B& buf, claim_note& note)
 {
     using serialize::read;
     read(buf, note.deposit_value);
-    read(buf, note.bridge_id);
+    read(buf, note.bridge_call_data);
     read(buf, note.defi_interaction_nonce);
     read(buf, note.fee);
     read(buf, note.value_note_partial_commitment);
@@ -43,7 +44,7 @@ template <typename B> inline void read(B& buf, claim_note& note)
 template <typename B> inline void write(B& buf, claim_note const& note)
 {
     write(buf, note.deposit_value);
-    write(buf, note.bridge_id);
+    write(buf, note.bridge_call_data);
     write(buf, note.defi_interaction_nonce);
     write(buf, note.fee);
     write(buf, note.value_note_partial_commitment);
@@ -54,8 +55,8 @@ inline std::ostream& operator<<(std::ostream& os, claim_note const& note)
 {
     return os << format("{ deposit_value: ",
                         note.deposit_value,
-                        ", bridge_id: ",
-                        note.bridge_id,
+                        ", bridge_call_data: ",
+                        note.bridge_call_data,
                         ", interaction_nonce: ",
                         note.defi_interaction_nonce,
                         ", fee: ",

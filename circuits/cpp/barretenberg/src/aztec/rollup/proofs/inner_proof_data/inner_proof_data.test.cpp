@@ -21,7 +21,7 @@ TEST(client_proofs_inner_proof_data, test_proof_to_data)
     uint256_t asset_id = 1;
     uint256_t tx_fee = rand_engine.get_random_uint256();
     uint256_t tx_fee_asset_id = 2;
-    uint256_t bridge_id = rand_engine.get_random_uint256();
+    uint256_t bridge_call_data = rand_engine.get_random_uint256();
     uint256_t defi_deposit_value = rand_engine.get_random_uint256();
     auto defi_root = fr::random_element(&rand_engine);
     auto backward_link = fr::random_element(&rand_engine);
@@ -40,7 +40,7 @@ TEST(client_proofs_inner_proof_data, test_proof_to_data)
     write(proof_data, merkle_root);
     write(proof_data, tx_fee);
     write(proof_data, tx_fee_asset_id);
-    write(proof_data, bridge_id);
+    write(proof_data, bridge_call_data);
     write(proof_data, defi_deposit_value);
     write(proof_data, defi_root);
     write(proof_data, backward_link);
@@ -59,7 +59,7 @@ TEST(client_proofs_inner_proof_data, test_proof_to_data)
     EXPECT_EQ(data.merkle_root, merkle_root);
     EXPECT_EQ(data.tx_fee, tx_fee);
     EXPECT_EQ(data.tx_fee_asset_id, tx_fee_asset_id);
-    EXPECT_EQ(data.bridge_id, bridge_id);
+    EXPECT_EQ(data.bridge_call_data, bridge_call_data);
     EXPECT_EQ(data.defi_deposit_value, defi_deposit_value);
     EXPECT_EQ(data.defi_root, defi_root);
     EXPECT_EQ(data.backward_link, backward_link);

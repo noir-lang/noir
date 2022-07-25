@@ -33,8 +33,8 @@ inline void pad_rollup_tx(rollup_tx& rollup, size_t rollup_size, std::vector<uin
     rollup.data_roots_paths.resize(rollup_size, rollup.data_roots_paths.back());
     rollup.data_roots_indicies.resize(rollup_size, 0);
 
-    rollup.num_defi_interactions = rollup.bridge_ids.size();
-    rollup.bridge_ids.resize(NUM_BRIDGE_CALLS_PER_BLOCK);
+    rollup.num_defi_interactions = rollup.bridge_call_datas.size();
+    rollup.bridge_call_datas.resize(NUM_BRIDGE_CALLS_PER_BLOCK);
     rollup.num_asset_ids = rollup.asset_ids.size();
     rollup.asset_ids.resize(NUM_ASSETS);
 }
@@ -77,7 +77,7 @@ template <typename T> inline rollup_tx create_empty_rollup(T& world_state)
                          .data_roots_indicies = { 0 },
 
                          .new_defi_root = world_state.defi_tree.root(),
-                         .bridge_ids = {},
+                         .bridge_call_datas = {},
                          .asset_ids = {},
                          .num_defi_interactions = 0,
                          .num_asset_ids = 0 };
@@ -99,7 +99,7 @@ inline rollup_tx create_padding_rollup(size_t rollup_size, std::vector<uint8_t> 
 inline rollup_tx create_rollup_tx(WorldState& world_state,
                                   size_t rollup_size,
                                   std::vector<std::vector<uint8_t>> const& txs,
-                                  std::vector<uint256_t> bridge_ids = {},
+                                  std::vector<uint256_t> bridge_call_datas = {},
                                   std::vector<uint256_t> asset_ids = { 0 },
                                   std::vector<uint32_t> const& data_roots_indicies_ = {},
                                   std::vector<uint32_t> const& linked_commitment_indices_ = {})
@@ -183,7 +183,7 @@ inline rollup_tx create_rollup_tx(WorldState& world_state,
         // Compute partial claim notes
         if (tx.proof_id == ProofIds::DEFI_DEPOSIT) {
             uint32_t nonce = 0;
-            while (tx.bridge_id != bridge_ids[nonce] && nonce < bridge_ids.size()) {
+            while (tx.bridge_call_data != bridge_call_datas[nonce] && nonce < bridge_call_datas.size()) {
                 ++nonce;
             };
             nonce += rollup_id * NUM_BRIDGE_CALLS_PER_BLOCK;
@@ -247,11 +247,11 @@ inline rollup_tx create_rollup_tx(WorldState& world_state,
                          data_roots_indicies,
 
                          defi_tree.root(),
-                         bridge_ids,
+                         bridge_call_datas,
 
                          asset_ids,
 
-                         bridge_ids.size(),
+                         bridge_call_datas.size(),
                          asset_ids.size() };
 
     // Add nullifier 0 index padding data if necessary.
