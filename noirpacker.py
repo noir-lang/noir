@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 import os
 import re
+import sys
 
 def read_dir(path):
     ret = ""
@@ -29,7 +30,7 @@ def read_dir(path):
             elif entry.is_file():
                 ret += sanitize(open(entry).read())
 
-        if entry.name != "main.nr":
+        if name != "":
             ret += "\n}\n"
 
     return ret
@@ -44,4 +45,15 @@ def append_entry(modules, name, entry):
 def sanitize(contents):
     return re.sub(r'\bmod \w+;', '', contents)
 
-print(read_dir("."))
+if len(sys.argv) < 2:
+    print('usage: ./noirpacker.py <path-to-src-dir> [output-file]')
+else:
+    path = sys.argv[1]
+
+    packed_dir = read_dir(path)
+    if len(sys.argv) == 2:
+        print(packed_dir)
+    else:
+        f = open(sys.argv[2], 'w')
+        f.write(packed_dir)
+        f.close()
