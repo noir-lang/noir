@@ -8,15 +8,14 @@ fn main(
   // Merkle membership proof
   note_root : pub Field, 
   index : Field,
-  note_hash_path : [6]Field,
+  note_hash_path : [3]Field,
 
   // Receiver public key
   to_pubkey_x : Field, 
   to_pubkey_y : Field, 
-) {
+) -> pub [2]Field {
 
     // Compute public key from private key to show ownership
-    //
     let pubkey = std::scalar_mul::fixed_base(priv_key);
     let pubkey_x = pubkey[0];
     let pubkey_y = pubkey[1];
@@ -34,6 +33,5 @@ fn main(
     let is_member = std::merkle::check_membership(note_root, note_commitment[0], index, note_hash_path);
     constrain is_member == 1;
 
-    std::set_as_public(receiver_note_commitment[0]);
-    std::set_as_public(nullifier[0]);
+    [nullifier[0], receiver_note_commitment[0]]
 }
