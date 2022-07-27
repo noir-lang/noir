@@ -289,7 +289,7 @@ fn get_current_value_for_node_eval(
     value_array: &HashMap<NodeId, NodeEval>,
 ) -> NodeEval {
     match obj {
-        NodeEval::Const(_, _) => obj,
+        NodeEval::ConstField(_, _) => obj,
         NodeEval::VarOrInstruction(obj_id) => get_current_value(obj_id, value_array),
     }
 }
@@ -302,7 +302,7 @@ fn evaluate_one(
 ) -> Result<NodeEval, RuntimeError> {
     let mut modified = false;
     match get_current_value_for_node_eval(obj, value_array) {
-        NodeEval::Const(_, _) => Ok(obj),
+        NodeEval::ConstField(_, _) => Ok(obj),
         NodeEval::VarOrInstruction(obj_id) => {
             if ctx.try_get_node(obj_id).is_none() {
                 return Ok(obj);
@@ -332,7 +332,7 @@ fn evaluate_one(
                 }
                 NodeObj::Const(c) => {
                     let value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
-                    Ok(NodeEval::Const(value, c.get_type()))
+                    Ok(NodeEval::ConstField(value, c.get_type()))
                 }
                 NodeObj::Obj(_) => Ok(NodeEval::VarOrInstruction(obj_id)),
             }
@@ -347,7 +347,7 @@ fn evaluate_object(
     ctx: &SsaContext,
 ) -> Result<NodeEval, RuntimeError> {
     match get_current_value_for_node_eval(obj, value_array) {
-        NodeEval::Const(_, _) => Ok(obj),
+        NodeEval::ConstField(_, _) => Ok(obj),
         NodeEval::VarOrInstruction(obj_id) => {
             if ctx.try_get_node(obj_id).is_none() {
                 dbg!(obj_id);
@@ -375,7 +375,7 @@ fn evaluate_object(
                 }
                 NodeObj::Const(c) => {
                     let value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
-                    Ok(NodeEval::Const(value, c.get_type()))
+                    Ok(NodeEval::ConstField(value, c.get_type()))
                 }
                 NodeObj::Obj(_) => Ok(NodeEval::VarOrInstruction(obj_id)),
             }

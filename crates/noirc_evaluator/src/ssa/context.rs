@@ -523,12 +523,13 @@ impl<'a> SsaContext<'a> {
             return prev_const;
         }
 
-        self.add_const(node::Constant {
-            id: NodeId::dummy(),
-            value,
-            value_str: String::new(),
-            value_type: t,
-        })
+        self.add_const(node::Constant { id: NodeId::dummy(), value, value_type: t })
+    }
+
+    pub fn new_array(&mut self, element_type: ObjectType, values: Vec<NodeId>) -> NodeId {
+        let array = node::Array { element_type, values };
+        let value = node::ConstantValue::Array(array);
+        self.add_const(node::Constant { id: NodeId::dummy(), value, value_type: ObjectType::Array })
     }
 
     //Return the type of the operation result, based on the left hand type
@@ -570,7 +571,7 @@ impl<'a> SsaContext<'a> {
         //we create a variable pointing to this MemArray
         let new_var = node::Variable {
             id: NodeId::dummy(),
-            obj_type: node::ObjectType::Pointer(array_index),
+            obj_type: node::ObjectType::Array(array_index),
             name: name.to_string(),
             root: None,
             def: def_id,
@@ -701,7 +702,7 @@ impl<'a> SsaContext<'a> {
             return Ok(());
         }
 
-        if let (ObjectType::Pointer(a), ObjectType::Pointer(b)) = (l_type, r_type) {
+        if let (ObjectType::Array(a), ObjectType::Array(b)) = (l_type, r_type) {
             let len = self.mem[a].len;
             let adr_a = self.mem[a].adr;
             let adr_b = self.mem[b].adr;
@@ -752,7 +753,7 @@ impl<'a> SsaContext<'a> {
         }) = self.try_get_instruction(rhs)
         {
             if index.is_none() {
-                if let ObjectType::Pointer(a) = lhs_type {
+                if let ObjectType::Array(a) = lhs_type {
                     ret_array = Some((*func, a, *idx));
                 }
             }
@@ -769,14 +770,14 @@ impl<'a> SsaContext<'a> {
             return Ok(lhs);
         }
         if let Some(idx) = index {
-            if let ObjectType::Pointer(a) = lhs_type {
+            if let ObjectType::Array(a) = lhs_type {
                 //Store
                 let op_a = Operation::Store { array_id: a, index: idx, value: rhs };
                 return self.new_instruction(op_a, self.mem[a].element_type);
             } else {
                 unreachable!("Index expression must be for an array");
             }
-        } else if matches!(lhs_type, ObjectType::Pointer(_)) {
+        } else if matches!(lhs_type, ObjectType::Array(_)) {
             if let Some(Instruction {
                 operation: Operation::Intrinsic(_, _),
                 res_type: rtype,
@@ -835,7 +836,7 @@ impl<'a> SsaContext<'a> {
             return;
         }
 
-        if let (ObjectType::Pointer(a), ObjectType::Pointer(b)) = (l_type, r_type) {
+        if let (ObjectType::Array(a), ObjectType::Array(b)) = (l_type, r_type) {
             let len = self.mem[a].len;
             let adr_a = self.mem[a].adr;
             let adr_b = self.mem[b].adr;
@@ -868,10 +869,10 @@ impl<'a> SsaContext<'a> {
     ) -> NodeId {
         let lhs_type = self.get_object_type(lhs);
         let rhs_type = self.get_object_type(rhs);
-        if let ObjectType::Pointer(a) = lhs_type {
+        if let ObjectType::Array(a) = lhs_type {
             //Array
             let b = stack_frame.get_or_default(a);
-            self.memcpy_inline(ObjectType::Pointer(b), rhs_type, stack_frame);
+            self.memcpy_inline(ObjectType::Array(b), rhs_type, stack_frame);
             lhs
         } else {
             //new ssa

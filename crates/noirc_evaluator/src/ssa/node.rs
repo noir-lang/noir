@@ -1,5 +1,3 @@
-use std::convert::TryInto;
-
 use crate::errors::{RuntimeError, RuntimeErrorKind};
 use crate::object::Object;
 use acvm::acir::native_types::Witness;
@@ -18,7 +16,6 @@ use std::ops::{BitAnd, BitOr, BitXor, Shl, Shr};
 
 use super::block::BlockId;
 use super::context::SsaContext;
-use super::mem::ArrayId;
 
 pub trait Node: std::fmt::Display {
     fn get_type(&self) -> ObjectType;
@@ -45,6 +42,22 @@ impl std::fmt::Display for NodeObj {
 impl std::fmt::Display for Constant {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.value)
+    }
+}
+
+impl std::fmt::Display for ConstantValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            ConstantValue::Field(field) => field.fmt(f),
+            ConstantValue::Array(array) => array.fmt(f),
+        }
+    }
+}
+
+impl std::fmt::Display for Array {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let values = vecmap(&self.values, |id| format!("node {}", id.0.into_raw_parts().0));
+        write!(f, "[{}]", values.join(", "))
     }
 }
 
@@ -94,7 +107,10 @@ impl Node for Constant {
     }
 
     fn size_in_bits(&self) -> u32 {
-        self.value.bits().try_into().unwrap()
+        match &self.value {
+            ConstantValue::Field(field) => field.num_bits(),
+            ConstantValue::Array(_) => 0,
+        }
     }
 
     fn get_id(&self) -> NodeId {
@@ -133,15 +149,43 @@ impl NodeObj {
 #[derive(Debug)]
 pub struct Constant {
     pub id: NodeId,
-    pub value: BigUint,    //TODO use FieldElement instead
-    pub value_str: String, //TODO ConstStr subtype
+    pub value: ConstantValue,
     pub value_type: ObjectType,
 }
 
+#[derive(Debug)]
+pub enum ConstantValue {
+    Field(FieldElement),
+    Array(Array),
+}
+
 impl Constant {
-    pub fn get_value_field(&self) -> FieldElement {
-        FieldElement::from_be_bytes_reduce(&self.value.to_bytes_be())
+    pub fn field(&self) -> FieldElement {
+        match &self.value {
+            ConstantValue::Field(value) => value.clone(),
+            ConstantValue::Array(_) => unreachable!(),
+        }
     }
+
+    pub fn array(&self) -> &Array {
+        match &self.value {
+            ConstantValue::Field(_) => unreachable!(),
+            ConstantValue::Array(array) => array,
+        }
+    }
+
+    pub fn array_mut(&mut self) -> &mut Array {
+        match &mut self.value {
+            ConstantValue::Field(_) => unreachable!(),
+            ConstantValue::Array(array) => array,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Array {
+    pub element_type: ObjectType,
+    pub values: Vec<NodeId>,
 }
 
 #[derive(Debug)]
@@ -190,8 +234,7 @@ pub enum ObjectType {
     Boolean,
     Unsigned(u32), //bit size
     Signed(u32),   //bit size
-    Pointer(ArrayId),
-    //custom(u32),   //user-defined struct, u32 refers to the id of the type in...?todo
+    Array,
     //TODO big_int
     //TODO floats
     NotAnObject, //not an object
@@ -279,7 +322,7 @@ impl ObjectType {
             ObjectType::NotAnObject => 0,
             ObjectType::Signed(c) => *c,
             ObjectType::Unsigned(c) => *c,
-            ObjectType::Pointer(_) => 0,
+            ObjectType::Array => 0,
         }
     }
 
@@ -293,23 +336,9 @@ impl ObjectType {
         }
     }
 
-    pub fn deref(&self, ctx: &SsaContext) -> ObjectType {
-        match self {
-            ObjectType::Pointer(a) => ctx.mem[*a].element_type,
-            _ => *self,
-        }
-    }
-
-    pub fn type_to_pointer(&self) -> ArrayId {
-        match self {
-            ObjectType::Pointer(a) => *a,
-            _ => unreachable!("Type is not a pointer",),
-        }
-    }
-
     pub fn field_to_type(&self, f: FieldElement) -> FieldElement {
         match self {
-            ObjectType::NotAnObject | ObjectType::Pointer(_) => {
+            ObjectType::NotAnObject => {
                 unreachable!()
             }
             ObjectType::NativeField => f,
@@ -351,14 +380,14 @@ impl std::fmt::Display for Instruction {
 
 #[derive(Debug, Clone, Copy)]
 pub enum NodeEval {
-    Const(FieldElement, ObjectType),
+    ConstField(FieldElement, ObjectType),
     VarOrInstruction(NodeId),
 }
 
 impl NodeEval {
     pub fn into_const_value(self) -> Option<FieldElement> {
         match self {
-            NodeEval::Const(c, _) => Some(c),
+            NodeEval::ConstField(c, _) => Some(c),
             _ => None,
         }
     }
@@ -366,7 +395,7 @@ impl NodeEval {
     pub fn into_node_id(self) -> Option<NodeId> {
         match self {
             NodeEval::VarOrInstruction(i) => Some(i),
-            NodeEval::Const(_, _) => None,
+            NodeEval::ConstField(_, _) => None,
         }
     }
 
@@ -374,23 +403,23 @@ impl NodeEval {
     //if NodeEval is a constant, it may creates a new NodeObj corresponding to the constant value
     pub fn to_index(self, ctx: &mut SsaContext) -> NodeId {
         match self {
-            NodeEval::Const(c, t) => ctx.get_or_create_const(c, t),
+            NodeEval::ConstField(c, t) => ctx.get_or_create_const(c, t),
             NodeEval::VarOrInstruction(i) => i,
         }
     }
 
     pub fn from_id(ctx: &SsaContext, id: NodeId) -> NodeEval {
         match &ctx[id] {
-            NodeObj::Const(c) => {
-                let value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
-                NodeEval::Const(value, c.get_type())
-            }
+            NodeObj::Const(c) => match &c.value {
+                ConstantValue::Field(field) => NodeEval::ConstField(field.clone(), c.get_type()),
+                ConstantValue::Array(_) => NodeEval::VarOrInstruction(id),
+            },
             _ => NodeEval::VarOrInstruction(id),
         }
     }
 
     fn from_u128(value: u128, typ: ObjectType) -> NodeEval {
-        NodeEval::Const(value.into(), typ)
+        NodeEval::ConstField(value.into(), typ)
     }
 }
 
@@ -433,7 +462,7 @@ impl Instruction {
             Operation::Load { .. } => false,
             Operation::Store { .. } => true,
             Operation::Intrinsic(_, _) => true, //TODO to check
-            Operation::Call(_, _, _) => false, //return values are in the return statment, should we truncate function arguments? probably but not lhs and rhs anyways.
+            Operation::Call(..) => false, //return values are in the return statment, should we truncate function arguments? probably but not lhs and rhs anyways.
             Operation::Return(_) => true,
             Operation::Result { .. } => false,
         }
@@ -459,9 +488,9 @@ impl Instruction {
             Operation::Cast(value) => {
                 if let Some(l_const) = eval_fn(ctx, *value)?.into_const_value() {
                     if self.res_type == ObjectType::NativeField {
-                        return Ok(NodeEval::Const(l_const, self.res_type));
+                        return Ok(NodeEval::ConstField(l_const, self.res_type));
                     } else if let Some(l_const) = l_const.try_into_u128() {
-                        return Ok(NodeEval::Const(
+                        return Ok(NodeEval::ConstField(
                             FieldElement::from(l_const % (1_u128 << self.res_type.bits())),
                             self.res_type,
                         ));
@@ -472,7 +501,7 @@ impl Instruction {
                 if let Some(l_const) = eval_fn(ctx, *value)?.into_const_value() {
                     let l = self.res_type.field_to_type(l_const).to_u128();
                     let max = (1_u128 << self.res_type.bits()) - 1;
-                    return Ok(NodeEval::Const(FieldElement::from((!l) & max), self.res_type));
+                    return Ok(NodeEval::ConstField(FieldElement::from((!l) & max), self.res_type));
                 }
             }
             Operation::Constrain(value, location) => {
@@ -544,13 +573,13 @@ pub enum Operation {
     Jeq(NodeId, BlockId), //jump on equal
     Jmp(BlockId),         //unconditional jump
     Phi { root: NodeId, block_args: Vec<(NodeId, BlockId)> },
-    Call(noirc_frontend::node_interner::FuncId, Vec<NodeId>, Vec<(ArrayId, u32)>), //Call a function
+    Call(noirc_frontend::node_interner::FuncId, Vec<NodeId>),
     Return(Vec<NodeId>), //Return value(s) from a function block
     Result { call_instruction: NodeId, index: u32 }, //Get result index n from a function call
     Cond { condition: NodeId, val_true: NodeId, val_false: NodeId },
 
-    Load { array_id: ArrayId, index: NodeId },
-    Store { array_id: ArrayId, index: NodeId, value: NodeId },
+    Load { array: NodeId, index: NodeId },
+    Store { array: NodeId, index: NodeId, value: NodeId },
 
     Intrinsic(OPCODE, Vec<NodeId>), //Custom implementation of usefull primitives which are more performant with Aztec backend
 
@@ -586,9 +615,9 @@ pub enum Opcode {
     Assign,
     Cond,
     Constrain,
-    Cast,     //convert type
-    Truncate, //truncate
-    Not,      //(!) Bitwise Not
+    Cast, //convert type
+    Truncate,
+    Not, //(!) Bitwise Not
 
     //control flow
     Jne, //jump on not equal
@@ -601,10 +630,10 @@ pub enum Opcode {
     Results,                                     //Get result(s) from a function call
 
     //memory
-    Load(ArrayId),
-    Store(ArrayId),
-    Intrinsic(OPCODE), //Custom implementation of usefull primitives which are more performant with Aztec backend
-    Nop,               // no op
+    Load,
+    Store,
+    Intrinsic(OPCODE), //Custom implementation of useful primitives which are more performant with Aztec backend
+    Nop,               //No op
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
@@ -796,7 +825,7 @@ impl Binary {
                 else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
                     let lhs = res_type.field_to_type(lhs).to_u128();
                     let rhs = res_type.field_to_type(rhs).to_u128();
-                    return Ok(NodeEval::Const(FieldElement::from(lhs / rhs), res_type));
+                    return Ok(NodeEval::ConstField(FieldElement::from(lhs / rhs), res_type));
                 }
             }
             BinaryOp::Div => {
@@ -807,7 +836,7 @@ impl Binary {
                 }
                 //constant folding - TODO
                 else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
-                    return Ok(NodeEval::Const(lhs / rhs, res_type));
+                    return Ok(NodeEval::ConstField(lhs / rhs, res_type));
                 }
             }
             BinaryOp::Sdiv => {
@@ -834,63 +863,63 @@ impl Binary {
             }
             BinaryOp::Ult => {
                 if r_is_zero {
-                    return Ok(NodeEval::Const(FieldElement::zero(), ObjectType::Boolean));
+                    return Ok(NodeEval::ConstField(FieldElement::zero(), ObjectType::Boolean));
                     //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
                     assert_ne!(res_type, ObjectType::NativeField); //comparisons are not implemented for field elements
                     let res = if lhs < rhs { FieldElement::one() } else { FieldElement::zero() };
-                    return Ok(NodeEval::Const(res, ObjectType::Boolean));
+                    return Ok(NodeEval::ConstField(res, ObjectType::Boolean));
                 }
             }
             BinaryOp::Ule => {
                 if l_is_zero {
-                    return Ok(NodeEval::Const(FieldElement::one(), ObjectType::Boolean));
+                    return Ok(NodeEval::ConstField(FieldElement::one(), ObjectType::Boolean));
                     //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
                     assert_ne!(res_type, ObjectType::NativeField); //comparisons are not implemented for field elements
                     let res = if lhs <= rhs { FieldElement::one() } else { FieldElement::zero() };
-                    return Ok(NodeEval::Const(res, ObjectType::Boolean));
+                    return Ok(NodeEval::ConstField(res, ObjectType::Boolean));
                 }
             }
             BinaryOp::Slt => (),
             BinaryOp::Sle => (),
             BinaryOp::Lt => {
                 if r_is_zero {
-                    return Ok(NodeEval::Const(FieldElement::zero(), ObjectType::Boolean));
+                    return Ok(NodeEval::ConstField(FieldElement::zero(), ObjectType::Boolean));
                     //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
                     let res = if lhs < rhs { FieldElement::one() } else { FieldElement::zero() };
-                    return Ok(NodeEval::Const(res, ObjectType::Boolean));
+                    return Ok(NodeEval::ConstField(res, ObjectType::Boolean));
                 }
             }
             BinaryOp::Lte => {
                 if l_is_zero {
-                    return Ok(NodeEval::Const(FieldElement::one(), ObjectType::Boolean));
+                    return Ok(NodeEval::ConstField(FieldElement::one(), ObjectType::Boolean));
                     //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
                     let res = if lhs <= rhs { FieldElement::one() } else { FieldElement::zero() };
-                    return Ok(NodeEval::Const(res, ObjectType::Boolean));
+                    return Ok(NodeEval::ConstField(res, ObjectType::Boolean));
                 }
             }
             BinaryOp::Eq => {
                 if self.lhs == self.rhs {
-                    return Ok(NodeEval::Const(FieldElement::one(), ObjectType::Boolean));
+                    return Ok(NodeEval::ConstField(FieldElement::one(), ObjectType::Boolean));
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
                     if lhs == rhs {
-                        return Ok(NodeEval::Const(FieldElement::one(), ObjectType::Boolean));
+                        return Ok(NodeEval::ConstField(FieldElement::one(), ObjectType::Boolean));
                     } else {
-                        return Ok(NodeEval::Const(FieldElement::zero(), ObjectType::Boolean));
+                        return Ok(NodeEval::ConstField(FieldElement::zero(), ObjectType::Boolean));
                     }
                 }
             }
             BinaryOp::Ne => {
                 if self.lhs == self.rhs {
-                    return Ok(NodeEval::Const(FieldElement::zero(), ObjectType::Boolean));
+                    return Ok(NodeEval::ConstField(FieldElement::zero(), ObjectType::Boolean));
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
                     if lhs != rhs {
-                        return Ok(NodeEval::Const(FieldElement::one(), ObjectType::Boolean));
+                        return Ok(NodeEval::ConstField(FieldElement::one(), ObjectType::Boolean));
                     } else {
-                        return Ok(NodeEval::Const(FieldElement::zero(), ObjectType::Boolean));
+                        return Ok(NodeEval::ConstField(FieldElement::zero(), ObjectType::Boolean));
                     }
                 }
             }
@@ -918,7 +947,7 @@ impl Binary {
             }
             BinaryOp::Xor => {
                 if self.lhs == self.rhs {
-                    return Ok(NodeEval::Const(FieldElement::zero(), res_type));
+                    return Ok(NodeEval::ConstField(FieldElement::zero(), res_type));
                 } else if l_is_zero {
                     return Ok(r_eval);
                 } else if r_is_zero {
@@ -1033,7 +1062,7 @@ fn wrapping(
         x %= type_modulo;
         NodeEval::from_u128(x, res_type)
     } else {
-        NodeEval::Const(field_op(lhs, rhs), res_type)
+        NodeEval::ConstField(field_op(lhs, rhs), res_type)
     }
 }
 
@@ -1077,15 +1106,13 @@ impl Operation {
             Cond { condition, val_true: lhs, val_false: rhs } => {
                 Cond { condition: f(*condition), val_true: f(*lhs), val_false: f(*rhs) }
             }
-            Load { array_id: array, index } => Load { array_id: *array, index: f(*index) },
-            Store { array_id: array, index, value } => {
-                Store { array_id: *array, index: f(*index), value: f(*value) }
+            Load { array, index } => Load { array: f(*array), index: f(*index) },
+            Store { array, index, value } => {
+                Store { array: f(*array), index: f(*index), value: f(*value) }
             }
             Intrinsic(i, args) => Intrinsic(*i, vecmap(args.iter().copied(), f)),
             Nop => Nop,
-            Call(func_id, args, returned_array) => {
-                Call(*func_id, vecmap(args.iter().copied(), f), returned_array.clone())
-            }
+            Call(func_id, args) => Call(*func_id, vecmap(args.iter().copied(), f)),
             Return(values) => Return(vecmap(values.iter().copied(), f)),
             Result { call_instruction, index } => {
                 Result { call_instruction: f(*call_instruction), index: *index }
@@ -1119,8 +1146,12 @@ impl Operation {
                 *lhs = f(*lhs);
                 *rhs = f(*rhs)
             }
-            Load { index, .. } => *index = f(*index),
-            Store { index, value, .. } => {
+            Load { array, index } => {
+                *array = f(*array);
+                *index = f(*index);
+            }
+            Store { array, index, value } => {
+                *array = f(*array);
                 *index = f(*index);
                 *value = f(*value);
             }
@@ -1130,7 +1161,7 @@ impl Operation {
                 }
             }
             Nop => (),
-            Call(_, args, _) => {
+            Call(_, args) => {
                 for arg in args {
                     *arg = f(*arg);
                 }
@@ -1172,14 +1203,18 @@ impl Operation {
                 f(*lhs);
                 f(*rhs);
             }
-            Load { index, .. } => f(*index),
-            Store { index, value, .. } => {
+            Load { array, index, .. } => {
+                f(*array);
+                f(*index);
+            }
+            Store { array, index, value } => {
+                f(*array);
                 f(*index);
                 f(*value);
             }
             Intrinsic(_, args) => args.iter().copied().for_each(f),
             Nop => (),
-            Call(_, args, _) => args.iter().copied().for_each(f),
+            Call(_, args) => args.iter().copied().for_each(f),
             Return(values) => values.iter().copied().for_each(f),
             Result { call_instruction, .. } => {
                 f(*call_instruction);
@@ -1199,11 +1234,11 @@ impl Operation {
             Operation::Jmp(_) => Opcode::Jmp,
             Operation::Phi { .. } => Opcode::Phi,
             Operation::Cond { .. } => Opcode::Cond,
-            Operation::Call(id, _, _) => Opcode::Call(*id),
+            Operation::Call(id, _) => Opcode::Call(*id),
             Operation::Return(_) => Opcode::Return,
             Operation::Result { .. } => Opcode::Results,
-            Operation::Load { array_id, .. } => Opcode::Load(*array_id),
-            Operation::Store { array_id, .. } => Opcode::Store(*array_id),
+            Operation::Load { array, .. } => Opcode::Load,
+            Operation::Store { array, .. } => Opcode::Store,
             Operation::Intrinsic(opcode, _) => Opcode::Intrinsic(*opcode),
             Operation::Nop => Opcode::Nop,
         }

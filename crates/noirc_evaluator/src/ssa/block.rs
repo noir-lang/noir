@@ -80,20 +80,6 @@ impl BasicBlock {
         ctx.new_instruction(node::Operation::Nop, node::ObjectType::NotAnObject).unwrap();
         root_id
     }
-
-    pub fn written_arrays(&self, ctx: &SsaContext) -> HashSet<super::mem::ArrayId> {
-        let mut result = HashSet::new();
-        for i in &self.instructions {
-            if let Some(node::Instruction {
-                operation: node::Operation::Store { array_id: x, .. },
-                ..
-            }) = ctx.try_get_instruction(*i)
-            {
-                result.insert(*x);
-            }
-        }
-        result
-    }
 }
 
 pub fn create_first_block(ctx: &mut SsaContext) {

@@ -1,21 +1,17 @@
-use std::collections::{hash_map::Entry, HashMap};
+use std::collections::HashMap;
 
-use acvm::FieldElement;
 use noirc_frontend::node_interner::FuncId;
 
 use crate::{
     errors::RuntimeError,
-    ssa::{
-        node::{Node, Operation},
-        optim,
-    },
+    ssa::{node::Operation, optim},
 };
 
 use super::{
     block::{self, BlockId},
     context::SsaContext,
     function,
-    mem::{ArrayId, Memory},
+    mem::Memory,
     node::{self, Instruction, Mark, NodeId},
 };
 
@@ -63,28 +59,18 @@ fn inline_block(
     for i in &ctx[block_id].instructions {
         if let Some(ins) = ctx.try_get_instruction(*i) {
             if !ins.is_deleted() {
-                if let Operation::Call(f, args, arrays) = &ins.operation {
-                    if let Some(func_to_inline) = to_inline {
-                        if *f == func_to_inline {
-                            call_ins.push((
-                                ins.id,
-                                *f,
-                                args.clone(),
-                                arrays.clone(),
-                                ins.parent_block,
-                            ));
-                        }
-                    } else {
-                        call_ins.push((ins.id, *f, args.clone(), arrays.clone(), ins.parent_block));
+                if let Operation::Call(f, args) = &ins.operation {
+                    if to_inline.is_none() || to_inline == Some(*f) {
+                        call_ins.push((ins.id, *f, args.clone(), ins.parent_block));
                     }
                 }
             }
         }
     }
     let mut result = true;
-    for (ins_id, f, args, arrays, parent_block) in call_ins {
+    for (ins_id, f, args, parent_block) in call_ins {
         let f_copy = ctx.get_ssafunc(f).unwrap().clone();
-        if !inline(ctx, &f_copy, &args, &arrays, parent_block, ins_id)? {
+        if !inline(ctx, &f_copy, &args, parent_block, ins_id)? {
             result = false;
         }
     }
@@ -98,28 +84,15 @@ fn inline_block(
 pub struct StackFrame {
     stack: Vec<NodeId>,
     pub block: BlockId,
-    array_map: HashMap<ArrayId, ArrayId>,
 }
 
 impl StackFrame {
     pub fn new(block: BlockId) -> StackFrame {
-        StackFrame { stack: Vec::new(), block, array_map: HashMap::new() }
+        StackFrame { stack: Vec::new(), block }
     }
 
     pub fn push(&mut self, ins_id: NodeId) {
         self.stack.push(ins_id);
-    }
-
-    pub fn get_or_default(&self, array_idx: ArrayId) -> ArrayId {
-        if let Some(&b) = self.try_get(array_idx) {
-            b
-        } else {
-            array_idx
-        }
-    }
-
-    pub fn try_get(&self, array_idx: ArrayId) -> Option<&ArrayId> {
-        self.array_map.get(&array_idx)
     }
 
     // add instructions to target_block
@@ -139,7 +112,6 @@ pub fn inline(
     ctx: &mut SsaContext,
     ssa_func: &function::SSAFunction,
     args: &[NodeId],
-    arrays: &[(ArrayId, u32)],
     block: BlockId,
     call_id: NodeId,
 ) -> Result<bool, RuntimeError> {
@@ -149,29 +121,14 @@ pub fn inline(
     let mut inline_map = HashMap::<NodeId, NodeId>::new();
     let mut stack_frame = StackFrame::new(block);
 
-    //1. return arrays
-    for arg_caller in arrays.iter() {
-        if let node::ObjectType::Pointer(a) = ssa_func.result_types[arg_caller.1 as usize] {
-            stack_frame.array_map.insert(a, arg_caller.0);
-        }
-    }
-
-    //2. by copy parameters:
+    //1. by copy parameters:
     for (&arg_caller, &arg_function) in args.iter().zip(&func_arg) {
         //pass by-ref const array arguments
-        if let node::ObjectType::Pointer(x) = ctx.get_object_type(arg_function.0) {
-            if let node::ObjectType::Pointer(y) = ctx.get_object_type(arg_caller) {
-                if !arg_function.1 && !stack_frame.array_map.contains_key(&x) {
-                    stack_frame.array_map.insert(x, y);
-                    continue;
-                }
-            }
-        }
         ctx.handle_assign_inline(arg_function.0, arg_caller, &mut stack_frame, block);
     }
 
     let mut result = true;
-    //3. inline in the block: we assume the function cfg is already flatened.
+    //2. inline in the block: we assume the function cfg is already flatened.
     let mut next_block = Some(ssa_func.entry_block);
     while let Some(next_b) = next_block {
         let mut nested_call = false;
@@ -210,14 +167,7 @@ pub fn inline_in_block(
             if ins.is_deleted() {
                 continue;
             }
-            let mut array_id = None;
             let mut clone = ins.clone();
-
-            if let node::ObjectType::Pointer(id) = ins.res_type {
-                //We collect data here for potential mapping using the array_map below.
-                array_id = Some(id);
-            }
-
             clone.operation.map_values_for_inlining(ctx, inline_map, stack_frame, target_block_id);
 
             match &clone.operation {
@@ -243,69 +193,14 @@ pub fn inline_in_block(
                     let new_ins = new_cloned_instruction(clone, target_block_id);
                     push_instruction(ctx, new_ins, stack_frame, inline_map);
                 }
-                Operation::Load { array_id, index } => {
-                    //Compute the new address:
-                    //TODO use relative addressing, but that requires a few changes, mainly in acir_gen.rs and integer.rs
-                    let b = stack_frame.get_or_default(*array_id);
-                    let offset = ctx.mem[b].adr as i32 - ctx.mem[*array_id].adr as i32;
-                    let index_type = ctx[*index].get_type();
-                    let offset_id =
-                        ctx.get_or_create_const(FieldElement::from(offset as i128), index_type);
-
-                    let add =
-                        node::Binary { operator: node::BinaryOp::Add, lhs: offset_id, rhs: *index };
-                    let adr_id = ctx.new_instruction(Operation::Binary(add), index_type)?;
-                    let mut new_ins = Instruction::new(
-                        Operation::Load { array_id: b, index: adr_id },
-                        clone.res_type,
-                        Some(target_block_id),
-                    );
-                    new_ins.id = clone.id;
-                    push_instruction(ctx, new_ins, stack_frame, inline_map);
-                }
-                Operation::Store { array_id, index, value } => {
-                    let b = stack_frame.get_or_default(*array_id);
-                    let offset = ctx.mem[b].adr as i32 - ctx.mem[*array_id].adr as i32;
-                    let index_type = ctx[*index].get_type();
-                    let offset_id =
-                        ctx.get_or_create_const(FieldElement::from(offset as i128), index_type);
-
-                    let add =
-                        node::Binary { operator: node::BinaryOp::Add, lhs: offset_id, rhs: *index };
-                    let adr_id = ctx.new_instruction(Operation::Binary(add), index_type)?;
-                    let mut new_ins = Instruction::new(
-                        Operation::Store { array_id: b, index: adr_id, value: *value },
-                        clone.res_type,
-                        Some(target_block_id),
-                    );
-                    new_ins.id = clone.id;
-                    push_instruction(ctx, new_ins, stack_frame, inline_map);
-                }
                 Operation::Phi { .. } => {
                     unreachable!("Phi instructions should have been simplified");
                 }
                 _ => {
                     let mut new_ins = new_cloned_instruction(clone, target_block_id);
-
-                    if let Some(id) = array_id {
-                        let new_id = stack_frame.get_or_default(id);
-                        new_ins.res_type = node::ObjectType::Pointer(new_id);
-                    }
-
                     optim::simplify(ctx, &mut new_ins)?;
 
                     if let Mark::ReplaceWith(replacement) = new_ins.mark {
-                        if let Some(id) = array_id {
-                            if let Entry::Occupied(mut entry) = stack_frame.array_map.entry(id) {
-                                if let node::ObjectType::Pointer(new_id) =
-                                    ctx[replacement].get_type()
-                                {
-                                    //we now map the array to rhs array
-                                    entry.insert(new_id);
-                                }
-                            }
-                        }
-
                         if replacement != new_ins.id {
                             inline_map.insert(i_id, replacement);
                             debug_assert!(stack_frame.stack.contains(&replacement));
@@ -360,7 +255,7 @@ impl node::Operation {
                         if b != a {
                             let new_var = node::Variable {
                                 id: NodeId::dummy(),
-                                obj_type: node::ObjectType::Pointer(b),
+                                obj_type: node::ObjectType::Array(b),
                                 name: String::new(),
                                 root: None,
                                 def: None,

@@ -1,6 +1,5 @@
 use super::context::SsaContext;
 use super::function::FuncIndex;
-use super::mem::ArrayId;
 use super::node::{Binary, BinaryOp, NodeId, ObjectType, Operation, Variable};
 use super::{block, node, ssa_form};
 use std::collections::HashMap;
@@ -236,9 +235,9 @@ impl<'a> IRGenerator<'a> {
         if let (HirBinaryOpKind::Assign, Some(lhs_ins)) =
             (op.kind, self.context.try_get_mut_instruction(lhs))
         {
-            if let Operation::Load { array_id, index } = lhs_ins.operation {
+            if let Operation::Load { array, index } = lhs_ins.operation {
                 //make it a store rhs
-                lhs_ins.operation = Operation::Store { array_id, index, value: rhs };
+                lhs_ins.operation = Operation::Store { array, index, value: rhs };
                 return Ok(lhs);
             }
         }
@@ -385,20 +384,6 @@ impl<'a> IRGenerator<'a> {
         }
     }
 
-    pub fn new_array(
-        &mut self,
-        name: &str,
-        element_type: ObjectType,
-        len: u32,
-        def_id: Option<noirc_frontend::node_interner::DefinitionId>,
-    ) -> NodeId {
-        let id = self.context.new_array(name, element_type, len, def_id);
-        if let Some(def) = def_id {
-            self.variable_values.insert(def, super::code_gen::Value::Single(id));
-        }
-        id
-    }
-
     // Add a constraint to constrain two expression together
     fn codegen_constrain(
         &mut self,
@@ -482,16 +467,8 @@ impl<'a> IRGenerator<'a> {
         obj_type: node::ObjectType,
         value_id: NodeId,
     ) -> Result<Value, RuntimeError> {
-        let id = if let node::ObjectType::Pointer(a) = obj_type {
-            let len = self.context.mem[a].len;
-            let el_type = self.context.mem[a].element_type;
-            self.context.new_array(&variable_name, el_type, len, definition_id)
-        } else {
-            let new_var =
-                Variable::new(obj_type, variable_name, definition_id, self.context.current_block);
-            self.context.add_variable(new_var, None)
-        };
-        //Assign rhs to lhs
+        let var = Variable::new(obj_type, variable_name, definition_id, self.context.current_block);
+        let id = self.context.add_variable(var, None);
         Ok(Value::Single(self.context.handle_assign(id, None, value_id)?))
     }
 
@@ -585,30 +562,12 @@ impl<'a> IRGenerator<'a> {
         match expr {
             HirExpression::Literal(HirLiteral::Integer(x)) => {
                 let int_type = self.def_interner().id_type(expr_id);
-                let element_type = int_type.into();
-                Ok(Value::Single(self.context.get_or_create_const(x, element_type)))
+                Ok(Value::Single(self.context.get_or_create_const(x, int_type.into())))
             }
             HirExpression::Literal(HirLiteral::Array(arr_lit)) => {
-                //We create a MemArray
-                let arr_type = self.def_interner().id_type(expr_id);
-                let element_type = arr_type.into(); //WARNING array type!
-
-                let new_var = self.context.new_array("", element_type, arr_lit.length as u32, None);
-                let array_id = self.context.mem.last_id();
-
-                //We parse the array definition
                 let elements = self.codegen_expression_list(env, &arr_lit.contents);
-                let array = &mut self.context.mem[array_id];
-                let array_adr = array.adr;
-                for (pos, object) in elements.into_iter().enumerate() {
-                    let lhs_adr = self.context.get_or_create_const(
-                        FieldElement::from((array_adr + pos as u32) as u128),
-                        ObjectType::NativeField,
-                    );
-                    let store = Operation::Store { array_id, index: lhs_adr, value: object };
-                    self.context.new_instruction(store, element_type)?;
-                }
-                Ok(Value::Single(new_var))
+                let arr_type = element_type(self.def_interner().id_type(expr_id));
+                Ok(Value::Single(self.context.new_array(element_type, elements)))
             }
             HirExpression::Ident(x) => {
                 Ok(self.codegen_identifier(env, x))
@@ -640,53 +599,11 @@ impl<'a> IRGenerator<'a> {
                 //binary_op::handle_cast_op(self,lhs, cast_expr.r#type).map_err(|kind|kind.add_span(span))
             }
             HirExpression::Index(indexed_expr) => {
-                // Currently these only happen for arrays
-                let collection_name = match self.def_interner().expression(&indexed_expr.collection) {
-                    HirExpression::Ident(id) => id,
-                    other => todo!("Array indexing with an lhs of '{:?}' is unimplemented, you must use an expression in the form `identifier[expression]` for now.", other)
-                };
-
-                let arr_def = collection_name.id;
-                let arr_name = self.def_interner().definition_name(arr_def).to_owned();
-                let ident_loc = collection_name.location;
-
-                let arr_type = self.def_interner().id_type(arr_def);
-                let o_type: node::ObjectType = arr_type.into();
-                let e_type = o_type.deref(&self.context);
-                let array = if let Some(array) = self.context.mem.find_array(arr_def) {
-                    array
-                } else if let Some(Value::Single(pointer)) = self.find_variable(arr_def) {
-                    match self.context.get_object_type(*pointer) {
-                        ObjectType::Pointer(array_id) => &self.context.mem[array_id],
-                        other => unreachable!("Expected Pointer type, found {:?}", other),
-                    }
-                } else {
-                    let arr = env
-                        .get_array(&arr_name)
-                        .map_err(|kind| kind.add_location(ident_loc))
-                        .unwrap();
-                    self.context.create_array_from_object(&arr, arr_def, o_type, &arr_name);
-                    let array_id = self.context.mem.last_id();
-                    &self.context.mem[array_id]
-                };
-
-                let array_id = array.id;
-                let address = array.adr;
-
-                // Evaluate the index expression
-                let index_as_obj = self.codegen_expression(env, &indexed_expr.index)?.unwrap_id();
-
-                let index_type = self.context.get_object_type(index_as_obj);
-                let base_adr = self
-                    .context
-                    .get_or_create_const(FieldElement::from(address as i128), index_type);
-                let adr_id = self.context.new_instruction(
-                    Operation::binary(BinaryOp::Add, base_adr, index_as_obj),
-                    index_type,
-                )?;
-
-                let load = Operation::Load { array_id, index: adr_id };
-                Ok(Value::Single(self.context.new_instruction(load, e_type)?))
+                let array = self.codegen_expression(env, &indexed_expr.collection)?.unwrap_id();
+                let index = self.codegen_expression(env, &indexed_expr.index)?.unwrap_id();
+                let element_type = self.def_interner().id_type(expr_id);
+                let load = Operation::Load { array, index };
+                Ok(Value::Single(self.context.new_instruction(load, element_type)?))
             }
             HirExpression::Call(call_expr) => {
                 let func_meta = self.def_interner().function_meta(&call_expr.func_id);
@@ -1020,5 +937,12 @@ impl<'a> IRGenerator<'a> {
         ssa_form::seal_block(&mut self.context, exit_block);
         //
         Ok(Value::dummy())
+    }
+}
+
+fn element_type(typ: Type) -> ObjectType {
+    match typ {
+        Type::Array(_, element) => element.into(),
+        _ => unreachable!(),
     }
 }

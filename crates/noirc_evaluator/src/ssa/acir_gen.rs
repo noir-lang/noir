@@ -96,7 +96,7 @@ impl Acir {
                 InternalVar::new(expr, None, id)
             }
             Some(node::NodeObj::Obj(v)) => match v.get_type() {
-                node::ObjectType::Pointer(_) => InternalVar::default(),
+                node::ObjectType::Array(_) => InternalVar::default(),
                 _ => {
                     let w = v.witness.unwrap_or_else(|| evaluator.add_witness_to_cs());
                     let expr = Expression::from(&w);
@@ -467,7 +467,7 @@ impl Acir {
             match l_obj {
                 node::NodeObj::Obj(v) => {
                     match l_obj.get_type() {
-                        node::ObjectType::Pointer(a) => {
+                        node::ObjectType::Array(a) => {
                             let array = &cfg.mem[a];
                             let num_bits = array.element_type.bits();
                             for i in 0..array.len {
@@ -532,7 +532,7 @@ impl Acir {
                 let bit_size = ctx.get_as_constant(args[1]).unwrap().to_u128() as u32;
                 let l_c = self.substitute(args[0], evaluator, ctx);
                 outputs = split(&l_c, bit_size, evaluator);
-                if let node::ObjectType::Pointer(a) = res_type {
+                if let node::ObjectType::Array(a) = res_type {
                     self.map_array(a, &outputs, ctx);
                 }
             }
@@ -573,7 +573,7 @@ impl Acir {
         }
 
         let l_obj = ctx.try_get_node(pointer).unwrap();
-        if let node::ObjectType::Pointer(a) = l_obj.get_type() {
+        if let node::ObjectType::Array(a) = l_obj.get_type() {
             self.map_array(a, &outputs, ctx);
         }
         outputs

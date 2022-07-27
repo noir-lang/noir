@@ -4,7 +4,7 @@ use super::{
     block::BlockId,
     //block,
     context::SsaContext,
-    mem::{ArrayId, Memory},
+    mem::Memory,
     node::{self, BinaryOp, Instruction, Mark, Node, NodeId, NodeObj, ObjectType, Operation},
     optim,
 };
@@ -12,7 +12,7 @@ use acvm::{acir::OPCODE, FieldElement};
 use noirc_frontend::util::vecmap;
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
-use std::{collections::BTreeMap, convert::TryInto};
+use std::collections::BTreeMap;
 use std::{collections::HashMap, ops::Neg};
 
 //Returns the maximum bit size of short integers
@@ -43,7 +43,7 @@ fn get_instruction_max_operand(
     vmap: &HashMap<NodeId, NodeId>,
 ) -> BigUint {
     match &ins.operation {
-        Operation::Load { array_id, index } => get_load_max(ctx, *index, max_map, vmap, *array_id),
+        Operation::Load { .. } => get_max_value(ins, max_map),
         Operation::Binary(node::Binary { operator, lhs, rhs }) => {
             if let BinaryOp::Sub { .. } = operator {
                 //TODO uses interval analysis instead
@@ -92,7 +92,7 @@ fn get_obj_max_value(
     let result = match obj {
         NodeObj::Obj(v) => (BigUint::one() << v.size_in_bits()) - BigUint::one(), //TODO check for signed type
         NodeObj::Instr(i) => get_instruction_max(ctx, i, max_map, vmap),
-        NodeObj::Const(c) => c.value.clone(), //TODO panic for string constants
+        NodeObj::Const(c) => c.value.field(),
     };
     max_map.insert(id, result.clone());
     result
@@ -416,24 +416,6 @@ fn get_type(obj: Option<&NodeObj>) -> ObjectType {
     }
 }
 
-fn get_load_max(
-    ctx: &SsaContext,
-    address: NodeId,
-    max_map: &mut HashMap<NodeId, BigUint>,
-    vmap: &HashMap<NodeId, NodeId>,
-    array: ArrayId,
-    // obj_type: ObjectType,
-) -> BigUint {
-    if let Some(adr_as_const) = ctx.get_as_constant(address) {
-        let adr: u32 = adr_as_const.to_u128().try_into().unwrap();
-        if let Some(&value) = ctx.mem.memory_map.get(&adr) {
-            return get_obj_max_value(ctx, value, max_map, vmap);
-        }
-    };
-    ctx.mem[array].max.clone() //return array max
-                               //  return obj_type.max_size();
-}
-
 //Returns the max value of an operation from an upper bound of left and right hand sides
 //Function is used to check for overflows over the field size, this is why we use BigUint.
 fn get_max_value(ins: &Instruction, max_map: &mut HashMap<NodeId, BigUint>) -> BigUint {
@@ -463,7 +445,7 @@ fn get_max_value(ins: &Instruction, max_map: &mut HashMap<NodeId, BigUint>) -> B
             let rhs_max = &max_map[rhs];
             lhs_max.max(rhs_max).clone()
         }
-        Operation::Load { .. } => unreachable!(),
+        Operation::Load { .. } => ins.res_type.max_size(), //TODO track max size by each array index
         Operation::Store { .. } => BigUint::zero(),
         Operation::Call(..) => ins.res_type.max_size(), //TODO interval analysis but we also need to get the arguments (ins_arguments)
         Operation::Return(_) => todo!(),

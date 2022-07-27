@@ -97,7 +97,7 @@ impl SSAFunction {
             let mut my_const = None;
             let node_obj_opt = ctx.try_get_node(node_id);
             if let Some(node::NodeObj::Const(c)) = node_obj_opt {
-                my_const = Some((c.get_value_field(), c.value_type));
+                my_const = Some((c.field(), c.value_type));
             }
             if let Some(c) = my_const {
                 ctx.get_or_create_const(c.0, c.1)
@@ -157,7 +157,7 @@ pub fn call_low_level(
             result_signature.1,
             &format!("{}_result", op),
         );
-        node::ObjectType::Pointer(result_index)
+        node::ObjectType::Array(result_index)
     } else {
         result_signature.1
     };

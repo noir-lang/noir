@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use crate::ssa::node::{Mark, Operation};
 use noirc_frontend::node_interner::DefinitionId;
 
@@ -51,22 +49,6 @@ pub fn seal_block(ctx: &mut SsaContext, block_id: BlockId) {
                 let root = *root;
                 write_phi(ctx, &pred, root, i);
             }
-        }
-    }
-
-    if pred.len() > 1 {
-        let mut u: HashSet<super::mem::ArrayId> = HashSet::new();
-        for block in pred {
-            u.extend(ctx[block].written_arrays(ctx));
-        }
-        for array in u {
-            let store = Operation::Store {
-                array_id: array,
-                index: NodeId::dummy(),
-                value: NodeId::dummy(),
-            };
-            let i = node::Instruction::new(store, node::ObjectType::NotAnObject, Some(block_id));
-            ctx.insert_instruction_after_phi(i, block_id);
         }
     }
 

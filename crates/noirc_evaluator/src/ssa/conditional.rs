@@ -6,7 +6,6 @@ use crate::{errors::RuntimeError, ssa::node::ObjectType};
 use super::{
     block::{self, BlockId, BlockType},
     context::SsaContext,
-    inline::StackFrame,
     node::{self, BinaryOp, Instruction, NodeId, Operation},
 };
 
@@ -325,10 +324,11 @@ impl DecisionTree {
                     }
                 }
 
-                Operation::Store { array_id, index, value } => {
+                Operation::Store { array, index, value } => {
                     if !ins.operation.is_dummy_store() && ass_value != ctx.one() {
-                        let load = Operation::Load { array_id: *array_id, index: *index };
-                        let e_type = ctx.mem[*array_id].element_type;
+                        let array = *array;
+                        let load = Operation::Load { array, index: *index };
+                        let e_type = ctx.mem[*array].element_type;
                         let dummy =
                             ctx.add_instruction(Instruction::new(load, e_type, Some(block)));
                         let pos = ctx[block]
@@ -347,31 +347,16 @@ impl DecisionTree {
                         ctx[block].instructions.insert(pos, cond);
                         //store the conditional value
                         let ins2 = ctx.get_mut_instruction(*i);
-                        ins2.operation =
-                            Operation::Store { array_id: *array_id, index: *index, value: cond };
+                        ins2.operation = Operation::Store { array, index: *index, value: cond };
                     }
                 }
                 Operation::Intrinsic(_, _) => {
                     if ass_value != ctx.one() {
-                        if let ObjectType::Pointer(a) = ins.res_type {
-                            let array = &ctx.mem[a].clone();
-                            let name = array.name.to_string() + "_dup";
-                            ctx.new_array(&name, array.element_type, array.len, None);
-                            let array_dup = ctx.mem.last_id();
-                            let ins2 = ctx.get_mut_instruction(*i);
-                            ins2.res_type = ObjectType::Pointer(array_dup);
-                            let mut stack = StackFrame::new(block);
-                            ctx.memcpy_inline(
-                                ins.res_type,
-                                ObjectType::Pointer(array_dup),
-                                &mut stack,
-                            );
-                            todo!();
-                        }
+                        todo!();
                     }
                 }
 
-                Operation::Call(_, _, _) => {
+                Operation::Call(_, _) => {
                     if ass_value != ctx.one() {
                         todo!();
                     }
