@@ -6,7 +6,7 @@ use crate::{errors::RuntimeError, ssa::node::ObjectType};
 use super::{
     block::{self, BlockId, BlockType},
     context::SsaContext,
-    node::{self, BinaryOp, Instruction, NodeId, Operation},
+    node::{self, BinaryOp, Instruction, Node, NodeId, Operation},
 };
 
 #[derive(Debug, Clone)]
@@ -120,7 +120,7 @@ impl DecisionTree {
                 BinaryOp::Mul,
                 pvalue,
                 condition,
-                ObjectType::Boolean,
+                ObjectType::BOOL,
             )
         } else {
             let not_condition = DecisionTree::new_instruction_after_phi(
@@ -129,7 +129,7 @@ impl DecisionTree {
                 BinaryOp::Sub { max_rhs_value: BigUint::one() },
                 ctx.one(),
                 condition,
-                ObjectType::Boolean,
+                ObjectType::BOOL,
             );
             DecisionTree::new_instruction_after_phi(
                 ctx,
@@ -137,7 +137,7 @@ impl DecisionTree {
                 BinaryOp::Mul,
                 pvalue,
                 not_condition,
-                ObjectType::Boolean,
+                ObjectType::BOOL,
             )
         };
         self[assumption_id].value = Some(ins);
@@ -328,7 +328,7 @@ impl DecisionTree {
                     if !ins.operation.is_dummy_store() && ass_value != ctx.one() {
                         let array = *array;
                         let load = Operation::Load { array, index: *index };
-                        let e_type = ctx.mem[*array].element_type;
+                        let e_type = ctx[*value].get_type();
                         let dummy =
                             ctx.add_instruction(Instruction::new(load, e_type, Some(block)));
                         let pos = ctx[block]
@@ -375,7 +375,7 @@ impl DecisionTree {
                         };
                         let cond = ctx.add_instruction(Instruction::new(
                             operation,
-                            ObjectType::Boolean,
+                            ObjectType::BOOL,
                             Some(block),
                         ));
                         ctx[block].instructions.insert(pos, cond);

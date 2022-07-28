@@ -1,4 +1,3 @@
-use acvm::FieldElement;
 use noirc_frontend::util::vecmap;
 
 use crate::errors::RuntimeError;
@@ -71,16 +70,10 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) -> Result<(), Runti
 fn evaluate_intrinsic(ctx: &mut SsaContext, op: acvm::acir::OPCODE, args: Vec<u128>) -> NodeId {
     match op {
         acvm::acir::OPCODE::ToBits => {
-            let bit_count = args[1] as u32;
-            let bits = vecmap(0..bit_count, |i| {
-                if args[0] & (1 << i) != 0 {
-                    FieldElement::one()
-                } else {
-                    FieldElement::zero()
-                }
-            });
-
-            ctx.new_array(ObjectType::Unsigned(1), bits)
+            let bit_count = 0..args[1] as u32;
+            let get_bit = |i: u32| args[0] & (1 << i);
+            let bits = vecmap(bit_count, |i| if get_bit(i) == 0 { ctx.zero() } else { ctx.one() });
+            ctx.new_array(ObjectType::BOOL, bits)
         }
         other => todo!("Unimplemented opcode: {:?}", other),
     }

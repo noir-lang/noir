@@ -330,10 +330,12 @@ fn evaluate_one(
                     }
                     Ok(result)
                 }
-                NodeObj::Const(c) => {
-                    let value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
-                    Ok(NodeEval::ConstField(value, c.get_type()))
-                }
+                NodeObj::Const(c) => match &c.value {
+                    node::ConstantValue::Field(field) => {
+                        Ok(NodeEval::ConstField(field.clone(), c.get_type()))
+                    }
+                    node::ConstantValue::Array(array) => Ok(NodeEval::VarOrInstruction(obj_id)),
+                },
                 NodeObj::Obj(_) => Ok(NodeEval::VarOrInstruction(obj_id)),
             }
         }
@@ -373,10 +375,12 @@ fn evaluate_object(
                     }
                     Ok(result)
                 }
-                NodeObj::Const(c) => {
-                    let value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
-                    Ok(NodeEval::ConstField(value, c.get_type()))
-                }
+                NodeObj::Const(c) => match &c.value {
+                    node::ConstantValue::Field(field) => {
+                        Ok(NodeEval::ConstField(field.clone(), c.get_type()))
+                    }
+                    node::ConstantValue::Array(_) => Ok(NodeEval::VarOrInstruction(obj_id)),
+                },
                 NodeObj::Obj(_) => Ok(NodeEval::VarOrInstruction(obj_id)),
             }
         }

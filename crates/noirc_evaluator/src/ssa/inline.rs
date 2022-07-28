@@ -11,7 +11,6 @@ use super::{
     block::{self, BlockId},
     context::SsaContext,
     function,
-    mem::Memory,
     node::{self, Instruction, Mark, NodeId},
 };
 
@@ -245,44 +244,8 @@ impl node::Operation {
         stack_frame: &StackFrame,
         block_id: BlockId,
     ) {
-        match self {
-            //default way to handle arrays during inlining; we map arrays using the stack_frame
-            Operation::Binary(_)
-            | Operation::Constrain(..) => {
-                self.map_id_mut(|id| {
-                    if let Some(a) = Memory::deref(ctx, id) {
-                        let b = stack_frame.get_or_default(a);
-                        if b != a {
-                            let new_var = node::Variable {
-                                id: NodeId::dummy(),
-                                obj_type: node::ObjectType::Array(b),
-                                name: String::new(),
-                                root: None,
-                                def: None,
-                                witness: None,
-                                parent_block: block_id,
-                            };
-                            return ctx.add_variable(new_var, None);
-                        } else {
-                            return id;
-                        }
-                    }
-                    function::SSAFunction::get_mapped_value(Some(&id), ctx, inline_map, block_id)
-                });
-            }
-            //However we deliberately not use the default case to force review of the behavior if a new type of operation is added.
-            //These types do not handle arrays:
-            Operation::Cast(_) | Operation::Truncate { .. } | Operation::Not(_) | Operation::Nop
-            | Operation::Jne(_,_) | Operation::Jeq(_,_) | Operation::Jmp(_) |  Operation::Phi { .. } | Operation::Cond { .. }
-            //These types handle arrays via their return type (done in inline_in_block)
-            | Operation::Intrinsic(_,_) |  Operation::Result { .. }
-            //These types handle arrays in a specific way (done in inline_in_block)
-            | Operation::Return(_) | Operation::Load {.. } | Operation::Store { .. } | Operation::Call(_,_,_)
-            => {
-                self.map_id_mut(|id| {
-                    function::SSAFunction::get_mapped_value(Some(&id), ctx, inline_map, block_id)
-                });
-            }
-        }
+        self.map_id_mut(|id| {
+            function::SSAFunction::get_mapped_value(Some(&id), ctx, inline_map, block_id)
+        });
     }
 }

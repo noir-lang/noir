@@ -57,17 +57,17 @@ impl<'a> SsaContext<'a> {
             dummy_load: HashMap::new(),
         };
         block::create_first_block(&mut pc);
-        pc.one_with_type(node::ObjectType::Boolean);
-        pc.zero_with_type(node::ObjectType::Boolean);
+        pc.one_with_type(node::ObjectType::BOOL);
+        pc.zero_with_type(node::ObjectType::BOOL);
         pc
     }
 
     pub fn zero(&self) -> NodeId {
-        self.find_const_with_type(&BigUint::zero(), node::ObjectType::Boolean).unwrap()
+        self.find_const_with_type(&BigUint::zero(), node::ObjectType::BOOL).unwrap()
     }
 
     pub fn one(&self) -> NodeId {
-        self.find_const_with_type(&BigUint::one(), node::ObjectType::Boolean).unwrap()
+        self.find_const_with_type(&BigUint::one(), node::ObjectType::BOOL).unwrap()
     }
 
     pub fn zero_with_type(&mut self, obj_type: ObjectType) -> NodeId {
@@ -543,7 +543,7 @@ impl<'a> SsaContext<'a> {
             | Binary(node::Binary { operator: Slt, .. })
             | Binary(node::Binary { operator: Sle, .. })
             | Binary(node::Binary { operator: Lt, .. })
-            | Binary(node::Binary { operator: Lte, .. }) => ObjectType::Boolean,
+            | Binary(node::Binary { operator: Lte, .. }) => ObjectType::BOOL,
             Operation::Jne(_, _)
             | Operation::Jeq(_, _)
             | Operation::Jmp(_)
@@ -556,32 +556,6 @@ impl<'a> SsaContext<'a> {
             }
             _ => lhs_type,
         }
-    }
-
-    pub fn new_array(
-        &mut self,
-        name: &str,
-        element_type: ObjectType,
-        len: u32,
-        def_id: Option<noirc_frontend::node_interner::DefinitionId>,
-    ) -> NodeId {
-        let array_index = self.mem.create_new_array(len, element_type, name);
-        self.add_dummy_load(array_index);
-        self.add_dummy_store(array_index);
-        //we create a variable pointing to this MemArray
-        let new_var = node::Variable {
-            id: NodeId::dummy(),
-            obj_type: node::ObjectType::Array(array_index),
-            name: name.to_string(),
-            root: None,
-            def: def_id,
-            witness: None,
-            parent_block: self.current_block,
-        };
-        if let Some(def) = def_id {
-            self.mem[array_index].def = def;
-        }
-        self.add_variable(new_var, None)
     }
 
     pub fn create_array_from_object(
@@ -726,92 +700,6 @@ impl<'a> SsaContext<'a> {
         }
 
         Ok(())
-    }
-
-    //This function handles assignment statements of the form lhs = rhs, depending on the nature of the arguments:
-    // lhs can be: standard variable, array, array element (in which case we have an index)
-    // rhs can be: standard variable, array, array element (depending on lhs type), call instruction, intrinsic, other instruction
-    // For instance:
-    // - if lhs and rhs are standard variables, we create a new ssa variable of lhs
-    // - if lhs is an array element, we generate a store instruction
-    // - if lhs and rhs are arrays, we perfom a copy of rhs into lhs,
-    // - if lhs is an array and rhs is a call instruction, we indicate in the call that lhs is the returned array (so that no copy is needed because the inlining will use it)
-    // ...
-    pub fn handle_assign(
-        &mut self,
-        lhs: NodeId,
-        index: Option<NodeId>,
-        rhs: NodeId,
-    ) -> Result<NodeId, RuntimeError> {
-        let lhs_type = self.get_object_type(lhs);
-        let rhs_type = self.get_object_type(rhs);
-
-        let mut ret_array = None;
-        if let Some(Instruction {
-            operation: Operation::Result { call_instruction: func, index: idx },
-            ..
-        }) = self.try_get_instruction(rhs)
-        {
-            if index.is_none() {
-                if let ObjectType::Array(a) = lhs_type {
-                    ret_array = Some((*func, a, *idx));
-                }
-            }
-        }
-        if let Some((func, a, idx)) = ret_array {
-            if let Some(Instruction { operation: Operation::Call(_, _, returned_array), .. }) =
-                self.try_get_mut_instruction(func)
-            {
-                returned_array.push((a, idx));
-            }
-            if let Some(i) = self.try_get_mut_instruction(rhs) {
-                i.mark = Mark::ReplaceWith(lhs);
-            }
-            return Ok(lhs);
-        }
-        if let Some(idx) = index {
-            if let ObjectType::Array(a) = lhs_type {
-                //Store
-                let op_a = Operation::Store { array_id: a, index: idx, value: rhs };
-                return self.new_instruction(op_a, self.mem[a].element_type);
-            } else {
-                unreachable!("Index expression must be for an array");
-            }
-        } else if matches!(lhs_type, ObjectType::Array(_)) {
-            if let Some(Instruction {
-                operation: Operation::Intrinsic(_, _),
-                res_type: rtype,
-                ..
-            }) = self.try_get_mut_instruction(rhs)
-            {
-                *rtype = lhs_type;
-                return Ok(lhs);
-            } else {
-                self.memcpy(lhs_type, rhs_type)?;
-                return Ok(lhs);
-            }
-        }
-        let lhs_obj = self.get_variable(lhs).unwrap();
-        let new_var = node::Variable {
-            id: lhs,
-            obj_type: lhs_type,
-            name: String::new(),
-            root: None,
-            def: lhs_obj.def,
-            witness: None,
-            parent_block: self.current_block,
-        };
-        let ls_root = lhs_obj.get_root();
-        //ssa: we create a new variable a1 linked to a
-        let new_var_id = self.add_variable(new_var, Some(ls_root));
-        let op = Operation::Binary(node::Binary {
-            lhs: new_var_id,
-            rhs,
-            operator: node::BinaryOp::Assign,
-        });
-        let result = self.new_instruction(op, rhs_type)?;
-        self.update_variable_id(ls_root, new_var_id, result); //update the name and the value map
-        Ok(new_var_id)
     }
 
     fn new_instruction_inline(

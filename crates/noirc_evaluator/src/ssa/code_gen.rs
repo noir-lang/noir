@@ -1,6 +1,6 @@
 use super::context::SsaContext;
 use super::function::FuncIndex;
-use super::node::{Binary, BinaryOp, NodeId, ObjectType, Operation, Variable};
+use super::node::{Binary, BinaryOp, Instruction, NodeId, ObjectType, Operation, Variable};
 use super::{block, node, ssa_form};
 use std::collections::HashMap;
 
@@ -88,7 +88,7 @@ pub fn evaluate_main<'a>(
             BinaryOp::Eq,
             expected_return,
             actual_return.unwrap_id(),
-            node::ObjectType::Boolean,
+            node::ObjectType::BOOL,
         )?;
 
         igen.context
@@ -129,14 +129,30 @@ impl<'a> IRGenerator<'a> {
         &mut self,
         name: &str,
         ident_def: DefinitionId,
-        el_type: Type,
+        element_type: Type,
         len: u128,
         witness: Vec<acvm::acir::native_types::Witness>,
     ) {
-        let v_id = self.new_array(name, el_type.into(), len as u32, Some(ident_def));
-        let array_idx = self.context.mem.last_id();
-        self.context.mem[array_idx].values = vecmap(witness, |w| w.into());
-        self.context.get_current_block_mut().update_variable(v_id, v_id);
+        let element_type = element_type.into();
+        let values = vecmap(witness, |witness| {
+            let var = node::Variable {
+                id: NodeId::dummy(),
+                name: name.to_string(),
+                obj_type: element_type,
+                root: None,
+                def: None,
+                witness: Some(witness),
+                parent_block: self.context.current_block,
+            };
+
+            let v_id = self.context.add_variable(var, None);
+            self.context.get_current_block_mut().update_variable(v_id, v_id);
+            v_id
+        });
+
+        let array = self.context.new_array(element_type, values);
+        self.context.get_current_block_mut().update_variable(array, array);
+        self.variable_values.insert(ident_def, Value::Single(array));
     }
 
     pub fn abi_var(
@@ -160,7 +176,7 @@ impl<'a> IRGenerator<'a> {
 
         self.context.get_current_block_mut().update_variable(v_id, v_id);
         let v_value = Value::Single(v_id);
-        self.variable_values.insert(ident_def, v_value); //TODO ident_def or ident_id??
+        self.variable_values.insert(ident_def, v_value);
     }
 
     fn codegen_identifier(&mut self, env: &mut Environment, ident: HirIdent) -> Value {
@@ -274,28 +290,6 @@ impl<'a> IRGenerator<'a> {
         }
     }
 
-    fn codegen_indexed_value(
-        &mut self,
-        array: &HirLValue,
-        index: ExprId,
-        env: &mut Environment,
-    ) -> Result<(ArrayId, NodeId), RuntimeError> {
-        let ident_def = self.lvalue_ident_def(array);
-        let val = self.find_variable(ident_def).unwrap();
-        let lhs = val.to_node_ids();
-        assert!(lhs.len() == 1);
-        let a_id = self.context.get_object_type(lhs[0]).type_to_pointer();
-        let index_val = self.codegen_expression(env, &index).unwrap();
-        let index = index_val.unwrap_id();
-        let o_type = self.context.get_object_type(index);
-        let base_adr = self.context.mem[a_id].adr;
-        let base_adr_const =
-            self.context.get_or_create_const(FieldElement::from(base_adr as i128), o_type);
-        let adr_id =
-            self.context.new_binary_instruction(BinaryOp::Add, base_adr_const, index, o_type)?;
-        Ok((a_id, adr_id))
-    }
-
     fn lvalue_ident_def(&self, lvalue: &HirLValue) -> DefinitionId {
         match lvalue {
             HirLValue::Ident(ident) => ident.id,
@@ -365,15 +359,6 @@ impl<'a> IRGenerator<'a> {
                     values.push((i.0.to_string(), val));
                 }
                 self.insert_new_struct(def, values)
-            }
-            noirc_frontend::Type::Array(len, _) => {
-                {
-                    //TODO support array of structs
-                    let obj_type = node::ObjectType::from(typ);
-                    let v_id =
-                        self.new_array(base_name, obj_type, super::mem::get_array_size(len), def);
-                    Value::Single(v_id)
-                }
             }
             _ => {
                 let obj_type = node::ObjectType::from(typ);
@@ -469,7 +454,9 @@ impl<'a> IRGenerator<'a> {
     ) -> Result<Value, RuntimeError> {
         let var = Variable::new(obj_type, variable_name, definition_id, self.context.current_block);
         let id = self.context.add_variable(var, None);
-        Ok(Value::Single(self.context.handle_assign(id, None, value_id)?))
+        let assign = Operation::binary(BinaryOp::Assign, id, value_id);
+        self.context.new_instruction(assign, ObjectType::NotAnObject)?;
+        Ok(Value::dummy())
     }
 
     //same as update_variable but using the var index instead of var
@@ -483,40 +470,46 @@ impl<'a> IRGenerator<'a> {
         rexpr: ExprId,
         env: &mut Environment,
     ) -> Result<Value, RuntimeError> {
-        let ident_def = self.lvalue_ident_def(&lvalue);
         let rhs = self.codegen_expression(env, &rexpr)?;
-
-        match lvalue {
-            HirLValue::Ident(_) => {
-                let lhs = self.find_variable(ident_def).unwrap();
-                // We may be able to avoid cloning here if we change find_variable
-                // and assign_pattern to use only fields of self instead of `self` itself.
-                let lhs = lhs.clone();
-                let result = self.assign_pattern(&lhs, rhs)?;
-                self.variable_values.insert(ident_def, result);
-            }
-            HirLValue::MemberAccess { field_name: name, .. } => {
-                let val = self.find_variable(ident_def).unwrap();
-                let value = val.get_field_member(&name.0.contents).clone();
-                self.assign_pattern(&value, rhs)?;
-            }
-            HirLValue::Index { array, index } => {
-                let (_, array_idx) = self.codegen_indexed_value(array.as_ref(), index, env)?;
-                let val = self.find_variable(ident_def).unwrap();
-                let rhs_id = rhs.unwrap_id();
-                let lhs_id = val.unwrap_id();
-                self.context.handle_assign(lhs_id, Some(array_idx), rhs_id)?;
-            }
-        }
+        let lhs = self.codegen_lvalue(env, lvalue)?;
+        self.assign_value(&lhs, rhs)?;
         Ok(Value::dummy())
     }
 
-    /// Similar to bind_pattern but recursively creates Assignment instructions for
-    /// each value rather than defining new variables.
-    fn assign_pattern(&mut self, lhs: &Value, rhs: Value) -> Result<Value, RuntimeError> {
+    fn codegen_lvalue(
+        &mut self,
+        env: &mut Environment,
+        lvalue: HirLValue,
+    ) -> Result<Value, RuntimeError> {
+        match lvalue {
+            HirLValue::Ident(ident) => Ok(self.find_variable(ident.id).unwrap().clone()),
+            HirLValue::MemberAccess { object, field_name } => {
+                let object = self.codegen_lvalue(env, *object)?;
+                Ok(object.get_field_member(&field_name.0.contents).clone())
+            }
+            HirLValue::Index { array, index } => {
+                let array = self.codegen_lvalue(env, *array)?.unwrap_id();
+                let index = self.codegen_expression(env, &index)?.unwrap_id();
+                let load = Operation::Load { array, index };
+                // TODO: Need Type field on HirLValue
+                let load = self.context.new_instruction(load, ObjectType::NotAnObject)?;
+                Ok(Value::Single(load))
+            }
+        }
+    }
+
+    // Assigns lhs := rhs
+    fn assign_value(&mut self, lhs: &Value, rhs: Value) -> Result<(), RuntimeError> {
         match (lhs, rhs) {
             (Value::Single(lhs_id), Value::Single(rhs_id)) => {
-                Ok(Value::Single(self.context.handle_assign(*lhs_id, None, rhs_id)?))
+                if let Some(lhs) = self.context.try_get_mut_instruction(*lhs_id) {
+                    if let Operation::Load { array, index } = lhs.operation {
+                        lhs.operation = Operation::Store { array, index, value: rhs_id };
+                        return Ok(());
+                    }
+                }
+                let assign = Operation::binary(BinaryOp::Assign, *lhs_id, rhs_id);
+                self.context.new_instruction(assign, ObjectType::NotAnObject);
             }
             (Value::Struct(lhs_fields), Value::Struct(rhs_fields)) => {
                 assert_eq!(lhs_fields.len(), rhs_fields.len());
@@ -524,14 +517,14 @@ impl<'a> IRGenerator<'a> {
 
                 for (lhs_field, rhs_field) in lhs_fields.iter().zip(rhs_fields) {
                     assert_eq!(lhs_field.0, rhs_field.0);
-                    let assigned = self.assign_pattern(&lhs_field.1, rhs_field.1)?;
+                    let assigned = self.assign_value(&lhs_field.1, rhs_field.1)?;
                     fields.push((rhs_field.0, assigned));
                 }
-                Ok(Value::Struct(fields))
             }
             (Value::Single(_), Value::Struct(_)) => unreachable!("variables with tuple/struct types should already be decomposed into multiple variables"),
             (Value::Struct(_), Value::Single(_)) => unreachable!("Uncaught type error, tried to assign a single value to a tuple/struct type"),
         }
+        Ok(())
     }
 
     pub fn def_to_name(&self, def: DefinitionId) -> String {
@@ -566,7 +559,7 @@ impl<'a> IRGenerator<'a> {
             }
             HirExpression::Literal(HirLiteral::Array(arr_lit)) => {
                 let elements = self.codegen_expression_list(env, &arr_lit.contents);
-                let arr_type = element_type(self.def_interner().id_type(expr_id));
+                let element_type = element_type(self.def_interner().id_type(expr_id));
                 Ok(Value::Single(self.context.new_array(element_type, elements)))
             }
             HirExpression::Ident(x) => {
@@ -601,7 +594,7 @@ impl<'a> IRGenerator<'a> {
             HirExpression::Index(indexed_expr) => {
                 let array = self.codegen_expression(env, &indexed_expr.collection)?.unwrap_id();
                 let index = self.codegen_expression(env, &indexed_expr.index)?.unwrap_id();
-                let element_type = self.def_interner().id_type(expr_id);
+                let element_type = self.def_interner().id_type(expr_id).into();
                 let load = Operation::Load { array, index };
                 Ok(Value::Single(self.context.new_instruction(load, element_type)?))
             }
@@ -826,7 +819,7 @@ impl<'a> IRGenerator<'a> {
         self.update_variable_id(iter_id, iter_id, phi); //is it still needed?
 
         let notequal = Operation::binary(BinaryOp::Ne, phi, end_idx);
-        let cond = self.context.new_instruction(notequal, ObjectType::Boolean)?;
+        let cond = self.context.new_instruction(notequal, ObjectType::BOOL)?;
 
         let to_fix = self.context.new_instruction(Operation::Nop, ObjectType::NotAnObject)?;
 
@@ -942,7 +935,7 @@ impl<'a> IRGenerator<'a> {
 
 fn element_type(typ: Type) -> ObjectType {
     match typ {
-        Type::Array(_, element) => element.into(),
+        Type::Array(_, element) => (*element).into(),
         _ => unreachable!(),
     }
 }

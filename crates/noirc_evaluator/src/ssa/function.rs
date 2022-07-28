@@ -69,10 +69,9 @@ impl SSAFunction {
         env: &mut Environment,
     ) -> Result<Vec<NodeId>, RuntimeError> {
         let arguments = igen.codegen_expression_list(env, arguments);
-        let call_instruction = igen.context.new_instruction(
-            node::Operation::Call(func, arguments, Vec::new()),
-            ObjectType::NotAnObject,
-        )?;
+        let call_instruction = igen
+            .context
+            .new_instruction(node::Operation::Call(func, arguments), ObjectType::NotAnObject)?;
         let rtt = igen.context.functions[&func].result_types.clone();
         let mut result = Vec::new();
         for i in rtt.iter().enumerate() {
@@ -125,7 +124,7 @@ pub fn get_result_type(op: OPCODE) -> (u32, ObjectType) {
         OPCODE::EcdsaSecp256k1 => (1, ObjectType::NativeField), //field?
         OPCODE::FixedBaseScalarMul => (2, ObjectType::NativeField),
         OPCODE::InsertRegularMerkle => (1, ObjectType::NativeField), //field?
-        OPCODE::ToBits => (FieldElement::max_num_bits(), ObjectType::Boolean),
+        OPCODE::ToBits => (FieldElement::max_num_bits(), ObjectType::BOOL),
     }
 }
 
@@ -152,12 +151,7 @@ pub fn call_low_level(
     let result_signature = get_result_type(op);
     let result_type = if result_signature.0 > 1 {
         //We create an array that will contain the result and set the res_type to point to that array
-        let result_index = igen.context.mem.create_new_array(
-            result_signature.0,
-            result_signature.1,
-            &format!("{}_result", op),
-        );
-        node::ObjectType::Array(result_index)
+        ObjectType::Array
     } else {
         result_signature.1
     };

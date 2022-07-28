@@ -49,7 +49,7 @@ fn get_instruction_max_operand(
                 //TODO uses interval analysis instead
                 if matches!(ins.res_type, ObjectType::Unsigned(_)) {
                     if let Some(lhs_const) = ctx.get_as_constant(*lhs) {
-                        let lhs_big = BigUint::from_bytes_be(&lhs_const.to_bytes());
+                        let lhs_big = lhs_const.to_big_uint();
                         if max_map[rhs] <= lhs_big {
                             //TODO unsigned
                             return lhs_big;
@@ -92,7 +92,10 @@ fn get_obj_max_value(
     let result = match obj {
         NodeObj::Obj(v) => (BigUint::one() << v.size_in_bits()) - BigUint::one(), //TODO check for signed type
         NodeObj::Instr(i) => get_instruction_max(ctx, i, max_map, vmap),
-        NodeObj::Const(c) => c.value.field(),
+        NodeObj::Const(c) => match &c.value {
+            node::ConstantValue::Field(field) => field.clone().to_big_uint(),
+            node::ConstantValue::Array(_) => BigUint::zero(),
+        },
     };
     max_map.insert(id, result.clone());
     result
@@ -468,7 +471,7 @@ fn get_max_value(ins: &Instruction, max_map: &mut HashMap<NodeId, BigUint>) -> B
     };
 
     if ins.res_type == ObjectType::NativeField {
-        let field_max = BigUint::from_bytes_be(&FieldElement::one().neg().to_bytes());
+        let field_max = FieldElement::one().neg().to_big_uint();
 
         //Native Field operations cannot overflow so they will not be truncated
         if max_value >= field_max {

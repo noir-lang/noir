@@ -186,6 +186,10 @@ impl<F: PrimeField> FieldElement<F> {
         self.fits_in_u128().then(|| self.to_u128())
     }
 
+    pub fn to_big_uint(self) -> BigUint {
+        BigUint::from_bytes_be(&self.to_bytes())
+    }
+
     /// Computes the inverse or returns zero if the inverse does not exist
     /// Before using this FieldElement, please ensure that this behaviour is necessary
     pub fn inverse(&self) -> FieldElement<F> {
