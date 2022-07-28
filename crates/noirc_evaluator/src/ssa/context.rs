@@ -2,7 +2,7 @@ use super::block::{BasicBlock, BlockId};
 use super::conditional::DecisionTree;
 use super::function::{FuncIndex, SSAFunction};
 use super::inline::StackFrame;
-use super::mem::{ArrayId, Memory};
+use super::mem::Memory;
 use super::node::{BinaryOp, Instruction, NodeId, NodeObj, ObjectType, Operation};
 use super::{block, flatten, inline, integer, node, optim};
 use std::collections::{HashMap, HashSet};
@@ -36,8 +36,6 @@ pub struct SsaContext<'a> {
     pub functions: HashMap<FuncId, function::SSAFunction>,
     //Adjacency Matrix of the call graph; list of rows where each row indicates the functions called by the function whose FuncIndex is the row number
     pub call_graph: Vec<Vec<u8>>,
-    dummy_store: HashMap<ArrayId, NodeId>,
-    dummy_load: HashMap<ArrayId, NodeId>,
 }
 
 impl<'a> SsaContext<'a> {
@@ -53,8 +51,6 @@ impl<'a> SsaContext<'a> {
             mem: Memory::default(),
             functions: HashMap::new(),
             call_graph: Vec::new(),
-            dummy_store: HashMap::new(),
-            dummy_load: HashMap::new(),
         };
         block::create_first_block(&mut pc);
         pc.one_with_type(node::ObjectType::BOOL);
@@ -76,34 +72,6 @@ impl<'a> SsaContext<'a> {
 
     pub fn one_with_type(&mut self, obj_type: ObjectType) -> NodeId {
         self.get_or_create_const(FieldElement::one(), obj_type)
-    }
-
-    pub fn get_dummy_store(&self, a: ArrayId) -> NodeId {
-        self.dummy_store[&a]
-    }
-
-    pub fn get_dummy_load(&self, a: ArrayId) -> NodeId {
-        self.dummy_load[&a]
-    }
-
-    #[allow(clippy::map_entry)]
-    pub fn add_dummy_load(&mut self, a: ArrayId) {
-        if !self.dummy_load.contains_key(&a) {
-            let op_a = Operation::Load { array_id: a, index: NodeId::dummy() };
-            let dummy_load = node::Instruction::new(op_a, self.mem[a].element_type, None);
-            let id = self.add_instruction(dummy_load);
-            self.dummy_load.insert(a, id);
-        }
-    }
-    #[allow(clippy::map_entry)]
-    pub fn add_dummy_store(&mut self, a: ArrayId) {
-        if !self.dummy_store.contains_key(&a) {
-            let op_a =
-                Operation::Store { array_id: a, index: NodeId::dummy(), value: NodeId::dummy() };
-            let dummy_store = node::Instruction::new(op_a, node::ObjectType::NotAnObject, None);
-            let id = self.add_instruction(dummy_store);
-            self.dummy_store.insert(a, id);
-        }
     }
 
     pub fn get_function_index(&self) -> FuncIndex {
@@ -196,20 +164,24 @@ impl<'a> SsaContext<'a> {
                 let rhs = self.node_to_string(*rhs);
                 format!("cond({}) {}, {}", self.node_to_string(*condition), lhs, rhs)
             }
-            Operation::Load { array_id, index } => {
-                format!("load {:?}, index {}", array_id, self.node_to_string(*index))
+            Operation::Load { array, index } => {
+                format!(
+                    "load {:?}, index {}",
+                    self.node_to_string(*array),
+                    self.node_to_string(*index)
+                )
             }
-            Operation::Store { array_id, index, value } => {
+            Operation::Store { array, index, value } => {
                 format!(
                     "store {:?}, index {}, value {}",
-                    array_id,
+                    self.node_to_string(*array),
                     self.node_to_string(*index),
                     self.node_to_string(*value)
                 )
             }
             Operation::Intrinsic(opcode, args) => format!("intrinsic {}({})", opcode, join(args)),
             Operation::Nop => "nop".into(),
-            Operation::Call(f, args, ar) => format!("call {:?}({}) _ {:?}", f, join(args), ar),
+            Operation::Call(f, args) => format!("call {:?}({})", f, join(args)),
             Operation::Return(values) => format!("return ({})", join(values)),
             Operation::Result { call_instruction, index } => {
                 let call = self.node_to_string(*call_instruction);
@@ -331,7 +303,10 @@ impl<'a> SsaContext<'a> {
     //Returns the object value if it is a constant, None if not. TODO: handle types
     pub fn get_as_constant(&self, id: NodeId) -> Option<FieldElement> {
         if let Some(node::NodeObj::Const(c)) = self.try_get_node(id) {
-            return Some(FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be()));
+            match &c.value {
+                node::ConstantValue::Field(field) => return Some(field.clone()),
+                _ => (),
+            }
         }
         None
     }
@@ -501,14 +476,19 @@ impl<'a> SsaContext<'a> {
 
     pub fn find_const_with_type(
         &self,
-        value: &BigUint,
+        value: &FieldElement,
         e_type: node::ObjectType,
     ) -> Option<NodeId> {
         //TODO We should map constant values to id
         for (idx, o) in &self.nodes {
             if let node::NodeObj::Const(c) = o {
-                if c.value == *value && c.get_type() == e_type {
-                    return Some(NodeId(idx));
+                if c.get_type() == e_type {
+                    match &c.value {
+                        node::ConstantValue::Field(field) if field == value => {
+                            return Some(NodeId(idx))
+                        }
+                        _ => (),
+                    }
                 }
             }
         }
@@ -517,13 +497,13 @@ impl<'a> SsaContext<'a> {
 
     // Retrieve the object conresponding to the const value given in argument
     // If such object does not exist, we create one
-    pub fn get_or_create_const(&mut self, x: FieldElement, t: node::ObjectType) -> NodeId {
-        let value = BigUint::from_bytes_be(&x.to_bytes()); //TODO a const should be a field element
-        if let Some(prev_const) = self.find_const_with_type(&value, t) {
+    pub fn get_or_create_const(&mut self, value: FieldElement, typ: node::ObjectType) -> NodeId {
+        if let Some(prev_const) = self.find_const_with_type(&value, typ) {
             return prev_const;
         }
 
-        self.add_const(node::Constant { id: NodeId::dummy(), value, value_type: t })
+        let value = node::ConstantValue::Field(value);
+        self.add_const(node::Constant { id: NodeId::dummy(), value, value_type: typ })
     }
 
     pub fn new_array(&mut self, element_type: ObjectType, values: Vec<NodeId>) -> NodeId {
@@ -532,46 +512,6 @@ impl<'a> SsaContext<'a> {
         self.add_const(node::Constant { id: NodeId::dummy(), value, value_type: ObjectType::Array })
     }
 
-    //Return the type of the operation result, based on the left hand type
-    pub fn get_result_type(&self, op: &Operation, lhs_type: node::ObjectType) -> node::ObjectType {
-        use {BinaryOp::*, Operation::*};
-        match op {
-            Binary(node::Binary { operator: Eq, .. })
-            | Binary(node::Binary { operator: Ne, .. })
-            | Binary(node::Binary { operator: Ult, .. })
-            | Binary(node::Binary { operator: Ule, .. })
-            | Binary(node::Binary { operator: Slt, .. })
-            | Binary(node::Binary { operator: Sle, .. })
-            | Binary(node::Binary { operator: Lt, .. })
-            | Binary(node::Binary { operator: Lte, .. }) => ObjectType::BOOL,
-            Operation::Jne(_, _)
-            | Operation::Jeq(_, _)
-            | Operation::Jmp(_)
-            | Operation::Nop
-            | Operation::Constrain(..)
-            | Operation::Store { .. } => ObjectType::NotAnObject,
-            Operation::Load { array_id, .. } => self.mem[*array_id].element_type,
-            Operation::Cast(_) | Operation::Truncate { .. } => {
-                unreachable!("cannot determine result type")
-            }
-            _ => lhs_type,
-        }
-    }
-
-    pub fn create_array_from_object(
-        &mut self,
-        array: &crate::object::Array,
-        definition: noirc_frontend::node_interner::DefinitionId,
-        el_type: node::ObjectType,
-        arr_name: &str,
-    ) -> NodeId {
-        let len = u32::try_from(array.length).unwrap();
-        let result = self.new_array(arr_name, el_type, len, Some(definition));
-        let array_id = self.mem.last_id();
-        self.mem[array_id].set_witness(array);
-
-        result
-    }
     //blocks/////////////////////////
     pub fn try_get_block_mut(&mut self, id: BlockId) -> Option<&mut block::BasicBlock> {
         self.blocks.get_mut(id.0)

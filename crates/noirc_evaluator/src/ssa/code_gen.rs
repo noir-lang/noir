@@ -1,6 +1,6 @@
 use super::context::SsaContext;
 use super::function::FuncIndex;
-use super::node::{Binary, BinaryOp, Instruction, NodeId, ObjectType, Operation, Variable};
+use super::node::{Binary, BinaryOp, NodeId, ObjectType, Operation, Variable};
 use super::{block, node, ssa_form};
 use std::collections::HashMap;
 
@@ -190,11 +190,7 @@ impl<'a> IRGenerator<'a> {
         let o_type = self.context.context.def_interner.id_type(ident.id);
 
         let v_id = match obj {
-            Object::Array(a) => {
-                let obj_type = o_type.into();
-                //We should create an array from 'a' witnesses
-                self.context.create_array_from_object(&a, ident.id, obj_type, &ident_name)
-            }
+            Object::Array(a) => todo!(),
             _ => {
                 let obj_type = ObjectType::get_type_from_object(&obj);
                 //new variable - should be in a let statement? The let statement should set the type
@@ -244,6 +240,7 @@ impl<'a> IRGenerator<'a> {
         lhs: NodeId,
         rhs: NodeId,
         op: HirBinaryOp,
+        typ: ObjectType,
     ) -> Result<NodeId, RuntimeError> {
         let ltype = self.context.get_object_type(lhs);
         //n.b. we do not verify rhs type as it should have been handled by the type checker.
@@ -261,9 +258,7 @@ impl<'a> IRGenerator<'a> {
         // Get the opcode from the infix operator
         let binary = Binary::from_hir(op.kind, ltype, lhs, rhs);
         let opcode = Operation::Binary(binary);
-
-        let optype = self.context.get_result_type(&opcode, ltype);
-        self.context.new_instruction(opcode, optype)
+        self.context.new_instruction(opcode, typ)
     }
 
     pub fn codegen_statement(
@@ -572,7 +567,8 @@ impl<'a> IRGenerator<'a> {
                 // for e.g. struct == struct in the future
                 let lhs = self.codegen_expression(env, &infx.lhs)?.unwrap_id();
                 let rhs = self.codegen_expression(env, &infx.rhs)?.unwrap_id();
-                Ok(Value::Single(self.codegen_infix_expression(lhs, rhs, infx.operator)?))
+                let typ = self.def_interner().id_type(expr_id).into();
+                Ok(Value::Single(self.codegen_infix_expression(lhs, rhs, infx.operator, typ)?))
             }
             HirExpression::Cast(cast_expr) => {
                 let lhs = self.codegen_expression(env, &cast_expr.lhs)?.unwrap_id();
