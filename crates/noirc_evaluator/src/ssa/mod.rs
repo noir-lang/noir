@@ -7,7 +7,6 @@ pub mod flatten;
 pub mod function;
 pub mod inline;
 pub mod integer;
-pub mod mem;
 pub mod node;
 pub mod optim;
 pub mod ssa_form;

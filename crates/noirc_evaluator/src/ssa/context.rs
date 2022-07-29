@@ -2,7 +2,6 @@ use super::block::{BasicBlock, BlockId};
 use super::conditional::DecisionTree;
 use super::function::{FuncIndex, SSAFunction};
 use super::inline::StackFrame;
-use super::mem::Memory;
 use super::node::{BinaryOp, Instruction, NodeId, NodeObj, ObjectType, Operation};
 use super::{block, flatten, inline, integer, node, optim};
 use std::collections::{HashMap, HashSet};
@@ -29,7 +28,6 @@ pub struct SsaContext<'a> {
     pub nodes: arena::Arena<node::NodeObj>,
     value_names: HashMap<NodeId, u32>,
     pub sealed_blocks: HashSet<BlockId>,
-    pub mem: Memory,
     pub functions: HashMap<FuncId, function::SSAFunction>,
     //Adjacency Matrix of the call graph; list of rows where each row indicates the functions called by the function whose FuncIndex is the row number
     pub call_graph: Vec<Vec<u8>>,
@@ -45,7 +43,6 @@ impl<'a> SsaContext<'a> {
             nodes: arena::Arena::new(),
             value_names: HashMap::new(),
             sealed_blocks: HashSet::new(),
-            mem: Memory::default(),
             functions: HashMap::new(),
             call_graph: Vec::new(),
         };
@@ -404,39 +401,6 @@ impl<'a> SsaContext<'a> {
         if let Ok(nvar) = self.get_mut_variable(new_var) {
             nvar.name = format!("{}{}", root_name, variable_id);
         }
-    }
-
-    //Returns true if a may be distinct from b, and false else
-    pub fn maybe_distinct(&self, a: NodeId, b: NodeId) -> bool {
-        if a == NodeId::dummy() || b == NodeId::dummy() {
-            return true;
-        }
-        if a == b {
-            return false;
-        }
-        if let (Some(a_value), Some(b_value)) = (self.get_as_constant(a), self.get_as_constant(b)) {
-            if a_value == b_value {
-                return false;
-            }
-        }
-        true
-    }
-
-    //Returns true if a may be equal to b, and false otherwise
-    pub fn maybe_equal(&self, a: NodeId, b: NodeId) -> bool {
-        if a == NodeId::dummy() || b == NodeId::dummy() {
-            return true;
-        }
-
-        if a == b {
-            return true;
-        }
-        if let (Some(a_value), Some(b_value)) = (self.get_as_constant(a), self.get_as_constant(b)) {
-            if a_value != b_value {
-                return false;
-            }
-        }
-        true
     }
 
     //same as update_variable but using the var index instead of var

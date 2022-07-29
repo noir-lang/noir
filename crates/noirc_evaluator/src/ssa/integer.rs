@@ -4,7 +4,6 @@ use super::{
     block::BlockId,
     //block,
     context::SsaContext,
-    mem::Memory,
     node::{self, BinaryOp, Instruction, Mark, Node, NodeId, NodeObj, ObjectType, Operation},
     optim,
 };
@@ -32,7 +31,7 @@ fn get_instruction_max(
     ins.operation.for_each_id(|id| {
         get_obj_max_value(ctx, id, max_map, vmap);
     });
-    get_instruction_max_operand(ctx, ins, max_map, vmap)
+    get_instruction_max_operand(ctx, ins, max_map)
 }
 
 //Gets the maximum value of the instruction result using the provided operand maximum
@@ -40,7 +39,6 @@ fn get_instruction_max_operand(
     ctx: &SsaContext,
     ins: &Instruction,
     max_map: &mut HashMap<NodeId, BigUint>,
-    vmap: &HashMap<NodeId, NodeId>,
 ) -> BigUint {
     match &ins.operation {
         Operation::Load { .. } => get_max_value(ins, max_map),
@@ -277,22 +275,6 @@ fn block_overflow(
         });
 
         match ins.operation {
-            Operation::Load { index, .. } => {
-                //TODO we use a local memory map for now but it should be used in arguments
-                //for instance, the join block of a IF should merge the two memorymaps using the condition value
-                if let Some(adr) = Memory::to_u32(ctx, index) {
-                    if let Some(val) = memory_map.get(&adr) {
-                        //optimise static load
-                        ins.mark = Mark::ReplaceWith(*val);
-                    }
-                }
-            }
-            Operation::Store { index, value, .. } => {
-                if let Some(adr) = Memory::to_u32(ctx, index) {
-                    //optimise static store
-                    memory_map.insert(adr, value);
-                }
-            }
             Operation::Binary(node::Binary { operator: BinaryOp::Shl, lhs, rhs }) => {
                 if let Some(r_const) = ctx.get_as_constant(rhs) {
                     let r_type = ctx[rhs].get_type();

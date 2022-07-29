@@ -1,4 +1,3 @@
-use super::mem::{MemArray, Memory};
 use super::node::{BinaryOp, Instruction, ObjectType, Operation};
 use acvm::acir::OPCODE;
 use acvm::FieldElement;
@@ -11,8 +10,8 @@ use std::collections::HashMap;
 use std::ops::{Mul, Neg};
 //use crate::acir::native_types::{Arithmetic, Witness};
 use crate::ssa::context::SsaContext;
+use crate::ssa::node;
 use crate::ssa::node::Node;
-use crate::ssa::{mem, node};
 use crate::Evaluator;
 use crate::Gate;
 use crate::RuntimeErrorKind;
@@ -184,20 +183,20 @@ impl Acir {
                 //address = l_c and should be constant
                 let index = self.substitute(*index, evaluator, ctx);
                 if let Some(index) = index.to_const() {
-                    let address = mem::Memory::as_u32(index);
-                    if self.memory_map.contains_key(&address) {
-                        InternalVar::from(self.memory_map[&address].expression.clone())
-                    } else {
-                        //if not found, then it must be a witness (else it is non-initialised memory)
-                        todo!()
-                        // let mem_array = &ctx.mem[*array_id];
-                        // let index = (address - mem_array.adr) as usize;
-                        // if mem_array.values.len() > index {
-                        //     mem_array.values[index].clone()
-                        // } else {
-                        //     unreachable!("Could not find value at index {}", index);
-                        // }
-                    }
+                    todo!()
+                    // let address = mem::Memory::as_u32(index);
+                    // if self.memory_map.contains_key(&address) {
+                    //     InternalVar::from(self.memory_map[&address].expression.clone())
+                    // } else {
+                    //     if not found, then it must be a witness (else it is non-initialised memory)
+                    //     let mem_array = &ctx.mem[*array_id];
+                    //     let index = (address - mem_array.adr) as usize;
+                    //     if mem_array.values.len() > index {
+                    //         mem_array.values[index].clone()
+                    //     } else {
+                    //         unreachable!("Could not find value at index {}", index);
+                    //     }
+                    // }
                 } else {
                     unimplemented!("dynamic arrays are not implemented yet");
                 }
@@ -209,10 +208,11 @@ impl Acir {
                 let value = self.substitute(*value, evaluator, ctx);
 
                 if let Some(index) = index.to_const() {
-                    let address = mem::Memory::as_u32(index);
-                    self.memory_map.insert(address, value);
-                    //we do not generate constraint, so no output.
-                    InternalVar::default()
+                    todo!()
+                    // let address = mem::Memory::as_u32(index);
+                    // self.memory_map.insert(address, value);
+                    // //we do not generate constraint, so no output.
+                    // InternalVar::default()
                 } else {
                     todo!("dynamic arrays are not implemented yet");
                 }
@@ -344,28 +344,28 @@ impl Acir {
 
     //Load array values into InternalVars
     //If create_witness is true, we create witnesses for values that do not have witness
-    pub fn load_array(
-        &mut self,
-        array: &MemArray,
-        create_witness: bool,
-        evaluator: &mut Evaluator,
-    ) -> Vec<InternalVar> {
-        (0..array.len)
-            .map(|i| {
-                let address = array.adr + i;
-                if let Some(memory) = self.memory_map.get_mut(&address) {
-                    if create_witness && memory.witness.is_none() {
-                        let (_, w) =
-                            evaluator.create_intermediate_variable(memory.expression.clone());
-                        self.memory_map.get_mut(&address).unwrap().witness = Some(w);
-                    }
-                    self.memory_map[&address].clone()
-                } else {
-                    array.values[i as usize].clone()
-                }
-            })
-            .collect()
-    }
+    // fn load_array(
+    //     &mut self,
+    //     array: &MemArray,
+    //     create_witness: bool,
+    //     evaluator: &mut Evaluator,
+    // ) -> Vec<InternalVar> {
+    //     (0..array.len)
+    //         .map(|i| {
+    //             let address = array.adr + i;
+    //             if let Some(memory) = self.memory_map.get_mut(&address) {
+    //                 if create_witness && memory.witness.is_none() {
+    //                     let (_, w) =
+    //                         evaluator.create_intermediate_variable(memory.expression.clone());
+    //                     self.memory_map.get_mut(&address).unwrap().witness = Some(w);
+    //                 }
+    //                 self.memory_map[&address].clone()
+    //             } else {
+    //                 array.values[i as usize].clone()
+    //             }
+    //         })
+    //         .collect()
+    // }
 
     //Map the outputs into the array
     // fn map_array(&mut self, a: ArrayId, outputs: &[Witness], ctx: &SsaContext) {
@@ -422,41 +422,41 @@ impl Acir {
 
     //Generates gates for the expression: \sum_i(zero_eq(A[i]-B[i]))
     //N.b. We assumes the lenghts of a and b are the same but it is not checked inside the function.
-    fn zero_eq_array_sum(
-        &mut self,
-        a: &MemArray,
-        b: &MemArray,
-        evaluator: &mut Evaluator,
-    ) -> Expression {
-        let mut sum = Expression::default();
+    // fn zero_eq_array_sum(
+    //     &mut self,
+    //     a: &MemArray,
+    //     b: &MemArray,
+    //     evaluator: &mut Evaluator,
+    // ) -> Expression {
+    //     let mut sum = Expression::default();
 
-        let a_values = self.load_array(a, false, evaluator);
-        let b_values = self.load_array(b, false, evaluator);
+    //     let a_values = self.load_array(a, false, evaluator);
+    //     let b_values = self.load_array(b, false, evaluator);
 
-        for (a_iter, b_iter) in a_values.into_iter().zip(b_values) {
-            let diff_expr = subtract(&a_iter.expression, FieldElement::one(), &b_iter.expression);
+    //     for (a_iter, b_iter) in a_values.into_iter().zip(b_values) {
+    //         let diff_expr = subtract(&a_iter.expression, FieldElement::one(), &b_iter.expression);
 
-            let diff_witness = evaluator.add_witness_to_cs();
-            let diff_var = InternalVar {
-                //in cache??
-                expression: diff_expr.clone(),
-                witness: Some(diff_witness),
-                id: None,
-            };
-            evaluator.gates.push(Gate::Arithmetic(subtract(
-                &diff_expr,
-                FieldElement::one(),
-                &from_witness(diff_witness),
-            )));
-            //TODO: avoid creating witnesses for diff
-            sum = add(
-                &sum,
-                FieldElement::one(),
-                &from_witness(evaluate_zero_equality(&diff_var, evaluator)),
-            );
-        }
-        sum
-    }
+    //         let diff_witness = evaluator.add_witness_to_cs();
+    //         let diff_var = InternalVar {
+    //             //in cache??
+    //             expression: diff_expr.clone(),
+    //             witness: Some(diff_witness),
+    //             id: None,
+    //         };
+    //         evaluator.gates.push(Gate::Arithmetic(subtract(
+    //             &diff_expr,
+    //             FieldElement::one(),
+    //             &from_witness(diff_witness),
+    //         )));
+    //         //TODO: avoid creating witnesses for diff
+    //         sum = add(
+    //             &sum,
+    //             FieldElement::one(),
+    //             &from_witness(evaluate_zero_equality(&diff_var, evaluator)),
+    //         );
+    //     }
+    //     sum
+    // }
 
     //Transform the arguments of intrinsic functions into witnesses
     pub fn prepare_inputs(

@@ -334,7 +334,7 @@ fn evaluate_one(
                     node::ConstantValue::Field(field) => {
                         Ok(NodeEval::ConstField(field.clone(), c.get_type()))
                     }
-                    node::ConstantValue::Array(array) => Ok(NodeEval::VarOrInstruction(obj_id)),
+                    node::ConstantValue::Array(_) => Ok(NodeEval::VarOrInstruction(obj_id)),
                 },
                 NodeObj::Obj(_) => Ok(NodeEval::VarOrInstruction(obj_id)),
             }

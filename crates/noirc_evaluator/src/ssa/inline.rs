@@ -167,7 +167,7 @@ pub fn inline_in_block(
                 continue;
             }
             let mut clone = ins.clone();
-            clone.operation.map_values_for_inlining(ctx, inline_map, stack_frame, target_block_id);
+            clone.operation.map_values_for_inlining(ctx, inline_map, target_block_id);
 
             match &clone.operation {
                 Operation::Nop => (),
@@ -241,7 +241,6 @@ impl node::Operation {
         &mut self,
         ctx: &mut SsaContext,
         inline_map: &HashMap<NodeId, NodeId>,
-        stack_frame: &StackFrame,
         block_id: BlockId,
     ) {
         self.map_id_mut(|id| {

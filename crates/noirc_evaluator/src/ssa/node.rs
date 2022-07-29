@@ -166,33 +166,11 @@ impl ConstantValue {
             ConstantValue::Array(_) => unreachable!(),
         }
     }
-
-    pub fn array(&self) -> &Array {
-        match self {
-            ConstantValue::Field(_) => unreachable!(),
-            ConstantValue::Array(array) => array,
-        }
-    }
-
-    pub fn array_mut(&mut self) -> &mut Array {
-        match self {
-            ConstantValue::Field(_) => unreachable!(),
-            ConstantValue::Array(array) => array,
-        }
-    }
 }
 
 impl Constant {
     pub fn field(&self) -> FieldElement {
         self.value.field()
-    }
-
-    pub fn array(&self) -> &Array {
-        self.value.array()
-    }
-
-    pub fn array_mut(&mut self) -> &mut Array {
-        self.value.array_mut()
     }
 }
 
@@ -306,30 +284,6 @@ impl From<Type> for ObjectType {
 impl ObjectType {
     pub const BOOL: ObjectType = ObjectType::Unsigned(1);
 
-    pub fn get_type_from_object(obj: &Object) -> ObjectType {
-        match obj {
-            Object::Arithmetic(_) => {
-                todo!();
-                //ObjectType::native_field
-            }
-            Object::Array(_) => {
-                todo!(); //TODO we should match an array in mem: ObjectType::Pointer(0)
-            }
-            Object::Constants(_) => ObjectType::NativeField, //TODO
-            Object::Integer(i) => {
-                assert!(
-                    i.num_bits < super::integer::short_integer_max_bit_size(),
-                    "long integers are not yet supported"
-                );
-                ObjectType::Unsigned(i.num_bits)
-            } //TODO signed or unsigned?
-            Object::Linear(_) => {
-                ObjectType::NativeField //TODO check with Kev!
-            }
-            Object::Null => ObjectType::NotAnObject,
-        }
-    }
-
     pub fn bits(&self) -> u32 {
         match self {
             ObjectType::NativeField => FieldElement::max_num_bits(),
@@ -403,6 +357,19 @@ impl NodeEval {
         match self {
             NodeEval::ConstField(c, _) => Some(c),
             _ => None,
+        }
+    }
+
+    pub fn into_const_array<'a>(self, context: &'a SsaContext) -> Option<&'a Array> {
+        match self {
+            NodeEval::ConstField(..) => None,
+            NodeEval::VarOrInstruction(id) => match &context[id] {
+                NodeObj::Const(constant) => match &constant.value {
+                    ConstantValue::Field(_) => None,
+                    ConstantValue::Array(array) => Some(array),
+                },
+                _ => None,
+            },
         }
     }
 
@@ -531,6 +498,17 @@ impl Instruction {
                     }
                 }
             }
+            Operation::Load { array, index } => {
+                if let Some(index) = eval_fn(ctx, *index)?.into_const_value() {
+                    if let Some(array) = eval_fn(ctx, *array)?.into_const_array(ctx) {
+                        match index.try_into_u128().and_then(|i| array.values.get(i as usize)) {
+                            Some(id) => return Ok(NodeEval::VarOrInstruction(*id)),
+                            None => (),
+                        }
+                    }
+                }
+            }
+            Operation::Store { array, index, value } => {}
             Operation::Phi { .. } => (), //Phi are simplified by simply_phi() later on; they must not be simplified here
             _ => (),
         }
@@ -1251,8 +1229,8 @@ impl Operation {
             Operation::Call(id, _) => Opcode::Call(*id),
             Operation::Return(_) => Opcode::Return,
             Operation::Result { .. } => Opcode::Results,
-            Operation::Load { array, .. } => Opcode::Load,
-            Operation::Store { array, .. } => Opcode::Store,
+            Operation::Load { .. } => Opcode::Load,
+            Operation::Store { .. } => Opcode::Store,
             Operation::Intrinsic(opcode, _) => Opcode::Intrinsic(*opcode),
             Operation::Nop => Opcode::Nop,
         }
@@ -1271,13 +1249,5 @@ impl BinaryOp {
                 | BinaryOp::Or
                 | BinaryOp::Xor
         )
-    }
-}
-
-pub fn get_witness_from_object(obj: &Object) -> Option<Witness> {
-    match obj {
-        Object::Integer(i) => Some(i.witness),
-        Object::Array(_) => unreachable!("Array has multiple witnesses"),
-        _ => obj.witness(),
     }
 }
