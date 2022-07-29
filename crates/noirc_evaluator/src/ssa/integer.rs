@@ -221,7 +221,7 @@ fn block_overflow(
     ctx: &mut SsaContext,
     block_id: BlockId,
     max_map: &mut HashMap<NodeId, BigUint>,
-    memory_map: &mut HashMap<u32, NodeId>,
+    _memory_map: &mut HashMap<u32, NodeId>,
 ) -> Result<(), RuntimeError> {
     //for each instruction, we compute the resulting max possible value (in term of the field representation of the operation)
     //when it is over the field charac, or if the instruction requires it, then we insert truncate instructions

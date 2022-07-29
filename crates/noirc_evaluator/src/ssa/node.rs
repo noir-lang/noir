@@ -1,5 +1,4 @@
 use crate::errors::{RuntimeError, RuntimeErrorKind};
-use crate::object::Object;
 use acvm::acir::native_types::Witness;
 use acvm::acir::OPCODE;
 use acvm::FieldElement;
@@ -508,7 +507,6 @@ impl Instruction {
                     }
                 }
             }
-            Operation::Store { array, index, value } => {}
             Operation::Phi { .. } => (), //Phi are simplified by simply_phi() later on; they must not be simplified here
             _ => (),
         }
