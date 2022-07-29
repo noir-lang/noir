@@ -423,8 +423,8 @@ impl NodeEval {
     }
 
     pub fn from_id(ctx: &SsaContext, id: NodeId) -> NodeEval {
-        match &ctx[id] {
-            NodeObj::Const(c) => match &c.value {
+        match ctx.nodes.get(id.0) {
+            Some(NodeObj::Const(c)) => match &c.value {
                 ConstantValue::Field(field) => NodeEval::ConstField(field.clone(), c.get_type()),
                 ConstantValue::Array(_) => NodeEval::VarOrInstruction(id),
             },

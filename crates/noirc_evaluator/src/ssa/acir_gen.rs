@@ -1,4 +1,4 @@
-use super::mem::{ArrayId, MemArray, Memory};
+use super::mem::{MemArray, Memory};
 use super::node::{BinaryOp, Instruction, ObjectType, Operation};
 use acvm::acir::OPCODE;
 use acvm::FieldElement;
@@ -90,13 +90,15 @@ impl Acir {
             return self.arith_cache[&id].clone();
         }
         let var = match ctx.try_get_node(id) {
-            Some(node::NodeObj::Const(c)) => {
-                let f_value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be()); //TODO const should be a field
-                let expr = Expression::from_field(f_value);
-                InternalVar::new(expr, None, id)
-            }
+            Some(node::NodeObj::Const(c)) => match &c.value {
+                node::ConstantValue::Field(field) => {
+                    let expr = Expression::from_field(field.clone());
+                    InternalVar::new(expr, None, id)
+                }
+                node::ConstantValue::Array(_) => InternalVar::default(),
+            },
             Some(node::NodeObj::Obj(v)) => match v.get_type() {
-                node::ObjectType::Array(_) => InternalVar::default(),
+                node::ObjectType::Array => InternalVar::default(),
                 _ => {
                     let w = v.witness.unwrap_or_else(|| evaluator.add_witness_to_cs());
                     let expr = Expression::from(&w);
@@ -177,7 +179,7 @@ impl Acir {
                 result.into()
             }
             Operation::Nop => InternalVar::default(),
-            Operation::Load { array_id, index } => {
+            Operation::Load { array, index } => {
                 //retrieves the value from the map if address is known at compile time:
                 //address = l_c and should be constant
                 let index = self.substitute(*index, evaluator, ctx);
@@ -187,20 +189,21 @@ impl Acir {
                         InternalVar::from(self.memory_map[&address].expression.clone())
                     } else {
                         //if not found, then it must be a witness (else it is non-initialised memory)
-                        let mem_array = &ctx.mem[*array_id];
-                        let index = (address - mem_array.adr) as usize;
-                        if mem_array.values.len() > index {
-                            mem_array.values[index].clone()
-                        } else {
-                            unreachable!("Could not find value at index {}", index);
-                        }
+                        todo!()
+                        // let mem_array = &ctx.mem[*array_id];
+                        // let index = (address - mem_array.adr) as usize;
+                        // if mem_array.values.len() > index {
+                        //     mem_array.values[index].clone()
+                        // } else {
+                        //     unreachable!("Could not find value at index {}", index);
+                        // }
                     }
                 } else {
                     unimplemented!("dynamic arrays are not implemented yet");
                 }
             }
 
-            Operation::Store { array_id: _, index, value } => {
+            Operation::Store { array: _, index, value } => {
                 //maps the address to the rhs if address is known at compile time
                 let index = self.substitute(*index, evaluator, ctx);
                 let value = self.substitute(*value, evaluator, ctx);
@@ -365,13 +368,13 @@ impl Acir {
     }
 
     //Map the outputs into the array
-    fn map_array(&mut self, a: ArrayId, outputs: &[Witness], ctx: &SsaContext) {
-        let adr = ctx.mem[a].adr;
-        for i in outputs.iter().enumerate() {
-            let var = InternalVar::from(*i.1);
-            self.memory_map.insert(adr + i.0 as u32, var);
-        }
-    }
+    // fn map_array(&mut self, a: ArrayId, outputs: &[Witness], ctx: &SsaContext) {
+    //     let adr = ctx.mem[a].adr;
+    //     for i in outputs.iter().enumerate() {
+    //         let var = InternalVar::from(*i.1);
+    //         self.memory_map.insert(adr + i.0 as u32, var);
+    //     }
+    // }
 
     pub fn evaluate_neq(
         &mut self,
@@ -382,18 +385,20 @@ impl Acir {
         ctx: &SsaContext,
         evaluator: &mut Evaluator,
     ) -> Expression {
-        if let (Some(a), Some(b)) = (Memory::deref(ctx, lhs), Memory::deref(ctx, rhs)) {
-            let array_a = &ctx.mem[a];
-            let array_b = &ctx.mem[b];
+        if false {
+            // let (Some(a), Some(b)) = (Memory::deref(ctx, lhs), Memory::deref(ctx, rhs)) {
+            todo!()
+            // let array_a = &ctx.mem[a];
+            // let array_b = &ctx.mem[b];
 
-            if array_a.len == array_b.len {
-                let mut x = InternalVar::from(self.zero_eq_array_sum(array_a, array_b, evaluator));
-                x.witness = Some(generate_witness(&x, evaluator));
-                from_witness(evaluate_zero_equality(&x, evaluator))
-            } else {
-                //If length are different, then the arrays are different
-                Expression::one()
-            }
+            // if array_a.len == array_b.len {
+            //     let mut x = InternalVar::from(self.zero_eq_array_sum(array_a, array_b, evaluator));
+            //     x.witness = Some(generate_witness(&x, evaluator));
+            //     from_witness(evaluate_zero_equality(&x, evaluator))
+            // } else {
+            //     //If length are different, then the arrays are different
+            //     Expression::one()
+            // }
         } else {
             let mut x =
                 InternalVar::from(subtract(&l_c.expression, FieldElement::one(), &r_c.expression));
@@ -467,29 +472,30 @@ impl Acir {
             match l_obj {
                 node::NodeObj::Obj(v) => {
                     match l_obj.get_type() {
-                        node::ObjectType::Array(a) => {
-                            let array = &cfg.mem[a];
-                            let num_bits = array.element_type.bits();
-                            for i in 0..array.len {
-                                let address = array.adr + i;
-                                if self.memory_map.contains_key(&address) {
-                                    if let Some(wit) = self.memory_map[&address].witness {
-                                        inputs.push(GadgetInput { witness: wit, num_bits });
-                                    } else {
-                                        //TODO we should store the witnesses somewhere, else if the inputs are re-used
-                                        //we will duplicate the witnesses.
-                                        let (_, w) = evaluator.create_intermediate_variable(
-                                            self.memory_map[&address].expression.clone(),
-                                        );
-                                        inputs.push(GadgetInput { witness: w, num_bits });
-                                    }
-                                } else {
-                                    inputs.push(GadgetInput {
-                                        witness: array.values[i as usize].witness.unwrap(),
-                                        num_bits,
-                                    });
-                                }
-                            }
+                        node::ObjectType::Array => {
+                            todo!()
+                            // let array = &cfg.mem[a];
+                            // let num_bits = array.element_type.bits();
+                            // for i in 0..array.len {
+                            //     let address = array.adr + i;
+                            //     if self.memory_map.contains_key(&address) {
+                            //         if let Some(wit) = self.memory_map[&address].witness {
+                            //             inputs.push(GadgetInput { witness: wit, num_bits });
+                            //         } else {
+                            //             //TODO we should store the witnesses somewhere, else if the inputs are re-used
+                            //             //we will duplicate the witnesses.
+                            //             let (_, w) = evaluator.create_intermediate_variable(
+                            //                 self.memory_map[&address].expression.clone(),
+                            //             );
+                            //             inputs.push(GadgetInput { witness: w, num_bits });
+                            //         }
+                            //     } else {
+                            //         inputs.push(GadgetInput {
+                            //             witness: array.values[i as usize].witness.unwrap(),
+                            //             num_bits,
+                            //         });
+                            //     }
+                            // }
                         }
                         _ => {
                             if let Some(w) = v.witness {
@@ -532,9 +538,10 @@ impl Acir {
                 let bit_size = ctx.get_as_constant(args[1]).unwrap().to_u128() as u32;
                 let l_c = self.substitute(args[0], evaluator, ctx);
                 outputs = split(&l_c, bit_size, evaluator);
-                if let node::ObjectType::Array(a) = res_type {
-                    self.map_array(a, &outputs, ctx);
-                }
+                todo!()
+                // if let node::ObjectType::Array(a) = res_type {
+                //     self.map_array(a, &outputs, ctx);
+                // }
             }
             _ => {
                 let inputs = self.prepare_inputs(args, ctx, evaluator);
@@ -572,11 +579,12 @@ impl Acir {
             outputs.push(witness);
         }
 
-        let l_obj = ctx.try_get_node(pointer).unwrap();
-        if let node::ObjectType::Array(a) = l_obj.get_type() {
-            self.map_array(a, &outputs, ctx);
-        }
-        outputs
+        // let l_obj = ctx.try_get_node(pointer).unwrap();
+        // if let node::ObjectType::Array(a) = l_obj.get_type() {
+        //     self.map_array(a, &outputs, ctx);
+        // }
+        outputs;
+        todo!()
     }
 }
 

@@ -351,7 +351,7 @@ impl<'a> Evaluator<'a> {
                                 self.public_inputs.push(witness);
                             }
                         }
-                        igen.abi_array(name, def, *typ.clone(), len, witnesses);
+                        igen.abi_array(name, def, *typ.clone(), witnesses);
                     }
                 }
             }

@@ -16,9 +16,6 @@ use acvm::FieldElement;
 use noirc_frontend::hir::Context;
 use noirc_frontend::node_interner::FuncId;
 use noirc_frontend::util::vecmap;
-use num_bigint::BigUint;
-use num_traits::{One, Zero};
-use std::convert::TryFrom;
 
 // This is a 'master' class for generating the SSA IR from the AST
 // It contains all the data; the node objects representing the source code in the nodes arena
@@ -53,17 +50,17 @@ impl<'a> SsaContext<'a> {
             call_graph: Vec::new(),
         };
         block::create_first_block(&mut pc);
-        pc.one_with_type(node::ObjectType::BOOL);
-        pc.zero_with_type(node::ObjectType::BOOL);
+        pc.one_with_type(ObjectType::BOOL);
+        pc.zero_with_type(ObjectType::BOOL);
         pc
     }
 
     pub fn zero(&self) -> NodeId {
-        self.find_const_with_type(&BigUint::zero(), node::ObjectType::BOOL).unwrap()
+        self.find_const_with_type(&FieldElement::zero(), ObjectType::BOOL).unwrap()
     }
 
     pub fn one(&self) -> NodeId {
-        self.find_const_with_type(&BigUint::one(), node::ObjectType::BOOL).unwrap()
+        self.find_const_with_type(&FieldElement::one(), ObjectType::BOOL).unwrap()
     }
 
     pub fn zero_with_type(&mut self, obj_type: ObjectType) -> NodeId {
@@ -611,37 +608,6 @@ impl<'a> SsaContext<'a> {
         phi_id
     }
 
-    fn memcpy(&mut self, l_type: ObjectType, r_type: ObjectType) -> Result<(), RuntimeError> {
-        if l_type == r_type {
-            return Ok(());
-        }
-
-        if let (ObjectType::Array(a), ObjectType::Array(b)) = (l_type, r_type) {
-            let len = self.mem[a].len;
-            let adr_a = self.mem[a].adr;
-            let adr_b = self.mem[b].adr;
-            let e_type = self.mem[b].element_type;
-            for i in 0..len {
-                let idx_b = self.get_or_create_const(
-                    FieldElement::from((adr_b + i) as i128),
-                    ObjectType::Unsigned(32),
-                );
-                let idx_a = self.get_or_create_const(
-                    FieldElement::from((adr_a + i) as i128),
-                    ObjectType::Unsigned(32),
-                );
-                let op_b = Operation::Load { array_id: b, index: idx_b };
-                let load = self.new_instruction(op_b, e_type)?;
-                let op_a = Operation::Store { array_id: a, index: idx_a, value: load };
-                self.new_instruction(op_a, l_type)?;
-            }
-        } else {
-            unreachable!("invalid type, expected arrays, got {:?} and {:?}", l_type, r_type);
-        }
-
-        Ok(())
-    }
-
     fn new_instruction_inline(
         &mut self,
         operation: node::Operation,
@@ -654,40 +620,6 @@ impl<'a> SsaContext<'a> {
         ins_id
     }
 
-    pub fn memcpy_inline(
-        &mut self,
-        l_type: ObjectType,
-        r_type: ObjectType,
-        stack_frame: &mut StackFrame,
-    ) {
-        if l_type == r_type {
-            return;
-        }
-
-        if let (ObjectType::Array(a), ObjectType::Array(b)) = (l_type, r_type) {
-            let len = self.mem[a].len;
-            let adr_a = self.mem[a].adr;
-            let adr_b = self.mem[b].adr;
-            let e_type = self.mem[b].element_type;
-            for i in 0..len {
-                let idx_b = self.get_or_create_const(
-                    FieldElement::from((adr_b + i) as i128),
-                    ObjectType::Unsigned(32),
-                );
-                let idx_a = self.get_or_create_const(
-                    FieldElement::from((adr_a + i) as i128),
-                    ObjectType::Unsigned(32),
-                );
-                let op_b = Operation::Load { array_id: b, index: idx_b };
-                let load = self.new_instruction_inline(op_b, e_type, stack_frame);
-                let op_a = Operation::Store { array_id: a, index: idx_a, value: load };
-                self.new_instruction_inline(op_a, l_type, stack_frame);
-            }
-        } else {
-            unreachable!("invalid type, expected arrays");
-        }
-    }
-
     pub fn handle_assign_inline(
         &mut self,
         lhs: NodeId,
@@ -697,36 +629,22 @@ impl<'a> SsaContext<'a> {
     ) -> NodeId {
         let lhs_type = self.get_object_type(lhs);
         let rhs_type = self.get_object_type(rhs);
-        if let ObjectType::Array(a) = lhs_type {
-            //Array
-            let b = stack_frame.get_or_default(a);
-            self.memcpy_inline(ObjectType::Array(b), rhs_type, stack_frame);
-            lhs
-        } else {
-            //new ssa
-            let lhs_obj = self.get_variable(lhs).unwrap();
-            let new_var = node::Variable {
-                id: NodeId::dummy(),
-                obj_type: lhs_type,
-                name: String::new(),
-                root: None,
-                def: lhs_obj.def,
-                witness: None,
-                parent_block: self.current_block,
-            };
-            let ls_root = lhs_obj.get_root();
-            //ssa: we create a new variable a1 linked to a
-            let new_var_id = self.add_variable(new_var, Some(ls_root));
-            //ass
-            let op = Operation::Binary(node::Binary {
-                lhs: new_var_id,
-                rhs,
-                operator: node::BinaryOp::Assign,
-            });
-            let result = self.new_instruction_inline(op, rhs_type, stack_frame);
-            self.update_variable_id_in_block(ls_root, new_var_id, result, block_id); //update the name and the value map
-            result
-        }
+
+        let lhs_obj = self.get_variable(lhs).unwrap();
+        let new_var = node::Variable::new(lhs_type, "".into(), lhs_obj.def, self.current_block);
+
+        let ls_root = lhs_obj.get_root();
+        //ssa: we create a new variable a1 linked to a
+        let new_var_id = self.add_variable(new_var, Some(ls_root));
+        //ass
+        let op = Operation::Binary(node::Binary {
+            lhs: new_var_id,
+            rhs,
+            operator: node::BinaryOp::Assign,
+        });
+        let result = self.new_instruction_inline(op, rhs_type, stack_frame);
+        self.update_variable_id_in_block(ls_root, new_var_id, result, block_id); //update the name and the value map
+        result
     }
 }
 

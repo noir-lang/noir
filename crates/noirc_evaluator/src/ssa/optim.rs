@@ -111,69 +111,6 @@ pub fn find_similar_cast(
     None
 }
 
-#[derive(Debug)]
-pub enum CseAction {
-    ReplaceWith(NodeId),
-    Remove(NodeId),
-    Keep,
-}
-
-fn find_similar_mem_instruction(
-    ctx: &SsaContext,
-    op: &Operation,
-    prev_ins: &VecDeque<NodeId>,
-) -> CseAction {
-    match op {
-        Operation::Load { index, .. } => {
-            for iter in prev_ins.iter() {
-                if let Some(ins_iter) = ctx.try_get_instruction(*iter) {
-                    match &ins_iter.operation {
-                        Operation::Load { index: index2, .. } => {
-                            if !ctx.maybe_distinct(*index2, *index) {
-                                return CseAction::ReplaceWith(*iter);
-                            }
-                        }
-                        Operation::Store { index: index2, value, .. } => {
-                            if !ctx.maybe_distinct(*index2, *index) {
-                                return CseAction::ReplaceWith(*value);
-                            }
-                            if ctx.maybe_equal(*index2, *index) {
-                                return CseAction::Keep;
-                            }
-                        }
-                        _ => unreachable!("invalid operator in the memory anchor list"),
-                    }
-                }
-            }
-        }
-        Operation::Store { index, .. } => {
-            for node_id in prev_ins.iter() {
-                if let Some(ins_iter) = ctx.try_get_instruction(*node_id) {
-                    match ins_iter.operation {
-                        Operation::Load { index: index2, .. } => {
-                            if ctx.maybe_equal(index2, *index) {
-                                return CseAction::Keep;
-                            }
-                        }
-                        Operation::Store { index: index2, .. } => {
-                            if !ctx.maybe_distinct(index2, *index) {
-                                return CseAction::Remove(*node_id);
-                            }
-                            if ctx.maybe_equal(index2, *index) {
-                                return CseAction::Keep;
-                            }
-                        }
-                        _ => unreachable!("invalid operator in the memory anchor list"),
-                    }
-                }
-            }
-        }
-        _ => unreachable!("invalid non memory operator"),
-    }
-
-    CseAction::Keep
-}
-
 pub fn propagate(ctx: &SsaContext, id: NodeId, modified: &mut bool) -> NodeId {
     if let Some(obj) = ctx.try_get_instruction(id) {
         if let Mark::ReplaceWith(replacement) = obj.mark {
@@ -268,7 +205,6 @@ fn cse_block_with_anchor(
 ) -> Result<Option<NodeId>, RuntimeError> {
     let mut new_list = Vec::new();
     let bb = &ctx[block_id];
-    let is_join = bb.predecessor.len() > 1;
     if instructions.is_empty() {
         instructions.append(&mut bb.instructions.clone());
     }
@@ -282,7 +218,7 @@ fn cse_block_with_anchor(
             let operator = ins.operation.map_id(|id| propagate(ctx, id, modified));
             let mut new_mark = Mark::None;
 
-            let check_similar = |opcode| {
+            let mut check_similar = |opcode| {
                 let variants = anchor.get_all(opcode);
                 if let Some(similar) = find_similar_instruction(ctx, &operator, &variants) {
                     debug_assert!(similar != ins.id);
@@ -339,11 +275,11 @@ fn cse_block_with_anchor(
                         anchor.push_front(operator.opcode(), *ins_id);
                     }
                 }
-                Operation::Call(func, arguments) => {
+                Operation::Call(..) => {
                     new_list.push(*ins_id);
                 }
                 Operation::Return(..) => new_list.push(*ins_id),
-                Operation::Intrinsic(_, args) => {
+                Operation::Intrinsic(..) => {
                     if let Some(similar) =
                         find_similar_instruction(ctx, &operator, &anchor.get_all(operator.opcode()))
                     {

@@ -3,7 +3,7 @@ use super::{
     context::SsaContext,
     node::{self, NodeId},
 };
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, VecDeque};
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum BlockType {

@@ -6,7 +6,6 @@ use std::collections::HashMap;
 
 use super::super::environment::Environment;
 use super::super::errors::RuntimeError;
-use crate::object::Object;
 
 use crate::ssa::function;
 use acvm::acir::OPCODE;
@@ -130,7 +129,6 @@ impl<'a> IRGenerator<'a> {
         name: &str,
         ident_def: DefinitionId,
         element_type: Type,
-        len: u128,
         witness: Vec<acvm::acir::native_types::Witness>,
     ) {
         let element_type = element_type.into();
@@ -152,6 +150,7 @@ impl<'a> IRGenerator<'a> {
 
         let array = self.context.new_array(element_type, values);
         self.context.get_current_block_mut().update_variable(array, array);
+
         self.variable_values.insert(ident_def, Value::Single(array));
     }
 
@@ -179,39 +178,14 @@ impl<'a> IRGenerator<'a> {
         self.variable_values.insert(ident_def, v_value);
     }
 
-    fn codegen_identifier(&mut self, env: &mut Environment, ident: HirIdent) -> Value {
+    fn codegen_identifier(&mut self, ident: HirIdent) -> Value {
         if let Some(value) = self.variable_values.get(&ident.id) {
             let value = value.clone();
             return self.get_current_value(&value);
         }
 
-        let ident_name = self.ident_name(&ident);
-        let obj = env.get(&ident_name);
-        let o_type = self.context.context.def_interner.id_type(ident.id);
-
-        let v_id = match obj {
-            Object::Array(a) => todo!(),
-            _ => {
-                let obj_type = ObjectType::get_type_from_object(&obj);
-                //new variable - should be in a let statement? The let statement should set the type
-                self.context.add_variable(
-                    node::Variable {
-                        id: NodeId::dummy(),
-                        name: ident_name.clone(),
-                        obj_type,
-                        root: None,
-                        def: Some(ident.id),
-                        witness: node::get_witness_from_object(&obj),
-                        parent_block: self.context.current_block,
-                    },
-                    None,
-                )
-            }
-        };
-
-        self.context.get_current_block_mut().update_variable(v_id, v_id);
-
-        Value::Single(v_id)
+        let name = &self.def_interner().definition(ident.id).name;
+        unreachable!("Found variable '{}' whose definition has yet to compile", name)
     }
 
     pub fn def_interner(&self) -> &NodeInterner {
@@ -282,14 +256,6 @@ impl<'a> IRGenerator<'a> {
             HirStatement::Error => unreachable!(
                 "ice: compiler did not exit before codegen when a statement failed to parse"
             ),
-        }
-    }
-
-    fn lvalue_ident_def(&self, lvalue: &HirLValue) -> DefinitionId {
-        match lvalue {
-            HirLValue::Ident(ident) => ident.id,
-            HirLValue::MemberAccess { object: o, .. } => self.lvalue_ident_def(o),
-            HirLValue::Index { array, index: _ } => self.lvalue_ident_def(array.as_ref()),
         }
     }
 
@@ -381,6 +347,7 @@ impl<'a> IRGenerator<'a> {
     /// to a single NodeId in the corresponding Value. This effectively flattens
     /// let bindings of struct variables, declaring a new variable for each field.
     fn bind_pattern(&mut self, pattern: &HirPattern, value: Value) -> Result<(), RuntimeError> {
+        println!("Binding {:?} equal to {:?}", pattern, value);
         match (pattern, value) {
             (HirPattern::Identifier(ident), Value::Single(node_id)) => {
                 let otype = self.context.get_object_type(node_id);
@@ -451,7 +418,7 @@ impl<'a> IRGenerator<'a> {
         let id = self.context.add_variable(var, None);
         let assign = Operation::binary(BinaryOp::Assign, id, value_id);
         self.context.new_instruction(assign, ObjectType::NotAnObject)?;
-        Ok(Value::dummy())
+        Ok(Value::Single(value_id))
     }
 
     //same as update_variable but using the var index instead of var
@@ -504,7 +471,7 @@ impl<'a> IRGenerator<'a> {
                     }
                 }
                 let assign = Operation::binary(BinaryOp::Assign, *lhs_id, rhs_id);
-                self.context.new_instruction(assign, ObjectType::NotAnObject);
+                self.context.new_instruction(assign, ObjectType::NotAnObject)?;
             }
             (Value::Struct(lhs_fields), Value::Struct(rhs_fields)) => {
                 assert_eq!(lhs_fields.len(), rhs_fields.len());
@@ -557,10 +524,7 @@ impl<'a> IRGenerator<'a> {
                 let element_type = element_type(self.def_interner().id_type(expr_id));
                 Ok(Value::Single(self.context.new_array(element_type, elements)))
             }
-            HirExpression::Ident(x) => {
-                Ok(self.codegen_identifier(env, x))
-                //n.b this creates a new variable if it does not exist, may be we should delegate this to explicit statements (let) - TODO
-            }
+            HirExpression::Ident(x) => Ok(self.codegen_identifier(x)),
             HirExpression::Infix(infx) => {
                 // Note: using .into_id() here disallows structs/tuples in infix expressions.
                 // The type checker currently disallows this as well but we may want to allow
