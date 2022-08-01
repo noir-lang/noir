@@ -82,9 +82,20 @@ impl<'a> SsaContext<'a> {
     //Display an object for debugging puposes
     fn node_to_string(&self, id: NodeId) -> String {
         if let Some(var) = self.try_get_node(id) {
-            return format!("{}", var);
+            match &var {
+                NodeObj::Const(constant) => {
+                    match &constant.value {
+                        node::ConstantValue::Array(array) => {
+                            let values = vecmap(&array.values, |id| self.node_to_string(*id));
+                            format!("[{}]", values.join(", "))
+                        },
+                        other => format!("{}", other),
+                    }
+                },
+                other => format!("{}", other),
+            }
         } else {
-            return format!("unknown {:?}", id.0.into_raw_parts().0);
+            format!("unknown {:?}", id.0.into_raw_parts().0)
         }
     }
 
@@ -468,6 +479,11 @@ impl<'a> SsaContext<'a> {
     }
 
     pub fn new_array(&mut self, element_type: ObjectType, values: Vec<NodeId>) -> NodeId {
+        let values = vecmap(values, |value| {
+            let var = self.add_variable(node::Variable::new(element_type, "".into(), None, self.current_block), None);
+            self.update_variable_id(var, NodeId::dummy(), value);
+            var
+        });
         let array = node::Array { element_type, values };
         let value = node::ConstantValue::Array(array);
         self.add_const(node::Constant { id: NodeId::dummy(), value, value_type: ObjectType::Array })

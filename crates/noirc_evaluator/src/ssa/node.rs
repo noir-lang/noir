@@ -24,7 +24,11 @@ pub trait Node: std::fmt::Display {
 
 impl std::fmt::Display for Variable {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.name)
+        if self.name.is_empty() {
+            write!(f, "var{}", self.id.0.into_raw_parts().0)
+        } else {
+            write!(f, "{}", self.name)
+        }
     }
 }
 

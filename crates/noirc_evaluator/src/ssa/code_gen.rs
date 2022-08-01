@@ -219,15 +219,15 @@ impl<'a> IRGenerator<'a> {
         let ltype = self.context.get_object_type(lhs);
         //n.b. we do not verify rhs type as it should have been handled by the type checker.
 
-        if let (HirBinaryOpKind::Assign, Some(lhs_ins)) =
-            (op.kind, self.context.try_get_mut_instruction(lhs))
-        {
-            if let Operation::Load { array, index } = lhs_ins.operation {
-                //make it a store rhs
-                lhs_ins.operation = Operation::Store { array, index, value: rhs };
-                return Ok(lhs);
-            }
-        }
+        // if let (HirBinaryOpKind::Assign, Some(lhs_ins)) =
+        //     (op.kind, self.context.try_get_mut_instruction(lhs))
+        // {
+        //     if let Operation::Load { array, index } = lhs_ins.operation {
+        //         //make it a store rhs
+        //         lhs_ins.operation = Operation::Store { array, index, value: rhs };
+        //         return Ok(lhs);
+        //     }
+        // }
 
         // Get the opcode from the infix operator
         let binary = Binary::from_hir(op.kind, ltype, lhs, rhs);
@@ -464,12 +464,12 @@ impl<'a> IRGenerator<'a> {
     fn assign_value(&mut self, lhs: &Value, rhs: Value) -> Result<(), RuntimeError> {
         match (lhs, rhs) {
             (Value::Single(lhs_id), Value::Single(rhs_id)) => {
-                if let Some(lhs) = self.context.try_get_mut_instruction(*lhs_id) {
-                    if let Operation::Load { array, index } = lhs.operation {
-                        lhs.operation = Operation::Store { array, index, value: rhs_id };
-                        return Ok(());
-                    }
-                }
+                // if let Some(lhs) = self.context.try_get_mut_instruction(*lhs_id) {
+                //     if let Operation::Load { array, index } = lhs.operation {
+                //         lhs.operation = Operation::Store { array, index, value: rhs_id };
+                //         return Ok(());
+                //     }
+                // }
                 let assign = Operation::binary(BinaryOp::Assign, *lhs_id, rhs_id);
                 self.context.new_instruction(assign, ObjectType::NotAnObject)?;
             }
