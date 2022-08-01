@@ -6,9 +6,15 @@ use crate::{errors::RuntimeError, ssa::node::ObjectType};
 use super::{
     block::{self, BlockId, BlockType},
     context::SsaContext,
+    flatten::{self, UnrollContext},
     inline::StackFrame,
     node::{self, BinaryOp, Instruction, NodeId, Operation},
 };
+
+// Functions that modify arrays work on a fresh array, which is copied to the original one,
+// so that the writing to the array is made explicit and handled like all the other ones with store instructions
+// we keep the original array name and add the _dup suffix for debugging purpose
+const DUPLICATED: &str = "_dup";
 
 #[derive(Debug, Clone)]
 pub struct Assumption {
@@ -202,14 +208,14 @@ impl DecisionTree {
 
                 //find exit node:
                 let exit = block::find_join(ctx, block.left.unwrap(), block.right.unwrap());
-                assert!(ctx[exit].kind == BlockType::IfJoin); //todo debug_assert
+                debug_assert!(ctx[exit].kind == BlockType::IfJoin);
                 if_decision.entry_block = block_id;
                 if_decision.exit_block = exit;
                 if_assumption = Some(if_decision);
                 join_to_process.push(exit);
             }
         }
-        //let's mutate
+        //generate the assumption for split blocks and assign the assumption to the block
         let mut left_assumption = block_assumption;
         let mut right_assumption = block_assumption;
         if let Some(if_decision) = if_assumption {
@@ -355,7 +361,7 @@ impl DecisionTree {
                     if ass_value != ctx.one() {
                         if let ObjectType::Pointer(a) = ins.res_type {
                             let array = &ctx.mem[a].clone();
-                            let name = array.name.to_string() + "_dup";
+                            let name = array.name.to_string() + DUPLICATED;
                             ctx.new_array(&name, array.element_type, array.len, None);
                             let array_dup = ctx.mem.last_id();
                             let ins2 = ctx.get_mut_instruction(*i);
@@ -366,14 +372,16 @@ impl DecisionTree {
                                 ObjectType::Pointer(array_dup),
                                 &mut stack,
                             );
-                            todo!();
+                            todo!(
+                                "Support for function calls inside IF statements to be implemented"
+                            );
                         }
                     }
                 }
 
                 Operation::Call(_, _, _) => {
                     if ass_value != ctx.one() {
-                        todo!();
+                        todo!("Support for function calls inside IF statements to be implemented");
                     }
                 }
                 Operation::Constrain(expr, _) => {
@@ -400,4 +408,85 @@ impl DecisionTree {
             }
         }
     }
+}
+
+//unroll an if sub-graph
+pub fn unroll_if(
+    ctx: &mut SsaContext,
+    unroll_ctx: &mut UnrollContext,
+) -> Result<BlockId, RuntimeError> {
+    //1. find the join block
+    let if_block = &ctx[unroll_ctx.to_unroll];
+    let left = if_block.left.unwrap();
+    let right = if_block.right.unwrap();
+    debug_assert!(if_block.kind == BlockType::Normal);
+    let exit = block::find_join(ctx, if_block.left.unwrap(), if_block.right.unwrap());
+
+    // simple mode:
+    if unroll_ctx.unroll_into == BlockId::dummy() || unroll_ctx.unroll_into == unroll_ctx.to_unroll
+    {
+        unroll_ctx.unroll_into = unroll_ctx.to_unroll;
+        flatten::unroll_std_block(ctx, unroll_ctx)?;
+        unroll_ctx.to_unroll = left;
+        unroll_ctx.unroll_into = left;
+        flatten::unroll_std_block(ctx, unroll_ctx)?;
+        unroll_ctx.to_unroll = right;
+        unroll_ctx.unroll_into = right;
+        flatten::unroll_std_block(ctx, unroll_ctx)?;
+        unroll_ctx.to_unroll = exit;
+        unroll_ctx.unroll_into = exit;
+        return Ok(exit);
+    }
+
+    //2. create the IF subgraph
+    //the unroll_into is required and will be used as the prev block
+    let prev = unroll_ctx.unroll_into;
+    let (new_entry, new_exit) = create_if_subgraph(ctx, prev);
+    unroll_ctx.unroll_into = new_entry;
+
+    //3 Process the entry_block
+    flatten::unroll_std_block(ctx, unroll_ctx)?;
+
+    //4. Process the THEN branch
+    let then_block = ctx[new_entry].left.unwrap();
+    let else_block = ctx[new_entry].right.unwrap();
+    unroll_ctx.to_unroll = left;
+    unroll_ctx.unroll_into = then_block;
+    flatten::unroll_until(ctx, unroll_ctx, exit)?;
+
+    //Plug to the exit:
+    ctx[unroll_ctx.unroll_into].left = Some(new_exit);
+    ctx[new_exit].predecessor.push(unroll_ctx.unroll_into);
+
+    //5. Process the ELSE branch
+    unroll_ctx.to_unroll = right;
+    unroll_ctx.unroll_into = else_block;
+    flatten::unroll_until(ctx, unroll_ctx, exit)?;
+    ctx[unroll_ctx.unroll_into].left = Some(new_exit);
+    ctx[new_exit].predecessor.push(unroll_ctx.unroll_into);
+
+    //6. Prepare the process for the JOIN
+    unroll_ctx.to_unroll = exit;
+    unroll_ctx.unroll_into = new_exit;
+
+    Ok(exit)
+}
+
+//create the subgraph for unrolling IF statement
+fn create_if_subgraph(ctx: &mut SsaContext, prev_block: BlockId) -> (BlockId, BlockId) {
+    //Entry block
+    ctx.current_block = prev_block;
+    let new_entry = block::new_sealed_block(ctx, block::BlockType::Normal, true);
+    //Then block
+    ctx.current_block = new_entry;
+    block::new_sealed_block(ctx, block::BlockType::Normal, true);
+    //Else block
+    ctx.current_block = new_entry;
+    let new_else = block::new_sealed_block(ctx, block::BlockType::Normal, false);
+    //Exit block
+    let new_exit = block::new_sealed_block(ctx, block::BlockType::IfJoin, false);
+    ctx[new_exit].dominator = Some(new_entry);
+    ctx[new_entry].right = Some(new_else);
+
+    (new_entry, new_exit)
 }

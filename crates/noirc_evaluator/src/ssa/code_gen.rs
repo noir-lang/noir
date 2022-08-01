@@ -9,6 +9,7 @@ use super::super::environment::Environment;
 use super::super::errors::RuntimeError;
 use crate::object::Object;
 
+use crate::ssa::block::BlockType;
 use crate::ssa::function;
 use acvm::acir::OPCODE;
 use acvm::FieldElement;
@@ -893,7 +894,7 @@ impl<'a> IRGenerator<'a> {
         let assign = Operation::binary(BinaryOp::Assign, iter_id, start_idx);
         let iter_ass = self.context.new_instruction(assign, iter_type)?;
 
-        //We map the iterator to start_idx so that when we seal the join block, we will get the corrdect value.
+        //We map the iterator to start_idx so that when we seal the join block, we will get the correct value.
         self.update_variable_id(iter_id, iter_ass, start_idx);
 
         //join block
@@ -978,7 +979,12 @@ impl<'a> IRGenerator<'a> {
         alternative: Option<ExprId>,
     ) -> Result<Value, RuntimeError> {
         //jump instruction
-        let entry_block = self.context.current_block;
+        let mut entry_block = self.context.current_block;
+        if self.context[entry_block].kind != BlockType::Normal {
+            entry_block =
+                block::new_sealed_block(&mut self.context, block::BlockType::Normal, true);
+        }
+
         let condition = self
             .codegen_expression(env, cond)
             .map_err(|err| err.remove_span())

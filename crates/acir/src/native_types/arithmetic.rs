@@ -59,6 +59,10 @@ impl Expression {
     pub fn one() -> Expression {
         Self::from_field(FieldElement::one())
     }
+
+    pub fn is_linear(&self) -> bool {
+        self.mul_terms.is_empty()
+    }
 }
 
 impl Mul<&FieldElement> for &Expression {

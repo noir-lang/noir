@@ -179,9 +179,11 @@ pub fn compute_dom(ctx: &mut SsaContext) {
     }
     //RIA
     for (master, svec) in dominator_link {
-        let dom_b = &mut ctx[master];
-        for slave in svec {
-            dom_b.dominated.push(slave);
+        if let Some(dom_b) = ctx.try_get_block_mut(master) {
+            dom_b.dominated.clear();
+            for slave in svec {
+                dom_b.dominated.push(slave);
+            }
         }
     }
 }
@@ -277,6 +279,7 @@ fn process_son(
     None
 }
 
+//Set left as the left block of block_id
 pub fn rewire_block_left(ctx: &mut SsaContext, block_id: BlockId, left: BlockId) {
     let block = &mut ctx[block_id];
     if let Some(old_left) = block.left {
