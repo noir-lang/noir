@@ -164,6 +164,18 @@ impl Acir {
             }
             Operation::Call(..) => unreachable!("call instruction should have been inlined"),
             Operation::Return(_) => todo!(), //return from main
+            Operation::Cond { condition, val_true: lhs, val_false: rhs } => {
+                let cond = self.substitute(*condition, evaluator, ctx);
+                let l_c = self.substitute(*lhs, evaluator, ctx);
+                let r_c = self.substitute(*rhs, evaluator, ctx);
+                let sub = subtract(&l_c.expression, FieldElement::one(), &r_c.expression);
+                let result = add(
+                    &mul_with_witness(evaluator, &cond.expression, &sub),
+                    FieldElement::one(),
+                    &r_c.expression,
+                );
+                result.into()
+            }
             Operation::Nop => InternalVar::default(),
             Operation::Load { array_id, index } => {
                 //retrieves the value from the map if address is known at compile time:
@@ -956,11 +968,32 @@ pub fn is_const(expr: &Expression) -> bool {
     expr.mul_terms.is_empty() && expr.linear_combinations.is_empty()
 }
 
+pub fn mul_with_witness(evaluator: &mut Evaluator, a: &Expression, b: &Expression) -> Expression {
+    let a_arith;
+    let a2 = if !a.mul_terms.is_empty() {
+        let a_witness = evaluator.add_witness_to_cs();
+        a_arith = Expression::from(&a_witness);
+        evaluator.gates.push(Gate::Arithmetic(a - &a_arith));
+        &a_arith
+    } else {
+        a
+    };
+    let b_arith;
+    let b2 = if !b.mul_terms.is_empty() {
+        let b_witness = evaluator.add_witness_to_cs();
+        b_arith = Expression::from(&b_witness);
+        evaluator.gates.push(Gate::Arithmetic(b - &b_arith));
+        &b_arith
+    } else {
+        b
+    };
+    mul(a2, b2)
+}
 //a*b
 
 pub fn mul(a: &Expression, b: &Expression) -> Expression {
     if !(a.mul_terms.is_empty() && b.mul_terms.is_empty()) {
-        todo!("PANIC");
+        unreachable!("Can only multiply linear terms");
     }
 
     let mut output = Expression::from_field(a.q_c * b.q_c);
@@ -982,39 +1015,21 @@ pub fn mul(a: &Expression, b: &Expression) -> Expression {
                 if coef_b != FieldElement::zero() {
                     output.linear_combinations.push((coef_b, b.linear_combinations[i2].1));
                 }
-                if i2 + 1 >= b.linear_combinations.len() {
-                    i1 += 1;
-                } else {
-                    i2 += 1;
-                }
+                i2 += 1;
             }
             Ordering::Less => {
                 if coef_a != FieldElement::zero() {
                     output.linear_combinations.push((coef_a, a.linear_combinations[i1].1));
                 }
-                if i1 + 1 >= a.linear_combinations.len() {
-                    i2 += 1;
-                } else {
-                    i1 += 1;
-                }
+                i1 += 1;
             }
             Ordering::Equal => {
                 if coef_a + coef_b != FieldElement::zero() {
                     output.linear_combinations.push((coef_a + coef_b, a.linear_combinations[i1].1));
                 }
-                if (i1 + 1 >= a.linear_combinations.len())
-                    && (i2 + 1 >= b.linear_combinations.len())
-                {
-                    i1 += 1;
-                    i2 += 1;
-                } else {
-                    if i1 + 1 < a.linear_combinations.len() {
-                        i1 += 1;
-                    }
-                    if i2 + 1 < a.linear_combinations.len() {
-                        i2 += 1;
-                    }
-                }
+
+                i1 += 1;
+                i2 += 1;
             }
         }
     }

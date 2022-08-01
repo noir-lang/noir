@@ -2,6 +2,7 @@ use super::crs::CRS;
 use super::pippenger::Pippenger;
 use super::BARRETENBERG;
 use acvm::FieldElement as Scalar;
+use std::slice;
 
 pub struct StandardComposer {
     pippenger: Pippenger,
@@ -489,8 +490,7 @@ impl StandardComposer {
                 p_contract_ptr,
             );
             assert!(contract_size > 0);
-            sc_as_bytes =
-                Vec::from_raw_parts(contract_ptr, contract_size as usize, contract_size as usize)
+            sc_as_bytes = slice::from_raw_parts(contract_ptr, contract_size as usize)
         }
         // TODO to check
         // XXX: We truncate the first 40 bytes, due to it being mangled

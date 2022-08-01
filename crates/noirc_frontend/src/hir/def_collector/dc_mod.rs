@@ -2,8 +2,8 @@ use fm::FileId;
 use noirc_errors::{CollectedErrors, CustomDiagnostic, DiagnosableError};
 
 use crate::{
-    graph::CrateId, hir::def_collector::dc_crate::UnresolvedStruct, node_interner::StructId, Ident,
-    NoirFunction, NoirImpl, NoirStruct, ParsedModule,
+    graph::CrateId, hir::def_collector::dc_crate::UnresolvedStruct, node_interner::StructId,
+    parser::SubModule, Ident, NoirFunction, NoirImpl, NoirStruct, ParsedModule,
 };
 
 use super::{
@@ -37,6 +37,8 @@ pub fn collect_defs<'a>(
     for decl in ast.module_decls {
         collector.parse_module_declaration(context, &decl, crate_id, errors)
     }
+
+    collector.collect_submodules(context, crate_id, ast.submodules, file_id, errors);
 
     // Then add the imports to defCollector to resolve once all modules in the hierarchy have been resolved
     for import in ast.imports {
@@ -161,6 +163,30 @@ impl<'a> ModCollector<'a> {
         }
     }
 
+    fn collect_submodules(
+        &mut self,
+        context: &mut Context,
+        crate_id: CrateId,
+        submodules: Vec<SubModule>,
+        file_id: FileId,
+        errors: &mut Vec<CollectedErrors>,
+    ) {
+        for submodule in submodules {
+            match self.push_child_module(&submodule.name, file_id, true) {
+                Err(mut more_errors) => errors.append(&mut more_errors),
+                Ok(child_mod_id) => collect_defs(
+                    self.def_collector,
+                    submodule.contents,
+                    file_id,
+                    child_mod_id,
+                    crate_id,
+                    context,
+                    errors,
+                ),
+            }
+        }
+    }
+
     /// Search for a module named `mod_name`
     /// Parse it, add it as a child to the parent module in which it was declared
     /// and then collect all definitions of the child module
@@ -219,7 +245,6 @@ impl<'a> ModCollector<'a> {
         modules[module_id].parent = Some(self.module_id);
 
         // Update the origin of the child module
-        // Note: We do not support inline modules
         // Also note that the FileId is where this module is defined and not declared
         // To find out where the module was declared, you need to check its parent
         modules[module_id].origin = ModuleOrigin::File(file_id);

@@ -16,10 +16,18 @@ impl ProofSystemCompiler for Plonk {
         let mut composer = StandardComposer::new(constraint_system);
 
         // Add witnesses in the correct order
-        // Note: The witnesses are sorted via their witness index, since we implement Ord on Witness and use a BTreeMap
+        // Note: The witnesses are sorted via their witness index
+        // witness_values may not have all the witness indexes, e.g for unused witness which are not solved by the solver
         let mut sorted_witness = Assignments::new();
-        for (_, value) in witness_values.iter() {
-            sorted_witness.push(*value);
+        let num_witnesses = circuit.num_vars();
+        for i in 1..num_witnesses {
+            // Get the value if it exists. If i does not, then we fill it with the zero value
+            let value = match witness_values.get(&Witness(i)) {
+                Some(value) => *value,
+                None => FieldElement::zero(),
+            };
+
+            sorted_witness.push(value);
         }
 
         composer.create_proof(sorted_witness)

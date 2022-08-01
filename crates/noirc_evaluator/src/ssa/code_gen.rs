@@ -349,7 +349,7 @@ impl<'a> IRGenerator<'a> {
         def: Option<DefinitionId>,
     ) -> Value {
         match typ {
-            noirc_frontend::Type::Struct(_, t) => {
+            noirc_frontend::Type::Struct(t) => {
                 let mut values = Vec::new();
                 for i in &t.borrow().fields {
                     let name = format!("{}.{}", base_name, i.0 .0.contents);
@@ -367,7 +367,7 @@ impl<'a> IRGenerator<'a> {
                 }
                 self.insert_new_struct(def, values)
             }
-            noirc_frontend::Type::Array(_, len, _) => {
+            noirc_frontend::Type::Array(len, _) => {
                 {
                     //TODO support array of structs
                     let obj_type = node::ObjectType::from(typ);
@@ -729,7 +729,7 @@ impl<'a> IRGenerator<'a> {
                                 }
                                 Value::Struct(tuple)
                             }
-                            Type::Struct(_, ref typ) => {
+                            Type::Struct(ref typ) => {
                                 let typ = typ.borrow();
                                 let mut my_struct = Vec::new();
                                 for i in typ.fields.iter().zip(results) {
@@ -761,7 +761,12 @@ impl<'a> IRGenerator<'a> {
             HirExpression::Constructor(constructor) => self.codegen_constructor(env, constructor),
             HirExpression::MemberAccess(access) => self.codegen_member_access(env, access),
             HirExpression::Tuple(fields) => self.codegen_tuple(env, fields),
-            HirExpression::If(_) => todo!(),
+            HirExpression::If(if_expr) => self.handle_if_expr(
+                env,
+                &if_expr.condition,
+                &if_expr.consequence,
+                if_expr.alternative,
+            ),
             HirExpression::Prefix(prefix) => {
                 let rhs = self.codegen_expression(env, &prefix.rhs)?.unwrap_id();
                 self.codegen_prefix_expression(rhs, prefix.operator).map(Value::Single)
@@ -894,7 +899,7 @@ impl<'a> IRGenerator<'a> {
         //join block
         let join_idx =
             block::new_unsealed_block(&mut self.context, block::BlockType::ForJoin, true);
-        let exit_id = block::new_sealed_block(&mut self.context, block::BlockType::Normal);
+        let exit_id = block::new_sealed_block(&mut self.context, block::BlockType::Normal, true);
         self.context.current_block = join_idx;
 
         //should parse a for_expr.condition statement that should evaluate to bool, but
@@ -909,7 +914,7 @@ impl<'a> IRGenerator<'a> {
         let to_fix = self.context.new_instruction(Operation::Nop, ObjectType::NotAnObject)?;
 
         //Body
-        let body_id = block::new_sealed_block(&mut self.context, block::BlockType::Normal);
+        let body_id = block::new_sealed_block(&mut self.context, block::BlockType::Normal, true);
         self.context.try_get_mut_instruction(to_fix).unwrap().operation =
             Operation::Jeq(cond, body_id);
 
@@ -963,5 +968,57 @@ impl<'a> IRGenerator<'a> {
             last_value = self.codegen_statement(env, stmt).unwrap();
         }
         last_value
+    }
+
+    fn handle_if_expr(
+        &mut self,
+        env: &mut Environment,
+        cond: &ExprId,
+        cons: &ExprId,
+        alternative: Option<ExprId>,
+    ) -> Result<Value, RuntimeError> {
+        //jump instruction
+        let entry_block = self.context.current_block;
+        let condition = self
+            .codegen_expression(env, cond)
+            .map_err(|err| err.remove_span())
+            .unwrap()
+            .unwrap_id();
+        let jump_op = Operation::Jeq(condition, block::BlockId::dummy());
+        let jump_ins = self.context.new_instruction(jump_op, ObjectType::NotAnObject).unwrap();
+
+        //Then block
+        block::new_sealed_block(&mut self.context, block::BlockType::Normal, true);
+        //Parse statements of THEN branch
+        self.codegen_expression(env, cons).map_err(|err| err.remove_span()).unwrap();
+
+        //Exit block
+        let exit_block =
+            block::new_unsealed_block(&mut self.context, block::BlockType::IfJoin, true);
+        self.context[entry_block].dominated.push(exit_block);
+
+        //Else block
+        self.context.current_block = entry_block;
+        let block2 = block::new_sealed_block(&mut self.context, block::BlockType::Normal, false);
+        self.context[entry_block].right = Some(block2);
+        //Fixup the jump
+        if let node::Instruction { operation: Operation::Jeq(_, target), .. } =
+            self.context.get_mut_instruction(jump_ins)
+        {
+            *target = block2;
+        }
+        //Parse statements of ELSE branch
+        if let Some(alt) = alternative {
+            self.codegen_expression(env, &alt).map_err(|err| err.remove_span()).unwrap();
+        }
+        //Connect with the exit block
+        self.context.get_current_block_mut().left = Some(exit_block);
+
+        //Exit block plumbing
+        self.context.current_block = exit_block;
+        self.context.get_current_block_mut().predecessor.push(block2);
+        ssa_form::seal_block(&mut self.context, exit_block);
+        //
+        Ok(Value::dummy())
     }
 }
