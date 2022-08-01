@@ -11,6 +11,11 @@ use super::{
     node::{self, BinaryOp, Instruction, NodeId, Operation},
 };
 
+// Functions that modify arrays work on a fresh array, which is copied to the original one,
+// so that the writing to the array is made explicit and handled like all the other ones with store instructions
+// we keep the original array name and add the _dup suffix for debugging purpose
+const DUPLICATED: &str = "_dup";
+
 #[derive(Debug, Clone)]
 pub struct Assumption {
     pub parent: AssumptionId,
@@ -203,14 +208,14 @@ impl DecisionTree {
 
                 //find exit node:
                 let exit = block::find_join(ctx, block.left.unwrap(), block.right.unwrap());
-                assert!(ctx[exit].kind == BlockType::IfJoin); //todo debug_assert
+                debug_assert!(ctx[exit].kind == BlockType::IfJoin);
                 if_decision.entry_block = block_id;
                 if_decision.exit_block = exit;
                 if_assumption = Some(if_decision);
                 join_to_process.push(exit);
             }
         }
-        //let's mutate
+        //generate the assumption for split blocks and assign the assumption to the block
         let mut left_assumption = block_assumption;
         let mut right_assumption = block_assumption;
         if let Some(if_decision) = if_assumption {
@@ -356,7 +361,7 @@ impl DecisionTree {
                     if ass_value != ctx.one() {
                         if let ObjectType::Pointer(a) = ins.res_type {
                             let array = &ctx.mem[a].clone();
-                            let name = array.name.to_string() + "_dup";
+                            let name = array.name.to_string() + DUPLICATED;
                             ctx.new_array(&name, array.element_type, array.len, None);
                             let array_dup = ctx.mem.last_id();
                             let ins2 = ctx.get_mut_instruction(*i);
@@ -367,14 +372,16 @@ impl DecisionTree {
                                 ObjectType::Pointer(array_dup),
                                 &mut stack,
                             );
-                            todo!();
+                            todo!(
+                                "Support for function calls inside IF statements to be implemented"
+                            );
                         }
                     }
                 }
 
                 Operation::Call(_, _, _) => {
                     if ass_value != ctx.one() {
-                        todo!();
+                        todo!("Support for function calls inside IF statements to be implemented");
                     }
                 }
                 Operation::Constrain(expr, _) => {
