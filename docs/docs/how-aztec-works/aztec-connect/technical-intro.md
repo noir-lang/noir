@@ -22,7 +22,7 @@ Rollup providers batch multiple L2 transaction intents on the Aztec Network toge
 
 #### How much does this cost?
 
-Aztec connect transactions can be batched together into one rollup. Each user in the batch pays a base fee to cover the verification of the rollup proof and their share of the L1 DeFi transaction gas cost. A single Aztec Connect transaction requires 3 base fees or approximately ~8000 gas.
+Aztec Connect transactions can be batched together into one rollup. Each user in the batch pays a base fee to cover the verification of the rollup proof and their share of the L1 DeFi transaction gas cost. A single Aztec Connect transaction requires 3 base fees or approximately ~8000 gas.
 
 The user then pays their share of the L1 Defi transaction. The rollup will call a bridge contract with a fixed deterministic amount of gas so the total fee is simple ~8000 gas + BRIDGE_GAS / BATCH_SIZE.
 
@@ -170,4 +170,4 @@ At a later date, this interaction can be finalised by prodding the rollup contra
 
 #### finalise()
 
-This function will be called from the Azte Rollup contract. The Aztec Rollup contract will check that it received the correct amount of ETH and tokens specified by the return values and trigger the settlement step on Aztec.
+This function will be called from the Aztec Rollup contract. The Aztec Rollup contract will check that it received the correct amount of ETH and tokens specified by the return values and trigger the settlement step on Aztec.
