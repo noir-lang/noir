@@ -181,6 +181,13 @@ impl Driver {
         CompiledProgram { circuit, abi: Some(abi) }
     }
 
+    #[cfg(feature = "wasm")]
+    pub fn add_std_lib(&mut self) {
+        // TODO: Currently, we do not load the standard library when the program
+        // TODO: is compiled using the wasm version of noir
+    }
+
+    #[cfg(not(feature = "wasm"))]
     /// XXX: It is sub-optimal to add the std as a regular crate right now because
     /// we have no way to determine whether a crate has been compiled already.
     /// XXX: We Ideally need a way to check if we've already compiled a crate and not re-compile it
