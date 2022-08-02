@@ -1,0 +1,24 @@
+[package]
+name = "wasm"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+
+acvm = { path = "../acvm" }
+noir_field = { path = "../noir_field" }
+noirc_driver = { path = "../noirc_driver", features = ["wasm"] }
+console_error_panic_hook = "*"
+
+wasm-bindgen = { version = "*" }
+getrandom = { version = "0.2.4", features = ["js"] }
+js-sys = "0.3.55"
+
+[dev-dependencies]
+wasm-bindgen-test = "*"
