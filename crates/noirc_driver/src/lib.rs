@@ -220,6 +220,7 @@ impl Default for Driver {
     }
 }
 
+#[cfg(not(feature = "wasm"))]
 fn path_to_stdlib() -> PathBuf {
     dirs::config_dir().unwrap().join("noir-lang").join("std")
 }
