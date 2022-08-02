@@ -7,12 +7,15 @@ use noirc_evaluator::Evaluator;
 use noirc_frontend::graph::{CrateId, CrateName, CrateType, LOCAL_CRATE};
 use noirc_frontend::hir::def_map::CrateDefMap;
 use noirc_frontend::hir::Context;
+use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub struct Driver {
     context: Context,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CompiledProgram {
     pub circuit: Circuit,
     pub abi: Option<noirc_abi::Abi>,
