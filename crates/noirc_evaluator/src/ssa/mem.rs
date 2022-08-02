@@ -40,7 +40,7 @@ impl MemArray {
                 self.values.push(w.into());
             }
         }
-        assert!(self.values.is_empty() || self.values.len() == self.len.try_into().unwrap());
+        assert!(self.values.is_empty() || self.values.len() == self.len as usize);
     }
 
     fn new(
