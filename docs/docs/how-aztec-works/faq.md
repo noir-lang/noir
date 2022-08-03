@@ -56,7 +56,7 @@ And you can also track your transactions in real-time in the Aztec explorer via 
 
 ### Is zk.money decentralized?
 
-zk-money is powered by Aztec. The current release of Aztec's L2 Rollup technology is run with Aztec as the sole rollup provider, with more rollup providers onboarding later this year. At that point, the system will be decentralised. Currently, users rely on Aztec to relay rolled up transactions to the chain. In case Aztec suddenly disappears, there is an emergency mode to allow users to withdraw funds from the system directly from the contract. [More info here](https://developers.aztec.network/###/A%20Private%20Layer%202/zkAssets/emergencyWithdraw).
+zk-money is powered by Aztec. The current release of Aztec's L2 Rollup technology is run with Aztec as the sole rollup provider, with more rollup providers onboarding later this year. At that point, the system will be decentralised. Currently, users rely on Aztec to relay rolled up transactions to the chain. In case Aztec suddenly disappears, there is an emergency mode to allow users to withdraw funds from the system directly from the contract.
 
 ---
 
