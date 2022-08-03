@@ -38,7 +38,10 @@ use crate::{
     BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
     Statement,
 };
-use crate::{LValue, NoirStruct, Path, Pattern, StructType, Type, UnresolvedType, ERROR_IDENT};
+use crate::{
+    LValue, NoirStruct, Path, Pattern, StructType, Type, TypeVariableId, UnresolvedType,
+    ERROR_IDENT,
+};
 use fm::FileId;
 use noirc_errors::{Location, Span, Spanned};
 
@@ -215,12 +218,25 @@ impl<'a> Resolver<'a> {
             UnresolvedType::Integer(is_const, sign, bits) => Type::Integer(is_const, sign, bits),
             UnresolvedType::Bool(is_const) => Type::Bool(is_const),
             UnresolvedType::Unit => Type::Unit,
-            UnresolvedType::Unspecified => Type::Unspecified,
+            UnresolvedType::Unspecified => Type::Error,
             UnresolvedType::Error => Type::Error,
-            UnresolvedType::Struct(path) => match self.lookup_struct(path) {
-                Some(definition) => Type::Struct(definition),
-                None => Type::Error,
-            },
+            UnresolvedType::Named(path, args) => {
+                // Check if the path is a type variable first. We currently disallow generics on type
+                // variables since this is what rust does.
+                if args.is_empty() {
+                    if let Some(id) = self.try_lookup_typevariable(&path) {
+                        return Type::TypeVariable(id);
+                    }
+                }
+
+                match self.lookup_struct(path) {
+                    Some(definition) => {
+                        let args = vecmap(args, |arg| self.resolve_type(arg));
+                        Type::Struct(definition, args)
+                    }
+                    None => Type::Error,
+                }
+            }
             UnresolvedType::Tuple(fields) => {
                 Type::Tuple(vecmap(fields, |field| self.resolve_type(field)))
             }
@@ -566,6 +582,13 @@ impl<'a> Resolver<'a> {
     pub fn lookup_struct(&mut self, path: Path) -> Option<Rc<RefCell<StructType>>> {
         let id = self.lookup_type(path);
         (id != StructId::dummy_id()).then(|| self.get_struct(id))
+    }
+
+    /// Try to lookup the given type variable name, returning a unique id if found.
+    /// Compared to the other lookup functions, this will not push an error if the
+    /// type is not found.
+    pub fn try_lookup_typevariable(&self, path: &Path) -> Option<TypeVariableId> {
+        todo!()
     }
 
     pub fn lookup_type_for_impl(mut self, path: Path) -> (StructId, Vec<ResolverError>) {

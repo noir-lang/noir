@@ -65,7 +65,7 @@ pub fn bind_pattern(
             todo!("Implement tuple types")
         }
         HirPattern::Struct(struct_type, fields, span) => match typ {
-            Type::Struct(inner) if &inner == struct_type => {
+            Type::Struct(inner, args) if &inner == struct_type => {
                 let mut pattern_fields = fields.clone();
                 let mut type_fields = inner.borrow().fields.clone();
 
@@ -139,11 +139,12 @@ fn type_check_lvalue(
             };
 
             match result {
-                Type::Struct(def) => {
+                Type::Struct(def, args) => {
                     if let Some(field) = def.borrow().get_field(&field_name.0.contents) {
+                        // TODO: Substitute generics
                         field.clone()
                     } else {
-                        error(Type::Struct(def.clone()))
+                        error(Type::Struct(def.clone(), args))
                     }
                 }
                 Type::Error => Type::Error,
@@ -224,7 +225,7 @@ fn type_check_declaration(
 
     // First check if the LHS is unspecified
     // If so, then we give it the same type as the expression
-    if annotated_type != Type::Unspecified {
+    if annotated_type != Type::Error {
         // Now check if LHS is the same type as the RHS
         // Importantly, we do not co-erce any types implicitly
         let expr_span = interner.expr_span(&rhs_expr);

@@ -84,21 +84,38 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
         .or_not()
         .then_ignore(keyword(Keyword::Fn))
         .then(ident())
+        .then(generics())
         .then(parenthesized(function_parameters(allow_self)))
         .then(function_return_type())
         .then(block(expression()))
-        .map(|((((attribute, name), parameters), (return_visibility, return_type)), body)| {
-            FunctionDefinition {
-                span: name.0.span(),
-                name,
-                attribute, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
-                parameters,
+        .map(
+            |(
+                ((((attribute, name), generics), parameters), (return_visibility, return_type)),
                 body,
-                return_type,
-                return_visibility,
-            }
-            .into()
-        })
+            )| {
+                FunctionDefinition {
+                    span: name.0.span(),
+                    name,
+                    attribute, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
+                    generics,
+                    parameters,
+                    body,
+                    return_type,
+                    return_visibility,
+                }
+                .into()
+            },
+        )
+}
+
+fn generics() -> impl NoirParser<Vec<Ident>> {
+    ident()
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
+        .at_least(1)
+        .delimited_by(just(Token::Less), just(Token::Greater))
+        .or_not()
+        .map(|opt| opt.unwrap_or(vec![]))
 }
 
 fn struct_definition() -> impl NoirParser<TopLevelStatement> {
@@ -171,7 +188,8 @@ fn self_parameter() -> impl NoirParser<(Pattern, UnresolvedType, AbiFEType)> {
         Token::Ident(ref word) if word == "self" => {
             let ident = Ident::new(found, span);
             let path = Path::from_single("Self".to_owned(), span);
-            Ok((Pattern::Identifier(ident), UnresolvedType::Struct(path), AbiFEType::Private))
+            let self_type = UnresolvedType::Named(path, vec![]);
+            Ok((Pattern::Identifier(ident), self_type, AbiFEType::Private))
         }
         _ => Err(ParserError::expected_label("parameter".to_owned(), found, span)),
     })
@@ -375,10 +393,6 @@ where
 }
 
 fn parse_type() -> impl NoirParser<UnresolvedType> {
-    parse_type_inner(parse_type_no_field_element())
-}
-
-fn parse_type_no_field_element() -> impl NoirParser<UnresolvedType> {
     recursive(parse_type_inner)
 }
 
@@ -389,7 +403,7 @@ where
     choice((
         field_type(),
         int_type(),
-        struct_type(),
+        named_type(recursive_type_parser.clone()),
         array_type(recursive_type_parser.clone()),
         tuple_type(recursive_type_parser),
         bool_type(),
@@ -429,8 +443,22 @@ fn int_type() -> impl NoirParser<UnresolvedType> {
         .map(UnresolvedType::from_int_token)
 }
 
-fn struct_type() -> impl NoirParser<UnresolvedType> {
-    path().map(UnresolvedType::Struct)
+fn named_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {
+    path()
+        .then(generic_type_args(type_parser))
+        .map(|(path, args)| UnresolvedType::Named(path, args))
+}
+
+fn generic_type_args(
+    type_parser: impl NoirParser<UnresolvedType>,
+) -> impl NoirParser<Vec<UnresolvedType>> {
+    type_parser
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
+        .at_least(1)
+        .delimited_by(just(Token::Less), just(Token::Greater))
+        .or_not()
+        .map(Option::unwrap_or_default)
 }
 
 fn array_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>
@@ -535,10 +563,8 @@ where
         .map(UnaryRhs::ArrayIndex);
 
     // `as Type` in `atom as Type`
-    let cast_rhs = keyword(Keyword::As)
-        .ignore_then(parse_type_no_field_element())
-        .map(UnaryRhs::Cast)
-        .labelled("cast");
+    let cast_rhs =
+        keyword(Keyword::As).ignore_then(parse_type()).map(UnaryRhs::Cast).labelled("cast");
 
     // `.foo` or `.foo(args)` in `atom.foo` or `atom.foo(args)`
     let member_rhs = just(Token::Dot)

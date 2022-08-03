@@ -49,11 +49,11 @@ pub enum Type {
     PolymorphicInteger(IsConst, TypeVariable),
     Bool(IsConst),
     Unit,
-    Struct(Rc<RefCell<StructType>>),
+    Struct(Rc<RefCell<StructType>>, Vec<Type>),
     Tuple(Vec<Type>),
+    TypeVariable(TypeVariableId),
 
     Error,
-    Unspecified, // This is for when the user declares a variable without specifying it's type
 }
 
 type TypeVariable = Rc<RefCell<TypeBinding>>;
@@ -239,7 +239,14 @@ impl std::fmt::Display for Type {
                 Signedness::Unsigned => write!(f, "{}u{}", is_const, num_bits),
             },
             Type::PolymorphicInteger(_, binding) => write!(f, "{}", binding.borrow()),
-            Type::Struct(s) => write!(f, "{}", s.borrow()),
+            Type::Struct(s, args) => {
+                let args = vecmap(args, |arg| arg.to_string());
+                if args.is_empty() {
+                    write!(f, "{}", s.borrow())
+                } else {
+                    write!(f, "{}<{}>", s.borrow(), args.join(", "))
+                }
+            }
             Type::Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
                 write!(f, "({})", elements.join(", "))
@@ -247,7 +254,7 @@ impl std::fmt::Display for Type {
             Type::Bool(is_const) => write!(f, "{}bool", is_const),
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
-            Type::Unspecified => write!(f, "unspecified"),
+            Type::TypeVariable(id) => write!(f, "t{}", id.0),
         }
     }
 }
@@ -427,8 +434,11 @@ impl Type {
             // No recursive try_unify call for struct fields. Don't want
             // to mutate shared type variables within struct definitions.
             // This isn't possible currently but will be once noir gets generic types
-            (Struct(fields_a), Struct(fields_b)) => {
+            (Struct(fields_a, args_a), Struct(fields_b, args_b)) => {
                 if fields_a == fields_b {
+                    for (a, b) in args_a.iter().zip(args_b) {
+                        a.try_unify(b, span)?;
+                    }
                     Ok(())
                 } else {
                     Err(SpanKind::None)
@@ -517,8 +527,11 @@ impl Type {
 
             // No recursive try_unify call needed for struct fields, we just
             // check the struct ids match.
-            (Struct(struct_a), Struct(struct_b)) => {
+            (Struct(struct_a, args_a), Struct(struct_b, args_b)) => {
                 if struct_a == struct_b {
+                    for (a, b) in args_a.iter().zip(args_b) {
+                        a.is_subtype_of(b, span)?;
+                    }
                     Ok(())
                 } else {
                     Err(SpanKind::None)
@@ -544,25 +557,6 @@ impl Type {
                     Err(SpanKind::None)
                 }
             }
-        }
-    }
-
-    /// Computes the number of elements in a Type
-    /// Arrays, structs, and tuples will be the only data structures to return more than one
-    pub fn num_elements(&self) -> usize {
-        match self {
-            Type::Array(ArraySize::Fixed(fixed_size), _) => *fixed_size as usize,
-            Type::Array(ArraySize::Variable, _) =>
-                unreachable!("ice : this method is only ever called when we want to compare the prover inputs with the ABI in main. The ABI should not have variable input. The program should be compiled before calling this"),
-            Type::Struct(s) => s.borrow().fields.len(),
-            Type::Tuple(fields) => fields.len(),
-            Type::FieldElement(..)
-            | Type::Integer(..)
-            | Type::PolymorphicInteger(..)
-            | Type::Bool(_)
-            | Type::Error
-            | Type::Unspecified
-            | Type::Unit => 1,
         }
     }
 
@@ -618,10 +612,10 @@ impl Type {
             },
             Type::Bool(_) => panic!("currently, cannot have a bool in the entry point function"),
             Type::Error => unreachable!(),
-            Type::Unspecified => unreachable!(),
             Type::Unit => unreachable!(),
-            Type::Struct(_) => todo!("as_abi_type not yet implemented for struct types"),
+            Type::Struct(..) => todo!("as_abi_type not yet implemented for struct types"),
             Type::Tuple(_) => todo!("as_abi_type not yet implemented for tuple types"),
+            Type::TypeVariable(_) => unreachable!(),
         }
     }
 
@@ -633,7 +627,7 @@ impl Type {
             // only to have to call .into_iter again afterward. Trying to ellide
             // collecting to a Vec leads to us dropping the temporary Ref before
             // the iterator is returned
-            Type::Struct(def) => {
+            Type::Struct(def, _args) => {
                 vecmap(def.borrow().fields.iter(), |(name, typ)| (name.to_string(), typ.clone()))
             }
             Type::Tuple(fields) => {
@@ -649,7 +643,7 @@ impl Type {
     /// Panics if the type is not a struct or tuple.
     pub fn get_field_type(&self, field_name: &str) -> Type {
         match self {
-            Type::Struct(def) => def.borrow().get_field(field_name).unwrap().clone(),
+            Type::Struct(def, _) => def.borrow().get_field(field_name).unwrap().clone(),
             Type::Tuple(fields) => {
                 let mut fields = fields.iter().enumerate();
                 fields.find(|(i, _)| i.to_string() == *field_name).unwrap().1.clone()

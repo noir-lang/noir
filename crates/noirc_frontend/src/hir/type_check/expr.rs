@@ -307,8 +307,8 @@ fn lookup_method(
     expr_id: &ExprId,
     errors: &mut Vec<TypeCheckError>,
 ) -> Option<FuncId> {
-    match object_type {
-        Type::Struct(ref typ) => {
+    match &object_type {
+        Type::Struct(typ, _args) => {
             let typ = typ.borrow();
             match typ.methods.get(method_name) {
                 Some(method_id) => Some(*method_id),
@@ -442,7 +442,6 @@ pub fn infix_operand_type_rules(
 
         // An error type on either side will always return an error
         (Error, _) | (_,Error) => Ok(Error),
-        (Unspecified, _) | (_,Unspecified) => Ok(Unspecified),
         (Unit, _) | (_,Unit) => Ok(Unit),
 
         // The result of two Fields is always a witness
@@ -535,7 +534,8 @@ fn check_constructor(
         });
     }
 
-    Type::Struct(typ.clone())
+    // TODO: generic args
+    Type::Struct(typ.clone(), vec![])
 }
 
 pub fn check_member_access(
@@ -545,7 +545,7 @@ pub fn check_member_access(
 ) -> Type {
     let lhs_type = type_check_expression(interner, &access.lhs, errors);
 
-    if let Type::Struct(s) = &lhs_type {
+    if let Type::Struct(s, args) = &lhs_type {
         let s = s.borrow();
         if let Some(field) = s.get_field(&access.rhs.0.contents) {
             // TODO: Should the struct's visibility be applied to the field?
@@ -618,7 +618,6 @@ pub fn comparator_operand_type_rules(
 
         // Avoid reporting errors multiple times
         (Error, _) | (_,Error) => Ok(Bool(IsConst::Yes(None))),
-        (Unspecified, _) | (_,Unspecified) => Ok(Bool(IsConst::Yes(None))),
 
         // Special-case == and != for arrays
         (Array(x_size, x_type), Array(y_size, y_type)) if matches!(op.kind, Equal | NotEqual) => {
