@@ -162,7 +162,7 @@ impl Acir {
                 let v = self.evaluate_opcode(ins.id, *opcode, args, ins.res_type, ctx, evaluator);
                 InternalVar::from(v)
             }
-            Operation::Call(..) => unreachable!("call instruction should have been inlined"),
+            Operation::Call { .. } => unreachable!("call instruction should have been inlined"),
             Operation::Return(_) => todo!(), //return from main
             Operation::Cond { condition, val_true: lhs, val_false: rhs } => {
                 let cond = self.substitute(*condition, evaluator, ctx);

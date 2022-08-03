@@ -209,7 +209,9 @@ impl<'a> SsaContext<'a> {
             }
             Operation::Intrinsic(opcode, args) => format!("intrinsic {}({})", opcode, join(args)),
             Operation::Nop => "nop".into(),
-            Operation::Call(f, args, ar) => format!("call {:?}({}) _ {:?}", f, join(args), ar),
+            Operation::Call { func_id, arguments, returned_arrays, .. } => {
+                format!("call {:?}({}) _ {:?}", func_id, join(arguments), returned_arrays)
+            }
             Operation::Return(values) => format!("return ({})", join(values)),
             Operation::Result { call_instruction, index } => {
                 let call = self.node_to_string(*call_instruction);
@@ -638,18 +640,35 @@ impl<'a> SsaContext<'a> {
         //Optimisation
         block::compute_dom(self);
         optim::full_cse(self, self.first_block)?;
+
+        //Flattenning
         self.log(enable_logging, "\nCSE:", "\nunrolling:");
         //Unrolling
         flatten::unroll_tree(self, self.first_block)?;
 
         //reduce conditionals
         let mut decision = DecisionTree::new(self);
-        decision.make_decision_tree(self);
+        decision.make_decision_tree(self, self.first_block);
         decision.reduce(self, decision.root)?;
 
         //Inlining
         self.log(enable_logging, "reduce", "\ninlining:");
-        inline::inline_tree(self, self.first_block)?;
+        inline::inline_tree(self, self.first_block, &decision)?;
+
+        block::merge_path(self, self.first_block, BlockId::dummy());
+        //The CFG is now fully flattened, so we keep only the first block.
+        let mut to_remove = Vec::new();
+        for b in &self.blocks {
+            if b.0 != self.first_block.0 {
+                to_remove.push(b.0);
+            }
+        }
+        for b in to_remove {
+            self.blocks.remove(b);
+        }
+        let first_block = self.first_block;
+        self[first_block].dominated.clear();
+
         optim::full_cse(self, self.first_block)?;
 
         //Truncation
@@ -660,7 +679,6 @@ impl<'a> SsaContext<'a> {
         if enable_logging {
             Acir::print_circuit(&evaluator.gates);
             println!("DONE");
-            dbg!(&evaluator.current_witness_index);
         }
         Ok(())
     }
@@ -761,10 +779,11 @@ impl<'a> SsaContext<'a> {
             }
         }
         if let Some((func, a, idx)) = ret_array {
-            if let Some(Instruction { operation: Operation::Call(_, _, returned_array), .. }) =
-                self.try_get_mut_instruction(func)
+            if let Some(Instruction {
+                operation: Operation::Call { returned_arrays, .. }, ..
+            }) = self.try_get_mut_instruction(func)
             {
-                returned_array.push((a, idx));
+                returned_arrays.push((a, idx));
             }
             if let Some(i) = self.try_get_mut_instruction(rhs) {
                 i.mark = Mark::ReplaceWith(lhs);
@@ -901,6 +920,10 @@ impl<'a> SsaContext<'a> {
             self.update_variable_id_in_block(ls_root, new_var_id, result, block_id); //update the name and the value map
             result
         }
+    }
+
+    pub fn under_assumption(&self, predicate: NodeId) -> bool {
+        !(predicate == NodeId::dummy() || predicate == self.one())
     }
 }
 
