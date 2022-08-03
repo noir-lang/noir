@@ -14,7 +14,8 @@ noirc_frontend = { path = "../noirc_frontend" }
 noirc_abi = { path = "../noirc_abi" }
 fm = { path = "../fm" }
 # acvm = { path = "../acvm", features = ["bn254"] }
-acvm = { git = "https://github.com/vezenovm/acvm", features = ["bn254"] }
+# acvm = { git = "https://github.com/vezenovm/acvm", features = ["bn254"] }
+acvm = { git = "https://github.com/noir-lang/noir", features = ["bn254"] }
 cfg-if = "1.0.0"
 
 toml = "0.5"
@@ -26,8 +27,8 @@ hex = "0.4.2"
 tempdir = "0.3.7"
 
 # Backends
-# aztec_backend = { optional = true, path = "../../../noir-backends/aztec_backend" }
-aztec_backend = { optional = true, git = "https://github.com/noir-lang/aztec_backend", branch = "noir-interop" }
+aztec_backend = { optional = true, path = "../../../noir-backends/aztec_backend" }
+# aztec_backend = { optional = true, git = "https://github.com/noir-lang/aztec_backend", branch = "noir-interop" }
 
 [features]
 default = ["plonk_bn254"]

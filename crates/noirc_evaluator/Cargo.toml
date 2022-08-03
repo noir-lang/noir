@@ -11,7 +11,8 @@ noirc_frontend = { path = "../noirc_frontend" }
 noirc_errors = { path = "../noirc_errors" }
 noirc_abi = { path = "../noirc_abi" }
 # acvm = { path = "../acvm" }
-acvm = { git = "https://github.com/vezenovm/acvm" }
+# acvm = { git = "https://github.com/vezenovm/acvm" }
+acvm = { git = "https://github.com/noir-lang/noir" }
 arena = {path = "../arena"}
 fm = { path = "../fm" }
 lazy_static = "1.4.0"

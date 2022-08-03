@@ -8,7 +8,8 @@ edition = "2018"
 
 [dependencies]
 # acvm = { path = "../acvm" }
-acvm = { git = "https://github.com/vezenovm/acvm" }
+# acvm = { git = "https://github.com/vezenovm/acvm" }
+acvm = { git = "https://github.com/noir-lang/noir" }
 toml = "0.5.8"
 serde = "1.0.123"
 serde_derive = "1.0.123"

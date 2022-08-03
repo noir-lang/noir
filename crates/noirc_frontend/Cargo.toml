@@ -8,7 +8,8 @@ edition = "2018"
 
 [dependencies]
 # acvm = { path = "../acvm" }
-acvm = { git = "https://github.com/vezenovm/acvm" }
+# acvm = { git = "https://github.com/vezenovm/acvm" }
+acvm = { git = "https://github.com/noir-lang/noir" }
 noirc_abi = { path = "../noirc_abi" }
 noirc_errors = { path = "../noirc_errors" }
 std_lib = { path = "../std_lib" }
