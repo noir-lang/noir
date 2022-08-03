@@ -15,10 +15,10 @@ dependencies = [
 [[package]]
 name = "acir"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/noir#9a68f4206c0f20f56c9029d4484c97d4a68fa0bd"
+source = "git+https://github.com/noir-lang/noir?branch=migrate_backends#dd28b89991250df68c2fe26a5fc363019394c44e"
 dependencies = [
  "indexmap",
- "noir_field 0.1.0 (git+https://github.com/noir-lang/noir)",
+ "noir_field 0.1.0 (git+https://github.com/noir-lang/noir?branch=migrate_backends)",
  "serde",
 ]
 
@@ -42,14 +42,14 @@ dependencies = [
 [[package]]
 name = "acvm"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/noir#9a68f4206c0f20f56c9029d4484c97d4a68fa0bd"
+source = "git+https://github.com/noir-lang/noir?branch=migrate_backends#dd28b89991250df68c2fe26a5fc363019394c44e"
 dependencies = [
- "acir 0.1.0 (git+https://github.com/noir-lang/noir)",
+ "acir 0.1.0 (git+https://github.com/noir-lang/noir?branch=migrate_backends)",
  "blake2",
  "hex",
  "indexmap",
  "k256",
- "noir_field 0.1.0 (git+https://github.com/noir-lang/noir)",
+ "noir_field 0.1.0 (git+https://github.com/noir-lang/noir?branch=migrate_backends)",
  "num-bigint",
  "num-traits",
  "sha2",
@@ -208,9 +208,9 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 [[package]]
 name = "aztec_backend"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?branch=noir-interop#1b4644a4a4fe48232e0d788826ca52b54a4fd14b"
+source = "git+https://github.com/noir-lang/aztec_backend?branch=noir-interop#fef6cd91293b30148071bccbb68eb02e1d498c2d"
 dependencies = [
- "acvm 0.1.0 (git+https://github.com/noir-lang/noir)",
+ "acvm 0.1.0 (git+https://github.com/noir-lang/noir?branch=migrate_backends)",
  "barretenberg_wrapper",
  "blake2",
  "dirs",
@@ -1122,7 +1122,7 @@ dependencies = [
 [[package]]
 name = "noir_field"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/noir#9a68f4206c0f20f56c9029d4484c97d4a68fa0bd"
+source = "git+https://github.com/noir-lang/noir?branch=migrate_backends#dd28b89991250df68c2fe26a5fc363019394c44e"
 dependencies = [
  "ark-bn254",
  "ark-ff",

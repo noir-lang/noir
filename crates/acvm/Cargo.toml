@@ -17,7 +17,8 @@ acir = { path = "../acir" }
 # aztec_backend = { optional = true, path = "../aztec_backend" }
 # arkworks_backend = { optional = true, git = "https://github.com/noir-lang/arkworks_backend" }
 sled = "0.34.6"
-noir_field = { path = "../noir_field", default-features = false }
+# noir_field = { path = "../noir_field", default-features = false }
+noir_field = { path = "../noir_field", features = ["bn254"] }
 sha2 = "0.9.3"
 blake2 = "0.9.1"
 hex = "0.4.2"
