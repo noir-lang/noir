@@ -13,7 +13,7 @@ noirc_driver = { path = "../noirc_driver" }
 noirc_frontend = { path = "../noirc_frontend" }
 noirc_abi = { path = "../noirc_abi" }
 fm = { path = "../fm" }
-acvm = { path = "../acvm" }
+acvm = { path = "../acvm", features = ["bn254"] }
 cfg-if = "1.0.0"
 
 toml = "0.5"
