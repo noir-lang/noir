@@ -64,7 +64,6 @@ namespace widget {
  **/
 template <class Field, class Getters, typename PolyContainer> class TurboRangeKernel {
   public:
-    static constexpr bool use_quotient_mid = false;
     static constexpr size_t num_independent_relations = 4;
     // We state the challenges required for linear/nonlinear terms computation
     static constexpr uint8_t quotient_required_challenges = CHALLENGE_BIT_ALPHA;

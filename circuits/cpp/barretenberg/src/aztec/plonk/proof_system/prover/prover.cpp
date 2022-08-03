@@ -83,7 +83,7 @@ template <typename settings> void ProverBase<settings>::compute_wire_pre_commitm
         std::string wire_tag = "w_" + std::to_string(i + 1);
         std::string commit_tag = "W_" + std::to_string(i + 1);
         barretenberg::fr* coefficients = witness->wires.at(wire_tag).get_coefficients();
-        commitment_scheme->commit(coefficients, commit_tag, barretenberg::fr(0), queue);
+        commitment_scheme->commit(coefficients, commit_tag, work_queue::MSMSize::N, queue);
     }
 
     // add public inputs
@@ -135,17 +135,14 @@ template <typename settings> void ProverBase<settings>::compute_quotient_pre_com
     // t_{i} would change and so we will have to ensure the correct size of multi-scalar multiplication in
     // computing the commitments to these polynomials.
     //
-    for (size_t i = 0; i < settings::program_width - 1; ++i) {
-        const size_t offset = n * i;
-        fr* coefficients = &key->quotient_large.get_coefficients()[offset];
+    for (size_t i = 0; i < settings::program_width; ++i) {
+        fr* coefficients = &key->quotient_polynomial_parts[i].get_coefficients()[0];
         std::string quotient_tag = "T_" + std::to_string(i + 1);
-        commitment_scheme->commit(coefficients, quotient_tag, barretenberg::fr(0), queue);
+        // Set flag that determines domain size (currently n or n+1) in pippenger (see process_queue()).
+        // Note: After blinding, all t_i have size n+1 representation (degree n) except t_4 in Turbo/Ultra.
+        fr domain_size_flag = i > 2 ? work_queue::MSMSize::N : work_queue::MSMSize::N_PLUS_ONE;
+        commitment_scheme->commit(coefficients, quotient_tag, domain_size_flag, queue);
     }
-
-    fr* coefficients = &key->quotient_large.get_coefficients()[(settings::program_width - 1) * n];
-    std::string quotient_tag = "T_" + std::to_string(settings::program_width);
-    fr program_flag = settings::program_width == 3 ? barretenberg::fr(1) : barretenberg::fr(0);
-    commitment_scheme->commit(coefficients, quotient_tag, program_flag, queue);
 }
 
 /**
@@ -358,18 +355,24 @@ template <typename settings> void ProverBase<settings>::execute_fourth_round()
     for (auto& widget : transition_widgets) {
         alpha_base = widget->compute_quotient_contribution(alpha_base, transcript);
     }
-    fr* q_mid = &key->quotient_mid[0];
-    fr* q_large = &key->quotient_large[0];
 
 #ifdef DEBUG_TIMING
     start = std::chrono::steady_clock::now();
 #endif
-    if constexpr (settings::uses_quotient_mid) {
-        barretenberg::polynomial_arithmetic::divide_by_pseudo_vanishing_polynomial(
-            key->quotient_mid.get_coefficients(), key->small_domain, key->mid_domain);
-    }
+
+    // The parts of the quotient polynomial t(X) are stored as 4 separate polynomials in
+    // the code. However, operations such as dividing by the psuedo vanishing polynomial
+    // as well as iFFT (coset) are to be performed on the polynomial t(X) as a whole.
+    // We avoid redundant copy of the parts t_1, t_2, t_3, t_4 and instead just tweak the
+    // relevant functions to work on quotient polynomial parts.
+    std::vector<fr*> quotient_poly_parts;
+    quotient_poly_parts.push_back(&key->quotient_polynomial_parts[0][0]);
+    quotient_poly_parts.push_back(&key->quotient_polynomial_parts[1][0]);
+    quotient_poly_parts.push_back(&key->quotient_polynomial_parts[2][0]);
+    quotient_poly_parts.push_back(&key->quotient_polynomial_parts[3][0]);
     barretenberg::polynomial_arithmetic::divide_by_pseudo_vanishing_polynomial(
-        key->quotient_large.get_coefficients(), key->small_domain, key->large_domain);
+        quotient_poly_parts, key->small_domain, key->large_domain);
+
 #ifdef DEBUG_TIMING
     end = std::chrono::steady_clock::now();
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -378,23 +381,26 @@ template <typename settings> void ProverBase<settings>::execute_fourth_round()
 #ifdef DEBUG_TIMING
     start = std::chrono::steady_clock::now();
 #endif
-    if (settings::uses_quotient_mid) {
-        key->quotient_mid.coset_ifft(key->mid_domain);
+    polynomial_arithmetic::coset_ifft(quotient_poly_parts, key->large_domain);
+
+    // Manually copy the (n + 1)th coefficient of t_3 for StandardPlonk from t_4.
+    // This is because the degree of t_3 for StandardPlonk is n.
+    if (settings::program_width == 3) {
+        key->quotient_polynomial_parts[2][n] = key->quotient_polynomial_parts[3][0];
+        key->quotient_polynomial_parts[3][0] = 0;
     }
-    key->quotient_large.coset_ifft(key->large_domain);
+
 #ifdef DEBUG_TIMING
     end = std::chrono::steady_clock::now();
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cerr << "final inverse fourier transforms: " << diff.count() << "ms" << std::endl;
 #endif
-    if (settings::uses_quotient_mid) {
-        ITERATE_OVER_DOMAIN_START(key->mid_domain);
-        q_large[i] += q_mid[i];
-        ITERATE_OVER_DOMAIN_END;
-    }
 #ifdef DEBUG_TIMING
     start = std::chrono::steady_clock::now();
 #endif
+
+    add_blinding_to_quotient_polynomial_parts();
+
     compute_quotient_pre_commitment();
 #ifdef DEBUG_TIMING
     end = std::chrono::steady_clock::now();
@@ -443,37 +449,86 @@ template <typename settings> void ProverBase<settings>::compute_linearisation_co
             alpha_base = widget->compute_linear_contribution(alpha_base, transcript, &r[0]);
         }
         // The below code adds −Z_H(z) * (t_lo(X) + z^n * t_mid(X) + z^2n * t_hi(X)) term to r(X)
+        // (Plus an additional term −Z_H(z) * z^3n * t_highest(X) for Turbo/Ultra)
         barretenberg::fr z_pow_n = zeta.pow(key->n);
         barretenberg::fr z_pow_two_n = z_pow_n.sqr();
-        // We access Z_H(z) from lagrange_evals
+        barretenberg::fr z_pow_three_n = z_pow_two_n * z_pow_n;
+        std::vector<fr> quotient_multipliers{ 1, z_pow_n, z_pow_two_n, z_pow_three_n };
+        //  We access Z_H(z) from lagrange_evals
         barretenberg::polynomial_arithmetic::lagrange_evaluations lagrange_evals =
             barretenberg::polynomial_arithmetic::get_lagrange_evaluations(zeta, key->small_domain);
+
+        // First, add to r(X) the contribution associated with the first n coefficients of the quotient
+        // polynomial parts. This allows multi-threading. The n+1th coefficients are handled separately below.
         ITERATE_OVER_DOMAIN_START(key->small_domain);
-        fr quotient_sum = 0, quotient_multiplier = 1;
-        for (size_t j = 0; j < settings::program_width; j++) {
-            quotient_sum += key->quotient_large[i + key->n * j] * quotient_multiplier;
-            quotient_multiplier *= z_pow_n;
+        fr quotient_sum = 0;
+        for (size_t j = 0; j < settings::program_width; ++j) {
+            quotient_sum += key->quotient_polynomial_parts[j][i] * quotient_multipliers[j];
         }
         r[i] += -lagrange_evals.vanishing_poly * quotient_sum;
         ITERATE_OVER_DOMAIN_END;
-        // For standard Plonk, t_hi(X) has, (n+1) coefficients
-        if (settings::program_width == 3) {
-            if (r.get_size() < key->n + 1) {
-                r.resize(key->n + 1);
-            }
-            r[key->n] = -key->quotient_large[3 * key->n] * lagrange_evals.vanishing_poly * z_pow_two_n;
+
+        // Each t_i for i = 1,2,3 has an n+1th coefficient that must be accounted for in r(X) here.
+        // Note that t_4 (Turbo/Ultra) always has only n coefficients.
+        r[key->n] = 0;
+        const size_t num_deg_n_poly =
+            settings::program_width == 3 ? settings::program_width : settings::program_width - 1;
+        for (size_t j = 0; j < num_deg_n_poly; ++j) {
+            r[key->n] +=
+                -lagrange_evals.vanishing_poly * key->quotient_polynomial_parts[j][key->n] * quotient_multipliers[j];
         }
 
         // Assert that r(X) at X = zeta is 0
-        const auto size = (settings::program_width == 3) ? key->n + 1 : key->n;
+        const auto size = key->n + 1;
         fr linear_eval = r.evaluate(zeta, size);
         // This condition checks if r(z) = 0 but does not abort.
         if (linear_eval != fr(0)) {
             info("linear_eval is not 0.");
         }
     } else {
-        fr t_eval = key->quotient_large.evaluate(zeta, 4 * n);
+        fr t_eval = polynomial_arithmetic::evaluate({ &key->quotient_polynomial_parts[0][0],
+                                                      &key->quotient_polynomial_parts[1][0],
+                                                      &key->quotient_polynomial_parts[2][0],
+                                                      &key->quotient_polynomial_parts[3][0] },
+                                                    zeta,
+                                                    4 * n);
+
+        // Adjust the evaluation to consider the (n + 1)th coeff.
+        fr zeta_pow_n = zeta.pow(key->n);
+        fr scalar = zeta_pow_n;
+        const size_t num_deg_n_poly =
+            settings::program_width == 3 ? settings::program_width : settings::program_width - 1;
+        for (size_t j = 0; j < num_deg_n_poly; j++) {
+            t_eval += key->quotient_polynomial_parts[j][key->n] * scalar;
+            scalar *= zeta_pow_n;
+        }
+
         transcript.add_element("t", t_eval.to_buffer());
+    }
+}
+
+// Add blinding to the components in such a way that the full quotient would be unchanged if reconstructed
+template <typename settings> void ProverBase<settings>::add_blinding_to_quotient_polynomial_parts()
+{
+    // Construct blinded quotient polynomial parts t_i by adding randomness to the unblinded parts t_i' in
+    // such a way that the full quotient polynomial t is unchanged upon reconstruction, i.e.
+    //
+    //        t = t_1' + X^n*t_2' + X^2n*t_3' + X^3n*t_4' = t_1 + X^n*t_2 + X^2n*t_3 + X^3n*t_4
+    //
+    // Blinding is done as follows, where b_i are random field elements:
+    //
+    //              t_1 = t_1' +       b_0*X^n
+    //              t_2 = t_2' - b_0 + b_1*X^n
+    //              t_3 = t_3' - b_1 + b_2*X^n
+    //              t_4 = t_4' - b_2
+    //
+    // For details, please head to: https://hackmd.io/JiyexiqRQJW55TMRrBqp1g.
+    for (size_t i = 0; i < settings::program_width - 1; i++) {
+        // Note that only program_width-1 random elements are required for full blinding
+        fr quotient_randomness = fr::random_element();
+
+        key->quotient_polynomial_parts[i][key->n] += quotient_randomness; // update coefficient of X^n'th term
+        key->quotient_polynomial_parts[i + 1][0] -= quotient_randomness;  // update constant coefficient
     }
 }
 

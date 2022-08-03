@@ -259,12 +259,8 @@ std::shared_ptr<proving_key> ComposerBase::compute_proving_key_base(const size_t
         }
         poly.ifft(circuit_proving_key->small_domain);
         polynomial poly_fft(poly, subgroup_size * 4 + 4);
+        poly_fft.coset_fft(circuit_proving_key->large_domain);
 
-        if (properties.use_mid_for_selectorfft) {
-            poly_fft.coset_fft(circuit_proving_key->mid_domain);
-        } else {
-            poly_fft.coset_fft(circuit_proving_key->large_domain);
-        }
         circuit_proving_key->constraint_selectors.insert({ properties.name, std::move(poly) });
         circuit_proving_key->constraint_selector_ffts.insert({ properties.name + "_fft", std::move(poly_fft) });
     }

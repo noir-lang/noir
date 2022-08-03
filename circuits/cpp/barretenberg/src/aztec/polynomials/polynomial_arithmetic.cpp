@@ -45,6 +45,11 @@ inline uint32_t reverse_bits(uint32_t x, uint32_t bit_length)
     return (((x >> 16) | (x << 16))) >> (32 - bit_length);
 }
 
+inline bool is_power_of_two(uint64_t x)
+{
+    return x && !(x & (x - 1));
+}
+
 void copy_polynomial(fr* src, fr* dest, size_t num_src_coefficients, size_t num_target_coefficients)
 {
     // TODO: fiddle around with avx asm to see if we can speed up
@@ -56,17 +61,28 @@ void copy_polynomial(fr* src, fr* dest, size_t num_src_coefficients, size_t num_
     }
 }
 
-void fft_inner_serial(fr* coeffs, const size_t domain_size, const std::vector<fr*>& root_table)
+void fft_inner_serial(std::vector<fr*> coeffs, const size_t domain_size, const std::vector<fr*>& root_table)
 {
+    // Assert that the number of polynomials is a power of two.
+    const size_t num_polys = coeffs.size();
+    ASSERT(is_power_of_two(num_polys));
+    const size_t poly_domain_size = domain_size / num_polys;
+    ASSERT(is_power_of_two(poly_domain_size));
+
     fr temp;
     size_t log2_size = (size_t)numeric::get_msb(domain_size);
+    size_t log2_poly_size = (size_t)numeric::get_msb(poly_domain_size);
     // efficiently separate odd and even indices - (An introduction to algorithms, section 30.3)
 
     for (size_t i = 0; i <= domain_size; ++i) {
         uint32_t swap_index = (uint32_t)reverse_bits((uint32_t)i, (uint32_t)log2_size);
         // TODO: should probably use CMOV here insead of an if statement
         if (i < swap_index) {
-            fr::__swap(coeffs[i], coeffs[swap_index]);
+            size_t even_poly_idx = i >> log2_poly_size;
+            size_t even_elem_idx = i % poly_domain_size;
+            size_t odd_poly_idx = swap_index >> log2_poly_size;
+            size_t odd_elem_idx = swap_index % poly_domain_size;
+            fr::__swap(coeffs[even_poly_idx][even_elem_idx], coeffs[odd_poly_idx][odd_elem_idx]);
         }
     }
 
@@ -76,19 +92,26 @@ void fft_inner_serial(fr* coeffs, const size_t domain_size, const std::vector<fr
     // two modular reductions from the main loop
 
     // perform first butterfly iteration explicitly: x0 = x0 + x1, x1 = x0 - x1
-    for (size_t k = 0; k < domain_size; k += 2) {
-        fr::__copy(coeffs[k + 1], temp);
-        coeffs[k + 1] = coeffs[k] - coeffs[k + 1];
-        coeffs[k] += temp;
+    for (size_t l = 0; l < num_polys; l++) {
+        for (size_t k = 0; k < poly_domain_size; k += 2) {
+            fr::__copy(coeffs[l][k + 1], temp);
+            coeffs[l][k + 1] = coeffs[l][k] - coeffs[l][k + 1];
+            coeffs[l][k] += temp;
+        }
     }
 
     for (size_t m = 2; m < domain_size; m *= 2) {
         const size_t i = (size_t)numeric::get_msb(m);
         for (size_t k = 0; k < domain_size; k += (2 * m)) {
             for (size_t j = 0; j < m; ++j) {
-                temp = root_table[i - 1][j] * coeffs[k + j + m];
-                coeffs[k + j + m] = coeffs[k + j] - temp;
-                coeffs[k + j] += temp;
+                const size_t even_poly_idx = (k + j) >> log2_poly_size;
+                const size_t even_elem_idx = (k + j) & (poly_domain_size - 1);
+                const size_t odd_poly_idx = (k + j + m) >> log2_poly_size;
+                const size_t odd_elem_idx = (k + j + m) & (poly_domain_size - 1);
+
+                temp = root_table[i - 1][j] * coeffs[odd_poly_idx][odd_elem_idx];
+                coeffs[odd_poly_idx][odd_elem_idx] = coeffs[even_poly_idx][even_elem_idx] - temp;
+                coeffs[even_poly_idx][even_elem_idx] += temp;
             }
         }
     }
@@ -146,10 +169,21 @@ void compute_multiplicative_subgroup(const size_t log2_subgroup_size,
     }
 }
 
-void fft_inner_parallel(fr* coeffs, const evaluation_domain& domain, const fr&, const std::vector<fr*>& root_table)
+void fft_inner_parallel(std::vector<fr*> coeffs,
+                        const evaluation_domain& domain,
+                        const fr&,
+                        const std::vector<fr*>& root_table)
 {
     // hmm  // fr* scratch_space = (fr*)aligned_alloc(64, sizeof(fr) * domain.size);
     fr* scratch_space = get_scratch_space(domain.size);
+
+    const size_t num_polys = coeffs.size();
+    ASSERT(is_power_of_two(num_polys));
+    const size_t poly_size = domain.size / num_polys;
+    ASSERT(is_power_of_two(poly_size));
+    const size_t poly_mask = poly_size - 1;
+    const size_t log2_poly_size = (size_t)numeric::get_msb(poly_size);
+
 #ifndef NO_MULTITHREADING
 #pragma omp parallel
 #endif
@@ -171,8 +205,13 @@ void fft_inner_parallel(fr* coeffs, const evaluation_domain& domain, const fr&, 
                 uint32_t swap_index_1 = (uint32_t)reverse_bits((uint32_t)i, (uint32_t)domain.log2_size);
                 uint32_t swap_index_2 = (uint32_t)reverse_bits((uint32_t)i + 1, (uint32_t)domain.log2_size);
 
-                fr::__copy(coeffs[swap_index_1], temp_1);
-                fr::__copy(coeffs[swap_index_2], temp_2);
+                size_t poly_idx_1 = swap_index_1 >> log2_poly_size;
+                size_t elem_idx_1 = swap_index_1 & poly_mask;
+                size_t poly_idx_2 = swap_index_2 >> log2_poly_size;
+                size_t elem_idx_2 = swap_index_2 & poly_mask;
+
+                fr::__copy(coeffs[poly_idx_1][elem_idx_1], temp_1);
+                fr::__copy(coeffs[poly_idx_2][elem_idx_2], temp_2);
                 scratch_space[i + 1] = temp_1 - temp_2;
                 scratch_space[i] = temp_1 + temp_2;
             }
@@ -181,8 +220,8 @@ void fft_inner_parallel(fr* coeffs, const evaluation_domain& domain, const fr&, 
         // hard code exception for when the domain size is tiny - we won't execute the next loop, so need to manually
         // reduce + copy
         if (domain.size <= 2) {
-            coeffs[0] = scratch_space[0];
-            coeffs[1] = scratch_space[1];
+            coeffs[0][0] = scratch_space[0];
+            coeffs[0][1] = scratch_space[1];
         }
 
         // outer FFT loop
@@ -253,9 +292,15 @@ void fft_inner_parallel(fr* coeffs, const evaluation_domain& domain, const fr&, 
                     for (size_t i = start; i < end; ++i) {
                         size_t k1 = (i & index_mask) << 1;
                         size_t j1 = i & block_mask;
+
+                        size_t poly_idx_1 = (k1 + j1) >> log2_poly_size;
+                        size_t elem_idx_1 = (k1 + j1) & poly_mask;
+                        size_t poly_idx_2 = (k1 + j1 + m) >> log2_poly_size;
+                        size_t elem_idx_2 = (k1 + j1 + m) & poly_mask;
+
                         temp = round_roots[j1] * scratch_space[k1 + j1 + m];
-                        coeffs[k1 + j1 + m] = scratch_space[k1 + j1] - temp;
-                        coeffs[k1 + j1] = scratch_space[k1 + j1] + temp;
+                        coeffs[poly_idx_2][elem_idx_2] = scratch_space[k1 + j1] - temp;
+                        coeffs[poly_idx_1][elem_idx_1] = scratch_space[k1 + j1] + temp;
                     }
                 }
             }
@@ -382,20 +427,41 @@ void fft_inner_parallel(
 
 void fft(fr* coeffs, const evaluation_domain& domain)
 {
-    fft_inner_parallel(coeffs, domain, domain.root, domain.get_round_roots());
+    fft_inner_parallel({ coeffs }, domain, domain.root, domain.get_round_roots());
+}
+
+void fft(std::vector<fr*> coeffs, const evaluation_domain& domain)
+{
+    fft_inner_parallel(coeffs, domain.size, domain.root, domain.get_round_roots());
 }
 
 void ifft(fr* coeffs, const evaluation_domain& domain)
 {
-    fft_inner_parallel(coeffs, domain, domain.root_inverse, domain.get_inverse_round_roots());
+    fft_inner_parallel({ coeffs }, domain, domain.root_inverse, domain.get_inverse_round_roots());
     ITERATE_OVER_DOMAIN_START(domain);
     coeffs[i] *= domain.domain_inverse;
     ITERATE_OVER_DOMAIN_END;
 }
 
+void ifft(std::vector<fr*> coeffs, const evaluation_domain& domain)
+{
+    fft_inner_parallel(coeffs, domain, domain.root_inverse, domain.get_inverse_round_roots());
+
+    const size_t num_polys = coeffs.size();
+    ASSERT(is_power_of_two(num_polys));
+    const size_t poly_size = domain.size / num_polys;
+    ASSERT(is_power_of_two(poly_size));
+    const size_t poly_mask = poly_size - 1;
+    const size_t log2_poly_size = (size_t)numeric::get_msb(poly_size);
+
+    ITERATE_OVER_DOMAIN_START(domain);
+    coeffs[i >> log2_poly_size][i & poly_mask] *= domain.domain_inverse;
+    ITERATE_OVER_DOMAIN_END;
+}
+
 void fft_with_constant(fr* coeffs, const evaluation_domain& domain, const fr& value)
 {
-    fft_inner_parallel(coeffs, domain, domain.root, domain.get_round_roots());
+    fft_inner_parallel({ coeffs }, domain, domain.root, domain.get_round_roots());
     ITERATE_OVER_DOMAIN_START(domain);
     coeffs[i] *= value;
     ITERATE_OVER_DOMAIN_END;
@@ -404,6 +470,21 @@ void fft_with_constant(fr* coeffs, const evaluation_domain& domain, const fr& va
 void coset_fft(fr* coeffs, const evaluation_domain& domain)
 {
     scale_by_generator(coeffs, coeffs, domain, fr::one(), domain.generator, domain.generator_size);
+    fft(coeffs, domain);
+}
+
+void coset_fft(std::vector<fr*> coeffs, const evaluation_domain& domain)
+{
+    const size_t num_polys = coeffs.size();
+    ASSERT(is_power_of_two(num_polys));
+    const size_t poly_size = domain.size / num_polys;
+    const fr generator_pow_n = domain.generator.pow(poly_size);
+    fr generator_start = 1;
+
+    for (size_t i = 0; i < num_polys; i++) {
+        scale_by_generator(coeffs[i], coeffs[i], domain, generator_start, domain.generator, poly_size);
+        generator_start *= generator_pow_n;
+    }
     fft(coeffs, domain);
 }
 
@@ -479,7 +560,7 @@ void coset_fft_with_generator_shift(fr* coeffs, const evaluation_domain& domain,
 
 void ifft_with_constant(fr* coeffs, const evaluation_domain& domain, const fr& value)
 {
-    fft_inner_parallel(coeffs, domain, domain.root_inverse, domain.get_inverse_round_roots());
+    fft_inner_parallel({ coeffs }, domain, domain.root_inverse, domain.get_inverse_round_roots());
     fr T0 = domain.domain_inverse * value;
     ITERATE_OVER_DOMAIN_START(domain);
     coeffs[i] *= T0;
@@ -490,6 +571,22 @@ void coset_ifft(fr* coeffs, const evaluation_domain& domain)
 {
     ifft(coeffs, domain);
     scale_by_generator(coeffs, coeffs, domain, fr::one(), domain.generator_inverse, domain.size);
+}
+
+void coset_ifft(std::vector<fr*> coeffs, const evaluation_domain& domain)
+{
+    ifft(coeffs, domain);
+
+    const size_t num_polys = coeffs.size();
+    ASSERT(is_power_of_two(num_polys));
+    const size_t poly_size = domain.size / num_polys;
+    const fr generator_inv_pow_n = domain.generator_inverse.pow(poly_size);
+    fr generator_start = 1;
+
+    for (size_t i = 0; i < num_polys; i++) {
+        scale_by_generator(coeffs[i], coeffs[i], domain, generator_start, domain.generator_inverse, poly_size);
+        generator_start *= generator_inv_pow_n;
+    }
 }
 
 void add(const fr* a_coeffs, const fr* b_coeffs, fr* r_coeffs, const evaluation_domain& domain)
@@ -533,6 +630,43 @@ fr evaluate(const fr* coeffs, const fr& z, const size_t n)
         size_t end = (j == num_threads - 1) ? offset + range_per_thread + leftovers : offset + range_per_thread;
         for (size_t i = offset; i < end; ++i) {
             fr work_var = z_acc * coeffs[i];
+            evaluations[j] += work_var;
+            z_acc *= z;
+        }
+    }
+
+    fr r = fr::zero();
+    for (size_t j = 0; j < num_threads; ++j) {
+        r += evaluations[j];
+    }
+    delete[] evaluations;
+    return r;
+}
+
+fr evaluate(const std::vector<fr*> coeffs, const fr& z, const size_t large_n)
+{
+    const size_t num_polys = coeffs.size();
+    const size_t poly_size = large_n / num_polys;
+    ASSERT(is_power_of_two(poly_size));
+    const size_t log2_poly_size = (size_t)numeric::get_msb(poly_size);
+#ifndef NO_MULTITHREADING
+    size_t num_threads = max_threads::compute_num_threads();
+#else
+    size_t num_threads = 1;
+#endif
+    size_t range_per_thread = large_n / num_threads;
+    size_t leftovers = large_n - (range_per_thread * num_threads);
+    fr* evaluations = new fr[num_threads];
+#ifndef NO_MULTITHREADING
+#pragma omp parallel for
+#endif
+    for (size_t j = 0; j < num_threads; ++j) {
+        fr z_acc = z.pow(static_cast<uint64_t>(j * range_per_thread));
+        size_t offset = j * range_per_thread;
+        evaluations[j] = fr::zero();
+        size_t end = (j == num_threads - 1) ? offset + range_per_thread + leftovers : offset + range_per_thread;
+        for (size_t i = offset; i < end; ++i) {
+            fr work_var = z_acc * coeffs[i >> log2_poly_size][i & (poly_size - 1)];
             evaluations[j] += work_var;
             z_acc *= z;
         }
@@ -634,7 +768,7 @@ void compute_lagrange_polynomial_fft(fr* l_1_coefficients,
     delete[] subgroup_roots;
 }
 
-void divide_by_pseudo_vanishing_polynomial(fr* fft_point_evaluations,
+void divide_by_pseudo_vanishing_polynomial(std::vector<fr*> coeffs,
                                            const evaluation_domain& src_domain,
                                            const evaluation_domain& target_domain,
                                            const size_t num_roots_cut_out_of_vanishing_polynomial)
@@ -661,6 +795,14 @@ void divide_by_pseudo_vanishing_polynomial(fr* fft_point_evaluations,
     //
     // NOTE: If in future, there arises a need to cut off more zeros, this method will not require any changes.
     //
+
+    // Assert that the number of polynomials in coeffs is a power of 2.
+    const size_t num_polys = coeffs.size();
+    ASSERT(is_power_of_two(num_polys));
+    const size_t poly_size = target_domain.size / num_polys;
+    ASSERT(is_power_of_two(poly_size));
+    const size_t poly_mask = poly_size - 1;
+    const size_t log2_poly_size = (size_t)numeric::get_msb(poly_size);
 
     // `fft_point_evaluations` should be in point-evaluation form, evaluated at the 4n'th roots of unity mulitplied by
     // `target_domain`'s coset generator P(X) = X^n - 1 will form a subgroup of order 4 when evaluated at these points
@@ -701,10 +843,12 @@ void divide_by_pseudo_vanishing_polynomial(fr* fft_point_evaluations,
         fr work_root = src_domain.generator;
         for (size_t i = 0; i < target_domain.size; i += subgroup_size) {
             for (size_t j = 0; j < subgroup_size; ++j) {
-                fft_point_evaluations[i + j] *= subgroup_roots[j];
+                size_t poly_idx = (i + j) >> log2_poly_size;
+                size_t elem_idx = (i + j) & poly_mask;
+                coeffs[poly_idx][elem_idx] *= subgroup_roots[j];
 
                 for (size_t k = 0; k < num_roots_cut_out_of_vanishing_polynomial; ++k) {
-                    fft_point_evaluations[i + j] *= work_root + numerator_constants[k];
+                    coeffs[poly_idx][elem_idx] *= work_root + numerator_constants[k];
                 }
                 work_root *= target_domain.root;
             }
@@ -719,10 +863,12 @@ void divide_by_pseudo_vanishing_polynomial(fr* fft_point_evaluations,
             fr work_root = src_domain.generator * root_shift;
             for (size_t i = offset; i < offset + target_domain.thread_size; i += subgroup_size) {
                 for (size_t j = 0; j < subgroup_size; ++j) {
-                    fft_point_evaluations[i + j] *= subgroup_roots[j];
+                    size_t poly_idx = (i + j) >> log2_poly_size;
+                    size_t elem_idx = (i + j) & poly_mask;
+                    coeffs[poly_idx][elem_idx] *= subgroup_roots[j];
 
                     for (size_t k = 0; k < num_roots_cut_out_of_vanishing_polynomial; ++k) {
-                        fft_point_evaluations[i + j] *= work_root + numerator_constants[k];
+                        coeffs[poly_idx][elem_idx] *= work_root + numerator_constants[k];
                     }
 
                     work_root *= target_domain.root;

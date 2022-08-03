@@ -241,7 +241,7 @@ void fft_bench_serial(State& state) noexcept
     for (auto _ : state) {
         size_t idx = (size_t)numeric::get_msb((uint64_t)state.range(0)) - (size_t)numeric::get_msb(START);
         barretenberg::polynomial_arithmetic::fft_inner_serial(
-            globals.data, evaluation_domains[idx].thread_size, evaluation_domains[idx].get_round_roots());
+            { globals.data }, evaluation_domains[idx].thread_size, evaluation_domains[idx].get_round_roots());
     }
 }
 BENCHMARK(fft_bench_serial)->RangeMultiplier(2)->Range(START * 4, MAX_GATES * 4);

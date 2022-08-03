@@ -339,23 +339,18 @@ class TransitionWidget : public TransitionWidgetBase<Field> {
         poly_ptr_array polynomials = FFTGetter::get_fft_polynomials(key);
         challenge_array challenges =
             FFTGetter::get_challenges(transcript, alpha_base, FFTKernel::quotient_required_challenges);
-        if constexpr (FFTKernel::use_quotient_mid) {
-            Field* quotient = &key->quotient_mid[0];
-            ITERATE_OVER_DOMAIN_START(key->mid_domain);
-            coefficient_array linear_terms;
-            FFTKernel::compute_linear_terms(polynomials, challenges, linear_terms, i);
-            quotient[i] += FFTKernel::sum_linear_terms(polynomials, challenges, linear_terms, i);
-            FFTKernel::compute_non_linear_terms(polynomials, challenges, quotient[i], i);
-            ITERATE_OVER_DOMAIN_END;
-        } else {
-            Field* quotient = &key->quotient_large[0];
-            ITERATE_OVER_DOMAIN_START(key->large_domain);
-            coefficient_array linear_terms;
-            FFTKernel::compute_linear_terms(polynomials, challenges, linear_terms, i);
-            quotient[i] += FFTKernel::sum_linear_terms(polynomials, challenges, linear_terms, i);
-            FFTKernel::compute_non_linear_terms(polynomials, challenges, quotient[i], i);
-            ITERATE_OVER_DOMAIN_END;
-        }
+
+        ITERATE_OVER_DOMAIN_START(key->large_domain);
+        coefficient_array linear_terms;
+        FFTKernel::compute_linear_terms(polynomials, challenges, linear_terms, i);
+        Field sum_of_linear_terms = FFTKernel::sum_linear_terms(polynomials, challenges, linear_terms, i);
+
+        // populate split quotient components
+        Field& quotient_term = key->quotient_polynomial_parts[i >> key->small_domain.log2_size][i & (key->n - 1)];
+        quotient_term += sum_of_linear_terms;
+        FFTKernel::compute_non_linear_terms(polynomials, challenges, quotient_term, i);
+        ITERATE_OVER_DOMAIN_END;
+
         return FFTGetter::update_alpha(challenges, FFTKernel::num_independent_relations);
     }
 

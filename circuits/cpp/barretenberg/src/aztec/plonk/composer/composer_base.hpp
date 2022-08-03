@@ -106,7 +106,6 @@ class ComposerBase {
   public:
     struct SelectorProperties {
         std::string name;
-        bool use_mid_for_selectorfft = false;           // use middomain instead of large for selectorfft
         bool requires_lagrange_base_polynomial = false; // does the prover need the raw lagrange-base selector values?
     };
 

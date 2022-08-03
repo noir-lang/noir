@@ -43,7 +43,7 @@ void init_verification_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs
         std::abort();
     }
     // Patch the 'nothing' reference string fed to init_proving_key.
-    proving_key->reference_string = crs_factory->get_prover_crs(proving_key->n);
+    proving_key->reference_string = crs_factory->get_prover_crs(proving_key->n + 1);
     verification_key = waffle::turbo_composer::compute_verification_key(proving_key, crs_factory->get_verifier_crs());
 }
 

@@ -41,11 +41,10 @@ namespace waffle {
 std::vector<ComposerBase::SelectorProperties> plookup_sel_props()
 {
     std::vector<ComposerBase::SelectorProperties> result{
-        { "q_m", false, true },         { "q_c", false, true },         { "q_1", false, false },
-        { "q_2", false, true },         { "q_3", false, false },        { "q_4", false, false },
-        { "q_5", false, false },        { "q_arith", false, false },    { "q_ecc_1", false, false },
-        { "q_range", false, false },    { "q_sort", false, false },     { "q_logic", false, false },
-        { "q_elliptic", false, false }, { "table_index", false, true }, { "table_type", false, true },
+        { "q_m", true },         { "q_c", true },         { "q_1", false },       { "q_2", true },
+        { "q_3", false },        { "q_4", false },        { "q_5", false },       { "q_arith", false },
+        { "q_ecc_1", false },    { "q_range", false },    { "q_sort", false },    { "q_logic", false },
+        { "q_elliptic", false }, { "table_index", true }, { "table_type", true },
     };
     return result;
 }

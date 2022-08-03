@@ -28,6 +28,12 @@ WASM_EXPORT fr* unrolled_prover_get_scalar_multiplication_data(waffle::UnrolledT
     return prover->get_scalar_multiplication_data(work_item_number);
 }
 
+WASM_EXPORT size_t unrolled_prover_get_scalar_multiplication_size(waffle::UnrolledTurboProver* prover,
+                                                                  size_t work_item_number)
+{
+    return prover->get_scalar_multiplication_size(work_item_number);
+}
+
 WASM_EXPORT void unrolled_prover_put_scalar_multiplication_data(waffle::UnrolledTurboProver* prover,
                                                                 g1::element* result,
                                                                 const size_t work_item_number)

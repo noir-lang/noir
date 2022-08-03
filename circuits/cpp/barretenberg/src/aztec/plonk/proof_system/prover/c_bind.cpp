@@ -27,6 +27,11 @@ WASM_EXPORT fr* prover_get_scalar_multiplication_data(waffle::TurboProver* prove
     return prover->get_scalar_multiplication_data(work_item_number);
 }
 
+WASM_EXPORT size_t prover_get_scalar_multiplication_size(waffle::TurboProver* prover, size_t work_item_number)
+{
+    return prover->get_scalar_multiplication_size(work_item_number);
+}
+
 WASM_EXPORT void prover_put_scalar_multiplication_data(waffle::TurboProver* prover,
                                                        g1::element* result,
                                                        const size_t work_item_number)

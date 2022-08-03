@@ -259,11 +259,11 @@ waffle::Prover generate_test_data(const size_t n)
     polynomial q_m_fft(q_m, n * 2);
     polynomial q_c_fft(q_c, n * 2);
 
-    q_1_fft.coset_fft(key->mid_domain);
-    q_2_fft.coset_fft(key->mid_domain);
-    q_3_fft.coset_fft(key->mid_domain);
-    q_m_fft.coset_fft(key->mid_domain);
-    q_c_fft.coset_fft(key->mid_domain);
+    q_1_fft.coset_fft(key->large_domain);
+    q_2_fft.coset_fft(key->large_domain);
+    q_3_fft.coset_fft(key->large_domain);
+    q_m_fft.coset_fft(key->large_domain);
+    q_c_fft.coset_fft(key->large_domain);
 
     key->constraint_selectors.insert({ "q_1", std::move(q_l) });
     key->constraint_selectors.insert({ "q_2", std::move(q_r) });
@@ -307,7 +307,7 @@ TEST(prover, compute_quotient_polynomial)
     state.queue.process_queue();
 
     // check that the max degree of our quotient polynomial is 3n
-    for (size_t i = 3 * n; i < 4 * n; ++i) {
-        EXPECT_EQ((state.key->quotient_large.at(i) == fr::zero()), true);
+    for (size_t i = 0; i < n; ++i) {
+        EXPECT_EQ((state.key->quotient_polynomial_parts[3].at(i) == fr::zero()), true);
     }
 }

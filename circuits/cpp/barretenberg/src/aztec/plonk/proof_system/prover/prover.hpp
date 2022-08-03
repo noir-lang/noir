@@ -33,10 +33,10 @@ template <typename settings> class ProverBase {
     void compute_batch_opening_polynomials();
     void compute_wire_pre_commitments();
     void compute_quotient_pre_commitment();
-    void init_quotient_polynomials();
     void compute_opening_elements();
 
     void compute_linearisation_coefficients();
+    void add_blinding_to_quotient_polynomial_parts();
     waffle::plonk_proof& export_proof();
     waffle::plonk_proof& construct_proof();
 
@@ -47,6 +47,11 @@ template <typename settings> class ProverBase {
     barretenberg::fr* get_scalar_multiplication_data(const size_t work_item_number) const
     {
         return queue.get_scalar_multiplication_data(work_item_number);
+    }
+
+    size_t get_scalar_multiplication_size(const size_t work_item_number) const
+    {
+        return queue.get_scalar_multiplication_size(work_item_number);
     }
 
     barretenberg::fr* get_ifft_data(const size_t work_item_number) const
@@ -91,7 +96,6 @@ template <typename settings> class ProverBase {
     std::unique_ptr<CommitmentScheme> commitment_scheme;
 
     work_queue queue;
-    bool uses_quotient_mid;
 
   private:
     waffle::plonk_proof proof;
