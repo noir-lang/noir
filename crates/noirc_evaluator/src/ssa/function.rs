@@ -251,7 +251,7 @@ pub fn create_function(
     }
     igen.context
         .new_instruction(node::Operation::Return(returned_values), node::ObjectType::NotAnObject)?;
-    let decision = func.compile(igen).unwrap(); //unroll the function
+    let decision = func.compile(igen)?; //unroll the function
     func.decision = decision;
     igen.context.functions.insert(func_id, func);
     igen.context.current_block = current_block;
@@ -298,7 +298,7 @@ fn get_new_leaf(ctx: &SsaContext, processed: &[FuncIndex]) -> (FuncIndex, FuncId
     unimplemented!("Recursive function call is not supported");
 }
 
-//inline all functions of the call graph such that every inlining operates with a fully flatenned function
+//inline all functions of the call graph such that every inlining operates with a fully flattened function
 pub fn inline_all(ctx: &mut SsaContext) -> Result<(), RuntimeError> {
     resize_graph(&mut ctx.call_graph, ctx.functions.len());
     let l = ctx.call_graph.len();
