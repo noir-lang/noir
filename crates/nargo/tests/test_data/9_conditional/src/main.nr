@@ -14,7 +14,7 @@ fn sort(mut a: [4]u32) -> [4]u32{
     a
 }
 
-fn call_intrinsic(x : [5]u8, result : pub [32]u8) {
+fn call_intrinsic(x : [5]u8, result : [32]u8) {
 
     let mut digest = std::hash::sha256(x);
     digest[0] = 5 as u8;
