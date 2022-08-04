@@ -7,9 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# acvm = { path = "../acvm" }
-acvm = { git = "https://github.com/vezenovm/acvm" }
-# acvm = { git = "https://github.com/noir-lang/noir" }
+acvm = { git = "https://github.com/noir-lang/noir" }
 noirc_abi = { path = "../noirc_abi" }
 noirc_errors = { path = "../noirc_errors" }
 std_lib = { path = "../std_lib" }

@@ -42,7 +42,7 @@ dependencies = [
 [[package]]
 name = "acvm"
 version = "0.1.0"
-source = "git+https://github.com/vezenovm/acvm#f5a6f63509741e163b96f3eee6fe897ffc40a2a8"
+source = "git+https://github.com/noir-lang/noir#9a68f4206c0f20f56c9029d4484c97d4a68fa0bd"
 dependencies = [
  "acir 0.1.0 (git+https://github.com/noir-lang/noir)",
  "blake2",
@@ -208,9 +208,9 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 [[package]]
 name = "aztec_backend"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?branch=noir-interop#0e920b54e3f7b3cb4996c3f890c49de2a169f6df"
+source = "git+https://github.com/noir-lang/aztec_backend?branch=noir-interop#ca528fce059231de84ca8c3cd1ff33329d329c09"
 dependencies = [
- "acvm 0.1.0 (git+https://github.com/vezenovm/acvm)",
+ "acvm 0.1.0 (git+https://github.com/noir-lang/noir)",
  "barretenberg_wrapper",
  "blake2",
  "dirs",
@@ -1068,7 +1068,7 @@ dependencies = [
 name = "nargo"
 version = "0.1.0"
 dependencies = [
- "acvm 0.1.0 (git+https://github.com/vezenovm/acvm)",
+ "acvm 0.1.0 (git+https://github.com/noir-lang/noir)",
  "aztec_backend",
  "cfg-if 1.0.0",
  "clap",
@@ -1138,7 +1138,7 @@ dependencies = [
 name = "noirc_abi"
 version = "0.1.0"
 dependencies = [
- "acvm 0.1.0 (git+https://github.com/vezenovm/acvm)",
+ "acvm 0.1.0 (git+https://github.com/noir-lang/noir)",
  "blake2",
  "serde",
  "serde_derive",
@@ -1149,7 +1149,7 @@ dependencies = [
 name = "noirc_driver"
 version = "0.1.0"
 dependencies = [
- "acvm 0.1.0 (git+https://github.com/vezenovm/acvm)",
+ "acvm 0.1.0 (git+https://github.com/noir-lang/noir)",
  "dirs",
  "fm",
  "noirc_abi",
@@ -1174,7 +1174,7 @@ dependencies = [
 name = "noirc_evaluator"
 version = "0.1.0"
 dependencies = [
- "acvm 0.1.0 (git+https://github.com/vezenovm/acvm)",
+ "acvm 0.1.0 (git+https://github.com/noir-lang/noir)",
  "arena",
  "fm",
  "lazy_static",
@@ -1190,7 +1190,7 @@ dependencies = [
 name = "noirc_frontend"
 version = "0.1.0"
 dependencies = [
- "acvm 0.1.0 (git+https://github.com/vezenovm/acvm)",
+ "acvm 0.1.0 (git+https://github.com/noir-lang/noir)",
  "arena",
  "chumsky",
  "fm",
