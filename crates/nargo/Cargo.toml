@@ -13,7 +13,7 @@ noirc_driver = { path = "../noirc_driver" }
 noirc_frontend = { path = "../noirc_frontend" }
 noirc_abi = { path = "../noirc_abi" }
 fm = { path = "../fm" }
-acvm = { git = "https://github.com/noir-lang/noir", features = ["bn254"] }
+acvm = { git = "https://github.com/noir-lang/noir" }
 cfg-if = "1.0.0"
 
 toml = "0.5"
