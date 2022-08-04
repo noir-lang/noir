@@ -990,6 +990,19 @@ impl<'a> IRGenerator<'a> {
             .map_err(|err| err.remove_span())
             .unwrap()
             .unwrap_id();
+        if let Some(cond) = node::NodeEval::from_id(&self.context, condition).into_const_value() {
+            if cond.is_zero() {
+                //Parse statements of ELSE branch
+                if let Some(alt) = alternative {
+                    self.codegen_expression(env, &alt).map_err(|err| err.remove_span()).unwrap();
+                }
+                return Ok(Value::dummy());
+            } else {
+                //Parse statements of THEN branch
+                self.codegen_expression(env, cons).map_err(|err| err.remove_span()).unwrap();
+                return Ok(Value::dummy());
+            }
+        }
         let jump_op = Operation::Jeq(condition, block::BlockId::dummy());
         let jump_ins = self.context.new_instruction(jump_op, ObjectType::NotAnObject).unwrap();
 

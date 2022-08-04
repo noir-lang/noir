@@ -336,3 +336,15 @@ pub fn merge_path(ctx: &mut SsaContext, start: BlockId, end: BlockId) -> VecDequ
     //housekeeping for the caller
     removed_blocks
 }
+
+pub fn remove_child(ctx: &mut SsaContext, child: BlockId, parent: BlockId) {
+    let mut parent_block = &mut ctx[parent];
+    if parent_block.left == Some(child) {
+        parent_block.left = parent_block.right;
+    } else {
+        assert!(parent_block.right == Some(child));
+        parent_block.right = parent_block.left;
+    }
+    parent_block.dominated.retain(|&b| b != child);
+    ctx.remove_block(child);
+}

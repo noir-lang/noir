@@ -365,7 +365,7 @@ impl DecisionTree {
             ass_cond = self[predicate].condition;
             ass_value = self[predicate].value.unwrap_or_else(NodeId::dummy);
         }
-
+        assert_ne!(ass_value, ctx.zero(), "code should have been already simplified");
         let ins1 = ctx.get_instruction(ins_id);
         match &ins1.operation {
             Operation::Call { returned_arrays, .. } => {

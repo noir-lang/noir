@@ -39,6 +39,7 @@ fn test4() -> [4]u32 {
 
 fn main(a: u32, mut c: [4]u32, x : [5]u8, result : pub [32]u8
     ){
+
     if a == 3 {
         c=test4();
     }
@@ -96,6 +97,9 @@ fn main(a: u32, mut c: [4]u32, x : [5]u8, result : pub [32]u8
         c=test4();
     } else {
         constrain c[1]!=2;
+    }
+    if false {
+        c[1]=5;
     }
     constrain c[1]==2;
 }
