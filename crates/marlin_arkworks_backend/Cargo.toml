@@ -9,8 +9,8 @@ edition = "2018"
 [dependencies]
 
 # acvm = { path = "../acvm", features = ["bn254"] }
-# acvm = { git = "https://github.com/vezenovm/acvm", features = ["bn254"] }
-acvm = { git = "https://github.com/noir-lang/noir", features = ["bn254"] }
+acvm = { git = "https://github.com/vezenovm/acvm", features = ["bn254"] }
+# acvm = { git = "https://github.com/noir-lang/noir", features = ["bn254"] }
 
 sha2 = "0.9.3"
 blake2 = "0.9.1"
