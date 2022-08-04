@@ -32,8 +32,17 @@ fn test3 (x: u8) {
     }
 }
 
+fn test4() -> [4]u32 {
+    let b: [4]u32 = [1,2,3,4];
+    b
+}
+
 fn main(a: u32, mut c: [4]u32, x : [5]u8, result : pub [32]u8
     ){
+    if a == 3 {
+        c=test4();
+    }
+    constrain c[1]!=2;
     call_intrinsic(x, result);
 
     if a == 0 {
@@ -82,4 +91,11 @@ fn main(a: u32, mut c: [4]u32, x : [5]u8, result : pub [32]u8
     constrain x==0;
 
     test3(1);
+
+    if a == 0 {
+        c=test4();
+    } else {
+        constrain c[1]!=2;
+    }
+    constrain c[1]==2;
 }

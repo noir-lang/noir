@@ -338,6 +338,17 @@ impl DecisionTree {
         }
     }
 
+    //assigns the arrays to the block where they are seen for the first time
+    fn new_array(ctx: &SsaContext, array_id: super::mem::ArrayId, stack: &mut StackFrame) {
+        if let std::collections::hash_map::Entry::Vacant(e) = stack.created_arrays.entry(array_id) {
+            if !ctx.mem[array_id].values.is_empty() {
+                e.insert(ctx.first_block);
+            } else {
+                e.insert(stack.block);
+            }
+        }
+    }
+
     pub fn conditionalise_into(
         &self,
         ctx: &mut SsaContext,
@@ -359,27 +370,15 @@ impl DecisionTree {
         match &ins1.operation {
             Operation::Call { returned_arrays, .. } => {
                 for a in returned_arrays {
-                    if let std::collections::hash_map::Entry::Vacant(e) =
-                        stack.created_arrays.entry(a.0)
-                    {
-                        e.insert(stack.block);
-                    }
+                    DecisionTree::new_array(ctx, a.0, stack);
                 }
             }
             Operation::Store { array_id, .. } => {
-                if let std::collections::hash_map::Entry::Vacant(e) =
-                    stack.created_arrays.entry(*array_id)
-                {
-                    e.insert(stack.block);
-                }
+                DecisionTree::new_array(ctx, *array_id, stack);
             }
             _ => {
                 if let ObjectType::Pointer(a) = ins1.res_type {
-                    if let std::collections::hash_map::Entry::Vacant(e) =
-                        stack.created_arrays.entry(a)
-                    {
-                        e.insert(stack.block);
-                    }
+                    DecisionTree::new_array(ctx, a, stack);
                 }
             }
         }

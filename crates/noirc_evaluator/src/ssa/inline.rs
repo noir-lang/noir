@@ -2,6 +2,7 @@ use std::collections::{hash_map::Entry, HashMap};
 
 use acvm::FieldElement;
 use noirc_frontend::node_interner::FuncId;
+use num_bigint::BigUint;
 
 use crate::{
     errors::RuntimeError,
@@ -289,14 +290,30 @@ pub fn inline_in_block(
                         NodeId::dummy()
                     } else {
                         let index_type = ctx[*index].get_type();
-                        let offset_id =
-                            ctx.get_or_create_const(FieldElement::from(offset as i128), index_type);
-                        let add = node::Binary {
-                            operator: node::BinaryOp::Add,
-                            lhs: offset_id,
-                            rhs: *index,
+                        let offset_op = if offset < 0 {
+                            let offset_id = ctx.get_or_create_const(
+                                FieldElement::from(-offset as i128),
+                                index_type,
+                            );
+                            node::Binary {
+                                operator: node::BinaryOp::Sub {
+                                    max_rhs_value: BigUint::from(-offset as u128),
+                                },
+                                lhs: *index,
+                                rhs: offset_id,
+                            }
+                        } else {
+                            let offset_id = ctx.get_or_create_const(
+                                FieldElement::from(offset as i128),
+                                index_type,
+                            );
+                            node::Binary {
+                                operator: node::BinaryOp::Add,
+                                lhs: offset_id,
+                                rhs: *index,
+                            }
                         };
-                        ctx.new_instruction(Operation::Binary(add), index_type)?
+                        ctx.new_instruction(Operation::Binary(offset_op), index_type)?
                     };
                     let mut new_ins = Instruction::new(
                         Operation::Load { array_id: b, index: adr_id },
@@ -313,14 +330,30 @@ pub fn inline_in_block(
                         NodeId::dummy()
                     } else {
                         let index_type = ctx[*index].get_type();
-                        let offset_id =
-                            ctx.get_or_create_const(FieldElement::from(offset as i128), index_type);
-                        let add = node::Binary {
-                            operator: node::BinaryOp::Add,
-                            lhs: offset_id,
-                            rhs: *index,
+                        let offset_op = if offset < 0 {
+                            let offset_id = ctx.get_or_create_const(
+                                FieldElement::from(-offset as i128),
+                                index_type,
+                            );
+                            node::Binary {
+                                operator: node::BinaryOp::Sub {
+                                    max_rhs_value: BigUint::from(-offset as u128),
+                                },
+                                lhs: *index,
+                                rhs: offset_id,
+                            }
+                        } else {
+                            let offset_id = ctx.get_or_create_const(
+                                FieldElement::from(offset as i128),
+                                index_type,
+                            );
+                            node::Binary {
+                                operator: node::BinaryOp::Add,
+                                lhs: offset_id,
+                                rhs: *index,
+                            }
                         };
-                        ctx.new_instruction(Operation::Binary(add), index_type)?
+                        ctx.new_instruction(Operation::Binary(offset_op), index_type)?
                     };
                     let mut new_ins = Instruction::new(
                         Operation::Store { array_id: b, index: adr_id, value: *value },
