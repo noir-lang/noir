@@ -22,8 +22,11 @@ pub(crate) fn type_check_expression(
 ) -> Type {
     let typ = match interner.expression(expr_id) {
         HirExpression::Ident(ident) => {
-            // If an Ident is used in an expression, it cannot be a declaration statement
-            interner.id_type(ident.id)
+            // An identifiers type may be forall-quantified in the case of generic functions.
+            // E.g. `fn foo<T>(t: T, field: Field) -> T` has type `forall T. fn(T, Field) -> T`.
+            // We must instantiate identifiers at every callsite to replace this T with a new type
+            // variable to handle generic functions.
+            interner.id_type(ident.id).instantiate(interner)
         }
         HirExpression::Literal(literal) => {
             match literal {
@@ -547,9 +550,8 @@ pub fn check_member_access(
 
     if let Type::Struct(s, args) = &lhs_type {
         let s = s.borrow();
-        if let Some(field) = s.get_field(&access.rhs.0.contents) {
-            // TODO: Should the struct's visibility be applied to the field?
-            return field.clone();
+        if let Some(field) = s.get_field(&access.rhs.0.contents, args) {
+            return field;
         }
     } else if let Type::Tuple(elements) = &lhs_type {
         if let Ok(index) = access.rhs.0.contents.parse::<usize>() {

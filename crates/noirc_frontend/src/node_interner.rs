@@ -15,7 +15,7 @@ use crate::hir_def::{
     function::{FuncMeta, HirFunction},
     stmt::HirStatement,
 };
-use crate::TypeVariableId;
+use crate::{TypeVariableId, TypeBinding};
 
 /// The DefinitionId for the return value of the main function.
 /// Used within the ssa pass to put constraints on the "return" value
@@ -379,5 +379,10 @@ impl NodeInterner {
         let id = self.next_type_variable_id;
         self.next_type_variable_id += 1;
         TypeVariableId(id)
+    }
+
+    pub fn next_type_variable(&mut self) -> Type {
+        let binding = TypeBinding::Unbound(self.next_type_variable_id());
+        Type::TypeVariable(Rc::new(RefCell::new(binding)))
     }
 }

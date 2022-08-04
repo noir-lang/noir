@@ -10,11 +10,14 @@ use crate::{
     ArraySize, Ident, Signedness,
 };
 
+pub type TypeBindings = HashMap<TypeVariableId, Type>;
+
 #[derive(Debug, Eq)]
 pub struct StructType {
     pub id: StructId,
     pub name: Ident,
     pub fields: Vec<(Ident, Type)>,
+    pub generics: Vec<TypeVariableId>,
     pub methods: HashMap<String, FuncId>,
     pub span: Span,
 }
@@ -26,12 +29,16 @@ impl PartialEq for StructType {
 }
 
 impl StructType {
-    pub fn new(id: StructId, name: Ident, span: Span, fields: Vec<(Ident, Type)>) -> StructType {
-        StructType { id, fields, name, span, methods: HashMap::new() }
+    pub fn new(id: StructId, name: Ident, span: Span, fields: Vec<(Ident, Type)>, generics: Vec<TypeVariableId>) -> StructType {
+        StructType { id, fields, name, span, generics, methods: HashMap::new() }
     }
 
-    pub fn get_field(&self, field_name: &str) -> Option<&Type> {
-        self.fields.iter().find(|(name, _)| name.0.contents == field_name).map(|(_, typ)| typ)
+    pub fn get_field(&self, field_name: &str, generic_args: &Vec<Type>) -> Option<Type> {
+        self.fields.iter().find(|(name, _)| name.0.contents == field_name).map(|(_, typ)| {
+            assert_eq!(self.generics.len(), generic_args.len());
+            let substitutions = self.generics.iter().zip(generic_args).map(|(old, new)| (*old, new.clone())).collect();
+            typ.substitute(&substitutions)
+        })
     }
 }
 
@@ -51,12 +58,13 @@ pub enum Type {
     Unit,
     Struct(Rc<RefCell<StructType>>, Vec<Type>),
     Tuple(Vec<Type>),
-    TypeVariable(TypeVariableId),
+    TypeVariable(TypeVariable),
+    Forall(Vec<TypeVariableId>, Box<Type>),
 
     Error,
 }
 
-type TypeVariable = Rc<RefCell<TypeBinding>>;
+pub type TypeVariable = Rc<RefCell<TypeBinding>>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeBinding {
@@ -254,8 +262,18 @@ impl std::fmt::Display for Type {
             Type::Bool(is_const) => write!(f, "{}bool", is_const),
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
-            Type::TypeVariable(id) => write!(f, "t{}", id.0),
+            Type::TypeVariable(id) => write!(f, "{}", id.borrow()),
+            Type::Forall(typevars, typ) => {
+                let typevars = vecmap(typevars, ToString::to_string);
+                write!(f, "forall {}. {}", typevars.join(" "), typ)
+            },
         }
+    }
+}
+
+impl std::fmt::Display for TypeVariableId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "T{}", self.0)
     }
 }
 
@@ -263,7 +281,7 @@ impl std::fmt::Display for TypeBinding {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TypeBinding::Bound(typ) => typ.fmt(f),
-            TypeBinding::Unbound(_) => write!(f, "Field"),
+            TypeBinding::Unbound(_) => write!(f, "?"),
         }
     }
 }
@@ -340,6 +358,31 @@ impl Type {
         }
     }
 
+    pub fn try_bind_to(&self, var: &TypeVariable) -> Result<(), SpanKind> {
+        let target_id = match &*var.borrow() {
+            TypeBinding::Bound(_) => unreachable!(),
+            TypeBinding::Unbound(id) => *id,
+        };
+
+        if let Type::TypeVariable(binding) = self {
+            match &*binding.borrow() {
+                TypeBinding::Bound(typ) => return typ.try_bind_to(var),
+                // Don't recursively bind the same id to itself
+                TypeBinding::Unbound(id) if *id == target_id => return Ok(()),
+                _ => (),
+            }
+        }
+
+        // Check if the target id occurs within self before binding. Otherwise this could
+        // cause infinitely recursive types
+        if self.occurs(target_id) {
+            Err(SpanKind::None)
+        } else {
+            *var.borrow_mut() = TypeBinding::Bound(self.clone());
+            Ok(())
+        }
+    }
+
     fn is_const(&self) -> bool {
         match self {
             Type::FieldElement(is_const) => is_const.is_const(),
@@ -399,8 +442,6 @@ impl Type {
         match (self, other) {
             (Error, _) | (_, Error) => Ok(()),
 
-            (Unspecified, _) | (_, Unspecified) => unreachable!(),
-
             (PolymorphicInteger(is_const, binding), other)
             | (other, PolymorphicInteger(is_const, binding)) => {
                 // If it is already bound, unify against what it is bound to
@@ -410,6 +451,15 @@ impl Type {
 
                 // Otherwise, check it is unified against an integer and bind it
                 other.try_bind_to_polymorphic_int(binding, is_const, span)
+            }
+
+            (TypeVariable(binding), other)
+            | (other, TypeVariable(binding)) => {
+                if let TypeBinding::Bound(link) = &*binding.borrow() {
+                    return link.try_unify(other, span);
+                }
+
+                Ok(())
             }
 
             (Array(len_a, elem_a), Array(len_b, elem_b)) => {
@@ -486,8 +536,6 @@ impl Type {
         use Type::*;
         match (self, other) {
             (Error, _) | (_, Error) => Ok(()),
-
-            (Unspecified, _) | (_, Unspecified) => unreachable!(),
 
             (PolymorphicInteger(is_const, binding), other) => {
                 if let TypeBinding::Bound(link) = &*binding.borrow() {
@@ -616,6 +664,7 @@ impl Type {
             Type::Struct(..) => todo!("as_abi_type not yet implemented for struct types"),
             Type::Tuple(_) => todo!("as_abi_type not yet implemented for tuple types"),
             Type::TypeVariable(_) => unreachable!(),
+            Type::Forall(..) => unreachable!(),
         }
     }
 
@@ -649,6 +698,105 @@ impl Type {
                 fields.find(|(i, _)| i.to_string() == *field_name).unwrap().1.clone()
             }
             other => panic!("Tried to iterate over the fields of '{}', which has none", other),
+        }
+    }
+
+    /// Instantiate this type, replacing any type variables it is quantified
+    /// over with fresh type variables. If this type is not a Type::Forall,
+    /// it is unchanged.
+    pub fn instantiate(&self, interner: &mut NodeInterner) -> Type {
+        match self {
+            Type::Forall(typevars, typ) => {
+                let replacements = typevars.iter().map(|old| {
+                    (*old, interner.next_type_variable())
+                }).collect();
+
+                typ.substitute(&replacements)
+            },
+            other => other.clone(),
+        }
+    }
+
+    /// Substitute any type variables found within this type with the
+    /// given bindings if found. If a type variable is not found within
+    /// the given TypeBindings, it is unchanged.
+    pub fn substitute(&self, type_bindings: &TypeBindings) -> Type {
+        let substitute_binding = |binding: &TypeVariable| {
+            match &*binding.borrow() {
+                TypeBinding::Bound(binding) => binding.substitute(type_bindings),
+                TypeBinding::Unbound(id) => type_bindings.get(id).cloned().unwrap_or_else(|| self.clone()),
+            }
+        };
+
+        match self {
+            Type::Array(size, element) => {
+                let element = Box::new(element.substitute(type_bindings));
+                Type::Array(size.clone(), element)
+            },
+            Type::PolymorphicInteger(_, binding) => substitute_binding(binding),
+
+            // Do not substitute fields, it can lead to infinite recursion
+            // and we should not match fields when type checking anyway.
+            Type::Struct(fields, args) => {
+                let args = vecmap(args, |arg| arg.substitute(type_bindings));
+                Type::Struct(fields.clone(), args)
+            },
+            Type::Tuple(fields) => {
+                let fields = vecmap(fields, |field| field.substitute(type_bindings));
+                Type::Tuple(fields)
+            },
+            Type::TypeVariable(binding) => substitute_binding(binding),
+            Type::Forall(typevars, typ) => {
+                // Trying to substitute a variable defined within a nested Forall 
+                // is usually impossible and indicative of an error in the type checker somewhere.
+                for var in typevars {
+                    assert!(!type_bindings.contains_key(var));
+                }
+                let typ = Box::new(typ.substitute(type_bindings));
+                Type::Forall(typevars.clone(), typ)
+            },
+
+            Type::FieldElement(_)
+            | Type::Integer(_, _, _)
+            | Type::Bool(_)
+            | Type::Error
+            | Type::Unit => self.clone(),
+        }
+    }
+
+    /// True if the given TypeVariableId is free anywhere
+    /// within self
+    fn occurs(&self, target_id: TypeVariableId) -> bool {
+        match self {
+            Type::Array(_, elem) => elem.occurs(target_id),
+            Type::PolymorphicInteger(_, binding) => {
+                match &*binding.borrow() {
+                    TypeBinding::Bound(binding) => binding.occurs(target_id),
+                    TypeBinding::Unbound(id) => *id == target_id,
+                }
+            },
+            Type::Struct(_, generic_args) => {
+                generic_args.iter().any(|arg| arg.occurs(target_id))
+            },
+            Type::Tuple(fields) => {
+                fields.iter().any(|field| field.occurs(target_id))
+            }
+            Type::TypeVariable(binding) => {
+                match &*binding.borrow() {
+                    TypeBinding::Bound(binding) => binding.occurs(target_id),
+                    TypeBinding::Unbound(id) => *id == target_id,
+                }
+            },
+            Type::Forall(typevars, typ) => {
+                !typevars.iter().any(|var| *var == target_id)
+                    && typ.occurs(target_id)
+            },
+
+            Type::FieldElement(_)
+            | Type::Integer(_, _, _)
+            | Type::Bool(_)
+            | Type::Error
+            | Type::Unit => false,
         }
     }
 }

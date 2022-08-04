@@ -39,8 +39,8 @@ use crate::{
     Statement,
 };
 use crate::{
-    LValue, NoirStruct, Path, Pattern, StructType, Type, TypeVariableId, UnresolvedType,
-    ERROR_IDENT,
+    LValue, NoirStruct, Path, Pattern, StructType, Type, UnresolvedType,
+    ERROR_IDENT, TypeVariable,
 };
 use fm::FileId;
 use noirc_errors::{Location, Span, Spanned};
@@ -587,7 +587,7 @@ impl<'a> Resolver<'a> {
     /// Try to lookup the given type variable name, returning a unique id if found.
     /// Compared to the other lookup functions, this will not push an error if the
     /// type is not found.
-    pub fn try_lookup_typevariable(&self, path: &Path) -> Option<TypeVariableId> {
+    pub fn try_lookup_typevariable(&self, path: &Path) -> Option<TypeVariable> {
         todo!()
     }
 
