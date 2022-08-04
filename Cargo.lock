@@ -208,7 +208,7 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 [[package]]
 name = "aztec_backend"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?branch=noir-interop#ca528fce059231de84ca8c3cd1ff33329d329c09"
+source = "git+https://github.com/noir-lang/aztec_backend#7ce63e9d9c34c2b444f67f846356ca689e66750a"
 dependencies = [
  "acvm 0.1.0 (git+https://github.com/noir-lang/noir)",
  "barretenberg_wrapper",
