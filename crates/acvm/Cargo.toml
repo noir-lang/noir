@@ -32,6 +32,7 @@ indexmap = "1.7.0"
 
 [features]
 bn254 = ["noir_field/bn254"]
+bls12_381 = ["noir_field/bls12_381"]
 
 [dev-dependencies]
 tempfile = "3.2.0"
