@@ -26,6 +26,7 @@ impl PartialWitnessGenerator for Marlin {
         let mut unsolved_gates: Vec<Gate> = Vec::new();
 
         for gate in gates.into_iter() {
+            println!("gate: {:?}", gate);
             let unsolved = match &gate {
                 Gate::Arithmetic(arith) => {
                     ArithmeticSolver::solve(initial_witness, &arith).is_some()
@@ -127,7 +128,22 @@ impl PartialWitnessGenerator for Marlin {
                             _ => true,
                         }
                     }
-                    acir::circuit::gate::Directive::Split { a, b, bit_size } => { !unimplemented!("split directive not yet implemented for marlin") }
+                    acir::circuit::gate::Directive::Split { a, b, bit_size } => match initial_witness.get(a) {
+                        Some(val_a) => {
+                            let a_big = BigUint::from_bytes_be(&val_a.to_bytes());
+                            for i in 0..*bit_size {
+                                let j = i as usize;
+                                let v = if a_big.bit(j as u64) {
+                                    FieldElement::one()
+                                } else {
+                                    FieldElement::zero()
+                                };
+                                initial_witness.insert(b[j], v);
+                            }
+                            false
+                        }
+                        _ => true,
+                    },
                 },
             };
             if unsolved {
