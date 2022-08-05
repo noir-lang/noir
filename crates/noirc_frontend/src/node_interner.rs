@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 use arena::{Arena, Index};
 use fm::FileId;
-use noirc_errors::{Location, Span};
+use noirc_errors::{Location, Span, Spanned};
 
 use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::UnresolvedStruct;
@@ -15,7 +15,8 @@ use crate::hir_def::{
     function::{FuncMeta, HirFunction},
     stmt::HirStatement,
 };
-use crate::{TypeVariableId, TypeBinding};
+use crate::util::vecmap;
+use crate::{TypeBinding, TypeVariableId};
 
 /// The DefinitionId for the return value of the main function.
 /// Used within the ssa pass to put constraints on the "return" value
@@ -219,6 +220,11 @@ impl NodeInterner {
                 id: type_id,
                 name: typ.struct_def.name.clone(),
                 fields: vec![],
+                // Temporary type variable ids before the struct is resolved to its actual ids.
+                // This lets us record how many arguments the type expects so that other types
+                // can refer to it with generic arguments before the generic parameters themselves
+                // are resolved.
+                generics: vecmap(&typ.struct_def.generics, |_| TypeVariableId(0)),
                 methods: HashMap::new(),
                 span: typ.struct_def.span,
             })),
@@ -298,6 +304,12 @@ impl NodeInterner {
     /// Returns the interned meta data corresponding to `func_id`
     pub fn function_meta(&self, func_id: &FuncId) -> FuncMeta {
         self.func_meta.get(func_id).cloned().expect("ice: all function ids should have metadata")
+    }
+
+    pub fn function_ident(&self, func_id: &FuncId) -> crate::Ident {
+        let name = self.function_name(func_id).to_owned();
+        let span = self.function_meta(func_id).name.location.span;
+        crate::Ident(Spanned::from(span, name))
     }
 
     pub fn function_name(&self, func_id: &FuncId) -> &str {

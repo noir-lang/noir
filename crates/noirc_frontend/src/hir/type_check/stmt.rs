@@ -67,14 +67,13 @@ pub fn bind_pattern(
         HirPattern::Struct(struct_type, fields, span) => match typ {
             Type::Struct(inner, args) if &inner == struct_type => {
                 let mut pattern_fields = fields.clone();
-                let mut type_fields = inner.borrow().fields.clone();
 
                 pattern_fields.sort_by_key(|(ident, _)| ident.clone());
-                type_fields.sort_by_key(|(ident, _)| ident.clone());
 
-                for (pattern_field, type_field) in pattern_fields.into_iter().zip(type_fields) {
-                    assert_eq!(&pattern_field.0, &type_field.0);
-                    bind_pattern(interner, &pattern_field.1, type_field.1, errors);
+                for pattern_field in pattern_fields {
+                    let type_field =
+                        inner.borrow().get_field(&pattern_field.0 .0.contents, &args).unwrap();
+                    bind_pattern(interner, &pattern_field.1, type_field, errors);
                 }
             }
             Type::Error => (),
@@ -139,14 +138,10 @@ fn type_check_lvalue(
             };
 
             match result {
-                Type::Struct(def, args) => {
-                    if let Some(field) = def.borrow().get_field(&field_name.0.contents) {
-                        // TODO: Substitute generics
-                        field.clone()
-                    } else {
-                        error(Type::Struct(def.clone(), args))
-                    }
-                }
+                Type::Struct(def, args) => def
+                    .borrow()
+                    .get_field(&field_name.0.contents, &args)
+                    .unwrap_or_else(|| error(Type::Struct(def.clone(), args))),
                 Type::Error => Type::Error,
                 other => error(other),
             }

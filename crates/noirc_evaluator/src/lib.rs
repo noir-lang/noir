@@ -371,13 +371,16 @@ impl<'a> Evaluator<'a> {
                     }
                 }
             }
-            Type::PolymorphicInteger(..) => unreachable!(),
+
             Type::Bool(_) => todo!(),
             Type::Unit => todo!(),
-            Type::Struct(_) => todo!(),
+            Type::Struct(..) => todo!(),
             Type::Tuple(_) => todo!(),
-            Type::Error => todo!(),
-            Type::Unspecified => todo!(),
+
+            Type::PolymorphicInteger(..)
+            | Type::TypeVariable(_)
+            | Type::Error
+            | Type::Forall(_, _) => unreachable!(),
         }
         Ok(())
     }

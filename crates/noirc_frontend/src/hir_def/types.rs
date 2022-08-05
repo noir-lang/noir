@@ -29,14 +29,25 @@ impl PartialEq for StructType {
 }
 
 impl StructType {
-    pub fn new(id: StructId, name: Ident, span: Span, fields: Vec<(Ident, Type)>, generics: Vec<TypeVariableId>) -> StructType {
+    pub fn new(
+        id: StructId,
+        name: Ident,
+        span: Span,
+        fields: Vec<(Ident, Type)>,
+        generics: Vec<TypeVariableId>,
+    ) -> StructType {
         StructType { id, fields, name, span, generics, methods: HashMap::new() }
     }
 
-    pub fn get_field(&self, field_name: &str, generic_args: &Vec<Type>) -> Option<Type> {
+    pub fn get_field(&self, field_name: &str, generic_args: &[Type]) -> Option<Type> {
         self.fields.iter().find(|(name, _)| name.0.contents == field_name).map(|(_, typ)| {
             assert_eq!(self.generics.len(), generic_args.len());
-            let substitutions = self.generics.iter().zip(generic_args).map(|(old, new)| (*old, new.clone())).collect();
+            let substitutions = self
+                .generics
+                .iter()
+                .zip(generic_args)
+                .map(|(old, new)| (*old, new.clone()))
+                .collect();
             typ.substitute(&substitutions)
         })
     }
@@ -266,7 +277,7 @@ impl std::fmt::Display for Type {
             Type::Forall(typevars, typ) => {
                 let typevars = vecmap(typevars, ToString::to_string);
                 write!(f, "forall {}. {}", typevars.join(" "), typ)
-            },
+            }
         }
     }
 }
@@ -453,8 +464,7 @@ impl Type {
                 other.try_bind_to_polymorphic_int(binding, is_const, span)
             }
 
-            (TypeVariable(binding), other)
-            | (other, TypeVariable(binding)) => {
+            (TypeVariable(binding), other) | (other, TypeVariable(binding)) => {
                 if let TypeBinding::Bound(link) = &*binding.borrow() {
                     return link.try_unify(other, span);
                 }
@@ -552,6 +562,21 @@ impl Type {
                 }
 
                 other.try_bind_to_polymorphic_int(binding, is_const, span)
+            }
+
+            (TypeVariable(binding), other) => {
+                if let TypeBinding::Bound(link) = &*binding.borrow() {
+                    return link.is_subtype_of(other, span);
+                }
+
+                other.try_bind_to(binding)
+            }
+            (other, TypeVariable(binding)) => {
+                if let TypeBinding::Bound(link) = &*binding.borrow() {
+                    return other.is_subtype_of(link, span);
+                }
+
+                other.try_bind_to(binding)
             }
 
             (Array(len_a, elem_a), Array(len_b, elem_b)) => {
@@ -676,9 +701,11 @@ impl Type {
             // only to have to call .into_iter again afterward. Trying to ellide
             // collecting to a Vec leads to us dropping the temporary Ref before
             // the iterator is returned
-            Type::Struct(def, _args) => {
-                vecmap(def.borrow().fields.iter(), |(name, typ)| (name.to_string(), typ.clone()))
-            }
+            Type::Struct(def, args) => vecmap(&def.borrow().fields, |(name, _)| {
+                let name = &name.0.contents;
+                let typ = def.borrow().get_field(name, args).unwrap();
+                (name.clone(), typ)
+            }),
             Type::Tuple(fields) => {
                 let fields = fields.iter().enumerate();
                 vecmap(fields, |(i, field)| (i.to_string(), field.clone()))
@@ -692,7 +719,7 @@ impl Type {
     /// Panics if the type is not a struct or tuple.
     pub fn get_field_type(&self, field_name: &str) -> Type {
         match self {
-            Type::Struct(def, _) => def.borrow().get_field(field_name).unwrap().clone(),
+            Type::Struct(def, args) => def.borrow().get_field(field_name, args).unwrap(),
             Type::Tuple(fields) => {
                 let mut fields = fields.iter().enumerate();
                 fields.find(|(i, _)| i.to_string() == *field_name).unwrap().1.clone()
@@ -707,12 +734,11 @@ impl Type {
     pub fn instantiate(&self, interner: &mut NodeInterner) -> Type {
         match self {
             Type::Forall(typevars, typ) => {
-                let replacements = typevars.iter().map(|old| {
-                    (*old, interner.next_type_variable())
-                }).collect();
+                let replacements =
+                    typevars.iter().map(|old| (*old, interner.next_type_variable())).collect();
 
                 typ.substitute(&replacements)
-            },
+            }
             other => other.clone(),
         }
     }
@@ -721,10 +747,10 @@ impl Type {
     /// given bindings if found. If a type variable is not found within
     /// the given TypeBindings, it is unchanged.
     pub fn substitute(&self, type_bindings: &TypeBindings) -> Type {
-        let substitute_binding = |binding: &TypeVariable| {
-            match &*binding.borrow() {
-                TypeBinding::Bound(binding) => binding.substitute(type_bindings),
-                TypeBinding::Unbound(id) => type_bindings.get(id).cloned().unwrap_or_else(|| self.clone()),
+        let substitute_binding = |binding: &TypeVariable| match &*binding.borrow() {
+            TypeBinding::Bound(binding) => binding.substitute(type_bindings),
+            TypeBinding::Unbound(id) => {
+                type_bindings.get(id).cloned().unwrap_or_else(|| self.clone())
             }
         };
 
@@ -732,7 +758,7 @@ impl Type {
             Type::Array(size, element) => {
                 let element = Box::new(element.substitute(type_bindings));
                 Type::Array(size.clone(), element)
-            },
+            }
             Type::PolymorphicInteger(_, binding) => substitute_binding(binding),
 
             // Do not substitute fields, it can lead to infinite recursion
@@ -740,21 +766,21 @@ impl Type {
             Type::Struct(fields, args) => {
                 let args = vecmap(args, |arg| arg.substitute(type_bindings));
                 Type::Struct(fields.clone(), args)
-            },
+            }
             Type::Tuple(fields) => {
                 let fields = vecmap(fields, |field| field.substitute(type_bindings));
                 Type::Tuple(fields)
-            },
+            }
             Type::TypeVariable(binding) => substitute_binding(binding),
             Type::Forall(typevars, typ) => {
-                // Trying to substitute a variable defined within a nested Forall 
+                // Trying to substitute a variable defined within a nested Forall
                 // is usually impossible and indicative of an error in the type checker somewhere.
                 for var in typevars {
                     assert!(!type_bindings.contains_key(var));
                 }
                 let typ = Box::new(typ.substitute(type_bindings));
                 Type::Forall(typevars.clone(), typ)
-            },
+            }
 
             Type::FieldElement(_)
             | Type::Integer(_, _, _)
@@ -769,28 +795,19 @@ impl Type {
     fn occurs(&self, target_id: TypeVariableId) -> bool {
         match self {
             Type::Array(_, elem) => elem.occurs(target_id),
-            Type::PolymorphicInteger(_, binding) => {
-                match &*binding.borrow() {
-                    TypeBinding::Bound(binding) => binding.occurs(target_id),
-                    TypeBinding::Unbound(id) => *id == target_id,
-                }
+            Type::PolymorphicInteger(_, binding) => match &*binding.borrow() {
+                TypeBinding::Bound(binding) => binding.occurs(target_id),
+                TypeBinding::Unbound(id) => *id == target_id,
             },
-            Type::Struct(_, generic_args) => {
-                generic_args.iter().any(|arg| arg.occurs(target_id))
-            },
-            Type::Tuple(fields) => {
-                fields.iter().any(|field| field.occurs(target_id))
-            }
-            Type::TypeVariable(binding) => {
-                match &*binding.borrow() {
-                    TypeBinding::Bound(binding) => binding.occurs(target_id),
-                    TypeBinding::Unbound(id) => *id == target_id,
-                }
+            Type::Struct(_, generic_args) => generic_args.iter().any(|arg| arg.occurs(target_id)),
+            Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
+            Type::TypeVariable(binding) => match &*binding.borrow() {
+                TypeBinding::Bound(binding) => binding.occurs(target_id),
+                TypeBinding::Unbound(id) => *id == target_id,
             },
             Type::Forall(typevars, typ) => {
-                !typevars.iter().any(|var| *var == target_id)
-                    && typ.occurs(target_id)
-            },
+                !typevars.iter().any(|var| *var == target_id) && typ.occurs(target_id)
+            }
 
             Type::FieldElement(_)
             | Type::Integer(_, _, _)

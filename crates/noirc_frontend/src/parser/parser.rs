@@ -115,7 +115,7 @@ fn generics() -> impl NoirParser<Vec<Ident>> {
         .at_least(1)
         .delimited_by(just(Token::Less), just(Token::Greater))
         .or_not()
-        .map(|opt| opt.unwrap_or(vec![]))
+        .map(|opt| opt.unwrap_or_default())
 }
 
 fn struct_definition() -> impl NoirParser<TopLevelStatement> {
@@ -131,9 +131,11 @@ fn struct_definition() -> impl NoirParser<TopLevelStatement> {
         ),
     );
 
-    keyword(Struct).ignore_then(ident()).then(fields).map_with_span(|(name, fields), span| {
-        TopLevelStatement::Struct(NoirStruct { name, fields, span })
-    })
+    keyword(Struct).ignore_then(ident()).then(generics()).then(fields).map_with_span(
+        |((name, generics), fields), span| {
+            TopLevelStatement::Struct(NoirStruct { name, generics, fields, span })
+        },
+    )
 }
 
 fn function_return_type() -> impl NoirParser<(AbiFEType, UnresolvedType)> {
