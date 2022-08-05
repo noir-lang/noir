@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
-use crate::{Language, ProofSystemCompiler};
-use acir::{circuit::Circuit, native_types::Witness};
-use noir_field::FieldElement;
+use acvm::{Language, ProofSystemCompiler};
+use acvm::acir::{circuit::Circuit, native_types::Witness};
+use acvm::FieldElement;
 
 use super::Marlin;
 

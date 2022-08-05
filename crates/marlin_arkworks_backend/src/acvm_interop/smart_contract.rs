@@ -1,6 +1,6 @@
-use acir::circuit::Circuit;
+use acvm::acir::circuit::Circuit;
 
-use crate::SmartContract;
+use acvm::SmartContract;
 
 use super::Marlin;
 

@@ -26,9 +26,10 @@ tempdir = "0.3.7"
 
 # Backends
 aztec_backend = { optional = true, path = "../aztec_backend" }
+marlin_arkworks_backend = { optional = true, path = "../marlin_arkworks_backend" }
 
 [features]
-default = ["plonk_bn254"]
+default = ["marlin"]
 # The plonk backend can only use bn254, so we do not specify the field
 plonk_bn254 = ["aztec_backend"]
-# marlin_bn254 = ["acvm/marlin", "noir_field/bn254"]
+marlin = ["marlin_arkworks_backend"]

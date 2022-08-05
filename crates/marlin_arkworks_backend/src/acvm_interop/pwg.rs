@@ -1,9 +1,9 @@
-use crate::{
+use acvm::{
     pwg::{arithmetic::ArithmeticSolver, logic::LogicSolver},
     PartialWitnessGenerator,
 };
-use acir::{circuit::Gate, native_types::Witness};
-use noir_field::FieldElement;
+use acvm::acir::{self, circuit::Gate, native_types::Witness};
+use acvm::FieldElement;
 use num_bigint::BigUint;
 use num_traits::One;
 use std::collections::BTreeMap;
@@ -127,6 +127,7 @@ impl PartialWitnessGenerator for Marlin {
                             _ => true,
                         }
                     }
+                    acir::circuit::gate::Directive::Split { a, b, bit_size } => { !unimplemented!("split directive not yet implemented for marlin") }
                 },
             };
             if unsolved {

@@ -1,4 +1,4 @@
-use crate::Backend;
+use acvm::Backend;
 
 mod proof_system;
 pub mod pwg;

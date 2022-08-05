@@ -8,7 +8,9 @@ edition = "2018"
 
 [dependencies]
 
-acvm = { path = "../acvm", features = ["bn254"] }
+acvm = { path = "../acvm" }
+# arkworks_backend = { git = "https://github.com/noir-lang/arkworks_backend" }
+arkworks_backend = { path = "../../../noir-backends/arkworks_backend" }
 
 sha2 = "0.9.3"
 blake2 = "0.9.1"
