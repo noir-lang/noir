@@ -46,11 +46,15 @@ fn main(a: u32, mut c: [4]u32, x : [5]u8, result : pub [32]u8
     constrain c[1]!=2;
     call_intrinsic(x, result);
 
-    if a == 0 {
+    if a==0 {
         must_be_zero(0);
-    } else {
-        must_be_zero(1);
+        c[0]=3;
     }
+    else {
+        must_be_zero(1);
+        c[0]=1;
+    }
+    constrain c[0]==3;
 
     let mut y = 0;
     if a == 0 {
