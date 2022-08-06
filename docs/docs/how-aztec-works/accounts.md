@@ -58,7 +58,7 @@ You cannot mix the spending of these notes. You can send unspent notes from the 
 
 The SDK tries to abstract much of this complexity away and presents everything to a developer as if this notion does not exist (e.g. the account balance is the sum of all notes regardless of registered or not).
 
-If you want to know exactly what you can spend in one transaction, you have to tell the SDK whether your interested in the unregistered or registered balances.
+If you want to know exactly what you can spend in one transaction, you have to tell the SDK whether you're interested in the unregistered or registered balances.
 
 When actually creating the zero knowledge proof, the SDK infers which balance you're drawing from based on whether you give it a spending key or the account key.
 
