@@ -28,7 +28,7 @@ Users in Aztec will use the main account to receive notes and decrypt balances a
 
 The privacy account is the first account that is generated for an Aztec user.
 
-The private key associated with this account can be used to decrypt notes. The private key can also be used to register a distinct spending key. This allows for account abstraction by creating a separation between the key required to decrypt notes (privacy key) and the key required to spend notes (spending key). If a spending has not been registered, the account private key can be used.
+The private key associated with this account can be used to decrypt notes. The private key can also be used to register a distinct spending key. This allows for account abstraction by creating a separation between the key required to decrypt notes (privacy key) and the key required to spend notes (spending key). If a spending key has not been registered, the account private key can be used.
 
 Accounts can be identified by their alias or their public key. You can read more about aliases below. You can also find more information in the [SDK section on account keys](../sdk/usage/add-account#account-keys).
 
