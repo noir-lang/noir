@@ -48,7 +48,7 @@ Read more about creating and using spending keys in the SDK docs [here](./../sdk
 
 To register a new account, you need to choose an alias and a new spending public key. Optionally, you can include a recovery account public key and a deposit.
 
-Generally, an account with a registered spending key is considered safer than account that only uses the default account keys. An account without a spending key uses default account private key for note decryption as well as spending notes. When a spending key is registered, the default private key can only be used for decrypting notes and spending must be done with a registered spending key.
+Generally, an account with a registered spending key is considered safer than an account that only uses the default account keys. An account without a spending key uses default account private key for note decryption as well as spending notes. When a spending key is registered, the default private key can only be used for decrypting notes and spending must be done with a registered spending key.
 
 Most users will typically use an account with a registered spending key and are thus considered "safe". There are use cases (airdrops) where you might want to use an account that has not yet registered a spending key and is using the default account key for both note decryption and spending. So it is possible to use the system without registering your account.
 
