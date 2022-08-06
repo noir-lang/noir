@@ -162,9 +162,8 @@ This is acheived by calling `RollupProcessor.processAsyncDefiInteraction(uint256
 
 This function is called from the Aztec Rollup Contract via the DeFi Bridge Proxy. Before this function on your bridge contract is called the rollup contract will have sent you ETH or tokens defined by the input params.
 
-This function should interact with the DeFi protocol (e.g Uniswap) and transfer tokens or ETH back to the Aztec Rollup Contract. The Rollup contract will check it received the correct amount.
+This function should interact with the DeFi protocol (e.g Uniswap) and transfer tokens or ETH back to the Aztec Rollup Contract. The Rollup contract will check if it received the correct amount.
 
-If the DeFi Bridge interaction is asynchronous (e.g. it does not settle in the same block), the call to convert should return `(0,0 true)`. The contract should record the interaction nonce for any asynchronous position or if virtual assets are returned.
 
 At a later date, this interaction can be finalised by prodding the rollup contract to call `finalise` on the bridge.
 
