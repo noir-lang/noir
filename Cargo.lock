@@ -15,10 +15,10 @@ dependencies = [
 [[package]]
 name = "acir"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/noir#c5adad5e9f1cf9a967457cdaa4a3f153ba1f6f2e"
+source = "git+https://github.com/noir-lang/noir?branch=configure-marlin#1d8fbf1b1a0fb817932196e7eaf3cc9213db81a3"
 dependencies = [
  "indexmap",
- "noir_field 0.1.0 (git+https://github.com/noir-lang/noir)",
+ "noir_field 0.1.0 (git+https://github.com/noir-lang/noir?branch=configure-marlin)",
  "serde",
 ]
 
@@ -42,14 +42,14 @@ dependencies = [
 [[package]]
 name = "acvm"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/noir#c5adad5e9f1cf9a967457cdaa4a3f153ba1f6f2e"
+source = "git+https://github.com/noir-lang/noir?branch=configure-marlin#1d8fbf1b1a0fb817932196e7eaf3cc9213db81a3"
 dependencies = [
- "acir 0.1.0 (git+https://github.com/noir-lang/noir)",
+ "acir 0.1.0 (git+https://github.com/noir-lang/noir?branch=configure-marlin)",
  "blake2",
  "hex",
  "indexmap",
  "k256",
- "noir_field 0.1.0 (git+https://github.com/noir-lang/noir)",
+ "noir_field 0.1.0 (git+https://github.com/noir-lang/noir?branch=configure-marlin)",
  "num-bigint",
  "num-traits",
  "sha2",
@@ -260,9 +260,9 @@ dependencies = [
 [[package]]
 name = "arkworks_backend"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/arkworks_backend?branch=configure-marlin#610f00b67ba40b0e539b77ad592bea3915067c84"
+source = "git+https://github.com/noir-lang/arkworks_backend?branch=configure-marlin#6728e8cae722153363e5eae3bbf974078eea92a2"
 dependencies = [
- "acvm 0.1.0 (git+https://github.com/noir-lang/noir)",
+ "acvm 0.1.0 (git+https://github.com/noir-lang/noir?branch=configure-marlin)",
  "ark-bls12-381",
  "ark-bn254",
  "ark-ff",
@@ -299,7 +299,7 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 name = "aztec_backend"
 version = "0.1.0"
 dependencies = [
- "acvm 0.1.0 (git+https://github.com/noir-lang/noir)",
+ "acvm 0.1.0 (git+https://github.com/noir-lang/noir?branch=configure-marlin)",
  "barretenberg_wrapper",
  "blake2",
  "dirs",
@@ -1118,9 +1118,9 @@ dependencies = [
 [[package]]
 name = "marlin_arkworks_backend"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/marlin_arkworks_backend#2d073a905e27c43bc689160923e04a4925ac462d"
+source = "git+https://github.com/noir-lang/marlin_arkworks_backend?branch=configure-marlin#1c812b3cf2023540ef84974af40b6e3748f448ac"
 dependencies = [
- "acvm 0.1.0 (git+https://github.com/noir-lang/noir)",
+ "acvm 0.1.0 (git+https://github.com/noir-lang/noir?branch=configure-marlin)",
  "arkworks_backend",
  "blake2",
  "dirs",
@@ -1177,7 +1177,7 @@ dependencies = [
 name = "nargo"
 version = "0.1.0"
 dependencies = [
- "acvm 0.1.0 (git+https://github.com/noir-lang/noir)",
+ "acvm 0.1.0 (git+https://github.com/noir-lang/noir?branch=configure-marlin)",
  "aztec_backend",
  "cfg-if 1.0.0",
  "clap",
@@ -1232,8 +1232,9 @@ dependencies = [
 [[package]]
 name = "noir_field"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/noir#c5adad5e9f1cf9a967457cdaa4a3f153ba1f6f2e"
+source = "git+https://github.com/noir-lang/noir?branch=configure-marlin#1d8fbf1b1a0fb817932196e7eaf3cc9213db81a3"
 dependencies = [
+ "ark-bls12-381",
  "ark-bn254",
  "ark-ff",
  "blake2",
@@ -1248,7 +1249,7 @@ dependencies = [
 name = "noirc_abi"
 version = "0.1.0"
 dependencies = [
- "acvm 0.1.0 (git+https://github.com/noir-lang/noir)",
+ "acvm 0.1.0 (git+https://github.com/noir-lang/noir?branch=configure-marlin)",
  "blake2",
  "serde",
  "serde_derive",
@@ -1259,7 +1260,7 @@ dependencies = [
 name = "noirc_driver"
 version = "0.1.0"
 dependencies = [
- "acvm 0.1.0 (git+https://github.com/noir-lang/noir)",
+ "acvm 0.1.0 (git+https://github.com/noir-lang/noir?branch=configure-marlin)",
  "dirs",
  "fm",
  "noirc_abi",
@@ -1284,7 +1285,7 @@ dependencies = [
 name = "noirc_evaluator"
 version = "0.1.0"
 dependencies = [
- "acvm 0.1.0 (git+https://github.com/noir-lang/noir)",
+ "acvm 0.1.0 (git+https://github.com/noir-lang/noir?branch=configure-marlin)",
  "arena",
  "fm",
  "lazy_static",
@@ -1300,7 +1301,7 @@ dependencies = [
 name = "noirc_frontend"
 version = "0.1.0"
 dependencies = [
- "acvm 0.1.0 (git+https://github.com/noir-lang/noir)",
+ "acvm 0.1.0 (git+https://github.com/noir-lang/noir?branch=configure-marlin)",
  "arena",
  "chumsky",
  "fm",
