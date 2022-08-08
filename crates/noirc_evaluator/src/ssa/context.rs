@@ -602,6 +602,15 @@ impl<'a> SsaContext<'a> {
 
         result
     }
+
+    //returns the value of the element array[index], if it exists in the memory_map
+    pub fn get_indexed_value(&self, array_id: ArrayId, index: NodeId) -> Option<&NodeId> {
+        if let Some(idx) = Memory::to_u32(self, index) {
+            self.mem.get_value_from_map(array_id, idx)
+        } else {
+            None
+        }
+    }
     //blocks/////////////////////////
     pub fn try_get_block_mut(&mut self, id: BlockId) -> Option<&mut block::BasicBlock> {
         self.blocks.get_mut(id.0)
@@ -724,18 +733,12 @@ impl<'a> SsaContext<'a> {
 
         if let (ObjectType::Pointer(a), ObjectType::Pointer(b)) = (l_type, r_type) {
             let len = self.mem[a].len;
-            let adr_a = self.mem[a].adr;
-            let adr_b = self.mem[b].adr;
             let e_type = self.mem[b].element_type;
             for i in 0..len {
-                let idx_b = self.get_or_create_const(
-                    FieldElement::from((adr_b + i) as i128),
-                    ObjectType::Unsigned(32),
-                );
-                let idx_a = self.get_or_create_const(
-                    FieldElement::from((adr_a + i) as i128),
-                    ObjectType::Unsigned(32),
-                );
+                let idx_b = self
+                    .get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
+                let idx_a = self
+                    .get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
                 let op_b = Operation::Load { array_id: b, index: idx_b };
                 let load = self.new_instruction(op_b, e_type)?;
                 let op_a = Operation::Store { array_id: a, index: idx_a, value: load };
@@ -859,18 +862,12 @@ impl<'a> SsaContext<'a> {
 
         if let (ObjectType::Pointer(a), ObjectType::Pointer(b)) = (l_type, r_type) {
             let len = self.mem[a].len;
-            let adr_a = self.mem[a].adr;
-            let adr_b = self.mem[b].adr;
             let e_type = self.mem[b].element_type;
             for i in 0..len {
-                let idx_b = self.get_or_create_const(
-                    FieldElement::from((adr_b + i) as i128),
-                    ObjectType::Unsigned(32),
-                );
-                let idx_a = self.get_or_create_const(
-                    FieldElement::from((adr_a + i) as i128),
-                    ObjectType::Unsigned(32),
-                );
+                let idx_b = self
+                    .get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
+                let idx_a = self
+                    .get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
                 let op_b = Operation::Load { array_id: b, index: idx_b };
                 let load = self.new_instruction_inline(op_b, e_type, stack_frame);
                 let op_a = Operation::Store { array_id: a, index: idx_a, value: load };
