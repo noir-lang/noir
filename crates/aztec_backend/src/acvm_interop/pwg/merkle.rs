@@ -446,33 +446,3 @@ fn check_membership() {
         assert!(is_leaf_in_true == test_vector.result, "{}", test_vector.error_msg);
     }
 }
-
-#[test]
-fn insert_leaf() {
-    // This test was simply used to fetch example hash paths. Run with `cargo test insert_leaf -- --nocapture` to print hashes
-    use tempfile::tempdir;
-    let temp_dir = tempdir().unwrap();
-    let mut tree = MerkleTree::new(3, &temp_dir);
-
-    // TODO: possibly add consecutive check_membership with appropriate parameters to prove a successful or delete the test
-    // let index = FieldElement::try_from_str("0").unwrap();
-    let index_as_usize: usize = "0".parse().unwrap();
-
-    let message = &vec![1; 64];
-    let leaf = hash(message);
-    println!("leaf: {}", leaf.to_hex().as_str());
-
-    let root_before_update = tree.root();
-    println!("root_before_update: {}", root_before_update.to_hex().as_str());
-    let hash_path_before_update = flatten_path(tree.get_hash_path(index_as_usize));
-    for (i, hash) in hash_path_before_update.iter().enumerate() {
-        println!("hash b4 update {}: {}", i, hash.to_hex().as_str());
-    }
-
-    let expected_root = tree.update_message(index_as_usize, message);
-    let hash_path_after_update = flatten_path(tree.get_hash_path(index_as_usize));
-    for (i, hash) in hash_path_after_update.iter().enumerate() {
-        println!("hash after update {}: {}", i, hash.to_hex().as_str());
-    }
-    println!("expected root: {}", expected_root.to_hex().as_str());
-}

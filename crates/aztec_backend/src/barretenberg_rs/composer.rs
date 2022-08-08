@@ -197,8 +197,6 @@ impl MerkleMembershipConstraint {
     fn to_bytes(&self) -> Vec<u8> {
         let mut buffer = Vec::new();
 
-        // On the C++ side, it is being deserialized as a single vector
-        // So the given length is doubled
         let hash_path_len = self.hash_path.len() as u32;
 
         buffer.extend_from_slice(&hash_path_len.to_be_bytes());
