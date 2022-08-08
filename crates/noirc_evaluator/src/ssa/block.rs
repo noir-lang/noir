@@ -342,7 +342,7 @@ pub fn remove_child(ctx: &mut SsaContext, child: BlockId, parent: BlockId) {
     if parent_block.left == Some(child) {
         parent_block.left = parent_block.right;
     } else {
-        assert!(parent_block.right == Some(child));
+        assert_eq!(parent_block.right, Some(child));
         parent_block.right = parent_block.left;
     }
     parent_block.dominated.retain(|&b| b != child);
