@@ -144,7 +144,6 @@ pub fn get_result_type(op: OPCODE) -> (u32, ObjectType) {
         OPCODE::Pedersen => (2, ObjectType::NativeField),
         OPCODE::EcdsaSecp256k1 => (1, ObjectType::NativeField), //field?
         OPCODE::FixedBaseScalarMul => (2, ObjectType::NativeField),
-        OPCODE::InsertRegularMerkle => (1, ObjectType::NativeField), //field?
         OPCODE::ToBits => (FieldElement::max_num_bits(), ObjectType::Boolean),
     }
 }

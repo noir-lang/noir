@@ -234,14 +234,14 @@ impl MerkleTree {
         fetch_preimage(&self.db, index)
     }
 
+    // TODO: alter this method so that it only processes one hash per level rather than overriding
+    // the one of leaves for each level of the hash path
     pub fn check_membership(
         hash_path: Vec<&FieldElement>,
         root: &FieldElement,
         index: &FieldElement,
         leaf: &FieldElement,
     ) -> FieldElement {
-        assert!(hash_path.len() % 2 == 0);
-
         let mut barretenberg = Barretenberg::new();
 
         let mut index_bits = index.bits();
@@ -249,23 +249,13 @@ impl MerkleTree {
 
         let mut current = *leaf;
 
-        let mut is_member = true;
-
-        let chunks = hash_path.chunks(2).enumerate();
-        for (i, path_pair) in chunks {
+        for (i, path_elem) in hash_path.into_iter().enumerate() {
             let path_bit = index_bits[i];
-
-            let hash_left = path_pair[0];
-            let hash_right = path_pair[1];
-
-            let is_left = (&current == hash_left) & !path_bit;
-            let is_right = (&current == hash_right) & path_bit;
-            is_member &= is_left ^ is_right;
-            current = compress_native(&mut barretenberg, hash_left, hash_right);
+            let (hash_left, hash_right) =
+                if !path_bit { (current, *path_elem) } else { (*path_elem, current) };
+            current = compress_native(&mut barretenberg, &hash_left, &hash_right);
         }
-        is_member &= &current == root;
-
-        if is_member {
+        if &current == root {
             FieldElement::one()
         } else {
             FieldElement::zero()
@@ -376,5 +366,83 @@ fn basic_interop_update() {
     for (got, expected_segment) in path.into_iter().zip(expected_hash_path) {
         assert_eq!(got.0.to_hex().as_str(), expected_segment.0);
         assert_eq!(got.1.to_hex().as_str(), expected_segment.1)
+    }
+}
+
+#[test]
+fn check_membership() {
+    struct Test<'a> {
+        // Index of the leaf in the MerkleTree
+        index: &'a str,
+        // Returns true if the leaf is indeed a part of the MerkleTree at the specified index
+        result: bool,
+        // The message is used to derive the leaf at `index` by using the specified hash
+        message: Vec<u8>,
+        // If this is true, then before checking for membership
+        // we update the tree with the message at that index
+        should_update_tree: bool,
+        error_msg: &'a str,
+    }
+    // Note these test cases are not independent.
+    // i.e. If you update index 0, then this will be saved for the next test
+    let tests = vec![
+        Test {
+            index : "0",
+            result : true,
+            message : vec![0;64],
+            should_update_tree: false,
+            error_msg : "this should always be true, since the tree is initialised with 64 zeroes"
+        },
+        Test {
+            index : "0",
+            result : false,
+            message : vec![10;64],
+            should_update_tree: false,
+            error_msg : "this should be false, since the tree was not updated, however the message which derives the leaf has changed"
+        },
+        Test {
+            index : "0",
+            result : true,
+            message : vec![1;64],
+            should_update_tree: true,
+            error_msg : "this should be true, since we are updating the tree"
+        },
+        Test {
+            index : "0",
+            result : true,
+            message : vec![1;64],
+            should_update_tree: false,
+            error_msg : "this should be true since the index at 4 has not been changed yet, so it would be [0;64]"
+        },
+        Test {
+            index : "4",
+            result : true,
+            message : vec![0;64],
+            should_update_tree: false,
+            error_msg : "this should be true since the index at 4 has not been changed yet, so it would be [0;64]"
+        },
+    ];
+
+    use tempfile::tempdir;
+    let temp_dir = tempdir().unwrap();
+    let mut tree = MerkleTree::new(3, &temp_dir);
+
+    for test_vector in tests {
+        let index = FieldElement::try_from_str(test_vector.index).unwrap();
+        let index_as_usize: usize = test_vector.index.parse().unwrap();
+
+        let leaf = hash(&test_vector.message);
+
+        let mut root = tree.root();
+        if test_vector.should_update_tree {
+            root = tree.update_message(index_as_usize, &test_vector.message);
+        }
+
+        let hash_path = flatten_path(tree.get_hash_path(index_as_usize));
+        let hash_path_ref = hash_path.iter().collect();
+        let result = MerkleTree::check_membership(hash_path_ref, &root, &index, &leaf);
+        let is_leaf_in_true = result == FieldElement::one();
+
+        assert!(is_leaf_in_true == test_vector.result, "{}", test_vector.error_msg);
     }
 }
