@@ -2,6 +2,7 @@
 
 #include <numeric/uint256/uint256.hpp>
 #include <common/serialize.hpp>
+#include "../hmac/hmac.hpp"
 
 namespace crypto {
 namespace ecdsa {
@@ -10,7 +11,12 @@ template <typename Hash, typename Fq, typename Fr, typename G1>
 signature construct_signature(const std::string& message, const key_pair<Fr, G1>& account)
 {
     signature sig;
-    Fr k = Fr::random_element(); // TODO replace with HMAC
+
+    // use HMAC in PRF mode to derive 32-byte secret `k`
+    std::vector<uint8_t> pkey_buffer;
+    write(pkey_buffer, account.private_key);
+    Fr k = crypto::get_unbiased_field_from_hmac<Hash, Fr>(message, pkey_buffer);
+
     typename G1::affine_element R(G1::one * k);
     Fq::serialize_to_buffer(R.x, &sig.r[0]);
 
