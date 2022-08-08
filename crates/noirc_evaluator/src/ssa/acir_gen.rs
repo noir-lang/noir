@@ -162,7 +162,7 @@ impl Acir {
                 let v = self.evaluate_opcode(ins.id, *opcode, args, ins.res_type, ctx, evaluator);
                 InternalVar::from(v)
             }
-            Operation::Call(..) => unreachable!("call instruction should have been inlined"),
+            Operation::Call { .. } => unreachable!("call instruction should have been inlined"),
             Operation::Return(_) => todo!(), //return from main
             Operation::Cond { condition, val_true: lhs, val_false: rhs } => {
                 let cond = self.substitute(*condition, evaluator, ctx);
@@ -970,7 +970,7 @@ pub fn is_const(expr: &Expression) -> bool {
 
 pub fn mul_with_witness(evaluator: &mut Evaluator, a: &Expression, b: &Expression) -> Expression {
     let a_arith;
-    let a2 = if !a.mul_terms.is_empty() {
+    let a_arith = if !a.mul_terms.is_empty() {
         let a_witness = evaluator.add_witness_to_cs();
         a_arith = Expression::from(&a_witness);
         evaluator.gates.push(Gate::Arithmetic(a - &a_arith));
@@ -979,7 +979,7 @@ pub fn mul_with_witness(evaluator: &mut Evaluator, a: &Expression, b: &Expressio
         a
     };
     let b_arith;
-    let b2 = if !b.mul_terms.is_empty() {
+    let b_arith = if !b.mul_terms.is_empty() {
         let b_witness = evaluator.add_witness_to_cs();
         b_arith = Expression::from(&b_witness);
         evaluator.gates.push(Gate::Arithmetic(b - &b_arith));
@@ -987,12 +987,12 @@ pub fn mul_with_witness(evaluator: &mut Evaluator, a: &Expression, b: &Expressio
     } else {
         b
     };
-    mul(a2, b2)
+    mul(a_arith, b_arith)
 }
 //a*b
 
 pub fn mul(a: &Expression, b: &Expression) -> Expression {
-    if !(a.mul_terms.is_empty() && b.mul_terms.is_empty()) {
+    if !(a.is_linear() && b.is_linear()) {
         unreachable!("Can only multiply linear terms");
     }
 

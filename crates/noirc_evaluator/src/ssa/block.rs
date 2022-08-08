@@ -174,14 +174,14 @@ pub fn compute_dom(ctx: &mut SsaContext) {
     for block in ctx.iter_blocks() {
         if let Some(dom) = block.dominator {
             dominator_link.entry(dom).or_insert_with(Vec::new).push(block.id);
-            // dom_block.dominated.push(idx);
         }
     }
-    //RIA
     for (master, svec) in dominator_link {
-        let dom_b = &mut ctx[master];
-        for slave in svec {
-            dom_b.dominated.push(slave);
+        if let Some(dom_b) = ctx.try_get_block_mut(master) {
+            dom_b.dominated.clear();
+            for slave in svec {
+                dom_b.dominated.push(slave);
+            }
         }
     }
 }
@@ -195,7 +195,6 @@ pub fn compute_sub_dom(ctx: &mut SsaContext, blocks: &[BlockId]) {
             dominator_link.entry(dom).or_insert_with(Vec::new).push(block.id);
         }
     }
-    //RIA
     for (master, svec) in dominator_link {
         let dom_b = &mut ctx[master];
         for slave in svec {
@@ -277,8 +276,12 @@ fn process_son(
     None
 }
 
+//Set left as the left block of block_id
 pub fn rewire_block_left(ctx: &mut SsaContext, block_id: BlockId, left: BlockId) {
     let block = &mut ctx[block_id];
+    if !block.dominated.contains(&left) {
+        block.dominated.push(left);
+    }
     if let Some(old_left) = block.left {
         if left == old_left {
             return;
@@ -288,7 +291,7 @@ pub fn rewire_block_left(ctx: &mut SsaContext, block_id: BlockId, left: BlockId)
     }
     block.left = Some(left);
     assert!(block.right != Some(left));
-    block.dominated.push(left);
+
     ctx[left].predecessor.push(block_id);
     if ctx[left].predecessor.len() == 1 {
         ctx[left].dominator = Some(block_id);
@@ -313,14 +316,21 @@ pub fn merge_path(ctx: &mut SsaContext, start: BlockId, end: BlockId) -> VecDequ
             if let Some(left) = block.left {
                 next = left;
             } else {
-                unreachable!("cannot reach block {:?}", end);
+                if end != BlockId::dummy() {
+                    unreachable!("cannot reach block {:?}", end);
+                }
+                next = BlockId::dummy();
             }
         }
         //we assign the concatened list of instructions to the start block, using a CSE pass
         let mut modified = false;
         super::optim::cse_block(ctx, start, &mut instructions, &mut modified).unwrap();
         //Wires start to end
-        rewire_block_left(ctx, start, end);
+        if end != BlockId::dummy() {
+            rewire_block_left(ctx, start, end);
+        } else {
+            ctx[start].left = None;
+        }
         removed_blocks.pop_front();
     }
     //housekeeping for the caller
