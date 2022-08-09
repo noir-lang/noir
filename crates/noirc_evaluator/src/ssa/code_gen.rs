@@ -289,13 +289,7 @@ impl<'a> IRGenerator<'a> {
         let a_id = self.context.get_object_type(lhs[0]).type_to_pointer();
         let index_val = self.codegen_expression(env, &index).unwrap();
         let index = index_val.unwrap_id();
-        let o_type = self.context.get_object_type(index);
-        let base_adr = self.context.mem[a_id].adr;
-        let base_adr_const =
-            self.context.get_or_create_const(FieldElement::from(base_adr as i128), o_type);
-        let adr_id =
-            self.context.new_binary_instruction(BinaryOp::Add, base_adr_const, index, o_type)?;
-        Ok((a_id, adr_id))
+        Ok((a_id, index))
     }
 
     fn lvalue_ident_def(&self, lvalue: &HirLValue) -> DefinitionId {
@@ -599,11 +593,9 @@ impl<'a> IRGenerator<'a> {
 
                 //We parse the array definition
                 let elements = self.codegen_expression_list(env, &arr_lit.contents);
-                let array = &mut self.context.mem[array_id];
-                let array_adr = array.adr;
                 for (pos, object) in elements.into_iter().enumerate() {
                     let lhs_adr = self.context.get_or_create_const(
-                        FieldElement::from((array_adr + pos as u32) as u128),
+                        FieldElement::from((pos as u32) as u128),
                         ObjectType::NativeField,
                     );
                     let store = Operation::Store { array_id, index: lhs_adr, value: object };
@@ -672,21 +664,9 @@ impl<'a> IRGenerator<'a> {
                 };
 
                 let array_id = array.id;
-                let address = array.adr;
-
                 // Evaluate the index expression
                 let index_as_obj = self.codegen_expression(env, &indexed_expr.index)?.unwrap_id();
-
-                let index_type = self.context.get_object_type(index_as_obj);
-                let base_adr = self
-                    .context
-                    .get_or_create_const(FieldElement::from(address as i128), index_type);
-                let adr_id = self.context.new_instruction(
-                    Operation::binary(BinaryOp::Add, base_adr, index_as_obj),
-                    index_type,
-                )?;
-
-                let load = Operation::Load { array_id, index: adr_id };
+                let load = Operation::Load { array_id, index: index_as_obj };
                 Ok(Value::Single(self.context.new_instruction(load, e_type)?))
             }
             HirExpression::Call(call_expr) => {

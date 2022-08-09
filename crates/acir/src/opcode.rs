@@ -8,7 +8,6 @@ pub enum OPCODE {
     SHA256,
     Blake2s,
     MerkleMembership,
-    InsertRegularMerkle,
     SchnorrVerify,
     Pedersen,
     HashToField,
@@ -35,8 +34,7 @@ impl OPCODE {
             OPCODE::HashToField => 6,
             OPCODE::EcdsaSecp256k1 => 7,
             OPCODE::FixedBaseScalarMul => 8,
-            OPCODE::InsertRegularMerkle => 9,
-            OPCODE::ToBits => 10,
+            OPCODE::ToBits => 9,
         }
     }
     pub fn name(&self) -> &str {
@@ -50,7 +48,6 @@ impl OPCODE {
             OPCODE::HashToField => "hash_to_field",
             OPCODE::EcdsaSecp256k1 => "ecdsa_secp256k1",
             OPCODE::FixedBaseScalarMul => "fixed_base_scalar_mul",
-            OPCODE::InsertRegularMerkle => "insert_regular_merkle",
             OPCODE::ToBits => "to_bits",
         }
     }
@@ -64,7 +61,6 @@ impl OPCODE {
             "hash_to_field" => Some(OPCODE::HashToField),
             "ecdsa_secp256k1" => Some(OPCODE::EcdsaSecp256k1),
             "fixed_base_scalar_mul" => Some(OPCODE::FixedBaseScalarMul),
-            "insert_regular_merkle" => Some(OPCODE::InsertRegularMerkle),
             "to_bits" => Some(OPCODE::ToBits),
             _ => None,
         }
@@ -117,11 +113,6 @@ impl OPCODE {
                 name: self.name().into(),
                 input_size: InputSize::Fixed(1),
                 output_size: OutputSize(2),
-            },
-            OPCODE::InsertRegularMerkle => GadgetDefinition {
-                name: self.name().into(),
-                input_size: InputSize::Variable,
-                output_size: OutputSize(1),
             },
             OPCODE::ToBits => GadgetDefinition {
                 name: self.name().into(),

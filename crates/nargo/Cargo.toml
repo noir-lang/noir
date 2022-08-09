@@ -25,7 +25,7 @@ hex = "0.4.2"
 tempdir = "0.3.7"
 
 # Backends
-aztec_backend = { optional = true, path = "../aztec_backend" }
+aztec_backend = { optional = true, git = "https://github.com/noir-lang/aztec_backend" }
 marlin_arkworks_backend = { optional = true, git = "https://github.com/noir-lang/marlin_arkworks_backend" }
 
 [features]

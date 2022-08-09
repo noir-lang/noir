@@ -40,7 +40,8 @@ fn eval_block(block_id: BlockId, eval_map: &HashMap<NodeId, NodeEval>, ctx: &mut
     for i in &ctx[block_id].instructions.clone() {
         if let Some(ins) = ctx.try_get_mut_instruction(*i) {
             ins.operation = update_operator(&ins.operation, eval_map);
-            // TODO: simplify(ctx, ins);
+            let ins_id = ins.id;
+            optim::simplify_id(ctx, ins_id).unwrap();
         }
     }
 }
