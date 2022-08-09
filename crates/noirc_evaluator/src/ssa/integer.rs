@@ -12,7 +12,7 @@ use acvm::{acir::OPCODE, FieldElement};
 use noirc_frontend::util::vecmap;
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
-use std::{collections::BTreeMap, convert::TryInto};
+use std::collections::BTreeMap;
 use std::{collections::HashMap, ops::Neg};
 
 //Returns the maximum bit size of short integers
@@ -276,20 +276,19 @@ fn block_overflow(
         });
 
         match ins.operation {
-            Operation::Load { index, .. } => {
+            Operation::Load { array_id, index } => {
                 //TODO we use a local memory map for now but it should be used in arguments
                 //for instance, the join block of a IF should merge the two memorymaps using the condition value
-                if let Some(adr) = Memory::to_u32(ctx, index) {
-                    if let Some(val) = memory_map.get(&adr) {
-                        //optimise static load
-                        ins.mark = Mark::ReplaceWith(*val);
-                    }
+                if let Some(val) = ctx.get_indexed_value(array_id, index) {
+                    //optimise static load
+                    ins.mark = Mark::ReplaceWith(*val);
                 }
             }
-            Operation::Store { index, value, .. } => {
-                if let Some(adr) = Memory::to_u32(ctx, index) {
+            Operation::Store { array_id, index, value } => {
+                if let Some(idx) = Memory::to_u32(ctx, index) {
+                    let absolute_adr = ctx.mem[array_id].absolute_adr(idx);
                     //optimise static store
-                    memory_map.insert(adr, value);
+                    memory_map.insert(absolute_adr, value);
                 }
             }
             Operation::Binary(node::Binary { operator: BinaryOp::Shl, lhs, rhs }) => {
@@ -426,14 +425,10 @@ fn get_load_max(
     array: ArrayId,
     // obj_type: ObjectType,
 ) -> BigUint {
-    if let Some(adr_as_const) = ctx.get_as_constant(address) {
-        let adr: u32 = adr_as_const.to_u128().try_into().unwrap();
-        if let Some(&value) = ctx.mem.memory_map.get(&adr) {
-            return get_obj_max_value(ctx, value, max_map, vmap);
-        }
+    if let Some(&value) = ctx.get_indexed_value(array, address) {
+        return get_obj_max_value(ctx, value, max_map, vmap);
     };
     ctx.mem[array].max.clone() //return array max
-                               //  return obj_type.max_size();
 }
 
 //Returns the max value of an operation from an upper bound of left and right hand sides
