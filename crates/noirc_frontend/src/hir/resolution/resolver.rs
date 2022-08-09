@@ -108,7 +108,7 @@ impl<'a> Resolver<'a> {
         // let x = self.interner.function_name(hir_func.as_expr());
         // let name = func_meta.name.id;
         // if name ==
-        
+
         self.check_for_unused_variables_in_scope_tree(func_scope_tree);
 
         (hir_func, func_meta, self.errors)
@@ -253,8 +253,8 @@ impl<'a> Resolver<'a> {
 
         let mut parameters = Vec::new();
         for (pattern, typ, visibility) in func.parameters().iter().cloned() {
-            if func.name() != "main" && visibility == noirc_abi::AbiFEType::Public { 
-                self.push_err(ResolverError::UnnecessaryPub{ func_ident: name_ident }) 
+            if func.name() != "main" && visibility == noirc_abi::AbiFEType::Public {
+                self.push_err(ResolverError::UnnecessaryPub { func_ident: name_ident })
             }
             let pattern = self.resolve_pattern(pattern);
             let typ = self.resolve_type(typ);

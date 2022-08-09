@@ -27,7 +27,7 @@ pub enum ResolverError {
     #[error("Unneeded 'mut', pattern is already marked as mutable")]
     UnnecessaryMut { first_mut: Span, second_mut: Span },
     #[error("Unneeded 'pub', function is not the main method")]
-    UnnecessaryPub { func_ident: HirIdent }
+    UnnecessaryPub { func_ident: HirIdent },
 }
 
 impl ResolverError {
