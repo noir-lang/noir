@@ -5,8 +5,8 @@ use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
 use crate::node_interner::{ExprId, NodeInterner};
 use crate::util::vecmap;
-use crate::Type;
 use crate::{token::Attribute, FunctionKind};
+use crate::{Type, TypeVariableId};
 
 /// A Hir function is a block expression
 /// with a list of statements
@@ -117,6 +117,7 @@ pub struct FuncMeta {
     pub kind: FunctionKind,
 
     pub attributes: Option<Attribute>,
+    pub generics: Vec<TypeVariableId>,
     pub parameters: Parameters,
     pub return_type: Type,
     pub return_visibility: AbiFEType,

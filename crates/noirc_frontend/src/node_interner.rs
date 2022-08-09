@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::rc::Rc;
 
 use arena::{Arena, Index};
@@ -219,7 +219,7 @@ impl NodeInterner {
             Rc::new(RefCell::new(StructType {
                 id: type_id,
                 name: typ.struct_def.name.clone(),
-                fields: vec![],
+                fields: BTreeMap::new(),
                 // Temporary type variable ids before the struct is resolved to its actual ids.
                 // This lets us record how many arguments the type expects so that other types
                 // can refer to it with generic arguments before the generic parameters themselves

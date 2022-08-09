@@ -24,7 +24,7 @@ use crate::hir_def::expr::{
     HirUnaryOp,
 };
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::rc::Rc;
 
 use crate::graph::CrateId;
@@ -112,6 +112,8 @@ impl<'a> Resolver<'a> {
         func: NoirFunction,
     ) -> (HirFunction, FuncMeta, Vec<ResolverError>) {
         self.scopes.start_function();
+        self.add_generics(func.def.generics.clone());
+
         let (hir_func, func_meta) = self.intern_function(func);
         let func_scope_tree = self.scopes.end_function();
 
@@ -255,11 +257,8 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    pub fn resolve_struct_fields(
-        mut self,
-        unresolved: NoirStruct,
-    ) -> (Vec<TypeVariableId>, Vec<(Ident, Type)>, Vec<ResolverError>) {
-        let generics = vecmap(unresolved.generics, |generic| {
+    fn add_generics(&mut self, generics: Vec<Ident>) -> Vec<TypeVariableId> {
+        vecmap(generics, |generic| {
             // Map the generic to a fresh type variable
             let id = self.interner.next_type_variable_id();
             let typevar = Rc::new(RefCell::new(TypeBinding::Unbound(id)));
@@ -275,9 +274,19 @@ impl<'a> Resolver<'a> {
                 })
             }
             id
-        });
+        })
+    }
 
-        let fields = vecmap(unresolved.fields, |(ident, typ)| (ident, self.resolve_type(typ)));
+    pub fn resolve_struct_fields(
+        mut self,
+        unresolved: NoirStruct,
+    ) -> (Vec<TypeVariableId>, BTreeMap<Ident, Type>, Vec<ResolverError>) {
+        let generics = self.add_generics(unresolved.generics);
+        let fields = unresolved
+            .fields
+            .into_iter()
+            .map(|(ident, typ)| (ident, self.resolve_type(typ)))
+            .collect();
         (generics, fields, self.errors)
     }
 
@@ -291,6 +300,19 @@ impl<'a> Resolver<'a> {
         let name = HirIdent { id, location };
 
         let attributes = func.attribute().cloned();
+
+        assert_eq!(self.generics.len(), func.def.generics.len());
+        let generics = vecmap(&func.def.generics, |generic| {
+            // Always expect self.generics to contain all the generics of this function
+            let typevar = self.generics.get(generic.0.contents.as_str()).unwrap();
+            match &*typevar.0.borrow() {
+                TypeBinding::Unbound(id) => *id,
+                TypeBinding::Bound(binding) => unreachable!(
+                    "Expected {} to be unbound, but it is bound to {}",
+                    generic, binding
+                ),
+            }
+        });
 
         let mut parameters = Vec::new();
         for (pattern, typ, visibility) in func.parameters().iter().cloned() {
@@ -306,6 +328,7 @@ impl<'a> Resolver<'a> {
             kind: func.kind,
             attributes,
             location,
+            generics,
             parameters: parameters.into(),
             return_type,
             return_visibility: func.def.return_visibility,
@@ -522,16 +545,13 @@ impl<'a> Resolver<'a> {
     ///
     /// This is generic to allow it to work for constructor expressions
     /// and constructor patterns.
-    fn resolve_constructor_fields<T, U, F>(
+    fn resolve_constructor_fields<T, U>(
         &mut self,
         type_id: StructId,
         fields: Vec<(Ident, T)>,
         span: Span,
-        mut resolve_function: F,
-    ) -> Vec<(Ident, U)>
-    where
-        F: FnMut(&mut Self, T) -> U,
-    {
+        mut resolve_function: impl FnMut(&mut Self, T) -> U,
+    ) -> Vec<(Ident, U)> {
         let mut ret = Vec::with_capacity(fields.len());
         let mut seen_fields = HashSet::new();
         let mut unseen_fields = self.get_field_names_of_type(type_id);

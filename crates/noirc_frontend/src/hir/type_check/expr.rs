@@ -5,7 +5,7 @@ use noirc_errors::Span;
 use crate::{
     hir_def::{
         expr::{self, HirBinaryOp, HirBinaryOpKind, HirExpression, HirLiteral, HirUnaryOp},
-        function::Param,
+        function::FuncMeta,
         types::Type,
     },
     node_interner::{ExprId, FuncId, NodeInterner},
@@ -368,17 +368,35 @@ fn type_check_function_call(
             });
         }
 
+        let (parameters, return_type) = instantiate_function(&func_meta, interner);
+
         // Check for argument param equality
         // In the case where we previously issued an error for a parameter count mismatch
         // this will only check up until the shorter of the two Vecs.
         // Type check arguments
-        for (param, arg_type) in func_meta.parameters.iter().zip(arguments) {
-            check_param_argument(interner, *expr_id, param, &arg_type, errors);
+        for (param, arg) in parameters.iter().zip(arguments) {
+            let expr_span = interner.expr_span(expr_id);
+            arg.make_subtype_of(param, expr_span, errors, || TypeCheckError::TypeMismatch {
+                expected_typ: param.to_string(),
+                expr_typ: arg.to_string(),
+                expr_span,
+            });
         }
 
         // The type of the call expression is the return type of the function being called
-        func_meta.return_type
+        return_type
     }
+}
+
+// This somewhat duplicates functionality from Type::instantiate. We could only use the later
+// once we support first class functions and type them properly with `forall` quantifiers.
+fn instantiate_function(func: &FuncMeta, interner: &mut NodeInterner) -> (Vec<Type>, Type) {
+    let substitutions =
+        func.generics.iter().map(|old| (*old, interner.next_type_variable())).collect();
+
+    let parameters = vecmap(func.parameters.iter(), |param| param.1.substitute(&substitutions));
+    let return_type = func.return_type.substitute(&substitutions);
+    (parameters, return_type)
 }
 
 pub fn prefix_operand_type_rules(op: &HirUnaryOp, rhs_type: &Type) -> Result<Type, String> {
@@ -523,22 +541,24 @@ fn check_constructor(
     let mut args = constructor.fields.clone();
     args.sort_by_key(|arg| arg.0.clone());
 
-    for ((param_name, param_type), (arg_ident, arg)) in typ.borrow().fields.iter().zip(args) {
+    let typ_ref = typ.borrow();
+    let (generics, fields) = typ_ref.instantiate(interner);
+
+    for ((param_name, param_type), (arg_ident, arg)) in fields.into_iter().zip(args) {
         // Sanity check to ensure we're matching against the same field
-        assert_eq!(param_name, &arg_ident);
+        assert_eq!(param_name, &arg_ident.0.contents);
 
         let arg_type = type_check_expression(interner, &arg, errors);
 
         let span = interner.expr_span(expr_id);
-        arg_type.make_subtype_of(param_type, span, errors, || TypeCheckError::TypeMismatch {
+        arg_type.make_subtype_of(&param_type, span, errors, || TypeCheckError::TypeMismatch {
             expected_typ: param_type.to_string(),
             expr_typ: arg_type.to_string(),
             expr_span: span,
         });
     }
 
-    // TODO: generic args
-    Type::Struct(typ.clone(), vec![])
+    Type::Struct(typ.clone(), generics)
 }
 
 pub fn check_member_access(
@@ -640,25 +660,4 @@ pub fn comparator_operand_type_rules(
         }
         (lhs, rhs) => Err(format!("Unsupported types for comparison: {} and {}", lhs, rhs)),
     }
-}
-
-fn check_param_argument(
-    interner: &NodeInterner,
-    expr_id: ExprId,
-    param: &Param,
-    arg_type: &Type,
-    errors: &mut Vec<TypeCheckError>,
-) {
-    let param_type = &param.1;
-
-    if arg_type.is_variable_sized_array() {
-        unreachable!("arg type type cannot be a variable sized array. This is not supported.")
-    }
-
-    let expr_span = interner.expr_span(&expr_id);
-    arg_type.make_subtype_of(param_type, expr_span, errors, || TypeCheckError::TypeMismatch {
-        expected_typ: param_type.to_string(),
-        expr_typ: arg_type.to_string(),
-        expr_span,
-    });
 }

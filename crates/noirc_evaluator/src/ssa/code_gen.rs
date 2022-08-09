@@ -352,7 +352,7 @@ impl<'a> IRGenerator<'a> {
         match typ {
             noirc_frontend::Type::Struct(t, args) => {
                 let mut values = Vec::new();
-                for (field_name, _) in &t.borrow().fields {
+                for field_name in t.borrow().fields.keys() {
                     let field_name = &field_name.0.contents;
                     let name = format!("{}.{}", base_name, field_name);
                     let field_type = t.borrow().get_field(field_name, args).unwrap();

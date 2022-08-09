@@ -16,7 +16,7 @@ use crate::{Ident, NoirFunction, NoirStruct, ParsedModule, Path, Type, TypeVaria
 use fm::FileId;
 use noirc_errors::CollectedErrors;
 use noirc_errors::DiagnosableError;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 /// Stores all of the unresolved functions in a particular file/mod
 pub struct UnresolvedFunctions {
@@ -251,7 +251,7 @@ fn resolve_struct_fields(
     krate: CrateId,
     unresolved: UnresolvedStruct,
     errors: &mut Vec<CollectedErrors>,
-) -> (Vec<TypeVariableId>, Vec<(Ident, Type)>) {
+) -> (Vec<TypeVariableId>, BTreeMap<Ident, Type>) {
     let path_resolver =
         StandardPathResolver::new(ModuleId { local_id: unresolved.module_id, krate });
 

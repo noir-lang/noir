@@ -1,4 +1,8 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{
+    cell::RefCell,
+    collections::{BTreeMap, HashMap},
+    rc::Rc,
+};
 
 use crate::{hir::type_check::TypeCheckError, node_interner::NodeInterner};
 use noirc_abi::{AbiFEType, AbiType};
@@ -16,7 +20,8 @@ pub type TypeBindings = HashMap<TypeVariableId, Type>;
 pub struct StructType {
     pub id: StructId,
     pub name: Ident,
-    pub fields: Vec<(Ident, Type)>,
+    /// Fields are ordered
+    pub fields: BTreeMap<Ident, Type>,
     pub generics: Vec<TypeVariableId>,
     pub methods: HashMap<String, FuncId>,
     pub span: Span,
@@ -36,6 +41,7 @@ impl StructType {
         fields: Vec<(Ident, Type)>,
         generics: Vec<TypeVariableId>,
     ) -> StructType {
+        let fields = fields.into_iter().collect();
         StructType { id, fields, name, span, generics, methods: HashMap::new() }
     }
 
@@ -48,8 +54,36 @@ impl StructType {
                 .zip(generic_args)
                 .map(|(old, new)| (*old, new.clone()))
                 .collect();
+
             typ.substitute(&substitutions)
         })
+    }
+
+    /// Instantiate this struct type, returning a Vec of the new generic args (in
+    /// the same order as self.generics) and a map of each instantiated field
+    pub fn instantiate<'a>(
+        &'a self,
+        interner: &mut NodeInterner,
+    ) -> (Vec<Type>, BTreeMap<&'a str, Type>) {
+        let (generics, substitutions) = self
+            .generics
+            .iter()
+            .map(|old| {
+                let new = interner.next_type_variable();
+                (new.clone(), (*old, new))
+            })
+            .unzip();
+
+        let fields = self
+            .fields
+            .iter()
+            .map(|(name, typ)| {
+                let typ = typ.substitute(&substitutions);
+                (name.0.contents.as_str(), typ)
+            })
+            .collect();
+
+        (generics, fields)
     }
 }
 
@@ -292,7 +326,7 @@ impl std::fmt::Display for TypeBinding {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TypeBinding::Bound(typ) => typ.fmt(f),
-            TypeBinding::Unbound(_) => write!(f, "?"),
+            TypeBinding::Unbound(id) => id.fmt(f),
         }
     }
 }
@@ -362,6 +396,23 @@ impl Type {
                         clone.set_const_span(span);
                         *var.borrow_mut() = TypeBinding::Bound(clone);
                         is_const.unify(var_const, span)
+                    }
+                }
+            }
+            Type::TypeVariable(binding) => {
+                let borrow = binding.borrow();
+                match &*borrow {
+                    TypeBinding::Bound(typ) => {
+                        typ.try_bind_to_polymorphic_int(var, var_const, span)
+                    }
+                    // Avoid infinitely recursive bindings
+                    TypeBinding::Unbound(id) if *id == target_id => Ok(()),
+                    TypeBinding::Unbound(_) => {
+                        drop(borrow);
+                        let mut clone = self.clone();
+                        clone.set_const_span(span);
+                        *var.borrow_mut() = TypeBinding::Bound(clone);
+                        Ok(())
                     }
                 }
             }
@@ -527,9 +578,8 @@ impl Type {
         }
     }
 
-    /// A feature of the language is that `Field` is like an
-    /// `Any` type which allows you to pass in any type which
-    /// is fundamentally a field element. E.g all integer types
+    /// The `subtype` term here is somewhat loose, the only subtyping relations remaining are
+    /// between fixed and variable sized arrays, and IsConst tracking.
     pub fn make_subtype_of(
         &self,
         expected: &Type,
@@ -601,7 +651,7 @@ impl Type {
             // No recursive try_unify call needed for struct fields, we just
             // check the struct ids match.
             (Struct(struct_a, args_a), Struct(struct_b, args_b)) => {
-                if struct_a == struct_b {
+                if struct_a == struct_b && args_a.len() == args_b.len() {
                     for (a, b) in args_a.iter().zip(args_b) {
                         a.is_subtype_of(b, span)?;
                     }
@@ -747,6 +797,10 @@ impl Type {
     /// given bindings if found. If a type variable is not found within
     /// the given TypeBindings, it is unchanged.
     pub fn substitute(&self, type_bindings: &TypeBindings) -> Type {
+        if type_bindings.is_empty() {
+            return self.clone();
+        }
+
         let substitute_binding = |binding: &TypeVariable| match &*binding.borrow() {
             TypeBinding::Bound(binding) => binding.substitute(type_bindings),
             TypeBinding::Unbound(id) => {
