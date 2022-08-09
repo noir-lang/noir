@@ -32,4 +32,4 @@ marlin_arkworks_backend = { optional = true, git = "https://github.com/noir-lang
 default = ["plonk_bn254"]
 # The plonk backend can only use bn254, so we do not specify the field
 plonk_bn254 = ["aztec_backend"]
-marlin = ["marlin_arkworks_backend/bn254"]
+marlin = ["marlin_arkworks_backend/bls12_381"]
