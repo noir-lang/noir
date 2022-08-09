@@ -137,6 +137,7 @@ mod test {
             name,
             kind: FunctionKind::Normal,
             attributes: None,
+            generics: vec![],
             location,
             parameters: vec![
                 Param(Identifier(x), Type::field(None), noirc_abi::AbiFEType::Private),
