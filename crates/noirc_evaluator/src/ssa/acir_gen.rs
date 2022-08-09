@@ -182,13 +182,14 @@ impl Acir {
                 //address = l_c and should be constant
                 let index = self.substitute(*index, evaluator, ctx);
                 if let Some(index) = index.to_const() {
-                    let address = mem::Memory::as_u32(index);
-                    if self.memory_map.contains_key(&address) {
-                        InternalVar::from(self.memory_map[&address].expression.clone())
+                    let idx = mem::Memory::as_u32(index);
+                    let mem_array = &ctx.mem[*array_id];
+                    let absolute_adr = mem_array.absolute_adr(idx);
+                    if self.memory_map.contains_key(&absolute_adr) {
+                        InternalVar::from(self.memory_map[&absolute_adr].expression.clone())
                     } else {
                         //if not found, then it must be a witness (else it is non-initialised memory)
-                        let mem_array = &ctx.mem[*array_id];
-                        let index = (address - mem_array.adr) as usize;
+                        let index = idx as usize;
                         if mem_array.values.len() > index {
                             mem_array.values[index].clone()
                         } else {
@@ -200,14 +201,15 @@ impl Acir {
                 }
             }
 
-            Operation::Store { array_id: _, index, value } => {
+            Operation::Store { array_id, index, value } => {
                 //maps the address to the rhs if address is known at compile time
                 let index = self.substitute(*index, evaluator, ctx);
                 let value = self.substitute(*value, evaluator, ctx);
 
                 if let Some(index) = index.to_const() {
-                    let address = mem::Memory::as_u32(index);
-                    self.memory_map.insert(address, value);
+                    let idx = mem::Memory::as_u32(index);
+                    let absolute_adr = ctx.mem[*array_id].absolute_adr(idx);
+                    self.memory_map.insert(absolute_adr, value);
                     //we do not generate constraint, so no output.
                     InternalVar::default()
                 } else {
