@@ -105,10 +105,6 @@ impl<'a> Resolver<'a> {
         let (hir_func, func_meta) = self.intern_function(func);
         let func_scope_tree = self.scopes.end_function();
 
-        // let x = self.interner.function_name(hir_func.as_expr());
-        // let name = func_meta.name.id;
-        // if name ==
-
         self.check_for_unused_variables_in_scope_tree(func_scope_tree);
 
         (hir_func, func_meta, self.errors)
