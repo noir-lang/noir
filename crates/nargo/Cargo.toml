@@ -13,7 +13,7 @@ noirc_driver = { path = "../noirc_driver" }
 noirc_frontend = { path = "../noirc_frontend" }
 noirc_abi = { path = "../noirc_abi" }
 fm = { path = "../fm" }
-acvm = { git = "https://github.com/noir-lang/noir" }
+acvm = { git = "https://github.com/noir-lang/noir", branch = "refactor-pwg" }
 cfg-if = "1.0.0"
 
 toml = "0.5"
@@ -25,8 +25,8 @@ hex = "0.4.2"
 tempdir = "0.3.7"
 
 # Backends
-aztec_backend = { optional = true, git = "https://github.com/noir-lang/aztec_backend" }
-marlin_arkworks_backend = { optional = true, git = "https://github.com/noir-lang/marlin_arkworks_backend" }
+aztec_backend = { optional = true, git = "https://github.com/noir-lang/aztec_backend", branch = "refactor-pwg" }
+marlin_arkworks_backend = { optional = true, git = "https://github.com/noir-lang/marlin_arkworks_backend", branch = "refactor-pwg" }
 
 [features]
 default = ["plonk_bn254"]

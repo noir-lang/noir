@@ -15,10 +15,10 @@ dependencies = [
 [[package]]
 name = "acir"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/noir#3deb5363ba5198e833812ba54d62565c4753d2b7"
+source = "git+https://github.com/noir-lang/noir?branch=refactor-pwg#cc5ee63072e09779bebd7e7dd054ae16be307d7f"
 dependencies = [
  "indexmap",
- "noir_field 0.1.0 (git+https://github.com/noir-lang/noir)",
+ "noir_field 0.1.0 (git+https://github.com/noir-lang/noir?branch=refactor-pwg)",
  "serde",
 ]
 
@@ -42,14 +42,14 @@ dependencies = [
 [[package]]
 name = "acvm"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/noir#3deb5363ba5198e833812ba54d62565c4753d2b7"
+source = "git+https://github.com/noir-lang/noir?branch=refactor-pwg#cc5ee63072e09779bebd7e7dd054ae16be307d7f"
 dependencies = [
- "acir 0.1.0 (git+https://github.com/noir-lang/noir)",
+ "acir 0.1.0 (git+https://github.com/noir-lang/noir?branch=refactor-pwg)",
  "blake2",
  "hex",
  "indexmap",
  "k256",
- "noir_field 0.1.0 (git+https://github.com/noir-lang/noir)",
+ "noir_field 0.1.0 (git+https://github.com/noir-lang/noir?branch=refactor-pwg)",
  "num-bigint",
  "num-traits",
  "sha2",
@@ -260,9 +260,9 @@ dependencies = [
 [[package]]
 name = "arkworks_backend"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/arkworks_backend#0ee72cf5eb387abc1e097780dc92539365a00e2f"
+source = "git+https://github.com/noir-lang/arkworks_backend?branch=refactor-pwg#e37b4b0fa8d56195a5a5f23ba1b72b87000486fc"
 dependencies = [
- "acvm 0.1.0 (git+https://github.com/noir-lang/noir)",
+ "acvm 0.1.0 (git+https://github.com/noir-lang/noir?branch=refactor-pwg)",
  "ark-bls12-381",
  "ark-bn254",
  "ark-ff",
@@ -298,9 +298,9 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 [[package]]
 name = "aztec_backend"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend#a92940fd4934701a2c9f99901e10c6c729489b90"
+source = "git+https://github.com/noir-lang/aztec_backend?branch=refactor-pwg#21413b0e934cf9130d63c244519b6a890efacdf8"
 dependencies = [
- "acvm 0.1.0 (git+https://github.com/noir-lang/noir)",
+ "acvm 0.1.0 (git+https://github.com/noir-lang/noir?branch=refactor-pwg)",
  "barretenberg_wrapper",
  "blake2",
  "dirs",
@@ -1117,9 +1117,9 @@ dependencies = [
 [[package]]
 name = "marlin_arkworks_backend"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/marlin_arkworks_backend#e7b333cec118518b4d4559be66b5c0dd8b9e2e83"
+source = "git+https://github.com/noir-lang/marlin_arkworks_backend?branch=refactor-pwg#56e171b8f386c144d0731ba67f3f4bfb9bc5cfe2"
 dependencies = [
- "acvm 0.1.0 (git+https://github.com/noir-lang/noir)",
+ "acvm 0.1.0 (git+https://github.com/noir-lang/noir?branch=refactor-pwg)",
  "arkworks_backend",
  "blake2",
  "dirs",
@@ -1176,7 +1176,7 @@ dependencies = [
 name = "nargo"
 version = "0.1.0"
 dependencies = [
- "acvm 0.1.0 (git+https://github.com/noir-lang/noir)",
+ "acvm 0.1.0 (git+https://github.com/noir-lang/noir?branch=refactor-pwg)",
  "aztec_backend",
  "cfg-if 1.0.0",
  "clap",
@@ -1231,7 +1231,7 @@ dependencies = [
 [[package]]
 name = "noir_field"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/noir#3deb5363ba5198e833812ba54d62565c4753d2b7"
+source = "git+https://github.com/noir-lang/noir?branch=refactor-pwg#cc5ee63072e09779bebd7e7dd054ae16be307d7f"
 dependencies = [
  "ark-bls12-381",
  "ark-bn254",
@@ -1248,7 +1248,7 @@ dependencies = [
 name = "noirc_abi"
 version = "0.1.0"
 dependencies = [
- "acvm 0.1.0 (git+https://github.com/noir-lang/noir)",
+ "acvm 0.1.0 (git+https://github.com/noir-lang/noir?branch=refactor-pwg)",
  "blake2",
  "serde",
  "serde_derive",
@@ -1259,7 +1259,7 @@ dependencies = [
 name = "noirc_driver"
 version = "0.1.0"
 dependencies = [
- "acvm 0.1.0 (git+https://github.com/noir-lang/noir)",
+ "acvm 0.1.0 (git+https://github.com/noir-lang/noir?branch=refactor-pwg)",
  "dirs",
  "fm",
  "noirc_abi",
@@ -1284,7 +1284,7 @@ dependencies = [
 name = "noirc_evaluator"
 version = "0.1.0"
 dependencies = [
- "acvm 0.1.0 (git+https://github.com/noir-lang/noir)",
+ "acvm 0.1.0 (git+https://github.com/noir-lang/noir?branch=refactor-pwg)",
  "arena",
  "fm",
  "lazy_static",
@@ -1300,7 +1300,7 @@ dependencies = [
 name = "noirc_frontend"
 version = "0.1.0"
 dependencies = [
- "acvm 0.1.0 (git+https://github.com/noir-lang/noir)",
+ "acvm 0.1.0 (git+https://github.com/noir-lang/noir?branch=refactor-pwg)",
  "arena",
  "chumsky",
  "fm",
