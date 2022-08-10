@@ -7,14 +7,15 @@ pub mod pwg;
 use std::collections::BTreeMap;
 
 use acir::{
-    circuit::{Circuit, Gate, gate::{Directive, GadgetCall}},
+    circuit::{
+        gate::{Directive, GadgetCall},
+        Circuit, Gate,
+    },
     native_types::{Expression, Witness},
     OPCODE,
 };
 
-use crate::{
-    pwg::{arithmetic::ArithmeticSolver, logic::LogicSolver},
-};
+use crate::pwg::{arithmetic::ArithmeticSolver, logic::LogicSolver};
 use num_bigint::BigUint;
 use num_traits::One;
 
@@ -161,10 +162,10 @@ pub trait PartialWitnessGenerator {
         }
         self.solve(initial_witness, unsolved_gates)
     }
-    
+
     fn solve_gadget_call(
-        initial_witness: &mut BTreeMap<Witness, FieldElement>, 
-        gc: &GadgetCall
+        initial_witness: &mut BTreeMap<Witness, FieldElement>,
+        gc: &GadgetCall,
     ) -> Result<(), OPCODE>;
 
     fn get_value(
