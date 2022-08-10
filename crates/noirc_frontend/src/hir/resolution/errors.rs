@@ -26,6 +26,8 @@ pub enum ResolverError {
     MissingFields { span: Span, missing_fields: Vec<String>, struct_definition: Ident },
     #[error("Unneeded 'mut', pattern is already marked as mutable")]
     UnnecessaryMut { first_mut: Span, second_mut: Span },
+    #[error("Unneeded 'pub', function is not the main method")]
+    UnnecessaryPub { func_ident: HirIdent },
 }
 
 impl ResolverError {
@@ -136,6 +138,18 @@ impl ResolverError {
                     first_mut,
                 );
                 error
+            }
+            ResolverError::UnnecessaryPub { func_ident } => {
+                let name = interner.definition_name(func_ident.id);
+
+                let mut diag = Diagnostic::simple_error(
+                    format!("unnecessary pub keyword on parameter for function {}", name),
+                    "unnecessary pub parameter".to_string(),
+                    func_ident.location.span,
+                );
+
+                diag.add_note("The `pub` keyword only has effects on arguments to the main function of a program. Thus, adding it to other function parameters can be deceiving and should be removed".to_owned());
+                diag
             }
         }
     }
