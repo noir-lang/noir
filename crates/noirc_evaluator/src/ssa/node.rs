@@ -485,6 +485,9 @@ impl Instruction {
                         return Ok(NodeEval::VarOrInstruction(*val_true));
                     }
                 }
+                if *val_true == *val_false {
+                    return Ok(NodeEval::VarOrInstruction(*val_false));
+                }
             }
             Operation::Phi { .. } => (), //Phi are simplified by simply_phi() later on; they must not be simplified here
             _ => (),

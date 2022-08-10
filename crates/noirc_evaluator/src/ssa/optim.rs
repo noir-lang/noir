@@ -53,23 +53,48 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) -> Result<(), Runti
         return Ok(());
     }
 
-    if let Operation::Binary(binary) = &mut ins.operation {
-        if let NodeEval::Const(r_const, r_type) = NodeEval::from_id(ctx, binary.rhs) {
-            if binary.operator == BinaryOp::Div {
-                binary.rhs = ctx.get_or_create_const(r_const.inverse(), r_type);
-                binary.operator = BinaryOp::Mul;
+    match &mut ins.operation {
+        Operation::Binary(binary) => {
+            if let NodeEval::Const(r_const, r_type) = NodeEval::from_id(ctx, binary.rhs) {
+                if binary.operator == BinaryOp::Div {
+                    binary.rhs = ctx.get_or_create_const(r_const.inverse(), r_type);
+                    binary.operator = BinaryOp::Mul;
+                }
             }
         }
-    }
+        Operation::Intrinsic(opcode, args) => {
+            let args = args
+                .iter()
+                .map(|arg| NodeEval::from_id(ctx, *arg).into_const_value().map(|f| f.to_u128()));
 
-    if let Operation::Intrinsic(opcode, args) = &ins.operation {
-        let args = args
-            .iter()
-            .map(|arg| NodeEval::from_id(ctx, *arg).into_const_value().map(|f| f.to_u128()));
-
-        if let Some(args) = args.collect() {
-            ins.mark = Mark::ReplaceWith(evaluate_intrinsic(ctx, *opcode, args));
+            if let Some(args) = args.collect() {
+                ins.mark = Mark::ReplaceWith(evaluate_intrinsic(ctx, *opcode, args));
+            }
         }
+        Operation::Jeq(cond, jump_block) => {
+            if let Some(cond) = NodeEval::from_id(ctx, *cond).into_const_value() {
+                // we do not simplify for loops, it will be evaluated during unrolling
+                if ctx[ins.parent_block].kind == super::block::BlockType::Normal {
+                    if cond.is_zero() {
+                        ins.operation = Operation::Jmp(*jump_block);
+                        super::block::remove_child(
+                            ctx,
+                            ctx[ins.parent_block].left.unwrap(),
+                            ins.parent_block,
+                        );
+                    } else {
+                        ins.mark = Mark::Deleted;
+                        super::block::remove_child(
+                            ctx,
+                            ctx[ins.parent_block].right.unwrap(),
+                            ins.parent_block,
+                        );
+                    }
+                    ctx[ins.parent_block].kind = super::block::BlockType::Normal;
+                }
+            }
+        }
+        _ => (),
     }
 
     Ok(())

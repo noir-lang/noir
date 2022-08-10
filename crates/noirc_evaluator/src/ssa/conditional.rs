@@ -11,7 +11,7 @@ use super::{
     context::SsaContext,
     flatten::{self, UnrollContext},
     inline::StackFrame,
-    node::{self, BinaryOp, Instruction, NodeId, Operation},
+    node::{self, BinaryOp, Instruction, NodeId, Opcode, Operation},
 };
 
 // Functions that modify arrays work on a fresh array, which is copied to the original one,
@@ -260,13 +260,14 @@ impl DecisionTree {
         }
         //reduce the node
         if assumption.entry_block != BlockId::dummy() {
-            DecisionTree::reduce_sub_graph(ctx, assumption.entry_block, assumption.exit_block)?;
+            self.reduce_sub_graph(ctx, assumption.entry_block, assumption.exit_block)?;
         }
         Ok(())
     }
 
     //reduce if sub graph
     pub fn reduce_sub_graph(
+        &self,
         ctx: &mut SsaContext,
         if_block_id: BlockId,
         exit_block_id: BlockId,
@@ -285,10 +286,11 @@ impl DecisionTree {
 
         //for now we just append
         to_remove.push(right);
-        let mut ins = ctx[left].instructions.clone();
-        ins.extend(&ctx[right].instructions);
+        let left_ins = ctx[left].instructions.clone();
+        let right_ins = ctx[right].instructions.clone();
+        let mut merged_ins = self.synchronise(ctx, &left_ins, &right_ins, left);
         let mut modified = false;
-        super::optim::cse_block(ctx, left, &mut ins, &mut modified)?;
+        super::optim::cse_block(ctx, left, &mut merged_ins, &mut modified)?;
 
         //housekeeping...
         let if_block = &mut ctx[if_block_id];
@@ -313,12 +315,6 @@ impl DecisionTree {
         stack: &mut StackFrame,
     ) {
         let assumption_id = ctx[block].assumption;
-        let assumption = &self[assumption_id];
-        let ass_value = assumption.value.unwrap();
-
-        if ass_value == ctx.zero() {
-            todo!();
-        }
         let instructions = ctx[block].instructions.clone();
         self.conditionalise_inline(ctx, &instructions, stack, assumption_id);
         ctx[block].instructions.clear();
@@ -365,7 +361,7 @@ impl DecisionTree {
             ass_cond = self[predicate].condition;
             ass_value = self[predicate].value.unwrap_or_else(NodeId::dummy);
         }
-
+        assert_ne!(ass_value, ctx.zero(), "code should have been already simplified");
         let ins1 = ctx.get_instruction(ins_id);
         match &ins1.operation {
             Operation::Call { returned_arrays, .. } => {
@@ -485,6 +481,148 @@ impl DecisionTree {
             _ => stack.push(ins_id),
         }
     }
+
+    fn synchronise(
+        &self,
+        ctx: &mut SsaContext,
+        left: &[NodeId],
+        right: &[NodeId],
+        block_id: BlockId,
+    ) -> Vec<NodeId> {
+        // 1. find potential matches between the two blocks
+        let mut candidates = Vec::new();
+        let keep_call_and_store = |node_id: NodeId| -> bool {
+            let ins = ctx.get_instruction(node_id);
+            matches!(ins.operation.opcode(), Opcode::Call(_) | Opcode::Store(_))
+        };
+        let l_iter = left.iter().enumerate().filter(|&i| keep_call_and_store(*i.1));
+        let mut r_iter = right.iter().enumerate().filter(|&i| keep_call_and_store(*i.1));
+        for left_node in l_iter {
+            let left_ins = ctx.get_instruction(*left_node.1);
+            for right_node in r_iter.by_ref() {
+                let right_ins = ctx.get_instruction(*right_node.1);
+                match (&left_ins.operation, &right_ins.operation) {
+                    (
+                        Operation::Call {
+                            func_id: left_func, returned_arrays: left_arrays, ..
+                        },
+                        Operation::Call {
+                            func_id: right_func, returned_arrays: right_arrays, ..
+                        },
+                    ) if left_func == right_func
+                        && left_arrays.is_empty()
+                        && right_arrays.is_empty() =>
+                    {
+                        candidates.push(Segment::new(left_node, right_node))
+                    }
+
+                    (
+                        Operation::Store { array_id: left_array, index: left_index, .. },
+                        Operation::Store { array_id: right_array, index: right_index, .. },
+                    ) if left_array == right_array && left_index == right_index => {
+                        candidates.push(Segment::new(left_node, right_node))
+                    }
+                    _ => (),
+                }
+            }
+        }
+        // 2. construct a solution
+        let mut solution = Vec::new();
+        // TODO: far from optimal greedy solution...
+        for i in &candidates {
+            if intersect(&solution, i).is_none() {
+                solution.push(Segment { left: i.left, right: i.right });
+            }
+        }
+
+        // 3. Merge the blocks using the solution
+        let mut left_pos = 0;
+        let mut right_pos = 0;
+        let mut result = Vec::new();
+        for i in solution {
+            result.extend_from_slice(&left[left_pos..i.left.0]);
+            left_pos = i.left.0;
+            result.extend_from_slice(&right[right_pos..i.right.0]);
+            right_pos = i.right.0;
+            //merge i:
+            let left_ins = ctx.get_instruction(left[left_pos]);
+            let right_ins = ctx.get_instruction(right[right_pos]);
+            let assumption = &self[ctx[block_id].assumption];
+
+            let mut to_merge = Vec::new();
+            let mut merged_op = match (&left_ins.operation, &right_ins.operation) {
+                (
+                    Operation::Call {
+                        func_id: left_func,
+                        arguments: left_arg,
+                        returned_arrays: left_arrays,
+                        ..
+                    },
+                    Operation::Call { func_id: right_func, arguments: right_arg, .. },
+                ) => {
+                    debug_assert_eq!(left_func, right_func);
+                    for a in left_arg.iter().enumerate() {
+                        let op = Operation::Cond {
+                            condition: self[assumption.parent].condition,
+                            val_true: *a.1,
+                            val_false: right_arg[a.0],
+                        };
+                        let typ = ctx.get_object_type(*a.1);
+                        to_merge.push(Instruction::new(op, typ, Some(block_id)));
+                    }
+                    Operation::Call {
+                        func_id: *left_func,
+                        arguments: Vec::new(),
+                        returned_arrays: left_arrays.clone(),
+                        predicate: self.root,
+                    }
+                }
+                (
+                    Operation::Store { array_id: left_array, index: left_index, value: left_val },
+                    Operation::Store { value: right_val, .. },
+                ) => {
+                    let op = Operation::Cond {
+                        condition: self[assumption.parent].condition,
+                        val_true: *left_val,
+                        val_false: *right_val,
+                    };
+                    let merge =
+                        Instruction::new(op, ctx.mem[*left_array].element_type, Some(block_id));
+                    to_merge.push(merge);
+                    Operation::Store {
+                        array_id: *left_array,
+                        index: *left_index,
+                        value: NodeId::dummy(),
+                    }
+                }
+                _ => unreachable!(),
+            };
+
+            let mut merge_ids = Vec::new();
+            for merge in to_merge {
+                let merge_id = ctx.add_instruction(merge);
+                result.push(merge_id);
+                merge_ids.push(merge_id);
+            }
+            if let Operation::Store { value, .. } = &mut merged_op {
+                *value = *merge_ids.last().unwrap();
+            } else {
+                if let Operation::Call { arguments, .. } = &mut merged_op {
+                    *arguments = merge_ids;
+                }
+                let left_ins = ctx.get_mut_instruction(left[left_pos]);
+                left_ins.mark = node::Mark::ReplaceWith(right[right_pos]);
+            }
+            let ins1 = ctx.get_mut_instruction(right[right_pos]);
+            ins1.operation = merged_op;
+            result.push(ins1.id);
+            left_pos += 1;
+            right_pos += 1;
+        }
+        result.extend_from_slice(&left[left_pos..left.len()]);
+        result.extend_from_slice(&right[right_pos..right.len()]);
+        result
+    }
 }
 
 //unroll an if sub-graph
@@ -566,4 +704,29 @@ fn create_if_subgraph(ctx: &mut SsaContext, prev_block: BlockId) -> (BlockId, Bl
     ctx[new_entry].right = Some(new_else);
 
     (new_entry, new_exit)
+}
+
+#[derive(Debug)]
+struct Segment {
+    left: (usize, NodeId),
+    right: (usize, NodeId),
+}
+
+impl Segment {
+    pub fn new(left_node: (usize, &NodeId), right_node: (usize, &NodeId)) -> Segment {
+        Segment { left: (left_node.0, *left_node.1), right: (right_node.0, *right_node.1) }
+    }
+    pub fn intersect(&self, other: &Segment) -> bool {
+        (self.right.0 < other.right.0 && self.left.0 < other.left.0)
+            || (self.right.0 > other.right.0 && self.left.0 > other.left.0)
+    }
+}
+
+fn intersect(solution: &[Segment], candidate: &Segment) -> Option<usize> {
+    for i in solution.iter().enumerate() {
+        if i.1.intersect(candidate) {
+            return Some(i.0);
+        }
+    }
+    None
 }
