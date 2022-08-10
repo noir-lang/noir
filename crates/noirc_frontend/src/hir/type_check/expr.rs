@@ -10,7 +10,7 @@ use crate::{
     },
     node_interner::{ExprId, FuncId, NodeInterner},
     util::vecmap,
-    ArraySize, IsConst, TypeBinding,
+    IsConst, TypeBinding,
 };
 
 use super::errors::TypeCheckError;
@@ -40,7 +40,7 @@ pub(crate) fn type_check_expression(
                     // Specify the type of the Array
                     // Note: This assumes that the array is homogeneous, which will be checked next
                     let arr_type = Type::Array(
-                        ArraySize::Fixed(elem_types.len() as u128),
+                        Box::new(Type::ArrayLength(arr.contents.len() as u64)),
                         Box::new(first_elem_type.clone()),
                     );
 
@@ -154,7 +154,12 @@ pub(crate) fn type_check_expression(
             interner.push_definition_type(for_expr.identifier.id, start_range_type);
 
             let last_type = type_check_expression(interner, &for_expr.block, errors);
-            Type::Array(ArraySize::Variable, Box::new(last_type))
+
+            // TODO: This length is wrong, would need a type for (end_range - start_range) or
+            // to have a variable again.
+            let len = Box::new(interner.next_type_variable());
+
+            Type::Array(len, Box::new(last_type))
         }
         HirExpression::Block(block_expr) => {
             let mut block_type = Type::Unit;
