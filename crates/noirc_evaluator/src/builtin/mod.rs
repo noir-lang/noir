@@ -21,6 +21,7 @@ enum BuiltInFunctions {
     SetPub,
     PowConst,
     PredEq,
+    ArrayLen,
 }
 
 impl BuiltInFunctions {
@@ -31,6 +32,7 @@ impl BuiltInFunctions {
             "set_pub" => Some(BuiltInFunctions::SetPub),
             "pow_const" => Some(BuiltInFunctions::PowConst),
             "predicate_equal" => Some(BuiltInFunctions::PredEq),
+            "array_len" => Some(BuiltInFunctions::ArrayLen),
             _ => None,
         }
     }
@@ -64,5 +66,6 @@ pub fn call_builtin(
         BuiltInFunctions::SetPub => SetPub::call(evaluator, env, call_expr, location),
         BuiltInFunctions::PowConst => PowConst::call(evaluator, env, call_expr, location),
         BuiltInFunctions::PredEq => PredicateEq::call(evaluator, env, call_expr, location),
+        BuiltInFunctions::ArrayLen => unreachable!(),
     }
 }

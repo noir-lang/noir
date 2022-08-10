@@ -17,9 +17,9 @@ use std::ops::{Add, Mul, Sub};
 use std::ops::{BitAnd, BitOr, BitXor, Shl, Shr};
 
 use super::block::BlockId;
-use super::conditional;
 use super::context::SsaContext;
 use super::mem::ArrayId;
+use super::{conditional, function};
 
 pub trait Node: std::fmt::Display {
     fn get_type(&self) -> ObjectType;
@@ -551,7 +551,7 @@ pub enum Operation {
     },
     //Call(function::FunctionCall),
     Call {
-        func_id: noirc_frontend::node_interner::FuncId,
+        func_id: function::SsaFuncId,
         arguments: Vec<NodeId>,
         returned_arrays: Vec<(super::mem::ArrayId, u32)>,
         predicate: conditional::AssumptionId,
@@ -621,9 +621,9 @@ pub enum Opcode {
     Jmp, //unconditional jump
     Phi,
 
-    Call(noirc_frontend::node_interner::FuncId), //Call a function
-    Return,                                      //Return value(s) from a function block
-    Results,                                     //Get result(s) from a function call
+    Call(function::SsaFuncId), //Call a function
+    Return,                    //Return value(s) from a function block
+    Results,                   //Get result(s) from a function call
 
     //memory
     Load(ArrayId),

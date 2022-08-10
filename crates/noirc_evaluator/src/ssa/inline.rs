@@ -1,7 +1,5 @@
 use std::collections::{hash_map::Entry, HashMap};
 
-use noirc_frontend::node_interner::FuncId;
-
 use crate::{
     errors::RuntimeError,
     ssa::{
@@ -14,7 +12,7 @@ use super::{
     block::{self, BlockId},
     conditional::DecisionTree,
     context::SsaContext,
-    function,
+    function::{self, SsaFuncId},
     mem::{ArrayId, Memory},
     node::{self, Instruction, Mark, NodeId},
 };
@@ -44,8 +42,8 @@ pub fn inline_tree(
 
 pub fn inline_cfg(
     ctx: &mut SsaContext,
-    func_id: FuncId,
-    to_inline: Option<FuncId>,
+    func_id: SsaFuncId,
+    to_inline: Option<SsaFuncId>,
 ) -> Result<bool, RuntimeError> {
     let mut result = true;
     let func = ctx.get_ssafunc(func_id).unwrap();
@@ -63,7 +61,7 @@ pub fn inline_cfg(
 fn inline_block(
     ctx: &mut SsaContext,
     block_id: BlockId,
-    to_inline: Option<FuncId>,
+    to_inline: Option<SsaFuncId>,
     decision: &DecisionTree,
 ) -> Result<bool, RuntimeError> {
     let mut call_ins = vec![];

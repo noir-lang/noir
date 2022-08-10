@@ -347,9 +347,10 @@ impl Acir {
         &mut self,
         array: &MemArray,
         create_witness: bool,
+        len: u32,
         evaluator: &mut Evaluator,
     ) -> Vec<InternalVar> {
-        (0..array.len)
+        (0..len)
             .map(|i| {
                 let address = array.adr + i;
                 if let Some(memory) = self.memory_map.get_mut(&address) {
@@ -387,9 +388,10 @@ impl Acir {
         if let (Some(a), Some(b)) = (Memory::deref(ctx, lhs), Memory::deref(ctx, rhs)) {
             let array_a = &ctx.mem[a];
             let array_b = &ctx.mem[b];
-
-            if array_a.len == array_b.len {
-                let mut x = InternalVar::from(self.zero_eq_array_sum(array_a, array_b, evaluator));
+            let len = ctx.mem.len(a);
+            if len == ctx.mem.len(b) {
+                let mut x =
+                    InternalVar::from(self.zero_eq_array_sum(array_a, array_b, len, evaluator));
                 x.witness = Some(generate_witness(&x, evaluator));
                 from_witness(evaluate_zero_equality(&x, evaluator))
             } else {
@@ -423,12 +425,13 @@ impl Acir {
         &mut self,
         a: &MemArray,
         b: &MemArray,
+        len: u32,
         evaluator: &mut Evaluator,
     ) -> Expression {
         let mut sum = Expression::default();
 
-        let a_values = self.load_array(a, false, evaluator);
-        let b_values = self.load_array(b, false, evaluator);
+        let a_values = self.load_array(a, false, len, evaluator);
+        let b_values = self.load_array(b, false, len, evaluator);
 
         for (a_iter, b_iter) in a_values.into_iter().zip(b_values) {
             let diff_expr = subtract(&a_iter.expression, FieldElement::one(), &b_iter.expression);
@@ -472,7 +475,7 @@ impl Acir {
                         node::ObjectType::Pointer(a) => {
                             let array = &cfg.mem[a];
                             let num_bits = array.element_type.bits();
-                            for i in 0..array.len {
+                            for i in 0..cfg.mem.len(array.id) {
                                 let address = array.adr + i;
                                 if self.memory_map.contains_key(&address) {
                                     if let Some(wit) = self.memory_map[&address].witness {

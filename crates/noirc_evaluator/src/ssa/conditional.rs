@@ -431,8 +431,9 @@ impl DecisionTree {
                     if let ObjectType::Pointer(a) = ins.res_type {
                         if stack.created_arrays[&a] != stack.block {
                             let array = &ctx.mem[a].clone();
+                            let len = ctx.mem.len(a);
                             let name = array.name.to_string() + DUPLICATED;
-                            ctx.new_array(&name, array.element_type, array.len, None);
+                            ctx.new_array(&name, array.element_type, len, None);
                             let array_dup = ctx.mem.last_id();
                             let ins2 = ctx.get_mut_instruction(ins_id);
                             ins2.res_type = ObjectType::Pointer(array_dup);

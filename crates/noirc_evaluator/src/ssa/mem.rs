@@ -3,7 +3,6 @@ use super::context::SsaContext;
 use super::node::{self, Node, NodeId};
 use acvm::FieldElement;
 use noirc_frontend::node_interner::DefinitionId;
-use noirc_frontend::ArraySize;
 use num_bigint::BigUint;
 use num_traits::ToPrimitive;
 use std::collections::HashMap;
@@ -16,6 +15,7 @@ pub struct Memory {
     arrays: Vec<MemArray>,
     pub last_adr: u32,                    //last address in 'memory'
     pub memory_map: HashMap<u32, NodeId>, //maps memory adress to expression
+    slice_stack: Vec<HashMap<ArrayId, u32>>,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -28,7 +28,7 @@ pub struct MemArray {
     pub values: Vec<InternalVar>,
     pub name: String,
     pub def: DefinitionId,
-    pub len: u32,     //number of elements
+    len: u32,         //number of elements
     pub adr: u32,     //base address of the array
     pub max: BigUint, //Max possible value of array elements
 }
@@ -124,6 +124,43 @@ impl Memory {
         let adr = self[array_id].absolute_adr(index);
         self.memory_map.get(&adr)
     }
+
+    pub fn len(&self, array_id: ArrayId) -> u32 {
+        for i in self.slice_stack.iter().rev() {
+            if i.contains_key(&array_id) {
+                return i[&array_id];
+            }
+        }
+        self[array_id].len
+    }
+
+    pub fn push_template(&mut self, template: HashMap<ArrayId, u32>) {
+        self.slice_stack.push(template);
+        let mut to_resize = Vec::new();
+        for (a, l) in self.slice_stack.last().unwrap() {
+            if self[*a].len < *l {
+                to_resize.push((*a, *l));
+            }
+        }
+        //TODO to do in just one pass
+        for (a, l) in to_resize {
+            self.resize(a, l);
+        }
+    }
+
+    pub fn resize(&mut self, array_id: ArrayId, len: u32) {
+        let base = self[array_id].adr + len;
+        let diff = len - self[array_id].len;
+        for mut a in self.arrays.iter_mut() {
+            if a.adr >= base {
+                a.adr += diff;
+            }
+        }
+    }
+
+    pub fn pop_template(&mut self) {
+        self.slice_stack.pop();
+    }
 }
 
 impl std::ops::Index<ArrayId> for Memory {
@@ -137,12 +174,5 @@ impl std::ops::Index<ArrayId> for Memory {
 impl std::ops::IndexMut<ArrayId> for Memory {
     fn index_mut(&mut self, index: ArrayId) -> &mut Self::Output {
         &mut self.arrays[index.0 as usize]
-    }
-}
-
-pub fn get_array_size(array_size: &ArraySize) -> u32 {
-    match array_size {
-        ArraySize::Fixed(l) => *l as u32,
-        ArraySize::Variable => todo!(),
     }
 }

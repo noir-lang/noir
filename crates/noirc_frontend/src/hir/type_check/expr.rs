@@ -650,10 +650,6 @@ fn check_param_argument(
 ) {
     let param_type = &param.1;
 
-    if arg_type.is_variable_sized_array() {
-        unreachable!("arg type type cannot be a variable sized array. This is not supported.")
-    }
-
     let expr_span = interner.expr_span(&expr_id);
     arg_type.make_subtype_of(param_type, expr_span, errors, || TypeCheckError::TypeMismatch {
         expected_typ: param_type.to_string(),

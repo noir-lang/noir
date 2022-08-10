@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::environment::Environment;
 use crate::errors::RuntimeError;
+
 use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use noirc_frontend::hir_def::expr::{HirCallExpression, HirIdent};
@@ -10,6 +11,7 @@ use noirc_frontend::hir_def::stmt::HirPattern;
 use noirc_frontend::node_interner::FuncId;
 
 use super::conditional::{AssumptionId, DecisionTree};
+use super::mem::ArrayId;
 use super::node::Node;
 use super::{
     block::BlockId,
@@ -28,16 +30,69 @@ impl FuncIndex {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct SsaFuncId {
+    pub id: FuncId,
+    pub template_id: usize,
+}
+
+#[derive(Clone, Debug)]
+pub struct Template {
+    //Indicates the len of the slices in the argument list of a 'template' function
+    // ArrayId      = id of the slice
+    // (usize, u32) = position of the slice in the argument list, length of the slice
+    slice: HashMap<ArrayId, (usize, u32)>,
+}
+
+impl Template {
+    pub fn new() -> Template {
+        Template { slice: HashMap::new() }
+    }
+
+    pub fn push(&mut self, pos: usize, a: ArrayId, len: u32) {
+        self.slice.insert(a, (pos, len));
+    }
+
+    pub fn matches(&self, template_args: &HashMap<usize, u32>) -> bool {
+        for (pos, len) in self.slice.values() {
+            if !template_args.contains_key(pos) || template_args[pos] != *len {
+                return false;
+            }
+        }
+        true
+    }
+
+    pub fn templatize(ctx: &SsaContext, arguments: &[NodeId]) -> HashMap<usize, u32> {
+        let mut result = HashMap::new();
+        for i in arguments.iter().enumerate() {
+            if let ObjectType::Pointer(a) = ctx.get_object_type(*i.1) {
+                let len = ctx.mem.len(a);
+                result.insert(i.0, len);
+            }
+        }
+        result
+    }
+
+    pub fn template_arguments(&self) -> HashMap<ArrayId, u32> {
+        let mut result = HashMap::new();
+        for i in &self.slice {
+            result.insert(*i.0, i.1 .1);
+        }
+        result
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct SSAFunction {
     pub entry_block: BlockId,
-    pub id: FuncId,
+    pub id: SsaFuncId,
     pub idx: FuncIndex,
     //signature:
     pub name: String,
     pub arguments: Vec<(NodeId, bool)>,
     pub result_types: Vec<ObjectType>,
     pub decision: DecisionTree,
+    pub template: Template,
 }
 
 impl SSAFunction {
@@ -50,12 +105,13 @@ impl SSAFunction {
     ) -> SSAFunction {
         SSAFunction {
             entry_block: block_id,
-            id: func,
+            id: SsaFuncId { id: func, template_id: 0 },
             name: name.to_string(),
             arguments: Vec::new(),
             result_types: Vec::new(),
             decision: DecisionTree::new(ctx),
             idx,
+            template: Template::new(),
         }
     }
 
@@ -78,7 +134,7 @@ impl SSAFunction {
 
     //generates an instruction for calling the function
     pub fn call(
-        func: FuncId,
+        func_id: SsaFuncId,
         arguments: &[noirc_frontend::node_interner::ExprId],
         igen: &mut IRGenerator,
         env: &mut Environment,
@@ -86,14 +142,15 @@ impl SSAFunction {
         let arguments = igen.codegen_expression_list(env, arguments);
         let call_instruction = igen.context.new_instruction(
             node::Operation::Call {
-                func_id: func,
+                func_id,
                 arguments,
                 returned_arrays: Vec::new(),
                 predicate: AssumptionId::dummy(),
             },
             ObjectType::NotAnObject,
         )?;
-        let rtt = igen.context.functions[&func].result_types.clone();
+        let func = igen.context.get_ssafunc(func_id).unwrap();
+        let rtt = func.result_types.clone();
         let mut result = Vec::new();
         for i in rtt.iter().enumerate() {
             result.push(igen.context.new_instruction(
@@ -208,6 +265,17 @@ pub fn param_to_ident(patern: &HirPattern, mutable: bool) -> Vec<(&HirIdent, boo
     }
 }
 
+pub fn call_builtin(ctx: &mut SsaContext, builtin_name: &str, arguments: Vec<NodeId>) -> NodeId {
+    //we only have one for now
+    assert_eq!(builtin_name, "array_len");
+    if let Some(a) = super::mem::Memory::deref(ctx, arguments[0]) {
+        let x = ctx.mem.len(a);
+        return ctx.get_or_create_const(FieldElement::from(x as i128), ObjectType::NativeField);
+    }
+    unreachable!("invalid argument for array_len()");
+}
+
+#[allow(clippy::too_many_arguments)]
 pub fn create_function(
     igen: &mut IRGenerator,
     func_id: FuncId,
@@ -215,6 +283,7 @@ pub fn create_function(
     context: &noirc_frontend::hir::Context,
     env: &mut Environment,
     parameters: &Parameters,
+    arguments: &HashMap<usize, u32>,
     index: FuncIndex,
 ) -> Result<(), RuntimeError> {
     let current_block = igen.context.current_block;
@@ -226,21 +295,36 @@ pub fn create_function(
     let function = context.def_interner.function(&func_id);
     let block = function.block(&context.def_interner);
     //argumemts:
+    let mut pos = 0;
+    let mut template_args = Vec::new();
     for pat in parameters.iter() {
         //For now we use the mut property of the argument to indicate if it is modified or not
         //TODO: check instead in the function body whether there is a store for the array
         let ident_ids = param_to_ident(&pat.0, false);
-        for def in ident_ids {
-            let node_ids = ssa_form::create_function_parameter(igen, &def.0.id);
-            let e: Vec<(NodeId, bool)> = node_ids.iter().map(|n| (*n, def.1)).collect();
+        for def in ident_ids.iter().enumerate() {
+            let node_ids = ssa_form::create_function_parameter(
+                igen,
+                &def.1 .0.id,
+                arguments,
+                &mut pos,
+                &mut template_args,
+            );
+            let e: Vec<(NodeId, bool)> = node_ids.iter().map(|n| (*n, def.1 .1)).collect();
             func.arguments.extend(e);
         }
     }
-
+    for i in template_args {
+        let array_id = super::mem::Memory::deref(&igen.context, func.arguments[i.0].0).unwrap();
+        func.template.push(i.0, array_id, i.1);
+    }
+    //push into the 'call stack'
+    igen.context.mem.push_template(func.template.template_arguments());
     igen.function_context = Some(index);
-    igen.context.functions.insert(func_id, func.clone());
+
+    let myid = igen.context.insert_ssafunc(func);
     let last_value = igen.codegen_block(block.statements(), env);
     let returned_values = last_value.to_node_ids();
+    let mut func = igen.context.get_ssafunc(myid).unwrap().clone();
     for i in &returned_values {
         if let Some(node) = igen.context.try_get_node(*i) {
             func.result_types.push(node.get_type());
@@ -252,9 +336,12 @@ pub fn create_function(
         .new_instruction(node::Operation::Return(returned_values), node::ObjectType::NotAnObject)?;
     let decision = func.compile(igen)?; //unroll the function
     func.decision = decision;
-    igen.context.functions.insert(func_id, func);
+
+    igen.context.update_ssafunc(func);
+    //pop the 'call stack'
     igen.context.current_block = current_block;
     igen.function_context = current_function;
+    igen.context.mem.pop_template();
     Ok(())
 }
 
@@ -288,10 +375,12 @@ fn is_leaf(call_graph: &[Vec<u8>], i: FuncIndex) -> bool {
     true
 }
 
-fn get_new_leaf(ctx: &SsaContext, processed: &[FuncIndex]) -> (FuncIndex, FuncId) {
-    for f in ctx.functions.values() {
-        if !processed.contains(&(f.idx)) && is_leaf(&ctx.call_graph, f.idx) {
-            return (f.idx, f.id);
+fn get_new_leaf(ctx: &SsaContext, processed: &[FuncIndex]) -> (FuncIndex, SsaFuncId) {
+    for f_vec in ctx.functions.values() {
+        for f in f_vec {
+            if !processed.contains(&(f.idx)) && is_leaf(&ctx.call_graph, f.idx) {
+                return (f.idx, f.id);
+            }
         }
     }
     unimplemented!("Recursive function call is not supported");
@@ -299,18 +388,21 @@ fn get_new_leaf(ctx: &SsaContext, processed: &[FuncIndex]) -> (FuncIndex, FuncId
 
 //inline all functions of the call graph such that every inlining operates with a fully flattened function
 pub fn inline_all(ctx: &mut SsaContext) -> Result<(), RuntimeError> {
-    resize_graph(&mut ctx.call_graph, ctx.functions.len());
+    let len = ctx.get_function_nb();
+    resize_graph(&mut ctx.call_graph, len);
     let l = ctx.call_graph.len();
     let mut processed = Vec::new();
     while processed.len() < l {
         let i = get_new_leaf(ctx, &processed);
         if !processed.is_empty() {
-            super::optim::full_cse(ctx, ctx.functions[&i.1].entry_block)?;
+            super::optim::full_cse(ctx, ctx.get_ssafunc(i.1).unwrap().entry_block)?;
         }
         let mut to_inline = Vec::new();
-        for f in ctx.functions.values() {
-            if ctx.call_graph[f.idx.0][i.0 .0] == 1 {
-                to_inline.push((f.id, f.idx));
+        for f_vec in ctx.functions.values() {
+            for f in f_vec {
+                if ctx.call_graph[f.idx.0][i.0 .0] == 1 {
+                    to_inline.push((f.id, f.idx));
+                }
             }
         }
         for (func_id, func_idx) in to_inline {

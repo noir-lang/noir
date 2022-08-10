@@ -14,6 +14,9 @@ fn set_as_public(_input : Field) {}
 #[builtin(pow_const)]
 fn pow_const(_base : const Field, _exponent : const Field) -> const Field {}
 
+#[builtin(array_len)]
+fn array_len(_a : [] u32) -> const Field {}
+
 #[foreign(to_bits)]
 fn to_bits(_x : Field, _bit_size: u32) -> [256]u1{}
 

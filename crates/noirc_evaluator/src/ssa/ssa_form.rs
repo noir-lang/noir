@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::ssa::node::{Mark, Operation};
 use noirc_frontend::node_interner::DefinitionId;
@@ -119,15 +119,27 @@ pub fn get_current_value(ctx: &mut SsaContext, var_id: NodeId) -> NodeId {
     get_current_value_in_block(ctx, var_id, ctx.current_block)
 }
 
-pub fn create_function_parameter(igen: &mut IRGenerator, ident_id: &DefinitionId) -> Vec<NodeId> {
+pub fn create_function_parameter(
+    igen: &mut IRGenerator,
+    ident_id: &DefinitionId,
+    arguments: &HashMap<usize, u32>,
+    pos: &mut usize,
+    template_args: &mut Vec<(usize, u32)>,
+) -> Vec<NodeId> {
     let ident_name = igen.def_to_name(*ident_id);
     let o_type = igen.def_interner().id_type(*ident_id);
     //check if the variable is already created:
     let val = if let Some(var) = igen.find_variable(*ident_id) {
         let clone_var = var.clone();
+        if let noirc_frontend::Type::Array(len, _) = o_type {
+            if len == noirc_frontend::ArraySize::Variable {
+                template_args.push((*pos, arguments[pos]));
+            }
+        }
+        *pos += clone_var.len();
         igen.get_current_value(&clone_var)
     } else {
-        igen.create_new_value(&o_type, &ident_name, Some(*ident_id))
+        igen.create_new_value(&o_type, &ident_name, Some(*ident_id), arguments, pos, template_args)
     };
     val.to_node_ids()
 }

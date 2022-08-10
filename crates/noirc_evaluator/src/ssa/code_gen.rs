@@ -70,6 +70,13 @@ impl Value {
             Value::Struct(v) => &v.iter().find(|(name, _)| *name == *field_name).unwrap().1,
         }
     }
+
+    pub fn len(&self) -> usize {
+        match self {
+            Value::Single(_) => 1,
+            Value::Struct(v) => v.len(),
+        }
+    }
 }
 
 ////////////////PARSING THE AST////////////////////////////////////////////////
@@ -342,13 +349,17 @@ impl<'a> IRGenerator<'a> {
         typ: &noirc_frontend::Type,
         base_name: &str,
         def: Option<DefinitionId>,
+        arguments: &HashMap<usize, u32>,
+        pos: &mut usize,
+        template_args: &mut Vec<(usize, u32)>,
     ) -> Value {
         match typ {
             noirc_frontend::Type::Struct(t) => {
                 let mut values = Vec::new();
                 for i in &t.borrow().fields {
                     let name = format!("{}.{}", base_name, i.0 .0.contents);
-                    let val = self.create_new_value(&i.1, &name, None);
+                    let val =
+                        self.create_new_value(&i.1, &name, None, arguments, pos, template_args);
                     values.push((i.0 .0.contents.clone(), val));
                 }
                 self.insert_new_struct(def, values)
@@ -357,7 +368,8 @@ impl<'a> IRGenerator<'a> {
                 let mut values = Vec::new();
                 for i in v.iter().enumerate() {
                     let name = format!("{}.{}", base_name, i.0);
-                    let val = self.create_new_value(i.1, &name, None);
+                    let val =
+                        self.create_new_value(i.1, &name, None, arguments, pos, template_args);
                     values.push((i.0.to_string(), val));
                 }
                 self.insert_new_struct(def, values)
@@ -366,8 +378,15 @@ impl<'a> IRGenerator<'a> {
                 {
                     //TODO support array of structs
                     let obj_type = node::ObjectType::from(typ);
-                    let v_id =
-                        self.new_array(base_name, obj_type, super::mem::get_array_size(len), def);
+                    let array_size = match len {
+                        noirc_frontend::ArraySize::Fixed(l) => *l as u32,
+                        noirc_frontend::ArraySize::Variable => {
+                            template_args.push((*pos, arguments[pos]));
+                            arguments[pos]
+                        }
+                    };
+                    let v_id = self.new_array(base_name, obj_type, array_size, def);
+                    *pos += 1;
                     Value::Single(v_id)
                 }
             }
@@ -375,6 +394,7 @@ impl<'a> IRGenerator<'a> {
                 let obj_type = node::ObjectType::from(typ);
                 let v_id = self.create_new_variable(base_name.to_string(), def, obj_type, None);
                 self.context.get_current_block_mut().update_variable(v_id, v_id);
+                *pos += 1;
                 Value::Single(v_id)
             }
         }
@@ -478,7 +498,7 @@ impl<'a> IRGenerator<'a> {
         value_id: NodeId,
     ) -> Result<Value, RuntimeError> {
         let id = if let node::ObjectType::Pointer(a) = obj_type {
-            let len = self.context.mem[a].len;
+            let len = self.context.mem.len(a);
             let el_type = self.context.mem[a].element_type;
             self.context.new_array(&variable_name, el_type, len, definition_id)
         } else {
@@ -673,7 +693,15 @@ impl<'a> IRGenerator<'a> {
                 let func_meta = self.def_interner().function_meta(&call_expr.func_id);
                 match func_meta.kind {
                     FunctionKind::Normal => {
-                        if self.context.get_ssafunc(call_expr.func_id).is_none() {
+                        let arguments = self.codegen_expression_list(env, &call_expr.arguments);
+                        let arguments_size =
+                            function::Template::templatize(&self.context, &arguments);
+
+                        if self
+                            .context
+                            .get_ssafunc_with_template(call_expr.func_id, &arguments_size)
+                            .is_none()
+                        {
                             let index = self.context.get_function_index();
                             let fname =
                                 self.def_interner().function_name(&call_expr.func_id).to_string();
@@ -684,20 +712,27 @@ impl<'a> IRGenerator<'a> {
                                 self.context.context(),
                                 env,
                                 &func_meta.parameters,
+                                &arguments_size,
                                 index,
                             )?;
                         }
-                        let callee = self.context.get_ssafunc(call_expr.func_id).unwrap().idx;
+                        let callee = self
+                            .context
+                            .get_ssafunc_with_template(call_expr.func_id, &arguments_size)
+                            .unwrap();
+                        let callee_idx = callee.idx;
+                        let callee_id = callee.id;
+
                         //generate a call instruction to the function cfg
                         if let Some(caller) = self.function_context {
                             function::update_call_graph(
                                 &mut self.context.call_graph,
                                 caller,
-                                callee,
+                                callee_idx,
                             );
                         }
                         let results = function::SSAFunction::call(
-                            call_expr.func_id,
+                            callee_id,
                             &call_expr.arguments,
                             self,
                             env,
@@ -731,10 +766,14 @@ impl<'a> IRGenerator<'a> {
                         Ok(Value::Single(self.codegen_lowlevel(env, opcode_name, call_expr)?))
                     }
                     FunctionKind::Builtin => {
-                        todo!()
-                        // let attribute = func_meta.attributes.expect("all builtin functions must contain an attribute which contains the function name which it links to");
-                        // let builtin_name = attribute.builtin().expect("ice: function marked as a builtin, but attribute kind does not match this");
-                        // builtin::call_builtin(self, env, builtin_name, (call_expr,span))
+                        let attribute = func_meta.attributes.expect("all builtin functions must contain an attribute which contains the function name which it links to");
+                        let builtin_name = attribute.builtin().expect("ice: function marked as a builtin, but attribute kind does not match this");
+                        let arguments = self.codegen_expression_list(env, &call_expr.arguments);
+                        Ok(Value::Single(function::call_builtin(
+                            &mut self.context,
+                            builtin_name,
+                            arguments,
+                        )))
                     }
                 }
             }

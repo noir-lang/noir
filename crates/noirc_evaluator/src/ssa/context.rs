@@ -1,6 +1,6 @@
 use super::block::{BasicBlock, BlockId};
 use super::conditional::DecisionTree;
-use super::function::{FuncIndex, SSAFunction};
+use super::function::{FuncIndex, SSAFunction, SsaFuncId};
 use super::inline::StackFrame;
 use super::mem::{ArrayId, Memory};
 use super::node::{BinaryOp, Instruction, NodeId, NodeObj, ObjectType, Operation};
@@ -33,7 +33,7 @@ pub struct SsaContext<'a> {
     value_names: HashMap<NodeId, u32>,
     pub sealed_blocks: HashSet<BlockId>,
     pub mem: Memory,
-    pub functions: HashMap<FuncId, function::SSAFunction>,
+    pub functions: HashMap<FuncId, Vec<function::SSAFunction>>,
     //Adjacency Matrix of the call graph; list of rows where each row indicates the functions called by the function whose FuncIndex is the row number
     pub call_graph: Vec<Vec<u8>>,
     dummy_store: HashMap<ArrayId, NodeId>,
@@ -106,8 +106,15 @@ impl<'a> SsaContext<'a> {
         }
     }
 
+    pub fn get_function_nb(&self) -> usize {
+        let mut len = 0;
+        for i in self.functions.values() {
+            len += i.len();
+        }
+        len
+    }
     pub fn get_function_index(&self) -> FuncIndex {
-        FuncIndex::new(self.functions.values().len())
+        FuncIndex::new(self.get_function_nb())
     }
 
     pub fn insert_block(&mut self, block: BasicBlock) -> &mut BasicBlock {
@@ -313,8 +320,46 @@ impl<'a> SsaContext<'a> {
         id
     }
 
-    pub fn get_ssafunc(&'a self, func_id: FuncId) -> Option<&SSAFunction> {
-        self.functions.get(&func_id)
+    pub fn get_ssafunc_with_template(
+        &'a self,
+        func_id: FuncId,
+        template_arguments: &HashMap<usize, u32>,
+    ) -> Option<&SSAFunction> {
+        if let Some(func_templates) = self.functions.get(&func_id) {
+            for f in func_templates {
+                if f.template.matches(template_arguments) {
+                    return Some(f);
+                }
+            }
+        }
+        None
+    }
+
+    pub fn get_ssafunc(&'a self, ssa_id: function::SsaFuncId) -> Option<&SSAFunction> {
+        if let Some(func_templates) = self.functions.get(&ssa_id.id) {
+            Some(&func_templates[ssa_id.template_id])
+        } else {
+            None
+        }
+    }
+
+    pub fn insert_ssafunc(&mut self, mut func: SSAFunction) -> SsaFuncId {
+        let mut result = func.id;
+        if let std::collections::hash_map::Entry::Vacant(e) = self.functions.entry(func.id.id) {
+            func.id.template_id = 0;
+            e.insert(vec![func]);
+        } else {
+            func.id.template_id = self.functions[&func.id.id].len();
+            result = func.id;
+            self.functions.entry(func.id.id).or_insert_with(Vec::new).push(func);
+        }
+        result
+    }
+
+    pub fn update_ssafunc(&mut self, func: SSAFunction) {
+        let func_id = func.id.id;
+        let pos = func.id.template_id;
+        self.functions.entry(func_id).or_insert_with(Vec::new)[pos] = func;
     }
 
     pub fn dummy_id() -> arena::Index {
@@ -732,7 +777,7 @@ impl<'a> SsaContext<'a> {
         }
 
         if let (ObjectType::Pointer(a), ObjectType::Pointer(b)) = (l_type, r_type) {
-            let len = self.mem[a].len;
+            let len = self.mem.len(a);
             let e_type = self.mem[b].element_type;
             for i in 0..len {
                 let idx_b = self
@@ -861,7 +906,7 @@ impl<'a> SsaContext<'a> {
         }
 
         if let (ObjectType::Pointer(a), ObjectType::Pointer(b)) = (l_type, r_type) {
-            let len = self.mem[a].len;
+            let len = self.mem.len(a);
             let e_type = self.mem[b].element_type;
             for i in 0..len {
                 let idx_b = self
