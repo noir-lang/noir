@@ -31,7 +31,7 @@ pub trait PartialWitnessGenerator {
     fn solve(
         &self,
         initial_witness: &mut BTreeMap<Witness, FieldElement>,
-        gates: Vec<acir::circuit::Gate>,
+        gates: Vec<Gate>,
     ) -> Result<(), OPCODE> {
         if gates.is_empty() {
             return Ok(());
