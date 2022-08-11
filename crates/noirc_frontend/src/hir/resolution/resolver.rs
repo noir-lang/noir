@@ -321,7 +321,7 @@ impl<'a> Resolver<'a> {
         let mut parameters = Vec::new();
         for (pattern, typ, visibility) in func.parameters().iter().cloned() {
             if func.name() != "main" && visibility == noirc_abi::AbiFEType::Public {
-                self.push_err(ResolverError::UnnecessaryPub { func_ident: name_ident })
+                self.push_err(ResolverError::UnnecessaryPub { ident: func.name_ident().clone() })
             }
             let pattern = self.resolve_pattern(pattern);
             let typ = self.resolve_type(typ);
