@@ -4,6 +4,7 @@ use super::mem::ArrayId;
 use super::node::{Binary, BinaryOp, NodeId, ObjectType, Operation, Variable};
 use super::{block, node, ssa_form};
 use std::collections::HashMap;
+use std::convert::TryInto;
 
 use super::super::environment::Environment;
 use super::super::errors::RuntimeError;
@@ -366,13 +367,11 @@ impl<'a> IRGenerator<'a> {
                 self.insert_new_struct(def, values)
             }
             noirc_frontend::Type::Array(len, _) => {
-                {
-                    //TODO support array of structs
-                    let obj_type = node::ObjectType::from(typ);
-                    let v_id =
-                        self.new_array(base_name, obj_type, super::mem::get_array_size(len), def);
-                    Value::Single(v_id)
-                }
+                //TODO support array of structs
+                let obj_type = node::ObjectType::from(typ);
+                let len = len.array_length().unwrap();
+                let v_id = self.new_array(base_name, obj_type, len.try_into().unwrap(), def);
+                Value::Single(v_id)
             }
             _ => {
                 let obj_type = node::ObjectType::from(typ);
