@@ -11,7 +11,7 @@ use noirc_errors::Span;
 use crate::{
     node_interner::{FuncId, StructId},
     util::vecmap,
-    ArraySize, Ident, Signedness,
+    Ident, Signedness,
 };
 
 pub type TypeBindings = HashMap<TypeVariableId, Type>;
@@ -96,7 +96,7 @@ impl std::fmt::Display for StructType {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {
     FieldElement(IsConst),
-    Array(ArraySize, Box<Type>),       // [4]Witness = Array(4, Witness)
+    Array(Box<Type>, Box<Type>),       // Array(4, Field) = [Field; 4]
     Integer(IsConst, Signedness, u32), // u32 = Integer(unsigned, 32)
     PolymorphicInteger(IsConst, TypeVariable),
     Bool(IsConst),
@@ -105,6 +105,10 @@ pub enum Type {
     Tuple(Vec<Type>),
     TypeVariable(TypeVariable),
     Forall(Vec<TypeVariableId>, Box<Type>),
+
+    /// A type-level integer. Included to let an Array's size type variable
+    /// bind to an integer without special checks to bind it to a non-type.
+    ArrayLength(u64),
 
     Error,
 }
@@ -286,7 +290,10 @@ impl std::fmt::Display for Type {
             Type::FieldElement(is_const) => {
                 write!(f, "{}Field", is_const)
             }
-            Type::Array(size, typ) => write!(f, "{}{}", size, typ),
+            Type::Array(len, typ) => match len.array_length() {
+                Some(len) => write!(f, "[{}; {}]", typ, len),
+                None => write!(f, "[{}]", typ),
+            },
             Type::Integer(is_const, sign, num_bits) => match sign {
                 Signedness::Signed => write!(f, "{}i{}", is_const, num_bits),
                 Signedness::Unsigned => write!(f, "{}u{}", is_const, num_bits),
@@ -308,6 +315,7 @@ impl std::fmt::Display for Type {
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
             Type::TypeVariable(id) => write!(f, "{}", id.borrow()),
+            Type::ArrayLength(n) => n.fmt(f),
             Type::Forall(typevars, typ) => {
                 let typevars = vecmap(typevars, ToString::to_string);
                 write!(f, "forall {}. {}", typevars.join(" "), typ)
@@ -318,7 +326,7 @@ impl std::fmt::Display for Type {
 
 impl std::fmt::Display for TypeVariableId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "T{}", self.0)
+        write!(f, "_")
     }
 }
 
@@ -630,11 +638,8 @@ impl Type {
             }
 
             (Array(len_a, elem_a), Array(len_b, elem_b)) => {
-                if len_a.is_subtype_of(len_b) {
-                    elem_a.is_subtype_of(elem_b, span)
-                } else {
-                    Err(SpanKind::None)
-                }
+                len_a.is_subtype_of(len_b, span)?;
+                elem_a.is_subtype_of(elem_b, span)
             }
 
             (Tuple(elems_a), Tuple(elems_b)) => {
@@ -683,25 +688,15 @@ impl Type {
         }
     }
 
-    pub fn is_fixed_sized_array(&self) -> bool {
-        let (sized, _) = match self.array() {
-            None => return false,
-            Some(arr) => arr,
-        };
-        sized.is_fixed()
-    }
-
-    pub fn is_variable_sized_array(&self) -> bool {
-        let (sized, _) = match self.array() {
-            None => return false,
-            Some(arr) => arr,
-        };
-        !sized.is_fixed()
-    }
-
-    fn array(&self) -> Option<(&ArraySize, &Type)> {
+    pub fn array_length(&self) -> Option<u64> {
         match self {
-            Type::Array(sized, typ) => Some((sized, typ)),
+            Type::PolymorphicInteger(_, binding) | Type::TypeVariable(binding) => {
+                match &*binding.borrow() {
+                    TypeBinding::Bound(binding) => binding.array_length(),
+                    TypeBinding::Unbound(_) => None,
+                }
+            }
+            Type::ArrayLength(size) => Some(*size),
             _ => None,
         }
     }
@@ -711,16 +706,16 @@ impl Type {
     pub fn as_abi_type(&self, fe_type: AbiFEType) -> AbiType {
         match self {
             Type::FieldElement(_) => AbiType::Field(fe_type),
-            Type::Array(size, typ) => match size {
-                ArraySize::Variable => {
-                    panic!("cannot have variable sized array in entry point")
-                }
-                ArraySize::Fixed(length) => AbiType::Array {
+            Type::Array(size, typ) => {
+                let size = size
+                    .array_length()
+                    .expect("Cannot have variable sized arrays as a parameter to main");
+                AbiType::Array {
                     visibility: fe_type,
-                    length: *length,
+                    length: size as u128,
                     typ: Box::new(typ.as_abi_type(fe_type)),
-                },
-            },
+                }
+            }
             Type::Integer(_, sign, bit_width) => {
                 let sign = match sign {
                     Signedness::Unsigned => noirc_abi::Sign::Unsigned,
@@ -736,6 +731,7 @@ impl Type {
             Type::Bool(_) => panic!("currently, cannot have a bool in the entry point function"),
             Type::Error => unreachable!(),
             Type::Unit => unreachable!(),
+            Type::ArrayLength(_) => unreachable!(),
             Type::Struct(..) => todo!("as_abi_type not yet implemented for struct types"),
             Type::Tuple(_) => todo!("as_abi_type not yet implemented for tuple types"),
             Type::TypeVariable(_) => unreachable!(),
@@ -839,6 +835,7 @@ impl Type {
             Type::FieldElement(_)
             | Type::Integer(_, _, _)
             | Type::Bool(_)
+            | Type::ArrayLength(_)
             | Type::Error
             | Type::Unit => self.clone(),
         }
@@ -866,6 +863,7 @@ impl Type {
             Type::FieldElement(_)
             | Type::Integer(_, _, _)
             | Type::Bool(_)
+            | Type::ArrayLength(_)
             | Type::Error
             | Type::Unit => false,
         }

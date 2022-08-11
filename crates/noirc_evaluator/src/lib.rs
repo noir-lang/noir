@@ -335,25 +335,19 @@ impl<'a> Evaluator<'a> {
                 if let Type::Integer(_, _, width) = typ.as_ref() {
                     element_width = Some(*width);
                 }
-                match array_size.clone() {
-                    noirc_frontend::ArraySize::Variable => {
-                        panic!("cannot have variable sized array in entry point")
+                let len = array_size.array_length().unwrap();
+                for _ in 0..len {
+                    let witness = self.add_witness_to_cs();
+                    witnesses.push(witness);
+                    if let Some(ww) = element_width {
+                        ssa::acir_gen::range_constraint(witness, ww, self)
+                            .map_err(|e| e.add_location(param_location))?;
                     }
-                    noirc_frontend::ArraySize::Fixed(len) => {
-                        for _ in 0..len {
-                            let witness = self.add_witness_to_cs();
-                            witnesses.push(witness);
-                            if let Some(ww) = element_width {
-                                ssa::acir_gen::range_constraint(witness, ww, self)
-                                    .map_err(|e| e.add_location(param_location))?;
-                            }
-                            if param_visibility == AbiFEType::Public {
-                                self.public_inputs.push(witness);
-                            }
-                        }
-                        igen.abi_array(name, def, *typ.clone(), len, witnesses);
+                    if param_visibility == AbiFEType::Public {
+                        self.public_inputs.push(witness);
                     }
                 }
+                igen.abi_array(name, def, *typ.clone(), len as u128, witnesses);
             }
             Type::Integer(_, sign, width) => {
                 let witness = self.add_witness_to_cs();
@@ -379,6 +373,7 @@ impl<'a> Evaluator<'a> {
 
             Type::PolymorphicInteger(..)
             | Type::TypeVariable(_)
+            | Type::ArrayLength(_)
             | Type::Error
             | Type::Forall(_, _) => unreachable!(),
         }

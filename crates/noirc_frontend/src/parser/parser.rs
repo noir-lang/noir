@@ -6,7 +6,7 @@ use super::{
     then_commit_ignore, top_level_statement_recovery, ExprParser, NoirParser, ParsedModule,
     ParserError, Precedence, SubModule, TopLevelStatement,
 };
-use crate::ast::{ArraySize, Expression, ExpressionKind, Statement, UnresolvedType};
+use crate::ast::{Expression, ExpressionKind, Statement, UnresolvedType};
 use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
@@ -468,13 +468,10 @@ where
     T: NoirParser<UnresolvedType>,
 {
     just(Token::LeftBracket)
-        .ignore_then(fixed_array_size().or_not())
+        .ignore_then(type_parser)
+        .then(array_length())
         .then_ignore(just(Token::RightBracket))
-        .then(type_parser)
-        .map(|(size, element_type)| {
-            let size = size.unwrap_or(ArraySize::Variable);
-            UnresolvedType::Array(size, Box::new(element_type))
-        })
+        .map(|(element_type, length)| UnresolvedType::Array(length, Box::new(element_type)))
 }
 
 fn tuple_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>
@@ -799,21 +796,19 @@ fn literal() -> impl NoirParser<ExpressionKind> {
     })
 }
 
-fn fixed_array_size() -> impl NoirParser<ArraySize> {
-    filter_map(|span, token: Token| match token {
-        Token::Int(integer) => {
-            if !integer.fits_in_u128() {
-                let message = "Array sizes must fit within a u128".to_string();
-                Err(ParserError::with_reason(message, span))
-            } else {
-                Ok(ArraySize::Fixed(integer.to_u128()))
-            }
-        }
+fn array_length() -> impl NoirParser<Option<u64>> {
+    let size = filter_map(|span, token: Token| match token {
+        Token::Int(integer) => integer.try_to_u64().ok_or_else(|| {
+            let message = "Array lengths must fit within a u128".to_string();
+            ParserError::with_reason(message, span)
+        }),
         _ => {
-            let message = "The array size is defined as [k] for fixed size or [] for variable length. k must be a literal".to_string();
+            let message = "Expected an integer for the length of the array".to_string();
             Err(ParserError::with_reason(message, span))
         }
-    })
+    });
+
+    just(Token::Semicolon).ignore_then(size).or_not()
 }
 
 #[cfg(test)]
@@ -920,7 +915,7 @@ mod test {
     fn parse_cast() {
         parse_all(
             atom_or_right_unary(expression()),
-            vec!["x as u8", "0 as Field", "(x + 3) as [8]Field"],
+            vec!["x as u8", "0 as Field", "(x + 3) as [Field; 8]"],
         );
         parse_all_failing(atom_or_right_unary(expression()), vec!["x as pub u8"]);
     }
@@ -1078,8 +1073,8 @@ mod test {
                 "fn func_name() {}",
                 "fn f(foo: pub u8, y : pub Field) -> u8 { x + a }",
                 "fn f(f: pub Field, y : Field, z : const Field) -> u8 { x + a }",
-                "fn func_name(f: Field, y : pub Field, z : pub [5]u8,) {}",
-                "fn func_name(x: []Field, y : [2]Field,y : pub [2]Field, z : pub [5]u8)  {}",
+                "fn func_name(f: Field, y : pub Field, z : pub [u8;5],) {}",
+                "fn func_name(x: [Field], y : [Field;2],y : pub [Field;2], z : pub [u8;5])  {}",
             ],
         );
 
