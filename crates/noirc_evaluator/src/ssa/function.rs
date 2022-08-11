@@ -9,6 +9,7 @@ use noirc_frontend::hir_def::function::Parameters;
 use noirc_frontend::hir_def::stmt::HirPattern;
 use noirc_frontend::node_interner::FuncId;
 
+use super::conditional::{AssumptionId, DecisionTree};
 use super::node::Node;
 use super::{
     block::BlockId,
@@ -36,29 +37,43 @@ pub struct SSAFunction {
     pub name: String,
     pub arguments: Vec<(NodeId, bool)>,
     pub result_types: Vec<ObjectType>,
+    pub decision: DecisionTree,
 }
 
 impl SSAFunction {
-    pub fn new(func: FuncId, name: &str, block_id: BlockId, idx: FuncIndex) -> SSAFunction {
+    pub fn new(
+        func: FuncId,
+        name: &str,
+        block_id: BlockId,
+        idx: FuncIndex,
+        ctx: &SsaContext,
+    ) -> SSAFunction {
         SSAFunction {
             entry_block: block_id,
             id: func,
             name: name.to_string(),
             arguments: Vec::new(),
             result_types: Vec::new(),
+            decision: DecisionTree::new(ctx),
             idx,
         }
     }
 
-    pub fn compile(&self, igen: &mut IRGenerator) -> Result<(), RuntimeError> {
+    pub fn compile(&self, igen: &mut IRGenerator) -> Result<DecisionTree, RuntimeError> {
         let function_cfg = super::block::bfs(self.entry_block, None, &igen.context);
         super::block::compute_sub_dom(&mut igen.context, &function_cfg);
         //Optimisation
         super::optim::full_cse(&mut igen.context, self.entry_block)?;
         //Unrolling
         super::flatten::unroll_tree(&mut igen.context, self.entry_block)?;
+
+        //reduce conditionals
+        let mut decision = DecisionTree::new(&igen.context);
+        decision.make_decision_tree(&mut igen.context, self.entry_block);
+        decision.reduce(&mut igen.context, decision.root)?;
+
         super::optim::full_cse(&mut igen.context, self.entry_block)?;
-        Ok(())
+        Ok(decision)
     }
 
     //generates an instruction for calling the function
@@ -70,7 +85,12 @@ impl SSAFunction {
     ) -> Result<Vec<NodeId>, RuntimeError> {
         let arguments = igen.codegen_expression_list(env, arguments);
         let call_instruction = igen.context.new_instruction(
-            node::Operation::Call(func, arguments, Vec::new()),
+            node::Operation::Call {
+                func_id: func,
+                arguments,
+                returned_arrays: Vec::new(),
+                predicate: AssumptionId::dummy(),
+            },
             ObjectType::NotAnObject,
         )?;
         let rtt = igen.context.functions[&func].result_types.clone();
@@ -124,7 +144,6 @@ pub fn get_result_type(op: OPCODE) -> (u32, ObjectType) {
         OPCODE::Pedersen => (2, ObjectType::NativeField),
         OPCODE::EcdsaSecp256k1 => (1, ObjectType::NativeField), //field?
         OPCODE::FixedBaseScalarMul => (2, ObjectType::NativeField),
-        OPCODE::InsertRegularMerkle => (1, ObjectType::NativeField), //field?
         OPCODE::ToBits => (FieldElement::max_num_bits(), ObjectType::Boolean),
     }
 }
@@ -202,7 +221,7 @@ pub fn create_function(
     let current_function = igen.function_context;
     let func_block = super::block::BasicBlock::create_cfg(&mut igen.context);
 
-    let mut func = SSAFunction::new(func_id, name, func_block, index);
+    let mut func = SSAFunction::new(func_id, name, func_block, index, &igen.context);
 
     let function = context.def_interner.function(&func_id);
     let block = function.block(&context.def_interner);
@@ -231,8 +250,8 @@ pub fn create_function(
     }
     igen.context
         .new_instruction(node::Operation::Return(returned_values), node::ObjectType::NotAnObject)?;
-    func.compile(igen)?; //unroll the function
-
+    let decision = func.compile(igen)?; //unroll the function
+    func.decision = decision;
     igen.context.functions.insert(func_id, func);
     igen.context.current_block = current_block;
     igen.function_context = current_function;
@@ -278,7 +297,7 @@ fn get_new_leaf(ctx: &SsaContext, processed: &[FuncIndex]) -> (FuncIndex, FuncId
     unimplemented!("Recursive function call is not supported");
 }
 
-//inline all functions of the call graph such that every inlining operates with a flatenned function
+//inline all functions of the call graph such that every inlining operates with a fully flattened function
 pub fn inline_all(ctx: &mut SsaContext) -> Result<(), RuntimeError> {
     resize_graph(&mut ctx.call_graph, ctx.functions.len());
     let l = ctx.call_graph.len();
@@ -291,12 +310,12 @@ pub fn inline_all(ctx: &mut SsaContext) -> Result<(), RuntimeError> {
         let mut to_inline = Vec::new();
         for f in ctx.functions.values() {
             if ctx.call_graph[f.idx.0][i.0 .0] == 1 {
-                to_inline.push((f.entry_block, f.idx));
+                to_inline.push((f.id, f.idx));
             }
         }
-        for (block_id, func_id) in to_inline {
-            super::inline::inline_cfg(ctx, block_id, Some(i.1))?;
-            ctx.call_graph[func_id.0][i.0 .0] = 0;
+        for (func_id, func_idx) in to_inline {
+            super::inline::inline_cfg(ctx, func_id, Some(i.1))?;
+            ctx.call_graph[func_idx.0][i.0 .0] = 0;
         }
         processed.push(i.0);
     }

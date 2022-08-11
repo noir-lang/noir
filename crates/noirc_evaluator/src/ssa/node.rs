@@ -17,6 +17,7 @@ use std::ops::{Add, Mul, Sub};
 use std::ops::{BitAnd, BitOr, BitXor, Shl, Shr};
 
 use super::block::BlockId;
+use super::conditional;
 use super::context::SsaContext;
 use super::mem::ArrayId;
 
@@ -425,7 +426,7 @@ impl Instruction {
             Operation::Load { .. } => false,
             Operation::Store { .. } => true,
             Operation::Intrinsic(_, _) => true, //TODO to check
-            Operation::Call(_, _, _) => false, //return values are in the return statment, should we truncate function arguments? probably but not lhs and rhs anyways.
+            Operation::Call { .. } => false, //return values are in the return statment, should we truncate function arguments? probably but not lhs and rhs anyways.
             Operation::Return(_) => true,
             Operation::Result { .. } => false,
         }
@@ -480,6 +481,18 @@ impl Instruction {
                     }
                 }
             }
+            Operation::Cond { condition, val_true, val_false } => {
+                if let Some(cond) = eval_fn(ctx, *condition)?.into_const_value() {
+                    if cond.is_zero() {
+                        return Ok(NodeEval::VarOrInstruction(*val_false));
+                    } else {
+                        return Ok(NodeEval::VarOrInstruction(*val_true));
+                    }
+                }
+                if *val_true == *val_false {
+                    return Ok(NodeEval::VarOrInstruction(*val_false));
+                }
+            }
             Operation::Phi { .. } => (), //Phi are simplified by simply_phi() later on; they must not be simplified here
             _ => (),
         }
@@ -525,8 +538,12 @@ impl Instruction {
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum Operation {
     Binary(Binary),
-    Cast(NodeId),                                                 //convert type
-    Truncate { value: NodeId, bit_size: u32, max_bit_size: u32 }, //truncate
+    Cast(NodeId), //convert type
+    Truncate {
+        value: NodeId,
+        bit_size: u32,
+        max_bit_size: u32,
+    }, //truncate
 
     Not(NodeId), //(!) Bitwise Not
     Constrain(NodeId, Location),
@@ -535,14 +552,37 @@ pub enum Operation {
     Jne(NodeId, BlockId), //jump on not equal
     Jeq(NodeId, BlockId), //jump on equal
     Jmp(BlockId),         //unconditional jump
-    Phi { root: NodeId, block_args: Vec<(NodeId, BlockId)> },
-    Call(noirc_frontend::node_interner::FuncId, Vec<NodeId>, Vec<(ArrayId, u32)>), //Call a function
+    Phi {
+        root: NodeId,
+        block_args: Vec<(NodeId, BlockId)>,
+    },
+    //Call(function::FunctionCall),
+    Call {
+        func_id: noirc_frontend::node_interner::FuncId,
+        arguments: Vec<NodeId>,
+        returned_arrays: Vec<(super::mem::ArrayId, u32)>,
+        predicate: conditional::AssumptionId,
+    },
     Return(Vec<NodeId>), //Return value(s) from a function block
-    Result { call_instruction: NodeId, index: u32 }, //Get result index n from a function call
-    Cond { condition: NodeId, val_true: NodeId, val_false: NodeId },
+    Result {
+        call_instruction: NodeId,
+        index: u32,
+    }, //Get result index n from a function call
+    Cond {
+        condition: NodeId,
+        val_true: NodeId,
+        val_false: NodeId,
+    },
 
-    Load { array_id: ArrayId, index: NodeId },
-    Store { array_id: ArrayId, index: NodeId, value: NodeId },
+    Load {
+        array_id: ArrayId,
+        index: NodeId,
+    },
+    Store {
+        array_id: ArrayId,
+        index: NodeId,
+        value: NodeId,
+    },
 
     Intrinsic(OPCODE, Vec<NodeId>), //Custom implementation of usefull primitives which are more performant with Aztec backend
 
@@ -1075,9 +1115,12 @@ impl Operation {
             }
             Intrinsic(i, args) => Intrinsic(*i, vecmap(args.iter().copied(), f)),
             Nop => Nop,
-            Call(func_id, args, returned_array) => {
-                Call(*func_id, vecmap(args.iter().copied(), f), returned_array.clone())
-            }
+            Call { func_id, arguments, returned_arrays, predicate } => Call {
+                func_id: *func_id,
+                arguments: vecmap(arguments.iter().copied(), f),
+                returned_arrays: returned_arrays.clone(),
+                predicate: *predicate,
+            },
             Return(values) => Return(vecmap(values.iter().copied(), f)),
             Result { call_instruction, index } => {
                 Result { call_instruction: f(*call_instruction), index: *index }
@@ -1122,8 +1165,8 @@ impl Operation {
                 }
             }
             Nop => (),
-            Call(_, args, _) => {
-                for arg in args {
+            Call { arguments, .. } => {
+                for arg in arguments {
                     *arg = f(*arg);
                 }
             }
@@ -1171,7 +1214,7 @@ impl Operation {
             }
             Intrinsic(_, args) => args.iter().copied().for_each(f),
             Nop => (),
-            Call(_, args, _) => args.iter().copied().for_each(f),
+            Call { arguments, .. } => arguments.iter().copied().for_each(f),
             Return(values) => values.iter().copied().for_each(f),
             Result { call_instruction, .. } => {
                 f(*call_instruction);
@@ -1191,7 +1234,7 @@ impl Operation {
             Operation::Jmp(_) => Opcode::Jmp,
             Operation::Phi { .. } => Opcode::Phi,
             Operation::Cond { .. } => Opcode::Cond,
-            Operation::Call(id, _, _) => Opcode::Call(*id),
+            Operation::Call { func_id, .. } => Opcode::Call(*func_id),
             Operation::Return(_) => Opcode::Return,
             Operation::Result { .. } => Opcode::Results,
             Operation::Load { array_id, .. } => Opcode::Load(*array_id),

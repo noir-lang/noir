@@ -11,7 +11,7 @@ noirc_errors = {path = "../noirc_errors"}
 noirc_frontend = {path = "../noirc_frontend"}
 noirc_evaluator = {path = "../noirc_evaluator"}
 noirc_abi = {path = "../noirc_abi"}
-acvm = {path = "../acvm"}
+acvm = { git = "https://github.com/noir-lang/noir" }
 std_lib = {path = "../std_lib"}
 fm = {path = "../fm"}
 
