@@ -6,6 +6,7 @@
 #include <ecc/fields/field.hpp>
 
 #include <crypto/hmac/hmac.hpp>
+
 namespace crypto {
 namespace schnorr {
 
@@ -33,9 +34,9 @@ signature construct_signature(const std::string& message, const key_pair<Fr, G1>
     // use HMAC in PRF mode to derive 32-byte secret `k`
     std::vector<uint8_t> pkey_buffer;
     write(pkey_buffer, private_key);
-    std::array<uint8_t, Hash::OUTPUT_SIZE> k_buffer = crypto::hmac<Hash>(message, pkey_buffer);
 
-    Fr k = Fr::serialize_from_buffer(&k_buffer[0]);
+    Fr k = crypto::get_unbiased_field_from_hmac<Hash, Fr>(message, pkey_buffer);
+
     typename G1::affine_element R(G1::one * k);
 
     std::vector<uint8_t> message_buffer;

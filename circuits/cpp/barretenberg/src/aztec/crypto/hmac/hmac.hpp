@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include <numeric/uintx/uintx.hpp>
 
 namespace crypto {
 /**
@@ -69,4 +70,41 @@ std::array<uint8_t, Hash::OUTPUT_SIZE> hmac(const MessageContainer& message, con
     return result;
 }
 
+/**
+ * @brief Takes a size-HASH_OUTPUT buffer from HMAC and converts into a field element
+ *
+ * @details We assume HASH_OUTPUT = 32, which is insufficient entropy. We hash input with `0` and `1` to produce 64
+ * bytes of input data. This is then converted into a uin512_t, which is taken modulo Fr::modulus to produce our field
+ * element.
+ *
+ * @tparam Hash the hash function we're using
+ * @tparam Fr field type
+ * @param input the input buffer
+ * @return Fr output field element
+ */
+template <typename Hash, typename Fr, typename MessageContainer, typename KeyContainer>
+Fr get_unbiased_field_from_hmac(const MessageContainer& message, const KeyContainer& key)
+{
+    auto input = hmac<Hash, MessageContainer, KeyContainer>(message, key);
+
+    std::vector<uint8_t> lo_buffer(input.begin(), input.end());
+    lo_buffer.push_back(0);
+    std::vector<uint8_t> hi_buffer(input.begin(), input.end());
+    hi_buffer.push_back(1);
+
+    auto klo = Hash::hash(lo_buffer);
+    auto khi = Hash::hash(hi_buffer);
+
+    std::vector<uint8_t> full_buffer(khi.begin(), khi.end());
+    for (auto& v : klo) {
+        full_buffer.push_back(v);
+    }
+
+    uint512_t field_as_u512;
+    const uint8_t* ptr = &full_buffer[0];
+    numeric::read(ptr, field_as_u512);
+
+    Fr result((field_as_u512 % Fr::modulus).lo);
+    return result;
+}
 } // namespace crypto
