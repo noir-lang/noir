@@ -375,7 +375,8 @@ impl<'a> Evaluator<'a> {
             | Type::TypeVariable(_)
             | Type::ArrayLength(_)
             | Type::Error
-            | Type::Forall(_, _) => unreachable!(),
+            | Type::Function(..) => todo!(),
+            Type::Forall(_, _) => unreachable!(),
         }
         Ok(())
     }
@@ -415,7 +416,8 @@ impl<'a> Evaluator<'a> {
             }
         }
 
-        if func_meta.return_type != Type::Unit {
+        let return_type = func_meta.return_type();
+        if return_type != &Type::Unit {
             // Must create a fake variable for the return from main to turn it into a pub parameter.
             let ident_def = NodeInterner::main_return_id();
             let ident_name = NodeInterner::main_return_name();
@@ -423,7 +425,7 @@ impl<'a> Evaluator<'a> {
                 ident_name,
                 ident_def,
                 func_meta.return_visibility,
-                &func_meta.return_type,
+                return_type,
                 func_meta.location,
                 igen,
             )?;

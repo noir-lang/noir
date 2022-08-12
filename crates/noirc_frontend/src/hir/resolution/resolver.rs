@@ -24,7 +24,7 @@ use crate::hir_def::expr::{
     HirUnaryOp,
 };
 use std::cell::RefCell;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::rc::Rc;
 
 use crate::graph::CrateId;
@@ -222,15 +222,26 @@ impl<'a> Resolver<'a> {
         (hir_func, func_meta)
     }
 
-    fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
+    /// Translates an UnresolvedType into a Type and appends any
+    /// freshly created TypeVariables created to new_variables.
+    fn resolve_type_inner(
+        &mut self,
+        typ: UnresolvedType,
+        new_variables: &mut Vec<TypeVariableId>,
+    ) -> Type {
         match typ {
             UnresolvedType::FieldElement(is_const) => Type::FieldElement(is_const),
             UnresolvedType::Array(len, elem) => {
                 let len = match len {
                     Some(len) => Type::ArrayLength(len),
-                    None => self.interner.next_type_variable(),
+                    None => {
+                        let id = self.interner.next_type_variable_id();
+                        new_variables.push(id);
+                        Type::type_variable(id)
+                    }
                 };
-                Type::Array(Box::new(len), Box::new(self.resolve_type(*elem)))
+                let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
+                Type::Array(Box::new(len), elem)
             }
             UnresolvedType::Integer(is_const, sign, bits) => Type::Integer(is_const, sign, bits),
             UnresolvedType::Bool(is_const) => Type::Bool(is_const),
@@ -249,16 +260,21 @@ impl<'a> Resolver<'a> {
 
                 match self.lookup_struct(path) {
                     Some(definition) => {
-                        let args = vecmap(args, |arg| self.resolve_type(arg));
+                        let args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
                         Type::Struct(definition, args)
                     }
                     None => Type::Error,
                 }
             }
             UnresolvedType::Tuple(fields) => {
-                Type::Tuple(vecmap(fields, |field| self.resolve_type(field)))
+                Type::Tuple(vecmap(fields, |field| self.resolve_type_inner(field, new_variables)))
             }
         }
+    }
+
+    /// Translates an UnresolvedType to a Type
+    fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
+        self.resolve_type_inner(typ, &mut vec![])
     }
 
     fn add_generics(&mut self, generics: Vec<Ident>) -> Vec<TypeVariableId> {
@@ -306,7 +322,7 @@ impl<'a> Resolver<'a> {
         let attributes = func.attribute().cloned();
 
         assert_eq!(self.generics.len(), func.def.generics.len());
-        let generics = vecmap(&func.def.generics, |generic| {
+        let mut generics = vecmap(&func.def.generics, |generic| {
             // Always expect self.generics to contain all the generics of this function
             let typevar = self.generics.get(generic.0.contents.as_str()).unwrap();
             match &*typevar.0.borrow() {
@@ -318,26 +334,34 @@ impl<'a> Resolver<'a> {
             }
         });
 
-        let mut parameters = Vec::new();
+        let mut parameters = vec![];
+        let mut parameter_types = vec![];
+
         for (pattern, typ, visibility) in func.parameters().iter().cloned() {
             if func.name() != "main" && visibility == noirc_abi::AbiFEType::Public {
                 self.push_err(ResolverError::UnnecessaryPub { ident: func.name_ident().clone() })
             }
+
             let pattern = self.resolve_pattern(pattern);
-            let typ = self.resolve_type(typ);
-            parameters.push(Param(pattern, typ, visibility));
+            let typ = self.resolve_type_inner(typ, &mut generics);
+            parameters.push(Param(pattern, typ.clone(), visibility));
+            parameter_types.push(typ);
         }
 
-        let return_type = self.resolve_type(func.return_type());
+        let return_type = Box::new(self.resolve_type(func.return_type()));
+        let mut typ = Type::Function(parameter_types, return_type, BTreeSet::new());
+
+        if !generics.is_empty() {
+            typ = Type::Forall(generics, Box::new(typ));
+        }
 
         FuncMeta {
             name: name_ident,
             kind: func.kind,
             attributes,
             location,
-            generics,
+            typ,
             parameters: parameters.into(),
-            return_type,
             return_visibility: func.def.return_visibility,
             has_body: !func.def.body.is_empty(),
         }

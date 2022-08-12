@@ -1,11 +1,10 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, collections::BTreeSet, rc::Rc};
 
 use noirc_errors::Span;
 
 use crate::{
     hir_def::{
         expr::{self, HirBinaryOp, HirBinaryOpKind, HirExpression, HirLiteral, HirUnaryOp},
-        function::FuncMeta,
         types::Type,
     },
     node_interner::{ExprId, FuncId, NodeInterner},
@@ -96,8 +95,10 @@ pub(crate) fn type_check_expression(
             type_check_index_expression(interner, index_expr, errors)
         }
         HirExpression::Call(call_expr) => {
-            let args =
-                vecmap(&call_expr.arguments, |arg| type_check_expression(interner, arg, errors));
+            let args = vecmap(&call_expr.arguments, |arg| {
+                let typ = type_check_expression(interner, arg, errors);
+                (typ, interner.expr_span(arg))
+            });
             type_check_function_call(interner, expr_id, &call_expr.func_id, args, errors)
         }
         HirExpression::MethodCall(method_call) => {
@@ -105,9 +106,10 @@ pub(crate) fn type_check_expression(
             let method_name = method_call.method.0.contents.as_str();
             match lookup_method(interner, object_type.clone(), method_name, expr_id, errors) {
                 Some(method_id) => {
-                    let mut args = vec![object_type];
+                    let mut args = vec![(object_type, interner.expr_span(&method_call.object))];
                     let mut arg_types = vecmap(&method_call.arguments, |arg| {
-                        type_check_expression(interner, arg, errors)
+                        let typ = type_check_expression(interner, arg, errors);
+                        (typ, interner.expr_span(arg))
                     });
                     args.append(&mut arg_types);
                     let ret = type_check_function_call(interner, expr_id, &method_id, args, errors);
@@ -352,7 +354,7 @@ fn type_check_function_call(
     interner: &mut NodeInterner,
     expr_id: &ExprId,
     func_id: &FuncId,
-    arguments: Vec<Type>,
+    arguments: Vec<(Type, Span)>,
     errors: &mut Vec<TypeCheckError>,
 ) -> Type {
     if func_id == &FuncId::dummy_id() {
@@ -364,8 +366,8 @@ fn type_check_function_call(
         let param_len = func_meta.parameters.len();
         let arg_len = arguments.len();
 
+        let span = interner.expr_span(expr_id);
         if param_len != arg_len {
-            let span = interner.expr_span(expr_id);
             errors.push(TypeCheckError::ArityMisMatch {
                 expected: param_len as u16,
                 found: arg_len as u16,
@@ -373,35 +375,53 @@ fn type_check_function_call(
             });
         }
 
-        let (parameters, return_type) = instantiate_function(&func_meta, interner);
-
-        // Check for argument param equality
-        // In the case where we previously issued an error for a parameter count mismatch
-        // this will only check up until the shorter of the two Vecs.
-        // Type check arguments
-        for (param, arg) in parameters.iter().zip(arguments) {
-            let expr_span = interner.expr_span(expr_id);
-            arg.make_subtype_of(param, expr_span, errors, || TypeCheckError::TypeMismatch {
-                expected_typ: param.to_string(),
-                expr_typ: arg.to_string(),
-                expr_span,
-            });
-        }
-
-        // The type of the call expression is the return type of the function being called
-        return_type
+        let function_type = func_meta.typ.instantiate(interner);
+        bind_function_type(function_type, arguments, span, interner, errors)
     }
 }
 
-// This somewhat duplicates functionality from Type::instantiate. We could only use the later
-// once we support first class functions and type them properly with `forall` quantifiers.
-fn instantiate_function(func: &FuncMeta, interner: &mut NodeInterner) -> (Vec<Type>, Type) {
-    let substitutions =
-        func.generics.iter().map(|old| (*old, interner.next_type_variable())).collect();
+fn bind_function_type(
+    function: Type,
+    args: Vec<(Type, Span)>,
+    span: Span,
+    interner: &mut NodeInterner,
+    errors: &mut Vec<TypeCheckError>,
+) -> Type {
+    // Could do a single unification for the entire function type, but matching beforehand
+    // lets us issue a more precise error on the individual argument that fails to typecheck.
+    match function {
+        Type::TypeVariable(binding) => {
+            if let TypeBinding::Bound(typ) = &*binding.borrow() {
+                return bind_function_type(typ.clone(), args, span, interner, errors);
+            }
 
-    let parameters = vecmap(func.parameters.iter(), |param| param.1.substitute(&substitutions));
-    let return_type = func.return_type.substitute(&substitutions);
-    (parameters, return_type)
+            let ret = interner.next_type_variable();
+            let args = vecmap(args, |(arg, _)| arg);
+            let expected = Type::Function(args, Box::new(ret.clone()), BTreeSet::new());
+            *binding.borrow_mut() = TypeBinding::Bound(expected);
+
+            ret
+        }
+        Type::Function(parameters, ret, _ids) => {
+            for (param, (arg, arg_span)) in parameters.iter().zip(args) {
+                arg.make_subtype_of(param, arg_span, errors, || TypeCheckError::TypeMismatch {
+                    expected_typ: param.to_string(),
+                    expr_typ: arg.to_string(),
+                    expr_span: arg_span,
+                });
+            }
+
+            *ret
+        }
+        Type::Error => Type::Error,
+        other => {
+            errors.push(TypeCheckError::Unstructured {
+                msg: format!("Expected a function, but found a(n) {}", other),
+                span,
+            });
+            Type::Error
+        }
+    }
 }
 
 pub fn prefix_operand_type_rules(op: &HirUnaryOp, rhs_type: &Type) -> Result<Type, String> {

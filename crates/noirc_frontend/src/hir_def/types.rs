@@ -1,6 +1,6 @@
 use std::{
     cell::RefCell,
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap},
     rc::Rc,
 };
 
@@ -104,6 +104,14 @@ pub enum Type {
     Struct(Rc<RefCell<StructType>>, Vec<Type>),
     Tuple(Vec<Type>),
     TypeVariable(TypeVariable),
+
+    /// A functions with arguments, a return type, and
+    /// a set of possible function ids it may refer to.
+    /// The function id set is hidden from users and only
+    /// used to monomorphise away most higher order functions.
+    Function(Vec<Type>, Box<Type>, BTreeSet<FuncId>),
+
+    /// A type generic over the given type variables
     Forall(Vec<TypeVariableId>, Box<Type>),
 
     /// A type-level integer. Included to let an Array's size type variable
@@ -282,6 +290,10 @@ impl Type {
     pub fn default_int_type(span: Option<Span>) -> Type {
         Type::field(span)
     }
+
+    pub fn type_variable(id: TypeVariableId) -> Type {
+        Type::TypeVariable(Rc::new(RefCell::new(TypeBinding::Unbound(id))))
+    }
 }
 
 impl std::fmt::Display for Type {
@@ -319,6 +331,10 @@ impl std::fmt::Display for Type {
             Type::Forall(typevars, typ) => {
                 let typevars = vecmap(typevars, ToString::to_string);
                 write!(f, "forall {}. {}", typevars.join(" "), typ)
+            }
+            Type::Function(args, ret, _) => {
+                let args = vecmap(args, ToString::to_string);
+                write!(f, "fn({}) -> {}", args.join(", "), ret)
             }
         }
     }
@@ -736,6 +752,7 @@ impl Type {
             Type::Tuple(_) => todo!("as_abi_type not yet implemented for tuple types"),
             Type::TypeVariable(_) => unreachable!(),
             Type::Forall(..) => unreachable!(),
+            Type::Function(_, _, _) => unreachable!(),
         }
     }
 
@@ -806,8 +823,9 @@ impl Type {
 
         match self {
             Type::Array(size, element) => {
+                let size = Box::new(size.substitute(type_bindings));
                 let element = Box::new(element.substitute(type_bindings));
-                Type::Array(size.clone(), element)
+                Type::Array(size, element)
             }
             Type::PolymorphicInteger(_, binding) => substitute_binding(binding),
 
@@ -830,6 +848,11 @@ impl Type {
                 }
                 let typ = Box::new(typ.substitute(type_bindings));
                 Type::Forall(typevars.clone(), typ)
+            }
+            Type::Function(args, ret, ids) => {
+                let args = vecmap(args, |arg| arg.substitute(type_bindings));
+                let ret = Box::new(ret.substitute(type_bindings));
+                Type::Function(args, ret, ids.clone())
             }
 
             Type::FieldElement(_)
@@ -858,6 +881,9 @@ impl Type {
             },
             Type::Forall(typevars, typ) => {
                 !typevars.iter().any(|var| *var == target_id) && typ.occurs(target_id)
+            }
+            Type::Function(args, ret, _) => {
+                args.iter().any(|arg| arg.occurs(target_id)) || ret.occurs(target_id)
             }
 
             Type::FieldElement(_)

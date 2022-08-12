@@ -5,8 +5,8 @@ use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
 use crate::node_interner::{ExprId, NodeInterner};
 use crate::util::vecmap;
+use crate::Type;
 use crate::{token::Attribute, FunctionKind};
-use crate::{Type, TypeVariableId};
 
 /// A Hir function is a block expression
 /// with a list of statements
@@ -110,6 +110,7 @@ impl From<Vec<Param>> for Parameters {
         Parameters(vec)
     }
 }
+
 #[derive(Debug, Clone)]
 pub struct FuncMeta {
     pub name: HirIdent,
@@ -117,10 +118,12 @@ pub struct FuncMeta {
     pub kind: FunctionKind,
 
     pub attributes: Option<Attribute>,
-    pub generics: Vec<TypeVariableId>,
     pub parameters: Parameters,
-    pub return_type: Type,
     pub return_visibility: AbiFEType,
+
+    /// The type of this function. Either a Type::Function
+    /// or a Type::Forall for generic functions.
+    pub typ: Type,
 
     pub location: Location,
 
@@ -141,12 +144,26 @@ impl FuncMeta {
     }
 
     pub fn into_abi(self, interner: &NodeInterner) -> Abi {
+        let return_type = self.return_type().clone();
         let mut abi = self.parameters.into_abi(interner);
-        if self.return_type != Type::Unit {
-            let typ = self.return_type.as_abi_type(self.return_visibility);
+
+        if return_type != Type::Unit {
+            let typ = return_type.as_abi_type(self.return_visibility);
             abi.parameters.push((NodeInterner::main_return_name().into(), typ));
         }
 
         abi
+    }
+
+    /// Gives the (uninstantiated) return type of this function.
+    pub fn return_type(&self) -> &Type {
+        match &self.typ {
+            Type::Function(_, ret, _) => ret,
+            Type::Forall(_, typ) => match typ.as_ref() {
+                Type::Function(_, ret, _) => ret,
+                _ => unreachable!(),
+            },
+            _ => unreachable!(),
+        }
     }
 }

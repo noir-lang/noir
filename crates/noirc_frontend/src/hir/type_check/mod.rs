@@ -20,7 +20,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     // Note that we do not look for the defining Identifier for a parameter,
     // since we know that it is the parameter itself
     let meta = interner.function_meta(&func_id);
-    let declared_return_type = &meta.return_type;
+    let declared_return_type = meta.return_type().clone();
     let can_ignore_ret = meta.can_ignore_return_type();
 
     let mut errors = vec![];
@@ -37,7 +37,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     // Check declared return type and actual return type
     if !can_ignore_ret {
         let func_span = interner.expr_span(func_as_expr); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
-        function_last_type.unify(declared_return_type, func_span, &mut errors, || {
+        function_last_type.unify(&declared_return_type, func_span, &mut errors, || {
             TypeCheckError::TypeMismatch {
                 expected_typ: declared_return_type.to_string(),
                 expr_typ: function_last_type.to_string(),
@@ -53,7 +53,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
 /// We can either build a test apparatus or pass raw code through the resolver
 #[cfg(test)]
 mod test {
-    use std::collections::HashMap;
+    use std::collections::{BTreeSet, HashMap};
 
     use fm::FileId;
     use noirc_errors::{Location, Span};
@@ -137,14 +137,17 @@ mod test {
             name,
             kind: FunctionKind::Normal,
             attributes: None,
-            generics: vec![],
             location,
+            typ: Type::Function(
+                vec![Type::field(None), Type::field(None)],
+                Box::new(Type::Unit),
+                BTreeSet::new(),
+            ),
             parameters: vec![
                 Param(Identifier(x), Type::field(None), noirc_abi::AbiFEType::Private),
                 Param(Identifier(y), Type::field(None), noirc_abi::AbiFEType::Private),
             ]
             .into(),
-            return_type: Type::Unit,
             return_visibility: noirc_abi::AbiFEType::Private,
             has_body: true,
         };

@@ -703,7 +703,7 @@ impl<'a> IRGenerator<'a> {
                             self,
                             env,
                         )?;
-                        let val = match func_meta.return_type {
+                        let val = match func_meta.return_type() {
                             Type::Tuple(_) => {
                                 let mut tuple = Vec::new();
                                 for i in results.iter().enumerate() {
