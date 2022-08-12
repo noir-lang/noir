@@ -171,7 +171,7 @@ impl Variable {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ObjectType {
     //Numeric(NumericType),
     NativeField,
@@ -186,7 +186,7 @@ pub enum ObjectType {
     NotAnObject, //not an object
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum NumericType {
     Signed(u32),
     Unsigned(u32),

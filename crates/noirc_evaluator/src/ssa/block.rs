@@ -5,7 +5,7 @@ use super::{
 };
 use std::collections::{HashMap, HashSet, VecDeque};
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub enum BlockType {
     Normal,
     ForJoin,
