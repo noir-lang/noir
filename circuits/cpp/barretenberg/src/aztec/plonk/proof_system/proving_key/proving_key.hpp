@@ -4,6 +4,7 @@
 #include <plonk/reference_string/reference_string.hpp>
 #include <polynomials/evaluation_domain.hpp>
 #include <polynomials/polynomial.hpp>
+#include <plonk/proof_system/constants.hpp>
 
 #include "../types/polynomial_manifest.hpp"
 
@@ -73,7 +74,6 @@ struct proving_key {
     std::map<std::string, barretenberg::polynomial> wire_ffts;
 
     barretenberg::evaluation_domain small_domain;
-    barretenberg::evaluation_domain mid_domain;
     barretenberg::evaluation_domain large_domain;
 
     std::shared_ptr<ProverReferenceString> reference_string;
@@ -83,8 +83,7 @@ struct proving_key {
     barretenberg::polynomial shifted_opening_poly;
     barretenberg::polynomial linear_poly;
 
-    barretenberg::polynomial quotient_mid;
-    barretenberg::polynomial quotient_large;
+    barretenberg::polynomial quotient_polynomial_parts[NUM_QUOTIENT_PARTS];
 
     barretenberg::scalar_multiplication::pippenger_runtime_state pippenger_runtime_state;
 

@@ -335,8 +335,6 @@ barretenberg::fr ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>:
     fr* lookup_fft = &key->constraint_selector_ffts.at("table_type_fft")[0];
     fr* lookup_index_fft = &key->constraint_selector_ffts.at("table_index_fft")[0];
 
-    polynomial& quotient_large = key->quotient_large;
-
     const fr gamma_beta_constant = gamma * (fr(1) + beta);
 
     const polynomial& l_1 = key->lagrange_1;
@@ -426,7 +424,7 @@ barretenberg::fr ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>:
 
             // Combine into quotient polynomial
             T0 = numerator - denominator;
-            quotient_large[i] += T0 * alpha_base;
+            key->quotient_polynomial_parts[i >> key->small_domain.log2_size][i & (key->n - 1)] += T0 * alpha_base;
         }
     }
     return alpha_base * alpha.sqr() * alpha;

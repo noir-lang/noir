@@ -13,6 +13,9 @@ namespace waffle {
 // the degree of t_{mid}, etc could also increase. Thus, the size of pippenger multi-scalar
 // multiplications must be changed accordingly!
 //
+// After adding blinding to the quotient polynomial parts, the quotient polynomial parts, the
+// linearisation polynomial r(X) as well as opening polynomial W_z(X) are all degree-n (i.e. size n + 1).
+//
 /**
  * proving_key constructor.
  *
@@ -24,7 +27,6 @@ proving_key::proving_key(const size_t num_gates,
     : n(num_gates)
     , num_public_inputs(num_inputs)
     , small_domain(n, n)
-    , mid_domain(2 * n, n > min_thread_block ? n : 2 * n)
     , large_domain(4 * n, n > min_thread_block ? n : 4 * n)
     , reference_string(crs)
     , pippenger_runtime_state(n + 1)
@@ -42,7 +44,6 @@ proving_key::proving_key(proving_key_data&& data, std::shared_ptr<ProverReferenc
     , permutation_selectors_lagrange_base(std::move(data.permutation_selectors_lagrange_base))
     , permutation_selector_ffts(std::move(data.permutation_selector_ffts))
     , small_domain(n, n)
-    , mid_domain(2 * n, n > min_thread_block ? n : 2 * n)
     , large_domain(4 * n, n > min_thread_block ? n : 4 * n)
     , reference_string(crs)
     , pippenger_runtime_state(n + 1)
@@ -76,29 +77,16 @@ proving_key::proving_key(proving_key_data&& data, std::shared_ptr<ProverReferenc
  * 1. Compute lookup tables for small, mid and large domains
  * 2. Reset wire_ffts and opening_poly
  * 3. Construct L_1
- * 4. Initialize shited_opening_poly(n), linear_poly(n), quotient_mid(2*n), quotient_large(4*n) to zeroes.
+ * 4. Initialize shited_opening_poly(n), opening_poly(n+1), linear_poly(n+1), quotient_polynomial_parts(n+1) to zeroes.
  **/
 void proving_key::init()
 {
     if (n != 0) {
         small_domain.compute_lookup_table();
-        mid_domain.compute_lookup_table();
         large_domain.compute_lookup_table();
     }
 
     reset();
-
-    lagrange_1 = barretenberg::polynomial(4 * n, 4 * n + 8);
-    barretenberg::polynomial_arithmetic::compute_lagrange_polynomial_fft(
-        lagrange_1.get_coefficients(), small_domain, large_domain);
-    lagrange_1.add_lagrange_base_coefficient(lagrange_1[0]);
-    lagrange_1.add_lagrange_base_coefficient(lagrange_1[1]);
-    lagrange_1.add_lagrange_base_coefficient(lagrange_1[2]);
-    lagrange_1.add_lagrange_base_coefficient(lagrange_1[3]);
-    lagrange_1.add_lagrange_base_coefficient(lagrange_1[4]);
-    lagrange_1.add_lagrange_base_coefficient(lagrange_1[5]);
-    lagrange_1.add_lagrange_base_coefficient(lagrange_1[6]);
-    lagrange_1.add_lagrange_base_coefficient(lagrange_1[7]);
 
     // The opening polynomial W_{\script{z}}(X) in round 5 of prover's algorithm has degree n. However,
     // as explained in (./src/aztec/plonk/proof_system/prover/prover.cpp/ProverBase::compute_quotient_pre_commitment),
@@ -113,19 +101,39 @@ void proving_key::init()
     // n.
     //
     // Transfer all of these to reset
-    opening_poly =
-        barretenberg::polynomial(n, n); // We already do this in reset(). / Ask Zac or Suyash if we can remove this.
+    // Note: due to the blinding of the individual quotient polynomial parts, opening_poly and
+    // linear_poly are always of size n+1 for Standard/Turbo/Ultra
+    opening_poly = barretenberg::polynomial(
+        n + 1, n + 1); // We already do this in reset(). / Ask Zac or Suyash if we can remove this.
     shifted_opening_poly = barretenberg::polynomial(n, n);
-    linear_poly = barretenberg::polynomial(n, n);
+    linear_poly = barretenberg::polynomial(
+        n + 1, n + 1); // this will always be size n+1 due to blinding of quotient component parts
 
-    quotient_mid = barretenberg::polynomial(2 * n, 2 * n);
-    quotient_large = barretenberg::polynomial(4 * n, 4 * n);
+    // t_i for i = 1,2,3 have n+1 coefficients after blinding. t_4 has only n coefficients.
+    quotient_polynomial_parts[0] = barretenberg::polynomial(n + 1, n + 1);
+    quotient_polynomial_parts[1] = barretenberg::polynomial(n + 1, n + 1);
+    quotient_polynomial_parts[2] = barretenberg::polynomial(n + 1, n + 1);
+    quotient_polynomial_parts[3] = barretenberg::polynomial(n, n);
 
-    memset((void*)&opening_poly[0], 0x00, sizeof(barretenberg::fr) * n);
+    memset((void*)&opening_poly[0], 0x00, sizeof(barretenberg::fr) * (n + 1));
     memset((void*)&shifted_opening_poly[0], 0x00, sizeof(barretenberg::fr) * n);
-    memset((void*)&linear_poly[0], 0x00, sizeof(barretenberg::fr) * n);
-    memset((void*)&quotient_mid[0], 0x00, sizeof(barretenberg::fr) * 2 * n);
-    memset((void*)&quotient_large[0], 0x00, sizeof(barretenberg::fr) * 4 * n);
+    memset((void*)&linear_poly[0], 0x00, sizeof(barretenberg::fr) * (n + 1));
+    memset((void*)&quotient_polynomial_parts[0][0], 0x00, sizeof(barretenberg::fr) * (n + 1));
+    memset((void*)&quotient_polynomial_parts[1][0], 0x00, sizeof(barretenberg::fr) * (n + 1));
+    memset((void*)&quotient_polynomial_parts[2][0], 0x00, sizeof(barretenberg::fr) * (n + 1));
+    memset((void*)&quotient_polynomial_parts[3][0], 0x00, sizeof(barretenberg::fr) * n);
+
+    lagrange_1 = barretenberg::polynomial(4 * n, 4 * n + 8);
+    barretenberg::polynomial_arithmetic::compute_lagrange_polynomial_fft(
+        lagrange_1.get_coefficients(), small_domain, large_domain);
+    lagrange_1.add_lagrange_base_coefficient(lagrange_1[0]);
+    lagrange_1.add_lagrange_base_coefficient(lagrange_1[1]);
+    lagrange_1.add_lagrange_base_coefficient(lagrange_1[2]);
+    lagrange_1.add_lagrange_base_coefficient(lagrange_1[3]);
+    lagrange_1.add_lagrange_base_coefficient(lagrange_1[4]);
+    lagrange_1.add_lagrange_base_coefficient(lagrange_1[5]);
+    lagrange_1.add_lagrange_base_coefficient(lagrange_1[6]);
+    lagrange_1.add_lagrange_base_coefficient(lagrange_1[7]);
 }
 
 /**
@@ -139,8 +147,8 @@ void proving_key::reset()
 {
     wire_ffts.clear();
 
-    opening_poly = barretenberg::polynomial(n, n);
-    memset((void*)&opening_poly[0], 0x00, sizeof(barretenberg::fr) * n);
+    opening_poly = barretenberg::polynomial(n + 1, n + 1);
+    memset((void*)&opening_poly[0], 0x00, sizeof(barretenberg::fr) * (n + 1));
 
     barretenberg::polynomial w_1_fft = barretenberg::polynomial(4 * n + 4, 4 * n + 4);
     barretenberg::polynomial w_2_fft = barretenberg::polynomial(4 * n + 4, 4 * n + 4);
@@ -173,20 +181,22 @@ proving_key::proving_key(const proving_key& other)
     , permutation_selector_ffts(other.permutation_selector_ffts)
     , wire_ffts(other.wire_ffts)
     , small_domain(other.small_domain)
-    , mid_domain(other.mid_domain)
     , large_domain(other.large_domain)
     , reference_string(other.reference_string)
     , lagrange_1(other.lagrange_1)
     , opening_poly(other.opening_poly)
     , shifted_opening_poly(other.shifted_opening_poly)
     , linear_poly(other.linear_poly)
-    , quotient_mid(other.quotient_mid)
-    , quotient_large(other.quotient_large)
     , pippenger_runtime_state(n + 1)
     , polynomial_manifest(other.polynomial_manifest)
     , contains_recursive_proof(other.contains_recursive_proof)
     , recursive_proof_public_input_indices(other.recursive_proof_public_input_indices)
-{}
+{
+    quotient_polynomial_parts[0] = other.quotient_polynomial_parts[0];
+    quotient_polynomial_parts[1] = other.quotient_polynomial_parts[1];
+    quotient_polynomial_parts[2] = other.quotient_polynomial_parts[2];
+    quotient_polynomial_parts[3] = other.quotient_polynomial_parts[3];
+}
 
 proving_key::proving_key(proving_key&& other)
     : composer_type(other.composer_type)
@@ -200,7 +210,6 @@ proving_key::proving_key(proving_key&& other)
     , permutation_selector_ffts(other.permutation_selector_ffts)
     , wire_ffts(other.wire_ffts)
     , small_domain(std::move(other.small_domain))
-    , mid_domain(std::move(other.mid_domain))
     , large_domain(std::move(other.large_domain))
     , reference_string(std::move(other.reference_string))
     , lagrange_1(std::move(other.lagrange_1))
@@ -226,7 +235,6 @@ proving_key& proving_key::operator=(proving_key&& other)
     permutation_selector_ffts = std::move(other.permutation_selector_ffts);
     wire_ffts = std::move(other.wire_ffts);
     small_domain = std::move(other.small_domain);
-    mid_domain = std::move(other.mid_domain);
     large_domain = std::move(other.large_domain);
     reference_string = std::move(other.reference_string);
     lagrange_1 = std::move(other.lagrange_1);

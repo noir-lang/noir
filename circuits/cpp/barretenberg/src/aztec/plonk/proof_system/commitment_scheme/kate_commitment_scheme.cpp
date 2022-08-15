@@ -34,11 +34,9 @@ void KateCommitmentScheme<settings>::compute_opening_polynomial(
 
     // We assume that the commitment is well-formed and that there is no remainder term.
     // Under these conditions we can perform this polynomial division in linear time with good constants.
-    // Note that if we are using standard plonk, number of roots cut out of vanishing polynomial being 4,
-    // the degree of the quotient polynomial is 3n. Hence, the degree of the opening polynomial is determined by the
-    // degree of the polynomial t_{high}(X), which is n. Hence the opening polynomial has (n+1) coefficients.
-    // We need to change the evaluation domain size accordingly!
-    fr f = polynomial_arithmetic::evaluate(src, z_point, settings::program_width == 3 ? (n + 1) : n);
+    // Note that the opening polynomial always has (n+1) coefficients for Standard/Turbo/Ultra due to
+    // the blinding of the quotient polynomial parts.
+    fr f = polynomial_arithmetic::evaluate(src, z_point, n + 1);
 
     // compute (1 / -z)
     fr divisor = -z_point.invert();
@@ -189,34 +187,21 @@ void KateCommitmentScheme<settings>::batch_open(const transcript::StandardTransc
     polynomial& shifted_opening_poly = input_key->shifted_opening_poly;
 
     if constexpr (!settings::use_linearisation) {
-        // Add the tuples [t_{mid}(X), \zeta^{n}], [t_{high}(X), \zeta^{2n}].
+        // Add the tuples [t_{mid}(X), \zeta^{n}], [t_{high}(X), \zeta^{2n}]
         // Note: We don't need to include the t_{low}(X) since it is multiplied by 1 for combining with other witness
         // polynomials.
         //
         for (size_t i = 1; i < settings::program_width; ++i) {
             const size_t offset = i * input_key->small_domain.size;
             const fr scalar = zeta.pow(static_cast<uint64_t>(offset));
-            opened_polynomials_at_zeta.push_back({ &input_key->quotient_large[offset], scalar });
-
-            if (i == settings::program_width - 1 && settings::program_width == 3) {
-                // We need to add the (3n + 1)-th coefficient of the quotient polynomial t(X)
-                // to the opening proof polynomial in the case of standard plonk at position (n + 1).
-                // i.e. opening_poly[n] = \zeta^{2 * n} . t[3 * n]
-                //
-                // Note that we add it as a coefficient in the lagrange base form to maintain
-                // consistency with other coefficients which are to be added in opening_poly.
-                opening_poly.add_lagrange_base_coefficient(input_key->quotient_large[3 * input_key->n] * scalar);
-            }
-        }
-    } else {
-        if (settings::program_width == 3) {
-            opening_poly.add_lagrange_base_coefficient(input_key->linear_poly[input_key->n]);
+            opened_polynomials_at_zeta.push_back({ &input_key->quotient_polynomial_parts[i][0], scalar });
         }
     }
 
     // Add up things to get coefficients of opening polynomials.
     ITERATE_OVER_DOMAIN_START(input_key->small_domain);
-    opening_poly[i] = settings::use_linearisation ? input_key->linear_poly[i] : input_key->quotient_large[i];
+    opening_poly[i] =
+        settings::use_linearisation ? input_key->linear_poly[i] : input_key->quotient_polynomial_parts[0][i];
     for (const auto& [poly, challenge] : opened_polynomials_at_zeta) {
         opening_poly[i] += poly[i] * challenge;
     }
@@ -225,6 +210,22 @@ void KateCommitmentScheme<settings>::batch_open(const transcript::StandardTransc
         shifted_opening_poly[i] += poly[i] * challenge;
     }
     ITERATE_OVER_DOMAIN_END;
+
+    // Adjust the (n + 1)th coefficient of t_{0,1,2}(X) or r(X) (Note: t_4 (Turbo/Ultra) has only n coefficients)
+    if (!settings::use_linearisation) {
+        opening_poly[input_key->n] = 0;
+        const fr zeta_pow_n = zeta.pow(static_cast<uint64_t>(input_key->n));
+
+        const size_t num_deg_n_poly =
+            settings::program_width == 3 ? settings::program_width : settings::program_width - 1;
+        fr scalar_mult = 1;
+        for (size_t i = 0; i < num_deg_n_poly; i++) {
+            opening_poly[input_key->n] += input_key->quotient_polynomial_parts[i][input_key->n] * scalar_mult;
+            scalar_mult *= zeta_pow_n;
+        }
+    } else {
+        opening_poly[input_key->n] = input_key->linear_poly[input_key->n];
+    }
 
     // Compute the W_{\zeta}(X) and W_{\zeta \omega}(X) and commitments to them.
     const auto zeta_omega = zeta * input_key->small_domain.root;

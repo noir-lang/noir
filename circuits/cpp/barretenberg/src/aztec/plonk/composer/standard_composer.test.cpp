@@ -10,6 +10,36 @@ namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
 
+TEST(standard_composer, base_case)
+{
+    waffle::StandardComposer composer = waffle::StandardComposer();
+    fr a = fr::one();
+    composer.add_public_variable(a);
+
+    waffle::Prover prover = composer.create_prover();
+    waffle::Verifier verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
+    EXPECT_EQ(result, true);
+}
+
+TEST(standard_composer, base_case_unrolled)
+{
+    waffle::StandardComposer composer = waffle::StandardComposer();
+    fr a = fr::one();
+    composer.add_public_variable(a);
+
+    waffle::UnrolledProver prover = composer.create_unrolled_prover();
+    waffle::UnrolledVerifier verifier = composer.create_unrolled_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
+    EXPECT_EQ(result, true);
+}
+
 TEST(standard_composer, composer_from_serialized_keys)
 {
     waffle::StandardComposer composer = waffle::StandardComposer();

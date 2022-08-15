@@ -67,6 +67,65 @@ TEST(polynomials, fft_with_small_degree)
     }
 }
 
+TEST(polynomials, split_polynomial_fft)
+{
+    size_t n = 256;
+    fr fft_transform[n];
+    fr poly[n];
+
+    for (size_t i = 0; i < n; ++i) {
+        poly[i] = fr::random_element();
+        fr::__copy(poly[i], fft_transform[i]);
+    }
+
+    size_t num_poly = 4;
+    size_t n_poly = n / num_poly;
+    fr fft_transform_[num_poly][n_poly];
+    for (size_t i = 0; i < n; ++i) {
+        fft_transform_[i / n_poly][i % n_poly] = poly[i];
+    }
+
+    evaluation_domain domain = evaluation_domain(n);
+    domain.compute_lookup_table();
+    polynomial_arithmetic::fft(fft_transform, domain);
+    polynomial_arithmetic::fft({ fft_transform_[0], fft_transform_[1], fft_transform_[2], fft_transform_[3] }, domain);
+
+    fr work_root;
+    work_root = fr::one();
+    fr expected;
+
+    for (size_t i = 0; i < n; ++i) {
+        expected = polynomial_arithmetic::evaluate(poly, work_root, n);
+        EXPECT_EQ((fft_transform[i] == expected), true);
+        EXPECT_EQ(fft_transform_[i / n_poly][i % n_poly], fft_transform[i]);
+        work_root *= domain.root;
+    }
+}
+
+TEST(polynomials, split_polynomial_evaluate)
+{
+    size_t n = 256;
+    fr fft_transform[n];
+    fr poly[n];
+
+    for (size_t i = 0; i < n; ++i) {
+        poly[i] = fr::random_element();
+        fr::__copy(poly[i], fft_transform[i]);
+    }
+
+    size_t num_poly = 4;
+    size_t n_poly = n / num_poly;
+    fr fft_transform_[num_poly][n_poly];
+    for (size_t i = 0; i < n; ++i) {
+        fft_transform_[i / n_poly][i % n_poly] = poly[i];
+    }
+
+    fr z = fr::random_element();
+    EXPECT_EQ(polynomial_arithmetic::evaluate(
+                  { fft_transform_[0], fft_transform_[1], fft_transform_[2], fft_transform_[3] }, z, n),
+              polynomial_arithmetic::evaluate(poly, z, n));
+}
+
 TEST(polynomials, basic_fft)
 {
     size_t n = 1 << 14;
@@ -109,6 +168,36 @@ TEST(polynomials, fft_ifft_consistency)
     }
 }
 
+TEST(polynomials, split_polynomial_fft_ifft_consistency)
+{
+    size_t n = 256;
+    size_t num_poly = 4;
+    fr result[num_poly][n];
+    fr expected[num_poly][n];
+    for (size_t j = 0; j < num_poly; j++) {
+        for (size_t i = 0; i < n; ++i) {
+            result[j][i] = fr::random_element();
+            fr::__copy(result[j][i], expected[j][i]);
+        }
+    }
+
+    evaluation_domain domain = evaluation_domain(num_poly * n);
+    domain.compute_lookup_table();
+
+    std::vector<fr*> coeffs_vec;
+    for (size_t j = 0; j < num_poly; j++) {
+        coeffs_vec.push_back(result[j]);
+    }
+    polynomial_arithmetic::fft(coeffs_vec, domain);
+    polynomial_arithmetic::ifft(coeffs_vec, domain);
+
+    for (size_t j = 0; j < num_poly; j++) {
+        for (size_t i = 0; i < n; ++i) {
+            EXPECT_EQ((result[j][i] == expected[j][i]), true);
+        }
+    }
+}
+
 TEST(polynomials, fft_coset_ifft_consistency)
 {
     size_t n = 256;
@@ -130,6 +219,36 @@ TEST(polynomials, fft_coset_ifft_consistency)
 
     for (size_t i = 0; i < n; ++i) {
         EXPECT_EQ((result[i] == expected[i]), true);
+    }
+}
+
+TEST(polynomials, split_polynomial_fft_coset_ifft_consistency)
+{
+    size_t n = 256;
+    size_t num_poly = 4;
+    fr result[num_poly][n];
+    fr expected[num_poly][n];
+    for (size_t j = 0; j < num_poly; j++) {
+        for (size_t i = 0; i < n; ++i) {
+            result[j][i] = fr::random_element();
+            fr::__copy(result[j][i], expected[j][i]);
+        }
+    }
+
+    evaluation_domain domain = evaluation_domain(num_poly * n);
+    domain.compute_lookup_table();
+
+    std::vector<fr*> coeffs_vec;
+    for (size_t j = 0; j < num_poly; j++) {
+        coeffs_vec.push_back(result[j]);
+    }
+    polynomial_arithmetic::coset_fft(coeffs_vec, domain);
+    polynomial_arithmetic::coset_ifft(coeffs_vec, domain);
+
+    for (size_t j = 0; j < num_poly; j++) {
+        for (size_t i = 0; i < n; ++i) {
+            EXPECT_EQ((result[j][i] == expected[j][i]), true);
+        }
     }
 }
 
@@ -259,29 +378,29 @@ TEST(polynomials, divide_by_pseudo_vanishing_polynomial)
     // make the final evaluation not vanish
     // c[n-1].one();
     evaluation_domain small_domain = evaluation_domain(n);
-    evaluation_domain mid_domain = evaluation_domain(4 * n);
+    evaluation_domain large_domain = evaluation_domain(4 * n);
     small_domain.compute_lookup_table();
-    mid_domain.compute_lookup_table();
+    large_domain.compute_lookup_table();
 
     polynomial_arithmetic::ifft(a, small_domain);
     polynomial_arithmetic::ifft(b, small_domain);
     polynomial_arithmetic::ifft(c, small_domain);
 
-    polynomial_arithmetic::coset_fft(a, mid_domain);
-    polynomial_arithmetic::coset_fft(b, mid_domain);
-    polynomial_arithmetic::coset_fft(c, mid_domain);
+    polynomial_arithmetic::coset_fft(a, large_domain);
+    polynomial_arithmetic::coset_fft(b, large_domain);
+    polynomial_arithmetic::coset_fft(c, large_domain);
 
-    fr result[mid_domain.size];
-    for (size_t i = 0; i < mid_domain.size; ++i) {
+    fr result[large_domain.size];
+    for (size_t i = 0; i < large_domain.size; ++i) {
         result[i] = a[i] * b[i];
         result[i] += c[i];
     }
 
-    polynomial_arithmetic::divide_by_pseudo_vanishing_polynomial(&result[0], small_domain, mid_domain, 1);
+    polynomial_arithmetic::divide_by_pseudo_vanishing_polynomial({ &result[0] }, small_domain, large_domain, 1);
 
-    polynomial_arithmetic::coset_ifft(result, mid_domain);
+    polynomial_arithmetic::coset_ifft(result, large_domain);
 
-    for (size_t i = n + 1; i < mid_domain.size; ++i) {
+    for (size_t i = n + 1; i < large_domain.size; ++i) {
 
         EXPECT_EQ((result[i] == fr::zero()), true);
     }
@@ -408,76 +527,75 @@ TEST(polynomials, barycentric_weight_evaluations)
     EXPECT_EQ((result == expected), true);
 }
 
+TEST(polynomials, divide_by_vanishing_polynomial)
+{
+    // generate mock polys A(X), B(X), C(X)
+    // A(X)B(X) - C(X) = 0 mod Z_H'(X)
+    // A(X)B(X) - C(X) = 0 mod Z_H(X)
 
-TEST(polynomials, divide_by_vanishing_polynomial)		
-{		
-    // generate mock polys A(X), B(X), C(X)		
-    // A(X)B(X) - C(X) = 0 mod Z_H'(X)		
-    // A(X)B(X) - C(X) = 0 mod Z_H(X)		
+    constexpr size_t n = 16;
 
-    constexpr size_t n = 16;		
+    polynomial A(n, 2 * n);
+    polynomial B(n, 2 * n);
+    polynomial C(n, 2 * n);
 
-    polynomial A(n, 2 * n);		
-    polynomial B(n, 2 * n);		
-    polynomial C(n, 2 * n);		
+    for (size_t i = 0; i < 13; ++i) {
+        A[i] = fr::random_element();
+        B[i] = fr::random_element();
+        C[i] = A[i] * B[i];
+    }
+    for (size_t i = 13; i < 16; ++i) {
+        A[i] = 1;
+        B[i] = 2;
+        C[i] = 3;
+    }
 
-    for (size_t i = 0; i < 13; ++i) {		
-        A[i] = fr::random_element();		
-        B[i] = fr::random_element();		
-        C[i] = A[i] * B[i];		
-    }		
-    for (size_t i = 13; i < 16; ++i) {		
-        A[i] = 1;		
-        B[i] = 2;		
-        C[i] = 3;		
-    }		
+    evaluation_domain small_domain(n);
+    evaluation_domain large_domain(2 * n);
 
-    evaluation_domain small_domain(n);		
-    evaluation_domain large_domain(2 * n);		
+    small_domain.compute_lookup_table();
+    large_domain.compute_lookup_table();
 
-    small_domain.compute_lookup_table();		
-    large_domain.compute_lookup_table();		
+    A.ifft(small_domain);
+    B.ifft(small_domain);
+    C.ifft(small_domain);
 
-    A.ifft(small_domain);		
-    B.ifft(small_domain);		
-    C.ifft(small_domain);		
+    fr z = fr::random_element();
+    fr a_eval = A.evaluate(z, n);
+    fr b_eval = B.evaluate(z, n);
+    fr c_eval = C.evaluate(z, n);
 
-    fr z = fr::random_element();		
-    fr a_eval = A.evaluate(z, n);		
-    fr b_eval = B.evaluate(z, n);		
-    fr c_eval = C.evaluate(z, n);		
+    A.coset_fft(large_domain);
+    B.coset_fft(large_domain);
+    C.coset_fft(large_domain);
 
-    A.coset_fft(large_domain);		
-    B.coset_fft(large_domain);		
-    C.coset_fft(large_domain);		
+    // compute A(X) * B(X) - C(X)
+    polynomial R(2 * n, 2 * n);
 
-    // compute A(X) * B(X) - C(X)		
-    polynomial R(2 * n, 2 * n);		
+    polynomial_arithmetic::mul(&A[0], &B[0], &R[0], large_domain);
+    polynomial_arithmetic::sub(&R[0], &C[0], &R[0], large_domain);
 
-    polynomial_arithmetic::mul(&A[0], &B[0], &R[0], large_domain);		
-    polynomial_arithmetic::sub(&R[0], &C[0], &R[0], large_domain);		
+    polynomial R_copy(2 * n, 2 * n);
+    R_copy = R;
+    // polynomial R_copy(R);
 
-    polynomial R_copy(2 * n, 2 * n);		
-    R_copy = R;		
-    // polynomial R_copy(R);		
+    polynomial_arithmetic::divide_by_pseudo_vanishing_polynomial({ &R[0] }, small_domain, large_domain, 3);
+    R.coset_ifft(large_domain);
 
-    polynomial_arithmetic::divide_by_pseudo_vanishing_polynomial(&R[0], small_domain, large_domain, 3);		
-    R.coset_ifft(large_domain);		
+    fr r_eval = R.evaluate(z, 2 * n);
 
-    fr r_eval = R.evaluate(z, 2 * n);		
+    fr Z_H_eval = (z.pow(16) - 1) / ((z - small_domain.root_inverse) * (z - small_domain.root_inverse.sqr()) *
+                                     (z - small_domain.root_inverse * small_domain.root_inverse.sqr()));
 
-    fr Z_H_eval = (z.pow(16) - 1) / ((z - small_domain.root_inverse) * (z - small_domain.root_inverse.sqr()) *		
-                                    (z - small_domain.root_inverse * small_domain.root_inverse.sqr()));		
+    fr lhs = a_eval * b_eval - c_eval;
+    fr rhs = r_eval * Z_H_eval;
+    EXPECT_EQ(lhs, rhs);
 
-    fr lhs = a_eval * b_eval - c_eval;		
-    fr rhs = r_eval * Z_H_eval;		
-    EXPECT_EQ(lhs, rhs);		
+    polynomial_arithmetic::divide_by_pseudo_vanishing_polynomial({ &R_copy[0] }, small_domain, large_domain, 0);
+    R_copy.coset_ifft(large_domain);
 
-    polynomial_arithmetic::divide_by_pseudo_vanishing_polynomial(&R_copy[0], small_domain, large_domain, 0);		
-    R_copy.coset_ifft(large_domain);		
-
-    r_eval = R_copy.evaluate(z, 2 * n);		
-    fr Z_H_vanishing_eval = (z.pow(16) - 1);		
-    rhs = r_eval * Z_H_vanishing_eval;		
-    EXPECT_EQ((lhs == rhs), false);		
-} 
+    r_eval = R_copy.evaluate(z, 2 * n);
+    fr Z_H_vanishing_eval = (z.pow(16) - 1);
+    rhs = r_eval * Z_H_vanishing_eval;
+    EXPECT_EQ((lhs == rhs), false);
+}

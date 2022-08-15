@@ -13,12 +13,8 @@ enum StandardSelectors {
 
 inline std::vector<ComposerBase::SelectorProperties> standard_sel_props()
 {
-    // We set the use_quotient_mid variable to false in composer settings so as to
-    // disallow fft computations of size 2n as the degrees of polynomials slighly change
-    // on introducing the new vanishing polynomial with some roots cut out.
     std::vector<ComposerBase::SelectorProperties> result{
-        { "q_m", false, false }, { "q_c", false, false }, { "q_1", false, false },
-        { "q_2", false, false }, { "q_3", false, false },
+        { "q_m", false }, { "q_c", false }, { "q_1", false }, { "q_2", false }, { "q_3", false },
     };
     return result;
 }

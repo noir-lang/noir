@@ -33,10 +33,9 @@ namespace waffle {
 std::vector<ComposerBase::SelectorProperties> turbo_sel_props()
 {
     const std::vector<ComposerBase::SelectorProperties> result{
-        { "q_m", false, false },     { "q_c", false, false },     { "q_1", false, false },
-        { "q_2", false, false },     { "q_3", false, false },     { "q_4", false, false },
-        { "q_5", false, false },     { "q_arith", false, false }, { "q_ecc_1", false, false },
-        { "q_range", false, false }, { "q_logic", false, false },
+        { "q_m", false },     { "q_c", false },     { "q_1", false },     { "q_2", false },
+        { "q_3", false },     { "q_4", false },     { "q_5", false },     { "q_arith", false },
+        { "q_ecc_1", false }, { "q_range", false }, { "q_logic", false },
     };
     return result;
 }

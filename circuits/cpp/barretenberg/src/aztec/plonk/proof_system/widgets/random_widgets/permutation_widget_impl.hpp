@@ -74,15 +74,15 @@ void ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanish
     }
     if constexpr (program_width > 3) { // program_width >= 4
         accumulators[6] = &key->shifted_opening_poly[0];
-        accumulators[7] = &key->quotient_large[0];
+        accumulators[7] = &key->quotient_polynomial_parts[0][0];
     }
     if constexpr (program_width > 4) { // program_width >= 5
         accumulators[8] = &key->linear_poly[0];
-        accumulators[9] = &key->quotient_large[n];
+        accumulators[9] = &key->quotient_polynomial_parts[1][0];
     }
     if constexpr (program_width > 5) { // program_width >= 6
-        accumulators[10] = &key->quotient_large[n + n];
-        accumulators[11] = &key->quotient_large[n + n + n];
+        accumulators[10] = &key->quotient_polynomial_parts[2][0];
+        accumulators[11] = &key->quotient_polynomial_parts[3][0];
     }
     for (size_t k = 7; k < program_width; ++k) { // program_width >= 7
         // we're out of temporary memory!
@@ -338,6 +338,12 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_o
     barretenberg::fr beta = fr::serialize_from_buffer(transcript.get_challenge("beta").begin());
     barretenberg::fr gamma = fr::serialize_from_buffer(transcript.get_challenge("beta", 1).begin());
 
+    // Initialise the (n + 1)th coefficients of quotient parts so that reuse of proving
+    // keys does not use some residual data from another proof.
+    key->quotient_polynomial_parts[0][key->n] = 0;
+    key->quotient_polynomial_parts[1][key->n] = 0;
+    key->quotient_polynomial_parts[2][key->n] = 0;
+
     // Our permutation check boils down to two 'grand product' arguments,
     // that we represent with a single polynomial Z(X).
     // We want to test that Z(X) has been constructed correctly.
@@ -384,7 +390,6 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_o
         compute_public_input_delta<fr>(public_inputs, beta, gamma, key->small_domain.root);
 
     const size_t block_mask = key->large_domain.size - 1;
-    polynomial& quotient_large = key->quotient_large;
     // Step 4: Set the quotient polynomial to be equal to
     // (w_l(X) + \beta.sigma1(X) + \gamma).(w_r(X) + \beta.sigma2(X) + \gamma).(w_o(X) + \beta.sigma3(X) +
     // \gamma).Z(X).alpha
@@ -507,7 +512,7 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_o
 
             // Combine into quotient polynomial
             T0 = numerator - denominator;
-            quotient_large[i] = T0 * alpha_base;
+            key->quotient_polynomial_parts[i >> key->small_domain.log2_size][i & (key->n - 1)] = T0 * alpha_base;
 
             // Update our working root of unity
             cur_root_times_beta *= key->large_domain.root;

@@ -123,8 +123,11 @@ template <class Fq, class Fr, class T> constexpr bool affine_element<Fq, Fr, T>:
 template <class Fq, class Fr, class T>
 constexpr bool affine_element<Fq, Fr, T>::operator==(const affine_element& other) const noexcept
 {
-    bool both_infinity = is_point_at_infinity() && other.is_point_at_infinity();
-    return both_infinity || ((x == other.x) && (y == other.y));
+    bool this_is_infinity = is_point_at_infinity();
+    bool other_is_infinity = other.is_point_at_infinity();
+    bool both_infinity = this_is_infinity && other_is_infinity;
+    bool only_one_is_infinity = this_is_infinity != other_is_infinity;
+    return !only_one_is_infinity && (both_infinity || ((x == other.x) && (y == other.y)));
 }
 
 /**

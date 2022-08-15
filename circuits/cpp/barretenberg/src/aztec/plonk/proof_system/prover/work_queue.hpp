@@ -13,6 +13,7 @@ class work_queue {
 
   public:
     enum WorkType { FFT, SMALL_FFT, IFFT, SCALAR_MULTIPLICATION };
+    enum MSMSize { N, N_PLUS_ONE };
 
     struct work_item_info {
         uint32_t num_scalar_multiplications;
@@ -78,6 +79,20 @@ class work_queue {
             }
         }
         return nullptr;
+    }
+
+    size_t get_scalar_multiplication_size(const size_t work_item_number) const
+    {
+        size_t count = 0;
+        for (const auto& item : work_item_queue) {
+            if (item.work_type == WorkType::SCALAR_MULTIPLICATION) {
+                if (count == work_item_number) {
+                    return item.constant == MSMSize::N ? key->n : key->n + 1;
+                }
+                ++count;
+            }
+        }
+        return 0;
     }
 
     barretenberg::fr* get_ifft_data(const size_t work_item_number) const
@@ -212,16 +227,10 @@ class work_queue {
             // most expensive op
             case WorkType::SCALAR_MULTIPLICATION: {
 
-                // If we are using standard plonk, we need a multi-scalar multiplication of size (n + 1)
-                // to compute the commitment to the polynomial t_{high}(X). The reason for this is explained in
-                // the comment at location:
-                // ./src/aztec/plonk/proof_system/prover/prover.cpp/ProverBase::compute_quotient_pre_commitment
-                //
-                // To implement this, we use the variable work_item::constant. We set it to `1` if using standard
-                // plonk and `0` otherwise. Note that we need to change the size of pippenger_runtime_state along
-                // with the size of the multi-scalar multiplication.
-                //
-                if (item.constant == barretenberg::fr(1)) {
+                // We use the variable work_item::constant to set the size of the multi-scalar multiplication.
+                // Note that a size (n+1) MSM is always needed to commit to the quotient polynomial parts t_1, t_2
+                // and t_3 for Standard/Turbo/Ultra due to the addition of blinding factors
+                if (item.constant == MSMSize::N_PLUS_ONE) {
                     if (key->reference_string->get_size() < key->small_domain.size + 1) {
                         info("Reference string too small for Pippenger.");
                     }
@@ -235,6 +244,7 @@ class work_queue {
 
                     transcript->add_element(item.tag, result.to_buffer());
                 } else {
+                    ASSERT(item.constant == MSMSize::N);
                     if (key->reference_string->get_size() < key->small_domain.size) {
                         info("Reference string too small for Pippenger.");
                     }
