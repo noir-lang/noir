@@ -14,17 +14,64 @@ use crate::{
     Ident, Signedness,
 };
 
+/// A shared, mutable reference to some T.
+/// Wrapper is required for Hash impl of RefCell.
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Shared<T>(Rc<RefCell<T>>);
+
+impl<T: std::hash::Hash> std::hash::Hash for Shared<T> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.borrow().hash(state)
+    }
+}
+
+impl<T> Clone for Shared<T> {
+    fn clone(&self) -> Self {
+        Shared(self.0.clone())
+    }
+}
+
+impl<T> From<T> for Shared<T> {
+    fn from(thing: T) -> Shared<T> {
+        Shared::new(thing)
+    }
+}
+
+impl<T> Shared<T> {
+    pub fn new(thing: T) -> Shared<T> {
+        Shared(Rc::new(RefCell::new(thing)))
+    }
+
+    pub fn borrow(&self) -> std::cell::Ref<T> {
+        self.0.borrow()
+    }
+
+    pub fn borrow_mut(&self) -> std::cell::RefMut<T> {
+        self.0.borrow_mut()
+    }
+}
+
 pub type TypeBindings = HashMap<TypeVariableId, Type>;
 
 #[derive(Debug, Eq)]
 pub struct StructType {
     pub id: StructId,
     pub name: Ident,
-    /// Fields are ordered
-    pub fields: BTreeMap<Ident, Type>,
+
+    /// Fields are ordered and private, they should only
+    /// be accessed through get_field(), get_fields(), or instantiate()
+    /// since these will handle applying generic arguments to fields as well.
+    fields: BTreeMap<Ident, Type>,
+
     pub generics: Vec<TypeVariableId>,
     pub methods: HashMap<String, FuncId>,
     pub span: Span,
+}
+
+impl std::hash::Hash for StructType {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state)
+    }
 }
 
 impl PartialEq for StructType {
@@ -46,8 +93,9 @@ impl StructType {
     }
 
     pub fn get_field(&self, field_name: &str, generic_args: &[Type]) -> Option<Type> {
+        assert_eq!(self.generics.len(), generic_args.len());
+
         self.fields.iter().find(|(name, _)| name.0.contents == field_name).map(|(_, typ)| {
-            assert_eq!(self.generics.len(), generic_args.len());
             let substitutions = self
                 .generics
                 .iter()
@@ -57,6 +105,22 @@ impl StructType {
 
             typ.substitute(&substitutions)
         })
+    }
+
+    pub fn get_fields(&self, generic_args: &[Type]) -> BTreeMap<String, Type> {
+        assert_eq!(self.generics.len(), generic_args.len());
+
+        let substitutions = self
+            .generics
+            .iter()
+            .zip(generic_args)
+            .map(|(old, new)| (*old, new.clone()))
+            .collect();
+
+        self.fields.iter().map(|(name, typ)| {
+            let name = name.0.contents.clone();
+            (name, typ.substitute(&substitutions))
+        }).collect()
     }
 
     /// Instantiate this struct type, returning a Vec of the new generic args (in
@@ -93,7 +157,7 @@ impl std::fmt::Display for StructType {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Type {
     FieldElement(IsConst),
     Array(Box<Type>, Box<Type>),       // Array(4, Field) = [Field; 4]
@@ -101,7 +165,7 @@ pub enum Type {
     PolymorphicInteger(IsConst, TypeVariable),
     Bool(IsConst),
     Unit,
-    Struct(Rc<RefCell<StructType>>, Vec<Type>),
+    Struct(Shared<StructType>, Vec<Type>),
     Tuple(Vec<Type>),
     TypeVariable(TypeVariable),
 
@@ -121,9 +185,9 @@ pub enum Type {
     Error,
 }
 
-pub type TypeVariable = Rc<RefCell<TypeBinding>>;
+pub type TypeVariable = Shared<TypeBinding>;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TypeBinding {
     Bound(Type),
     Unbound(TypeVariableId),
@@ -139,6 +203,20 @@ pub enum IsConst {
     Yes(Option<Span>),
     No(Option<Span>),
     Maybe(TypeVariableId, Rc<RefCell<Option<IsConst>>>),
+}
+
+impl std::hash::Hash for IsConst {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        core::mem::discriminant(self).hash(state);
+
+        if let IsConst::Maybe(id, binding) = self {
+            if let Some(is_const) = &*binding.borrow() {
+                is_const.hash(state);
+            } else {
+                id.hash(state);
+            }
+        }
+    }
 }
 
 /// Internal enum for `unify` to remember the type context of each span
@@ -292,7 +370,7 @@ impl Type {
     }
 
     pub fn type_variable(id: TypeVariableId) -> Type {
-        Type::TypeVariable(Rc::new(RefCell::new(TypeBinding::Unbound(id))))
+        Type::TypeVariable(Shared::new(TypeBinding::Unbound(id)))
     }
 }
 

@@ -1,12 +1,9 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-
 use acvm::FieldElement;
 use fm::FileId;
 use noirc_errors::Location;
 
 use crate::node_interner::{DefinitionId, ExprId, FuncId, StmtId, StructId};
-use crate::{BinaryOp, BinaryOpKind, Ident, UnaryOp};
+use crate::{BinaryOp, BinaryOpKind, Ident, UnaryOp, Shared};
 
 use super::types::{StructType, Type};
 
@@ -94,7 +91,6 @@ impl From<BinaryOpKind> for HirBinaryOpKind {
             BinaryOpKind::Xor => HirBinaryOpKind::Xor,
             BinaryOpKind::ShiftLeft => HirBinaryOpKind::Shl,
             BinaryOpKind::ShiftRight => HirBinaryOpKind::Shr,
-            BinaryOpKind::Assign => HirBinaryOpKind::Assign,
         }
     }
 }
@@ -216,7 +212,7 @@ impl HirMethodCallExpression {
 #[derive(Debug, Clone)]
 pub struct HirConstructorExpression {
     pub type_id: StructId,
-    pub r#type: Rc<RefCell<StructType>>,
+    pub r#type: Shared<StructType>,
 
     // NOTE: It is tempting to make this a BTreeSet to force ordering of field
     //       names (and thus remove the need to normalize them during type checking)

@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::BTreeSet, rc::Rc};
+use std::collections::BTreeSet;
 
 use noirc_errors::Span;
 
@@ -9,7 +9,7 @@ use crate::{
     },
     node_interner::{ExprId, FuncId, NodeInterner},
     util::vecmap,
-    IsConst, TypeBinding,
+    IsConst, TypeBinding, Shared,
 };
 
 use super::errors::TypeCheckError;
@@ -67,7 +67,7 @@ pub(crate) fn type_check_expression(
                     let id = interner.next_type_variable_id();
                     Type::PolymorphicInteger(
                         IsConst::new(interner),
-                        Rc::new(RefCell::new(TypeBinding::Unbound(id))),
+                        Shared::new(TypeBinding::Unbound(id)),
                     )
                 }
                 HirLiteral::Str(_) => unimplemented!(

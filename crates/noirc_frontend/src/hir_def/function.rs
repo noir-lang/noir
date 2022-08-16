@@ -24,8 +24,6 @@ impl HirFunction {
         HirFunction(expr_id)
     }
 
-    // This function is marked as unsafe because
-    // the expression kind is not being checked
     pub const fn as_expr(&self) -> &ExprId {
         &self.0
     }

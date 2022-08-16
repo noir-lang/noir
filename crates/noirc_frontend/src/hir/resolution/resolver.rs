@@ -23,9 +23,7 @@ use crate::hir_def::expr::{
     HirInfixExpression, HirLiteral, HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
     HirUnaryOp,
 };
-use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
-use std::rc::Rc;
 
 use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId};
@@ -40,7 +38,7 @@ use crate::{
 };
 use crate::{
     LValue, NoirStruct, Path, Pattern, StructType, Type, TypeBinding, TypeVariable, TypeVariableId,
-    UnresolvedType, ERROR_IDENT,
+    UnresolvedType, ERROR_IDENT, Shared,
 };
 use fm::FileId;
 use noirc_errors::{Location, Span, Spanned};
@@ -281,7 +279,7 @@ impl<'a> Resolver<'a> {
         vecmap(generics, |generic| {
             // Map the generic to a fresh type variable
             let id = self.interner.next_type_variable_id();
-            let typevar = Rc::new(RefCell::new(TypeBinding::Unbound(id)));
+            let typevar = Shared::new(TypeBinding::Unbound(id));
             let span = generic.0.span();
 
             // Check for name collisions of this generic
@@ -618,7 +616,7 @@ impl<'a> Resolver<'a> {
         ret
     }
 
-    pub fn get_struct(&self, type_id: StructId) -> Rc<RefCell<StructType>> {
+    pub fn get_struct(&self, type_id: StructId) -> Shared<StructType> {
         self.interner.get_struct(type_id)
     }
 
@@ -659,7 +657,7 @@ impl<'a> Resolver<'a> {
         self.lookup(path)
     }
 
-    pub fn lookup_struct(&mut self, path: Path) -> Option<Rc<RefCell<StructType>>> {
+    pub fn lookup_struct(&mut self, path: Path) -> Option<Shared<StructType>> {
         let id = self.lookup_type(path);
         (id != StructId::dummy_id()).then(|| self.get_struct(id))
     }

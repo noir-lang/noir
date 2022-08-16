@@ -82,7 +82,7 @@ impl UnresolvedType {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub enum Signedness {
     Unsigned,
     Signed,

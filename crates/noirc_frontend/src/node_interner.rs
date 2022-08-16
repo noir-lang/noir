@@ -1,6 +1,4 @@
-use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap};
-use std::rc::Rc;
 
 use arena::{Arena, Index};
 use fm::FileId;
@@ -16,7 +14,7 @@ use crate::hir_def::{
     stmt::HirStatement,
 };
 use crate::util::vecmap;
-use crate::{TypeBinding, TypeVariableId};
+use crate::{TypeBinding, TypeVariableId, Shared};
 
 /// The DefinitionId for the return value of the main function.
 /// Used within the ssa pass to put constraints on the "return" value
@@ -148,7 +146,7 @@ pub struct NodeInterner {
     // Each struct definition is possibly shared across multiple type nodes.
     // It is also mutated through the RefCell during name resolution to append
     // methods from impls to the type.
-    structs: HashMap<StructId, Rc<RefCell<StructType>>>,
+    structs: HashMap<StructId, Shared<StructType>>,
 
     next_type_variable_id: usize,
 }
@@ -216,7 +214,7 @@ impl NodeInterner {
     pub fn push_empty_struct(&mut self, type_id: StructId, typ: &UnresolvedStruct) {
         self.structs.insert(
             type_id,
-            Rc::new(RefCell::new(StructType {
+            Shared::new(StructType {
                 id: type_id,
                 name: typ.struct_def.name.clone(),
                 fields: BTreeMap::new(),
@@ -227,7 +225,7 @@ impl NodeInterner {
                 generics: vecmap(&typ.struct_def.generics, |_| TypeVariableId(0)),
                 methods: HashMap::new(),
                 span: typ.struct_def.span,
-            })),
+            }),
         );
     }
 
@@ -359,7 +357,7 @@ impl NodeInterner {
         self.id_location(expr_id)
     }
 
-    pub fn get_struct(&self, id: StructId) -> Rc<RefCell<StructType>> {
+    pub fn get_struct(&self, id: StructId) -> Shared<StructType> {
         self.structs[&id].clone()
     }
 
@@ -395,6 +393,6 @@ impl NodeInterner {
 
     pub fn next_type_variable(&mut self) -> Type {
         let binding = TypeBinding::Unbound(self.next_type_variable_id());
-        Type::TypeVariable(Rc::new(RefCell::new(binding)))
+        Type::TypeVariable(Shared::new(binding))
     }
 }

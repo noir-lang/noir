@@ -27,7 +27,7 @@ use noirc_frontend::{
         },
         stmt::{HirConstrainStatement, HirPattern, HirStatement},
     },
-    node_interner::{DefinitionId, NodeInterner},
+    node_interner::{DefinitionId, NodeInterner}, monomorphisation,
 };
 use noirc_frontend::{
     hir_def::{expr::HirIdent, stmt::HirLValue},
@@ -36,6 +36,7 @@ use noirc_frontend::{
 use noirc_frontend::{FunctionKind, Type};
 use object::{Array, Integer, Object, RangedObject};
 use ssa::{code_gen::IRGenerator, node};
+
 pub struct Evaluator<'a> {
     // Why is this not u64?
     //
@@ -43,14 +44,44 @@ pub struct Evaluator<'a> {
     // so it is safer to use a u64, at least until clang is changed
     // to compile wasm64.
     current_witness_index: u32,
-    context: &'a Context,
     public_inputs: Vec<Witness>,
-    main_function: FuncId,
     gates: Vec<Gate>,
 }
 
+/// Compiles the Program into ACIR and applies optimisations to the arithmetic gates
+// XXX: We return the num_witnesses, but this is the max number of witnesses
+// Some of these could have been removed due to optimisations. We need this number because the
+// Standard format requires the number of witnesses. The max number is also fine.
+// If we had a composer object, we would not need it
+pub fn create_circuit(
+    main: monomorphisation::ast::Function,
+    np_language: Language,
+    enable_logging: bool,
+) -> Result<Circuit, RuntimeError> {
+    let mut evaluator = Evaluator::new();
+
+    // create a new environment for the main context
+    let mut env = Environment::new(FuncContext::Main);
+
+    // First evaluate the main function
+    self.evaluate_main_alt(&mut env, enable_logging)?;
+
+    let witness_index = self.current_witness_index();
+
+    let optimised_circuit = acvm::compiler::compile(
+        Circuit {
+            current_witness_index: witness_index,
+            gates: self.gates,
+            public_inputs: PublicInputs(self.public_inputs),
+        },
+        np_language,
+    );
+
+    Ok(optimised_circuit)
+}
+
 impl<'a> Evaluator<'a> {
-    pub fn new(main_function: FuncId, context: &Context) -> Evaluator {
+    pub fn new() -> Evaluator {
         Evaluator {
             public_inputs: Vec::new(),
             // XXX: Barretenberg, reserves the first index to have value 0.
@@ -62,8 +93,6 @@ impl<'a> Evaluator<'a> {
             // following transformation to the witness index : f(i) = i + 1
             //
             current_witness_index: 0,
-            context,
-            main_function,
             gates: Vec::new(),
         }
     }
@@ -88,36 +117,6 @@ impl<'a> Evaluator<'a> {
 
     pub fn current_witness_index(&self) -> u32 {
         self.current_witness_index
-    }
-
-    /// Compiles the Program into ACIR and applies optimisations to the arithmetic gates
-    // XXX: We return the num_witnesses, but this is the max number of witnesses
-    // Some of these could have been removed due to optimisations. We need this number because the
-    // Standard format requires the number of witnesses. The max number is also fine.
-    // If we had a composer object, we would not need it
-    pub fn compile(
-        mut self,
-        np_language: Language,
-        enable_logging: bool,
-    ) -> Result<Circuit, RuntimeError> {
-        // create a new environment for the main context
-        let mut env = Environment::new(FuncContext::Main);
-
-        // First evaluate the main function
-        self.evaluate_main_alt(&mut env, enable_logging)?;
-
-        let witness_index = self.current_witness_index();
-
-        let optimised_circuit = acvm::compiler::compile(
-            Circuit {
-                current_witness_index: witness_index,
-                gates: self.gates,
-                public_inputs: PublicInputs(self.public_inputs),
-            },
-            np_language,
-        );
-
-        Ok(optimised_circuit)
     }
 
     // When we are multiplying arithmetic gates by each other, if one gate has too many terms

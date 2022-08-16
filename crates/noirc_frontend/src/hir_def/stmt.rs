@@ -1,9 +1,6 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-
 use super::expr::HirIdent;
 use crate::node_interner::ExprId;
-use crate::{Ident, StructType, Type};
+use crate::{Ident, StructType, Type, Shared};
 use fm::FileId;
 use noirc_errors::Span;
 
@@ -45,7 +42,7 @@ pub enum HirPattern {
     Identifier(HirIdent),
     Mutable(Box<HirPattern>, Span),
     Tuple(Vec<HirPattern>, Span),
-    Struct(Rc<RefCell<StructType>>, Vec<(Ident, HirPattern)>, Span),
+    Struct(Shared<StructType>, Vec<(Ident, HirPattern)>, Span),
 }
 
 impl HirPattern {
