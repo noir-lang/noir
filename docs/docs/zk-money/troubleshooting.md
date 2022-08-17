@@ -34,7 +34,7 @@ If you are using Firefox, open the browser console (F12 or right click and selec
 
 ## Known issue: Deposited funds not showing in zkmoney wallet balance
 
-Step 1: Clear Site Data - https://docs.aztec.network/zk-money/troubleshooting#:~:text=group%20and%20click%20%22-,Clear%20site%20data.,-%22%20Refresh%20the%20page
+Step 1: Clear Site Data - [link](#hung-on-connecting-to-rollup-provider-on-sign-up-or-log-in)
 
 Step 2: Login to https://zk.money/balance, wait till the dashboard has loaded.
 
