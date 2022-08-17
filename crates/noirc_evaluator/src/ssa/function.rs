@@ -19,7 +19,7 @@ use super::{
     ssa_form,
 };
 
-#[derive(Clone, Debug, PartialEq, Copy)]
+#[derive(Clone, Debug, PartialEq, Eq, Copy)]
 pub struct FuncIndex(pub usize);
 
 impl FuncIndex {
