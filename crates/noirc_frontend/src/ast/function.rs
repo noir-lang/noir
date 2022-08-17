@@ -18,7 +18,7 @@ pub struct NoirFunction {
 /// - Normal functions
 /// - LowLevel/Foreign which link to an OPCODE in ACIR
 /// - BuiltIn which are provided by the runtime
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum FunctionKind {
     LowLevel,
     Builtin,
