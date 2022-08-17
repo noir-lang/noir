@@ -37,8 +37,8 @@ use crate::{
     Statement,
 };
 use crate::{
-    LValue, NoirStruct, Path, Pattern, StructType, Type, TypeBinding, TypeVariable, TypeVariableId,
-    UnresolvedType, ERROR_IDENT, Shared,
+    LValue, NoirStruct, Path, Pattern, Shared, StructType, Type, TypeBinding, TypeVariable,
+    TypeVariableId, UnresolvedType, ERROR_IDENT,
 };
 use fm::FileId;
 use noirc_errors::{Location, Span, Spanned};
@@ -620,10 +620,9 @@ impl<'a> Resolver<'a> {
         self.interner.get_struct(type_id)
     }
 
-    fn get_field_names_of_type(&self, type_id: StructId) -> HashSet<Ident> {
+    fn get_field_names_of_type(&self, type_id: StructId) -> BTreeSet<Ident> {
         let typ = self.get_struct(type_id);
-        let typ = typ.borrow();
-        typ.fields.iter().map(|(name, _)| name.clone()).collect()
+        typ.borrow().field_names()
     }
 
     fn lookup<T: TryFromModuleDefId>(&mut self, path: Path) -> T {

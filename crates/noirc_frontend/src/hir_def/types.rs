@@ -92,6 +92,15 @@ impl StructType {
         StructType { id, fields, name, span, generics, methods: HashMap::new() }
     }
 
+    pub fn set_fields(&self, fields: BTreeMap<Ident, Type>) {
+        assert!(self.fields.is_empty());
+        self.fields = fields;
+    }
+
+    pub fn num_fields(&self) -> usize {
+        self.fields.len()
+    }
+
     pub fn get_field(&self, field_name: &str, generic_args: &[Type]) -> Option<Type> {
         assert_eq!(self.generics.len(), generic_args.len());
 
@@ -110,17 +119,20 @@ impl StructType {
     pub fn get_fields(&self, generic_args: &[Type]) -> BTreeMap<String, Type> {
         assert_eq!(self.generics.len(), generic_args.len());
 
-        let substitutions = self
-            .generics
-            .iter()
-            .zip(generic_args)
-            .map(|(old, new)| (*old, new.clone()))
-            .collect();
+        let substitutions =
+            self.generics.iter().zip(generic_args).map(|(old, new)| (*old, new.clone())).collect();
 
-        self.fields.iter().map(|(name, typ)| {
-            let name = name.0.contents.clone();
-            (name, typ.substitute(&substitutions))
-        }).collect()
+        self.fields
+            .iter()
+            .map(|(name, typ)| {
+                let name = name.0.contents.clone();
+                (name, typ.substitute(&substitutions))
+            })
+            .collect()
+    }
+
+    pub fn field_names(&self) -> BTreeSet<Ident> {
+        self.fields.iter().map(|(name, _)| name.clone()).collect()
     }
 
     /// Instantiate this struct type, returning a Vec of the new generic args (in

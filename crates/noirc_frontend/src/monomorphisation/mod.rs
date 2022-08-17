@@ -1,6 +1,14 @@
-use std::{collections::{HashMap, BTreeMap}, rc::Rc};
+use std::{
+    collections::{BTreeMap, HashMap},
+    rc::Rc,
+};
 
-use crate::{node_interner::{NodeInterner, self}, hir_def::{expr::*, function::Parameters, stmt::HirPattern}, TypeBinding, util::vecmap};
+use crate::{
+    hir_def::{expr::*, function::Parameters, stmt::HirPattern},
+    node_interner::{self, NodeInterner, StmtId},
+    util::vecmap,
+    TypeBinding,
+};
 
 use self::ast::DefinitionId;
 
@@ -24,13 +32,12 @@ struct Monomorphiser {
 // but the nested hashmaps let us avoid cloning the HirType when calling .get()
 type Definitions = HashMap<node_interner::DefinitionId, HashMap<HirType, Value>>;
 
-type Definition = Rc<ast::Expression>;
-
 type HirType = crate::Type;
 
-enum Value {
-    One(ast::DefinitionId),
-    Many(Vec<Value>),
+enum Definition {
+    // A global definition may have several different monomorphised variants
+    Global(HashMap<HirType, ast::DefinitionId>),
+    Local(ast::DefinitionId),
 }
 
 pub fn monomorphise(main: node_interner::FuncId, interner: NodeInterner) -> ast::Function {
@@ -96,12 +103,17 @@ impl Monomorphiser {
         new_params
     }
 
-    fn parameter(&mut self, param: HirPattern, typ: &HirType, new_params: &mut Vec<(ast::DefinitionId, ast::Type)>) {
+    fn parameter(
+        &mut self,
+        param: HirPattern,
+        typ: &HirType,
+        new_params: &mut Vec<(ast::DefinitionId, ast::Type)>,
+    ) {
         match param {
             HirPattern::Identifier(ident) => {
                 let value = self.expand_parameter(typ, new_params);
                 self.define_local(ident.id, typ.clone(), value);
-            },
+            }
             HirPattern::Mutable(pattern, _) => self.parameter(*pattern, typ, new_params),
             HirPattern::Tuple(fields, _) => {
                 let tuple_field_types = unwrap_tuple_type(typ);
@@ -109,7 +121,7 @@ impl Monomorphiser {
                 for (field, typ) in fields.into_iter().zip(tuple_field_types) {
                     self.parameter(field, typ, new_params);
                 }
-            },
+            }
             HirPattern::Struct(_, fields, _) => {
                 let struct_field_types = unwrap_struct_type(typ);
 
@@ -117,25 +129,25 @@ impl Monomorphiser {
                     let typ = &struct_field_types[&name.0.contents];
                     self.parameter(field, typ, new_params);
                 }
-            },
+            }
         }
     }
 
     /// Expand a tuple or struct parameter into one fresh parameter for each field
-    fn expand_parameter(&mut self, typ: &HirType, new_params: &mut Vec<(ast::DefinitionId, ast::Type)>) -> Value {
+    fn expand_parameter(
+        &mut self,
+        typ: &HirType,
+        new_params: &mut Vec<(ast::DefinitionId, ast::Type)>,
+    ) -> Value {
         match typ {
             HirType::Tuple(fields) => {
-                Value::Many(vecmap(fields, |field| {
-                    self.expand_parameter(field, new_params)
-                }))
-            },
+                Value::Many(vecmap(fields, |field| self.expand_parameter(field, new_params)))
+            }
 
             HirType::Struct(def, args) => {
                 let fields = def.borrow().get_fields(args);
-                Value::Many(vecmap(fields, |(_, field)| {
-                    self.expand_parameter(&field, new_params)
-                }))
-            },
+                Value::Many(vecmap(fields, |(_, field)| self.expand_parameter(&field, new_params)))
+            }
 
             // Must also expand arrays of tuples/structs
             HirType::Array(size, element) => {
@@ -152,21 +164,17 @@ impl Monomorphiser {
                 }
 
                 ret
-            },
-
-            HirType::PolymorphicInteger(_, binding) => {
-                match &*binding.borrow() {
-                    TypeBinding::Bound(binding) => self.expand_parameter(binding, new_params),
-                    TypeBinding::Unbound(_) => todo!("Default integer type"),
-                }
-            },
-
-            HirType::TypeVariable(binding) => {
-                match &*binding.borrow() {
-                    TypeBinding::Bound(binding) => self.expand_parameter(binding, new_params),
-                    TypeBinding::Unbound(_) => todo!("Default type variable type"),
-                }
             }
+
+            HirType::PolymorphicInteger(_, binding) => match &*binding.borrow() {
+                TypeBinding::Bound(binding) => self.expand_parameter(binding, new_params),
+                TypeBinding::Unbound(_) => todo!("Default integer type"),
+            },
+
+            HirType::TypeVariable(binding) => match &*binding.borrow() {
+                TypeBinding::Bound(binding) => self.expand_parameter(binding, new_params),
+                TypeBinding::Unbound(_) => todo!("Default type variable type"),
+            },
 
             HirType::Function(_, _, _) => todo!("Higher order functions"),
 
@@ -177,11 +185,9 @@ impl Monomorphiser {
                 let id = self.next_definition_id();
                 new_params.push((id, self.convert_type_single(typ)));
                 Value::One(self.next_definition_id())
-            },
+            }
 
-            HirType::Forall(_, _)
-            | HirType::ArrayLength(_)
-            | HirType::Error => unreachable!(),
+            HirType::Forall(_, _) | HirType::ArrayLength(_) | HirType::Error => unreachable!(),
         }
     }
 
@@ -189,7 +195,7 @@ impl Monomorphiser {
         match self.interner.expression(&expr) {
             HirExpression::Ident(ident) => self.ident(ident, typ),
             HirExpression::Literal(_) => todo!(),
-            HirExpression::Block(_) => todo!(),
+            HirExpression::Block(block) => self.block(block.0, typ),
             HirExpression::Prefix(_) => todo!(),
             HirExpression::Infix(_) => todo!(),
             HirExpression::Index(_) => todo!(),
@@ -200,19 +206,32 @@ impl Monomorphiser {
             HirExpression::If(_) => todo!(),
 
             HirExpression::Tuple(fields) => {
-
-            },
+                let fields = vecmap(fields, |id| self.expr(id, typ));
+            }
             HirExpression::Constructor(_) => todo!(),
 
-            HirExpression::MethodCall(_)
-            | HirExpression::Error => unreachable!(),
+            HirExpression::MethodCall(_) | HirExpression::Error => unreachable!(),
         }
     }
 
+    fn block(&mut self, mut statement_ids: Vec<StmtId>, typ: &HirType) -> ast::Expression {
+        let mut statements = Vec::with_capacity(statement_ids.len());
+        let last = statement_ids.pop().unwrap();
+
+        for statement in statement_ids {
+            statements.push(self.statement(statement, &HirType::Unit));
+        }
+
+        statements.push(self.statement(last, typ));
+        ast::Expression::Block(statements)
+    }
+
+    fn statement(&mut self, id: StmtId, typ: &HirType) -> ast::Expression {
+        todo!()
+    }
+
     fn ident(&mut self, ident: HirIdent, typ: &HirType) -> ast::Expression {
-        let value = self.lookup(ident.id, typ).unwrap_or_else(|| {
-            todo!()
-        });
+        let value = self.lookup(ident.id, typ).unwrap_or_else(|| todo!());
 
         let location = ident.location;
         // ast::Ident { location, id, definition }
@@ -229,13 +248,12 @@ impl Monomorphiser {
 
             HirType::Array(_, _) => todo!(),
 
-            HirType::PolymorphicInteger(_, binding)
-            | HirType::TypeVariable(binding) => {
+            HirType::PolymorphicInteger(_, binding) | HirType::TypeVariable(binding) => {
                 match &*binding.borrow() {
                     TypeBinding::Bound(binding) => self.convert_type_single(binding),
                     TypeBinding::Unbound(_) => unreachable!(),
                 }
-            },
+            }
 
             HirType::Struct(_, _)
             | HirType::Tuple(_)
@@ -250,11 +268,9 @@ impl Monomorphiser {
 fn unwrap_tuple_type(typ: &HirType) -> &[HirType] {
     match typ {
         HirType::Tuple(fields) => fields,
-        HirType::TypeVariable(binding) => {
-            match &*binding.borrow() {
-                TypeBinding::Bound(binding) => unwrap_tuple_type(binding),
-                TypeBinding::Unbound(_) => unreachable!(),
-            }
+        HirType::TypeVariable(binding) => match &*binding.borrow() {
+            TypeBinding::Bound(binding) => unwrap_tuple_type(binding),
+            TypeBinding::Unbound(_) => unreachable!(),
         },
         _ => unreachable!(),
     }
@@ -262,14 +278,10 @@ fn unwrap_tuple_type(typ: &HirType) -> &[HirType] {
 
 fn unwrap_struct_type(typ: &HirType) -> BTreeMap<String, HirType> {
     match typ {
-        HirType::Struct(def, args) => {
-            def.borrow().get_fields(args)
-        },
-        HirType::TypeVariable(binding) => {
-            match &*binding.borrow() {
-                TypeBinding::Bound(binding) => unwrap_struct_type(binding),
-                TypeBinding::Unbound(_) => unreachable!(),
-            }
+        HirType::Struct(def, args) => def.borrow().get_fields(args),
+        HirType::TypeVariable(binding) => match &*binding.borrow() {
+            TypeBinding::Bound(binding) => unwrap_struct_type(binding),
+            TypeBinding::Unbound(_) => unreachable!(),
         },
         _ => unreachable!(),
     }

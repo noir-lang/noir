@@ -9,7 +9,7 @@ use crate::{
     },
     node_interner::{ExprId, FuncId, NodeInterner},
     util::vecmap,
-    IsConst, TypeBinding, Shared,
+    IsConst, Shared, TypeBinding,
 };
 
 use super::errors::TypeCheckError;
@@ -558,7 +558,7 @@ fn check_constructor(
     let typ = &constructor.r#type;
 
     // Sanity check, this should be caught during name resolution anyway
-    assert_eq!(constructor.fields.len(), typ.borrow().fields.len());
+    assert_eq!(constructor.fields.len(), typ.borrow().num_fields());
 
     // Sort argument types by name so we can zip with the struct type in the same ordering.
     // Note that we use a Vec to store the original arguments (rather than a BTreeMap) to

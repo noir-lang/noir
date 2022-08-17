@@ -10,7 +10,7 @@ use crate::{BinaryOpKind, Signedness};
 pub enum Expression {
     Ident(Ident),
     Literal(Literal),
-    Block(Block),
+    Block(Vec<Expression>),
     Unary(Unary),
     Binary(Binary),
     Index(Index),
@@ -18,6 +18,7 @@ pub enum Expression {
     Cast(Cast),
     For(For),
     If(If),
+    Tuple(Vec<Expression>),
 
     Let(Let),
     Constrain(Constrain),
@@ -113,9 +114,6 @@ pub struct Index {
 }
 
 #[derive(Debug, Clone)]
-pub struct Block(pub Vec<Expression>);
-
-#[derive(Debug, Clone)]
 pub struct Let {
     pub ident: Ident,
     pub r#type: Type,
@@ -152,13 +150,13 @@ pub struct Function {
     pub body: Expression,
 }
 
-/// A monomorphised Type has all type variables,
-/// constness, structs, and tuples removed.
+/// A monomorphised Type has all type variables removed
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {
     Field,
-    Array(/*len:*/ u64, Box<Type>), // Array(4, Field) = [Field; 4]
+    Array(/*len:*/ u64, Box<Type>),     // Array(4, Field) = [Field; 4]
     Integer(Signedness, /*bits:*/ u32), // u32 = Integer(unsigned, 32)
     Bool,
     Unit,
+    Tuple(Vec<Type>),
 }

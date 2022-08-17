@@ -239,8 +239,7 @@ fn resolve_structs(
     for (type_id, typ) in structs {
         let (generics, fields) = resolve_struct_fields(context, crate_id, typ, errors);
         context.def_interner.update_struct(type_id, |struct_def| {
-            assert!(struct_def.fields.is_empty());
-            struct_def.fields = fields;
+            struct_def.set_fields(fields);
             struct_def.generics = generics;
         });
     }
