@@ -120,9 +120,9 @@ impl<'a> SsaContext<'a> {
     //Display an object for debugging puposes
     fn node_to_string(&self, id: NodeId) -> String {
         if let Some(var) = self.try_get_node(id) {
-            return format!("{}", var);
+            format!("{}", var)
         } else {
-            return format!("unknown {:?}", id.0.into_raw_parts().0);
+            format!("unknown {:?}", id.0.into_raw_parts().0)
         }
     }
 
