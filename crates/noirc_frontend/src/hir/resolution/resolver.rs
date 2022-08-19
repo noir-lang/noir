@@ -171,6 +171,8 @@ impl<'a> Resolver<'a> {
     // If a variable is not found, then an error is logged and a dummy id
     // is returned, for better error reporting UX
     fn find_variable(&mut self, name: &Ident) -> HirIdent {
+        // let item_scope = self.def_maps[]
+        
         // Find the definition for this Ident
         let scope_tree = self.scopes.current_scope_tree();
         let variable = scope_tree.find(&name.0.contents);

@@ -1,4 +1,4 @@
-use crate::node_interner::{FuncId, StructId};
+use crate::node_interner::{FuncId, StmtId, StructId};
 
 use super::ModuleId;
 
@@ -7,6 +7,7 @@ pub enum ModuleDefId {
     ModuleId(ModuleId),
     FunctionId(FuncId),
     TypeId(StructId),
+    ConstId(StmtId),
 }
 
 impl ModuleDefId {
@@ -31,6 +32,7 @@ impl ModuleDefId {
             ModuleDefId::FunctionId(_) => "function",
             ModuleDefId::TypeId(_) => "type",
             ModuleDefId::ModuleId(_) => "module",
+            ModuleDefId::ConstId(_) => "const",
         }
     }
 }

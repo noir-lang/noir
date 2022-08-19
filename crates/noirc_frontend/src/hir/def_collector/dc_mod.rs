@@ -2,12 +2,15 @@ use fm::FileId;
 use noirc_errors::{CollectedErrors, CustomDiagnostic, DiagnosableError};
 
 use crate::{
-    graph::CrateId, hir::def_collector::dc_crate::UnresolvedStruct, node_interner::StructId,
-    parser::SubModule, Ident, NoirFunction, NoirImpl, NoirStruct, ParsedModule,
+    graph::CrateId,
+    hir::def_collector::dc_crate::UnresolvedStruct,
+    node_interner::{StmtId, StructId},
+    parser::SubModule,
+    Ident, NoirFunction, NoirImpl, NoirStruct, ParsedModule,
 };
 
 use super::{
-    dc_crate::{DefCollector, UnresolvedFunctions},
+    dc_crate::{DefCollector, UnresolvedFunctions, UnresolvedGlobalConst},
     errors::DefCollectorErrorKind,
 };
 use crate::hir::def_map::{parse_file, LocalModuleId, ModuleData, ModuleId, ModuleOrigin};
@@ -56,6 +59,14 @@ pub fn collect_defs<'a>(
 
     if !errors_in_same_file.is_empty() {
         errors.push(CollectedErrors { file_id: collector.file_id, errors: errors_in_same_file });
+    }
+
+    for global_const in ast.global_constants {
+        collector.def_collector.collected_consts.push(UnresolvedGlobalConst {
+            file_id: collector.file_id,
+            module_id: collector.module_id,
+            stmt_def: global_const,
+        });
     }
 }
 

@@ -10,9 +10,10 @@ use crate::hir::resolution::{
 };
 use crate::hir::type_check::type_check_func;
 use crate::hir::Context;
+use crate::hir_def::stmt::HirStatement;
 use crate::node_interner::{FuncId, NodeInterner, StructId};
 use crate::util::vecmap;
-use crate::{Ident, NoirFunction, NoirStruct, ParsedModule, Path, Type};
+use crate::{Ident, NoirFunction, NoirStruct, ParsedModule, Path, Pattern, Statement, Type};
 use fm::FileId;
 use noirc_errors::CollectedErrors;
 use noirc_errors::DiagnosableError;
@@ -36,13 +37,19 @@ pub struct UnresolvedStruct {
     pub struct_def: NoirStruct,
 }
 
+pub struct UnresolvedGlobalConst {
+    pub file_id: FileId,
+    pub module_id: LocalModuleId,
+    pub stmt_def: Statement,
+}
+
 /// Given a Crate root, collect all definitions in that crate
 pub struct DefCollector {
     pub(crate) def_map: CrateDefMap,
     pub(crate) collected_imports: Vec<ImportDirective>,
     pub(crate) collected_functions: Vec<UnresolvedFunctions>,
     pub(crate) collected_types: HashMap<StructId, UnresolvedStruct>,
-
+    pub(crate) collected_consts: Vec<UnresolvedGlobalConst>,
     /// collected impls maps the type name and the module id in which
     /// the impl is defined to the functions contained in that impl
     pub(crate) collected_impls: HashMap<(Path, LocalModuleId), Vec<UnresolvedFunctions>>,
@@ -56,6 +63,7 @@ impl DefCollector {
             collected_functions: vec![],
             collected_types: HashMap::new(),
             collected_impls: HashMap::new(),
+            collected_consts: vec![],
         }
     }
 
@@ -139,6 +147,7 @@ impl DefCollector {
 
         resolve_structs(context, def_collector.collected_types, crate_id, errors);
 
+        resolve_global_constants(context, def_collector.collected_consts, crate_id, errors);
         // Before we resolve any function symbols we must go through our impls and
         // re-collect the methods within into their proper module. This cannot be
         // done before resolution since we need to be able to resolve the type of the
@@ -216,6 +225,57 @@ fn collect_impls(
                     }
                 }
             }
+        }
+    }
+}
+
+fn resolve_global_constants(
+    context: &mut Context,
+    global_consts: Vec<UnresolvedGlobalConst>,
+    crate_id: CrateId,
+    errors: &mut Vec<CollectedErrors>,
+) {
+    // TODO: posibly create functionality to push empty stmt and do resolution after
+    for global_const in global_consts {
+        let path_resolver = StandardPathResolver::new(ModuleId {
+            local_id: global_const.module_id,
+            krate: crate_id,
+        });
+
+        let mut resolver = Resolver::new(
+            &mut context.def_interner,
+            &path_resolver,
+            &context.def_maps,
+            global_const.file_id,
+        );
+
+        let name = match global_const.stmt_def.clone() {
+            Statement::Let(let_stmt) => {
+                let ident = match let_stmt.pattern {
+                    Pattern::Identifier(ident) => ident,
+                    _ => panic!(""), // TODO: change this to use errors
+                };
+                ident
+            }
+            _ => panic!(""), // TODO: change this to use errors
+        };
+        let stmt_id = resolver.intern_stmt(global_const.stmt_def);
+
+        let hir_stmt = context.def_interner.statement(&stmt_id);
+        context.def_interner.push_stmt(hir_stmt);
+
+        let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
+
+        let result = current_def_map.modules[global_const.module_id.0]
+            .scope
+            .define_global_const_def(name, stmt_id);
+        if let Err((first_def, second_def)) = result {
+            let err =
+                DefCollectorErrorKind::DuplicateGlobalConst { first_def, second_def };
+            errors.push(CollectedErrors {
+                file_id: global_const.file_id,
+                errors: vec![err.to_diagnostic()],
+            });
         }
     }
 }

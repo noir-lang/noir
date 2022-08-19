@@ -43,7 +43,7 @@ impl From<DefinitionId> for Index {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub struct StmtId(Index);
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]

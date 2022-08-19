@@ -49,6 +49,7 @@ fn module() -> impl NoirParser<ParsedModule> {
                     TopLevelStatement::Struct(s) => program.push_type(s),
                     TopLevelStatement::Impl(i) => program.push_impl(i),
                     TopLevelStatement::SubModule(s) => program.push_submodule(s),
+                    TopLevelStatement::GlobalConst(c) => program.push_global_const(c),
                     TopLevelStatement::Error => (),
                 }
                 program
@@ -66,8 +67,20 @@ fn top_level_statement(
         submodule(module_parser),
         module_declaration().then_ignore(force(just(Token::Semicolon))),
         use_statement().then_ignore(force(just(Token::Semicolon))),
+        global_declaration().then_ignore(force(just(Token::Semicolon))),
     ))
     .recover_via(top_level_statement_recovery())
+}
+
+fn global_declaration() -> impl NoirParser<TopLevelStatement> {
+    let p = ignore_then_commit(
+        keyword(Keyword::Const).labelled("global const"),
+        ident().map(Pattern::Identifier),
+    );
+    let p = p.then(optional_type_annotation()); //TODO: rust requires annotation of global consts, perhaps we should as well and use a diff parser
+    let p = then_commit_ignore(p, just(Token::Assign));
+    let p = then_commit(p, literal().map_with_span(Expression::new)); // XXX: this should be a literal
+    p.map(Statement::new_let).map(|statement| TopLevelStatement::GlobalConst(statement))
 }
 
 fn submodule(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<TopLevelStatement> {
@@ -437,6 +450,14 @@ fn array_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>
 where
     T: NoirParser<UnresolvedType>,
 {
+    // just(Token::LeftBracket)
+    //     .ignore_then(fixed_array_size().or_not())
+    //     .then_ignore(just(Token::RightBracket))
+    //     .then(type_parser)
+    //     .map(|(size, element_type)| {
+    //         let size = size.unwrap_or(ArraySize::Variable);
+    //         UnresolvedType::Array(size, Box::new(element_type))
+    //     })
     just(Token::LeftBracket)
         .ignore_then(fixed_array_size().or_not())
         .then_ignore(just(Token::RightBracket))
@@ -781,7 +802,12 @@ fn fixed_array_size() -> impl NoirParser<ArraySize> {
                 Ok(ArraySize::Fixed(integer.to_u128()))
             }
         }
+        // Token::Ident(ident) => { // TODO: need to do this, alter to have const literal as size, can be
+        //     println!("ident: {:?}", ident);
+        //     Ok(ArraySize::Fixed(5 as u128))
+        // }
         _ => {
+            // println!("span: {:?}, token: {:?}", span, token);
             let message = "The array size is defined as [k] for fixed size or [] for variable length. k must be a literal".to_string();
             Err(ParserError::with_reason(message, span))
         }
