@@ -1,10 +1,8 @@
-use std::rc::Rc;
-
 use acvm::FieldElement;
 use fm::FileId;
 use noirc_errors::Location;
 
-use crate::{BinaryOpKind, Signedness};
+use crate::{Signedness, hir_def::expr::HirBinaryOp};
 
 #[derive(Debug, Clone)]
 pub enum Expression {
@@ -19,9 +17,10 @@ pub enum Expression {
     For(For),
     If(If),
     Tuple(Vec<Expression>),
+    ExtractTupleField(Box<Expression>, usize),
 
     Let(Let),
-    Constrain(Constrain),
+    Constrain(Box<Expression>, FileId),
     Assign(Assign),
     Semi(Box<Expression>),
 }
@@ -34,31 +33,16 @@ pub struct FuncId(pub u32);
 
 #[derive(Debug, Clone)]
 pub struct Ident {
-    pub location: Location,
+    pub location: Option<Location>,
     pub id: DefinitionId,
-    pub definition: Rc<Expression>,
 }
 
 #[derive(Debug, Clone)]
 pub struct For {
-    pub identifier: Ident,
+    pub index_variable: DefinitionId,
     pub start_range: Box<Expression>,
     pub end_range: Box<Expression>,
     pub block: Box<Expression>,
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct BinaryOp {
-    pub kind: BinaryOpKind,
-    pub location: Location,
-}
-
-impl BinaryOp {
-    pub fn new(op: crate::BinaryOp, file: FileId) -> Self {
-        let kind = op.contents;
-        let location = Location::new(op.span(), file);
-        BinaryOp { location, kind }
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -74,6 +58,8 @@ pub struct Unary {
     pub operator: crate::UnaryOp,
     pub rhs: Box<Expression>,
 }
+
+pub type BinaryOp = HirBinaryOp;
 
 #[derive(Debug, Clone)]
 pub struct Binary {
@@ -115,7 +101,7 @@ pub struct Index {
 
 #[derive(Debug, Clone)]
 pub struct Let {
-    pub ident: Ident,
+    pub id: DefinitionId,
     pub r#type: Type,
     pub expression: Box<Expression>,
 }
@@ -125,9 +111,6 @@ pub struct Assign {
     pub lvalue: LValue,
     pub expression: Box<Expression>,
 }
-
-#[derive(Debug, Clone)]
-pub struct Constrain(pub Box<Expression>, pub FileId);
 
 #[derive(Debug, Clone)]
 pub struct BinaryStatement {

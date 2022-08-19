@@ -4,7 +4,7 @@ use noirc_errors::Span;
 
 use crate::{
     hir_def::{
-        expr::{self, HirBinaryOp, HirBinaryOpKind, HirExpression, HirLiteral, HirUnaryOp},
+        expr::{self, HirBinaryOp, HirExpression, HirLiteral},
         types::Type,
     },
     node_interner::{ExprId, FuncId, NodeInterner},
@@ -424,14 +424,14 @@ fn bind_function_type(
     }
 }
 
-pub fn prefix_operand_type_rules(op: &HirUnaryOp, rhs_type: &Type) -> Result<Type, String> {
+pub fn prefix_operand_type_rules(op: &crate::UnaryOp, rhs_type: &Type) -> Result<Type, String> {
     match op {
-        HirUnaryOp::Minus => {
+        crate::UnaryOp::Minus => {
             if !matches!(rhs_type, Type::Integer(..) | Type::Error) {
                 return Err("Only Integers can be used in a Minus expression".to_string());
             }
         }
-        HirUnaryOp::Not => {
+        crate::UnaryOp::Not => {
             if !matches!(rhs_type, Type::Integer(..) | Type::Bool(_) | Type::Error) {
                 return Err("Only Integers or Bool can be used in a Not expression".to_string());
             }
@@ -622,7 +622,7 @@ pub fn comparator_operand_type_rules(
     op: &HirBinaryOp,
     errors: &mut Vec<TypeCheckError>,
 ) -> Result<Type, String> {
-    use HirBinaryOpKind::{Equal, NotEqual};
+    use crate::BinaryOpKind::{Equal, NotEqual};
     use Type::*;
     match (lhs_type, rhs_type)  {
         (Integer(is_const_x, sign_x, bit_width_x), Integer(is_const_y, sign_y, bit_width_y)) => {
