@@ -54,6 +54,7 @@ impl Environment {
 
     pub fn get(&mut self, name: &str) -> Object {
         let scope = self.env.current_scope_tree();
+        println!("name: {:?}", name);
         scope.find(name).unwrap().clone()
     }
 

@@ -58,6 +58,7 @@ pub fn bind_pattern(
     typ: Type,
     errors: &mut Vec<TypeCheckError>,
 ) {
+    println!("in bind_pattern, pattern: {:?}", pattern);
     match pattern {
         HirPattern::Identifier(ident) => interner.push_definition_type(ident.id, typ),
         HirPattern::Mutable(pattern, _) => bind_pattern(interner, pattern, typ, errors),

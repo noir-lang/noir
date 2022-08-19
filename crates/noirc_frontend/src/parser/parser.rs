@@ -73,8 +73,12 @@ fn top_level_statement(
 }
 
 fn global_declaration() -> impl NoirParser<TopLevelStatement> {
+    // let p = ignore_then_commit(
+    //     keyword(Keyword::Const).labelled("global const"),
+    //     ident().map(Pattern::Identifier),
+    // ); // TODO: this needs to be fixed, keep for now just to get stuff tested
     let p = ignore_then_commit(
-        keyword(Keyword::Const).labelled("global const"),
+        keyword(Keyword::Let).labelled("global const"),
         ident().map(Pattern::Identifier),
     );
     let p = p.then(optional_type_annotation()); //TODO: rust requires annotation of global consts, perhaps we should as well and use a diff parser

@@ -268,6 +268,7 @@ fn evaluate_conditional_jump(
     };
 
     let cond = get_current_value(cond_id, value_array);
+    println!("cond: {:?}", cond);
     let cond = match evaluate_object(cond, value_array, ctx)?.into_const_value() {
         Some(c) => c,
         None => unreachable!(

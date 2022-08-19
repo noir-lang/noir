@@ -148,6 +148,7 @@ impl DefCollector {
         resolve_structs(context, def_collector.collected_types, crate_id, errors);
 
         resolve_global_constants(context, def_collector.collected_consts, crate_id, errors);
+
         // Before we resolve any function symbols we must go through our impls and
         // re-collect the methods within into their proper module. This cannot be
         // done before resolution since we need to be able to resolve the type of the
@@ -261,8 +262,10 @@ fn resolve_global_constants(
         };
         let stmt_id = resolver.intern_stmt(global_const.stmt_def);
 
-        let hir_stmt = context.def_interner.statement(&stmt_id);
-        context.def_interner.push_stmt(hir_stmt);
+        // let hir_stmt = context.def_interner.statement(&stmt_id);
+        println!("hir stmt: {:?}", stmt_id);
+        context.def_interner.push_global_const(name.clone(), stmt_id);
+        // context.def_interner.push_stmt(hir_stmt); XXX: don't need to do this it is done in inter_stmt
 
         let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
 

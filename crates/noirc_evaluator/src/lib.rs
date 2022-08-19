@@ -86,6 +86,8 @@ impl<'a> Evaluator<'a> {
         value
     }
 
+    // Object::Constants(indice)
+
     pub fn current_witness_index(&self) -> u32 {
         self.current_witness_index
     }
@@ -102,6 +104,12 @@ impl<'a> Evaluator<'a> {
     ) -> Result<Circuit, RuntimeError> {
         // create a new environment for the main context
         let mut env = Environment::new(FuncContext::Main);
+
+        // First evaluate the globals
+        // for (key, _) in self.context.def_interner.get_all_global_consts() {
+        //     let witness = self.add_witness_to_cs();
+        //     self.add_witness_to_env(key.0.contents, witness, &mut env);
+        // }
 
         // First evaluate the main function
         self.evaluate_main_alt(&mut env, enable_logging)?;
@@ -208,6 +216,33 @@ impl<'a> Evaluator<'a> {
     ) -> Result<(), RuntimeError> {
         let mut igen = IRGenerator::new(self.context);
         self.parse_abi_alt(env, &mut igen)?;
+
+        for (ident, stmt_id) in self.context.def_interner.get_all_global_consts() {
+            // let witness = self.add_witness_to_cs(); // old way how it was being done
+            // self.add_witness_to_env(ident.0.contents, witness, env);
+            let hir_stmt = self.context.def_interner.statement(&stmt_id);
+            match hir_stmt {
+                HirStatement::Let(let_stmt) => {
+                    match let_stmt.pattern {
+                        HirPattern::Identifier(ident) => {
+                            let name = self.context.def_interner.definition_name(ident.id);
+                            let ident_def = ident.id;
+                            self.param_to_var(name, ident_def, AbiFEType::Private, &let_stmt.r#type, ident.location, &mut igen)?;
+                        }
+                        _ => panic!("global const pattern can only be an identifier")
+                    }
+                }
+                _ => panic!("global const statement must be a let statement")
+            }
+
+            let result = self.evaluate_statement(env, &stmt_id);
+            match result {
+                Ok(res) => println!("evaluate global const stmt worked: {:?}", res),
+                Err(err) => panic!("failed to evaluated global const stmt: {:?}", err),
+            };
+
+
+        }
 
         // Now call the main function
         let main_func_body = self.context.def_interner.function(&self.main_function);
@@ -460,6 +495,7 @@ impl<'a> Evaluator<'a> {
             }
             HirStatement::Let(let_stmt) => {
                 // let statements are used to declare a higher level object
+                println!("inside evaluate_statement, doing a let stmt");
                 self.handle_definition(env, &let_stmt.pattern, &let_stmt.expression)
             }
             HirStatement::Assign(assign_stmt) => {

@@ -148,7 +148,6 @@ impl<'a> Resolver<'a> {
         let id = self.interner.push_definition(name.0.contents.clone(), mutable);
         let location = Location::new(name.span(), self.file);
         let ident = HirIdent { location, id };
-
         let scope = self.scopes.get_mut_scope();
         let resolver_meta = ResolverMeta { num_times_used: 0, ident };
 
@@ -171,8 +170,6 @@ impl<'a> Resolver<'a> {
     // If a variable is not found, then an error is logged and a dummy id
     // is returned, for better error reporting UX
     fn find_variable(&mut self, name: &Ident) -> HirIdent {
-        // let item_scope = self.def_maps[]
-        
         // Find the definition for this Ident
         let scope_tree = self.scopes.current_scope_tree();
         let variable = scope_tree.find(&name.0.contents);
@@ -181,16 +178,59 @@ impl<'a> Resolver<'a> {
             variable_found.num_times_used += 1;
             variable_found.ident.id
         } else {
-            self.push_err(ResolverError::VariableNotDeclared {
-                name: name.0.contents.clone(),
-                span: name.0.span(),
-            });
+            self.find_global_const(name)
+            // self.push_err(ResolverError::VariableNotDeclared {
+            //     name: name.0.contents.clone(),
+            //     span: name.0.span(),
+            // });
 
-            DefinitionId::dummy_id()
+            // DefinitionId::dummy_id()
         };
 
         let location = Location::new(name.span(), self.file);
         HirIdent { location, id }
+    }
+
+    fn find_global_const(&mut self, name: &Ident) -> DefinitionId {
+        let global_const = match self.interner.get_global_const(name) {
+            Some(stmt_id) => {
+                self.interner.statement(&stmt_id)
+            }
+            _ => {
+                self.push_err(ResolverError::VariableNotDeclared {
+                    name: name.0.contents.clone(),
+                    span: name.0.span(),
+                });
+                return DefinitionId::dummy_id()
+            }
+        };
+        let id = match global_const {
+            HirStatement::Let(let_stmt) => {
+                let id = match let_stmt.pattern {
+                    HirPattern::Identifier(ident) => {
+                        ident.id
+                    },
+                    _ => {
+                        // TODO: possibly this to use new resolver err, or at least one with more details
+                        self.push_err(ResolverError::VariableNotDeclared {
+                            name: name.0.contents.clone(),
+                            span: name.0.span(),
+                        });
+                        DefinitionId::dummy_id()
+                    }
+                };
+                id
+            },
+            _ => {
+                // TODO: possibly this to use new resolver err, or at least one with more details
+                self.push_err(ResolverError::VariableNotDeclared {
+                    name: name.0.contents.clone(),
+                    span: name.0.span(),
+                });
+                DefinitionId::dummy_id()
+            }
+        };
+        id
     }
 
     pub fn intern_function(&mut self, func: NoirFunction) -> (HirFunction, FuncMeta) {
@@ -525,6 +565,10 @@ impl<'a> Resolver<'a> {
         }
 
         ret
+    }
+
+    pub fn get_global_const(&self, stmt_id: StmtId) -> HirStatement {
+        self.interner.statement(&stmt_id)
     }
 
     pub fn get_struct(&self, type_id: StructId) -> Rc<RefCell<StructType>> {

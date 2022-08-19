@@ -11,11 +11,12 @@ use crate::hir::def_collector::dc_crate::UnresolvedStruct;
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 use crate::hir_def::types::{StructType, Type};
 use crate::hir_def::{
-    expr::HirExpression,
+    expr::{HirExpression, HirIdent},
     function::{FuncMeta, HirFunction},
-    stmt::HirStatement,
+    stmt::{HirStatement, HirLetStatement},
 };
 use crate::TypeVariableId;
+use crate::ast::Ident;
 
 /// The DefinitionId for the return value of the main function.
 /// Used within the ssa pass to put constraints on the "return" value
@@ -149,6 +150,8 @@ pub struct NodeInterner {
     // methods from impls to the type.
     structs: HashMap<StructId, Rc<RefCell<StructType>>>,
 
+    global_constants: HashMap<Ident, StmtId>, // TODO: work with this like the struct, TODO 2: possibly change to HirLetStatement to make more restrictive
+
     next_type_variable_id: usize,
 }
 
@@ -168,6 +171,7 @@ impl Default for NodeInterner {
             id_to_type: HashMap::new(),
             structs: HashMap::new(),
             next_type_variable_id: 0,
+            global_constants: HashMap::new(),
         };
 
         // An empty block expression is used often, we add this into the `node` on startup
@@ -231,6 +235,10 @@ impl NodeInterner {
     {
         let mut value = self.structs.get_mut(&type_id).unwrap().borrow_mut();
         f(&mut value)
+    }
+
+    pub fn push_global_const(&mut self, name: Ident, stmt_id: StmtId) {
+        self.global_constants.insert(name, stmt_id);
     }
 
     /// Modify the type of an expression.
@@ -349,6 +357,18 @@ impl NodeInterner {
 
     pub fn get_struct(&self, id: StructId) -> Rc<RefCell<StructType>> {
         self.structs[&id].clone()
+    }
+
+    pub fn get_global_const(&self, name: &Ident) -> Option<StmtId> {
+        if let Some(stmt) = self.global_constants.get(name) {
+            Some(stmt.clone())
+        } else {
+            None
+        }
+    }
+
+    pub fn get_all_global_consts(&self) -> HashMap<Ident, StmtId> {
+        self.global_constants.clone()
     }
 
     /// Returns the type of an item stored in the Interner or Error if it was not found.
