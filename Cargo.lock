@@ -1243,10 +1243,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "noir_field"
+version = "0.1.0"
+source = "git+https://github.com/noir-lang/noir?rev=cc5ee63072e09779bebd7e7dd054ae16be307d7f#cc5ee63072e09779bebd7e7dd054ae16be307d7f"
+dependencies = [
+ "ark-bls12-381",
+ "ark-bn254",
+ "ark-ff",
+ "blake2",
+ "cfg-if 1.0.0",
+ "hex",
+ "num-bigint",
+ "num-traits",
+ "serde",
+]
+
+[[package]]
 name = "noir_wasm"
 version = "0.1.0"
 dependencies = [
- "acvm",
+ "acvm 0.1.0",
  "console_error_panic_hook",
  "getrandom",
  "js-sys",
@@ -1270,7 +1286,7 @@ dependencies = [
 name = "noirc_driver"
 version = "0.1.0"
 dependencies = [
- "acvm 0.1.0 (git+https://github.com/noir-lang/noir?rev=cc5ee63072e09779bebd7e7dd054ae16be307d7f)",
+ "acvm 0.1.0",
  "dirs",
  "fm",
  "noirc_abi",
