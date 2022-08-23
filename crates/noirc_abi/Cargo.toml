@@ -7,7 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-acvm = { git = "https://github.com/noir-lang/noir", rev = "cc5ee63072e09779bebd7e7dd054ae16be307d7f" }
+acvm = { git = "https://github.com/noir-lang/noir" }
 toml = "0.5.8"
 serde = { version = "1.0.136", features = ["derive"] }
 serde_derive = "1.0.136"
