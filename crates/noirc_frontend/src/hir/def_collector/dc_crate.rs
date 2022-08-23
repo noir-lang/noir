@@ -237,8 +237,8 @@ fn resolve_global_constants(
     crate_id: CrateId,
     errors: &mut Vec<CollectedErrors>,
 ) -> Vec<StmtId> {
-    // XXX: may be able to get rid of this, 
-    // however we could follow the type resollution flow used for functions rather than combining type check in this function
+    // XXX: may be able to get rid of this, but keep while WIP as we could follow the type resollution flow used for functions
+    // rather than combining type check in this function
     let mut global_const_ids = Vec::new(); 
    
     // TODO: posibly create functionality to push empty stmt and do resolution after

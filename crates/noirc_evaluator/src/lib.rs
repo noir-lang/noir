@@ -696,7 +696,7 @@ impl<'a> Evaluator<'a> {
         expr_id: &ExprId,
     ) -> Result<Object, RuntimeError> {
         let loc = self.context.def_interner.expr_location(expr_id);
-
+        println!("expression_to_object HirExpression: {:?}", self.context.def_interner.expression(expr_id));
         match self.context.def_interner.expression(expr_id) {
             HirExpression::Literal(HirLiteral::Integer(x)) => Ok(Object::Constants(x)),
             HirExpression::Literal(HirLiteral::Array(arr_lit)) => {

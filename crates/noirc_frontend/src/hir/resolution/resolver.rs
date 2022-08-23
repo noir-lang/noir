@@ -211,7 +211,7 @@ impl<'a> Resolver<'a> {
                         ident.id
                     },
                     _ => {
-                        // TODO: possibly this to use new resolver err, or at least one with more details
+                        // TODO: possibly use new resolver err, or at least one with more details
                         self.push_err(ResolverError::VariableNotDeclared {
                             name: name.0.contents.clone(),
                             span: name.0.span(),
@@ -222,7 +222,7 @@ impl<'a> Resolver<'a> {
                 id
             },
             _ => {
-                // TODO: possibly this to use new resolver err, or at least one with more details
+                // TODO: possibly use new resolver err, or at least one with more details
                 self.push_err(ResolverError::VariableNotDeclared {
                     name: name.0.contents.clone(),
                     span: name.0.span(),
@@ -477,7 +477,8 @@ impl<'a> Resolver<'a> {
             }
         };
 
-        let expr_id = self.interner.push_expr(hir_expr);
+        let expr_id = self.interner.push_expr(hir_expr.clone()); 
+        println!("resolve_expression, expr_id: {:?}, hir_expr: {:?}", expr_id, hir_expr); // NOTE: get rid of clone() on hir_expr when removing this println
         self.interner.push_expr_location(expr_id, expr.span, self.file);
         expr_id
     }
