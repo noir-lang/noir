@@ -3,3 +3,4 @@
 examples/**/target/
 examples/9
 .vscode
+node_modules
