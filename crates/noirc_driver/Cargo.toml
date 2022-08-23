@@ -13,7 +13,7 @@ noirc_evaluator = { path = "../noirc_evaluator" }
 noirc_abi = { path = "../noirc_abi" }
 acvm = { path = "../acvm" }
 std_lib = { path = "../std_lib" }
-fm = { path = "../fm" }
+fm = { path = "../fm", default-features = false }
 serde = { version = "1.0.136", features = ["derive"] }
 
 dirs = "3.0"
@@ -21,4 +21,5 @@ pathdiff = "0.2"
 
 [features]
 default = []
+std = ["fm/std"]
 wasm = ["fm/wasm"]
