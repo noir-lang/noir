@@ -20,6 +20,6 @@ dirs = "3.0"
 pathdiff = "0.2"
 
 [features]
-default = []
+default = ["std"]
 std = ["fm/std"]
 wasm = ["fm/wasm"]
