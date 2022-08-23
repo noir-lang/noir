@@ -243,12 +243,15 @@ impl<'a> Resolver<'a> {
 
         let location = Location::new(func.name_ident().span(), self.file);
         let id = self.interner.push_definition(name, false);
-        let name = HirIdent { id, location };
+        let name_ident = HirIdent { id, location };
 
         let attributes = func.attribute().cloned();
 
         let mut parameters = Vec::new();
         for (pattern, typ, visibility) in func.parameters().iter().cloned() {
+            if func.name() != "main" && visibility == noirc_abi::AbiFEType::Public {
+                self.push_err(ResolverError::UnnecessaryPub { func_ident: name_ident })
+            }
             let pattern = self.resolve_pattern(pattern);
             let typ = self.resolve_type(typ);
             parameters.push(Param(pattern, typ, visibility));
@@ -257,7 +260,7 @@ impl<'a> Resolver<'a> {
         let return_type = self.resolve_type(func.return_type());
 
         FuncMeta {
-            name,
+            name: name_ident,
             kind: func.kind,
             attributes,
             location,

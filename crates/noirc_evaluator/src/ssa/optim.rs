@@ -15,6 +15,13 @@ use std::{
     collections::{HashMap, VecDeque},
 };
 
+pub fn simplify_id(ctx: &mut SsaContext, ins_id: NodeId) -> Result<(), RuntimeError> {
+    let mut ins = ctx.get_instruction(ins_id).clone();
+    simplify(ctx, &mut ins)?;
+    ctx[ins_id] = super::node::NodeObj::Instr(ins);
+    Ok(())
+}
+
 // Performs constant folding, arithmetic simplifications and move to standard form
 // Modifies ins.mark with whether the instruction should be deleted, replaced, or neither
 pub fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) -> Result<(), RuntimeError> {
@@ -46,23 +53,48 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) -> Result<(), Runti
         return Ok(());
     }
 
-    if let Operation::Binary(binary) = &mut ins.operation {
-        if let NodeEval::Const(r_const, r_type) = NodeEval::from_id(ctx, binary.rhs) {
-            if binary.operator == BinaryOp::Div {
-                binary.rhs = ctx.get_or_create_const(r_const.inverse(), r_type);
-                binary.operator = BinaryOp::Mul;
+    match &mut ins.operation {
+        Operation::Binary(binary) => {
+            if let NodeEval::Const(r_const, r_type) = NodeEval::from_id(ctx, binary.rhs) {
+                if binary.operator == BinaryOp::Div {
+                    binary.rhs = ctx.get_or_create_const(r_const.inverse(), r_type);
+                    binary.operator = BinaryOp::Mul;
+                }
             }
         }
-    }
+        Operation::Intrinsic(opcode, args) => {
+            let args = args
+                .iter()
+                .map(|arg| NodeEval::from_id(ctx, *arg).into_const_value().map(|f| f.to_u128()));
 
-    if let Operation::Intrinsic(opcode, args) = &ins.operation {
-        let args = args
-            .iter()
-            .map(|arg| NodeEval::from_id(ctx, *arg).into_const_value().map(|f| f.to_u128()));
-
-        if let Some(args) = args.collect() {
-            ins.mark = Mark::ReplaceWith(evaluate_intrinsic(ctx, *opcode, args));
+            if let Some(args) = args.collect() {
+                ins.mark = Mark::ReplaceWith(evaluate_intrinsic(ctx, *opcode, args));
+            }
         }
+        Operation::Jeq(cond, jump_block) => {
+            if let Some(cond) = NodeEval::from_id(ctx, *cond).into_const_value() {
+                // we do not simplify for loops, it will be evaluated during unrolling
+                if ctx[ins.parent_block].kind == super::block::BlockType::Normal {
+                    if cond.is_zero() {
+                        ins.operation = Operation::Jmp(*jump_block);
+                        super::block::remove_child(
+                            ctx,
+                            ctx[ins.parent_block].left.unwrap(),
+                            ins.parent_block,
+                        );
+                    } else {
+                        ins.mark = Mark::Deleted;
+                        super::block::remove_child(
+                            ctx,
+                            ctx[ins.parent_block].right.unwrap(),
+                            ins.parent_block,
+                        );
+                    }
+                    ctx[ins.parent_block].kind = super::block::BlockType::Normal;
+                }
+            }
+        }
+        _ => (),
     }
 
     Ok(())
@@ -375,14 +407,14 @@ fn cse_block_with_anchor(
                         anchor.push_front(operator.opcode(), *ins_id);
                     }
                 }
-                Operation::Call(func, arguments, returned_array) => {
+                Operation::Call { func_id, arguments, returned_arrays, .. } => {
                     //No CSE for function calls because of possible side effect - TODO checks if a function has side effect when parsed and do cse for these.
                     //Add dummy store for functions that modify arrays
-                    for a in returned_array {
+                    for a in returned_arrays {
                         let id = ctx.get_dummy_store(a.0);
                         anchor.push_front(Opcode::Load(a.0), id);
                     }
-                    if let Some(f) = ctx.get_ssafunc(*func) {
+                    if let Some(f) = ctx.get_ssafunc(*func_id) {
                         for typ in &f.result_types {
                             if let ObjectType::Pointer(a) = typ {
                                 let id = ctx.get_dummy_store(*a);
@@ -449,6 +481,7 @@ fn cse_block_with_anchor(
             if new_mark == Mark::Deleted {
                 update.operation = Operation::Nop;
             }
+            update.parent_block = block_id;
 
             let mut update2 = update.clone();
             simplify(ctx, &mut update2)?;

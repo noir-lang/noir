@@ -62,6 +62,10 @@ impl MemArray {
             max: of.max_size(),
         }
     }
+
+    pub fn absolute_adr(&self, idx: u32) -> u32 {
+        self.adr + idx
+    }
 }
 
 impl Memory {
@@ -113,6 +117,12 @@ impl Memory {
             //Invalid memory address
         }
         None //Not a constant object
+    }
+
+    //returns the value of the element array[index], if it exists in the memory_map
+    pub fn get_value_from_map(&self, array_id: ArrayId, index: u32) -> Option<&NodeId> {
+        let adr = self[array_id].absolute_adr(index);
+        self.memory_map.get(&adr)
     }
 }
 

@@ -12,7 +12,7 @@ use acvm::{acir::OPCODE, FieldElement};
 use noirc_frontend::util::vecmap;
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
-use std::{collections::BTreeMap, convert::TryInto};
+use std::collections::BTreeMap;
 use std::{collections::HashMap, ops::Neg};
 
 //Returns the maximum bit size of short integers
@@ -208,7 +208,6 @@ fn tree_overflow(
     memory_map: &mut HashMap<u32, NodeId>,
 ) -> Result<(), RuntimeError> {
     block_overflow(ctx, b_idx, max_map, memory_map)?;
-    //TODO: Handle IF statements in there:
     for b in ctx[b_idx].dominated.clone() {
         tree_overflow(ctx, b, &mut max_map.clone(), &mut memory_map.clone())?;
     }
@@ -241,7 +240,10 @@ fn block_overflow(
     for mut ins in instructions {
         if matches!(
             ins.operation,
-            Operation::Nop | Operation::Call(..) | Operation::Result { .. } | Operation::Return(_)
+            Operation::Nop
+                | Operation::Call { .. }
+                | Operation::Result { .. }
+                | Operation::Return(_)
         ) {
             //For now we skip completely functions from overflow; that means arguments are NOT truncated.
             //The reasoning is that this is handled by doing the overflow strategy after the function has been inlined
@@ -274,20 +276,19 @@ fn block_overflow(
         });
 
         match ins.operation {
-            Operation::Load { index, .. } => {
+            Operation::Load { array_id, index } => {
                 //TODO we use a local memory map for now but it should be used in arguments
                 //for instance, the join block of a IF should merge the two memorymaps using the condition value
-                if let Some(adr) = Memory::to_u32(ctx, index) {
-                    if let Some(val) = memory_map.get(&adr) {
-                        //optimise static load
-                        ins.mark = Mark::ReplaceWith(*val);
-                    }
+                if let Some(val) = ctx.get_indexed_value(array_id, index) {
+                    //optimise static load
+                    ins.mark = Mark::ReplaceWith(*val);
                 }
             }
-            Operation::Store { index, value, .. } => {
-                if let Some(adr) = Memory::to_u32(ctx, index) {
+            Operation::Store { array_id, index, value } => {
+                if let Some(idx) = Memory::to_u32(ctx, index) {
+                    let absolute_adr = ctx.mem[array_id].absolute_adr(idx);
                     //optimise static store
-                    memory_map.insert(adr, value);
+                    memory_map.insert(absolute_adr, value);
                 }
             }
             Operation::Binary(node::Binary { operator: BinaryOp::Shl, lhs, rhs }) => {
@@ -424,14 +425,10 @@ fn get_load_max(
     array: ArrayId,
     // obj_type: ObjectType,
 ) -> BigUint {
-    if let Some(adr_as_const) = ctx.get_as_constant(address) {
-        let adr: u32 = adr_as_const.to_u128().try_into().unwrap();
-        if let Some(&value) = ctx.mem.memory_map.get(&adr) {
-            return get_obj_max_value(ctx, value, max_map, vmap);
-        }
+    if let Some(&value) = ctx.get_indexed_value(array, address) {
+        return get_obj_max_value(ctx, value, max_map, vmap);
     };
     ctx.mem[array].max.clone() //return array max
-                               //  return obj_type.max_size();
 }
 
 //Returns the max value of an operation from an upper bound of left and right hand sides
@@ -465,7 +462,7 @@ fn get_max_value(ins: &Instruction, max_map: &mut HashMap<NodeId, BigUint>) -> B
         }
         Operation::Load { .. } => unreachable!(),
         Operation::Store { .. } => BigUint::zero(),
-        Operation::Call(..) => ins.res_type.max_size(), //TODO interval analysis but we also need to get the arguments (ins_arguments)
+        Operation::Call { .. } => ins.res_type.max_size(), //n.b. functions should have been inlined
         Operation::Return(_) => todo!(),
         Operation::Result { .. } => {
             unreachable!("Functions must have been inlined before checking for overflows")
