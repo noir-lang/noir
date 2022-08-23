@@ -181,13 +181,13 @@ impl Driver {
         CompiledProgram { circuit, abi: Some(abi) }
     }
 
-    #[cfg(feature = "wasm")]
+    #[cfg(not(feature = "std"))]
     pub fn add_std_lib(&mut self) {
         // TODO: Currently, we do not load the standard library when the program
         // TODO: is compiled using the wasm version of noir
     }
 
-    #[cfg(not(feature = "wasm"))]
+    #[cfg(feature = "std")]
     /// XXX: It is sub-optimal to add the std as a regular crate right now because
     /// we have no way to determine whether a crate has been compiled already.
     /// XXX: We Ideally need a way to check if we've already compiled a crate and not re-compile it
@@ -220,7 +220,7 @@ impl Default for Driver {
     }
 }
 
-#[cfg(not(feature = "wasm"))]
+#[cfg(feature = "std")]
 fn path_to_stdlib() -> PathBuf {
     dirs::config_dir().unwrap().join("noir-lang").join("std")
 }
