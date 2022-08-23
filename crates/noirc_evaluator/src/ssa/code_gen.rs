@@ -80,8 +80,11 @@ pub fn evaluate_main<'a>(
     main_func_body: HirFunction, //main function
     location: noirc_errors::Location,
 ) -> Result<(), RuntimeError> {
+    println!("evaluate_main beginning");
     let block = main_func_body.block(igen.def_interner());
+    println!("evaluate_main block");
     let actual_return = igen.codegen_block(block.statements(), env);
+    println!("evaluate_main actual return");
 
     if let Some(expected_return) = igen.find_variable(NodeInterner::main_return_id()) {
         let expected_return = expected_return.unwrap_id();
@@ -96,6 +99,7 @@ pub fn evaluate_main<'a>(
         igen.context
             .new_instruction(Operation::Constrain(eq, location), node::ObjectType::NotAnObject)?;
     }
+    println!("evaluate_main end");
 
     Ok(())
 }

@@ -89,12 +89,12 @@ pub fn prove_with_path<P: AsRef<Path>>(
     let driver = Resolver::resolve_root_config(program_dir.as_ref())?;
     let backend = crate::backends::ConcreteBackend;
     let compiled_program = driver.into_compiled_program(backend.np_language(), show_ssa);
-
+    println!("compiled program:\n {:?}", compiled_program.circuit);
     // Parse the initial witness values
     let witness_map = noirc_abi::input_parser::Format::Toml
         .parse(program_dir, PROVER_INPUT_FILE)
         .map_err(CliError::from)?;
-
+    println!("witness_map:\n {:?}\n", witness_map);
     // Check that enough witness values were supplied
     let num_params = compiled_program.abi.as_ref().unwrap().num_parameters();
     if num_params != witness_map.len() {
@@ -106,9 +106,13 @@ pub fn prove_with_path<P: AsRef<Path>>(
     }
 
     let abi = compiled_program.abi.unwrap();
+    println!("abi:\n {:?}\n", abi);
+
     let mut solved_witness = process_abi_with_input(abi, witness_map)?;
+    println!("solved_witness:\n {:?}\n", solved_witness);
 
     let solver_res = backend.solve(&mut solved_witness, compiled_program.circuit.gates.clone());
+    println!("solver_res:\n {:?}\n", solver_res);
 
     if let Err(opcode) = solver_res {
         return Err(CliError::Generic(format!(

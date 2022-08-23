@@ -147,6 +147,8 @@ pub(crate) fn type_check_expression(
                 }
                 .add_context("The range of a loop must be const (known at compile-time)")
             });
+            println!("HirExppression::For, start_range_type: {:?}", start_range_type);
+            println!("HirExppression::For, end_range_type: {:?}", end_range_type);
 
             interner.push_definition_type(for_expr.identifier.id, start_range_type);
 

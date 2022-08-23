@@ -105,12 +105,6 @@ impl<'a> Evaluator<'a> {
         // create a new environment for the main context
         let mut env = Environment::new(FuncContext::Main);
 
-        // First evaluate the globals
-        // for (key, _) in self.context.def_interner.get_all_global_consts() {
-        //     let witness = self.add_witness_to_cs();
-        //     self.add_witness_to_env(key.0.contents, witness, &mut env);
-        // }
-
         // First evaluate the main function
         self.evaluate_main_alt(&mut env, enable_logging)?;
 
@@ -124,7 +118,7 @@ impl<'a> Evaluator<'a> {
             },
             np_language,
         );
-
+        println!("finished optimised_circuit");
         Ok(optimised_circuit)
     }
 
@@ -217,9 +211,9 @@ impl<'a> Evaluator<'a> {
         let mut igen = IRGenerator::new(self.context);
         self.parse_abi_alt(env, &mut igen)?;
 
-        for (ident, stmt_id) in self.context.def_interner.get_all_global_consts() {
+        for (_ident, stmt_id) in self.context.def_interner.get_all_global_consts() {
             // let witness = self.add_witness_to_cs(); // old way how it was being done
-            // self.add_witness_to_env(ident.0.contents, witness, env);
+            // self.add_witness_to_env(_ident.0.contents, witness, env);
             let hir_stmt = self.context.def_interner.statement(&stmt_id);
             match hir_stmt {
                 HirStatement::Let(let_stmt) => {
@@ -240,8 +234,6 @@ impl<'a> Evaluator<'a> {
                 Ok(res) => println!("evaluate global const stmt worked: {:?}", res),
                 Err(err) => panic!("failed to evaluated global const stmt: {:?}", err),
             };
-
-
         }
 
         // Now call the main function
@@ -251,6 +243,7 @@ impl<'a> Evaluator<'a> {
 
         //Generates ACIR representation:
         igen.context.ir_to_acir(self, enable_logging)?;
+        println!("finished ir_to_acir");
         Ok(())
     }
 
@@ -495,7 +488,7 @@ impl<'a> Evaluator<'a> {
             }
             HirStatement::Let(let_stmt) => {
                 // let statements are used to declare a higher level object
-                println!("inside evaluate_statement, doing a let stmt");
+                println!("inside evaluate_statement, doing a let stmt: {:?}", let_stmt);
                 self.handle_definition(env, &let_stmt.pattern, &let_stmt.expression)
             }
             HirStatement::Assign(assign_stmt) => {
@@ -523,7 +516,9 @@ impl<'a> Evaluator<'a> {
         rhs: &ExprId,
     ) -> Result<Object, RuntimeError> {
         let rhs_span = self.context.def_interner.expr_location(rhs);
+        println!("rhs_span in handle_private_statement: {:?}", rhs_span);
         let rhs_poly = self.expression_to_object(env, rhs)?;
+        println!("rhs_poly in handle_private_statement: {:?}", rhs_poly);
 
         // We do not store it in the environment yet, because it may need to be casted to an integer
         let witness = self.add_witness_to_cs();
@@ -593,8 +588,10 @@ impl<'a> Evaluator<'a> {
     ) -> Result<Object, RuntimeError> {
         // Convert the LHS into an identifier
         let variable_name = self.pattern_name(pattern);
-
-        // XXX: Currently we only support arrays using this, when other types are introduced
+        println!("handle_definition variable_name: {:?}, rhs ExprId: {:?}", variable_name, rhs);
+        println!("rhs span: {:?}", self.context.def_interner.expr_location(rhs));
+        println!("handle_definition id_type: {:?}", self.context.def_interner.id_type(rhs));
+        // XXX: Currently we only support arrays using this,  when other types are introduced
         // we can extend into a separate (generic) module
         match self.context.def_interner.id_type(rhs) {
             Type::FieldElement(is_const) if is_const.is_const() => {
@@ -603,7 +600,7 @@ impl<'a> Evaluator<'a> {
                 let span = self.context.def_interner.expr_location(rhs);
                 let value =
                     self.evaluate_integer(env, rhs).map_err(|kind| kind.add_location(span))?;
-
+                println!("Type::FieldElement value: {:?}", value);
                 env.store(variable_name, value);
             }
             Type::Array(..) => {
@@ -616,6 +613,15 @@ impl<'a> Evaluator<'a> {
                         "The evaluator currently only supports arrays and constant integers!"
                     ),
                 };
+            }
+            Type::PolymorphicInteger(is_const, typ_var) if is_const.is_const() => {
+                println!("Polymorphic integer typ_var: {:?}", typ_var);
+                println!("Polymorphic integer expression: {:?}", self.context.def_interner.expression(rhs));
+                let span = self.context.def_interner.expr_location(rhs);
+                let value =
+                    self.evaluate_integer(env, rhs).map_err(|kind| kind.add_location(span))?;
+                println!("Polymorphic integer Type::FieldElement value: {:?}", value);
+                env.store(variable_name, value);
             }
             _ => return self.handle_private_statement(env, variable_name, rhs),
         }
@@ -677,7 +683,7 @@ impl<'a> Evaluator<'a> {
     ) -> Result<Object, RuntimeErrorKind> {
         let polynomial =
             self.expression_to_object(env, expr_id).map_err(|err| err.remove_span())?;
-
+        println!("evaluate_integer: {:?}", polynomial);
         if polynomial.is_constant() {
             return Ok(polynomial);
         }

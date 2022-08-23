@@ -11,7 +11,7 @@ use expr::type_check_expression;
 
 use crate::node_interner::{FuncId, NodeInterner};
 
-use self::stmt::bind_pattern;
+pub(crate) use self::stmt::{bind_pattern, type_check};
 
 /// Type checks a function and assigns the
 /// appropriate types to expressions in a side table
@@ -48,6 +48,10 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
 
     errors
 }
+
+// pub fn type_check_stmt(interner: &mut NodeInterner, stmt_ids: Vec<StmtId>) -> Vec<TypeCheckError> {
+
+// }
 
 // XXX: These tests are all manual currently.
 /// We can either build a test apparatus or pass raw code through the resolver

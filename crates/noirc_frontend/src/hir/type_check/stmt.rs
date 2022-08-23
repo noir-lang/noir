@@ -14,6 +14,7 @@ pub(crate) fn type_check(
     stmt_id: &StmtId,
     errors: &mut Vec<TypeCheckError>,
 ) -> Type {
+    println!("inside type_check statement: {:?}", interner.statement(stmt_id));
     match interner.statement(stmt_id) {
         // Lets lay out a convincing argument that the handling of
         // SemiExpressions and Expressions below is correct.
@@ -58,9 +59,12 @@ pub fn bind_pattern(
     typ: Type,
     errors: &mut Vec<TypeCheckError>,
 ) {
-    println!("in bind_pattern, pattern: {:?}", pattern);
+    // println!("in bind_pattern, pattern: {:?}, typ: {:?}", pattern, typ);
     match pattern {
-        HirPattern::Identifier(ident) => interner.push_definition_type(ident.id, typ),
+        HirPattern::Identifier(ident) => {
+            // println!("bind_pattern, ident.id: {:?}, typ: {:?}", ident.id, typ);
+            interner.push_definition_type(ident.id, typ)
+        },
         HirPattern::Mutable(pattern, _) => bind_pattern(interner, pattern, typ, errors),
         HirPattern::Tuple(_fields, _span) => {
             todo!("Implement tuple types")
@@ -185,8 +189,10 @@ fn type_check_let_stmt(
     let_stmt: HirLetStatement,
     errors: &mut Vec<TypeCheckError>,
 ) {
+    println!("type_check_let_stmt: {:?}", let_stmt);
     let mut resolved_type =
         type_check_declaration(interner, let_stmt.expression, let_stmt.r#type, errors);
+    println!("resolved_type in type_check_let_stmt: {:?}", resolved_type);
 
     resolved_type.set_const_span(interner.expr_span(&let_stmt.expression));
 

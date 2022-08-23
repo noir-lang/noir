@@ -9,9 +9,10 @@ use crate::hir::resolution::{
     path_resolver::StandardPathResolver,
 };
 use crate::hir::type_check::type_check_func;
+use crate::hir::type_check::type_check;
 use crate::hir::Context;
 use crate::hir_def::stmt::HirStatement;
-use crate::node_interner::{FuncId, NodeInterner, StructId};
+use crate::node_interner::{FuncId, NodeInterner, StructId, StmtId};
 use crate::util::vecmap;
 use crate::{Ident, NoirFunction, NoirStruct, ParsedModule, Path, Pattern, Statement, Type};
 use fm::FileId;
@@ -147,7 +148,7 @@ impl DefCollector {
 
         resolve_structs(context, def_collector.collected_types, crate_id, errors);
 
-        resolve_global_constants(context, def_collector.collected_consts, crate_id, errors);
+        let global_const_ids = resolve_global_constants(context, def_collector.collected_consts, crate_id, errors);
 
         // Before we resolve any function symbols we must go through our impls and
         // re-collect the methods within into their proper module. This cannot be
@@ -235,7 +236,11 @@ fn resolve_global_constants(
     global_consts: Vec<UnresolvedGlobalConst>,
     crate_id: CrateId,
     errors: &mut Vec<CollectedErrors>,
-) {
+) -> Vec<StmtId> {
+    // XXX: may be able to get rid of this, 
+    // however we could follow the type resollution flow used for functions rather than combining type check in this function
+    let mut global_const_ids = Vec::new(); 
+   
     // TODO: posibly create functionality to push empty stmt and do resolution after
     for global_const in global_consts {
         let path_resolver = StandardPathResolver::new(ModuleId {
@@ -280,7 +285,21 @@ fn resolve_global_constants(
                 errors: vec![err.to_diagnostic()],
             });
         }
+
+        let mut type_check_errs = Vec::new();
+        let _stmt_type = type_check(&mut context.def_interner, &stmt_id, &mut type_check_errs);
+        let type_check_err_diagnostics: Vec<_> = type_check_errs.clone().into_iter()
+                                        .map(|error| error.into_diagnostic(&mut context.def_interner)).collect();
+        
+        if !type_check_err_diagnostics.is_empty() {
+            let collected_errors = CollectedErrors { file_id: global_const.file_id, errors: type_check_err_diagnostics };
+            errors.push(collected_errors)
+        }
+
+        global_const_ids.push(stmt_id);
     }
+
+    global_const_ids
 }
 
 /// Create the mappings from TypeId -> StructType
