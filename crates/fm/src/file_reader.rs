@@ -30,6 +30,6 @@ cfg_if::cfg_if! {
             }
         }
     } else {
-        compile_error!("need to select wasm or std")
+        compile_error!("need to select wasm or std");
     }
 }
