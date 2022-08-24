@@ -454,20 +454,13 @@ fn array_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>
 where
     T: NoirParser<UnresolvedType>,
 {
-    // just(Token::LeftBracket)
-    //     .ignore_then(fixed_array_size().or_not())
-    //     .then_ignore(just(Token::RightBracket))
-    //     .then(type_parser)
-    //     .map(|(size, element_type)| {
-    //         let size = size.unwrap_or(ArraySize::Variable);
-    //         UnresolvedType::Array(size, Box::new(element_type))
-    //     })
     just(Token::LeftBracket)
         .ignore_then(fixed_array_size().or_not())
         .then_ignore(just(Token::RightBracket))
         .then(type_parser)
         .map(|(size, element_type)| {
             let size = size.unwrap_or(ArraySize::Variable);
+            println!("PARSER, array size: {:?}", size);
             UnresolvedType::Array(size, Box::new(element_type))
         })
 }
@@ -806,10 +799,12 @@ fn fixed_array_size() -> impl NoirParser<ArraySize> {
                 Ok(ArraySize::Fixed(integer.to_u128()))
             }
         }
-        // Token::Ident(ident) => { // TODO: need to do this, alter to have const literal as size, can be
-        //     println!("ident: {:?}", ident);
-        //     Ok(ArraySize::Fixed(5 as u128))
-        // }
+        Token::Ident(ident) => { // TODO: need to do this, alter to have const literal as size, can be
+            // format!("The array size is defined as [k] for fixed size or [] for variable length. k must be a literal, ident: {:?}", ident);
+            // Ok(ArraySize::Fixed(5 as u128))
+            let message = format!("The array size is defined as [k] for fixed size or [] for variable length. k must be a literal, ident: {:?}", ident);
+            Err(ParserError::with_reason(message, span))
+        }
         _ => {
             // println!("span: {:?}, token: {:?}", span, token);
             let message = "The array size is defined as [k] for fixed size or [] for variable length. k must be a literal".to_string();

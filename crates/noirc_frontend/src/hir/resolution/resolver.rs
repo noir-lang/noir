@@ -118,7 +118,13 @@ impl<'a> Resolver<'a> {
 
         for unused_var in unused_vars.iter() {
             if self.interner.definition_name(unused_var.id) != ERROR_IDENT {
-                self.push_err(ResolverError::UnusedVariable { ident: *unused_var });
+                let global_def_name = self.interner.definition_name(unused_var.id);
+                let global_ident = Ident::from(global_def_name.to_owned());
+                println!("global ident unused: {:?}", global_ident);
+                println!("check unused global, get_global_const: {:?}", self.interner.get_global_const(&global_ident));
+                if self.interner.get_global_const(&global_ident).is_none() {
+                    self.push_err(ResolverError::UnusedVariable { ident: *unused_var });
+                }
             }
         }
     }
@@ -178,13 +184,14 @@ impl<'a> Resolver<'a> {
             variable_found.num_times_used += 1;
             variable_found.ident.id
         } else {
-            self.find_global_const(name)
-            // self.push_err(ResolverError::VariableNotDeclared {
-            //     name: name.0.contents.clone(),
-            //     span: name.0.span(),
-            // });
+            println!("find_variable else block");
+            // self.find_global_const(name)
+            self.push_err(ResolverError::VariableNotDeclared {
+                name: name.0.contents.clone(),
+                span: name.0.span(),
+            });
 
-            // DefinitionId::dummy_id()
+            DefinitionId::dummy_id()
         };
 
         let location = Location::new(name.span(), self.file);
@@ -477,8 +484,8 @@ impl<'a> Resolver<'a> {
             }
         };
 
-        let expr_id = self.interner.push_expr(hir_expr.clone()); 
-        println!("resolve_expression, expr_id: {:?}, hir_expr: {:?}", expr_id, hir_expr); // NOTE: get rid of clone() on hir_expr when removing this println
+        let expr_id = self.interner.push_expr(hir_expr); 
+        // println!("resolve_expression, expr_id: {:?}, hir_expr: {:?}", expr_id, hir_expr); // NOTE: get rid of clone() on hir_expr when removing this println
         self.interner.push_expr_location(expr_id, expr.span, self.file);
         expr_id
     }
@@ -490,6 +497,7 @@ impl<'a> Resolver<'a> {
     fn resolve_pattern_mutable(&mut self, pattern: Pattern, mutable: Option<Span>) -> HirPattern {
         match pattern {
             Pattern::Identifier(name) => {
+                // println!("ABOUT TO ADD TO SCOPE: {:?}", name);
                 let id = self.add_variable_decl(name, mutable.is_some());
                 HirPattern::Identifier(id)
             }
@@ -633,7 +641,10 @@ impl<'a> Resolver<'a> {
 
     fn resolve_block(&mut self, block_expr: BlockExpression) -> HirExpression {
         let statements =
-            self.in_new_scope(|this| vecmap(block_expr.0, |stmt| this.intern_stmt(stmt)));
+            self.in_new_scope(|this| vecmap(block_expr.0, |stmt| {
+                // println!("stmt in resolve_block: {:?}", stmt);
+                this.intern_stmt(stmt) 
+            }));
         HirExpression::Block(HirBlockExpression(statements))
     }
 

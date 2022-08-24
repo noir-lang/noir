@@ -6,7 +6,7 @@ use crate::{
     hir::def_collector::dc_crate::UnresolvedStruct,
     node_interner::{StmtId, StructId},
     parser::SubModule,
-    Ident, NoirFunction, NoirImpl, NoirStruct, ParsedModule,
+    Ident, NoirFunction, NoirImpl, NoirStruct, ParsedModule, Statement
 };
 
 use super::{
@@ -27,7 +27,7 @@ struct ModCollector<'a> {
 /// Walk a module and collect it's definitions
 pub fn collect_defs<'a>(
     def_collector: &'a mut DefCollector,
-    ast: ParsedModule,
+    ast: &mut ParsedModule,
     file_id: FileId,
     module_id: LocalModuleId,
     crate_id: CrateId,
@@ -37,14 +37,14 @@ pub fn collect_defs<'a>(
     let mut collector = ModCollector { def_collector, file_id, module_id };
 
     // First resolve the module declarations
-    for decl in ast.module_decls {
+    for decl in ast.module_decls.clone() {
         collector.parse_module_declaration(context, &decl, crate_id, errors)
     }
 
-    collector.collect_submodules(context, crate_id, ast.submodules, file_id, errors);
+    collector.collect_submodules(context, crate_id, ast.submodules.clone(), file_id, errors);
 
     // Then add the imports to defCollector to resolve once all modules in the hierarchy have been resolved
-    for import in ast.imports {
+    for import in ast.imports.clone() {
         collector.def_collector.collected_imports.push(ImportDirective {
             module_id: collector.module_id,
             path: import.path,
@@ -52,21 +52,42 @@ pub fn collect_defs<'a>(
         });
     }
 
-    collector.collect_structs(ast.types, crate_id, errors);
+    collector.collect_structs(ast.types.clone(), crate_id, errors);
 
-    let errors_in_same_file = collector.collect_functions(context, ast.functions);
-    collector.collect_impls(context, ast.impls);
+    // println!("AST GLOBAL CONSTS: {:?}", ast.global_constants.clone());
+    insert_global_constants(&mut ast.functions, ast.global_constants.clone());
+    // println!("AST FUNCTIONS after insert global: {:?}", ast.functions.clone());
+
+    let errors_in_same_file = collector.collect_functions(context, ast.functions.clone());
+
+    collector.collect_impls(context, ast.impls.clone());
 
     if !errors_in_same_file.is_empty() {
         errors.push(CollectedErrors { file_id: collector.file_id, errors: errors_in_same_file });
     }
 
-    for global_const in ast.global_constants {
+    for global_const in ast.global_constants.clone() {
         collector.def_collector.collected_consts.push(UnresolvedGlobalConst {
             file_id: collector.file_id,
             module_id: collector.module_id,
             stmt_def: global_const,
         });
+    }
+}
+
+// NOTE: Possibly do this inside dc_crate where resolution happens to make sure that multiple global_constants are not declared 
+fn insert_global_constants(
+    functions: &mut Vec<NoirFunction>,
+    global_consts: Vec<Statement>,
+) {
+    for function in functions.into_iter() {
+        let mut statements = function.clone().def.body.0;
+
+        for global_const in global_consts.iter() {
+            println!("global_const: {:?}", global_const);
+            statements.insert(0, global_const.clone());
+        }
+        function.def.body.0 = statements;
     }
 }
 
@@ -124,6 +145,7 @@ impl<'a> ModCollector<'a> {
                 );
             }
         }
+        // println!("UNRESOLVED FUNCTIONS: {:?}", unresolved_functions.functions);
 
         self.def_collector.collected_functions.push(unresolved_functions);
 
@@ -182,12 +204,12 @@ impl<'a> ModCollector<'a> {
         file_id: FileId,
         errors: &mut Vec<CollectedErrors>,
     ) {
-        for submodule in submodules {
+        for mut submodule in submodules {
             match self.push_child_module(&submodule.name, file_id, true) {
                 Err(mut more_errors) => errors.append(&mut more_errors),
                 Ok(child_mod_id) => collect_defs(
                     self.def_collector,
-                    submodule.contents,
+                    &mut submodule.contents,
                     file_id,
                     child_mod_id,
                     crate_id,
@@ -224,14 +246,14 @@ impl<'a> ModCollector<'a> {
             };
 
         // Parse the AST for the module we just found and then recursively look for it's defs
-        let ast = parse_file(&mut context.file_manager, child_file_id, errors);
+        let mut ast = parse_file(&mut context.file_manager, child_file_id, errors);
 
         // Add module into def collector and get a ModuleId
         match self.push_child_module(mod_name, child_file_id, true) {
             Err(mut more_errors) => errors.append(&mut more_errors),
             Ok(child_mod_id) => collect_defs(
                 self.def_collector,
-                ast,
+                &mut ast,
                 child_file_id,
                 child_mod_id,
                 crate_id,

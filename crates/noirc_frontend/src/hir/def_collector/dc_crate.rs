@@ -74,7 +74,7 @@ impl DefCollector {
     pub fn collect(
         mut def_map: CrateDefMap,
         context: &mut Context,
-        ast: ParsedModule,
+        ast: &mut ParsedModule,
         root_file_id: FileId,
         errors: &mut Vec<CollectedErrors>,
     ) {
@@ -148,7 +148,8 @@ impl DefCollector {
 
         resolve_structs(context, def_collector.collected_types, crate_id, errors);
 
-        let global_const_ids = resolve_global_constants(context, def_collector.collected_consts, crate_id, errors);
+        // TODO: circle back to this, trying to insert global constants within dc_mod, currently only used to check for multiple global consts within a crate 
+        resolve_global_constants(context, def_collector.collected_consts, crate_id, errors);
 
         // Before we resolve any function symbols we must go through our impls and
         // re-collect the methods within into their proper module. This cannot be
@@ -156,6 +157,7 @@ impl DefCollector {
         // impl since that determines the module we should collect into.
         collect_impls(context, crate_id, &def_collector.collected_impls, errors);
 
+        println!("about to resolve functions");
         // Lower each function in the crate. This is now possible since imports have been resolved
         let file_func_ids = resolve_functions(
             &mut context.def_interner,
@@ -166,6 +168,8 @@ impl DefCollector {
             errors,
         );
 
+        println!("about to resolve impls");
+
         let file_method_ids = resolve_impls(
             &mut context.def_interner,
             crate_id,
@@ -174,6 +178,7 @@ impl DefCollector {
             errors,
         );
 
+        println!("about to type check fucnctions and impls");
         // Type check all of the functions in the crate
         type_check_functions(&mut context.def_interner, file_func_ids, errors);
         type_check_functions(&mut context.def_interner, file_method_ids, errors);
@@ -236,12 +241,13 @@ fn resolve_global_constants(
     global_consts: Vec<UnresolvedGlobalConst>,
     crate_id: CrateId,
     errors: &mut Vec<CollectedErrors>,
-) -> Vec<StmtId> {
+)  {
     // XXX: may be able to get rid of this, but keep while WIP as we could follow the type resollution flow used for functions
     // rather than combining type check in this function
-    let mut global_const_ids = Vec::new(); 
+    // let mut global_const_ids = Vec::new(); 
    
-    // TODO: posibly create functionality to push empty stmt and do resolution after
+    // NOTE: it is still necessary to intern global const statements to check for duplicate global const declarations,
+    // repeated variable names inside functions, consts in functions params, and consts specifying array size
     for global_const in global_consts {
         let path_resolver = StandardPathResolver::new(ModuleId {
             local_id: global_const.module_id,
@@ -269,8 +275,7 @@ fn resolve_global_constants(
 
         // let hir_stmt = context.def_interner.statement(&stmt_id);
         println!("hir stmt: {:?}", stmt_id);
-        context.def_interner.push_global_const(name.clone(), stmt_id);
-        // context.def_interner.push_stmt(hir_stmt); XXX: don't need to do this it is done in inter_stmt
+        context.def_interner.push_global_const(name.clone(), stmt_id); 
 
         let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
 
@@ -296,10 +301,10 @@ fn resolve_global_constants(
             errors.push(collected_errors)
         }
 
-        global_const_ids.push(stmt_id);
+        // global_const_ids.push(stmt_id);
     }
 
-    global_const_ids
+    // global_const_ids
 }
 
 /// Create the mappings from TypeId -> StructType

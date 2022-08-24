@@ -14,7 +14,7 @@ pub(crate) fn type_check(
     stmt_id: &StmtId,
     errors: &mut Vec<TypeCheckError>,
 ) -> Type {
-    println!("inside type_check statement: {:?}", interner.statement(stmt_id));
+    // println!("inside type_check statement: {:?}", interner.statement(stmt_id));
     match interner.statement(stmt_id) {
         // Lets lay out a convincing argument that the handling of
         // SemiExpressions and Expressions below is correct.
@@ -189,10 +189,10 @@ fn type_check_let_stmt(
     let_stmt: HirLetStatement,
     errors: &mut Vec<TypeCheckError>,
 ) {
-    println!("type_check_let_stmt: {:?}", let_stmt);
+    // println!("type_check_let_stmt: {:?}", let_stmt);
     let mut resolved_type =
         type_check_declaration(interner, let_stmt.expression, let_stmt.r#type, errors);
-    println!("resolved_type in type_check_let_stmt: {:?}", resolved_type);
+    // println!("resolved_type in type_check_let_stmt: {:?}", resolved_type);
 
     resolved_type.set_const_span(interner.expr_span(&let_stmt.expression));
 
