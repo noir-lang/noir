@@ -16,8 +16,7 @@ use acvm::FieldElement;
 use acvm::Language;
 use environment::{Environment, FuncContext};
 use errors::{RuntimeError, RuntimeErrorKind};
-use noirc_abi::AbiFEType;
-use noirc_errors::Location;
+use noirc_abi::{AbiFEType, AbiType};
 use noirc_frontend::monomorphisation::ast::*;
 
 use object::{Array, Integer, Object};
@@ -113,7 +112,7 @@ impl Evaluator {
         enable_logging: bool,
     ) -> Result<(), RuntimeError> {
         let mut igen = IRGenerator::new(program);
-        self.parse_abi_alt(&mut igen)?;
+        self.parse_abi_alt(&mut igen);
 
         // Now call the main function
         igen.codegen_main(env)?;
@@ -127,60 +126,51 @@ impl Evaluator {
         &mut self,
         name: &str,
         def: DefinitionId,
-        param_visibility: AbiFEType,
-        param_type: &Type,
-        param_location: Location,
+        param_type: &AbiType,
         igen: &mut IRGenerator,
-    ) -> Result<(), RuntimeError> {
+    ) -> Result<(), RuntimeErrorKind> {
         match param_type {
-            Type::Field => {
+            AbiType::Field(visibility) => {
                 let witness = self.add_witness_to_cs();
-                if param_visibility == AbiFEType::Public {
+                if *visibility == AbiFEType::Public {
                     self.public_inputs.push(witness);
                 }
                 igen.abi_var(name, def, node::ObjectType::NativeField, witness);
             }
-            Type::Array(len, typ) => {
+            AbiType::Array { visibility, length, typ } => {
                 let mut witnesses = Vec::new();
                 let mut element_width = None;
-                if let Type::Integer(_, width) = typ.as_ref() {
+                if let AbiType::Integer { width, .. } = typ.as_ref() {
                     element_width = Some(*width);
                 }
 
-                for _ in 0..*len {
+                for _ in 0..*length {
                     let witness = self.add_witness_to_cs();
                     witnesses.push(witness);
                     if let Some(ww) = element_width {
-                        ssa::acir_gen::range_constraint(witness, ww, self)
-                            .map_err(|e| e.add_location(param_location))?;
+                        ssa::acir_gen::range_constraint(witness, ww, self)?;
                     }
-                    if param_visibility == AbiFEType::Public {
+                    if *visibility == AbiFEType::Public {
                         self.public_inputs.push(witness);
                     }
                 }
-                igen.abi_array(name, def, *typ.clone(), *len as u128, witnesses);
+                igen.abi_array(name, def, typ.as_ref(), *length, witnesses);
             }
-            Type::Integer(sign, width) => {
+            AbiType::Integer { visibility, sign, width } => {
                 let witness = self.add_witness_to_cs();
-                ssa::acir_gen::range_constraint(witness, *width, self)
-                    .map_err(|e| e.add_location(param_location))?;
-                if param_visibility == AbiFEType::Public {
+                ssa::acir_gen::range_constraint(witness, *width, self)?;
+                if *visibility == AbiFEType::Public {
                     self.public_inputs.push(witness);
                 }
                 match sign {
-                    noirc_frontend::Signedness::Unsigned => {
+                    noirc_abi::Sign::Unsigned => {
                         igen.abi_var(name, def, node::ObjectType::Unsigned(*width), witness)
                     }
-                    noirc_frontend::Signedness::Signed => {
+                    noirc_abi::Sign::Signed => {
                         igen.abi_var(name, def, node::ObjectType::Signed(*width), witness)
                     }
                 }
             }
-
-            Type::Bool => todo!(),
-            Type::Unit => todo!(),
-            Type::Tuple(_) => todo!(),
-            _ => unreachable!(),
         }
         Ok(())
     }
@@ -189,18 +179,19 @@ impl Evaluator {
     /// Noted in the noirc_abi, it is possible to convert Toml -> NoirTypes
     /// However, this intermediate representation is useful as it allows us to have
     /// intermediate Types which the core type system does not know about like Strings.
-    fn parse_abi_alt(&mut self, igen: &mut IRGenerator) -> Result<(), RuntimeError> {
+    fn parse_abi_alt(&mut self, igen: &mut IRGenerator) {
         // XXX: Currently, the syntax only supports public witnesses
         // u8 and arrays are assumed to be private
         // This is not a short-coming of the ABI, but of the grammar
         // The new grammar has been conceived, and will be implemented.
-        for (param_name, param_type) in &igen.program.abi.parameters {
-            let name = todo!();
-            let vis = todo!();
-            let location = todo!();
-            self.param_to_var(name, *param_id, vis, param_type, location, igen)?;
-        }
+        let main = igen.program.main();
+        assert_eq!(main.parameters.len(), igen.program.abi.parameters.len());
 
-        Ok(())
+        for ((param_id, _, param_name1), (param_name2, param_type)) in
+            main.parameters.iter().zip(&igen.program.abi.parameters)
+        {
+            assert_eq!(param_name1, param_name2);
+            self.param_to_var(param_name1, *param_id, param_type, igen).unwrap();
+        }
     }
 }

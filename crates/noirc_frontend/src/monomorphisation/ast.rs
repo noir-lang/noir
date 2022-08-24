@@ -12,12 +12,14 @@ pub enum Expression {
     Unary(Unary),
     Binary(Binary),
     Index(Index),
-    Call(Call),
     Cast(Cast),
     For(For),
     If(If),
     Tuple(Vec<Expression>),
     ExtractTupleField(Box<Expression>, usize),
+    Call(Call),
+    CallBuiltin(CallBuiltin),
+    CallLowLevel(CallLowLevel),
 
     Let(Let),
     Constrain(Box<Expression>, Location),
@@ -100,6 +102,19 @@ pub struct Call {
 }
 
 #[derive(Debug, Clone)]
+pub struct CallLowLevel {
+    pub opcode: String,
+    pub arguments: Vec<Expression>,
+}
+
+/// TODO: Ssa doesn't support these yet
+#[derive(Debug, Clone)]
+pub struct CallBuiltin {
+    pub func_id: FuncId,
+    pub arguments: Vec<Expression>,
+}
+
+#[derive(Debug, Clone)]
 pub struct Index {
     pub collection: Box<Expression>,
     pub index: Box<Expression>,
@@ -138,7 +153,7 @@ pub struct Function {
     pub id: FuncId,
     pub name: String,
 
-    pub parameters: Vec<(DefinitionId, Type, /*name:*/String)>,
+    pub parameters: Vec<(DefinitionId, Type, /*name:*/ String)>,
     pub body: Expression,
 
     pub return_type: Type,

@@ -101,7 +101,8 @@ impl Monomorphiser {
 
             let name = "_".into();
             let typ = self.convert_type(main_meta.return_type());
-            let lhs = Box::new(ast::Expression::Ident(ast::Ident { id, location: None, name, typ }));
+            let lhs =
+                Box::new(ast::Expression::Ident(ast::Ident { id, location: None, name, typ }));
             let rhs = Box::new(main.body);
             let operator = ast::BinaryOp::Equal;
             let eq = ast::Expression::Binary(ast::Binary { operator, lhs, rhs });
@@ -367,8 +368,9 @@ impl Monomorphiser {
             }));
         }
 
-        let sorted_fields =
-            vecmap(field_vars, |(name, (id, typ))| ast::Expression::Ident(ast::Ident { id, location: None, name, typ }));
+        let sorted_fields = vecmap(field_vars, |(name, (id, typ))| {
+            ast::Expression::Ident(ast::Ident { id, location: None, name, typ })
+        });
 
         // Finally we can return the created Tuple from the new block
         new_exprs.push(ast::Expression::Tuple(sorted_fields));
@@ -438,7 +440,8 @@ impl Monomorphiser {
         for (i, (field_pattern, field_type)) in fields.into_iter().enumerate() {
             let typ = self.convert_type(&field_type);
             let name = i.to_string();
-            let new_rhs = ast::Expression::Ident(ast::Ident { location: None, id: fresh_id, name, typ });
+            let new_rhs =
+                ast::Expression::Ident(ast::Ident { location: None, id: fresh_id, name, typ });
             let new_rhs = ast::Expression::ExtractTupleField(Box::new(new_rhs), i);
             let new_expr = self.unpack_pattern(field_pattern, new_rhs, &field_type);
             definitions.push(new_expr);

@@ -4,7 +4,7 @@ use crate::environment::Environment;
 use crate::errors::RuntimeError;
 use acvm::acir::OPCODE;
 use acvm::FieldElement;
-use noirc_frontend::monomorphisation::ast::{self, Call, FuncId, DefinitionId, Type};
+use noirc_frontend::monomorphisation::ast::{self, Call, DefinitionId, FuncId, Type};
 
 use super::conditional::{AssumptionId, DecisionTree};
 use super::node::Node;
@@ -117,45 +117,6 @@ pub fn get_result_type(op: OPCODE) -> (u32, ObjectType) {
     }
 }
 
-//Lowlevel functions with no more than 2 arguments
-pub fn call_low_level(
-    op: OPCODE,
-    call_expr: &ast::Call,
-    igen: &mut IRGenerator,
-    env: &mut Environment,
-) -> Result<NodeId, RuntimeError> {
-    //Inputs
-    let mut args: Vec<NodeId> = Vec::new();
-
-    for arg in &call_expr.arguments {
-        if let Ok(lhs) = igen.codegen_expression(env, arg) {
-            args.push(lhs.unwrap_id()); //TODO handle multiple values
-        } else {
-            panic!("error calling {}", op);
-        }
-    }
-    //REM: we do not check that the nb of inputs correspond to the function signature, it is done in the frontend
-
-    //Output:
-    let result_signature = get_result_type(op);
-    let result_type = if result_signature.0 > 1 {
-        //We create an array that will contain the result and set the res_type to point to that array
-        let result_index = igen.context.mem.create_new_array(
-            result_signature.0,
-            result_signature.1,
-            &format!("{}_result", op),
-        );
-        node::ObjectType::Pointer(result_index)
-    } else {
-        result_signature.1
-    };
-
-    //when the function returns an array, we use ins.res_type(array)
-    //else we map ins.id to the returned witness
-    //Call instruction
-    igen.context.new_instruction(node::Operation::Intrinsic(op, args), result_type)
-}
-
 impl IRGenerator {
     pub fn create_function(
         &mut self,
@@ -202,7 +163,12 @@ impl IRGenerator {
         Ok(())
     }
 
-    fn create_function_parameter(&mut self, id: DefinitionId, typ: &Type, name: &str) -> Vec<NodeId> {
+    fn create_function_parameter(
+        &mut self,
+        id: DefinitionId,
+        typ: &Type,
+        name: &str,
+    ) -> Vec<NodeId> {
         //check if the variable is already created:
         let val = match self.find_variable(id) {
             Some(var) => self.get_current_value(&var.clone()),
@@ -237,6 +203,45 @@ impl IRGenerator {
             )?);
         }
         Ok(result)
+    }
+
+    //Lowlevel functions with no more than 2 arguments
+    pub fn call_low_level(
+        &mut self,
+        op: OPCODE,
+        call: &ast::CallLowLevel,
+        env: &mut Environment,
+    ) -> Result<NodeId, RuntimeError> {
+        //Inputs
+        let mut args: Vec<NodeId> = Vec::new();
+
+        for arg in &call.arguments {
+            if let Ok(lhs) = self.codegen_expression(env, arg) {
+                args.push(lhs.unwrap_id()); //TODO handle multiple values
+            } else {
+                panic!("error calling {}", op);
+            }
+        }
+        //REM: we do not check that the nb of inputs correspond to the function signature, it is done in the frontend
+
+        //Output:
+        let result_signature = get_result_type(op);
+        let result_type = if result_signature.0 > 1 {
+            //We create an array that will contain the result and set the res_type to point to that array
+            let result_index = self.context.mem.create_new_array(
+                result_signature.0,
+                result_signature.1,
+                &format!("{}_result", op),
+            );
+            node::ObjectType::Pointer(result_index)
+        } else {
+            result_signature.1
+        };
+
+        //when the function returns an array, we use ins.res_type(array)
+        //else we map ins.id to the returned witness
+        //Call instruction
+        self.context.new_instruction(node::Operation::Intrinsic(op, args), result_type)
     }
 }
 

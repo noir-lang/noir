@@ -15,7 +15,7 @@ use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use noirc_frontend::monomorphisation::ast::*;
 use noirc_frontend::util::vecmap;
-use noirc_frontend::{BinaryOpKind, FunctionKind, UnaryOp};
+use noirc_frontend::{BinaryOpKind, UnaryOp};
 use num_bigint::BigUint;
 use num_traits::Zero;
 
@@ -107,11 +107,20 @@ impl IRGenerator {
         &mut self,
         name: &str,
         ident_def: DefinitionId,
-        el_type: Type,
+        el_type: &noirc_abi::AbiType,
         len: u128,
         witness: Vec<acvm::acir::native_types::Witness>,
     ) {
-        let v_id = self.new_array(name, el_type.into(), len as u32, Some(ident_def));
+        let element_type = match el_type {
+            noirc_abi::AbiType::Field(_) => ObjectType::NativeField,
+            noirc_abi::AbiType::Integer { visibility, sign, width } => match sign {
+                noirc_abi::Sign::Unsigned => ObjectType::Unsigned(*width),
+                noirc_abi::Sign::Signed => ObjectType::Signed(*width),
+            },
+            noirc_abi::AbiType::Array { .. } => unreachable!(),
+        };
+
+        let v_id = self.new_array(name, element_type, len as u32, Some(ident_def));
         let array_idx = self.context.mem.last_id();
         self.context.mem[array_idx].values = vecmap(witness, |w| w.into());
         self.context.get_current_block_mut().update_variable(v_id, v_id);
@@ -515,44 +524,31 @@ impl IRGenerator {
             Expression::Call(call_expr) => {
                 let function = &self.program[call_expr.func_id];
 
-                match function.kind {
-                    FunctionKind::Normal => {
-                        if self.context.get_ssafunc(call_expr.func_id).is_none() {
-                            let index = self.context.get_function_index();
-                            self.create_function(call_expr.func_id, env, index)?;
-                        }
-                        let callee = self.context.get_ssafunc(call_expr.func_id).unwrap().idx;
-                        //generate a call instruction to the function cfg
-                        if let Some(caller) = self.function_context {
-                            function::update_call_graph(
-                                &mut self.context.call_graph,
-                                caller,
-                                callee,
-                            );
-                        }
-                        let results = self.call(call_expr, env)?;
-
-                        Ok(match &function.return_type {
-                            Type::Tuple(_) => Value::Tuple(vecmap(results, |id| Value::Single(id))),
-                            _ => {
-                                assert_eq!(results.len(), 1);
-                                Value::Single(results[0])
-                            }
-                        })
-                    }
-                    FunctionKind::LowLevel => {
-                        // We use it's func name to find out what intrinsic function to call
-                        let attribute = func_meta.attributes.expect("all low level functions must contain an attribute which contains the opcode which it links to");
-                        let opcode_name = attribute.foreign().expect("ice: function marked as foreign, but attribute kind does not match this");
-                        Ok(Value::Single(self.codegen_lowlevel(env, opcode_name, call_expr)?))
-                    }
-                    FunctionKind::Builtin => {
-                        todo!()
-                        // let attribute = func_meta.attributes.expect("all builtin functions must contain an attribute which contains the function name which it links to");
-                        // let builtin_name = attribute.builtin().expect("ice: function marked as a builtin, but attribute kind does not match this");
-                        // builtin::call_builtin(self, env, builtin_name, (call_expr,span))
-                    }
+                if self.context.get_ssafunc(call_expr.func_id).is_none() {
+                    let index = self.context.get_function_index();
+                    self.create_function(call_expr.func_id, env, index)?;
                 }
+                let callee = self.context.get_ssafunc(call_expr.func_id).unwrap().idx;
+                //generate a call instruction to the function cfg
+                if let Some(caller) = self.function_context {
+                    function::update_call_graph(&mut self.context.call_graph, caller, callee);
+                }
+                let results = self.call(call_expr, env)?;
+
+                Ok(match &function.return_type {
+                    Type::Tuple(_) => Value::Tuple(vecmap(results, |id| Value::Single(id))),
+                    _ => {
+                        assert_eq!(results.len(), 1);
+                        Value::Single(results[0])
+                    }
+                })
+            }
+            Expression::CallLowLevel(call) => Ok(Value::Single(self.codegen_lowlevel(env, call)?)),
+            Expression::CallBuiltin(_call) => {
+                todo!()
+                // let attribute = func_meta.attributes.expect("all builtin functions must contain an attribute which contains the function name which it links to");
+                // let builtin_name = attribute.builtin().expect("ice: function marked as a builtin, but attribute kind does not match this");
+                // builtin::call_builtin(self, env, builtin_name, (call_expr,span))
             }
             Expression::For(for_expr) => self.codegen_for(env, for_expr),
             Expression::Tuple(fields) => self.codegen_tuple(env, fields),
@@ -584,15 +580,14 @@ impl IRGenerator {
     fn codegen_lowlevel(
         &mut self,
         env: &mut Environment,
-        opcode_name: &str,
-        call_expr: &Call,
+        call: &CallLowLevel,
     ) -> Result<NodeId, RuntimeError> {
-        match OPCODE::lookup(opcode_name) {
-            Some(func) => function::call_low_level(func, call_expr, self, env),
+        match OPCODE::lookup(&call.opcode) {
+            Some(func) => self.call_low_level(func, call, env),
             None => {
                 unreachable!(
                     "cannot find a low level opcode with the name {} in the IR",
-                    opcode_name
+                    &call.opcode
                 )
             }
         }
@@ -607,9 +602,7 @@ impl IRGenerator {
                     self.context.zero()
                 }
             }
-            Literal::Integer(f, typ) => {
-                self.context.get_or_create_const(*f, typ.into())
-            }
+            Literal::Integer(f, typ) => self.context.get_or_create_const(*f, typ.into()),
             _ => todo!(), //todo: add support for Array(ArrayLiteral), Str(String)
         }
     }
