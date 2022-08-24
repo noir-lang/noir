@@ -59,9 +59,7 @@ pub fn bind_pattern(
     errors: &mut Vec<TypeCheckError>,
 ) {
     match pattern {
-        HirPattern::Identifier(ident) => {
-            interner.push_definition_type(ident.id, typ)
-        }
+        HirPattern::Identifier(ident) => interner.push_definition_type(ident.id, typ),
         HirPattern::Mutable(pattern, _) => bind_pattern(interner, pattern, typ, errors),
         HirPattern::Tuple(_fields, _span) => {
             todo!("Implement tuple types")

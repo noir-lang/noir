@@ -594,9 +594,8 @@ impl<'a> Resolver<'a> {
     }
 
     fn resolve_block(&mut self, block_expr: BlockExpression) -> HirExpression {
-        let statements = self.in_new_scope(|this| {
-            vecmap(block_expr.0, |stmt| this.intern_stmt(stmt))
-        });
+        let statements =
+            self.in_new_scope(|this| vecmap(block_expr.0, |stmt| this.intern_stmt(stmt)));
         HirExpression::Block(HirBlockExpression(statements))
     }
 
