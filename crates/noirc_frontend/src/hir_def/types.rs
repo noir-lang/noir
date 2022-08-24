@@ -1,6 +1,8 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{hir::type_check::TypeCheckError, node_interner::NodeInterner};
+use crate::hir_def::stmt::{HirStatement};
+use crate::hir_def::expr::{HirExpression, HirLiteral};
 use noirc_abi::{AbiFEType, AbiType};
 use noirc_errors::Span;
 
@@ -549,9 +551,14 @@ impl Type {
 
     /// Computes the number of elements in a Type
     /// Arrays, structs, and tuples will be the only data structures to return more than one
-    pub fn num_elements(&self) -> usize {
+    pub fn num_elements(&self, interner: &NodeInterner) -> usize {
         match self {
             Type::Array(ArraySize::Fixed(fixed_size), _) => *fixed_size as usize,
+            Type::Array(ArraySize::FixedVariable(name), _) => {
+                let global_ident = Ident::from(name.clone());
+                let length = self.get_fixed_variable_array_length(&global_ident, interner);
+                length as usize
+            },
             Type::Array(ArraySize::Variable, _) =>
                 unreachable!("ice : this method is only ever called when we want to compare the prover inputs with the ABI in main. The ABI should not have variable input. The program should be compiled before calling this"),
             Type::Struct(s) => s.borrow().fields.len(),
@@ -589,9 +596,45 @@ impl Type {
         }
     }
 
+    fn get_fixed_variable_array_length(&self, ident: &Ident, interner: &NodeInterner) -> u128 {
+        let stmt = interner.get_global_const(&ident);
+        let length = match stmt {
+            Some(stmt_id) => {
+                let statement = interner.statement(&stmt_id);
+                match statement {
+                    HirStatement::Let(let_stmt) => {
+                        let expression = interner.expression(&let_stmt.expression);
+                        match expression {
+                            HirExpression::Literal(literal) => {
+                                match literal {
+                                    HirLiteral::Integer(field_element) => {
+                                        match field_element.try_into_u128() {
+                                            Some(val) => val,
+                                            None => panic!("field element used in constant does not fit into u128"),
+                                        }
+                                    }
+                                    _ => {
+                                        panic!("literal used in fixed variable array length must be an integer literal")
+                                    }
+                                }
+
+                            },
+                            _ => {
+                                panic!("expression in global const statement is not a literal")
+                            }
+                        }
+                    }
+                    _ => panic!("let statement not associated with statement")
+                }
+            }
+            None => panic!("no statement associated with fixed sized array variable")
+        };
+        length
+    }
+
     // Note; use strict_eq instead of partial_eq when comparing field types
     // in this method, you most likely want to distinguish between public and private
-    pub fn as_abi_type(&self, fe_type: AbiFEType) -> AbiType {
+    pub fn as_abi_type(&self, fe_type: AbiFEType, interner: &NodeInterner) -> AbiType {
         match self {
             Type::FieldElement(_) => AbiType::Field(fe_type),
             Type::Array(size, typ) => match size {
@@ -601,8 +644,18 @@ impl Type {
                 ArraySize::Fixed(length) => AbiType::Array {
                     visibility: fe_type,
                     length: *length,
-                    typ: Box::new(typ.as_abi_type(fe_type)),
+                    typ: Box::new(typ.as_abi_type(fe_type, interner)),
                 },
+                ArraySize::FixedVariable(name) => {
+                    let global_ident = Ident::from(name.clone());
+                    let length = self.get_fixed_variable_array_length(&global_ident, interner);
+
+                    AbiType::Array {
+                        visibility: fe_type,
+                        length: length,
+                        typ: Box::new(typ.as_abi_type(fe_type, interner)),
+                    }
+                }
             },
             Type::Integer(_, sign, bit_width) => {
                 let sign = match sign {
@@ -613,8 +666,8 @@ impl Type {
                 AbiType::Integer { sign, width: *bit_width as u32, visibility: fe_type }
             }
             Type::PolymorphicInteger(_, binding) => match &*binding.borrow() {
-                TypeBinding::Bound(typ) => typ.as_abi_type(fe_type),
-                TypeBinding::Unbound(_) => Type::default_int_type(None).as_abi_type(fe_type),
+                TypeBinding::Bound(typ) => typ.as_abi_type(fe_type, interner),
+                TypeBinding::Unbound(_) => Type::default_int_type(None).as_abi_type(fe_type, interner),
             },
             Type::Bool(_) => panic!("currently, cannot have a bool in the entry point function"),
             Type::Error => unreachable!(),

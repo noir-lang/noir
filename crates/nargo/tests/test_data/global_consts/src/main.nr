@@ -1,7 +1,7 @@
 let N: const Field = 5;
 let M: const Field = 32;
 //a: [M]Field, b: [M]Field
-fn main() {
+fn main(a: [M]Field, b: [M]Field) {
      // let q = [N]Field;
      // let N: const Field = 5;
 
@@ -18,10 +18,10 @@ fn main() {
      let q = multiplyByM(3);
      constrain q == 96;
 
-     //constrain a != b;
+     constrain a != b;
      //let L: const Field = 10;
 
-     let arr: [10]Field = [N; 10];
+     let arr: [N]Field = [N; 5];
      constrain arr[0] == 5;
 
      let t: [2]Field = [N, M];

@@ -18,6 +18,7 @@ use crate::{token::IntType, util::vecmap, IsConst};
 pub enum ArraySize {
     Variable,
     Fixed(u128),
+    FixedVariable(String),
 }
 
 impl ArraySize {
@@ -39,6 +40,7 @@ impl std::fmt::Display for ArraySize {
         match self {
             ArraySize::Variable => write!(f, "[]"),
             ArraySize::Fixed(size) => write!(f, "[{}]", size),
+            ArraySize::FixedVariable(ident) => write!(f, "[{}]", ident),
         }
     }
 }

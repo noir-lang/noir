@@ -382,6 +382,21 @@ impl<'a> Evaluator<'a> {
                         }
                         igen.abi_array(name, def, *typ.clone(), len, witnesses);
                     }
+                    noirc_frontend::ArraySize::FixedVariable(_) => {
+                        let len = param_type.num_elements(&self.context.def_interner) as u128; // TODO: cast is fine for now but we cast to lower type within igen.abi_array
+                        for _ in 0..len {
+                            let witness = self.add_witness_to_cs();
+                            witnesses.push(witness);
+                            if let Some(ww) = element_width {
+                                ssa::acir_gen::range_constraint(witness, ww, self)
+                                    .map_err(|e| e.add_location(param_location))?;
+                            }
+                            if param_visibility == AbiFEType::Public {
+                                self.public_inputs.push(witness);
+                            }
+                        }
+                        igen.abi_array(name, def, *typ.clone(), len, witnesses);
+                    }
                 }
             }
             Type::Integer(_, sign, width) => {

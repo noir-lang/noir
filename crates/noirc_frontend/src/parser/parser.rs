@@ -802,8 +802,9 @@ fn fixed_array_size() -> impl NoirParser<ArraySize> {
         Token::Ident(ident) => { // TODO: need to do this, alter to have const literal as size, can be
             // format!("The array size is defined as [k] for fixed size or [] for variable length. k must be a literal, ident: {:?}", ident);
             // Ok(ArraySize::Fixed(5 as u128))
-            let message = format!("The array size is defined as [k] for fixed size or [] for variable length. k must be a literal, ident: {:?}", ident);
-            Err(ParserError::with_reason(message, span))
+            Ok(ArraySize::FixedVariable(ident))
+            // let message = format!("The array size is defined as [k] for fixed size or [] for variable length. k must be a literal, ident: {:?}", ident);
+            // Err(ParserError::with_reason(message, span))
         }
         _ => {
             // println!("span: {:?}, token: {:?}", span, token);

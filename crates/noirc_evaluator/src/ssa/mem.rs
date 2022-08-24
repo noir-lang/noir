@@ -139,10 +139,3 @@ impl std::ops::IndexMut<ArrayId> for Memory {
         &mut self.arrays[index.0 as usize]
     }
 }
-
-pub fn get_array_size(array_size: &ArraySize) -> u32 {
-    match array_size {
-        ArraySize::Fixed(l) => *l as u32,
-        ArraySize::Variable => todo!(),
-    }
-}
