@@ -12,7 +12,9 @@ use crate::hir::type_check::type_check_func;
 use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner, StructId};
 use crate::util::vecmap;
-use crate::{Ident, NoirFunction, NoirStruct, ParsedModule, Path, Type, TypeVariableId};
+use crate::{
+    Ident, NoirFunction, NoirStruct, ParsedModule, Path, Type, TypeVariable, TypeVariableId,
+};
 use fm::FileId;
 use noirc_errors::CollectedErrors;
 use noirc_errors::DiagnosableError;
@@ -250,7 +252,7 @@ fn resolve_struct_fields(
     krate: CrateId,
     unresolved: UnresolvedStruct,
     errors: &mut Vec<CollectedErrors>,
-) -> (Vec<TypeVariableId>, BTreeMap<Ident, Type>) {
+) -> (Vec<(TypeVariableId, TypeVariable)>, BTreeMap<Ident, Type>) {
     let path_resolver =
         StandardPathResolver::new(ModuleId { local_id: unresolved.module_id, krate });
 

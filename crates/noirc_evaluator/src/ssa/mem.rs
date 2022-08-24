@@ -2,7 +2,7 @@ use super::acir_gen::InternalVar;
 use super::context::SsaContext;
 use super::node::{self, Node, NodeId};
 use acvm::FieldElement;
-use noirc_frontend::node_interner::DefinitionId;
+use noirc_frontend::monomorphisation::ast::DefinitionId;
 use num_bigint::BigUint;
 use num_traits::ToPrimitive;
 use std::collections::HashMap;

@@ -1,8 +1,8 @@
 use acvm::FieldElement;
-use fm::FileId;
+use noirc_abi::Abi;
 use noirc_errors::Location;
 
-use crate::{Signedness, hir_def::expr::HirBinaryOp};
+use crate::{BinaryOpKind, Signedness};
 
 #[derive(Debug, Clone)]
 pub enum Expression {
@@ -20,26 +20,31 @@ pub enum Expression {
     ExtractTupleField(Box<Expression>, usize),
 
     Let(Let),
-    Constrain(Box<Expression>, FileId),
+    Constrain(Box<Expression>, Location),
     Assign(Assign),
     Semi(Box<Expression>),
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct DefinitionId(pub u32);
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct FuncId(pub u32);
 
 #[derive(Debug, Clone)]
 pub struct Ident {
     pub location: Option<Location>,
     pub id: DefinitionId,
+    pub name: String,
+    pub typ: Type,
 }
 
 #[derive(Debug, Clone)]
 pub struct For {
     pub index_variable: DefinitionId,
+    pub index_name: String,
+    pub index_type: Type,
+
     pub start_range: Box<Expression>,
     pub end_range: Box<Expression>,
     pub block: Box<Expression>,
@@ -48,7 +53,7 @@ pub struct For {
 #[derive(Debug, Clone)]
 pub enum Literal {
     Array(ArrayLiteral),
-    Integer(FieldElement),
+    Integer(FieldElement, Type),
     Bool(bool),
     Str(String),
 }
@@ -59,7 +64,7 @@ pub struct Unary {
     pub rhs: Box<Expression>,
 }
 
-pub type BinaryOp = HirBinaryOp;
+pub type BinaryOp = BinaryOpKind;
 
 #[derive(Debug, Clone)]
 pub struct Binary {
@@ -85,6 +90,7 @@ pub struct Cast {
 pub struct ArrayLiteral {
     pub length: u128,
     pub contents: Vec<Expression>,
+    pub element_type: Type,
 }
 
 #[derive(Debug, Clone)]
@@ -102,6 +108,7 @@ pub struct Index {
 #[derive(Debug, Clone)]
 pub struct Let {
     pub id: DefinitionId,
+    pub name: String,
     pub r#type: Type,
     pub expression: Box<Expression>,
 }
@@ -129,8 +136,12 @@ pub enum LValue {
 #[derive(Debug, Clone)]
 pub struct Function {
     pub id: FuncId,
-    pub parameters: Vec<(DefinitionId, Type)>,
+    pub name: String,
+
+    pub parameters: Vec<(DefinitionId, Type, /*name:*/String)>,
     pub body: Expression,
+
+    pub return_type: Type,
 }
 
 /// A monomorphised Type has all type variables removed
@@ -142,4 +153,31 @@ pub enum Type {
     Bool,
     Unit,
     Tuple(Vec<Type>),
+}
+
+pub struct Functions {
+    functions: Vec<Function>,
+    pub abi: Abi,
+}
+
+impl Functions {
+    pub fn new(main: Function, abi: Abi) -> Functions {
+        Functions { functions: vec![main], abi }
+    }
+
+    pub fn push(&mut self, function: Function) {
+        self.functions.push(function);
+    }
+
+    pub fn main(&self) -> &Function {
+        &self.functions[0]
+    }
+}
+
+impl std::ops::Index<FuncId> for Functions {
+    type Output = Function;
+
+    fn index(&self, index: FuncId) -> &Self::Output {
+        &self.functions[index.0 as usize]
+    }
 }

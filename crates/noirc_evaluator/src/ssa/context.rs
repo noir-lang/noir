@@ -13,8 +13,7 @@ use crate::ssa::function;
 use crate::ssa::node::{Mark, Node};
 use crate::Evaluator;
 use acvm::FieldElement;
-use noirc_frontend::hir::Context;
-use noirc_frontend::node_interner::FuncId;
+use noirc_frontend::monomorphisation::ast::{DefinitionId, FuncId};
 use noirc_frontend::util::vecmap;
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
@@ -24,8 +23,7 @@ use std::convert::TryFrom;
 // It contains all the data; the node objects representing the source code in the nodes arena
 // and The CFG in the blocks arena
 // everything else just reference objects from these two arena using their index.
-pub struct SsaContext<'a> {
-    pub context: &'a Context,
+pub struct SsaContext {
     pub first_block: BlockId,
     pub current_block: BlockId,
     blocks: arena::Arena<block::BasicBlock>,
@@ -40,10 +38,9 @@ pub struct SsaContext<'a> {
     dummy_load: HashMap<ArrayId, NodeId>,
 }
 
-impl<'a> SsaContext<'a> {
-    pub fn new(context: &Context) -> SsaContext {
+impl SsaContext {
+    pub fn new() -> SsaContext {
         let mut pc = SsaContext {
-            context,
             first_block: BlockId::dummy(),
             current_block: BlockId::dummy(),
             blocks: arena::Arena::new(),
@@ -250,10 +247,6 @@ impl<'a> SsaContext<'a> {
         }
     }
 
-    pub fn context(&self) -> &'a Context {
-        self.context
-    }
-
     pub fn remove_block(&mut self, block: BlockId) {
         self.blocks.remove(block.0);
     }
@@ -313,7 +306,7 @@ impl<'a> SsaContext<'a> {
         id
     }
 
-    pub fn get_ssafunc(&'a self, func_id: FuncId) -> Option<&SSAFunction> {
+    pub fn get_ssafunc(&self, func_id: FuncId) -> Option<&SSAFunction> {
         self.functions.get(&func_id)
     }
 
@@ -567,7 +560,7 @@ impl<'a> SsaContext<'a> {
         name: &str,
         element_type: ObjectType,
         len: u32,
-        def_id: Option<noirc_frontend::node_interner::DefinitionId>,
+        def_id: Option<DefinitionId>,
     ) -> NodeId {
         let array_index = self.mem.create_new_array(len, element_type, name);
         self.add_dummy_load(array_index);
@@ -591,7 +584,7 @@ impl<'a> SsaContext<'a> {
     pub fn create_array_from_object(
         &mut self,
         array: &crate::object::Array,
-        definition: noirc_frontend::node_interner::DefinitionId,
+        definition: DefinitionId,
         el_type: node::ObjectType,
         arr_name: &str,
     ) -> NodeId {
@@ -924,7 +917,7 @@ impl<'a> SsaContext<'a> {
     }
 }
 
-impl std::ops::Index<BlockId> for SsaContext<'_> {
+impl std::ops::Index<BlockId> for SsaContext {
     type Output = BasicBlock;
 
     fn index(&self, index: BlockId) -> &Self::Output {
@@ -932,13 +925,13 @@ impl std::ops::Index<BlockId> for SsaContext<'_> {
     }
 }
 
-impl std::ops::IndexMut<BlockId> for SsaContext<'_> {
+impl std::ops::IndexMut<BlockId> for SsaContext {
     fn index_mut(&mut self, index: BlockId) -> &mut Self::Output {
         &mut self.blocks[index.0]
     }
 }
 
-impl std::ops::Index<NodeId> for SsaContext<'_> {
+impl std::ops::Index<NodeId> for SsaContext {
     type Output = NodeObj;
 
     fn index(&self, index: NodeId) -> &Self::Output {
@@ -946,7 +939,7 @@ impl std::ops::Index<NodeId> for SsaContext<'_> {
     }
 }
 
-impl std::ops::IndexMut<NodeId> for SsaContext<'_> {
+impl std::ops::IndexMut<NodeId> for SsaContext {
     fn index_mut(&mut self, index: NodeId) -> &mut Self::Output {
         &mut self.nodes[index.0]
     }

@@ -25,7 +25,9 @@ pub(crate) fn type_check_expression(
             // E.g. `fn foo<T>(t: T, field: Field) -> T` has type `forall T. fn(T, Field) -> T`.
             // We must instantiate identifiers at every callsite to replace this T with a new type
             // variable to handle generic functions.
-            interner.id_type(ident.id).instantiate(interner)
+            let (typ, bindings) = interner.id_type(ident.id).instantiate(interner);
+            interner.store_instantiation_bindings(*expr_id, bindings);
+            typ
         }
         HirExpression::Literal(literal) => {
             match literal {
@@ -204,7 +206,9 @@ pub(crate) fn type_check_expression(
         HirExpression::Constructor(constructor) => {
             check_constructor(&constructor, expr_id, interner, errors)
         }
-        HirExpression::MemberAccess(access) => check_member_access(access, interner, errors),
+        HirExpression::MemberAccess(access) => {
+            check_member_access(access, interner, *expr_id, errors)
+        }
         HirExpression::Error => Type::Error,
         HirExpression::Tuple(elements) => {
             Type::Tuple(vecmap(&elements, |elem| type_check_expression(interner, elem, errors)))
@@ -375,7 +379,10 @@ fn type_check_function_call(
             });
         }
 
-        let function_type = func_meta.typ.instantiate(interner);
+        let (function_type, instantiation_bindings) = func_meta.typ.instantiate(interner);
+        interner.store_instantiation_bindings(*expr_id, instantiation_bindings);
+        interner.set_function_type(*expr_id, function_type.clone());
+
         bind_function_type(function_type, arguments, span, interner, errors)
     }
 }
@@ -589,18 +596,21 @@ fn check_constructor(
 pub fn check_member_access(
     access: expr::HirMemberAccess,
     interner: &mut NodeInterner,
+    expr_id: ExprId,
     errors: &mut Vec<TypeCheckError>,
 ) -> Type {
     let lhs_type = type_check_expression(interner, &access.lhs, errors);
 
     if let Type::Struct(s, args) = &lhs_type {
         let s = s.borrow();
-        if let Some(field) = s.get_field(&access.rhs.0.contents, args) {
+        if let Some((field, index)) = s.get_field(&access.rhs.0.contents, args) {
+            interner.set_field_index(expr_id, index);
             return field;
         }
     } else if let Type::Tuple(elements) = &lhs_type {
         if let Ok(index) = access.rhs.0.contents.parse::<usize>() {
             if index < elements.len() {
+                interner.set_field_index(expr_id, index);
                 return elements[index].clone();
             }
         }

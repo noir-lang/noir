@@ -3,7 +3,7 @@ use fm::FileId;
 use noirc_errors::Location;
 
 use crate::node_interner::{DefinitionId, ExprId, FuncId, StmtId, StructId};
-use crate::{BinaryOp, BinaryOpKind, Ident, UnaryOp, Shared};
+use crate::{BinaryOp, BinaryOpKind, Ident, Shared, UnaryOp};
 
 use super::types::{StructType, Type};
 

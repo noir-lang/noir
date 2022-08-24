@@ -72,7 +72,7 @@ pub fn bind_pattern(
 
                 for pattern_field in pattern_fields {
                     let type_field =
-                        inner.borrow().get_field(&pattern_field.0 .0.contents, &args).unwrap();
+                        inner.borrow().get_field(&pattern_field.0 .0.contents, &args).unwrap().0;
                     bind_pattern(interner, &pattern_field.1, type_field, errors);
                 }
             }
@@ -138,10 +138,12 @@ fn type_check_lvalue(
             };
 
             match result {
-                Type::Struct(def, args) => def
-                    .borrow()
-                    .get_field(&field_name.0.contents, &args)
-                    .unwrap_or_else(|| error(Type::Struct(def.clone(), args))),
+                Type::Struct(def, args) => {
+                    match def.borrow().get_field(&field_name.0.contents, &args) {
+                        Some((field, _)) => field,
+                        None => error(Type::Struct(def.clone(), args)),
+                    }
+                }
                 Type::Error => Type::Error,
                 other => error(other),
             }

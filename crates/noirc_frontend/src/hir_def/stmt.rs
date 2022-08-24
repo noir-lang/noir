@@ -1,6 +1,6 @@
 use super::expr::HirIdent;
 use crate::node_interner::ExprId;
-use crate::{Ident, StructType, Type, Shared};
+use crate::{Ident, Shared, StructType, Type};
 use fm::FileId;
 use noirc_errors::Span;
 

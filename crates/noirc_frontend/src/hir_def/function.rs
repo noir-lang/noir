@@ -13,6 +13,8 @@ use crate::{token::Attribute, FunctionKind};
 #[derive(Debug, Clone)]
 pub struct HirFunction(ExprId);
 
+const MAIN_RETURN_NAME: &str = "return";
+
 impl HirFunction {
     pub fn empty() -> HirFunction {
         HirFunction(ExprId::empty_block_id())
@@ -147,7 +149,7 @@ impl FuncMeta {
 
         if return_type != Type::Unit {
             let typ = return_type.as_abi_type(self.return_visibility);
-            abi.parameters.push((NodeInterner::main_return_name().into(), typ));
+            abi.parameters.push((MAIN_RETURN_NAME.into(), typ));
         }
 
         abi

@@ -4,10 +4,7 @@ use crate::environment::Environment;
 use crate::errors::RuntimeError;
 use acvm::acir::OPCODE;
 use acvm::FieldElement;
-use noirc_frontend::hir_def::expr::{HirCallExpression, HirIdent};
-use noirc_frontend::hir_def::function::Parameters;
-use noirc_frontend::hir_def::stmt::HirPattern;
-use noirc_frontend::node_interner::FuncId;
+use noirc_frontend::monomorphisation::ast::{self, Call, FuncId, DefinitionId, Type};
 
 use super::conditional::{AssumptionId, DecisionTree};
 use super::node::Node;
@@ -76,34 +73,6 @@ impl SSAFunction {
         Ok(decision)
     }
 
-    //generates an instruction for calling the function
-    pub fn call(
-        func: FuncId,
-        arguments: &[noirc_frontend::node_interner::ExprId],
-        igen: &mut IRGenerator,
-        env: &mut Environment,
-    ) -> Result<Vec<NodeId>, RuntimeError> {
-        let arguments = igen.codegen_expression_list(env, arguments);
-        let call_instruction = igen.context.new_instruction(
-            node::Operation::Call {
-                func_id: func,
-                arguments,
-                returned_arrays: Vec::new(),
-                predicate: AssumptionId::dummy(),
-            },
-            ObjectType::NotAnObject,
-        )?;
-        let rtt = igen.context.functions[&func].result_types.clone();
-        let mut result = Vec::new();
-        for i in rtt.iter().enumerate() {
-            result.push(igen.context.new_instruction(
-                node::Operation::Result { call_instruction, index: i.0 as u32 },
-                *i.1,
-            )?);
-        }
-        Ok(result)
-    }
-
     pub fn get_mapped_value(
         var: Option<&NodeId>,
         ctx: &mut SsaContext,
@@ -151,7 +120,7 @@ pub fn get_result_type(op: OPCODE) -> (u32, ObjectType) {
 //Lowlevel functions with no more than 2 arguments
 pub fn call_low_level(
     op: OPCODE,
-    call_expr: HirCallExpression,
+    call_expr: &ast::Call,
     igen: &mut IRGenerator,
     env: &mut Environment,
 ) -> Result<NodeId, RuntimeError> {
@@ -187,75 +156,88 @@ pub fn call_low_level(
     igen.context.new_instruction(node::Operation::Intrinsic(op, args), result_type)
 }
 
-pub fn param_to_ident(patern: &HirPattern, mutable: bool) -> Vec<(&HirIdent, bool)> {
-    match &patern {
-        HirPattern::Identifier(id) => vec![(id, mutable)],
-        HirPattern::Mutable(pattern, _) => param_to_ident(pattern.as_ref(), true),
-        HirPattern::Tuple(v, _) => {
-            let mut result = Vec::new();
-            for pattern in v {
-                result.extend(param_to_ident(pattern, mutable));
+impl IRGenerator {
+    pub fn create_function(
+        &mut self,
+        func_id: FuncId,
+        env: &mut Environment,
+        index: FuncIndex,
+    ) -> Result<(), RuntimeError> {
+        let current_block = self.context.current_block;
+        let current_function = self.function_context;
+        let func_block = super::block::BasicBlock::create_cfg(&mut self.context);
+
+        let function = &self.program[func_id];
+        let mut func = SSAFunction::new(func_id, &function.name, func_block, index, &self.context);
+
+        //argumemts:
+        for (param_id, param_type, param_name) in function.parameters.iter() {
+            let node_ids = self.create_function_parameter(*param_id, param_type, param_name);
+
+            // TODO: All function arguments are pessimistically assumed to be mutable
+            func.arguments.extend(node_ids.into_iter().map(|id| (id, true)));
+        }
+
+        self.function_context = Some(index);
+        self.context.functions.insert(func_id, func.clone());
+        let last_value = self.codegen_expression(env, &function.body)?;
+        let returned_values = last_value.to_node_ids();
+
+        for i in &returned_values {
+            if let Some(node) = self.context.try_get_node(*i) {
+                func.result_types.push(node.get_type());
+            } else {
+                func.result_types.push(ObjectType::NotAnObject);
             }
-            result
         }
-        HirPattern::Struct(_, v, _) => {
-            let mut result = Vec::new();
-            for (_, pattern) in v {
-                result.extend(param_to_ident(pattern, mutable));
-            }
-            result
-        }
-    }
-}
-
-pub fn create_function(
-    igen: &mut IRGenerator,
-    func_id: FuncId,
-    name: &str,
-    context: &noirc_frontend::hir::Context,
-    env: &mut Environment,
-    parameters: &Parameters,
-    index: FuncIndex,
-) -> Result<(), RuntimeError> {
-    let current_block = igen.context.current_block;
-    let current_function = igen.function_context;
-    let func_block = super::block::BasicBlock::create_cfg(&mut igen.context);
-
-    let mut func = SSAFunction::new(func_id, name, func_block, index, &igen.context);
-
-    let function = context.def_interner.function(&func_id);
-    let block = function.block(&context.def_interner);
-    //argumemts:
-    for pat in parameters.iter() {
-        //For now we use the mut property of the argument to indicate if it is modified or not
-        //TODO: check instead in the function body whether there is a store for the array
-        let ident_ids = param_to_ident(&pat.0, false);
-        for def in ident_ids {
-            let node_ids = ssa_form::create_function_parameter(igen, &def.0.id);
-            let e: Vec<(NodeId, bool)> = node_ids.iter().map(|n| (*n, def.1)).collect();
-            func.arguments.extend(e);
-        }
+        self.context.new_instruction(
+            node::Operation::Return(returned_values),
+            node::ObjectType::NotAnObject,
+        )?;
+        let decision = func.compile(self)?; //unroll the function
+        func.decision = decision;
+        self.context.functions.insert(func_id, func);
+        self.context.current_block = current_block;
+        self.function_context = current_function;
+        Ok(())
     }
 
-    igen.function_context = Some(index);
-    igen.context.functions.insert(func_id, func.clone());
-    let last_value = igen.codegen_block(block.statements(), env);
-    let returned_values = last_value.to_node_ids();
-    for i in &returned_values {
-        if let Some(node) = igen.context.try_get_node(*i) {
-            func.result_types.push(node.get_type());
-        } else {
-            func.result_types.push(ObjectType::NotAnObject);
-        }
+    fn create_function_parameter(&mut self, id: DefinitionId, typ: &Type, name: &str) -> Vec<NodeId> {
+        //check if the variable is already created:
+        let val = match self.find_variable(id) {
+            Some(var) => self.get_current_value(&var.clone()),
+            None => self.create_new_value(typ, name, Some(id)),
+        };
+        val.to_node_ids()
     }
-    igen.context
-        .new_instruction(node::Operation::Return(returned_values), node::ObjectType::NotAnObject)?;
-    let decision = func.compile(igen)?; //unroll the function
-    func.decision = decision;
-    igen.context.functions.insert(func_id, func);
-    igen.context.current_block = current_block;
-    igen.function_context = current_function;
-    Ok(())
+
+    //generates an instruction for calling the function
+    pub fn call(
+        &mut self,
+        call: &Call,
+        env: &mut Environment,
+    ) -> Result<Vec<NodeId>, RuntimeError> {
+        let arguments = self.codegen_expression_list(env, &call.arguments);
+        let call_instruction = self.context.new_instruction(
+            node::Operation::Call {
+                func_id: call.func_id,
+                arguments,
+                returned_arrays: Vec::new(),
+                predicate: AssumptionId::dummy(),
+            },
+            ObjectType::NotAnObject,
+        )?;
+
+        let rtt = self.context.functions[&call.func_id].result_types.clone();
+        let mut result = Vec::new();
+        for i in rtt.iter().enumerate() {
+            result.push(self.context.new_instruction(
+                node::Operation::Result { call_instruction, index: i.0 as u32 },
+                *i.1,
+            )?);
+        }
+        Ok(result)
+    }
 }
 
 pub fn resize_graph(call_graph: &mut Vec<Vec<u8>>, size: usize) {

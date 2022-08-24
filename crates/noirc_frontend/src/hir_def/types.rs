@@ -51,7 +51,10 @@ impl<T> Shared<T> {
     }
 }
 
-pub type TypeBindings = HashMap<TypeVariableId, Type>;
+/// A list of TypeVariableIds to bind to a type. Storing the
+/// TypeVariable in addition to the matching TypeVariableId allows
+/// the binding to later be undone if needed.
+pub type TypeBindings = HashMap<TypeVariableId, (TypeVariable, Type)>;
 
 #[derive(Debug, Eq)]
 pub struct StructType {
@@ -63,7 +66,7 @@ pub struct StructType {
     /// since these will handle applying generic arguments to fields as well.
     fields: BTreeMap<Ident, Type>,
 
-    pub generics: Vec<TypeVariableId>,
+    pub generics: Vec<(TypeVariableId, TypeVariable)>,
     pub methods: HashMap<String, FuncId>,
     pub span: Span,
 }
@@ -85,14 +88,13 @@ impl StructType {
         id: StructId,
         name: Ident,
         span: Span,
-        fields: Vec<(Ident, Type)>,
-        generics: Vec<TypeVariableId>,
+        fields: BTreeMap<Ident, Type>,
+        generics: Vec<(TypeVariableId, TypeVariable)>,
     ) -> StructType {
-        let fields = fields.into_iter().collect();
         StructType { id, fields, name, span, generics, methods: HashMap::new() }
     }
 
-    pub fn set_fields(&self, fields: BTreeMap<Ident, Type>) {
+    pub fn set_fields(&mut self, fields: BTreeMap<Ident, Type>) {
         assert!(self.fields.is_empty());
         self.fields = fields;
     }
@@ -101,26 +103,33 @@ impl StructType {
         self.fields.len()
     }
 
-    pub fn get_field(&self, field_name: &str, generic_args: &[Type]) -> Option<Type> {
+    /// Returns the field matching the given field name, as well as its field index.
+    pub fn get_field(&self, field_name: &str, generic_args: &[Type]) -> Option<(Type, usize)> {
         assert_eq!(self.generics.len(), generic_args.len());
 
-        self.fields.iter().find(|(name, _)| name.0.contents == field_name).map(|(_, typ)| {
-            let substitutions = self
-                .generics
-                .iter()
-                .zip(generic_args)
-                .map(|(old, new)| (*old, new.clone()))
-                .collect();
+        self.fields.iter().enumerate().find(|(_, (name, _))| name.0.contents == field_name).map(
+            |(i, (_, typ))| {
+                let substitutions = self
+                    .generics
+                    .iter()
+                    .zip(generic_args)
+                    .map(|((old_id, old_var), new)| (*old_id, (old_var.clone(), new.clone())))
+                    .collect();
 
-            typ.substitute(&substitutions)
-        })
+                (typ.substitute(&substitutions), i)
+            },
+        )
     }
 
     pub fn get_fields(&self, generic_args: &[Type]) -> BTreeMap<String, Type> {
         assert_eq!(self.generics.len(), generic_args.len());
 
-        let substitutions =
-            self.generics.iter().zip(generic_args).map(|(old, new)| (*old, new.clone())).collect();
+        let substitutions = self
+            .generics
+            .iter()
+            .zip(generic_args)
+            .map(|((old_id, old_var), new)| (*old_id, (old_var.clone(), new.clone())))
+            .collect();
 
         self.fields
             .iter()
@@ -144,9 +153,9 @@ impl StructType {
         let (generics, substitutions) = self
             .generics
             .iter()
-            .map(|old| {
+            .map(|(old_id, old_var)| {
                 let new = interner.next_type_variable();
-                (new.clone(), (*old, new))
+                (new.clone(), (*old_id, (old_var.clone(), new)))
             })
             .unzip();
 
@@ -187,8 +196,12 @@ pub enum Type {
     /// used to monomorphise away most higher order functions.
     Function(Vec<Type>, Box<Type>, BTreeSet<FuncId>),
 
-    /// A type generic over the given type variables
-    Forall(Vec<TypeVariableId>, Box<Type>),
+    /// A type generic over the given type variables.
+    /// Storing both the TypeVariableId and TypeVariable isn't necessary
+    /// but it makes handling them both easier. The TypeVariableId should
+    /// never be bound over during type checking, but during monomorphisation it
+    /// will be and thus needs the full TypeVariable link.
+    Forall(Vec<(TypeVariableId, TypeVariable)>, Box<Type>),
 
     /// A type-level integer. Included to let an Array's size type variable
     /// bind to an integer without special checks to bind it to a non-type.
@@ -419,7 +432,7 @@ impl std::fmt::Display for Type {
             Type::TypeVariable(id) => write!(f, "{}", id.borrow()),
             Type::ArrayLength(n) => n.fmt(f),
             Type::Forall(typevars, typ) => {
-                let typevars = vecmap(typevars, ToString::to_string);
+                let typevars = vecmap(typevars, |(var, _)| var.to_string());
                 write!(f, "forall {}. {}", typevars.join(" "), typ)
             }
             Type::Function(args, ret, _) => {
@@ -856,7 +869,7 @@ impl Type {
             // the iterator is returned
             Type::Struct(def, args) => vecmap(&def.borrow().fields, |(name, _)| {
                 let name = &name.0.contents;
-                let typ = def.borrow().get_field(name, args).unwrap();
+                let typ = def.borrow().get_field(name, args).unwrap().0;
                 (name.clone(), typ)
             }),
             Type::Tuple(fields) => {
@@ -872,7 +885,7 @@ impl Type {
     /// Panics if the type is not a struct or tuple.
     pub fn get_field_type(&self, field_name: &str) -> Type {
         match self {
-            Type::Struct(def, args) => def.borrow().get_field(field_name, args).unwrap(),
+            Type::Struct(def, args) => def.borrow().get_field(field_name, args).unwrap().0,
             Type::Tuple(fields) => {
                 let mut fields = fields.iter().enumerate();
                 fields.find(|(i, _)| i.to_string() == *field_name).unwrap().1.clone()
@@ -884,15 +897,21 @@ impl Type {
     /// Instantiate this type, replacing any type variables it is quantified
     /// over with fresh type variables. If this type is not a Type::Forall,
     /// it is unchanged.
-    pub fn instantiate(&self, interner: &mut NodeInterner) -> Type {
+    pub fn instantiate(&self, interner: &mut NodeInterner) -> (Type, TypeBindings) {
         match self {
             Type::Forall(typevars, typ) => {
-                let replacements =
-                    typevars.iter().map(|old| (*old, interner.next_type_variable())).collect();
+                let replacements = typevars
+                    .iter()
+                    .map(|(id, var)| {
+                        let new = interner.next_type_variable();
+                        (*id, (var.clone(), new))
+                    })
+                    .collect();
 
-                typ.substitute(&replacements)
+                let instantiated = typ.substitute(&replacements);
+                (instantiated, replacements)
             }
-            other => other.clone(),
+            other => (other.clone(), HashMap::new()),
         }
     }
 
@@ -906,9 +925,10 @@ impl Type {
 
         let substitute_binding = |binding: &TypeVariable| match &*binding.borrow() {
             TypeBinding::Bound(binding) => binding.substitute(type_bindings),
-            TypeBinding::Unbound(id) => {
-                type_bindings.get(id).cloned().unwrap_or_else(|| self.clone())
-            }
+            TypeBinding::Unbound(id) => match type_bindings.get(id) {
+                Some((_, binding)) => binding.clone(),
+                None => self.clone(),
+            },
         };
 
         match self {
@@ -933,7 +953,7 @@ impl Type {
             Type::Forall(typevars, typ) => {
                 // Trying to substitute a variable defined within a nested Forall
                 // is usually impossible and indicative of an error in the type checker somewhere.
-                for var in typevars {
+                for (var, _) in typevars {
                     assert!(!type_bindings.contains_key(var));
                 }
                 let typ = Box::new(typ.substitute(type_bindings));
@@ -970,7 +990,7 @@ impl Type {
                 TypeBinding::Unbound(id) => *id == target_id,
             },
             Type::Forall(typevars, typ) => {
-                !typevars.iter().any(|var| *var == target_id) && typ.occurs(target_id)
+                !typevars.iter().any(|(id, _)| *id == target_id) && typ.occurs(target_id)
             }
             Type::Function(args, ret, _) => {
                 args.iter().any(|arg| arg.occurs(target_id)) || ret.occurs(target_id)
@@ -982,6 +1002,46 @@ impl Type {
             | Type::ArrayLength(_)
             | Type::Error
             | Type::Unit => false,
+        }
+    }
+
+    /// Follow any TypeVariable bindings within this type. Doing so ensures
+    /// that if the bindings are rebound or unbound from under the type then the
+    /// returned type will not change (because it will no longer contain the
+    /// links that may be unbound).
+    ///
+    /// Expected to be called on an instantiated type (with no Type::Foralls)
+    pub fn follow_bindings(&self) -> Type {
+        use Type::*;
+        match self {
+            Array(size, elem) => {
+                Array(Box::new(size.follow_bindings()), Box::new(elem.follow_bindings()))
+            }
+            Struct(def, args) => {
+                let args = vecmap(args, |arg| arg.follow_bindings());
+                Struct(def.clone(), args)
+            }
+            Tuple(args) => Tuple(vecmap(args, |arg| arg.follow_bindings())),
+
+            TypeVariable(var) | PolymorphicInteger(_, var) => {
+                if let TypeBinding::Bound(typ) = &*var.borrow() {
+                    return typ.follow_bindings();
+                }
+                self.clone()
+            }
+
+            Function(args, ret, ids) => {
+                let args = vecmap(args, |arg| arg.follow_bindings());
+                let ret = Box::new(ret.follow_bindings());
+                Function(args, ret, ids.clone())
+            }
+
+            // Expect that this function should only be called on instantiated types
+            Forall(..) => unreachable!(),
+
+            FieldElement(_) | Integer(_, _, _) | Bool(_) | ArrayLength(_) | Unit | Error => {
+                self.clone()
+            }
         }
     }
 }

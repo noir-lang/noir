@@ -21,7 +21,6 @@ use crate::hir_def::expr::{
     HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
     HirConstructorExpression, HirForExpression, HirIdent, HirIfExpression, HirIndexExpression,
     HirInfixExpression, HirLiteral, HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
-    HirUnaryOp,
 };
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
@@ -225,7 +224,7 @@ impl<'a> Resolver<'a> {
     fn resolve_type_inner(
         &mut self,
         typ: UnresolvedType,
-        new_variables: &mut Vec<TypeVariableId>,
+        new_variables: &mut Vec<(TypeVariableId, TypeVariable)>,
     ) -> Type {
         match typ {
             UnresolvedType::FieldElement(is_const) => Type::FieldElement(is_const),
@@ -234,8 +233,9 @@ impl<'a> Resolver<'a> {
                     Some(len) => Type::ArrayLength(len),
                     None => {
                         let id = self.interner.next_type_variable_id();
-                        new_variables.push(id);
-                        Type::type_variable(id)
+                        let typevar = Shared::new(TypeBinding::Unbound(id));
+                        new_variables.push((id, typevar.clone()));
+                        Type::TypeVariable(typevar)
                     }
                 };
                 let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
@@ -275,7 +275,7 @@ impl<'a> Resolver<'a> {
         self.resolve_type_inner(typ, &mut vec![])
     }
 
-    fn add_generics(&mut self, generics: Vec<Ident>) -> Vec<TypeVariableId> {
+    fn add_generics(&mut self, generics: Vec<Ident>) -> Vec<(TypeVariableId, TypeVariable)> {
         vecmap(generics, |generic| {
             // Map the generic to a fresh type variable
             let id = self.interner.next_type_variable_id();
@@ -283,7 +283,9 @@ impl<'a> Resolver<'a> {
             let span = generic.0.span();
 
             // Check for name collisions of this generic
-            if let Some(old) = self.generics.insert(generic.0.contents.clone(), (typevar, span)) {
+            if let Some(old) =
+                self.generics.insert(generic.0.contents.clone(), (typevar.clone(), span))
+            {
                 let span = generic.0.span();
                 self.errors.push(ResolverError::DuplicateDefinition {
                     name: generic.0.contents,
@@ -291,20 +293,22 @@ impl<'a> Resolver<'a> {
                     second_span: span,
                 })
             }
-            id
+            (id, typevar)
         })
     }
 
     pub fn resolve_struct_fields(
         mut self,
         unresolved: NoirStruct,
-    ) -> (Vec<TypeVariableId>, BTreeMap<Ident, Type>, Vec<ResolverError>) {
+    ) -> (Vec<(TypeVariableId, TypeVariable)>, BTreeMap<Ident, Type>, Vec<ResolverError>) {
         let generics = self.add_generics(unresolved.generics);
+
         let fields = unresolved
             .fields
             .into_iter()
             .map(|(ident, typ)| (ident, self.resolve_type(typ)))
             .collect();
+
         (generics, fields, self.errors)
     }
 
@@ -324,7 +328,7 @@ impl<'a> Resolver<'a> {
             // Always expect self.generics to contain all the generics of this function
             let typevar = self.generics.get(generic.0.contents.as_str()).unwrap();
             match &*typevar.0.borrow() {
-                TypeBinding::Unbound(id) => *id,
+                TypeBinding::Unbound(id) => (*id, typevar.0.clone()),
                 TypeBinding::Bound(binding) => unreachable!(
                     "Expected {} to be unbound, but it is bound to {}",
                     generic, binding
@@ -422,7 +426,7 @@ impl<'a> Resolver<'a> {
                 Literal::Str(str) => HirLiteral::Str(str),
             }),
             ExpressionKind::Prefix(prefix) => {
-                let operator: HirUnaryOp = prefix.operator.into();
+                let operator = prefix.operator;
                 let rhs = self.resolve_expression(prefix.rhs);
                 HirExpression::Prefix(HirPrefixExpression { operator, rhs })
             }
@@ -520,6 +524,7 @@ impl<'a> Resolver<'a> {
                 HirExpression::MemberAccess(HirMemberAccess {
                     lhs: self.resolve_expression(access.lhs),
                     rhs: access.rhs,
+                    field_index: None,
                 })
             }
             ExpressionKind::Error => HirExpression::Error,
@@ -622,7 +627,8 @@ impl<'a> Resolver<'a> {
 
     fn get_field_names_of_type(&self, type_id: StructId) -> BTreeSet<Ident> {
         let typ = self.get_struct(type_id);
-        typ.borrow().field_names()
+        let typ = typ.borrow();
+        typ.field_names()
     }
 
     fn lookup<T: TryFromModuleDefId>(&mut self, path: Path) -> T {
