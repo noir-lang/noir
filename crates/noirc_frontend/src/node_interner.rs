@@ -6,6 +6,7 @@ use arena::{Arena, Index};
 use fm::FileId;
 use noirc_errors::{Location, Span};
 
+use crate::ast::Ident;
 use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::UnresolvedStruct;
 use crate::hir::def_map::{LocalModuleId, ModuleId};
@@ -13,10 +14,9 @@ use crate::hir_def::types::{StructType, Type};
 use crate::hir_def::{
     expr::{HirExpression, HirIdent},
     function::{FuncMeta, HirFunction},
-    stmt::{HirStatement, HirLetStatement},
+    stmt::{HirLetStatement, HirStatement},
 };
 use crate::TypeVariableId;
-use crate::ast::Ident;
 
 /// The DefinitionId for the return value of the main function.
 /// Used within the ssa pass to put constraints on the "return" value
@@ -150,7 +150,7 @@ pub struct NodeInterner {
     // methods from impls to the type.
     structs: HashMap<StructId, Rc<RefCell<StructType>>>,
 
-    global_constants: HashMap<Ident, StmtId>, // NOTE: currently only used for checking repeat global consts and 
+    global_constants: HashMap<Ident, StmtId>, // NOTE: currently only used for checking repeat global consts and
 
     next_type_variable_id: usize,
 }
@@ -366,7 +366,7 @@ impl NodeInterner {
             None
         }
     }
-    
+
     /// Returns the type of an item stored in the Interner or Error if it was not found.
     pub fn id_type(&self, index: impl Into<Index>) -> Type {
         self.id_to_type.get(&index.into()).cloned().unwrap_or(Type::Error)

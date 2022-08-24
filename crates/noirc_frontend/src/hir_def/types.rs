@@ -1,8 +1,8 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use crate::{hir::type_check::TypeCheckError, node_interner::NodeInterner};
-use crate::hir_def::stmt::{HirStatement};
 use crate::hir_def::expr::{HirExpression, HirLiteral};
+use crate::hir_def::stmt::HirStatement;
+use crate::{hir::type_check::TypeCheckError, node_interner::NodeInterner};
 use noirc_abi::{AbiFEType, AbiType};
 use noirc_errors::Span;
 
@@ -620,10 +620,10 @@ impl Type {
                             _ => panic!("expression in global const statement is not a literal")
                         }
                     }
-                    _ => panic!("let statement not associated with statement")
+                    _ => panic!("let statement not associated with statement"),
                 }
             }
-            None => panic!("no statement associated with fixed sized array variable")
+            None => panic!("no statement associated with fixed sized array variable"),
         };
         length
     }
@@ -663,7 +663,9 @@ impl Type {
             }
             Type::PolymorphicInteger(_, binding) => match &*binding.borrow() {
                 TypeBinding::Bound(typ) => typ.as_abi_type(fe_type, interner),
-                TypeBinding::Unbound(_) => Type::default_int_type(None).as_abi_type(fe_type, interner),
+                TypeBinding::Unbound(_) => {
+                    Type::default_int_type(None).as_abi_type(fe_type, interner)
+                }
             },
             Type::Bool(_) => panic!("currently, cannot have a bool in the entry point function"),
             Type::Error => unreachable!(),

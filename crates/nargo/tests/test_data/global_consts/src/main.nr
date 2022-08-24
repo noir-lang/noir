@@ -28,11 +28,12 @@ fn main(a: [M]Field, b: [M]Field) {
      // NOTE: This is currently broken, as only global consts work in array annotations
      // let L: const Field = 2;
      // let t: [L]Field = [N, M];
-     
+
      constrain t[1] == 32;
 }
 
 fn multiplyByM(x: u32) -> u32 {
-    //let N: const Field = 5;
-    x * M as u32
+     // Uncomment this line to show duplicate variables error with global constant 
+     //let N: const Field = 5;
+     x * M as u32
 }

@@ -6,7 +6,7 @@ use crate::{
     hir::def_collector::dc_crate::UnresolvedStruct,
     node_interner::{StmtId, StructId},
     parser::SubModule,
-    Ident, NoirFunction, NoirImpl, NoirStruct, ParsedModule, Statement
+    Ident, NoirFunction, NoirImpl, NoirStruct, ParsedModule, Statement,
 };
 
 use super::{
@@ -76,10 +76,7 @@ pub fn collect_defs<'a>(
 }
 
 // NOTE: Possibly do this inside dc_crate where resolution happens to make sure that multiple global_constants are not declared
-fn insert_global_constants(
-    functions: &mut Vec<NoirFunction>,
-    global_consts: Vec<Statement>,
-) {
+fn insert_global_constants(functions: &mut Vec<NoirFunction>, global_consts: Vec<Statement>) {
     for function in functions.into_iter() {
         let mut statements = function.clone().def.body.0;
 

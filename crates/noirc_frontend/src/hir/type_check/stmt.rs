@@ -64,7 +64,7 @@ pub fn bind_pattern(
         HirPattern::Identifier(ident) => {
             // println!("bind_pattern, ident.id: {:?}, typ: {:?}", ident.id, typ);
             interner.push_definition_type(ident.id, typ)
-        },
+        }
         HirPattern::Mutable(pattern, _) => bind_pattern(interner, pattern, typ, errors),
         HirPattern::Tuple(_fields, _span) => {
             todo!("Implement tuple types")

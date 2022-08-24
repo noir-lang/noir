@@ -8,11 +8,11 @@ use crate::hir::resolution::{
     import::{resolve_imports, ImportDirective},
     path_resolver::StandardPathResolver,
 };
-use crate::hir::type_check::type_check_func;
 use crate::hir::type_check::type_check;
+use crate::hir::type_check::type_check_func;
 use crate::hir::Context;
 use crate::hir_def::stmt::HirStatement;
-use crate::node_interner::{FuncId, NodeInterner, StructId, StmtId};
+use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId};
 use crate::util::vecmap;
 use crate::{Ident, NoirFunction, NoirStruct, ParsedModule, Path, Pattern, Statement, Type};
 use fm::FileId;
@@ -148,7 +148,7 @@ impl DefCollector {
 
         resolve_structs(context, def_collector.collected_types, crate_id, errors);
 
-        // TODO: circle back to this, trying to insert global constants within dc_mod, currently only used to check for multiple global consts within a crate 
+        // TODO: circle back to this, trying to insert global constants within dc_mod, currently only used to check for multiple global consts within a crate
         resolve_global_constants(context, def_collector.collected_consts, crate_id, errors);
 
         // Before we resolve any function symbols we must go through our impls and
@@ -241,11 +241,11 @@ fn resolve_global_constants(
     global_consts: Vec<UnresolvedGlobalConst>,
     crate_id: CrateId,
     errors: &mut Vec<CollectedErrors>,
-)  {
+) {
     // XXX: may be able to get rid of this, but keep while WIP as we could follow the type resollution flow used for functions
     // rather than combining type check in this function
-    // let mut global_const_ids = Vec::new(); 
-   
+    // let mut global_const_ids = Vec::new();
+
     // NOTE: it is still necessary to intern global const statements to check for duplicate global const declarations,
     // repeated variable names inside functions, consts in functions params, and consts specifying array size
     for global_const in global_consts {
@@ -273,7 +273,7 @@ fn resolve_global_constants(
         };
         let stmt_id = resolver.intern_stmt(global_const.stmt_def);
 
-        context.def_interner.push_global_const(name.clone(), stmt_id); 
+        context.def_interner.push_global_const(name.clone(), stmt_id);
 
         let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
 
@@ -281,8 +281,7 @@ fn resolve_global_constants(
             .scope
             .define_global_const_def(name, stmt_id);
         if let Err((first_def, second_def)) = result {
-            let err =
-                DefCollectorErrorKind::DuplicateGlobalConst { first_def, second_def };
+            let err = DefCollectorErrorKind::DuplicateGlobalConst { first_def, second_def };
             errors.push(CollectedErrors {
                 file_id: global_const.file_id,
                 errors: vec![err.to_diagnostic()],
@@ -291,11 +290,17 @@ fn resolve_global_constants(
 
         let mut type_check_errs = Vec::new();
         let _stmt_type = type_check(&mut context.def_interner, &stmt_id, &mut type_check_errs);
-        let type_check_err_diagnostics: Vec<_> = type_check_errs.clone().into_iter()
-                                        .map(|error| error.into_diagnostic(&mut context.def_interner)).collect();
-        
+        let type_check_err_diagnostics: Vec<_> = type_check_errs
+            .clone()
+            .into_iter()
+            .map(|error| error.into_diagnostic(&mut context.def_interner))
+            .collect();
+
         if !type_check_err_diagnostics.is_empty() {
-            let collected_errors = CollectedErrors { file_id: global_const.file_id, errors: type_check_err_diagnostics };
+            let collected_errors = CollectedErrors {
+                file_id: global_const.file_id,
+                errors: type_check_err_diagnostics,
+            };
             errors.push(collected_errors)
         }
 

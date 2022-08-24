@@ -342,11 +342,31 @@ impl<'a> Evaluator<'a> {
                         panic!("cannot have variable sized array in entry point")
                     }
                     noirc_frontend::ArraySize::Fixed(len) => {
-                        self.handle_array_size(name, def, param_visibility, param_location, typ.clone(), len, &mut witnesses, element_width, igen)?;
+                        self.handle_array_size(
+                            name,
+                            def,
+                            param_visibility,
+                            param_location,
+                            typ.clone(),
+                            len,
+                            &mut witnesses,
+                            element_width,
+                            igen,
+                        )?;
                     }
                     noirc_frontend::ArraySize::FixedVariable(_) => {
                         let len = param_type.num_elements(&self.context.def_interner) as u128; // TODO: cast is fine for now but we cast to lower type to u32 within igen.abi_array
-                        self.handle_array_size(name, def, param_visibility, param_location, typ.clone(), len, &mut witnesses, element_width, igen)?;
+                        self.handle_array_size(
+                            name,
+                            def,
+                            param_visibility,
+                            param_location,
+                            typ.clone(),
+                            len,
+                            &mut witnesses,
+                            element_width,
+                            igen,
+                        )?;
                     }
                 }
             }
@@ -611,7 +631,10 @@ impl<'a> Evaluator<'a> {
             }
             Type::PolymorphicInteger(is_const, typ_var) if is_const.is_const() => {
                 println!("Polymorphic integer typ_var: {:?}", typ_var);
-                println!("Polymorphic integer expression: {:?}", self.context.def_interner.expression(rhs));
+                println!(
+                    "Polymorphic integer expression: {:?}",
+                    self.context.def_interner.expression(rhs)
+                );
                 let span = self.context.def_interner.expr_location(rhs);
                 let value =
                     self.evaluate_integer(env, rhs).map_err(|kind| kind.add_location(span))?;
@@ -691,7 +714,10 @@ impl<'a> Evaluator<'a> {
         expr_id: &ExprId,
     ) -> Result<Object, RuntimeError> {
         let loc = self.context.def_interner.expr_location(expr_id);
-        println!("expression_to_object HirExpression: {:?}", self.context.def_interner.expression(expr_id));
+        println!(
+            "expression_to_object HirExpression: {:?}",
+            self.context.def_interner.expression(expr_id)
+        );
         match self.context.def_interner.expression(expr_id) {
             HirExpression::Literal(HirLiteral::Integer(x)) => Ok(Object::Constants(x)),
             HirExpression::Literal(HirLiteral::Array(arr_lit)) => {

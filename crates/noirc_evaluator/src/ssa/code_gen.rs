@@ -372,8 +372,7 @@ impl<'a> IRGenerator<'a> {
                     let obj_type = node::ObjectType::from(typ);
                     // TODO: either change max amount of elements for array on frontend to u32 or change array len type in codegen from u32
                     let array_size = typ.num_elements(&self.context.context().def_interner);
-                    let v_id =
-                        self.new_array(base_name, obj_type, array_size as u32, def);  
+                    let v_id = self.new_array(base_name, obj_type, array_size as u32, def);
                     Value::Single(v_id)
                 }
             }
@@ -461,7 +460,10 @@ impl<'a> IRGenerator<'a> {
                 self.bind_variable(basename.to_owned(), None, otype, node_id)
             }
             Value::Struct(field_values) => {
-                assert_eq!(field_values.len(), typ.num_elements(&self.context.context().def_interner));
+                assert_eq!(
+                    field_values.len(),
+                    typ.num_elements(&self.context.context().def_interner)
+                );
                 let mut values = Vec::new();
                 for t in typ.iter_fields() {
                     let v = &field_values.iter().find(|f| f.0 == t.0).unwrap().1;
