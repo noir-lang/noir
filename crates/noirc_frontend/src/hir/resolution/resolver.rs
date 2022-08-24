@@ -184,8 +184,6 @@ impl<'a> Resolver<'a> {
             variable_found.num_times_used += 1;
             variable_found.ident.id
         } else {
-            println!("find_variable else block");
-            // self.find_global_const(name)
             self.push_err(ResolverError::VariableNotDeclared {
                 name: name.0.contents.clone(),
                 span: name.0.span(),
@@ -196,48 +194,6 @@ impl<'a> Resolver<'a> {
 
         let location = Location::new(name.span(), self.file);
         HirIdent { location, id }
-    }
-
-    fn find_global_const(&mut self, name: &Ident) -> DefinitionId {
-        let global_const = match self.interner.get_global_const(name) {
-            Some(stmt_id) => {
-                self.interner.statement(&stmt_id)
-            }
-            _ => {
-                self.push_err(ResolverError::VariableNotDeclared {
-                    name: name.0.contents.clone(),
-                    span: name.0.span(),
-                });
-                return DefinitionId::dummy_id()
-            }
-        };
-        let id = match global_const {
-            HirStatement::Let(let_stmt) => {
-                let id = match let_stmt.pattern {
-                    HirPattern::Identifier(ident) => {
-                        ident.id
-                    },
-                    _ => {
-                        // TODO: possibly use new resolver err, or at least one with more details
-                        self.push_err(ResolverError::VariableNotDeclared {
-                            name: name.0.contents.clone(),
-                            span: name.0.span(),
-                        });
-                        DefinitionId::dummy_id()
-                    }
-                };
-                id
-            },
-            _ => {
-                // TODO: possibly use new resolver err, or at least one with more details
-                self.push_err(ResolverError::VariableNotDeclared {
-                    name: name.0.contents.clone(),
-                    span: name.0.span(),
-                });
-                DefinitionId::dummy_id()
-            }
-        };
-        id
     }
 
     pub fn intern_function(&mut self, func: NoirFunction) -> (HirFunction, FuncMeta) {

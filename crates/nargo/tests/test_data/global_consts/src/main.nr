@@ -19,12 +19,16 @@ fn main(a: [M]Field, b: [M]Field) {
      constrain q == 96;
 
      constrain a != b;
-     //let L: const Field = 10;
 
      let arr: [N]Field = [N; 5];
+     // let arr: [N]Field = [N; 5]; NOTE: this is currently broken
      constrain arr[0] == 5;
 
      let t: [2]Field = [N, M];
+     // NOTE: This is currently broken, as only global consts work in array annotations
+     // let L: const Field = 2;
+     // let t: [L]Field = [N, M];
+     
      constrain t[1] == 32;
 }
 

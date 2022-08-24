@@ -265,16 +265,14 @@ fn resolve_global_constants(
             Statement::Let(let_stmt) => {
                 let ident = match let_stmt.pattern {
                     Pattern::Identifier(ident) => ident,
-                    _ => panic!(""), // TODO: change this to use errors
+                    _ => panic!("pattern for const statement must be an identifier"), // TODO: change this to use errors
                 };
                 ident
             }
-            _ => panic!(""), // TODO: change this to use errors
+            _ => panic!("global consts must be a let statement"), // TODO: change this to use errors
         };
         let stmt_id = resolver.intern_stmt(global_const.stmt_def);
 
-        // let hir_stmt = context.def_interner.statement(&stmt_id);
-        println!("hir stmt: {:?}", stmt_id);
         context.def_interner.push_global_const(name.clone(), stmt_id); 
 
         let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();

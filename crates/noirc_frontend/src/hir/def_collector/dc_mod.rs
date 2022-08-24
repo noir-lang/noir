@@ -75,7 +75,7 @@ pub fn collect_defs<'a>(
     }
 }
 
-// NOTE: Possibly do this inside dc_crate where resolution happens to make sure that multiple global_constants are not declared 
+// NOTE: Possibly do this inside dc_crate where resolution happens to make sure that multiple global_constants are not declared
 fn insert_global_constants(
     functions: &mut Vec<NoirFunction>,
     global_consts: Vec<Statement>,
@@ -84,7 +84,6 @@ fn insert_global_constants(
         let mut statements = function.clone().def.body.0;
 
         for global_const in global_consts.iter() {
-            println!("global_const: {:?}", global_const);
             statements.insert(0, global_const.clone());
         }
         function.def.body.0 = statements;

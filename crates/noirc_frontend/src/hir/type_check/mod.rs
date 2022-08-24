@@ -49,10 +49,6 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     errors
 }
 
-// pub fn type_check_stmt(interner: &mut NodeInterner, stmt_ids: Vec<StmtId>) -> Vec<TypeCheckError> {
-
-// }
-
 // XXX: These tests are all manual currently.
 /// We can either build a test apparatus or pass raw code through the resolver
 #[cfg(test)]

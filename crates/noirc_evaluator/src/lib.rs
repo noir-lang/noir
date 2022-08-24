@@ -211,32 +211,6 @@ impl<'a> Evaluator<'a> {
         let mut igen = IRGenerator::new(self.context);
         self.parse_abi_alt(env, &mut igen)?;
 
-        // NOTE: this is how we were evaluating constants before, now we are inserting them into functions of the ast and then evaluating them
-        // for (_ident, stmt_id) in self.context.def_interner.get_all_global_consts() {
-        //     // let witness = self.add_witness_to_cs(); // old way how it was being done
-        //     // self.add_witness_to_env(_ident.0.contents, witness, env);
-        //     let hir_stmt = self.context.def_interner.statement(&stmt_id);
-        //     match hir_stmt {
-        //         HirStatement::Let(let_stmt) => {
-        //             match let_stmt.pattern {
-        //                 HirPattern::Identifier(ident) => {
-        //                     let name = self.context.def_interner.definition_name(ident.id);
-        //                     let ident_def = ident.id;
-        //                     self.param_to_var(name, ident_def, AbiFEType::Private, &let_stmt.r#type, ident.location, &mut igen)?;
-        //                 }
-        //                 _ => panic!("global const pattern can only be an identifier")
-        //             }
-        //         }
-        //         _ => panic!("global const statement must be a let statement")
-        //     }
-
-        //     let result = self.evaluate_statement(env, &stmt_id);
-        //     match result {
-        //         Ok(res) => println!("evaluate global const stmt worked: {:?}", res),
-        //         Err(err) => panic!("failed to evaluated global const stmt: {:?}", err),
-        //     };
-        // }
-
         // Now call the main function
         let main_func_body = self.context.def_interner.function(&self.main_function);
         let location = self.context.def_interner.function_meta(&self.main_function).location;
@@ -244,7 +218,6 @@ impl<'a> Evaluator<'a> {
 
         //Generates ACIR representation:
         igen.context.ir_to_acir(self, enable_logging)?;
-        println!("finished ir_to_acir");
         Ok(())
     }
 
@@ -369,33 +342,11 @@ impl<'a> Evaluator<'a> {
                         panic!("cannot have variable sized array in entry point")
                     }
                     noirc_frontend::ArraySize::Fixed(len) => {
-                        for _ in 0..len {
-                            let witness = self.add_witness_to_cs();
-                            witnesses.push(witness);
-                            if let Some(ww) = element_width {
-                                ssa::acir_gen::range_constraint(witness, ww, self)
-                                    .map_err(|e| e.add_location(param_location))?;
-                            }
-                            if param_visibility == AbiFEType::Public {
-                                self.public_inputs.push(witness);
-                            }
-                        }
-                        igen.abi_array(name, def, *typ.clone(), len, witnesses);
+                        self.handle_array_size(name, def, param_visibility, param_location, typ.clone(), len, &mut witnesses, element_width, igen)?;
                     }
                     noirc_frontend::ArraySize::FixedVariable(_) => {
-                        let len = param_type.num_elements(&self.context.def_interner) as u128; // TODO: cast is fine for now but we cast to lower type within igen.abi_array
-                        for _ in 0..len {
-                            let witness = self.add_witness_to_cs();
-                            witnesses.push(witness);
-                            if let Some(ww) = element_width {
-                                ssa::acir_gen::range_constraint(witness, ww, self)
-                                    .map_err(|e| e.add_location(param_location))?;
-                            }
-                            if param_visibility == AbiFEType::Public {
-                                self.public_inputs.push(witness);
-                            }
-                        }
-                        igen.abi_array(name, def, *typ.clone(), len, witnesses);
+                        let len = param_type.num_elements(&self.context.def_interner) as u128; // TODO: cast is fine for now but we cast to lower type to u32 within igen.abi_array
+                        self.handle_array_size(name, def, param_visibility, param_location, typ.clone(), len, &mut witnesses, element_width, igen)?;
                     }
                 }
             }
@@ -423,6 +374,33 @@ impl<'a> Evaluator<'a> {
             Type::Error => todo!(),
             Type::Unspecified => todo!(),
         }
+        Ok(())
+    }
+
+    fn handle_array_size(
+        &mut self,
+        name: &str,
+        def: DefinitionId,
+        param_visibility: AbiFEType,
+        param_location: Location,
+        typ: Box<Type>,
+        len: u128,
+        witnesses: &mut Vec<Witness>,
+        element_width: Option<u32>,
+        igen: &mut IRGenerator,
+    ) -> Result<(), RuntimeError> {
+        for _ in 0..len {
+            let witness = self.add_witness_to_cs();
+            witnesses.push(witness);
+            if let Some(ww) = element_width {
+                ssa::acir_gen::range_constraint(witness, ww, self)
+                    .map_err(|e| e.add_location(param_location))?;
+            }
+            if param_visibility == AbiFEType::Public {
+                self.public_inputs.push(witness);
+            }
+        }
+        igen.abi_array(name, def, *typ.clone(), len, witnesses.clone());
         Ok(())
     }
 
@@ -604,9 +582,10 @@ impl<'a> Evaluator<'a> {
     ) -> Result<Object, RuntimeError> {
         // Convert the LHS into an identifier
         let variable_name = self.pattern_name(pattern);
-        println!("handle_definition variable_name: {:?}, rhs ExprId: {:?}", variable_name, rhs);
-        println!("rhs span: {:?}", self.context.def_interner.expr_location(rhs));
-        println!("handle_definition id_type: {:?}", self.context.def_interner.id_type(rhs));
+        // println!("handle_definition variable_name: {:?}, rhs ExprId: {:?}", variable_name, rhs);
+        // println!("rhs span: {:?}", self.context.def_interner.expr_location(rhs));
+        // println!("handle_definition id_type: {:?}", self.context.def_interner.id_type(rhs));
+
         // XXX: Currently we only support arrays using this,  when other types are introduced
         // we can extend into a separate (generic) module
         match self.context.def_interner.id_type(rhs) {

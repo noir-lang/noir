@@ -613,15 +613,11 @@ impl Type {
                                             None => panic!("field element used in constant does not fit into u128"),
                                         }
                                     }
-                                    _ => {
-                                        panic!("literal used in fixed variable array length must be an integer literal")
-                                    }
+                                    _ => panic!("literal used in fixed variable array length must be an integer literal")
                                 }
 
                             },
-                            _ => {
-                                panic!("expression in global const statement is not a literal")
-                            }
+                            _ => panic!("expression in global const statement is not a literal")
                         }
                     }
                     _ => panic!("let statement not associated with statement")

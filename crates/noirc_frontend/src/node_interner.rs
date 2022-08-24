@@ -150,7 +150,7 @@ pub struct NodeInterner {
     // methods from impls to the type.
     structs: HashMap<StructId, Rc<RefCell<StructType>>>,
 
-    global_constants: HashMap<Ident, StmtId>, // TODO: work with this like the struct, TODO 2: possibly change to HirLetStatement to make more restrictive
+    global_constants: HashMap<Ident, StmtId>, // NOTE: currently only used for checking repeat global consts and 
 
     next_type_variable_id: usize,
 }
@@ -366,11 +366,7 @@ impl NodeInterner {
             None
         }
     }
-
-    pub fn get_all_global_consts(&self) -> HashMap<Ident, StmtId> {
-        self.global_constants.clone()
-    }
-
+    
     /// Returns the type of an item stored in the Interner or Error if it was not found.
     pub fn id_type(&self, index: impl Into<Index>) -> Type {
         self.id_to_type.get(&index.into()).cloned().unwrap_or(Type::Error)
