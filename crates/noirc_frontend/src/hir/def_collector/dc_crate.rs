@@ -284,22 +284,6 @@ fn resolve_global_constants(
             });
         }
 
-        let mut type_check_errs = Vec::new();
-        let _stmt_type = type_check(&mut context.def_interner, &stmt_id, &mut type_check_errs);
-        let type_check_err_diagnostics: Vec<_> = type_check_errs
-            .clone()
-            .into_iter()
-            .map(|error| error.into_diagnostic(&mut context.def_interner))
-            .collect();
-
-        if !type_check_err_diagnostics.is_empty() {
-            let collected_errors = CollectedErrors {
-                file_id: global_const.file_id,
-                errors: type_check_err_diagnostics,
-            };
-            errors.push(collected_errors)
-        }
-
         // global_const_ids.push(stmt_id);
     }
 
