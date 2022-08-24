@@ -157,7 +157,6 @@ impl DefCollector {
         // impl since that determines the module we should collect into.
         collect_impls(context, crate_id, &def_collector.collected_impls, errors);
 
-        println!("about to resolve functions");
         // Lower each function in the crate. This is now possible since imports have been resolved
         let file_func_ids = resolve_functions(
             &mut context.def_interner,
@@ -168,8 +167,6 @@ impl DefCollector {
             errors,
         );
 
-        println!("about to resolve impls");
-
         let file_method_ids = resolve_impls(
             &mut context.def_interner,
             crate_id,
@@ -178,7 +175,6 @@ impl DefCollector {
             errors,
         );
 
-        println!("about to type check fucnctions and impls");
         // Type check all of the functions in the crate
         type_check_functions(&mut context.def_interner, file_func_ids, errors);
         type_check_functions(&mut context.def_interner, file_method_ids, errors);

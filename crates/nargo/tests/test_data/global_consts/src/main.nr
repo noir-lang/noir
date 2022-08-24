@@ -18,6 +18,7 @@ fn main(a: [M]Field, b: [M]Field) {
      let q = multiplyByM(3);
      constrain q == 96;
 
+     //arrays_neq(a, b);
      constrain a != b;
 
      let arr: [N]Field = [N; 5];
@@ -37,3 +38,7 @@ fn multiplyByM(x: u32) -> u32 {
      //let N: const Field = 5;
      x * M as u32
 }
+
+//fn arrays_neq(a: [M]Field, b: [M]Field) {
+//     constrain a != b;
+//}

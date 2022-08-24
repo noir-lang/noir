@@ -86,8 +86,6 @@ impl<'a> Evaluator<'a> {
         value
     }
 
-    // Object::Constants(indice)
-
     pub fn current_witness_index(&self) -> u32 {
         self.current_witness_index
     }
@@ -118,7 +116,6 @@ impl<'a> Evaluator<'a> {
             },
             np_language,
         );
-        println!("finished optimised_circuit");
         Ok(optimised_circuit)
     }
 
@@ -530,9 +527,7 @@ impl<'a> Evaluator<'a> {
         rhs: &ExprId,
     ) -> Result<Object, RuntimeError> {
         let rhs_span = self.context.def_interner.expr_location(rhs);
-        println!("rhs_span in handle_private_statement: {:?}", rhs_span);
         let rhs_poly = self.expression_to_object(env, rhs)?;
-        println!("rhs_poly in handle_private_statement: {:?}", rhs_poly);
 
         // We do not store it in the environment yet, because it may need to be casted to an integer
         let witness = self.add_witness_to_cs();
@@ -602,11 +597,8 @@ impl<'a> Evaluator<'a> {
     ) -> Result<Object, RuntimeError> {
         // Convert the LHS into an identifier
         let variable_name = self.pattern_name(pattern);
-        // println!("handle_definition variable_name: {:?}, rhs ExprId: {:?}", variable_name, rhs);
-        // println!("rhs span: {:?}", self.context.def_interner.expr_location(rhs));
-        // println!("handle_definition id_type: {:?}", self.context.def_interner.id_type(rhs));
 
-        // XXX: Currently we only support arrays using this,  when other types are introduced
+        // XXX: Currently we only support arrays using this, when other types are introduced
         // we can extend into a separate (generic) module
         match self.context.def_interner.id_type(rhs) {
             Type::FieldElement(is_const) if is_const.is_const() => {
@@ -615,7 +607,6 @@ impl<'a> Evaluator<'a> {
                 let span = self.context.def_interner.expr_location(rhs);
                 let value =
                     self.evaluate_integer(env, rhs).map_err(|kind| kind.add_location(span))?;
-                println!("Type::FieldElement value: {:?}", value);
                 env.store(variable_name, value);
             }
             Type::Array(..) => {
@@ -628,18 +619,6 @@ impl<'a> Evaluator<'a> {
                         "The evaluator currently only supports arrays and constant integers!"
                     ),
                 };
-            }
-            Type::PolymorphicInteger(is_const, typ_var) if is_const.is_const() => {
-                println!("Polymorphic integer typ_var: {:?}", typ_var);
-                println!(
-                    "Polymorphic integer expression: {:?}",
-                    self.context.def_interner.expression(rhs)
-                );
-                let span = self.context.def_interner.expr_location(rhs);
-                let value =
-                    self.evaluate_integer(env, rhs).map_err(|kind| kind.add_location(span))?;
-                println!("Polymorphic integer Type::FieldElement value: {:?}", value);
-                env.store(variable_name, value);
             }
             _ => return self.handle_private_statement(env, variable_name, rhs),
         }
@@ -701,7 +680,6 @@ impl<'a> Evaluator<'a> {
     ) -> Result<Object, RuntimeErrorKind> {
         let polynomial =
             self.expression_to_object(env, expr_id).map_err(|err| err.remove_span())?;
-        println!("evaluate_integer: {:?}", polynomial);
         if polynomial.is_constant() {
             return Ok(polynomial);
         }
@@ -714,10 +692,7 @@ impl<'a> Evaluator<'a> {
         expr_id: &ExprId,
     ) -> Result<Object, RuntimeError> {
         let loc = self.context.def_interner.expr_location(expr_id);
-        println!(
-            "expression_to_object HirExpression: {:?}",
-            self.context.def_interner.expression(expr_id)
-        );
+        
         match self.context.def_interner.expression(expr_id) {
             HirExpression::Literal(HirLiteral::Integer(x)) => Ok(Object::Constants(x)),
             HirExpression::Literal(HirLiteral::Array(arr_lit)) => {

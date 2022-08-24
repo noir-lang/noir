@@ -118,13 +118,9 @@ impl<'a> Resolver<'a> {
 
         for unused_var in unused_vars.iter() {
             if self.interner.definition_name(unused_var.id) != ERROR_IDENT {
+                // Check whether the unused var is a global constant
                 let global_def_name = self.interner.definition_name(unused_var.id);
                 let global_ident = Ident::from(global_def_name.to_owned());
-                println!("global ident unused: {:?}", global_ident);
-                println!(
-                    "check unused global, get_global_const: {:?}",
-                    self.interner.get_global_const(&global_ident)
-                );
                 if self.interner.get_global_const(&global_ident).is_none() {
                     self.push_err(ResolverError::UnusedVariable { ident: *unused_var });
                 }
@@ -444,7 +440,6 @@ impl<'a> Resolver<'a> {
         };
 
         let expr_id = self.interner.push_expr(hir_expr);
-        // println!("resolve_expression, expr_id: {:?}, hir_expr: {:?}", expr_id, hir_expr); // NOTE: get rid of clone() on hir_expr when removing this println
         self.interner.push_expr_location(expr_id, expr.span, self.file);
         expr_id
     }
@@ -600,10 +595,7 @@ impl<'a> Resolver<'a> {
 
     fn resolve_block(&mut self, block_expr: BlockExpression) -> HirExpression {
         let statements = self.in_new_scope(|this| {
-            vecmap(block_expr.0, |stmt| {
-                // println!("stmt in resolve_block: {:?}", stmt);
-                this.intern_stmt(stmt)
-            })
+            vecmap(block_expr.0, |stmt| this.intern_stmt(stmt))
         });
         HirExpression::Block(HirBlockExpression(statements))
     }
