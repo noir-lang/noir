@@ -26,6 +26,10 @@ impl ArraySize {
         matches!(self, ArraySize::Fixed(_))
     }
 
+    pub fn is_fixed_variable(&self) -> bool {
+        matches!(self, ArraySize::FixedVariable(_))
+    }
+
     pub fn is_variable(&self) -> bool {
         !self.is_fixed()
     }

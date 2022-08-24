@@ -650,7 +650,7 @@ fn check_param_argument(
 ) {
     let param_type = &param.1;
 
-    if arg_type.is_variable_sized_array() {
+    if arg_type.is_variable_sized_array() && !arg_type.is_fixed_variable_sized_array() {
         unreachable!("arg type type cannot be a variable sized array. This is not supported.")
     }
 

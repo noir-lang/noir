@@ -581,6 +581,14 @@ impl Type {
         sized.is_fixed()
     }
 
+    pub fn is_fixed_variable_sized_array(&self) -> bool {
+        let (sized, _) = match self.array() {
+            None => return false,
+            Some(arr) => arr,
+        };
+        sized.is_fixed_variable()
+    }
+
     pub fn is_variable_sized_array(&self) -> bool {
         let (sized, _) = match self.array() {
             None => return false,

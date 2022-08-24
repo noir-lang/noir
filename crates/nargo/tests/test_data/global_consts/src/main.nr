@@ -18,12 +18,13 @@ fn main(a: [M]Field, b: [M]Field) {
      let q = multiplyByM(3);
      constrain q == 96;
 
-     //arrays_neq(a, b);
+     arrays_neq(a, b);
      constrain a != b;
 
      let arr: [N]Field = [N; 5];
      // let arr: [N]Field = [N; 5]; NOTE: this is currently broken
      constrain arr[0] == 5;
+     constrain arr[4] == 5;
 
      let t: [2]Field = [N, M];
      // NOTE: This is currently broken, as only global consts work in array annotations
@@ -39,6 +40,6 @@ fn multiplyByM(x: u32) -> u32 {
      x * M as u32
 }
 
-//fn arrays_neq(a: [M]Field, b: [M]Field) {
-//     constrain a != b;
-//}
+fn arrays_neq(a: [M]Field, b: [M]Field) {
+     constrain a != b;
+}
