@@ -146,6 +146,7 @@ pub struct BinaryStatement {
 pub enum LValue {
     Ident(Ident),
     Index { array: Box<LValue>, index: Box<Expression> },
+    MemberAccess { object: Box<LValue>, field_index: usize },
 }
 
 #[derive(Debug, Clone)]

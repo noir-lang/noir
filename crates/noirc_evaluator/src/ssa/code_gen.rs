@@ -63,6 +63,15 @@ impl Value {
             Value::Tuple(mut fields) => fields.remove(field_index),
         }
     }
+
+    pub fn get_field_member(&self, field_index: usize) -> &Value {
+        match self {
+            Value::Single(_) => {
+                unreachable!("Runtime type error, expected struct but found a single value")
+            }
+            Value::Tuple(fields) => &fields[field_index],
+        }
+    }
 }
 
 impl IRGenerator {
@@ -195,7 +204,8 @@ impl IRGenerator {
     fn lvalue_ident_def(&self, lvalue: &LValue) -> DefinitionId {
         match lvalue {
             LValue::Ident(ident) => ident.id,
-            LValue::Index { array, index: _ } => self.lvalue_ident_def(array.as_ref()),
+            LValue::Index { array, .. } => self.lvalue_ident_def(array.as_ref()),
+            LValue::MemberAccess { object, .. } => self.lvalue_ident_def(object.as_ref()),
         }
     }
 
@@ -380,6 +390,12 @@ impl IRGenerator {
                 let rhs_id = rhs.unwrap_id();
                 let lhs_id = val.unwrap_id();
                 self.context.handle_assign(lhs_id, Some(array_idx), rhs_id)?;
+            }
+            LValue::MemberAccess { object: _, field_index } => {
+                // TODO: This is incorrect for nested structs
+                let val = self.find_variable(ident_def).unwrap();
+                let value = val.get_field_member(*field_index).clone();
+                self.assign_pattern(&value, rhs)?;
             }
         }
         Ok(Value::dummy())

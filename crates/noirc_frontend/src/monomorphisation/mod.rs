@@ -4,7 +4,7 @@ use crate::{
     hir_def::{
         expr::*,
         function::Parameters,
-        stmt::{HirPattern, HirStatement},
+        stmt::{HirAssignStatement, HirLValue, HirPattern, HirStatement},
     },
     node_interner::{self, NodeInterner, StmtId},
     util::vecmap,
@@ -240,7 +240,7 @@ impl Monomorphiser {
         use ast::Literal::*;
 
         match self.interner.expression(&expr) {
-            HirExpression::Ident(ident) => self.ident(ident),
+            HirExpression::Ident(ident) => ast::Expression::Ident(self.ident(ident)),
             HirExpression::Literal(HirLiteral::Str(contents)) => Literal(Str(contents)),
             HirExpression::Literal(HirLiteral::Bool(value)) => Literal(Bool(value)),
             HirExpression::Literal(HirLiteral::Integer(value)) => {
@@ -450,22 +450,26 @@ impl Monomorphiser {
         ast::Expression::Block(definitions)
     }
 
-    fn ident(&mut self, ident: HirIdent) -> ast::Expression {
+    fn ident(&mut self, ident: HirIdent) -> ast::Ident {
         let id = self.lookup_local(ident.id).unwrap();
         let name = self.interner.definition_name(ident.id).to_owned();
         let typ = self.convert_type(&self.interner.id_type(ident.id));
-        ast::Expression::Ident(ast::Ident { location: Some(ident.location), id, name, typ })
+        ast::Ident { location: Some(ident.location), id, name, typ }
     }
 
     /// Convert a non-tuple/struct type to a monomorphised type
-    fn convert_type(&self, typ: &crate::Type) -> ast::Type {
+    fn convert_type(&self, typ: &HirType) -> ast::Type {
         match typ {
             HirType::FieldElement(_) => ast::Type::Field,
             HirType::Integer(_, sign, bits) => ast::Type::Integer(*sign, *bits),
             HirType::Bool(_) => ast::Type::Bool,
             HirType::Unit => ast::Type::Unit,
 
-            HirType::Array(_, _) => todo!(),
+            HirType::Array(size, element) => {
+                let size = size.array_length().unwrap();
+                let element = self.convert_type(element.as_ref());
+                ast::Type::Array(size, Box::new(element))
+            }
 
             HirType::PolymorphicInteger(_, binding) | HirType::TypeVariable(binding) => {
                 match &*binding.borrow() {
@@ -488,7 +492,7 @@ impl Monomorphiser {
             HirType::Function(_, _, _)
             | HirType::Forall(_, _)
             | HirType::ArrayLength(_)
-            | HirType::Error => unreachable!(),
+            | HirType::Error => unreachable!("Unexpected type {} found", typ),
         }
     }
 
@@ -521,8 +525,53 @@ impl Monomorphiser {
         new_id
     }
 
-    fn assign(&self, assign: crate::hir_def::stmt::HirAssignStatement) -> ast::Expression {
-        todo!()
+    fn assign(&mut self, assign: HirAssignStatement) -> ast::Expression {
+        let expression = Box::new(self.expr_infer(assign.expression));
+        let typ = self.interner.id_type(assign.expression);
+        let lvalue = self.lvalue(assign.lvalue, &typ);
+        ast::Expression::Assign(ast::Assign { lvalue, expression })
+    }
+
+    fn lvalue(&mut self, lvalue: HirLValue, typ: &HirType) -> ast::LValue {
+        match lvalue {
+            HirLValue::Ident(ident) => {
+                let ident = self.ident(ident);
+                ast::LValue::Ident(ident)
+            }
+            HirLValue::MemberAccess { object, field_name } => {
+                let field_types = unwrap_struct_type(typ);
+                let field_type = &field_types[&field_name.0.contents];
+                let object = Box::new(self.lvalue(*object, field_type));
+                let field_index = get_field_index(&field_name.0.contents, field_types);
+                ast::LValue::MemberAccess { object, field_index }
+            }
+            HirLValue::Index { array, index } => {
+                let element_type = unwrap_array_element_type(typ);
+                let array = Box::new(self.lvalue(*array, &element_type));
+                let index = Box::new(self.expr_infer(index));
+                ast::LValue::Index { array, index }
+            }
+        }
+    }
+}
+
+fn get_field_index(field: &str, field_types: BTreeMap<String, crate::Type>) -> usize {
+    for (i, name) in field_types.keys().enumerate() {
+        if field == name {
+            return i;
+        }
+    }
+    unreachable!()
+}
+
+fn unwrap_array_element_type(typ: &HirType) -> HirType {
+    match typ {
+        HirType::Array(_, elem) => elem.as_ref().clone(),
+        HirType::TypeVariable(binding) => match &*binding.borrow() {
+            TypeBinding::Bound(binding) => unwrap_array_element_type(binding),
+            TypeBinding::Unbound(_) => unreachable!(),
+        },
+        _ => unreachable!(),
     }
 }
 
