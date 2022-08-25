@@ -55,21 +55,12 @@ impl Value {
         }
     }
 
-    pub fn get_field_member(&self, field_index: usize) -> &Value {
-        match self {
-            Value::Single(_) => {
-                unreachable!("Runtime type error, expected struct but found a single value")
-            }
-            Value::Tuple(fields) => &fields[field_index],
-        }
-    }
-
     pub fn into_field_member(self, field_index: usize) -> Value {
         match self {
             Value::Single(_) => {
                 unreachable!("Runtime type error, expected struct but found a single value")
             }
-            Value::Tuple(fields) => fields[field_index],
+            Value::Tuple(mut fields) => fields.remove(field_index),
         }
     }
 }
@@ -85,8 +76,8 @@ impl IRGenerator {
     }
 
     pub fn codegen_main(&mut self, env: &mut Environment) -> Result<(), RuntimeError> {
-        let main = self.program.main();
-        self.codegen_expression(env, &main.body)?;
+        let main_body = self.program.take_main_body();
+        self.codegen_expression(env, &main_body)?;
         Ok(())
     }
 
@@ -113,7 +104,7 @@ impl IRGenerator {
     ) {
         let element_type = match el_type {
             noirc_abi::AbiType::Field(_) => ObjectType::NativeField,
-            noirc_abi::AbiType::Integer { visibility, sign, width } => match sign {
+            noirc_abi::AbiType::Integer { sign, width, .. } => match sign {
                 noirc_abi::Sign::Unsigned => ObjectType::Unsigned(*width),
                 noirc_abi::Sign::Signed => ObjectType::Signed(*width),
             },
@@ -150,7 +141,7 @@ impl IRGenerator {
         self.variable_values.insert(ident_def, v_value); //TODO ident_def or ident_id??
     }
 
-    fn codegen_identifier(&mut self, env: &mut Environment, ident: &Ident) -> Value {
+    fn codegen_identifier(&mut self, ident: &Ident) -> Value {
         let value = self.variable_values[&ident.id].clone();
         self.get_current_value(&value)
     }
@@ -180,9 +171,7 @@ impl IRGenerator {
     ) -> Result<NodeId, RuntimeError> {
         let ltype = self.context.get_object_type(lhs);
         // Get the opcode from the infix operator
-        let binary = Binary::from_ast(op, ltype, lhs, rhs);
-        let opcode = Operation::Binary(binary);
-
+        let opcode = Operation::Binary(Binary::from_ast(op, ltype, lhs, rhs));
         let optype = self.context.get_result_type(&opcode, ltype);
         self.context.new_instruction(opcode, optype)
     }
@@ -302,13 +291,7 @@ impl IRGenerator {
 
     /// Bind the given DefinitionId to the given Value. This will flatten the Value as needed,
     /// expanding each field of the value to a new variable.
-    fn bind_id(
-        &mut self,
-        id: DefinitionId,
-        value: Value,
-        name: &str,
-        typ: &Type,
-    ) -> Result<(), RuntimeError> {
+    fn bind_id(&mut self, id: DefinitionId, value: Value, name: &str) -> Result<(), RuntimeError> {
         match value {
             Value::Single(node_id) => {
                 let otype = self.context.get_object_type(node_id);
@@ -379,7 +362,7 @@ impl IRGenerator {
         expression: &Expression,
         env: &mut Environment,
     ) -> Result<Value, RuntimeError> {
-        let ident_def = self.lvalue_ident_def(&lvalue);
+        let ident_def = self.lvalue_ident_def(lvalue);
         let rhs = self.codegen_expression(env, expression)?;
 
         match lvalue {
@@ -429,7 +412,7 @@ impl IRGenerator {
         let_expr: &Let,
     ) -> Result<Value, RuntimeError> {
         let rhs = self.codegen_expression(env, &let_expr.expression)?;
-        self.bind_id(let_expr.id, rhs, &let_expr.name, &let_expr.r#type)?;
+        self.bind_id(let_expr.id, rhs, &let_expr.name)?;
         Ok(Value::dummy())
     }
 
@@ -443,7 +426,7 @@ impl IRGenerator {
                 Ok(Value::Single(self.context.get_or_create_const(*x, typ.into())))
             }
             Expression::Literal(Literal::Array(arr_lit)) => {
-                let element_type = arr_lit.element_type.into();
+                let element_type = ObjectType::from(&arr_lit.element_type);
                 let new_var = self.context.new_array("", element_type, arr_lit.length as u32, None);
                 let array_id = self.context.mem.last_id();
 
@@ -460,7 +443,7 @@ impl IRGenerator {
                 Ok(Value::Single(new_var))
             }
             Expression::Ident(ident) => {
-                Ok(self.codegen_identifier(env, ident))
+                Ok(self.codegen_identifier(ident))
                 //n.b this creates a new variable if it does not exist, may be we should delegate this to explicit statements (let) - TODO
             }
             Expression::Binary(binary) => {
@@ -473,7 +456,7 @@ impl IRGenerator {
             }
             Expression::Cast(cast_expr) => {
                 let lhs = self.codegen_expression(env, &cast_expr.lhs)?.unwrap_id();
-                let rtype = cast_expr.r#type.into();
+                let rtype = ObjectType::from(&cast_expr.r#type);
 
                 Ok(Value::Single(self.context.new_instruction(Operation::Cast(lhs), rtype)?))
 
@@ -496,9 +479,7 @@ impl IRGenerator {
                 };
 
                 let arr_def = collection.id;
-                let ident_loc = collection.location;
-
-                let o_type: node::ObjectType = collection.typ.into();
+                let o_type = ObjectType::from(&collection.typ);
                 let e_type = o_type.deref(&self.context);
 
                 let array = if let Some(array) = self.context.mem.find_array(arr_def) {
@@ -522,12 +503,11 @@ impl IRGenerator {
                 Ok(Value::Single(self.context.new_instruction(load, e_type)?))
             }
             Expression::Call(call_expr) => {
-                let function = &self.program[call_expr.func_id];
-
                 if self.context.get_ssafunc(call_expr.func_id).is_none() {
                     let index = self.context.get_function_index();
                     self.create_function(call_expr.func_id, env, index)?;
                 }
+
                 let callee = self.context.get_ssafunc(call_expr.func_id).unwrap().idx;
                 //generate a call instruction to the function cfg
                 if let Some(caller) = self.function_context {
@@ -535,8 +515,9 @@ impl IRGenerator {
                 }
                 let results = self.call(call_expr, env)?;
 
+                let function = &self.program[call_expr.func_id];
                 Ok(match &function.return_type {
-                    Type::Tuple(_) => Value::Tuple(vecmap(results, |id| Value::Single(id))),
+                    Type::Tuple(_) => Value::Tuple(vecmap(results, Value::Single)),
                     _ => {
                         assert_eq!(results.len(), 1);
                         Value::Single(results[0])
@@ -552,12 +533,12 @@ impl IRGenerator {
             }
             Expression::For(for_expr) => self.codegen_for(env, for_expr),
             Expression::Tuple(fields) => self.codegen_tuple(env, fields),
-            Expression::If(if_expr) => self.handle_if_expr(env, &if_expr),
+            Expression::If(if_expr) => self.handle_if_expr(env, if_expr),
             Expression::Unary(prefix) => {
                 let rhs = self.codegen_expression(env, &prefix.rhs)?.unwrap_id();
                 self.codegen_prefix_expression(rhs, prefix.operator).map(Value::Single)
             }
-            Expression::Literal(l) => Ok(Value::Single(self.codegen_literal(&l))),
+            Expression::Literal(l) => Ok(Value::Single(self.codegen_literal(l))),
             Expression::Block(block) => self.codegen_block(block, env),
             Expression::ExtractTupleField(expr, field) => {
                 let tuple = self.codegen_expression(env, expr.as_ref())?;
@@ -614,8 +595,8 @@ impl IRGenerator {
         fields: &[Expression],
     ) -> Result<Value, RuntimeError> {
         let fields = fields
-            .into_iter()
-            .map(|field| self.codegen_expression(env, &field))
+            .iter()
+            .map(|field| self.codegen_expression(env, field))
             .collect::<Result<Vec<_>, _>>()?;
 
         Ok(Value::Tuple(fields))
@@ -646,7 +627,7 @@ impl IRGenerator {
         //We support only const range for now
         //TODO how should we handle scope (cf. start/end_for_loop)?
         let iter_def = for_expr.index_variable;
-        let iter_type = for_expr.index_type.into();
+        let iter_type = ObjectType::from(&for_expr.index_type);
         let index_name = for_expr.index_name.clone();
 
         let iter_id = self.create_new_variable(index_name, Some(iter_def), iter_type, None);
@@ -684,7 +665,7 @@ impl IRGenerator {
         let body_block1 = &mut self.context[body_id];
         body_block1.update_variable(iter_id, phi); //TODO try with just a get_current_value(iter)
 
-        self.codegen_expression(env, for_expr.block.as_ref());
+        self.codegen_expression(env, for_expr.block.as_ref())?;
 
         //increment iter
         let one = self.context.get_or_create_const(FieldElement::one(), iter_type);
@@ -745,7 +726,7 @@ impl IRGenerator {
         if let Some(cond) = node::NodeEval::from_id(&self.context, condition).into_const_value() {
             if cond.is_zero() {
                 if let Some(alt) = &if_expr.alternative {
-                    return self.codegen_expression(env, &alt);
+                    return self.codegen_expression(env, alt);
                 } else {
                     return Ok(Value::dummy());
                 }
@@ -781,7 +762,7 @@ impl IRGenerator {
         }
 
         if let Some(alt) = if_expr.alternative.as_ref() {
-            self.codegen_expression(env, &alt)?;
+            self.codegen_expression(env, alt)?;
         }
 
         //Connect with the exit block

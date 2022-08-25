@@ -93,7 +93,7 @@ impl Monomorphiser {
         let mut main = self.function(main_id);
         let main_meta = self.interner.function_meta(&main_id);
 
-        if &main.return_type != &ast::Type::Unit {
+        if main.return_type != ast::Type::Unit {
             let id = self.next_definition_id();
 
             main.parameters.push((id, main.return_type, "return".into()));
@@ -549,7 +549,7 @@ fn unwrap_struct_type(typ: &HirType) -> BTreeMap<String, HirType> {
 }
 
 fn perform_instantiation_bindings(bindings: &TypeBindings) {
-    for (_, (var, binding)) in bindings {
+    for (var, binding) in bindings.values() {
         *var.borrow_mut() = TypeBinding::Bound(binding.clone());
     }
 }

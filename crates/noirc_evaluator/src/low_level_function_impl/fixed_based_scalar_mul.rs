@@ -1,7 +1,8 @@
 use super::GadgetCaller;
+use crate::interpreter::Interpreter;
 use crate::low_level_function_impl::object_to_wit_bits;
 use crate::object::{Array, Object};
-use crate::{Environment, Evaluator};
+use crate::Environment;
 use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
 use acvm::acir::OPCODE;
 use noirc_frontend::hir_def::expr::HirCallExpression;
@@ -16,7 +17,7 @@ impl GadgetCaller for FixedBaseScalarMulGadget {
     }
 
     fn call(
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
         env: &mut Environment,
         call_expr: HirCallExpression,
     ) -> Result<Object, RuntimeError> {
@@ -34,7 +35,7 @@ impl GadgetCaller for FixedBaseScalarMulGadget {
             outputs: vec![witness_pubkey_x, witness_pubkey_y],
         };
 
-        evaluator.gates.push(Gate::GadgetCall(fixed_base_gate));
+        evaluator.push_gate(Gate::GadgetCall(fixed_base_gate));
 
         let arr = Array { length: 2, contents: vec![object_pubkey_x, object_pubkey_y] };
 
@@ -44,7 +45,7 @@ impl GadgetCaller for FixedBaseScalarMulGadget {
 
 impl FixedBaseScalarMulGadget {
     fn prepare_inputs(
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
         env: &mut Environment,
         mut call_expr: HirCallExpression,
     ) -> Result<Vec<GadgetInput>, RuntimeError> {

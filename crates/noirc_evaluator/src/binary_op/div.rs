@@ -1,5 +1,5 @@
 use super::{invert, mul::handle_mul_op};
-use crate::{Evaluator, Object, RuntimeErrorKind};
+use crate::{interpreter::Interpreter, Object, RuntimeErrorKind};
 
 /// For a / b . First compute the 1/b and constraint it to be the inverse of b
 /// Then multiply this inverse by a
@@ -7,7 +7,7 @@ use crate::{Evaluator, Object, RuntimeErrorKind};
 pub fn handle_div_op_default(
     left: Object,
     right: Object,
-    evaluator: &mut Evaluator,
+    evaluator: &mut Interpreter,
 ) -> Result<Object, RuntimeErrorKind> {
     let right_inv = invert(right, evaluator)?;
     handle_mul_op(left, right_inv, evaluator)
@@ -19,7 +19,7 @@ pub fn handle_div_op_default(
 pub fn handle_div_op(
     left: Object,
     right: Object,
-    evaluator: &mut Evaluator,
+    evaluator: &mut Interpreter,
 ) -> Result<Object, RuntimeErrorKind> {
     match (left, right) {
         (Object::Integer(a), Object::Integer(b)) => {

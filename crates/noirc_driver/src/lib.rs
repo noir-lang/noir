@@ -1,9 +1,8 @@
 use acvm::acir::circuit::Circuit;
 use fm::FileType;
 use noirc_abi::Abi;
-use noirc_errors::DiagnosableError;
-use noirc_errors::Reporter;
-use noirc_evaluator::Evaluator;
+use noirc_errors::{DiagnosableError, Reporter};
+use noirc_evaluator::create_circuit;
 use noirc_frontend::graph::{CrateId, CrateName, CrateType, LOCAL_CRATE};
 use noirc_frontend::hir::def_map::CrateDefMap;
 use noirc_frontend::hir::Context;

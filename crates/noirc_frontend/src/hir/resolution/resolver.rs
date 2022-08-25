@@ -36,8 +36,8 @@ use crate::{
     Statement,
 };
 use crate::{
-    LValue, NoirStruct, Path, Pattern, Shared, StructType, Type, TypeBinding, TypeVariable,
-    TypeVariableId, UnresolvedType, ERROR_IDENT,
+    Generics, LValue, NoirStruct, Path, Pattern, Shared, StructType, Type, TypeBinding,
+    TypeVariable, UnresolvedType, ERROR_IDENT,
 };
 use fm::FileId;
 use noirc_errors::{Location, Span, Spanned};
@@ -221,11 +221,7 @@ impl<'a> Resolver<'a> {
 
     /// Translates an UnresolvedType into a Type and appends any
     /// freshly created TypeVariables created to new_variables.
-    fn resolve_type_inner(
-        &mut self,
-        typ: UnresolvedType,
-        new_variables: &mut Vec<(TypeVariableId, TypeVariable)>,
-    ) -> Type {
+    fn resolve_type_inner(&mut self, typ: UnresolvedType, new_variables: &mut Generics) -> Type {
         match typ {
             UnresolvedType::FieldElement(is_const) => Type::FieldElement(is_const),
             UnresolvedType::Array(len, elem) => {
@@ -275,7 +271,7 @@ impl<'a> Resolver<'a> {
         self.resolve_type_inner(typ, &mut vec![])
     }
 
-    fn add_generics(&mut self, generics: Vec<Ident>) -> Vec<(TypeVariableId, TypeVariable)> {
+    fn add_generics(&mut self, generics: Vec<Ident>) -> Generics {
         vecmap(generics, |generic| {
             // Map the generic to a fresh type variable
             let id = self.interner.next_type_variable_id();
@@ -300,7 +296,7 @@ impl<'a> Resolver<'a> {
     pub fn resolve_struct_fields(
         mut self,
         unresolved: NoirStruct,
-    ) -> (Vec<(TypeVariableId, TypeVariable)>, BTreeMap<Ident, Type>, Vec<ResolverError>) {
+    ) -> (Generics, BTreeMap<Ident, Type>, Vec<ResolverError>) {
         let generics = self.add_generics(unresolved.generics);
 
         let fields = unresolved

@@ -128,12 +128,12 @@ impl IRGenerator {
         let current_function = self.function_context;
         let func_block = super::block::BasicBlock::create_cfg(&mut self.context);
 
-        let function = &self.program[func_id];
+        let function = &mut self.program[func_id];
         let mut func = SSAFunction::new(func_id, &function.name, func_block, index, &self.context);
 
         //argumemts:
-        for (param_id, param_type, param_name) in function.parameters.iter() {
-            let node_ids = self.create_function_parameter(*param_id, param_type, param_name);
+        for (param_id, param_type, param_name) in std::mem::take(&mut function.parameters) {
+            let node_ids = self.create_function_parameter(param_id, &param_type, &param_name);
 
             // TODO: All function arguments are pessimistically assumed to be mutable
             func.arguments.extend(node_ids.into_iter().map(|id| (id, true)));
@@ -141,7 +141,9 @@ impl IRGenerator {
 
         self.function_context = Some(index);
         self.context.functions.insert(func_id, func.clone());
-        let last_value = self.codegen_expression(env, &function.body)?;
+        let function_body = self.program.take_function_body(func_id);
+
+        let last_value = self.codegen_expression(env, &function_body)?;
         let returned_values = last_value.to_node_ids();
 
         for i in &returned_values {

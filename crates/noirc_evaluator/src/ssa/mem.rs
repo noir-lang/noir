@@ -93,7 +93,8 @@ impl Memory {
         arr_name: &str,
     ) -> ArrayId {
         let id = ArrayId(self.arrays.len() as u32);
-        let mut new_array = MemArray::new(id, DefinitionId::dummy_id(), arr_name, el_type, len);
+        let dummy_id = DefinitionId(u32::MAX);
+        let mut new_array = MemArray::new(id, dummy_id, arr_name, el_type, len);
         new_array.adr = self.last_adr;
         self.arrays.push(new_array);
         self.last_adr += len;

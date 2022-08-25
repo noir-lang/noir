@@ -233,30 +233,6 @@ impl From<Type> for ObjectType {
 }
 
 impl ObjectType {
-    pub fn get_type_from_object(obj: &Object) -> ObjectType {
-        match obj {
-            Object::Arithmetic(_) => {
-                todo!();
-                //ObjectType::native_field
-            }
-            Object::Array(_) => {
-                todo!(); //TODO we should match an array in mem: ObjectType::Pointer(0)
-            }
-            Object::Constants(_) => ObjectType::NativeField, //TODO
-            Object::Integer(i) => {
-                assert!(
-                    i.num_bits < super::integer::short_integer_max_bit_size(),
-                    "long integers are not yet supported"
-                );
-                ObjectType::Unsigned(i.num_bits)
-            } //TODO signed or unsigned?
-            Object::Linear(_) => {
-                ObjectType::NativeField //TODO check with Kev!
-            }
-            Object::Null => ObjectType::NotAnObject,
-        }
-    }
-
     pub fn bits(&self) -> u32 {
         match self {
             ObjectType::Boolean => 1,

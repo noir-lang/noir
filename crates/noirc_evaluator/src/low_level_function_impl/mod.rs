@@ -1,9 +1,10 @@
 use crate::errors::RuntimeError;
+use crate::interpreter::Interpreter;
 // Functions that are in the low level standard library
 // Low level std library methods are gadgets which are assumed to be present in the underlying proof system
 // This means that the underlying PLONK library must have some way to deal with these methods.
 // The standard library on the other hand, is a mixture of foreign and compiled functions.
-use crate::{Environment, Evaluator, Object};
+use crate::{Environment, Object};
 mod blake2s;
 mod ecdsa_secp256k1;
 mod fixed_based_scalar_mul;
@@ -31,14 +32,14 @@ use sha256::Sha256Gadget;
 pub trait GadgetCaller {
     fn name() -> acvm::acir::OPCODE;
     fn call(
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
         env: &mut Environment,
         call_expr: HirCallExpression,
     ) -> Result<Object, RuntimeError>;
 }
 
 pub fn call_low_level(
-    evaluator: &mut Evaluator,
+    evaluator: &mut Interpreter,
     env: &mut Environment,
     opcode_name: &str,
     call_expr: HirCallExpression,

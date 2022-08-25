@@ -1,5 +1,5 @@
 use super::sub::handle_sub_op;
-use crate::{Evaluator, Gate, Linear, Object, RuntimeErrorKind};
+use crate::{interpreter::Interpreter, Gate, Linear, Object, RuntimeErrorKind};
 
 /// XXX(med) : So at the moment, Equals is the same as SUB
 /// Most likely we will need to check if it is a predicate equal or infix equal
@@ -9,9 +9,9 @@ use crate::{Evaluator, Gate, Linear, Object, RuntimeErrorKind};
 pub fn handle_equal_op(
     left: Object,
     right: Object,
-    evaluator: &mut Evaluator,
+    interpreter: &mut Interpreter,
 ) -> Result<Object, RuntimeErrorKind> {
-    let result = handle_sub_op(left, right, evaluator)?;
+    let result = handle_sub_op(left, right, interpreter)?;
 
     match result {
         Object::Null => {
@@ -24,14 +24,14 @@ pub fn handle_equal_op(
                 message: "cannot constrain two constants".to_string(),
             })
         }
-        Object::Linear(linear) => evaluator.gates.push(Gate::Arithmetic(linear.into())),
-        Object::Arithmetic(arith) => evaluator.gates.push(Gate::Arithmetic(arith)),
+        Object::Linear(linear) => interpreter.push_gate(Gate::Arithmetic(linear.into())),
+        Object::Arithmetic(arith) => interpreter.push_gate(Gate::Arithmetic(arith)),
         Object::Integer(integer) => {
-            let truncated = integer.truncate(evaluator).unwrap();
+            let truncated = integer.truncate(interpreter).unwrap();
             let witness_linear = Linear::from_witness(truncated.witness);
-            evaluator.gates.push(Gate::Arithmetic(witness_linear.into()))
+            interpreter.push_gate(Gate::Arithmetic(witness_linear.into()))
         }
-        Object::Array(arr) => arr.constrain_zero(evaluator),
+        Object::Array(arr) => arr.constrain_zero(interpreter),
     }
     Ok(Object::Null)
 }

@@ -3,6 +3,7 @@ mod binary_op;
 mod builtin;
 mod environment;
 mod errors;
+mod interpreter;
 mod low_level_function_impl;
 mod object;
 mod ssa;
@@ -122,6 +123,23 @@ impl Evaluator {
         Ok(())
     }
 
+    // When we are multiplying arithmetic gates by each other, if one gate has too many terms
+    // It is better to create an intermediate variable which links to the gate and then multiply by that intermediate variable
+    // instead
+    pub fn create_intermediate_variable(
+        &mut self,
+        arithmetic_gate: Expression,
+    ) -> (Object, Witness) {
+        // Create a unique witness name and add witness to the constraint system
+        let inter_var_witness = self.add_witness_to_cs();
+        let inter_var_object = Object::from_witness(inter_var_witness);
+
+        // Link that witness to the arithmetic gate
+        let constraint = &arithmetic_gate - &inter_var_witness;
+        self.gates.push(Gate::Arithmetic(constraint));
+        (inter_var_object, inter_var_witness)
+    }
+
     fn param_to_var(
         &mut self,
         name: &str,
@@ -185,13 +203,15 @@ impl Evaluator {
         // This is not a short-coming of the ABI, but of the grammar
         // The new grammar has been conceived, and will be implemented.
         let main = igen.program.main();
-        assert_eq!(main.parameters.len(), igen.program.abi.parameters.len());
+        let main_params = std::mem::take(&mut main.parameters);
+        let abi_params = std::mem::take(&mut igen.program.abi.parameters);
+        assert_eq!(main_params.len(), abi_params.len());
 
         for ((param_id, _, param_name1), (param_name2, param_type)) in
-            main.parameters.iter().zip(&igen.program.abi.parameters)
+            main_params.iter().zip(abi_params)
         {
-            assert_eq!(param_name1, param_name2);
-            self.param_to_var(param_name1, *param_id, param_type, igen).unwrap();
+            assert_eq!(param_name1, &param_name2);
+            self.param_to_var(param_name1, *param_id, &param_type, igen).unwrap();
         }
     }
 }

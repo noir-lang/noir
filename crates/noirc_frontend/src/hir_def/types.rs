@@ -16,12 +16,20 @@ use crate::{
 
 /// A shared, mutable reference to some T.
 /// Wrapper is required for Hash impl of RefCell.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Eq, PartialOrd, Ord)]
 pub struct Shared<T>(Rc<RefCell<T>>);
 
 impl<T: std::hash::Hash> std::hash::Hash for Shared<T> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.0.borrow().hash(state)
+    }
+}
+
+impl<T: PartialEq> PartialEq for Shared<T> {
+    fn eq(&self, other: &Self) -> bool {
+        let ref1 = self.0.borrow();
+        let ref2 = other.0.borrow();
+        *ref1 == *ref2
     }
 }
 
@@ -66,10 +74,12 @@ pub struct StructType {
     /// since these will handle applying generic arguments to fields as well.
     fields: BTreeMap<Ident, Type>,
 
-    pub generics: Vec<(TypeVariableId, TypeVariable)>,
+    pub generics: Generics,
     pub methods: HashMap<String, FuncId>,
     pub span: Span,
 }
+
+pub type Generics = Vec<(TypeVariableId, TypeVariable)>;
 
 impl std::hash::Hash for StructType {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
@@ -89,7 +99,7 @@ impl StructType {
         name: Ident,
         span: Span,
         fields: BTreeMap<Ident, Type>,
-        generics: Vec<(TypeVariableId, TypeVariable)>,
+        generics: Generics,
     ) -> StructType {
         StructType { id, fields, name, span, generics, methods: HashMap::new() }
     }
@@ -201,7 +211,7 @@ pub enum Type {
     /// but it makes handling them both easier. The TypeVariableId should
     /// never be bound over during type checking, but during monomorphisation it
     /// will be and thus needs the full TypeVariable link.
-    Forall(Vec<(TypeVariableId, TypeVariable)>, Box<Type>),
+    Forall(Generics, Box<Type>),
 
     /// A type-level integer. Included to let an Array's size type variable
     /// bind to an integer without special checks to bind it to a non-type.
@@ -221,7 +231,7 @@ pub enum TypeBinding {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct TypeVariableId(pub usize);
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Eq)]
 pub enum IsConst {
     // Yes and No variants have optional spans representing the location in the source code
     // which caused them to be const.
@@ -240,6 +250,24 @@ impl std::hash::Hash for IsConst {
             } else {
                 id.hash(state);
             }
+        }
+    }
+}
+
+impl PartialEq for IsConst {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (IsConst::Maybe(id1, binding1), IsConst::Maybe(id2, binding2)) => {
+                if let Some(new_self) = &*binding1.borrow() {
+                    return new_self == other;
+                }
+                if let Some(new_other) = &*binding2.borrow() {
+                    return self == new_other;
+                }
+                id1 == id2
+            }
+            (IsConst::Yes(_), IsConst::Yes(_)) | (IsConst::No(_), IsConst::No(_)) => true,
+            _ => false,
         }
     }
 }

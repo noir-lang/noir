@@ -1,4 +1,6 @@
-use crate::{errors::RuntimeError, Environment, Evaluator, Object, RuntimeErrorKind};
+use crate::{
+    errors::RuntimeError, interpreter::Interpreter, Environment, Object, RuntimeErrorKind,
+};
 
 mod arraysum;
 use arraysum::ArraySum;
@@ -38,7 +40,7 @@ impl BuiltInFunctions {
 
 pub trait BuiltInCaller {
     fn call(
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
         env: &mut Environment,
         call_expr: HirCallExpression,
         location: Location,
@@ -46,7 +48,7 @@ pub trait BuiltInCaller {
 }
 
 pub fn call_builtin(
-    evaluator: &mut Evaluator,
+    evaluator: &mut Interpreter,
     env: &mut Environment,
     builtin_name: &str,
     call_expr: HirCallExpression,

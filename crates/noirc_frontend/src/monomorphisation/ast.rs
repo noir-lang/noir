@@ -184,8 +184,20 @@ impl Functions {
         self.functions.push(function);
     }
 
-    pub fn main(&self) -> &Function {
-        &self.functions[0]
+    pub fn main(&mut self) -> &mut Function {
+        &mut self.functions[0]
+    }
+
+    pub fn take_main_body(&mut self) -> Expression {
+        self.take_function_body(FuncId(0))
+    }
+
+    /// Takes a function body by replacing it with `false` and
+    /// returning the previous value
+    pub fn take_function_body(&mut self, function: FuncId) -> Expression {
+        let main = &mut self.functions[function.0 as usize];
+        let replacement = Expression::Literal(Literal::Bool(false));
+        std::mem::replace(&mut main.body, replacement)
     }
 }
 
@@ -194,5 +206,11 @@ impl std::ops::Index<FuncId> for Functions {
 
     fn index(&self, index: FuncId) -> &Self::Output {
         &self.functions[index.0 as usize]
+    }
+}
+
+impl std::ops::IndexMut<FuncId> for Functions {
+    fn index_mut(&mut self, index: FuncId) -> &mut Self::Output {
+        &mut self.functions[index.0 as usize]
     }
 }

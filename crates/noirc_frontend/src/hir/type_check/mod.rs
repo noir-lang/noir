@@ -63,6 +63,7 @@ mod test {
     use crate::hir_def::stmt::HirPattern::Identifier;
     use crate::hir_def::types::Type;
     use crate::node_interner::{FuncId, NodeInterner};
+    use crate::BinaryOpKind;
     use crate::{graph::CrateId, Ident};
     use crate::{
         hir::{
@@ -73,9 +74,7 @@ mod test {
     };
     use crate::{
         hir_def::{
-            expr::{
-                HirBinaryOp, HirBinaryOpKind, HirBlockExpression, HirExpression, HirInfixExpression,
-            },
+            expr::{HirBinaryOp, HirBlockExpression, HirExpression, HirInfixExpression},
             function::{FuncMeta, HirFunction, Param},
             stmt::HirStatement,
         },
@@ -111,7 +110,7 @@ mod test {
         let y_expr_id = interner.push_expr(HirExpression::Ident(y));
 
         // Create Infix
-        let operator = HirBinaryOp { location, kind: HirBinaryOpKind::Add };
+        let operator = HirBinaryOp { location, kind: BinaryOpKind::Add };
         let expr = HirInfixExpression { lhs: x_expr_id, operator, rhs: y_expr_id };
         let expr_id = interner.push_expr(HirExpression::Infix(expr));
         interner.push_expr_location(expr_id, Span::single_char(0), file);

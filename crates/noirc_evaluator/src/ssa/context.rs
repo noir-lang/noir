@@ -486,17 +486,6 @@ impl SsaContext {
         Ok(self.push_instruction(i))
     }
 
-    pub fn new_binary_instruction(
-        &mut self,
-        operator: BinaryOp,
-        lhs: NodeId,
-        rhs: NodeId,
-        optype: ObjectType,
-    ) -> Result<NodeId, RuntimeError> {
-        let operation = Operation::binary(operator, lhs, rhs);
-        self.new_instruction(operation, optype)
-    }
-
     pub fn find_const_with_type(
         &self,
         value: &BigUint,
