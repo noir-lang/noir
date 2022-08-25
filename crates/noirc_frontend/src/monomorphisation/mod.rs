@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, VecDeque};
 
 use crate::{
     hir_def::{
@@ -23,11 +23,12 @@ struct Monomorphiser {
     locals: HashMap<node_interner::DefinitionId, DefinitionId>,
 
     /// Queue of functions to monomorphise next
-    queue: Vec<(node_interner::FuncId, TypeBindings)>,
+    queue: VecDeque<(node_interner::FuncId, FuncId, TypeBindings)>,
 
     interner: NodeInterner,
 
-    next_unique_id: u32,
+    next_local_id: u32,
+    next_function_id: u32,
 }
 
 type HirType = crate::Type;
@@ -37,11 +38,11 @@ pub fn monomorphise(main: node_interner::FuncId, interner: NodeInterner) -> Func
     let mut functions = monomorphiser.compile_main(main);
 
     while !monomorphiser.queue.is_empty() {
-        let (next_fn_id, bindings) = monomorphiser.queue.pop().unwrap();
+        let (next_fn_id, new_id, bindings) = monomorphiser.queue.pop_front().unwrap();
         monomorphiser.locals.clear();
 
         perform_instantiation_bindings(&bindings);
-        functions.push(monomorphiser.function(next_fn_id));
+        functions.push(monomorphiser.function(next_fn_id, new_id));
         undo_instantiation_bindings(bindings);
     }
 
@@ -53,21 +54,22 @@ impl Monomorphiser {
         Monomorphiser {
             globals: HashMap::new(),
             locals: HashMap::new(),
-            queue: vec![],
-            next_unique_id: 0,
+            queue: VecDeque::new(),
+            next_local_id: 0,
+            next_function_id: 1,
             interner,
         }
     }
 
     fn next_definition_id(&mut self) -> DefinitionId {
-        let id = self.next_unique_id;
-        self.next_unique_id += 1;
+        let id = self.next_local_id;
+        self.next_local_id += 1;
         DefinitionId(id)
     }
 
     fn next_function_id(&mut self) -> ast::FuncId {
-        let id = self.next_unique_id;
-        self.next_unique_id += 1;
+        let id = self.next_function_id;
+        self.next_function_id += 1;
         ast::FuncId(id)
     }
 
@@ -90,7 +92,7 @@ impl Monomorphiser {
     /// The main function is special, we need to check for a return type and if present,
     /// insert an extra constrain on the return value.
     fn compile_main(&mut self, main_id: node_interner::FuncId) -> Functions {
-        let mut main = self.function(main_id);
+        let mut main = self.function(main_id, FuncId(0));
         let main_meta = self.interner.function_meta(&main_id);
 
         if main.return_type != ast::Type::Unit {
@@ -115,10 +117,8 @@ impl Monomorphiser {
         Functions::new(main, abi)
     }
 
-    fn function(&mut self, f: node_interner::FuncId) -> ast::Function {
+    fn function(&mut self, f: node_interner::FuncId, id: FuncId) -> ast::Function {
         let meta = self.interner.function_meta(&f);
-        let id = self.next_function_id();
-
         let name = self.interner.function_name(&f).to_owned();
 
         let return_type = self.convert_type(meta.return_type());
@@ -171,65 +171,6 @@ impl Monomorphiser {
         }
     }
 
-    // Expand a tuple or struct parameter into one fresh parameter for each field.
-    // Currently unused, will be needed again once monomorphisation also unpacks tuples.
-    // fn expand_parameter(
-    //     &mut self,
-    //     typ: &HirType,
-    //     new_params: &mut Vec<(ast::DefinitionId, ast::Type)>,
-    // ) -> Value {
-    //     match typ {
-    //         HirType::Tuple(fields) => {
-    //             Value::Many(vecmap(fields, |field| self.expand_parameter(field, new_params)))
-    //         }
-
-    //         HirType::Struct(def, args) => {
-    //             let fields = def.borrow().get_fields(args);
-    //             Value::Many(vecmap(fields, |(_, field)| self.expand_parameter(&field, new_params)))
-    //         }
-
-    //         // Must also expand arrays of tuples/structs
-    //         HirType::Array(size, element) => {
-    //             let size = size.array_length().unwrap();
-    //             let initial_len = new_params.len();
-
-    //             // Keep the same Value structure, each Value::One within is
-    //             // reinterpreted as an array of values instead of a single value.
-    //             // [(a, b)] -> ([a], [b])
-    //             let ret = self.expand_parameter(element, new_params);
-
-    //             for (_, param_type) in new_params.iter_mut().skip(initial_len) {
-    //                 *param_type = ast::Type::Array(size, Box::new(*param_type));
-    //             }
-
-    //             ret
-    //         }
-
-    //         HirType::PolymorphicInteger(_, binding) => match &*binding.borrow() {
-    //             TypeBinding::Bound(binding) => self.expand_parameter(binding, new_params),
-    //             TypeBinding::Unbound(_) => todo!("Default integer type"),
-    //         },
-
-    //         HirType::TypeVariable(binding) => match &*binding.borrow() {
-    //             TypeBinding::Bound(binding) => self.expand_parameter(binding, new_params),
-    //             TypeBinding::Unbound(_) => todo!("Default type variable type"),
-    //         },
-
-    //         HirType::Function(_, _, _) => todo!("Higher order functions"),
-
-    //         HirType::FieldElement(_)
-    //         | HirType::Unit
-    //         | HirType::Bool(_)
-    //         | HirType::Integer(_, _, _) => {
-    //             let id = self.next_definition_id();
-    //             new_params.push((id, self.convert_type_single(typ)));
-    //             Value::One(self.next_definition_id())
-    //         }
-
-    //         HirType::Forall(_, _) | HirType::ArrayLength(_) | HirType::Error => unreachable!(),
-    //     }
-    // }
-
     fn expr_infer(&mut self, expr: node_interner::ExprId) -> ast::Expression {
         let expected_type = self.interner.id_type(expr);
         self.expr(expr, &expected_type)
@@ -252,7 +193,7 @@ impl Monomorphiser {
                 let contents = vecmap(array.contents, |id| self.expr_infer(id));
                 Literal(Array(ast::ArrayLiteral { length: array.length, contents, element_type }))
             }
-            HirExpression::Block(block) => self.block(block.0, typ),
+            HirExpression::Block(block) => self.block(block.0),
 
             HirExpression::Prefix(prefix) => ast::Expression::Unary(ast::Unary {
                 operator: prefix.operator,
@@ -322,10 +263,10 @@ impl Monomorphiser {
         }
     }
 
-    fn statement(&mut self, id: StmtId, typ: &HirType) -> ast::Expression {
+    fn statement(&mut self, id: StmtId) -> ast::Expression {
         match self.interner.statement(&id) {
             HirStatement::Let(let_statement) => {
-                let expr = self.expr(let_statement.expression, typ);
+                let expr = self.expr_infer(let_statement.expression);
                 self.unpack_pattern(let_statement.pattern, expr, &let_statement.r#type)
             }
             HirStatement::Constrain(constrain) => {
@@ -334,8 +275,8 @@ impl Monomorphiser {
                 ast::Expression::Constrain(Box::new(expr), location)
             }
             HirStatement::Assign(assign) => self.assign(assign),
-            HirStatement::Expression(expr) => self.expr(expr, typ),
-            HirStatement::Semi(expr) => ast::Expression::Semi(Box::new(self.expr(expr, typ))),
+            HirStatement::Expression(expr) => self.expr_infer(expr),
+            HirStatement::Semi(expr) => ast::Expression::Semi(Box::new(self.expr_infer(expr))),
             HirStatement::Error => unreachable!(),
         }
     }
@@ -357,13 +298,12 @@ impl Monomorphiser {
             let field_type = field_types.get(&field_name.0.contents).unwrap();
             let typ = self.convert_type(field_type);
 
-            field_vars.insert(field_name.0.contents.clone(), (new_id, typ.clone()));
+            field_vars.insert(field_name.0.contents.clone(), (new_id, typ));
             let expression = Box::new(self.expr(expr_id, field_type));
 
             new_exprs.push(ast::Expression::Let(ast::Let {
                 id: new_id,
                 name: field_name.0.contents,
-                r#type: typ,
                 expression,
             }));
         }
@@ -377,16 +317,8 @@ impl Monomorphiser {
         ast::Expression::Block(new_exprs)
     }
 
-    fn block(&mut self, mut statement_ids: Vec<StmtId>, typ: &HirType) -> ast::Expression {
-        let mut statements = Vec::with_capacity(statement_ids.len());
-        let last = statement_ids.pop().unwrap();
-
-        for statement in statement_ids {
-            statements.push(self.statement(statement, &HirType::Unit));
-        }
-
-        statements.push(self.statement(last, typ));
-        ast::Expression::Block(statements)
+    fn block(&mut self, statement_ids: Vec<StmtId>) -> ast::Expression {
+        ast::Expression::Block(vecmap(statement_ids, |id| self.statement(id)))
     }
 
     fn unpack_pattern(
@@ -402,14 +334,13 @@ impl Monomorphiser {
                 ast::Expression::Let(ast::Let {
                     id: new_id,
                     name: self.interner.definition_name(ident.id).to_owned(),
-                    r#type: self.convert_type(typ),
                     expression: Box::new(value),
                 })
             }
             HirPattern::Mutable(pattern, _) => self.unpack_pattern(*pattern, value, typ),
             HirPattern::Tuple(patterns, _) => {
                 let fields = unwrap_tuple_type(typ);
-                self.unpack_tuple_pattern(value, typ, patterns.into_iter().zip(fields))
+                self.unpack_tuple_pattern(value, patterns.into_iter().zip(fields))
             }
             HirPattern::Struct(_, patterns, _) => {
                 let fields = unwrap_struct_type(typ);
@@ -417,7 +348,7 @@ impl Monomorphiser {
                     let typ = fields[&ident.0.contents].clone();
                     (pattern, typ)
                 });
-                self.unpack_tuple_pattern(value, typ, patterns)
+                self.unpack_tuple_pattern(value, patterns)
             }
         }
     }
@@ -425,7 +356,6 @@ impl Monomorphiser {
     fn unpack_tuple_pattern(
         &mut self,
         value: ast::Expression,
-        typ: &crate::Type,
         fields: impl Iterator<Item = (HirPattern, HirType)>,
     ) -> ast::Expression {
         let fresh_id = self.next_definition_id();
@@ -433,7 +363,6 @@ impl Monomorphiser {
         let mut definitions = vec![ast::Expression::Let(ast::Let {
             id: fresh_id,
             name: "_".into(),
-            r#type: self.convert_type(typ),
             expression: Box::new(value),
         })];
 
@@ -521,7 +450,7 @@ impl Monomorphiser {
 
         self.define_global(id, function_type, new_id);
         let bindings = self.interner.get_instantiation_bindings(expr_id).clone();
-        self.queue.push((id, bindings));
+        self.queue.push_back((id, new_id, bindings));
         new_id
     }
 

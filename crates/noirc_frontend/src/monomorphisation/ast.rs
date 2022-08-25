@@ -124,7 +124,6 @@ pub struct Index {
 pub struct Let {
     pub id: DefinitionId,
     pub name: String,
-    pub r#type: Type,
     pub expression: Box<Expression>,
 }
 
@@ -172,7 +171,7 @@ pub enum Type {
 }
 
 pub struct Functions {
-    functions: Vec<Function>,
+    pub functions: Vec<Function>,
     pub abi: Abi,
 }
 
