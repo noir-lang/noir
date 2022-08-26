@@ -150,7 +150,7 @@ pub struct NodeInterner {
     // methods from impls to the type.
     structs: HashMap<StructId, Rc<RefCell<StructType>>>,
 
-    global_constants: HashMap<Ident, StmtId>, // NOTE: currently only used for checking repeat global consts and
+    global_constants: HashMap<Ident, ExprId>, // NOTE: currently only used for checking repeat global consts and
 
     next_type_variable_id: usize,
 }
@@ -237,8 +237,8 @@ impl NodeInterner {
         f(&mut value)
     }
 
-    pub fn push_global_const(&mut self, name: Ident, stmt_id: StmtId) {
-        self.global_constants.insert(name, stmt_id);
+    pub fn push_global_const(&mut self, name: Ident, expr_id: ExprId) {
+        self.global_constants.insert(name, expr_id);
     }
 
     /// Modify the type of an expression.
@@ -359,9 +359,9 @@ impl NodeInterner {
         self.structs[&id].clone()
     }
 
-    pub fn get_global_const(&self, name: &Ident) -> Option<StmtId> {
-        if let Some(stmt) = self.global_constants.get(name) {
-            Some(stmt.clone())
+    pub fn get_global_const(&self, name: &Ident) -> Option<ExprId> {
+        if let Some(expr) = self.global_constants.get(name) {
+            Some(expr.clone())
         } else {
             None
         }

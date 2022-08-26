@@ -605,33 +605,17 @@ impl Type {
     }
 
     fn get_fixed_variable_array_length(&self, ident: &Ident, interner: &NodeInterner) -> u128 {
-        let stmt = interner.get_global_const(&ident);
-        let length = match stmt {
-            Some(stmt_id) => {
-                let statement = interner.statement(&stmt_id);
-                match statement {
-                    HirStatement::Let(let_stmt) => {
-                        let expression = interner.expression(&let_stmt.expression);
-                        match expression {
-                            HirExpression::Literal(literal) => {
-                                match literal {
-                                    HirLiteral::Integer(field_element) => {
-                                        match field_element.try_into_u128() {
-                                            Some(val) => val,
-                                            None => panic!("field element used in constant does not fit into u128"),
-                                        }
-                                    }
-                                    _ => panic!("literal used in fixed variable array length must be an integer literal")
-                                }
-
-                            },
-                            _ => panic!("expression in global const statement is not a literal")
-                        }
+        let expr_id = interner.get_global_const(ident).expect("fixed length variable should have associated global variable");
+        let length = match interner.expression(&expr_id) {
+            HirExpression::Literal(literal) => {
+                match literal {
+                    HirLiteral::Integer(field_element) => {
+                        field_element.try_into_u128().expect("field element used in constant does not fit into u128")
                     }
-                    _ => panic!("let statement not associated with statement"),
+                    _ => panic!("literal used in fixed variable array length must be an integer literal")
                 }
             }
-            None => panic!("no statement associated with fixed sized array variable"),
+            _ => panic!("expression in global const statement is not a literal")
         };
         length
     }

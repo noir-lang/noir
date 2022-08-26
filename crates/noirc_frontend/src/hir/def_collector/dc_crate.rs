@@ -269,7 +269,11 @@ fn resolve_global_constants(
         };
         let stmt_id = resolver.intern_stmt(global_const.stmt_def);
 
-        context.def_interner.push_global_const(name.clone(), stmt_id);
+        let expr_id = match context.def_interner.statement(&stmt_id) {
+            HirStatement::Let(let_stmt) => let_stmt.expression,
+            _ => panic!("global const statement rhs should resolve to let statement"),
+        };
+        context.def_interner.push_global_const(name.clone(), expr_id);
 
         let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
 
