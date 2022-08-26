@@ -520,7 +520,6 @@ impl<'a> Resolver<'a> {
                 HirExpression::MemberAccess(HirMemberAccess {
                     lhs: self.resolve_expression(access.lhs),
                     rhs: access.rhs,
-                    field_index: None,
                 })
             }
             ExpressionKind::Error => HirExpression::Error,

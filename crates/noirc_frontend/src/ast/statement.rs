@@ -14,12 +14,24 @@ use noirc_errors::{Span, Spanned};
 /// for an identifier that already failed to parse.
 pub const ERROR_IDENT: &str = "$error";
 
-#[derive(PartialOrd, Eq, Ord, Debug, Clone)]
+#[derive(Eq, Debug, Clone)]
 pub struct Ident(pub Spanned<String>);
 
 impl PartialEq<Ident> for Ident {
     fn eq(&self, other: &Ident) -> bool {
         self.0.contents == other.0.contents
+    }
+}
+
+impl PartialOrd for Ident {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.0.contents.partial_cmp(&other.0.contents)
+    }
+}
+
+impl Ord for Ident {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.contents.cmp(&other.0.contents)
     }
 }
 

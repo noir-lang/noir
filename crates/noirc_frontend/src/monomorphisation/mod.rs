@@ -213,8 +213,9 @@ impl Monomorphiser {
             }),
 
             HirExpression::MemberAccess(access) => {
+                let field_index = self.interner.get_field_index(expr);
                 let expr = Box::new(self.expr_infer(access.lhs));
-                ast::Expression::ExtractTupleField(expr, access.field_index.unwrap())
+                ast::Expression::ExtractTupleField(expr, field_index)
             }
 
             HirExpression::Call(call) => self.function_call(call, expr),

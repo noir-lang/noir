@@ -88,10 +88,6 @@ pub struct HirMemberAccess {
     // This field is not an IdentId since the rhs of a field
     // access has no corresponding definition
     pub rhs: Ident,
-
-    /// Index of the field represented by `rhs` into the type of
-    /// `lhs`, resolved after type checking.
-    pub field_index: Option<usize>,
 }
 
 #[derive(Debug, Clone)]

@@ -301,7 +301,6 @@ impl IRGenerator {
     /// Bind the given DefinitionId to the given Value. This will flatten the Value as needed,
     /// expanding each field of the value to a new variable.
     fn bind_id(&mut self, id: DefinitionId, value: Value, name: &str) -> Result<(), RuntimeError> {
-        self.context.print("");
         match value {
             Value::Single(node_id) => {
                 let otype = self.context.get_object_type(node_id);
@@ -372,8 +371,6 @@ impl IRGenerator {
         expression: &Expression,
         env: &mut Environment,
     ) -> Result<Value, RuntimeError> {
-        println!("Codegening: {:?} := {:?}", lvalue, expression);
-
         let ident_def = self.lvalue_ident_def(lvalue);
         let rhs = self.codegen_expression(env, expression)?;
 
