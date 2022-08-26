@@ -231,12 +231,20 @@ impl NodeInterner {
         );
     }
 
-    pub fn update_struct<F>(&mut self, type_id: StructId, f: F)
-    where
-        F: FnOnce(&mut StructType),
-    {
+    pub fn update_struct(&mut self, type_id: StructId, f: impl FnOnce(&mut StructType)) {
         let mut value = self.structs.get_mut(&type_id).unwrap().borrow_mut();
         f(&mut value)
+    }
+
+    /// Returns the interned statement corresponding to `stmt_id`
+    pub fn update_statement(&mut self, stmt_id: &StmtId, f: impl FnOnce(&mut HirStatement)) {
+        let def =
+            self.nodes.get_mut(stmt_id.0).expect("ice: all statement ids should have definitions");
+
+        match def {
+            Node::Statement(stmt) => f(stmt),
+            _ => panic!("ice: all statement ids should correspond to a statement in the interner"),
+        }
     }
 
     /// Modify the type of an expression.
@@ -327,6 +335,7 @@ impl NodeInterner {
             _ => panic!("ice: all statement ids should correspond to a statement in the interner"),
         }
     }
+
     /// Returns the interned expression corresponding to `expr_id`
     pub fn expression(&self, expr_id: &ExprId) -> HirExpression {
         let def =

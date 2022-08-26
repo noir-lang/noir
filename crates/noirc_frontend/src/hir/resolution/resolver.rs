@@ -394,7 +394,7 @@ impl<'a> Resolver<'a> {
             LValue::Ident(ident) => HirLValue::Ident(self.find_variable(&ident)),
             LValue::MemberAccess { object, field_name } => {
                 let object = Box::new(self.resolve_lvalue(*object));
-                HirLValue::MemberAccess { object, field_name }
+                HirLValue::MemberAccess { object, field_name, field_index: None }
             }
             LValue::Index { array, index } => {
                 let array = Box::new(self.resolve_lvalue(*array));

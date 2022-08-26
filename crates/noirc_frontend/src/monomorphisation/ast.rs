@@ -107,10 +107,10 @@ pub struct CallLowLevel {
     pub arguments: Vec<Expression>,
 }
 
-/// TODO: Ssa doesn't support these yet
+/// TODO: Ssa doesn't support these yet.
 #[derive(Debug, Clone)]
 pub struct CallBuiltin {
-    pub func_id: FuncId,
+    pub opcode: String,
     pub arguments: Vec<Expression>,
 }
 

@@ -8,7 +8,7 @@ use crate::{
     },
     node_interner::{self, NodeInterner, StmtId},
     util::vecmap,
-    IsConst, TypeBinding, TypeBindings,
+    IsConst, TypeBinding, TypeBindings, FunctionKind,
 };
 
 use self::ast::{DefinitionId, FuncId, Functions};
@@ -401,10 +401,12 @@ impl Monomorphiser {
             }
 
             HirType::PolymorphicInteger(_, binding) | HirType::TypeVariable(binding) => {
-                match &*binding.borrow() {
-                    TypeBinding::Bound(binding) => self.convert_type(binding),
-                    TypeBinding::Unbound(_) => unreachable!(),
+                if let TypeBinding::Bound(binding) = &*binding.borrow() {
+                    return self.convert_type(binding);
                 }
+                // Default any remaining unbound type variables to Field
+                *binding.borrow_mut() = TypeBinding::Bound(HirType::FieldElement(IsConst::No(None)));
+                ast::Type::Field
             }
 
             HirType::Struct(def, args) => {
@@ -431,13 +433,29 @@ impl Monomorphiser {
         expr_id: node_interner::ExprId,
     ) -> ast::Expression {
         let typ = self.interner.function_type(expr_id).follow_bindings();
-
-        let func_id = self
-            .lookup_global(call.func_id, &typ)
-            .unwrap_or_else(|| self.queue_function(call.func_id, expr_id, typ));
-
         let arguments = vecmap(call.arguments, |id| self.expr_infer(id));
-        ast::Expression::Call(ast::Call { func_id, arguments })
+        let func_id = call.func_id;
+
+        let meta = self.interner.function_meta(&func_id);
+        match meta.kind {
+            FunctionKind::LowLevel => {
+                let attribute = meta.attributes.expect("all low level functions must contain an attribute which contains the opcode which it links to");
+                let opcode = attribute.foreign().expect("ice: function marked as foreign, but attribute kind does not match this");
+                ast::Expression::CallLowLevel(ast::CallLowLevel { opcode, arguments })
+            },
+            FunctionKind::Builtin => {
+                let attribute = meta.attributes.expect("all builtin functions must contain an attribute which contains the function name which it links to");
+                let opcode = attribute.builtin().expect("ice: function marked as a builtin, but attribute kind does not match this");
+                ast::Expression::CallBuiltin(ast::CallBuiltin { opcode, arguments })
+            },
+            FunctionKind::Normal => {
+                let func_id = self
+                    .lookup_global(func_id, &typ)
+                    .unwrap_or_else(|| self.queue_function(func_id, expr_id, typ));
+
+                ast::Expression::Call(ast::Call { func_id, arguments })
+            },
+        }
     }
 
     fn queue_function(
@@ -456,51 +474,26 @@ impl Monomorphiser {
 
     fn assign(&mut self, assign: HirAssignStatement) -> ast::Expression {
         let expression = Box::new(self.expr_infer(assign.expression));
-        let typ = self.interner.id_type(assign.expression);
-        let lvalue = self.lvalue(assign.lvalue, &typ);
+        let lvalue = self.lvalue(assign.lvalue);
         ast::Expression::Assign(ast::Assign { lvalue, expression })
     }
 
-    fn lvalue(&mut self, lvalue: HirLValue, typ: &HirType) -> ast::LValue {
+    fn lvalue(&mut self, lvalue: HirLValue) -> ast::LValue {
         match lvalue {
             HirLValue::Ident(ident) => {
                 let ident = self.ident(ident);
                 ast::LValue::Ident(ident)
             }
-            HirLValue::MemberAccess { object, field_name } => {
-                let field_types = unwrap_struct_type(typ);
-                let field_type = &field_types[&field_name.0.contents];
-                let object = Box::new(self.lvalue(*object, field_type));
-                let field_index = get_field_index(&field_name.0.contents, field_types);
-                ast::LValue::MemberAccess { object, field_index }
+            HirLValue::MemberAccess { object, field_index, .. } => {
+                let object = Box::new(self.lvalue(*object));
+                ast::LValue::MemberAccess { object, field_index: field_index.unwrap() }
             }
             HirLValue::Index { array, index } => {
-                let element_type = unwrap_array_element_type(typ);
-                let array = Box::new(self.lvalue(*array, &element_type));
+                let array = Box::new(self.lvalue(*array));
                 let index = Box::new(self.expr_infer(index));
                 ast::LValue::Index { array, index }
             }
         }
-    }
-}
-
-fn get_field_index(field: &str, field_types: BTreeMap<String, crate::Type>) -> usize {
-    for (i, name) in field_types.keys().enumerate() {
-        if field == name {
-            return i;
-        }
-    }
-    unreachable!()
-}
-
-fn unwrap_array_element_type(typ: &HirType) -> HirType {
-    match typ {
-        HirType::Array(_, elem) => elem.as_ref().clone(),
-        HirType::TypeVariable(binding) => match &*binding.borrow() {
-            TypeBinding::Bound(binding) => unwrap_array_element_type(binding),
-            TypeBinding::Unbound(_) => unreachable!(),
-        },
-        _ => unreachable!(),
     }
 }
 
@@ -511,7 +504,7 @@ fn unwrap_tuple_type(typ: &HirType) -> Vec<HirType> {
             TypeBinding::Bound(binding) => unwrap_tuple_type(binding),
             TypeBinding::Unbound(_) => unreachable!(),
         },
-        _ => unreachable!(),
+        other => unreachable!("unwrap_tuple_type: expected tuple found {}", other),
     }
 }
 
@@ -522,7 +515,7 @@ fn unwrap_struct_type(typ: &HirType) -> BTreeMap<String, HirType> {
             TypeBinding::Bound(binding) => unwrap_struct_type(binding),
             TypeBinding::Unbound(_) => unreachable!(),
         },
-        _ => unreachable!(),
+        other => unreachable!("unwrap_struct_type: expected struct found {}", other),
     }
 }
 

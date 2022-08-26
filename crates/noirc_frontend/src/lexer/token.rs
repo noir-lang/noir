@@ -326,13 +326,14 @@ impl Attribute {
         Ok(tok)
     }
 
-    pub fn builtin(&self) -> Option<&str> {
+    pub fn builtin(self) -> Option<String> {
         match self {
             Attribute::Foreign(_) => None,
             Attribute::Builtin(name) => Some(name),
         }
     }
-    pub fn foreign(&self) -> Option<&str> {
+
+    pub fn foreign(self) -> Option<String> {
         match self {
             Attribute::Foreign(name) => Some(name),
             Attribute::Builtin(_) => None,

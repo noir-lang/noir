@@ -74,6 +74,6 @@ impl HirPattern {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum HirLValue {
     Ident(HirIdent),
-    MemberAccess { object: Box<HirLValue>, field_name: Ident },
+    MemberAccess { object: Box<HirLValue>, field_name: Ident, field_index: Option<usize> },
     Index { array: Box<HirLValue>, index: ExprId },
 }

@@ -193,10 +193,9 @@ impl IRGenerator {
     ) -> Result<(ArrayId, NodeId), RuntimeError> {
         let ident_def = self.lvalue_ident_def(array);
         let val = self.find_variable(ident_def).unwrap();
-        let lhs = val.to_node_ids();
-        assert_eq!(lhs.len(), 1);
+        let lhs = val.unwrap_id();
 
-        let a_id = self.context.get_object_type(lhs[0]).type_to_pointer();
+        let a_id = self.context.get_object_type(lhs).type_to_pointer();
         let index = self.codegen_expression(env, index)?.unwrap_id();
         Ok((a_id, index))
     }
@@ -302,6 +301,7 @@ impl IRGenerator {
     /// Bind the given DefinitionId to the given Value. This will flatten the Value as needed,
     /// expanding each field of the value to a new variable.
     fn bind_id(&mut self, id: DefinitionId, value: Value, name: &str) -> Result<(), RuntimeError> {
+        self.context.print("");
         match value {
             Value::Single(node_id) => {
                 let otype = self.context.get_object_type(node_id);
@@ -372,6 +372,8 @@ impl IRGenerator {
         expression: &Expression,
         env: &mut Environment,
     ) -> Result<Value, RuntimeError> {
+        println!("Codegening: {:?} := {:?}", lvalue, expression);
+
         let ident_def = self.lvalue_ident_def(lvalue);
         let rhs = self.codegen_expression(env, expression)?;
 

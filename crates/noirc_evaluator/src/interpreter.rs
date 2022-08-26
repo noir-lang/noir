@@ -482,12 +482,12 @@ impl<'a> Interpreter<'a> {
                     FunctionKind::LowLevel => {
                         let attribute = func_meta.attributes.expect("all low level functions must contain an attribute which contains the opcode which it links to");
                         let opcode_name = attribute.foreign().expect("ice: function marked as foreign, but attribute kind does not match this");
-                        low_level_function_impl::call_low_level(self, env, opcode_name, call_expr, loc)
+                        low_level_function_impl::call_low_level(self, env, &opcode_name, call_expr, loc)
                     },
                     FunctionKind::Builtin => {
                         let attribute = func_meta.attributes.expect("all builtin functions must contain an attribute which contains the function name which it links to");
                         let builtin_name = attribute.builtin().expect("ice: function marked as a builtin, but attribute kind does not match this");
-                        builtin::call_builtin(self, env, builtin_name, call_expr, loc)
+                        builtin::call_builtin(self, env, &builtin_name, call_expr, loc)
                     },
                 }
             }
