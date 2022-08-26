@@ -14,6 +14,7 @@ use crate::{
 use self::ast::{DefinitionId, FuncId, Functions};
 
 pub mod ast;
+pub mod printer;
 
 struct Monomorphiser {
     // Store monomorphised globals and locals separately,

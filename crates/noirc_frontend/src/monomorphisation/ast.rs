@@ -2,7 +2,7 @@ use acvm::FieldElement;
 use noirc_abi::Abi;
 use noirc_errors::Location;
 
-use crate::{BinaryOpKind, Signedness};
+use crate::{BinaryOpKind, Signedness, util::vecmap};
 
 #[derive(Debug, Clone)]
 pub enum Expression {
@@ -212,5 +212,45 @@ impl std::ops::Index<FuncId> for Functions {
 impl std::ops::IndexMut<FuncId> for Functions {
     fn index_mut(&mut self, index: FuncId) -> &mut Self::Output {
         &mut self.functions[index.0 as usize]
+    }
+}
+
+impl std::fmt::Display for Functions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for function in &self.functions {
+            super::printer::AstPrinter::default().print_function(function, f)?;
+        }
+        Ok(())
+    }
+}
+
+impl std::fmt::Display for Function {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        super::printer::AstPrinter::default().print_function(self, f)
+    }
+}
+
+impl std::fmt::Display for Expression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        super::printer::AstPrinter::default().print_expr(self, f)
+    }
+}
+
+impl std::fmt::Display for Type {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Type::Field => write!(f, "Field"),
+            Type::Array(len, elems) => write!(f, "[{}; {}]", elems, len),
+            Type::Integer(sign, bits) => match sign {
+                Signedness::Unsigned => write!(f, "u{}", bits),
+                Signedness::Signed => write!(f, "i{}", bits),
+            },
+            Type::Bool => write!(f, "bool"),
+            Type::Unit => write!(f, "()"),
+            Type::Tuple(elems) => {
+                let elems = vecmap(elems, ToString::to_string);
+                write!(f, "({})", elems.join(", "))
+            },
+        }
     }
 }
