@@ -46,7 +46,9 @@ pub(crate) fn type_check(
         HirStatement::Constrain(constrain_stmt) => {
             type_check_constrain_stmt(interner, constrain_stmt, errors)
         }
-        HirStatement::Assign(assign_stmt) => type_check_assign_stmt(interner, assign_stmt, stmt_id, errors),
+        HirStatement::Assign(assign_stmt) => {
+            type_check_assign_stmt(interner, assign_stmt, stmt_id, errors)
+        }
         HirStatement::Error => (),
     }
     Type::Unit
@@ -99,11 +101,9 @@ fn type_check_assign_stmt(
     let (lvalue_type, new_lvalue) = type_check_lvalue(interner, assign_stmt.lvalue, span, errors);
 
     // Must push new lvalue to the interner, we've resolved any field indices
-    interner.update_statement(stmt_id, |stmt| {
-        match stmt {
-            HirStatement::Assign(assign) => assign.lvalue = new_lvalue,
-            _ => unreachable!(),
-        }
+    interner.update_statement(stmt_id, |stmt| match stmt {
+        HirStatement::Assign(assign) => assign.lvalue = new_lvalue,
+        _ => unreachable!(),
     });
 
     let span = interner.expr_span(&assign_stmt.expression);

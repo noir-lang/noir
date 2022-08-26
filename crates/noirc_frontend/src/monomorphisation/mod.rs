@@ -8,7 +8,7 @@ use crate::{
     },
     node_interner::{self, NodeInterner, StmtId},
     util::vecmap,
-    IsConst, TypeBinding, TypeBindings, FunctionKind,
+    FunctionKind, IsConst, TypeBinding, TypeBindings,
 };
 
 use self::ast::{DefinitionId, FuncId, Functions};
@@ -406,7 +406,8 @@ impl Monomorphiser {
                     return self.convert_type(binding);
                 }
                 // Default any remaining unbound type variables to Field
-                *binding.borrow_mut() = TypeBinding::Bound(HirType::FieldElement(IsConst::No(None)));
+                *binding.borrow_mut() =
+                    TypeBinding::Bound(HirType::FieldElement(IsConst::No(None)));
                 ast::Type::Field
             }
 
@@ -441,21 +442,25 @@ impl Monomorphiser {
         match meta.kind {
             FunctionKind::LowLevel => {
                 let attribute = meta.attributes.expect("all low level functions must contain an attribute which contains the opcode which it links to");
-                let opcode = attribute.foreign().expect("ice: function marked as foreign, but attribute kind does not match this");
+                let opcode = attribute.foreign().expect(
+                    "ice: function marked as foreign, but attribute kind does not match this",
+                );
                 ast::Expression::CallLowLevel(ast::CallLowLevel { opcode, arguments })
-            },
+            }
             FunctionKind::Builtin => {
                 let attribute = meta.attributes.expect("all builtin functions must contain an attribute which contains the function name which it links to");
-                let opcode = attribute.builtin().expect("ice: function marked as a builtin, but attribute kind does not match this");
+                let opcode = attribute.builtin().expect(
+                    "ice: function marked as a builtin, but attribute kind does not match this",
+                );
                 ast::Expression::CallBuiltin(ast::CallBuiltin { opcode, arguments })
-            },
+            }
             FunctionKind::Normal => {
                 let func_id = self
                     .lookup_global(func_id, &typ)
                     .unwrap_or_else(|| self.queue_function(func_id, expr_id, typ));
 
                 ast::Expression::Call(ast::Call { func_id, arguments })
-            },
+            }
         }
     }
 
