@@ -14,7 +14,7 @@ use crate::hir::Context;
 use crate::hir_def::stmt::HirStatement;
 use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId};
 use crate::util::vecmap;
-use crate::{Ident, NoirFunction, NoirStruct, ParsedModule, Path, Pattern, Statement, Type};
+use crate::{Ident, NoirFunction, NoirStruct, ParsedModule, Path, Pattern, Statement, Type, BlockExpression};
 use fm::FileId;
 use noirc_errors::CollectedErrors;
 use noirc_errors::DiagnosableError;
@@ -42,6 +42,16 @@ pub struct UnresolvedGlobalConst {
     pub file_id: FileId,
     pub module_id: LocalModuleId,
     pub stmt_def: Statement,
+}
+
+impl Clone for UnresolvedGlobalConst {
+    fn clone(&self) -> Self {
+        UnresolvedGlobalConst {
+            file_id: self.file_id.clone(),
+            module_id: self.module_id.clone(),
+            stmt_def: self.stmt_def.clone(),
+        }
+    }
 }
 
 /// Given a Crate root, collect all definitions in that crate
@@ -238,13 +248,13 @@ fn resolve_global_constants(
     crate_id: CrateId,
     errors: &mut Vec<CollectedErrors>,
 ) {
-    // XXX: may be able to get rid of this, but keep while WIP as we could follow the type resollution flow used for functions
+    // XXX: may be able to get rid of this, but keep while WIP as we could follow the type resolution flow used for functions
     // rather than combining type check in this function
     // let mut global_const_ids = Vec::new();
 
     // NOTE: it is still necessary to intern global const statements to check for duplicate global const declarations,
     // repeated variable names inside functions, consts in functions params, and consts specifying array size
-    for global_const in global_consts {
+    for global_const in global_consts.clone() {
         let path_resolver = StandardPathResolver::new(ModuleId {
             local_id: global_const.module_id,
             krate: crate_id,
@@ -267,7 +277,7 @@ fn resolve_global_constants(
             }
             _ => panic!("global consts must be a let statement"), // TODO: change this to use errors
         };
-        let stmt_id = resolver.intern_stmt(global_const.stmt_def);
+        let stmt_id = resolver.intern_stmt(global_const.stmt_def, true);
 
         context.def_interner.push_global_const(name.clone(), stmt_id);
 
@@ -286,8 +296,6 @@ fn resolve_global_constants(
 
         // global_const_ids.push(stmt_id);
     }
-
-    // global_const_ids
 }
 
 /// Create the mappings from TypeId -> StructType

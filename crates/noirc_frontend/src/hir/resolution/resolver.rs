@@ -149,13 +149,30 @@ impl<'a> Resolver<'a> {
         ret
     }
 
-    fn add_variable_decl(&mut self, name: Ident, mutable: bool) -> HirIdent {
+    fn add_variable_decl(&mut self, name: Ident, mutable: bool, is_global: bool) -> HirIdent {
+
         let id = self.interner.push_definition(name.0.contents.clone(), mutable);
         let location = Location::new(name.span(), self.file);
         let ident = HirIdent { location, id };
-        let scope = self.scopes.get_mut_scope();
         let resolver_meta = ResolverMeta { num_times_used: 0, ident };
 
+        let global_scope = self.scopes.get_global_scope();
+        println!("before is_global if block");
+        if is_global {
+            let old_global_value = global_scope.add_key_value(name.clone().0.contents, resolver_meta);
+            if let Some(old_global_value) = old_global_value {
+                self.push_err(ResolverError::DuplicateDefinition {
+                    first_ident: old_global_value.ident,
+                    second_ident: ident,
+                });
+            }
+            println!("global ident: {:?}", ident);
+            return ident;
+        }
+        println!("not is_global");
+
+        let scope = self.scopes.get_mut_scope();
+        // let resolver_meta = ResolverMeta { num_times_used: 0, ident };
         let old_value = scope.add_key_value(name.0.contents, resolver_meta);
         if let Some(old_value) = old_value {
             self.push_err(ResolverError::DuplicateDefinition {
@@ -175,23 +192,32 @@ impl<'a> Resolver<'a> {
     // If a variable is not found, then an error is logged and a dummy id
     // is returned, for better error reporting UX
     fn find_variable(&mut self, name: &Ident) -> HirIdent {
-        // Find the definition for this Ident
-        let scope_tree = self.scopes.current_scope_tree();
-        let variable = scope_tree.find(&name.0.contents);
+        let global_scope = self.scopes.get_global_scope();
+        let global_variable = global_scope.find(&name.0.contents);
 
-        let id = if let Some(variable_found) = variable {
+        let location = Location::new(name.span(), self.file);
+        let id = if let Some(variable_found) = global_variable {
+            println!("found global variable");
             variable_found.num_times_used += 1;
             variable_found.ident.id
         } else {
-            self.push_err(ResolverError::VariableNotDeclared {
-                name: name.0.contents.clone(),
-                span: name.0.span(),
-            });
+            // Find the definition for this Ident
+            let scope_tree = self.scopes.current_scope_tree();
+            let variable = scope_tree.find(&name.0.contents);
 
-            DefinitionId::dummy_id()
+            let id = if let Some(variable_found) = variable {
+                variable_found.num_times_used += 1;
+                variable_found.ident.id
+            } else {
+                self.push_err(ResolverError::VariableNotDeclared {
+                    name: name.0.contents.clone(),
+                    span: name.0.span(),
+                });
+
+                DefinitionId::dummy_id()
+            };
+            id
         };
-
-        let location = Location::new(name.span(), self.file);
         HirIdent { location, id }
     }
 
@@ -256,7 +282,7 @@ impl<'a> Resolver<'a> {
             if func.name() != "main" && visibility == noirc_abi::AbiFEType::Public {
                 self.push_err(ResolverError::UnnecessaryPub { func_ident: name_ident })
             }
-            let pattern = self.resolve_pattern(pattern);
+            let pattern = self.resolve_pattern(pattern, false);
             let typ = self.resolve_type(typ);
             parameters.push(Param(pattern, typ, visibility));
         }
@@ -275,10 +301,10 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    pub fn intern_stmt(&mut self, stmt: Statement) -> StmtId {
+    pub fn intern_stmt(&mut self, stmt: Statement, is_global: bool) -> StmtId {
         let stmt = match stmt {
             Statement::Let(let_stmt) => HirStatement::Let(HirLetStatement {
-                pattern: self.resolve_pattern(let_stmt.pattern),
+                pattern: self.resolve_pattern(let_stmt.pattern, is_global),
                 r#type: self.resolve_type(let_stmt.r#type),
                 expression: self.resolve_expression(let_stmt.expression),
             }),
@@ -370,7 +396,7 @@ impl<'a> Resolver<'a> {
                 // TODO: For loop variables are currently mutable by default since we haven't
                 //       yet implemented syntax for them to be optionally mutable.
                 let (identifier, block_id) = self.in_new_scope(|this| {
-                    (this.add_variable_decl(identifier, true), this.resolve_expression(block))
+                    (this.add_variable_decl(identifier, true, false), this.resolve_expression(block))
                 });
 
                 HirExpression::For(HirForExpression {
@@ -444,15 +470,15 @@ impl<'a> Resolver<'a> {
         expr_id
     }
 
-    fn resolve_pattern(&mut self, pattern: Pattern) -> HirPattern {
-        self.resolve_pattern_mutable(pattern, None)
+    fn resolve_pattern(&mut self, pattern: Pattern, is_global: bool) -> HirPattern {
+        self.resolve_pattern_mutable(pattern, None, is_global)
     }
 
-    fn resolve_pattern_mutable(&mut self, pattern: Pattern, mutable: Option<Span>) -> HirPattern {
+    fn resolve_pattern_mutable(&mut self, pattern: Pattern, mutable: Option<Span>, is_global: bool) -> HirPattern {
         match pattern {
             Pattern::Identifier(name) => {
                 // println!("ABOUT TO ADD TO SCOPE: {:?}", name);
-                let id = self.add_variable_decl(name, mutable.is_some());
+                let id = self.add_variable_decl(name, mutable.is_some(), is_global);
                 HirPattern::Identifier(id)
             }
             Pattern::Mutable(pattern, span) => {
@@ -460,18 +486,18 @@ impl<'a> Resolver<'a> {
                     self.push_err(ResolverError::UnnecessaryMut { first_mut, second_mut: span })
                 }
 
-                let pattern = self.resolve_pattern_mutable(*pattern, Some(span));
+                let pattern = self.resolve_pattern_mutable(*pattern, Some(span), is_global);
                 HirPattern::Mutable(Box::new(pattern), span)
             }
             Pattern::Tuple(fields, span) => {
-                let fields = vecmap(fields, |field| self.resolve_pattern_mutable(field, mutable));
+                let fields = vecmap(fields, |field| self.resolve_pattern_mutable(field, mutable, is_global));
                 HirPattern::Tuple(fields, span)
             }
             Pattern::Struct(name, fields, span) => {
                 let struct_id = self.lookup_type(name);
                 let struct_type = self.get_struct(struct_id);
                 let resolve_field =
-                    |this: &mut Self, pattern| this.resolve_pattern_mutable(pattern, mutable);
+                    |this: &mut Self, pattern| this.resolve_pattern_mutable(pattern, mutable, is_global);
                 let fields =
                     self.resolve_constructor_fields(struct_id, fields, span, resolve_field);
                 HirPattern::Struct(struct_type, fields, span)
@@ -595,11 +621,11 @@ impl<'a> Resolver<'a> {
 
     fn resolve_block(&mut self, block_expr: BlockExpression) -> HirExpression {
         let statements =
-            self.in_new_scope(|this| vecmap(block_expr.0, |stmt| this.intern_stmt(stmt)));
+            self.in_new_scope(|this| vecmap(block_expr.0, |stmt| this.intern_stmt(stmt, false)));
         HirExpression::Block(HirBlockExpression(statements))
     }
 
-    fn intern_block(&mut self, block: BlockExpression) -> ExprId {
+    pub fn intern_block(&mut self, block: BlockExpression) -> ExprId {
         let hir_block = self.resolve_block(block);
         self.interner.push_expr(hir_block)
     }
