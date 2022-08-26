@@ -126,7 +126,7 @@ impl OPCODE {
 // Descriptor as to whether the input/output is fixed or variable
 // Example: The input for Sha256 is Variable and the output is fixed at 2 witnesses
 // each holding 128 bits of the actual Sha256 function
-#[derive(Clone, Debug, Hash, PartialEq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub enum InputSize {
     Variable,
     Fixed(u128),
@@ -134,7 +134,7 @@ pub enum InputSize {
 
 // Output size Cannot currently vary, so we use a separate struct
 // XXX: In the future, we may be able to allow the output to vary based on the input size, however this implies support for dynamic circuits
-#[derive(Clone, Debug, Hash, PartialEq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct OutputSize(pub u128);
 
 #[derive(Clone, Debug, Hash)]
