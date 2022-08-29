@@ -1,4 +1,3 @@
-use std::convert::TryInto;
 use std::iter::repeat;
 
 use super::{
@@ -14,7 +13,7 @@ use crate::util::vecmap;
 use crate::{
     AssignStatement, BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, ForExpression,
     FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, IsConst, LValue,
-    Literal, NoirFunction, NoirImpl, NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp,
+    NoirFunction, NoirImpl, NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp,
 };
 
 use chumsky::prelude::*;
@@ -469,7 +468,7 @@ where
 {
     just(Token::LeftBracket)
         .ignore_then(type_parser)
-        .then(array_length())
+        .then(array_length().or_not())
         .then_ignore(just(Token::RightBracket))
         .map(|(element_type, length)| UnresolvedType::Array(length, Box::new(element_type)))
 }
@@ -646,12 +645,9 @@ where
     P: ExprParser,
 {
     expr_parser
-        .then_ignore(just(Token::Semicolon))
-        .then(literal())
+        .then(array_length())
         .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
-        .validate(|(lhs, count), span, emit| {
-            let count = validate_array_count(count, span, emit);
-
+        .map_with_span(|(lhs, count), span| {
             // Desugar the array by replicating the lhs 'count' times. TODO: This is inefficient
             // for large arrays.
             let name = "$array_element";
@@ -659,37 +655,12 @@ where
             let decl = Statement::new_let(((pattern, UnresolvedType::Unspecified), lhs));
 
             let variable = Expression::new(ExpressionKind::Ident(name.into()), span);
-            let elems = repeat(variable).take(count).collect();
+            let elems = repeat(variable).take(count as usize).collect();
             let array = ExpressionKind::array(elems);
             let array = Statement::Expression(Expression::new(array, span));
 
             ExpressionKind::Block(BlockExpression(vec![decl, array]))
         })
-}
-
-fn validate_array_count(
-    count: ExpressionKind,
-    span: Span,
-    emit: &mut dyn FnMut(ParserError),
-) -> usize {
-    match count {
-        ExpressionKind::Literal(Literal::Integer(x)) => {
-            x.try_into_u128().and_then(|x| x.try_into().ok()).unwrap_or_else(|| {
-                emit(ParserError::with_reason(
-                    "Array length must be able to fit within a usize".to_owned(),
-                    span,
-                ));
-                1
-            })
-        }
-        _ => {
-            emit(ParserError::with_reason(
-                "Array length must be an integer literal".to_owned(),
-                span,
-            ));
-            1
-        }
-    }
 }
 
 fn expression_list<P>(expr_parser: P) -> impl NoirParser<Vec<Expression>>
@@ -800,21 +771,19 @@ fn try_field_to_u64(x: acvm::FieldElement, span: Span) -> Result<u64, ParserErro
     if x.num_bits() <= 64 {
         Ok(x.to_u128() as u64)
     } else {
-        let message = "Array lengths must fit within a u128".to_string();
+        let message = "Array lengths must fit within a u64".to_string();
         Err(ParserError::with_reason(message, span))
     }
 }
 
-fn array_length() -> impl NoirParser<Option<u64>> {
-    let size = filter_map(|span, token: Token| match token {
+fn array_length() -> impl NoirParser<u64> {
+    just(Token::Semicolon).ignore_then(filter_map(|span, token: Token| match token {
         Token::Int(integer) => try_field_to_u64(integer, span),
         _ => {
             let message = "Expected an integer for the length of the array".to_string();
             Err(ParserError::with_reason(message, span))
         }
-    });
-
-    just(Token::Semicolon).ignore_then(size).or_not()
+    }))
 }
 
 #[cfg(test)]

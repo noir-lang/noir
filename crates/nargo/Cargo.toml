@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 dirs = "3.0.1"
 url = "2.2.0"
-noirc_driver = { path = "../noirc_driver" }
+noirc_driver = { path = "../noirc_driver", features = ["std"] }
 noirc_frontend = { path = "../noirc_frontend" }
 noirc_abi = { path = "../noirc_abi" }
 fm = { path = "../fm" }
@@ -25,8 +25,8 @@ hex = "0.4.2"
 tempdir = "0.3.7"
 
 # Backends
-aztec_backend = { optional = true, git = "https://github.com/noir-lang/aztec_backend" }
-marlin_arkworks_backend = { optional = true, git = "https://github.com/noir-lang/marlin_arkworks_backend" }
+aztec_backend = { optional = true, git = "https://github.com/noir-lang/aztec_backend", rev = "01b922adcb5a9d70b2d12304e1cb7487d9f28188" }
+marlin_arkworks_backend = { optional = true, git = "https://github.com/noir-lang/marlin_arkworks_backend", rev = "601e24dcb5dcbe72e3de7a33879aaf84e171d541" }
 
 [features]
 default = ["plonk_bn254"]
