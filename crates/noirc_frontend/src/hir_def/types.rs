@@ -481,7 +481,7 @@ impl std::fmt::Display for Type {
 
 impl std::fmt::Display for TypeVariableId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "_{}", self.0)
+        write!(f, "_")
     }
 }
 
