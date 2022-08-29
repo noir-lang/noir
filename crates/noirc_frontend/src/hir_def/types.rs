@@ -439,7 +439,7 @@ impl std::fmt::Display for Type {
             }
             Type::Array(len, typ) => match len.array_length() {
                 Some(len) => write!(f, "[{}; {}]", typ, len),
-                None => write!(f, "[{}; {}]", typ, len),
+                None => write!(f, "[{}]", typ),
             },
             Type::Integer(is_const, sign, num_bits) => match sign {
                 Signedness::Signed => write!(f, "{}i{}", is_const, num_bits),
@@ -464,6 +464,7 @@ impl std::fmt::Display for Type {
             Type::TypeVariable(id) => write!(f, "{}", id.borrow()),
             Type::NamedGeneric(binding, name) => match &*binding.borrow() {
                 TypeBinding::Bound(binding) => binding.fmt(f),
+                TypeBinding::Unbound(_) if name.is_empty() => write!(f, "_"),
                 TypeBinding::Unbound(_) => write!(f, "{}", name),
             },
             Type::ArrayLength(n) => n.fmt(f),
