@@ -24,7 +24,7 @@ impl AstPrinter {
         self.print_expr_expect_block(&function.body, f)?;
         self.indent_level -= 1;
         self.next_line(f)?;
-        write!(f, "}}\n")
+        writeln!(f, "}}")
     }
 
     pub fn print_expr(&mut self, expr: &Expression, f: &mut Formatter) -> std::fmt::Result {
@@ -76,7 +76,7 @@ impl AstPrinter {
     }
 
     fn next_line(&mut self, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "\n")?;
+        writeln!(f)?;
         for _ in 0..self.indent_level {
             write!(f, "    ")?;
         }
@@ -208,7 +208,7 @@ impl AstPrinter {
         if let Some(alt) = &if_expr.alternative {
             write!(f, " else {{")?;
             self.indent_level += 1;
-            self.print_expr_expect_block(&alt, f)?;
+            self.print_expr_expect_block(alt, f)?;
             self.indent_level -= 1;
             self.next_line(f)?;
         }
@@ -273,13 +273,13 @@ impl AstPrinter {
         match lvalue {
             LValue::Ident(ident) => write!(f, "{}${}", ident.name, ident.id.0),
             LValue::Index { array, index } => {
-                self.print_lvalue(&array, f)?;
+                self.print_lvalue(array, f)?;
                 write!(f, "[")?;
-                self.print_expr(&index, f)?;
+                self.print_expr(index, f)?;
                 write!(f, "]")
             }
             LValue::MemberAccess { object, field_index } => {
-                self.print_lvalue(&object, f)?;
+                self.print_lvalue(object, f)?;
                 write!(f, ".{}", field_index)
             }
         }
