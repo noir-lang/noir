@@ -200,6 +200,10 @@ pub enum Type {
     Tuple(Vec<Type>),
     TypeVariable(TypeVariable),
 
+    /// NamedGenerics are the 'T' or 'U' in a user-defined generic function
+    /// like `fn foo<T, U>(...) {}`. Unlike TypeVariables, they cannot be bound over.
+    NamedGeneric(TypeVariable, Rc<String>),
+
     /// A functions with arguments, a return type, and
     /// a set of possible function ids it may refer to.
     /// The function id set is hidden from users and only
@@ -435,7 +439,7 @@ impl std::fmt::Display for Type {
             }
             Type::Array(len, typ) => match len.array_length() {
                 Some(len) => write!(f, "[{}; {}]", typ, len),
-                None => write!(f, "[{}]", typ),
+                None => write!(f, "[{}; {}]", typ, len),
             },
             Type::Integer(is_const, sign, num_bits) => match sign {
                 Signedness::Signed => write!(f, "{}i{}", is_const, num_bits),
@@ -458,6 +462,10 @@ impl std::fmt::Display for Type {
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
             Type::TypeVariable(id) => write!(f, "{}", id.borrow()),
+            Type::NamedGeneric(binding, name) => match &*binding.borrow() {
+                TypeBinding::Bound(binding) => binding.fmt(f),
+                TypeBinding::Unbound(_) => write!(f, "{}", name),
+            },
             Type::ArrayLength(n) => n.fmt(f),
             Type::Forall(typevars, typ) => {
                 let typevars = vecmap(typevars, |(var, _)| var.to_string());
@@ -473,7 +481,7 @@ impl std::fmt::Display for Type {
 
 impl std::fmt::Display for TypeVariableId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "_")
+        write!(f, "_{}", self.0)
     }
 }
 
@@ -679,11 +687,8 @@ impl Type {
             }
 
             (Array(len_a, elem_a), Array(len_b, elem_b)) => {
-                if len_a == len_b {
-                    elem_a.try_unify(elem_b, span)
-                } else {
-                    Err(SpanKind::None)
-                }
+                len_a.try_unify(len_b, span)?;
+                elem_a.try_unify(elem_b, span)
             }
 
             (Tuple(elems_a), Tuple(elems_b)) => {
@@ -722,6 +727,20 @@ impl Type {
             }
 
             (Bool(const_a), Bool(const_b)) => const_a.unify(const_b, span),
+
+            (NamedGeneric(binding_a, name_a), NamedGeneric(binding_b, name_b)) => {
+                let is_unbound = |binding: &Shared<TypeBinding>| {
+                    matches!(&*binding.borrow(), TypeBinding::Unbound(_))
+                };
+
+                // Ensure NamedGenerics are never bound during type checking
+                assert!(is_unbound(binding_a) && is_unbound(binding_b));
+                if name_a == name_b {
+                    Ok(())
+                } else {
+                    Err(SpanKind::None)
+                }
+            }
 
             (other_a, other_b) => {
                 if other_a == other_b {
@@ -825,6 +844,20 @@ impl Type {
 
             (Bool(const_a), Bool(const_b)) => const_a.is_subtype_of(const_b, span),
 
+            (NamedGeneric(binding_a, name_a), NamedGeneric(binding_b, name_b)) => {
+                let is_unbound = |binding: &Shared<TypeBinding>| {
+                    matches!(&*binding.borrow(), TypeBinding::Unbound(_))
+                };
+
+                // Ensure NamedGenerics are never bound during type checking
+                assert!(is_unbound(binding_a) && is_unbound(binding_b));
+                if name_a == name_b {
+                    Ok(())
+                } else {
+                    Err(SpanKind::None)
+                }
+            }
+
             (other_a, other_b) => {
                 if other_a == other_b {
                     Ok(())
@@ -837,12 +870,13 @@ impl Type {
 
     pub fn array_length(&self) -> Option<u64> {
         match self {
-            Type::PolymorphicInteger(_, binding) | Type::TypeVariable(binding) => {
-                match &*binding.borrow() {
-                    TypeBinding::Bound(binding) => binding.array_length(),
-                    TypeBinding::Unbound(_) => None,
-                }
-            }
+            Type::PolymorphicInteger(_, binding)
+            | Type::NamedGeneric(binding, _)
+            | Type::TypeVariable(binding) => match &*binding.borrow() {
+                TypeBinding::Bound(binding) => binding.array_length(),
+                TypeBinding::Unbound(_) => None,
+            },
+            Type::Array(len, _elem) => len.array_length(),
             Type::ArrayLength(size) => Some(*size),
             _ => None,
         }
@@ -882,6 +916,7 @@ impl Type {
             Type::Struct(..) => todo!("as_abi_type not yet implemented for struct types"),
             Type::Tuple(_) => todo!("as_abi_type not yet implemented for tuple types"),
             Type::TypeVariable(_) => unreachable!(),
+            Type::NamedGeneric(..) => unreachable!(),
             Type::Forall(..) => unreachable!(),
             Type::Function(_, _, _) => unreachable!(),
         }
@@ -965,7 +1000,9 @@ impl Type {
                 let element = Box::new(element.substitute(type_bindings));
                 Type::Array(size, element)
             }
-            Type::PolymorphicInteger(_, binding) => substitute_binding(binding),
+            Type::PolymorphicInteger(_, binding)
+            | Type::NamedGeneric(binding, _)
+            | Type::TypeVariable(binding) => substitute_binding(binding),
 
             // Do not substitute fields, it can lead to infinite recursion
             // and we should not match fields when type checking anyway.
@@ -977,7 +1014,6 @@ impl Type {
                 let fields = vecmap(fields, |field| field.substitute(type_bindings));
                 Type::Tuple(fields)
             }
-            Type::TypeVariable(binding) => substitute_binding(binding),
             Type::Forall(typevars, typ) => {
                 // Trying to substitute a variable defined within a nested Forall
                 // is usually impossible and indicative of an error in the type checker somewhere.
@@ -1006,14 +1042,12 @@ impl Type {
     /// within self
     fn occurs(&self, target_id: TypeVariableId) -> bool {
         match self {
-            Type::Array(_, elem) => elem.occurs(target_id),
-            Type::PolymorphicInteger(_, binding) => match &*binding.borrow() {
-                TypeBinding::Bound(binding) => binding.occurs(target_id),
-                TypeBinding::Unbound(id) => *id == target_id,
-            },
+            Type::Array(len, elem) => len.occurs(target_id) || elem.occurs(target_id),
             Type::Struct(_, generic_args) => generic_args.iter().any(|arg| arg.occurs(target_id)),
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
-            Type::TypeVariable(binding) => match &*binding.borrow() {
+            Type::PolymorphicInteger(_, binding)
+            | Type::NamedGeneric(binding, _)
+            | Type::TypeVariable(binding) => match &*binding.borrow() {
                 TypeBinding::Bound(binding) => binding.occurs(target_id),
                 TypeBinding::Unbound(id) => *id == target_id,
             },
@@ -1067,9 +1101,13 @@ impl Type {
             // Expect that this function should only be called on instantiated types
             Forall(..) => unreachable!(),
 
-            FieldElement(_) | Integer(_, _, _) | Bool(_) | ArrayLength(_) | Unit | Error => {
-                self.clone()
-            }
+            FieldElement(_)
+            | Integer(_, _, _)
+            | Bool(_)
+            | ArrayLength(_)
+            | NamedGeneric(..)
+            | Unit
+            | Error => self.clone(),
         }
     }
 }

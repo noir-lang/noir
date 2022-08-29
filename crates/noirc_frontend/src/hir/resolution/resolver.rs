@@ -23,6 +23,7 @@ use crate::hir_def::expr::{
     HirInfixExpression, HirLiteral, HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
 };
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::rc::Rc;
 
 use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId};
@@ -69,7 +70,7 @@ pub struct Resolver<'a> {
 
     /// Contains a mapping of the current struct's generics to
     /// unique type variables if we're resolving a struct. Empty otherwise.
-    generics: HashMap<String, (TypeVariable, Span)>,
+    generics: HashMap<Rc<String>, (TypeVariable, Span)>,
 }
 
 impl<'a> Resolver<'a> {
@@ -231,7 +232,11 @@ impl<'a> Resolver<'a> {
                         let id = self.interner.next_type_variable_id();
                         let typevar = Shared::new(TypeBinding::Unbound(id));
                         new_variables.push((id, typevar.clone()));
-                        Type::TypeVariable(typevar)
+
+                        // 'Named'Generic is a bit of a misnomer here, we want a type variable that
+                        // wont be bound over but this one has no name since we do not currently
+                        // require users to explicitly be generic over array lengths.
+                        Type::NamedGeneric(typevar, Rc::new("".into()))
                     }
                 };
                 let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
@@ -247,8 +252,8 @@ impl<'a> Resolver<'a> {
                 // variables since this is what rust does.
                 if args.is_empty() && path.segments.len() == 1 {
                     let name = &path.last_segment().0.contents;
-                    if let Some((id, _)) = self.generics.get(name) {
-                        return Type::TypeVariable(id.clone());
+                    if let Some((name, (var, _))) = self.generics.get_key_value(name) {
+                        return Type::NamedGeneric(var.clone(), name.clone());
                     }
                 }
 
@@ -279,9 +284,8 @@ impl<'a> Resolver<'a> {
             let span = generic.0.span();
 
             // Check for name collisions of this generic
-            if let Some(old) =
-                self.generics.insert(generic.0.contents.clone(), (typevar.clone(), span))
-            {
+            let name = Rc::new(generic.0.contents.clone());
+            if let Some(old) = self.generics.insert(name, (typevar.clone(), span)) {
                 let span = generic.0.span();
                 self.errors.push(ResolverError::DuplicateDefinition {
                     name: generic.0.contents,
@@ -322,7 +326,7 @@ impl<'a> Resolver<'a> {
         assert_eq!(self.generics.len(), func.def.generics.len());
         let mut generics = vecmap(&func.def.generics, |generic| {
             // Always expect self.generics to contain all the generics of this function
-            let typevar = self.generics.get(generic.0.contents.as_str()).unwrap();
+            let typevar = self.generics.get(&generic.0.contents).unwrap();
             match &*typevar.0.borrow() {
                 TypeBinding::Unbound(id) => (*id, typevar.0.clone()),
                 TypeBinding::Bound(binding) => unreachable!(

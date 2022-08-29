@@ -2,7 +2,7 @@ use acvm::FieldElement;
 use noirc_abi::Abi;
 use noirc_errors::Location;
 
-use crate::{BinaryOpKind, Signedness, util::vecmap};
+use crate::{util::vecmap, BinaryOpKind, Signedness};
 
 #[derive(Debug, Clone)]
 pub enum Expression {
@@ -250,7 +250,7 @@ impl std::fmt::Display for Type {
             Type::Tuple(elems) => {
                 let elems = vecmap(elems, ToString::to_string);
                 write!(f, "({})", elems.join(", "))
-            },
+            }
         }
     }
 }

@@ -382,7 +382,6 @@ fn type_check_function_call(
         let (function_type, instantiation_bindings) = func_meta.typ.instantiate(interner);
         interner.store_instantiation_bindings(*expr_id, instantiation_bindings);
         interner.set_function_type(*expr_id, function_type.clone());
-
         bind_function_type(function_type, arguments, span, interner, errors)
     }
 }

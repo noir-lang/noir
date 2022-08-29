@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, HashMap, VecDeque};
 use crate::{
     hir_def::{
         expr::*,
-        function::Parameters,
+        function::{FuncMeta, Parameters},
         stmt::{HirAssignStatement, HirLValue, HirPattern, HirStatement},
     },
     node_interner::{self, NodeInterner, StmtId},
@@ -397,12 +397,14 @@ impl Monomorphiser {
             HirType::Unit => ast::Type::Unit,
 
             HirType::Array(size, element) => {
-                let size = size.array_length().unwrap();
+                let size = size.array_length().unwrap_or(0);
                 let element = self.convert_type(element.as_ref());
                 ast::Type::Array(size, Box::new(element))
             }
 
-            HirType::PolymorphicInteger(_, binding) | HirType::TypeVariable(binding) => {
+            HirType::PolymorphicInteger(_, binding)
+            | HirType::TypeVariable(binding)
+            | HirType::NamedGeneric(binding, _) => {
                 if let TypeBinding::Bound(binding) = &*binding.borrow() {
                     return self.convert_type(binding);
                 }
@@ -436,7 +438,7 @@ impl Monomorphiser {
         expr_id: node_interner::ExprId,
     ) -> ast::Expression {
         let typ = self.interner.function_type(expr_id).follow_bindings();
-        let arguments = vecmap(call.arguments, |id| self.expr_infer(id));
+        let arguments = vecmap(&call.arguments, |id| self.expr_infer(*id));
         let func_id = call.func_id;
 
         let meta = self.interner.function_meta(&func_id);
@@ -448,13 +450,7 @@ impl Monomorphiser {
                 );
                 ast::Expression::CallLowLevel(ast::CallLowLevel { opcode, arguments })
             }
-            FunctionKind::Builtin => {
-                let attribute = meta.attributes.expect("all builtin functions must contain an attribute which contains the function name which it links to");
-                let opcode = attribute.builtin().expect(
-                    "ice: function marked as a builtin, but attribute kind does not match this",
-                );
-                ast::Expression::CallBuiltin(ast::CallBuiltin { opcode, arguments })
-            }
+            FunctionKind::Builtin => self.call_builtin(meta, arguments, call.arguments),
             FunctionKind::Normal => {
                 let func_id = self
                     .lookup_global(func_id, &typ)
@@ -462,6 +458,26 @@ impl Monomorphiser {
 
                 ast::Expression::Call(ast::Call { func_id, arguments })
             }
+        }
+    }
+
+    fn call_builtin(
+        &self,
+        meta: FuncMeta,
+        arguments: Vec<ast::Expression>,
+        arg_ids: Vec<node_interner::ExprId>,
+    ) -> ast::Expression {
+        let attribute = meta.attributes.expect("all builtin functions must contain an attribute which contains the function name which it links to");
+        let opcode = attribute
+            .builtin()
+            .expect("ice: function marked as a builtin, but attribute kind does not match this");
+
+        if opcode == "arraylen" {
+            let typ = self.interner.id_type(arg_ids[0]);
+            let len = typ.array_length().unwrap();
+            ast::Expression::Literal(ast::Literal::Integer((len as u128).into(), ast::Type::Field))
+        } else {
+            ast::Expression::CallBuiltin(ast::CallBuiltin { opcode, arguments })
         }
     }
 
