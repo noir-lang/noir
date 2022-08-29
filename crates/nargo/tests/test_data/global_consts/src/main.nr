@@ -2,15 +2,14 @@ let N: const Field = 5;
 let M: const Field = 32;
 //a: [M]Field, b: [M]Field
 fn main(a: [M]Field, b: [M]Field) {
-     // let q = [N]Field;
      // let N: const Field = 5;
-
-     //let mut y = 5;
-     //for i in 0..N*N {
-     //     y = i;
-     //};
-     //constrain y == 24;
      constrain N != M;
+
+     let mut y = 5;
+     for i in 0..N*N {
+          y = i;
+     };
+     constrain y == 24;
 
      let mut x = M / 4;
      //x = 5;

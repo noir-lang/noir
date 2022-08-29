@@ -605,7 +605,9 @@ impl Type {
     }
 
     fn get_fixed_variable_array_length(&self, ident: &Ident, interner: &NodeInterner) -> u128 {
-        let stmt_id = interner.get_global_const(&ident).expect("no statement associated with fixed sized array variable");
+        let stmt_id = interner
+            .get_global_const(&ident)
+            .expect("no statement associated with fixed sized array variable");
         let statement = interner.statement(&stmt_id);
         let length = match statement {
             HirStatement::Let(let_stmt) => {

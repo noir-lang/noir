@@ -122,19 +122,18 @@ impl<K: std::hash::Hash + Eq + Clone, V> From<Scope<K, V>> for ScopeTree<K, V> {
 
 pub struct ScopeForest<K, V> {
     pub global_scope: Scope<K, V>,
-    pub scope_forest: Vec<ScopeTree<K, V>>
+    pub scope_forest: Vec<ScopeTree<K, V>>,
 }
 
 impl<K: std::hash::Hash + Eq + Clone, V> ScopeForest<K, V> {
     pub fn new() -> ScopeForest<K, V> {
-        ScopeForest {
-            global_scope: Scope::new(),
-            scope_forest: vec![ScopeTree::new()],
-        }
+        ScopeForest { global_scope: Scope::new(), scope_forest: vec![ScopeTree::new()] }
         // ScopeForest(vec![ScopeTree::new()])
     }
     pub fn current_scope_tree(&mut self) -> &mut ScopeTree<K, V> {
-        self.scope_forest.last_mut().expect("ice: tried to fetch the current scope, however none was found")
+        self.scope_forest
+            .last_mut()
+            .expect("ice: tried to fetch the current scope, however none was found")
     }
 
     /// Returns the last pushed scope from the current scope tree

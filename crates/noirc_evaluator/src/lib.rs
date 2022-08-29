@@ -215,11 +215,11 @@ impl<'a> Evaluator<'a> {
         self.parse_abi_alt(env, &mut igen)?;
 
         // NOTE: this is how we were evaluating constants before, now we are inserting them into functions of the ast and then evaluating them
-        let mut stmt_ids = vec![];
-        for (_ident, stmt_id) in self.context.def_interner.get_all_global_consts() {
-            self.evaluate_statement(env, &stmt_id, true)?;
-            stmt_ids.push(stmt_id);
-        }
+        // let mut stmt_ids = vec![];
+        // for (_ident, stmt_id) in self.context.def_interner.get_all_global_consts() {
+        //     self.evaluate_statement(env, &stmt_id, true)?;
+        //     stmt_ids.push(stmt_id);
+        // }
 
         // Now call the main function
         let main_func_body = self.context.def_interner.function(&self.main_function);
@@ -639,7 +639,10 @@ impl<'a> Evaluator<'a> {
             }
             Type::PolymorphicInteger(is_const, typ_var) if is_const.is_const() => {
                 println!("Polymorphic integer typ_var: {:?}", typ_var);
-                println!("Polymorphic integer expression: {:?}", self.context.def_interner.expression(rhs));
+                println!(
+                    "Polymorphic integer expression: {:?}",
+                    self.context.def_interner.expression(rhs)
+                );
                 let span = self.context.def_interner.expr_location(rhs);
                 let value =
                     self.evaluate_integer(env, rhs).map_err(|kind| kind.add_location(span))?;

@@ -157,7 +157,8 @@ impl<'a> Resolver<'a> {
 
         let global_scope = self.scopes.get_global_scope();
         if is_global {
-            let old_global_value = global_scope.add_key_value(name.clone().0.contents, resolver_meta);
+            let old_global_value =
+                global_scope.add_key_value(name.clone().0.contents, resolver_meta);
             if let Some(old_global_value) = old_global_value {
                 self.push_err(ResolverError::DuplicateDefinition {
                     first_ident: old_global_value.ident,
@@ -391,7 +392,10 @@ impl<'a> Resolver<'a> {
                 // TODO: For loop variables are currently mutable by default since we haven't
                 //       yet implemented syntax for them to be optionally mutable.
                 let (identifier, block_id) = self.in_new_scope(|this| {
-                    (this.add_variable_decl(identifier, true, false), this.resolve_expression(block))
+                    (
+                        this.add_variable_decl(identifier, true, false),
+                        this.resolve_expression(block),
+                    )
                 });
 
                 HirExpression::For(HirForExpression {
@@ -469,7 +473,12 @@ impl<'a> Resolver<'a> {
         self.resolve_pattern_mutable(pattern, None, is_global)
     }
 
-    fn resolve_pattern_mutable(&mut self, pattern: Pattern, mutable: Option<Span>, is_global: bool) -> HirPattern {
+    fn resolve_pattern_mutable(
+        &mut self,
+        pattern: Pattern,
+        mutable: Option<Span>,
+        is_global: bool,
+    ) -> HirPattern {
         match pattern {
             Pattern::Identifier(name) => {
                 // println!("ABOUT TO ADD TO SCOPE: {:?}", name);
@@ -485,14 +494,16 @@ impl<'a> Resolver<'a> {
                 HirPattern::Mutable(Box::new(pattern), span)
             }
             Pattern::Tuple(fields, span) => {
-                let fields = vecmap(fields, |field| self.resolve_pattern_mutable(field, mutable, is_global));
+                let fields =
+                    vecmap(fields, |field| self.resolve_pattern_mutable(field, mutable, is_global));
                 HirPattern::Tuple(fields, span)
             }
             Pattern::Struct(name, fields, span) => {
                 let struct_id = self.lookup_type(name);
                 let struct_type = self.get_struct(struct_id);
-                let resolve_field =
-                    |this: &mut Self, pattern| this.resolve_pattern_mutable(pattern, mutable, is_global);
+                let resolve_field = |this: &mut Self, pattern| {
+                    this.resolve_pattern_mutable(pattern, mutable, is_global)
+                };
                 let fields =
                     self.resolve_constructor_fields(struct_id, fields, span, resolve_field);
                 HirPattern::Struct(struct_type, fields, span)

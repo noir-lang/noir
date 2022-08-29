@@ -50,7 +50,11 @@ impl Environment {
     pub fn store(&mut self, name: String, object: Object, is_global: bool) {
         let global_scope = self.env.get_global_scope();
         if is_global {
-            println!("storing global const object, name: {:?}, object: {:?}", name.clone(), object.clone());
+            println!(
+                "storing global const object, name: {:?}, object: {:?}",
+                name.clone(),
+                object.clone()
+            );
             global_scope.add_key_value(name, object);
             return;
         };
