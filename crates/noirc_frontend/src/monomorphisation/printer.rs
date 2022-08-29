@@ -11,16 +11,20 @@ pub struct AstPrinter {
 
 impl AstPrinter {
     pub fn print_function(&mut self, function: &Function, f: &mut Formatter) -> std::fmt::Result {
-        let params = vecmap(&function.parameters, |(id, typ, name)| {
-            format!("{}${}: {}",name, id.0, typ)
-        }).join(", ");
+        let params =
+            vecmap(&function.parameters, |(id, typ, name)| format!("{}${}: {}", name, id.0, typ))
+                .join(", ");
 
-        write!(f, "fn {}${}({}) -> {} {{", function.name, function.id.0, params, function.return_type)?;
+        write!(
+            f,
+            "fn {}${}({}) -> {} {{",
+            function.name, function.id.0, params, function.return_type
+        )?;
         self.indent_level += 1;
         self.print_expr_expect_block(&function.body, f)?;
         self.indent_level -= 1;
         self.next_line(f)?;
-        write!(f, "}}\n")
+        writeln!(f, "}}")
     }
 
     pub fn print_expr(&mut self, expr: &Expression, f: &mut Formatter) -> std::fmt::Result {
@@ -63,36 +67,44 @@ impl AstPrinter {
                 self.print_lvalue(&assign.lvalue, f)?;
                 write!(f, " = ")?;
                 self.print_expr(&assign.expression, f)
-            },
+            }
             Expression::Semi(expr) => {
                 self.print_expr(expr, f)?;
                 write!(f, ";")
-            },
+            }
         }
     }
 
     fn next_line(&mut self, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "\n")?;
-        for _ in 0 .. self.indent_level {
+        writeln!(f)?;
+        for _ in 0..self.indent_level {
             write!(f, "    ")?;
         }
         Ok(())
     }
 
-    fn print_literal(&mut self, literal: &super::ast::Literal, f: &mut Formatter) -> Result<(), std::fmt::Error> {
+    fn print_literal(
+        &mut self,
+        literal: &super::ast::Literal,
+        f: &mut Formatter,
+    ) -> Result<(), std::fmt::Error> {
         match literal {
             super::ast::Literal::Array(array) => {
                 write!(f, "[")?;
                 self.print_comma_separated(&array.contents, f)?;
                 write!(f, "]")
-            },
+            }
             super::ast::Literal::Integer(x, _) => write!(f, "{}", x),
             super::ast::Literal::Bool(x) => write!(f, "{}", x),
             super::ast::Literal::Str(s) => write!(f, "{}", s),
         }
     }
 
-    fn print_block(&mut self, exprs: &[Expression], f: &mut Formatter) -> Result<(), std::fmt::Error> {
+    fn print_block(
+        &mut self,
+        exprs: &[Expression],
+        f: &mut Formatter,
+    ) -> Result<(), std::fmt::Error> {
         if exprs.is_empty() {
             write!(f, "{{}}")
         } else {
@@ -115,7 +127,11 @@ impl AstPrinter {
     /// Print an expression, but expect that we've already printed a {} block, so don't print
     /// out those twice. Also decrements the current indent level and prints out the next line when
     /// finished.
-    fn print_expr_expect_block(&mut self, expr: &Expression, f: &mut Formatter) -> std::fmt::Result {
+    fn print_expr_expect_block(
+        &mut self,
+        expr: &Expression,
+        f: &mut Formatter,
+    ) -> std::fmt::Result {
         match expr {
             Expression::Block(exprs) => {
                 for (i, expr) in exprs.iter().enumerate() {
@@ -127,21 +143,29 @@ impl AstPrinter {
                     }
                 }
                 Ok(())
-            },
+            }
             other => {
                 self.next_line(f)?;
                 self.print_expr(other, f)
-            },
+            }
         }
     }
 
-    fn print_unary(&mut self, unary: &super::ast::Unary, f: &mut Formatter) -> Result<(), std::fmt::Error> {
+    fn print_unary(
+        &mut self,
+        unary: &super::ast::Unary,
+        f: &mut Formatter,
+    ) -> Result<(), std::fmt::Error> {
         write!(f, "({}", unary.operator)?;
         self.print_expr(&unary.rhs, f)?;
         write!(f, ")")
     }
 
-    fn print_binary(&mut self, binary: &super::ast::Binary, f: &mut Formatter) -> Result<(), std::fmt::Error> {
+    fn print_binary(
+        &mut self,
+        binary: &super::ast::Binary,
+        f: &mut Formatter,
+    ) -> Result<(), std::fmt::Error> {
         write!(f, "(")?;
         self.print_expr(&binary.lhs, f)?;
         write!(f, " {} ", binary.operator)?;
@@ -149,7 +173,11 @@ impl AstPrinter {
         write!(f, ")")
     }
 
-    fn print_for(&mut self, for_expr: &super::ast::For, f: &mut Formatter) -> Result<(), std::fmt::Error> {
+    fn print_for(
+        &mut self,
+        for_expr: &super::ast::For,
+        f: &mut Formatter,
+    ) -> Result<(), std::fmt::Error> {
         write!(f, "for {}${} in ", for_expr.index_name, for_expr.index_variable.0)?;
         self.print_expr(&for_expr.start_range, f)?;
         write!(f, " .. ")?;
@@ -163,7 +191,11 @@ impl AstPrinter {
         write!(f, "}}")
     }
 
-    fn print_if(&mut self, if_expr: &super::ast::If, f: &mut Formatter) -> Result<(), std::fmt::Error> {
+    fn print_if(
+        &mut self,
+        if_expr: &super::ast::If,
+        f: &mut Formatter,
+    ) -> Result<(), std::fmt::Error> {
         write!(f, "if ")?;
         self.print_expr(&if_expr.condition, f)?;
 
@@ -176,14 +208,18 @@ impl AstPrinter {
         if let Some(alt) = &if_expr.alternative {
             write!(f, " else {{")?;
             self.indent_level += 1;
-            self.print_expr_expect_block(&alt, f)?;
+            self.print_expr_expect_block(alt, f)?;
             self.indent_level -= 1;
             self.next_line(f)?;
         }
         Ok(())
     }
 
-    fn print_comma_separated(&mut self, exprs: &[Expression], f: &mut Formatter) -> std::fmt::Result {
+    fn print_comma_separated(
+        &mut self,
+        exprs: &[Expression],
+        f: &mut Formatter,
+    ) -> std::fmt::Result {
         for (i, elem) in exprs.iter().enumerate() {
             self.print_expr(elem, f)?;
             if i != exprs.len() - 1 {
@@ -193,25 +229,41 @@ impl AstPrinter {
         Ok(())
     }
 
-    fn print_tuple(&mut self, tuple: &[Expression], f: &mut Formatter) -> Result<(), std::fmt::Error> {
+    fn print_tuple(
+        &mut self,
+        tuple: &[Expression],
+        f: &mut Formatter,
+    ) -> Result<(), std::fmt::Error> {
         write!(f, "(")?;
         self.print_comma_separated(tuple, f)?;
         write!(f, ")")
     }
 
-    fn print_call(&mut self, call: &super::ast::Call, f: &mut Formatter) -> Result<(), std::fmt::Error> {
+    fn print_call(
+        &mut self,
+        call: &super::ast::Call,
+        f: &mut Formatter,
+    ) -> Result<(), std::fmt::Error> {
         write!(f, "${}(", call.func_id.0)?;
         self.print_comma_separated(&call.arguments, f)?;
         write!(f, ")")
     }
 
-    fn print_lowlevel(&mut self, call: &super::ast::CallBuiltin, f: &mut Formatter) -> Result<(), std::fmt::Error> {
+    fn print_lowlevel(
+        &mut self,
+        call: &super::ast::CallBuiltin,
+        f: &mut Formatter,
+    ) -> Result<(), std::fmt::Error> {
         write!(f, "{}$lowlevel(", call.opcode)?;
         self.print_comma_separated(&call.arguments, f)?;
         write!(f, ")")
     }
 
-    fn print_builtin(&mut self, call: &super::ast::CallLowLevel, f: &mut Formatter) -> Result<(), std::fmt::Error> {
+    fn print_builtin(
+        &mut self,
+        call: &super::ast::CallLowLevel,
+        f: &mut Formatter,
+    ) -> Result<(), std::fmt::Error> {
         write!(f, "{}$builtin(", call.opcode)?;
         self.print_comma_separated(&call.arguments, f)?;
         write!(f, ")")
@@ -221,15 +273,15 @@ impl AstPrinter {
         match lvalue {
             LValue::Ident(ident) => write!(f, "{}${}", ident.name, ident.id.0),
             LValue::Index { array, index } => {
-                self.print_lvalue(&array, f)?;
+                self.print_lvalue(array, f)?;
                 write!(f, "[")?;
-                self.print_expr(&index, f)?;
+                self.print_expr(index, f)?;
                 write!(f, "]")
-            },
+            }
             LValue::MemberAccess { object, field_index } => {
-                self.print_lvalue(&object, f)?;
+                self.print_lvalue(object, f)?;
                 write!(f, ".{}", field_index)
-            },
+            }
         }
     }
 }
