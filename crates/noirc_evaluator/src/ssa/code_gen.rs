@@ -172,8 +172,11 @@ impl<'a> IRGenerator<'a> {
         }
 
         let ident_name = self.ident_name(&ident);
+        println!("IDENT NAME in codegen_identifier: {:?}", ident_name);
         let obj = env.get(&ident_name);
+        println!("OBJ in codegen_identifier: {:?}", obj);
         let o_type = self.context.context.def_interner.id_type(ident.id);
+        println!("O_TYPE in codegen_identifier: {:?}", o_type);
 
         let v_id = match obj {
             Object::Array(a) => {
@@ -183,6 +186,7 @@ impl<'a> IRGenerator<'a> {
             }
             _ => {
                 let obj_type = ObjectType::get_type_from_object(&obj);
+                println!("OBJ_TYPE in codegen_identifier: {:?}", obj_type);
                 //new variable - should be in a let statement? The let statement should set the type
                 self.context.add_variable(
                     node::Variable {

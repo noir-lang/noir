@@ -5,20 +5,21 @@ fn main(a: [M]Field, b: [M]Field) {
      // let q = [N]Field;
      // let N: const Field = 5;
 
-     let mut x = N;
+     //let mut y = 5;
+     //for i in 0..N*N {
+     //     y = i;
+     //};
+     //constrain y == 24;
+     constrain N != M;
+
+     let mut x = M / 4;
      //x = 5;
-     constrain x == 5;
+     constrain (x) == 8;
 
-     let mut y = N;
-     for i in 0..N*N {
-          y = i;
-     };
-     constrain y == 24;
+     //let q = multiplyByM(3);
+     //constrain q == 96;
 
-     let q = multiplyByM(3);
-     constrain q == 96;
-
-     arrays_neq(a, b);
+     //arrays_neq(a, b);
      constrain a != b;
 
      let arr: [N]Field = [N; 5];
@@ -34,10 +35,10 @@ fn main(a: [M]Field, b: [M]Field) {
      constrain t[1] == 32;
 }
 
-fn multiplyByM(x: u32) -> u32 {
+fn multiplyByM(x: Field) -> Field {
      // Uncomment this line to show duplicate variables error with global constant 
      //let N: const Field = 5;
-     x * M as u32
+     x * M
 }
 
 fn arrays_neq(a: [M]Field, b: [M]Field) {

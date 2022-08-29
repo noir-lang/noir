@@ -150,14 +150,12 @@ impl<'a> Resolver<'a> {
     }
 
     fn add_variable_decl(&mut self, name: Ident, mutable: bool, is_global: bool) -> HirIdent {
-
         let id = self.interner.push_definition(name.0.contents.clone(), mutable);
         let location = Location::new(name.span(), self.file);
         let ident = HirIdent { location, id };
         let resolver_meta = ResolverMeta { num_times_used: 0, ident };
 
         let global_scope = self.scopes.get_global_scope();
-        println!("before is_global if block");
         if is_global {
             let old_global_value = global_scope.add_key_value(name.clone().0.contents, resolver_meta);
             if let Some(old_global_value) = old_global_value {
@@ -166,13 +164,10 @@ impl<'a> Resolver<'a> {
                     second_ident: ident,
                 });
             }
-            println!("global ident: {:?}", ident);
             return ident;
         }
-        println!("not is_global");
 
         let scope = self.scopes.get_mut_scope();
-        // let resolver_meta = ResolverMeta { num_times_used: 0, ident };
         let old_value = scope.add_key_value(name.0.contents, resolver_meta);
         if let Some(old_value) = old_value {
             self.push_err(ResolverError::DuplicateDefinition {
@@ -197,7 +192,7 @@ impl<'a> Resolver<'a> {
 
         let location = Location::new(name.span(), self.file);
         let id = if let Some(variable_found) = global_variable {
-            println!("found global variable");
+            println!("found global variable: location: {:?}", location.clone());
             variable_found.num_times_used += 1;
             variable_found.ident.id
         } else {
@@ -558,6 +553,10 @@ impl<'a> Resolver<'a> {
 
     pub fn get_global_const(&self, stmt_id: StmtId) -> HirStatement {
         self.interner.statement(&stmt_id)
+    }
+
+    pub fn push_global_const(&mut self, name: Ident, stmt_id: StmtId) {
+        self.interner.push_global_const(name, stmt_id)
     }
 
     pub fn get_struct(&self, type_id: StructId) -> Rc<RefCell<StructType>> {

@@ -72,6 +72,7 @@ pub fn unroll_block(
     ctx: &mut SsaContext,
     unroll_ctx: &mut UnrollContext,
 ) -> Result<(), RuntimeError> {
+    println!("unroll_block kind: {:?}", ctx[unroll_ctx.to_unroll].kind);
     match ctx[unroll_ctx.to_unroll].kind {
         block::BlockType::ForJoin => {
             unroll_join(ctx, unroll_ctx)?;

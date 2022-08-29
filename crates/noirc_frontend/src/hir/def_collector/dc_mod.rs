@@ -55,7 +55,7 @@ pub fn collect_defs<'a>(
     collector.collect_structs(ast.types.clone(), crate_id, errors);
 
     // println!("AST GLOBAL CONSTS: {:?}", ast.global_constants.clone());
-    insert_global_constants(&mut ast.functions, ast.global_constants.clone());
+    // insert_global_constants(&mut ast.functions, ast.global_constants.clone());
     // println!("AST FUNCTIONS after insert global: {:?}", ast.functions.clone());
 
     let errors_in_same_file = collector.collect_functions(context, ast.functions.clone());

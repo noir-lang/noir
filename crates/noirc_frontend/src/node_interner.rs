@@ -238,6 +238,7 @@ impl NodeInterner {
     }
 
     pub fn push_global_const(&mut self, name: Ident, stmt_id: StmtId) {
+        println!("push_global_const: {:?}, {:?}", name, stmt_id);
         self.global_constants.insert(name, stmt_id);
     }
 
@@ -365,6 +366,10 @@ impl NodeInterner {
         } else {
             None
         }
+    }
+
+    pub fn get_all_global_consts(&self) -> HashMap<Ident, StmtId> {
+        self.global_constants.clone()
     }
 
     /// Returns the type of an item stored in the Interner or Error if it was not found.
