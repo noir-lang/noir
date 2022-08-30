@@ -108,10 +108,8 @@ pub fn prove_with_path<P: AsRef<Path>>(
     let abi = compiled_program.abi.unwrap();
 
     let mut solved_witness = process_abi_with_input(abi, witness_map)?;
-    println!("solved_witness");
 
     let solver_res = backend.solve(&mut solved_witness, compiled_program.circuit.gates.clone());
-    println!("solver_res: {:?}", solver_res);
 
     if let Err(opcode) = solver_res {
         return Err(CliError::Generic(format!(

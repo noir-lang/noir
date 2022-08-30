@@ -261,9 +261,9 @@ impl<'a> IRGenerator<'a> {
         env: &mut Environment,
         stmt_id: &StmtId,
     ) -> Result<Value, RuntimeError> {
-        println!("in codegen_statement, STMT_ID: {:?}", stmt_id);
+        // println!("in codegen_statement, STMT_ID: {:?}", stmt_id);
         let statement = self.def_interner().statement(stmt_id);
-        println!("in codegen_statement, STATEMENT: {:?}", statement);
+        // println!("in codegen_statement, STATEMENT: {:?}", statement);
         match statement {
             HirStatement::Constrain(constrain_stmt) => self.codegen_constrain(env, constrain_stmt),
             HirStatement::Expression(expr) | HirStatement::Semi(expr) => {
@@ -576,7 +576,6 @@ impl<'a> IRGenerator<'a> {
         env: &mut Environment,
         let_stmt: HirLetStatement,
     ) -> Result<Value, RuntimeError> {
-        println!("in codegen_let");
         let rhs = self.codegen_expression(env, &let_stmt.expression)?;
         self.bind_pattern(&let_stmt.pattern, rhs)?;
         Ok(Value::dummy())
@@ -588,13 +587,10 @@ impl<'a> IRGenerator<'a> {
         expr_id: &ExprId,
     ) -> Result<Value, RuntimeError> {
         let expr = self.def_interner().expression(expr_id);
-        println!("inside codegen_expression, EXPR: {:?}", expr);
         match expr {
             HirExpression::Literal(HirLiteral::Integer(x)) => {
                 let int_type = self.def_interner().id_type(expr_id);
-                println!("inside codegen_expression: integer: {:?},\n int_type: {:?}", x, int_type);
                 let element_type = int_type.into();
-                println!("inside codegen_expression: element_type: {:?}\n", element_type);
                 Ok(Value::Single(self.context.get_or_create_const(x, element_type)))
             }
             HirExpression::Literal(HirLiteral::Array(arr_lit)) => {

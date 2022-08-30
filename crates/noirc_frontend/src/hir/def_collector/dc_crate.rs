@@ -11,7 +11,7 @@ use crate::hir::resolution::{
 use crate::hir::type_check::type_check;
 use crate::hir::type_check::type_check_func;
 use crate::hir::Context;
-use crate::hir_def::stmt::HirStatement;
+use crate::hir_def::stmt::{HirStatement, HirPattern};
 use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId};
 use crate::util::vecmap;
 use crate::{Ident, NoirFunction, NoirStruct, ParsedModule, Path, Pattern, Statement, Type, BlockExpression};
@@ -158,9 +158,8 @@ impl DefCollector {
 
         resolve_structs(context, def_collector.collected_types, crate_id, errors);
 
-        // TODO: circle back to this, trying to insert global constants within dc_mod, currently only used to check for multiple global consts within a crate
-        // resolve_global_constants(context, def_collector.collected_consts, crate_id, errors);
-        // collect_global_constants(context, def_collector.collected_consts.clone(), crate_id, errors);
+        // Collect global constants and check for multiple declarations within a crate
+        collect_global_constants(context, def_collector.collected_consts.clone(), crate_id, errors);
 
         // Before we resolve any function symbols we must go through our impls and
         // re-collect the methods within into their proper module. This cannot be
@@ -247,67 +246,24 @@ fn collect_impls(
     }
 }
 
-// fn collect_global_constants(
-//     context: &mut Context,
-//     global_consts: Vec<UnresolvedGlobalConst>,
-//     crate_id: CrateId,
-//     errors: &mut Vec<CollectedErrors>,
-// ) {
-//     for global_const in global_consts.clone() {
-//         let path_resolver = StandardPathResolver::new(ModuleId {
-//             local_id: global_const.module_id,
-//             krate: crate_id,
-//         });
-
-//         let mut resolver = Resolver::new(
-//             &mut context.def_interner,
-//             &path_resolver,
-//             &context.def_maps,
-//             global_const.file_id,
-//         );
-
-//         let name = match global_const.stmt_def.clone() {
-//             Statement::Let(let_stmt) => {
-//                 let ident = match let_stmt.pattern {
-//                     Pattern::Identifier(ident) => ident,
-//                     _ => panic!("pattern for const statement must be an identifier"), // TODO: change this to use errors
-//                 };
-//                 ident
-//             }
-//             _ => panic!("global consts must be a let statement"), // TODO: change this to use errors
-//         };
-//         let stmt_id = resolver.intern_stmt(global_const.stmt_def, true);
-
-//         // NOTE: This is done in resolve global consts so that the resolver matches those used by an impl or functions in the module
-//         // resolver.push_global_const(name.clone(), stmt_id); 
-
-//         let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
-
-//         // This simply checks for repeat global constants within the crate
-//         let result = current_def_map.modules[global_const.module_id.0]
-//             .scope
-//             .define_global_const_def(name, stmt_id);
-//         if let Err((first_def, second_def)) = result {
-//             let err = DefCollectorErrorKind::DuplicateGlobalConst { first_def, second_def };
-//             errors.push(CollectedErrors {
-//                 file_id: global_const.file_id,
-//                 errors: vec![err.to_diagnostic()],
-//             });
-//         }
-//     }   
-// }
-
-fn resolve_global_constants(
-    resolver: &mut Resolver,
+fn collect_global_constants(
+    context: &mut Context,
     global_consts: Vec<UnresolvedGlobalConst>,
-) -> Vec<(FileId, StmtId)> {
-    // XXX: may be able to get rid of this, but keep while WIP as we could follow the type resolution flow used for functions
-    // rather than combining type check in this function
-    let mut global_const_ids = Vec::new();
-
-    // NOTE: it is still necessary to intern global const statements to check for duplicate global const declarations,
-    // repeated variable names inside functions, consts in functions params, and consts specifying array size
+    crate_id: CrateId,
+    errors: &mut Vec<CollectedErrors>,
+) {
     for global_const in global_consts.clone() {
+        let path_resolver = StandardPathResolver::new(ModuleId {
+            local_id: global_const.module_id,
+            krate: crate_id,
+        });
+
+        let mut resolver = Resolver::new(
+            &mut context.def_interner,
+            &path_resolver,
+            &context.def_maps,
+            global_const.file_id,
+        );
 
         let name = match global_const.stmt_def.clone() {
             Statement::Let(let_stmt) => {
@@ -320,10 +276,54 @@ fn resolve_global_constants(
             _ => panic!("global consts must be a let statement"), // TODO: change this to use errors
         };
         let stmt_id = resolver.intern_stmt(global_const.stmt_def, true);
-        // The stmt id generated when collecting the global consts will be overridden in the interner
-        resolver.push_global_const(name.clone(), stmt_id);
 
-        global_const_ids.push((global_const.file_id, stmt_id));
+        // NOTE: This is done in resolve_global_consts so that the resolver matches the scopes used by an impl or functions in the module
+        // resolver.push_global_const(name.clone(), stmt_id); 
+
+        let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
+
+        // This simply checks for repeat global constants within the crate
+        let result = current_def_map.modules[global_const.module_id.0]
+            .scope
+            .define_global_const_def(name, stmt_id);
+        if let Err((first_def, second_def)) = result {
+            let err = DefCollectorErrorKind::DuplicateGlobalConst { first_def, second_def };
+            errors.push(CollectedErrors {
+                file_id: global_const.file_id,
+                errors: vec![err.to_diagnostic()],
+            });
+        }
+    }   
+}
+
+fn resolve_global_constants(
+    resolver: &mut Resolver,
+    global_constants: Vec<UnresolvedGlobalConst>,
+) -> Vec<(FileId, StmtId)> {
+    let mut global_const_ids = Vec::new();
+
+    // NOTE: it is still necessary to intern global const statements to check for duplicate global const declarations,
+    // repeated variable names inside functions, consts in functions params, and consts specifying array size
+    for global_constant in global_constants.clone() {
+        let name = match global_constant.stmt_def.clone() {
+            Statement::Let(let_stmt) => {
+                let ident = match let_stmt.pattern {
+                    Pattern::Identifier(ident) => ident,
+                    _ => panic!("pattern for const statement must be an identifier"), // TODO: change this to use errors
+                };
+                ident
+            }
+            _ => panic!("global consts must be a let statement"), // TODO: change this to use errors
+        };
+
+        let stmt_id = resolver.intern_stmt(global_constant.stmt_def, true);
+        // Check if global const is already inside node interner
+        // Otherwise the stmt id generated when collecting the global consts will be overridden in the interner
+        if let None = resolver.get_global_const(&name) {
+            resolver.push_global_const(name, stmt_id);
+        }
+
+        global_const_ids.push((global_constant.file_id, stmt_id));
     }
     global_const_ids
 }
@@ -456,7 +456,7 @@ fn resolve_functions(
     errors: &mut Vec<CollectedErrors>,
 ) -> (Vec<(FileId, FuncId)>, Vec<(FileId, StmtId)>) {
     let mut file_func_ids = Vec::new();
-    let mut global_const_ids = Vec::new();
+    let mut file_const_ids: Vec<(FileId, StmtId)> = Vec::new();
     // Lower each function in the crate. This is now possible since imports have been resolved
     for unresolved_functions in collected_functions {
         let file_id = unresolved_functions.file_id;
@@ -470,9 +470,9 @@ fn resolve_functions(
 
             let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file_id);
             resolver.set_self_type(self_type);
-
+            
             let mut resolved_const_ids = resolve_global_constants(&mut resolver, collected_consts.clone());
-            global_const_ids.append(&mut resolved_const_ids);
+            file_const_ids.append(&mut resolved_const_ids);
 
             let (hir_func, func_meta, errs) = resolver.resolve_function(func);
             interner.push_fn_meta(func_meta, func_id);
@@ -486,7 +486,7 @@ fn resolve_functions(
         }
     }
 
-    (file_func_ids, global_const_ids)
+    (file_func_ids, file_const_ids)
 }
 
 fn type_check_functions(

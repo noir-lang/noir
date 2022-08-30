@@ -1,23 +1,22 @@
-let N: const Field = 5;
 let M: const Field = 32;
-fn main(a: [M]Field, b: [M]Field) {
 
-     //let mut y = 5;
-     //for i in 0..N*N {
-     //     y = i;
-     //};
-     //constrain y == 24;
+fn main(a: [M]Field, b: [M]Field) {
      constrain N != M;
+
+     let mut y = 5;
+     for i in 0..N*N {
+          y = i;
+     };
+     constrain y == 24;
 
      let mut x = M;
      //x = 5;
-     constrain (x) == 32;
+     constrain x == 32;
 
      let q = multiplyByM(3);
-     constrain q == 30;
+     constrain q == 96;
 
      arrays_neq(a, b);
-     //constrain a != b;
 
      let arr: [N]Field = [N; 5];
      // let arr: [N]Field = [N; 5]; NOTE: this is currently broken
@@ -36,7 +35,7 @@ fn main(a: [M]Field, b: [M]Field) {
 
 fn multiplyByM(x: Field) -> Field {
      // Uncomment this line to show duplicate variables error
-     //let M: const Field = 10;
+     let M: const Field = 10;
      x * M
 }
 
@@ -46,8 +45,8 @@ fn arrays_neq(a: [M]Field, b: [M]Field) {
 
 mod mysubmodule {
     use dep::std;
-    //let N: const Field = 5;
-    //let M: const Field = 10;
+    let N: const Field = 5;
+
     fn my_bool_or(x: Field, y: Field) {
         constrain std::bool_or(x, y) == 1;
     }

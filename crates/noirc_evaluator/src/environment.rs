@@ -60,6 +60,12 @@ impl Environment {
 
     pub fn get(&mut self, name: &str) -> Object {
         let global_scope = self.env.get_global_scope();
+        let map = global_scope.0.clone();
+        println!("GLOBAL SCOPE");
+        for (key, value) in map {
+            println!("key: {:?}, val: {:?}", key, value);
+        }
+
         if let Some(global_name) = global_scope.find(name) {
             println!("ENV GET global_name: {:?}", global_name);
             global_name.clone()
