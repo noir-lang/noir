@@ -192,7 +192,6 @@ impl<'a> Resolver<'a> {
 
         let location = Location::new(name.span(), self.file);
         let id = if let Some(variable_found) = global_variable {
-            println!("found global variable: location: {:?}", location.clone());
             variable_found.num_times_used += 1;
             variable_found.ident.id
         } else {

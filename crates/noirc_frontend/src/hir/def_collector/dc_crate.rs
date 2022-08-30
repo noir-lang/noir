@@ -160,7 +160,7 @@ impl DefCollector {
 
         // TODO: circle back to this, trying to insert global constants within dc_mod, currently only used to check for multiple global consts within a crate
         // resolve_global_constants(context, def_collector.collected_consts, crate_id, errors);
-        collect_global_constants(context, def_collector.collected_consts.clone(), crate_id, errors);
+        // collect_global_constants(context, def_collector.collected_consts.clone(), crate_id, errors);
 
         // Before we resolve any function symbols we must go through our impls and
         // re-collect the methods within into their proper module. This cannot be
@@ -179,7 +179,7 @@ impl DefCollector {
             errors,
         );
 
-        let (file_method_ids, _) = resolve_impls(
+        let (file_method_ids, method_const_ids) = resolve_impls(
             &mut context.def_interner,
             crate_id,
             &context.def_maps,
@@ -189,6 +189,7 @@ impl DefCollector {
         );
 
         type_check_global_consts(&mut context.def_interner, file_const_ids, errors);
+        type_check_global_consts(&mut context.def_interner, method_const_ids, errors);
         // Type check all of the functions in the crate
         type_check_functions(&mut context.def_interner, file_func_ids, errors);
         type_check_functions(&mut context.def_interner, file_method_ids, errors);
@@ -246,53 +247,55 @@ fn collect_impls(
     }
 }
 
-fn collect_global_constants(
-    context: &mut Context,
-    global_consts: Vec<UnresolvedGlobalConst>,
-    crate_id: CrateId,
-    errors: &mut Vec<CollectedErrors>,
-) {
-    for global_const in global_consts.clone() {
-        let path_resolver = StandardPathResolver::new(ModuleId {
-            local_id: global_const.module_id,
-            krate: crate_id,
-        });
+// fn collect_global_constants(
+//     context: &mut Context,
+//     global_consts: Vec<UnresolvedGlobalConst>,
+//     crate_id: CrateId,
+//     errors: &mut Vec<CollectedErrors>,
+// ) {
+//     for global_const in global_consts.clone() {
+//         let path_resolver = StandardPathResolver::new(ModuleId {
+//             local_id: global_const.module_id,
+//             krate: crate_id,
+//         });
 
-        let mut resolver = Resolver::new(
-            &mut context.def_interner,
-            &path_resolver,
-            &context.def_maps,
-            global_const.file_id,
-        );
+//         let mut resolver = Resolver::new(
+//             &mut context.def_interner,
+//             &path_resolver,
+//             &context.def_maps,
+//             global_const.file_id,
+//         );
 
-        let name = match global_const.stmt_def.clone() {
-            Statement::Let(let_stmt) => {
-                let ident = match let_stmt.pattern {
-                    Pattern::Identifier(ident) => ident,
-                    _ => panic!("pattern for const statement must be an identifier"), // TODO: change this to use errors
-                };
-                ident
-            }
-            _ => panic!("global consts must be a let statement"), // TODO: change this to use errors
-        };
-        let stmt_id = resolver.intern_stmt(global_const.stmt_def, true);
+//         let name = match global_const.stmt_def.clone() {
+//             Statement::Let(let_stmt) => {
+//                 let ident = match let_stmt.pattern {
+//                     Pattern::Identifier(ident) => ident,
+//                     _ => panic!("pattern for const statement must be an identifier"), // TODO: change this to use errors
+//                 };
+//                 ident
+//             }
+//             _ => panic!("global consts must be a let statement"), // TODO: change this to use errors
+//         };
+//         let stmt_id = resolver.intern_stmt(global_const.stmt_def, true);
 
-        // resolver.push_global_const(name.clone(), stmt_id);
+//         // NOTE: This is done in resolve global consts so that the resolver matches those used by an impl or functions in the module
+//         // resolver.push_global_const(name.clone(), stmt_id); 
 
-        let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
+//         let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
 
-        let result = current_def_map.modules[global_const.module_id.0]
-            .scope
-            .define_global_const_def(name, stmt_id);
-        if let Err((first_def, second_def)) = result {
-            let err = DefCollectorErrorKind::DuplicateGlobalConst { first_def, second_def };
-            errors.push(CollectedErrors {
-                file_id: global_const.file_id,
-                errors: vec![err.to_diagnostic()],
-            });
-        }
-    }   
-}
+//         // This simply checks for repeat global constants within the crate
+//         let result = current_def_map.modules[global_const.module_id.0]
+//             .scope
+//             .define_global_const_def(name, stmt_id);
+//         if let Err((first_def, second_def)) = result {
+//             let err = DefCollectorErrorKind::DuplicateGlobalConst { first_def, second_def };
+//             errors.push(CollectedErrors {
+//                 file_id: global_const.file_id,
+//                 errors: vec![err.to_diagnostic()],
+//             });
+//         }
+//     }   
+// }
 
 fn resolve_global_constants(
     resolver: &mut Resolver,

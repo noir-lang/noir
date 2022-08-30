@@ -189,7 +189,7 @@ impl<'a> Evaluator<'a> {
     pub fn evaluate_main(&mut self, env: &mut Environment) -> Result<(), RuntimeError> {
         self.parse_abi(env)?;
 
-        // TODO: still b roken with globals
+        // TODO: still broken with globals
         // for (_ident, stmt_id) in self.context.def_interner.get_all_global_consts() {
         //     self.evaluate_statement(env, &stmt_id, true)?;
         // }
@@ -214,13 +214,34 @@ impl<'a> Evaluator<'a> {
         let mut igen = IRGenerator::new(self.context);
         self.parse_abi_alt(env, &mut igen)?;
 
-        // NOTE: this is how we were evaluating constants before, now we are inserting them into functions of the ast and then evaluating them
         let mut stmt_ids = vec![];
         for (_ident, stmt_id) in self.context.def_interner.get_all_global_consts() {
-            self.evaluate_statement(env, &stmt_id, true)?;
+            // NOTE: this is how we were evaluating constants before, now we are inserting them into functions of the ast and then evaluating them as part of functions
+            // we should move to use ssa here for the global const statements
+            // self.evaluate_statement(env, &stmt_id, true)?;
+
+            // let hir_stmt = self.context.def_interner.statement(&stmt_id);
+            // match hir_stmt {
+            //     HirStatement::Let(let_stmt) => {
+            //         let obj = self.expression_to_object(env, &let_stmt.expression)?;
+            //         println!("obj after expression_to_object, {:?}", obj);
+            //         match let_stmt.pattern {
+            //             HirPattern::Identifier(ident) => {
+            //                 let name = self.context.def_interner.definition_name(ident.id);
+            //                 env.store(name.to_owned(), obj, true);
+            //             }
+            //             _ => panic!("global const pattern can only be an identifier")
+            //         }
+            //     }
+            //     _ => panic!("global const statement must be a let statement")
+            // }
             stmt_ids.push(stmt_id);
         }
+        println!("STMT_IDS: {:?}", stmt_ids);
 
+        igen.codegen_block(&stmt_ids, env);
+        // println!("finished codegen_block, env: {:?}", env.get("N"));
+        
         // Now call the main function
         let main_func_body = self.context.def_interner.function(&self.main_function);
         let location = self.context.def_interner.function_meta(&self.main_function).location;

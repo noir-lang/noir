@@ -89,7 +89,6 @@ pub fn prove_with_path<P: AsRef<Path>>(
     let driver = Resolver::resolve_root_config(program_dir.as_ref())?;
     let backend = crate::backends::ConcreteBackend;
     let compiled_program = driver.into_compiled_program(backend.np_language(), show_ssa);
-    // println!("compiled program:\n {:?}", compiled_program.circuit);
 
     // Parse the initial witness values
     let witness_map = noirc_abi::input_parser::Format::Toml
@@ -109,8 +108,10 @@ pub fn prove_with_path<P: AsRef<Path>>(
     let abi = compiled_program.abi.unwrap();
 
     let mut solved_witness = process_abi_with_input(abi, witness_map)?;
+    println!("solved_witness");
 
     let solver_res = backend.solve(&mut solved_witness, compiled_program.circuit.gates.clone());
+    println!("solver_res: {:?}", solver_res);
 
     if let Err(opcode) = solver_res {
         return Err(CliError::Generic(format!(
