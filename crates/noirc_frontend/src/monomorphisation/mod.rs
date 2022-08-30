@@ -450,7 +450,7 @@ impl Monomorphiser {
                 );
                 ast::Expression::CallLowLevel(ast::CallLowLevel { opcode, arguments })
             }
-            FunctionKind::Builtin => self.call_builtin(meta, arguments, call.arguments),
+            FunctionKind::Builtin => self.call_builtin(meta, arguments),
             FunctionKind::Normal => {
                 let func_id = self
                     .lookup_global(func_id, &typ)
@@ -465,20 +465,13 @@ impl Monomorphiser {
         &self,
         meta: FuncMeta,
         arguments: Vec<ast::Expression>,
-        arg_ids: Vec<node_interner::ExprId>,
     ) -> ast::Expression {
         let attribute = meta.attributes.expect("all builtin functions must contain an attribute which contains the function name which it links to");
         let opcode = attribute
             .builtin()
             .expect("ice: function marked as a builtin, but attribute kind does not match this");
 
-        if opcode == "arraylen" {
-            let typ = self.interner.id_type(arg_ids[0]);
-            let len = typ.array_length().unwrap();
-            ast::Expression::Literal(ast::Literal::Integer((len as u128).into(), ast::Type::Field))
-        } else {
-            ast::Expression::CallBuiltin(ast::CallBuiltin { opcode, arguments })
-        }
+        ast::Expression::CallBuiltin(ast::CallBuiltin { opcode, arguments })
     }
 
     fn queue_function(
