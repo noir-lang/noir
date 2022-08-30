@@ -199,14 +199,14 @@ impl<'a> Resolver<'a> {
         let location = Location::new(name.span(), self.file);
         let ident = HirIdent { location, id };
         let resolver_meta = ResolverMeta { num_times_used: 0, ident };
-        let old_global_value = global_scope.add_key_value(name.0.contents.clone(), resolver_meta);
+        let old_global_value = global_scope.add_key_value(name.0.contents, resolver_meta);
         if let Some(old_global_value) = old_global_value {
             self.push_err(ResolverError::DuplicateDefinition {
                 first_ident: old_global_value.ident,
                 second_ident: ident,
             });
         }
-        return ident;
+        ident
     }
 
     // Checks for a variable having been declared before
@@ -229,7 +229,7 @@ impl<'a> Resolver<'a> {
             let scope_tree = self.scopes.current_scope_tree();
             let variable = scope_tree.find(&name.0.contents);
 
-            let id = if let Some(variable_found) = variable {
+            if let Some(variable_found) = variable {
                 variable_found.num_times_used += 1;
                 variable_found.ident.id
             } else {
@@ -239,8 +239,7 @@ impl<'a> Resolver<'a> {
                 });
 
                 DefinitionId::dummy_id()
-            };
-            id
+            }
         };
         HirIdent { location, id }
     }

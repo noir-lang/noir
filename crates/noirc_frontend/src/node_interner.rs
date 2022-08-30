@@ -361,11 +361,7 @@ impl NodeInterner {
     }
 
     pub fn get_global_const(&self, name: &Ident) -> Option<StmtId> {
-        if let Some(stmt) = self.global_constants.get(name) {
-            Some(stmt.clone())
-        } else {
-            None
-        }
+        self.global_constants.get(name).map(|stmt| stmt.clone())
     }
 
     pub fn get_all_global_consts(&self) -> HashMap<Ident, StmtId> {

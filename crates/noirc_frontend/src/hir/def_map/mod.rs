@@ -63,7 +63,7 @@ impl CrateDefMap {
 
         // First parse the root file.
         let root_file_id = context.crate_graph[crate_id].root_file_id;
-        let mut ast = parse_file(&mut context.file_manager, root_file_id, errors);
+        let ast = parse_file(&mut context.file_manager, root_file_id, errors);
 
         // Allocate a default Module for the root, giving it a ModuleId
         let mut modules: Arena<ModuleData> = Arena::default();
@@ -80,7 +80,7 @@ impl CrateDefMap {
         };
 
         // Now we want to populate the CrateDefMap using the DefCollector
-        DefCollector::collect(def_map, context, &mut ast, root_file_id, errors);
+        DefCollector::collect(def_map, context, ast, root_file_id, errors);
     }
 
     pub fn root(&self) -> LocalModuleId {

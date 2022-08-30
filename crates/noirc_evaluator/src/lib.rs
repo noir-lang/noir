@@ -515,7 +515,6 @@ impl<'a> Evaluator<'a> {
             }
             HirStatement::Let(let_stmt) => {
                 // let statements are used to declare a higher level object
-                println!("inside evaluate_statement, doing a let stmt: {:?}", let_stmt);
                 self.handle_definition(env, &let_stmt.pattern, &let_stmt.expression, is_global)
             }
             HirStatement::Assign(assign_stmt) => {
@@ -614,8 +613,6 @@ impl<'a> Evaluator<'a> {
     ) -> Result<Object, RuntimeError> {
         // Convert the LHS into an identifier
         let variable_name = self.pattern_name(pattern);
-        // println!("HANDLE_DEF variable_name: {:?}", variable_name);
-        // println!("self.context.def_interner.id_type(rhs): {:?}", self.context.def_interner.id_type(rhs));
 
         // XXX: Currently we only support arrays using this, when other types are introduced
         // we can extend into a separate (generic) module
@@ -639,16 +636,10 @@ impl<'a> Evaluator<'a> {
                     ),
                 };
             }
-            Type::PolymorphicInteger(is_const, typ_var) if is_const.is_const() => {
-                println!("Polymorphic integer typ_var: {:?}", typ_var);
-                println!(
-                    "Polymorphic integer expression: {:?}",
-                    self.context.def_interner.expression(rhs)
-                );
+            Type::PolymorphicInteger(is_const, _typ_var) if is_const.is_const() => {
                 let span = self.context.def_interner.expr_location(rhs);
                 let value =
                     self.evaluate_integer(env, rhs).map_err(|kind| kind.add_location(span))?;
-                println!("Polymorphic integer Type::FieldElement value: {:?}", value);
                 env.store(variable_name, value, is_global);
             }
             _ => return self.handle_private_statement(env, variable_name, rhs),
@@ -683,7 +674,7 @@ impl<'a> Evaluator<'a> {
             // Add indice to environment
             let variable_name =
                 self.context.def_interner.definition_name(for_expr.identifier.id).to_owned();
-            env.store(variable_name, Object::Constants(indice), true);
+            env.store(variable_name, Object::Constants(indice), false);
 
             let block = self.expression_to_block(&for_expr.block);
             let statements = block.statements();

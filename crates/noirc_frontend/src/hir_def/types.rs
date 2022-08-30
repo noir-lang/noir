@@ -606,10 +606,10 @@ impl Type {
 
     fn get_fixed_variable_array_length(&self, ident: &Ident, interner: &NodeInterner) -> u128 {
         let stmt_id = interner
-            .get_global_const(&ident)
+            .get_global_const(ident)
             .expect("no statement associated with fixed sized array variable");
         let statement = interner.statement(&stmt_id);
-        let length = match statement {
+        match statement {
             HirStatement::Let(let_stmt) => {
                 let expression = interner.expression(&let_stmt.expression);
                 match expression {
@@ -625,8 +625,7 @@ impl Type {
                 }
             }
             _ => panic!("let statement not associated with statement"),
-        };
-        length
+        }
     }
 
     // Note; use strict_eq instead of partial_eq when comparing field types
@@ -649,7 +648,7 @@ impl Type {
 
                     AbiType::Array {
                         visibility: fe_type,
-                        length: length,
+                        length,
                         typ: Box::new(typ.as_abi_type(fe_type, interner)),
                     }
                 }

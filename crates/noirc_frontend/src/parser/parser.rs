@@ -84,7 +84,7 @@ fn global_declaration() -> impl NoirParser<TopLevelStatement> {
     let p = p.then(optional_type_annotation()); //TODO: rust requires annotation of global consts, perhaps we should as well and use a diff parser
     let p = then_commit_ignore(p, just(Token::Assign));
     let p = then_commit(p, literal().map_with_span(Expression::new)); // XXX: this should be a literal
-    p.map(Statement::new_let).map(|statement| TopLevelStatement::GlobalConst(statement))
+    p.map(Statement::new_let).map(TopLevelStatement::GlobalConst)
 }
 
 fn submodule(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<TopLevelStatement> {
