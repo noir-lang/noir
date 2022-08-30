@@ -505,7 +505,6 @@ impl<'a> Resolver<'a> {
     fn resolve_pattern_mutable(&mut self, pattern: Pattern, mutable: Option<Span>, is_global: bool) -> HirPattern {
         match pattern {
             Pattern::Identifier(name) => {
-                // println!("ABOUT TO ADD TO SCOPE: {:?}", name);
                 let id = self.add_variable_decl(name, mutable.is_some(), is_global);
                 HirPattern::Identifier(id)
             }

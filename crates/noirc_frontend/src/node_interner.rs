@@ -12,9 +12,9 @@ use crate::hir::def_collector::dc_crate::UnresolvedStruct;
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 use crate::hir_def::types::{StructType, Type};
 use crate::hir_def::{
-    expr::{HirExpression, HirIdent},
+    expr::{HirExpression},
     function::{FuncMeta, HirFunction},
-    stmt::{HirLetStatement, HirStatement},
+    stmt::{HirStatement},
 };
 use crate::TypeVariableId;
 

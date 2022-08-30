@@ -35,7 +35,7 @@ fn main(a: [M]Field, b: [M]Field) {
 
 fn multiplyByM(x: Field) -> Field {
      // Uncomment this line to show duplicate variables error
-     let M: const Field = 10;
+     //let M: const Field = 10;
      x * M
 }
 
