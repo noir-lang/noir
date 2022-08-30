@@ -11,10 +11,12 @@ use crate::hir::resolution::{
 use crate::hir::type_check::type_check;
 use crate::hir::type_check::type_check_func;
 use crate::hir::Context;
-use crate::hir_def::stmt::{HirStatement, HirPattern};
+use crate::hir_def::stmt::{HirPattern, HirStatement};
 use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId};
 use crate::util::vecmap;
-use crate::{Ident, NoirFunction, NoirStruct, ParsedModule, Path, Pattern, Statement, Type, BlockExpression};
+use crate::{
+    BlockExpression, Ident, NoirFunction, NoirStruct, ParsedModule, Path, Pattern, Statement, Type,
+};
 use fm::FileId;
 use noirc_errors::CollectedErrors;
 use noirc_errors::DiagnosableError;
@@ -278,7 +280,7 @@ fn collect_global_constants(
         let stmt_id = resolver.intern_stmt(global_const.stmt_def, true);
 
         // NOTE: This is done in resolve_global_consts so that the resolver matches the scopes used by an impl or functions in the module
-        // resolver.push_global_const(name.clone(), stmt_id); 
+        // resolver.push_global_const(name.clone(), stmt_id);
 
         let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
 
@@ -293,7 +295,7 @@ fn collect_global_constants(
                 errors: vec![err.to_diagnostic()],
             });
         }
-    }   
+    }
 }
 
 fn resolve_global_constants(
@@ -336,11 +338,15 @@ fn type_check_global_consts(
     for (file_id, stmt_id) in global_const_ids {
         let mut type_check_errs = Vec::new();
         let _stmt_type = type_check(interner, &stmt_id, &mut type_check_errs);
-        let type_check_err_diagnostics: Vec<_> = type_check_errs.clone().into_iter()
-                                        .map(|error| error.into_diagnostic(interner)).collect();
-    
+        let type_check_err_diagnostics: Vec<_> = type_check_errs
+            .clone()
+            .into_iter()
+            .map(|error| error.into_diagnostic(interner))
+            .collect();
+
         if !type_check_err_diagnostics.is_empty() {
-            let collected_errors = CollectedErrors { file_id: file_id, errors: type_check_err_diagnostics };
+            let collected_errors =
+                CollectedErrors { file_id: file_id, errors: type_check_err_diagnostics };
             errors.push(collected_errors)
         }
     }
@@ -417,8 +423,15 @@ fn resolve_impls(
         let self_type = resolver.lookup_struct(path);
         let self_type_id = self_type.as_ref().map(|typ| typ.borrow().id);
 
-        let (mut func_ids, mut const_ids) =
-            resolve_functions(interner, crate_id, def_maps, methods, collected_consts.clone(), self_type_id, errors);
+        let (mut func_ids, mut const_ids) = resolve_functions(
+            interner,
+            crate_id,
+            def_maps,
+            methods,
+            collected_consts.clone(),
+            self_type_id,
+            errors,
+        );
 
         if let Some(typ) = self_type {
             for (file_id, method_id) in &func_ids {
@@ -470,8 +483,9 @@ fn resolve_functions(
 
             let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file_id);
             resolver.set_self_type(self_type);
-            
-            let mut resolved_const_ids = resolve_global_constants(&mut resolver, collected_consts.clone());
+
+            let mut resolved_const_ids =
+                resolve_global_constants(&mut resolver, collected_consts.clone());
             file_const_ids.append(&mut resolved_const_ids);
 
             let (hir_func, func_meta, errs) = resolver.resolve_function(func);

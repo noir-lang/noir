@@ -214,9 +214,15 @@ impl<'a> Evaluator<'a> {
         self.parse_abi_alt(env, &mut igen)?;
 
         // Generate IR for global const statements before starting evaluation of main
-        let stmt_ids = self.context.def_interner.get_all_global_consts().values().cloned().collect::<Vec<StmtId>>();
+        let stmt_ids = self
+            .context
+            .def_interner
+            .get_all_global_consts()
+            .values()
+            .cloned()
+            .collect::<Vec<StmtId>>();
         igen.codegen_block(&stmt_ids, env);
-        
+
         // Now call the main function
         let main_func_body = self.context.def_interner.function(&self.main_function);
         let location = self.context.def_interner.function_meta(&self.main_function).location;
@@ -635,7 +641,10 @@ impl<'a> Evaluator<'a> {
             }
             Type::PolymorphicInteger(is_const, typ_var) if is_const.is_const() => {
                 println!("Polymorphic integer typ_var: {:?}", typ_var);
-                println!("Polymorphic integer expression: {:?}", self.context.def_interner.expression(rhs));
+                println!(
+                    "Polymorphic integer expression: {:?}",
+                    self.context.def_interner.expression(rhs)
+                );
                 let span = self.context.def_interner.expr_location(rhs);
                 let value =
                     self.evaluate_integer(env, rhs).map_err(|kind| kind.add_location(span))?;
