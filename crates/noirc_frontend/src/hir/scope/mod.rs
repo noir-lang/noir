@@ -186,24 +186,3 @@ impl<K: std::hash::Hash + Eq + Clone, V> Default for ScopeForest<K, V> {
 // We will have environment use this too
 
 // Implement for_loops in evaluator, but we need to migrate the environment to use the scope forest
-
-// pub struct GlobalScope<K, V> {
-//     pub global_scope: Scope<K, V>,
-//     pub scope_forest: Vec<ScopeForest<K, V>>,
-// }
-
-// impl<K: std::hash::Hash + Eq + Clone, V> GlobalScope<K, V> {
-//     pub fn new() -> GlobalScope<K, V> {
-//         GlobalScope {
-//             global_scope: Scope::new(),
-//             scope_forest: vec![ScopeForest::new()],
-//         }
-//         // GlobalScope(vec![ScopeForest::new()])
-//     }
-// }
-
-// impl<K: std::hash::Hash + Eq + Clone, V> Default for GlobalScope<K, V> {
-//     fn default() -> Self {
-//         Self::new()
-//     }
-// }

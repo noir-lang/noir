@@ -220,21 +220,22 @@ impl<'a> Evaluator<'a> {
             // we should move to use ssa here for the global const statements
             // self.evaluate_statement(env, &stmt_id, true)?;
 
-            // let hir_stmt = self.context.def_interner.statement(&stmt_id);
-            // match hir_stmt {
-            //     HirStatement::Let(let_stmt) => {
-            //         let obj = self.expression_to_object(env, &let_stmt.expression)?;
-            //         println!("obj after expression_to_object, {:?}", obj);
-            //         match let_stmt.pattern {
-            //             HirPattern::Identifier(ident) => {
-            //                 let name = self.context.def_interner.definition_name(ident.id);
-            //                 env.store(name.to_owned(), obj, true);
-            //             }
-            //             _ => panic!("global const pattern can only be an identifier")
-            //         }
-            //     }
-            //     _ => panic!("global const statement must be a let statement")
-            // }
+            let hir_stmt = self.context.def_interner.statement(&stmt_id);
+            match hir_stmt {
+                HirStatement::Let(let_stmt) => {
+                    let obj = self.expression_to_object(env, &let_stmt.expression)?;
+                    println!("obj after expression_to_object, {:?}", obj);
+                    match let_stmt.pattern {
+                        HirPattern::Identifier(ident) => {
+                            println!("definition ID for global const: {:?}", ident.id);
+                            let name = self.context.def_interner.definition_name(ident.id);
+                            env.store(name.to_owned(), obj, true);
+                        }
+                        _ => panic!("global const pattern can only be an identifier")
+                    }
+                }
+                _ => panic!("global const statement must be a let statement")
+            }
             stmt_ids.push(stmt_id);
         }
         println!("STMT_IDS: {:?}", stmt_ids);
