@@ -82,7 +82,7 @@ impl<'a> Evaluator<'a> {
         env: &mut Environment,
     ) -> Object {
         let value = Object::from_witness(witness);
-        env.store(variable_name, value.clone());
+        env.store(variable_name, value.clone(), false);
         value
     }
 
@@ -188,13 +188,18 @@ impl<'a> Evaluator<'a> {
     pub fn evaluate_main(&mut self, env: &mut Environment) -> Result<(), RuntimeError> {
         self.parse_abi(env)?;
 
+        // TODO: still broken with globals
+        // for (_ident, stmt_id) in self.context.def_interner.get_all_global_consts() {
+        //     self.evaluate_statement(env, &stmt_id, true)?;
+        // }
+
         // Now call the main function
         // XXX: We should be able to replace this with call_function in the future,
         // It is not possible now due to the aztec standard format requiring a particular ordering of inputs in the ABI
         let main_func_body = self.context.def_interner.function(&self.main_function);
         let block = main_func_body.block(&self.context.def_interner);
         for stmt_id in block.statements() {
-            self.evaluate_statement(env, stmt_id)?;
+            self.evaluate_statement(env, stmt_id, false)?;
         }
         Ok(())
     }
@@ -208,6 +213,10 @@ impl<'a> Evaluator<'a> {
         let mut igen = IRGenerator::new(self.context);
         self.parse_abi_alt(env, &mut igen)?;
 
+        // Generate IR for global const statements before starting evaluation of main
+        let stmt_ids = self.context.def_interner.get_all_global_consts().values().cloned().collect::<Vec<StmtId>>();
+        igen.codegen_block(&stmt_ids, env);
+        
         // Now call the main function
         let main_func_body = self.context.def_interner.function(&self.main_function);
         let location = self.context.def_interner.function_meta(&self.main_function).location;
@@ -278,7 +287,7 @@ impl<'a> Evaluator<'a> {
                         elements.push(object);
                     }
                     let arr = Array { contents: elements, length };
-                    env.store(param_name, Object::Array(arr));
+                    env.store(param_name, Object::Array(arr), false);
                 }
                 noirc_abi::AbiType::Field(noirc_abi::AbiFEType::Private) => {
                     let witness = self.add_witness_to_cs();
@@ -298,7 +307,7 @@ impl<'a> Evaluator<'a> {
                     let integer = Integer::from_witness_unconstrained(witness, width);
                     integer.constrain(self).map_err(|kind| kind.add_location(param_location))?;
 
-                    env.store(param_name, Object::Integer(integer));
+                    env.store(param_name, Object::Integer(integer), false);
                 }
                 noirc_abi::AbiType::Field(noirc_abi::AbiFEType::Public) => {
                     let witness = self.add_witness_to_cs();
@@ -488,6 +497,7 @@ impl<'a> Evaluator<'a> {
         &mut self,
         env: &mut Environment,
         stmt_id: &StmtId,
+        is_global: bool,
     ) -> Result<Object, RuntimeError> {
         let statement = self.context.def_interner.statement(stmt_id);
         match statement {
@@ -500,7 +510,7 @@ impl<'a> Evaluator<'a> {
             HirStatement::Let(let_stmt) => {
                 // let statements are used to declare a higher level object
                 println!("inside evaluate_statement, doing a let stmt: {:?}", let_stmt);
-                self.handle_definition(env, &let_stmt.pattern, &let_stmt.expression)
+                self.handle_definition(env, &let_stmt.pattern, &let_stmt.expression, is_global)
             }
             HirStatement::Assign(assign_stmt) => {
                 let ident = HirPattern::Identifier(match assign_stmt.lvalue {
@@ -509,7 +519,7 @@ impl<'a> Evaluator<'a> {
                     HirLValue::Index { .. } => unimplemented!(),
                 });
 
-                self.handle_definition(env, &ident, &assign_stmt.expression)
+                self.handle_definition(env, &ident, &assign_stmt.expression, is_global)
             }
             HirStatement::Error => unreachable!(
                 "ice: compiler did not exit before codegen when a statement failed to parse"
@@ -538,7 +548,7 @@ impl<'a> Evaluator<'a> {
         // This second way is preferred because it allows for more optimisation options.
         // If the RHS is not a linear polynomial, then we do the first option.
         if rhs_poly.can_defer_constraint() {
-            env.store(variable_name, rhs_poly.clone());
+            env.store(variable_name, rhs_poly.clone(), false);
         } else {
             self.add_witness_to_env(variable_name, witness, env);
         }
@@ -594,9 +604,12 @@ impl<'a> Evaluator<'a> {
         env: &mut Environment,
         pattern: &HirPattern,
         rhs: &ExprId,
+        is_global: bool,
     ) -> Result<Object, RuntimeError> {
         // Convert the LHS into an identifier
         let variable_name = self.pattern_name(pattern);
+        // println!("HANDLE_DEF variable_name: {:?}", variable_name);
+        // println!("self.context.def_interner.id_type(rhs): {:?}", self.context.def_interner.id_type(rhs));
 
         // XXX: Currently we only support arrays using this, when other types are introduced
         // we can extend into a separate (generic) module
@@ -607,18 +620,27 @@ impl<'a> Evaluator<'a> {
                 let span = self.context.def_interner.expr_location(rhs);
                 let value =
                     self.evaluate_integer(env, rhs).map_err(|kind| kind.add_location(span))?;
-                env.store(variable_name, value);
+                env.store(variable_name, value, is_global);
             }
             Type::Array(..) => {
                 let rhs_poly = self.expression_to_object(env, rhs)?;
                 match rhs_poly {
                     Object::Array(arr) => {
-                        env.store(variable_name, Object::Array(arr));
+                        env.store(variable_name, Object::Array(arr), is_global);
                     }
                     _ => unimplemented!(
                         "The evaluator currently only supports arrays and constant integers!"
                     ),
                 };
+            }
+            Type::PolymorphicInteger(is_const, typ_var) if is_const.is_const() => {
+                println!("Polymorphic integer typ_var: {:?}", typ_var);
+                println!("Polymorphic integer expression: {:?}", self.context.def_interner.expression(rhs));
+                let span = self.context.def_interner.expr_location(rhs);
+                let value =
+                    self.evaluate_integer(env, rhs).map_err(|kind| kind.add_location(span))?;
+                println!("Polymorphic integer Type::FieldElement value: {:?}", value);
+                env.store(variable_name, value, is_global);
             }
             _ => return self.handle_private_statement(env, variable_name, rhs),
         }
@@ -652,7 +674,7 @@ impl<'a> Evaluator<'a> {
             // Add indice to environment
             let variable_name =
                 self.context.def_interner.definition_name(for_expr.identifier.id).to_owned();
-            env.store(variable_name, Object::Constants(indice));
+            env.store(variable_name, Object::Constants(indice), true);
 
             let block = self.expression_to_block(&for_expr.block);
             let statements = block.statements();
@@ -788,7 +810,7 @@ impl<'a> Evaluator<'a> {
 
         for (param, argument) in func_meta.parameters.iter().zip(arguments.into_iter()) {
             let param_name = self.pattern_name(&param.0);
-            new_env.store(param_name, argument);
+            new_env.store(param_name, argument, false);
         }
 
         let return_val = self.apply_func(&mut new_env, &func_id)?;
@@ -813,7 +835,7 @@ impl<'a> Evaluator<'a> {
     ) -> Result<Object, RuntimeError> {
         let mut result = Object::Null;
         for stmt in block {
-            result = self.evaluate_statement(env, stmt)?;
+            result = self.evaluate_statement(env, stmt, false)?;
         }
         Ok(result)
     }
