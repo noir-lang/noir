@@ -38,7 +38,6 @@ pub trait PartialWitnessGenerator {
             return Ok(());
         }
         let mut unsolved_gates: Vec<Gate> = Vec::new();
-        println!("about to enter gates loop");
 
         for gate in gates.into_iter() {
             let unsolved = match &gate {
@@ -158,7 +157,6 @@ pub trait PartialWitnessGenerator {
                 },
             };
             if unsolved {
-                println!("unsolved gate: {:?}", gate);
                 unsolved_gates.push(gate);
             }
         }
