@@ -499,6 +499,13 @@ impl Monomorphiser {
         new_id
     }
 
+    /// Follow any type variable links within the given TypeBindings to produce
+    /// a new TypeBindings that won't be changed when bindings are pushed or popped
+    /// during {perform,undo}_monomorphisation_bindings.
+    ///
+    /// Without this, a monomorphised type may fail to propagate passed more than 2
+    /// function calls deep since it is possible for a previous link in the chain to
+    /// unbind a type variable that was previously bound.
     fn follow_bindings(&self, bindings: &TypeBindings) -> TypeBindings {
         bindings
             .iter()

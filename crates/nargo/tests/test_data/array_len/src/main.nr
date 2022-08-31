@@ -8,7 +8,7 @@ fn add_lens<T>(a: [T], b: [Field]) -> Field {
     std::array::len(a) + std::array::len(b)
 }
 
-fn nested_call(b: [Field]) -> Field{
+fn nested_call(b: [Field]) -> Field {
     len_plus_1(b)
 }
 
