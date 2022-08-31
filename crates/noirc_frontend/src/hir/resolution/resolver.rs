@@ -173,32 +173,28 @@ impl<'a> Resolver<'a> {
 
     fn add_global_variable_decl(&mut self, name: Ident) -> HirIdent {
         let global_scope = self.scopes.get_global_scope();
-        // This is necessary to maintain the same definition ids in the interner. Currently, each function uses a new resolver that has its own ScopeForest and thus global scope.
+        let ident;
+        let resolver_meta;
+        // This check is necessary to maintain the same definition ids in the interner. Currently, each function uses a new resolver that has its own ScopeForest and thus global scope.
         // We must first check whether an existing definition ID has been inserted as otherwise there will be multiple definitions for the same global const statement.
         // This leads to an error in evaluation where the wrong definition ID is selected when evaluating a statement using the global const. The check below prevents this error.
         if let Some(stmt_id) = self.interner.get_global_const(&name) {
             let hir_stmt = self.interner.statement(&stmt_id);
-            let ident = match hir_stmt {
+            ident = match hir_stmt {
                 HirStatement::Let(let_stmt) => match let_stmt.pattern {
                     HirPattern::Identifier(ident) => ident,
                     _ => panic!("global const pattern can only be an identifier"),
                 },
                 _ => panic!("global const statement must be a let statement"),
             };
-            let resolver_meta = ResolverMeta { num_times_used: 0, ident };
-            let old_global_value = global_scope.add_key_value(name.0.contents, resolver_meta);
-            if let Some(old_global_value) = old_global_value {
-                self.push_err(ResolverError::DuplicateDefinition {
-                    first_ident: old_global_value.ident,
-                    second_ident: ident,
-                });
-            }
-            return ident;
+            resolver_meta = ResolverMeta { num_times_used: 0, ident };
+        } else {
+            let id = self.interner.push_definition(name.0.contents.clone(), false);
+            let location = Location::new(name.span(), self.file);
+            ident = HirIdent { location, id };
+            resolver_meta = ResolverMeta { num_times_used: 0, ident };
         }
-        let id = self.interner.push_definition(name.0.contents.clone(), false);
-        let location = Location::new(name.span(), self.file);
-        let ident = HirIdent { location, id };
-        let resolver_meta = ResolverMeta { num_times_used: 0, ident };
+
         let old_global_value = global_scope.add_key_value(name.0.contents, resolver_meta);
         if let Some(old_global_value) = old_global_value {
             self.push_err(ResolverError::DuplicateDefinition {

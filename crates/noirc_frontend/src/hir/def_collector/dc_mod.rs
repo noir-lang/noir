@@ -4,9 +4,9 @@ use noirc_errors::{CollectedErrors, CustomDiagnostic, DiagnosableError};
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::UnresolvedStruct,
-    node_interner::{StmtId, StructId},
+    node_interner::{StructId},
     parser::SubModule,
-    Ident, NoirFunction, NoirImpl, NoirStruct, ParsedModule, Statement,
+    Ident, NoirFunction, NoirImpl, NoirStruct, ParsedModule
 };
 
 use super::{
