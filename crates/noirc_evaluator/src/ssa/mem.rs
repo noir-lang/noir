@@ -3,7 +3,6 @@ use super::context::SsaContext;
 use super::node::{self, Node, NodeId};
 use acvm::FieldElement;
 use noirc_frontend::node_interner::DefinitionId;
-use noirc_frontend::ArraySize;
 use num_bigint::BigUint;
 use num_traits::ToPrimitive;
 use std::collections::HashMap;

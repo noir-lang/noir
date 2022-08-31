@@ -354,31 +354,33 @@ impl<'a> Evaluator<'a> {
                         panic!("cannot have variable sized array in entry point")
                     }
                     noirc_frontend::ArraySize::Fixed(len) => {
-                        self.handle_array_size(
-                            name,
-                            def,
-                            param_visibility,
-                            param_location,
-                            typ.clone(),
-                            len,
-                            &mut witnesses,
-                            element_width,
-                            igen,
-                        )?;
+                        for _ in 0..len {
+                            let witness = self.add_witness_to_cs();
+                            witnesses.push(witness);
+                            if let Some(ww) = element_width {
+                                ssa::acir_gen::range_constraint(witness, ww, self)
+                                    .map_err(|e| e.add_location(param_location))?;
+                            }
+                            if param_visibility == AbiFEType::Public {
+                                self.public_inputs.push(witness);
+                            }
+                        }
+                        igen.abi_array(name, def, *typ.clone(), len, witnesses.clone());
                     }
                     noirc_frontend::ArraySize::FixedVariable(_) => {
                         let len = param_type.num_elements(&self.context.def_interner) as u128; // TODO: cast is fine for now but we cast to lower type to u32 within igen.abi_array
-                        self.handle_array_size(
-                            name,
-                            def,
-                            param_visibility,
-                            param_location,
-                            typ.clone(),
-                            len,
-                            &mut witnesses,
-                            element_width,
-                            igen,
-                        )?;
+                        for _ in 0..len {
+                            let witness = self.add_witness_to_cs();
+                            witnesses.push(witness);
+                            if let Some(ww) = element_width {
+                                ssa::acir_gen::range_constraint(witness, ww, self)
+                                    .map_err(|e| e.add_location(param_location))?;
+                            }
+                            if param_visibility == AbiFEType::Public {
+                                self.public_inputs.push(witness);
+                            }
+                        }
+                        igen.abi_array(name, def, *typ.clone(), len, witnesses.clone());
                     }
                 }
             }
@@ -406,33 +408,6 @@ impl<'a> Evaluator<'a> {
             Type::Error => todo!(),
             Type::Unspecified => todo!(),
         }
-        Ok(())
-    }
-
-    fn handle_array_size(
-        &mut self,
-        name: &str,
-        def: DefinitionId,
-        param_visibility: AbiFEType,
-        param_location: Location,
-        typ: Box<Type>,
-        len: u128,
-        witnesses: &mut Vec<Witness>,
-        element_width: Option<u32>,
-        igen: &mut IRGenerator,
-    ) -> Result<(), RuntimeError> {
-        for _ in 0..len {
-            let witness = self.add_witness_to_cs();
-            witnesses.push(witness);
-            if let Some(ww) = element_width {
-                ssa::acir_gen::range_constraint(witness, ww, self)
-                    .map_err(|e| e.add_location(param_location))?;
-            }
-            if param_visibility == AbiFEType::Public {
-                self.public_inputs.push(witness);
-            }
-        }
-        igen.abi_array(name, def, *typ.clone(), len, witnesses.clone());
         Ok(())
     }
 
