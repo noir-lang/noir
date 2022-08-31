@@ -159,7 +159,7 @@ fn resolve_external_dep(
     let dep_module = current_def_map
         .extern_prelude
         .get(&crate_name)
-        .unwrap_or_else(|| panic!("error reporter: could not find crate {crate_name}"));
+        .unwrap_or_else(|| panic!("error reporter: could not find crate {}", crate_name));
 
     // Create an import directive for the dependency crate
     let path_without_crate_name = &path[1..]; // XXX: This will panic if the path is of the form `use dep::std` Ideal algorithm will not distinguish between crate and module
