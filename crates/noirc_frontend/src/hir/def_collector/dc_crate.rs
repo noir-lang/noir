@@ -55,15 +55,12 @@ impl Clone for UnresolvedGlobalConst {
 
 struct FunctionResolutionInfo {
     file_func_ids: Vec<(FileId, FuncId)>,
-    file_const_ids: Vec<(FileId, StmtId)>
+    file_const_ids: Vec<(FileId, StmtId)>,
 }
 
 impl FunctionResolutionInfo {
     pub fn new() -> Self {
-        Self {
-            file_func_ids: Vec::new(),
-            file_const_ids: Vec::new()
-        }
+        Self { file_func_ids: Vec::new(), file_const_ids: Vec::new() }
     }
 }
 
@@ -200,8 +197,16 @@ impl DefCollector {
             errors,
         );
 
-        type_check_global_consts(&mut context.def_interner, funcs_resolution_ids.file_const_ids, errors);
-        type_check_global_consts(&mut context.def_interner, impls_resolution_ids.file_const_ids, errors);
+        type_check_global_consts(
+            &mut context.def_interner,
+            funcs_resolution_ids.file_const_ids,
+            errors,
+        );
+        type_check_global_consts(
+            &mut context.def_interner,
+            impls_resolution_ids.file_const_ids,
+            errors,
+        );
         // Type check all of the functions in the crate
         type_check_functions(&mut context.def_interner, funcs_resolution_ids.file_func_ids, errors);
         type_check_functions(&mut context.def_interner, impls_resolution_ids.file_func_ids, errors);
@@ -329,14 +334,13 @@ fn resolve_global_constants(
             _ => panic!("global consts must be a let statement"), // TODO: change this to use errors
         };
         let stmt_id = resolver.intern_stmt(global_constant.stmt_def, true);
-        
+
         // Check if global const is already inside node interner
         // Otherwise the stmt id generated when collecting the global consts will be overridden in the interner
         if resolver.get_global_const(&name).is_none() {
             resolver.push_global_const(name, stmt_id);
             global_const_ids.push((global_constant.file_id, stmt_id));
         }
-
     }
     global_const_ids
 }
@@ -496,7 +500,7 @@ fn resolve_functions(
 
             let mut resolved_const_ids =
                 resolve_global_constants(&mut resolver, collected_consts.clone());
-                funcs_resolution_ids.file_const_ids.append(&mut resolved_const_ids);
+            funcs_resolution_ids.file_const_ids.append(&mut resolved_const_ids);
 
             let (hir_func, func_meta, errs) = resolver.resolve_function(func);
             interner.push_fn_meta(func_meta, func_id);

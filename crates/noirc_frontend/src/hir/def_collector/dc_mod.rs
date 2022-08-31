@@ -2,11 +2,8 @@ use fm::FileId;
 use noirc_errors::{CollectedErrors, CustomDiagnostic, DiagnosableError};
 
 use crate::{
-    graph::CrateId,
-    hir::def_collector::dc_crate::UnresolvedStruct,
-    node_interner::{StructId},
-    parser::SubModule,
-    Ident, NoirFunction, NoirImpl, NoirStruct, ParsedModule
+    graph::CrateId, hir::def_collector::dc_crate::UnresolvedStruct, node_interner::StructId,
+    parser::SubModule, Ident, NoirFunction, NoirImpl, NoirStruct, ParsedModule,
 };
 
 use super::{
