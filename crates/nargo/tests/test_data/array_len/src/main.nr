@@ -13,8 +13,11 @@ fn nested_call(b: [Field]) -> Field {
 }
 
 fn main(len3: [u8; 3], len4: [Field; 4]) {
-     constrain len_plus_1(len3) == 4;
-     constrain len_plus_1(len4) == 5;
-     constrain add_lens(len3, len4) == 7;
-     constrain nested_call(len4) == 5;
+    constrain len_plus_1(len3) == 4;
+    constrain len_plus_1(len4) == 5;
+    constrain add_lens(len3, len4) == 7;
+    constrain nested_call(len4) == 5;
+
+    // std::array::len returns a const value
+    constrain len4[std::array::len(len3)] == 4;
 }
