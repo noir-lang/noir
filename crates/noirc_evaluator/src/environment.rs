@@ -47,25 +47,14 @@ impl Environment {
         self.env.end_scope();
     }
 
-    pub fn store(&mut self, name: String, object: Object, is_global: bool) {
-        let global_scope = self.env.get_global_scope();
-        if is_global {
-            global_scope.add_key_value(name, object);
-            return;
-        };
+    pub fn store(&mut self, name: String, object: Object) {
         let scope = self.env.get_mut_scope();
         scope.add_key_value(name, object);
     }
 
     pub fn get(&mut self, name: &str) -> Object {
-        let global_scope = self.env.get_global_scope();
-
-        if let Some(global_name) = global_scope.find(name) {
-            global_name.clone()
-        } else {
-            let scope = self.env.current_scope_tree();
-            scope.find(name).unwrap().clone()
-        }
+        let scope = self.env.current_scope_tree();
+        scope.find(name).unwrap().clone()
     }
 
     // This method is somewhat of a hack, due to the fact that we do not map

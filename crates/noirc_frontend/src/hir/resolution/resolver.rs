@@ -118,12 +118,7 @@ impl<'a> Resolver<'a> {
 
         for unused_var in unused_vars.iter() {
             if self.interner.definition_name(unused_var.id) != ERROR_IDENT {
-                // Check whether the unused var is a global constant
-                let global_def_name = self.interner.definition_name(unused_var.id);
-                let global_ident = Ident::from(global_def_name.to_owned());
-                if self.interner.get_global_const(&global_ident).is_none() {
-                    self.push_err(ResolverError::UnusedVariable { ident: *unused_var });
-                }
+                self.push_err(ResolverError::UnusedVariable { ident: *unused_var });
             }
         }
     }
@@ -320,7 +315,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    pub fn intern_stmt(&mut self, stmt: Statement, is_global: bool) -> StmtId {
+    pub fn resolve_stmt(&mut self, stmt: Statement, is_global: bool) -> HirStatement {
         let stmt = match stmt {
             Statement::Let(let_stmt) => HirStatement::Let(HirLetStatement {
                 pattern: self.resolve_pattern(let_stmt.pattern, is_global),
@@ -341,7 +336,25 @@ impl<'a> Resolver<'a> {
             }
             Statement::Error => HirStatement::Error,
         };
-        self.interner.push_stmt(stmt)
+        // self.interner.push_stmt(stmt)
+        stmt
+    }
+
+    pub fn intern_stmt(&mut self, stmt: Statement, is_global: bool) -> StmtId {
+        let hir_stmt = self.resolve_stmt(stmt, is_global);
+        self.interner.push_stmt(hir_stmt)
+    }
+
+    pub fn extract_const_stmt_name(&mut self, stmt: Statement) -> Ident {
+        match stmt {
+            Statement::Let(let_stmt) => {
+                match let_stmt.pattern {
+                    Pattern::Identifier(ident) => ident,
+                    _ => panic!("pattern for const statement must be an identifier"), // TODO: change this to use errors
+                }
+            }
+            _ => panic!("global consts must be a let statement"), // TODO: change this to use errors
+        }
     }
 
     fn resolve_lvalue(&mut self, lvalue: LValue) -> HirLValue {

@@ -37,31 +37,11 @@ pub struct UnresolvedStruct {
     pub struct_def: NoirStruct,
 }
 
+#[derive(Clone)]
 pub struct UnresolvedGlobalConst {
     pub file_id: FileId,
     pub module_id: LocalModuleId,
     pub stmt_def: Statement,
-}
-
-impl Clone for UnresolvedGlobalConst {
-    fn clone(&self) -> Self {
-        UnresolvedGlobalConst {
-            file_id: self.file_id,
-            module_id: self.module_id,
-            stmt_def: self.stmt_def.clone(),
-        }
-    }
-}
-
-struct FunctionResolutionInfo {
-    file_func_ids: Vec<(FileId, FuncId)>,
-    file_const_ids: Vec<(FileId, StmtId)>,
-}
-
-impl FunctionResolutionInfo {
-    pub fn new() -> Self {
-        Self { file_func_ids: Vec::new(), file_const_ids: Vec::new() }
-    }
 }
 
 /// Given a Crate root, collect all definitions in that crate
@@ -168,8 +148,13 @@ impl DefCollector {
 
         resolve_structs(context, def_collector.collected_types, crate_id, errors);
 
-        // Collect global constants and check for multiple declarations within a crate
-        collect_global_constants(context, def_collector.collected_consts.clone(), crate_id, errors);
+        // Collect global constants and check for multiple declarations within a crate TODO: change to within module
+        let file_const_ids = collect_global_constants(
+            context,
+            def_collector.collected_consts.clone(),
+            crate_id,
+            errors,
+        );
 
         // Before we resolve any function symbols we must go through our impls and
         // re-collect the methods within into their proper module. This cannot be
@@ -178,7 +163,7 @@ impl DefCollector {
         collect_impls(context, crate_id, &def_collector.collected_impls, errors);
 
         // Lower each function in the crate. This is now possible since imports have been resolved
-        let funcs_resolution_ids = resolve_functions(
+        let file_func_ids = resolve_functions(
             &mut context.def_interner,
             crate_id,
             &context.def_maps,
@@ -188,7 +173,7 @@ impl DefCollector {
             errors,
         );
 
-        let impls_resolution_ids = resolve_impls(
+        let file_method_ids = resolve_impls(
             &mut context.def_interner,
             crate_id,
             &context.def_maps,
@@ -197,19 +182,10 @@ impl DefCollector {
             errors,
         );
 
-        type_check_global_consts(
-            &mut context.def_interner,
-            funcs_resolution_ids.file_const_ids,
-            errors,
-        );
-        type_check_global_consts(
-            &mut context.def_interner,
-            impls_resolution_ids.file_const_ids,
-            errors,
-        );
+        type_check_global_consts(&mut context.def_interner, file_const_ids, errors);
         // Type check all of the functions in the crate
-        type_check_functions(&mut context.def_interner, funcs_resolution_ids.file_func_ids, errors);
-        type_check_functions(&mut context.def_interner, impls_resolution_ids.file_func_ids, errors);
+        type_check_functions(&mut context.def_interner, file_func_ids, errors);
+        type_check_functions(&mut context.def_interner, file_method_ids, errors);
     }
 }
 
@@ -269,7 +245,9 @@ fn collect_global_constants(
     global_constants: Vec<UnresolvedGlobalConst>,
     crate_id: CrateId,
     errors: &mut Vec<CollectedErrors>,
-) {
+) -> Vec<(FileId, StmtId)> {
+    let mut global_const_ids = Vec::new();
+
     for global_constant in global_constants {
         let path_resolver = StandardPathResolver::new(ModuleId {
             local_id: global_constant.module_id,
@@ -283,21 +261,11 @@ fn collect_global_constants(
             global_constant.file_id,
         );
 
-        let name = match global_constant.stmt_def.clone() {
-            Statement::Let(let_stmt) => {
-                match let_stmt.pattern {
-                    Pattern::Identifier(ident) => ident,
-                    _ => panic!("pattern for const statement must be an identifier"), // TODO: change this to use errors
-                }
-            }
-            _ => panic!("global consts must be a let statement"), // TODO: change this to use errors
-        };
+        let name = resolver.extract_const_stmt_name(global_constant.stmt_def.clone());
 
-        // This is a junk stmt id only used in the item scope for finding duplicate global consts
         let stmt_id = resolver.intern_stmt(global_constant.stmt_def, true);
 
-        // NOTE: This is done in resolve_global_consts so that the resolver matches the scopes used by functions or impl functions in the module
-        // resolver.push_global_const(name.clone(), stmt_id);
+        resolver.push_global_const(name.clone(), stmt_id);
 
         let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
 
@@ -312,37 +280,18 @@ fn collect_global_constants(
                 errors: vec![err.to_diagnostic()],
             });
         }
-    }
-}
 
-fn resolve_global_constants(
-    resolver: &mut Resolver,
-    global_constants: Vec<UnresolvedGlobalConst>,
-) -> Vec<(FileId, StmtId)> {
-    let mut global_const_ids = Vec::new();
-
-    // NOTE: it is still necessary to intern global const statements to check for duplicate global const declarations,
-    // repeated variable names inside functions, consts in functions params, and consts specifying array size
-    for global_constant in global_constants {
-        let name = match global_constant.stmt_def.clone() {
-            Statement::Let(let_stmt) => {
-                match let_stmt.pattern {
-                    Pattern::Identifier(ident) => ident,
-                    _ => panic!("pattern for const statement must be an identifier"), // TODO: change this to use errors
-                }
-            }
-            _ => panic!("global consts must be a let statement"), // TODO: change this to use errors
-        };
-        let stmt_id = resolver.intern_stmt(global_constant.stmt_def, true);
-
-        // Check if global const is already inside node interner
-        // Otherwise the stmt id generated when collecting the global consts will be overridden in the interner
-        if resolver.get_global_const(&name).is_none() {
-            resolver.push_global_const(name, stmt_id);
-            global_const_ids.push((global_constant.file_id, stmt_id));
-        }
+        global_const_ids.push((global_constant.file_id, stmt_id));
     }
     global_const_ids
+}
+
+fn resolve_global_constants(resolver: &mut Resolver, global_constants: Vec<UnresolvedGlobalConst>) {
+    // NOTE: Each function uses a new resolver that has a newly constructed scopes field
+    // Thus it is still necessary to resolve global const statements here to place a global const inside the global scope of a function's resolver
+    for global_constant in global_constants {
+        resolver.resolve_stmt(global_constant.stmt_def, true);
+    }
 }
 
 fn type_check_global_consts(
@@ -423,8 +372,8 @@ fn resolve_impls(
     collected_impls: HashMap<(Path, LocalModuleId), Vec<UnresolvedFunctions>>,
     collected_consts: Vec<UnresolvedGlobalConst>,
     errors: &mut Vec<CollectedErrors>,
-) -> FunctionResolutionInfo {
-    let mut impls_resolution_ids = FunctionResolutionInfo::new();
+) -> Vec<(FileId, FuncId)> {
+    let mut file_method_ids = Vec::new();
 
     for ((path, module_id), methods) in collected_impls {
         let path_resolver =
@@ -436,7 +385,7 @@ fn resolve_impls(
         let self_type = resolver.lookup_struct(path);
         let self_type_id = self_type.as_ref().map(|typ| typ.borrow().id);
 
-        let mut funcs_resolution_ids = resolve_functions(
+        let mut ids = resolve_functions(
             interner,
             crate_id,
             def_maps,
@@ -447,7 +396,7 @@ fn resolve_impls(
         );
 
         if let Some(typ) = self_type {
-            for (file_id, method_id) in &funcs_resolution_ids.file_func_ids {
+            for (file_id, method_id) in &ids {
                 let method_name = interner.function_name(method_id).to_owned();
                 let mut typ = typ.borrow_mut();
 
@@ -465,11 +414,10 @@ fn resolve_impls(
             }
         }
 
-        impls_resolution_ids.file_func_ids.append(&mut funcs_resolution_ids.file_func_ids);
-        impls_resolution_ids.file_const_ids.append(&mut funcs_resolution_ids.file_const_ids);
+        file_method_ids.append(&mut ids);
     }
 
-    impls_resolution_ids
+    file_method_ids
 }
 
 fn resolve_functions(
@@ -480,17 +428,16 @@ fn resolve_functions(
     collected_consts: Vec<UnresolvedGlobalConst>,
     self_type: Option<StructId>,
     errors: &mut Vec<CollectedErrors>,
-) -> FunctionResolutionInfo {
-    let mut funcs_resolution_ids = FunctionResolutionInfo::new();
-    // let mut file_func_ids = Vec::new();
-    // let mut file_const_ids: Vec<(FileId, StmtId)> = Vec::new();
+) -> Vec<(FileId, FuncId)> {
+    let mut file_func_ids = Vec::new();
+
     // Lower each function in the crate. This is now possible since imports have been resolved
     for unresolved_functions in collected_functions {
         let file_id = unresolved_functions.file_id;
         let mut collected_errors = CollectedErrors { file_id, errors: Vec::new() };
 
         for (mod_id, func_id, func) in unresolved_functions.functions {
-            funcs_resolution_ids.file_func_ids.push((file_id, func_id));
+            file_func_ids.push((file_id, func_id));
 
             let path_resolver =
                 StandardPathResolver::new(ModuleId { local_id: mod_id, krate: crate_id });
@@ -498,9 +445,7 @@ fn resolve_functions(
             let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file_id);
             resolver.set_self_type(self_type);
 
-            let mut resolved_const_ids =
-                resolve_global_constants(&mut resolver, collected_consts.clone());
-            funcs_resolution_ids.file_const_ids.append(&mut resolved_const_ids);
+            resolve_global_constants(&mut resolver, collected_consts.clone());
 
             let (hir_func, func_meta, errs) = resolver.resolve_function(func);
             interner.push_fn_meta(func_meta, func_id);
@@ -514,8 +459,7 @@ fn resolve_functions(
         }
     }
 
-    // (file_func_ids, file_const_ids)
-    funcs_resolution_ids
+    file_func_ids
 }
 
 fn type_check_functions(

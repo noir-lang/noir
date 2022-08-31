@@ -1,4 +1,6 @@
 let M: const Field = 32;
+let L: const Field = 10;
+let N: const Field = 5;
 
 fn main(a: [M]Field, b: [M]Field) {
      constrain N != M;
@@ -23,10 +25,10 @@ fn main(a: [M]Field, b: [M]Field) {
      constrain arr[0] == 5;
      constrain arr[4] == 5;
 
-     let t: [2]Field = [N, M];
+     //let t: [2]Field = [N, M];
      // NOTE: This is currently broken, as only global consts work in array annotations
-     // let L: const Field = 2;
-     // let t: [L]Field = [N, M];
+     //let L: const Field = 2;
+     let t: []Field = [N, M];
 
      constrain t[1] == 32;
 
@@ -45,14 +47,13 @@ fn arrays_neq(a: [M]Field, b: [M]Field) {
 
 mod mysubmodule {
     use dep::std;
-    let N: const Field = 5;
+    //let N: const Field = 5;
 
     fn my_bool_or(x: Field, y: Field) {
         constrain std::bool_or(x, y) == 1;
     }
 
     fn my_helper() {
-        let N: const Field = 5;
         let mut x = N;
         constrain x == 5;
     }
