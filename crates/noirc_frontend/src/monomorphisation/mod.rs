@@ -79,7 +79,8 @@ impl Monomorphiser {
     }
 
     fn lookup_global(&mut self, id: node_interner::FuncId, typ: &HirType) -> Option<FuncId> {
-        self.globals.get(&id).and_then(|inner_map| inner_map.get(typ)).copied()
+        let typ = typ.follow_bindings();
+        self.globals.get(&id).and_then(|inner_map| inner_map.get(&typ)).copied()
     }
 
     fn define_local(&mut self, id: node_interner::DefinitionId, new_id: DefinitionId) {
@@ -87,6 +88,7 @@ impl Monomorphiser {
     }
 
     fn define_global(&mut self, id: node_interner::FuncId, typ: HirType, new_id: FuncId) {
+        let typ = typ.follow_bindings();
         self.globals.entry(id).or_default().insert(typ, new_id);
     }
 
@@ -488,11 +490,23 @@ impl Monomorphiser {
         function_type: HirType,
     ) -> FuncId {
         let new_id = self.next_function_id();
-
         self.define_global(id, function_type, new_id);
-        let bindings = self.interner.get_instantiation_bindings(expr_id).clone();
+
+        let bindings = self.interner.get_instantiation_bindings(expr_id);
+        let bindings = self.follow_bindings(bindings);
+
         self.queue.push_back((id, new_id, bindings));
         new_id
+    }
+
+    fn follow_bindings(&self, bindings: &TypeBindings) -> TypeBindings {
+        bindings
+            .iter()
+            .map(|(id, (var, binding))| {
+                let binding2 = binding.follow_bindings();
+                (*id, (var.clone(), binding2))
+            })
+            .collect()
     }
 
     fn assign(&mut self, assign: HirAssignStatement) -> ast::Expression {

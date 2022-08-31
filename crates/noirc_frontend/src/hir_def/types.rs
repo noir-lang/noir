@@ -1086,7 +1086,7 @@ impl Type {
             }
             Tuple(args) => Tuple(vecmap(args, |arg| arg.follow_bindings())),
 
-            TypeVariable(var) | PolymorphicInteger(_, var) => {
+            TypeVariable(var) | PolymorphicInteger(_, var) | NamedGeneric(var, _) => {
                 if let TypeBinding::Bound(typ) = &*var.borrow() {
                     return typ.follow_bindings();
                 }
@@ -1102,13 +1102,9 @@ impl Type {
             // Expect that this function should only be called on instantiated types
             Forall(..) => unreachable!(),
 
-            FieldElement(_)
-            | Integer(_, _, _)
-            | Bool(_)
-            | ArrayLength(_)
-            | NamedGeneric(..)
-            | Unit
-            | Error => self.clone(),
+            FieldElement(_) | Integer(_, _, _) | Bool(_) | ArrayLength(_) | Unit | Error => {
+                self.clone()
+            }
         }
     }
 }
