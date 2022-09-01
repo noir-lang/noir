@@ -106,7 +106,8 @@ pub fn prove_with_path<P: AsRef<Path>>(
     }
 
     let abi = compiled_program.abi.unwrap();
-
+    println!("abi: {:?}", abi);
+    
     let mut solved_witness = process_abi_with_input(abi, witness_map)?;
 
     let solver_res = backend.solve(&mut solved_witness, compiled_program.circuit.gates.clone());

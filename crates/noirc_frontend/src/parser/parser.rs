@@ -73,15 +73,11 @@ fn top_level_statement(
 }
 
 fn global_declaration() -> impl NoirParser<TopLevelStatement> {
-    // let p = ignore_then_commit(
-    //     keyword(Keyword::Const).labelled("global const"),
-    //     ident().map(Pattern::Identifier),
-    // ); // TODO: this needs to be fixed, keep for now just to get stuff tested
     let p = ignore_then_commit(
-        keyword(Keyword::Let).labelled("global const"),
+        keyword(Keyword::Const).labelled("const"),
         ident().map(Pattern::Identifier),
     );
-    let p = p.then(optional_type_annotation()); //TODO: rust requires annotation of global consts, perhaps we should as well and use a diff parser
+    let p = p.then(global_const_type_annotation()); //TODO: this reuses parse type that allows for a redundant const as such: const X: const Field = 5;
     let p = then_commit_ignore(p, just(Token::Assign));
     let p = then_commit(p, literal().map_with_span(Expression::new)); // XXX: this should be a literal
     p.map(LetStatement::new_let).map(TopLevelStatement::GlobalConst)
@@ -239,6 +235,15 @@ fn check_statements_require_semicolon(
     let iter = statements.into_iter().enumerate();
     vecmap(iter, |(i, (statement, (semicolon, span)))| {
         statement.add_semicolon(semicolon, span, i == last, emit)
+    })
+}
+
+fn global_const_type_annotation() -> impl NoirParser<UnresolvedType> {
+    ignore_then_commit(just(Token::Colon), parse_type()).map(|r#type| match r#type {
+        UnresolvedType::FieldElement(_) => UnresolvedType::FieldElement(IsConst::Yes(None)),
+        UnresolvedType::Bool(_) => UnresolvedType::Bool(IsConst::Yes(None)),
+        UnresolvedType::Integer(_, sign, size) => UnresolvedType::Integer(IsConst::Yes(None), sign, size),
+        _ => UnresolvedType::Unspecified,
     })
 }
 

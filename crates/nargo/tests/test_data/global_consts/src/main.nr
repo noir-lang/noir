@@ -1,8 +1,8 @@
 mod foo;
 
-let M: const Field = 32;
-let L: const Field = 10; // Unused globals currently allowed
-let N: const Field = 5;
+const M: Field = 32;
+const L: Field = 10; // Unused globals currently allowed
+const N: const Field = 5;
 //let N: const Field = 5;
 
 fn main(a: [M]Field, b: [M]Field) {
@@ -24,7 +24,7 @@ fn main(a: [M]Field, b: [M]Field) {
 
      arrays_neq(a, b);
 
-     let arr: [N]Field = [N; 5];
+     let arr: [N]Field = [5; 5];
      // let arr: [N]Field = [N; 5]; NOTE: this is currently broken
      constrain arr[0] == 5;
      constrain arr[4] == 5;
@@ -37,7 +37,7 @@ fn main(a: [M]Field, b: [M]Field) {
      constrain t[1] == 32;
 
      mysubmodule::my_helper();
-     //constrain 5 == mysubmodule::N;
+     //constrain 10 == mysubmodule::N;
 }
 
 fn multiplyByM(x: Field) -> Field {
@@ -53,14 +53,16 @@ fn arrays_neq(a: [M]Field, b: [M]Field) {
 mod mysubmodule {
     use dep::std;
     // Comment out the line below to show that consts are scoped within a module
-    let N: const Field = 10;
+    const N: Field = 10;
+    const L: Field = 50;
 
     fn my_bool_or(x: Field, y: Field) {
         constrain std::bool_or(x, y) == 1;
     }
 
     fn my_helper() {
+        let N: const Field = 15; // Like in Rust, the local variable overrides the global const
         let mut x = N;
-        constrain x == 5;
+        constrain x == 15;
     }
 }

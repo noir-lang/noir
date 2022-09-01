@@ -36,7 +36,7 @@ use crate::util::vecmap;
 use crate::{
     hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
     BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
-    Statement,
+    Statement, ArraySize
 };
 use crate::{LValue, NoirStruct, Path, Pattern, StructType, Type, UnresolvedType, ERROR_IDENT};
 use fm::FileId;
@@ -175,8 +175,8 @@ impl<'a> Resolver<'a> {
         // We must first check whether an existing definition ID has been inserted as otherwise there will be multiple definitions for the same global const statement.
         // This leads to an error in evaluation where the wrong definition ID is selected when evaluating a statement using the global const. The check below prevents this error.
         let global_consts = self.interner.get_all_global_consts();
-        for (global_stmt_id, global_ident) in global_consts {
-            if global_ident == name {
+        for (global_stmt_id, (global_ident, local_id)) in global_consts {
+            if global_ident == name && local_id == self.path_resolver.local_module_id() {
                 stmt_id = Some(global_stmt_id);
             }
         }
@@ -216,19 +216,19 @@ impl<'a> Resolver<'a> {
     // If a variable is not found, then an error is logged and a dummy id
     // is returned, for better error reporting UX
     fn find_variable(&mut self, name: &Ident) -> HirIdent {
-        let global_scope = self.scopes.get_global_scope();
-        let global_variable = global_scope.find(&name.0.contents);
+        // Find the definition for this Ident
+        let scope_tree = self.scopes.current_scope_tree();
+        let variable = scope_tree.find(&name.0.contents);
 
         let location = Location::new(name.span(), self.file);
-        let id = if let Some(variable_found) = global_variable {
+        let id = if let Some(variable_found) = variable {
             variable_found.num_times_used += 1;
             variable_found.ident.id
         } else {
-            // Find the definition for this Ident
-            let scope_tree = self.scopes.current_scope_tree();
-            let variable = scope_tree.find(&name.0.contents);
-
-            if let Some(variable_found) = variable {
+            let global_scope = self.scopes.get_global_scope();
+            let global_variable = global_scope.find(&name.0.contents);
+    
+            if let Some(variable_found) = global_variable {
                 variable_found.num_times_used += 1;
                 variable_found.ident.id
             } else {
@@ -236,10 +236,10 @@ impl<'a> Resolver<'a> {
                     name: name.0.contents.clone(),
                     span: name.0.span(),
                 });
-
                 DefinitionId::dummy_id()
             }
         };
+
         HirIdent { location, id }
     }
 
@@ -683,7 +683,7 @@ mod test {
     use crate::hir_def::function::HirFunction;
     use crate::node_interner::{FuncId, NodeInterner};
     use crate::{
-        hir::def_map::{CrateDefMap, ModuleDefId},
+        hir::def_map::{CrateDefMap, ModuleDefId, LocalModuleId},
         parse_program, Path,
     };
 
@@ -915,6 +915,8 @@ mod test {
                 Some(_) => Ok(mod_def),
             }
         }
+
+        fn local_module_id(&self) -> LocalModuleId { LocalModuleId::dummy_id() }
     }
 
     impl TestPathResolver {

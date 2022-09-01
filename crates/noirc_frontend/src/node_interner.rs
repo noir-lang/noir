@@ -159,7 +159,7 @@ pub struct NodeInterner {
     // methods from impls to the type.
     structs: HashMap<StructId, Rc<RefCell<StructType>>>,
 
-    global_constants: HashMap<StmtId, Ident>, // NOTE: currently only used for checking repeat global consts and
+    global_constants: HashMap<StmtId, (Ident, LocalModuleId)>, // NOTE: currently only used for checking repeat global consts and
 
     next_type_variable_id: usize,
 }
@@ -261,9 +261,9 @@ impl NodeInterner {
         self.id_to_type.insert(definition_id.into(), typ);
     }
 
-    pub fn push_global_const(&mut self, name: Ident, stmt_id: StmtId) {
+    pub fn push_global_const(&mut self, stmt_id: StmtId, name: Ident, local_id: LocalModuleId) {
         println!("push_global_const: {:?}, {:?}", name, stmt_id);
-        self.global_constants.insert(stmt_id, name);
+        self.global_constants.insert(stmt_id, (name, local_id));
     }
 
     /// Intern an empty global const stmt. Used for collecting global consts
@@ -387,11 +387,11 @@ impl NodeInterner {
         self.structs[&id].clone()
     }
 
-    pub fn get_global_const(&self, stmt_id: &StmtId) -> Option<Ident> {
-        self.global_constants.get(stmt_id).map(|ident| ident.clone())
+    pub fn get_global_const(&self, stmt_id: &StmtId) -> Option<(Ident, LocalModuleId)> {
+        self.global_constants.get(stmt_id).map(|const_info| const_info.clone())
     }
 
-    pub fn get_all_global_consts(&self) -> HashMap<StmtId, Ident> {
+    pub fn get_all_global_consts(&self) -> HashMap<StmtId, (Ident, LocalModuleId)> {
         self.global_constants.clone()
     }
 

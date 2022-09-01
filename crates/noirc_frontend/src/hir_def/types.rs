@@ -608,7 +608,7 @@ impl Type {
         // TODO: changed to using stmt ids but the same problem still exists where consts with the same idents could be getting used
         // The length of a fixed variable array should definitely be moved to name resolution so that this method is not even needed
         let mut stmt_id = StmtId::dummy_id();
-        for (global_stmt_id, global_ident) in interner.get_all_global_consts() {
+        for (global_stmt_id, (global_ident, _local_id)) in interner.get_all_global_consts() {
             if global_ident == *ident {
                 stmt_id = global_stmt_id;
                 break;

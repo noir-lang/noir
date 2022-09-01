@@ -263,7 +263,7 @@ fn collect_global_constants(
 
         let stmt_id = resolver.intern_stmt(Statement::Let(global_constant.stmt_def), true);
 
-        context.def_interner.push_global_const(name.clone(), stmt_id);
+        context.def_interner.push_global_const(stmt_id, name.clone(), global_constant.module_id);
 
         let hir_stmt = context.def_interner.statement(&stmt_id);
         context.def_interner.update_global_const(stmt_id, hir_stmt);
