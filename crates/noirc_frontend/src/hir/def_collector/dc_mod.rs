@@ -3,7 +3,7 @@ use noirc_errors::{CollectedErrors, CustomDiagnostic, DiagnosableError};
 
 use crate::{
     graph::CrateId, hir::def_collector::dc_crate::UnresolvedStruct, node_interner::StructId,
-    parser::SubModule, Ident, NoirFunction, NoirImpl, NoirStruct, ParsedModule, LetStatement
+    parser::SubModule, Ident, LetStatement, NoirFunction, NoirImpl, NoirStruct, ParsedModule,
 };
 
 use super::{
@@ -64,8 +64,8 @@ pub fn collect_defs<'a>(
 
 impl<'a> ModCollector<'a> {
     fn collect_global_constants(
-        &mut self, 
-        context: &mut Context, 
+        &mut self,
+        context: &mut Context,
         global_constants: Vec<LetStatement>,
         errors: &mut Vec<CollectedErrors>,
     ) {
@@ -97,7 +97,6 @@ impl<'a> ModCollector<'a> {
             });
         }
     }
-
 
     fn collect_impls(&mut self, context: &mut Context, impls: Vec<NoirImpl>) {
         for r#impl in impls {

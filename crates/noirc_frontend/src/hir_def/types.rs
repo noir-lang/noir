@@ -7,7 +7,7 @@ use noirc_abi::{AbiFEType, AbiType};
 use noirc_errors::Span;
 
 use crate::{
-    node_interner::{FuncId, StructId, StmtId},
+    node_interner::{FuncId, StmtId, StructId},
     util::vecmap,
     ArraySize, Ident, Signedness,
 };
@@ -605,8 +605,8 @@ impl Type {
     }
 
     fn get_fixed_variable_array_length(&self, ident: &Ident, interner: &NodeInterner) -> u128 {
-        // TODO: changed to using stmt ids but the same problem still exists where consts with the same idents
-        // could be getting used 
+        // TODO: changed to using stmt ids but the same problem still exists where consts with the same idents could be getting used
+        // The length of a fixed variable array should definitely be moved to name resolution so that this method is not even needed
         let mut stmt_id = StmtId::dummy_id();
         for (global_stmt_id, global_ident) in interner.get_all_global_consts() {
             if global_ident == *ident {

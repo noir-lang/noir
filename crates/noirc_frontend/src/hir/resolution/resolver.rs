@@ -180,7 +180,7 @@ impl<'a> Resolver<'a> {
                 stmt_id = Some(global_stmt_id);
             }
         }
-        
+
         if let Some(id) = stmt_id {
             let hir_stmt = self.interner.statement(&id);
             ident = match hir_stmt {

@@ -13,7 +13,9 @@ use crate::hir::type_check::type_check_func;
 use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId};
 use crate::util::vecmap;
-use crate::{Ident, NoirFunction, NoirStruct, ParsedModule, Path, Pattern, Statement, LetStatement, Type};
+use crate::{
+    Ident, LetStatement, NoirFunction, NoirStruct, ParsedModule, Path, Pattern, Statement, Type,
+};
 use fm::FileId;
 use noirc_errors::CollectedErrors;
 use noirc_errors::DiagnosableError;
@@ -149,13 +151,9 @@ impl DefCollector {
         resolve_structs(context, def_collector.collected_types, crate_id, errors);
 
         // We must first re-collect each of global consts before we can resolve any stmts.
-        // 
-        let file_const_ids = collect_global_constants(
-            context,
-            def_collector.collected_consts.clone(),
-            crate_id,
-            errors,
-        );
+        //
+        let file_const_ids =
+            collect_global_constants(context, def_collector.collected_consts.clone(), crate_id);
 
         // Before we resolve any function symbols we must go through our impls and
         // re-collect the methods within into their proper module. This cannot be
@@ -245,7 +243,6 @@ fn collect_global_constants(
     context: &mut Context,
     global_constants: Vec<UnresolvedGlobalConst>,
     crate_id: CrateId,
-    errors: &mut Vec<CollectedErrors>,
 ) -> Vec<(FileId, StmtId)> {
     let mut global_const_ids = Vec::new();
 
@@ -292,7 +289,8 @@ fn type_check_global_consts(
     for (file_id, stmt_id) in global_const_ids {
         let mut type_check_errs = Vec::new();
         let _stmt_type = type_check(interner, &stmt_id, &mut type_check_errs);
-        let type_check_err_diagnostics = vecmap(type_check_errs, |error| error.into_diagnostic(interner));
+        let type_check_err_diagnostics =
+            vecmap(type_check_errs, |error| error.into_diagnostic(interner));
 
         if !type_check_err_diagnostics.is_empty() {
             let collected_errors = CollectedErrors { file_id, errors: type_check_err_diagnostics };

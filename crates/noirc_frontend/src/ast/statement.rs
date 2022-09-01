@@ -314,7 +314,7 @@ impl Pattern {
     pub fn name_ident(&self) -> &Ident {
         match self {
             Pattern::Identifier(name_ident) => name_ident,
-            _ => panic!("only the identifier pattern can return a name")
+            _ => panic!("only the identifier pattern can return a name"),
         }
     }
 }

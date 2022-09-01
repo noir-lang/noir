@@ -56,7 +56,6 @@ impl StmtId {
     }
 }
 
-
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct ExprId(Index);
 
@@ -278,7 +277,9 @@ impl NodeInterner {
 
         let stmt = match def {
             Node::Statement(stmt) => stmt,
-            _ => panic!("ice: all global const ids should correspond to a statement in the interner"),
+            _ => {
+                panic!("ice: all global const ids should correspond to a statement in the interner")
+            }
         };
         *stmt = hir_stmt;
     }

@@ -6,7 +6,7 @@ use super::{
     then_commit_ignore, top_level_statement_recovery, ExprParser, NoirParser, ParsedModule,
     ParserError, Precedence, SubModule, TopLevelStatement,
 };
-use crate::ast::{ArraySize, Expression, ExpressionKind, Statement, UnresolvedType, LetStatement};
+use crate::ast::{ArraySize, Expression, ExpressionKind, LetStatement, Statement, UnresolvedType};
 use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};

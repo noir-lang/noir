@@ -4,7 +4,7 @@ mod parser;
 
 use crate::token::{Keyword, Token};
 use crate::{ast::ImportStatement, Expression, NoirStruct};
-use crate::{Ident, NoirFunction, NoirImpl, Recoverable, Statement, LetStatement};
+use crate::{Ident, LetStatement, NoirFunction, NoirImpl, Recoverable, Statement};
 
 use chumsky::prelude::*;
 use chumsky::primitive::Container;
