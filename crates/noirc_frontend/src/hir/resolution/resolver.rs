@@ -269,16 +269,16 @@ impl<'a> Resolver<'a> {
                     UnresolvedArraySize::FixedVariable(name) => {
                         let ident = Ident::from(name);
                         let global_consts = self.interner.get_all_global_consts();
-                        let mut fixed_var_expr_id = ExprId::empty_block_id();
+                        let mut fixed_var_expr_id = None;
                         for (_stmt_id, const_info) in global_consts {
                             if const_info.ident == ident
                                 && const_info.local_id == self.path_resolver.local_module_id()
                             {
-                                fixed_var_expr_id = const_info.expr_id;
+                                fixed_var_expr_id = Some(const_info.expr_id);
                             }
                         }
-                        if fixed_var_expr_id != ExprId::empty_block_id() {
-                            ArraySize::FixedVariable(fixed_var_expr_id)
+                        if let Some(expr_id) = fixed_var_expr_id {
+                            ArraySize::FixedVariable(expr_id)
                         } else {
                             return Type::Error;
                         }
@@ -638,10 +638,6 @@ impl<'a> Resolver<'a> {
                 T::dummy_id()
             }),
         }
-    }
-
-    fn lookup_const(&mut self, path: Path) -> StmtId {
-        self.lookup(path)
     }
 
     fn lookup_function(&mut self, path: Path) -> FuncId {

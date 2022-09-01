@@ -257,9 +257,7 @@ impl<'a> IRGenerator<'a> {
         env: &mut Environment,
         stmt_id: &StmtId,
     ) -> Result<Value, RuntimeError> {
-        // println!("in codegen_statement, STMT_ID: {:?}", stmt_id);
         let statement = self.def_interner().statement(stmt_id);
-        // println!("in codegen_statement, STATEMENT: {:?}", statement);
         match statement {
             HirStatement::Constrain(constrain_stmt) => self.codegen_constrain(env, constrain_stmt),
             HirStatement::Expression(expr) | HirStatement::Semi(expr) => {
