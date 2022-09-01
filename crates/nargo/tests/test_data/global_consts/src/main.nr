@@ -52,7 +52,8 @@ fn arrays_neq(a: [M]Field, b: [M]Field) {
 
 mod mysubmodule {
     use dep::std;
-    //let N: const Field = 10;
+    // Comment out the line below to show that consts are scoped within a module
+    let N: const Field = 10;
 
     fn my_bool_or(x: Field, y: Field) {
         constrain std::bool_or(x, y) == 1;

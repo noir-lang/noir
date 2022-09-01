@@ -273,11 +273,13 @@ fn collect_global_constants(
     global_const_ids
 }
 
-fn resolve_global_constants(resolver: &mut Resolver, global_constants: Vec<UnresolvedGlobalConst>) {
+fn resolve_global_constants(resolver: &mut Resolver, global_constants: Vec<UnresolvedGlobalConst>, local_id: LocalModuleId) {
     // NOTE: Each function uses a new resolver that has a newly constructed scopes field
     // Thus it is still necessary to resolve global const statements here to place a global const inside the global scope of a function's resolver
     for global_constant in global_constants {
-        resolver.resolve_stmt(Statement::Let(global_constant.stmt_def), true);
+        if global_constant.module_id == local_id {
+            resolver.resolve_stmt(Statement::Let(global_constant.stmt_def), true);
+        }
     }
 }
 
@@ -429,7 +431,7 @@ fn resolve_functions(
             let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file_id);
             resolver.set_self_type(self_type);
 
-            resolve_global_constants(&mut resolver, collected_consts.clone());
+            resolve_global_constants(&mut resolver, collected_consts.clone(), mod_id);
 
             let (hir_func, func_meta, errs) = resolver.resolve_function(func);
             interner.push_fn_meta(func_meta, func_id);
