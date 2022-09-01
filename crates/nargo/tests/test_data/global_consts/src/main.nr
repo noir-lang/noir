@@ -1,12 +1,16 @@
+mod foo;
+
 let M: const Field = 32;
-let L: const Field = 10;
+let L: const Field = 10; // Unused globals currently allowed
 let N: const Field = 5;
+//let N: const Field = 5;
 
 fn main(a: [M]Field, b: [M]Field) {
      constrain N != M;
 
      let mut y = 5;
      for i in 0..N*N {
+          //let N: const Field = 10;
           y = i;
      };
      constrain y == 24;
@@ -33,6 +37,7 @@ fn main(a: [M]Field, b: [M]Field) {
      constrain t[1] == 32;
 
      mysubmodule::my_helper();
+     //constrain 5 == mysubmodule::N;
 }
 
 fn multiplyByM(x: Field) -> Field {
@@ -47,7 +52,7 @@ fn arrays_neq(a: [M]Field, b: [M]Field) {
 
 mod mysubmodule {
     use dep::std;
-    //let N: const Field = 5;
+    //let N: const Field = 10;
 
     fn my_bool_or(x: Field, y: Field) {
         constrain std::bool_or(x, y) == 1;

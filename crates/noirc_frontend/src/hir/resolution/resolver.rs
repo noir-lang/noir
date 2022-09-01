@@ -170,11 +170,19 @@ impl<'a> Resolver<'a> {
         let global_scope = self.scopes.get_global_scope();
         let ident;
         let resolver_meta;
+        let mut stmt_id = None;
         // This check is necessary to maintain the same definition ids in the interner. Currently, each function uses a new resolver that has its own ScopeForest and thus global scope.
         // We must first check whether an existing definition ID has been inserted as otherwise there will be multiple definitions for the same global const statement.
         // This leads to an error in evaluation where the wrong definition ID is selected when evaluating a statement using the global const. The check below prevents this error.
-        if let Some(stmt_id) = self.interner.get_global_const(&name) {
-            let hir_stmt = self.interner.statement(&stmt_id);
+        let global_consts = self.interner.get_all_global_consts();
+        for (global_stmt_id, global_ident) in global_consts {
+            if global_ident == name {
+                stmt_id = Some(global_stmt_id);
+            }
+        }
+        
+        if let Some(id) = stmt_id {
+            let hir_stmt = self.interner.statement(&id);
             ident = match hir_stmt {
                 HirStatement::Let(let_stmt) => match let_stmt.pattern {
                     HirPattern::Identifier(ident) => ident,
@@ -336,25 +344,12 @@ impl<'a> Resolver<'a> {
             }
             Statement::Error => HirStatement::Error,
         };
-        // self.interner.push_stmt(stmt)
         stmt
     }
 
     pub fn intern_stmt(&mut self, stmt: Statement, is_global: bool) -> StmtId {
         let hir_stmt = self.resolve_stmt(stmt, is_global);
         self.interner.push_stmt(hir_stmt)
-    }
-
-    pub fn extract_const_stmt_name(&mut self, stmt: Statement) -> Ident {
-        match stmt {
-            Statement::Let(let_stmt) => {
-                match let_stmt.pattern {
-                    Pattern::Identifier(ident) => ident,
-                    _ => panic!("pattern for const statement must be an identifier"), // TODO: change this to use errors
-                }
-            }
-            _ => panic!("global consts must be a let statement"), // TODO: change this to use errors
-        }
     }
 
     fn resolve_lvalue(&mut self, lvalue: LValue) -> HirLValue {
@@ -597,14 +592,6 @@ impl<'a> Resolver<'a> {
         ret
     }
 
-    pub fn get_global_const(&self, name: &Ident) -> Option<StmtId> {
-        self.interner.get_global_const(name)
-    }
-
-    pub fn push_global_const(&mut self, name: Ident, stmt_id: StmtId) {
-        self.interner.push_global_const(name, stmt_id)
-    }
-
     pub fn get_struct(&self, type_id: StructId) -> Rc<RefCell<StructType>> {
         self.interner.get_struct(type_id)
     }
@@ -629,6 +616,10 @@ impl<'a> Resolver<'a> {
                 T::dummy_id()
             }),
         }
+    }
+
+    fn lookup_const(&mut self, path: Path) -> StmtId {
+        self.lookup(path)
     }
 
     fn lookup_function(&mut self, path: Path) -> FuncId {

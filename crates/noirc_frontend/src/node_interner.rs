@@ -44,8 +44,18 @@ impl From<DefinitionId> for Index {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Clone, Copy)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
 pub struct StmtId(Index);
+
+impl StmtId {
+    //dummy id for error reporting
+    // This can be anything, as the program will ultimately fail
+    // after resolution
+    pub fn dummy_id() -> StmtId {
+        StmtId(Index::from_raw_parts(std::usize::MAX, 0))
+    }
+}
+
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct ExprId(Index);
@@ -150,7 +160,7 @@ pub struct NodeInterner {
     // methods from impls to the type.
     structs: HashMap<StructId, Rc<RefCell<StructType>>>,
 
-    global_constants: HashMap<Ident, StmtId>, // NOTE: currently only used for checking repeat global consts and
+    global_constants: HashMap<StmtId, Ident>, // NOTE: currently only used for checking repeat global consts and
 
     next_type_variable_id: usize,
 }
@@ -237,11 +247,6 @@ impl NodeInterner {
         f(&mut value)
     }
 
-    pub fn push_global_const(&mut self, name: Ident, stmt_id: StmtId) {
-        println!("push_global_const: {:?}, {:?}", name, stmt_id);
-        self.global_constants.insert(name, stmt_id);
-    }
-
     /// Modify the type of an expression.
     ///
     /// This is used specifically for SemiExpressions.
@@ -255,6 +260,27 @@ impl NodeInterner {
     /// Store the type for an interned Identifier
     pub fn push_definition_type(&mut self, definition_id: DefinitionId, typ: Type) {
         self.id_to_type.insert(definition_id.into(), typ);
+    }
+
+    pub fn push_global_const(&mut self, name: Ident, stmt_id: StmtId) {
+        println!("push_global_const: {:?}, {:?}", name, stmt_id);
+        self.global_constants.insert(stmt_id, name);
+    }
+
+    /// Intern an empty global const stmt. Used for collecting global consts
+    pub fn push_empty_global_const(&mut self) -> StmtId {
+        self.push_stmt(HirStatement::Error)
+    }
+
+    pub fn update_global_const(&mut self, stmt_id: StmtId, hir_stmt: HirStatement) {
+        let def =
+            self.nodes.get_mut(stmt_id.0).expect("ice: all function ids should have definitions");
+
+        let stmt = match def {
+            Node::Statement(stmt) => stmt,
+            _ => panic!("ice: all global const ids should correspond to a statement in the interner"),
+        };
+        *stmt = hir_stmt;
     }
 
     /// Intern an empty function.
@@ -360,11 +386,11 @@ impl NodeInterner {
         self.structs[&id].clone()
     }
 
-    pub fn get_global_const(&self, name: &Ident) -> Option<StmtId> {
-        self.global_constants.get(name).copied()
+    pub fn get_global_const(&self, stmt_id: &StmtId) -> Option<Ident> {
+        self.global_constants.get(stmt_id).map(|ident| ident.clone())
     }
 
-    pub fn get_all_global_consts(&self) -> HashMap<Ident, StmtId> {
+    pub fn get_all_global_consts(&self) -> HashMap<StmtId, Ident> {
         self.global_constants.clone()
     }
 

@@ -25,6 +25,13 @@ impl ModuleDefId {
         }
     }
 
+    pub fn as_const(&self) -> Option<StmtId> {
+        match self {
+            ModuleDefId::ConstId(stmt_id) => Some(*stmt_id),
+            _ => None,
+        }
+    }
+
     // XXX: We are still allocating for error reporting even though strings are stored in binary
     // It is a minor performance issue, which can be addressed by having the error reporting, not allocate
     pub fn as_str(&self) -> &'static str {
@@ -46,6 +53,12 @@ impl From<ModuleId> for ModuleDefId {
 impl From<FuncId> for ModuleDefId {
     fn from(fid: FuncId) -> Self {
         ModuleDefId::FunctionId(fid)
+    }
+}
+
+impl From<StmtId> for ModuleDefId {
+    fn from(stmt_id: StmtId) -> Self {
+        ModuleDefId::ConstId(stmt_id)
     }
 }
 
@@ -80,5 +93,19 @@ impl TryFromModuleDefId for StructId {
 
     fn description() -> String {
         "type".to_string()
+    }
+}
+
+impl TryFromModuleDefId for StmtId {
+    fn try_from(id: ModuleDefId) -> Option<Self> {
+        id.as_const()
+    }
+
+    fn dummy_id() -> Self {
+        StmtId::dummy_id()
+    }
+
+    fn description() -> String {
+        "const".to_string()
     }
 }

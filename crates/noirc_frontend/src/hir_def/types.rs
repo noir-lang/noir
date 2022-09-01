@@ -7,7 +7,7 @@ use noirc_abi::{AbiFEType, AbiType};
 use noirc_errors::Span;
 
 use crate::{
-    node_interner::{FuncId, StructId},
+    node_interner::{FuncId, StructId, StmtId},
     util::vecmap,
     ArraySize, Ident, Signedness,
 };
@@ -605,9 +605,15 @@ impl Type {
     }
 
     fn get_fixed_variable_array_length(&self, ident: &Ident, interner: &NodeInterner) -> u128 {
-        let stmt_id = interner
-            .get_global_const(ident)
-            .expect("no statement associated with fixed sized array variable");
+        // TODO: changed to using stmt ids but the same problem still exists where consts with the same idents
+        // could be getting used 
+        let mut stmt_id = StmtId::dummy_id();
+        for (global_stmt_id, global_ident) in interner.get_all_global_consts() {
+            if global_ident == *ident {
+                stmt_id = global_stmt_id;
+                break;
+            }
+        }
         let statement = interner.statement(&stmt_id);
         match statement {
             HirStatement::Let(let_stmt) => {

@@ -3,7 +3,7 @@ use noirc_errors::{CollectedErrors, CustomDiagnostic, DiagnosableError};
 
 use crate::{
     graph::CrateId, hir::def_collector::dc_crate::UnresolvedStruct, node_interner::StructId,
-    parser::SubModule, Ident, NoirFunction, NoirImpl, NoirStruct, ParsedModule,
+    parser::SubModule, Ident, NoirFunction, NoirImpl, NoirStruct, ParsedModule, LetStatement
 };
 
 use super::{
@@ -51,6 +51,8 @@ pub fn collect_defs<'a>(
 
     collector.collect_structs(ast.types, crate_id, errors);
 
+    collector.collect_global_constants(context, ast.global_constants, errors);
+
     let errors_in_same_file = collector.collect_functions(context, ast.functions);
 
     collector.collect_impls(context, ast.impls);
@@ -58,17 +60,45 @@ pub fn collect_defs<'a>(
     if !errors_in_same_file.is_empty() {
         errors.push(CollectedErrors { file_id: collector.file_id, errors: errors_in_same_file });
     }
-
-    for global_const in ast.global_constants {
-        collector.def_collector.collected_consts.push(UnresolvedGlobalConst {
-            file_id: collector.file_id,
-            module_id: collector.module_id,
-            stmt_def: global_const,
-        });
-    }
 }
 
 impl<'a> ModCollector<'a> {
+    fn collect_global_constants(
+        &mut self, 
+        context: &mut Context, 
+        global_constants: Vec<LetStatement>,
+        errors: &mut Vec<CollectedErrors>,
+    ) {
+        for global_constant in global_constants {
+            let name = global_constant.pattern.name_ident().clone();
+
+            // First create dummy function in the DefInterner
+            // So that we can get a StmtId
+            let stmt_id = context.def_interner.push_empty_global_const();
+
+            // Add the struct to scope so its path can be looked up later
+            let result = self.def_collector.def_map.modules[self.module_id.0]
+                .scope
+                .define_global_const_def(name, stmt_id);
+
+            if let Err((first_def, second_def)) = result {
+                let err = DefCollectorErrorKind::DuplicateGlobalConst { first_def, second_def };
+
+                errors.push(CollectedErrors {
+                    file_id: self.file_id,
+                    errors: vec![err.to_diagnostic()],
+                });
+            }
+
+            self.def_collector.collected_consts.push(UnresolvedGlobalConst {
+                file_id: self.file_id,
+                module_id: self.module_id,
+                stmt_def: global_constant,
+            });
+        }
+    }
+
+
     fn collect_impls(&mut self, context: &mut Context, impls: Vec<NoirImpl>) {
         for r#impl in impls {
             let mut unresolved_functions =

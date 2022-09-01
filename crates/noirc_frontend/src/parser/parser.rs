@@ -6,7 +6,7 @@ use super::{
     then_commit_ignore, top_level_statement_recovery, ExprParser, NoirParser, ParsedModule,
     ParserError, Precedence, SubModule, TopLevelStatement,
 };
-use crate::ast::{ArraySize, Expression, ExpressionKind, Statement, UnresolvedType};
+use crate::ast::{ArraySize, Expression, ExpressionKind, Statement, UnresolvedType, LetStatement};
 use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
@@ -84,7 +84,7 @@ fn global_declaration() -> impl NoirParser<TopLevelStatement> {
     let p = p.then(optional_type_annotation()); //TODO: rust requires annotation of global consts, perhaps we should as well and use a diff parser
     let p = then_commit_ignore(p, just(Token::Assign));
     let p = then_commit(p, literal().map_with_span(Expression::new)); // XXX: this should be a literal
-    p.map(Statement::new_let).map(TopLevelStatement::GlobalConst)
+    p.map(LetStatement::new_let).map(TopLevelStatement::GlobalConst)
 }
 
 fn submodule(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<TopLevelStatement> {
@@ -744,6 +744,13 @@ fn field_name() -> impl NoirParser<Ident> {
             Ident::error(span)
         }
     }))
+}
+
+fn global_const_call<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
+where
+    P: ExprParser,
+{
+    path().map(ExpressionKind::Path)
 }
 
 fn function_call<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>

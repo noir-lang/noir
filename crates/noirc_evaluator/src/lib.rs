@@ -213,7 +213,7 @@ impl<'a> Evaluator<'a> {
             .context
             .def_interner
             .get_all_global_consts()
-            .values()
+            .keys()
             .cloned()
             .collect::<Vec<StmtId>>();
         igen.codegen_block(&stmt_ids, env);

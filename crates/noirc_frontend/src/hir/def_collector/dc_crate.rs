@@ -13,7 +13,7 @@ use crate::hir::type_check::type_check_func;
 use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId};
 use crate::util::vecmap;
-use crate::{Ident, NoirFunction, NoirStruct, ParsedModule, Path, Pattern, Statement, Type};
+use crate::{Ident, NoirFunction, NoirStruct, ParsedModule, Path, Pattern, Statement, LetStatement, Type};
 use fm::FileId;
 use noirc_errors::CollectedErrors;
 use noirc_errors::DiagnosableError;
@@ -41,7 +41,7 @@ pub struct UnresolvedStruct {
 pub struct UnresolvedGlobalConst {
     pub file_id: FileId,
     pub module_id: LocalModuleId,
-    pub stmt_def: Statement,
+    pub stmt_def: LetStatement,
 }
 
 /// Given a Crate root, collect all definitions in that crate
@@ -148,7 +148,8 @@ impl DefCollector {
 
         resolve_structs(context, def_collector.collected_types, crate_id, errors);
 
-        // Collect global constants and check for multiple declarations within a crate TODO: change to within module
+        // We must first re-collect each of global consts before we can resolve any stmts.
+        // 
         let file_const_ids = collect_global_constants(
             context,
             def_collector.collected_consts.clone(),
@@ -261,25 +262,14 @@ fn collect_global_constants(
             global_constant.file_id,
         );
 
-        let name = resolver.extract_const_stmt_name(global_constant.stmt_def.clone());
+        let name = global_constant.stmt_def.pattern.name_ident().clone();
 
-        let stmt_id = resolver.intern_stmt(global_constant.stmt_def, true);
+        let stmt_id = resolver.intern_stmt(Statement::Let(global_constant.stmt_def), true);
 
-        resolver.push_global_const(name.clone(), stmt_id);
+        context.def_interner.push_global_const(name.clone(), stmt_id);
 
-        let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
-
-        // This simply checks for repeat global constants within the crate
-        let result = current_def_map.modules[global_constant.module_id.0]
-            .scope
-            .define_global_const_def(name, stmt_id);
-        if let Err((first_def, second_def)) = result {
-            let err = DefCollectorErrorKind::DuplicateGlobalConst { first_def, second_def };
-            errors.push(CollectedErrors {
-                file_id: global_constant.file_id,
-                errors: vec![err.to_diagnostic()],
-            });
-        }
+        let hir_stmt = context.def_interner.statement(&stmt_id);
+        context.def_interner.update_global_const(stmt_id, hir_stmt);
 
         global_const_ids.push((global_constant.file_id, stmt_id));
     }
@@ -290,7 +280,7 @@ fn resolve_global_constants(resolver: &mut Resolver, global_constants: Vec<Unres
     // NOTE: Each function uses a new resolver that has a newly constructed scopes field
     // Thus it is still necessary to resolve global const statements here to place a global const inside the global scope of a function's resolver
     for global_constant in global_constants {
-        resolver.resolve_stmt(global_constant.stmt_def, true);
+        resolver.resolve_stmt(Statement::Let(global_constant.stmt_def), true);
     }
 }
 
@@ -302,11 +292,7 @@ fn type_check_global_consts(
     for (file_id, stmt_id) in global_const_ids {
         let mut type_check_errs = Vec::new();
         let _stmt_type = type_check(interner, &stmt_id, &mut type_check_errs);
-        let type_check_err_diagnostics: Vec<_> = type_check_errs
-            .clone()
-            .into_iter()
-            .map(|error| error.into_diagnostic(interner))
-            .collect();
+        let type_check_err_diagnostics = vecmap(type_check_errs, |error| error.into_diagnostic(interner));
 
         if !type_check_err_diagnostics.is_empty() {
             let collected_errors = CollectedErrors { file_id, errors: type_check_err_diagnostics };
