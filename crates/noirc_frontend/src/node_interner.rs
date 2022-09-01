@@ -14,7 +14,7 @@ use crate::hir_def::types::{StructType, Type};
 use crate::hir_def::{
     expr::HirExpression,
     function::{FuncMeta, HirFunction},
-    stmt::HirStatement,
+    stmt::{HirLetStatement, HirStatement},
 };
 use crate::TypeVariableId;
 
@@ -159,7 +159,7 @@ pub struct NodeInterner {
     // methods from impls to the type.
     structs: HashMap<StructId, Rc<RefCell<StructType>>>,
 
-    global_constants: HashMap<StmtId, (Ident, LocalModuleId)>, // NOTE: currently only used for checking repeat global consts and
+    global_constants: HashMap<StmtId, GlobalConstInfo>, // NOTE: currently only used for checking repeat global consts and
 
     next_type_variable_id: usize,
 }
@@ -168,6 +168,13 @@ pub struct NodeInterner {
 pub struct DefinitionInfo {
     pub name: String,
     pub mutable: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct GlobalConstInfo {
+    pub ident: Ident,
+    pub local_id: LocalModuleId,
+    pub expr_id: ExprId,
 }
 
 impl Default for NodeInterner {
@@ -261,9 +268,15 @@ impl NodeInterner {
         self.id_to_type.insert(definition_id.into(), typ);
     }
 
-    pub fn push_global_const(&mut self, stmt_id: StmtId, name: Ident, local_id: LocalModuleId) {
-        println!("push_global_const: {:?}, {:?}", name, stmt_id);
-        self.global_constants.insert(stmt_id, (name, local_id));
+    pub fn push_global_const(
+        &mut self,
+        stmt_id: StmtId,
+        ident: Ident,
+        local_id: LocalModuleId,
+        expr_id: ExprId,
+    ) {
+        println!("push_global_const: {:?}, {:?}, {:?}", ident, stmt_id, expr_id);
+        self.global_constants.insert(stmt_id, GlobalConstInfo { ident, local_id, expr_id });
     }
 
     /// Intern an empty global const stmt. Used for collecting global consts
@@ -351,6 +364,21 @@ impl NodeInterner {
             _ => panic!("ice: all statement ids should correspond to a statement in the interner"),
         }
     }
+    /// Returns the interned let statement corresponding to `stmt_id`
+    pub fn let_statement(&self, stmt_id: &StmtId) -> HirLetStatement {
+        let def =
+            self.nodes.get(stmt_id.0).expect("ice: all statement ids should have definitions");
+
+        match def {
+            Node::Statement(hir_stmt) => {
+                match hir_stmt {
+                    HirStatement::Let(let_stmt) => let_stmt.clone(),
+                    _ => panic!("ice: all let statement ids should correspond to a let statement in the interner"),
+                }
+            },
+            _ => panic!("ice: all statement ids should correspond to a statement in the interner"),
+        }
+    }
     /// Returns the interned expression corresponding to `expr_id`
     pub fn expression(&self, expr_id: &ExprId) -> HirExpression {
         let def =
@@ -387,11 +415,11 @@ impl NodeInterner {
         self.structs[&id].clone()
     }
 
-    pub fn get_global_const(&self, stmt_id: &StmtId) -> Option<(Ident, LocalModuleId)> {
-        self.global_constants.get(stmt_id).map(|const_info| const_info.clone())
+    pub fn get_global_const(&self, stmt_id: &StmtId) -> Option<GlobalConstInfo> {
+        self.global_constants.get(stmt_id).cloned()
     }
 
-    pub fn get_all_global_consts(&self) -> HashMap<StmtId, (Ident, LocalModuleId)> {
+    pub fn get_all_global_consts(&self) -> HashMap<StmtId, GlobalConstInfo> {
         self.global_constants.clone()
     }
 

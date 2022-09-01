@@ -19,9 +19,9 @@ struct ResolverMeta {
 
 use crate::hir_def::expr::{
     HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
-    HirConstructorExpression, HirForExpression, HirIdent, HirIfExpression, HirIndexExpression,
-    HirInfixExpression, HirLiteral, HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
-    HirUnaryOp,
+    HirConstructorExpression, HirExpression, HirForExpression, HirIdent, HirIfExpression,
+    HirIndexExpression, HirInfixExpression, HirLiteral, HirMemberAccess, HirMethodCallExpression,
+    HirPrefixExpression, HirUnaryOp,
 };
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -29,14 +29,13 @@ use std::rc::Rc;
 
 use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId};
-use crate::hir_def::expr::HirExpression;
 use crate::hir_def::stmt::{HirAssignStatement, HirLValue, HirPattern};
 use crate::node_interner::{DefinitionId, ExprId, FuncId, NodeInterner, StmtId, StructId};
 use crate::util::vecmap;
 use crate::{
     hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
-    BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
-    Statement, ArraySize
+    ArraySize, BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal,
+    NoirFunction, Statement, UnresolvedArraySize,
 };
 use crate::{LValue, NoirStruct, Path, Pattern, StructType, Type, UnresolvedType, ERROR_IDENT};
 use fm::FileId;
@@ -175,8 +174,10 @@ impl<'a> Resolver<'a> {
         // We must first check whether an existing definition ID has been inserted as otherwise there will be multiple definitions for the same global const statement.
         // This leads to an error in evaluation where the wrong definition ID is selected when evaluating a statement using the global const. The check below prevents this error.
         let global_consts = self.interner.get_all_global_consts();
-        for (global_stmt_id, (global_ident, local_id)) in global_consts {
-            if global_ident == name && local_id == self.path_resolver.local_module_id() {
+        for (global_stmt_id, const_info) in global_consts {
+            if const_info.ident == name
+                && const_info.local_id == self.path_resolver.local_module_id()
+            {
                 stmt_id = Some(global_stmt_id);
             }
         }
@@ -227,7 +228,7 @@ impl<'a> Resolver<'a> {
         } else {
             let global_scope = self.scopes.get_global_scope();
             let global_variable = global_scope.find(&name.0.contents);
-    
+
             if let Some(variable_found) = global_variable {
                 variable_found.num_times_used += 1;
                 variable_found.ident.id
@@ -262,7 +263,28 @@ impl<'a> Resolver<'a> {
         match typ {
             UnresolvedType::FieldElement(is_const) => Type::FieldElement(is_const),
             UnresolvedType::Array(size, elem) => {
-                Type::Array(size, Box::new(self.resolve_type(*elem)))
+                let resolved_size = match size {
+                    UnresolvedArraySize::Variable => ArraySize::Variable,
+                    UnresolvedArraySize::Fixed(length) => ArraySize::Fixed(length),
+                    UnresolvedArraySize::FixedVariable(name) => {
+                        let ident = Ident::from(name);
+                        let global_consts = self.interner.get_all_global_consts();
+                        let mut fixed_var_expr_id = ExprId::empty_block_id();
+                        for (_stmt_id, const_info) in global_consts {
+                            if const_info.ident == ident
+                                && const_info.local_id == self.path_resolver.local_module_id()
+                            {
+                                fixed_var_expr_id = const_info.expr_id;
+                            }
+                        }
+                        if fixed_var_expr_id != ExprId::empty_block_id() {
+                            ArraySize::FixedVariable(fixed_var_expr_id)
+                        } else {
+                            return Type::Error;
+                        }
+                    }
+                };
+                Type::Array(resolved_size, Box::new(self.resolve_type(*elem)))
             }
             UnresolvedType::Integer(is_const, sign, bits) => Type::Integer(is_const, sign, bits),
             UnresolvedType::Bool(is_const) => Type::Bool(is_const),
@@ -683,7 +705,7 @@ mod test {
     use crate::hir_def::function::HirFunction;
     use crate::node_interner::{FuncId, NodeInterner};
     use crate::{
-        hir::def_map::{CrateDefMap, ModuleDefId, LocalModuleId},
+        hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId},
         parse_program, Path,
     };
 
@@ -916,7 +938,9 @@ mod test {
             }
         }
 
-        fn local_module_id(&self) -> LocalModuleId { LocalModuleId::dummy_id() }
+        fn local_module_id(&self) -> LocalModuleId {
+            LocalModuleId::dummy_id()
+        }
     }
 
     impl TestPathResolver {

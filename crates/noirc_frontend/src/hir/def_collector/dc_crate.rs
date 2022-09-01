@@ -11,11 +11,10 @@ use crate::hir::resolution::{
 use crate::hir::type_check::type_check;
 use crate::hir::type_check::type_check_func;
 use crate::hir::Context;
+use crate::hir_def::stmt::HirStatement;
 use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId};
 use crate::util::vecmap;
-use crate::{
-    Ident, LetStatement, NoirFunction, NoirStruct, ParsedModule, Path, Pattern, Statement, Type,
-};
+use crate::{Ident, LetStatement, NoirFunction, NoirStruct, ParsedModule, Path, Statement, Type};
 use fm::FileId;
 use noirc_errors::CollectedErrors;
 use noirc_errors::DiagnosableError;
@@ -263,10 +262,16 @@ fn collect_global_constants(
 
         let stmt_id = resolver.intern_stmt(Statement::Let(global_constant.stmt_def), true);
 
-        context.def_interner.push_global_const(stmt_id, name.clone(), global_constant.module_id);
+        let let_stmt = context.def_interner.let_statement(&stmt_id);
 
-        let hir_stmt = context.def_interner.statement(&stmt_id);
-        context.def_interner.update_global_const(stmt_id, hir_stmt);
+        context.def_interner.push_global_const(
+            stmt_id,
+            name.clone(),
+            global_constant.module_id,
+            let_stmt.expression,
+        );
+
+        context.def_interner.update_global_const(stmt_id, HirStatement::Let(let_stmt));
 
         global_const_ids.push((global_constant.file_id, stmt_id));
     }

@@ -6,7 +6,9 @@ use super::{
     then_commit_ignore, top_level_statement_recovery, ExprParser, NoirParser, ParsedModule,
     ParserError, Precedence, SubModule, TopLevelStatement,
 };
-use crate::ast::{ArraySize, Expression, ExpressionKind, LetStatement, Statement, UnresolvedType};
+use crate::ast::{
+    Expression, ExpressionKind, LetStatement, Statement, UnresolvedArraySize, UnresolvedType,
+};
 use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
@@ -242,7 +244,9 @@ fn global_const_type_annotation() -> impl NoirParser<UnresolvedType> {
     ignore_then_commit(just(Token::Colon), parse_type()).map(|r#type| match r#type {
         UnresolvedType::FieldElement(_) => UnresolvedType::FieldElement(IsConst::Yes(None)),
         UnresolvedType::Bool(_) => UnresolvedType::Bool(IsConst::Yes(None)),
-        UnresolvedType::Integer(_, sign, size) => UnresolvedType::Integer(IsConst::Yes(None), sign, size),
+        UnresolvedType::Integer(_, sign, size) => {
+            UnresolvedType::Integer(IsConst::Yes(None), sign, size)
+        }
         _ => UnresolvedType::Unspecified,
     })
 }
@@ -464,7 +468,7 @@ where
         .then_ignore(just(Token::RightBracket))
         .then(type_parser)
         .map(|(size, element_type)| {
-            let size = size.unwrap_or(ArraySize::Variable);
+            let size = size.unwrap_or(UnresolvedArraySize::Variable);
             UnresolvedType::Array(size, Box::new(element_type))
         })
 }
@@ -751,13 +755,6 @@ fn field_name() -> impl NoirParser<Ident> {
     }))
 }
 
-fn global_const_call<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
-where
-    P: ExprParser,
-{
-    path().map(ExpressionKind::Path)
-}
-
 fn function_call<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
 where
     P: ExprParser,
@@ -800,19 +797,19 @@ fn literal() -> impl NoirParser<ExpressionKind> {
     })
 }
 
-fn fixed_array_size() -> impl NoirParser<ArraySize> {
+fn fixed_array_size() -> impl NoirParser<UnresolvedArraySize> {
     filter_map(|span, token: Token| match token {
         Token::Int(integer) => {
             if !integer.fits_in_u128() {
                 let message = "Array sizes must fit within a u128".to_string();
                 Err(ParserError::with_reason(message, span))
             } else {
-                Ok(ArraySize::Fixed(integer.to_u128()))
+                Ok(UnresolvedArraySize::Fixed(integer.to_u128()))
             }
         }
         Token::Ident(ident) => {
             // XXX: parse named size as an ident. The actual size will be determined in the hir pass and resolution
-            Ok(ArraySize::FixedVariable(ident))
+            Ok(UnresolvedArraySize::FixedVariable(ident))
         }
         _ => {
             let message = "The array size is defined as [k] for fixed size or [] for variable length. k must be a literal".to_string();

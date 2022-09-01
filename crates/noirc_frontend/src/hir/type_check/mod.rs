@@ -66,7 +66,7 @@ mod test {
     use crate::{graph::CrateId, Ident};
     use crate::{
         hir::{
-            def_map::{CrateDefMap, ModuleDefId, LocalModuleId},
+            def_map::{CrateDefMap, LocalModuleId, ModuleDefId},
             resolution::{path_resolver::PathResolver, resolver::Resolver},
         },
         parse_program, FunctionKind, Path,
@@ -225,7 +225,9 @@ mod test {
             }
         }
 
-        fn local_module_id(&self) -> LocalModuleId { LocalModuleId::dummy_id() }
+        fn local_module_id(&self) -> LocalModuleId {
+            LocalModuleId::dummy_id()
+        }
     }
 
     impl TestPathResolver {

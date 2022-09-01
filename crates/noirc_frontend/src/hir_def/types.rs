@@ -1,15 +1,17 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::hir_def::expr::{HirExpression, HirLiteral};
-use crate::hir_def::stmt::HirStatement;
-use crate::{hir::type_check::TypeCheckError, node_interner::NodeInterner};
+use crate::{
+    hir::type_check::TypeCheckError,
+    node_interner::{ExprId, NodeInterner},
+};
 use noirc_abi::{AbiFEType, AbiType};
 use noirc_errors::Span;
 
 use crate::{
-    node_interner::{FuncId, StmtId, StructId},
+    node_interner::{FuncId, StructId},
     util::vecmap,
-    ArraySize, Ident, Signedness,
+    Ident, Signedness,
 };
 
 #[derive(Debug, Eq)]
@@ -40,6 +42,41 @@ impl StructType {
 impl std::fmt::Display for StructType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.name)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum ArraySize {
+    Variable,
+    Fixed(u128),
+    FixedVariable(ExprId),
+}
+
+impl ArraySize {
+    pub fn is_fixed(&self) -> bool {
+        matches!(self, ArraySize::Fixed(_))
+    }
+
+    pub fn is_fixed_variable(&self) -> bool {
+        matches!(self, ArraySize::FixedVariable(_))
+    }
+
+    pub fn is_variable(&self) -> bool {
+        !self.is_fixed()
+    }
+
+    pub fn is_subtype_of(&self, argument: &ArraySize) -> bool {
+        (self.is_fixed() && argument.is_variable()) || (self == argument)
+    }
+}
+
+impl std::fmt::Display for ArraySize {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ArraySize::Variable => write!(f, "[]"),
+            ArraySize::Fixed(size) => write!(f, "[{}]", size),
+            ArraySize::FixedVariable(expr_id) => write!(f, "[{:?}]", expr_id),
+        }
     }
 }
 
@@ -554,9 +591,8 @@ impl Type {
     pub fn num_elements(&self, interner: &NodeInterner) -> usize {
         match self {
             Type::Array(ArraySize::Fixed(fixed_size), _) => *fixed_size as usize,
-            Type::Array(ArraySize::FixedVariable(name), _) => {
-                let global_ident = Ident::from(name.clone());
-                let length = self.get_fixed_variable_array_length(&global_ident, interner);
+            Type::Array(ArraySize::FixedVariable(expr_id), _) => {
+                let length = self.get_fixed_variable_array_length(expr_id, interner);
                 length as usize
             },
             Type::Array(ArraySize::Variable, _) =>
@@ -604,33 +640,18 @@ impl Type {
         }
     }
 
-    fn get_fixed_variable_array_length(&self, ident: &Ident, interner: &NodeInterner) -> u128 {
-        // TODO: changed to using stmt ids but the same problem still exists where consts with the same idents could be getting used
-        // The length of a fixed variable array should definitely be moved to name resolution so that this method is not even needed
-        let mut stmt_id = StmtId::dummy_id();
-        for (global_stmt_id, (global_ident, _local_id)) in interner.get_all_global_consts() {
-            if global_ident == *ident {
-                stmt_id = global_stmt_id;
-                break;
-            }
-        }
-        let statement = interner.statement(&stmt_id);
-        match statement {
-            HirStatement::Let(let_stmt) => {
-                let expression = interner.expression(&let_stmt.expression);
-                match expression {
-                    HirExpression::Literal(literal) => {
-                        match literal {
-                            HirLiteral::Integer(field_element) => {
-                                field_element.try_into_u128().expect("field element used in constant does not fit into u128")
-                            }
-                            _ => panic!("literal used in fixed variable array length must be an integer literal")
-                        }
-                    },
-                    _ => panic!("expression in global const statement is not a literal")
+    fn get_fixed_variable_array_length(&self, expr_id: &ExprId, interner: &NodeInterner) -> u128 {
+        let expr = interner.expression(expr_id);
+        match expr {
+            HirExpression::Literal(literal) => match literal {
+                HirLiteral::Integer(field_element) => field_element
+                    .try_into_u128()
+                    .expect("field element used in constant does not fit into u128"),
+                _ => {
+                    panic!("literal used in fixed variable array length must be an integer literal")
                 }
-            }
-            _ => panic!("let statement not associated with statement"),
+            },
+            _ => panic!("expression in global const statement is not a literal"),
         }
     }
 
@@ -648,9 +669,9 @@ impl Type {
                     length: *length,
                     typ: Box::new(typ.as_abi_type(fe_type, interner)),
                 },
-                ArraySize::FixedVariable(name) => {
-                    let global_ident = Ident::from(name.clone());
-                    let length = self.get_fixed_variable_array_length(&global_ident, interner);
+                ArraySize::FixedVariable(stmt_id) => {
+                    // let global_ident = Ident::from(name.clone());
+                    let length = self.get_fixed_variable_array_length(stmt_id, interner);
 
                     AbiType::Array {
                         visibility: fe_type,

@@ -15,36 +15,36 @@ pub use structure::*;
 use crate::{token::IntType, util::vecmap, IsConst};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum ArraySize {
+pub enum UnresolvedArraySize {
     Variable,
     Fixed(u128),
     FixedVariable(String),
 }
 
-impl ArraySize {
+impl UnresolvedArraySize {
     pub fn is_fixed(&self) -> bool {
-        matches!(self, ArraySize::Fixed(_))
+        matches!(self, UnresolvedArraySize::Fixed(_))
     }
 
     pub fn is_fixed_variable(&self) -> bool {
-        matches!(self, ArraySize::FixedVariable(_))
+        matches!(self, UnresolvedArraySize::FixedVariable(_))
     }
 
     pub fn is_variable(&self) -> bool {
         !self.is_fixed()
     }
 
-    pub fn is_subtype_of(&self, argument: &ArraySize) -> bool {
+    pub fn is_subtype_of(&self, argument: &UnresolvedArraySize) -> bool {
         (self.is_fixed() && argument.is_variable()) || (self == argument)
     }
 }
 
-impl std::fmt::Display for ArraySize {
+impl std::fmt::Display for UnresolvedArraySize {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ArraySize::Variable => write!(f, "[]"),
-            ArraySize::Fixed(size) => write!(f, "[{}]", size),
-            ArraySize::FixedVariable(ident) => write!(f, "[{}]", ident),
+            UnresolvedArraySize::Variable => write!(f, "[]"),
+            UnresolvedArraySize::Fixed(size) => write!(f, "[{}]", size),
+            UnresolvedArraySize::FixedVariable(ident) => write!(f, "[{}]", ident),
         }
     }
 }
@@ -55,8 +55,8 @@ impl std::fmt::Display for ArraySize {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum UnresolvedType {
     FieldElement(IsConst),
-    Array(ArraySize, Box<UnresolvedType>), // [4]Witness = Array(4, Witness)
-    Integer(IsConst, Signedness, u32),     // u32 = Integer(unsigned, 32)
+    Array(UnresolvedArraySize, Box<UnresolvedType>), // [4]Witness = Array(4, Witness)
+    Integer(IsConst, Signedness, u32),               // u32 = Integer(unsigned, 32)
     Bool(IsConst),
     Unit,
     Struct(Path),

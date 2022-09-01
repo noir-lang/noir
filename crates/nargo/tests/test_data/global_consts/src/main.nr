@@ -10,7 +10,6 @@ fn main(a: [M]Field, b: [M]Field) {
 
      let mut y = 5;
      for i in 0..N*N {
-          //let N: const Field = 10;
           y = i;
      };
      constrain y == 24;
@@ -24,7 +23,7 @@ fn main(a: [M]Field, b: [M]Field) {
 
      arrays_neq(a, b);
 
-     let arr: [N]Field = [5; 5];
+     let arr: [N]Field = [N; 5];
      // let arr: [N]Field = [N; 5]; NOTE: this is currently broken
      constrain arr[0] == 5;
      constrain arr[4] == 5;

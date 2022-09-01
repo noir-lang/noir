@@ -42,6 +42,17 @@ pub struct HirIdent {
     pub id: DefinitionId,
 }
 
+// impl std::fmt::Display for HirIdent {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         write!(f, "location: {:?}, id: {:?}", self.location, self.id)
+//         // match self {
+//         //     ArraySize::Variable => write!(f, "[]"),
+//         //     ArraySize::Fixed(size) => write!(f, "[{}]", size),
+//         //     ArraySize::FixedVariable(ident) => write!(f, "[{}]", ident),
+//         // }
+//     }
+// }
+
 #[derive(Debug, Clone)]
 pub struct HirForExpression {
     pub identifier: HirIdent,
