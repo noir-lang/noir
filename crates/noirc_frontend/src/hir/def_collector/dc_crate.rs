@@ -273,7 +273,11 @@ fn collect_global_constants(
     global_const_ids
 }
 
-fn resolve_global_constants(resolver: &mut Resolver, global_constants: Vec<UnresolvedGlobalConst>, local_id: LocalModuleId) {
+fn resolve_global_constants(
+    resolver: &mut Resolver,
+    global_constants: Vec<UnresolvedGlobalConst>,
+    local_id: LocalModuleId,
+) {
     // NOTE: Each function uses a new resolver that has a newly constructed scopes field
     // Thus it is still necessary to resolve global const statements here to place a global const inside the global scope of a function's resolver
     for global_constant in global_constants {
