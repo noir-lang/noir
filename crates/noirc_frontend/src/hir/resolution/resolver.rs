@@ -169,10 +169,11 @@ impl<'a> Resolver<'a> {
         let global_scope = self.scopes.get_global_scope();
         let ident;
         let resolver_meta;
-        let mut stmt_id = None;
+
         // This check is necessary to maintain the same definition ids in the interner. Currently, each function uses a new resolver that has its own ScopeForest and thus global scope.
         // We must first check whether an existing definition ID has been inserted as otherwise there will be multiple definitions for the same global const statement.
         // This leads to an error in evaluation where the wrong definition ID is selected when evaluating a statement using the global const. The check below prevents this error.
+        let mut stmt_id = None;
         let global_consts = self.interner.get_all_global_consts();
         for (global_stmt_id, const_info) in global_consts {
             if const_info.ident == name
@@ -183,13 +184,10 @@ impl<'a> Resolver<'a> {
         }
 
         if let Some(id) = stmt_id {
-            let hir_stmt = self.interner.statement(&id);
-            ident = match hir_stmt {
-                HirStatement::Let(let_stmt) => match let_stmt.pattern {
-                    HirPattern::Identifier(ident) => ident,
-                    _ => panic!("global const pattern can only be an identifier"),
-                },
-                _ => panic!("global const statement must be a let statement"),
+            let hir_let_stmt = self.interner.let_statement(&id);
+            ident = match hir_let_stmt.pattern {
+                HirPattern::Identifier(ident) => ident,
+                _ => panic!("global const pattern can only be an identifier"),
             };
             resolver_meta = ResolverMeta { num_times_used: 0, ident };
         } else {
@@ -468,18 +466,39 @@ impl<'a> Resolver<'a> {
                 index: self.resolve_expression(indexed_expr.index),
             }),
             ExpressionKind::Path(path) => {
+                let stmt_id = self.lookup_const(path.clone());
+
+                let hir_let_stmt = self.interner.let_statement(&stmt_id);
+                let ident = match hir_let_stmt.pattern {
+                    // TODO: move this to impl for HirLetStatement
+                    HirPattern::Identifier(ident) => ident,
+                    _ => panic!("global const pattern can only be an identifier"),
+                };
+
+                let mut global_hir_expr = None;
+                let global_consts = self.interner.get_all_global_consts();
+                for (global_stmt_id, _const_info) in global_consts {
+                    if global_stmt_id == stmt_id {
+                        global_hir_expr = Some(HirExpression::Ident(ident));
+                    }
+                }
+
                 // If the Path is being used as an Expression, then it is referring to an Identifier
                 //
                 // This is currently not supported : const x = foo::bar::SOME_CONST + 10;
-                HirExpression::Ident(match path.as_ident() {
-                    Some(identifier) => self.find_variable(identifier),
-                    None => {
-                        self.push_err(ResolverError::PathIsNotIdent { span: path.span() });
-                        let id = DefinitionId::dummy_id();
-                        let location = Location::new(path.span(), self.file);
-                        HirIdent { id, location }
-                    }
-                })
+                if let Some(hir_expr) = global_hir_expr {
+                    hir_expr
+                } else {
+                    HirExpression::Ident(match path.as_ident() {
+                        Some(identifier) => self.find_variable(identifier),
+                        None => {
+                            self.push_err(ResolverError::PathIsNotIdent { span: path.span() });
+                            let id = DefinitionId::dummy_id();
+                            let location = Location::new(path.span(), self.file);
+                            HirIdent { id, location }
+                        }
+                    })
+                }
             }
             ExpressionKind::Block(block_expr) => self.resolve_block(block_expr),
             ExpressionKind::Constructor(constructor) => {
@@ -641,6 +660,10 @@ impl<'a> Resolver<'a> {
     }
 
     fn lookup_function(&mut self, path: Path) -> FuncId {
+        self.lookup(path)
+    }
+
+    fn lookup_const(&mut self, path: Path) -> StmtId {
         self.lookup(path)
     }
 

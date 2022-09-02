@@ -669,9 +669,8 @@ impl Type {
                     length: *length,
                     typ: Box::new(typ.as_abi_type(fe_type, interner)),
                 },
-                ArraySize::FixedVariable(stmt_id) => {
-                    // let global_ident = Ident::from(name.clone());
-                    let length = self.get_fixed_variable_array_length(stmt_id, interner);
+                ArraySize::FixedVariable(expr_id) => {
+                    let length = self.get_fixed_variable_array_length(expr_id, interner);
 
                     AbiType::Array {
                         visibility: fe_type,

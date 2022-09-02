@@ -38,6 +38,8 @@ pub fn collect_defs<'a>(
         collector.parse_module_declaration(context, &decl, crate_id, errors)
     }
 
+    collector.collect_global_constants(context, ast.global_constants, errors);
+
     collector.collect_submodules(context, crate_id, ast.submodules, file_id, errors);
 
     // Then add the imports to defCollector to resolve once all modules in the hierarchy have been resolved
@@ -50,8 +52,6 @@ pub fn collect_defs<'a>(
     }
 
     collector.collect_structs(ast.types, crate_id, errors);
-
-    collector.collect_global_constants(context, ast.global_constants, errors);
 
     let errors_in_same_file = collector.collect_functions(context, ast.functions);
 
@@ -76,7 +76,7 @@ impl<'a> ModCollector<'a> {
             // So that we can get a StmtId
             let stmt_id = context.def_interner.push_empty_global_const();
 
-            // Add the struct to scope so its path can be looked up later
+            // Add the statement to the scope so its path can be looked up later
             let result = self.def_collector.def_map.modules[self.module_id.0]
                 .scope
                 .define_global_const_def(name, stmt_id);
@@ -93,6 +93,7 @@ impl<'a> ModCollector<'a> {
             self.def_collector.collected_consts.push(UnresolvedGlobalConst {
                 file_id: self.file_id,
                 module_id: self.module_id,
+                stmt_id: stmt_id,
                 stmt_def: global_constant,
             });
         }

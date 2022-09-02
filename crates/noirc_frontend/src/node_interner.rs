@@ -275,7 +275,6 @@ impl NodeInterner {
         local_id: LocalModuleId,
         expr_id: ExprId,
     ) {
-        println!("push_global_const: {:?}, {:?}, {:?}", ident, stmt_id, expr_id);
         self.global_constants.insert(stmt_id, GlobalConstInfo { ident, local_id, expr_id });
     }
 

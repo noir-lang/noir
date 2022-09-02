@@ -2,8 +2,9 @@ mod foo;
 
 const M: Field = 32;
 const L: Field = 10; // Unused globals currently allowed
-const N: const Field = 5;
-//let N: const Field = 5;
+const N: Field = 5;
+// Uncomment the line below to see conflicting global constants error
+//const N: Field = 5; 
 
 fn main(a: [M]Field, b: [M]Field) {
      constrain N != M;
@@ -24,24 +25,17 @@ fn main(a: [M]Field, b: [M]Field) {
      arrays_neq(a, b);
 
      let arr: [N]Field = [N; 5];
-     // let arr: [N]Field = [N; 5]; NOTE: this is currently broken
      constrain arr[0] == 5;
      constrain arr[4] == 5;
 
-     //let t: [2]Field = [N, M];
-     // NOTE: This is currently broken, as only global consts work in array annotations
-     //let L: const Field = 2;
      let t: []Field = [N, M];
-
      constrain t[1] == 32;
 
-     mysubmodule::my_helper();
-     //constrain 10 == mysubmodule::N;
+     constrain 15 == mysubmodule::my_helper();
+     constrain 10 == mysubmodule::N;
 }
 
 fn multiplyByM(x: Field) -> Field {
-     // Uncomment this line to show duplicate variables error
-     //let M: const Field = 10;
      x * M
 }
 
@@ -59,9 +53,9 @@ mod mysubmodule {
         constrain std::bool_or(x, y) == 1;
     }
 
-    fn my_helper() {
+    fn my_helper() -> const Field {
         let N: const Field = 15; // Like in Rust, the local variable overrides the global const
         let mut x = N;
-        constrain x == 15;
+        x
     }
 }

@@ -762,6 +762,24 @@ where
     path().then(parenthesized(expression_list(expr_parser))).map(ExpressionKind::function_call)
 }
 
+fn global_const_call() -> impl NoirParser<ExpressionKind> {
+    global_const_path().map(ExpressionKind::Path)
+}
+
+fn global_const_path() -> impl NoirParser<Path> {
+    let idents = || ident().separated_by(just(Token::DoubleColon)).at_least(2);
+    let make_path = |kind| move |segments| Path { segments, kind };
+
+    let prefix = |key| keyword(key).ignore_then(just(Token::DoubleColon));
+    let path_kind = |key, kind| prefix(key).ignore_then(idents()).map(make_path(kind));
+
+    choice((
+        path_kind(Keyword::Crate, PathKind::Crate),
+        path_kind(Keyword::Dep, PathKind::Dep),
+        idents().map(make_path(PathKind::Plain)),
+    ))
+}
+
 fn constructor<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
 where
     P: ExprParser,
@@ -785,7 +803,9 @@ where
 }
 
 fn variable() -> impl NoirParser<ExpressionKind> {
-    ident().map(|name| ExpressionKind::Ident(name.0.contents))
+    let const_path = global_const_call();
+    let valid_variable = ident().map(|name| ExpressionKind::Ident(name.0.contents));
+    const_path.or(valid_variable)
 }
 
 fn literal() -> impl NoirParser<ExpressionKind> {
