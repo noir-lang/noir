@@ -38,8 +38,6 @@ pub fn collect_defs<'a>(
         collector.parse_module_declaration(context, &decl, crate_id, errors)
     }
 
-    collector.collect_global_constants(context, ast.global_constants, errors);
-
     collector.collect_submodules(context, crate_id, ast.submodules, file_id, errors);
 
     // Then add the imports to defCollector to resolve once all modules in the hierarchy have been resolved
@@ -50,6 +48,8 @@ pub fn collect_defs<'a>(
             alias: import.alias,
         });
     }
+
+    collector.collect_global_constants(context, ast.global_constants, errors);
 
     collector.collect_structs(ast.types, crate_id, errors);
 

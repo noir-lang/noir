@@ -1,4 +1,4 @@
-//let N: const Field = 5;
+const N: Field = 5;
 
 fn hello(x : Field) -> Field {
     x

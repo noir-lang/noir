@@ -33,6 +33,9 @@ fn main(a: [M]Field, b: [M]Field) {
 
      constrain 15 == mysubmodule::my_helper();
      constrain 10 == mysubmodule::N;
+     
+     let add_submodules_N = mysubmodule::N + foo::N;
+     constrain 15 == add_submodules_N;
 }
 
 fn multiplyByM(x: Field) -> Field {

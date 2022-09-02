@@ -185,10 +185,7 @@ impl<'a> Resolver<'a> {
 
         if let Some(id) = stmt_id {
             let hir_let_stmt = self.interner.let_statement(&id);
-            ident = match hir_let_stmt.pattern {
-                HirPattern::Identifier(ident) => ident,
-                _ => panic!("global const pattern can only be an identifier"),
-            };
+            ident = hir_let_stmt.ident();
             resolver_meta = ResolverMeta { num_times_used: 0, ident };
         } else {
             let id = self.interner.push_definition(name.0.contents.clone(), false);
@@ -466,14 +463,13 @@ impl<'a> Resolver<'a> {
                 index: self.resolve_expression(indexed_expr.index),
             }),
             ExpressionKind::Path(path) => {
+                // If the Path is being used as an Expression, then it is referring to a global constant from a separate module
+                // Otherwise, then it is referring to an Identifier
+                // This lookup allows support of such statements: let x = foo::bar::SOME_CONST + 10;
                 let stmt_id = self.lookup_const(path.clone());
 
                 let hir_let_stmt = self.interner.let_statement(&stmt_id);
-                let ident = match hir_let_stmt.pattern {
-                    // TODO: move this to impl for HirLetStatement
-                    HirPattern::Identifier(ident) => ident,
-                    _ => panic!("global const pattern can only be an identifier"),
-                };
+                let ident = hir_let_stmt.ident();
 
                 let mut global_hir_expr = None;
                 let global_consts = self.interner.get_all_global_consts();
@@ -483,9 +479,6 @@ impl<'a> Resolver<'a> {
                     }
                 }
 
-                // If the Path is being used as an Expression, then it is referring to an Identifier
-                //
-                // This is currently not supported : const x = foo::bar::SOME_CONST + 10;
                 if let Some(hir_expr) = global_hir_expr {
                     hir_expr
                 } else {
