@@ -49,16 +49,11 @@ impl std::fmt::Display for StructType {
 pub enum ArraySize {
     Variable,
     Fixed(u128),
-    FixedVariable(ExprId),
 }
 
 impl ArraySize {
     pub fn is_fixed(&self) -> bool {
         matches!(self, ArraySize::Fixed(_))
-    }
-
-    pub fn is_fixed_variable(&self) -> bool {
-        matches!(self, ArraySize::FixedVariable(_))
     }
 
     pub fn is_variable(&self) -> bool {
@@ -75,7 +70,6 @@ impl std::fmt::Display for ArraySize {
         match self {
             ArraySize::Variable => write!(f, "[]"),
             ArraySize::Fixed(size) => write!(f, "[{}]", size),
-            ArraySize::FixedVariable(expr_id) => write!(f, "[{:?}]", expr_id),
         }
     }
 }
@@ -588,13 +582,9 @@ impl Type {
 
     /// Computes the number of elements in a Type
     /// Arrays, structs, and tuples will be the only data structures to return more than one
-    pub fn num_elements(&self, interner: &NodeInterner) -> usize {
+    pub fn num_elements(&self) -> usize {
         match self {
             Type::Array(ArraySize::Fixed(fixed_size), _) => *fixed_size as usize,
-            Type::Array(ArraySize::FixedVariable(expr_id), _) => {
-                let length = self.get_fixed_variable_array_length(expr_id, interner);
-                length as usize
-            },
             Type::Array(ArraySize::Variable, _) =>
                 unreachable!("ice : this method is only ever called when we want to compare the prover inputs with the ABI in main. The ABI should not have variable input. The program should be compiled before calling this"),
             Type::Struct(s) => s.borrow().fields.len(),
@@ -617,14 +607,6 @@ impl Type {
         sized.is_fixed()
     }
 
-    pub fn is_fixed_variable_sized_array(&self) -> bool {
-        let (sized, _) = match self.array() {
-            None => return false,
-            Some(arr) => arr,
-        };
-        sized.is_fixed_variable()
-    }
-
     pub fn is_variable_sized_array(&self) -> bool {
         let (sized, _) = match self.array() {
             None => return false,
@@ -637,21 +619,6 @@ impl Type {
         match self {
             Type::Array(sized, typ) => Some((sized, typ)),
             _ => None,
-        }
-    }
-
-    fn get_fixed_variable_array_length(&self, expr_id: &ExprId, interner: &NodeInterner) -> u128 {
-        let expr = interner.expression(expr_id);
-        match expr {
-            HirExpression::Literal(literal) => match literal {
-                HirLiteral::Integer(field_element) => field_element
-                    .try_into_u128()
-                    .expect("field element used in constant does not fit into u128"),
-                _ => {
-                    panic!("literal used in fixed variable array length must be an integer literal")
-                }
-            },
-            _ => panic!("expression in global const statement is not a literal"),
         }
     }
 
@@ -669,15 +636,6 @@ impl Type {
                     length: *length,
                     typ: Box::new(typ.as_abi_type(fe_type, interner)),
                 },
-                ArraySize::FixedVariable(expr_id) => {
-                    let length = self.get_fixed_variable_array_length(expr_id, interner);
-
-                    AbiType::Array {
-                        visibility: fe_type,
-                        length,
-                        typ: Box::new(typ.as_abi_type(fe_type, interner)),
-                    }
-                }
             },
             Type::Integer(_, sign, bit_width) => {
                 let sign = match sign {

@@ -273,7 +273,8 @@ impl<'a> Resolver<'a> {
                             }
                         }
                         if let Some(expr_id) = fixed_var_expr_id {
-                            ArraySize::FixedVariable(expr_id)
+                            let length = self.get_fixed_variable_array_length(&expr_id);
+                            ArraySize::Fixed(length)
                         } else {
                             return Type::Error;
                         }
@@ -293,6 +294,21 @@ impl<'a> Resolver<'a> {
             UnresolvedType::Tuple(fields) => {
                 Type::Tuple(vecmap(fields, |field| self.resolve_type(field)))
             }
+        }
+    }
+
+    fn get_fixed_variable_array_length(&self, expr_id: &ExprId) -> u128 {
+        let expr = self.interner.expression(expr_id);
+        match expr {
+            HirExpression::Literal(literal) => match literal {
+                HirLiteral::Integer(field_element) => field_element
+                    .try_into_u128()
+                    .expect("field element used in constant does not fit into u128"),
+                _ => {
+                    panic!("literal used in fixed variable array length must be an integer literal")
+                }
+            },
+            _ => panic!("expression in global const statement is not a literal"),
         }
     }
 
@@ -341,7 +357,7 @@ impl<'a> Resolver<'a> {
     }
 
     pub fn resolve_stmt(&mut self, stmt: Statement, is_global: bool) -> HirStatement {
-        let stmt = match stmt {
+        match stmt {
             Statement::Let(let_stmt) => HirStatement::Let(HirLetStatement {
                 pattern: self.resolve_pattern(let_stmt.pattern, is_global),
                 r#type: self.resolve_type(let_stmt.r#type),
@@ -360,8 +376,7 @@ impl<'a> Resolver<'a> {
                 HirStatement::Assign(stmt)
             }
             Statement::Error => HirStatement::Error,
-        };
-        stmt
+        }
     }
 
     pub fn intern_stmt(&mut self, stmt: Statement, is_global: bool) -> StmtId {
