@@ -1,3 +1,4 @@
+use acvm::acir::circuit::Circuit;
 use std::path::PathBuf;
 use wasm_bindgen::prelude::*;
 
@@ -10,4 +11,18 @@ pub fn compile(src: String) -> JsValue {
     let path = PathBuf::from(src);
     let compiled_program = noirc_driver::Driver::compile_file(path, language);
     JsValue::from_serde(&compiled_program).unwrap()
+}
+// Deserialises bytes into ACIR structure
+#[wasm_bindgen]
+pub fn acir_from_bytes(bytes: Vec<u8>) -> JsValue {
+    console_error_panic_hook::set_once();
+    let circuit = Circuit::from_bytes(&bytes);
+    JsValue::from_serde(&circuit).unwrap()
+}
+
+#[wasm_bindgen]
+pub fn acir_to_bytes(acir: JsValue) -> Vec<u8> {
+    console_error_panic_hook::set_once();
+    let circuit: Circuit = acir.into_serde().unwrap();
+    circuit.to_bytes()
 }
