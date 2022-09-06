@@ -9,11 +9,11 @@ edition = "2018"
 [dependencies]
 dirs = "3.0.1"
 url = "2.2.0"
-noirc_driver = { path = "../noirc_driver" }
+noirc_driver = { path = "../noirc_driver", features = ["std"] }
 noirc_frontend = { path = "../noirc_frontend" }
 noirc_abi = { path = "../noirc_abi" }
 fm = { path = "../fm" }
-acvm = { git = "https://github.com/noir-lang/noir", rev = "cc5ee63072e09779bebd7e7dd054ae16be307d7f" }
+acvm = { git = "https://github.com/noir-lang/noir" }
 cfg-if = "1.0.0"
 
 toml = "0.5"
