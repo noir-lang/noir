@@ -93,7 +93,7 @@ impl<'a> ModCollector<'a> {
             self.def_collector.collected_consts.push(UnresolvedGlobalConst {
                 file_id: self.file_id,
                 module_id: self.module_id,
-                stmt_id: stmt_id,
+                stmt_id,
                 stmt_def: global_constant,
             });
         }
