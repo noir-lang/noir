@@ -143,12 +143,18 @@ impl<'a> Resolver<'a> {
         ret
     }
 
-    fn add_variable_decl(&mut self, name: Ident, mutable: bool, is_global: bool) -> HirIdent {
+    fn add_variable_decl(
+        &mut self,
+        name: Ident,
+        mutable: bool,
+        is_global: bool,
+        rhs: Option<ExprId>,
+    ) -> HirIdent {
         if is_global {
-            return self.add_global_variable_decl(name);
+            return self.add_global_variable_decl(name, rhs);
         }
 
-        let id = self.interner.push_definition(name.0.contents.clone(), mutable);
+        let id = self.interner.push_definition(name.0.contents.clone(), mutable, rhs);
         let location = Location::new(name.span(), self.file);
         let ident = HirIdent { location, id };
         let resolver_meta = ResolverMeta { num_times_used: 0, ident };
@@ -165,7 +171,7 @@ impl<'a> Resolver<'a> {
         ident
     }
 
-    fn add_global_variable_decl(&mut self, name: Ident) -> HirIdent {
+    fn add_global_variable_decl(&mut self, name: Ident, rhs: Option<ExprId>) -> HirIdent {
         let global_scope = self.scopes.get_global_scope();
         let ident;
         let resolver_meta;
@@ -193,7 +199,7 @@ impl<'a> Resolver<'a> {
             };
             resolver_meta = ResolverMeta { num_times_used: 0, ident };
         } else {
-            let id = self.interner.push_definition(name.0.contents.clone(), false);
+            let id = self.interner.push_definition(name.0.contents.clone(), false, rhs); // The rhs expr for a global const is already interned in a separate map and scope
             let location = Location::new(name.span(), self.file);
             ident = HirIdent { location, id };
             resolver_meta = ResolverMeta { num_times_used: 0, ident };
@@ -268,15 +274,15 @@ impl<'a> Resolver<'a> {
                     UnresolvedArraySize::Fixed(length) => ArraySize::Fixed(length),
                     UnresolvedArraySize::FixedVariable(name) => {
                         let ident = Ident::from(name);
-                        let global_consts = self.interner.get_all_global_consts();
+
+                        // A resolved identifier must exist either in the local scope or global scope
+                        let hir_ident = self.find_variable(&ident);
                         let mut fixed_var_expr_id = None;
-                        for (_stmt_id, const_info) in global_consts {
-                            if const_info.ident == ident
-                                && const_info.local_id == self.path_resolver.local_module_id()
-                            {
-                                fixed_var_expr_id = Some(const_info.expr_id);
-                            }
+                        let definition_info = self.interner.definition(hir_ident.id);
+                        if let Some(rhs_expr_id) = definition_info.rhs {
+                            fixed_var_expr_id = Some(rhs_expr_id);
                         }
+
                         if let Some(expr_id) = fixed_var_expr_id {
                             let length = self.get_fixed_variable_array_length(&expr_id);
                             ArraySize::Fixed(length)
@@ -332,7 +338,7 @@ impl<'a> Resolver<'a> {
         let name = func.name().to_owned();
 
         let location = Location::new(func.name_ident().span(), self.file);
-        let id = self.interner.push_definition(name, false);
+        let id = self.interner.push_definition(name, false, None);
         let name_ident = HirIdent { id, location };
 
         let attributes = func.attribute().cloned();
@@ -342,7 +348,7 @@ impl<'a> Resolver<'a> {
             if func.name() != "main" && visibility == noirc_abi::AbiFEType::Public {
                 self.push_err(ResolverError::UnnecessaryPub { func_ident: name_ident })
             }
-            let pattern = self.resolve_pattern(pattern, false);
+            let pattern = self.resolve_pattern(pattern, false, None);
             let typ = self.resolve_type(typ);
             parameters.push(Param(pattern, typ, visibility));
         }
@@ -363,11 +369,14 @@ impl<'a> Resolver<'a> {
 
     pub fn resolve_stmt(&mut self, stmt: Statement, is_global: bool) -> HirStatement {
         match stmt {
-            Statement::Let(let_stmt) => HirStatement::Let(HirLetStatement {
-                pattern: self.resolve_pattern(let_stmt.pattern, is_global),
-                r#type: self.resolve_type(let_stmt.r#type),
-                expression: self.resolve_expression(let_stmt.expression),
-            }),
+            Statement::Let(let_stmt) => {
+                let expression = self.resolve_expression(let_stmt.expression);
+                HirStatement::Let(HirLetStatement {
+                    pattern: self.resolve_pattern(let_stmt.pattern, is_global, Some(expression)),
+                    r#type: self.resolve_type(let_stmt.r#type),
+                    expression,
+                })
+            }
             Statement::Constrain(constrain_stmt) => {
                 let expr_id = self.resolve_expression(constrain_stmt.0);
                 HirStatement::Constrain(HirConstrainStatement(expr_id, self.file))
@@ -461,7 +470,7 @@ impl<'a> Resolver<'a> {
                 //       yet implemented syntax for them to be optionally mutable.
                 let (identifier, block_id) = self.in_new_scope(|this| {
                     (
-                        this.add_variable_decl(identifier, true, false),
+                        this.add_variable_decl(identifier, true, false, None),
                         this.resolve_expression(block),
                     )
                 });
@@ -537,8 +546,13 @@ impl<'a> Resolver<'a> {
         expr_id
     }
 
-    fn resolve_pattern(&mut self, pattern: Pattern, is_global: bool) -> HirPattern {
-        self.resolve_pattern_mutable(pattern, None, is_global)
+    fn resolve_pattern(
+        &mut self,
+        pattern: Pattern,
+        is_global: bool,
+        rhs: Option<ExprId>,
+    ) -> HirPattern {
+        self.resolve_pattern_mutable(pattern, None, is_global, rhs)
     }
 
     fn resolve_pattern_mutable(
@@ -546,10 +560,11 @@ impl<'a> Resolver<'a> {
         pattern: Pattern,
         mutable: Option<Span>,
         is_global: bool,
+        rhs: Option<ExprId>,
     ) -> HirPattern {
         match pattern {
             Pattern::Identifier(name) => {
-                let id = self.add_variable_decl(name, mutable.is_some(), is_global);
+                let id = self.add_variable_decl(name, mutable.is_some(), is_global, rhs);
                 HirPattern::Identifier(id)
             }
             Pattern::Mutable(pattern, span) => {
@@ -557,19 +572,20 @@ impl<'a> Resolver<'a> {
                     self.push_err(ResolverError::UnnecessaryMut { first_mut, second_mut: span })
                 }
 
-                let pattern = self.resolve_pattern_mutable(*pattern, Some(span), is_global);
+                let pattern = self.resolve_pattern_mutable(*pattern, Some(span), is_global, rhs);
                 HirPattern::Mutable(Box::new(pattern), span)
             }
             Pattern::Tuple(fields, span) => {
-                let fields =
-                    vecmap(fields, |field| self.resolve_pattern_mutable(field, mutable, is_global));
+                let fields = vecmap(fields, |field| {
+                    self.resolve_pattern_mutable(field, mutable, is_global, rhs)
+                });
                 HirPattern::Tuple(fields, span)
             }
             Pattern::Struct(name, fields, span) => {
                 let struct_id = self.lookup_type(name);
                 let struct_type = self.get_struct(struct_id);
                 let resolve_field = |this: &mut Self, pattern| {
-                    this.resolve_pattern_mutable(pattern, mutable, is_global)
+                    this.resolve_pattern_mutable(pattern, mutable, is_global, rhs)
                 };
                 let fields =
                     self.resolve_constructor_fields(struct_id, fields, span, resolve_field);

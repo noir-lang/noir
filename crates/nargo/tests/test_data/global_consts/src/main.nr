@@ -23,15 +23,13 @@ fn main(a: [M]Field, b: [M]Field) {
 
      arrays_neq(a, b);
 
-     let arr: [N]Field = [N; 5];
-     // let arr: [N]Field = [N; 5]; NOTE: this is currently broken
+     let N_local: Field = 10;
+     let arr: [N_local]Field = [N; 10];
      constrain arr[0] == 5;
-     constrain arr[4] == 5;
+     constrain arr[9] == 5;
 
-     //let t: [2]Field = [N, M];
-     // NOTE: This is currently broken, as only global consts work in array annotations
-     //let L: const Field = 2;
-     let t: []Field = [N, M];
+     let L: const Field = 2;
+     let t: [L]Field = [N, M];
 
      constrain t[1] == 32;
 

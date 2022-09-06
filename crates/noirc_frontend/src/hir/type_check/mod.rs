@@ -90,7 +90,7 @@ mod test {
         // let z = x + y;
         //
         // Push x variable
-        let x_id = interner.push_definition("x".into(), false);
+        let x_id = interner.push_definition("x".into(), false, None);
 
         // Safety: The FileId in a location isn't used for tests
         let file = FileId::default();
@@ -99,11 +99,11 @@ mod test {
         let x = HirIdent { id: x_id, location };
 
         // Push y variable
-        let y_id = interner.push_definition("y".into(), false);
+        let y_id = interner.push_definition("y".into(), false, None);
         let y = HirIdent { id: y_id, location };
 
         // Push z variable
-        let z_id = interner.push_definition("z".into(), false);
+        let z_id = interner.push_definition("z".into(), false, None);
         let z = HirIdent { id: z_id, location };
 
         // Push x and y as expressions
@@ -130,7 +130,8 @@ mod test {
         let func = HirFunction::unsafe_from_expr(expr_id);
         let func_id = interner.push_fn(func);
 
-        let name = HirIdent { location, id: interner.push_definition("test_func".into(), false) };
+        let name =
+            HirIdent { location, id: interner.push_definition("test_func".into(), false, None) };
 
         // Add function meta
         let func_meta = FuncMeta {

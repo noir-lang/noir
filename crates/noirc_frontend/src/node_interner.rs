@@ -168,6 +168,7 @@ pub struct NodeInterner {
 pub struct DefinitionInfo {
     pub name: String,
     pub mutable: bool,
+    pub rhs: Option<ExprId>, // We must store the rhs of a let statement as it might be needed during resolution. Such as for finding the variable used by fixed sized arrays
 }
 
 #[derive(Debug, Clone)]
@@ -198,7 +199,7 @@ impl Default for NodeInterner {
         // Only needed here because the evaluator uses an immutable reference to the interner
         // This is given the name 'return' which is a keyword to prevent it from being accessed
         // normally.
-        let return_id = interner.push_definition(MAIN_RETURN_NAME.into(), false);
+        let return_id = interner.push_definition(MAIN_RETURN_NAME.into(), false, None);
         assert_eq!(return_id, MAIN_RETURN_ID);
 
         interner
@@ -325,9 +326,14 @@ impl NodeInterner {
         self.func_meta.insert(func_id, func_data);
     }
 
-    pub fn push_definition(&mut self, name: String, mutable: bool) -> DefinitionId {
+    pub fn push_definition(
+        &mut self,
+        name: String,
+        mutable: bool,
+        rhs: Option<ExprId>,
+    ) -> DefinitionId {
         let id = self.definitions.len();
-        self.definitions.push(DefinitionInfo { name, mutable });
+        self.definitions.push(DefinitionInfo { name, mutable, rhs });
 
         DefinitionId(id)
     }
