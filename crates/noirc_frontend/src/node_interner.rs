@@ -175,7 +175,6 @@ pub struct DefinitionInfo {
 pub struct GlobalConstInfo {
     pub ident: Ident,
     pub local_id: LocalModuleId,
-    pub expr_id: ExprId,
 }
 
 impl Default for NodeInterner {
@@ -269,14 +268,8 @@ impl NodeInterner {
         self.id_to_type.insert(definition_id.into(), typ);
     }
 
-    pub fn push_global_const(
-        &mut self,
-        stmt_id: StmtId,
-        ident: Ident,
-        local_id: LocalModuleId,
-        expr_id: ExprId,
-    ) {
-        self.global_constants.insert(stmt_id, GlobalConstInfo { ident, local_id, expr_id });
+    pub fn push_global_const(&mut self, stmt_id: StmtId, ident: Ident, local_id: LocalModuleId) {
+        self.global_constants.insert(stmt_id, GlobalConstInfo { ident, local_id });
     }
 
     /// Intern an empty global const stmt. Used for collecting global consts

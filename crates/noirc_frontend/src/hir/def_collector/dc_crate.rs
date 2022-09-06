@@ -264,12 +264,7 @@ fn collect_global_constants(
 
         let let_stmt = context.def_interner.let_statement(&stmt_id);
 
-        context.def_interner.push_global_const(
-            stmt_id,
-            name.clone(),
-            global_constant.module_id,
-            let_stmt.expression,
-        );
+        context.def_interner.push_global_const(stmt_id, name.clone(), global_constant.module_id);
 
         context.def_interner.update_global_const(stmt_id, HirStatement::Let(let_stmt));
 
