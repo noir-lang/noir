@@ -798,7 +798,7 @@ fn literal() -> impl NoirParser<ExpressionKind> {
 }
 
 fn fixed_array_size() -> impl NoirParser<UnresolvedArraySize> {
-    filter_map(|span, token: Token| match token {
+    filter_map(|span, token: Token| match token.clone() {
         Token::Int(integer) => {
             if !integer.fits_in_u128() {
                 let message = "Array sizes must fit within a u128".to_string();
@@ -807,9 +807,9 @@ fn fixed_array_size() -> impl NoirParser<UnresolvedArraySize> {
                 Ok(UnresolvedArraySize::Fixed(integer.to_u128()))
             }
         }
-        Token::Ident(ident) => {
-            // XXX: parse named size as an ident. The actual size will be determined in the hir pass and resolution
-            Ok(UnresolvedArraySize::FixedVariable(ident))
+        Token::Ident(_) => {
+            // XXX: parse named size as an ident. The actual const integer size will be determined in the hir pass and resolution
+            Ok(UnresolvedArraySize::FixedVariable(Ident::new(token, span)))
         }
         _ => {
             let message = "The array size is defined as [k] for fixed size or [] for variable length. k must be a literal".to_string();

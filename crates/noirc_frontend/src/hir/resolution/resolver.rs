@@ -273,12 +273,17 @@ impl<'a> Resolver<'a> {
                     UnresolvedArraySize::Variable => ArraySize::Variable,
                     UnresolvedArraySize::Fixed(length) => ArraySize::Fixed(length),
                     UnresolvedArraySize::FixedVariable(name) => {
-                        let ident = Ident::from(name);
-
                         // A resolved identifier must exist either in the local scope or global scope
-                        let hir_ident = self.find_variable(&ident);
+                        let hir_ident = self.find_variable(&name);
                         let mut fixed_var_expr_id = None;
                         let definition_info = self.interner.definition(hir_ident.id);
+                        if definition_info.mutable {
+                            self.push_err(ResolverError::ExpectedConstVariable {
+                                ident: hir_ident,
+                            });
+                            return Type::Error;
+                        }
+
                         if let Some(rhs_expr_id) = definition_info.rhs {
                             fixed_var_expr_id = Some(rhs_expr_id);
                         }
