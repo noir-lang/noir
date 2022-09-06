@@ -1,10 +1,6 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use crate::hir_def::expr::{HirExpression, HirLiteral};
-use crate::{
-    hir::type_check::TypeCheckError,
-    node_interner::{ExprId, NodeInterner},
-};
+use crate::{hir::type_check::TypeCheckError, node_interner::NodeInterner};
 use noirc_abi::{AbiFEType, AbiType};
 use noirc_errors::Span;
 

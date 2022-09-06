@@ -18,7 +18,7 @@ use crate::{token::IntType, util::vecmap, IsConst};
 pub enum UnresolvedArraySize {
     Variable,
     Fixed(u128),
-    FixedVariable(String),
+    FixedVariable(Ident),
 }
 
 impl UnresolvedArraySize {

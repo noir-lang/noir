@@ -28,6 +28,8 @@ pub enum ResolverError {
     UnnecessaryMut { first_mut: Span, second_mut: Span },
     #[error("Unneeded 'pub', function is not the main method")]
     UnnecessaryPub { func_ident: HirIdent },
+    #[error("Expected const value, got mutable")]
+    ExpectedConstVariable { ident: HirIdent },
 }
 
 impl ResolverError {
@@ -149,6 +151,23 @@ impl ResolverError {
                 );
 
                 diag.add_note("The `pub` keyword only has effects on arguments to the main function of a program. Thus, adding it to other function parameters can be deceiving and should be removed".to_owned());
+                diag
+            }
+            ResolverError::ExpectedConstVariable { ident } => {
+                let name = interner.definition_name(ident.id);
+
+                let mut diag = Diagnostic::simple_error(
+                    format!(
+                        "expected constant variable where non-constant variable {} was used",
+                        name
+                    ),
+                    "expected const variable".to_string(),
+                    ident.location.span,
+                );
+
+                diag.add_note(
+                    "Variables used for fixed array type annotations must be constants".to_owned(),
+                );
                 diag
             }
         }

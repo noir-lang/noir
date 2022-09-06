@@ -2,9 +2,8 @@ mod foo;
 
 const M: Field = 32;
 const L: Field = 10; // Unused globals currently allowed
-const N: Field = 5;
-// Uncomment the line below to see conflicting global constants error
-//const N: Field = 5; 
+const N: const Field = 5;
+//let N: const Field = 5; // Uncomment to see duplicate globals error 
 
 fn main(a: [M]Field, b: [M]Field) {
      constrain N != M;
@@ -16,7 +15,6 @@ fn main(a: [M]Field, b: [M]Field) {
      constrain y == 24;
 
      let mut x = M;
-     //x = 5;
      constrain x == 32;
 
      let q = multiplyByM(3);
@@ -24,11 +22,15 @@ fn main(a: [M]Field, b: [M]Field) {
 
      arrays_neq(a, b);
 
-     let arr: [N]Field = [N; 5];
+     let N_local: const Field = 10;
+     let arr: [N_local]Field = [N; 10];
      constrain arr[0] == 5;
-     constrain arr[4] == 5;
+     constrain arr[9] == 5;
 
-     let t: []Field = [N, M];
+     //let mut L: Field = 2; // Uncomment to show expected const error for array annotations
+     let L: const Field = 2;
+     let t: [L]Field = [N, M];
+
      constrain t[1] == 32;
 
      constrain 15 == mysubmodule::my_helper();
@@ -48,7 +50,7 @@ fn arrays_neq(a: [M]Field, b: [M]Field) {
 
 mod mysubmodule {
     use dep::std;
-    // Comment out the line below to show that consts are scoped within a module
+
     const N: Field = 10;
     const L: Field = 50;
 
