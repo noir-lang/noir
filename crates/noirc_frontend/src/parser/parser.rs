@@ -79,7 +79,7 @@ fn global_declaration() -> impl NoirParser<TopLevelStatement> {
         keyword(Keyword::Const).labelled("const"),
         ident().map(Pattern::Identifier),
     );
-    let p = p.then(global_const_type_annotation()); //TODO: this reuses parse type that allows for a redundant const as such: const X: const Field = 5;
+    let p = then_commit(p, global_const_type_annotation()); //TODO: this reuses parse type that allows for a redundant const as such: const X: const Field = 5;
     let p = then_commit_ignore(p, just(Token::Assign));
     let p = then_commit(p, literal().map_with_span(Expression::new)); // XXX: this should be a literal
     p.map(LetStatement::new_let).map(TopLevelStatement::GlobalConst)

@@ -266,12 +266,7 @@ fn collect_global_constants(
 
         let let_stmt = context.def_interner.let_statement(&global_constant.stmt_id);
 
-        context.def_interner.push_global_const(
-            global_constant.stmt_id,
-            name.clone(),
-            global_constant.module_id,
-            let_stmt.expression,
-        );
+        context.def_interner.push_global_const(stmt_id, name.clone(), global_constant.module_id);
 
         global_const_ids.push((global_constant.file_id, global_constant.stmt_id));
     }

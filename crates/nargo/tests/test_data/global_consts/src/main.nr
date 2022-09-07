@@ -9,13 +9,15 @@ fn main(a: [M]Field, b: [M]Field) {
      constrain N != M;
 
      let mut y = 5;
+     let mut x = M;
      for i in 0..N*N {
+          let M: const Field = 10;
+          x = M;
+          
           y = i;
      };
      constrain y == 24;
-
-     let mut x = M;
-     constrain x == 32;
+     constrain x == 10;
 
      let q = multiplyByM(3);
      constrain q == 96;

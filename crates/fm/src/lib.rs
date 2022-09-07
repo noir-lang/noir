@@ -1,4 +1,6 @@
 mod file_map;
+mod file_reader;
+
 pub use file_map::{File, FileId, FileMap};
 
 pub mod util;
@@ -49,7 +51,7 @@ impl FileManager {
             return None;
         }
 
-        let source = std::fs::read_to_string(&path_to_file).ok()?;
+        let source = file_reader::read_file_to_string(path_to_file).ok()?;
 
         let file_id = self.file_map.add_file(path_to_file.to_path_buf().into(), source);
         let path_to_file = virtualise_path(path_to_file, file_type);

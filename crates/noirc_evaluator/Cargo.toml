@@ -10,8 +10,8 @@ edition = "2018"
 noirc_frontend = { path = "../noirc_frontend" }
 noirc_errors = { path = "../noirc_errors" }
 noirc_abi = { path = "../noirc_abi" }
-acvm = { git = "https://github.com/noir-lang/noir", rev = "cc5ee63072e09779bebd7e7dd054ae16be307d7f" }
-arena = {path = "../arena"}
+acvm = { git = "https://github.com/noir-lang/noir" }
+arena = { path = "../arena" }
 fm = { path = "../fm" }
 lazy_static = "1.4.0"
 thiserror = "1.0.21"
