@@ -44,12 +44,12 @@ void account_circuit(Composer& composer, account_tx const& tx)
 
     // 3 modes
     // 1: create (create from scratch)
-    // 2: update (add spending key to existing acct)
-    // 3: migrate (change pubkey linked to an alias hash)
+    // 2: update (add a spending_public_key to an existing account)
+    // 3: migrate (change account_public_key linked to an alias_hash)
 
-    // 1: create = migrate == 0
-    // 3: migrate = migragte == 1
-    // 2: update = migrate == 0 && ???
+    // 1: create: create == 1 && migrate == 0
+    // 2: update = create == 0 && migrate == 0
+    // 3: migrate = create == 0 && migrate == 1
 
     // Extract witnesses
     const auto data_tree_root = field_ct(witness_ct(&composer, tx.merkle_root));
@@ -75,14 +75,14 @@ void account_circuit(Composer& composer, account_tx const& tx)
     const auto output_note_2 =
         account_note(output_account_alias_hash.value, new_account_public_key, spending_public_key_2);
 
-    // @dev unlimited zero-valued nullifiers are permitted by the rollup circuit (e.g. if migrate == 0).
+    // @dev unlimited zero-valued nullifiers are permitted by the rollup circuit (e.g. if create == 0).
     const auto nullifier_1 = compute_account_alias_hash_nullifier(alias_hash) * create;
 
-    // if create or migrate, nullifier_2 = nullifier of the public key being registered
+    // If create or migrate, nullifier_2 = nullifier of the account_public_key being registered.
     field_ct nullifier_2 = field_ct::conditional_assign(
         (create || migrate), compute_account_public_key_nullifier(new_account_public_key), 0);
 
-    // If creating an acct from scratch, sign against the account private key, else sign with the spending key of the
+    // If creating an account from scratch, sign against the account private key, else sign with the spending key of the
     // input note
     const point_ct signer = point_ct::conditional_assign(create, account_public_key, signing_pub_key);
 
