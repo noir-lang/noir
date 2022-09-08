@@ -79,7 +79,8 @@ impl Monomorphiser {
     }
 
     fn lookup_global(&mut self, id: node_interner::FuncId, typ: &HirType) -> Option<FuncId> {
-        self.globals.get(&id).and_then(|inner_map| inner_map.get(typ)).copied()
+        let typ = typ.follow_bindings();
+        self.globals.get(&id).and_then(|inner_map| inner_map.get(&typ)).copied()
     }
 
     fn define_local(&mut self, id: node_interner::DefinitionId, new_id: DefinitionId) {
@@ -87,6 +88,7 @@ impl Monomorphiser {
     }
 
     fn define_global(&mut self, id: node_interner::FuncId, typ: HirType, new_id: FuncId) {
+        let typ = typ.follow_bindings();
         self.globals.entry(id).or_default().insert(typ, new_id);
     }
 
@@ -450,7 +452,7 @@ impl Monomorphiser {
                 );
                 ast::Expression::CallLowLevel(ast::CallLowLevel { opcode, arguments })
             }
-            FunctionKind::Builtin => self.call_builtin(meta, arguments),
+            FunctionKind::Builtin => self.call_builtin(meta, arguments, call.arguments),
             FunctionKind::Normal => {
                 let func_id = self
                     .lookup_global(func_id, &typ)
@@ -461,13 +463,24 @@ impl Monomorphiser {
         }
     }
 
-    fn call_builtin(&self, meta: FuncMeta, arguments: Vec<ast::Expression>) -> ast::Expression {
+    fn call_builtin(
+        &self,
+        meta: FuncMeta,
+        arguments: Vec<ast::Expression>,
+        arg_ids: Vec<node_interner::ExprId>,
+    ) -> ast::Expression {
         let attribute = meta.attributes.expect("all builtin functions must contain an attribute which contains the function name which it links to");
         let opcode = attribute
             .builtin()
             .expect("ice: function marked as a builtin, but attribute kind does not match this");
 
-        ast::Expression::CallBuiltin(ast::CallBuiltin { opcode, arguments })
+        if opcode == "arraylen" {
+            let typ = self.interner.id_type(arg_ids[0]);
+            let len = typ.array_length().unwrap();
+            ast::Expression::Literal(ast::Literal::Integer((len as u128).into(), ast::Type::Field))
+        } else {
+            ast::Expression::CallBuiltin(ast::CallBuiltin { opcode, arguments })
+        }
     }
 
     fn queue_function(
@@ -477,11 +490,30 @@ impl Monomorphiser {
         function_type: HirType,
     ) -> FuncId {
         let new_id = self.next_function_id();
-
         self.define_global(id, function_type, new_id);
-        let bindings = self.interner.get_instantiation_bindings(expr_id).clone();
+
+        let bindings = self.interner.get_instantiation_bindings(expr_id);
+        let bindings = self.follow_bindings(bindings);
+
         self.queue.push_back((id, new_id, bindings));
         new_id
+    }
+
+    /// Follow any type variable links within the given TypeBindings to produce
+    /// a new TypeBindings that won't be changed when bindings are pushed or popped
+    /// during {perform,undo}_monomorphisation_bindings.
+    ///
+    /// Without this, a monomorphised type may fail to propagate passed more than 2
+    /// function calls deep since it is possible for a previous link in the chain to
+    /// unbind a type variable that was previously bound.
+    fn follow_bindings(&self, bindings: &TypeBindings) -> TypeBindings {
+        bindings
+            .iter()
+            .map(|(id, (var, binding))| {
+                let binding2 = binding.follow_bindings();
+                (*id, (var.clone(), binding2))
+            })
+            .collect()
     }
 
     fn assign(&mut self, assign: HirAssignStatement) -> ast::Expression {

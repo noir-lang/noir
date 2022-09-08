@@ -407,7 +407,7 @@ impl NodeInterner {
         self.instantiation_bindings.insert(expr_id, instantiation_bindings);
     }
 
-    pub fn get_instantiation_bindings(&mut self, expr_id: ExprId) -> &TypeBindings {
+    pub fn get_instantiation_bindings(&self, expr_id: ExprId) -> &TypeBindings {
         &self.instantiation_bindings[&expr_id]
     }
 
