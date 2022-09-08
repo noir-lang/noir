@@ -14,6 +14,15 @@ pub struct HirLetStatement {
     pub expression: ExprId,
 }
 
+impl HirLetStatement {
+    pub fn ident(&self) -> HirIdent {
+        match self.pattern {
+            HirPattern::Identifier(ident) => ident,
+            _ => panic!("can only fetch hir ident from HirPattern::Identifier"),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct HirAssignStatement {
     pub lvalue: HirLValue,

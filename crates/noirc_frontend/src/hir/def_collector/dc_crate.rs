@@ -11,7 +11,6 @@ use crate::hir::resolution::{
 use crate::hir::type_check::type_check;
 use crate::hir::type_check::type_check_func;
 use crate::hir::Context;
-use crate::hir_def::stmt::HirStatement;
 use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId};
 use crate::util::vecmap;
 use crate::{Ident, LetStatement, NoirFunction, NoirStruct, ParsedModule, Path, Statement, Type};
@@ -42,6 +41,7 @@ pub struct UnresolvedStruct {
 pub struct UnresolvedGlobalConst {
     pub file_id: FileId,
     pub module_id: LocalModuleId,
+    pub stmt_id: StmtId,
     pub stmt_def: LetStatement,
 }
 
@@ -260,15 +260,17 @@ fn collect_global_constants(
 
         let name = global_constant.stmt_def.pattern.name_ident().clone();
 
-        let stmt_id = resolver.intern_stmt(Statement::Let(global_constant.stmt_def), true);
+        let hir_stmt = resolver.resolve_stmt(Statement::Let(global_constant.stmt_def), true);
 
-        let let_stmt = context.def_interner.let_statement(&stmt_id);
+        context.def_interner.update_global_const(global_constant.stmt_id, hir_stmt);
 
-        context.def_interner.push_global_const(stmt_id, name.clone(), global_constant.module_id);
+        context.def_interner.push_global_const(
+            global_constant.stmt_id,
+            name.clone(),
+            global_constant.module_id,
+        );
 
-        context.def_interner.update_global_const(stmt_id, HirStatement::Let(let_stmt));
-
-        global_const_ids.push((global_constant.file_id, stmt_id));
+        global_const_ids.push((global_constant.file_id, global_constant.stmt_id));
     }
     global_const_ids
 }

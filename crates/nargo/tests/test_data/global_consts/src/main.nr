@@ -35,8 +35,11 @@ fn main(a: [M]Field, b: [M]Field) {
 
      constrain t[1] == 32;
 
-     mysubmodule::my_helper();
-     //constrain 10 == mysubmodule::N;
+     constrain 15 == mysubmodule::my_helper();
+     constrain 10 == mysubmodule::N;
+     
+     let add_submodules_N = mysubmodule::N + foo::N;
+     constrain 15 == add_submodules_N;
 }
 
 fn multiplyByM(x: Field) -> Field {
@@ -57,9 +60,9 @@ mod mysubmodule {
         constrain std::bool_or(x, y) == 1;
     }
 
-    fn my_helper() {
+    fn my_helper() -> const Field {
         let N: const Field = 15; // Like in Rust, the local variable overrides the global const
         let mut x = N;
-        constrain x == 15;
+        x
     }
 }
