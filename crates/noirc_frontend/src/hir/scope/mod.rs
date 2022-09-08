@@ -26,7 +26,7 @@ pub struct Scope<K, V>(pub HashMap<K, V>);
 
 impl<K: std::hash::Hash + Eq + Clone, V> Scope<K, V> {
     pub fn new() -> Self {
-        Scope(HashMap::with_capacity(100))
+        Scope(HashMap::with_capacity(10))
     }
 
     pub fn find<Q: ?Sized>(&mut self, key: &Q) -> Option<&mut V>

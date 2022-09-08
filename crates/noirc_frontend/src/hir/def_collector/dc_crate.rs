@@ -12,11 +12,11 @@ use crate::hir::type_check::type_check_func;
 use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner, StructId};
 use crate::util::vecmap;
-use crate::{Ident, NoirFunction, NoirStruct, ParsedModule, Path, Type};
+use crate::{Ident, NoirFunction, NoirStruct, ParsedModule, Path, Type, TypeVariableId};
 use fm::FileId;
 use noirc_errors::CollectedErrors;
 use noirc_errors::DiagnosableError;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 /// Stores all of the unresolved functions in a particular file/mod
 pub struct UnresolvedFunctions {
@@ -192,7 +192,7 @@ fn collect_impls(
             if !more_errors.is_empty() {
                 errors.push(CollectedErrors {
                     file_id: unresolved.file_id,
-                    errors: vecmap(more_errors, |err| err.into_diagnostic(interner)),
+                    errors: vecmap(more_errors, |err| err.into_diagnostic()),
                 })
             }
 
@@ -237,10 +237,11 @@ fn resolve_structs(
     }
 
     for (type_id, typ) in structs {
-        let fields = resolve_struct_fields(context, crate_id, typ, errors);
+        let (generics, fields) = resolve_struct_fields(context, crate_id, typ, errors);
         context.def_interner.update_struct(type_id, |struct_def| {
             assert!(struct_def.fields.is_empty());
             struct_def.fields = fields;
+            struct_def.generics = generics;
         });
     }
 }
@@ -250,24 +251,24 @@ fn resolve_struct_fields(
     krate: CrateId,
     unresolved: UnresolvedStruct,
     errors: &mut Vec<CollectedErrors>,
-) -> Vec<(Ident, Type)> {
+) -> (Vec<TypeVariableId>, BTreeMap<Ident, Type>) {
     let path_resolver =
         StandardPathResolver::new(ModuleId { local_id: unresolved.module_id, krate });
 
     let file = unresolved.file_id;
 
-    let (typ, errs) =
+    let (generics, fields, errs) =
         Resolver::new(&mut context.def_interner, &path_resolver, &context.def_maps, file)
             .resolve_struct_fields(unresolved.struct_def);
 
     if !errs.is_empty() {
         errors.push(CollectedErrors {
             file_id: unresolved.file_id,
-            errors: vecmap(errs, |err| err.into_diagnostic(&context.def_interner)),
+            errors: vecmap(errs, |err| err.into_diagnostic()),
         })
     }
 
-    typ
+    (generics, fields)
 }
 
 fn resolve_impls(
@@ -297,15 +298,16 @@ fn resolve_impls(
                 let method_name = interner.function_name(method_id).to_owned();
                 let mut typ = typ.borrow_mut();
 
-                if let Some(first_fn) = typ.methods.insert(method_name, *method_id) {
+                if let Some(first_fn) = typ.methods.insert(method_name.clone(), *method_id) {
                     let error = ResolverError::DuplicateDefinition {
-                        first_ident: interner.function_meta(&first_fn).name,
-                        second_ident: interner.function_meta(method_id).name,
+                        name: method_name,
+                        first_span: interner.function_ident(&first_fn).span(),
+                        second_span: interner.function_ident(method_id).span(),
                     };
 
                     errors.push(CollectedErrors {
                         file_id: *file_id,
-                        errors: vec![error.into_diagnostic(interner)],
+                        errors: vec![error.into_diagnostic()],
                     });
                 }
             }
@@ -344,9 +346,7 @@ fn resolve_functions(
             let (hir_func, func_meta, errs) = resolver.resolve_function(func);
             interner.push_fn_meta(func_meta, func_id);
             interner.update_fn(func_id, hir_func);
-            collected_errors
-                .errors
-                .extend(errs.into_iter().map(|err| err.into_diagnostic(interner)));
+            collected_errors.errors.extend(errs.into_iter().map(|err| err.into_diagnostic()));
         }
         if !collected_errors.errors.is_empty() {
             errors.push(collected_errors);

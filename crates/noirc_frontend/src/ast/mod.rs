@@ -14,46 +14,19 @@ pub use structure::*;
 
 use crate::{token::IntType, util::vecmap, IsConst};
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum ArraySize {
-    Variable,
-    Fixed(u128),
-}
-
-impl ArraySize {
-    pub fn is_fixed(&self) -> bool {
-        matches!(self, ArraySize::Fixed(_))
-    }
-
-    pub fn is_variable(&self) -> bool {
-        !self.is_fixed()
-    }
-
-    pub fn is_subtype_of(&self, argument: &ArraySize) -> bool {
-        (self.is_fixed() && argument.is_variable()) || (self == argument)
-    }
-}
-
-impl std::fmt::Display for ArraySize {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ArraySize::Variable => write!(f, "[]"),
-            ArraySize::Fixed(size) => write!(f, "[{}]", size),
-        }
-    }
-}
-
 /// The parser parses types as 'UnresolvedType's which
 /// require name resolution to resolve any typenames used
 /// for structs within, but are otherwise identical to Types.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum UnresolvedType {
     FieldElement(IsConst),
-    Array(ArraySize, Box<UnresolvedType>), // [4]Witness = Array(4, Witness)
-    Integer(IsConst, Signedness, u32),     // u32 = Integer(unsigned, 32)
+    Array(Option<u64>, Box<UnresolvedType>), // Array(Some(3), Field) = [Field; 3] (None = generic length)
+    Integer(IsConst, Signedness, u32),       // u32 = Integer(unsigned, 32)
     Bool(IsConst),
     Unit,
-    Struct(Path),
+
+    /// A Named UnresolvedType can be a struct type or a type variable
+    Named(Path, Vec<UnresolvedType>),
 
     // Note: Tuples have no FieldElementType, instead each of their elements may have one.
     Tuple(Vec<UnresolvedType>),
@@ -73,12 +46,20 @@ impl std::fmt::Display for UnresolvedType {
         use UnresolvedType::*;
         match self {
             FieldElement(is_const) => write!(f, "{}Field", is_const),
-            Array(size, typ) => write!(f, "{}{}", size, typ),
+            Array(Some(len), typ) => write!(f, "[{}; {}]", typ, len),
+            Array(None, typ) => write!(f, "[{}]", typ),
             Integer(is_const, sign, num_bits) => match sign {
                 Signedness::Signed => write!(f, "{}i{}", is_const, num_bits),
                 Signedness::Unsigned => write!(f, "{}u{}", is_const, num_bits),
             },
-            Struct(s) => write!(f, "{}", s),
+            Named(s, args) => {
+                let args = vecmap(args, ToString::to_string);
+                if args.is_empty() {
+                    write!(f, "{}", s)
+                } else {
+                    write!(f, "{}<{}>", s, args.join(", "))
+                }
+            }
             Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
                 write!(f, "({})", elements.join(", "))

@@ -6,13 +6,19 @@ use noirc_errors::Span;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NoirStruct {
     pub name: Ident,
+    pub generics: Vec<Ident>,
     pub fields: Vec<(Ident, UnresolvedType)>,
     pub span: Span,
 }
 
 impl NoirStruct {
-    pub fn new(name: Ident, fields: Vec<(Ident, UnresolvedType)>, span: Span) -> NoirStruct {
-        NoirStruct { name, fields, span }
+    pub fn new(
+        name: Ident,
+        generics: Vec<Ident>,
+        fields: Vec<(Ident, UnresolvedType)>,
+        span: Span,
+    ) -> NoirStruct {
+        NoirStruct { name, generics, fields, span }
     }
 }
 
