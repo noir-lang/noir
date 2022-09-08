@@ -7,12 +7,15 @@ use noirc_evaluator::Evaluator;
 use noirc_frontend::graph::{CrateId, CrateName, CrateType, LOCAL_CRATE};
 use noirc_frontend::hir::def_map::CrateDefMap;
 use noirc_frontend::hir::Context;
+use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub struct Driver {
     context: Context,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CompiledProgram {
     pub circuit: Circuit,
     pub abi: Option<noirc_abi::Abi>,
@@ -178,6 +181,13 @@ impl Driver {
         CompiledProgram { circuit, abi: Some(abi) }
     }
 
+    #[cfg(not(feature = "std"))]
+    pub fn add_std_lib(&mut self) {
+        // TODO: Currently, we do not load the standard library when the program
+        // TODO: is compiled using the wasm version of noir
+    }
+
+    #[cfg(feature = "std")]
     /// XXX: It is sub-optimal to add the std as a regular crate right now because
     /// we have no way to determine whether a crate has been compiled already.
     /// XXX: We Ideally need a way to check if we've already compiled a crate and not re-compile it
@@ -210,6 +220,7 @@ impl Default for Driver {
     }
 }
 
+#[cfg(feature = "std")]
 fn path_to_stdlib() -> PathBuf {
     dirs::config_dir().unwrap().join("noir-lang").join("std")
 }
