@@ -53,6 +53,24 @@ impl AssumptionId {
     }
 }
 
+//temporary data used to build the decision tree
+struct TreeBuilder {
+    pub join_to_process: Vec<BlockId>,
+    pub join_processed: Vec<BlockId>,
+    // pub current_assumption: AssumptionId,
+    pub stack: StackFrame,
+}
+
+impl TreeBuilder {
+    pub fn new() -> TreeBuilder {
+        TreeBuilder {
+            join_to_process: Vec::new(),
+            join_processed: Vec::new(),
+            stack: StackFrame::new(BlockId::dummy()),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct DecisionTree {
     arena: arena::Arena<Assumption>,
@@ -156,67 +174,68 @@ impl DecisionTree {
     }
 
     pub fn make_decision_tree(&mut self, ctx: &mut SsaContext, entry_block: BlockId) {
-        let mut join_to_process = Vec::new();
-        let mut join_processed = Vec::new();
-        let mut stack = StackFrame::new(entry_block);
-        self.decision_tree(ctx, self.root, &mut join_to_process, &mut join_processed, &mut stack);
+        let mut builder = TreeBuilder::new();
+        builder.stack.block = entry_block;
+        ctx[entry_block].assumption = self.root;
+        self.decision_tree(ctx, entry_block, &mut builder);
     }
 
-    pub fn decision_tree(
+    //Returns a boolean to indicate if we should process the children (true) of not (false) of the block
+    fn process_block(
         &mut self,
         ctx: &mut SsaContext,
-        current_assumption: AssumptionId,
-        join_to_process: &mut Vec<BlockId>,
-        join_processed: &mut Vec<BlockId>,
-        stack: &mut StackFrame,
-    ) {
-        let assumption = &self[current_assumption];
-        let block = &ctx[stack.block];
-        let mut block_assumption = current_assumption;
+        current: BlockId,
+        data: &mut TreeBuilder,
+    ) -> bool {
+        data.stack.block = current;
+        let mut block_assumption = ctx[current].assumption;
+        let assumption = &self[block_assumption];
+
+        let current_block = &ctx[current];
         let mut if_assumption = None;
         let mut parent = AssumptionId::dummy();
         let mut sibling = true;
-        if join_processed.contains(&stack.block) {
-            return;
+        if let Some(pos) = data.join_processed.iter().position(|value| *value == current) {
+            data.join_processed.remove(pos);
+            return false;
         }
+        let left = current_block.left;
+        let right = current_block.right;
         // is it an exit block?
-        if join_to_process.contains(&stack.block) {
-            debug_assert!(stack.block == *join_to_process.last().unwrap());
+        if data.join_to_process.contains(&current) {
+            debug_assert!(current == *data.join_to_process.last().unwrap());
             block_assumption = assumption.parent;
-            join_to_process.pop();
-            join_processed.push(stack.block);
+            data.join_to_process.pop();
+            data.join_processed.push(current);
         }
         // is it an IF block?
-        if let Some(ins) = ctx.try_get_instruction(*block.instructions.last().unwrap()) {
-            if !block.is_join() && ins.operation.opcode() == super::node::Opcode::Jeq {
-                //add a new assuption for the IF
-                if assumption.parent == AssumptionId::dummy() {
-                    //Root assumption
-                    parent = current_assumption;
-                    sibling = true;
-                } else {
-                    parent = assumption.parent;
-                    sibling = self[assumption.parent].val_true.contains(&current_assumption);
-                };
-                let mut if_decision = Assumption::new(parent);
-                if let Operation::Jeq(condition, _) = ins.operation {
-                    if_decision.condition = condition;
-                } else {
-                    unreachable!();
-                }
-
-                //find exit node:
-                let exit = block::find_join(ctx, block.left.unwrap(), block.right.unwrap());
-                debug_assert!(ctx[exit].kind == BlockType::IfJoin);
-                if_decision.entry_block = stack.block;
-                if_decision.exit_block = exit;
-                if_assumption = Some(if_decision);
-                join_to_process.push(exit);
+        if let Some(ins) = ctx.get_if_condition(current_block) {
+            //add a new assuption for the IF
+            if assumption.parent == AssumptionId::dummy() {
+                //Root assumption
+                parent = block_assumption;
+                sibling = true;
+            } else {
+                parent = assumption.parent;
+                sibling = self[assumption.parent].val_true.contains(&block_assumption);
+            };
+            let mut if_decision = Assumption::new(parent);
+            if let Operation::Jeq(condition, _) = ins.operation {
+                if_decision.condition = condition;
+            } else {
+                unreachable!();
             }
+
+            //find exit node:
+            let exit =
+                block::find_join(ctx, current_block.left.unwrap(), current_block.right.unwrap());
+            debug_assert!(ctx[exit].kind == BlockType::IfJoin);
+            if_decision.entry_block = current;
+            if_decision.exit_block = exit;
+            if_assumption = Some(if_decision);
+            data.join_to_process.push(exit);
         }
-        //generate the assumption for split blocks and assign the assumption to the block
-        let mut left_assumption = block_assumption;
-        let mut right_assumption = block_assumption;
+        //Assumptions for the children
         if let Some(if_decision) = if_assumption {
             block_assumption = AssumptionId(self.arena.insert(if_decision));
             if sibling {
@@ -224,24 +243,45 @@ impl DecisionTree {
             } else {
                 self[parent].val_false.push(block_assumption);
             }
-            left_assumption = self.new_decision_leaf(block_assumption);
-            right_assumption = self.new_decision_leaf(block_assumption);
+            //create the assumptions for else/then branches
+            let left_assumption = self.new_decision_leaf(block_assumption);
+            let right_assumption = self.new_decision_leaf(block_assumption);
             self[block_assumption].val_true.push(left_assumption);
             self[block_assumption].val_false.push(right_assumption);
+            ctx[left.unwrap()].assumption = left_assumption;
+            ctx[right.unwrap()].assumption = right_assumption;
+        } else if let Some(left) = left {
+            ctx[left].assumption = block_assumption;
         }
-        ctx[stack.block].assumption = block_assumption;
-        self.compute_assumption(ctx, stack.block);
-        let block_left = &ctx[stack.block].left.clone();
-        let block_right = &ctx[stack.block].right.clone();
-        self.conditionalize_block(ctx, stack.block, stack);
-        //process children
-        if let Some(left) = block_left {
-            stack.block = *left; //TODO on enleve le block des arguments
-            self.decision_tree(ctx, left_assumption, join_to_process, join_processed, stack);
-        }
-        if let Some(right) = block_right {
-            stack.block = *right;
-            self.decision_tree(ctx, right_assumption, join_to_process, join_processed, stack);
+
+        ctx[current].assumption = block_assumption;
+        self.compute_assumption(ctx, current);
+        self.conditionalize_block(ctx, current, &mut data.stack);
+        true
+    }
+
+    fn decision_tree(&mut self, ctx: &mut SsaContext, current: BlockId, data: &mut TreeBuilder) {
+        let mut queue = Vec::new(); //Stack of elements to visit
+        queue.push(current);
+
+        while !queue.is_empty() {
+            let current = queue.pop().unwrap();
+
+            let process_children = self.process_block(ctx, current, data);
+
+            let mut test_and_push = |block_opt| {
+                if let Some(block_id) = block_opt {
+                    if block_id != BlockId::dummy() {
+                        queue.push(block_id);
+                    }
+                }
+            };
+
+            let block = &ctx[current];
+            if process_children {
+                test_and_push(block.left);
+                test_and_push(block.right);
+            }
         }
     }
 
