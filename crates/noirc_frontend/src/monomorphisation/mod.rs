@@ -461,11 +461,7 @@ impl Monomorphiser {
         }
     }
 
-    fn call_builtin(
-        &self,
-        meta: FuncMeta,
-        arguments: Vec<ast::Expression>,
-    ) -> ast::Expression {
+    fn call_builtin(&self, meta: FuncMeta, arguments: Vec<ast::Expression>) -> ast::Expression {
         let attribute = meta.attributes.expect("all builtin functions must contain an attribute which contains the function name which it links to");
         let opcode = attribute
             .builtin()

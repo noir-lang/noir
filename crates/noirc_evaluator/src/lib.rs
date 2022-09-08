@@ -161,7 +161,6 @@ impl Evaluator {
                 if let AbiType::Integer { width, .. } = typ.as_ref() {
                     element_width = Some(*width);
                 }
-
                 for _ in 0..*length {
                     let witness = self.add_witness_to_cs();
                     witnesses.push(witness);
