@@ -124,7 +124,7 @@ pub fn prove_with_path<P: AsRef<Path>>(
     let backend = crate::backends::ConcreteBackend;
     let proof = backend.prove_with_meta(compiled_program.circuit, solved_witness);
 
-    let mut proof_path = create_named_dir(&proof_dir.as_ref().to_path_buf(), "proof");
+    let mut proof_path = create_named_dir(proof_dir.as_ref(), "proof");
     proof_path.push(proof_name);
     proof_path.set_extension(PROOF_EXT);
 

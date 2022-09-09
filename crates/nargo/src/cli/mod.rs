@@ -96,7 +96,7 @@ pub fn create_named_dir(named_dir: &Path, name: &str) -> PathBuf {
 fn write_to_file(bytes: &[u8], path: &Path) -> String {
     let display = path.display();
 
-    let mut file = match File::create(&path) {
+    let mut file = match File::create(path) {
         Err(why) => panic!("couldn't create {}: {}", display, why),
         Ok(file) => file,
     };

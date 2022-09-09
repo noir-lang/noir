@@ -34,7 +34,7 @@ pub fn generate_circuit_to_disk<P: AsRef<Path>>(
     let serialized = compiled_program.circuit.to_bytes();
     let buf = Witness::to_bytes(&solved_witness);
 
-    let mut circuit_path = create_named_dir(&circuit_dir.as_ref().to_path_buf(), "build");
+    let mut circuit_path = create_named_dir(circuit_dir.as_ref(), "build");
     circuit_path.push(circuit_name);
     circuit_path.set_extension(crate::cli::ACIR_EXT);
     let path = write_to_file(serialized.as_slice(), &circuit_path);
