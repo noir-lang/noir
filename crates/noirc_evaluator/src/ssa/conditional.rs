@@ -196,7 +196,7 @@ impl DecisionTree {
         let mut parent = AssumptionId::dummy();
         let mut sibling = true;
         if let Some(pos) = data.join_processed.iter().position(|value| *value == current) {
-            data.join_processed.remove(pos);
+            data.join_processed.swap_remove(pos);
             return false;
         }
         let left = current_block.left;
@@ -261,12 +261,9 @@ impl DecisionTree {
     }
 
     fn decision_tree(&mut self, ctx: &mut SsaContext, current: BlockId, data: &mut TreeBuilder) {
-        let mut queue = Vec::new(); //Stack of elements to visit
-        queue.push(current);
+        let mut queue = vec![current]; //Stack of elements to visit
 
-        while !queue.is_empty() {
-            let current = queue.pop().unwrap();
-
+        while let Some(current) = queue.pop() {
             let process_children = self.process_block(ctx, current, data);
 
             let mut test_and_push = |block_opt| {
