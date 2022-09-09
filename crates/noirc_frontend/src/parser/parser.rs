@@ -691,30 +691,6 @@ where
             ExpressionKind::Block(BlockExpression(vec![decl, array]))
         })
 }
-// fn array_sugar<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
-// where
-//     P: ExprParser,
-// {
-//     expr_parser
-//         .then_ignore(just(Token::Semicolon))
-//         .then(literal())
-//         .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
-//         .validate(|(lhs, count), span, emit| {
-//             let count = validate_array_count(count, span, emit);
-//             // Desugar the array by replicating the lhs 'count' times. TODO: This is inefficient
-//             // for large arrays.
-//             let name = "$array_element";
-//             let pattern = Pattern::Identifier(name.into());
-//             let decl = Statement::new_let(((pattern, UnresolvedType::Unspecified), lhs));
-
-//             let variable = Expression::new(ExpressionKind::Ident(name.into()), span);
-//             let elems = repeat(variable).take(count).collect();
-//             let array = ExpressionKind::array(elems);
-//             let array = Statement::Expression(Expression::new(array, span));
-
-//             ExpressionKind::Block(BlockExpression(vec![decl, array]))
-//         })
-// }
 
 fn expression_list<P>(expr_parser: P) -> impl NoirParser<Vec<Expression>>
 where
