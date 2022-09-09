@@ -34,8 +34,8 @@ use crate::node_interner::{DefinitionId, ExprId, FuncId, NodeInterner, StmtId, S
 use crate::util::vecmap;
 use crate::{
     hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
-    ArraySize, BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal,
-    NoirFunction, Statement, UnresolvedArraySize,
+    BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
+    Statement, UnresolvedArraySize,
 };
 use crate::{
     LValue, NoirStruct, Path, Pattern, StructType, Type, TypeBinding, TypeVariable, TypeVariableId,
@@ -291,7 +291,7 @@ impl<'a> Resolver<'a> {
                         let id = self.interner.next_type_variable_id();
                         new_variables.push(id);
                         Type::type_variable(id)
-                    },
+                    }
                     UnresolvedArraySize::Fixed(length) => Type::ArrayLength(length),
                     UnresolvedArraySize::FixedVariable(name) => {
                         // A resolved identifier must exist either in the local scope or global scope

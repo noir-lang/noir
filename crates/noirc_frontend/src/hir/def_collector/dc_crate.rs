@@ -13,7 +13,10 @@ use crate::hir::type_check::type_check_func;
 use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId};
 use crate::util::vecmap;
-use crate::{Ident, LetStatement, NoirFunction, NoirStruct, ParsedModule, Path, Statement, Type, TypeVariableId};
+use crate::{
+    Ident, LetStatement, NoirFunction, NoirStruct, ParsedModule, Path, Statement, Type,
+    TypeVariableId,
+};
 use fm::FileId;
 use noirc_errors::CollectedErrors;
 use noirc_errors::DiagnosableError;

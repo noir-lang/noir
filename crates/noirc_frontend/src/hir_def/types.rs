@@ -771,9 +771,7 @@ impl Type {
             }
             Type::PolymorphicInteger(_, binding) => match &*binding.borrow() {
                 TypeBinding::Bound(typ) => typ.as_abi_type(fe_type),
-                TypeBinding::Unbound(_) => {
-                    Type::default_int_type(None).as_abi_type(fe_type)
-                }
+                TypeBinding::Unbound(_) => Type::default_int_type(None).as_abi_type(fe_type),
             },
             Type::Bool(_) => panic!("currently, cannot have a bool in the entry point function"),
             Type::Error => unreachable!(),
