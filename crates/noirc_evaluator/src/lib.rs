@@ -344,25 +344,19 @@ impl<'a> Evaluator<'a> {
                 if let Type::Integer(_, _, width) = typ.as_ref() {
                     element_width = Some(*width);
                 }
-                match array_size.clone() {
-                    noirc_frontend::ArraySize::Variable => {
-                        panic!("cannot have variable sized array in entry point")
+                let len = array_size.array_length().unwrap();
+                for _ in 0..len {
+                    let witness = self.add_witness_to_cs();
+                    witnesses.push(witness);
+                    if let Some(ww) = element_width {
+                        ssa::acir_gen::range_constraint(witness, ww, self)
+                            .map_err(|e| e.add_location(param_location))?;
                     }
-                    noirc_frontend::ArraySize::Fixed(len) => {
-                        for _ in 0..len {
-                            let witness = self.add_witness_to_cs();
-                            witnesses.push(witness);
-                            if let Some(ww) = element_width {
-                                ssa::acir_gen::range_constraint(witness, ww, self)
-                                    .map_err(|e| e.add_location(param_location))?;
-                            }
-                            if param_visibility == AbiFEType::Public {
-                                self.public_inputs.push(witness);
-                            }
-                        }
-                        igen.abi_array(name, def, *typ.clone(), len, witnesses.clone());
+                    if param_visibility == AbiFEType::Public {
+                        self.public_inputs.push(witness);
                     }
                 }
+                igen.abi_array(name, def, *typ.clone(), len as u128, witnesses);
             }
             Type::Integer(_, sign, width) => {
                 let witness = self.add_witness_to_cs();
@@ -380,13 +374,18 @@ impl<'a> Evaluator<'a> {
                     }
                 }
             }
-            Type::PolymorphicInteger(..) => unreachable!(),
+
             Type::Bool(_) => todo!(),
             Type::Unit => todo!(),
-            Type::Struct(_) => todo!(),
+            Type::Struct(..) => todo!(),
             Type::Tuple(_) => todo!(),
-            Type::Error => todo!(),
-            Type::Unspecified => todo!(),
+
+            Type::PolymorphicInteger(..)
+            | Type::TypeVariable(_)
+            | Type::ArrayLength(_)
+            | Type::Error
+            | Type::Function(..) => todo!(),
+            Type::Forall(_, _) => unreachable!(),
         }
         Ok(())
     }
@@ -426,7 +425,8 @@ impl<'a> Evaluator<'a> {
             }
         }
 
-        if func_meta.return_type != Type::Unit {
+        let return_type = func_meta.return_type();
+        if return_type != &Type::Unit {
             // Must create a fake variable for the return from main to turn it into a pub parameter.
             let ident_def = NodeInterner::main_return_id();
             let ident_name = NodeInterner::main_return_name();
@@ -434,7 +434,7 @@ impl<'a> Evaluator<'a> {
                 ident_name,
                 ident_def,
                 func_meta.return_visibility,
-                &func_meta.return_type,
+                return_type,
                 func_meta.location,
                 igen,
             )?;

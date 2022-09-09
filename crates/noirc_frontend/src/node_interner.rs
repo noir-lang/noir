@@ -1,10 +1,10 @@
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::rc::Rc;
 
 use arena::{Arena, Index};
 use fm::FileId;
-use noirc_errors::{Location, Span};
+use noirc_errors::{Location, Span, Spanned};
 
 use crate::ast::Ident;
 use crate::graph::CrateId;
@@ -16,7 +16,8 @@ use crate::hir_def::{
     function::{FuncMeta, HirFunction},
     stmt::{HirLetStatement, HirStatement},
 };
-use crate::TypeVariableId;
+use crate::util::vecmap;
+use crate::{TypeBinding, TypeVariableId};
 
 /// The DefinitionId for the return value of the main function.
 /// Used within the ssa pass to put constraints on the "return" value
@@ -238,7 +239,12 @@ impl NodeInterner {
             Rc::new(RefCell::new(StructType {
                 id: type_id,
                 name: typ.struct_def.name.clone(),
-                fields: vec![],
+                fields: BTreeMap::new(),
+                // Temporary type variable ids before the struct is resolved to its actual ids.
+                // This lets us record how many arguments the type expects so that other types
+                // can refer to it with generic arguments before the generic parameters themselves
+                // are resolved.
+                generics: vecmap(&typ.struct_def.generics, |_| TypeVariableId(0)),
                 methods: HashMap::new(),
                 span: typ.struct_def.span,
             })),
@@ -347,6 +353,12 @@ impl NodeInterner {
         self.func_meta.get(func_id).cloned().expect("ice: all function ids should have metadata")
     }
 
+    pub fn function_ident(&self, func_id: &FuncId) -> crate::Ident {
+        let name = self.function_name(func_id).to_owned();
+        let span = self.function_meta(func_id).name.location.span;
+        crate::Ident(Spanned::from(span, name))
+    }
+
     pub fn function_name(&self, func_id: &FuncId) -> &str {
         let name_id = self.function_meta(func_id).name.id;
         self.definition_name(name_id)
@@ -449,5 +461,10 @@ impl NodeInterner {
         let id = self.next_type_variable_id;
         self.next_type_variable_id += 1;
         TypeVariableId(id)
+    }
+
+    pub fn next_type_variable(&mut self) -> Type {
+        let binding = TypeBinding::Unbound(self.next_type_variable_id());
+        Type::TypeVariable(Rc::new(RefCell::new(binding)))
     }
 }

@@ -24,7 +24,7 @@ use crate::hir_def::expr::{
     HirPrefixExpression, HirUnaryOp,
 };
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::rc::Rc;
 
 use crate::graph::CrateId;
@@ -37,7 +37,10 @@ use crate::{
     ArraySize, BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal,
     NoirFunction, Statement, UnresolvedArraySize,
 };
-use crate::{LValue, NoirStruct, Path, Pattern, StructType, Type, UnresolvedType, ERROR_IDENT};
+use crate::{
+    LValue, NoirStruct, Path, Pattern, StructType, Type, TypeBinding, TypeVariable, TypeVariableId,
+    UnresolvedType, ERROR_IDENT,
+};
 use fm::FileId;
 use noirc_errors::{Location, Span, Spanned};
 
@@ -60,9 +63,15 @@ pub struct Resolver<'a> {
     path_resolver: &'a dyn PathResolver,
     def_maps: &'a HashMap<CrateId, CrateDefMap>,
     interner: &'a mut NodeInterner,
-    self_type: Option<StructId>,
     errors: Vec<ResolverError>,
     file: FileId,
+
+    /// Set to the current type if we're resolving an impl
+    self_type: Option<StructId>,
+
+    /// Contains a mapping of the current struct's generics to
+    /// unique type variables if we're resolving a struct. Empty otherwise.
+    generics: HashMap<String, (TypeVariable, Span)>,
 }
 
 impl<'a> Resolver<'a> {
@@ -78,6 +87,7 @@ impl<'a> Resolver<'a> {
             scopes: ScopeForest::new(),
             interner,
             self_type: None,
+            generics: HashMap::new(),
             errors: Vec::new(),
             file,
         }
@@ -101,6 +111,8 @@ impl<'a> Resolver<'a> {
         func: NoirFunction,
     ) -> (HirFunction, FuncMeta, Vec<ResolverError>) {
         self.scopes.start_function();
+        self.add_generics(func.def.generics.clone());
+
         let (hir_func, func_meta) = self.intern_function(func);
         let func_scope_tree = self.scopes.end_function();
 
@@ -116,8 +128,10 @@ impl<'a> Resolver<'a> {
         }
 
         for unused_var in unused_vars.iter() {
-            if self.interner.definition_name(unused_var.id) != ERROR_IDENT {
-                self.push_err(ResolverError::UnusedVariable { ident: *unused_var });
+            let name = self.interner.definition_name(unused_var.id);
+            if name != ERROR_IDENT {
+                let ident = Ident(Spanned::from(unused_var.location.span, name.to_owned()));
+                self.push_err(ResolverError::UnusedVariable { ident });
             }
         }
     }
@@ -160,11 +174,12 @@ impl<'a> Resolver<'a> {
         let resolver_meta = ResolverMeta { num_times_used: 0, ident };
 
         let scope = self.scopes.get_mut_scope();
-        let old_value = scope.add_key_value(name.0.contents, resolver_meta);
+        let old_value = scope.add_key_value(name.0.contents.clone(), resolver_meta);
         if let Some(old_value) = old_value {
             self.push_err(ResolverError::DuplicateDefinition {
-                first_ident: old_value.ident,
-                second_ident: ident,
+                name: name.0.contents,
+                first_span: old_value.ident.location.span,
+                second_span: location.span,
             });
         }
 
@@ -200,11 +215,12 @@ impl<'a> Resolver<'a> {
             resolver_meta = ResolverMeta { num_times_used: 0, ident };
         }
 
-        let old_global_value = global_scope.add_key_value(name.0.contents, resolver_meta);
+        let old_global_value = global_scope.add_key_value(name.0.contents.clone(), resolver_meta);
         if let Some(old_global_value) = old_global_value {
             self.push_err(ResolverError::DuplicateDefinition {
-                first_ident: old_global_value.ident,
-                second_ident: ident,
+                name: name.0.contents.clone(),
+                first_span: old_global_value.ident.location.span,
+                second_span: name.span(),
             });
         }
         ident
@@ -260,13 +276,23 @@ impl<'a> Resolver<'a> {
         (hir_func, func_meta)
     }
 
-    fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
+    /// Translates an UnresolvedType into a Type and appends any
+    /// freshly created TypeVariables created to new_variables.
+    fn resolve_type_inner(
+        &mut self,
+        typ: UnresolvedType,
+        new_variables: &mut Vec<TypeVariableId>,
+    ) -> Type {
         match typ {
             UnresolvedType::FieldElement(is_const) => Type::FieldElement(is_const),
             UnresolvedType::Array(size, elem) => {
                 let resolved_size = match size {
-                    UnresolvedArraySize::Variable => ArraySize::Variable,
-                    UnresolvedArraySize::Fixed(length) => ArraySize::Fixed(length),
+                    UnresolvedArraySize::Variable => {
+                        let id = self.interner.next_type_variable_id();
+                        new_variables.push(id);
+                        Type::type_variable(id)
+                    },
+                    UnresolvedArraySize::Fixed(length) => Type::ArrayLength(length),
                     UnresolvedArraySize::FixedVariable(name) => {
                         // A resolved identifier must exist either in the local scope or global scope
                         let hir_ident = self.find_variable(&name);
@@ -274,7 +300,8 @@ impl<'a> Resolver<'a> {
                         let definition_info = self.interner.definition(hir_ident.id);
                         if definition_info.mutable {
                             self.push_err(ResolverError::ExpectedConstVariable {
-                                ident: hir_ident,
+                                name: name.0.contents.clone(),
+                                span: name.span(),
                             });
                             return Type::Error;
                         }
@@ -285,35 +312,50 @@ impl<'a> Resolver<'a> {
 
                         if let Some(expr_id) = fixed_var_expr_id {
                             let length = self.get_fixed_variable_array_length(&expr_id);
-                            ArraySize::Fixed(length)
+                            Type::ArrayLength(length)
                         } else {
                             return Type::Error;
                         }
                     }
                 };
-                Type::Array(resolved_size, Box::new(self.resolve_type(*elem)))
+                let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
+                Type::Array(Box::new(resolved_size), elem)
             }
             UnresolvedType::Integer(is_const, sign, bits) => Type::Integer(is_const, sign, bits),
             UnresolvedType::Bool(is_const) => Type::Bool(is_const),
             UnresolvedType::Unit => Type::Unit,
-            UnresolvedType::Unspecified => Type::Unspecified,
+            UnresolvedType::Unspecified => Type::Error,
             UnresolvedType::Error => Type::Error,
-            UnresolvedType::Struct(path) => match self.lookup_struct(path) {
-                Some(definition) => Type::Struct(definition),
-                None => Type::Error,
-            },
+            UnresolvedType::Named(path, args) => {
+                // Check if the path is a type variable first. We currently disallow generics on type
+                // variables since this is what rust does.
+                if args.is_empty() && path.segments.len() == 1 {
+                    let name = &path.last_segment().0.contents;
+                    if let Some((id, _)) = self.generics.get(name) {
+                        return Type::TypeVariable(id.clone());
+                    }
+                }
+
+                match self.lookup_struct(path) {
+                    Some(definition) => {
+                        let args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
+                        Type::Struct(definition, args)
+                    }
+                    None => Type::Error,
+                }
+            }
             UnresolvedType::Tuple(fields) => {
-                Type::Tuple(vecmap(fields, |field| self.resolve_type(field)))
+                Type::Tuple(vecmap(fields, |field| self.resolve_type_inner(field, new_variables)))
             }
         }
     }
 
-    fn get_fixed_variable_array_length(&self, expr_id: &ExprId) -> u128 {
+    fn get_fixed_variable_array_length(&self, expr_id: &ExprId) -> u64 {
         let expr = self.interner.expression(expr_id);
         match expr {
             HirExpression::Literal(literal) => match literal {
                 HirLiteral::Integer(field_element) => field_element
-                    .try_into_u128()
+                    .try_to_u64()
                     .expect("field element used in constant does not fit into u128"),
                 _ => {
                     panic!("literal used in fixed variable array length must be an integer literal")
@@ -323,13 +365,42 @@ impl<'a> Resolver<'a> {
         }
     }
 
+    /// Translates an UnresolvedType to a Type
+    fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
+        self.resolve_type_inner(typ, &mut vec![])
+    }
+
+    fn add_generics(&mut self, generics: Vec<Ident>) -> Vec<TypeVariableId> {
+        vecmap(generics, |generic| {
+            // Map the generic to a fresh type variable
+            let id = self.interner.next_type_variable_id();
+            let typevar = Rc::new(RefCell::new(TypeBinding::Unbound(id)));
+            let span = generic.0.span();
+
+            // Check for name collisions of this generic
+            if let Some(old) = self.generics.insert(generic.0.contents.clone(), (typevar, span)) {
+                let span = generic.0.span();
+                self.errors.push(ResolverError::DuplicateDefinition {
+                    name: generic.0.contents,
+                    first_span: old.1,
+                    second_span: span,
+                })
+            }
+            id
+        })
+    }
+
     pub fn resolve_struct_fields(
         mut self,
         unresolved: NoirStruct,
-    ) -> (Vec<(Ident, Type)>, Vec<ResolverError>) {
-        let fields = vecmap(unresolved.fields, |(ident, typ)| (ident, self.resolve_type(typ)));
-
-        (fields, self.errors)
+    ) -> (Vec<TypeVariableId>, BTreeMap<Ident, Type>, Vec<ResolverError>) {
+        let generics = self.add_generics(unresolved.generics);
+        let fields = unresolved
+            .fields
+            .into_iter()
+            .map(|(ident, typ)| (ident, self.resolve_type(typ)))
+            .collect();
+        (generics, fields, self.errors)
     }
 
     /// Extract metadata from a NoirFunction
@@ -343,25 +414,47 @@ impl<'a> Resolver<'a> {
 
         let attributes = func.attribute().cloned();
 
-        let mut parameters = Vec::new();
+        assert_eq!(self.generics.len(), func.def.generics.len());
+        let mut generics = vecmap(&func.def.generics, |generic| {
+            // Always expect self.generics to contain all the generics of this function
+            let typevar = self.generics.get(generic.0.contents.as_str()).unwrap();
+            match &*typevar.0.borrow() {
+                TypeBinding::Unbound(id) => *id,
+                TypeBinding::Bound(binding) => unreachable!(
+                    "Expected {} to be unbound, but it is bound to {}",
+                    generic, binding
+                ),
+            }
+        });
+
+        let mut parameters = vec![];
+        let mut parameter_types = vec![];
+
         for (pattern, typ, visibility) in func.parameters().iter().cloned() {
             if func.name() != "main" && visibility == noirc_abi::AbiFEType::Public {
-                self.push_err(ResolverError::UnnecessaryPub { func_ident: name_ident })
+                self.push_err(ResolverError::UnnecessaryPub { ident: func.name_ident().clone() })
             }
+
             let pattern = self.resolve_pattern(pattern, false, None);
-            let typ = self.resolve_type(typ);
-            parameters.push(Param(pattern, typ, visibility));
+            let typ = self.resolve_type_inner(typ, &mut generics);
+            parameters.push(Param(pattern, typ.clone(), visibility));
+            parameter_types.push(typ);
         }
 
-        let return_type = self.resolve_type(func.return_type());
+        let return_type = Box::new(self.resolve_type(func.return_type()));
+        let mut typ = Type::Function(parameter_types, return_type, BTreeSet::new());
+
+        if !generics.is_empty() {
+            typ = Type::Forall(generics, Box::new(typ));
+        }
 
         FuncMeta {
             name: name_ident,
             kind: func.kind,
             attributes,
             location,
+            typ,
             parameters: parameters.into(),
-            return_type,
             return_visibility: func.def.return_visibility,
             has_body: !func.def.body.is_empty(),
         }
@@ -617,16 +710,13 @@ impl<'a> Resolver<'a> {
     ///
     /// This is generic to allow it to work for constructor expressions
     /// and constructor patterns.
-    fn resolve_constructor_fields<T, U, F>(
+    fn resolve_constructor_fields<T, U>(
         &mut self,
         type_id: StructId,
         fields: Vec<(Ident, T)>,
         span: Span,
-        mut resolve_function: F,
-    ) -> Vec<(Ident, U)>
-    where
-        F: FnMut(&mut Self, T) -> U,
-    {
+        mut resolve_function: impl FnMut(&mut Self, T) -> U,
+    ) -> Vec<(Ident, U)> {
         let mut ret = Vec::with_capacity(fields.len());
         let mut seen_fields = HashSet::new();
         let mut unseen_fields = self.get_field_names_of_type(type_id);
@@ -761,10 +851,7 @@ mod test {
 
     // func_namespace is used to emulate the fact that functions can be imported
     // and functions can be forward declared
-    fn resolve_src_code(
-        src: &str,
-        func_namespace: Vec<String>,
-    ) -> (NodeInterner, Vec<ResolverError>) {
+    fn resolve_src_code(src: &str, func_namespace: Vec<&str>) -> Vec<ResolverError> {
         let (program, errors) = parse_program(src);
         assert!(errors.is_empty());
 
@@ -777,7 +864,7 @@ mod test {
 
         let mut path_resolver = TestPathResolver(HashMap::new());
         for (name, id) in func_namespace.into_iter().zip(func_ids) {
-            path_resolver.insert_func(name, id);
+            path_resolver.insert_func(name.to_owned(), id);
         }
 
         let def_maps: HashMap<CrateId, CrateDefMap> = HashMap::new();
@@ -790,7 +877,7 @@ mod test {
             errors.extend(err);
         }
 
-        (interner, errors)
+        errors
     }
 
     #[test]
@@ -801,7 +888,7 @@ mod test {
             }
         ";
 
-        let (_, errors) = resolve_src_code(src, vec![String::from("main")]);
+        let errors = resolve_src_code(src, vec!["main"]);
         assert!(errors.is_empty());
     }
     #[test]
@@ -813,7 +900,7 @@ mod test {
             }
         "#;
 
-        let (_, errors) = resolve_src_code(src, vec![String::from("main")]);
+        let errors = resolve_src_code(src, vec!["main"]);
         assert!(errors.is_empty());
     }
     #[test]
@@ -825,17 +912,17 @@ mod test {
             }
         "#;
 
-        let (interner, mut errors) = resolve_src_code(src, vec![String::from("main")]);
+        let errors = resolve_src_code(src, vec!["main"]);
 
         // There should only be one error
         assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
-        let err = errors.pop().unwrap();
+
         // It should be regarding the unused variable
-        match err {
+        match &errors[0] {
             ResolverError::UnusedVariable { ident } => {
-                assert_eq!(interner.definition_name(ident.id), "y".to_owned());
+                assert_eq!(&ident.0.contents, "y");
             }
-            _ => unimplemented!("we should only have an unused var error"),
+            _ => unreachable!("we should only have an unused var error"),
         }
     }
 
@@ -848,14 +935,13 @@ mod test {
             }
         "#;
 
-        let (_, mut errors) = resolve_src_code(src, vec![String::from("main")]);
+        let errors = resolve_src_code(src, vec!["main"]);
 
         // There should only be one error
         assert!(errors.len() == 1);
-        let err = errors.pop().unwrap();
 
         // It should be regarding the unresolved var `z` (Maybe change to undeclared and special case)
-        match err {
+        match &errors[0] {
             ResolverError::VariableNotDeclared { name, span: _ } => assert_eq!(name, "z"),
             _ => unimplemented!("we should only have an unresolved variable"),
         }
@@ -869,8 +955,7 @@ mod test {
             }
         ";
 
-        let (_, mut errors) =
-            resolve_src_code(src, vec![String::from("main"), String::from("foo")]);
+        let mut errors = resolve_src_code(src, vec!["main", "foo"]);
         assert_eq!(errors.len(), 1);
         let err = errors.pop().unwrap();
 
@@ -886,7 +971,7 @@ mod test {
             }
         "#;
 
-        let (_, errors) = resolve_src_code(src, vec![String::from("main")]);
+        let errors = resolve_src_code(src, vec!["main"]);
         assert!(errors.is_empty());
     }
 
@@ -899,7 +984,7 @@ mod test {
             }
         "#;
 
-        let (interner, errors) = resolve_src_code(src, vec![String::from("main")]);
+        let errors = resolve_src_code(src, vec!["main"]);
         assert!(errors.len() == 3, "Expected 3 errors, got: {:?}", errors);
 
         // Errors are:
@@ -909,8 +994,7 @@ mod test {
         for err in errors {
             match &err {
                 ResolverError::UnusedVariable { ident } => {
-                    let name = interner.definition_name(ident.id);
-                    assert_eq!(name, "z");
+                    assert_eq!(&ident.0.contents, "z");
                 }
                 ResolverError::VariableNotDeclared { name, .. } => {
                     assert_eq!(name, "a");
@@ -928,7 +1012,7 @@ mod test {
             }
         "#;
 
-        let (_, errors) = resolve_src_code(src, vec![String::from("main")]);
+        let errors = resolve_src_code(src, vec!["main"]);
         assert!(errors.is_empty());
     }
     #[test]
@@ -941,7 +1025,7 @@ mod test {
             }
         "#;
 
-        let (_, errors) = resolve_src_code(src, vec![String::from("main")]);
+        let errors = resolve_src_code(src, vec!["main"]);
         assert!(errors.is_empty());
     }
     #[test]
@@ -956,7 +1040,7 @@ mod test {
             }
         "#;
 
-        let (_, errors) = resolve_src_code(src, vec![String::from("main"), String::from("foo")]);
+        let errors = resolve_src_code(src, vec!["main", "foo"]);
         assert!(errors.is_empty());
     }
 

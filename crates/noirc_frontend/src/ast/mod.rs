@@ -17,7 +17,7 @@ use crate::{token::IntType, util::vecmap, IsConst};
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum UnresolvedArraySize {
     Variable,
-    Fixed(u128),
+    Fixed(u64),
     FixedVariable(Ident),
 }
 
@@ -59,7 +59,9 @@ pub enum UnresolvedType {
     Integer(IsConst, Signedness, u32),               // u32 = Integer(unsigned, 32)
     Bool(IsConst),
     Unit,
-    Struct(Path),
+
+    /// A Named UnresolvedType can be a struct type or a type variable
+    Named(Path, Vec<UnresolvedType>),
 
     // Note: Tuples have no FieldElementType, instead each of their elements may have one.
     Tuple(Vec<UnresolvedType>),
@@ -79,12 +81,19 @@ impl std::fmt::Display for UnresolvedType {
         use UnresolvedType::*;
         match self {
             FieldElement(is_const) => write!(f, "{}Field", is_const),
-            Array(size, typ) => write!(f, "{}{}", size, typ),
+            Array(len, typ) => write!(f, "[{}; {}]", typ, len),
             Integer(is_const, sign, num_bits) => match sign {
                 Signedness::Signed => write!(f, "{}i{}", is_const, num_bits),
                 Signedness::Unsigned => write!(f, "{}u{}", is_const, num_bits),
             },
-            Struct(s) => write!(f, "{}", s),
+            Named(s, args) => {
+                let args = vecmap(args, ToString::to_string);
+                if args.is_empty() {
+                    write!(f, "{}", s)
+                } else {
+                    write!(f, "{}<{}>", s, args.join(", "))
+                }
+            }
             Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
                 write!(f, "({})", elements.join(", "))

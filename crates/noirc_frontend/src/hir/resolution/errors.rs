@@ -2,14 +2,14 @@ use noirc_errors::CustomDiagnostic as Diagnostic;
 pub use noirc_errors::Span;
 use thiserror::Error;
 
-use crate::{hir_def::expr::HirIdent, node_interner::NodeInterner, Ident};
+use crate::Ident;
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum ResolverError {
     #[error("Duplicate definition")]
-    DuplicateDefinition { first_ident: HirIdent, second_ident: HirIdent },
+    DuplicateDefinition { name: String, first_span: Span, second_span: Span },
     #[error("Unused variable")]
-    UnusedVariable { ident: HirIdent },
+    UnusedVariable { ident: Ident },
     #[error("Could not find variable in this scope")]
     VariableNotDeclared { name: String, span: Span },
     #[error("path is not an identifier")]
@@ -27,23 +27,18 @@ pub enum ResolverError {
     #[error("Unneeded 'mut', pattern is already marked as mutable")]
     UnnecessaryMut { first_mut: Span, second_mut: Span },
     #[error("Unneeded 'pub', function is not the main method")]
-    UnnecessaryPub { func_ident: HirIdent },
+    UnnecessaryPub { ident: Ident },
     #[error("Expected const value, got mutable")]
-    ExpectedConstVariable { ident: HirIdent },
+    ExpectedConstVariable { name: String, span: Span },
 }
 
 impl ResolverError {
     /// Only user errors can be transformed into a Diagnostic
     /// ICEs will make the compiler panic, as they could affect the
     /// soundness of the generated program
-    pub fn into_diagnostic(self, interner: &NodeInterner) -> Diagnostic {
+    pub fn into_diagnostic(self) -> Diagnostic {
         match self {
-            ResolverError::DuplicateDefinition { first_ident, second_ident } => {
-                let first_span = first_ident.location.span;
-                let second_span = second_ident.location.span;
-
-                let name = interner.definition_name(first_ident.id);
-
+            ResolverError::DuplicateDefinition { name, first_span, second_span } => {
                 let mut diag = Diagnostic::simple_error(
                     format!("duplicate definitions of {} found", name),
                     "first definition found here".to_string(),
@@ -53,12 +48,12 @@ impl ResolverError {
                 diag
             }
             ResolverError::UnusedVariable { ident } => {
-                let name = interner.definition_name(ident.id);
+                let name = &ident.0.contents;
 
                 let mut diag = Diagnostic::simple_error(
                     format!("unused variable {}", name),
                     "unused variable ".to_string(),
-                    ident.location.span,
+                    ident.0.span(),
                 );
 
                 diag.add_note("A new variable usually means a constraint has been added and is being unused. \n For this reason, it is almost always a bug to declare a variable and not use it.".to_owned());
@@ -141,28 +136,26 @@ impl ResolverError {
                 );
                 error
             }
-            ResolverError::UnnecessaryPub { func_ident } => {
-                let name = interner.definition_name(func_ident.id);
+            ResolverError::UnnecessaryPub { ident } => {
+                let name = &ident.0.contents;
 
                 let mut diag = Diagnostic::simple_error(
                     format!("unnecessary pub keyword on parameter for function {}", name),
                     "unnecessary pub parameter".to_string(),
-                    func_ident.location.span,
+                    ident.0.span(),
                 );
 
                 diag.add_note("The `pub` keyword only has effects on arguments to the main function of a program. Thus, adding it to other function parameters can be deceiving and should be removed".to_owned());
                 diag
             }
-            ResolverError::ExpectedConstVariable { ident } => {
-                let name = interner.definition_name(ident.id);
-
+            ResolverError::ExpectedConstVariable { name, span } => {
                 let mut diag = Diagnostic::simple_error(
                     format!(
                         "expected constant variable where non-constant variable {} was used",
                         name
                     ),
                     "expected const variable".to_string(),
-                    ident.location.span,
+                    span,
                 );
 
                 diag.add_note(

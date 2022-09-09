@@ -4,6 +4,7 @@ use super::mem::ArrayId;
 use super::node::{Binary, BinaryOp, NodeId, ObjectType, Operation, Variable};
 use super::{block, node, ssa_form};
 use std::collections::HashMap;
+use std::convert::TryInto;
 
 use super::super::environment::Environment;
 use super::super::errors::RuntimeError;
@@ -344,12 +345,15 @@ impl<'a> IRGenerator<'a> {
         def: Option<DefinitionId>,
     ) -> Value {
         match typ {
-            noirc_frontend::Type::Struct(t) => {
+            noirc_frontend::Type::Struct(t, args) => {
                 let mut values = Vec::new();
-                for i in &t.borrow().fields {
-                    let name = format!("{}.{}", base_name, i.0 .0.contents);
-                    let val = self.create_new_value(&i.1, &name, None);
-                    values.push((i.0 .0.contents.clone(), val));
+                for field_name in t.borrow().fields.keys() {
+                    let field_name = &field_name.0.contents;
+                    let name = format!("{}.{}", base_name, field_name);
+                    let field_type = t.borrow().get_field(field_name, args).unwrap();
+
+                    let val = self.create_new_value(&field_type, &name, None);
+                    values.push((field_name.to_owned(), val));
                 }
                 self.insert_new_struct(def, values)
             }
@@ -362,15 +366,12 @@ impl<'a> IRGenerator<'a> {
                 }
                 self.insert_new_struct(def, values)
             }
-            noirc_frontend::Type::Array(_, _) => {
-                {
-                    //TODO support array of structs
-                    let obj_type = node::ObjectType::from(typ);
-                    // TODO: either change max amount of elements for array on frontend to u32 or change array len type in codegen from u32
-                    let array_size = typ.num_elements();
-                    let v_id = self.new_array(base_name, obj_type, array_size as u32, def);
-                    Value::Single(v_id)
-                }
+            noirc_frontend::Type::Array(len, _) => {
+                //TODO support array of structs
+                let obj_type = node::ObjectType::from(typ);
+                let len = len.array_length().unwrap();
+                let v_id = self.new_array(base_name, obj_type, len.try_into().unwrap(), def);
+                Value::Single(v_id)
             }
             _ => {
                 let obj_type = node::ObjectType::from(typ);
@@ -456,7 +457,6 @@ impl<'a> IRGenerator<'a> {
                 self.bind_variable(basename.to_owned(), None, otype, node_id)
             }
             Value::Struct(field_values) => {
-                assert_eq!(field_values.len(), typ.num_elements());
                 let mut values = Vec::new();
                 for t in typ.iter_fields() {
                     let v = &field_values.iter().find(|f| f.0 == t.0).unwrap().1;
@@ -703,7 +703,7 @@ impl<'a> IRGenerator<'a> {
                             self,
                             env,
                         )?;
-                        let val = match func_meta.return_type {
+                        let val = match func_meta.return_type() {
                             Type::Tuple(_) => {
                                 let mut tuple = Vec::new();
                                 for i in results.iter().enumerate() {
@@ -711,16 +711,16 @@ impl<'a> IRGenerator<'a> {
                                 }
                                 Value::Struct(tuple)
                             }
-                            Type::Struct(ref typ) => {
+                            Type::Struct(ref typ, _generic_args) => {
                                 let typ = typ.borrow();
-                                let mut my_struct = Vec::new();
-                                for i in typ.fields.iter().zip(results) {
-                                    my_struct
-                                        .push((i.0 .0 .0.contents.clone(), Value::Single(i.1)));
-                                }
-                                Value::Struct(my_struct)
+                                let fields = typ.fields.iter().zip(results);
+                                let fields = vecmap(fields, |((field_name, _), result)| {
+                                    let field_name = field_name.0.contents.to_owned();
+                                    (field_name, Value::Single(result))
+                                });
+                                Value::Struct(fields)
                             }
-                            Type::Error | Type::Unspecified => unreachable!(),
+                            Type::Error => unreachable!(),
                             _ => Value::Single(results[0]),
                         };
                         Ok(val)

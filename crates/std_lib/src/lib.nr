@@ -15,7 +15,7 @@ fn set_as_public(_input : Field) {}
 fn pow_const(_base : const Field, _exponent : const Field) -> const Field {}
 
 #[foreign(to_bits)]
-fn to_bits(_x : Field, _bit_size: u32) -> [256]u1{}
+fn to_bits(_x : Field, _bit_size: u32) -> [u1; 256] {}
 
 // Precondition: x is a boolean
 // returns 1 if x is 0

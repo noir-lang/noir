@@ -1,16 +1,15 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, collections::BTreeSet, rc::Rc};
 
 use noirc_errors::Span;
 
 use crate::{
     hir_def::{
         expr::{self, HirBinaryOp, HirBinaryOpKind, HirExpression, HirLiteral, HirUnaryOp},
-        function::Param,
         types::Type,
     },
     node_interner::{ExprId, FuncId, NodeInterner},
     util::vecmap,
-    ArraySize, IsConst, TypeBinding,
+    IsConst, TypeBinding,
 };
 
 use super::errors::TypeCheckError;
@@ -22,8 +21,11 @@ pub(crate) fn type_check_expression(
 ) -> Type {
     let typ = match interner.expression(expr_id) {
         HirExpression::Ident(ident) => {
-            // If an Ident is used in an expression, it cannot be a declaration statement
-            interner.id_type(ident.id)
+            // An identifiers type may be forall-quantified in the case of generic functions.
+            // E.g. `fn foo<T>(t: T, field: Field) -> T` has type `forall T. fn(T, Field) -> T`.
+            // We must instantiate identifiers at every callsite to replace this T with a new type
+            // variable to handle generic functions.
+            interner.id_type(ident.id).instantiate(interner)
         }
         HirExpression::Literal(literal) => {
             match literal {
@@ -37,7 +39,7 @@ pub(crate) fn type_check_expression(
                     // Specify the type of the Array
                     // Note: This assumes that the array is homogeneous, which will be checked next
                     let arr_type = Type::Array(
-                        ArraySize::Fixed(elem_types.len() as u128),
+                        Box::new(Type::ArrayLength(arr.contents.len() as u64)),
                         Box::new(first_elem_type.clone()),
                     );
 
@@ -93,8 +95,10 @@ pub(crate) fn type_check_expression(
             type_check_index_expression(interner, index_expr, errors)
         }
         HirExpression::Call(call_expr) => {
-            let args =
-                vecmap(&call_expr.arguments, |arg| type_check_expression(interner, arg, errors));
+            let args = vecmap(&call_expr.arguments, |arg| {
+                let typ = type_check_expression(interner, arg, errors);
+                (typ, interner.expr_span(arg))
+            });
             type_check_function_call(interner, expr_id, &call_expr.func_id, args, errors)
         }
         HirExpression::MethodCall(method_call) => {
@@ -102,9 +106,10 @@ pub(crate) fn type_check_expression(
             let method_name = method_call.method.0.contents.as_str();
             match lookup_method(interner, object_type.clone(), method_name, expr_id, errors) {
                 Some(method_id) => {
-                    let mut args = vec![object_type];
+                    let mut args = vec![(object_type, interner.expr_span(&method_call.object))];
                     let mut arg_types = vecmap(&method_call.arguments, |arg| {
-                        type_check_expression(interner, arg, errors)
+                        let typ = type_check_expression(interner, arg, errors);
+                        (typ, interner.expr_span(arg))
                     });
                     args.append(&mut arg_types);
                     let ret = type_check_function_call(interner, expr_id, &method_id, args, errors);
@@ -151,7 +156,12 @@ pub(crate) fn type_check_expression(
             interner.push_definition_type(for_expr.identifier.id, start_range_type);
 
             let last_type = type_check_expression(interner, &for_expr.block, errors);
-            Type::Array(ArraySize::Variable, Box::new(last_type))
+
+            // TODO: This length is wrong, would need a type for (end_range - start_range) or
+            // to have a variable again.
+            let len = Box::new(interner.next_type_variable());
+
+            Type::Array(len, Box::new(last_type))
         }
         HirExpression::Block(block_expr) => {
             let mut block_type = Type::Unit;
@@ -307,8 +317,8 @@ fn lookup_method(
     expr_id: &ExprId,
     errors: &mut Vec<TypeCheckError>,
 ) -> Option<FuncId> {
-    match object_type {
-        Type::Struct(ref typ) => {
+    match &object_type {
+        Type::Struct(typ, _args) => {
             let typ = typ.borrow();
             match typ.methods.get(method_name) {
                 Some(method_id) => Some(*method_id),
@@ -344,7 +354,7 @@ fn type_check_function_call(
     interner: &mut NodeInterner,
     expr_id: &ExprId,
     func_id: &FuncId,
-    arguments: Vec<Type>,
+    arguments: Vec<(Type, Span)>,
     errors: &mut Vec<TypeCheckError>,
 ) -> Type {
     if func_id == &FuncId::dummy_id() {
@@ -356,8 +366,8 @@ fn type_check_function_call(
         let param_len = func_meta.parameters.len();
         let arg_len = arguments.len();
 
+        let span = interner.expr_span(expr_id);
         if param_len != arg_len {
-            let span = interner.expr_span(expr_id);
             errors.push(TypeCheckError::ArityMisMatch {
                 expected: param_len as u16,
                 found: arg_len as u16,
@@ -365,16 +375,52 @@ fn type_check_function_call(
             });
         }
 
-        // Check for argument param equality
-        // In the case where we previously issued an error for a parameter count mismatch
-        // this will only check up until the shorter of the two Vecs.
-        // Type check arguments
-        for (param, arg_type) in func_meta.parameters.iter().zip(arguments) {
-            check_param_argument(interner, *expr_id, param, &arg_type, errors);
-        }
+        let function_type = func_meta.typ.instantiate(interner);
+        bind_function_type(function_type, arguments, span, interner, errors)
+    }
+}
 
-        // The type of the call expression is the return type of the function being called
-        func_meta.return_type
+fn bind_function_type(
+    function: Type,
+    args: Vec<(Type, Span)>,
+    span: Span,
+    interner: &mut NodeInterner,
+    errors: &mut Vec<TypeCheckError>,
+) -> Type {
+    // Could do a single unification for the entire function type, but matching beforehand
+    // lets us issue a more precise error on the individual argument that fails to typecheck.
+    match function {
+        Type::TypeVariable(binding) => {
+            if let TypeBinding::Bound(typ) = &*binding.borrow() {
+                return bind_function_type(typ.clone(), args, span, interner, errors);
+            }
+
+            let ret = interner.next_type_variable();
+            let args = vecmap(args, |(arg, _)| arg);
+            let expected = Type::Function(args, Box::new(ret.clone()), BTreeSet::new());
+            *binding.borrow_mut() = TypeBinding::Bound(expected);
+
+            ret
+        }
+        Type::Function(parameters, ret, _ids) => {
+            for (param, (arg, arg_span)) in parameters.iter().zip(args) {
+                arg.make_subtype_of(param, arg_span, errors, || TypeCheckError::TypeMismatch {
+                    expected_typ: param.to_string(),
+                    expr_typ: arg.to_string(),
+                    expr_span: arg_span,
+                });
+            }
+
+            *ret
+        }
+        Type::Error => Type::Error,
+        other => {
+            errors.push(TypeCheckError::Unstructured {
+                msg: format!("Expected a function, but found a(n) {}", other),
+                span,
+            });
+            Type::Error
+        }
     }
 }
 
@@ -442,7 +488,6 @@ pub fn infix_operand_type_rules(
 
         // An error type on either side will always return an error
         (Error, _) | (_,Error) => Ok(Error),
-        (Unspecified, _) | (_,Unspecified) => Ok(Unspecified),
         (Unit, _) | (_,Unit) => Ok(Unit),
 
         // The result of two Fields is always a witness
@@ -521,21 +566,24 @@ fn check_constructor(
     let mut args = constructor.fields.clone();
     args.sort_by_key(|arg| arg.0.clone());
 
-    for ((param_name, param_type), (arg_ident, arg)) in typ.borrow().fields.iter().zip(args) {
+    let typ_ref = typ.borrow();
+    let (generics, fields) = typ_ref.instantiate(interner);
+
+    for ((param_name, param_type), (arg_ident, arg)) in fields.into_iter().zip(args) {
         // Sanity check to ensure we're matching against the same field
-        assert_eq!(param_name, &arg_ident);
+        assert_eq!(param_name, &arg_ident.0.contents);
 
         let arg_type = type_check_expression(interner, &arg, errors);
 
         let span = interner.expr_span(expr_id);
-        arg_type.make_subtype_of(param_type, span, errors, || TypeCheckError::TypeMismatch {
+        arg_type.make_subtype_of(&param_type, span, errors, || TypeCheckError::TypeMismatch {
             expected_typ: param_type.to_string(),
             expr_typ: arg_type.to_string(),
             expr_span: span,
         });
     }
 
-    Type::Struct(typ.clone())
+    Type::Struct(typ.clone(), generics)
 }
 
 pub fn check_member_access(
@@ -545,11 +593,10 @@ pub fn check_member_access(
 ) -> Type {
     let lhs_type = type_check_expression(interner, &access.lhs, errors);
 
-    if let Type::Struct(s) = &lhs_type {
+    if let Type::Struct(s, args) = &lhs_type {
         let s = s.borrow();
-        if let Some(field) = s.get_field(&access.rhs.0.contents) {
-            // TODO: Should the struct's visibility be applied to the field?
-            return field.clone();
+        if let Some(field) = s.get_field(&access.rhs.0.contents, args) {
+            return field;
         }
     } else if let Type::Tuple(elements) = &lhs_type {
         if let Ok(index) = access.rhs.0.contents.parse::<usize>() {
@@ -618,7 +665,6 @@ pub fn comparator_operand_type_rules(
 
         // Avoid reporting errors multiple times
         (Error, _) | (_,Error) => Ok(Bool(IsConst::Yes(None))),
-        (Unspecified, _) | (_,Unspecified) => Ok(Bool(IsConst::Yes(None))),
 
         // Special-case == and != for arrays
         (Array(x_size, x_type), Array(y_size, y_type)) if matches!(op.kind, Equal | NotEqual) => {
@@ -639,25 +685,4 @@ pub fn comparator_operand_type_rules(
         }
         (lhs, rhs) => Err(format!("Unsupported types for comparison: {} and {}", lhs, rhs)),
     }
-}
-
-fn check_param_argument(
-    interner: &NodeInterner,
-    expr_id: ExprId,
-    param: &Param,
-    arg_type: &Type,
-    errors: &mut Vec<TypeCheckError>,
-) {
-    let param_type = &param.1;
-
-    if arg_type.is_variable_sized_array() {
-        unreachable!("arg type type cannot be a variable sized array. This is not supported.")
-    }
-
-    let expr_span = interner.expr_span(&expr_id);
-    arg_type.make_subtype_of(param_type, expr_span, errors, || TypeCheckError::TypeMismatch {
-        expected_typ: param_type.to_string(),
-        expr_typ: arg_type.to_string(),
-        expr_span,
-    });
 }

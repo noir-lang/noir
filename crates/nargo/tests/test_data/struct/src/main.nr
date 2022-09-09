@@ -25,7 +25,7 @@ impl Pair {
     }
 }
 
-fn main(x: Field, y : Field) {
+fn main(x: Field, y: Field) {
     let first = Foo::default();
     let p = Pair { first, second: 1 };
 

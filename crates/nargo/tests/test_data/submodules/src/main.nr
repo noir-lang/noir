@@ -1,6 +1,6 @@
 use mysubmodule::my_helper;
 
-fn main(x : Field, y : Field) {
+fn main(x: Field, y: Field) {
     my_helper();
     mysubmodule::my_bool_or(x, y);
 }

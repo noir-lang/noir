@@ -186,6 +186,10 @@ impl<F: PrimeField> FieldElement<F> {
         self.fits_in_u128().then(|| self.to_u128())
     }
 
+    pub fn try_to_u64(&self) -> Option<u64> {
+        (self.num_bits() <= 64).then(|| self.to_u128() as u64)
+    }
+
     /// Computes the inverse or returns zero if the inverse does not exist
     /// Before using this FieldElement, please ensure that this behaviour is necessary
     pub fn inverse(&self) -> FieldElement<F> {
