@@ -225,6 +225,10 @@ impl From<&Type> for ObjectType {
             },
             // TODO: We should probably not convert an array type into the element type
             noirc_frontend::Type::Array(_, t) => ObjectType::from(t.as_ref()),
+            Type::TypeVariable(binding) => match &*binding.borrow() {
+                noirc_frontend::TypeBinding::Bound(typ) => typ.into(),
+                noirc_frontend::TypeBinding::Unbound(_) => ObjectType::NotAnObject, //FIXME, need to avoid converting unknown type variables!
+            },
             x => unimplemented!("Conversion to ObjectType is unimplemented for type {}", x),
         }
     }

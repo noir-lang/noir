@@ -6,4 +6,4 @@
 // Currently we assume that it is a binary tree, so depth k implies a width of 2^k
 // XXX: In the future we can add an arity parameter
 #[foreign(merkle_membership)]
-fn check_membership(_root : Field, _leaf : Field, _index : Field, _hash_path: []Field) -> Field {}
+fn check_membership(_root : Field, _leaf : Field, _index : Field, _hash_path: [Field]) -> Field {}

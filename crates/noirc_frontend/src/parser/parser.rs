@@ -1,4 +1,3 @@
-use std::convert::TryInto;
 use std::iter::repeat;
 
 use super::{
@@ -6,7 +5,7 @@ use super::{
     then_commit_ignore, top_level_statement_recovery, ExprParser, NoirParser, ParsedModule,
     ParserError, Precedence, SubModule, TopLevelStatement,
 };
-use crate::ast::{ArraySize, Expression, ExpressionKind, Statement, UnresolvedType};
+use crate::ast::{Expression, ExpressionKind, Statement, UnresolvedType};
 use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
@@ -14,7 +13,7 @@ use crate::util::vecmap;
 use crate::{
     AssignStatement, BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, ForExpression,
     FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, IsConst, LValue,
-    Literal, NoirFunction, NoirImpl, NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp,
+    NoirFunction, NoirImpl, NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp,
 };
 
 use chumsky::prelude::*;
@@ -84,21 +83,38 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
         .or_not()
         .then_ignore(keyword(Keyword::Fn))
         .then(ident())
+        .then(generics())
         .then(parenthesized(function_parameters(allow_self)))
         .then(function_return_type())
         .then(block(expression()))
-        .map(|((((attribute, name), parameters), (return_visibility, return_type)), body)| {
-            FunctionDefinition {
-                span: name.0.span(),
-                name,
-                attribute, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
-                parameters,
+        .map(
+            |(
+                ((((attribute, name), generics), parameters), (return_visibility, return_type)),
                 body,
-                return_type,
-                return_visibility,
-            }
-            .into()
-        })
+            )| {
+                FunctionDefinition {
+                    span: name.0.span(),
+                    name,
+                    attribute, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
+                    generics,
+                    parameters,
+                    body,
+                    return_type,
+                    return_visibility,
+                }
+                .into()
+            },
+        )
+}
+
+fn generics() -> impl NoirParser<Vec<Ident>> {
+    ident()
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
+        .at_least(1)
+        .delimited_by(just(Token::Less), just(Token::Greater))
+        .or_not()
+        .map(|opt| opt.unwrap_or_default())
 }
 
 fn struct_definition() -> impl NoirParser<TopLevelStatement> {
@@ -114,9 +130,11 @@ fn struct_definition() -> impl NoirParser<TopLevelStatement> {
         ),
     );
 
-    keyword(Struct).ignore_then(ident()).then(fields).map_with_span(|(name, fields), span| {
-        TopLevelStatement::Struct(NoirStruct { name, fields, span })
-    })
+    keyword(Struct).ignore_then(ident()).then(generics()).then(fields).map_with_span(
+        |((name, generics), fields), span| {
+            TopLevelStatement::Struct(NoirStruct { name, generics, fields, span })
+        },
+    )
 }
 
 fn function_return_type() -> impl NoirParser<(AbiFEType, UnresolvedType)> {
@@ -171,7 +189,8 @@ fn self_parameter() -> impl NoirParser<(Pattern, UnresolvedType, AbiFEType)> {
         Token::Ident(ref word) if word == "self" => {
             let ident = Ident::new(found, span);
             let path = Path::from_single("Self".to_owned(), span);
-            Ok((Pattern::Identifier(ident), UnresolvedType::Struct(path), AbiFEType::Private))
+            let self_type = UnresolvedType::Named(path, vec![]);
+            Ok((Pattern::Identifier(ident), self_type, AbiFEType::Private))
         }
         _ => Err(ParserError::expected_label("parameter".to_owned(), found, span)),
     })
@@ -375,10 +394,6 @@ where
 }
 
 fn parse_type() -> impl NoirParser<UnresolvedType> {
-    parse_type_inner(parse_type_no_field_element())
-}
-
-fn parse_type_no_field_element() -> impl NoirParser<UnresolvedType> {
     recursive(parse_type_inner)
 }
 
@@ -389,7 +404,7 @@ where
     choice((
         field_type(),
         int_type(),
-        struct_type(),
+        named_type(recursive_type_parser.clone()),
         array_type(recursive_type_parser.clone()),
         tuple_type(recursive_type_parser),
         bool_type(),
@@ -429,8 +444,22 @@ fn int_type() -> impl NoirParser<UnresolvedType> {
         .map(UnresolvedType::from_int_token)
 }
 
-fn struct_type() -> impl NoirParser<UnresolvedType> {
-    path().map(UnresolvedType::Struct)
+fn named_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {
+    path()
+        .then(generic_type_args(type_parser))
+        .map(|(path, args)| UnresolvedType::Named(path, args))
+}
+
+fn generic_type_args(
+    type_parser: impl NoirParser<UnresolvedType>,
+) -> impl NoirParser<Vec<UnresolvedType>> {
+    type_parser
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
+        .at_least(1)
+        .delimited_by(just(Token::Less), just(Token::Greater))
+        .or_not()
+        .map(Option::unwrap_or_default)
 }
 
 fn array_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>
@@ -438,13 +467,10 @@ where
     T: NoirParser<UnresolvedType>,
 {
     just(Token::LeftBracket)
-        .ignore_then(fixed_array_size().or_not())
+        .ignore_then(type_parser)
+        .then(array_length().or_not())
         .then_ignore(just(Token::RightBracket))
-        .then(type_parser)
-        .map(|(size, element_type)| {
-            let size = size.unwrap_or(ArraySize::Variable);
-            UnresolvedType::Array(size, Box::new(element_type))
-        })
+        .map(|(element_type, length)| UnresolvedType::Array(length, Box::new(element_type)))
 }
 
 fn tuple_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>
@@ -535,10 +561,8 @@ where
         .map(UnaryRhs::ArrayIndex);
 
     // `as Type` in `atom as Type`
-    let cast_rhs = keyword(Keyword::As)
-        .ignore_then(parse_type_no_field_element())
-        .map(UnaryRhs::Cast)
-        .labelled("cast");
+    let cast_rhs =
+        keyword(Keyword::As).ignore_then(parse_type()).map(UnaryRhs::Cast).labelled("cast");
 
     // `.foo` or `.foo(args)` in `atom.foo` or `atom.foo(args)`
     let member_rhs = just(Token::Dot)
@@ -621,12 +645,9 @@ where
     P: ExprParser,
 {
     expr_parser
-        .then_ignore(just(Token::Semicolon))
-        .then(literal())
+        .then(array_length())
         .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
-        .validate(|(lhs, count), span, emit| {
-            let count = validate_array_count(count, span, emit);
-
+        .map_with_span(|(lhs, count), span| {
             // Desugar the array by replicating the lhs 'count' times. TODO: This is inefficient
             // for large arrays.
             let name = "$array_element";
@@ -634,37 +655,12 @@ where
             let decl = Statement::new_let(((pattern, UnresolvedType::Unspecified), lhs));
 
             let variable = Expression::new(ExpressionKind::Ident(name.into()), span);
-            let elems = repeat(variable).take(count).collect();
+            let elems = repeat(variable).take(count as usize).collect();
             let array = ExpressionKind::array(elems);
             let array = Statement::Expression(Expression::new(array, span));
 
             ExpressionKind::Block(BlockExpression(vec![decl, array]))
         })
-}
-
-fn validate_array_count(
-    count: ExpressionKind,
-    span: Span,
-    emit: &mut dyn FnMut(ParserError),
-) -> usize {
-    match count {
-        ExpressionKind::Literal(Literal::Integer(x)) => {
-            x.try_into_u128().and_then(|x| x.try_into().ok()).unwrap_or_else(|| {
-                emit(ParserError::with_reason(
-                    "Array length must be able to fit within a usize".to_owned(),
-                    span,
-                ));
-                1
-            })
-        }
-        _ => {
-            emit(ParserError::with_reason(
-                "Array length must be an integer literal".to_owned(),
-                span,
-            ));
-            1
-        }
-    }
 }
 
 fn expression_list<P>(expr_parser: P) -> impl NoirParser<Vec<Expression>>
@@ -771,21 +767,23 @@ fn literal() -> impl NoirParser<ExpressionKind> {
     })
 }
 
-fn fixed_array_size() -> impl NoirParser<ArraySize> {
-    filter_map(|span, token: Token| match token {
-        Token::Int(integer) => {
-            if !integer.fits_in_u128() {
-                let message = "Array sizes must fit within a u128".to_string();
-                Err(ParserError::with_reason(message, span))
-            } else {
-                Ok(ArraySize::Fixed(integer.to_u128()))
-            }
-        }
+fn try_field_to_u64(x: acvm::FieldElement, span: Span) -> Result<u64, ParserError> {
+    if x.num_bits() <= 64 {
+        Ok(x.to_u128() as u64)
+    } else {
+        let message = "Array lengths must fit within a u64".to_string();
+        Err(ParserError::with_reason(message, span))
+    }
+}
+
+fn array_length() -> impl NoirParser<u64> {
+    just(Token::Semicolon).ignore_then(filter_map(|span, token: Token| match token {
+        Token::Int(integer) => try_field_to_u64(integer, span),
         _ => {
-            let message = "The array size is defined as [k] for fixed size or [] for variable length. k must be a literal".to_string();
+            let message = "Expected an integer for the length of the array".to_string();
             Err(ParserError::with_reason(message, span))
         }
-    })
+    }))
 }
 
 #[cfg(test)]
@@ -892,7 +890,7 @@ mod test {
     fn parse_cast() {
         parse_all(
             atom_or_right_unary(expression()),
-            vec!["x as u8", "0 as Field", "(x + 3) as [8]Field"],
+            vec!["x as u8", "0 as Field", "(x + 3) as [Field; 8]"],
         );
         parse_all_failing(atom_or_right_unary(expression()), vec!["x as pub u8"]);
     }
@@ -1050,8 +1048,8 @@ mod test {
                 "fn func_name() {}",
                 "fn f(foo: pub u8, y : pub Field) -> u8 { x + a }",
                 "fn f(f: pub Field, y : Field, z : const Field) -> u8 { x + a }",
-                "fn func_name(f: Field, y : pub Field, z : pub [5]u8,) {}",
-                "fn func_name(x: []Field, y : [2]Field,y : pub [2]Field, z : pub [5]u8)  {}",
+                "fn func_name(f: Field, y : pub Field, z : pub [u8;5],) {}",
+                "fn func_name(x: [Field], y : [Field;2],y : pub [Field;2], z : pub [u8;5])  {}",
             ],
         );
 

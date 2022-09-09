@@ -1,12 +1,12 @@
 use dep::std;
 
 fn main(
-    old_root : Field,
-    old_leaf : Field,
-    old_hash_path : [3]Field,
-    new_root : pub Field,
-    leaf : Field,
-    index : Field
+    old_root: Field,
+    old_leaf: Field,
+    old_hash_path: [Field; 3],
+    new_root: pub Field,
+    leaf: Field,
+    index: Field
 ) {
     let old_leaf_exists = std::merkle::check_membership(old_root, old_leaf, index, old_hash_path);
     constrain old_leaf_exists == 1;
