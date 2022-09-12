@@ -28,7 +28,7 @@ pub enum ResolverError {
     UnnecessaryMut { first_mut: Span, second_mut: Span },
     #[error("Unneeded 'pub', function is not the main method")]
     UnnecessaryPub { ident: Ident },
-    #[error("Expected const value, got mutable")]
+    #[error("Expected const value where non-constant value was used")]
     ExpectedConstVariable { name: String, span: Span },
 }
 
@@ -149,19 +149,14 @@ impl ResolverError {
                 diag
             }
             ResolverError::ExpectedConstVariable { name, span } => {
-                let mut diag = Diagnostic::simple_error(
+                Diagnostic::simple_error(
                     format!(
                         "expected constant variable where non-constant variable {} was used",
                         name
                     ),
                     "expected const variable".to_string(),
                     span,
-                );
-
-                diag.add_note(
-                    "Variables used for fixed array type annotations must be constants".to_owned(),
-                );
-                diag
+                )
             }
         }
     }

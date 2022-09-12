@@ -296,7 +296,6 @@ impl<'a> Resolver<'a> {
                     UnresolvedArraySize::FixedVariable(name) => {
                         // A resolved identifier must exist either in the local scope or global scope
                         let hir_ident = self.find_variable(&name);
-                        let mut fixed_var_expr_id = None;
                         let definition_info = self.interner.definition(hir_ident.id);
                         if definition_info.mutable {
                             self.push_err(ResolverError::ExpectedConstVariable {
@@ -307,14 +306,10 @@ impl<'a> Resolver<'a> {
                         }
 
                         if let Some(rhs_expr_id) = definition_info.rhs {
-                            fixed_var_expr_id = Some(rhs_expr_id);
-                        }
-
-                        if let Some(expr_id) = fixed_var_expr_id {
-                            let length = self.get_fixed_variable_array_length(&expr_id);
+                            let length = self.get_fixed_variable_array_length(&rhs_expr_id);
                             Type::ArrayLength(length)
                         } else {
-                            return Type::Error;
+                            Type::Error
                         }
                     }
                 };
@@ -593,16 +588,8 @@ impl<'a> Resolver<'a> {
                 let hir_let_stmt = self.interner.let_statement(&stmt_id);
                 let ident = hir_let_stmt.ident();
 
-                let mut global_hir_expr = None;
-                let global_consts = self.interner.get_all_global_consts();
-                for (global_stmt_id, _const_info) in global_consts {
-                    if global_stmt_id == stmt_id {
-                        global_hir_expr = Some(HirExpression::Ident(ident));
-                    }
-                }
-
-                if let Some(hir_expr) = global_hir_expr {
-                    hir_expr
+                if self.interner.get_global_const(&stmt_id).is_some() {
+                    HirExpression::Ident(ident)
                 } else {
                     HirExpression::Ident(match path.as_ident() {
                         Some(identifier) => self.find_variable(identifier),

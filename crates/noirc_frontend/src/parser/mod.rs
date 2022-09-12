@@ -320,6 +320,10 @@ impl std::fmt::Display for ParsedModule {
             write!(f, "{}", import)?;
         }
 
+        for global_const in &self.global_constants {
+            write!(f, "{}", global_const)?;
+        }
+
         for type_ in &self.types {
             write!(f, "{}", type_)?;
         }
@@ -334,10 +338,6 @@ impl std::fmt::Display for ParsedModule {
 
         for submodule in &self.submodules {
             write!(f, "{}", submodule)?;
-        }
-
-        for global_const in &self.global_constants {
-            write!(f, "{}", global_const)?;
         }
 
         Ok(())

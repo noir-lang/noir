@@ -62,7 +62,7 @@ mod mysubmodule {
 
     fn my_helper() -> const Field {
         let N: const Field = 15; // Like in Rust, the local variable overrides the global const
-        let mut x = N;
+        let x = N;
         x
     }
 }

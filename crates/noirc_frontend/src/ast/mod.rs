@@ -21,24 +21,6 @@ pub enum UnresolvedArraySize {
     FixedVariable(Ident),
 }
 
-impl UnresolvedArraySize {
-    pub fn is_fixed(&self) -> bool {
-        matches!(self, UnresolvedArraySize::Fixed(_))
-    }
-
-    pub fn is_fixed_variable(&self) -> bool {
-        matches!(self, UnresolvedArraySize::FixedVariable(_))
-    }
-
-    pub fn is_variable(&self) -> bool {
-        !self.is_fixed()
-    }
-
-    pub fn is_subtype_of(&self, argument: &UnresolvedArraySize) -> bool {
-        (self.is_fixed() && argument.is_variable()) || (self == argument)
-    }
-}
-
 impl std::fmt::Display for UnresolvedArraySize {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

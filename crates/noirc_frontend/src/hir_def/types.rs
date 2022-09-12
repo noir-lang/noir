@@ -94,35 +94,6 @@ impl std::fmt::Display for StructType {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum ArraySize {
-    Variable,
-    Fixed(u128),
-}
-
-impl ArraySize {
-    pub fn is_fixed(&self) -> bool {
-        matches!(self, ArraySize::Fixed(_))
-    }
-
-    pub fn is_variable(&self) -> bool {
-        !self.is_fixed()
-    }
-
-    pub fn is_subtype_of(&self, argument: &ArraySize) -> bool {
-        (self.is_fixed() && argument.is_variable()) || (self == argument)
-    }
-}
-
-impl std::fmt::Display for ArraySize {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ArraySize::Variable => write!(f, "[]"),
-            ArraySize::Fixed(size) => write!(f, "[{}]", size),
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {
     FieldElement(IsConst),
     Array(Box<Type>, Box<Type>),       // Array(4, Field) = [Field; 4]

@@ -160,7 +160,7 @@ pub struct NodeInterner {
     // methods from impls to the type.
     structs: HashMap<StructId, Rc<RefCell<StructType>>>,
 
-    global_constants: HashMap<StmtId, GlobalConstInfo>, // NOTE: currently only used for checking repeat global consts and
+    global_constants: HashMap<StmtId, GlobalConstInfo>, // NOTE: currently only used for checking repeat global consts and restricting their scope to a module
 
     next_type_variable_id: usize,
 }
