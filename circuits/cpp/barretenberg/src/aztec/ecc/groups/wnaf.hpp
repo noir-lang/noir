@@ -242,6 +242,15 @@ inline uint64_t get_num_scalar_bits(const uint64_t* scalar)
  * output as our circuit logic cannot accomodate this edge case).
  *
  * Credits: Zac W.
+ *
+ * @param scalar Pointer to the 128-bit non-montgomery scalar that is supposed to be transformed into wnaf
+ * @param wnaf Pointer to output array that needs to accomodate enough 64-bit WNAF entries
+ * @param skew_map Reference to output skew value, which if true shows that the point should be added once at the end of
+ * computation
+ * @param wnaf_round_counts Pointer to output array specifying the number of points participating in each round
+ * @param point_index The index of the point that should be multiplied by this scalar in the point array
+ * @param num_points Total points in the MSM (2*num_initial_points)
+ *
  */
 inline void fixed_wnaf_with_counts(const uint64_t* scalar,
                                    uint64_t* wnaf,
@@ -273,15 +282,30 @@ inline void fixed_wnaf_with_counts(const uint64_t* scalar,
         return;
     }
 
+    // If there are several windows
     for (size_t round_i = 1; round_i < wnaf_entries - 1; ++round_i) {
+
+        // Get a bit slice
         uint64_t slice = get_wnaf_bits(scalar, wnaf_bits, round_i * wnaf_bits);
+
+        // Get the predicate (last bit is zero)
         uint64_t predicate = ((slice & 1UL) == 0UL);
+
+        // Update round count
         ++wnaf_round_counts[max_wnaf_entries - round_i];
+
+        // Calculate entry value
+        // If the last bit of current slice is 1, we simply put the previous value with the point index
+        // If the last bit of the current slice is 0, we negate everything, so that we subtract from the WNAF form and
+        // make it 0
         wnaf[(max_wnaf_entries - round_i) * num_points] =
             ((((previous - (predicate << (wnaf_bits /*+ 1*/))) ^ (0UL - predicate)) >> 1UL) | (predicate << 31UL)) |
             (point_index);
+
+        // Update the previous value to the next windows
         previous = slice + predicate;
     }
+    // The final iteration for top bits
     size_t final_bits = static_cast<size_t>(current_scalar_bits - (wnaf_bits * (wnaf_entries - 1)));
     uint64_t slice = get_wnaf_bits(scalar, final_bits, (wnaf_entries - 1) * wnaf_bits);
     uint64_t predicate = ((slice & 1UL) == 0UL);
@@ -290,9 +314,12 @@ inline void fixed_wnaf_with_counts(const uint64_t* scalar,
     wnaf[((max_wnaf_entries - wnaf_entries + 1) * num_points)] =
         ((((previous - (predicate << (wnaf_bits /*+ 1*/))) ^ (0UL - predicate)) >> 1UL) | (predicate << 31UL)) |
         (point_index);
+
+    // Saving top bits
     ++wnaf_round_counts[max_wnaf_entries - wnaf_entries];
     wnaf[(max_wnaf_entries - wnaf_entries) * num_points] = ((slice + predicate) >> 1UL) | (point_index);
 
+    // Fill all unused slots with -1
     for (size_t j = wnaf_entries; j < max_wnaf_entries; ++j) {
         wnaf[(max_wnaf_entries - 1 - j) * num_points] = 0xffffffffffffffffULL;
     }
