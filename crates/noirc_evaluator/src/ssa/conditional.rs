@@ -314,6 +314,13 @@ impl DecisionTree {
         let mut to_remove = Vec::new();
         let left = if_block.left.unwrap();
         let right = if_block.right.unwrap();
+        let mut const_condition = None;
+        if self[if_block.assumption].condition == ctx.one() {
+            const_condition = Some(true);
+        }
+        if self[if_block.assumption].condition == ctx.zero() {
+            const_condition = Some(false);
+        }
 
         //merge then branch
         to_remove.extend(block::merge_path(ctx, left, exit_block_id));
@@ -321,11 +328,20 @@ impl DecisionTree {
         //merge else branch
         to_remove.extend(block::merge_path(ctx, right, exit_block_id));
 
-        //for now we just append
         to_remove.push(right);
-        let left_ins = ctx[left].instructions.clone();
-        let right_ins = ctx[right].instructions.clone();
-        let mut merged_ins = self.synchronise(ctx, &left_ins, &right_ins, left);
+        let mut merged_ins;
+        if let Some(const_condition) = const_condition {
+            if const_condition {
+                merged_ins = ctx[left].instructions.clone();
+            } else {
+                merged_ins = ctx[right].instructions.clone();
+            } 
+        }
+        else {
+            let left_ins = ctx[left].instructions.clone();
+            let right_ins = ctx[right].instructions.clone();
+            merged_ins = self.synchronise(ctx, &left_ins, &right_ins, left);
+        }
         let mut modified = false;
         super::optim::cse_block(ctx, left, &mut merged_ins, &mut modified)?;
 
@@ -366,8 +382,10 @@ impl DecisionTree {
         result: &mut StackFrame,
         predicate: AssumptionId,
     ) {
-        for i in instructions {
-            self.conditionalise_into(ctx, result, *i, predicate);
+        if predicate != AssumptionId::dummy() && self[predicate].value != Some(ctx.zero()) {
+            for i in instructions {
+                self.conditionalise_into(ctx, result, *i, predicate);
+            }
         }
     }
 
