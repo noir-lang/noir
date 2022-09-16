@@ -382,7 +382,7 @@ impl DecisionTree {
         result: &mut StackFrame,
         predicate: AssumptionId,
     ) {
-        if predicate != AssumptionId::dummy() && self[predicate].value != Some(ctx.zero()) {
+        if predicate == AssumptionId::dummy() || self[predicate].value != Some(ctx.zero()) {
             for i in instructions {
                 self.conditionalise_into(ctx, result, *i, predicate);
             }
