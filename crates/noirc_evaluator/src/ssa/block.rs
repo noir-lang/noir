@@ -336,4 +336,3 @@ pub fn merge_path(ctx: &mut SsaContext, start: BlockId, end: BlockId) -> VecDequ
     //housekeeping for the caller
     removed_blocks
 }
-

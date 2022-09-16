@@ -335,9 +335,8 @@ impl DecisionTree {
                 merged_ins = ctx[left].instructions.clone();
             } else {
                 merged_ins = ctx[right].instructions.clone();
-            } 
-        }
-        else {
+            }
+        } else {
             let left_ins = ctx[left].instructions.clone();
             let right_ins = ctx[right].instructions.clone();
             merged_ins = self.synchronise(ctx, &left_ins, &right_ins, left);
