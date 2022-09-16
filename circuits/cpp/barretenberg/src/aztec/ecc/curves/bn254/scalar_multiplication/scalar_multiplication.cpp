@@ -184,6 +184,12 @@ void generate_pippenger_point_table(g1::affine_element* points, g1::affine_eleme
  *`true`.
  *
  * At the end of `compute_wnaf_states`, `state.wnaf_table` will contain our wnaf entries, but unsorted.
+ *
+ * @param point_schedule Pointer to the output array with all WNAFs
+ * @param input_skew_table Pointer to the output array with all skews
+ * @param round_counts The number of points in each round
+ * @param scalars The pointer to the region with initial scalars that need to be converted into WNAF
+ * @param num_initial_points The number of points before the endomorphism split
  **/
 void compute_wnaf_states(uint64_t* point_schedule,
                          bool* input_skew_table,

@@ -473,7 +473,7 @@ TEST(scalar_multiplication, construct_addition_chains)
     memset((void*)bucket_counts, 0x00, max_num_buckets * sizeof(uint32_t));
     std::array<uint32_t, 22> bit_offsets = { 0 };
     const size_t first_bucket = state.point_schedule[0] & 0x7fffffffULL;
-    const size_t last_bucket = state.point_schedule[num_points - 1] & 0x7fffffffULL;
+    const size_t last_bucket = state.point_schedule[state.round_counts[0] - 1] & 0x7fffffffULL;
     const size_t num_buckets = last_bucket - first_bucket + 1;
 
     scalar_multiplication::affine_product_runtime_state product_state{ monomials,
