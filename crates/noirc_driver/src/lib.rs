@@ -1,4 +1,5 @@
 use acvm::acir::circuit::Circuit;
+use fm::FileId;
 use fm::FileType;
 use noirc_abi::Abi;
 use noirc_errors::DiagnosableError;
@@ -49,6 +50,24 @@ impl Driver {
         errs.is_empty()
     }
 
+    fn add_root_file_to_file_manager<P: AsRef<Path>>(&mut self, root_file: P) -> FileId {
+        let dir_path = root_file.as_ref().to_path_buf();
+        self.context.file_manager.add_file(&dir_path, FileType::Root).unwrap()
+    }
+
+    fn add_non_local_crate_to_graph(
+        &mut self,
+        root_file_id: FileId,
+        crate_type: CrateType,
+    ) -> CrateId {
+        // The first crate is always the local crate
+        assert!(self.context.crate_graph.number_of_crates() != 0);
+
+        // You can add any crate type to the crate graph
+        // but you cannot depend on Binaries
+        self.context.crate_graph.add_crate_root(crate_type, root_file_id)
+    }
+
     /// Adds the File with the local crate root to the file system
     /// and adds the local crate to the graph
     /// XXX: This may pose a problem with workspaces, where you can change the local crate and where
@@ -60,8 +79,7 @@ impl Driver {
         root_file: P,
         crate_type: CrateType,
     ) -> CrateId {
-        let dir_path = root_file.as_ref().to_path_buf();
-        let root_file_id = self.context.file_manager.add_file(&dir_path, FileType::Root).unwrap();
+        let root_file_id = self.add_root_file_to_file_manager(root_file);
 
         let crate_id = self.context.crate_graph.add_crate_root(crate_type, root_file_id);
 
@@ -77,15 +95,20 @@ impl Driver {
         root_file: P,
         crate_type: CrateType,
     ) -> CrateId {
-        let dir_path = root_file.as_ref().to_path_buf();
-        let root_file_id = self.context.file_manager.add_file(&dir_path, FileType::Root).unwrap();
+        let root_file_id = self.add_root_file_to_file_manager(root_file);
+        self.add_non_local_crate_to_graph(root_file_id, crate_type)
+    }
 
-        // The first crate is always the local crate
-        assert!(self.context.crate_graph.number_of_crates() != 0);
+    #[cfg(not(feature = "std"))]
+    // Most crates will have a path to where their source code is stored
+    // The exception is the stdlib when compiled in the wasm context
+    // For that, we have a string in memory, as such we use this method
+    // to give it a fake path and supply the source code directly
+    fn create_dummy_non_local_crate(&mut self, source: String, crate_type: CrateType) -> CrateId {
+        let root_file_id =
+            self.context.file_manager.add_file_with_dummy_path(source, FileType::Root).unwrap();
 
-        // You can add any crate type to the crate graph
-        // but you cannot depend on Binaries
-        self.context.crate_graph.add_crate_root(crate_type, root_file_id)
+        self.add_non_local_crate_to_graph(root_file_id, crate_type)
     }
 
     /// Adds a edge in the crate graph for two crates
@@ -181,21 +204,7 @@ impl Driver {
         CompiledProgram { circuit, abi: Some(abi) }
     }
 
-    #[cfg(not(feature = "std"))]
-    pub fn add_std_lib(&mut self) {
-        // TODO: Currently, we do not load the standard library when the program
-        // TODO: is compiled using the wasm version of noir
-    }
-
-    #[cfg(feature = "std")]
-    /// XXX: It is sub-optimal to add the std as a regular crate right now because
-    /// we have no way to determine whether a crate has been compiled already.
-    /// XXX: We Ideally need a way to check if we've already compiled a crate and not re-compile it
-    pub fn add_std_lib(&mut self) {
-        let path_to_std_lib_file = path_to_stdlib().join("lib.nr");
-
-        let std_crate_id = self.create_non_local_crate(path_to_std_lib_file, CrateType::Library);
-
+    fn add_std_lib_from_path(&mut self, std_crate_id: CrateId) {
         let name = CrateName::new("std").unwrap();
 
         let crate_ids: Vec<_> = self
@@ -211,6 +220,25 @@ impl Driver {
                 .add_dep(crate_id, name.clone(), std_crate_id)
                 .expect("ice: cyclic error triggered with std library");
         }
+    }
+
+    #[cfg(not(feature = "std"))]
+    pub fn add_std_lib(&mut self) {
+        let std_lib_src_code = include_str!(concat!(env!("OUT_DIR"), "/packed_stdlib.nr"));
+
+        let std_crate_id =
+            self.create_dummy_non_local_crate(std_lib_src_code.to_owned(), CrateType::Library);
+        self.add_std_lib_from_path(std_crate_id);
+    }
+
+    #[cfg(feature = "std")]
+    /// XXX: It is sub-optimal to add the std as a regular crate right now because
+    /// we have no way to determine whether a crate has been compiled already.
+    /// XXX: We Ideally need a way to check if we've already compiled a crate and not re-compile it
+    pub fn add_std_lib(&mut self) {
+        let path_to_std_lib_file = path_to_stdlib().join("lib.nr");
+        let std_crate_id = self.create_non_local_crate(path_to_std_lib_file, CrateType::Library);
+        self.add_std_lib_from_path(std_crate_id);
     }
 }
 
