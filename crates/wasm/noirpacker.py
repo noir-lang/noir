@@ -14,10 +14,10 @@ def read_dir(path):
             append_entry(modules, entry.name, entry)
 
         elif entry.is_file() and entry.name.endswith(".nr"):
-            if entry.name != "main.nr":
-                append_entry(modules, entry.name[:-3], entry)
-            else:
+            if entry.name == "main.nr" or entry.name == "lib.nr":
                 append_entry(modules, "", entry)
+            else:
+                append_entry(modules, entry.name[:-3], entry)
 
     for name, entries in modules.items():
         # No mod construct for the main module
