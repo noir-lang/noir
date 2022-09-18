@@ -12,6 +12,15 @@ wasm-bindgen = { version = "*", features = [
     "serde-serialize",
 ], optional = true }
 cfg-if = "*"
+
+
+[dependencies.uuid]
+version = "1.1.2"
+features = [
+    "v4",       # Lets you generate random UUIDs
+    "fast-rng", # Use a faster (but still sufficiently random) RNG
+]
+
 [dev-dependencies]
 tempfile = "3.1.0"
 

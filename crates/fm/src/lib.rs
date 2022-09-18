@@ -43,6 +43,30 @@ impl FileManager {
 
     // XXX: Maybe use a AsRef<Path> here, for API ergonomics
     pub fn add_file(&mut self, path_to_file: &Path, file_type: FileType) -> Option<FileId> {
+        let source = file_reader::read_file_to_string(path_to_file).ok()?;
+        self.add_file_with_source(path_to_file, source, file_type)
+    }
+
+    // This is only used in the wasm context, where we want to add the stdlib
+    // with only its source file.
+    // We add a file path which won't accidentally be the filepath to a user file
+    // We use a uuid to ensure that this is not the case.
+    pub fn add_file_with_dummy_path(
+        &mut self,
+        source: String,
+        file_type: FileType,
+    ) -> Option<FileId> {
+        let file_path = PathBuf::from(uuid::Uuid::new_v4().to_string());
+
+        self.add_file_with_source(file_path.as_path(), source, file_type)
+    }
+
+    pub(crate) fn add_file_with_source(
+        &mut self,
+        path_to_file: &Path,
+        source: String,
+        file_type: FileType,
+    ) -> Option<FileId> {
         // We expect the caller to ensure that the file is a valid noir file
         let ext = path_to_file
             .extension()
@@ -50,8 +74,6 @@ impl FileManager {
         if ext != FILE_EXTENSION {
             return None;
         }
-
-        let source = file_reader::read_file_to_string(path_to_file).ok()?;
 
         let file_id = self.file_map.add_file(path_to_file.to_path_buf().into(), source);
         let path_to_file = virtualise_path(path_to_file, file_type);
