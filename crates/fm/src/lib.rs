@@ -56,7 +56,8 @@ impl FileManager {
         source: String,
         file_type: FileType,
     ) -> Option<FileId> {
-        let file_path = PathBuf::from(uuid::Uuid::new_v4().to_string());
+        let file_path = format!("{}.{}", uuid::Uuid::new_v4().to_string(), FILE_EXTENSION);
+        let file_path = PathBuf::from(file_path);
 
         self.add_file_with_source(file_path.as_path(), source, file_type)
     }
