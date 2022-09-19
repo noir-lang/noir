@@ -11,6 +11,7 @@ use tempdir::TempDir;
 use crate::errors::CliError;
 
 mod build_cmd;
+mod compile_cmd;
 mod contract_cmd;
 mod new_cmd;
 mod prove_cmd;
@@ -23,6 +24,9 @@ const VERIFIER_INPUT_FILE: &str = "Verifier";
 const SRC_DIR: &str = "src";
 const PKG_FILE: &str = "Nargo.toml";
 const PROOF_EXT: &str = "proof";
+const BUILD_DIR: &str = "build";
+const ACIR_EXT: &str = "acir";
+const WITNESS_EXT: &str = "tr";
 
 pub fn start_cli() {
     let matches = App::new("nargo")
@@ -54,6 +58,13 @@ pub fn start_cli() {
                         .help("Emit debug information for the intermediate SSA IR"),
                 ),
         )
+        .subcommand(
+            App::new("compile")
+                .about("Compile the program and its secret execution trace into ACIR format")
+                .arg(
+                    Arg::with_name("circuit_name").help("The name of the ACIR file").required(true),
+                ),
+        )
         .get_matches();
 
     let result = match matches.subcommand_name() {
@@ -61,6 +72,7 @@ pub fn start_cli() {
         Some("build") => build_cmd::run(matches),
         Some("contract") => contract_cmd::run(matches),
         Some("prove") => prove_cmd::run(matches),
+        Some("compile") => compile_cmd::run(matches),
         Some("verify") => verify_cmd::run(matches),
         None => Err(CliError::Generic("No subcommand was used".to_owned())),
         Some(x) => Err(CliError::Generic(format!("unknown command : {}", x))),
@@ -77,10 +89,14 @@ fn create_dir<P: AsRef<Path>>(dir_path: P) -> Result<PathBuf, std::io::Error> {
     Ok(dir)
 }
 
+pub fn create_named_dir(named_dir: &Path, name: &str) -> PathBuf {
+    create_dir(named_dir).unwrap_or_else(|_| panic!("could not create the `{}` directory", name))
+}
+
 fn write_to_file(bytes: &[u8], path: &Path) -> String {
     let display = path.display();
 
-    let mut file = match File::create(&path) {
+    let mut file = match File::create(path) {
         Err(why) => panic!("couldn't create {}: {}", display, why),
         Ok(file) => file,
     };
