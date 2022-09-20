@@ -79,7 +79,7 @@ fn inline_block(
                                 *func_id,
                                 arguments.clone(),
                                 returned_arrays.clone(),
-                                block_id
+                                block_id,
                             ));
                         }
                     } else {
@@ -88,7 +88,7 @@ fn inline_block(
                             *func_id,
                             arguments.clone(),
                             returned_arrays.clone(),
-                            block_id
+                            block_id,
                         ));
                     }
                 }

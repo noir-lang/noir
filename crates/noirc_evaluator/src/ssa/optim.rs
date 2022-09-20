@@ -154,7 +154,6 @@ pub fn simple_cse(ctx: &mut SsaContext, block_id: BlockId) {
     cse_block(ctx, block_id, &mut instructions, &mut modified).unwrap();
 }
 
-
 pub fn cse_block(
     ctx: &mut SsaContext,
     block_id: BlockId,
@@ -256,11 +255,7 @@ fn cse_block_with_anchor(
                 }
                 Operation::Cast(_) => {
                     //Similar cast must have same type
-                    if let Some(similar) = anchor.find_similar_cast(
-                        ctx,
-                        &operator,
-                        ins.res_type,
-                    ) {
+                    if let Some(similar) = anchor.find_similar_cast(ctx, &operator, ins.res_type) {
                         new_mark = Mark::ReplaceWith(similar);
                         *modified = true;
                     } else {
