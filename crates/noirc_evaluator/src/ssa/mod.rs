@@ -1,4 +1,5 @@
 pub mod acir_gen;
+pub mod anchor;
 pub mod block;
 pub mod code_gen;
 pub mod conditional;
