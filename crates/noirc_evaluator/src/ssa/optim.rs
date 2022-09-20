@@ -148,6 +148,13 @@ pub fn full_cse(
     Ok(result)
 }
 
+pub fn simple_cse(ctx: &mut SsaContext, block_id: BlockId) {
+    let mut modified = false;
+    let mut instructions = Vec::new();
+    cse_block(ctx, block_id, &mut instructions, &mut modified).unwrap();
+}
+
+
 pub fn cse_block(
     ctx: &mut SsaContext,
     block_id: BlockId,
