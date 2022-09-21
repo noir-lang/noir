@@ -63,7 +63,10 @@ impl std::fmt::Display for UnresolvedType {
         use UnresolvedType::*;
         match self {
             FieldElement(is_const) => write!(f, "{}Field", is_const),
-            Array(len, typ) => write!(f, "[{}; {}]", typ, len),
+            Array(len, typ) => match len {
+                UnresolvedArraySize::Variable => write!(f, "[{}]", typ),
+                _ => write!(f, "[{}; {}]", typ, len),
+            },
             Integer(is_const, sign, num_bits) => match sign {
                 Signedness::Signed => write!(f, "{}i{}", is_const, num_bits),
                 Signedness::Unsigned => write!(f, "{}u{}", is_const, num_bits),
