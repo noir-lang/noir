@@ -34,7 +34,27 @@ Asset Ids are unique numbers that correspond to various assets in Aztec.
 | DAI | 1 |
 | wstETH | 2 |
 
-### Rollup Processor
+### Barretenberg
+
+Aztec's cryptography back-end. Refer to the graphic at the top of [this page](https://medium.com/aztec-protocol/explaining-the-network-in-aztec-network-166862b3ef7d) to see how it fits in the Aztec architecture.
+
+### Falafel
+
+The Aztec client. See [Sequencer](#sequencer) for more info.
+
+Refer to the graphic at the top of [this page](https://medium.com/aztec-protocol/explaining-the-network-in-aztec-network-166862b3ef7d) to see how it fits in the Aztec architecture.
+
+### Halloumi
+
+Aztec's Proof creation service. Refer to the graphic at the top of [this page](https://medium.com/aztec-protocol/explaining-the-network-in-aztec-network-166862b3ef7d) to see how it fits in the Aztec architecture.
+
+### Rollup Processor Contract
+
+This is the smart contract on Ethereum that holds user deposits, facilitates interactions with other Ethereum contracts from Aztec and processes Aztec rollup blocks. You can find the contract on Etherscan [here](https://etherscan.io/address/0xff1f2b4adb9df6fc8eafecdcbf96a2b351680455).
+
+### Sequencer
+
+This is also called the Rollup Processor.
 
 This service is responsible for:
 
@@ -43,11 +63,9 @@ This service is responsible for:
 - Constructing new rollups at the appropriate time or when enough transactions are received
 - Publishing of rollups to an Ethereum chain
 
-You can find the reference implementation [here](https://github.com/AztecProtocol/aztec-connect/tree/master/falafel).
+You can find the Typescript reference implementation called Falafel [here](https://github.com/AztecProtocol/aztec-connect/tree/master/falafel).
 
-### Rollup Processor Contract
-
-This is the smart contract on Ethereum that holds user deposits, facilitates interactions with other Ethereum contracts from Aztec and processes Aztec rollup blocks. You can find the contract on Etherscan [here](https://etherscan.io/address/0xff1f2b4adb9df6fc8eafecdcbf96a2b351680455).
+Refer to the graphic at the top of [this page](https://medium.com/aztec-protocol/explaining-the-network-in-aztec-network-166862b3ef7d) to see how it fits in the Aztec architecture.
 
 ### Spending Key
 
