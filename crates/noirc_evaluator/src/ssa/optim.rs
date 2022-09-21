@@ -71,29 +71,6 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) -> Result<(), Runti
                 ins.mark = Mark::ReplaceWith(evaluate_intrinsic(ctx, *opcode, args));
             }
         }
-        Operation::Jeq(cond, jump_block) => {
-            if let Some(cond) = NodeEval::from_id(ctx, *cond).into_const_value() {
-                // we do not simplify for loops, it will be evaluated during unrolling
-                if ctx[ins.parent_block].kind == super::block::BlockType::Normal {
-                    if cond.is_zero() {
-                        ins.operation = Operation::Jmp(*jump_block);
-                        super::block::remove_child(
-                            ctx,
-                            ctx[ins.parent_block].left.unwrap(),
-                            ins.parent_block,
-                        );
-                    } else {
-                        ins.mark = Mark::Deleted;
-                        super::block::remove_child(
-                            ctx,
-                            ctx[ins.parent_block].right.unwrap(),
-                            ins.parent_block,
-                        );
-                    }
-                    ctx[ins.parent_block].kind = super::block::BlockType::Normal;
-                }
-            }
-        }
         _ => (),
     }
 

@@ -10,7 +10,7 @@ use std::path::Path;
 
 use crate::{errors::CliError, resolver::Resolver};
 
-use super::{create_dir, write_to_file, PROOFS_DIR, PROOF_EXT, PROVER_INPUT_FILE};
+use super::{create_named_dir, write_to_file, PROOFS_DIR, PROOF_EXT, PROVER_INPUT_FILE};
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("prove").unwrap();
@@ -32,10 +32,6 @@ fn prove(proof_name: &str, show_ssa: bool) -> Result<(), CliError> {
         Ok(_) => Ok(()),
         Err(e) => Err(e),
     }
-}
-
-fn create_proof_dir(proof_dir: PathBuf) -> PathBuf {
-    create_dir(proof_dir).expect("could not create the `contract` directory")
 }
 
 /// Ordering is important here, which is why we need the ABI to tell us what order to add the elements in
@@ -80,12 +76,10 @@ fn process_abi_with_input(
     Ok(solved_witness)
 }
 
-pub fn prove_with_path<P: AsRef<Path>>(
-    proof_name: &str,
+pub fn compile_circuit_and_witness<P: AsRef<Path>>(
     program_dir: P,
-    proof_dir: P,
     show_ssa: bool,
-) -> Result<PathBuf, CliError> {
+) -> Result<(noirc_driver::CompiledProgram, BTreeMap<Witness, FieldElement>), CliError> {
     let driver = Resolver::resolve_root_config(program_dir.as_ref())?;
     let backend = crate::backends::ConcreteBackend;
     let compiled_program = driver.into_compiled_program(backend.np_language(), show_ssa);
@@ -105,9 +99,8 @@ pub fn prove_with_path<P: AsRef<Path>>(
         )
     }
 
-    let abi = compiled_program.abi.unwrap();
-
-    let mut solved_witness = process_abi_with_input(abi, witness_map)?;
+    let abi = compiled_program.abi.as_ref().unwrap();
+    let mut solved_witness = process_abi_with_input(abi.clone(), witness_map)?;
 
     let solver_res = backend.solve(&mut solved_witness, compiled_program.circuit.gates.clone());
 
@@ -117,11 +110,21 @@ pub fn prove_with_path<P: AsRef<Path>>(
             opcode
         )));
     }
+    Ok((compiled_program, solved_witness))
+}
+
+pub fn prove_with_path<P: AsRef<Path>>(
+    proof_name: &str,
+    program_dir: P,
+    proof_dir: P,
+    show_ssa: bool,
+) -> Result<PathBuf, CliError> {
+    let (compiled_program, solved_witness) = compile_circuit_and_witness(program_dir, show_ssa)?;
 
     let backend = crate::backends::ConcreteBackend;
     let proof = backend.prove_with_meta(compiled_program.circuit, solved_witness);
 
-    let mut proof_path = create_proof_dir(proof_dir.as_ref().to_path_buf());
+    let mut proof_path = create_named_dir(proof_dir.as_ref(), "proof");
     proof_path.push(proof_name);
     proof_path.set_extension(PROOF_EXT);
 

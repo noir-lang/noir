@@ -84,7 +84,7 @@ impl<'a> Resolver<'a> {
                 )));
             }
 
-            let crate_id = self.driver.create_non_local_crate(&entry_path, *crate_type);
+            let crate_id = self.driver.create_non_local_crate(entry_path, *crate_type);
             self.driver.add_dep(parent_crate, crate_id, dep_pkg_name);
 
             self.cached_packages.insert(dir_path, (crate_id, dep_meta));
