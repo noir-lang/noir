@@ -152,10 +152,10 @@ impl DefCollector {
 
         resolve_structs(context, def_collector.collected_types, crate_id, errors);
 
-        // We must first re-collect and intern the global consts before we can resolve any stmts
-        // inside each function. Each function uses its own resolver with a newly created ScopeForest
+        // We must first resolve and intern the global consts before we can resolve any stmts inside each function. 
+        // Each function uses its own resolver with a newly created ScopeForest, and must be resolved again to be within a function's scope
         let file_const_ids =
-            collect_global_constants(context, def_collector.collected_consts.clone(), crate_id);
+            resolve_global_constants(context, def_collector.collected_consts, crate_id);
 
         // Before we resolve any function symbols we must go through our impls and
         // re-collect the methods within into their proper module. This cannot be
@@ -169,7 +169,6 @@ impl DefCollector {
             crate_id,
             &context.def_maps,
             def_collector.collected_functions,
-            def_collector.collected_consts.clone(),
             None,
             errors,
         );
@@ -179,7 +178,6 @@ impl DefCollector {
             crate_id,
             &context.def_maps,
             def_collector.collected_impls,
-            def_collector.collected_consts,
             errors,
         );
 
@@ -241,7 +239,7 @@ fn collect_impls(
     }
 }
 
-fn collect_global_constants(
+fn resolve_global_constants(
     context: &mut Context,
     global_constants: Vec<UnresolvedGlobalConst>,
     crate_id: CrateId,
@@ -276,20 +274,6 @@ fn collect_global_constants(
         global_const_ids.push((global_constant.file_id, global_constant.stmt_id));
     }
     global_const_ids
-}
-
-fn resolve_global_constants(
-    resolver: &mut Resolver,
-    global_constants: Vec<UnresolvedGlobalConst>,
-    local_id: LocalModuleId,
-) {
-    // NOTE: Each function uses a new resolver that has a newly constructed scopes field
-    // Thus it is still necessary to resolve global const statements here to place a global const inside the global scope of a function's resolver
-    for global_constant in global_constants {
-        if global_constant.module_id == local_id {
-            resolver.resolve_stmt(Statement::Let(global_constant.stmt_def), true);
-        }
-    }
 }
 
 fn type_check_global_consts(
@@ -366,7 +350,6 @@ fn resolve_impls(
     crate_id: CrateId,
     def_maps: &HashMap<CrateId, CrateDefMap>,
     collected_impls: HashMap<(Path, LocalModuleId), Vec<UnresolvedFunctions>>,
-    collected_consts: Vec<UnresolvedGlobalConst>,
     errors: &mut Vec<CollectedErrors>,
 ) -> Vec<(FileId, FuncId)> {
     let mut file_method_ids = Vec::new();
@@ -381,15 +364,8 @@ fn resolve_impls(
         let self_type = resolver.lookup_struct(path);
         let self_type_id = self_type.as_ref().map(|typ| typ.borrow().id);
 
-        let mut ids = resolve_functions(
-            interner,
-            crate_id,
-            def_maps,
-            methods,
-            collected_consts.clone(),
-            self_type_id,
-            errors,
-        );
+        let mut ids =
+            resolve_functions(interner, crate_id, def_maps, methods, self_type_id, errors);
 
         if let Some(typ) = self_type {
             for (file_id, method_id) in &ids {
@@ -422,7 +398,6 @@ fn resolve_functions(
     crate_id: CrateId,
     def_maps: &HashMap<CrateId, CrateDefMap>,
     collected_functions: Vec<UnresolvedFunctions>,
-    collected_consts: Vec<UnresolvedGlobalConst>,
     self_type: Option<StructId>,
     errors: &mut Vec<CollectedErrors>,
 ) -> Vec<(FileId, FuncId)> {
@@ -441,8 +416,6 @@ fn resolve_functions(
 
             let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file_id);
             resolver.set_self_type(self_type);
-
-            resolve_global_constants(&mut resolver, collected_consts.clone(), mod_id);
 
             let (hir_func, func_meta, errs) = resolver.resolve_function(func);
             interner.push_fn_meta(func_meta, func_id);

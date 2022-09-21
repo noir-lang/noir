@@ -110,6 +110,12 @@ impl<'a> Resolver<'a> {
         mut self,
         func: NoirFunction,
     ) -> (HirFunction, FuncMeta, Vec<ResolverError>) {
+        for (stmt_id, const_info) in self.interner.get_all_global_consts() {
+            if const_info.local_id == self.path_resolver.local_module_id() {
+                let const_stmt = self.interner.let_statement(&stmt_id);
+                self.add_global_variable_decl(const_info.ident, Some(const_stmt.expression));
+            }
+        }
         self.scopes.start_function();
         self.add_generics(func.def.generics.clone());
 
