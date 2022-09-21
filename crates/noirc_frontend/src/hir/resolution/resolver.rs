@@ -110,6 +110,7 @@ impl<'a> Resolver<'a> {
         mut self,
         func: NoirFunction,
     ) -> (HirFunction, FuncMeta, Vec<ResolverError>) {
+        // Check whether the function has global constants in the local module and add them to the scope
         for (stmt_id, const_info) in self.interner.get_all_global_consts() {
             if const_info.local_id == self.path_resolver.local_module_id() {
                 let const_stmt = self.interner.let_statement(&stmt_id);

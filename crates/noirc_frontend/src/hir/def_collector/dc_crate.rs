@@ -152,7 +152,7 @@ impl DefCollector {
 
         resolve_structs(context, def_collector.collected_types, crate_id, errors);
 
-        // We must first resolve and intern the global consts before we can resolve any stmts inside each function. 
+        // We must first resolve and intern the global consts before we can resolve any stmts inside each function.
         // Each function uses its own resolver with a newly created ScopeForest, and must be resolved again to be within a function's scope
         let file_const_ids =
             resolve_global_constants(context, def_collector.collected_consts, crate_id);
