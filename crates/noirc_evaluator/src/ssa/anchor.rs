@@ -177,7 +177,6 @@ impl Anchor {
         item: &MemItem,
         op: &Operation,
     ) -> Option<CseAction> {
-        //on veut: la array id, le type: load/store, le index, et s'il est const.
         let (array_id, index, is_load) = Anchor::get_mem_op(op);
         if let Some(b_value) = ctx.get_as_constant(index) {
             match item {
