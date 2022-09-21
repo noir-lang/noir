@@ -1,20 +1,20 @@
 ```ts
 import { BitConfig } from './bit_config';
-export declare class BridgeId {
-    readonly addressId: number;
+export declare class BridgeCallData {
+    readonly bridgeAddressId: number;
     readonly inputAssetIdA: number;
     readonly outputAssetIdA: number;
     readonly inputAssetIdB?: number | undefined;
     readonly outputAssetIdB?: number | undefined;
     readonly auxData: number;
-    static ZERO: BridgeId;
+    static ZERO: BridgeCallData;
     static ENCODED_LENGTH_IN_BYTES: number;
     readonly bitConfig: BitConfig;
-    constructor(addressId: number, inputAssetIdA: number, outputAssetIdA: number, inputAssetIdB?: number | undefined, outputAssetIdB?: number | undefined, auxData?: number);
-    static random(): BridgeId;
-    static fromBigInt(val: bigint): BridgeId;
-    static fromBuffer(buf: Buffer): BridgeId;
-    static fromString(str: string): BridgeId;
+    constructor(bridgeAddressId: number, inputAssetIdA: number, outputAssetIdA: number, inputAssetIdB?: number | undefined, outputAssetIdB?: number | undefined, auxData?: number);
+    static random(): BridgeCallData;
+    static fromBigInt(val: bigint): BridgeCallData;
+    static fromBuffer(buf: Buffer): BridgeCallData;
+    static fromString(str: string): BridgeCallData;
     get firstInputVirtual(): boolean;
     get secondInputVirtual(): boolean;
     get firstOutputVirtual(): boolean;
@@ -26,6 +26,6 @@ export declare class BridgeId {
     toBigInt(): bigint;
     toBuffer(): Buffer;
     toString(): string;
-    equals(id: BridgeId): boolean;
+    equals(id: BridgeCallData): boolean;
 }
 ```
