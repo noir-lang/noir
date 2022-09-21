@@ -53,7 +53,7 @@ const setupSdk = async () => {
   sdk = await createAztecSdk(walletProvider, {
     serverUrl: process.env.ROLLUP_HOST,
     pollInterval: 1000,
-    memoryDb: true,
+    memoryDb: true,            // set to false to save chain data
     debug: "bb:*",             // print debug logs
     flavour: SdkFlavour.PLAIN, // Use PLAIN with Nodejs
     minConfirmation: 1,        // ETH block confirmations
