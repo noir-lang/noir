@@ -83,7 +83,7 @@ You can enable debugging when you create the SDK instance.
 const sdk = await createAztecSdk(ethereumProvider, {
   serverUrl: "https://aztec-connect-testnet-sdk.aztec.network", // mainnet fork testnet
   pollInterval: 1000,
-  memoryDb: true,
+  memoryDb: true,     // set to false to save DB in a project file rather than memory
   debug: "bb:*",
   minConfirmation: 1, // ETH block confirmations
 });
