@@ -78,17 +78,17 @@ impl Monomorphiser {
         self.locals.get(&id).copied()
     }
 
+    /// Prerequisite: typ = typ.follow_bindings()
     fn lookup_global(&mut self, id: node_interner::FuncId, typ: &HirType) -> Option<FuncId> {
-        let typ = typ.follow_bindings();
-        self.globals.get(&id).and_then(|inner_map| inner_map.get(&typ)).copied()
+        self.globals.get(&id).and_then(|inner_map| inner_map.get(typ)).copied()
     }
 
     fn define_local(&mut self, id: node_interner::DefinitionId, new_id: DefinitionId) {
         self.locals.insert(id, new_id);
     }
 
+    /// Prerequisite: typ = typ.follow_bindings()
     fn define_global(&mut self, id: node_interner::FuncId, typ: HirType, new_id: FuncId) {
-        let typ = typ.follow_bindings();
         self.globals.entry(id).or_default().insert(typ, new_id);
     }
 
@@ -427,7 +427,7 @@ impl Monomorphiser {
                 ast::Type::Tuple(fields)
             }
 
-            HirType::Function(_, _, _)
+            HirType::Function(_, _)
             | HirType::Forall(_, _)
             | HirType::ArrayLength(_)
             | HirType::Error => unreachable!("Unexpected type {} found", typ),

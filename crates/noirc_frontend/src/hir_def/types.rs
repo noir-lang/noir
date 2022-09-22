@@ -204,11 +204,8 @@ pub enum Type {
     /// like `fn foo<T, U>(...) {}`. Unlike TypeVariables, they cannot be bound over.
     NamedGeneric(TypeVariable, Rc<String>),
 
-    /// A functions with arguments, a return type, and
-    /// a set of possible function ids it may refer to.
-    /// The function id set is hidden from users and only
-    /// used to monomorphise away most higher order functions.
-    Function(Vec<Type>, Box<Type>, BTreeSet<FuncId>),
+    /// A functions with arguments, and a return type.
+    Function(Vec<Type>, Box<Type>),
 
     /// A type generic over the given type variables.
     /// Storing both the TypeVariableId and TypeVariable isn't necessary
@@ -472,7 +469,7 @@ impl std::fmt::Display for Type {
                 let typevars = vecmap(typevars, |(var, _)| var.to_string());
                 write!(f, "forall {}. {}", typevars.join(" "), typ)
             }
-            Type::Function(args, ret, _) => {
+            Type::Function(args, ret) => {
                 let args = vecmap(args, ToString::to_string);
                 write!(f, "fn({}) -> {}", args.join(", "), ret)
             }
@@ -919,7 +916,7 @@ impl Type {
             Type::TypeVariable(_) => unreachable!(),
             Type::NamedGeneric(..) => unreachable!(),
             Type::Forall(..) => unreachable!(),
-            Type::Function(_, _, _) => unreachable!(),
+            Type::Function(_, _) => unreachable!(),
         }
     }
 
@@ -1024,10 +1021,10 @@ impl Type {
                 let typ = Box::new(typ.substitute(type_bindings));
                 Type::Forall(typevars.clone(), typ)
             }
-            Type::Function(args, ret, ids) => {
+            Type::Function(args, ret) => {
                 let args = vecmap(args, |arg| arg.substitute(type_bindings));
                 let ret = Box::new(ret.substitute(type_bindings));
-                Type::Function(args, ret, ids.clone())
+                Type::Function(args, ret)
             }
 
             Type::FieldElement(_)
@@ -1055,7 +1052,7 @@ impl Type {
             Type::Forall(typevars, typ) => {
                 !typevars.iter().any(|(id, _)| *id == target_id) && typ.occurs(target_id)
             }
-            Type::Function(args, ret, _) => {
+            Type::Function(args, ret) => {
                 args.iter().any(|arg| arg.occurs(target_id)) || ret.occurs(target_id)
             }
 
@@ -1093,10 +1090,10 @@ impl Type {
                 self.clone()
             }
 
-            Function(args, ret, ids) => {
+            Function(args, ret) => {
                 let args = vecmap(args, |arg| arg.follow_bindings());
                 let ret = Box::new(ret.follow_bindings());
-                Function(args, ret, ids.clone())
+                Function(args, ret)
             }
 
             // Expect that this function should only be called on instantiated types
