@@ -57,6 +57,13 @@ const sidebars = {
         "how-aztec-works/faq",
       ],
     },
+    {
+      type: 'category',
+      label: 'Developers',
+      items: [
+        'developers/getting-started'
+      ]
+    },
     // {
     //   type: 'category',
     //   label: 'Guides',
