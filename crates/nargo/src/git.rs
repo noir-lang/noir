@@ -32,7 +32,7 @@ pub fn clone_git_repo(url: &str, tag: &str) -> Result<PathBuf, String> {
         .arg("--depth")
         .arg("1")
         .arg("--branch")
-        .arg(&tag)
+        .arg(tag)
         .arg(base.as_str())
         .arg(&loc)
         .status()

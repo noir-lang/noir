@@ -904,6 +904,16 @@ impl SsaContext {
     pub fn under_assumption(&self, predicate: NodeId) -> bool {
         !(predicate == NodeId::dummy() || predicate == self.one())
     }
+
+    //Returns the instruction used by a IF statement. None if the block is not a IF block.
+    pub fn get_if_condition(&self, block: &BasicBlock) -> Option<&node::Instruction> {
+        if let Some(ins) = self.try_get_instruction(*block.instructions.last().unwrap()) {
+            if !block.is_join() && ins.operation.opcode() == super::node::Opcode::Jeq {
+                return Some(ins);
+            }
+        }
+        None
+    }
 }
 
 impl std::ops::Index<BlockId> for SsaContext {

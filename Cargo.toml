@@ -18,5 +18,6 @@ members = [
 exclude = ["examples/9/merkle_tree_processor"]
 default-members = ["crates/nargo"]
 
+# Patch github versions of acvm with local copy
 [patch.'https://github.com/noir-lang/noir']
 acvm = { path = "crates/acvm" }
