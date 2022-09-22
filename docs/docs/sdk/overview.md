@@ -2,9 +2,9 @@
 title: SDK Overview
 ---
 
-The Aztec SDK is the gateway for developers to access the Aztec network and benefit from low gas fees and privacy on Ethereum. The SDK connects to Ethereum and our zk-rollup service and can be integrated with a few lines of code.
+The Aztec SDK is the gateway for developers to access the Aztec network and benefit from low gas fees and privacy on Ethereum. The SDK connects to Ethereum and an Aztec client and can be integrated with a few lines of code.
 
-The SDK is designed to abstract away the complexities of zero-knowledge proofs from the developer and end users. It provides a simple API for creating accounts, depositing and withdrawing tokens and interacting with Ethereum smart contracts anonymously. Core transfers inside the SDK are private by default.
+The SDK is designed to abstract away the complexities of zero-knowledge proofs from the developer and end users. It provides a simple API for creating accounts, depositing and withdrawing tokens and interacting with Ethereum smart contracts anonymously. Aztec native transfers with the SDK are private by default.
 
 Under the hood the SDK keeps track of a users private balances across multiples assets and provides easy to use helper methods to the developer to create seamless private UI's.
 
