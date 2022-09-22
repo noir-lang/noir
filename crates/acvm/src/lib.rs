@@ -23,7 +23,7 @@ use num_traits::One;
 pub use acir;
 pub use acir::FieldElement;
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum GateResolution {
     Resolved,                  //Gate is solved
     Skip,                      //Gate cannot be solved
