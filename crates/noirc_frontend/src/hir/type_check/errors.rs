@@ -4,7 +4,6 @@ use thiserror::Error;
 
 use crate::hir_def::expr::HirBinaryOp;
 use crate::hir_def::types::Type;
-use crate::node_interner::NodeInterner;
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum TypeCheckError {
@@ -36,7 +35,7 @@ pub enum TypeCheckError {
 }
 
 impl TypeCheckError {
-    pub fn into_diagnostic(self, interner: &NodeInterner) -> Diagnostic {
+    pub fn into_diagnostic(self) -> Diagnostic {
         match self {
             TypeCheckError::TypeCannotBeUsed { typ, place, span } => Diagnostic::simple_error(
                 format!("The type {} cannot be used in a {}", &typ, place),
@@ -44,7 +43,7 @@ impl TypeCheckError {
                 span,
             ),
             TypeCheckError::Context { err, ctx } => {
-                let mut diag = err.into_diagnostic(interner);
+                let mut diag = err.into_diagnostic();
                 diag.add_note(ctx.to_owned());
                 diag
             }

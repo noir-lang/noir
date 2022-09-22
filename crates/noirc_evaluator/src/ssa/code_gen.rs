@@ -283,7 +283,7 @@ impl<'a> IRGenerator<'a> {
         index: ExprId,
         env: &mut Environment,
     ) -> Result<(ArrayId, NodeId), RuntimeError> {
-        let ident_def = self.lvalue_ident_def(array);
+        let ident_def = IRGenerator::lvalue_ident_def(array);
         let val = self.find_variable(ident_def).unwrap();
         let lhs = val.to_node_ids();
         assert!(lhs.len() == 1);
@@ -293,11 +293,11 @@ impl<'a> IRGenerator<'a> {
         Ok((a_id, index))
     }
 
-    fn lvalue_ident_def(&self, lvalue: &HirLValue) -> DefinitionId {
+    fn lvalue_ident_def(lvalue: &HirLValue) -> DefinitionId {
         match lvalue {
             HirLValue::Ident(ident) => ident.id,
-            HirLValue::MemberAccess { object: o, .. } => self.lvalue_ident_def(o),
-            HirLValue::Index { array, index: _ } => self.lvalue_ident_def(array.as_ref()),
+            HirLValue::MemberAccess { object: o, .. } => IRGenerator::lvalue_ident_def(o),
+            HirLValue::Index { array, index: _ } => IRGenerator::lvalue_ident_def(array.as_ref()),
         }
     }
 
@@ -502,7 +502,7 @@ impl<'a> IRGenerator<'a> {
         rexpr: ExprId,
         env: &mut Environment,
     ) -> Result<Value, RuntimeError> {
-        let ident_def = self.lvalue_ident_def(&lvalue);
+        let ident_def = IRGenerator::lvalue_ident_def(&lvalue);
         let rhs = self.codegen_expression(env, &rexpr)?;
 
         match lvalue {

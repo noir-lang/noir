@@ -68,9 +68,9 @@ impl Environment {
                 }
                 Object::Integer(x) => {
                     // Integers are assumed to always be unit
-                    (&x.witness == val).then(|| k)
+                    (&x.witness == val).then_some(k)
                 }
-                Object::Linear(x) => (x.is_unit() && &x.witness == val).then(|| k),
+                Object::Linear(x) => (x.is_unit() && &x.witness == val).then_some(k),
             });
             if found.is_some() {
                 break;
