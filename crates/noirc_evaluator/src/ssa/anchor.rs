@@ -60,10 +60,7 @@ impl Anchor {
 
     pub fn find_similar_instruction(&self, operation: &Operation) -> Option<NodeId> {
         let op = operation.opcode();
-        if self.map.contains_key(&op) && self.map[&op].contains_key(operation) {
-            return Some(self.map[&op][operation]);
-        }
-        None
+        self.map.get(&op).and_then(|inner| inner.get(operation).copied())
     }
 
     pub fn find_similar_cast(
@@ -117,38 +114,33 @@ impl Anchor {
         if let Some(index_value) = ctx.get_as_constant(index) {
             let mem_idx = index_value.to_u128() as usize;
             let last_item = prev_list.front();
-            let mut new_item = None;
-            match last_item {
-                Some(MemItem::Const(pos)) => {
-                    self.mem_map.get_mut(&array_id).unwrap()[mem_idx].push_front((*pos, id))
-                }
+            let item_pos = match last_item {
+                Some(MemItem::Const(pos)) => *pos,
                 Some(MemItem::ConstLoad(pos)) => {
                     if is_load {
-                        self.mem_map.get_mut(&array_id).unwrap()[mem_idx].push_front((*pos, id));
+                        *pos
                     } else {
-                        new_item = Some(MemItem::Const(pos + 1));
-                        self.mem_map.get_mut(&array_id).unwrap()[mem_idx].push_front((pos + 1, id));
+                        let item_pos = pos + 1;
+                        prev_list.push_front(MemItem::Const(pos + 1));
+                        item_pos
                     }
                 }
                 None | Some(MemItem::NonConst(_)) => {
                     if is_load {
                         prev_list.push_front(MemItem::ConstLoad(len));
-                        self.mem_map.get_mut(&array_id).unwrap()[mem_idx].push_front((len, id));
                     } else {
                         prev_list.push_front(MemItem::Const(len));
-                        self.mem_map.get_mut(&array_id).unwrap()[mem_idx].push_front((len, id));
                     }
+                    len
                 }
-            }
-            if let Some(item) = new_item {
-                prev_list.push_front(item);
-            }
+            };
+            self.mem_map.get_mut(&array_id).unwrap()[mem_idx].push_front((item_pos, id));
         } else {
             prev_list.push_front(MemItem::NonConst(id));
         }
     }
 
-    pub fn find_similar_mem_instruction2(
+    pub fn find_similar_mem_instruction(
         &self,
         ctx: &SsaContext,
         op: &Operation,

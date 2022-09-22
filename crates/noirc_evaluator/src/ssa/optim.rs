@@ -220,7 +220,7 @@ fn cse_block_with_anchor(
                     }
                     anchor.use_array(*x, ctx.mem[*x].len as usize);
                     let prev_ins = anchor.get_mem_all(*x);
-                    match anchor.find_similar_mem_instruction2(ctx, &operator, prev_ins) {
+                    match anchor.find_similar_mem_instruction(ctx, &operator, prev_ins) {
                         CseAction::Keep => {
                             anchor.push_mem_instruction(ctx, *ins_id);
                             new_list.push(*ins_id)
