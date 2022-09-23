@@ -137,18 +137,11 @@ impl<'a> Resolver<'a> {
         }
 
         for unused_var in unused_vars.iter() {
-            let name = self.interner.definition_name(unused_var.id);
+            let definition_info = self.interner.definition(unused_var.id);
+            let name = &definition_info.name;
             if name != ERROR_IDENT {
-                let ident = Ident(Spanned::from(unused_var.location.span, name.to_owned()));
-                let mut const_found = false;
-                for (_, const_info) in self.interner.get_all_global_consts() {
-                    if const_info.ident == ident {
-                        const_found = true;
-                        break;
-                    }
-                }
-
-                if !const_found {
+                if !definition_info.is_global {
+                    let ident = Ident(Spanned::from(unused_var.location.span, name.to_owned()));
                     self.push_err(ResolverError::UnusedVariable { ident });
                 }
             }
@@ -187,7 +180,7 @@ impl<'a> Resolver<'a> {
             return self.add_global_variable_decl(name, rhs);
         }
 
-        let id = self.interner.push_definition(name.0.contents.clone(), mutable, rhs);
+        let id = self.interner.push_definition(name.0.contents.clone(), mutable, is_global, rhs);
         let location = Location::new(name.span(), self.file);
         let ident = HirIdent { location, id };
         let resolver_meta = ResolverMeta { num_times_used: 0, ident };
@@ -206,7 +199,7 @@ impl<'a> Resolver<'a> {
     }
 
     fn add_global_variable_decl(&mut self, name: Ident, rhs: Option<ExprId>) -> HirIdent {
-        let global_scope = self.scopes.get_mut_scope();
+        let scope = self.scopes.get_mut_scope();
         let ident;
         let resolver_meta;
 
@@ -228,13 +221,13 @@ impl<'a> Resolver<'a> {
             ident = hir_let_stmt.ident();
             resolver_meta = ResolverMeta { num_times_used: 0, ident };
         } else {
-            let id = self.interner.push_definition(name.0.contents.clone(), false, rhs); // The rhs expr for a global const is already interned in a separate map and scope
+            let id = self.interner.push_definition(name.0.contents.clone(), false, true, rhs); // The rhs expr for a global const is already interned in a separate map and scope
             let location = Location::new(name.span(), self.file);
             ident = HirIdent { location, id };
             resolver_meta = ResolverMeta { num_times_used: 0, ident };
         }
 
-        let old_global_value = global_scope.add_key_value(name.0.contents.clone(), resolver_meta);
+        let old_global_value = scope.add_key_value(name.0.contents.clone(), resolver_meta);
         if let Some(old_global_value) = old_global_value {
             self.push_err(ResolverError::DuplicateDefinition {
                 name: name.0.contents.clone(),
@@ -419,7 +412,7 @@ impl<'a> Resolver<'a> {
         let name = func.name().to_owned();
 
         let location = Location::new(func.name_ident().span(), self.file);
-        let id = self.interner.push_definition(name, false, None);
+        let id = self.interner.push_definition(name, false, false, None);
         let name_ident = HirIdent { id, location };
 
         let attributes = func.attribute().cloned();
