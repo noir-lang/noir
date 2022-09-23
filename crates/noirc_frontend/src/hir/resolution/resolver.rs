@@ -334,7 +334,6 @@ impl<'a> Resolver<'a> {
     }
 
     fn resolve_fixed_variable_array_length(&mut self, name: Ident) -> Type {
-        // A resolved identifier must exist either in the local scope or global scope
         let hir_ident = self.find_variable(&name);
         let definition_info = self.interner.definition(hir_ident.id);
         if definition_info.mutable {
@@ -349,6 +348,10 @@ impl<'a> Resolver<'a> {
             let length = self.get_fixed_variable_array_length(&rhs_expr_id);
             Type::ArrayLength(length)
         } else {
+            self.push_err(ResolverError::MissingRhsExpr {
+                name: name.0.contents.clone(),
+                span: name.span(),
+            });
             Type::Error
         }
     }
