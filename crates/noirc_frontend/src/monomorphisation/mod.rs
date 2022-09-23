@@ -101,7 +101,7 @@ impl Monomorphiser {
         if main.return_type != ast::Type::Unit {
             let id = self.next_definition_id();
 
-            main.parameters.push((id, main.return_type, "return".into()));
+            main.parameters.push((id, false, "return".into(), main.return_type));
             main.return_type = ast::Type::Unit;
 
             let name = "_".into();
@@ -133,7 +133,10 @@ impl Monomorphiser {
 
     /// Monomorphise each parameter, expanding tuple/struct patterns into multiple parameters
     /// and binding any generic types found.
-    fn parameters(&mut self, params: Parameters) -> Vec<(ast::DefinitionId, ast::Type, String)> {
+    fn parameters(
+        &mut self,
+        params: Parameters,
+    ) -> Vec<(ast::DefinitionId, bool, String, ast::Type)> {
         let mut new_params = Vec::with_capacity(params.len());
         for parameter in params {
             self.parameter(parameter.0, &parameter.1, &mut new_params);
@@ -145,14 +148,15 @@ impl Monomorphiser {
         &mut self,
         param: HirPattern,
         typ: &HirType,
-        new_params: &mut Vec<(ast::DefinitionId, ast::Type, String)>,
+        new_params: &mut Vec<(ast::DefinitionId, bool, String, ast::Type)>,
     ) {
         match param {
             HirPattern::Identifier(ident) => {
                 //let value = self.expand_parameter(typ, new_params);
                 let new_id = self.next_definition_id();
-                let name = self.interner.definition_name(ident.id).to_owned();
-                new_params.push((new_id, self.convert_type(typ), name));
+                let definition = self.interner.definition(ident.id);
+                let name = definition.name.clone();
+                new_params.push((new_id, definition.mutable, name, self.convert_type(typ)));
                 self.define_local(ident.id, new_id);
             }
             HirPattern::Mutable(pattern, _) => self.parameter(*pattern, typ, new_params),

@@ -132,11 +132,10 @@ impl IRGenerator {
         let mut func = SSAFunction::new(func_id, &function.name, func_block, index, &self.context);
 
         //argumemts:
-        for (param_id, param_type, param_name) in std::mem::take(&mut function.parameters) {
+        for (param_id, mutable, param_name, param_type) in std::mem::take(&mut function.parameters)
+        {
             let node_ids = self.create_function_parameter(param_id, &param_type, &param_name);
-
-            // TODO: All function arguments are pessimistically assumed to be mutable
-            func.arguments.extend(node_ids.into_iter().map(|id| (id, true)));
+            func.arguments.extend(node_ids.into_iter().map(|id| (id, mutable)));
         }
 
         self.function_context = Some(index);

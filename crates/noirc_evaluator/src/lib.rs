@@ -206,7 +206,7 @@ impl Evaluator {
         let abi_params = std::mem::take(&mut igen.program.abi.parameters);
         assert_eq!(main_params.len(), abi_params.len());
 
-        for ((param_id, _, param_name1), (param_name2, param_type)) in
+        for ((param_id, _, param_name1, _), (param_name2, param_type)) in
             main_params.iter().zip(abi_params)
         {
             assert_eq!(param_name1, &param_name2);

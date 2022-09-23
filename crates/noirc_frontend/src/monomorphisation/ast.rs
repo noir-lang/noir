@@ -153,7 +153,7 @@ pub struct Function {
     pub id: FuncId,
     pub name: String,
 
-    pub parameters: Vec<(DefinitionId, Type, /*name:*/ String)>,
+    pub parameters: Vec<(DefinitionId, /*mutable:*/ bool, /*name:*/ String, Type)>,
     pub body: Expression,
 
     pub return_type: Type,

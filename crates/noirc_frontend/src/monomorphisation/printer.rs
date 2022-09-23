@@ -11,9 +11,10 @@ pub struct AstPrinter {
 
 impl AstPrinter {
     pub fn print_function(&mut self, function: &Function, f: &mut Formatter) -> std::fmt::Result {
-        let params =
-            vecmap(&function.parameters, |(id, typ, name)| format!("{}${}: {}", name, id.0, typ))
-                .join(", ");
+        let params = vecmap(&function.parameters, |(id, mutable, name, typ)| {
+            format!("{}{}${}: {}", if *mutable { "mut " } else { "" }, name, id.0, typ)
+        })
+        .join(", ");
 
         write!(
             f,
