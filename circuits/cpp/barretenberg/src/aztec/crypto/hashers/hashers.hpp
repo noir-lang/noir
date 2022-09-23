@@ -1,3 +1,5 @@
+#pragma once
+
 #include "../blake2s/blake2s.hpp"
 #include "../keccak/keccak.hpp"
 #include "../sha256/sha256.hpp"

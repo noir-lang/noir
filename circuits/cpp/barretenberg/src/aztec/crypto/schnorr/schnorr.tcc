@@ -1,14 +1,58 @@
 #pragma once
 
-#include <common/serialize.hpp>
-#include <ecc/curves/bn254/fq.hpp>
-#include <ecc/curves/bn254/fr.hpp>
-#include <ecc/fields/field.hpp>
-
 #include <crypto/hmac/hmac.hpp>
+#include <crypto/pedersen/pedersen.hpp>
+
+#include "schnorr.hpp"
 
 namespace crypto {
 namespace schnorr {
+
+/**
+ * @brief Generate the schnorr signature challenge parameter `e` given a message, signer pubkey and nonce
+ *
+ * @details Normal Schnorr param e = H(r.x || pub_key || message)
+ * But we want to keep hash preimage to <= 64 bytes for a 32 byte message
+ * (for performance reasons in our join-split circuit!)
+ *
+ * barretenberg schnorr defines e as the following:
+ *
+ * e = H(pedersen(r.x || pub_key.x || pub_key.y), message)
+ *
+ * pedersen is collision resistant => e can be modelled as randomly distributed
+ * as long as H can be modelled as a random oracle
+ *
+ * @tparam Hash the hash-function used as random-oracle
+ * @tparam G1 Group over which the signature is produced
+ * @param message what are we signing over?
+ * @param pubkey the pubkey of the signer
+ * @param R the nonce
+ * @return e = H(pedersen(r.x || pub_key.x || pub_key.y), message) as a 256-bit integer,
+ *      represented in a container of 32 uint8_t's
+ *
+ *
+ * @warning When the order of G1 is significantly smaller than 2²⁵⁶−1,
+ * the distribution of `e` is no longer uniform over `Fr`. This mainly affects
+ * the ZK property of the scheme. If signatures are never revealed (i.e. if they
+ * are always private inputs to circuits) then nothing would be revealed anyway.
+ */
+template <typename Hash, typename G1>
+static auto generate_schnorr_challenge(const std::string& message,
+                                       const typename G1::affine_element& pubkey,
+                                       const typename G1::affine_element& R)
+{
+    using Fq = typename G1::coordinate_field;
+    // create challenge message pedersen_hash(R.x, pubkey)
+    Fq compressed_keys = crypto::pedersen::compress_native({ R.x, pubkey.x, pubkey.y });
+    std::vector<uint8_t> e_buffer;
+    write(e_buffer, compressed_keys);
+    std::copy(message.begin(), message.end(), std::back_inserter(e_buffer));
+
+    // hash the result of the pedersen hash digest
+    // we return auto since some hash implementation return
+    // either a std::vector or a std::array with 32 bytes
+    return Hash::hash(e_buffer);
+}
 
 /**
  * @brief Construct a Schnorr signature of the form (random - priv * hash, hash) using the group G1.
@@ -27,43 +71,32 @@ namespace schnorr {
 template <typename Hash, typename Fq, typename Fr, typename G1>
 signature construct_signature(const std::string& message, const key_pair<Fr, G1>& account)
 {
-    signature sig;
     auto& public_key = account.public_key;
     auto& private_key = account.private_key;
 
     // use HMAC in PRF mode to derive 32-byte secret `k`
     std::vector<uint8_t> pkey_buffer;
     write(pkey_buffer, private_key);
-
     Fr k = crypto::get_unbiased_field_from_hmac<Hash, Fr>(message, pkey_buffer);
 
     typename G1::affine_element R(G1::one * k);
 
-    std::vector<uint8_t> message_buffer;
-
-    /**
-     * Normal schorr param e = H(r.x || pub_key || message)
-     * But we want to keep hash preimage to <= 64 bytes for a 32 byte message
-     * (for performance reasons in our join-split circuit!)
-     *
-     * barretenberg schnorr defines e as the following:
-     *
-     * e = H(pedersen(r.x || pub_key.x || pub_key.y), message)
-     *
-     * pedersen is collision resistant => e can be modelled as randomly distributed
-     * as long as H can be modelled as a random oracle
-     */
-    Fq compressed_keys = crypto::pedersen::compress_native({ R.x, public_key.x, public_key.y });
-    write(message_buffer, compressed_keys);
-    std::copy(message.begin(), message.end(), std::back_inserter(message_buffer));
-
-    auto ev = Hash::hash(message_buffer);
-    std::copy(ev.begin(), ev.end(), sig.e.begin());
-
-    Fr e = Fr::serialize_from_buffer(&sig.e[0]);
-
+    // container with 32 bytes
+    auto e_raw = generate_schnorr_challenge<Hash, G1>(message, public_key, R);
+    // the conversion from e_raw results in a biased field element e
+    Fr e = Fr::serialize_from_buffer(&e_raw[0]);
     Fr s = k - (private_key * e);
+
+    // we serialize e_raw rather than e, so that no binary conversion needs to be
+    // performed during verification.
+    // indeed, e_raw defines an integer exponent which exponentiates the public_key point.
+    // if we define e_uint as the integers whose binary representation is e_raw,
+    // and e = e_uint % r, where r is the order of the curve,
+    // and pk as the point representing the public_key,
+    // then e•pk = e_uint•pk
+    signature sig;
     Fr::serialize_to_buffer(s, &sig.s[0]);
+    std::copy(e_raw.begin(), e_raw.end(), sig.e.begin());
     return sig;
 }
 
@@ -79,29 +112,32 @@ bool verify_signature(const std::string& message, const typename G1::affine_elem
     if (!public_key.on_curve() || public_key.is_point_at_infinity()) {
         return false;
     }
-    // e = H(pedersen(r, pk.x, pk.y), m) r = x(R)
-    // R = g^s • pub^e
-    Fr s = Fr::serialize_from_buffer(&sig.s[0]);
-    Fr source_e = Fr::serialize_from_buffer(&sig.e[0]);
+    // Deserializing from a 256-bit buffer will induce a bias on the order of
+    // 1/(2(256-log(r))) where r is the order of Fr.
+    Fr e = Fr::serialize_from_buffer(&sig.e[0]);
 
-    if (s == 0 || source_e == 0) {
+    // reading s in this way always applies the modular reduction, and
+    // therefore a signature where (r,s') where s'=s+Fr::modulus would also be accepted
+    // this makes our signatures malleable, but is not an issue in the context of the
+    // circuits where we use these signatures
+    Fr s = Fr::serialize_from_buffer(&sig.s[0]);
+
+    if (s == 0 || e == 0) {
         return false;
     }
-    affine_element R(element(public_key) * source_e + G1::one * s);
+
+    // R = g^{sig.s} • pub^{sig.e}
+    affine_element R(element(public_key) * e + G1::one * s);
     if (R.is_point_at_infinity()) {
         // this result implies k == 0
         return false;
     }
-    Fq compressed_keys = crypto::pedersen::compress_native({ R.x, public_key.x, public_key.y });
 
-    std::vector<uint8_t> message_buffer;
-    write(message_buffer, compressed_keys);
-    std::copy(message.begin(), message.end(), std::back_inserter(message_buffer));
+    // compare the _hashes_ rather than field elements modulo r
 
-    auto e_vec = Hash::hash(message_buffer);
-    Fr target_e = Fr::serialize_from_buffer(&e_vec[0]);
-
-    return source_e == target_e;
+    // e = H(pedersen(r, pk.x, pk.y), m), where r = x(R)
+    auto target_e = generate_schnorr_challenge<Hash, G1>(message, public_key, R);
+    return std::equal(sig.e.begin(), sig.e.end(), target_e.begin(), target_e.end());
 }
 } // namespace schnorr
 } // namespace crypto
