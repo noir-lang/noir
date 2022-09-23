@@ -30,6 +30,8 @@ pub enum ResolverError {
     UnnecessaryPub { ident: Ident },
     #[error("Expected const value where non-constant value was used")]
     ExpectedConstVariable { name: String, span: Span },
+    #[error("Missing expression for declared constant")]
+    MissingRhsExpr { name: String, span: Span },
 }
 
 impl ResolverError {
@@ -151,6 +153,11 @@ impl ResolverError {
             ResolverError::ExpectedConstVariable { name, span } => Diagnostic::simple_error(
                 format!("expected constant variable where non-constant variable {} was used", name),
                 "expected const variable".to_string(),
+                span,
+            ),
+            ResolverError::MissingRhsExpr { name, span } => Diagnostic::simple_error(
+                format!("no expression specifying the value stored by the constant variable {}", name),
+                "expected expression to be stored for let statement".to_string(),
                 span,
             ),
         }
