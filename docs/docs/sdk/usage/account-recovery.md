@@ -1,10 +1,10 @@
 ---
-title: Account Recovery
+title: Recover Accounts
 ---
 
 Recover an Aztec account.
 
-Aztec allows for recovery of an account for which all of the regsitered spending keys have been lost.
+Aztec allows for recovery of an account for which all of the registered spending keys have been lost. The recovering party will still need the account privacy key to decrypt the associated account notes.
 
 At a high level, what the [RecoverAccountController](./../types/sdk/RecoverAccountController) does is it adds a trusted third party key as a new spending key for the account. This trusted third party key can then be used to [add new spending keys](add-spending-keys) to the account.
 
