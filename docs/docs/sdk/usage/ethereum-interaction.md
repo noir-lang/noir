@@ -12,7 +12,7 @@ The [DefiController](../types/sdk/DefiController) makes it easy to interact dire
 AztecSdk.createDefiController(
     userId: GrumpkinAddress, 
     userSigner: Signer, 
-    bridgeId: BridgeId, 
+    bridgeCallData: BridgeCallData, 
     value: AssetValue, 
     fee: AssetValue)
     : Promise<DefiController>
@@ -24,7 +24,7 @@ AztecSdk.createDefiController(
 | --------- | ---- | ----------- |
 | userId | [GrumpkinAddress](../types/barretenberg/GrumpkinAddress) | Owner of the value note to be sent. |
 | userSigner | [Signer](../types/sdk/Signer) | A signer associated with the `userId`. |
-| bridgeId | [BridgeId](../types/barretenberg/BridgeId) | A unique id corresponding to the bridge that the `value` is sent to. |
+| bridgeCallData | [BridgeCallData](../types/barretenberg/BridgeCallData) | A unique id corresponding to the bridge that the `value` is sent to. |
 | value | [AssetValue](../types/barretenberg/AssetValue) | Asset type and amount to send. |
 | fee | [AssetValue](../types/barretenberg/AssetValue) | Asset type and amount to pay for the Aztec transaction fee. |
 
@@ -34,19 +34,19 @@ AztecSdk.createDefiController(
 | --------- | ----------- |
 | [DefiController](../types/sdk/DefiController) | A user instance with apis bound to the user's account id. |
 
-## BridgeId Setup
+## BridgeCallData Setup
 
-A bridge `addressId` is required to setup a [BridgeId](../types/barretenberg/BridgeId). The `addressId` is a number associated with the bridge. It increments by 1 as new bridges are deployed to Ethereum and added to the rollup processor contract.
+A bridge `addressId` is required to setup [BridgeCallData](../types/barretenberg/BridgeCallData). The `addressId` is a number associated with the bridge. It increments by 1 as new bridges are deployed to Ethereum and added to the rollup processor contract.
 
 You can get the bridge `addressId`s from the published [Deployed Bridge Info table](https://github.com/AztecProtocol/aztec-connect-bridges#deployed-bridge-info).
 
 You can also query the bridge ids on the rollup processor contracts directly. [Here is the link](https://etherscan.io/address/0xff1f2b4adb9df6fc8eafecdcbf96a2b351680455#readProxyContract
 ) to read the contract Etherscan. You can get the bridge contract addresses from the `getSupportedBridge` or `getSupportedBridges` functions. The bridge `addressId` corresponds to it's index in the supported bridges array returned by `getSupportedBridges`.
 
-Once you have the bridge `addressId`, you can initialize a new bridge instance. The `BridgeId` contstructor looks like this:
+Once you have the bridge `addressId`, you can initialize a new bridge instance. The `BridgeCallData` contstructor looks like this:
 
 ```ts
-const bridge = new BridgeId(
+const bridge = new BridgeCallData(
         addressId: number, 
         inputAssetIdA: number, 
         outputAssetIdA: number, 
@@ -64,12 +64,12 @@ const bridge = new BridgeId(
 | outputAssetIdB | number | Optional. The [asset id](../../glossary#asset-ids) of the second output asset. |
 | auxData | number | Custom auxiliary data for bridge-specific logic. |
 
-The `BridgeId` is passed to the `DefiController` to specify how to construct the interaction.
+The `BridgeCallData` is passed to the `DefiController` to specify how to construct the interaction.
 
-For example, you can create the `BridgeId` for the ETH to wstETH Lido bridge like this:
+For example, you can create the `BridgeCallData` for the ETH to wstETH Lido bridge like this:
 
 ```ts
-const ethToWstEthBridge = new BridgeId(2, 0, 2); // IN: ETH (0), OUT: wstETH (2)
+const ethToWstEthBridge = new BridgeCallData(2, 0, 2); // IN: ETH (0), OUT: wstETH (2)
 ```
 
 The Lido bridge contract is `addressId` 2, takes 1 input asset (ETH, `assetId` = 0) and returns 1 output asset (wstETH, `assetId` = 2). This bridge doesn't take any `auxData` since it is just a simple exchange of ETH to wstETH.
@@ -91,8 +91,8 @@ For example:
 ```ts
 const elementAdaptor = createElementAdaptor(
     ethereumProvider,
-    "0xFF1F2B4ADb9dF6FC8eAFecDcbF96A2B351680455", // rollup address
-    "0xaeD181779A8AAbD8Ce996949853FEA442C2CDB47", // bridge address
+    "0xFF1F2B4ADb9dF6FC8eAFecDcbF96A2B351680455", // rollup contract
+    "0xaeD181779A8AAbD8Ce996949853FEA442C2CDB47", // bridge contract 
     false // mainnet flag
 );
 ```
@@ -107,12 +107,12 @@ await elementAdaptor.getAuxData?(
     outputAssetB: AztecAsset): Promise<bigint[]>;
 ```
 
-This function returns an index of numbers corresponding to various tranche expiry times that correspond to the inputAsset. This will determine which tranche the user interacts with. So you could set up a `BridgeId` for a user to interact with the latest tranche by passing the last index of the array of returned expiry times.
+This function returns an index of numbers corresponding to various tranche expiry times that correspond to the inputAsset. This will determine which tranche the user interacts with. So you could set up `BridgeCallData` for a user to interact with the latest tranche by passing the last index of the array of returned expiry times.
 
 Looking at the [Deployed Bridge Info table](https://github.com/AztecProtocol/aztec-connect-bridges#deployed-bridge-info), the Element bridge is id 1, it takes DAI (asset id 1) and returns DAI and you can pass an element from the `auxData` array from the connector and pass this to the `DefiController`.
 
 ```ts
-const elementBridge = new BridgeId(1, 1, 1, undefined, undefined, Number(elementAuxData[0])); // IN: DAI (1), OUT: DAI (1)
+const elementBridge = new BridgeCallData(1, 1, 1, undefined, undefined, Number(elementAuxData[0])); // IN: DAI (1), OUT: DAI (1)
 ```
 
 #### Async `finalise`
@@ -125,7 +125,7 @@ If you want to finalise a defi interaction without having to rely on interaction
 
 ## Fees
 
-Similarly to other controllers, the SDK comes with a helper method to calculate fees. It requires the `BridgeId` since different bridges cost different amounts of gas. `settlementTime` is type [DefiSettlementTime](../types/barretenberg/DefiSettlementTime).
+Similarly to other controllers, the SDK comes with a helper method to calculate fees. It requires the `BridgeCallData` since different bridges cost different amounts of gas. `settlementTime` is type [DefiSettlementTime](../types/barretenberg/DefiSettlementTime).
 
 `DefiSettlementTime` is an enum with members `DEADLINE`, `NEXT_ROLLUP` and `INSTANT`. `DEADLINE` is the slowest and cheapest. It provides a longer opportunity for your transaction to be batched with other similar interactions. `NEXT_ROLLUP` is the next most expensive and will process in the next regardless of the number of similar interactions. `INSTANT` is the most expensive and will pay the cost to settle the rollup and process the interaction immediately.
 
