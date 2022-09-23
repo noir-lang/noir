@@ -120,20 +120,14 @@ impl<K: std::hash::Hash + Eq + Clone, V> From<Scope<K, V>> for ScopeTree<K, V> {
     }
 }
 
-pub struct ScopeForest<K, V> {
-    pub global_scope: Scope<K, V>,
-    pub scope_forest: Vec<ScopeTree<K, V>>,
-}
+pub struct ScopeForest<K, V>(pub Vec<ScopeTree<K, V>>);
 
 impl<K: std::hash::Hash + Eq + Clone, V> ScopeForest<K, V> {
     pub fn new() -> ScopeForest<K, V> {
-        ScopeForest { global_scope: Scope::new(), scope_forest: vec![ScopeTree::new()] }
-        // ScopeForest(vec![ScopeTree::new()])
+        ScopeForest(vec![ScopeTree::new()])
     }
     pub fn current_scope_tree(&mut self) -> &mut ScopeTree<K, V> {
-        self.scope_forest
-            .last_mut()
-            .expect("ice: tried to fetch the current scope, however none was found")
+        self.0.last_mut().expect("ice: tried to fetch the current scope, however none was found")
     }
 
     /// Returns the last pushed scope from the current scope tree
@@ -150,12 +144,12 @@ impl<K: std::hash::Hash + Eq + Clone, V> ScopeForest<K, V> {
     /// Starting a function requires a new scope tree, as you do not want the functions scope to
     /// have access to the scope of the caller
     pub fn start_function(&mut self) {
-        self.scope_forest.push(ScopeTree::new())
+        self.0.push(ScopeTree::new())
     }
     /// Ending a function requires that we removes it's whole tree of scope
     /// This is by design the current scope, which is the last element in the vector
     pub fn end_function(&mut self) -> ScopeTree<K, V> {
-        self.scope_forest.pop().expect("ice: expected a scope tree, however none was found")
+        self.0.pop().expect("ice: expected a scope tree, however none was found")
     }
 
     /// The beginning of a scope always correlates with the start of a block {}.
@@ -167,10 +161,6 @@ impl<K: std::hash::Hash + Eq + Clone, V> ScopeForest<K, V> {
     /// Ends the current scope - this should correspond with the end of a BlockExpression.
     pub fn end_scope(&mut self) -> Scope<K, V> {
         self.remove_scope_tree_extension()
-    }
-
-    pub fn get_global_scope(&mut self) -> &mut Scope<K, V> {
-        &mut self.global_scope
     }
 }
 

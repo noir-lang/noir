@@ -110,6 +110,8 @@ impl<'a> Resolver<'a> {
         mut self,
         func: NoirFunction,
     ) -> (HirFunction, FuncMeta, Vec<ResolverError>) {
+        self.scopes.start_function();
+
         // Check whether the function has global constants in the local module and add them to the scope
         for (stmt_id, const_info) in self.interner.get_all_global_consts() {
             if const_info.local_id == self.path_resolver.local_module_id() {
@@ -117,7 +119,7 @@ impl<'a> Resolver<'a> {
                 self.add_global_variable_decl(const_info.ident, Some(const_stmt.expression));
             }
         }
-        self.scopes.start_function();
+
         self.add_generics(func.def.generics.clone());
 
         let (hir_func, func_meta) = self.intern_function(func);
@@ -138,7 +140,17 @@ impl<'a> Resolver<'a> {
             let name = self.interner.definition_name(unused_var.id);
             if name != ERROR_IDENT {
                 let ident = Ident(Spanned::from(unused_var.location.span, name.to_owned()));
-                self.push_err(ResolverError::UnusedVariable { ident });
+                let mut const_found = false;
+                for (_, const_info) in self.interner.get_all_global_consts() {
+                    if const_info.ident == ident {
+                        const_found = true;
+                        break;
+                    }
+                }
+
+                if !const_found {
+                    self.push_err(ResolverError::UnusedVariable { ident });
+                }
             }
         }
     }
@@ -194,7 +206,7 @@ impl<'a> Resolver<'a> {
     }
 
     fn add_global_variable_decl(&mut self, name: Ident, rhs: Option<ExprId>) -> HirIdent {
-        let global_scope = self.scopes.get_global_scope();
+        let global_scope = self.scopes.get_mut_scope();
         let ident;
         let resolver_meta;
 
@@ -250,19 +262,11 @@ impl<'a> Resolver<'a> {
             variable_found.num_times_used += 1;
             variable_found.ident.id
         } else {
-            let global_scope = self.scopes.get_global_scope();
-            let global_variable = global_scope.find(&name.0.contents);
-
-            if let Some(variable_found) = global_variable {
-                variable_found.num_times_used += 1;
-                variable_found.ident.id
-            } else {
-                self.push_err(ResolverError::VariableNotDeclared {
-                    name: name.0.contents.clone(),
-                    span: name.0.span(),
-                });
-                DefinitionId::dummy_id()
-            }
+            self.push_err(ResolverError::VariableNotDeclared {
+                name: name.0.contents.clone(),
+                span: name.0.span(),
+            });
+            DefinitionId::dummy_id()
         };
 
         HirIdent { location, id }
@@ -301,23 +305,7 @@ impl<'a> Resolver<'a> {
                     }
                     UnresolvedArraySize::Fixed(length) => Type::ArrayLength(length),
                     UnresolvedArraySize::FixedVariable(name) => {
-                        // A resolved identifier must exist either in the local scope or global scope
-                        let hir_ident = self.find_variable(&name);
-                        let definition_info = self.interner.definition(hir_ident.id);
-                        if definition_info.mutable {
-                            self.push_err(ResolverError::ExpectedConstVariable {
-                                name: name.0.contents.clone(),
-                                span: name.span(),
-                            });
-                            return Type::Error;
-                        }
-
-                        if let Some(rhs_expr_id) = definition_info.rhs {
-                            let length = self.get_fixed_variable_array_length(&rhs_expr_id);
-                            Type::ArrayLength(length)
-                        } else {
-                            Type::Error
-                        }
+                        self.resolve_fixed_variable_array_length(name)
                     }
                 };
                 let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
@@ -349,6 +337,26 @@ impl<'a> Resolver<'a> {
             UnresolvedType::Tuple(fields) => {
                 Type::Tuple(vecmap(fields, |field| self.resolve_type_inner(field, new_variables)))
             }
+        }
+    }
+
+    fn resolve_fixed_variable_array_length(&mut self, name: Ident) -> Type {
+        // A resolved identifier must exist either in the local scope or global scope
+        let hir_ident = self.find_variable(&name);
+        let definition_info = self.interner.definition(hir_ident.id);
+        if definition_info.mutable {
+            self.push_err(ResolverError::ExpectedConstVariable {
+                name: name.0.contents.clone(),
+                span: name.span(),
+            });
+            return Type::Error;
+        }
+
+        if let Some(rhs_expr_id) = definition_info.rhs {
+            let length = self.get_fixed_variable_array_length(&rhs_expr_id);
+            Type::ArrayLength(length)
+        } else {
+            Type::Error
         }
     }
 
