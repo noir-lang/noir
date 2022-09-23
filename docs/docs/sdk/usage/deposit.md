@@ -6,7 +6,17 @@ Deposit Assets from Ethereum to Aztec.
 
 The SDK comes with a `DepositController` that makes it easy to create and track deposit transactions from Ethereum to Aztec.
 
-Deposits require sending Ethereum transactions from a user's account to the Aztec deposit contract.
+Deposits require sending Ethereum transactions from a user's account to the Aztec deposit contract. Any Etheruem account can make a deposit to any Aztec account.
+
+An example to help clarify. Say Alice is an entity on L1 that wants to make a deposit of 10 DAI into Bob's account on Aztec. She knows that Bob owns the bob.eth ENS (Ethereum Name Service) name, so she can make a deposit like (ens inserted instead of address for clarity):
+
+```js
+aztecRollupContract.depositPendingFunds(1, 10e18, bob.eth, bytes32(0));
+```
+
+After this transaction is executed, there is now 10 DAI in Bob's pending balance on Aztec. Bob then creates a deposit proof (only on L2, no L1 transaction), where he uses the 10 DAI. Bob now has the 10 DAI in an Aztec account and he never sent a L1 tx himself. If there have been multiple deposits, he can make the deposit proof of the sum of them if he wants to, e.g., for 3 deposits of 10 DAI he could make a deposit proof spending all 30 DAI.
+
+The SDK simplifies making deposits to the Aztec rollup contract as well as generating the proofs for claiming pending deposits.
 
 You can find the interface for the `DepositController` class [here](../types/sdk/DefiController).
 
