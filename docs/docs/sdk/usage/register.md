@@ -1,8 +1,8 @@
 ---
-title: Register Accounts
+title: Register
 ---
 
-Register an Aztec spending key.
+Register an Aztec spending key, alias and (optional) recovery key.
 
 Please review the [Accounts overview](../../how-aztec-works/accounts) and [Add User](./add-account) pages if you haven't already.
 

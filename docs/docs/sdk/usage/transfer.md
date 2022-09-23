@@ -1,5 +1,5 @@
 ---
-title: Transfer Assets
+title: Transfer
 ---
 
 Transfer asset notes on the Aztec network.

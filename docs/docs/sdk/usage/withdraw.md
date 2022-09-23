@@ -1,5 +1,5 @@
 ---
-title: Withdraw Assets
+title: Withdraw
 ---
 
 Withdraw assets from Aztec to Ethereum.
