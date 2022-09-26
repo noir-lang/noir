@@ -53,7 +53,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
 /// We can either build a test apparatus or pass raw code through the resolver
 #[cfg(test)]
 mod test {
-    use std::collections::{BTreeSet, HashMap};
+    use std::collections::HashMap;
 
     use fm::FileId;
     use noirc_errors::{Location, Span};
@@ -137,11 +137,7 @@ mod test {
             kind: FunctionKind::Normal,
             attributes: None,
             location,
-            typ: Type::Function(
-                vec![Type::field(None), Type::field(None)],
-                Box::new(Type::Unit),
-                BTreeSet::new(),
-            ),
+            typ: Type::Function(vec![Type::field(None), Type::field(None)], Box::new(Type::Unit)),
             parameters: vec![
                 Param(Identifier(x), Type::field(None), noirc_abi::AbiFEType::Private),
                 Param(Identifier(y), Type::field(None), noirc_abi::AbiFEType::Private),
