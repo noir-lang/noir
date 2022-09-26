@@ -4,15 +4,10 @@ use crate::errors::RuntimeError;
 
 use super::{
     acir_gen::InternalVar,
+    anchor::{Anchor, CseAction},
     block::BlockId,
     context::SsaContext,
-    node::{
-        Binary, BinaryOp, Instruction, Mark, Node, NodeEval, NodeId, ObjectType, Opcode, Operation,
-    },
-};
-use std::{
-    borrow::Cow,
-    collections::{HashMap, VecDeque},
+    node::{Binary, BinaryOp, Instruction, Mark, Node, NodeEval, NodeId, ObjectType, Operation},
 };
 
 pub fn simplify_id(ctx: &mut SsaContext, ins_id: NodeId) -> Result<(), RuntimeError> {
@@ -98,100 +93,6 @@ fn evaluate_intrinsic(ctx: &mut SsaContext, op: acvm::acir::OPCODE, args: Vec<u1
 }
 ////////////////////CSE////////////////////////////////////////
 
-pub fn find_similar_instruction(
-    igen: &SsaContext,
-    operation: &Operation,
-    prev_ins: &VecDeque<NodeId>,
-) -> Option<NodeId> {
-    for iter in prev_ins {
-        if let Some(ins) = igen.try_get_instruction(*iter) {
-            if &ins.operation == operation && !ins.is_deleted() {
-                return Some(*iter);
-            }
-        }
-    }
-    None
-}
-
-pub fn find_similar_cast(
-    igen: &SsaContext,
-    operator: &Operation,
-    res_type: ObjectType,
-    prev_ins: &VecDeque<NodeId>,
-) -> Option<NodeId> {
-    for iter in prev_ins {
-        if let Some(ins) = igen.try_get_instruction(*iter) {
-            if &ins.operation == operator && ins.res_type == res_type && !ins.is_deleted() {
-                return Some(*iter);
-            }
-        }
-    }
-    None
-}
-
-#[derive(Debug)]
-pub enum CseAction {
-    ReplaceWith(NodeId),
-    Remove(NodeId),
-    Keep,
-}
-
-fn find_similar_mem_instruction(
-    ctx: &SsaContext,
-    op: &Operation,
-    prev_ins: &VecDeque<NodeId>,
-) -> CseAction {
-    match op {
-        Operation::Load { index, .. } => {
-            for iter in prev_ins.iter() {
-                if let Some(ins_iter) = ctx.try_get_instruction(*iter) {
-                    match &ins_iter.operation {
-                        Operation::Load { index: index2, .. } => {
-                            if !ctx.maybe_distinct(*index2, *index) {
-                                return CseAction::ReplaceWith(*iter);
-                            }
-                        }
-                        Operation::Store { index: index2, value, .. } => {
-                            if !ctx.maybe_distinct(*index2, *index) {
-                                return CseAction::ReplaceWith(*value);
-                            }
-                            if ctx.maybe_equal(*index2, *index) {
-                                return CseAction::Keep;
-                            }
-                        }
-                        _ => unreachable!("invalid operator in the memory anchor list"),
-                    }
-                }
-            }
-        }
-        Operation::Store { index, .. } => {
-            for node_id in prev_ins.iter() {
-                if let Some(ins_iter) = ctx.try_get_instruction(*node_id) {
-                    match ins_iter.operation {
-                        Operation::Load { index: index2, .. } => {
-                            if ctx.maybe_equal(index2, *index) {
-                                return CseAction::Keep;
-                            }
-                        }
-                        Operation::Store { index: index2, .. } => {
-                            if !ctx.maybe_distinct(index2, *index) {
-                                return CseAction::Remove(*node_id);
-                            }
-                            if ctx.maybe_equal(index2, *index) {
-                                return CseAction::Keep;
-                            }
-                        }
-                        _ => unreachable!("invalid operator in the memory anchor list"),
-                    }
-                }
-            }
-        }
-        _ => unreachable!("invalid non memory operator"),
-    }
-
-    CseAction::Keep
-}
-
 pub fn propagate(ctx: &SsaContext, id: NodeId, modified: &mut bool) -> NodeId {
     if let Some(obj) = ctx.try_get_instruction(id) {
         if let Mark::ReplaceWith(replacement) = obj.mark {
@@ -247,24 +148,10 @@ pub fn full_cse(
     Ok(result)
 }
 
-/// A list of instructions with the same Operation variant, ordered by the order
-/// they appear in their respective blocks.
-#[derive(Default, Clone)]
-struct Anchor {
-    map: HashMap<Opcode, VecDeque<NodeId>>,
-}
-
-impl Anchor {
-    fn push_front(&mut self, op: Opcode, id: NodeId) {
-        self.map.entry(op).or_insert_with(VecDeque::new).push_front(id);
-    }
-
-    fn get_all(&self, opcode: Opcode) -> Cow<VecDeque<NodeId>> {
-        match self.map.get(&opcode) {
-            Some(vec) => Cow::Borrowed(vec),
-            None => Cow::Owned(VecDeque::new()),
-        }
-    }
+pub fn simple_cse(ctx: &mut SsaContext, block_id: BlockId) {
+    let mut modified = false;
+    let mut instructions = Vec::new();
+    cse_block(ctx, block_id, &mut instructions, &mut modified).unwrap();
 }
 
 pub fn cse_block(
@@ -307,38 +194,35 @@ fn cse_block_with_anchor(
                         //No CSE for arrays because they are not in SSA form
                         //We could improve this in future by checking if the arrays are immutable or not modified in-between
                         let id = ctx.get_dummy_load(a);
-                        anchor.push_front(Opcode::Load(a), id);
+                        anchor.push_mem_instruction(ctx, id);
 
                         if let ObjectType::Pointer(a) = ctx.get_object_type(binary.rhs) {
                             let id = ctx.get_dummy_load(a);
-                            anchor.push_front(Opcode::Load(a), id);
+                            anchor.push_mem_instruction(ctx, id);
                         }
 
                         new_list.push(*ins_id);
+                    } else if let Some(similar) = anchor.find_similar_instruction(&operator) {
+                        debug_assert!(similar != ins.id);
+                        *modified = true;
+                        new_mark = Mark::ReplaceWith(similar);
+                    } else if binary.operator == BinaryOp::Assign {
+                        *modified = true;
+                        new_mark = Mark::ReplaceWith(binary.rhs);
                     } else {
-                        let variants = anchor.get_all(binary.opcode());
-                        if let Some(similar) = find_similar_instruction(ctx, &operator, &variants) {
-                            debug_assert!(similar != ins.id);
-                            *modified = true;
-                            new_mark = Mark::ReplaceWith(similar);
-                        } else if binary.operator == BinaryOp::Assign {
-                            *modified = true;
-                            new_mark = Mark::ReplaceWith(binary.rhs);
-                        } else {
-                            new_list.push(*ins_id);
-                            anchor.push_front(ins.operation.opcode(), *ins_id);
-                        }
+                        new_list.push(*ins_id);
+                        anchor.push_front(&ins.operation, *ins_id);
                     }
                 }
                 Operation::Load { array_id: x, .. } | Operation::Store { array_id: x, .. } => {
                     if !is_join && ins.operation.is_dummy_store() {
                         continue;
                     }
-                    let op = Opcode::Load(*x);
-                    let prev_ins = anchor.get_all(op);
-                    match find_similar_mem_instruction(ctx, &operator, &prev_ins) {
+                    anchor.use_array(*x, ctx.mem[*x].len as usize);
+                    let prev_ins = anchor.get_mem_all(*x);
+                    match anchor.find_similar_mem_instruction(ctx, &operator, prev_ins) {
                         CseAction::Keep => {
-                            anchor.push_front(op, *ins_id);
+                            anchor.push_mem_instruction(ctx, *ins_id);
                             new_list.push(*ins_id)
                         }
                         CseAction::ReplaceWith(new_id) => {
@@ -346,7 +230,7 @@ fn cse_block_with_anchor(
                             new_mark = Mark::ReplaceWith(new_id);
                         }
                         CseAction::Remove(id_to_remove) => {
-                            anchor.push_front(op, *ins_id);
+                            anchor.push_mem_instruction(ctx, *ins_id);
                             new_list.push(*ins_id);
                             // TODO if not found, it should be removed from other blocks; we could keep a list of instructions to remove
                             if let Some(id) = new_list.iter().position(|x| *x == id_to_remove) {
@@ -371,17 +255,12 @@ fn cse_block_with_anchor(
                 }
                 Operation::Cast(_) => {
                     //Similar cast must have same type
-                    if let Some(similar) = find_similar_cast(
-                        ctx,
-                        &operator,
-                        ins.res_type,
-                        &anchor.get_all(Opcode::Cast),
-                    ) {
+                    if let Some(similar) = anchor.find_similar_cast(ctx, &operator, ins.res_type) {
                         new_mark = Mark::ReplaceWith(similar);
                         *modified = true;
                     } else {
                         new_list.push(*ins_id);
-                        anchor.push_front(operator.opcode(), *ins_id);
+                        anchor.push_cast_front(&operator, *ins_id, ins.res_type);
                     }
                 }
                 Operation::Call { func_id, arguments, returned_arrays, .. } => {
@@ -389,13 +268,13 @@ fn cse_block_with_anchor(
                     //Add dummy store for functions that modify arrays
                     for a in returned_arrays {
                         let id = ctx.get_dummy_store(a.0);
-                        anchor.push_front(Opcode::Load(a.0), id);
+                        anchor.push_mem_instruction(ctx, id);
                     }
                     if let Some(f) = ctx.get_ssafunc(*func_id) {
                         for typ in &f.result_types {
                             if let ObjectType::Pointer(a) = typ {
                                 let id = ctx.get_dummy_store(*a);
-                                anchor.push_front(Opcode::Load(*a), id);
+                                anchor.push_mem_instruction(ctx, id);
                             }
                         }
                     }
@@ -404,7 +283,7 @@ fn cse_block_with_anchor(
                         if let Some(obj) = ctx.try_get_node(*arg) {
                             if let ObjectType::Pointer(a) = obj.get_type() {
                                 let id = ctx.get_dummy_load(a);
-                                anchor.push_front(Opcode::Load(a), id);
+                                anchor.push_mem_instruction(ctx, id);
                             }
                         }
                     }
@@ -418,28 +297,24 @@ fn cse_block_with_anchor(
                         if let Some(obj) = ctx.try_get_node(*arg) {
                             if let ObjectType::Pointer(a) = obj.get_type() {
                                 let id = ctx.get_dummy_load(a);
-                                anchor.push_front(Opcode::Load(a), id);
+                                anchor.push_mem_instruction(ctx, id);
                                 activate_cse = false;
                             }
                         }
                     }
                     if let ObjectType::Pointer(a) = ins.res_type {
                         let id = ctx.get_dummy_store(a);
-                        anchor.push_front(Opcode::Load(a), id);
+                        anchor.push_mem_instruction(ctx, id);
                         activate_cse = false;
                     }
 
                     if activate_cse {
-                        if let Some(similar) = find_similar_instruction(
-                            ctx,
-                            &operator,
-                            &anchor.get_all(operator.opcode()),
-                        ) {
+                        if let Some(similar) = anchor.find_similar_instruction(&operator) {
                             *modified = true;
                             new_mark = Mark::ReplaceWith(similar);
                         } else {
                             new_list.push(*ins_id);
-                            anchor.push_front(operator.opcode(), *ins_id);
+                            anchor.push_front(&operator, *ins_id);
                         }
                     } else {
                         new_list.push(*ins_id);

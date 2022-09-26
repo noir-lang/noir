@@ -7,7 +7,7 @@ cfg_if::cfg_if! {
     if #[cfg(feature = "std")] {
 
         pub fn read_file_to_string(path_to_file: &Path) -> Result<String, Error> {
-            std::fs::read_to_string(&path_to_file)
+            std::fs::read_to_string(path_to_file)
         }
 
     } else if #[cfg(feature = "wasm")] {

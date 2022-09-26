@@ -660,7 +660,7 @@ impl SsaContext {
         let first_block = self.first_block;
         self[first_block].dominated.clear();
 
-        optim::full_cse(self, self.first_block)?;
+        optim::cse(self, first_block)?;
 
         //Truncation
         integer::overflow_strategy(self)?;

@@ -170,7 +170,7 @@ impl Variable {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ObjectType {
     //Numeric(NumericType),
     NativeField,

@@ -68,8 +68,13 @@ impl SSAFunction {
         let mut decision = DecisionTree::new(&igen.context);
         decision.make_decision_tree(&mut igen.context, self.entry_block);
         decision.reduce(&mut igen.context, decision.root)?;
-
-        super::optim::full_cse(&mut igen.context, self.entry_block)?;
+        //merge blocks
+        let to_remove =
+            super::block::merge_path(&mut igen.context, self.entry_block, BlockId::dummy());
+        igen.context[self.entry_block].dominated.retain(|b| !to_remove.contains(b));
+        for i in to_remove {
+            igen.context.remove_block(i);
+        }
         Ok(decision)
     }
 
