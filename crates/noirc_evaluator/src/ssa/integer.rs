@@ -29,6 +29,11 @@ fn get_instruction_max(
     max_map: &mut HashMap<NodeId, BigUint>,
     vmap: &HashMap<NodeId, NodeId>,
 ) -> BigUint {
+    assert_ne!(
+        ins.operation.opcode(),
+        node::Opcode::Phi,
+        "Phi instructions must have been simplified"
+    );
     ins.operation.for_each_id(|id| {
         get_obj_max_value(ctx, id, max_map, vmap);
     });
@@ -347,6 +352,7 @@ fn block_overflow(
             }
             _ => (),
         }
+
         process_to_truncate(
             ctx,
             &mut new_list,

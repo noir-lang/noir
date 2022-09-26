@@ -61,7 +61,7 @@ fn array_noteq(a: [u32; 4], b: [u32; 4]) {
 }
 
 fn test3(mut b: [Field; 4]) -> [Field; 4] {
-    for i in 0..5 {
+    for i in 0..4 {
         b[i] = i;
     };
     b
