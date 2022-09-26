@@ -4,15 +4,12 @@
 #include <memory.h>
 #include <string>
 
+#include <ecc/curves/grumpkin/grumpkin.hpp>
+
+#include <crypto/hashers/hashers.hpp>
+
 #include <common/serialize.hpp>
 #include <common/streams.hpp>
-#include <numeric/random/engine.hpp>
-#include <crypto/blake2s/blake2s.hpp>
-#include <crypto/keccak/keccak.hpp>
-#include <crypto/sha256/sha256.hpp>
-#include <crypto/pedersen/pedersen.hpp>
-
-#include "../hashers/hashers.hpp"
 
 namespace crypto {
 namespace schnorr {
@@ -54,7 +51,7 @@ inline std::ostream& operator<<(std::ostream& os, signature const& sig)
     return os;
 }
 
-inline void read(uint8_t const*& it, signature& sig)
+template <typename B> inline void read(B& it, signature& sig)
 {
     read(it, sig.s);
     read(it, sig.e);
@@ -66,7 +63,7 @@ template <typename B> inline void write(B& buf, signature const& sig)
     write(buf, sig.e);
 }
 
-inline void read(uint8_t const*& it, key_pair<grumpkin::fr, grumpkin::g1>& keypair)
+template <typename B> inline void read(B& it, key_pair<grumpkin::fr, grumpkin::g1>& keypair)
 {
     read(it, keypair.private_key);
     read(it, keypair.public_key);

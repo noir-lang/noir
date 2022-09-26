@@ -49,7 +49,6 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
     const auto output_value_b =
         suint_ct(witness_ct(&composer, tx.output_value_b), NOTE_VALUE_BIT_LENGTH, "output_value_b");
 
-    // const bool_ct& second_input_virtual = claim_note_data.bridge_call_data_local.config.second_input_virtual;
     const bool_ct first_output_virtual =
         circuit::get_asset_id_flag(claim_note_data.bridge_call_data_local.output_asset_id_a);
     const bool_ct second_output_virtual =

@@ -136,6 +136,13 @@ constexpr bool affine_element<Fq, Fr, T>::operator==(const affine_element& other
 template <class Fq, class Fr, class T>
 constexpr bool affine_element<Fq, Fr, T>::operator>(const affine_element& other) const noexcept
 {
+    // We are setting point at infinity to always be the lowest element
+    if (is_point_at_infinity()) {
+        return false;
+    } else if (other.is_point_at_infinity()) {
+        return true;
+    }
+
     if (x > other.x) {
         return true;
     } else if (x == other.x && y > other.y) {
