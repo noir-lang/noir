@@ -16,8 +16,7 @@ pub fn remove_zero_coefficients(mut gate: Expression) -> Expression {
     gate.mul_terms = gate.mul_terms.into_iter().filter(|(scale, _, _)| !scale.is_zero()).collect();
 
     // Check the linear combination terms
-    gate.linear_combinations =
-        gate.linear_combinations.into_iter().filter(|(scale, _)| !scale.is_zero()).collect();
+    gate.linear_combinations.retain(|(scale, _)| !scale.is_zero());
 
     gate
 }

@@ -156,7 +156,10 @@ impl ResolverError {
                 span,
             ),
             ResolverError::MissingRhsExpr { name, span } => Diagnostic::simple_error(
-                format!("no expression specifying the value stored by the constant variable {}", name),
+                format!(
+                    "no expression specifying the value stored by the constant variable {}",
+                    name
+                ),
                 "expected expression to be stored for let statement".to_string(),
                 span,
             ),

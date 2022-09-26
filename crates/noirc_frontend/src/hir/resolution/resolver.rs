@@ -139,11 +139,9 @@ impl<'a> Resolver<'a> {
         for unused_var in unused_vars.iter() {
             let definition_info = self.interner.definition(unused_var.id);
             let name = &definition_info.name;
-            if name != ERROR_IDENT {
-                if !definition_info.is_global {
-                    let ident = Ident(Spanned::from(unused_var.location.span, name.to_owned()));
-                    self.push_err(ResolverError::UnusedVariable { ident });
-                }
+            if name != ERROR_IDENT && !definition_info.is_global {
+                let ident = Ident(Spanned::from(unused_var.location.span, name.to_owned()));
+                self.push_err(ResolverError::UnusedVariable { ident });
             }
         }
     }
