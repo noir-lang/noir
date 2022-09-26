@@ -42,9 +42,9 @@ pub trait PartialWitnessGenerator {
         &self,
         initial_witness: &mut BTreeMap<Witness, FieldElement>,
         gates: Vec<Gate>,
-    ) -> Result<(), GateResolution> {
+    ) -> GateResolution {
         if gates.is_empty() {
-            return Ok(());
+            return GateResolution::Resolved;
         }
         let mut unsolved_gates: Vec<Gate> = Vec::new();
 
@@ -55,13 +55,13 @@ pub trait PartialWitnessGenerator {
                     match result {
                         GateResolution::Resolved => false,
                         GateResolution::Skip => true,
-                        _ => return Err(result),
+                        _ => return result,
                     }
                 }
                 Gate::Range(w, r) => {
                     if let Some(w_value) = initial_witness.get(w) {
                         if w_value.num_bits() > *r {
-                            return Err(GateResolution::UnsatisfiedConstrain);
+                            return GateResolution::UnsatisfiedConstrain;
                         }
                         false
                     } else {
@@ -78,7 +78,7 @@ pub trait PartialWitnessGenerator {
                 }
                 Gate::GadgetCall(gc) => {
                     if let Err(op) = Self::solve_gadget_call(initial_witness, gc) {
-                        return Err(GateResolution::UnsupportedOpcode(op));
+                        return GateResolution::UnsupportedOpcode(op);
                     }
                     false
                 }
@@ -156,7 +156,7 @@ pub trait PartialWitnessGenerator {
                             let int_a = BigUint::from_bytes_be(&val_a.to_bytes());
                             let pow: BigUint = BigUint::one() << (bit_size - 1);
                             if int_a >= (&pow << 1) {
-                                return Err(GateResolution::UnsatisfiedConstrain);
+                                return GateResolution::UnsatisfiedConstrain;
                             }
                             let bb = &int_a & &pow;
                             let int_r = &int_a - &bb;
