@@ -100,7 +100,6 @@ template <typename ComposerContext> class safe_uint_t {
                          std::string const& description = "") const
     {
         ASSERT(difference_bit_size <= MAX_BIT_NUM);
-        ASSERT(!(this->value.is_constant() && other.value.is_constant()));
         field_ct difference_val = this->value - other.value;
         safe_uint_t<ComposerContext> difference(difference_val, difference_bit_size, format("subtract: ", description));
         // This checks the subtraction is correct for integers without any wraps
@@ -111,9 +110,6 @@ template <typename ComposerContext> class safe_uint_t {
 
     safe_uint_t operator-(const safe_uint_t& other) const
     {
-        // We could get a constant underflow
-        ASSERT(!(this->value.is_constant() && other.value.is_constant() &&
-                 static_cast<uint256_t>(value.get_value()) < static_cast<uint256_t>(other.value.get_value())));
         field_ct difference_val = this->value - other.value;
         safe_uint_t<ComposerContext> difference(difference_val, (size_t)(current_max.get_msb() + 1), "- operator");
         // This checks the subtraction is correct for integers without any wraps
@@ -164,7 +160,8 @@ template <typename ComposerContext> class safe_uint_t {
     {
         ASSERT(this->value.is_constant() == false);
         uint256_t val = this->value.get_value();
-        auto [quotient_val, remainder_val] = val.divmod((uint256_t)other.value.get_value());
+        auto quotient_val = (uint256_t)(val / (uint256_t)other.value.get_value());
+        auto remainder_val = (uint256_t)(val % (uint256_t)other.value.get_value());
         field_ct quotient_field(witness_t(value.context, quotient_val));
         field_ct remainder_field(witness_t(value.context, remainder_val));
         safe_uint_t<ComposerContext> quotient(
