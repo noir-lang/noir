@@ -76,8 +76,8 @@ fn evaluate_intrinsic(ctx: &mut SsaContext, op: acvm::acir::OPCODE, args: Vec<u1
     match op {
         acvm::acir::OPCODE::ToBits => {
             let bit_count = args[1] as u32;
-            let pointer_id = ctx.new_array("", ObjectType::Unsigned(1), bit_count, None);
-            let array_id = ctx.mem.last_id();
+            let (pointer_id, array_id) =
+                ctx.new_array("", ObjectType::Unsigned(1), bit_count, None);
 
             for i in 0..bit_count {
                 if args[0] & (1 << i) != 0 {

@@ -286,13 +286,6 @@ impl ObjectType {
         }
     }
 
-    pub fn deref(&self, ctx: &SsaContext) -> ObjectType {
-        match self {
-            ObjectType::Pointer(a) => ctx.mem[*a].element_type,
-            _ => *self,
-        }
-    }
-
     pub fn type_to_pointer(&self) -> ArrayId {
         match self {
             ObjectType::Pointer(a) => *a,
