@@ -112,7 +112,17 @@ pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> boo
     let tmp_dir = TempDir::new("p_and_v_tests").unwrap();
     println!("prove_with_path(_, {})", show_ssa);
     let proof_path =
-        prove_cmd::prove_with_path(proof_name, prg_dir, &tmp_dir.into_path(), show_ssa).unwrap();
+        match prove_cmd::prove_with_path(proof_name, prg_dir, &tmp_dir.into_path(), show_ssa) {
+            Ok(p) => p,
+            Err(CliError::Generic(msg)) => {
+                println!("Error: {}", msg);
+                return false;
+            }
+            Err(CliError::DestinationAlreadyExists(str)) => {
+                println!("Error, destination {} already exists: ", str);
+                return false;
+            }
+        };
 
     verify_cmd::verify_with_path(prg_dir, &proof_path, show_ssa).unwrap()
 }

@@ -365,7 +365,7 @@ fn type_check_functions(
         .into_iter()
         .map(|(file_id, func_id)| {
             let errors =
-                vecmap(type_check_func(interner, func_id), |error| error.into_diagnostic(interner));
+                vecmap(type_check_func(interner, func_id), |error| error.into_diagnostic());
 
             CollectedErrors { file_id, errors }
         })

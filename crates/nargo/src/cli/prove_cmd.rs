@@ -2,8 +2,8 @@ use std::{collections::BTreeMap, path::PathBuf};
 
 use acvm::acir::native_types::Witness;
 use acvm::FieldElement;
-use acvm::PartialWitnessGenerator;
 use acvm::ProofSystemCompiler;
+use acvm::{GateResolution, PartialWitnessGenerator};
 use clap::ArgMatches;
 use noirc_abi::{input_parser::InputValue, Abi};
 use std::path::Path;
@@ -104,12 +104,18 @@ pub fn compile_circuit_and_witness<P: AsRef<Path>>(
 
     let solver_res = backend.solve(&mut solved_witness, compiled_program.circuit.gates.clone());
 
-    if let Err(opcode) = solver_res {
-        return Err(CliError::Generic(format!(
-            "backend does not currently support the {} opcode. ACVM does not currently fall back to arithmetic gates.",
-            opcode
-        )));
-    }
+    match solver_res {
+            GateResolution::UnsupportedOpcode(opcode) => return Err(CliError::Generic(format!(
+                "backend does not currently support the {} opcode. ACVM does not currently fall back to arithmetic gates.",
+                opcode
+            ))),
+            GateResolution::UnsatisfiedConstrain => return Err(CliError::Generic(
+                "could not satisfy all constraints".to_string()
+            )),
+            GateResolution::Resolved => (),
+            _ => unreachable!(),
+        }
+
     Ok((compiled_program, solved_witness))
 }
 
