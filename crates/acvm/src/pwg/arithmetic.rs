@@ -2,6 +2,8 @@ use acir::native_types::{Expression, Witness};
 use noir_field::FieldElement;
 use std::collections::BTreeMap;
 
+use crate::GateResolution;
+
 /// An Arithmetic solver will take a Circuit's arithmetic gates with witness assignments
 /// and create the other witness variables
 pub struct ArithmeticSolver;
@@ -21,34 +23,64 @@ enum MulTerm {
 
 impl ArithmeticSolver {
     /// Derives the rest of the witness based on the initial low level variables
-    pub fn solve<'a>(
+    pub fn solve(
         initial_witness: &mut BTreeMap<Witness, FieldElement>,
-        gate: &'a Expression,
-    ) -> Option<&'a Expression> {
+        gate: &Expression,
+    ) -> GateResolution {
         // Evaluate multiplication term
         let mul_result = ArithmeticSolver::solve_mul_term(gate, initial_witness);
         // Evaluate the fan-in terms
         let gate_status = ArithmeticSolver::solve_fan_in_term(gate, initial_witness);
 
         match (mul_result, gate_status) {
-            (MulTerm::TooManyUnknowns, _) => Some(gate),
-            (_, GateStatus::GateUnsolvable) => Some(gate),
-            (MulTerm::OneUnknown(_, _), GateStatus::GateSolvable(_, _)) => Some(gate),
+            (MulTerm::TooManyUnknowns, _) | (_, GateStatus::GateUnsolvable) => GateResolution::Skip,
+            (MulTerm::OneUnknown(q, w1), GateStatus::GateSolvable(a, (b, w2))) => {
+                if w1 == w2 {
+                    // We have one unknown so we can solve the equation
+                    let total_sum = a + gate.q_c;
+                    if (q + b).is_zero() {
+                        if !total_sum.is_zero() {
+                            GateResolution::UnsatisfiedConstrain
+                        } else {
+                            GateResolution::Resolved
+                        }
+                    } else {
+                        let assignment = -total_sum / (q + b);
+                        // Add this into the witness assignments
+                        initial_witness.insert(w1, assignment);
+                        GateResolution::Resolved
+                    }
+                } else {
+                    GateResolution::Skip
+                }
+            }
             (MulTerm::OneUnknown(partial_prod, unknown_var), GateStatus::GateSatisfied(sum)) => {
                 // We have one unknown in the mul term and the fan-in terms are solved.
                 // Hence the equation is solvable, since there is a single unknown
                 // The equation is: partial_prod * unknown_var + sum + qC = 0
 
                 let total_sum = sum + gate.q_c;
-                let assignment = -(total_sum / partial_prod);
-                // Add this into the witness assignments
-                initial_witness.insert(unknown_var, assignment);
-                None
+                if partial_prod.is_zero() {
+                    if !total_sum.is_zero() {
+                        GateResolution::UnsatisfiedConstrain
+                    } else {
+                        GateResolution::Resolved
+                    }
+                } else {
+                    let assignment = -(total_sum / partial_prod);
+                    // Add this into the witness assignments
+                    initial_witness.insert(unknown_var, assignment);
+                    GateResolution::Resolved
+                }
             }
-            (MulTerm::Solved(_), GateStatus::GateSatisfied(_)) => {
+            (MulTerm::Solved(a), GateStatus::GateSatisfied(b)) => {
                 // All the variables in the MulTerm are solved and the Fan-in is also solved
                 // There is nothing to solve
-                None
+                if !(a + b + gate.q_c).is_zero() {
+                    GateResolution::UnsatisfiedConstrain
+                } else {
+                    GateResolution::Resolved
+                }
             }
             (
                 MulTerm::Solved(total_prod),
@@ -57,12 +89,19 @@ impl ArithmeticSolver {
                 // The variables in the MulTerm are solved nad there is one unknown in the Fan-in
                 // Hence the equation is solvable, since we have one unknown
                 // The equation is total_prod + partial_sum + coeff * unknown_var + q_C = 0
-
                 let total_sum = total_prod + partial_sum + gate.q_c;
-                let assignment = -(total_sum / coeff);
-                // Add this into the witness assignments
-                initial_witness.insert(unknown_var, assignment);
-                None
+                if coeff.is_zero() {
+                    if !total_sum.is_zero() {
+                        GateResolution::UnsatisfiedConstrain
+                    } else {
+                        GateResolution::Resolved
+                    }
+                } else {
+                    let assignment = -(total_sum / coeff);
+                    // Add this into the witness assignments
+                    initial_witness.insert(unknown_var, assignment);
+                    GateResolution::Resolved
+                }
             }
         }
     }
@@ -178,8 +217,8 @@ fn arithmetic_smoke_test() {
     values.insert(c, FieldElement::from(1_i128));
     values.insert(d, FieldElement::from(1_i128));
 
-    assert!(ArithmeticSolver::solve(&mut values, &gate_a).is_none());
-    assert!(ArithmeticSolver::solve(&mut values, &gate_b).is_none());
+    assert_eq!(ArithmeticSolver::solve(&mut values, &gate_a), GateResolution::Resolved);
+    assert_eq!(ArithmeticSolver::solve(&mut values, &gate_b), GateResolution::Resolved);
 
     assert_eq!(values.get(&a).unwrap(), &FieldElement::from(4_i128));
 }

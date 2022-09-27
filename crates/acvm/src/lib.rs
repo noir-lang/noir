@@ -23,6 +23,15 @@ use num_traits::One;
 pub use acir;
 pub use acir::FieldElement;
 
+#[derive(PartialEq, Eq, Debug)]
+pub enum GateResolution {
+    Resolved,                  //Gate is solved
+    Skip,                      //Gate cannot be solved
+    UnknownError(String),      //Generic error
+    UnsupportedOpcode(OPCODE), //Unsupported Opcode
+    UnsatisfiedConstrain,      //Gate is not satisfied
+}
+
 pub trait Backend: SmartContract + ProofSystemCompiler + PartialWitnessGenerator {}
 
 /// This component will generate the backend specific output for
@@ -33,23 +42,31 @@ pub trait PartialWitnessGenerator {
         &self,
         initial_witness: &mut BTreeMap<Witness, FieldElement>,
         gates: Vec<Gate>,
-    ) -> Result<(), OPCODE> {
+    ) -> GateResolution {
         if gates.is_empty() {
-            return Ok(());
+            return GateResolution::Resolved;
         }
         let mut unsolved_gates: Vec<Gate> = Vec::new();
 
         for gate in gates.into_iter() {
             let unsolved = match &gate {
                 Gate::Arithmetic(arith) => {
-                    ArithmeticSolver::solve(initial_witness, arith).is_some()
+                    let result = ArithmeticSolver::solve(initial_witness, arith);
+                    match result {
+                        GateResolution::Resolved => false,
+                        GateResolution::Skip => true,
+                        _ => return result,
+                    }
                 }
-                // We do not need to solve for this gate, we have passed responsibility to the underlying
-                // proof system for intermediate witness generation
-                Gate::Range(_, _) => {
-                    // We do not need to solve for this gate, we have passed responsibility to the underlying
-                    // proof system for intermediate witness generation
-                    false
+                Gate::Range(w, r) => {
+                    if let Some(w_value) = initial_witness.get(w) {
+                        if w_value.num_bits() > *r {
+                            return GateResolution::UnsatisfiedConstrain;
+                        }
+                        false
+                    } else {
+                        true
+                    }
                 }
                 Gate::And(and_gate) => {
                     !LogicSolver::solve_and_gate(initial_witness, and_gate)
@@ -60,7 +77,9 @@ pub trait PartialWitnessGenerator {
                     // We compute the result because the other gates may want to use the assignment to generate their assignments
                 }
                 Gate::GadgetCall(gc) => {
-                    Self::solve_gadget_call(initial_witness, gc)?;
+                    if let Err(op) = Self::solve_gadget_call(initial_witness, gc) {
+                        return GateResolution::UnsupportedOpcode(op);
+                    }
                     false
                 }
                 Gate::Directive(directive) => match directive {
@@ -72,7 +91,6 @@ pub trait PartialWitnessGenerator {
                             false
                         }
                     },
-
                     Directive::Quotient { a, b, q, r } => {
                         match (
                             Self::get_value(a, initial_witness),
@@ -137,7 +155,9 @@ pub trait PartialWitnessGenerator {
                         Some(val_a) => {
                             let int_a = BigUint::from_bytes_be(&val_a.to_bytes());
                             let pow: BigUint = BigUint::one() << (bit_size - 1);
-
+                            if int_a >= (&pow << 1) {
+                                return GateResolution::UnsatisfiedConstrain;
+                            }
                             let bb = &int_a & &pow;
                             let int_r = &int_a - &bb;
                             let int_b = &bb >> (bit_size - 1);

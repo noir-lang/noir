@@ -81,7 +81,7 @@ mod ecdsa_secp256k1 {
             b"ECDSA proves knowledge of a secret number in the context of a single message";
 
         let mut hasher = Sha256::new();
-        hasher.update(&message);
+        hasher.update(message);
         let digest = hasher.finalize();
 
         let signature: Signature = signing_key.sign(message);
