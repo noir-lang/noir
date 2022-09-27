@@ -435,7 +435,9 @@ impl<'a> IRGenerator<'a> {
                     self.bind_pattern(pattern, value)?;
                 }
             }
-            _ => unreachable!(),
+            (pattern, value) => {
+                unreachable!("Unexpected pattern {:?} used with value {:?}", pattern, value)
+            }
         }
         Ok(())
     }
