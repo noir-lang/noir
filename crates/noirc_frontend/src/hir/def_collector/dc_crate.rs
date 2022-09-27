@@ -284,8 +284,7 @@ fn type_check_global_consts(
     for (file_id, stmt_id) in global_const_ids {
         let mut type_check_errs = Vec::new();
         let _stmt_type = type_check(interner, &stmt_id, &mut type_check_errs);
-        let type_check_err_diagnostics =
-            vecmap(type_check_errs, |error| error.into_diagnostic(interner));
+        let type_check_err_diagnostics = vecmap(type_check_errs, |error| error.into_diagnostic());
 
         if !type_check_err_diagnostics.is_empty() {
             let collected_errors = CollectedErrors { file_id, errors: type_check_err_diagnostics };

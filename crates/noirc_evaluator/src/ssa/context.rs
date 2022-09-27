@@ -568,7 +568,7 @@ impl<'a> SsaContext<'a> {
         element_type: ObjectType,
         len: u32,
         def_id: Option<noirc_frontend::node_interner::DefinitionId>,
-    ) -> NodeId {
+    ) -> (NodeId, ArrayId) {
         let array_index = self.mem.create_new_array(len, element_type, name);
         self.add_dummy_load(array_index);
         self.add_dummy_store(array_index);
@@ -585,7 +585,7 @@ impl<'a> SsaContext<'a> {
         if let Some(def) = def_id {
             self.mem[array_index].def = def;
         }
-        self.add_variable(new_var, None)
+        (self.add_variable(new_var, None), array_index)
     }
 
     pub fn create_array_from_object(
@@ -600,7 +600,7 @@ impl<'a> SsaContext<'a> {
         let array_id = self.mem.last_id();
         self.mem[array_id].set_witness(array);
 
-        result
+        result.0
     }
 
     //returns the value of the element array[index], if it exists in the memory_map

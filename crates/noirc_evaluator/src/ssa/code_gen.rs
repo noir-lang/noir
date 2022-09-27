@@ -136,8 +136,7 @@ impl<'a> IRGenerator<'a> {
         len: u128,
         witness: Vec<acvm::acir::native_types::Witness>,
     ) {
-        let v_id = self.new_array(name, el_type.into(), len as u32, Some(ident_def));
-        let array_idx = self.context.mem.last_id();
+        let (v_id, array_idx) = self.new_array(name, el_type.into(), len as u32, Some(ident_def));
         self.context.mem[array_idx].values = vecmap(witness, |w| w.into());
         self.context.get_current_block_mut().update_variable(v_id, v_id);
     }
@@ -370,7 +369,7 @@ impl<'a> IRGenerator<'a> {
                 //TODO support array of structs
                 let obj_type = node::ObjectType::from(typ);
                 let len = len.array_length().unwrap();
-                let v_id = self.new_array(base_name, obj_type, len.try_into().unwrap(), def);
+                let (v_id, _) = self.new_array(base_name, obj_type, len.try_into().unwrap(), def);
                 Value::Single(v_id)
             }
             _ => {
@@ -388,12 +387,12 @@ impl<'a> IRGenerator<'a> {
         element_type: ObjectType,
         len: u32,
         def_id: Option<noirc_frontend::node_interner::DefinitionId>,
-    ) -> NodeId {
-        let id = self.context.new_array(name, element_type, len, def_id);
+    ) -> (NodeId, ArrayId) {
+        let (id, array_id) = self.context.new_array(name, element_type, len, def_id);
         if let Some(def) = def_id {
             self.variable_values.insert(def, super::code_gen::Value::Single(id));
         }
-        id
+        (id, array_id)
     }
 
     // Add a constraint to constrain two expression together
@@ -481,7 +480,7 @@ impl<'a> IRGenerator<'a> {
         let id = if let node::ObjectType::Pointer(a) = obj_type {
             let len = self.context.mem[a].len;
             let el_type = self.context.mem[a].element_type;
-            self.context.new_array(&variable_name, el_type, len, definition_id)
+            self.context.new_array(&variable_name, el_type, len, definition_id).0
         } else {
             let new_var =
                 Variable::new(obj_type, variable_name, definition_id, self.context.current_block);
@@ -589,8 +588,8 @@ impl<'a> IRGenerator<'a> {
                 let arr_type = self.def_interner().id_type(expr_id);
                 let element_type = arr_type.into(); //WARNING array type!
 
-                let new_var = self.context.new_array("", element_type, arr_lit.length as u32, None);
-                let array_id = self.context.mem.last_id();
+                let (new_var, array_id) =
+                    self.context.new_array("", element_type, arr_lit.length as u32, None);
 
                 //We parse the array definition
                 let elements = self.codegen_expression_list(env, &arr_lit.contents);
@@ -621,50 +620,16 @@ impl<'a> IRGenerator<'a> {
                 let rtype = cast_expr.r#type.into();
 
                 Ok(Value::Single(self.context.new_instruction(Operation::Cast(lhs), rtype)?))
-
-                //We should generate a cast instruction and handle properly type conversion:
-                // unsigned integer to field ; ok, just checks if bit size over FieldElement::max_num_bits()
-                // signed integer to field; ok; check bit size N, retrieve sign bit s and returns x*(1-s)+s*(p-2^N+x)
-                // field to unsigned integer; returns x mod 2^N when N is the bit size of the result type
-                // field to signed integer; ??
-                // bool to integer or field, ok: returns if (x is true) 1 else 0
-                // integer to field vers bool: ok, returns (x neq 0)
-                // integer to other integer type: checks rust rules TODO
-                // else... Not supported (for now).
-                //binary_op::handle_cast_op(self,lhs, cast_expr.r#type).map_err(|kind|kind.add_span(span))
             }
             HirExpression::Index(indexed_expr) => {
-                // Currently these only happen for arrays
-                let collection_name = match self.def_interner().expression(&indexed_expr.collection) {
-                    HirExpression::Ident(id) => id,
-                    other => todo!("Array indexing with an lhs of '{:?}' is unimplemented, you must use an expression in the form `identifier[expression]` for now.", other)
+                // Evaluate the 'array' expression
+                let expr_node = self.codegen_expression(env, &indexed_expr.collection)?.unwrap_id();
+                let array = match self.context.get_object_type(expr_node) {
+                    ObjectType::Pointer(array_id) => &self.context.mem[array_id],
+                    other => unreachable!("Expected Pointer type, found {:?}", other),
                 };
-
-                let arr_def = collection_name.id;
-                let arr_name = self.def_interner().definition_name(arr_def).to_owned();
-                let ident_loc = collection_name.location;
-
-                let arr_type = self.def_interner().id_type(arr_def);
-                let o_type: node::ObjectType = arr_type.into();
-                let e_type = o_type.deref(&self.context);
-                let array = if let Some(array) = self.context.mem.find_array(arr_def) {
-                    array
-                } else if let Some(Value::Single(pointer)) = self.find_variable(arr_def) {
-                    match self.context.get_object_type(*pointer) {
-                        ObjectType::Pointer(array_id) => &self.context.mem[array_id],
-                        other => unreachable!("Expected Pointer type, found {:?}", other),
-                    }
-                } else {
-                    let arr = env
-                        .get_array(&arr_name)
-                        .map_err(|kind| kind.add_location(ident_loc))
-                        .unwrap();
-                    self.context.create_array_from_object(&arr, arr_def, o_type, &arr_name);
-                    let array_id = self.context.mem.last_id();
-                    &self.context.mem[array_id]
-                };
-
                 let array_id = array.id;
+                let e_type = array.element_type;
                 // Evaluate the index expression
                 let index_as_obj = self.codegen_expression(env, &indexed_expr.index)?.unwrap_id();
                 let load = Operation::Load { array_id, index: index_as_obj };

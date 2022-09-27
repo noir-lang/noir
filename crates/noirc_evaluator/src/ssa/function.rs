@@ -176,11 +176,9 @@ pub fn call_low_level(
     let result_signature = get_result_type(op);
     let result_type = if result_signature.0 > 1 {
         //We create an array that will contain the result and set the res_type to point to that array
-        let result_index = igen.context.mem.create_new_array(
-            result_signature.0,
-            result_signature.1,
-            &format!("{}_result", op),
-        );
+        let result_index = igen
+            .new_array(&format!("{}_result", op), result_signature.1, result_signature.0, None)
+            .1;
         node::ObjectType::Pointer(result_index)
     } else {
         result_signature.1
