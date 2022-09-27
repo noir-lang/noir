@@ -6,6 +6,7 @@ use arena::{Arena, Index};
 use fm::FileId;
 use noirc_errors::{Location, Span, Spanned};
 
+use crate::ast::Ident;
 use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::UnresolvedStruct;
 use crate::hir::def_map::{LocalModuleId, ModuleId};
@@ -13,7 +14,7 @@ use crate::hir_def::types::{StructType, Type};
 use crate::hir_def::{
     expr::HirExpression,
     function::{FuncMeta, HirFunction},
-    stmt::HirStatement,
+    stmt::{HirLetStatement, HirStatement},
 };
 use crate::util::vecmap;
 use crate::{TypeBinding, TypeVariableId};
@@ -44,8 +45,17 @@ impl From<DefinitionId> for Index {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
 pub struct StmtId(Index);
+
+impl StmtId {
+    //dummy id for error reporting
+    // This can be anything, as the program will ultimately fail
+    // after resolution
+    pub fn dummy_id() -> StmtId {
+        StmtId(Index::from_raw_parts(std::usize::MAX, 0))
+    }
+}
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct ExprId(Index);
@@ -150,6 +160,8 @@ pub struct NodeInterner {
     // methods from impls to the type.
     structs: HashMap<StructId, Rc<RefCell<StructType>>>,
 
+    global_constants: HashMap<StmtId, GlobalConstInfo>, // NOTE: currently only used for checking repeat global consts and restricting their scope to a module
+
     next_type_variable_id: usize,
 }
 
@@ -157,6 +169,14 @@ pub struct NodeInterner {
 pub struct DefinitionInfo {
     pub name: String,
     pub mutable: bool,
+    pub is_global: bool,
+    pub rhs: Option<ExprId>, // We must store the rhs of a let statement as it might be needed during resolution. Such as for finding the variable used by fixed sized arrays
+}
+
+#[derive(Debug, Clone)]
+pub struct GlobalConstInfo {
+    pub ident: Ident,
+    pub local_id: LocalModuleId,
 }
 
 impl Default for NodeInterner {
@@ -169,6 +189,7 @@ impl Default for NodeInterner {
             id_to_type: HashMap::new(),
             structs: HashMap::new(),
             next_type_variable_id: 0,
+            global_constants: HashMap::new(),
         };
 
         // An empty block expression is used often, we add this into the `node` on startup
@@ -179,7 +200,7 @@ impl Default for NodeInterner {
         // Only needed here because the evaluator uses an immutable reference to the interner
         // This is given the name 'return' which is a keyword to prevent it from being accessed
         // normally.
-        let return_id = interner.push_definition(MAIN_RETURN_NAME.into(), false);
+        let return_id = interner.push_definition(MAIN_RETURN_NAME.into(), false, false, None);
         assert_eq!(return_id, MAIN_RETURN_ID);
 
         interner
@@ -254,6 +275,28 @@ impl NodeInterner {
         self.id_to_type.insert(definition_id.into(), typ);
     }
 
+    pub fn push_global_const(&mut self, stmt_id: StmtId, ident: Ident, local_id: LocalModuleId) {
+        self.global_constants.insert(stmt_id, GlobalConstInfo { ident, local_id });
+    }
+
+    /// Intern an empty global const stmt. Used for collecting global consts
+    pub fn push_empty_global_const(&mut self) -> StmtId {
+        self.push_stmt(HirStatement::Error)
+    }
+
+    pub fn update_global_const(&mut self, stmt_id: StmtId, hir_stmt: HirStatement) {
+        let def =
+            self.nodes.get_mut(stmt_id.0).expect("ice: all function ids should have definitions");
+
+        let stmt = match def {
+            Node::Statement(stmt) => stmt,
+            _ => {
+                panic!("ice: all global const ids should correspond to a statement in the interner")
+            }
+        };
+        *stmt = hir_stmt;
+    }
+
     /// Intern an empty function.
     pub fn push_empty_fn(&mut self) -> FuncId {
         self.push_fn(HirFunction::empty())
@@ -282,9 +325,15 @@ impl NodeInterner {
         self.func_meta.insert(func_id, func_data);
     }
 
-    pub fn push_definition(&mut self, name: String, mutable: bool) -> DefinitionId {
+    pub fn push_definition(
+        &mut self,
+        name: String,
+        mutable: bool,
+        is_global: bool,
+        rhs: Option<ExprId>,
+    ) -> DefinitionId {
         let id = self.definitions.len();
-        self.definitions.push(DefinitionInfo { name, mutable });
+        self.definitions.push(DefinitionInfo { name, mutable, is_global, rhs });
 
         DefinitionId(id)
     }
@@ -327,6 +376,21 @@ impl NodeInterner {
             _ => panic!("ice: all statement ids should correspond to a statement in the interner"),
         }
     }
+    /// Returns the interned let statement corresponding to `stmt_id`
+    pub fn let_statement(&self, stmt_id: &StmtId) -> HirLetStatement {
+        let def =
+            self.nodes.get(stmt_id.0).expect("ice: all statement ids should have definitions");
+
+        match def {
+            Node::Statement(hir_stmt) => {
+                match hir_stmt {
+                    HirStatement::Let(let_stmt) => let_stmt.clone(),
+                    _ => panic!("ice: all let statement ids should correspond to a let statement in the interner"),
+                }
+            },
+            _ => panic!("ice: all statement ids should correspond to a statement in the interner"),
+        }
+    }
     /// Returns the interned expression corresponding to `expr_id`
     pub fn expression(&self, expr_id: &ExprId) -> HirExpression {
         let def =
@@ -361,6 +425,14 @@ impl NodeInterner {
 
     pub fn get_struct(&self, id: StructId) -> Rc<RefCell<StructType>> {
         self.structs[&id].clone()
+    }
+
+    pub fn get_global_const(&self, stmt_id: &StmtId) -> Option<GlobalConstInfo> {
+        self.global_constants.get(stmt_id).cloned()
+    }
+
+    pub fn get_all_global_consts(&self) -> HashMap<StmtId, GlobalConstInfo> {
+        self.global_constants.clone()
     }
 
     /// Returns the type of an item stored in the Interner or Error if it was not found.

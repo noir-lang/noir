@@ -116,7 +116,6 @@ impl<'a> Evaluator<'a> {
             },
             np_language,
         );
-
         Ok(optimised_circuit)
     }
 
@@ -208,6 +207,16 @@ impl<'a> Evaluator<'a> {
     ) -> Result<(), RuntimeError> {
         let mut igen = IRGenerator::new(self.context);
         self.parse_abi_alt(env, &mut igen)?;
+
+        // Generate IR for global const statements before starting evaluation of main
+        let stmt_ids = self
+            .context
+            .def_interner
+            .get_all_global_consts()
+            .keys()
+            .cloned()
+            .collect::<Vec<StmtId>>();
+        igen.codegen_block(&stmt_ids, env);
 
         // Now call the main function
         let main_func_body = self.context.def_interner.function(&self.main_function);
@@ -567,7 +576,6 @@ impl<'a> Evaluator<'a> {
                 let span = self.context.def_interner.expr_location(rhs);
                 let value =
                     self.evaluate_integer(env, rhs).map_err(|kind| kind.add_location(span))?;
-
                 env.store(variable_name, value);
             }
             Type::Array(..) => {
@@ -641,7 +649,6 @@ impl<'a> Evaluator<'a> {
     ) -> Result<Object, RuntimeErrorKind> {
         let polynomial =
             self.expression_to_object(env, expr_id).map_err(|err| err.remove_span())?;
-
         if polynomial.is_constant() {
             return Ok(polynomial);
         }

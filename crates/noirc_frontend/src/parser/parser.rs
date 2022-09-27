@@ -5,7 +5,9 @@ use super::{
     then_commit_ignore, top_level_statement_recovery, ExprParser, NoirParser, ParsedModule,
     ParserError, Precedence, SubModule, TopLevelStatement,
 };
-use crate::ast::{Expression, ExpressionKind, Statement, UnresolvedType};
+use crate::ast::{
+    Expression, ExpressionKind, LetStatement, Statement, UnresolvedArraySize, UnresolvedType,
+};
 use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
@@ -48,6 +50,7 @@ fn module() -> impl NoirParser<ParsedModule> {
                     TopLevelStatement::Struct(s) => program.push_type(s),
                     TopLevelStatement::Impl(i) => program.push_impl(i),
                     TopLevelStatement::SubModule(s) => program.push_submodule(s),
+                    TopLevelStatement::GlobalConst(c) => program.push_global_const(c),
                     TopLevelStatement::Error => (),
                 }
                 program
@@ -65,8 +68,20 @@ fn top_level_statement(
         submodule(module_parser),
         module_declaration().then_ignore(force(just(Token::Semicolon))),
         use_statement().then_ignore(force(just(Token::Semicolon))),
+        global_declaration().then_ignore(force(just(Token::Semicolon))),
     ))
     .recover_via(top_level_statement_recovery())
+}
+
+fn global_declaration() -> impl NoirParser<TopLevelStatement> {
+    let p = ignore_then_commit(
+        keyword(Keyword::Const).labelled("const"),
+        ident().map(Pattern::Identifier),
+    );
+    let p = then_commit(p, global_const_type_annotation()); //TODO: this reuses parse type that allows for a redundant const as such: const X: const Field = 5;
+    let p = then_commit_ignore(p, just(Token::Assign));
+    let p = then_commit(p, literal().map_with_span(Expression::new)); // XXX: this should be a literal
+    p.map(LetStatement::new_let).map(TopLevelStatement::GlobalConst)
 }
 
 fn submodule(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<TopLevelStatement> {
@@ -241,6 +256,17 @@ fn check_statements_require_semicolon(
     let iter = statements.into_iter().enumerate();
     vecmap(iter, |(i, (statement, (semicolon, span)))| {
         statement.add_semicolon(semicolon, span, i == last, emit)
+    })
+}
+
+fn global_const_type_annotation() -> impl NoirParser<UnresolvedType> {
+    ignore_then_commit(just(Token::Colon), parse_type()).map(|r#type| match r#type {
+        UnresolvedType::FieldElement(_) => UnresolvedType::FieldElement(IsConst::Yes(None)),
+        UnresolvedType::Bool(_) => UnresolvedType::Bool(IsConst::Yes(None)),
+        UnresolvedType::Integer(_, sign, size) => {
+            UnresolvedType::Integer(IsConst::Yes(None), sign, size)
+        }
+        _ => UnresolvedType::Unspecified,
     })
 }
 
@@ -468,9 +494,12 @@ where
 {
     just(Token::LeftBracket)
         .ignore_then(type_parser)
-        .then(array_length().or_not())
+        .then(fixed_array_size().or_not())
         .then_ignore(just(Token::RightBracket))
-        .map(|(element_type, length)| UnresolvedType::Array(length, Box::new(element_type)))
+        .map(|(element_type, size)| {
+            let size = size.unwrap_or(UnresolvedArraySize::Variable);
+            UnresolvedType::Array(size, Box::new(element_type))
+        })
 }
 
 fn tuple_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>
@@ -732,6 +761,24 @@ where
     path().then(parenthesized(expression_list(expr_parser))).map(ExpressionKind::function_call)
 }
 
+fn global_const_call() -> impl NoirParser<ExpressionKind> {
+    global_const_path().map(ExpressionKind::Path)
+}
+
+fn global_const_path() -> impl NoirParser<Path> {
+    let idents = || ident().separated_by(just(Token::DoubleColon)).at_least(2);
+    let make_path = |kind| move |segments| Path { segments, kind };
+
+    let prefix = |key| keyword(key).ignore_then(just(Token::DoubleColon));
+    let path_kind = |key, kind| prefix(key).ignore_then(idents()).map(make_path(kind));
+
+    choice((
+        path_kind(Keyword::Crate, PathKind::Crate),
+        path_kind(Keyword::Dep, PathKind::Dep),
+        idents().map(make_path(PathKind::Plain)),
+    ))
+}
+
 fn constructor<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
 where
     P: ExprParser,
@@ -755,7 +802,9 @@ where
 }
 
 fn variable() -> impl NoirParser<ExpressionKind> {
-    ident().map(|name| ExpressionKind::Ident(name.0.contents))
+    let const_path = global_const_call();
+    let valid_variable = ident().map(|name| ExpressionKind::Ident(name.0.contents));
+    const_path.or(valid_variable)
 }
 
 fn literal() -> impl NoirParser<ExpressionKind> {
@@ -765,6 +814,20 @@ fn literal() -> impl NoirParser<ExpressionKind> {
         Token::Str(s) => ExpressionKind::string(s),
         unexpected => unreachable!("Non-literal {} parsed as a literal", unexpected),
     })
+}
+
+fn fixed_array_size() -> impl NoirParser<UnresolvedArraySize> {
+    just(Token::Semicolon).ignore_then(filter_map(|span, token: Token| match token.clone() {
+        Token::Int(integer) => Ok(UnresolvedArraySize::Fixed(try_field_to_u64(integer, span)?)),
+        Token::Ident(_) => {
+            // XXX: parse named size as an ident. The actual const integer size will be determined in the hir pass and resolution
+            Ok(UnresolvedArraySize::FixedVariable(Ident::new(token, span)))
+        }
+        _ => {
+            let message = "Expected an integer for the length of the array".to_string();
+            Err(ParserError::with_reason(message, span))
+        }
+    }))
 }
 
 fn try_field_to_u64(x: acvm::FieldElement, span: Span) -> Result<u64, ParserError> {

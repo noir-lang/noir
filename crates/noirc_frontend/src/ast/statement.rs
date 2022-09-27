@@ -277,6 +277,14 @@ pub struct LetStatement {
     pub expression: Expression,
 }
 
+impl LetStatement {
+    pub fn new_let(
+        ((pattern, r#type), expression): ((Pattern, UnresolvedType), Expression),
+    ) -> LetStatement {
+        LetStatement { pattern, r#type, expression }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AssignStatement {
     pub lvalue: LValue,
@@ -300,6 +308,15 @@ pub enum Pattern {
     Mutable(Box<Pattern>, Span),
     Tuple(Vec<Pattern>, Span),
     Struct(Path, Vec<(Ident, Pattern)>, Span),
+}
+
+impl Pattern {
+    pub fn name_ident(&self) -> &Ident {
+        match self {
+            Pattern::Identifier(name_ident) => name_ident,
+            _ => panic!("only the identifier pattern can return a name"),
+        }
+    }
 }
 
 impl Recoverable for Pattern {
