@@ -8,11 +8,12 @@ use crate::hir::resolution::{
     import::{resolve_imports, ImportDirective},
     path_resolver::StandardPathResolver,
 };
+use crate::hir::type_check::type_check;
 use crate::hir::type_check::type_check_func;
 use crate::hir::Context;
-use crate::node_interner::{FuncId, NodeInterner, StructId};
+use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId};
 use crate::util::vecmap;
-use crate::{Generics, Ident, NoirFunction, NoirStruct, ParsedModule, Path, Type};
+use crate::{Generics, Ident, NoirFunction, NoirStruct, ParsedModule, Path, Type, LetStatement, Statement};
 use fm::FileId;
 use noirc_errors::CollectedErrors;
 use noirc_errors::DiagnosableError;
@@ -36,13 +37,21 @@ pub struct UnresolvedStruct {
     pub struct_def: NoirStruct,
 }
 
+#[derive(Clone)]
+pub struct UnresolvedGlobalConst {
+    pub file_id: FileId,
+    pub module_id: LocalModuleId,
+    pub stmt_id: StmtId,
+    pub stmt_def: LetStatement,
+}
+
 /// Given a Crate root, collect all definitions in that crate
 pub struct DefCollector {
     pub(crate) def_map: CrateDefMap,
     pub(crate) collected_imports: Vec<ImportDirective>,
     pub(crate) collected_functions: Vec<UnresolvedFunctions>,
     pub(crate) collected_types: HashMap<StructId, UnresolvedStruct>,
-
+    pub(crate) collected_consts: Vec<UnresolvedGlobalConst>,
     /// collected impls maps the type name and the module id in which
     /// the impl is defined to the functions contained in that impl
     pub(crate) collected_impls: HashMap<(Path, LocalModuleId), Vec<UnresolvedFunctions>>,
@@ -56,6 +65,7 @@ impl DefCollector {
             collected_functions: vec![],
             collected_types: HashMap::new(),
             collected_impls: HashMap::new(),
+            collected_consts: vec![],
         }
     }
 
@@ -139,6 +149,11 @@ impl DefCollector {
 
         resolve_structs(context, def_collector.collected_types, crate_id, errors);
 
+        // We must first resolve and intern the global consts before we can resolve any stmts inside each function.
+        // Each function uses its own resolver with a newly created ScopeForest, and must be resolved again to be within a function's scope
+        let file_const_ids =
+            resolve_global_constants(context, def_collector.collected_consts, crate_id);
+
         // Before we resolve any function symbols we must go through our impls and
         // re-collect the methods within into their proper module. This cannot be
         // done before resolution since we need to be able to resolve the type of the
@@ -163,6 +178,7 @@ impl DefCollector {
             errors,
         );
 
+        type_check_global_consts(&mut context.def_interner, file_const_ids, errors);
         // Type check all of the functions in the crate
         type_check_functions(&mut context.def_interner, file_func_ids, errors);
         type_check_functions(&mut context.def_interner, file_method_ids, errors);
@@ -216,6 +232,61 @@ fn collect_impls(
                     }
                 }
             }
+        }
+    }
+}
+
+fn resolve_global_constants(
+    context: &mut Context,
+    global_constants: Vec<UnresolvedGlobalConst>,
+    crate_id: CrateId,
+) -> Vec<(FileId, StmtId)> {
+    let mut global_const_ids = Vec::new();
+
+    for global_constant in global_constants {
+        let path_resolver = StandardPathResolver::new(ModuleId {
+            local_id: global_constant.module_id,
+            krate: crate_id,
+        });
+
+        let mut resolver = Resolver::new(
+            &mut context.def_interner,
+            &path_resolver,
+            &context.def_maps,
+            global_constant.file_id,
+        );
+
+        let name = global_constant.stmt_def.pattern.name_ident().clone();
+
+        let hir_stmt = resolver.resolve_stmt(Statement::Let(global_constant.stmt_def), true);
+
+        context.def_interner.update_global_const(global_constant.stmt_id, hir_stmt);
+
+        context.def_interner.push_global_const(
+            global_constant.stmt_id,
+            name.clone(),
+            global_constant.module_id,
+        );
+
+        global_const_ids.push((global_constant.file_id, global_constant.stmt_id));
+    }
+    global_const_ids
+}
+
+fn type_check_global_consts(
+    interner: &mut NodeInterner,
+    global_const_ids: Vec<(FileId, StmtId)>,
+    errors: &mut Vec<CollectedErrors>,
+) {
+    for (file_id, stmt_id) in global_const_ids {
+        let mut type_check_errs = Vec::new();
+        let _stmt_type = type_check(interner, &stmt_id, &mut type_check_errs);
+        let type_check_err_diagnostics =
+            vecmap(type_check_errs, |error| error.into_diagnostic());
+
+        if !type_check_err_diagnostics.is_empty() {
+            let collected_errors = CollectedErrors { file_id, errors: type_check_err_diagnostics };
+            errors.push(collected_errors)
         }
     }
 }
@@ -277,7 +348,7 @@ fn resolve_impls(
     collected_impls: HashMap<(Path, LocalModuleId), Vec<UnresolvedFunctions>>,
     errors: &mut Vec<CollectedErrors>,
 ) -> Vec<(FileId, FuncId)> {
-    let mut file_method_ids = vec![];
+    let mut file_method_ids = Vec::new();
 
     for ((path, module_id), methods) in collected_impls {
         let path_resolver =

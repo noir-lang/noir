@@ -19,22 +19,22 @@ struct ResolverMeta {
 
 use crate::hir_def::expr::{
     HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
-    HirConstructorExpression, HirForExpression, HirIdent, HirIfExpression, HirIndexExpression,
-    HirInfixExpression, HirLiteral, HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
+    HirConstructorExpression, HirExpression, HirForExpression, HirIdent, HirIfExpression,
+    HirIndexExpression, HirInfixExpression, HirLiteral, HirMemberAccess, HirMethodCallExpression,
+    HirPrefixExpression,
 };
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::rc::Rc;
 
 use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId};
-use crate::hir_def::expr::HirExpression;
 use crate::hir_def::stmt::{HirAssignStatement, HirLValue, HirPattern};
 use crate::node_interner::{DefinitionId, ExprId, FuncId, NodeInterner, StmtId, StructId};
 use crate::util::vecmap;
 use crate::{
     hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
     BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
-    Statement,
+    Statement, UnresolvedArraySize,
 };
 use crate::{
     Generics, LValue, NoirStruct, Path, Pattern, Shared, StructType, Type, TypeBinding,
@@ -110,6 +110,15 @@ impl<'a> Resolver<'a> {
         func: NoirFunction,
     ) -> (HirFunction, FuncMeta, Vec<ResolverError>) {
         self.scopes.start_function();
+
+        // Check whether the function has global constants in the local module and add them to the scope
+        for (stmt_id, const_info) in self.interner.get_all_global_consts() {
+            if const_info.local_id == self.path_resolver.local_module_id() {
+                let const_stmt = self.interner.let_statement(&stmt_id);
+                self.add_global_variable_decl(const_info.ident, Some(const_stmt.expression));
+            }
+        }
+
         self.add_generics(func.def.generics.clone());
 
         let (hir_func, func_meta) = self.intern_function(func);
@@ -127,8 +136,9 @@ impl<'a> Resolver<'a> {
         }
 
         for unused_var in unused_vars.iter() {
-            let name = self.interner.definition_name(unused_var.id);
-            if name != ERROR_IDENT {
+            let definition_info = self.interner.definition(unused_var.id);
+            let name = &definition_info.name;
+            if name != ERROR_IDENT && !definition_info.is_global {
                 let ident = Ident(Spanned::from(unused_var.location.span, name.to_owned()));
                 self.push_err(ResolverError::UnusedVariable { ident });
             }
@@ -156,16 +166,24 @@ impl<'a> Resolver<'a> {
         ret
     }
 
-    fn add_variable_decl(&mut self, name: Ident, mutable: bool) -> HirIdent {
-        let id = self.interner.push_definition(name.0.contents.clone(), mutable);
+    fn add_variable_decl(
+        &mut self,
+        name: Ident,
+        mutable: bool,
+        is_global: bool,
+        rhs: Option<ExprId>,
+    ) -> HirIdent {
+        if is_global {
+            return self.add_global_variable_decl(name, rhs);
+        }
+
+        let id = self.interner.push_definition(name.0.contents.clone(), mutable, is_global, rhs);
         let location = Location::new(name.span(), self.file);
         let ident = HirIdent { location, id };
-
-        let scope = self.scopes.get_mut_scope();
         let resolver_meta = ResolverMeta { num_times_used: 0, ident };
 
+        let scope = self.scopes.get_mut_scope();
         let old_value = scope.add_key_value(name.0.contents.clone(), resolver_meta);
-
         if let Some(old_value) = old_value {
             self.push_err(ResolverError::DuplicateDefinition {
                 name: name.0.contents,
@@ -174,6 +192,46 @@ impl<'a> Resolver<'a> {
             });
         }
 
+        ident
+    }
+
+    fn add_global_variable_decl(&mut self, name: Ident, rhs: Option<ExprId>) -> HirIdent {
+        let scope = self.scopes.get_mut_scope();
+        let ident;
+        let resolver_meta;
+
+        // This check is necessary to maintain the same definition ids in the interner. Currently, each function uses a new resolver that has its own ScopeForest and thus global scope.
+        // We must first check whether an existing definition ID has been inserted as otherwise there will be multiple definitions for the same global const statement.
+        // This leads to an error in evaluation where the wrong definition ID is selected when evaluating a statement using the global const. The check below prevents this error.
+        let mut stmt_id = None;
+        let global_consts = self.interner.get_all_global_consts();
+        for (global_stmt_id, const_info) in global_consts {
+            if const_info.ident == name
+                && const_info.local_id == self.path_resolver.local_module_id()
+            {
+                stmt_id = Some(global_stmt_id);
+            }
+        }
+
+        if let Some(id) = stmt_id {
+            let hir_let_stmt = self.interner.let_statement(&id);
+            ident = hir_let_stmt.ident();
+            resolver_meta = ResolverMeta { num_times_used: 0, ident };
+        } else {
+            let id = self.interner.push_definition(name.0.contents.clone(), false, true, rhs); // The rhs expr for a global const is already interned in a separate map and scope
+            let location = Location::new(name.span(), self.file);
+            ident = HirIdent { location, id };
+            resolver_meta = ResolverMeta { num_times_used: 0, ident };
+        }
+
+        let old_global_value = scope.add_key_value(name.0.contents.clone(), resolver_meta);
+        if let Some(old_global_value) = old_global_value {
+            self.push_err(ResolverError::DuplicateDefinition {
+                name: name.0.contents.clone(),
+                first_span: old_global_value.ident.location.span,
+                second_span: name.span(),
+            });
+        }
         ident
     }
 
@@ -189,6 +247,7 @@ impl<'a> Resolver<'a> {
         let scope_tree = self.scopes.current_scope_tree();
         let variable = scope_tree.find(&name.0.contents);
 
+        let location = Location::new(name.span(), self.file);
         let id = if let Some(variable_found) = variable {
             variable_found.num_times_used += 1;
             variable_found.ident.id
@@ -197,11 +256,9 @@ impl<'a> Resolver<'a> {
                 name: name.0.contents.clone(),
                 span: name.0.span(),
             });
-
             DefinitionId::dummy_id()
         };
 
-        let location = Location::new(name.span(), self.file);
         HirIdent { location, id }
     }
 
@@ -225,10 +282,9 @@ impl<'a> Resolver<'a> {
     fn resolve_type_inner(&mut self, typ: UnresolvedType, new_variables: &mut Generics) -> Type {
         match typ {
             UnresolvedType::FieldElement(is_const) => Type::FieldElement(is_const),
-            UnresolvedType::Array(len, elem) => {
-                let len = match len {
-                    Some(len) => Type::ArrayLength(len),
-                    None => {
+            UnresolvedType::Array(size, elem) => {
+                let resolved_size = match size {
+                    UnresolvedArraySize::Variable => {
                         let id = self.interner.next_type_variable_id();
                         let typevar = Shared::new(TypeBinding::Unbound(id));
                         new_variables.push((id, typevar.clone()));
@@ -238,9 +294,13 @@ impl<'a> Resolver<'a> {
                         // require users to explicitly be generic over array lengths.
                         Type::NamedGeneric(typevar, Rc::new("".into()))
                     }
+                    UnresolvedArraySize::Fixed(length) => Type::ArrayLength(length),
+                    UnresolvedArraySize::FixedVariable(name) => {
+                        self.resolve_fixed_variable_array_length(name)
+                    }
                 };
                 let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
-                Type::Array(Box::new(len), elem)
+                Type::Array(Box::new(resolved_size), elem)
             }
             UnresolvedType::Integer(is_const, sign, bits) => Type::Integer(is_const, sign, bits),
             UnresolvedType::Bool(is_const) => Type::Bool(is_const),
@@ -268,6 +328,44 @@ impl<'a> Resolver<'a> {
             UnresolvedType::Tuple(fields) => {
                 Type::Tuple(vecmap(fields, |field| self.resolve_type_inner(field, new_variables)))
             }
+        }
+    }
+
+    fn resolve_fixed_variable_array_length(&mut self, name: Ident) -> Type {
+        let hir_ident = self.find_variable(&name);
+        let definition_info = self.interner.definition(hir_ident.id);
+        if definition_info.mutable {
+            self.push_err(ResolverError::ExpectedConstVariable {
+                name: name.0.contents.clone(),
+                span: name.span(),
+            });
+            return Type::Error;
+        }
+
+        if let Some(rhs_expr_id) = definition_info.rhs {
+            let length = self.get_fixed_variable_array_length(&rhs_expr_id);
+            Type::ArrayLength(length)
+        } else {
+            self.push_err(ResolverError::MissingRhsExpr {
+                name: name.0.contents.clone(),
+                span: name.span(),
+            });
+            Type::Error
+        }
+    }
+
+    fn get_fixed_variable_array_length(&self, expr_id: &ExprId) -> u64 {
+        let expr = self.interner.expression(expr_id);
+        match expr {
+            HirExpression::Literal(literal) => match literal {
+                HirLiteral::Integer(field_element) => field_element
+                    .try_to_u64()
+                    .expect("field element used in constant does not fit into u128"),
+                _ => {
+                    panic!("literal used in fixed variable array length must be an integer literal")
+                }
+            },
+            _ => panic!("expression in global const statement is not a literal"),
         }
     }
 
@@ -318,7 +416,7 @@ impl<'a> Resolver<'a> {
         let name = func.name().to_owned();
 
         let location = Location::new(func.name_ident().span(), self.file);
-        let id = self.interner.push_definition(name, false);
+        let id = self.interner.push_definition(name, false, false, None);
         let name_ident = HirIdent { id, location };
 
         let attributes = func.attribute().cloned();
@@ -344,7 +442,7 @@ impl<'a> Resolver<'a> {
                 self.push_err(ResolverError::UnnecessaryPub { ident: func.name_ident().clone() })
             }
 
-            let pattern = self.resolve_pattern(pattern);
+            let pattern = self.resolve_pattern(pattern, false, None);
             let typ = self.resolve_type_inner(typ, &mut generics);
             parameters.push(Param(pattern, typ.clone(), visibility));
             parameter_types.push(typ);
@@ -369,13 +467,16 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    pub fn intern_stmt(&mut self, stmt: Statement) -> StmtId {
-        let stmt = match stmt {
-            Statement::Let(let_stmt) => HirStatement::Let(HirLetStatement {
-                pattern: self.resolve_pattern(let_stmt.pattern),
-                r#type: self.resolve_type(let_stmt.r#type),
-                expression: self.resolve_expression(let_stmt.expression),
-            }),
+    pub fn resolve_stmt(&mut self, stmt: Statement, is_global: bool) -> HirStatement {
+        match stmt {
+            Statement::Let(let_stmt) => {
+                let expression = self.resolve_expression(let_stmt.expression);
+                HirStatement::Let(HirLetStatement {
+                    pattern: self.resolve_pattern(let_stmt.pattern, is_global, Some(expression)),
+                    r#type: self.resolve_type(let_stmt.r#type),
+                    expression,
+                })
+            }
             Statement::Constrain(constrain_stmt) => {
                 let expr_id = self.resolve_expression(constrain_stmt.0);
                 HirStatement::Constrain(HirConstrainStatement(expr_id, self.file))
@@ -389,8 +490,12 @@ impl<'a> Resolver<'a> {
                 HirStatement::Assign(stmt)
             }
             Statement::Error => HirStatement::Error,
-        };
-        self.interner.push_stmt(stmt)
+        }
+    }
+
+    pub fn intern_stmt(&mut self, stmt: Statement, is_global: bool) -> StmtId {
+        let hir_stmt = self.resolve_stmt(stmt, is_global);
+        self.interner.push_stmt(hir_stmt)
     }
 
     fn resolve_lvalue(&mut self, lvalue: LValue) -> HirLValue {
@@ -464,7 +569,10 @@ impl<'a> Resolver<'a> {
                 // TODO: For loop variables are currently mutable by default since we haven't
                 //       yet implemented syntax for them to be optionally mutable.
                 let (identifier, block_id) = self.in_new_scope(|this| {
-                    (this.add_variable_decl(identifier, true), this.resolve_expression(block))
+                    (
+                        this.add_variable_decl(identifier, true, false, None),
+                        this.resolve_expression(block),
+                    )
                 });
 
                 HirExpression::For(HirForExpression {
@@ -484,18 +592,27 @@ impl<'a> Resolver<'a> {
                 index: self.resolve_expression(indexed_expr.index),
             }),
             ExpressionKind::Path(path) => {
-                // If the Path is being used as an Expression, then it is referring to an Identifier
-                //
-                // This is currently not supported : const x = foo::bar::SOME_CONST + 10;
-                HirExpression::Ident(match path.as_ident() {
-                    Some(identifier) => self.find_variable(identifier),
-                    None => {
-                        self.push_err(ResolverError::PathIsNotIdent { span: path.span() });
-                        let id = DefinitionId::dummy_id();
-                        let location = Location::new(path.span(), self.file);
-                        HirIdent { id, location }
-                    }
-                })
+                // If the Path is being used as an Expression, then it is referring to a global constant from a separate module
+                // Otherwise, then it is referring to an Identifier
+                // This lookup allows support of such statements: let x = foo::bar::SOME_CONST + 10;
+                let stmt_id = self.lookup_const(path.clone());
+
+                let hir_let_stmt = self.interner.let_statement(&stmt_id);
+                let ident = hir_let_stmt.ident();
+
+                if self.interner.get_global_const(&stmt_id).is_some() {
+                    HirExpression::Ident(ident)
+                } else {
+                    HirExpression::Ident(match path.as_ident() {
+                        Some(identifier) => self.find_variable(identifier),
+                        None => {
+                            self.push_err(ResolverError::PathIsNotIdent { span: path.span() });
+                            let id = DefinitionId::dummy_id();
+                            let location = Location::new(path.span(), self.file);
+                            HirIdent { id, location }
+                        }
+                    })
+                }
             }
             ExpressionKind::Block(block_expr) => self.resolve_block(block_expr),
             ExpressionKind::Constructor(constructor) => {
@@ -538,14 +655,25 @@ impl<'a> Resolver<'a> {
         expr_id
     }
 
-    fn resolve_pattern(&mut self, pattern: Pattern) -> HirPattern {
-        self.resolve_pattern_mutable(pattern, None)
+    fn resolve_pattern(
+        &mut self,
+        pattern: Pattern,
+        is_global: bool,
+        rhs: Option<ExprId>,
+    ) -> HirPattern {
+        self.resolve_pattern_mutable(pattern, None, is_global, rhs)
     }
 
-    fn resolve_pattern_mutable(&mut self, pattern: Pattern, mutable: Option<Span>) -> HirPattern {
+    fn resolve_pattern_mutable(
+        &mut self,
+        pattern: Pattern,
+        mutable: Option<Span>,
+        is_global: bool,
+        rhs: Option<ExprId>,
+    ) -> HirPattern {
         match pattern {
             Pattern::Identifier(name) => {
-                let id = self.add_variable_decl(name, mutable.is_some());
+                let id = self.add_variable_decl(name, mutable.is_some(), is_global, rhs);
                 HirPattern::Identifier(id)
             }
             Pattern::Mutable(pattern, span) => {
@@ -553,18 +681,21 @@ impl<'a> Resolver<'a> {
                     self.push_err(ResolverError::UnnecessaryMut { first_mut, second_mut: span })
                 }
 
-                let pattern = self.resolve_pattern_mutable(*pattern, Some(span));
+                let pattern = self.resolve_pattern_mutable(*pattern, Some(span), is_global, rhs);
                 HirPattern::Mutable(Box::new(pattern), span)
             }
             Pattern::Tuple(fields, span) => {
-                let fields = vecmap(fields, |field| self.resolve_pattern_mutable(field, mutable));
+                let fields = vecmap(fields, |field| {
+                    self.resolve_pattern_mutable(field, mutable, is_global, rhs)
+                });
                 HirPattern::Tuple(fields, span)
             }
             Pattern::Struct(name, fields, span) => {
                 let struct_id = self.lookup_type(name);
                 let struct_type = self.get_struct(struct_id);
-                let resolve_field =
-                    |this: &mut Self, pattern| this.resolve_pattern_mutable(pattern, mutable);
+                let resolve_field = |this: &mut Self, pattern| {
+                    this.resolve_pattern_mutable(pattern, mutable, is_global, rhs)
+                };
                 let fields =
                     self.resolve_constructor_fields(struct_id, fields, span, resolve_field);
                 HirPattern::Struct(struct_type, fields, span)
@@ -650,6 +781,10 @@ impl<'a> Resolver<'a> {
         self.lookup(path)
     }
 
+    fn lookup_const(&mut self, path: Path) -> StmtId {
+        self.lookup(path)
+    }
+
     fn lookup_type(&mut self, path: Path) -> StructId {
         let ident = path.as_ident();
         if ident.map_or(false, |i| i == "Self") {
@@ -681,11 +816,11 @@ impl<'a> Resolver<'a> {
 
     fn resolve_block(&mut self, block_expr: BlockExpression) -> HirExpression {
         let statements =
-            self.in_new_scope(|this| vecmap(block_expr.0, |stmt| this.intern_stmt(stmt)));
+            self.in_new_scope(|this| vecmap(block_expr.0, |stmt| this.intern_stmt(stmt, false)));
         HirExpression::Block(HirBlockExpression(statements))
     }
 
-    fn intern_block(&mut self, block: BlockExpression) -> ExprId {
+    pub fn intern_block(&mut self, block: BlockExpression) -> ExprId {
         let hir_block = self.resolve_block(block);
         self.interner.push_expr(hir_block)
     }
@@ -707,7 +842,7 @@ mod test {
     use crate::hir_def::function::HirFunction;
     use crate::node_interner::{FuncId, NodeInterner};
     use crate::{
-        hir::def_map::{CrateDefMap, ModuleDefId},
+        hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId},
         parse_program, Path,
     };
 
@@ -932,6 +1067,10 @@ mod test {
                 None => Err(name.clone()),
                 Some(_) => Ok(mod_def),
             }
+        }
+
+        fn local_module_id(&self) -> LocalModuleId {
+            LocalModuleId::dummy_id()
         }
     }
 

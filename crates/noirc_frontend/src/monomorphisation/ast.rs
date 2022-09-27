@@ -170,17 +170,18 @@ pub enum Type {
     Tuple(Vec<Type>),
 }
 
-pub struct Functions {
+pub struct Program {
+    pub constants: Vec<Expression>,
     pub functions: Vec<Function>,
     pub abi: Abi,
 }
 
-impl Functions {
-    pub fn new(main: Function, abi: Abi) -> Functions {
-        Functions { functions: vec![main], abi }
+impl Program {
+    pub fn new(main: Function, constants: Vec<Expression>, abi: Abi) -> Program {
+        Program { functions: vec![main], constants, abi }
     }
 
-    pub fn push(&mut self, function: Function) {
+    pub fn push_function(&mut self, function: Function) {
         self.functions.push(function);
     }
 
@@ -201,7 +202,7 @@ impl Functions {
     }
 }
 
-impl std::ops::Index<FuncId> for Functions {
+impl std::ops::Index<FuncId> for Program {
     type Output = Function;
 
     fn index(&self, index: FuncId) -> &Self::Output {
@@ -209,13 +210,13 @@ impl std::ops::Index<FuncId> for Functions {
     }
 }
 
-impl std::ops::IndexMut<FuncId> for Functions {
+impl std::ops::IndexMut<FuncId> for Program {
     fn index_mut(&mut self, index: FuncId) -> &mut Self::Output {
         &mut self.functions[index.0 as usize]
     }
 }
 
-impl std::fmt::Display for Functions {
+impl std::fmt::Display for Program {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for function in &self.functions {
             super::printer::AstPrinter::default().print_function(function, f)?;

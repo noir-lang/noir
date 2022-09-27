@@ -27,7 +27,7 @@ pub struct IRGenerator {
     /// into multiple variables/values
     variable_values: HashMap<DefinitionId, Value>,
 
-    pub program: Functions,
+    pub program: Program,
 }
 
 #[derive(Debug, Clone)]
@@ -75,7 +75,7 @@ impl Value {
 }
 
 impl IRGenerator {
-    pub fn new(program: Functions) -> IRGenerator {
+    pub fn new(program: Program) -> IRGenerator {
         IRGenerator {
             context: SsaContext::new(),
             variable_values: HashMap::new(),

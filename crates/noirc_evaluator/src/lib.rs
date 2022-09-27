@@ -40,7 +40,7 @@ pub struct Evaluator {
 // Standard format requires the number of witnesses. The max number is also fine.
 // If we had a composer object, we would not need it
 pub fn create_circuit(
-    program: Functions,
+    program: Program,
     np_language: Language,
     enable_logging: bool,
 ) -> Result<Circuit, RuntimeError> {
@@ -109,7 +109,7 @@ impl Evaluator {
     pub fn evaluate_main_alt(
         &mut self,
         env: &mut Environment,
-        program: Functions,
+        program: Program,
         enable_logging: bool,
     ) -> Result<(), RuntimeError> {
         let mut igen = IRGenerator::new(program);

@@ -14,14 +14,31 @@ pub use structure::*;
 
 use crate::{token::IntType, util::vecmap, IsConst};
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum UnresolvedArraySize {
+    Variable,
+    Fixed(u64),
+    FixedVariable(Ident),
+}
+
+impl std::fmt::Display for UnresolvedArraySize {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            UnresolvedArraySize::Variable => write!(f, "[]"),
+            UnresolvedArraySize::Fixed(size) => write!(f, "[{}]", size),
+            UnresolvedArraySize::FixedVariable(ident) => write!(f, "[{}]", ident),
+        }
+    }
+}
+
 /// The parser parses types as 'UnresolvedType's which
 /// require name resolution to resolve any typenames used
 /// for structs within, but are otherwise identical to Types.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum UnresolvedType {
     FieldElement(IsConst),
-    Array(Option<u64>, Box<UnresolvedType>), // Array(Some(3), Field) = [Field; 3] (None = generic length)
-    Integer(IsConst, Signedness, u32),       // u32 = Integer(unsigned, 32)
+    Array(UnresolvedArraySize, Box<UnresolvedType>), // [4]Witness = Array(4, Witness)
+    Integer(IsConst, Signedness, u32),               // u32 = Integer(unsigned, 32)
     Bool(IsConst),
     Unit,
 
@@ -46,8 +63,10 @@ impl std::fmt::Display for UnresolvedType {
         use UnresolvedType::*;
         match self {
             FieldElement(is_const) => write!(f, "{}Field", is_const),
-            Array(Some(len), typ) => write!(f, "[{}; {}]", typ, len),
-            Array(None, typ) => write!(f, "[{}]", typ),
+            Array(len, typ) => match len {
+                UnresolvedArraySize::Variable => write!(f, "[{}]", typ),
+                _ => write!(f, "[{}; {}]", typ, len),
+            },
             Integer(is_const, sign, num_bits) => match sign {
                 Signedness::Signed => write!(f, "{}i{}", is_const, num_bits),
                 Signedness::Unsigned => write!(f, "{}u{}", is_const, num_bits),

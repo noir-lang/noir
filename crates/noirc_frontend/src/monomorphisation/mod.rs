@@ -4,14 +4,14 @@ use crate::{
     hir_def::{
         expr::*,
         function::{FuncMeta, Parameters},
-        stmt::{HirAssignStatement, HirLValue, HirPattern, HirStatement},
+        stmt::{HirAssignStatement, HirLValue, HirPattern, HirStatement, HirLetStatement},
     },
     node_interner::{self, NodeInterner, StmtId},
     util::vecmap,
     FunctionKind, IsConst, TypeBinding, TypeBindings,
 };
 
-use self::ast::{DefinitionId, FuncId, Functions};
+use self::ast::{DefinitionId, FuncId, Program};
 
 pub mod ast;
 pub mod printer;
@@ -34,7 +34,7 @@ struct Monomorphiser {
 
 type HirType = crate::Type;
 
-pub fn monomorphise(main: node_interner::FuncId, interner: NodeInterner) -> Functions {
+pub fn monomorphise(main: node_interner::FuncId, interner: NodeInterner) -> Program {
     let mut monomorphiser = Monomorphiser::new(interner);
     let mut functions = monomorphiser.compile_main(main);
 
@@ -43,7 +43,7 @@ pub fn monomorphise(main: node_interner::FuncId, interner: NodeInterner) -> Func
         monomorphiser.locals.clear();
 
         perform_instantiation_bindings(&bindings);
-        functions.push(monomorphiser.function(next_fn_id, new_id));
+        functions.push_function(monomorphiser.function(next_fn_id, new_id));
         undo_instantiation_bindings(bindings);
     }
 
@@ -94,7 +94,8 @@ impl Monomorphiser {
 
     /// The main function is special, we need to check for a return type and if present,
     /// insert an extra constrain on the return value.
-    fn compile_main(&mut self, main_id: node_interner::FuncId) -> Functions {
+    fn compile_main(&mut self, main_id: node_interner::FuncId) -> Program {
+        let constants = self.constants();
         let mut main = self.function(main_id, FuncId(0));
         let main_meta = self.interner.function_meta(&main_id);
 
@@ -117,7 +118,14 @@ impl Monomorphiser {
         }
 
         let abi = main_meta.into_abi(&self.interner);
-        Functions::new(main, abi)
+        Program::new(main, constants, abi)
+    }
+
+    fn constants(&mut self) -> Vec<ast::Expression> {
+        vecmap(self.interner.take_global_consts(), |(id, _)| {
+            let let_statement = self.interner.let_statement(&id);
+            self.let_statement(let_statement)
+        })
     }
 
     fn function(&mut self, f: node_interner::FuncId, id: FuncId) -> ast::Function {
@@ -273,10 +281,7 @@ impl Monomorphiser {
 
     fn statement(&mut self, id: StmtId) -> ast::Expression {
         match self.interner.statement(&id) {
-            HirStatement::Let(let_statement) => {
-                let expr = self.expr_infer(let_statement.expression);
-                self.unpack_pattern(let_statement.pattern, expr, &let_statement.r#type)
-            }
+            HirStatement::Let(let_statement) => self.let_statement(let_statement),
             HirStatement::Constrain(constrain) => {
                 let expr = self.expr(constrain.0, &HirType::Bool(IsConst::No(None)));
                 let location = self.interner.expr_location(&constrain.0);
@@ -287,6 +292,11 @@ impl Monomorphiser {
             HirStatement::Semi(expr) => ast::Expression::Semi(Box::new(self.expr_infer(expr))),
             HirStatement::Error => unreachable!(),
         }
+    }
+
+    fn let_statement(&mut self, let_statement: HirLetStatement) -> ast::Expression {
+        let expr = self.expr_infer(let_statement.expression);
+        self.unpack_pattern(let_statement.pattern, expr, &let_statement.r#type)
     }
 
     fn constructor(
