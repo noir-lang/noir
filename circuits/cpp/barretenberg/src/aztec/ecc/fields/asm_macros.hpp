@@ -162,7 +162,7 @@
         "mulxq %[modulus_1], %%rdi, %%rcx         \n\t" /* (t[2], t[3]) <- (modulus[1] * k)                         */  \
         "adcq %%rcx, %%r10                        \n\t" /* r[2] += t[3] + flag_c                                    */  \
         "adcq $0, %%r11                           \n\t" /* r[4] += flag_c                                           */  \
-        /* Partial fix        "adcq $0, %%r12                           \n\t"*/ /* r[4] += flag_c                                           */  \
+/* Partial fix        "adcq $0, %%r12                           \n\t"*/ /* r[4] += flag_c                                           */  \
         "addq %%rdi, %%r9                         \n\t" /* r[1] += t[2]                                             */  \
         "mulxq %[modulus_2], %%rdi, %%rcx         \n\t" /* (t[0], t[1]) <- (modulus[3] * k)                         */  \
         "mulxq %[modulus_3], %%r8, %%rdx          \n\t" /* (t[2], t[3]) <- (modulus[2] * k)                         */  \
@@ -540,7 +540,6 @@
         "adcxq %%rcx, %%r13                        \n\t" /* r[5] += t[4] + flag_o                                   */  \
         "adoxq %[zero_reference], %%r13            \n\t" /* r[5] += flag_o                                          */  \
         "adcxq %[zero_reference], %%r14            \n\t" /* r[6] += flag_c                                          */  \
-        "adoxq %[zero_reference], %%r14            \n\t" /* r[6] += flag_o                                          */  \
                                                                                                                         \
         /* double result registers  */                                                                                  \
         "adoxq %%r9, %%r9                          \n\t" /* r[1] = 2r[1]                                            */  \
@@ -574,12 +573,10 @@
         "mulxq %[modulus_0], %%rdi, %%rcx          \n\t" /* (t[0], t[1]) <- (modulus[0] * k)                        */  \
         "adoxq %%rdi, %%r8                         \n\t" /* r[0] += t[0] (%r8 now free)                             */  \
         "mulxq %[modulus_3], %%r8, %%rdi           \n\t" /* (t[2], t[3]) <- (modulus[2] * k)                        */  \
-        "adcxq %%rdi, %%r12                        \n\t" /* r[4] += t[3] + flag_c                                   */  \
-        "adoxq %%rcx, %%r9                         \n\t" /* r[1] += t[1] + flag_o                                   */  \
-        "adcxq %[zero_reference], %%r13            \n\t" /* r[5] += flag_c                                          */  \
-        "adcxq %[zero_reference], %%r14            \n\t" /* r[6] += flag_c                                          */  \
+        "adcxq %%rdi, %%r12                        \n\t" /* r[4] += t[3] + flag_o                                   */  \
+        "adoxq %%rcx, %%r9                         \n\t" /* r[1] += t[1] + flag_c                                   */  \
+        "adcxq %[zero_reference], %%r13            \n\t" /* r[5] += flag_o                                          */  \
         "mulxq %[modulus_1], %%rdi, %%rcx          \n\t" /* (t[2], t[3]) <- (modulus[1] * k)                        */  \
-        "adcxq %[zero_reference], %%r15            \n\t" /* r[7] += flag_c                                          */  \
         "adoxq %%rcx, %%r10                        \n\t" /* r[2] += t[3] + flag_o                                   */  \
         "adcxq %%rdi, %%r9                         \n\t" /* r[1] += t[2]                                            */  \
         "adoxq %%r8, %%r11                         \n\t" /* r[3] += t[2] + flag_o                                   */  \
@@ -597,9 +594,6 @@
         "adoxq %%rcx, %%r13                        \n\t" /* r[5] += t[3] + flag_o                                   */  \
         "adcxq %[zero_reference], %%r13            \n\t" /* r[5] += flag_c                                          */  \
         "adoxq %[zero_reference], %%r14            \n\t" /* r[6] += flag_o                                          */  \
-        "adcxq %[zero_reference], %%r14            \n\t" /* r[6] += flag_c                                          */  \
-        "adoxq %[zero_reference], %%r15            \n\t" /* r[7] += flag_o                                          */  \
-        "adcxq %[zero_reference], %%r15            \n\t" /* r[7] += flag_c                                          */  \
         "mulxq %[modulus_0], %%r8, %%rcx           \n\t" /* (t[0], t[1]) <- (modulus[0] * k)                        */  \
         "adcxq %%r8, %%r9                          \n\t" /* r[1] += t[0] (%r9 now free)                             */  \
         "adoxq %%rcx, %%r10                        \n\t" /* r[2] += t[1] + flag_c                                   */  \
@@ -620,14 +614,12 @@
         "adcxq %%r8, %%r13                         \n\t" /* r[5] += t[2] + flag_c                                   */  \
         "adoxq %%r9, %%r14                         \n\t" /* r[6] += t[3] + flag_c                                   */  \
         "adcxq %[zero_reference], %%r14            \n\t" /* r[6] += flag_o                                          */  \
-        "adoxq %[zero_reference], %%r15            \n\t" /* r[7] += flag_o                                          */  \
-        "adcxq %[zero_reference], %%r15            \n\t" /* r[7] += flag_c                                          */  \
+        "adoxq %[zero_reference], %%r15            \n\t" /* r[7] += flag_c                                          */  \
         "mulxq %[modulus_0], %%r8, %%r9            \n\t" /* (t[0], t[1]) <- (modulus[0] * k)                        */  \
         "adcxq %%r8, %%r10                         \n\t" /* r[2] += t[0] (%r10 now free)                             */  \
         "adoxq %%r9, %%r11                         \n\t" /* r[3] += t[1] + flag_c                                   */  \
         "adcxq %%rdi, %%r11                        \n\t" /* r[3] += t[2]                                            */  \
-        "adoxq %[zero_reference], %%r12            \n\t" /* r[4] += flag_o                                          */  \
-        "adoxq %[zero_reference], %%r13            \n\t" /* r[5] += flag_o                                          */  \
+        "adoxq %[zero_reference], %%r12            \n\t" /* r[4] += flag_c                                          */  \
                                                                                                                         \
         /* perform modular reduction: r[3] */                                                                           \
         "movq %%r11, %%rdx                         \n\t" /* move r11 into %rdx                                      */  \

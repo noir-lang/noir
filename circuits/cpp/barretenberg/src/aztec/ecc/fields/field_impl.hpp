@@ -153,7 +153,7 @@ template <class T> constexpr field<T> field<T>::operator-() const noexcept
         return p - *this; // modulus - *this;
     }
     constexpr field p{ twice_modulus.data[0], twice_modulus.data[1], twice_modulus.data[2], twice_modulus.data[3] };
-    return (p - *this).reduce_once(); // modulus - *this;
+    return p - *this; // modulus - *this;
 }
 
 template <class T> constexpr field<T> field<T>::operator-=(const field& other) noexcept
@@ -179,7 +179,7 @@ template <class T> constexpr void field<T>::self_neg() noexcept
         *this = p - *this;
     } else {
         constexpr field p{ twice_modulus.data[0], twice_modulus.data[1], twice_modulus.data[2], twice_modulus.data[3] };
-        *this = (p - *this).reduce_once();
+        *this = p - *this;
     }
 }
 
@@ -236,9 +236,9 @@ template <class T> constexpr field<T> field<T>::to_montgomery_form() const noexc
     constexpr field r_squared{ T::r_squared_0, T::r_squared_1, T::r_squared_2, T::r_squared_3 };
 
     field result = *this;
-    result.self_reduce_once();
-    result.self_reduce_once();
-    result.self_reduce_once();
+    result.reduce_once();
+    result.reduce_once();
+    result.reduce_once();
     return (result * r_squared).reduce_once();
 }
 

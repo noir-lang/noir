@@ -147,8 +147,6 @@ class alignas(32) uint256_t {
 
     uint64_t data[4];
 
-    constexpr std::pair<uint256_t, uint256_t> divmod(const uint256_t& b) const;
-
   private:
     constexpr std::pair<uint64_t, uint64_t> mul_wide(const uint64_t a, const uint64_t b) const;
     constexpr std::pair<uint64_t, uint64_t> addc(const uint64_t a, const uint64_t b, const uint64_t carry_in) const;
@@ -164,6 +162,7 @@ class alignas(32) uint256_t {
                                                 const uint64_t b,
                                                 const uint64_t c,
                                                 const uint64_t carry_in) const;
+    constexpr std::pair<uint256_t, uint256_t> divmod(const uint256_t& b) const;
 };
 
 inline std::ostream& operator<<(std::ostream& os, uint256_t const& a)
