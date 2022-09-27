@@ -438,9 +438,7 @@ impl Type {
         };
 
         match self {
-            Type::FieldElement(int_const, ..) | Type::Integer(int_const, ..) => {
-                bind(int_const)
-            }
+            Type::FieldElement(int_const, ..) | Type::Integer(int_const, ..) => bind(int_const),
             Type::PolymorphicInteger(int_const, self_var) => {
                 let borrow = self_var.borrow();
                 match &*borrow {
