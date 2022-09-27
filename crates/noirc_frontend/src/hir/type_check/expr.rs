@@ -472,7 +472,7 @@ pub fn infix_operand_type_rules(
             if let TypeBinding::Bound(binding) = &*int.borrow() {
                 return infix_operand_type_rules(binding, op, other, errors);
             }
-            if other.try_bind_to_polymorphic_int(int, is_const, op.location.span).is_ok() || other == &Type::Error {
+            if other.try_bind_to_polymorphic_int(int, is_const, true, op.location.span).is_ok() || other == &Type::Error {
                 Ok(other.clone())
             } else {
                 Err(format!("Types in a binary operation should match, but found {} and {}", lhs_type, rhs_type))
@@ -643,7 +643,7 @@ pub fn comparator_operand_type_rules(
             if let TypeBinding::Bound(binding) = &*int.borrow() {
                 return comparator_operand_type_rules(other, binding, op, errors);
             }
-            if other.try_bind_to_polymorphic_int(int, is_const, op.location.span).is_ok() || other == &Type::Error {
+            if other.try_bind_to_polymorphic_int(int, is_const, true, op.location.span).is_ok() || other == &Type::Error {
                 Ok(Bool(is_const.clone()))
             } else {
                 Err(format!("Types in a binary operation should match, but found {} and {}", lhs_type, rhs_type))
