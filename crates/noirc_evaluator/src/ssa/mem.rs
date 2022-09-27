@@ -68,10 +68,6 @@ impl MemArray {
 }
 
 impl Memory {
-    pub fn find_array(&self, definition: DefinitionId) -> Option<&MemArray> {
-        self.arrays.iter().find(|a| a.def == definition)
-    }
-
     /// Retrieves the ArrayId of the last array in Memory.
     /// Panics if self does not contain at least 1 array.
     pub fn last_id(&self) -> ArrayId {
