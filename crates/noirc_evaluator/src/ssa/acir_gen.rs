@@ -294,11 +294,11 @@ impl Acir {
                 self.evaluate_neq(binary.lhs, binary.rhs, &l_c, &r_c, ctx, evaluator),
             ),
             BinaryOp::Ult => {
-                let size = ctx[binary.lhs].size_in_bits();
+                let size = ctx[binary.lhs].get_type().bits();
                 evaluate_cmp(&l_c, &r_c, size, false, evaluator).into()
             }
             BinaryOp::Ule => {
-                let size = ctx[binary.lhs].size_in_bits();
+                let size = ctx[binary.lhs].get_type().bits();
                 let w = evaluate_cmp(&r_c, &l_c, size, false, evaluator);
                 Expression {
                     mul_terms: Vec::new(),
@@ -308,11 +308,11 @@ impl Acir {
                 .into()
             }
             BinaryOp::Slt => {
-                let s = ctx[binary.lhs].size_in_bits();
+                let s = ctx[binary.lhs].get_type().bits();
                 evaluate_cmp(&l_c, &r_c, s, true, evaluator).into()
             }
             BinaryOp::Sle => {
-                let s = ctx[binary.lhs].size_in_bits();
+                let s = ctx[binary.lhs].get_type().bits();
                 let w = evaluate_cmp(&r_c, &l_c, s, true, evaluator);
                 Expression {
                     mul_terms: Vec::new(),
@@ -323,7 +323,7 @@ impl Acir {
             }
             BinaryOp::Lt => todo!(),
             BinaryOp::Lte => {
-                let size = ctx[binary.lhs].size_in_bits();
+                let size = ctx[binary.lhs].get_type().bits();
                 // TODO: Should this be signed?
                 evaluate_cmp(&l_c, &r_c, size, false, evaluator).into()
             }
