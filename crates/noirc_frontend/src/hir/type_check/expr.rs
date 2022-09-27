@@ -675,7 +675,7 @@ pub fn comparator_operand_type_rules(
 
         // Special-case == and != for arrays
         (Array(x_size, x_type), Array(y_size, y_type)) if matches!(op.kind, Equal | NotEqual) => {
-            x_type.unify(y_type, op.location.span, errors, &mut || {
+            x_type.unify(y_type, op.location.span, errors, || {
                 TypeCheckError::Unstructured {
                     msg: format!("Cannot compare {} and {}, the array element types differ", lhs_type, rhs_type),
                     span: op.location.span,

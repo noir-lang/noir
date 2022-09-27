@@ -111,7 +111,17 @@ fn write_to_file(bytes: &[u8], path: &Path) -> String {
 pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> bool {
     let tmp_dir = TempDir::new("p_and_v_tests").unwrap();
     let proof_path =
-        prove_cmd::prove_with_path(proof_name, prg_dir, &tmp_dir.into_path(), show_ssa).unwrap();
+        match prove_cmd::prove_with_path(proof_name, prg_dir, &tmp_dir.into_path(), show_ssa) {
+            Ok(p) => p,
+            Err(CliError::Generic(msg)) => {
+                println!("Error: {}", msg);
+                return false;
+            }
+            Err(CliError::DestinationAlreadyExists(str)) => {
+                println!("Error, destination {} already exists: ", str);
+                return false;
+            }
+        };
 
     verify_cmd::verify_with_path(prg_dir, &proof_path, show_ssa).unwrap()
 }

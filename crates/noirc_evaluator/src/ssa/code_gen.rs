@@ -191,7 +191,7 @@ impl IRGenerator {
         index: &Expression,
         env: &mut Environment,
     ) -> Result<(ArrayId, NodeId), RuntimeError> {
-        let ident_def = self.lvalue_ident_def(array);
+        let ident_def = Self::lvalue_ident_def(array);
         let val = self.find_variable(ident_def).unwrap();
         let lhs = val.unwrap_id();
 
@@ -200,11 +200,11 @@ impl IRGenerator {
         Ok((a_id, index))
     }
 
-    fn lvalue_ident_def(&self, lvalue: &LValue) -> DefinitionId {
+    fn lvalue_ident_def(lvalue: &LValue) -> DefinitionId {
         match lvalue {
             LValue::Ident(ident) => ident.id,
-            LValue::Index { array, .. } => self.lvalue_ident_def(array.as_ref()),
-            LValue::MemberAccess { object, .. } => self.lvalue_ident_def(object.as_ref()),
+            LValue::Index { array, .. } => Self::lvalue_ident_def(array.as_ref()),
+            LValue::MemberAccess { object, .. } => Self::lvalue_ident_def(object.as_ref()),
         }
     }
 
@@ -371,7 +371,7 @@ impl IRGenerator {
         expression: &Expression,
         env: &mut Environment,
     ) -> Result<Value, RuntimeError> {
-        let ident_def = self.lvalue_ident_def(lvalue);
+        let ident_def = Self::lvalue_ident_def(lvalue);
         let rhs = self.codegen_expression(env, expression)?;
 
         match lvalue {
