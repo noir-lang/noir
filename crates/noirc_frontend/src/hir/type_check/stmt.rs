@@ -4,7 +4,7 @@ use crate::hir_def::stmt::{
     HirAssignStatement, HirConstrainStatement, HirLValue, HirLetStatement, HirPattern, HirStatement,
 };
 use crate::hir_def::types::Type;
-use crate::node_interner::{ExprId, NodeInterner, StmtId};
+use crate::node_interner::{DefinitionId, ExprId, NodeInterner, StmtId};
 use crate::IsConst;
 
 use super::{errors::TypeCheckError, expr::type_check_expression};
@@ -128,15 +128,22 @@ fn type_check_lvalue(
 ) -> Type {
     match lvalue {
         HirLValue::Ident(ident) => {
-            let definition = interner.definition(ident.id);
-            if !definition.mutable {
-                errors.push(TypeCheckError::Unstructured {
-                    msg: format!("Variable {} must be mutable to be assigned to", definition.name),
-                    span: ident.location.span,
-                });
-            }
+            if ident.id == DefinitionId::dummy_id() {
+                Type::Error
+            } else {
+                let definition = interner.definition(ident.id);
+                if !definition.mutable {
+                    errors.push(TypeCheckError::Unstructured {
+                        msg: format!(
+                            "Variable {} must be mutable to be assigned to",
+                            definition.name
+                        ),
+                        span: ident.location.span,
+                    });
+                }
 
-            interner.id_type(ident.id)
+                interner.id_type(ident.id)
+            }
         }
         HirLValue::MemberAccess { object, field_name } => {
             let result = type_check_lvalue(interner, *object, assign_span, errors);
