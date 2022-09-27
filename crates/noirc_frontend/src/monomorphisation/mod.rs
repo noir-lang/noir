@@ -414,7 +414,14 @@ impl Monomorphiser {
                 if let TypeBinding::Bound(binding) = &*binding.borrow() {
                     return self.convert_type(binding);
                 }
-                // Default any remaining unbound type variables to Field
+
+                // Default any remaining unbound type variables to Field.
+                // This should only happen if the variable in question is unused
+                // and within a larger generic type.
+                // NOTE: Make sure to review this if there is ever type-directed dispatch,
+                // like automatic solving of traits. It should be fine since it is strictly
+                // after type checking, but care should be taken that it doesn't change which
+                // impls are chosen.
                 *binding.borrow_mut() =
                     TypeBinding::Bound(HirType::FieldElement(IsConst::No(None)));
                 ast::Type::Field
