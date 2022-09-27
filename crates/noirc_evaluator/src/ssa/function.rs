@@ -244,7 +244,7 @@ pub fn create_function(
 
     igen.function_context = Some(index);
     igen.context.functions.insert(func_id, func.clone());
-    let last_value = igen.codegen_block(block.statements(), env);
+    let last_value = igen.codegen_block(block.statements(), env)?;
     let returned_values = last_value.to_node_ids();
     for i in &returned_values {
         if let Some(node) = igen.context.try_get_node(*i) {
