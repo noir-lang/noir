@@ -2,7 +2,7 @@
 title: Add Accounts to the SDK
 ---
 
-Add accounts with the account (privacy) key.
+Add accounts with the account (viewing/privacy) key.
 
 Because all notes representing value on Aztec network are encrypted, the SDK requires access to a user's account key in order to decrypt the notes and calculate the account balance.
 
