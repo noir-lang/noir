@@ -260,15 +260,19 @@ TEST(stdlib_safeuint, test_divide_method_quotient_range_too_small_fails)
     EXPECT_EQ(result.err, "safe_uint_t range constraint failure: divide method quotient: d/c");
 }
 
-TEST(stdlib_safeuint, test_divide_remainder_too_large)
+TEST(stdlib_safeuint, test_divide_method_remainder_range_too_small_fails)
 {
     // test failure when range for remainder too small
     waffle::TurboComposer composer = waffle::TurboComposer();
     field_t a(witness_t(&composer, 5));
+    field_t b(witness_t(&composer, 19));
     suint_t c(a, 3);
-    suint_t d((fr::modulus - 1) / 3);
-    suint_t b;
-    EXPECT_ANY_THROW(b = c / d);
+    suint_t d(b, 5);
+    d = d.divide(c, 3, 1, "d/c");
+
+    auto result = verify_logic(composer);
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(result.err, "safe_uint_t range constraint failure: divide method remainder: d/c");
 }
 
 TEST(stdlib_safeuint, test_divide_method_quotient_remainder_incorrect_fails)

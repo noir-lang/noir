@@ -494,16 +494,4 @@ TEST(secp256k1, derive_generators)
     }
 }
 */
-
-TEST(secp256k1, neg_and_self_neg_0_cmp_regression)
-{
-    secp256k1::fq a = 0;
-    secp256k1::fq a_neg = -a;
-    EXPECT_EQ((a == a_neg), true);
-    a = 0;
-    a_neg = 0;
-    a_neg.self_neg();
-    EXPECT_EQ((a == a_neg), true);
-}
-
 } // namespace test_secp256k1

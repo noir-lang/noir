@@ -575,15 +575,14 @@ void field_t<ComposerContext>::create_range_constraint(const size_t num_bits, st
 {
     if (num_bits == 0) {
         assert_is_zero("0-bit range_constraint on non-zero field_t.");
+    }
+    if (is_constant()) {
+        ASSERT(uint256_t(get_value()).get_msb() < num_bits);
     } else {
-        if (is_constant()) {
-            ASSERT(uint256_t(get_value()).get_msb() < num_bits);
+        if constexpr (ComposerContext::type == waffle::ComposerType::PLOOKUP) {
+            context->decompose_into_default_range(normalize().get_witness_index(), num_bits, msg);
         } else {
-            if constexpr (ComposerContext::type == waffle::ComposerType::PLOOKUP) {
-                context->decompose_into_default_range(normalize().get_witness_index(), num_bits, msg);
-            } else {
-                context->decompose_into_base4_accumulators(normalize().get_witness_index(), num_bits, msg);
-            }
+            context->decompose_into_base4_accumulators(normalize().get_witness_index(), num_bits, msg);
         }
     }
 }

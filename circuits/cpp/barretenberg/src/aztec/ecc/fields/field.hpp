@@ -23,7 +23,6 @@
 namespace barretenberg {
 template <class Params> struct alignas(32) field {
   public:
-    // We don't initialize data by default since we'd lose a lot of time on pointless initializations.
     field() noexcept {}
 
     constexpr field(const uint256_t& input) noexcept
