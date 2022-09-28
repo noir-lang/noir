@@ -1,5 +1,5 @@
 ```ts
-class AztecSdkUser {
+export declare class AztecSdkUser {
     id: GrumpkinAddress;
     private sdk;
     constructor(id: GrumpkinAddress, sdk: AztecSdk);

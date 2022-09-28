@@ -1,8 +1,10 @@
 ```ts
-class AztecSdk extends EventEmitter {
+export declare class AztecSdk extends EventEmitter {
     private core;
     private blockchain;
     private provider;
+    private feeCalculator;
+    private txValueCalculator;
     constructor(core: CoreSdkInterface, blockchain: ClientEthereumBlockchain, provider: EthereumProvider);
     run(): Promise<void>;
     destroy(): Promise<void>;
@@ -21,7 +23,9 @@ class AztecSdk extends EventEmitter {
     isAliasRegistered(alias: string, includePending?: boolean): Promise<boolean>;
     isAliasRegisteredToAccount(accountPublicKey: GrumpkinAddress, alias: string, includePending?: boolean): Promise<boolean>;
     getAccountPublicKey(alias: string): Promise<GrumpkinAddress | undefined>;
-    getTxFees(assetId: number): Promise<AssetValue[][]>;
+    getTxFees(assetId: number, { feeSignificantFigures }?: {
+        feeSignificantFigures?: number | undefined;
+    }): Promise<AssetValue[][]>;
     userExists(accountPublicKey: GrumpkinAddress): Promise<boolean>;
     addUser(accountPrivateKey: Buffer, noSync?: boolean): Promise<AztecSdkUser>;
     removeUser(userId: GrumpkinAddress): Promise<void>;
@@ -53,35 +57,85 @@ class AztecSdk extends EventEmitter {
     getAssetInfo(assetId: number): import("@aztec/barretenberg/blockchain").BlockchainAsset;
     isFeePayingAsset(assetId: number): Promise<boolean>;
     isVirtualAsset(assetId: number): boolean;
-    mint({ assetId, value }: AssetValue, account: EthAddress, provider?: EthereumProvider): Promise<TxHash>;
+    mint({ assetId, value }: AssetValue, account: EthAddress, options?: SendTxOptions): Promise<TxHash>;
     setSupportedAsset(assetAddress: EthAddress, assetGasLimit?: number, options?: SendTxOptions): Promise<TxHash>;
     getBridgeAddressId(address: EthAddress, gasLimit?: number): number;
     setSupportedBridge(bridgeAddress: EthAddress, bridgeGasLimit?: number, options?: SendTxOptions): Promise<TxHash>;
     processAsyncDefiInteraction(interactionNonce: number, options?: SendTxOptions): Promise<TxHash>;
-    getDepositFees(assetId: number): Promise<AssetValue[]>;
+    getDepositFees(assetId: number, options?: {
+        feeSignificantFigures?: number;
+    }): Promise<AssetValue[]>;
     getPendingDepositTxs(): Promise<import("@aztec/barretenberg/rollup_provider").DepositTx[]>;
-    createDepositController(depositor: EthAddress, value: AssetValue, fee: AssetValue, recipient: GrumpkinAddress, recipientSpendingKeyRequired?: boolean, feePayer?: FeePayer, provider?: EthereumProvider): DepositController;
-    getWithdrawFees(assetId: number, recipient?: EthAddress): Promise<AssetValue[]>;
-    createWithdrawController(userId: GrumpkinAddress, userSigner: Signer, value: AssetValue, fee: AssetValue, to: EthAddress): WithdrawController;
-    getTransferFees(assetId: number): Promise<AssetValue[]>;
-    createTransferController(userId: GrumpkinAddress, userSigner: Signer, value: AssetValue, fee: AssetValue, recipient: GrumpkinAddress, recipientSpendingKeyRequired?: boolean): TransferController;
-    getDefiFees(bridgeId: BridgeId, userId?: GrumpkinAddress, depositValue?: AssetValue): Promise<{
-        value: bigint;
+    createDepositController(depositor: EthAddress, assetValue: AssetValue, fee: AssetValue, recipient: GrumpkinAddress, recipientSpendingKeyRequired?: boolean, provider?: EthereumProvider): DepositController;
+    getWithdrawFees(assetId: number, options?: GetFeesOptions & {
+        recipient?: EthAddress;
+        assetValue?: AssetValue;
+    }): Promise<AssetValue[]>;
+    getMaxWithdrawValue(userId: GrumpkinAddress, assetId: number, options?: GetMaxTxValueOptions & {
+        recipient?: EthAddress;
+    }): Promise<{
         assetId: number;
-    }[]>;
-    createDefiController(userId: GrumpkinAddress, userSigner: Signer, bridgeId: BridgeId, value: AssetValue, fee: AssetValue): DefiController;
+        value: bigint;
+        fee: {
+            assetId: number;
+            value: bigint;
+        };
+    }>;
+    createWithdrawController(userId: GrumpkinAddress, userSigner: Signer, assetValue: AssetValue, fee: AssetValue, to: EthAddress): WithdrawController;
+    getTransferFees(assetId: number, options?: GetFeesOptions & {
+        assetValue?: AssetValue;
+    }): Promise<AssetValue[]>;
+    getMaxTransferValue(userId: GrumpkinAddress, assetId: number, options?: GetMaxTxValueOptions): Promise<{
+        assetId: number;
+        value: bigint;
+        fee: {
+            assetId: number;
+            value: bigint;
+        };
+    }>;
+    createTransferController(userId: GrumpkinAddress, userSigner: Signer, assetValue: AssetValue, fee: AssetValue, recipient: GrumpkinAddress, recipientSpendingKeyRequired?: boolean): TransferController;
+    getDefiFees(bridgeCallData: BridgeCallData, options?: GetFeesOptions & {
+        assetValue?: AssetValue;
+    }): Promise<AssetValue[]>;
+    getMaxDefiValue(userId: GrumpkinAddress, bridgeCallData: BridgeCallData, options?: Omit<GetMaxTxValueOptions, 'txSettlementTime'> & {
+        txSettlementTime?: DefiSettlementTime;
+    }): Promise<{
+        assetId: number;
+        value: bigint;
+        fee: {
+            assetId: number;
+            value: bigint;
+        };
+    }>;
+    createDefiController(userId: GrumpkinAddress, userSigner: Signer, bridgeCallData: BridgeCallData, assetValue: AssetValue, fee: AssetValue): DefiController;
     generateAccountRecoveryData(accountPublicKey: GrumpkinAddress, alias: string, trustedThirdPartyPublicKeys: GrumpkinAddress[]): Promise<RecoveryPayload[]>;
-    getRegisterFees({ assetId, value: depositValue }: AssetValue): Promise<AssetValue[]>;
-    createRegisterController(userId: GrumpkinAddress, alias: string, accountPrivateKey: Buffer, spendingPublicKey: GrumpkinAddress, recoveryPublicKey: GrumpkinAddress | undefined, deposit: AssetValue, fee: AssetValue, depositor: EthAddress, feePayer?: FeePayer, provider?: EthereumProvider): RegisterController;
-    getRecoverAccountFees(assetId: number): Promise<{
+    getRegisterFees(assetId: number, options?: {
+        feeSignificantFigures?: number;
+    }): Promise<AssetValue[]>;
+    createRegisterController(userId: GrumpkinAddress, alias: string, accountPrivateKey: Buffer, spendingPublicKey: GrumpkinAddress, recoveryPublicKey: GrumpkinAddress | undefined, deposit: AssetValue, fee: AssetValue, depositor?: EthAddress, provider?: EthereumProvider): RegisterController;
+    getRecoverAccountFees(assetId: number, options?: {
+        feeSignificantFigures?: number;
+    }): Promise<AssetValue[]>;
+    createRecoverAccountController(recoveryPayload: RecoveryPayload, deposit: AssetValue, fee: AssetValue, depositor?: EthAddress, provider?: EthereumProvider): RecoverAccountController;
+    getAddSpendingKeyFees(assetId: number, options?: {
+        feeSignificantFigures?: number;
+    }): Promise<{
         value: bigint;
         assetId: number;
     }[]>;
-    createRecoverAccountController(alias: string, recoveryPayload: RecoveryPayload, deposit: AssetValue, fee: AssetValue, depositor: EthAddress, provider?: EthereumProvider): RecoverAccountController;
-    getAddSpendingKeyFees(assetId: number): Promise<AssetValue[]>;
-    createAddSpendingKeyController(userId: GrumpkinAddress, userSigner: Signer, alias: string, spendingPublicKey1: GrumpkinAddress, spendingPublicKey2: GrumpkinAddress | undefined, fee: AssetValue): AddSpendingKeyController;
-    getMigrateAccountFees(assetId: number): Promise<AssetValue[]>;
-    createMigrateAccountController(userId: GrumpkinAddress, userSigner: Signer, alias: string, newAccountPrivateKey: Buffer, newSpendingPublicKey: GrumpkinAddress, recoveryPublicKey: GrumpkinAddress | undefined, fee: AssetValue): MigrateAccountController;
+    createAddSpendingKeyController(userId: GrumpkinAddress, userSigner: Signer, spendingPublicKey1: GrumpkinAddress, spendingPublicKey2: GrumpkinAddress | undefined, fee: AssetValue): AddSpendingKeyController;
+    getMigrateAccountFees(assetId: number, options?: {
+        feeSignificantFigures?: number;
+    }): Promise<{
+        value: bigint;
+        assetId: number;
+    }[]>;
+    createMigrateAccountController(userId: GrumpkinAddress, userSigner: Signer, newAccountPrivateKey: Buffer, newSpendingPublicKey: GrumpkinAddress, recoveryPublicKey: GrumpkinAddress | undefined, deposit: AssetValue, fee: AssetValue, depositor?: EthAddress, provider?: EthereumProvider): MigrateAccountController;
+    getProofTxsFees(assetId: number, proofTxs: Tx[], options?: GetFeesOptions): Promise<{
+        value: bigint;
+        assetId: number;
+    }[]>;
+    createFeeController(userId: GrumpkinAddress, userSigner: Signer, proofTxs: Tx[], fee: AssetValue): FeeController;
     depositFundsToContract({ assetId, value }: AssetValue, from: EthAddress, provider?: EthereumProvider): Promise<TxHash>;
     getUserPendingDeposit(assetId: number, account: EthAddress): Promise<bigint>;
     getUserPendingFunds(assetId: number, account: EthAddress): Promise<bigint>;
@@ -107,7 +161,5 @@ class AztecSdk extends EventEmitter {
     getPaymentTxs(userId: GrumpkinAddress): Promise<UserPaymentTx[]>;
     getAccountTxs(userId: GrumpkinAddress): Promise<UserAccountTx[]>;
     getDefiTxs(userId: GrumpkinAddress): Promise<UserDefiTx[]>;
-    private getTransactionFees;
-    private getAccountFee;
 }
 ```

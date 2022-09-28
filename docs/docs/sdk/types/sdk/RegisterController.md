@@ -1,36 +1,22 @@
 ```ts
-class RegisterController {
+class RegisterController extends DepositHandler {
     readonly userId: GrumpkinAddress;
     readonly alias: string;
     private readonly accountPrivateKey;
     readonly spendingPublicKey: GrumpkinAddress;
     readonly recoveryPublicKey: GrumpkinAddress | undefined;
-    readonly depositValue: AssetValue;
+    readonly deposit: AssetValue;
     readonly fee: AssetValue;
     readonly depositor: EthAddress;
-    readonly feePayer: FeePayer | undefined;
-    private readonly core;
-    private depositController?;
+    protected readonly core: CoreSdkInterface;
     private proofOutput?;
     private txIds;
-    constructor(userId: GrumpkinAddress, alias: string, accountPrivateKey: Buffer, spendingPublicKey: GrumpkinAddress, recoveryPublicKey: GrumpkinAddress | undefined, depositValue: AssetValue, fee: AssetValue, depositor: EthAddress, feePayer: FeePayer | undefined, core: CoreSdkInterface, blockchain: ClientEthereumBlockchain, provider: EthereumProvider);
-    getPendingFunds(): Promise<bigint>;
-    getRequiredFunds(): Promise<bigint>;
-    getPublicAllowance(): Promise<bigint>;
-    approve(): Promise<import("@aztec/barretenberg/blockchain").TxHash | undefined>;
-    awaitApprove(timeout?: number, interval?: number): Promise<void>;
-    depositFundsToContract(permitDeadline?: bigint): Promise<import("@aztec/barretenberg/blockchain").TxHash | undefined>;
-    depositFundsToContractWithNonStandardPermit(permitDeadline: bigint): Promise<import("@aztec/barretenberg/blockchain").TxHash | undefined>;
-    awaitDepositFundsToContract(timeout?: number, interval?: number): Promise<true | undefined>;
+    private requireDeposit;
+    constructor(userId: GrumpkinAddress, alias: string, accountPrivateKey: Buffer, spendingPublicKey: GrumpkinAddress, recoveryPublicKey: GrumpkinAddress | undefined, deposit: AssetValue, fee: AssetValue, depositor: EthAddress, core: CoreSdkInterface, blockchain: ClientEthereumBlockchain, provider: EthereumProvider);
     createProof(): Promise<void>;
-    getProofHash(): Buffer | undefined;
-    getSigningData(): Buffer | undefined;
-    isProofApproved(): Promise<boolean>;
-    approveProof(): Promise<import("@aztec/barretenberg/blockchain").TxHash | undefined>;
-    awaitApproveProof(timeout?: number, interval?: number): Promise<true | undefined>;
-    sign(): Promise<void>;
-    isSignatureValid(): boolean;
+    exportProofTxs(): import("@aztec/barretenberg/rollup_provider").Tx[];
     send(): Promise<TxId>;
     awaitSettlement(timeout?: number): Promise<void>;
+    private getProofOutputs;
 }
 ```
