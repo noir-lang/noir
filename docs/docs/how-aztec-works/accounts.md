@@ -6,11 +6,11 @@ Accounts in Aztec.
 
 ## A Technical Primer on Accounts
 
-There are two main parts to each Aztec account, the account (private/public key pair) and signers. The account is associated with a privacy key that can be used to decrypt [value notes](../glossary#value-notes) (assets on Aztec). The signers are associated with spending keys (or signing keys) which can be used to send notes from the associated account.
+There are two main parts to each Aztec account, the account (private/public key pair) and signers. The account is associated with a [viewing key](../glossary.md#viewing-key) that can be used to decrypt [value notes](../glossary#value-notes) (assets on Aztec). The signers are associated with [spending keys](../glossary.md#spending-key) (or signing keys) which can be used to send notes from the associated account.
 
-An account is just a private/public key pair until it is registered (see the [account registration](#account-registration) section below.) Before an account is registered, the private key is used to decrypt account notes as well as send value notes. The account will **not** have any registered spending keys or an [account alias](#account-alias) until is is registered. Once an account is registered, value notes that are sent to the account can either be marked to be spent by the account private key or the spending keys. It is a best practice for a sender to mark value notes as spendable by the spending keys when an account is registered.
+An account is a single private/public key pair until it is registered (see the [account registration](#account-registration) section below.) Before an account is registered, the private key is used to decrypt account notes as well as send value notes. The account will **not** have any registered spending keys or an [account alias](#account-alias) until is is registered. Once an account is registered, value notes that are sent to the account can either be marked to be spent by the account private key or the spending keys. It is a best practice for a sender to mark value notes as spendable by the spending keys when an account is registered.
 
-The SDK abstracts away much of this complexity to make it easier for developers to follow best practices. For example, when you look up an account by alias (meaning the account has been registered) a transfer automatically marks the notes as spendable by the recipients spending keys. You can still choose to mark value notes sent to an account as spendable by the account private key, but this is not recommended because the recipient have shared that key with an application in order to allow it to decrypt value notes to calculate their note balances.
+The SDK abstracts away much of this complexity to make it easier for developers to follow best practices. For example, when you look up an account by alias (meaning the account has been registered) a transfer automatically marks the notes as spendable by the recipients spending keys. You can still choose to mark value notes sent to an account as spendable by the account private key, but this is not recommended because the recipient may have shared that key with an other parties in order to allow it to decrypt value notes to calculate balances.
 
 ### Compared to Ethereum
 
@@ -22,19 +22,19 @@ In [zk.money](https://zk.money), Aztec accounts are generated using Ethereum acc
 
 ## Users And Accounts
 
-Users in Aztec will use the main account to receive notes and decrypt balances and the signer (or spending key) to spend notes or initiate bridged Ethereum interactions.
+Users in Aztec will use the plain account to receive notes (via their public key) and decrypt balances (with the viewing key) and one of their registered spending keys to spend notes and initiate bridged Ethereum interactions.
 
 ### Account
 
-The privacy account is the first account that is generated for an Aztec user.
+A plain account is the first account that is generated for an Aztec user--it is a simple private/public key pair.
 
-The private key associated with this account can be used to decrypt notes. The private key can also be used to register a distinct spending key. This allows for account abstraction by creating a separation between the key required to decrypt notes (privacy key) and the key required to spend notes (spending key). If a spending key has not been registered, the account private key can be used.
+The private key associated with this account can be used to decrypt notes. The private key can also be used to register many distinct spending keys. This allows for account abstraction by creating a separation between the key required to decrypt notes and the key required to spend notes. If a spending key has not been registered, the account viewing key can be used.
 
 Accounts can be identified by their alias or their public key. You can read more about aliases below. You can also find more information in the [SDK section on account keys](../sdk/usage/add-account#account-keys).
 
 ### Spending keys (signer)
 
-An account should register a signer with a new spending key on the network in order to take advantage of account abstraction.
+An account should register a new spending key on the network in order to take advantage of account abstraction.
 
 When an account is first registered, you can pick a human-readable alias, a spending key and a recovery key. If the spending key is lost, a recovery flow can be initiated by the recovery account specified when the new spending key was registered (account recovery).
 
@@ -48,13 +48,13 @@ Read more about creating and using spending keys in the SDK docs [here](./../sdk
 
 To register a new account, you need to choose an alias and a new spending public key. Optionally, you can include a recovery account public key and a deposit.
 
-Generally, an account with a registered spending key is considered safer than an account that only uses the default account keys. An account without a spending key uses default account private key for note decryption as well as spending notes. When a spending key is registered, the default private key can only be used for decrypting notes and spending must be done with a registered spending key.
+Generally, an account with a registered spending key is considered safer than an account that only uses the default account keys. An account without a spending key uses default account viewing key for note decryption as well as spending notes. When a spending key is registered, the default private key can only be used for decrypting notes and spending must be done with a registered spending key.
 
 Most users will typically use an account with a registered spending key and are thus considered "safe". There are use cases (airdrops) where you might want to use an account that has not yet registered a spending key and is using the default account key for both note decryption and spending. So it is possible to use the system without registering your account.
 
-When you use an unregistered account, your notes are marked as spendable by the account key. It's the sender that defines whether notes are marked spendable with the account key. A sender can check whether an account has registered spending keys before specifying the spending key.
+When you use an unregistered account, your notes are marked as spendable by the account viewing key. The sender can specify whether notes are spendable with the account viewing key. A sender can check whether an account has registered spending keys before specifying the spending key.
 
-You cannot mix the spending of these notes. You can send unspent notes from the default account to yourself, but marked as spendable by the signing key.
+You cannot mix the spending of these notes, the two balances are distinct. It is possible to merge the balances. You would send unspent notes from the plain account to yourself, marking them as spendable by the signing key.
 
 The SDK tries to abstract much of this complexity away and presents everything to a developer as if this notion does not exist (e.g. the account balance is the sum of all notes regardless of registered or not).
 
@@ -66,7 +66,7 @@ Read more about account registration with the SDK on [this page](../sdk/usage/re
 
 ### Account Alias
 
-The main privacy account public key is associated with a human-readable alias when the account registers a new signing key (see below). The alias can be anything (20 alphanumeric, lowercase characters or less) as long as it hasn't been claimed yet.
+The account public key is associated with a human-readable alias when the account registers a new signing key (see below). The alias can be anything (20 alphanumeric, lowercase characters or less) as long as it hasn't been claimed yet.
 
 Do not forget your alias. If you forget your alias you will not be able to share it to make it easy for them to send you asset notes.
 
