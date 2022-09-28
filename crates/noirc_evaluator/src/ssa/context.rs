@@ -932,6 +932,52 @@ impl<'a> SsaContext<'a> {
         }
         None
     }
+
+    //Generate a new variable v and a phi instruction s.t. v = phi(a,b);
+    // c is a counter used to name the variable v for debugging purposes
+    // when a and b are pointers, we create a new array s.t v[i] = phi(a[i],b[i])
+    pub fn new_phi(&mut self, a: NodeId, b: NodeId, c: &mut u32) -> NodeId {
+        if a == NodeId::dummy() || b == NodeId::dummy() {
+            return NodeId::dummy();
+        }
+
+        let exit_block = self.current_block;
+        let block1 = self[exit_block].predecessor[0];
+        let block2 = self[exit_block].predecessor[1];
+
+        let v_type = self.get_object_type(a);
+        let name = format!("if_{}_ret{}", exit_block.0.into_raw_parts().0, c);
+        *c += 1;
+        if let node::ObjectType::Pointer(adr1) = v_type {
+            let len = self.mem[adr1].len;
+            let el_type = self.mem[adr1].element_type;
+            let (id, array_id) = self.new_array(&name, el_type, len, None);
+            for i in 0..len {
+                let index = self
+                    .get_or_create_const(FieldElement::from(i as u128), ObjectType::NativeField);
+                self.current_block = block1;
+                let op = Operation::Load { array_id: adr1, index };
+                let v1 = self.new_instruction(op, el_type).unwrap();
+                self.current_block = block2;
+                let adr2 = super::mem::Memory::deref(self, b).unwrap();
+                let op = Operation::Load { array_id: adr2, index };
+                let v2 = self.new_instruction(op, el_type).unwrap();
+                self.current_block = exit_block;
+                let v = self.new_phi(v1, v2, c);
+                let op = Operation::Store { array_id, index, value: v };
+                self.new_instruction(op, el_type).unwrap();
+            }
+            id
+        } else {
+            let new_var = node::Variable::new(v_type, name, None, exit_block);
+            let v = self.add_variable(new_var, None);
+            let operation = Operation::Phi { root: v, block_args: vec![(a, block1), (b, block2)] };
+            let new_phi = node::Instruction::new(operation, v_type, Some(exit_block));
+            let phi_id = self.add_instruction(new_phi);
+            self[exit_block].instructions.insert(1, phi_id);
+            phi_id
+        }
+    }
 }
 
 impl std::ops::Index<BlockId> for SsaContext<'_> {
