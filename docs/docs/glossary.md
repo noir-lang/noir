@@ -4,11 +4,11 @@ title: Glossary
 
 ### Account
 
-An Aztec account is the user primitive on the network. An account is identified by a public key or an alias and controlled by an account key and optional spending keys. An account key can decrypt value notes or register an account 1 time. See the [Accounts](how-aztec-works/accounts.md) page for more information.
+An Aztec account is the user primitive on the network. See the [Accounts](how-aztec-works/accounts.md) page for more information.
 
 ### Account Key
 
-The private key associated with an account can be used to decrypt notes. The private key can also be used to register a distinct spending keys 1 time. See the [Accounts](how-aztec-works/accounts.md) page for more information.
+See [Viewing Key](#viewing-key).
 
 ### Account Migration
 
@@ -22,7 +22,19 @@ The accounts registered by users on Aztec are represented by account notes. An a
 
 ### Account Recovery
 
-Used when a user loses access to all of their registered [Spending keys](#spending-key).
+Used when a user loses access to all of their registered [Spending keys](#spending-key). Note that a user must have the [viewing key](#viewing-key) in order to recover an account.
+
+Read more about acccount recovery in the SDK docs [here](./sdk/usage/account-recovery.md).
+
+### Account Registration
+
+Registering an account on Aztec associates the account public key with an alias, a spending key and an optional recovery key. A recovery key must be added at registration in order to take advantage of [account recovery](#account-recovery).
+
+Read more about account registration on the [accounts page](../docs/how-aztec-works/accounts.md#account-registration) and in the SDK docs [here](./sdk/usage/register.md).
+
+### Alias
+
+The account public key is associated with a human-readable alias when the account registers a new signing key (see below). The alias can be anything (20 alphanumeric, lowercase characters or less) as long as it hasn't been claimed yet.
 
 ### Asset Ids
 
@@ -47,6 +59,10 @@ Refer to the graphic at the top of [this page](https://medium.com/aztec-protocol
 ### Halloumi
 
 Aztec's Proof creation service. Refer to the graphic at the top of [this page](https://medium.com/aztec-protocol/explaining-the-network-in-aztec-network-166862b3ef7d) to see how it fits in the Aztec architecture.
+
+### Privacy Key
+
+See [Viewing Key](#viewing-key).
 
 ### Rollup Processor Contract
 
@@ -78,3 +94,11 @@ See [Spending Key](#spending-key).
 ### Value Notes
 
 Asset notes (or value notes) are representations of asset in Aztec. They are sent around the network via transactions.
+
+### Viewing Key
+
+Also called the Account key, the privacy key or the decryption key.
+
+This is the private key that is associated with plain (unregistered) Aztec account. This key is used to decrypt notes associated with the account. For an unregistered Aztec account, it is also used to spend notes. It can be used to [register](#account-registration) an account 1 time.
+
+See the [Accounts](how-aztec-works/accounts.md) page for more information.
