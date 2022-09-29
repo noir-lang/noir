@@ -11,6 +11,12 @@ There are two common ways that developers can start building on Aztec.
 
 We are also working on Noir, a domain specific language for creating and verifying proofs. There are some resources to learn more about this project at the bottom of the page.
 
+:::note
+The Aztec core engineering team has a regular release cadence that will occasionally introduce breaking changes. We are working on making this process more transparent and smoother for developers building on Aztec.
+
+We typically have a code freeze on Thursday where recent changes are applied to the testnet. We test and monitor updates over the weekend and will push changes to mainnet if everything looks good.
+:::
+
 ## Building with the SDK
 
 The fastest way to get started developing on Aztec is using the public mainnet fork testnet.
@@ -94,7 +100,7 @@ aztec_backend = { optional = true, git = "https://github.com/noir-lang/aztec_bac
 
 ### Deployed Mainnet Contracts
 
-| Bridge | Contract Address |
+| Contract | Address |
 | --- | --- |
 | [Aztec Connect Proxy](https://etherscan.io/address/0xff1f2b4adb9df6fc8eafecdcbf96a2b351680455#code) |`0xff1f2b4adb9df6fc8eafecdcbf96a2b351680455` |
 | [Element Bridge](https://etherscan.io/address/0xaeD181779A8AAbD8Ce996949853FEA442C2CDB47#code) | `0xaeD181779A8AAbD8Ce996949853FEA442C2CDB47` |
@@ -104,7 +110,7 @@ aztec_backend = { optional = true, git = "https://github.com/noir-lang/aztec_bac
 | [Uniswap DCA Bridge](https://etherscan.io/address/0x94679A39679ffE53B53b6a1187aa1c649A101321#code) | `0x94679A39679ffE53B53b6a1187aa1c649A101321` |
 | [ERC 4626 Bridge](https://etherscan.io/address/0x3578D6D5e1B4F07A48bb1c958CBfEc135bef7d98#code) | `0x3578D6D5e1B4F07A48bb1c958CBfEc135bef7d98` |
 
-You can find the latest deployment info [here](https://github.com/AztecProtocol/aztec-connect-bridges/blob/master/deployments/mainnet.json).
+You can find the latest bridge contract deployment info [here](https://github.com/AztecProtocol/aztec-connect-bridges/blob/master/deployments/mainnet.json).
 
 You can find more infrastructure contract address via the [Falafel status API here](https://api.aztec.network/falafel-mainnet/status).
 
@@ -115,10 +121,12 @@ Join the [Aztec Discord](https://discord.gg/aztec).
 ### Discord Channels
 
 - `#ethbogota` for the hackathon
-- `#💻│aztec-connect` for Bridges / SDK
+- `#💻│aztec-connect` for Bridges + SDK support
 - `#🖤│noir`
 
-### Aztec core team contacts
+### Aztec Core Team Contacts
+
+Please reach out with questions, comments, ideas, etc. Feedback is also appreciated.
 
 | Name | Role | Discord | Telegram | Twitter | Email |
 | --- | ---- | --- | --- | --- | --- |
