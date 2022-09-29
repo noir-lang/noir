@@ -61,7 +61,10 @@ const sidebars = {
       type: 'category',
       label: 'Developers',
       items: [
-        'developers/getting-started'
+        'developers/getting-started',
+        'developers/cli',
+        'developers/bridges',
+        'developers/noir'
       ]
     },
     // {

@@ -38,7 +38,9 @@ The fastest way to get started developing on Aztec is using the public mainnet f
 
 Once you have testnet ETH and setup the SDK, you can start interacting with the Aztec network. You can start registering accounts, making deposits, doing transfers and withdrawals and other things supported by the [SDK](../sdk/overview.md).
 
-You can see how to set up the SDK on the [setup page](../sdk/usage/setup.mdx) or in the command line repo (https://github.com/critesjosh/azteccli/blob/main/src/base.ts). The [overview page](../sdk/overview.md) of the SDK section has more information about using the SDK.
+You can see how to set up the SDK on the [setup page](../sdk/usage/setup.mdx) or in the command line repo (https://github.com/critesjosh/azteccli/blob/main/src/base.ts). The [Command Line Interface](./cli.md) page has more specific info about using the tool.
+
+The [overview page](../sdk/overview.md) of the SDK section has more information about using the SDK.
 
 :::info
 Transaction times are typically slow to settle on the testnet since the testnet mimics mainnet behavior. If you want transactions to settle quickly, be sure to set the `TxSettlementTime` to `INSTANT`. `INSTANT` transactions settle within minutes rather than hours, they just require a larger fee.
@@ -59,6 +61,8 @@ You can check the latest infrastructure and bridge contract addresses via the [t
 
 ## Building an Aztec Connect Bridge Contract
 
+Review the [Getting Started with Aztec Connect Bridges](./bridges.md) page for more details.
+
 The [Aztec Connect bridges GitHub repository](https://github.com/AztecProtocol/aztec-connect-bridges) has the most up to date information about creating a bridge contract.
 
 ### Bridges Resources
@@ -72,6 +76,8 @@ The [Aztec Connect bridges GitHub repository](https://github.com/AztecProtocol/a
 Noir is a Domain Specific Language for SNARK proving systems. It can be used outside of Aztec or blockchain contexts. Noir will be used to create future versions of Aztec and as an integral part of the developer stack for building applications on Aztec.
 
 It has been designed to use any ACIR compatible proving system. It's design choices are influenced heavily by Rust.
+
+Read more about installing and writing Noir on [this page](noir.md).
 
 ### Noir Gotchas
 
