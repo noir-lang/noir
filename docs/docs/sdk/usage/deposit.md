@@ -29,7 +29,6 @@ AztecSdk.createDepositController(
     fee: AssetValue,                  
     recipient: GrumpkinAddress,  
     recipientSpendingKeyRequired?: boolean,
-    feePayer?: FeePayer,
     provider?: EthereumProvider)
         : Promise<DepositController>
 ```
@@ -43,7 +42,6 @@ AztecSdk.createDepositController(
 | fee | [AssetValue](../types/barretenberg/AssetValue) | Type and amount for the Aztec transaction fee. |
 | recipient | [GrupmkinAddress](../types/barretenberg/GrumpkinAddress) | The account public key of the Aztec account. |
 | recipientSpendingKeyRequired? | boolean | Optional flag that specifies whether the recipient account should already be registered. Defaults to `true`.|
-| feePayer? | [FeePayer](../types/sdk/FeePayer) | Optional account to pay the registration fee if the fee is to be paid with funds in Aztec instead of Ethereum. Relevant when depositing assets that can't be used for fees in Aztec (deposit wstETH, pay fees with zkETH) |
 | provider? | [EthereumProvider](../types/barretenberg/EthereumProvider) | Optional Ethereum Provider. When unspecified it defaults to the provider used in setup (`createAztecSdk`). |
 
 #### Returns

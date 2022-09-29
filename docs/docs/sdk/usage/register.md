@@ -26,7 +26,6 @@ AztecSdk.createRegisterController(
     deposit: AssetValue, 
     fee: AssetValue, 
     depositor: EthAddress, 
-    feePayer?: FeePayer, 
     provider?: EthereumProvider) : Promise<RegisterController>;
 ```
 
@@ -42,7 +41,6 @@ AztecSdk.createRegisterController(
 | deposit | [AssetValue](../types/barretenberg/AssetValue) | The `assetId` (number) and `value` (bigint) to deposit. |
 | fee | [AssetValue](../types/barretenberg/AssetValue) | The network fee for registering the account. |
 | depositor | [EthAddress](../types/barretenberg/EthAddress) | The Ethereum account from which to deposit the funds. |
-| feePayer? | [FeePayer](../types/sdk/FeePayer) | Optional account to pay the registration fee if the fee is to be paid with funds in Aztec instead of Ethereum. Relevant when depositing assets that can't be used for fees in Aztec (deposit wstETH, pay fees with zkETH) |
 | provider? | [EthereumProvider](../types/barretenberg/EthereumProvider) | Optional Ethereum Provider. When unspecified it defaults to the provider used in setup (`createAztecSdk`). |
 
 #### Returns
