@@ -34,6 +34,10 @@ For example, the `RegisterController` is used for registering accounts, the `Dep
 
 Aztec accounts may have two or more associated private keys. A new Aztec account should register a unique spending key before handling funds. Please review the [account overview page](../how-aztec-works/accounts) for a high level overview or dig into the code in the [Add Accounts to the SDK page](./usage/add-account).
 
+## Transaction Fee Payers
+
+Aztec allows the account is paying transaction fees for a transaction to be different than the account that is sending assets. You can read more about how to use this functionality on the [Fee Controller page](./usage/feecontroller).
+
 ## SDK Flavours
 
 The SDK comes in 3 flavours. The users environment will typically automatically determine which flavour is used, but it is good to be aware of them because they do have tradeoffs.

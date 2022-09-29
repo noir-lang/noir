@@ -106,6 +106,7 @@ const sidebars = {
             "sdk/usage/transfer",
             "sdk/usage/withdraw",
             "sdk/usage/ethereum-interaction",
+            "sdk/usage/feecontroller"
           ],
         },
         {
