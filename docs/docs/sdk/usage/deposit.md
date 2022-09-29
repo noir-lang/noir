@@ -41,7 +41,7 @@ AztecSdk.createDepositController(
 | value | [AssetValue](../types/barretenberg/AssetValue) | Type and amount of deposit. |
 | fee | [AssetValue](../types/barretenberg/AssetValue) | Type and amount for the Aztec transaction fee. |
 | recipient | [GrupmkinAddress](../types/barretenberg/GrumpkinAddress) | The account public key of the Aztec account. |
-| recipientSpendingKeyRequired? | boolean | Optional flag that specifies whether the recipient account should already be registered. Defaults to `true`.|
+| recipientSpendingKeyRequired? | boolean | Optional flag that specifies whether the recipient account should already be registered. |
 | provider? | [EthereumProvider](../types/barretenberg/EthereumProvider) | Optional Ethereum Provider. When unspecified it defaults to the provider used in setup (`createAztecSdk`). |
 
 #### Returns
@@ -49,6 +49,7 @@ AztecSdk.createDepositController(
 | Return Type | Description |
 | --------- | ----------- |
 | [DepositController](../types/sdk/DepositController) | A user instance with apis bound to the user's account id. |
+
 ### Executing a Deposit
 
 The complete deposit flow for Ether using the `DepositController` looks like this: 
