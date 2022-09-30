@@ -80,7 +80,7 @@ if ((await tokenDepositController.getPendingFunds()) < tokenQuantity) {
 let txId = await tokenDepositController.send();
 ```
 
-Not all ERC-20s (specifically DAI) have correctly implemented the permit spec. So in the case of DAI you call `depositFundsToContractWithNonStandardPermit` instead of `depositFundsToContract`.
+Not all ERC-20s (specifically DAI) have correctly implemented the permit spec. So in the case of DAI you call `depositFundsToContractWithNonStandardPermit` instead of `depositFundsToContract`. Note that the DAI contract has hardcoded chain ids for Ethereum networks ([source](https://github.com/makerdao/developerguides/blob/master/dai/how-to-use-permit-function/how-to-use-permit-function.md#permit-in-the-dai-contract)), so this method won't work on the Aztec testnet.
 
 #### Required Approvals
 
