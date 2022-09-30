@@ -446,6 +446,12 @@ impl<'a> Resolver<'a> {
         }
 
         let return_type = Box::new(self.resolve_type(func.return_type()));
+        if func.name() == "main"
+            && *return_type != Type::Unit
+            && func.def.return_visibility != noirc_abi::AbiFEType::Public
+        {
+            self.push_err(ResolverError::NecessaryPub { ident: func.name_ident().clone() })
+        }
         let mut typ = Type::Function(parameter_types, return_type, BTreeSet::new());
 
         if !generics.is_empty() {
