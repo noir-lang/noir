@@ -82,8 +82,6 @@ let txId = await tokenDepositController.send();
 
 Not all ERC-20s (specifically DAI) have correctly implemented the permit spec. So in the case of DAI you call `depositFundsToContractWithNonStandardPermit` instead of `depositFundsToContract`.
 
-You can review the complete reference script [here](https://github.com/critesjosh/aztec-sdk-starter/blob/mainnet-fork/src/latest/shieldAssets.ts).
-
 #### Required Approvals
 
 When depositing an ERC-20 token like DAI, you will need to approve Aztec as an authorized spender before depositing. The `DepositController` includes a method for this, `DepositController.approve()` which will request approval for the amount required for the deposit.
