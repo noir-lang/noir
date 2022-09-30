@@ -6,8 +6,6 @@ mod arrayprod;
 use arrayprod::ArrayProd;
 mod pred_eq;
 use pred_eq::PredicateEq;
-mod pow_const;
-use pow_const::PowConst;
 mod setpub;
 use setpub::SetPub;
 
@@ -19,7 +17,6 @@ enum BuiltInFunctions {
     ArraySum,
     ArrayProd,
     SetPub,
-    PowConst,
     PredEq,
 }
 
@@ -29,7 +26,6 @@ impl BuiltInFunctions {
             "arraysum" => Some(BuiltInFunctions::ArraySum),
             "arrayprod" => Some(BuiltInFunctions::ArrayProd),
             "set_pub" => Some(BuiltInFunctions::SetPub),
-            "pow_const" => Some(BuiltInFunctions::PowConst),
             "predicate_equal" => Some(BuiltInFunctions::PredEq),
             _ => None,
         }
@@ -62,7 +58,6 @@ pub fn call_builtin(
         BuiltInFunctions::ArraySum => ArraySum::call(evaluator, env, call_expr, location),
         BuiltInFunctions::ArrayProd => ArrayProd::call(evaluator, env, call_expr, location),
         BuiltInFunctions::SetPub => SetPub::call(evaluator, env, call_expr, location),
-        BuiltInFunctions::PowConst => PowConst::call(evaluator, env, call_expr, location),
         BuiltInFunctions::PredEq => PredicateEq::call(evaluator, env, call_expr, location),
     }
 }

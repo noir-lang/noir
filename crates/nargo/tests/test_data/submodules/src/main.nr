@@ -1,6 +1,6 @@
 use mysubmodule::my_helper;
 
-fn main(x: Field, y: Field) {
+fn main(x: u1, y: u1) {
     my_helper();
     mysubmodule::my_bool_or(x, y);
 }
@@ -8,8 +8,8 @@ fn main(x: Field, y: Field) {
 mod mysubmodule {
     use dep::std;
 
-    fn my_bool_or(x: Field, y: Field) {
-        constrain std::bool_or(x, y) == 1;
+    fn my_bool_or(x: u1, y: u1) {
+        constrain x | y == 1;
     }
 
     fn my_helper() {}
