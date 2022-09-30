@@ -95,11 +95,11 @@ You are now equipped to write your first Aztec Connect Bridge! Simply start by r
 
 For more information on how the Aztec rollup contract would call your bridge, check [IDeFiBridge.sol](https://github.com/AztecProtocol/aztec-connect-bridges/blob/master/src/aztec/interfaces/IDefiBridge.sol).
 
-### Bridge Call Data
+### BridgeCallData
 
-In production, a bridge is called by a user creating a client-side proof via the Aztec SDK. These transaction proofs are sent to the sequencer for aggregation. The sequencer then sends the aggregate rollup proof with the sum of all users' proofs with identical `bridgeCallData` to your bridge contract in one go for gas savings and improved privacy.
+In production, a bridge is called by a user creating a client-side proof via the Aztec SDK. These transaction proofs are sent to the sequencer for aggregation. The sequencer then sends the aggregate rollup proof with the sum of all users' proofs with identical `BridgeCallData` ([class definition](../sdk/types/bridge-clients/BridgeData)) to your bridge contract in one go for gas savings and improved privacy.
 
-A `bridgeCallData` uniquely defines the expected inputs/outputs of an L1 interaction. It is a `uint256` that represents a bit-string containing multiple fields. When unpacked its data is used to create a `BridgeData` struct in the rollup contract.
+A `BridgeCallData` uniquely defines the expected inputs/outputs of an L1 interaction. It is a `uint256` that represents a bit-string containing multiple fields. When unpacked its data is used to create a `BridgeData` struct in the rollup contract.
 
 The structure of the bit-string is as follows (starting at the least significant bit):
 
@@ -112,7 +112,7 @@ The structure of the bit-string is as follows (starting at the least significant
 | 122 | 30 | `outputAssetB` | asset id of 2nd output asset |
 | 184 | 64 | `auxData` | custom auxiliary data for bridge-specific logic |
 
-> **Note:** The last 8 bits of the `bridgeCallData` bit-string are wasted as the rollup proving circuits cannot support values of full 256 bits (248 is the largest multiple of 8 that we can use).  
+> **Note:** The last 8 bits of the `BridgeCallData` bit-string are wasted as the rollup proving circuits cannot support values of full 256 bits (248 is the largest multiple of 8 that we can use).  
     
 `bitConfig` definition:
 
@@ -134,15 +134,48 @@ The main objective of unit tests is to demonstrate the bridge works by itself. T
 The main objective of end-to-end (E2E) tests, meanwhile, is to demonstrate the bridge works in a production-like environment. The testing setup should involve mocking the rollup with [`BridgeTestBase.sol`](https://github.com/AztecProtocol/aztec-connect-bridges/blob/master/src/test/aztec/base/BridgeTestBase.sol) and the focus is recommended to be on event emissions and token transfers.
 
 For Foundry users:
+
 ```shell
 forge test --match-contract {BRIDGE_NAME} -vvv
 ```
-    
+
 ### Deployment
 
-The best way to deploy your bridge is through a deployment script. Refer to [`ExampleDeployment.s.sol`](https://github.com/AztecProtocol/aztec-connect-bridges/tree/master/src/deployment/example) and other scripts under [`src/deployment`](https://github.com/AztecProtocol/aztec-connect-bridges/tree/master/src/deployment) for inspirations.
+The best way to deploy your bridge is through a deployment script with Foundry.
 
-For more information on writing an Aztec Connect Bridge, check the [Aztec Connect Bridges repository](https://github.com/AztecProtocol/aztec-connect-bridges) README.
+:::info
+Read more about Solidity scripting with foundry [here](https://book.getfoundry.sh/tutorials/solidity-scripting).
+:::
+
+Refer to [`ExampleDeployment.s.sol`](https://github.com/AztecProtocol/aztec-connect-bridges/tree/master/src/deployment/example) and other scripts under [`src/deployment`](https://github.com/AztecProtocol/aztec-connect-bridges/tree/master/src/deployment) for inspirations.
+
+The following command will run the `deployAndList()` function in `ExampleDeployment.s.sol`. You will need to export a couple of environment variables before running the command.
+
+```shell
+export network=testnet # wont work on mainnet, permissionless bridge listing not enabled yet
+export simulateAdmin=false # to broadcast your deployment to the testnet
+```
+
+```shell
+forge script --fork-url https://mainnet-fork.aztec.network:8545 --private-key $PRIV --legacy --ffi ExampleDeployment --sig "deployAndList()" 
+```
+
+where `$PRIV` is a private key for an Ethereum account on the testnet that has ETH to pay fees.
+
+Some notes on the additional flags in the above command:
+
+- `--ffi` allows us to access stuff outside solidity, so we use it to fetch rollup processor address
+- `--sig` is the function signature that we want to call
+- `--legacy` is because ganache (which the testnet is running on) and eip1559 don't play well
+- `-vvvv` prints trace
+
+Refer to [this section](https://github.com/AztecProtocol/aztec-connect-bridges#writing-a-bridge) of the bridges repo README for more detail.
+
+You can use this command to get all of the deployed assets and bridges on the testnet.
+
+```shell
+forge script --fork-url https://mainnet-fork.aztec.network:8545 --ffi AggregateDeployment --sig "readStats()"
+```
 
 ### Aux Data
 
