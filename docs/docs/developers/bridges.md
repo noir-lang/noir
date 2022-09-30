@@ -162,6 +162,18 @@ forge script --fork-url https://mainnet-fork.aztec.network:8545 --private-key $P
 
 where `$PRIV` is a private key for an Ethereum account on the testnet that has ETH to pay fees.
 
+The bridge id will be printed in the terminal, something similar to:
+
+```
+== Logs ==
+  simulating: testnet
+  Current chain id: 677868
+  Rollup at: 0xca41ca7363323d88598c5d0a8de2c02fb13ab772
+  Deploying example bridge
+  Example bridge deployed to: 0x90c0b9bdcedbac5282451e4d8f8226f6a1bb87cb
+  Example bridge address id: 19
+```
+
 Some notes on the additional flags in the above command:
 
 - `--ffi` allows us to access stuff outside solidity, so we use it to fetch rollup processor address
