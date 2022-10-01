@@ -64,7 +64,8 @@ const sidebars = {
         'developers/getting-started',
         'developers/cli',
         'developers/bridges',
-        'developers/noir'
+        'developers/noir',
+        'developers/addresses'
       ]
     },
     // {
