@@ -25,7 +25,7 @@ Aztec Network is currently deployed to the following networks:
 
 | Contract | Proxy Address | Implementation Address | Source Code |
 |-------|------|------|------|
-| RollupProcessor | ? | ? | x |
+| RollupProcessor | x | xcA41Ca7363323D88598c5D0A8dE2C02FB13ab772 | x |
 | Element Bridge | x | ? | [GitHub](https://github.com/AztecProtocol/aztec-connect-bridges/blob/master/src/bridges/element/ElementBridge.sol) |
 | Yearn Bridge | x | ? | [GitHub](https://github.com/AztecProtocol/aztec-connect-bridges/blob/master/src/bridges/yearn/YearnBridge.sol) |
 | DCA Bridge | x | ? | [GitHub](https://github.com/AztecProtocol/aztec-connect-bridges/blob/master/src/bridges/element/ElementBridge.sol) |
