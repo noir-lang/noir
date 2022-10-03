@@ -95,7 +95,6 @@ impl Monomorphiser {
     /// The main function is special, we need to check for a return type and if present,
     /// insert an extra constrain on the return value.
     fn compile_main(&mut self, main_id: node_interner::FuncId) -> Program {
-        let constants = self.constants();
         let mut main = self.function(main_id, FuncId(0));
         let main_meta = self.interner.function_meta(&main_id);
 
@@ -118,14 +117,7 @@ impl Monomorphiser {
         }
 
         let abi = main_meta.into_abi(&self.interner);
-        Program::new(main, constants, abi)
-    }
-
-    fn constants(&mut self) -> Vec<ast::Expression> {
-        vecmap(self.interner.take_global_consts(), |(id, _)| {
-            let let_statement = self.interner.let_statement(&id);
-            self.let_statement(let_statement)
-        })
+        Program::new(main, abi)
     }
 
     fn function(&mut self, f: node_interner::FuncId, id: FuncId) -> ast::Function {
@@ -196,7 +188,7 @@ impl Monomorphiser {
         use ast::Literal::*;
 
         match self.interner.expression(&expr) {
-            HirExpression::Ident(ident) => ast::Expression::Ident(self.ident(ident)),
+            HirExpression::Ident(ident) => self.ident(ident),
             HirExpression::Literal(HirLiteral::Str(contents)) => Literal(Str(contents)),
             HirExpression::Literal(HirLiteral::Bool(value)) => Literal(Bool(value)),
             HirExpression::Literal(HirLiteral::Integer(value)) => {
@@ -397,11 +389,29 @@ impl Monomorphiser {
         ast::Expression::Block(definitions)
     }
 
-    fn ident(&mut self, ident: HirIdent) -> ast::Ident {
+    /// A local (ie non-global) ident only
+    fn local_ident(&mut self, ident: HirIdent) -> ast::Ident {
         let id = self.lookup_local(ident.id).unwrap();
         let name = self.interner.definition_name(ident.id).to_owned();
         let typ = Self::convert_type(&self.interner.id_type(ident.id));
         ast::Ident { location: Some(ident.location), id, name, typ }
+    }
+
+    fn ident(&mut self, ident: HirIdent) -> ast::Expression {
+        match self.lookup_local(ident.id) {
+            Some(id) => {
+                // Normal local variable
+                let name = self.interner.definition_name(ident.id).to_owned();
+                let typ = Self::convert_type(&self.interner.id_type(ident.id));
+                ast::Expression::Ident(ast::Ident { location: Some(ident.location), id, name, typ })
+            }
+            None => {
+                // If it is not a predefined local, it must be a global that should be inlined
+                let definition = self.interner.definition(ident.id);
+                assert!(definition.is_global);
+                self.expr_infer(definition.rhs.unwrap())
+            }
+        }
     }
 
     /// Convert a non-tuple/struct type to a monomorphised type
@@ -545,10 +555,7 @@ impl Monomorphiser {
 
     fn lvalue(&mut self, lvalue: HirLValue) -> ast::LValue {
         match lvalue {
-            HirLValue::Ident(ident) => {
-                let ident = self.ident(ident);
-                ast::LValue::Ident(ident)
-            }
+            HirLValue::Ident(ident) => ast::LValue::Ident(self.local_ident(ident)),
             HirLValue::MemberAccess { object, field_index, .. } => {
                 let object = Box::new(self.lvalue(*object));
                 ast::LValue::MemberAccess { object, field_index: field_index.unwrap() }

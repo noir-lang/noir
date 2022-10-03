@@ -171,14 +171,13 @@ pub enum Type {
 }
 
 pub struct Program {
-    pub constants: Vec<Expression>,
     pub functions: Vec<Function>,
     pub abi: Abi,
 }
 
 impl Program {
-    pub fn new(main: Function, constants: Vec<Expression>, abi: Abi) -> Program {
-        Program { functions: vec![main], constants, abi }
+    pub fn new(main: Function, abi: Abi) -> Program {
+        Program { functions: vec![main], abi }
     }
 
     pub fn push_function(&mut self, function: Function) {

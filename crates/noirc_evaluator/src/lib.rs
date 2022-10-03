@@ -112,6 +112,7 @@ impl Evaluator {
         program: Program,
         enable_logging: bool,
     ) -> Result<(), RuntimeError> {
+        println!("{}", program);
         let mut igen = IRGenerator::new(program);
         self.parse_abi_alt(&mut igen);
 

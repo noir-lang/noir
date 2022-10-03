@@ -149,6 +149,7 @@ impl IRGenerator {
     }
 
     fn codegen_identifier(&mut self, ident: &Ident) -> Value {
+        println!("Looking up {:?}", ident);
         let value = self.variable_values[&ident.id].clone();
         self.get_current_value(&value)
     }
