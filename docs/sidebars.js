@@ -65,7 +65,7 @@ const sidebars = {
         'developers/cli',
         'developers/bridges',
         'developers/noir',
-        'developers/addresses'
+        'developers/mainnet-info'
       ]
     },
     // {
