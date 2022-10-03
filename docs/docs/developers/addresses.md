@@ -21,6 +21,6 @@ Aztec Network is currently deployed to the following networks:
 | ERC4626 Bridge | x | 0x3578D6D5e1B4F07A48bb1c958CBfEc135bef7d98 | [GitHub](https://github.com/AztecProtocol/aztec-connect-bridges/blob/master/src/bridges/erc4626/ERC4626Bridge.sol) |
 | Element Bridge | x | 0xaeD181779A8AAbD8Ce996949853FEA442C2CDB47 | [GitHub](https://github.com/AztecProtocol/aztec-connect-bridges/blob/master/src/bridges/element/ElementBridge.sol) |
 
-### Aztec Testnet
+### Aztec [Testnet](https://docs.aztec.network/developers/getting-started#testnet-development-configuration)
 
 _Note: Contract addresses change (due to redeployments) whenever the Testnet resets. Contact a dev on [discord](https://discord.gg/T3pr7wNc) if you're looking for a specific address on the Testnet._
