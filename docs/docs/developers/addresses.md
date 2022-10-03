@@ -23,4 +23,4 @@ Aztec Network is currently deployed to the following networks:
 
 ### Aztec Testnet
 
-_Note: Contract addresses change (due to redeployments) whenever Testnet resets. Contact a dev on [discord](https://discord.gg/T3pr7wNc) if you're looking for a specific address on the Testnet._
+_Note: Contract addresses change (due to redeployments) whenever the Testnet resets. Contact a dev on [discord](https://discord.gg/T3pr7wNc) if you're looking for a specific address on the Testnet._
