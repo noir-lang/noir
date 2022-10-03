@@ -231,17 +231,13 @@ impl IRGenerator {
         //REM: we do not check that the nb of inputs correspond to the function signature, it is done in the frontend
 
         //Output:
-        let result_signature = get_result_type(op);
-        let result_type = if result_signature.0 > 1 {
+        let (len, elem_type) = get_result_type(op);
+        let result_type = if len > 1 {
             //We create an array that will contain the result and set the res_type to point to that array
-            let result_index = self.context.mem.create_new_array(
-                result_signature.0,
-                result_signature.1,
-                &format!("{}_result", op),
-            );
+            let result_index = self.new_array(&format!("{}_result", op), elem_type, len, None).1;
             node::ObjectType::Pointer(result_index)
         } else {
-            result_signature.1
+            elem_type
         };
 
         //when the function returns an array, we use ins.res_type(array)

@@ -151,7 +151,7 @@ impl StructType {
     }
 
     pub fn field_names(&self) -> BTreeSet<Ident> {
-        self.fields.iter().map(|(name, _)| name.clone()).collect()
+        self.fields.keys().cloned().collect()
     }
 
     /// Instantiate this struct type, returning a Vec of the new generic args (in

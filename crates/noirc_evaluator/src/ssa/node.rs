@@ -1,7 +1,6 @@
 use std::convert::TryInto;
 
 use crate::errors::{RuntimeError, RuntimeErrorKind};
-use crate::object::Object;
 use acvm::acir::native_types::Witness;
 use acvm::acir::OPCODE;
 use acvm::FieldElement;
@@ -251,13 +250,6 @@ impl ObjectType {
                 BigUint::from_bytes_be(&FieldElement::from(-1_i128).to_bytes())
             }
             _ => (BigUint::one() << self.bits()) - BigUint::one(),
-        }
-    }
-
-    pub fn deref(&self, ctx: &SsaContext) -> ObjectType {
-        match self {
-            ObjectType::Pointer(a) => ctx.mem[*a].element_type,
-            _ => *self,
         }
     }
 
@@ -1222,13 +1214,5 @@ impl BinaryOp {
                 | BinaryOp::Or
                 | BinaryOp::Xor
         )
-    }
-}
-
-pub fn get_witness_from_object(obj: &Object) -> Option<Witness> {
-    match obj {
-        Object::Integer(i) => Some(i.witness),
-        Object::Array(_) => unreachable!("Array has multiple witnesses"),
-        _ => obj.witness(),
     }
 }

@@ -4,7 +4,7 @@ use crate::{
     hir_def::{
         expr::*,
         function::{FuncMeta, Parameters},
-        stmt::{HirAssignStatement, HirLValue, HirPattern, HirStatement, HirLetStatement},
+        stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
     },
     node_interner::{self, NodeInterner, StmtId},
     util::vecmap,
@@ -106,7 +106,7 @@ impl Monomorphiser {
             main.return_type = ast::Type::Unit;
 
             let name = "_".into();
-            let typ = self.convert_type(main_meta.return_type());
+            let typ = Self::convert_type(main_meta.return_type());
             let lhs =
                 Box::new(ast::Expression::Ident(ast::Ident { id, location: None, name, typ }));
             let rhs = Box::new(main.body);
@@ -132,7 +132,7 @@ impl Monomorphiser {
         let meta = self.interner.function_meta(&f);
         let name = self.interner.function_name(&f).to_owned();
 
-        let return_type = self.convert_type(meta.return_type());
+        let return_type = Self::convert_type(meta.return_type());
         let parameters = self.parameters(meta.parameters);
         let body = self.expr_infer(*self.interner.function(&f).as_expr());
 
@@ -164,7 +164,7 @@ impl Monomorphiser {
                 let new_id = self.next_definition_id();
                 let definition = self.interner.definition(ident.id);
                 let name = definition.name.clone();
-                new_params.push((new_id, definition.mutable, name, self.convert_type(typ)));
+                new_params.push((new_id, definition.mutable, name, Self::convert_type(typ)));
                 self.define_local(ident.id, new_id);
             }
             HirPattern::Mutable(pattern, _) => self.parameter(*pattern, typ, new_params),
@@ -200,11 +200,11 @@ impl Monomorphiser {
             HirExpression::Literal(HirLiteral::Str(contents)) => Literal(Str(contents)),
             HirExpression::Literal(HirLiteral::Bool(value)) => Literal(Bool(value)),
             HirExpression::Literal(HirLiteral::Integer(value)) => {
-                let typ = self.convert_type(&self.interner.id_type(expr));
+                let typ = Self::convert_type(&self.interner.id_type(expr));
                 Literal(Integer(value, typ))
             }
             HirExpression::Literal(HirLiteral::Array(array)) => {
-                let element_type = self.convert_type(&self.interner.id_type(array.contents[0]));
+                let element_type = Self::convert_type(&self.interner.id_type(array.contents[0]));
                 let contents = vecmap(array.contents, |id| self.expr_infer(id));
                 Literal(Array(ast::ArrayLiteral { length: array.length, contents, element_type }))
             }
@@ -237,7 +237,7 @@ impl Monomorphiser {
 
             HirExpression::Cast(cast) => ast::Expression::Cast(ast::Cast {
                 lhs: Box::new(self.expr_infer(cast.lhs)),
-                r#type: self.convert_type(&cast.r#type),
+                r#type: Self::convert_type(&cast.r#type),
             }),
 
             HirExpression::For(for_expr) => {
@@ -251,7 +251,7 @@ impl Monomorphiser {
                 ast::Expression::For(ast::For {
                     index_variable,
                     index_name: self.interner.definition_name(for_expr.identifier.id).to_owned(),
-                    index_type: self.convert_type(&self.interner.id_type(for_expr.start_range)),
+                    index_type: Self::convert_type(&self.interner.id_type(for_expr.start_range)),
                     start_range: Box::new(start),
                     end_range: Box::new(end),
                     block,
@@ -314,7 +314,7 @@ impl Monomorphiser {
         for (field_name, expr_id) in constructor.fields {
             let new_id = self.next_definition_id();
             let field_type = field_types.get(&field_name.0.contents).unwrap();
-            let typ = self.convert_type(field_type);
+            let typ = Self::convert_type(field_type);
 
             field_vars.insert(field_name.0.contents.clone(), (new_id, typ));
             let expression = Box::new(self.expr(expr_id, field_type));
@@ -385,7 +385,7 @@ impl Monomorphiser {
         })];
 
         for (i, (field_pattern, field_type)) in fields.into_iter().enumerate() {
-            let typ = self.convert_type(&field_type);
+            let typ = Self::convert_type(&field_type);
             let name = i.to_string();
             let new_rhs =
                 ast::Expression::Ident(ast::Ident { location: None, id: fresh_id, name, typ });
@@ -400,12 +400,12 @@ impl Monomorphiser {
     fn ident(&mut self, ident: HirIdent) -> ast::Ident {
         let id = self.lookup_local(ident.id).unwrap();
         let name = self.interner.definition_name(ident.id).to_owned();
-        let typ = self.convert_type(&self.interner.id_type(ident.id));
+        let typ = Self::convert_type(&self.interner.id_type(ident.id));
         ast::Ident { location: Some(ident.location), id, name, typ }
     }
 
     /// Convert a non-tuple/struct type to a monomorphised type
-    fn convert_type(&self, typ: &HirType) -> ast::Type {
+    fn convert_type(typ: &HirType) -> ast::Type {
         match typ {
             HirType::FieldElement(_) => ast::Type::Field,
             HirType::Integer(_, sign, bits) => ast::Type::Integer(*sign, *bits),
@@ -414,7 +414,7 @@ impl Monomorphiser {
 
             HirType::Array(size, element) => {
                 let size = size.array_length().unwrap_or(0);
-                let element = self.convert_type(element.as_ref());
+                let element = Self::convert_type(element.as_ref());
                 ast::Type::Array(size, Box::new(element))
             }
 
@@ -422,7 +422,7 @@ impl Monomorphiser {
             | HirType::TypeVariable(binding)
             | HirType::NamedGeneric(binding, _) => {
                 if let TypeBinding::Bound(binding) = &*binding.borrow() {
-                    return self.convert_type(binding);
+                    return Self::convert_type(binding);
                 }
 
                 // Default any remaining unbound type variables to Field.
@@ -439,12 +439,12 @@ impl Monomorphiser {
 
             HirType::Struct(def, args) => {
                 let fields = def.borrow().get_fields(args);
-                let fields = vecmap(fields, |(_, field)| self.convert_type(&field));
+                let fields = vecmap(fields, |(_, field)| Self::convert_type(&field));
                 ast::Type::Tuple(fields)
             }
 
             HirType::Tuple(fields) => {
-                let fields = vecmap(fields, |field| self.convert_type(field));
+                let fields = vecmap(fields, Self::convert_type);
                 ast::Type::Tuple(fields)
             }
 

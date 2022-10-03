@@ -17,7 +17,6 @@ use noirc_frontend::monomorphisation::ast::{DefinitionId, FuncId};
 use noirc_frontend::util::vecmap;
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
-use std::convert::TryFrom;
 
 // This is a 'master' class for generating the SSA IR from the AST
 // It contains all the data; the node objects representing the source code in the nodes arena
@@ -550,7 +549,7 @@ impl SsaContext {
         element_type: ObjectType,
         len: u32,
         def_id: Option<DefinitionId>,
-    ) -> NodeId {
+    ) -> (NodeId, ArrayId) {
         let array_index = self.mem.create_new_array(len, element_type, name);
         self.add_dummy_load(array_index);
         self.add_dummy_store(array_index);
@@ -567,22 +566,7 @@ impl SsaContext {
         if let Some(def) = def_id {
             self.mem[array_index].def = def;
         }
-        self.add_variable(new_var, None)
-    }
-
-    pub fn create_array_from_object(
-        &mut self,
-        array: &crate::object::Array,
-        definition: DefinitionId,
-        el_type: node::ObjectType,
-        arr_name: &str,
-    ) -> NodeId {
-        let len = u32::try_from(array.length).unwrap();
-        let result = self.new_array(arr_name, el_type, len, Some(definition));
-        let array_id = self.mem.last_id();
-        self.mem[array_id].set_witness(array);
-
-        result
+        (self.add_variable(new_var, None), array_index)
     }
 
     //returns the value of the element array[index], if it exists in the memory_map
