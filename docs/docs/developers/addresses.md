@@ -23,13 +23,4 @@ Aztec Network is currently deployed to the following networks:
 
 ### Aztec Testnet
 
-| Contract | Proxy Address | Implementation Address | Source Code |
-|-------|------|------|------|
-| RollupProcessor | x | 0xcA41Ca7363323D88598c5D0A8dE2C02FB13ab772 | x |
-| Element Bridge | x | ? | [GitHub](https://github.com/AztecProtocol/aztec-connect-bridges/blob/master/src/bridges/element/ElementBridge.sol) |
-| Yearn Bridge | x | ? | [GitHub](https://github.com/AztecProtocol/aztec-connect-bridges/blob/master/src/bridges/yearn/YearnBridge.sol) |
-| DCA Bridge | x | ? | [GitHub](https://github.com/AztecProtocol/aztec-connect-bridges/blob/master/src/bridges/element/ElementBridge.sol) |
-| Lido Bridge | x | ? | [GitHub](https://github.com/AztecProtocol/aztec-connect-bridges/blob/master/src/bridges/lido/LidoBridge.sol) |
-| CurveStEth Bridge | x | ? | [GitHub](https://github.com/AztecProtocol/aztec-connect-bridges/blob/master/src/bridges/curve/CurveStEthBridge.sol) |
-| ERC4626 Bridge | x | ? | [GitHub](https://github.com/AztecProtocol/aztec-connect-bridges/blob/master/src/bridges/erc4626/ERC4626Bridge.sol) |
-| Element Bridge | x | ? | [GitHub](https://github.com/AztecProtocol/aztec-connect-bridges/blob/master/src/bridges/element/ElementBridge.sol) |
+_Note: Contract addresses change (due to redeployments) whenever Testnet resets. Contact a dev on [discord](https://discord.gg/T3pr7wNc) if you're looking for a specific address on the Testnet._
