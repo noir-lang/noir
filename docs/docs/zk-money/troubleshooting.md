@@ -32,6 +32,25 @@ If you are using Firefox, open the browser console (F12 or right click and selec
 
 ![firefox dev tools](https://user-images.githubusercontent.com/18372439/178279060-8c8b6d58-f0ae-4986-9649-390deaa611cb.png)
 
+## Known issue: Deposited funds not showing in zkmoney wallet balance
+
+Step 1: Clear Site Data - [link](#hung-on-connecting-to-rollup-provider-on-sign-up-or-log-in)
+
+Step 2: Login to https://zk.money/balance, wait till the dashboard has loaded.
+
+Step 3: Open Developer tool (F12). Select all levels in the console including Verbose.
+
+![verbose](https://user-images.githubusercontent.com/4763902/184890333-a23068ae-d181-4038-8e28-f07b3e0f132d.png)
+
+
+Step 4: Right click anywhere in the logs and “Save as…” to download the file.
+
+![2022-08-16 21_00_06-zk money](https://user-images.githubusercontent.com/4763902/184889636-d2f84bfe-0dd1-4005-8573-c54f4b6a6d02.png)
+
+
+Step 5: Open ticket in Discord and send over the file. 
+
+
 ## Frequently Asked Questions
 
 Check the [frequently asked questions page](/how-aztec-works/faq) to see if your problem is addressed there.
