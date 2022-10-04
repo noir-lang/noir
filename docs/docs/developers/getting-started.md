@@ -27,8 +27,7 @@ The fastest way to get started developing on Aztec is using the public mainnet f
    1. Chain ID: `677868`
    2. RPC URL: `https://mainnet-fork.aztec.network`
 2. Get testnet funds
-   1. Use the [faucet](https://aztec-connect-dev-faucet.aztec.network/).
-   2. Ping [@critesjosh_](https://twitter.com/critesjosh_) or joshc#0001 on [the Aztec Discord](https://discord.com/invite/aztec) for larger amounts testnet ETH.
+   1. Ping [@critesjosh_](https://twitter.com/critesjosh_) or joshc#0001 on [the Aztec Discord](https://discord.com/invite/aztec) for larger amounts testnet ETH.
 3. Install the SDK in your project.
    1. `npm install @aztec/sdk`
    2. If you are building a web interface, consider using [this frontend boilerplate code repo](https://github.com/joss-aztec/cra4-aztec-sdk-starter) to get started quickly
