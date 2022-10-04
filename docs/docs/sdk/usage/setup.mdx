@@ -5,9 +5,12 @@ import Image from '@theme/IdealImage';
 
 Setting up the SDK.
 
-This explainer will frequently reference code snippets from [this reference repository](https://github.com/critesjosh/aztec-sdk-starter). You can pull this repo and follow along to run the examples yourself.
+This explainer will frequently reference code snippets from 
+[the CLI reference repository](https://github.com/critesjosh/azteccli). You can pull this repo and follow along to run the examples yourself.
 
-The following examples are written in Typescript and assume a Nodejs execution context. For a browser context example you can refer to the `web-app` directory in the linked repo.
+If you are building a web app, check out the [create react app reference repo](https://github.com/joss-aztec/cra4-aztec-sdk-starter).
+
+The following examples are written in Typescript and assumes users will be creating keys using Metamask in a browser.
 
 ## Install
 
@@ -25,13 +28,11 @@ import { createAztecSdk } from "@aztec/sdk";
 
 You need to set up a connection to an Ethereum network and import a private key. Since this is assuming a Nodejs context there is no direct access to an Ethereum wallet.
 
-Import `EthersAdapter` and `WalletProvider` from `@aztec/sdk` and `JsonRpcProvider` from `@ethersproject/providers`.
+Import `EthersAdapter` from `@aztec/sdk` and `JsonRpcSigner` from `@ethersproject/providers`.
 
 ```ts title="/src/latest/index.ts"
-const ethersProvider = new JsonRpcProvider(process.env.ETHEREUM_HOST);
+const ethersProvider = new ethers.providers.JsonRpcProvider("http://localhost:24012/rpc") // local connection to metamask
 const ethereumProvider = new EthersAdapter(ethersProvider);
-const walletProvider = new WalletProvider(ethereumProvider);
-walletProvider.addAccount(Buffer.from(process.env.ETHEREUM_PRIVATE_KEY, "hex"));
 ```
 
 ## SDK setup
@@ -48,10 +49,10 @@ You can connect to the Aztec sequencer that is connected to Ethereum at:
 https://api.aztec.network/aztec-connect-prod/falafel
 ```
 
-```ts title="/src/latest/index.ts"
+```ts title="/src/base.ts"
 const setupSdk = async () => {
-  sdk = await createAztecSdk(walletProvider, {
-    serverUrl: process.env.ROLLUP_HOST,
+  sdk = await createAztecSdk(ethereumProvider, {
+    serverUrl: "https://api.aztec.network/aztec-connect-testnet/falafel", // testnet
     pollInterval: 1000,
     memoryDb: true,            // set to false to save chain data
     debug: "bb:*",             // print debug logs
@@ -63,11 +64,9 @@ const setupSdk = async () => {
 };
 ```
 
-You can see how to set up the SDK in a browser context in the `web-app` directory of the reference repo [here](https://github.com/critesjosh/aztec-sdk-starter/blob/aa0111251e377722055dbe414fa335f6a6026e11/web-app/pages/index.tsx#L66).
-
 ### Debug
 
-Run `export DEBUG=bb:*` in your terminal before running the Nodejs script to also turn on the debug logs.
+Run `export DEBUG=bb:*` in your terminal before running a Nodejs script to also turn on the debug logs.
 
 ## Browser debugging
 
