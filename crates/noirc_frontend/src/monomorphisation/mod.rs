@@ -288,7 +288,8 @@ impl Monomorphiser {
 
     fn let_statement(&mut self, let_statement: HirLetStatement) -> ast::Expression {
         let expr = self.expr_infer(let_statement.expression);
-        self.unpack_pattern(let_statement.pattern, expr, &let_statement.r#type)
+        let expected_type = self.interner.id_type(let_statement.expression);
+        self.unpack_pattern(let_statement.pattern, expr, &expected_type)
     }
 
     fn constructor(
