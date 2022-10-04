@@ -82,7 +82,7 @@ pub fn evaluate_main<'a>(
     location: noirc_errors::Location,
 ) -> Result<(), RuntimeError> {
     let block = main_func_body.block(igen.def_interner());
-    let actual_return = igen.codegen_block(block.statements(), env);
+    let actual_return = igen.codegen_block(block.statements(), env)?;
 
     if let Some(expected_return) = igen.find_variable(NodeInterner::main_return_id()) {
         let expected_return = expected_return.unwrap_id();
@@ -435,7 +435,9 @@ impl<'a> IRGenerator<'a> {
                     self.bind_pattern(pattern, value)?;
                 }
             }
-            _ => unreachable!(),
+            (pattern, value) => {
+                unreachable!("Unexpected pattern {:?} used with value {:?}", pattern, value)
+            }
         }
         Ok(())
     }
@@ -719,7 +721,7 @@ impl<'a> IRGenerator<'a> {
                 self.codegen_prefix_expression(rhs, prefix.operator).map(Value::Single)
             }
             HirExpression::Literal(l) => Ok(Value::Single(self.codegen_literal(&l))),
-            HirExpression::Block(block) => Ok(self.codegen_block(block.statements(), env)),
+            HirExpression::Block(block) => self.codegen_block(block.statements(), env),
             HirExpression::Error => todo!(),
             HirExpression::MethodCall(_) => {
                 unreachable!("Method calls should be desugared before codegen")
@@ -873,7 +875,7 @@ impl<'a> IRGenerator<'a> {
         let body_block1 = &mut self.context[body_id];
         body_block1.update_variable(iter_id, phi); //TODO try with just a get_current_value(iter)
 
-        self.codegen_block(block.statements(), env);
+        self.codegen_block(block.statements(), env)?;
 
         //increment iter
         let one = self.context.get_or_create_const(FieldElement::one(), iter_type);
@@ -909,12 +911,12 @@ impl<'a> IRGenerator<'a> {
         &mut self,
         block: &[noirc_frontend::node_interner::StmtId],
         env: &mut Environment,
-    ) -> Value {
+    ) -> Result<Value, RuntimeError> {
         let mut last_value = Value::dummy();
         for stmt in block {
-            last_value = self.codegen_statement(env, stmt).unwrap();
+            last_value = self.codegen_statement(env, stmt)?;
         }
-        last_value
+        Ok(last_value)
     }
 
     fn handle_if_expr(

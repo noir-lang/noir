@@ -216,7 +216,7 @@ impl<'a> Evaluator<'a> {
             .keys()
             .cloned()
             .collect::<Vec<StmtId>>();
-        igen.codegen_block(&stmt_ids, env);
+        igen.codegen_block(&stmt_ids, env)?;
 
         // Now call the main function
         let main_func_body = self.context.def_interner.function(&self.main_function);
