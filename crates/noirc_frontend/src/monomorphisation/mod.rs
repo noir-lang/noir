@@ -391,21 +391,16 @@ impl Monomorphiser {
     }
 
     /// A local (ie non-global) ident only
-    fn local_ident(&mut self, ident: HirIdent) -> ast::Ident {
-        let id = self.lookup_local(ident.id).unwrap();
+    fn local_ident(&mut self, ident: &HirIdent) -> Option<ast::Ident> {
+        let id = self.lookup_local(ident.id)?;
         let name = self.interner.definition_name(ident.id).to_owned();
         let typ = Self::convert_type(&self.interner.id_type(ident.id));
-        ast::Ident { location: Some(ident.location), id, name, typ }
+        Some(ast::Ident { location: Some(ident.location), id, name, typ })
     }
 
     fn ident(&mut self, ident: HirIdent) -> ast::Expression {
-        match self.lookup_local(ident.id) {
-            Some(id) => {
-                // Normal local variable
-                let name = self.interner.definition_name(ident.id).to_owned();
-                let typ = Self::convert_type(&self.interner.id_type(ident.id));
-                ast::Expression::Ident(ast::Ident { location: Some(ident.location), id, name, typ })
-            }
+        match self.local_ident(&ident) {
+            Some(ident) => ast::Expression::Ident(ident),
             None => {
                 // If it is not a predefined local, it must be a global that should be inlined
                 let definition = self.interner.definition(ident.id);
@@ -556,7 +551,7 @@ impl Monomorphiser {
 
     fn lvalue(&mut self, lvalue: HirLValue) -> ast::LValue {
         match lvalue {
-            HirLValue::Ident(ident) => ast::LValue::Ident(self.local_ident(ident)),
+            HirLValue::Ident(ident) => ast::LValue::Ident(self.local_ident(&ident).unwrap()),
             HirLValue::MemberAccess { object, field_index, .. } => {
                 let object = Box::new(self.lvalue(*object));
                 ast::LValue::MemberAccess { object, field_index: field_index.unwrap() }
