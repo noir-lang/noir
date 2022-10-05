@@ -15,14 +15,12 @@ fn hash_to_field(_input : [Field]) -> Field {}
 // You must use constants generated for the native field
 // Rounds number should be ~ log(p)/log(exp)
 // For 254 bit primes, exponent 7 and 91 rounds seems to be recommended
-const ROUNDS: Field = 91;
-fn mimc(x: Field, k: Field, constants: [Field;ROUNDS], exp : Field) -> Field {
-    constrain ROUNDS == 91;     //TODO: to remove once global const is working fine
+fn mimc(x: Field, k: Field, constants: [Field], exp : Field) -> Field {
     //round 0
     let mut t = x + k;
     let mut h = crate::pow_32(t,exp);
     //next rounds
-    for i in 1..91 {
+    for i in 1..crate::array::len(constants) {
         t = h + k + constants[i];
         h = crate::pow_32(t,exp);
     };
@@ -31,9 +29,12 @@ fn mimc(x: Field, k: Field, constants: [Field;ROUNDS], exp : Field) -> Field {
 
 
 //mimc implementation with hardcoded parameters for BN254 curve.
-fn mimc_bn254(x: [Field; 4]) -> Field {
+fn mimc_bn254(x: [Field]) -> Field {
+    //mimc parameters
+    let ROUNDS: Field = 91;
+    let exponent = 7;
     //generated from seed "mimc" using keccak256 
-    let constants :[Field;91] = [0, 
+    let constants :[Field; ROUNDS] = [0, 
     20888961410941983456478427210666206549300505294776164667214940546594746570981,
 15265126113435022738560151911929040668591755459209400716467504685752745317193,
 8334177627492981984476504167502758309043212251641796197711684499645635709656,
@@ -125,11 +126,11 @@ fn mimc_bn254(x: [Field; 4]) -> Field {
 18979889247746272055963929241596362599320706910852082477600815822482192194401,
 13602139229813231349386885113156901793661719180900395818909719758150455500533,];
         
-        let mut r = 0;
-        for i in 0..4 {
-            let h = mimc(x[i], r, constants, 7);
-            r = r + x[i] +h;
-        };
-        r
+    let mut r = 0;
+    for i in 0..crate::array::len(x) {
+        let h = mimc(x[i], r, constants, exponent);
+        r = r + x[i] +h;
+    };
+     r
 
 }
