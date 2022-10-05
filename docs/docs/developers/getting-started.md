@@ -25,7 +25,7 @@ The fastest way to get started developing on Aztec is using the public mainnet f
 
 1. Connect Metamask (or other Ethereum wallet) to the testnet
    1. Chain ID: `677868`
-   2. RPC URL: `https://mainnet-fork.aztec.network`
+   2. RPC URL: `https://mainnet-fork.aztec.network:8545`
 2. Get testnet funds
    1. Use the [testnet faucet](https://aztec-connect-testnet-faucet.aztec.network/).
    2. Ping [@critesjosh_](https://twitter.com/critesjosh_) or joshc#0001 on [the Aztec Discord](https://discord.com/invite/aztec) for larger amounts testnet ETH.
