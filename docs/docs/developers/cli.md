@@ -143,7 +143,7 @@ The network of Chain ID `677868` is the Aztec Testnet. It is a test network fork
 
 To access the Testnet with your Metamask, add the network to your wallet using the following parameters:
 
-- **RPC URL:** https://mainnet-fork.aztec.network/
+- **RPC URL:** https://mainnet-fork.aztec.network:8545
 - **Chain ID:** 677868
 - **Currency Symbol:** ETH
 
