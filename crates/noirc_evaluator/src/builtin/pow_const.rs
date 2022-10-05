@@ -2,14 +2,15 @@ use noirc_errors::Location;
 use noirc_frontend::hir_def::expr::HirCallExpression;
 
 use super::BuiltInCaller;
+use crate::interpreter::Interpreter;
 use crate::object::Object;
-use crate::{Environment, Evaluator, RuntimeError};
+use crate::{Environment, RuntimeError};
 
 pub struct PowConst;
 
 impl BuiltInCaller for PowConst {
     fn call(
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
         env: &mut Environment,
         mut call_expr: HirCallExpression,
         location: Location,

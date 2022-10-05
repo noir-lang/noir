@@ -1,6 +1,6 @@
 use std::collections::{hash_map::Entry, HashMap};
 
-use noirc_frontend::node_interner::FuncId;
+use noirc_frontend::monomorphisation::ast::FuncId;
 
 use crate::{
     errors::RuntimeError,

@@ -1,12 +1,12 @@
 use acvm::acir::circuit::Circuit;
 use fm::FileType;
 use noirc_abi::Abi;
-use noirc_errors::DiagnosableError;
-use noirc_errors::Reporter;
-use noirc_evaluator::Evaluator;
+use noirc_errors::{DiagnosableError, Reporter};
+use noirc_evaluator::create_circuit;
 use noirc_frontend::graph::{CrateId, CrateName, CrateType, LOCAL_CRATE};
 use noirc_frontend::hir::def_map::CrateDefMap;
 use noirc_frontend::hir::Context;
+use noirc_frontend::monomorphisation::monomorphise;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
@@ -108,7 +108,6 @@ impl Driver {
     /// and statically analyses the local crate
     pub fn build(&mut self) {
         self.add_std_lib();
-
         self.analyse_crate()
     }
 
@@ -141,6 +140,7 @@ impl Driver {
         show_ssa: bool,
     ) -> CompiledProgram {
         self.build();
+
         // Check the crate type
         // We don't panic here to allow users to `evaluate` libraries
         // which will do nothing
@@ -160,10 +160,10 @@ impl Driver {
         let func_meta = self.context.def_interner.function_meta(&main_function);
         let abi = func_meta.into_abi(&self.context.def_interner);
 
-        let evaluator = Evaluator::new(main_function, &self.context);
+        let ast = monomorphise(main_function, self.context.def_interner);
 
         // Compile Program
-        let circuit = match evaluator.compile(np_language, show_ssa) {
+        let circuit = match create_circuit(ast, np_language, show_ssa) {
             Ok(circuit) => circuit,
             Err(err) => {
                 // The FileId here will be the file id of the file with the main file

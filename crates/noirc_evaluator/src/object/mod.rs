@@ -8,7 +8,7 @@ use acvm::acir::circuit::gate::Gate;
 use acvm::acir::native_types::{Expression, Linear, Witness};
 use acvm::FieldElement;
 
-use crate::Evaluator;
+use crate::interpreter::Interpreter;
 
 use super::errors::RuntimeErrorKind;
 
@@ -32,14 +32,14 @@ impl Object {
         }
     }
 
-    pub fn constrain_zero(&self, evaluator: &mut Evaluator) {
+    pub fn constrain_zero(&self, evaluator: &mut Interpreter) {
         match self {
             Object::Null => unreachable!(),
             Object::Constants(_) => unreachable!("cannot constrain a constant to be zero"),
             Object::Integer(integer) => integer.constrain_zero(evaluator),
             Object::Array(arr) => arr.constrain_zero(evaluator),
-            Object::Arithmetic(arith) => evaluator.gates.push(Gate::Arithmetic(arith.clone())),
-            Object::Linear(linear) => evaluator.gates.push(Gate::Arithmetic((*linear).into())),
+            Object::Arithmetic(arith) => evaluator.push_gate(Gate::Arithmetic(arith.clone())),
+            Object::Linear(linear) => evaluator.push_gate(Gate::Arithmetic((*linear).into())),
         }
     }
     pub fn negate(self) -> Self {

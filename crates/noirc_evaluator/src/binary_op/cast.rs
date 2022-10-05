@@ -1,7 +1,9 @@
-use crate::{Evaluator, Integer, Linear, Object, RuntimeErrorKind, Type};
+use noirc_frontend::Type;
+
+use crate::{interpreter::Interpreter, Integer, Linear, Object, RuntimeErrorKind};
 
 pub fn handle_cast_op(
-    evaluator: &mut Evaluator,
+    evaluator: &mut Interpreter,
     left: Object,
     right: Type,
 ) -> Result<Object, RuntimeErrorKind> {

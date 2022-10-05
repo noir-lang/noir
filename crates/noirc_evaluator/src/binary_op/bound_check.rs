@@ -1,5 +1,5 @@
 use super::sub::handle_sub_op;
-use crate::{Evaluator, FieldElement, Integer, Linear, Object, RuntimeErrorKind};
+use crate::{interpreter::Interpreter, FieldElement, Integer, Linear, Object, RuntimeErrorKind};
 
 // There are three cases:
 // a < b
@@ -17,7 +17,7 @@ fn bound_check(
     lower_bound: Object,
     upper_bound: Object,
     upper_bound_included: bool,
-    evaluator: &mut Evaluator,
+    evaluator: &mut Interpreter,
 ) -> Result<Object, RuntimeErrorKind> {
     let offset = if upper_bound_included { FieldElement::zero() } else { FieldElement::one() };
 
@@ -61,28 +61,28 @@ fn bound_check(
 pub fn handle_less_than_op(
     left: Object,
     right: Object,
-    evaluator: &mut Evaluator,
+    evaluator: &mut Interpreter,
 ) -> Result<Object, RuntimeErrorKind> {
     bound_check(left, right, false, evaluator)
 }
 pub fn handle_less_than_equal_op(
     left: Object,
     right: Object,
-    evaluator: &mut Evaluator,
+    evaluator: &mut Interpreter,
 ) -> Result<Object, RuntimeErrorKind> {
     bound_check(left, right, true, evaluator)
 }
 pub fn handle_greater_than_op(
     left: Object,
     right: Object,
-    evaluator: &mut Evaluator,
+    evaluator: &mut Interpreter,
 ) -> Result<Object, RuntimeErrorKind> {
     bound_check(right, left, false, evaluator)
 }
 pub fn handle_greater_than_equal_op(
     left: Object,
     right: Object,
-    evaluator: &mut Evaluator,
+    evaluator: &mut Interpreter,
 ) -> Result<Object, RuntimeErrorKind> {
     bound_check(right, left, true, evaluator)
 }

@@ -1,6 +1,4 @@
-use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap};
-use std::rc::Rc;
 
 use arena::{Arena, Index};
 use fm::FileId;
@@ -10,24 +8,15 @@ use crate::ast::Ident;
 use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::UnresolvedStruct;
 use crate::hir::def_map::{LocalModuleId, ModuleId};
+use crate::hir_def::stmt::HirLetStatement;
 use crate::hir_def::types::{StructType, Type};
 use crate::hir_def::{
     expr::HirExpression,
     function::{FuncMeta, HirFunction},
-    stmt::{HirLetStatement, HirStatement},
+    stmt::HirStatement,
 };
 use crate::util::vecmap;
-use crate::{TypeBinding, TypeVariableId};
-
-/// The DefinitionId for the return value of the main function.
-/// Used within the ssa pass to put constraints on the "return" value
-/// optionally specified in the prover toml.
-const MAIN_RETURN_ID: DefinitionId = DefinitionId(0);
-
-/// Name of the definition pointed to by MAIN_RETURN_ID.
-/// The name of this variable is deliberately a keyword so that
-/// it cannot be referred to normally.
-const MAIN_RETURN_NAME: &str = "return";
+use crate::{Shared, TypeBinding, TypeBindings, TypeVariableId};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub struct DefinitionId(usize);
@@ -158,7 +147,22 @@ pub struct NodeInterner {
     // Each struct definition is possibly shared across multiple type nodes.
     // It is also mutated through the RefCell during name resolution to append
     // methods from impls to the type.
-    structs: HashMap<StructId, Rc<RefCell<StructType>>>,
+    structs: HashMap<StructId, Shared<StructType>>,
+
+    /// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,
+    /// filled out during type checking from instantiated variables. Used during monomorphisation
+    /// to map callsite types back onto function parameter types, and undo this binding as needed.
+    instantiation_bindings: HashMap<ExprId, TypeBindings>,
+
+    /// Temporary map needed to store the function type of Call expressions since we cannot store
+    /// it on a FuncId for every different call. This can be removed once call expressions can take
+    /// arbitrary expressions in the function position since it would then be stored on the
+    /// variable.
+    function_types: HashMap<ExprId, Type>,
+
+    /// Remembers the field index a given HirMemberAccess expression was resolved to during type
+    /// checking.
+    field_indices: HashMap<ExprId, usize>,
 
     global_constants: HashMap<StmtId, GlobalConstInfo>, // NOTE: currently only used for checking repeat global consts and restricting their scope to a module
 
@@ -188,6 +192,9 @@ impl Default for NodeInterner {
             definitions: vec![],
             id_to_type: HashMap::new(),
             structs: HashMap::new(),
+            instantiation_bindings: HashMap::new(),
+            function_types: HashMap::new(),
+            field_indices: HashMap::new(),
             next_type_variable_id: 0,
             global_constants: HashMap::new(),
         };
@@ -195,14 +202,6 @@ impl Default for NodeInterner {
         // An empty block expression is used often, we add this into the `node` on startup
         let expr_id = interner.push_expr(HirExpression::empty_block());
         assert_eq!(expr_id, ExprId::empty_block_id());
-
-        // Push a fake definition for the public return from main.
-        // Only needed here because the evaluator uses an immutable reference to the interner
-        // This is given the name 'return' which is a keyword to prevent it from being accessed
-        // normally.
-        let return_id = interner.push_definition(MAIN_RETURN_NAME.into(), false, false, None);
-        assert_eq!(return_id, MAIN_RETURN_ID);
-
         interner
     }
 }
@@ -237,27 +236,37 @@ impl NodeInterner {
     pub fn push_empty_struct(&mut self, type_id: StructId, typ: &UnresolvedStruct) {
         self.structs.insert(
             type_id,
-            Rc::new(RefCell::new(StructType {
-                id: type_id,
-                name: typ.struct_def.name.clone(),
-                fields: BTreeMap::new(),
-                // Temporary type variable ids before the struct is resolved to its actual ids.
-                // This lets us record how many arguments the type expects so that other types
-                // can refer to it with generic arguments before the generic parameters themselves
-                // are resolved.
-                generics: vecmap(&typ.struct_def.generics, |_| TypeVariableId(0)),
-                methods: HashMap::new(),
-                span: typ.struct_def.span,
-            })),
+            Shared::new(StructType::new(
+                type_id,
+                typ.struct_def.name.clone(),
+                typ.struct_def.span,
+                BTreeMap::new(),
+                vecmap(&typ.struct_def.generics, |_| {
+                    // Temporary type variable ids before the struct is resolved to its actual ids.
+                    // This lets us record how many arguments the type expects so that other types
+                    // can refer to it with generic arguments before the generic parameters themselves
+                    // are resolved.
+                    let id = TypeVariableId(0);
+                    (id, Shared::new(TypeBinding::Unbound(id)))
+                }),
+            )),
         );
     }
 
-    pub fn update_struct<F>(&mut self, type_id: StructId, f: F)
-    where
-        F: FnOnce(&mut StructType),
-    {
+    pub fn update_struct(&mut self, type_id: StructId, f: impl FnOnce(&mut StructType)) {
         let mut value = self.structs.get_mut(&type_id).unwrap().borrow_mut();
         f(&mut value)
+    }
+
+    /// Returns the interned statement corresponding to `stmt_id`
+    pub fn update_statement(&mut self, stmt_id: &StmtId, f: impl FnOnce(&mut HirStatement)) {
+        let def =
+            self.nodes.get_mut(stmt_id.0).expect("ice: all statement ids should have definitions");
+
+        match def {
+            Node::Statement(stmt) => f(stmt),
+            _ => panic!("ice: all statement ids should correspond to a statement in the interner"),
+        }
     }
 
     /// Modify the type of an expression.
@@ -376,6 +385,7 @@ impl NodeInterner {
             _ => panic!("ice: all statement ids should correspond to a statement in the interner"),
         }
     }
+
     /// Returns the interned let statement corresponding to `stmt_id`
     pub fn let_statement(&self, stmt_id: &StmtId) -> HirLetStatement {
         let def =
@@ -391,6 +401,7 @@ impl NodeInterner {
             _ => panic!("ice: all statement ids should correspond to a statement in the interner"),
         }
     }
+
     /// Returns the interned expression corresponding to `expr_id`
     pub fn expression(&self, expr_id: &ExprId) -> HirExpression {
         let def =
@@ -423,7 +434,7 @@ impl NodeInterner {
         self.id_location(expr_id)
     }
 
-    pub fn get_struct(&self, id: StructId) -> Rc<RefCell<StructType>> {
+    pub fn get_struct(&self, id: StructId) -> Shared<StructType> {
         self.structs[&id].clone()
     }
 
@@ -433,6 +444,10 @@ impl NodeInterner {
 
     pub fn get_all_global_consts(&self) -> HashMap<StmtId, GlobalConstInfo> {
         self.global_constants.clone()
+    }
+
+    pub fn take_global_consts(&mut self) -> HashMap<StmtId, GlobalConstInfo> {
+        std::mem::take(&mut self.global_constants)
     }
 
     /// Returns the type of an item stored in the Interner or Error if it was not found.
@@ -451,14 +466,6 @@ impl NodeInterner {
         *old = Node::Expression(new);
     }
 
-    pub fn main_return_id() -> DefinitionId {
-        MAIN_RETURN_ID
-    }
-
-    pub fn main_return_name() -> &'static str {
-        MAIN_RETURN_NAME
-    }
-
     pub fn next_type_variable_id(&mut self) -> TypeVariableId {
         let id = self.next_type_variable_id;
         self.next_type_variable_id += 1;
@@ -467,6 +474,34 @@ impl NodeInterner {
 
     pub fn next_type_variable(&mut self) -> Type {
         let binding = TypeBinding::Unbound(self.next_type_variable_id());
-        Type::TypeVariable(Rc::new(RefCell::new(binding)))
+        Type::TypeVariable(Shared::new(binding))
+    }
+
+    pub fn store_instantiation_bindings(
+        &mut self,
+        expr_id: ExprId,
+        instantiation_bindings: TypeBindings,
+    ) {
+        self.instantiation_bindings.insert(expr_id, instantiation_bindings);
+    }
+
+    pub fn get_instantiation_bindings(&self, expr_id: ExprId) -> &TypeBindings {
+        &self.instantiation_bindings[&expr_id]
+    }
+
+    pub fn function_type(&self, expr_id: ExprId) -> &Type {
+        &self.function_types[&expr_id]
+    }
+
+    pub fn set_function_type(&mut self, expr_id: ExprId, typ: Type) {
+        self.function_types.insert(expr_id, typ);
+    }
+
+    pub fn get_field_index(&self, expr_id: ExprId) -> usize {
+        self.field_indices[&expr_id]
+    }
+
+    pub fn set_field_index(&mut self, expr_id: ExprId, index: usize) {
+        self.field_indices.insert(expr_id, index);
     }
 }
