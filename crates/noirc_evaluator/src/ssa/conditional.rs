@@ -56,18 +56,12 @@ impl AssumptionId {
 //temporary data used to build the decision tree
 struct TreeBuilder {
     pub join_to_process: Vec<BlockId>,
-    pub join_processed: Vec<BlockId>,
-    // pub current_assumption: AssumptionId,
     pub stack: StackFrame,
 }
 
 impl TreeBuilder {
     pub fn new() -> TreeBuilder {
-        TreeBuilder {
-            join_to_process: Vec::new(),
-            join_processed: Vec::new(),
-            stack: StackFrame::new(BlockId::dummy()),
-        }
+        TreeBuilder { join_to_process: Vec::new(), stack: StackFrame::new(BlockId::dummy()) }
     }
 }
 
@@ -186,19 +180,15 @@ impl DecisionTree {
         ctx: &mut SsaContext,
         current: BlockId,
         data: &mut TreeBuilder,
-    ) -> bool {
+    ) -> Vec<BlockId> {
         data.stack.block = current;
         let mut block_assumption = ctx[current].assumption;
         let assumption = &self[block_assumption];
-
+        let mut result = Vec::new();
         let current_block = &ctx[current];
         let mut if_assumption = None;
         let mut parent = AssumptionId::dummy();
         let mut sibling = true;
-        if let Some(pos) = data.join_processed.iter().position(|value| *value == current) {
-            data.join_processed.swap_remove(pos);
-            return false;
-        }
         let left = current_block.left;
         let right = current_block.right;
         // is it an exit block?
@@ -206,7 +196,6 @@ impl DecisionTree {
             debug_assert!(current == *data.join_to_process.last().unwrap());
             block_assumption = assumption.parent;
             data.join_to_process.pop();
-            data.join_processed.push(current);
         }
         // is it an IF block?
         if let Some(ins) = ctx.get_if_condition(current_block) {
@@ -234,6 +223,7 @@ impl DecisionTree {
             if_decision.exit_block = exit;
             if_assumption = Some(if_decision);
             data.join_to_process.push(exit);
+            result = vec![exit, right.unwrap(), left.unwrap()];
         }
         //Assumptions for the children
         if let Some(if_decision) = if_assumption {
@@ -252,32 +242,30 @@ impl DecisionTree {
             ctx[right.unwrap()].assumption = right_assumption;
         } else if let Some(left) = left {
             ctx[left].assumption = block_assumption;
+            result = vec![left];
+            debug_assert!(right.is_none()); //only IF block should have a right at this stage
         }
 
         ctx[current].assumption = block_assumption;
         self.compute_assumption(ctx, current);
         self.conditionalize_block(ctx, current, &mut data.stack);
-        true
+        result
     }
 
     fn decision_tree(&mut self, ctx: &mut SsaContext, current: BlockId, data: &mut TreeBuilder) {
         let mut queue = vec![current]; //Stack of elements to visit
 
         while let Some(current) = queue.pop() {
-            let process_children = self.process_block(ctx, current, data);
+            let children = self.process_block(ctx, current, data);
 
-            let mut test_and_push = |block_opt| {
-                if let Some(block_id) = block_opt {
-                    if block_id != BlockId::dummy() {
-                        queue.push(block_id);
-                    }
+            let mut test_and_push = |block_id: BlockId| {
+                if block_id != BlockId::dummy() && !queue.contains(&block_id) {
+                    queue.push(block_id);
                 }
             };
 
-            let block = &ctx[current];
-            if process_children {
-                test_and_push(block.left);
-                test_and_push(block.right);
+            for i in children {
+                test_and_push(i);
             }
         }
     }
