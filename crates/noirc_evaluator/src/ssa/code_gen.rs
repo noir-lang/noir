@@ -649,9 +649,9 @@ impl<'a> IRGenerator<'a> {
                                 self,
                                 call_expr.func_id,
                                 fname.as_str(),
+                                &func_meta,
                                 self.context.context(),
                                 env,
-                                &func_meta.parameters,
                                 index,
                             )?;
                         }

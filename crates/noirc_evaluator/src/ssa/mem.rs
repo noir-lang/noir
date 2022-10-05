@@ -20,6 +20,12 @@ pub struct Memory {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ArrayId(u32);
 
+impl ArrayId {
+    pub fn dummy() -> ArrayId {
+        ArrayId(std::u32::MAX)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct MemArray {
     pub id: ArrayId,
