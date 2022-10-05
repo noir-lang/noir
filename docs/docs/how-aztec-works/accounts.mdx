@@ -2,11 +2,28 @@
 title: Accounts
 ---
 
+import Image from '@theme/IdealImage';
+
 Accounts in Aztec.
 
 ## A Technical Primer on Accounts
 
 There are two main parts to each Aztec account, the account (private/public key pair) and signers. The account is associated with a [viewing key](../glossary.md#viewing-key) that can be used to decrypt [value notes](../glossary#value-notes) (assets on Aztec). The signers are associated with [spending keys](../glossary.md#spending-key) (or signing keys) which can be used to send notes from the associated account.
+
+These diagrams provide an overview of the account model and the following text goes into detail on each of the components.
+
+### Basic Aztec Account
+
+<Image img={require('/img/basic-user-acct.png')} />
+
+*The private key for an unregistered, basic account is like the viewing key AND the spending key for the account.*
+
+### Registered Aztec Account
+
+<Image img={require('/img/registered-user-acct.png')} />
+
+*For a registered account, the viewing key and spending key functionality is separated.*
+
 
 An account is a single private/public key pair until it is registered (see the [account registration](#account-registration) section below.) Before an account is registered, the private key is used to decrypt account notes as well as send value notes. The account will **not** have any registered spending keys or an [account alias](#account-alias) until is is registered. Once an account is registered, value notes that are sent to the account can either be marked to be spent by the account private key or the spending keys. It is a best practice for a sender to mark value notes as spendable by the spending keys when an account is registered.
 
