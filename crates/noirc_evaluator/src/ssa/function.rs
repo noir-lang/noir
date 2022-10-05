@@ -240,13 +240,13 @@ pub fn create_function(
     }
     // ensure return types are defined in case of recursion call cycle
     let return_types = func_meta.return_type().flatten();
-    for i in return_types {
-        let res = match i {
+    for typ in return_types {
+        let res = match typ {
             noirc_frontend::Type::Unit => ObjectType::NotAnObject,
             noirc_frontend::Type::Array(_, _) => {
                 ObjectType::Pointer(crate::ssa::mem::ArrayId::dummy())
             }
-            _ => i.into(),
+            _ => typ.into(),
         };
         func.result_types.push(res);
     }
