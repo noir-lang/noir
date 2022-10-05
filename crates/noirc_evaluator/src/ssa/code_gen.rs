@@ -56,10 +56,32 @@ impl Value {
         Value::Single(NodeId::dummy())
     }
 
+    pub fn is_dummy(&self) -> bool {
+        match self {
+            Value::Single(id) => *id == NodeId::dummy(),
+            _ => false,
+        }
+    }
+
     pub fn to_node_ids(&self) -> Vec<NodeId> {
         match self {
             Value::Single(id) => vec![*id],
             Value::Struct(v) => v.iter().flat_map(|i| i.1.to_node_ids()).collect(),
+        }
+    }
+
+    pub fn zip<F>(&self, v2: &Value, func: &mut F) -> Value
+    where
+        F: FnMut(NodeId, NodeId) -> NodeId,
+    {
+        if self.is_dummy() || v2.is_dummy() {
+            return Value::dummy();
+        }
+        match self {
+            Value::Single(id) => Value::Single(func(*id, v2.unwrap_id())),
+            Value::Struct(v) => Value::Struct(
+                v.iter().map(|i| (i.0.clone(), i.1.zip(v2.get_field_member(&i.0), func))).collect(),
+            ),
         }
     }
 
@@ -649,9 +671,9 @@ impl<'a> IRGenerator<'a> {
                                 self,
                                 call_expr.func_id,
                                 fname.as_str(),
+                                &func_meta,
                                 self.context.context(),
                                 env,
-                                &func_meta.parameters,
                                 index,
                             )?;
                         }
@@ -942,13 +964,12 @@ impl<'a> IRGenerator<'a> {
             if cond.is_zero() {
                 //Parse statements of ELSE branch
                 if let Some(alt) = alternative {
-                    self.codegen_expression(env, &alt).map_err(|err| err.remove_span()).unwrap();
+                    return self.codegen_expression(env, &alt);
                 }
                 return Ok(Value::dummy());
             } else {
                 //Parse statements of THEN branch
-                self.codegen_expression(env, cons).map_err(|err| err.remove_span()).unwrap();
-                return Ok(Value::dummy());
+                return self.codegen_expression(env, cons);
             }
         }
         let jump_op = Operation::Jeq(condition, block::BlockId::dummy());
@@ -957,7 +978,7 @@ impl<'a> IRGenerator<'a> {
         //Then block
         block::new_sealed_block(&mut self.context, block::BlockType::Normal, true);
         //Parse statements of THEN branch
-        self.codegen_expression(env, cons).map_err(|err| err.remove_span()).unwrap();
+        let v1 = self.codegen_expression(env, cons).map_err(|err| err.remove_span()).unwrap();
 
         //Exit block
         let exit_block =
@@ -975,8 +996,9 @@ impl<'a> IRGenerator<'a> {
             *target = block2;
         }
         //Parse statements of ELSE branch
+        let mut v2 = Value::dummy();
         if let Some(alt) = alternative {
-            self.codegen_expression(env, &alt).map_err(|err| err.remove_span()).unwrap();
+            v2 = self.codegen_expression(env, &alt).map_err(|err| err.remove_span()).unwrap();
         }
         //Connect with the exit block
         self.context.get_current_block_mut().left = Some(exit_block);
@@ -985,7 +1007,10 @@ impl<'a> IRGenerator<'a> {
         self.context.current_block = exit_block;
         self.context.get_current_block_mut().predecessor.push(block2);
         ssa_form::seal_block(&mut self.context, exit_block);
-        //
-        Ok(Value::dummy())
+
+        // return value:
+        let mut c = 0;
+        let mut phi = |a, b| self.context.new_phi(a, b, &mut c);
+        Ok(v1.zip(&v2, &mut phi))
     }
 }

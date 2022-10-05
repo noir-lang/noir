@@ -5,7 +5,6 @@ use crate::errors::RuntimeError;
 use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use noirc_frontend::hir_def::expr::{HirCallExpression, HirIdent};
-use noirc_frontend::hir_def::function::Parameters;
 use noirc_frontend::hir_def::stmt::HirPattern;
 use noirc_frontend::node_interner::FuncId;
 
@@ -215,9 +214,9 @@ pub fn create_function(
     igen: &mut IRGenerator,
     func_id: FuncId,
     name: &str,
+    func_meta: &noirc_frontend::hir_def::function::FuncMeta,
     context: &noirc_frontend::hir::Context,
     env: &mut Environment,
-    parameters: &Parameters,
     index: FuncIndex,
 ) -> Result<(), RuntimeError> {
     let current_block = igen.context.current_block;
@@ -229,7 +228,7 @@ pub fn create_function(
     let function = context.def_interner.function(&func_id);
     let block = function.block(&context.def_interner);
     //argumemts:
-    for pat in parameters.iter() {
+    for pat in func_meta.parameters.iter() {
         //For now we use the mut property of the argument to indicate if it is modified or not
         //TODO: check instead in the function body whether there is a store for the array
         let ident_ids = param_to_ident(&pat.0, false);
@@ -239,11 +238,24 @@ pub fn create_function(
             func.arguments.extend(e);
         }
     }
+    // ensure return types are defined in case of recursion call cycle
+    let return_types = func_meta.return_type().flatten();
+    for typ in return_types {
+        let res = match typ {
+            noirc_frontend::Type::Unit => ObjectType::NotAnObject,
+            noirc_frontend::Type::Array(_, _) => {
+                ObjectType::Pointer(crate::ssa::mem::ArrayId::dummy())
+            }
+            _ => typ.into(),
+        };
+        func.result_types.push(res);
+    }
 
     igen.function_context = Some(index);
     igen.context.functions.insert(func_id, func.clone());
     let last_value = igen.codegen_block(block.statements(), env)?;
     let returned_values = last_value.to_node_ids();
+    func.result_types.clear();
     for i in &returned_values {
         if let Some(node) = igen.context.try_get_node(*i) {
             func.result_types.push(node.get_type());

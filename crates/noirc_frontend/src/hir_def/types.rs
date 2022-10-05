@@ -894,4 +894,18 @@ impl Type {
             | Type::Unit => false,
         }
     }
+
+    pub fn flatten(&self) -> Vec<Type> {
+        let mut result = Vec::new();
+        match self {
+            Type::Struct(_, generic_args) => {
+                generic_args.iter().for_each(|t| result.append(&mut t.flatten()));
+            }
+            Type::Tuple(fields) => {
+                fields.iter().for_each(|t| result.append(&mut t.flatten()));
+            }
+            _ => result.push(self.clone()),
+        }
+        result
+    }
 }
