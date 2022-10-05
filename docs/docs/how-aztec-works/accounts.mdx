@@ -39,11 +39,11 @@ In [zk.money](https://zk.money), Aztec accounts are generated using Ethereum acc
 
 ## Users And Accounts
 
-Users in Aztec will use the plain account to receive notes (via their public key) and decrypt balances (with the viewing key) and one of their registered spending keys to spend notes and initiate bridged Ethereum interactions.
+Users in Aztec will use the basic account to receive notes (via their public key) and decrypt balances (with the viewing key) and one of their registered spending keys to spend notes and initiate bridged Ethereum interactions.
 
 ### Account
 
-A plain account is the first account that is generated for an Aztec user--it is a simple private/public key pair.
+A basic account is the first account that is generated for an Aztec user--it is a simple private/public key pair.
 
 The private key associated with this account can be used to decrypt notes. The private key can also be used to register many distinct spending keys. This allows for account abstraction by creating a separation between the key required to decrypt notes and the key required to spend notes. If a spending key has not been registered, the account viewing key can be used.
 
@@ -71,7 +71,7 @@ Most users will typically use an account with a registered spending key and are 
 
 When you use an unregistered account, your notes are marked as spendable by the account viewing key. The sender can specify whether notes are spendable with the account viewing key. A sender can check whether an account has registered spending keys before specifying the spending key.
 
-You cannot mix the spending of these notes, the two balances are distinct. It is possible to merge the balances. You would send unspent notes from the plain account to yourself, marking them as spendable by the signing key.
+You cannot mix the spending of these notes, the two balances are distinct. It is possible to merge the balances. You would send unspent notes from the basic account to yourself, marking them as spendable by the signing key.
 
 The SDK tries to abstract much of this complexity away and presents everything to a developer as if this notion does not exist (e.g. the account balance is the sum of all notes regardless of registered or not).
 
@@ -119,7 +119,7 @@ At the current time, your funds would be lost. Our protocol architecture support
 
 ### What is the zk.money username for?
 
-zk.money username/alias lets other users easily lookup your encryption public key so they can send you assets. This name has to be unique and is limited to 20 characters, lowercase, alphanumeric. Please note that this isn’t an ENS domain.
+zk.money username/alias lets other users easily lookup your encryption public key so they can send you assets. This name has to be unique and is limited to 20 characters, lowercase, alphanumeric. Please note that this isn’t an ENS domain, but it serves a similar purpose within the confines of our network.
 
 ---
 
