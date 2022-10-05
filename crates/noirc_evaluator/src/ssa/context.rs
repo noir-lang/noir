@@ -13,19 +13,16 @@ use crate::ssa::function;
 use crate::ssa::node::{Mark, Node};
 use crate::Evaluator;
 use acvm::FieldElement;
-use noirc_frontend::hir::Context;
-use noirc_frontend::node_interner::FuncId;
+use noirc_frontend::monomorphisation::ast::{DefinitionId, FuncId};
 use noirc_frontend::util::vecmap;
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
-use std::convert::TryFrom;
 
 // This is a 'master' class for generating the SSA IR from the AST
 // It contains all the data; the node objects representing the source code in the nodes arena
 // and The CFG in the blocks arena
 // everything else just reference objects from these two arena using their index.
-pub struct SsaContext<'a> {
-    pub context: &'a Context,
+pub struct SsaContext {
     pub first_block: BlockId,
     pub current_block: BlockId,
     blocks: arena::Arena<block::BasicBlock>,
@@ -40,10 +37,9 @@ pub struct SsaContext<'a> {
     dummy_load: HashMap<ArrayId, NodeId>,
 }
 
-impl<'a> SsaContext<'a> {
-    pub fn new(context: &Context) -> SsaContext {
+impl SsaContext {
+    pub fn new() -> SsaContext {
         let mut pc = SsaContext {
-            context,
             first_block: BlockId::dummy(),
             current_block: BlockId::dummy(),
             blocks: arena::Arena::new(),
@@ -250,10 +246,6 @@ impl<'a> SsaContext<'a> {
         }
     }
 
-    pub fn context(&self) -> &'a Context {
-        self.context
-    }
-
     pub fn remove_block(&mut self, block: BlockId) {
         self.blocks.remove(block.0);
     }
@@ -313,7 +305,7 @@ impl<'a> SsaContext<'a> {
         id
     }
 
-    pub fn get_ssafunc(&'a self, func_id: FuncId) -> Option<&SSAFunction> {
+    pub fn get_ssafunc(&self, func_id: FuncId) -> Option<&SSAFunction> {
         self.functions.get(&func_id)
     }
 
@@ -493,17 +485,6 @@ impl<'a> SsaContext<'a> {
         Ok(self.push_instruction(i))
     }
 
-    pub fn new_binary_instruction(
-        &mut self,
-        operator: BinaryOp,
-        lhs: NodeId,
-        rhs: NodeId,
-        optype: ObjectType,
-    ) -> Result<NodeId, RuntimeError> {
-        let operation = Operation::binary(operator, lhs, rhs);
-        self.new_instruction(operation, optype)
-    }
-
     pub fn find_const_with_type(
         &self,
         value: &BigUint,
@@ -567,7 +548,7 @@ impl<'a> SsaContext<'a> {
         name: &str,
         element_type: ObjectType,
         len: u32,
-        def_id: Option<noirc_frontend::node_interner::DefinitionId>,
+        def_id: Option<DefinitionId>,
     ) -> (NodeId, ArrayId) {
         let array_index = self.mem.create_new_array(len, element_type, name);
         self.add_dummy_load(array_index);
@@ -586,21 +567,6 @@ impl<'a> SsaContext<'a> {
             self.mem[array_index].def = def;
         }
         (self.add_variable(new_var, None), array_index)
-    }
-
-    pub fn create_array_from_object(
-        &mut self,
-        array: &crate::object::Array,
-        definition: noirc_frontend::node_interner::DefinitionId,
-        el_type: node::ObjectType,
-        arr_name: &str,
-    ) -> NodeId {
-        let len = u32::try_from(array.length).unwrap();
-        let result = self.new_array(arr_name, el_type, len, Some(definition));
-        let array_id = self.mem.last_id();
-        self.mem[array_id].set_witness(array);
-
-        result.0
     }
 
     //returns the value of the element array[index], if it exists in the memory_map
@@ -932,9 +898,55 @@ impl<'a> SsaContext<'a> {
         }
         None
     }
+
+    //Generate a new variable v and a phi instruction s.t. v = phi(a,b);
+    // c is a counter used to name the variable v for debugging purposes
+    // when a and b are pointers, we create a new array s.t v[i] = phi(a[i],b[i])
+    pub fn new_phi(&mut self, a: NodeId, b: NodeId, c: &mut u32) -> NodeId {
+        if a == NodeId::dummy() || b == NodeId::dummy() {
+            return NodeId::dummy();
+        }
+
+        let exit_block = self.current_block;
+        let block1 = self[exit_block].predecessor[0];
+        let block2 = self[exit_block].predecessor[1];
+
+        let v_type = self.get_object_type(a);
+        let name = format!("if_{}_ret{}", exit_block.0.into_raw_parts().0, c);
+        *c += 1;
+        if let node::ObjectType::Pointer(adr1) = v_type {
+            let len = self.mem[adr1].len;
+            let el_type = self.mem[adr1].element_type;
+            let (id, array_id) = self.new_array(&name, el_type, len, None);
+            for i in 0..len {
+                let index = self
+                    .get_or_create_const(FieldElement::from(i as u128), ObjectType::NativeField);
+                self.current_block = block1;
+                let op = Operation::Load { array_id: adr1, index };
+                let v1 = self.new_instruction(op, el_type).unwrap();
+                self.current_block = block2;
+                let adr2 = super::mem::Memory::deref(self, b).unwrap();
+                let op = Operation::Load { array_id: adr2, index };
+                let v2 = self.new_instruction(op, el_type).unwrap();
+                self.current_block = exit_block;
+                let v = self.new_phi(v1, v2, c);
+                let op = Operation::Store { array_id, index, value: v };
+                self.new_instruction(op, el_type).unwrap();
+            }
+            id
+        } else {
+            let new_var = node::Variable::new(v_type, name, None, exit_block);
+            let v = self.add_variable(new_var, None);
+            let operation = Operation::Phi { root: v, block_args: vec![(a, block1), (b, block2)] };
+            let new_phi = node::Instruction::new(operation, v_type, Some(exit_block));
+            let phi_id = self.add_instruction(new_phi);
+            self[exit_block].instructions.insert(1, phi_id);
+            phi_id
+        }
+    }
 }
 
-impl std::ops::Index<BlockId> for SsaContext<'_> {
+impl std::ops::Index<BlockId> for SsaContext {
     type Output = BasicBlock;
 
     fn index(&self, index: BlockId) -> &Self::Output {
@@ -942,13 +954,13 @@ impl std::ops::Index<BlockId> for SsaContext<'_> {
     }
 }
 
-impl std::ops::IndexMut<BlockId> for SsaContext<'_> {
+impl std::ops::IndexMut<BlockId> for SsaContext {
     fn index_mut(&mut self, index: BlockId) -> &mut Self::Output {
         &mut self.blocks[index.0]
     }
 }
 
-impl std::ops::Index<NodeId> for SsaContext<'_> {
+impl std::ops::Index<NodeId> for SsaContext {
     type Output = NodeObj;
 
     fn index(&self, index: NodeId) -> &Self::Output {
@@ -956,7 +968,7 @@ impl std::ops::Index<NodeId> for SsaContext<'_> {
     }
 }
 
-impl std::ops::IndexMut<NodeId> for SsaContext<'_> {
+impl std::ops::IndexMut<NodeId> for SsaContext {
     fn index_mut(&mut self, index: NodeId) -> &mut Self::Output {
         &mut self.nodes[index.0]
     }

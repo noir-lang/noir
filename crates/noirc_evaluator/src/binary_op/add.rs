@@ -1,11 +1,11 @@
-use crate::{object::Array, Evaluator, Linear, Object, RuntimeErrorKind};
+use crate::{interpreter::Interpreter, object::Array, Linear, Object, RuntimeErrorKind};
 
 // Intentionally chose to write this out manually as it's not expected to change often or at all
 // We could expand again, so that ordering is preserved, but this does not seem necessary.
 pub fn handle_add_op(
     left: Object,
     right: Object,
-    evaluator: &mut Evaluator,
+    evaluator: &mut Interpreter,
 ) -> Result<Object, RuntimeErrorKind> {
     match (left, right) {
         //

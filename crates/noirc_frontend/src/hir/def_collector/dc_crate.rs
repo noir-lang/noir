@@ -14,8 +14,7 @@ use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId};
 use crate::util::vecmap;
 use crate::{
-    Ident, LetStatement, NoirFunction, NoirStruct, ParsedModule, Path, Statement, Type,
-    TypeVariableId,
+    Generics, Ident, LetStatement, NoirFunction, NoirStruct, ParsedModule, Path, Statement, Type,
 };
 use fm::FileId;
 use noirc_errors::CollectedErrors;
@@ -279,16 +278,15 @@ fn resolve_global_constants(
 fn type_check_global_consts(
     interner: &mut NodeInterner,
     global_const_ids: Vec<(FileId, StmtId)>,
-    errors: &mut Vec<CollectedErrors>,
+    all_errors: &mut Vec<CollectedErrors>,
 ) {
     for (file_id, stmt_id) in global_const_ids {
-        let mut type_check_errs = Vec::new();
-        let _stmt_type = type_check(interner, &stmt_id, &mut type_check_errs);
-        let type_check_err_diagnostics = vecmap(type_check_errs, |error| error.into_diagnostic());
+        let mut type_check_errs = vec![];
+        type_check(interner, &stmt_id, &mut type_check_errs);
+        let errors = vecmap(type_check_errs, |error| error.into_diagnostic());
 
-        if !type_check_err_diagnostics.is_empty() {
-            let collected_errors = CollectedErrors { file_id, errors: type_check_err_diagnostics };
-            errors.push(collected_errors)
+        if !errors.is_empty() {
+            all_errors.push(CollectedErrors { file_id, errors });
         }
     }
 }
@@ -312,8 +310,7 @@ fn resolve_structs(
     for (type_id, typ) in structs {
         let (generics, fields) = resolve_struct_fields(context, crate_id, typ, errors);
         context.def_interner.update_struct(type_id, |struct_def| {
-            assert!(struct_def.fields.is_empty());
-            struct_def.fields = fields;
+            struct_def.set_fields(fields);
             struct_def.generics = generics;
         });
     }
@@ -324,7 +321,7 @@ fn resolve_struct_fields(
     krate: CrateId,
     unresolved: UnresolvedStruct,
     errors: &mut Vec<CollectedErrors>,
-) -> (Vec<TypeVariableId>, BTreeMap<Ident, Type>) {
+) -> (Generics, BTreeMap<Ident, Type>) {
     let path_resolver =
         StandardPathResolver::new(ModuleId { local_id: unresolved.module_id, krate });
 

@@ -3,15 +3,16 @@ use noirc_frontend::hir_def::expr::HirCallExpression;
 
 use super::BuiltInCaller;
 use crate::binary_op::maybe_equal;
+use crate::interpreter::Interpreter;
 use crate::object::Object;
-use crate::{Environment, Evaluator, RuntimeError};
+use crate::{Environment, RuntimeError};
 
 /// Returns a 0 or 1, if the two elements are equal
 pub struct PredicateEq;
 
 impl BuiltInCaller for PredicateEq {
     fn call(
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
         env: &mut Environment,
         mut call_expr: HirCallExpression,
         location: Location,

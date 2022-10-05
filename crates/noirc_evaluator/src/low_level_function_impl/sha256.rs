@@ -1,6 +1,7 @@
 use super::{object_to_wit_bits, GadgetCaller};
+use crate::interpreter::Interpreter;
 use crate::object::{Array, Integer, Object};
-use crate::{Environment, Evaluator};
+use crate::Environment;
 use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
 use acvm::acir::OPCODE;
 use noirc_frontend::hir_def::expr::HirCallExpression;
@@ -15,7 +16,7 @@ impl GadgetCaller for Sha256Gadget {
     }
 
     fn call(
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
         env: &mut Environment,
         call_expr: HirCallExpression,
     ) -> Result<Object, RuntimeError> {
@@ -34,7 +35,7 @@ impl GadgetCaller for Sha256Gadget {
 
         let sha256_gate = GadgetCall { name: Sha256Gadget::name(), inputs, outputs };
 
-        evaluator.gates.push(Gate::GadgetCall(sha256_gate));
+        evaluator.push_gate(Gate::GadgetCall(sha256_gate));
 
         let arr = Array { length: contents.len() as u128, contents };
 
@@ -44,7 +45,7 @@ impl GadgetCaller for Sha256Gadget {
 
 impl Sha256Gadget {
     fn prepare_inputs(
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
         env: &mut Environment,
         mut call_expr: HirCallExpression,
     ) -> Result<Vec<GadgetInput>, RuntimeError> {

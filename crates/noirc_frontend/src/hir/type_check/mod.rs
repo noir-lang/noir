@@ -37,7 +37,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     // Check declared return type and actual return type
     if !can_ignore_ret {
         let func_span = interner.expr_span(func_as_expr); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
-        function_last_type.unify(&declared_return_type, func_span, &mut errors, || {
+        function_last_type.make_subtype_of(&declared_return_type, func_span, &mut errors, || {
             TypeCheckError::TypeMismatch {
                 expected_typ: declared_return_type.to_string(),
                 expr_typ: function_last_type.to_string(),
@@ -53,7 +53,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
 /// We can either build a test apparatus or pass raw code through the resolver
 #[cfg(test)]
 mod test {
-    use std::collections::{BTreeSet, HashMap};
+    use std::collections::HashMap;
 
     use fm::FileId;
     use noirc_errors::{Location, Span};
@@ -63,6 +63,7 @@ mod test {
     use crate::hir_def::stmt::HirPattern::Identifier;
     use crate::hir_def::types::Type;
     use crate::node_interner::{FuncId, NodeInterner};
+    use crate::BinaryOpKind;
     use crate::{graph::CrateId, Ident};
     use crate::{
         hir::{
@@ -73,9 +74,7 @@ mod test {
     };
     use crate::{
         hir_def::{
-            expr::{
-                HirBinaryOp, HirBinaryOpKind, HirBlockExpression, HirExpression, HirInfixExpression,
-            },
+            expr::{HirBinaryOp, HirBlockExpression, HirExpression, HirInfixExpression},
             function::{FuncMeta, HirFunction, Param},
             stmt::HirStatement,
         },
@@ -111,7 +110,7 @@ mod test {
         let y_expr_id = interner.push_expr(HirExpression::Ident(y));
 
         // Create Infix
-        let operator = HirBinaryOp { location, kind: HirBinaryOpKind::Add };
+        let operator = HirBinaryOp { location, kind: BinaryOpKind::Add };
         let expr = HirInfixExpression { lhs: x_expr_id, operator, rhs: y_expr_id };
         let expr_id = interner.push_expr(HirExpression::Infix(expr));
         interner.push_expr_location(expr_id, Span::single_char(0), file);
@@ -141,11 +140,7 @@ mod test {
             kind: FunctionKind::Normal,
             attributes: None,
             location,
-            typ: Type::Function(
-                vec![Type::field(None), Type::field(None)],
-                Box::new(Type::Unit),
-                BTreeSet::new(),
-            ),
+            typ: Type::Function(vec![Type::field(None), Type::field(None)], Box::new(Type::Unit)),
             parameters: vec![
                 Param(Identifier(x), Type::field(None), noirc_abi::AbiFEType::Private),
                 Param(Identifier(y), Type::field(None), noirc_abi::AbiFEType::Private),

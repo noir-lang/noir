@@ -1,7 +1,8 @@
 use super::RuntimeErrorKind;
 use crate::errors::RuntimeError;
+use crate::interpreter::Interpreter;
+use crate::Environment;
 use crate::{binary_op::maybe_equal, object::Object};
-use crate::{Environment, Evaluator};
 use acvm::FieldElement;
 use noirc_frontend::hir_def::expr::HirArrayLiteral;
 use noirc_frontend::node_interner::ExprId;
@@ -14,7 +15,7 @@ pub struct Array {
 
 impl Array {
     pub fn from(
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
         env: &mut Environment,
         arr_lit: HirArrayLiteral,
     ) -> Result<Array, RuntimeError> {
@@ -47,7 +48,7 @@ impl Array {
     pub fn sub(
         lhs: Array,
         rhs: Array,
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
     ) -> Result<Array, RuntimeErrorKind> {
         let length = Array::check_arr_len(&lhs, &rhs)?;
         let mut contents = Vec::with_capacity(length);
@@ -58,13 +59,14 @@ impl Array {
 
         Ok(Array { contents, length: length as u128 })
     }
+
     /// Given two arrays A, B
     /// This method creates a new array C
     /// such that C[i] = A[i] + B[i] for all i.
     pub fn add(
         lhs: Array,
         rhs: Array,
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
     ) -> Result<Array, RuntimeErrorKind> {
         let length = Array::check_arr_len(&lhs, &rhs)?;
         let mut contents = Vec::with_capacity(length);
@@ -101,7 +103,7 @@ impl Array {
     pub fn equal(
         lhs: Array,
         rhs: Array,
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
     ) -> Result<(), RuntimeErrorKind> {
         let _ = Array::check_arr_len(&lhs, &rhs)?;
         for (lhs_element, rhs_element) in lhs.contents.into_iter().zip(rhs.contents.into_iter()) {
@@ -114,7 +116,7 @@ impl Array {
     pub fn not_equal(
         lhs: Array,
         rhs: Array,
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
     ) -> Result<(), RuntimeErrorKind> {
         let length = Array::check_arr_len(&lhs, &rhs)?;
 
@@ -148,14 +150,14 @@ impl Array {
     }
 
     /// Constrains all elements in the array to be equal to zero
-    pub fn constrain_zero(&self, evaluator: &mut Evaluator) {
+    pub fn constrain_zero(&self, evaluator: &mut Interpreter) {
         for element in self.contents.iter() {
             element.constrain_zero(evaluator)
         }
     }
 
     pub fn from_expression(
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
         env: &mut Environment,
         expr_id: &ExprId,
     ) -> Result<Array, RuntimeError> {
