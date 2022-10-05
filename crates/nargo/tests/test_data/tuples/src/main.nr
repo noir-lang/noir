@@ -9,9 +9,6 @@ fn main(x: Field, y: Field) {
     constrain a == 0;
     constrain b == 1;
 
-   let cc = if x as u32 <1 { [0,1] } else { [2,3] };
-   constrain cc[0] == 2;
-
     let (u,v) = if x as u32 <1 {
         (x,x+1)
     } else {

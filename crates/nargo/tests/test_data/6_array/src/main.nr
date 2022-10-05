@@ -41,4 +41,8 @@ fn main(x: [u32; 5], y: [u32; 5], mut z: u32, t: u32) {
       };
    };
    constrain (z ==11539);
+
+   //Test 5:
+   let cc = if z < 1 { x } else { y };
+   constrain cc[0] == y[0];
 }
