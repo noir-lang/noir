@@ -143,7 +143,7 @@ pub fn new_unsealed_block(ctx: &mut SsaContext, kind: BlockType, left: bool) -> 
 }
 
 //create a block and sets its id, but do not update current block, and do not add dummy instruction!
-pub fn create_block<'a>(ctx: &'a mut SsaContext, kind: BlockType) -> &'a mut BasicBlock {
+pub fn create_block(ctx: &mut SsaContext, kind: BlockType) -> &mut BasicBlock {
     let new_block = BasicBlock::new(ctx.current_block, kind);
     ctx.insert_block(new_block)
 }

@@ -21,9 +21,8 @@ use crate::hir_def::expr::{
     HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
     HirConstructorExpression, HirExpression, HirForExpression, HirIdent, HirIfExpression,
     HirIndexExpression, HirInfixExpression, HirLiteral, HirMemberAccess, HirMethodCallExpression,
-    HirPrefixExpression, HirUnaryOp,
+    HirPrefixExpression,
 };
-use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::rc::Rc;
 
@@ -38,8 +37,8 @@ use crate::{
     Statement, UnresolvedArraySize,
 };
 use crate::{
-    LValue, NoirStruct, Path, Pattern, StructType, Type, TypeBinding, TypeVariable, TypeVariableId,
-    UnresolvedType, ERROR_IDENT,
+    Generics, LValue, NoirStruct, Path, Pattern, Shared, StructType, Type, TypeBinding,
+    TypeVariable, UnresolvedType, ERROR_IDENT,
 };
 use fm::FileId;
 use noirc_errors::{Location, Span, Spanned};
@@ -71,7 +70,7 @@ pub struct Resolver<'a> {
 
     /// Contains a mapping of the current struct's generics to
     /// unique type variables if we're resolving a struct. Empty otherwise.
-    generics: HashMap<String, (TypeVariable, Span)>,
+    generics: HashMap<Rc<String>, (TypeVariable, Span)>,
 }
 
 impl<'a> Resolver<'a> {
@@ -280,19 +279,20 @@ impl<'a> Resolver<'a> {
 
     /// Translates an UnresolvedType into a Type and appends any
     /// freshly created TypeVariables created to new_variables.
-    fn resolve_type_inner(
-        &mut self,
-        typ: UnresolvedType,
-        new_variables: &mut Vec<TypeVariableId>,
-    ) -> Type {
+    fn resolve_type_inner(&mut self, typ: UnresolvedType, new_variables: &mut Generics) -> Type {
         match typ {
             UnresolvedType::FieldElement(is_const) => Type::FieldElement(is_const),
             UnresolvedType::Array(size, elem) => {
                 let resolved_size = match size {
                     UnresolvedArraySize::Variable => {
                         let id = self.interner.next_type_variable_id();
-                        new_variables.push(id);
-                        Type::type_variable(id)
+                        let typevar = Shared::new(TypeBinding::Unbound(id));
+                        new_variables.push((id, typevar.clone()));
+
+                        // 'Named'Generic is a bit of a misnomer here, we want a type variable that
+                        // wont be bound over but this one has no name since we do not currently
+                        // require users to explicitly be generic over array lengths.
+                        Type::NamedGeneric(typevar, Rc::new("".into()))
                     }
                     UnresolvedArraySize::Fixed(length) => Type::ArrayLength(length),
                     UnresolvedArraySize::FixedVariable(name) => {
@@ -312,8 +312,8 @@ impl<'a> Resolver<'a> {
                 // variables since this is what rust does.
                 if args.is_empty() && path.segments.len() == 1 {
                     let name = &path.last_segment().0.contents;
-                    if let Some((id, _)) = self.generics.get(name) {
-                        return Type::TypeVariable(id.clone());
+                    if let Some((name, (var, _))) = self.generics.get_key_value(name) {
+                        return Type::NamedGeneric(var.clone(), name.clone());
                     }
                 }
 
@@ -374,15 +374,16 @@ impl<'a> Resolver<'a> {
         self.resolve_type_inner(typ, &mut vec![])
     }
 
-    fn add_generics(&mut self, generics: Vec<Ident>) -> Vec<TypeVariableId> {
+    fn add_generics(&mut self, generics: Vec<Ident>) -> Generics {
         vecmap(generics, |generic| {
             // Map the generic to a fresh type variable
             let id = self.interner.next_type_variable_id();
-            let typevar = Rc::new(RefCell::new(TypeBinding::Unbound(id)));
+            let typevar = Shared::new(TypeBinding::Unbound(id));
             let span = generic.0.span();
 
             // Check for name collisions of this generic
-            if let Some(old) = self.generics.insert(generic.0.contents.clone(), (typevar, span)) {
+            let name = Rc::new(generic.0.contents.clone());
+            if let Some(old) = self.generics.insert(name, (typevar.clone(), span)) {
                 let span = generic.0.span();
                 self.errors.push(ResolverError::DuplicateDefinition {
                     name: generic.0.contents,
@@ -390,20 +391,22 @@ impl<'a> Resolver<'a> {
                     second_span: span,
                 })
             }
-            id
+            (id, typevar)
         })
     }
 
     pub fn resolve_struct_fields(
         mut self,
         unresolved: NoirStruct,
-    ) -> (Vec<TypeVariableId>, BTreeMap<Ident, Type>, Vec<ResolverError>) {
+    ) -> (Generics, BTreeMap<Ident, Type>, Vec<ResolverError>) {
         let generics = self.add_generics(unresolved.generics);
+
         let fields = unresolved
             .fields
             .into_iter()
             .map(|(ident, typ)| (ident, self.resolve_type(typ)))
             .collect();
+
         (generics, fields, self.errors)
     }
 
@@ -421,9 +424,9 @@ impl<'a> Resolver<'a> {
         assert_eq!(self.generics.len(), func.def.generics.len());
         let mut generics = vecmap(&func.def.generics, |generic| {
             // Always expect self.generics to contain all the generics of this function
-            let typevar = self.generics.get(generic.0.contents.as_str()).unwrap();
+            let typevar = self.generics.get(&generic.0.contents).unwrap();
             match &*typevar.0.borrow() {
-                TypeBinding::Unbound(id) => *id,
+                TypeBinding::Unbound(id) => (*id, typevar.0.clone()),
                 TypeBinding::Bound(binding) => unreachable!(
                     "Expected {} to be unbound, but it is bound to {}",
                     generic, binding
@@ -446,13 +449,15 @@ impl<'a> Resolver<'a> {
         }
 
         let return_type = Box::new(self.resolve_type(func.return_type()));
+
         if func.name() == "main"
             && *return_type != Type::Unit
             && func.def.return_visibility != noirc_abi::AbiFEType::Public
         {
             self.push_err(ResolverError::NecessaryPub { ident: func.name_ident().clone() })
         }
-        let mut typ = Type::Function(parameter_types, return_type, BTreeSet::new());
+
+        let mut typ = Type::Function(parameter_types, return_type);
 
         if !generics.is_empty() {
             typ = Type::Forall(generics, Box::new(typ));
@@ -506,7 +511,7 @@ impl<'a> Resolver<'a> {
             LValue::Ident(ident) => HirLValue::Ident(self.find_variable(&ident)),
             LValue::MemberAccess { object, field_name } => {
                 let object = Box::new(self.resolve_lvalue(*object));
-                HirLValue::MemberAccess { object, field_name }
+                HirLValue::MemberAccess { object, field_name, field_index: None }
             }
             LValue::Index { array, index } => {
                 let array = Box::new(self.resolve_lvalue(*array));
@@ -534,7 +539,7 @@ impl<'a> Resolver<'a> {
                 Literal::Str(str) => HirLiteral::Str(str),
             }),
             ExpressionKind::Prefix(prefix) => {
-                let operator: HirUnaryOp = prefix.operator.into();
+                let operator = prefix.operator;
                 let rhs = self.resolve_expression(prefix.rhs);
                 HirExpression::Prefix(HirPrefixExpression { operator, rhs })
             }
@@ -754,14 +759,14 @@ impl<'a> Resolver<'a> {
         ret
     }
 
-    pub fn get_struct(&self, type_id: StructId) -> Rc<RefCell<StructType>> {
+    pub fn get_struct(&self, type_id: StructId) -> Shared<StructType> {
         self.interner.get_struct(type_id)
     }
 
-    fn get_field_names_of_type(&self, type_id: StructId) -> HashSet<Ident> {
+    fn get_field_names_of_type(&self, type_id: StructId) -> BTreeSet<Ident> {
         let typ = self.get_struct(type_id);
         let typ = typ.borrow();
-        typ.fields.iter().map(|(name, _)| name.clone()).collect()
+        typ.field_names()
     }
 
     fn lookup<T: TryFromModuleDefId>(&mut self, path: Path) -> T {
@@ -799,7 +804,7 @@ impl<'a> Resolver<'a> {
         self.lookup(path)
     }
 
-    pub fn lookup_struct(&mut self, path: Path) -> Option<Rc<RefCell<StructType>>> {
+    pub fn lookup_struct(&mut self, path: Path) -> Option<Shared<StructType>> {
         let id = self.lookup_type(path);
         (id != StructId::dummy_id()).then(|| self.get_struct(id))
     }

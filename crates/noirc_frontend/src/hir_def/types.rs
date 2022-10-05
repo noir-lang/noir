@@ -14,17 +14,77 @@ use crate::{
     Ident, Signedness,
 };
 
-pub type TypeBindings = HashMap<TypeVariableId, Type>;
+/// A shared, mutable reference to some T.
+/// Wrapper is required for Hash impl of RefCell.
+#[derive(Debug, Eq, PartialOrd, Ord)]
+pub struct Shared<T>(Rc<RefCell<T>>);
+
+impl<T: std::hash::Hash> std::hash::Hash for Shared<T> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.borrow().hash(state)
+    }
+}
+
+impl<T: PartialEq> PartialEq for Shared<T> {
+    fn eq(&self, other: &Self) -> bool {
+        let ref1 = self.0.borrow();
+        let ref2 = other.0.borrow();
+        *ref1 == *ref2
+    }
+}
+
+impl<T> Clone for Shared<T> {
+    fn clone(&self) -> Self {
+        Shared(self.0.clone())
+    }
+}
+
+impl<T> From<T> for Shared<T> {
+    fn from(thing: T) -> Shared<T> {
+        Shared::new(thing)
+    }
+}
+
+impl<T> Shared<T> {
+    pub fn new(thing: T) -> Shared<T> {
+        Shared(Rc::new(RefCell::new(thing)))
+    }
+
+    pub fn borrow(&self) -> std::cell::Ref<T> {
+        self.0.borrow()
+    }
+
+    pub fn borrow_mut(&self) -> std::cell::RefMut<T> {
+        self.0.borrow_mut()
+    }
+}
+
+/// A list of TypeVariableIds to bind to a type. Storing the
+/// TypeVariable in addition to the matching TypeVariableId allows
+/// the binding to later be undone if needed.
+pub type TypeBindings = HashMap<TypeVariableId, (TypeVariable, Type)>;
 
 #[derive(Debug, Eq)]
 pub struct StructType {
     pub id: StructId,
     pub name: Ident,
-    /// Fields are ordered
-    pub fields: BTreeMap<Ident, Type>,
-    pub generics: Vec<TypeVariableId>,
+
+    /// Fields are ordered and private, they should only
+    /// be accessed through get_field(), get_fields(), or instantiate()
+    /// since these will handle applying generic arguments to fields as well.
+    fields: BTreeMap<Ident, Type>,
+
+    pub generics: Generics,
     pub methods: HashMap<String, FuncId>,
     pub span: Span,
+}
+
+pub type Generics = Vec<(TypeVariableId, TypeVariable)>;
+
+impl std::hash::Hash for StructType {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state)
+    }
 }
 
 impl PartialEq for StructType {
@@ -38,25 +98,60 @@ impl StructType {
         id: StructId,
         name: Ident,
         span: Span,
-        fields: Vec<(Ident, Type)>,
-        generics: Vec<TypeVariableId>,
+        fields: BTreeMap<Ident, Type>,
+        generics: Generics,
     ) -> StructType {
-        let fields = fields.into_iter().collect();
         StructType { id, fields, name, span, generics, methods: HashMap::new() }
     }
 
-    pub fn get_field(&self, field_name: &str, generic_args: &[Type]) -> Option<Type> {
-        self.fields.iter().find(|(name, _)| name.0.contents == field_name).map(|(_, typ)| {
-            assert_eq!(self.generics.len(), generic_args.len());
-            let substitutions = self
-                .generics
-                .iter()
-                .zip(generic_args)
-                .map(|(old, new)| (*old, new.clone()))
-                .collect();
+    pub fn set_fields(&mut self, fields: BTreeMap<Ident, Type>) {
+        assert!(self.fields.is_empty());
+        self.fields = fields;
+    }
 
-            typ.substitute(&substitutions)
-        })
+    pub fn num_fields(&self) -> usize {
+        self.fields.len()
+    }
+
+    /// Returns the field matching the given field name, as well as its field index.
+    pub fn get_field(&self, field_name: &str, generic_args: &[Type]) -> Option<(Type, usize)> {
+        assert_eq!(self.generics.len(), generic_args.len());
+
+        self.fields.iter().enumerate().find(|(_, (name, _))| name.0.contents == field_name).map(
+            |(i, (_, typ))| {
+                let substitutions = self
+                    .generics
+                    .iter()
+                    .zip(generic_args)
+                    .map(|((old_id, old_var), new)| (*old_id, (old_var.clone(), new.clone())))
+                    .collect();
+
+                (typ.substitute(&substitutions), i)
+            },
+        )
+    }
+
+    pub fn get_fields(&self, generic_args: &[Type]) -> BTreeMap<String, Type> {
+        assert_eq!(self.generics.len(), generic_args.len());
+
+        let substitutions = self
+            .generics
+            .iter()
+            .zip(generic_args)
+            .map(|((old_id, old_var), new)| (*old_id, (old_var.clone(), new.clone())))
+            .collect();
+
+        self.fields
+            .iter()
+            .map(|(name, typ)| {
+                let name = name.0.contents.clone();
+                (name, typ.substitute(&substitutions))
+            })
+            .collect()
+    }
+
+    pub fn field_names(&self) -> BTreeSet<Ident> {
+        self.fields.keys().cloned().collect()
     }
 
     /// Instantiate this struct type, returning a Vec of the new generic args (in
@@ -68,9 +163,9 @@ impl StructType {
         let (generics, substitutions) = self
             .generics
             .iter()
-            .map(|old| {
+            .map(|(old_id, old_var)| {
                 let new = interner.next_type_variable();
-                (new.clone(), (*old, new))
+                (new.clone(), (*old_id, (old_var.clone(), new)))
             })
             .unzip();
 
@@ -93,7 +188,7 @@ impl std::fmt::Display for StructType {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Type {
     FieldElement(IsConst),
     Array(Box<Type>, Box<Type>),       // Array(4, Field) = [Field; 4]
@@ -101,18 +196,23 @@ pub enum Type {
     PolymorphicInteger(IsConst, TypeVariable),
     Bool(IsConst),
     Unit,
-    Struct(Rc<RefCell<StructType>>, Vec<Type>),
+    Struct(Shared<StructType>, Vec<Type>),
     Tuple(Vec<Type>),
     TypeVariable(TypeVariable),
 
-    /// A functions with arguments, a return type, and
-    /// a set of possible function ids it may refer to.
-    /// The function id set is hidden from users and only
-    /// used to monomorphise away most higher order functions.
-    Function(Vec<Type>, Box<Type>, BTreeSet<FuncId>),
+    /// NamedGenerics are the 'T' or 'U' in a user-defined generic function
+    /// like `fn foo<T, U>(...) {}`. Unlike TypeVariables, they cannot be bound over.
+    NamedGeneric(TypeVariable, Rc<String>),
 
-    /// A type generic over the given type variables
-    Forall(Vec<TypeVariableId>, Box<Type>),
+    /// A functions with arguments, and a return type.
+    Function(Vec<Type>, Box<Type>),
+
+    /// A type generic over the given type variables.
+    /// Storing both the TypeVariableId and TypeVariable isn't necessary
+    /// but it makes handling them both easier. The TypeVariableId should
+    /// never be bound over during type checking, but during monomorphisation it
+    /// will be and thus needs the full TypeVariable link.
+    Forall(Generics, Box<Type>),
 
     /// A type-level integer. Included to let an Array's size type variable
     /// bind to an integer without special checks to bind it to a non-type.
@@ -121,9 +221,9 @@ pub enum Type {
     Error,
 }
 
-pub type TypeVariable = Rc<RefCell<TypeBinding>>;
+pub type TypeVariable = Shared<TypeBinding>;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TypeBinding {
     Bound(Type),
     Unbound(TypeVariableId),
@@ -132,13 +232,45 @@ pub enum TypeBinding {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct TypeVariableId(pub usize);
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Eq)]
 pub enum IsConst {
     // Yes and No variants have optional spans representing the location in the source code
     // which caused them to be const.
     Yes(Option<Span>),
     No(Option<Span>),
     Maybe(TypeVariableId, Rc<RefCell<Option<IsConst>>>),
+}
+
+impl std::hash::Hash for IsConst {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        core::mem::discriminant(self).hash(state);
+
+        if let IsConst::Maybe(id, binding) = self {
+            if let Some(is_const) = &*binding.borrow() {
+                is_const.hash(state);
+            } else {
+                id.hash(state);
+            }
+        }
+    }
+}
+
+impl PartialEq for IsConst {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (IsConst::Maybe(id1, binding1), IsConst::Maybe(id2, binding2)) => {
+                if let Some(new_self) = &*binding1.borrow() {
+                    return new_self == other;
+                }
+                if let Some(new_other) = &*binding2.borrow() {
+                    return self == new_other;
+                }
+                id1 == id2
+            }
+            (IsConst::Yes(_), IsConst::Yes(_)) | (IsConst::No(_), IsConst::No(_)) => true,
+            _ => false,
+        }
+    }
 }
 
 /// Internal enum for `unify` to remember the type context of each span
@@ -201,7 +333,7 @@ impl IsConst {
             (IsConst::Yes(_), IsConst::Yes(_))
             | (IsConst::No(_), IsConst::No(_))
 
-            // This is the only differing case between this and IsConst::unify
+            // This is one of the only 2 differing cases between this and IsConst::unify
             | (IsConst::Yes(_), IsConst::No(_)) => Ok(()),
 
             (IsConst::No(n), IsConst::Yes(y)) => {
@@ -213,6 +345,11 @@ impl IsConst {
             }
 
             (IsConst::Maybe(id1, _), IsConst::Maybe(id2, _)) if id1 == id2 => Ok(()),
+
+            // This is the other differing case between this and IsConst::unify.
+            // If this is polymorphically const, dont force it to be non-const because it is
+            // passed as an argument to a function expecting a non-const parameter.
+            (IsConst::Maybe(_, binding), IsConst::No(_)) if binding.borrow().is_none() => Ok(()),
 
             (IsConst::Maybe(_, binding), other) => {
                 if let Some(binding) = &*binding.borrow() {
@@ -292,7 +429,7 @@ impl Type {
     }
 
     pub fn type_variable(id: TypeVariableId) -> Type {
-        Type::TypeVariable(Rc::new(RefCell::new(TypeBinding::Unbound(id))))
+        Type::TypeVariable(Shared::new(TypeBinding::Unbound(id)))
     }
 }
 
@@ -327,12 +464,17 @@ impl std::fmt::Display for Type {
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
             Type::TypeVariable(id) => write!(f, "{}", id.borrow()),
+            Type::NamedGeneric(binding, name) => match &*binding.borrow() {
+                TypeBinding::Bound(binding) => binding.fmt(f),
+                TypeBinding::Unbound(_) if name.is_empty() => write!(f, "_"),
+                TypeBinding::Unbound(_) => write!(f, "{}", name),
+            },
             Type::ArrayLength(n) => n.fmt(f),
             Type::Forall(typevars, typ) => {
-                let typevars = vecmap(typevars, ToString::to_string);
+                let typevars = vecmap(typevars, |(var, _)| var.to_string());
                 write!(f, "forall {}. {}", typevars.join(" "), typ)
             }
-            Type::Function(args, ret, _) => {
+            Type::Function(args, ret) => {
                 let args = vecmap(args, ToString::to_string);
                 write!(f, "fn({}) -> {}", args.join(", "), ret)
             }
@@ -387,11 +529,29 @@ impl Type {
         }
     }
 
-    /// Returns true on success
+    pub fn set_const(&mut self, new_const: IsConst) {
+        match self {
+            Type::FieldElement(is_const) | Type::Integer(is_const, _, _) => {
+                *is_const = new_const;
+            }
+            Type::PolymorphicInteger(is_const, binding) => {
+                if let TypeBinding::Bound(binding) = &mut *binding.borrow_mut() {
+                    return binding.set_const(new_const);
+                }
+                *is_const = new_const;
+            }
+            _ => (),
+        }
+    }
+
+    /// Try to bind a PolymorphicInt variable to self, succeeding if self is an integer, field,
+    /// other PolymorphicInt type, or type variable. If use_subtype is true, the IsConst fields
+    /// of each will be checked via subtyping rather than unification.
     pub fn try_bind_to_polymorphic_int(
         &self,
         var: &TypeVariable,
         var_const: &IsConst,
+        use_subtype: bool,
         span: Span,
     ) -> Result<(), SpanKind> {
         let target_id = match &*var.borrow() {
@@ -399,27 +559,34 @@ impl Type {
             TypeBinding::Unbound(id) => *id,
         };
 
-        match self {
-            Type::FieldElement(is_const, ..) | Type::Integer(is_const, ..) => {
-                let mut clone = self.clone();
-                clone.set_const_span(span);
-                *var.borrow_mut() = TypeBinding::Bound(clone);
-                is_const.unify(var_const, span)
+        let bind = |int_const: &IsConst| {
+            let mut clone = self.clone();
+            let mut new_const = var_const.clone();
+            new_const.set_span(span);
+            clone.set_const(new_const);
+
+            *var.borrow_mut() = TypeBinding::Bound(clone);
+
+            if use_subtype {
+                var_const.is_subtype_of(int_const, span)
+            } else {
+                var_const.unify(int_const, span)
             }
-            Type::PolymorphicInteger(is_const, self_var) => {
+        };
+
+        match self {
+            Type::FieldElement(int_const, ..) | Type::Integer(int_const, ..) => bind(int_const),
+            Type::PolymorphicInteger(int_const, self_var) => {
                 let borrow = self_var.borrow();
                 match &*borrow {
                     TypeBinding::Bound(typ) => {
-                        typ.try_bind_to_polymorphic_int(var, var_const, span)
+                        typ.try_bind_to_polymorphic_int(var, var_const, use_subtype, span)
                     }
                     // Avoid infinitely recursive bindings
                     TypeBinding::Unbound(id) if *id == target_id => Ok(()),
                     TypeBinding::Unbound(_) => {
                         drop(borrow);
-                        let mut clone = self.clone();
-                        clone.set_const_span(span);
-                        *var.borrow_mut() = TypeBinding::Bound(clone);
-                        is_const.unify(var_const, span)
+                        bind(int_const)
                     }
                 }
             }
@@ -427,15 +594,17 @@ impl Type {
                 let borrow = binding.borrow();
                 match &*borrow {
                     TypeBinding::Bound(typ) => {
-                        typ.try_bind_to_polymorphic_int(var, var_const, span)
+                        typ.try_bind_to_polymorphic_int(var, var_const, use_subtype, span)
                     }
                     // Avoid infinitely recursive bindings
                     TypeBinding::Unbound(id) if *id == target_id => Ok(()),
                     TypeBinding::Unbound(_) => {
                         drop(borrow);
-                        let mut clone = self.clone();
+                        // PolymorphicInt is more specific than TypeVariable so we bind the type
+                        // variable to PolymorphicInt instead.
+                        let mut clone = Type::PolymorphicInteger(var_const.clone(), var.clone());
                         clone.set_const_span(span);
-                        *var.borrow_mut() = TypeBinding::Bound(clone);
+                        *binding.borrow_mut() = TypeBinding::Bound(clone);
                         Ok(())
                     }
                 }
@@ -536,7 +705,7 @@ impl Type {
                 }
 
                 // Otherwise, check it is unified against an integer and bind it
-                other.try_bind_to_polymorphic_int(binding, is_const, span)
+                other.try_bind_to_polymorphic_int(binding, is_const, false, span)
             }
 
             (TypeVariable(binding), other) | (other, TypeVariable(binding)) => {
@@ -548,11 +717,8 @@ impl Type {
             }
 
             (Array(len_a, elem_a), Array(len_b, elem_b)) => {
-                if len_a == len_b {
-                    elem_a.try_unify(elem_b, span)
-                } else {
-                    Err(SpanKind::None)
-                }
+                len_a.try_unify(len_b, span)?;
+                elem_a.try_unify(elem_b, span)
             }
 
             (Tuple(elems_a), Tuple(elems_b)) => {
@@ -592,6 +758,20 @@ impl Type {
 
             (Bool(const_a), Bool(const_b)) => const_a.unify(const_b, span),
 
+            (NamedGeneric(binding_a, name_a), NamedGeneric(binding_b, name_b)) => {
+                let is_unbound = |binding: &Shared<TypeBinding>| {
+                    matches!(&*binding.borrow(), TypeBinding::Unbound(_))
+                };
+
+                // Ensure NamedGenerics are never bound during type checking
+                assert!(is_unbound(binding_a) && is_unbound(binding_b));
+                if name_a == name_b {
+                    Ok(())
+                } else {
+                    Err(SpanKind::None)
+                }
+            }
+
             (other_a, other_b) => {
                 if other_a == other_b {
                     Ok(())
@@ -627,7 +807,7 @@ impl Type {
                 }
 
                 // Otherwise, check it is unified against an integer and bind it
-                other.try_bind_to_polymorphic_int(binding, is_const, span)
+                other.try_bind_to_polymorphic_int(binding, is_const, true, span)
             }
             // These needs to be a separate case to keep the argument order of is_subtype_of
             (other, PolymorphicInteger(is_const, binding)) => {
@@ -635,7 +815,9 @@ impl Type {
                     return other.is_subtype_of(link, span);
                 }
 
-                other.try_bind_to_polymorphic_int(binding, is_const, span)
+                // use_subtype is false here since we have other <: PolymorphicInt
+                // while the flag expects PolymorphicInt <: other
+                other.try_bind_to_polymorphic_int(binding, is_const, false, span)
             }
 
             (TypeVariable(binding), other) => {
@@ -694,6 +876,20 @@ impl Type {
 
             (Bool(const_a), Bool(const_b)) => const_a.is_subtype_of(const_b, span),
 
+            (NamedGeneric(binding_a, name_a), NamedGeneric(binding_b, name_b)) => {
+                let is_unbound = |binding: &Shared<TypeBinding>| {
+                    matches!(&*binding.borrow(), TypeBinding::Unbound(_))
+                };
+
+                // Ensure NamedGenerics are never bound during type checking
+                assert!(is_unbound(binding_a) && is_unbound(binding_b));
+                if name_a == name_b {
+                    Ok(())
+                } else {
+                    Err(SpanKind::None)
+                }
+            }
+
             (other_a, other_b) => {
                 if other_a == other_b {
                     Ok(())
@@ -706,12 +902,13 @@ impl Type {
 
     pub fn array_length(&self) -> Option<u64> {
         match self {
-            Type::PolymorphicInteger(_, binding) | Type::TypeVariable(binding) => {
-                match &*binding.borrow() {
-                    TypeBinding::Bound(binding) => binding.array_length(),
-                    TypeBinding::Unbound(_) => None,
-                }
-            }
+            Type::PolymorphicInteger(_, binding)
+            | Type::NamedGeneric(binding, _)
+            | Type::TypeVariable(binding) => match &*binding.borrow() {
+                TypeBinding::Bound(binding) => binding.array_length(),
+                TypeBinding::Unbound(_) => None,
+            },
+            Type::Array(len, _elem) => len.array_length(),
             Type::ArrayLength(size) => Some(*size),
             _ => None,
         }
@@ -751,8 +948,9 @@ impl Type {
             Type::Struct(..) => todo!("as_abi_type not yet implemented for struct types"),
             Type::Tuple(_) => todo!("as_abi_type not yet implemented for tuple types"),
             Type::TypeVariable(_) => unreachable!(),
+            Type::NamedGeneric(..) => unreachable!(),
             Type::Forall(..) => unreachable!(),
-            Type::Function(_, _, _) => unreachable!(),
+            Type::Function(_, _) => unreachable!(),
         }
     }
 
@@ -766,7 +964,7 @@ impl Type {
             // the iterator is returned
             Type::Struct(def, args) => vecmap(&def.borrow().fields, |(name, _)| {
                 let name = &name.0.contents;
-                let typ = def.borrow().get_field(name, args).unwrap();
+                let typ = def.borrow().get_field(name, args).unwrap().0;
                 (name.clone(), typ)
             }),
             Type::Tuple(fields) => {
@@ -782,7 +980,7 @@ impl Type {
     /// Panics if the type is not a struct or tuple.
     pub fn get_field_type(&self, field_name: &str) -> Type {
         match self {
-            Type::Struct(def, args) => def.borrow().get_field(field_name, args).unwrap(),
+            Type::Struct(def, args) => def.borrow().get_field(field_name, args).unwrap().0,
             Type::Tuple(fields) => {
                 let mut fields = fields.iter().enumerate();
                 fields.find(|(i, _)| i.to_string() == *field_name).unwrap().1.clone()
@@ -794,15 +992,21 @@ impl Type {
     /// Instantiate this type, replacing any type variables it is quantified
     /// over with fresh type variables. If this type is not a Type::Forall,
     /// it is unchanged.
-    pub fn instantiate(&self, interner: &mut NodeInterner) -> Type {
+    pub fn instantiate(&self, interner: &mut NodeInterner) -> (Type, TypeBindings) {
         match self {
             Type::Forall(typevars, typ) => {
-                let replacements =
-                    typevars.iter().map(|old| (*old, interner.next_type_variable())).collect();
+                let replacements = typevars
+                    .iter()
+                    .map(|(id, var)| {
+                        let new = interner.next_type_variable();
+                        (*id, (var.clone(), new))
+                    })
+                    .collect();
 
-                typ.substitute(&replacements)
+                let instantiated = typ.substitute(&replacements);
+                (instantiated, replacements)
             }
-            other => other.clone(),
+            other => (other.clone(), HashMap::new()),
         }
     }
 
@@ -816,9 +1020,10 @@ impl Type {
 
         let substitute_binding = |binding: &TypeVariable| match &*binding.borrow() {
             TypeBinding::Bound(binding) => binding.substitute(type_bindings),
-            TypeBinding::Unbound(id) => {
-                type_bindings.get(id).cloned().unwrap_or_else(|| self.clone())
-            }
+            TypeBinding::Unbound(id) => match type_bindings.get(id) {
+                Some((_, binding)) => binding.clone(),
+                None => self.clone(),
+            },
         };
 
         match self {
@@ -827,7 +1032,9 @@ impl Type {
                 let element = Box::new(element.substitute(type_bindings));
                 Type::Array(size, element)
             }
-            Type::PolymorphicInteger(_, binding) => substitute_binding(binding),
+            Type::PolymorphicInteger(_, binding)
+            | Type::NamedGeneric(binding, _)
+            | Type::TypeVariable(binding) => substitute_binding(binding),
 
             // Do not substitute fields, it can lead to infinite recursion
             // and we should not match fields when type checking anyway.
@@ -839,20 +1046,19 @@ impl Type {
                 let fields = vecmap(fields, |field| field.substitute(type_bindings));
                 Type::Tuple(fields)
             }
-            Type::TypeVariable(binding) => substitute_binding(binding),
             Type::Forall(typevars, typ) => {
                 // Trying to substitute a variable defined within a nested Forall
                 // is usually impossible and indicative of an error in the type checker somewhere.
-                for var in typevars {
+                for (var, _) in typevars {
                     assert!(!type_bindings.contains_key(var));
                 }
                 let typ = Box::new(typ.substitute(type_bindings));
                 Type::Forall(typevars.clone(), typ)
             }
-            Type::Function(args, ret, ids) => {
+            Type::Function(args, ret) => {
                 let args = vecmap(args, |arg| arg.substitute(type_bindings));
                 let ret = Box::new(ret.substitute(type_bindings));
-                Type::Function(args, ret, ids.clone())
+                Type::Function(args, ret)
             }
 
             Type::FieldElement(_)
@@ -868,21 +1074,19 @@ impl Type {
     /// within self
     fn occurs(&self, target_id: TypeVariableId) -> bool {
         match self {
-            Type::Array(_, elem) => elem.occurs(target_id),
-            Type::PolymorphicInteger(_, binding) => match &*binding.borrow() {
-                TypeBinding::Bound(binding) => binding.occurs(target_id),
-                TypeBinding::Unbound(id) => *id == target_id,
-            },
+            Type::Array(len, elem) => len.occurs(target_id) || elem.occurs(target_id),
             Type::Struct(_, generic_args) => generic_args.iter().any(|arg| arg.occurs(target_id)),
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
-            Type::TypeVariable(binding) => match &*binding.borrow() {
+            Type::PolymorphicInteger(_, binding)
+            | Type::NamedGeneric(binding, _)
+            | Type::TypeVariable(binding) => match &*binding.borrow() {
                 TypeBinding::Bound(binding) => binding.occurs(target_id),
                 TypeBinding::Unbound(id) => *id == target_id,
             },
             Type::Forall(typevars, typ) => {
-                !typevars.iter().any(|var| *var == target_id) && typ.occurs(target_id)
+                !typevars.iter().any(|(id, _)| *id == target_id) && typ.occurs(target_id)
             }
-            Type::Function(args, ret, _) => {
+            Type::Function(args, ret) => {
                 args.iter().any(|arg| arg.occurs(target_id)) || ret.occurs(target_id)
             }
 
@@ -892,6 +1096,46 @@ impl Type {
             | Type::ArrayLength(_)
             | Type::Error
             | Type::Unit => false,
+        }
+    }
+
+    /// Follow any TypeVariable bindings within this type. Doing so ensures
+    /// that if the bindings are rebound or unbound from under the type then the
+    /// returned type will not change (because it will no longer contain the
+    /// links that may be unbound).
+    ///
+    /// Expected to be called on an instantiated type (with no Type::Foralls)
+    pub fn follow_bindings(&self) -> Type {
+        use Type::*;
+        match self {
+            Array(size, elem) => {
+                Array(Box::new(size.follow_bindings()), Box::new(elem.follow_bindings()))
+            }
+            Struct(def, args) => {
+                let args = vecmap(args, |arg| arg.follow_bindings());
+                Struct(def.clone(), args)
+            }
+            Tuple(args) => Tuple(vecmap(args, |arg| arg.follow_bindings())),
+
+            TypeVariable(var) | PolymorphicInteger(_, var) | NamedGeneric(var, _) => {
+                if let TypeBinding::Bound(typ) = &*var.borrow() {
+                    return typ.follow_bindings();
+                }
+                self.clone()
+            }
+
+            Function(args, ret) => {
+                let args = vecmap(args, |arg| arg.follow_bindings());
+                let ret = Box::new(ret.follow_bindings());
+                Function(args, ret)
+            }
+
+            // Expect that this function should only be called on instantiated types
+            Forall(..) => unreachable!(),
+
+            FieldElement(_) | Integer(_, _, _) | Bool(_) | ArrayLength(_) | Unit | Error => {
+                self.clone()
+            }
         }
     }
 }

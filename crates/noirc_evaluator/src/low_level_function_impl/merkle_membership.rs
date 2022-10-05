@@ -1,7 +1,8 @@
 use super::RuntimeError;
 use super::{object_to_wit_bits, GadgetCaller};
+use crate::interpreter::Interpreter;
 use crate::object::{Array, Object};
-use crate::{Environment, Evaluator};
+use crate::Environment;
 use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
 use acvm::acir::OPCODE;
 use acvm::FieldElement;
@@ -15,7 +16,7 @@ impl GadgetCaller for MerkleMembershipGadget {
     }
 
     fn call(
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
         env: &mut Environment,
         call_expr: HirCallExpression,
     ) -> Result<Object, RuntimeError> {
@@ -33,7 +34,7 @@ impl GadgetCaller for MerkleMembershipGadget {
             outputs: vec![merkle_mem_witness],
         };
 
-        evaluator.gates.push(Gate::GadgetCall(merkle_mem_gate));
+        evaluator.push_gate(Gate::GadgetCall(merkle_mem_gate));
 
         Ok(merkle_mem_object)
     }
@@ -41,7 +42,7 @@ impl GadgetCaller for MerkleMembershipGadget {
 
 impl MerkleMembershipGadget {
     pub(super) fn prepare_inputs(
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
         env: &mut Environment,
         mut call_expr: HirCallExpression,
     ) -> Result<Vec<GadgetInput>, RuntimeError> {

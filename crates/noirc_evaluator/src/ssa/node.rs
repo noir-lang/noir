@@ -1,16 +1,14 @@
 use std::convert::TryInto;
 
 use crate::errors::{RuntimeError, RuntimeErrorKind};
-use crate::object::Object;
 use acvm::acir::native_types::Witness;
 use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use arena;
 use noirc_errors::Location;
-use noirc_frontend::hir_def::expr::HirBinaryOpKind;
-use noirc_frontend::node_interner::DefinitionId;
+use noirc_frontend::monomorphisation::ast::{DefinitionId, FuncId, Type};
 use noirc_frontend::util::vecmap;
-use noirc_frontend::{Signedness, Type};
+use noirc_frontend::{BinaryOpKind, Signedness};
 use num_bigint::BigUint;
 use num_traits::{FromPrimitive, One};
 use std::ops::{Add, Mul, Sub};
@@ -205,11 +203,11 @@ impl From<ObjectType> for NumericType {
 }
 
 impl From<&Type> for ObjectType {
-    fn from(t: &noirc_frontend::Type) -> ObjectType {
+    fn from(t: &Type) -> ObjectType {
         match t {
-            Type::Bool(_) => ObjectType::Boolean,
-            Type::FieldElement(..) => ObjectType::NativeField,
-            Type::Integer(_, sign, bit_size) => {
+            Type::Bool => ObjectType::Boolean,
+            Type::Field => ObjectType::NativeField,
+            Type::Integer(sign, bit_size) => {
                 assert!(
                     *bit_size < super::integer::short_integer_max_bit_size(),
                     "long integers are not yet supported"
@@ -219,52 +217,23 @@ impl From<&Type> for ObjectType {
                     Signedness::Unsigned => ObjectType::Unsigned(*bit_size),
                 }
             }
-            Type::PolymorphicInteger(_, binding) => match &*binding.borrow() {
-                noirc_frontend::TypeBinding::Bound(typ) => typ.into(),
-                noirc_frontend::TypeBinding::Unbound(_) => Type::default_int_type(None).into(),
-            },
             // TODO: We should probably not convert an array type into the element type
-            noirc_frontend::Type::Array(_, t) => ObjectType::from(t.as_ref()),
-            Type::TypeVariable(binding) => match &*binding.borrow() {
-                noirc_frontend::TypeBinding::Bound(typ) => typ.into(),
-                noirc_frontend::TypeBinding::Unbound(_) => ObjectType::NotAnObject, //FIXME, need to avoid converting unknown type variables!
-            },
-            x => unimplemented!("Conversion to ObjectType is unimplemented for type {}", x),
+            Type::Array(_, t) => ObjectType::from(t.as_ref()),
+            Type::Unit => ObjectType::NotAnObject,
+            other => {
+                unimplemented!("Conversion to ObjectType is unimplemented for type {:?}", other)
+            }
         }
     }
 }
 
 impl From<Type> for ObjectType {
-    fn from(t: noirc_frontend::Type) -> ObjectType {
+    fn from(t: Type) -> ObjectType {
         ObjectType::from(&t)
     }
 }
 
 impl ObjectType {
-    pub fn get_type_from_object(obj: &Object) -> ObjectType {
-        match obj {
-            Object::Arithmetic(_) => {
-                todo!();
-                //ObjectType::native_field
-            }
-            Object::Array(_) => {
-                todo!(); //TODO we should match an array in mem: ObjectType::Pointer(0)
-            }
-            Object::Constants(_) => ObjectType::NativeField, //TODO
-            Object::Integer(i) => {
-                assert!(
-                    i.num_bits < super::integer::short_integer_max_bit_size(),
-                    "long integers are not yet supported"
-                );
-                ObjectType::Unsigned(i.num_bits)
-            } //TODO signed or unsigned?
-            Object::Linear(_) => {
-                ObjectType::NativeField //TODO check with Kev!
-            }
-            Object::Null => ObjectType::NotAnObject,
-        }
-    }
-
     pub fn bits(&self) -> u32 {
         match self {
             ObjectType::Boolean => 1,
@@ -551,7 +520,7 @@ pub enum Operation {
     },
     //Call(function::FunctionCall),
     Call {
-        func_id: noirc_frontend::node_interner::FuncId,
+        func_id: FuncId,
         arguments: Vec<NodeId>,
         returned_arrays: Vec<(super::mem::ArrayId, u32)>,
         predicate: conditional::AssumptionId,
@@ -621,9 +590,9 @@ pub enum Opcode {
     Jmp, //unconditional jump
     Phi,
 
-    Call(noirc_frontend::node_interner::FuncId), //Call a function
-    Return,                                      //Return value(s) from a function block
-    Results,                                     //Get result(s) from a function call
+    Call(FuncId), //Call a function
+    Return,       //Return value(s) from a function block
+    Results,      //Get result(s) from a function call
 
     //memory
     Load(ArrayId),
@@ -683,24 +652,22 @@ impl Binary {
         Binary { operator, lhs, rhs }
     }
 
-    pub fn from_hir(
-        op_kind: HirBinaryOpKind,
+    pub fn from_ast(
+        op_kind: BinaryOpKind,
         op_type: ObjectType,
         lhs: NodeId,
         rhs: NodeId,
     ) -> Binary {
         let operator = match op_kind {
-            HirBinaryOpKind::Add => BinaryOp::Add,
-            HirBinaryOpKind::Subtract => {
-                BinaryOp::Sub { max_rhs_value: BigUint::from_u8(0).unwrap() }
-            }
-            HirBinaryOpKind::Multiply => BinaryOp::Mul,
-            HirBinaryOpKind::Equal => BinaryOp::Eq,
-            HirBinaryOpKind::NotEqual => BinaryOp::Ne,
-            HirBinaryOpKind::And => BinaryOp::And,
-            HirBinaryOpKind::Or => BinaryOp::Or,
-            HirBinaryOpKind::Xor => BinaryOp::Xor,
-            HirBinaryOpKind::Divide => {
+            BinaryOpKind::Add => BinaryOp::Add,
+            BinaryOpKind::Subtract => BinaryOp::Sub { max_rhs_value: BigUint::from_u8(0).unwrap() },
+            BinaryOpKind::Multiply => BinaryOp::Mul,
+            BinaryOpKind::Equal => BinaryOp::Eq,
+            BinaryOpKind::NotEqual => BinaryOp::Ne,
+            BinaryOpKind::And => BinaryOp::And,
+            BinaryOpKind::Or => BinaryOp::Or,
+            BinaryOpKind::Xor => BinaryOp::Xor,
+            BinaryOpKind::Divide => {
                 let num_type: NumericType = op_type.into();
                 match num_type {
                     NumericType::Signed(_) => BinaryOp::Sdiv,
@@ -708,7 +675,7 @@ impl Binary {
                     NumericType::NativeField => BinaryOp::Div,
                 }
             }
-            HirBinaryOpKind::Less => {
+            BinaryOpKind::Less => {
                 let num_type: NumericType = op_type.into();
                 match num_type {
                     NumericType::Signed(_) => BinaryOp::Slt,
@@ -716,7 +683,7 @@ impl Binary {
                     NumericType::NativeField => BinaryOp::Lt,
                 }
             }
-            HirBinaryOpKind::LessEqual => {
+            BinaryOpKind::LessEqual => {
                 let num_type: NumericType = op_type.into();
                 match num_type {
                     NumericType::Signed(_) => BinaryOp::Sle,
@@ -724,7 +691,7 @@ impl Binary {
                     NumericType::NativeField => BinaryOp::Lte,
                 }
             }
-            HirBinaryOpKind::Greater => {
+            BinaryOpKind::Greater => {
                 let num_type: NumericType = op_type.into();
                 match num_type {
                     NumericType::Signed(_) => return Binary::new(BinaryOp::Slt, rhs, lhs),
@@ -732,7 +699,7 @@ impl Binary {
                     NumericType::NativeField => return Binary::new(BinaryOp::Lt, rhs, lhs),
                 }
             }
-            HirBinaryOpKind::GreaterEqual => {
+            BinaryOpKind::GreaterEqual => {
                 let num_type: NumericType = op_type.into();
                 match num_type {
                     NumericType::Signed(_) => return Binary::new(BinaryOp::Sle, rhs, lhs),
@@ -740,9 +707,8 @@ impl Binary {
                     NumericType::NativeField => return Binary::new(BinaryOp::Lte, rhs, lhs),
                 }
             }
-            HirBinaryOpKind::Assign => BinaryOp::Assign,
-            HirBinaryOpKind::Shl => BinaryOp::Shl,
-            HirBinaryOpKind::Shr => BinaryOp::Shr,
+            BinaryOpKind::ShiftLeft => BinaryOp::Shl,
+            BinaryOpKind::ShiftRight => BinaryOp::Shr,
         };
 
         Binary::new(operator, lhs, rhs)
@@ -1250,13 +1216,5 @@ impl BinaryOp {
                 | BinaryOp::Or
                 | BinaryOp::Xor
         )
-    }
-}
-
-pub fn get_witness_from_object(obj: &Object) -> Option<Witness> {
-    match obj {
-        Object::Integer(i) => Some(i.witness),
-        Object::Array(_) => unreachable!("Array has multiple witnesses"),
-        _ => obj.witness(),
     }
 }

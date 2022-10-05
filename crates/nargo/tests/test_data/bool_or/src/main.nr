@@ -1,5 +1,5 @@
 use dep::std;
-fn main(x: Field, y: Field) {
-    constrain std::bool_or(x, y) == 1;
+fn main(x: u1, y: u1) {
+    constrain x | y == 1;
 }
     

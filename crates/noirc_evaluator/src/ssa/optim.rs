@@ -63,7 +63,7 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) -> Result<(), Runti
                 .map(|arg| NodeEval::from_id(ctx, *arg).into_const_value().map(|f| f.to_u128()));
 
             if let Some(args) = args.collect() {
-                ins.mark = Mark::ReplaceWith(evaluate_intrinsic(ctx, *opcode, args));
+                ins.mark = Mark::ReplaceWith(evaluate_intrinsic(ctx, *opcode, args, &ins.res_type));
             }
         }
         _ => (),
@@ -72,21 +72,37 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) -> Result<(), Runti
     Ok(())
 }
 
-fn evaluate_intrinsic(ctx: &mut SsaContext, op: acvm::acir::OPCODE, args: Vec<u128>) -> NodeId {
+fn evaluate_intrinsic(
+    ctx: &mut SsaContext,
+    op: acvm::acir::OPCODE,
+    args: Vec<u128>,
+    res_type: &ObjectType,
+) -> NodeId {
     match op {
         acvm::acir::OPCODE::ToBits => {
             let bit_count = args[1] as u32;
-            let (pointer_id, array_id) =
-                ctx.new_array("", ObjectType::Unsigned(1), bit_count, None);
 
-            for i in 0..bit_count {
-                if args[0] & (1 << i) != 0 {
-                    ctx.mem[array_id].values.push(InternalVar::from(FieldElement::one()));
-                } else {
-                    ctx.mem[array_id].values.push(InternalVar::from(FieldElement::zero()));
+            if let ObjectType::Pointer(a) = res_type {
+                let new_var = super::node::Variable {
+                    id: NodeId::dummy(),
+                    obj_type: super::node::ObjectType::Pointer(*a),
+                    name: op.to_string(),
+                    root: None,
+                    def: None,
+                    witness: None,
+                    parent_block: ctx.current_block,
+                };
+
+                for i in 0..bit_count {
+                    if args[0] & (1 << i) != 0 {
+                        ctx.mem[*a].values.push(InternalVar::from(FieldElement::one()));
+                    } else {
+                        ctx.mem[*a].values.push(InternalVar::from(FieldElement::zero()));
+                    }
                 }
+                return ctx.add_variable(new_var, None);
             }
-            pointer_id
+            unreachable!();
         }
         _ => todo!(),
     }

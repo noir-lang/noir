@@ -1,15 +1,13 @@
-use std::{cell::RefCell, collections::BTreeSet, rc::Rc};
-
 use noirc_errors::Span;
 
 use crate::{
     hir_def::{
-        expr::{self, HirBinaryOp, HirBinaryOpKind, HirExpression, HirLiteral, HirUnaryOp},
+        expr::{self, HirBinaryOp, HirExpression, HirLiteral},
         types::Type,
     },
     node_interner::{ExprId, FuncId, NodeInterner},
     util::vecmap,
-    IsConst, TypeBinding,
+    IsConst, Shared, TypeBinding,
 };
 
 use super::errors::TypeCheckError;
@@ -25,7 +23,9 @@ pub(crate) fn type_check_expression(
             // E.g. `fn foo<T>(t: T, field: Field) -> T` has type `forall T. fn(T, Field) -> T`.
             // We must instantiate identifiers at every callsite to replace this T with a new type
             // variable to handle generic functions.
-            interner.id_type(ident.id).instantiate(interner)
+            let (typ, bindings) = interner.id_type(ident.id).instantiate(interner);
+            interner.store_instantiation_bindings(*expr_id, bindings);
+            typ
         }
         HirExpression::Literal(literal) => {
             match literal {
@@ -67,7 +67,7 @@ pub(crate) fn type_check_expression(
                     let id = interner.next_type_variable_id();
                     Type::PolymorphicInteger(
                         IsConst::new(interner),
-                        Rc::new(RefCell::new(TypeBinding::Unbound(id))),
+                        Shared::new(TypeBinding::Unbound(id)),
                     )
                 }
                 HirLiteral::Str(_) => unimplemented!(
@@ -204,7 +204,9 @@ pub(crate) fn type_check_expression(
         HirExpression::Constructor(constructor) => {
             check_constructor(&constructor, expr_id, interner, errors)
         }
-        HirExpression::MemberAccess(access) => check_member_access(access, interner, errors),
+        HirExpression::MemberAccess(access) => {
+            check_member_access(access, interner, *expr_id, errors)
+        }
         HirExpression::Error => Type::Error,
         HirExpression::Tuple(elements) => {
             Type::Tuple(vecmap(&elements, |elem| type_check_expression(interner, elem, errors)))
@@ -375,7 +377,9 @@ fn type_check_function_call(
             });
         }
 
-        let function_type = func_meta.typ.instantiate(interner);
+        let (function_type, instantiation_bindings) = func_meta.typ.instantiate(interner);
+        interner.store_instantiation_bindings(*expr_id, instantiation_bindings);
+        interner.set_function_type(*expr_id, function_type.clone());
         bind_function_type(function_type, arguments, span, interner, errors)
     }
 }
@@ -397,12 +401,12 @@ fn bind_function_type(
 
             let ret = interner.next_type_variable();
             let args = vecmap(args, |(arg, _)| arg);
-            let expected = Type::Function(args, Box::new(ret.clone()), BTreeSet::new());
+            let expected = Type::Function(args, Box::new(ret.clone()));
             *binding.borrow_mut() = TypeBinding::Bound(expected);
 
             ret
         }
-        Type::Function(parameters, ret, _ids) => {
+        Type::Function(parameters, ret) => {
             for (param, (arg, arg_span)) in parameters.iter().zip(args) {
                 arg.make_subtype_of(param, arg_span, errors, || TypeCheckError::TypeMismatch {
                     expected_typ: param.to_string(),
@@ -424,14 +428,14 @@ fn bind_function_type(
     }
 }
 
-pub fn prefix_operand_type_rules(op: &HirUnaryOp, rhs_type: &Type) -> Result<Type, String> {
+pub fn prefix_operand_type_rules(op: &crate::UnaryOp, rhs_type: &Type) -> Result<Type, String> {
     match op {
-        HirUnaryOp::Minus => {
+        crate::UnaryOp::Minus => {
             if !matches!(rhs_type, Type::Integer(..) | Type::Error) {
                 return Err("Only Integers can be used in a Minus expression".to_string());
             }
         }
-        HirUnaryOp::Not => {
+        crate::UnaryOp::Not => {
             if !matches!(rhs_type, Type::Integer(..) | Type::Bool(_) | Type::Error) {
                 return Err("Only Integers or Bool can be used in a Not expression".to_string());
             }
@@ -472,7 +476,7 @@ pub fn infix_operand_type_rules(
             if let TypeBinding::Bound(binding) = &*int.borrow() {
                 return infix_operand_type_rules(binding, op, other, errors);
             }
-            if other.try_bind_to_polymorphic_int(int, is_const, op.location.span).is_ok() || other == &Type::Error {
+            if other.try_bind_to_polymorphic_int(int, is_const, true, op.location.span).is_ok() || other == &Type::Error {
                 Ok(other.clone())
             } else {
                 Err(format!("Types in a binary operation should match, but found {} and {}", lhs_type, rhs_type))
@@ -558,7 +562,7 @@ fn check_constructor(
     let typ = &constructor.r#type;
 
     // Sanity check, this should be caught during name resolution anyway
-    assert_eq!(constructor.fields.len(), typ.borrow().fields.len());
+    assert_eq!(constructor.fields.len(), typ.borrow().num_fields());
 
     // Sort argument types by name so we can zip with the struct type in the same ordering.
     // Note that we use a Vec to store the original arguments (rather than a BTreeMap) to
@@ -589,18 +593,21 @@ fn check_constructor(
 pub fn check_member_access(
     access: expr::HirMemberAccess,
     interner: &mut NodeInterner,
+    expr_id: ExprId,
     errors: &mut Vec<TypeCheckError>,
 ) -> Type {
     let lhs_type = type_check_expression(interner, &access.lhs, errors);
 
     if let Type::Struct(s, args) = &lhs_type {
         let s = s.borrow();
-        if let Some(field) = s.get_field(&access.rhs.0.contents, args) {
+        if let Some((field, index)) = s.get_field(&access.rhs.0.contents, args) {
+            interner.set_field_index(expr_id, index);
             return field;
         }
     } else if let Type::Tuple(elements) = &lhs_type {
         if let Ok(index) = access.rhs.0.contents.parse::<usize>() {
             if index < elements.len() {
+                interner.set_field_index(expr_id, index);
                 return elements[index].clone();
             }
         }
@@ -622,7 +629,7 @@ pub fn comparator_operand_type_rules(
     op: &HirBinaryOp,
     errors: &mut Vec<TypeCheckError>,
 ) -> Result<Type, String> {
-    use HirBinaryOpKind::{Equal, NotEqual};
+    use crate::BinaryOpKind::{Equal, NotEqual};
     use Type::*;
     match (lhs_type, rhs_type)  {
         (Integer(is_const_x, sign_x, bit_width_x), Integer(is_const_y, sign_y, bit_width_y)) => {
@@ -643,7 +650,7 @@ pub fn comparator_operand_type_rules(
             if let TypeBinding::Bound(binding) = &*int.borrow() {
                 return comparator_operand_type_rules(other, binding, op, errors);
             }
-            if other.try_bind_to_polymorphic_int(int, is_const, op.location.span).is_ok() || other == &Type::Error {
+            if other.try_bind_to_polymorphic_int(int, is_const, true, op.location.span).is_ok() || other == &Type::Error {
                 Ok(Bool(is_const.clone()))
             } else {
                 Err(format!("Types in a binary operation should match, but found {} and {}", lhs_type, rhs_type))

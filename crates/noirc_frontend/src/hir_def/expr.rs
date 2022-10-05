@@ -1,12 +1,9 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-
 use acvm::FieldElement;
 use fm::FileId;
 use noirc_errors::Location;
 
 use crate::node_interner::{DefinitionId, ExprId, FuncId, StmtId, StructId};
-use crate::{BinaryOp, BinaryOpKind, Ident, UnaryOp};
+use crate::{BinaryOp, BinaryOpKind, Ident, Shared, UnaryOp};
 
 use super::types::{StructType, Type};
 
@@ -51,91 +48,16 @@ pub struct HirForExpression {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum HirBinaryOpKind {
-    Add,
-    Subtract,
-    Multiply,
-    Divide,
-    Equal,
-    NotEqual,
-    Less,
-    LessEqual,
-    Greater,
-    GreaterEqual,
-    And,
-    Or,
-    Xor,
-    Shl,
-    Shr,
-    Assign,
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct HirBinaryOp {
-    pub kind: HirBinaryOpKind,
+    pub kind: BinaryOpKind,
     pub location: Location,
-}
-
-impl From<BinaryOpKind> for HirBinaryOpKind {
-    fn from(a: BinaryOpKind) -> HirBinaryOpKind {
-        match a {
-            BinaryOpKind::Add => HirBinaryOpKind::Add,
-            BinaryOpKind::Subtract => HirBinaryOpKind::Subtract,
-            BinaryOpKind::Multiply => HirBinaryOpKind::Multiply,
-            BinaryOpKind::Divide => HirBinaryOpKind::Divide,
-            BinaryOpKind::Equal => HirBinaryOpKind::Equal,
-            BinaryOpKind::NotEqual => HirBinaryOpKind::NotEqual,
-            BinaryOpKind::Less => HirBinaryOpKind::Less,
-            BinaryOpKind::LessEqual => HirBinaryOpKind::LessEqual,
-            BinaryOpKind::Greater => HirBinaryOpKind::Greater,
-            BinaryOpKind::GreaterEqual => HirBinaryOpKind::GreaterEqual,
-            BinaryOpKind::And => HirBinaryOpKind::And,
-            BinaryOpKind::Or => HirBinaryOpKind::Or,
-            BinaryOpKind::Xor => HirBinaryOpKind::Xor,
-            BinaryOpKind::ShiftLeft => HirBinaryOpKind::Shl,
-            BinaryOpKind::ShiftRight => HirBinaryOpKind::Shr,
-            BinaryOpKind::Assign => HirBinaryOpKind::Assign,
-        }
-    }
 }
 
 impl HirBinaryOp {
     pub fn new(op: BinaryOp, file: FileId) -> Self {
-        let kind: HirBinaryOpKind = op.contents.into();
+        let kind = op.contents;
         let location = Location::new(op.span(), file);
         HirBinaryOp { location, kind }
-    }
-}
-
-impl HirBinaryOpKind {
-    /// Comparator operators return a 0 or 1
-    /// When seen in the middle of an infix operator,
-    /// they transform the infix expression into a predicate expression
-    pub fn is_comparator(&self) -> bool {
-        matches!(
-            self,
-            HirBinaryOpKind::Equal
-                | HirBinaryOpKind::NotEqual
-                | HirBinaryOpKind::LessEqual
-                | HirBinaryOpKind::Less
-                | HirBinaryOpKind::Greater
-                | HirBinaryOpKind::GreaterEqual
-        )
-    }
-}
-
-#[derive(Debug, Copy, Clone)]
-pub enum HirUnaryOp {
-    Minus,
-    Not,
-}
-
-impl From<UnaryOp> for HirUnaryOp {
-    fn from(a: UnaryOp) -> HirUnaryOp {
-        match a {
-            UnaryOp::Minus => HirUnaryOp::Minus,
-            UnaryOp::Not => HirUnaryOp::Not,
-        }
     }
 }
 
@@ -149,7 +71,7 @@ pub enum HirLiteral {
 
 #[derive(Debug, Clone)]
 pub struct HirPrefixExpression {
-    pub operator: HirUnaryOp,
+    pub operator: UnaryOp,
     pub rhs: ExprId,
 }
 
@@ -216,7 +138,7 @@ impl HirMethodCallExpression {
 #[derive(Debug, Clone)]
 pub struct HirConstructorExpression {
     pub type_id: StructId,
-    pub r#type: Rc<RefCell<StructType>>,
+    pub r#type: Shared<StructType>,
 
     // NOTE: It is tempting to make this a BTreeSet to force ordering of field
     //       names (and thus remove the need to normalize them during type checking)
