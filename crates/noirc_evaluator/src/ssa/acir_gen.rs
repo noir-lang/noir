@@ -321,12 +321,12 @@ impl Acir {
                 }
                 .into()
             }
-            BinaryOp::Lt => todo!(),
-            BinaryOp::Lte => {
-                let size = ctx[binary.lhs].get_type().bits();
-                // TODO: Should this be signed?
-                evaluate_cmp(&l_c, &r_c, size, false, evaluator).into()
-            }
+            BinaryOp::Lt => unimplemented!(
+                "Field comparison is not implemented yet, try to cast arguments to integer type"
+            ),
+            BinaryOp::Lte => unimplemented!(
+                "Field comparison is not implemented yet, try to cast arguments to integer type"
+            ),
             BinaryOp::And => InternalVar::from(evaluate_and(l_c, r_c, res_type.bits(), evaluator)),
             BinaryOp::Or => InternalVar::from(evaluate_or(l_c, r_c, res_type.bits(), evaluator)),
             BinaryOp::Xor => InternalVar::from(evaluate_xor(l_c, r_c, res_type.bits(), evaluator)),
@@ -397,6 +397,13 @@ impl Acir {
                 Expression::one()
             }
         } else {
+            if let (Some(l), Some(r)) = (l_c.to_const(), r_c.to_const()) {
+                if l == r {
+                    return Expression::default();
+                } else {
+                    return Expression::one();
+                }
+            }
             let mut x =
                 InternalVar::from(subtract(&l_c.expression, FieldElement::one(), &r_c.expression));
             x.witness = Some(generate_witness(&x, evaluator));

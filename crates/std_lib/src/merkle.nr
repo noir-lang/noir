@@ -7,3 +7,22 @@
 // XXX: In the future we can add an arity parameter
 #[foreign(merkle_membership)]
 fn check_membership(_root : Field, _leaf : Field, _index : Field, _hash_path: [Field]) -> Field {}
+
+
+// Returns the root of the tree from the provided leaf and its hashpath, using pedersen hash
+fn compute_root_from_leaf(leaf : Field, index : Field, hash_path: [Field]) -> Field {
+    let n = crate::array::len(hash_path);
+    let index_bits = crate::to_bits(index, n as u32);
+    let mut current = leaf;
+    for i in 0..n {
+        let path_bit = index_bits[i] as bool;
+        let (hash_left, hash_right) = if path_bit {
+            (hash_path[i], current)
+         } else {
+            (current, hash_path[i])
+         };
+
+      current = crate::hash::pedersen([hash_left, hash_right])[0];
+    };
+    current
+}

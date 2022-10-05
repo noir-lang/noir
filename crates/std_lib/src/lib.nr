@@ -8,29 +8,21 @@ mod scalar_mul;
 #[builtin(set_pub)]
 fn set_as_public(_input : Field) {}
 
-// Returns base^exponent. 
-// ^ means to the power of and not xor
-// Note that this function may wrap around
-#[builtin(pow_const)]
-fn pow_const(_base : const Field, _exponent : const Field) -> const Field {}
-
 #[foreign(to_bits)]
 fn to_bits(_x : Field, _bit_size: u32) -> [u1; 256] {}
 
-// Precondition: x is a boolean
-// returns 1 if x is 0
-// returns 0 if x is 1
-// XXX: This function should ideally take in a u1 and return a u1
-// Then we would not need to state the precondition as it would be 
-// encoded in the type
-// Check issue#105 for the reason it does not.
-fn bool_not(x : Field) -> Field {
-    1 - x
+// Returns base^exponent. 
+// ^ means to the power of and not xor
+// Caution: we assume the exponent fits into 32 bits
+// using a bigger bit size impacts negatively the performance and should be done only if the exponent does not fit in 32 bits
+fn pow_32(base: Field, exponent: Field) -> Field {
+    let mut r = 1 as Field;
+    let b = crate::to_bits(exponent, 32);
+
+    for i in 1..33 {
+        r = r*r;
+        r = (b[32-i] as Field) * (r * base) + (1 - b[32-i] as Field) * r;
+    };
+    r
 }
 
-// Precondition: x and y are booleans
-// Check issue#105 for the reason the input and output
-// is not a u1/bool
-fn bool_or(x : Field, y : Field) -> Field {
-    x + y - (x * y)
-}

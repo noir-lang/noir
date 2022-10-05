@@ -56,8 +56,8 @@ mod mysubmodule {
     const N: Field = 10;
     const L: Field = 50;
 
-    fn my_bool_or(x: Field, y: Field) {
-        constrain std::bool_or(x, y) == 1;
+    fn my_bool_or(x: u1, y: u1) {
+        constrain x | y == 1;
     }
 
     fn my_helper() -> const Field {
