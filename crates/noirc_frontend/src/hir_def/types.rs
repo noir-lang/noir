@@ -333,7 +333,7 @@ impl IsConst {
             (IsConst::Yes(_), IsConst::Yes(_))
             | (IsConst::No(_), IsConst::No(_))
 
-            // This is the only differing case between this and IsConst::unify
+            // This is one of the only 2 differing cases between this and IsConst::unify
             | (IsConst::Yes(_), IsConst::No(_)) => Ok(()),
 
             (IsConst::No(n), IsConst::Yes(y)) => {
@@ -345,6 +345,11 @@ impl IsConst {
             }
 
             (IsConst::Maybe(id1, _), IsConst::Maybe(id2, _)) if id1 == id2 => Ok(()),
+
+            // This is the other differing case between this and IsConst::unify.
+            // If this is polymorphically const, dont force it to be non-const because it is
+            // passed as an argument to a function expecting a non-const parameter.
+            (IsConst::Maybe(_, binding), IsConst::No(_)) if binding.borrow().is_none() => Ok(()),
 
             (IsConst::Maybe(_, binding), other) => {
                 if let Some(binding) = &*binding.borrow() {
@@ -524,11 +529,29 @@ impl Type {
         }
     }
 
-    /// Returns true on success
+    pub fn set_const(&mut self, new_const: IsConst) {
+        match self {
+            Type::FieldElement(is_const) | Type::Integer(is_const, _, _) => {
+                *is_const = new_const;
+            }
+            Type::PolymorphicInteger(is_const, binding) => {
+                if let TypeBinding::Bound(binding) = &mut *binding.borrow_mut() {
+                    return binding.set_const(new_const);
+                }
+                *is_const = new_const;
+            }
+            _ => (),
+        }
+    }
+
+    /// Try to bind a PolymorphicInt variable to self, succeeding if self is an integer, field,
+    /// other PolymorphicInt type, or type variable. If use_subtype is true, the IsConst fields
+    /// of each will be checked via subtyping rather than unification.
     pub fn try_bind_to_polymorphic_int(
         &self,
         var: &TypeVariable,
         var_const: &IsConst,
+        use_subtype: bool,
         span: Span,
     ) -> Result<(), SpanKind> {
         let target_id = match &*var.borrow() {
@@ -536,27 +559,34 @@ impl Type {
             TypeBinding::Unbound(id) => *id,
         };
 
-        match self {
-            Type::FieldElement(is_const, ..) | Type::Integer(is_const, ..) => {
-                let mut clone = self.clone();
-                clone.set_const_span(span);
-                *var.borrow_mut() = TypeBinding::Bound(clone);
-                is_const.unify(var_const, span)
+        let bind = |int_const: &IsConst| {
+            let mut clone = self.clone();
+            let mut new_const = var_const.clone();
+            new_const.set_span(span);
+            clone.set_const(new_const);
+
+            *var.borrow_mut() = TypeBinding::Bound(clone);
+
+            if use_subtype {
+                var_const.is_subtype_of(int_const, span)
+            } else {
+                var_const.unify(int_const, span)
             }
-            Type::PolymorphicInteger(is_const, self_var) => {
+        };
+
+        match self {
+            Type::FieldElement(int_const, ..) | Type::Integer(int_const, ..) => bind(int_const),
+            Type::PolymorphicInteger(int_const, self_var) => {
                 let borrow = self_var.borrow();
                 match &*borrow {
                     TypeBinding::Bound(typ) => {
-                        typ.try_bind_to_polymorphic_int(var, var_const, span)
+                        typ.try_bind_to_polymorphic_int(var, var_const, use_subtype, span)
                     }
                     // Avoid infinitely recursive bindings
                     TypeBinding::Unbound(id) if *id == target_id => Ok(()),
                     TypeBinding::Unbound(_) => {
                         drop(borrow);
-                        let mut clone = self.clone();
-                        clone.set_const_span(span);
-                        *var.borrow_mut() = TypeBinding::Bound(clone);
-                        is_const.unify(var_const, span)
+                        bind(int_const)
                     }
                 }
             }
@@ -564,15 +594,17 @@ impl Type {
                 let borrow = binding.borrow();
                 match &*borrow {
                     TypeBinding::Bound(typ) => {
-                        typ.try_bind_to_polymorphic_int(var, var_const, span)
+                        typ.try_bind_to_polymorphic_int(var, var_const, use_subtype, span)
                     }
                     // Avoid infinitely recursive bindings
                     TypeBinding::Unbound(id) if *id == target_id => Ok(()),
                     TypeBinding::Unbound(_) => {
                         drop(borrow);
-                        let mut clone = self.clone();
+                        // PolymorphicInt is more specific than TypeVariable so we bind the type
+                        // variable to PolymorphicInt instead.
+                        let mut clone = Type::PolymorphicInteger(var_const.clone(), var.clone());
                         clone.set_const_span(span);
-                        *var.borrow_mut() = TypeBinding::Bound(clone);
+                        *binding.borrow_mut() = TypeBinding::Bound(clone);
                         Ok(())
                     }
                 }
@@ -673,7 +705,7 @@ impl Type {
                 }
 
                 // Otherwise, check it is unified against an integer and bind it
-                other.try_bind_to_polymorphic_int(binding, is_const, span)
+                other.try_bind_to_polymorphic_int(binding, is_const, false, span)
             }
 
             (TypeVariable(binding), other) | (other, TypeVariable(binding)) => {
@@ -775,7 +807,7 @@ impl Type {
                 }
 
                 // Otherwise, check it is unified against an integer and bind it
-                other.try_bind_to_polymorphic_int(binding, is_const, span)
+                other.try_bind_to_polymorphic_int(binding, is_const, true, span)
             }
             // These needs to be a separate case to keep the argument order of is_subtype_of
             (other, PolymorphicInteger(is_const, binding)) => {
@@ -783,7 +815,9 @@ impl Type {
                     return other.is_subtype_of(link, span);
                 }
 
-                other.try_bind_to_polymorphic_int(binding, is_const, span)
+                // use_subtype is false here since we have other <: PolymorphicInt
+                // while the flag expects PolymorphicInt <: other
+                other.try_bind_to_polymorphic_int(binding, is_const, false, span)
             }
 
             (TypeVariable(binding), other) => {
