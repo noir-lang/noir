@@ -50,7 +50,7 @@ You can check the latest infrastructure and bridge contract addresses via the [t
 
 ### Aztec SDK Resources
 
-- [Front end app boilerplate code repo](https://github.com/joss-aztec/cra4-aztec-sdk-starter)
+- [Front end app boilerplate code repo](https://github.com/Globallager/aztec-frontend-boilerplate)
 - [Getting Started with Aztec CLI / SDK](https://hackmd.io/NOtgWFSxS-Ko5mLlqt5GRw)
 - [Aztec CLI](https://github.com/critesjosh/azteccli)
 - [Testnet zk.money](https://aztec-connect-testnet.zk.money/)

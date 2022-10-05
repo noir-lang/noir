@@ -222,7 +222,7 @@ The repository of the Aztec SDK in production.
 ### [📝 @aztec/sdk](https://www.npmjs.com/package/@aztec/sdk)
 The Aztec SDK npm package on the npm registry.
 
-### [📝 Frontend Boilerplate](https://github.com/joss-aztec/cra4-aztec-sdk-starter)
+### [📝 Frontend Boilerplate](https://github.com/Globallager/aztec-frontend-boilerplate)
 
 A sample Web App powered by the Aztec SDK.
 
