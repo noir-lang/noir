@@ -10,31 +10,17 @@ fn check_membership(_root : Field, _leaf : Field, _index : Field, _hash_path: [F
 
 
 // Returns the root of the tree from the provided leaf and its hashpath, using pedersen hash
-fn compute_root_from_leaf(leaf : Field, index : Field, hash_path: [Field;3]) -> Field {
-    let n = 3;    //TODO: use array::len(hash_path); when monomorphisation PR is merged
+fn compute_root_from_leaf(leaf : Field, index : Field, hash_path: [Field]) -> Field {
+    let n = crate::array::len(hash_path);
     let index_bits = crate::to_bits(index, n as u32);
     let mut current = leaf;
-    let n2 = 3;    //TODO: remove when PR #350 is merged
-    for i in 0..n2 {
+    for i in 0..n {
         let path_bit = index_bits[i] as bool;
-        let path_elem = hash_path[i];
-        
-        let mut hash_left = 0;
-        let mut hash_right = 0;
-        if path_bit {
-         hash_right = current;
-         hash_left = path_elem;
-
+        let (hash_left, hash_right) = if path_bit {
+            (hash_path[i], current)
          } else {
-         hash_left = current;
-         hash_right = path_elem;
-         }
-        //TODO use this when PR#353 is merged
-        //  let (hash_left, hash_right) = if path_bit {
-        //     (path_elem, current)
-        //  } else {
-        //     (current, path_elem)
-        //  };
+            (current, hash_path[i])
+         };
 
       current = crate::hash::pedersen([hash_left, hash_right])[0];
     };
