@@ -14,25 +14,25 @@ Once you have read through the documentation, you can also run the examples loca
 
 Backends:
 
- - Barretenberg via FFI
+- Barretenberg via FFI
 
 Compiler:
 
- - Module System
- - For expressions
- - Arrays
- - Bit Operations, except for OR
- - Binary operations (<, <=, >, >=, +, -, *, /) [See documentation for an extensive list]
- - Unsigned integers
+- Module System
+- For expressions
+- Arrays
+- Bit Operations, except for OR
+- Binary operations (<, <=, >, >=, +, -, \*, /) [See documentation for an extensive list]
+- Unsigned integers
 
 ACIR Supported OPCODES:
 
- - Sha256
- - Blake2s
- - Schnorr signature verification
- - MerkleMembership
- - Pedersen
- - HashToField
+- Sha256
+- Blake2s
+- Schnorr signature verification
+- MerkleMembership
+- Pedersen
+- HashToField
 
 ## Future Work
 
@@ -49,6 +49,16 @@ Concretely the following items are on the road map:
 - Signed integers
 - Backend integration: (Marlin, Bulletproofs)
 - Recursion
+
+## Compile `aztec_backend` from Source (Optional)
+
+By default, Noir utilizes the C++ backend's wasm executable instead of compiling from source.
+
+If you prefer compiling the backend from source instead, go into [nargo/Cargo.toml](crates/nargo/Cargo.toml)'s `aztec_backend` and delete `, default-features = false, features = ["wasm-base",]`. The line should then look like:
+
+```
+aztec_backend = { optional = true, git = "https://github.com/noir-lang/aztec_backend", rev = "d91c69f2137777cec37f692f98d075ae10e7a584" }
+```
 
 ## License
 
