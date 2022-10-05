@@ -136,20 +136,31 @@ impl IRGenerator {
         let function = &mut self.program[func_id];
         let mut func = SSAFunction::new(func_id, &function.name, func_block, index, &self.context);
 
-        //argumemts:
-        for (param_id, mutable, param_name, param_type) in std::mem::take(&mut function.parameters)
-        {
-            let node_ids = self.create_function_parameter(param_id, &param_type, &param_name);
+        //arguments:
+        for (param_id, mutable, name, typ) in std::mem::take(&mut function.parameters) {
+            let node_ids = self.create_function_parameter(param_id, &typ, &name);
             func.arguments.extend(node_ids.into_iter().map(|id| (id, mutable)));
+        }
+
+        // ensure return types are defined in case of recursion call cycle
+        let function = &mut self.program[func_id];
+        let return_types = function.return_type.flatten();
+        for typ in return_types {
+            func.result_types.push(match typ {
+                Type::Unit => ObjectType::NotAnObject,
+                Type::Array(_, _) => ObjectType::Pointer(crate::ssa::mem::ArrayId::dummy()),
+                _ => typ.into(),
+            });
         }
 
         self.function_context = Some(index);
         self.context.functions.insert(func_id, func.clone());
-        let function_body = self.program.take_function_body(func_id);
 
+        let function_body = self.program.take_function_body(func_id);
         let last_value = self.codegen_expression(env, &function_body)?;
         let returned_values = last_value.to_node_ids();
 
+        func.result_types.clear();
         for i in &returned_values {
             if let Some(node) = self.context.try_get_node(*i) {
                 func.result_types.push(node.get_type());

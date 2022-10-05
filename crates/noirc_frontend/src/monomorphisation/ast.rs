@@ -170,6 +170,15 @@ pub enum Type {
     Tuple(Vec<Type>),
 }
 
+impl Type {
+    pub fn flatten(&self) -> Vec<Type> {
+        match self {
+            Type::Tuple(fields) => fields.iter().flat_map(|field| field.flatten()).collect(),
+            _ => vec![self.clone()],
+        }
+    }
+}
+
 pub struct Program {
     pub functions: Vec<Function>,
     pub abi: Abi,

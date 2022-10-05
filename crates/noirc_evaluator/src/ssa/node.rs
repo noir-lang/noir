@@ -219,8 +219,10 @@ impl From<&Type> for ObjectType {
             }
             // TODO: We should probably not convert an array type into the element type
             Type::Array(_, t) => ObjectType::from(t.as_ref()),
-
-            x => unimplemented!("Conversion to ObjectType is unimplemented for type {:?}", x),
+            Type::Unit => ObjectType::NotAnObject,
+            other => {
+                unimplemented!("Conversion to ObjectType is unimplemented for type {:?}", other)
+            }
         }
     }
 }

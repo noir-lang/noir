@@ -48,10 +48,34 @@ impl Value {
         Value::Single(NodeId::dummy())
     }
 
+    pub fn is_dummy(&self) -> bool {
+        match self {
+            Value::Single(id) => *id == NodeId::dummy(),
+            _ => false,
+        }
+    }
+
     pub fn to_node_ids(&self) -> Vec<NodeId> {
         match self {
             Value::Single(id) => vec![*id],
             Value::Tuple(v) => v.iter().flat_map(|i| i.to_node_ids()).collect(),
+        }
+    }
+
+    pub fn zip<F>(&self, v2: &Value, f: &mut F) -> Value
+    where
+        F: FnMut(NodeId, NodeId) -> NodeId,
+    {
+        if self.is_dummy() || v2.is_dummy() {
+            return Value::dummy();
+        }
+
+        match (self, v2) {
+            (Value::Single(id1), Value::Single(id2)) => Value::Single(f(*id1, *id2)),
+            (Value::Tuple(tup1), Value::Tuple(tup2)) => {
+                Value::Tuple(vecmap(tup1.iter().zip(tup2), |(v1, v2)| v1.zip(v2, f)))
+            }
+            _ => unreachable!(),
         }
     }
 
@@ -498,6 +522,7 @@ impl IRGenerator {
                 if let Some(caller) = self.function_context {
                     function::update_call_graph(&mut self.context.call_graph, caller, callee);
                 }
+
                 let results = self.call(call_expr, env)?;
 
                 let function = &self.program[call_expr.func_id];
@@ -726,7 +751,7 @@ impl IRGenerator {
         //Then block
         block::new_sealed_block(&mut self.context, block::BlockType::Normal, true);
 
-        self.codegen_expression(env, if_expr.consequence.as_ref())?;
+        let v1 = self.codegen_expression(env, if_expr.consequence.as_ref())?;
 
         //Exit block
         let exit_block =
@@ -746,8 +771,9 @@ impl IRGenerator {
             *target = block2;
         }
 
+        let mut v2 = Value::dummy();
         if let Some(alt) = if_expr.alternative.as_ref() {
-            self.codegen_expression(env, alt)?;
+            v2 = self.codegen_expression(env, alt)?;
         }
 
         //Connect with the exit block
@@ -758,7 +784,9 @@ impl IRGenerator {
         self.context.get_current_block_mut().predecessor.push(block2);
         ssa_form::seal_block(&mut self.context, exit_block);
 
-        // TODO: This return value is wrong! We should be returning a PHI of the then and else blocks
-        Ok(Value::dummy())
+        // return value:
+        let mut counter = 0;
+        let mut phi = |a, b| self.context.new_phi(a, b, &mut counter);
+        Ok(v1.zip(&v2, &mut phi))
     }
 }
