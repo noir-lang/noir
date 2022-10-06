@@ -25,7 +25,7 @@ The fastest way to get started developing on Aztec is using the public mainnet f
 
 1. Connect Metamask (or other Ethereum wallet) to the testnet
    1. Chain ID: `677868`
-   2. RPC URL: `https://mainnet-fork.aztec.network:8545`
+   2. RPC URL: `https://aztec-connect-testnet-eth-host.aztec.network:8545`
 2. Get testnet funds
    1. Use the [testnet faucet](https://aztec-connect-testnet-faucet.aztec.network/).
    2. Ping [@critesjosh_](https://twitter.com/critesjosh_) or joshc#0001 on [the Aztec Discord](https://discord.com/invite/aztec) for larger amounts testnet ETH.
@@ -64,6 +64,20 @@ You can check the latest infrastructure and bridge contract addresses via the [t
 Review the [Getting Started with Aztec Connect Bridges](./bridges) page for more details.
 
 The [Aztec Connect bridges GitHub repository](https://github.com/AztecProtocol/aztec-connect-bridges) has the most up to date information about creating a bridge contract.
+
+### Deployed Bridge Info
+
+You can get the latest bridge contract deployment information on the testnet with the following commands. Refer to the [Bridges](./bridges) page for details on setting up `forge`.
+
+```shell
+# export environment variables
+export RPC=https://aztec-connect-testnet-eth-host.aztec.network:8545
+export network=testnet
+export simulateAdmin=false
+
+# run script
+forge script --fork-url $RPC --ffi DataProviderDeployment --sig "readBogota()"
+```
 
 ### Bridges Resources
 
