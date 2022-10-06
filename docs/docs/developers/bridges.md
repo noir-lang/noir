@@ -157,7 +157,7 @@ export simulateAdmin=false # to broadcast your deployment to the testnet
 ```
 
 ```shell
-forge script --fork-url https://aztec-connect-testnet-eth-host.aztec.network:8545 --private-key $PRIV --legacy --ffi ExampleDeployment --sig "deployAndList()" 
+forge script --fork-url https://aztec-connect-testnet-eth-host.aztec.network:8545 --private-key $PRIV --legacy --ffi ExampleDeployment --sig "deployAndList()" --broadcast
 ```
 
 where `$PRIV` is a private key for an Ethereum account on the testnet that has ETH to pay fees.
@@ -180,13 +180,22 @@ Some notes on the additional flags in the above command:
 - `--sig` is the function signature that we want to call
 - `--legacy` is because ganache (which the testnet is running on) and eip1559 don't play well
 - `-vvvv` prints trace
+- `broadcast` will broadcast your transactions to the testnet (rather than running simulations)
 
 Refer to [this section](https://github.com/AztecProtocol/aztec-connect-bridges#writing-a-bridge) of the bridges repo README for more detail.
 
-You can use this command to get all of the deployed assets and bridges on the testnet.
+### Testnet Deployment Info
+
+You can use these commands to get all of assets and bridges that the Aztec core team has deployed on the testnet.
 
 ```shell
-forge script --fork-url https://mainnet-fork.aztec.network:8545 --ffi AggregateDeployment --sig "readStats()"
+# export env vars
+export RPC=https://aztec-connect-testnet-eth-host.aztec.network:8545
+export network=testnet
+export simulateAdmin=false
+
+# run script
+forge script --fork-url $RPC --ffi DataProviderDeployment --sig "readBogota()"
 ```
 
 ### Aux Data
