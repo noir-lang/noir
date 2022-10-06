@@ -65,6 +65,20 @@ Review the [Getting Started with Aztec Connect Bridges](./bridges) page for more
 
 The [Aztec Connect bridges GitHub repository](https://github.com/AztecProtocol/aztec-connect-bridges) has the most up to date information about creating a bridge contract.
 
+### Deployed Bridge Info
+
+You can get the latest bridge contract deployment information on the testnet with the following commands. Refer to the [Bridges](./bridges) page for details on setting up `forge`.
+
+```shell
+# export environment variables
+export RPC=https://aztec-connect-testnet-eth-host.aztec.network:8545
+export network=testnet
+export simulateAdmin=false
+
+# run script
+forge script --fork-url $RPC --ffi DataProviderDeployment --sig "readBogota()"
+```
+
 ### Bridges Resources
 
 - [ETHBogota workshop video on building bridges](https://youtu.be/029Vm6PAnrM?t=1822)
