@@ -180,7 +180,7 @@ Some notes on the additional flags in the above command:
 - `--sig` is the function signature that we want to call
 - `--legacy` is because ganache (which the testnet is running on) and eip1559 don't play well
 - `-vvvv` prints trace
-- `broadcast` will broadcast your transactions to the testnet (rather than running simulations)
+- `broadcast` will broadcast the deployment transactions to the testnet (rather than running simulations)
 
 Refer to [this section](https://github.com/AztecProtocol/aztec-connect-bridges#writing-a-bridge) of the bridges repo README for more detail.
 
