@@ -157,7 +157,7 @@ export simulateAdmin=false # to broadcast your deployment to the testnet
 ```
 
 ```shell
-forge script --fork-url https://mainnet-fork.aztec.network:8545 --private-key $PRIV --legacy --ffi ExampleDeployment --sig "deployAndList()" 
+forge script --fork-url https://aztec-connect-testnet-eth-host.aztec.network:8545 --private-key $PRIV --legacy --ffi ExampleDeployment --sig "deployAndList()" 
 ```
 
 where `$PRIV` is a private key for an Ethereum account on the testnet that has ETH to pay fees.
