@@ -26,11 +26,10 @@ Noir is designed to be compilable into different arithmetic schemes of choice, h
 
 Certain content of this guide is also covered in this workshop video:
 
-[![](https://i.imgur.com/9CSN9Jo.jpeg)](https://www.youtube.com/watch?v=029Vm6PAnrM&t=2872s)
+[![](https://i.imgur.com/9CSN9Jo.jpeg)](https://www.youtube.com/watch?v=I5M8LhOECpM&t=2879s)
 
 The code demonstrated in the video is available at:
 https://github.com/vezenovm/basic_mul_noir_example
-
 
 ## Install Noir
 
@@ -45,19 +44,24 @@ https://github.com/vezenovm/basic_mul_noir_example
 ### Install Noir from Source
 
 1. Clone the [Noir repository](https://github.com/noir-lang/noir):
+
 ```shell
 git clone https://github.com/noir-lang/noir.git
 ```
+
 2. Change directory into `nargo`:
+
 ```shell
 cd noir/crates/nargo
 ```
+
 3. Compile the binary and store it in your path:
+
 ```shell
 cargo install --locked --path=.
 ```
 
-If the compilation fails, go into `nargo/Cargo.toml` and swap out `aztec_backend = ...` with the following:
+If the compilation fails, go into `nargo/Cargo.toml` and replace `aztec_backend = ...` with the following:
 
 ```
 aztec_backend = { optional = true, git = "https://github.com/noir-lang/aztec_backend", rev = "d91c69f2137777cec37f692f98d075ae10e7a584", default-features = false, features = [
@@ -65,9 +69,12 @@ aztec_backend = { optional = true, git = "https://github.com/noir-lang/aztec_bac
 ] }
 ```
 
-> **Note:** This aztec_backend dependency utilizes the C++ backend's wasm executable instead of compiling from source. Noir compiles down to an intermediate representation, which can then compile down to any proof system that is compatible with this intermediate representation. Currently only Aztec's barretenberg proof system is supported, which you can see here as the backend dependency.
+> **Note:** This `aztec_backend` dependency utilizes the C++ backend's wasm executable instead of compiling from source.
+>
+> Noir compiles down to an intermediate representation, which can then compile down to any proof system that is compatible with this intermediate representation. Aztec's barretenberg proof system is supported, which is the backend dependency seen here.
 
-1. Check if the installation was successful:
+4. Check if the installation was successful:
+
 ```shell
 nargo help
 ```
@@ -120,7 +127,7 @@ The keyword `constrain` can be interpreted as something similar to `assert` in o
 
 For more information on Noir's syntax, check the [language sections](https://noir-lang.github.io/book/language_concepts.html) of the Noir book.
 
-You may refer to the [*Basic Example in Noir*](https://github.com/vezenovm/basic_mul_noir_example) and [*Mastermind in Noir*](https://github.com/vezenovm/mastermind-noir) on GitHub for more inspiration on writing Noir programs as well.
+You may refer to the [_Standard Noir Example_](https://github.com/vezenovm/basic_mul_noir_example) and [_Mastermind in Noir_](https://github.com/vezenovm/mastermind-noir) on GitHub for more inspiration on writing Noir programs as well.
 
 ### Generate Input Files
 
@@ -172,6 +179,7 @@ nargo verify {PROOF_NAME}
 ```
 
 If the verification is successful, you should be prompted with `true` in the terminal:
+
 ```shell
 $ nargo verify testProof
 true
@@ -197,7 +205,7 @@ nargo contract
 
 Noir programs can also be compiled, proved and verified in TypeScript, which could be useful for writing automated test scripts (e.g. [Hardhat](https://hardhat.org/) tests).
 
-The following sections are based mainly on the [*Basic Example in Noir*](https://github.com/vezenovm/basic_mul_noir_example), specifically on its test script [`1_mul.ts`](https://github.com/vezenovm/basic_mul_noir_example/blob/master/test/1_mul.ts) as a demonstration of a typical TypeScript Noir testing workflow. The workshop video linked at the beginning of this guide is a great walkthrough of the code base.
+The following sections are based mainly on the [_Standard Noir Example_](https://github.com/vezenovm/basic_mul_noir_example), specifically on its test script [`1_mul.ts`](https://github.com/vezenovm/basic_mul_noir_example/blob/master/test/1_mul.ts) as a demonstration of a typical TypeScript Noir testing workflow. The workshop video linked at the beginning of this guide is a great walkthrough of the code base.
 
 ### Prerequisites
 
@@ -211,10 +219,12 @@ yarn add @noir-lang/noir_wasm @noir-lang/barretenberg @noir-lang/aztec_backend
 
 To begin testing a Noir program, it first needs to be compiled by calling `noir_wasm`'s `compile` function.
 
-For example in [`1_mul.ts`](https://github.com/vezenovm/basic_mul_noir_example/blob/master/test/1_mul.ts#L33):
+For example in [`1_mul.ts`](https://github.com/vezenovm/basic_mul_noir_example/blob/master/test/1_mul.ts#L32):
 
 ```javascript
-const compiled_program = compile(path.resolve(__dirname, '../circuits/src/main.nr'));
+const compiled_program = compile(
+  path.resolve(__dirname, "../circuits/src/main.nr")
+);
 ```
 
 The `compiled_program` returned by the function contains the Abstract Circuit Intermediate Representation (ACIR) and the Application Binary Interface (ABI) of your Noir program. They shall be stored for proving your program later:
@@ -228,7 +238,7 @@ const abi = compiled_program.abi;
 
 Having obtained the compiled program, the program inputs shall then be specified in its ABI.
 
-*Basic Example in Noir* is a program that multiplies input `x` with input `y` and returns the result:
+_Standard Noir Example_ is a program that multiplies input `x` with input `y` and returns the result:
 
 ```noir
 fn main(x: u32, y: pub u32) -> pub u32 {
@@ -240,12 +250,12 @@ fn main(x: u32, y: pub u32) -> pub u32 {
 Hence, one valid scenario for testing could be `x = 3`, `y = 4` and `return = 12` like in [`1_mul.ts`](https://github.com/vezenovm/basic_mul_noir_example/blob/master/test/1_mul.ts#L37):
 
 ```javascript
-abi.x = "0x03";
-abi.y = "0x04";
-abi.return = "0x0c";
+abi.x = 3;
+abi.y = 4;
+abi.return = 12;
 ```
 
-> **Note:** Return values are required to be specified as well, as they are merely syntax sugar of inputs with equality constraints.
+> **Note:** Return values are also required to be specified, as they are merely syntax sugar of inputs with equality constraints.
 
 ### Initializing Prover & Verifier
 
@@ -258,7 +268,7 @@ let [prover, verifier] = await setup_generic_prover_and_verifier(acir);
 ```
 
 ### Proving
-    
+
 The execution of the Noir program can then be proved by calling `barretenberg`'s `create_proof` function.
 
 For example in [`1_mul.ts`](https://github.com/vezenovm/basic_mul_noir_example/blob/master/test/1_mul.ts#L43):
@@ -280,11 +290,30 @@ const verified = await verify_proof(verifier, proof);
 If the entire process is working as intended to be, `verify_proof` should return `true`. The test case can then be concluded with an assertion:
 
 ```javascript
-expect(verified).eq(true)
+expect(verified).eq(true);
 ```
 
-For additional inspiration on writing tests for Noir programs, check the full test scripts [`1_mul.ts` of *Basic Example in Noir*](https://github.com/vezenovm/basic_mul_noir_example/blob/master/test/1_mul.ts) and [`mm.ts` of *Mastermind in Noir*](https://github.com/vezenovm/mastermind-noir/blob/master/test/mm.ts) on GitHub respectively.
-    
+Alternatively, the `proof` can be verified using a verifier smart contract as well.
+
+For example in [`1_mul.ts`](https://github.com/vezenovm/basic_mul_noir_example/blob/master/test/1_mul.ts#L97):
+
+```javascript
+let Verifier: ContractFactory;
+let verifierContract: Contract;
+
+before(async () => {
+    Verifier = await ethers.getContractFactory("TurboVerifier");
+    verifierContract = await Verifier.deploy();
+});
+
+...
+
+const sc_verified = await verifierContract.verify(proof);
+expect(sc_verified).eq(true)
+```
+
+For additional inspiration on writing tests for Noir programs, check the full test scripts [`1_mul.ts` of _Standard Noir Example_](https://github.com/vezenovm/basic_mul_noir_example/blob/master/test/1_mul.ts) and [`mm.ts` of _Mastermind in Noir_](https://github.com/vezenovm/mastermind-noir/blob/master/test/mm.ts) on GitHub respectively.
+
 ## Alternative Way of Compiling with `nargo`
 
 Similar to how `nargo` can be used to prove and verify Noir programs, a Noir program can also be compiled manually in the CLI.
@@ -326,18 +355,28 @@ const proof = await create_proof_with_witness(prover, barretenberg_witness_arr);
 ## Resources
 
 ### [📓 The Noir Book](https://noir-lang.github.io/book/)
+
 The go-to guide of everything Noir.
 
 ### [📝 Noir Repo](https://github.com/noir-lang/noir)
+
 The main repository of Noir development.
 
-### [📝 Basic Example in Noir](https://github.com/vezenovm/basic_mul_noir_example)
+### [📝 Standard Noir Example](https://github.com/vezenovm/basic_mul_noir_example)
+
 A basic example demonstrating Noir workflows.
 
 ### [📝 Mastermind in Noir](https://github.com/vezenovm/mastermind-noir)
+
 Mastermind the game written in Noir.
-    
+
+### [📝 Private Proof of Membership in Noir](https://github.com/vezenovm/simple_shield)
+
+The foundation to private token mixer, voting, airdrop, identity and more.
+
 ### [👾 Discord](https://discord.gg/aztec)
+
 Join the channels:
+
 - [`#🖤│noir`](https://discord.com/channels/563037431604183070/824700393677783080) to discuss Noir
 - [`#🇨🇴│ethbogota`](https://discord.com/channels/563037431604183070/1021410163221086268) to discuss the ETHBogota Hackathon
