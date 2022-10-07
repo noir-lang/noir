@@ -94,7 +94,7 @@ By default, Aztec transactions could take up to a few hours to settle on the Tes
 - [📝 Aztec Frontend Boilerplate](https://github.com/Globallager/aztec-frontend-boilerplate)
 - [📱 zk.money (Testnet)](https://aztec-connect-testnet.zk.money/)
 - [🔍 Testnet Block Explorer](https://aztec-connect-testnet-explorer.aztec.network/)
-- [🔍Testnet Falafel Status API](https://api.aztec.network/aztec-connect-testnet/falafel/status)
+- [🔍 Testnet Falafel Status API](https://api.aztec.network/aztec-connect-testnet/falafel/status)
 
 ## Building an Aztec Connect Bridge Contract
 
