@@ -7,7 +7,6 @@ use acvm::{GateResolution, PartialWitnessGenerator};
 use clap::ArgMatches;
 use noirc_abi::AbiType;
 use noirc_abi::{input_parser::InputValue, Abi};
-use noirc_frontend::node_interner::NodeInterner;
 use std::path::Path;
 
 use crate::{errors::CliError, resolver::Resolver};
@@ -48,11 +47,11 @@ fn process_abi_with_input(
 
     let mut index = 0;
     let mut return_witness = None;
-    let return_witness_len = if let Some(pos) =
-        abi.parameters.iter().position(|x| x.0 == NodeInterner::main_return_name())
+    let return_witness_len = if let Some(return_param) =
+        abi.parameters.iter().find(|x| x.0 == noirc_frontend::hir_def::function::MAIN_RETURN_NAME)
     {
-        match &abi.parameters[pos].1 {
-            AbiType::Array { length, .. } => *length,
+        match &return_param.1 {
+            AbiType::Array { length, .. } => *length as u32,
             AbiType::Integer { .. } | AbiType::Field(_) => 1,
         }
     } else {
@@ -88,17 +87,13 @@ fn process_abi_with_input(
             InputValue::Undefined => {
                 assert_eq!(
                     param_name,
-                    NodeInterner::main_return_name(),
+                    noirc_frontend::hir_def::function::MAIN_RETURN_NAME,
                     "input value {} is not defined",
                     param_name
                 );
                 return_witness = Some(Witness::new(index + WITNESS_OFFSET));
-                index += 1;
                 //XXX We do not support (yet) array of arrays
-                for _i in 1..return_witness_len {
-                    Witness::new(index + WITNESS_OFFSET);
-                    index += 1
-                }
+                index += return_witness_len;
             }
         }
     }
@@ -170,12 +165,9 @@ fn export_public_inputs<P: AsRef<Path>>(
                 let w_ret = w_ret.unwrap();
                 match &i.1 {
                     AbiType::Array { length, .. } => {
-                        let mut return_values = Vec::new();
-                        for i in 0..*length {
-                            return_values.push(
-                                *solved_witness.get(&Witness::new(w_ret.0 + i as u32)).unwrap(),
-                            );
-                        }
+                        let return_values = noirc_frontend::util::vecmap(0..*length, |i| {
+                            *solved_witness.get(&Witness::new(w_ret.0 + i as u32)).unwrap()
+                        });
                         InputValue::Vec(return_values)
                     }
                     _ => InputValue::Field(*solved_witness.get(&w_ret).unwrap()),
