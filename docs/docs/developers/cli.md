@@ -22,7 +22,7 @@ A video demo of the Aztec CLI is available at:
 
 Certain content of this guide is also covered in this workshop video:
 
-[![](https://i.imgur.com/WZbVHWC.jpg)](https://www.youtube.com/watch?v=029Vm6PAnrM&t=741s)
+[![](https://i.imgur.com/WZbVHWC.jpg)](https://www.youtube.com/watch?v=I5M8LhOECpM&t=744s)
 
 ## Install
 
@@ -33,6 +33,8 @@ Certain content of this guide is also covered in this workshop video:
 - Install [Truffle](https://trufflesuite.com/docs/truffle/getting-started/installation/)
 
 ### Install Aztec CLI
+
+#### Using Yarn
 
 1. Install Aztec CLI using Yarn:
 
@@ -49,6 +51,7 @@ yarn global bin
 ```
 
 You should see something like:
+
 ```shell
 $ yarn global bin
 /{HOME_DIRECTORY}/.yarn/bin
@@ -71,6 +74,7 @@ source $HOME/.profile
 ```
 
 4. Check if azteccli is successfully installed:
+
 ```shell
 azteccli help
 ```
@@ -90,20 +94,19 @@ truffle dashboard
 7. You may now connect your Metamask wallet through the dashboard and start using azteccli by running e.g. `azteccli history`.
 
 For more details on available commands, you can:
+
 - Run `azteccli help`
 - Check the [`commands`](https://github.com/critesjosh/azteccli/tree/main/src/commands) directory
 - Check the [Aztec CLI repository](https://github.com/critesjosh/azteccli) README
 
-### Development
+#### Compile from Source
 
-You can also run the CLI with the latest updates directly from the Github repo.
+Alternatively, you can also run the CLI with the latest updates directly from the Github repo.
 
 1. Clone the [repo](https://github.com/critesjosh/azteccli).
 2. Install dependencies. `$ yarn`
 3. Edit/add new commands in `./src/`.
 4. Test your edits by running `./bin/dev [command] [args] [flags]`. (ie `$ ./bin/dev deposit .01`)
-
-Feel free to add features and open a PR. 🙂
 
 ## Code Highlights
 
@@ -139,13 +142,9 @@ let networkConfig: Config = {
 };
 ```
 
-The network of Chain ID `677868` is the Aztec Testnet. It is a test network forked from Ethereum Mainnet, hence production contracts on Mainnet (e.g. deployed Aztec Connect Bridges) can be accessed on the Testnet under the same addresses.
+The network of Chain ID `677868` is the Aztec Testnet. It is a test network that was forked from and mimics the Ethereum Mainnet.
 
-To access the Testnet with your Metamask, add the network to your wallet using the following parameters:
-
-- **RPC URL:** https://aztec-connect-testnet-eth-host.aztec.network:8545
-- **Chain ID:** 677868
-- **Currency Symbol:** ETH
+To access the Testnet using Metamask, add the network per the instructions [here](./getting-started.md#configuration).
 
 ## Account Alias
 
@@ -173,61 +172,62 @@ An example of utilizing so can be seen in Aztec CLI's [`register.ts`](https://gi
 
 ```javascript
 const controller = await this.sdk.createRegisterController(
-      accountKeys.publicKey,
-      alias,
-      accountKeys.privateKey,
-      signer.getPublicKey(),
-      recoveryPublicKey, // defaults to nothing
-      depositValue,
-      txFee,
-      depositor // defaults to the logged in Ethereum accounts
-      // optional feePayer requires an Aztec Signer to pay the fee
-    );
+  accountKeys.publicKey,
+  alias,
+  accountKeys.privateKey,
+  signer.getPublicKey(),
+  recoveryPublicKey, // defaults to nothing
+  depositValue,
+  txFee,
+  depositor // defaults to the logged in Ethereum accounts
+  // optional feePayer requires an Aztec Signer to pay the fee
+);
 ```
 
 Functions of the controller are then called to perform a deposit, generate a client-side proof, sign it and send it to the Aztec backend:
 
 ```javascript
-    if ((await controller.getPendingFunds()) < tokenQuantity) {
-      await controller.depositFundsToContract();
-      await controller.awaitDepositFundsToContract();
-    }
+if ((await controller.getPendingFunds()) < tokenQuantity) {
+  await controller.depositFundsToContract();
+  await controller.awaitDepositFundsToContract();
+}
 
-    await controller.createProof();
-    await controller.sign();
-    let txId = await controller.send();
+await controller.createProof();
+await controller.sign();
+let txId = await controller.send();
 ```
 
 Different controllers for different actions are available in the Aztec SDK. For example, `DepositController` is used for depositing assets from Ethereum and `TransferController` is used for asset transfers on the Aztec Network.
-                                        
-For more information on available controllers, check the [SDK](https://docs.aztec.network/category/sdk) section of the Aztec Docs and the [`controllers`](https://github.com/AztecProtocol/aztec-connect/tree/master/sdk/src/controllers) directory of the SDK repository.
+
+For more information on available controllers, check the [SDK](../sdk/overview.md) section of the Aztec Docs and the [`controllers`](https://github.com/AztecProtocol/aztec-connect/tree/master/sdk/src/controllers) directory of the SDK repository.
 
 ## Aztec Connect
 
 One of the most interesting use cases of the Aztec SDK is to enable users on the Aztec Network to interact with protocols on Ethereum Layer 1 privately and inexpensively through Aztec Connect Bridges with the [`DefiController`](https://github.com/AztecProtocol/aztec-connect/blob/master/sdk/src/controllers/defi_controller.ts).
 
-For more information, check the [Ethereum Interaction](https://docs.aztec.network/sdk/usage/ethereum-interaction) section of the Aztec Docs and our separate guide on *Getting Started with Aztec Connect Bridges*.
+For more information, check the [Ethereum Interaction page](../sdk/usage/ethereum-interaction.md) and the separate guide on [_Getting Started with Aztec Connect Bridges_](./bridges.md).
 
 ## Resources
 
-### [📓 Aztec Docs](https://docs.aztec.network/)
-Documentation of everything Aztec.
+### [🧑‍💻 Aztec SDK npm](https://www.npmjs.com/package/@aztec/sdk)
 
-### [📝 Aztec CLI](https://github.com/critesjosh/azteccli)
-A CLI tool for interacting with the Aztec Network. Powered by Aztec SDK.
-
-### [📝 Aztec SDK Repo](https://github.com/AztecProtocol/aztec-connect/tree/master/sdk)
-The repository of the Aztec SDK in production.
-
-### [📝 @aztec/sdk](https://www.npmjs.com/package/@aztec/sdk)
 The Aztec SDK npm package on the npm registry.
 
-### [📝 Frontend Boilerplate](https://github.com/Globallager/aztec-frontend-boilerplate)
+### [🧑‍💻 Aztec SDK GitHub Repo](https://github.com/AztecProtocol/aztec-connect/tree/master/sdk)
+
+The repository of the Aztec SDK in production.
+
+### [📝 Aztec CLI](https://github.com/critesjosh/azteccli)
+
+A CLI tool for interacting with the Aztec Network. Powered by Aztec SDK.
+
+### [📝 Aztec Frontend Boilerplate](https://github.com/Globallager/aztec-frontend-boilerplate)
 
 A sample Web App powered by the Aztec SDK.
 
 ### [👾 Discord](https://discord.gg/aztec)
 
 Join the channels:
+
 - [`#💻│aztec-connect`](https://discord.com/channels/563037431604183070/563038059826774017) to discuss the Aztec SDK
 - [`#🇨🇴│ethbogota`](https://discord.com/channels/563037431604183070/1021410163221086268) to discuss the ETHBogota Hackathon

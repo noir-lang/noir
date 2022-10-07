@@ -4,131 +4,148 @@ title: Getting Started
 
 ## Building on Aztec
 
-There are two common ways that developers can start building on Aztec.
+There are two common ways that developers can start building on Aztec:
 
-1. Build a user facing application that connects to the Aztec network via the Typescript SDK.
+1. Build a user-facing application that connects to the Aztec network via the TypeScript SDK.
 2. Build an Aztec Connect bridge that connects the Aztec network to Ethereum smart contracts.
 
-We are also working on Noir, a domain specific language for creating and verifying proofs. There are some resources to learn more about this project at the bottom of the page.
+We are also working on Noir, a domain specific language that can be used to develop ZK-provable programs. Scroll down for more details.
 
-:::note
-The Aztec core engineering team has a regular release cadence that will occasionally introduce breaking changes. We are working on making this process more transparent and smoother for developers building on Aztec.
-
-We typically have a code freeze on Thursday where recent changes are applied to the testnet. We test and monitor updates over the weekend and will push changes to mainnet if everything looks good.
+:::tip
+Running out of ideas to build? Check our [ETHBogota Hacking Ideas](https://docs.google.com/document/d/1uQ6jOU4LfnkzoaETFbk1EouVD41Dh5j6jjtcCh6tpEU) and [Aztec Grants](https://aztec.network/grants) for inspirations!
 :::
+
+:::info
+The Aztec core engineering team has a regular release cadence that will occasionally introduce breaking changes. Updates are typically applied to Testnet on Thursdays, which are tested and monitored over the weekend and would be pushed to Mainnet afterwards.
+
+We are working on making this process more transparent. Feel free to [get in touch](#get-in-touch) if you have any queries.
+:::
+
+## Testnet Information
+
+### Configuration
+
+Aztec maintains a Testnet environment that mimics Ethereum, enabling more comprehensive testing of projects built on Aztec.
+
+To make use of the Testnet:
+
+1. Connect Metamask (or other Ethereum wallet) to the Testnet:
+
+| Properties      | Network Details                                           |
+| --------------- | --------------------------------------------------------- |
+| Network name    | Aztec Testnet                                             |
+| RPC URL         | https://aztec-connect-testnet-eth-host.aztec.network:8545 |
+| Chain ID        | 677868                                                    |
+| Currency symbol | ETH                                                       |
+
+2. Get Testnet funds:
+   - Use the [Testnet faucet](https://aztec-connect-testnet-faucet.aztec.network/)
+   - For larger amounts of Testnet ETH, [get in touch](#get-in-touch)
+
+After connecting to the Testnet, you can try out Aztec projects on the Testnet such as [zk.money (Testnet)](https://aztec-connect-testnet.zk.money/), [Aztec CLI](https://github.com/critesjosh/azteccli) and the [Minimal Frontend](https://aztec-frontend-boilerplate.netlify.app/) that involve account registrations, deposits, transfers, withdrawals and more on the Aztec network.
+
+For the status and details of the Aztec Testnet infrastructure, check the [Testnet Falafel Status API](https://api.aztec.network/aztec-connect-testnet/falafel/status).
+
+### Deployed Aztec Connect Bridges
+
+If you are developing with the SDK / on multi-step bridges that involve interaction with other existing bridges, you may come across the need to retrieve details of bridges already deployed on the Testnet (e.g. `bridgeAddressId`). There are currently two ways to do so:
+
+#### Aztec Frontend Boilerplate
+
+After logging in on the [Minimal Frontend](https://aztec-frontend-boilerplate.netlify.app/), you will see a "Log Bridges" button which logs bridge details in the browser console.
+
+#### Foundry Script
+
+Alternatively, you can read from the bridge data provider contract directly by running a script from the [Aztec Connect Bridges repository](https://github.com/AztecProtocol/aztec-connect-bridges). Check [this section](./bridges#testnet-deployment-info) for more details.
 
 ## Building with the SDK
 
-The fastest way to get started developing on Aztec is using the public mainnet fork testnet.
+### Setup
 
-### Testnet Development Configuration
+To start using the SDK, install it in your project by running:
 
-1. Connect Metamask (or other Ethereum wallet) to the testnet
-   1. Chain ID: `677868`
-   2. RPC URL: `https://aztec-connect-testnet-eth-host.aztec.network:8545`
-2. Get testnet funds
-   1. Use the [testnet faucet](https://aztec-connect-testnet-faucet.aztec.network/).
-   2. Ping [@critesjosh_](https://twitter.com/critesjosh_) or joshc#0001 on [the Aztec Discord](https://discord.com/invite/aztec) for larger amounts testnet ETH.
-3. Install the SDK in your project.
-   1. `npm install @aztec/sdk`
-   2. If you are building a web interface, consider using [this frontend boilerplate code repo](https://github.com/Globallager/aztec-frontend-boilerplate) to get started quickly
-4. Interact with Aztec (optional, useful for cross-referencing)
-   1. Use the testnet version of zk.money (https://aztec-connect-testnet.zk.money/)
-   2. Use the `azteccli` command line tool. https://github.com/critesjosh/azteccli
+```shell
+npm install @aztec/sdk
+```
 
-Once you have testnet ETH and setup the SDK, you can start interacting with the Aztec network. You can start registering accounts, making deposits, doing transfers and withdrawals and other things supported by the [SDK](../sdk/overview.md).
+And import it into your project:
 
-You can see how to set up the SDK on the [setup page](../sdk/usage/setup.mdx) or in the command line repo (https://github.com/critesjosh/azteccli/blob/main/src/base.ts). The [Command Line Interface](./cli) page has more specific info about using the tool.
+```ts
+import { createAztecSdk } from "@aztec/sdk";
+```
 
-The [overview page](../sdk/overview.md) of the SDK section has more information about using the SDK.
+For a proper walkthrough of setting up the SDK, check the [SDK Setup page](../sdk/usage/setup.mdx).
 
-:::note
-Transaction times are typically slow to settle on the testnet since the testnet mimics mainnet behavior. If you want transactions to settle quickly, be sure to set the `TxSettlementTime` to `INSTANT`. `INSTANT` transactions settle within minutes rather than hours, they just require a larger fee.
+### Example Code
+
+To learn how the SDK works in action, the [CLI page](./cli) provides a detailed breakdown of the [Aztec CLI](https://github.com/critesjosh/azteccli) tool powered by the SDK.
+
+If you are building a web interface, you might also find the [Frontend Boilerplate](https://github.com/Globallager/aztec-frontend-boilerplate) useful as a starting point.
+
+:::tip
+By default, Aztec transactions could take up to a few hours to settle on the Testnet like on Mainnet. If you want transactions to settle quickly, be sure to set `TxSettlementTime` as `INSTANT`.
+
+`INSTANT` transactions pay higher fees in Testnet ETH in exchange for settlement within minutes rather than hours.
 :::
-
-You can check the latest infrastructure and bridge contract addresses via the [testnet Falafel status API](https://api.aztec.network/aztec-connect-testnet/falafel/status).
 
 ### Aztec SDK Resources
 
-- [Front end app boilerplate code repo](https://github.com/Globallager/aztec-frontend-boilerplate)
-- [Getting Started with Aztec CLI / SDK](https://hackmd.io/NOtgWFSxS-Ko5mLlqt5GRw)
-- [Aztec CLI](https://github.com/critesjosh/azteccli)
-- [Testnet zk.money](https://aztec-connect-testnet.zk.money/)
-- [Testnet block explorer](https://aztec-connect-testnet-explorer.aztec.network/)
-- [Testnet Falafel status API](https://api.aztec.network/aztec-connect-testnet/falafel/status)
-- [Aztec SDK on npm](https://www.npmjs.com/package/@aztec/sdk)
-- [Aztec SDK on GitHub](https://github.com/AztecProtocol/aztec-connect/tree/master/sdk)
+- [🧑‍💻 Aztec SDK npm](https://www.npmjs.com/package/@aztec/sdk)
+- [🧑‍💻 Aztec SDK GitHub Repo](https://github.com/AztecProtocol/aztec-connect/tree/master/sdk)
+- [🎥 ETHBogota Workshop - Aztec CLI / SDK](https://www.youtube.com/watch?v=I5M8LhOECpM&t=744s)
+- [✍️ Getting Started with Aztec CLI / SDK](./cli.md)
+- [📝 Aztec CLI](https://github.com/critesjosh/azteccli)
+- [📝 Aztec Frontend Boilerplate](https://github.com/Globallager/aztec-frontend-boilerplate)
+- [📱 zk.money (Testnet)](https://aztec-connect-testnet.zk.money/)
+- [🔍 Testnet Block Explorer](https://aztec-connect-testnet-explorer.aztec.network/)
+- [🔍 Testnet Falafel Status API](https://api.aztec.network/aztec-connect-testnet/falafel/status)
 
 ## Building an Aztec Connect Bridge Contract
 
-Review the [Getting Started with Aztec Connect Bridges](./bridges) page for more details.
+The [Aztec Connect Bridges page](./bridges) covers how to develop an Aztec Connect Bridge in great detail.
 
-The [Aztec Connect bridges GitHub repository](https://github.com/AztecProtocol/aztec-connect-bridges) has the most up to date information about creating a bridge contract.
-
-### Deployed Bridge Info
-
-You can get the latest bridge contract deployment information on the testnet with the following commands. Refer to the [Bridges](./bridges) page for details on setting up `forge`.
-
-```shell
-# export environment variables
-export RPC=https://aztec-connect-testnet-eth-host.aztec.network:8545
-export network=testnet
-export simulateAdmin=false
-
-# run script
-forge script --fork-url $RPC --ffi DataProviderDeployment --sig "readBogota()"
-```
+The [Aztec Connect Bridges repository](https://github.com/AztecProtocol/aztec-connect-bridges) has the most up to date information and materials for creating a bridge contract.
 
 ### Bridges Resources
 
-- [ETHBogota workshop video on building bridges](https://youtu.be/029Vm6PAnrM?t=1822)
-- [Element bridge explained](https://hackmd.io/@aztec-network/SJ7-6Rbfq)
-- [Aztec Connect bridges GitHub repository](https://github.com/AztecProtocol/aztec-connect-bridges)
+- [🧑‍💻 Aztec Connect Bridges GitHub Repo](https://github.com/AztecProtocol/aztec-connect-bridges)
+- [🎥 ETHBogota Workshop - Aztec Connect Bridges](https://www.youtube.com/watch?v=I5M8LhOECpM&t=1826s)
+- [✍️ Getting Started with Aztec Connect Bridges](./bridges.md)
+- [✍️ Element Bridge Explained](https://hackmd.io/@aztec-network/SJ7-6Rbfq)
 
-## Noir
+## Building in Noir
 
-Noir is a Domain Specific Language for SNARK proving systems. It can be used outside of Aztec or blockchain contexts. Noir will be used to create future versions of Aztec and as an integral part of the developer stack for building applications on Aztec.
+Noir is a domain specific language for building programs provable with Zero-Knowledge Proofs (ZKP), tapping into the privacy and scaling benefits ZKP technology has to offer.
 
-It has been designed to use any ACIR compatible proving system. It's design choices are influenced heavily by Rust.
-
-Read more about installing and writing Noir on [this page](noir).
-
-### Noir Gotchas
-
-If the program compilation fails, go into `nargo/Cargo.toml` and swap out `aztec_backend = ...` with the following:
-
-```js title="nargo/Cargo.toml"
-aztec_backend = { optional = true, git = "https://github.com/noir-lang/aztec_backend", rev = "d91c69f2137777cec37f692f98d075ae10e7a584", default-features = false, features = [
-    "wasm-base",
-] }
-```
+The [Noir page](./noir) covers how to install and develop in Noir in great detail.
 
 ### Noir Resources
 
-- [Official GitHub repo](https://github.com/noir-lang/noir)
-- [The Noir Programming Language Book](https://noir-lang.github.io/book/index.html)
-- [Getting Started with Noir Guide](https://hackmd.io/8jmyfuuTRWKr2w6rxr8HBw)
-- [ETHBogota workshop video on Noir](https://youtu.be/029Vm6PAnrM?t=2872)
-- [Basic Noir Example](https://github.com/vezenovm/basic_mul_noir_example)
-- [Mastermind in Noir](https://github.com/vezenovm/mastermind-noir)
+- [📓 The Noir Book](https://noir-lang.github.io/book/index.html)
+- [🧑‍💻 Noir GitHub Repo](https://github.com/noir-lang/noir)
+- [🎥 ETHBogota Workshop - Noir](https://www.youtube.com/watch?v=I5M8LhOECpM&t=2879s)
+- [✍️ Getting Started with Noir](./noir.md)
+- [📝 Standard Noir Example](https://github.com/vezenovm/basic_mul_noir_example)
+- [📝 Mastermind in Noir](https://github.com/vezenovm/mastermind-noir)
+- [📝 Semaphore in Noir (Concept Build)](https://github.com/vezenovm/simple_shield)
 
 ## Get in Touch
 
-Join the [Aztec Discord](https://discord.gg/aztec).
+### Discord
 
-### Discord Channels
+Join [Aztec Discord](https://discord.gg/aztec) for discussions across channels:
 
-- `#ethbogota` for the hackathon
-- `#💻│aztec-connect` for Bridges + SDK support
-- `#🖤│noir`
+- [`#💻│aztec-connect`](https://discord.com/channels/563037431604183070/563038059826774017) for SDK & Bridges
+- [`#🖤│noir`](https://discord.com/channels/563037431604183070/824700393677783080) for Noir
+- [`#🇨🇴│ethbogota`](https://discord.com/channels/563037431604183070/1021410163221086268) for the ETHBogota Hackathon
 
 ### Aztec Core Team Contacts
 
-Please reach out with questions, comments, ideas, etc. Feedback is also appreciated.
+All questions, comments, suggestions, ideas, etc. welcome.
 
-| Name | Role | Discord | Telegram | Twitter | Email |
-| --- | ---- | --- | --- | --- | --- |
-| Josh | Developer Relations | joshc#0001 | @crites | [@critesjosh_](https://twitter.com/critesjosh_) | josh@aztecprotocol.com |
-| Savio | Developer Relations | Globallager#4834 | @Globallager | [@globallager](https://twitter.com/globallager) | savio@aztecprotocol.com |
-| Lasse | Smart Contract + Bridge Engineer | LHerskind#8376 | | [@HerskindLasse](https://twitter.com/herskindlasse) |lasse@aztecprotocol.com |
-| Maxim | Engineer - Noir | vezzie#7609 | | [@maximvezenov](https://twitter.com/maximvezenov) | maxim@aztecprotocol.com |
+| Name  | Role                               | Discord          | Telegram     | Twitter                                             | Email                   |
+| ----- | ---------------------------------- | ---------------- | ------------ | --------------------------------------------------- | ----------------------- |
+| Josh  | Developer Relations                | joshc#0001       | @crites      | [@critesjosh\_](https://twitter.com/critesjosh_)    | josh@aztecprotocol.com  |
+| Savio | Developer Relations                | Globallager#4834 | @Globallager | [@globallager](https://twitter.com/globallager)     | savio@aztecprotocol.com |
+| Lasse | Engineer - Bridge & Smart Contract | LHerskind#8376   |              | [@HerskindLasse](https://twitter.com/herskindlasse) | lasse@aztecprotocol.com |
+| Maxim | Engineer - Noir                    | vezzie#7609      |              | [@maximvezenov](https://twitter.com/maximvezenov)   | maxim@aztecprotocol.com |
