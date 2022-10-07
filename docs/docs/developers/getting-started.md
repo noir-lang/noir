@@ -15,8 +15,8 @@ We are also working on Noir, a domain specific language that can be used to deve
 Running out of ideas to build? Check our [ETHBogota Hacking Ideas](https://docs.google.com/document/d/1uQ6jOU4LfnkzoaETFbk1EouVD41Dh5j6jjtcCh6tpEU) and [Aztec Grants](https://aztec.network/grants) for inspirations!
 :::
 
-:::note
-The Aztec core engineering team has a regular release cadence that will occasionally introduce breaking changes. Code freezes typically happen on Thursdays where updates are applied to the Testnet. The changes are then tested and monitored over the weekend and will be pushed to Mainnet if everything looks good.
+:::info
+The Aztec core engineering team has a regular release cadence that will occasionally introduce breaking changes. Updates are typically applied to Testnet on Thursdays, which are tested and monitored over the weekend and would be pushed to Mainnet afterwards.
 
 We are working on making this process more transparent. Feel free to [get in touch](#get-in-touch) if you have any queries.
 :::
@@ -82,7 +82,7 @@ To learn how the SDK works in action, the [CLI page](./cli) provides a detailed 
 
 If you are building a web interface, you might also find the [Frontend Boilerplate](https://github.com/Globallager/aztec-frontend-boilerplate) useful as a starting point.
 
-:::note
+:::tip
 By default, Aztec transactions could take up to a few hours to settle on the Testnet like on Mainnet. If you want transactions to settle quickly, be sure to set `TxSettlementTime` as `INSTANT`.
 
 `INSTANT` transactions pay higher fees in Testnet ETH in exchange for settlement within minutes rather than hours.
