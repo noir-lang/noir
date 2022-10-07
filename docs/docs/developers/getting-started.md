@@ -11,6 +11,10 @@ There are two common ways that developers can start building on Aztec:
 
 We are also working on Noir, a domain specific language that can be used to develop ZK-provable programs. Scroll down for more details.
 
+:::tip
+Running out of ideas to build? Check our [ETHBogota Hacking Ideas](https://docs.google.com/document/d/1uQ6jOU4LfnkzoaETFbk1EouVD41Dh5j6jjtcCh6tpEU) and [Aztec Grants](https://aztec.network/grants) for inspirations!
+:::
+
 :::note
 The Aztec core engineering team has a regular release cadence that will occasionally introduce breaking changes. Code freezes typically happen on Thursdays where updates are applied to the Testnet. The changes are then tested and monitored over the weekend and will be pushed to Mainnet if everything looks good.
 
