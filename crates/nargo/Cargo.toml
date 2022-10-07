@@ -23,8 +23,6 @@ clap = "2.33.3"
 termcolor = "1.1.2"
 hex = "0.4.2"
 tempdir = "0.3.7"
-indoc = "1.0"
-
 
 # Backends
 aztec_backend = { optional = true, git = "https://github.com/noir-lang/aztec_backend", rev = "01b922adcb5a9d70b2d12304e1cb7487d9f28188" }
