@@ -6,6 +6,8 @@ cfg_if::cfg_if! {
     } else if #[cfg(feature = "marlin")] {
         // R1CS_MARLIN_ARKWORKS
         pub use marlin_arkworks_backend::Marlin as ConcreteBackend;
+    } else if #[cfg(feature = "dummy_prover")] {
+        pub use dummy_prover::Plonk as ConcreteBackend;
     } else {
         compile_error!("please specify a backend to compile with");
     }
