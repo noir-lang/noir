@@ -44,6 +44,8 @@ To make use of the Testnet:
 
 After connecting to the Testnet, you can try out Aztec projects on the Testnet such as [zk.money (Testnet)](https://aztec-connect-testnet.zk.money/), [Aztec CLI](https://github.com/critesjosh/azteccli) and the [Minimal Frontend](https://aztec-frontend-boilerplate.netlify.app/) that involve account registrations, deposits, transfers, withdrawals and more on the Aztec network.
 
+The testnet doesn't have a block explorer at the moment. A simple way to deploy contracts on the testnet and interact with existing deployed contracts is via [Remix](https://remix.ethereum.org). To do this, connect Metamask to the testnet, connect Remix and Metamask and send transactions through the Remix "Deploy and Run Transactions" tab.
+
 For the status and details of the Aztec Testnet infrastructure, check the [Testnet Falafel Status API](https://api.aztec.network/aztec-connect-testnet/falafel/status).
 
 ### Deployed Aztec Connect Bridges
@@ -65,7 +67,7 @@ Alternatively, you can read from the bridge data provider contract directly by r
 To start using the SDK, install it in your project by running:
 
 ```shell
-npm install @aztec/sdk
+yarn add @aztec/sdk
 ```
 
 And import it into your project:
