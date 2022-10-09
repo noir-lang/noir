@@ -133,10 +133,10 @@ The main objective of unit tests is to demonstrate the bridge works by itself. T
 
 The main objective of end-to-end (E2E) tests, meanwhile, is to demonstrate the bridge works in a production-like environment. The testing setup should involve mocking the rollup with [`BridgeTestBase.sol`](https://github.com/AztecProtocol/aztec-connect-bridges/blob/master/src/test/aztec/base/BridgeTestBase.sol) and the focus is recommended to be on event emissions and token transfers.
 
-For Foundry users:
+For example, for Foundry users to test the ExampleUnitTest contract:
 
 ```shell
-forge test --match-contract {BRIDGE_NAME} -vvv
+forge test --match-contract ExampleUnitTest -vvv
 ```
 
 ### Deployment
