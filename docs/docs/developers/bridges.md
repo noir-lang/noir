@@ -215,6 +215,8 @@ To do this:
 5. Create an instance of IRollupProcessor.sol at address `0x614957a8ae7b87f18fa3f207b6619c520a022b4f`
 6. Call `setSupportedAsset()` with your token address and `200000` for the `_gasLimit`. The `_gasLimit` tells the Aztec client how much gas token transfers use. 200,000 is an overestimate that is fine for testnet transactions, but you should test your token for more precise gas usage before deploying to mainnet.
 
+To get the assets that Aztec supports, call `IRollupProcessor.getSupportedAssets()`. This will return two arrays, an array of token addresses and an array of gas limits.
+
 ### Aux Data
 
 The `auxData` field in the bridge call data is custom auxiliary data supporting bridge-specific logic.
