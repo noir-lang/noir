@@ -1,4 +1,3 @@
-#include "c_bind.hpp"
 #include "./scalar_multiplication.hpp"
 #include "pippenger.hpp"
 #include <common/mem.hpp>
@@ -6,11 +5,14 @@
 
 using namespace barretenberg;
 
+#define WASM_EXPORT __attribute__((visibility("default")))
+
 extern "C" {
 
 WASM_EXPORT void* bbmalloc(size_t size)
 {
-    return aligned_alloc(64, size);
+    auto ptr = aligned_alloc(64, size);
+    return ptr;
 }
 
 WASM_EXPORT void bbfree(void* ptr)
@@ -18,9 +20,10 @@ WASM_EXPORT void bbfree(void* ptr)
     aligned_free(ptr);
 }
 
-WASM_EXPORT void* new_pippenger(uint8_t* points, size_t num_points)
+WASM_EXPORT void* new_pippenger(g1::affine_element* points, size_t num_points)
 {
-    return new scalar_multiplication::Pippenger(points, num_points);
+    auto ptr = new scalar_multiplication::Pippenger(points, num_points);
+    return ptr;
 }
 
 WASM_EXPORT void delete_pippenger(void* pippenger)

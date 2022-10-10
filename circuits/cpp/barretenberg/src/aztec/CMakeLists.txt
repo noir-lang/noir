@@ -40,6 +40,8 @@ if(BENCHMARKS)
 endif()
 
 if(WASM)
+    add_definitions(-D_WASI_EMULATED_PROCESS_CLOCKS=1)
+
     # Well, this is awkward. We can't build a wasm module by just linking to the libraries as that produces, nothing.
     # There are a couple of other ways to avoiding listing all the object files here and leveraging the dependency
     # tree, but they come with the problem that they will import the 'env' object files. We explicitly want to avoid
@@ -72,7 +74,7 @@ if(WASM)
     target_link_options(
         barretenberg.wasm
         PRIVATE
-        -nostartfiles -Wl,--no-entry -Wl,--export-dynamic -Wl,--import-memory -Wl,--allow-undefined -Wl,--stack-first -Wl,-z,stack-size=8388608
+        -nostartfiles -Wl,--no-entry -Wl,--export-dynamic -Wl,--import-memory -Wl,--allow-undefined -Wl,--stack-first -Wl,-z,stack-size=1048576
     )
 
 endif()
