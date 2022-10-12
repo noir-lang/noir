@@ -12,7 +12,7 @@ There are two common ways that developers can start building on Aztec:
 We are also working on Noir, a domain specific language that can be used to develop ZK-provable programs. Scroll down for more details.
 
 :::tip
-Running out of ideas to build? Check our [ETHBogota Hacking Ideas](https://docs.google.com/document/d/1uQ6jOU4LfnkzoaETFbk1EouVD41Dh5j6jjtcCh6tpEU) and [Aztec Grants](https://aztec.network/grants) for inspirations!
+Running out of ideas to build? Check our [Grants](https://aztec.network/grants) for inspirations!
 :::
 
 :::info
