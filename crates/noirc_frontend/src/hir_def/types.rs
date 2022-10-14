@@ -447,7 +447,16 @@ impl std::fmt::Display for Type {
                 Signedness::Signed => write!(f, "{}i{}", is_const, num_bits),
                 Signedness::Unsigned => write!(f, "{}u{}", is_const, num_bits),
             },
-            Type::PolymorphicInteger(_, binding) => write!(f, "{}", binding.borrow()),
+            Type::PolymorphicInteger(_, binding) => {
+                if let TypeBinding::Unbound(_) = &*binding.borrow() {
+                    // Show a Field by default if this PolymorphicInteger is unbound, since that is
+                    // what they bind to by default anyway. It is less confusing than displaying it
+                    // as a generic.
+                    write!(f, "Field")
+                } else {
+                    write!(f, "{}", binding.borrow())
+                }
+            }
             Type::Struct(s, args) => {
                 let args = vecmap(args, |arg| arg.to_string());
                 if args.is_empty() {
