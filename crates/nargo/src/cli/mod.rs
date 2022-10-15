@@ -13,6 +13,7 @@ use crate::errors::CliError;
 mod build_cmd;
 mod compile_cmd;
 mod contract_cmd;
+mod gates_cmd;
 mod new_cmd;
 mod prove_cmd;
 mod verify_cmd;
@@ -65,6 +66,13 @@ pub fn start_cli() {
                     Arg::with_name("circuit_name").help("The name of the ACIR file").required(true),
                 ),
         )
+        .subcommand(
+            App::new("gates").about("Counts the occurences of different gates in circuit").arg(
+                Arg::with_name("show-ssa")
+                    .long("show-ssa")
+                    .help("Emit debug information for the intermediate SSA IR"),
+            ),
+        )
         .get_matches();
 
     let result = match matches.subcommand_name() {
@@ -74,6 +82,7 @@ pub fn start_cli() {
         Some("prove") => prove_cmd::run(matches),
         Some("compile") => compile_cmd::run(matches),
         Some("verify") => verify_cmd::run(matches),
+        Some("gates") => gates_cmd::run(matches),
         None => Err(CliError::Generic("No subcommand was used".to_owned())),
         Some(x) => Err(CliError::Generic(format!("unknown command : {}", x))),
     };
