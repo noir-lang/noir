@@ -37,11 +37,11 @@ impl Gate {
             Gate::Range(_, _) => "range",
             Gate::And(_) => "and",
             Gate::Xor(_) => "xor",
-            Gate::Directive(Directive::Invert { x: _, result: _ }) => "invert",
-            Gate::Directive(Directive::Truncate { a: _, b: _, c: _, bit_size: _ }) => "truncate",
-            Gate::Directive(Directive::Quotient { a: _, b: _, q: _, r: _ }) => "quotient",
-            Gate::Directive(Directive::Oddrange { a: _, b: _, r: _, bit_size: _ }) => "odd_range",
-            Gate::Directive(Directive::Split { a: _, b: _, bit_size: _ }) => "split",
+            Gate::Directive(Directive::Invert { .. }) => "invert",
+            Gate::Directive(Directive::Truncate { .. }) => "truncate",
+            Gate::Directive(Directive::Quotient { .. }) => "quotient",
+            Gate::Directive(Directive::Oddrange { .. }) => "odd_range",
+            Gate::Directive(Directive::Split { .. }) => "split",
             Gate::GadgetCall(g) => g.name.name(),
         }
     }
