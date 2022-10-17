@@ -65,6 +65,10 @@ fn toml_map_to_field(
                     InputValue::Field(new_value.unwrap()),
                 )?
             }
+            TomlTypes::Bool(boolean) => {
+                let new_value = if boolean { FieldElement::one() } else { FieldElement::zero() };
+                check_toml_map_duplicates(&mut field_map, parameter, InputValue::Field(new_value))?
+            }
             TomlTypes::ArrayNum(arr_num) => {
                 let array_elements: Vec<_> = arr_num
                     .into_iter()
@@ -130,6 +134,8 @@ enum TomlTypes {
     String(String),
     // Just a regular integer, that can fit in 128 bits
     Integer(u64),
+    // Simple boolean flag
+    Bool(bool),
     // Array of regular integers
     ArrayNum(Vec<u64>),
     // Array of hexadecimal integers
