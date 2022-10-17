@@ -163,8 +163,6 @@ fn export_public_inputs<P: AsRef<Path>>(
 ) -> Result<(), noirc_abi::errors::InputParserError> {
     // generate a name->value map for the public inputs, using the ABI and witness_map:
     let mut public_inputs = BTreeMap::new();
-    public_inputs
-        .insert(super::verify_cmd::RESERVED_PUBLIC_ARR.into(), InputValue::Vec(Vec::new())); //the dummy setpub array
     for i in &abi.parameters {
         if i.1.is_public() {
             let v = &witness_map[&i.0];
