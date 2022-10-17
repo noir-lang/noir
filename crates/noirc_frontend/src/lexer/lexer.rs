@@ -602,3 +602,61 @@ fn test_basic_language_syntax() {
         assert_eq!(got, token);
     }
 }
+
+#[test]
+fn test_skipped_character() {
+    // Input taken from https://github.com/noir-lang/noir/issues/351
+    let input = "
+    fn main(a: [Field; 3]) {
+        let i = 1;
+    
+        // Using a const variable as a parameter should not make it non-const
+        let i2 = foo(i);
+        let elem1 = a[i];
+    }
+    ";
+
+    let expected = vec![
+        Token::Keyword(Keyword::Fn),
+        Token::Ident("main".to_string()),
+        Token::LeftParen,
+        Token::Ident("a".to_string()),
+        Token::Colon,
+        Token::LeftBracket,
+        Token::Keyword(Keyword::Field),
+        Token::Semicolon,
+        Token::Int(3_i128.into()),
+        Token::RightBracket,
+        Token::RightParen,
+        Token::LeftBrace,
+        Token::Keyword(Keyword::Let),
+        Token::Ident("i".to_string()),
+        Token::Assign,
+        Token::Int(1_i128.into()),
+        Token::Semicolon,
+        Token::Keyword(Keyword::Let),
+        Token::IntType(IntType::Signed(2)),
+        Token::Assign,
+        Token::Ident("foo".to_string()),
+        Token::LeftParen,
+        Token::Ident("i".to_string()),
+        Token::RightParen,
+        Token::Semicolon,
+        Token::Keyword(Keyword::Let),
+        Token::Ident("elem1".to_string()),
+        Token::Assign,
+        Token::Ident("a".to_string()),
+        Token::LeftBracket,
+        Token::Ident("i".to_string()),
+        Token::RightBracket,
+        Token::Semicolon,
+        Token::RightBrace,
+        Token::EOF,
+    ];
+    let mut lexer = Lexer::new(input);
+
+    for token in expected.into_iter() {
+        let got = lexer.next_token().unwrap();
+        assert_eq!(got, token);
+    }
+}
