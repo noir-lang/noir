@@ -147,7 +147,7 @@ All questions, comments, suggestions, ideas, etc. welcome.
 
 | Name  | Role                               | Discord          | Telegram     | Twitter                                             | Email                   |
 | ----- | ---------------------------------- | ---------------- | ------------ | --------------------------------------------------- | ----------------------- |
-| Josh  | Developer Relations                | joshc#0001       | @crites      | [@critesjosh\_](https://twitter.com/critesjosh_)    | josh@aztecprotocol.com  |
+| Josh  | Developer Relations                | joshc#6779       | @crites      | [@critesjosh\_](https://twitter.com/critesjosh_)    | josh@aztecprotocol.com  |
 | Savio | Developer Relations                | Globallager#4834 | @Globallager | [@globallager](https://twitter.com/globallager)     | savio@aztecprotocol.com |
 | Lasse | Engineer - Bridge & Smart Contract | LHerskind#8376   |              | [@HerskindLasse](https://twitter.com/herskindlasse) | lasse@aztecprotocol.com |
 | Maxim | Engineer - Noir                    | vezzie#7609      |              | [@maximvezenov](https://twitter.com/maximvezenov)   | maxim@aztecprotocol.com |
