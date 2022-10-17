@@ -9,7 +9,7 @@ use noirc_abi::AbiType;
 use noirc_abi::{input_parser::InputValue, Abi};
 use std::path::Path;
 
-use crate::{errors::CliError, resolver::Resolver};
+use crate::errors::CliError;
 
 use super::{
     create_named_dir, write_to_file, PROOFS_DIR, PROOF_EXT, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE,
@@ -112,10 +112,15 @@ pub fn compile_circuit_and_witness<P: AsRef<Path>>(
     program_dir: P,
     show_ssa: bool,
 ) -> Result<(noirc_driver::CompiledProgram, BTreeMap<Witness, FieldElement>), CliError> {
-    let driver = Resolver::resolve_root_config(program_dir.as_ref())?;
-    let backend = crate::backends::ConcreteBackend;
-    let compiled_program = driver.into_compiled_program(backend.np_language(), show_ssa);
+    let compiled_program = super::compile_cmd::compile_circuit(program_dir.as_ref(), show_ssa)?;
+    let solved_witness = solve_witness(program_dir, &compiled_program)?;
+    Ok((compiled_program, solved_witness))
+}
 
+pub fn solve_witness<P: AsRef<Path>>(
+    program_dir: P,
+    compiled_program: &noirc_driver::CompiledProgram,
+) -> Result<BTreeMap<Witness, FieldElement>, CliError> {
     // Parse the initial witness values
     let witness_map = noirc_abi::input_parser::Format::Toml
         .parse(&program_dir, PROVER_INPUT_FILE)
@@ -134,6 +139,8 @@ pub fn compile_circuit_and_witness<P: AsRef<Path>>(
     let abi = compiled_program.abi.as_ref().unwrap();
     // Solve the remaining witnesses
     let (mut solved_witness, rv) = process_abi_with_input(abi.clone(), &witness_map)?;
+
+    let backend = crate::backends::ConcreteBackend;
     let solver_res = backend.solve(&mut solved_witness, compiled_program.circuit.gates.clone());
     // (over)writes verifier.toml
     export_public_inputs(rv, &solved_witness, &witness_map, abi, &program_dir)
@@ -151,7 +158,7 @@ pub fn compile_circuit_and_witness<P: AsRef<Path>>(
             _ => unreachable!(),
         }
 
-    Ok((compiled_program, solved_witness))
+    Ok(solved_witness)
 }
 
 fn export_public_inputs<P: AsRef<Path>>(

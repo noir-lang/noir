@@ -63,6 +63,11 @@ pub fn start_cli() {
                 .about("Compile the program and its secret execution trace into ACIR format")
                 .arg(
                     Arg::with_name("circuit_name").help("The name of the ACIR file").required(true),
+                )
+                .arg(
+                    Arg::with_name("witness")
+                        .long("witness")
+                        .help("Solve the witness and write it to file along with the ACIR"),
                 ),
         )
         .get_matches();
