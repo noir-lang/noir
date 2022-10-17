@@ -112,7 +112,7 @@ pub fn compile_circuit_and_witness<P: AsRef<Path>>(
     program_dir: P,
     show_ssa: bool,
 ) -> Result<(noirc_driver::CompiledProgram, BTreeMap<Witness, FieldElement>), CliError> {
-    let compiled_program = compile_circuit(program_dir.as_ref(), show_ssa)?;
+    let compiled_program = super::compile_cmd::compile_circuit(program_dir.as_ref(), show_ssa)?;
     let solved_witness = solve_witness(program_dir, &compiled_program)?;
     Ok((compiled_program, solved_witness))
 }
@@ -159,17 +159,6 @@ pub fn solve_witness<P: AsRef<Path>>(
         }
 
     Ok(solved_witness)
-}
-
-pub fn compile_circuit<P: AsRef<Path>>(
-    program_dir: P,
-    show_ssa: bool,
-) -> Result<noirc_driver::CompiledProgram, CliError> {
-    let driver = Resolver::resolve_root_config(program_dir.as_ref())?;
-    let backend = crate::backends::ConcreteBackend;
-    let compiled_program = driver.into_compiled_program(backend.np_language(), show_ssa);
-
-    Ok(compiled_program)
 }
 
 fn export_public_inputs<P: AsRef<Path>>(
