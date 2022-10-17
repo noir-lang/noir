@@ -9,7 +9,7 @@ use noirc_abi::AbiType;
 use noirc_abi::{input_parser::InputValue, Abi};
 use std::path::Path;
 
-use crate::{errors::CliError, resolver::Resolver};
+use crate::errors::CliError;
 
 use super::{
     create_named_dir, write_to_file, PROOFS_DIR, PROOF_EXT, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE,

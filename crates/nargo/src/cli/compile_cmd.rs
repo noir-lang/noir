@@ -1,12 +1,13 @@
 use std::path::PathBuf;
 
 use acvm::acir::native_types::Witness;
+use acvm::ProofSystemCompiler;
 
 use clap::ArgMatches;
 
 use std::path::Path;
 
-use crate::errors::CliError;
+use crate::{errors::CliError, resolver::Resolver};
 
 use super::{create_named_dir, write_to_file, BUILD_DIR};
 
@@ -33,7 +34,7 @@ pub fn generate_circuit_and_witness_to_disk<P: AsRef<Path>>(
     circuit_dir: P,
     generate_witness: bool,
 ) -> Result<PathBuf, CliError> {
-    let compiled_program = super::prove_cmd::compile_circuit(program_dir.as_ref(), false)?;
+    let compiled_program = compile_circuit(program_dir.as_ref(), false)?;
     let serialized = compiled_program.circuit.to_bytes();
 
     let mut circuit_path = create_named_dir(circuit_dir.as_ref(), "build");
