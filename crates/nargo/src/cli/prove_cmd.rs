@@ -80,10 +80,15 @@ pub fn compile_circuit_and_witness<P: AsRef<Path>>(
     program_dir: P,
     show_ssa: bool,
 ) -> Result<(noirc_driver::CompiledProgram, BTreeMap<Witness, FieldElement>), CliError> {
-    let driver = Resolver::resolve_root_config(program_dir.as_ref())?;
-    let backend = crate::backends::ConcreteBackend;
-    let compiled_program = driver.into_compiled_program(backend.np_language(), show_ssa);
+    let compiled_program = compile_circuit(program_dir.as_ref(), show_ssa)?;
+    let solved_witness = solve_witness(program_dir, &compiled_program)?;
+    Ok((compiled_program, solved_witness))
+}
 
+pub fn solve_witness<P: AsRef<Path>>(
+    program_dir: P,
+    compiled_program: &noirc_driver::CompiledProgram,
+) -> Result<BTreeMap<Witness, FieldElement>, CliError> {
     // Parse the initial witness values
     let witness_map = noirc_abi::input_parser::Format::Toml
         .parse(program_dir, PROVER_INPUT_FILE)
@@ -102,6 +107,7 @@ pub fn compile_circuit_and_witness<P: AsRef<Path>>(
     let abi = compiled_program.abi.as_ref().unwrap();
     let mut solved_witness = process_abi_with_input(abi.clone(), witness_map)?;
 
+    let backend = crate::backends::ConcreteBackend;
     let solver_res = backend.solve(&mut solved_witness, compiled_program.circuit.gates.clone());
 
     match solver_res {
@@ -116,7 +122,18 @@ pub fn compile_circuit_and_witness<P: AsRef<Path>>(
             _ => unreachable!(),
         }
 
-    Ok((compiled_program, solved_witness))
+    Ok(solved_witness)
+}
+
+pub fn compile_circuit<P: AsRef<Path>>(
+    program_dir: P,
+    show_ssa: bool,
+) -> Result<noirc_driver::CompiledProgram, CliError> {
+    let driver = Resolver::resolve_root_config(program_dir.as_ref())?;
+    let backend = crate::backends::ConcreteBackend;
+    let compiled_program = driver.into_compiled_program(backend.np_language(), show_ssa);
+
+    Ok(compiled_program)
 }
 
 pub fn prove_with_path<P: AsRef<Path>>(

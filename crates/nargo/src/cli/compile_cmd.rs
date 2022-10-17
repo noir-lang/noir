@@ -13,26 +13,28 @@ use super::{create_named_dir, write_to_file, BUILD_DIR};
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("compile").unwrap();
     let circuit_name = args.value_of("circuit_name").unwrap();
+    let witness = args.is_present("witness");
 
     let curr_dir = std::env::current_dir().unwrap();
     let mut circuit_path = PathBuf::new();
     circuit_path.push(BUILD_DIR);
-    let result = generate_circuit_to_disk(circuit_name, curr_dir, circuit_path);
+
+    let result =
+        generate_circuit_and_witness_to_disk(circuit_name, curr_dir, circuit_path, witness);
     match result {
         Ok(_) => Ok(()),
         Err(e) => Err(e),
     }
 }
 
-pub fn generate_circuit_to_disk<P: AsRef<Path>>(
+pub fn generate_circuit_and_witness_to_disk<P: AsRef<Path>>(
     circuit_name: &str,
     program_dir: P,
     circuit_dir: P,
+    generate_witness: bool,
 ) -> Result<PathBuf, CliError> {
-    let (compiled_program, solved_witness) =
-        super::prove_cmd::compile_circuit_and_witness(program_dir, false)?;
+    let compiled_program = super::prove_cmd::compile_circuit(program_dir.as_ref(), false)?;
     let serialized = compiled_program.circuit.to_bytes();
-    let buf = Witness::to_bytes(&solved_witness);
 
     let mut circuit_path = create_named_dir(circuit_dir.as_ref(), "build");
     circuit_path.push(circuit_name);
@@ -41,10 +43,15 @@ pub fn generate_circuit_to_disk<P: AsRef<Path>>(
     println!("Generated ACIR code into {}", path);
     println!("{:?}", std::fs::canonicalize(&circuit_path));
 
-    circuit_path.pop();
-    circuit_path.push(circuit_name);
-    circuit_path.set_extension(crate::cli::WITNESS_EXT);
-    write_to_file(buf.as_slice(), &circuit_path);
+    if generate_witness {
+        let solved_witness = super::prove_cmd::solve_witness(program_dir, &compiled_program)?;
+        let buf = Witness::to_bytes(&solved_witness);
+
+        circuit_path.pop();
+        circuit_path.push(circuit_name);
+        circuit_path.set_extension(crate::cli::WITNESS_EXT);
+        write_to_file(buf.as_slice(), &circuit_path);
+    }
 
     Ok(circuit_path)
 }
