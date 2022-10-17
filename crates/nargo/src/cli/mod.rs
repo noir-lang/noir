@@ -67,7 +67,7 @@ pub fn start_cli() {
                 .arg(
                     Arg::with_name("witness")
                         .long("witness")
-                        .help("Emit debug information for the intermediate SSA IR"),
+                        .help("Solve the witness and write it to file along with the ACIR"),
                 ),
         )
         .get_matches();
