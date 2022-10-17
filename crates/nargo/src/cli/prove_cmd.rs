@@ -139,7 +139,7 @@ pub fn solve_witness<P: AsRef<Path>>(
     let abi = compiled_program.abi.as_ref().unwrap();
     // Solve the remaining witnesses
     let (mut solved_witness, rv) = process_abi_with_input(abi.clone(), &witness_map)?;
-    
+
     let backend = crate::backends::ConcreteBackend;
     let solver_res = backend.solve(&mut solved_witness, compiled_program.circuit.gates.clone());
     // (over)writes verifier.toml
