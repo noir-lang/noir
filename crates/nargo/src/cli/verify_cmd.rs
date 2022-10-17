@@ -55,6 +55,12 @@ fn process_abi_with_verifier_input(
         match value {
             InputValue::Field(elem) => public_inputs.push(elem),
             InputValue::Vec(vec_elem) => public_inputs.extend(vec_elem),
+            InputValue::Undefined => {
+                return Err(CliError::Generic(format!(
+                    "The parameter {} is not defined in the {}.toml file.",
+                    param_name, VERIFIER_INPUT_FILE
+                )))
+            }
         }
     }
 
