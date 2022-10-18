@@ -345,8 +345,8 @@ fn simple_reduction_smoke_test() {
         mul_terms: vec![],
         linear_combinations: vec![
             (FieldElement::one(), a),
-            (FieldElement::one(), e),
             (-FieldElement::one(), b),
+            (FieldElement::one(), e),
         ],
         q_c: FieldElement::zero(),
     };
