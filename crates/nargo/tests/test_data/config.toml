@@ -1,5 +1,6 @@
 # List of tests to be excluded (i.e not run), as their directory name in test_data
-# "1_mul", "2_div","3_add","4_sub","5_over", "6","6_array", "7_function","7","8_integration", "assign_ex", "bool_not", "bool_or", "pedersen_check", "pred_eq", "schnorr", "sha256", "tuples"
+# "1_mul", "2_div","3_add","4_sub","5_over", "6","6_array", "7_function","7","8_integration", "9_conditional", "10_slices", "assign_ex", "bool_not", "bool_or", "pedersen_check", "pred_eq", "schnorr", "sha256", "tuples",
+# "array_len", "array_neq", "bit_and", "cast_bool", "const_array_access", "generics", "global_const", "main_bool_arg", "main_return", "merkle_insert", "modules", "modules_more", "scalar_mul", "simple_shield", "struct", "submodules", 
 exclude = ["const_fail"]
 
 
