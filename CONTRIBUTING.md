@@ -14,11 +14,6 @@ Submitting an issue in this repository is also a great way to contribute and get
 When submitting an issue, please include as much detail as possible about the error message, your environment (OS, version numbers, etc) and the 
 steps to reproduce the error.
 
-## Pull Requests
-
-Noir is still under active development. If you would like to submit a PR to the repo, please reach out to the team on Discord to discuss
-ahead of time.
-
 ## Contributing to the Standard Library
 
 Noir is still very new and there are many cryptographic primitives that we have yet to build that will be useful for the community.
