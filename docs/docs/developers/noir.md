@@ -79,7 +79,7 @@ aztec_backend = { optional = true, git = "https://github.com/noir-lang/aztec_bac
 nargo help
 ```
 
-For more information on Noir installation, check the [installation section](https://noir-lang.github.io/book/getting_started/install.html) of the Noir book.
+For more information on Noir installation, check the [installation section](https://noir-lang.github.io/book/getting_started/nargo/installation.html) of the Noir book.
 
 ## Noir Workflow
 
