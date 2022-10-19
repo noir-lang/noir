@@ -377,8 +377,6 @@ pub enum Keyword {
     Const,
     Bool,
     //
-    SetPub,
-    //
     // Let declarations will be for Structures and possibly closures, if they are added
     Let,
     // Field type can only be used in Directive functions. They are explicitly for doing Field operations without applying constraints
@@ -404,7 +402,6 @@ impl fmt::Display for Keyword {
             Keyword::Let => write!(f, "let"),
             Keyword::As => write!(f, "as"),
             Keyword::Use => write!(f, "use"),
-            Keyword::SetPub => write!(f, "setpub"),
             Keyword::Pub => write!(f, "pub"),
             Keyword::Field => write!(f, "Field"),
             Keyword::Const => write!(f, "const"),
@@ -436,7 +433,6 @@ impl Keyword {
             "use" => Keyword::Use,
             "mut" => Keyword::Mut,
 
-            "setpub" => Keyword::SetPub,
             "pub" => Keyword::Pub,
             "const" => Keyword::Const,
 
