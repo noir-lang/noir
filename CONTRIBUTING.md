@@ -1,34 +1,31 @@
 # Contributing to Noir
 
-Thank you for your interest in contributing to Noir! There are many ways to contribute
-and we appreciate all of them.
+Thank you for your interest in contributing to Noir! There are many ways to contribute and we appreciate all of them.
 
-## Getting help
+## Asking Questions
 
-There are many ways you can get help when you're stuck. The best way to get started is by asking for help in the #noir
-channel on the [Aztec discord](https://discord.gg/aztec). 
+The best place to ask general questions about noir is in the #noir channel on the [Aztec discord](https://discord.gg/aztec). 
+
+It might also be helpful to review existing and previous Github issues to see if your question has been answered already. 
+
+For specific technical questions, submitting an issue in this repo may be the best place to ask. 
+
+## Giving Feedback
+
+Feedback is a gift. The #noir channel on Discord is a great synchronous channel for feedback. Reporting issues that you encounter is also a great channel for sharing feedback.
 
 ## Submitting Issues
 
-Submitting an issue in this repository is also a great way to contribute and get help with problems that you run into.
-When submitting an issue, please include as much detail as possible about the error message, your environment (OS, version numbers, etc) and the 
-steps to reproduce the error.
+Submitting an issue in this repository is a great way to contribute and get help with problems that you run into.
+When submitting an issue, please include as much detail as possible about the error message, your environment (OS, version numbers, etc) and the steps to reproduce the error.
+
+## Creating a Pull Request
+
+Before you create a pull request, create an issue that thoroughly describes the problem that the PR solves if it doesn't already exist. Reference the issue in your PR and follow PR template guidelines.
 
 ## Contributing to the Standard Library
 
-Noir is still very new and there are many cryptographic primitives that we have yet to build that will be useful for the community.
-Here are few ideas. If you have other ideas, please reach out on the [Aztec Discord](https://discord.gg/aztec) to discuss.
-
-- Poseidon hashing
-- Keccack hashing
-- SHA512 hashing
-- ECDSA: verify and sign
-- EDDSA: verify and sign
-
-Future (once Noir has bigint support):
-
-- RSA
-- Elliptic curve arithmetic
+Noir is still very new and there are many cryptographic primitives that we have yet to build that will be useful for the community. If you have other ideas, please reach out on the [Aztec Discord](https://discord.gg/aztec) to discuss. You can find the current list of requested primitives in the [issues section](https://github.com/noir-lang/noir/labels/noir-stdlib) marked with the label `noir-stdlib`.
 
 ## Funding Opportunties
 
