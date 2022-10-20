@@ -203,6 +203,7 @@ pub enum BinaryOpKind {
     Xor,
     ShiftRight,
     ShiftLeft,
+    Modulo,
 }
 
 impl BinaryOpKind {
@@ -238,6 +239,7 @@ impl BinaryOpKind {
             BinaryOpKind::Xor => "^",
             BinaryOpKind::ShiftRight => ">>",
             BinaryOpKind::ShiftLeft => "<<",
+            BinaryOpKind::Modulo => "%",
         }
     }
 
@@ -258,6 +260,7 @@ impl BinaryOpKind {
             BinaryOpKind::Xor => Token::Caret,
             BinaryOpKind::ShiftLeft => Token::ShiftLeft,
             BinaryOpKind::ShiftRight => Token::ShiftRight,
+            BinaryOpKind::Modulo => Token::Percent,
         }
     }
 }
@@ -280,6 +283,7 @@ impl From<&Token> for Option<BinaryOpKind> {
             Token::LessEqual => BinaryOpKind::LessEqual,
             Token::Greater => BinaryOpKind::Greater,
             Token::GreaterEqual => BinaryOpKind::GreaterEqual,
+            Token::Percent => BinaryOpKind::Modulo,
             _ => return None,
         };
         Some(op)
@@ -547,6 +551,7 @@ impl Display for BinaryOpKind {
             BinaryOpKind::Xor => write!(f, "^"),
             BinaryOpKind::ShiftLeft => write!(f, "<<"),
             BinaryOpKind::ShiftRight => write!(f, ">>"),
+            BinaryOpKind::Modulo => write!(f, "%"),
         }
     }
 }

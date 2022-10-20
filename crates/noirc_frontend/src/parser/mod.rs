@@ -272,6 +272,7 @@ impl Precedence {
             Token::Minus => Precedence::Sum,
             Token::Slash => Precedence::Product,
             Token::Star => Precedence::Product,
+            Token::Percent => Precedence::Product,
             _ => return None,
         };
 

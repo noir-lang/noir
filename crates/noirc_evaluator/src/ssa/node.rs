@@ -625,9 +625,7 @@ pub enum BinaryOp {
     SafeMul, //(*) safe multiplication
     Udiv, //(/) unsigned division
     Sdiv, //(/) signed division
-    #[allow(dead_code)]
     Urem, //(%) modulo; remainder of unsigned division
-    #[allow(dead_code)]
     Srem, //(%) remainder of signed division
     Div, //(/) field division
     Eq,  //(==) equal
@@ -709,6 +707,16 @@ impl Binary {
             }
             BinaryOpKind::ShiftLeft => BinaryOp::Shl,
             BinaryOpKind::ShiftRight => BinaryOp::Shr,
+            BinaryOpKind::Modulo => {
+                let num_type: NumericType = op_type.into();
+                match num_type {
+                    NumericType::Signed(_) => return Binary::new(BinaryOp::Srem, lhs, rhs),
+                    NumericType::Unsigned(_) => return Binary::new(BinaryOp::Urem, lhs, rhs),
+                    NumericType::NativeField => {
+                        unimplemented!("Modulo operation with Field elements is not supported")
+                    }
+                }
+            }
         };
 
         Binary::new(operator, lhs, rhs)
