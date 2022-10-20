@@ -31,11 +31,16 @@ pub fn compile(acir: Circuit, np_language: Language) -> Circuit {
 
                 // Update next_witness counter
                 next_witness_index += intermediate_variables.len() as u32;
-
-                for (_, gate) in intermediate_variables.into_iter() {
+                let mut new_gates = Vec::new();
+                for (_, mut g) in intermediate_variables {
+                    g.sort();
+                    new_gates.push(g);
+                }
+                new_gates.push(arith_expr);
+                new_gates.sort();
+                for gate in new_gates {
                     optimised_gates.push(Gate::Arithmetic(gate));
                 }
-                optimised_gates.push(Gate::Arithmetic(arith_expr));
             }
             other_gate => optimised_gates.push(other_gate),
         }

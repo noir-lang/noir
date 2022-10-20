@@ -77,10 +77,20 @@ pub trait PartialWitnessGenerator {
                     // We compute the result because the other gates may want to use the assignment to generate their assignments
                 }
                 Gate::GadgetCall(gc) => {
-                    if let Err(op) = Self::solve_gadget_call(initial_witness, gc) {
-                        return GateResolution::UnsupportedOpcode(op);
+                    let mut unsolvable = false;
+                    for i in &gc.inputs {
+                        if !initial_witness.contains_key(&i.witness) {
+                            unsolvable = true;
+                            break;
+                        }
                     }
-                    false
+                    if unsolvable {
+                        true
+                    } else if let Err(op) = Self::solve_gadget_call(initial_witness, gc) {
+                        return GateResolution::UnsupportedOpcode(op);
+                    } else {
+                        false
+                    }
                 }
                 Gate::Directive(directive) => match directive {
                     Directive::Invert { x, result } => match initial_witness.get(x) {
