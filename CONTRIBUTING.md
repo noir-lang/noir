@@ -4,7 +4,7 @@ Thank you for your interest in contributing to Noir! There are many ways to cont
 
 ## Asking Questions
 
-The best place to ask general questions about noir is in the #noir channel on the [Aztec discord](https://discord.gg/aztec). 
+The best place to ask general questions about Noir is in the #noir channel on the [Aztec discord](https://discord.gg/aztec). 
 
 It might also be helpful to review existing and previous Github issues to see if your question has been answered already. 
 
