@@ -5,8 +5,6 @@ mod schnorr;
 mod ecdsa_secp256k1;
 mod scalar_mul;
 
-#[builtin(set_pub)]
-fn set_as_public(_input : Field) {}
 
 #[foreign(to_bits)]
 fn to_bits(_x : Field, _bit_size: u32) -> [u1; 256] {}
