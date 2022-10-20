@@ -2,15 +2,27 @@ mod errors;
 #[allow(clippy::module_inception)]
 mod parser;
 
+use std::sync::atomic::{AtomicU32, Ordering};
+
 use crate::token::{Keyword, Token};
 use crate::{ast::ImportStatement, Expression, NoirStruct};
-use crate::{Ident, LetStatement, NoirFunction, NoirImpl, Recoverable, Statement};
+use crate::{
+    BlockExpression, CallExpression, ExpressionKind, ForExpression, Ident, IndexExpression,
+    LetStatement, NoirFunction, NoirImpl, Path, PathKind, Pattern, Recoverable, Statement,
+    UnresolvedType,
+};
 
+use acvm::FieldElement;
 use chumsky::prelude::*;
 use chumsky::primitive::Container;
 pub use errors::ParserError;
 use noirc_errors::Span;
 pub use parser::parse_program;
+
+/// Counter used to generate unique names when desugaring
+/// code in the parser requires the creation of fresh variables.
+/// The parser is stateless so this is a static global instead.
+static UNIQUE_NAME_COUNTER: AtomicU32 = AtomicU32::new(0);
 
 #[derive(Debug, Clone)]
 pub(crate) enum TopLevelStatement {
@@ -292,6 +304,67 @@ impl Precedence {
             Product => Highest,
             Highest => Highest,
         }
+    }
+}
+
+enum ForRange {
+    Range(/*start:*/ Expression, /*end:*/ Expression),
+    Array(Expression),
+}
+
+impl ForRange {
+    /// Create a 'for' expression taking care of desugaring a 'for e in array' loop
+    /// into the following if needed:
+    ///
+    /// for i in 0 .. std::array::len(array) {
+    ///     let elem = array[i];
+    ///     ...
+    /// }
+    fn into_for(self, identifier: Ident, block: Expression) -> ExpressionKind {
+        let (identifier, start_range, end_range, block) = match self {
+            ForRange::Range(start, end) => (identifier, start, end, block),
+            ForRange::Array(array) => {
+                let span = identifier.span();
+                let start_range = ExpressionKind::integer(FieldElement::zero());
+                let start_range = Expression::new(start_range, span);
+
+                let ident = |name: &str| Ident::new(name.to_string(), span);
+                let segments = vec![ident("std"), ident("array"), ident("len")];
+
+                // std::array::len(array)
+                let end_range = ExpressionKind::Call(Box::new(CallExpression {
+                    func_name: Path { segments, kind: PathKind::Dep },
+                    arguments: vec![array.clone()],
+                }));
+                let end_range = Expression::new(end_range, span);
+
+                let next_unique_id = UNIQUE_NAME_COUNTER.fetch_add(1, Ordering::Relaxed);
+                let fresh_name = format!("$i{}", next_unique_id);
+                let fresh_identifier = Ident::new(fresh_name.clone(), span);
+
+                // array[i]
+                // FIXME: `array` is evaluated twice because of the clone before this and the
+                // second use here. This could lead to incorrect code generation if it is a block
+                // containing side-effects.
+                let loop_element = ExpressionKind::Index(Box::new(IndexExpression {
+                    collection: array,
+                    index: Expression::new(ExpressionKind::Ident(fresh_name), span),
+                }));
+
+                // let elem = array[i];
+                let let_elem = Statement::Let(LetStatement {
+                    pattern: Pattern::Identifier(identifier),
+                    r#type: UnresolvedType::Unspecified,
+                    expression: Expression::new(loop_element, span),
+                });
+
+                let new_block = BlockExpression(vec![let_elem, Statement::Expression(block)]);
+                let new_block = Expression::new(ExpressionKind::Block(new_block), span);
+                (fresh_identifier, start_range, end_range, new_block)
+            }
+        };
+
+        ExpressionKind::For(Box::new(ForExpression { identifier, start_range, end_range, block }))
     }
 }
 
