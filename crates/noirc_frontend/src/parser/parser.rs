@@ -631,7 +631,7 @@ where
         .then_ignore(keyword(Keyword::In))
         .then(for_range(expr_parser.clone()))
         .then(block_expr(expr_parser))
-        .map(|((identifier, range), block)| range.into_for(identifier, block))
+        .map_with_span(|((identifier, range), block), span| range.into_for(identifier, block, span))
 }
 
 /// The 'range' of a for loop. Either an actual range `start .. end` or an array expression.

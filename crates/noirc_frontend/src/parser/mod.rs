@@ -316,55 +316,84 @@ impl ForRange {
     /// Create a 'for' expression taking care of desugaring a 'for e in array' loop
     /// into the following if needed:
     ///
-    /// for i in 0 .. std::array::len(array) {
-    ///     let elem = array[i];
-    ///     ...
+    /// {
+    ///     let fresh1 = array;
+    ///     for fresh2 in 0 .. std::array::len(fresh1) {
+    ///         let elem = fresh1[fresh2];
+    ///         ...
+    ///     }
     /// }
-    fn into_for(self, identifier: Ident, block: Expression) -> ExpressionKind {
-        let (identifier, start_range, end_range, block) = match self {
-            ForRange::Range(start, end) => (identifier, start, end, block),
+    fn into_for(self, identifier: Ident, block: Expression, for_loop_span: Span) -> ExpressionKind {
+        match self {
+            ForRange::Range(start_range, end_range) => {
+                ExpressionKind::For(Box::new(ForExpression {
+                    identifier,
+                    start_range,
+                    end_range,
+                    block,
+                }))
+            }
             ForRange::Array(array) => {
-                let span = identifier.span();
+                let array_span = array.span;
                 let start_range = ExpressionKind::integer(FieldElement::zero());
-                let start_range = Expression::new(start_range, span);
+                let start_range = Expression::new(start_range, array_span);
 
-                let ident = |name: &str| Ident::new(name.to_string(), span);
+                let next_unique_id = UNIQUE_NAME_COUNTER.fetch_add(1, Ordering::Relaxed);
+                let fresh_name1 = format!("$i{}", next_unique_id);
+                let array_span = array.span;
+                let fresh_ident1 = Ident::new(fresh_name1.clone(), array_span);
+
+                // let fresh1 = array;
+                let let_array = Statement::Let(LetStatement {
+                    pattern: Pattern::Identifier(fresh_ident1),
+                    r#type: UnresolvedType::Unspecified,
+                    expression: array,
+                });
+
+                let ident = |name: &str| Ident::new(name.to_string(), array_span);
                 let segments = vec![ident("std"), ident("array"), ident("len")];
 
                 // std::array::len(array)
+                let array_ident = ExpressionKind::Ident(fresh_name1.clone());
                 let end_range = ExpressionKind::Call(Box::new(CallExpression {
                     func_name: Path { segments, kind: PathKind::Dep },
-                    arguments: vec![array.clone()],
+                    arguments: vec![Expression::new(array_ident, array_span)],
                 }));
-                let end_range = Expression::new(end_range, span);
+                let end_range = Expression::new(end_range, array_span);
 
                 let next_unique_id = UNIQUE_NAME_COUNTER.fetch_add(1, Ordering::Relaxed);
                 let fresh_name = format!("$i{}", next_unique_id);
-                let fresh_identifier = Ident::new(fresh_name.clone(), span);
+                let fresh_identifier = Ident::new(fresh_name.clone(), array_span);
 
                 // array[i]
-                // FIXME: `array` is evaluated twice because of the clone before this and the
-                // second use here. This could lead to incorrect code generation if it is a block
-                // containing side-effects.
                 let loop_element = ExpressionKind::Index(Box::new(IndexExpression {
-                    collection: array,
-                    index: Expression::new(ExpressionKind::Ident(fresh_name), span),
+                    collection: Expression::new(ExpressionKind::Ident(fresh_name1), array_span),
+                    index: Expression::new(ExpressionKind::Ident(fresh_name), array_span),
                 }));
 
                 // let elem = array[i];
                 let let_elem = Statement::Let(LetStatement {
                     pattern: Pattern::Identifier(identifier),
                     r#type: UnresolvedType::Unspecified,
-                    expression: Expression::new(loop_element, span),
+                    expression: Expression::new(loop_element, array_span),
                 });
 
+                let block_span = block.span;
                 let new_block = BlockExpression(vec![let_elem, Statement::Expression(block)]);
-                let new_block = Expression::new(ExpressionKind::Block(new_block), span);
-                (fresh_identifier, start_range, end_range, new_block)
-            }
-        };
+                let new_block = Expression::new(ExpressionKind::Block(new_block), block_span);
+                let for_loop = ExpressionKind::For(Box::new(ForExpression {
+                    identifier: fresh_identifier,
+                    start_range,
+                    end_range,
+                    block: new_block,
+                }));
 
-        ExpressionKind::For(Box::new(ForExpression { identifier, start_range, end_range, block }))
+                ExpressionKind::Block(BlockExpression(vec![
+                    let_array,
+                    Statement::Expression(Expression::new(for_loop, for_loop_span)),
+                ]))
+            }
+        }
     }
 }
 
