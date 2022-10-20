@@ -8,8 +8,6 @@ mod arrayprod;
 use arrayprod::ArrayProd;
 mod pred_eq;
 use pred_eq::PredicateEq;
-mod setpub;
-use setpub::SetPub;
 
 use noirc_errors::Location;
 use noirc_frontend::hir_def::expr::HirCallExpression;
@@ -18,7 +16,6 @@ use noirc_frontend::hir_def::expr::HirCallExpression;
 enum BuiltInFunctions {
     ArraySum,
     ArrayProd,
-    SetPub,
     PredEq,
 }
 
@@ -27,7 +24,6 @@ impl BuiltInFunctions {
         match name {
             "arraysum" => Some(BuiltInFunctions::ArraySum),
             "arrayprod" => Some(BuiltInFunctions::ArrayProd),
-            "set_pub" => Some(BuiltInFunctions::SetPub),
             "predicate_equal" => Some(BuiltInFunctions::PredEq),
             _ => None,
         }
@@ -59,7 +55,6 @@ pub fn call_builtin(
     match func {
         BuiltInFunctions::ArraySum => ArraySum::call(evaluator, env, call_expr, location),
         BuiltInFunctions::ArrayProd => ArrayProd::call(evaluator, env, call_expr, location),
-        BuiltInFunctions::SetPub => SetPub::call(evaluator, env, call_expr, location),
         BuiltInFunctions::PredEq => PredicateEq::call(evaluator, env, call_expr, location),
     }
 }
