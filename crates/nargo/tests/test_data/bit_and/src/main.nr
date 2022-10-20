@@ -8,7 +8,7 @@ fn main(x : Field, y : Field) {
 
     //bitwise and with 1 bit:
     let flag = (x == 0) & (y == 16);
-    constrain flag == true;
+    constrain flag;
 
     //bitwise and with odd bits:
     let x_as_u11 = x as u11;
