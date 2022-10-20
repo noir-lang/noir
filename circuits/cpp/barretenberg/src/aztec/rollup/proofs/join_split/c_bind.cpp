@@ -35,6 +35,11 @@ WASM_EXPORT void join_split__init_proving_key_from_buffer(uint8_t const* pk_buf)
     init_proving_key(crs, std::move(pk_data));
 }
 
+WASM_EXPORT void join_split__release_key()
+{
+    release_key();
+}
+
 WASM_EXPORT uint32_t join_split__get_new_proving_key_data(uint8_t** output)
 {
     // Computing the size of the serialized key is non trivial. We know it's ~331mb.

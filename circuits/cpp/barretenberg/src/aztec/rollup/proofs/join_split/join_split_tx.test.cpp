@@ -5,7 +5,6 @@
 
 #include <common/streams.hpp>
 #include <crypto/schnorr/schnorr.hpp>
-#include <ecc/curves/bn254/scalar_multiplication/c_bind.hpp>
 #include <numeric/random/engine.hpp>
 #include <plonk/reference_string/pippenger_reference_string.hpp>
 #include <srs/io.hpp>

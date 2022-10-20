@@ -154,7 +154,7 @@ constexpr void element<Fq, Fr, T>::self_mixed_add_or_sub(const affine_element<Fq
             return;
         }
     } else {
-        const bool edge_case_trigger = x.is_msb_set() | other.x.is_msb_set();
+        const bool edge_case_trigger = x.is_msb_set() || other.x.is_msb_set();
         if (edge_case_trigger) {
             if (x.is_msb_set()) {
                 conditional_negate_affine(other, *(affine_element<Fq, Fr, T>*)this, predicate);
@@ -246,7 +246,7 @@ constexpr element<Fq, Fr, T> element<Fq, Fr, T>::operator+=(const affine_element
             return *this;
         }
     } else {
-        const bool edge_case_trigger = x.is_msb_set() | other.x.is_msb_set();
+        const bool edge_case_trigger = x.is_msb_set() || other.x.is_msb_set();
         if (edge_case_trigger) {
             if (x.is_msb_set()) {
                 *this = { other.x, other.y, Fq::one() };

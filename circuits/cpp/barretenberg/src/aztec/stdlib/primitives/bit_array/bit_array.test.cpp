@@ -94,4 +94,24 @@ TEST(stdlib_bit_array, test_byte_array_conversion)
 
     EXPECT_EQ(result, expected);
 }
+
+TEST(stdlib_bit_array, test_uint32_vector_constructor)
+{
+    waffle::StandardComposer composer = waffle::StandardComposer();
+
+    uint32_t a_expected = engine.get_random_uint32();
+    uint32_t b_expected = engine.get_random_uint32();
+
+    uint32 a = witness_t(&composer, a_expected);
+    uint32 b = witness_t(&composer, b_expected);
+
+    std::vector<uint32> inputs = { a, b };
+    bit_array test_bit_array = bit_array(inputs);
+
+    std::vector<uint32> result = test_bit_array.to_uint32_vector();
+
+    bit_array test_bit_array_2 = bit_array(result);
+
+    static_cast<byte_array>(test_bit_array_2).get_value();
+}
 } // namespace test_stdlib_bit_array

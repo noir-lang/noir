@@ -4,6 +4,16 @@
 namespace barretenberg {
 namespace scalar_multiplication {
 
+Pippenger::Pippenger(g1::affine_element* points, size_t num_points)
+    : monomials_(points)
+    , num_points_(num_points)
+{
+    monomials_[0] = barretenberg::g1::affine_one;
+    io::byteswap(&monomials_[1], (num_points - 1) * 64);
+
+    scalar_multiplication::generate_pippenger_point_table(monomials_, monomials_, num_points);
+}
+
 Pippenger::Pippenger(uint8_t const* points, size_t num_points)
     : num_points_(num_points)
 {

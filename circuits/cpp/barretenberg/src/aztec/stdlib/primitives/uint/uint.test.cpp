@@ -1883,6 +1883,7 @@ TEST(stdlib_uint, test_at)
             bool_ct result = c.at(i);
             bool expected = (((c_val >> i) & 1UL) == 1UL) ? true : false;
             EXPECT_EQ(result.get_value(), expected);
+            EXPECT_EQ(result.get_context(), c.get_context());
         }
     };
 
