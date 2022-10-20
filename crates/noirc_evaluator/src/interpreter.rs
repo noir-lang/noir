@@ -91,6 +91,9 @@ impl<'a> Interpreter<'a> {
                     "Bit shift operations are not currently implemented.".to_owned(),
                 ))
             }
+            BinaryOpKind::Modulo => Err(RuntimeErrorKind::Unimplemented(
+                "Modulo operation is not currently implemented.".to_owned(),
+            )),
         }
         .map_err(|kind| kind.add_location(op.location))
     }
