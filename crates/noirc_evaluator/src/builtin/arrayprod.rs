@@ -4,15 +4,16 @@ use noirc_frontend::hir_def::expr::HirCallExpression;
 use super::BuiltInCaller;
 use crate::binary_op;
 use crate::errors::RuntimeError;
+use crate::interpreter::Interpreter;
 use crate::object::{Array, Object};
-use crate::{Environment, Evaluator};
+use crate::Environment;
 
 /// Takes the direct product of the elements in an array
 pub struct ArrayProd;
 
 impl BuiltInCaller for ArrayProd {
     fn call(
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
         env: &mut Environment,
         mut call_expr: HirCallExpression,
         location: Location,

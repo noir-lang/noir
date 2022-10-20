@@ -1,12 +1,12 @@
 use super::add::handle_add_op;
-use crate::{object::Array, Evaluator, Object, RuntimeErrorKind};
+use crate::{interpreter::Interpreter, object::Array, Object, RuntimeErrorKind};
 
 /// This calls the add op under the hood
 /// We negate the RHS and send it to the add op
 pub fn handle_sub_op(
     left: Object,
     right: Object,
-    evaluator: &mut Evaluator,
+    evaluator: &mut Interpreter,
 ) -> Result<Object, RuntimeErrorKind> {
     let negated_right = match right {
         Object::Null => {

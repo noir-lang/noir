@@ -203,8 +203,6 @@ pub enum BinaryOpKind {
     Xor,
     ShiftRight,
     ShiftLeft,
-    // Assign is the only binary operator which cannot be used in a constrain statement
-    Assign,
 }
 
 impl BinaryOpKind {
@@ -238,7 +236,6 @@ impl BinaryOpKind {
             BinaryOpKind::And => "&",
             BinaryOpKind::Or => "|",
             BinaryOpKind::Xor => "^",
-            BinaryOpKind::Assign => "=",
             BinaryOpKind::ShiftRight => ">>",
             BinaryOpKind::ShiftLeft => "<<",
         }
@@ -261,7 +258,6 @@ impl BinaryOpKind {
             BinaryOpKind::Xor => Token::Caret,
             BinaryOpKind::ShiftLeft => Token::ShiftLeft,
             BinaryOpKind::ShiftRight => Token::ShiftRight,
-            BinaryOpKind::Assign => Token::Assign,
         }
     }
 }
@@ -284,7 +280,6 @@ impl From<&Token> for Option<BinaryOpKind> {
             Token::LessEqual => BinaryOpKind::LessEqual,
             Token::Greater => BinaryOpKind::Greater,
             Token::GreaterEqual => BinaryOpKind::GreaterEqual,
-            Token::Assign => BinaryOpKind::Assign,
             _ => return None,
         };
         Some(op)
@@ -552,7 +547,6 @@ impl Display for BinaryOpKind {
             BinaryOpKind::Xor => write!(f, "^"),
             BinaryOpKind::ShiftLeft => write!(f, "<<"),
             BinaryOpKind::ShiftRight => write!(f, ">>"),
-            BinaryOpKind::Assign => write!(f, "="),
         }
     }
 }

@@ -31,6 +31,20 @@ pub enum Gate {
 }
 
 impl Gate {
+    pub fn name(&self) -> &str {
+        match self {
+            Gate::Arithmetic(_) => "arithmetic",
+            Gate::Range(_, _) => "range",
+            Gate::And(_) => "and",
+            Gate::Xor(_) => "xor",
+            Gate::Directive(Directive::Invert { .. }) => "invert",
+            Gate::Directive(Directive::Truncate { .. }) => "truncate",
+            Gate::Directive(Directive::Quotient { .. }) => "quotient",
+            Gate::Directive(Directive::Oddrange { .. }) => "odd_range",
+            Gate::Directive(Directive::Split { .. }) => "split",
+            Gate::GadgetCall(g) => g.name.name(),
+        }
+    }
     pub fn is_arithmetic(&self) -> bool {
         matches!(self, Gate::Arithmetic(_))
     }

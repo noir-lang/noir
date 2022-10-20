@@ -46,7 +46,9 @@ pub(crate) fn type_check(
         HirStatement::Constrain(constrain_stmt) => {
             type_check_constrain_stmt(interner, constrain_stmt, errors)
         }
-        HirStatement::Assign(assign_stmt) => type_check_assign_stmt(interner, assign_stmt, errors),
+        HirStatement::Assign(assign_stmt) => {
+            type_check_assign_stmt(interner, assign_stmt, stmt_id, errors)
+        }
         HirStatement::Error => (),
     }
     Type::Unit
@@ -84,7 +86,7 @@ pub fn bind_pattern(
 
                 for pattern_field in pattern_fields {
                     let type_field =
-                        inner.borrow().get_field(&pattern_field.0 .0.contents, &args).unwrap();
+                        inner.borrow().get_field(&pattern_field.0 .0.contents, &args).unwrap().0;
                     bind_pattern(interner, &pattern_field.1, type_field, errors);
                 }
             }
@@ -103,11 +105,18 @@ pub fn bind_pattern(
 fn type_check_assign_stmt(
     interner: &mut NodeInterner,
     assign_stmt: HirAssignStatement,
+    stmt_id: &StmtId,
     errors: &mut Vec<TypeCheckError>,
 ) {
     let expr_type = type_check_expression(interner, &assign_stmt.expression, errors);
     let span = interner.expr_span(&assign_stmt.expression);
-    let lvalue_type = type_check_lvalue(interner, assign_stmt.lvalue, span, errors);
+    let (lvalue_type, new_lvalue) = type_check_lvalue(interner, assign_stmt.lvalue, span, errors);
+
+    // Must push new lvalue to the interner, we've resolved any field indices
+    interner.update_statement(stmt_id, |stmt| match stmt {
+        HirStatement::Assign(assign) => assign.lvalue = new_lvalue,
+        _ => unreachable!(),
+    });
 
     let span = interner.expr_span(&assign_stmt.expression);
     expr_type.make_subtype_of(&lvalue_type, span, errors, || {
@@ -125,10 +134,10 @@ fn type_check_lvalue(
     lvalue: HirLValue,
     assign_span: Span,
     errors: &mut Vec<TypeCheckError>,
-) -> Type {
+) -> (Type, HirLValue) {
     match lvalue {
         HirLValue::Ident(ident) => {
-            if ident.id == DefinitionId::dummy_id() {
+            let typ = if ident.id == DefinitionId::dummy_id() {
                 Type::Error
             } else {
                 let definition = interner.definition(ident.id);
@@ -141,29 +150,35 @@ fn type_check_lvalue(
                         span: ident.location.span,
                     });
                 }
-
                 interner.id_type(ident.id)
-            }
+            };
+
+            (typ, HirLValue::Ident(ident))
         }
-        HirLValue::MemberAccess { object, field_name } => {
-            let result = type_check_lvalue(interner, *object, assign_span, errors);
+        HirLValue::MemberAccess { object, field_name, .. } => {
+            let (result, object) = type_check_lvalue(interner, *object, assign_span, errors);
+            let object = Box::new(object);
 
             let mut error = |typ| {
                 errors.push(TypeCheckError::Unstructured {
                     msg: format!("Type {} has no member named {}", typ, field_name),
                     span: field_name.span(),
                 });
-                Type::Error
+                (Type::Error, None)
             };
 
-            match result {
-                Type::Struct(def, args) => def
-                    .borrow()
-                    .get_field(&field_name.0.contents, &args)
-                    .unwrap_or_else(|| error(Type::Struct(def.clone(), args))),
-                Type::Error => Type::Error,
+            let (typ, field_index) = match result {
+                Type::Struct(def, args) => {
+                    match def.borrow().get_field(&field_name.0.contents, &args) {
+                        Some((field, index)) => (field, Some(index)),
+                        None => error(Type::Struct(def.clone(), args)),
+                    }
+                }
+                Type::Error => (Type::Error, None),
                 other => error(other),
-            }
+            };
+
+            (typ, HirLValue::MemberAccess { object, field_name, field_index })
         }
         HirLValue::Index { array, index } => {
             let index_type = type_check_expression(interner, &index, errors);
@@ -177,7 +192,10 @@ fn type_check_lvalue(
                 }
             });
 
-            match type_check_lvalue(interner, *array, assign_span, errors) {
+            let (result, array) = type_check_lvalue(interner, *array, assign_span, errors);
+            let array = Box::new(array);
+
+            let typ = match result {
                 Type::Array(_, elem_type) => *elem_type,
                 Type::Error => Type::Error,
                 other => {
@@ -189,7 +207,9 @@ fn type_check_lvalue(
                     });
                     Type::Error
                 }
-            }
+            };
+
+            (typ, HirLValue::Index { array, index })
         }
     }
 }

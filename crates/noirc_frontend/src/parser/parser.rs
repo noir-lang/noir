@@ -1044,7 +1044,6 @@ mod test {
             BinaryOpKind::Divide,
             BinaryOpKind::Multiply,
             BinaryOpKind::Or,
-            BinaryOpKind::Assign,
         ];
 
         for operator in disallowed_operators {

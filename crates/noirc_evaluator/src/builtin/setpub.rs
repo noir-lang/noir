@@ -2,14 +2,15 @@ use noirc_errors::Location;
 use noirc_frontend::hir_def::expr::HirCallExpression;
 
 use super::BuiltInCaller;
+use crate::interpreter::Interpreter;
 use crate::object::Object;
 use crate::FuncContext;
-use crate::{Environment, Evaluator, RuntimeError, RuntimeErrorKind};
+use crate::{Environment, RuntimeError, RuntimeErrorKind};
 pub struct SetPub;
 
 impl BuiltInCaller for SetPub {
     fn call(
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
         env: &mut Environment,
         mut call_expr: HirCallExpression,
         location: Location,
@@ -31,7 +32,7 @@ impl BuiltInCaller for SetPub {
 
         let witness = object.witness().expect("expected a witness");
 
-        evaluator.public_inputs.push(witness);
+        evaluator.push_public_input(witness);
 
         Ok(object)
     }

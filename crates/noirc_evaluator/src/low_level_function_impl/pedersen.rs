@@ -1,8 +1,9 @@
 use super::GadgetCaller;
 use super::RuntimeError;
+use crate::interpreter::Interpreter;
 use crate::low_level_function_impl::object_to_wit_bits;
 use crate::object::{Array, Object};
-use crate::{Environment, Evaluator};
+use crate::Environment;
 use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
 use acvm::acir::OPCODE;
 use acvm::FieldElement;
@@ -16,7 +17,7 @@ impl GadgetCaller for PedersenGadget {
     }
 
     fn call(
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
         env: &mut Environment,
         call_expr: HirCallExpression,
     ) -> Result<Object, RuntimeError> {
@@ -34,7 +35,7 @@ impl GadgetCaller for PedersenGadget {
             outputs: vec![pedersen_output_x, pedersen_output_y],
         };
 
-        evaluator.gates.push(Gate::GadgetCall(pedersen_gate));
+        evaluator.push_gate(Gate::GadgetCall(pedersen_gate));
 
         let arr = Array { length: 2, contents: vec![object_pedersen_x, object_pedersen_y] };
 
@@ -44,7 +45,7 @@ impl GadgetCaller for PedersenGadget {
 
 impl PedersenGadget {
     fn prepare_inputs(
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
         env: &mut Environment,
         mut call_expr: HirCallExpression,
     ) -> Result<Vec<GadgetInput>, RuntimeError> {

@@ -3,15 +3,16 @@ use noirc_frontend::hir_def::expr::HirCallExpression;
 
 use super::BuiltInCaller;
 use crate::binary_op;
+use crate::interpreter::Interpreter;
 use crate::object::{Array, Object};
-use crate::{Environment, Evaluator, RuntimeError};
+use crate::{Environment, RuntimeError};
 
 /// Sums all of the elements in an array
 pub struct ArraySum;
 
 impl BuiltInCaller for ArraySum {
     fn call(
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
         env: &mut Environment,
         mut call_expr: HirCallExpression,
         location: Location,

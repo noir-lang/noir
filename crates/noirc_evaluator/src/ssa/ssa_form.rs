@@ -1,11 +1,9 @@
 use std::collections::HashSet;
 
 use crate::ssa::node::{Mark, Operation};
-use noirc_frontend::node_interner::DefinitionId;
 
 use super::{
     block::BlockId,
-    code_gen::IRGenerator,
     context::SsaContext,
     node::{self, NodeId},
 };
@@ -117,17 +115,4 @@ pub fn get_current_value_in_block(
 //Returns the current SSA value of a variable, recursively
 pub fn get_current_value(ctx: &mut SsaContext, var_id: NodeId) -> NodeId {
     get_current_value_in_block(ctx, var_id, ctx.current_block)
-}
-
-pub fn create_function_parameter(igen: &mut IRGenerator, ident_id: &DefinitionId) -> Vec<NodeId> {
-    let ident_name = igen.def_to_name(*ident_id);
-    let o_type = igen.def_interner().id_type(*ident_id);
-    //check if the variable is already created:
-    let val = if let Some(var) = igen.find_variable(*ident_id) {
-        let clone_var = var.clone();
-        igen.get_current_value(&clone_var)
-    } else {
-        igen.create_new_value(&o_type, &ident_name, Some(*ident_id))
-    };
-    val.to_node_ids()
 }

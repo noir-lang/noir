@@ -13,6 +13,8 @@ use crate::{token::Attribute, FunctionKind};
 #[derive(Debug, Clone)]
 pub struct HirFunction(ExprId);
 
+pub const MAIN_RETURN_NAME: &str = "return";
+
 impl HirFunction {
     pub fn empty() -> HirFunction {
         HirFunction(ExprId::empty_block_id())
@@ -24,8 +26,6 @@ impl HirFunction {
         HirFunction(expr_id)
     }
 
-    // This function is marked as unsafe because
-    // the expression kind is not being checked
     pub const fn as_expr(&self) -> &ExprId {
         &self.0
     }
@@ -149,7 +149,7 @@ impl FuncMeta {
 
         if return_type != Type::Unit {
             let typ = return_type.as_abi_type(self.return_visibility);
-            abi.parameters.push((NodeInterner::main_return_name().into(), typ));
+            abi.parameters.push((MAIN_RETURN_NAME.into(), typ));
         }
 
         abi
@@ -158,9 +158,9 @@ impl FuncMeta {
     /// Gives the (uninstantiated) return type of this function.
     pub fn return_type(&self) -> &Type {
         match &self.typ {
-            Type::Function(_, ret, _) => ret,
+            Type::Function(_, ret) => ret,
             Type::Forall(_, typ) => match typ.as_ref() {
-                Type::Function(_, ret, _) => ret,
+                Type::Function(_, ret) => ret,
                 _ => unreachable!(),
             },
             _ => unreachable!(),

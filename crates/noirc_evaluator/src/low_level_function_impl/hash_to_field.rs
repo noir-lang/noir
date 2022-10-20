@@ -1,6 +1,7 @@
 use super::{object_to_wit_bits, GadgetCaller};
+use crate::interpreter::Interpreter;
 use crate::object::{Array, Object};
-use crate::{Environment, Evaluator};
+use crate::Environment;
 use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
 use acvm::acir::OPCODE;
 use noirc_frontend::hir_def::expr::HirCallExpression;
@@ -15,7 +16,7 @@ impl GadgetCaller for HashToFieldGadget {
     }
 
     fn call(
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
         env: &mut Environment,
         call_expr: HirCallExpression,
     ) -> Result<Object, RuntimeError> {
@@ -27,7 +28,7 @@ impl GadgetCaller for HashToFieldGadget {
         let hash_to_field_gate =
             GadgetCall { name: HashToFieldGadget::name(), inputs, outputs: vec![res_witness] };
 
-        evaluator.gates.push(Gate::GadgetCall(hash_to_field_gate));
+        evaluator.push_gate(Gate::GadgetCall(hash_to_field_gate));
 
         Ok(res_object)
     }
@@ -35,7 +36,7 @@ impl GadgetCaller for HashToFieldGadget {
 
 impl HashToFieldGadget {
     fn prepare_inputs(
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
         env: &mut Environment,
         mut call_expr: HirCallExpression,
     ) -> Result<Vec<GadgetInput>, RuntimeError> {
