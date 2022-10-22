@@ -1,11 +1,10 @@
 use std::collections::HashMap;
 
-use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
 use std::path::Path;
 
+use crate::cli::compile_cmd::compile_circuit;
 use crate::errors::CliError;
-use crate::resolver::Resolver;
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("gates").unwrap();
@@ -22,10 +21,7 @@ pub fn count_gates_with_path<P: AsRef<Path>>(
     program_dir: P,
     show_ssa: bool,
 ) -> Result<(), CliError> {
-    let driver = Resolver::resolve_root_config(program_dir.as_ref())?;
-    let backend = crate::backends::ConcreteBackend;
-
-    let compiled_program = driver.into_compiled_program(backend.np_language(), show_ssa);
+    let compiled_program = compile_circuit(program_dir.as_ref(), show_ssa)?;
     let gates = compiled_program.circuit.gates;
 
     // Store counts of each gate type into hashmap.
