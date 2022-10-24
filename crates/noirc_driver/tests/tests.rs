@@ -14,6 +14,7 @@ fn fail() {
     }
 }
 #[test]
+#[cfg(feature = "std")]
 fn pass() {
     let mut pass_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     pass_dir.push("tests/pass/");
