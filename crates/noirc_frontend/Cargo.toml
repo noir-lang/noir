@@ -18,3 +18,7 @@ thiserror = "1.0.21"
 pathdiff = "0.2"
 smol_str = "0.1.17"
 rustc-hash = "1.1.0"
+
+[features]
+bn254 = ["acvm/bn254"]
+bls12_381 = ["acvm/bls12_381"]
