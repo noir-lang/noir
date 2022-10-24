@@ -12,3 +12,7 @@ toml = "0.5.8"
 serde = { version = "1.0.136", features = ["derive"] }
 serde_derive = "1.0.136"
 blake2 = "0.9.1"
+
+[features]
+bn254 = ["acvm/bn254"]
+bls12_381 = ["acvm/bls12_381"]
