@@ -2,8 +2,8 @@ use std::iter::repeat;
 
 use super::{
     foldl_with_span, parameter_name_recovery, parameter_recovery, parenthesized, then_commit,
-    then_commit_ignore, top_level_statement_recovery, ExprParser, NoirParser, ParsedModule,
-    ParserError, Precedence, SubModule, TopLevelStatement,
+    then_commit_ignore, top_level_statement_recovery, ExprParser, ForRange, NoirParser,
+    ParsedModule, ParserError, Precedence, SubModule, TopLevelStatement,
 };
 use crate::ast::{
     Expression, ExpressionKind, LetStatement, Statement, UnresolvedArraySize, UnresolvedType,
@@ -13,7 +13,7 @@ use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::util::vecmap;
 use crate::{
-    AssignStatement, BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, ForExpression,
+    AssignStatement, BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement,
     FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, IsConst, LValue,
     NoirFunction, NoirImpl, NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp,
 };
@@ -202,7 +202,7 @@ fn nothing<T>() -> impl NoirParser<T> {
 fn self_parameter() -> impl NoirParser<(Pattern, UnresolvedType, AbiFEType)> {
     filter_map(move |span, found: Token| match found {
         Token::Ident(ref word) if word == "self" => {
-            let ident = Ident::new(found, span);
+            let ident = Ident::from_token(found, span);
             let path = Path::from_single("Self".to_owned(), span);
             let self_type = UnresolvedType::Named(path, vec![]);
             Ok((Pattern::Identifier(ident), self_type, AbiFEType::Private))
@@ -318,7 +318,7 @@ fn path() -> impl NoirParser<Path> {
 }
 
 fn ident() -> impl NoirParser<Ident> {
-    tokenkind(TokenKind::Ident).map_with_span(Ident::new)
+    tokenkind(TokenKind::Ident).map_with_span(Ident::from_token)
 }
 
 fn statement<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
@@ -629,18 +629,22 @@ where
     keyword(Keyword::For)
         .ignore_then(ident())
         .then_ignore(keyword(Keyword::In))
-        .then(expr_parser.clone())
+        .then(for_range(expr_parser.clone()))
+        .then(block_expr(expr_parser))
+        .map_with_span(|((identifier, range), block), span| range.into_for(identifier, block, span))
+}
+
+/// The 'range' of a for loop. Either an actual range `start .. end` or an array expression.
+fn for_range<P>(expr_parser: P) -> impl NoirParser<ForRange>
+where
+    P: ExprParser,
+{
+    expr_parser
+        .clone()
         .then_ignore(just(Token::DoubleDot))
         .then(expr_parser.clone())
-        .then(block_expr(expr_parser))
-        .map(|(((identifier, start_range), end_range), block)| {
-            ExpressionKind::For(Box::new(ForExpression {
-                identifier,
-                start_range,
-                end_range,
-                block,
-            }))
-        })
+        .map(|(start, end)| ForRange::Range(start, end))
+        .or(expr_parser.map(ForRange::Array))
 }
 
 fn array_expr<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
@@ -821,7 +825,7 @@ fn fixed_array_size() -> impl NoirParser<UnresolvedArraySize> {
         Token::Int(integer) => Ok(UnresolvedArraySize::Fixed(try_field_to_u64(integer, span)?)),
         Token::Ident(_) => {
             // XXX: parse named size as an ident. The actual const integer size will be determined in the hir pass and resolution
-            Ok(UnresolvedArraySize::FixedVariable(Ident::new(token, span)))
+            Ok(UnresolvedArraySize::FixedVariable(Ident::from_token(token, span)))
         }
         _ => {
             let message = "Expected an integer for the length of the array".to_string();
