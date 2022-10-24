@@ -15,3 +15,7 @@ flate2 = "1.0.24"
 
 [dev-dependencies]
 serde_json = "1.0"
+
+[features]
+bn254 = ["noir_field/bn254"]
+bls12_381 = ["noir_field/bls12_381"]
