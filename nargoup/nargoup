@@ -1,0 +1,208 @@
+#!/usr/bin/env bash
+set -e
+
+NARGO_DIR=${NARGO_DIR-"$HOME/.nargo"}
+NARGO_BIN_DIR="$NARGO_DIR/bin"
+
+main() {
+  need_cmd git
+  need_cmd curl
+
+  while [[ $1 ]]; do
+    case $1 in
+      --)               shift; break;;
+
+      -r|--repo)        shift; NARGOUP_REPO=$1;;
+      -b|--branch)      shift; NARGOUP_BRANCH=$1;;
+      -v|--version)     shift; NARGOUP_VERSION=$1;;
+      -p|--path)        shift; NARGOUP_LOCAL_REPO=$1;;
+      -P|--pr)          shift; NARGOUP_PR=$1;;
+      -C|--commit)      shift; NARGOUP_COMMIT=$1;;
+      -h|--help)
+        usage
+        exit 0
+        ;;
+      *)
+        err "internal error: unknown option "$1"\n";;
+    esac; shift
+  done
+
+  if [ -n "$NARGOUP_PR" ]; then
+    if [ -z "$NARGOUP_BRANCH" ]; then
+      NARGOUP_BRANCH="refs/pull/$NARGOUP_PR/head"
+    else
+      err "can't use --pr and --branch at the same time"
+    fi
+  fi
+
+  # Installs nargo from a local repository if --path parameter is provided
+  if [[ -n "$NARGOUP_LOCAL_REPO" ]]; then
+    need_cmd cargo
+
+    # Ignore branches/versions as we do not want to modify local git state
+    if [ -n "$NARGOUP_REPO" ] || [ -n "$NARGOUP_BRANCH" ] || [ -n "$NARGOUP_VERSION" ]; then
+      warn "--branch, --version, and --repo arguments are ignored during local install"
+    fi
+
+    # Enter local repo and build
+    say "installing from $NARGOUP_LOCAL_REPO"
+    cd $NARGOUP_LOCAL_REPO
+    RUSTFLAGS="-C target-cpu=native" ensure cargo build --release # need 4 speed
+
+    # Remove prior installations if they exist
+    rm -f "$NARGO_BIN_DIR/nargo"
+
+    # Symlink from local repo binaries to bin dir
+    ensure ln -s "$PWD/target/release/nargo" "$NARGO_BIN_DIR/nargo"
+
+    say "done"
+    exit 0
+  fi
+
+  NARGOUP_REPO=${NARGOUP_REPO-noir-lang/noir}
+
+  # Noir doesn't publish binaries currently so we always build from source.
+
+  #   if [[ "$NARGOUP_REPO" == "noir-lang/noir" && -z "$NARGOUP_BRANCH" && -z "$NARGOUP_COMMIT" ]]; then
+  #     NARGOUP_VERSION=${NARGOUP_VERSION-nightly}
+  #     NARGOUP_TAG=$NARGOUP_VERSION
+
+  #     # Normalize versions (handle channels, versions without v prefix
+  #     if [[ "$NARGOUP_VERSION" == "nightly" ]]; then
+  #       # Locate real nightly tag
+  #       SHA=$(ensure curl -sSf https://api.github.com/repos/${NARGOUP_REPO}/git/refs/tags/nightly \
+  #         | grep -Eo '"sha"[^,]*' \
+  #         | grep -Eo '[^:]*$' \
+  #         | tr -d '"' \
+  #         | tr -d ' ')
+  #       NARGOUP_TAG="nightly-${SHA}"
+  #     elif [[ "$NARGOUP_VERSION" == nightly* ]]; then
+  #       NARGOUP_VERSION="nightly"
+  #     elif [[ "$NARGOUP_VERSION" == [[:digit:]]* ]]; then
+  #       # Add v prefix
+  #       NARGOUP_VERSION="v${NARGOUP_VERSION}"
+  #       NARGOUP_TAG="${NARGOUP_VERSION}"
+  #     fi
+
+  #     say "installing nargo (version ${NARGOUP_VERSION}, tag ${NARGOUP_TAG})"
+
+  #     PLATFORM="$(uname -s)"
+  #     case $PLATFORM in
+  #       Linux)
+  #         PLATFORM="linux"
+  #         ;;
+  #       Darwin)
+  #         PLATFORM="darwin"
+  #         ;;
+  #       *)
+  #         err "unsupported platform: $PLATFORM"
+  #         ;;
+  #     esac
+
+  #     ARCHITECTURE="$(uname -m)"
+  #     if [ "${ARCHITECTURE}" = "x86_64" ]; then
+  #       # Redirect stderr to /dev/null to avoid printing errors if non Rosetta.
+  #       if [ "$(sysctl -n sysctl.proc_translated 2>/dev/null)" = "1" ]; then
+  #         ARCHITECTURE="arm64" # Rosetta.
+  #       else
+  #         ARCHITECTURE="amd64" # Intel.
+  #       fi
+  #     elif [ "${ARCHITECTURE}" = "arm64" ] ||[ "${ARCHITECTURE}" = "aarch64" ] ; then
+  #       ARCHITECTURE="arm64" # Arm.
+  #     else
+  #       ARCHITECTURE="amd64" # Amd.
+  #     fi
+
+  #     # Compute the URL of the release tarball in the Noir repository.
+  #     RELEASE_URL="https://github.com/${NARGOUP_REPO}/releases/download/${NARGOUP_TAG}/"
+  #     BIN_TARBALL_URL="${RELEASE_URL}nargo-${PLATFORM}_${NARGOUP_VERSION}.tar.gz"
+  #     MAN_TARBALL_URL="${RELEASE_URL}foundry_man_${NARGOUP_VERSION}.tar.gz"
+
+  #     # Download the binaries tarball and unpack it into the .foundry bin directory.
+  #     say "downloading latest nargo"
+  #     ensure curl -# -L $BIN_TARBALL_URL | tar -xzC $NARGO_BIN_DIR
+
+  #     if [[ $(which nargo) =~ "cargo" ]]; then
+  #       warn "it appears your system has already has forge installed via cargo. you may need to run 'rm $(which nargo)' to allow nargoup to take precedence!"
+  #     fi
+  #   else
+  need_cmd cargo
+  NARGOUP_BRANCH=${NARGOUP_BRANCH-master}
+  REPO_PATH="${NARGO_DIR}/${NARGOUP_REPO}"
+
+  if [ ! -d $REPO_PATH ]; then
+    # Repo path did not exist, grab the author from the repo, make a directory in .nargo, cd to it and clone.
+    IFS="/" read -ra AUTHOR <<<"$NARGOUP_REPO"
+    ensure mkdir -p "$NARGO_DIR/$AUTHOR"
+    cd "$NARGO_DIR/$AUTHOR"
+    ensure git clone https://github.com/${NARGOUP_REPO}
+  fi
+  # force checkout, discarding any local changes
+  cd $REPO_PATH
+  ensure git fetch origin ${NARGOUP_BRANCH}:remotes/origin/${NARGOUP_BRANCH}
+  ensure git checkout origin/${NARGOUP_BRANCH}
+  # If set, checkout specific commit from branch
+  if [ ! -z $NARGOUP_COMMIT ]; then
+    say "installing at commit ${NARGOUP_COMMIT}"
+    ensure git checkout ${NARGOUP_COMMIT}
+  fi
+  # Build the repo and install it locally to the .nargo bin directory.
+  # --root appends /bin to the directory it is given, so we pass NARGO_DIR.
+  RUSTFLAGS="-C target-cpu=native" ensure cargo install --path ./crates/nargo --bins --locked --force --root $NARGO_DIR
+
+  if [[ $(which nargo) =~ "cargo" ]]; then
+    warn "it appears your system has already has nargo installed via cargo. you may need to run 'rm $(which nargo)' to allow nargoup to take precedence!"
+  fi
+
+  say "done"
+  #   fi
+}
+
+usage() {
+  cat 1>&2 <<EOF
+The installer for Nargo.
+Update or revert to a specific Nargo version with ease.
+USAGE:
+    nargoup <OPTIONS>
+OPTIONS:
+    -h, --help      Print help information
+    -v, --version   Install a specific version
+    -b, --branch    Install a specific branch
+    -P, --pr        Install a specific Pull Request
+    -C, --commit    Install a specific commit
+    -r, --repo      Install from a remote GitHub repo (uses default branch if no other options are set)
+    -p, --path      Install a local repository
+EOF
+}
+
+say() {
+  printf 'nargoup: %s\n' "$1"
+}
+
+warn() {
+  say "warning: ${1}" >&2
+}
+
+err() {
+  say "$1" >&2
+  exit 1
+}
+
+need_cmd() {
+  if ! check_cmd "$1"; then
+    err "need '$1' (command not found)"
+  fi
+}
+
+check_cmd() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+# Run a command that should never fail. If the command fails execution
+# will immediately terminate with an error showing the failing
+# command.
+ensure() {
+  if ! "$@"; then err "command failed: $*"; fi
+}
+
+main "$@" || exit 1
