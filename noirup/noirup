@@ -12,12 +12,12 @@ main() {
     case $1 in
       --)               shift; break;;
 
-      -r|--repo)        shift; NARGOUP_REPO=$1;;
-      -b|--branch)      shift; NARGOUP_BRANCH=$1;;
-      -v|--version)     shift; NARGOUP_VERSION=$1;;
-      -p|--path)        shift; NARGOUP_LOCAL_REPO=$1;;
-      -P|--pr)          shift; NARGOUP_PR=$1;;
-      -C|--commit)      shift; NARGOUP_COMMIT=$1;;
+      -r|--repo)        shift; NOIRUP_REPO=$1;;
+      -b|--branch)      shift; NOIRUP_BRANCH=$1;;
+      -v|--version)     shift; NOIRUP_VERSION=$1;;
+      -p|--path)        shift; NOIRUP_LOCAL_REPO=$1;;
+      -P|--pr)          shift; NOIRUP_PR=$1;;
+      -C|--commit)      shift; NOIRUP_COMMIT=$1;;
       -h|--help)
         usage
         exit 0
@@ -27,26 +27,26 @@ main() {
     esac; shift
   done
 
-  if [ -n "$NARGOUP_PR" ]; then
-    if [ -z "$NARGOUP_BRANCH" ]; then
-      NARGOUP_BRANCH="refs/pull/$NARGOUP_PR/head"
+  if [ -n "$NOIRUP_PR" ]; then
+    if [ -z "$NOIRUP_BRANCH" ]; then
+      NOIRUP_BRANCH="refs/pull/$NOIRUP_PR/head"
     else
       err "can't use --pr and --branch at the same time"
     fi
   fi
 
   # Installs nargo from a local repository if --path parameter is provided
-  if [[ -n "$NARGOUP_LOCAL_REPO" ]]; then
+  if [[ -n "$NOIRUP_LOCAL_REPO" ]]; then
     need_cmd cargo
 
     # Ignore branches/versions as we do not want to modify local git state
-    if [ -n "$NARGOUP_REPO" ] || [ -n "$NARGOUP_BRANCH" ] || [ -n "$NARGOUP_VERSION" ]; then
+    if [ -n "$NOIRUP_REPO" ] || [ -n "$NOIRUP_BRANCH" ] || [ -n "$NOIRUP_VERSION" ]; then
       warn "--branch, --version, and --repo arguments are ignored during local install"
     fi
 
     # Enter local repo and build
-    say "installing from $NARGOUP_LOCAL_REPO"
-    cd $NARGOUP_LOCAL_REPO
+    say "installing from $NOIRUP_LOCAL_REPO"
+    cd $NOIRUP_LOCAL_REPO
     RUSTFLAGS="-C target-cpu=native" ensure cargo build --release # need 4 speed
 
     # Remove prior installations if they exist
@@ -59,32 +59,32 @@ main() {
     exit 0
   fi
 
-  NARGOUP_REPO=${NARGOUP_REPO-noir-lang/noir}
+  NOIRUP_REPO=${NOIRUP_REPO-noir-lang/noir}
 
   # Noir doesn't publish binaries currently so we always build from source.
 
-  #   if [[ "$NARGOUP_REPO" == "noir-lang/noir" && -z "$NARGOUP_BRANCH" && -z "$NARGOUP_COMMIT" ]]; then
-  #     NARGOUP_VERSION=${NARGOUP_VERSION-nightly}
-  #     NARGOUP_TAG=$NARGOUP_VERSION
+  #   if [[ "$NOIRUP_REPO" == "noir-lang/noir" && -z "$NOIRUP_BRANCH" && -z "$NOIRUP_COMMIT" ]]; then
+  #     NOIRUP_VERSION=${NOIRUP_VERSION-nightly}
+  #     NOIRUP_TAG=$NOIRUP_VERSION
 
   #     # Normalize versions (handle channels, versions without v prefix
-  #     if [[ "$NARGOUP_VERSION" == "nightly" ]]; then
+  #     if [[ "$NOIRUP_VERSION" == "nightly" ]]; then
   #       # Locate real nightly tag
-  #       SHA=$(ensure curl -sSf https://api.github.com/repos/${NARGOUP_REPO}/git/refs/tags/nightly \
+  #       SHA=$(ensure curl -sSf https://api.github.com/repos/${NOIRUP_REPO}/git/refs/tags/nightly \
   #         | grep -Eo '"sha"[^,]*' \
   #         | grep -Eo '[^:]*$' \
   #         | tr -d '"' \
   #         | tr -d ' ')
-  #       NARGOUP_TAG="nightly-${SHA}"
-  #     elif [[ "$NARGOUP_VERSION" == nightly* ]]; then
-  #       NARGOUP_VERSION="nightly"
-  #     elif [[ "$NARGOUP_VERSION" == [[:digit:]]* ]]; then
+  #       NOIRUP_TAG="nightly-${SHA}"
+  #     elif [[ "$NOIRUP_VERSION" == nightly* ]]; then
+  #       NOIRUP_VERSION="nightly"
+  #     elif [[ "$NOIRUP_VERSION" == [[:digit:]]* ]]; then
   #       # Add v prefix
-  #       NARGOUP_VERSION="v${NARGOUP_VERSION}"
-  #       NARGOUP_TAG="${NARGOUP_VERSION}"
+  #       NOIRUP_VERSION="v${NOIRUP_VERSION}"
+  #       NOIRUP_TAG="${NOIRUP_VERSION}"
   #     fi
 
-  #     say "installing nargo (version ${NARGOUP_VERSION}, tag ${NARGOUP_TAG})"
+  #     say "installing nargo (version ${NOIRUP_VERSION}, tag ${NOIRUP_TAG})"
 
   #     PLATFORM="$(uname -s)"
   #     case $PLATFORM in
@@ -114,44 +114,44 @@ main() {
   #     fi
 
   #     # Compute the URL of the release tarball in the Noir repository.
-  #     RELEASE_URL="https://github.com/${NARGOUP_REPO}/releases/download/${NARGOUP_TAG}/"
-  #     BIN_TARBALL_URL="${RELEASE_URL}nargo-${PLATFORM}_${NARGOUP_VERSION}.tar.gz"
-  #     MAN_TARBALL_URL="${RELEASE_URL}foundry_man_${NARGOUP_VERSION}.tar.gz"
+  #     RELEASE_URL="https://github.com/${NOIRUP_REPO}/releases/download/${NOIRUP_TAG}/"
+  #     BIN_TARBALL_URL="${RELEASE_URL}nargo-${PLATFORM}_${NOIRUP_VERSION}.tar.gz"
+  #     MAN_TARBALL_URL="${RELEASE_URL}foundry_man_${NOIRUP_VERSION}.tar.gz"
 
   #     # Download the binaries tarball and unpack it into the .foundry bin directory.
   #     say "downloading latest nargo"
   #     ensure curl -# -L $BIN_TARBALL_URL | tar -xzC $NARGO_BIN_DIR
 
   #     if [[ $(which nargo) =~ "cargo" ]]; then
-  #       warn "it appears your system has already has forge installed via cargo. you may need to run 'rm $(which nargo)' to allow nargoup to take precedence!"
+  #       warn "it appears your system has already has forge installed via cargo. you may need to run 'rm $(which nargo)' to allow NOIRUP to take precedence!"
   #     fi
   #   else
   need_cmd cargo
-  NARGOUP_BRANCH=${NARGOUP_BRANCH-master}
-  REPO_PATH="${NARGO_DIR}/${NARGOUP_REPO}"
+  NOIRUP_BRANCH=${NOIRUP_BRANCH-master}
+  REPO_PATH="${NARGO_DIR}/${NOIRUP_REPO}"
 
   if [ ! -d $REPO_PATH ]; then
     # Repo path did not exist, grab the author from the repo, make a directory in .nargo, cd to it and clone.
-    IFS="/" read -ra AUTHOR <<<"$NARGOUP_REPO"
+    IFS="/" read -ra AUTHOR <<<"$NOIRUP_REPO"
     ensure mkdir -p "$NARGO_DIR/$AUTHOR"
     cd "$NARGO_DIR/$AUTHOR"
-    ensure git clone https://github.com/${NARGOUP_REPO}
+    ensure git clone https://github.com/${NOIRUP_REPO}
   fi
   # force checkout, discarding any local changes
   cd $REPO_PATH
-  ensure git fetch origin ${NARGOUP_BRANCH}:remotes/origin/${NARGOUP_BRANCH}
-  ensure git checkout origin/${NARGOUP_BRANCH}
+  ensure git fetch origin ${NOIRUP_BRANCH}:remotes/origin/${NOIRUP_BRANCH}
+  ensure git checkout origin/${NOIRUP_BRANCH}
   # If set, checkout specific commit from branch
-  if [ ! -z $NARGOUP_COMMIT ]; then
-    say "installing at commit ${NARGOUP_COMMIT}"
-    ensure git checkout ${NARGOUP_COMMIT}
+  if [ ! -z $NOIRUP_COMMIT ]; then
+    say "installing at commit ${NOIRUP_COMMIT}"
+    ensure git checkout ${NOIRUP_COMMIT}
   fi
   # Build the repo and install it locally to the .nargo bin directory.
   # --root appends /bin to the directory it is given, so we pass NARGO_DIR.
   RUSTFLAGS="-C target-cpu=native" ensure cargo install --path ./crates/nargo --bins --locked --force --root $NARGO_DIR
 
   if [[ $(which nargo) =~ "cargo" ]]; then
-    warn "it appears your system has already has nargo installed via cargo. you may need to run 'rm $(which nargo)' to allow nargoup to take precedence!"
+    warn "it appears your system has already has nargo installed via cargo. you may need to run 'rm $(which nargo)' to allow NOIRUP to take precedence!"
   fi
 
   say "done"
@@ -163,7 +163,7 @@ usage() {
 The installer for Nargo.
 Update or revert to a specific Nargo version with ease.
 USAGE:
-    nargoup <OPTIONS>
+    noirup <OPTIONS>
 OPTIONS:
     -h, --help      Print help information
     -v, --version   Install a specific version
@@ -176,7 +176,7 @@ EOF
 }
 
 say() {
-  printf 'nargoup: %s\n' "$1"
+  printf 'noirup: %s\n' "$1"
 }
 
 warn() {
