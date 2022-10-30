@@ -123,7 +123,7 @@ main() {
   #     ensure curl -# -L $BIN_TARBALL_URL | tar -xzC $NARGO_BIN_DIR
 
   #     if [[ $(which nargo) =~ "cargo" ]]; then
-  #       warn "it appears your system has already has forge installed via cargo. you may need to run 'rm $(which nargo)' to allow NOIRUP to take precedence!"
+  #       warn "it appears your system has already has forge installed via cargo. you may need to run 'rm $(which nargo)' to allow noirup to take precedence!"
   #     fi
   #   else
   need_cmd cargo
@@ -151,7 +151,7 @@ main() {
   RUSTFLAGS="-C target-cpu=native" ensure cargo install --path ./crates/nargo --bins --locked --force --root $NARGO_DIR
 
   if [[ $(which nargo) =~ "cargo" ]]; then
-    warn "it appears your system has already has nargo installed via cargo. you may need to run 'rm $(which nargo)' to allow NOIRUP to take precedence!"
+    warn "it appears your system has already has nargo installed via cargo. you may need to run 'rm $(which nargo)' to allow noirup to take precedence!"
   fi
 
   say "done"
