@@ -617,7 +617,13 @@ where
         let if_block = block_expr(expr_parser.clone());
         // The else block could also be an `else if` block, in which case we must recursively parse it.
         let else_block =
-            block_expr(expr_parser.clone()).or(if_parser.map_with_span(Expression::new));
+            block_expr(expr_parser.clone()).or(if_parser.map_with_span(|kind, span| {
+                // Wrap the inner `if` expression in a block expression.
+                // i.e. rewrite the sugared form `if cond1 {} else if cond2 {}` as `if cond1 {} else { if cond2 {} }`.
+                let if_expression = Expression::new(kind, span);
+                let desugared_else = BlockExpression(vec![Statement::Expression(if_expression)]);
+                Expression::new(ExpressionKind::Block(desugared_else), span)
+            }));
 
         keyword(Keyword::If)
             .ignore_then(expr_parser)
