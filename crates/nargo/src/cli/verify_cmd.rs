@@ -4,6 +4,7 @@ use crate::errors::CliError;
 use acvm::{FieldElement, ProofSystemCompiler};
 use clap::ArgMatches;
 use noirc_abi::{input_parser::InputValue, Abi};
+use noirc_driver::CompiledProgram;
 use std::{collections::BTreeMap, path::Path, path::PathBuf};
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
@@ -43,7 +44,7 @@ fn process_abi_with_verifier_input(
             .clone();
 
         if !value.matches_abi(param_type) {
-            return Err(CliError::Generic(format!("The parameters in the main do not match the parameters in the {}.toml file. \n Please check `{}` parameter. ", VERIFIER_INPUT_FILE,param_name)));
+            return Err(CliError::Generic(format!("The value provided for {} does not match the type expected by main. \n Please check the provided value.", param_name)));
         }
 
         match value {
@@ -51,8 +52,8 @@ fn process_abi_with_verifier_input(
             InputValue::Vec(vec_elem) => public_inputs.extend(vec_elem),
             InputValue::Undefined => {
                 return Err(CliError::Generic(format!(
-                    "The parameter {} is not defined in the {}.toml file.",
-                    param_name, VERIFIER_INPUT_FILE
+                    "The parameter {} is not defined.",
+                    param_name,
                 )))
             }
         }
@@ -67,10 +68,11 @@ pub fn verify_with_path<P: AsRef<Path>>(
     show_ssa: bool,
 ) -> Result<bool, CliError> {
     let compiled_program = compile_circuit(program_dir.as_ref(), show_ssa)?;
+    let mut public_inputs = BTreeMap::new();
 
+    // Load public inputs (if any) from `VERIFIER_INPUT_FILE`.
     let public_abi = compiled_program.abi.clone().unwrap().public_abi();
     let num_pub_params = public_abi.num_parameters();
-    let mut public_inputs = BTreeMap::new();
     if num_pub_params != 0 {
         let curr_dir = program_dir;
         public_inputs = noirc_abi::input_parser::Format::Toml
@@ -78,25 +80,41 @@ pub fn verify_with_path<P: AsRef<Path>>(
             .map_err(CliError::from)?;
     }
 
+    let valid_proof = verify_proof(compiled_program, public_inputs, load_proof(proof_path)?)?;
+
+    Ok(valid_proof)
+}
+
+fn verify_proof(
+    compiled_program: CompiledProgram,
+    public_inputs: BTreeMap<String, InputValue>,
+    proof: Vec<u8>,
+) -> Result<bool, CliError> {
+    let public_abi = compiled_program.abi.clone().unwrap().public_abi();
+
+    let num_pub_params = public_abi.num_parameters();
     if num_pub_params != public_inputs.len() {
         // return Err(CliError::Generic(format!("")));
         panic!(
-            "Expected {} number of values in {}.toml, but got {} number of values",
+            "Expected {} number of values, but got {} number of values",
             num_pub_params,
-            VERIFIER_INPUT_FILE,
             public_inputs.len()
         )
     }
 
     let public_inputs = process_abi_with_verifier_input(public_abi, public_inputs)?;
 
+    let backend = crate::backends::ConcreteBackend;
+    let valid_proof = backend.verify_from_cs(&proof, public_inputs, compiled_program.circuit);
+
+    Ok(valid_proof)
+}
+
+fn load_proof<P: AsRef<Path>>(proof_path: P) -> Result<Vec<u8>, CliError> {
     // XXX: Instead of unwrap, return a PathNotValidError
     let proof_hex: Vec<_> = std::fs::read(&proof_path).unwrap();
     // XXX: Instead of unwrap, return a ProofNotValidError
     let proof = hex::decode(proof_hex).unwrap();
 
-    let backend = crate::backends::ConcreteBackend;
-    let valid_proof = backend.verify_from_cs(&proof, public_inputs, compiled_program.circuit);
-
-    Ok(valid_proof)
+    Ok(proof)
 }
