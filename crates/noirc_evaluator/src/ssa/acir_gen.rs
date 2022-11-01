@@ -739,11 +739,20 @@ pub fn evaluate_and(
     let a_witness = generate_witness(&lhs, evaluator);
     let b_witness = generate_witness(&rhs, evaluator);
     //TODO checks the cost of the gate vs bit_size (cf. #164)
+    if bit_size == 1 {
+        return Expression {
+            mul_terms: vec![(FieldElement::one(), a_witness, b_witness)],
+            linear_combinations: Vec::new(),
+            q_c: FieldElement::zero(),
+        };
+    }
+    let bsize = if bit_size % 2 == 1 { bit_size + 1 } else { bit_size };
+    assert!(bsize < FieldElement::max_num_bits() - 1);
     evaluator.gates.push(Gate::And(acvm::acir::circuit::gate::AndGate {
         a: a_witness,
         b: b_witness,
         result,
-        num_bits: bit_size,
+        num_bits: bsize,
     }));
     Expression::from(Linear::from_witness(result))
 }
@@ -766,11 +775,18 @@ pub fn evaluate_xor(
     let a_witness = generate_witness(&lhs, evaluator);
     let b_witness = generate_witness(&rhs, evaluator);
     //TODO checks the cost of the gate vs bit_size (cf. #164)
+    if bit_size == 1 {
+        let sum = add(&lhs.expression, FieldElement::one(), &rhs.expression);
+        let mul = mul(&lhs.expression, &rhs.expression);
+        return subtract(&sum, FieldElement::from(2_i128), &mul);
+    }
+    let bsize = if bit_size % 2 == 1 { bit_size + 1 } else { bit_size };
+    assert!(bsize < FieldElement::max_num_bits() - 1);
     evaluator.gates.push(Gate::Xor(acvm::acir::circuit::gate::XorGate {
         a: a_witness,
         b: b_witness,
         result,
-        num_bits: bit_size,
+        num_bits: bsize,
     }));
     from_witness(result)
 }
