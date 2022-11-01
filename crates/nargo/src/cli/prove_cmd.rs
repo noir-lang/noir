@@ -113,21 +113,38 @@ pub fn compile_circuit_and_witness<P: AsRef<Path>>(
     show_ssa: bool,
 ) -> Result<(noirc_driver::CompiledProgram, BTreeMap<Witness, FieldElement>), CliError> {
     let compiled_program = super::compile_cmd::compile_circuit(program_dir.as_ref(), show_ssa)?;
-    let solved_witness = solve_witness(program_dir, &compiled_program)?;
+    let solved_witness = parse_and_solve_witness(program_dir, &compiled_program)?;
     Ok((compiled_program, solved_witness))
 }
 
-pub fn solve_witness<P: AsRef<Path>>(
+pub fn parse_and_solve_witness<P: AsRef<Path>>(
     program_dir: P,
     compiled_program: &noirc_driver::CompiledProgram,
 ) -> Result<BTreeMap<Witness, FieldElement>, CliError> {
-    // Parse the initial witness values
+    // Parse the initial witness values from Prover.toml
     let witness_map = noirc_abi::input_parser::Format::Toml
         .parse(&program_dir, PROVER_INPUT_FILE)
         .map_err(CliError::from)?;
 
+    // Solve the remaining witnesses
+    let (solved_witness, return_value) = solve_witness(compiled_program, &witness_map)?;
+
+    // Write public inputs into Verifier.toml
+    let abi = compiled_program.abi.as_ref().unwrap();
+    export_public_inputs(return_value, &solved_witness, &witness_map, abi, &program_dir)
+        .map_err(CliError::from)?;
+
+    Ok(solved_witness)
+}
+
+fn solve_witness(
+    compiled_program: &noirc_driver::CompiledProgram,
+    witness_map: &BTreeMap<String, InputValue>,
+) -> Result<(BTreeMap<Witness, FieldElement>, Option<Witness>), CliError> {
+    let abi = compiled_program.abi.as_ref().unwrap();
+
     // Check that enough witness values were supplied
-    let num_params = compiled_program.abi.as_ref().unwrap().num_parameters();
+    let num_params = abi.num_parameters();
     if num_params != witness_map.len() {
         panic!(
             "Expected {} number of values, but got {} number of values",
@@ -135,16 +152,11 @@ pub fn solve_witness<P: AsRef<Path>>(
             witness_map.len()
         )
     }
-    // Map initial witnesses with their values
-    let abi = compiled_program.abi.as_ref().unwrap();
-    // Solve the remaining witnesses
-    let (mut solved_witness, rv) = process_abi_with_input(abi.clone(), &witness_map)?;
+
+    let (mut solved_witness, return_value) = process_abi_with_input(abi.clone(), witness_map)?;
 
     let backend = crate::backends::ConcreteBackend;
     let solver_res = backend.solve(&mut solved_witness, compiled_program.circuit.gates.clone());
-    // (over)writes verifier.toml
-    export_public_inputs(rv, &solved_witness, &witness_map, abi, &program_dir)
-        .map_err(CliError::from)?;
 
     match solver_res {
             GateResolution::UnsupportedOpcode(opcode) => return Err(CliError::Generic(format!(
@@ -158,7 +170,7 @@ pub fn solve_witness<P: AsRef<Path>>(
             _ => unreachable!(),
         }
 
-    Ok(solved_witness)
+    Ok((solved_witness, return_value))
 }
 
 fn export_public_inputs<P: AsRef<Path>>(
