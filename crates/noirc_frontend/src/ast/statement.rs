@@ -94,8 +94,12 @@ impl Ident {
         self.0.span()
     }
 
-    pub fn new(token: Token, span: Span) -> Ident {
+    pub fn from_token(token: Token, span: Span) -> Ident {
         Ident::from(SpannedToken::new(token, span))
+    }
+
+    pub fn new(text: String, span: Span) -> Ident {
+        Ident(Spanned::from(span, text))
     }
 }
 

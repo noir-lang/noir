@@ -950,7 +950,9 @@ impl Type {
                 TypeBinding::Bound(typ) => typ.as_abi_type(fe_type),
                 TypeBinding::Unbound(_) => Type::default_int_type(None).as_abi_type(fe_type),
             },
-            Type::Bool(_) => panic!("currently, cannot have a bool in the entry point function"),
+            Type::Bool(_) => {
+                AbiType::Integer { sign: noirc_abi::Sign::Unsigned, width: 1, visibility: fe_type }
+            }
             Type::Error => unreachable!(),
             Type::Unit => unreachable!(),
             Type::ArrayLength(_) => unreachable!(),

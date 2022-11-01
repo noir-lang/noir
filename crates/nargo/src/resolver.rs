@@ -124,7 +124,11 @@ impl<'a> Resolver<'a> {
                 let meta = retrieve_meta(&dir_path, true)?;
                 Ok((dir_path, meta))
             }
-            Dependency::Path { path: _ } => todo!(),
+            Dependency::Path { path } => {
+                let dir_path = std::path::PathBuf::from(path);
+                let meta = retrieve_meta(&dir_path, false)?;
+                Ok((dir_path, meta))
+            }
         }
     }
 
