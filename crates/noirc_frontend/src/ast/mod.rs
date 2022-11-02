@@ -18,7 +18,7 @@ use crate::{token::IntType, util::vecmap, IsConst};
 pub enum UnresolvedArraySize {
     Variable,
     Fixed(u64),
-    FixedVariable(Ident),
+    FixedVariable(Path),
 }
 
 impl std::fmt::Display for UnresolvedArraySize {
