@@ -255,13 +255,6 @@ impl ObjectType {
         }
     }
 
-    pub fn type_to_pointer(&self) -> ArrayId {
-        match self {
-            ObjectType::Pointer(a) => *a,
-            _ => unreachable!("Type is not a pointer",),
-        }
-    }
-
     pub fn field_to_type(&self, f: FieldElement) -> FieldElement {
         match self {
             ObjectType::NotAnObject | ObjectType::Pointer(_) => {

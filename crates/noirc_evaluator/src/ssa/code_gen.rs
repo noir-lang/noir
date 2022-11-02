@@ -212,14 +212,25 @@ impl IRGenerator {
         array: &LValue,
         index: &Expression,
         env: &mut Environment,
-    ) -> Result<(ArrayId, NodeId), RuntimeError> {
-        let ident_def = Self::lvalue_ident_def(array);
-        let val = self.find_variable(ident_def).unwrap();
-        let lhs = val.unwrap_id();
-
-        let a_id = self.context.get_object_type(lhs).type_to_pointer();
+    ) -> Result<(NodeId, NodeId), RuntimeError> {
+        let value = self.lvalue_to_value(array);
+        let lhs = value.unwrap_id();
         let index = self.codegen_expression(env, index)?.unwrap_id();
-        Ok((a_id, index))
+        Ok((lhs, index))
+    }
+
+    fn lvalue_to_value(&self, lvalue: &LValue) -> &Value {
+        match lvalue {
+            LValue::Ident(ident) => self.find_variable(ident.id).unwrap(),
+            LValue::Index { array, .. } => {
+                self.find_variable(Self::lvalue_ident_def(array.as_ref())).unwrap()
+            }
+            LValue::MemberAccess { object, field_index, .. } => {
+                let ident_def = Self::lvalue_ident_def(object.as_ref());
+                let val = self.find_variable(ident_def).unwrap();
+                val.get_field_member(*field_index)
+            }
+        }
     }
 
     fn lvalue_ident_def(lvalue: &LValue) -> DefinitionId {
@@ -406,10 +417,8 @@ impl IRGenerator {
                 self.variable_values.insert(ident_def, result);
             }
             LValue::Index { array, index } => {
-                let (_, array_idx) = self.codegen_indexed_value(array.as_ref(), index, env)?;
-                let val = self.find_variable(ident_def).unwrap();
+                let (lhs_id, array_idx) = self.codegen_indexed_value(array.as_ref(), index, env)?;
                 let rhs_id = rhs.unwrap_id();
-                let lhs_id = val.unwrap_id();
                 self.context.handle_assign(lhs_id, Some(array_idx), rhs_id)?;
             }
             LValue::MemberAccess { object: _, field_index } => {
