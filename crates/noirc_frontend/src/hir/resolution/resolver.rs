@@ -191,7 +191,6 @@ impl<'a> Resolver<'a> {
                 second_span: location.span,
             });
         }
-
         ident
     }
 
@@ -295,8 +294,8 @@ impl<'a> Resolver<'a> {
                         Type::NamedGeneric(typevar, Rc::new("".into()))
                     }
                     UnresolvedArraySize::Fixed(length) => Type::ArrayLength(length),
-                    UnresolvedArraySize::FixedVariable(name) => {
-                        self.resolve_fixed_variable_array_length(name)
+                    UnresolvedArraySize::FixedVariable(path) => {
+                        self.resolve_fixed_variable_array_length(path)
                     }
                 };
                 let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
@@ -331,13 +330,14 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn resolve_fixed_variable_array_length(&mut self, name: Ident) -> Type {
-        let hir_ident = self.find_variable(&name);
+    fn resolve_fixed_variable_array_length(&mut self, path: Path) -> Type {
+        let hir_ident = self.get_ident_from_path(path.clone());
+
         let definition_info = self.interner.definition(hir_ident.id);
         if definition_info.mutable {
             self.push_err(ResolverError::ExpectedConstVariable {
-                name: name.0.contents.clone(),
-                span: name.span(),
+                name: path.clone().as_string(),
+                span: path.span(),
             });
             return Type::Error;
         }
@@ -347,8 +347,8 @@ impl<'a> Resolver<'a> {
             Type::ArrayLength(length)
         } else {
             self.push_err(ResolverError::MissingRhsExpr {
-                name: name.0.contents.clone(),
-                span: name.span(),
+                name: path.clone().as_string(),
+                span: path.span(),
             });
             Type::Error
         }
@@ -366,6 +366,24 @@ impl<'a> Resolver<'a> {
                 }
             },
             _ => panic!("expression in global const statement is not a literal"),
+        }
+    }
+
+    fn get_ident_from_path(&mut self, path: Path) -> HirIdent {
+        if path.segments.len() == 1 {
+            match path.as_ident() {
+                Some(identifier) => self.find_variable(identifier),
+                None => {
+                    self.push_err(ResolverError::PathIsNotIdent { span: path.span() });
+                    let id = DefinitionId::dummy_id();
+                    let location = Location::new(path.span(), self.file);
+                    HirIdent { id, location }
+                }
+            }
+        } else {
+            let stmt_id = self.lookup_const(path.clone());
+            let hir_let_stmt = self.interner.let_statement(&stmt_id);
+            hir_let_stmt.ident()
         }
     }
 
@@ -603,24 +621,9 @@ impl<'a> Resolver<'a> {
                 // If the Path is being used as an Expression, then it is referring to a global constant from a separate module
                 // Otherwise, then it is referring to an Identifier
                 // This lookup allows support of such statements: let x = foo::bar::SOME_CONST + 10;
-                let stmt_id = self.lookup_const(path.clone());
-
-                let hir_let_stmt = self.interner.let_statement(&stmt_id);
-                let ident = hir_let_stmt.ident();
-
-                if self.interner.get_global_const(&stmt_id).is_some() {
-                    HirExpression::Ident(ident)
-                } else {
-                    HirExpression::Ident(match path.as_ident() {
-                        Some(identifier) => self.find_variable(identifier),
-                        None => {
-                            self.push_err(ResolverError::PathIsNotIdent { span: path.span() });
-                            let id = DefinitionId::dummy_id();
-                            let location = Location::new(path.span(), self.file);
-                            HirIdent { id, location }
-                        }
-                    })
-                }
+                // If the expression is a singular indent, we search the resolver's current scope as normal.
+                let hir_ident = self.get_ident_from_path(path);
+                HirExpression::Ident(hir_ident)
             }
             ExpressionKind::Block(block_expr) => self.resolve_block(block_expr),
             ExpressionKind::Constructor(constructor) => {
