@@ -1304,7 +1304,7 @@ mod test {
             ("let", 3, "let $error: unspecified = Error"),
             ("foo = one two three", 1, "foo = plain::one"),
             ("constrain", 1, "constrain Error"),
-            ("constrain x ==", 1, "constrain (x == Error)"),
+            ("constrain x ==", 1, "constrain (plain::x == Error)"),
         ];
 
         let show_errors = |v| vecmap(v, ToString::to_string).join("\n");
