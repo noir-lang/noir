@@ -25,15 +25,10 @@ pub fn serialise<P: AsRef<Path>>(
     path_to_toml: P,
     w_map: &BTreeMap<String, InputValue>,
 ) -> Result<(), InputParserError> {
-    let path_to_toml = path_to_toml.as_ref();
-    if !path_to_toml.exists() {
-        return Err(InputParserError::MissingTomlFile(path_to_toml.to_path_buf()));
-    }
     let to_map = toml_remap(w_map);
     let toml_string = toml::to_string(&to_map)
         .map_err(|err_msg| InputParserError::ParseTomlMap(err_msg.to_string()))?;
-    std::fs::write(path_to_toml, toml_string).map_err(InputParserError::SaveTomlFile)?;
-
+    std::fs::write(path_to_toml.as_ref(), toml_string).map_err(InputParserError::SaveTomlFile)?;
     Ok(())
 }
 
