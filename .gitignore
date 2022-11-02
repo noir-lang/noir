@@ -9,4 +9,4 @@ node_modules
 *.proof
 *.acir
 *.tr
-Verifier.toml
+**/Verifier.toml
