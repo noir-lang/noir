@@ -336,7 +336,7 @@ impl<'a> Resolver<'a> {
         let definition_info = self.interner.definition(hir_ident.id);
         if definition_info.mutable {
             self.push_err(ResolverError::ExpectedConstVariable {
-                name: path.clone().as_string(),
+                name: path.as_string(),
                 span: path.span(),
             });
             return Type::Error;
@@ -347,7 +347,7 @@ impl<'a> Resolver<'a> {
             Type::ArrayLength(length)
         } else {
             self.push_err(ResolverError::MissingRhsExpr {
-                name: path.clone().as_string(),
+                name: path.as_string(),
                 span: path.span(),
             });
             Type::Error

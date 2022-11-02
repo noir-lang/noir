@@ -804,7 +804,7 @@ fn fixed_array_size() -> impl NoirParser<UnresolvedArraySize> {
     let fixed_variable_size = path().map(UnresolvedArraySize::FixedVariable);
 
     just(Token::Semicolon).ignore_then(fixed_variable_size.or(filter_map(|span, token: Token| {
-        match token.clone() {
+        match token {
             Token::Int(integer) => Ok(UnresolvedArraySize::Fixed(try_field_to_u64(integer, span)?)),
             _ => {
                 let message = "Expected an integer for the length of the array".to_string();
@@ -1302,7 +1302,7 @@ mod test {
             ("let = 4 + 3", 1, "let $error: unspecified = (4 + 3)"),
             ("let = ", 2, "let $error: unspecified = Error"),
             ("let", 3, "let $error: unspecified = Error"),
-            ("foo = one two three", 1, "foo = one"),
+            ("foo = one two three", 1, "foo = plain::one"),
             ("constrain", 1, "constrain Error"),
             ("constrain x ==", 1, "constrain (x == Error)"),
         ];
