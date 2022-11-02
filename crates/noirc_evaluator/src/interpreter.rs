@@ -184,8 +184,11 @@ impl<'a> Interpreter<'a> {
                     let arr = Array { contents: elements, length };
                     env.store(param_name, Object::Array(arr));
                 }
-                noirc_abi::AbiType::Field(noirc_abi::AbiFEType::Private) => {
+                noirc_abi::AbiType::Field(visibility) => {
                     let witness = self.add_witness_to_cs();
+                    if visibility == noirc_abi::AbiFEType::Public {
+                        self.push_public_input(witness);
+                    }
                     self.evaluator.add_witness_to_env(param_name, witness, env);
                 }
                 noirc_abi::AbiType::Integer { visibility, sign, width } => {
@@ -203,11 +206,6 @@ impl<'a> Interpreter<'a> {
                     integer.constrain(self).map_err(|kind| kind.add_location(param_location))?;
 
                     env.store(param_name, Object::Integer(integer));
-                }
-                noirc_abi::AbiType::Field(noirc_abi::AbiFEType::Public) => {
-                    let witness = self.add_witness_to_cs();
-                    self.push_public_input(witness);
-                    self.evaluator.add_witness_to_env(param_name, witness, env);
                 }
             }
         }
