@@ -74,6 +74,30 @@ impl SsaContext {
         self.get_or_create_const(FieldElement::one(), obj_type)
     }
 
+    pub fn is_one(&self, id: NodeId) -> bool {
+        if id == NodeId::dummy() {
+            return false;
+        }
+        let typ = self.get_object_type(id);
+        if let Some(one) = self.find_const_with_type(&BigUint::one(), typ) {
+            id == one
+        } else {
+            false
+        }
+    }
+
+    pub fn is_zero(&self, id: NodeId) -> bool {
+        if id == NodeId::dummy() {
+            return false;
+        }
+        let typ = self.get_object_type(id);
+        if let Some(zero) = self.find_const_with_type(&BigUint::zero(), typ) {
+            id == zero
+        } else {
+            false
+        }
+    }
+
     pub fn get_dummy_store(&self, a: ArrayId) -> NodeId {
         self.dummy_store[&a]
     }
@@ -798,6 +822,7 @@ impl SsaContext {
             lhs: new_var_id,
             rhs,
             operator: node::BinaryOp::Assign,
+            predicate: None,
         });
         let result = self.new_instruction(op, rhs_type)?;
         self.update_variable_id(ls_root, new_var_id, result); //update the name and the value map
@@ -878,6 +903,7 @@ impl SsaContext {
                 lhs: new_var_id,
                 rhs,
                 operator: node::BinaryOp::Assign,
+                predicate: None,
             });
             let result = self.new_instruction_inline(op, rhs_type, stack_frame);
             self.update_variable_id_in_block(ls_root, new_var_id, result, block_id); //update the name and the value map
