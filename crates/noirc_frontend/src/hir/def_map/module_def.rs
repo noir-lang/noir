@@ -7,7 +7,7 @@ pub enum ModuleDefId {
     ModuleId(ModuleId),
     FunctionId(FuncId),
     TypeId(StructId),
-    ConstId(StmtId),
+    GlobalId(StmtId),
 }
 
 impl ModuleDefId {
@@ -25,9 +25,9 @@ impl ModuleDefId {
         }
     }
 
-    pub fn as_const(&self) -> Option<StmtId> {
+    pub fn as_global(&self) -> Option<StmtId> {
         match self {
-            ModuleDefId::ConstId(stmt_id) => Some(*stmt_id),
+            ModuleDefId::GlobalId(stmt_id) => Some(*stmt_id),
             _ => None,
         }
     }
@@ -39,7 +39,7 @@ impl ModuleDefId {
             ModuleDefId::FunctionId(_) => "function",
             ModuleDefId::TypeId(_) => "type",
             ModuleDefId::ModuleId(_) => "module",
-            ModuleDefId::ConstId(_) => "const",
+            ModuleDefId::GlobalId(_) => "global",
         }
     }
 }
@@ -58,7 +58,7 @@ impl From<FuncId> for ModuleDefId {
 
 impl From<StmtId> for ModuleDefId {
     fn from(stmt_id: StmtId) -> Self {
-        ModuleDefId::ConstId(stmt_id)
+        ModuleDefId::GlobalId(stmt_id)
     }
 }
 
@@ -98,7 +98,7 @@ impl TryFromModuleDefId for StructId {
 
 impl TryFromModuleDefId for StmtId {
     fn try_from(id: ModuleDefId) -> Option<Self> {
-        id.as_const()
+        id.as_global()
     }
 
     fn dummy_id() -> Self {
@@ -106,6 +106,6 @@ impl TryFromModuleDefId for StmtId {
     }
 
     fn description() -> String {
-        "const".to_string()
+        "global".to_string()
     }
 }
