@@ -4,7 +4,7 @@ title: Glossary
 
 ### Account
 
-An Aztec account is the user primitive on the network. See the [Accounts](how-aztec-works/accounts.md) page for more information.
+An Aztec account is the user primitive on the network. See the [Accounts](how-aztec-works/accounts.mdx) page for more information.
 
 ### Account Key
 
@@ -30,7 +30,7 @@ Read more about acccount recovery in the SDK docs [here](./sdk/usage/account-rec
 
 Registering an account on Aztec associates the account public key with an alias, a spending key and an optional recovery key. A recovery key must be added at registration in order to take advantage of [account recovery](#account-recovery).
 
-Read more about account registration on the [accounts page](../docs/how-aztec-works/accounts.md#account-registration) and in the SDK docs [here](./sdk/usage/register.md).
+Read more about account registration on the [accounts page](how-aztec-works/accounts.mdx#account-registration) and in the SDK docs [here](./sdk/usage/register.md).
 
 ### Alias
 
@@ -85,7 +85,7 @@ Refer to the graphic at the top of [this page](https://medium.com/aztec-protocol
 
 ### Spending Key
 
-A specific private key registered to an account with permission to spend asset notes on behalf of that account. See the [Accounts](how-aztec-works/accounts.md) page for more information.
+A specific private key registered to an account with permission to spend asset notes on behalf of that account. See the [Accounts](how-aztec-works/accounts.mdx) page for more information.
 
 ### Signing Key
 
@@ -101,4 +101,4 @@ Also called the Account key, the privacy key or the decryption key.
 
 This is the private key that is associated with plain (unregistered) Aztec account. This key is used to decrypt notes associated with the account. For an unregistered Aztec account, it is also used to spend notes. It can be used to [register](#account-registration) an account 1 time.
 
-See the [Accounts](how-aztec-works/accounts.md) page for more information.
+See the [Accounts](how-aztec-works/accounts.mdx) page for more information.
