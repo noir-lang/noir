@@ -187,7 +187,7 @@ impl IRGenerator {
             UnaryOp::Minus => {
                 let lhs = self.context.zero_with_type(rtype);
                 let operator = BinaryOp::Sub { max_rhs_value: BigUint::zero() };
-                let op = Operation::Binary(node::Binary { operator, lhs, rhs });
+                let op = Operation::Binary(node::Binary { operator, lhs, rhs, predicate: None });
                 self.context.new_instruction(op, rtype)
             }
             UnaryOp::Not => self.context.new_instruction(Operation::Not(rhs), rtype),

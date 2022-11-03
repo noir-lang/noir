@@ -606,6 +606,7 @@ pub struct Binary {
     pub lhs: NodeId,
     pub rhs: NodeId,
     pub operator: BinaryOp,
+    pub predicate: Option<NodeId>,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
@@ -647,7 +648,7 @@ pub enum BinaryOp {
 
 impl Binary {
     fn new(operator: BinaryOp, lhs: NodeId, rhs: NodeId) -> Binary {
-        Binary { operator, lhs, rhs }
+        Binary { operator, lhs, rhs, predicate: None }
     }
 
     pub fn from_ast(
@@ -1057,9 +1058,12 @@ impl Operation {
     pub fn map_id(&self, mut f: impl FnMut(NodeId) -> NodeId) -> Operation {
         use Operation::*;
         match self {
-            Binary(self::Binary { lhs, rhs, operator }) => {
-                Binary(self::Binary { lhs: f(*lhs), rhs: f(*rhs), operator: operator.clone() })
-            }
+            Binary(self::Binary { lhs, rhs, operator, predicate }) => Binary(self::Binary {
+                lhs: f(*lhs),
+                rhs: f(*rhs),
+                operator: operator.clone(),
+                predicate: predicate.as_ref().map(|pred| f(*pred)),
+            }),
             Cast(value) => Cast(f(*value)),
             Truncate { value, bit_size, max_bit_size } => {
                 Truncate { value: f(*value), bit_size: *bit_size, max_bit_size: *max_bit_size }
@@ -1099,9 +1103,10 @@ impl Operation {
     pub fn map_id_mut(&mut self, mut f: impl FnMut(NodeId) -> NodeId) {
         use Operation::*;
         match self {
-            Binary(self::Binary { lhs, rhs, .. }) => {
+            Binary(self::Binary { lhs, rhs, predicate, .. }) => {
                 *lhs = f(*lhs);
                 *rhs = f(*rhs);
+                *predicate = predicate.as_mut().map(|pred| f(*pred));
             }
             Cast(value) => *value = f(*value),
             Truncate { value, .. } => *value = f(*value),

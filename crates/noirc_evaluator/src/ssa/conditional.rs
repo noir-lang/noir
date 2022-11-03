@@ -333,10 +333,10 @@ impl DecisionTree {
         let left = if_block.left.unwrap();
         let right = if_block.right.unwrap();
         let mut const_condition = None;
-        if self[if_block.assumption].condition == ctx.one() {
+        if ctx.is_one(self[if_block.assumption].condition) {
             const_condition = Some(true);
         }
-        if self[if_block.assumption].condition == ctx.zero() {
+        if ctx.is_zero(self[if_block.assumption].condition) {
             const_condition = Some(false);
         }
 
@@ -460,7 +460,7 @@ impl DecisionTree {
             ass_cond = self[predicate].condition;
             ass_value = self[predicate].value.unwrap_or_else(NodeId::dummy);
         }
-        assert_ne!(ass_value, ctx.zero(), "code should have been already simplified");
+        assert!(!ctx.is_zero(ass_value), "code should have been already simplified");
         let ins1 = ctx.get_instruction(ins_id);
         match &ins1.operation {
             Operation::Call { returned_arrays, .. } => {
@@ -508,6 +508,34 @@ impl DecisionTree {
                     }
                 }
                 stack.push(ins_id);
+            }
+            Operation::Binary(binop) => {
+                stack.push(ins_id);
+                assert!(binop.predicate.is_none());
+                match binop.operator {
+                    BinaryOp::Udiv
+                    | BinaryOp::Sdiv
+                    | BinaryOp::Urem
+                    | BinaryOp::Srem
+                    | BinaryOp::Div => {
+                        if ctx.is_zero(binop.rhs) {
+                            if !DecisionTree::short_circuit(ctx, stack, ass_value) {
+                                unreachable!("error: attempt to divide by zero");
+                            }
+                            return false;
+                        }
+                        if ctx.under_assumption(ass_value) {
+                            let ins2 = ctx.get_mut_instruction(ins_id);
+                            ins2.operation = Operation::Binary(crate::node::Binary {
+                                lhs: binop.lhs,
+                                rhs: binop.rhs,
+                                operator: binop.operator.clone(),
+                                predicate: Some(ass_value),
+                            });
+                        }
+                    }
+                    _ => (),
+                }
             }
             Operation::Store { array_id, index, value } => {
                 if !ins.operation.is_dummy_store() {
@@ -597,7 +625,7 @@ impl DecisionTree {
                         val_true: *expr,
                         val_false: ctx.one(),
                     };
-                    if *expr == ctx.zero() {
+                    if ctx.is_zero(*expr) {
                         stack.clear();
                     }
                     let cond = ctx.add_instruction(Instruction::new(
@@ -608,7 +636,7 @@ impl DecisionTree {
                     stack.push(cond);
                     let ins2 = ctx.get_mut_instruction(ins_id);
                     ins2.operation = Operation::Constrain(cond, *loc);
-                    if *expr == ctx.zero() {
+                    if ctx.is_zero(*expr) {
                         stack.push(ins_id);
                         return false;
                     }
