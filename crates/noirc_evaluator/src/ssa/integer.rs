@@ -49,7 +49,7 @@ fn get_instruction_max_operand(
 ) -> BigUint {
     match &ins.operation {
         Operation::Load { array_id, index } => get_load_max(ctx, *index, max_map, vmap, *array_id),
-        Operation::Binary(node::Binary { operator, lhs, rhs }) => {
+        Operation::Binary(node::Binary { operator, lhs, rhs, .. }) => {
             if let BinaryOp::Sub { .. } = operator {
                 //TODO uses interval analysis instead
                 if matches!(ins.res_type, ObjectType::Unsigned(_)) {
@@ -296,16 +296,20 @@ fn block_overflow(
                     memory_map.insert(absolute_adr, value);
                 }
             }
-            Operation::Binary(node::Binary { operator: BinaryOp::Shl, lhs, rhs }) => {
+            Operation::Binary(node::Binary { operator: BinaryOp::Shl, lhs, rhs, .. }) => {
                 if let Some(r_const) = ctx.get_as_constant(rhs) {
                     let r_type = ctx[rhs].get_type();
                     let rhs =
                         ctx.get_or_create_const(FieldElement::from(2_i128).pow(&r_const), r_type);
-                    ins.operation =
-                        Operation::Binary(node::Binary { lhs, rhs, operator: BinaryOp::Mul });
+                    ins.operation = Operation::Binary(node::Binary {
+                        lhs,
+                        rhs,
+                        operator: BinaryOp::Mul,
+                        predicate: None,
+                    });
                 }
             }
-            Operation::Binary(node::Binary { operator: BinaryOp::Shr, lhs, rhs }) => {
+            Operation::Binary(node::Binary { operator: BinaryOp::Shr, lhs, rhs, .. }) => {
                 if !matches!(ins.res_type, node::ObjectType::Unsigned(_)) {
                     todo!("Right shift is only implemented for unsigned integers");
                 }
@@ -314,8 +318,12 @@ fn block_overflow(
                     let rhs =
                         ctx.get_or_create_const(FieldElement::from(2_i128).pow(&r_const), r_type);
                     //todo checks that 2^rhs does not overflow
-                    ins.operation =
-                        Operation::Binary(node::Binary { lhs, rhs, operator: BinaryOp::Udiv });
+                    ins.operation = Operation::Binary(node::Binary {
+                        lhs,
+                        rhs,
+                        operator: BinaryOp::Udiv,
+                        predicate: None,
+                    });
                 }
             }
             Operation::Cast(value_id) => {
@@ -483,7 +491,7 @@ fn get_max_value(ins: &Instruction, max_map: &mut HashMap<NodeId, BigUint>) -> B
                 OPCODE::SchnorrVerify
                 | OPCODE::EcdsaSecp256k1
                 | acvm::acir::OPCODE::MerkleMembership => BigUint::one(), //verify returns 0 or 1
-                _ => todo!(),
+                _ => todo!("max value must be implemented for opcode {} ", opcode),
             }
         }
     };
@@ -526,7 +534,7 @@ fn get_binary_max_value(
         BinaryOp::Sdiv => todo!(),
         BinaryOp::Urem => rhs_max - BigUint::one(),
         BinaryOp::Srem => todo!(),
-        BinaryOp::Div => todo!(),
+        BinaryOp::Div => FieldElement::modulus() - BigUint::one(),
         BinaryOp::Eq => BigUint::one(),
         BinaryOp::Ne => BigUint::one(),
         BinaryOp::Ult => BigUint::one(),
