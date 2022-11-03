@@ -575,7 +575,7 @@ impl<'a> Resolver<'a> {
                 // Get the span and name of path for error reporting
                 let func_id = self.lookup_function(call_expr.func_name);
                 let arguments = vecmap(call_expr.arguments, |arg| self.resolve_expression(arg));
-                HirExpression::Call(HirCallExpression { func_id, arguments })
+                HirExpression::Call(HirCallExpression { func_id, arguments, alt: None })
             }
             ExpressionKind::MethodCall(call_expr) => {
                 let method = call_expr.method_name;

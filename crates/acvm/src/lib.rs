@@ -274,9 +274,23 @@ pub trait ProofSystemCompiler {
 
 /// Supported NP complete languages
 /// This might need to be in ACIR instead
+#[derive(Debug, Clone)]
 pub enum Language {
     R1CS,
     PLONKCSat { width: usize },
+}
+
+pub trait CustomGate {
+    fn support(&self, opcode: &String) -> bool;
+}
+
+impl CustomGate for Language {
+    fn support(&self, _opcode: &String) -> bool {
+        match self {
+            Language::R1CS => false,
+            Language::PLONKCSat { .. } => true,
+        }
+    }
 }
 
 pub fn hash_constraint_system(cs: &Circuit) {

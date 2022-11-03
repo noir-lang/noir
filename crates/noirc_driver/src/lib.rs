@@ -1,3 +1,4 @@
+use acvm::Language;
 use acvm::acir::circuit::Circuit;
 use fm::FileType;
 use noirc_abi::Abi;
@@ -22,14 +23,16 @@ pub struct CompiledProgram {
 }
 
 impl Driver {
-    pub fn new() -> Self {
-        Driver { context: Context::default() }
+    pub fn new(np_language: acvm::Language) -> Self {
+        let mut driver = Driver { context: Context::default() };
+        driver.context.def_interner.set_language(np_language.clone());
+        driver
     }
 
     // This is here for backwards compatibility
     // with the restricted version which only uses one file
     pub fn compile_file(root_file: PathBuf, np_language: acvm::Language) -> CompiledProgram {
-        let mut driver = Driver::new();
+        let mut driver = Driver::new(np_language.clone());  //todo utiiser que 1
         driver.create_local_crate(root_file, CrateType::Binary);
         driver.into_compiled_program(np_language, false)
     }
@@ -38,7 +41,7 @@ impl Driver {
     ///
     /// This is used for tests.
     pub fn file_compiles<P: AsRef<Path>>(root_file: P) -> bool {
-        let mut driver = Driver::new();
+        let mut driver = Driver::new(Language::R1CS);
         driver.create_local_crate(root_file, CrateType::Binary);
         driver.add_std_lib();
         let mut errs = vec![];
@@ -216,7 +219,7 @@ impl Driver {
 
 impl Default for Driver {
     fn default() -> Self {
-        Self::new()
+        Self::new(Language::R1CS)
     }
 }
 

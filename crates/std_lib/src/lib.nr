@@ -6,7 +6,7 @@ mod ecdsa_secp256k1;
 mod scalar_mul;
 
 
-#[foreign(to_bits)]
+#[builtin(to_bits)]
 fn to_bits(_x : Field, _bit_size: u32) -> [u1; 256] {}
 
 // Returns base^exponent. 
