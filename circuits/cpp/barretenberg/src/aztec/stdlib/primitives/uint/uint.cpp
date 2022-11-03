@@ -338,7 +338,7 @@ template <typename Composer, typename Native> bool_t<Composer> uint<Composer, Na
          *    lo_bit + 2 high bit of (A_pivot - 4 A_{pivot - 1}) = A_pivot - 4 A_{pivot - 1} == 0
          */
         context->create_big_add_gate_with_bit_extraction(gate);
-        bool_t<Composer> result;
+        bool_t<Composer> result(context);
         result.witness_index = gate.a;
         result.witness_bool = (lo_bit == 1) ? true : false;
         return result;
@@ -364,7 +364,7 @@ template <typename Composer, typename Native> bool_t<Composer> uint<Composer, Na
      * bit extraction gate is trusted to correctly extract 6 * (high bit c - 4d).
      */
     context->create_big_add_gate_with_bit_extraction(gate);
-    bool_t<Composer> result;
+    bool_t<Composer> result(context);
     result.witness_index = gate.b;
     result.witness_bool = (hi_bit == 1) ? true : false;
     return result;

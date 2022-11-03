@@ -26,6 +26,11 @@ WASM_EXPORT void account__init_proving_key(bool mock)
     init_proving_key(crs_factory, mock);
 }
 
+WASM_EXPORT void account__release_key()
+{
+    release_key();
+}
+
 WASM_EXPORT void account__init_proving_key_from_buffer(uint8_t const* pk_buf)
 {
     std::shared_ptr<waffle::ProverReferenceString> crs;

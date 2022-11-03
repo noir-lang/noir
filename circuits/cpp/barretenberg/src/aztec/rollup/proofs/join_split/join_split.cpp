@@ -16,6 +16,10 @@ static std::shared_ptr<waffle::verification_key> verification_key;
 
 void init_proving_key(std::shared_ptr<waffle::ReferenceStringFactory> const& crs_factory, bool mock)
 {
+    if (proving_key) {
+        return;
+    }
+
     // Junk data required just to create proving key.
     join_split_tx tx = noop_tx();
 
@@ -34,7 +38,13 @@ void init_proving_key(std::shared_ptr<waffle::ReferenceStringFactory> const& crs
 
 void init_proving_key(std::shared_ptr<waffle::ProverReferenceString> const& crs, waffle::proving_key_data&& pk_data)
 {
+    release_key();
     proving_key = std::make_shared<waffle::proving_key>(std::move(pk_data), crs);
+}
+
+void release_key()
+{
+    proving_key.reset();
 }
 
 void init_verification_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory)

@@ -14,6 +14,8 @@ void init_proving_key(std::shared_ptr<waffle::ReferenceStringFactory> const& crs
 
 void init_proving_key(std::shared_ptr<waffle::ProverReferenceString> const& crs, waffle::proving_key_data&& pk_data);
 
+void release_key();
+
 void init_verification_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory);
 
 void init_verification_key(std::shared_ptr<waffle::VerifierMemReferenceString> const& crs,

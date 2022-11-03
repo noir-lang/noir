@@ -3,7 +3,6 @@
 #include "account.hpp"
 #include <common/streams.hpp>
 #include <crypto/schnorr/schnorr.hpp>
-#include <ecc/curves/bn254/scalar_multiplication/c_bind.hpp>
 #include <fstream>
 #include <gtest/gtest.h>
 #include <plonk/reference_string/pippenger_reference_string.hpp>

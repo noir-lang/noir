@@ -4,6 +4,7 @@
 #include "../notes/native/index.hpp"
 #include <common/streams.hpp>
 #include <common/test.hpp>
+#include <plonk/proof_system/proving_key/serialize.hpp>
 #include <stdlib/merkle_tree/index.hpp>
 
 namespace rollup {
@@ -2470,6 +2471,17 @@ TEST_F(join_split_tests, test_send_two_virtual_notes_full_proof)
     EXPECT_EQ(proof_data.defi_root, fr(0));
 
     EXPECT_TRUE(verify_proof(proof));
+}
+
+// *************************************************************************************************************
+// Miscellaneous
+// *************************************************************************************************************
+
+TEST_F(join_split_tests, serialzed_proving_key_size)
+{
+    uint8_t* ptr;
+    auto len = join_split__get_new_proving_key_data(&ptr);
+    EXPECT_LE(len, 170 * 1024 * 1024);
 }
 
 } // namespace join_split

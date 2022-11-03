@@ -6,13 +6,13 @@ namespace {
 
 // The number of unique base points with default main index with precomputed ladders
 #ifdef __wasm__
-constexpr size_t num_default_generators = 64;
+constexpr size_t num_default_generators = 32;
 #else
 constexpr size_t num_default_generators = 2048;
 #endif
 
 constexpr size_t hash_indices_generator_offset = 2048;
-constexpr size_t num_hash_indices = 32;
+constexpr size_t num_hash_indices = 16;
 constexpr size_t num_generators_per_hash_index = 8;
 constexpr size_t num_indexed_generators = num_hash_indices * num_generators_per_hash_index;
 constexpr size_t size_of_generator_data_array = hash_indices_generator_offset + num_indexed_generators;

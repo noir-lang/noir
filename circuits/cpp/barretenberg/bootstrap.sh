@@ -45,13 +45,14 @@ fi
 # Build native.
 mkdir -p build && cd build
 cmake -DCMAKE_BUILD_TYPE=RelWithAssert -DTOOLCHAIN=$TOOLCHAIN ..
-cmake --build . --parallel
+make -j$(nproc) $@
 cd ..
 
 # Install the webassembly toolchain.
-rm -rf ./src/wasi-sdk-12.0
+WASI_VERSION=12
+rm -rf ./src/wasi-sdk-*
 cd ./src
-curl -s -L https://github.com/CraneStation/wasi-sdk/releases/download/wasi-sdk-12/wasi-sdk-12.0-$OS.tar.gz | tar zxfv -
+curl -s -L https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-$WASI_VERSION/wasi-sdk-$WASI_VERSION.0-$OS.tar.gz | tar zxfv -
 cd ..
 
 # Build WASM.
