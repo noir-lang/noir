@@ -49,6 +49,18 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
         }
     }
 
+    //Test case for short-circuit
+    let mut data = [0 as u32; 32];
+      for i in 0..32 {
+        let i_u32 = i as u32;
+        if i_u32 == a {
+            for j in 0..4 {
+                data[i + j] = c[4 - 1 - j];
+            };
+        }
+    };
+    constrain data[31] == 0;
+
     if a == 3 {
         c = test4();
     }
