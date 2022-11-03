@@ -12,7 +12,7 @@ use noirc_errors::Span;
 pub use statement::*;
 pub use structure::*;
 
-use crate::{token::IntType, util::vecmap, IsConst};
+use crate::{token::IntType, util::vecmap, Comptime};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum UnresolvedArraySize {
@@ -36,10 +36,10 @@ impl std::fmt::Display for UnresolvedArraySize {
 /// for structs within, but are otherwise identical to Types.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum UnresolvedType {
-    FieldElement(IsConst),
+    FieldElement(Comptime),
     Array(UnresolvedArraySize, Box<UnresolvedType>), // [4]Witness = Array(4, Witness)
-    Integer(IsConst, Signedness, u32),               // u32 = Integer(unsigned, 32)
-    Bool(IsConst),
+    Integer(Comptime, Signedness, u32),              // u32 = Integer(unsigned, 32)
+    Bool(Comptime),
     Unit,
 
     /// A Named UnresolvedType can be a struct type or a type variable
@@ -92,7 +92,7 @@ impl std::fmt::Display for UnresolvedType {
 }
 
 impl UnresolvedType {
-    pub fn from_int_token(token: (IsConst, IntType)) -> UnresolvedType {
+    pub fn from_int_token(token: (Comptime, IntType)) -> UnresolvedType {
         use {IntType::*, UnresolvedType::Integer};
         match token.1 {
             Signed(num_bits) => Integer(token.0, Signedness::Signed, num_bits),

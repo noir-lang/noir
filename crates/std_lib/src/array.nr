@@ -5,4 +5,4 @@ fn sum(_input : [Field]) -> Field {}
 fn prod(_input : [Field]) -> Field {}
 
 #[builtin(arraylen)]
-fn len<T>(_input : [T]) -> const Field {}
+fn len<T>(_input : [T]) -> comptime Field {}

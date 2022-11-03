@@ -190,11 +190,11 @@ impl std::fmt::Display for StructType {
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Type {
-    FieldElement(IsConst),
-    Array(Box<Type>, Box<Type>),       // Array(4, Field) = [Field; 4]
-    Integer(IsConst, Signedness, u32), // u32 = Integer(unsigned, 32)
-    PolymorphicInteger(IsConst, TypeVariable),
-    Bool(IsConst),
+    FieldElement(Comptime),
+    Array(Box<Type>, Box<Type>),        // Array(4, Field) = [Field; 4]
+    Integer(Comptime, Signedness, u32), // u32 = Integer(unsigned, 32)
+    PolymorphicInteger(Comptime, TypeVariable),
+    Bool(Comptime),
     Unit,
     Struct(Shared<StructType>, Vec<Type>),
     Tuple(Vec<Type>),
@@ -233,19 +233,19 @@ pub enum TypeBinding {
 pub struct TypeVariableId(pub usize);
 
 #[derive(Debug, Clone, Eq)]
-pub enum IsConst {
+pub enum Comptime {
     // Yes and No variants have optional spans representing the location in the source code
     // which caused them to be const.
     Yes(Option<Span>),
     No(Option<Span>),
-    Maybe(TypeVariableId, Rc<RefCell<Option<IsConst>>>),
+    Maybe(TypeVariableId, Rc<RefCell<Option<Comptime>>>),
 }
 
-impl std::hash::Hash for IsConst {
+impl std::hash::Hash for Comptime {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         core::mem::discriminant(self).hash(state);
 
-        if let IsConst::Maybe(id, binding) = self {
+        if let Comptime::Maybe(id, binding) = self {
             if let Some(is_const) = &*binding.borrow() {
                 is_const.hash(state);
             } else {
@@ -255,10 +255,10 @@ impl std::hash::Hash for IsConst {
     }
 }
 
-impl PartialEq for IsConst {
+impl PartialEq for Comptime {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (IsConst::Maybe(id1, binding1), IsConst::Maybe(id2, binding2)) => {
+            (Comptime::Maybe(id1, binding1), Comptime::Maybe(id2, binding2)) => {
                 if let Some(new_self) = &*binding1.borrow() {
                     return new_self == other;
                 }
@@ -267,7 +267,7 @@ impl PartialEq for IsConst {
                 }
                 id1 == id2
             }
-            (IsConst::Yes(_), IsConst::Yes(_)) | (IsConst::No(_), IsConst::No(_)) => true,
+            (Comptime::Yes(_), Comptime::Yes(_)) | (Comptime::No(_), Comptime::No(_)) => true,
             _ => false,
         }
     }
@@ -282,7 +282,7 @@ pub enum SpanKind {
     None,
 }
 
-impl IsConst {
+impl Comptime {
     pub fn new(interner: &mut NodeInterner) -> Self {
         let id = interner.next_type_variable_id();
         Self::Maybe(id, Rc::new(RefCell::new(None)))
@@ -290,8 +290,8 @@ impl IsConst {
 
     fn set_span(&mut self, new_span: Span) {
         match self {
-            IsConst::Yes(span) | IsConst::No(span) => *span = Some(new_span),
-            IsConst::Maybe(_, binding) => {
+            Comptime::Yes(span) | Comptime::No(span) => *span = Some(new_span),
+            Comptime::Maybe(_, binding) => {
                 if let Some(binding) = &mut *binding.borrow_mut() {
                     binding.set_span(new_span);
                 }
@@ -302,9 +302,9 @@ impl IsConst {
     /// Try to unify these two IsConst constraints.
     pub fn unify(&self, other: &Self, span: Span) -> Result<(), SpanKind> {
         match (self, other) {
-            (IsConst::Yes(_), IsConst::Yes(_)) | (IsConst::No(_), IsConst::No(_)) => Ok(()),
+            (Comptime::Yes(_), Comptime::Yes(_)) | (Comptime::No(_), Comptime::No(_)) => Ok(()),
 
-            (IsConst::Yes(y), IsConst::No(n)) | (IsConst::No(n), IsConst::Yes(y)) => {
+            (Comptime::Yes(y), Comptime::No(n)) | (Comptime::No(n), Comptime::Yes(y)) => {
                 Err(match (y, n) {
                     (_, Some(span)) => SpanKind::NonConst(*span),
                     (Some(span), _) => SpanKind::Const(*span),
@@ -312,17 +312,17 @@ impl IsConst {
                 })
             }
 
-            (IsConst::Maybe(_, binding), other) | (other, IsConst::Maybe(_, binding))
+            (Comptime::Maybe(_, binding), other) | (other, Comptime::Maybe(_, binding))
                 if binding.borrow().is_some() =>
             {
                 let binding = &*binding.borrow();
                 binding.as_ref().unwrap().unify(other, span)
             }
 
-            (IsConst::Maybe(id1, _), IsConst::Maybe(id2, _)) if id1 == id2 => Ok(()),
+            (Comptime::Maybe(id1, _), Comptime::Maybe(id2, _)) if id1 == id2 => Ok(()),
 
             // Both are unbound and do not refer to each other, arbitrarily set one equal to the other
-            (IsConst::Maybe(_, binding), other) | (other, IsConst::Maybe(_, binding)) => {
+            (Comptime::Maybe(_, binding), other) | (other, Comptime::Maybe(_, binding)) => {
                 let mut clone = other.clone();
                 clone.set_span(span);
                 *binding.borrow_mut() = Some(clone);
@@ -334,13 +334,13 @@ impl IsConst {
     /// Try to unify these two IsConst constraints.
     pub fn is_subtype_of(&self, other: &Self, span: Span) -> Result<(), SpanKind> {
         match (self, other) {
-            (IsConst::Yes(_), IsConst::Yes(_))
-            | (IsConst::No(_), IsConst::No(_))
+            (Comptime::Yes(_), Comptime::Yes(_))
+            | (Comptime::No(_), Comptime::No(_))
 
             // This is one of the only 2 differing cases between this and IsConst::unify
-            | (IsConst::Yes(_), IsConst::No(_)) => Ok(()),
+            | (Comptime::Yes(_), Comptime::No(_)) => Ok(()),
 
-            (IsConst::No(n), IsConst::Yes(y)) => {
+            (Comptime::No(n), Comptime::Yes(y)) => {
                 Err(match (y, n) {
                     (_, Some(span)) => SpanKind::NonConst(*span),
                     (Some(span), _) => SpanKind::Const(*span),
@@ -348,30 +348,30 @@ impl IsConst {
                 })
             }
 
-            (IsConst::Maybe(_, binding), other) if binding.borrow().is_some() => {
+            (Comptime::Maybe(_, binding), other) if binding.borrow().is_some() => {
                 let binding = &*binding.borrow();
                 binding.as_ref().unwrap().is_subtype_of(other, span)
             }
 
-            (other, IsConst::Maybe(_, binding)) if binding.borrow().is_some() => {
+            (other, Comptime::Maybe(_, binding)) if binding.borrow().is_some() => {
                 let binding = &*binding.borrow();
                 other.is_subtype_of(binding.as_ref().unwrap(), span)
             }
 
-            (IsConst::Maybe(id1, _), IsConst::Maybe(id2, _)) if id1 == id2 => Ok(()),
+            (Comptime::Maybe(id1, _), Comptime::Maybe(id2, _)) if id1 == id2 => Ok(()),
 
             // This is the other differing case between this and IsConst::unify.
             // If this is polymorphically const, dont force it to be non-const because it is
             // passed as an argument to a function expecting a non-const parameter.
-            (IsConst::Maybe(_, binding), IsConst::No(_)) if binding.borrow().is_none() => Ok(()),
+            (Comptime::Maybe(_, binding), Comptime::No(_)) if binding.borrow().is_none() => Ok(()),
 
-            (IsConst::Maybe(_, binding), other) => {
+            (Comptime::Maybe(_, binding), other) => {
                 let mut clone = other.clone();
                 clone.set_span(span);
                 *binding.borrow_mut() = Some(clone);
                 Ok(())
             }
-            (other, IsConst::Maybe(_, binding)) => {
+            (other, Comptime::Maybe(_, binding)) => {
                 let mut clone = other.clone();
                 clone.set_span(span);
                 *binding.borrow_mut() = Some(clone);
@@ -386,22 +386,22 @@ impl IsConst {
     /// - or if both are Maybe, unify them both and return the lhs.
     pub fn and(&self, other: &Self, span: Span) -> Self {
         match (self, other) {
-            (IsConst::Yes(_), IsConst::Yes(_)) => IsConst::Yes(Some(span)),
+            (Comptime::Yes(_), Comptime::Yes(_)) => Comptime::Yes(Some(span)),
 
-            (IsConst::No(_), IsConst::No(_))
-            | (IsConst::Yes(_), IsConst::No(_))
-            | (IsConst::No(_), IsConst::Yes(_)) => IsConst::No(Some(span)),
+            (Comptime::No(_), Comptime::No(_))
+            | (Comptime::Yes(_), Comptime::No(_))
+            | (Comptime::No(_), Comptime::Yes(_)) => Comptime::No(Some(span)),
 
-            (IsConst::Maybe(_, binding), other) | (other, IsConst::Maybe(_, binding))
+            (Comptime::Maybe(_, binding), other) | (other, Comptime::Maybe(_, binding))
                 if binding.borrow().is_some() =>
             {
                 let binding = &*binding.borrow();
                 binding.as_ref().unwrap().and(other, span)
             }
 
-            (IsConst::Maybe(id1, _), IsConst::Maybe(id2, _)) if id1 == id2 => self.clone(),
+            (Comptime::Maybe(id1, _), Comptime::Maybe(id2, _)) if id1 == id2 => self.clone(),
 
-            (IsConst::Maybe(_, binding), other) | (other, IsConst::Maybe(_, binding)) => {
+            (Comptime::Maybe(_, binding), other) | (other, Comptime::Maybe(_, binding)) => {
                 let mut clone = other.clone();
                 clone.set_span(span);
                 *binding.borrow_mut() = Some(clone);
@@ -412,9 +412,9 @@ impl IsConst {
 
     pub fn is_const(&self) -> bool {
         match self {
-            IsConst::Yes(_) => true,
-            IsConst::No(_) => false,
-            IsConst::Maybe(_, binding) => {
+            Comptime::Yes(_) => true,
+            Comptime::No(_) => false,
+            Comptime::Maybe(_, binding) => {
                 if let Some(binding) = &*binding.borrow() {
                     return binding.is_const();
                 }
@@ -426,11 +426,11 @@ impl IsConst {
 
 impl Type {
     pub fn field(span: Option<Span>) -> Type {
-        Type::FieldElement(IsConst::No(span))
+        Type::FieldElement(Comptime::No(span))
     }
 
     pub fn constant(span: Option<Span>) -> Type {
-        Type::FieldElement(IsConst::Yes(span))
+        Type::FieldElement(Comptime::Yes(span))
     }
 
     pub fn default_int_type(span: Option<Span>) -> Type {
@@ -515,12 +515,12 @@ impl std::fmt::Display for TypeBinding {
     }
 }
 
-impl std::fmt::Display for IsConst {
+impl std::fmt::Display for Comptime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            IsConst::Yes(_) => write!(f, "const "),
-            IsConst::No(_) => Ok(()),
-            IsConst::Maybe(_, binding) => match &*binding.borrow() {
+            Comptime::Yes(_) => write!(f, "const "),
+            Comptime::No(_) => Ok(()),
+            Comptime::Maybe(_, binding) => match &*binding.borrow() {
                 Some(binding) => binding.fmt(f),
                 None => write!(f, "const "),
             },
@@ -547,7 +547,7 @@ impl Type {
         }
     }
 
-    pub fn set_const(&mut self, new_const: IsConst) {
+    pub fn set_const(&mut self, new_const: Comptime) {
         match self {
             Type::FieldElement(is_const) | Type::Integer(is_const, _, _) => {
                 *is_const = new_const;
@@ -568,7 +568,7 @@ impl Type {
     pub fn try_bind_to_polymorphic_int(
         &self,
         var: &TypeVariable,
-        var_const: &IsConst,
+        var_const: &Comptime,
         use_subtype: bool,
         span: Span,
     ) -> Result<(), SpanKind> {
@@ -577,7 +577,7 @@ impl Type {
             TypeBinding::Unbound(id) => *id,
         };
 
-        let bind = |int_const: &IsConst| {
+        let bind = |int_const: &Comptime| {
             let mut clone = self.clone();
             let mut new_const = var_const.clone();
             new_const.set_span(span);

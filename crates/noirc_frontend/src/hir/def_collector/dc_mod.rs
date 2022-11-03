@@ -49,7 +49,7 @@ pub fn collect_defs<'a>(
         });
     }
 
-    collector.collect_global_constants(context, ast.global_constants, errors);
+    collector.collect_global_constants(context, ast.globals, errors);
 
     collector.collect_structs(ast.types, crate_id, errors);
 

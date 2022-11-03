@@ -7,7 +7,7 @@ use crate::{
     },
     node_interner::{ExprId, FuncId, NodeInterner},
     util::vecmap,
-    IsConst, Shared, TypeBinding,
+    Comptime, Shared, TypeBinding,
 };
 
 use super::errors::TypeCheckError;
@@ -62,11 +62,11 @@ pub(crate) fn type_check_expression(
 
                     arr_type
                 }
-                HirLiteral::Bool(_) => Type::Bool(IsConst::new(interner)),
+                HirLiteral::Bool(_) => Type::Bool(Comptime::new(interner)),
                 HirLiteral::Integer(_) => {
                     let id = interner.next_type_variable_id();
                     Type::PolymorphicInteger(
-                        IsConst::new(interner),
+                        Comptime::new(interner),
                         Shared::new(TypeBinding::Unbound(id)),
                     )
                 }
@@ -516,9 +516,9 @@ fn check_if_expr(
     let then_type = type_check_expression(interner, &if_expr.consequence, errors);
 
     let expr_span = interner.expr_span(&if_expr.condition);
-    cond_type.unify(&Type::Bool(IsConst::new(interner)), expr_span, errors, || {
+    cond_type.unify(&Type::Bool(Comptime::new(interner)), expr_span, errors, || {
         TypeCheckError::TypeMismatch {
-            expected_typ: Type::Bool(IsConst::No(None)).to_string(),
+            expected_typ: Type::Bool(Comptime::No(None)).to_string(),
             expr_typ: cond_type.to_string(),
             expr_span,
         }
@@ -671,7 +671,7 @@ pub fn comparator_operand_type_rules(
         }
 
         // Avoid reporting errors multiple times
-        (Error, _) | (_,Error) => Ok(Bool(IsConst::Yes(None))),
+        (Error, _) | (_,Error) => Ok(Bool(Comptime::Yes(None))),
 
         // Special-case == and != for arrays
         (Array(x_size, x_type), Array(y_size, y_type)) if matches!(op.kind, Equal | NotEqual) => {
@@ -688,7 +688,7 @@ pub fn comparator_operand_type_rules(
             }
 
             // We could check if all elements of all arrays are const but I am lazy
-            Ok(Bool(IsConst::No(Some(op.location.span))))
+            Ok(Bool(Comptime::No(Some(op.location.span))))
         }
         (lhs, rhs) => Err(format!("Unsupported types for comparison: {} and {}", lhs, rhs)),
     }
