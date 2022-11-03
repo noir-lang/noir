@@ -125,6 +125,7 @@ const sidebars = {
         },
       ],
     },
+    "compliance",
     "glossary",
   ],
   zkmoneySidebar: [
