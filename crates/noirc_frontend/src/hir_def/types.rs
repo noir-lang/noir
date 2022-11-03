@@ -312,13 +312,17 @@ impl IsConst {
                 })
             }
 
+            (IsConst::Maybe(_, binding), other) | (other, IsConst::Maybe(_, binding))
+                if binding.borrow().is_some() =>
+            {
+                let binding = &*binding.borrow();
+                binding.as_ref().unwrap().unify(other, span)
+            }
+
             (IsConst::Maybe(id1, _), IsConst::Maybe(id2, _)) if id1 == id2 => Ok(()),
 
+            // Both are unbound and do not refer to each other, arbitrarily set one equal to the other
             (IsConst::Maybe(_, binding), other) | (other, IsConst::Maybe(_, binding)) => {
-                if let Some(binding) = &*binding.borrow() {
-                    return binding.unify(other, span);
-                }
-
                 let mut clone = other.clone();
                 clone.set_span(span);
                 *binding.borrow_mut() = Some(clone);
@@ -344,6 +348,16 @@ impl IsConst {
                 })
             }
 
+            (IsConst::Maybe(_, binding), other) if binding.borrow().is_some() => {
+                let binding = &*binding.borrow();
+                binding.as_ref().unwrap().is_subtype_of(other, span)
+            }
+
+            (other, IsConst::Maybe(_, binding)) if binding.borrow().is_some() => {
+                let binding = &*binding.borrow();
+                other.is_subtype_of(binding.as_ref().unwrap(), span)
+            }
+
             (IsConst::Maybe(id1, _), IsConst::Maybe(id2, _)) if id1 == id2 => Ok(()),
 
             // This is the other differing case between this and IsConst::unify.
@@ -352,20 +366,12 @@ impl IsConst {
             (IsConst::Maybe(_, binding), IsConst::No(_)) if binding.borrow().is_none() => Ok(()),
 
             (IsConst::Maybe(_, binding), other) => {
-                if let Some(binding) = &*binding.borrow() {
-                    return binding.is_subtype_of(other, span);
-                }
-
                 let mut clone = other.clone();
                 clone.set_span(span);
                 *binding.borrow_mut() = Some(clone);
                 Ok(())
             }
             (other, IsConst::Maybe(_, binding)) => {
-                if let Some(binding) = &*binding.borrow() {
-                    return other.is_subtype_of(binding, span);
-                }
-
                 let mut clone = other.clone();
                 clone.set_span(span);
                 *binding.borrow_mut() = Some(clone);
@@ -386,13 +392,16 @@ impl IsConst {
             | (IsConst::Yes(_), IsConst::No(_))
             | (IsConst::No(_), IsConst::Yes(_)) => IsConst::No(Some(span)),
 
+            (IsConst::Maybe(_, binding), other) | (other, IsConst::Maybe(_, binding))
+                if binding.borrow().is_some() =>
+            {
+                let binding = &*binding.borrow();
+                binding.as_ref().unwrap().and(other, span)
+            }
+
             (IsConst::Maybe(id1, _), IsConst::Maybe(id2, _)) if id1 == id2 => self.clone(),
 
             (IsConst::Maybe(_, binding), other) | (other, IsConst::Maybe(_, binding)) => {
-                if let Some(binding) = &*binding.borrow() {
-                    return binding.and(other, span);
-                }
-
                 let mut clone = other.clone();
                 clone.set_span(span);
                 *binding.borrow_mut() = Some(clone);
