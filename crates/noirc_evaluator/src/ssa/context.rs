@@ -294,6 +294,24 @@ impl SsaContext {
         id
     }
 
+    //add the instruction to the block, after the provided instruction
+    pub fn push_instruction_after(
+        &mut self,
+        instruction_id: NodeId,
+        block: BlockId,
+        after: NodeId,
+    ) -> NodeId {
+        let mut pos = 0;
+        for i in &self[block].instructions {
+            if after == *i {
+                break;
+            }
+            pos += 1;
+        }
+        self[block].instructions.insert(pos + 1, instruction_id);
+        instruction_id
+    }
+
     pub fn add_const(&mut self, constant: node::Constant) -> NodeId {
         let obj = NodeObj::Const(constant);
         let id = NodeId(self.nodes.insert(obj));
