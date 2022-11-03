@@ -17,7 +17,7 @@ use acir::{
 
 use crate::pwg::{arithmetic::ArithmeticSolver, logic::LogicSolver};
 use num_bigint::BigUint;
-use num_traits::One;
+use num_traits::{One, Zero};
 
 // re-export acir
 pub use acir;
@@ -101,7 +101,7 @@ pub trait PartialWitnessGenerator {
                             false
                         }
                     },
-                    Directive::Quotient { a, b, q, r } => {
+                    Directive::Quotient { a, b, q, r, predicate } => {
                         match (
                             Self::get_value(a, initial_witness),
                             Self::get_value(b, initial_witness),
@@ -109,18 +109,26 @@ pub trait PartialWitnessGenerator {
                             (Some(val_a), Some(val_b)) => {
                                 let int_a = BigUint::from_bytes_be(&val_a.to_bytes());
                                 let int_b = BigUint::from_bytes_be(&val_b.to_bytes());
-                                let int_r = &int_a % &int_b;
-                                let int_q = &int_a / &int_b;
-
-                                initial_witness.insert(
-                                    *q,
-                                    FieldElement::from_be_bytes_reduce(&int_q.to_bytes_be()),
-                                );
-                                initial_witness.insert(
-                                    *r,
-                                    FieldElement::from_be_bytes_reduce(&int_r.to_bytes_be()),
-                                );
-                                false
+                                let default = Box::new(Expression::one());
+                                let pred = predicate.as_ref().unwrap_or(&default);
+                                if let Some(pred_value) = Self::get_value(pred, initial_witness) {
+                                    let (int_r, int_q) = if pred_value.is_zero() {
+                                        (BigUint::zero(), BigUint::zero())
+                                    } else {
+                                        (&int_a % &int_b, &int_a / &int_b)
+                                    };
+                                    initial_witness.insert(
+                                        *q,
+                                        FieldElement::from_be_bytes_reduce(&int_q.to_bytes_be()),
+                                    );
+                                    initial_witness.insert(
+                                        *r,
+                                        FieldElement::from_be_bytes_reduce(&int_r.to_bytes_be()),
+                                    );
+                                    false
+                                } else {
+                                    true
+                                }
                             }
                             _ => true,
                         }
