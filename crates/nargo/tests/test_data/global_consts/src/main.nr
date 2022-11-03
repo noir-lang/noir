@@ -1,11 +1,12 @@
 mod foo;
+mod baz;
 
 const M: Field = 32;
 const L: Field = 10; // Unused globals currently allowed
 const N: Field = 5;
 //const N: Field = 5; // Uncomment to see duplicate globals error 
 
-fn main(a: [Field; M], b: [Field; M], c : pub [Field; foo::MAGIC_NUMBER]) {
+fn main(a: [Field; M], b: [Field; M], c : pub [Field; foo::MAGIC_NUMBER], d: [Field; foo::bar::N]) {
      for i in 0..foo::MAGIC_NUMBER {
           constrain c[i] == foo::MAGIC_NUMBER;
      };
@@ -37,12 +38,17 @@ fn main(a: [Field; M], b: [Field; M], c : pub [Field; foo::MAGIC_NUMBER]) {
      constrain 15 == mysubmodule::my_helper();
      constrain 10 == mysubmodule::N;
      
-     let add_submodules_N = mysubmodule::N + foo::N;
+     let add_submodules_N = mysubmodule::N + foo::bar::N;
      constrain 15 == add_submodules_N;
+     let add_from_bar_N = mysubmodule::N + foo::bar::from_bar(1);
+     constrain 15 == add_from_bar_N;
 
      let arr: [Field; mysubmodule::N] = [N; 10];
-     constrain arr[0] == 5;
-     constrain arr[9] == 5;
+     constrain (arr[0] == 5) & (arr[9] == 5);
+
+     foo::from_foo(d);
+
+     baz::from_baz(c);
 }
 
 fn multiplyByM(x: Field) -> Field {
