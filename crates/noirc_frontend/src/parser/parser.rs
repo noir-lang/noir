@@ -1,5 +1,3 @@
-use std::iter::repeat;
-
 use super::{
     foldl_with_span, parameter_name_recovery, parameter_recovery, parenthesized, then_commit,
     then_commit_ignore, top_level_statement_recovery, ExprParser, ForRange, NoirParser,
@@ -18,6 +16,7 @@ use crate::{
     NoirFunction, NoirImpl, NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp,
 };
 
+use acvm::FieldElement;
 use chumsky::prelude::*;
 use noirc_abi::AbiFEType;
 use noirc_errors::{CustomDiagnostic, DiagnosableError, Span, Spanned};
@@ -678,21 +677,17 @@ where
     P: ExprParser,
 {
     expr_parser
-        .then(array_length())
+        .clone()
+        .then(just(Token::Semicolon).ignore_then(expr_parser))
         .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
-        .map_with_span(|(lhs, count), span| {
-            // Desugar the array by replicating the lhs 'count' times. TODO: This is inefficient
-            // for large arrays.
-            let name = "$array_element";
-            let pattern = Pattern::Identifier(name.into());
-            let decl = Statement::new_let(((pattern, UnresolvedType::Unspecified), lhs));
-
-            let variable = Expression::new(ExpressionKind::Ident(name.into()), span);
-            let elems = repeat(variable).take(count as usize).collect();
-            let array = ExpressionKind::array(elems);
-            let array = Statement::Expression(Expression::new(array, span));
-
-            ExpressionKind::Block(BlockExpression(vec![decl, array]))
+        .validate(|(lhs, mut count), span, emit| {
+            if count.contains_function_call() {
+                let msg = "Array size expressions cannot contain function calls";
+                emit(ParserError::with_reason(msg.into(), span));
+                // Default the count to 1 and continue
+                count = Expression::new(ExpressionKind::integer(FieldElement::one()), count.span);
+            }
+            ExpressionKind::repeated_array(lhs, count)
         })
 }
 
@@ -966,17 +961,21 @@ mod test {
         }
     }
 
-    /// This is the standard way to declare an array
     #[test]
     fn parse_array() {
         let valid = vec![
             "[0, 1, 2,3, 4]",
             "[0,1,2,3,4,]", // Trailing commas are valid syntax
+            "[0;5]",
         ];
 
         for expr in parse_all(array_expr(expression()), valid) {
-            let arr_lit = expr_to_array(expr);
-            assert_eq!(arr_lit.length, 5);
+            match expr_to_array(expr) {
+                ArrayLiteral::Standard(elems) => assert_eq!(elems.len(), 5),
+                ArrayLiteral::Repeated { length, .. } => {
+                    assert_eq!(length.kind, ExpressionKind::integer(5i128.into()))
+                }
+            }
         }
 
         parse_all_failing(
@@ -987,10 +986,10 @@ mod test {
 
     #[test]
     fn parse_array_sugar() {
-        let valid = vec!["[0;7]", "[(1, 2); 4]"];
+        let valid = vec!["[0;7]", "[(1, 2); 4]", "[0;Four]", "[2;1+3-a]"];
         parse_all(array_expr(expression()), valid);
 
-        let invalid = vec!["[0;;4]", "[5; 3+2]", "[1; a]"];
+        let invalid = vec!["[0;;4]", "[1; foo()]", "[1, 2; 3]"];
         parse_all_failing(array_expr(expression()), invalid);
     }
 

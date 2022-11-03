@@ -46,9 +46,13 @@ impl ExpressionKind {
     }
 
     pub fn array(contents: Vec<Expression>) -> ExpressionKind {
-        ExpressionKind::Literal(Literal::Array(ArrayLiteral {
-            length: contents.len() as u128,
-            contents,
+        ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(contents)))
+    }
+
+    pub fn repeated_array(repeated_element: Expression, length: Expression) -> ExpressionKind {
+        ExpressionKind::Literal(Literal::Array(ArrayLiteral::Repeated {
+            repeated_element: Box::new(repeated_element),
+            length: Box::new(length),
         }))
     }
 
@@ -173,6 +177,46 @@ impl Expression {
     pub fn cast(lhs: Expression, r#type: UnresolvedType, span: Span) -> Expression {
         let kind = ExpressionKind::Cast(Box::new(CastExpression { lhs, r#type }));
         Expression::new(kind, span)
+    }
+
+    pub fn contains_function_call(&self) -> bool {
+        match &self.kind {
+            ExpressionKind::Ident(_)
+            | ExpressionKind::Literal(_)
+            | ExpressionKind::Path(_)
+            | ExpressionKind::Error => false,
+
+            ExpressionKind::Call(_) | ExpressionKind::MethodCall(_) => true,
+
+            ExpressionKind::Block(block) => {
+                block.0.iter().any(|stmt| stmt.contains_function_call())
+            }
+            ExpressionKind::Prefix(prefix) => prefix.rhs.contains_function_call(),
+            ExpressionKind::Index(index) => {
+                index.collection.contains_function_call() || index.index.contains_function_call()
+            }
+            ExpressionKind::Constructor(ctor) => {
+                ctor.fields.iter().any(|(_, expr)| expr.contains_function_call())
+            }
+            ExpressionKind::MemberAccess(access) => access.lhs.contains_function_call(),
+            ExpressionKind::Cast(cast) => cast.lhs.contains_function_call(),
+            ExpressionKind::Infix(infix) => {
+                infix.lhs.contains_function_call() || infix.rhs.contains_function_call()
+            }
+            ExpressionKind::For(for_loop) => {
+                for_loop.start_range.contains_function_call()
+                    || for_loop.end_range.contains_function_call()
+                    || for_loop.block.contains_function_call()
+            }
+            ExpressionKind::If(if_expr) => {
+                if_expr.condition.contains_function_call()
+                    || if_expr.consequence.contains_function_call()
+                    || if_expr.alternative.map_or(false, |a| a.contains_function_call())
+            }
+            ExpressionKind::Tuple(fields) => {
+                fields.iter().any(|field| field.contains_function_call())
+            }
+        }
     }
 }
 
@@ -355,9 +399,9 @@ pub struct FunctionDefinition {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ArrayLiteral {
-    pub length: u128, // XXX: Maybe allow field element, so that the user can define the length using a constant
-    pub contents: Vec<Expression>,
+pub enum ArrayLiteral {
+    Standard(Vec<Expression>),
+    Repeated { repeated_element: Box<Expression>, length: Box<Expression> },
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -444,9 +488,12 @@ impl Display for ExpressionKind {
 impl Display for Literal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Literal::Array(array) => {
-                let contents = vecmap(&array.contents, ToString::to_string);
+            Literal::Array(ArrayLiteral::Standard(elements)) => {
+                let contents = vecmap(elements, ToString::to_string);
                 write!(f, "[{}]", contents.join(", "))
+            }
+            Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
+                write!(f, "[{}; {}]", repeated_element, length)
             }
             Literal::Bool(boolean) => write!(f, "{}", if *boolean { "true" } else { "false" }),
             Literal::Integer(integer) => write!(f, "{}", integer.to_u128()),
