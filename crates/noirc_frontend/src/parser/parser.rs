@@ -78,7 +78,7 @@ fn global_declaration() -> impl NoirParser<TopLevelStatement> {
         keyword(Keyword::Global).labelled("global"),
         ident().map(Pattern::Identifier),
     );
-    let p = then_commit(p, global_const_type_annotation());
+    let p = then_commit(p, global_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
     let p = then_commit(p, literal().map_with_span(Expression::new)); // XXX: this should be a literal
     p.map(LetStatement::new_let).map(TopLevelStatement::Global)
@@ -260,7 +260,7 @@ fn check_statements_require_semicolon(
 }
 
 /// Parse an optional ': type' and implicitly add a 'comptime' to the type
-fn global_const_type_annotation() -> impl NoirParser<UnresolvedType> {
+fn global_type_annotation() -> impl NoirParser<UnresolvedType> {
     ignore_then_commit(just(Token::Colon), parse_type())
         .map(|r#type| match r#type {
             UnresolvedType::FieldElement(_) => UnresolvedType::FieldElement(Comptime::Yes(None)),
