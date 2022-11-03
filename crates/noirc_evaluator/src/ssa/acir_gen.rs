@@ -1255,8 +1255,8 @@ fn bound_check_with_offset(
         bits < FieldElement::max_num_bits(),
         "range check with bit size of the prime field is not implemented yet"
     );
-    let aof = add(&a, FieldElement::one(), offset);
-    let sub_expression = subtract(&b, FieldElement::one(), &aof); //b-(a+offset)
+    let aof = add(a, FieldElement::one(), offset);
+    let sub_expression = subtract(b, FieldElement::one(), &aof); //b-(a+offset)
     let w = evaluator.add_witness_to_cs(); //range_check requires a witness - TODO: it should be created inside range_constraint(..)
     evaluator.gates.push(Gate::Arithmetic(&sub_expression - &Expression::from(&w)));
     range_constraint(w, bits, evaluator).unwrap_or_else(|err| {
