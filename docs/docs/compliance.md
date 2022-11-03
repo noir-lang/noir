@@ -23,12 +23,6 @@ A deposit amount cap is enforced on a per address, per asset, per rollup block b
 
 The cap limits the maximum amount of pending deposits that an Ethereum address can make at any instance. It is initially enforced at 5 ETH / 10,000 DAI and is adjustable depending on needs.
 
-:::note
-
-The cap of other assets depositable through direct smart contract interactions are 6 wstETH / 5 yvETH / 5 weWETH / 6 wewstETH / 10,000 yvDAI / 10,000 weDAI.
-
-:::
-
 ### Daily Deposit Cap
 
 #### IP-specific Cap
