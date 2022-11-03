@@ -32,11 +32,9 @@ fn main(a: [Field; M], b: [Field; M], c : pub [Field; foo::MAGIC_NUMBER], d: [Fi
      //let mut L: Field = 2; // Uncomment to show expected const error for array annotations
      let L: const Field = 2;
      let t: [Field; L] = [N, M];
-
      constrain t[1] == 32;
 
      constrain 15 == mysubmodule::my_helper();
-     constrain 10 == mysubmodule::N;
      
      let add_submodules_N = mysubmodule::N + foo::bar::N;
      constrain 15 == add_submodules_N;
