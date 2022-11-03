@@ -22,13 +22,13 @@ A subgroup of size $\sim 2^{254}$, of a curve over field size $2^{254\times2}$. 
 
 + **Equation** $E: X^2 = Y^3 + \frac{3}{(i+9)}$
 + *Parameters*
-    + **Field** $\mathbb{F}_{p^2}$ for $p$ as above.
-    + **Group** $\mathbb{G}_2$ = subgroup of $E / \mathbb{F}_{p^2}$ of the same prime order $r$ as $\mathbb{G}_1$.
-    + **Generator** $P_2 = (
-  11559732032986387107991004021392285783925812861821192530917403151452391805634 * i +
-  10857046999023057135944570762232829481370756359578518086990519993285655852781,
-  4082367875863433681332203403145435568316851327593401208105741076214120093531 * i +
-  8495653923123431417604973247489272438418190587263600148770280649306958101930
+  + **Field** $\mathbb{F}_{p^2}$ for $p$ as above.
+  + **Group** $\mathbb{G}_2$ = subgroup of $E / \mathbb{F}_{p^2}$ of the same prime order $r$ as $\mathbb{G}_1$.
+  + **Generator** $P_2 = (
+11559732032986387107991004021392285783925812861821192530917403151452391805634 * i +
+10857046999023057135944570762232829481370756359578518086990519993285655852781,
+4082367875863433681332203403145435568316851327593401208105741076214120093531 * i +
+8495653923123431417604973247489272438418190587263600148770280649306958101930
 ) \in \mathbb{G}_2$
 
 #### Pairing
@@ -51,8 +51,6 @@ Grumpkin is in fact a curve cycle together with BN-254, meaning that the field a
     + **Group** $\mathbb{G}$ of order $p = 21888242871839275222246405745257275088696311157297823662689037894645226208583$
     + **Base field** $F_r$ for $r= 21888242871839275222246405745257275088548364400416034343698204186575808495617$
 
-
-
 ### 3. Hashes
 
 The Aztec 2.0 system relies on two types of hashes:
@@ -67,7 +65,9 @@ Let $\mathbb{G}$ be an additive group of prime order $p$.
 
 In its classical setting a pedersen hash is defined as a map $H: \mathbb{F} \times \mathbb{F} \longrightarrow \mathbb{G}$ as follows:
 
-$$ H(m_1,m_2) = m_1.g + m_2.h, $$
+$$ 
+H(m_1,m_2) = m_1.g + m_2.h
+$$
 
 for generators $g,h \in \mathbb{G}$ chosen independently by public randomness (e.g. hueristically as distinct outputs of a random oracle simulating hash function).
 
@@ -80,14 +80,19 @@ Our basic component for hashing will be the `hash_single` method.
 Given a field element $a\in F_r$ and hash index $i$, we essentially hash 252 bits of $a$ with $h_{2i}$ and the the remaining 2 bits of $a$ with $h_{2i+1}$. This is not precisely the case, as we use a wnaf representation - see page 4 [here](https://docs.zkproof.org/pages/standards/accepted-workshop3/proposal-turbo_plonk.pdf). See the comments above `hash_single` in the code for exact details. The point is that while enforcing the wnaf representation to represent an integer smaller than $r$, this is a collision resistant function from $F_r$ under DL, even when outputting only the $x$-coordinate.
 
 Now, given a vector $a_1,\ldots,a_t\in F_r$ we define the pedersen hash as
-$$ H(a_1,\ldots,a_t)=\sum_{i=1}^t \text{hash_single}(a_i,i).x$$
+
+$$ 
+H(a_1,\ldots,a_t)=\sum_{i=1}^t \text{hash_single}(a_i,i).x
+$$
 
 
 #### Hashing byte arrays:
 
 Given a message $M$ of arbitrary size, we first divide it up into $31$-byte chunks $M = M_0 M_2 ... M_k$; in other words:
 
-$$ M = \sum_{i=0}^{k} M_i.2^{31\cdot i}. $$
+$$ 
+M = \sum_{i=0}^{k} M_i.2^{31\cdot i}. 
+$$
 
 We now identify each $M_i$ with a field element $a_i\in F_r$ in the natural way.
 and now we define $H(M)\triangleq H(a_1,\ldots,a_t)$
@@ -102,9 +107,6 @@ We use the Blake2s Hash more sparingly, because it is not SNARK-friendly, but it
 We employ the standard implementation of the Blake2s hash, which is fully documented [here](https://tools.ietf.org/html/rfc7693).
 
 The Blake2s hash is utilized for computing nullifiers and for generating pseudorandom challenges, when verifying Schnorr signatures and when recursively verifying Plonk proofs.
-
-
-
 
 **Pedersen Hash 'h' Elements**
 
