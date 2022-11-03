@@ -429,10 +429,17 @@ impl Instruction {
                         // Delete the constrain, it is always true
                         return Ok(NodeEval::VarOrInstruction(NodeId::dummy()));
                     } else if obj.is_zero() {
-                        return Err(RuntimeErrorKind::UnstructuredError {
-                            message: "Constraint is always false".into(),
+                        if let Some(location) = *location {
+                            return Err(RuntimeErrorKind::UnstructuredError {
+                                message: "Constraint is always false".into(),
+                            }
+                            .add_location(location));
+                        } else {
+                            return Err(RuntimeErrorKind::Spanless(
+                                "Constraint is always false".into(),
+                            )
+                            .add_location(Location::dummy()));
                         }
-                        .add_location(*location));
                     }
                 }
             }
@@ -501,7 +508,7 @@ pub enum Operation {
     }, //truncate
 
     Not(NodeId), //(!) Bitwise Not
-    Constrain(NodeId, Location),
+    Constrain(NodeId, Option<Location>),
 
     //control flow
     Jne(NodeId, BlockId), //jump on not equal

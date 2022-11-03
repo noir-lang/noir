@@ -126,6 +126,12 @@ impl StackFrame {
         }
     }
 
+    pub fn clear(&mut self) {
+        self.stack.clear();
+        self.array_map.clear();
+        self.created_arrays.clear();
+    }
+
     pub fn push(&mut self, ins_id: NodeId) {
         self.stack.push(ins_id);
     }

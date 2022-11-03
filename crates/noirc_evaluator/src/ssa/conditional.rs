@@ -341,6 +341,7 @@ impl DecisionTree {
         }
 
         //merge then branch
+        //ctx.print_block(&ctx[left]);
         to_remove.extend(block::merge_path(ctx, left, exit_block_id));
 
         //merge else branch
@@ -401,7 +402,9 @@ impl DecisionTree {
     ) {
         if predicate == AssumptionId::dummy() || self[predicate].value != Some(ctx.zero()) {
             for i in instructions {
-                self.conditionalise_into(ctx, result, *i, predicate);
+                if !self.conditionalise_into(ctx, result, *i, predicate) {
+                    break;
+                }
             }
         }
     }
@@ -417,13 +420,37 @@ impl DecisionTree {
         }
     }
 
+    fn short_circuit(ctx: &mut SsaContext, stack: &mut StackFrame, condition: NodeId) -> bool {
+        if ctx.under_assumption(condition) {
+            stack.clear();
+            let operation =
+                Operation::Cond { condition, val_true: ctx.zero(), val_false: ctx.one() };
+            let cond = ctx.add_instruction(Instruction::new(
+                operation,
+                ObjectType::Boolean,
+                Some(stack.block),
+            ));
+            stack.push(cond);
+            let unreachable = Operation::Constrain(cond, None);
+            let ins2 = ctx.add_instruction(Instruction::new(
+                unreachable,
+                ObjectType::NotAnObject,
+                Some(stack.block),
+            ));
+            stack.push(ins2);
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn conditionalise_into(
         &self,
         ctx: &mut SsaContext,
         stack: &mut StackFrame,
         ins_id: NodeId,
         predicate: AssumptionId,
-    ) {
+    ) -> bool {
         let ass_cond;
         let ass_value;
         if predicate == AssumptionId::dummy() {
@@ -467,29 +494,60 @@ impl DecisionTree {
                 stack.push(ins_id);
             }
 
+            Operation::Load { array_id, index } => {
+                if let Some(idx) = ctx.get_as_constant(*index) {
+                    if (idx.to_u128() as u32) >= ctx.mem[*array_id].len {
+                        if !DecisionTree::short_circuit(ctx, stack, ass_value) {
+                            unreachable!(
+                                "index out of bounds: the len is {} but the index is {}",
+                                ctx.mem[*array_id].len,
+                                idx.to_u128()
+                            );
+                        }
+                        return false;
+                    }
+                }
+                stack.push(ins_id);
+            }
             Operation::Store { array_id, index, value } => {
-                if !ins.operation.is_dummy_store()
-                    && ctx.under_assumption(ass_value)
-                    && stack.created_arrays[array_id] != stack.block
-                {
-                    let load = Operation::Load { array_id: *array_id, index: *index };
-                    let e_type = ctx.mem[*array_id].element_type;
-                    let dummy =
-                        ctx.add_instruction(Instruction::new(load, e_type, Some(stack.block)));
-                    let operation = Operation::Cond {
-                        condition: ass_value,
-                        val_true: *value,
-                        val_false: dummy,
-                    };
-                    let cond =
-                        ctx.add_instruction(Instruction::new(operation, e_type, Some(stack.block)));
+                if !ins.operation.is_dummy_store() {
+                    if let Some(idx) = ctx.get_as_constant(*index) {
+                        if (idx.to_u128() as u32) >= ctx.mem[*array_id].len {
+                            if !DecisionTree::short_circuit(ctx, stack, ass_value) {
+                                unreachable!(
+                                    "index out of bounds: the len is {} but the index is {}",
+                                    ctx.mem[*array_id].len,
+                                    idx.to_u128()
+                                );
+                            }
+                            return false;
+                        }
+                    }
+                    if stack.created_arrays[array_id] != stack.block
+                        && ctx.under_assumption(ass_value)
+                    {
+                        let load = Operation::Load { array_id: *array_id, index: *index };
+                        let e_type = ctx.mem[*array_id].element_type;
+                        let dummy =
+                            ctx.add_instruction(Instruction::new(load, e_type, Some(stack.block)));
+                        let operation = Operation::Cond {
+                            condition: ass_value,
+                            val_true: *value,
+                            val_false: dummy,
+                        };
+                        let cond = ctx.add_instruction(Instruction::new(
+                            operation,
+                            e_type,
+                            Some(stack.block),
+                        ));
 
-                    stack.push(dummy);
-                    stack.push(cond);
-                    //store the conditional value
-                    let ins2 = ctx.get_mut_instruction(ins_id);
-                    ins2.operation =
-                        Operation::Store { array_id: *array_id, index: *index, value: cond };
+                        stack.push(dummy);
+                        stack.push(cond);
+                        //store the conditional value
+                        let ins2 = ctx.get_mut_instruction(ins_id);
+                        ins2.operation =
+                            Operation::Store { array_id: *array_id, index: *index, value: cond };
+                    }
                 }
                 stack.push(ins_id);
             }
@@ -539,6 +597,9 @@ impl DecisionTree {
                         val_true: *expr,
                         val_false: ctx.one(),
                     };
+                    if *expr == ctx.zero() {
+                        stack.clear();
+                    }
                     let cond = ctx.add_instruction(Instruction::new(
                         operation,
                         ObjectType::Boolean,
@@ -547,11 +608,16 @@ impl DecisionTree {
                     stack.push(cond);
                     let ins2 = ctx.get_mut_instruction(ins_id);
                     ins2.operation = Operation::Constrain(cond, *loc);
+                    if *expr == ctx.zero() {
+                        stack.push(ins_id);
+                        return false;
+                    }
                 }
                 stack.push(ins_id);
             }
             _ => stack.push(ins_id),
         }
+        true
     }
 
     fn synchronise(

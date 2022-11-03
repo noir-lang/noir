@@ -326,7 +326,7 @@ impl IRGenerator {
         location: noirc_errors::Location,
     ) -> Result<Value, RuntimeError> {
         let cond = self.codegen_expression(env, expr)?.unwrap_id();
-        let operation = Operation::Constrain(cond, location);
+        let operation = Operation::Constrain(cond, Some(location));
         self.context.new_instruction(operation, ObjectType::NotAnObject)?;
         Ok(Value::dummy())
     }
