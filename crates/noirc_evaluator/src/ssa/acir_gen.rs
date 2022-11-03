@@ -921,8 +921,7 @@ pub fn evaluate_udiv(
 
     //r<b
     let r_expr = Expression::from(Linear::from_witness(r_witness));
-    let r_var = InternalVar { expression: r_expr, witness: Some(r_witness), id: None };
-    bound_check_with_offset(&r_var, rhs, &predicate.expression, bit_size, evaluator);
+    bound_check_with_offset(&r_expr, &rhs.expression, &predicate.expression, bit_size, evaluator);
     //range check q<=a
     range_constraint(q_witness, bit_size, evaluator).unwrap_or_else(|err| {
         dbg!(err);
@@ -1246,8 +1245,8 @@ pub fn range_constraint(
 // n.b: we do NOT check here that a and b are indeed 'bits' size
 // a < b <=> a+1<=b
 fn bound_check_with_offset(
-    a: &InternalVar,
-    b: &InternalVar,
+    a: &Expression,
+    b: &Expression,
     offset: &Expression,
     bits: u32,
     evaluator: &mut Evaluator,
@@ -1256,8 +1255,8 @@ fn bound_check_with_offset(
         bits < FieldElement::max_num_bits(),
         "range check with bit size of the prime field is not implemented yet"
     );
-    let aof = add(&a.expression, FieldElement::one(), offset);
-    let sub_expression = subtract(&b.expression, FieldElement::one(), &aof); //b-(a+offset)
+    let aof = add(&a, FieldElement::one(), offset);
+    let sub_expression = subtract(&b, FieldElement::one(), &aof); //b-(a+offset)
     let w = evaluator.add_witness_to_cs(); //range_check requires a witness - TODO: it should be created inside range_constraint(..)
     evaluator.gates.push(Gate::Arithmetic(&sub_expression - &Expression::from(&w)));
     range_constraint(w, bits, evaluator).unwrap_or_else(|err| {
