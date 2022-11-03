@@ -125,6 +125,46 @@ const sidebars = {
         },
       ],
     },
+    {
+      type: "category",
+      label: "Technical Specification",
+      items: [
+        "spec/SUMMARY",
+        "spec/intro",
+        "spec/primitives",
+        {
+          type: "doc",
+          id: "spec/schnorr",
+          label: "Schnorr Signatures"
+        },
+        {
+          type: "doc",
+          id: "spec/uint",
+          label: "Unsigned Integers"
+        },
+        "spec/notes_and_nullifiers",
+        "spec/defi_bridge_interface",
+        {
+          type: "category",
+          label: "'App' Circuits",
+          items: [
+            "spec/account_circuit",
+            "spec/join_split_circuit",
+            "spec/claim_circuit"
+          ],
+        },
+        {
+          type: "category",
+          label: "Rollup Circuits",
+          items: [
+            "spec/rollup_circuit",
+            "spec/root_rollup_circuit",
+            "spec/root_verifier_circuit"
+          ]
+        },
+        "spec/rollup_contract"
+      ],
+    },
     "compliance",
     "glossary",
   ],
