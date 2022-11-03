@@ -11,6 +11,9 @@ fn main(a: [Field; M], b: [Field; M], c : pub [Field; foo::MAGIC_NUMBER]) {
      };
 
      constrain N != M;
+     
+     let expected: u32 = 42;
+     constrain foo::TYPE_INFERRED == expected;
 
      let mut y = 5;
      let mut x = M;
