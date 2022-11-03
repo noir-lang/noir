@@ -7,7 +7,7 @@ use crate::{
 };
 
 use super::{
-    dc_crate::{DefCollector, UnresolvedFunctions, UnresolvedGlobalConst},
+    dc_crate::{DefCollector, UnresolvedFunctions, UnresolvedGlobal},
     errors::DefCollectorErrorKind,
 };
 use crate::hir::def_map::{parse_file, LocalModuleId, ModuleData, ModuleId, ModuleOrigin};
@@ -49,7 +49,7 @@ pub fn collect_defs<'a>(
         });
     }
 
-    collector.collect_global_constants(context, ast.globals, errors);
+    collector.collect_globals(context, ast.globals, errors);
 
     collector.collect_structs(ast.types, crate_id, errors);
 
@@ -63,26 +63,26 @@ pub fn collect_defs<'a>(
 }
 
 impl<'a> ModCollector<'a> {
-    fn collect_global_constants(
+    fn collect_globals(
         &mut self,
         context: &mut Context,
-        global_constants: Vec<LetStatement>,
+        globals: Vec<LetStatement>,
         errors: &mut Vec<CollectedErrors>,
     ) {
-        for global_constant in global_constants {
-            let name = global_constant.pattern.name_ident().clone();
+        for global in globals {
+            let name = global.pattern.name_ident().clone();
 
             // First create dummy function in the DefInterner
             // So that we can get a StmtId
-            let stmt_id = context.def_interner.push_empty_global_const();
+            let stmt_id = context.def_interner.push_empty_global();
 
             // Add the statement to the scope so its path can be looked up later
             let result = self.def_collector.def_map.modules[self.module_id.0]
                 .scope
-                .define_global_const_def(name, stmt_id);
+                .define_global(name, stmt_id);
 
             if let Err((first_def, second_def)) = result {
-                let err = DefCollectorErrorKind::DuplicateGlobalConst { first_def, second_def };
+                let err = DefCollectorErrorKind::DuplicateGlobal { first_def, second_def };
 
                 errors.push(CollectedErrors {
                     file_id: self.file_id,
@@ -90,11 +90,11 @@ impl<'a> ModCollector<'a> {
                 });
             }
 
-            self.def_collector.collected_consts.push(UnresolvedGlobalConst {
+            self.def_collector.collected_globals.push(UnresolvedGlobal {
                 file_id: self.file_id,
                 module_id: self.module_id,
                 stmt_id,
-                stmt_def: global_constant,
+                stmt_def: global,
             });
         }
     }

@@ -40,7 +40,7 @@ pub struct UnresolvedStruct {
 }
 
 #[derive(Clone)]
-pub struct UnresolvedGlobalConst {
+pub struct UnresolvedGlobal {
     pub file_id: FileId,
     pub module_id: LocalModuleId,
     pub stmt_id: StmtId,
@@ -53,7 +53,7 @@ pub struct DefCollector {
     pub(crate) collected_imports: Vec<ImportDirective>,
     pub(crate) collected_functions: Vec<UnresolvedFunctions>,
     pub(crate) collected_types: HashMap<StructId, UnresolvedStruct>,
-    pub(crate) collected_consts: Vec<UnresolvedGlobalConst>,
+    pub(crate) collected_globals: Vec<UnresolvedGlobal>,
     /// collected impls maps the type name and the module id in which
     /// the impl is defined to the functions contained in that impl
     pub(crate) collected_impls: HashMap<(Path, LocalModuleId), Vec<UnresolvedFunctions>>,
@@ -67,7 +67,7 @@ impl DefCollector {
             collected_functions: vec![],
             collected_types: HashMap::new(),
             collected_impls: HashMap::new(),
-            collected_consts: vec![],
+            collected_globals: vec![],
         }
     }
 
@@ -154,7 +154,7 @@ impl DefCollector {
         // We must first resolve and intern the global consts before we can resolve any stmts inside each function.
         // Each function uses its own resolver with a newly created ScopeForest, and must be resolved again to be within a function's scope
         let file_const_ids =
-            resolve_global_constants(context, def_collector.collected_consts, crate_id);
+            resolve_global_constants(context, def_collector.collected_globals, crate_id);
 
         // Before we resolve any function symbols we must go through our impls and
         // re-collect the methods within into their proper module. This cannot be
@@ -240,7 +240,7 @@ fn collect_impls(
 
 fn resolve_global_constants(
     context: &mut Context,
-    global_constants: Vec<UnresolvedGlobalConst>,
+    global_constants: Vec<UnresolvedGlobal>,
     crate_id: CrateId,
 ) -> Vec<(FileId, StmtId)> {
     let mut global_const_ids = Vec::new();

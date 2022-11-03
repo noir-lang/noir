@@ -289,7 +289,7 @@ impl NodeInterner {
     }
 
     /// Intern an empty global const stmt. Used for collecting global consts
-    pub fn push_empty_global_const(&mut self) -> StmtId {
+    pub fn push_empty_global(&mut self) -> StmtId {
         self.push_stmt(HirStatement::Error)
     }
 

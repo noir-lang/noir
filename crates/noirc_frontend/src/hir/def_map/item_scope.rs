@@ -75,11 +75,7 @@ impl ItemScope {
         self.add_definition(name, ModuleDefId::TypeId(local_id))
     }
 
-    pub fn define_global_const_def(
-        &mut self,
-        name: Ident,
-        stmt_id: StmtId,
-    ) -> Result<(), (Ident, Ident)> {
+    pub fn define_global(&mut self, name: Ident, stmt_id: StmtId) -> Result<(), (Ident, Ident)> {
         self.add_definition(name, ModuleDefId::ConstId(stmt_id))
     }
 
