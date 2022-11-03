@@ -110,6 +110,20 @@ impl DecisionTree {
         self[parent_id].val_true.contains(&assumption)
     }
 
+    fn new_instruction(
+        ctx: &mut SsaContext,
+        block_id: BlockId,
+        operator: BinaryOp,
+        lhs: NodeId,
+        rhs: NodeId,
+        typ: ObjectType,
+    ) -> Instruction {
+        let operation = Operation::binary(operator, lhs, rhs);
+        let mut i = Instruction::new(operation, typ, Some(block_id));
+        super::optim::simplify(ctx, &mut i).unwrap();
+        i
+    }
+
     fn new_instruction_after_phi(
         ctx: &mut SsaContext,
         block_id: BlockId,
@@ -118,13 +132,28 @@ impl DecisionTree {
         rhs: NodeId,
         typ: ObjectType,
     ) -> NodeId {
-        let operation = Operation::binary(operator, lhs, rhs);
-        let mut i = Instruction::new(operation, typ, Some(block_id));
-        super::optim::simplify(ctx, &mut i).unwrap();
+        let i = DecisionTree::new_instruction(ctx, block_id, operator, lhs, rhs, typ);
         if let node::Mark::ReplaceWith(replacement) = i.mark {
             return replacement;
         }
         ctx.insert_instruction_after_phi(i, block_id)
+    }
+
+    fn new_instruction_after(
+        ctx: &mut SsaContext,
+        block_id: BlockId,
+        operator: BinaryOp,
+        lhs: NodeId,
+        rhs: NodeId,
+        typ: ObjectType,
+        after: NodeId,
+    ) -> NodeId {
+        let i = DecisionTree::new_instruction(ctx, block_id, operator, lhs, rhs, typ);
+        if let node::Mark::ReplaceWith(replacement) = i.mark {
+            return replacement;
+        }
+        let id = ctx.add_instruction(i);
+        ctx.push_instruction_after(id, block_id, after)
     }
 
     pub fn compute_assumption(&mut self, ctx: &mut SsaContext, block_id: BlockId) -> NodeId {
@@ -154,13 +183,14 @@ impl DecisionTree {
                 condition,
                 ObjectType::Boolean,
             );
-            DecisionTree::new_instruction_after_phi(
+            DecisionTree::new_instruction_after(
                 ctx,
                 block_id,
                 BinaryOp::Mul,
                 pvalue,
                 not_condition,
                 ObjectType::Boolean,
+                not_condition,
             )
         };
         self[assumption_id].value = Some(ins);
