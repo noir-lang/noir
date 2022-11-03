@@ -2,10 +2,14 @@ mod foo;
 
 const M: Field = 32;
 const L: Field = 10; // Unused globals currently allowed
-const N: const Field = 5;
-//let N: const Field = 5; // Uncomment to see duplicate globals error 
+const N: Field = 5;
+//const N: Field = 5; // Uncomment to see duplicate globals error 
 
-fn main(a: [Field; M], b: [Field; M]) {
+fn main(a: [Field; M], b: [Field; M], c : pub [Field; foo::MAGIC_NUMBER]) {
+     for i in 0..foo::MAGIC_NUMBER {
+          constrain c[i] == foo::MAGIC_NUMBER;
+     };
+
      constrain N != M;
 
      let mut y = 5;
@@ -24,11 +28,6 @@ fn main(a: [Field; M], b: [Field; M]) {
 
      arrays_neq(a, b);
 
-     let N_local: const Field = 10;
-     let arr: [Field; N_local] = [N; 10];
-     constrain arr[0] == 5;
-     constrain arr[9] == 5;
-
      //let mut L: Field = 2; // Uncomment to show expected const error for array annotations
      let L: const Field = 2;
      let t: [Field; L] = [N, M];
@@ -40,6 +39,10 @@ fn main(a: [Field; M], b: [Field; M]) {
      
      let add_submodules_N = mysubmodule::N + foo::N;
      constrain 15 == add_submodules_N;
+
+     let arr: [Field; mysubmodule::N] = [N; 10];
+     constrain arr[0] == 5;
+     constrain arr[9] == 5;
 }
 
 fn multiplyByM(x: Field) -> Field {

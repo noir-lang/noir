@@ -765,24 +765,6 @@ where
     path().then(parenthesized(expression_list(expr_parser))).map(ExpressionKind::function_call)
 }
 
-fn global_const_call() -> impl NoirParser<ExpressionKind> {
-    global_const_path().map(ExpressionKind::Path)
-}
-
-fn global_const_path() -> impl NoirParser<Path> {
-    let idents = || ident().separated_by(just(Token::DoubleColon)).at_least(2);
-    let make_path = |kind| move |segments| Path { segments, kind };
-
-    let prefix = |key| keyword(key).ignore_then(just(Token::DoubleColon));
-    let path_kind = |key, kind| prefix(key).ignore_then(idents()).map(make_path(kind));
-
-    choice((
-        path_kind(Keyword::Crate, PathKind::Crate),
-        path_kind(Keyword::Dep, PathKind::Dep),
-        idents().map(make_path(PathKind::Plain)),
-    ))
-}
-
 fn constructor<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
 where
     P: ExprParser,
@@ -806,9 +788,7 @@ where
 }
 
 fn variable() -> impl NoirParser<ExpressionKind> {
-    let const_path = global_const_call();
-    let valid_variable = ident().map(|name| ExpressionKind::Ident(name.0.contents));
-    const_path.or(valid_variable)
+    path().map(ExpressionKind::Path)
 }
 
 fn literal() -> impl NoirParser<ExpressionKind> {
@@ -821,17 +801,17 @@ fn literal() -> impl NoirParser<ExpressionKind> {
 }
 
 fn fixed_array_size() -> impl NoirParser<UnresolvedArraySize> {
-    just(Token::Semicolon).ignore_then(filter_map(|span, token: Token| match token.clone() {
-        Token::Int(integer) => Ok(UnresolvedArraySize::Fixed(try_field_to_u64(integer, span)?)),
-        Token::Ident(_) => {
-            // XXX: parse named size as an ident. The actual const integer size will be determined in the hir pass and resolution
-            Ok(UnresolvedArraySize::FixedVariable(Ident::from_token(token, span)))
+    let fixed_variable_size = path().map(UnresolvedArraySize::FixedVariable);
+
+    just(Token::Semicolon).ignore_then(fixed_variable_size.or(filter_map(|span, token: Token| {
+        match token {
+            Token::Int(integer) => Ok(UnresolvedArraySize::Fixed(try_field_to_u64(integer, span)?)),
+            _ => {
+                let message = "Expected an integer for the length of the array".to_string();
+                Err(ParserError::with_reason(message, span))
+            }
         }
-        _ => {
-            let message = "Expected an integer for the length of the array".to_string();
-            Err(ParserError::with_reason(message, span))
-        }
-    }))
+    })))
 }
 
 fn try_field_to_u64(x: acvm::FieldElement, span: Span) -> Result<u64, ParserError> {
@@ -1322,9 +1302,9 @@ mod test {
             ("let = 4 + 3", 1, "let $error: unspecified = (4 + 3)"),
             ("let = ", 2, "let $error: unspecified = Error"),
             ("let", 3, "let $error: unspecified = Error"),
-            ("foo = one two three", 1, "foo = one"),
+            ("foo = one two three", 1, "foo = plain::one"),
             ("constrain", 1, "constrain Error"),
-            ("constrain x ==", 1, "constrain (x == Error)"),
+            ("constrain x ==", 1, "constrain (plain::x == Error)"),
         ];
 
         let show_errors = |v| vecmap(v, ToString::to_string).join("\n");
