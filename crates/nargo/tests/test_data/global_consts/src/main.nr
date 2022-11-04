@@ -43,6 +43,10 @@ fn main(a: [Field; M], b: [Field; M], c : pub [Field; foo::MAGIC_NUMBER]) {
      let arr: [Field; mysubmodule::N] = [N; 10];
      constrain arr[0] == 5;
      constrain arr[9] == 5;
+     
+     // Example showing an array filled with (mysubmodule::N + 2) 0's
+     let sugared = [0; mysubmodule::N + 2];
+     constrain sugared[mysubmodule::N + 1] == 0;
 }
 
 fn multiplyByM(x: Field) -> Field {

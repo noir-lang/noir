@@ -211,7 +211,7 @@ impl Expression {
             ExpressionKind::If(if_expr) => {
                 if_expr.condition.contains_function_call()
                     || if_expr.consequence.contains_function_call()
-                    || if_expr.alternative.map_or(false, |a| a.contains_function_call())
+                    || if_expr.alternative.as_ref().map_or(false, |a| a.contains_function_call())
             }
             ExpressionKind::Tuple(fields) => {
                 fields.iter().any(|field| field.contains_function_call())

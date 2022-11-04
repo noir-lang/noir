@@ -16,7 +16,6 @@ use crate::{
     NoirFunction, NoirImpl, NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp,
 };
 
-use acvm::FieldElement;
 use chumsky::prelude::*;
 use noirc_abi::AbiFEType;
 use noirc_errors::{CustomDiagnostic, DiagnosableError, Span, Spanned};
@@ -680,15 +679,7 @@ where
         .clone()
         .then(just(Token::Semicolon).ignore_then(expr_parser))
         .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
-        .validate(|(lhs, mut count), span, emit| {
-            if count.contains_function_call() {
-                let msg = "Array size expressions cannot contain function calls";
-                emit(ParserError::with_reason(msg.into(), span));
-                // Default the count to 1 and continue
-                count = Expression::new(ExpressionKind::integer(FieldElement::one()), count.span);
-            }
-            ExpressionKind::repeated_array(lhs, count)
-        })
+        .map(|(lhs, count)| ExpressionKind::repeated_array(lhs, count))
 }
 
 fn expression_list<P>(expr_parser: P) -> impl NoirParser<Vec<Expression>>
@@ -816,16 +807,6 @@ fn try_field_to_u64(x: acvm::FieldElement, span: Span) -> Result<u64, ParserErro
         let message = "Array lengths must fit within a u64".to_string();
         Err(ParserError::with_reason(message, span))
     }
-}
-
-fn array_length() -> impl NoirParser<u64> {
-    just(Token::Semicolon).ignore_then(filter_map(|span, token: Token| match token {
-        Token::Int(integer) => try_field_to_u64(integer, span),
-        _ => {
-            let message = "Expected an integer for the length of the array".to_string();
-            Err(ParserError::with_reason(message, span))
-        }
-    }))
 }
 
 #[cfg(test)]
