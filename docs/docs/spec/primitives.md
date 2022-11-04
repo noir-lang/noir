@@ -77,22 +77,22 @@ We wish to define a variant of Pedersen to enable hashing strings of any desired
 We generate a sequence of generators $h_0, ... h_k$ as hash outputs -- these are network parameters, fixed for the life of the protocol. They are simply chosen to be the first Keccak-256 outputs that correspond to group elements. See the `derive_generators` method in the barretenberg code and the Global Constants section below for exact details.
 
 #### Hashing field elements
+
 Our basic component for hashing will be the `hash_single` method.
 Given a field element $a\in F_r$ and hash index $i$, we essentially hash 252 bits of $a$ with $h_{2i}$ and the the remaining 2 bits of $a$ with $h_{2i+1}$. This is not precisely the case, as we use a wnaf representation - see page 4 [here](https://docs.zkproof.org/pages/standards/accepted-workshop3/proposal-turbo_plonk.pdf). See the comments above `hash_single` in the code for exact details. The point is that while enforcing the wnaf representation to represent an integer smaller than $r$, this is a collision resistant function from $F_r$ under DL, even when outputting only the $x$-coordinate.
 
 Now, given a vector $a_1,\ldots,a_t\in F_r$ we define the pedersen hash as
 
-$$ 
+$$
 H(a_1,\ldots,a_t)=\sum_{i=1}^t \text{hash_single}(a_i,i).x
 $$
-
 
 #### Hashing byte arrays:
 
 Given a message $M$ of arbitrary size, we first divide it up into $31$-byte chunks $M = M_0 M_2 ... M_k$; in other words:
 
-$$ 
-M = \sum_{i=0}^{k} M_i.2^{31\cdot i}. 
+$$
+M = \sum_{i=0}^{k} M_i.2^{31\cdot i}.
 $$
 
 We now identify each $M_i$ with a field element $a_i\in F_r$ in the natural way.
