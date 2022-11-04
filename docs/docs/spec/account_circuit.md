@@ -72,10 +72,9 @@ The account circuit can be executed in one of three 'modes':
     - checking that this `signing_public_key` is contained in an `account_note`'s commitment and that this commitment exists in the data tree.
   - > Note: There are no protocol checks during `migrate`, to ensure the user knows private key to the `account_public_key`.
 
-
 ### When to migrate?
 
-If a user, Alice, suspects their `account_private_key` or `pending_private_key` have been compromised, then they should run the account circuit in `migrate` mode. As already stated, this will associate a new `account_public_key` to their `alias` and allow them to register new `spending_public_keys` against this new `account_public_key`. Two new account notes get created by the account circuit in `migrate` mode.
+If a user, Alice, suspects their `account_private_key` or `spending_private_key` have been compromised, then they should run the account circuit in `migrate` mode. As already stated, this will associate a new `account_public_key` to their `alias` and allow them to register new `spending_public_keys` against this new `account_public_key`. Two new account notes get created by the account circuit in `migrate` mode.
 
 HOWEVER, the previous, 'old' account notes (containing the 'old' compromised key(s)), DO NOT get nullified. They are forever 'valid' notes in the data tree. Therefore, if Alice still owns _value_ notes which are owned by one of her old `account_public_keys`, an attacker (who somehow knows the _private_ key and a corresponding old `spending_private_key`) would still be able to spend such value notes. Therefore, after migrating their account, a user MUST ALSO transfer all of their existing notes to be owned by their new `account_public_key`.
 
@@ -103,7 +102,7 @@ Unlike the join-split circuit (for example), which always produces nullifiers, t
 - `nullifier_2 = (create || migrate) ? pedersen::compress(account_public_key) : 0`
 
 > Note: The rollup circuit for Aztec Connect permits unlimited `0` nullifiers to be added to the nullifier tree, because:
-> - Each nullifier is added to the nullifier tree at the leafIndex which is equal to the nullifier value.
+> - Each nullifier is added to the nullifier tree at the leaf index which is equal to the nullifier value.
 > - So the rollup circuit will try to add `nullifier = 0` to `leafIndex = 0`.
 > - First it checks whether the leaf is empty. Well `0` implies "empty", so this check will pass, and the value `0` will be once-again added to the 0th leaf.
 
@@ -140,7 +139,9 @@ _There's a little diagram at the diagrams link too._
 
 The inputs for the account circuit are:
 
-$$ \text{Account Inputs} = (\text{Public Inputs}, \text{Private Inputs}) \in \mathbb{F}\_p^{13} \times \mathbb{F}\_p^{25}$$
+$$ 
+\text{Account Inputs} = (\text{Public Inputs}, \text{Private Inputs}) \in \mathbb{F}\_p^{13} \times \mathbb{F}\_p^{25}
+$$
 
 As previously, the field $\mathbb{F}_p$ is from the BN254 specification.
 
