@@ -6,7 +6,7 @@ Add accounts with the account (viewing/privacy) key.
 
 Because all notes representing value on Aztec network are encrypted, the SDK requires access to a user's account key in order to decrypt the notes and calculate the account balance.
 
-Please review [the page on Accounts](../../how-aztec-works/accounts.md) if you haven't already as it will help you understand the difference between Ethereum and Aztec accounts.
+Please review [the page on Accounts](../../how-aztec-works/accounts) if you haven't already as it will help you understand the difference between Ethereum and Aztec accounts.
 
 :::info
 
