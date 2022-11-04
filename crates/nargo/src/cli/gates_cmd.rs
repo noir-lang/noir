@@ -25,9 +25,9 @@ pub fn count_gates_with_path<P: AsRef<Path>>(
 ) -> Result<(), CliError> {
     let (_, crate_type) = lib_or_bin(program_dir.as_ref())?;
     if crate_type != CrateType::Binary {
-        return Err(CliError::Generic(format!(
-            "It's not possible to count the gates in this crate.\nOnly binary crates have a fixed number of gates.",
-        )));
+        return Err(CliError::Generic(
+            "It's not possible to count the gates in this crate.\nOnly binary crates have a fixed number of gates.".to_string(),
+        ));
     }
 
     let compiled_program = compile_circuit(program_dir.as_ref(), show_ssa)?;
