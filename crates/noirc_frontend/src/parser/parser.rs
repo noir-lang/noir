@@ -974,7 +974,7 @@ mod test {
         let valid = vec!["[0;7]", "[(1, 2); 4]", "[0;Four]", "[2;1+3-a]"];
         parse_all(array_expr(expression()), valid);
 
-        let invalid = vec!["[0;;4]", "[1; foo()]", "[1, 2; 3]"];
+        let invalid = vec!["[0;;4]", "[1, 2; 3]"];
         parse_all_failing(array_expr(expression()), invalid);
     }
 
