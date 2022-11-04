@@ -18,6 +18,6 @@ fn main(len3: [u8; 3], len4: [Field; 4]) {
     constrain add_lens(len3, len4) == 7;
     constrain nested_call(len4) == 5;
 
-    // std::array::len returns a const value
+    // std::array::len returns a comptime value
     constrain len4[std::array::len(len3)] == 4;
 }

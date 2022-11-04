@@ -11,8 +11,8 @@ use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::util::vecmap;
 use crate::{
-    AssignStatement, BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement,
-    FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, IsConst, LValue,
+    AssignStatement, BinaryOp, BinaryOpKind, BlockExpression, Comptime, ConstrainStatement,
+    FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, LValue,
     NoirFunction, NoirImpl, NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp,
 };
 
@@ -48,7 +48,7 @@ fn module() -> impl NoirParser<ParsedModule> {
                     TopLevelStatement::Struct(s) => program.push_type(s),
                     TopLevelStatement::Impl(i) => program.push_impl(i),
                     TopLevelStatement::SubModule(s) => program.push_submodule(s),
-                    TopLevelStatement::GlobalConst(c) => program.push_global_const(c),
+                    TopLevelStatement::Global(c) => program.push_global(c),
                     TopLevelStatement::Error => (),
                 }
                 program
@@ -73,13 +73,13 @@ fn top_level_statement(
 
 fn global_declaration() -> impl NoirParser<TopLevelStatement> {
     let p = ignore_then_commit(
-        keyword(Keyword::Const).labelled("const"),
+        keyword(Keyword::Global).labelled("global"),
         ident().map(Pattern::Identifier),
     );
-    let p = then_commit(p, global_const_type_annotation()); //TODO: this reuses parse type that allows for a redundant const as such: const X: const Field = 5;
+    let p = then_commit(p, global_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
     let p = then_commit(p, literal().map_with_span(Expression::new)); // XXX: this should be a literal
-    p.map(LetStatement::new_let).map(TopLevelStatement::GlobalConst)
+    p.map(LetStatement::new_let).map(TopLevelStatement::Global)
 }
 
 fn submodule(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<TopLevelStatement> {
@@ -257,15 +257,19 @@ fn check_statements_require_semicolon(
     })
 }
 
-fn global_const_type_annotation() -> impl NoirParser<UnresolvedType> {
-    ignore_then_commit(just(Token::Colon), parse_type()).map(|r#type| match r#type {
-        UnresolvedType::FieldElement(_) => UnresolvedType::FieldElement(IsConst::Yes(None)),
-        UnresolvedType::Bool(_) => UnresolvedType::Bool(IsConst::Yes(None)),
-        UnresolvedType::Integer(_, sign, size) => {
-            UnresolvedType::Integer(IsConst::Yes(None), sign, size)
-        }
-        _ => UnresolvedType::Unspecified,
-    })
+/// Parse an optional ': type' and implicitly add a 'comptime' to the type
+fn global_type_annotation() -> impl NoirParser<UnresolvedType> {
+    ignore_then_commit(just(Token::Colon), parse_type())
+        .map(|r#type| match r#type {
+            UnresolvedType::FieldElement(_) => UnresolvedType::FieldElement(Comptime::Yes(None)),
+            UnresolvedType::Bool(_) => UnresolvedType::Bool(Comptime::Yes(None)),
+            UnresolvedType::Integer(_, sign, size) => {
+                UnresolvedType::Integer(Comptime::Yes(None), sign, size)
+            }
+            other => other,
+        })
+        .or_not()
+        .map(|opt| opt.unwrap_or(UnresolvedType::Unspecified))
 }
 
 fn optional_type_annotation() -> impl NoirParser<UnresolvedType> {
@@ -442,23 +446,23 @@ fn optional_visibility() -> impl NoirParser<AbiFEType> {
     })
 }
 
-fn maybe_const() -> impl NoirParser<IsConst> {
-    keyword(Keyword::Const).or_not().map(|opt| match opt {
-        Some(_) => IsConst::Yes(None),
-        None => IsConst::No(None),
+fn maybe_comptime() -> impl NoirParser<Comptime> {
+    keyword(Keyword::Comptime).or_not().map(|opt| match opt {
+        Some(_) => Comptime::Yes(None),
+        None => Comptime::No(None),
     })
 }
 
 fn field_type() -> impl NoirParser<UnresolvedType> {
-    maybe_const().then_ignore(keyword(Keyword::Field)).map(UnresolvedType::FieldElement)
+    maybe_comptime().then_ignore(keyword(Keyword::Field)).map(UnresolvedType::FieldElement)
 }
 
 fn bool_type() -> impl NoirParser<UnresolvedType> {
-    maybe_const().then_ignore(keyword(Keyword::Bool)).map(UnresolvedType::Bool)
+    maybe_comptime().then_ignore(keyword(Keyword::Bool)).map(UnresolvedType::Bool)
 }
 
 fn int_type() -> impl NoirParser<UnresolvedType> {
-    maybe_const()
+    maybe_comptime()
         .then(filter_map(|span, token: Token| match token {
             Token::IntType(int_type) => Ok(int_type),
             unexpected => {
@@ -1073,7 +1077,7 @@ mod test {
             vec![
                 "fn func_name() {}",
                 "fn f(foo: pub u8, y : pub Field) -> u8 { x + a }",
-                "fn f(f: pub Field, y : Field, z : const Field) -> u8 { x + a }",
+                "fn f(f: pub Field, y : Field, z : comptime Field) -> u8 { x + a }",
                 "fn func_name(f: Field, y : pub Field, z : pub [u8;5],) {}",
                 "fn func_name(x: [Field], y : [Field;2],y : pub [Field;2], z : pub [u8;5])  {}",
             ],

@@ -51,7 +51,7 @@ impl ItemScope {
             ModuleDefId::ModuleId(_) => add_item(&mut self.types),
             ModuleDefId::FunctionId(_) => add_item(&mut self.values),
             ModuleDefId::TypeId(_) => add_item(&mut self.types),
-            ModuleDefId::ConstId(_) => add_item(&mut self.values),
+            ModuleDefId::GlobalId(_) => add_item(&mut self.values),
         }
     }
 
@@ -75,12 +75,8 @@ impl ItemScope {
         self.add_definition(name, ModuleDefId::TypeId(local_id))
     }
 
-    pub fn define_global_const_def(
-        &mut self,
-        name: Ident,
-        stmt_id: StmtId,
-    ) -> Result<(), (Ident, Ident)> {
-        self.add_definition(name, ModuleDefId::ConstId(stmt_id))
+    pub fn define_global(&mut self, name: Ident, stmt_id: StmtId) -> Result<(), (Ident, Ident)> {
+        self.add_definition(name, ModuleDefId::GlobalId(stmt_id))
     }
 
     pub fn find_module_with_name(&self, mod_name: &Ident) -> Option<&ModuleId> {
