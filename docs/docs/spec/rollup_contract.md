@@ -113,7 +113,7 @@ Each transaction type is defined via a _proofId_ variable attached to the transa
 
 Each user transaction in the rollup block will have 8 `uint256` variables associated with it, present in the transaction calldata when `processRollup(...)` is called.
 While represented as a `uint256` in the smart contract, these variables are big integers taken modulo the BN254 elliptic curve group order.
-This is verified in [StandardVerifier.sol](../../../../blockchain/contracts/verifier/StandardVerifier.sol).
+This is verified in [StandardVerifier.sol](https://github.com/AztecProtocol/aztec-connect/blob/master/blockchain/contracts/verifier/StandardVerifier.sol).
 Not all fields are used by all transaction types.
 
 | publicInput | name            | description                                                                         |
@@ -261,5 +261,6 @@ This effectively returns the value (less the fee) to the user.
 
 The expected interface for defi bridges is defined in [IDefiBridge](https://github.com/AztecProtocol/aztec-connect/blob/master/blockchain/contracts/interfaces/IDefiBridge.sol).
 
-## Encoding and Decoding  of Proof Data
+## Encoding and Decoding of Proof Data
+
 For info about proof data encoding check out documentation of [Decoder](https://github.com/AztecProtocol/aztec-connect/blob/master/blockchain/contracts/Decoder.sol) contract.
