@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 
 use clap::ArgMatches;
+use noirc_frontend::graph::CrateType;
 use std::path::Path;
 
 use crate::cli::compile_cmd::compile_circuit;
 use crate::errors::CliError;
+use crate::lib_or_bin;
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("gates").unwrap();
@@ -21,6 +23,13 @@ pub fn count_gates_with_path<P: AsRef<Path>>(
     program_dir: P,
     show_ssa: bool,
 ) -> Result<(), CliError> {
+    let (_, crate_type) = lib_or_bin(program_dir.as_ref())?;
+    if crate_type != CrateType::Binary {
+        return Err(CliError::Generic(format!(
+            "It's not possible to count the gates in this crate.\nOnly binary crates have a fixed number of gates.",
+        )));
+    }
+
     let compiled_program = compile_circuit(program_dir.as_ref(), show_ssa)?;
     let gates = compiled_program.circuit.gates;
 
