@@ -178,46 +178,6 @@ impl Expression {
         let kind = ExpressionKind::Cast(Box::new(CastExpression { lhs, r#type }));
         Expression::new(kind, span)
     }
-
-    pub fn contains_function_call(&self) -> bool {
-        match &self.kind {
-            ExpressionKind::Ident(_)
-            | ExpressionKind::Literal(_)
-            | ExpressionKind::Path(_)
-            | ExpressionKind::Error => false,
-
-            ExpressionKind::Call(_) | ExpressionKind::MethodCall(_) => true,
-
-            ExpressionKind::Block(block) => {
-                block.0.iter().any(|stmt| stmt.contains_function_call())
-            }
-            ExpressionKind::Prefix(prefix) => prefix.rhs.contains_function_call(),
-            ExpressionKind::Index(index) => {
-                index.collection.contains_function_call() || index.index.contains_function_call()
-            }
-            ExpressionKind::Constructor(ctor) => {
-                ctor.fields.iter().any(|(_, expr)| expr.contains_function_call())
-            }
-            ExpressionKind::MemberAccess(access) => access.lhs.contains_function_call(),
-            ExpressionKind::Cast(cast) => cast.lhs.contains_function_call(),
-            ExpressionKind::Infix(infix) => {
-                infix.lhs.contains_function_call() || infix.rhs.contains_function_call()
-            }
-            ExpressionKind::For(for_loop) => {
-                for_loop.start_range.contains_function_call()
-                    || for_loop.end_range.contains_function_call()
-                    || for_loop.block.contains_function_call()
-            }
-            ExpressionKind::If(if_expr) => {
-                if_expr.condition.contains_function_call()
-                    || if_expr.consequence.contains_function_call()
-                    || if_expr.alternative.as_ref().map_or(false, |a| a.contains_function_call())
-            }
-            ExpressionKind::Tuple(fields) => {
-                fields.iter().any(|field| field.contains_function_call())
-            }
-        }
-    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

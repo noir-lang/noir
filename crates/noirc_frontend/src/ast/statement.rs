@@ -201,16 +201,6 @@ impl Statement {
             }
         }
     }
-
-    pub fn contains_function_call(&self) -> bool {
-        match self {
-            Statement::Let(let_stmt) => let_stmt.expression.contains_function_call(),
-            Statement::Constrain(constrain) => constrain.0.contains_function_call(),
-            Statement::Assign(assign) => assign.expression.contains_function_call(),
-            Statement::Expression(expr) | Statement::Semi(expr) => expr.contains_function_call(),
-            Statement::Error => false,
-        }
-    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
