@@ -131,19 +131,26 @@ const sidebars = {
       items: [
         "spec/SUMMARY",
         "spec/intro",
-        "spec/primitives",
         {
-          type: "doc",
-          id: "spec/schnorr",
-          label: "Schnorr Signatures"
+          type: "category",
+          label: "General",
+          items: [
+            "spec/primitives",
+            {
+              type: "doc",
+              id: "spec/schnorr",
+              label: "Schnorr Signatures"
+            },
+            "spec/schnorr_multisig",
+            {
+              type: "doc",
+              id: "spec/uint",
+              label: "Unsigned Integers"
+            },
+            "spec/notes_and_nullifiers",
+            "spec/defi_bridge_interface",
+          ]
         },
-        {
-          type: "doc",
-          id: "spec/uint",
-          label: "Unsigned Integers"
-        },
-        "spec/notes_and_nullifiers",
-        "spec/defi_bridge_interface",
         {
           type: "category",
           label: "'App' Circuits",
