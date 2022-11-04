@@ -1,9 +1,9 @@
 mod foo;
 
-const M: Field = 32;
-const L: Field = 10; // Unused globals currently allowed
-const N: Field = 5;
-//const N: Field = 5; // Uncomment to see duplicate globals error 
+global M: Field = 32;
+global L: Field = 10; // Unused globals currently allowed
+global N: Field = 5;
+//global N: Field = 5; // Uncomment to see duplicate globals error 
 
 fn main(a: [Field; M], b: [Field; M], c : pub [Field; foo::MAGIC_NUMBER]) {
      for i in 0..foo::MAGIC_NUMBER {
@@ -11,11 +11,14 @@ fn main(a: [Field; M], b: [Field; M], c : pub [Field; foo::MAGIC_NUMBER]) {
      };
 
      constrain N != M;
+     
+     let expected: u32 = 42;
+     constrain foo::TYPE_INFERRED == expected;
 
      let mut y = 5;
      let mut x = M;
      for i in 0..N*N {
-          let M: const Field = 10;
+          let M: comptime Field = 10;
           x = M;
           
           y = i;
@@ -28,8 +31,8 @@ fn main(a: [Field; M], b: [Field; M], c : pub [Field; foo::MAGIC_NUMBER]) {
 
      arrays_neq(a, b);
 
-     //let mut L: Field = 2; // Uncomment to show expected const error for array annotations
-     let L: const Field = 2;
+     //let mut L: Field = 2; // Uncomment to show expected comptime error for array annotations
+     let L: comptime Field = 2;
      let t: [Field; L] = [N, M];
 
      constrain t[1] == 32;
@@ -56,15 +59,15 @@ fn arrays_neq(a: [Field; M], b: [Field; M]) {
 mod mysubmodule {
     use dep::std;
 
-    const N: Field = 10;
-    const L: Field = 50;
+    global N: Field = 10;
+    global L: Field = 50;
 
     fn my_bool_or(x: u1, y: u1) {
         constrain x | y == 1;
     }
 
-    fn my_helper() -> const Field {
-        let N: const Field = 15; // Like in Rust, the local variable overrides the global const
+    fn my_helper() -> comptime Field {
+        let N: comptime Field = 15; // Like in Rust, local variables override globals
         let x = N;
         x
     }
