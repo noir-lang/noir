@@ -1,7 +1,5 @@
 # Code Freeze Fall 2021: unsigned integers
 
-###### tags: `project-notes`
-
 A standard library `uint` is a circit manifestation of a fixed width unsigned integer. The type is parameterized by a composer and one of the built-in types `uintN_t` for `N = 8, 16, 32, 64`. The value here is referred to as the `width` of the type.
 
 Shorthand: write `uint_ct` for a generic `uint<Composer, Native>`, and refer to an instance of such a class a simply a `uint_ct`.

@@ -10,7 +10,9 @@ It is defined by a parameter `rollup_num`, of inner rollups. Let's also denote $
 
 The inputs for the root rollup circuit are:
 
-$$ \text{Root Rollup Inputs} = (\text{Public Inputs}, \text{Private Inputs}) \in \mathbb{F}_p^{27 + M * (12 * 32)} \times \mathbb{F}_p^{27M}$$
+$$ 
+\text{Root Rollup Inputs} = (\text{Public Inputs}, \text{Private Inputs}) \in \mathbb{F}_p^{27 + M * (12 * 32)} \times \mathbb{F}_p^{27M}
+$$
 
 As previously, the field $\mathbb{F}_p$ is from the BN254 specification.
 

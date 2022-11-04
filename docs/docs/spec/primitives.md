@@ -84,7 +84,7 @@ Given a field element $a\in F_r$ and hash index $i$, we essentially hash 252 bit
 Now, given a vector $a_1,\ldots,a_t\in F_r$ we define the pedersen hash as
 
 $$
-H(a_1,\ldots,a_t)=\sum_{i=1}^t \text{hash_single}(a_i,i).x
+H(a_1,\ldots,a_t)=\sum_{i=1}^t\text{hash single}(a_i,i).x
 $$
 
 #### Hashing byte arrays:
