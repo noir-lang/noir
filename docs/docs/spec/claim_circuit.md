@@ -148,7 +148,7 @@ Computed vars:
 
 Checks:
 
-- Many values are range-checked. See [constants.hpp](../../barretenberg/src/aztec/rollup/proofs/notes/constants.hpp) and [constants.hpp](../../barretenberg/src/aztec/rollup/constants.hpp) for the variables whose bit-lengths are constrained.
+- Many values are range-checked. See [constants.hpp](https://github.com/AztecProtocol/aztec-connect/blob/master/barretenberg/src/aztec/rollup/proofs/notes/constants.hpp) and [constants.hpp](https://github.com/AztecProtocol/aztec-connect/blob/master/barretenberg/src/aztec/rollup/constants.hpp) for the variables whose bit-lengths are constrained.
 - Check `bit_config` vars:
 - Extract `second_input_in_use` and `second_output_in_use` from `claim_note_data.bridge_call_data_local.config`
 // The below six constraints are exercised in bridge_call_data.hpp, see comments there for elaboration
