@@ -90,8 +90,16 @@ impl Expression {
         Self::from_field(FieldElement::one())
     }
 
+    pub fn zero() -> Expression {
+        Self::default()
+    }
+
     pub fn is_linear(&self) -> bool {
         self.mul_terms.is_empty()
+    }
+
+    pub fn is_const(&self) -> bool {
+        self.mul_terms.is_empty() && self.linear_combinations.is_empty()
     }
 
     fn get_max_idx(&self) -> WitnessIdx {
