@@ -1,7 +1,7 @@
+use super::compile_cmd::compile_circuit;
 use super::{PROOFS_DIR, PROOF_EXT, VERIFIER_INPUT_FILE};
-use crate::{errors::CliError, resolver::Resolver};
-use acvm::FieldElement;
-use acvm::ProofSystemCompiler;
+use crate::errors::CliError;
+use acvm::{FieldElement, ProofSystemCompiler};
 use clap::ArgMatches;
 use noirc_abi::{input_parser::InputValue, Abi};
 use std::{collections::BTreeMap, path::Path, path::PathBuf};
@@ -66,11 +66,7 @@ pub fn verify_with_path<P: AsRef<Path>>(
     proof_path: P,
     show_ssa: bool,
 ) -> Result<bool, CliError> {
-    let mut driver = Resolver::resolve_root_config(program_dir.as_ref())?;
-    let backend = crate::backends::ConcreteBackend;
-
-    super::add_std_lib(&mut driver);
-    let compiled_program = driver.into_compiled_program(backend.np_language(), show_ssa);
+    let compiled_program = compile_circuit(program_dir.as_ref(), show_ssa)?;
 
     let public_abi = compiled_program.abi.clone().unwrap().public_abi();
     let num_pub_params = public_abi.num_parameters();
@@ -99,6 +95,7 @@ pub fn verify_with_path<P: AsRef<Path>>(
     // XXX: Instead of unwrap, return a ProofNotValidError
     let proof = hex::decode(proof_hex).unwrap();
 
+    let backend = crate::backends::ConcreteBackend;
     let valid_proof = backend.verify_from_cs(&proof, public_inputs, compiled_program.circuit);
 
     Ok(valid_proof)

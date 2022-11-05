@@ -1,6 +1,6 @@
 use super::{create_named_dir, write_to_file, CONTRACT_DIR};
-use crate::{errors::CliError, resolver::Resolver};
-use acvm::{ProofSystemCompiler, SmartContract};
+use crate::{cli::compile_cmd::compile_circuit, errors::CliError};
+use acvm::SmartContract;
 use clap::ArgMatches;
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
@@ -10,12 +10,10 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
         Some(path) => std::path::PathBuf::from(path),
         None => std::env::current_dir().unwrap(),
     };
-    let mut driver = Resolver::resolve_root_config(&package_dir)?;
+
+    let compiled_program = compile_circuit(&package_dir, false)?;
 
     let backend = crate::backends::ConcreteBackend;
-    super::add_std_lib(&mut driver);
-    let compiled_program = driver.into_compiled_program(backend.np_language(), false);
-
     let smart_contract_string = backend.eth_contract_from_cs(compiled_program.circuit);
 
     let mut contract_path = create_named_dir(CONTRACT_DIR.as_ref(), "contract");
