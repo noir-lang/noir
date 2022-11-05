@@ -31,7 +31,7 @@ pub enum ResolverError {
     #[error("Required 'pub', main function must return public value")]
     NecessaryPub { ident: Ident },
     #[error("Expected const value where non-constant value was used")]
-    ExpectedConstVariable { name: String, span: Span },
+    ExpectedComptimeVariable { name: String, span: Span },
     #[error("Missing expression for declared constant")]
     MissingRhsExpr { name: String, span: Span },
 }
@@ -164,7 +164,7 @@ impl ResolverError {
                 diag.add_note("The `pub` keyword is mandatory for the main function return type because the verifier cannot retrieve private witness and thus the function will not be able to return a 'priv' value".to_owned());
                 diag
             }
-            ResolverError::ExpectedConstVariable { name, span } => Diagnostic::simple_error(
+            ResolverError::ExpectedComptimeVariable { name, span } => Diagnostic::simple_error(
                 format!("expected constant variable where non-constant variable {} was used", name),
                 "expected const variable".to_string(),
                 span,
