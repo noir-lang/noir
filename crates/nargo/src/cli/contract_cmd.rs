@@ -10,9 +10,10 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
         Some(path) => std::path::PathBuf::from(path),
         None => std::env::current_dir().unwrap(),
     };
-    let driver = Resolver::resolve_root_config(&package_dir)?;
+    let mut driver = Resolver::resolve_root_config(&package_dir)?;
 
     let backend = crate::backends::ConcreteBackend;
+    super::add_std_lib(&mut driver);
     let compiled_program = driver.into_compiled_program(backend.np_language(), false);
 
     let smart_contract_string = backend.eth_contract_from_cs(compiled_program.circuit);

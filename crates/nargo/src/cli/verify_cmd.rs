@@ -66,9 +66,10 @@ pub fn verify_with_path<P: AsRef<Path>>(
     proof_path: P,
     show_ssa: bool,
 ) -> Result<bool, CliError> {
-    let driver = Resolver::resolve_root_config(program_dir.as_ref())?;
+    let mut driver = Resolver::resolve_root_config(program_dir.as_ref())?;
     let backend = crate::backends::ConcreteBackend;
 
+    super::add_std_lib(&mut driver);
     let compiled_program = driver.into_compiled_program(backend.np_language(), show_ssa);
 
     let public_abi = compiled_program.abi.clone().unwrap().public_abi();

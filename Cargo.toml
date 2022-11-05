@@ -7,7 +7,6 @@ members = [
     "crates/noirc_errors",
     "crates/noirc_driver",
     "crates/acir",
-    "crates/std_lib",
     "crates/nargo",
     "crates/fm",
     "crates/arena",

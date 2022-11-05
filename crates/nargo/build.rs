@@ -42,10 +42,6 @@ pub fn copy<U: AsRef<Path>, V: AsRef<Path>>(from: U, to: V) -> Result<(), std::i
             let entry = entry?;
             let path = entry.path();
 
-            if is_rs_file(&path) {
-                continue;
-            }
-
             if path.is_dir() {
                 stack.push(path);
             } else {
@@ -66,17 +62,8 @@ pub fn copy<U: AsRef<Path>, V: AsRef<Path>>(from: U, to: V) -> Result<(), std::i
     Ok(())
 }
 
-// We use lib.rs to lean on Rusts build system, but we do not want it or any other rust files to be copied
-fn is_rs_file(src: &Path) -> bool {
-    // assert_eq!("rs", path.extension().unwrap());
-    match src.extension() {
-        Some(ext) => ext == "rs",
-        None => false,
-    }
-}
-
 fn main() {
-    let stdlib_src_dir = Path::new("src/");
+    let stdlib_src_dir = Path::new("noir_stdlib/");
     rerun_if_stdlib_changes(stdlib_src_dir);
     let target = dirs::config_dir().unwrap().join("noir-lang").join("std");
     copy(stdlib_src_dir, &target).unwrap();

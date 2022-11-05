@@ -22,9 +22,10 @@ pub fn count_gates_with_path<P: AsRef<Path>>(
     program_dir: P,
     show_ssa: bool,
 ) -> Result<(), CliError> {
-    let driver = Resolver::resolve_root_config(program_dir.as_ref())?;
+    let mut driver = Resolver::resolve_root_config(program_dir.as_ref())?;
     let backend = crate::backends::ConcreteBackend;
 
+    super::add_std_lib(&mut driver);
     let compiled_program = driver.into_compiled_program(backend.np_language(), show_ssa);
     let gates = compiled_program.circuit.gates;
 

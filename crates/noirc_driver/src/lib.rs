@@ -37,12 +37,9 @@ impl Driver {
     /// Compiles a file and returns true if compilation was successful
     ///
     /// This is used for tests.
-    pub fn file_compiles<P: AsRef<Path>>(root_file: P) -> bool {
-        let mut driver = Driver::new();
-        driver.create_local_crate(root_file, CrateType::Binary);
-        driver.add_std_lib();
+    pub fn file_compiles(&mut self) -> bool {
         let mut errs = vec![];
-        CrateDefMap::collect_defs(LOCAL_CRATE, &mut driver.context, &mut errs);
+        CrateDefMap::collect_defs(LOCAL_CRATE, &mut self.context, &mut errs);
         for errors in &errs {
             dbg!(errors);
         }
@@ -104,10 +101,26 @@ impl Driver {
             .expect("cyclic dependency triggered");
     }
 
-    /// Adds the standard library to the dep graph
-    /// and statically analyses the local crate
+    /// Propagates a given dependency to every other crate.
+    pub fn propagate_dep(&mut self, dep_to_propagate: CrateId, dep_to_propagate_name: &CrateName) {
+        let crate_ids: Vec<_> = self
+            .context
+            .crate_graph
+            .iter_keys()
+            .filter(|crate_id| *crate_id != dep_to_propagate)
+            .collect();
+
+        for crate_id in crate_ids {
+            self.context
+                .crate_graph
+                .add_dep(crate_id, dep_to_propagate_name.clone(), dep_to_propagate)
+                .expect("ice: cyclic error triggered with std library");
+        }
+    }
+
+    // NOTE: Maybe build could be skipped given that now it is a pass through method.
+    /// Statically analyses the local crate
     pub fn build(&mut self) {
-        self.add_std_lib();
         self.analyse_crate()
     }
 
@@ -180,47 +193,10 @@ impl Driver {
 
         CompiledProgram { circuit, abi: Some(abi) }
     }
-
-    #[cfg(not(feature = "std"))]
-    pub fn add_std_lib(&mut self) {
-        // TODO: Currently, we do not load the standard library when the program
-        // TODO: is compiled using the wasm version of noir
-    }
-
-    #[cfg(feature = "std")]
-    /// XXX: It is sub-optimal to add the std as a regular crate right now because
-    /// we have no way to determine whether a crate has been compiled already.
-    /// XXX: We Ideally need a way to check if we've already compiled a crate and not re-compile it
-    pub fn add_std_lib(&mut self) {
-        let path_to_std_lib_file = path_to_stdlib().join("lib.nr");
-
-        let std_crate_id = self.create_non_local_crate(path_to_std_lib_file, CrateType::Library);
-
-        let name = CrateName::new("std").unwrap();
-
-        let crate_ids: Vec<_> = self
-            .context
-            .crate_graph
-            .iter_keys()
-            .filter(|crate_id| *crate_id != std_crate_id)
-            .collect();
-        // Add std as a crate dependency to every other crate
-        for crate_id in crate_ids {
-            self.context
-                .crate_graph
-                .add_dep(crate_id, name.clone(), std_crate_id)
-                .expect("ice: cyclic error triggered with std library");
-        }
-    }
 }
 
 impl Default for Driver {
     fn default() -> Self {
         Self::new()
     }
-}
-
-#[cfg(feature = "std")]
-fn path_to_stdlib() -> PathBuf {
-    dirs::config_dir().unwrap().join("noir-lang").join("std")
 }
