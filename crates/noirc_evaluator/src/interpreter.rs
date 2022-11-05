@@ -340,7 +340,7 @@ impl<'a> Interpreter<'a> {
         // XXX: Currently we only support arrays using this, when other types are introduced
         // we can extend into a separate (generic) module
         match self.context.def_interner.id_type(rhs) {
-            Type::FieldElement(is_const) if is_const.is_const() => {
+            Type::FieldElement(is_const) if is_const.is_comptime() => {
                 // const can only be integers/Field elements, cannot involve the witness, so we can possibly move this to
                 // analysis. Right now it would not make a difference, since we are not compiling to an intermediate Noir format
                 let span = self.context.def_interner.expr_location(rhs);

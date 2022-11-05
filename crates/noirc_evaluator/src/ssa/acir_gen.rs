@@ -35,12 +35,6 @@ pub struct InternalVar {
 }
 
 impl InternalVar {
-    pub fn is_equal(&self, b: &InternalVar) -> bool {
-        (self.id.is_some() && self.id == b.id)
-            || (self.witness.is_some() && self.witness == b.witness)
-            || self.expression == b.expression
-    }
-
     fn new(expression: Expression, witness: Option<Witness>, id: NodeId) -> InternalVar {
         InternalVar { expression, witness, id: Some(id) }
     }
@@ -221,6 +215,19 @@ impl Acir {
         self.arith_cache.insert(ins.id, output);
     }
 
+    fn get_predicate(
+        &mut self,
+        binary: &node::Binary,
+        evaluator: &mut Evaluator,
+        ctx: &SsaContext,
+    ) -> InternalVar {
+        if let Some(pred) = binary.predicate {
+            self.substitute(pred, evaluator, ctx)
+        } else {
+            InternalVar::from(Expression::one())
+        }
+    }
+
     fn evaluate_binary(
         &mut self,
         binary: &node::Binary,
@@ -230,6 +237,9 @@ impl Acir {
     ) -> InternalVar {
         let l_c = self.substitute(binary.lhs, evaluator, ctx);
         let r_c = self.substitute(binary.rhs, evaluator, ctx);
+        let r_size = ctx[binary.rhs].size_in_bits();
+        let l_size = ctx[binary.lhs].size_in_bits();
+        let max_size = u32::max(r_size, l_size);
 
         match &binary.operator {
             BinaryOp::Add | BinaryOp::SafeAdd => {
@@ -245,7 +255,7 @@ impl Acir {
                 } else {
                     //we need the type of rhs and its max value, then:
                     //lhs-rhs+k*2^bit_size where k=ceil(max_value/2^bit_size)
-                    let bit_size = ctx[binary.rhs].size_in_bits();
+                    let bit_size = r_size;
                     let r_big = BigUint::one() << bit_size;
                     let mut k = max_rhs_value / &r_big;
                     if max_rhs_value % &r_big != BigUint::zero() {
@@ -271,22 +281,27 @@ impl Acir {
                 }
             }
             BinaryOp::Mul | BinaryOp::SafeMul => {
-                InternalVar::from(evaluate_mul(&l_c, &r_c, evaluator))
+                InternalVar::from(mul_with_witness(evaluator, &l_c.expression, &r_c.expression))
             }
             BinaryOp::Udiv => {
-                let (q_wit, _) = evaluate_udiv(&l_c, &r_c, evaluator);
+                let predicate = self.get_predicate(binary, evaluator, ctx);
+                let (q_wit, _) = evaluate_udiv(&l_c, &r_c, max_size, &predicate, evaluator);
                 InternalVar::from(q_wit)
             }
             BinaryOp::Sdiv => InternalVar::from(evaluate_sdiv(&l_c, &r_c, evaluator).0),
             BinaryOp::Urem => {
-                let (_, r_wit) = evaluate_udiv(&l_c, &r_c, evaluator);
+                let predicate = self.get_predicate(binary, evaluator, ctx);
+                let (_, r_wit) = evaluate_udiv(&l_c, &r_c, max_size, &predicate, evaluator);
                 InternalVar::from(r_wit)
             }
             BinaryOp::Srem => InternalVar::from(evaluate_sdiv(&l_c, &r_c, evaluator).1),
-            BinaryOp::Div => InternalVar::from(mul(
-                &l_c.expression,
-                &from_witness(evaluate_inverse(r_c, evaluator)),
-            )),
+            BinaryOp::Div => {
+                let predicate = self.get_predicate(binary, evaluator, ctx);
+                InternalVar::from(mul(
+                    &l_c.expression,
+                    &from_witness(evaluate_inverse(r_c, &predicate, evaluator)),
+                ))
+            }
             BinaryOp::Eq => InternalVar::from(
                 self.evaluate_eq(binary.lhs, binary.rhs, &l_c, &r_c, ctx, evaluator),
             ),
@@ -876,7 +891,7 @@ pub fn generate_witness(lhs: &InternalVar, evaluator: &mut Evaluator) -> Witness
         return witness;
     }
 
-    if is_const(&lhs.expression) {
+    if lhs.expression.is_const() {
         todo!("Panic");
     }
     if lhs.expression.mul_terms.is_empty() && lhs.expression.linear_combinations.len() == 1 {
@@ -886,58 +901,36 @@ pub fn generate_witness(lhs: &InternalVar, evaluator: &mut Evaluator) -> Witness
     w //TODO  set lhs.witness = w
 }
 
-pub fn evaluate_mul(lhs: &InternalVar, rhs: &InternalVar, evaluator: &mut Evaluator) -> Expression {
-    if is_const(&lhs.expression) {
-        return &rhs.expression * &lhs.expression.q_c;
-    }
-    if is_const(&rhs.expression) {
-        return &lhs.expression * &rhs.expression.q_c;
-    }
-    //No multiplicative term
-    if lhs.expression.mul_terms.is_empty() && rhs.expression.mul_terms.is_empty() {
-        return mul(&lhs.expression, &rhs.expression);
-    }
-    //Generate intermediate variable
-    //create new witness a and a gate: a = lhs
-    let a = evaluator.add_witness_to_cs();
-    evaluator.gates.push(Gate::Arithmetic(&lhs.expression - &Expression::from(&a)));
-    //create new witness b and gate b = rhs
-    let mut b = a;
-    if !lhs.is_equal(rhs) {
-        b = evaluator.add_witness_to_cs();
-        evaluator.gates.push(Gate::Arithmetic(&rhs.expression - &Expression::from(&b)));
-    }
-    //return arith(mul=a*b)
-    mul(&Expression::from(&a), &Expression::from(&b)) //TODO  &lhs.expression * &rhs.expression
-}
-
 pub fn evaluate_udiv(
     lhs: &InternalVar,
     rhs: &InternalVar,
+    bit_size: u32,
+    predicate: &InternalVar,
     evaluator: &mut Evaluator,
 ) -> (Witness, Witness) {
     let q_witness = evaluator.add_witness_to_cs();
     let r_witness = evaluator.add_witness_to_cs();
+    let pa = mul_with_witness(evaluator, &lhs.expression, &predicate.expression);
     evaluator.gates.push(Gate::Directive(Directive::Quotient {
         a: lhs.expression.clone(),
         b: rhs.expression.clone(),
         q: q_witness,
         r: r_witness,
+        predicate: Some(Box::new(predicate.expression.clone())),
     }));
 
     //r<b
     let r_expr = Expression::from(Linear::from_witness(r_witness));
-    let r_var = InternalVar { expression: r_expr, witness: Some(r_witness), id: None };
-    bound_check(&r_var, rhs, true, 32, evaluator); //TODO bit size! should be max(a.bit, b.bit)
-                                                   //range check q<=a
-    range_constraint(q_witness, 32, evaluator).unwrap_or_else(|err| {
+    bound_check_with_offset(&r_expr, &rhs.expression, &predicate.expression, bit_size, evaluator);
+    //range check q<=a
+    range_constraint(q_witness, bit_size, evaluator).unwrap_or_else(|err| {
         dbg!(err);
     });
-    //todo bit size should be a.bits
     // a-b*q-r = 0
     let mut d = mul(&rhs.expression, &Expression::from(&q_witness));
     d = add(&d, FieldElement::one(), &Expression::from(&r_witness));
-    let div_eucl = subtract(&lhs.expression, FieldElement::one(), &d);
+    d = mul_with_witness(evaluator, &d, &predicate.expression);
+    let div_eucl = subtract(&pa, FieldElement::one(), &d);
 
     evaluator.gates.push(Gate::Arithmetic(div_eucl));
     (q_witness, r_witness)
@@ -970,7 +963,7 @@ pub fn evaluate_zero_equality(x: &InternalVar, evaluator: &mut Evaluator) -> Wit
 }
 
 /// Creates a new witness and constrains it to be the inverse of x
-fn evaluate_inverse(x: InternalVar, evaluator: &mut Evaluator) -> Witness {
+fn evaluate_inverse(x: InternalVar, predicate: &InternalVar, evaluator: &mut Evaluator) -> Witness {
     // Create a fresh witness - n.b we could check if x is constant or not
     let inverse_witness = evaluator.add_witness_to_cs();
     let inverse_expr = from_witness(inverse_witness);
@@ -981,21 +974,19 @@ fn evaluate_inverse(x: InternalVar, evaluator: &mut Evaluator) -> Witness {
 
     //x*inverse = 1
     Expression::default();
-    evaluator.gates.push(Gate::Arithmetic(add(
-        &mul(&from_witness(x_witness), &inverse_expr),
+    let one = mul(&from_witness(x_witness), &inverse_expr);
+    let lhs = mul_with_witness(evaluator, &one, &predicate.expression);
+    evaluator.gates.push(Gate::Arithmetic(subtract(
+        &lhs,
         FieldElement::one(),
-        &Expression::from_field(FieldElement::from(-1_i128)),
+        &predicate.expression,
     )));
     inverse_witness
 }
 
-pub fn is_const(expr: &Expression) -> bool {
-    expr.mul_terms.is_empty() && expr.linear_combinations.is_empty()
-}
-
 pub fn mul_with_witness(evaluator: &mut Evaluator, a: &Expression, b: &Expression) -> Expression {
     let a_arith;
-    let a_arith = if !a.mul_terms.is_empty() {
+    let a_arith = if !a.mul_terms.is_empty() && !b.is_const() {
         let a_witness = evaluator.add_witness_to_cs();
         a_arith = Expression::from(&a_witness);
         evaluator.gates.push(Gate::Arithmetic(a - &a_arith));
@@ -1004,20 +995,29 @@ pub fn mul_with_witness(evaluator: &mut Evaluator, a: &Expression, b: &Expressio
         a
     };
     let b_arith;
-    let b_arith = if !b.mul_terms.is_empty() {
-        let b_witness = evaluator.add_witness_to_cs();
-        b_arith = Expression::from(&b_witness);
-        evaluator.gates.push(Gate::Arithmetic(b - &b_arith));
-        &b_arith
+    let b_arith = if !b.mul_terms.is_empty() && !a.is_const() {
+        if a == b {
+            a_arith
+        } else {
+            let b_witness = evaluator.add_witness_to_cs();
+            b_arith = Expression::from(&b_witness);
+            evaluator.gates.push(Gate::Arithmetic(b - &b_arith));
+            &b_arith
+        }
     } else {
         b
     };
     mul(a_arith, b_arith)
 }
-//a*b
 
+//a*b
 pub fn mul(a: &Expression, b: &Expression) -> Expression {
-    if !(a.is_linear() && b.is_linear()) {
+    let zero = Expression::zero();
+    if a.is_const() {
+        return add(&zero, a.q_c, b);
+    } else if b.is_const() {
+        return add(&zero, b.q_c, a);
+    } else if !(a.is_linear() && b.is_linear()) {
         unreachable!("Can only multiply linear terms");
     }
 
@@ -1235,8 +1235,8 @@ pub fn range_constraint(
 }
 
 // Generate constraints that are satisfied iff
-// a < b , when strict is true, or
-// a <= b, when strict is false
+// a < b , when offset is 1, or
+// a <= b, when offset is 0
 // bits is the bit size of a and b (or an upper bound of the bit size)
 ///////////////
 // a<=b is done by constraining b-a to a bit size of 'bits':
@@ -1244,23 +1244,20 @@ pub fn range_constraint(
 // if a>b, b-a = p+b-a > p-2^bits >= 2^bits  (if log(p) >= bits + 1)
 // n.b: we do NOT check here that a and b are indeed 'bits' size
 // a < b <=> a+1<=b
-fn bound_check(
-    a: &InternalVar,
-    b: &InternalVar,
-    strict: bool,
+fn bound_check_with_offset(
+    a: &Expression,
+    b: &Expression,
+    offset: &Expression,
     bits: u32,
     evaluator: &mut Evaluator,
 ) {
-    //todo appeler bound_constrains et rajouter les gates a l'evaluator
-    if bits > FieldElement::max_num_bits() - 1
-    //TODO max_num_bits() is not log(p)?
-    {
-        todo!("ERROR");
-    }
-    let offset = if strict { FieldElement::one() } else { FieldElement::zero() };
-    let mut sub_expression = add(&b.expression, -FieldElement::one(), &a.expression); //b-a
-    sub_expression.q_c -= offset; //b-(a+offset)
-    let w = evaluator.add_witness_to_cs(); //range_check requires a witness - TODO may be this can be avoided?
+    assert!(
+        bits < FieldElement::max_num_bits(),
+        "range check with bit size of the prime field is not implemented yet"
+    );
+    let aof = add(a, FieldElement::one(), offset);
+    let sub_expression = subtract(b, FieldElement::one(), &aof); //b-(a+offset)
+    let w = evaluator.add_witness_to_cs(); //range_check requires a witness - TODO: it should be created inside range_constraint(..)
     evaluator.gates.push(Gate::Arithmetic(&sub_expression - &Expression::from(&w)));
     range_constraint(w, bits, evaluator).unwrap_or_else(|err| {
         dbg!(err);

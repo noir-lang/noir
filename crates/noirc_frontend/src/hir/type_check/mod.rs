@@ -118,7 +118,7 @@ mod test {
         // Create let statement
         let let_stmt = HirLetStatement {
             pattern: Identifier(z),
-            r#type: Type::FieldElement(crate::IsConst::No(None)),
+            r#type: Type::FieldElement(crate::Comptime::No(None)),
             expression: expr_id,
         };
         let stmt_id = interner.push_stmt(HirStatement::Let(let_stmt));
