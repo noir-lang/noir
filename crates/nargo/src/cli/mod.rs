@@ -159,7 +159,7 @@ mod tests {
     use noirc_driver::Driver;
     use noirc_frontend::graph::CrateType;
 
-    use std::path::{PathBuf, Path};
+    use std::path::{Path, PathBuf};
 
     const TEST_DATA_DIR: &str = "tests/compile_tests_data";
 
