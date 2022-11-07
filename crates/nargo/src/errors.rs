@@ -1,29 +1,45 @@
+use hex::FromHexError;
 use noirc_abi::errors::InputParserError;
-use std::io::Write;
+use std::{fmt::Display, io::Write, path::PathBuf};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 #[derive(Debug)]
 pub enum CliError {
     Generic(String),
-    DestinationAlreadyExists(String),
+    DestinationAlreadyExists(PathBuf),
+    PathNotValid(PathBuf),
+    ProofNotValid(FromHexError),
 }
 
 impl CliError {
     pub(crate) fn write(&self) -> ! {
-        match self {
-            CliError::Generic(msg) => CliError::write_msg_exit(msg),
-            CliError::DestinationAlreadyExists(msg) => CliError::write_msg_exit(msg),
-        }
-    }
-
-    fn write_msg_exit(msg: &str) -> ! {
         let mut stderr = StandardStream::stderr(ColorChoice::Always);
         stderr
             .set_color(ColorSpec::new().set_fg(Some(Color::Red)))
             .expect("cannot set color for stderr in StandardStream");
-        writeln!(&mut stderr, "{}", msg).expect("cannot write to stderr");
+        writeln!(&mut stderr, "{}", self).expect("cannot write to stderr");
 
         std::process::exit(0)
+    }
+}
+
+impl Display for CliError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                CliError::Generic(msg) => format!("Error: {}", msg),
+                CliError::DestinationAlreadyExists(path) =>
+                    format!("Error: destination {} already exists", path.display()),
+                CliError::PathNotValid(path) => {
+                    format!("Error: {} is not a valid path", path.display())
+                }
+                CliError::ProofNotValid(hex_error) => {
+                    format!("Error: proof is invalid ({})", hex_error)
+                }
+            }
+        )
     }
 }
 

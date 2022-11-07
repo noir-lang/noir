@@ -113,10 +113,9 @@ fn verify_proof(
 }
 
 fn load_proof<P: AsRef<Path>>(proof_path: P) -> Result<Vec<u8>, CliError> {
-    // XXX: Instead of unwrap, return a PathNotValidError
-    let proof_hex: Vec<_> = std::fs::read(&proof_path).unwrap();
-    // XXX: Instead of unwrap, return a ProofNotValidError
-    let proof = hex::decode(proof_hex).unwrap();
+    let proof_hex: Vec<_> = std::fs::read(&proof_path)
+        .map_err(|_| CliError::PathNotValid(proof_path.as_ref().to_path_buf()))?;
+    let proof = hex::decode(proof_hex).map_err(CliError::ProofNotValid)?;
 
     Ok(proof)
 }
