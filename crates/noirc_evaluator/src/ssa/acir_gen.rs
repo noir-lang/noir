@@ -488,6 +488,7 @@ impl Acir {
 
         for a in args {
             let l_obj = cfg.try_get_node(*a).unwrap();
+            println!("l_obj: {:?}", l_obj);
             match l_obj {
                 node::NodeObj::Obj(v) => {
                     match l_obj.get_type() {
@@ -520,6 +521,43 @@ impl Acir {
                                 inputs.push(GadgetInput { witness: w, num_bits: v.size_in_bits() });
                             } else {
                                 todo!("generate a witness");
+                            }
+                        }
+                    }
+                }
+                node::NodeObj::Instr(i) => {
+                    println!("got here, instruction: {:?}", i);
+                    let instr_res = i.evaluate(cfg).unwrap();
+                    println!("EVAL instruction: {:?}", instr_res);
+                    match &i.operation {
+                        Operation::Cond { condition, val_true, val_false } => {
+                            let val_true_obj = cfg.try_get_node(val_true.clone()).unwrap();
+                            println!("val_true obj: {:?}", val_true_obj);
+
+                            println!("condition is NOT zero");
+                            let gadget_input = self.prepare_inputs(&[val_true.clone()], cfg, evaluator);
+                            println!("gadget_input: {:?}", gadget_input);
+                            inputs.push(gadget_input[0].clone());
+
+                            let gadget_input = self.prepare_inputs(&[val_false.clone()], cfg, evaluator);
+                            println!("val_false gadget_input: {:?}", gadget_input);
+                            inputs.push(gadget_input[0].clone());
+
+                            let contains_val_true_key = self.arith_cache.contains_key(&val_true);
+                            println!("contains_val_true_key: {:?}", contains_val_true_key);
+                            let node_eval = node::NodeEval::from_id(cfg, condition.clone());
+                            println!("node_eval: {:?}", node_eval);
+                        }
+                        _ => {
+                            if self.arith_cache.contains_key(a) {
+                                if let Some(w) = self.arith_cache[a].clone().witness {
+                                    inputs.push(GadgetInput { witness: w, num_bits: l_obj.size_in_bits() });
+                                } else {
+                                    todo!();
+                                }
+                            } else {
+                                dbg!(&l_obj);
+                                unreachable!("invalid input")
                             }
                         }
                     }
@@ -561,10 +599,13 @@ impl Acir {
                 }
             }
             _ => {
+                println!("OPCODE: {:?}, args before prepare_inputs: {:?}\n", opcode.name(), args);
+
                 let inputs = self.prepare_inputs(args, ctx, evaluator);
                 let output_count = opcode.definition().output_size.0 as u32;
                 outputs = self.prepare_outputs(instruction_id, output_count, ctx, evaluator);
 
+                println!("inputs before GadgetCall push to evaluator: {:?}\n", inputs);
                 let call_gate = GadgetCall {
                     name: opcode,
                     inputs,                   //witness + bit size
