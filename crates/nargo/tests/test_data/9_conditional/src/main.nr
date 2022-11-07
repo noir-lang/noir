@@ -36,8 +36,21 @@ fn test4() -> [u32; 4] {
 }
 
 fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
+    //Issue reported in #421
+    if a == c[0] {
+        constrain c[0] == 0;
+    } else  {
+        if a == c[1] {
+            constrain c[1] == 0;
+        } else  {
+            if a == c[2] {
+                constrain c[2] == 0;
+            }
+        }
+    }
+
     if a == 3 {
-        c = test4();
+       c = test4();
     }
     constrain c[1] != 2;
     call_intrinsic(x, result);
@@ -48,6 +61,9 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
     } else {
         must_be_zero(1);
         c[0] = 1;
+        c[1] = c[2] / a + 11 % a;
+        let f1 = a as Field;
+        constrain 10/f1 != 0;
     }
     constrain c[0] == 3;
 

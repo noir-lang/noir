@@ -13,8 +13,8 @@ use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::util::vecmap;
 use crate::{
-    AssignStatement, BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement,
-    FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, IsConst, LValue,
+    AssignStatement, BinaryOp, BinaryOpKind, BlockExpression, Comptime, ConstrainStatement,
+    FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, LValue,
     NoirFunction, NoirImpl, NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp,
 };
 
@@ -50,7 +50,7 @@ fn module() -> impl NoirParser<ParsedModule> {
                     TopLevelStatement::Struct(s) => program.push_type(s),
                     TopLevelStatement::Impl(i) => program.push_impl(i),
                     TopLevelStatement::SubModule(s) => program.push_submodule(s),
-                    TopLevelStatement::GlobalConst(c) => program.push_global_const(c),
+                    TopLevelStatement::Global(c) => program.push_global(c),
                     TopLevelStatement::Error => (),
                 }
                 program
@@ -75,13 +75,13 @@ fn top_level_statement(
 
 fn global_declaration() -> impl NoirParser<TopLevelStatement> {
     let p = ignore_then_commit(
-        keyword(Keyword::Const).labelled("const"),
+        keyword(Keyword::Global).labelled("global"),
         ident().map(Pattern::Identifier),
     );
-    let p = then_commit(p, global_const_type_annotation()); //TODO: this reuses parse type that allows for a redundant const as such: const X: const Field = 5;
+    let p = then_commit(p, global_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
     let p = then_commit(p, literal().map_with_span(Expression::new)); // XXX: this should be a literal
-    p.map(LetStatement::new_let).map(TopLevelStatement::GlobalConst)
+    p.map(LetStatement::new_let).map(TopLevelStatement::Global)
 }
 
 fn submodule(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<TopLevelStatement> {
@@ -259,15 +259,19 @@ fn check_statements_require_semicolon(
     })
 }
 
-fn global_const_type_annotation() -> impl NoirParser<UnresolvedType> {
-    ignore_then_commit(just(Token::Colon), parse_type()).map(|r#type| match r#type {
-        UnresolvedType::FieldElement(_) => UnresolvedType::FieldElement(IsConst::Yes(None)),
-        UnresolvedType::Bool(_) => UnresolvedType::Bool(IsConst::Yes(None)),
-        UnresolvedType::Integer(_, sign, size) => {
-            UnresolvedType::Integer(IsConst::Yes(None), sign, size)
-        }
-        _ => UnresolvedType::Unspecified,
-    })
+/// Parse an optional ': type' and implicitly add a 'comptime' to the type
+fn global_type_annotation() -> impl NoirParser<UnresolvedType> {
+    ignore_then_commit(just(Token::Colon), parse_type())
+        .map(|r#type| match r#type {
+            UnresolvedType::FieldElement(_) => UnresolvedType::FieldElement(Comptime::Yes(None)),
+            UnresolvedType::Bool(_) => UnresolvedType::Bool(Comptime::Yes(None)),
+            UnresolvedType::Integer(_, sign, size) => {
+                UnresolvedType::Integer(Comptime::Yes(None), sign, size)
+            }
+            other => other,
+        })
+        .or_not()
+        .map(|opt| opt.unwrap_or(UnresolvedType::Unspecified))
 }
 
 fn optional_type_annotation() -> impl NoirParser<UnresolvedType> {
@@ -444,23 +448,23 @@ fn optional_visibility() -> impl NoirParser<AbiFEType> {
     })
 }
 
-fn maybe_const() -> impl NoirParser<IsConst> {
-    keyword(Keyword::Const).or_not().map(|opt| match opt {
-        Some(_) => IsConst::Yes(None),
-        None => IsConst::No(None),
+fn maybe_comptime() -> impl NoirParser<Comptime> {
+    keyword(Keyword::Comptime).or_not().map(|opt| match opt {
+        Some(_) => Comptime::Yes(None),
+        None => Comptime::No(None),
     })
 }
 
 fn field_type() -> impl NoirParser<UnresolvedType> {
-    maybe_const().then_ignore(keyword(Keyword::Field)).map(UnresolvedType::FieldElement)
+    maybe_comptime().then_ignore(keyword(Keyword::Field)).map(UnresolvedType::FieldElement)
 }
 
 fn bool_type() -> impl NoirParser<UnresolvedType> {
-    maybe_const().then_ignore(keyword(Keyword::Bool)).map(UnresolvedType::Bool)
+    maybe_comptime().then_ignore(keyword(Keyword::Bool)).map(UnresolvedType::Bool)
 }
 
 fn int_type() -> impl NoirParser<UnresolvedType> {
-    maybe_const()
+    maybe_comptime()
         .then(filter_map(|span, token: Token| match token {
             Token::IntType(int_type) => Ok(int_type),
             unexpected => {
@@ -613,13 +617,26 @@ fn if_expr<'a, P>(expr_parser: P) -> impl NoirParser<ExpressionKind> + 'a
 where
     P: ExprParser + 'a,
 {
-    keyword(Keyword::If)
-        .ignore_then(expr_parser.clone())
-        .then(block_expr(expr_parser.clone()))
-        .then(keyword(Keyword::Else).ignore_then(block_expr(expr_parser)).or_not())
-        .map(|((condition, consequence), alternative)| {
-            ExpressionKind::If(Box::new(IfExpression { condition, consequence, alternative }))
-        })
+    recursive(|if_parser| {
+        let if_block = block_expr(expr_parser.clone());
+        // The else block could also be an `else if` block, in which case we must recursively parse it.
+        let else_block =
+            block_expr(expr_parser.clone()).or(if_parser.map_with_span(|kind, span| {
+                // Wrap the inner `if` expression in a block expression.
+                // i.e. rewrite the sugared form `if cond1 {} else if cond2 {}` as `if cond1 {} else { if cond2 {} }`.
+                let if_expression = Expression::new(kind, span);
+                let desugared_else = BlockExpression(vec![Statement::Expression(if_expression)]);
+                Expression::new(ExpressionKind::Block(desugared_else), span)
+            }));
+
+        keyword(Keyword::If)
+            .ignore_then(expr_parser)
+            .then(if_block)
+            .then(keyword(Keyword::Else).ignore_then(else_block).or_not())
+            .map(|((condition, consequence), alternative)| {
+                ExpressionKind::If(Box::new(IfExpression { condition, consequence, alternative }))
+            })
+    })
 }
 
 fn for_expr<'a, P>(expr_parser: P) -> impl NoirParser<ExpressionKind> + 'a
@@ -765,24 +782,6 @@ where
     path().then(parenthesized(expression_list(expr_parser))).map(ExpressionKind::function_call)
 }
 
-fn global_const_call() -> impl NoirParser<ExpressionKind> {
-    global_const_path().map(ExpressionKind::Path)
-}
-
-fn global_const_path() -> impl NoirParser<Path> {
-    let idents = || ident().separated_by(just(Token::DoubleColon)).at_least(2);
-    let make_path = |kind| move |segments| Path { segments, kind };
-
-    let prefix = |key| keyword(key).ignore_then(just(Token::DoubleColon));
-    let path_kind = |key, kind| prefix(key).ignore_then(idents()).map(make_path(kind));
-
-    choice((
-        path_kind(Keyword::Crate, PathKind::Crate),
-        path_kind(Keyword::Dep, PathKind::Dep),
-        idents().map(make_path(PathKind::Plain)),
-    ))
-}
-
 fn constructor<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
 where
     P: ExprParser,
@@ -806,9 +805,7 @@ where
 }
 
 fn variable() -> impl NoirParser<ExpressionKind> {
-    let const_path = global_const_call();
-    let valid_variable = ident().map(|name| ExpressionKind::Ident(name.0.contents));
-    const_path.or(valid_variable)
+    path().map(ExpressionKind::Path)
 }
 
 fn literal() -> impl NoirParser<ExpressionKind> {
@@ -821,17 +818,17 @@ fn literal() -> impl NoirParser<ExpressionKind> {
 }
 
 fn fixed_array_size() -> impl NoirParser<UnresolvedArraySize> {
-    just(Token::Semicolon).ignore_then(filter_map(|span, token: Token| match token.clone() {
-        Token::Int(integer) => Ok(UnresolvedArraySize::Fixed(try_field_to_u64(integer, span)?)),
-        Token::Ident(_) => {
-            // XXX: parse named size as an ident. The actual const integer size will be determined in the hir pass and resolution
-            Ok(UnresolvedArraySize::FixedVariable(Ident::from_token(token, span)))
+    let fixed_variable_size = path().map(UnresolvedArraySize::FixedVariable);
+
+    just(Token::Semicolon).ignore_then(fixed_variable_size.or(filter_map(|span, token: Token| {
+        match token {
+            Token::Int(integer) => Ok(UnresolvedArraySize::Fixed(try_field_to_u64(integer, span)?)),
+            _ => {
+                let message = "Expected an integer for the length of the array".to_string();
+                Err(ParserError::with_reason(message, span))
+            }
         }
-        _ => {
-            let message = "Expected an integer for the length of the array".to_string();
-            Err(ParserError::with_reason(message, span))
-        }
-    }))
+    })))
 }
 
 fn try_field_to_u64(x: acvm::FieldElement, span: Span) -> Result<u64, ParserError> {
@@ -1113,7 +1110,7 @@ mod test {
             vec![
                 "fn func_name() {}",
                 "fn f(foo: pub u8, y : pub Field) -> u8 { x + a }",
-                "fn f(f: pub Field, y : Field, z : const Field) -> u8 { x + a }",
+                "fn f(f: pub Field, y : Field, z : comptime Field) -> u8 { x + a }",
                 "fn func_name(f: Field, y : pub Field, z : pub [u8;5],) {}",
                 "fn func_name(x: [Field], y : [Field;2],y : pub [Field;2], z : pub [u8;5])  {}",
             ],
@@ -1138,7 +1135,10 @@ mod test {
 
     #[test]
     fn parse_if_expr() {
-        parse_all(if_expr(expression()), vec!["if x + a {  } else {  }", "if x {}"]);
+        parse_all(
+            if_expr(expression()),
+            vec!["if x + a {  } else {  }", "if x {}", "if x {} else if y {} else {}"],
+        );
 
         parse_all_failing(
             if_expr(expression()),
@@ -1322,9 +1322,9 @@ mod test {
             ("let = 4 + 3", 1, "let $error: unspecified = (4 + 3)"),
             ("let = ", 2, "let $error: unspecified = Error"),
             ("let", 3, "let $error: unspecified = Error"),
-            ("foo = one two three", 1, "foo = one"),
+            ("foo = one two three", 1, "foo = plain::one"),
             ("constrain", 1, "constrain Error"),
-            ("constrain x ==", 1, "constrain (x == Error)"),
+            ("constrain x ==", 1, "constrain (plain::x == Error)"),
         ];
 
         let show_errors = |v| vecmap(v, ToString::to_string).join("\n");
