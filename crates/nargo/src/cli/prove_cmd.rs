@@ -76,7 +76,7 @@ fn process_abi_with_input(
             .clone();
 
         if !value.matches_abi(param_type) {
-            return Err(CliError::Generic(format!("The value provided for {} does not match the type expected by main. \n Please check the provided value.", param_name)));
+            return Err(CliError::Generic(format!("The value provided for {} does not match the type defined in the ABI.\n Please check the provided value.", param_name)));
         }
 
         match value {
