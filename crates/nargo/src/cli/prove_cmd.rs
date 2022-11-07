@@ -76,7 +76,7 @@ fn process_abi_with_input(
             .clone();
 
         if !value.matches_abi(param_type) {
-            return Err(CliError::Generic(format!("The parameters in the main do not match the parameters in the {}.toml file. \n Please check `{}` parameter ", PROVER_INPUT_FILE,param_name)));
+            return Err(CliError::Generic(format!("The value provided for {} does not match the type expected by main. \n Please check the provided value.", param_name)));
         }
 
         match value {
