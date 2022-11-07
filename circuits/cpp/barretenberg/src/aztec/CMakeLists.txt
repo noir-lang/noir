@@ -71,10 +71,15 @@ if(WASM)
         $<TARGET_OBJECTS:rollup_proofs_claim_objects>
     )
 
+    # With binaryen installed, it seems its wasm backend optimiser gets invoked automatically.
+    # Due to either a bug in the optimiser, or non-standards compliant c++ in crypto/aes, tests start failing with
+    # -O3 level optimisations. We force down to -O2 for current workaround.
+    # Presumably the -O3 when compiling the object files is fine as it's llvms IR optimiser.
+    # The backend optimiser is presumably triggered after linking.
     target_link_options(
         barretenberg.wasm
         PRIVATE
-        -nostartfiles -Wl,--no-entry -Wl,--export-dynamic -Wl,--import-memory -Wl,--allow-undefined -Wl,--stack-first -Wl,-z,stack-size=1048576
+        -nostartfiles -O2 -Wl,--no-entry -Wl,--export-dynamic -Wl,--import-memory -Wl,--allow-undefined -Wl,--stack-first -Wl,-z,stack-size=1048576
     )
 
 endif()
