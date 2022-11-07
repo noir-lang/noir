@@ -43,6 +43,16 @@ fn process_abi_with_input(
     abi: Abi,
     witness_map: &BTreeMap<String, InputValue>,
 ) -> Result<(BTreeMap<Witness, FieldElement>, Option<Witness>), CliError> {
+    // Check that enough witness values were supplied
+    let num_params = abi.num_parameters();
+    if num_params != witness_map.len() {
+        return Err(CliError::Generic(format!(
+            "Expected {} number of values, but got {} number of values",
+            num_params,
+            witness_map.len()
+        )));
+    }
+
     let mut solved_witness = BTreeMap::new();
 
     let mut index = 0;
@@ -142,17 +152,6 @@ fn solve_witness(
     witness_map: &BTreeMap<String, InputValue>,
 ) -> Result<(BTreeMap<Witness, FieldElement>, Option<Witness>), CliError> {
     let abi = compiled_program.abi.as_ref().unwrap();
-
-    // Check that enough witness values were supplied
-    let num_params = abi.num_parameters();
-    if num_params != witness_map.len() {
-        panic!(
-            "Expected {} number of values, but got {} number of values",
-            num_params,
-            witness_map.len()
-        )
-    }
-
     let (mut solved_witness, return_value) = process_abi_with_input(abi.clone(), witness_map)?;
 
     let backend = crate::backends::ConcreteBackend;

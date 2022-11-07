@@ -33,7 +33,17 @@ fn process_abi_with_verifier_input(
     abi: Abi,
     pi_map: BTreeMap<String, InputValue>,
 ) -> Result<Vec<FieldElement>, CliError> {
-    let mut public_inputs = Vec::with_capacity(pi_map.len());
+    // Check that enough public params were supplied.
+    let num_pub_params = abi.num_parameters();
+    if num_pub_params != pi_map.len() {
+        return Err(CliError::Generic(format!(
+            "Expected {} number of values, but got {} number of values",
+            num_pub_params,
+            pi_map.len()
+        )));
+    }
+
+    let mut public_inputs = Vec::with_capacity(num_pub_params);
 
     for (param_name, param_type) in abi.parameters.into_iter() {
         let value = pi_map
@@ -91,17 +101,6 @@ fn verify_proof(
     proof: Vec<u8>,
 ) -> Result<bool, CliError> {
     let public_abi = compiled_program.abi.clone().unwrap().public_abi();
-
-    let num_pub_params = public_abi.num_parameters();
-    if num_pub_params != public_inputs.len() {
-        // return Err(CliError::Generic(format!("")));
-        panic!(
-            "Expected {} number of values, but got {} number of values",
-            num_pub_params,
-            public_inputs.len()
-        )
-    }
-
     let public_inputs = process_abi_with_verifier_input(public_abi, public_inputs)?;
 
     let backend = crate::backends::ConcreteBackend;
