@@ -33,8 +33,11 @@ fn process_abi_with_verifier_input(
     abi: Abi,
     pi_map: BTreeMap<String, InputValue>,
 ) -> Result<Vec<FieldElement>, CliError> {
+    // Filter out any private inputs from the ABI.
+    let public_abi = abi.public_abi();
+
     // Check that enough public params were supplied.
-    let num_pub_params = abi.num_parameters();
+    let num_pub_params = public_abi.num_parameters();
     if num_pub_params != pi_map.len() {
         return Err(CliError::Generic(format!(
             "Expected {} number of values, but got {} number of values",
@@ -45,7 +48,7 @@ fn process_abi_with_verifier_input(
 
     let mut public_inputs = Vec::with_capacity(num_pub_params);
 
-    for (param_name, param_type) in abi.parameters.into_iter() {
+    for (param_name, param_type) in public_abi.parameters.into_iter() {
         let value = pi_map
             .get(&param_name)
             .unwrap_or_else(|| {
@@ -100,8 +103,8 @@ fn verify_proof(
     public_inputs: BTreeMap<String, InputValue>,
     proof: Vec<u8>,
 ) -> Result<bool, CliError> {
-    let public_abi = compiled_program.abi.clone().unwrap().public_abi();
-    let public_inputs = process_abi_with_verifier_input(public_abi, public_inputs)?;
+    let public_inputs =
+        process_abi_with_verifier_input(compiled_program.abi.unwrap(), public_inputs)?;
 
     let backend = crate::backends::ConcreteBackend;
     let valid_proof = backend.verify_from_cs(&proof, public_inputs, compiled_program.circuit);
