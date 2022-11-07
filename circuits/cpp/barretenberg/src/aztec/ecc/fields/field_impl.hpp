@@ -152,8 +152,25 @@ template <class T> constexpr field<T> field<T>::operator-() const noexcept
         constexpr field p{ modulus.data[0], modulus.data[1], modulus.data[2], modulus.data[3] };
         return p - *this; // modulus - *this;
     }
+
+    // TODO: there are 3 ways we can make this more efficient
+    // 1: we subtract `p` from `*this` instead of `2p`
+    // 2: instead of `p - *this`, we use an asm block that does `p - *this` without the assembly reduction step
+    // 3: we replace `(p - *this).reduce_once()` with an assembly block that is equivalent to `p - *this`,
+    //    but we call `REDUCE_FIELD_ELEMENT` with `not_twice_modulus` instead of `twice_modulus`
+    // not sure which is faster and whether any of the above might break something!
+    //
+    // More context below:
+    // the operator-(a, b) method's asm implementation has a sneaky was to check underflow.
+    // if `a - b` underflows we need to add in `2p`. Instead of conditional branching which would cause pipeline
+    // flushes, we add `2p` into the result of `a - b`. If the result triggers the overflow flag, then we know we are
+    // correcting an *underflow* produced from computing `a - b`. Finally...we use the overflow flag to conditionally
+    // move data into registers such that we end up with either `a - b` or `2p + (a - b)` (this is branchless). OK! So
+    // what's the problem? Well we assume that every field element lies between 0 and 2p - 1. But we are computing `2p -
+    // *this`! If *this = 0 then we exceed this bound hence the need for the extra reduction step. HOWEVER, we also know
+    // that 2p - *this won't underflow so we could skip the underflow check present in the assembly code
     constexpr field p{ twice_modulus.data[0], twice_modulus.data[1], twice_modulus.data[2], twice_modulus.data[3] };
-    return p - *this; // modulus - *this;
+    return (p - *this).reduce_once(); // modulus - *this;
 }
 
 template <class T> constexpr field<T> field<T>::operator-=(const field& other) noexcept
@@ -179,7 +196,7 @@ template <class T> constexpr void field<T>::self_neg() noexcept
         *this = p - *this;
     } else {
         constexpr field p{ twice_modulus.data[0], twice_modulus.data[1], twice_modulus.data[2], twice_modulus.data[3] };
-        *this = p - *this;
+        *this = (p - *this).reduce_once();
     }
 }
 
@@ -236,9 +253,15 @@ template <class T> constexpr field<T> field<T>::to_montgomery_form() const noexc
     constexpr field r_squared{ T::r_squared_0, T::r_squared_1, T::r_squared_2, T::r_squared_3 };
 
     field result = *this;
-    result.reduce_once();
-    result.reduce_once();
-    result.reduce_once();
+    // TODO: are these reductions needed?
+    // Rationale: We want to take any 256-bit input and be able to convert into montgomery form.
+    // A basic heuristic we use is that any input into the `*` operator must be between [0, 2p - 1]
+    // to prevent overflows in the asm algorithm.
+    // However... r_squared is already reduced so perhaps we can relax this requirement?
+    // (would be good to identify a failure case where not calling self_reduce triggers an error)
+    result.self_reduce_once();
+    result.self_reduce_once();
+    result.self_reduce_once();
     return (result * r_squared).reduce_once();
 }
 
