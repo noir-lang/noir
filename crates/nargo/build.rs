@@ -63,7 +63,7 @@ pub fn copy<U: AsRef<Path>, V: AsRef<Path>>(from: U, to: V) -> Result<(), std::i
 }
 
 fn main() {
-    let stdlib_src_dir = Path::new("noir_stdlib/");
+    let stdlib_src_dir = Path::new("../../noir_stdlib/");
     rerun_if_stdlib_changes(stdlib_src_dir);
     let target = dirs::config_dir().unwrap().join("noir-lang").join("std");
     copy(stdlib_src_dir, &target).unwrap();
