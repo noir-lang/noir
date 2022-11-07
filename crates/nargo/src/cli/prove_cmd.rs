@@ -106,8 +106,7 @@ fn process_abi_with_input(
                 //We do not support undefined arrays for now - TODO
                 if return_witness_len != 1 {
                     return Err(CliError::Generic(
-                        "Values of array returned from main must be specified in prover toml file"
-                            .to_string(),
+                        "Values of array returned from main must be specified".to_string(),
                     ));
                 }
                 index += return_witness_len;
