@@ -733,12 +733,9 @@ impl Binary {
 
         let lhs = l_eval.into_const_value();
         let rhs = r_eval.into_const_value();
-        // println!("EVALUATE - lhs: {:?}", lhs);
-        // println!("EVALUATE - lhs: {:?}", rhs);
 
         let l_is_zero = lhs.map_or(false, |x| x.is_zero());
         let r_is_zero = rhs.map_or(false, |x| x.is_zero());
-        // println!("EVALUATE - self.operator: {:?}", self.operator);
         match &self.operator {
             BinaryOp::Add | BinaryOp::SafeAdd => {
                 if l_is_zero {
