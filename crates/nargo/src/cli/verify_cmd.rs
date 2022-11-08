@@ -39,7 +39,7 @@ fn process_abi_with_verifier_input(
 
     let mut public_inputs = Vec::with_capacity(num_pub_params);
 
-    for (param_name, param_type) in public_abi.parameters.into_iter() {
+    for (param_name, param_type) in public_abi.parameters.clone().into_iter() {
         let value = pi_map
             .get(&param_name)
             .unwrap_or_else(|| {
@@ -66,10 +66,11 @@ fn process_abi_with_verifier_input(
     // Check that no extra witness values have been provided.
     // Any missing values should be caught by the above for-loop so this only catches extra values.
     if num_pub_params != pi_map.len() {
+        let unexpected_params: Vec<&String> =
+            pi_map.keys().filter(|param| !public_abi.parameter_names().contains(&param)).collect();
         return Err(CliError::Generic(format!(
-            "Expected {} number of values, but got {} number of values",
-            num_pub_params,
-            pi_map.len()
+            "Received parameters not expected by ABI: {:?}",
+            unexpected_params,
         )));
     }
 
