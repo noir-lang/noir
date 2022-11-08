@@ -342,31 +342,18 @@ impl<'a> Resolver<'a> {
             return Type::Error;
         }
 
-        if let Some(rhs_expr_id) = definition_info.rhs {
-            let length = self.get_fixed_variable_array_length(&rhs_expr_id);
-            Type::ArrayLength(length)
+        let error = if let Some(rhs_expr_id) = definition_info.rhs {
+            match self.try_eval_array_length_id(rhs_expr_id).map(|length| length.try_into()) {
+                Ok(Ok(length)) => return Type::ArrayLength(length),
+                Ok(Err(_cast_err)) => ResolverError::IntegerTooLarge { span: path.span() },
+                Err(Some(error)) => error,
+                Err(None) => return Type::Error,
+            }
         } else {
-            self.push_err(ResolverError::MissingRhsExpr {
-                name: path.as_string(),
-                span: path.span(),
-            });
-            Type::Error
-        }
-    }
-
-    fn get_fixed_variable_array_length(&self, expr_id: &ExprId) -> u64 {
-        let expr = self.interner.expression(expr_id);
-        match expr {
-            HirExpression::Literal(literal) => match literal {
-                HirLiteral::Integer(field_element) => {
-                    field_element.try_to_u64().expect("field element does not fit into u128")
-                }
-                _ => {
-                    panic!("literal used in fixed variable array length must be an integer literal")
-                }
-            },
-            _ => panic!("expression in global statement is not a literal"),
-        }
+            ResolverError::MissingRhsExpr { name: path.as_string(), span: path.span() }
+        };
+        self.push_err(error);
+        Type::Error
     }
 
     fn get_ident_from_path(&mut self, path: Path) -> HirIdent {
