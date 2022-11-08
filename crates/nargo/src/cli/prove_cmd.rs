@@ -9,7 +9,7 @@ use noirc_abi::AbiType;
 use noirc_abi::{input_parser::InputValue, Abi};
 use std::path::Path;
 
-use crate::errors::CliError;
+use crate::errors::{AbiError, CliError};
 
 use super::{
     create_named_dir, write_to_file, PROOFS_DIR, PROOF_EXT, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE,
@@ -42,7 +42,7 @@ fn prove(proof_name: &str, show_ssa: bool) -> Result<(), CliError> {
 fn process_abi_with_input(
     abi: Abi,
     witness_map: &BTreeMap<String, InputValue>,
-) -> Result<(BTreeMap<Witness, FieldElement>, Option<Witness>), CliError> {
+) -> Result<(BTreeMap<Witness, FieldElement>, Option<Witness>), AbiError> {
     let num_params = abi.num_parameters();
     let mut solved_witness = BTreeMap::new();
 
@@ -61,13 +61,15 @@ fn process_abi_with_input(
     for (param_name, param_type) in abi.parameters.clone().into_iter() {
         let value = witness_map
             .get(&param_name)
-            .unwrap_or_else(|| {
-                panic!("ABI expects the parameter `{}`, but this was not found", param_name)
-            })
+            .ok_or_else(|| AbiError::MissingParam(param_name.clone()))?
             .clone();
 
         if !value.matches_abi(&param_type) {
-            return Err(CliError::Generic(format!("The value provided for {} does not match the type defined in the ABI.\n Please check the provided value.", param_name)));
+            return Err(AbiError::TypeMismatch {
+                param_name,
+                expected_type: param_type,
+                actual_value: value,
+            });
         }
 
         match value {
@@ -96,7 +98,7 @@ fn process_abi_with_input(
 
                 //We do not support undefined arrays for now - TODO
                 if return_witness_len != 1 {
-                    return Err(CliError::Generic(
+                    return Err(AbiError::Generic(
                         "Values of array returned from main must be specified".to_string(),
                     ));
                 }
@@ -109,13 +111,21 @@ fn process_abi_with_input(
     // Check that no extra witness values have been provided.
     // Any missing values should be caught by the above for-loop so this only catches extra values.
     if num_params != witness_map.len() {
-        let unexpected_params: Vec<&String> =
-            witness_map.keys().filter(|param| !abi.parameter_names().contains(&param)).collect();
-        return Err(CliError::Generic(format!(
-            "Received parameters not expected by ABI: {:?}",
-            unexpected_params,
-        )));
+        let param_names = abi.parameter_names();
+        let unexpected_params: Vec<String> =
+            witness_map
+                .keys()
+                .filter_map(|param| {
+                    if param_names.contains(&param) {
+                        None
+                    } else {
+                        Some(param.to_owned())
+                    }
+                })
+                .collect();
+        return Err(AbiError::UnexpectedParams(unexpected_params));
     }
+
     Ok((solved_witness, return_witness))
 }
 

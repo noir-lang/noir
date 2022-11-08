@@ -1,6 +1,6 @@
 use super::compile_cmd::compile_circuit;
 use super::{PROOFS_DIR, PROOF_EXT, VERIFIER_INPUT_FILE};
-use crate::errors::CliError;
+use crate::errors::{AbiError, CliError};
 use acvm::{FieldElement, ProofSystemCompiler};
 use clap::ArgMatches;
 use noirc_abi::{input_parser::InputValue, Abi};
@@ -32,7 +32,7 @@ fn verify(proof_name: &str) -> Result<bool, CliError> {
 fn process_abi_with_verifier_input(
     abi: Abi,
     pi_map: BTreeMap<String, InputValue>,
-) -> Result<Vec<FieldElement>, CliError> {
+) -> Result<Vec<FieldElement>, AbiError> {
     // Filter out any private inputs from the ABI.
     let public_abi = abi.public_abi();
     let num_pub_params = public_abi.num_parameters();
@@ -42,36 +42,40 @@ fn process_abi_with_verifier_input(
     for (param_name, param_type) in public_abi.parameters.clone().into_iter() {
         let value = pi_map
             .get(&param_name)
-            .unwrap_or_else(|| {
-                panic!("ABI expects the parameter `{}`, but this was not found", param_name)
-            })
+            .ok_or_else(|| AbiError::MissingParam(param_name.clone()))?
             .clone();
 
         if !value.matches_abi(&param_type) {
-            return Err(CliError::Generic(format!("The value provided for {} does not match the type defined in the ABI.\n Please check the provided value.", param_name)));
+            return Err(AbiError::TypeMismatch {
+                param_name,
+                expected_type: param_type,
+                actual_value: value,
+            });
         }
 
         match value {
             InputValue::Field(elem) => public_inputs.push(elem),
             InputValue::Vec(vec_elem) => public_inputs.extend(vec_elem),
-            InputValue::Undefined => {
-                return Err(CliError::Generic(format!(
-                    "The parameter {} is not defined.",
-                    param_name,
-                )))
-            }
+            InputValue::Undefined => return Err(AbiError::UndefinedInput(param_name)),
         }
     }
 
     // Check that no extra witness values have been provided.
     // Any missing values should be caught by the above for-loop so this only catches extra values.
     if num_pub_params != pi_map.len() {
-        let unexpected_params: Vec<&String> =
-            pi_map.keys().filter(|param| !public_abi.parameter_names().contains(&param)).collect();
-        return Err(CliError::Generic(format!(
-            "Received parameters not expected by ABI: {:?}",
-            unexpected_params,
-        )));
+        let param_names = public_abi.parameter_names();
+        let unexpected_params: Vec<String> =
+            pi_map
+                .keys()
+                .filter_map(|param| {
+                    if param_names.contains(&param) {
+                        None
+                    } else {
+                        Some(param.to_owned())
+                    }
+                })
+                .collect();
+        return Err(AbiError::UnexpectedParams(unexpected_params));
     }
 
     Ok(public_inputs)
