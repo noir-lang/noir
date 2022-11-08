@@ -7,6 +7,7 @@ use serde::{ser::SerializeMap, Deserialize, Serialize, Serializer};
 //
 // This ABI has nothing to do with ACVM or ACIR. Although they implicitly have a relationship
 
+pub mod encoding;
 pub mod errors;
 pub mod input_parser;
 
