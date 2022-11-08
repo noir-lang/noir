@@ -207,6 +207,15 @@ template <class T> constexpr field<T> field<T>::add(const field& other) const no
             r1 = sbb(r1, modulus.data[1], b, b);
             r2 = sbb(r2, modulus.data[2], b, b);
             r3 = sbb(r3, modulus.data[3], b, b);
+            // Since both values are in [0, 2**256), the result is in [0, 2**257-2]. Subtracting one p might not be
+            // enough. We need to ensure that we've underflown the 0 and that might require subtracting an additional p
+            if (!b) {
+                b = 0;
+                r0 = sbb(r0, modulus.data[0], b, b);
+                r1 = sbb(r1, modulus.data[1], b, b);
+                r2 = sbb(r2, modulus.data[2], b, b);
+                r3 = sbb(r3, modulus.data[3], b, b);
+            }
         }
         return { r0, r1, r2, r3 };
     } else {
@@ -245,8 +254,16 @@ template <class T> constexpr field<T> field<T>::subtract(const field& other) con
     uint64_t carry = r0 < (modulus.data[0] & borrow);
     r1 = addc(r1, modulus.data[1] & borrow, carry, carry);
     r2 = addc(r2, modulus.data[2] & borrow, carry, carry);
-    r3 += (modulus.data[3] & borrow) + carry;
-
+    r3 = addc(r3, (modulus.data[3] & borrow), carry, carry);
+    // The value being subtracted is in [0, 2**256), if we subtract 0 - 2*255 and then add p, the value will stay
+    // negative. If we are adding p, we need to check that we've overflown 2**256. If not, we should add p again
+    if (!carry) {
+        r0 += (modulus.data[0] & borrow);
+        uint64_t carry = r0 < (modulus.data[0] & borrow);
+        r1 = addc(r1, modulus.data[1] & borrow, carry, carry);
+        r2 = addc(r2, modulus.data[2] & borrow, carry, carry);
+        r3 = addc(r3, (modulus.data[3] & borrow), carry, carry);
+    }
     return { r0, r1, r2, r3 };
 }
 

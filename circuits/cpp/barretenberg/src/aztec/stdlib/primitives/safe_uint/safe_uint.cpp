@@ -19,7 +19,6 @@ safe_uint_t<ComposerContext> safe_uint_t<ComposerContext>::operator*(const safe_
 
     uint512_t new_max = uint512_t(current_max) * uint512_t(other.current_max);
     ASSERT(new_max.hi == 0);
-
     return safe_uint_t((value * other.value), new_max.lo, IS_UNSAFE);
 }
 
@@ -65,10 +64,14 @@ std::array<safe_uint_t<ComposerContext>, 3> safe_uint_t<ComposerContext>::slice(
                                                                                 const uint8_t lsb) const
 {
     ASSERT(msb >= lsb);
+    ASSERT(static_cast<size_t>(msb) <= rollup::MAX_NO_WRAP_INTEGER_BIT_LENGTH);
     const safe_uint_t lhs = *this;
     ComposerContext* ctx = lhs.get_context();
 
     const uint256_t value = uint256_t(get_value());
+    // This should be caught by the proof itself, but the circuit creator will have now way of knowing where the issue
+    // is
+    ASSERT(value < (static_cast<uint256_t>(1) << rollup::MAX_NO_WRAP_INTEGER_BIT_LENGTH));
     const auto msb_plus_one = uint32_t(msb) + 1;
     const auto hi_mask = ((uint256_t(1) << (256 - uint32_t(msb))) - 1);
     const auto hi = (value >> msb_plus_one) & hi_mask;
@@ -78,11 +81,17 @@ std::array<safe_uint_t<ComposerContext>, 3> safe_uint_t<ComposerContext>::slice(
 
     const auto slice_mask = ((uint256_t(1) << (uint32_t(msb - lsb) + 1)) - 1);
     const auto slice = (value >> lsb) & slice_mask;
+    safe_uint_t lo_wit, slice_wit, hi_wit;
+    if (this->value.is_constant()) {
+        hi_wit = safe_uint_t(hi);
+        lo_wit = safe_uint_t(lo);
+        slice_wit = safe_uint_t(slice);
 
-    const safe_uint_t hi_wit(witness_t(ctx, hi), rollup::MAX_NO_WRAP_INTEGER_BIT_LENGTH - uint32_t(msb), "hi_wit");
-    const safe_uint_t lo_wit(witness_t(ctx, lo), lsb, "lo_wit");
-    const safe_uint_t slice_wit(witness_t(ctx, slice), msb_plus_one - lsb, "slice_wit");
-
+    } else {
+        hi_wit = safe_uint_t(witness_t(ctx, hi), rollup::MAX_NO_WRAP_INTEGER_BIT_LENGTH - uint32_t(msb), "hi_wit");
+        lo_wit = safe_uint_t(witness_t(ctx, lo), lsb, "lo_wit");
+        slice_wit = safe_uint_t(witness_t(ctx, slice), msb_plus_one - lsb, "slice_wit");
+    }
     assert_equal(((hi_wit * safe_uint_t(uint256_t(1) << msb_plus_one)) + lo_wit +
                   (slice_wit * safe_uint_t(uint256_t(1) << lsb))));
 
