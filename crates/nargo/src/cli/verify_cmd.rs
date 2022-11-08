@@ -35,16 +35,7 @@ fn process_abi_with_verifier_input(
 ) -> Result<Vec<FieldElement>, CliError> {
     // Filter out any private inputs from the ABI.
     let public_abi = abi.public_abi();
-
-    // Check that enough public params were supplied.
     let num_pub_params = public_abi.num_parameters();
-    if num_pub_params != pi_map.len() {
-        return Err(CliError::Generic(format!(
-            "Expected {} number of values, but got {} number of values",
-            num_pub_params,
-            pi_map.len()
-        )));
-    }
 
     let mut public_inputs = Vec::with_capacity(num_pub_params);
 
@@ -56,7 +47,7 @@ fn process_abi_with_verifier_input(
             })
             .clone();
 
-        if !value.matches_abi(param_type) {
+        if !value.matches_abi(&param_type) {
             return Err(CliError::Generic(format!("The value provided for {} does not match the type defined in the ABI.\n Please check the provided value.", param_name)));
         }
 
@@ -70,6 +61,16 @@ fn process_abi_with_verifier_input(
                 )))
             }
         }
+    }
+
+    // Check that no extra witness values have been provided.
+    // Any missing values should be caught by the above for-loop so this only catches extra values.
+    if num_pub_params != pi_map.len() {
+        return Err(CliError::Generic(format!(
+            "Expected {} number of values, but got {} number of values",
+            num_pub_params,
+            pi_map.len()
+        )));
     }
 
     Ok(public_inputs)

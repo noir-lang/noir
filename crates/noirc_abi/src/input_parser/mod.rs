@@ -20,13 +20,13 @@ pub enum InputValue {
 impl InputValue {
     /// Checks whether the ABI type matches the InputValue type
     /// and also their arity
-    pub fn matches_abi(&self, abi_param: AbiType) -> bool {
+    pub fn matches_abi(&self, abi_param: &AbiType) -> bool {
         match (self, abi_param) {
             (InputValue::Field(_), AbiType::Field(_)) => true,
             (InputValue::Field(_), AbiType::Array { .. }) => false,
             (InputValue::Field(_), AbiType::Integer { .. }) => true,
             (InputValue::Vec(_), AbiType::Field(_)) => false,
-            (InputValue::Vec(x), AbiType::Array { length, .. }) => x.len() == length as usize,
+            (InputValue::Vec(x), AbiType::Array { length, .. }) => x.len() == *length as usize,
             (InputValue::Vec(_), AbiType::Integer { .. }) => false,
             (InputValue::Undefined, _) => true,
         }

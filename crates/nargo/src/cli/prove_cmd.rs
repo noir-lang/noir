@@ -43,16 +43,7 @@ fn process_abi_with_input(
     abi: Abi,
     witness_map: &BTreeMap<String, InputValue>,
 ) -> Result<(BTreeMap<Witness, FieldElement>, Option<Witness>), CliError> {
-    // Check that enough witness values were supplied
     let num_params = abi.num_parameters();
-    if num_params != witness_map.len() {
-        return Err(CliError::Generic(format!(
-            "Expected {} number of values, but got {} number of values",
-            num_params,
-            witness_map.len()
-        )));
-    }
-
     let mut solved_witness = BTreeMap::new();
 
     let mut index = 0;
@@ -75,7 +66,7 @@ fn process_abi_with_input(
             })
             .clone();
 
-        if !value.matches_abi(param_type) {
+        if !value.matches_abi(&param_type) {
             return Err(CliError::Generic(format!("The value provided for {} does not match the type defined in the ABI.\n Please check the provided value.", param_name)));
         }
 
@@ -113,6 +104,16 @@ fn process_abi_with_input(
                 //XXX We do not support (yet) array of arrays
             }
         }
+    }
+
+    // Check that no extra witness values have been provided.
+    // Any missing values should be caught by the above for-loop so this only catches extra values.
+    if num_params != witness_map.len() {
+        return Err(CliError::Generic(format!(
+            "Expected {} number of values, but got {} number of values",
+            num_params,
+            witness_map.len()
+        )));
     }
     Ok((solved_witness, return_witness))
 }
