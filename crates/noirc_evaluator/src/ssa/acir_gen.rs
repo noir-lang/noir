@@ -488,7 +488,6 @@ impl Acir {
 
         for a in args {
             let l_obj = cfg.try_get_node(*a).unwrap();
-            println!("l_obj: {:?}", l_obj);
             match l_obj {
                 node::NodeObj::Obj(v) => {
                     match l_obj.get_type() {
@@ -564,13 +563,10 @@ impl Acir {
                 }
             }
             _ => {
-                println!("OPCODE: {:?}, args before prepare_inputs: {:?}\n", opcode.name(), args);
-
                 let inputs = self.prepare_inputs(args, ctx, evaluator);
                 let output_count = opcode.definition().output_size.0 as u32;
                 outputs = self.prepare_outputs(instruction_id, output_count, ctx, evaluator);
 
-                println!("inputs before GadgetCall push to evaluator: {:?}\n", inputs);
                 let call_gate = GadgetCall {
                     name: opcode,
                     inputs,                   //witness + bit size
