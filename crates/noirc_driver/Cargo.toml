@@ -12,7 +12,6 @@ noirc_frontend = { path = "../noirc_frontend" }
 noirc_evaluator = { path = "../noirc_evaluator" }
 noirc_abi = { path = "../noirc_abi" }
 acvm = { git = "https://github.com/noir-lang/noir", rev = "cc5ee63072e09779bebd7e7dd054ae16be307d7f" }
-std_lib = { path = "../std_lib" }
 fm = { path = "../fm" }
 serde = { version = "1.0.136", features = ["derive"] }
 
