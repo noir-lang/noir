@@ -471,3 +471,29 @@ TEST(fq, pow_regression_check)
     EXPECT_EQ(zero.pow(uint256_t(0)), one);
 }
 //   438268ca91d42ad f1e7025a7b654e1f f8d9d72e0438b995 8c422ec208ac8a6e
+
+TEST(fq, sqr_regression)
+{
+    uint256_t values[] = { uint256_t(0xbdf876654b0ade1b, 0x2c3a66c64569f338, 0x2cd8bf2ec1fe55a3, 0x11c0ea9ee5693ede),
+                           uint256_t(0x551b14ec34f2151c, 0x62e472ed83a2891e, 0xf208d5e5c9b5b3fb, 0x14315aeaf6027d8c),
+                           uint256_t(0xad39959ae8013750, 0x7f1d2c709ab84cbb, 0x408028b80a60c2f1, 0x1dcd116fc26f856e),
+                           uint256_t(0x95e967d30dcce9ce, 0x56139274241d2ea1, 0x85b19c1c616ec456, 0x1f1780cf9bf045b4),
+                           uint256_t(0xbe841c861d8eb80e, 0xc5980d67a21386c0, 0x5fd1f1afecddeeb5, 0x24dbb8c1baea0250),
+                           uint256_t(0x3ae4b3a27f05d6e3, 0xc5f6785b12df8d29, 0xc3a6c5f095103046, 0xd6b94cb2cc1fd4b),
+                           uint256_t(0xc003c71932a6ced5, 0x6302a413f68e26e9, 0x2ed4a9b64d69fad, 0xfe61ffab1ae227d) };
+    for (auto& value : values) {
+        fq element(value);
+        EXPECT_EQ(element.sqr(), element * element);
+    }
+}
+
+TEST(fq, neg_and_self_neg_0_cmp_regression)
+{
+    fq a = 0;
+    fq a_neg = -a;
+    EXPECT_EQ((a == a_neg), true);
+    a = 0;
+    a_neg = 0;
+    a_neg.self_neg();
+    EXPECT_EQ((a == a_neg), true);
+}

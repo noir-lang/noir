@@ -422,6 +422,26 @@ TEST(secp256r1, msb_bug_regression_check)
     EXPECT_EQ(result, expected_result);
 }
 
+/**
+ * @brief We had an issue where we added field elements and subtracted a prime depending on the 2²⁵⁶ overflow. This
+ * was incorrect. Sometimes we need to subtract the prime twice. The same is true for subtractions
+ *
+ */
+TEST(secp256r1, addition_subtraction_regression_check)
+{
+    secp256r1::fq fq1(uint256_t{ 0xfffffe0000000200, 0x200fffff9ff, 0xfffffbfffffffe00, 0xfffffbff00000400 });
+    secp256r1::fq fq2(uint256_t{ 0xfffffe0000000200, 0x200fffff9ff, 0xfffffbfffffffe00, 0xfffffbff00000400 });
+    secp256r1::fq fq3(0);
+    secp256r1::fq fq4(0);
+    fq1 += secp256r1::fq(secp256r1::fq::modulus_minus_two);
+    fq1 += secp256r1::fq(2);
+
+    fq3 -= fq1;
+    fq4 -= fq2;
+    EXPECT_EQ(fq1 + fq1, fq2 + fq2);
+    EXPECT_EQ(fq3, fq4);
+}
+
 /* TODO (#LARGE_MODULUS_AFFINE_POINT_COMPRESSION): Rewrite this test after designing point compression for p>2^255
 TEST(secp256r1, derive_generators)
 {
