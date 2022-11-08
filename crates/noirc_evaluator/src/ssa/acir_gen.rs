@@ -531,13 +531,26 @@ impl Acir {
                     println!("EVAL instruction: {:?}", instr_res);
                     match &i.operation {
                         Operation::Cond { condition, val_true, val_false } => {
+                            let cond_obj = cfg.try_get_node(condition.clone()).unwrap();
+                            println!("cond_obj: {:?}", cond_obj);
+                            let _gadget_input = self.prepare_inputs(&[condition.clone()], cfg, evaluator);
+
+                            let node_eval = node::NodeEval::from_id(cfg, condition.clone());
+                            println!("cond node_eval: {:?}", node_eval);
+
+                            let contains_val_true_key = self.arith_cache.contains_key(&val_true);
+                            println!("contains_val_true_key: {:?}", contains_val_true_key);
+
                             let val_true_obj = cfg.try_get_node(val_true.clone()).unwrap();
-                            println!("val_true obj: {:?}", val_true_obj);
+                            println!("val_true_obj: {:?}", val_true_obj);
 
                             println!("condition is NOT zero");
                             let gadget_input = self.prepare_inputs(&[val_true.clone()], cfg, evaluator);
-                            println!("gadget_input: {:?}", gadget_input);
+                            println!("val_true gadget_input: {:?}", gadget_input);
                             inputs.push(gadget_input[0].clone());
+
+                            let val_false_obj = cfg.try_get_node(val_false.clone()).unwrap();
+                            println!("val_false_obj: {:?}", val_false_obj);
 
                             let gadget_input = self.prepare_inputs(&[val_false.clone()], cfg, evaluator);
                             println!("val_false gadget_input: {:?}", gadget_input);
@@ -545,8 +558,24 @@ impl Acir {
 
                             let contains_val_true_key = self.arith_cache.contains_key(&val_true);
                             println!("contains_val_true_key: {:?}", contains_val_true_key);
-                            let node_eval = node::NodeEval::from_id(cfg, condition.clone());
-                            println!("node_eval: {:?}", node_eval);
+                        }
+                        Operation::Binary(binary) => {
+                            let eval_bin = binary.evaluate(cfg, i.id, i.res_type, |ctx, id| Ok(node::NodeEval::from_id(ctx, id)));
+                            println!("eval_bin: {:?}", eval_bin);
+                            let lhs_obj = cfg.try_get_node(binary.lhs).unwrap();
+                            println!("lhs_obj: {:?}", lhs_obj);
+                            println!("lhs_obj.get_id(): {:?}", self.arith_cache[&lhs_obj.get_id()]);
+                            
+                            let rhs_obj = cfg.try_get_node(binary.rhs).unwrap();
+                            println!("rhs_obj: {:?}", rhs_obj);
+                            let node_eval = node::NodeEval::from_id(cfg, binary.lhs);
+                            println!("binary lhs node_eval: {:?}", node_eval);
+
+                            let contains_binary_lhs_key = self.arith_cache.contains_key(&binary.lhs);
+                            println!("contains_binary_lhs_key: {:?}", contains_binary_lhs_key);
+
+                            let evaluated_binary = i.evaluate(cfg);
+                            println!("evaluated_binary: {:?}", evaluated_binary);
                         }
                         _ => {
                             if self.arith_cache.contains_key(a) {
@@ -560,6 +589,28 @@ impl Acir {
                                 unreachable!("invalid input")
                             }
                         }
+                    }
+                }
+                node::NodeObj::Const(c) => {
+                    let id = c.id;
+                    let const_obj = cfg.try_get_node(id).unwrap();
+                    println!("const_obj: {:?}", const_obj);
+                    println!("self.arith_cache.contains_key(a): {:?}", self.arith_cache.contains_key(a));
+                    println!("self.arith_cache.contains_key(&id): {:?}", self.arith_cache.contains_key(&id));
+                    if self.arith_cache.contains_key(a) {
+                        if let Some(w) = self.arith_cache[a].clone().witness {
+                            inputs.push(GadgetInput { witness: w, num_bits: c.value_type.bits() });
+                        } else {
+                            println!("size in bits: {:?}", c.value_type.bits());
+                            let expr = Expression::from(&c.get_value_field());
+                            let (_, w) = evaluator.create_intermediate_variable(
+                                expr,
+                            );
+                            inputs.push(GadgetInput { witness: w, num_bits: c.value_type.bits() });
+                        }
+                    } else {
+                        dbg!(&l_obj);
+                        unreachable!("invalid input")
                     }
                 }
                 _ => {
