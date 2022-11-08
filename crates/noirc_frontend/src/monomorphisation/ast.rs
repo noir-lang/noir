@@ -50,6 +50,7 @@ pub struct For {
     pub start_range: Box<Expression>,
     pub end_range: Box<Expression>,
     pub block: Box<Expression>,
+    pub element_type: Type,
 }
 
 #[derive(Debug, Clone)]
@@ -58,6 +59,7 @@ pub enum Literal {
     Integer(FieldElement, Type),
     Bool(bool),
     Str(String),
+    Unit,
 }
 
 #[derive(Debug, Clone)]
@@ -90,7 +92,6 @@ pub struct Cast {
 
 #[derive(Debug, Clone)]
 pub struct ArrayLiteral {
-    pub length: u128,
     pub contents: Vec<Expression>,
     pub element_type: Type,
 }
@@ -195,6 +196,10 @@ impl Program {
 
     pub fn main(&mut self) -> &mut Function {
         &mut self.functions[0]
+    }
+
+    pub fn main_id(&mut self) -> FuncId {
+        FuncId(0)
     }
 
     pub fn take_main_body(&mut self) -> Expression {

@@ -198,7 +198,7 @@ impl Monomorphiser {
             HirExpression::Literal(HirLiteral::Array(array)) => {
                 let element_type = Self::convert_type(&self.interner.id_type(array.contents[0]));
                 let contents = vecmap(array.contents, |id| self.expr_infer(id));
-                Literal(Array(ast::ArrayLiteral { length: array.length, contents, element_type }))
+                Literal(Array(ast::ArrayLiteral { contents, element_type }))
             }
             HirExpression::Block(block) => self.block(block.0),
 
@@ -246,6 +246,7 @@ impl Monomorphiser {
                     index_type: Self::convert_type(&self.interner.id_type(for_expr.start_range)),
                     start_range: Box::new(start),
                     end_range: Box::new(end),
+                    element_type: unwrap_array_element_type(&self.interner.id_type(expr)),
                     block,
                 })
             }
@@ -572,7 +573,7 @@ fn unwrap_tuple_type(typ: &HirType) -> Vec<HirType> {
             TypeBinding::Bound(binding) => unwrap_tuple_type(binding),
             TypeBinding::Unbound(_) => unreachable!(),
         },
-        other => unreachable!("unwrap_tuple_type: expected tuple found {}", other),
+        other => unreachable!("unwrap_tuple_type: expected tuple, found {}", other),
     }
 }
 
@@ -583,7 +584,18 @@ fn unwrap_struct_type(typ: &HirType) -> BTreeMap<String, HirType> {
             TypeBinding::Bound(binding) => unwrap_struct_type(binding),
             TypeBinding::Unbound(_) => unreachable!(),
         },
-        other => unreachable!("unwrap_struct_type: expected struct found {}", other),
+        other => unreachable!("unwrap_struct_type: expected struct, found {}", other),
+    }
+}
+
+fn unwrap_array_element_type(typ: &HirType) -> ast::Type {
+    match typ {
+        HirType::Array(elem, _len) => Monomorphiser::convert_type(elem),
+        HirType::TypeVariable(binding) => match &*binding.borrow() {
+            TypeBinding::Bound(binding) => unwrap_array_element_type(binding),
+            TypeBinding::Unbound(_) => unreachable!(),
+        },
+        other => unreachable!("unwrap_array_element_type: expected array, found {}", other),
     }
 }
 

@@ -4,6 +4,7 @@ pub mod lexer;
 pub mod monomorphisation;
 pub mod node_interner;
 pub mod parser;
+pub mod partialevaluator;
 pub mod util;
 
 pub mod hir;

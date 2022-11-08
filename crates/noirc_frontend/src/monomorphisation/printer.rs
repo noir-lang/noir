@@ -98,6 +98,7 @@ impl AstPrinter {
             super::ast::Literal::Integer(x, _) => write!(f, "{}", x),
             super::ast::Literal::Bool(x) => write!(f, "{}", x),
             super::ast::Literal::Str(s) => write!(f, "{}", s),
+            super::ast::Literal::Unit => write!(f, "()"),
         }
     }
 
