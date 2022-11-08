@@ -36,7 +36,7 @@ impl Display for CliError {
                     format!("Error: {} is not a valid path", path.display())
                 }
                 CliError::ProofNotValid(hex_error) => {
-                    format!("Error: proof is invalid ({})", hex_error)
+                    format!("Error: could not parse proof data ({})", hex_error)
                 }
             }
         )
