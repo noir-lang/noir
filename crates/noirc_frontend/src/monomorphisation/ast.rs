@@ -90,7 +90,6 @@ pub struct Cast {
 
 #[derive(Debug, Clone)]
 pub struct ArrayLiteral {
-    pub length: u128,
     pub contents: Vec<Expression>,
     pub element_type: Type,
 }

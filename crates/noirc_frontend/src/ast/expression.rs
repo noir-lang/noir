@@ -46,9 +46,13 @@ impl ExpressionKind {
     }
 
     pub fn array(contents: Vec<Expression>) -> ExpressionKind {
-        ExpressionKind::Literal(Literal::Array(ArrayLiteral {
-            length: contents.len() as u128,
-            contents,
+        ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(contents)))
+    }
+
+    pub fn repeated_array(repeated_element: Expression, length: Expression) -> ExpressionKind {
+        ExpressionKind::Literal(Literal::Array(ArrayLiteral::Repeated {
+            repeated_element: Box::new(repeated_element),
+            length: Box::new(length),
         }))
     }
 
@@ -355,9 +359,9 @@ pub struct FunctionDefinition {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ArrayLiteral {
-    pub length: u128, // XXX: Maybe allow field element, so that the user can define the length using a constant
-    pub contents: Vec<Expression>,
+pub enum ArrayLiteral {
+    Standard(Vec<Expression>),
+    Repeated { repeated_element: Box<Expression>, length: Box<Expression> },
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -444,9 +448,12 @@ impl Display for ExpressionKind {
 impl Display for Literal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Literal::Array(array) => {
-                let contents = vecmap(&array.contents, ToString::to_string);
+            Literal::Array(ArrayLiteral::Standard(elements)) => {
+                let contents = vecmap(elements, ToString::to_string);
                 write!(f, "[{}]", contents.join(", "))
+            }
+            Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
+                write!(f, "[{}; {}]", repeated_element, length)
             }
             Literal::Bool(boolean) => write!(f, "{}", if *boolean { "true" } else { "false" }),
             Literal::Integer(integer) => write!(f, "{}", integer.to_u128()),

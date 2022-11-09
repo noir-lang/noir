@@ -32,24 +32,24 @@ pub(crate) fn type_check_expression(
                 HirLiteral::Array(arr) => {
                     // Type check the contents of the array
                     let elem_types =
-                        vecmap(&arr.contents, |arg| type_check_expression(interner, arg, errors));
+                        vecmap(&arr, |arg| type_check_expression(interner, arg, errors));
 
                     let first_elem_type = elem_types.get(0).cloned().unwrap_or(Type::Error);
 
                     // Specify the type of the Array
                     // Note: This assumes that the array is homogeneous, which will be checked next
                     let arr_type = Type::Array(
-                        Box::new(Type::ArrayLength(arr.contents.len() as u64)),
+                        Box::new(Type::ArrayLength(arr.len() as u64)),
                         Box::new(first_elem_type.clone()),
                     );
 
                     // Check if the array is homogeneous
                     for (index, elem_type) in elem_types.iter().enumerate().skip(1) {
-                        let location = interner.expr_location(&arr.contents[index]);
+                        let location = interner.expr_location(&arr[index]);
 
                         elem_type.unify(&first_elem_type, location.span, errors, || {
                             TypeCheckError::NonHomogeneousArray {
-                                first_span: interner.expr_location(&arr.contents[0]).span,
+                                first_span: interner.expr_location(&arr[0]).span,
                                 first_type: first_elem_type.to_string(),
                                 first_index: index,
                                 second_span: location.span,
