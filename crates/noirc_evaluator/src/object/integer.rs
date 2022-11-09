@@ -316,6 +316,7 @@ impl Integer {
             b: Expression::from(&b.witness),
             q: q_witness,
             r: r_witness,
+            predicate: None,
         }));
 
         // Constraints quotient and remainder

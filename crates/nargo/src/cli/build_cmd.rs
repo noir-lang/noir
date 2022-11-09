@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use acvm::ProofSystemCompiler;
 use crate::{errors::CliError, resolver::Resolver};
 
-use super::{write_to_file, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
+use super::{add_std_lib, write_to_file, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 
 pub(crate) fn run(_args: ArgMatches) -> Result<(), CliError> {
     let package_dir = std::env::current_dir().unwrap();
@@ -15,6 +15,7 @@ pub(crate) fn run(_args: ArgMatches) -> Result<(), CliError> {
 pub fn build_from_path<P: AsRef<Path>>(p: P) -> Result<(), CliError> {
     let backend = crate::backends::ConcreteBackend;
     let mut driver = Resolver::resolve_root_config(p.as_ref(), backend.np_language())?;
+    add_std_lib(&mut driver);
     driver.build();
     // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
     if let Some(x) = driver.compute_abi() {
@@ -41,4 +42,34 @@ pub fn build_from_path<P: AsRef<Path>>(p: P) -> Result<(), CliError> {
         // This means that this is a library. Libraries do not have ABIs.
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    const TEST_DATA_DIR: &str = "tests/build_tests_data";
+
+    #[test]
+    fn pass() {
+        let mut pass_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        pass_dir.push(&format!("{TEST_DATA_DIR}/pass"));
+
+        let paths = std::fs::read_dir(pass_dir).unwrap();
+        for path in paths.flatten() {
+            let path = path.path();
+            assert!(super::build_from_path(path.clone()).is_ok(), "path: {}", path.display());
+        }
+    }
+
+    #[test]
+    #[ignore = "This test fails because the reporter exits the process with 1"]
+    fn fail() {
+        let mut fail_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        fail_dir.push(&format!("{TEST_DATA_DIR}/fail"));
+
+        let paths = std::fs::read_dir(fail_dir).unwrap();
+        for path in paths.flatten() {
+            let path = path.path();
+            assert!(super::build_from_path(path.clone()).is_err(), "path: {}", path.display());
+        }
+    }
 }

@@ -8,7 +8,7 @@ use crate::{
     },
     node_interner::{self, NodeInterner, StmtId},
     util::vecmap,
-    FunctionKind, IsConst, TypeBinding, TypeBindings,
+    Comptime, FunctionKind, TypeBinding, TypeBindings,
 };
 
 use self::ast::{DefinitionId, FuncId, Program};
@@ -251,7 +251,7 @@ impl Monomorphiser {
             }
 
             HirExpression::If(if_expr) => {
-                let cond = self.expr(if_expr.condition, &HirType::Bool(IsConst::No(None)));
+                let cond = self.expr(if_expr.condition, &HirType::Bool(Comptime::No(None)));
                 let then = self.expr(if_expr.consequence, typ);
                 let else_ = if_expr.alternative.map(|alt| Box::new(self.expr(alt, typ)));
                 ast::Expression::If(ast::If {
@@ -275,7 +275,7 @@ impl Monomorphiser {
         match self.interner.statement(&id) {
             HirStatement::Let(let_statement) => self.let_statement(let_statement),
             HirStatement::Constrain(constrain) => {
-                let expr = self.expr(constrain.0, &HirType::Bool(IsConst::No(None)));
+                let expr = self.expr(constrain.0, &HirType::Bool(Comptime::No(None)));
                 let location = self.interner.expr_location(&constrain.0);
                 ast::Expression::Constrain(Box::new(expr), location)
             }
@@ -439,7 +439,7 @@ impl Monomorphiser {
                 // after type checking, but care should be taken that it doesn't change which
                 // impls are chosen.
                 *binding.borrow_mut() =
-                    TypeBinding::Bound(HirType::FieldElement(IsConst::No(None)));
+                    TypeBinding::Bound(HirType::FieldElement(Comptime::No(None)));
                 ast::Type::Field
             }
 

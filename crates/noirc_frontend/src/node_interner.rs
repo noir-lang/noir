@@ -165,7 +165,7 @@ pub struct NodeInterner {
     /// checking.
     field_indices: HashMap<ExprId, usize>,
 
-    global_constants: HashMap<StmtId, GlobalConstInfo>, // NOTE: currently only used for checking repeat global consts and restricting their scope to a module
+    globals: HashMap<StmtId, GlobalInfo>, // NOTE: currently only used for checking repeat globals and restricting their scope to a module
 
     next_type_variable_id: usize,
 
@@ -182,7 +182,7 @@ pub struct DefinitionInfo {
 }
 
 #[derive(Debug, Clone)]
-pub struct GlobalConstInfo {
+pub struct GlobalInfo {
     pub ident: Ident,
     pub local_id: LocalModuleId,
 }
@@ -200,7 +200,7 @@ impl Default for NodeInterner {
             function_types: HashMap::new(),
             field_indices: HashMap::new(),
             next_type_variable_id: 0,
-            global_constants: HashMap::new(),
+            globals: HashMap::new(),
             language: Language::R1CS,
         };
 
@@ -289,23 +289,23 @@ impl NodeInterner {
         self.id_to_type.insert(definition_id.into(), typ);
     }
 
-    pub fn push_global_const(&mut self, stmt_id: StmtId, ident: Ident, local_id: LocalModuleId) {
-        self.global_constants.insert(stmt_id, GlobalConstInfo { ident, local_id });
+    pub fn push_global(&mut self, stmt_id: StmtId, ident: Ident, local_id: LocalModuleId) {
+        self.globals.insert(stmt_id, GlobalInfo { ident, local_id });
     }
 
-    /// Intern an empty global const stmt. Used for collecting global consts
-    pub fn push_empty_global_const(&mut self) -> StmtId {
+    /// Intern an empty global stmt. Used for collecting globals
+    pub fn push_empty_global(&mut self) -> StmtId {
         self.push_stmt(HirStatement::Error)
     }
 
-    pub fn update_global_const(&mut self, stmt_id: StmtId, hir_stmt: HirStatement) {
+    pub fn update_global(&mut self, stmt_id: StmtId, hir_stmt: HirStatement) {
         let def =
             self.nodes.get_mut(stmt_id.0).expect("ice: all function ids should have definitions");
 
         let stmt = match def {
             Node::Statement(stmt) => stmt,
             _ => {
-                panic!("ice: all global const ids should correspond to a statement in the interner")
+                panic!("ice: all global ids should correspond to a statement in the interner")
             }
         };
         *stmt = hir_stmt;
@@ -461,16 +461,12 @@ impl NodeInterner {
         self.structs[&id].clone()
     }
 
-    pub fn get_global_const(&self, stmt_id: &StmtId) -> Option<GlobalConstInfo> {
-        self.global_constants.get(stmt_id).cloned()
+    pub fn get_global(&self, stmt_id: &StmtId) -> Option<GlobalInfo> {
+        self.globals.get(stmt_id).cloned()
     }
 
-    pub fn get_all_global_consts(&self) -> HashMap<StmtId, GlobalConstInfo> {
-        self.global_constants.clone()
-    }
-
-    pub fn take_global_consts(&mut self) -> HashMap<StmtId, GlobalConstInfo> {
-        std::mem::take(&mut self.global_constants)
+    pub fn get_all_globals(&self) -> HashMap<StmtId, GlobalInfo> {
+        self.globals.clone()
     }
 
     /// Returns the type of an item stored in the Interner or Error if it was not found.

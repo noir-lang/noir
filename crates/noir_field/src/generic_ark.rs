@@ -148,6 +148,10 @@ impl<F: PrimeField> FieldElement<F> {
     pub fn max_num_bits() -> u32 {
         F::Params::MODULUS_BITS
     }
+
+    pub fn modulus() -> BigUint {
+        F::Params::MODULUS.into()
+    }
     /// Returns None, if the string is not a canonical
     /// representation of a field element; less than the order
     /// or if the hex string is invalid.

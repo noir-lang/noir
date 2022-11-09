@@ -7,7 +7,7 @@ use crate::{
     },
     node_interner::{ExprId, FuncId, NodeInterner},
     util::vecmap,
-    IsConst, Shared, TypeBinding,
+    Comptime, Shared, TypeBinding,
 };
 
 use super::errors::TypeCheckError;
@@ -62,11 +62,11 @@ pub(crate) fn type_check_expression(
 
                     arr_type
                 }
-                HirLiteral::Bool(_) => Type::Bool(IsConst::new(interner)),
+                HirLiteral::Bool(_) => Type::Bool(Comptime::new(interner)),
                 HirLiteral::Integer(_) => {
                     let id = interner.next_type_variable_id();
                     Type::PolymorphicInteger(
-                        IsConst::new(interner),
+                        Comptime::new(interner),
                         Shared::new(TypeBinding::Unbound(id)),
                     )
                 }
@@ -167,23 +167,23 @@ pub(crate) fn type_check_expression(
             let end_range_type = type_check_expression(interner, &for_expr.end_range, errors);
 
             let span = interner.expr_span(&for_expr.start_range);
-            start_range_type.unify(&Type::constant(Some(span)), span, errors, || {
+            start_range_type.unify(&Type::comptime(Some(span)), span, errors, || {
                 TypeCheckError::TypeCannotBeUsed {
                     typ: start_range_type.clone(),
                     place: "for loop",
                     span,
                 }
-                .add_context("The range of a loop must be const (known at compile-time)")
+                .add_context("The range of a loop must be known at compile-time")
             });
 
             let span = interner.expr_span(&for_expr.end_range);
-            end_range_type.unify(&Type::constant(Some(span)), span, errors, || {
+            end_range_type.unify(&Type::comptime(Some(span)), span, errors, || {
                 TypeCheckError::TypeCannotBeUsed {
                     typ: end_range_type.clone(),
                     place: "for loop",
                     span,
                 }
-                .add_context("The range of a loop must be const (known at compile-time)")
+                .add_context("The range of a loop must be known at compile-time")
             });
 
             interner.push_definition_type(for_expr.identifier.id, start_range_type);
@@ -258,16 +258,16 @@ fn type_check_index_expression(
     let index_type = type_check_expression(interner, &index_expr.index, errors);
     let span = interner.expr_span(&index_expr.index);
 
-    index_type.unify(&Type::constant(Some(span)), span, errors, || {
-        // Specialize the error in the case the user has a Field, just not a const one.
+    index_type.unify(&Type::comptime(Some(span)), span, errors, || {
+        // Specialize the error in the case the user has a Field, just not a comptime one.
         if matches!(index_type, Type::FieldElement(..)) {
             TypeCheckError::Unstructured {
-                msg: format!("Array index must be const (known at compile-time), but here a non-const {} was used instead", index_type),
+                msg: format!("Array index must be known at compile-time, but here a non-comptime {} was used instead", index_type),
                 span,
             }
         } else {
             TypeCheckError::TypeMismatch {
-                expected_typ: "const Field".to_owned(),
+                expected_typ: "comptime Field".to_owned(),
                 expr_typ: index_type.to_string(),
                 expr_span: span,
             }
@@ -293,14 +293,14 @@ fn type_check_index_expression(
 }
 
 fn check_cast(from: Type, to: Type, span: Span, errors: &mut Vec<TypeCheckError>) -> Type {
-    let is_const = match from {
-        Type::Integer(is_const, ..) => is_const,
-        Type::FieldElement(is_const) => is_const,
-        Type::PolymorphicInteger(is_const, binding) => match &*binding.borrow() {
+    let is_comptime = match from {
+        Type::Integer(is_comptime, ..) => is_comptime,
+        Type::FieldElement(is_comptime) => is_comptime,
+        Type::PolymorphicInteger(is_comptime, binding) => match &*binding.borrow() {
             TypeBinding::Bound(from) => return check_cast(from.clone(), to, span, errors),
-            TypeBinding::Unbound(_) => is_const,
+            TypeBinding::Unbound(_) => is_comptime,
         },
-        Type::Bool(is_const) => is_const,
+        Type::Bool(is_comptime) => is_comptime,
         Type::Error => return Type::Error,
         from => {
             let msg = format!(
@@ -312,29 +312,31 @@ fn check_cast(from: Type, to: Type, span: Span, errors: &mut Vec<TypeCheckError>
         }
     };
 
+    let error_message =
+        "Cannot cast to a comptime type, argument to cast is not known at compile-time";
     match to {
-        Type::Integer(dest_is_const, sign, bits) => {
-            if dest_is_const.is_const() && is_const.unify(&dest_is_const, span).is_err() {
-                let msg = "Cannot cast to a const type, argument to cast is non-const (not known at compile-time)".into();
+        Type::Integer(dest_comptime, sign, bits) => {
+            if dest_comptime.is_comptime() && is_comptime.unify(&dest_comptime, span).is_err() {
+                let msg = error_message.into();
                 errors.push(TypeCheckError::Unstructured { msg, span });
             }
 
-            Type::Integer(is_const, sign, bits)
+            Type::Integer(is_comptime, sign, bits)
         }
-        Type::FieldElement(dest_is_const) => {
-            if dest_is_const.is_const() && is_const.unify(&dest_is_const, span).is_err() {
-                let msg = "Cannot cast to a const type, argument to cast is non-const (not known at compile-time)".into();
+        Type::FieldElement(dest_comptime) => {
+            if dest_comptime.is_comptime() && is_comptime.unify(&dest_comptime, span).is_err() {
+                let msg = error_message.into();
                 errors.push(TypeCheckError::Unstructured { msg, span });
             }
 
-            Type::FieldElement(is_const)
+            Type::FieldElement(is_comptime)
         }
-        Type::Bool(dest_is_const) => {
-            if dest_is_const.is_const() && is_const.unify(&dest_is_const, span).is_err() {
-                let msg = "Cannot cast to a const type, argument to cast is non-const (not known at compile-time)".into();
+        Type::Bool(dest_comptime) => {
+            if dest_comptime.is_comptime() && is_comptime.unify(&dest_comptime, span).is_err() {
+                let msg = error_message.into();
                 errors.push(TypeCheckError::Unstructured { msg, span });
             }
-            Type::Bool(dest_is_const)
+            Type::Bool(dest_comptime)
         }
         Type::Error => Type::Error,
         _ => {
@@ -478,7 +480,7 @@ pub fn prefix_operand_type_rules(op: &crate::UnaryOp, rhs_type: &Type) -> Result
 }
 
 // Given a binary operator and another type. This method will produce the output type
-// XXX: Review these rules. In particular, the interaction between integers, constants and private/public variables
+// XXX: Review these rules. In particular, the interaction between integers, comptime and private/public variables
 pub fn infix_operand_type_rules(
     lhs_type: &Type,
     op: &HirBinaryOp,
@@ -491,25 +493,25 @@ pub fn infix_operand_type_rules(
 
     use Type::*;
     match (lhs_type, rhs_type)  {
-        (Integer(is_const_x, sign_x, bit_width_x), Integer(is_const_y, sign_y, bit_width_y)) => {
+        (Integer(comptime_x, sign_x, bit_width_x), Integer(comptime_y, sign_y, bit_width_y)) => {
             if sign_x != sign_y {
                 return Err(format!("Integers must have the same signedness LHS is {:?}, RHS is {:?} ", sign_x, sign_y))
             }
             if bit_width_x != bit_width_y {
                 return Err(format!("Integers must have the same bit width LHS is {}, RHS is {} ", bit_width_x, bit_width_y))
             }
-            let is_const = is_const_x.and(is_const_y, op.location.span);
-            Ok(Integer(is_const, *sign_x, *bit_width_x))
+            let comptime = comptime_x.and(comptime_y, op.location.span);
+            Ok(Integer(comptime, *sign_x, *bit_width_x))
         }
         (Integer(..), FieldElement(..)) | (FieldElement(..), Integer(..)) => {
             Err("Cannot use an integer and a Field in a binary operation, try converting the Field into an integer".to_string())
         }
-        (PolymorphicInteger(is_const, int), other)
-        | (other, PolymorphicInteger(is_const, int)) => {
+        (PolymorphicInteger(comptime, int), other)
+        | (other, PolymorphicInteger(comptime, int)) => {
             if let TypeBinding::Bound(binding) = &*int.borrow() {
                 return infix_operand_type_rules(binding, op, other, errors);
             }
-            if other.try_bind_to_polymorphic_int(int, is_const, true, op.location.span).is_ok() || other == &Type::Error {
+            if other.try_bind_to_polymorphic_int(int, comptime, true, op.location.span).is_ok() || other == &Type::Error {
                 Ok(other.clone())
             } else {
                 Err(format!("Types in a binary operation should match, but found {} and {}", lhs_type, rhs_type))
@@ -528,12 +530,12 @@ pub fn infix_operand_type_rules(
         (Unit, _) | (_,Unit) => Ok(Unit),
 
         // The result of two Fields is always a witness
-        (FieldElement(is_const_x), FieldElement(is_const_y)) => {
-            let is_const = is_const_x.and(is_const_y, op.location.span);
-            Ok(FieldElement(is_const))
+        (FieldElement(comptime_x), FieldElement(comptime_y)) => {
+            let comptime = comptime_x.and(comptime_y, op.location.span);
+            Ok(FieldElement(comptime))
         }
 
-        (Bool(is_const_x), Bool(is_const_y)) => Ok(Bool(is_const_x.and(is_const_y, op.location.span))),
+        (Bool(comptime_x), Bool(comptime_y)) => Ok(Bool(comptime_x.and(comptime_y, op.location.span))),
 
         (lhs, rhs) => Err(format!("Unsupported types for binary operation: {} and {}", lhs, rhs)),
     }
@@ -549,9 +551,9 @@ fn check_if_expr(
     let then_type = type_check_expression(interner, &if_expr.consequence, errors);
 
     let expr_span = interner.expr_span(&if_expr.condition);
-    cond_type.unify(&Type::Bool(IsConst::new(interner)), expr_span, errors, || {
+    cond_type.unify(&Type::Bool(Comptime::new(interner)), expr_span, errors, || {
         TypeCheckError::TypeMismatch {
-            expected_typ: Type::Bool(IsConst::No(None)).to_string(),
+            expected_typ: Type::Bool(Comptime::No(None)).to_string(),
             expr_typ: cond_type.to_string(),
             expr_span,
         }
@@ -665,26 +667,26 @@ pub fn comparator_operand_type_rules(
     use crate::BinaryOpKind::{Equal, NotEqual};
     use Type::*;
     match (lhs_type, rhs_type)  {
-        (Integer(is_const_x, sign_x, bit_width_x), Integer(is_const_y, sign_y, bit_width_y)) => {
+        (Integer(comptime_x, sign_x, bit_width_x), Integer(comptime_y, sign_y, bit_width_y)) => {
             if sign_x != sign_y {
                 return Err(format!("Integers must have the same signedness LHS is {:?}, RHS is {:?} ", sign_x, sign_y))
             }
             if bit_width_x != bit_width_y {
                 return Err(format!("Integers must have the same bit width LHS is {}, RHS is {} ", bit_width_x, bit_width_y))
             }
-            let is_const = is_const_x.and(is_const_y, op.location.span);
-            Ok(Bool(is_const))
+            let comptime = comptime_x.and(comptime_y, op.location.span);
+            Ok(Bool(comptime))
         }
         (Integer(..), FieldElement(..)) | ( FieldElement(..), Integer(..) ) => {
             Err("Cannot use an integer and a Field in a binary operation, try converting the Field into an integer first".to_string())
         }
-        (PolymorphicInteger(is_const, int), other)
-        | (other, PolymorphicInteger(is_const, int)) => {
+        (PolymorphicInteger(comptime, int), other)
+        | (other, PolymorphicInteger(comptime, int)) => {
             if let TypeBinding::Bound(binding) = &*int.borrow() {
                 return comparator_operand_type_rules(other, binding, op, errors);
             }
-            if other.try_bind_to_polymorphic_int(int, is_const, true, op.location.span).is_ok() || other == &Type::Error {
-                Ok(Bool(is_const.clone()))
+            if other.try_bind_to_polymorphic_int(int, comptime, true, op.location.span).is_ok() || other == &Type::Error {
+                Ok(Bool(comptime.clone()))
             } else {
                 Err(format!("Types in a binary operation should match, but found {} and {}", lhs_type, rhs_type))
             }
@@ -692,19 +694,19 @@ pub fn comparator_operand_type_rules(
         (Integer(..), typ) | (typ,Integer(..)) => {
             Err(format!("Integer cannot be used with type {}", typ))
         }
-        (FieldElement(is_const_x, ..), FieldElement(is_const_y, ..)) => {
-            let is_const = is_const_x.and(is_const_y, op.location.span);
-            Ok(Bool(is_const))
+        (FieldElement(comptime_x, ..), FieldElement(comptime_y, ..)) => {
+            let comptime = comptime_x.and(comptime_y, op.location.span);
+            Ok(Bool(comptime))
         }
 
         // <= and friends are technically valid for booleans, just not very useful
-        (Bool(is_const_x), Bool(is_const_y)) => {
-            let is_const = is_const_x.and(is_const_y, op.location.span);
-            Ok(Bool(is_const))
+        (Bool(comptime_x), Bool(comptime_y)) => {
+            let comptime = comptime_x.and(comptime_y, op.location.span);
+            Ok(Bool(comptime))
         }
 
         // Avoid reporting errors multiple times
-        (Error, _) | (_,Error) => Ok(Bool(IsConst::Yes(None))),
+        (Error, _) | (_,Error) => Ok(Bool(Comptime::Yes(None))),
 
         // Special-case == and != for arrays
         (Array(x_size, x_type), Array(y_size, y_type)) if matches!(op.kind, Equal | NotEqual) => {
@@ -720,8 +722,8 @@ pub fn comparator_operand_type_rules(
                     x_size, y_size));
             }
 
-            // We could check if all elements of all arrays are const but I am lazy
-            Ok(Bool(IsConst::No(Some(op.location.span))))
+            // We could check if all elements of all arrays are comptime but I am lazy
+            Ok(Bool(Comptime::No(Some(op.location.span))))
         }
         (lhs, rhs) => Err(format!("Unsupported types for comparison: {} and {}", lhs, rhs)),
     }

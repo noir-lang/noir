@@ -9,7 +9,7 @@ use std::path::Path;
 
 use crate::{errors::CliError, resolver::Resolver};
 
-use super::{create_named_dir, write_to_file, BUILD_DIR};
+use super::{add_std_lib, create_named_dir, write_to_file, BUILD_DIR};
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("compile").unwrap();
@@ -62,8 +62,8 @@ pub fn compile_circuit<P: AsRef<Path>>(
     show_ssa: bool,
 ) -> Result<noirc_driver::CompiledProgram, CliError> {
     let backend = crate::backends::ConcreteBackend;
-    let driver = Resolver::resolve_root_config(program_dir.as_ref(), backend.np_language())?;
-    
+    let mut driver = Resolver::resolve_root_config(program_dir.as_ref(), backend.np_language())?;
+    add_std_lib(&mut driver);
     let compiled_program = driver.into_compiled_program(backend.np_language(), show_ssa);
 
     Ok(compiled_program)
