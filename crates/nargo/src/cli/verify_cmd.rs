@@ -94,9 +94,8 @@ pub fn verify_with_path<P: AsRef<Path>>(
     let num_pub_params = public_abi.num_parameters();
     if num_pub_params != 0 {
         let curr_dir = program_dir;
-        public_inputs = noirc_abi::input_parser::Format::Toml
-            .parse(curr_dir, VERIFIER_INPUT_FILE)
-            .map_err(CliError::from)?;
+        public_inputs =
+            noirc_abi::input_parser::Format::Toml.parse(curr_dir, VERIFIER_INPUT_FILE)?
     }
 
     let valid_proof = verify_proof(compiled_program, public_inputs, load_proof(proof_path)?)?;

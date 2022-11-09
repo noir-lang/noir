@@ -143,17 +143,15 @@ pub fn parse_and_solve_witness<P: AsRef<Path>>(
     compiled_program: &noirc_driver::CompiledProgram,
 ) -> Result<BTreeMap<Witness, FieldElement>, CliError> {
     // Parse the initial witness values from Prover.toml
-    let witness_map = noirc_abi::input_parser::Format::Toml
-        .parse(&program_dir, PROVER_INPUT_FILE)
-        .map_err(CliError::from)?;
+    let witness_map =
+        noirc_abi::input_parser::Format::Toml.parse(&program_dir, PROVER_INPUT_FILE)?;
 
     // Solve the remaining witnesses
     let (solved_witness, return_value) = solve_witness(compiled_program, &witness_map)?;
 
     // Write public inputs into Verifier.toml
     let abi = compiled_program.abi.as_ref().unwrap();
-    export_public_inputs(return_value, &solved_witness, &witness_map, abi, &program_dir)
-        .map_err(CliError::from)?;
+    export_public_inputs(return_value, &solved_witness, &witness_map, abi, &program_dir)?;
 
     Ok(solved_witness)
 }
