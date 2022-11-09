@@ -69,14 +69,8 @@ impl Format {
         path: P,
         file_name: &str,
     ) -> Result<BTreeMap<String, InputValue>, InputParserError> {
-        match self {
-            Format::Toml => {
-                let mut dir_path = path.as_ref().to_path_buf();
-                dir_path.push(file_name);
-                dir_path.set_extension(self.ext());
-                toml::parse(dir_path)
-            }
-        }
+        let input_string = self.load_file(path, file_name)?;
+        self.parse_string(&input_string)
     }
 
     pub fn serialise<P: AsRef<Path>>(
@@ -85,14 +79,62 @@ impl Format {
         file_name: &str,
         w_map: &BTreeMap<String, InputValue>,
     ) -> Result<(), InputParserError> {
-        match self {
-            Format::Toml => {
-                let mut dir_path = path.as_ref().to_path_buf();
-                dir_path.push(file_name);
-                dir_path.set_extension(self.ext());
-                toml::serialise(dir_path, w_map)?;
-            }
+        let input_string = self.serialise_to_string(w_map)?;
+        self.write_file(path, file_name, input_string)
+    }
+
+    fn load_file<P: AsRef<Path>>(
+        &self,
+        path: P,
+        file_name: &str,
+    ) -> Result<String, InputParserError> {
+        let file_path = {
+            let mut dir_path = path.as_ref().to_path_buf();
+            dir_path.push(file_name);
+            dir_path.set_extension(self.ext());
+            dir_path
+        };
+
+        if !file_path.exists() {
+            return Err(InputParserError::MissingTomlFile(file_path.to_path_buf()));
         }
+
+        // Get input as a string
+        let input_as_string = std::fs::read_to_string(file_path).unwrap();
+        Ok(input_as_string)
+    }
+
+    fn write_file<P: AsRef<Path>>(
+        &self,
+        path: P,
+        file_name: &str,
+        file_contents: String,
+    ) -> Result<(), InputParserError> {
+        let file_path = {
+            let mut dir_path = path.as_ref().to_path_buf();
+            dir_path.push(file_name);
+            dir_path.set_extension(self.ext());
+            dir_path
+        };
+        std::fs::write(file_path, file_contents).map_err(InputParserError::SaveTomlFile)?;
         Ok(())
+    }
+
+    fn parse_string(
+        &self,
+        input_string: &str,
+    ) -> Result<BTreeMap<String, InputValue>, InputParserError> {
+        match self {
+            Format::Toml => toml::parse_toml(input_string),
+        }
+    }
+
+    fn serialise_to_string(
+        &self,
+        w_map: &BTreeMap<String, InputValue>,
+    ) -> Result<String, InputParserError> {
+        match self {
+            Format::Toml => toml::serialise_to_toml(w_map),
+        }
     }
 }
