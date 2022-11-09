@@ -10,7 +10,6 @@ edition = "2021"
 acvm = { git = "https://github.com/noir-lang/noir" }
 noirc_abi = { path = "../noirc_abi" }
 noirc_errors = { path = "../noirc_errors" }
-std_lib = { path = "../std_lib" }
 fm = { path = "../fm" }
 arena = { path = "../arena" }
 chumsky = { git = "https://github.com/jfecher/chumsky", rev = "ad9d312" }
