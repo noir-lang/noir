@@ -63,7 +63,7 @@ impl HirBinaryOp {
 
 #[derive(Debug, Clone)]
 pub enum HirLiteral {
-    Array(HirArrayLiteral),
+    Array(Vec<ExprId>),
     Bool(bool),
     Integer(FieldElement),
     Str(String),
@@ -101,12 +101,6 @@ pub struct HirIfExpression {
 pub struct HirCastExpression {
     pub lhs: ExprId,
     pub r#type: Type,
-}
-
-#[derive(Debug, Clone)]
-pub struct HirArrayLiteral {
-    pub length: u128,
-    pub contents: Vec<ExprId>,
 }
 
 #[derive(Debug, Clone)]

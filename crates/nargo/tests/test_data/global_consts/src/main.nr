@@ -44,11 +44,14 @@ fn main(a: [Field; M], b: [Field; M], c : pub [Field; foo::MAGIC_NUMBER], d: [Fi
      let add_from_bar_N = mysubmodule::N + foo::bar::from_bar(1);
      constrain 15 == add_from_bar_N;
 
+     // Example showing an array filled with (mysubmodule::N + 2) 0's
+     let sugared = [0; mysubmodule::N + 2];
+     constrain sugared[mysubmodule::N + 1] == 0;
+
      let arr: [Field; mysubmodule::N] = [N; 10];
      constrain (arr[0] == 5) & (arr[9] == 5);
 
      foo::from_foo(d);
-
      baz::from_baz(c);
 }
 
