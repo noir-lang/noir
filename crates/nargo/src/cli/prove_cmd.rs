@@ -161,7 +161,13 @@ fn solve_witness(
     witness_map: &BTreeMap<String, InputValue>,
 ) -> Result<(BTreeMap<Witness, FieldElement>, Option<Witness>), CliError> {
     let abi = compiled_program.abi.as_ref().unwrap();
-    let (mut solved_witness, return_value) = process_abi_with_input(abi.clone(), witness_map)?;
+    let (mut solved_witness, return_value) = process_abi_with_input(abi.clone(), witness_map)
+        .map_err(|error| match error {
+            AbiError::UndefinedInput(_) => {
+                CliError::Generic(format!("{} in the {}.toml file.", error, PROVER_INPUT_FILE))
+            }
+            _ => CliError::from(error),
+        })?;
 
     let backend = crate::backends::ConcreteBackend;
     let solver_res = backend.solve(&mut solved_witness, compiled_program.circuit.gates.clone());

@@ -108,8 +108,16 @@ fn verify_proof(
     public_inputs: BTreeMap<String, InputValue>,
     proof: Vec<u8>,
 ) -> Result<bool, CliError> {
-    let public_inputs =
-        process_abi_with_verifier_input(compiled_program.abi.unwrap(), public_inputs)?;
+    let public_inputs = process_abi_with_verifier_input(
+        compiled_program.abi.unwrap(),
+        public_inputs,
+    )
+    .map_err(|error| match error {
+        AbiError::UndefinedInput(_) => {
+            CliError::Generic(format!("{} in the {}.toml file.", error, VERIFIER_INPUT_FILE))
+        }
+        _ => CliError::from(error),
+    })?;
 
     let backend = crate::backends::ConcreteBackend;
     let valid_proof = backend.verify_from_cs(&proof, public_inputs, compiled_program.circuit);
