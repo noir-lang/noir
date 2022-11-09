@@ -716,7 +716,7 @@ impl Binary {
         Binary::new(operator, lhs, rhs)
     }
 
-    pub fn evaluate<F>(
+    fn evaluate<F>(
         &self,
         ctx: &SsaContext,
         id: NodeId,

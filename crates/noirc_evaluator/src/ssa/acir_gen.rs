@@ -501,7 +501,7 @@ impl Acir {
                                         inputs.push(GadgetInput { witness: wit, num_bits });
                                     } else {
                                         //TODO we should store the witnesses somewhere, else if the inputs are re-used
-                                        //we will duplic  ate the witnesses.
+                                        //we will duplicate the witnesses.
                                         let (_, w) = evaluator.create_intermediate_variable(
                                             self.memory_map[&address].expression.clone(),
                                         );
@@ -527,12 +527,9 @@ impl Acir {
                 _ => {
                     if self.arith_cache.contains_key(a) {
                         let var = self.arith_cache[a].clone();
-                        if let Some(w) = var.witness {
-                            inputs.push(GadgetInput { witness: w, num_bits: l_obj.size_in_bits() });
-                        } else {
-                            let witness = generate_witness(&var, evaluator);
-                            inputs.push(GadgetInput { witness, num_bits: l_obj.size_in_bits() });
-                        }
+                        let witness =
+                            var.witness.unwrap_or_else(|| generate_witness(&var, evaluator));
+                        inputs.push(GadgetInput { witness, num_bits: l_obj.size_in_bits() });
                     } else {
                         dbg!(&l_obj);
                         unreachable!("invalid input")
