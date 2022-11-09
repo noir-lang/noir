@@ -16,7 +16,7 @@ use super::{
     context::SsaContext,
     function,
     mem::{ArrayId, Memory},
-    node::{self, Instruction, Mark, NodeId},
+    node::{self, Instruction, Mark, NodeId, ObjectType},
 };
 
 // Number of allowed times for inlining function calls inside a code block.
@@ -114,6 +114,7 @@ pub struct StackFrame {
     pub block: BlockId,
     array_map: HashMap<ArrayId, ArrayId>,
     pub created_arrays: HashMap<ArrayId, BlockId>,
+    zeros: HashMap<ObjectType, NodeId>,
 }
 
 impl StackFrame {
@@ -123,6 +124,7 @@ impl StackFrame {
             block,
             array_map: HashMap::new(),
             created_arrays: HashMap::new(),
+            zeros: HashMap::new(),
         }
     }
 
@@ -158,6 +160,13 @@ impl StackFrame {
         ctx[block].instructions.extend_from_slice(&self.stack);
         ctx[block].instructions.extend_from_slice(&after);
         self.stack.clear();
+    }
+
+    pub fn set_zero(&mut self, ctx: &mut SsaContext, o_type: ObjectType) {
+        self.zeros.entry(o_type).or_insert_with(|| ctx.zero_with_type(o_type));
+    }
+    pub fn get_zero(&self, o_type: ObjectType) -> NodeId {
+        self.zeros[&o_type]
     }
 }
 
