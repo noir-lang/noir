@@ -88,12 +88,9 @@ fn process_abi_with_input(
                 }
             }
             InputValue::Undefined => {
-                assert_eq!(
-                    param_name,
-                    noirc_frontend::hir_def::function::MAIN_RETURN_NAME,
-                    "input value {} is not defined",
-                    param_name
-                );
+                if param_name != noirc_frontend::hir_def::function::MAIN_RETURN_NAME {
+                    return Err(AbiError::UndefinedInput(param_name));
+                }
                 return_witness = Some(Witness::new(index + WITNESS_OFFSET));
 
                 //We do not support undefined arrays for now - TODO
