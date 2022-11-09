@@ -5,8 +5,9 @@ use acvm::FieldElement;
 use acvm::ProofSystemCompiler;
 use acvm::{GateResolution, PartialWitnessGenerator};
 use clap::ArgMatches;
+use noirc_abi::input_parser::{parse_input_file, serialise_to_file, Format, InputValue};
+use noirc_abi::Abi;
 use noirc_abi::AbiType;
-use noirc_abi::{input_parser::InputValue, Abi};
 use std::path::Path;
 
 use crate::errors::{AbiError, CliError};
@@ -163,8 +164,7 @@ pub fn parse_and_solve_witness<P: AsRef<Path>>(
     compiled_program: &noirc_driver::CompiledProgram,
 ) -> Result<BTreeMap<Witness, FieldElement>, CliError> {
     // Parse the initial witness values from Prover.toml
-    let witness_map =
-        noirc_abi::input_parser::Format::Toml.parse(&program_dir, PROVER_INPUT_FILE)?;
+    let witness_map = parse_input_file(&program_dir, PROVER_INPUT_FILE, Format::Toml)?;
 
     // Solve the remaining witnesses
     let (solved_witness, return_value) = solve_witness(compiled_program, &witness_map)?;
@@ -237,8 +237,9 @@ fn export_public_inputs<P: AsRef<Path>>(
             public_inputs.insert(i.0.clone(), iv);
         }
     }
-    //serialise public inputs into verifier.toml
-    noirc_abi::input_parser::Format::Toml.serialise(&path, VERIFIER_INPUT_FILE, &public_inputs)
+
+    // Serialise public inputs into Verifier.toml
+    serialise_to_file(&public_inputs, path, VERIFIER_INPUT_FILE, Format::Toml)
 }
 
 pub fn prove_with_path<P: AsRef<Path>>(
