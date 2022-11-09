@@ -32,7 +32,7 @@ pub(crate) enum TopLevelStatement {
     Struct(NoirStruct),
     Impl(NoirImpl),
     SubModule(SubModule),
-    GlobalConst(LetStatement),
+    Global(LetStatement),
     Error,
 }
 
@@ -212,7 +212,7 @@ pub struct ParsedModule {
     pub impls: Vec<NoirImpl>,
     pub module_decls: Vec<Ident>,
     pub submodules: Vec<SubModule>,
-    pub global_constants: Vec<LetStatement>,
+    pub globals: Vec<LetStatement>,
 }
 
 #[derive(Clone, Debug)]
@@ -246,8 +246,8 @@ impl ParsedModule {
         self.submodules.push(submodule);
     }
 
-    fn push_global_const(&mut self, global_const: LetStatement) {
-        self.global_constants.push(global_const)
+    fn push_global(&mut self, global: LetStatement) {
+        self.globals.push(global)
     }
 }
 
@@ -407,7 +407,7 @@ impl std::fmt::Display for TopLevelStatement {
             TopLevelStatement::Struct(s) => s.fmt(f),
             TopLevelStatement::Impl(i) => i.fmt(f),
             TopLevelStatement::SubModule(s) => s.fmt(f),
-            TopLevelStatement::GlobalConst(c) => c.fmt(f),
+            TopLevelStatement::Global(c) => c.fmt(f),
             TopLevelStatement::Error => write!(f, "error"),
         }
     }
@@ -423,7 +423,7 @@ impl std::fmt::Display for ParsedModule {
             write!(f, "{}", import)?;
         }
 
-        for global_const in &self.global_constants {
+        for global_const in &self.globals {
             write!(f, "{}", global_const)?;
         }
 

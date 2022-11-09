@@ -12,8 +12,8 @@ pub enum DefCollectorErrorKind {
     DuplicateModuleDecl { first_def: Ident, second_def: Ident },
     #[error("duplicate import")]
     DuplicateImport { first_def: Ident, second_def: Ident },
-    #[error("duplicate global const found in namespace")]
-    DuplicateGlobalConst { first_def: Ident, second_def: Ident },
+    #[error("duplicate global found in namespace")]
+    DuplicateGlobal { first_def: Ident, second_def: Ident },
     #[error("unresolved import")]
     UnresolvedModuleDecl { mod_name: Ident },
     #[error("unresolved import")]
@@ -62,7 +62,7 @@ impl DiagnosableError for DefCollectorErrorKind {
                 diag.add_secondary("second import found here".to_string(), second_span);
                 diag
             }
-            DefCollectorErrorKind::DuplicateGlobalConst { first_def, second_def } => {
+            DefCollectorErrorKind::DuplicateGlobal { first_def, second_def } => {
                 let first_span = first_def.0.span();
                 let second_span = second_def.0.span();
                 let import_name = &first_def.0.contents;

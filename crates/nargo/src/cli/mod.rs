@@ -1,5 +1,7 @@
 pub use build_cmd::build_from_path;
 use clap::{App, Arg};
+use noirc_driver::Driver;
+use noirc_frontend::graph::{CrateName, CrateType};
 use std::{
     fs::File,
     io::Write,
@@ -138,4 +140,60 @@ pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> boo
         };
 
     verify_cmd::verify_with_path(prg_dir, &proof_path, show_ssa).unwrap()
+}
+
+fn add_std_lib(driver: &mut Driver) {
+    let path_to_std_lib_file = path_to_stdlib().join("lib.nr");
+    let std_crate = driver.create_non_local_crate(path_to_std_lib_file, CrateType::Library);
+    let std_crate_name = "std";
+    driver.propagate_dep(std_crate, &CrateName::new(std_crate_name).unwrap());
+}
+
+fn path_to_stdlib() -> PathBuf {
+    dirs::config_dir().unwrap().join("noir-lang").join("std/src")
+}
+
+// FIXME: I not sure that this is the right place for this tests.
+#[cfg(test)]
+mod tests {
+    use noirc_driver::Driver;
+    use noirc_frontend::graph::CrateType;
+
+    use std::path::{Path, PathBuf};
+
+    const TEST_DATA_DIR: &str = "tests/compile_tests_data";
+
+    /// Compiles a file and returns true if compilation was successful
+    ///
+    /// This is used for tests.
+    pub fn file_compiles<P: AsRef<Path>>(root_file: P) -> bool {
+        let mut driver = Driver::new();
+        driver.create_local_crate(&root_file, CrateType::Binary);
+        super::add_std_lib(&mut driver);
+        driver.file_compiles()
+    }
+
+    #[test]
+    fn compilation_pass() {
+        let mut pass_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        pass_dir.push(&format!("{TEST_DATA_DIR}/pass"));
+
+        let paths = std::fs::read_dir(pass_dir).unwrap();
+        for path in paths.flatten() {
+            let path = path.path();
+            assert!(file_compiles(&path), "path: {}", path.display());
+        }
+    }
+
+    #[test]
+    fn compilation_fail() {
+        let mut fail_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        fail_dir.push(&format!("{TEST_DATA_DIR}/fail"));
+
+        let paths = std::fs::read_dir(fail_dir).unwrap();
+        for path in paths.flatten() {
+            let path = path.path();
+            assert!(!file_compiles(&path), "path: {}", path.display());
+        }
+    }
 }
