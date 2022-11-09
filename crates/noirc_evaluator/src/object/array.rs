@@ -4,7 +4,6 @@ use crate::interpreter::Interpreter;
 use crate::Environment;
 use crate::{binary_op::maybe_equal, object::Object};
 use acvm::FieldElement;
-use noirc_frontend::hir_def::expr::HirArrayLiteral;
 use noirc_frontend::node_interner::ExprId;
 
 #[derive(Clone, Debug)]
@@ -17,19 +16,19 @@ impl Array {
     pub fn from(
         evaluator: &mut Interpreter,
         env: &mut Environment,
-        arr_lit: HirArrayLiteral,
+        arr_lit: &[ExprId],
     ) -> Result<Array, RuntimeError> {
         // Take each element in the array and turn it into an object
         // We do not check that the array is homogeneous, this is done by the type checker.
         // We could double check here, however with appropriate tests, it should not be needed.
-        let (objects, mut errs) = evaluator.expression_list_to_objects(env, &arr_lit.contents);
+        let (objects, mut errs) = evaluator.expression_list_to_objects(env, arr_lit);
         if !errs.is_empty() {
             // XXX Should we make this return an RunTimeError? The problem is that we do not want the OPCODES
             // to return RunTimeErrors, because we do not want to deal with span there
             return Err(errs.pop().unwrap());
         }
 
-        Ok(Array { contents: objects, length: arr_lit.length })
+        Ok(Array { contents: objects, length: arr_lit.len() as u128 })
     }
     pub fn get(&self, index: u128) -> Result<Object, RuntimeErrorKind> {
         if index >= self.length {

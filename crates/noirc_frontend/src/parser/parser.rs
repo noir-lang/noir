@@ -1,5 +1,3 @@
-use std::iter::repeat;
-
 use super::{
     foldl_with_span, parameter_name_recovery, parameter_recovery, parenthesized, then_commit,
     then_commit_ignore, top_level_statement_recovery, ExprParser, ForRange, NoirParser,
@@ -695,22 +693,10 @@ where
     P: ExprParser,
 {
     expr_parser
-        .then(array_length())
+        .clone()
+        .then(just(Token::Semicolon).ignore_then(expr_parser))
         .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
-        .map_with_span(|(lhs, count), span| {
-            // Desugar the array by replicating the lhs 'count' times. TODO: This is inefficient
-            // for large arrays.
-            let name = "$array_element";
-            let pattern = Pattern::Identifier(name.into());
-            let decl = Statement::new_let(((pattern, UnresolvedType::Unspecified), lhs));
-
-            let variable = Expression::new(ExpressionKind::Ident(name.into()), span);
-            let elems = repeat(variable).take(count as usize).collect();
-            let array = ExpressionKind::array(elems);
-            let array = Statement::Expression(Expression::new(array, span));
-
-            ExpressionKind::Block(BlockExpression(vec![decl, array]))
-        })
+        .map(|(lhs, count)| ExpressionKind::repeated_array(lhs, count))
 }
 
 fn expression_list<P>(expr_parser: P) -> impl NoirParser<Vec<Expression>>
@@ -838,16 +824,6 @@ fn try_field_to_u64(x: acvm::FieldElement, span: Span) -> Result<u64, ParserErro
         let message = "Array lengths must fit within a u64".to_string();
         Err(ParserError::with_reason(message, span))
     }
-}
-
-fn array_length() -> impl NoirParser<u64> {
-    just(Token::Semicolon).ignore_then(filter_map(|span, token: Token| match token {
-        Token::Int(integer) => try_field_to_u64(integer, span),
-        _ => {
-            let message = "Expected an integer for the length of the array".to_string();
-            Err(ParserError::with_reason(message, span))
-        }
-    }))
 }
 
 #[cfg(test)]
@@ -983,17 +959,21 @@ mod test {
         }
     }
 
-    /// This is the standard way to declare an array
     #[test]
     fn parse_array() {
         let valid = vec![
             "[0, 1, 2,3, 4]",
             "[0,1,2,3,4,]", // Trailing commas are valid syntax
+            "[0;5]",
         ];
 
         for expr in parse_all(array_expr(expression()), valid) {
-            let arr_lit = expr_to_array(expr);
-            assert_eq!(arr_lit.length, 5);
+            match expr_to_array(expr) {
+                ArrayLiteral::Standard(elems) => assert_eq!(elems.len(), 5),
+                ArrayLiteral::Repeated { length, .. } => {
+                    assert_eq!(length.kind, ExpressionKind::integer(5i128.into()))
+                }
+            }
         }
 
         parse_all_failing(
@@ -1004,10 +984,10 @@ mod test {
 
     #[test]
     fn parse_array_sugar() {
-        let valid = vec!["[0;7]", "[(1, 2); 4]"];
+        let valid = vec!["[0;7]", "[(1, 2); 4]", "[0;Four]", "[2;1+3-a]"];
         parse_all(array_expr(expression()), valid);
 
-        let invalid = vec!["[0;;4]", "[5; 3+2]", "[1; a]"];
+        let invalid = vec!["[0;;4]", "[1, 2; 3]"];
         parse_all_failing(array_expr(expression()), invalid);
     }
 

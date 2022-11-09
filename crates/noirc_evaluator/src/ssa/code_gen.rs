@@ -475,7 +475,7 @@ impl IRGenerator {
                 let element_type = ObjectType::from(&arr_lit.element_type);
 
                 let (new_var, array_id) =
-                    self.context.new_array("", element_type, arr_lit.length as u32, None);
+                    self.context.new_array("", element_type, arr_lit.contents.len() as u32, None);
 
                 let elements = self.codegen_expression_list(env, &arr_lit.contents);
                 for (pos, object) in elements.into_iter().enumerate() {
