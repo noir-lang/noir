@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 
-use acvm::{Language, CustomGate};
+use acvm::{CustomGate, Language};
 use arena::{Arena, Index};
 use fm::FileId;
 use noirc_errors::{Location, Span, Spanned};

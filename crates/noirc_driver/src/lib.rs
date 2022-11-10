@@ -1,5 +1,5 @@
-use acvm::Language;
 use acvm::acir::circuit::Circuit;
+use acvm::Language;
 use fm::FileType;
 use noirc_abi::Abi;
 use noirc_errors::{DiagnosableError, Reporter};
