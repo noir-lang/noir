@@ -526,11 +526,10 @@ impl Acir {
                 }
                 _ => {
                     if self.arith_cache.contains_key(a) {
-                        if let Some(w) = self.arith_cache[a].clone().witness {
-                            inputs.push(GadgetInput { witness: w, num_bits: l_obj.size_in_bits() });
-                        } else {
-                            todo!();
-                        }
+                        let var = self.arith_cache[a].clone();
+                        let witness =
+                            var.witness.unwrap_or_else(|| generate_witness(&var, evaluator));
+                        inputs.push(GadgetInput { witness, num_bits: l_obj.size_in_bits() });
                     } else {
                         dbg!(&l_obj);
                         unreachable!("invalid input")

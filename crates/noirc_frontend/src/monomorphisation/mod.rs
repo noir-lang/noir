@@ -202,8 +202,8 @@ impl Monomorphiser {
                 Literal(Integer(value, typ))
             }
             HirExpression::Literal(HirLiteral::Array(array)) => {
-                let element_type = Self::convert_type(&self.interner.id_type(array.contents[0]));
-                let contents = vecmap(array.contents, |id| self.expr_infer(id));
+                let element_type = Self::convert_type(&self.interner.id_type(array[0]));
+                let contents = vecmap(array, |id| self.expr_infer(id));
                 Literal(Array(ast::ArrayLiteral { contents, element_type }))
             }
             HirExpression::Block(block) => self.block(block.0),

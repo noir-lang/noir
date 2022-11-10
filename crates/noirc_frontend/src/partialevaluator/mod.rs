@@ -45,58 +45,7 @@ pub fn evaluate(mut program: Program) -> Program {
 
     // Return one big main function containing every statement
     new_main.body = Expression::Block(statements);
-    let abi = program.abi;
-    Program::new(new_main, abi)
-}
-
-fn unit() -> Expression {
-    Expression::Literal(Literal::Unit)
-}
-
-fn bool(value: bool) -> Expression {
-    Expression::Literal(Literal::Bool(value))
-}
-
-fn int(value: FieldElement, typ: Type) -> Expression {
-    let value = truncate(value, &typ);
-    Expression::Literal(Literal::Integer(value, typ))
-}
-
-fn int_u128(value: u128, typ: Type) -> Expression {
-    let value = truncate_u128(value, &typ);
-    Expression::Literal(Literal::Integer(value, typ))
-}
-
-fn truncate(value: FieldElement, typ: &Type) -> FieldElement {
-    match typ {
-        Type::Integer(..) => truncate_u128(value.to_u128(), typ),
-        _other => value,
-    }
-}
-
-fn truncate_u128(value: u128, typ: &Type) -> FieldElement {
-    match typ {
-        Type::Integer(_, bits) => {
-            let type_modulo = 1_u128 << bits;
-            let value = value % type_modulo;
-            FieldElement::from(value)
-        }
-        _other => FieldElement::from(value),
-    }
-}
-
-fn is_zero(expr: &Expression) -> bool {
-    match expr {
-        Expression::Literal(Literal::Integer(value, _)) => value.is_zero(),
-        _ => false,
-    }
-}
-
-fn is_one(expr: &Expression) -> bool {
-    match expr {
-        Expression::Literal(Literal::Integer(value, _)) => value.is_one(),
-        _ => false,
-    }
+    Program::new(new_main, program.abi)
 }
 
 type Scope = HashMap<DefinitionId, Expression>;
@@ -626,4 +575,54 @@ fn binary_one_zero(lhs: &Expression, rhs: &Expression, operator: BinaryOpKind) -
         }
     }
     ReturnLhsOrRhs::Neither
+}
+
+fn unit() -> Expression {
+    Expression::Literal(Literal::Unit)
+}
+
+fn bool(value: bool) -> Expression {
+    Expression::Literal(Literal::Bool(value))
+}
+
+fn int(value: FieldElement, typ: Type) -> Expression {
+    let value = truncate(value, &typ);
+    Expression::Literal(Literal::Integer(value, typ))
+}
+
+fn int_u128(value: u128, typ: Type) -> Expression {
+    let value = truncate_u128(value, &typ);
+    Expression::Literal(Literal::Integer(value, typ))
+}
+
+fn truncate(value: FieldElement, typ: &Type) -> FieldElement {
+    match typ {
+        Type::Integer(..) => truncate_u128(value.to_u128(), typ),
+        _other => value,
+    }
+}
+
+fn truncate_u128(value: u128, typ: &Type) -> FieldElement {
+    match typ {
+        Type::Integer(_, bits) => {
+            let type_modulo = 1_u128 << bits;
+            let value = value % type_modulo;
+            FieldElement::from(value)
+        }
+        _other => FieldElement::from(value),
+    }
+}
+
+fn is_zero(expr: &Expression) -> bool {
+    match expr {
+        Expression::Literal(Literal::Integer(value, _)) => value.is_zero(),
+        _ => false,
+    }
+}
+
+fn is_one(expr: &Expression) -> bool {
+    match expr {
+        Expression::Literal(Literal::Integer(value, _)) => value.is_one(),
+        _ => false,
+    }
 }
