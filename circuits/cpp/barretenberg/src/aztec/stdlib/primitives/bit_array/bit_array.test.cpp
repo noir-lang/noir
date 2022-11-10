@@ -80,7 +80,6 @@ TEST(stdlib_bit_array, test_string_input_output_consistency)
     EXPECT_EQ(result, expected);
 }
 
-
 TEST(stdlib_bit_array, test_byte_array_conversion)
 {
     waffle::StandardComposer composer = waffle::StandardComposer();
