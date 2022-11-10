@@ -46,9 +46,7 @@ pub fn evaluate(mut program: Program) -> Program {
     // Return one big main function containing every statement
     new_main.body = Expression::Block(statements);
     let abi = program.abi;
-    let p = Program::new(new_main, abi);
-    println!("Evaluated program:\n{}", p);
-    p
+    Program::new(new_main, abi)
 }
 
 fn unit() -> Expression {
