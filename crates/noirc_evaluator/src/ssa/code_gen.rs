@@ -173,7 +173,9 @@ impl IRGenerator {
     }
 
     fn codegen_identifier(&mut self, ident: &Ident) -> Value {
-        let value = self.variable_values[&ident.id].clone();
+        let value = self.variable_values.get(&ident.id).cloned().unwrap_or_else(|| {
+            unreachable!("ICE: SSA: Variable {}, id {} not defined", ident.name, ident.id.0)
+        });
         self.get_current_value(&value)
     }
 
@@ -475,7 +477,7 @@ impl IRGenerator {
                 let element_type = ObjectType::from(&arr_lit.element_type);
 
                 let (new_var, array_id) =
-                    self.context.new_array("", element_type, arr_lit.length as u32, None);
+                    self.context.new_array("", element_type, arr_lit.contents.len() as u32, None);
 
                 let elements = self.codegen_expression_list(env, &arr_lit.contents);
                 for (pos, object) in elements.into_iter().enumerate() {
@@ -603,6 +605,7 @@ impl IRGenerator {
                 }
             }
             Literal::Integer(f, typ) => self.context.get_or_create_const(*f, typ.into()),
+            Literal::Unit => NodeId::dummy(),
             _ => todo!(), //todo: add support for Array(ArrayLiteral), Str(String)
         }
     }

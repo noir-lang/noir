@@ -40,7 +40,6 @@ pub(crate) fn type_check(
         }
         HirStatement::Semi(expr_id) => {
             type_check_expression(interner, &expr_id, errors);
-            interner.make_expr_type_unit(&expr_id);
         }
         HirStatement::Let(let_stmt) => type_check_let_stmt(interner, let_stmt, errors),
         HirStatement::Constrain(constrain_stmt) => {

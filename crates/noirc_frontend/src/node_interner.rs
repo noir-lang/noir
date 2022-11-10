@@ -269,16 +269,6 @@ impl NodeInterner {
         }
     }
 
-    /// Modify the type of an expression.
-    ///
-    /// This is used specifically for SemiExpressions.
-    /// We type check them as regular expressions which implicitly interns
-    /// the type of the expression. This function is then used to change
-    /// it's type to Unit for the type checker.
-    pub fn make_expr_type_unit(&mut self, expr_id: &ExprId) {
-        self.id_to_type.insert(expr_id.into(), Type::Unit);
-    }
-
     /// Store the type for an interned Identifier
     pub fn push_definition_type(&mut self, definition_id: DefinitionId, typ: Type) {
         self.id_to_type.insert(definition_id.into(), typ);

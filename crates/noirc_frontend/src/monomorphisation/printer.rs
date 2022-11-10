@@ -208,13 +208,13 @@ impl AstPrinter {
         self.next_line(f)?;
 
         if let Some(alt) = &if_expr.alternative {
-            write!(f, " else {{")?;
+            write!(f, "}} else {{")?;
             self.indent_level += 1;
             self.print_expr_expect_block(alt, f)?;
             self.indent_level -= 1;
             self.next_line(f)?;
         }
-        Ok(())
+        write!(f, "}}")
     }
 
     fn print_comma_separated(

@@ -46,7 +46,18 @@ mod tests {
                 match test_name {
                     Ok(str) => {
                         if c.path().is_dir() && !conf_data["exclude"].contains(&str) {
-                            let r = nargo::cli::prove_and_verify("pp", &c.path(), true);
+                            let verified = std::panic::catch_unwind(|| {
+                                nargo::cli::prove_and_verify("pp", &c.path(), true)
+                            });
+
+                            let r = match verified {
+                                Ok(result) => result,
+                                Err(_) => unreachable!(
+                                    "\n\n\nPanic occured while running test {:?}. Now forcing a test failure (ignore the following panic).\n\n\n",
+                                    c.file_name(),
+                                ),
+                            };
+
                             if conf_data["fail"].contains(&str) {
                                 assert!(!r, "{:?} should not succeed", c.file_name());
                             } else {

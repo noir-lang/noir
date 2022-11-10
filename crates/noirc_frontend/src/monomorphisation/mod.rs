@@ -106,8 +106,14 @@ impl Monomorphiser {
 
             let name = "_".into();
             let typ = Self::convert_type(main_meta.return_type());
-            let lhs =
-                Box::new(ast::Expression::Ident(ast::Ident { id, location: None, name, typ }));
+            let lhs = Box::new(ast::Expression::Ident(ast::Ident {
+                id,
+                mutable: false,
+                location: None,
+                name,
+                typ,
+            }));
+
             let rhs = Box::new(main.body);
             let operator = ast::BinaryOp::Equal;
             let eq = ast::Expression::Binary(ast::Binary { operator, lhs, rhs });
@@ -259,6 +265,7 @@ impl Monomorphiser {
                     condition: Box::new(cond),
                     consequence: Box::new(then),
                     alternative: else_,
+                    typ: Self::convert_type(&self.interner.id_type(expr)),
                 })
             }
 
@@ -315,13 +322,14 @@ impl Monomorphiser {
 
             new_exprs.push(ast::Expression::Let(ast::Let {
                 id: new_id,
+                mutable: false,
                 name: field_name.0.contents,
                 expression,
             }));
         }
 
         let sorted_fields = vecmap(field_vars, |(name, (id, typ))| {
-            ast::Expression::Ident(ast::Ident { id, location: None, name, typ })
+            ast::Expression::Ident(ast::Ident { id, mutable: false, location: None, name, typ })
         });
 
         // Finally we can return the created Tuple from the new block
@@ -343,9 +351,12 @@ impl Monomorphiser {
             HirPattern::Identifier(ident) => {
                 let new_id = self.next_definition_id();
                 self.define_local(ident.id, new_id);
+                let definition = self.interner.definition(ident.id);
+
                 ast::Expression::Let(ast::Let {
                     id: new_id,
-                    name: self.interner.definition_name(ident.id).to_owned(),
+                    mutable: definition.mutable,
+                    name: definition.name.clone(),
                     expression: Box::new(value),
                 })
             }
@@ -374,6 +385,7 @@ impl Monomorphiser {
 
         let mut definitions = vec![ast::Expression::Let(ast::Let {
             id: fresh_id,
+            mutable: false,
             name: "_".into(),
             expression: Box::new(value),
         })];
@@ -381,8 +393,13 @@ impl Monomorphiser {
         for (i, (field_pattern, field_type)) in fields.into_iter().enumerate() {
             let typ = Self::convert_type(&field_type);
             let name = i.to_string();
-            let new_rhs =
-                ast::Expression::Ident(ast::Ident { location: None, id: fresh_id, name, typ });
+            let new_rhs = ast::Expression::Ident(ast::Ident {
+                location: None,
+                mutable: false,
+                id: fresh_id,
+                name,
+                typ,
+            });
             let new_rhs = ast::Expression::ExtractTupleField(Box::new(new_rhs), i);
             let new_expr = self.unpack_pattern(field_pattern, new_rhs, &field_type);
             definitions.push(new_expr);
@@ -394,9 +411,17 @@ impl Monomorphiser {
     /// A local (ie non-global) ident only
     fn local_ident(&mut self, ident: &HirIdent) -> Option<ast::Ident> {
         let id = self.lookup_local(ident.id)?;
-        let name = self.interner.definition_name(ident.id).to_owned();
+        let definition = self.interner.definition(ident.id);
+        let name = definition.name.clone();
         let typ = Self::convert_type(&self.interner.id_type(ident.id));
-        Some(ast::Ident { location: Some(ident.location), id, name, typ })
+
+        Some(ast::Ident {
+            location: Some(ident.location),
+            mutable: definition.mutable,
+            id,
+            name,
+            typ,
+        })
     }
 
     fn ident(&mut self, ident: HirIdent) -> ast::Expression {
@@ -573,7 +598,7 @@ fn unwrap_tuple_type(typ: &HirType) -> Vec<HirType> {
             TypeBinding::Bound(binding) => unwrap_tuple_type(binding),
             TypeBinding::Unbound(_) => unreachable!(),
         },
-        other => unreachable!("unwrap_tuple_type: expected tuple, found {}", other),
+        other => unreachable!("unwrap_tuple_type: expected tuple, found {:?}", other),
     }
 }
 
@@ -584,7 +609,7 @@ fn unwrap_struct_type(typ: &HirType) -> BTreeMap<String, HirType> {
             TypeBinding::Bound(binding) => unwrap_struct_type(binding),
             TypeBinding::Unbound(_) => unreachable!(),
         },
-        other => unreachable!("unwrap_struct_type: expected struct, found {}", other),
+        other => unreachable!("unwrap_struct_type: expected struct, found {:?}", other),
     }
 }
 
@@ -595,7 +620,7 @@ fn unwrap_array_element_type(typ: &HirType) -> ast::Type {
             TypeBinding::Bound(binding) => unwrap_array_element_type(binding),
             TypeBinding::Unbound(_) => unreachable!(),
         },
-        other => unreachable!("unwrap_array_element_type: expected array, found {}", other),
+        other => unreachable!("unwrap_array_element_type: expected array, found {:?}", other),
     }
 }
 

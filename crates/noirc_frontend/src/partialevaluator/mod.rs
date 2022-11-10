@@ -5,14 +5,15 @@ use noirc_errors::Location;
 
 use crate::{
     monomorphisation::ast::{
-        ArrayLiteral, Binary, CallBuiltin, CallLowLevel, Cast, DefinitionId, Expression, FuncId,
-        Function, Index, Literal, Program, Type, Unary,
+        ArrayLiteral, Assign, Binary, CallBuiltin, CallLowLevel, Cast, DefinitionId, Expression,
+        FuncId, Function, Ident, If, Index, LValue, Let, Literal, Program, Type, Unary,
     },
     util::vecmap,
     BinaryOpKind, Signedness, UnaryOp,
 };
 
 pub fn evaluate(mut program: Program) -> Program {
+    let main_id = program.main_id();
     let main = program.main();
 
     let temporary_body = Expression::Literal(Literal::Bool(false));
@@ -24,16 +25,30 @@ pub fn evaluate(mut program: Program) -> Program {
         return_type: main.return_type.clone(),
     };
 
-    let args = vec![unit(); main.parameters.len()];
-    let main_id = program.main_id();
+    let args = vecmap(&main.parameters, |(id, mutable, name, typ)| {
+        Expression::Ident(Ident {
+            location: None,
+            id: *id,
+            mutable: *mutable,
+            name: name.clone(),
+            typ: typ.clone(),
+        })
+    });
 
+    // Evaluate main and grab the resulting statements
     let mut evaluator = Evaluator::new(&program);
-    evaluator.function(main_id, args);
+    let last_expr = evaluator.function(main_id, args);
+    let mut statements = evaluator.evaluated.pop().unwrap();
+    assert!(evaluator.evaluated.is_empty());
+
+    statements.push(last_expr);
 
     // Return one big main function containing every statement
-    new_main.body = Expression::Block(evaluator.evaluated);
+    new_main.body = Expression::Block(statements);
     let abi = program.abi;
-    Program::new(new_main, abi)
+    let p = Program::new(new_main, abi);
+    println!("Evaluated program:\n{}", p);
+    p
 }
 
 fn unit() -> Expression {
@@ -93,16 +108,36 @@ struct Evaluator<'a> {
     program: &'a Program,
 
     /// Already-evaluated expressions representing the full program once finished
-    evaluated: Vec<Expression>,
+    evaluated: Vec<Vec<Expression>>,
+
+    counter: u32,
+    assign_variable: Option<Ident>,
 }
 
 impl<'a> Evaluator<'a> {
     fn new(program: &'a Program) -> Self {
-        Self { program, call_stack: vec![], evaluated: vec![] }
+        Self {
+            program,
+            call_stack: vec![],
+            evaluated: vec![vec![]],
+            counter: u32::MAX,
+            assign_variable: None,
+        }
     }
 
     fn current_scope(&mut self) -> &mut Scope {
         self.call_stack.last_mut().unwrap()
+    }
+
+    fn push_expression(&mut self, expr: Expression) {
+        if expr.has_side_effects() {
+            self.evaluated.last_mut().unwrap().push(expr);
+        }
+    }
+
+    fn next_unique_id(&mut self) -> DefinitionId {
+        self.counter -= 1;
+        DefinitionId(self.counter)
     }
 
     fn function(&mut self, f: FuncId, args: Vec<Expression>) -> Expression {
@@ -110,11 +145,31 @@ impl<'a> Evaluator<'a> {
         assert_eq!(function.parameters.len(), args.len());
 
         let params_and_args = function.parameters.iter().zip(args);
-        let scope = params_and_args.map(|((id, ..), arg)| (*id, arg)).collect();
+        let scope = params_and_args
+            .map(|((id, mutable, name, typ), arg)| {
+                if *mutable {
+                    self.push_expression(Expression::Let(Let {
+                        id: *id,
+                        mutable: true,
+                        name: name.clone(),
+                        expression: Box::new(arg),
+                    }));
+                    let var = Expression::Ident(Ident {
+                        location: None,
+                        id: *id,
+                        mutable: *mutable,
+                        name: name.clone(),
+                        typ: typ.clone(),
+                    });
+                    (*id, var)
+                } else {
+                    (*id, arg)
+                }
+            })
+            .collect();
+
         self.call_stack.push(scope);
-
         let ret = self.expression(&function.body);
-
         self.call_stack.pop();
         ret
     }
@@ -138,7 +193,7 @@ impl<'a> Evaluator<'a> {
             Expression::Let(let_stmt) => self.let_statement(let_stmt),
             Expression::Constrain(expr, loc) => self.constrain(expr, *loc),
             Expression::Assign(assign) => self.assign(assign),
-            Expression::Semi(expr) => self.expression(expr),
+            Expression::Semi(expr) => Expression::Semi(Box::new(self.expression(expr))),
         }
     }
 
@@ -148,21 +203,27 @@ impl<'a> Evaluator<'a> {
                 let contents = vecmap(&array.contents, |elem| self.expression(elem));
                 Literal::Array(ArrayLiteral { contents, element_type: array.element_type.clone() })
             }
-            Literal::Integer(value, typ) => Literal::Integer(value.clone(), typ.clone()),
+            Literal::Integer(value, typ) => Literal::Integer(*value, typ.clone()),
             Literal::Bool(value) => Literal::Bool(*value),
             Literal::Str(value) => Literal::Str(value.clone()),
             Literal::Unit => Literal::Unit,
         })
     }
 
-    fn ident(&self, ident: &crate::monomorphisation::ast::Ident) -> Expression {
-        match self.call_stack.last().unwrap().get(&ident.id) {
-            Some(value) => value.clone(),
-            None => unreachable!(
-                "Cannot find id {} for variable {}, not yet compiled",
-                ident.id.0, ident.name
-            ),
-        }
+    fn ident(&self, ident: &Ident) -> Expression {
+        let make_ident = || {
+            Expression::Ident(Ident {
+                location: ident.location,
+                id: ident.id,
+                mutable: ident.mutable,
+                name: ident.name.clone(),
+                typ: ident.typ.clone(),
+            })
+        };
+
+        // Cloning here relies on `value` containing no side-effectful code.
+        // Side-effectful code should be pushed to self.evaluated separately
+        self.call_stack.last().unwrap().get(&ident.id).cloned().unwrap_or_else(make_ident)
     }
 
     fn block(&mut self, block: &[Expression]) -> Expression {
@@ -170,7 +231,7 @@ impl<'a> Evaluator<'a> {
 
         for expr in exprs {
             let new_expr = self.expression(expr);
-            self.evaluated.push(new_expr);
+            self.push_expression(new_expr);
         }
 
         if let Some(last_expr) = block.last() {
@@ -292,8 +353,77 @@ impl<'a> Evaluator<'a> {
         }))
     }
 
-    fn if_expr(&mut self, if_expr: &crate::monomorphisation::ast::If) -> Expression {
-        todo!()
+    fn if_expr(&mut self, if_expr: &If) -> Expression {
+        let condition = match self.expression(&if_expr.condition) {
+            Expression::Literal(Literal::Bool(true)) => {
+                return self.expression(&if_expr.consequence)
+            }
+            Expression::Literal(Literal::Bool(false)) => {
+                if let Some(alt) = &if_expr.alternative {
+                    return self.expression(alt);
+                } else {
+                    return unit();
+                }
+            }
+            other => other,
+        };
+
+        // Otherwise continue with a non-comptime condition
+        let condition = Box::new(condition);
+
+        // Must separate out evaluated side effects (*_evaluated) from the
+        // non-side effectful expression that is returned, which may be
+        // stored in a variable and cloned
+        self.evaluated.push(vec![]);
+        let consequence = Box::new(self.expression(&if_expr.consequence));
+        let mut consequence_evaluated = self.evaluated.pop().unwrap();
+
+        let (alternative, alternative_evaluated) = if let Some(alt) = &if_expr.alternative {
+            self.evaluated.push(vec![]);
+            let alt = Box::new(self.expression(alt));
+            let alt_eval = self.evaluated.pop().unwrap();
+            let alt_eval = if alt_eval.is_empty() { None } else { Some(alt_eval) };
+            (Some(alt), alt_eval)
+        } else {
+            (None, None)
+        };
+
+        // Check if the if-expr's type is Unit and if so, re-combine the evaluated
+        // statements and resulting expression, then directly return a unit literal.
+        // This isn't necessary but cleans up the output somewhat.
+        if if_expr.typ == Type::Unit {
+            consequence_evaluated.push(*consequence);
+            let alternatives = match (alternative_evaluated, alternative) {
+                (Some(mut alternatives), Some(alternative)) => {
+                    alternatives.push(*alternative);
+                    Some(alternatives)
+                }
+                (None, Some(alternative)) => Some(vec![*alternative]),
+                (None, None) => None,
+                (Some(_), None) => unreachable!(),
+            };
+
+            self.push_expression(Expression::If(If {
+                condition,
+                consequence: Box::new(Expression::Block(consequence_evaluated)),
+                alternative: alternatives.map(|alts| Box::new(Expression::Block(alts))),
+                typ: if_expr.typ.clone(),
+            }));
+            unit()
+        } else {
+            if !consequence_evaluated.is_empty()
+                || alternative_evaluated.as_ref().map_or(false, |alt| alt.is_empty())
+            {
+                self.push_expression(Expression::If(If {
+                    condition: condition.clone(),
+                    consequence: Box::new(Expression::Block(consequence_evaluated)),
+                    alternative: alternative_evaluated.map(|alt| Box::new(Expression::Block(alt))),
+                    typ: if_expr.typ.clone(),
+                }));
+            }
+
+            Expression::If(If { condition, consequence, alternative, typ: if_expr.typ.clone() })
+        }
     }
 
     fn tuple(&mut self, tuple: &[Expression]) -> Expression {
@@ -326,19 +456,75 @@ impl<'a> Evaluator<'a> {
         Expression::CallLowLevel(CallLowLevel { opcode: call.opcode.clone(), arguments })
     }
 
-    fn let_statement(&mut self, let_stmt: &crate::monomorphisation::ast::Let) -> Expression {
+    fn let_statement(&mut self, let_stmt: &Let) -> Expression {
         let expression = self.expression(&let_stmt.expression);
-        self.current_scope().insert(let_stmt.id, expression);
+        if let_stmt.mutable || expression.contains_variables() {
+            self.push_expression(Expression::Let(Let {
+                id: let_stmt.id,
+                mutable: true,
+                name: let_stmt.name.clone(),
+                expression: Box::new(expression),
+            }));
+        } else {
+            self.current_scope().insert(let_stmt.id, expression);
+        }
         unit()
     }
 
     fn constrain(&mut self, expr: &Expression, loc: Location) -> Expression {
         let expr = self.expression(expr);
-        Expression::Constrain(Box::new(expr), loc)
+        self.push_expression(Expression::Constrain(Box::new(expr), loc));
+        unit()
     }
 
-    fn assign(&mut self, assign: &crate::monomorphisation::ast::Assign) -> Expression {
-        todo!()
+    fn assign(&mut self, assign: &Assign) -> Expression {
+        let expression = Box::new(self.expression(&assign.expression));
+        let lvalue = self.lvalue(&assign.lvalue);
+
+        let assign = Expression::Assign(Assign { lvalue, expression });
+        self.push_expression(assign);
+
+        if let Some(ident) = self.assign_variable.take() {
+            let new_id = self.next_unique_id();
+            self.current_scope().insert(
+                ident.id,
+                Expression::Ident(Ident {
+                    location: None,
+                    id: new_id,
+                    mutable: false,
+                    name: ident.name.clone(),
+                    typ: ident.typ.clone(),
+                }),
+            );
+
+            self.push_expression(Expression::Let(Let {
+                id: new_id,
+                mutable: false,
+                name: ident.name.clone(),
+                expression: Box::new(Expression::Ident(ident)),
+            }));
+        }
+
+        unit()
+    }
+
+    fn lvalue(&mut self, lvalue: &LValue) -> LValue {
+        match lvalue {
+            LValue::Ident(ident) => {
+                // self.assign_variable = Some(ident.clone());
+                LValue::Ident(ident.clone())
+            }
+            LValue::Index { array, index } => {
+                let array = Box::new(self.lvalue(array));
+                let index = Box::new(self.expression(index));
+                LValue::Index { array, index }
+            }
+            LValue::MemberAccess { object, field_index } => {
+                let object = Box::new(self.lvalue(object));
+                let field_index = *field_index;
+                LValue::MemberAccess { object, field_index }
+            }
+        }
     }
 }
 
@@ -417,14 +603,11 @@ enum ReturnLhsOrRhs {
 /// This returns a 'ReturnLhsOrRhs' - if we wanted to return lhs or rhs
 /// directly we'd need to take ownership of them or clone them.
 fn binary_one_zero(lhs: &Expression, rhs: &Expression, operator: BinaryOpKind) -> ReturnLhsOrRhs {
-    if is_zero(&lhs) {
-        match operator {
-            BinaryOpKind::Add => return ReturnLhsOrRhs::Rhs,
-            _ => (),
-        }
+    if is_zero(lhs) && operator == BinaryOpKind::Add {
+        return ReturnLhsOrRhs::Rhs;
     }
 
-    if is_zero(&rhs) {
+    if is_zero(rhs) {
         match operator {
             BinaryOpKind::Add => return ReturnLhsOrRhs::Lhs,
             BinaryOpKind::Subtract => return ReturnLhsOrRhs::Lhs,
@@ -432,14 +615,11 @@ fn binary_one_zero(lhs: &Expression, rhs: &Expression, operator: BinaryOpKind) -
         }
     }
 
-    if is_one(&lhs) {
-        match operator {
-            BinaryOpKind::Multiply => return ReturnLhsOrRhs::Rhs,
-            _ => (),
-        }
+    if is_one(lhs) && operator == BinaryOpKind::Multiply {
+        return ReturnLhsOrRhs::Rhs;
     }
 
-    if is_one(&rhs) {
+    if is_one(rhs) {
         match operator {
             BinaryOpKind::Multiply => return ReturnLhsOrRhs::Lhs,
             BinaryOpKind::Divide => return ReturnLhsOrRhs::Lhs,

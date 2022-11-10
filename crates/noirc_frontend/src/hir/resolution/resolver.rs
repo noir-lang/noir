@@ -596,7 +596,7 @@ impl<'a> Resolver<'a> {
                 //       yet implemented syntax for them to be optionally mutable.
                 let (identifier, block_id) = self.in_new_scope(|this| {
                     (
-                        this.add_variable_decl(identifier, true, false, None),
+                        this.add_variable_decl(identifier, false, false, None),
                         this.resolve_expression(block),
                     )
                 });
