@@ -39,7 +39,7 @@ impl Context {
             crate_graph,
             file_manager,
         };
-        ctx.def_interner.set_language(language);
+        ctx.def_interner.set_language(&language);
         ctx
     }
     /// Returns the CrateDefMap for a given CrateId.

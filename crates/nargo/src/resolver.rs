@@ -49,8 +49,11 @@ impl<'a> Resolver<'a> {
     /// Note that the backend is ignored in the dependencies.
     /// Since Noir is backend agnostic, this is okay to do.
     /// XXX: Need to handle when a local package changes!
-    pub fn resolve_root_config(dir_path: &std::path::Path, np_language: Language) -> Result<Driver, CliError> {
-        let mut driver = Driver::new(np_language);
+    pub fn resolve_root_config(
+        dir_path: &std::path::Path,
+        np_language: Language,
+    ) -> Result<Driver, CliError> {
+        let mut driver = Driver::new(&np_language);
         let (entry_path, crate_type) = super::lib_or_bin(dir_path)?;
 
         let cfg_path = super::find_package_config(dir_path)?;

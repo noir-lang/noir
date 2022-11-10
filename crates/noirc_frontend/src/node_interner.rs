@@ -341,13 +341,10 @@ impl NodeInterner {
 
     pub fn get_alt(&self, opcode: String) -> Option<FuncId> {
         for (func_id, meta) in &self.func_meta {
-            match &meta.attributes {
-                Some(crate::token::Attribute::Alternative(name)) => {
-                    if *name == opcode {
-                        return Some(*func_id);
-                    }
+            if let Some(crate::token::Attribute::Alternative(name)) = &meta.attributes {
+                if *name == opcode {
+                    return Some(*func_id);
                 }
-                _ => (),
             }
         }
         None
@@ -524,11 +521,11 @@ impl NodeInterner {
         self.field_indices.insert(expr_id, index);
     }
 
-    pub fn set_language(&mut self, language: Language) {
+    pub fn set_language(&mut self, language: &Language) {
         self.language = language.clone();
     }
 
-    pub fn foreign(&self, opcode: &String) -> bool {
+    pub fn foreign(&self, opcode: &str) -> bool {
         self.language.support(opcode)
     }
 }

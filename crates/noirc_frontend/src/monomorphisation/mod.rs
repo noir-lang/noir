@@ -493,9 +493,7 @@ impl Monomorphiser {
                     ast::Expression::CallLowLevel(ast::CallLowLevel { opcode, arguments })
                 }
             }
-            FunctionKind::Builtin => {
-                self.call_builtin(meta, arguments, call.arguments)
-            }
+            FunctionKind::Builtin => self.call_builtin(meta, arguments, call.arguments),
             FunctionKind::Normal => {
                 let func_id = self
                     .lookup_global(func_id, &typ)

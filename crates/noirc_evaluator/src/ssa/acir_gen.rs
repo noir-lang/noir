@@ -651,17 +651,12 @@ pub fn split(lhs: &InternalVar, bit_size: u32, evaluator: &mut Evaluator) -> Vec
             &bit_expr,
         )));
     }
-    let a_witness = generate_witness(lhs, evaluator);
     evaluator.gates.push(Gate::Directive(Directive::Split {
-        a: a_witness,
+        a: lhs.expression.clone(),
         b: result.clone(),
         bit_size,
     }));
-    evaluator.gates.push(Gate::Arithmetic(subtract(
-        &from_witness(a_witness),
-        FieldElement::one(),
-        &bits,
-    )));
+    evaluator.gates.push(Gate::Arithmetic(subtract(&lhs.expression, FieldElement::one(), &bits)));
 
     result
 }
