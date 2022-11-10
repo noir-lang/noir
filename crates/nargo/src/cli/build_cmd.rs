@@ -1,7 +1,7 @@
+use crate::{errors::CliError, resolver::Resolver};
+use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
 use std::path::{Path, PathBuf};
-use acvm::ProofSystemCompiler;
-use crate::{errors::CliError, resolver::Resolver};
 
 use super::{add_std_lib, write_to_file, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 
