@@ -41,7 +41,7 @@ class rollup_full_tests : public ::testing::Test {
 };
 
 // Full proofs.
-HEAVY_TEST_F(rollup_full_tests, test_1_proof_in_1_rollup_full_proof)
+HEAVY_TEST_F(rollup_full_tests, test_1_proof_in_1_rollup_full_proof_and_detect_circuit_change)
 {
     size_t rollup_size = 1;
 
@@ -83,6 +83,27 @@ HEAVY_TEST_F(rollup_full_tests, test_1_proof_in_1_rollup_full_proof)
     EXPECT_EQ(inner_data.public_value, tx_data.public_value);
     EXPECT_EQ(inner_data.public_owner, tx_data.public_owner);
     EXPECT_EQ(inner_data.asset_id, tx_data.asset_id);
+    // The below part detects the changes in the rollup circuit
+    auto number_of_gates_rollup = rollup_circuit_data.num_gates;
+    auto vk_hash_rollup = rollup_circuit_data.verification_key->sha256_hash();
+    // If the below assertions fail, consider changing the variable is_circuit_change_expected to 1 in
+    // rollup/constants.hpp and see if atleast the next power of two limit is not exceeded. Please change the constant
+    // values accordingly and set is_circuit_change_expected to 0 in rollup/constants.hpp before merging.
+    if (!(circuit_gate_count::is_circuit_change_expected)) {
+        EXPECT_TRUE(number_of_gates_rollup == circuit_gate_count::ROLLUP)
+            << "The gate count for the rollup circuit is changed.";
+        EXPECT_TRUE(from_buffer<uint256_t>(vk_hash_rollup) == circuit_vk_hash::ROLLUP)
+            << "The verification key hash for the rollup circuit is changed.";
+        // For the next power of two limit, we need to consider that we reserve four gates for adding
+        // randomness/zero-knowledge
+        EXPECT_TRUE(number_of_gates_rollup <=
+                    circuit_gate_next_power_of_two::ROLLUP - waffle::ComposerBase::NUM_RESERVED_GATES)
+            << "You have exceeded the next power of two limit for the rollup circuit.";
+    } else {
+        EXPECT_TRUE(number_of_gates_rollup <=
+                    circuit_gate_next_power_of_two::ROLLUP - waffle::ComposerBase::NUM_RESERVED_GATES)
+            << "You have exceeded the next power of two limit for the rollup circuit.";
+    }
 }
 
 HEAVY_TEST_F(rollup_full_tests, test_1_proof_in_2_rollup_full_proof)

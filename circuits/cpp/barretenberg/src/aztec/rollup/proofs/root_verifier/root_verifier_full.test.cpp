@@ -83,11 +83,32 @@ class root_verifier_full_tests : public ::testing::Test {
     world_state::WorldState<MemoryStore> world_state;
 };
 
-HEAVY_TEST_F(root_verifier_full_tests, good_data_passes)
+HEAVY_TEST_F(root_verifier_full_tests, good_data_passes_and_detect_circuit_change)
 {
     auto tx = create_root_verifier_tx();
     auto result = verify(tx, root_verifier_cd, root_rollup_cd);
     ASSERT_TRUE(result.verified);
+    // The below part detects changes in the root verifier circuit
+    size_t number_of_gates_root_verifier = result.number_of_gates;
+    auto vk_hash_root_verifier = result.verification_key->sha256_hash();
+    // If the below assertions fail, consider changing the variable is_circuit_change_expected to 1 in
+    // rollup/constants.hpp and see if atleast the next power of two limit is not exceeded. Please change the constant
+    // values accordingly and set is_circuit_change_expected to 0 in rollup/constants.hpp before merging.
+    if (!(circuit_gate_count::is_circuit_change_expected)) {
+        EXPECT_TRUE(number_of_gates_root_verifier == circuit_gate_count::ROOT_VERIFIER)
+            << "The gate count for the root verifier circuit is changed.";
+        EXPECT_TRUE(from_buffer<uint256_t>(vk_hash_root_verifier) == circuit_vk_hash::ROOT_VERIFIER)
+            << "The verification key hash for the root verifier circuit is changed.";
+        // For the next power of two limit, we need to consider that we reserve four gates for adding
+        // randomness/zero-knowledge
+        EXPECT_TRUE(number_of_gates_root_verifier <=
+                    circuit_gate_next_power_of_two::ROOT_VERIFIER - waffle::ComposerBase::NUM_RESERVED_GATES)
+            << "You have exceeded the next power of two limit for the root verifier circuit.";
+    } else {
+        EXPECT_TRUE(number_of_gates_root_verifier <=
+                    circuit_gate_next_power_of_two::ROOT_VERIFIER - waffle::ComposerBase::NUM_RESERVED_GATES)
+            << "You have exceeded the next power of two limit for the root verifier circuit.";
+    }
 }
 
 HEAVY_TEST_F(root_verifier_full_tests, bad_byte_failure)

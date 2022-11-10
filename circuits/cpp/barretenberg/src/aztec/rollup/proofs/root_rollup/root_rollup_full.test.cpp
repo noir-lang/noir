@@ -103,7 +103,7 @@ class root_rollup_full_tests : public ::testing::Test {
     std::vector<std::vector<uint8_t>> js_proofs;
 };
 
-HEAVY_TEST_F(root_rollup_full_tests, test_root_rollup_3x2)
+HEAVY_TEST_F(root_rollup_full_tests, test_root_rollup_3x2_and_detect_circuit_change)
 {
     static constexpr auto rollups_per_rollup = 3U;
 
@@ -137,6 +137,27 @@ HEAVY_TEST_F(root_rollup_full_tests, test_root_rollup_3x2)
     EXPECT_EQ(inner_data.public_value, fr(0));
     EXPECT_EQ(inner_data.public_owner, fr(0));
     EXPECT_EQ(inner_data.asset_id, fr(0));
+    // The below assertions detect changes in the root rollup circuit
+    size_t number_of_gates_root_rollup = result.number_of_gates;
+    auto vk_hash_root_rollup = result.verification_key->sha256_hash();
+    // If the below assertions fail, consider changing the variable is_circuit_change_expected to 1 in
+    // rollup/constants.hpp and see if atleast the next power of two limit is not exceeded. Please change the constant
+    // values accordingly and set is_circuit_change_expected to 0 in rollup/constants.hpp before merging.
+    if (!(circuit_gate_count::is_circuit_change_expected)) {
+        EXPECT_TRUE(number_of_gates_root_rollup == circuit_gate_count::ROOT_ROLLUP)
+            << "The gate count for the root rollup circuit is changed.";
+        EXPECT_TRUE(from_buffer<uint256_t>(vk_hash_root_rollup) == circuit_vk_hash::ROOT_ROLLUP)
+            << "The verification key hash for the root rollup circuit is changed.";
+        // For the next power of two limit, we need to consider that we reserve four gates for adding
+        // randomness/zero-knowledge
+        EXPECT_TRUE(number_of_gates_root_rollup <=
+                    circuit_gate_next_power_of_two::ROOT_ROLLUP - waffle::ComposerBase::NUM_RESERVED_GATES)
+            << "You have exceeded the next power of two limit for the root rollup circuit.";
+    } else {
+        EXPECT_TRUE(number_of_gates_root_rollup <=
+                    circuit_gate_next_power_of_two::ROOT_ROLLUP - waffle::ComposerBase::NUM_RESERVED_GATES)
+            << "You have exceeded the next power of two limit for the root rollup circuit.";
+    }
 }
 
 HEAVY_TEST_F(root_rollup_full_tests, test_root_rollup_2x3)

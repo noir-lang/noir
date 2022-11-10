@@ -31,6 +31,8 @@ std::shared_ptr<waffle::proving_key> get_proving_key();
 
 std::shared_ptr<waffle::verification_key> get_verification_key();
 
+size_t get_number_of_gates();
+
 } // namespace account
 } // namespace proofs
 } // namespace rollup

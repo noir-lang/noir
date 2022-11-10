@@ -87,7 +87,22 @@ verification_key& verification_key::operator=(verification_key&& other)
 
 sha256::hash verification_key::sha256_hash()
 {
-    return sha256::sha256(to_buffer(*this));
+    std::vector<uint256_t> vk_data;
+    vk_data.emplace_back(n);
+    vk_data.emplace_back(num_public_inputs);
+    for (auto& commitment_entry : constraint_selectors) {
+        vk_data.emplace_back(commitment_entry.second.x);
+        vk_data.emplace_back(commitment_entry.second.y);
+    }
+    for (auto& commitment_entry : permutation_selectors) {
+        vk_data.emplace_back(commitment_entry.second.x);
+        vk_data.emplace_back(commitment_entry.second.y);
+    }
+    vk_data.emplace_back(contains_recursive_proof);
+    for (auto& index : recursive_proof_public_input_indices) {
+        vk_data.emplace_back(index);
+    }
+    return sha256::sha256(to_buffer(vk_data));
 }
 
 } // namespace waffle
