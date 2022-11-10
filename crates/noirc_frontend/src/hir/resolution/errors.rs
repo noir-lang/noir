@@ -34,6 +34,10 @@ pub enum ResolverError {
     ExpectedComptimeVariable { name: String, span: Span },
     #[error("Missing expression for declared constant")]
     MissingRhsExpr { name: String, span: Span },
+    #[error("Expression invalid in an array length context")]
+    InvalidArrayLengthExpr { span: Span },
+    #[error("Integer too large to be evaluated in an array length context")]
+    IntegerTooLarge { span: Span },
 }
 
 impl ResolverError {
@@ -175,6 +179,16 @@ impl ResolverError {
                     name
                 ),
                 "expected expression to be stored for let statement".to_string(),
+                span,
+            ),
+            ResolverError::InvalidArrayLengthExpr { span } => Diagnostic::simple_error(
+                "Expression invalid in an array-length context".into(),
+                "Array-length expressions can only have simple integer operations and any variables used must be global constants".into(),
+                span,
+            ),
+            ResolverError::IntegerTooLarge { span } => Diagnostic::simple_error(
+                "Integer too large to be evaluated to an array-length".into(),
+                "Array-lengths may be a maximum size of usize::MAX, including intermediate calculations".into(),
                 span,
             ),
         }

@@ -437,7 +437,7 @@ impl<'a> Interpreter<'a> {
         match self.context.def_interner.expression(expr_id) {
             HirExpression::Literal(HirLiteral::Integer(x)) => Ok(Object::Constants(x)),
             HirExpression::Literal(HirLiteral::Array(arr_lit)) => {
-                Ok(Object::Array(Array::from(self, env, arr_lit)?))
+                Ok(Object::Array(Array::from(self, env, &arr_lit)?))
             }
             HirExpression::Ident(x) => Ok(self.evaluate_identifier(x, env)),
             HirExpression::Infix(infx) => {
