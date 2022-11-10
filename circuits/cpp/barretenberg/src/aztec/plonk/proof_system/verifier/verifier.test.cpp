@@ -29,7 +29,7 @@ transcript::Manifest create_manifest(const size_t num_public_inputs = 0)
                                                 { "W_3", g1_size, false } },
                                               "beta",
                                               2),
-          transcript::Manifest::RoundManifest({ { "Z", g1_size, false } }, "alpha", 1),
+          transcript::Manifest::RoundManifest({ { "Z_PERM", g1_size, false } }, "alpha", 1),
           transcript::Manifest::RoundManifest(
               { { "T_1", g1_size, false }, { "T_2", g1_size, false }, { "T_3", g1_size, false } }, "z", 1),
           transcript::Manifest::RoundManifest(
@@ -39,7 +39,7 @@ transcript::Manifest create_manifest(const size_t num_public_inputs = 0)
                   { "w_3", fr_size, false, 2 },
                   { "sigma_1", fr_size, false, 3 },
                   { "sigma_2", fr_size, false, 4 },
-                  { "z_omega", fr_size, false, -1 },
+                  { "z_perm_omega", fr_size, false, -1 },
               },
               "nu",
               7,
@@ -55,14 +55,14 @@ using namespace waffle;
 waffle::Verifier generate_verifier(std::shared_ptr<proving_key> circuit_proving_key)
 {
     std::array<fr*, 8> poly_coefficients;
-    poly_coefficients[0] = circuit_proving_key->constraint_selectors.at("q_1").get_coefficients();
-    poly_coefficients[1] = circuit_proving_key->constraint_selectors.at("q_2").get_coefficients();
-    poly_coefficients[2] = circuit_proving_key->constraint_selectors.at("q_3").get_coefficients();
-    poly_coefficients[3] = circuit_proving_key->constraint_selectors.at("q_m").get_coefficients();
-    poly_coefficients[4] = circuit_proving_key->constraint_selectors.at("q_c").get_coefficients();
-    poly_coefficients[5] = circuit_proving_key->permutation_selectors.at("sigma_1").get_coefficients();
-    poly_coefficients[6] = circuit_proving_key->permutation_selectors.at("sigma_2").get_coefficients();
-    poly_coefficients[7] = circuit_proving_key->permutation_selectors.at("sigma_3").get_coefficients();
+    poly_coefficients[0] = circuit_proving_key->polynomial_cache.get("q_1").get_coefficients();
+    poly_coefficients[1] = circuit_proving_key->polynomial_cache.get("q_2").get_coefficients();
+    poly_coefficients[2] = circuit_proving_key->polynomial_cache.get("q_3").get_coefficients();
+    poly_coefficients[3] = circuit_proving_key->polynomial_cache.get("q_m").get_coefficients();
+    poly_coefficients[4] = circuit_proving_key->polynomial_cache.get("q_c").get_coefficients();
+    poly_coefficients[5] = circuit_proving_key->polynomial_cache.get("sigma_1").get_coefficients();
+    poly_coefficients[6] = circuit_proving_key->polynomial_cache.get("sigma_2").get_coefficients();
+    poly_coefficients[7] = circuit_proving_key->polynomial_cache.get("sigma_3").get_coefficients();
 
     std::vector<barretenberg::g1::affine_element> commitments;
     scalar_multiplication::pippenger_runtime_state state(circuit_proving_key->n);
@@ -76,9 +76,9 @@ waffle::Verifier generate_verifier(std::shared_ptr<proving_key> circuit_proving_
                                                                 state));
     }
 
-    auto crs = std::make_shared<waffle::VerifierFileReferenceString>("../srs_db");
-    std::shared_ptr<verification_key> circuit_verification_key =
-        std::make_shared<verification_key>(circuit_proving_key->n, circuit_proving_key->num_public_inputs, crs);
+    auto crs = std::make_shared<waffle::VerifierFileReferenceString>("../srs_db/ignition");
+    std::shared_ptr<verification_key> circuit_verification_key = std::make_shared<verification_key>(
+        circuit_proving_key->n, circuit_proving_key->num_public_inputs, crs, circuit_proving_key->composer_type);
 
     circuit_verification_key->constraint_selectors.insert({ "Q_1", commitments[0] });
     circuit_verification_key->constraint_selectors.insert({ "Q_2", commitments[1] });
@@ -89,10 +89,6 @@ waffle::Verifier generate_verifier(std::shared_ptr<proving_key> circuit_proving_
     circuit_verification_key->permutation_selectors.insert({ "SIGMA_1", commitments[5] });
     circuit_verification_key->permutation_selectors.insert({ "SIGMA_2", commitments[6] });
     circuit_verification_key->permutation_selectors.insert({ "SIGMA_3", commitments[7] });
-
-    std::copy(standard_polynomial_manifest,
-              standard_polynomial_manifest + 12,
-              std::back_inserter(circuit_verification_key->polynomial_manifest));
 
     Verifier verifier(circuit_verification_key, create_manifest());
 
@@ -113,9 +109,8 @@ waffle::Prover generate_test_data(const size_t n)
 
     // even indices = mul gates, odd incides = add gates
 
-    auto crs = std::make_shared<waffle::FileReferenceString>(n + 1, "../srs_db");
-    std::shared_ptr<proving_key> key = std::make_shared<proving_key>(n, 0, crs);
-    std::shared_ptr<program_witness> witness = std::make_shared<program_witness>();
+    auto crs = std::make_shared<waffle::FileReferenceString>(n + 1, "../srs_db/ignition");
+    std::shared_ptr<proving_key> key = std::make_shared<proving_key>(n, 0, crs, waffle::STANDARD);
 
     polynomial w_l;
     polynomial w_r;
@@ -211,9 +206,9 @@ waffle::Prover generate_test_data(const size_t n)
     polynomial sigma_2_lagrange_base(sigma_2, key->n);
     polynomial sigma_3_lagrange_base(sigma_3, key->n);
 
-    key->permutation_selectors_lagrange_base.insert({ "sigma_1", std::move(sigma_1_lagrange_base) });
-    key->permutation_selectors_lagrange_base.insert({ "sigma_2", std::move(sigma_2_lagrange_base) });
-    key->permutation_selectors_lagrange_base.insert({ "sigma_3", std::move(sigma_3_lagrange_base) });
+    key->polynomial_cache.put("sigma_1_lagrange", std::move(sigma_1_lagrange_base));
+    key->polynomial_cache.put("sigma_2_lagrange", std::move(sigma_2_lagrange_base));
+    key->polynomial_cache.put("sigma_3_lagrange", std::move(sigma_3_lagrange_base));
 
     sigma_1.ifft(key->small_domain);
     sigma_2.ifft(key->small_domain);
@@ -227,17 +222,17 @@ waffle::Prover generate_test_data(const size_t n)
     sigma_2_fft.coset_fft(key->large_domain);
     sigma_3_fft.coset_fft(key->large_domain);
 
-    key->permutation_selectors.insert({ "sigma_1", std::move(sigma_1) });
-    key->permutation_selectors.insert({ "sigma_2", std::move(sigma_2) });
-    key->permutation_selectors.insert({ "sigma_3", std::move(sigma_3) });
+    key->polynomial_cache.put("sigma_1", std::move(sigma_1));
+    key->polynomial_cache.put("sigma_2", std::move(sigma_2));
+    key->polynomial_cache.put("sigma_3", std::move(sigma_3));
 
-    key->permutation_selector_ffts.insert({ "sigma_1_fft", std::move(sigma_1_fft) });
-    key->permutation_selector_ffts.insert({ "sigma_2_fft", std::move(sigma_2_fft) });
-    key->permutation_selector_ffts.insert({ "sigma_3_fft", std::move(sigma_3_fft) });
+    key->polynomial_cache.put("sigma_1_fft", std::move(sigma_1_fft));
+    key->polynomial_cache.put("sigma_2_fft", std::move(sigma_2_fft));
+    key->polynomial_cache.put("sigma_3_fft", std::move(sigma_3_fft));
 
-    witness->wires.insert({ "w_1", std::move(w_l) });
-    witness->wires.insert({ "w_2", std::move(w_r) });
-    witness->wires.insert({ "w_3", std::move(w_o) });
+    key->polynomial_cache.put("w_1_lagrange", std::move(w_l));
+    key->polynomial_cache.put("w_2_lagrange", std::move(w_r));
+    key->polynomial_cache.put("w_3_lagrange", std::move(w_o));
 
     q_l.ifft(key->small_domain);
     q_r.ifft(key->small_domain);
@@ -257,31 +252,28 @@ waffle::Prover generate_test_data(const size_t n)
     q_m_fft.coset_fft(key->large_domain);
     q_c_fft.coset_fft(key->large_domain);
 
-    key->constraint_selectors.insert({ "q_1", std::move(q_l) });
-    key->constraint_selectors.insert({ "q_2", std::move(q_r) });
-    key->constraint_selectors.insert({ "q_3", std::move(q_o) });
-    key->constraint_selectors.insert({ "q_m", std::move(q_m) });
-    key->constraint_selectors.insert({ "q_c", std::move(q_c) });
+    key->polynomial_cache.put("q_1", std::move(q_l));
+    key->polynomial_cache.put("q_2", std::move(q_r));
+    key->polynomial_cache.put("q_3", std::move(q_o));
+    key->polynomial_cache.put("q_m", std::move(q_m));
+    key->polynomial_cache.put("q_c", std::move(q_c));
 
-    key->constraint_selector_ffts.insert({ "q_1_fft", std::move(q_1_fft) });
-    key->constraint_selector_ffts.insert({ "q_2_fft", std::move(q_2_fft) });
-    key->constraint_selector_ffts.insert({ "q_3_fft", std::move(q_3_fft) });
-    key->constraint_selector_ffts.insert({ "q_m_fft", std::move(q_m_fft) });
-    key->constraint_selector_ffts.insert({ "q_c_fft", std::move(q_c_fft) });
-
-    std::copy(
-        standard_polynomial_manifest, standard_polynomial_manifest + 12, std::back_inserter(key->polynomial_manifest));
+    key->polynomial_cache.put("q_1_fft", std::move(q_1_fft));
+    key->polynomial_cache.put("q_2_fft", std::move(q_2_fft));
+    key->polynomial_cache.put("q_3_fft", std::move(q_3_fft));
+    key->polynomial_cache.put("q_m_fft", std::move(q_m_fft));
+    key->polynomial_cache.put("q_c_fft", std::move(q_c_fft));
 
     std::unique_ptr<waffle::ProverPermutationWidget<3>> permutation_widget =
-        std::make_unique<waffle::ProverPermutationWidget<3>>(key.get(), witness.get());
+        std::make_unique<waffle::ProverPermutationWidget<3>>(key.get());
 
     std::unique_ptr<waffle::ProverArithmeticWidget<waffle::standard_settings>> widget =
-        std::make_unique<waffle::ProverArithmeticWidget<waffle::standard_settings>>(key.get(), witness.get());
+        std::make_unique<waffle::ProverArithmeticWidget<waffle::standard_settings>>(key.get());
 
     std::unique_ptr<KateCommitmentScheme<standard_settings>> kate_commitment_scheme =
         std::make_unique<KateCommitmentScheme<standard_settings>>();
 
-    waffle::Prover state = waffle::Prover(std::move(key), std::move(witness), create_manifest());
+    waffle::Prover state = waffle::Prover(std::move(key), create_manifest());
     state.random_widgets.emplace_back(std::move(permutation_widget));
     state.transition_widgets.emplace_back(std::move(widget));
     state.commitment_scheme = std::move(kate_commitment_scheme);

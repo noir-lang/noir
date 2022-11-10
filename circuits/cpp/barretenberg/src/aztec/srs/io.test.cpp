@@ -11,7 +11,7 @@ TEST(io, read_transcript_loads_well_formed_srs)
     size_t degree = 100000;
     g1::affine_element* monomials = (g1::affine_element*)(aligned_alloc(32, sizeof(g1::affine_element) * (degree + 2)));
     g2::affine_element g2_x;
-    io::read_transcript(monomials, g2_x, degree, "../srs_db");
+    io::read_transcript(monomials, g2_x, degree, "../srs_db/ignition");
 
     g1::affine_element P[2];
     g2::affine_element Q[2];

@@ -394,7 +394,6 @@ TEST(plookup_composer, sort_with_edges_gate)
     {
         waffle::PlookupComposer composer = waffle::PlookupComposer();
         auto a_idx = composer.add_variable(a);
-        // auto b_idx = composer.add_variable(b);
         auto c_idx = composer.add_variable(c);
         auto d_idx = composer.add_variable(d);
         auto e_idx = composer.add_variable(e);
@@ -423,14 +422,18 @@ TEST(plookup_composer, sort_with_edges_gate)
 
         bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
         EXPECT_EQ(result, true);
-        // auto new_idx = composer.add_variable(47);
-        // idx = add_variables(1,2,5,6,7,10,11,13,16,17,20,22,22,25,26,29,29,32,32,33,35,38,39,39,42,42,43);
-        composer.create_sort_constraint_with_edges(idx, 1, 29);
-        prover = composer.create_prover();
-        verifier = composer.create_verifier();
-        proof = prover.construct_proof();
+    }
+    {
+        waffle::PlookupComposer composer = waffle::PlookupComposer();
+        auto idx = add_variables(composer, { 1,  2,  5,  6,  7,  10, 11, 13, 16, 17, 20, 22, 22, 25,
+                                             26, 29, 29, 32, 32, 33, 35, 38, 39, 39, 42, 42, 43, 45 });
 
-        result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
+        composer.create_sort_constraint_with_edges(idx, 1, 29);
+        auto prover = composer.create_prover();
+        auto verifier = composer.create_verifier();
+        waffle::plonk_proof proof = prover.construct_proof();
+
+        bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
         EXPECT_EQ(result, false);
     }
 }

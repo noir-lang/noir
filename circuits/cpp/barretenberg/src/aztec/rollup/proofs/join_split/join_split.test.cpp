@@ -31,8 +31,9 @@ class join_split_tests : public ::testing::Test {
     {
         auto null_crs_factory = std::make_shared<waffle::ReferenceStringFactory>();
         init_proving_key(null_crs_factory, false);
-        auto crs_factory = std::make_unique<waffle::FileReferenceStringFactory>("../srs_db");
+        auto crs_factory = std::make_unique<waffle::FileReferenceStringFactory>("../srs_db/ignition");
         init_verification_key(std::move(crs_factory));
+        info("vk hash: ", get_verification_key()->sha256_hash());
     }
 
     virtual void SetUp()

@@ -35,11 +35,11 @@ TEST(commitment_scheme, kate_open)
     transcript::StandardTranscript inp_tx = transcript::StandardTranscript({});
     waffle::KateCommitmentScheme<turbo_settings> newKate;
 
-    // std::shared_ptr<ReferenceStringFactory> crs_factory = (new FileReferenceStringFactory("../srs_db"));
-    auto file_crs = std::make_shared<waffle::FileReferenceStringFactory>("../srs_db");
+    // std::shared_ptr<ReferenceStringFactory> crs_factory = (new FileReferenceStringFactory("../srs_db/ignition"));
+    auto file_crs = std::make_shared<waffle::FileReferenceStringFactory>("../srs_db/ignition");
     auto crs = file_crs->get_prover_crs(n);
-    auto circuit_proving_key = std::make_shared<proving_key>(n, 0, crs);
-    work_queue queue(circuit_proving_key.get(), nullptr, &inp_tx);
+    auto circuit_proving_key = std::make_shared<proving_key>(n, 0, crs, waffle::STANDARD);
+    work_queue queue(circuit_proving_key.get(), &inp_tx);
 
     newKate.commit(&coeffs[0], "F_COMM", 0, queue);
     queue.process_queue();
@@ -48,7 +48,8 @@ TEST(commitment_scheme, kate_open)
     fr f_y = polynomial_arithmetic::evaluate(&coeffs[0], y, n);
     fr f = polynomial_arithmetic::evaluate(&coeffs[0], z, n);
 
-    newKate.compute_opening_polynomial(&coeffs[0], &W[0], z, n, "W_COMM", fr(0), queue);
+    newKate.compute_opening_polynomial(&coeffs[0], &W[0], z, n);
+    newKate.commit(&W[0], "W_COMM", fr(0), queue);
     queue.process_queue();
 
     // check if W(y)(y - z) = F(y) - F(z)
@@ -92,10 +93,10 @@ TEST(commitment_scheme, kate_batch_open)
     transcript::StandardTranscript inp_tx = transcript::StandardTranscript({});
     waffle::KateCommitmentScheme<turbo_settings> newKate;
 
-    auto file_crs = std::make_shared<waffle::FileReferenceStringFactory>("../srs_db");
+    auto file_crs = std::make_shared<waffle::FileReferenceStringFactory>("../srs_db/ignition");
     auto crs = file_crs->get_prover_crs(n);
-    auto circuit_proving_key = std::make_shared<proving_key>(n, 0, crs);
-    work_queue queue(circuit_proving_key.get(), nullptr, &inp_tx);
+    auto circuit_proving_key = std::make_shared<proving_key>(n, 0, crs, waffle::STANDARD);
+    work_queue queue(circuit_proving_key.get(), &inp_tx);
 
     // commit to individual polynomials
     for (size_t k = 0; k < t; ++k) {

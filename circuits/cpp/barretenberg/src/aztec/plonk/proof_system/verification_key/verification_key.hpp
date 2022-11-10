@@ -52,7 +52,8 @@ struct verification_key {
     verification_key(verification_key_data&& data, std::shared_ptr<VerifierReferenceString> const& crs);
     verification_key(const size_t num_gates,
                      const size_t num_inputs,
-                     std::shared_ptr<VerifierReferenceString> const& crs);
+                     std::shared_ptr<VerifierReferenceString> const& crs,
+                     uint32_t composer_type);
     verification_key(const verification_key& other);
     verification_key(verification_key&& other);
     verification_key& operator=(verification_key&& other);
@@ -73,7 +74,7 @@ struct verification_key {
 
     std::map<std::string, barretenberg::g1::affine_element> permutation_selectors;
 
-    std::vector<PolynomialDescriptor> polynomial_manifest;
+    PolynomialManifest polynomial_manifest;
 
     // this is a member variable because stdlib::field has no `pow` method, we
     // have to compute this differently for the normal and recursive settings respectively

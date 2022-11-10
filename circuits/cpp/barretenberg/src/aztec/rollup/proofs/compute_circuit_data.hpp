@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include <common/timer.hpp>
 #include <plonk/proof_system/proving_key/serialize.hpp>
+#include <filesystem>
 
 namespace rollup {
 namespace proofs {
@@ -74,13 +75,13 @@ circuit_data get_circuit_data(std::string const& name,
 
     // If we're saving data, create the circuit data directory.
     if (save) {
-        mkdir(key_path.c_str(), 0700);
-        mkdir(circuit_key_path.c_str(), 0700);
+        std::filesystem::create_directories(key_path.c_str());
+        std::filesystem::create_directories(circuit_key_path.c_str());
     }
 
     if (pk) {
         auto pk_dir = circuit_key_path + "/proving_key";
-        mkdir(pk_dir.c_str(), 0700);
+        std::filesystem::create_directories(pk_dir.c_str());
         if (exists(pk_path) && load) {
             info(name, ": Loading proving key: ", pk_path);
             auto pk_stream = std::ifstream(pk_path);
@@ -192,11 +193,6 @@ circuit_data get_circuit_data(std::string const& name,
                 }
             }
         }
-    }
-
-    // Free any unrequired memory.
-    if (data.proving_key) {
-        data.proving_key->reset();
     }
 
     return data;

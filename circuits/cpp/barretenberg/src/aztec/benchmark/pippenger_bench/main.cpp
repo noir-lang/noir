@@ -41,7 +41,7 @@ constexpr size_t NUM_POINTS = 1 << 16;
 std::vector<fr> scalars;
 static barretenberg::evaluation_domain small_domain;
 static barretenberg::evaluation_domain large_domain;
-auto reference_string = std::make_shared<waffle::FileReferenceString>(NUM_POINTS, "../srs_db");
+auto reference_string = std::make_shared<waffle::FileReferenceString>(NUM_POINTS, "../srs_db/ignition");
 
 const auto init = []() {
     small_domain = barretenberg::evaluation_domain(NUM_POINTS);

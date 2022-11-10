@@ -13,8 +13,8 @@ namespace waffle {
 
 template <size_t program_width, bool idpolys, const size_t num_roots_cut_out_of_vanishing_polynomial>
 ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanishing_polynomial>::ProverPermutationWidget(
-    proving_key* input_key, program_witness* input_witness)
-    : ProverRandomWidget(input_key, input_witness)
+    proving_key* input_key)
+    : ProverRandomWidget(input_key)
 {}
 
 template <size_t program_width, bool idpolys, const size_t num_roots_cut_out_of_vanishing_polynomial>
@@ -56,55 +56,36 @@ void ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanish
     if (round_number != 3) {
         return;
     }
-    const size_t n = key->n;
-    polynomial& z = witness->wires.at("z");
-    polynomial& z_fft = key->wire_ffts.at("z_fft");
 
-    fr* accumulators[(program_width == 1) ? 3 : program_width * 2];
-    accumulators[0] = &z[1];
-    accumulators[1] = &z_fft[0];
-    accumulators[2] = &z_fft[n];
-
-    if constexpr (program_width * 2 > 2) { // program_width >= 2
-        accumulators[3] = &z_fft[n + n];
-    }
-    if constexpr (program_width > 2) { // program_width >= 3
-        accumulators[4] = &z_fft[n + n + n];
-        accumulators[5] = &key->opening_poly[0];
-    }
-    if constexpr (program_width > 3) { // program_width >= 4
-        accumulators[6] = &key->shifted_opening_poly[0];
-        accumulators[7] = &key->quotient_polynomial_parts[0][0];
-    }
-    if constexpr (program_width > 4) { // program_width >= 5
-        accumulators[8] = &key->linear_poly[0];
-        accumulators[9] = &key->quotient_polynomial_parts[1][0];
-    }
-    if constexpr (program_width > 5) { // program_width >= 6
-        accumulators[10] = &key->quotient_polynomial_parts[2][0];
-        accumulators[11] = &key->quotient_polynomial_parts[3][0];
-    }
-    for (size_t k = 7; k < program_width; ++k) { // program_width >= 7
-        // we're out of temporary memory!
-        accumulators[(k - 1) * 2] = static_cast<fr*>(aligned_alloc(64, sizeof(fr) * n));
-        accumulators[(k - 1) * 2 + 1] = static_cast<fr*>(aligned_alloc(64, sizeof(fr) * n));
+    // Allocate scratch space in memory for computation of lagrange form of permutation polynomial
+    // 'z_perm'. Elements 2,...,n of z_perm are constructed in place in accumulators[0]. (The first
+    // element of z_perm is one, i.e. z_perm[0] == 1). The remaining accumulators are used only as scratch
+    // space. All memory allocated for the accumulators is freed before termination of this function.
+    size_t num_accumulators = (program_width == 1) ? 3 : program_width * 2;
+    fr* accumulators[num_accumulators];
+    // Allocate the required number of length n scratch space arrays
+    for (size_t k = 0; k < num_accumulators; ++k) {
+        accumulators[k] = static_cast<fr*>(aligned_alloc(64, sizeof(fr) * key->n));
     }
 
     barretenberg::fr beta = fr::serialize_from_buffer(transcript.get_challenge("beta").begin());
     barretenberg::fr gamma = fr::serialize_from_buffer(transcript.get_challenge("beta", 1).begin());
 
-    std::array<fr*, program_width> lagrange_base_wires;
-    std::array<fr*, program_width> lagrange_base_sigmas;
-    [[maybe_unused]] std::array<fr*, program_width> lagrange_base_ids;
+    std::array<const fr*, program_width> lagrange_base_wires;
+    std::array<const fr*, program_width> lagrange_base_sigmas;
+    [[maybe_unused]] std::array<const fr*, program_width> lagrange_base_ids;
 
     for (size_t i = 0; i < program_width; ++i) {
-        lagrange_base_wires[i] = &key->wire_ffts.at("w_" + std::to_string(i + 1) + "_fft")[0];
-        lagrange_base_sigmas[i] = &key->permutation_selectors_lagrange_base.at("sigma_" + std::to_string(i + 1))[0];
+        lagrange_base_wires[i] =
+            key->polynomial_cache.get("w_" + std::to_string(i + 1) + "_lagrange").get_coefficients();
+        lagrange_base_sigmas[i] =
+            key->polynomial_cache.get("sigma_" + std::to_string(i + 1) + "_lagrange").get_coefficients();
 
         // if idpolys = true, it implies that we do NOT use the identity permutation
         // S_ID1(X) = X, S_ID2(X) = k_1X, ...
         if constexpr (idpolys)
-            lagrange_base_ids[i] = &key->permutation_selectors_lagrange_base.at("id_" + std::to_string(i + 1))[0];
+            lagrange_base_ids[i] =
+                key->polynomial_cache.get("id_" + std::to_string(i + 1) + "_lagrange").get_coefficients();
     }
 
 #ifndef NO_MULTITHREADING
@@ -247,16 +228,19 @@ void ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanish
             inversion_accumulator = inversion_accumulator.invert();
             for (size_t i = end - 1; i != start - 1; --i) {
 
-                // N.B. accumulators[0][i] = z[i + 1]
-                // We can avoid fully reducing z[i + 1] as the inverse fft will take care of that for us
+                // N.B. accumulators[0][i] = z_perm[i + 1]
+                // We can avoid fully reducing z_perm[i + 1] as the inverse fft will take care of that for us
                 accumulators[0][i] = inversion_accumulator * inversion_coefficients[i];
                 inversion_accumulator *= accumulators[program_width][i];
             }
         }
     }
 
-    // coefficient_L1 = 1
-    z[0] = fr::one();
+    // Construct permutation polynomial 'z' in lagrange form as:
+    // z = [1 accumulators[0][0] accumulators[0][1] ... accumulators[0][n-2]]
+    polynomial z_perm(key->n, key->n);
+    z_perm[0] = fr::one();
+    barretenberg::polynomial_arithmetic::copy_polynomial(accumulators[0], &z_perm[1], key->n - 1, key->n - 1);
 
     /*
     Adding zero knowledge to the permutation polynomial.
@@ -302,37 +286,39 @@ void ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanish
     const size_t z_randomness = 3;
     ASSERT(z_randomness < num_roots_cut_out_of_vanishing_polynomial);
     for (size_t k = 0; k < z_randomness; ++k) {
-        z[(n - num_roots_cut_out_of_vanishing_polynomial) + 1 + k] = fr::random_element();
+        z_perm[(key->n - num_roots_cut_out_of_vanishing_polynomial) + 1 + k] = fr::random_element();
     }
 
-    z.ifft(key->small_domain);
+    z_perm.ifft(key->small_domain);
 
-    for (size_t k = 7; k < program_width; ++k) {
-        aligned_free(accumulators[(k - 1) * 2]);
-        aligned_free(accumulators[(k - 1) * 2 + 1]);
+    // free memory allocated for scratch space
+    for (size_t k = 0; k < num_accumulators; ++k) {
+        aligned_free(accumulators[k]);
     }
 
     queue.add_to_queue({
         work_queue::WorkType::SCALAR_MULTIPLICATION,
-        z.get_coefficients(),
-        "Z",
+        z_perm.get_coefficients(),
+        "Z_PERM",
         barretenberg::fr(0),
         0,
     });
     queue.add_to_queue({
         work_queue::WorkType::FFT,
         nullptr,
-        "z",
+        "z_perm",
         barretenberg::fr(0),
         0,
     });
+
+    key->polynomial_cache.put("z_perm", std::move(z_perm));
 }
 
 template <size_t program_width, bool idpolys, const size_t num_roots_cut_out_of_vanishing_polynomial>
 barretenberg::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanishing_polynomial>::
     compute_quotient_contribution(const fr& alpha_base, const transcript::StandardTranscript& transcript)
 {
-    polynomial& z_fft = key->wire_ffts.at("z_fft");
+    const polynomial& z_perm_fft = key->polynomial_cache.get("z_perm_fft");
 
     barretenberg::fr alpha_squared = alpha_base.sqr();
     barretenberg::fr beta = fr::serialize_from_buffer(transcript.get_challenge("beta").begin());
@@ -362,26 +348,26 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_o
     // (w_l(X) + \beta.sigma1(X) + \gamma).(w_r(X) + \beta.sigma2(X) + \gamma).(w_o(X) + \beta.sigma3(X) +
     // \gamma).Z(X).alpha Once we divide by the vanishing polynomial, this will be a degree 3n polynomial.
 
-    std::array<fr*, program_width> wire_ffts;
-    std::array<fr*, program_width> sigma_ffts;
-    [[maybe_unused]] std::array<fr*, program_width> id_ffts;
+    std::array<const fr*, program_width> wire_ffts;
+    std::array<const fr*, program_width> sigma_ffts;
+    [[maybe_unused]] std::array<const fr*, program_width> id_ffts;
 
     for (size_t i = 0; i < program_width; ++i) {
 
         // wire_fft[0] contains the fft of the wire polynomial w_1
         // sigma_fft[0] contains the fft of the permutation selector polynomial \sigma_1
-        wire_ffts[i] = &key->wire_ffts.at("w_" + std::to_string(i + 1) + "_fft")[0];
-        sigma_ffts[i] = &key->permutation_selector_ffts.at("sigma_" + std::to_string(i + 1) + "_fft")[0];
+        wire_ffts[i] = key->polynomial_cache.get("w_" + std::to_string(i + 1) + "_fft").get_coefficients();
+        sigma_ffts[i] = key->polynomial_cache.get("sigma_" + std::to_string(i + 1) + "_fft").get_coefficients();
 
         // idpolys is FALSE iff the "identity permutation" is used as a monomial
         // as a part of the permutation polynomial
         // <=> idpolys = FALSE
         if constexpr (idpolys)
-            id_ffts[i] = &key->permutation_selector_ffts.at("id_" + std::to_string(i + 1) + "_fft")[0];
+            id_ffts[i] = key->polynomial_cache.get("id_" + std::to_string(i + 1) + "_fft").get_coefficients();
     }
 
     // we start with lagrange polynomial L_1(X)
-    const polynomial& l_start = key->lagrange_1;
+    const polynomial& l_start = key->polynomial_cache.get("lagrange_1_fft");
 
     // compute our public input component
     std::vector<barretenberg::fr> public_inputs = many_from_buffer<fr>(transcript.get_element("public_inputs"));
@@ -447,8 +433,8 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_o
                 denominator *= T0;
             }
 
-            numerator *= z_fft[i];
-            denominator *= z_fft[(i + 4) & block_mask];
+            numerator *= z_perm_fft[i];
+            denominator *= z_perm_fft[(i + 4) & block_mask];
 
             /**
              * Permutation bounds check
@@ -483,11 +469,11 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_o
             // => add linearly independent term (Z(X.w) - 1).(\alpha^3).L{n-1}(X) into the quotient polynomial to check
             // this
 
-            // z_fft already contains evaluations of Z(X).(\alpha^2)
+            // z_perm_fft already contains evaluations of Z(X).(\alpha^2)
             // at the (4n)'th roots of unity
             // => to get Z(X.w) instead of Z(X), index element (i+4) instead of i
-            T0 = z_fft[(i + 4) & block_mask] - public_input_delta; // T0 = (Z(X.w) - (delta)).(\alpha^2)
-            T0 *= alpha_base;                                      // T0 = (Z(X.w) - (delta)).(\alpha^3)
+            T0 = z_perm_fft[(i + 4) & block_mask] - public_input_delta; // T0 = (Z(X.w) - (delta)).(\alpha^2)
+            T0 *= alpha_base;                                           // T0 = (Z(X.w) - (delta)).(\alpha^3)
 
             // T0 = (Z(X.w) - delta).(\alpha^3).L_{end}
             // where L_{end} = L{n - num_roots_cut_out_of_vanishing_polynomial}.
@@ -505,9 +491,9 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_o
             // We need to verify that Z(X) equals `1` when evaluated at the first element of our subgroup H
             // i.e. Z(X) starts at 1 and ends at 1
             // The `alpha^4` term is so that we can add this as a linearly independent term in our quotient polynomial
-            T0 = z_fft[i] - fr(1); // T0 = (Z(X) - 1).(\alpha^2)
-            T0 *= alpha_squared;   // T0 = (Z(X) - 1).(\alpha^4)
-            T0 *= l_start[i];      // T0 = (Z(X) - 1).(\alpha^2).L1(X)
+            T0 = z_perm_fft[i] - fr(1); // T0 = (Z(X) - 1).(\alpha^2)
+            T0 *= alpha_squared;        // T0 = (Z(X) - 1).(\alpha^4)
+            T0 *= l_start[i];           // T0 = (Z(X) - 1).(\alpha^2).L1(X)
             numerator += T0;
 
             // Combine into quotient polynomial
@@ -545,7 +531,7 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_o
     //
 
     // Step 1: regenrate challenges, fetch evaluations wire polynomials
-    polynomial& z = witness->wires.at("z");
+    const polynomial& z_perm = key->polynomial_cache.get("z_perm");
     barretenberg::fr z_challenge = fr::serialize_from_buffer(transcript.get_challenge("z").begin());
 
     barretenberg::polynomial_arithmetic::lagrange_evaluations lagrange_evals =
@@ -561,7 +547,7 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_o
         wire_evaluations[i] = fr::serialize_from_buffer(&transcript.get_element("w_" + std::to_string(i + 1))[0]);
     }
 
-    barretenberg::fr z_1_shifted_eval = fr::serialize_from_buffer(&transcript.get_element("z_omega")[0]);
+    barretenberg::fr z_1_shifted_eval = fr::serialize_from_buffer(&transcript.get_element("z_perm_omega")[0]);
 
     // Step 2: compute scalar multiplicand of the permutation polynomial z(X)
     // This has two flavours, one in which we use identity polynomials for representing identity permutations
@@ -613,7 +599,7 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_o
     sigma_last_multiplicand *= beta;
 
     // Step 6: Fetching S_{σ3}(X), public input component
-    const polynomial& sigma_last = key->permutation_selectors.at("sigma_" + std::to_string(program_width));
+    const polynomial& sigma_last = key->polynomial_cache.get("sigma_" + std::to_string(program_width));
     std::vector<barretenberg::fr> public_inputs = many_from_buffer<fr>(transcript.get_element("public_inputs"));
     barretenberg::fr public_input_delta =
         compute_public_input_delta<fr>(public_inputs, beta, gamma, key->small_domain.root);
@@ -623,7 +609,7 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_o
     pi_term *= alpha.sqr();
     // Step 7: add up the z(X), S_{sigma3}(X), c_eval_gamma, and l_one_z_alpha_cube terms into r(X)
     ITERATE_OVER_DOMAIN_START(key->small_domain);
-    r[i] = (z[i] * z_1_multiplicand) + (sigma_last[i] * sigma_last_multiplicand);
+    r[i] = (z_perm[i] * z_1_multiplicand) + (sigma_last[i] * sigma_last_multiplicand);
     ITERATE_OVER_DOMAIN_END;
     // We should add constant terms with r[0] only
     r[0] += (c_eval_gamma * c_eval_gamma_multiplicand) - lagrange_evals.l_start * alpha.sqr() * alpha + pi_term;
@@ -694,7 +680,7 @@ Field VerifierPermutationWidget<Field, Group, Transcript, num_roots_cut_out_of_v
     }
     Field l_end = numerator / ((z * l_end_root) - Field(1));
 
-    Field z_1_shifted_eval = transcript.get_field_element("z_omega");
+    Field z_1_shifted_eval = transcript.get_field_element("z_perm_omega");
 
     // reconstruct evaluation of quotient polynomial from prover messages
     Field T1;
@@ -776,7 +762,7 @@ Field VerifierPermutationWidget<Field, Group, Transcript, num_roots_cut_out_of_v
         // add up part 4 to the r_0 term
         r_0 += (sigma_last_multiplicand * sigma_evaluations[key->program_width - 1]);
 
-        Field z_eval = transcript.get_field_element("z");
+        Field z_eval = transcript.get_field_element("z_perm");
 
         if (idpolys) {
 
@@ -840,7 +826,7 @@ Field VerifierPermutationWidget<Field, Group, Transcript, num_roots_cut_out_of_v
     Field alpha_step = transcript.get_challenge_field_element("alpha");
 
     Field alpha_cubed = alpha_base * alpha_step.sqr();
-    Field shifted_z_eval = transcript.get_field_element("z_omega");
+    Field shifted_z_eval = transcript.get_field_element("z_perm_omega");
 
     // We also need to compute the evaluation of lagrange polynomial L_1(X) at z.
     Field z = transcript.get_challenge_field_element("z");
@@ -898,7 +884,7 @@ Field VerifierPermutationWidget<Field, Group, Transcript, num_roots_cut_out_of_v
         Field z_1_multiplicand = z_contribution * alpha_base;
         T0 = l_start * alpha_cubed;
         z_1_multiplicand += T0;
-        scalars["Z"] += (z_1_multiplicand);
+        scalars["Z_PERM"] += (z_1_multiplicand);
     }
 
     // Here, we compute the multiplicand of [sigma3]_1 as

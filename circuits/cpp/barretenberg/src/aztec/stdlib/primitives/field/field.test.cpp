@@ -158,7 +158,7 @@ TEST(stdlib_field, test_add_mul_with_constants)
 
     uint64_t expected = fidget(composer);
     auto prover = composer.create_prover();
-    EXPECT_EQ(prover.witness->wires.at("w_3")[18], fr(expected));
+    EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[18], fr(expected));
 
     EXPECT_EQ(prover.n, 32UL);
     auto verifier = composer.create_verifier();
@@ -211,7 +211,7 @@ TEST(stdlib_field, test_field_fibbonaci)
 
     auto prover = composer.create_prover();
 
-    EXPECT_EQ(prover.witness->wires.at("w_3")[17], fr(4181));
+    EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[17], fr(4181));
     EXPECT_EQ(prover.n, 32UL);
     auto verifier = composer.create_verifier();
 
@@ -297,7 +297,7 @@ TEST(stdlib_field, test_equality_with_constants)
 TEST(stdlib_field, test_larger_circuit)
 {
     size_t n = 16384;
-    Composer composer = Composer("../srs_db/", n);
+    Composer composer = Composer("../srs_db/ignition", n);
 
     generate_test_plonk_circuit(composer, n);
 

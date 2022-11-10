@@ -14,31 +14,89 @@ class polynomial {
 
     // TODO: add a 'spill' factor when allocating memory - we sometimes needs to extend poly degree by 2/4,
     // if page size = power of two, will trigger unneccesary copies
-    polynomial(const size_t initial_size = 0,
+    polynomial(const size_t initial_size,
                const size_t initial_max_size_hint = DEFAULT_SIZE_HINT,
                const Representation repr = Representation::ROOTS_OF_UNITY);
     polynomial(const polynomial& other, const size_t target_max_size = 0);
-    polynomial(polynomial&& other, const size_t target_max_size = 0);
+
+    polynomial(polynomial&& other);
+
+    // Takes ownership of given buffer.
+    polynomial(fr* buf, const size_t initial_size);
+
+    // Allow polynomials to be entirely reset/dormant
+    polynomial();
+
     polynomial& operator=(polynomial&& other);
     polynomial& operator=(const polynomial& other);
     ~polynomial();
 
-    bool operator==(polynomial const& rhs) const
+    void clear()
     {
-        bool eq = size == rhs.size;
-        for (size_t i = 0; i < size; ++i) {
-            eq &= coefficients[i] == rhs.coefficients[i];
-        }
-        return eq;
+        free();
+
+        mapped = 0;
+        coefficients = 0;
+        representation = Representation::ROOTS_OF_UNITY;
+        initial_size = 0;
+        size = 0;
+        page_size = DEFAULT_SIZE_HINT;
+        max_size = 0;
+        allocated_pages = 0;
     }
 
-    barretenberg::fr& operator[](const size_t i) const { return coefficients[i]; }
+    bool operator==(polynomial const& rhs) const
+    {
+        if (size == rhs.size) {
 
-    // void copy(const polynomial &other, const size_t target_max_size = 0);
+            // If either poly has null coefficients then we are equal only if both are null
+            if (coefficients == 0 || rhs.coefficients == 0)
+                return coefficients == 0 && rhs.coefficients == 0;
+
+            // Size is equal and both have coefficients, compare
+            for (size_t i = 0; i < size; ++i) {
+                if (coefficients[i] != rhs.coefficients[i])
+                    return false;
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
     barretenberg::fr* get_coefficients() const { return coefficients; };
+    barretenberg::fr* get_coefficients() { return coefficients; };
+    barretenberg::fr* data() { return coefficients; };
+
     size_t get_size() const { return size; };
     size_t get_max_size() const { return max_size; };
-    barretenberg::fr& at(const size_t i) const { return coefficients[i]; };
+
+    // Const and non const versions of coefficient accessors
+    barretenberg::fr& operator[](const size_t i) const
+    {
+        ASSERT(!empty());
+        return coefficients[i];
+    }
+
+    barretenberg::fr& operator[](const size_t i)
+    {
+        ASSERT(!empty());
+        return coefficients[i];
+    }
+
+    barretenberg::fr& at(const size_t i) const
+    {
+        ASSERT(!empty());
+        return coefficients[i];
+    };
+
+    barretenberg::fr& at(const size_t i)
+    {
+        ASSERT(!empty());
+        return coefficients[i];
+    };
+
     barretenberg::fr evaluate(const barretenberg::fr& z, const size_t target_size) const;
     barretenberg::fr compute_barycentric_evaluation(const barretenberg::fr& z, const evaluation_domain& domain);
 
@@ -64,6 +122,12 @@ class polynomial {
     void resize(const size_t new_size);
     void resize_unsafe(const size_t new_size);
 
+    bool empty() const
+    {
+        static polynomial poly;
+        return *this == poly;
+    }
+
   private:
     void free();
     void zero_memory(const size_t zero_size);
@@ -72,9 +136,11 @@ class polynomial {
     void add_coefficient_internal(const barretenberg::fr& coefficient);
     void bump_memory(const size_t new_size);
 
+  public:
     bool mapped;
     barretenberg::fr* coefficients;
     Representation representation;
+    size_t initial_size;
     size_t size;
     size_t page_size;
     size_t max_size;

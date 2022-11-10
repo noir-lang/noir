@@ -5,11 +5,14 @@ namespace waffle {
 
 verification_key::verification_key(const size_t num_gates,
                                    const size_t num_inputs,
-                                   std::shared_ptr<VerifierReferenceString> const& crs)
-    : n(num_gates)
+                                   std::shared_ptr<VerifierReferenceString> const& crs,
+                                   uint32_t composer_type_)
+    : composer_type(composer_type_)
+    , n(num_gates)
     , num_public_inputs(num_inputs)
     , domain(n)
     , reference_string(crs)
+    , polynomial_manifest(composer_type)
 {}
 
 verification_key::verification_key(verification_key_data&& data, std::shared_ptr<VerifierReferenceString> const& crs)
@@ -20,29 +23,10 @@ verification_key::verification_key(verification_key_data&& data, std::shared_ptr
     , reference_string(crs)
     , constraint_selectors(std::move(data.constraint_selectors))
     , permutation_selectors(std::move(data.permutation_selectors))
+    , polynomial_manifest(data.composer_type)
     , contains_recursive_proof(data.contains_recursive_proof)
     , recursive_proof_public_input_indices(std::move(data.recursive_proof_public_input_indices))
-{
-    switch (composer_type) {
-    case ComposerType::STANDARD: {
-        std::copy(
-            standard_polynomial_manifest, standard_polynomial_manifest + 12, std::back_inserter(polynomial_manifest));
-        break;
-    };
-    case ComposerType::TURBO: {
-        std::copy(turbo_polynomial_manifest, turbo_polynomial_manifest + 20, std::back_inserter(polynomial_manifest));
-        break;
-    };
-    case ComposerType::PLOOKUP: {
-        std::copy(
-            plookup_polynomial_manifest, plookup_polynomial_manifest + 34, std::back_inserter(polynomial_manifest));
-        break;
-    };
-    default: {
-        throw_or_abort("Received invalid composer type");
-    }
-    }
-}
+{}
 
 verification_key::verification_key(const verification_key& other)
     : composer_type(other.composer_type)

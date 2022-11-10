@@ -30,7 +30,7 @@ inline plonk_linear_terms<Field> compute_linear_terms(const Transcript& transcri
         wire_evaluations[i] = transcript.get_field_element("w_" + std::to_string(i + 1));
     }
 
-    Field z_1_shifted_eval = transcript.get_field_element("z_omega");
+    Field z_1_shifted_eval = transcript.get_field_element("z_perm_omega");
 
     plonk_linear_terms<Field> result;
 

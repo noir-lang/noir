@@ -9,7 +9,7 @@ using namespace rollup::proofs::standard_example;
 
 TEST(standard_example_tests, test_standard_example)
 {
-    Composer composer = Composer("../srs_db");
+    Composer composer = Composer("../srs_db/ignition");
     build_circuit(composer);
 
     Prover prover = composer.create_prover();

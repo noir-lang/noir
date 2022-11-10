@@ -24,8 +24,8 @@ class account_tests : public ::testing::Test {
   protected:
     static void SetUpTestCase()
     {
-        auto crs_factory =
-            std::shared_ptr<waffle::ReferenceStringFactory>(new waffle::FileReferenceStringFactory("../srs_db"));
+        auto crs_factory = std::shared_ptr<waffle::ReferenceStringFactory>(
+            new waffle::FileReferenceStringFactory("../srs_db/ignition"));
         init_proving_key(crs_factory, false);
         init_verification_key(crs_factory);
     }

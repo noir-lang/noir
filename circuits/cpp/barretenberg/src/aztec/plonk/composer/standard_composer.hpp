@@ -88,7 +88,7 @@ class StandardComposer : public ComposerBase {
 
     virtual std::shared_ptr<proving_key> compute_proving_key() override;
     virtual std::shared_ptr<verification_key> compute_verification_key() override;
-    virtual std::shared_ptr<program_witness> compute_witness() override;
+    virtual void compute_witness() override;
     Verifier create_verifier();
     /**
      * Preprocess the circuit. Delegates to create_prover.
@@ -181,7 +181,7 @@ class StandardComposer : public ComposerBase {
                   },
                   "beta",
                   2),
-              transcript::Manifest::RoundManifest({ { "Z", g1_size, false } }, "alpha", 1),
+              transcript::Manifest::RoundManifest({ { "Z_PERM", g1_size, false } }, "alpha", 1),
               transcript::Manifest::RoundManifest(
                   { { "T_1", g1_size, false }, { "T_2", g1_size, false }, { "T_3", g1_size, false } }, "z", 1),
               transcript::Manifest::RoundManifest(
@@ -191,7 +191,7 @@ class StandardComposer : public ComposerBase {
                       { "w_3", fr_size, false, 2 },
                       { "sigma_1", fr_size, false, 3 },
                       { "sigma_2", fr_size, false, 4 },
-                      { "z_omega", fr_size, false, -1 },
+                      { "z_perm_omega", fr_size, false, -1 },
                   },
                   "nu",
                   6,
@@ -220,7 +220,7 @@ class StandardComposer : public ComposerBase {
                   },
                   "beta",
                   2),
-              transcript::Manifest::RoundManifest({ { "Z", g1_size, false } }, "alpha", 1),
+              transcript::Manifest::RoundManifest({ { "Z_PERM", g1_size, false } }, "alpha", 1),
               transcript::Manifest::RoundManifest(
                   { { "T_1", g1_size, false }, { "T_2", g1_size, false }, { "T_3", g1_size, false } }, "z", 1),
               transcript::Manifest::RoundManifest(
@@ -237,8 +237,8 @@ class StandardComposer : public ComposerBase {
                       { "q_3", fr_size, false, 8 },
                       { "q_m", fr_size, false, 9 },
                       { "q_c", fr_size, false, 10 },
-                      { "z", fr_size, false, 11 },
-                      { "z_omega", fr_size, false, -1 },
+                      { "z_perm", fr_size, false, 11 },
+                      { "z_perm_omega", fr_size, false, -1 },
                   },
                   "nu",
                   12,

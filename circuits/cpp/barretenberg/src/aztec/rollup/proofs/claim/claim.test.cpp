@@ -27,7 +27,7 @@ class claim_tests : public ::testing::Test {
   protected:
     static void SetUpTestCase()
     {
-        srs = std::make_shared<waffle::FileReferenceStringFactory>("../srs_db");
+        srs = std::make_shared<waffle::FileReferenceStringFactory>("../srs_db/ignition");
         cd = get_circuit_data(srs);
     }
 

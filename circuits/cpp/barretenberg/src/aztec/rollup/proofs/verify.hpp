@@ -80,8 +80,6 @@ auto verify_internal(
         return result;
     }
 
-    cd.proving_key->reset();
-
     Timer proof_timer;
     info(name, ": Creating proof...");
 

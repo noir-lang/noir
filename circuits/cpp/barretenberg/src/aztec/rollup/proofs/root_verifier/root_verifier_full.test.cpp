@@ -11,6 +11,7 @@
 #include <ecc/curves/bn254/g1.hpp>
 
 #include <fstream>
+#include <filesystem>
 #include <common/serialize.hpp>
 
 namespace rollup {
@@ -50,8 +51,8 @@ class root_verifier_full_tests : public ::testing::Test {
 
     static void SetUpTestCase()
     {
-        mkdir(FIXTURE_PATH, 0700);
-        mkdir(TEST_PROOFS_PATH, 0700);
+        std::filesystem::create_directories(FIXTURE_PATH);
+        std::filesystem::create_directories(TEST_PROOFS_PATH);
         srs = std::make_shared<waffle::DynamicFileReferenceStringFactory>(CRS_PATH);
         account_cd = proofs::account::get_circuit_data(srs);
         join_split_cd = join_split::get_circuit_data(srs);

@@ -40,15 +40,13 @@ if(BENCHMARKS)
 endif()
 
 if(WASM)
-    add_definitions(-D_WASI_EMULATED_PROCESS_CLOCKS=1)
-
     # Well, this is awkward. We can't build a wasm module by just linking to the libraries as that produces, nothing.
     # There are a couple of other ways to avoiding listing all the object files here and leveraging the dependency
     # tree, but they come with the problem that they will import the 'env' object files. We explicitly want to avoid
     # that as functions in 'env' should be implemented in JS itself.
     # It turns out that just explicitly telling the wasm module which object files to include was easiest.
     add_executable(
-        barretenberg.wasm
+        barretenberg-step1.wasm
         $<TARGET_OBJECTS:srs_objects>
         $<TARGET_OBJECTS:numeric_objects>
         $<TARGET_OBJECTS:crypto_sha256_objects>
@@ -77,9 +75,21 @@ if(WASM)
     # Presumably the -O3 when compiling the object files is fine as it's llvms IR optimiser.
     # The backend optimiser is presumably triggered after linking.
     target_link_options(
-        barretenberg.wasm
+        barretenberg-step1.wasm
         PRIVATE
         -nostartfiles -O2 -Wl,--no-entry -Wl,--export-dynamic -Wl,--import-memory -Wl,--allow-undefined -Wl,--stack-first -Wl,-z,stack-size=1048576
+    )
+
+    add_custom_command(
+        OUTPUT ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/barretenberg.wasm
+        COMMAND wasm-opt ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/barretenberg-step1.wasm -O2 --asyncify -o ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/barretenberg.wasm
+        DEPENDS barretenberg-step1.wasm
+        VERBATIM
+    )
+
+    add_custom_target(
+        barretenberg.wasm
+        DEPENDS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/barretenberg.wasm
     )
 
 endif()

@@ -30,7 +30,7 @@ extern template class VerifierPlookupWidget<barretenberg::fr,
 template <const size_t num_roots_cut_out_of_vanishing_polynomial = 4>
 class ProverPlookupWidget : public ProverRandomWidget {
   public:
-    inline ProverPlookupWidget(proving_key*, program_witness*);
+    inline ProverPlookupWidget(proving_key*);
     inline ProverPlookupWidget(const ProverPlookupWidget& other);
     inline ProverPlookupWidget(ProverPlookupWidget&& other);
     inline ProverPlookupWidget& operator=(const ProverPlookupWidget& other);

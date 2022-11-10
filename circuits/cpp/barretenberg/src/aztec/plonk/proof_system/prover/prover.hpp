@@ -3,7 +3,6 @@
 #include "../proving_key/proving_key.hpp"
 #include "../types/plonk_proof.hpp"
 #include "../types/program_settings.hpp"
-#include "../types/program_witness.hpp"
 #include "../widgets/random_widgets/random_widget.hpp"
 #include "./work_queue.hpp"
 #include "../widgets/transition_widgets/transition_widget.hpp"
@@ -14,7 +13,6 @@ template <typename settings> class ProverBase {
 
   public:
     ProverBase(std::shared_ptr<proving_key> input_key = nullptr,
-               std::shared_ptr<program_witness> input_witness = nullptr,
                const transcript::Manifest& manifest = transcript::Manifest({}));
     ProverBase(ProverBase&& other);
     ProverBase(const ProverBase& other) = delete;
@@ -37,10 +35,13 @@ template <typename settings> class ProverBase {
 
     void compute_linearisation_coefficients();
     void add_blinding_to_quotient_polynomial_parts();
+    void compute_lagrange_1_fft();
     waffle::plonk_proof& export_proof();
     waffle::plonk_proof& construct_proof();
 
     size_t get_circuit_size() const { return n; }
+
+    void flush_queued_work_items() { queue.flush_queue(); }
 
     work_queue::work_item_info get_queued_work_item_info() const { return queue.get_queued_work_item_info(); }
 
@@ -83,16 +84,11 @@ template <typename settings> class ProverBase {
 
     size_t n;
 
-    std::vector<uint32_t> sigma_1_mapping;
-    std::vector<uint32_t> sigma_2_mapping;
-    std::vector<uint32_t> sigma_3_mapping;
-
     std::vector<std::unique_ptr<ProverRandomWidget>> random_widgets;
     std::vector<std::unique_ptr<widget::TransitionWidgetBase<barretenberg::fr>>> transition_widgets;
     transcript::StandardTranscript transcript;
 
     std::shared_ptr<proving_key> key;
-    std::shared_ptr<program_witness> witness;
     std::unique_ptr<CommitmentScheme> commitment_scheme;
 
     work_queue queue;

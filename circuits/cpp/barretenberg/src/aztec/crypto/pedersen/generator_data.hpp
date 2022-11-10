@@ -54,7 +54,7 @@ struct generator_data {
     const fixed_base_ladder* get_hash_ladder(size_t num_bits) const;
 };
 
-void init_generator_data();
+std::vector<std::unique_ptr<generator_data>> const& init_generator_data();
 const fixed_base_ladder* get_g1_ladder(const size_t num_bits);
 generator_data const& get_generator_data(generator_index_t index);
 

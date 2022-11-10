@@ -13,6 +13,10 @@ enum ComposerType {
 
 enum PolynomialSource { WITNESS, SELECTOR, PERMUTATION };
 
+enum PolynomialRepresentation { MONOMIAL, COSET_FFT };
+
+enum EvaluationType { NON_SHIFTED, SHIFTED };
+
 enum PolynomialIndex {
     Q_1,
     Q_2,
@@ -99,7 +103,7 @@ static constexpr PolynomialDescriptor standard_polynomial_manifest[12]{
     PolynomialDescriptor("W_1", "w_1", false, false, WITNESS, W_1),                 //
     PolynomialDescriptor("W_2", "w_2", false, false, WITNESS, W_2),                 //
     PolynomialDescriptor("W_3", "w_3", false, false, WITNESS, W_3),                 //
-    PolynomialDescriptor("Z", "z", true, true, WITNESS, Z),                         //
+    PolynomialDescriptor("Z_PERM", "z_perm", true, true, WITNESS, Z),               //
     PolynomialDescriptor("Q_1", "q_1", true, false, SELECTOR, Q_1),                 //
     PolynomialDescriptor("Q_2", "q_2", true, false, SELECTOR, Q_2),                 //
     PolynomialDescriptor("Q_3", "q_3", true, false, SELECTOR, Q_3),                 //
@@ -115,7 +119,7 @@ static constexpr PolynomialDescriptor turbo_polynomial_manifest[20]{
     PolynomialDescriptor("W_2", "w_2", false, true, WITNESS, W_2),                                           //
     PolynomialDescriptor("W_3", "w_3", false, true, WITNESS, W_3),                                           //
     PolynomialDescriptor("W_4", "w_4", false, true, WITNESS, W_4),                                           //
-    PolynomialDescriptor("Z", "z", true, true, WITNESS, Z),                                                  //
+    PolynomialDescriptor("Z_PERM", "z_perm", true, true, WITNESS, Z),                                        //
     PolynomialDescriptor("Q_1", "q_1", true, false, SELECTOR, Q_1),                                          //
     PolynomialDescriptor("Q_2", "q_2", true, false, SELECTOR, Q_2),                                          //
     PolynomialDescriptor("Q_3", "q_3", true, false, SELECTOR, Q_3),                                          //
@@ -139,7 +143,7 @@ static constexpr PolynomialDescriptor plookup_polynomial_manifest[34]{
     PolynomialDescriptor("W_3", "w_3", false, true, WITNESS, W_3),                                           //
     PolynomialDescriptor("W_4", "w_4", false, true, WITNESS, W_4),                                           //
     PolynomialDescriptor("S", "s", false, true, WITNESS, S),                                                 //
-    PolynomialDescriptor("Z", "z", true, true, WITNESS, Z),                                                  //
+    PolynomialDescriptor("Z_PERM", "z_perm", true, true, WITNESS, Z),                                        //
     PolynomialDescriptor("Z_LOOKUP", "z_lookup", false, true, WITNESS, Z_LOOKUP),                            //
     PolynomialDescriptor("Q_1", "q_1", true, false, SELECTOR, Q_1),                                          //
     PolynomialDescriptor("Q_2", "q_2", false, false, SELECTOR, Q_2),                                         //
@@ -175,7 +179,7 @@ static constexpr PolynomialDescriptor genperm_polynomial_manifest[24]{
     PolynomialDescriptor("W_2", "w_2", false, true, WITNESS, W_2),                                           //
     PolynomialDescriptor("W_3", "w_3", false, true, WITNESS, W_3),                                           //
     PolynomialDescriptor("W_4", "w_4", false, true, WITNESS, W_4),                                           //
-    PolynomialDescriptor("Z", "z", true, true, WITNESS, Z),                                                  //
+    PolynomialDescriptor("Z_PERM", "z_perm", true, true, WITNESS, Z),                                        //
     PolynomialDescriptor("Q_1", "q_1", true, false, SELECTOR, Q_1),                                          //
     PolynomialDescriptor("Q_2", "q_2", true, false, SELECTOR, Q_2),                                          //
     PolynomialDescriptor("Q_3", "q_3", true, false, SELECTOR, Q_3),                                          //
@@ -195,6 +199,82 @@ static constexpr PolynomialDescriptor genperm_polynomial_manifest[24]{
     PolynomialDescriptor("ID_2", "id_2", false, false, PERMUTATION, ID_2),                                   //
     PolynomialDescriptor("ID_3", "id_3", false, false, PERMUTATION, ID_3),                                   //
     PolynomialDescriptor("ID_4", "id_4", false, false, PERMUTATION, ID_4),                                   //
+};
+
+// Simple class allowing for access to a polynomial manifest based on composer type
+class PolynomialManifest {
+  private:
+    std::vector<PolynomialDescriptor> manifest;
+
+  public:
+    PolynomialManifest() {}
+
+    PolynomialManifest(uint32_t composer_type)
+    {
+        switch (composer_type) {
+        case ComposerType::STANDARD: {
+            std::copy(standard_polynomial_manifest, standard_polynomial_manifest + 12, std::back_inserter(manifest));
+            break;
+        };
+        case ComposerType::TURBO: {
+            std::copy(turbo_polynomial_manifest, turbo_polynomial_manifest + 20, std::back_inserter(manifest));
+            break;
+        };
+        case ComposerType::PLOOKUP: {
+            std::copy(plookup_polynomial_manifest, plookup_polynomial_manifest + 34, std::back_inserter(manifest));
+            break;
+        };
+        default: {
+            throw_or_abort("Received invalid composer type");
+        }
+        };
+    }
+
+    size_t size() const { return manifest.size(); }
+
+    PolynomialDescriptor operator[](size_t index) const { return manifest[index]; }
+};
+
+// This class constructs and provides access to a full list of pre-computed
+// polynomial IDs based on the composer type. This is used, for example, for
+// serialization of the pre-computed portion of the proving key. The list is
+// comprised of IDs corresponding to: the selector polynomials (monomial and
+// coset fft forms) and the permutation polynomials (monomial, coset fft and
+// lagrange forms).
+class PrecomputedPolyList {
+
+  private:
+    std::vector<std::string> precomputed_poly_ids;
+
+  public:
+    // Upon construction, build the vector of precomputed poly ID strings based on the manifest
+    PrecomputedPolyList(uint32_t composer_type)
+    {
+        PolynomialManifest manifest(composer_type);
+
+        for (size_t i = 0; i < manifest.size(); ++i) {
+            std::string label = std::string(manifest[i].polynomial_label);
+            PolynomialSource source = manifest[i].source;
+
+            switch (source) {
+            case PolynomialSource::WITNESS: // no witness polys are precomputed
+                break;
+            case PolynomialSource::SELECTOR: // monomial and fft
+                precomputed_poly_ids.emplace_back(label);
+                precomputed_poly_ids.emplace_back(label + "_fft");
+                break;
+            case PolynomialSource::PERMUTATION: // monomial, fft, and lagrange
+                precomputed_poly_ids.emplace_back(label);
+                precomputed_poly_ids.emplace_back(label + "_fft");
+                precomputed_poly_ids.emplace_back(label + "_lagrange");
+                break;
+            }
+        }
+    }
+
+    size_t size() const { return precomputed_poly_ids.size(); }
+
+    std::string operator[](size_t index) const { return precomputed_poly_ids[index]; }
 };
 
 } // namespace waffle

@@ -44,7 +44,7 @@ std::vector<ComposerBase::SelectorProperties> turbo_sel_props()
  * Turbo composer initialization with srs automatically loaded from ../srs_db
  * */
 TurboComposer::TurboComposer()
-    : TurboComposer("../srs_db", 0)
+    : TurboComposer("../srs_db/ignition", 0)
 {}
 
 /**
@@ -925,13 +925,9 @@ std::shared_ptr<proving_key> TurboComposer::compute_proving_key()
         return circuit_proving_key;
     }
 
-    ComposerBase::compute_proving_key_base();
-    circuit_proving_key->composer_type = type;
-    compute_sigma_permutations<4, false>(circuit_proving_key.get());
+    ComposerBase::compute_proving_key_base(type);
 
-    std::copy(turbo_polynomial_manifest,
-              turbo_polynomial_manifest + 20,
-              std::back_inserter(circuit_proving_key->polynomial_manifest));
+    compute_sigma_permutations<4, false>(circuit_proving_key.get());
 
     circuit_proving_key->recursive_proof_public_input_indices =
         std::vector<uint32_t>(recursive_proof_public_input_indices.begin(), recursive_proof_public_input_indices.end());
@@ -958,10 +954,10 @@ std::shared_ptr<verification_key> TurboComposer::compute_verification_key()
     return circuit_verification_key;
 }
 
-std::shared_ptr<program_witness> TurboComposer::compute_witness()
+void TurboComposer::compute_witness()
 {
 
-    return ComposerBase::compute_witness_base<turbo_settings>();
+    ComposerBase::compute_witness_base<turbo_settings>();
 }
 
 TurboProver TurboComposer::create_prover()
@@ -970,19 +966,19 @@ TurboProver TurboComposer::create_prover()
 
     compute_witness();
 
-    TurboProver output_state(circuit_proving_key, witness, create_manifest(public_inputs.size()));
+    TurboProver output_state(circuit_proving_key, create_manifest(public_inputs.size()));
 
     std::unique_ptr<ProverPermutationWidget<4, false>> permutation_widget =
-        std::make_unique<ProverPermutationWidget<4, false>>(circuit_proving_key.get(), witness.get());
+        std::make_unique<ProverPermutationWidget<4, false>>(circuit_proving_key.get());
     std::unique_ptr<ProverTurboRangeWidget<turbo_settings>> range_widget =
-        std::make_unique<ProverTurboRangeWidget<turbo_settings>>(circuit_proving_key.get(), witness.get());
+        std::make_unique<ProverTurboRangeWidget<turbo_settings>>(circuit_proving_key.get());
     std::unique_ptr<ProverTurboLogicWidget<turbo_settings>> logic_widget =
-        std::make_unique<ProverTurboLogicWidget<turbo_settings>>(circuit_proving_key.get(), witness.get());
+        std::make_unique<ProverTurboLogicWidget<turbo_settings>>(circuit_proving_key.get());
 
     std::unique_ptr<ProverTurboArithmeticWidget<turbo_settings>> arithmetic_widget =
-        std::make_unique<ProverTurboArithmeticWidget<turbo_settings>>(circuit_proving_key.get(), witness.get());
+        std::make_unique<ProverTurboArithmeticWidget<turbo_settings>>(circuit_proving_key.get());
     std::unique_ptr<ProverTurboFixedBaseWidget<turbo_settings>> fixed_base_widget =
-        std::make_unique<ProverTurboFixedBaseWidget<turbo_settings>>(circuit_proving_key.get(), witness.get());
+        std::make_unique<ProverTurboFixedBaseWidget<turbo_settings>>(circuit_proving_key.get());
 
     output_state.random_widgets.emplace_back(std::move(permutation_widget));
 
@@ -1004,21 +1000,20 @@ UnrolledTurboProver TurboComposer::create_unrolled_prover()
     compute_proving_key();
     compute_witness();
 
-    UnrolledTurboProver output_state(circuit_proving_key, witness, create_unrolled_manifest(public_inputs.size()));
+    UnrolledTurboProver output_state(circuit_proving_key, create_unrolled_manifest(public_inputs.size()));
 
     std::unique_ptr<ProverPermutationWidget<4, false>> permutation_widget =
-        std::make_unique<ProverPermutationWidget<4, false>>(circuit_proving_key.get(), witness.get());
+        std::make_unique<ProverPermutationWidget<4, false>>(circuit_proving_key.get());
 
     std::unique_ptr<ProverTurboRangeWidget<unrolled_turbo_settings>> range_widget =
-        std::make_unique<ProverTurboRangeWidget<unrolled_turbo_settings>>(circuit_proving_key.get(), witness.get());
+        std::make_unique<ProverTurboRangeWidget<unrolled_turbo_settings>>(circuit_proving_key.get());
     std::unique_ptr<ProverTurboLogicWidget<unrolled_turbo_settings>> logic_widget =
-        std::make_unique<ProverTurboLogicWidget<unrolled_turbo_settings>>(circuit_proving_key.get(), witness.get());
+        std::make_unique<ProverTurboLogicWidget<unrolled_turbo_settings>>(circuit_proving_key.get());
 
     std::unique_ptr<ProverTurboArithmeticWidget<unrolled_turbo_settings>> arithmetic_widget =
-        std::make_unique<ProverTurboArithmeticWidget<unrolled_turbo_settings>>(circuit_proving_key.get(),
-                                                                               witness.get());
+        std::make_unique<ProverTurboArithmeticWidget<unrolled_turbo_settings>>(circuit_proving_key.get());
     std::unique_ptr<ProverTurboFixedBaseWidget<unrolled_turbo_settings>> fixed_base_widget =
-        std::make_unique<ProverTurboFixedBaseWidget<unrolled_turbo_settings>>(circuit_proving_key.get(), witness.get());
+        std::make_unique<ProverTurboFixedBaseWidget<unrolled_turbo_settings>>(circuit_proving_key.get());
 
     output_state.random_widgets.emplace_back(std::move(permutation_widget));
 
