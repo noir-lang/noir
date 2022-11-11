@@ -1,0 +1,16 @@
+#!/usr/bin/env nix-shell
+#!nix-shell ../nix/mixed.nix -i bash
+
+echo ✨ System Details
+uname -a
+
+echo ✨ PWD=$PWD
+
+echo ✨ CC=$CC
+echo ✨ CXX=$CXX
+
+echo ✨ rustup target add $1
+rustup target add $1
+
+echo 👷 Cargo Build
+cargo build --release --locked --target $1
