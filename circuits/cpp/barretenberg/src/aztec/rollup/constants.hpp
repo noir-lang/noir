@@ -57,9 +57,9 @@ namespace circuit_vk_hash {
 /* These below constants are only used for regression testing; to identify accidental changes to circuit
  constraints. They need to be changed when there is a circuit change. Note that they are written in the reverse order
  to comply with the from_buffer<>() method. */
-constexpr auto ACCOUNT = uint256_t(0xe5728ab8a2711478, 0x3e2f1febc01fc1d3, 0xe768fbfb855e95d4, 0xcbd3752d0186e206);
-constexpr auto JOIN_SPLIT = uint256_t(0xaf8aefa146b26f0a, 0x00029f14059ec2e3, 0x4aedbf59118c1edd, 0x87325541b848b87d);
-constexpr auto CLAIM = uint256_t(0x92e658a040cbc2a0, 0xd629c1e501804a95, 0xcff83a1be1380732, 0xaad27f93e4f49c05);
+constexpr auto ACCOUNT = uint256_t(0x5d97584af28e524a, 0xd2007df20f73d2bf, 0xe134d5b853eff05a, 0xdd2c3d1ff8bce519);
+constexpr auto JOIN_SPLIT = uint256_t(0x7d54acfcca0eaf34, 0xa69c7b4e1c2fb5c5, 0x77161b356ca1c7a2, 0xb88194f268d2caa9);
+constexpr auto CLAIM = uint256_t(0x878301ebba40ab60, 0x931466762c62d661, 0x40aad71ec3496905, 0x9f47aaa109759d0a);
 constexpr auto ROLLUP = uint256_t(0x3c9e491095547852, 0xbf65ec889ec96a1a, 0xb16e824aa0bb319f, 0x28d7b587edf1eb4d);
 constexpr auto ROOT_ROLLUP = uint256_t(0xa5e06b55f0e30cbe, 0x5fbf39af52fe67c8, 0xd8a0ecd1bb3a6f40, 0xdf67f7fcbb55dc1f);
 constexpr auto ROOT_VERIFIER =

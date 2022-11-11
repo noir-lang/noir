@@ -698,7 +698,8 @@ TEST_F(join_split_tests, test_0_input_notes_and_detect_circuit_change)
         EXPECT_TRUE(number_of_gates_js == circuit_gate_count::JOIN_SPLIT)
             << "The gate count for the join_split circuit is changed.";
         EXPECT_TRUE(from_buffer<uint256_t>(vk_hash_js) == circuit_vk_hash::JOIN_SPLIT)
-            << "The verification key hash for the join_split circuit is changed.";
+            << "The verification key hash for the join_split circuit is changed: "
+            << from_buffer<uint256_t>(vk_hash_js);
         // For the next power of two limit, we need to consider that we reserve four gates for adding
         // randomness/zero-knowledge
         EXPECT_TRUE(number_of_gates_js <=

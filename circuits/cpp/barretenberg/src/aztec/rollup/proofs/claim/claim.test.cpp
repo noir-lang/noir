@@ -109,7 +109,7 @@ TEST_F(claim_tests, test_claim_and_detect_circuit_change)
         EXPECT_TRUE(number_of_gates_claim == circuit_gate_count::CLAIM)
             << "The gate count for the claim circuit is changed.";
         EXPECT_TRUE(from_buffer<uint256_t>(vk_hash_claim) == circuit_vk_hash::CLAIM)
-            << "The verification key hash for the claim circuit is changed.";
+            << "The verification key hash for the claim circuit is changed: " << from_buffer<uint256_t>(vk_hash_claim);
         // For the next power of two limit, we need to consider that we reserve four gates for adding
         // randomness/zero-knowledge
         EXPECT_TRUE(number_of_gates_claim <=

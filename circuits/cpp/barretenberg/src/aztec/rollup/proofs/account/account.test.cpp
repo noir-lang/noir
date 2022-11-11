@@ -365,7 +365,7 @@ TEST_F(account_tests, test_create_account_full_proof_and_detect_circuit_change)
         EXPECT_TRUE(number_of_gates_acc == circuit_gate_count::ACCOUNT)
             << "The gate count for the account circuit is changed.";
         EXPECT_TRUE(from_buffer<uint256_t>(vk_hash_acc) == circuit_vk_hash::ACCOUNT)
-            << "The verification key hash for the account circuit is changed.";
+            << "The verification key hash for the account circuit is changed: " << from_buffer<uint256_t>(vk_hash_acc);
         // For the next power of two limit, we need to consider that we reserve four gates for adding
         // randomness/zero-knowledge
         EXPECT_TRUE(number_of_gates_acc <=
