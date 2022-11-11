@@ -526,6 +526,6 @@ impl NodeInterner {
     }
 
     pub fn foreign(&self, opcode: &str) -> bool {
-        self.language.support(opcode)
+        self.language.supports(opcode)
     }
 }

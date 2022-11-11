@@ -12,14 +12,14 @@ pub fn split(
     mut num_witness: u32,
     new_gates: &mut Vec<Gate>,
 ) -> Vec<Witness> {
-    let mut w_result = Vec::new(); //bit vector
+    let mut bit_vector = Vec::new();
     let mut g = gate.clone();
     let mut two_pow = FieldElement::one();
     let mut intermediate_gates = Vec::new();
     for _i in 0..bit_size {
         let w = Witness(num_witness);
         num_witness += 1;
-        w_result.push(w);
+        bit_vector.push(w);
         let w_bin = Expression {
             mul_terms: vec![(FieldElement::one(), w, w)],
             linear_combinations: vec![(-FieldElement::one(), w)],
@@ -29,11 +29,11 @@ pub fn split(
         g.linear_combinations.push((-two_pow, w));
         two_pow = FieldElement::from(2_i128) * two_pow;
     }
-    new_gates.push(Gate::Directive(Directive::Split { a: gate, b: w_result.clone(), bit_size }));
+    new_gates.push(Gate::Directive(Directive::Split { a: gate, b: bit_vector.clone(), bit_size }));
     new_gates.extend(intermediate_gates);
     g.sort();
     new_gates.push(Gate::Arithmetic(g));
-    w_result
+    bit_vector
 }
 
 // Range constraint

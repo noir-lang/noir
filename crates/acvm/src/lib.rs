@@ -291,12 +291,12 @@ pub enum Language {
 }
 
 pub trait CustomGate {
-    fn support(&self, opcode: &str) -> bool;
+    fn supports(&self, opcode: &str) -> bool;
     fn support_gate(&self, gate: &Gate) -> bool;
 }
 
 impl CustomGate for Language {
-    fn support(&self, _opcode: &str) -> bool {
+    fn supports(&self, _opcode: &str) -> bool {
         match self {
             Language::R1CS => false,
             Language::PLONKCSat { .. } => true,
