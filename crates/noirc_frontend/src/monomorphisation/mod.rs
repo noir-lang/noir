@@ -477,21 +477,7 @@ impl Monomorphiser {
                 let opcode = attribute.foreign().expect(
                     "ice: function marked as foreign, but attribute kind does not match this",
                 );
-
-                if !self.interner.foreign(&opcode) {
-                    //fallback
-                    //We look for the fallback function
-                    let func_id2 = self.interner.get_alt(opcode).unwrap();
-                    //The call expression should have already been prepared
-                    let expr_id2 = call.alt.unwrap();
-                    let typ2 = self.interner.function_type(expr_id2).follow_bindings();
-                    let func_id = self
-                        .lookup_global(func_id2, &typ)
-                        .unwrap_or_else(|| self.queue_function(func_id2, expr_id2, typ2));
-                    ast::Expression::Call(ast::Call { func_id, arguments })
-                } else {
-                    ast::Expression::CallLowLevel(ast::CallLowLevel { opcode, arguments })
-                }
+                ast::Expression::CallLowLevel(ast::CallLowLevel { opcode, arguments })
             }
             FunctionKind::Builtin => self.call_builtin(meta, arguments, call.arguments),
             FunctionKind::Normal => {

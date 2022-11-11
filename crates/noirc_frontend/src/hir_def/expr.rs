@@ -107,7 +107,6 @@ pub struct HirCastExpression {
 pub struct HirCallExpression {
     pub func_id: FuncId,
     pub arguments: Vec<ExprId>,
-    pub alt: Option<ExprId>,
 }
 
 /// These nodes are temporary, they're
@@ -126,7 +125,7 @@ impl HirMethodCallExpression {
         let mut arguments = vec![self.object];
         arguments.append(&mut self.arguments);
 
-        HirExpression::Call(HirCallExpression { func_id: method_id, arguments, alt: None })
+        HirExpression::Call(HirCallExpression { func_id: method_id, arguments })
     }
 }
 
