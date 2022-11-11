@@ -765,8 +765,7 @@ impl IRGenerator {
         //Exit block
         let exit_block =
             block::new_unsealed_block(&mut self.context, block::BlockType::IfJoin, true);
-
-        self.context[entry_block].dominated.push(exit_block);
+        self.context[exit_block].dominator = Some(entry_block);
 
         //Else block
         self.context.current_block = entry_block;

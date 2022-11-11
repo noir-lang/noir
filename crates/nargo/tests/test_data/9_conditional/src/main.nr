@@ -49,6 +49,30 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
         }
     }
 
+    //Regression for to_bits() constant evaluation 
+    let arr : [u8; 2] = [ 1, 2 ];
+    // binary array representation of u8 1
+    let as_bits_hardcode_1 = [1, 0];
+    let mut c = 0;
+    for i in 0..2 {
+        let mut as_bits = std::to_bits(arr[i] as Field, 2);
+        c = c + as_bits[0] as Field;
+
+        if i == 0 {
+            constrain arr[i] == 1;// 1
+            for k in 0..2 {
+                constrain as_bits_hardcode_1[k] == as_bits[k];
+            };
+        }
+        if i == 1 {
+            constrain arr[i] == 2;//2
+            for k in 0..2 {
+                constrain as_bits_hardcode_1[k] != as_bits[k];
+            };
+        }
+    };
+    constrain c==1;
+
     if a == 3 {
        c = test4();
     }

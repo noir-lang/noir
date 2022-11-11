@@ -3,7 +3,6 @@ use acvm::FieldElement;
 use crate::errors::RuntimeError;
 
 use super::{
-    acir_gen::InternalVar,
     anchor::{Anchor, CseAction},
     block::BlockId,
     context::SsaContext,
@@ -48,25 +47,13 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) -> Result<(), Runti
         return Ok(());
     }
 
-    match &mut ins.operation {
-        Operation::Binary(binary) => {
-            if let NodeEval::Const(r_const, r_type) = NodeEval::from_id(ctx, binary.rhs) {
-                if binary.operator == BinaryOp::Div {
-                    binary.rhs = ctx.get_or_create_const(r_const.inverse(), r_type);
-                    binary.operator = BinaryOp::Mul;
-                }
+    if let Operation::Binary(binary) = &mut ins.operation {
+        if let NodeEval::Const(r_const, r_type) = NodeEval::from_id(ctx, binary.rhs) {
+            if binary.operator == BinaryOp::Div {
+                binary.rhs = ctx.get_or_create_const(r_const.inverse(), r_type);
+                binary.operator = BinaryOp::Mul;
             }
         }
-        Operation::Intrinsic(opcode, args) => {
-            let args = args
-                .iter()
-                .map(|arg| NodeEval::from_id(ctx, *arg).into_const_value().map(|f| f.to_u128()));
-
-            if let Some(args) = args.collect() {
-                ins.mark = Mark::ReplaceWith(evaluate_intrinsic(ctx, *opcode, args, &ins.res_type));
-            }
-        }
-        _ => (),
     }
 
     Ok(())
@@ -77,30 +64,28 @@ fn evaluate_intrinsic(
     op: acvm::acir::OPCODE,
     args: Vec<u128>,
     res_type: &ObjectType,
-) -> NodeId {
+    block_id: BlockId,
+) -> Vec<NodeId> {
     match op {
         acvm::acir::OPCODE::ToBits => {
             let bit_count = args[1] as u32;
+            let mut result = Vec::new();
 
             if let ObjectType::Pointer(a) = res_type {
-                let new_var = super::node::Variable {
-                    id: NodeId::dummy(),
-                    obj_type: super::node::ObjectType::Pointer(*a),
-                    name: op.to_string(),
-                    root: None,
-                    def: None,
-                    witness: None,
-                    parent_block: ctx.current_block,
-                };
-
                 for i in 0..bit_count {
-                    if args[0] & (1 << i) != 0 {
-                        ctx.mem[*a].values.push(InternalVar::from(FieldElement::one()));
+                    let index = ctx.get_or_create_const(
+                        FieldElement::from(i as i128),
+                        ObjectType::NativeField,
+                    );
+                    let op = if args[0] & (1 << i) != 0 {
+                        Operation::Store { array_id: *a, index, value: ctx.one() }
                     } else {
-                        ctx.mem[*a].values.push(InternalVar::from(FieldElement::zero()));
-                    }
+                        Operation::Store { array_id: *a, index, value: ctx.zero() }
+                    };
+                    let i = Instruction::new(op, ObjectType::NotAnObject, Some(block_id));
+                    result.push(ctx.add_instruction(i));
                 }
-                return ctx.add_variable(new_var, None);
+                return result;
             }
             unreachable!();
         }
@@ -353,6 +338,23 @@ fn cse_block_with_anchor(
 
             let mut update2 = update.clone();
             simplify(ctx, &mut update2)?;
+            //cannot simplify to_bits() in the previous call because it get replaced with multiple instructions
+            if let Operation::Intrinsic(opcode, args) = &update2.operation {
+                let args = args.iter().map(|arg| {
+                    NodeEval::from_id(ctx, *arg).into_const_value().map(|f| f.to_u128())
+                });
+
+                if let Some(args) = args.collect() {
+                    update2.mark = Mark::Deleted;
+                    new_list.extend(evaluate_intrinsic(
+                        ctx,
+                        *opcode,
+                        args,
+                        &update2.res_type,
+                        block_id,
+                    ));
+                }
+            }
             let update3 = ctx.get_mut_instruction(*ins_id);
             *update3 = update2;
         }
