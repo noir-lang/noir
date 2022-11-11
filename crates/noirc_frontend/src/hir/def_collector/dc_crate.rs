@@ -149,11 +149,11 @@ impl DefCollector {
             }
         }
 
-        resolve_structs(context, def_collector.collected_types, crate_id, errors);
-
         // We must first resolve and intern the globals before we can resolve any stmts inside each function.
         // Each function uses its own resolver with a newly created ScopeForest, and must be resolved again to be within a function's scope
         let file_global_ids = resolve_globals(context, def_collector.collected_globals, crate_id);
+
+        resolve_structs(context, def_collector.collected_types, crate_id, errors);
 
         // Before we resolve any function symbols we must go through our impls and
         // re-collect the methods within into their proper module. This cannot be
@@ -319,7 +319,7 @@ fn resolve_struct_fields(
         StandardPathResolver::new(ModuleId { local_id: unresolved.module_id, krate });
 
     let file = unresolved.file_id;
-
+    
     let (generics, fields, errs) =
         Resolver::new(&mut context.def_interner, &path_resolver, &context.def_maps, file)
             .resolve_struct_fields(unresolved.struct_def);
