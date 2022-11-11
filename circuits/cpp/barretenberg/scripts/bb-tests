@@ -1,3 +1,4 @@
+cci_failsafe_tests
 crypto_aes128_tests
 crypto_blake2s_tests
 crypto_ecdsa_tests
