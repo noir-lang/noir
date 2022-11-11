@@ -319,7 +319,7 @@ fn resolve_struct_fields(
         StandardPathResolver::new(ModuleId { local_id: unresolved.module_id, krate });
 
     let file = unresolved.file_id;
-    
+
     let (generics, fields, errs) =
         Resolver::new(&mut context.def_interner, &path_resolver, &context.def_maps, file)
             .resolve_struct_fields(unresolved.struct_def);

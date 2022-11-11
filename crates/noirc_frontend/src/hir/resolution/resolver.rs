@@ -413,9 +413,7 @@ impl<'a> Resolver<'a> {
         (generics, fields, self.errors)
     }
 
-    fn resolve_local_globals(
-        &mut self
-    ) {
+    fn resolve_local_globals(&mut self) {
         for (stmt_id, global_info) in self.interner.get_all_globals() {
             if global_info.local_id == self.path_resolver.local_module_id() {
                 let global_stmt = self.interner.let_statement(&stmt_id);
