@@ -572,9 +572,6 @@ impl DecisionTree {
                                         ctx.mem[*array_id].len,
                                         idx.to_u128()
                                     );
-                                } else {
-                                    dbg!(stack.block);
-                                    //   todo!();
                                 }
                                 return false;
                             }

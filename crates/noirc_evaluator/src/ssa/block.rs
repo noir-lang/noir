@@ -266,11 +266,11 @@ pub fn bfs(start: BlockId, stop: Option<BlockId>, ctx: &SsaContext) -> Vec<Block
 //Find the exit (i.e join) block from a IF (i.e split) block
 pub fn find_join(ctx: &SsaContext, block_id: BlockId) -> BlockId {
     let mut processed = HashMap::new();
-    find_join_hlp(ctx, block_id, &mut processed)
+    find_join_helper(ctx, block_id, &mut processed)
 }
 
 //We follow down the path from the THEN and ELSE branches until we reach a common descendant
-fn find_join_hlp(
+fn find_join_helper(
     ctx: &SsaContext,
     block_id: BlockId,
     processed: &mut HashMap<BlockId, BlockId>,
@@ -318,7 +318,7 @@ fn get_only_descendant(
         if processed.contains_key(&block_id) {
             return Some(processed[&block_id]);
         }
-        let descendant = find_join_hlp(ctx, block_id, processed);
+        let descendant = find_join_helper(ctx, block_id, processed);
         processed.insert(block_id, descendant);
         Some(descendant)
     }
