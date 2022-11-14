@@ -243,7 +243,14 @@ impl SsaContext {
     pub fn print_block(&self, b: &block::BasicBlock) {
         println!("************* Block n.{}", b.id.0.into_raw_parts().0);
         println!("Assumption:{:?}", b.assumption);
-        for id in &b.instructions {
+        self.print_instructions(&b.instructions);
+        if b.left.is_some() {
+            println!("Next block: {}", b.left.unwrap().0.into_raw_parts().0);
+        }
+    }
+
+    pub fn print_instructions(&self, instructions: &Vec<NodeId>) {
+        for id in instructions {
             let ins = self.get_instruction(*id);
             let mut str_res = if ins.res_name.is_empty() {
                 format!("{:?}", id.0.into_raw_parts().0)
@@ -257,9 +264,6 @@ impl SsaContext {
             }
             let ins_str = self.operation_to_string(&ins.operation);
             println!("{}: {}", str_res, ins_str);
-        }
-        if b.left.is_some() {
-            println!("Next block: {}", b.left.unwrap().0.into_raw_parts().0);
         }
     }
 
