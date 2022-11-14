@@ -355,7 +355,8 @@ impl ForRange {
 
                 // std::array::len(array)
                 let segments = vec![array_ident];
-                let array_ident = ExpressionKind::Variable(Path { segments, kind: PathKind::Dep });
+                let array_ident =
+                    ExpressionKind::Variable(Path { segments, kind: PathKind::Plain });
 
                 let segments = vec![ident("std"), ident("array"), ident("len")];
                 let func_ident = ExpressionKind::Variable(Path { segments, kind: PathKind::Dep });
@@ -372,7 +373,8 @@ impl ForRange {
 
                 // array[i]
                 let segments = vec![Ident::new(index_name, array_span)];
-                let index_ident = ExpressionKind::Variable(Path { segments, kind: PathKind::Dep });
+                let index_ident =
+                    ExpressionKind::Variable(Path { segments, kind: PathKind::Plain });
 
                 let loop_element = ExpressionKind::Index(Box::new(IndexExpression {
                     collection: Expression::new(array_ident, array_span),

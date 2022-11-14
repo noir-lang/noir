@@ -43,6 +43,7 @@ mod tests {
         for c in fs::read_dir(cdir.as_path()).unwrap() {
             if let Ok(c) = c {
                 let test_name = c.file_name().into_string();
+                println!("Running test {:?}", test_name);
                 match test_name {
                     Ok(str) => {
                         if c.path().is_dir() && !conf_data["exclude"].contains(&str) {
