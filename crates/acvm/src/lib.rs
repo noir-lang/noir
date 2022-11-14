@@ -292,7 +292,7 @@ pub enum Language {
 
 pub trait CustomGate {
     fn supports(&self, opcode: &str) -> bool;
-    fn support_gate(&self, gate: &Gate) -> bool;
+    fn supports_gate(&self, gate: &Gate) -> bool;
 }
 
 impl CustomGate for Language {
@@ -303,7 +303,7 @@ impl CustomGate for Language {
         }
     }
 
-    fn support_gate(&self, gate: &Gate) -> bool {
+    fn supports_gate(&self, gate: &Gate) -> bool {
         !matches!(
             (self, gate),
             (Language::R1CS, Gate::Range(..))

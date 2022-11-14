@@ -91,7 +91,7 @@ pub fn fallback(acir: &Circuit, np_language: &Language) -> Circuit {
     let mut fallback_gates = Vec::new();
     let mut witness_idx = acir.current_witness_index + 1;
     for g in &acir.gates {
-        if !np_language.support_gate(g) {
+        if !np_language.supports_gate(g) {
             let gates = gate_fallback(g, &mut witness_idx);
             fallback_gates.extend(gates);
         } else {
