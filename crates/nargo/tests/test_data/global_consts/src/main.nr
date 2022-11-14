@@ -6,9 +6,17 @@ global L: Field = 10; // Unused globals currently allowed
 global N: Field = 5;
 //global N: Field = 5; // Uncomment to see duplicate globals error 
 
+struct Dummy {
+     x: [Field; N],
+     y: [Field; foo::MAGIC_NUMBER]
+}
+
 fn main(a: [Field; M], b: [Field; M], c : pub [Field; foo::MAGIC_NUMBER], d: [Field; foo::bar::N]) {
+     let test_struct = Dummy { x: d, y: c };
+
      for i in 0..foo::MAGIC_NUMBER {
           constrain c[i] == foo::MAGIC_NUMBER;
+          constrain test_struct.y[i] == foo::MAGIC_NUMBER;
      };
 
      constrain N != M;
