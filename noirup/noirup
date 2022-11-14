@@ -96,20 +96,22 @@ main() {
         ;;
     esac
 
+    # We currently only provide binaries targetting x64_64 architectures.
 
-    ARCHITECTURE="$(uname -m)"
-    if [ "${ARCHITECTURE}" = "x86_64" ]; then
-      # Redirect stderr to /dev/null to avoid printing errors if non Rosetta.
-      if [ "$(sysctl -n sysctl.proc_translated 2>/dev/null)" = "1" ]; then
-        ARCHITECTURE="arm64" # Rosetta.
-      else
-        ARCHITECTURE="amd64" # Intel.
-      fi
-    elif [ "${ARCHITECTURE}" = "arm64" ] ||[ "${ARCHITECTURE}" = "aarch64" ] ; then
-      ARCHITECTURE="arm64" # Arm.
-    else
-      ARCHITECTURE="amd64" # Amd.
-    fi
+    ARCHITECTURE="x86_64"
+    # ARCHITECTURE="$(uname -m)"
+    # if [ "${ARCHITECTURE}" = "x86_64" ]; then
+    #   # Redirect stderr to /dev/null to avoid printing errors if non Rosetta.
+    #   if [ "$(sysctl -n sysctl.proc_translated 2>/dev/null)" = "1" ]; then
+    #     ARCHITECTURE="arm64" # Rosetta.
+    #   else
+    #     ARCHITECTURE="amd64" # Intel.
+    #   fi
+    # elif [ "${ARCHITECTURE}" = "arm64" ] ||[ "${ARCHITECTURE}" = "aarch64" ] ; then
+    #   ARCHITECTURE="arm64" # Arm.
+    # else
+    #   ARCHITECTURE="amd64" # Amd.
+    # fi
 
     # Compute the URL of the release tarball in the Noir repository.
     RELEASE_URL="https://github.com/${NOIRUP_REPO}/releases/download/${NOIRUP_TAG}"
