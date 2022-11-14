@@ -131,6 +131,7 @@ impl<'a> ModCollector<'a> {
             // First create dummy function in the DefInterner
             // So that we can get a FuncId
             let func_id = context.def_interner.push_empty_fn();
+            context.def_interner.push_function_definition(name.0.contents.clone(), func_id);
 
             // Now link this func_id to a crate level map with the noir function and the module id
             // Encountering a NoirFunction, we retrieve it's module_data to get the namespace

@@ -186,23 +186,6 @@ pub fn compute_dom(ctx: &mut SsaContext) {
     }
 }
 
-pub fn compute_sub_dom(ctx: &mut SsaContext, blocks: &[BlockId]) {
-    let mut dominator_link = HashMap::new();
-
-    for &block_id in blocks {
-        let block = &ctx[block_id];
-        if let Some(dom) = block.dominator {
-            dominator_link.entry(dom).or_insert_with(Vec::new).push(block.id);
-        }
-    }
-    for (master, svec) in dominator_link {
-        let dom_b = &mut ctx[master];
-        for slave in svec {
-            dom_b.dominated.push(slave);
-        }
-    }
-}
-
 //breadth-first traversal of the CFG, from start, until we reach stop
 pub fn bfs(start: BlockId, stop: Option<BlockId>, ctx: &SsaContext) -> Vec<BlockId> {
     let mut result = vec![start]; //list of blocks in the visited subgraph

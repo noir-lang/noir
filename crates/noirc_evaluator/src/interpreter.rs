@@ -1,8 +1,8 @@
-use crate::environment::{Environment, FuncContext};
+use crate::environment::Environment;
 use crate::errors::{RuntimeError, RuntimeErrorKind};
 use crate::object::{Array, Integer, Object, RangedObject};
 
-use crate::{binary_op, builtin, low_level_function_impl, Evaluator};
+use crate::{binary_op, Evaluator};
 use acvm::acir::circuit::gate::Gate;
 use acvm::acir::native_types::{Expression, Witness};
 
@@ -10,10 +10,7 @@ use noirc_errors::Location;
 use noirc_frontend::{
     hir::Context,
     hir_def::{
-        expr::{
-            HirBinaryOp, HirBlockExpression, HirCallExpression, HirExpression, HirForExpression,
-            HirLiteral,
-        },
+        expr::{HirBinaryOp, HirBlockExpression, HirExpression, HirForExpression, HirLiteral},
         stmt::{HirConstrainStatement, HirPattern, HirStatement},
     },
 };
@@ -21,7 +18,7 @@ use noirc_frontend::{
     hir_def::{expr::HirIdent, stmt::HirLValue},
     node_interner::{ExprId, FuncId, StmtId},
 };
-use noirc_frontend::{BinaryOpKind, FunctionKind, Type};
+use noirc_frontend::{BinaryOpKind, Type};
 pub struct Interpreter<'a> {
     pub context: &'a Context,
     main_function: FuncId,
@@ -471,27 +468,7 @@ impl<'a> Interpreter<'a> {
                 let index_as_u128 = index_as_constant.to_u128();
                 arr.get(index_as_u128).map_err(|kind|kind.add_location(loc))
             }
-            HirExpression::Call(call_expr) => {
-
-                let func_meta = self.context.def_interner.function_meta(&call_expr.func_id);
-                //
-                // Choices are a low level func or an imported library function
-                // If low level, then we use it's func name to find out what function to call
-                // If not then we just call the library as usual with the function definition
-                match func_meta.kind {
-                    FunctionKind::Normal => self.call_function(env, &call_expr, call_expr.func_id),
-                    FunctionKind::LowLevel => {
-                        let attribute = func_meta.attributes.expect("all low level functions must contain an attribute which contains the opcode which it links to");
-                        let opcode_name = attribute.foreign().expect("ice: function marked as foreign, but attribute kind does not match this");
-                        low_level_function_impl::call_low_level(self, env, &opcode_name, call_expr, loc)
-                    },
-                    FunctionKind::Builtin => {
-                        let attribute = func_meta.attributes.expect("all builtin functions must contain an attribute which contains the function name which it links to");
-                        let builtin_name = attribute.builtin().expect("ice: function marked as a builtin, but attribute kind does not match this");
-                        builtin::call_builtin(self, env, &builtin_name, call_expr, loc)
-                    },
-                }
-            }
+            HirExpression::Call(_) => unreachable!(),
             HirExpression::For(for_expr) => self.handle_for_expr(env,for_expr).map_err(|kind|kind.add_location(loc)),
             HirExpression::If(_) => todo!("If expressions are currently unimplemented"),
             HirExpression::Prefix(_) => todo!("Prefix expressions are currently unimplemented"),
@@ -504,47 +481,6 @@ impl<'a> Interpreter<'a> {
             HirExpression::MethodCall(expr) => unreachable!("Method call expressions should have been desugared into call expressions before reaching the backend: {:#?}", expr),
             HirExpression::Error => unreachable!("Tried to evaluate an Expression::Error node"),
         }
-    }
-
-    fn call_function(
-        &mut self,
-        env: &mut Environment,
-        call_expr: &HirCallExpression,
-        func_id: FuncId,
-    ) -> Result<Object, RuntimeError> {
-        // Create a new environment for this function
-        // This is okay because functions are not stored in the environment
-        // We need to add the arguments into the environment though
-        // Note: The arguments are evaluated in the old environment
-        let mut new_env = Environment::new(FuncContext::NonMain);
-        let (arguments, mut errors) = self.expression_list_to_objects(env, &call_expr.arguments);
-        if !errors.is_empty() {
-            // XXX: We could have an error variant to return multiple errors here
-            // As long as we can guarantee that each expression does not affect the proceeding, this should be fine
-            //
-            return Err(errors.pop().unwrap());
-        }
-
-        let func_meta = self.context.def_interner.function_meta(&func_id);
-
-        for (param, argument) in func_meta.parameters.iter().zip(arguments.into_iter()) {
-            let param_name = self.pattern_name(&param.0);
-            new_env.store(param_name, argument);
-        }
-
-        let return_val = self.apply_func(&mut new_env, &func_id)?;
-
-        Ok(return_val)
-    }
-
-    fn apply_func(
-        &mut self,
-        env: &mut Environment,
-        func_id: &FuncId,
-    ) -> Result<Object, RuntimeError> {
-        let function = self.context.def_interner.function(func_id);
-        let block = function.block(&self.context.def_interner);
-        self.eval_block(env, block.statements())
     }
 
     fn eval_block(

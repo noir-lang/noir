@@ -5,7 +5,7 @@ use noirc_errors::Location;
 
 use crate::{
     monomorphisation::ast::{
-        ArrayLiteral, Assign, Binary, CallBuiltin, CallLowLevel, Cast, DefinitionId, Expression,
+        ArrayLiteral, Assign, Binary, CallBuiltin, CallLowLevel, Cast, Definition, Expression,
         FuncId, Function, Ident, If, Index, LValue, Let, Literal, Program, Type, Unary,
     },
     util::vecmap,
@@ -28,7 +28,7 @@ pub fn evaluate(mut program: Program) -> Program {
     let args = vecmap(&main.parameters, |(id, mutable, name, typ)| {
         Expression::Ident(Ident {
             location: None,
-            id: *id,
+            definition: Definition::Local(*id),
             mutable: *mutable,
             name: name.clone(),
             typ: typ.clone(),
@@ -37,7 +37,7 @@ pub fn evaluate(mut program: Program) -> Program {
 
     // Evaluate main and grab the resulting statements
     let mut evaluator = Evaluator::new(&program);
-    let last_expr = evaluator.function(main_id, args);
+    let last_expr = evaluator.function_with_id(main_id, args);
     let mut statements = evaluator.evaluated.pop().unwrap();
     assert!(evaluator.evaluated.is_empty());
 
@@ -48,7 +48,7 @@ pub fn evaluate(mut program: Program) -> Program {
     Program::new(new_main, program.abi)
 }
 
-type Scope = HashMap<DefinitionId, Expression>;
+type Scope = HashMap<Definition, Expression>;
 
 struct Evaluator<'a> {
     call_stack: Vec<Scope>,
@@ -56,20 +56,11 @@ struct Evaluator<'a> {
 
     /// Already-evaluated expressions representing the full program once finished
     evaluated: Vec<Vec<Expression>>,
-
-    counter: u32,
-    assign_variable: Option<Ident>,
 }
 
 impl<'a> Evaluator<'a> {
     fn new(program: &'a Program) -> Self {
-        Self {
-            program,
-            call_stack: vec![],
-            evaluated: vec![vec![]],
-            counter: u32::MAX,
-            assign_variable: None,
-        }
+        Self { program, call_stack: vec![], evaluated: vec![vec![]] }
     }
 
     fn current_scope(&mut self) -> &mut Scope {
@@ -82,36 +73,58 @@ impl<'a> Evaluator<'a> {
         }
     }
 
-    fn next_unique_id(&mut self) -> DefinitionId {
-        self.counter -= 1;
-        DefinitionId(self.counter)
+    fn get_function(&self, f: &Expression) -> Option<Definition> {
+        match f {
+            Expression::Ident(variable) => match &variable.definition {
+                Definition::Local(_) => None,
+                other => Some(other.clone()),
+            },
+            _ => None,
+        }
     }
 
-    fn function(&mut self, f: FuncId, args: Vec<Expression>) -> Expression {
+    fn function(&mut self, f: Expression, arguments: Vec<Expression>) -> Expression {
+        // TODO: Need a better error message here. Need to add Spans to monomorphised asts
+        match self.get_function(&f) {
+            Some(Definition::Function(id)) => self.function_with_id(id, arguments),
+            Some(Definition::Builtin(opcode)) => {
+                Expression::CallBuiltin(CallBuiltin { opcode, arguments })
+            }
+            Some(Definition::LowLevel(opcode)) => {
+                Expression::CallLowLevel(CallLowLevel { opcode, arguments })
+            }
+            Some(Definition::Local(_)) => unreachable!(),
+            None => panic!("Function must be known at compile-time but is not: {}", f),
+        }
+    }
+
+    fn function_with_id(&mut self, f: FuncId, args: Vec<Expression>) -> Expression {
+        // TODO: Need a better error message here. Need to add Spans to monomorphised asts
         let function = &self.program[f];
         assert_eq!(function.parameters.len(), args.len());
 
         let params_and_args = function.parameters.iter().zip(args);
         let scope = params_and_args
             .map(|((id, mutable, name, typ), arg)| {
-                if *mutable {
+                let definition = Definition::Local(*id);
+                let arg = if *mutable {
                     self.push_expression(Expression::Let(Let {
                         id: *id,
                         mutable: true,
                         name: name.clone(),
                         expression: Box::new(arg),
                     }));
-                    let var = Expression::Ident(Ident {
+                    Expression::Ident(Ident {
                         location: None,
-                        id: *id,
+                        definition: definition.clone(),
                         mutable: *mutable,
                         name: name.clone(),
                         typ: typ.clone(),
-                    });
-                    (*id, var)
+                    })
                 } else {
-                    (*id, arg)
-                }
+                    arg
+                };
+                (definition, arg)
             })
             .collect();
 
@@ -161,7 +174,7 @@ impl<'a> Evaluator<'a> {
         let make_ident = || {
             Expression::Ident(Ident {
                 location: ident.location,
-                id: ident.id,
+                definition: ident.definition.clone(),
                 mutable: ident.mutable,
                 name: ident.name.clone(),
                 typ: ident.typ.clone(),
@@ -170,7 +183,7 @@ impl<'a> Evaluator<'a> {
 
         // Cloning here relies on `value` containing no side-effectful code.
         // Side-effectful code should be pushed to self.evaluated separately
-        self.call_stack.last().unwrap().get(&ident.id).cloned().unwrap_or_else(make_ident)
+        self.call_stack.last().unwrap().get(&ident.definition).cloned().unwrap_or_else(make_ident)
     }
 
     fn block(&mut self, block: &[Expression]) -> Expression {
@@ -290,7 +303,7 @@ impl<'a> Evaluator<'a> {
             // Don't need to push a new scope, name resolution ensures we cannot refer to the
             // loop variable outside of the loop
             let index = int_u128(i, for_loop.index_type.clone());
-            self.current_scope().insert(for_loop.index_variable, index);
+            self.current_scope().insert(Definition::Local(for_loop.index_variable), index);
             self.expression(&for_loop.block)
         });
 
@@ -390,7 +403,8 @@ impl<'a> Evaluator<'a> {
 
     fn call(&mut self, call: &crate::monomorphisation::ast::Call) -> Expression {
         let args = vecmap(&call.arguments, |arg| self.expression(arg));
-        self.function(call.func_id, args)
+        let function = self.expression(&call.func);
+        self.function(function, args)
     }
 
     fn call_builtin(&mut self, call: &CallBuiltin) -> Expression {
@@ -413,7 +427,7 @@ impl<'a> Evaluator<'a> {
                 expression: Box::new(expression),
             }));
         } else {
-            self.current_scope().insert(let_stmt.id, expression);
+            self.current_scope().insert(Definition::Local(let_stmt.id), expression);
         }
         unit()
     }
@@ -431,36 +445,12 @@ impl<'a> Evaluator<'a> {
         let assign = Expression::Assign(Assign { lvalue, expression });
         self.push_expression(assign);
 
-        if let Some(ident) = self.assign_variable.take() {
-            let new_id = self.next_unique_id();
-            self.current_scope().insert(
-                ident.id,
-                Expression::Ident(Ident {
-                    location: None,
-                    id: new_id,
-                    mutable: false,
-                    name: ident.name.clone(),
-                    typ: ident.typ.clone(),
-                }),
-            );
-
-            self.push_expression(Expression::Let(Let {
-                id: new_id,
-                mutable: false,
-                name: ident.name.clone(),
-                expression: Box::new(Expression::Ident(ident)),
-            }));
-        }
-
         unit()
     }
 
     fn lvalue(&mut self, lvalue: &LValue) -> LValue {
         match lvalue {
-            LValue::Ident(ident) => {
-                // self.assign_variable = Some(ident.clone());
-                LValue::Ident(ident.clone())
-            }
+            LValue::Ident(ident) => LValue::Ident(ident.clone()),
             LValue::Index { array, index } => {
                 let array = Box::new(self.lvalue(array));
                 let index = Box::new(self.expression(index));

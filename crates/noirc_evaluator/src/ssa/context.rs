@@ -1,6 +1,6 @@
 use super::block::{BasicBlock, BlockId};
 use super::conditional::DecisionTree;
-use super::function::{FuncIndex, SSAFunction};
+use super::function::SSAFunction;
 use super::inline::StackFrame;
 use super::mem::{ArrayId, Memory};
 use super::node::{BinaryOp, Instruction, NodeId, NodeObj, ObjectType, Operation};
@@ -13,7 +13,7 @@ use crate::ssa::function;
 use crate::ssa::node::{Mark, Node};
 use crate::Evaluator;
 use acvm::FieldElement;
-use noirc_frontend::monomorphisation::ast::{DefinitionId, FuncId};
+use noirc_frontend::monomorphisation::ast::{FuncId, LocalId};
 use noirc_frontend::util::vecmap;
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
@@ -124,10 +124,6 @@ impl SsaContext {
             let id = self.add_instruction(dummy_store);
             self.dummy_store.insert(a, id);
         }
-    }
-
-    pub fn get_function_index(&self) -> FuncIndex {
-        FuncIndex::new(self.functions.values().len())
     }
 
     pub fn insert_block(&mut self, block: BasicBlock) -> &mut BasicBlock {
@@ -590,7 +586,7 @@ impl SsaContext {
         name: &str,
         element_type: ObjectType,
         len: u32,
-        def_id: Option<DefinitionId>,
+        def_id: Option<LocalId>,
     ) -> (NodeId, ArrayId) {
         let array_index = self.mem.create_new_array(len, element_type, name);
         self.add_dummy_load(array_index);

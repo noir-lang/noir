@@ -143,7 +143,7 @@ impl Evaluator {
     fn param_to_var(
         &mut self,
         name: &str,
-        def: DefinitionId,
+        def: LocalId,
         param_type: &AbiType,
         igen: &mut IRGenerator,
     ) -> Result<(), RuntimeErrorKind> {

@@ -62,7 +62,7 @@ mod test {
     use crate::hir_def::stmt::HirLetStatement;
     use crate::hir_def::stmt::HirPattern::Identifier;
     use crate::hir_def::types::Type;
-    use crate::node_interner::{FuncId, NodeInterner};
+    use crate::node_interner::{DefinitionKind, FuncId, NodeInterner};
     use crate::BinaryOpKind;
     use crate::{graph::CrateId, Ident};
     use crate::{
@@ -89,7 +89,7 @@ mod test {
         // let z = x + y;
         //
         // Push x variable
-        let x_id = interner.push_definition("x".into(), false, false, None);
+        let x_id = interner.push_definition("x".into(), false, DefinitionKind::Local(None));
 
         // Safety: The FileId in a location isn't used for tests
         let file = FileId::default();
@@ -98,11 +98,11 @@ mod test {
         let x = HirIdent { id: x_id, location };
 
         // Push y variable
-        let y_id = interner.push_definition("y".into(), false, false, None);
+        let y_id = interner.push_definition("y".into(), false, DefinitionKind::Local(None));
         let y = HirIdent { id: y_id, location };
 
         // Push z variable
-        let z_id = interner.push_definition("z".into(), false, false, None);
+        let z_id = interner.push_definition("z".into(), false, DefinitionKind::Local(None));
         let z = HirIdent { id: z_id, location };
 
         // Push x and y as expressions
@@ -131,7 +131,7 @@ mod test {
 
         let name = HirIdent {
             location,
-            id: interner.push_definition("test_func".into(), false, false, None),
+            id: interner.push_definition("test_func".into(), false, DefinitionKind::Local(None)),
         };
 
         // Add function meta
@@ -217,14 +217,10 @@ mod test {
             &self,
             _def_maps: &HashMap<CrateId, CrateDefMap>,
             path: Path,
-        ) -> Result<Option<ModuleDefId>, Ident> {
+        ) -> Result<ModuleDefId, Ident> {
             // Not here that foo::bar and hello::foo::bar would fetch the same thing
             let name = path.segments.last().unwrap();
-            let mod_def = self.0.get(&name.0.contents).cloned();
-            match mod_def {
-                None => Err(name.clone()),
-                Some(_) => Ok(mod_def),
-            }
+            self.0.get(&name.0.contents).cloned().ok_or_else(|| name.clone())
         }
 
         fn local_module_id(&self) -> LocalModuleId {
@@ -263,7 +259,8 @@ mod test {
 
         let func_meta = vecmap(program.functions, |nf| {
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
-            let (hir_func, func_meta, resolver_errors) = resolver.resolve_function(nf);
+            let (hir_func, func_meta, resolver_errors) =
+                resolver.resolve_function(nf, FuncId::dummy_id());
             assert_eq!(resolver_errors, vec![]);
             (hir_func, func_meta)
         });

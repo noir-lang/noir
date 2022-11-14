@@ -4,13 +4,11 @@ use super::mem::ArrayId;
 use super::node::{Binary, BinaryOp, NodeId, ObjectType, Operation, Variable};
 use super::{block, node, ssa_form};
 use std::collections::HashMap;
-use std::convert::TryInto;
 
 use super::super::environment::Environment;
 use super::super::errors::RuntimeError;
 
 use crate::ssa::block::BlockType;
-use crate::ssa::function;
 use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use noirc_frontend::monomorphisation::ast::*;
@@ -25,7 +23,7 @@ pub struct IRGenerator {
 
     /// The current value of a variable. Used for flattening structs
     /// into multiple variables/values
-    variable_values: HashMap<DefinitionId, Value>,
+    variable_values: HashMap<LocalId, Value>,
 
     pub program: Program,
 }
@@ -114,7 +112,7 @@ impl IRGenerator {
         Ok(())
     }
 
-    pub fn find_variable(&self, variable_def: DefinitionId) -> Option<&Value> {
+    pub fn find_variable(&self, variable_def: LocalId) -> Option<&Value> {
         self.variable_values.get(&variable_def)
     }
 
@@ -130,7 +128,7 @@ impl IRGenerator {
     pub fn abi_array(
         &mut self,
         name: &str,
-        ident_def: DefinitionId,
+        ident_def: LocalId,
         el_type: &noirc_abi::AbiType,
         len: u128,
         witness: Vec<acvm::acir::native_types::Witness>,
@@ -151,7 +149,7 @@ impl IRGenerator {
     pub fn abi_var(
         &mut self,
         name: &str,
-        ident_def: DefinitionId,
+        ident_def: LocalId,
         obj_type: node::ObjectType,
         witness: acvm::acir::native_types::Witness,
     ) {
@@ -172,9 +170,23 @@ impl IRGenerator {
         self.variable_values.insert(ident_def, v_value); //TODO ident_def or ident_id??
     }
 
+    fn get_local_id(definition: &Definition) -> LocalId {
+        match definition {
+            Definition::Local(id) => *id,
+            Definition::Function(id) => {
+                unreachable!("Found function that should have been evaluated away: {}", id.0)
+            }
+            Definition::Builtin(opcode) | Definition::LowLevel(opcode) => {
+                unreachable!("Found opcode that should have been evaluated away: {}", opcode)
+            }
+        }
+    }
+
     fn codegen_identifier(&mut self, ident: &Ident) -> Value {
-        let value = self.variable_values.get(&ident.id).cloned().unwrap_or_else(|| {
-            unreachable!("ICE: SSA: Variable {}, id {} not defined", ident.name, ident.id.0)
+        let id = Self::get_local_id(&ident.definition);
+
+        let value = self.variable_values.get(&id).cloned().unwrap_or_else(|| {
+            unreachable!("ICE: SSA: Variable {}, id {} not defined", ident.name, ident.definition)
         });
         self.get_current_value(&value)
     }
@@ -223,7 +235,9 @@ impl IRGenerator {
 
     fn lvalue_to_value(&self, lvalue: &LValue) -> &Value {
         match lvalue {
-            LValue::Ident(ident) => self.find_variable(ident.id).unwrap(),
+            LValue::Ident(ident) => {
+                self.find_variable(Self::get_local_id(&ident.definition)).unwrap()
+            }
             LValue::Index { array, .. } => {
                 self.find_variable(Self::lvalue_ident_def(array.as_ref())).unwrap()
             }
@@ -235,9 +249,9 @@ impl IRGenerator {
         }
     }
 
-    fn lvalue_ident_def(lvalue: &LValue) -> DefinitionId {
+    fn lvalue_ident_def(lvalue: &LValue) -> LocalId {
         match lvalue {
-            LValue::Ident(ident) => ident.id,
+            LValue::Ident(ident) => Self::get_local_id(&ident.definition),
             LValue::Index { array, .. } => Self::lvalue_ident_def(array.as_ref()),
             LValue::MemberAccess { object, .. } => Self::lvalue_ident_def(object.as_ref()),
         }
@@ -246,7 +260,7 @@ impl IRGenerator {
     pub fn create_new_variable(
         &mut self,
         var_name: String,
-        def: Option<DefinitionId>,
+        def: Option<LocalId>,
         obj_type: node::ObjectType,
         witness: Option<acvm::acir::native_types::Witness>,
     ) -> NodeId {
@@ -267,51 +281,12 @@ impl IRGenerator {
         v_id
     }
 
-    //Helper function for create_new_value()
-    fn insert_new_struct(&mut self, def: Option<DefinitionId>, values: Vec<Value>) -> Value {
-        let result = Value::Tuple(values);
-        if let Some(def_id) = def {
-            self.variable_values.insert(def_id, result.clone());
-        }
-        result
-    }
-
-    pub fn create_new_value(
-        &mut self,
-        typ: &Type,
-        base_name: &str,
-        def: Option<DefinitionId>,
-    ) -> Value {
-        match typ {
-            Type::Tuple(fields) => {
-                let values = vecmap(fields.iter().enumerate(), |(i, field)| {
-                    let name = format!("{}.{}", base_name, i);
-                    self.create_new_value(field, &name, None)
-                });
-                self.insert_new_struct(def, values)
-            }
-            Type::Array(len, _) => {
-                //TODO support array of structs
-                let obj_type = node::ObjectType::from(typ);
-                let len = *len;
-                let (v_id, _) = self.new_array(base_name, obj_type, len.try_into().unwrap(), def);
-                Value::Single(v_id)
-            }
-            _ => {
-                let obj_type = node::ObjectType::from(typ);
-                let v_id = self.create_new_variable(base_name.to_string(), def, obj_type, None);
-                self.context.get_current_block_mut().update_variable(v_id, v_id);
-                Value::Single(v_id)
-            }
-        }
-    }
-
     pub fn new_array(
         &mut self,
         name: &str,
         element_type: ObjectType,
         len: u32,
-        def_id: Option<DefinitionId>,
+        def_id: Option<LocalId>,
     ) -> (NodeId, ArrayId) {
         let (id, array_id) = self.context.new_array(name, element_type, len, def_id);
         if let Some(def) = def_id {
@@ -335,7 +310,7 @@ impl IRGenerator {
 
     /// Bind the given DefinitionId to the given Value. This will flatten the Value as needed,
     /// expanding each field of the value to a new variable.
-    fn bind_id(&mut self, id: DefinitionId, value: Value, name: &str) -> Result<(), RuntimeError> {
+    fn bind_id(&mut self, id: LocalId, value: Value, name: &str) -> Result<(), RuntimeError> {
         match value {
             Value::Single(node_id) => {
                 let otype = self.context.get_object_type(node_id);
@@ -378,7 +353,7 @@ impl IRGenerator {
     fn bind_variable(
         &mut self,
         variable_name: String,
-        definition_id: Option<DefinitionId>,
+        definition_id: Option<LocalId>,
         obj_type: node::ObjectType,
         value_id: NodeId,
     ) -> Result<Value, RuntimeError> {
@@ -522,29 +497,7 @@ impl IRGenerator {
                 let load = Operation::Load { array_id, index: index_as_obj };
                 Ok(Value::Single(self.context.new_instruction(load, e_type)?))
             }
-            Expression::Call(call_expr) => {
-                if self.context.get_ssafunc(call_expr.func_id).is_none() {
-                    let index = self.context.get_function_index();
-                    self.create_function(call_expr.func_id, env, index)?;
-                }
-
-                let callee = self.context.get_ssafunc(call_expr.func_id).unwrap().idx;
-                //generate a call instruction to the function cfg
-                if let Some(caller) = self.function_context {
-                    function::update_call_graph(&mut self.context.call_graph, caller, callee);
-                }
-
-                let results = self.call(call_expr, env)?;
-
-                let function = &self.program[call_expr.func_id];
-                Ok(match &function.return_type {
-                    Type::Tuple(_) => Value::Tuple(vecmap(results, Value::Single)),
-                    _ => {
-                        assert_eq!(results.len(), 1);
-                        Value::Single(results[0])
-                    }
-                })
-            }
+            Expression::Call(_) => unreachable!(),
             Expression::CallLowLevel(call) => Ok(Value::Single(self.codegen_lowlevel(env, call)?)),
             Expression::CallBuiltin(_call) => {
                 todo!()

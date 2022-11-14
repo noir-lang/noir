@@ -1,8 +1,8 @@
-use std::fmt::Formatter;
+use std::fmt::{Display, Formatter};
 
 use crate::util::vecmap;
 
-use super::ast::{Expression, Function, LValue};
+use super::ast::{Definition, Expression, Function, LValue};
 
 #[derive(Default)]
 pub struct AstPrinter {
@@ -30,7 +30,7 @@ impl AstPrinter {
 
     pub fn print_expr(&mut self, expr: &Expression, f: &mut Formatter) -> std::fmt::Result {
         match expr {
-            Expression::Ident(ident) => write!(f, "{}${}", ident.name, ident.id.0),
+            Expression::Ident(ident) => write!(f, "{}${}", ident.name, ident.definition),
             Expression::Literal(literal) => self.print_literal(literal, f),
             Expression::Block(exprs) => self.print_block(exprs, f),
             Expression::Unary(unary) => self.print_unary(unary, f),
@@ -246,7 +246,8 @@ impl AstPrinter {
         call: &super::ast::Call,
         f: &mut Formatter,
     ) -> Result<(), std::fmt::Error> {
-        write!(f, "${}(", call.func_id.0)?;
+        self.print_expr(&call.func, f)?;
+        write!(f, "(")?;
         self.print_comma_separated(&call.arguments, f)?;
         write!(f, ")")
     }
@@ -273,7 +274,7 @@ impl AstPrinter {
 
     fn print_lvalue(&mut self, lvalue: &LValue, f: &mut Formatter) -> std::fmt::Result {
         match lvalue {
-            LValue::Ident(ident) => write!(f, "{}${}", ident.name, ident.id.0),
+            LValue::Ident(ident) => write!(f, "{}${}", ident.name, ident.definition),
             LValue::Index { array, index } => {
                 self.print_lvalue(array, f)?;
                 write!(f, "[")?;
@@ -284,6 +285,17 @@ impl AstPrinter {
                 self.print_lvalue(object, f)?;
                 write!(f, ".{}", field_index)
             }
+        }
+    }
+}
+
+impl Display for Definition {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        match self {
+            Definition::Local(id) => write!(f, "l{}", id.0),
+            Definition::Function(id) => write!(f, "f{}", id.0),
+            Definition::Builtin(name) => write!(f, "{}", name),
+            Definition::LowLevel(name) => write!(f, "{}", name),
         }
     }
 }

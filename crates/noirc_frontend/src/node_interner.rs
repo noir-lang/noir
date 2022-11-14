@@ -126,6 +126,7 @@ enum Node {
 pub struct NodeInterner {
     nodes: Arena<Node>,
     func_meta: HashMap<FuncId, FuncMeta>,
+    function_definition_ids: HashMap<FuncId, DefinitionId>,
 
     // Map each `Index` to it's own location
     id_to_location: HashMap<Index, Location>,
@@ -154,12 +155,6 @@ pub struct NodeInterner {
     /// to map callsite types back onto function parameter types, and undo this binding as needed.
     instantiation_bindings: HashMap<ExprId, TypeBindings>,
 
-    /// Temporary map needed to store the function type of Call expressions since we cannot store
-    /// it on a FuncId for every different call. This can be removed once call expressions can take
-    /// arbitrary expressions in the function position since it would then be stored on the
-    /// variable.
-    function_types: HashMap<ExprId, Type>,
-
     /// Remembers the field index a given HirMemberAccess expression was resolved to during type
     /// checking.
     field_indices: HashMap<ExprId, usize>,
@@ -173,8 +168,41 @@ pub struct NodeInterner {
 pub struct DefinitionInfo {
     pub name: String,
     pub mutable: bool,
-    pub is_global: bool,
-    pub rhs: Option<ExprId>, // We must store the rhs of a let statement as it might be needed during resolution. Such as for finding the variable used by fixed sized arrays
+    pub kind: DefinitionKind,
+}
+
+impl DefinitionInfo {
+    /// True if this definition is for a global variable.
+    /// Note that this returns false for top-level functions.
+    pub fn is_global(&self) -> bool {
+        self.kind.is_global()
+    }
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum DefinitionKind {
+    Function(FuncId),
+    Global(ExprId),
+
+    /// Locals may be defined in let statements or parameters,
+    /// in which case they will not have an associated ExprId
+    Local(Option<ExprId>),
+}
+
+impl DefinitionKind {
+    /// True if this definition is for a global variable.
+    /// Note that this returns false for top-level functions.
+    pub fn is_global(&self) -> bool {
+        matches!(self, DefinitionKind::Global(_))
+    }
+
+    pub fn get_rhs(self) -> Option<ExprId> {
+        match self {
+            DefinitionKind::Function(_) => None,
+            DefinitionKind::Global(id) => Some(id),
+            DefinitionKind::Local(id) => id,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -188,12 +216,12 @@ impl Default for NodeInterner {
         let mut interner = NodeInterner {
             nodes: Arena::default(),
             func_meta: HashMap::new(),
+            function_definition_ids: HashMap::new(),
             id_to_location: HashMap::new(),
             definitions: vec![],
             id_to_type: HashMap::new(),
             structs: HashMap::new(),
             instantiation_bindings: HashMap::new(),
-            function_types: HashMap::new(),
             field_indices: HashMap::new(),
             next_type_variable_id: 0,
             globals: HashMap::new(),
@@ -328,13 +356,20 @@ impl NodeInterner {
         &mut self,
         name: String,
         mutable: bool,
-        is_global: bool,
-        rhs: Option<ExprId>,
+        definition: DefinitionKind,
     ) -> DefinitionId {
         let id = self.definitions.len();
-        self.definitions.push(DefinitionInfo { name, mutable, is_global, rhs });
+        self.definitions.push(DefinitionInfo { name, mutable, kind: definition });
 
-        DefinitionId(id)
+        let id = DefinitionId(id);
+        if let DefinitionKind::Function(func_id) = definition {
+            self.function_definition_ids.insert(func_id, id);
+        }
+        id
+    }
+
+    pub fn push_function_definition(&mut self, name: String, func: FuncId) -> DefinitionId {
+        self.push_definition(name, false, DefinitionKind::Function(func))
     }
 
     /// Returns the interned HIR function corresponding to `func_id`
@@ -475,19 +510,15 @@ impl NodeInterner {
         &self.instantiation_bindings[&expr_id]
     }
 
-    pub fn function_type(&self, expr_id: ExprId) -> &Type {
-        &self.function_types[&expr_id]
-    }
-
-    pub fn set_function_type(&mut self, expr_id: ExprId, typ: Type) {
-        self.function_types.insert(expr_id, typ);
-    }
-
     pub fn get_field_index(&self, expr_id: ExprId) -> usize {
         self.field_indices[&expr_id]
     }
 
     pub fn set_field_index(&mut self, expr_id: ExprId, index: usize) {
         self.field_indices.insert(expr_id, index);
+    }
+
+    pub fn function_definition_id(&self, function: FuncId) -> DefinitionId {
+        self.function_definition_ids[&function]
     }
 }

@@ -98,8 +98,18 @@ impl Expression {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Definition {
+    Local(LocalId),
+    Function(FuncId),
+    Builtin(String),
+    LowLevel(String),
+}
+
+/// ID of a local definition, e.g. from a let binding or
+/// function parameter that should be compiled before it is referenced.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct DefinitionId(pub u32);
+pub struct LocalId(pub u32);
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct FuncId(pub u32);
@@ -107,7 +117,7 @@ pub struct FuncId(pub u32);
 #[derive(Debug, Clone)]
 pub struct Ident {
     pub location: Option<Location>,
-    pub id: DefinitionId,
+    pub definition: Definition,
     pub mutable: bool,
     pub name: String,
     pub typ: Type,
@@ -115,7 +125,7 @@ pub struct Ident {
 
 #[derive(Debug, Clone)]
 pub struct For {
-    pub index_variable: DefinitionId,
+    pub index_variable: LocalId,
     pub index_name: String,
     pub index_type: Type,
 
@@ -171,8 +181,9 @@ pub struct ArrayLiteral {
 
 #[derive(Debug, Clone)]
 pub struct Call {
-    pub func_id: FuncId,
+    pub func: Box<Expression>,
     pub arguments: Vec<Expression>,
+    pub return_type: Type,
 }
 
 #[derive(Debug, Clone)]
@@ -196,7 +207,7 @@ pub struct Index {
 
 #[derive(Debug, Clone)]
 pub struct Let {
-    pub id: DefinitionId,
+    pub id: LocalId,
     pub mutable: bool,
     pub name: String,
     pub expression: Box<Expression>,
@@ -228,7 +239,7 @@ pub struct Function {
     pub id: FuncId,
     pub name: String,
 
-    pub parameters: Vec<(DefinitionId, /*mutable:*/ bool, /*name:*/ String, Type)>,
+    pub parameters: Vec<(LocalId, /*mutable:*/ bool, /*name:*/ String, Type)>,
     pub body: Expression,
 
     pub return_type: Type,
@@ -243,6 +254,7 @@ pub enum Type {
     Bool,
     Unit,
     Tuple(Vec<Type>),
+    Function(/*args:*/ Vec<Type>, /*ret:*/ Box<Type>),
 }
 
 impl Type {
@@ -338,6 +350,10 @@ impl std::fmt::Display for Type {
             Type::Tuple(elems) => {
                 let elems = vecmap(elems, ToString::to_string);
                 write!(f, "({})", elems.join(", "))
+            }
+            Type::Function(args, ret) => {
+                let args = vecmap(args, ToString::to_string);
+                write!(f, "fn({}) -> {}", args.join(", "), ret)
             }
         }
     }

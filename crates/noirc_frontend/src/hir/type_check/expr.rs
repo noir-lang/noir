@@ -95,11 +95,13 @@ pub(crate) fn type_check_expression(
             type_check_index_expression(interner, index_expr, errors)
         }
         HirExpression::Call(call_expr) => {
+            let function = type_check_expression(interner, &call_expr.func, errors);
             let args = vecmap(&call_expr.arguments, |arg| {
                 let typ = type_check_expression(interner, arg, errors);
                 (typ, interner.expr_span(arg))
             });
-            type_check_function_call(interner, expr_id, &call_expr.func_id, args, errors)
+            let span = interner.expr_span(expr_id);
+            bind_function_type(function, args, span, interner, errors)
         }
         HirExpression::MethodCall(method_call) => {
             let object_type = type_check_expression(interner, &method_call.object, errors);
@@ -112,11 +114,25 @@ pub(crate) fn type_check_expression(
                         (typ, interner.expr_span(arg))
                     });
                     args.append(&mut arg_types);
-                    let ret = type_check_function_call(interner, expr_id, &method_id, args, errors);
 
                     // Desugar the method call into a normal, resolved function call
                     // so that the backend doesn't need to worry about methods
-                    let function_call = method_call.into_function_call(method_id);
+                    let location = interner.function_meta(&method_id).location;
+                    let name = method_name.to_owned();
+
+                    let (function_id, function_call) =
+                        method_call.into_function_call(method_id, name, location, interner);
+
+                    let span = interner.expr_span(expr_id);
+                    let ret = type_check_method_call(
+                        interner,
+                        &function_id,
+                        &method_id,
+                        args,
+                        span,
+                        errors,
+                    );
+
                     interner.replace_expr(expr_id, function_call);
                     ret
                 }
@@ -354,11 +370,14 @@ fn lookup_method(
     }
 }
 
-fn type_check_function_call(
+// We need a special function to typecheck method calls since the method
+// is not a Expression::Ident it must be manually instantiated here
+fn type_check_method_call(
     interner: &mut NodeInterner,
-    expr_id: &ExprId,
+    function_ident_id: &ExprId,
     func_id: &FuncId,
     arguments: Vec<(Type, Span)>,
+    span: Span,
     errors: &mut Vec<TypeCheckError>,
 ) -> Type {
     if func_id == &FuncId::dummy_id() {
@@ -370,7 +389,6 @@ fn type_check_function_call(
         let param_len = func_meta.parameters.len();
         let arg_len = arguments.len();
 
-        let span = interner.expr_span(expr_id);
         if param_len != arg_len {
             errors.push(TypeCheckError::ArityMisMatch {
                 expected: param_len as u16,
@@ -380,8 +398,8 @@ fn type_check_function_call(
         }
 
         let (function_type, instantiation_bindings) = func_meta.typ.instantiate(interner);
-        interner.store_instantiation_bindings(*expr_id, instantiation_bindings);
-        interner.set_function_type(*expr_id, function_type.clone());
+        interner.store_instantiation_bindings(*function_ident_id, instantiation_bindings);
+        interner.push_expr_type(function_ident_id, function_type.clone());
         bind_function_type(function_type, arguments, span, interner, errors)
     }
 }

@@ -2,7 +2,7 @@ use super::acir_gen::InternalVar;
 use super::context::SsaContext;
 use super::node::{self, Node, NodeId};
 use acvm::FieldElement;
-use noirc_frontend::monomorphisation::ast::DefinitionId;
+use noirc_frontend::monomorphisation::ast::LocalId;
 use num_bigint::BigUint;
 use num_traits::ToPrimitive;
 
@@ -19,19 +19,13 @@ pub struct Memory {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ArrayId(u32);
 
-impl ArrayId {
-    pub fn dummy() -> ArrayId {
-        ArrayId(std::u32::MAX)
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct MemArray {
     pub id: ArrayId,
     pub element_type: node::ObjectType, //type of elements
     pub values: Vec<InternalVar>,
     pub name: String,
-    pub def: DefinitionId,
+    pub def: LocalId,
     pub len: u32,     //number of elements
     pub adr: u32,     //base address of the array
     pub max: BigUint, //Max possible value of array elements
@@ -40,7 +34,7 @@ pub struct MemArray {
 impl MemArray {
     fn new(
         id: ArrayId,
-        definition: DefinitionId,
+        definition: LocalId,
         name: &str,
         of: node::ObjectType,
         len: u32,
@@ -85,7 +79,7 @@ impl Memory {
         arr_name: &str,
     ) -> ArrayId {
         let id = ArrayId(self.arrays.len() as u32);
-        let dummy_id = DefinitionId(u32::MAX);
+        let dummy_id = LocalId(u32::MAX);
         let mut new_array = MemArray::new(id, dummy_id, arr_name, el_type, len);
         new_array.adr = self.last_adr;
         self.arrays.push(new_array);
