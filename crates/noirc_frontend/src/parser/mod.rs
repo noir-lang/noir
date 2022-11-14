@@ -342,7 +342,7 @@ impl ForRange {
                 let next_unique_id = UNIQUE_NAME_COUNTER.fetch_add(1, Ordering::Relaxed);
                 let array_name = format!("$i{}", next_unique_id);
                 let array_span = array.span;
-                let array_ident = Ident::new(array_name.clone(), array_span);
+                let array_ident = Ident::new(array_name, array_span);
 
                 // let fresh1 = array;
                 let let_array = Statement::Let(LetStatement {
