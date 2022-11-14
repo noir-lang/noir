@@ -64,18 +64,8 @@ main() {
     NOIRUP_VERSION=${NOIRUP_VERSION-nightly}
     NOIRUP_TAG=$NOIRUP_VERSION
 
-    # Normalize versions (handle channels, versions without v prefix
-    if [[ "$NOIRUP_VERSION" == "nightly" ]]; then
-      # Locate real nightly tag
-      SHA=$(ensure curl -sSf https://api.github.com/repos/${NOIRUP_REPO}/git/refs/tags/nightly \
-        | grep -Eo '"sha"[^,]*' \
-        | grep -Eo '[^:]*$' \
-        | tr -d '"' \
-        | tr -d ' ')
-      NOIRUP_TAG="nightly-${SHA}"
-    elif [[ "$NOIRUP_VERSION" == nightly* ]]; then
-      NOIRUP_VERSION="nightly"
-    elif [[ "$NOIRUP_VERSION" == [[:digit:]]* ]]; then
+    # Normalize versions (handle channels, versions without v prefix)
+    if [[ "$NOIRUP_VERSION" == [[:digit:]]* ]]; then
       # Add v prefix
       NOIRUP_VERSION="v${NOIRUP_VERSION}"
       NOIRUP_TAG="${NOIRUP_VERSION}"
