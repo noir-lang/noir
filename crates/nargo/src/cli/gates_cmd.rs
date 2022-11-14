@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use clap::ArgMatches;
 use std::path::Path;
+use acvm::ProofSystemCompiler;
 
 use crate::cli::compile_cmd::compile_circuit;
 use crate::errors::CliError;
@@ -22,7 +23,8 @@ pub fn count_gates_with_path<P: AsRef<Path>>(
     show_ssa: bool,
 ) -> Result<(), CliError> {
     let compiled_program = compile_circuit(program_dir.as_ref(), show_ssa)?;
-    let gates = compiled_program.circuit.gates;
+
+    let gates = compiled_program.circuit.gates.clone();
 
     // Store counts of each gate type into hashmap.
     let mut gate_counts: HashMap<&str, u32> = HashMap::new();
@@ -43,6 +45,10 @@ pub fn count_gates_with_path<P: AsRef<Path>>(
     for (gate_type, count) in sorted_gate_counts {
         println!("{}: {}", gate_type, count);
     }
+
+    let backend = crate::backends::ConcreteBackend;
+    let exact_circuit_size = backend.get_exact_circuit_size(compiled_program.circuit);
+    println!("\nExact constraint size: {}\n", exact_circuit_size);
 
     Ok(())
 }
