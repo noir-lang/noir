@@ -2,9 +2,11 @@
 title: Accounts
 ---
 
-import Image from '@theme/IdealImage';
+import Image from "@theme/IdealImage";
 
-Accounts in Aztec.
+Accounts in Aztec. 
+
+For a deep dive into the technical details of Aztec accounts, see the [Account Circuit specification](../spec/account_circuit).
 
 ## A Technical Primer on Accounts
 
@@ -14,16 +16,15 @@ These diagrams provide an overview of the account model and the following text g
 
 ### Basic Aztec Account
 
-<Image img={require('/img/basic-user-acct.png')} />
+<Image img={require("/img/basic-user-acct.png")} />
 
-*The private key for an unregistered, basic account is like the viewing key AND the spending key for the account.*
+_The private key for an unregistered, basic account is like the viewing key AND the spending key for the account._
 
 ### Registered Aztec Account
 
-<Image img={require('/img/registered-user-acct.png')} />
+<Image img={require("/img/registered-user-acct.png")} />
 
-*For a registered account, the viewing key and spending key functionality is separated.*
-
+_For a registered account, the viewing key and spending key functionality is separated._
 
 An account is a single private/public key pair until it is registered (see the [account registration](#account-registration) section below.) Before an account is registered, the private key is used to decrypt account notes as well as send value notes. The account will **not** have any registered spending keys or an [account alias](#account-alias) until is is registered. Once an account is registered, value notes that are sent to the account can either be marked to be spent by the account private key or the spending keys. It is a best practice for a sender to mark value notes as spendable by the spending keys when an account is registered.
 
