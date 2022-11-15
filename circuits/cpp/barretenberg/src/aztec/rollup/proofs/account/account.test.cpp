@@ -362,18 +362,18 @@ TEST_F(account_tests, test_create_account_full_proof_and_detect_circuit_change)
     // rollup/constants.hpp and see if atleast the next power of two limit is not exceeded. Please change the constant
     // values accordingly and set is_circuit_change_expected to 0 in rollup/constants.hpp before merging.
     if (!(circuit_gate_count::is_circuit_change_expected)) {
-        EXPECT_TRUE(number_of_gates_acc == circuit_gate_count::ACCOUNT)
+        EXPECT_EQ(number_of_gates_acc, circuit_gate_count::ACCOUNT)
             << "The gate count for the account circuit is changed.";
-        EXPECT_TRUE(from_buffer<uint256_t>(vk_hash_acc) == circuit_vk_hash::ACCOUNT)
+        EXPECT_EQ(from_buffer<uint256_t>(vk_hash_acc), circuit_vk_hash::ACCOUNT)
             << "The verification key hash for the account circuit is changed: " << from_buffer<uint256_t>(vk_hash_acc);
         // For the next power of two limit, we need to consider that we reserve four gates for adding
         // randomness/zero-knowledge
-        EXPECT_TRUE(number_of_gates_acc <=
-                    circuit_gate_next_power_of_two::ACCOUNT - waffle::ComposerBase::NUM_RESERVED_GATES)
+        EXPECT_LE(number_of_gates_acc,
+                  circuit_gate_next_power_of_two::ACCOUNT - waffle::ComposerBase::NUM_RESERVED_GATES)
             << "You have exceeded the next power of two limit for the account circuit.";
     } else {
-        EXPECT_TRUE(number_of_gates_acc <=
-                    circuit_gate_next_power_of_two::ACCOUNT - waffle::ComposerBase::NUM_RESERVED_GATES)
+        EXPECT_LE(number_of_gates_acc,
+                  circuit_gate_next_power_of_two::ACCOUNT - waffle::ComposerBase::NUM_RESERVED_GATES)
             << "You have exceeded the next power of two limit for the account circuit.";
     }
 }

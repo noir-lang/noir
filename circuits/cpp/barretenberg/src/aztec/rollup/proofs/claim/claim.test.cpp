@@ -106,18 +106,18 @@ TEST_F(claim_tests, test_claim_and_detect_circuit_change)
     // rollup/constants.hpp and see if atleast the next power of two limit is not exceeded. Please change the constant
     // values accordingly and set is_circuit_change_expected to 0 in rollup/constants.hpp before merging.
     if (!(circuit_gate_count::is_circuit_change_expected)) {
-        EXPECT_TRUE(number_of_gates_claim == circuit_gate_count::CLAIM)
+        EXPECT_EQ(number_of_gates_claim, circuit_gate_count::CLAIM)
             << "The gate count for the claim circuit is changed.";
-        EXPECT_TRUE(from_buffer<uint256_t>(vk_hash_claim) == circuit_vk_hash::CLAIM)
+        EXPECT_EQ(from_buffer<uint256_t>(vk_hash_claim), circuit_vk_hash::CLAIM)
             << "The verification key hash for the claim circuit is changed: " << from_buffer<uint256_t>(vk_hash_claim);
         // For the next power of two limit, we need to consider that we reserve four gates for adding
         // randomness/zero-knowledge
-        EXPECT_TRUE(number_of_gates_claim <=
-                    circuit_gate_next_power_of_two::CLAIM - waffle::ComposerBase::NUM_RESERVED_GATES)
+        EXPECT_LE(number_of_gates_claim,
+                  circuit_gate_next_power_of_two::CLAIM - waffle::ComposerBase::NUM_RESERVED_GATES)
             << "You have exceeded the next power of two limit for the claim circuit.";
     } else {
-        EXPECT_TRUE(number_of_gates_claim <=
-                    circuit_gate_next_power_of_two::CLAIM - waffle::ComposerBase::NUM_RESERVED_GATES)
+        EXPECT_LE(number_of_gates_claim,
+                  circuit_gate_next_power_of_two::CLAIM - waffle::ComposerBase::NUM_RESERVED_GATES)
             << "You have exceeded the next power of two limit for the claim circuit.";
     }
 }
