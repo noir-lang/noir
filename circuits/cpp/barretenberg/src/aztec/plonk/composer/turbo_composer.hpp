@@ -19,6 +19,7 @@ class TurboComposer : public ComposerBase {
         QRANGE = 9,
         QLOGIC = 10,
     };
+
     TurboComposer();
     TurboComposer(std::string const& crs_path, const size_t size_hint = 0);
     TurboComposer(std::shared_ptr<ReferenceStringFactory> const& crs_factory, const size_t size_hint = 0);
@@ -31,7 +32,7 @@ class TurboComposer : public ComposerBase {
 
     virtual std::shared_ptr<proving_key> compute_proving_key() override;
     std::shared_ptr<verification_key> compute_verification_key() override;
-    std::shared_ptr<program_witness> compute_witness() override;
+    void compute_witness() override;
 
     TurboProver create_prover();
     TurboVerifier create_verifier();
@@ -130,7 +131,7 @@ class TurboComposer : public ComposerBase {
                   },
                   "beta",
                   2),
-              transcript::Manifest::RoundManifest({ { "Z", g1_size, false } }, "alpha", 1),
+              transcript::Manifest::RoundManifest({ { "Z_PERM", g1_size, false } }, "alpha", 1),
               transcript::Manifest::RoundManifest(
                   {
                       { "T_1", g1_size, false },
@@ -152,7 +153,7 @@ class TurboComposer : public ComposerBase {
                       { "q_arith", fr_size, false, 7 },
                       { "q_ecc_1", fr_size, false, 8 },
                       { "q_c", fr_size, false, 9 },
-                      { "z_omega", fr_size, false, -1 },
+                      { "z_perm_omega", fr_size, false, -1 },
                       { "w_1_omega", fr_size, false, 0 },
                       { "w_2_omega", fr_size, false, 1 },
                       { "w_3_omega", fr_size, false, 2 },
@@ -186,7 +187,7 @@ class TurboComposer : public ComposerBase {
                   },
                   "beta",
                   2),
-              transcript::Manifest::RoundManifest({ { "Z", g1_size, false } }, "alpha", 1),
+              transcript::Manifest::RoundManifest({ { "Z_PERM", g1_size, false } }, "alpha", 1),
               transcript::Manifest::RoundManifest(
                   {
                       { "T_1", g1_size, false },
@@ -208,7 +209,7 @@ class TurboComposer : public ComposerBase {
                       { "q_m", fr_size, false, 13 },      { "q_c", fr_size, false, 14 },
                       { "q_arith", fr_size, false, 15 },  { "q_logic", fr_size, false, 16 },
                       { "q_range", fr_size, false, 17 },  { "q_ecc_1", fr_size, false, 18 },
-                      { "z", fr_size, false, 19 },        { "z_omega", fr_size, false, 19 },
+                      { "z_perm", fr_size, false, 19 },   { "z_perm_omega", fr_size, false, 19 },
                       { "w_1_omega", fr_size, false, 0 }, { "w_2_omega", fr_size, false, 1 },
                       { "w_3_omega", fr_size, false, 2 }, { "w_4_omega", fr_size, false, 3 },
                   },
@@ -238,11 +239,11 @@ class CheckGetter {
      * @tparam use_shifted_evaluation Controls if we shift index to the right or not
      * @tparam id The id of the selector/witness polynomial being used
      * */
-    template <bool use_shifted_evaluation, PolynomialIndex id>
-    inline static const barretenberg::fr& get_polynomial(const TurboComposer& composer, const size_t index = 0)
+    template <EvaluationType value_type, PolynomialIndex id>
+    inline static const barretenberg::fr& get_value(const TurboComposer& composer, const size_t index = 0)
     {
         size_t actual_index = index;
-        if constexpr (use_shifted_evaluation) {
+        if constexpr (EvaluationType::SHIFTED == value_type) {
             actual_index += 1;
             if (actual_index >= composer.n) {
                 return zero;

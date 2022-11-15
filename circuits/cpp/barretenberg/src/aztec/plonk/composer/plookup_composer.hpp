@@ -41,6 +41,7 @@ class PlookupComposer : public ComposerBase {
         QLOOKUPINDEX = 13,
         QLOOKUPTYPE = 14,
     };
+
     PlookupComposer();
     PlookupComposer(std::string const& crs_path, const size_t size_hint = 0);
     PlookupComposer(std::unique_ptr<ReferenceStringFactory>&& crs_factory, const size_t size_hint = 0);
@@ -53,7 +54,7 @@ class PlookupComposer : public ComposerBase {
 
     std::shared_ptr<proving_key> compute_proving_key() override;
     std::shared_ptr<verification_key> compute_verification_key() override;
-    std::shared_ptr<program_witness> compute_witness() override;
+    void compute_witness() override;
 
     PlookupProver create_prover();
     PlookupVerifier create_verifier();
@@ -203,7 +204,7 @@ class PlookupComposer : public ComposerBase {
                                                   1),
               transcript::Manifest::RoundManifest({ { "S", g1_size, false } }, "beta", 2),
               transcript::Manifest::RoundManifest(
-                  { { "Z", g1_size, false }, { "Z_LOOKUP", g1_size, false } }, "alpha", 1),
+                  { { "Z_PERM", g1_size, false }, { "Z_LOOKUP", g1_size, false } }, "alpha", 1),
               transcript::Manifest::RoundManifest({ { "T_1", g1_size, false },
                                                     { "T_2", g1_size, false },
                                                     { "T_3", g1_size, false },
@@ -239,7 +240,7 @@ class PlookupComposer : public ComposerBase {
                       { "id_2", fr_size, false, 25 },
                       { "id_3", fr_size, false, 26 },
                       { "id_4", fr_size, false, 27 },
-                      { "z_omega", fr_size, false, -1 },
+                      { "z_perm_omega", fr_size, false, -1 },
                       { "w_1_omega", fr_size, false, 0 },
                       { "w_2_omega", fr_size, false, 1 },
                       { "w_3_omega", fr_size, false, 2 },
@@ -277,7 +278,7 @@ class PlookupComposer : public ComposerBase {
                                                   1),
               transcript::Manifest::RoundManifest({ { "S", g1_size, false } }, "beta", 2),
               transcript::Manifest::RoundManifest(
-                  { { "Z", g1_size, false }, { "Z_LOOKUP", g1_size, false } }, "alpha", 1),
+                  { { "Z_PERM", g1_size, false }, { "Z_LOOKUP", g1_size, false } }, "alpha", 1),
               transcript::Manifest::RoundManifest({ { "T_1", g1_size, false },
                                                     { "T_2", g1_size, false },
                                                     { "T_3", g1_size, false },
@@ -316,12 +317,12 @@ class PlookupComposer : public ComposerBase {
                       { "table_value_2", fr_size, false, 26 },
                       { "table_value_3", fr_size, false, 27 },
                       { "table_value_4", fr_size, false, 28 },
-                      { "z", fr_size, false, 29 },
+                      { "z_perm", fr_size, false, 29 },
                       { "id_1", fr_size, false, 30 },
                       { "id_2", fr_size, false, 31 },
                       { "id_3", fr_size, false, 32 },
                       { "id_4", fr_size, false, 33 },
-                      { "z_omega", fr_size, false, -1 },
+                      { "z_perm_omega", fr_size, false, -1 },
                       { "w_1_omega", fr_size, false, 0 },
                       { "w_2_omega", fr_size, false, 1 },
                       { "w_3_omega", fr_size, false, 2 },

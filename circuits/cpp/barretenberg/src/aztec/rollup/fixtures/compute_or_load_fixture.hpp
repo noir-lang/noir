@@ -5,6 +5,7 @@
 #include <common/serialize.hpp>
 #include <common/log.hpp>
 #include <common/throw_or_abort.hpp>
+#include <filesystem>
 
 namespace rollup {
 namespace fixtures {
@@ -31,7 +32,7 @@ inline std::vector<uint8_t> compute_or_load_fixture(std::string const& path,
         info("Computing fixture: ", name, "...");
         auto data = f();
         if (data.size()) {
-            mkdir(path.c_str(), 0700);
+            std::filesystem::create_directories(path.c_str());
             auto stream = std::ofstream(filename);
             write(stream, data);
             if (!stream.good()) {

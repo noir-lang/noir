@@ -25,7 +25,6 @@ verify_result<Composer> build_circuit(Composer& composer, rollup_tx& tx, circuit
     pad_rollup_tx(tx, cd.num_txs, cd.join_split_circuit_data.padding_proof);
 
     result.recursion_output = rollup_circuit(composer, tx, cd.verification_keys, cd.num_txs);
-
     return result;
 }
 } // namespace

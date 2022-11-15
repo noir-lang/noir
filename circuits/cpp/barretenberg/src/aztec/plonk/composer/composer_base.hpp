@@ -10,7 +10,6 @@ static constexpr uint32_t DUMMY_TAG = 0;
 
 struct proving_key;
 struct verification_key;
-struct program_witness;
 
 struct add_triple {
     uint32_t a;
@@ -144,7 +143,7 @@ class ComposerBase {
     };
 
     ComposerBase()
-        : ComposerBase(std::shared_ptr<ReferenceStringFactory>(new FileReferenceStringFactory("../srs_db")))
+        : ComposerBase(std::shared_ptr<ReferenceStringFactory>(new FileReferenceStringFactory("../srs_db/ignition")))
     {}
     ComposerBase(std::shared_ptr<ReferenceStringFactory> const& crs_factory,
                  size_t selector_num = 0,
@@ -166,7 +165,7 @@ class ComposerBase {
                  size_t size_hint = 0,
                  std::vector<SelectorProperties> selector_properties = {})
         : n(0)
-        , crs_factory_(std::make_unique<FileReferenceStringFactory>("../srs_db"))
+        , crs_factory_(std::make_unique<FileReferenceStringFactory>("../srs_db/ignition"))
         , selector_num(selector_num)
         , selectors(selector_num)
         , selector_properties(selector_properties)
@@ -185,7 +184,7 @@ class ComposerBase {
         : n(0)
         , circuit_proving_key(p_key)
         , circuit_verification_key(v_key)
-        , selector_num(p_key ? p_key->constraint_selectors.size() : selector_num)
+        , selector_num(selector_num)
         , selectors(selector_num)
         , selector_properties(selector_properties)
         , rand_engine(nullptr)
@@ -201,12 +200,13 @@ class ComposerBase {
 
     virtual size_t get_num_gates() const { return n; }
     virtual size_t get_num_variables() const { return variables.size(); }
-    virtual std::shared_ptr<proving_key> compute_proving_key_base(const size_t minimum_ciricut_size = 0,
+    virtual std::shared_ptr<proving_key> compute_proving_key_base(const waffle::ComposerType type = waffle::STANDARD,
+                                                                  const size_t minimum_ciricut_size = 0,
                                                                   const size_t num_reserved_gates = NUM_RESERVED_GATES);
     virtual std::shared_ptr<proving_key> compute_proving_key() = 0;
     virtual std::shared_ptr<verification_key> compute_verification_key() = 0;
-    virtual std::shared_ptr<program_witness> compute_witness() = 0;
-    template <class program_settings> std::shared_ptr<program_witness> compute_witness_base();
+    virtual void compute_witness() = 0;
+    template <class program_settings> void compute_witness_base();
     uint32_t zero_idx = 0;
 
     virtual void create_add_gate(const add_triple& in) = 0;
@@ -347,19 +347,6 @@ class ComposerBase {
     template <size_t program_width> void compute_wire_copy_cycles();
     template <size_t program_width, bool with_tags = false> void compute_sigma_permutations(proving_key* key);
 
-    void add_selector(polynomial& small, const std::string& tag, bool preserve_lagrange_base = false)
-    {
-        if (preserve_lagrange_base) {
-            polynomial lagrange_base(small, circuit_proving_key->n);
-            circuit_proving_key->constraint_selectors_lagrange_base.insert({ tag, std::move(lagrange_base) });
-        }
-        small.ifft(circuit_proving_key->small_domain);
-        polynomial large(small, circuit_proving_key->n * 4);
-        large.coset_fft(circuit_proving_key->large_domain);
-        circuit_proving_key->constraint_selectors.insert({ tag, std::move(small) });
-        circuit_proving_key->constraint_selector_ffts.insert({ tag + "_fft", std::move(large) });
-    }
-
     size_t get_circuit_subgroup_size(const size_t num_gates)
     {
         size_t log2_n = static_cast<size_t>(numeric::get_msb(num_gates));
@@ -407,7 +394,6 @@ class ComposerBase {
     std::shared_ptr<verification_key> circuit_verification_key;
 
     bool computed_witness = false;
-    std::shared_ptr<program_witness> witness;
 
     std::shared_ptr<ReferenceStringFactory> crs_factory_;
     size_t selector_num;
@@ -422,8 +408,8 @@ extern template void ComposerBase::compute_wire_copy_cycles<3>();
 extern template void ComposerBase::compute_wire_copy_cycles<4>();
 extern template void ComposerBase::compute_sigma_permutations<3, false>(proving_key* key);
 extern template void ComposerBase::compute_sigma_permutations<4, false>(proving_key* key);
-extern template std::shared_ptr<program_witness> ComposerBase::compute_witness_base<standard_settings>();
-extern template std::shared_ptr<program_witness> ComposerBase::compute_witness_base<turbo_settings>();
+extern template void ComposerBase::compute_witness_base<standard_settings>();
+extern template void ComposerBase::compute_witness_base<turbo_settings>();
 extern template void ComposerBase::compute_sigma_permutations<4, true>(proving_key* key);
 
 } // namespace waffle

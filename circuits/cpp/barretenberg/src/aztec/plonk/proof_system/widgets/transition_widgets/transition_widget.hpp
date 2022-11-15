@@ -2,10 +2,12 @@
 
 #include <array>
 #include <vector>
+#include <set>
+#include <unordered_map>
 
+#include <polynomials/iterate_over_domain.hpp>
 #include "../../types/polynomial_manifest.hpp"
 #include "../../types/prover_settings.hpp"
-#include "../../types/program_witness.hpp"
 #include "../../proving_key/proving_key.hpp"
 #include "../../verification_key/verification_key.hpp"
 #include "../../prover/work_queue.hpp"
@@ -40,9 +42,10 @@ template <class Field, size_t num_widget_relations> struct challenge_array {
 
 template <class Field> using poly_array = std::array<std::pair<Field, Field>, PolynomialIndex::MAX_NUM_POLYNOMIALS>;
 
-template <class Field> struct poly_ptr_array {
-    std::array<Field*, PolynomialIndex::MAX_NUM_POLYNOMIALS> coefficients;
+template <class Field> struct poly_ptr_map {
+    std::unordered_map<PolynomialIndex, Field*> coefficients;
     size_t block_mask;
+    size_t index_shift;
 };
 
 template <class Field> using coefficient_array = std::array<Field, PolynomialIndex::MAX_NUM_POLYNOMIALS>;
@@ -126,7 +129,7 @@ template <class Field, class Transcript, class Settings, size_t num_widget_relat
 class EvaluationGetter : public BaseGetter<Field, Transcript, Settings, num_widget_relations> {
   protected:
     typedef containers::poly_array<Field> poly_array;
-    typedef std::vector<PolynomialDescriptor> polynomial_manifest;
+    typedef PolynomialManifest polynomial_manifest;
 
   public:
     /**
@@ -141,7 +144,7 @@ class EvaluationGetter : public BaseGetter<Field, Transcript, Settings, num_widg
      * @return The chosen polynomial
      * */
     template <bool use_shifted_evaluation, PolynomialIndex id>
-    inline static const Field& get_polynomial(const poly_array& polynomials, const size_t = 0)
+    inline static const Field& get_value(const poly_array& polynomials, const size_t = 0)
     {
         if constexpr (use_shifted_evaluation) {
             return polynomials[id].second;
@@ -153,7 +156,8 @@ class EvaluationGetter : public BaseGetter<Field, Transcript, Settings, num_widg
                                                  const Transcript& transcript)
     {
         poly_array result{};
-        for (const auto& info : polynomial_manifest) {
+        for (size_t i = 0; i < polynomial_manifest.size(); ++i) {
+            auto info = polynomial_manifest[i];
             const std::string label(info.polynomial_label);
             if (!info.is_linearised || !Settings::use_linearisation) {
                 result[info.index].first = transcript.get_field_element(label);
@@ -170,92 +174,59 @@ class EvaluationGetter : public BaseGetter<Field, Transcript, Settings, num_widg
     }
 };
 
-template <typename Field, class Transcript, class Settings, size_t num_widget_relations>
-class FFTGetter : public BaseGetter<Field, Transcript, Settings, num_widget_relations> {
+/**
+ * @brief Provides access to polynomials (monomial or coset FFT) for use in widgets
+ * @details Coset FFT access is needed in quotient construction and monomial access is
+ * for construction of linearization polynomial
+ *
+ * @tparam Field
+ * @tparam Transcript
+ * @tparam Settings
+ * @tparam num_widget_relations
+ * @tparam representation
+ */
+template <typename Field,
+          class Transcript,
+          class Settings,
+          size_t num_widget_relations,
+          PolynomialRepresentation representation>
+class PolynomialGetter : public BaseGetter<Field, Transcript, Settings, num_widget_relations> {
   protected:
-    typedef containers::poly_ptr_array<Field> poly_ptr_array;
+    typedef containers::poly_ptr_map<Field> poly_ptr_map;
 
   public:
-    static poly_ptr_array get_fft_polynomials(proving_key* key)
+    static poly_ptr_map get_polynomials(proving_key* key, std::set<PolynomialIndex> required_polynomial_ids)
     {
-        poly_ptr_array result;
-        result.block_mask = key->large_domain.size - 1;
-        for (const auto& info : key->polynomial_manifest) {
-            const std::string label = std::string(info.polynomial_label) + "_fft";
-            Field* poly = nullptr;
-            switch (info.source) {
-            case PolynomialSource::WITNESS: {
-                poly = &key->wire_ffts.at(label)[0];
-                break;
+        poly_ptr_map result;
+        std::string label_suffix;
+
+        // Set block_mask and index_shift based on the polynomial representation
+        if (PolynomialRepresentation::MONOMIAL == representation) {
+            label_suffix = ""; // no suffix for monomial representation
+            result.block_mask = key->small_domain.size - 1;
+            result.index_shift = 1;
+        } else if (PolynomialRepresentation::COSET_FFT == representation) {
+            label_suffix = "_fft"; // coset evaluation form has suffix "_fft"
+            result.block_mask = key->large_domain.size - 1;
+            result.index_shift = 4; // for coset fft, x->ω*x corresponds to shift by 4
+        }
+
+        // Construct the container of pointers to the required polynomials
+        for (size_t i = 0; i < key->polynomial_manifest.size(); ++i) {
+            auto info_ = key->polynomial_manifest[i];
+            if (required_polynomial_ids.contains(info_.index)) {
+                std::string label = std::string(info_.polynomial_label) + label_suffix;
+                result.coefficients[info_.index] = &key->polynomial_cache.get(label)[0];
             }
-            case PolynomialSource::SELECTOR: {
-                poly = &key->constraint_selector_ffts.at(label)[0];
-                break;
-            }
-            case PolynomialSource::PERMUTATION: {
-                poly = &key->permutation_selector_ffts.at(label)[0];
-                break;
-            }
-            }
-            result.coefficients[info.index] = poly;
         }
         return result;
     }
 
-    template <bool use_shifted_evaluation, PolynomialIndex id>
-    inline static const Field& get_polynomial(const poly_ptr_array& polynomials, const size_t index = 0)
+    template <EvaluationType evaluation_type, PolynomialIndex id>
+    inline static const Field& get_value(poly_ptr_map& polynomials, const size_t index = 0)
     {
-        // have range quotient R(X). Value of array are: R(g.w'^i) for i in [0, ...., 4n - 1], w' = 4n'th root of unity.
-        // g = coset generator shifted range quotient = R(X.w), w = n'th root of unity. if we have at idx i: R(w'^i) =>
-        // X = w'^i . Shifted equivalent = X.w = w'^i.w = w'^{i + 4} = value at index i + 4
-
-        // final computation: T(X) = quotient identity I(X) / Z_H(X) <- vanishing poly
-
-        if constexpr (use_shifted_evaluation) {
-            return polynomials.coefficients[id][(index + 4) & polynomials.block_mask];
-        }
-        const Field& result = polynomials.coefficients[id][index];
-        return result;
-    }
-};
-
-template <typename Field, class Transcript, class Settings, size_t num_widget_relations>
-class MonomialGetter : public BaseGetter<Field, Transcript, Settings, num_widget_relations> {
-  protected:
-    typedef containers::poly_ptr_array<Field> poly_ptr_array;
-
-  public:
-    static poly_ptr_array get_monomials(proving_key* key, program_witness* witness)
-    {
-        poly_ptr_array result;
-        result.block_mask = key->small_domain.size - 1;
-        for (const auto& info : key->polynomial_manifest) {
-            const std::string label(info.polynomial_label);
-            Field* poly = nullptr;
-            switch (info.source) {
-            case PolynomialSource::WITNESS: {
-                poly = &witness->wires.at(label)[0];
-                break;
-            }
-            case PolynomialSource::SELECTOR: {
-                poly = &key->constraint_selectors.at(label)[0];
-                break;
-            }
-            case PolynomialSource::PERMUTATION: {
-                poly = &key->permutation_selectors.at(label)[0];
-                break;
-            }
-            }
-            result.coefficients[info.index] = poly;
-        }
-        return result;
-    }
-
-    template <bool use_shifted_evaluation, PolynomialIndex id>
-    inline static Field& get_polynomial(const poly_ptr_array& polynomials, const size_t index = 0)
-    {
-        if constexpr (use_shifted_evaluation) {
-            return polynomials.coefficients[id][(index + 1) & polynomials.block_mask];
+        if constexpr (EvaluationType::SHIFTED == evaluation_type) {
+            return polynomials.coefficients[id][(index + polynomials.index_shift) & polynomials.block_mask];
         }
         return polynomials.coefficients[id][index];
     }
@@ -264,25 +235,20 @@ class MonomialGetter : public BaseGetter<Field, Transcript, Settings, num_widget
 
 template <class Field> class TransitionWidgetBase {
   public:
-    TransitionWidgetBase(proving_key* _key = nullptr, program_witness* _witness = nullptr)
-        : key(_key)
-        , witness(_witness){};
+    TransitionWidgetBase(proving_key* _key = nullptr)
+        : key(_key){};
     TransitionWidgetBase(const TransitionWidgetBase& other)
-        : key(other.key)
-        , witness(other.witness){};
+        : key(other.key){};
     TransitionWidgetBase(TransitionWidgetBase&& other)
-        : key(other.key)
-        , witness(other.witness){};
+        : key(other.key){};
     TransitionWidgetBase& operator=(const TransitionWidgetBase& other)
     {
         key = other.key;
-        witness = other.witness;
         return *this;
     };
     TransitionWidgetBase& operator=(TransitionWidgetBase&& other)
     {
         key = other.key;
-        witness = other.witness;
         return *this;
     };
     virtual ~TransitionWidgetBase() {}
@@ -292,14 +258,13 @@ template <class Field> class TransitionWidgetBase {
 
   public:
     proving_key* key;
-    program_witness* witness;
 };
 
 template <class Field, class Settings, template <typename, typename, typename> typename KernelBase>
 class TransitionWidget : public TransitionWidgetBase<Field> {
   protected:
     static constexpr size_t num_independent_relations = KernelBase<int, int, int>::num_independent_relations;
-    typedef containers::poly_ptr_array<Field> poly_ptr_array;
+    typedef containers::poly_ptr_map<Field> poly_ptr_map;
     typedef containers::poly_array<Field> poly_array;
     typedef containers::challenge_array<Field, num_independent_relations> challenge_array;
     typedef containers::coefficient_array<Field> coefficient_array;
@@ -307,15 +272,24 @@ class TransitionWidget : public TransitionWidgetBase<Field> {
   public:
     typedef getters::EvaluationGetter<Field, transcript::StandardTranscript, Settings, num_independent_relations>
         EvaluationGetter;
-    typedef getters::FFTGetter<Field, transcript::StandardTranscript, Settings, num_independent_relations> FFTGetter;
-    typedef getters::MonomialGetter<Field, transcript::StandardTranscript, Settings, num_independent_relations>
+    typedef getters::PolynomialGetter<Field,
+                                      transcript::StandardTranscript,
+                                      Settings,
+                                      num_independent_relations,
+                                      PolynomialRepresentation::COSET_FFT>
+        FFTGetter;
+    typedef getters::PolynomialGetter<Field,
+                                      transcript::StandardTranscript,
+                                      Settings,
+                                      num_independent_relations,
+                                      PolynomialRepresentation::MONOMIAL>
         MonomialGetter;
-    typedef KernelBase<Field, FFTGetter, poly_ptr_array> FFTKernel;
-    typedef KernelBase<Field, MonomialGetter, poly_ptr_array> MonomialKernel;
+    typedef KernelBase<Field, FFTGetter, poly_ptr_map> FFTKernel;
+    typedef KernelBase<Field, MonomialGetter, poly_ptr_map> MonomialKernel;
     typedef KernelBase<Field, EvaluationGetter, poly_array> EvaluationKernel;
 
-    TransitionWidget(proving_key* _key = nullptr, program_witness* _witness = nullptr)
-        : TransitionWidgetBase<Field>(_key, _witness){};
+    TransitionWidget(proving_key* _key = nullptr)
+        : TransitionWidgetBase<Field>(_key){};
     TransitionWidget(const TransitionWidget& other)
         : TransitionWidgetBase<Field>(other){};
     TransitionWidget(TransitionWidget&& other)
@@ -336,7 +310,12 @@ class TransitionWidget : public TransitionWidgetBase<Field> {
     {
         auto* key = TransitionWidgetBase<Field>::key;
 
-        poly_ptr_array polynomials = FFTGetter::get_fft_polynomials(key);
+        // Get the set IDs for the polynomials required by the widget
+        auto& required_polynomial_ids = FFTKernel::get_required_polynomial_ids();
+
+        // Construct the map of pointers to the required polynomials
+        poly_ptr_map polynomials = FFTGetter::get_polynomials(key, required_polynomial_ids);
+
         challenge_array challenges =
             FFTGetter::get_challenges(transcript, alpha_base, FFTKernel::quotient_required_challenges);
 
@@ -367,9 +346,12 @@ class TransitionWidget : public TransitionWidgetBase<Field> {
             return MonomialGetter::update_alpha(challenges, FFTKernel::num_independent_relations);
         }
         auto* key = TransitionWidgetBase<Field>::key;
-        auto* witness = TransitionWidgetBase<Field>::witness;
 
-        poly_ptr_array polynomials = MonomialGetter::get_monomials(key, witness);
+        // Get the set IDs for the polynomials required by the widget
+        auto& required_polynomial_ids = MonomialKernel::get_required_polynomial_ids();
+
+        // Construct the map of pointers to the required polynomials
+        poly_ptr_map polynomials = MonomialGetter::get_polynomials(key, required_polynomial_ids);
         poly_array polynomial_evaluations =
             EvaluationGetter::get_polynomial_evaluations(key->polynomial_manifest, transcript);
 
@@ -392,7 +374,7 @@ template <class Field, class Transcript, class Settings, template <typename, typ
 class GenericVerifierWidget {
   protected:
     static constexpr size_t num_independent_relations = KernelBase<int, int, int>::num_independent_relations;
-    typedef containers::poly_ptr_array<Field> poly_ptr_array;
+    typedef containers::poly_ptr_map<Field> poly_ptr_map;
     typedef containers::poly_array<Field> poly_array;
     typedef containers::challenge_array<Field, num_independent_relations> challenge_array;
     typedef containers::coefficient_array<Field> coefficient_array;

@@ -23,8 +23,10 @@ void KateCommitmentScheme<settings>::commit(fr* coefficients, std::string tag, f
 }
 
 template <typename settings>
-void KateCommitmentScheme<settings>::compute_opening_polynomial(
-    const fr* src, fr* dest, const fr& z_point, const size_t n, std::string tag, fr item_constant, work_queue& queue)
+void KateCommitmentScheme<settings>::compute_opening_polynomial(const fr* src,
+                                                                fr* dest,
+                                                                const fr& z_point,
+                                                                const size_t n)
 {
     // open({cm_i}, {cm'_i}, {z, z'}, {s_i, s'_i})
 
@@ -49,9 +51,6 @@ void KateCommitmentScheme<settings>::compute_opening_polynomial(
         dest[i] = src[i] - dest[i - 1];
         dest[i] *= divisor;
     }
-
-    // commit to the opened polynomial
-    KateCommitmentScheme::commit(dest, tag, item_constant, queue);
 }
 
 template <typename settings>
@@ -131,8 +130,7 @@ void KateCommitmentScheme<settings>::generic_batch_open(const fr* src,
 template <typename settings>
 void KateCommitmentScheme<settings>::batch_open(const transcript::StandardTranscript& transcript,
                                                 work_queue& queue,
-                                                std::shared_ptr<proving_key> input_key,
-                                                std::shared_ptr<program_witness> witness)
+                                                std::shared_ptr<proving_key> input_key)
 {
     /*
     Compute batch opening polynomials according to the Kate commitment scheme.
@@ -152,25 +150,14 @@ void KateCommitmentScheme<settings>::batch_open(const transcript::StandardTransc
     // [z(X), nu_6]
     //
     // Note that the challenges nu_1, ..., nu_6 depend on the label of the respective polynomial.
-    //
+
+    // Add challenge-poly tuples for all polynomials in the manifest
     for (size_t i = 0; i < input_key->polynomial_manifest.size(); ++i) {
         const auto& info = input_key->polynomial_manifest[i];
         const std::string poly_label(info.polynomial_label);
-        fr* poly = nullptr;
-        switch (info.source) {
-        case PolynomialSource::WITNESS: {
-            poly = &witness->wires.at(poly_label)[0];
-            break;
-        }
-        case PolynomialSource::SELECTOR: {
-            poly = &input_key->constraint_selectors.at(poly_label)[0];
-            break;
-        }
-        case PolynomialSource::PERMUTATION: {
-            poly = &input_key->permutation_selectors.at(poly_label)[0];
-            break;
-        }
-        }
+
+        fr* poly = input_key->polynomial_cache.get(poly_label).get_coefficients();
+
         if (!info.is_linearised || !settings::use_linearisation) {
             const fr nu_challenge = transcript.get_challenge_field_element_from_map("nu", poly_label);
             opened_polynomials_at_zeta.push_back({ poly, nu_challenge });
@@ -183,8 +170,12 @@ void KateCommitmentScheme<settings>::batch_open(const transcript::StandardTransc
 
     const auto zeta = transcript.get_challenge_field_element("z");
 
-    polynomial& opening_poly = input_key->opening_poly;
-    polynomial& shifted_opening_poly = input_key->shifted_opening_poly;
+    // Note: the opening poly W_\frak{z} is always size (n + 1) due to blinding
+    // of the quotient polynomial
+    polynomial opening_poly(input_key->n + 1, input_key->n + 1);
+    polynomial shifted_opening_poly(input_key->n, input_key->n);
+
+    const polynomial& linear_poly = input_key->polynomial_cache.get("linear_poly");
 
     if constexpr (!settings::use_linearisation) {
         // Add the tuples [t_{mid}(X), \zeta^{n}], [t_{high}(X), \zeta^{2n}]
@@ -200,8 +191,7 @@ void KateCommitmentScheme<settings>::batch_open(const transcript::StandardTransc
 
     // Add up things to get coefficients of opening polynomials.
     ITERATE_OVER_DOMAIN_START(input_key->small_domain);
-    opening_poly[i] =
-        settings::use_linearisation ? input_key->linear_poly[i] : input_key->quotient_polynomial_parts[0][i];
+    opening_poly[i] = settings::use_linearisation ? linear_poly[i] : input_key->quotient_polynomial_parts[0][i];
     for (const auto& [poly, challenge] : opened_polynomials_at_zeta) {
         opening_poly[i] += poly[i] * challenge;
     }
@@ -224,16 +214,25 @@ void KateCommitmentScheme<settings>::batch_open(const transcript::StandardTransc
             scalar_mult *= zeta_pow_n;
         }
     } else {
-        opening_poly[input_key->n] = input_key->linear_poly[input_key->n];
+        opening_poly[input_key->n] = linear_poly[input_key->n];
     }
 
-    // Compute the W_{\zeta}(X) and W_{\zeta \omega}(X) and commitments to them.
+    // compute the shifted evaluation point \frak{z}*omega
     const auto zeta_omega = zeta * input_key->small_domain.root;
 
+    // Compute the W_{\zeta}(X) and W_{\zeta \omega}(X) polynomials
+    KateCommitmentScheme::compute_opening_polynomial(&opening_poly[0], &opening_poly[0], zeta, input_key->n);
     KateCommitmentScheme::compute_opening_polynomial(
-        &opening_poly[0], &opening_poly[0], zeta, input_key->n, "PI_Z", fr(0), queue);
-    KateCommitmentScheme::compute_opening_polynomial(
-        &shifted_opening_poly[0], &shifted_opening_poly[0], zeta_omega, input_key->n, "PI_Z_OMEGA", fr(0), queue);
+        &shifted_opening_poly[0], &shifted_opening_poly[0], zeta_omega, input_key->n);
+
+    input_key->polynomial_cache.put("opening_poly", std::move(opening_poly));
+    input_key->polynomial_cache.put("shifted_opening_poly", std::move(shifted_opening_poly));
+
+    // Commit to the opening and shifted opening polynomials
+    KateCommitmentScheme::commit(
+        input_key->polynomial_cache.get("opening_poly").get_coefficients(), "PI_Z", fr(0), queue);
+    KateCommitmentScheme::commit(
+        input_key->polynomial_cache.get("shifted_opening_poly").get_coefficients(), "PI_Z_OMEGA", fr(0), queue);
 }
 
 template <typename settings>
@@ -377,7 +376,6 @@ void KateCommitmentScheme<settings>::batch_verify(const transcript::StandardTran
 template <typename settings>
 void KateCommitmentScheme<settings>::add_opening_evaluations_to_transcript(transcript::StandardTranscript& transcript,
                                                                            std::shared_ptr<proving_key> input_key,
-                                                                           std::shared_ptr<program_witness> witness,
                                                                            bool in_lagrange_form)
 {
     // In this function, we compute the evaluations of the polynomials which would be a part of the
@@ -396,27 +394,12 @@ void KateCommitmentScheme<settings>::add_opening_evaluations_to_transcript(trans
     fr shifted_z = zeta * input_key->small_domain.root;
     size_t n = input_key->small_domain.size;
 
+    // Add evaluations for all polynomials in the manifest
     for (size_t i = 0; i < input_key->polynomial_manifest.size(); ++i) {
         const auto& info = input_key->polynomial_manifest[i];
         const std::string poly_label(info.polynomial_label);
-        fr* poly = nullptr;
-        switch (info.source) {
-        case PolynomialSource::WITNESS: {
-            poly = &witness->wires.at(poly_label)[0];
-            break;
-        }
-        case PolynomialSource::SELECTOR: {
-            poly = &input_key->constraint_selectors.at(poly_label)[0];
-            break;
-        }
-        case PolynomialSource::PERMUTATION: {
-            poly = &input_key->permutation_selectors.at(poly_label)[0];
-            break;
-        }
-        default: {
-            break;
-        }
-        }
+
+        fr* poly = input_key->polynomial_cache.get(poly_label).get_coefficients();
 
         fr poly_evaluation(0);
         if (!info.is_linearised || !settings::use_linearisation) {

@@ -7,7 +7,7 @@
 #include <plonk/reference_string/file_reference_string.hpp>
 #include <stdlib/primitives/field/field.hpp>
 
-#define BARRETENBERG_SRS_PATH "../srs_db"
+#define BARRETENBERG_SRS_PATH "../srs_db/ignition"
 
 using namespace benchmark;
 

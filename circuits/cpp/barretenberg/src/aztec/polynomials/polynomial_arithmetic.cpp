@@ -50,7 +50,7 @@ inline bool is_power_of_two(uint64_t x)
     return x && !(x & (x - 1));
 }
 
-void copy_polynomial(fr* src, fr* dest, size_t num_src_coefficients, size_t num_target_coefficients)
+void copy_polynomial(const fr* src, fr* dest, size_t num_src_coefficients, size_t num_target_coefficients)
 {
     // TODO: fiddle around with avx asm to see if we can speed up
     memcpy((void*)dest, (void*)src, num_src_coefficients * sizeof(fr));
@@ -430,6 +430,11 @@ void fft(fr* coeffs, const evaluation_domain& domain)
     fft_inner_parallel({ coeffs }, domain, domain.root, domain.get_round_roots());
 }
 
+void fft(fr* coeffs, fr* target, const evaluation_domain& domain)
+{
+    fft_inner_parallel(coeffs, target, domain, domain.root, domain.get_round_roots());
+}
+
 void fft(std::vector<fr*> coeffs, const evaluation_domain& domain)
 {
     fft_inner_parallel(coeffs, domain.size, domain.root, domain.get_round_roots());
@@ -440,6 +445,14 @@ void ifft(fr* coeffs, const evaluation_domain& domain)
     fft_inner_parallel({ coeffs }, domain, domain.root_inverse, domain.get_inverse_round_roots());
     ITERATE_OVER_DOMAIN_START(domain);
     coeffs[i] *= domain.domain_inverse;
+    ITERATE_OVER_DOMAIN_END;
+}
+
+void ifft(fr* coeffs, fr* target, const evaluation_domain& domain)
+{
+    fft_inner_parallel(coeffs, target, domain, domain.root_inverse, domain.get_inverse_round_roots());
+    ITERATE_OVER_DOMAIN_START(domain);
+    target[i] *= domain.domain_inverse;
     ITERATE_OVER_DOMAIN_END;
 }
 
@@ -471,6 +484,12 @@ void coset_fft(fr* coeffs, const evaluation_domain& domain)
 {
     scale_by_generator(coeffs, coeffs, domain, fr::one(), domain.generator, domain.generator_size);
     fft(coeffs, domain);
+}
+
+void coset_fft(fr* coeffs, fr* target, const evaluation_domain& domain)
+{
+    scale_by_generator(coeffs, target, domain, fr::one(), domain.generator, domain.generator_size);
+    fft(coeffs, target, domain);
 }
 
 void coset_fft(std::vector<fr*> coeffs, const evaluation_domain& domain)
@@ -966,7 +985,10 @@ barretenberg::polynomial_arithmetic::lagrange_evaluations get_lagrange_evaluatio
 // computes r = \sum_{i=0}^{num_coeffs}(L_i(z).f_i)
 // start with L_1(z) = ((z^n - 1)/n).(1 / z - 1)
 // L_i(z) = L_1(z.w^{1-i}) = ((z^n - 1) / n).(1 / z.w^{1-i} - 1)
-fr compute_barycentric_evaluation(fr* coeffs, const size_t num_coeffs, const fr& z, const evaluation_domain& domain)
+fr compute_barycentric_evaluation(const fr* coeffs,
+                                  const size_t num_coeffs,
+                                  const fr& z,
+                                  const evaluation_domain& domain)
 {
     fr* denominators = static_cast<fr*>(aligned_alloc(64, sizeof(fr) * num_coeffs));
 

@@ -161,32 +161,43 @@ template <size_t program_width, bool with_tags> void ComposerBase::compute_sigma
         }
     }
     for (size_t i = 0; i < program_width; ++i) {
-        std::string index = std::to_string(i + 1);
-        barretenberg::polynomial sigma_polynomial(key->n);
-        // Construct sigma permutation polynomial
-        compute_permutation_lagrange_base_single<standard_settings>(
-            sigma_polynomial, sigma_mappings[i], key->small_domain);
 
-        barretenberg::polynomial sigma_polynomial_lagrange_base(sigma_polynomial);
-        key->permutation_selectors_lagrange_base.insert(
-            { "sigma_" + index, std::move(sigma_polynomial_lagrange_base) });
-        sigma_polynomial.ifft(key->small_domain);
+        // Construct permutation polynomials in lagrange base
+        std::string index = std::to_string(i + 1);
+        barretenberg::polynomial sigma_polynomial_lagrange(key->n);
+        compute_permutation_lagrange_base_single<standard_settings>(
+            sigma_polynomial_lagrange, sigma_mappings[i], key->small_domain);
+
+        // Compute permutation polynomial monomial form
+        barretenberg::polynomial sigma_polynomial(key->n);
+        barretenberg::polynomial_arithmetic::ifft(
+            &sigma_polynomial_lagrange[0], &sigma_polynomial[0], key->small_domain);
+
+        // Compute permutation polynomial coset FFT form
         barretenberg::polynomial sigma_fft(sigma_polynomial, key->large_domain.size);
         sigma_fft.coset_fft(key->large_domain);
-        key->permutation_selectors.insert({ "sigma_" + index, std::move(sigma_polynomial) });
-        key->permutation_selector_ffts.insert({ "sigma_" + index + "_fft", std::move(sigma_fft) });
-        if (with_tags) {
-            barretenberg::polynomial id_polynomial(key->n);
-            compute_permutation_lagrange_base_single<standard_settings>(
-                id_polynomial, id_mappings[i], key->small_domain);
 
-            barretenberg::polynomial id_polynomial_lagrange_base(id_polynomial);
-            key->permutation_selectors_lagrange_base.insert({ "id_" + index, std::move(id_polynomial_lagrange_base) });
-            id_polynomial.ifft(key->small_domain);
+        key->polynomial_cache.put("sigma_" + index + "_lagrange", std::move(sigma_polynomial_lagrange));
+        key->polynomial_cache.put("sigma_" + index, std::move(sigma_polynomial));
+        key->polynomial_cache.put("sigma_" + index + "_fft", std::move(sigma_fft));
+
+        if (with_tags) {
+            // Construct id polynomials in lagrange base
+            barretenberg::polynomial id_polynomial_lagrange(key->n);
+            compute_permutation_lagrange_base_single<standard_settings>(
+                id_polynomial_lagrange, id_mappings[i], key->small_domain);
+
+            // Compute id polynomial monomial form
+            barretenberg::polynomial id_polynomial(key->n);
+            barretenberg::polynomial_arithmetic::ifft(&id_polynomial_lagrange[0], &id_polynomial[0], key->small_domain);
+
+            // Compute id polynomial coset FFT form
             barretenberg::polynomial id_fft(id_polynomial, key->large_domain.size);
             id_fft.coset_fft(key->large_domain);
-            key->permutation_selectors.insert({ "id_" + index, std::move(id_polynomial) });
-            key->permutation_selector_ffts.insert({ "id_" + index + "_fft", std::move(id_fft) });
+
+            key->polynomial_cache.put("id_" + index + "_lagrange", std::move(id_polynomial_lagrange));
+            key->polynomial_cache.put("id_" + index, std::move(id_polynomial));
+            key->polynomial_cache.put("id_" + index + "_fft", std::move(id_fft));
         }
     }
 }
@@ -204,7 +215,8 @@ template <size_t program_width, bool with_tags> void ComposerBase::compute_sigma
  * @param num_reserved_gates The number of reserved gates.
  * @return Pointer to the initialized proving key updated with selectors.
  * */
-std::shared_ptr<proving_key> ComposerBase::compute_proving_key_base(const size_t minimum_circuit_size,
+std::shared_ptr<proving_key> ComposerBase::compute_proving_key_base(const waffle::ComposerType composer_type,
+                                                                    const size_t minimum_circuit_size,
                                                                     const size_t num_reserved_gates)
 {
     const size_t num_filled_gates = n + public_inputs.size();
@@ -219,12 +231,13 @@ std::shared_ptr<proving_key> ComposerBase::compute_proving_key_base(const size_t
     // For more explanation about the degree of t(X), see
     // ./src/aztec/plonk/proof_system/prover/prover.cpp/ProverBase::compute_quotient_pre_commitment
     //
+
     auto crs = crs_factory_->get_prover_crs(subgroup_size + 1);
+
     // Initialize circuit_proving_key
-    circuit_proving_key = std::make_shared<proving_key>(subgroup_size, public_inputs.size(), crs);
+    circuit_proving_key = std::make_shared<proving_key>(subgroup_size, public_inputs.size(), crs, composer_type);
 
     for (size_t i = 0; i < selector_num; ++i) {
-
         std::vector<barretenberg::fr>& coeffs = selectors[i];
         const auto& properties = selector_properties[i];
         ASSERT(n == coeffs.size());
@@ -242,28 +255,33 @@ std::shared_ptr<proving_key> ComposerBase::compute_proving_key_base(const size_t
         // constraint. This is not the case for the last selector position, as it is never checked in the proving
         // system; observe that we cut out 4 roots and only use 3 for zero knowledge. The last root, corresponds to this
         // position.
-        coeffs.emplace_back(1);
-        polynomial poly(subgroup_size);
 
+        coeffs.emplace_back(1);
+
+        // Compute lagrange form of selector polynomial
+        polynomial selector_poly_lagrange(subgroup_size);
         for (size_t k = 0; k < public_inputs.size(); ++k) {
-            poly[k] = fr::zero();
+            selector_poly_lagrange[k] = fr::zero();
         }
         for (size_t k = public_inputs.size(); k < subgroup_size; ++k) {
-            poly[k] = coeffs[k - public_inputs.size()];
+            selector_poly_lagrange[k] = coeffs[k - public_inputs.size()];
         }
+
+        // Compute monomial form of selector polynomial
+        polynomial selector_poly(subgroup_size);
+        polynomial_arithmetic::ifft(&selector_poly_lagrange[0], &selector_poly[0], circuit_proving_key->small_domain);
+
+        // Compute coset FFT of selector polynomial
+        polynomial selector_poly_fft(selector_poly, subgroup_size * 4 + 4);
+        selector_poly_fft.coset_fft(circuit_proving_key->large_domain);
 
         if (properties.requires_lagrange_base_polynomial) {
-            polynomial lagrange_base_poly(poly, subgroup_size);
-            circuit_proving_key->constraint_selectors_lagrange_base.insert(
-                { properties.name, std::move(lagrange_base_poly) });
+            circuit_proving_key->polynomial_cache.put(properties.name + "_lagrange", std::move(selector_poly_lagrange));
         }
-        poly.ifft(circuit_proving_key->small_domain);
-        polynomial poly_fft(poly, subgroup_size * 4 + 4);
-        poly_fft.coset_fft(circuit_proving_key->large_domain);
-
-        circuit_proving_key->constraint_selectors.insert({ properties.name, std::move(poly) });
-        circuit_proving_key->constraint_selector_ffts.insert({ properties.name + "_fft", std::move(poly_fft) });
+        circuit_proving_key->polynomial_cache.put(properties.name, std::move(selector_poly));
+        circuit_proving_key->polynomial_cache.put(properties.name + "_fft", std::move(selector_poly_fft));
     }
+
     return circuit_proving_key;
 }
 
@@ -274,12 +292,11 @@ std::shared_ptr<proving_key> ComposerBase::compute_proving_key_base(const size_t
  *
  * @tparam Program settings needed to establish if w_4 is being used.
  * */
-template <class program_settings> std::shared_ptr<program_witness> ComposerBase::compute_witness_base()
+template <class program_settings> void ComposerBase::compute_witness_base()
 {
     if (computed_witness) {
-        return witness;
+        return;
     }
-    witness = std::make_shared<program_witness>();
 
     const size_t total_num_gates = n + public_inputs.size();
     const size_t subgroup_size = get_circuit_subgroup_size(total_num_gates + NUM_RESERVED_GATES);
@@ -294,41 +311,43 @@ template <class program_settings> std::shared_ptr<program_witness> ComposerBase:
             w_4.emplace_back(zero_idx);
         }
     }
-    polynomial poly_w_1 = polynomial(subgroup_size);
-    polynomial poly_w_2 = polynomial(subgroup_size);
-    polynomial poly_w_3 = polynomial(subgroup_size);
-    polynomial poly_w_4;
+    polynomial w_1_lagrange = polynomial(subgroup_size);
+    polynomial w_2_lagrange = polynomial(subgroup_size);
+    polynomial w_3_lagrange = polynomial(subgroup_size);
+    polynomial w_4_lagrange;
 
     if (program_settings::program_width > 3)
-        poly_w_4 = polynomial(subgroup_size);
+        w_4_lagrange = polynomial(subgroup_size);
     for (size_t i = 0; i < public_inputs.size(); ++i) {
-        fr::__copy(get_variable(public_inputs[i]), poly_w_1[i]);
-        fr::__copy(get_variable(public_inputs[i]), poly_w_2[i]);
-        fr::__copy(fr::zero(), poly_w_3[i]);
+        fr::__copy(get_variable(public_inputs[i]), w_1_lagrange[i]);
+        fr::__copy(get_variable(public_inputs[i]), w_2_lagrange[i]);
+        fr::__copy(fr::zero(), w_3_lagrange[i]);
         if (program_settings::program_width > 3)
-            fr::__copy(fr::zero(), poly_w_4[i]);
+            fr::__copy(fr::zero(), w_4_lagrange[i]);
     }
     for (size_t i = public_inputs.size(); i < subgroup_size; ++i) {
-        fr::__copy(get_variable(w_l[i - public_inputs.size()]), poly_w_1.at(i));
-        fr::__copy(get_variable(w_r[i - public_inputs.size()]), poly_w_2.at(i));
-        fr::__copy(get_variable(w_o[i - public_inputs.size()]), poly_w_3.at(i));
+        fr::__copy(get_variable(w_l[i - public_inputs.size()]), w_1_lagrange.at(i));
+        fr::__copy(get_variable(w_r[i - public_inputs.size()]), w_2_lagrange.at(i));
+        fr::__copy(get_variable(w_o[i - public_inputs.size()]), w_3_lagrange.at(i));
         if (program_settings::program_width > 3)
-            fr::__copy(get_variable(w_4[i - public_inputs.size()]), poly_w_4.at(i));
+            fr::__copy(get_variable(w_4[i - public_inputs.size()]), w_4_lagrange.at(i));
     }
-    witness->wires.insert({ "w_1", std::move(poly_w_1) });
-    witness->wires.insert({ "w_2", std::move(poly_w_2) });
-    witness->wires.insert({ "w_3", std::move(poly_w_3) });
-    if (program_settings::program_width > 3)
-        witness->wires.insert({ "w_4", std::move(poly_w_4) });
+
+    circuit_proving_key->polynomial_cache.put("w_1_lagrange", std::move(w_1_lagrange));
+    circuit_proving_key->polynomial_cache.put("w_2_lagrange", std::move(w_2_lagrange));
+    circuit_proving_key->polynomial_cache.put("w_3_lagrange", std::move(w_3_lagrange));
+    if (program_settings::program_width > 3) {
+        circuit_proving_key->polynomial_cache.put("w_4_lagrange", std::move(w_4_lagrange));
+    }
+
     computed_witness = true;
-    return witness;
 }
 
 template void ComposerBase::compute_sigma_permutations<3, false>(proving_key* key);
 template void ComposerBase::compute_sigma_permutations<4, false>(proving_key* key);
 template void ComposerBase::compute_sigma_permutations<4, true>(proving_key* key);
-template std::shared_ptr<program_witness> ComposerBase::compute_witness_base<standard_settings>();
-template std::shared_ptr<program_witness> ComposerBase::compute_witness_base<turbo_settings>();
+template void ComposerBase::compute_witness_base<standard_settings>();
+template void ComposerBase::compute_witness_base<turbo_settings>();
 template void ComposerBase::compute_wire_copy_cycles<3>();
 template void ComposerBase::compute_wire_copy_cycles<4>();
 

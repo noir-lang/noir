@@ -48,16 +48,17 @@ TEST(lagrange_base, verify_lagrange_base_transformation)
     barretenberg::polynomial lagrange_base_polynomial(test_polynomial);
 
     scalar_multiplication::pippenger_runtime_state state(degree);
-    
+
     lagrange_base_polynomial.fft(domain);
     scalar_multiplication::generate_pippenger_point_table(&monomial_srs[0], &monomial_srs[0], degree);
     scalar_multiplication::generate_pippenger_point_table(&lagrange_base_srs[0], &lagrange_base_srs[0], degree);
 
     g1::element expected = scalar_multiplication::pippenger(&test_polynomial[0], &monomial_srs[0], degree, state);
-    g1::element result = scalar_multiplication::pippenger(&lagrange_base_polynomial[0], &lagrange_base_srs[0], degree, state);
+    g1::element result =
+        scalar_multiplication::pippenger(&lagrange_base_polynomial[0], &lagrange_base_srs[0], degree, state);
     expected = expected.normalize();
     result = result.normalize();
-    
+
     EXPECT_EQ(result == expected, true);
 }
 
@@ -88,7 +89,7 @@ TEST(lagrange_base, verify_lagrange_base_transformation_on_rand_poly)
 
     barretenberg::evaluation_domain domain(degree);
     domain.compute_lookup_table();
-    
+
     barretenberg::polynomial test_polynomial(degree);
     for (size_t i = 0; i < degree; ++i) {
         test_polynomial[i] = fr::random_element();
@@ -102,7 +103,8 @@ TEST(lagrange_base, verify_lagrange_base_transformation_on_rand_poly)
     scalar_multiplication::generate_pippenger_point_table(&lagrange_base_srs[0], &lagrange_base_srs[0], degree);
 
     g1::element expected = scalar_multiplication::pippenger(&test_polynomial[0], &monomial_srs[0], degree, state);
-    g1::element result = scalar_multiplication::pippenger(&lagrange_base_polynomial[0], &lagrange_base_srs[0], degree, state);
+    g1::element result =
+        scalar_multiplication::pippenger(&lagrange_base_polynomial[0], &lagrange_base_srs[0], degree, state);
     expected = expected.normalize();
     result = result.normalize();
 
@@ -118,7 +120,7 @@ TEST(lagrange_base, verify_lagrange_base_import_srs)
     // step 3: create polynomial
     // step 4: commit to poly over both reference strings
     // step 5: very correctness
-    auto reference_string = std::make_shared<waffle::FileReferenceString>(degree, "../srs_db");
+    auto reference_string = std::make_shared<waffle::FileReferenceString>(degree, "../srs_db/ignition");
 
     std::vector<g1::affine_element> monomial_srs(degree * 2);
     std::vector<g1::affine_element> lagrange_base_srs(degree * 2);
@@ -139,8 +141,7 @@ TEST(lagrange_base, verify_lagrange_base_import_srs)
     scalar_multiplication::generate_pippenger_point_table(&monomial_srs[0], &monomial_srs[0], degree);
     scalar_multiplication::generate_pippenger_point_table(&lagrange_base_srs[0], &lagrange_base_srs[0], degree);
 
-    g1::element expected =
-        scalar_multiplication::pippenger(&test_polynomial[0], &monomial_srs[0], degree, state);
+    g1::element expected = scalar_multiplication::pippenger(&test_polynomial[0], &monomial_srs[0], degree, state);
     g1::element result =
         scalar_multiplication::pippenger(&lagrange_base_polynomial[0], &lagrange_base_srs[0], degree, state);
     expected = expected.normalize();

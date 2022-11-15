@@ -17,11 +17,9 @@ struct user_context {
 
 inline barretenberg::fr generate_alias_hash(std::string const& alias)
 {
-    std::vector<uint8_t> alias_buffer;
-    auto alias_hash = blake2::blake2s({ alias.begin(), alias.end() });
-    alias_buffer.resize(4, 0);
-    alias_buffer.insert(alias_buffer.end(), alias_hash.begin(), alias_hash.end() - 4);
-    return from_buffer<barretenberg::fr>(alias_buffer);
+    std::vector<uint8_t> inputv(alias.begin(), alias.end());
+    std::vector<uint8_t> output = blake2::blake2s(inputv);
+    return barretenberg::fr(uint256_t(from_buffer<barretenberg::fr>(output.data())) >> 32);
 }
 
 inline grumpkin_key_pair create_key_pair(numeric::random::Engine* engine)

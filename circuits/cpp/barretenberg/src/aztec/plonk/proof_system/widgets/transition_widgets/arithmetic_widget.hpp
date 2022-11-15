@@ -18,14 +18,26 @@ template <class Field, class Getters, typename PolyContainer> class ArithmeticKe
     typedef containers::coefficient_array<Field> coefficient_array;
 
   public:
+    inline static std::set<PolynomialIndex> const& get_required_polynomial_ids()
+    {
+        static const std::set<PolynomialIndex> required_polynomial_ids = { PolynomialIndex::Q_1, PolynomialIndex::Q_2,
+                                                                           PolynomialIndex::Q_3, PolynomialIndex::Q_M,
+                                                                           PolynomialIndex::Q_C, PolynomialIndex::W_1,
+                                                                           PolynomialIndex::W_2, PolynomialIndex::W_3 };
+        return required_polynomial_ids;
+    }
+
     inline static void compute_linear_terms(PolyContainer& polynomials,
                                             const challenge_array&,
                                             coefficient_array& linear_terms,
                                             const size_t i = 0)
     {
-        const Field& w_1 = Getters::template get_polynomial<false, PolynomialIndex::W_1>(polynomials, i);
-        const Field& w_2 = Getters::template get_polynomial<false, PolynomialIndex::W_2>(polynomials, i);
-        const Field& w_3 = Getters::template get_polynomial<false, PolynomialIndex::W_3>(polynomials, i);
+        const Field& w_1 =
+            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::W_1>(polynomials, i);
+        const Field& w_2 =
+            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::W_2>(polynomials, i);
+        const Field& w_3 =
+            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::W_3>(polynomials, i);
 
         linear_terms[0] = w_1 * w_2;
         linear_terms[1] = w_1;
@@ -41,11 +53,16 @@ template <class Field, class Getters, typename PolyContainer> class ArithmeticKe
                                          const size_t i = 0)
     {
         const Field& alpha = challenges.alpha_powers[0];
-        const Field& q_1 = Getters::template get_polynomial<false, PolynomialIndex::Q_1>(polynomials, i);
-        const Field& q_2 = Getters::template get_polynomial<false, PolynomialIndex::Q_2>(polynomials, i);
-        const Field& q_3 = Getters::template get_polynomial<false, PolynomialIndex::Q_3>(polynomials, i);
-        const Field& q_m = Getters::template get_polynomial<false, PolynomialIndex::Q_M>(polynomials, i);
-        const Field& q_c = Getters::template get_polynomial<false, PolynomialIndex::Q_C>(polynomials, i);
+        const Field& q_1 =
+            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_1>(polynomials, i);
+        const Field& q_2 =
+            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_2>(polynomials, i);
+        const Field& q_3 =
+            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_3>(polynomials, i);
+        const Field& q_m =
+            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_M>(polynomials, i);
+        const Field& q_c =
+            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_C>(polynomials, i);
 
         Field result = linear_terms[0] * q_m;
         result += (linear_terms[1] * q_1);

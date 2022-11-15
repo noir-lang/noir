@@ -23,6 +23,7 @@ using namespace notes::circuit::account;
 
 static std::shared_ptr<waffle::proving_key> proving_key;
 static std::shared_ptr<waffle::verification_key> verification_key;
+static size_t number_of_gates;
 
 field_ct compute_account_alias_hash_nullifier(suint_ct const& account_alias_hash)
 {
@@ -234,6 +235,7 @@ UnrolledProver new_account_prover(account_tx const& tx, bool mock)
         std::string error = format("composer logic failed: ", composer.err);
         throw_or_abort(error);
     }
+    number_of_gates = composer.get_num_gates();
 
     info("composer gates: ", composer.get_num_gates());
     info("public inputs: ", composer.public_inputs.size());
@@ -267,6 +269,11 @@ std::shared_ptr<waffle::proving_key> get_proving_key()
 std::shared_ptr<waffle::verification_key> get_verification_key()
 {
     return verification_key;
+}
+
+size_t get_number_of_gates()
+{
+    return number_of_gates;
 }
 
 } // namespace account

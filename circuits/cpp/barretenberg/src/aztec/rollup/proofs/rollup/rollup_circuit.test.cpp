@@ -32,7 +32,7 @@ class rollup_tests : public ::testing::Test {
 
     static void SetUpTestCase()
     {
-        std::string CRS_PATH = "../srs_db";
+        std::string CRS_PATH = "../srs_db/ignition";
         auto srs = std::make_shared<waffle::DynamicFileReferenceStringFactory>(CRS_PATH);
         account_cd = account::get_circuit_data(srs);
         js_cd = join_split::get_circuit_data(srs);

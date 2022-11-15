@@ -41,21 +41,15 @@ WASM_EXPORT void account__init_proving_key_from_buffer(uint8_t const* pk_buf)
 
 WASM_EXPORT uint32_t account__get_new_proving_key_data(uint8_t** output)
 {
-    // std::vector<uint8_t> buffer;
-    // We know our key uses ~331mb.
-    // buffer.reserve(350*1024*1024);
-    // write(buffer, *get_proving_key());
-    // auto raw_buf = (uint8_t*)malloc(buffer.size());
-    // memcpy(raw_buf, (void*)buffer.data(), buffer.size());
-    // *output = raw_buf;
-    // info(buffer.size());
-    // return buffer.size();
-
-    // Computing the size of the serialized key is non trivial. We know it's ~331mb.
+    // Computing the size of the serialized key is non trivial.
     // Allocate a buffer large enough to hold it, and abort if we overflow.
     // This is to keep memory usage down.
     size_t total_buf_len = 350 * 1024 * 1024;
     auto raw_buf = (uint8_t*)malloc(total_buf_len);
+    if (!raw_buf) {
+        info("Failed to alloc.");
+        std::abort();
+    }
     auto raw_buf_end = raw_buf;
     write(raw_buf_end, *get_proving_key());
     *output = raw_buf;

@@ -5,6 +5,7 @@
 #include "../notes/native/index.hpp"
 #include "../../fixtures/test_context.hpp"
 #include "../../fixtures/compute_or_load_fixture.hpp"
+#include <filesystem>
 
 namespace rollup {
 namespace proofs {
@@ -48,8 +49,8 @@ class root_rollup_full_tests : public ::testing::Test {
 
     static void SetUpTestCase()
     {
-        mkdir(FIXTURE_PATH, 0700);
-        mkdir(TEST_PROOFS_PATH, 0700);
+        std::filesystem::create_directories(FIXTURE_PATH);
+        std::filesystem::create_directories(TEST_PROOFS_PATH);
         srs = std::make_shared<waffle::DynamicFileReferenceStringFactory>(CRS_PATH);
         account_cd = proofs::account::get_circuit_data(srs);
         js_cd = join_split::get_circuit_data(srs);
@@ -103,7 +104,7 @@ class root_rollup_full_tests : public ::testing::Test {
     std::vector<std::vector<uint8_t>> js_proofs;
 };
 
-HEAVY_TEST_F(root_rollup_full_tests, test_root_rollup_3x2)
+HEAVY_TEST_F(root_rollup_full_tests, test_root_rollup_3x2_and_detect_circuit_change)
 {
     static constexpr auto rollups_per_rollup = 3U;
 
@@ -137,6 +138,27 @@ HEAVY_TEST_F(root_rollup_full_tests, test_root_rollup_3x2)
     EXPECT_EQ(inner_data.public_value, fr(0));
     EXPECT_EQ(inner_data.public_owner, fr(0));
     EXPECT_EQ(inner_data.asset_id, fr(0));
+    // The below assertions detect changes in the root rollup circuit
+    size_t number_of_gates_root_rollup = result.number_of_gates;
+    auto vk_hash_root_rollup = result.verification_key->sha256_hash();
+    // If the below assertions fail, consider changing the variable is_circuit_change_expected to 1 in
+    // rollup/constants.hpp and see if atleast the next power of two limit is not exceeded. Please change the constant
+    // values accordingly and set is_circuit_change_expected to 0 in rollup/constants.hpp before merging.
+    if (!(circuit_gate_count::is_circuit_change_expected)) {
+        EXPECT_EQ(number_of_gates_root_rollup, circuit_gate_count::ROOT_ROLLUP)
+            << "The gate count for the root rollup circuit is changed.";
+        EXPECT_EQ(from_buffer<uint256_t>(vk_hash_root_rollup), circuit_vk_hash::ROOT_ROLLUP)
+            << "The verification key hash for the root rollup circuit is changed.";
+        // For the next power of two limit, we need to consider that we reserve four gates for adding
+        // randomness/zero-knowledge
+        EXPECT_LE(number_of_gates_root_rollup,
+                  circuit_gate_next_power_of_two::ROOT_ROLLUP - waffle::ComposerBase::NUM_RESERVED_GATES)
+            << "You have exceeded the next power of two limit for the root rollup circuit.";
+    } else {
+        EXPECT_LE(number_of_gates_root_rollup,
+                  circuit_gate_next_power_of_two::ROOT_ROLLUP - waffle::ComposerBase::NUM_RESERVED_GATES)
+            << "You have exceeded the next power of two limit for the root rollup circuit.";
+    }
 }
 
 HEAVY_TEST_F(root_rollup_full_tests, test_root_rollup_2x3)

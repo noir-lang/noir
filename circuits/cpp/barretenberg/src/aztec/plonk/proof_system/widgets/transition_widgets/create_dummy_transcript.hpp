@@ -24,7 +24,7 @@ inline transcript::StandardTranscript create_dummy_standard_transcript()
     transcript.add_element("W_2", g1_vector);
     transcript.add_element("W_3", g1_vector);
     transcript.apply_fiat_shamir("beta");
-    transcript.add_element("Z", g1_vector);
+    transcript.add_element("Z_PERM", g1_vector);
     transcript.apply_fiat_shamir("alpha");
     return transcript;
 }
@@ -46,7 +46,7 @@ inline transcript::Manifest create_dummy_ultra_manifest(const size_t num_public_
                                                                    "eta",
                                                                    1),
                                transcript::Manifest::RoundManifest({ { "S", g1_size, false } }, "beta", 2),
-                               transcript::Manifest::RoundManifest({ { "Z", g1_size, false } }, "alpha", 1),
+                               transcript::Manifest::RoundManifest({ { "Z_PERM", g1_size, false } }, "alpha", 1),
                                transcript::Manifest::RoundManifest({ { "T_1", g1_size, false },
                                                                      { "T_2", g1_size, false },
                                                                      { "T_3", g1_size, false },
@@ -57,7 +57,7 @@ inline transcript::Manifest create_dummy_ultra_manifest(const size_t num_public_
                                                                      { "w_2", fr_size, false },
                                                                      { "w_3", fr_size, false },
                                                                      { "w_4", fr_size, false },
-                                                                     { "z_omega", fr_size, false },
+                                                                     { "z_perm_omega", fr_size, false },
                                                                      { "sigma_1", fr_size, false },
                                                                      { "sigma_2", fr_size, false },
                                                                      { "sigma_3", fr_size, false },
@@ -102,7 +102,7 @@ inline transcript::StandardTranscript create_dummy_ultra_transcript()
     transcript.apply_fiat_shamir("eta");
     transcript.add_element("S", g1_vector);
     transcript.apply_fiat_shamir("beta");
-    transcript.add_element("Z", g1_vector);
+    transcript.add_element("Z_PERM", g1_vector);
     transcript.apply_fiat_shamir("alpha");
     return transcript;
 }

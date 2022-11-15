@@ -20,6 +20,8 @@ template <typename Composer> struct verify_result {
 
     std::vector<uint8_t> proof_data;
     bool verified;
+    std::shared_ptr<waffle::verification_key> verification_key;
+    size_t number_of_gates;
 };
 
 template <typename Composer>
@@ -62,6 +64,7 @@ auto verify_logic_internal(Composer& composer, Tx& tx, CircuitData const& cd, ch
 
     result.public_inputs = composer.get_public_inputs();
     result.logic_verified = true;
+    result.number_of_gates = composer.get_num_gates();
 
     return result;
 }
@@ -76,8 +79,6 @@ auto verify_internal(
     if (!result.logic_verified) {
         return result;
     }
-
-    cd.proving_key->reset();
 
     Timer proof_timer;
     info(name, ": Creating proof...");
@@ -108,7 +109,6 @@ auto verify_internal(
 
     info(name, ": Proof created in ", proof_timer.toString(), "s");
     info(name, ": Total time taken: ", timer.toString(), "s");
-
     if (unrolled) {
         auto verifier = composer.create_unrolled_verifier();
         result.verified = verifier.verify_proof({ result.proof_data });
@@ -123,7 +123,7 @@ auto verify_internal(
     } else {
         info(name, ": Verified successfully.");
     }
-
+    result.verification_key = composer.circuit_verification_key;
     return result;
 }
 

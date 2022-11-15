@@ -18,7 +18,6 @@ constexpr size_t num_indexed_generators = num_hash_indices * num_generators_per_
 constexpr size_t size_of_generator_data_array = hash_indices_generator_offset + num_indexed_generators;
 constexpr size_t num_generator_types = 3;
 
-std::vector<std::unique_ptr<generator_data>> global_generator_data;
 ladder_t g1_ladder;
 bool inited = false;
 
@@ -199,10 +198,11 @@ const fixed_base_ladder* get_ladder_internal(std::array<fixed_base_ladder, quad_
  *addition makes all resultant scalars positive. When wanting to hash e.g. 254 instead of 256 bits, we will
  *start the ladder one step forward - this happends in `get_ladder_internal`
  **/
-void init_generator_data()
+std::vector<std::unique_ptr<generator_data>> const& init_generator_data()
 {
+    static std::vector<std::unique_ptr<generator_data>> global_generator_data;
     if (inited) {
-        return;
+        return global_generator_data;
     }
     std::vector<grumpkin::g1::affine_element> generators;
     std::vector<grumpkin::g1::affine_element> aux_generators;
@@ -223,6 +223,7 @@ void init_generator_data()
     compute_fixed_base_ladder(grumpkin::g1::one, g1_ladder);
 
     inited = true;
+    return global_generator_data;
 };
 
 const fixed_base_ladder* get_g1_ladder(const size_t num_bits)
@@ -252,7 +253,7 @@ const fixed_base_ladder* get_g1_ladder(const size_t num_bits)
  */
 generator_data const& get_generator_data(generator_index_t index)
 {
-    init_generator_data();
+    auto& global_generator_data = init_generator_data();
     if (index.index == 0) {
         ASSERT(index.sub_index < num_default_generators);
         return *global_generator_data[index.sub_index];

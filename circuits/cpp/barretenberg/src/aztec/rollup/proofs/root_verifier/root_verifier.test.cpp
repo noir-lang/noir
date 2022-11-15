@@ -8,6 +8,7 @@
 #include "../notes/native/index.hpp"
 #include "../../fixtures/test_context.hpp"
 #include "../../fixtures/compute_or_load_fixture.hpp"
+#include <filesystem>
 
 namespace rollup {
 namespace proofs {
@@ -52,8 +53,8 @@ class root_verifier_tests : public ::testing::Test {
     static void SetUpTestCase()
     {
         auto recreate = !exists(FIXTURE_PATH);
-        mkdir(FIXTURE_PATH, 0700);
-        mkdir(TEST_PROOFS_PATH, 0700);
+        std::filesystem::create_directories(FIXTURE_PATH);
+        std::filesystem::create_directories(TEST_PROOFS_PATH);
         srs = std::make_shared<waffle::DynamicFileReferenceStringFactory>(CRS_PATH);
 
         account_cd = proofs::account::get_circuit_data(srs);

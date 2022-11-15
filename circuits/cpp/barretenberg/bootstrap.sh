@@ -45,7 +45,7 @@ fi
 # Build native.
 mkdir -p build && cd build
 cmake -DCMAKE_BUILD_TYPE=RelWithAssert -DTOOLCHAIN=$TOOLCHAIN ..
-make -j$(nproc) $@
+make -j$(getconf _NPROCESSORS_ONLN) $@
 cd ..
 
 # Install the webassembly toolchain.
