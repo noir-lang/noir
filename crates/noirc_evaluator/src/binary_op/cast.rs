@@ -1,13 +1,15 @@
-use crate::{Evaluator, Integer, Linear, Object, RuntimeErrorKind, Type};
+use noirc_frontend::Type;
+
+use crate::{interpreter::Interpreter, Integer, Linear, Object, RuntimeErrorKind};
 
 pub fn handle_cast_op(
-    evaluator: &mut Evaluator,
+    evaluator: &mut Interpreter,
     left: Object,
     right: Type,
 ) -> Result<Object, RuntimeErrorKind> {
     let num_bits = match right {
         Type::Integer(_, _sign, num_bits) => num_bits,
-        Type::FieldElement(_) => {
+        Type::FieldElement(..) => {
             match left.to_arithmetic() {
                 Some(arith) => {
                     // XXX: Create an intermediate variable for the arithmetic gate

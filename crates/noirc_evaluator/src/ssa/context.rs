@@ -1,4 +1,5 @@
 use super::block::{BasicBlock, BlockId};
+use super::conditional::DecisionTree;
 use super::function::{FuncIndex, SSAFunction};
 use super::inline::StackFrame;
 use super::mem::{ArrayId, Memory};
@@ -12,19 +13,16 @@ use crate::ssa::function;
 use crate::ssa::node::{Mark, Node};
 use crate::Evaluator;
 use acvm::FieldElement;
-use noirc_frontend::hir::Context;
-use noirc_frontend::node_interner::FuncId;
+use noirc_frontend::monomorphisation::ast::{DefinitionId, FuncId};
 use noirc_frontend::util::vecmap;
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
-use std::convert::TryFrom;
 
 // This is a 'master' class for generating the SSA IR from the AST
 // It contains all the data; the node objects representing the source code in the nodes arena
 // and The CFG in the blocks arena
 // everything else just reference objects from these two arena using their index.
-pub struct SsaContext<'a> {
-    pub context: &'a Context,
+pub struct SsaContext {
     pub first_block: BlockId,
     pub current_block: BlockId,
     blocks: arena::Arena<block::BasicBlock>,
@@ -39,10 +37,9 @@ pub struct SsaContext<'a> {
     dummy_load: HashMap<ArrayId, NodeId>,
 }
 
-impl<'a> SsaContext<'a> {
-    pub fn new(context: &Context) -> SsaContext {
+impl SsaContext {
+    pub fn new() -> SsaContext {
         let mut pc = SsaContext {
-            context,
             first_block: BlockId::dummy(),
             current_block: BlockId::dummy(),
             blocks: arena::Arena::new(),
@@ -56,17 +53,17 @@ impl<'a> SsaContext<'a> {
             dummy_load: HashMap::new(),
         };
         block::create_first_block(&mut pc);
-        pc.one_with_type(node::ObjectType::Unsigned(1));
-        pc.zero_with_type(node::ObjectType::Unsigned(1));
+        pc.one_with_type(node::ObjectType::Boolean);
+        pc.zero_with_type(node::ObjectType::Boolean);
         pc
     }
 
     pub fn zero(&self) -> NodeId {
-        self.find_const_with_type(&BigUint::zero(), node::ObjectType::Unsigned(1)).unwrap()
+        self.find_const_with_type(&BigUint::zero(), node::ObjectType::Boolean).unwrap()
     }
 
     pub fn one(&self) -> NodeId {
-        self.find_const_with_type(&BigUint::one(), node::ObjectType::Unsigned(1)).unwrap()
+        self.find_const_with_type(&BigUint::one(), node::ObjectType::Boolean).unwrap()
     }
 
     pub fn zero_with_type(&mut self, obj_type: ObjectType) -> NodeId {
@@ -75,6 +72,30 @@ impl<'a> SsaContext<'a> {
 
     pub fn one_with_type(&mut self, obj_type: ObjectType) -> NodeId {
         self.get_or_create_const(FieldElement::one(), obj_type)
+    }
+
+    pub fn is_one(&self, id: NodeId) -> bool {
+        if id == NodeId::dummy() {
+            return false;
+        }
+        let typ = self.get_object_type(id);
+        if let Some(one) = self.find_const_with_type(&BigUint::one(), typ) {
+            id == one
+        } else {
+            false
+        }
+    }
+
+    pub fn is_zero(&self, id: NodeId) -> bool {
+        if id == NodeId::dummy() {
+            return false;
+        }
+        let typ = self.get_object_type(id);
+        if let Some(zero) = self.find_const_with_type(&BigUint::zero(), typ) {
+            id == zero
+        } else {
+            false
+        }
     }
 
     pub fn get_dummy_store(&self, a: ArrayId) -> NodeId {
@@ -119,16 +140,15 @@ impl<'a> SsaContext<'a> {
     //Display an object for debugging puposes
     fn node_to_string(&self, id: NodeId) -> String {
         if let Some(var) = self.try_get_node(id) {
-            return format!("{}", var);
+            format!("{}", var)
         } else {
-            return format!("unknown {:?}", id.0.into_raw_parts().0);
+            format!("unknown {:?}", id.0.into_raw_parts().0)
         }
     }
 
     fn binary_to_string(&self, binary: &node::Binary) -> String {
         let lhs = self.node_to_string(binary.lhs);
         let rhs = self.node_to_string(binary.rhs);
-
         let op = match &binary.operator {
             BinaryOp::Add => "add",
             BinaryOp::SafeAdd => "safe_add",
@@ -153,8 +173,6 @@ impl<'a> SsaContext<'a> {
             BinaryOp::Or => "or",
             BinaryOp::Xor => "xor",
             BinaryOp::Assign => "assign",
-            BinaryOp::Constrain(node::ConstrainOp::Eq) => "constrain_eq",
-            BinaryOp::Constrain(node::ConstrainOp::Neq) => "constrain_neq",
             BinaryOp::Shl => "shl",
             BinaryOp::Shr => "shr",
         };
@@ -177,6 +195,7 @@ impl<'a> SsaContext<'a> {
                 )
             }
             Operation::Not(v) => format!("not {}", self.node_to_string(*v)),
+            Operation::Constrain(v, ..) => format!("constrain {}", self.node_to_string(*v)),
             Operation::Jne(v, b) => format!("jne {}, {:?}", self.node_to_string(*v), b),
             Operation::Jeq(v, b) => format!("jeq {}, {:?}", self.node_to_string(*v), b),
             Operation::Jmp(b) => format!("jmp {:?}", b),
@@ -192,6 +211,11 @@ impl<'a> SsaContext<'a> {
                 }
                 s
             }
+            Operation::Cond { condition, val_true: lhs, val_false: rhs } => {
+                let lhs = self.node_to_string(*lhs);
+                let rhs = self.node_to_string(*rhs);
+                format!("cond({}) {}, {}", self.node_to_string(*condition), lhs, rhs)
+            }
             Operation::Load { array_id, index } => {
                 format!("load {:?}, index {}", array_id, self.node_to_string(*index))
             }
@@ -205,7 +229,9 @@ impl<'a> SsaContext<'a> {
             }
             Operation::Intrinsic(opcode, args) => format!("intrinsic {}({})", opcode, join(args)),
             Operation::Nop => "nop".into(),
-            Operation::Call(f, args, ar) => format!("call {:?}({}) _ {:?}", f, join(args), ar),
+            Operation::Call { func_id, arguments, returned_arrays, .. } => {
+                format!("call {:?}({}) _ {:?}", func_id, join(arguments), returned_arrays)
+            }
             Operation::Return(values) => format!("return ({})", join(values)),
             Operation::Result { call_instruction, index } => {
                 let call = self.node_to_string(*call_instruction);
@@ -216,7 +242,15 @@ impl<'a> SsaContext<'a> {
 
     pub fn print_block(&self, b: &block::BasicBlock) {
         println!("************* Block n.{}", b.id.0.into_raw_parts().0);
-        for id in &b.instructions {
+        println!("Assumption:{:?}", b.assumption);
+        self.print_instructions(&b.instructions);
+        if b.left.is_some() {
+            println!("Next block: {}", b.left.unwrap().0.into_raw_parts().0);
+        }
+    }
+
+    pub fn print_instructions(&self, instructions: &Vec<NodeId>) {
+        for id in instructions {
             let ins = self.get_instruction(*id);
             let mut str_res = if ins.res_name.is_empty() {
                 format!("{:?}", id.0.into_raw_parts().0)
@@ -232,16 +266,11 @@ impl<'a> SsaContext<'a> {
             println!("{}: {}", str_res, ins_str);
         }
     }
-
     pub fn print(&self, text: &str) {
         println!("{}", text);
         for (_, b) in self.blocks.iter() {
             self.print_block(b);
         }
-    }
-
-    pub fn context(&self) -> &'a Context {
-        self.context
     }
 
     pub fn remove_block(&mut self, block: BlockId) {
@@ -292,6 +321,24 @@ impl<'a> SsaContext<'a> {
         id
     }
 
+    //add the instruction to the block, after the provided instruction
+    pub fn push_instruction_after(
+        &mut self,
+        instruction_id: NodeId,
+        block: BlockId,
+        after: NodeId,
+    ) -> NodeId {
+        let mut pos = 0;
+        for i in &self[block].instructions {
+            if after == *i {
+                break;
+            }
+            pos += 1;
+        }
+        self[block].instructions.insert(pos + 1, instruction_id);
+        instruction_id
+    }
+
     pub fn add_const(&mut self, constant: node::Constant) -> NodeId {
         let obj = NodeObj::Const(constant);
         let id = NodeId(self.nodes.insert(obj));
@@ -303,7 +350,7 @@ impl<'a> SsaContext<'a> {
         id
     }
 
-    pub fn get_ssafunc(&'a self, func_id: FuncId) -> Option<&SSAFunction> {
+    pub fn get_ssafunc(&self, func_id: FuncId) -> Option<&SSAFunction> {
         self.functions.get(&func_id)
     }
 
@@ -331,8 +378,7 @@ impl<'a> SsaContext<'a> {
         None
     }
 
-    //todo handle errors
-    fn get_instruction(&self, id: NodeId) -> &node::Instruction {
+    pub fn get_instruction(&self, id: NodeId) -> &node::Instruction {
         self.try_get_instruction(id).expect("Index not found or not an instruction")
     }
 
@@ -468,27 +514,20 @@ impl<'a> SsaContext<'a> {
         self.update_variable_id_in_block(var_id, new_var, new_value, self.current_block);
     }
 
-    pub fn new_instruction(&mut self, opcode: Operation, optype: ObjectType) -> NodeId {
+    pub fn new_instruction(
+        &mut self,
+        opcode: Operation,
+        optype: ObjectType,
+    ) -> Result<NodeId, RuntimeError> {
         //Add a new instruction to the nodes arena
         let mut i = Instruction::new(opcode, optype, Some(self.current_block));
         //Basic simplification
-        optim::simplify(self, &mut i);
+        optim::simplify(self, &mut i)?;
 
         if let Mark::ReplaceWith(replacement) = i.mark {
-            return replacement;
+            return Ok(replacement);
         }
-        self.push_instruction(i)
-    }
-
-    pub fn new_binary_instruction(
-        &mut self,
-        operator: BinaryOp,
-        lhs: NodeId,
-        rhs: NodeId,
-        optype: ObjectType,
-    ) -> NodeId {
-        let operation = Operation::binary(operator, lhs, rhs);
-        self.new_instruction(operation, optype)
+        Ok(self.push_instruction(i))
     }
 
     pub fn find_const_with_type(
@@ -539,7 +578,7 @@ impl<'a> SsaContext<'a> {
             | Operation::Jeq(_, _)
             | Operation::Jmp(_)
             | Operation::Nop
-            | Binary(node::Binary { operator: Constrain(_), .. })
+            | Operation::Constrain(..)
             | Operation::Store { .. } => ObjectType::NotAnObject,
             Operation::Load { array_id, .. } => self.mem[*array_id].element_type,
             Operation::Cast(_) | Operation::Truncate { .. } => {
@@ -554,8 +593,8 @@ impl<'a> SsaContext<'a> {
         name: &str,
         element_type: ObjectType,
         len: u32,
-        def_id: Option<noirc_frontend::node_interner::DefinitionId>,
-    ) -> NodeId {
+        def_id: Option<DefinitionId>,
+    ) -> (NodeId, ArrayId) {
         let array_index = self.mem.create_new_array(len, element_type, name);
         self.add_dummy_load(array_index);
         self.add_dummy_store(array_index);
@@ -572,22 +611,16 @@ impl<'a> SsaContext<'a> {
         if let Some(def) = def_id {
             self.mem[array_index].def = def;
         }
-        self.add_variable(new_var, None)
+        (self.add_variable(new_var, None), array_index)
     }
 
-    pub fn create_array_from_object(
-        &mut self,
-        array: &crate::object::Array,
-        definition: noirc_frontend::node_interner::DefinitionId,
-        el_type: node::ObjectType,
-        arr_name: &str,
-    ) -> NodeId {
-        let len = u32::try_from(array.length).unwrap();
-        let result = self.new_array(arr_name, el_type, len, Some(definition));
-        let array_id = self.mem.last_id();
-        self.mem[array_id].set_witness(array);
-
-        result
+    //returns the value of the element array[index], if it exists in the memory_map
+    pub fn get_indexed_value(&self, array_id: ArrayId, index: NodeId) -> Option<&NodeId> {
+        if let Some(idx) = Memory::to_u32(self, index) {
+            self.mem.get_value_from_map(array_id, idx)
+        } else {
+            None
+        }
     }
     //blocks/////////////////////////
     pub fn try_get_block_mut(&mut self, id: BlockId) -> Option<&mut block::BasicBlock> {
@@ -622,30 +655,52 @@ impl<'a> SsaContext<'a> {
     ) -> Result<(), RuntimeError> {
         //SSA
         self.log(enable_logging, "SSA:", "\ninline functions");
-        function::inline_all(self);
+        function::inline_all(self)?;
 
         //Optimisation
         block::compute_dom(self);
-        optim::full_cse(self, self.first_block);
+        optim::full_cse(self, self.first_block)?;
+
+        //Flattenning
         self.log(enable_logging, "\nCSE:", "\nunrolling:");
         //Unrolling
-        flatten::unroll_tree(self, self.first_block);
+        flatten::unroll_tree(self, self.first_block)?;
+
+        //reduce conditionals
+        let mut decision = DecisionTree::new(self);
+        decision.make_decision_tree(self, self.first_block);
+        decision.reduce(self, decision.root)?;
 
         //Inlining
-        self.log(enable_logging, "", "\ninlining:");
-        inline::inline_tree(self, self.first_block);
-        optim::full_cse(self, self.first_block);
+        self.log(enable_logging, "reduce", "\ninlining:");
+        inline::inline_tree(self, self.first_block, &decision)?;
+
+        block::merge_path(self, self.first_block, BlockId::dummy(), None);
+        //The CFG is now fully flattened, so we keep only the first block.
+        let mut to_remove = Vec::new();
+        for b in &self.blocks {
+            if b.0 != self.first_block.0 {
+                to_remove.push(b.0);
+            }
+        }
+        for b in to_remove {
+            self.blocks.remove(b);
+        }
+        let first_block = self.first_block;
+        self[first_block].dominated.clear();
+
+        optim::cse(self, first_block)?;
 
         //Truncation
-        integer::overflow_strategy(self);
+        integer::overflow_strategy(self)?;
         self.log(enable_logging, "\noverflow:", "");
         //ACIR
         self.acir(evaluator);
         if enable_logging {
             Acir::print_circuit(&evaluator.gates);
             println!("DONE");
-            dbg!(&evaluator.current_witness_index);
         }
+        println!("ACIR gates generated : {}", evaluator.gates.len());
         Ok(())
     }
 
@@ -683,33 +738,29 @@ impl<'a> SsaContext<'a> {
         phi_id
     }
 
-    fn memcpy(&mut self, l_type: ObjectType, r_type: ObjectType) {
+    fn memcpy(&mut self, l_type: ObjectType, r_type: ObjectType) -> Result<(), RuntimeError> {
         if l_type == r_type {
-            return;
+            return Ok(());
         }
 
         if let (ObjectType::Pointer(a), ObjectType::Pointer(b)) = (l_type, r_type) {
             let len = self.mem[a].len;
-            let adr_a = self.mem[a].adr;
-            let adr_b = self.mem[b].adr;
             let e_type = self.mem[b].element_type;
             for i in 0..len {
-                let idx_b = self.get_or_create_const(
-                    FieldElement::from((adr_b + i) as i128),
-                    ObjectType::Unsigned(32),
-                );
-                let idx_a = self.get_or_create_const(
-                    FieldElement::from((adr_a + i) as i128),
-                    ObjectType::Unsigned(32),
-                );
+                let idx_b = self
+                    .get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
+                let idx_a = self
+                    .get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
                 let op_b = Operation::Load { array_id: b, index: idx_b };
-                let load = self.new_instruction(op_b, e_type);
+                let load = self.new_instruction(op_b, e_type)?;
                 let op_a = Operation::Store { array_id: a, index: idx_a, value: load };
-                self.new_instruction(op_a, l_type);
+                self.new_instruction(op_a, l_type)?;
             }
         } else {
             unreachable!("invalid type, expected arrays, got {:?} and {:?}", l_type, r_type);
         }
+
+        Ok(())
     }
 
     //This function handles assignment statements of the form lhs = rhs, depending on the nature of the arguments:
@@ -721,10 +772,39 @@ impl<'a> SsaContext<'a> {
     // - if lhs and rhs are arrays, we perfom a copy of rhs into lhs,
     // - if lhs is an array and rhs is a call instruction, we indicate in the call that lhs is the returned array (so that no copy is needed because the inlining will use it)
     // ...
-    pub fn handle_assign(&mut self, lhs: NodeId, index: Option<NodeId>, rhs: NodeId) -> NodeId {
+    pub fn handle_assign(
+        &mut self,
+        lhs: NodeId,
+        index: Option<NodeId>,
+        rhs: NodeId,
+    ) -> Result<NodeId, RuntimeError> {
         let lhs_type = self.get_object_type(lhs);
         let rhs_type = self.get_object_type(rhs);
 
+        let mut ret_array = None;
+        if let Some(Instruction {
+            operation: Operation::Result { call_instruction: func, index: idx },
+            ..
+        }) = self.try_get_instruction(rhs)
+        {
+            if index.is_none() {
+                if let ObjectType::Pointer(a) = lhs_type {
+                    ret_array = Some((*func, a, *idx));
+                }
+            }
+        }
+        if let Some((func, a, idx)) = ret_array {
+            if let Some(Instruction {
+                operation: Operation::Call { returned_arrays, .. }, ..
+            }) = self.try_get_mut_instruction(func)
+            {
+                returned_arrays.push((a, idx));
+            }
+            if let Some(i) = self.try_get_mut_instruction(rhs) {
+                i.mark = Mark::ReplaceWith(lhs);
+            }
+            return Ok(lhs);
+        }
         if let Some(idx) = index {
             if let ObjectType::Pointer(a) = lhs_type {
                 //Store
@@ -741,10 +821,10 @@ impl<'a> SsaContext<'a> {
             }) = self.try_get_mut_instruction(rhs)
             {
                 *rtype = lhs_type;
-                return lhs;
+                return Ok(lhs);
             } else {
-                self.memcpy(lhs_type, rhs_type);
-                return lhs;
+                self.memcpy(lhs_type, rhs_type)?;
+                return Ok(lhs);
             }
         }
         let lhs_obj = self.get_variable(lhs).unwrap();
@@ -764,10 +844,11 @@ impl<'a> SsaContext<'a> {
             lhs: new_var_id,
             rhs,
             operator: node::BinaryOp::Assign,
+            predicate: None,
         });
-        let result = self.new_instruction(op, rhs_type);
+        let result = self.new_instruction(op, rhs_type)?;
         self.update_variable_id(ls_root, new_var_id, result); //update the name and the value map
-        new_var_id
+        Ok(new_var_id)
     }
 
     fn new_instruction_inline(
@@ -782,7 +863,7 @@ impl<'a> SsaContext<'a> {
         ins_id
     }
 
-    fn memcpy_inline(
+    pub fn memcpy_inline(
         &mut self,
         l_type: ObjectType,
         r_type: ObjectType,
@@ -794,18 +875,12 @@ impl<'a> SsaContext<'a> {
 
         if let (ObjectType::Pointer(a), ObjectType::Pointer(b)) = (l_type, r_type) {
             let len = self.mem[a].len;
-            let adr_a = self.mem[a].adr;
-            let adr_b = self.mem[b].adr;
             let e_type = self.mem[b].element_type;
             for i in 0..len {
-                let idx_b = self.get_or_create_const(
-                    FieldElement::from((adr_b + i) as i128),
-                    ObjectType::Unsigned(32),
-                );
-                let idx_a = self.get_or_create_const(
-                    FieldElement::from((adr_a + i) as i128),
-                    ObjectType::Unsigned(32),
-                );
+                let idx_b = self
+                    .get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
+                let idx_a = self
+                    .get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
                 let op_b = Operation::Load { array_id: b, index: idx_b };
                 let load = self.new_instruction_inline(op_b, e_type, stack_frame);
                 let op_a = Operation::Store { array_id: a, index: idx_a, value: load };
@@ -850,15 +925,76 @@ impl<'a> SsaContext<'a> {
                 lhs: new_var_id,
                 rhs,
                 operator: node::BinaryOp::Assign,
+                predicate: None,
             });
             let result = self.new_instruction_inline(op, rhs_type, stack_frame);
             self.update_variable_id_in_block(ls_root, new_var_id, result, block_id); //update the name and the value map
             result
         }
     }
+
+    pub fn under_assumption(&self, predicate: NodeId) -> bool {
+        !(predicate == NodeId::dummy() || predicate == self.one())
+    }
+
+    //Returns the instruction used by a IF statement. None if the block is not a IF block.
+    pub fn get_if_condition(&self, block: &BasicBlock) -> Option<&node::Instruction> {
+        if let Some(ins) = self.try_get_instruction(*block.instructions.last().unwrap()) {
+            if !block.is_join() && ins.operation.opcode() == super::node::Opcode::Jeq {
+                return Some(ins);
+            }
+        }
+        None
+    }
+
+    //Generate a new variable v and a phi instruction s.t. v = phi(a,b);
+    // c is a counter used to name the variable v for debugging purposes
+    // when a and b are pointers, we create a new array s.t v[i] = phi(a[i],b[i])
+    pub fn new_phi(&mut self, a: NodeId, b: NodeId, c: &mut u32) -> NodeId {
+        if a == NodeId::dummy() || b == NodeId::dummy() {
+            return NodeId::dummy();
+        }
+
+        let exit_block = self.current_block;
+        let block1 = self[exit_block].predecessor[0];
+        let block2 = self[exit_block].predecessor[1];
+
+        let v_type = self.get_object_type(a);
+        let name = format!("if_{}_ret{}", exit_block.0.into_raw_parts().0, c);
+        *c += 1;
+        if let node::ObjectType::Pointer(adr1) = v_type {
+            let len = self.mem[adr1].len;
+            let el_type = self.mem[adr1].element_type;
+            let (id, array_id) = self.new_array(&name, el_type, len, None);
+            for i in 0..len {
+                let index = self
+                    .get_or_create_const(FieldElement::from(i as u128), ObjectType::NativeField);
+                self.current_block = block1;
+                let op = Operation::Load { array_id: adr1, index };
+                let v1 = self.new_instruction(op, el_type).unwrap();
+                self.current_block = block2;
+                let adr2 = super::mem::Memory::deref(self, b).unwrap();
+                let op = Operation::Load { array_id: adr2, index };
+                let v2 = self.new_instruction(op, el_type).unwrap();
+                self.current_block = exit_block;
+                let v = self.new_phi(v1, v2, c);
+                let op = Operation::Store { array_id, index, value: v };
+                self.new_instruction(op, el_type).unwrap();
+            }
+            id
+        } else {
+            let new_var = node::Variable::new(v_type, name, None, exit_block);
+            let v = self.add_variable(new_var, None);
+            let operation = Operation::Phi { root: v, block_args: vec![(a, block1), (b, block2)] };
+            let new_phi = node::Instruction::new(operation, v_type, Some(exit_block));
+            let phi_id = self.add_instruction(new_phi);
+            self[exit_block].instructions.insert(1, phi_id);
+            phi_id
+        }
+    }
 }
 
-impl std::ops::Index<BlockId> for SsaContext<'_> {
+impl std::ops::Index<BlockId> for SsaContext {
     type Output = BasicBlock;
 
     fn index(&self, index: BlockId) -> &Self::Output {
@@ -866,13 +1002,13 @@ impl std::ops::Index<BlockId> for SsaContext<'_> {
     }
 }
 
-impl std::ops::IndexMut<BlockId> for SsaContext<'_> {
+impl std::ops::IndexMut<BlockId> for SsaContext {
     fn index_mut(&mut self, index: BlockId) -> &mut Self::Output {
         &mut self.blocks[index.0]
     }
 }
 
-impl std::ops::Index<NodeId> for SsaContext<'_> {
+impl std::ops::Index<NodeId> for SsaContext {
     type Output = NodeObj;
 
     fn index(&self, index: NodeId) -> &Self::Output {
@@ -880,7 +1016,7 @@ impl std::ops::Index<NodeId> for SsaContext<'_> {
     }
 }
 
-impl std::ops::IndexMut<NodeId> for SsaContext<'_> {
+impl std::ops::IndexMut<NodeId> for SsaContext {
     fn index_mut(&mut self, index: NodeId) -> &mut Self::Output {
         &mut self.nodes[index.0]
     }

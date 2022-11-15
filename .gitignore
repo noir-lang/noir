@@ -3,3 +3,10 @@
 examples/**/target/
 examples/9
 .vscode
+node_modules
+
+# Nargo output
+*.proof
+*.acir
+*.tr
+**/Verifier.toml

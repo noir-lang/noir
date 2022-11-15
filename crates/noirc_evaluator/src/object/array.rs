@@ -1,9 +1,9 @@
 use super::RuntimeErrorKind;
 use crate::errors::RuntimeError;
+use crate::interpreter::Interpreter;
+use crate::Environment;
 use crate::{binary_op::maybe_equal, object::Object};
-use crate::{Environment, Evaluator};
 use acvm::FieldElement;
-use noirc_frontend::hir_def::expr::HirArrayLiteral;
 use noirc_frontend::node_interner::ExprId;
 
 #[derive(Clone, Debug)]
@@ -14,21 +14,21 @@ pub struct Array {
 
 impl Array {
     pub fn from(
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
         env: &mut Environment,
-        arr_lit: HirArrayLiteral,
+        arr_lit: &[ExprId],
     ) -> Result<Array, RuntimeError> {
         // Take each element in the array and turn it into an object
         // We do not check that the array is homogeneous, this is done by the type checker.
         // We could double check here, however with appropriate tests, it should not be needed.
-        let (objects, mut errs) = evaluator.expression_list_to_objects(env, &arr_lit.contents);
+        let (objects, mut errs) = evaluator.expression_list_to_objects(env, arr_lit);
         if !errs.is_empty() {
             // XXX Should we make this return an RunTimeError? The problem is that we do not want the OPCODES
             // to return RunTimeErrors, because we do not want to deal with span there
             return Err(errs.pop().unwrap());
         }
 
-        Ok(Array { contents: objects, length: arr_lit.length })
+        Ok(Array { contents: objects, length: arr_lit.len() as u128 })
     }
     pub fn get(&self, index: u128) -> Result<Object, RuntimeErrorKind> {
         if index >= self.length {
@@ -47,7 +47,7 @@ impl Array {
     pub fn sub(
         lhs: Array,
         rhs: Array,
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
     ) -> Result<Array, RuntimeErrorKind> {
         let length = Array::check_arr_len(&lhs, &rhs)?;
         let mut contents = Vec::with_capacity(length);
@@ -58,13 +58,14 @@ impl Array {
 
         Ok(Array { contents, length: length as u128 })
     }
+
     /// Given two arrays A, B
     /// This method creates a new array C
     /// such that C[i] = A[i] + B[i] for all i.
     pub fn add(
         lhs: Array,
         rhs: Array,
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
     ) -> Result<Array, RuntimeErrorKind> {
         let length = Array::check_arr_len(&lhs, &rhs)?;
         let mut contents = Vec::with_capacity(length);
@@ -101,7 +102,7 @@ impl Array {
     pub fn equal(
         lhs: Array,
         rhs: Array,
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
     ) -> Result<(), RuntimeErrorKind> {
         let _ = Array::check_arr_len(&lhs, &rhs)?;
         for (lhs_element, rhs_element) in lhs.contents.into_iter().zip(rhs.contents.into_iter()) {
@@ -114,7 +115,7 @@ impl Array {
     pub fn not_equal(
         lhs: Array,
         rhs: Array,
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
     ) -> Result<(), RuntimeErrorKind> {
         let length = Array::check_arr_len(&lhs, &rhs)?;
 
@@ -148,14 +149,14 @@ impl Array {
     }
 
     /// Constrains all elements in the array to be equal to zero
-    pub fn constrain_zero(&self, evaluator: &mut Evaluator) {
+    pub fn constrain_zero(&self, evaluator: &mut Interpreter) {
         for element in self.contents.iter() {
             element.constrain_zero(evaluator)
         }
     }
 
     pub fn from_expression(
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
         env: &mut Environment,
         expr_id: &ExprId,
     ) -> Result<Array, RuntimeError> {
@@ -163,8 +164,8 @@ impl Array {
         match object {
             Object::Array(arr) => Ok(arr),
             _ => {
-                let span = evaluator.context.def_interner.expr_span(expr_id);
-                Err(RuntimeErrorKind::expected_type("array", object.r#type()).add_span(span))
+                let span = evaluator.context.def_interner.expr_location(expr_id);
+                Err(RuntimeErrorKind::expected_type("array", object.r#type()).add_location(span))
             }
         }
     }

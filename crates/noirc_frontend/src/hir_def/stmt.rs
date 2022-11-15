@@ -1,9 +1,7 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-
-use super::expr::{HirIdent, HirInfixExpression};
+use super::expr::HirIdent;
 use crate::node_interner::ExprId;
-use crate::{Ident, StructType, Type};
+use crate::{Ident, Shared, StructType, Type};
+use fm::FileId;
 use noirc_errors::Span;
 
 #[derive(Debug, Clone)]
@@ -13,6 +11,15 @@ pub struct HirLetStatement {
     pub expression: ExprId,
 }
 
+impl HirLetStatement {
+    pub fn ident(&self) -> HirIdent {
+        match self.pattern {
+            HirPattern::Identifier(ident) => ident,
+            _ => panic!("can only fetch hir ident from HirPattern::Identifier"),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct HirAssignStatement {
     pub lvalue: HirLValue,
@@ -20,7 +27,7 @@ pub struct HirAssignStatement {
 }
 
 #[derive(Debug, Clone)]
-pub struct HirConstrainStatement(pub HirInfixExpression);
+pub struct HirConstrainStatement(pub ExprId, pub FileId);
 
 #[derive(Debug, Clone)]
 pub struct BinaryStatement {
@@ -44,7 +51,7 @@ pub enum HirPattern {
     Identifier(HirIdent),
     Mutable(Box<HirPattern>, Span),
     Tuple(Vec<HirPattern>, Span),
-    Struct(Rc<RefCell<StructType>>, Vec<(Ident, HirPattern)>, Span),
+    Struct(Shared<StructType>, Vec<(Ident, HirPattern)>, Span),
 }
 
 impl HirPattern {
@@ -76,6 +83,6 @@ impl HirPattern {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum HirLValue {
     Ident(HirIdent),
-    MemberAccess { object: Box<HirLValue>, field_name: Ident },
+    MemberAccess { object: Box<HirLValue>, field_name: Ident, field_index: Option<usize> },
     Index { array: Box<HirLValue>, index: ExprId },
 }

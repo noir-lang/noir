@@ -1,5 +1,5 @@
 use super::{invert, sub::handle_sub_op};
-use crate::{object::Array, Evaluator, Object, RuntimeErrorKind};
+use crate::{interpreter::Interpreter, object::Array, Object, RuntimeErrorKind};
 
 /// This calls the sub op under the hood
 /// Then asserts that the result has an inverse
@@ -7,7 +7,7 @@ use crate::{object::Array, Evaluator, Object, RuntimeErrorKind};
 pub fn handle_neq_op(
     left: Object,
     right: Object,
-    evaluator: &mut Evaluator,
+    evaluator: &mut Interpreter,
 ) -> Result<Object, RuntimeErrorKind> {
     match (left, right) {
         (Object::Array(left_arr), Object::Array(right_arr)) => {

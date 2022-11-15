@@ -1,8 +1,8 @@
 use crate::errors::CliError;
 
-use super::{create_dir, write_to_file, PKG_FILE, SRC_DIR};
+use super::{create_named_dir, write_to_file, PKG_FILE, SRC_DIR};
 use clap::ArgMatches;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let cmd = args.subcommand_matches("new").unwrap();
@@ -20,28 +20,21 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     }
 
     let src_dir = package_dir.join(Path::new(SRC_DIR));
-    create_src_dir(&src_dir);
+    create_named_dir(&src_dir, "src");
 
-    const EXAMPLE: &str = "
-        fn main(x : Field, y : pub Field) {
-            constrain x != y;
-        }
-    ";
+    const EXAMPLE: &str =
+        concat!("fn main(x : Field, y : pub Field) {\n", "    constrain x != y;\n", "}");
 
-    const SETTINGS: &str = r#"
-        [package]
-        authors = [""]
-        compiler_version = "0.1"
-    
-        [dependencies]
-    "#;
+    const SETTINGS: &str = concat!(
+        "[package]\n",
+        "authors = [\"\"]\n",
+        "compiler_version = \"0.1\"\n",
+        "\n",
+        "[dependencies]"
+    );
 
     write_to_file(SETTINGS.as_bytes(), &package_dir.join(Path::new(PKG_FILE)));
     write_to_file(EXAMPLE.as_bytes(), &src_dir.join(Path::new("main.nr")));
     println!("Project successfully created! Binary located at {}", package_dir.display());
     Ok(())
-}
-
-fn create_src_dir<P: AsRef<Path>>(p: P) -> PathBuf {
-    create_dir(p).expect("could not create `src` directory")
 }

@@ -2,12 +2,11 @@ use super::acir_gen::InternalVar;
 use super::context::SsaContext;
 use super::node::{self, Node, NodeId};
 use acvm::FieldElement;
-use noirc_frontend::node_interner::DefinitionId;
+use noirc_frontend::monomorphisation::ast::DefinitionId;
 use num_bigint::BigUint;
 use num_traits::ToPrimitive;
-use std::collections::HashMap;
 
-use crate::Array;
+use std::collections::HashMap;
 use std::convert::TryInto;
 
 #[derive(Default)]
@@ -19,6 +18,12 @@ pub struct Memory {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ArrayId(u32);
+
+impl ArrayId {
+    pub fn dummy() -> ArrayId {
+        ArrayId(std::u32::MAX)
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct MemArray {
@@ -33,15 +38,6 @@ pub struct MemArray {
 }
 
 impl MemArray {
-    pub fn set_witness(&mut self, array: &Array) {
-        for object in &array.contents {
-            if let Some(w) = node::get_witness_from_object(object) {
-                self.values.push(w.into());
-            }
-        }
-        assert!(self.values.is_empty() || self.values.len() == self.len.try_into().unwrap());
-    }
-
     fn new(
         id: ArrayId,
         definition: DefinitionId,
@@ -61,13 +57,13 @@ impl MemArray {
             max: of.max_size(),
         }
     }
+
+    pub fn absolute_adr(&self, idx: u32) -> u32 {
+        self.adr + idx
+    }
 }
 
 impl Memory {
-    pub fn find_array(&self, definition: DefinitionId) -> Option<&MemArray> {
-        self.arrays.iter().find(|a| a.def == definition)
-    }
-
     /// Retrieves the ArrayId of the last array in Memory.
     /// Panics if self does not contain at least 1 array.
     pub fn last_id(&self) -> ArrayId {
@@ -89,7 +85,8 @@ impl Memory {
         arr_name: &str,
     ) -> ArrayId {
         let id = ArrayId(self.arrays.len() as u32);
-        let mut new_array = MemArray::new(id, DefinitionId::dummy_id(), arr_name, el_type, len);
+        let dummy_id = DefinitionId(u32::MAX);
+        let mut new_array = MemArray::new(id, dummy_id, arr_name, el_type, len);
         new_array.adr = self.last_adr;
         self.arrays.push(new_array);
         self.last_adr += len;
@@ -112,6 +109,12 @@ impl Memory {
             //Invalid memory address
         }
         None //Not a constant object
+    }
+
+    //returns the value of the element array[index], if it exists in the memory_map
+    pub fn get_value_from_map(&self, array_id: ArrayId, index: u32) -> Option<&NodeId> {
+        let adr = self[array_id].absolute_adr(index);
+        self.memory_map.get(&adr)
     }
 }
 

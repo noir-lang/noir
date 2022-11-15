@@ -3,7 +3,7 @@ use crate::{Ident, Path};
 use std::collections::HashMap;
 
 use crate::graph::CrateId;
-use crate::hir::def_map::{CrateDefMap, ModuleDefId, ModuleId};
+use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId};
 
 pub trait PathResolver {
     fn resolve(
@@ -11,6 +11,8 @@ pub trait PathResolver {
         def_maps: &HashMap<CrateId, CrateDefMap>,
         path: Path,
     ) -> Result<Option<ModuleDefId>, Ident>;
+
+    fn local_module_id(&self) -> LocalModuleId;
 }
 
 pub struct StandardPathResolver {
@@ -31,6 +33,10 @@ impl PathResolver for StandardPathResolver {
         path: Path,
     ) -> Result<Option<ModuleDefId>, Ident> {
         resolve_path(def_maps, self.module_id, path)
+    }
+
+    fn local_module_id(&self) -> LocalModuleId {
+        self.module_id.local_id
     }
 }
 

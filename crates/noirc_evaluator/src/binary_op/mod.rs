@@ -14,7 +14,7 @@ use std::ops::Neg;
 
 use acvm::acir::{
     circuit::{gate::Directive, Gate},
-    native_types::{Arithmetic, Linear},
+    native_types::{Expression, Linear},
 };
 pub use add::handle_add_op;
 pub use and::handle_and_op;
@@ -30,10 +30,10 @@ pub use neq::handle_neq_op;
 pub use sub::handle_sub_op;
 pub use xor::handle_xor_op;
 
-use crate::{object::Integer, Evaluator, FieldElement, Object, RuntimeErrorKind};
+use crate::{interpreter::Interpreter, object::Integer, FieldElement, Object, RuntimeErrorKind};
 
 /// Creates a new witness and constrains it to be the inverse of the polynomial passed in
-pub fn invert(x: Object, evaluator: &mut Evaluator) -> Result<Object, RuntimeErrorKind> {
+pub fn invert(x: Object, evaluator: &mut Interpreter) -> Result<Object, RuntimeErrorKind> {
     // Create a fresh witness
 
     let inverse_witness = evaluator.add_witness_to_cs();
@@ -53,7 +53,7 @@ pub fn invert(x: Object, evaluator: &mut Evaluator) -> Result<Object, RuntimeErr
 pub fn maybe_equal(
     a: Object,
     b: Object,
-    evaluator: &mut Evaluator,
+    evaluator: &mut Interpreter,
 ) -> Result<Integer, RuntimeErrorKind> {
     const ICE_STR: &str = "ice: this method should only be called for arithmetic gates";
     let a_arith = a.to_arithmetic().expect(ICE_STR);
@@ -65,16 +65,16 @@ pub fn maybe_equal(
 
     // z = 1/u => uz = 1
     let z = evaluator.add_witness_to_cs();
-    evaluator.gates.push(Gate::Directive(Directive::Invert { x: u_wit, result: z }));
+    evaluator.push_gate(Gate::Directive(Directive::Invert { x: u_wit, result: z }));
 
     // y = 1 -uz
-    let uz: Arithmetic = Linear::from_witness(u_wit) * Linear::from_witness(z);
+    let uz: Expression = Linear::from_witness(u_wit) * Linear::from_witness(z);
     let gate = uz.neg() + &FieldElement::one();
     let (_, y) = evaluator.create_intermediate_variable(gate);
 
     // yu = 0
-    let gate: Arithmetic = Linear::from_witness(u_wit) * Linear::from_witness(y);
-    evaluator.gates.push(Gate::Arithmetic(gate));
+    let gate: Expression = Linear::from_witness(u_wit) * Linear::from_witness(y);
+    evaluator.push_gate(Gate::Arithmetic(gate));
 
     // We know that y is a boolean
     let bool_y = Integer::from_witness_unconstrained(y, 1);

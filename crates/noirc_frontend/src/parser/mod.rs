@@ -2,15 +2,27 @@ mod errors;
 #[allow(clippy::module_inception)]
 mod parser;
 
+use std::sync::atomic::{AtomicU32, Ordering};
+
 use crate::token::{Keyword, Token};
 use crate::{ast::ImportStatement, Expression, NoirStruct};
-use crate::{Ident, NoirFunction, NoirImpl, Recoverable, Statement};
+use crate::{
+    BlockExpression, CallExpression, ExpressionKind, ForExpression, Ident, IndexExpression,
+    LetStatement, NoirFunction, NoirImpl, Path, PathKind, Pattern, Recoverable, Statement,
+    UnresolvedType,
+};
 
+use acvm::FieldElement;
 use chumsky::prelude::*;
 use chumsky::primitive::Container;
 pub use errors::ParserError;
 use noirc_errors::Span;
 pub use parser::parse_program;
+
+/// Counter used to generate unique names when desugaring
+/// code in the parser requires the creation of fresh variables.
+/// The parser is stateless so this is a static global instead.
+static UNIQUE_NAME_COUNTER: AtomicU32 = AtomicU32::new(0);
 
 #[derive(Debug, Clone)]
 pub(crate) enum TopLevelStatement {
@@ -19,6 +31,8 @@ pub(crate) enum TopLevelStatement {
     Import(ImportStatement),
     Struct(NoirStruct),
     Impl(NoirImpl),
+    SubModule(SubModule),
+    Global(LetStatement),
     Error,
 }
 
@@ -181,7 +195,7 @@ fn parameter_name_recovery<T: Recoverable + Clone>() -> impl NoirParser<T> {
 fn top_level_statement_recovery() -> impl NoirParser<TopLevelStatement> {
     none_of([Token::Semicolon, Token::RightBrace, Token::EOF])
         .repeated()
-        .ignore_then(one_of([Token::Semicolon, Token::RightBrace]))
+        .ignore_then(one_of([Token::Semicolon]))
         .map(|_| TopLevelStatement::Error)
 }
 
@@ -197,6 +211,14 @@ pub struct ParsedModule {
     pub types: Vec<NoirStruct>,
     pub impls: Vec<NoirImpl>,
     pub module_decls: Vec<Ident>,
+    pub submodules: Vec<SubModule>,
+    pub globals: Vec<LetStatement>,
+}
+
+#[derive(Clone, Debug)]
+pub struct SubModule {
+    pub name: Ident,
+    pub contents: ParsedModule,
 }
 
 impl ParsedModule {
@@ -219,15 +241,23 @@ impl ParsedModule {
     fn push_module_decl(&mut self, mod_name: Ident) {
         self.module_decls.push(mod_name);
     }
+
+    fn push_submodule(&mut self, submodule: SubModule) {
+        self.submodules.push(submodule);
+    }
+
+    fn push_global(&mut self, global: LetStatement) {
+        self.globals.push(global)
+    }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd)]
 pub enum Precedence {
     Lowest,
-    LessGreater,
     Or,
-    Xor,
     And,
+    Xor,
+    LessGreater,
     Shift,
     Sum,
     Product,
@@ -241,19 +271,20 @@ impl Precedence {
         let precedence = match tok {
             Token::Equal => Precedence::Lowest,
             Token::NotEqual => Precedence::Lowest,
+            Token::Pipe => Precedence::Or,
+            Token::Ampersand => Precedence::And,
+            Token::Caret => Precedence::Xor,
             Token::Less => Precedence::LessGreater,
             Token::LessEqual => Precedence::LessGreater,
             Token::Greater => Precedence::LessGreater,
             Token::GreaterEqual => Precedence::LessGreater,
-            Token::Ampersand => Precedence::And,
-            Token::Caret => Precedence::Xor,
-            Token::Pipe => Precedence::Or,
-            Token::Plus => Precedence::Sum,
-            Token::Minus => Precedence::Sum,
             Token::ShiftLeft => Precedence::Shift,
             Token::ShiftRight => Precedence::Shift,
+            Token::Plus => Precedence::Sum,
+            Token::Minus => Precedence::Sum,
             Token::Slash => Precedence::Product,
             Token::Star => Precedence::Product,
+            Token::Percent => Precedence::Product,
             _ => return None,
         };
 
@@ -264,15 +295,105 @@ impl Precedence {
     fn higher(self) -> Self {
         use Precedence::*;
         match self {
-            Lowest => LessGreater,
-            LessGreater => Or,
+            Lowest => Or,
             Or => Xor,
             Xor => And,
-            And => Shift,
+            And => LessGreater,
+            LessGreater => Shift,
             Shift => Sum,
             Sum => Product,
             Product => Highest,
             Highest => Highest,
+        }
+    }
+}
+
+enum ForRange {
+    Range(/*start:*/ Expression, /*end:*/ Expression),
+    Array(Expression),
+}
+
+impl ForRange {
+    /// Create a 'for' expression taking care of desugaring a 'for e in array' loop
+    /// into the following if needed:
+    ///
+    /// {
+    ///     let fresh1 = array;
+    ///     for fresh2 in 0 .. std::array::len(fresh1) {
+    ///         let elem = fresh1[fresh2];
+    ///         ...
+    ///     }
+    /// }
+    fn into_for(self, identifier: Ident, block: Expression, for_loop_span: Span) -> ExpressionKind {
+        match self {
+            ForRange::Range(start_range, end_range) => {
+                ExpressionKind::For(Box::new(ForExpression {
+                    identifier,
+                    start_range,
+                    end_range,
+                    block,
+                }))
+            }
+            ForRange::Array(array) => {
+                let array_span = array.span;
+                let start_range = ExpressionKind::integer(FieldElement::zero());
+                let start_range = Expression::new(start_range, array_span);
+
+                let next_unique_id = UNIQUE_NAME_COUNTER.fetch_add(1, Ordering::Relaxed);
+                let fresh_name1 = format!("$i{}", next_unique_id);
+                let array_span = array.span;
+                let fresh_ident1 = Ident::new(fresh_name1.clone(), array_span);
+
+                // let fresh1 = array;
+                let let_array = Statement::Let(LetStatement {
+                    pattern: Pattern::Identifier(fresh_ident1),
+                    r#type: UnresolvedType::Unspecified,
+                    expression: array,
+                });
+
+                let ident = |name: &str| Ident::new(name.to_string(), array_span);
+                let segments = vec![ident("std"), ident("array"), ident("len")];
+
+                // std::array::len(array)
+                let array_ident = ExpressionKind::Ident(fresh_name1.clone());
+                let end_range = ExpressionKind::Call(Box::new(CallExpression {
+                    func_name: Path { segments, kind: PathKind::Dep },
+                    arguments: vec![Expression::new(array_ident, array_span)],
+                }));
+                let end_range = Expression::new(end_range, array_span);
+
+                let next_unique_id = UNIQUE_NAME_COUNTER.fetch_add(1, Ordering::Relaxed);
+                let fresh_name = format!("$i{}", next_unique_id);
+                let fresh_identifier = Ident::new(fresh_name.clone(), array_span);
+
+                // array[i]
+                let loop_element = ExpressionKind::Index(Box::new(IndexExpression {
+                    collection: Expression::new(ExpressionKind::Ident(fresh_name1), array_span),
+                    index: Expression::new(ExpressionKind::Ident(fresh_name), array_span),
+                }));
+
+                // let elem = array[i];
+                let let_elem = Statement::Let(LetStatement {
+                    pattern: Pattern::Identifier(identifier),
+                    r#type: UnresolvedType::Unspecified,
+                    expression: Expression::new(loop_element, array_span),
+                });
+
+                let block_span = block.span;
+                let new_block = BlockExpression(vec![let_elem, Statement::Expression(block)]);
+                let new_block = Expression::new(ExpressionKind::Block(new_block), block_span);
+                let for_loop = ExpressionKind::For(Box::new(ForExpression {
+                    identifier: fresh_identifier,
+                    start_range,
+                    end_range,
+                    block: new_block,
+                }));
+
+                ExpressionKind::Block(BlockExpression(vec![
+                    let_array,
+                    Statement::Expression(Expression::new(for_loop, for_loop_span)),
+                ]))
+            }
         }
     }
 }
@@ -285,7 +406,55 @@ impl std::fmt::Display for TopLevelStatement {
             TopLevelStatement::Import(i) => i.fmt(f),
             TopLevelStatement::Struct(s) => s.fmt(f),
             TopLevelStatement::Impl(i) => i.fmt(f),
+            TopLevelStatement::SubModule(s) => s.fmt(f),
+            TopLevelStatement::Global(c) => c.fmt(f),
             TopLevelStatement::Error => write!(f, "error"),
         }
+    }
+}
+
+impl std::fmt::Display for ParsedModule {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for decl in &self.module_decls {
+            writeln!(f, "mod {};", decl)?;
+        }
+
+        for import in &self.imports {
+            write!(f, "{}", import)?;
+        }
+
+        for global_const in &self.globals {
+            write!(f, "{}", global_const)?;
+        }
+
+        for type_ in &self.types {
+            write!(f, "{}", type_)?;
+        }
+
+        for function in &self.functions {
+            write!(f, "{}", function)?;
+        }
+
+        for impl_ in &self.impls {
+            write!(f, "{}", impl_)?;
+        }
+
+        for submodule in &self.submodules {
+            write!(f, "{}", submodule)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl std::fmt::Display for SubModule {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "mod {} {{", self.name)?;
+
+        for line in self.contents.to_string().lines() {
+            write!(f, "\n    {}", line)?;
+        }
+
+        write!(f, "\n}}")
     }
 }

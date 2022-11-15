@@ -4,7 +4,8 @@ use crate::hir_def::stmt::{
     HirAssignStatement, HirConstrainStatement, HirLValue, HirLetStatement, HirPattern, HirStatement,
 };
 use crate::hir_def::types::Type;
-use crate::node_interner::{ExprId, NodeInterner, StmtId};
+use crate::node_interner::{DefinitionId, ExprId, NodeInterner, StmtId};
+use crate::Comptime;
 
 use super::{errors::TypeCheckError, expr::type_check_expression};
 
@@ -45,7 +46,9 @@ pub(crate) fn type_check(
         HirStatement::Constrain(constrain_stmt) => {
             type_check_constrain_stmt(interner, constrain_stmt, errors)
         }
-        HirStatement::Assign(assign_stmt) => type_check_assign_stmt(interner, assign_stmt, errors),
+        HirStatement::Assign(assign_stmt) => {
+            type_check_assign_stmt(interner, assign_stmt, stmt_id, errors)
+        }
         HirStatement::Error => (),
     }
     Type::Unit
@@ -60,20 +63,31 @@ pub fn bind_pattern(
     match pattern {
         HirPattern::Identifier(ident) => interner.push_definition_type(ident.id, typ),
         HirPattern::Mutable(pattern, _) => bind_pattern(interner, pattern, typ, errors),
-        HirPattern::Tuple(_fields, _span) => {
-            todo!("Implement tuple types")
-        }
+        HirPattern::Tuple(fields, span) => match typ {
+            Type::Tuple(field_types) if field_types.len() == fields.len() => {
+                for (field, field_type) in fields.iter().zip(field_types) {
+                    bind_pattern(interner, field, field_type, errors);
+                }
+            }
+            Type::Error => (),
+            other => {
+                errors.push(TypeCheckError::TypeMismatch {
+                    expected_typ: other.to_string(),
+                    expr_typ: other.to_string(),
+                    expr_span: *span,
+                });
+            }
+        },
         HirPattern::Struct(struct_type, fields, span) => match typ {
-            Type::Struct(_, inner) if &inner == struct_type => {
+            Type::Struct(inner, args) if &inner == struct_type => {
                 let mut pattern_fields = fields.clone();
-                let mut type_fields = inner.borrow().fields.clone();
 
                 pattern_fields.sort_by_key(|(ident, _)| ident.clone());
-                type_fields.sort_by_key(|(ident, _)| ident.clone());
 
-                for (pattern_field, type_field) in pattern_fields.into_iter().zip(type_fields) {
-                    assert_eq!(&pattern_field.0, &type_field.0);
-                    bind_pattern(interner, &pattern_field.1, type_field.1, errors);
+                for pattern_field in pattern_fields {
+                    let type_field =
+                        inner.borrow().get_field(&pattern_field.0 .0.contents, &args).unwrap().0;
+                    bind_pattern(interner, &pattern_field.1, type_field, errors);
                 }
             }
             Type::Error => (),
@@ -91,21 +105,28 @@ pub fn bind_pattern(
 fn type_check_assign_stmt(
     interner: &mut NodeInterner,
     assign_stmt: HirAssignStatement,
+    stmt_id: &StmtId,
     errors: &mut Vec<TypeCheckError>,
 ) {
     let expr_type = type_check_expression(interner, &assign_stmt.expression, errors);
     let span = interner.expr_span(&assign_stmt.expression);
-    let lvalue_type = type_check_lvalue(interner, assign_stmt.lvalue, span, errors);
+    let (lvalue_type, new_lvalue) = type_check_lvalue(interner, assign_stmt.lvalue, span, errors);
 
-    if !expr_type.make_subtype_of(&lvalue_type) {
-        errors.push(TypeCheckError::Unstructured {
-            msg: format!(
-                "Cannot assign an expression of type {} to a value of type {}",
-                expr_type, lvalue_type
-            ),
-            span: interner.expr_span(&assign_stmt.expression),
-        });
-    }
+    // Must push new lvalue to the interner, we've resolved any field indices
+    interner.update_statement(stmt_id, |stmt| match stmt {
+        HirStatement::Assign(assign) => assign.lvalue = new_lvalue,
+        _ => unreachable!(),
+    });
+
+    let span = interner.expr_span(&assign_stmt.expression);
+    expr_type.make_subtype_of(&lvalue_type, span, errors, || {
+        let msg = format!(
+            "Cannot assign an expression of type {} to a value of type {}",
+            expr_type, lvalue_type
+        );
+
+        TypeCheckError::Unstructured { msg, span }
+    });
 }
 
 fn type_check_lvalue(
@@ -113,55 +134,69 @@ fn type_check_lvalue(
     lvalue: HirLValue,
     assign_span: Span,
     errors: &mut Vec<TypeCheckError>,
-) -> Type {
+) -> (Type, HirLValue) {
     match lvalue {
         HirLValue::Ident(ident) => {
-            let definition = interner.definition(ident.id);
-            if !definition.mutable {
-                errors.push(TypeCheckError::Unstructured {
-                    msg: format!("Variable {} must be mutable to be assigned to", definition.name),
-                    span: ident.span,
-                });
-            }
+            let typ = if ident.id == DefinitionId::dummy_id() {
+                Type::Error
+            } else {
+                let definition = interner.definition(ident.id);
+                if !definition.mutable {
+                    errors.push(TypeCheckError::Unstructured {
+                        msg: format!(
+                            "Variable {} must be mutable to be assigned to",
+                            definition.name
+                        ),
+                        span: ident.location.span,
+                    });
+                }
+                interner.id_type(ident.id)
+            };
 
-            interner.id_type(ident.id)
+            (typ, HirLValue::Ident(ident))
         }
-        HirLValue::MemberAccess { object, field_name } => {
-            let result = type_check_lvalue(interner, *object, assign_span, errors);
+        HirLValue::MemberAccess { object, field_name, .. } => {
+            let (result, object) = type_check_lvalue(interner, *object, assign_span, errors);
+            let object = Box::new(object);
 
             let mut error = |typ| {
                 errors.push(TypeCheckError::Unstructured {
                     msg: format!("Type {} has no member named {}", typ, field_name),
                     span: field_name.span(),
                 });
-                Type::Error
+                (Type::Error, None)
             };
 
-            match result {
-                Type::Struct(vis, def) => {
-                    if let Some(field) = def.borrow().get_field(&field_name.0.contents) {
-                        field.clone()
-                    } else {
-                        error(Type::Struct(vis, def.clone()))
+            let (typ, field_index) = match result {
+                Type::Struct(def, args) => {
+                    match def.borrow().get_field(&field_name.0.contents, &args) {
+                        Some((field, index)) => (field, Some(index)),
+                        None => error(Type::Struct(def.clone(), args)),
                     }
                 }
-                Type::Error => Type::Error,
+                Type::Error => (Type::Error, None),
                 other => error(other),
-            }
+            };
+
+            (typ, HirLValue::MemberAccess { object, field_name, field_index })
         }
         HirLValue::Index { array, index } => {
             let index_type = type_check_expression(interner, &index, errors);
-            index_type.unify(&Type::CONSTANT, &mut || {
-                let span = interner.id_span(&index);
-                errors.push(TypeCheckError::TypeMismatch {
-                    expected_typ: "const Field".to_owned(),
+            let expr_span = interner.expr_span(&index);
+
+            index_type.unify(&Type::comptime(Some(expr_span)), expr_span, errors, || {
+                TypeCheckError::TypeMismatch {
+                    expected_typ: "comptime Field".to_owned(),
                     expr_typ: index_type.to_string(),
-                    expr_span: span,
-                });
+                    expr_span,
+                }
             });
 
-            match type_check_lvalue(interner, *array, assign_span, errors) {
-                Type::Array(_, _, elem_type) => *elem_type,
+            let (result, array) = type_check_lvalue(interner, *array, assign_span, errors);
+            let array = Box::new(array);
+
+            let typ = match result {
+                Type::Array(_, elem_type) => *elem_type,
                 Type::Error => Type::Error,
                 other => {
                     // TODO: Need a better span here
@@ -172,7 +207,9 @@ fn type_check_lvalue(
                     });
                     Type::Error
                 }
-            }
+            };
+
+            (typ, HirLValue::Index { array, index })
         }
     }
 }
@@ -182,8 +219,10 @@ fn type_check_let_stmt(
     let_stmt: HirLetStatement,
     errors: &mut Vec<TypeCheckError>,
 ) {
-    let resolved_type =
+    let mut resolved_type =
         type_check_declaration(interner, let_stmt.expression, let_stmt.r#type, errors);
+
+    resolved_type.set_comptime_span(interner.expr_span(&let_stmt.expression));
 
     // Set the type of the pattern to be equal to the annotated type
     bind_pattern(interner, &let_stmt.pattern, resolved_type, errors);
@@ -194,36 +233,16 @@ fn type_check_constrain_stmt(
     stmt: HirConstrainStatement,
     errors: &mut Vec<TypeCheckError>,
 ) {
-    let lhs_type = type_check_expression(interner, &stmt.0.lhs, errors);
-    let rhs_type = type_check_expression(interner, &stmt.0.rhs, errors);
+    let expr_type = type_check_expression(interner, &stmt.0, errors);
+    let expr_span = interner.expr_span(&stmt.0);
 
-    // Since constrain statements are not expressions, we disallow non-comparison binary operators
-    if !stmt.0.operator.kind.is_comparator() {
-        errors.push(
-            TypeCheckError::OpCannotBeUsed {
-                op: stmt.0.operator,
-                place: "constrain statement",
-                span: stmt.0.operator.span,
-            }
-            .add_context("only comparison operators can be used in a constrain statement"),
-        );
-    };
-
-    if !lhs_type.can_be_used_in_constrain() {
-        errors.push(TypeCheckError::TypeCannotBeUsed {
-            typ: lhs_type,
-            place: "constrain statement",
-            span: interner.expr_span(&stmt.0.lhs),
-        });
-    }
-
-    if !rhs_type.can_be_used_in_constrain() {
-        errors.push(TypeCheckError::TypeCannotBeUsed {
-            typ: rhs_type,
-            place: "constrain statement",
-            span: interner.expr_span(&stmt.0.rhs),
-        });
-    }
+    expr_type.unify(&Type::Bool(Comptime::new(interner)), expr_span, errors, || {
+        TypeCheckError::TypeMismatch {
+            expr_typ: expr_type.to_string(),
+            expected_typ: Type::Bool(Comptime::No(None)).to_string(),
+            expr_span,
+        }
+    });
 }
 
 /// All declaration statements check that the user specified type(UST) is equal to the
@@ -240,17 +259,17 @@ fn type_check_declaration(
 
     // First check if the LHS is unspecified
     // If so, then we give it the same type as the expression
-    if annotated_type != Type::Unspecified {
+    if annotated_type != Type::Error {
         // Now check if LHS is the same type as the RHS
         // Importantly, we do not co-erce any types implicitly
-        if !expr_type.make_subtype_of(&annotated_type) {
-            let expr_span = interner.expr_span(&rhs_expr);
-            errors.push(TypeCheckError::TypeMismatch {
+        let expr_span = interner.expr_span(&rhs_expr);
+        expr_type.make_subtype_of(&annotated_type, expr_span, errors, || {
+            TypeCheckError::TypeMismatch {
                 expected_typ: annotated_type.to_string(),
                 expr_typ: expr_type.to_string(),
                 expr_span,
-            });
-        }
+            }
+        });
         annotated_type
     } else {
         expr_type

@@ -8,6 +8,15 @@ edition = "2018"
 
 [dependencies]
 codespan-reporting = "0.9.5"
-
+wasm-bindgen = { version = "*", features = [
+    "serde-serialize",
+], optional = true }
+cfg-if = "*"
 [dev-dependencies]
 tempfile = "3.1.0"
+
+
+[features]
+default = []
+std = []
+wasm = ["wasm-bindgen"]

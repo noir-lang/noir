@@ -125,6 +125,7 @@ fn resolve_name_in_module(
             ModuleDefId::FunctionId(_) => panic!("functions cannot be in the type namespace"),
             // TODO: If impls are ever implemented, types can be used in a path
             ModuleDefId::TypeId(id) => id.0,
+            ModuleDefId::GlobalId(_) => panic!("globals cannot be in the type namespace"),
         };
         current_mod = &def_maps[&new_module_id.krate].modules[new_module_id.local_id.0];
         // Check if namespace
@@ -159,7 +160,7 @@ fn resolve_external_dep(
     let dep_module = current_def_map
         .extern_prelude
         .get(&crate_name)
-        .expect("error reporter: could not find crate");
+        .unwrap_or_else(|| panic!("error reporter: could not find crate {}", crate_name));
 
     // Create an import directive for the dependency crate
     let path_without_crate_name = &path[1..]; // XXX: This will panic if the path is of the form `use dep::std` Ideal algorithm will not distinguish between crate and module

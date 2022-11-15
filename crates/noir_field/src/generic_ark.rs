@@ -148,6 +148,10 @@ impl<F: PrimeField> FieldElement<F> {
     pub fn max_num_bits() -> u32 {
         F::Params::MODULUS_BITS
     }
+
+    pub fn modulus() -> BigUint {
+        F::Params::MODULUS.into()
+    }
     /// Returns None, if the string is not a canonical
     /// representation of a field element; less than the order
     /// or if the hex string is invalid.
@@ -184,6 +188,10 @@ impl<F: PrimeField> FieldElement<F> {
 
     pub fn try_into_u128(self) -> Option<u128> {
         self.fits_in_u128().then(|| self.to_u128())
+    }
+
+    pub fn try_to_u64(&self) -> Option<u64> {
+        (self.num_bits() <= 64).then(|| self.to_u128() as u64)
     }
 
     /// Computes the inverse or returns zero if the inverse does not exist

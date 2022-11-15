@@ -4,6 +4,7 @@ use codespan_reporting::term;
 use codespan_reporting::term::termcolor::{
     Color, ColorChoice, ColorSpec, StandardStream, WriteColor,
 };
+use fm::FileId;
 use std::io::Write;
 
 #[derive(Debug, PartialEq, Eq)]

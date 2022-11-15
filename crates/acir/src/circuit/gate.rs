@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::native_types::{Arithmetic, Witness};
+use crate::native_types::{Expression, Witness};
 use crate::OPCODE;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -22,7 +22,7 @@ pub struct XorGate {
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 // XXX: Gate does not capture what this is anymore. I think IR/OPCODE would be a better name
 pub enum Gate {
-    Arithmetic(Arithmetic),
+    Arithmetic(Expression),
     Range(Witness, u32),
     And(AndGate),
     Xor(XorGate),
@@ -31,13 +31,27 @@ pub enum Gate {
 }
 
 impl Gate {
+    pub fn name(&self) -> &str {
+        match self {
+            Gate::Arithmetic(_) => "arithmetic",
+            Gate::Range(_, _) => "range",
+            Gate::And(_) => "and",
+            Gate::Xor(_) => "xor",
+            Gate::Directive(Directive::Invert { .. }) => "invert",
+            Gate::Directive(Directive::Truncate { .. }) => "truncate",
+            Gate::Directive(Directive::Quotient { .. }) => "quotient",
+            Gate::Directive(Directive::Oddrange { .. }) => "odd_range",
+            Gate::Directive(Directive::Split { .. }) => "split",
+            Gate::GadgetCall(g) => g.name.name(),
+        }
+    }
     pub fn is_arithmetic(&self) -> bool {
         matches!(self, Gate::Arithmetic(_))
     }
-    pub fn arithmetic(self) -> Arithmetic {
+    pub fn arithmetic(self) -> Expression {
         match self {
             Gate::Arithmetic(gate) => gate,
-            _ => panic!("tried to convert a non arithmetic gate to an Arithmetic struct"),
+            _ => panic!("tried to convert a non arithmetic gate to an Expression struct"),
         }
     }
 }
@@ -69,15 +83,28 @@ impl std::fmt::Debug for Gate {
                     bit_size
                 )
             }
-            Gate::Directive(Directive::Quotient { a, b, q, r }) => {
-                write!(
-                    f,
-                    "Euclidian division: {} = x{}*{} + x{}",
-                    a,
-                    q.witness_index(),
-                    b,
-                    r.witness_index()
-                )
+            Gate::Directive(Directive::Quotient { a, b, q, r, predicate }) => {
+                if let Some(pred) = predicate {
+                    write!(
+                        f,
+                        "Predicate euclidian division: {}*{} = {}*(x{}*{} + x{})",
+                        pred,
+                        a,
+                        pred,
+                        q.witness_index(),
+                        b,
+                        r.witness_index()
+                    )
+                } else {
+                    write!(
+                        f,
+                        "Euclidian division: {} = x{}*{} + x{}",
+                        a,
+                        q.witness_index(),
+                        b,
+                        r.witness_index()
+                    )
+                }
             }
             Gate::Directive(Directive::Oddrange { a, b, r, bit_size }) => {
                 write!(
@@ -95,8 +122,8 @@ impl std::fmt::Debug for Gate {
             Gate::Directive(Directive::Split { a, b, bit_size: _ }) => {
                 write!(
                     f,
-                    "Split: x{} into x{}...x{}",
-                    a.witness_index(),
+                    "Split: {} into x{}...x{}",
+                    a,
                     b.first().unwrap().witness_index(),
                     b.last().unwrap().witness_index(),
                 )
@@ -109,19 +136,42 @@ impl std::fmt::Debug for Gate {
 /// Directives do not apply any constraints.
 pub enum Directive {
     //Inverts the value of x and stores it in the result variable
-    Invert { x: Witness, result: Witness },
+    Invert {
+        x: Witness,
+        result: Witness,
+    },
 
     //Performs euclidian division of a / b (as integers) and stores the quotient in q and the rest in r
-    Quotient { a: Arithmetic, b: Arithmetic, q: Witness, r: Witness },
+    Quotient {
+        a: Expression,
+        b: Expression,
+        q: Witness,
+        r: Witness,
+        predicate: Option<Box<Expression>>,
+    },
 
     //Reduces the value of a modulo 2^bit_size and stores the result in b: a= c*2^bit_size + b
-    Truncate { a: Witness, b: Witness, c: Witness, bit_size: u32 },
+    Truncate {
+        a: Witness,
+        b: Witness,
+        c: Witness,
+        bit_size: u32,
+    },
 
     //Computes the highest bit b of a: a = b*2^(bit_size-1) + r, where a<2^bit_size, b is 0 or 1 and r<2^(bit_size-1)
-    Oddrange { a: Witness, b: Witness, r: Witness, bit_size: u32 },
+    Oddrange {
+        a: Witness,
+        b: Witness,
+        r: Witness,
+        bit_size: u32,
+    },
 
     //bit decomposition of a: a=\sum b[i]*2^i
-    Split { a: Witness, b: Vec<Witness>, bit_size: u32 },
+    Split {
+        a: Expression,
+        b: Vec<Witness>,
+        bit_size: u32,
+    },
 }
 
 // Note: Some gadgets will not use all of the witness

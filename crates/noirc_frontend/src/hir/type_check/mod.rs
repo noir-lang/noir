@@ -6,12 +6,12 @@ mod stmt;
 // If polymorphism is never need, then Wands algorithm should be powerful enough to accommodate
 // all foreseeable types, if it is needed then we would need to switch to Hindley-Milner type or maybe bidirectional
 
-use errors::TypeCheckError;
+pub use errors::TypeCheckError;
 use expr::type_check_expression;
 
 use crate::node_interner::{FuncId, NodeInterner};
 
-use self::stmt::bind_pattern;
+pub(crate) use self::stmt::{bind_pattern, type_check};
 
 /// Type checks a function and assigns the
 /// appropriate types to expressions in a side table
@@ -20,7 +20,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     // Note that we do not look for the defining Identifier for a parameter,
     // since we know that it is the parameter itself
     let meta = interner.function_meta(&func_id);
-    let declared_return_type = &meta.return_type;
+    let declared_return_type = meta.return_type().clone();
     let can_ignore_ret = meta.can_ignore_return_type();
 
     let mut errors = vec![];
@@ -36,21 +36,13 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
 
     // Check declared return type and actual return type
     if !can_ignore_ret {
-        function_last_type.unify(declared_return_type, &mut || {
-            let func_span = interner.id_span(func_as_expr); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
-            errors.push(TypeCheckError::TypeMismatch {
+        let func_span = interner.expr_span(func_as_expr); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
+        function_last_type.make_subtype_of(&declared_return_type, func_span, &mut errors, || {
+            TypeCheckError::TypeMismatch {
                 expected_typ: declared_return_type.to_string(),
                 expr_typ: function_last_type.to_string(),
                 expr_span: func_span,
-            });
-        });
-    }
-
-    // Return type cannot be public
-    if declared_return_type.is_public() {
-        errors.push(TypeCheckError::PublicReturnType {
-            typ: declared_return_type.clone(),
-            span: interner.id_span(func_as_expr),
+            }
         });
     }
 
@@ -63,26 +55,26 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
 mod test {
     use std::collections::HashMap;
 
-    use noirc_errors::Span;
+    use fm::FileId;
+    use noirc_errors::{Location, Span};
 
     use crate::hir_def::expr::HirIdent;
     use crate::hir_def::stmt::HirLetStatement;
     use crate::hir_def::stmt::HirPattern::Identifier;
     use crate::hir_def::types::Type;
     use crate::node_interner::{FuncId, NodeInterner};
+    use crate::BinaryOpKind;
     use crate::{graph::CrateId, Ident};
     use crate::{
         hir::{
-            def_map::{CrateDefMap, ModuleDefId},
+            def_map::{CrateDefMap, LocalModuleId, ModuleDefId},
             resolution::{path_resolver::PathResolver, resolver::Resolver},
         },
         parse_program, FunctionKind, Path,
     };
     use crate::{
         hir_def::{
-            expr::{
-                HirBinaryOp, HirBinaryOpKind, HirBlockExpression, HirExpression, HirInfixExpression,
-            },
+            expr::{HirBinaryOp, HirBlockExpression, HirExpression, HirInfixExpression},
             function::{FuncMeta, HirFunction, Param},
             stmt::HirStatement,
         },
@@ -97,42 +89,49 @@ mod test {
         // let z = x + y;
         //
         // Push x variable
-        let x_id = interner.push_definition("x".into(), false);
-        let x = HirIdent { id: x_id, span: Span::default() };
+        let x_id = interner.push_definition("x".into(), false, false, None);
+
+        // Safety: The FileId in a location isn't used for tests
+        let file = FileId::default();
+        let location = Location::new(Span::default(), file);
+
+        let x = HirIdent { id: x_id, location };
 
         // Push y variable
-        let y_id = interner.push_definition("y".into(), false);
-        let y = HirIdent { id: y_id, span: Span::default() };
+        let y_id = interner.push_definition("y".into(), false, false, None);
+        let y = HirIdent { id: y_id, location };
 
         // Push z variable
-        let z_id = interner.push_definition("z".into(), false);
-        let z = HirIdent { id: z_id, span: Span::default() };
+        let z_id = interner.push_definition("z".into(), false, false, None);
+        let z = HirIdent { id: z_id, location };
 
         // Push x and y as expressions
         let x_expr_id = interner.push_expr(HirExpression::Ident(x));
         let y_expr_id = interner.push_expr(HirExpression::Ident(y));
 
         // Create Infix
-        let operator = HirBinaryOp { span: Span::default(), kind: HirBinaryOpKind::Add };
+        let operator = HirBinaryOp { location, kind: BinaryOpKind::Add };
         let expr = HirInfixExpression { lhs: x_expr_id, operator, rhs: y_expr_id };
         let expr_id = interner.push_expr(HirExpression::Infix(expr));
+        interner.push_expr_location(expr_id, Span::single_char(0), file);
 
         // Create let statement
         let let_stmt = HirLetStatement {
             pattern: Identifier(z),
-            r#type: Type::Unspecified,
+            r#type: Type::FieldElement(crate::Comptime::No(None)),
             expression: expr_id,
         };
         let stmt_id = interner.push_stmt(HirStatement::Let(let_stmt));
         let expr_id = interner.push_expr(HirExpression::Block(HirBlockExpression(vec![stmt_id])));
+        interner.push_expr_location(expr_id, Span::single_char(0), file);
 
         // Create function to enclose the let statement
         let func = HirFunction::unsafe_from_expr(expr_id);
         let func_id = interner.push_fn(func);
 
         let name = HirIdent {
-            span: Span::default(),
-            id: interner.push_definition("test_func".into(), false),
+            location,
+            id: interner.push_definition("test_func".into(), false, false, None),
         };
 
         // Add function meta
@@ -140,12 +139,14 @@ mod test {
             name,
             kind: FunctionKind::Normal,
             attributes: None,
+            location,
+            typ: Type::Function(vec![Type::field(None), Type::field(None)], Box::new(Type::Unit)),
             parameters: vec![
-                Param(Identifier(x), Type::WITNESS),
-                Param(Identifier(y), Type::WITNESS),
+                Param(Identifier(x), Type::field(None), noirc_abi::AbiFEType::Private),
+                Param(Identifier(y), Type::field(None), noirc_abi::AbiFEType::Private),
             ]
             .into(),
-            return_type: Type::Unit,
+            return_visibility: noirc_abi::AbiFEType::Private,
             has_body: true,
         };
         interner.push_fn_meta(func_meta, func_id);
@@ -225,6 +226,10 @@ mod test {
                 Some(_) => Ok(mod_def),
             }
         }
+
+        fn local_module_id(&self) -> LocalModuleId {
+            LocalModuleId::dummy_id()
+        }
     }
 
     impl TestPathResolver {
@@ -254,9 +259,10 @@ mod test {
         }
 
         let def_maps: HashMap<CrateId, CrateDefMap> = HashMap::new();
+        let file = FileId::default();
 
         let func_meta = vecmap(program.functions, |nf| {
-            let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps);
+            let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
             let (hir_func, func_meta, resolver_errors) = resolver.resolve_function(nf);
             assert_eq!(resolver_errors, vec![]);
             (hir_func, func_meta)

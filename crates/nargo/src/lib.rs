@@ -26,12 +26,10 @@ mod toml;
 fn find_package_config(current_path: &Path) -> Result<PathBuf, CliError> {
     match fm::find_file(current_path, "Nargo", "toml") {
         Some(p) => Ok(p),
-        None => {
-            return Err(CliError::Generic(format!(
-                "cannot find a Nargo.toml in {}",
-                current_path.display()
-            )))
-        }
+        None => Err(CliError::Generic(format!(
+            "cannot find a Nargo.toml in {}",
+            current_path.display()
+        ))),
     }
 }
 

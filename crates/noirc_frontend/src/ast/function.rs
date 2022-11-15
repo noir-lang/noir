@@ -8,7 +8,7 @@ use super::{FunctionDefinition, UnresolvedType};
 // A closure / function definition will be stored under a name, so we do not differentiate between their variants
 // The name for function literal will be the variable it is binded to, and the name for a function definition will
 // be the function name itself.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NoirFunction {
     pub kind: FunctionKind,
     pub def: FunctionDefinition,
@@ -18,7 +18,7 @@ pub struct NoirFunction {
 /// - Normal functions
 /// - LowLevel/Foreign which link to an OPCODE in ACIR
 /// - BuiltIn which are provided by the runtime
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum FunctionKind {
     LowLevel,
     Builtin,
@@ -45,7 +45,7 @@ impl NoirFunction {
     pub fn name_ident(&self) -> &Ident {
         &self.def.name
     }
-    pub fn parameters(&self) -> &Vec<(Pattern, UnresolvedType)> {
+    pub fn parameters(&self) -> &Vec<(Pattern, UnresolvedType, noirc_abi::AbiFEType)> {
         &self.def.parameters
     }
     pub fn attribute(&self) -> Option<&Attribute> {
@@ -76,6 +76,7 @@ impl From<FunctionDefinition> for NoirFunction {
         let kind = match fd.attribute {
             Some(Attribute::Builtin(_)) => FunctionKind::Builtin,
             Some(Attribute::Foreign(_)) => FunctionKind::LowLevel,
+            Some(Attribute::Alternative(_)) => FunctionKind::Normal,
             None => FunctionKind::Normal,
         };
 

@@ -270,9 +270,6 @@ impl IntType {
         if str_as_u32 > max_bits {
             return Err(LexerErrorKind::TooManyBits { span, max: max_bits, got: str_as_u32 });
         }
-        if (str_as_u32 % 2 == 1) && (str_as_u32 > 1) {
-            todo!("Barretenberg currently panics on odd integers bit widths such as u3, u5. u1 works as it is a type alias for bool, so we can use a bool gate for it");
-        }
 
         if is_signed {
             Ok(Some(Token::IntType(IntType::Signed(str_as_u32))))
@@ -289,6 +286,7 @@ impl IntType {
 pub enum Attribute {
     Foreign(String),
     Builtin(String),
+    Alternative(String),
 }
 
 impl fmt::Display for Attribute {
@@ -296,6 +294,7 @@ impl fmt::Display for Attribute {
         match *self {
             Attribute::Foreign(ref k) => write!(f, "#[foreign({})]", k),
             Attribute::Builtin(ref k) => write!(f, "#[builtin({})]", k),
+            Attribute::Alternative(ref k) => write!(f, "#[alternative({})]", k),
         }
     }
 }
@@ -319,6 +318,7 @@ impl Attribute {
         let tok = match attribute_type {
             "foreign" => Token::Attribute(Attribute::Foreign(attribute_name.to_string())),
             "builtin" => Token::Attribute(Attribute::Builtin(attribute_name.to_string())),
+            "alternative" => Token::Attribute(Attribute::Alternative(attribute_name.to_string())),
             _ => {
                 return Err(LexerErrorKind::MalformedFuncAttribute { span, found: word.to_owned() })
             }
@@ -326,16 +326,17 @@ impl Attribute {
         Ok(tok)
     }
 
-    pub fn builtin(&self) -> Option<&str> {
+    pub fn builtin(self) -> Option<String> {
         match self {
-            Attribute::Foreign(_) => None,
+            Attribute::Foreign(_) | Attribute::Alternative(_) => None,
             Attribute::Builtin(name) => Some(name),
         }
     }
-    pub fn foreign(&self) -> Option<&str> {
+
+    pub fn foreign(self) -> Option<String> {
         match self {
             Attribute::Foreign(name) => Some(name),
-            Attribute::Builtin(_) => None,
+            Attribute::Builtin(_) | Attribute::Alternative(_) => None,
         }
     }
 
@@ -352,6 +353,7 @@ impl AsRef<str> for Attribute {
         match self {
             Attribute::Foreign(string) => string,
             Attribute::Builtin(string) => string,
+            Attribute::Alternative(string) => string,
         }
     }
 }
@@ -359,56 +361,53 @@ impl AsRef<str> for Attribute {
 #[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, PartialOrd, Ord)]
 // Special Keywords allowed in the target language
 pub enum Keyword {
-    Dep,
+    As,
+    Bool,
+    Comptime,
+    Constrain,
     Crate,
+    Dep,
+    Else,
+    Field,
     Fn,
-    Struct,
+    For,
+    Global,
     Impl,
     If,
-    Mod,
-    Else,
-    While,
-    As,
-    For,
     In,
-    Use,
-    Constrain,
-    Mut,
-    // Field types
-    Pub,
-    Const,
-    //
-    SetPub,
-    //
-    // Let declarations will be for Structures and possibly closures, if they are added
     Let,
-    // Field type can only be used in Directive functions. They are explicitly for doing Field operations without applying constraints
-    Field,
+    Mod,
+    Mut,
+    Pub,
+    Struct,
+    Use,
+    While,
 }
 
 impl fmt::Display for Keyword {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Keyword::Dep => write!(f, "dep"),
+            Keyword::As => write!(f, "as"),
+            Keyword::Bool => write!(f, "bool"),
+            Keyword::Comptime => write!(f, "comptime"),
+            Keyword::Constrain => write!(f, "constrain"),
             Keyword::Crate => write!(f, "crate"),
+            Keyword::Dep => write!(f, "dep"),
+            Keyword::Else => write!(f, "else"),
+            Keyword::Field => write!(f, "Field"),
             Keyword::Fn => write!(f, "fn"),
-            Keyword::Struct => write!(f, "struct"),
+            Keyword::For => write!(f, "for"),
+            Keyword::Global => write!(f, "global"),
             Keyword::Impl => write!(f, "impl"),
             Keyword::If => write!(f, "if"),
-            Keyword::Mod => write!(f, "mod"),
-            Keyword::For => write!(f, "for"),
             Keyword::In => write!(f, "in"),
-            Keyword::Else => write!(f, "else"),
-            Keyword::While => write!(f, "while"),
-            Keyword::Constrain => write!(f, "constrain"),
-            Keyword::Mut => write!(f, "mut"),
             Keyword::Let => write!(f, "let"),
-            Keyword::As => write!(f, "as"),
-            Keyword::Use => write!(f, "use"),
-            Keyword::SetPub => write!(f, "setpub"),
+            Keyword::Mod => write!(f, "mod"),
+            Keyword::Mut => write!(f, "mut"),
             Keyword::Pub => write!(f, "pub"),
-            Keyword::Field => write!(f, "Field"),
-            Keyword::Const => write!(f, "const"),
+            Keyword::Struct => write!(f, "struct"),
+            Keyword::Use => write!(f, "use"),
+            Keyword::While => write!(f, "while"),
         }
     }
 }
@@ -419,29 +418,27 @@ impl Keyword {
     /// XXX: Notice that because of the underscore, new keywords will not produce an err for this function
     pub(crate) fn lookup_keyword(word: &str) -> Option<Token> {
         let keyword = match word {
-            "fn" => Keyword::Fn,
-            "struct" => Keyword::Struct,
-            "impl" => Keyword::Impl,
-            "dep" => Keyword::Dep,
-            "crate" => Keyword::Crate,
-            "if" => Keyword::If,
-            "mod" => Keyword::Mod,
-            "for" => Keyword::For,
-            "in" => Keyword::In,
-            "else" => Keyword::Else,
-            "while" => Keyword::While,
-            "constrain" => Keyword::Constrain,
-            "let" => Keyword::Let,
             "as" => Keyword::As,
-            "use" => Keyword::Use,
-            "mut" => Keyword::Mut,
-
-            "setpub" => Keyword::SetPub,
-            "pub" => Keyword::Pub,
-            "const" => Keyword::Const,
-
-            // Native Types
+            "bool" => Keyword::Bool,
+            "comptime" => Keyword::Comptime,
+            "constrain" => Keyword::Constrain,
+            "crate" => Keyword::Crate,
+            "dep" => Keyword::Dep,
+            "else" => Keyword::Else,
             "Field" => Keyword::Field,
+            "fn" => Keyword::Fn,
+            "for" => Keyword::For,
+            "global" => Keyword::Global,
+            "impl" => Keyword::Impl,
+            "if" => Keyword::If,
+            "in" => Keyword::In,
+            "let" => Keyword::Let,
+            "mod" => Keyword::Mod,
+            "mut" => Keyword::Mut,
+            "pub" => Keyword::Pub,
+            "struct" => Keyword::Struct,
+            "use" => Keyword::Use,
+            "while" => Keyword::While,
 
             "true" => return Some(Token::Bool(true)),
             "false" => return Some(Token::Bool(false)),

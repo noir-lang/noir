@@ -3,17 +3,20 @@
 members = [
     "crates/noir_field",
     "crates/noirc_evaluator",
-    "crates/aztec_backend",
     "crates/noirc_frontend",
     "crates/noirc_errors",
     "crates/noirc_driver",
     "crates/acir",
-    "crates/std_lib",
     "crates/nargo",
     "crates/fm",
     "crates/arena",
     "crates/acvm",
     "crates/noirc_abi",
+    "crates/wasm",
 ]
 exclude = ["examples/9/merkle_tree_processor"]
 default-members = ["crates/nargo"]
+
+# Patch github versions of acvm with local copy
+[patch.'https://github.com/noir-lang/noir']
+acvm = { path = "crates/acvm" }

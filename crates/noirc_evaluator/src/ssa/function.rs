@@ -1,13 +1,12 @@
 use std::collections::HashMap;
 
 use crate::environment::Environment;
+use crate::errors::RuntimeError;
 use acvm::acir::OPCODE;
 use acvm::FieldElement;
-use noirc_frontend::hir_def::expr::{HirCallExpression, HirIdent};
-use noirc_frontend::hir_def::function::Parameters;
-use noirc_frontend::hir_def::stmt::HirPattern;
-use noirc_frontend::node_interner::FuncId;
+use noirc_frontend::monomorphisation::ast::{self, Call, DefinitionId, FuncId, Type};
 
+use super::conditional::{AssumptionId, DecisionTree};
 use super::node::Node;
 use super::{
     block::BlockId,
@@ -17,7 +16,7 @@ use super::{
     ssa_form,
 };
 
-#[derive(Clone, Debug, PartialEq, Copy)]
+#[derive(Clone, Debug, PartialEq, Eq, Copy)]
 pub struct FuncIndex(pub usize);
 
 impl FuncIndex {
@@ -33,54 +32,50 @@ pub struct SSAFunction {
     pub idx: FuncIndex,
     //signature:
     pub name: String,
-    pub arguments: Vec<NodeId>,
+    pub arguments: Vec<(NodeId, bool)>,
     pub result_types: Vec<ObjectType>,
+    pub decision: DecisionTree,
 }
 
 impl SSAFunction {
-    pub fn new(func: FuncId, name: &str, block_id: BlockId, idx: FuncIndex) -> SSAFunction {
+    pub fn new(
+        func: FuncId,
+        name: &str,
+        block_id: BlockId,
+        idx: FuncIndex,
+        ctx: &SsaContext,
+    ) -> SSAFunction {
         SSAFunction {
             entry_block: block_id,
             id: func,
             name: name.to_string(),
             arguments: Vec::new(),
             result_types: Vec::new(),
+            decision: DecisionTree::new(ctx),
             idx,
         }
     }
 
-    pub fn compile(&self, igen: &mut IRGenerator) -> Option<NodeId> {
+    pub fn compile(&self, igen: &mut IRGenerator) -> Result<DecisionTree, RuntimeError> {
         let function_cfg = super::block::bfs(self.entry_block, None, &igen.context);
         super::block::compute_sub_dom(&mut igen.context, &function_cfg);
         //Optimisation
-        super::optim::full_cse(&mut igen.context, self.entry_block);
+        super::optim::full_cse(&mut igen.context, self.entry_block)?;
         //Unrolling
-        super::flatten::unroll_tree(&mut igen.context, self.entry_block);
-        super::optim::full_cse(&mut igen.context, self.entry_block);
-        None
-    }
+        super::flatten::unroll_tree(&mut igen.context, self.entry_block)?;
 
-    //generates an instruction for calling the function
-    pub fn call(
-        func: FuncId,
-        arguments: &[noirc_frontend::node_interner::ExprId],
-        igen: &mut IRGenerator,
-        env: &mut Environment,
-    ) -> Vec<NodeId> {
-        let arguments = igen.expression_list_to_objects(env, arguments);
-        let call_instruction = igen.context.new_instruction(
-            node::Operation::Call(func, arguments, Vec::new()),
-            ObjectType::NotAnObject,
-        );
-        let rtt = igen.context.functions[&func].result_types.clone();
-        let mut result = Vec::new();
-        for i in rtt.iter().enumerate() {
-            result.push(igen.context.new_instruction(
-                node::Operation::Result { call_instruction, index: i.0 as u32 },
-                *i.1,
-            ));
+        //reduce conditionals
+        let mut decision = DecisionTree::new(&igen.context);
+        decision.make_decision_tree(&mut igen.context, self.entry_block);
+        decision.reduce(&mut igen.context, decision.root)?;
+        //merge blocks
+        let to_remove =
+            super::block::merge_path(&mut igen.context, self.entry_block, BlockId::dummy(), None);
+        igen.context[self.entry_block].dominated.retain(|b| !to_remove.contains(b));
+        for i in to_remove {
+            igen.context.remove_block(i);
         }
-        result
+        Ok(decision)
     }
 
     pub fn get_mapped_value(
@@ -123,100 +118,144 @@ pub fn get_result_type(op: OPCODE) -> (u32, ObjectType) {
         OPCODE::Pedersen => (2, ObjectType::NativeField),
         OPCODE::EcdsaSecp256k1 => (1, ObjectType::NativeField), //field?
         OPCODE::FixedBaseScalarMul => (2, ObjectType::NativeField),
-        OPCODE::InsertRegularMerkle => (1, ObjectType::NativeField), //field?
         OPCODE::ToBits => (FieldElement::max_num_bits(), ObjectType::Boolean),
     }
 }
 
-//Lowlevel functions with no more than 2 arguments
-pub fn call_low_level(
-    op: OPCODE,
-    call_expr: HirCallExpression,
-    igen: &mut IRGenerator,
-    env: &mut Environment,
-) -> NodeId {
-    //Inputs
-    let mut args: Vec<NodeId> = Vec::new();
+impl IRGenerator {
+    pub fn create_function(
+        &mut self,
+        func_id: FuncId,
+        env: &mut Environment,
+        index: FuncIndex,
+    ) -> Result<(), RuntimeError> {
+        let current_block = self.context.current_block;
+        let current_function = self.function_context;
+        let func_block = super::block::BasicBlock::create_cfg(&mut self.context);
 
-    for arg in &call_expr.arguments {
-        if let Ok(lhs) = igen.expression_to_object(env, arg) {
-            args.push(lhs.unwrap_id()); //TODO handle multiple values
-        } else {
-            panic!("error calling {}", op);
+        let function = &mut self.program[func_id];
+        let mut func = SSAFunction::new(func_id, &function.name, func_block, index, &self.context);
+
+        //arguments:
+        for (param_id, mutable, name, typ) in std::mem::take(&mut function.parameters) {
+            let node_ids = self.create_function_parameter(param_id, &typ, &name);
+            func.arguments.extend(node_ids.into_iter().map(|id| (id, mutable)));
         }
-    }
-    //REM: we do not check that the nb of inputs correspond to the function signature, it is done in the frontend
 
-    //Output:
-    let result_signature = get_result_type(op);
-    let result_type = if result_signature.0 > 1 {
-        //We create an array that will contain the result and set the res_type to point to that array
-        let result_index = igen.context.mem.create_new_array(
-            result_signature.0,
-            result_signature.1,
-            &format!("{}_result", op),
-        );
-        node::ObjectType::Pointer(result_index)
-    } else {
-        result_signature.1
-    };
-
-    //when the function returns an array, we use ins.res_type(array)
-    //else we map ins.id to the returned witness
-    //Call instruction
-    igen.context.new_instruction(node::Operation::Intrinsic(op, args), result_type)
-}
-
-pub fn param_to_ident(patern: &HirPattern) -> &HirIdent {
-    match &patern {
-        HirPattern::Identifier(id) => id,
-        HirPattern::Mutable(pattern, _) => param_to_ident(pattern.as_ref()),
-        HirPattern::Tuple(_, _) => todo!(),
-        HirPattern::Struct(_, _, _) => todo!(),
-    }
-}
-
-pub fn create_function(
-    igen: &mut IRGenerator,
-    func_id: FuncId,
-    name: &str,
-    context: &noirc_frontend::hir::Context,
-    env: &mut Environment,
-    parameters: &Parameters,
-    index: FuncIndex,
-) {
-    let current_block = igen.context.current_block;
-    let current_function = igen.function_context;
-    let func_block = super::block::BasicBlock::create_cfg(&mut igen.context);
-
-    let mut func = SSAFunction::new(func_id, name, func_block, index);
-
-    let function = context.def_interner.function(&func_id);
-    let block = function.block(&context.def_interner);
-    //argumemts:
-    for pat in parameters.iter() {
-        let ident_id = param_to_ident(&pat.0);
-        let node_id = ssa_form::create_function_parameter(igen, &ident_id.id);
-        func.arguments.push(node_id);
-    }
-    igen.function_context = Some(index);
-    igen.context.functions.insert(func_id, func.clone());
-    let last_value = igen.parse_block(block.statements(), env);
-    let returned_values = last_value.to_node_ids();
-    for i in &returned_values {
-        if let Some(node) = igen.context.try_get_node(*i) {
-            func.result_types.push(node.get_type());
-        } else {
-            func.result_types.push(ObjectType::NotAnObject);
+        // ensure return types are defined in case of recursion call cycle
+        let function = &mut self.program[func_id];
+        let return_types = function.return_type.flatten();
+        for typ in return_types {
+            func.result_types.push(match typ {
+                Type::Unit => ObjectType::NotAnObject,
+                Type::Array(_, _) => ObjectType::Pointer(crate::ssa::mem::ArrayId::dummy()),
+                _ => typ.into(),
+            });
         }
-    }
-    igen.context
-        .new_instruction(node::Operation::Return(returned_values), node::ObjectType::NotAnObject);
-    func.compile(igen); //unroll the function
 
-    igen.context.functions.insert(func_id, func);
-    igen.context.current_block = current_block;
-    igen.function_context = current_function;
+        self.function_context = Some(index);
+        self.context.functions.insert(func_id, func.clone());
+
+        let function_body = self.program.take_function_body(func_id);
+        let last_value = self.codegen_expression(env, &function_body)?;
+        let returned_values = last_value.to_node_ids();
+
+        func.result_types.clear();
+        for i in &returned_values {
+            if let Some(node) = self.context.try_get_node(*i) {
+                func.result_types.push(node.get_type());
+            } else {
+                func.result_types.push(ObjectType::NotAnObject);
+            }
+        }
+        self.context.new_instruction(
+            node::Operation::Return(returned_values),
+            node::ObjectType::NotAnObject,
+        )?;
+        let decision = func.compile(self)?; //unroll the function
+        func.decision = decision;
+        self.context.functions.insert(func_id, func);
+        self.context.current_block = current_block;
+        self.function_context = current_function;
+        Ok(())
+    }
+
+    fn create_function_parameter(
+        &mut self,
+        id: DefinitionId,
+        typ: &Type,
+        name: &str,
+    ) -> Vec<NodeId> {
+        //check if the variable is already created:
+        let val = match self.find_variable(id) {
+            Some(var) => self.get_current_value(&var.clone()),
+            None => self.create_new_value(typ, name, Some(id)),
+        };
+        val.to_node_ids()
+    }
+
+    //generates an instruction for calling the function
+    pub fn call(
+        &mut self,
+        call: &Call,
+        env: &mut Environment,
+    ) -> Result<Vec<NodeId>, RuntimeError> {
+        let arguments = self.codegen_expression_list(env, &call.arguments);
+        let call_instruction = self.context.new_instruction(
+            node::Operation::Call {
+                func_id: call.func_id,
+                arguments,
+                returned_arrays: Vec::new(),
+                predicate: AssumptionId::dummy(),
+            },
+            ObjectType::NotAnObject,
+        )?;
+
+        let rtt = self.context.functions[&call.func_id].result_types.clone();
+        let mut result = Vec::new();
+        for i in rtt.iter().enumerate() {
+            result.push(self.context.new_instruction(
+                node::Operation::Result { call_instruction, index: i.0 as u32 },
+                *i.1,
+            )?);
+        }
+        Ok(result)
+    }
+
+    //Lowlevel functions with no more than 2 arguments
+    pub fn call_low_level(
+        &mut self,
+        op: OPCODE,
+        call: &ast::CallLowLevel,
+        env: &mut Environment,
+    ) -> Result<NodeId, RuntimeError> {
+        //Inputs
+        let mut args: Vec<NodeId> = Vec::new();
+
+        for arg in &call.arguments {
+            if let Ok(lhs) = self.codegen_expression(env, arg) {
+                args.push(lhs.unwrap_id()); //TODO handle multiple values
+            } else {
+                panic!("error calling {}", op);
+            }
+        }
+        //REM: we do not check that the nb of inputs correspond to the function signature, it is done in the frontend
+
+        //Output:
+        let (len, elem_type) = get_result_type(op);
+        let result_type = if len > 1 {
+            //We create an array that will contain the result and set the res_type to point to that array
+            let result_index = self.new_array(&format!("{}_result", op), elem_type, len, None).1;
+            node::ObjectType::Pointer(result_index)
+        } else {
+            elem_type
+        };
+
+        //when the function returns an array, we use ins.res_type(array)
+        //else we map ins.id to the returned witness
+        //Call instruction
+        self.context.new_instruction(node::Operation::Intrinsic(op, args), result_type)
+    }
 }
 
 pub fn resize_graph(call_graph: &mut Vec<Vec<u8>>, size: usize) {
@@ -258,27 +297,28 @@ fn get_new_leaf(ctx: &SsaContext, processed: &[FuncIndex]) -> (FuncIndex, FuncId
     unimplemented!("Recursive function call is not supported");
 }
 
-//inline all functions of the call graph such that every inlining operates with a flatenned function
-pub fn inline_all(ctx: &mut SsaContext) {
+//inline all functions of the call graph such that every inlining operates with a fully flattened function
+pub fn inline_all(ctx: &mut SsaContext) -> Result<(), RuntimeError> {
     resize_graph(&mut ctx.call_graph, ctx.functions.len());
     let l = ctx.call_graph.len();
     let mut processed = Vec::new();
     while processed.len() < l {
         let i = get_new_leaf(ctx, &processed);
         if !processed.is_empty() {
-            super::optim::full_cse(ctx, ctx.functions[&i.1].entry_block);
+            super::optim::full_cse(ctx, ctx.functions[&i.1].entry_block)?;
         }
         let mut to_inline = Vec::new();
         for f in ctx.functions.values() {
             if ctx.call_graph[f.idx.0][i.0 .0] == 1 {
-                to_inline.push((f.entry_block, f.idx));
+                to_inline.push((f.id, f.idx));
             }
         }
-        for j in to_inline {
-            super::inline::inline_cfg(ctx, j.0, Some(i.1));
-            ctx.call_graph[j.1 .0][i.0 .0] = 0;
+        for (func_id, func_idx) in to_inline {
+            super::inline::inline_cfg(ctx, func_id, Some(i.1))?;
+            ctx.call_graph[func_idx.0][i.0 .0] = 0;
         }
         processed.push(i.0);
     }
     ctx.call_graph.clear();
+    Ok(())
 }

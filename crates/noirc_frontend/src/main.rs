@@ -20,7 +20,7 @@ fn main() {
     let crate_id = crate_graph.add_crate_root(CrateType::Library, root_file_id);
 
     // initiate context with file manager and crate graph
-    let mut context = Context::new(fm, crate_graph);
+    let mut context = Context::new(fm, crate_graph, acvm::Language::R1CS);
 
     // Now create the CrateDefMap
     // This is preamble for analysis

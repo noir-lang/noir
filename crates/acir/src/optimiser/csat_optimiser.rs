@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use crate::native_types::{Arithmetic, Witness};
+use crate::native_types::{Expression, Witness};
 use indexmap::IndexMap;
 use noir_field::FieldElement;
 
@@ -27,10 +27,10 @@ impl Optimiser {
     // I think it can also be done before the local optimisation seen here, as dead variables will come from the user
     pub fn optimise(
         &self,
-        gate: Arithmetic,
-        intermediate_variables: &mut IndexMap<Witness, Arithmetic>,
+        gate: Expression,
+        intermediate_variables: &mut IndexMap<Witness, Expression>,
         num_witness: u32,
-    ) -> Arithmetic {
+    ) -> Expression {
         let gate = GeneralOpt::optimise(gate);
 
         // Here we create intermediate variables and constrain them to be equal to any subset of the polynomial that can be represented as a full gate
@@ -39,17 +39,9 @@ impl Optimiser {
         // If a gate has more than one mul term. We may need an intermediate variable for each one. Since not every variable will need to link to
         // the mul term, we could possibly do it that way.
         // We wil call this a partial gate scan optimisation which will result in the gates being able to fit into the correct width
-        let gate = self.partial_gate_scan_optimisation(gate, intermediate_variables, num_witness);
-
-        self.sort(gate)
-    }
-
-    /// Sorts gate in a deterministic order
-    /// XXX: We can probably make this more efficient by sorting on each phase. We only care if it is deterministic
-    fn sort(&self, mut gate: Arithmetic) -> Arithmetic {
-        gate.mul_terms.sort();
-        gate.linear_combinations.sort();
-
+        let mut gate =
+            self.partial_gate_scan_optimisation(gate, intermediate_variables, num_witness);
+        gate.sort();
         gate
     }
 
@@ -78,10 +70,10 @@ impl Optimiser {
     // This stage of preprocessing does not guarantee that all polynomials can fit into a gate. It only guarantees that all full gates have been extracted from each polynomial
     fn full_gate_scan_optimisation(
         &self,
-        mut gate: Arithmetic,
-        intermediate_variables: &mut IndexMap<Witness, Arithmetic>,
+        mut gate: Expression,
+        intermediate_variables: &mut IndexMap<Witness, Expression>,
         num_witness: u32,
-    ) -> Arithmetic {
+    ) -> Expression {
         // We pass around this intermediate variable IndexMap, so that we do not create intermediate variables that we have created before
         // One instance where this might happen is t1 = wL * wR and t2 = wR * wL
 
@@ -102,7 +94,7 @@ impl Optimiser {
 
         // This will be our new gate which will be equal to `self` except we will have intermediate variables that will be constrained to any
         // subset of the terms that can be represented as full gates
-        let mut new_gate = Arithmetic::default();
+        let mut new_gate = Expression::default();
 
         while !gate.mul_terms.is_empty() {
             let pair = gate.mul_terms[0];
@@ -135,7 +127,7 @@ impl Optimiser {
 
                     // Lets create an intermediate gate to store this full gate
                     //
-                    let mut intermediate_gate = Arithmetic::default();
+                    let mut intermediate_gate = Expression::default();
                     intermediate_gate.mul_terms.push(pair);
 
                     // Add the left and right wires
@@ -194,7 +186,7 @@ impl Optimiser {
         new_gate.mul_terms.extend(gate.mul_terms.clone());
         new_gate.linear_combinations.extend(gate.linear_combinations.clone());
         new_gate.q_c = gate.q_c;
-
+        new_gate.sort();
         new_gate
     }
 
@@ -237,10 +229,10 @@ impl Optimiser {
     // Cases, a lot of mul terms, a lot of fan-in terms, 50/50
     fn partial_gate_scan_optimisation(
         &self,
-        mut gate: Arithmetic,
-        intermediate_variables: &mut IndexMap<Witness, Arithmetic>,
+        mut gate: Expression,
+        intermediate_variables: &mut IndexMap<Witness, Expression>,
         num_witness: u32,
-    ) -> Arithmetic {
+    ) -> Expression {
         // We will go for the easiest route, which is to convert all multiplications into additions using intermediate variables
         // Then use intermediate variables again to squash the fan-in, so that it can fit into the appropriate width
 
@@ -254,7 +246,7 @@ impl Optimiser {
         for mul_term in gate.mul_terms.clone().into_iter() {
             // Create intermediate variable to squash the multiplication term
             let inter_var = Witness((intermediate_variables.len() as u32) + num_witness);
-            let mut intermediate_gate = Arithmetic::default();
+            let mut intermediate_gate = Expression::default();
 
             // Push mul term into the gate
             intermediate_gate.mul_terms.push(mul_term);
@@ -285,7 +277,7 @@ impl Optimiser {
 
         while gate.linear_combinations.len() > self.width {
             // Collect as many terms up to the given width-1 and constrain them to an intermediate variable
-            let mut intermediate_gate = Arithmetic::default();
+            let mut intermediate_gate = Expression::default();
 
             for _ in 0..(self.width - 1) {
                 match gate.linear_combinations.pop() {
@@ -324,7 +316,7 @@ fn simple_reduction_smoke_test() {
     let d = Witness(3);
 
     // a = b + c + d;
-    let gate_a = Arithmetic {
+    let gate_a = Expression {
         mul_terms: vec![],
         linear_combinations: vec![
             (FieldElement::one(), a),
@@ -335,7 +327,7 @@ fn simple_reduction_smoke_test() {
         q_c: FieldElement::zero(),
     };
 
-    let mut intermediate_variables: IndexMap<Witness, Arithmetic> = IndexMap::new();
+    let mut intermediate_variables: IndexMap<Witness, Expression> = IndexMap::new();
 
     let num_witness = 4;
 
@@ -349,12 +341,12 @@ fn simple_reduction_smoke_test() {
     //
     // a - b + e = 0
     let e = Witness(4);
-    let expected_optimised_gate_a = Arithmetic {
+    let expected_optimised_gate_a = Expression {
         mul_terms: vec![],
         linear_combinations: vec![
             (FieldElement::one(), a),
-            (FieldElement::one(), e),
             (-FieldElement::one(), b),
+            (FieldElement::one(), e),
         ],
         q_c: FieldElement::zero(),
     };
@@ -365,7 +357,7 @@ fn simple_reduction_smoke_test() {
     let got_intermediate_gate = intermediate_variables.get(&e).unwrap();
 
     // - c - d  - e = 0
-    let expected_intermediate_gate = Arithmetic {
+    let expected_intermediate_gate = Expression {
         mul_terms: vec![],
         linear_combinations: vec![
             (-FieldElement::one(), d),

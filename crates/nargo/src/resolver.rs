@@ -3,6 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use acvm::Language;
 use noirc_driver::Driver;
 use noirc_frontend::graph::{CrateId, CrateType};
 
@@ -48,9 +49,11 @@ impl<'a> Resolver<'a> {
     /// Note that the backend is ignored in the dependencies.
     /// Since Noir is backend agnostic, this is okay to do.
     /// XXX: Need to handle when a local package changes!
-    pub fn resolve_root_config(dir_path: &std::path::Path) -> Result<Driver, CliError> {
-        let mut driver = Driver::new();
-
+    pub fn resolve_root_config(
+        dir_path: &std::path::Path,
+        np_language: Language,
+    ) -> Result<Driver, CliError> {
+        let mut driver = Driver::new(&np_language);
         let (entry_path, crate_type) = super::lib_or_bin(dir_path)?;
 
         let cfg_path = super::find_package_config(dir_path)?;
@@ -84,7 +87,7 @@ impl<'a> Resolver<'a> {
                 )));
             }
 
-            let crate_id = self.driver.create_non_local_crate(&entry_path, *crate_type);
+            let crate_id = self.driver.create_non_local_crate(entry_path, *crate_type);
             self.driver.add_dep(parent_crate, crate_id, dep_pkg_name);
 
             self.cached_packages.insert(dir_path, (crate_id, dep_meta));
@@ -124,7 +127,11 @@ impl<'a> Resolver<'a> {
                 let meta = retrieve_meta(&dir_path, true)?;
                 Ok((dir_path, meta))
             }
-            Dependency::Path { path: _ } => todo!(),
+            Dependency::Path { path } => {
+                let dir_path = std::path::PathBuf::from(path);
+                let meta = retrieve_meta(&dir_path, false)?;
+                Ok((dir_path, meta))
+            }
         }
     }
 

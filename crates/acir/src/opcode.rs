@@ -8,7 +8,6 @@ pub enum OPCODE {
     SHA256,
     Blake2s,
     MerkleMembership,
-    InsertRegularMerkle,
     SchnorrVerify,
     Pedersen,
     HashToField,
@@ -35,8 +34,7 @@ impl OPCODE {
             OPCODE::HashToField => 6,
             OPCODE::EcdsaSecp256k1 => 7,
             OPCODE::FixedBaseScalarMul => 8,
-            OPCODE::InsertRegularMerkle => 9,
-            OPCODE::ToBits => 10,
+            OPCODE::ToBits => 9,
         }
     }
     pub fn name(&self) -> &str {
@@ -50,7 +48,6 @@ impl OPCODE {
             OPCODE::HashToField => "hash_to_field",
             OPCODE::EcdsaSecp256k1 => "ecdsa_secp256k1",
             OPCODE::FixedBaseScalarMul => "fixed_base_scalar_mul",
-            OPCODE::InsertRegularMerkle => "insert_regular_merkle",
             OPCODE::ToBits => "to_bits",
         }
     }
@@ -64,7 +61,6 @@ impl OPCODE {
             "hash_to_field" => Some(OPCODE::HashToField),
             "ecdsa_secp256k1" => Some(OPCODE::EcdsaSecp256k1),
             "fixed_base_scalar_mul" => Some(OPCODE::FixedBaseScalarMul),
-            "insert_regular_merkle" => Some(OPCODE::InsertRegularMerkle),
             "to_bits" => Some(OPCODE::ToBits),
             _ => None,
         }
@@ -118,11 +114,6 @@ impl OPCODE {
                 input_size: InputSize::Fixed(1),
                 output_size: OutputSize(2),
             },
-            OPCODE::InsertRegularMerkle => GadgetDefinition {
-                name: self.name().into(),
-                input_size: InputSize::Variable,
-                output_size: OutputSize(1),
-            },
             OPCODE::ToBits => GadgetDefinition {
                 name: self.name().into(),
                 input_size: InputSize::Fixed(2),
@@ -135,7 +126,7 @@ impl OPCODE {
 // Descriptor as to whether the input/output is fixed or variable
 // Example: The input for Sha256 is Variable and the output is fixed at 2 witnesses
 // each holding 128 bits of the actual Sha256 function
-#[derive(Clone, Debug, Hash, PartialEq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub enum InputSize {
     Variable,
     Fixed(u128),
@@ -143,7 +134,7 @@ pub enum InputSize {
 
 // Output size Cannot currently vary, so we use a separate struct
 // XXX: In the future, we may be able to allow the output to vary based on the input size, however this implies support for dynamic circuits
-#[derive(Clone, Debug, Hash, PartialEq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct OutputSize(pub u128);
 
 #[derive(Clone, Debug, Hash)]

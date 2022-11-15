@@ -1,4 +1,5 @@
 use codespan::Span as ByteSpan;
+use fm::FileId;
 use std::{
     hash::{Hash, Hasher},
     ops::Range,
@@ -33,6 +34,7 @@ impl<T> Spanned<T> {
     pub fn from_position(start: Position, end: Position, contents: T) -> Spanned<T> {
         Spanned { span: Span(ByteSpan::new(start, end)), contents }
     }
+
     pub const fn from(t_span: Span, contents: T) -> Spanned<T> {
         Spanned { span: t_span, contents }
     }
@@ -109,5 +111,21 @@ impl chumsky::Span for Span {
 
     fn end(&self) -> Self::Offset {
         self.end()
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct Location {
+    pub span: Span,
+    pub file: FileId,
+}
+
+impl Location {
+    pub fn new(span: Span, file: FileId) -> Self {
+        Self { span, file }
+    }
+
+    pub fn dummy() -> Location {
+        Location::new(Span::new(0..0), FileId::dummy())
     }
 }

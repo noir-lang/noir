@@ -1,5 +1,5 @@
-use noirc_abi::Abi;
-use noirc_errors::Span;
+use noirc_abi::{Abi, AbiFEType};
+use noirc_errors::{Location, Span};
 
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
@@ -13,6 +13,8 @@ use crate::{token::Attribute, FunctionKind};
 #[derive(Debug, Clone)]
 pub struct HirFunction(ExprId);
 
+pub const MAIN_RETURN_NAME: &str = "return";
+
 impl HirFunction {
     pub fn empty() -> HirFunction {
         HirFunction(ExprId::empty_block_id())
@@ -24,8 +26,6 @@ impl HirFunction {
         HirFunction(expr_id)
     }
 
-    // This function is marked as unsafe because
-    // the expression kind is not being checked
     pub const fn as_expr(&self) -> &ExprId {
         &self.0
     }
@@ -40,7 +40,7 @@ impl HirFunction {
 
 /// An interned function parameter from a function definition
 #[derive(Debug, Clone)]
-pub struct Param(pub HirPattern, pub Type);
+pub struct Param(pub HirPattern, pub Type, pub noirc_abi::AbiFEType);
 
 /// Attempts to retrieve the name of this parameter. Returns None
 /// if this parameter is a tuple or struct pattern.
@@ -57,12 +57,12 @@ fn get_param_name<'a>(pattern: &HirPattern, interner: &'a NodeInterner) -> Optio
 pub struct Parameters(pub Vec<Param>);
 
 impl Parameters {
-    pub fn into_abi(self, interner: &NodeInterner) -> Abi {
+    fn into_abi(self, interner: &NodeInterner) -> Abi {
         let parameters = vecmap(self.0, |param| {
             let param_name = get_param_name(&param.0, interner)
                 .expect("Abi for tuple and struct parameters is unimplemented")
                 .to_owned();
-            (param_name, param.1.as_abi_type())
+            (param_name, param.1.as_abi_type(param.2))
         });
         noirc_abi::Abi { parameters }
     }
@@ -70,7 +70,7 @@ impl Parameters {
     pub fn span(&self) -> Span {
         assert!(!self.is_empty());
         let mut spans = vecmap(&self.0, |param| match &param.0 {
-            HirPattern::Identifier(ident) => ident.span,
+            HirPattern::Identifier(ident) => ident.location.span,
             HirPattern::Mutable(_, span) => *span,
             HirPattern::Tuple(_, span) => *span,
             HirPattern::Struct(_, _, span) => *span,
@@ -110,6 +110,7 @@ impl From<Vec<Param>> for Parameters {
         Parameters(vec)
     }
 }
+
 #[derive(Debug, Clone)]
 pub struct FuncMeta {
     pub name: HirIdent,
@@ -118,7 +119,13 @@ pub struct FuncMeta {
 
     pub attributes: Option<Attribute>,
     pub parameters: Parameters,
-    pub return_type: Type,
+    pub return_visibility: AbiFEType,
+
+    /// The type of this function. Either a Type::Function
+    /// or a Type::Forall for generic functions.
+    pub typ: Type,
+
+    pub location: Location,
 
     // This flag is needed for the attribute check pass
     pub has_body: bool,
@@ -133,6 +140,30 @@ impl FuncMeta {
         match self.kind {
             FunctionKind::LowLevel | FunctionKind::Builtin => true,
             FunctionKind::Normal => false,
+        }
+    }
+
+    pub fn into_abi(self, interner: &NodeInterner) -> Abi {
+        let return_type = self.return_type().clone();
+        let mut abi = self.parameters.into_abi(interner);
+
+        if return_type != Type::Unit {
+            let typ = return_type.as_abi_type(self.return_visibility);
+            abi.parameters.push((MAIN_RETURN_NAME.into(), typ));
+        }
+
+        abi
+    }
+
+    /// Gives the (uninstantiated) return type of this function.
+    pub fn return_type(&self) -> &Type {
+        match &self.typ {
+            Type::Function(_, ret) => ret,
+            Type::Forall(_, typ) => match typ.as_ref() {
+                Type::Function(_, ret) => ret,
+                _ => unreachable!(),
+            },
+            _ => unreachable!(),
         }
     }
 }

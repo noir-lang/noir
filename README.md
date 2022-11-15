@@ -6,7 +6,7 @@ Noir is a Domain Specific Language for SNARK proving systems. It has been design
 
 ## Quick Start
 
-Read the installation section [here](https://noir-lang.github.io/book/getting_started/install.html)
+Read the installation section [here](https://noir-lang.github.io/book/getting_started/nargo/installation.html).
 
 Once you have read through the documentation, you can also run the examples located in the `examples` folder.
 
@@ -15,15 +15,19 @@ Once you have read through the documentation, you can also run the examples loca
 Backends:
 
  - Barretenberg via FFI
+ - Marlin via arkworks
 
 Compiler:
 
  - Module System
  - For expressions
  - Arrays
- - Bit Operations, except for OR
- - Binary operations (<, <=, >, >=, +, -, *, /) [See documentation for an extensive list]
+ - Bit Operations
+ - Binary operations (<, <=, >, >=, +, -, *, /, %) [See documentation for an extensive list]
  - Unsigned integers
+ - If statements
+ - Structures and Tuples
+ - Generics
 
 ACIR Supported OPCODES:
 
@@ -36,19 +40,18 @@ ACIR Supported OPCODES:
 
 ## Future Work
 
-The current focus is to gather as much feedback as possible while in the alpha phase. The main focusses of Noir are _safety_ and _developer experience_. If you find a feature that does not seem to be inline with these goals, please open an issue!
+The current focus is to gather as much feedback as possible while in the alpha phase. The main focuses of Noir are _safety_ and _developer experience_. If you find a feature that does not seem to be in line with these goals, please open an issue!
 
 Concretely the following items are on the road map:
 
-- If statements
-- OR operator
-- General code sanitisation and documentation
+- General code sanitisation and documentation (ongoing effort)
 - Prover and Verifier Key logic. (Prover and Verifier preprocess per compile)
-- Structures
+- Fallback mechanism for backend unsupported opcodes
 - Visibility modifiers
 - Signed integers
-- Backend integration: (Marlin, Bulletproofs)
+- Backend integration: (Bulletproofs)
 - Recursion
+- Big integers
 
 ## License
 
@@ -58,4 +61,4 @@ Unless you explicitly state otherwise, any contribution intentionally submitted 
 
 ## Barretenberg License
 
-Barretenberg is currently the only backend that Noir has integrated. It is licensed under GPL V2.0.
+Barretenberg is licensed under GPL V2.0.

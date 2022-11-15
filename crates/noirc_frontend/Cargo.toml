@@ -2,15 +2,14 @@
 name = "noirc_frontend"
 version = "0.1.0"
 authors = ["Kevaundray Wedderburn <kevtheappdev@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-acvm = { path = "../acvm" }
+acvm = { git = "https://github.com/noir-lang/noir" }
 noirc_abi = { path = "../noirc_abi" }
 noirc_errors = { path = "../noirc_errors" }
-std_lib = { path = "../std_lib" }
 fm = { path = "../fm" }
 arena = { path = "../arena" }
 chumsky = { git = "https://github.com/jfecher/chumsky", rev = "ad9d312" }

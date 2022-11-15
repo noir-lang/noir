@@ -1,26 +1,23 @@
-use std::convert::TryInto;
-use std::iter::repeat;
-
 use super::{
     foldl_with_span, parameter_name_recovery, parameter_recovery, parenthesized, then_commit,
-    then_commit_ignore, top_level_statement_recovery, ExprParser, NoirParser, ParsedModule,
-    ParserError, Precedence, TopLevelStatement,
+    then_commit_ignore, top_level_statement_recovery, ExprParser, ForRange, NoirParser,
+    ParsedModule, ParserError, Precedence, SubModule, TopLevelStatement,
+};
+use crate::ast::{
+    Expression, ExpressionKind, LetStatement, Statement, UnresolvedArraySize, UnresolvedType,
 };
 use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::util::vecmap;
 use crate::{
-    ast::{ArraySize, Expression, ExpressionKind, Statement, UnresolvedType},
-    FieldElementType,
-};
-use crate::{
-    AssignStatement, BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, ForExpression,
-    FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, LValue, Literal,
+    AssignStatement, BinaryOp, BinaryOpKind, BlockExpression, Comptime, ConstrainStatement,
+    FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, LValue,
     NoirFunction, NoirImpl, NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp,
 };
 
 use chumsky::prelude::*;
+use noirc_abi::AbiFEType;
 use noirc_errors::{CustomDiagnostic, DiagnosableError, Span, Spanned};
 
 pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<CustomDiagnostic>) {
@@ -28,39 +25,70 @@ pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<CustomDiagnosti
     let (tokens, lexing_errors) = lexer.lex();
     let mut errors = vecmap(&lexing_errors, DiagnosableError::to_diagnostic);
 
-    let (module, parsing_errors) = program().parse_recovery(tokens);
+    let (module, parsing_errors) = program().parse_recovery_verbose(tokens);
     errors.extend(parsing_errors.iter().map(DiagnosableError::to_diagnostic));
 
     (module.unwrap(), errors)
 }
 
 fn program() -> impl NoirParser<ParsedModule> {
-    empty()
-        .map(move |_| ParsedModule::default())
-        .then(top_level_statement().repeated())
-        .then_ignore(force(just(Token::EOF)))
-        .foldl(|mut program, statement| {
-            match statement {
-                TopLevelStatement::Function(f) => program.push_function(f),
-                TopLevelStatement::Module(m) => program.push_module_decl(m),
-                TopLevelStatement::Import(i) => program.push_import(i),
-                TopLevelStatement::Struct(s) => program.push_type(s),
-                TopLevelStatement::Impl(i) => program.push_impl(i),
-                TopLevelStatement::Error => (),
-            }
-            program
-        })
+    module().then_ignore(force(just(Token::EOF)))
 }
 
-fn top_level_statement() -> impl NoirParser<TopLevelStatement> {
+fn module() -> impl NoirParser<ParsedModule> {
+    recursive(|module_parser| {
+        empty()
+            .map(|_| ParsedModule::default())
+            .then(top_level_statement(module_parser).repeated())
+            .foldl(|mut program, statement| {
+                match statement {
+                    TopLevelStatement::Function(f) => program.push_function(f),
+                    TopLevelStatement::Module(m) => program.push_module_decl(m),
+                    TopLevelStatement::Import(i) => program.push_import(i),
+                    TopLevelStatement::Struct(s) => program.push_type(s),
+                    TopLevelStatement::Impl(i) => program.push_impl(i),
+                    TopLevelStatement::SubModule(s) => program.push_submodule(s),
+                    TopLevelStatement::Global(c) => program.push_global(c),
+                    TopLevelStatement::Error => (),
+                }
+                program
+            })
+    })
+}
+
+fn top_level_statement(
+    module_parser: impl NoirParser<ParsedModule>,
+) -> impl NoirParser<TopLevelStatement> {
     choice((
         function_definition(false).map(TopLevelStatement::Function),
         struct_definition(),
         implementation(),
+        submodule(module_parser),
         module_declaration().then_ignore(force(just(Token::Semicolon))),
         use_statement().then_ignore(force(just(Token::Semicolon))),
+        global_declaration().then_ignore(force(just(Token::Semicolon))),
     ))
     .recover_via(top_level_statement_recovery())
+}
+
+fn global_declaration() -> impl NoirParser<TopLevelStatement> {
+    let p = ignore_then_commit(
+        keyword(Keyword::Global).labelled("global"),
+        ident().map(Pattern::Identifier),
+    );
+    let p = then_commit(p, global_type_annotation());
+    let p = then_commit_ignore(p, just(Token::Assign));
+    let p = then_commit(p, literal().map_with_span(Expression::new)); // XXX: this should be a literal
+    p.map(LetStatement::new_let).map(TopLevelStatement::Global)
+}
+
+fn submodule(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<TopLevelStatement> {
+    keyword(Keyword::Mod)
+        .ignore_then(ident())
+        .then_ignore(just(Token::LeftBrace))
+        .then(module_parser)
+        .then_ignore(just(Token::RightBrace))
+        .map(|(name, contents)| TopLevelStatement::SubModule(SubModule { name, contents }))
 }
 
 fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
@@ -68,20 +96,38 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
         .or_not()
         .then_ignore(keyword(Keyword::Fn))
         .then(ident())
+        .then(generics())
         .then(parenthesized(function_parameters(allow_self)))
         .then(function_return_type())
         .then(block(expression()))
-        .map(|((((attribute, name), parameters), return_type), body)| {
-            FunctionDefinition {
-                span: name.0.span(),
-                name,
-                attribute, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
-                parameters,
+        .map(
+            |(
+                ((((attribute, name), generics), parameters), (return_visibility, return_type)),
                 body,
-                return_type,
-            }
-            .into()
-        })
+            )| {
+                FunctionDefinition {
+                    span: name.0.span(),
+                    name,
+                    attribute, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
+                    generics,
+                    parameters,
+                    body,
+                    return_type,
+                    return_visibility,
+                }
+                .into()
+            },
+        )
+}
+
+fn generics() -> impl NoirParser<Vec<Ident>> {
+    ident()
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
+        .at_least(1)
+        .delimited_by(just(Token::Less), just(Token::Greater))
+        .or_not()
+        .map(|opt| opt.unwrap_or_default())
 }
 
 fn struct_definition() -> impl NoirParser<TopLevelStatement> {
@@ -97,16 +143,19 @@ fn struct_definition() -> impl NoirParser<TopLevelStatement> {
         ),
     );
 
-    keyword(Struct).ignore_then(ident()).then(fields).map_with_span(|(name, fields), span| {
-        TopLevelStatement::Struct(NoirStruct { name, fields, span })
-    })
+    keyword(Struct).ignore_then(ident()).then(generics()).then(fields).map_with_span(
+        |((name, generics), fields), span| {
+            TopLevelStatement::Struct(NoirStruct { name, generics, fields, span })
+        },
+    )
 }
 
-fn function_return_type() -> impl NoirParser<UnresolvedType> {
+fn function_return_type() -> impl NoirParser<(AbiFEType, UnresolvedType)> {
     just(Token::Arrow)
-        .ignore_then(parse_type())
+        .ignore_then(optional_visibility())
+        .then(parse_type())
         .or_not()
-        .map(|r#type| r#type.unwrap_or(UnresolvedType::Unit))
+        .map(|ret| ret.unwrap_or((AbiFEType::Private, UnresolvedType::Unit)))
 }
 
 fn attribute() -> impl NoirParser<Attribute> {
@@ -117,19 +166,24 @@ fn attribute() -> impl NoirParser<Attribute> {
 }
 
 fn struct_fields() -> impl NoirParser<Vec<(Ident, UnresolvedType)>> {
-    let type_parser = parse_type_with_visibility(optional_const(), parse_type_no_field_element());
-
     ident()
         .then_ignore(just(Token::Colon))
-        .then(type_parser)
+        .then(parse_type())
         .separated_by(just(Token::Comma))
         .allow_trailing()
 }
 
-fn function_parameters(allow_self: bool) -> impl NoirParser<Vec<(Pattern, UnresolvedType)>> {
+fn function_parameters(
+    allow_self: bool,
+) -> impl NoirParser<Vec<(Pattern, UnresolvedType, AbiFEType)>> {
     let typ = parse_type().recover_via(parameter_recovery());
-    let full_parameter =
-        pattern().recover_via(parameter_name_recovery()).then_ignore(just(Token::Colon)).then(typ);
+
+    let full_parameter = pattern()
+        .recover_via(parameter_name_recovery())
+        .then_ignore(just(Token::Colon))
+        .then(optional_visibility())
+        .then(typ)
+        .map(|((name, visibility), typ)| (name, typ, visibility));
 
     let self_parameter = if allow_self { self_parameter().boxed() } else { nothing().boxed() };
 
@@ -143,15 +197,13 @@ fn nothing<T>() -> impl NoirParser<T> {
     one_of([]).map(|_| unreachable!())
 }
 
-fn self_parameter() -> impl NoirParser<(Pattern, UnresolvedType)> {
+fn self_parameter() -> impl NoirParser<(Pattern, UnresolvedType, AbiFEType)> {
     filter_map(move |span, found: Token| match found {
         Token::Ident(ref word) if word == "self" => {
-            let ident = Ident::new(found, span);
+            let ident = Ident::from_token(found, span);
             let path = Path::from_single("Self".to_owned(), span);
-            Ok((
-                Pattern::Identifier(ident),
-                UnresolvedType::Struct(FieldElementType::Private, path),
-            ))
+            let self_type = UnresolvedType::Named(path, vec![]);
+            Ok((Pattern::Identifier(ident), self_type, AbiFEType::Private))
         }
         _ => Err(ParserError::expected_label("parameter".to_owned(), found, span)),
     })
@@ -164,6 +216,13 @@ fn implementation() -> impl NoirParser<TopLevelStatement> {
         .then(function_definition(true).repeated())
         .then_ignore(just(Token::RightBrace))
         .map(|(type_path, methods)| TopLevelStatement::Impl(NoirImpl { type_path, methods }))
+}
+
+fn block_expr<'a, P>(expr_parser: P) -> impl NoirParser<Expression> + 'a
+where
+    P: ExprParser + 'a,
+{
+    block(expr_parser).map(ExpressionKind::Block).map_with_span(Expression::new)
 }
 
 fn block<'a, P>(expr_parser: P) -> impl NoirParser<BlockExpression> + 'a
@@ -196,6 +255,21 @@ fn check_statements_require_semicolon(
     vecmap(iter, |(i, (statement, (semicolon, span)))| {
         statement.add_semicolon(semicolon, span, i == last, emit)
     })
+}
+
+/// Parse an optional ': type' and implicitly add a 'comptime' to the type
+fn global_type_annotation() -> impl NoirParser<UnresolvedType> {
+    ignore_then_commit(just(Token::Colon), parse_type())
+        .map(|r#type| match r#type {
+            UnresolvedType::FieldElement(_) => UnresolvedType::FieldElement(Comptime::Yes(None)),
+            UnresolvedType::Bool(_) => UnresolvedType::Bool(Comptime::Yes(None)),
+            UnresolvedType::Integer(_, sign, size) => {
+                UnresolvedType::Integer(Comptime::Yes(None), sign, size)
+            }
+            other => other,
+        })
+        .or_not()
+        .map(|opt| opt.unwrap_or(UnresolvedType::Unspecified))
 }
 
 fn optional_type_annotation() -> impl NoirParser<UnresolvedType> {
@@ -246,7 +320,7 @@ fn path() -> impl NoirParser<Path> {
 }
 
 fn ident() -> impl NoirParser<Ident> {
-    tokenkind(TokenKind::Ident).map_with_span(Ident::new)
+    tokenkind(TokenKind::Ident).map_with_span(Ident::from_token)
 }
 
 fn statement<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
@@ -261,38 +335,12 @@ where
     ))
 }
 
-fn operator_disallowed_in_constrain(operator: BinaryOpKind) -> bool {
-    [
-        BinaryOpKind::And,
-        BinaryOpKind::Subtract,
-        BinaryOpKind::Divide,
-        BinaryOpKind::Multiply,
-        BinaryOpKind::Or,
-        BinaryOpKind::Assign,
-    ]
-    .contains(&operator)
-}
-
 fn constrain<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
 {
-    ignore_then_commit(keyword(Keyword::Constrain).labelled("statement"), expr_parser).validate(
-        |expr, span, emit| match expr.kind.into_infix() {
-            Some(infix) if operator_disallowed_in_constrain(infix.operator.contents) => {
-                emit(ParserError::invalid_constrain_operator(infix.operator));
-                Statement::Error
-            }
-            None => {
-                emit(ParserError::with_reason(
-                    "Only an infix expression can follow the constrain keyword".to_string(),
-                    span,
-                ));
-                Statement::Error
-            }
-            Some(infix) => Statement::Constrain(ConstrainStatement(infix)),
-        },
-    )
+    ignore_then_commit(keyword(Keyword::Constrain).labelled("statement"), expr_parser)
+        .map(|expr| Statement::Constrain(ConstrainStatement(expr)))
 }
 
 fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
@@ -374,97 +422,85 @@ where
 }
 
 fn parse_type() -> impl NoirParser<UnresolvedType> {
-    parse_type_with_visibility(optional_visibility(), parse_type_no_field_element())
+    recursive(parse_type_inner)
 }
 
-fn parse_type_no_field_element() -> impl NoirParser<UnresolvedType> {
-    recursive(|type_parser| parse_type_with_visibility(no_visibility(), type_parser))
-}
-
-fn parse_type_with_visibility<V, T>(
-    visibility_parser: V,
-    recursive_type_parser: T,
-) -> impl NoirParser<UnresolvedType>
+fn parse_type_inner<T>(recursive_type_parser: T) -> impl NoirParser<UnresolvedType>
 where
-    V: NoirParser<FieldElementType>,
     T: NoirParser<UnresolvedType>,
 {
     choice((
-        field_type(visibility_parser.clone()),
-        int_type(visibility_parser.clone()),
-        struct_type(visibility_parser.clone()),
-        array_type(visibility_parser, recursive_type_parser.clone()),
+        field_type(),
+        int_type(),
+        named_type(recursive_type_parser.clone()),
+        array_type(recursive_type_parser.clone()),
         tuple_type(recursive_type_parser),
+        bool_type(),
     ))
 }
 
-// Parse nothing, just return a FieldElementType::Private
-fn no_visibility() -> impl NoirParser<FieldElementType> {
-    empty().map(|_| FieldElementType::Private)
+fn optional_visibility() -> impl NoirParser<AbiFEType> {
+    keyword(Keyword::Pub).or_not().map(|opt| match opt {
+        Some(_) => AbiFEType::Public,
+        None => AbiFEType::Private,
+    })
 }
 
-// Returns a parser that parses any FieldElementType that satisfies
-// the given predicate
-fn visibility(field: FieldElementType) -> impl NoirParser<FieldElementType> {
-    keyword(field.as_keyword()).map(move |_| field)
+fn maybe_comptime() -> impl NoirParser<Comptime> {
+    keyword(Keyword::Comptime).or_not().map(|opt| match opt {
+        Some(_) => Comptime::Yes(None),
+        None => Comptime::No(None),
+    })
 }
 
-fn optional_visibility() -> impl NoirParser<FieldElementType> {
-    choice((
-        visibility(FieldElementType::Public),
-        visibility(FieldElementType::Constant),
-        no_visibility(),
-    ))
+fn field_type() -> impl NoirParser<UnresolvedType> {
+    maybe_comptime().then_ignore(keyword(Keyword::Field)).map(UnresolvedType::FieldElement)
 }
 
-// This is primarily for struct fields which cannot be public
-fn optional_const() -> impl NoirParser<FieldElementType> {
-    visibility(FieldElementType::Constant).or(no_visibility())
+fn bool_type() -> impl NoirParser<UnresolvedType> {
+    maybe_comptime().then_ignore(keyword(Keyword::Bool)).map(UnresolvedType::Bool)
 }
 
-fn field_type<P>(visibility_parser: P) -> impl NoirParser<UnresolvedType>
-where
-    P: NoirParser<FieldElementType>,
-{
-    visibility_parser.then_ignore(keyword(Keyword::Field)).map(UnresolvedType::FieldElement)
-}
-
-fn int_type<P>(visibility_parser: P) -> impl NoirParser<UnresolvedType>
-where
-    P: NoirParser<FieldElementType>,
-{
-    visibility_parser
+fn int_type() -> impl NoirParser<UnresolvedType> {
+    maybe_comptime()
         .then(filter_map(|span, token: Token| match token {
             Token::IntType(int_type) => Ok(int_type),
             unexpected => {
                 Err(ParserError::expected_label("integer type".to_string(), unexpected, span))
             }
         }))
-        .map(|(visibility, int_type)| UnresolvedType::from_int_tok(visibility, &int_type))
+        .map(UnresolvedType::from_int_token)
 }
 
-fn struct_type<P>(visibility_parser: P) -> impl NoirParser<UnresolvedType>
-where
-    P: NoirParser<FieldElementType>,
-{
-    visibility_parser
-        .then(path())
-        .map(|(visibility, path)| UnresolvedType::Struct(visibility, path))
+fn named_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {
+    path()
+        .then(generic_type_args(type_parser))
+        .map(|(path, args)| UnresolvedType::Named(path, args))
 }
 
-fn array_type<V, T>(visibility_parser: V, type_parser: T) -> impl NoirParser<UnresolvedType>
+fn generic_type_args(
+    type_parser: impl NoirParser<UnresolvedType>,
+) -> impl NoirParser<Vec<UnresolvedType>> {
+    type_parser
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
+        .at_least(1)
+        .delimited_by(just(Token::Less), just(Token::Greater))
+        .or_not()
+        .map(Option::unwrap_or_default)
+}
+
+fn array_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>
 where
-    V: NoirParser<FieldElementType>,
     T: NoirParser<UnresolvedType>,
 {
-    visibility_parser
-        .then_ignore(just(Token::LeftBracket))
+    just(Token::LeftBracket)
+        .ignore_then(type_parser)
         .then(fixed_array_size().or_not())
         .then_ignore(just(Token::RightBracket))
-        .then(type_parser)
-        .map(|((visibility, size), element_type)| {
-            let size = size.unwrap_or(ArraySize::Variable);
-            UnresolvedType::Array(visibility, size, Box::new(element_type))
+        .map(|(element_type, size)| {
+            let size = size.unwrap_or(UnresolvedArraySize::Variable);
+            UnresolvedType::Array(size, Box::new(element_type))
         })
 }
 
@@ -556,10 +592,8 @@ where
         .map(UnaryRhs::ArrayIndex);
 
     // `as Type` in `atom as Type`
-    let cast_rhs = keyword(Keyword::As)
-        .ignore_then(parse_type_no_field_element())
-        .map(UnaryRhs::Cast)
-        .labelled("cast");
+    let cast_rhs =
+        keyword(Keyword::As).ignore_then(parse_type()).map(UnaryRhs::Cast).labelled("cast");
 
     // `.foo` or `.foo(args)` in `atom.foo` or `atom.foo(args)`
     let member_rhs = just(Token::Dot)
@@ -581,13 +615,26 @@ fn if_expr<'a, P>(expr_parser: P) -> impl NoirParser<ExpressionKind> + 'a
 where
     P: ExprParser + 'a,
 {
-    keyword(Keyword::If)
-        .ignore_then(expr_parser.clone())
-        .then(block(expr_parser.clone()))
-        .then(keyword(Keyword::Else).ignore_then(block(expr_parser)).or_not())
-        .map(|((condition, consequence), alternative)| {
-            ExpressionKind::If(Box::new(IfExpression { condition, consequence, alternative }))
-        })
+    recursive(|if_parser| {
+        let if_block = block_expr(expr_parser.clone());
+        // The else block could also be an `else if` block, in which case we must recursively parse it.
+        let else_block =
+            block_expr(expr_parser.clone()).or(if_parser.map_with_span(|kind, span| {
+                // Wrap the inner `if` expression in a block expression.
+                // i.e. rewrite the sugared form `if cond1 {} else if cond2 {}` as `if cond1 {} else { if cond2 {} }`.
+                let if_expression = Expression::new(kind, span);
+                let desugared_else = BlockExpression(vec![Statement::Expression(if_expression)]);
+                Expression::new(ExpressionKind::Block(desugared_else), span)
+            }));
+
+        keyword(Keyword::If)
+            .ignore_then(expr_parser)
+            .then(if_block)
+            .then(keyword(Keyword::Else).ignore_then(else_block).or_not())
+            .map(|((condition, consequence), alternative)| {
+                ExpressionKind::If(Box::new(IfExpression { condition, consequence, alternative }))
+            })
+    })
 }
 
 fn for_expr<'a, P>(expr_parser: P) -> impl NoirParser<ExpressionKind> + 'a
@@ -597,18 +644,22 @@ where
     keyword(Keyword::For)
         .ignore_then(ident())
         .then_ignore(keyword(Keyword::In))
-        .then(expr_parser.clone())
+        .then(for_range(expr_parser.clone()))
+        .then(block_expr(expr_parser))
+        .map_with_span(|((identifier, range), block), span| range.into_for(identifier, block, span))
+}
+
+/// The 'range' of a for loop. Either an actual range `start .. end` or an array expression.
+fn for_range<P>(expr_parser: P) -> impl NoirParser<ForRange>
+where
+    P: ExprParser,
+{
+    expr_parser
+        .clone()
         .then_ignore(just(Token::DoubleDot))
         .then(expr_parser.clone())
-        .then(block(expr_parser))
-        .map(|(((identifier, start_range), end_range), block)| {
-            ExpressionKind::For(Box::new(ForExpression {
-                identifier,
-                start_range,
-                end_range,
-                block,
-            }))
-        })
+        .map(|(start, end)| ForRange::Range(start, end))
+        .or(expr_parser.map(ForRange::Array))
 }
 
 fn array_expr<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
@@ -642,50 +693,10 @@ where
     P: ExprParser,
 {
     expr_parser
-        .then_ignore(just(Token::Semicolon))
-        .then(literal())
+        .clone()
+        .then(just(Token::Semicolon).ignore_then(expr_parser))
         .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
-        .validate(|(lhs, count), span, emit| {
-            let count = validate_array_count(count, span, emit);
-
-            // Desugar the array by replicating the lhs 'count' times. TODO: This is inefficient
-            // for large arrays.
-            let name = "$array_element";
-            let pattern = Pattern::Identifier(name.into());
-            let decl = Statement::new_let(((pattern, UnresolvedType::Unspecified), lhs));
-
-            let variable = Expression::new(ExpressionKind::Ident(name.into()), span);
-            let elems = repeat(variable).take(count).collect();
-            let array = ExpressionKind::array(elems);
-            let array = Statement::Expression(Expression::new(array, span));
-
-            ExpressionKind::Block(BlockExpression(vec![decl, array]))
-        })
-}
-
-fn validate_array_count(
-    count: ExpressionKind,
-    span: Span,
-    emit: &mut dyn FnMut(ParserError),
-) -> usize {
-    match count {
-        ExpressionKind::Literal(Literal::Integer(x)) => {
-            x.try_into_u128().and_then(|x| x.try_into().ok()).unwrap_or_else(|| {
-                emit(ParserError::with_reason(
-                    "Array length must be able to fit within a usize".to_owned(),
-                    span,
-                ));
-                1
-            })
-        }
-        _ => {
-            emit(ParserError::with_reason(
-                "Array length must be an integer literal".to_owned(),
-                span,
-            ));
-            1
-        }
-    }
+        .map(|(lhs, count)| ExpressionKind::repeated_array(lhs, count))
 }
 
 fn expression_list<P>(expr_parser: P) -> impl NoirParser<Vec<Expression>>
@@ -780,7 +791,7 @@ where
 }
 
 fn variable() -> impl NoirParser<ExpressionKind> {
-    ident().map(|name| ExpressionKind::Ident(name.0.contents))
+    path().map(ExpressionKind::Path)
 }
 
 fn literal() -> impl NoirParser<ExpressionKind> {
@@ -792,21 +803,27 @@ fn literal() -> impl NoirParser<ExpressionKind> {
     })
 }
 
-fn fixed_array_size() -> impl NoirParser<ArraySize> {
-    filter_map(|span, token: Token| match token {
-        Token::Int(integer) => {
-            if !integer.fits_in_u128() {
-                let message = "Array sizes must fit within a u128".to_string();
+fn fixed_array_size() -> impl NoirParser<UnresolvedArraySize> {
+    let fixed_variable_size = path().map(UnresolvedArraySize::FixedVariable);
+
+    just(Token::Semicolon).ignore_then(fixed_variable_size.or(filter_map(|span, token: Token| {
+        match token {
+            Token::Int(integer) => Ok(UnresolvedArraySize::Fixed(try_field_to_u64(integer, span)?)),
+            _ => {
+                let message = "Expected an integer for the length of the array".to_string();
                 Err(ParserError::with_reason(message, span))
-            } else {
-                Ok(ArraySize::Fixed(integer.to_u128()))
             }
         }
-        _ => {
-            let message = "The array size is defined as [k] for fixed size or [] for variable length. k must be a literal".to_string();
-            Err(ParserError::with_reason(message, span))
-        }
-    })
+    })))
+}
+
+fn try_field_to_u64(x: acvm::FieldElement, span: Span) -> Result<u64, ParserError> {
+    if x.num_bits() <= 64 {
+        Ok(x.to_u128() as u64)
+    } else {
+        let message = "Array lengths must fit within a u64".to_string();
+        Err(ParserError::with_reason(message, span))
+    }
 }
 
 #[cfg(test)]
@@ -913,7 +930,7 @@ mod test {
     fn parse_cast() {
         parse_all(
             atom_or_right_unary(expression()),
-            vec!["x as u8", "0 as Field", "(x + 3) as [8]Field"],
+            vec!["x as u8", "0 as Field", "(x + 3) as [Field; 8]"],
         );
         parse_all_failing(atom_or_right_unary(expression()), vec!["x as pub u8"]);
     }
@@ -942,17 +959,21 @@ mod test {
         }
     }
 
-    /// This is the standard way to declare an array
     #[test]
     fn parse_array() {
         let valid = vec![
             "[0, 1, 2,3, 4]",
             "[0,1,2,3,4,]", // Trailing commas are valid syntax
+            "[0;5]",
         ];
 
         for expr in parse_all(array_expr(expression()), valid) {
-            let arr_lit = expr_to_array(expr);
-            assert_eq!(arr_lit.length, 5);
+            match expr_to_array(expr) {
+                ArrayLiteral::Standard(elems) => assert_eq!(elems.len(), 5),
+                ArrayLiteral::Repeated { length, .. } => {
+                    assert_eq!(length.kind, ExpressionKind::integer(5i128.into()))
+                }
+            }
         }
 
         parse_all_failing(
@@ -963,10 +984,10 @@ mod test {
 
     #[test]
     fn parse_array_sugar() {
-        let valid = vec!["[0;7]", "[(1, 2); 4]"];
+        let valid = vec!["[0;7]", "[(1, 2); 4]", "[0;Four]", "[2;1+3-a]"];
         parse_all(array_expr(expression()), valid);
 
-        let invalid = vec!["[0;;4]", "[5; 3+2]", "[1; a]"];
+        let invalid = vec!["[0;;4]", "[1, 2; 3]"];
         parse_all_failing(array_expr(expression()), invalid);
     }
 
@@ -1004,7 +1025,6 @@ mod test {
             BinaryOpKind::Divide,
             BinaryOpKind::Multiply,
             BinaryOpKind::Or,
-            BinaryOpKind::Assign,
         ];
 
         for operator in disallowed_operators {
@@ -1070,9 +1090,9 @@ mod test {
             vec![
                 "fn func_name() {}",
                 "fn f(foo: pub u8, y : pub Field) -> u8 { x + a }",
-                "fn f(f: pub Field, y : Field, z : const Field) -> u8 { x + a }",
-                "fn func_name(f: Field, y : pub Field, z : pub [5]u8,) {}",
-                "fn func_name(x: []Field, y : [2]Field,y : pub [2]Field, z : pub [5]u8)  {}",
+                "fn f(f: pub Field, y : Field, z : comptime Field) -> u8 { x + a }",
+                "fn func_name(f: Field, y : pub Field, z : pub [u8;5],) {}",
+                "fn func_name(x: [Field], y : [Field;2],y : pub [Field;2], z : pub [u8;5])  {}",
             ],
         );
 
@@ -1095,7 +1115,10 @@ mod test {
 
     #[test]
     fn parse_if_expr() {
-        parse_all(if_expr(expression()), vec!["if x + a {  } else {  }", "if x {}"]);
+        parse_all(
+            if_expr(expression()),
+            vec!["if x + a {  } else {  }", "if x {}", "if x {} else if y {} else {}"],
+        );
 
         parse_all_failing(
             if_expr(expression()),
@@ -1279,9 +1302,9 @@ mod test {
             ("let = 4 + 3", 1, "let $error: unspecified = (4 + 3)"),
             ("let = ", 2, "let $error: unspecified = Error"),
             ("let", 3, "let $error: unspecified = Error"),
-            ("foo = one two three", 1, "foo = one"),
-            ("constrain", 2, "Error"), // We don't recover 'constrain Error' since constrain needs a binary operator
-            ("constrain x ==", 1, "constrain (x == Error)"),
+            ("foo = one two three", 1, "foo = plain::one"),
+            ("constrain", 1, "constrain Error"),
+            ("constrain x ==", 1, "constrain (plain::x == Error)"),
         ];
 
         let show_errors = |v| vecmap(v, ToString::to_string).join("\n");

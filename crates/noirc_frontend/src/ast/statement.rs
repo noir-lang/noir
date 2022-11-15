@@ -4,7 +4,7 @@ use crate::lexer::token::SpannedToken;
 use crate::parser::ParserError;
 use crate::token::Token;
 use crate::util::vecmap;
-use crate::{Expression, ExpressionKind, InfixExpression, UnresolvedType};
+use crate::{Expression, ExpressionKind, UnresolvedType};
 use noirc_errors::{Span, Spanned};
 
 /// This is used when an identifier fails to parse in the parser.
@@ -14,12 +14,24 @@ use noirc_errors::{Span, Spanned};
 /// for an identifier that already failed to parse.
 pub const ERROR_IDENT: &str = "$error";
 
-#[derive(PartialOrd, Eq, Ord, Debug, Clone)]
+#[derive(Eq, Debug, Clone)]
 pub struct Ident(pub Spanned<String>);
 
 impl PartialEq<Ident> for Ident {
     fn eq(&self, other: &Ident) -> bool {
         self.0.contents == other.0.contents
+    }
+}
+
+impl PartialOrd for Ident {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.0.contents.partial_cmp(&other.0.contents)
+    }
+}
+
+impl Ord for Ident {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.contents.cmp(&other.0.contents)
     }
 }
 
@@ -82,8 +94,12 @@ impl Ident {
         self.0.span()
     }
 
-    pub fn new(token: Token, span: Span) -> Ident {
+    pub fn from_token(token: Token, span: Span) -> Ident {
         Ident::from(SpannedToken::new(token, span))
+    }
+
+    pub fn new(text: String, span: Span) -> Ident {
+        Ident(Spanned::from(span, text))
     }
 }
 
@@ -277,6 +293,14 @@ pub struct LetStatement {
     pub expression: Expression,
 }
 
+impl LetStatement {
+    pub fn new_let(
+        ((pattern, r#type), expression): ((Pattern, UnresolvedType), Expression),
+    ) -> LetStatement {
+        LetStatement { pattern, r#type, expression }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AssignStatement {
     pub lvalue: LValue,
@@ -292,7 +316,7 @@ pub enum LValue {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ConstrainStatement(pub InfixExpression);
+pub struct ConstrainStatement(pub Expression);
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Pattern {
@@ -300,6 +324,15 @@ pub enum Pattern {
     Mutable(Box<Pattern>, Span),
     Tuple(Vec<Pattern>, Span),
     Struct(Path, Vec<(Ident, Pattern)>, Span),
+}
+
+impl Pattern {
+    pub fn name_ident(&self) -> &Ident {
+        match self {
+            Pattern::Identifier(name_ident) => name_ident,
+            _ => panic!("only the identifier pattern can return a name"),
+        }
+    }
 }
 
 impl Recoverable for Pattern {

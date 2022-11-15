@@ -4,25 +4,24 @@ use thiserror::Error;
 
 use crate::hir_def::expr::HirBinaryOp;
 use crate::hir_def::types::Type;
-use crate::node_interner::NodeInterner;
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum TypeCheckError {
-    #[error("operator {op:?} cannot be used in a {place:?}")]
+    #[error("Operator {op:?} cannot be used in a {place:?}")]
     OpCannotBeUsed { op: HirBinaryOp, place: &'static str, span: Span },
-    #[error("type {typ:?} cannot be used in a {place:?}")]
+    #[error("Type {typ:?} cannot be used in a {place:?}")]
     TypeCannotBeUsed { typ: Type, place: &'static str, span: Span },
-    #[error("expected type {expected_typ:?} is not the same as {expr_typ:?}")]
+    #[error("Expected type {expected_typ:?} is not the same as {expr_typ:?}")]
     TypeMismatch { expected_typ: String, expr_typ: String, expr_span: Span },
-    #[error("expected {expected:?} found {found:?}")]
+    #[error("Expected {expected:?} found {found:?}")]
     ArityMisMatch { expected: u16, found: u16, span: Span },
-    #[error("return type in a function cannot be public")]
+    #[error("Return type in a function cannot be public")]
     PublicReturnType { typ: Type, span: Span },
     // XXX: unstructured errors are not ideal for testing.
     // They will be removed in a later iteration
-    #[error("unstructured msg: {msg:?}")]
+    #[error("Unstructured msg: {msg:?}")]
     Unstructured { msg: String, span: Span },
-    #[error("error with additional context")]
+    #[error("Error with additional context")]
     Context { err: Box<TypeCheckError>, ctx: &'static str },
     #[error("Array is not homogeneous")]
     NonHomogeneousArray {
@@ -36,26 +35,26 @@ pub enum TypeCheckError {
 }
 
 impl TypeCheckError {
-    pub fn into_diagnostic(self, interner: &NodeInterner) -> Diagnostic {
+    pub fn into_diagnostic(self) -> Diagnostic {
         match self {
             TypeCheckError::TypeCannotBeUsed { typ, place, span } => Diagnostic::simple_error(
-                format!("the type {} cannot be used in a {}", &typ, place),
+                format!("The type {} cannot be used in a {}", &typ, place),
                 String::new(),
                 span,
             ),
             TypeCheckError::Context { err, ctx } => {
-                let mut diag = err.into_diagnostic(interner);
+                let mut diag = err.into_diagnostic();
                 diag.add_note(ctx.to_owned());
                 diag
             }
             TypeCheckError::OpCannotBeUsed { op, place, span } => Diagnostic::simple_error(
-                format!("the operator {:?} cannot be used in a {}", op, place),
+                format!("The operator {:?} cannot be used in a {}", op, place),
                 String::new(),
                 span,
             ),
             TypeCheckError::TypeMismatch { expected_typ, expr_typ, expr_span } => {
                 Diagnostic::simple_error(
-                    format!("expected type {}, found type {}", expected_typ, expr_typ),
+                    format!("Expected type {}, found type {}", expected_typ, expr_typ),
                     String::new(),
                     expr_span,
                 )
@@ -73,7 +72,7 @@ impl TypeCheckError {
                         "Non homogeneous array, different element types found at indices ({},{})",
                         first_index, second_index
                     ),
-                    format!("found type {}", first_type),
+                    format!("Found type {}", first_type),
                     first_span,
                 );
                 diag.add_secondary(format!("but then found type {}", second_type), second_span);
@@ -81,14 +80,14 @@ impl TypeCheckError {
             }
             TypeCheckError::ArityMisMatch { expected, found, span } => {
                 let plural = if expected == 1 { "" } else { "s" };
-                let msg = format!("expected {} argument{}, but found {}", expected, plural, found);
+                let msg = format!("Expected {} argument{}, but found {}", expected, plural, found);
                 Diagnostic::simple_error(msg, String::new(), span)
             }
             TypeCheckError::Unstructured { msg, span } => {
                 Diagnostic::simple_error(msg, String::new(), span)
             }
             TypeCheckError::PublicReturnType { typ, span } => Diagnostic::simple_error(
-                "functions cannot declare a public return type".to_string(),
+                "Functions cannot declare a public return type".to_string(),
                 format!("return type is {}", typ),
                 span,
             ),

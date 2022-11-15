@@ -1,32 +1,38 @@
 use acvm::acir::circuit::Circuit;
+use acvm::Language;
 use fm::FileType;
 use noirc_abi::Abi;
-use noirc_errors::DiagnosableError;
-use noirc_errors::Reporter;
-use noirc_evaluator::Evaluator;
+use noirc_errors::{DiagnosableError, Reporter};
+use noirc_evaluator::create_circuit;
 use noirc_frontend::graph::{CrateId, CrateName, CrateType, LOCAL_CRATE};
 use noirc_frontend::hir::def_map::CrateDefMap;
 use noirc_frontend::hir::Context;
+use noirc_frontend::monomorphisation::monomorphise;
+use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub struct Driver {
     context: Context,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CompiledProgram {
     pub circuit: Circuit,
     pub abi: Option<noirc_abi::Abi>,
 }
 
 impl Driver {
-    pub fn new() -> Self {
-        Driver { context: Context::default() }
+    pub fn new(np_language: &acvm::Language) -> Self {
+        let mut driver = Driver { context: Context::default() };
+        driver.context.def_interner.set_language(np_language);
+        driver
     }
 
     // This is here for backwards compatibility
     // with the restricted version which only uses one file
     pub fn compile_file(root_file: PathBuf, np_language: acvm::Language) -> CompiledProgram {
-        let mut driver = Driver::new();
+        let mut driver = Driver::new(&np_language);
         driver.create_local_crate(root_file, CrateType::Binary);
         driver.into_compiled_program(np_language, false)
     }
@@ -34,12 +40,9 @@ impl Driver {
     /// Compiles a file and returns true if compilation was successful
     ///
     /// This is used for tests.
-    pub fn file_compiles<P: AsRef<Path>>(root_file: P) -> bool {
-        let mut driver = Driver::new();
-        driver.create_local_crate(root_file, CrateType::Binary);
-        driver.add_std_lib();
+    pub fn file_compiles(&mut self) -> bool {
         let mut errs = vec![];
-        CrateDefMap::collect_defs(LOCAL_CRATE, &mut driver.context, &mut errs);
+        CrateDefMap::collect_defs(LOCAL_CRATE, &mut self.context, &mut errs);
         for errors in &errs {
             dbg!(errors);
         }
@@ -101,11 +104,26 @@ impl Driver {
             .expect("cyclic dependency triggered");
     }
 
-    /// Adds the standard library to the dep graph
-    /// and statically analyses the local crate
-    pub fn build(&mut self) {
-        self.add_std_lib();
+    /// Propagates a given dependency to every other crate.
+    pub fn propagate_dep(&mut self, dep_to_propagate: CrateId, dep_to_propagate_name: &CrateName) {
+        let crate_ids: Vec<_> = self
+            .context
+            .crate_graph
+            .iter_keys()
+            .filter(|crate_id| *crate_id != dep_to_propagate)
+            .collect();
 
+        for crate_id in crate_ids {
+            self.context
+                .crate_graph
+                .add_dep(crate_id, dep_to_propagate_name.clone(), dep_to_propagate)
+                .expect("ice: cyclic error triggered with std library");
+        }
+    }
+
+    // NOTE: Maybe build could be skipped given that now it is a pass through method.
+    /// Statically analyses the local crate
+    pub fn build(&mut self) {
         self.analyse_crate()
     }
 
@@ -113,7 +131,7 @@ impl Driver {
         let mut errs = vec![];
         CrateDefMap::collect_defs(LOCAL_CRATE, &mut self.context, &mut errs);
         let mut error_count = 0;
-        for errors in &errs {
+        for errors in errs {
             error_count += Reporter::with_diagnostics(
                 errors.file_id.as_usize(),
                 &self.context.file_manager,
@@ -130,7 +148,7 @@ impl Driver {
         let main_function = local_crate.main_function()?;
 
         let func_meta = self.context.def_interner.function_meta(&main_function);
-        let abi = func_meta.parameters.into_abi(&self.context.def_interner);
+        let abi = func_meta.into_abi(&self.context.def_interner);
 
         Some(abi)
     }
@@ -141,10 +159,6 @@ impl Driver {
         show_ssa: bool,
     ) -> CompiledProgram {
         self.build();
-        // First find the local crate
-        // There is always a local crate
-        let local_crate = self.context.def_map(LOCAL_CRATE).unwrap();
-        let file_id = local_crate.root_file_id().as_usize();
 
         // Check the crate type
         // We don't panic here to allow users to `evaluate` libraries
@@ -154,24 +168,27 @@ impl Driver {
             std::process::exit(1);
         };
 
+        // Find the local crate, one should always be present
+        let local_crate = self.context.def_map(LOCAL_CRATE).unwrap();
+
         // All Binaries should have a main function
         let main_function =
             local_crate.main_function().expect("cannot compile a program with no main function");
 
         // Create ABI for main function
         let func_meta = self.context.def_interner.function_meta(&main_function);
-        let abi = func_meta.parameters.into_abi(&self.context.def_interner);
+        let abi = func_meta.into_abi(&self.context.def_interner);
 
-        let evaluator = Evaluator::new(main_function, &self.context);
+        let ast = monomorphise(main_function, self.context.def_interner);
 
         // Compile Program
-        let circuit = match evaluator.compile(np_language, show_ssa) {
+        let circuit = match create_circuit(ast, np_language, show_ssa) {
             Ok(circuit) => circuit,
             Err(err) => {
                 // The FileId here will be the file id of the file with the main file
                 // Errors will be shown at the callsite without a stacktrace
                 let error_count = Reporter::with_diagnostics(
-                    file_id,
+                    err.location.file.as_usize(),
                     &self.context.file_manager,
                     &[err.to_diagnostic()],
                 );
@@ -182,39 +199,10 @@ impl Driver {
 
         CompiledProgram { circuit, abi: Some(abi) }
     }
-
-    /// XXX: It is sub-optimal to add the std as a regular crate right now because
-    /// we have no way to determine whether a crate has been compiled already.
-    /// XXX: We Ideally need a way to check if we've already compiled a crate and not re-compile it
-    pub fn add_std_lib(&mut self) {
-        let path_to_std_lib_file = path_to_stdlib().join("lib.nr");
-
-        let std_crate_id = self.create_non_local_crate(path_to_std_lib_file, CrateType::Library);
-
-        let name = CrateName::new("std").unwrap();
-
-        let crate_ids: Vec<_> = self
-            .context
-            .crate_graph
-            .iter_keys()
-            .filter(|crate_id| *crate_id != std_crate_id)
-            .collect();
-        // Add std as a crate dependency to every other crate
-        for crate_id in crate_ids {
-            self.context
-                .crate_graph
-                .add_dep(crate_id, name.clone(), std_crate_id)
-                .expect("ice: cyclic error triggered with std library");
-        }
-    }
 }
 
 impl Default for Driver {
     fn default() -> Self {
-        Self::new()
+        Self::new(&Language::R1CS)
     }
-}
-
-fn path_to_stdlib() -> PathBuf {
-    dirs::config_dir().unwrap().join("noir-lang").join("std")
 }

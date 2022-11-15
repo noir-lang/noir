@@ -2,7 +2,7 @@
 // file contains /implementations/)
 #![allow(clippy::op_ref)]
 
-use crate::native_types::{Arithmetic, Witness};
+use crate::native_types::{Expression, Witness};
 use noir_field::FieldElement;
 
 use std::ops::{Add, Mul, Neg, Sub};
@@ -39,11 +39,11 @@ impl From<FieldElement> for Linear {
 }
 
 impl Add<&Linear> for &Linear {
-    type Output = Arithmetic;
+    type Output = Expression;
     fn add(self, rhs: &Linear) -> Self::Output {
         // (Ax+B) + ( Cx + D) = (Ax + Cx) + ( B+D)
         // (Ax + B) + (Cy + D) = Ax + Cy + (B+D)
-        Arithmetic {
+        Expression {
             mul_terms: Vec::new(),
             linear_combinations: vec![(self.mul_scale, self.witness), (rhs.mul_scale, rhs.witness)],
             q_c: self.add_scale + rhs.add_scale,
@@ -60,7 +60,7 @@ impl Neg for &Linear {
 }
 
 impl Mul<&Linear> for &Linear {
-    type Output = Arithmetic;
+    type Output = Expression;
     #[allow(clippy::many_single_char_names)]
     fn mul(self, rhs: &Linear) -> Self::Output {
         // (Ax+B)(Cy+D) = ACxy + ADx + BCy + BD
@@ -97,7 +97,7 @@ impl Mul<&Linear> for &Linear {
             lc
         };
 
-        Arithmetic { mul_terms, linear_combinations, q_c: bd }
+        Expression { mul_terms, linear_combinations, q_c: bd }
     }
 }
 impl Mul<&FieldElement> for &Linear {
@@ -123,31 +123,31 @@ impl Add<&FieldElement> for &Linear {
 
 // Convenience Trait implementations
 impl Add<Linear> for Linear {
-    type Output = Arithmetic;
+    type Output = Expression;
     fn add(self, rhs: Linear) -> Self::Output {
         &self + &rhs
     }
 }
 impl Mul<Linear> for Linear {
-    type Output = Arithmetic;
+    type Output = Expression;
     fn mul(self, rhs: Linear) -> Self::Output {
         &self * &rhs
     }
 }
 impl Add<&Linear> for Linear {
-    type Output = Arithmetic;
+    type Output = Expression;
     fn add(self, rhs: &Linear) -> Self::Output {
         &self + rhs
     }
 }
 impl Mul<&Linear> for Linear {
-    type Output = Arithmetic;
+    type Output = Expression;
     fn mul(self, rhs: &Linear) -> Self::Output {
         &self * rhs
     }
 }
 impl Sub<&Linear> for &Linear {
-    type Output = Arithmetic;
+    type Output = Expression;
     fn sub(self, rhs: &Linear) -> Self::Output {
         self + &-rhs
     }

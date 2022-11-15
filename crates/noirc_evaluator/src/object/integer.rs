@@ -1,8 +1,9 @@
 use crate::binary_op;
 use crate::binary_op::bound_check;
-use crate::{AndGate, Evaluator, FieldElement, XorGate};
+use crate::interpreter::Interpreter;
+use crate::{AndGate, FieldElement, XorGate};
 use crate::{Gate, Object};
-use acvm::acir::native_types::{Arithmetic, Linear, Witness};
+use acvm::acir::native_types::{Expression, Linear, Witness};
 
 use super::RuntimeErrorKind;
 use acvm::acir::circuit::gate::Directive;
@@ -30,7 +31,7 @@ impl Integer {
         Integer { witness, num_bits, max_bits }
     }
 
-    pub fn constrain(&self, evaluator: &mut Evaluator) -> Result<(), RuntimeErrorKind> {
+    pub fn constrain(&self, evaluator: &mut Interpreter) -> Result<(), RuntimeErrorKind> {
         if self.num_bits == 1 {
             // Add a bool gate
             let x = Linear::from_witness(self.witness);
@@ -38,7 +39,7 @@ impl Integer {
             x_minus_one.add_scale = -FieldElement::one();
             let bool_constraint = x_minus_one * x;
 
-            evaluator.gates.push(Gate::Arithmetic(bool_constraint));
+            evaluator.push_gate(Gate::Arithmetic(bool_constraint));
         } else if self.num_bits == FieldElement::max_num_bits() {
             // Don't apply any constraints if the range is for the maximum number of bits
             let message = format!("All Witnesses are by default u{}. Applying this type does not apply any constraints.",FieldElement::max_num_bits());
@@ -49,7 +50,7 @@ impl Integer {
                 // new witnesses; a is constrained to num_bits-1 and b is 1 bit
                 let r_witness = evaluator.add_witness_to_cs();
                 let b_witness = evaluator.add_witness_to_cs();
-                evaluator.gates.push(Gate::Directive(Directive::Oddrange {
+                evaluator.push_gate(Gate::Directive(Directive::Oddrange {
                     a: self.witness,
                     b: b_witness,
                     r: r_witness,
@@ -65,10 +66,10 @@ impl Integer {
                 let res =
                     Linear { add_scale: FieldElement::zero(), witness: b_witness, mul_scale: f }
                         .add(Linear::from_witness(r_witness));
-                let my_constraint = &res - &Arithmetic::from(Linear::from_witness(self.witness));
-                evaluator.gates.push(Gate::Arithmetic(my_constraint));
+                let my_constraint = &res - &Expression::from(Linear::from_witness(self.witness));
+                evaluator.push_gate(Gate::Arithmetic(my_constraint));
             } else {
-                evaluator.gates.push(Gate::Range(self.witness, self.num_bits));
+                evaluator.push_gate(Gate::Range(self.witness, self.num_bits));
             }
         }
         Ok(())
@@ -76,14 +77,14 @@ impl Integer {
 
     //This function is reducing 'self' to its bit size:
     //It returns a new integer c such that c = 'self' % 2^{bit size}
-    pub fn truncate(&self, evaluator: &mut Evaluator) -> Result<Integer, RuntimeErrorKind> {
+    pub fn truncate(&self, evaluator: &mut Interpreter) -> Result<Integer, RuntimeErrorKind> {
         if self.max_bits <= self.num_bits {
             return Ok(*self);
         }
         //1. Generate witnesses b,c
         let b_witness = evaluator.add_witness_to_cs();
         let c_witness = evaluator.add_witness_to_cs();
-        evaluator.gates.push(Gate::Directive(Directive::Truncate {
+        evaluator.push_gate(Gate::Directive(Directive::Truncate {
             a: self.witness,
             b: b_witness,
             c: c_witness,
@@ -99,49 +100,53 @@ impl Integer {
         f = f.pow(&FieldElement::from(self.num_bits as i128));
         let res = Linear { add_scale: FieldElement::zero(), witness: c_witness, mul_scale: f }
             .add(Linear::from_witness(b_witness));
-        let my_constraint = &res - &Arithmetic::from(Linear::from_witness(self.witness));
-        evaluator.gates.push(Gate::Arithmetic(my_constraint));
+        let my_constraint = &res - &Expression::from(Linear::from_witness(self.witness));
+        evaluator.push_gate(Gate::Arithmetic(my_constraint));
         Ok(b_int)
     }
 
-    pub fn from_arithmetic(arith: Arithmetic, num_bits: u32, evaluator: &mut Evaluator) -> Integer {
-        // We can only range constrain witness variables, so create an intermediate variable, constraint it to the arithmetic gate
-        // then cast it as an integer
-        let (intermediate, witness) = evaluator.create_intermediate_variable(arith.clone());
-
-        let rhs_arith = Arithmetic::from(intermediate.linear().unwrap());
-        evaluator.gates.push(Gate::Arithmetic(&arith - &rhs_arith));
-
-        Integer::from_witness_unconstrained(witness, num_bits)
-    }
-
-    pub fn from_arithmetic_with_max_bits(
-        arith: Arithmetic,
+    pub fn from_arithmetic(
+        arith: Expression,
         num_bits: u32,
-        max_bits: u32,
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
     ) -> Integer {
         // We can only range constrain witness variables, so create an intermediate variable, constraint it to the arithmetic gate
         // then cast it as an integer
         let (intermediate, witness) = evaluator.create_intermediate_variable(arith.clone());
 
-        let rhs_arith = Arithmetic::from(intermediate.linear().unwrap());
-        evaluator.gates.push(Gate::Arithmetic(&arith - &rhs_arith));
+        let rhs_arith = Expression::from(intermediate.linear().unwrap());
+        evaluator.push_gate(Gate::Arithmetic(&arith - &rhs_arith));
+
+        Integer::from_witness_unconstrained(witness, num_bits)
+    }
+
+    pub fn from_arithmetic_with_max_bits(
+        arith: Expression,
+        num_bits: u32,
+        max_bits: u32,
+        evaluator: &mut Interpreter,
+    ) -> Integer {
+        // We can only range constrain witness variables, so create an intermediate variable, constraint it to the arithmetic gate
+        // then cast it as an integer
+        let (intermediate, witness) = evaluator.create_intermediate_variable(arith.clone());
+
+        let rhs_arith = Expression::from(intermediate.linear().unwrap());
+        evaluator.push_gate(Gate::Arithmetic(&arith - &rhs_arith));
 
         Integer::from_witness_unconstrained_with_max(witness, num_bits, max_bits)
     }
 
     /// Constrains the integer to be equal to zero
-    pub fn constrain_zero(&self, evaluator: &mut Evaluator) {
+    pub fn constrain_zero(&self, evaluator: &mut Interpreter) {
         let witness_linear = Linear::from_witness(self.witness);
 
-        evaluator.gates.push(Gate::Arithmetic(witness_linear.into()))
+        evaluator.push_gate(Gate::Arithmetic(witness_linear.into()))
     }
 
     pub fn from_object(
         poly: Object,
         num_bits: u32,
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
     ) -> Result<Integer, RuntimeErrorKind> {
         match poly {
             Object::Arithmetic(arith) => Ok(Integer::from_arithmetic(arith, num_bits, evaluator)),
@@ -162,7 +167,7 @@ impl Integer {
         poly: Object,
         num_bits: u32,
         max_bits: u32,
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
     ) -> Result<Integer, RuntimeErrorKind> {
         match poly {
             Object::Arithmetic(arith) => {
@@ -187,7 +192,7 @@ impl Integer {
     pub fn add(
         &self,
         poly: Object,
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
     ) -> Result<Integer, RuntimeErrorKind> {
         let (witness_rhs, num_bits, _max_bits) = extract_witness_and_num_bits(self.num_bits, poly)?;
 
@@ -223,7 +228,7 @@ impl Integer {
     pub fn truncate_arguments(
         &self,
         b: Integer,
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
         op_bsize: fn(u32, u32) -> u32,
     ) -> Result<(u32, Witness, Witness), RuntimeErrorKind> {
         let mut result_bits = op_bsize(self.max_bits, b.max_bits);
@@ -259,7 +264,7 @@ impl Integer {
     pub fn sub(
         &self,
         poly: Object,
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
     ) -> Result<Integer, RuntimeErrorKind> {
         let (witness_rhs, num_bits, max_bits) = extract_witness_and_num_bits(self.num_bits, poly)?;
 
@@ -293,7 +298,7 @@ impl Integer {
     pub fn div(
         &self,
         poly: Object,
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
     ) -> Result<Integer, RuntimeErrorKind> {
         let b_object =
             poly.integer().expect("expected the rhs to be an integer in division operator");
@@ -306,11 +311,12 @@ impl Integer {
         let r_witness = evaluator.add_witness_to_cs();
         let r_int = Integer::from_witness_unconstrained(r_witness, b.num_bits);
         let q_int = Integer::from_witness_unconstrained(q_witness, a.num_bits);
-        evaluator.gates.push(Gate::Directive(Directive::Quotient {
-            a: Arithmetic::from(&a.witness),
-            b: Arithmetic::from(&b.witness),
+        evaluator.push_gate(Gate::Directive(Directive::Quotient {
+            a: Expression::from(&a.witness),
+            b: Expression::from(&b.witness),
             q: q_witness,
             r: r_witness,
+            predicate: None,
         }));
 
         // Constraints quotient and remainder
@@ -323,21 +329,21 @@ impl Integer {
         q_int.constrain(evaluator)?; //we need to bound q so we use the fact that q<=a
         bound_check::handle_less_than_op(Object::Integer(r_int), b_copy, evaluator)?; //r < b
                                                                                       // a-b*q-r = 0
-        let res = Arithmetic::from(Linear::from_witness(a.witness));
+        let res = Expression::from(Linear::from_witness(a.witness));
         let eucl_div_constraint = &res
-            - &Arithmetic {
+            - &Expression {
                 mul_terms: vec![(FieldElement::one(), b.witness, q_witness)],
                 linear_combinations: vec![(FieldElement::one(), r_witness)],
                 q_c: FieldElement::zero(),
             };
-        evaluator.gates.push(Gate::Arithmetic(eucl_div_constraint));
+        evaluator.push_gate(Gate::Arithmetic(eucl_div_constraint));
         Ok(q_int)
     }
 
     pub fn safe_sub(
         &self,
         poly: Object,
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
     ) -> Result<Integer, RuntimeErrorKind> {
         let (witness_rhs, num_bits, _) = extract_witness_and_num_bits(self.num_bits, poly)?;
 
@@ -361,7 +367,7 @@ impl Integer {
     pub fn safe_add(
         &self,
         poly: Object,
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
     ) -> Result<Integer, RuntimeErrorKind> {
         // You can only add an integer from an integer and they must have the same number of bits
         let (witness_rhs, num_bits, _) = extract_witness_and_num_bits(self.num_bits, poly)?;
@@ -387,7 +393,7 @@ impl Integer {
         &self,
         rhs: Integer,
         is_xor_gate: bool,
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
     ) -> Result<Integer, RuntimeErrorKind> {
         if self.num_bits != rhs.num_bits {
             let message = format!("Expected a u{} got u{}", self.num_bits, rhs.num_bits);
@@ -397,14 +403,14 @@ impl Integer {
         let result = evaluator.add_witness_to_cs();
 
         if is_xor_gate {
-            evaluator.gates.push(Gate::Xor(XorGate {
+            evaluator.push_gate(Gate::Xor(XorGate {
                 a: self.witness,
                 b: rhs.witness,
                 result,
                 num_bits: self.num_bits,
             }));
         } else {
-            evaluator.gates.push(Gate::And(AndGate {
+            evaluator.push_gate(Gate::And(AndGate {
                 a: self.witness,
                 b: rhs.witness,
                 result,
@@ -419,14 +425,14 @@ impl Integer {
     pub fn xor(
         &self,
         rhs: Integer,
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
     ) -> Result<Integer, RuntimeErrorKind> {
         self.logic(rhs, true, evaluator)
     }
     pub fn and(
         &self,
         rhs: Integer,
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
     ) -> Result<Integer, RuntimeErrorKind> {
         self.logic(rhs, false, evaluator)
     }
@@ -434,7 +440,7 @@ impl Integer {
     pub fn mul(
         &self,
         poly: Object,
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
     ) -> Result<Integer, RuntimeErrorKind> {
         // You can only mul an integer with another integer and they must have the same number of bits
 
@@ -466,7 +472,7 @@ impl Integer {
     pub fn safe_mul(
         &self,
         poly: Object,
-        evaluator: &mut Evaluator,
+        evaluator: &mut Interpreter,
     ) -> Result<Integer, RuntimeErrorKind> {
         // You can only mul an integer with another integer and they must have the same number of bits
         let (witness_rhs, num_bits, _max_bits) = extract_witness_and_num_bits(self.num_bits, poly)?;

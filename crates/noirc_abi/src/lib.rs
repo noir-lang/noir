@@ -1,13 +1,14 @@
-use serde::{ser::SerializeMap, Serialize, Serializer};
+use serde::{ser::SerializeMap, Deserialize, Serialize, Serializer};
 
 // This is the ABI used to bridge the different TOML formats for the initial
 // witness, the partial witness generator and the interpreter.
 //
 // This ABI has nothing to do with ACVM or ACIR. Although they implicitly have a relationship
 
+pub mod errors;
 pub mod input_parser;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 /// Types that are allowed in the (main function in binary)
 ///
 /// we use this separation so that we can have types like Strings
@@ -30,14 +31,24 @@ pub enum AbiType {
 ///
 /// In the future, maybe it will be decided that the AST will hold esoteric types and the HIR will transform them
 /// This method is a bit cleaner as we would not need to dig into the resolver, to lower from a esoteric AST type to a HIR type.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AbiFEType {
     Public,
     // Constants are not allowed in the ABI for main at the moment.
     // Constant,
     Private,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+
+impl std::fmt::Display for AbiFEType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AbiFEType::Public => write!(f, "pub"),
+            AbiFEType::Private => write!(f, "priv"),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Sign {
     Unsigned,
     Signed,
@@ -60,7 +71,7 @@ impl AbiType {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Abi {
     pub parameters: Vec<(String, AbiType)>,
 }

@@ -2,14 +2,14 @@ use noirc_errors::CustomDiagnostic as Diagnostic;
 pub use noirc_errors::Span;
 use thiserror::Error;
 
-use crate::{hir_def::expr::HirIdent, node_interner::NodeInterner, Ident};
+use crate::Ident;
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum ResolverError {
     #[error("Duplicate definition")]
-    DuplicateDefinition { first_ident: HirIdent, second_ident: HirIdent },
+    DuplicateDefinition { name: String, first_span: Span, second_span: Span },
     #[error("Unused variable")]
-    UnusedVariable { ident: HirIdent },
+    UnusedVariable { ident: Ident },
     #[error("Could not find variable in this scope")]
     VariableNotDeclared { name: String, span: Span },
     #[error("path is not an identifier")]
@@ -26,20 +26,27 @@ pub enum ResolverError {
     MissingFields { span: Span, missing_fields: Vec<String>, struct_definition: Ident },
     #[error("Unneeded 'mut', pattern is already marked as mutable")]
     UnnecessaryMut { first_mut: Span, second_mut: Span },
+    #[error("Unneeded 'pub', function is not the main method")]
+    UnnecessaryPub { ident: Ident },
+    #[error("Required 'pub', main function must return public value")]
+    NecessaryPub { ident: Ident },
+    #[error("Expected const value where non-constant value was used")]
+    ExpectedComptimeVariable { name: String, span: Span },
+    #[error("Missing expression for declared constant")]
+    MissingRhsExpr { name: String, span: Span },
+    #[error("Expression invalid in an array length context")]
+    InvalidArrayLengthExpr { span: Span },
+    #[error("Integer too large to be evaluated in an array length context")]
+    IntegerTooLarge { span: Span },
 }
 
 impl ResolverError {
     /// Only user errors can be transformed into a Diagnostic
     /// ICEs will make the compiler panic, as they could affect the
     /// soundness of the generated program
-    pub fn into_diagnostic(self, interner: &NodeInterner) -> Diagnostic {
+    pub fn into_diagnostic(self) -> Diagnostic {
         match self {
-            ResolverError::DuplicateDefinition { first_ident, second_ident } => {
-                let first_span = first_ident.span;
-                let second_span = second_ident.span;
-
-                let name = interner.definition_name(first_ident.id);
-
+            ResolverError::DuplicateDefinition { name, first_span, second_span } => {
                 let mut diag = Diagnostic::simple_error(
                     format!("duplicate definitions of {} found", name),
                     "first definition found here".to_string(),
@@ -49,12 +56,12 @@ impl ResolverError {
                 diag
             }
             ResolverError::UnusedVariable { ident } => {
-                let name = interner.definition_name(ident.id);
+                let name = &ident.0.contents;
 
                 Diagnostic::simple_warning(
                     format!("unused variable {}", name),
                     "unused variable ".to_string(),
-                    ident.span,
+                    ident.span(),
                 )
             }
             ResolverError::VariableNotDeclared { name, span } => Diagnostic::simple_error(
@@ -134,6 +141,53 @@ impl ResolverError {
                 );
                 error
             }
+            ResolverError::UnnecessaryPub { ident } => {
+                let name = &ident.0.contents;
+
+                let mut diag = Diagnostic::simple_error(
+                    format!("unnecessary pub keyword on parameter for function {}", name),
+                    "unnecessary pub parameter".to_string(),
+                    ident.0.span(),
+                );
+
+                diag.add_note("The `pub` keyword only has effects on arguments to the main function of a program. Thus, adding it to other function parameters can be deceiving and should be removed".to_owned());
+                diag
+            }
+            ResolverError::NecessaryPub { ident } => {
+                let name = &ident.0.contents;
+
+                let mut diag = Diagnostic::simple_error(
+                    format!("missing pub keyword on return type of function {}", name),
+                    "missing pub on return type".to_string(),
+                    ident.0.span(),
+                );
+
+                diag.add_note("The `pub` keyword is mandatory for the main function return type because the verifier cannot retrieve private witness and thus the function will not be able to return a 'priv' value".to_owned());
+                diag
+            }
+            ResolverError::ExpectedComptimeVariable { name, span } => Diagnostic::simple_error(
+                format!("expected constant variable where non-constant variable {} was used", name),
+                "expected const variable".to_string(),
+                span,
+            ),
+            ResolverError::MissingRhsExpr { name, span } => Diagnostic::simple_error(
+                format!(
+                    "no expression specifying the value stored by the constant variable {}",
+                    name
+                ),
+                "expected expression to be stored for let statement".to_string(),
+                span,
+            ),
+            ResolverError::InvalidArrayLengthExpr { span } => Diagnostic::simple_error(
+                "Expression invalid in an array-length context".into(),
+                "Array-length expressions can only have simple integer operations and any variables used must be global constants".into(),
+                span,
+            ),
+            ResolverError::IntegerTooLarge { span } => Diagnostic::simple_error(
+                "Integer too large to be evaluated to an array-length".into(),
+                "Array-lengths may be a maximum size of usize::MAX, including intermediate calculations".into(),
+                span,
+            ),
         }
     }
 }

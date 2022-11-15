@@ -1,13 +1,15 @@
 use super::{
+    conditional::AssumptionId,
     context::SsaContext,
-    node::{self, NodeId},
+    node::{self, Instruction, Mark, NodeId, Opcode},
 };
 use std::collections::{HashMap, HashSet, VecDeque};
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub enum BlockType {
     Normal,
     ForJoin,
+    IfJoin,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -16,6 +18,9 @@ pub struct BlockId(pub arena::Index);
 impl BlockId {
     pub fn dummy() -> BlockId {
         BlockId(SsaContext::dummy_id())
+    }
+    pub fn is_dummy(&self) -> bool {
+        *self == BlockId::dummy()
     }
 }
 
@@ -30,6 +35,7 @@ pub struct BasicBlock {
     pub right: Option<BlockId>,     //jump successor
     pub instructions: Vec<NodeId>,
     pub value_map: HashMap<NodeId, NodeId>, //for generating the ssa form
+    pub assumption: AssumptionId,
 }
 
 impl BasicBlock {
@@ -44,6 +50,7 @@ impl BasicBlock {
             dominator: None,
             dominated: Vec::new(),
             kind,
+            assumption: AssumptionId::dummy(),
         }
     }
 
@@ -73,7 +80,7 @@ impl BasicBlock {
         let root_id = root_block.id;
         ctx.current_block = root_id;
         ctx.sealed_blocks.insert(root_id);
-        ctx.new_instruction(node::Operation::Nop, node::ObjectType::NotAnObject);
+        ctx.new_instruction(node::Operation::Nop, node::ObjectType::NotAnObject).unwrap();
         root_id
     }
 
@@ -90,6 +97,35 @@ impl BasicBlock {
         }
         result
     }
+
+    //Returns true if the block is a short-circuit
+    fn is_short_circuit(&self, ctx: &SsaContext, assumption: Option<NodeId>) -> bool {
+        if let Some(ass_value) = assumption {
+            if self.instructions.len() >= 3 {
+                if let Some(Instruction { operation, .. }) =
+                    ctx.try_get_instruction(self.instructions[1])
+                {
+                    if *operation
+                        == (node::Operation::Cond {
+                            condition: ass_value,
+                            val_true: ctx.zero(),
+                            val_false: ctx.one(),
+                        })
+                    {
+                        if let Some(Instruction { operation, .. }) =
+                            ctx.try_get_instruction(self.instructions[2])
+                        {
+                            if *operation == node::Operation::Constrain(self.instructions[1], None)
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        false
+    }
 }
 
 pub fn create_first_block(ctx: &mut SsaContext) {
@@ -98,7 +134,8 @@ pub fn create_first_block(ctx: &mut SsaContext) {
 
 //Creates a new sealed block (i.e whose predecessors are known)
 //It is not suitable for the first block because it uses the current block.
-pub fn new_sealed_block(ctx: &mut SsaContext, kind: BlockType) -> BlockId {
+//if left is true, the new block is left to the current block
+pub fn new_sealed_block(ctx: &mut SsaContext, kind: BlockType, left: bool) -> BlockId {
     let current_block = ctx.current_block;
     let new_block = BasicBlock::new(ctx.current_block, kind);
     let new_block = ctx.insert_block(new_block);
@@ -108,10 +145,12 @@ pub fn new_sealed_block(ctx: &mut SsaContext, kind: BlockType) -> BlockId {
     ctx.sealed_blocks.insert(new_id);
 
     //update current block
-    let cb = ctx.get_current_block_mut();
-    cb.left = Some(new_id);
+    if left {
+        let cb = ctx.get_current_block_mut();
+        cb.left = Some(new_id);
+    }
     ctx.current_block = new_id;
-    ctx.new_instruction(node::Operation::Nop, node::ObjectType::NotAnObject);
+    ctx.new_instruction(node::Operation::Nop, node::ObjectType::NotAnObject).unwrap();
     new_id
 }
 
@@ -131,12 +170,12 @@ pub fn new_unsealed_block(ctx: &mut SsaContext, kind: BlockType, left: bool) -> 
     }
 
     ctx.current_block = new_idx;
-    ctx.new_instruction(node::Operation::Nop, node::ObjectType::NotAnObject);
+    ctx.new_instruction(node::Operation::Nop, node::ObjectType::NotAnObject).unwrap();
     new_idx
 }
 
 //create a block and sets its id, but do not update current block, and do not add dummy instruction!
-pub fn create_block<'a>(ctx: &'a mut SsaContext, kind: BlockType) -> &'a mut BasicBlock {
+pub fn create_block(ctx: &mut SsaContext, kind: BlockType) -> &mut BasicBlock {
     let new_block = BasicBlock::new(ctx.current_block, kind);
     ctx.insert_block(new_block)
 }
@@ -167,14 +206,14 @@ pub fn compute_dom(ctx: &mut SsaContext) {
     for block in ctx.iter_blocks() {
         if let Some(dom) = block.dominator {
             dominator_link.entry(dom).or_insert_with(Vec::new).push(block.id);
-            // dom_block.dominated.push(idx);
         }
     }
-    //RIA
     for (master, svec) in dominator_link {
-        let dom_b = &mut ctx[master];
-        for slave in svec {
-            dom_b.dominated.push(slave);
+        if let Some(dom_b) = ctx.try_get_block_mut(master) {
+            dom_b.dominated.clear();
+            for slave in svec {
+                dom_b.dominated.push(slave);
+            }
         }
     }
 }
@@ -188,7 +227,6 @@ pub fn compute_sub_dom(ctx: &mut SsaContext, blocks: &[BlockId]) {
             dominator_link.entry(dom).or_insert_with(Vec::new).push(block.id);
         }
     }
-    //RIA
     for (master, svec) in dominator_link {
         let dom_b = &mut ctx[master];
         for slave in svec {
@@ -211,7 +249,7 @@ pub fn bfs(start: BlockId, stop: Option<BlockId>, ctx: &SsaContext) -> Vec<Block
                 if stop == Some(block_id) {
                     return;
                 }
-                if block_id != BlockId::dummy() && !result.contains(&block_id) {
+                if !block_id.is_dummy() && !result.contains(&block_id) {
                     result.push(block_id);
                     queue.push_back(block_id);
                 }
@@ -223,4 +261,175 @@ pub fn bfs(start: BlockId, stop: Option<BlockId>, ctx: &SsaContext) -> Vec<Block
     }
 
     result
+}
+
+//Find the exit (i.e join) block from a IF (i.e split) block
+pub fn find_join(ctx: &SsaContext, block_id: BlockId) -> BlockId {
+    let mut processed = HashMap::new();
+    find_join_helper(ctx, block_id, &mut processed)
+}
+
+//We follow down the path from the THEN and ELSE branches until we reach a common descendant
+fn find_join_helper(
+    ctx: &SsaContext,
+    block_id: BlockId,
+    processed: &mut HashMap<BlockId, BlockId>,
+) -> BlockId {
+    let mut left = ctx[block_id].left.unwrap();
+    let mut right = ctx[block_id].right.unwrap();
+    let mut left_descendants = Vec::new();
+    let mut right_descendants = Vec::new();
+
+    while !left.is_dummy() || !right.is_dummy() {
+        if let Some(block) = get_only_descendant(ctx, left, processed) {
+            left_descendants.push(block);
+            left = block;
+            if right_descendants.contains(&block) {
+                return block;
+            }
+        }
+        if let Some(block) = get_only_descendant(ctx, right, processed) {
+            right_descendants.push(block);
+            right = block;
+            if left_descendants.contains(&block) {
+                return block;
+            }
+        }
+    }
+    unreachable!("no join");
+}
+
+//get the most direct descendant which is 'only child'
+fn get_only_descendant(
+    ctx: &SsaContext,
+    block_id: BlockId,
+    processed: &mut HashMap<BlockId, BlockId>,
+) -> Option<BlockId> {
+    if block_id == BlockId::dummy() {
+        return None;
+    }
+    let block = &ctx[block_id];
+    if block.right.is_none() || block.kind == BlockType::ForJoin {
+        if let Some(left) = block.left {
+            processed.insert(block_id, left);
+        }
+        block.left
+    } else {
+        if processed.contains_key(&block_id) {
+            return Some(processed[&block_id]);
+        }
+        let descendant = find_join_helper(ctx, block_id, processed);
+        processed.insert(block_id, descendant);
+        Some(descendant)
+    }
+}
+
+//Set left as the left block of block_id
+pub fn rewire_block_left(ctx: &mut SsaContext, block_id: BlockId, left: BlockId) {
+    let block = &mut ctx[block_id];
+    if !block.dominated.contains(&left) {
+        block.dominated.push(left);
+    }
+    if let Some(old_left) = block.left {
+        if left == old_left {
+            return;
+        }
+        let i = block.dominated.iter().position(|value| *value == old_left).unwrap();
+        block.dominated.swap_remove(i);
+    }
+    block.left = Some(left);
+    assert!(block.right != Some(left));
+
+    ctx[left].predecessor.push(block_id);
+    if ctx[left].predecessor.len() == 1 {
+        ctx[left].dominator = Some(block_id);
+    }
+}
+
+//Delete all instructions in the block
+pub fn short_circuit_block(ctx: &mut SsaContext, block_id: BlockId) {
+    let instructions = ctx[block_id].instructions.clone();
+    short_circuit_instructions(ctx, &instructions);
+}
+
+pub fn short_circuit_instructions(ctx: &mut SsaContext, instructions: &Vec<NodeId>) {
+    let mut zeros = HashMap::new();
+    for i in instructions {
+        let ins = ctx.get_instruction(*i);
+        if ins.res_type != node::ObjectType::NotAnObject {
+            zeros.insert(ins.res_type, ctx.zero_with_type(ins.res_type));
+        }
+    }
+    for i in instructions {
+        let ins = ctx.get_mut_instruction(*i);
+        if ins.res_type != node::ObjectType::NotAnObject {
+            ins.mark = Mark::ReplaceWith(zeros[&ins.res_type]);
+        } else if ins.operation.opcode() != Opcode::Nop {
+            ins.mark = Mark::Deleted;
+        }
+    }
+}
+
+//merge subgraph from start to end in one block, excluding end
+pub fn merge_path(
+    ctx: &mut SsaContext,
+    start: BlockId,
+    end: BlockId,
+    assumption: Option<NodeId>,
+) -> VecDeque<BlockId> {
+    let mut removed_blocks = VecDeque::new();
+    if start != end {
+        let mut next = start;
+        let mut instructions = Vec::new();
+        let mut block = &ctx[start];
+        let mut short_circuit = BlockId::dummy();
+
+        while next != end {
+            if block.dominated.len() > 1 || block.right.is_some() {
+                dbg!(&block);
+                unreachable!("non sequential block sequence");
+            }
+            block = &ctx[next];
+            removed_blocks.push_back(next);
+
+            if short_circuit.is_dummy() {
+                instructions.extend(&block.instructions);
+            }
+
+            if short_circuit.is_dummy() && block.is_short_circuit(ctx, assumption) {
+                instructions.clear();
+                instructions.extend(&block.instructions);
+                short_circuit = block.id;
+            }
+
+            if let Some(left) = block.left {
+                next = left;
+            } else {
+                if !end.is_dummy() {
+                    unreachable!("cannot reach block {:?}", end);
+                }
+                next = BlockId::dummy();
+            }
+        }
+        if !short_circuit.is_dummy() {
+            for &b in &removed_blocks {
+                if b != short_circuit {
+                    short_circuit_block(ctx, b);
+                }
+            }
+        }
+
+        //we assign the concatened list of instructions to the start block, using a CSE pass
+        let mut modified = false;
+        super::optim::cse_block(ctx, start, &mut instructions, &mut modified).unwrap();
+        //Wires start to end
+        if !end.is_dummy() {
+            rewire_block_left(ctx, start, end);
+        } else {
+            ctx[start].left = None;
+        }
+        removed_blocks.pop_front();
+    }
+    //housekeeping for the caller
+    removed_blocks
 }
