@@ -221,7 +221,7 @@ The repository of the Aztec SDK in production.
 
 A CLI tool for interacting with the Aztec Network. Powered by Aztec SDK.
 
-### [📝 Aztec Frontend Boilerplate](https://github.com/Globallager/aztec-frontend-boilerplate)
+### [📝 Aztec Frontend Boilerplate](https://github.com/AztecProtocol/aztec-frontend-boilerplate)
 
 A sample Web App powered by the Aztec SDK.
 
