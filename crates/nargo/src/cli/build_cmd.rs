@@ -1,7 +1,7 @@
+use crate::{errors::CliError, resolver::Resolver};
+use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
 use std::path::{Path, PathBuf};
-
-use crate::{errors::CliError, resolver::Resolver};
 
 use super::{add_std_lib, write_to_file, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 
@@ -13,7 +13,8 @@ pub(crate) fn run(_args: ArgMatches) -> Result<(), CliError> {
 }
 // This is exposed so that we can run the examples and verify that they pass
 pub fn build_from_path<P: AsRef<Path>>(p: P) -> Result<(), CliError> {
-    let mut driver = Resolver::resolve_root_config(p.as_ref())?;
+    let backend = crate::backends::ConcreteBackend;
+    let mut driver = Resolver::resolve_root_config(p.as_ref(), backend.np_language())?;
     add_std_lib(&mut driver);
     driver.build();
     // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files

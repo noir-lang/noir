@@ -326,7 +326,7 @@ impl IRGenerator {
         location: noirc_errors::Location,
     ) -> Result<Value, RuntimeError> {
         let cond = self.codegen_expression(env, expr)?.unwrap_id();
-        let operation = Operation::Constrain(cond, location);
+        let operation = Operation::Constrain(cond, Some(location));
         self.context.new_instruction(operation, ObjectType::NotAnObject)?;
         Ok(Value::dummy())
     }
@@ -544,11 +544,10 @@ impl IRGenerator {
                 })
             }
             Expression::CallLowLevel(call) => Ok(Value::Single(self.codegen_lowlevel(env, call)?)),
-            Expression::CallBuiltin(_call) => {
-                todo!()
-                // let attribute = func_meta.attributes.expect("all builtin functions must contain an attribute which contains the function name which it links to");
-                // let builtin_name = attribute.builtin().expect("ice: function marked as a builtin, but attribute kind does not match this");
-                // builtin::call_builtin(self, env, builtin_name, (call_expr,span))
+            Expression::CallBuiltin(call) => {
+                let call =
+                    CallLowLevel { opcode: call.opcode.clone(), arguments: call.arguments.clone() };
+                Ok(Value::Single(self.codegen_lowlevel(env, &call)?))
             }
             Expression::For(for_expr) => self.codegen_for(env, for_expr),
             Expression::Tuple(fields) => self.codegen_tuple(env, fields),

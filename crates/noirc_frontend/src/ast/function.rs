@@ -76,6 +76,7 @@ impl From<FunctionDefinition> for NoirFunction {
         let kind = match fd.attribute {
             Some(Attribute::Builtin(_)) => FunctionKind::Builtin,
             Some(Attribute::Foreign(_)) => FunctionKind::LowLevel,
+            Some(Attribute::Alternative(_)) => FunctionKind::Normal,
             None => FunctionKind::Normal,
         };
 

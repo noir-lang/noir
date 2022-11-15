@@ -167,7 +167,7 @@ mod tests {
     ///
     /// This is used for tests.
     pub fn file_compiles<P: AsRef<Path>>(root_file: P) -> bool {
-        let mut driver = Driver::new();
+        let mut driver = Driver::new(&acvm::Language::R1CS);
         driver.create_local_crate(&root_file, CrateType::Binary);
         super::add_std_lib(&mut driver);
         driver.file_compiles()

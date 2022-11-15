@@ -9,6 +9,11 @@
 fn check_membership(_root : Field, _leaf : Field, _index : Field, _hash_path: [Field]) -> Field {}
 
 
+#[alternative(merkle_membership)]
+fn check_membership_in_noir(root : Field, leaf : Field, index : Field, hash_path: [Field]) -> Field {
+    (compute_root_from_leaf(leaf, index, hash_path) == root) as Field
+}
+
 // Returns the root of the tree from the provided leaf and its hashpath, using pedersen hash
 fn compute_root_from_leaf(leaf : Field, index : Field, hash_path: [Field]) -> Field {
     let n = crate::array::len(hash_path);
