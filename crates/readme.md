@@ -37,7 +37,7 @@ This crate can be seen as the middle end. It is in charge of generating the ACIR
 
 ## noirc_frontend
 
-This crate comprises of the first few standard compiler passes that one may expect in a compiler; lexer, parser and resolution.
+This crate comprises of the first few compiler passes that together we denote as the compiler frontend (in order): lexing, parsing, name resolution, type checking, and monomorphisation. If any of these passes error, the resulting monomorphised AST will not be passed to the middle-end (noirc_evaluator)
 
 ## wasm
 
