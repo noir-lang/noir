@@ -6,7 +6,7 @@ use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use noirc_frontend::monomorphisation::ast::{self, Call, DefinitionId, FuncId, Type};
 
-use super::conditional::{AssumptionId, DecisionTree};
+use super::conditional::{AssumptionId, DecisionTree, TreeBuilder};
 use super::node::Node;
 use super::{
     block::BlockId,
@@ -66,8 +66,15 @@ impl SSAFunction {
 
         //reduce conditionals
         let mut decision = DecisionTree::new(&igen.context);
-        decision.make_decision_tree(&mut igen.context, self.entry_block);
+        let mut builder = TreeBuilder::new(self.entry_block);
+        for (arg, _) in &self.arguments {
+            if let ObjectType::Pointer(a) = igen.context.get_object_type(*arg) {
+                builder.stack.created_arrays.insert(a, self.entry_block);
+            }
+        }
+        decision.make_decision_tree(&mut igen.context, builder);
         decision.reduce(&mut igen.context, decision.root)?;
+
         //merge blocks
         let to_remove =
             super::block::merge_path(&mut igen.context, self.entry_block, BlockId::dummy(), None);
