@@ -6,22 +6,24 @@ use std::path::Path;
 use crate::cli::compile_cmd::compile_circuit;
 use crate::errors::CliError;
 
-pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
+pub(crate) fn run(args: ArgMatches, dev_mode: bool) -> Result<(), CliError> {
     let args = args.subcommand_matches("gates").unwrap();
     let show_ssa = args.is_present("show-ssa");
-    count_gates(show_ssa)
+
+    count_gates(show_ssa, dev_mode)
 }
 
-pub fn count_gates(show_ssa: bool) -> Result<(), CliError> {
+pub fn count_gates(show_ssa: bool, dev_mode: bool) -> Result<(), CliError> {
     let curr_dir = std::env::current_dir().unwrap();
-    count_gates_with_path(curr_dir, show_ssa)
+    count_gates_with_path(curr_dir, show_ssa, dev_mode)
 }
 
 pub fn count_gates_with_path<P: AsRef<Path>>(
     program_dir: P,
     show_ssa: bool,
+    dev_mode: bool,
 ) -> Result<(), CliError> {
-    let compiled_program = compile_circuit(program_dir.as_ref(), show_ssa)?;
+    let compiled_program = compile_circuit(program_dir.as_ref(), show_ssa, dev_mode)?;
     let gates = compiled_program.circuit.gates;
 
     // Store counts of each gate type into hashmap.

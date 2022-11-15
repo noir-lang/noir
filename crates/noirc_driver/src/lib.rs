@@ -34,7 +34,7 @@ impl Driver {
     pub fn compile_file(root_file: PathBuf, np_language: acvm::Language) -> CompiledProgram {
         let mut driver = Driver::new(&np_language);
         driver.create_local_crate(root_file, CrateType::Binary);
-        driver.into_compiled_program(np_language, false)
+        driver.into_compiled_program(np_language, false, false) // Hardcode no development mode for now as this is only used by the wasm pkg
     }
 
     /// Compiles a file and returns true if compilation was successful
@@ -123,11 +123,11 @@ impl Driver {
 
     // NOTE: Maybe build could be skipped given that now it is a pass through method.
     /// Statically analyses the local crate
-    pub fn build(&mut self) {
-        self.analyse_crate()
+    pub fn build(&mut self, dev_mode: bool) {
+        self.analyse_crate(dev_mode)
     }
 
-    fn analyse_crate(&mut self) {
+    fn analyse_crate(&mut self, dev_mode: bool) {
         let mut errs = vec![];
         CrateDefMap::collect_defs(LOCAL_CRATE, &mut self.context, &mut errs);
         let mut error_count = 0;
@@ -136,6 +136,7 @@ impl Driver {
                 errors.file_id.as_usize(),
                 &self.context.file_manager,
                 &errors.errors,
+                dev_mode,
             );
         }
 
@@ -157,8 +158,9 @@ impl Driver {
         mut self,
         np_language: acvm::Language,
         show_ssa: bool,
+        dev_mode: bool
     ) -> CompiledProgram {
-        self.build();
+        self.build(dev_mode);
 
         // Check the crate type
         // We don't panic here to allow users to `evaluate` libraries
@@ -191,6 +193,7 @@ impl Driver {
                     err.location.file.as_usize(),
                     &self.context.file_manager,
                     &[err.to_diagnostic()],
+                    dev_mode,
                 );
                 Reporter::finish(error_count);
                 unreachable!("reporter will exit before this point")

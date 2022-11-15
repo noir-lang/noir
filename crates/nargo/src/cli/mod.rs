@@ -80,16 +80,23 @@ pub fn start_cli() {
                     .help("Emit debug information for the intermediate SSA IR"),
             ),
         )
+        .arg(
+            Arg::with_name("dev")
+                .long("dev")
+                .help("Build circuits in dev mode, allow unused variables")
+        )
         .get_matches();
+
+    let dev_mode = matches.is_present("dev");
 
     let result = match matches.subcommand_name() {
         Some("new") => new_cmd::run(matches),
-        Some("build") => build_cmd::run(matches),
-        Some("contract") => contract_cmd::run(matches),
-        Some("prove") => prove_cmd::run(matches),
-        Some("compile") => compile_cmd::run(matches),
-        Some("verify") => verify_cmd::run(matches),
-        Some("gates") => gates_cmd::run(matches),
+        Some("build") => build_cmd::run(matches, dev_mode),
+        Some("contract") => contract_cmd::run(matches, dev_mode),
+        Some("prove") => prove_cmd::run(matches, dev_mode),
+        Some("compile") => compile_cmd::run(matches, dev_mode),
+        Some("verify") => verify_cmd::run(matches, dev_mode),
+        Some("gates") => gates_cmd::run(matches, dev_mode),
         None => Err(CliError::Generic("No subcommand was used".to_owned())),
         Some(x) => Err(CliError::Generic(format!("unknown command : {}", x))),
     };
@@ -127,7 +134,7 @@ fn write_to_file(bytes: &[u8], path: &Path) -> String {
 pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> bool {
     let tmp_dir = TempDir::new("p_and_v_tests").unwrap();
     let proof_path =
-        match prove_cmd::prove_with_path(proof_name, prg_dir, &tmp_dir.into_path(), show_ssa) {
+        match prove_cmd::prove_with_path(proof_name, prg_dir, &tmp_dir.into_path(), show_ssa, false) {
             Ok(p) => p,
             Err(CliError::Generic(msg)) => {
                 println!("Error: {}", msg);
@@ -139,7 +146,7 @@ pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> boo
             }
         };
 
-    verify_cmd::verify_with_path(prg_dir, &proof_path, show_ssa).unwrap()
+    verify_cmd::verify_with_path(prg_dir, &proof_path, show_ssa, false).unwrap()
 }
 
 fn add_std_lib(driver: &mut Driver) {

@@ -3,7 +3,7 @@ use crate::{cli::compile_cmd::compile_circuit, errors::CliError};
 use acvm::SmartContract;
 use clap::ArgMatches;
 
-pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
+pub(crate) fn run(args: ArgMatches, dev_mode: bool) -> Result<(), CliError> {
     let cmd = args.subcommand_matches("contract").unwrap();
 
     let package_dir = match cmd.value_of("path") {
@@ -11,7 +11,7 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
         None => std::env::current_dir().unwrap(),
     };
 
-    let compiled_program = compile_circuit(&package_dir, false)?;
+    let compiled_program = compile_circuit(&package_dir, false, dev_mode)?;
 
     let backend = crate::backends::ConcreteBackend;
     let smart_contract_string = backend.eth_contract_from_cs(compiled_program.circuit);

@@ -103,6 +103,7 @@ impl Reporter {
         file_id: usize,
         files: &fm::FileManager,
         diagnostics: &[CustomDiagnostic],
+        dev_mode: bool,
     ) -> usize {
         let mut error_count = 0;
 
@@ -121,12 +122,17 @@ impl Reporter {
                 })
                 .collect();
 
-            let diagnostic = match custom_diagnostic.kind {
-                DiagnosticKind::Error => {
-                    error_count += 1;
-                    Diagnostic::error()
+            let diagnostic = if !dev_mode {
+                error_count += 1;
+                Diagnostic::error()
+            } else {
+                match custom_diagnostic.kind {
+                    DiagnosticKind::Error => {
+                        error_count += 1;
+                        Diagnostic::error()
+                    },
+                    DiagnosticKind::Warning => Diagnostic::warning(),
                 }
-                DiagnosticKind::Warning => Diagnostic::warning(),
             };
 
             let diagnostic = diagnostic

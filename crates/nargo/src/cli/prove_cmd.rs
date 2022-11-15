@@ -15,22 +15,23 @@ use super::{
     create_named_dir, write_to_file, PROOFS_DIR, PROOF_EXT, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE,
 };
 
-pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
+pub(crate) fn run(args: ArgMatches, dev_mode: bool) -> Result<(), CliError> {
     let args = args.subcommand_matches("prove").unwrap();
     let proof_name = args.value_of("proof_name").unwrap();
     let show_ssa = args.is_present("show-ssa");
-    prove(proof_name, show_ssa)
+
+    prove(proof_name, show_ssa, dev_mode)
 }
 
 /// In Barretenberg, the proof system adds a zero witness in the first index,
 /// So when we add witness values, their index start from 1.
 const WITNESS_OFFSET: u32 = 1;
 
-fn prove(proof_name: &str, show_ssa: bool) -> Result<(), CliError> {
+fn prove(proof_name: &str, show_ssa: bool, dev_mode: bool) -> Result<(), CliError> {
     let curr_dir = std::env::current_dir().unwrap();
     let mut proof_path = PathBuf::new();
     proof_path.push(PROOFS_DIR);
-    let result = prove_with_path(proof_name, curr_dir, proof_path, show_ssa);
+    let result = prove_with_path(proof_name, curr_dir, proof_path, show_ssa, dev_mode);
     match result {
         Ok(_) => Ok(()),
         Err(e) => Err(e),
@@ -111,8 +112,9 @@ fn process_abi_with_input(
 pub fn compile_circuit_and_witness<P: AsRef<Path>>(
     program_dir: P,
     show_ssa: bool,
+    dev_mode: bool,
 ) -> Result<(noirc_driver::CompiledProgram, BTreeMap<Witness, FieldElement>), CliError> {
-    let compiled_program = super::compile_cmd::compile_circuit(program_dir.as_ref(), show_ssa)?;
+    let compiled_program = super::compile_cmd::compile_circuit(program_dir.as_ref(), show_ssa, dev_mode)?;
     let solved_witness = solve_witness(program_dir, &compiled_program)?;
     Ok((compiled_program, solved_witness))
 }
@@ -200,8 +202,9 @@ pub fn prove_with_path<P: AsRef<Path>>(
     program_dir: P,
     proof_dir: P,
     show_ssa: bool,
+    dev_mode: bool,
 ) -> Result<PathBuf, CliError> {
-    let (compiled_program, solved_witness) = compile_circuit_and_witness(program_dir, show_ssa)?;
+    let (compiled_program, solved_witness) = compile_circuit_and_witness(program_dir, show_ssa, dev_mode)?;
 
     let backend = crate::backends::ConcreteBackend;
     let proof = backend.prove_with_meta(compiled_program.circuit, solved_witness);
