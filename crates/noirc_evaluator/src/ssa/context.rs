@@ -266,7 +266,6 @@ impl SsaContext {
             println!("{}: {}", str_res, ins_str);
         }
     }
-
     pub fn print(&self, text: &str) {
         println!("{}", text);
         for (_, b) in self.blocks.iter() {
@@ -676,7 +675,7 @@ impl SsaContext {
         self.log(enable_logging, "reduce", "\ninlining:");
         inline::inline_tree(self, self.first_block, &decision)?;
 
-        block::merge_path(self, self.first_block, BlockId::dummy());
+        block::merge_path(self, self.first_block, BlockId::dummy(), None);
         //The CFG is now fully flattened, so we keep only the first block.
         let mut to_remove = Vec::new();
         for b in &self.blocks {
@@ -701,6 +700,7 @@ impl SsaContext {
             Acir::print_circuit(&evaluator.gates);
             println!("DONE");
         }
+        println!("ACIR gates generated : {}", evaluator.gates.len());
         Ok(())
     }
 
