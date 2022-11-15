@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 
+use acvm::{CustomGate, Language};
 use arena::{Arena, Index};
 use fm::FileId;
 use noirc_errors::{Location, Span, Spanned};
@@ -167,6 +168,9 @@ pub struct NodeInterner {
     globals: HashMap<StmtId, GlobalInfo>, // NOTE: currently only used for checking repeat globals and restricting their scope to a module
 
     next_type_variable_id: usize,
+
+    //used for fallback mechanism
+    language: Language,
 }
 
 #[derive(Debug, Clone)]
@@ -197,6 +201,7 @@ impl Default for NodeInterner {
             field_indices: HashMap::new(),
             next_type_variable_id: 0,
             globals: HashMap::new(),
+            language: Language::R1CS,
         };
 
         // An empty block expression is used often, we add this into the `node` on startup
@@ -334,6 +339,17 @@ impl NodeInterner {
         self.func_meta.insert(func_id, func_data);
     }
 
+    pub fn get_alt(&self, opcode: String) -> Option<FuncId> {
+        for (func_id, meta) in &self.func_meta {
+            if let Some(crate::token::Attribute::Alternative(name)) = &meta.attributes {
+                if *name == opcode {
+                    return Some(*func_id);
+                }
+            }
+        }
+        None
+    }
+
     pub fn push_definition(
         &mut self,
         name: String,
@@ -362,6 +378,10 @@ impl NodeInterner {
     /// Returns the interned meta data corresponding to `func_id`
     pub fn function_meta(&self, func_id: &FuncId) -> FuncMeta {
         self.func_meta.get(func_id).cloned().expect("ice: all function ids should have metadata")
+    }
+
+    pub fn try_function_meta(&self, func_id: &FuncId) -> Option<FuncMeta> {
+        self.func_meta.get(func_id).cloned()
     }
 
     pub fn function_ident(&self, func_id: &FuncId) -> crate::Ident {
@@ -499,5 +519,13 @@ impl NodeInterner {
 
     pub fn set_field_index(&mut self, expr_id: ExprId, index: usize) {
         self.field_indices.insert(expr_id, index);
+    }
+
+    pub fn set_language(&mut self, language: &Language) {
+        self.language = language.clone();
+    }
+
+    pub fn foreign(&self, opcode: &str) -> bool {
+        self.language.supports(opcode)
     }
 }
