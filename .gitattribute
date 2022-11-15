@@ -1,2 +1,2 @@
-.github\build-nix                 text eol=lf
-.github\build-x86_64-apple-darwin text eol=lf
+.github/build-nix                 text eol=lf
+.github/build-x86_64-apple-darwin text eol=lf
