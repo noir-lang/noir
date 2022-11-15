@@ -707,6 +707,11 @@ pub fn comparator_operand_type_rules(
             // We could check if all elements of all arrays are comptime but I am lazy
             Ok(Bool(Comptime::No(Some(op.location.span))))
         }
-        (lhs, rhs) => Err(format!("Unsupported types for comparison: {} and {}", lhs, rhs)),
+        (lhs, rhs) => {
+            if lhs == rhs {
+                return Ok(Bool(Comptime::No(Some(op.location.span))));
+            }
+            Err(format!("Unsupported types for comparison: {} and {}", lhs, rhs))
+        },
     }
 }
