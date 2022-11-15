@@ -59,7 +59,7 @@ impl From<AbiError> for CliError {
 pub enum AbiError {
     Generic(String),
     UnexpectedParams(Vec<String>),
-    TypeMismatch { param_name: String, expected_type: AbiType, actual_value: InputValue },
+    TypeMismatch { param_name: String, param_type: AbiType, value: InputValue },
     MissingParam(String),
     UndefinedInput(String),
 }
@@ -73,10 +73,10 @@ impl Display for AbiError {
                 AbiError::Generic(msg) => msg.clone(),
                 AbiError::UnexpectedParams(unexpected_params) =>
                     format!("Received parameters not expected by ABI: {:?}", unexpected_params),
-                AbiError::TypeMismatch { param_name, expected_type, actual_value } => {
+                AbiError::TypeMismatch { param_name, param_type, value } => {
                     format!(
                             "The parameter {} is expected to be a {:?} but found incompatible value {:?}",
-                            param_name, expected_type, actual_value
+                            param_name, param_type, value
                         )
                 }
                 AbiError::MissingParam(name) => {

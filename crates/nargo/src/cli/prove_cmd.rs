@@ -65,11 +65,7 @@ fn process_abi_with_input(
             .clone();
 
         if !value.matches_abi(&param_type) {
-            return Err(AbiError::TypeMismatch {
-                param_name,
-                expected_type: param_type,
-                actual_value: value,
-            });
+            return Err(AbiError::TypeMismatch { param_name, param_type, value });
         }
 
         match value {
