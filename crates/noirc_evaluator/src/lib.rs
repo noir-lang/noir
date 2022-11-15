@@ -113,10 +113,12 @@ impl Evaluator {
         enable_logging: bool,
     ) -> Result<(), RuntimeError> {
         let mut igen = IRGenerator::new(program);
+        let time = std::time::Instant::now();
         self.parse_abi_alt(&mut igen);
 
         // Now call the main function
         igen.codegen_main(env)?;
+        println!("ssa codegen main done: {:?}", time.elapsed());
 
         //Generates ACIR representation:
         igen.context.ir_to_acir(self, enable_logging)?;

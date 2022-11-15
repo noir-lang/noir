@@ -35,6 +35,7 @@ impl AstPrinter {
             Expression::Block(exprs) => self.print_block(exprs, f),
             Expression::Unary(unary) => self.print_unary(unary, f),
             Expression::Binary(binary) => self.print_binary(binary, f),
+            Expression::Shared(_, e) => self.print_expr(e, f),
             Expression::Index(index) => {
                 self.print_expr(&index.collection, f)?;
                 write!(f, "[")?;

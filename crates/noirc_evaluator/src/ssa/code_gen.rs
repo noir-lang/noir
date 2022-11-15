@@ -27,6 +27,8 @@ pub struct IRGenerator {
     /// into multiple variables/values
     variable_values: HashMap<DefinitionId, Value>,
 
+    shared_values: HashMap<SharedId, Value>,
+
     pub program: Program,
 }
 
@@ -103,6 +105,7 @@ impl IRGenerator {
         IRGenerator {
             context: SsaContext::new(),
             variable_values: HashMap::new(),
+            shared_values: HashMap::new(),
             function_context: None,
             program,
         }
@@ -575,6 +578,14 @@ impl IRGenerator {
             Expression::Semi(expr) => {
                 self.codegen_expression(env, expr.as_ref())?;
                 Ok(Value::dummy())
+            }
+            Expression::Shared(id, expr) => {
+                if let Some(value) = self.shared_values.get(id) {
+                    return Ok(value.clone());
+                }
+                let e = self.codegen_expression(env, expr)?;
+                self.shared_values.insert(*id, e.clone());
+                Ok(e)
             }
         }
     }

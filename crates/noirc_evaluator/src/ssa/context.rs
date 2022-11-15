@@ -673,6 +673,7 @@ impl SsaContext {
         inline::inline_tree(self, self.first_block, &decision)?;
 
         block::merge_path(self, self.first_block, BlockId::dummy());
+
         //The CFG is now fully flattened, so we keep only the first block.
         let mut to_remove = Vec::new();
         for b in &self.blocks {
@@ -691,6 +692,7 @@ impl SsaContext {
         //Truncation
         integer::overflow_strategy(self)?;
         self.log(enable_logging, "\noverflow:", "");
+
         //ACIR
         self.acir(evaluator);
         if enable_logging {

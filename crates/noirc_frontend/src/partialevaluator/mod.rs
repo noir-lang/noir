@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, rc::Rc};
 
 use acvm::FieldElement;
 use noirc_errors::Location;
@@ -6,7 +6,7 @@ use noirc_errors::Location;
 use crate::{
     monomorphisation::ast::{
         ArrayLiteral, Assign, Binary, CallBuiltin, CallLowLevel, Cast, DefinitionId, Expression,
-        FuncId, Function, Ident, If, Index, LValue, Let, Literal, Program, Type, Unary,
+        FuncId, Function, Ident, If, Index, LValue, Let, Literal, Program, Type, Unary, SharedId,
     },
     util::vecmap,
     BinaryOpKind, Signedness, UnaryOp,
@@ -58,7 +58,6 @@ struct Evaluator<'a> {
     evaluated: Vec<Vec<Expression>>,
 
     counter: u32,
-    assign_variable: Option<Ident>,
 }
 
 impl<'a> Evaluator<'a> {
@@ -67,8 +66,7 @@ impl<'a> Evaluator<'a> {
             program,
             call_stack: vec![],
             evaluated: vec![vec![]],
-            counter: u32::MAX,
-            assign_variable: None,
+            counter: 0,
         }
     }
 
@@ -82,9 +80,9 @@ impl<'a> Evaluator<'a> {
         }
     }
 
-    fn next_unique_id(&mut self) -> DefinitionId {
-        self.counter -= 1;
-        DefinitionId(self.counter)
+    fn next_unique_id(&mut self) -> SharedId {
+        self.counter += 1;
+        SharedId(self.counter)
     }
 
     fn function(&mut self, f: FuncId, args: Vec<Expression>) -> Expression {
@@ -141,6 +139,8 @@ impl<'a> Evaluator<'a> {
             Expression::Constrain(expr, loc) => self.constrain(expr, *loc),
             Expression::Assign(assign) => self.assign(assign),
             Expression::Semi(expr) => Expression::Semi(Box::new(self.expression(expr))),
+
+            Expression::Shared(..) => unreachable!(),
         }
     }
 
@@ -413,7 +413,9 @@ impl<'a> Evaluator<'a> {
                 expression: Box::new(expression),
             }));
         } else {
-            self.current_scope().insert(let_stmt.id, expression);
+            let id = self.next_unique_id();
+            let e = Expression::Shared(id, Rc::new(expression));
+            self.current_scope().insert(let_stmt.id, e);
         }
         unit()
     }
@@ -430,27 +432,6 @@ impl<'a> Evaluator<'a> {
 
         let assign = Expression::Assign(Assign { lvalue, expression });
         self.push_expression(assign);
-
-        if let Some(ident) = self.assign_variable.take() {
-            let new_id = self.next_unique_id();
-            self.current_scope().insert(
-                ident.id,
-                Expression::Ident(Ident {
-                    location: None,
-                    id: new_id,
-                    mutable: false,
-                    name: ident.name.clone(),
-                    typ: ident.typ.clone(),
-                }),
-            );
-
-            self.push_expression(Expression::Let(Let {
-                id: new_id,
-                mutable: false,
-                name: ident.name.clone(),
-                expression: Box::new(Expression::Ident(ident)),
-            }));
-        }
 
         unit()
     }
@@ -482,22 +463,22 @@ fn binary_constant_int(
     operator: BinaryOpKind,
 ) -> Option<Expression> {
     if let (
-        Expression::Literal(Literal::Integer(lvalue, ltyp)),
-        Expression::Literal(Literal::Integer(rvalue, rtyp)),
-    ) = (&lhs, &rhs)
-    {
+        Some((lvalue, ltyp)),
+        Some((rvalue, rtyp))
+    ) = (as_int(lhs), as_int(rhs)
+    ){
         assert_eq!(ltyp, rtyp);
         match operator {
-            BinaryOpKind::Add => return Some(int(*lvalue + *rvalue, ltyp.clone())),
-            BinaryOpKind::Subtract => return Some(int(*lvalue - *rvalue, ltyp.clone())),
-            BinaryOpKind::Multiply => return Some(int(*lvalue * *rvalue, ltyp.clone())),
-            BinaryOpKind::Divide => return Some(int(*lvalue / *rvalue, ltyp.clone())),
+            BinaryOpKind::Add => return Some(int(lvalue + rvalue, ltyp.clone())),
+            BinaryOpKind::Subtract => return Some(int(lvalue - rvalue, ltyp.clone())),
+            BinaryOpKind::Multiply => return Some(int(lvalue * rvalue, ltyp.clone())),
+            BinaryOpKind::Divide => return Some(int(lvalue / rvalue, ltyp.clone())),
             BinaryOpKind::Equal => return Some(bool(lvalue == rvalue)),
-            BinaryOpKind::NotEqual => return Some(bool(*lvalue != *rvalue)),
-            BinaryOpKind::Less => return Some(bool(*lvalue < *rvalue)),
-            BinaryOpKind::LessEqual => return Some(bool(*lvalue <= *rvalue)),
-            BinaryOpKind::Greater => return Some(bool(*lvalue > *rvalue)),
-            BinaryOpKind::GreaterEqual => return Some(bool(*lvalue >= *rvalue)),
+            BinaryOpKind::NotEqual => return Some(bool(lvalue != rvalue)),
+            BinaryOpKind::Less => return Some(bool(lvalue < rvalue)),
+            BinaryOpKind::LessEqual => return Some(bool(lvalue <= rvalue)),
+            BinaryOpKind::Greater => return Some(bool(lvalue > rvalue)),
+            BinaryOpKind::GreaterEqual => return Some(bool(lvalue >= rvalue)),
             _ => (),
         };
 
@@ -523,16 +504,14 @@ fn binary_constant_bool(
     operator: BinaryOpKind,
 ) -> Option<Expression> {
     if let (
-        Expression::Literal(Literal::Bool(lvalue)),
-        Expression::Literal(Literal::Bool(rvalue)),
-    ) = (&lhs, &rhs)
-    {
+        Some(lvalue), Some(rvalue)
+    ) = (as_bool(lhs), as_bool(rhs)){
         Some(match operator {
             BinaryOpKind::Equal => bool(lvalue == rvalue),
-            BinaryOpKind::NotEqual => bool(*lvalue != *rvalue),
-            BinaryOpKind::And => bool(*lvalue && *rvalue),
-            BinaryOpKind::Or => bool(*lvalue || *rvalue),
-            BinaryOpKind::Xor => bool(*lvalue ^ *rvalue),
+            BinaryOpKind::NotEqual => bool(lvalue != rvalue),
+            BinaryOpKind::And => bool(lvalue && rvalue),
+            BinaryOpKind::Or => bool(lvalue || rvalue),
+            BinaryOpKind::Xor => bool(lvalue ^ rvalue),
             _ => return None,
         })
     } else {
@@ -613,16 +592,26 @@ fn truncate_u128(value: u128, typ: &Type) -> FieldElement {
     }
 }
 
-fn is_zero(expr: &Expression) -> bool {
+fn as_bool(expr: &Expression) -> Option<bool> {
     match expr {
-        Expression::Literal(Literal::Integer(value, _)) => value.is_zero(),
-        _ => false,
+        Expression::Literal(Literal::Bool(value)) => Some(*value),
+        Expression::Shared(_, expr) => as_bool(expr),
+        _ => None,
     }
 }
 
-fn is_one(expr: &Expression) -> bool {
+fn as_int(expr: &Expression) -> Option<(FieldElement, &Type)> {
     match expr {
-        Expression::Literal(Literal::Integer(value, _)) => value.is_one(),
-        _ => false,
+        Expression::Literal(Literal::Integer(value, typ)) => Some((*value, typ)),
+        Expression::Shared(_, expr) => as_int(expr),
+        _ => None,
     }
+}
+
+fn is_zero(expr: &Expression) -> bool {
+    as_int(expr).map_or(false, |(int, _)| int.is_zero())
+}
+
+fn is_one(expr: &Expression) -> bool {
+    as_int(expr).map_or(false, |(int, _)| int.is_one())
 }
