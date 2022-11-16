@@ -44,7 +44,9 @@ pub fn start_cli() {
         .about("Noir's package manager")
         .version("0.1")
         .author("Kevaundray Wedderburn <kevtheappdev@gmail.com>")
-        .subcommand(App::new("build").about("Builds the constraint system").arg(allow_warnings.clone()))
+        .subcommand(
+            App::new("build").about("Builds the constraint system").arg(allow_warnings.clone()),
+        )
         .subcommand(App::new("contract").about("Creates the smart contract code for circuit"))
         .subcommand(
             App::new("new")
