@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use acvm::FieldElement;
 use noirc_abi::Abi;
 use noirc_errors::Location;
@@ -21,11 +23,15 @@ pub enum Expression {
     CallBuiltin(CallBuiltin),
     CallLowLevel(CallLowLevel),
 
+    Shared(SharedId, Rc<Expression>),
     Let(Let),
     Constrain(Box<Expression>, Location),
     Assign(Assign),
     Semi(Box<Expression>),
 }
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct SharedId(pub u32);
 
 impl Expression {
     pub fn has_side_effects(&self) -> bool {
@@ -35,6 +41,7 @@ impl Expression {
             Expression::Literal(Literal::Array(array)) => {
                 array.contents.iter().any(|elem| elem.has_side_effects())
             }
+            Expression::Shared(_, expr) => expr.has_side_effects(),
 
             Expression::Literal(_) => false,
             Expression::Ident(_) => false,
@@ -90,6 +97,7 @@ impl Expression {
             Expression::CallLowLevel(call) => {
                 call.arguments.iter().any(|arg| arg.contains_variables())
             }
+            Expression::Shared(_, expr) => expr.contains_variables(),
             Expression::Let(let_expr) => let_expr.expression.contains_variables(),
             Expression::Constrain(expr, _) => expr.contains_variables(),
             Expression::Assign(assign) => assign.expression.contains_variables(),
