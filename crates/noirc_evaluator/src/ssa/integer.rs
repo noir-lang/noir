@@ -391,7 +391,7 @@ fn block_overflow(
             //we may do that in future when the max_map becomes more used elsewhere (for other optim)
         }
 
-        let old_ins = ctx.try_get_mut_instruction(id).unwrap();
+        let old_ins = ctx.try_get_mut_instruction(ins.id).unwrap();
         *old_ins = ins;
     }
 
