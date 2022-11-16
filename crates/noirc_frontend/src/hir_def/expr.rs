@@ -124,14 +124,13 @@ impl HirMethodCallExpression {
     pub fn into_function_call(
         mut self,
         func: FuncId,
-        func_name: String,
         location: Location,
         interner: &mut NodeInterner,
     ) -> (ExprId, HirExpression) {
         let mut arguments = vec![self.object];
         arguments.append(&mut self.arguments);
 
-        let id = interner.push_function_definition(func_name, func);
+        let id = interner.function_definition_id(func);
         let ident = HirExpression::Ident(HirIdent { location, id });
         let func = interner.push_expr(ident);
 
