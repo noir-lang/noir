@@ -491,6 +491,7 @@ fn get_max_value(ins: &Instruction, max_map: &mut HashMap<NodeId, BigUint>) -> B
                 OPCODE::SchnorrVerify
                 | OPCODE::EcdsaSecp256k1
                 | acvm::acir::OPCODE::MerkleMembership => BigUint::one(), //verify returns 0 or 1
+                OPCODE::HashToField => ins.res_type.max_size(),
                 _ => todo!("max value must be implemented for opcode {} ", opcode),
             }
         }
