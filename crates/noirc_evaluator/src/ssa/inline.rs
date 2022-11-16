@@ -104,7 +104,7 @@ fn inline_block(
     }
 
     if to_inline.is_none() {
-        optim::simple_cse(ctx, block_id);
+        optim::simple_cse(ctx, block_id)?;
     }
     Ok(result)
 }
