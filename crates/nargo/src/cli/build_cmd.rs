@@ -6,8 +6,10 @@ use std::path::{Path, PathBuf};
 use super::{add_std_lib, write_to_file, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
-    let package_dir = std::env::current_dir().unwrap();
+    let args = args.subcommand_matches("build").unwrap();
     let allow_warnings = args.is_present("allow-warnings");
+
+    let package_dir = std::env::current_dir().unwrap();
     build_from_path(package_dir, allow_warnings)?;
     println!("Constraint system successfully built!");
     Ok(())

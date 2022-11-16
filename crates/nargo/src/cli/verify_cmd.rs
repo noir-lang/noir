@@ -7,7 +7,9 @@ use noirc_abi::{input_parser::InputValue, Abi};
 use std::{collections::BTreeMap, path::Path, path::PathBuf};
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
-    let proof_name = args.subcommand_matches("verify").unwrap().value_of("proof").unwrap();
+    let args = args.subcommand_matches("verify").unwrap();
+
+    let proof_name = args.value_of("proof").unwrap();
     let mut proof_path = std::path::PathBuf::new();
     proof_path.push(Path::new(PROOFS_DIR));
 
@@ -15,6 +17,7 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     proof_path.set_extension(PROOF_EXT);
 
     let allow_warnings = args.is_present("allow-warnings");
+    dbg!(args.clone());
     let result = verify(proof_name, allow_warnings)?;
     println!("Proof verified : {}\n", result);
     Ok(())
