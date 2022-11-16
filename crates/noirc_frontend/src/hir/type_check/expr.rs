@@ -707,11 +707,12 @@ pub fn comparator_operand_type_rules(
             // We could check if all elements of all arrays are comptime but I am lazy
             Ok(Bool(Comptime::No(Some(op.location.span))))
         }
-        (lhs, rhs) => {
-            if lhs == rhs {
+        (NamedGeneric(binding_a, name_a), NamedGeneric(binding_b, name_b)) => {
+            if binding_a == binding_b {
                 return Ok(Bool(Comptime::No(Some(op.location.span))));
             }
-            Err(format!("Unsupported types for comparison: {} and {}", lhs, rhs))
-        },
+            Err(format!("Unsupported types for comparison: {} and {}", name_a, name_b))
+        }
+        (lhs, rhs) => Err(format!("Unsupported types for comparison: {} and {}", lhs, rhs)),
     }
 }
