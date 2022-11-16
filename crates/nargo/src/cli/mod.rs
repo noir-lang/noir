@@ -44,7 +44,9 @@ pub fn start_cli() {
         .about("Noir's package manager")
         .version("0.1")
         .author("Kevaundray Wedderburn <kevtheappdev@gmail.com>")
-        .subcommand(App::new("build").about("Builds the constraint system"))
+        .subcommand(
+            App::new("build").about("Builds the constraint system").arg(allow_warnings.clone()),
+        )
         .subcommand(App::new("contract").about("Creates the smart contract code for circuit"))
         .subcommand(
             App::new("new")
@@ -58,11 +60,7 @@ pub fn start_cli() {
             App::new("verify")
                 .about("Given a proof and a program, verify whether the proof is valid")
                 .arg(Arg::with_name("proof").help("The proof to verify").required(true))
-                .arg(
-                    Arg::with_name("allow-warnings")
-                        .long("allow-warnings")
-                        .help("Issue a warning for each unused variable instead of an error"),
-                ),
+                .arg(allow_warnings.clone()),
         )
         .subcommand(
             App::new("prove")
