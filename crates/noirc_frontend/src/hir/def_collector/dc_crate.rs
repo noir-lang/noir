@@ -147,11 +147,11 @@ impl DefCollector {
             }
         }
 
-        resolve_structs(context, def_collector.collected_types, crate_id, errors);
-
         // We must first resolve and intern the globals before we can resolve any stmts inside each function.
         // Each function uses its own resolver with a newly created ScopeForest, and must be resolved again to be within a function's scope
         let file_global_ids = resolve_globals(context, def_collector.collected_globals, crate_id);
+
+        resolve_structs(context, def_collector.collected_types, crate_id, errors);
 
         // Before we resolve any function symbols we must go through our impls and
         // re-collect the methods within into their proper module. This cannot be

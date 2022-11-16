@@ -115,13 +115,7 @@ impl<'a> Resolver<'a> {
         self.scopes.start_function();
 
         // Check whether the function has globals in the local module and add them to the scope
-        for (stmt_id, global_info) in self.interner.get_all_globals() {
-            if global_info.local_id == self.path_resolver.local_module_id() {
-                let global_stmt = self.interner.let_statement(&stmt_id);
-                let kind = DefinitionKind::Global(global_stmt.expression);
-                self.add_global_variable_decl(global_info.ident, kind);
-            }
-        }
+        self.resolve_local_globals();
 
         self.add_generics(func.def.generics.clone());
 
@@ -418,6 +412,9 @@ impl<'a> Resolver<'a> {
     ) -> (Generics, BTreeMap<Ident, Type>, Vec<ResolverError>) {
         let generics = self.add_generics(unresolved.generics);
 
+        // Check whether the struct definition has globals in the local module and add them to the scope
+        self.resolve_local_globals();
+
         let fields = unresolved
             .fields
             .into_iter()
@@ -425,6 +422,16 @@ impl<'a> Resolver<'a> {
             .collect();
 
         (generics, fields, self.errors)
+    }
+
+    fn resolve_local_globals(&mut self) {
+        for (stmt_id, global_info) in self.interner.get_all_globals() {
+            if global_info.local_id == self.path_resolver.local_module_id() {
+                let global_stmt = self.interner.let_statement(&stmt_id);
+                let definition = DefinitionKind::Global(global_stmt.expression);
+                self.add_global_variable_decl(global_info.ident, definition);
+            }
+        }
     }
 
     /// Extract metadata from a NoirFunction
@@ -806,7 +813,23 @@ impl<'a> Resolver<'a> {
         let span = path.span();
         let id = self.resolve_path(path)?;
 
-        if let Some(function) = TryFromModuleDefId::try_from(id) {
+        if let Some(mut function) = TryFromModuleDefId::try_from(id) {
+            // Check if this is an unsupported lowlevel opcode. If so, replace it with
+            // an alternative in the stdlib.
+            if let Some(meta) = self.interner.try_function_meta(&function) {
+                if meta.kind == crate::FunctionKind::LowLevel {
+                    let attribute = meta.attributes.expect("all low level functions must contain an attribute which contains the opcode which it links to");
+                    let opcode = attribute.foreign().expect(
+                        "ice: function marked as foreign, but attribute kind does not match this",
+                    );
+                    if !self.interner.foreign(&opcode) {
+                        if let Some(new_id) = self.interner.get_alt(opcode) {
+                            function = new_id;
+                        }
+                    }
+                }
+            }
+
             return Ok(self.interner.function_definition_id(function));
         }
 

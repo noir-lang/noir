@@ -1,7 +1,7 @@
 use super::{
     conditional::AssumptionId,
     context::SsaContext,
-    node::{self, NodeId},
+    node::{self, Instruction, Mark, NodeId, Opcode},
 };
 use std::collections::{HashMap, HashSet, VecDeque};
 
@@ -18,6 +18,9 @@ pub struct BlockId(pub arena::Index);
 impl BlockId {
     pub fn dummy() -> BlockId {
         BlockId(SsaContext::dummy_id())
+    }
+    pub fn is_dummy(&self) -> bool {
+        *self == BlockId::dummy()
     }
 }
 
@@ -93,6 +96,35 @@ impl BasicBlock {
             }
         }
         result
+    }
+
+    //Returns true if the block is a short-circuit
+    fn is_short_circuit(&self, ctx: &SsaContext, assumption: Option<NodeId>) -> bool {
+        if let Some(ass_value) = assumption {
+            if self.instructions.len() >= 3 {
+                if let Some(Instruction { operation, .. }) =
+                    ctx.try_get_instruction(self.instructions[1])
+                {
+                    if *operation
+                        == (node::Operation::Cond {
+                            condition: ass_value,
+                            val_true: ctx.zero(),
+                            val_false: ctx.one(),
+                        })
+                    {
+                        if let Some(Instruction { operation, .. }) =
+                            ctx.try_get_instruction(self.instructions[2])
+                        {
+                            if *operation == node::Operation::Constrain(self.instructions[1], None)
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        false
     }
 }
 
@@ -200,7 +232,7 @@ pub fn bfs(start: BlockId, stop: Option<BlockId>, ctx: &SsaContext) -> Vec<Block
                 if stop == Some(block_id) {
                     return;
                 }
-                if block_id != BlockId::dummy() && !result.contains(&block_id) {
+                if !block_id.is_dummy() && !result.contains(&block_id) {
                     result.push(block_id);
                     queue.push_back(block_id);
                 }
@@ -214,49 +246,65 @@ pub fn bfs(start: BlockId, stop: Option<BlockId>, ctx: &SsaContext) -> Vec<Block
     result
 }
 
-pub fn find_join(ctx: &SsaContext, b1: BlockId, b2: BlockId) -> BlockId {
-    if b1 == b2 {
-        return b1;
-    }
-    let mut process_left = vec![b1];
-    let mut process_right = vec![b2];
-    let mut descendants = HashMap::new();
-    while !process_left.is_empty() || !process_right.is_empty() {
-        if let Some(block) = process_son(ctx, true, &mut descendants, &mut process_left) {
-            return block;
+//Find the exit (i.e join) block from a IF (i.e split) block
+pub fn find_join(ctx: &SsaContext, block_id: BlockId) -> BlockId {
+    let mut processed = HashMap::new();
+    find_join_helper(ctx, block_id, &mut processed)
+}
+
+//We follow down the path from the THEN and ELSE branches until we reach a common descendant
+fn find_join_helper(
+    ctx: &SsaContext,
+    block_id: BlockId,
+    processed: &mut HashMap<BlockId, BlockId>,
+) -> BlockId {
+    let mut left = ctx[block_id].left.unwrap();
+    let mut right = ctx[block_id].right.unwrap();
+    let mut left_descendants = Vec::new();
+    let mut right_descendants = Vec::new();
+
+    while !left.is_dummy() || !right.is_dummy() {
+        if let Some(block) = get_only_descendant(ctx, left, processed) {
+            left_descendants.push(block);
+            left = block;
+            if right_descendants.contains(&block) {
+                return block;
+            }
         }
-        if let Some(block) = process_son(ctx, false, &mut descendants, &mut process_right) {
-            return block;
+        if let Some(block) = get_only_descendant(ctx, right, processed) {
+            right_descendants.push(block);
+            right = block;
+            if left_descendants.contains(&block) {
+                return block;
+            }
         }
     }
     unreachable!("no join");
 }
 
-fn process_son(
+//get the most direct descendant which is 'only child'
+fn get_only_descendant(
     ctx: &SsaContext,
-    left: bool,
-    descendants: &mut HashMap<BlockId, bool>,
-    to_process: &mut Vec<BlockId>,
+    block_id: BlockId,
+    processed: &mut HashMap<BlockId, BlockId>,
 ) -> Option<BlockId> {
-    if let Some(block) = to_process.pop() {
-        if descendants.contains_key(&block) {
-            if descendants[&block] && left {
-                return None; //cycle
-            }
-            if !descendants[&block] && !left {
-                return None; //cycle
-            }
-            return Some(block);
-        }
-        descendants.insert(block, left);
-        if let Some(left) = ctx[block].left {
-            to_process.push(left);
-        }
-        if let Some(right) = ctx[block].right {
-            to_process.push(right);
-        }
+    if block_id == BlockId::dummy() {
+        return None;
     }
-    None
+    let block = &ctx[block_id];
+    if block.right.is_none() || block.kind == BlockType::ForJoin {
+        if let Some(left) = block.left {
+            processed.insert(block_id, left);
+        }
+        block.left
+    } else {
+        if processed.contains_key(&block_id) {
+            return Some(processed[&block_id]);
+        }
+        let descendant = find_join_helper(ctx, block_id, processed);
+        processed.insert(block_id, descendant);
+        Some(descendant)
+    }
 }
 
 //Set left as the left block of block_id
@@ -281,13 +329,44 @@ pub fn rewire_block_left(ctx: &mut SsaContext, block_id: BlockId, left: BlockId)
     }
 }
 
+//Delete all instructions in the block
+pub fn short_circuit_block(ctx: &mut SsaContext, block_id: BlockId) {
+    let instructions = ctx[block_id].instructions.clone();
+    short_circuit_instructions(ctx, &instructions);
+}
+
+pub fn short_circuit_instructions(ctx: &mut SsaContext, instructions: &Vec<NodeId>) {
+    let mut zeros = HashMap::new();
+    for i in instructions {
+        let ins = ctx.get_instruction(*i);
+        if ins.res_type != node::ObjectType::NotAnObject {
+            zeros.insert(ins.res_type, ctx.zero_with_type(ins.res_type));
+        }
+    }
+    for i in instructions {
+        let ins = ctx.get_mut_instruction(*i);
+        if ins.res_type != node::ObjectType::NotAnObject {
+            ins.mark = Mark::ReplaceWith(zeros[&ins.res_type]);
+        } else if ins.operation.opcode() != Opcode::Nop {
+            ins.mark = Mark::Deleted;
+        }
+    }
+}
+
 //merge subgraph from start to end in one block, excluding end
-pub fn merge_path(ctx: &mut SsaContext, start: BlockId, end: BlockId) -> VecDeque<BlockId> {
+pub fn merge_path(
+    ctx: &mut SsaContext,
+    start: BlockId,
+    end: BlockId,
+    assumption: Option<NodeId>,
+) -> VecDeque<BlockId> {
     let mut removed_blocks = VecDeque::new();
     if start != end {
         let mut next = start;
         let mut instructions = Vec::new();
         let mut block = &ctx[start];
+        let mut short_circuit = BlockId::dummy();
+
         while next != end {
             if block.dominated.len() > 1 || block.right.is_some() {
                 dbg!(&block);
@@ -295,21 +374,39 @@ pub fn merge_path(ctx: &mut SsaContext, start: BlockId, end: BlockId) -> VecDequ
             }
             block = &ctx[next];
             removed_blocks.push_back(next);
-            instructions.extend(&block.instructions);
+
+            if short_circuit.is_dummy() {
+                instructions.extend(&block.instructions);
+            }
+
+            if short_circuit.is_dummy() && block.is_short_circuit(ctx, assumption) {
+                instructions.clear();
+                instructions.extend(&block.instructions);
+                short_circuit = block.id;
+            }
+
             if let Some(left) = block.left {
                 next = left;
             } else {
-                if end != BlockId::dummy() {
+                if !end.is_dummy() {
                     unreachable!("cannot reach block {:?}", end);
                 }
                 next = BlockId::dummy();
             }
         }
+        if !short_circuit.is_dummy() {
+            for &b in &removed_blocks {
+                if b != short_circuit {
+                    short_circuit_block(ctx, b);
+                }
+            }
+        }
+
         //we assign the concatened list of instructions to the start block, using a CSE pass
         let mut modified = false;
         super::optim::cse_block(ctx, start, &mut instructions, &mut modified).unwrap();
         //Wires start to end
-        if end != BlockId::dummy() {
+        if !end.is_dummy() {
             rewire_block_left(ctx, start, end);
         } else {
             ctx[start].left = None;
