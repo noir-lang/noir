@@ -18,21 +18,35 @@ template <class Field, class Getters, typename PolyContainer> class EllipticKern
     typedef containers::coefficient_array<Field> coefficient_array;
 
   public:
+    inline static std::set<PolynomialIndex> const& get_required_polynomial_ids()
+    {
+        static const std::set<PolynomialIndex> required_polynomial_ids = {
+            PolynomialIndex::Q_3, PolynomialIndex::Q_4, PolynomialIndex::Q_5, PolynomialIndex::Q_ELLIPTIC,
+            PolynomialIndex::W_1, PolynomialIndex::W_2, PolynomialIndex::W_3, PolynomialIndex::W_4
+        };
+        return required_polynomial_ids;
+    }
+
     inline static void compute_linear_terms(PolyContainer& polynomials,
                                             const challenge_array& challenges,
                                             coefficient_array& linear_terms,
                                             const size_t i = 0)
     {
-        const Field& x_1 = Getters::template get_polynomial<false, PolynomialIndex::W_2>(polynomials, i);
-        const Field& y_1 = Getters::template get_polynomial<false, PolynomialIndex::W_3>(polynomials, i);
-        const Field& x_2 = Getters::template get_polynomial<true, PolynomialIndex::W_1>(polynomials, i);
-        const Field& y_2 = Getters::template get_polynomial<true, PolynomialIndex::W_4>(polynomials, i);
-        const Field& x_3 = Getters::template get_polynomial<true, PolynomialIndex::W_2>(polynomials, i);
-        const Field& y_3 = Getters::template get_polynomial<true, PolynomialIndex::W_3>(polynomials, i);
+        const Field& x_1 =
+            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::W_2>(polynomials, i);
+        const Field& y_1 =
+            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::W_3>(polynomials, i);
+        const Field& x_2 = Getters::template get_value<EvaluationType::SHIFTED, PolynomialIndex::W_1>(polynomials, i);
+        const Field& y_2 = Getters::template get_value<EvaluationType::SHIFTED, PolynomialIndex::W_4>(polynomials, i);
+        const Field& x_3 = Getters::template get_value<EvaluationType::SHIFTED, PolynomialIndex::W_2>(polynomials, i);
+        const Field& y_3 = Getters::template get_value<EvaluationType::SHIFTED, PolynomialIndex::W_3>(polynomials, i);
 
-        const Field& q_beta = Getters::template get_polynomial<false, PolynomialIndex::Q_3>(polynomials, i);
-        const Field& q_beta_sqr = Getters::template get_polynomial<false, PolynomialIndex::Q_4>(polynomials, i);
-        const Field& q_sign = Getters::template get_polynomial<false, PolynomialIndex::Q_5>(polynomials, i);
+        const Field& q_beta =
+            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_3>(polynomials, i);
+        const Field& q_beta_sqr =
+            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_4>(polynomials, i);
+        const Field& q_sign =
+            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_5>(polynomials, i);
 
         Field beta_term = -x_2 * x_1 * (x_3 + x_3 + x_1);
         Field beta_sqr_term = x_2.sqr();
@@ -65,7 +79,8 @@ template <class Field, class Getters, typename PolyContainer> class EllipticKern
                                          coefficient_array& linear_terms,
                                          const size_t i = 0)
     {
-        const Field& q_elliptic = Getters::template get_polynomial<false, PolynomialIndex::Q_ELLIPTIC>(polynomials, i);
+        const Field& q_elliptic =
+            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_ELLIPTIC>(polynomials, i);
         return linear_terms[0] * q_elliptic;
     }
 

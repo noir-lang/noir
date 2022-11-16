@@ -32,7 +32,7 @@ extern template class VerifierPermutationWidget<barretenberg::fr,
 template <size_t program_width, bool idpolys = false, const size_t num_roots_cut_out_of_vanishing_polynomial = 4>
 class ProverPermutationWidget : public ProverRandomWidget {
   public:
-    ProverPermutationWidget(proving_key*, program_witness*);
+    ProverPermutationWidget(proving_key*);
     ProverPermutationWidget(const ProverPermutationWidget& other);
     ProverPermutationWidget(ProverPermutationWidget&& other);
     ProverPermutationWidget& operator=(const ProverPermutationWidget& other);

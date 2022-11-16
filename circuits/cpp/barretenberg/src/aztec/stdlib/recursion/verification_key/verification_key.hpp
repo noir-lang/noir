@@ -100,9 +100,8 @@ template <typename Curve> struct verification_key {
         for (const auto& [tag, value] : input_key->permutation_selectors) {
             key->permutation_selectors.insert({ tag, Curve::g1_ct::from_witness(ctx, value) });
         }
-        std::copy(input_key->polynomial_manifest.begin(),
-                  input_key->polynomial_manifest.end(),
-                  std::back_inserter(key->polynomial_manifest));
+        key->polynomial_manifest = input_key->polynomial_manifest;
+
         return key;
     }
 
@@ -124,9 +123,8 @@ template <typename Curve> struct verification_key {
         for (const auto& [tag, value] : input_key->permutation_selectors) {
             key->permutation_selectors.insert({ tag, typename Curve::g1_ct(value) });
         }
-        std::copy(input_key->polynomial_manifest.begin(),
-                  input_key->polynomial_manifest.end(),
-                  std::back_inserter(key->polynomial_manifest));
+        key->polynomial_manifest = input_key->polynomial_manifest;
+
         return key;
     }
 
@@ -237,7 +235,7 @@ template <typename Curve> struct verification_key {
     std::map<std::string, typename Curve::g1_ct> constraint_selectors;
     std::map<std::string, typename Curve::g1_ct> permutation_selectors;
 
-    std::vector<waffle::PolynomialDescriptor> polynomial_manifest;
+    waffle::PolynomialManifest polynomial_manifest;
 
     size_t program_width = 4;
 

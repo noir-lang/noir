@@ -8,7 +8,6 @@ class settings_base {
         return (((wire_shift_settings >> (wire_index)) & 1UL) == 1UL);
     }
 };
-// static constexpr PolynomialDescriptor* const wololo = standard_polynomial_manifest;
 
 class standard_settings : public settings_base {
   public:

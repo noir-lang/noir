@@ -18,6 +18,16 @@ template <class Field, class Getters, typename PolyContainer> class TurboLogicKe
     typedef containers::coefficient_array<Field> coefficient_array;
 
   public:
+    inline static std::set<PolynomialIndex> const& get_required_polynomial_ids()
+    {
+        static const std::set<PolynomialIndex> required_polynomial_ids = {
+            PolynomialIndex::Q_C, PolynomialIndex::Q_LOGIC_SELECTOR,
+            PolynomialIndex::W_1, PolynomialIndex::W_2,
+            PolynomialIndex::W_3, PolynomialIndex::W_4
+        };
+        return required_polynomial_ids;
+    }
+
     inline static void compute_linear_terms(PolyContainer& polynomials,
                                             const challenge_array& challenges,
                                             coefficient_array& linear_terms,
@@ -29,15 +39,23 @@ template <class Field, class Getters, typename PolyContainer> class TurboLogicKe
 
         const Field& alpha_base = challenges.alpha_powers[0];
         const Field& alpha = challenges.elements[ChallengeIndex::ALPHA];
-        const Field& w_1 = Getters::template get_polynomial<false, PolynomialIndex::W_1>(polynomials, i);
-        const Field& w_2 = Getters::template get_polynomial<false, PolynomialIndex::W_2>(polynomials, i);
-        const Field& w_3 = Getters::template get_polynomial<false, PolynomialIndex::W_3>(polynomials, i);
-        const Field& w_4 = Getters::template get_polynomial<false, PolynomialIndex::W_4>(polynomials, i);
-        const Field& w_1_omega = Getters::template get_polynomial<true, PolynomialIndex::W_1>(polynomials, i);
-        const Field& w_2_omega = Getters::template get_polynomial<true, PolynomialIndex::W_2>(polynomials, i);
-        const Field& w_4_omega = Getters::template get_polynomial<true, PolynomialIndex::W_4>(polynomials, i);
+        const Field& w_1 =
+            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::W_1>(polynomials, i);
+        const Field& w_2 =
+            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::W_2>(polynomials, i);
+        const Field& w_3 =
+            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::W_3>(polynomials, i);
+        const Field& w_4 =
+            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::W_4>(polynomials, i);
+        const Field& w_1_omega =
+            Getters::template get_value<EvaluationType::SHIFTED, PolynomialIndex::W_1>(polynomials, i);
+        const Field& w_2_omega =
+            Getters::template get_value<EvaluationType::SHIFTED, PolynomialIndex::W_2>(polynomials, i);
+        const Field& w_4_omega =
+            Getters::template get_value<EvaluationType::SHIFTED, PolynomialIndex::W_4>(polynomials, i);
 
-        const Field& q_c = Getters::template get_polynomial<false, PolynomialIndex::Q_C>(polynomials, i);
+        const Field& q_c =
+            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_C>(polynomials, i);
 
         Field delta_sum;
         Field delta_squared_sum;
@@ -181,7 +199,7 @@ template <class Field, class Getters, typename PolyContainer> class TurboLogicKe
                                          const size_t i = 0)
     {
         const Field& q_logic =
-            Getters::template get_polynomial<false, PolynomialIndex::Q_LOGIC_SELECTOR>(polynomials, i);
+            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_LOGIC_SELECTOR>(polynomials, i);
 
         return linear_terms[0] * q_logic;
     }

@@ -7,3 +7,4 @@ if(NOT WASM)
 endif()
 
 add_subdirectory(proofs)
+add_subdirectory(ci_failsafe)

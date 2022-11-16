@@ -10,9 +10,8 @@
 namespace waffle {
 
 template <const size_t num_roots_cut_out_of_vanishing_polynomial>
-ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::ProverPlookupWidget(proving_key* input_key,
-                                                                                    program_witness* input_witness)
-    : ProverRandomWidget(input_key, input_witness)
+ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::ProverPlookupWidget(proving_key* input_key)
+    : ProverRandomWidget(input_key)
 {}
 
 template <const size_t num_roots_cut_out_of_vanishing_polynomial>
@@ -45,10 +44,13 @@ template <const size_t num_roots_cut_out_of_vanishing_polynomial>
 void ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_sorted_list_commitment(
     transcript::StandardTranscript& transcript)
 {
-    auto& s_1 = witness->wires.at("s");
-    fr* s_2 = &witness->wires.at("s_2")[0];
-    fr* s_3 = &witness->wires.at("s_3")[0];
-    fr* s_4 = &witness->wires.at("s_4")[0];
+    barretenberg::polynomial s_1 = key->polynomial_cache.get("s_1_lagrange");
+    const fr* s_2 = key->polynomial_cache.get("s_2_lagrange").get_coefficients();
+    const fr* s_3 = key->polynomial_cache.get("s_3_lagrange").get_coefficients();
+    const fr* s_4 = key->polynomial_cache.get("s_4_lagrange").get_coefficients();
+
+    barretenberg::polynomial s_accum(key->n, key->n);
+    barretenberg::polynomial_arithmetic::copy_polynomial(&s_1[0], &s_accum[0], key->n, key->n);
 
     const auto eta = fr::serialize_from_buffer(transcript.get_challenge("eta", 0).begin());
 
@@ -59,7 +61,7 @@ void ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_sor
     T0 *= eta;
     T0 += s_2[i];
     T0 *= eta;
-    s_1[i] += T0;
+    s_accum[i] += T0;
     ITERATE_OVER_DOMAIN_END;
 
     // To make the plookup honest-verifier zero-knowledge, we need to ensure that the witness polynomials
@@ -77,12 +79,13 @@ void ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_sor
     const size_t s_randomness = 3;
     ASSERT(s_randomness < num_roots_cut_out_of_vanishing_polynomial);
     for (size_t k = 0; k < s_randomness; ++k) {
-        s_1[((key->n - num_roots_cut_out_of_vanishing_polynomial) + 1 + k)] = fr::random_element();
+        s_accum[((key->n - num_roots_cut_out_of_vanishing_polynomial) + 1 + k)] = fr::random_element();
     }
 
-    polynomial s_lagrange_base(s_1, key->small_domain.size);
-    witness->wires.insert({ "s_lagrange_base", s_lagrange_base });
-    s_1.ifft(key->small_domain);
+    polynomial s_lagrange(s_accum, key->small_domain.size);
+    key->polynomial_cache.put("s_lagrange", std::move(s_lagrange));
+    s_accum.ifft(key->small_domain);
+    key->polynomial_cache.put("s", std::move(s_accum));
 }
 
 template <const size_t num_roots_cut_out_of_vanishing_polynomial>
@@ -90,19 +93,27 @@ void ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_gra
     transcript::StandardTranscript& transcript)
 {
     const size_t n = key->n;
-    polynomial& z = witness->wires.at("z_lookup");
-    polynomial& s = witness->wires.at("s_lagrange_base");
-    polynomial& z_fft = key->wire_ffts.at("z_lookup_fft");
 
+    // Note: z_lookup ultimately is only only size 'n' but we allow 'n+1' for convenience
+    // essentially as scratch space in the calculation to follow
+    polynomial z_lookup(key->n + 1, key->n + 1);
+
+    // Allocate 4 length n 'accumulators'. accumulators[0] points to the 1th index of
+    // z_lookup and will be used to construct z_lookup (lagrange base) in place. The
+    // remaining 3 are needed only locally in the construction of z_lookup. Note that
+    // beyond this calculation we need only the monomial and coset FFT forms of z_lookup,
+    // so z_lookup in lagrange base will not be added to the store.
     fr* accumulators[4];
-    accumulators[0] = &z[1];
-    accumulators[1] = &z_fft[0];
-    accumulators[2] = &z_fft[n];
-    accumulators[3] = &z_fft[n + n];
+    accumulators[0] = &z_lookup[1];
+    for (size_t k = 1; k < 4; ++k) {
+        accumulators[k] = static_cast<fr*>(aligned_alloc(64, sizeof(fr) * n));
+    }
 
-    fr* column_1_step_size = &key->constraint_selectors_lagrange_base.at("q_2")[0];
-    fr* column_2_step_size = &key->constraint_selectors_lagrange_base.at("q_m")[0];
-    fr* column_3_step_size = &key->constraint_selectors_lagrange_base.at("q_c")[0];
+    polynomial s_lagrange = key->polynomial_cache.get("s_lagrange");
+
+    const fr* column_1_step_size = key->polynomial_cache.get("q_2_lagrange").get_coefficients();
+    const fr* column_2_step_size = key->polynomial_cache.get("q_m_lagrange").get_coefficients();
+    const fr* column_3_step_size = key->polynomial_cache.get("q_c_lagrange").get_coefficients();
 
     fr eta = fr::serialize_from_buffer(transcript.get_challenge("eta").begin());
     fr eta_sqr = eta.sqr();
@@ -112,18 +123,19 @@ void ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_gra
     fr gamma = fr::serialize_from_buffer(transcript.get_challenge("beta", 1).begin());
     // gamma = fr(1);
     // beta = fr(1);
-    std::array<fr*, 3> lagrange_base_wires;
-    std::array<fr*, 4> lagrange_base_tables{
-        &key->constraint_selectors_lagrange_base.at("table_value_1")[0],
-        &key->constraint_selectors_lagrange_base.at("table_value_2")[0],
-        &key->constraint_selectors_lagrange_base.at("table_value_3")[0],
-        &key->constraint_selectors_lagrange_base.at("table_value_4")[0],
+    std::array<const fr*, 3> lagrange_base_wires;
+    std::array<const fr*, 4> lagrange_base_tables{
+        key->polynomial_cache.get("table_value_1_lagrange").get_coefficients(),
+        key->polynomial_cache.get("table_value_2_lagrange").get_coefficients(),
+        key->polynomial_cache.get("table_value_3_lagrange").get_coefficients(),
+        key->polynomial_cache.get("table_value_4_lagrange").get_coefficients(),
     };
 
-    fr* lookup_selector = &key->constraint_selectors_lagrange_base.at("table_type")[0];
-    fr* lookup_index_selector = &key->constraint_selectors_lagrange_base.at("table_index")[0];
+    const fr* lookup_selector = key->polynomial_cache.get("table_type_lagrange").get_coefficients();
+    const fr* lookup_index_selector = key->polynomial_cache.get("table_index_lagrange").get_coefficients();
     for (size_t i = 0; i < 3; ++i) {
-        lagrange_base_wires[i] = &key->wire_ffts.at("w_" + std::to_string(i + 1) + "_fft")[0];
+        lagrange_base_wires[i] =
+            key->polynomial_cache.get("w_" + std::to_string(i + 1) + "_lagrange").get_coefficients();
     }
 
     const fr gamma_beta_constant = gamma * (fr(1) + beta);
@@ -178,9 +190,9 @@ void ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_gra
 
                 accumulators[2][i] = beta_constant;
                 // accumulating_beta *= (beta_constant);
-                accumulators[3][i] = s[(i + 1) & block_mask];
+                accumulators[3][i] = s_lagrange[(i + 1) & block_mask];
                 accumulators[3][i] *= beta;
-                accumulators[3][i] += s[i];
+                accumulators[3][i] += s_lagrange[i];
                 accumulators[3][i] += gamma_beta_constant;
             }
         }
@@ -217,14 +229,14 @@ void ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_gra
             inversion_accumulator = inversion_accumulator.invert();
             for (size_t i = end - 1; i != start - 1; --i) {
 
-                // N.B. accumulators[0][i] = z[i + 1]
-                // We can avoid fully reducing z[i + 1] as the inverse fft will take care of that for us
+                // N.B. accumulators[0][i] = z_lookup[i + 1]
+                // We can avoid fully reducing z_lookup[i + 1] as the inverse fft will take care of that for us
                 accumulators[0][i] *= inversion_accumulator;
                 inversion_accumulator *= accumulators[3][i];
             }
         }
     }
-    z[0] = fr::one();
+    z_lookup[0] = fr::one();
 
     // Since `z_plookup` needs to be evaluated at 2 points in UltraPLONK, we need to add a degree-2 random
     // polynomial to `z_lookup` to make it "look" uniformly random. Alternatively, we can just add 3
@@ -233,10 +245,13 @@ void ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_gra
     const size_t z_randomness = 3;
     ASSERT(z_randomness < num_roots_cut_out_of_vanishing_polynomial);
     for (size_t k = 0; k < z_randomness; ++k) {
-        z[((n - num_roots_cut_out_of_vanishing_polynomial) + 1 + k)] = fr::random_element();
+        z_lookup[((n - num_roots_cut_out_of_vanishing_polynomial) + 1 + k)] = fr::random_element();
     }
 
-    z.ifft(key->small_domain);
+    z_lookup.ifft(key->small_domain);
+
+    // Add monomial form of z_lookup to the polynomial store
+    key->polynomial_cache.put("z_lookup", std::move(z_lookup));
 }
 
 template <const size_t num_roots_cut_out_of_vanishing_polynomial>
@@ -245,7 +260,7 @@ void ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_rou
 {
     if (round_number == 2) {
         compute_sorted_list_commitment(transcript);
-        polynomial& s = witness->wires.at("s");
+        const polynomial& s = key->polynomial_cache.get("s");
 
         queue.add_to_queue({
             work_queue::WorkType::SCALAR_MULTIPLICATION,
@@ -265,7 +280,7 @@ void ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_rou
     }
     if (round_number == 3) {
         compute_grand_product_commitment(transcript);
-        polynomial& z = witness->wires.at("z_lookup");
+        const polynomial& z = key->polynomial_cache.get("z_lookup");
 
         queue.add_to_queue({
             work_queue::WorkType::SCALAR_MULTIPLICATION,
@@ -289,7 +304,7 @@ template <const size_t num_roots_cut_out_of_vanishing_polynomial>
 barretenberg::fr ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_quotient_contribution(
     const fr& alpha_base, const transcript::StandardTranscript& transcript)
 {
-    polynomial& z_fft = key->wire_ffts.at("z_lookup_fft");
+    const polynomial& z_lookup_fft = key->polynomial_cache.get("z_lookup_fft");
 
     fr eta = fr::serialize_from_buffer(transcript.get_challenge("eta").begin());
     fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
@@ -314,30 +329,31 @@ barretenberg::fr ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>:
     // (w_l(X) + \beta.sigma1(X) + \gamma).(w_r(X) + \beta.sigma2(X) + \gamma).(w_o(X) + \beta.sigma3(X) +
     // \gamma).Z(X).alpha Once we divide by the vanishing polynomial, this will be a degree 3n polynomial.
 
-    std::array<fr*, 3> wire_ffts{
-        &key->wire_ffts.at("w_1_fft")[0],
-        &key->wire_ffts.at("w_2_fft")[0],
-        &key->wire_ffts.at("w_3_fft")[0],
-    };
-    fr* s_fft = &key->wire_ffts.at("s_fft")[0];
-
-    std::array<fr*, 4> table_ffts{
-        &key->constraint_selector_ffts.at("table_value_1_fft")[0],
-        &key->constraint_selector_ffts.at("table_value_2_fft")[0],
-        &key->constraint_selector_ffts.at("table_value_3_fft")[0],
-        &key->constraint_selector_ffts.at("table_value_4_fft")[0],
+    std::array<const fr*, 3> wire_ffts{
+        key->polynomial_cache.get("w_1_fft").get_coefficients(),
+        key->polynomial_cache.get("w_2_fft").get_coefficients(),
+        key->polynomial_cache.get("w_3_fft").get_coefficients(),
     };
 
-    fr* column_1_step_size = &key->constraint_selector_ffts.at("q_2_fft")[0];
-    fr* column_2_step_size = &key->constraint_selector_ffts.at("q_m_fft")[0];
-    fr* column_3_step_size = &key->constraint_selector_ffts.at("q_c_fft")[0];
+    const fr* s_fft = key->polynomial_cache.get("s_fft").get_coefficients();
 
-    fr* lookup_fft = &key->constraint_selector_ffts.at("table_type_fft")[0];
-    fr* lookup_index_fft = &key->constraint_selector_ffts.at("table_index_fft")[0];
+    std::array<const fr*, 4> table_ffts{
+        key->polynomial_cache.get("table_value_1_fft").get_coefficients(),
+        key->polynomial_cache.get("table_value_2_fft").get_coefficients(),
+        key->polynomial_cache.get("table_value_3_fft").get_coefficients(),
+        key->polynomial_cache.get("table_value_4_fft").get_coefficients(),
+    };
+
+    const fr* column_1_step_size = key->polynomial_cache.get("q_2_fft").get_coefficients();
+    const fr* column_2_step_size = key->polynomial_cache.get("q_m_fft").get_coefficients();
+    const fr* column_3_step_size = key->polynomial_cache.get("q_c_fft").get_coefficients();
+
+    const fr* lookup_fft = key->polynomial_cache.get("table_type_fft").get_coefficients();
+    const fr* lookup_index_fft = key->polynomial_cache.get("table_index_fft").get_coefficients();
 
     const fr gamma_beta_constant = gamma * (fr(1) + beta);
 
-    const polynomial& l_1 = key->lagrange_1;
+    const polynomial& l_1 = key->polynomial_cache.get("lagrange_1_fft");
     const fr delta_factor = gamma_beta_constant.pow(key->small_domain.size - num_roots_cut_out_of_vanishing_polynomial);
     const fr alpha_sqr = alpha.sqr();
 
@@ -415,11 +431,11 @@ barretenberg::fr ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>:
             T1 = l_1[(i + 4 + 4 * num_roots_cut_out_of_vanishing_polynomial) & block_mask] * alpha_sqr;
 
             numerator += T0;
-            numerator *= z_fft[i];
+            numerator *= z_lookup_fft[i];
             numerator -= T0;
 
             denominator -= T1;
-            denominator *= z_fft[(i + 4) & block_mask];
+            denominator *= z_lookup_fft[(i + 4) & block_mask];
             denominator += T1 * delta_factor;
 
             // Combine into quotient polynomial

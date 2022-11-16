@@ -24,8 +24,8 @@ class account_tests : public ::testing::Test {
   protected:
     static void SetUpTestCase()
     {
-        auto crs_factory =
-            std::shared_ptr<waffle::ReferenceStringFactory>(new waffle::FileReferenceStringFactory("../srs_db"));
+        auto crs_factory = std::shared_ptr<waffle::ReferenceStringFactory>(
+            new waffle::FileReferenceStringFactory("../srs_db/ignition"));
         init_proving_key(crs_factory, false);
         init_verification_key(crs_factory);
     }
@@ -327,7 +327,7 @@ TEST_F(account_tests, test_create_account_when_account_exists_creates_nullifier_
     EXPECT_EQ(data.nullifier1, compute_account_alias_hash_nullifier(alice.alias_hash));
 }
 
-TEST_F(account_tests, test_create_account_full_proof)
+TEST_F(account_tests, test_create_account_full_proof_and_detect_circuit_change)
 {
     auto tx = create_new_account_tx(alice);
     auto prover = new_account_prover(tx, false);
@@ -355,6 +355,27 @@ TEST_F(account_tests, test_create_account_full_proof)
     EXPECT_EQ(data.allow_chain, uint256_t(0));
 
     EXPECT_TRUE(verify_proof(proof));
+    // The below part detects change in the account circuit
+    size_t number_of_gates_acc = get_number_of_gates();
+    auto vk_hash_acc = get_verification_key()->sha256_hash();
+    // If the below assertions fail, consider changing the variable is_circuit_change_expected to 1 in
+    // rollup/constants.hpp and see if atleast the next power of two limit is not exceeded. Please change the constant
+    // values accordingly and set is_circuit_change_expected to 0 in rollup/constants.hpp before merging.
+    if (!(circuit_gate_count::is_circuit_change_expected)) {
+        EXPECT_EQ(number_of_gates_acc, circuit_gate_count::ACCOUNT)
+            << "The gate count for the account circuit is changed.";
+        EXPECT_EQ(from_buffer<uint256_t>(vk_hash_acc), circuit_vk_hash::ACCOUNT)
+            << "The verification key hash for the account circuit is changed: " << from_buffer<uint256_t>(vk_hash_acc);
+        // For the next power of two limit, we need to consider that we reserve four gates for adding
+        // randomness/zero-knowledge
+        EXPECT_LE(number_of_gates_acc,
+                  circuit_gate_next_power_of_two::ACCOUNT - waffle::ComposerBase::NUM_RESERVED_GATES)
+            << "You have exceeded the next power of two limit for the account circuit.";
+    } else {
+        EXPECT_LE(number_of_gates_acc,
+                  circuit_gate_next_power_of_two::ACCOUNT - waffle::ComposerBase::NUM_RESERVED_GATES)
+            << "You have exceeded the next power of two limit for the account circuit.";
+    }
 }
 
 TEST_F(account_tests, test_migrate_account_full_proof)

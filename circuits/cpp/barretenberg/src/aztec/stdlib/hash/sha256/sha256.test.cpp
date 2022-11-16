@@ -108,17 +108,12 @@ std::array<uint64_t, 8> inner_block(std::array<uint64_t, 64>& w)
     return output;
 }
 
-template <typename C> void build_circuit(C& composer)
-{
-    stdlib::packed_byte_array<C> input(&composer, "An 8 character password? Snow White and the 7 Dwarves..");
-    plonk::stdlib::sha256<C>(input);
-}
-
 TEST(stdlib_sha256, test_duplicate_proving_key)
 {
 
     waffle::StandardComposer first_composer = waffle::StandardComposer();
-    build_circuit<waffle::StandardComposer>(first_composer);
+    stdlib::packed_byte_array input(&first_composer, "An 8 character password? Snow White and the 7 Dwarves..");
+    plonk::stdlib::sha256(input);
     auto prover = first_composer.create_prover();
     auto verifier = first_composer.create_verifier();
     waffle::plonk_proof proof_one = prover.construct_proof();
@@ -127,15 +122,18 @@ TEST(stdlib_sha256, test_duplicate_proving_key)
     auto proving_key = prover.key;
     auto verification_key = verifier.key;
     auto circuit_size = prover.n;
-    proving_key->reset();
+
+    // Test a second time with same keys and different input.
     waffle::StandardComposer second_composer = waffle::StandardComposer(proving_key, verification_key, circuit_size);
-    build_circuit<waffle::StandardComposer>(second_composer);
+    stdlib::packed_byte_array input2(&second_composer, "An 8 character password? Snow White and the 9 Dwarves..");
+    plonk::stdlib::sha256(input2);
     auto second_prover = second_composer.create_prover();
     auto second_verifier = second_composer.create_verifier();
     waffle::plonk_proof proof_two = second_prover.construct_proof();
     bool proof_result_two = second_verifier.verify_proof(proof_two);
     EXPECT_EQ(proof_result_two, true);
 }
+
 // TEST(stdlib_sha256_plookup, test_round)
 // {
 

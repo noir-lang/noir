@@ -33,14 +33,14 @@ transcript::Manifest create_manifest(const size_t num_public_inputs)
                                                 { "W_3", g1_size, false } },
                                               "beta",
                                               2),
-          transcript::Manifest::RoundManifest({ { "Z", g1_size, false } }, "alpha", 1),
+          transcript::Manifest::RoundManifest({ { "Z_PERM", g1_size, false } }, "alpha", 1),
           transcript::Manifest::RoundManifest(
               { { "T_1", g1_size, false }, { "T_2", g1_size, false }, { "T_3", g1_size, false } }, "z", 1),
           transcript::Manifest::RoundManifest({ { "w_1", fr_size, false },
                                                 { "w_2", fr_size, false },
                                                 { "w_3", fr_size, false },
                                                 { "w_3_omega", fr_size, false },
-                                                { "z_omega", fr_size, false },
+                                                { "z_perm_omega", fr_size, false },
                                                 { "sigma_1", fr_size, false },
                                                 { "sigma_2", fr_size, false },
                                                 { "r", fr_size, false },
@@ -96,7 +96,7 @@ transcript::Transcript get_test_base_transcript(const TestData& data)
 
     transcript.apply_fiat_shamir("beta");
 
-    transcript.add_element("Z", data.g1_elements[3].to_buffer());
+    transcript.add_element("Z_PERM", data.g1_elements[3].to_buffer());
 
     transcript.apply_fiat_shamir("alpha");
 
@@ -110,7 +110,7 @@ transcript::Transcript get_test_base_transcript(const TestData& data)
     transcript.add_element("w_2", data.fr_elements[1].to_buffer());
     transcript.add_element("w_3", data.fr_elements[2].to_buffer());
     transcript.add_element("w_3_omega", data.fr_elements[3].to_buffer());
-    transcript.add_element("z_omega", data.fr_elements[4].to_buffer());
+    transcript.add_element("z_perm_omega", data.fr_elements[4].to_buffer());
     transcript.add_element("sigma_1", data.fr_elements[5].to_buffer());
     transcript.add_element("sigma_2", data.fr_elements[6].to_buffer());
     transcript.add_element("r", data.fr_elements[7].to_buffer());
@@ -154,7 +154,8 @@ plonk::stdlib::recursion::Transcript<waffle::TurboComposer> get_circuit_transcri
     transcript.apply_fiat_shamir("beta");
 
     transcript.add_group_element(
-        "Z", plonk::stdlib::recursion::Transcript<waffle::TurboComposer>::convert_g1(context, data.g1_elements[3]));
+        "Z_PERM",
+        plonk::stdlib::recursion::Transcript<waffle::TurboComposer>::convert_g1(context, data.g1_elements[3]));
 
     transcript.apply_fiat_shamir("alpha");
 
@@ -171,7 +172,7 @@ plonk::stdlib::recursion::Transcript<waffle::TurboComposer> get_circuit_transcri
     transcript.add_field_element("w_2", field_t(witness_t(context, data.fr_elements[1])));
     transcript.add_field_element("w_3", field_t(witness_t(context, data.fr_elements[2])));
     transcript.add_field_element("w_3_omega", field_t(witness_t(context, data.fr_elements[3])));
-    transcript.add_field_element("z_omega", field_t(witness_t(context, data.fr_elements[4])));
+    transcript.add_field_element("z_perm_omega", field_t(witness_t(context, data.fr_elements[4])));
     transcript.add_field_element("sigma_1", field_t(witness_t(context, data.fr_elements[5])));
     transcript.add_field_element("sigma_2", field_t(witness_t(context, data.fr_elements[6])));
     transcript.add_field_element("r", field_t(witness_t(context, data.fr_elements[7])));
@@ -264,7 +265,7 @@ TEST(stdlib_transcript, validate_transcript)
     check_field_element("w_2");
     check_field_element("w_3");
     check_field_element("w_3_omega");
-    check_field_element("z_omega");
+    check_field_element("z_perm_omega");
     check_field_element("sigma_1");
     check_field_element("sigma_2");
     check_field_element("r");
@@ -273,7 +274,7 @@ TEST(stdlib_transcript, validate_transcript)
     check_group_element("W_1");
     check_group_element("W_2");
     check_group_element("W_3");
-    check_group_element("Z");
+    check_group_element("Z_PERM");
     check_group_element("T_1");
     check_group_element("T_2");
     check_group_element("T_3");

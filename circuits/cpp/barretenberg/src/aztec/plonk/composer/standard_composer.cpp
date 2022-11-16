@@ -732,19 +732,14 @@ waffle::accumulator_triple StandardComposer::create_xor_constraint(const uint32_
  * */
 std::shared_ptr<proving_key> StandardComposer::compute_proving_key()
 {
-
     if (circuit_proving_key) {
         return circuit_proving_key;
     }
     // Compute q_l, q_r, q_o, etc polynomials
-    ComposerBase::compute_proving_key_base();
-    circuit_proving_key->composer_type = type;
+    ComposerBase::compute_proving_key_base(type);
+
     // Compute sigma polynomials
     compute_sigma_permutations<3, false>(circuit_proving_key.get());
-
-    std::copy(standard_polynomial_manifest,
-              standard_polynomial_manifest + 12,
-              std::back_inserter(circuit_proving_key->polynomial_manifest));
 
     circuit_proving_key->recursive_proof_public_input_indices =
         std::vector<uint32_t>(recursive_proof_public_input_indices.begin(), recursive_proof_public_input_indices.end());
@@ -779,9 +774,9 @@ std::shared_ptr<verification_key> StandardComposer::compute_verification_key()
  *
  * @return Witness with witness polynomials
  * */
-std::shared_ptr<program_witness> StandardComposer::compute_witness()
+void StandardComposer::compute_witness()
 {
-    return ComposerBase::compute_witness_base<standard_settings>();
+    ComposerBase::compute_witness_base<standard_settings>();
 }
 
 /**
@@ -821,12 +816,12 @@ UnrolledProver StandardComposer::create_unrolled_prover()
 {
     compute_proving_key();
     compute_witness();
-    UnrolledProver output_state(circuit_proving_key, witness, create_unrolled_manifest(public_inputs.size()));
+    UnrolledProver output_state(circuit_proving_key, create_unrolled_manifest(public_inputs.size()));
 
     std::unique_ptr<ProverPermutationWidget<3, false>> permutation_widget =
-        std::make_unique<ProverPermutationWidget<3, false>>(circuit_proving_key.get(), witness.get());
+        std::make_unique<ProverPermutationWidget<3, false>>(circuit_proving_key.get());
     std::unique_ptr<ProverArithmeticWidget<unrolled_standard_settings>> arithmetic_widget =
-        std::make_unique<ProverArithmeticWidget<unrolled_standard_settings>>(circuit_proving_key.get(), witness.get());
+        std::make_unique<ProverArithmeticWidget<unrolled_standard_settings>>(circuit_proving_key.get());
 
     output_state.random_widgets.emplace_back(std::move(permutation_widget));
     output_state.transition_widgets.emplace_back(std::move(arithmetic_widget));
@@ -854,13 +849,13 @@ Prover StandardComposer::create_prover()
 
     // Compute witness polynomials.
     compute_witness();
-    Prover output_state(circuit_proving_key, witness, create_manifest(public_inputs.size()));
+    Prover output_state(circuit_proving_key, create_manifest(public_inputs.size()));
 
     std::unique_ptr<ProverPermutationWidget<3, false>> permutation_widget =
-        std::make_unique<ProverPermutationWidget<3, false>>(circuit_proving_key.get(), witness.get());
+        std::make_unique<ProverPermutationWidget<3, false>>(circuit_proving_key.get());
 
     std::unique_ptr<ProverArithmeticWidget<standard_settings>> arithmetic_widget =
-        std::make_unique<ProverArithmeticWidget<standard_settings>>(circuit_proving_key.get(), witness.get());
+        std::make_unique<ProverArithmeticWidget<standard_settings>>(circuit_proving_key.get());
 
     output_state.random_widgets.emplace_back(std::move(permutation_widget));
     output_state.transition_widgets.emplace_back(std::move(arithmetic_widget));

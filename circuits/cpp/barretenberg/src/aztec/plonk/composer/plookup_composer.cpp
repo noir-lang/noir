@@ -50,7 +50,7 @@ std::vector<ComposerBase::SelectorProperties> plookup_sel_props()
 }
 
 PlookupComposer::PlookupComposer()
-    : PlookupComposer("../srs_db", 0)
+    : PlookupComposer("../srs_db/ignition", 0)
 {}
 
 PlookupComposer::PlookupComposer(std::string const& crs_path, const size_t size_hint)
@@ -825,9 +825,9 @@ void PlookupComposer::add_lookup_selector(polynomial& small, const std::string& 
     polynomial large(small, circuit_proving_key->n * 4);
     large.coset_fft(circuit_proving_key->large_domain);
 
-    circuit_proving_key->constraint_selectors.insert({ tag, std::move(small) });
-    circuit_proving_key->constraint_selectors_lagrange_base.insert({ tag, std::move(lagrange_base) });
-    circuit_proving_key->constraint_selector_ffts.insert({ tag + "_fft", std::move(large) });
+    circuit_proving_key->polynomial_cache.put(tag, std::move(small));
+    circuit_proving_key->polynomial_cache.put(tag + "_lagrange", std::move(lagrange_base));
+    circuit_proving_key->polynomial_cache.put(tag + "_fft", std::move(large));
 }
 
 std::shared_ptr<proving_key> PlookupComposer::compute_proving_key()
@@ -861,8 +861,8 @@ std::shared_ptr<proving_key> PlookupComposer::compute_proving_key()
         lookups_size += table.lookup_gates.size();
     }
 
-    ComposerBase::compute_proving_key_base(tables_size + lookups_size, NUM_RESERVED_GATES);
-    circuit_proving_key->composer_type = type;
+    ComposerBase::compute_proving_key_base(type, tables_size + lookups_size, NUM_RESERVED_GATES);
+
     const size_t subgroup_size = circuit_proving_key->n;
 
     polynomial poly_q_table_1(subgroup_size);
@@ -908,14 +908,10 @@ std::shared_ptr<proving_key> PlookupComposer::compute_proving_key()
 
     polynomial z_lookup_fft(subgroup_size * 4, subgroup_size * 4);
     polynomial s_fft(subgroup_size * 4, subgroup_size * 4);
-    circuit_proving_key->wire_ffts.insert({ "z_lookup_fft", std::move(z_lookup_fft) });
-    circuit_proving_key->wire_ffts.insert({ "s_fft", std::move(s_fft) });
+    circuit_proving_key->polynomial_cache.put("z_lookup_fft", std::move(z_lookup_fft));
+    circuit_proving_key->polynomial_cache.put("s_fft", std::move(s_fft));
 
     compute_sigma_permutations<4, true>(circuit_proving_key.get());
-
-    std::copy(plookup_polynomial_manifest,
-              plookup_polynomial_manifest + 34,
-              std::back_inserter(circuit_proving_key->polynomial_manifest));
 
     return circuit_proving_key;
 }
@@ -934,10 +930,10 @@ std::shared_ptr<verification_key> PlookupComposer::compute_verification_key()
     return circuit_verification_key;
 }
 
-std::shared_ptr<program_witness> PlookupComposer::compute_witness()
+void PlookupComposer::compute_witness()
 {
-    if (witness) {
-        return witness;
+    if (computed_witness) {
+        return;
     }
 
     size_t tables_size = 0;
@@ -967,7 +963,6 @@ std::shared_ptr<program_witness> PlookupComposer::compute_witness()
     polynomial s_2(subgroup_size);
     polynomial s_3(subgroup_size);
     polynomial s_4(subgroup_size);
-    polynomial z_lookup(subgroup_size + 1);
     for (size_t i = 0; i < public_inputs.size(); ++i) {
         poly_w_1[i] = 0;
         poly_w_2[i] = variables[public_inputs[i]];
@@ -1044,41 +1039,39 @@ std::shared_ptr<program_witness> PlookupComposer::compute_witness()
         ++count;
     }
 
-    witness = std::make_shared<program_witness>();
-    witness->wires.insert({ "w_1", std::move(poly_w_1) });
-    witness->wires.insert({ "w_2", std::move(poly_w_2) });
-    witness->wires.insert({ "w_3", std::move(poly_w_3) });
-    witness->wires.insert({ "w_4", std::move(poly_w_4) });
-    witness->wires.insert({ "s", std::move(s_1) });
-    witness->wires.insert({ "s_2", std::move(s_2) });
-    witness->wires.insert({ "s_3", std::move(s_3) });
-    witness->wires.insert({ "s_4", std::move(s_4) });
-    witness->wires.insert({ "z_lookup", std::move(z_lookup) });
+    circuit_proving_key->polynomial_cache.put("w_1_lagrange", std::move(poly_w_1));
+    circuit_proving_key->polynomial_cache.put("w_2_lagrange", std::move(poly_w_2));
+    circuit_proving_key->polynomial_cache.put("w_3_lagrange", std::move(poly_w_3));
+    circuit_proving_key->polynomial_cache.put("w_4_lagrange", std::move(poly_w_4));
+    circuit_proving_key->polynomial_cache.put("s_1_lagrange", std::move(s_1));
+    circuit_proving_key->polynomial_cache.put("s_2_lagrange", std::move(s_2));
+    circuit_proving_key->polynomial_cache.put("s_3_lagrange", std::move(s_3));
+    circuit_proving_key->polynomial_cache.put("s_4_lagrange", std::move(s_4));
 
-    return witness;
+    computed_witness = true;
 }
 
 PlookupProver PlookupComposer::create_prover()
 {
     compute_proving_key();
     compute_witness();
-    PlookupProver output_state(circuit_proving_key, witness, create_manifest(public_inputs.size()));
+    PlookupProver output_state(circuit_proving_key, create_manifest(public_inputs.size()));
 
     std::unique_ptr<ProverPermutationWidget<4, true>> permutation_widget =
-        std::make_unique<ProverPermutationWidget<4, true>>(circuit_proving_key.get(), witness.get());
+        std::make_unique<ProverPermutationWidget<4, true>>(circuit_proving_key.get());
     std::unique_ptr<ProverPlookupWidget<>> plookup_widget =
-        std::make_unique<ProverPlookupWidget<>>(circuit_proving_key.get(), witness.get());
+        std::make_unique<ProverPlookupWidget<>>(circuit_proving_key.get());
 
     std::unique_ptr<ProverTurboArithmeticWidget<plookup_settings>> arithmetic_widget =
-        std::make_unique<ProverTurboArithmeticWidget<plookup_settings>>(circuit_proving_key.get(), witness.get());
+        std::make_unique<ProverTurboArithmeticWidget<plookup_settings>>(circuit_proving_key.get());
     std::unique_ptr<ProverTurboFixedBaseWidget<plookup_settings>> fixed_base_widget =
-        std::make_unique<ProverTurboFixedBaseWidget<plookup_settings>>(circuit_proving_key.get(), witness.get());
+        std::make_unique<ProverTurboFixedBaseWidget<plookup_settings>>(circuit_proving_key.get());
     std::unique_ptr<ProverGenPermSortWidget<plookup_settings>> sort_widget =
-        std::make_unique<ProverGenPermSortWidget<plookup_settings>>(circuit_proving_key.get(), witness.get());
+        std::make_unique<ProverGenPermSortWidget<plookup_settings>>(circuit_proving_key.get());
     std::unique_ptr<ProverTurboLogicWidget<plookup_settings>> logic_widget =
-        std::make_unique<ProverTurboLogicWidget<plookup_settings>>(circuit_proving_key.get(), witness.get());
+        std::make_unique<ProverTurboLogicWidget<plookup_settings>>(circuit_proving_key.get());
     std::unique_ptr<ProverEllipticWidget<plookup_settings>> elliptic_widget =
-        std::make_unique<ProverEllipticWidget<plookup_settings>>(circuit_proving_key.get(), witness.get());
+        std::make_unique<ProverEllipticWidget<plookup_settings>>(circuit_proving_key.get());
 
     output_state.random_widgets.emplace_back(std::move(permutation_widget));
     output_state.random_widgets.emplace_back(std::move(plookup_widget));
@@ -1102,25 +1095,23 @@ UnrolledPlookupProver PlookupComposer::create_unrolled_prover()
     compute_proving_key();
     compute_witness();
 
-    UnrolledPlookupProver output_state(circuit_proving_key, witness, create_unrolled_manifest(public_inputs.size()));
+    UnrolledPlookupProver output_state(circuit_proving_key, create_unrolled_manifest(public_inputs.size()));
 
     std::unique_ptr<ProverPermutationWidget<4, true>> permutation_widget =
-        std::make_unique<ProverPermutationWidget<4, true>>(circuit_proving_key.get(), witness.get());
+        std::make_unique<ProverPermutationWidget<4, true>>(circuit_proving_key.get());
     std::unique_ptr<ProverPlookupWidget<>> plookup_widget =
-        std::make_unique<ProverPlookupWidget<>>(circuit_proving_key.get(), witness.get());
+        std::make_unique<ProverPlookupWidget<>>(circuit_proving_key.get());
 
     std::unique_ptr<ProverTurboArithmeticWidget<unrolled_plookup_settings>> arithmetic_widget =
-        std::make_unique<ProverTurboArithmeticWidget<unrolled_plookup_settings>>(circuit_proving_key.get(),
-                                                                                 witness.get());
+        std::make_unique<ProverTurboArithmeticWidget<unrolled_plookup_settings>>(circuit_proving_key.get());
     std::unique_ptr<ProverTurboFixedBaseWidget<unrolled_plookup_settings>> fixed_base_widget =
-        std::make_unique<ProverTurboFixedBaseWidget<unrolled_plookup_settings>>(circuit_proving_key.get(),
-                                                                                witness.get());
+        std::make_unique<ProverTurboFixedBaseWidget<unrolled_plookup_settings>>(circuit_proving_key.get());
     std::unique_ptr<ProverGenPermSortWidget<unrolled_plookup_settings>> sort_widget =
-        std::make_unique<ProverGenPermSortWidget<unrolled_plookup_settings>>(circuit_proving_key.get(), witness.get());
+        std::make_unique<ProverGenPermSortWidget<unrolled_plookup_settings>>(circuit_proving_key.get());
     std::unique_ptr<ProverTurboLogicWidget<unrolled_plookup_settings>> logic_widget =
-        std::make_unique<ProverTurboLogicWidget<unrolled_plookup_settings>>(circuit_proving_key.get(), witness.get());
+        std::make_unique<ProverTurboLogicWidget<unrolled_plookup_settings>>(circuit_proving_key.get());
     std::unique_ptr<ProverEllipticWidget<unrolled_plookup_settings>> elliptic_widget =
-        std::make_unique<ProverEllipticWidget<unrolled_plookup_settings>>(circuit_proving_key.get(), witness.get());
+        std::make_unique<ProverEllipticWidget<unrolled_plookup_settings>>(circuit_proving_key.get());
 
     output_state.random_widgets.emplace_back(std::move(permutation_widget));
     output_state.random_widgets.emplace_back(std::move(plookup_widget));

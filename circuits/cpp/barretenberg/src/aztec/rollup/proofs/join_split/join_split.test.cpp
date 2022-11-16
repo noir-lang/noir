@@ -31,8 +31,9 @@ class join_split_tests : public ::testing::Test {
     {
         auto null_crs_factory = std::make_shared<waffle::ReferenceStringFactory>();
         init_proving_key(null_crs_factory, false);
-        auto crs_factory = std::make_unique<waffle::FileReferenceStringFactory>("../srs_db");
+        auto crs_factory = std::make_unique<waffle::FileReferenceStringFactory>("../srs_db/ignition");
         init_verification_key(std::move(crs_factory));
+        info("vk hash: ", get_verification_key()->sha256_hash());
     }
 
     virtual void SetUp()
@@ -265,6 +266,7 @@ class join_split_tests : public ::testing::Test {
         bool valid;
         std::string err;
         std::vector<fr> public_inputs;
+        size_t number_of_gates;
     };
 
     verify_result verify_logic(join_split_tx& tx)
@@ -274,7 +276,7 @@ class join_split_tests : public ::testing::Test {
         if (composer.failed) {
             std::cout << "Logic failed: " << composer.err << std::endl;
         }
-        return { !composer.failed, composer.err, composer.get_public_inputs() };
+        return { !composer.failed, composer.err, composer.get_public_inputs(), composer.get_num_gates() };
     }
 
     verify_result sign_and_verify_logic(join_split_tx& tx, key_pair const& signing_key)
@@ -675,7 +677,7 @@ TEST_F(join_split_tests, test_withdraw_but_different_input_note_2_asset_id_fails
 // Input note combinations. Deposit/Send/Withdraw.
 // *************************************************************************************************************
 
-TEST_F(join_split_tests, test_0_input_notes)
+TEST_F(join_split_tests, test_0_input_notes_and_detect_circuit_change)
 {
     join_split_tx tx = zero_input_setup();
     tx.proof_id = ProofIds::DEPOSIT;
@@ -683,7 +685,31 @@ TEST_F(join_split_tests, test_0_input_notes)
     tx.public_owner = fr::random_element();
     tx.output_note[0].value = 30;
 
-    EXPECT_TRUE(sign_and_verify_logic(tx, user.owner).valid);
+    auto result = sign_and_verify_logic(tx, user.owner);
+
+    EXPECT_TRUE(result.valid);
+    // The below part detects any changes in the join-split circuit
+    auto number_of_gates_js = result.number_of_gates;
+    auto vk_hash_js = get_verification_key()->sha256_hash();
+    // If the below assertions fail, consider changing the variable is_circuit_change_expected to 1 in
+    // rollup/constants.hpp and see if atleast the next power of two limit is not exceeded. Please change the constant
+    // values accordingly and set is_circuit_change_expected to 0 in rollup/constants.hpp before merging.
+    if (!(circuit_gate_count::is_circuit_change_expected)) {
+        EXPECT_EQ(number_of_gates_js, circuit_gate_count::JOIN_SPLIT)
+            << "The gate count for the join_split circuit is changed.";
+        EXPECT_EQ(from_buffer<uint256_t>(vk_hash_js), circuit_vk_hash::JOIN_SPLIT)
+            << "The verification key hash for the join_split circuit is changed: "
+            << from_buffer<uint256_t>(vk_hash_js);
+        // For the next power of two limit, we need to consider that we reserve four gates for adding
+        // randomness/zero-knowledge
+        EXPECT_LE(number_of_gates_js,
+                  circuit_gate_next_power_of_two::JOIN_SPLIT - waffle::ComposerBase::NUM_RESERVED_GATES)
+            << "You have exceeded the next power of two limit for the join_split circuit.";
+    } else {
+        EXPECT_LE(number_of_gates_js,
+                  circuit_gate_next_power_of_two::JOIN_SPLIT - waffle::ComposerBase::NUM_RESERVED_GATES)
+            << "You have exceeded the next power of two limit for the join_split circuit.";
+    }
 }
 
 // Bespoke test seeking bug.

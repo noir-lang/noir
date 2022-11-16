@@ -8,7 +8,7 @@ namespace waffle {
 template <typename Field, typename Transcript, typename program_settings>
 Field compute_kate_batch_evaluation(typename Transcript::Key* key, const Transcript& transcript)
 {
-    // In this method, we compute the scalar multiplicand of the batch evaluation commitment 
+    // In this method, we compute the scalar multiplicand of the batch evaluation commitment
     // described in step 11 of verifier's algorithm.
     //
     // Step 11: Compute batch evaluation commitment [E]_1

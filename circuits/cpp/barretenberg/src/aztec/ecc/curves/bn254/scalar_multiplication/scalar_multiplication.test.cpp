@@ -9,7 +9,7 @@
 
 #include <common/mem.hpp>
 
-#define BARRETENBERG_SRS_PATH "../srs_db"
+#define BARRETENBERG_SRS_PATH "../srs_db/ignition"
 
 using namespace barretenberg;
 using namespace barretenberg::scalar_multiplication;

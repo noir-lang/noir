@@ -51,7 +51,7 @@ TEST(standard_composer, composer_from_serialized_keys)
     auto pk_data = from_buffer<waffle::proving_key_data>(pk_buf);
     auto vk_data = from_buffer<waffle::verification_key_data>(vk_buf);
 
-    auto crs = std::make_unique<waffle::FileReferenceStringFactory>("../srs_db");
+    auto crs = std::make_unique<waffle::FileReferenceStringFactory>("../srs_db/ignition");
     auto proving_key = std::make_shared<waffle::proving_key>(std::move(pk_data), crs->get_prover_crs(pk_data.n + 1));
     auto verification_key = std::make_shared<waffle::verification_key>(std::move(vk_data), crs->get_verifier_crs());
 

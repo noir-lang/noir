@@ -20,28 +20,20 @@ namespace waffle {
  * @tparam settings Settings class.
  * */
 template <typename settings>
-ProverBase<settings>::ProverBase(std::shared_ptr<proving_key> input_key,
-                                 std::shared_ptr<program_witness> input_witness,
-                                 const transcript::Manifest& input_manifest)
+ProverBase<settings>::ProverBase(std::shared_ptr<proving_key> input_key, const transcript::Manifest& input_manifest)
     : n(input_key == nullptr ? 0 : input_key->n)
     , transcript(input_manifest, settings::hash_type, settings::num_challenge_bytes)
     , key(input_key)
-    , witness(input_witness)
-    , queue(key.get(), witness.get(), &transcript)
-{
-    if (input_witness && witness->wires.count("z") == 0) {
-        witness->wires.insert({ "z", polynomial(n, n) });
-    }
-}
+    , queue(key.get(), &transcript)
+{}
 
 template <typename settings>
 ProverBase<settings>::ProverBase(ProverBase<settings>&& other)
     : n(other.n)
     , transcript(other.transcript)
     , key(std::move(other.key))
-    , witness(std::move(other.witness))
     , commitment_scheme(std::move(other.commitment_scheme))
-    , queue(key.get(), witness.get(), &transcript)
+    , queue(key.get(), &transcript)
 {
     for (size_t i = 0; i < other.random_widgets.size(); ++i) {
         random_widgets.emplace_back(std::move(other.random_widgets[i]));
@@ -65,10 +57,9 @@ template <typename settings> ProverBase<settings>& ProverBase<settings>::operato
     }
     transcript = other.transcript;
     key = std::move(other.key);
-    witness = std::move(other.witness);
     commitment_scheme = std::move(other.commitment_scheme);
 
-    queue = work_queue(key.get(), witness.get(), &transcript);
+    queue = work_queue(key.get(), &transcript);
     return *this;
 }
 
@@ -82,12 +73,12 @@ template <typename settings> void ProverBase<settings>::compute_wire_pre_commitm
     for (size_t i = 0; i < settings::program_width; ++i) {
         std::string wire_tag = "w_" + std::to_string(i + 1);
         std::string commit_tag = "W_" + std::to_string(i + 1);
-        barretenberg::fr* coefficients = witness->wires.at(wire_tag).get_coefficients();
+        barretenberg::fr* coefficients = key->polynomial_cache.get(wire_tag).get_coefficients();
         commitment_scheme->commit(coefficients, commit_tag, work_queue::MSMSize::N, queue);
     }
 
     // add public inputs
-    const polynomial& public_wires_source = key->wire_ffts.at("w_2_fft");
+    const polynomial& public_wires_source = key->polynomial_cache.get("w_2_lagrange");
     std::vector<fr> public_wires;
     for (size_t i = 0; i < key->num_public_inputs; ++i) {
         public_wires.push_back(public_wires_source[i]);
@@ -136,7 +127,7 @@ template <typename settings> void ProverBase<settings>::compute_quotient_pre_com
     // computing the commitments to these polynomials.
     //
     for (size_t i = 0; i < settings::program_width; ++i) {
-        fr* coefficients = &key->quotient_polynomial_parts[i].get_coefficients()[0];
+        fr* coefficients = key->quotient_polynomial_parts[i].get_coefficients();
         std::string quotient_tag = "T_" + std::to_string(i + 1);
         // Set flag that determines domain size (currently n or n+1) in pippenger (see process_queue()).
         // Note: After blinding, all t_i have size n+1 representation (degree n) except t_4 in Turbo/Ultra.
@@ -171,7 +162,7 @@ template <typename settings> void ProverBase<settings>::execute_preamble_round()
     for (size_t i = 0; i < settings::program_width; ++i) {
         // fetch witness wire w_i
         std::string wire_tag = "w_" + std::to_string(i + 1);
-        barretenberg::polynomial& wire = witness->wires.at(wire_tag);
+        barretenberg::polynomial wire_lagrange = key->polynomial_cache.get(wire_tag + "_lagrange");
 
         /*
         Adding zero knowledge to the witness polynomials.
@@ -194,15 +185,15 @@ template <typename settings> void ProverBase<settings>::execute_preamble_round()
         // NOTE: If in future there is a need to cut off more zeros off the vanishing polynomial, this method
         // will not change. This must be changed only if the number of evaluations of witness polynomials
         // change.
-        //
         const size_t w_randomness = 3;
         ASSERT(w_randomness < settings::num_roots_cut_out_of_vanishing_polynomial);
         for (size_t k = 0; k < w_randomness; ++k) {
-            wire.at(n - settings::num_roots_cut_out_of_vanishing_polynomial + k) = fr::random_element();
+            wire_lagrange.at(n - settings::num_roots_cut_out_of_vanishing_polynomial + k) = fr::random_element();
         }
 
-        barretenberg::polynomial& wire_fft = key->wire_ffts.at(wire_tag + "_fft");
-        barretenberg::polynomial_arithmetic::copy_polynomial(&wire[0], &wire_fft[0], n, n);
+        key->polynomial_cache.put(wire_tag + "_lagrange", std::move(wire_lagrange));
+
+        // perfom an IFFT so that the "w_i" polynomials will contain the monomial form
         queue.add_to_queue({
             work_queue::WorkType::IFFT,
             nullptr,
@@ -341,6 +332,9 @@ template <typename settings> void ProverBase<settings>::execute_fourth_round()
 #endif
     fr alpha_base = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
 
+    // Compute FFT of lagrange polynomial L_1 (needed in random widgets only)
+    compute_lagrange_1_fft();
+
     for (auto& widget : random_widgets) {
 #ifdef DEBUG_TIMING
         std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
@@ -352,7 +346,10 @@ template <typename settings> void ProverBase<settings>::execute_fourth_round()
         std::cerr << "widget " << i << " quotient compute time: " << diff.count() << "ms" << std::endl;
 #endif
     }
+
+    size_t widget_counter = 0;
     for (auto& widget : transition_widgets) {
+        widget_counter++;
         alpha_base = widget->compute_quotient_contribution(alpha_base, transcript);
     }
 
@@ -428,7 +425,7 @@ template <typename settings> void ProverBase<settings>::execute_sixth_round()
 {
     queue.flush_queue();
     transcript.apply_fiat_shamir("nu");
-    commitment_scheme->batch_open(transcript, queue, key, witness);
+    commitment_scheme->batch_open(transcript, queue, key);
 }
 
 template <typename settings> void ProverBase<settings>::compute_linearisation_coefficients()
@@ -436,17 +433,17 @@ template <typename settings> void ProverBase<settings>::compute_linearisation_co
 
     fr zeta = fr::serialize_from_buffer(transcript.get_challenge("z").begin());
 
-    polynomial& r = key->linear_poly;
+    polynomial linear_poly(key->n + 1, key->n + 1);
 
-    commitment_scheme->add_opening_evaluations_to_transcript(transcript, key, witness, false);
+    commitment_scheme->add_opening_evaluations_to_transcript(transcript, key, false);
     if constexpr (settings::use_linearisation) {
         fr alpha_base = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
 
         for (auto& widget : random_widgets) {
-            alpha_base = widget->compute_linear_contribution(alpha_base, transcript, r);
+            alpha_base = widget->compute_linear_contribution(alpha_base, transcript, linear_poly);
         }
         for (auto& widget : transition_widgets) {
-            alpha_base = widget->compute_linear_contribution(alpha_base, transcript, &r[0]);
+            alpha_base = widget->compute_linear_contribution(alpha_base, transcript, &linear_poly[0]);
         }
         // The below code adds −Z_H(z) * (t_lo(X) + z^n * t_mid(X) + z^2n * t_hi(X)) term to r(X)
         // (Plus an additional term −Z_H(z) * z^3n * t_highest(X) for Turbo/Ultra)
@@ -465,22 +462,22 @@ template <typename settings> void ProverBase<settings>::compute_linearisation_co
         for (size_t j = 0; j < settings::program_width; ++j) {
             quotient_sum += key->quotient_polynomial_parts[j][i] * quotient_multipliers[j];
         }
-        r[i] += -lagrange_evals.vanishing_poly * quotient_sum;
+        linear_poly[i] += -lagrange_evals.vanishing_poly * quotient_sum;
         ITERATE_OVER_DOMAIN_END;
 
         // Each t_i for i = 1,2,3 has an n+1th coefficient that must be accounted for in r(X) here.
         // Note that t_4 (Turbo/Ultra) always has only n coefficients.
-        r[key->n] = 0;
+        linear_poly[key->n] = 0;
         const size_t num_deg_n_poly =
             settings::program_width == 3 ? settings::program_width : settings::program_width - 1;
         for (size_t j = 0; j < num_deg_n_poly; ++j) {
-            r[key->n] +=
+            linear_poly[key->n] +=
                 -lagrange_evals.vanishing_poly * key->quotient_polynomial_parts[j][key->n] * quotient_multipliers[j];
         }
 
         // Assert that r(X) at X = zeta is 0
         const auto size = key->n + 1;
-        fr linear_eval = r.evaluate(zeta, size);
+        fr linear_eval = linear_poly.evaluate(zeta, size);
         // This condition checks if r(z) = 0 but does not abort.
         if (linear_eval != fr(0)) {
             info("linear_eval is not 0.");
@@ -505,6 +502,7 @@ template <typename settings> void ProverBase<settings>::compute_linearisation_co
 
         transcript.add_element("t", t_eval.to_buffer());
     }
+    key->polynomial_cache.put("linear_poly", std::move(linear_poly));
 }
 
 // Add blinding to the components in such a way that the full quotient would be unchanged if reconstructed
@@ -532,6 +530,23 @@ template <typename settings> void ProverBase<settings>::add_blinding_to_quotient
     }
 }
 
+// Compute FFT of lagrange polynomial L_1 needed in random widgets only
+template <typename settings> void ProverBase<settings>::compute_lagrange_1_fft()
+{
+    polynomial lagrange_1_fft(4 * n, 4 * n + 8);
+    polynomial_arithmetic::compute_lagrange_polynomial_fft(
+        lagrange_1_fft.get_coefficients(), key->small_domain, key->large_domain);
+    lagrange_1_fft.add_lagrange_base_coefficient(lagrange_1_fft[0]);
+    lagrange_1_fft.add_lagrange_base_coefficient(lagrange_1_fft[1]);
+    lagrange_1_fft.add_lagrange_base_coefficient(lagrange_1_fft[2]);
+    lagrange_1_fft.add_lagrange_base_coefficient(lagrange_1_fft[3]);
+    lagrange_1_fft.add_lagrange_base_coefficient(lagrange_1_fft[4]);
+    lagrange_1_fft.add_lagrange_base_coefficient(lagrange_1_fft[5]);
+    lagrange_1_fft.add_lagrange_base_coefficient(lagrange_1_fft[6]);
+    lagrange_1_fft.add_lagrange_base_coefficient(lagrange_1_fft[7]);
+    key->polynomial_cache.put("lagrange_1_fft", std::move(lagrange_1_fft));
+}
+
 template <typename settings> waffle::plonk_proof& ProverBase<settings>::export_proof()
 {
     proof.proof_data = transcript.export_transcript();
@@ -543,6 +558,7 @@ template <typename settings> waffle::plonk_proof& ProverBase<settings>::construc
     // Execute init round. Randomize witness polynomials.
     execute_preamble_round();
     queue.process_queue();
+
     // Compute wire precommitments and sometimes random widget round commitments
     execute_first_round();
     queue.process_queue();
@@ -558,9 +574,14 @@ template <typename settings> waffle::plonk_proof& ProverBase<settings>::construc
 
     execute_fourth_round();
     queue.process_queue();
+
     execute_fifth_round();
+
     execute_sixth_round();
     queue.process_queue();
+
+    queue.flush_queue();
+
     return export_proof();
 }
 
