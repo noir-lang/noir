@@ -12,11 +12,18 @@ pub struct CustomDiagnostic {
     message: String,
     secondaries: Vec<CustomLabel>,
     notes: Vec<String>,
+    kind: DiagnosticKind,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum DiagnosticKind {
+    Error,
+    Warning,
 }
 
 impl CustomDiagnostic {
     pub fn from_message(msg: &str) -> CustomDiagnostic {
-        Self { message: msg.to_owned(), secondaries: Vec::new(), notes: Vec::new() }
+        Self { message: msg.to_owned(), secondaries: Vec::new(), notes: Vec::new(), kind: DiagnosticKind::Error }
     }
 
     pub fn simple_error(
@@ -28,6 +35,20 @@ impl CustomDiagnostic {
             message: primary_message,
             secondaries: vec![CustomLabel::new(secondary_message, secondary_span)],
             notes: Vec::new(),
+            kind: DiagnosticKind::Error,
+        }
+    }
+
+    pub fn simple_warning(
+        primary_message: String,
+        secondary_message: String,
+        secondary_span: Span,
+    ) -> CustomDiagnostic {
+        CustomDiagnostic {
+            message: primary_message,
+            secondaries: vec![CustomLabel::new(secondary_message, secondary_span)],
+            notes: Vec::new(),
+            kind: DiagnosticKind::Warning,
         }
     }
 
@@ -71,13 +92,17 @@ impl CustomLabel {
 pub struct Reporter;
 
 impl Reporter {
+    /// Writes the given diagnostics to stderr and returns the count
+    /// of diagnostics that were errors.
     pub fn with_diagnostics(
         file_id: FileId,
         files: &fm::FileManager,
         diagnostics: &[CustomDiagnostic],
-    ) {
+    ) -> usize {
+        let mut error_count = 0;
+
         // Convert each Custom Diagnostic into a diagnostic
-        let diagnostics: Vec<_> = diagnostics
+        let diagnostics = diagnostics
             .iter()
             .map(|cd| {
                 let secondary_labels = cd
@@ -91,19 +116,28 @@ impl Reporter {
                     })
                     .collect();
 
-                Diagnostic::error()
+                let diagnostic = match cd.kind {
+                    DiagnosticKind::Error => {
+                        error_count += 1;
+                        Diagnostic::error()
+                    }
+                    DiagnosticKind::Warning => Diagnostic::warning(),
+                };
+
+                diagnostic
                     .with_message(&cd.message)
                     .with_labels(secondary_labels)
                     .with_notes(cd.notes.clone())
-            })
-            .collect();
+            });
 
         let writer = StandardStream::stderr(ColorChoice::Always);
         let config = codespan_reporting::term::Config::default();
 
-        for diagnostic in diagnostics.iter() {
-            term::emit(&mut writer.lock(), &config, files.as_simple_files(), diagnostic).unwrap();
+        for diagnostic in diagnostics {
+            term::emit(&mut writer.lock(), &config, files.as_simple_files(), &diagnostic).unwrap();
         }
+
+        error_count
     }
 
     pub fn finish(error_count: usize) {

@@ -132,8 +132,11 @@ impl Driver {
         CrateDefMap::collect_defs(LOCAL_CRATE, &mut self.context, &mut errs);
         let mut error_count = 0;
         for errors in &errs {
-            error_count += errors.errors.len();
-            Reporter::with_diagnostics(errors.file_id, &self.context.file_manager, &errors.errors);
+            error_count += Reporter::with_diagnostics(
+                errors.file_id,
+                &self.context.file_manager,
+                &errors.errors,
+            );
         }
 
         Reporter::finish(error_count);
@@ -184,12 +187,12 @@ impl Driver {
             Err(err) => {
                 // The FileId here will be the file id of the file with the main file
                 // Errors will be shown at the callsite without a stacktrace
-                Reporter::with_diagnostics(
+                let error_count = Reporter::with_diagnostics(
                     err.location.file,
                     &self.context.file_manager,
                     &[err.to_diagnostic()],
                 );
-                Reporter::finish(1);
+                Reporter::finish(error_count);
                 unreachable!("reporter will exit before this point")
             }
         };
