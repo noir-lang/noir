@@ -6,7 +6,7 @@ use noirc_errors::Location;
 use crate::{
     monomorphisation::ast::{
         ArrayLiteral, Assign, Binary, CallBuiltin, CallLowLevel, Cast, DefinitionId, Expression,
-        FuncId, Function, Ident, If, Index, LValue, Let, Literal, Program, Type, Unary, SharedId,
+        FuncId, Function, Ident, If, Index, LValue, Let, Literal, Program, SharedId, Type, Unary,
     },
     util::vecmap,
     BinaryOpKind, Signedness, UnaryOp,
@@ -62,12 +62,7 @@ struct Evaluator<'a> {
 
 impl<'a> Evaluator<'a> {
     fn new(program: &'a Program) -> Self {
-        Self {
-            program,
-            call_stack: vec![],
-            evaluated: vec![vec![]],
-            counter: 0,
-        }
+        Self { program, call_stack: vec![], evaluated: vec![vec![]], counter: 0 }
     }
 
     fn current_scope(&mut self) -> &mut Scope {
@@ -462,11 +457,7 @@ fn binary_constant_int(
     rhs: &Expression,
     operator: BinaryOpKind,
 ) -> Option<Expression> {
-    if let (
-        Some((lvalue, ltyp)),
-        Some((rvalue, rtyp))
-    ) = (as_int(lhs), as_int(rhs)
-    ){
+    if let (Some((lvalue, ltyp)), Some((rvalue, rtyp))) = (as_int(lhs), as_int(rhs)) {
         assert_eq!(ltyp, rtyp);
         match operator {
             BinaryOpKind::Add => return Some(int(lvalue + rvalue, ltyp.clone())),
@@ -503,9 +494,7 @@ fn binary_constant_bool(
     rhs: &Expression,
     operator: BinaryOpKind,
 ) -> Option<Expression> {
-    if let (
-        Some(lvalue), Some(rvalue)
-    ) = (as_bool(lhs), as_bool(rhs)){
+    if let (Some(lvalue), Some(rvalue)) = (as_bool(lhs), as_bool(rhs)) {
         Some(match operator {
             BinaryOpKind::Equal => bool(lvalue == rvalue),
             BinaryOpKind::NotEqual => bool(lvalue != rvalue),
