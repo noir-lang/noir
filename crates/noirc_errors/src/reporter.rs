@@ -15,7 +15,7 @@ pub struct CustomDiagnostic {
     kind: DiagnosticKind,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum DiagnosticKind {
     Error,
     Warning,
@@ -23,7 +23,12 @@ pub enum DiagnosticKind {
 
 impl CustomDiagnostic {
     pub fn from_message(msg: &str) -> CustomDiagnostic {
-        Self { message: msg.to_owned(), secondaries: Vec::new(), notes: Vec::new(), kind: DiagnosticKind::Error }
+        Self {
+            message: msg.to_owned(),
+            secondaries: Vec::new(),
+            notes: Vec::new(),
+            kind: DiagnosticKind::Error,
+        }
     }
 
     pub fn simple_error(
@@ -98,37 +103,36 @@ impl Reporter {
         file_id: FileId,
         files: &fm::FileManager,
         diagnostics: &[CustomDiagnostic],
+        allow_warnings: bool,
     ) -> usize {
         let mut error_count = 0;
 
         // Convert each Custom Diagnostic into a diagnostic
-        let diagnostics = diagnostics
-            .iter()
-            .map(|cd| {
-                let secondary_labels = cd
-                    .secondaries
-                    .iter()
-                    .map(|sl| {
-                        let start_span = sl.span.start() as usize;
-                        let end_span = sl.span.end() as usize + 1;
-                        Label::secondary(file_id.as_usize(), start_span..end_span)
-                            .with_message(&sl.message)
-                    })
-                    .collect();
+        let diagnostics = diagnostics.iter().map(|cd| {
+            let diagnostic = match (cd.kind, allow_warnings) {
+                (DiagnosticKind::Warning, true) => Diagnostic::warning(),
+                _ => {
+                    error_count += 1;
+                    Diagnostic::error()
+                }
+            };
 
-                let diagnostic = match cd.kind {
-                    DiagnosticKind::Error => {
-                        error_count += 1;
-                        Diagnostic::error()
-                    }
-                    DiagnosticKind::Warning => Diagnostic::warning(),
-                };
+            let secondary_labels = cd
+                .secondaries
+                .iter()
+                .map(|sl| {
+                    let start_span = sl.span.start() as usize;
+                    let end_span = sl.span.end() as usize + 1;
+                    Label::secondary(file_id.as_usize(), start_span..end_span)
+                        .with_message(&sl.message)
+                })
+                .collect();
 
-                diagnostic
-                    .with_message(&cd.message)
-                    .with_labels(secondary_labels)
-                    .with_notes(cd.notes.clone())
-            });
+            diagnostic
+                .with_message(&cd.message)
+                .with_labels(secondary_labels)
+                .with_notes(cd.notes.clone())
+        });
 
         let writer = StandardStream::stderr(ColorChoice::Always);
         let config = codespan_reporting::term::Config::default();

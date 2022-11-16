@@ -80,6 +80,11 @@ pub fn start_cli() {
                     .help("Emit debug information for the intermediate SSA IR"),
             ),
         )
+        .arg(
+            Arg::with_name("allow-warnings")
+                .long("allow-warnings")
+                .help("Issue a warning for each unused variable instead of an error"),
+        )
         .get_matches();
 
     let result = match matches.subcommand_name() {
@@ -126,20 +131,25 @@ fn write_to_file(bytes: &[u8], path: &Path) -> String {
 // helper function which tests noir programs by trying to generate a proof and verify it
 pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> bool {
     let tmp_dir = TempDir::new("p_and_v_tests").unwrap();
-    let proof_path =
-        match prove_cmd::prove_with_path(proof_name, prg_dir, &tmp_dir.into_path(), show_ssa) {
-            Ok(p) => p,
-            Err(CliError::Generic(msg)) => {
-                println!("Error: {}", msg);
-                return false;
-            }
-            Err(CliError::DestinationAlreadyExists(str)) => {
-                println!("Error, destination {} already exists: ", str);
-                return false;
-            }
-        };
+    let proof_path = match prove_cmd::prove_with_path(
+        proof_name,
+        prg_dir,
+        &tmp_dir.into_path(),
+        show_ssa,
+        false,
+    ) {
+        Ok(p) => p,
+        Err(CliError::Generic(msg)) => {
+            println!("Error: {}", msg);
+            return false;
+        }
+        Err(CliError::DestinationAlreadyExists(str)) => {
+            println!("Error, destination {} already exists: ", str);
+            return false;
+        }
+    };
 
-    verify_cmd::verify_with_path(prg_dir, &proof_path, show_ssa).unwrap()
+    verify_cmd::verify_with_path(prg_dir, &proof_path, show_ssa, false).unwrap()
 }
 
 fn add_std_lib(driver: &mut Driver) {
