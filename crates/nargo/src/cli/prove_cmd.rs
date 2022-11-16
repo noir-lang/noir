@@ -142,21 +142,22 @@ pub fn solve_witness<P: AsRef<Path>>(
 
     let backend = crate::backends::ConcreteBackend;
     let solver_res = backend.solve(&mut solved_witness, compiled_program.circuit.gates.clone());
+
+    match solver_res {
+        GateResolution::UnsupportedOpcode(opcode) => return Err(CliError::Generic(format!(
+                "backend does not currently support the {} opcode. ACVM does not currently fall back to arithmetic gates.",
+                opcode
+        ))),
+        GateResolution::UnsatisfiedConstrain => return Err(CliError::Generic(
+                "could not satisfy all constraints".to_string()
+        )),
+        GateResolution::Resolved => (),
+        _ => unreachable!(),
+    }
+
     // (over)writes verifier.toml
     export_public_inputs(rv, &solved_witness, &witness_map, abi, &program_dir)
         .map_err(CliError::from)?;
-
-    match solver_res {
-            GateResolution::UnsupportedOpcode(opcode) => return Err(CliError::Generic(format!(
-                "backend does not currently support the {} opcode. ACVM does not currently fall back to arithmetic gates.",
-                opcode
-            ))),
-            GateResolution::UnsatisfiedConstrain => return Err(CliError::Generic(
-                "could not satisfy all constraints".to_string()
-            )),
-            GateResolution::Resolved => (),
-            _ => unreachable!(),
-        }
 
     Ok(solved_witness)
 }
