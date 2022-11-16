@@ -166,16 +166,16 @@ fn solve_witness(
     let solver_res = backend.solve(&mut solved_witness, compiled_program.circuit.gates.clone());
 
     match solver_res {
-            GateResolution::UnsupportedOpcode(opcode) => return Err(CliError::Generic(format!(
+        GateResolution::UnsupportedOpcode(opcode) => return Err(CliError::Generic(format!(
                 "backend does not currently support the {} opcode. ACVM does not currently fall back to arithmetic gates.",
                 opcode
-            ))),
-            GateResolution::UnsatisfiedConstrain => return Err(CliError::Generic(
+        ))),
+        GateResolution::UnsatisfiedConstrain => return Err(CliError::Generic(
                 "could not satisfy all constraints".to_string()
-            )),
-            GateResolution::Resolved => (),
-            _ => unreachable!(),
-        }
+        )),
+        GateResolution::Resolved => (),
+        _ => unreachable!(),
+    }
 
     Ok((solved_witness, return_value))
 }
