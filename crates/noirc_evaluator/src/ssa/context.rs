@@ -1,5 +1,5 @@
 use super::block::{BasicBlock, BlockId};
-use super::conditional::DecisionTree;
+use super::conditional::{DecisionTree, TreeBuilder};
 use super::function::{FuncIndex, SSAFunction};
 use super::inline::StackFrame;
 use super::mem::{ArrayId, Memory};
@@ -668,7 +668,8 @@ impl SsaContext {
 
         //reduce conditionals
         let mut decision = DecisionTree::new(self);
-        decision.make_decision_tree(self, self.first_block);
+        let builder = TreeBuilder::new(self.first_block);
+        decision.make_decision_tree(self, builder);
         decision.reduce(self, decision.root)?;
 
         //Inlining

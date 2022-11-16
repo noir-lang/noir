@@ -57,14 +57,14 @@ impl AssumptionId {
 }
 
 //temporary data used to build the decision tree
-struct TreeBuilder {
+pub struct TreeBuilder {
     pub join_to_process: Vec<BlockId>,
     pub stack: StackFrame,
 }
 
 impl TreeBuilder {
-    pub fn new() -> TreeBuilder {
-        TreeBuilder { join_to_process: Vec::new(), stack: StackFrame::new(BlockId::dummy()) }
+    pub fn new(entry: BlockId) -> TreeBuilder {
+        TreeBuilder { join_to_process: Vec::new(), stack: StackFrame::new(entry) }
     }
 }
 
@@ -200,9 +200,8 @@ impl DecisionTree {
         ins
     }
 
-    pub fn make_decision_tree(&mut self, ctx: &mut SsaContext, entry_block: BlockId) {
-        let mut builder = TreeBuilder::new();
-        builder.stack.block = entry_block;
+    pub fn make_decision_tree(&mut self, ctx: &mut SsaContext, mut builder: TreeBuilder) {
+        let entry_block = builder.stack.block;
         ctx[entry_block].assumption = self.root;
         self.decision_tree(ctx, entry_block, &mut builder);
     }
