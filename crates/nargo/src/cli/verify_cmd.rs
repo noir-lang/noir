@@ -17,7 +17,6 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     proof_path.set_extension(PROOF_EXT);
 
     let allow_warnings = args.is_present("allow-warnings");
-    dbg!(args.clone());
     let result = verify(proof_name, allow_warnings)?;
     println!("Proof verified : {}\n", result);
     Ok(())
