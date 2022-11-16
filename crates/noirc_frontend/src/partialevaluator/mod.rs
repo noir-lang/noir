@@ -252,12 +252,55 @@ impl<'a> Evaluator<'a> {
     fn index(&mut self, index: &Index) -> Expression {
         let collection = Box::new(self.expression(&index.collection));
         let index = Box::new(self.expression(&index.index));
+
+        if let (Some(array), Some((index, _))) = (as_array(&collection), as_int(&index)) {
+            if let Some(index) = index.try_into_u128().and_then(|x| x.try_into().ok()) {
+                let x: usize = index;
+                return array.contents[index].clone();
+            }
+        }
+
         Expression::Index(Index { collection, index })
     }
 
     fn cast(&mut self, cast: &Cast) -> Expression {
-        let lhs = Box::new(self.expression(&cast.lhs));
-        Expression::Cast(Cast { lhs, r#type: cast.r#type.clone() })
+        let lhs = self.expression(&cast.lhs);
+
+        if let Some((value, typ)) = as_int(&lhs) {
+            match (typ, &cast.r#type) {
+                (l, r) if l == r => return lhs,
+
+                (Type::Field, Type::Integer(_, _))
+                // Should we do something different if lsign != rsign?
+                | (Type::Integer(_, _), Type::Integer(_, _)) => {
+                    let value = truncate(value, &cast.r#type);
+                    return Expression::Literal(Literal::Integer(value, cast.r#type.clone()));
+                },
+
+                (Type::Field | Type::Integer(..), Type::Bool) => {
+                    return Expression::Literal(Literal::Bool(!value.is_zero()));
+                },
+
+                (Type::Integer(_, _), Type::Field) => {
+                    return Expression::Literal(Literal::Integer(value, Type::Field));
+                },
+                _ => unreachable!(),
+            }
+        }
+
+        if let Some(value) = as_bool(&lhs) {
+            match &cast.r#type {
+                Type::Bool => return lhs,
+                Type::Field
+                | Type::Integer(_, _) => {
+                    let value = if value { FieldElement::one() } else { FieldElement::zero() };
+                    return Expression::Literal(Literal::Integer(value, cast.r#type.clone()));
+                },
+                _ => unreachable!(),
+            }
+        }
+
+        Expression::Cast(Cast { lhs: Box::new(lhs), r#type: cast.r#type.clone() })
     }
 
     fn for_loop(&mut self, for_loop: &crate::monomorphisation::ast::For) -> Expression {
@@ -593,6 +636,14 @@ fn as_int(expr: &Expression) -> Option<(FieldElement, &Type)> {
     match expr {
         Expression::Literal(Literal::Integer(value, typ)) => Some((*value, typ)),
         Expression::Shared(_, expr) => as_int(expr),
+        _ => None,
+    }
+}
+
+fn as_array(expr: &Expression) -> Option<&ArrayLiteral> {
+    match expr {
+        Expression::Literal(Literal::Array(array)) => Some(array),
+        Expression::Shared(_, expr) => as_array(expr),
         _ => None,
     }
 }
