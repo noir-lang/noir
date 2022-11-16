@@ -289,9 +289,7 @@ impl<'a> Evaluator<'a> {
     fn for_loop(&mut self, for_loop: &crate::monomorphisation::ast::For) -> Expression {
         let start = self.expression(&for_loop.start_range);
         let start = match as_int(&start) {
-            Some((value, _)) if value.fits_in_u128() => {
-                value.to_u128()
-            }
+            Some((value, _)) if value.fits_in_u128() => value.to_u128(),
             _ => unreachable!(
                 "Unable to evaluate comptime 'start range' value of for loop. Got {}",
                 start
@@ -300,9 +298,7 @@ impl<'a> Evaluator<'a> {
 
         let end = self.expression(&for_loop.end_range);
         let end = match as_int(&end) {
-            Some((value, _)) if value.fits_in_u128() => {
-                value.to_u128()
-            }
+            Some((value, _)) if value.fits_in_u128() => value.to_u128(),
             _ => unreachable!(
                 "Unable to evaluate comptime 'end range' value of for loop. Got {}",
                 end
