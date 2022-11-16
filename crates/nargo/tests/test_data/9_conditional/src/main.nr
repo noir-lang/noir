@@ -1,12 +1,12 @@
 use dep::std;
 
 fn sort(mut a: [u32; 4]) -> [u32; 4] { 
-    for i in 0..3 {
-        for j in 0..3-i {
-            if(a[j] > a[j+1]) {
+    for i in 1..4 {
+        for j in 0..i {
+            if(a[i] < a[j]) {
                 let c = a[j];
-                a[j] = a[j+1];
-                a[j+1]= c;
+                a[j] = a[i];
+                a[i]= c;
             }
         };
     };
@@ -98,6 +98,10 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
     }
     constrain c[1] != 2;
     call_intrinsic(x, result);
+
+    //Test case for conditional with arrays from function parameters
+    let b = sort([1,2,3,4]);
+    constrain b[0] == 1;
 
     if a == 0 {
         must_be_zero(0);
