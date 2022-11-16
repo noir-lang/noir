@@ -32,6 +32,14 @@ const ACIR_EXT: &str = "acir";
 const WITNESS_EXT: &str = "tr";
 
 pub fn start_cli() {
+    let allow_warnings = Arg::with_name("allow-warnings")
+        .long("allow-warnings")
+        .help("Issue a warning for each unused variable instead of an error");
+
+    let show_ssa = Arg::with_name("show-ssa")
+        .long("show-ssa")
+        .help("Emit debug information for the intermediate SSA IR");
+
     let matches = App::new("nargo")
         .about("Noir's package manager")
         .version("0.1")
@@ -49,17 +57,19 @@ pub fn start_cli() {
         .subcommand(
             App::new("verify")
                 .about("Given a proof and a program, verify whether the proof is valid")
-                .arg(Arg::with_name("proof").help("The proof to verify").required(true)),
+                .arg(Arg::with_name("proof").help("The proof to verify").required(true))
+                .arg(
+                    Arg::with_name("allow-warnings")
+                        .long("allow-warnings")
+                        .help("Issue a warning for each unused variable instead of an error"),
+                ),
         )
         .subcommand(
             App::new("prove")
                 .about("Create proof for this program")
                 .arg(Arg::with_name("proof_name").help("The name of the proof").required(true))
-                .arg(
-                    Arg::with_name("show-ssa")
-                        .long("show-ssa")
-                        .help("Emit debug information for the intermediate SSA IR"),
-                ),
+                .arg(show_ssa.clone())
+                .arg(allow_warnings.clone()),
         )
         .subcommand(
             App::new("compile")
@@ -71,19 +81,14 @@ pub fn start_cli() {
                     Arg::with_name("witness")
                         .long("witness")
                         .help("Solve the witness and write it to file along with the ACIR"),
-                ),
+                )
+                .arg(allow_warnings.clone()),
         )
         .subcommand(
-            App::new("gates").about("Counts the occurences of different gates in circuit").arg(
-                Arg::with_name("show-ssa")
-                    .long("show-ssa")
-                    .help("Emit debug information for the intermediate SSA IR"),
-            ),
-        )
-        .arg(
-            Arg::with_name("allow-warnings")
-                .long("allow-warnings")
-                .help("Issue a warning for each unused variable instead of an error"),
+            App::new("gates")
+                .about("Counts the occurences of different gates in circuit")
+                .arg(show_ssa)
+                .arg(allow_warnings),
         )
         .get_matches();
 
