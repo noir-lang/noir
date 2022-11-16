@@ -61,8 +61,8 @@ pub fn compile_circuit<P: AsRef<Path>>(
     program_dir: P,
     show_ssa: bool,
 ) -> Result<noirc_driver::CompiledProgram, CliError> {
-    let mut driver = Resolver::resolve_root_config(program_dir.as_ref())?;
     let backend = crate::backends::ConcreteBackend;
+    let mut driver = Resolver::resolve_root_config(program_dir.as_ref(), backend.np_language())?;
     add_std_lib(&mut driver);
     let compiled_program = driver.into_compiled_program(backend.np_language(), show_ssa);
 

@@ -1,4 +1,5 @@
 use acvm::acir::circuit::Circuit;
+use acvm::Language;
 use fm::FileType;
 use noirc_abi::Abi;
 use noirc_errors::{DiagnosableError, Reporter};
@@ -23,14 +24,16 @@ pub struct CompiledProgram {
 }
 
 impl Driver {
-    pub fn new() -> Self {
-        Driver { context: Context::default() }
+    pub fn new(np_language: &acvm::Language) -> Self {
+        let mut driver = Driver { context: Context::default() };
+        driver.context.def_interner.set_language(np_language);
+        driver
     }
 
     // This is here for backwards compatibility
     // with the restricted version which only uses one file
     pub fn compile_file(root_file: PathBuf, np_language: acvm::Language) -> CompiledProgram {
-        let mut driver = Driver::new();
+        let mut driver = Driver::new(&np_language);
         driver.create_local_crate(root_file, CrateType::Binary);
         driver.into_compiled_program(np_language, false)
     }
@@ -199,6 +202,6 @@ impl Driver {
 
 impl Default for Driver {
     fn default() -> Self {
-        Self::new()
+        Self::new(&Language::R1CS)
     }
 }

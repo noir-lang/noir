@@ -122,8 +122,8 @@ impl std::fmt::Debug for Gate {
             Gate::Directive(Directive::Split { a, b, bit_size: _ }) => {
                 write!(
                     f,
-                    "Split: x{} into x{}...x{}",
-                    a.witness_index(),
+                    "Split: {} into x{}...x{}",
+                    a,
                     b.first().unwrap().witness_index(),
                     b.last().unwrap().witness_index(),
                 )
@@ -168,7 +168,7 @@ pub enum Directive {
 
     //bit decomposition of a: a=\sum b[i]*2^i
     Split {
-        a: Witness,
+        a: Expression,
         b: Vec<Witness>,
         bit_size: u32,
     },

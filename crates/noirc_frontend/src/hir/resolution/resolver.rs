@@ -112,12 +112,7 @@ impl<'a> Resolver<'a> {
         self.scopes.start_function();
 
         // Check whether the function has globals in the local module and add them to the scope
-        for (stmt_id, global_info) in self.interner.get_all_globals() {
-            if global_info.local_id == self.path_resolver.local_module_id() {
-                let global_stmt = self.interner.let_statement(&stmt_id);
-                self.add_global_variable_decl(global_info.ident, Some(global_stmt.expression));
-            }
-        }
+        self.resolve_local_globals();
 
         self.add_generics(func.def.generics.clone());
 
@@ -406,6 +401,9 @@ impl<'a> Resolver<'a> {
     ) -> (Generics, BTreeMap<Ident, Type>, Vec<ResolverError>) {
         let generics = self.add_generics(unresolved.generics);
 
+        // Check whether the struct definition has globals in the local module and add them to the scope
+        self.resolve_local_globals();
+
         let fields = unresolved
             .fields
             .into_iter()
@@ -413,6 +411,15 @@ impl<'a> Resolver<'a> {
             .collect();
 
         (generics, fields, self.errors)
+    }
+
+    fn resolve_local_globals(&mut self) {
+        for (stmt_id, global_info) in self.interner.get_all_globals() {
+            if global_info.local_id == self.path_resolver.local_module_id() {
+                let global_stmt = self.interner.let_statement(&stmt_id);
+                self.add_global_variable_decl(global_info.ident, Some(global_stmt.expression));
+            }
+        }
     }
 
     /// Extract metadata from a NoirFunction
