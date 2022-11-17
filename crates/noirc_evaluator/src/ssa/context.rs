@@ -1,5 +1,5 @@
 use super::block::{BasicBlock, BlockId};
-use super::conditional::DecisionTree;
+use super::conditional::{DecisionTree, TreeBuilder};
 use super::function::{FuncIndex, SSAFunction};
 use super::inline::StackFrame;
 use super::mem::{ArrayId, Memory};
@@ -266,7 +266,6 @@ impl SsaContext {
             println!("{}: {}", str_res, ins_str);
         }
     }
-
     pub fn print(&self, text: &str) {
         println!("{}", text);
         for (_, b) in self.blocks.iter() {
@@ -669,14 +668,15 @@ impl SsaContext {
 
         //reduce conditionals
         let mut decision = DecisionTree::new(self);
-        decision.make_decision_tree(self, self.first_block);
+        let builder = TreeBuilder::new(self.first_block);
+        decision.make_decision_tree(self, builder);
         decision.reduce(self, decision.root)?;
 
         //Inlining
         self.log(enable_logging, "reduce", "\ninlining:");
         inline::inline_tree(self, self.first_block, &decision)?;
 
-        block::merge_path(self, self.first_block, BlockId::dummy());
+        block::merge_path(self, self.first_block, BlockId::dummy(), None);
         //The CFG is now fully flattened, so we keep only the first block.
         let mut to_remove = Vec::new();
         for b in &self.blocks {
@@ -701,6 +701,7 @@ impl SsaContext {
             Acir::print_circuit(&evaluator.gates);
             println!("DONE");
         }
+        println!("ACIR gates generated : {}", evaluator.gates.len());
         Ok(())
     }
 
