@@ -3,6 +3,7 @@ set -e
 
 NARGO_DIR=${NARGO_DIR-"$HOME/.nargo"}
 NARGO_BIN_DIR="$NARGO_DIR/bin"
+CONFIG_DIR=${XDG_CONFIG_HOME-"$HOME/.config"}
 
 main() {
   need_cmd git
@@ -110,6 +111,10 @@ main() {
     # Download the binaries tarball and unpack it into the .nargo bin directory.
     say "downloading latest nargo"
     ensure curl -# -L $BIN_TARBALL_URL | tar -xzC $NARGO_BIN_DIR
+
+    # Replace existing std_lib with copy from new installation.
+    ensure rm -rf "$CONFIG_DIR/noir-lang/std"
+    ensure mv "$NARGO_BIN_DIR/noir-lang" $CONFIG_DIR
 
   else
     need_cmd cargo
