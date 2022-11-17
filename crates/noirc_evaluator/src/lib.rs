@@ -190,7 +190,7 @@ impl Evaluator {
                     }
                 }
             }
-            AbiType::Struct { visibility, num_fields, fields} => {
+            AbiType::Struct { visibility, num_fields, fields } => {
                 let mut witnesses = Vec::new();
                 for (key, val) in fields {
                     let witness = self.add_witness_to_cs();

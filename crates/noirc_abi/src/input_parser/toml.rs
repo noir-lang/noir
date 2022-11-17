@@ -117,7 +117,7 @@ fn toml_remap(map: &BTreeMap<String, InputValue>) -> BTreeMap<String, TomlTypes>
                 dbg!(parameter.clone());
                 let map_with_toml_types = toml_remap(map);
                 toml_map.insert(parameter.clone(), TomlTypes::Table(map_with_toml_types));
-            },
+            }
             InputValue::Undefined => unreachable!(),
         }
     }

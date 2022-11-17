@@ -976,7 +976,7 @@ impl Type {
                 let fields = struct_type.get_fields(args);
                 let mut abi_map = BTreeMap::new();
                 for (name, typ) in fields {
-                    abi_map.insert(name, typ.as_abi_type(fe_type)); 
+                    abi_map.insert(name, typ.as_abi_type(fe_type));
                 }
                 AbiType::Struct {
                     visibility: fe_type,

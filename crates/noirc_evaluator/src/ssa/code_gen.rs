@@ -3,7 +3,7 @@ use super::function::FuncIndex;
 use super::mem::ArrayId;
 use super::node::{Binary, BinaryOp, NodeId, ObjectType, Operation, Variable};
 use super::{block, node, ssa_form};
-use std::collections::{HashMap, BTreeMap};
+use std::collections::{BTreeMap, HashMap};
 use std::convert::TryInto;
 
 use super::super::environment::Environment;
@@ -127,10 +127,7 @@ impl IRGenerator {
         }
     }
 
-    fn get_object_type_from_abi(
-        &self,
-        el_type: &noirc_abi::AbiType,
-    ) -> ObjectType {
+    fn get_object_type_from_abi(&self, el_type: &noirc_abi::AbiType) -> ObjectType {
         match el_type {
             noirc_abi::AbiType::Field(_) => ObjectType::NativeField,
             noirc_abi::AbiType::Integer { sign, width, .. } => match sign {
