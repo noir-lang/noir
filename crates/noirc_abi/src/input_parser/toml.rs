@@ -18,7 +18,6 @@ pub(crate) fn parse<P: AsRef<Path>>(
     // Parse input.toml into a BTreeMap, converting the argument to field elements
     let data: BTreeMap<String, TomlTypes> = toml::from_str(&input_as_string)
         .map_err(|err_msg| InputParserError::ParseTomlMap(err_msg.to_string()))?;
-    println!("toml map: {:?}", data);
     toml_map_to_field(data)
 }
 
@@ -114,7 +113,6 @@ fn toml_remap(map: &BTreeMap<String, InputValue>) -> BTreeMap<String, TomlTypes>
                 toml_map.insert(parameter.clone(), TomlTypes::ArrayString(array));
             }
             InputValue::Struct(map) => {
-                dbg!(parameter.clone());
                 let map_with_toml_types = toml_remap(map);
                 toml_map.insert(parameter.clone(), TomlTypes::Table(map_with_toml_types));
             }

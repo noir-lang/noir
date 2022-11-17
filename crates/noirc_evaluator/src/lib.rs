@@ -147,8 +147,6 @@ impl Evaluator {
         param_type: &AbiType,
         igen: &mut IRGenerator,
     ) -> Result<(), RuntimeErrorKind> {
-        dbg!("inside param_to_var, {:?}, {:?}", name, def);
-        dbg!(param_type);
         match param_type {
             AbiType::Field(visibility) => {
                 let witness = self.add_witness_to_cs();
@@ -192,19 +190,15 @@ impl Evaluator {
             }
             AbiType::Struct { visibility, num_fields, fields } => {
                 let mut witnesses = Vec::new();
-                for (key, val) in fields {
+                for _ in 0..*num_fields {
                     let witness = self.add_witness_to_cs();
                     witnesses.push(witness);
-                    // self.param_to_var(key, def, val, igen);
-                    // igen.create_new_value(field, &name, None);
                     if *visibility == AbiFEType::Public {
                         self.public_inputs.push(witness);
                     }
                 }
-                // TODO: possible add an abi_struct method that recursively calls all the others igen.abi_* funcs
                 igen.abi_struct(name, def, fields, witnesses);
             }
-            _ => todo!(), // TODO: this is still used by parse_abi_alt
         }
         Ok(())
     }
