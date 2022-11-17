@@ -506,4 +506,12 @@ TEST(secp256k1, neg_and_self_neg_0_cmp_regression)
     EXPECT_EQ((a == a_neg), true);
 }
 
+TEST(secp256k1, montgomery_mul_big_bug)
+{
+    secp256k1::fq a(uint256_t{0xfffffffe630dc02f, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff});
+    secp256k1::fq a_sqr = a.sqr();
+    secp256k1::fq expected(uint256_t{0x60381e557e100000, 0x0, 0x0, 0x0});
+    EXPECT_EQ((a_sqr == expected), true);
+}
+
 } // namespace test_secp256k1
