@@ -255,7 +255,7 @@ impl<'a> Evaluator<'a> {
 
         if let (Some(array), Some((index, _))) = (as_array(&collection), as_int(&index)) {
             if let Some(index) = index.try_into_u128().and_then(|x| x.try_into().ok()) {
-                let x: usize = index;
+                let _: usize = index; // Rust needs to be hinted that index is a usize
                 return array.contents[index].clone();
             }
         }
@@ -291,11 +291,10 @@ impl<'a> Evaluator<'a> {
         if let Some(value) = as_bool(&lhs) {
             match &cast.r#type {
                 Type::Bool => return lhs,
-                Type::Field
-                | Type::Integer(_, _) => {
+                Type::Field | Type::Integer(_, _) => {
                     let value = if value { FieldElement::one() } else { FieldElement::zero() };
                     return Expression::Literal(Literal::Integer(value, cast.r#type.clone()));
-                },
+                }
                 _ => unreachable!(),
             }
         }
