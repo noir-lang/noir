@@ -113,7 +113,9 @@ impl<'a> Evaluator<'a> {
         let scope = params_and_args
             .map(|((id, mutable, name, typ), arg)| {
                 let definition = Definition::Local(*id);
-                let arg = if *mutable {
+                let is_main = f == FuncId(0);
+
+                let arg = if *mutable && !is_main {
                     self.push_expression(Expression::Let(Let {
                         id: *id,
                         mutable: true,

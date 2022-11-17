@@ -12,13 +12,13 @@ pub struct AstPrinter {
 impl AstPrinter {
     pub fn print_function(&mut self, function: &Function, f: &mut Formatter) -> std::fmt::Result {
         let params = vecmap(&function.parameters, |(id, mutable, name, typ)| {
-            format!("{}{}${}: {}", if *mutable { "mut " } else { "" }, name, id.0, typ)
+            format!("{}{}$l{}: {}", if *mutable { "mut " } else { "" }, name, id.0, typ)
         })
         .join(", ");
 
         write!(
             f,
-            "fn {}${}({}) -> {} {{",
+            "fn {}$f{}({}) -> {} {{",
             function.name, function.id.0, params, function.return_type
         )?;
         self.indent_level += 1;
