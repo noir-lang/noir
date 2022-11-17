@@ -53,7 +53,7 @@ jobs:
           mkdir dist
           cp ./target/${{ matrix.target }}/release/nargo ./dist/nargo
           mkdir -p ./dist/noir-lang/std
-          cp crates/std_lib/src/*.nr ./dist/noir-lang/std
+          cp noir_stdlib/src/*.nr ./dist/noir-lang/std
           7z a -ttar -so -an ./dist/* | 7z a -si ./nargo-${{ matrix.target }}.tar.gz
 
       - name: Upload binaries to nightly
