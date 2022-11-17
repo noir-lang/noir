@@ -61,7 +61,7 @@ impl AstPrinter {
                 write!(f, "let {}${} = ", let_expr.name, let_expr.id.0)?;
                 self.print_expr(&let_expr.expression, f)
             }
-            Expression::Constrain(expr, _) => {
+            Expression::Constrain(expr, ..) => {
                 write!(f, "constrain ")?;
                 self.print_expr(expr, f)
             }
@@ -276,7 +276,7 @@ impl AstPrinter {
     fn print_lvalue(&mut self, lvalue: &LValue, f: &mut Formatter) -> std::fmt::Result {
         match lvalue {
             LValue::Ident(ident) => write!(f, "{}${}", ident.name, ident.definition),
-            LValue::Index { array, index } => {
+            LValue::Index { array, index, .. } => {
                 self.print_lvalue(array, f)?;
                 write!(f, "[")?;
                 self.print_expr(index, f)?;

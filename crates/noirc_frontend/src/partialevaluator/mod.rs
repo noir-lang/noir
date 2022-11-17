@@ -275,10 +275,27 @@ impl<'a> Evaluator<'a> {
         })
     }
 
-    fn index(&mut self, index: &Index) -> Expression {
-        let collection = Box::new(self.expression(&index.collection));
-        let index = Box::new(self.expression(&index.index));
-        Expression::Index(Index { collection, index })
+    fn index(&mut self, index_expr: &Index) -> Expression {
+        let collection = self.expression(&index_expr.collection);
+        let index = self.expression(&index_expr.index);
+
+        if let Some((i, _)) = as_int(&index) {
+            if i.try_to_u64().map_or(true, |i| i >= index_expr.collection_length) {
+                return unreachable();
+            }
+        }
+
+        if let (Some(array), Some((index, _))) = (as_array(&collection), as_int(&index)) {
+            if let Some(index) = index.try_to_u64().and_then(|x| x.try_into().ok()) {
+                let _: usize = index;
+                return array.contents[index].clone();
+            }
+        }
+
+        let collection = Box::new(collection);
+        let index = Box::new(index);
+        let collection_length = index_expr.collection_length;
+        Expression::Index(Index { collection, index, collection_length })
     }
 
     fn cast(&mut self, cast: &Cast) -> Expression {
@@ -440,7 +457,7 @@ impl<'a> Evaluator<'a> {
         unit()
     }
 
-    fn constrain(&mut self, expr: &Expression, loc: Location) -> Expression {
+    fn constrain(&mut self, expr: &Expression, loc: Option<Location>) -> Expression {
         let expr = self.expression(expr);
         self.push_expression(Expression::Constrain(Box::new(expr), loc));
         unit()
@@ -448,26 +465,41 @@ impl<'a> Evaluator<'a> {
 
     fn assign(&mut self, assign: &Assign) -> Expression {
         let expression = Box::new(self.expression(&assign.expression));
-        let lvalue = self.lvalue(&assign.lvalue);
 
-        let assign = Expression::Assign(Assign { lvalue, expression });
-        self.push_expression(assign);
+        let expr = match self.lvalue(&assign.lvalue) {
+            Some(lvalue) => Expression::Assign(Assign { lvalue, expression }),
+            None => unreachable(),
+        };
 
+        self.push_expression(expr);
         unit()
     }
 
-    fn lvalue(&mut self, lvalue: &LValue) -> LValue {
+    /// This returns an Option LValue because it can fail if there is an index
+    /// expression that uses an index that is greater than or equal to the length
+    /// of the array.
+    fn lvalue(&mut self, lvalue: &LValue) -> Option<LValue> {
         match lvalue {
-            LValue::Ident(ident) => LValue::Ident(ident.clone()),
-            LValue::Index { array, index } => {
-                let array = Box::new(self.lvalue(array));
-                let index = Box::new(self.expression(index));
-                LValue::Index { array, index }
+            LValue::Ident(ident) => Some(LValue::Ident(ident.clone())),
+            LValue::Index { array, index, array_len } => {
+                let array = self.lvalue(array)?;
+                let index = self.expression(index);
+
+                if let Some((index, _)) = as_int(&index) {
+                    if index.try_to_u64().map_or(true, |i| i >= *array_len) {
+                        return None;
+                    }
+                }
+
+                let array = Box::new(array);
+                let index = Box::new(index);
+                let array_len = *array_len;
+                Some(LValue::Index { array, index, array_len })
             }
             LValue::MemberAccess { object, field_index } => {
-                let object = Box::new(self.lvalue(object));
+                let object = Box::new(self.lvalue(object)?);
                 let field_index = *field_index;
-                LValue::MemberAccess { object, field_index }
+                Some(LValue::MemberAccess { object, field_index })
             }
         }
     }
@@ -571,6 +603,11 @@ fn unit() -> Expression {
     Expression::Literal(Literal::Unit)
 }
 
+fn unreachable() -> Expression {
+    let false_expr = Expression::Literal(Literal::Bool(false));
+    Expression::Constrain(Box::new(false_expr), None)
+}
+
 fn bool(value: bool) -> Expression {
     Expression::Literal(Literal::Bool(value))
 }
@@ -615,6 +652,14 @@ fn as_int(expr: &Expression) -> Option<(FieldElement, &Type)> {
     match expr {
         Expression::Literal(Literal::Integer(value, typ)) => Some((*value, typ)),
         Expression::Shared(_, expr) => as_int(expr),
+        _ => None,
+    }
+}
+
+fn as_array(expr: &Expression) -> Option<&ArrayLiteral> {
+    match expr {
+        Expression::Literal(Literal::Array(array)) => Some(array),
+        Expression::Shared(_, expr) => as_array(expr),
         _ => None,
     }
 }

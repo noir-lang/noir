@@ -240,7 +240,7 @@ impl<'a> Interpreter<'a> {
             }
             HirStatement::Assign(assign_stmt) => {
                 let ident = HirPattern::Identifier(match assign_stmt.lvalue {
-                    HirLValue::Ident(ident) => ident,
+                    HirLValue::Ident(ident, _) => ident,
                     HirLValue::MemberAccess { .. } => unimplemented!(),
                     HirLValue::Index { .. } => unimplemented!(),
                 });

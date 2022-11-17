@@ -150,7 +150,7 @@ impl Monomorphiser {
             let eq = ast::Expression::Binary(ast::Binary { operator, lhs, rhs });
 
             let location = self.interner.function_meta(&main_id).location;
-            main.body = ast::Expression::Constrain(Box::new(eq), location);
+            main.body = ast::Expression::Constrain(Box::new(eq), Some(location));
         }
 
         let abi = main_meta.into_abi(&self.interner);
@@ -248,10 +248,14 @@ impl Monomorphiser {
                 ast::Expression::Binary(ast::Binary { lhs, rhs, operator })
             }
 
-            HirExpression::Index(index) => ast::Expression::Index(ast::Index {
-                collection: Box::new(self.expr_infer(index.collection)),
-                index: Box::new(self.expr_infer(index.index)),
-            }),
+            HirExpression::Index(index) => {
+                let collection_length = unwrap_array_size(&self.interner.id_type(index.collection));
+                ast::Expression::Index(ast::Index {
+                    collection: Box::new(self.expr_infer(index.collection)),
+                    index: Box::new(self.expr_infer(index.index)),
+                    collection_length,
+                })
+            }
 
             HirExpression::MemberAccess(access) => {
                 let field_index = self.interner.get_field_index(expr);
@@ -313,7 +317,7 @@ impl Monomorphiser {
             HirStatement::Constrain(constrain) => {
                 let expr = self.expr(constrain.0, &HirType::Bool(Comptime::No(None)));
                 let location = self.interner.expr_location(&constrain.0);
-                ast::Expression::Constrain(Box::new(expr), location)
+                ast::Expression::Constrain(Box::new(expr), Some(location))
             }
             HirStatement::Assign(assign) => self.assign(assign),
             HirStatement::Expression(expr) => self.expr_infer(expr),
@@ -613,15 +617,16 @@ impl Monomorphiser {
 
     fn lvalue(&mut self, lvalue: HirLValue) -> ast::LValue {
         match lvalue {
-            HirLValue::Ident(ident) => ast::LValue::Ident(self.local_ident(&ident).unwrap()),
+            HirLValue::Ident(ident, _) => ast::LValue::Ident(self.local_ident(&ident).unwrap()),
             HirLValue::MemberAccess { object, field_index, .. } => {
                 let object = Box::new(self.lvalue(*object));
                 ast::LValue::MemberAccess { object, field_index: field_index.unwrap() }
             }
-            HirLValue::Index { array, index } => {
+            HirLValue::Index { array, index, .. } => {
+                let array_len = get_lvalue_array_len(&array);
                 let array = Box::new(self.lvalue(*array));
                 let index = Box::new(self.expr_infer(index));
-                ast::LValue::Index { array, index }
+                ast::LValue::Index { array, index, array_len }
             }
         }
     }
@@ -649,9 +654,30 @@ fn unwrap_struct_type(typ: &HirType) -> BTreeMap<String, HirType> {
     }
 }
 
+fn unwrap_array_size(typ: &HirType) -> u64 {
+    match typ {
+        HirType::ArrayLength(len) => *len,
+        HirType::Array(len, _elem) => unwrap_array_size(len),
+        HirType::TypeVariable(binding) => match &*binding.borrow() {
+            TypeBinding::Bound(binding) => unwrap_array_size(binding),
+            TypeBinding::Unbound(_) => unreachable!(),
+        },
+        other => unreachable!("unwrap_array_size: expected array, found {:?}", other),
+    }
+}
+
+fn get_lvalue_array_len(lvalue: &HirLValue) -> u64 {
+    let typ = match lvalue {
+        HirLValue::Ident(_, typ)
+        | HirLValue::MemberAccess { typ, .. }
+        | HirLValue::Index { typ, .. } => typ,
+    };
+    unwrap_array_size(typ)
+}
+
 fn unwrap_array_element_type(typ: &HirType) -> ast::Type {
     match typ {
-        HirType::Array(elem, _len) => Monomorphiser::convert_type(elem),
+        HirType::Array(_len, elem) => Monomorphiser::convert_type(elem),
         HirType::TypeVariable(binding) => match &*binding.borrow() {
             TypeBinding::Bound(binding) => unwrap_array_element_type(binding),
             TypeBinding::Unbound(_) => unreachable!(),

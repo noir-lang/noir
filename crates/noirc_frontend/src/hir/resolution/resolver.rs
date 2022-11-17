@@ -543,15 +543,17 @@ impl<'a> Resolver<'a> {
 
     fn resolve_lvalue(&mut self, lvalue: LValue) -> HirLValue {
         match lvalue {
-            LValue::Ident(ident) => HirLValue::Ident(self.find_variable_or_default(&ident)),
+            LValue::Ident(ident) => {
+                HirLValue::Ident(self.find_variable_or_default(&ident), Type::Error)
+            }
             LValue::MemberAccess { object, field_name } => {
                 let object = Box::new(self.resolve_lvalue(*object));
-                HirLValue::MemberAccess { object, field_name, field_index: None }
+                HirLValue::MemberAccess { object, field_name, field_index: None, typ: Type::Error }
             }
             LValue::Index { array, index } => {
                 let array = Box::new(self.resolve_lvalue(*array));
                 let index = self.resolve_expression(index);
-                HirLValue::Index { array, index }
+                HirLValue::Index { array, index, typ: Type::Error }
             }
         }
     }

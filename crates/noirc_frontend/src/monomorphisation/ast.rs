@@ -25,7 +25,7 @@ pub enum Expression {
 
     Shared(SharedId, Rc<Expression>),
     Let(Let),
-    Constrain(Box<Expression>, Location),
+    Constrain(Box<Expression>, Option<Location>),
     Assign(Assign),
     Semi(Box<Expression>),
 }
@@ -59,7 +59,7 @@ impl Expression {
 
             Expression::If(_) => true,
             Expression::Let(_) => true,
-            Expression::Constrain(_, _) => true,
+            Expression::Constrain(..) => true,
             Expression::Assign(_) => true,
         }
     }
@@ -99,7 +99,7 @@ impl Expression {
             }
             Expression::Shared(_, expr) => expr.contains_variables(),
             Expression::Let(let_expr) => let_expr.expression.contains_variables(),
-            Expression::Constrain(expr, _) => expr.contains_variables(),
+            Expression::Constrain(expr, ..) => expr.contains_variables(),
             Expression::Assign(assign) => assign.expression.contains_variables(),
             Expression::Semi(expr) => expr.contains_variables(),
         }
@@ -211,6 +211,7 @@ pub struct CallBuiltin {
 pub struct Index {
     pub collection: Box<Expression>,
     pub index: Box<Expression>,
+    pub collection_length: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -238,7 +239,7 @@ pub struct BinaryStatement {
 #[derive(Debug, Clone)]
 pub enum LValue {
     Ident(Ident),
-    Index { array: Box<LValue>, index: Box<Expression> },
+    Index { array: Box<LValue>, index: Box<Expression>, array_len: u64 },
     MemberAccess { object: Box<LValue>, field_index: usize },
 }
 

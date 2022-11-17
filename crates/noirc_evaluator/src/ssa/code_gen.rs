@@ -303,10 +303,10 @@ impl IRGenerator {
         &mut self,
         env: &mut Environment,
         expr: &Expression,
-        location: noirc_errors::Location,
+        location: Option<noirc_errors::Location>,
     ) -> Result<Value, RuntimeError> {
         let cond = self.codegen_expression(env, expr)?.unwrap_id();
-        let operation = Operation::Constrain(cond, Some(location));
+        let operation = Operation::Constrain(cond, location);
         self.context.new_instruction(operation, ObjectType::NotAnObject)?;
         Ok(Value::dummy())
     }
@@ -396,7 +396,7 @@ impl IRGenerator {
                 let result = self.assign_pattern(&lhs, rhs)?;
                 self.variable_values.insert(ident_def, result);
             }
-            LValue::Index { array, index } => {
+            LValue::Index { array, index, .. } => {
                 let (lhs_id, array_idx) = self.codegen_indexed_value(array.as_ref(), index, env)?;
                 let rhs_id = rhs.unwrap_id();
                 self.context.handle_assign(lhs_id, Some(array_idx), rhs_id)?;

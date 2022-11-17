@@ -434,11 +434,6 @@ impl Instruction {
                                 message: "Constraint is always false".into(),
                             }
                             .add_location(location));
-                        } else {
-                            return Err(RuntimeErrorKind::Spanless(
-                                "Constraint is always false".into(),
-                            )
-                            .add_location(Location::dummy()));
                         }
                     }
                 }
