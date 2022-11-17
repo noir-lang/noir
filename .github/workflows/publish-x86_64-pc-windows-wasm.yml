@@ -7,6 +7,8 @@ on:
   schedule:
     - cron: "0 2 * * *" # run at 2 AM UTC
   push:
+    tags:
+      - "v*"
 
 jobs:
   build-x86_64-pc-windows-msvc:
@@ -53,7 +55,7 @@ jobs:
           ls target/release
           cp ./target/${{ matrix.target }}/release/nargo.exe ./dist/nargo.exe
           mkdir -p ./dist/noir-lang/std
-          cp crates/std_lib/src/*.nr ./dist/noir-lang/std
+          cp noir_stdlib/src/*.nr ./dist/noir-lang/std
           7z a -tzip nargo-${{ matrix.target }}.zip ./dist/*
 
       - name: Upload binaries to nightly
