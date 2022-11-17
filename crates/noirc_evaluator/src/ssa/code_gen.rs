@@ -3,7 +3,7 @@ use super::function::FuncIndex;
 use super::mem::ArrayId;
 use super::node::{Binary, BinaryOp, NodeId, ObjectType, Operation, Variable};
 use super::{block, node, ssa_form};
-use std::collections::HashMap;
+use std::collections::{HashMap, BTreeMap};
 use std::convert::TryInto;
 
 use super::super::environment::Environment;
@@ -127,6 +127,21 @@ impl IRGenerator {
         }
     }
 
+    fn get_object_type_from_abi(
+        &self,
+        el_type: &noirc_abi::AbiType,
+    ) -> ObjectType {
+        match el_type {
+            noirc_abi::AbiType::Field(_) => ObjectType::NativeField,
+            noirc_abi::AbiType::Integer { sign, width, .. } => match sign {
+                noirc_abi::Sign::Unsigned => ObjectType::Unsigned(*width),
+                noirc_abi::Sign::Signed => ObjectType::Signed(*width),
+            },
+            noirc_abi::AbiType::Array { .. } => unreachable!(),
+            noirc_abi::AbiType::Struct { .. } => unreachable!(),
+        }
+    }
+
     pub fn abi_array(
         &mut self,
         name: &str,
@@ -135,17 +150,41 @@ impl IRGenerator {
         len: u128,
         witness: Vec<acvm::acir::native_types::Witness>,
     ) {
-        let element_type = match el_type {
-            noirc_abi::AbiType::Field(_) => ObjectType::NativeField,
-            noirc_abi::AbiType::Integer { sign, width, .. } => match sign {
-                noirc_abi::Sign::Unsigned => ObjectType::Unsigned(*width),
-                noirc_abi::Sign::Signed => ObjectType::Signed(*width),
-            },
-            noirc_abi::AbiType::Array { .. } => unreachable!(),
-        };
+        let element_type = self.get_object_type_from_abi(el_type);
         let (v_id, array_idx) = self.new_array(name, element_type, len as u32, Some(ident_def));
         self.context.mem[array_idx].values = vecmap(witness, |w| w.into());
         self.context.get_current_block_mut().update_variable(v_id, v_id);
+    }
+
+    pub fn abi_struct(
+        &mut self,
+        struct_name: &str,
+        ident_def: DefinitionId,
+        fields: &BTreeMap<String, noirc_abi::AbiType>,
+        witnesses: Vec<acvm::acir::native_types::Witness>,
+    ) {
+        let mut i = 0;
+        let mut values = Vec::new();
+        for (name, typ) in fields {
+            let obj_type = self.get_object_type_from_abi(typ);
+            let name = format!("{}.{}", struct_name, name);
+            let var = node::Variable {
+                id: NodeId::dummy(),
+                name,
+                obj_type,
+                root: None,
+                def: None,
+                witness: Some(witnesses[i]),
+                parent_block: self.context.current_block,
+            };
+            let v_id = self.context.add_variable(var, None);
+
+            self.context.get_current_block_mut().update_variable(v_id, v_id);
+            let v_value = Value::Single(v_id);
+            i += 1;
+            values.push(v_value);
+        }
+        self.insert_new_struct(Some(ident_def), values);
     }
 
     pub fn abi_var(

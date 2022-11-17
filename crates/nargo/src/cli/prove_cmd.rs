@@ -53,6 +53,7 @@ fn process_abi_with_input(
         match &return_param.1 {
             AbiType::Array { length, .. } => *length as u32,
             AbiType::Integer { .. } | AbiType::Field(_) => 1,
+            _ => 2, // will always panic when matching the witness map below
         }
     } else {
         0
@@ -103,9 +104,44 @@ fn process_abi_with_input(
                 index += return_witness_len;
                 //XXX We do not support (yet) array of arrays
             }
+            InputValue::Struct(map) => {
+                for (key, element) in map {
+                    index = input_value_into_witness(element, index, &mut solved_witness);
+                }
+            }
         }
     }
     Ok((solved_witness, return_witness))
+}
+
+fn input_value_into_witness(
+    value: InputValue,
+    initial_index: u32,
+    solved_witness: &mut BTreeMap<Witness, FieldElement>,
+) -> u32 {
+    let mut index = initial_index;
+    match value {
+        InputValue::Field(element) => {
+            let old_value = solved_witness.insert(Witness::new(index + WITNESS_OFFSET), element);
+            assert!(old_value.is_none());
+            index += 1;
+        }
+        InputValue::Vec(arr) => {
+            for element in arr {
+                let old_value =
+                    solved_witness.insert(Witness::new(index + WITNESS_OFFSET), element);
+                assert!(old_value.is_none());
+                index += 1;
+            }
+        }
+        InputValue::Struct(map) => {
+            for (key, element) in map {
+                index = input_value_into_witness(element, index, solved_witness);
+            }
+        }
+        _ => unreachable!()
+    }
+    index
 }
 
 pub fn compile_circuit_and_witness<P: AsRef<Path>>(

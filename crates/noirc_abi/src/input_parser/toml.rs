@@ -18,6 +18,7 @@ pub(crate) fn parse<P: AsRef<Path>>(
     // Parse input.toml into a BTreeMap, converting the argument to field elements
     let data: BTreeMap<String, TomlTypes> = toml::from_str(&input_as_string)
         .map_err(|err_msg| InputParserError::ParseTomlMap(err_msg.to_string()))?;
+    println!("toml map: {:?}", data);
     toml_map_to_field(data)
 }
 
@@ -86,6 +87,14 @@ fn toml_map_to_field(
                     InputValue::Vec(array_elements),
                 )?
             }
+            TomlTypes::Table(table) => {
+                let native_table = toml_map_to_field(table)?;
+                check_toml_map_duplicates(
+                    &mut field_map,
+                    parameter,
+                    InputValue::Struct(native_table),
+                )?
+            }
         }
     }
 
@@ -104,6 +113,11 @@ fn toml_remap(map: &BTreeMap<String, InputValue>) -> BTreeMap<String, TomlTypes>
                 let array = v.iter().map(|i| format!("0x{}", i.to_hex())).collect();
                 toml_map.insert(parameter.clone(), TomlTypes::ArrayString(array));
             }
+            InputValue::Struct(map) => {
+                dbg!(parameter.clone());
+                let map_with_toml_types = toml_remap(map);
+                toml_map.insert(parameter.clone(), TomlTypes::Table(map_with_toml_types));
+            },
             InputValue::Undefined => unreachable!(),
         }
     }
@@ -135,6 +149,8 @@ enum TomlTypes {
     ArrayNum(Vec<u64>),
     // Array of hexadecimal integers
     ArrayString(Vec<String>),
+    // Struct of TomlTypes
+    Table(BTreeMap<String, TomlTypes>),
 }
 
 fn parse_str(value: &str) -> Result<Option<FieldElement>, InputParserError> {

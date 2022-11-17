@@ -145,8 +145,10 @@ impl Driver {
         let main_function = local_crate.main_function()?;
 
         let func_meta = self.context.def_interner.function_meta(&main_function);
-        let abi = func_meta.into_abi(&self.context.def_interner);
+        println!("func_meta: {:?}", func_meta);
 
+        let abi = func_meta.into_abi(&self.context.def_interner);
+        println!("abi: {:?}", abi);
         Some(abi)
     }
 
