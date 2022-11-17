@@ -51,7 +51,7 @@ jobs:
           mkdir dist
           cp ./target/x86_64-apple-darwin/release/nargo ./dist/nargo
           mkdir -p ./dist/noir-lang/std
-          cp crates/std_lib/src/*.nr ./dist/noir-lang/std
+          cp noir_stdlib/src/*.nr ./dist/noir-lang/std
           7z a -ttar -so -an ./dist/* | 7z a -si ./nargo-x86_64-apple-darwin.tar.gz
 
       - name: Upload binaries to nightly
