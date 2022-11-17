@@ -676,9 +676,16 @@ pub fn comparator_operand_type_rules(
         (Integer(..), typ) | (typ,Integer(..)) => {
             Err(format!("Integer cannot be used with type {}", typ))
         }
-        (FieldElement(comptime_x, ..), FieldElement(comptime_y, ..)) => {
-            let comptime = comptime_x.and(comptime_y, op.location.span);
-            Ok(Bool(comptime))
+        (FieldElement(comptime_x), FieldElement(comptime_y)) => {
+            match op.kind {
+                Equal | NotEqual => {
+                    let comptime = comptime_x.and(comptime_y, op.location.span);
+                    Ok(Bool(comptime))
+                },
+                _ => {
+                    Err("Fields cannot be compared, try casting to an integer first".into())
+                }
+            }
         }
 
         // <= and friends are technically valid for booleans, just not very useful
