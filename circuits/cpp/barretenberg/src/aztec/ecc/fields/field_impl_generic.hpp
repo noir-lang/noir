@@ -389,7 +389,7 @@ template <class T> constexpr field<T> field<T>::montgomery_mul_big(const field& 
     uint64_t v1 = t2 + (t3 << 32);
     uint64_t v2 = t4 + (t5 << 32);
     uint64_t v3 = t6 + (t7 << 32);
-    uint64_t v4 = t8 + (t9 << 32);
+    uint64_t v4 = t8;
     uint64_t borrow = 0;
     uint64_t r0 = sbb(v0, modulus.data[0], borrow, borrow);
     uint64_t r1 = sbb(v1, modulus.data[1], borrow, borrow);
