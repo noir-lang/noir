@@ -89,8 +89,8 @@ The following inputs are private to reduce proof size:
    1. Let `Q_i = Aggregate(PI_i, pub_inputs, vk, Q_{i-1}, (i > 1))`
    1. Let $\text{leaf}_{2i}$ = `output_note_commitment_1_i`
    1. Let $\text{leaf}_{2i+1}$ = `output_note_commitment_2_i`
-   1. Validate `NonMembershipUpdate(`$\text{null_root}_{2i}$, $\text{null_root}_{2i+1}$, `nullifier_1_i)`
-   1. Validate `NonMembershipUpdate(`$\text{null_root}_{2i + 1}$, $\text{null_root}_{2i+2}$`, nullifier_2_i)`
+   1. Validate `NonMembershipUpdate(`$\text{null root}_{2i}$, $\text{nullroot}_{2i+1}$, `nullifier_1_i)`
+   1. Validate `NonMembershipUpdate(`$\text{null root}_{2i + 1}$, $\text{null root}_{2i+2}$`, nullifier_2_i)`
    1. Validate `Membership(old_data_roots_root, data_roots_indices[i], data_roots_pths[i], data_tree_root_i)`
    1. If `pub_inputs.PROOF_ID = DEFI_DEPOSIT` then `ProcessDefiDeposit`:
       - Check `pub_inputs.ASSET_ID` matches _only_ one (say `k`th) bridge call data in `bridge_call_datas`

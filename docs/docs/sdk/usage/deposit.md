@@ -4,6 +4,8 @@ title: Deposit (Shield)
 
 Deposit assets from Ethereum to Aztec.
 
+Review the [general page on deposits](../../developers/deposit) for a higher level review of how deposits work on Aztec.
+
 The SDK comes with a `DepositController` that makes it easy to create and track deposit transactions from Ethereum to Aztec.
 
 Deposits require sending Ethereum transactions from a user's account to the Aztec deposit contract. Any Etheruem account can make a deposit to any Aztec account.
@@ -73,7 +75,18 @@ const tokenDepositController = sdk.createDepositController(
 await tokenDepositController.createProof();
 await tokenDepositController.sign();
 // check if there are pending deposits
-if ((await tokenDepositController.getPendingFunds()) < tokenQuantity) {
+if (
+    (await tokenDepositController.getPendingFunds()) < tokenAssetValue.value
+) {
+    if (asset === "dai") {
+        if (
+            (await tokenDepositController.getPublicAllowance()) <
+            tokenAssetValue.value
+        ) {
+            await tokenDepositController.approve();
+            await tokenDepositController.awaitApprove();
+        }
+    }
     await tokenDepositController.depositFundsToContract();
     await tokenDepositController.awaitDepositFundsToContract();
 }
@@ -85,3 +98,26 @@ Not all ERC-20s (specifically DAI) have correctly implemented the permit spec. S
 #### Required Approvals
 
 When depositing an ERC-20 token like DAI, you will need to approve Aztec as an authorized spender before depositing. The `DepositController` includes a method for this, `DepositController.approve()` which will request approval for the amount required for the deposit.
+
+### Advanced Usage
+
+#### Depositing from a Smart Contract
+
+A smart contract can deposit assets into Aztec and specify an externally owned account as the `owner` which enables that Ethereum account to sign a message and claim the deposit on Aztec. But this deposit method reveals some data about the recipient in the Ethereum L1 transaction and may not have the privacy guarantees you are looking for.
+
+To hide the recipient when the depositing account is a smart contract, the `owner` input can be set to the depositing smart contract address when calling the `depositPendingFunds` on the [rollup processor contract](https://github.com/AztecProtocol/aztec-connect/blob/b0a71b01c5f1aa3b4b9a61d417aa4c479e01ef47/blockchain/contracts/interfaces/IRollupProcessor.sol#L33) and include a `proofHash` input. This input specifies which transaction id on Aztec is authorized to claim the pending deposit, so it hides the intended recipient. This transaction id (`proofHash`) must be computed beforehand and passed to `depositPendingFunds`. When the `depositPendingFunds` transaction has settled on Ethereum, the corresponding proof must be generated and sent to the Aztec sequencer to make the deposit.
+
+This deposit method using the `proofHash` is also useful when a smart contract (e.g. multisig) is depositing assets to an Aztec native multisig account and a single Ethereum EOA cannot be trusted. This is necessary in these cases because there is no way to create a signature to generate a proof that corresponds to a smart contract address on Ethereum.
+
+To get the transaction id (`proofHash`), create the `tokenDepositController`, as shown above, with the desired inputs. The `depositor` is the address of the smart contract doing the deposit.
+
+Once you have the `tokenDepositController`:
+
+```js
+await tokenDepositController.createProof();
+const proofHash = await tokenDepositController.getProofHash();
+```
+
+You do not need to call `sign()` on the DepositController, like in the previous example.
+
+Once the `depositPendingFunds` transaction settles on Ethereum, send the funds to the Aztec account designated in the deposit proof by sending the deposit proof to the Aztec sequencer with `await tokenDepositController.send()`. The proof could be saved from before or regenerated from the same inputs.

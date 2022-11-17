@@ -65,7 +65,9 @@ const sidebars = {
         'developers/cli',
         'developers/bridges',
         'developers/noir',
-        'developers/mainnet-info'
+        'developers/deposit',
+        'developers/transaction-model',
+        'developers/mainnet-info',
       ]
     },
     // {
