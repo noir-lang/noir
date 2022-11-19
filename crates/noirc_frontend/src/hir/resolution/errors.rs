@@ -58,14 +58,11 @@ impl ResolverError {
             ResolverError::UnusedVariable { ident } => {
                 let name = &ident.0.contents;
 
-                let mut diag = Diagnostic::simple_error(
+                Diagnostic::simple_warning(
                     format!("unused variable {}", name),
                     "unused variable ".to_string(),
-                    ident.0.span(),
-                );
-                let message = format!("A new variable usually means a constraint has been added and is being unused. \n For this reason, it is almost always a bug to declare a variable and not use it. \n help: if this is intentional, prefix it with an underscore: `_{}`", name);
-                diag.add_note(message);
-                diag
+                    ident.span(),
+                )
             }
             ResolverError::VariableNotDeclared { name, span } => Diagnostic::simple_error(
                 format!("cannot find `{}` in this scope ", name),

@@ -12,11 +12,23 @@ pub struct CustomDiagnostic {
     message: String,
     secondaries: Vec<CustomLabel>,
     notes: Vec<String>,
+    kind: DiagnosticKind,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum DiagnosticKind {
+    Error,
+    Warning,
 }
 
 impl CustomDiagnostic {
     pub fn from_message(msg: &str) -> CustomDiagnostic {
-        Self { message: msg.to_owned(), secondaries: Vec::new(), notes: Vec::new() }
+        Self {
+            message: msg.to_owned(),
+            secondaries: Vec::new(),
+            notes: Vec::new(),
+            kind: DiagnosticKind::Error,
+        }
     }
 
     pub fn simple_error(
@@ -28,6 +40,20 @@ impl CustomDiagnostic {
             message: primary_message,
             secondaries: vec![CustomLabel::new(secondary_message, secondary_span)],
             notes: Vec::new(),
+            kind: DiagnosticKind::Error,
+        }
+    }
+
+    pub fn simple_warning(
+        primary_message: String,
+        secondary_message: String,
+        secondary_span: Span,
+    ) -> CustomDiagnostic {
+        CustomDiagnostic {
+            message: primary_message,
+            secondaries: vec![CustomLabel::new(secondary_message, secondary_span)],
+            notes: Vec::new(),
+            kind: DiagnosticKind::Warning,
         }
     }
 
@@ -71,39 +97,51 @@ impl CustomLabel {
 pub struct Reporter;
 
 impl Reporter {
+    /// Writes the given diagnostics to stderr and returns the count
+    /// of diagnostics that were errors.
     pub fn with_diagnostics(
         file_id: FileId,
         files: &fm::FileManager,
         diagnostics: &[CustomDiagnostic],
-    ) {
-        // Convert each Custom Diagnostic into a diagnostic
-        let diagnostics: Vec<_> = diagnostics
-            .iter()
-            .map(|cd| {
-                let secondary_labels = cd
-                    .secondaries
-                    .iter()
-                    .map(|sl| {
-                        let start_span = sl.span.start() as usize;
-                        let end_span = sl.span.end() as usize + 1;
-                        Label::secondary(file_id.as_usize(), start_span..end_span)
-                            .with_message(&sl.message)
-                    })
-                    .collect();
+        allow_warnings: bool,
+    ) -> usize {
+        let mut error_count = 0;
 
-                Diagnostic::error()
-                    .with_message(&cd.message)
-                    .with_labels(secondary_labels)
-                    .with_notes(cd.notes.clone())
-            })
-            .collect();
+        // Convert each Custom Diagnostic into a diagnostic
+        let diagnostics = diagnostics.iter().map(|cd| {
+            let diagnostic = match (cd.kind, allow_warnings) {
+                (DiagnosticKind::Warning, true) => Diagnostic::warning(),
+                _ => {
+                    error_count += 1;
+                    Diagnostic::error()
+                }
+            };
+
+            let secondary_labels = cd
+                .secondaries
+                .iter()
+                .map(|sl| {
+                    let start_span = sl.span.start() as usize;
+                    let end_span = sl.span.end() as usize + 1;
+                    Label::secondary(file_id.as_usize(), start_span..end_span)
+                        .with_message(&sl.message)
+                })
+                .collect();
+
+            diagnostic
+                .with_message(&cd.message)
+                .with_labels(secondary_labels)
+                .with_notes(cd.notes.clone())
+        });
 
         let writer = StandardStream::stderr(ColorChoice::Always);
         let config = codespan_reporting::term::Config::default();
 
-        for diagnostic in diagnostics.iter() {
-            term::emit(&mut writer.lock(), &config, files.as_simple_files(), diagnostic).unwrap();
+        for diagnostic in diagnostics {
+            term::emit(&mut writer.lock(), &config, files.as_simple_files(), &diagnostic).unwrap();
         }
+
+        error_count
     }
 
     pub fn finish(error_count: usize) {

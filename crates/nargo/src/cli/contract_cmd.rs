@@ -11,7 +11,8 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
         None => std::env::current_dir().unwrap(),
     };
 
-    let compiled_program = compile_circuit(&package_dir, false)?;
+    let allow_warnings = args.is_present("allow-warnings");
+    let compiled_program = compile_circuit(&package_dir, false, allow_warnings)?;
 
     let backend = crate::backends::ConcreteBackend;
     let smart_contract_string = backend.eth_contract_from_cs(compiled_program.circuit);
