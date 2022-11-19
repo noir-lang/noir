@@ -46,7 +46,7 @@ fn process_abi_with_verifier_input(
             return Err(CliError::Generic(format!("The parameters in the main do not match the parameters in the {}.toml file. \n Please check `{}` parameter. ", VERIFIER_INPUT_FILE,param_name)));
         }
 
-        public_inputs.extend(input_value_into_public_inputs(value, param_name)?)
+        public_inputs.extend(input_value_into_public_inputs(value, param_name)?);
     }
 
     Ok(public_inputs)

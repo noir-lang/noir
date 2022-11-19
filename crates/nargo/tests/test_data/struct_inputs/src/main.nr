@@ -7,7 +7,7 @@ struct myStruct {
     bar: Field,
 }
 
-fn main(x : Field, y : pub myStruct, z: pub foo::bar::barStruct, a: foo::fooStruct) -> pub Field {
+fn main(x : Field, y : pub myStruct, z: pub foo::bar::barStruct, a: pub foo::fooStruct) -> pub Field {
     let struct_from_bar = foo::bar::barStruct { val: 1, array: [0, 1] };
 
     check_inner_struct(a, z);
