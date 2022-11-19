@@ -88,17 +88,18 @@ fn toml_map_to_field(
 fn toml_remap(map: &BTreeMap<String, InputValue>) -> BTreeMap<String, TomlTypes> {
     let mut toml_map = BTreeMap::new();
     for (parameter, value) in map {
-        match value {
+        let mapped_value = match value {
             InputValue::Field(f) => {
                 let f_str = format!("0x{}", f.to_hex());
-                toml_map.insert(parameter.clone(), TomlTypes::String(f_str));
+                TomlTypes::String(f_str)
             }
             InputValue::Vec(v) => {
                 let array = v.iter().map(|i| format!("0x{}", i.to_hex())).collect();
-                toml_map.insert(parameter.clone(), TomlTypes::ArrayString(array));
+                TomlTypes::ArrayString(array)
             }
             InputValue::Undefined => unreachable!(),
-        }
+        };
+        toml_map.insert(parameter.clone(), mapped_value);
     }
     toml_map
 }
