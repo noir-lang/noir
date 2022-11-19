@@ -73,9 +73,9 @@ fn toml_map_to_field(
                 }
             }
             TomlTypes::Integer(integer) => {
-                let new_value = parse_str(&integer.to_string())?;
+                let new_value = FieldElement::from(i128::from(integer));
 
-                InputValue::Field(new_value.unwrap())
+                InputValue::Field(new_value)
             }
             TomlTypes::Bool(boolean) => {
                 let new_value = if boolean { FieldElement::one() } else { FieldElement::zero() };
@@ -85,7 +85,7 @@ fn toml_map_to_field(
             TomlTypes::ArrayNum(arr_num) => {
                 let array_elements: Vec<_> = arr_num
                     .into_iter()
-                    .map(|elem_num| parse_str(&elem_num.to_string()).unwrap().unwrap())
+                    .map(|elem_num| FieldElement::from(i128::from(elem_num)))
                     .collect();
 
                 InputValue::Vec(array_elements)
