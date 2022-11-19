@@ -43,10 +43,10 @@ fn toml_map_to_field(
             TomlTypes::String(string) => {
                 let new_value = parse_str(&string)?;
 
-                if new_value.is_none() {
-                    InputValue::Undefined
+                if let Some(field_element) = new_value {
+                    InputValue::Field(field_element)
                 } else {
-                    InputValue::Field(new_value.unwrap())
+                    InputValue::Undefined
                 }
             }
             TomlTypes::Integer(integer) => {
