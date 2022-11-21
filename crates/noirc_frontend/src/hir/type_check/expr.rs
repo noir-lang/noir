@@ -3,6 +3,7 @@ use noirc_errors::Span;
 use crate::{
     hir_def::{
         expr::{self, HirBinaryOp, HirExpression, HirLiteral},
+        stmt::HirStatement,
         types::Type,
     },
     node_interner::{ExprId, FuncId, NodeInterner},
@@ -187,15 +188,21 @@ pub(crate) fn type_check_expression(
 
                 if i + 1 < statements.len() {
                     let id = match interner.statement(stmt) {
-                        crate::hir_def::stmt::HirStatement::Expression(expr) => expr,
+                        HirStatement::Expression(expr) => expr,
                         _ => *expr_id,
                     };
 
                     let span = interner.expr_span(&id);
-                    expr_type.unify(&Type::Unit, span, errors, || TypeCheckError::TypeMismatch {
-                        expected_typ: Type::Unit.to_string(),
-                        expr_typ: expr_type.to_string(),
-                        expr_span: span,
+                    expr_type.unify(&Type::Unit, span, errors, || {
+                        let mut err = TypeCheckError::TypeMismatch {
+                            expected_typ: Type::Unit.to_string(),
+                            expr_typ: expr_type.to_string(),
+                            expr_span: span,
+                        };
+                        if !matches!(interner.statement(stmt), HirStatement::Semi(_)) {
+                            err = err.add_context("Try adding a semicolon after this statement");
+                        }
+                        err
                     });
                 } else {
                     block_type = expr_type;
