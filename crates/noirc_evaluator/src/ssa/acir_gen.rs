@@ -369,8 +369,7 @@ impl Acir {
                 let address = array.adr + i;
                 if let Some(memory) = self.memory_map.get_mut(&address) {
                     if create_witness && memory.witness.is_none() {
-                        let (_, w) =
-                            evaluator.create_intermediate_variable(memory.expression.clone());
+                        let w = evaluator.create_intermediate_variable(memory.expression.clone());
                         self.memory_map.get_mut(&address).unwrap().witness = Some(w);
                     }
                     self.memory_map[&address].clone()
@@ -502,7 +501,7 @@ impl Acir {
                                     } else {
                                         //TODO we should store the witnesses somewhere, else if the inputs are re-used
                                         //we will duplicate the witnesses.
-                                        let (_, w) = evaluator.create_intermediate_variable(
+                                        let w = evaluator.create_intermediate_variable(
                                             self.memory_map[&address].expression.clone(),
                                         );
                                         inputs.push(GadgetInput { witness: w, num_bits });
@@ -890,7 +889,7 @@ pub fn generate_witness(lhs: &InternalVar, evaluator: &mut Evaluator) -> Witness
     if lhs.expression.mul_terms.is_empty() && lhs.expression.linear_combinations.len() == 1 {
         //TODO check if this case can be optimised
     }
-    let (_, w) = evaluator.create_intermediate_variable(lhs.expression.clone());
+    let w = evaluator.create_intermediate_variable(lhs.expression.clone());
     w //TODO  set lhs.witness = w
 }
 
