@@ -174,13 +174,15 @@ impl Evaluator {
                 let obj_type = igen.get_object_type_from_abi(param_type); // Fetch signedness of the integer
                 igen.create_new_variable(name.to_owned(), Some(def), obj_type, Some(witness));
             }
-            AbiType::Struct { visibility, num_fields: _, fields } => {
+            AbiType::Struct { visibility, fields } => {
                 let mut struct_witnesses: BTreeMap<String, Vec<Witness>> = BTreeMap::new();
-                let mut new_fields: BTreeMap<String, AbiType> = BTreeMap::new();
-                for (inner_name, value) in fields {
-                    let new_name = format!("{}.{}", name, inner_name);
-                    new_fields.insert(new_name, value.clone());
-                }
+                let new_fields = fields
+                    .into_iter()
+                    .map(|(inner_name, value)| {
+                        let new_name = format!("{}.{}", name, inner_name);
+                        (new_name, value.clone())
+                    })
+                    .collect();
                 self.generate_struct_witnesses(&mut struct_witnesses, visibility, &new_fields)?;
                 igen.abi_struct(name, Some(def), fields, struct_witnesses);
             }

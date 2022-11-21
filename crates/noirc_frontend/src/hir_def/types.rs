@@ -974,15 +974,11 @@ impl Type {
             Type::Struct(def, args) => {
                 let struct_type = def.borrow();
                 let fields = struct_type.get_fields(args);
-                let mut abi_map = BTreeMap::new();
-                for (name, typ) in fields {
-                    abi_map.insert(name, typ.as_abi_type(fe_type));
-                }
-                AbiType::Struct {
-                    visibility: fe_type,
-                    num_fields: abi_map.len() as u128,
-                    fields: abi_map,
-                }
+                let abi_map = fields
+                    .into_iter()
+                    .map(|(name, typ)| (name, typ.as_abi_type(fe_type)))
+                    .collect();
+                AbiType::Struct { visibility: fe_type, fields: abi_map }
             }
             Type::Tuple(_) => todo!("as_abi_type not yet implemented for tuple types"),
             Type::TypeVariable(_) => unreachable!(),

@@ -25,7 +25,7 @@ pub enum AbiType {
     Field(AbiFEType),
     Array { visibility: AbiFEType, length: u128, typ: Box<AbiType> },
     Integer { visibility: AbiFEType, sign: Sign, width: u32 },
-    Struct { visibility: AbiFEType, num_fields: u128, fields: BTreeMap<String, AbiType> },
+    Struct { visibility: AbiFEType, fields: BTreeMap<String, AbiType> },
 }
 /// This is the same as the FieldElementType in AST, without constants.
 /// We don't want the ABI to depend on Noir, so types are not shared between the two
@@ -62,7 +62,7 @@ impl AbiType {
         match self {
             AbiType::Field(_) | AbiType::Integer { .. } => 1,
             AbiType::Array { visibility: _, length, typ: _ } => *length as usize,
-            AbiType::Struct { visibility: _, num_fields, fields: _ } => *num_fields as usize,
+            AbiType::Struct { fields, .. } => (*fields).len(),
         }
     }
 

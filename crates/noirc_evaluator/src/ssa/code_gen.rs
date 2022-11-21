@@ -161,8 +161,7 @@ impl IRGenerator {
         fields: &BTreeMap<String, noirc_abi::AbiType>,
         witnesses: BTreeMap<String, Vec<acvm::acir::native_types::Witness>>,
     ) -> Value {
-        let mut values = Vec::new();
-        for (name, field_typ) in fields {
+        let values = vecmap(fields, |(name, field_typ)| {
             let new_name = format!("{}.{}", struct_name, name);
             let v_value = match field_typ {
                 noirc_abi::AbiType::Array { visibility: _, length, typ } => {
@@ -185,8 +184,8 @@ impl IRGenerator {
                     Value::Single(v_id)
                 }
             };
-            values.push(v_value);
-        }
+            v_value
+        });
         self.insert_new_struct(ident_def, values)
     }
 

@@ -36,9 +36,7 @@ impl InputValue {
             (InputValue::Struct(_), AbiType::Field(_)) => false,
             (InputValue::Struct(_), AbiType::Array { .. }) => false,
             (InputValue::Struct(_), AbiType::Integer { .. }) => false,
-            (InputValue::Struct(map), AbiType::Struct { num_fields, .. }) => {
-                map.len() == num_fields as usize
-            }
+            (InputValue::Struct(map), AbiType::Struct { fields, .. }) => map.len() == fields.len(),
 
             (InputValue::Undefined, _) => true,
         }
