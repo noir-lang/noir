@@ -85,7 +85,7 @@ fn process_abi_with_input(
     if num_params != witness_map.len() {
         let param_names = abi.parameter_names();
         let unexpected_params: Vec<String> =
-            witness_map.keys().filter(|param| param_names.contains(param)).cloned().collect();
+            witness_map.keys().filter(|param| !param_names.contains(param)).cloned().collect();
         return Err(AbiError::UnexpectedParams(unexpected_params));
     }
 
