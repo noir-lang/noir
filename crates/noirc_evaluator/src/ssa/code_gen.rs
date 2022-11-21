@@ -511,12 +511,22 @@ impl IRGenerator {
                 //n.b this creates a new variable if it does not exist, may be we should delegate this to explicit statements (let) - TODO
             }
             Expression::Binary(binary) => {
-                // Note: using .into_id() here disallows structs/tuples in infix expressions.
-                // The type checker currently disallows this as well but we may want to allow
-                // for e.g. struct == struct in the future
-                let lhs = self.codegen_expression(env, &binary.lhs)?.unwrap_id();
-                let rhs = self.codegen_expression(env, &binary.rhs)?.unwrap_id();
-                Ok(Value::Single(self.codegen_infix_expression(lhs, rhs, binary.operator)?))
+                // Note: we disallows structs/tuples in infix expressions.
+                // The type checker currently disallows this as well but not if they come from generic type
+                // We could allow some in the future, e.g. struct == struct
+                let lhs = self.codegen_expression(env, &binary.lhs)?.to_node_ids();
+                let rhs = self.codegen_expression(env, &binary.rhs)?.to_node_ids();
+                if lhs.len() != 1 || rhs.len() != 1 {
+                    return Err(RuntimeError {
+                        location: noirc_errors::Location::dummy(),
+                        kind: crate::errors::RuntimeErrorKind::UnsupportedOp {
+                            op: binary.operator.to_string(),
+                            first_type: "struct/tuple".to_string(),
+                            second_type: "struct/tuple".to_string(),
+                        },
+                    });
+                }
+                Ok(Value::Single(self.codegen_infix_expression(lhs[0], rhs[0], binary.operator)?))
             }
             Expression::Cast(cast_expr) => {
                 let lhs = self.codegen_expression(env, &cast_expr.lhs)?.unwrap_id();

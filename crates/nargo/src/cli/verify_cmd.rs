@@ -7,25 +7,28 @@ use noirc_abi::{input_parser::InputValue, Abi};
 use std::{collections::BTreeMap, path::Path, path::PathBuf};
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
-    let proof_name = args.subcommand_matches("verify").unwrap().value_of("proof").unwrap();
+    let args = args.subcommand_matches("verify").unwrap();
+
+    let proof_name = args.value_of("proof").unwrap();
     let mut proof_path = std::path::PathBuf::new();
     proof_path.push(Path::new(PROOFS_DIR));
 
     proof_path.push(Path::new(proof_name));
     proof_path.set_extension(PROOF_EXT);
 
-    let result = verify(proof_name)?;
+    let allow_warnings = args.is_present("allow-warnings");
+    let result = verify(proof_name, allow_warnings)?;
     println!("Proof verified : {}\n", result);
     Ok(())
 }
 
-fn verify(proof_name: &str) -> Result<bool, CliError> {
+fn verify(proof_name: &str, allow_warnings: bool) -> Result<bool, CliError> {
     let curr_dir = std::env::current_dir().unwrap();
     let mut proof_path = PathBuf::new(); //or cur_dir?
     proof_path.push(PROOFS_DIR);
     proof_path.push(Path::new(proof_name));
     proof_path.set_extension(PROOF_EXT);
-    verify_with_path(&curr_dir, &proof_path, false)
+    verify_with_path(&curr_dir, &proof_path, false, allow_warnings)
 }
 
 fn process_abi_with_verifier_input(
@@ -79,8 +82,9 @@ pub fn verify_with_path<P: AsRef<Path>>(
     program_dir: P,
     proof_path: P,
     show_ssa: bool,
+    allow_warnings: bool,
 ) -> Result<bool, CliError> {
-    let compiled_program = compile_circuit(program_dir.as_ref(), show_ssa)?;
+    let compiled_program = compile_circuit(program_dir.as_ref(), show_ssa, allow_warnings)?;
 
     let public_abi = compiled_program.abi.clone().unwrap().public_abi();
     let num_pub_params = public_abi.num_parameters();
