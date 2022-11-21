@@ -52,11 +52,7 @@ fn process_abi_with_verifier_input(
             return Err(AbiError::TypeMismatch { param_name, param_type, value });
         }
 
-        match value {
-            InputValue::Field(elem) => public_inputs.push(elem),
-            InputValue::Vec(vec_elem) => public_inputs.extend(vec_elem),
-            InputValue::Undefined => return Err(AbiError::UndefinedInput(param_name)),
-        }
+        public_inputs.extend(input_value_into_public_inputs(value, param_name)?);
     }
 
     // Check that no extra witness values have been provided.
@@ -77,6 +73,24 @@ fn process_abi_with_verifier_input(
         return Err(AbiError::UnexpectedParams(unexpected_params));
     }
 
+    Ok(public_inputs)
+}
+
+fn input_value_into_public_inputs(
+    value: InputValue,
+    param_name: String,
+) -> Result<Vec<FieldElement>, AbiError> {
+    let mut public_inputs = Vec::new();
+    match value {
+        InputValue::Field(elem) => public_inputs.push(elem),
+        InputValue::Vec(vec_elem) => public_inputs.extend(vec_elem),
+        InputValue::Struct(object) => {
+            for (name, value) in object {
+                public_inputs.extend(input_value_into_public_inputs(value, name)?)
+            }
+        }
+        InputValue::Undefined => return Err(AbiError::UndefinedInput(param_name)),
+    }
     Ok(public_inputs)
 }
 

@@ -207,6 +207,7 @@ impl<'a> Interpreter<'a> {
 
                     env.store(param_name, Object::Integer(integer));
                 }
+                _ => unreachable!(),
             }
         }
 
