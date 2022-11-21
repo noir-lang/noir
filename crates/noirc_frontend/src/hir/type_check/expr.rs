@@ -6,7 +6,7 @@ use crate::{
         stmt::HirStatement,
         types::Type,
     },
-    node_interner::{ExprId, FuncId, NodeInterner},
+    node_interner::{ExprId, FuncId, NodeInterner, StmtId},
     util::vecmap,
     Comptime, Shared, TypeBinding,
 };
@@ -187,22 +187,11 @@ pub(crate) fn type_check_expression(
                 let expr_type = super::stmt::type_check(interner, stmt, errors);
 
                 if i + 1 < statements.len() {
-                    let id = match interner.statement(stmt) {
-                        HirStatement::Expression(expr) => expr,
-                        _ => *expr_id,
-                    };
+                    let id = get_expr_id(interner, stmt).unwrap_or(*expr_id);
 
                     let span = interner.expr_span(&id);
                     expr_type.unify(&Type::Unit, span, errors, || {
-                        let mut err = TypeCheckError::TypeMismatch {
-                            expected_typ: Type::Unit.to_string(),
-                            expr_typ: expr_type.to_string(),
-                            expr_span: span,
-                        };
-                        if !matches!(interner.statement(stmt), HirStatement::Semi(_)) {
-                            err = err.add_context("Try adding a semicolon after this statement");
-                        }
-                        err
+                        expected_semicolon(interner, stmt, &expr_type, span)
                     });
                 } else {
                     block_type = expr_type;
@@ -278,6 +267,39 @@ fn type_check_index_expression(
             });
             Type::Error
         }
+    }
+}
+
+fn get_expr_id(interner: &NodeInterner, stmt: &StmtId) -> Option<ExprId> {
+    match interner.statement(stmt) {
+        HirStatement::Expression(expr) => Some(expr),
+        HirStatement::Semi(expr) => Some(expr),
+        _ => None,
+    }
+}
+
+fn expected_semicolon(
+    interner: &NodeInterner,
+    stmt: &StmtId,
+    expr_type: &Type,
+    span: Span,
+) -> TypeCheckError {
+    let err = TypeCheckError::TypeMismatch {
+        expected_typ: Type::Unit.to_string(),
+        expr_typ: expr_type.to_string(),
+        expr_span: span,
+    };
+    match interner.statement(stmt) {
+        HirStatement::Semi(_) => err,
+        HirStatement::Expression(id) => {
+            match interner.expression(&id) {
+                HirExpression::Call(_) | HirExpression::MethodCall(_) => {
+                    err.add_context("Function calls in noir have no side effects. Perhaps you meant to bind the result to a name?")
+                }
+                _ => err.add_context("Try adding a semicolon after this statement"),
+            }
+        }
+        _ => err,
     }
 }
 
