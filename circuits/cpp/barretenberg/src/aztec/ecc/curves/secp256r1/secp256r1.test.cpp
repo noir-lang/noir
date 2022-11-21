@@ -476,7 +476,7 @@ TEST(secp256r1, montgomery_mul_big_bug)
     a.data[2] = 0xAAAAAAAAAAAAAAAA;
     a.data[3] = 0xFFFFFFFFE38E38E3;
     secp256r1::fr a_sqr = a.sqr();
-    secp256r1::fr expected(uint256_t{0x57abc6aa0349c084, 0x65b21b232a4cb7a5, 0x5ba781948b0fcd6e, 0xd6e9e0644bda12f7});
+    secp256r1::fr expected(uint256_t{ 0x57abc6aa0349c084, 0x65b21b232a4cb7a5, 0x5ba781948b0fcd6e, 0xd6e9e0644bda12f7 });
     EXPECT_EQ((a_sqr == expected), true);
 }
 
