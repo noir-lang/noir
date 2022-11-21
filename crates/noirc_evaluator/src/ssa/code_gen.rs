@@ -163,9 +163,9 @@ impl IRGenerator {
     ) -> Value {
         let mut values = Vec::new();
         for (name, field_typ) in fields {
+            let new_name = format!("{}.{}", struct_name, name);
             let v_value = match field_typ {
                 noirc_abi::AbiType::Array { visibility: _, length, typ } => {
-                    let new_name = format!("{}.{}", struct_name, name);
                     let v_id =
                         self.abi_array(&new_name, None, typ, *length, witnesses[&new_name].clone());
                     Value::Single(v_id)
@@ -176,7 +176,6 @@ impl IRGenerator {
                 }
                 _ => {
                     let obj_type = self.get_object_type_from_abi(field_typ);
-                    let new_name = format!("{}.{}", struct_name, name);
                     let v_id = self.create_new_variable(
                         new_name.clone(),
                         None,

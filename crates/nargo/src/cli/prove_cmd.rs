@@ -106,6 +106,18 @@ fn input_value_into_witness(
                 index += 1;
             }
         }
+        InputValue::Struct(object) => {
+            for (name, value) in object {
+                (index, return_witness) = input_value_into_witness(
+                    value,
+                    index,
+                    return_witness,
+                    solved_witness,
+                    name,
+                    return_witness_len,
+                )?;
+            }
+        }
         InputValue::Undefined => {
             assert_eq!(
                 param_name,
@@ -124,18 +136,6 @@ fn input_value_into_witness(
             }
             index += return_witness_len;
             //XXX We do not support (yet) array of arrays
-        }
-        InputValue::Struct(map) => {
-            for (key, element) in map {
-                (index, return_witness) = input_value_into_witness(
-                    element,
-                    index,
-                    return_witness,
-                    solved_witness,
-                    key,
-                    return_witness_len,
-                )?;
-            }
         }
     }
     Ok((index, return_witness))

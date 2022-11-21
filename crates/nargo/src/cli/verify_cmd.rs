@@ -60,9 +60,9 @@ fn input_value_into_public_inputs(
     match value {
         InputValue::Field(elem) => public_inputs.push(elem),
         InputValue::Vec(vec_elem) => public_inputs.extend(vec_elem),
-        InputValue::Struct(map) => {
-            for (key, element) in map {
-                public_inputs.extend(input_value_into_public_inputs(element, key)?)
+        InputValue::Struct(object) => {
+            for (name, value) in object {
+                public_inputs.extend(input_value_into_public_inputs(value, name)?)
             }
         }
         InputValue::Undefined => {
