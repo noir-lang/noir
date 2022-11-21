@@ -94,7 +94,22 @@ pub(crate) fn type_check_expression(
         HirExpression::Index(index_expr) => {
             type_check_index_expression(interner, index_expr, errors)
         }
-        HirExpression::Call(call_expr) => {
+        HirExpression::Call(mut call_expr) => {
+            if let Some(meta) = interner.try_function_meta(&call_expr.func_id) {
+                if meta.kind == crate::FunctionKind::LowLevel {
+                    let attribute = meta.attributes.expect("all low level functions must contain an attribute which contains the opcode which it links to");
+                    let opcode = attribute.foreign().expect(
+                        "ice: function marked as foreign, but attribute kind does not match this",
+                    );
+                    if !interner.foreign(&opcode) {
+                        if let Some(func_id2) = interner.get_alt(opcode) {
+                            call_expr.func_id = func_id2;
+                            interner.replace_expr(expr_id, HirExpression::Call(call_expr.clone()));
+                        }
+                    }
+                }
+            }
+
             let args = vecmap(&call_expr.arguments, |arg| {
                 let typ = type_check_expression(interner, arg, errors);
                 (typ, interner.expr_span(arg))
@@ -661,9 +676,16 @@ pub fn comparator_operand_type_rules(
         (Integer(..), typ) | (typ,Integer(..)) => {
             Err(format!("Integer cannot be used with type {}", typ))
         }
-        (FieldElement(comptime_x, ..), FieldElement(comptime_y, ..)) => {
-            let comptime = comptime_x.and(comptime_y, op.location.span);
-            Ok(Bool(comptime))
+        (FieldElement(comptime_x), FieldElement(comptime_y)) => {
+            match op.kind {
+                Equal | NotEqual => {
+                    let comptime = comptime_x.and(comptime_y, op.location.span);
+                    Ok(Bool(comptime))
+                },
+                _ => {
+                    Err("Fields cannot be compared, try casting to an integer first".into())
+                }
+            }
         }
 
         // <= and friends are technically valid for booleans, just not very useful
@@ -691,6 +713,12 @@ pub fn comparator_operand_type_rules(
 
             // We could check if all elements of all arrays are comptime but I am lazy
             Ok(Bool(Comptime::No(Some(op.location.span))))
+        }
+        (NamedGeneric(binding_a, name_a), NamedGeneric(binding_b, name_b)) => {
+            if binding_a == binding_b {
+                return Ok(Bool(Comptime::No(Some(op.location.span))));
+            }
+            Err(format!("Unsupported types for comparison: {} and {}", name_a, name_b))
         }
         (lhs, rhs) => Err(format!("Unsupported types for comparison: {} and {}", lhs, rhs)),
     }

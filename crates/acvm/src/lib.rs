@@ -153,22 +153,24 @@ pub trait PartialWitnessGenerator {
                         }
                         _ => true,
                     },
-                    Directive::Split { a, b, bit_size } => match initial_witness.get(a) {
-                        Some(val_a) => {
-                            let a_big = BigUint::from_bytes_be(&val_a.to_bytes());
-                            for i in 0..*bit_size {
-                                let j = i as usize;
-                                let v = if a_big.bit(j as u64) {
-                                    FieldElement::one()
-                                } else {
-                                    FieldElement::zero()
-                                };
-                                initial_witness.insert(b[j], v);
+                    Directive::Split { a, b, bit_size } => {
+                        match Self::get_value(a, initial_witness) {
+                            Some(val_a) => {
+                                let a_big = BigUint::from_bytes_be(&val_a.to_bytes());
+                                for i in 0..*bit_size {
+                                    let j = i as usize;
+                                    let v = if a_big.bit(j as u64) {
+                                        FieldElement::one()
+                                    } else {
+                                        FieldElement::zero()
+                                    };
+                                    initial_witness.insert(b[j], v);
+                                }
+                                false
                             }
-                            false
+                            _ => true,
                         }
-                        _ => true,
-                    },
+                    }
                     Directive::Oddrange { a, b, r, bit_size } => match initial_witness.get(a) {
                         Some(val_a) => {
                             let int_a = BigUint::from_bytes_be(&val_a.to_bytes());
@@ -284,9 +286,33 @@ pub trait ProofSystemCompiler {
 
 /// Supported NP complete languages
 /// This might need to be in ACIR instead
+#[derive(Debug, Clone)]
 pub enum Language {
     R1CS,
     PLONKCSat { width: usize },
+}
+
+pub trait CustomGate {
+    fn supports(&self, opcode: &str) -> bool;
+    fn supports_gate(&self, gate: &Gate) -> bool;
+}
+
+impl CustomGate for Language {
+    fn supports(&self, _opcode: &str) -> bool {
+        match self {
+            Language::R1CS => false,
+            Language::PLONKCSat { .. } => true,
+        }
+    }
+
+    fn supports_gate(&self, gate: &Gate) -> bool {
+        !matches!(
+            (self, gate),
+            (Language::R1CS, Gate::Range(..))
+                | (Language::R1CS, Gate::And(..))
+                | (Language::R1CS, Gate::Xor(..))
+        )
+    }
 }
 
 pub fn hash_constraint_system(cs: &Circuit) {

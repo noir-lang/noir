@@ -286,6 +286,7 @@ impl IntType {
 pub enum Attribute {
     Foreign(String),
     Builtin(String),
+    Alternative(String),
 }
 
 impl fmt::Display for Attribute {
@@ -293,6 +294,7 @@ impl fmt::Display for Attribute {
         match *self {
             Attribute::Foreign(ref k) => write!(f, "#[foreign({})]", k),
             Attribute::Builtin(ref k) => write!(f, "#[builtin({})]", k),
+            Attribute::Alternative(ref k) => write!(f, "#[alternative({})]", k),
         }
     }
 }
@@ -316,6 +318,7 @@ impl Attribute {
         let tok = match attribute_type {
             "foreign" => Token::Attribute(Attribute::Foreign(attribute_name.to_string())),
             "builtin" => Token::Attribute(Attribute::Builtin(attribute_name.to_string())),
+            "alternative" => Token::Attribute(Attribute::Alternative(attribute_name.to_string())),
             _ => {
                 return Err(LexerErrorKind::MalformedFuncAttribute { span, found: word.to_owned() })
             }
@@ -325,7 +328,7 @@ impl Attribute {
 
     pub fn builtin(self) -> Option<String> {
         match self {
-            Attribute::Foreign(_) => None,
+            Attribute::Foreign(_) | Attribute::Alternative(_) => None,
             Attribute::Builtin(name) => Some(name),
         }
     }
@@ -333,7 +336,7 @@ impl Attribute {
     pub fn foreign(self) -> Option<String> {
         match self {
             Attribute::Foreign(name) => Some(name),
-            Attribute::Builtin(_) => None,
+            Attribute::Builtin(_) | Attribute::Alternative(_) => None,
         }
     }
 
@@ -350,6 +353,7 @@ impl AsRef<str> for Attribute {
         match self {
             Attribute::Foreign(string) => string,
             Attribute::Builtin(string) => string,
+            Attribute::Alternative(string) => string,
         }
     }
 }

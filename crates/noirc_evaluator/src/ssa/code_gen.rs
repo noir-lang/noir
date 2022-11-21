@@ -3,7 +3,7 @@ use super::function::FuncIndex;
 use super::mem::ArrayId;
 use super::node::{Binary, BinaryOp, NodeId, ObjectType, Operation, Variable};
 use super::{block, node, ssa_form};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::convert::TryInto;
 
 use super::super::environment::Environment;
@@ -127,49 +127,65 @@ impl IRGenerator {
         }
     }
 
-    pub fn abi_array(
-        &mut self,
-        name: &str,
-        ident_def: DefinitionId,
-        el_type: &noirc_abi::AbiType,
-        len: u128,
-        witness: Vec<acvm::acir::native_types::Witness>,
-    ) {
-        let element_type = match el_type {
+    pub fn get_object_type_from_abi(&self, el_type: &noirc_abi::AbiType) -> ObjectType {
+        match el_type {
             noirc_abi::AbiType::Field(_) => ObjectType::NativeField,
             noirc_abi::AbiType::Integer { sign, width, .. } => match sign {
                 noirc_abi::Sign::Unsigned => ObjectType::Unsigned(*width),
                 noirc_abi::Sign::Signed => ObjectType::Signed(*width),
             },
             noirc_abi::AbiType::Array { .. } => unreachable!(),
-        };
-        let (v_id, array_idx) = self.new_array(name, element_type, len as u32, Some(ident_def));
-        self.context.mem[array_idx].values = vecmap(witness, |w| w.into());
-        self.context.get_current_block_mut().update_variable(v_id, v_id);
+            noirc_abi::AbiType::Struct { .. } => unreachable!(),
+        }
     }
 
-    pub fn abi_var(
+    pub fn abi_array(
         &mut self,
         name: &str,
-        ident_def: DefinitionId,
-        obj_type: node::ObjectType,
-        witness: acvm::acir::native_types::Witness,
-    ) {
-        //new variable - should be in a let statement? The let statement should set the type
-        let var = node::Variable {
-            id: NodeId::dummy(),
-            name: name.to_string(),
-            obj_type,
-            root: None,
-            def: Some(ident_def),
-            witness: Some(witness),
-            parent_block: self.context.current_block,
-        };
-        let v_id = self.context.add_variable(var, None);
-
+        ident_def: Option<DefinitionId>,
+        el_type: &noirc_abi::AbiType,
+        len: u128,
+        witness: Vec<acvm::acir::native_types::Witness>,
+    ) -> NodeId {
+        let element_type = self.get_object_type_from_abi(el_type);
+        let (v_id, array_idx) = self.new_array(name, element_type, len as u32, ident_def);
+        self.context.mem[array_idx].values = vecmap(witness, |w| w.into());
         self.context.get_current_block_mut().update_variable(v_id, v_id);
-        let v_value = Value::Single(v_id);
-        self.variable_values.insert(ident_def, v_value); //TODO ident_def or ident_id??
+        v_id
+    }
+
+    pub fn abi_struct(
+        &mut self,
+        struct_name: &str,
+        ident_def: Option<DefinitionId>,
+        fields: &BTreeMap<String, noirc_abi::AbiType>,
+        witnesses: BTreeMap<String, Vec<acvm::acir::native_types::Witness>>,
+    ) -> Value {
+        let values = vecmap(fields, |(name, field_typ)| {
+            let new_name = format!("{}.{}", struct_name, name);
+            match field_typ {
+                noirc_abi::AbiType::Array { visibility: _, length, typ } => {
+                    let v_id =
+                        self.abi_array(&new_name, None, typ, *length, witnesses[&new_name].clone());
+                    Value::Single(v_id)
+                }
+                noirc_abi::AbiType::Struct { fields, .. } => {
+                    let new_name = format!("{}.{}", struct_name, name);
+                    self.abi_struct(&new_name, None, fields, witnesses.clone())
+                }
+                _ => {
+                    let obj_type = self.get_object_type_from_abi(field_typ);
+                    let v_id = self.create_new_variable(
+                        new_name.clone(),
+                        None,
+                        obj_type,
+                        Some(witnesses[&new_name][0]),
+                    );
+                    Value::Single(v_id)
+                }
+            }
+        });
+        self.insert_new_struct(ident_def, values)
     }
 
     fn codegen_identifier(&mut self, ident: &Ident) -> Value {
@@ -326,7 +342,7 @@ impl IRGenerator {
         location: noirc_errors::Location,
     ) -> Result<Value, RuntimeError> {
         let cond = self.codegen_expression(env, expr)?.unwrap_id();
-        let operation = Operation::Constrain(cond, location);
+        let operation = Operation::Constrain(cond, Some(location));
         self.context.new_instruction(operation, ObjectType::NotAnObject)?;
         Ok(Value::dummy())
     }
@@ -493,12 +509,22 @@ impl IRGenerator {
                 //n.b this creates a new variable if it does not exist, may be we should delegate this to explicit statements (let) - TODO
             }
             Expression::Binary(binary) => {
-                // Note: using .into_id() here disallows structs/tuples in infix expressions.
-                // The type checker currently disallows this as well but we may want to allow
-                // for e.g. struct == struct in the future
-                let lhs = self.codegen_expression(env, &binary.lhs)?.unwrap_id();
-                let rhs = self.codegen_expression(env, &binary.rhs)?.unwrap_id();
-                Ok(Value::Single(self.codegen_infix_expression(lhs, rhs, binary.operator)?))
+                // Note: we disallows structs/tuples in infix expressions.
+                // The type checker currently disallows this as well but not if they come from generic type
+                // We could allow some in the future, e.g. struct == struct
+                let lhs = self.codegen_expression(env, &binary.lhs)?.to_node_ids();
+                let rhs = self.codegen_expression(env, &binary.rhs)?.to_node_ids();
+                if lhs.len() != 1 || rhs.len() != 1 {
+                    return Err(RuntimeError {
+                        location: noirc_errors::Location::dummy(),
+                        kind: crate::errors::RuntimeErrorKind::UnsupportedOp {
+                            op: binary.operator.to_string(),
+                            first_type: "struct/tuple".to_string(),
+                            second_type: "struct/tuple".to_string(),
+                        },
+                    });
+                }
+                Ok(Value::Single(self.codegen_infix_expression(lhs[0], rhs[0], binary.operator)?))
             }
             Expression::Cast(cast_expr) => {
                 let lhs = self.codegen_expression(env, &cast_expr.lhs)?.unwrap_id();
@@ -544,11 +570,10 @@ impl IRGenerator {
                 })
             }
             Expression::CallLowLevel(call) => Ok(Value::Single(self.codegen_lowlevel(env, call)?)),
-            Expression::CallBuiltin(_call) => {
-                todo!()
-                // let attribute = func_meta.attributes.expect("all builtin functions must contain an attribute which contains the function name which it links to");
-                // let builtin_name = attribute.builtin().expect("ice: function marked as a builtin, but attribute kind does not match this");
-                // builtin::call_builtin(self, env, builtin_name, (call_expr,span))
+            Expression::CallBuiltin(call) => {
+                let call =
+                    CallLowLevel { opcode: call.opcode.clone(), arguments: call.arguments.clone() };
+                Ok(Value::Single(self.codegen_lowlevel(env, &call)?))
             }
             Expression::For(for_expr) => self.codegen_for(env, for_expr),
             Expression::Tuple(fields) => self.codegen_tuple(env, fields),
@@ -765,8 +790,7 @@ impl IRGenerator {
         //Exit block
         let exit_block =
             block::new_unsealed_block(&mut self.context, block::BlockType::IfJoin, true);
-
-        self.context[entry_block].dominated.push(exit_block);
+        self.context[exit_block].dominator = Some(entry_block);
 
         //Else block
         self.context.current_block = entry_block;

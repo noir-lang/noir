@@ -1,4 +1,5 @@
 use acvm::acir::circuit::Circuit;
+use acvm::Language;
 use fm::FileType;
 use noirc_abi::Abi;
 use noirc_errors::{DiagnosableError, Reporter};
@@ -22,16 +23,18 @@ pub struct CompiledProgram {
 }
 
 impl Driver {
-    pub fn new() -> Self {
-        Driver { context: Context::default() }
+    pub fn new(np_language: &acvm::Language) -> Self {
+        let mut driver = Driver { context: Context::default() };
+        driver.context.def_interner.set_language(np_language);
+        driver
     }
 
     // This is here for backwards compatibility
     // with the restricted version which only uses one file
     pub fn compile_file(root_file: PathBuf, np_language: acvm::Language) -> CompiledProgram {
-        let mut driver = Driver::new();
+        let mut driver = Driver::new(&np_language);
         driver.create_local_crate(root_file, CrateType::Binary);
-        driver.into_compiled_program(np_language, false)
+        driver.into_compiled_program(np_language, false, false)
     }
 
     /// Compiles a file and returns true if compilation was successful
@@ -120,17 +123,21 @@ impl Driver {
 
     // NOTE: Maybe build could be skipped given that now it is a pass through method.
     /// Statically analyses the local crate
-    pub fn build(&mut self) {
-        self.analyse_crate()
+    pub fn build(&mut self, allow_warnings: bool) {
+        self.analyse_crate(allow_warnings)
     }
 
-    fn analyse_crate(&mut self) {
+    fn analyse_crate(&mut self, allow_warnings: bool) {
         let mut errs = vec![];
         CrateDefMap::collect_defs(LOCAL_CRATE, &mut self.context, &mut errs);
         let mut error_count = 0;
         for errors in &errs {
-            error_count += errors.errors.len();
-            Reporter::with_diagnostics(errors.file_id, &self.context.file_manager, &errors.errors);
+            error_count += Reporter::with_diagnostics(
+                errors.file_id,
+                &self.context.file_manager,
+                &errors.errors,
+                allow_warnings,
+            );
         }
 
         Reporter::finish(error_count);
@@ -142,8 +149,8 @@ impl Driver {
         let main_function = local_crate.main_function()?;
 
         let func_meta = self.context.def_interner.function_meta(&main_function);
-        let abi = func_meta.into_abi(&self.context.def_interner);
 
+        let abi = func_meta.into_abi(&self.context.def_interner);
         Some(abi)
     }
 
@@ -151,8 +158,9 @@ impl Driver {
         mut self,
         np_language: acvm::Language,
         show_ssa: bool,
+        allow_warnings: bool,
     ) -> CompiledProgram {
-        self.build();
+        self.build(allow_warnings);
 
         // Check the crate type
         // We don't panic here to allow users to `evaluate` libraries
@@ -181,12 +189,13 @@ impl Driver {
             Err(err) => {
                 // The FileId here will be the file id of the file with the main file
                 // Errors will be shown at the callsite without a stacktrace
-                Reporter::with_diagnostics(
+                let error_count = Reporter::with_diagnostics(
                     err.location.file,
                     &self.context.file_manager,
                     &[err.to_diagnostic()],
+                    allow_warnings,
                 );
-                Reporter::finish(1);
+                Reporter::finish(error_count);
                 unreachable!("reporter will exit before this point")
             }
         };
@@ -197,6 +206,6 @@ impl Driver {
 
 impl Default for Driver {
     fn default() -> Self {
-        Self::new()
+        Self::new(&Language::R1CS)
     }
 }

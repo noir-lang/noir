@@ -1,21 +1,25 @@
+use crate::{errors::CliError, resolver::Resolver};
+use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
 use std::path::{Path, PathBuf};
 
-use crate::{errors::CliError, resolver::Resolver};
-
 use super::{add_std_lib, write_to_file, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 
-pub(crate) fn run(_args: ArgMatches) -> Result<(), CliError> {
+pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
+    let args = args.subcommand_matches("build").unwrap();
+    let allow_warnings = args.is_present("allow-warnings");
+
     let package_dir = std::env::current_dir().unwrap();
-    build_from_path(package_dir)?;
+    build_from_path(package_dir, allow_warnings)?;
     println!("Constraint system successfully built!");
     Ok(())
 }
 // This is exposed so that we can run the examples and verify that they pass
-pub fn build_from_path<P: AsRef<Path>>(p: P) -> Result<(), CliError> {
-    let mut driver = Resolver::resolve_root_config(p.as_ref())?;
+pub fn build_from_path<P: AsRef<Path>>(p: P, allow_warnings: bool) -> Result<(), CliError> {
+    let backend = crate::backends::ConcreteBackend;
+    let mut driver = Resolver::resolve_root_config(p.as_ref(), backend.np_language())?;
     add_std_lib(&mut driver);
-    driver.build();
+    driver.build(allow_warnings);
     // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
     if let Some(x) = driver.compute_abi() {
         // XXX: The root config should return an enum to determine if we are looking for .json or .toml
@@ -55,7 +59,11 @@ mod tests {
         let paths = std::fs::read_dir(pass_dir).unwrap();
         for path in paths.flatten() {
             let path = path.path();
-            assert!(super::build_from_path(path.clone()).is_ok(), "path: {}", path.display());
+            assert!(
+                super::build_from_path(path.clone(), false).is_ok(),
+                "path: {}",
+                path.display()
+            );
         }
     }
 
@@ -68,7 +76,23 @@ mod tests {
         let paths = std::fs::read_dir(fail_dir).unwrap();
         for path in paths.flatten() {
             let path = path.path();
-            assert!(super::build_from_path(path.clone()).is_err(), "path: {}", path.display());
+            assert!(
+                super::build_from_path(path.clone(), false).is_err(),
+                "path: {}",
+                path.display()
+            );
+        }
+    }
+
+    #[test]
+    fn pass_with_warnings() {
+        let mut pass_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        pass_dir.push(&format!("{TEST_DATA_DIR}/pass_dev_mode"));
+
+        let paths = std::fs::read_dir(pass_dir).unwrap();
+        for path in paths.flatten() {
+            let path = path.path();
+            assert!(super::build_from_path(path.clone(), true).is_ok(), "path: {}", path.display());
         }
     }
 }
