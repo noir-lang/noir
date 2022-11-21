@@ -62,62 +62,52 @@ fn toml_map_to_field(
 ) -> Result<BTreeMap<String, InputValue>, InputParserError> {
     let mut field_map = BTreeMap::new();
     for (parameter, value) in toml_map {
-        match value {
+        let mapped_value = match value {
             TomlTypes::String(string) => {
                 let new_value = parse_str(&string)?;
-                if new_value.is_none() {
-                    check_toml_map_duplicates(&mut field_map, parameter, InputValue::Undefined)?
+
+                if let Some(field_element) = new_value {
+                    InputValue::Field(field_element)
                 } else {
-                    check_toml_map_duplicates(
-                        &mut field_map,
-                        parameter,
-                        InputValue::Field(new_value.unwrap()),
-                    )?
+                    InputValue::Undefined
                 }
             }
             TomlTypes::Integer(integer) => {
                 let new_value = parse_str(&integer.to_string())?;
-                check_toml_map_duplicates(
-                    &mut field_map,
-                    parameter,
-                    InputValue::Field(new_value.unwrap()),
-                )?
+
+                InputValue::Field(new_value.unwrap())
             }
             TomlTypes::Bool(boolean) => {
                 let new_value = if boolean { FieldElement::one() } else { FieldElement::zero() };
-                check_toml_map_duplicates(&mut field_map, parameter, InputValue::Field(new_value))?
+
+                InputValue::Field(new_value)
             }
             TomlTypes::ArrayNum(arr_num) => {
                 let array_elements: Vec<_> = arr_num
                     .into_iter()
                     .map(|elem_num| parse_str(&elem_num.to_string()).unwrap().unwrap())
                     .collect();
-                check_toml_map_duplicates(
-                    &mut field_map,
-                    parameter,
-                    InputValue::Vec(array_elements),
-                )?
+
+                InputValue::Vec(array_elements)
             }
             TomlTypes::ArrayString(arr_str) => {
                 let array_elements: Vec<_> = arr_str
                     .into_iter()
                     .map(|elem_str| parse_str(&elem_str).unwrap().unwrap())
                     .collect();
-                check_toml_map_duplicates(
-                    &mut field_map,
-                    parameter,
-                    InputValue::Vec(array_elements),
-                )?
+
+                InputValue::Vec(array_elements)
             }
             TomlTypes::Table(table) => {
                 let native_table = toml_map_to_field(table)?;
-                check_toml_map_duplicates(
-                    &mut field_map,
-                    parameter,
-                    InputValue::Struct(native_table),
-                )?
+
+                InputValue::Struct(native_table)
             }
-        }
+        };
+
+        if field_map.insert(parameter.clone(), mapped_value).is_some() {
+            return Err(InputParserError::DuplicateVariableName(parameter));
+        };
     }
 
     Ok(field_map)
@@ -126,34 +116,24 @@ fn toml_map_to_field(
 fn toml_remap(map: &BTreeMap<String, InputValue>) -> BTreeMap<String, TomlTypes> {
     let mut toml_map = BTreeMap::new();
     for (parameter, value) in map {
-        match value {
+        let mapped_value = match value {
             InputValue::Field(f) => {
                 let f_str = format!("0x{}", f.to_hex());
-                toml_map.insert(parameter.clone(), TomlTypes::String(f_str));
+                TomlTypes::String(f_str)
             }
             InputValue::Vec(v) => {
                 let array = v.iter().map(|i| format!("0x{}", i.to_hex())).collect();
-                toml_map.insert(parameter.clone(), TomlTypes::ArrayString(array));
+                TomlTypes::ArrayString(array)
             }
             InputValue::Struct(map) => {
                 let map_with_toml_types = toml_remap(map);
-                toml_map.insert(parameter.clone(), TomlTypes::Table(map_with_toml_types));
+                TomlTypes::Table(map_with_toml_types)
             }
             InputValue::Undefined => unreachable!(),
-        }
+        };
+        toml_map.insert(parameter.clone(), mapped_value);
     }
     toml_map
-}
-
-fn check_toml_map_duplicates(
-    field_map: &mut BTreeMap<String, InputValue>,
-    parameter: String,
-    new_value: InputValue,
-) -> Result<(), InputParserError> {
-    match field_map.insert(parameter.clone(), new_value) {
-        Some(_) => Err(InputParserError::DuplicateVariableName(parameter)),
-        None => Ok(()),
-    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
