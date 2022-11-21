@@ -47,6 +47,11 @@ template <typename Composer, typename T> class bigfield {
                 maximum_value = DEFAULT_MAXIMUM_LIMB;
             }
         }
+        friend std::ostream& operator<<(std::ostream& os, const Limb& a)
+        {
+            os << "{ " << a.element << " < " << a.maximum_value << " }";
+            return os;
+        }
         Limb(const Limb& other) = default;
         Limb(Limb&& other) = default;
         Limb& operator=(const Limb& other) = default;
@@ -212,6 +217,7 @@ template <typename Composer, typename T> class bigfield {
                              const std::vector<bigfield>& to_sub,
                              bool enable_divisor_nz_check = false);
 
+    static bigfield sum(const std::vector<bigfield>& terms);
     static bigfield internal_div(const std::vector<bigfield>& numerators,
                                  const bigfield& denominator,
                                  bool check_for_zero);
