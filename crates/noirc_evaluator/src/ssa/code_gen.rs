@@ -163,7 +163,7 @@ impl IRGenerator {
     ) -> Value {
         let values = vecmap(fields, |(name, field_typ)| {
             let new_name = format!("{}.{}", struct_name, name);
-            let v_value = match field_typ {
+            match field_typ {
                 noirc_abi::AbiType::Array { visibility: _, length, typ } => {
                     let v_id =
                         self.abi_array(&new_name, None, typ, *length, witnesses[&new_name].clone());
@@ -183,8 +183,7 @@ impl IRGenerator {
                     );
                     Value::Single(v_id)
                 }
-            };
-            v_value
+            }
         });
         self.insert_new_struct(ident_def, values)
     }

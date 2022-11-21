@@ -62,7 +62,7 @@ impl AbiType {
         match self {
             AbiType::Field(_) | AbiType::Integer { .. } => 1,
             AbiType::Array { visibility: _, length, typ: _ } => *length as usize,
-            AbiType::Struct { fields, .. } => (*fields).len(),
+            AbiType::Struct { fields, .. } => fields.len(),
         }
     }
 

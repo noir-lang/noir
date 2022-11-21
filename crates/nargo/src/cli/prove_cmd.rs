@@ -54,7 +54,7 @@ fn process_abi_with_input(
         match &return_param.1 {
             AbiType::Array { length, .. } => *length as u32,
             AbiType::Integer { .. } | AbiType::Field(_) => 1,
-            AbiType::Struct { fields, .. } => (*fields).len() as u32,
+            AbiType::Struct { fields, .. } => fields.len() as u32,
         }
     } else {
         0

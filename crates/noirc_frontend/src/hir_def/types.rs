@@ -4,7 +4,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::{hir::type_check::TypeCheckError, node_interner::NodeInterner};
+use crate::{hir::type_check::TypeCheckError, node_interner::NodeInterner, util::btree_map};
 use noirc_abi::{AbiFEType, AbiType};
 use noirc_errors::Span;
 
@@ -974,10 +974,7 @@ impl Type {
             Type::Struct(def, args) => {
                 let struct_type = def.borrow();
                 let fields = struct_type.get_fields(args);
-                let abi_map = fields
-                    .into_iter()
-                    .map(|(name, typ)| (name, typ.as_abi_type(fe_type)))
-                    .collect();
+                let abi_map = btree_map(fields, |(name, typ)| (name, typ.as_abi_type(fe_type)));
                 AbiType::Struct { visibility: fe_type, fields: abi_map }
             }
             Type::Tuple(_) => todo!("as_abi_type not yet implemented for tuple types"),

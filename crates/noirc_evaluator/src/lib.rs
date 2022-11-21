@@ -19,6 +19,7 @@ use environment::{Environment, FuncContext};
 use errors::{RuntimeError, RuntimeErrorKind};
 use noirc_abi::{AbiFEType, AbiType};
 use noirc_frontend::monomorphisation::ast::*;
+use noirc_frontend::util::btree_map;
 use std::collections::BTreeMap;
 
 use object::{Array, Integer, Object};
@@ -176,13 +177,10 @@ impl Evaluator {
             }
             AbiType::Struct { visibility, fields } => {
                 let mut struct_witnesses: BTreeMap<String, Vec<Witness>> = BTreeMap::new();
-                let new_fields = fields
-                    .into_iter()
-                    .map(|(inner_name, value)| {
-                        let new_name = format!("{}.{}", name, inner_name);
-                        (new_name, value.clone())
-                    })
-                    .collect();
+                let new_fields = btree_map(fields, |(inner_name, value)| {
+                    let new_name = format!("{}.{}", name, inner_name);
+                    (new_name, value.clone())
+                });
                 self.generate_struct_witnesses(&mut struct_witnesses, visibility, &new_fields)?;
                 igen.abi_struct(name, Some(def), fields, struct_witnesses);
             }
