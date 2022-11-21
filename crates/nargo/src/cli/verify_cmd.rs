@@ -60,16 +60,7 @@ fn process_abi_with_verifier_input(
     if num_pub_params != pi_map.len() {
         let param_names = public_abi.parameter_names();
         let unexpected_params: Vec<String> =
-            pi_map
-                .keys()
-                .filter_map(|param| {
-                    if param_names.contains(&param) {
-                        None
-                    } else {
-                        Some(param.to_owned())
-                    }
-                })
-                .collect();
+            pi_map.keys().filter(|param| param_names.contains(&param)).cloned().collect();
         return Err(AbiError::UnexpectedParams(unexpected_params));
     }
 
