@@ -49,18 +49,32 @@ fn process_abi_with_verifier_input(
             return Err(CliError::Generic(format!("The parameters in the main do not match the parameters in the {}.toml file. \n Please check `{}` parameter. ", VERIFIER_INPUT_FILE,param_name)));
         }
 
-        match value {
-            InputValue::Field(elem) => public_inputs.push(elem),
-            InputValue::Vec(vec_elem) => public_inputs.extend(vec_elem),
-            InputValue::Undefined => {
-                return Err(CliError::Generic(format!(
-                    "The parameter {} is not defined in the {}.toml file.",
-                    param_name, VERIFIER_INPUT_FILE
-                )))
-            }
-        }
+        public_inputs.extend(input_value_into_public_inputs(value, param_name)?);
     }
 
+    Ok(public_inputs)
+}
+
+fn input_value_into_public_inputs(
+    value: InputValue,
+    param_name: String,
+) -> Result<Vec<FieldElement>, CliError> {
+    let mut public_inputs = Vec::new();
+    match value {
+        InputValue::Field(elem) => public_inputs.push(elem),
+        InputValue::Vec(vec_elem) => public_inputs.extend(vec_elem),
+        InputValue::Struct(object) => {
+            for (name, value) in object {
+                public_inputs.extend(input_value_into_public_inputs(value, name)?)
+            }
+        }
+        InputValue::Undefined => {
+            return Err(CliError::Generic(format!(
+                "The parameter {} is not defined in the {}.toml file.",
+                param_name, VERIFIER_INPUT_FILE
+            )))
+        }
+    }
     Ok(public_inputs)
 }
 

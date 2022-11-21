@@ -62,7 +62,8 @@ impl Parameters {
             let param_name = get_param_name(&param.0, interner)
                 .expect("Abi for tuple and struct parameters is unimplemented")
                 .to_owned();
-            (param_name, param.1.as_abi_type(param.2))
+            let as_abi = param.1.as_abi_type(param.2);
+            (param_name, as_abi)
         });
         noirc_abi::Abi { parameters }
     }
