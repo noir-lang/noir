@@ -92,7 +92,7 @@ const config = {
       navbar: {
         logo: {
           alt: "Aztec Logo",
-          src: "img/aztec-logo.9cde8ae1.svg",
+          src: "img/new_logo-01.svg",
         },
         items: [
           {

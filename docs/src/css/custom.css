@@ -13,30 +13,41 @@
   --ifm-color-primary-light: #6529da;
   --ifm-color-primary-lighter: #6c33db;
   --ifm-color-primary-lightest: #8251e1;
+  background: #211733;
+  --ifm-font-family-base: 'Plain-Regular';
 }
 
 /* For readability concerns, you should choose a lighter palette in dark mode. */
 [data-theme='dark'] {
-  --ifm-color-primary: #b395ec;
-  --ifm-color-primary-dark: #b395ec;
-  --ifm-color-primary-darker: #b395ec;
-  --ifm-color-primary-darkest: #b395ec;
-  --ifm-color-primary-light: #b395ec;
-  --ifm-color-primary-lighter: #b395ec;
-  --ifm-color-primary-lightest: #b395ec;
+  --ifm-color-primary: #9ba5e9;
+  --ifm-color-primary-dark: #9ba5e9;
+  --ifm-color-primary-darker: #9ba5e9;
+  --ifm-color-primary-darkest: #9ba5e9;
+  --ifm-color-primary-light: #241938;
+  --ifm-color-primary-lighter: #261a3b;
+  --ifm-color-primary-lightest: #2b1e42;
 }
 
 .footer--dark {
-  --ifm-footer-background-color: #18191A;
+  --ifm-footer-background-color: #211733;
   --ifm-footer-color: var(--ifm-footer-link-color);
   --ifm-footer-link-color: var(--ifm-color-secondary);
   --ifm-footer-title-color: var(--ifm-color-white);
 }
 
 .navbar--dark {
-  background-color: #111214;
+  background-color: #2f1f49;
   box-shadow: var(--ifm-navbar-shadow);
   display: flex;
   height: var(--ifm-navbar-height);
   padding: var(--ifm-navbar-padding-vertical) var(--ifm-navbar-padding-horizontal);
+}
+
+.navbar {
+  background-color: #2f1f49;
+}
+
+@font-face {
+  font-family: 'Plain-Regular';
+  src: url('../../static/font/Plain-Regular.otf');
 }
