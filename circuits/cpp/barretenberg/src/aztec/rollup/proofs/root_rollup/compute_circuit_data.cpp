@@ -55,8 +55,19 @@ circuit_data get_circuit_data(size_t num_inner_rollups,
                             rollup_circuit_data.verification_key);
     };
 
-    auto cd = proofs::get_circuit_data<Composer>(
-        "root rollup", name, srs, key_path, compute, save, load, pk, vk, true, mock, build_circuit);
+    auto cd =
+        proofs::get_circuit_data<Composer>(format("root rollup ", rollup_circuit_data.num_txs, "x", num_inner_rollups),
+                                           name,
+                                           srs,
+                                           key_path,
+                                           compute,
+                                           save,
+                                           load,
+                                           pk,
+                                           vk,
+                                           true,
+                                           mock,
+                                           build_circuit);
 
     circuit_data data;
     data.num_gates = cd.num_gates;
