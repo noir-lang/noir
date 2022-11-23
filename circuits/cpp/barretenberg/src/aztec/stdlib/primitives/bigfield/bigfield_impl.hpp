@@ -305,7 +305,7 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::operator-(const
 
     if (other.is_constant()) {
         uint512_t right = other.get_value() % modulus_u512;
-        uint512_t neg_right = modulus_u512 - right;
+        uint512_t neg_right = (modulus_u512 - right) % modulus_u512;
         return operator+(bigfield(ctx, uint256_t(neg_right.lo)));
     }
 
@@ -471,6 +471,30 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::operator/(const
 {
 
     return internal_div({ *this }, other, false);
+}
+/**
+ * @brief Create constraints for summing these terms
+ *
+ * @tparam C
+ * @tparam T
+ * @param terms
+ * @return The sum of terms
+ */
+template <typename C, typename T> bigfield<C, T> bigfield<C, T>::sum(const std::vector<bigfield>& terms)
+{
+    ASSERT(terms.size() > 0);
+
+    if (terms.size() == 1) {
+        return terms[0];
+    }
+    std::vector<bigfield> halved;
+    for (size_t i = 0; i < terms.size() / 2; i++) {
+        halved.push_back(terms[2 * i] + terms[2 * i + 1]);
+    }
+    if (terms.size() & 1) {
+        halved.push_back(terms[terms.size() - 1]);
+    }
+    return sum(halved);
 }
 
 /**
@@ -648,16 +672,25 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::sqradd(const st
     const uint1024_t add_right(add_values);
     const uint1024_t modulus(target_basis.modulus);
 
-    const auto [quotient_1024, remainder_1024] = (left * right + add_right).divmod(modulus);
-
-    const uint512_t quotient_value = quotient_1024.lo;
-    const uint512_t remainder_value = remainder_1024.lo;
-
     bigfield remainder;
     bigfield quotient;
-    if (is_constant() && add_constant) {
-        remainder = bigfield(ctx, uint256_t(remainder_value.lo));
-        return remainder;
+    if (is_constant()) {
+        if (add_constant) {
+
+            const auto [quotient_1024, remainder_1024] = (left * right + add_right).divmod(modulus);
+            remainder = bigfield(ctx, uint256_t(remainder_1024.lo.lo));
+            return remainder;
+        } else {
+
+            const auto [quotient_1024, remainder_1024] = (left * right).divmod(modulus);
+            std::vector<bigfield> new_to_add;
+            for (auto& add_element : to_add) {
+                new_to_add.push_back(add_element);
+            }
+
+            new_to_add.push_back(bigfield(ctx, remainder_1024.lo.lo));
+            return sum(new_to_add);
+        }
     } else {
 
         // Check the quotient fits the range proof
@@ -668,14 +701,17 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::sqradd(const st
             self_reduce();
             return sqradd(to_add);
         }
+        const auto [quotient_1024, remainder_1024] = (left * right + add_right).divmod(modulus);
+        uint512_t quotient_value = quotient_1024.lo;
+        uint256_t remainder_value = remainder_1024.lo.lo;
 
         quotient = bigfield(witness_t(ctx, fr(quotient_value.slice(0, NUM_LIMB_BITS * 2).lo)),
                             witness_t(ctx, fr(quotient_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 4).lo)),
                             false,
                             num_quotient_bits);
         remainder = bigfield(
-            witness_t(ctx, fr(remainder_value.slice(0, NUM_LIMB_BITS * 2).lo)),
-            witness_t(ctx, fr(remainder_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3 + NUM_LAST_LIMB_BITS).lo)));
+            witness_t(ctx, fr(remainder_value.slice(0, NUM_LIMB_BITS * 2))),
+            witness_t(ctx, fr(remainder_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3 + NUM_LAST_LIMB_BITS))));
     };
     unsafe_evaluate_square_add(*this, to_add, quotient, remainder);
     return remainder;
@@ -724,7 +760,6 @@ bigfield<C, T> bigfield<C, T>::madd(const bigfield& to_mul, const std::vector<bi
 
         auto [reduction_required, num_quotient_bits] = get_quotient_reduction_info(
             { get_maximum_value() }, { to_mul.get_maximum_value() }, to_add, { DEFAULT_MAXIMUM_REMAINDER });
-
         if (reduction_required) {
             if (get_maximum_value() > to_mul.get_maximum_value()) {
                 self_reduce();
@@ -901,48 +936,129 @@ bigfield<C, T> bigfield<C, T>::mult_madd(const std::vector<bigfield>& mul_left,
 
     const size_t number_of_products = mul_left.size();
 
-    // First we need to check if it is possible to reduce the products enough
-
     const uint1024_t modulus(target_basis.modulus);
     uint1024_t worst_case_product_sum(0);
-    uint1024_t add_right(0);
-    uint1024_t add_right_maximum(0);
+    uint1024_t add_right_constant_sum(0);
 
-    // Compute the sum of added values (we don't force-reduce these)
-    // We use add_right later for computing the quotient and remainder
+    // First we do all constant optimizations
     bool add_constant = true;
+    std::vector<bigfield> new_to_add;
+
     for (const auto& add_element : to_add) {
         add_element.reduction_check();
-        add_right += uint1024_t(add_element.get_value());
-        add_right_maximum += uint1024_t(add_element.get_maximum_value());
-        add_constant = add_constant && (add_element.is_constant());
+        if (add_element.is_constant()) {
+            add_right_constant_sum += uint1024_t(add_element.get_value());
+        } else {
+            add_constant = false;
+            new_to_add.push_back(add_element);
+        }
     }
 
-    worst_case_product_sum =
-        uint1024_t(number_of_products) * uint1024_t(DEFAULT_MAXIMUM_REMAINDER) * uint1024_t(DEFAULT_MAXIMUM_REMAINDER);
+    // Compute the product sum
+    // Optimize constant use
+    uint1024_t sum_of_constant_products(0);
+    std::vector<bigfield> new_input_left;
+    std::vector<bigfield> new_input_right;
+    bool product_sum_constant = true;
+    for (size_t i = 0; i < number_of_products; i++) {
+        if (mutable_mul_left[i].is_constant() && mutable_mul_right[i].is_constant()) {
+            // If constant, just add to the sum
+            sum_of_constant_products +=
+                uint1024_t(mutable_mul_left[i].get_value()) * uint1024_t(mutable_mul_right[i].get_value());
+        } else {
+            // If not, add to nonconstant sum and remember the elements
+            new_input_left.push_back(mutable_mul_left[i]);
+            new_input_right.push_back(mutable_mul_right[i]);
+            product_sum_constant = false;
+        }
+    }
+
+    C* ctx = nullptr;
+    // Search through all multiplicands on the left
+    for (auto& el : mutable_mul_left) {
+        if (el.context) {
+            ctx = el.context;
+            break;
+        }
+    }
+    // And on the right
+    if (!ctx) {
+        for (auto& el : mutable_mul_right) {
+            if (el.context) {
+                ctx = el.context;
+                break;
+            }
+        }
+    }
+    if (product_sum_constant) {
+        if (add_constant) {
+            // Simply return the constant, no need unsafe_multiply_add
+            const auto [quotient_1024, remainder_1024] =
+                (sum_of_constant_products + add_right_constant_sum).divmod(modulus);
+            ASSERT(!fix_remainder_to_zero || remainder_1024 == 0);
+            return bigfield(ctx, uint256_t(remainder_1024.lo.lo));
+        } else {
+            const auto [quotient_1024, remainder_1024] =
+                (sum_of_constant_products + add_right_constant_sum).divmod(modulus);
+            uint256_t remainder_value = remainder_1024.lo.lo;
+            bigfield result;
+            if (remainder_value == uint256_t(0)) {
+                // No need to add extra term to new_to_add
+                result = sum(new_to_add);
+            } else {
+                // Add the constant term
+                new_to_add.push_back(bigfield(ctx, uint256_t(remainder_value)));
+                result = sum(new_to_add);
+            }
+            if (fix_remainder_to_zero) {
+                result.self_reduce();
+                result.assert_equal(zero());
+            }
+            return result;
+        }
+    }
+
+    // Now that we know that there is at least 1 non-constant multiplication, we can start estimating reductions, etc
+
+    // Compute the constant term we're adding
+    const auto [_, constant_part_remainder_1024] = (sum_of_constant_products + add_right_constant_sum).divmod(modulus);
+    const uint256_t constant_part_remainder_256 = constant_part_remainder_1024.lo.lo;
+
+    if (constant_part_remainder_256 != uint256_t(0)) {
+        new_to_add.push_back(bigfield(ctx, constant_part_remainder_256));
+    }
+    // Compute added sum
+    uint1024_t add_right_final_sum(0);
+    uint1024_t add_right_maximum(0);
+    for (const auto& add_element : new_to_add) {
+        // Technically not needed, but better to leave just in case
+        add_element.reduction_check();
+        add_right_final_sum += uint1024_t(add_element.get_value());
+
+        add_right_maximum += uint1024_t(add_element.get_maximum_value());
+    }
+    const size_t final_number_of_products = new_input_left.size();
+
+    // We need to check if it is possible to reduce the products enough
+    worst_case_product_sum = uint1024_t(final_number_of_products) * uint1024_t(DEFAULT_MAXIMUM_REMAINDER) *
+                             uint1024_t(DEFAULT_MAXIMUM_REMAINDER);
+
     // Check that we can actually reduce the products enough, this assert will probably never get triggered
     ASSERT((worst_case_product_sum + add_right_maximum) < get_maximum_crt_product());
 
-    perform_reductions_for_mult_madd(mutable_mul_left, mutable_mul_right, to_add);
+    // We've collapsed all constants, checked if we can compute the sum of products in the worst case, time to check if
+    // we need to reduce something
+    perform_reductions_for_mult_madd(new_input_left, new_input_right, new_to_add);
+    uint1024_t sum_of_products_final(0);
+    for (size_t i = 0; i < final_number_of_products; i++) {
+        sum_of_products_final += uint1024_t(new_input_left[i].get_value()) * uint1024_t(new_input_right[i].get_value());
+    }
 
     // Get the number of range proof bits for the quotient
     const size_t num_quotient_bits = get_quotient_max_bits({ DEFAULT_MAXIMUM_REMAINDER });
 
-    // TODO: Could probably search through all
-    C* ctx = mutable_mul_left[0].context ? mutable_mul_left[0].context : mutable_mul_right[0].context;
-
-    // Compute the product sum
-    // And check if all the multiplied values are constant
-    uint1024_t product_sum(0);
-    bool product_sum_constant = true;
-    for (size_t i = 0; i < number_of_products; i++) {
-        product_sum += uint1024_t(mutable_mul_left[i].get_value()) * uint1024_t(mutable_mul_right[i].get_value());
-        product_sum_constant =
-            product_sum_constant && mutable_mul_left[i].is_constant() && mutable_mul_right[i].is_constant();
-    }
-
     // Compute the quotient and remainder
-    const auto [quotient_1024, remainder_1024] = (product_sum + add_right).divmod(modulus);
+    const auto [quotient_1024, remainder_1024] = (sum_of_products_final + add_right_final_sum).divmod(modulus);
 
     // If we are establishing an identity and the remainder has to be zero, we need to check, that it actually is
 
@@ -955,31 +1071,23 @@ bigfield<C, T> bigfield<C, T>::mult_madd(const std::vector<bigfield>& mul_left,
 
     bigfield remainder;
     bigfield quotient;
-    // If all was constant, just create a new constant
-    if (product_sum_constant && add_constant) {
-        // We don't check fix_remainder_to_zero here because it makes absolutely no sense
-        remainder = bigfield(ctx, uint256_t(remainder_value.lo));
-        return remainder;
+    // Constrain quotient to mitigate CRT overflow attacks
+    quotient = bigfield(witness_t(ctx, fr(quotient_value.slice(0, NUM_LIMB_BITS * 2).lo)),
+                        witness_t(ctx, fr(quotient_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 4).lo)),
+                        false,
+                        num_quotient_bits);
+    if (fix_remainder_to_zero) {
+        remainder = zero();
+        // remainder needs to be defined as wire value and not selector values to satisfy
+        // UltraPlonk's bigfield custom gates
+        remainder.convert_constant_to_witness(ctx);
     } else {
-        // Constrain quotient to mitigate CRT overflow attacks
-        quotient = bigfield(witness_t(ctx, fr(quotient_value.slice(0, NUM_LIMB_BITS * 2).lo)),
-                            witness_t(ctx, fr(quotient_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 4).lo)),
-                            false,
-                            num_quotient_bits);
-        if (fix_remainder_to_zero) {
-            remainder = zero();
-            // remainder needs to be defined as wire value and not selector values to satisfy
-            // UltraPlonk's bigfield custom gates
-            remainder.convert_constant_to_witness(ctx);
-        } else {
-            remainder = bigfield(
-                witness_t(ctx, fr(remainder_value.slice(0, NUM_LIMB_BITS * 2).lo)),
-                witness_t(ctx,
-                          fr(remainder_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3 + NUM_LAST_LIMB_BITS).lo)));
-        }
-    };
+        remainder = bigfield(
+            witness_t(ctx, fr(remainder_value.slice(0, NUM_LIMB_BITS * 2).lo)),
+            witness_t(ctx, fr(remainder_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3 + NUM_LAST_LIMB_BITS).lo)));
+    }
 
-    unsafe_evaluate_multiple_multiply_add(mutable_mul_left, mutable_mul_right, to_add, quotient, { remainder });
+    unsafe_evaluate_multiple_multiply_add(new_input_left, new_input_right, new_to_add, quotient, { remainder });
 
     return remainder;
 }
@@ -1177,9 +1285,9 @@ bigfield<C, T> bigfield<C, T>::conditional_select(const bigfield& other, const b
 {
     if (is_constant() && other.is_constant() && predicate.is_constant()) {
         if (predicate.get_value()) {
-            return *this;
+            return other;
         }
-        return other;
+        return *this;
     }
     C* ctx = context ? context : (other.context ? other.context : predicate.context);
 
@@ -1251,7 +1359,7 @@ template <typename C, typename T> void bigfield<C, T>::reduction_check(const siz
 
 // create a version with mod 2^t element part in [0,p-1]
 // After reducing to size 2^s, we check (p-1)-a is non-negative as integer.
-// We perform subtraction using carries on blocks of size 2^b. The operations insde the blocks are done mod r
+// We perform subtraction using carries on blocks of size 2^b. The operations inside the blocks are done mod r
 // Including the effect of carries the operation inside each limb is in the range [-2^b-1,2^{b+1}]
 // Assuming this values are all distinct mod r, which happens e.g. if r/2>2^{b+1}, then if all limb values are
 // non-negative at the end of subtraction, we know the subtraction result is positive as integers and a<p
@@ -1275,9 +1383,9 @@ template <typename C, typename T> void bigfield<C, T>::assert_is_in_field() cons
 
     bool borrow_0_value = value.slice(0, NUM_LIMB_BITS) > modulus_minus_one_0;
     bool borrow_1_value =
-        (value.slice(NUM_LIMB_BITS, NUM_LIMB_BITS * 2) - uint256_t(borrow_0_value)) > modulus_minus_one_1;
+        (value.slice(NUM_LIMB_BITS, NUM_LIMB_BITS * 2) + uint256_t(borrow_0_value)) > (modulus_minus_one_1);
     bool borrow_2_value =
-        (value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3) - uint256_t(borrow_1_value)) > modulus_minus_one_2;
+        (value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3) + uint256_t(borrow_1_value)) > (modulus_minus_one_2);
 
     field_t<C> modulus_0(context, modulus_minus_one_0);
     field_t<C> modulus_1(context, modulus_minus_one_1);
@@ -1370,6 +1478,7 @@ template <typename C, typename T> void bigfield<C, T>::assert_equal(const bigfie
 // it's non-zero mod r
 template <typename C, typename T> void bigfield<C, T>::assert_is_not_equal(const bigfield& other) const
 {
+    // Why would we use this for 2 constants? Turns out, in biggroup
     const auto get_overload_count = [target_modulus = modulus_u512](const uint512_t& maximum_value) {
         uint512_t target = target_modulus;
         size_t overload_count = 0;
@@ -1457,7 +1566,7 @@ template <typename C, typename T> void bigfield<C, T>::self_reduce() const
 } // namespace stdlib
 
 /**
- * Evaluate a multiply add identity with severall added elements and several remainders
+ * Evaluate a multiply add identity with several added elements and several remainders
  *
  * i.e:
  *
@@ -1483,42 +1592,42 @@ void bigfield<C, T>::unsafe_evaluate_multiply_add(const bigfield& input_left,
 
     C* ctx = left.context ? left.context : to_mul.context;
 
-    uint256_t max_b0 = (left.binary_basis_limbs[1].maximum_value * to_mul.binary_basis_limbs[0].maximum_value);
+    uint512_t max_b0 = (left.binary_basis_limbs[1].maximum_value * to_mul.binary_basis_limbs[0].maximum_value);
     max_b0 += (neg_modulus_limbs_u256[1] * quotient.binary_basis_limbs[0].maximum_value);
-    uint256_t max_b1 = (left.binary_basis_limbs[0].maximum_value * to_mul.binary_basis_limbs[1].maximum_value);
+    uint512_t max_b1 = (left.binary_basis_limbs[0].maximum_value * to_mul.binary_basis_limbs[1].maximum_value);
     max_b1 += (neg_modulus_limbs_u256[0] * quotient.binary_basis_limbs[1].maximum_value);
-    uint256_t max_c0 = (left.binary_basis_limbs[1].maximum_value * to_mul.binary_basis_limbs[1].maximum_value);
+    uint512_t max_c0 = (left.binary_basis_limbs[1].maximum_value * to_mul.binary_basis_limbs[1].maximum_value);
     max_c0 += (neg_modulus_limbs_u256[1] * quotient.binary_basis_limbs[1].maximum_value);
-    uint256_t max_c1 = (left.binary_basis_limbs[2].maximum_value * to_mul.binary_basis_limbs[0].maximum_value);
+    uint512_t max_c1 = (left.binary_basis_limbs[2].maximum_value * to_mul.binary_basis_limbs[0].maximum_value);
     max_c1 += (neg_modulus_limbs_u256[2] * quotient.binary_basis_limbs[0].maximum_value);
-    uint256_t max_c2 = (left.binary_basis_limbs[0].maximum_value * to_mul.binary_basis_limbs[2].maximum_value);
+    uint512_t max_c2 = (left.binary_basis_limbs[0].maximum_value * to_mul.binary_basis_limbs[2].maximum_value);
     max_c2 += (neg_modulus_limbs_u256[0] * quotient.binary_basis_limbs[2].maximum_value);
-    uint256_t max_d0 = (left.binary_basis_limbs[3].maximum_value * to_mul.binary_basis_limbs[0].maximum_value);
+    uint512_t max_d0 = (left.binary_basis_limbs[3].maximum_value * to_mul.binary_basis_limbs[0].maximum_value);
     max_d0 += (neg_modulus_limbs_u256[3] * quotient.binary_basis_limbs[0].maximum_value);
-    uint256_t max_d1 = (left.binary_basis_limbs[2].maximum_value * to_mul.binary_basis_limbs[1].maximum_value);
+    uint512_t max_d1 = (left.binary_basis_limbs[2].maximum_value * to_mul.binary_basis_limbs[1].maximum_value);
     max_d1 += (neg_modulus_limbs_u256[2] * quotient.binary_basis_limbs[1].maximum_value);
-    uint256_t max_d2 = (left.binary_basis_limbs[1].maximum_value * to_mul.binary_basis_limbs[2].maximum_value);
+    uint512_t max_d2 = (left.binary_basis_limbs[1].maximum_value * to_mul.binary_basis_limbs[2].maximum_value);
     max_d2 += (neg_modulus_limbs_u256[1] * quotient.binary_basis_limbs[2].maximum_value);
-    uint256_t max_d3 = (left.binary_basis_limbs[0].maximum_value * to_mul.binary_basis_limbs[3].maximum_value);
+    uint512_t max_d3 = (left.binary_basis_limbs[0].maximum_value * to_mul.binary_basis_limbs[3].maximum_value);
     max_d3 += (neg_modulus_limbs_u256[0] * quotient.binary_basis_limbs[3].maximum_value);
 
-    uint256_t max_r0 = left.binary_basis_limbs[0].maximum_value * to_mul.binary_basis_limbs[0].maximum_value;
+    uint512_t max_r0 = left.binary_basis_limbs[0].maximum_value * to_mul.binary_basis_limbs[0].maximum_value;
     max_r0 += (neg_modulus_limbs_u256[0] * quotient.binary_basis_limbs[0].maximum_value);
 
-    const uint256_t max_r1 = max_b0 + max_b1;
-    const uint256_t max_r2 = max_c0 + max_c1 + max_c2;
-    const uint256_t max_r3 = max_d0 + max_d1 + max_d2 + max_d3;
+    const uint512_t max_r1 = max_b0 + max_b1;
+    const uint512_t max_r2 = max_c0 + max_c1 + max_c2;
+    const uint512_t max_r3 = max_d0 + max_d1 + max_d2 + max_d3;
 
-    uint256_t max_a0(0);
-    uint256_t max_a1(0);
+    uint512_t max_a0(0);
+    uint512_t max_a1(0);
     for (size_t i = 0; i < to_add.size(); ++i) {
         max_a0 += to_add[i].binary_basis_limbs[0].maximum_value +
                   (to_add[i].binary_basis_limbs[1].maximum_value << NUM_LIMB_BITS);
         max_a1 += to_add[i].binary_basis_limbs[2].maximum_value +
                   (to_add[i].binary_basis_limbs[3].maximum_value << NUM_LIMB_BITS);
     }
-    const uint256_t max_lo = max_r0 + (max_r1 << NUM_LIMB_BITS) + max_a0;
-    const uint256_t max_hi = max_r2 + (max_r3 << NUM_LIMB_BITS) + max_a1;
+    const uint512_t max_lo = max_r0 + (max_r1 << NUM_LIMB_BITS) + max_a0;
+    const uint512_t max_hi = max_r2 + (max_r3 << NUM_LIMB_BITS) + max_a1;
 
     uint64_t max_lo_bits = (max_lo.get_msb() + 1);
     uint64_t max_hi_bits = max_hi.get_msb() + 1;
@@ -1625,13 +1734,20 @@ void bigfield<C, T>::unsafe_evaluate_multiply_add(const bigfield& input_left,
         ctx->decompose_into_default_range(carry_hi.witness_index, static_cast<size_t>(carry_hi_msb));
 
     } else {
-        field_t carry_combined = carry_lo + (carry_hi * carry_lo_shift);
-        carry_combined = carry_combined.normalize();
-        const auto accumulators = ctx->decompose_into_base4_accumulators(
-            carry_combined.witness_index, static_cast<size_t>(carry_lo_msb + carry_hi_msb));
-        field_t<C> accumulator_midpoint =
-            field_t<C>::from_witness_index(ctx, accumulators[static_cast<size_t>((carry_hi_msb / 2) - 1)]);
-        carry_hi.assert_equal(accumulator_midpoint, "bigfield multiply range check failed");
+        if ((carry_hi_msb + carry_lo_msb) < field_t<C>::modulus.get_msb()) {
+            field_t carry_combined = carry_lo + (carry_hi * carry_lo_shift);
+            carry_combined = carry_combined.normalize();
+            const auto accumulators = ctx->decompose_into_base4_accumulators(
+                carry_combined.witness_index, static_cast<size_t>(carry_lo_msb + carry_hi_msb));
+            field_t<C> accumulator_midpoint =
+                field_t<C>::from_witness_index(ctx, accumulators[static_cast<size_t>((carry_hi_msb / 2) - 1)]);
+            carry_hi.assert_equal(accumulator_midpoint, "bigfield multiply range check failed");
+        } else {
+            carry_lo = carry_lo.normalize();
+            carry_hi = carry_hi.normalize();
+            ctx->decompose_into_base4_accumulators(carry_lo.witness_index, static_cast<size_t>(carry_lo_msb));
+            ctx->decompose_into_base4_accumulators(carry_hi.witness_index, static_cast<size_t>(carry_hi_msb));
+        }
     }
 }
 
@@ -1643,7 +1759,7 @@ void bigfield<C, T>::unsafe_evaluate_multiply_add(const bigfield& input_left,
  * (left_0 * right_0) + ... + (left_n-1 * right_n-1) + ...to_add - (input_quotient * q + ...input_remainders) = 0
  *
  * This method supports multiple "remainders" because, when evaluating divisions, some of these remainders are terms
- *we're subtracting from our product (see msub_div for more details)
+ * We're subtracting from our product (see msub_div for more details)
  *
  * The above quadratic relation can be evaluated using only a single quotient/remainder term.
  *
@@ -1674,23 +1790,23 @@ void bigfield<C, T>::unsafe_evaluate_multiple_multiply_add(const std::vector<big
     C* ctx = input_left[0].context ? input_left[0].context : input_right[0].context;
 
     const auto get_product_maximum = [](const bigfield& left, const bigfield& right) {
-        uint256_t max_b0_inner = (left.binary_basis_limbs[1].maximum_value * right.binary_basis_limbs[0].maximum_value);
-        uint256_t max_b1_inner = (left.binary_basis_limbs[0].maximum_value * right.binary_basis_limbs[1].maximum_value);
-        uint256_t max_c0_inner = (left.binary_basis_limbs[1].maximum_value * right.binary_basis_limbs[1].maximum_value);
-        uint256_t max_c1_inner = (left.binary_basis_limbs[2].maximum_value * right.binary_basis_limbs[0].maximum_value);
-        uint256_t max_c2_inner = (left.binary_basis_limbs[0].maximum_value * right.binary_basis_limbs[2].maximum_value);
-        uint256_t max_d0_inner = (left.binary_basis_limbs[3].maximum_value * right.binary_basis_limbs[0].maximum_value);
-        uint256_t max_d1_inner = (left.binary_basis_limbs[2].maximum_value * right.binary_basis_limbs[1].maximum_value);
-        uint256_t max_d2_inner = (left.binary_basis_limbs[1].maximum_value * right.binary_basis_limbs[2].maximum_value);
-        uint256_t max_d3_inner = (left.binary_basis_limbs[0].maximum_value * right.binary_basis_limbs[3].maximum_value);
-        uint256_t max_r0_inner = left.binary_basis_limbs[0].maximum_value * right.binary_basis_limbs[0].maximum_value;
+        uint512_t max_b0_inner = (left.binary_basis_limbs[1].maximum_value * right.binary_basis_limbs[0].maximum_value);
+        uint512_t max_b1_inner = (left.binary_basis_limbs[0].maximum_value * right.binary_basis_limbs[1].maximum_value);
+        uint512_t max_c0_inner = (left.binary_basis_limbs[1].maximum_value * right.binary_basis_limbs[1].maximum_value);
+        uint512_t max_c1_inner = (left.binary_basis_limbs[2].maximum_value * right.binary_basis_limbs[0].maximum_value);
+        uint512_t max_c2_inner = (left.binary_basis_limbs[0].maximum_value * right.binary_basis_limbs[2].maximum_value);
+        uint512_t max_d0_inner = (left.binary_basis_limbs[3].maximum_value * right.binary_basis_limbs[0].maximum_value);
+        uint512_t max_d1_inner = (left.binary_basis_limbs[2].maximum_value * right.binary_basis_limbs[1].maximum_value);
+        uint512_t max_d2_inner = (left.binary_basis_limbs[1].maximum_value * right.binary_basis_limbs[2].maximum_value);
+        uint512_t max_d3_inner = (left.binary_basis_limbs[0].maximum_value * right.binary_basis_limbs[3].maximum_value);
+        uint512_t max_r0_inner = left.binary_basis_limbs[0].maximum_value * right.binary_basis_limbs[0].maximum_value;
 
-        const uint256_t max_r1_inner = max_b0_inner + max_b1_inner;
-        const uint256_t max_r2_inner = max_c0_inner + max_c1_inner + max_c2_inner;
-        const uint256_t max_r3_inner = max_d0_inner + max_d1_inner + max_d2_inner + max_d3_inner;
-        const uint256_t max_lo_temp = max_r0_inner + (max_r1_inner << NUM_LIMB_BITS);
-        const uint256_t max_hi_temp = max_r2_inner + (max_r3_inner << NUM_LIMB_BITS);
-        return std::pair<uint256_t, uint256_t>(max_lo_temp, max_hi_temp);
+        const uint512_t max_r1_inner = max_b0_inner + max_b1_inner;
+        const uint512_t max_r2_inner = max_c0_inner + max_c1_inner + max_c2_inner;
+        const uint512_t max_r3_inner = max_d0_inner + max_d1_inner + max_d2_inner + max_d3_inner;
+        const uint512_t max_lo_temp = max_r0_inner + (max_r1_inner << NUM_LIMB_BITS);
+        const uint512_t max_hi_temp = max_r2_inner + (max_r3_inner << NUM_LIMB_BITS);
+        return std::pair<uint512_t, uint512_t>(max_lo_temp, max_hi_temp);
     };
 
     /**
@@ -1700,37 +1816,37 @@ void bigfield<C, T>::unsafe_evaluate_multiple_multiply_add(const std::vector<big
      * max_hi = maximum value of limb products that span the range 2^{2t} - 2^{5t}
      * (t = NUM_LIMB_BITS)
      **/
-    uint256_t max_lo = 0;
-    uint256_t max_hi = 0;
+    uint512_t max_lo = 0;
+    uint512_t max_hi = 0;
 
     // Compute max values of quotient product limb products
-    uint256_t max_b0 = (neg_modulus_limbs_u256[1] * quotient.binary_basis_limbs[0].maximum_value);
-    uint256_t max_b1 = (neg_modulus_limbs_u256[0] * quotient.binary_basis_limbs[1].maximum_value);
-    uint256_t max_c0 = (neg_modulus_limbs_u256[1] * quotient.binary_basis_limbs[1].maximum_value);
-    uint256_t max_c1 = (neg_modulus_limbs_u256[2] * quotient.binary_basis_limbs[0].maximum_value);
-    uint256_t max_c2 = (neg_modulus_limbs_u256[0] * quotient.binary_basis_limbs[2].maximum_value);
-    uint256_t max_d0 = (neg_modulus_limbs_u256[3] * quotient.binary_basis_limbs[0].maximum_value);
-    uint256_t max_d1 = (neg_modulus_limbs_u256[2] * quotient.binary_basis_limbs[1].maximum_value);
-    uint256_t max_d2 = (neg_modulus_limbs_u256[1] * quotient.binary_basis_limbs[2].maximum_value);
-    uint256_t max_d3 = (neg_modulus_limbs_u256[0] * quotient.binary_basis_limbs[3].maximum_value);
+    uint512_t max_b0 = (neg_modulus_limbs_u256[1] * quotient.binary_basis_limbs[0].maximum_value);
+    uint512_t max_b1 = (neg_modulus_limbs_u256[0] * quotient.binary_basis_limbs[1].maximum_value);
+    uint512_t max_c0 = (neg_modulus_limbs_u256[1] * quotient.binary_basis_limbs[1].maximum_value);
+    uint512_t max_c1 = (neg_modulus_limbs_u256[2] * quotient.binary_basis_limbs[0].maximum_value);
+    uint512_t max_c2 = (neg_modulus_limbs_u256[0] * quotient.binary_basis_limbs[2].maximum_value);
+    uint512_t max_d0 = (neg_modulus_limbs_u256[3] * quotient.binary_basis_limbs[0].maximum_value);
+    uint512_t max_d1 = (neg_modulus_limbs_u256[2] * quotient.binary_basis_limbs[1].maximum_value);
+    uint512_t max_d2 = (neg_modulus_limbs_u256[1] * quotient.binary_basis_limbs[2].maximum_value);
+    uint512_t max_d3 = (neg_modulus_limbs_u256[0] * quotient.binary_basis_limbs[3].maximum_value);
 
     // max_r0 = terms from 0 - 2^2t
     // max_r1 = terms from 2^t - 2^3t
     // max_r2 = terms from 2^2t - 2^4t
     // max_r3 = terms from 2^3t - 2^5t
-    uint256_t max_r0 = (neg_modulus_limbs_u256[0] * quotient.binary_basis_limbs[0].maximum_value);
+    uint512_t max_r0 = (neg_modulus_limbs_u256[0] * quotient.binary_basis_limbs[0].maximum_value);
     max_r0 += (neg_modulus_limbs_u256[0] * quotient.binary_basis_limbs[0].maximum_value);
-    const uint256_t max_r1 = max_b0 + max_b1;
-    const uint256_t max_r2 = max_c0 + max_c1 + max_c2;
-    const uint256_t max_r3 = max_d0 + max_d1 + max_d2 + max_d3;
+    const uint512_t max_r1 = max_b0 + max_b1;
+    const uint512_t max_r2 = max_c0 + max_c1 + max_c2;
+    const uint512_t max_r3 = max_d0 + max_d1 + max_d2 + max_d3;
 
     // update max_lo, max_hi with quotient limb product terms.
     max_lo += max_r0 + (max_r1 << NUM_LIMB_BITS);
     max_hi += max_r2 + (max_r3 << NUM_LIMB_BITS);
 
     // Compute maximum value of addition terms in `to_add` and add to max_lo, max_hi
-    uint256_t max_a0(0);
-    uint256_t max_a1(0);
+    uint512_t max_a0(0);
+    uint512_t max_a1(0);
     for (size_t i = 0; i < to_add.size(); ++i) {
         max_a0 += to_add[i].binary_basis_limbs[0].maximum_value +
                   (to_add[i].binary_basis_limbs[1].maximum_value << NUM_LIMB_BITS);
@@ -1928,13 +2044,20 @@ void bigfield<C, T>::unsafe_evaluate_multiple_multiply_add(const std::vector<big
         ctx->decompose_into_default_range(carry_hi.witness_index, static_cast<size_t>(carry_hi_msb));
 
     } else {
-        field_t carry_combined = carry_lo + (carry_hi * carry_lo_shift);
-        carry_combined = carry_combined.normalize();
-        const auto accumulators = ctx->decompose_into_base4_accumulators(
-            carry_combined.witness_index, static_cast<size_t>(carry_lo_msb + carry_hi_msb));
-        field_t<C> accumulator_midpoint =
-            field_t<C>::from_witness_index(ctx, accumulators[static_cast<size_t>((carry_hi_msb / 2) - 1)]);
-        carry_hi.assert_equal(accumulator_midpoint, "bigfield multiply range check failed");
+        if ((carry_hi_msb + carry_lo_msb) < field_t<C>::modulus.get_msb()) {
+            field_t carry_combined = carry_lo + (carry_hi * carry_lo_shift);
+            carry_combined = carry_combined.normalize();
+            const auto accumulators = ctx->decompose_into_base4_accumulators(
+                carry_combined.witness_index, static_cast<size_t>(carry_lo_msb + carry_hi_msb));
+            field_t<C> accumulator_midpoint =
+                field_t<C>::from_witness_index(ctx, accumulators[static_cast<size_t>((carry_hi_msb / 2) - 1)]);
+            carry_hi.assert_equal(accumulator_midpoint, "bigfield multiply range check failed");
+        } else {
+            carry_lo = carry_lo.normalize();
+            carry_hi = carry_hi.normalize();
+            ctx->decompose_into_base4_accumulators(carry_lo.witness_index, static_cast<size_t>(carry_lo_msb));
+            ctx->decompose_into_base4_accumulators(carry_hi.witness_index, static_cast<size_t>(carry_hi_msb));
+        }
     }
 }
 
@@ -1957,38 +2080,38 @@ void bigfield<C, T>::unsafe_evaluate_square_add(const bigfield& left,
     }
     C* ctx = left.context == nullptr ? quotient.context : left.context;
 
-    uint256_t max_b0 = (left.binary_basis_limbs[1].maximum_value * left.binary_basis_limbs[0].maximum_value);
+    uint512_t max_b0 = (left.binary_basis_limbs[1].maximum_value * left.binary_basis_limbs[0].maximum_value);
     max_b0 += (neg_modulus_limbs_u256[1] << NUM_LIMB_BITS);
     max_b0 += max_b0;
-    uint256_t max_c0 = (left.binary_basis_limbs[1].maximum_value * left.binary_basis_limbs[1].maximum_value);
+    uint512_t max_c0 = (left.binary_basis_limbs[1].maximum_value * left.binary_basis_limbs[1].maximum_value);
     max_c0 += (neg_modulus_limbs_u256[1] << NUM_LIMB_BITS);
-    uint256_t max_c1 = (left.binary_basis_limbs[2].maximum_value * left.binary_basis_limbs[0].maximum_value);
+    uint512_t max_c1 = (left.binary_basis_limbs[2].maximum_value * left.binary_basis_limbs[0].maximum_value);
     max_c1 += (neg_modulus_limbs_u256[2] << NUM_LIMB_BITS);
     max_c1 += max_c1;
-    uint256_t max_d0 = (left.binary_basis_limbs[3].maximum_value * left.binary_basis_limbs[0].maximum_value);
+    uint512_t max_d0 = (left.binary_basis_limbs[3].maximum_value * left.binary_basis_limbs[0].maximum_value);
     max_d0 += (neg_modulus_limbs_u256[3] << NUM_LIMB_BITS);
     max_d0 += max_d0;
-    uint256_t max_d1 = (left.binary_basis_limbs[2].maximum_value * left.binary_basis_limbs[1].maximum_value);
+    uint512_t max_d1 = (left.binary_basis_limbs[2].maximum_value * left.binary_basis_limbs[1].maximum_value);
     max_d1 += (neg_modulus_limbs_u256[2] << NUM_LIMB_BITS);
     max_d1 += max_d1;
 
-    uint256_t max_r0 = left.binary_basis_limbs[0].maximum_value * left.binary_basis_limbs[0].maximum_value;
+    uint512_t max_r0 = left.binary_basis_limbs[0].maximum_value * left.binary_basis_limbs[0].maximum_value;
     max_r0 += (neg_modulus_limbs_u256[0] << NUM_LIMB_BITS);
 
-    const uint256_t max_r1 = max_b0;
-    const uint256_t max_r2 = max_c0 + max_c1;
-    const uint256_t max_r3 = max_d0 + max_d1;
+    const uint512_t max_r1 = max_b0;
+    const uint512_t max_r2 = max_c0 + max_c1;
+    const uint512_t max_r3 = max_d0 + max_d1;
 
-    uint256_t max_a0(0);
-    uint256_t max_a1(1);
+    uint512_t max_a0(0);
+    uint512_t max_a1(1);
     for (size_t i = 0; i < to_add.size(); ++i) {
         max_a0 += to_add[i].binary_basis_limbs[0].maximum_value +
                   (to_add[i].binary_basis_limbs[1].maximum_value << NUM_LIMB_BITS);
         max_a1 += to_add[i].binary_basis_limbs[2].maximum_value +
                   (to_add[i].binary_basis_limbs[3].maximum_value << NUM_LIMB_BITS);
     }
-    const uint256_t max_lo = max_r0 + (max_r1 << NUM_LIMB_BITS) + max_a0;
-    const uint256_t max_hi = max_r2 + (max_r3 << NUM_LIMB_BITS) + max_a1;
+    const uint512_t max_lo = max_r0 + (max_r1 << NUM_LIMB_BITS) + max_a0;
+    const uint512_t max_hi = max_r2 + (max_r3 << NUM_LIMB_BITS) + max_a1;
 
     uint64_t max_lo_bits = max_lo.get_msb() + 1;
     uint64_t max_hi_bits = max_hi.get_msb() + 1;
@@ -2058,14 +2181,13 @@ void bigfield<C, T>::unsafe_evaluate_square_add(const bigfield& left,
     barretenberg::fr neg_prime = -barretenberg::fr(uint256_t(target_basis.modulus));
     field_t<C> linear_terms = -remainder.prime_basis_limb;
     if (to_add.size() >= 2) {
-        for (size_t i = 0; i < to_add.size(); i += 2) {
-            linear_terms = linear_terms.add_two(to_add[i].prime_basis_limb, to_add[i + 1].prime_basis_limb);
+        for (size_t i = 0; i < to_add.size() / 2; i += 1) {
+            linear_terms = linear_terms.add_two(to_add[2 * i].prime_basis_limb, to_add[2 * i + 1].prime_basis_limb);
         }
     }
     if ((to_add.size() & 1UL) == 1UL) {
         linear_terms += to_add[to_add.size() - 1].prime_basis_limb;
     }
-
     field_t<C>::evaluate_polynomial_identity(
         left.prime_basis_limb, left.prime_basis_limb, quotient.prime_basis_limb * neg_prime, linear_terms);
 
@@ -2080,13 +2202,20 @@ void bigfield<C, T>::unsafe_evaluate_square_add(const bigfield& left,
         ctx->decompose_into_default_range(carry_hi.witness_index, static_cast<size_t>(carry_hi_msb));
 
     } else {
-        field_t carry_combined = carry_lo + (carry_hi * carry_lo_shift);
-        carry_combined = carry_combined.normalize();
-        const auto accumulators = ctx->decompose_into_base4_accumulators(
-            carry_combined.witness_index, static_cast<size_t>(carry_lo_msb + carry_hi_msb));
-        field_t accumulator_midpoint =
-            field_t<C>::from_witness_index(ctx, accumulators[static_cast<size_t>((carry_hi_msb / 2) - 1)]);
-        carry_hi.assert_equal(accumulator_midpoint, "bigfield multiply range check failed");
+        if ((carry_hi_msb + carry_lo_msb) < field_t<C>::modulus.get_msb()) {
+            field_t carry_combined = carry_lo + (carry_hi * carry_lo_shift);
+            carry_combined = carry_combined.normalize();
+            const auto accumulators = ctx->decompose_into_base4_accumulators(
+                carry_combined.witness_index, static_cast<size_t>(carry_lo_msb + carry_hi_msb));
+            field_t<C> accumulator_midpoint =
+                field_t<C>::from_witness_index(ctx, accumulators[static_cast<size_t>((carry_hi_msb / 2) - 1)]);
+            carry_hi.assert_equal(accumulator_midpoint, "bigfield multiply range check failed");
+        } else {
+            carry_lo = carry_lo.normalize();
+            carry_hi = carry_hi.normalize();
+            ctx->decompose_into_base4_accumulators(carry_lo.witness_index, static_cast<size_t>(carry_lo_msb));
+            ctx->decompose_into_base4_accumulators(carry_hi.witness_index, static_cast<size_t>(carry_hi_msb));
+        }
     }
 }
 
@@ -2143,10 +2272,14 @@ std::pair<bool, size_t> bigfield<C, T>::get_quotient_reduction_info(const std::v
     if (mul_product_overflows_crt_modulus(as_max, bs_max, to_add)) {
         return std::pair<bool, size_t>(true, 0);
     }
-
     const size_t num_quotient_bits = get_quotient_max_bits(remainders_max);
+    std::vector<uint512_t> to_add_max;
+    for (auto& added_element : to_add) {
+        to_add_max.push_back(added_element.get_maximum_value());
+    }
     // Get maximum value of quotient
-    const uint512_t maximum_quotient = compute_maximum_quotient_value(as_max, bs_max, {});
+    const uint512_t maximum_quotient = compute_maximum_quotient_value(as_max, bs_max, to_add_max);
+
     // Check if the quotient can fit into the range proof
     if (maximum_quotient >= (uint512_t(1) << num_quotient_bits)) {
         return std::pair<bool, size_t>(true, 0);

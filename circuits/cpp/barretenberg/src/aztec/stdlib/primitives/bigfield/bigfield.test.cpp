@@ -17,6 +17,10 @@
 #include <memory>
 #include <polynomials/polynomial_arithmetic.hpp>
 
+#define GET_COMPOSER_NAME_STRING(composer)                                                                             \
+    (typeid(composer) == typeid(waffle::StandardComposer)                                                              \
+         ? "StandardPlonk"                                                                                             \
+         : typeid(composer) == typeid(waffle::TurboComposer) ? "TurboPlonk" : "NULLPlonk")
 namespace test_stdlib_bigfield {
 using namespace barretenberg;
 using namespace plonk;
@@ -34,6 +38,7 @@ auto& engine = numeric::random::get_debug_engine();
 }
 
 template <typename Composer> class stdlib_bigfield : public testing::Test {
+
     typedef stdlib::bn254<Composer> bn254;
 
     typedef typename bn254::fr_ct fr_ct;
@@ -84,6 +89,7 @@ template <typename Composer> class stdlib_bigfield : public testing::Test {
             uint64_t after = composer.get_num_gates();
             if (i == num_repetitions - 1) {
                 std::cout << "num gates per mul = " << after - before << std::endl;
+                benchmark_info(GET_COMPOSER_NAME_STRING(Composer), "Bigfield", "MUL", "Gate Count", after - before);
             }
             // uint256_t modulus{ Bn254FqParams::modulus_0,
             //                    Bn254FqParams::modulus_1,
@@ -124,6 +130,7 @@ template <typename Composer> class stdlib_bigfield : public testing::Test {
             uint64_t after = composer.get_num_gates();
             if (i == num_repetitions - 1) {
                 std::cout << "num gates per mul = " << after - before << std::endl;
+                benchmark_info(GET_COMPOSER_NAME_STRING(Composer), "Bigfield", "SQR", "Gate Count", after - before);
             }
             // uint256_t modulus{ Bn254FqParams::modulus_0,
             //                    Bn254FqParams::modulus_1,
@@ -172,6 +179,7 @@ template <typename Composer> class stdlib_bigfield : public testing::Test {
             uint64_t after = composer.get_num_gates();
             if (i == num_repetitions - 1) {
                 std::cout << "num gates per mul = " << after - before << std::endl;
+                benchmark_info(GET_COMPOSER_NAME_STRING(Composer), "Bigfield", "MADD", "Gate Count", after - before);
             }
             // uint256_t modulus{ Bn254FqParams::modulus_0,
             //                    Bn254FqParams::modulus_1,
@@ -234,6 +242,8 @@ template <typename Composer> class stdlib_bigfield : public testing::Test {
             uint64_t after = composer.get_num_gates();
             if (i == num_repetitions - 1) {
                 std::cout << "num gates with mult_madd = " << after - before << std::endl;
+                benchmark_info(
+                    GET_COMPOSER_NAME_STRING(Composer), "Bigfield", "MULT_MADD", "Gate Count", after - before);
             }
             /**
             before = composer.get_num_gates();
@@ -337,7 +347,13 @@ template <typename Composer> class stdlib_bigfield : public testing::Test {
             fq_ct b(witness_ct(&composer, fr(uint256_t(inputs[1]).slice(0, fq_ct::NUM_LIMB_BITS * 2))),
                     witness_ct(&composer,
                                fr(uint256_t(inputs[1]).slice(fq_ct::NUM_LIMB_BITS * 2, fq_ct::NUM_LIMB_BITS * 4))));
+            uint64_t before = composer.get_num_gates();
             fq_ct c = a / b;
+            uint64_t after = composer.get_num_gates();
+            if (i == num_repetitions - 1) {
+                std::cout << "num gates per div = " << after - before << std::endl;
+                benchmark_info(GET_COMPOSER_NAME_STRING(Composer), "Bigfield", "DIV", "Gate Count", after - before);
+            }
             // uint256_t modulus{ Bn254FqParams::modulus_0,
             //                    Bn254FqParams::modulus_1,
             //                    Bn254FqParams::modulus_2,
@@ -764,6 +780,17 @@ template <typename Composer> class stdlib_bigfield : public testing::Test {
         bool proof_result = verifier.verify_proof(proof);
         EXPECT_EQ(proof_result, true);
     }
+
+    static void test_conditional_select_regression()
+    {
+        auto composer = Composer();
+        barretenberg::fq a(0);
+        barretenberg::fq b(1);
+        fq_ct a_ct(&composer, a);
+        fq_ct b_ct(&composer, b);
+        fq_ct selected = a_ct.conditional_select(b_ct, typename bn254::bool_ct(&composer, true));
+        EXPECT_EQ(barretenberg::fq((selected.get_value() % uint512_t(barretenberg::fq::modulus)).lo), b);
+    }
 };
 
 // Define types for which the above tests will be constructed.
@@ -774,7 +801,6 @@ typedef testing::Types<waffle::StandardComposer,
     ComposerTypes;
 // Define the suite of tests.
 TYPED_TEST_SUITE(stdlib_bigfield, ComposerTypes);
-
 TYPED_TEST(stdlib_bigfield, badmul)
 {
     TestFixture::test_bad_mul();
@@ -840,6 +866,10 @@ TYPED_TEST(stdlib_bigfield, quotient_completeness_regression)
     TestFixture::test_quotient_completeness();
 }
 
+TYPED_TEST(stdlib_bigfield, conditional_select_regression)
+{
+    TestFixture::test_conditional_select_regression();
+}
 // // This test was disabled before the refactor to use TYPED_TEST's/
 // TEST(stdlib_bigfield, DISABLED_test_div_against_constants)
 // {

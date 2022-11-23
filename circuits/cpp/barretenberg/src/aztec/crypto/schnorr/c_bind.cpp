@@ -14,6 +14,14 @@ WASM_EXPORT void compute_public_key(uint8_t const* private_key, uint8_t* public_
     write(public_key_buf, pub_key);
 }
 
+WASM_EXPORT void negate_public_key(uint8_t const* public_key_buffer, uint8_t* output)
+{
+    // Negate the public key (effectively negating the y-coordinate of the public key) and return the resulting public
+    // key.
+    auto account_public_key = from_buffer<grumpkin::g1::affine_element>(public_key_buffer);
+    barretenberg::group_elements::write(output, -account_public_key);
+}
+
 WASM_EXPORT void construct_signature(
     uint8_t const* message, size_t msg_len, uint8_t const* private_key, uint8_t* s, uint8_t* e)
 {

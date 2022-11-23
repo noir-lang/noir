@@ -6,6 +6,7 @@
 #include <unistd.h>
 
 #include "../proofs/account/compute_circuit_data.hpp"
+#include "../proofs/account/verify.hpp"
 #include "../proofs/join_split/compute_circuit_data.hpp"
 #include "../proofs/claim/get_circuit_data.hpp"
 #include "../proofs/claim/verify.hpp"
@@ -183,6 +184,21 @@ bool create_root_verifier()
     return result.verified;
 }
 
+bool create_account_proof()
+{
+    account::account_tx account_tx;
+    std::cerr << "Reading account tx..." << std::endl;
+    read(std::cin, account_tx);
+
+    auto result = verify(account_tx, account_cd);
+
+    write(std::cout, result.proof_data);
+    write(std::cout, result.verified);
+    std::cout << std::flush;
+
+    return result.verified;
+}
+
 int main(int argc, char** argv)
 {
     std::vector<std::string> args(argv, argv + argc);
@@ -255,6 +271,11 @@ int main(int argc, char** argv)
         }
         case 3: {
             create_root_verifier();
+            break;
+        }
+        case 4: {
+            std::cerr << "Serving request to create account proof..." << std::endl;
+            create_account_proof();
             break;
         }
         case 100: {

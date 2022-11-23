@@ -20,6 +20,11 @@
 using namespace barretenberg;
 using namespace plonk;
 
+#define GET_COMPOSER_NAME_STRING(composer)                                                                             \
+    (typeid(composer) == typeid(waffle::StandardComposer)                                                              \
+         ? "StandardPlonk"                                                                                             \
+         : typeid(composer) == typeid(waffle::TurboComposer) ? "TurboPlonk" : "NULLPlonk")
+
 // SEE BOTTOM FOR REMNANTS OF TESTS FOR PLOOKUP AND NOTE ON UPDATING THOSE
 
 template <typename Composer> class stdlib_biggroup : public testing::Test {
@@ -93,8 +98,13 @@ template <typename Composer> class stdlib_biggroup : public testing::Test {
 
             g1_bigfr_ct a = convert_inputs_bigfr(&composer, input_a);
             g1_bigfr_ct b = convert_inputs_bigfr(&composer, input_b);
-
+            uint64_t before = composer.get_num_gates();
             g1_bigfr_ct c = a + b;
+            uint64_t after = composer.get_num_gates();
+            if (i == num_repetitions - 1) {
+                std::cout << "num gates per add = " << after - before << std::endl;
+                benchmark_info(GET_COMPOSER_NAME_STRING(Composer), "Biggroup", "ADD", "Gate Count", after - before);
+            }
 
             g1::affine_element c_expected(g1::element(input_a) + g1::element(input_b));
 
