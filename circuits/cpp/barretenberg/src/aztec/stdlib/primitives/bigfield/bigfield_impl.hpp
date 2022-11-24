@@ -512,7 +512,7 @@ bigfield<C, T> bigfield<C, T>::internal_div(const std::vector<bigfield>& numerat
                                             bool check_for_zero)
 {
     if (numerators.size() == 0) {
-        return bigfield<C, T>(nullptr, uint256_t(0));
+        return bigfield<C, T>(denominator.get_context(), uint256_t(0));
     }
 
     denominator.reduction_check();

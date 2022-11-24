@@ -791,6 +791,15 @@ template <typename Composer> class stdlib_bigfield : public testing::Test {
         fq_ct selected = a_ct.conditional_select(b_ct, typename bn254::bool_ct(&composer, true));
         EXPECT_EQ(barretenberg::fq((selected.get_value() % uint512_t(barretenberg::fq::modulus)).lo), b);
     }
+
+    static void test_division_context()
+    {
+        auto composer = Composer();
+        barretenberg::fq a(1);
+        fq_ct a_ct(&composer, a);
+        fq_ct ret = fq_ct::div_check_denominator_nonzero({}, a_ct);
+        EXPECT_NE(ret.get_context(), nullptr);
+    }
 };
 
 // Define types for which the above tests will be constructed.
@@ -870,6 +879,12 @@ TYPED_TEST(stdlib_bigfield, conditional_select_regression)
 {
     TestFixture::test_conditional_select_regression();
 }
+
+TYPED_TEST(stdlib_bigfield, division_context)
+{
+    TestFixture::test_division_context();
+}
+
 // // This test was disabled before the refactor to use TYPED_TEST's/
 // TEST(stdlib_bigfield, DISABLED_test_div_against_constants)
 // {
