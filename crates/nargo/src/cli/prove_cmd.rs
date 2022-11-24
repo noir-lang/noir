@@ -54,6 +54,7 @@ fn process_abi_with_input(
         match &return_param.1 {
             AbiType::Array { length, .. } => *length as u32,
             AbiType::Integer { .. } | AbiType::Field(_) => 1,
+            AbiType::Struct { fields, .. } => fields.len() as u32,
         }
     } else {
         0
@@ -70,36 +71,67 @@ fn process_abi_with_input(
             return Err(CliError::Generic(format!("The parameters in the main do not match the parameters in the {}.toml file. \n Please check `{}` parameter ", PROVER_INPUT_FILE,param_name)));
         }
 
-        match value {
-            InputValue::Field(element) => {
+        (index, return_witness) = input_value_into_witness(
+            value,
+            index,
+            return_witness,
+            &mut solved_witness,
+            param_name,
+            return_witness_len,
+        )?;
+    }
+    Ok((solved_witness, return_witness))
+}
+
+fn input_value_into_witness(
+    value: InputValue,
+    initial_index: u32,
+    initial_return_witness: Option<Witness>,
+    solved_witness: &mut BTreeMap<Witness, FieldElement>,
+    param_name: String,
+    return_witness_len: u32,
+) -> Result<(u32, Option<Witness>), CliError> {
+    let mut index = initial_index;
+    let mut return_witness = initial_return_witness;
+    match value {
+        InputValue::Field(element) => {
+            let old_value = solved_witness.insert(Witness::new(index + WITNESS_OFFSET), element);
+            assert!(old_value.is_none());
+            index += 1;
+        }
+        InputValue::Vec(arr) => {
+            for element in arr {
                 let old_value =
                     solved_witness.insert(Witness::new(index + WITNESS_OFFSET), element);
                 assert!(old_value.is_none());
                 index += 1;
             }
-            InputValue::Vec(arr) => {
-                for element in arr {
-                    let old_value =
-                        solved_witness.insert(Witness::new(index + WITNESS_OFFSET), element);
-                    assert!(old_value.is_none());
-                    index += 1;
-                }
-            }
-            InputValue::Undefined => {
-                assert_eq!(
-                    param_name,
-                    noirc_frontend::hir_def::function::MAIN_RETURN_NAME,
-                    "input value {} is not defined",
-                    param_name
-                );
-                return_witness = Some(Witness::new(index + WITNESS_OFFSET));
-
-                index += return_witness_len;
-                //XXX We do not support (yet) array of arrays
+        }
+        InputValue::Struct(object) => {
+            for (name, value) in object {
+                (index, return_witness) = input_value_into_witness(
+                    value,
+                    index,
+                    return_witness,
+                    solved_witness,
+                    name,
+                    return_witness_len,
+                )?;
             }
         }
+        InputValue::Undefined => {
+            assert_eq!(
+                param_name,
+                noirc_frontend::hir_def::function::MAIN_RETURN_NAME,
+                "input value {} is not defined",
+                param_name
+            );
+            return_witness = Some(Witness::new(index + WITNESS_OFFSET));
+            index += return_witness_len;
+            //XXX We do not support (yet) array of arrays
+        }
     }
-    Ok((solved_witness, return_witness))
+    Ok((index, return_witness))
 }
 
 pub fn compile_circuit_and_witness<P: AsRef<Path>>(
