@@ -107,10 +107,10 @@ fn digest(msg: [u8]) -> [u8; 32]
     let mut out_h: [u8; 32] = [0; 32]; // Digest as sequence of bytes
     let mut i = 0; // Message byte pointer
 
-    for m in msg
+    for k in 0..crate::array::len(msg)
     {
         // Populate msg_block
-        msg_block[i] = m;
+        msg_block[i] = msg[k];
         i = i + 1;
         if i == 64 // Enough to hash block
         {
