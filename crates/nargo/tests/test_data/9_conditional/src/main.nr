@@ -140,6 +140,9 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
         x = 5;
         constrain x == 5;
     }
+    if c[0] == 0 {
+        x = 3;
+    }
     constrain x == 2;
 
     //test2: loops!

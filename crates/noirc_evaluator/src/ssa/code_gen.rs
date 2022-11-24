@@ -134,8 +134,12 @@ impl IRGenerator {
                 noirc_abi::Sign::Unsigned => ObjectType::Unsigned(*width),
                 noirc_abi::Sign::Signed => ObjectType::Signed(*width),
             },
-            noirc_abi::AbiType::Array { .. } => unreachable!(),
-            noirc_abi::AbiType::Struct { .. } => unreachable!(),
+            noirc_abi::AbiType::Array { .. } => {
+                unreachable!("array of arrays are not supported for now")
+            }
+            noirc_abi::AbiType::Struct { .. } => {
+                unreachable!("array of structs are not supported for now")
+            }
         }
     }
 
@@ -729,13 +733,13 @@ impl IRGenerator {
         //jump back to join
         self.context.new_instruction(Operation::Jmp(join_idx), ObjectType::NotAnObject)?;
 
-        //seal join
-        ssa_form::seal_block(&mut self.context, join_idx);
-
         //exit block
         self.context.current_block = exit_id;
         let exit_first = self.context.get_current_block().get_first_instruction();
         block::link_with_target(&mut self.context, join_idx, Some(exit_id), Some(body_id));
+
+        //seal join
+        ssa_form::seal_block(&mut self.context, join_idx, join_idx);
 
         Ok(Value::Single(exit_first)) //TODO what should we return???
     }
@@ -815,7 +819,7 @@ impl IRGenerator {
         //Exit block plumbing
         self.context.current_block = exit_block;
         self.context.get_current_block_mut().predecessor.push(block2);
-        ssa_form::seal_block(&mut self.context, exit_block);
+        ssa_form::seal_block(&mut self.context, exit_block, entry_block);
 
         // return value:
         let mut counter = 0;

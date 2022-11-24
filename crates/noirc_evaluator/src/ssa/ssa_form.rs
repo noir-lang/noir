@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use crate::ssa::node::{Mark, Operation};
 
 use super::{
-    block::BlockId,
+    block::{self, BlockId},
     context::SsaContext,
     node::{self, NodeId},
 };
@@ -39,7 +39,7 @@ pub fn write_phi(ctx: &mut SsaContext, predecessors: &[BlockId], var: NodeId, ph
     }
 }
 
-pub fn seal_block(ctx: &mut SsaContext, block_id: BlockId) {
+pub fn seal_block(ctx: &mut SsaContext, block_id: BlockId, entry_block: BlockId) {
     let block = &ctx[block_id];
     let pred = block.predecessor.clone();
     let instructions = block.instructions.clone();
@@ -51,24 +51,28 @@ pub fn seal_block(ctx: &mut SsaContext, block_id: BlockId) {
             }
         }
     }
+    add_dummy_store(ctx, entry_block, block_id);
+    ctx.sealed_blocks.insert(block_id);
+}
 
-    if pred.len() > 1 {
-        let mut u: HashSet<super::mem::ArrayId> = HashSet::new();
-        for block in pred {
-            u.extend(ctx[block].written_arrays(ctx));
-        }
-        for array in u {
-            let store = Operation::Store {
-                array_id: array,
-                index: NodeId::dummy(),
-                value: NodeId::dummy(),
-            };
-            let i = node::Instruction::new(store, node::ObjectType::NotAnObject, Some(block_id));
-            ctx.insert_instruction_after_phi(i, block_id);
-        }
+// write dummy store for join block
+pub fn add_dummy_store(ctx: &mut SsaContext, entry: BlockId, join: BlockId) {
+    //retrieve modified arrays
+    let mut modified = HashSet::new();
+    if entry == join {
+        block::written_along(ctx, ctx[entry].right.unwrap(), join, &mut modified);
+    } else {
+        block::written_along(ctx, ctx[entry].left.unwrap(), join, &mut modified);
+        block::written_along(ctx, ctx[entry].right.unwrap(), join, &mut modified);
     }
 
-    ctx.sealed_blocks.insert(block_id);
+    //add dummy store
+    for a in modified {
+        let store =
+            node::Operation::Store { array_id: a, index: NodeId::dummy(), value: NodeId::dummy() };
+        let i = node::Instruction::new(store, node::ObjectType::NotAnObject, Some(join));
+        ctx.insert_instruction_after_phi(i, join);
+    }
 }
 
 //look-up recursiverly into predecessors
