@@ -94,13 +94,6 @@ fn process_abi_with_input(
                 );
                 return_witness = Some(Witness::new(index + WITNESS_OFFSET));
 
-                //We do not support undefined arrays for now - TODO
-                if return_witness_len != 1 {
-                    return Err(CliError::Generic(
-                        "Values of array returned from main must be specified in prover toml file"
-                            .to_string(),
-                    ));
-                }
                 index += return_witness_len;
                 //XXX We do not support (yet) array of arrays
             }

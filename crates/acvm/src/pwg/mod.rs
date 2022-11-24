@@ -6,6 +6,7 @@ use std::collections::BTreeMap;
 // XXX: This can possible be refactored to be default trait methods
 
 pub mod arithmetic;
+pub mod binary;
 pub mod hash;
 pub mod logic;
 pub mod signature;

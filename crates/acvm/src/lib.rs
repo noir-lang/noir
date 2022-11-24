@@ -14,6 +14,7 @@ use acir::{
     native_types::{Expression, Witness},
     OPCODE,
 };
+use pwg::binary::BinarySolver;
 
 use crate::pwg::{arithmetic::ArithmeticSolver, logic::LogicSolver};
 use num_bigint::BigUint;
@@ -38,169 +39,202 @@ pub trait Backend: SmartContract + ProofSystemCompiler + PartialWitnessGenerator
 /// each OPCODE.
 /// Returns an Error if the backend does not support that OPCODE
 pub trait PartialWitnessGenerator {
+    fn solve_gate(
+        &self,
+        initial_witness: &mut BTreeMap<Witness, FieldElement>,
+        gate: &Gate,
+    ) -> GateResolution {
+        match gate {
+            Gate::Arithmetic(arith) => ArithmeticSolver::solve(initial_witness, arith),
+            Gate::Range(w, r) => {
+                if let Some(w_value) = initial_witness.get(w) {
+                    if w_value.num_bits() > *r {
+                        return GateResolution::UnsatisfiedConstrain;
+                    }
+                    GateResolution::Resolved
+                } else {
+                    GateResolution::Skip
+                }
+            }
+            Gate::And(and_gate) => {
+                LogicSolver::solve_and_gate(initial_witness, and_gate)
+                // We compute the result because the other gates may want to use the assignment to generate their assignments
+            }
+            Gate::Xor(xor_gate) => {
+                LogicSolver::solve_xor_gate(initial_witness, xor_gate)
+                // We compute the result because the other gates may want to use the assignment to generate their assignments
+            }
+            Gate::GadgetCall(gc) => {
+                let mut unsolvable = false;
+                for i in &gc.inputs {
+                    if !initial_witness.contains_key(&i.witness) {
+                        unsolvable = true;
+                        break;
+                    }
+                }
+                if unsolvable {
+                    GateResolution::Skip
+                } else if let Err(op) = Self::solve_gadget_call(initial_witness, gc) {
+                    GateResolution::UnsupportedOpcode(op)
+                } else {
+                    GateResolution::Resolved
+                }
+            }
+            Gate::Directive(directive) => match directive {
+                Directive::Invert { x, result } => match initial_witness.get(x) {
+                    None => GateResolution::Skip,
+                    Some(val) => {
+                        let inverse = val.inverse();
+                        initial_witness.insert(*result, inverse);
+                        GateResolution::Resolved
+                    }
+                },
+                Directive::Quotient { a, b, q, r, predicate } => {
+                    match (Self::get_value(a, initial_witness), Self::get_value(b, initial_witness))
+                    {
+                        (Some(val_a), Some(val_b)) => {
+                            let int_a = BigUint::from_bytes_be(&val_a.to_bytes());
+                            let int_b = BigUint::from_bytes_be(&val_b.to_bytes());
+                            let default = Box::new(Expression::one());
+                            let pred = predicate.as_ref().unwrap_or(&default);
+                            if let Some(pred_value) = Self::get_value(pred, initial_witness) {
+                                let (int_r, int_q) = if pred_value.is_zero() {
+                                    (BigUint::zero(), BigUint::zero())
+                                } else {
+                                    (&int_a % &int_b, &int_a / &int_b)
+                                };
+                                initial_witness.insert(
+                                    *q,
+                                    FieldElement::from_be_bytes_reduce(&int_q.to_bytes_be()),
+                                );
+                                initial_witness.insert(
+                                    *r,
+                                    FieldElement::from_be_bytes_reduce(&int_r.to_bytes_be()),
+                                );
+                                GateResolution::Resolved
+                            } else {
+                                GateResolution::Skip
+                            }
+                        }
+                        _ => GateResolution::Skip,
+                    }
+                }
+                Directive::Truncate { a, b, c, bit_size } => match initial_witness.get(a) {
+                    Some(val_a) => {
+                        let pow: BigUint = BigUint::one() << bit_size;
+
+                        let int_a = BigUint::from_bytes_be(&val_a.to_bytes());
+                        let int_b: BigUint = &int_a % &pow;
+                        let int_c: BigUint = (&int_a - &int_b) / &pow;
+
+                        initial_witness
+                            .insert(*b, FieldElement::from_be_bytes_reduce(&int_b.to_bytes_be()));
+                        initial_witness
+                            .insert(*c, FieldElement::from_be_bytes_reduce(&int_c.to_bytes_be()));
+                        GateResolution::Resolved
+                    }
+                    _ => GateResolution::Skip,
+                },
+                Directive::Split { a, b, bit_size } => match Self::get_value(a, initial_witness) {
+                    Some(val_a) => {
+                        let a_big = BigUint::from_bytes_be(&val_a.to_bytes());
+                        for i in 0..*bit_size {
+                            let j = i as usize;
+                            let v = if a_big.bit(j as u64) {
+                                FieldElement::one()
+                            } else {
+                                FieldElement::zero()
+                            };
+                            initial_witness.insert(b[j], v);
+                        }
+                        GateResolution::Resolved
+                    }
+                    _ => GateResolution::Skip,
+                },
+                Directive::Oddrange { a, b, r, bit_size } => match initial_witness.get(a) {
+                    Some(val_a) => {
+                        let int_a = BigUint::from_bytes_be(&val_a.to_bytes());
+                        let pow: BigUint = BigUint::one() << (bit_size - 1);
+                        if int_a >= (&pow << 1) {
+                            return GateResolution::UnsatisfiedConstrain;
+                        }
+                        let bb = &int_a & &pow;
+                        let int_r = &int_a - &bb;
+                        let int_b = &bb >> (bit_size - 1);
+
+                        initial_witness
+                            .insert(*b, FieldElement::from_be_bytes_reduce(&int_b.to_bytes_be()));
+                        initial_witness
+                            .insert(*r, FieldElement::from_be_bytes_reduce(&int_r.to_bytes_be()));
+                        GateResolution::Resolved
+                    }
+                    _ => GateResolution::Skip,
+                },
+            },
+        }
+    }
+
     fn solve(
         &self,
         initial_witness: &mut BTreeMap<Witness, FieldElement>,
-        gates: Vec<Gate>,
+        mut gates: Vec<Gate>,
     ) -> GateResolution {
-        if gates.is_empty() {
-            return GateResolution::Resolved;
-        }
-        let mut unsolved_gates: Vec<Gate> = Vec::new();
+        let mut gates2: Vec<Gate> = Vec::new();
+        let mut pass_nb = 0;
+        let mut gates_to_resolve = &mut gates;
+        let mut unresolved_gates = &mut gates2;
+        let mut ctx = BinarySolver::new();
+        let mut binary_solve = -1;
 
-        for gate in gates.into_iter() {
-            let unsolved = match &gate {
-                Gate::Arithmetic(arith) => {
-                    let result = ArithmeticSolver::solve(initial_witness, arith);
+        while !gates_to_resolve.is_empty() {
+            unresolved_gates.clear();
+
+            let mut process = |gate| {
+                let mut result = self.solve_gate(initial_witness, gate);
+                if binary_solve >= 0 && result == GateResolution::Skip {
+                    result = ctx.solve(gate, initial_witness);
+                }
+                result
+            };
+
+            if binary_solve != 0 {
+                for gate in gates_to_resolve.iter() {
+                    let result = process(gate);
                     match result {
-                        GateResolution::Resolved => false,
-                        GateResolution::Skip => true,
+                        GateResolution::Skip => unresolved_gates.push(gate.clone()),
+                        GateResolution::Resolved => (),
                         _ => return result,
                     }
                 }
-                Gate::Range(w, r) => {
-                    if let Some(w_value) = initial_witness.get(w) {
-                        if w_value.num_bits() > *r {
-                            return GateResolution::UnsatisfiedConstrain;
-                        }
-                        false
-                    } else {
-                        true
+            } else {
+                //we go backward because binary solver should execute only when the program returns an array
+                //in that case it is a bit more efficient to go backwards, although both ways work.
+                for gate in gates_to_resolve.iter().rev() {
+                    let result = process(gate);
+                    match result {
+                        GateResolution::Skip => unresolved_gates.push(gate.clone()),
+                        GateResolution::Resolved => (),
+                        _ => return result,
                     }
                 }
-                Gate::And(and_gate) => {
-                    !LogicSolver::solve_and_gate(initial_witness, and_gate)
-                    // We compute the result because the other gates may want to use the assignment to generate their assignments
-                }
-                Gate::Xor(xor_gate) => {
-                    !LogicSolver::solve_xor_gate(initial_witness, xor_gate)
-                    // We compute the result because the other gates may want to use the assignment to generate their assignments
-                }
-                Gate::GadgetCall(gc) => {
-                    let mut unsolvable = false;
-                    for i in &gc.inputs {
-                        if !initial_witness.contains_key(&i.witness) {
-                            unsolvable = true;
-                            break;
-                        }
-                    }
-                    if unsolvable {
-                        true
-                    } else if let Err(op) = Self::solve_gadget_call(initial_witness, gc) {
-                        return GateResolution::UnsupportedOpcode(op);
-                    } else {
-                        false
-                    }
-                }
-                Gate::Directive(directive) => match directive {
-                    Directive::Invert { x, result } => match initial_witness.get(x) {
-                        None => true,
-                        Some(val) => {
-                            let inverse = val.inverse();
-                            initial_witness.insert(*result, inverse);
-                            false
-                        }
-                    },
-                    Directive::Quotient { a, b, q, r, predicate } => {
-                        match (
-                            Self::get_value(a, initial_witness),
-                            Self::get_value(b, initial_witness),
-                        ) {
-                            (Some(val_a), Some(val_b)) => {
-                                let int_a = BigUint::from_bytes_be(&val_a.to_bytes());
-                                let int_b = BigUint::from_bytes_be(&val_b.to_bytes());
-                                let default = Box::new(Expression::one());
-                                let pred = predicate.as_ref().unwrap_or(&default);
-                                if let Some(pred_value) = Self::get_value(pred, initial_witness) {
-                                    let (int_r, int_q) = if pred_value.is_zero() {
-                                        (BigUint::zero(), BigUint::zero())
-                                    } else {
-                                        (&int_a % &int_b, &int_a / &int_b)
-                                    };
-                                    initial_witness.insert(
-                                        *q,
-                                        FieldElement::from_be_bytes_reduce(&int_q.to_bytes_be()),
-                                    );
-                                    initial_witness.insert(
-                                        *r,
-                                        FieldElement::from_be_bytes_reduce(&int_r.to_bytes_be()),
-                                    );
-                                    false
-                                } else {
-                                    true
-                                }
-                            }
-                            _ => true,
-                        }
-                    }
-                    Directive::Truncate { a, b, c, bit_size } => match initial_witness.get(a) {
-                        Some(val_a) => {
-                            let pow: BigUint = BigUint::one() << bit_size;
-
-                            let int_a = BigUint::from_bytes_be(&val_a.to_bytes());
-                            let int_b: BigUint = &int_a % &pow;
-                            let int_c: BigUint = (&int_a - &int_b) / &pow;
-
-                            initial_witness.insert(
-                                *b,
-                                FieldElement::from_be_bytes_reduce(&int_b.to_bytes_be()),
-                            );
-                            initial_witness.insert(
-                                *c,
-                                FieldElement::from_be_bytes_reduce(&int_c.to_bytes_be()),
-                            );
-                            false
-                        }
-                        _ => true,
-                    },
-                    Directive::Split { a, b, bit_size } => {
-                        match Self::get_value(a, initial_witness) {
-                            Some(val_a) => {
-                                let a_big = BigUint::from_bytes_be(&val_a.to_bytes());
-                                for i in 0..*bit_size {
-                                    let j = i as usize;
-                                    let v = if a_big.bit(j as u64) {
-                                        FieldElement::one()
-                                    } else {
-                                        FieldElement::zero()
-                                    };
-                                    initial_witness.insert(b[j], v);
-                                }
-                                false
-                            }
-                            _ => true,
-                        }
-                    }
-                    Directive::Oddrange { a, b, r, bit_size } => match initial_witness.get(a) {
-                        Some(val_a) => {
-                            let int_a = BigUint::from_bytes_be(&val_a.to_bytes());
-                            let pow: BigUint = BigUint::one() << (bit_size - 1);
-                            if int_a >= (&pow << 1) {
-                                return GateResolution::UnsatisfiedConstrain;
-                            }
-                            let bb = &int_a & &pow;
-                            let int_r = &int_a - &bb;
-                            let int_b = &bb >> (bit_size - 1);
-
-                            initial_witness.insert(
-                                *b,
-                                FieldElement::from_be_bytes_reduce(&int_b.to_bytes_be()),
-                            );
-                            initial_witness.insert(
-                                *r,
-                                FieldElement::from_be_bytes_reduce(&int_r.to_bytes_be()),
-                            );
-                            false
-                        }
-                        _ => true,
-                    },
-                },
-            };
-            if unsolved {
-                unsolved_gates.push(gate);
             }
+            if binary_solve > 0 {
+                binary_solve -= 1;
+            } else if gates_to_resolve.len() == unresolved_gates.len() && binary_solve < 0 {
+                // activate the binary solver with 2 forward passes in order to properly identify booleans first
+                binary_solve = 2;
+            }
+
+            if pass_nb % 2 == 0 {
+                gates_to_resolve = &mut gates2;
+                unresolved_gates = &mut gates;
+            } else {
+                unresolved_gates = &mut gates2;
+                gates_to_resolve = &mut gates;
+            }
+            pass_nb += 1;
         }
-        self.solve(initial_witness, unsolved_gates)
+        GateResolution::Resolved
     }
 
     fn solve_gadget_call(
