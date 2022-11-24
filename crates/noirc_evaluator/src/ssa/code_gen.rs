@@ -3,7 +3,7 @@ use super::function::FuncIndex;
 use super::mem::ArrayId;
 use super::node::{Binary, BinaryOp, NodeId, ObjectType, Operation, Variable};
 use super::{block, node, ssa_form};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::convert::TryInto;
 
 use super::super::environment::Environment;
@@ -127,51 +127,65 @@ impl IRGenerator {
         }
     }
 
-    pub fn abi_array(
-        &mut self,
-        name: &str,
-        ident_def: DefinitionId,
-        el_type: &noirc_abi::AbiType,
-        len: u128,
-        witness: Vec<acvm::acir::native_types::Witness>,
-    ) {
-        let element_type = match el_type {
+    pub fn get_object_type_from_abi(&self, el_type: &noirc_abi::AbiType) -> ObjectType {
+        match el_type {
             noirc_abi::AbiType::Field(_) => ObjectType::NativeField,
             noirc_abi::AbiType::Integer { sign, width, .. } => match sign {
                 noirc_abi::Sign::Unsigned => ObjectType::Unsigned(*width),
                 noirc_abi::Sign::Signed => ObjectType::Signed(*width),
             },
-            noirc_abi::AbiType::Array { .. } => {
-                unreachable!("array of arrays are not supported for now")
-            }
-        };
-        let (v_id, array_idx) = self.new_array(name, element_type, len as u32, Some(ident_def));
-        self.context.mem[array_idx].values = vecmap(witness, |w| w.into());
-        self.context.get_current_block_mut().update_variable(v_id, v_id);
+            noirc_abi::AbiType::Array { .. } => unreachable!("array of arrays are not supported for now"),
+            noirc_abi::AbiType::Struct { .. } => unreachable!("array of structs are not supported for now"),
+        }
     }
 
-    pub fn abi_var(
+    pub fn abi_array(
         &mut self,
         name: &str,
-        ident_def: DefinitionId,
-        obj_type: node::ObjectType,
-        witness: acvm::acir::native_types::Witness,
-    ) {
-        //new variable - should be in a let statement? The let statement should set the type
-        let var = node::Variable {
-            id: NodeId::dummy(),
-            name: name.to_string(),
-            obj_type,
-            root: None,
-            def: Some(ident_def),
-            witness: Some(witness),
-            parent_block: self.context.current_block,
-        };
-        let v_id = self.context.add_variable(var, None);
-
+        ident_def: Option<DefinitionId>,
+        el_type: &noirc_abi::AbiType,
+        len: u128,
+        witness: Vec<acvm::acir::native_types::Witness>,
+    ) -> NodeId {
+        let element_type = self.get_object_type_from_abi(el_type);
+        let (v_id, array_idx) = self.new_array(name, element_type, len as u32, ident_def);
+        self.context.mem[array_idx].values = vecmap(witness, |w| w.into());
         self.context.get_current_block_mut().update_variable(v_id, v_id);
-        let v_value = Value::Single(v_id);
-        self.variable_values.insert(ident_def, v_value); //TODO ident_def or ident_id??
+        v_id
+    }
+
+    pub fn abi_struct(
+        &mut self,
+        struct_name: &str,
+        ident_def: Option<DefinitionId>,
+        fields: &BTreeMap<String, noirc_abi::AbiType>,
+        witnesses: BTreeMap<String, Vec<acvm::acir::native_types::Witness>>,
+    ) -> Value {
+        let values = vecmap(fields, |(name, field_typ)| {
+            let new_name = format!("{}.{}", struct_name, name);
+            match field_typ {
+                noirc_abi::AbiType::Array { visibility: _, length, typ } => {
+                    let v_id =
+                        self.abi_array(&new_name, None, typ, *length, witnesses[&new_name].clone());
+                    Value::Single(v_id)
+                }
+                noirc_abi::AbiType::Struct { fields, .. } => {
+                    let new_name = format!("{}.{}", struct_name, name);
+                    self.abi_struct(&new_name, None, fields, witnesses.clone())
+                }
+                _ => {
+                    let obj_type = self.get_object_type_from_abi(field_typ);
+                    let v_id = self.create_new_variable(
+                        new_name.clone(),
+                        None,
+                        obj_type,
+                        Some(witnesses[&new_name][0]),
+                    );
+                    Value::Single(v_id)
+                }
+            }
+        });
+        self.insert_new_struct(ident_def, values)
     }
 
     fn codegen_identifier(&mut self, ident: &Ident) -> Value {
