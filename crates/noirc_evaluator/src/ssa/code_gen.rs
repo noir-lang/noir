@@ -134,8 +134,12 @@ impl IRGenerator {
                 noirc_abi::Sign::Unsigned => ObjectType::Unsigned(*width),
                 noirc_abi::Sign::Signed => ObjectType::Signed(*width),
             },
-            noirc_abi::AbiType::Array { .. } => unreachable!("array of arrays are not supported for now"),
-            noirc_abi::AbiType::Struct { .. } => unreachable!("array of structs are not supported for now"),
+            noirc_abi::AbiType::Array { .. } => {
+                unreachable!("array of arrays are not supported for now")
+            }
+            noirc_abi::AbiType::Struct { .. } => {
+                unreachable!("array of structs are not supported for now")
+            }
         }
     }
 
