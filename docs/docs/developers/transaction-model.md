@@ -4,13 +4,15 @@ title: Transaction Model
 
 Aztec uses a [UTXO model](https://en.wikipedia.org/wiki/Unspent_transaction_output) for tracking ownership of assets. For the technical details of how this is managed, refer to the [Rollup Contract specification](../spec/rollup_contract) for how data is stored in the system and the [JoinSplit Circuit specification](../spec/join_split_circuit) for reference on how transactions are created and processed.
 
+If you are trying to send an amount greater than the value of your largest [value note](./../glossary#value-notes), smaller notes must be merged into a value note greater than or equal to the value of the transaction. Merging value notes requires generating a proof for each note. The SDK handles merging notes automatically, but be aware that this may take a while if there are many notes that need to be merged.
+
 ## Chaining notes
 
 It is not required that notes are settled on Ethereum before they can be spent. This improves the user experience around sending notes. We refer to spending unsettled notes as "chaining" them together.
 
 Here are some rules to keep in mind about chaining notes:
 
-- Notes created from deposit can not be chained from. Doing so will leak privacy. As there’s a link between two chained txs, people would be able to see that an L1 address is doing a defi deposit or withdrawing to another L1 address.
+- Notes created from deposit cannot be chained from. Doing so will leak privacy. As there’s a link between two chained txs, people would be able to see that an L1 address is doing a defi deposit or withdrawing to another L1 address.
 
 - A pending note created from transfer/defi/withdraw can be chained from, as long as the state is available locally. For example, if I have 1 note worth 1 ETH, I can create a transfer tx, sending Alice 0.2 ETH. And then I can continue to create another tx, sending Bob 0.3 ETH. But if I clear my local storage after this, or login from another device, I will see my balance is 1 ETH, but the spendable sum is 0. And I can’t spend the 0.5 ETH before the txs are settled.
 
