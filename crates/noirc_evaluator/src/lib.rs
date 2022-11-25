@@ -19,6 +19,8 @@ use environment::{Environment, FuncContext};
 use errors::{RuntimeError, RuntimeErrorKind};
 use noirc_abi::{AbiFEType, AbiType};
 use noirc_frontend::monomorphisation::ast::*;
+use noirc_frontend::util::btree_map;
+use std::collections::BTreeMap;
 
 use object::{Array, Integer, Object};
 use ssa::{code_gen::IRGenerator, node};
@@ -153,43 +155,102 @@ impl Evaluator {
                 if *visibility == AbiFEType::Public {
                     self.public_inputs.push(witness);
                 }
-                igen.abi_var(name, def, node::ObjectType::NativeField, witness);
+                igen.create_new_variable(
+                    name.to_owned(),
+                    Some(def),
+                    node::ObjectType::NativeField,
+                    Some(witness),
+                );
             }
             AbiType::Array { visibility, length, typ } => {
-                let mut witnesses = Vec::new();
-                let mut element_width = None;
-                if let AbiType::Integer { width, .. } = typ.as_ref() {
-                    element_width = Some(*width);
-                }
-                for _ in 0..*length {
-                    let witness = self.add_witness_to_cs();
-                    witnesses.push(witness);
-                    if let Some(ww) = element_width {
-                        ssa::acir_gen::range_constraint(witness, ww, self)?;
-                    }
-                    if *visibility == AbiFEType::Public {
-                        self.public_inputs.push(witness);
-                    }
-                }
-                igen.abi_array(name, def, typ.as_ref(), *length, witnesses);
+                let witnesses = self.generate_array_witnesses(visibility, length, typ)?;
+                igen.abi_array(name, Some(def), typ.as_ref(), *length, witnesses);
             }
-            AbiType::Integer { visibility, sign, width } => {
+            AbiType::Integer { visibility, sign: _, width } => {
                 let witness = self.add_witness_to_cs();
                 ssa::acir_gen::range_constraint(witness, *width, self)?;
                 if *visibility == AbiFEType::Public {
                     self.public_inputs.push(witness);
                 }
-                match sign {
-                    noirc_abi::Sign::Unsigned => {
-                        igen.abi_var(name, def, node::ObjectType::Unsigned(*width), witness)
+                let obj_type = igen.get_object_type_from_abi(param_type); // Fetch signedness of the integer
+                igen.create_new_variable(name.to_owned(), Some(def), obj_type, Some(witness));
+            }
+            AbiType::Struct { visibility, fields } => {
+                let mut struct_witnesses: BTreeMap<String, Vec<Witness>> = BTreeMap::new();
+                let new_fields = btree_map(fields, |(inner_name, value)| {
+                    let new_name = format!("{}.{}", name, inner_name);
+                    (new_name, value.clone())
+                });
+                self.generate_struct_witnesses(&mut struct_witnesses, visibility, &new_fields)?;
+                igen.abi_struct(name, Some(def), fields, struct_witnesses);
+            }
+        }
+        Ok(())
+    }
+
+    fn generate_struct_witnesses(
+        &mut self,
+        struct_witnesses: &mut BTreeMap<String, Vec<Witness>>,
+        visibility: &AbiFEType,
+        fields: &BTreeMap<String, AbiType>,
+    ) -> Result<(), RuntimeErrorKind> {
+        for (name, typ) in fields {
+            match typ {
+                AbiType::Integer { width, .. } => {
+                    let witness = self.add_witness_to_cs();
+                    struct_witnesses.insert(name.clone(), vec![witness]);
+                    ssa::acir_gen::range_constraint(witness, *width, self)?;
+                    if *visibility == AbiFEType::Public {
+                        self.public_inputs.push(witness);
                     }
-                    noirc_abi::Sign::Signed => {
-                        igen.abi_var(name, def, node::ObjectType::Signed(*width), witness)
+                }
+                AbiType::Field(_) => {
+                    let witness = self.add_witness_to_cs();
+                    struct_witnesses.insert(name.clone(), vec![witness]);
+                    if *visibility == AbiFEType::Public {
+                        self.public_inputs.push(witness);
                     }
+                }
+                AbiType::Array { visibility: _, length, typ } => {
+                    let internal_arr_witnesses =
+                        self.generate_array_witnesses(visibility, length, typ)?;
+                    struct_witnesses.insert(name.clone(), internal_arr_witnesses);
+                }
+                AbiType::Struct { fields, .. } => {
+                    let mut new_fields: BTreeMap<String, AbiType> = BTreeMap::new();
+                    for (inner_name, value) in fields {
+                        let new_name = format!("{}.{}", name, inner_name);
+                        new_fields.insert(new_name, value.clone());
+                    }
+                    self.generate_struct_witnesses(struct_witnesses, visibility, &new_fields)?
                 }
             }
         }
         Ok(())
+    }
+
+    fn generate_array_witnesses(
+        &mut self,
+        visibility: &AbiFEType,
+        length: &u128,
+        typ: &AbiType,
+    ) -> Result<Vec<Witness>, RuntimeErrorKind> {
+        let mut witnesses = Vec::new();
+        let mut element_width = None;
+        if let AbiType::Integer { width, .. } = typ {
+            element_width = Some(*width);
+        }
+        for _ in 0..*length {
+            let witness = self.add_witness_to_cs();
+            witnesses.push(witness);
+            if let Some(ww) = element_width {
+                ssa::acir_gen::range_constraint(witness, ww, self)?;
+            }
+            if *visibility == AbiFEType::Public {
+                self.public_inputs.push(witness);
+            }
+        }
+        Ok(witnesses)
     }
 
     /// The ABI is the intermediate representation between Noir and types like Toml

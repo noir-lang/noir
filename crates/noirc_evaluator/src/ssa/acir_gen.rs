@@ -526,11 +526,10 @@ impl Acir {
                 }
                 _ => {
                     if self.arith_cache.contains_key(a) {
-                        if let Some(w) = self.arith_cache[a].clone().witness {
-                            inputs.push(GadgetInput { witness: w, num_bits: l_obj.size_in_bits() });
-                        } else {
-                            todo!();
-                        }
+                        let var = self.arith_cache[a].clone();
+                        let witness =
+                            var.witness.unwrap_or_else(|| generate_witness(&var, evaluator));
+                        inputs.push(GadgetInput { witness, num_bits: l_obj.size_in_bits() });
                     } else {
                         dbg!(&l_obj);
                         unreachable!("invalid input")
@@ -651,17 +650,12 @@ pub fn split(lhs: &InternalVar, bit_size: u32, evaluator: &mut Evaluator) -> Vec
             &bit_expr,
         )));
     }
-    let a_witness = generate_witness(lhs, evaluator);
     evaluator.gates.push(Gate::Directive(Directive::Split {
-        a: a_witness,
+        a: lhs.expression.clone(),
         b: result.clone(),
         bit_size,
     }));
-    evaluator.gates.push(Gate::Arithmetic(subtract(
-        &from_witness(a_witness),
-        FieldElement::one(),
-        &bits,
-    )));
+    evaluator.gates.push(Gate::Arithmetic(subtract(&lhs.expression, FieldElement::one(), &bits)));
 
     result
 }
@@ -750,7 +744,6 @@ pub fn evaluate_and(
         return const_and(rhs, l_c, bit_size, evaluator);
     }
 
-    let result = evaluator.add_witness_to_cs();
     let a_witness = generate_witness(&lhs, evaluator);
     let b_witness = generate_witness(&rhs, evaluator);
     //TODO checks the cost of the gate vs bit_size (cf. #164)
@@ -761,6 +754,7 @@ pub fn evaluate_and(
             q_c: FieldElement::zero(),
         };
     }
+    let result = evaluator.add_witness_to_cs();
     let bsize = if bit_size % 2 == 1 { bit_size + 1 } else { bit_size };
     assert!(bsize < FieldElement::max_num_bits() - 1);
     evaluator.gates.push(Gate::And(acvm::acir::circuit::gate::AndGate {
@@ -785,16 +779,15 @@ pub fn evaluate_xor(
         return const_xor(rhs, l_c, bit_size, evaluator);
     }
 
-    let result = evaluator.add_witness_to_cs();
-
-    let a_witness = generate_witness(&lhs, evaluator);
-    let b_witness = generate_witness(&rhs, evaluator);
     //TODO checks the cost of the gate vs bit_size (cf. #164)
     if bit_size == 1 {
         let sum = add(&lhs.expression, FieldElement::one(), &rhs.expression);
-        let mul = mul(&lhs.expression, &rhs.expression);
+        let mul = mul_with_witness(evaluator, &lhs.expression, &rhs.expression);
         return subtract(&sum, FieldElement::from(2_i128), &mul);
     }
+    let result = evaluator.add_witness_to_cs();
+    let a_witness = generate_witness(&lhs, evaluator);
+    let b_witness = generate_witness(&rhs, evaluator);
     let bsize = if bit_size % 2 == 1 { bit_size + 1 } else { bit_size };
     assert!(bsize < FieldElement::max_num_bits() - 1);
     evaluator.gates.push(Gate::Xor(acvm::acir::circuit::gate::XorGate {
@@ -821,7 +814,7 @@ pub fn evaluate_or(
 
     if bit_size == 1 {
         let sum = add(&lhs.expression, FieldElement::one(), &rhs.expression);
-        let mul = mul(&lhs.expression, &rhs.expression);
+        let mul = mul_with_witness(evaluator, &lhs.expression, &rhs.expression);
         return subtract(&sum, FieldElement::one(), &mul);
     }
 

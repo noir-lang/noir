@@ -429,10 +429,17 @@ impl Instruction {
                         // Delete the constrain, it is always true
                         return Ok(NodeEval::VarOrInstruction(NodeId::dummy()));
                     } else if obj.is_zero() {
-                        return Err(RuntimeErrorKind::UnstructuredError {
-                            message: "Constraint is always false".into(),
+                        if let Some(location) = *location {
+                            return Err(RuntimeErrorKind::UnstructuredError {
+                                message: "Constraint is always false".into(),
+                            }
+                            .add_location(location));
+                        } else {
+                            return Err(RuntimeErrorKind::Spanless(
+                                "Constraint is always false".into(),
+                            )
+                            .add_location(Location::dummy()));
                         }
-                        .add_location(*location));
                     }
                 }
             }
@@ -501,7 +508,7 @@ pub enum Operation {
     }, //truncate
 
     Not(NodeId), //(!) Bitwise Not
-    Constrain(NodeId, Location),
+    Constrain(NodeId, Option<Location>),
 
     //control flow
     Jne(NodeId, BlockId), //jump on not equal
@@ -736,7 +743,6 @@ impl Binary {
 
         let l_is_zero = lhs.map_or(false, |x| x.is_zero());
         let r_is_zero = rhs.map_or(false, |x| x.is_zero());
-
         match &self.operator {
             BinaryOp::Add | BinaryOp::SafeAdd => {
                 if l_is_zero {

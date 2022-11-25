@@ -6,6 +6,7 @@ pub mod type_check;
 
 use crate::graph::{CrateGraph, CrateId};
 use crate::node_interner::NodeInterner;
+use acvm::Language;
 use def_map::CrateDefMap;
 use fm::FileManager;
 use std::collections::HashMap;
@@ -31,13 +32,15 @@ impl Default for Context {
 }
 
 impl Context {
-    pub fn new(file_manager: FileManager, crate_graph: CrateGraph) -> Context {
-        Context {
+    pub fn new(file_manager: FileManager, crate_graph: CrateGraph, language: Language) -> Context {
+        let mut ctx = Context {
             def_interner: NodeInterner::default(),
             def_maps: HashMap::new(),
             crate_graph,
             file_manager,
-        }
+        };
+        ctx.def_interner.set_language(&language);
+        ctx
     }
     /// Returns the CrateDefMap for a given CrateId.
     /// It is perfectly valid for the compiler to look

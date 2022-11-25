@@ -6,9 +6,17 @@ global L: Field = 10; // Unused globals currently allowed
 global N: Field = 5;
 //global N: Field = 5; // Uncomment to see duplicate globals error 
 
+struct Dummy {
+     x: [Field; N],
+     y: [Field; foo::MAGIC_NUMBER]
+}
+
 fn main(a: [Field; M], b: [Field; M], c : pub [Field; foo::MAGIC_NUMBER], d: [Field; foo::bar::N]) {
+     let test_struct = Dummy { x: d, y: c };
+
      for i in 0..foo::MAGIC_NUMBER {
           constrain c[i] == foo::MAGIC_NUMBER;
+          constrain test_struct.y[i] == foo::MAGIC_NUMBER;
      };
 
      constrain N != M;
@@ -44,11 +52,14 @@ fn main(a: [Field; M], b: [Field; M], c : pub [Field; foo::MAGIC_NUMBER], d: [Fi
      let add_from_bar_N = mysubmodule::N + foo::bar::from_bar(1);
      constrain 15 == add_from_bar_N;
 
+     // Example showing an array filled with (mysubmodule::N + 2) 0's
+     let sugared = [0; mysubmodule::N + 2];
+     constrain sugared[mysubmodule::N + 1] == 0;
+
      let arr: [Field; mysubmodule::N] = [N; 10];
      constrain (arr[0] == 5) & (arr[9] == 5);
 
      foo::from_foo(d);
-
      baz::from_baz(c);
 }
 

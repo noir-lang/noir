@@ -34,6 +34,10 @@ pub enum ResolverError {
     ExpectedComptimeVariable { name: String, span: Span },
     #[error("Missing expression for declared constant")]
     MissingRhsExpr { name: String, span: Span },
+    #[error("Expression invalid in an array length context")]
+    InvalidArrayLengthExpr { span: Span },
+    #[error("Integer too large to be evaluated in an array length context")]
+    IntegerTooLarge { span: Span },
 }
 
 impl ResolverError {
@@ -54,14 +58,11 @@ impl ResolverError {
             ResolverError::UnusedVariable { ident } => {
                 let name = &ident.0.contents;
 
-                let mut diag = Diagnostic::simple_error(
+                Diagnostic::simple_warning(
                     format!("unused variable {}", name),
                     "unused variable ".to_string(),
-                    ident.0.span(),
-                );
-                let message = format!("A new variable usually means a constraint has been added and is being unused. \n For this reason, it is almost always a bug to declare a variable and not use it. \n help: if this is intentional, prefix it with an underscore: `_{}`", name);
-                diag.add_note(message);
-                diag
+                    ident.span(),
+                )
             }
             ResolverError::VariableNotDeclared { name, span } => Diagnostic::simple_error(
                 format!("cannot find `{}` in this scope ", name),
@@ -175,6 +176,16 @@ impl ResolverError {
                     name
                 ),
                 "expected expression to be stored for let statement".to_string(),
+                span,
+            ),
+            ResolverError::InvalidArrayLengthExpr { span } => Diagnostic::simple_error(
+                "Expression invalid in an array-length context".into(),
+                "Array-length expressions can only have simple integer operations and any variables used must be global constants".into(),
+                span,
+            ),
+            ResolverError::IntegerTooLarge { span } => Diagnostic::simple_error(
+                "Integer too large to be evaluated to an array-length".into(),
+                "Array-lengths may be a maximum size of usize::MAX, including intermediate calculations".into(),
                 span,
             ),
         }

@@ -40,11 +40,11 @@ ACIR Supported OPCODES:
 
 ## Future Work
 
-The current focus is to gather as much feedback as possible while in the alpha phase. The main focusses of Noir are _safety_ and _developer experience_. If you find a feature that does not seem to be inline with these goals, please open an issue!
+The current focus is to gather as much feedback as possible while in the alpha phase. The main focuses of Noir are _safety_ and _developer experience_. If you find a feature that does not seem to be in line with these goals, please open an issue!
 
 Concretely the following items are on the road map:
 
-- General code sanitisation and documentation (on-going effort)
+- General code sanitisation and documentation (ongoing effort)
 - Prover and Verifier Key logic. (Prover and Verifier preprocess per compile)
 - Fallback mechanism for backend unsupported opcodes
 - Visibility modifiers
