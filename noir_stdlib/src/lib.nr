@@ -4,6 +4,8 @@ mod merkle;
 mod schnorr;
 mod ecdsa_secp256k1;
 mod scalar_mul;
+mod sha256;
+mod sha512;
 
 
 #[builtin(to_bits)]
