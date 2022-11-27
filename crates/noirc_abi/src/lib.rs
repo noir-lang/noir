@@ -66,6 +66,17 @@ impl AbiType {
         }
     }
 
+    /// Returns the number of field elements required to represent the type once encoded.
+    pub fn size(&self) -> usize {
+        match self {
+            AbiType::Field(_) | AbiType::Integer { .. } => 1,
+            AbiType::Array { visibility: _, length, typ } => typ.size() * (*length as usize),
+            AbiType::Struct { fields, .. } => {
+                fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.size())
+            }
+        }
+    }
+
     pub fn is_public(&self) -> bool {
         match self {
             AbiType::Field(fe_type) => fe_type == &AbiFEType::Public,
