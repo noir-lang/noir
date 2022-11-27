@@ -67,6 +67,7 @@ const sidebars = {
         'developers/noir',
         'developers/deposit',
         'developers/transaction-model',
+        'developers/sequencer-api',
         'developers/mainnet-info',
       ]
     },
