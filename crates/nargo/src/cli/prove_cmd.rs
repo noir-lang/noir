@@ -43,12 +43,10 @@ fn prove(proof_name: &str, show_ssa: bool, allow_warnings: bool) -> Result<(), C
 fn process_abi_with_input(
     abi: Abi,
     witness_map: &BTreeMap<String, InputValue>,
-) -> Result<(BTreeMap<Witness, FieldElement>, Option<Witness>), AbiError> {
+) -> Result<Vec<FieldElement>, AbiError> {
     let num_params = abi.num_parameters();
-    let mut solved_witness = BTreeMap::new();
+    let mut encoded_inputs = Vec::new();
 
-    let mut index = 0;
-    let mut return_witness = None;
     let return_witness_len: u32 = abi
         .parameters
         .iter()
@@ -65,14 +63,13 @@ fn process_abi_with_input(
             return Err(AbiError::TypeMismatch { param_name, param_type, value });
         }
 
-        (index, return_witness) = input_value_into_witness(
-            value,
-            index,
-            return_witness,
-            &mut solved_witness,
-            param_name,
-            return_witness_len,
-        )?;
+        if param_name != noirc_frontend::hir_def::function::MAIN_RETURN_NAME
+            || return_witness_len != 1
+            || !matches!(value, InputValue::Undefined)
+        {
+            let encoded_input = input_value_into_witness(value, param_name)?;
+            encoded_inputs.extend(encoded_input);
+        }
     }
 
     // Check that no extra witness values have been provided.
@@ -84,64 +81,25 @@ fn process_abi_with_input(
         return Err(AbiError::UnexpectedParams(unexpected_params));
     }
 
-    Ok((solved_witness, return_witness))
+    Ok(encoded_inputs)
 }
 
 fn input_value_into_witness(
     value: InputValue,
-    initial_index: u32,
-    initial_return_witness: Option<Witness>,
-    solved_witness: &mut BTreeMap<Witness, FieldElement>,
     param_name: String,
-    return_witness_len: u32,
-) -> Result<(u32, Option<Witness>), AbiError> {
-    let mut index = initial_index;
-    let mut return_witness = initial_return_witness;
+) -> Result<Vec<FieldElement>, AbiError> {
+    let mut encoded_value = Vec::new();
     match value {
-        InputValue::Field(element) => {
-            let old_value = solved_witness.insert(Witness::new(index + WITNESS_OFFSET), element);
-            assert!(old_value.is_none());
-            index += 1;
-        }
-        InputValue::Vec(arr) => {
-            for element in arr {
-                let old_value =
-                    solved_witness.insert(Witness::new(index + WITNESS_OFFSET), element);
-                assert!(old_value.is_none());
-                index += 1;
-            }
-        }
+        InputValue::Field(elem) => encoded_value.push(elem),
+        InputValue::Vec(vec_elem) => encoded_value.extend(vec_elem),
         InputValue::Struct(object) => {
             for (name, value) in object {
-                (index, return_witness) = input_value_into_witness(
-                    value,
-                    index,
-                    return_witness,
-                    solved_witness,
-                    name,
-                    return_witness_len,
-                )?;
+                encoded_value.extend(input_value_into_witness(value, name)?)
             }
         }
-        InputValue::Undefined => {
-            if param_name != noirc_frontend::hir_def::function::MAIN_RETURN_NAME {
-                return Err(AbiError::UndefinedInput(param_name));
-            }
-
-            return_witness = Some(Witness::new(index + WITNESS_OFFSET));
-
-            //We do not support undefined arrays for now - TODO
-            if return_witness_len != 1 {
-                return Err(AbiError::Generic(
-                    "Values of array returned from main must be specified".to_string(),
-                ));
-            }
-            index += return_witness_len;
-            //XXX We do not support (yet) array of arrays
-        }
+        InputValue::Undefined => return Err(AbiError::UndefinedInput(param_name)),
     }
-
-    Ok((index, return_witness))
+    Ok(encoded_value)
 }
 
 pub fn compile_circuit_and_witness<P: AsRef<Path>>(
@@ -189,13 +147,22 @@ fn solve_witness(
     witness_map: &BTreeMap<String, InputValue>,
 ) -> Result<BTreeMap<Witness, FieldElement>, CliError> {
     let abi = compiled_program.abi.as_ref().unwrap();
-    let (mut solved_witness, _return_value) = process_abi_with_input(abi.clone(), witness_map)
-        .map_err(|error| match error {
+    let encoded_inputs =
+        process_abi_with_input(abi.clone(), witness_map).map_err(|error| match error {
             AbiError::UndefinedInput(_) => {
                 CliError::Generic(format!("{} in the {}.toml file.", error, PROVER_INPUT_FILE))
             }
             _ => CliError::from(error),
         })?;
+
+    let mut solved_witness: BTreeMap<Witness, FieldElement> = encoded_inputs
+        .into_iter()
+        .enumerate()
+        .map(|(index, witness_value)| {
+            let witness = Witness::new(WITNESS_OFFSET + (index as u32));
+            (witness, witness_value)
+        })
+        .collect();
 
     let backend = crate::backends::ConcreteBackend;
     let solver_res = backend.solve(&mut solved_witness, compiled_program.circuit.gates.clone());
