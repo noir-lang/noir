@@ -167,11 +167,19 @@ pub fn parse_and_solve_witness<P: AsRef<Path>>(
         noirc_abi::input_parser::Format::Toml.parse(&program_dir, PROVER_INPUT_FILE)?;
 
     // Solve the remaining witnesses
-    let (solved_witness, return_value) = solve_witness(compiled_program, &witness_map)?;
+    let solved_witness = solve_witness(compiled_program, &witness_map)?;
+
+    let abi = compiled_program.abi.as_ref().unwrap();
+
+    // We allow the user to optionally not provide a value for the circuit's return value, so this may be missing from
+    // `witness_map`. We must then decode these from the circuit's witness values.
+    let inputs_vector: Vec<FieldElement> = (0..abi.field_count())
+        .map(|index| solved_witness[&Witness::new(index + WITNESS_OFFSET)])
+        .collect();
+    let decoded_inputs = abi_decode(abi, &inputs_vector);
 
     // Write public inputs into Verifier.toml
-    let abi = compiled_program.abi.as_ref().unwrap();
-    export_public_inputs(return_value, &solved_witness, &witness_map, abi, &program_dir)?;
+    export_public_inputs(&decoded_inputs, abi.clone(), &program_dir)?;
 
     Ok(solved_witness)
 }
@@ -179,9 +187,9 @@ pub fn parse_and_solve_witness<P: AsRef<Path>>(
 fn solve_witness(
     compiled_program: &noirc_driver::CompiledProgram,
     witness_map: &BTreeMap<String, InputValue>,
-) -> Result<(BTreeMap<Witness, FieldElement>, Option<Witness>), CliError> {
+) -> Result<BTreeMap<Witness, FieldElement>, CliError> {
     let abi = compiled_program.abi.as_ref().unwrap();
-    let (mut solved_witness, return_value) = process_abi_with_input(abi.clone(), witness_map)
+    let (mut solved_witness, _return_value) = process_abi_with_input(abi.clone(), witness_map)
         .map_err(|error| match error {
             AbiError::UndefinedInput(_) => {
                 CliError::Generic(format!("{} in the {}.toml file.", error, PROVER_INPUT_FILE))
@@ -204,39 +212,74 @@ fn solve_witness(
         _ => unreachable!(),
     }
 
-    Ok((solved_witness, return_value))
+    Ok(solved_witness)
+}
+
+fn abi_decode(abi: &Abi, encoded_inputs: &Vec<FieldElement>) -> BTreeMap<String, InputValue> {
+    let mut index = 0;
+    let mut decoded_inputs = BTreeMap::new();
+
+    for (param_name, param_type) in &abi.parameters {
+        let (next_index, decoded_value) =
+            read_value_from_witness(index, &encoded_inputs, &param_type);
+
+        decoded_inputs.insert(param_name.to_owned(), decoded_value);
+
+        index = next_index;
+    }
+    decoded_inputs
+}
+
+fn read_value_from_witness(
+    initial_index: usize,
+    encoded_inputs: &Vec<FieldElement>,
+    value_type: &AbiType,
+) -> (usize, InputValue) {
+    let mut index = initial_index;
+
+    let value = match value_type {
+        AbiType::Field(_) | AbiType::Integer { .. } => {
+            let field_element = encoded_inputs[index];
+            index += 1;
+
+            InputValue::Field(field_element)
+        }
+        AbiType::Array { length, .. } => {
+            let field_elements = &encoded_inputs[index..index + (*length as usize)];
+
+            index += *length as usize;
+            InputValue::Vec(field_elements.to_vec())
+        }
+        AbiType::Struct { fields, .. } => {
+            let mut struct_map = BTreeMap::new();
+
+            for (field_key, param_type) in fields {
+                let (next_index, field_value) =
+                    read_value_from_witness(index, encoded_inputs, param_type);
+
+                struct_map.insert(field_key.to_owned(), field_value);
+                index = next_index;
+            }
+
+            InputValue::Struct(struct_map)
+        }
+    };
+
+    (index, value)
 }
 
 fn export_public_inputs<P: AsRef<Path>>(
-    w_ret: Option<Witness>,
-    solved_witness: &BTreeMap<Witness, FieldElement>,
-    witness_map: &BTreeMap<String, InputValue>,
-    abi: &Abi,
+    decoded_inputs: &BTreeMap<String, InputValue>,
+    abi: Abi,
     path: P,
 ) -> Result<(), noirc_abi::errors::InputParserError> {
-    // generate a name->value map for the public inputs, using the ABI and witness_map:
-    let mut public_inputs = BTreeMap::new();
-    for i in &abi.parameters {
-        if i.1.is_public() {
-            let v = &witness_map[&i.0];
+    let public_inputs = abi
+        .public_abi()
+        .parameter_names()
+        .into_iter()
+        .map(|param_name| (param_name.to_owned(), decoded_inputs[param_name].to_owned()))
+        .collect();
 
-            let iv = if matches!(*v, InputValue::Undefined) {
-                let w_ret = w_ret.unwrap();
-                match &i.1 {
-                    AbiType::Array { length, .. } => {
-                        let return_values = noirc_frontend::util::vecmap(0..*length, |i| {
-                            *solved_witness.get(&Witness::new(w_ret.0 + i as u32)).unwrap()
-                        });
-                        InputValue::Vec(return_values)
-                    }
-                    _ => InputValue::Field(*solved_witness.get(&w_ret).unwrap()),
-                }
-            } else {
-                v.clone()
-            };
-            public_inputs.insert(i.0.clone(), iv);
-        }
-    }
     //serialise public inputs into verifier.toml
     noirc_abi::input_parser::Format::Toml.serialise(&path, VERIFIER_INPUT_FILE, &public_inputs)
 }

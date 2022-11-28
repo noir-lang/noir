@@ -100,6 +100,11 @@ impl Abi {
     pub fn num_parameters(&self) -> usize {
         self.parameters.len()
     }
+
+    pub fn field_count(&self) -> u32 {
+        self.parameters.iter().fold(0, |acc, (_, param_type)| acc + param_type.field_count())
+    }
+
     /// ABI with only the public parameters
     #[must_use]
     pub fn public_abi(self) -> Abi {
