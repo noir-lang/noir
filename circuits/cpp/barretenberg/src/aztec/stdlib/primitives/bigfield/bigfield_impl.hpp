@@ -512,7 +512,7 @@ bigfield<C, T> bigfield<C, T>::internal_div(const std::vector<bigfield>& numerat
                                             bool check_for_zero)
 {
     if (numerators.size() == 0) {
-        return bigfield<C, T>(nullptr, uint256_t(0));
+        return bigfield<C, T>(denominator.get_context(), uint256_t(0));
     }
 
     denominator.reduction_check();
@@ -536,7 +536,8 @@ bigfield<C, T> bigfield<C, T>::internal_div(const std::vector<bigfield>& numerat
     uint1024_t inverse_1024(inverse_value);
     inverse_value = ((left * inverse_1024) % modulus).lo;
 
-    const uint1024_t quotient_1024 = (uint1024_t(inverse_value) * right - left) / modulus;
+    const uint1024_t quotient_1024 =
+        (uint1024_t(inverse_value) * right + unreduced_zero().get_value() - left) / modulus;
     const uint512_t quotient_value = quotient_1024.lo;
 
     bigfield inverse;
@@ -555,7 +556,7 @@ bigfield<C, T> bigfield<C, T>::internal_div(const std::vector<bigfield>& numerat
         auto [reduction_required, num_quotient_bits] =
             get_quotient_reduction_info({ static_cast<uint512_t>(DEFAULT_MAXIMUM_REMAINDER) },
                                         { denominator.get_maximum_value() },
-                                        {},
+                                        { unreduced_zero() },
                                         numerator_max);
         if (reduction_required) {
 
@@ -575,7 +576,7 @@ bigfield<C, T> bigfield<C, T>::internal_div(const std::vector<bigfield>& numerat
             witness_t(ctx, fr(inverse_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3 + NUM_LAST_LIMB_BITS).lo)));
     }
 
-    unsafe_evaluate_multiply_add(denominator, inverse, {}, quotient, numerators);
+    unsafe_evaluate_multiply_add(denominator, inverse, { unreduced_zero() }, quotient, numerators);
     return inverse;
 }
 

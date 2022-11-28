@@ -47,6 +47,23 @@ template <typename Composer> class stdlib_bigfield : public testing::Test {
     typedef typename bn254::witness_ct witness_ct;
 
   public:
+    // The bug happens when we are applying the CRT formula to a*b < r, which can happen when using the division
+    // operator
+    static void test_division_formula_bug()
+    {
+        auto composer = Composer();
+        uint256_t value(2);
+        fq_ct tval = fq_ct::create_from_u512_as_witness(&composer, value);
+        fq_ct tval1 = tval - tval;
+        fq_ct tval2 = tval1 / tval;
+        (void)tval2;
+        auto prover = composer.create_prover();
+        auto verifier = composer.create_verifier();
+        waffle::plonk_proof proof = prover.construct_proof();
+        bool proof_result = verifier.verify_proof(proof);
+        EXPECT_EQ(proof_result, true);
+    }
+
     static void test_bad_mul()
     {
 
@@ -791,6 +808,15 @@ template <typename Composer> class stdlib_bigfield : public testing::Test {
         fq_ct selected = a_ct.conditional_select(b_ct, typename bn254::bool_ct(&composer, true));
         EXPECT_EQ(barretenberg::fq((selected.get_value() % uint512_t(barretenberg::fq::modulus)).lo), b);
     }
+
+    static void test_division_context()
+    {
+        auto composer = Composer();
+        barretenberg::fq a(1);
+        fq_ct a_ct(&composer, a);
+        fq_ct ret = fq_ct::div_check_denominator_nonzero({}, a_ct);
+        EXPECT_NE(ret.get_context(), nullptr);
+    }
 };
 
 // Define types for which the above tests will be constructed.
@@ -801,6 +827,10 @@ typedef testing::Types<waffle::StandardComposer,
     ComposerTypes;
 // Define the suite of tests.
 TYPED_TEST_SUITE(stdlib_bigfield, ComposerTypes);
+TYPED_TEST(stdlib_bigfield, division_formula_bug)
+{
+    TestFixture::test_division_formula_bug();
+}
 TYPED_TEST(stdlib_bigfield, badmul)
 {
     TestFixture::test_bad_mul();
@@ -870,6 +900,12 @@ TYPED_TEST(stdlib_bigfield, conditional_select_regression)
 {
     TestFixture::test_conditional_select_regression();
 }
+
+TYPED_TEST(stdlib_bigfield, division_context)
+{
+    TestFixture::test_division_context();
+}
+
 // // This test was disabled before the refactor to use TYPED_TEST's/
 // TEST(stdlib_bigfield, DISABLED_test_div_against_constants)
 // {
