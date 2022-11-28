@@ -195,7 +195,7 @@ export network=testnet
 export simulateAdmin=false
 
 # run script
-forge script --fork-url $RPC --ffi DataProviderDeployment --sig "readBogota()"
+forge script --fork-url $RPC --ffi DataProviderDeployment --sig "read()"
 ```
 
 ### Add Custom Token
@@ -270,4 +270,3 @@ The repository containing code of Aztec Connect Bridges deployed and in developm
 Join the channels:
 
 - [`#💻│aztec-connect`](https://discord.com/channels/563037431604183070/563038059826774017) to discuss Aztec Connect
-- [`#🇨🇴│ethbogota`](https://discord.com/channels/563037431604183070/1021410163221086268) to discuss the ETHBogota Hackathon
