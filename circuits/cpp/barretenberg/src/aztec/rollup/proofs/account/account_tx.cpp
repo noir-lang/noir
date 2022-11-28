@@ -21,7 +21,7 @@ fr account_tx::compute_account_alias_hash_nullifier() const
 fr account_tx::compute_account_public_key_nullifier() const
 {
     if (create || migrate) {
-        return compress_native({ new_account_public_key.x, new_account_public_key.y },
+        return compress_native({ new_account_public_key.x },
                                rollup::proofs::notes::GeneratorIndex::ACCOUNT_PUBLIC_KEY_NULLIFIER);
     }
     return 0;
