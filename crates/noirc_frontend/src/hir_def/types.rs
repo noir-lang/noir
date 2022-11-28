@@ -1028,9 +1028,9 @@ impl Type {
             Type::Forall(typevars, typ) => {
                 let replacements = typevars
                     .iter()
-                    .map(|(id, var)| {
-                        let new = interner.next_type_variable();
-                        (*id, (var.clone(), new))
+                    .map(|(id, _)| {
+                        let new = interner.next_shared_type_variable();
+                        (*id, (new.clone(), Type::TypeVariable(new)))
                     })
                     .collect();
 

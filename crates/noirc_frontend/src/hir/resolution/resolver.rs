@@ -282,11 +282,7 @@ impl<'a> Resolver<'a> {
                         let id = self.interner.next_type_variable_id();
                         let typevar = Shared::new(TypeBinding::Unbound(id));
                         new_variables.push((id, typevar.clone()));
-
-                        // 'Named'Generic is a bit of a misnomer here, we want a type variable that
-                        // wont be bound over but this one has no name since we do not currently
-                        // require users to explicitly be generic over array lengths.
-                        Type::NamedGeneric(typevar, Rc::new("".into()))
+                        Type::TypeVariable(typevar)
                     }
                     Some(expr) => {
                         let len = self.eval_array_length(expr);

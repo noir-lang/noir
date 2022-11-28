@@ -488,9 +488,13 @@ impl NodeInterner {
         TypeVariableId(id)
     }
 
-    pub fn next_type_variable(&mut self) -> Type {
+    pub fn next_shared_type_variable(&mut self) -> crate::TypeVariable {
         let binding = TypeBinding::Unbound(self.next_type_variable_id());
-        Type::TypeVariable(Shared::new(binding))
+        Shared::new(binding)
+    }
+
+    pub fn next_type_variable(&mut self) -> Type {
+        Type::TypeVariable(self.next_shared_type_variable())
     }
 
     pub fn store_instantiation_bindings(

@@ -706,10 +706,12 @@ pub fn comparator_operand_type_rules(
                 }
             });
 
-            if x_size != y_size {
-                return Err(format!("Can only compare arrays of the same length. Here LHS is of length {}, and RHS is {} ", 
-                    x_size, y_size));
-            }
+            x_size.unify(y_size, op.location.span, errors, || {
+                TypeCheckError::Unstructured {
+                    msg: format!("Cannot compare an array of length {} with an array of length {}, the array lengths must match", x_size, y_size),
+                    span: op.location.span,
+                }
+            });
 
             // We could check if all elements of all arrays are comptime but I am lazy
             Ok(Bool(Comptime::No(Some(op.location.span))))
