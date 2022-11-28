@@ -889,8 +889,8 @@ pub fn generate_witness(lhs: &InternalVar, evaluator: &mut Evaluator) -> Witness
     if lhs.expression.mul_terms.is_empty() && lhs.expression.linear_combinations.len() == 1 {
         //TODO check if this case can be optimised
     }
-    let w = evaluator.create_intermediate_variable(lhs.expression.clone());
-    w //TODO  set lhs.witness = w
+    //TODO  set lhs.witness = the next line
+    evaluator.create_intermediate_variable(lhs.expression.clone())
 }
 
 pub fn evaluate_udiv(
