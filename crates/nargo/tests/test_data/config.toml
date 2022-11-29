@@ -1,7 +1,8 @@
 # List of tests to be excluded (i.e not run), as their directory name in test_data
 # "1_mul", "2_div","3_add","4_sub","5_over", "6","6_array", "7_function","7","8_integration", "9_conditional", "10_slices", "assign_ex", "bool_not", "bool_or", "pedersen_check", "pred_eq", "schnorr", "sha256", "tuples",
-# "array_len", "array_neq", "bit_and", "cast_bool", "comptime_array_access", "generics", "global_comptime", "main_bool_arg", "main_return", "merkle_insert", "modules", "modules_more", "scalar_mul", "simple_shield", "struct", "submodules", 
-exclude = ["comptime_fail"]
+# "array_len", "array_neq", "bit_and", "cast_bool", "comptime_array_access", "generics", "global_comptime", "main_bool_arg", "main_return", "merkle_insert", "modules", "modules_more", "scalar_mul", "simple_shield", "struct", "submodules",
+# Exclude "sha2_byte" due to relatively long computation time and "sha2_blocks" due to very long computation time.
+exclude = ["comptime_fail", "sha2_blocks", "sha2_byte"]
 
 
 # List of tests (as their directory name in test_data) expecting to fail: if the test pass, we report an error.

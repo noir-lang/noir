@@ -1,6 +1,7 @@
 use super::{
     conditional::AssumptionId,
     context::SsaContext,
+    mem::ArrayId,
     node::{self, Instruction, Mark, NodeId, Opcode},
 };
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -84,7 +85,7 @@ impl BasicBlock {
         root_id
     }
 
-    pub fn written_arrays(&self, ctx: &SsaContext) -> HashSet<super::mem::ArrayId> {
+    pub fn written_arrays(&self, ctx: &SsaContext) -> HashSet<ArrayId> {
         let mut result = HashSet::new();
         for i in &self.instructions {
             if let Some(node::Instruction {
@@ -93,6 +94,32 @@ impl BasicBlock {
             }) = ctx.try_get_instruction(*i)
             {
                 result.insert(*x);
+            }
+
+            if let Some(ins) = ctx.try_get_instruction(*i) {
+                match &ins.operation {
+                    node::Operation::Store { array_id: a, .. } => {
+                        result.insert(*a);
+                    }
+                    node::Operation::Intrinsic(..) => {
+                        if let node::ObjectType::Pointer(a) = ins.res_type {
+                            result.insert(a);
+                        }
+                    }
+                    node::Operation::Call { func_id, returned_arrays, .. } => {
+                        for a in returned_arrays {
+                            result.insert(a.0);
+                        }
+                        if let Some(f) = ctx.get_ssafunc(*func_id) {
+                            for typ in &f.result_types {
+                                if let node::ObjectType::Pointer(a) = typ {
+                                    result.insert(*a);
+                                }
+                            }
+                        }
+                    }
+                    _ => (),
+                }
             }
         }
         result
@@ -432,4 +459,30 @@ pub fn merge_path(
     }
     //housekeeping for the caller
     removed_blocks
+}
+
+// retrieve written arrays along the CFG until we reach stop
+pub fn written_along(
+    ctx: &SsaContext,
+    block_id: BlockId,
+    stop: BlockId,
+    modified: &mut HashSet<ArrayId>,
+) {
+    if block_id == stop {
+        return;
+    }
+    //process block
+    modified.extend(ctx[block_id].written_arrays(ctx));
+
+    //process next block
+    if ctx[block_id].is_join() {
+        written_along(ctx, ctx[block_id].left.unwrap(), stop, modified);
+    } else if ctx[block_id].right.is_some() {
+        let join = find_join(ctx, block_id);
+        written_along(ctx, join, stop, modified);
+    } else if let Some(left) = ctx[block_id].left {
+        written_along(ctx, left, stop, modified);
+    } else {
+        unreachable!("could not reach stop block");
+    }
 }
