@@ -678,9 +678,16 @@ pub fn comparator_operand_type_rules(
         (Integer(..), typ) | (typ,Integer(..)) => {
             Err(format!("Integer cannot be used with type {}", typ))
         }
-        (FieldElement(comptime_x, ..), FieldElement(comptime_y, ..)) => {
-            let comptime = comptime_x.and(comptime_y, op.location.span);
-            Ok(Bool(comptime))
+        (FieldElement(comptime_x), FieldElement(comptime_y)) => {
+            match op.kind {
+                Equal | NotEqual => {
+                    let comptime = comptime_x.and(comptime_y, op.location.span);
+                    Ok(Bool(comptime))
+                },
+                _ => {
+                    Err("Fields cannot be compared, try casting to an integer first".into())
+                }
+            }
         }
 
         // <= and friends are technically valid for booleans, just not very useful
@@ -708,6 +715,12 @@ pub fn comparator_operand_type_rules(
 
             // We could check if all elements of all arrays are comptime but I am lazy
             Ok(Bool(Comptime::No(Some(op.location.span))))
+        }
+        (NamedGeneric(binding_a, name_a), NamedGeneric(binding_b, name_b)) => {
+            if binding_a == binding_b {
+                return Ok(Bool(Comptime::No(Some(op.location.span))));
+            }
+            Err(format!("Unsupported types for comparison: {} and {}", name_a, name_b))
         }
         (lhs, rhs) => Err(format!("Unsupported types for comparison: {} and {}", lhs, rhs)),
     }

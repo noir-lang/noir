@@ -36,7 +36,7 @@ use crate::util::vecmap;
 use crate::{
     hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
     BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
-    Statement, UnresolvedArraySize,
+    Statement,
 };
 use crate::{
     ArrayLiteral, Generics, LValue, NoirStruct, Path, Pattern, Shared, StructType, Type,
@@ -286,8 +286,8 @@ impl<'a> Resolver<'a> {
         match typ {
             UnresolvedType::FieldElement(comptime) => Type::FieldElement(comptime),
             UnresolvedType::Array(size, elem) => {
-                let resolved_size = match size {
-                    UnresolvedArraySize::Variable => {
+                let resolved_size = match &size {
+                    None => {
                         let id = self.interner.next_type_variable_id();
                         let typevar = Shared::new(TypeBinding::Unbound(id));
                         new_variables.push((id, typevar.clone()));
@@ -297,9 +297,9 @@ impl<'a> Resolver<'a> {
                         // require users to explicitly be generic over array lengths.
                         Type::NamedGeneric(typevar, Rc::new("".into()))
                     }
-                    UnresolvedArraySize::Fixed(length) => Type::ArrayLength(length),
-                    UnresolvedArraySize::FixedVariable(path) => {
-                        self.resolve_fixed_variable_array_length(path)
+                    Some(expr) => {
+                        let len = self.eval_array_length(expr);
+                        Type::ArrayLength(len)
                     }
                 };
                 let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
@@ -332,32 +332,6 @@ impl<'a> Resolver<'a> {
                 Type::Tuple(vecmap(fields, |field| self.resolve_type_inner(field, new_variables)))
             }
         }
-    }
-
-    fn resolve_fixed_variable_array_length(&mut self, path: Path) -> Type {
-        let hir_ident = self.get_ident_from_path(path.clone());
-
-        let definition_info = self.interner.definition(hir_ident.id);
-        if definition_info.mutable {
-            self.push_err(ResolverError::ExpectedComptimeVariable {
-                name: path.as_string(),
-                span: path.span(),
-            });
-            return Type::Error;
-        }
-
-        let error = if let Some(expr_id) = definition_info.kind.get_rhs() {
-            match self.try_eval_array_length_id(expr_id).map(|length| length.try_into()) {
-                Ok(Ok(length)) => return Type::ArrayLength(length),
-                Ok(Err(_cast_err)) => ResolverError::IntegerTooLarge { span: path.span() },
-                Err(Some(error)) => error,
-                Err(None) => return Type::Error,
-            }
-        } else {
-            ResolverError::MissingRhsExpr { name: path.as_string(), span: path.span() }
-        };
-        self.push_err(error);
-        Type::Error
     }
 
     fn get_ident_from_path(&mut self, path: Path) -> HirIdent {
@@ -566,21 +540,9 @@ impl<'a> Resolver<'a> {
                     HirLiteral::Array(vecmap(elems, |elem| self.resolve_expression(elem)))
                 }
                 Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
-                    match self.try_eval_array_length(&length).map(|length| length.try_into()) {
-                        Ok(Ok(length_value)) => {
-                            let elem = self.resolve_expression(*repeated_element);
-                            HirLiteral::Array(vec![elem; length_value])
-                        }
-                        Ok(Err(_cast_err)) => {
-                            self.push_err(ResolverError::IntegerTooLarge { span: length.span });
-                            HirLiteral::Array(vec![])
-                        }
-                        Err(Some(error)) => {
-                            self.push_err(error);
-                            HirLiteral::Array(vec![])
-                        }
-                        Err(None) => HirLiteral::Array(vec![]),
-                    }
+                    let len = self.eval_array_length(&length);
+                    let elem = self.resolve_expression(*repeated_element);
+                    HirLiteral::Array(vec![elem; len.try_into().unwrap()])
                 }
                 Literal::Integer(integer) => HirLiteral::Integer(integer),
                 Literal::Str(str) => HirLiteral::Str(str),
@@ -890,6 +852,18 @@ impl<'a> Resolver<'a> {
         self.interner.push_expr(hir_block)
     }
 
+    fn eval_array_length(&mut self, length: &Expression) -> u64 {
+        match self.try_eval_array_length(length).map(|length| length.try_into()) {
+            Ok(Ok(length_value)) => return length_value,
+            Ok(Err(_cast_err)) => {
+                self.push_err(ResolverError::IntegerTooLarge { span: length.span })
+            }
+            Err(Some(error)) => self.push_err(error),
+            Err(None) => (),
+        }
+        0
+    }
+
     /// This function is a mini interpreter inside name resolution.
     /// We should eventually get rid of it and only have 1 evaluator - the existing
     /// one inside the ssa pass. Doing this would mean ssa would need to handle these
@@ -968,7 +942,11 @@ impl<'a> Resolver<'a> {
 
         let definition = self.interner.definition(id);
         match definition.kind {
-            DefinitionKind::Global(rhs) => self.try_eval_array_length_id(rhs),
+            DefinitionKind::Global(rhs) | DefinitionKind::Local(Some(rhs))
+                if !definition.mutable =>
+            {
+                self.try_eval_array_length_id(rhs)
+            }
             _ => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
         }
     }

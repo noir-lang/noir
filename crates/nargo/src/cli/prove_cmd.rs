@@ -19,18 +19,19 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("prove").unwrap();
     let proof_name = args.value_of("proof_name").unwrap();
     let show_ssa = args.is_present("show-ssa");
-    prove(proof_name, show_ssa)
+    let allow_warnings = args.is_present("allow-warnings");
+    prove(proof_name, show_ssa, allow_warnings)
 }
 
 /// In Barretenberg, the proof system adds a zero witness in the first index,
 /// So when we add witness values, their index start from 1.
 const WITNESS_OFFSET: u32 = 1;
 
-fn prove(proof_name: &str, show_ssa: bool) -> Result<(), CliError> {
+fn prove(proof_name: &str, show_ssa: bool, allow_warnings: bool) -> Result<(), CliError> {
     let curr_dir = std::env::current_dir().unwrap();
     let mut proof_path = PathBuf::new();
     proof_path.push(PROOFS_DIR);
-    let result = prove_with_path(proof_name, curr_dir, proof_path, show_ssa);
+    let result = prove_with_path(proof_name, curr_dir, proof_path, show_ssa, allow_warnings);
     match result {
         Ok(_) => Ok(()),
         Err(e) => Err(e),
@@ -53,6 +54,7 @@ fn process_abi_with_input(
         match &return_param.1 {
             AbiType::Array { length, .. } => *length as u32,
             AbiType::Integer { .. } | AbiType::Field(_) => 1,
+            AbiType::Struct { fields, .. } => fields.len() as u32,
         }
     } else {
         0
@@ -69,50 +71,87 @@ fn process_abi_with_input(
             return Err(CliError::Generic(format!("The parameters in the main do not match the parameters in the {}.toml file. \n Please check `{}` parameter ", PROVER_INPUT_FILE,param_name)));
         }
 
-        match value {
-            InputValue::Field(element) => {
+        (index, return_witness) = input_value_into_witness(
+            value,
+            index,
+            return_witness,
+            &mut solved_witness,
+            param_name,
+            return_witness_len,
+        )?;
+    }
+    Ok((solved_witness, return_witness))
+}
+
+fn input_value_into_witness(
+    value: InputValue,
+    initial_index: u32,
+    initial_return_witness: Option<Witness>,
+    solved_witness: &mut BTreeMap<Witness, FieldElement>,
+    param_name: String,
+    return_witness_len: u32,
+) -> Result<(u32, Option<Witness>), CliError> {
+    let mut index = initial_index;
+    let mut return_witness = initial_return_witness;
+    match value {
+        InputValue::Field(element) => {
+            let old_value = solved_witness.insert(Witness::new(index + WITNESS_OFFSET), element);
+            assert!(old_value.is_none());
+            index += 1;
+        }
+        InputValue::Vec(arr) => {
+            for element in arr {
                 let old_value =
                     solved_witness.insert(Witness::new(index + WITNESS_OFFSET), element);
                 assert!(old_value.is_none());
                 index += 1;
             }
-            InputValue::Vec(arr) => {
-                for element in arr {
-                    let old_value =
-                        solved_witness.insert(Witness::new(index + WITNESS_OFFSET), element);
-                    assert!(old_value.is_none());
-                    index += 1;
-                }
-            }
-            InputValue::Undefined => {
-                assert_eq!(
-                    param_name,
-                    noirc_frontend::hir_def::function::MAIN_RETURN_NAME,
-                    "input value {} is not defined",
-                    param_name
-                );
-                return_witness = Some(Witness::new(index + WITNESS_OFFSET));
-
-                //We do not support undefined arrays for now - TODO
-                if return_witness_len != 1 {
-                    return Err(CliError::Generic(
-                        "Values of array returned from main must be specified in prover toml file"
-                            .to_string(),
-                    ));
-                }
-                index += return_witness_len;
-                //XXX We do not support (yet) array of arrays
+        }
+        InputValue::Struct(object) => {
+            for (name, value) in object {
+                (index, return_witness) = input_value_into_witness(
+                    value,
+                    index,
+                    return_witness,
+                    solved_witness,
+                    name,
+                    return_witness_len,
+                )?;
             }
         }
+        InputValue::Undefined => {
+            assert_eq!(
+                param_name,
+                noirc_frontend::hir_def::function::MAIN_RETURN_NAME,
+                "input value {} is not defined",
+                param_name
+            );
+            return_witness = Some(Witness::new(index + WITNESS_OFFSET));
+
+            //We do not support undefined arrays for now - TODO
+            if return_witness_len != 1 {
+                return Err(CliError::Generic(
+                    "Values of array returned from main must be specified in prover toml file"
+                        .to_string(),
+                ));
+            }
+            index += return_witness_len;
+            //XXX We do not support (yet) array of arrays
+        }
     }
-    Ok((solved_witness, return_witness))
+    Ok((index, return_witness))
 }
 
 pub fn compile_circuit_and_witness<P: AsRef<Path>>(
     program_dir: P,
     show_ssa: bool,
+    allow_unused_variables: bool,
 ) -> Result<(noirc_driver::CompiledProgram, BTreeMap<Witness, FieldElement>), CliError> {
-    let compiled_program = super::compile_cmd::compile_circuit(program_dir.as_ref(), show_ssa)?;
+    let compiled_program = super::compile_cmd::compile_circuit(
+        program_dir.as_ref(),
+        show_ssa,
+        allow_unused_variables,
+    )?;
     let solved_witness = solve_witness(program_dir, &compiled_program)?;
     Ok((compiled_program, solved_witness))
 }
@@ -201,8 +240,10 @@ pub fn prove_with_path<P: AsRef<Path>>(
     program_dir: P,
     proof_dir: P,
     show_ssa: bool,
+    allow_warnings: bool,
 ) -> Result<PathBuf, CliError> {
-    let (compiled_program, solved_witness) = compile_circuit_and_witness(program_dir, show_ssa)?;
+    let (compiled_program, solved_witness) =
+        compile_circuit_and_witness(program_dir, show_ssa, allow_warnings)?;
 
     let backend = crate::backends::ConcreteBackend;
     let proof = backend.prove_with_meta(compiled_program.circuit, solved_witness);
