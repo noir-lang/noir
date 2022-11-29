@@ -40,7 +40,7 @@ fn prove(proof_name: &str, show_ssa: bool, allow_warnings: bool) -> Result<(), C
 
 /// Ordering is important here, which is why we need the ABI to tell us what order to add the elements in
 /// We then need the witness map to get the elements field values.
-fn process_abi_with_input(
+fn abi_encode(
     abi: Abi,
     witness_map: &BTreeMap<String, InputValue>,
 ) -> Result<Vec<FieldElement>, AbiError> {
@@ -147,13 +147,12 @@ fn solve_witness(
     witness_map: &BTreeMap<String, InputValue>,
 ) -> Result<BTreeMap<Witness, FieldElement>, CliError> {
     let abi = compiled_program.abi.as_ref().unwrap();
-    let encoded_inputs =
-        process_abi_with_input(abi.clone(), witness_map).map_err(|error| match error {
-            AbiError::UndefinedInput(_) => {
-                CliError::Generic(format!("{} in the {}.toml file.", error, PROVER_INPUT_FILE))
-            }
-            _ => CliError::from(error),
-        })?;
+    let encoded_inputs = abi_encode(abi.clone(), witness_map).map_err(|error| match error {
+        AbiError::UndefinedInput(_) => {
+            CliError::Generic(format!("{} in the {}.toml file.", error, PROVER_INPUT_FILE))
+        }
+        _ => CliError::from(error),
+    })?;
 
     let mut solved_witness: BTreeMap<Witness, FieldElement> = encoded_inputs
         .into_iter()
