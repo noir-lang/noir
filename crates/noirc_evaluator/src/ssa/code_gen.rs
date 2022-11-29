@@ -619,8 +619,7 @@ impl IRGenerator {
             Expression::Block(block) => self.codegen_block(block, env),
             Expression::ExtractTupleField(expr, field) => {
                 let tuple = self.codegen_expression(env, expr.as_ref())?;
-                let field_member = tuple.into_field_member(*field);
-                Ok(field_member)
+                Ok(tuple.into_field_member(*field))
             }
             Expression::Let(let_expr) => self.codegen_let(env, let_expr),
             Expression::Constrain(expr, location) => {
