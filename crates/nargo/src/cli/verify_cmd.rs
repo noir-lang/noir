@@ -1,8 +1,9 @@
 use super::compile_cmd::compile_circuit;
 use super::{PROOFS_DIR, PROOF_EXT, VERIFIER_INPUT_FILE};
-use crate::errors::{AbiError, CliError};
+use crate::errors::CliError;
 use acvm::{FieldElement, ProofSystemCompiler};
 use clap::ArgMatches;
+use noirc_abi::errors::AbiError;
 use noirc_abi::{input_parser::InputValue, Abi};
 use noirc_driver::CompiledProgram;
 use std::{collections::BTreeMap, path::Path, path::PathBuf};

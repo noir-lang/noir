@@ -1,5 +1,8 @@
 use std::collections::BTreeMap;
 
+use acvm::FieldElement;
+use errors::AbiError;
+use input_parser::InputValue;
 use serde::{ser::SerializeMap, Deserialize, Serialize, Serializer};
 
 // This is the ABI used to bridge the different TOML formats for the initial
@@ -9,6 +12,8 @@ use serde::{ser::SerializeMap, Deserialize, Serialize, Serializer};
 
 pub mod errors;
 pub mod input_parser;
+
+pub const MAIN_RETURN_NAME: &str = "return";
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 /// Types that are allowed in the (main function in binary)
@@ -111,6 +116,123 @@ impl Abi {
         let parameters: Vec<_> =
             self.parameters.into_iter().filter(|(_, param_type)| param_type.is_public()).collect();
         Abi { parameters }
+    }
+
+    /// Encode a set of inputs as described in the ABI into a vector of `FieldElement`s.
+    pub fn encode(
+        self,
+        inputs: &BTreeMap<String, InputValue>,
+    ) -> Result<Vec<FieldElement>, AbiError> {
+        let param_names = self.parameter_names();
+        let mut encoded_inputs = Vec::new();
+
+        let return_witness_len: u32 = self
+            .parameters
+            .iter()
+            .find(|x| x.0 == MAIN_RETURN_NAME)
+            .map_or(0, |(_, return_type)| return_type.field_count());
+
+        for (param_name, param_type) in self.parameters.iter() {
+            let value = inputs
+                .get(param_name)
+                .ok_or_else(|| AbiError::MissingParam(param_name.clone()))?
+                .clone();
+
+            if !value.matches_abi(&param_type) {
+                return Err(AbiError::TypeMismatch {
+                    param_name: param_name.to_string(),
+                    param_type: param_type.to_owned(),
+                    value,
+                });
+            }
+
+            if param_name != MAIN_RETURN_NAME
+                || return_witness_len != 1
+                || !matches!(value, InputValue::Undefined)
+            {
+                let encoded_input = Self::encode_value(value, param_name)?;
+                encoded_inputs.extend(encoded_input);
+            }
+        }
+
+        // Check that no extra witness values have been provided.
+        // Any missing values should be caught by the above for-loop so this only catches extra values.
+        if param_names.len() != inputs.len() {
+            let unexpected_params: Vec<String> =
+                inputs.keys().filter(|param| !param_names.contains(param)).cloned().collect();
+            return Err(AbiError::UnexpectedParams(unexpected_params));
+        }
+
+        Ok(encoded_inputs)
+    }
+
+    fn encode_value(value: InputValue, param_name: &String) -> Result<Vec<FieldElement>, AbiError> {
+        let mut encoded_value = Vec::new();
+        match value {
+            InputValue::Field(elem) => encoded_value.push(elem),
+            InputValue::Vec(vec_elem) => encoded_value.extend(vec_elem),
+            InputValue::Struct(object) => {
+                for (name, value) in object {
+                    encoded_value.extend(Self::encode_value(value, &name)?)
+                }
+            }
+            InputValue::Undefined => return Err(AbiError::UndefinedInput(param_name.to_string())),
+        }
+        Ok(encoded_value)
+    }
+
+    /// Decode a vector of `FieldElements` into the types specified in the ABI.
+    pub fn decode(&self, encoded_inputs: &Vec<FieldElement>) -> BTreeMap<String, InputValue> {
+        let mut index = 0;
+        let mut decoded_inputs = BTreeMap::new();
+
+        for (param_name, param_type) in &self.parameters {
+            let (next_index, decoded_value) =
+                Self::decode_value(index, &encoded_inputs, &param_type);
+
+            decoded_inputs.insert(param_name.to_owned(), decoded_value);
+
+            index = next_index;
+        }
+        decoded_inputs
+    }
+
+    fn decode_value(
+        initial_index: usize,
+        encoded_inputs: &Vec<FieldElement>,
+        value_type: &AbiType,
+    ) -> (usize, InputValue) {
+        let mut index = initial_index;
+
+        let value = match value_type {
+            AbiType::Field(_) | AbiType::Integer { .. } => {
+                let field_element = encoded_inputs[index];
+                index += 1;
+
+                InputValue::Field(field_element)
+            }
+            AbiType::Array { length, .. } => {
+                let field_elements = &encoded_inputs[index..index + (*length as usize)];
+
+                index += *length as usize;
+                InputValue::Vec(field_elements.to_vec())
+            }
+            AbiType::Struct { fields, .. } => {
+                let mut struct_map = BTreeMap::new();
+
+                for (field_key, param_type) in fields {
+                    let (next_index, field_value) =
+                        Self::decode_value(index, encoded_inputs, param_type);
+
+                    struct_map.insert(field_key.to_owned(), field_value);
+                    index = next_index;
+                }
+
+                InputValue::Struct(struct_map)
+            }
+        };
+
+        (index, value)
     }
 }
 
