@@ -15,7 +15,7 @@ const config = {
   trailingSlash: false,
   onBrokenLinks: "throw",
   onBrokenMarkdownLinks: "warn",
-  favicon: "img/favicon-32x32.03b28206.png",
+  favicon: "img/Aztec_docs_icons-02.svg",
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
@@ -79,9 +79,7 @@ const config = {
         indexName: "aztec",
       },
       colorMode: {
-        defaultMode: "dark",
-        disableSwitch: true,
-        respectPrefersColorScheme: false,
+        respectPrefersColorScheme: true,
       },
       docs: {
         sidebar: {
@@ -92,7 +90,8 @@ const config = {
       navbar: {
         logo: {
           alt: "Aztec Logo",
-          src: "img/new_logo-01.svg",
+          srcDark: "img/new_logo-01.svg",
+          src: "img/Aztec_logo_dark-01.svg"
         },
         items: [
           {

@@ -6,17 +6,22 @@
 
 /* You can override the default Infima variables here. */
 :root {
-  --ifm-color-primary: #5b23c8;
-  --ifm-color-primary-dark: #5220b4;
-  --ifm-color-primary-darker: #4d1eaa;
-  --ifm-color-primary-darkest: #40188c;
-  --ifm-color-primary-light: #6529da;
-  --ifm-color-primary-lighter: #6c33db;
-  --ifm-color-primary-lightest: #8251e1;
-  background: #211733;
   --ifm-font-family-base: 'Plain-Regular';
 }
 
+[data-theme='light'] {
+  --ifm-color-primary: #9f3fff;
+  --ifm-color-primary-dark: #9f3fff;
+  --ifm-color-primary-darker: #9f3fff;
+  --ifm-color-primary-darkest: #9f3fff;
+  --ifm-color-primary-light: #6529da;
+  --ifm-color-primary-lighter: #6c33db;
+  --ifm-color-primary-lightest: #8251e1;
+  --ifm-breadcrumb-item-background-active: #e9ddf7;
+  /* --ifm-menu-color-background-active: #e9ddf7; */
+  background: #f6fbfc;
+  color: #2f1f49;
+}
 /* For readability concerns, you should choose a lighter palette in dark mode. */
 [data-theme='dark'] {
   --ifm-color-primary: #9ba5e9;
@@ -26,6 +31,7 @@
   --ifm-color-primary-light: #241938;
   --ifm-color-primary-lighter: #261a3b;
   --ifm-color-primary-lightest: #2b1e42;
+  background: #211733;
 }
 
 .footer--dark {
@@ -43,8 +49,12 @@
   padding: var(--ifm-navbar-padding-vertical) var(--ifm-navbar-padding-horizontal);
 }
 
-.navbar {
+[data-theme='dark'] .navbar {
   background-color: #2f1f49;
+}
+
+[data-theme='light'] .navbar {
+  background-color: #f6fbfc;
 }
 
 @font-face {
