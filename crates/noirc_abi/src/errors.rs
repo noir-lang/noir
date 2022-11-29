@@ -32,6 +32,7 @@ pub enum AbiError {
     TypeMismatch { param_name: String, param_type: AbiType, value: InputValue },
     MissingParam(String),
     UndefinedInput(String),
+    UnexpectedInputLength { expected: u32, actual: u32 },
 }
 
 impl std::fmt::Display for AbiError {
@@ -54,6 +55,12 @@ impl std::fmt::Display for AbiError {
                 }
                 AbiError::UndefinedInput(name) => {
                     format!("Input value `{}` is not defined", name)
+                }
+                AbiError::UnexpectedInputLength { expected, actual } => {
+                    format!(
+                        "ABI specifies an input of length {} but received input of length {}",
+                        expected, actual
+                    )
                 }
             }
         )

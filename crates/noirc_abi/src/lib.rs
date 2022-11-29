@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, convert::TryInto};
 
 use acvm::FieldElement;
 use errors::AbiError;
@@ -185,26 +185,37 @@ impl Abi {
     }
 
     /// Decode a vector of `FieldElements` into the types specified in the ABI.
-    pub fn decode(&self, encoded_inputs: &Vec<FieldElement>) -> BTreeMap<String, InputValue> {
+    pub fn decode(
+        &self,
+        encoded_inputs: &Vec<FieldElement>,
+    ) -> Result<BTreeMap<String, InputValue>, AbiError> {
+        let input_length: u32 = encoded_inputs.len().try_into().unwrap();
+        if input_length != self.field_count() {
+            return Err(AbiError::UnexpectedInputLength {
+                actual: input_length,
+                expected: self.field_count(),
+            });
+        }
+
         let mut index = 0;
         let mut decoded_inputs = BTreeMap::new();
 
         for (param_name, param_type) in &self.parameters {
             let (next_index, decoded_value) =
-                Self::decode_value(index, &encoded_inputs, &param_type);
+                Self::decode_value(index, &encoded_inputs, &param_type)?;
 
             decoded_inputs.insert(param_name.to_owned(), decoded_value);
 
             index = next_index;
         }
-        decoded_inputs
+        Ok(decoded_inputs)
     }
 
     fn decode_value(
         initial_index: usize,
         encoded_inputs: &Vec<FieldElement>,
         value_type: &AbiType,
-    ) -> (usize, InputValue) {
+    ) -> Result<(usize, InputValue), AbiError> {
         let mut index = initial_index;
 
         let value = match value_type {
@@ -225,7 +236,7 @@ impl Abi {
 
                 for (field_key, param_type) in fields {
                     let (next_index, field_value) =
-                        Self::decode_value(index, encoded_inputs, param_type);
+                        Self::decode_value(index, encoded_inputs, param_type)?;
 
                     struct_map.insert(field_key.to_owned(), field_value);
                     index = next_index;
@@ -235,7 +246,7 @@ impl Abi {
             }
         };
 
-        (index, value)
+        Ok((index, value))
     }
 }
 

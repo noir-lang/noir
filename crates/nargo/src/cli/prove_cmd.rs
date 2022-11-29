@@ -70,7 +70,7 @@ pub fn parse_and_solve_witness<P: AsRef<Path>>(
     let inputs_vector: Vec<FieldElement> = (0..abi.field_count())
         .map(|index| solved_witness[&Witness::new(index + WITNESS_OFFSET)])
         .collect();
-    let decoded_inputs = abi.decode(&inputs_vector);
+    let decoded_inputs = abi.decode(&inputs_vector)?;
 
     // Write public inputs into Verifier.toml
     export_public_inputs(&decoded_inputs, abi.clone(), &program_dir)?;
