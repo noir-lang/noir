@@ -122,6 +122,7 @@ impl Abi {
     pub fn encode(
         self,
         inputs: &BTreeMap<String, InputValue>,
+        allow_undefined_return: bool,
     ) -> Result<Vec<FieldElement>, AbiError> {
         let param_names = self.parameter_names();
         let mut encoded_inputs = Vec::new();
@@ -147,7 +148,8 @@ impl Abi {
             }
 
             // We do not support undefined arrays for now - TODO
-            if param_name != MAIN_RETURN_NAME
+            if !allow_undefined_return
+                || param_name != MAIN_RETURN_NAME
                 || return_witness_len != 1
                 || !matches!(value, InputValue::Undefined)
             {

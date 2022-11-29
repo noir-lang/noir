@@ -83,7 +83,7 @@ fn solve_witness(
     witness_map: &BTreeMap<String, InputValue>,
 ) -> Result<BTreeMap<Witness, FieldElement>, CliError> {
     let abi = compiled_program.abi.as_ref().unwrap();
-    let encoded_inputs = abi.clone().encode(witness_map).map_err(|error| match error {
+    let encoded_inputs = abi.clone().encode(witness_map, true).map_err(|error| match error {
         AbiError::UndefinedInput(_) => {
             CliError::Generic(format!("{} in the {}.toml file.", error, PROVER_INPUT_FILE))
         }

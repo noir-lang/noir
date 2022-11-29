@@ -1,10 +1,10 @@
 use super::compile_cmd::compile_circuit;
 use super::{PROOFS_DIR, PROOF_EXT, VERIFIER_INPUT_FILE};
 use crate::errors::CliError;
-use acvm::{FieldElement, ProofSystemCompiler};
+use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
 use noirc_abi::errors::AbiError;
-use noirc_abi::{input_parser::InputValue, Abi};
+use noirc_abi::input_parser::InputValue;
 use noirc_driver::CompiledProgram;
 use std::{collections::BTreeMap, path::Path, path::PathBuf};
 
@@ -31,59 +31,6 @@ fn verify(proof_name: &str, allow_warnings: bool) -> Result<bool, CliError> {
     proof_path.push(Path::new(proof_name));
     proof_path.set_extension(PROOF_EXT);
     verify_with_path(&curr_dir, &proof_path, false, allow_warnings)
-}
-
-fn process_abi_with_verifier_input(
-    abi: Abi,
-    pi_map: BTreeMap<String, InputValue>,
-) -> Result<Vec<FieldElement>, AbiError> {
-    // Filter out any private inputs from the ABI.
-    let public_abi = abi.public_abi();
-    let num_pub_params = public_abi.num_parameters();
-
-    let mut public_inputs = Vec::with_capacity(num_pub_params);
-
-    for (param_name, param_type) in public_abi.parameters.clone().into_iter() {
-        let value = pi_map
-            .get(&param_name)
-            .ok_or_else(|| AbiError::MissingParam(param_name.clone()))?
-            .clone();
-
-        if !value.matches_abi(&param_type) {
-            return Err(AbiError::TypeMismatch { param_name, param_type, value });
-        }
-
-        public_inputs.extend(input_value_into_public_inputs(value, param_name)?);
-    }
-
-    // Check that no extra witness values have been provided.
-    // Any missing values should be caught by the above for-loop so this only catches extra values.
-    if num_pub_params != pi_map.len() {
-        let param_names = public_abi.parameter_names();
-        let unexpected_params: Vec<String> =
-            pi_map.keys().filter(|param| !param_names.contains(param)).cloned().collect();
-        return Err(AbiError::UnexpectedParams(unexpected_params));
-    }
-
-    Ok(public_inputs)
-}
-
-fn input_value_into_public_inputs(
-    value: InputValue,
-    param_name: String,
-) -> Result<Vec<FieldElement>, AbiError> {
-    let mut public_inputs = Vec::new();
-    match value {
-        InputValue::Field(elem) => public_inputs.push(elem),
-        InputValue::Vec(vec_elem) => public_inputs.extend(vec_elem),
-        InputValue::Struct(object) => {
-            for (name, value) in object {
-                public_inputs.extend(input_value_into_public_inputs(value, name)?)
-            }
-        }
-        InputValue::Undefined => return Err(AbiError::UndefinedInput(param_name)),
-    }
-    Ok(public_inputs)
 }
 
 pub fn verify_with_path<P: AsRef<Path>>(
@@ -114,11 +61,8 @@ fn verify_proof(
     public_inputs: BTreeMap<String, InputValue>,
     proof: Vec<u8>,
 ) -> Result<bool, CliError> {
-    let public_inputs = process_abi_with_verifier_input(
-        compiled_program.abi.unwrap(),
-        public_inputs,
-    )
-    .map_err(|error| match error {
+    let public_abi = compiled_program.abi.unwrap().public_abi();
+    let public_inputs = public_abi.encode(&public_inputs, false).map_err(|error| match error {
         AbiError::UndefinedInput(_) => {
             CliError::Generic(format!("{} in the {}.toml file.", error, VERIFIER_INPUT_FILE))
         }
