@@ -30,7 +30,7 @@ pub struct IRGenerator {
     pub program: Program,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Value {
     Single(NodeId),
     Tuple(Vec<Value>),
@@ -82,6 +82,11 @@ impl Value {
     pub fn into_field_member(self, field_index: usize) -> Value {
         match self {
             Value::Single(_) => {
+                // When we return a struct from a function it is flattened.
+                // If a developer returns a one element struct they will panic without this conditional
+                if field_index == 0 {
+                    return self;
+                }
                 unreachable!("Runtime type error, expected struct but found a single value")
             }
             Value::Tuple(mut fields) => fields.remove(field_index),
@@ -194,6 +199,30 @@ impl IRGenerator {
 
     fn codegen_identifier(&mut self, ident: &Ident) -> Value {
         let value = self.variable_values[&ident.id].clone();
+
+        // Determine whether the ident being accessed is a nested struct/tuple that was returned from a function.
+        // When creating an SSA function we flatten the return values. This can lead to a mismatch in the NodeId that is fetched.
+        // We recreate a struct/tuple with an unflattened structure in order to enable accurate indexing.
+        // If the Value::Tuple has a longer list of NodeIds (meaning it has been flattened) we know to use our recreated value.
+        let value = match value.clone() {
+            Value::Single(_) => value,
+            Value::Tuple(orig_values) => {
+                match ident.typ.clone() {
+                    Type::Tuple(fields) => {
+                        if orig_values.len() > fields.len() {
+                            // TODO: Look into how to avoid creating a new value here everytime we have a tuple member access from a nested tuple that was returned by a func
+                            // We might have to cache the updated SSA values for nested structs that are the result of func returns
+                            let new_val = self.create_new_value(&ident.typ, &ident.name, None);
+                            new_val
+                        } else {
+                            value
+                        }
+                    }
+                    _ => value,
+                }
+            }
+        };
+
         self.get_current_value(&value)
     }
 
@@ -590,7 +619,8 @@ impl IRGenerator {
             Expression::Block(block) => self.codegen_block(block, env),
             Expression::ExtractTupleField(expr, field) => {
                 let tuple = self.codegen_expression(env, expr.as_ref())?;
-                Ok(tuple.into_field_member(*field))
+                let field_member = tuple.into_field_member(*field);
+                Ok(field_member)
             }
             Expression::Let(let_expr) => self.codegen_let(env, let_expr),
             Expression::Constrain(expr, location) => {

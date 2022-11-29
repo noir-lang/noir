@@ -175,6 +175,7 @@ impl IRGenerator {
                 func.result_types.push(ObjectType::NotAnObject);
             }
         }
+
         self.context.new_instruction(
             node::Operation::Return(returned_values),
             node::ObjectType::NotAnObject,

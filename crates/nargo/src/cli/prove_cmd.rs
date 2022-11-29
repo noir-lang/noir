@@ -176,12 +176,13 @@ pub fn solve_witness<P: AsRef<Path>>(
     }
     // Map initial witnesses with their values
     let abi = compiled_program.abi.as_ref().unwrap();
+
     // Solve the remaining witnesses
     let (mut solved_witness, rv) = process_abi_with_input(abi.clone(), &witness_map)?;
 
     let backend = crate::backends::ConcreteBackend;
     let solver_res = backend.solve(&mut solved_witness, compiled_program.circuit.gates.clone());
-
+    dbg!("got a solver res");
     match solver_res {
         GateResolution::UnsupportedOpcode(opcode) => return Err(CliError::Generic(format!(
                 "backend does not currently support the {} opcode. ACVM does not currently fall back to arithmetic gates.",

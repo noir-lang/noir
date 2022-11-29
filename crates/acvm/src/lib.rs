@@ -43,7 +43,9 @@ pub trait PartialWitnessGenerator {
         initial_witness: &mut BTreeMap<Witness, FieldElement>,
         gates: Vec<Gate>,
     ) -> GateResolution {
+        // dbg!(gates.clone());
         if gates.is_empty() {
+            dbg!("gates are empty");
             return GateResolution::Resolved;
         }
         let mut unsolved_gates: Vec<Gate> = Vec::new();
@@ -51,6 +53,7 @@ pub trait PartialWitnessGenerator {
         for gate in gates.into_iter() {
             let unsolved = match &gate {
                 Gate::Arithmetic(arith) => {
+                    // dbg!("arithmetic gate");
                     let result = ArithmeticSolver::solve(initial_witness, arith);
                     match result {
                         GateResolution::Resolved => false,
@@ -197,9 +200,11 @@ pub trait PartialWitnessGenerator {
                 },
             };
             if unsolved {
+                // dbg!(gate.clone());
                 unsolved_gates.push(gate);
             }
         }
+        // dbg!(unsolved_gates.clone());
         self.solve(initial_witness, unsolved_gates)
     }
 
