@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use crate::environment::Environment;
 use crate::errors::RuntimeError;
 use acvm::acir::OPCODE;
 use acvm::FieldElement;
@@ -133,7 +132,6 @@ impl IRGenerator {
     pub fn create_function(
         &mut self,
         func_id: FuncId,
-        env: &mut Environment,
         index: FuncIndex,
     ) -> Result<(), RuntimeError> {
         let current_block = self.context.current_block;
@@ -164,7 +162,7 @@ impl IRGenerator {
         self.context.functions.insert(func_id, func.clone());
 
         let function_body = self.program.take_function_body(func_id);
-        let last_value = self.codegen_expression(env, &function_body)?;
+        let last_value = self.codegen_expression(&function_body)?;
         let returned_values = last_value.to_node_ids();
 
         func.result_types.clear();
@@ -202,12 +200,8 @@ impl IRGenerator {
     }
 
     //generates an instruction for calling the function
-    pub fn call(
-        &mut self,
-        call: &Call,
-        env: &mut Environment,
-    ) -> Result<Vec<NodeId>, RuntimeError> {
-        let arguments = self.codegen_expression_list(env, &call.arguments);
+    pub fn call(&mut self, call: &Call) -> Result<Vec<NodeId>, RuntimeError> {
+        let arguments = self.codegen_expression_list(&call.arguments);
         let call_instruction = self.context.new_instruction(
             node::Operation::Call {
                 func_id: call.func_id,
@@ -234,13 +228,12 @@ impl IRGenerator {
         &mut self,
         op: OPCODE,
         call: &ast::CallLowLevel,
-        env: &mut Environment,
     ) -> Result<NodeId, RuntimeError> {
         //Inputs
         let mut args: Vec<NodeId> = Vec::new();
 
         for arg in &call.arguments {
-            if let Ok(lhs) = self.codegen_expression(env, arg) {
+            if let Ok(lhs) = self.codegen_expression(arg) {
                 args.push(lhs.unwrap_id()); //TODO handle multiple values
             } else {
                 panic!("error calling {}", op);
