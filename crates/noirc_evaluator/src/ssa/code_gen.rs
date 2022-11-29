@@ -3,12 +3,13 @@ use super::function::FuncIndex;
 use super::mem::ArrayId;
 use super::node::{Binary, BinaryOp, NodeId, ObjectType, Operation, Variable};
 use super::{block, node, ssa_form};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
+use std::convert::TryInto;
 
-use super::super::environment::Environment;
 use super::super::errors::RuntimeError;
 
 use crate::ssa::block::BlockType;
+use crate::ssa::function;
 use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use noirc_frontend::monomorphisation::ast::*;
@@ -23,9 +24,7 @@ pub struct IRGenerator {
 
     /// The current value of a variable. Used for flattening structs
     /// into multiple variables/values
-    variable_values: HashMap<LocalId, Value>,
-
-    shared_values: HashMap<SharedId, Value>,
+    variable_values: HashMap<DefinitionId, Value>,
 
     pub program: Program,
 }
@@ -103,19 +102,18 @@ impl IRGenerator {
         IRGenerator {
             context: SsaContext::new(),
             variable_values: HashMap::new(),
-            shared_values: HashMap::new(),
             function_context: None,
             program,
         }
     }
 
-    pub fn codegen_main(&mut self, env: &mut Environment) -> Result<(), RuntimeError> {
+    pub fn codegen_main(&mut self) -> Result<(), RuntimeError> {
         let main_body = self.program.take_main_body();
-        self.codegen_expression(env, &main_body)?;
+        self.codegen_expression(&main_body)?;
         Ok(())
     }
 
-    pub fn find_variable(&self, variable_def: LocalId) -> Option<&Value> {
+    pub fn find_variable(&self, variable_def: DefinitionId) -> Option<&Value> {
         self.variable_values.get(&variable_def)
     }
 
@@ -128,69 +126,73 @@ impl IRGenerator {
         }
     }
 
-    pub fn abi_array(
-        &mut self,
-        name: &str,
-        ident_def: LocalId,
-        el_type: &noirc_abi::AbiType,
-        len: u128,
-        witness: Vec<acvm::acir::native_types::Witness>,
-    ) {
-        let element_type = match el_type {
+    pub fn get_object_type_from_abi(&self, el_type: &noirc_abi::AbiType) -> ObjectType {
+        match el_type {
             noirc_abi::AbiType::Field(_) => ObjectType::NativeField,
             noirc_abi::AbiType::Integer { sign, width, .. } => match sign {
                 noirc_abi::Sign::Unsigned => ObjectType::Unsigned(*width),
                 noirc_abi::Sign::Signed => ObjectType::Signed(*width),
             },
-            noirc_abi::AbiType::Array { .. } => unreachable!(),
-        };
-        let (v_id, array_idx) = self.new_array(name, element_type, len as u32, Some(ident_def));
-        self.context.mem[array_idx].values = vecmap(witness, |w| w.into());
-        self.context.get_current_block_mut().update_variable(v_id, v_id);
-    }
-
-    pub fn abi_var(
-        &mut self,
-        name: &str,
-        ident_def: LocalId,
-        obj_type: node::ObjectType,
-        witness: acvm::acir::native_types::Witness,
-    ) {
-        //new variable - should be in a let statement? The let statement should set the type
-        let var = node::Variable {
-            id: NodeId::dummy(),
-            name: name.to_string(),
-            obj_type,
-            root: None,
-            def: Some(ident_def),
-            witness: Some(witness),
-            parent_block: self.context.current_block,
-        };
-        let v_id = self.context.add_variable(var, None);
-
-        self.context.get_current_block_mut().update_variable(v_id, v_id);
-        let v_value = Value::Single(v_id);
-        self.variable_values.insert(ident_def, v_value); //TODO ident_def or ident_id??
-    }
-
-    fn get_local_id(definition: &Definition) -> LocalId {
-        match definition {
-            Definition::Local(id) => *id,
-            Definition::Function(id) => {
-                unreachable!("Found function that should have been evaluated away: {}", id.0)
+            noirc_abi::AbiType::Array { .. } => {
+                unreachable!("array of arrays are not supported for now")
             }
-            Definition::Builtin(opcode) | Definition::LowLevel(opcode) => {
-                unreachable!("Found opcode that should have been evaluated away: {}", opcode)
+            noirc_abi::AbiType::Struct { .. } => {
+                unreachable!("array of structs are not supported for now")
             }
         }
     }
 
-    fn codegen_identifier(&mut self, ident: &Ident) -> Value {
-        let id = Self::get_local_id(&ident.definition);
+    pub fn abi_array(
+        &mut self,
+        name: &str,
+        ident_def: Option<DefinitionId>,
+        el_type: &noirc_abi::AbiType,
+        len: u128,
+        witness: Vec<acvm::acir::native_types::Witness>,
+    ) -> NodeId {
+        let element_type = self.get_object_type_from_abi(el_type);
+        let (v_id, array_idx) = self.new_array(name, element_type, len as u32, ident_def);
+        self.context.mem[array_idx].values = vecmap(witness, |w| w.into());
+        self.context.get_current_block_mut().update_variable(v_id, v_id);
+        v_id
+    }
 
-        let value = self.variable_values.get(&id).cloned().unwrap_or_else(|| {
-            unreachable!("ICE: SSA: Variable {}, id {} not defined", ident.name, ident.definition)
+    pub fn abi_struct(
+        &mut self,
+        struct_name: &str,
+        ident_def: Option<DefinitionId>,
+        fields: &BTreeMap<String, noirc_abi::AbiType>,
+        witnesses: BTreeMap<String, Vec<acvm::acir::native_types::Witness>>,
+    ) -> Value {
+        let values = vecmap(fields, |(name, field_typ)| {
+            let new_name = format!("{}.{}", struct_name, name);
+            match field_typ {
+                noirc_abi::AbiType::Array { visibility: _, length, typ } => {
+                    let v_id =
+                        self.abi_array(&new_name, None, typ, *length, witnesses[&new_name].clone());
+                    Value::Single(v_id)
+                }
+                noirc_abi::AbiType::Struct { fields, .. } => {
+                    let new_name = format!("{}.{}", struct_name, name);
+                    self.abi_struct(&new_name, None, fields, witnesses.clone())
+                }
+                _ => {
+                    let obj_type = self.get_object_type_from_abi(field_typ);
+                    let v_id = self.create_new_variable(
+                        new_name.clone(),
+                        None,
+                        obj_type,
+                        Some(witnesses[&new_name][0]),
+                    );
+                    Value::Single(v_id)
+                }
+            }
         });
+        self.insert_new_struct(ident_def, values)
+    }
+
+    fn codegen_identifier(&mut self, ident: &Ident) -> Value {
+        let value = self.variable_values[&ident.id].clone();
         self.get_current_value(&value)
     }
 
@@ -228,19 +230,16 @@ impl IRGenerator {
         &mut self,
         array: &LValue,
         index: &Expression,
-        env: &mut Environment,
     ) -> Result<(NodeId, NodeId), RuntimeError> {
         let value = self.lvalue_to_value(array);
         let lhs = value.unwrap_id();
-        let index = self.codegen_expression(env, index)?.unwrap_id();
+        let index = self.codegen_expression(index)?.unwrap_id();
         Ok((lhs, index))
     }
 
     fn lvalue_to_value(&self, lvalue: &LValue) -> &Value {
         match lvalue {
-            LValue::Ident(ident) => {
-                self.find_variable(Self::get_local_id(&ident.definition)).unwrap()
-            }
+            LValue::Ident(ident) => self.find_variable(ident.id).unwrap(),
             LValue::Index { array, .. } => {
                 self.find_variable(Self::lvalue_ident_def(array.as_ref())).unwrap()
             }
@@ -252,9 +251,9 @@ impl IRGenerator {
         }
     }
 
-    fn lvalue_ident_def(lvalue: &LValue) -> LocalId {
+    fn lvalue_ident_def(lvalue: &LValue) -> DefinitionId {
         match lvalue {
-            LValue::Ident(ident) => Self::get_local_id(&ident.definition),
+            LValue::Ident(ident) => ident.id,
             LValue::Index { array, .. } => Self::lvalue_ident_def(array.as_ref()),
             LValue::MemberAccess { object, .. } => Self::lvalue_ident_def(object.as_ref()),
         }
@@ -263,7 +262,7 @@ impl IRGenerator {
     pub fn create_new_variable(
         &mut self,
         var_name: String,
-        def: Option<LocalId>,
+        def: Option<DefinitionId>,
         obj_type: node::ObjectType,
         witness: Option<acvm::acir::native_types::Witness>,
     ) -> NodeId {
@@ -284,12 +283,51 @@ impl IRGenerator {
         v_id
     }
 
+    //Helper function for create_new_value()
+    fn insert_new_struct(&mut self, def: Option<DefinitionId>, values: Vec<Value>) -> Value {
+        let result = Value::Tuple(values);
+        if let Some(def_id) = def {
+            self.variable_values.insert(def_id, result.clone());
+        }
+        result
+    }
+
+    pub fn create_new_value(
+        &mut self,
+        typ: &Type,
+        base_name: &str,
+        def: Option<DefinitionId>,
+    ) -> Value {
+        match typ {
+            Type::Tuple(fields) => {
+                let values = vecmap(fields.iter().enumerate(), |(i, field)| {
+                    let name = format!("{}.{}", base_name, i);
+                    self.create_new_value(field, &name, None)
+                });
+                self.insert_new_struct(def, values)
+            }
+            Type::Array(len, _) => {
+                //TODO support array of structs
+                let obj_type = node::ObjectType::from(typ);
+                let len = *len;
+                let (v_id, _) = self.new_array(base_name, obj_type, len.try_into().unwrap(), def);
+                Value::Single(v_id)
+            }
+            _ => {
+                let obj_type = node::ObjectType::from(typ);
+                let v_id = self.create_new_variable(base_name.to_string(), def, obj_type, None);
+                self.context.get_current_block_mut().update_variable(v_id, v_id);
+                Value::Single(v_id)
+            }
+        }
+    }
+
     pub fn new_array(
         &mut self,
         name: &str,
         element_type: ObjectType,
         len: u32,
-        def_id: Option<LocalId>,
+        def_id: Option<DefinitionId>,
     ) -> (NodeId, ArrayId) {
         let (id, array_id) = self.context.new_array(name, element_type, len, def_id);
         if let Some(def) = def_id {
@@ -301,19 +339,18 @@ impl IRGenerator {
     // Add a constraint to constrain two expression together
     fn codegen_constrain(
         &mut self,
-        env: &mut Environment,
         expr: &Expression,
-        location: Option<noirc_errors::Location>,
+        location: noirc_errors::Location,
     ) -> Result<Value, RuntimeError> {
-        let cond = self.codegen_expression(env, expr)?.unwrap_id();
-        let operation = Operation::Constrain(cond, location);
+        let cond = self.codegen_expression(expr)?.unwrap_id();
+        let operation = Operation::Constrain(cond, Some(location));
         self.context.new_instruction(operation, ObjectType::NotAnObject)?;
         Ok(Value::dummy())
     }
 
     /// Bind the given DefinitionId to the given Value. This will flatten the Value as needed,
     /// expanding each field of the value to a new variable.
-    fn bind_id(&mut self, id: LocalId, value: Value, name: &str) -> Result<(), RuntimeError> {
+    fn bind_id(&mut self, id: DefinitionId, value: Value, name: &str) -> Result<(), RuntimeError> {
         match value {
             Value::Single(node_id) => {
                 let otype = self.context.get_object_type(node_id);
@@ -356,7 +393,7 @@ impl IRGenerator {
     fn bind_variable(
         &mut self,
         variable_name: String,
-        definition_id: Option<LocalId>,
+        definition_id: Option<DefinitionId>,
         obj_type: node::ObjectType,
         value_id: NodeId,
     ) -> Result<Value, RuntimeError> {
@@ -382,10 +419,9 @@ impl IRGenerator {
         &mut self,
         lvalue: &LValue,
         expression: &Expression,
-        env: &mut Environment,
     ) -> Result<Value, RuntimeError> {
         let ident_def = Self::lvalue_ident_def(lvalue);
-        let rhs = self.codegen_expression(env, expression)?;
+        let rhs = self.codegen_expression(expression)?;
 
         match lvalue {
             LValue::Ident(_) => {
@@ -396,8 +432,8 @@ impl IRGenerator {
                 let result = self.assign_pattern(&lhs, rhs)?;
                 self.variable_values.insert(ident_def, result);
             }
-            LValue::Index { array, index, .. } => {
-                let (lhs_id, array_idx) = self.codegen_indexed_value(array.as_ref(), index, env)?;
+            LValue::Index { array, index } => {
+                let (lhs_id, array_idx) = self.codegen_indexed_value(array.as_ref(), index)?;
                 let rhs_id = rhs.unwrap_id();
                 self.context.handle_assign(lhs_id, Some(array_idx), rhs_id)?;
             }
@@ -432,21 +468,13 @@ impl IRGenerator {
     }
 
     // Let statements are used to declare higher level objects
-    fn codegen_let(
-        &mut self,
-        env: &mut Environment,
-        let_expr: &Let,
-    ) -> Result<Value, RuntimeError> {
-        let rhs = self.codegen_expression(env, &let_expr.expression)?;
+    fn codegen_let(&mut self, let_expr: &Let) -> Result<Value, RuntimeError> {
+        let rhs = self.codegen_expression(&let_expr.expression)?;
         self.bind_id(let_expr.id, rhs, &let_expr.name)?;
         Ok(Value::dummy())
     }
 
-    pub(crate) fn codegen_expression(
-        &mut self,
-        env: &mut Environment,
-        expr: &Expression,
-    ) -> Result<Value, RuntimeError> {
+    pub(crate) fn codegen_expression(&mut self, expr: &Expression) -> Result<Value, RuntimeError> {
         match expr {
             Expression::Literal(Literal::Integer(x, typ)) => {
                 Ok(Value::Single(self.context.get_or_create_const(*x, typ.into())))
@@ -457,7 +485,7 @@ impl IRGenerator {
                 let (new_var, array_id) =
                     self.context.new_array("", element_type, arr_lit.contents.len() as u32, None);
 
-                let elements = self.codegen_expression_list(env, &arr_lit.contents);
+                let elements = self.codegen_expression_list(&arr_lit.contents);
                 for (pos, object) in elements.into_iter().enumerate() {
                     let lhs_adr = self.context.get_or_create_const(
                         FieldElement::from((pos as u32) as u128),
@@ -473,22 +501,32 @@ impl IRGenerator {
                 //n.b this creates a new variable if it does not exist, may be we should delegate this to explicit statements (let) - TODO
             }
             Expression::Binary(binary) => {
-                // Note: using .into_id() here disallows structs/tuples in infix expressions.
-                // The type checker currently disallows this as well but we may want to allow
-                // for e.g. struct == struct in the future
-                let lhs = self.codegen_expression(env, &binary.lhs)?.unwrap_id();
-                let rhs = self.codegen_expression(env, &binary.rhs)?.unwrap_id();
-                Ok(Value::Single(self.codegen_infix_expression(lhs, rhs, binary.operator)?))
+                // Note: we disallows structs/tuples in infix expressions.
+                // The type checker currently disallows this as well but not if they come from generic type
+                // We could allow some in the future, e.g. struct == struct
+                let lhs = self.codegen_expression(&binary.lhs)?.to_node_ids();
+                let rhs = self.codegen_expression(&binary.rhs)?.to_node_ids();
+                if lhs.len() != 1 || rhs.len() != 1 {
+                    return Err(RuntimeError {
+                        location: noirc_errors::Location::dummy(),
+                        kind: crate::errors::RuntimeErrorKind::UnsupportedOp {
+                            op: binary.operator.to_string(),
+                            first_type: "struct/tuple".to_string(),
+                            second_type: "struct/tuple".to_string(),
+                        },
+                    });
+                }
+                Ok(Value::Single(self.codegen_infix_expression(lhs[0], rhs[0], binary.operator)?))
             }
             Expression::Cast(cast_expr) => {
-                let lhs = self.codegen_expression(env, &cast_expr.lhs)?.unwrap_id();
+                let lhs = self.codegen_expression(&cast_expr.lhs)?.unwrap_id();
                 let rtype = ObjectType::from(&cast_expr.r#type);
 
                 Ok(Value::Single(self.context.new_instruction(Operation::Cast(lhs), rtype)?))
             }
             Expression::Index(indexed_expr) => {
                 // Evaluate the 'array' expression
-                let expr_node = self.codegen_expression(env, &indexed_expr.collection)?.unwrap_id();
+                let expr_node = self.codegen_expression(&indexed_expr.collection)?.unwrap_id();
                 let array = match self.context.get_object_type(expr_node) {
                     ObjectType::Pointer(array_id) => &self.context.mem[array_id],
                     other => unreachable!("Expected Pointer type, found {:?}", other),
@@ -496,59 +534,69 @@ impl IRGenerator {
                 let array_id = array.id;
                 let e_type = array.element_type;
                 // Evaluate the index expression
-                let index_as_obj = self.codegen_expression(env, &indexed_expr.index)?.unwrap_id();
+                let index_as_obj = self.codegen_expression(&indexed_expr.index)?.unwrap_id();
                 let load = Operation::Load { array_id, index: index_as_obj };
                 Ok(Value::Single(self.context.new_instruction(load, e_type)?))
             }
-            Expression::Call(_) => unreachable!(),
-            Expression::CallLowLevel(call) => Ok(Value::Single(self.codegen_lowlevel(env, call)?)),
+            Expression::Call(call_expr) => {
+                if self.context.get_ssafunc(call_expr.func_id).is_none() {
+                    let index = self.context.get_function_index();
+                    self.create_function(call_expr.func_id, index)?;
+                }
+
+                let callee = self.context.get_ssafunc(call_expr.func_id).unwrap().idx;
+                //generate a call instruction to the function cfg
+                if let Some(caller) = self.function_context {
+                    function::update_call_graph(&mut self.context.call_graph, caller, callee);
+                }
+
+                let results = self.call(call_expr)?;
+
+                let function = &self.program[call_expr.func_id];
+                Ok(match &function.return_type {
+                    Type::Tuple(_) => Value::Tuple(vecmap(results, Value::Single)),
+                    _ => {
+                        assert_eq!(results.len(), 1);
+                        Value::Single(results[0])
+                    }
+                })
+            }
+            Expression::CallLowLevel(call) => Ok(Value::Single(self.codegen_lowlevel(call)?)),
             Expression::CallBuiltin(call) => {
                 let call =
                     CallLowLevel { opcode: call.opcode.clone(), arguments: call.arguments.clone() };
-                Ok(Value::Single(self.codegen_lowlevel(env, &call)?))
+                Ok(Value::Single(self.codegen_lowlevel(&call)?))
             }
-            Expression::For(for_expr) => self.codegen_for(env, for_expr),
-            Expression::Tuple(fields) => self.codegen_tuple(env, fields),
-            Expression::If(if_expr) => self.handle_if_expr(env, if_expr),
+            Expression::For(for_expr) => self.codegen_for(for_expr),
+            Expression::Tuple(fields) => self.codegen_tuple(fields),
+            Expression::If(if_expr) => self.handle_if_expr(if_expr),
             Expression::Unary(prefix) => {
-                let rhs = self.codegen_expression(env, &prefix.rhs)?.unwrap_id();
+                let rhs = self.codegen_expression(&prefix.rhs)?.unwrap_id();
                 self.codegen_prefix_expression(rhs, prefix.operator).map(Value::Single)
             }
             Expression::Literal(l) => Ok(Value::Single(self.codegen_literal(l))),
-            Expression::Block(block) => self.codegen_block(block, env),
+            Expression::Block(block) => self.codegen_block(block),
             Expression::ExtractTupleField(expr, field) => {
-                let tuple = self.codegen_expression(env, expr.as_ref())?;
+                let tuple = self.codegen_expression(expr.as_ref())?;
                 Ok(tuple.into_field_member(*field))
             }
-            Expression::Let(let_expr) => self.codegen_let(env, let_expr),
+            Expression::Let(let_expr) => self.codegen_let(let_expr),
             Expression::Constrain(expr, location) => {
-                self.codegen_constrain(env, expr.as_ref(), *location)
+                self.codegen_constrain(expr.as_ref(), *location)
             }
             Expression::Assign(assign) => {
-                self.codegen_assign(&assign.lvalue, assign.expression.as_ref(), env)
+                self.codegen_assign(&assign.lvalue, assign.expression.as_ref())
             }
             Expression::Semi(expr) => {
-                self.codegen_expression(env, expr.as_ref())?;
+                self.codegen_expression(expr.as_ref())?;
                 Ok(Value::dummy())
-            }
-            Expression::Shared(id, expr) => {
-                if let Some(value) = self.shared_values.get(id) {
-                    return Ok(value.clone());
-                }
-                let e = self.codegen_expression(env, expr)?;
-                self.shared_values.insert(*id, e.clone());
-                Ok(e)
             }
         }
     }
 
-    fn codegen_lowlevel(
-        &mut self,
-        env: &mut Environment,
-        call: &CallLowLevel,
-    ) -> Result<NodeId, RuntimeError> {
+    fn codegen_lowlevel(&mut self, call: &CallLowLevel) -> Result<NodeId, RuntimeError> {
         match OPCODE::lookup(&call.opcode) {
-            Some(func) => self.call_low_level(func, call, env),
+            Some(func) => self.call_low_level(func, call),
             None => {
                 unreachable!(
                     "cannot find a low level opcode with the name {} in the IR",
@@ -568,46 +616,33 @@ impl IRGenerator {
                 }
             }
             Literal::Integer(f, typ) => self.context.get_or_create_const(*f, typ.into()),
-            Literal::Unit => NodeId::dummy(),
             _ => todo!(), //todo: add support for Array(ArrayLiteral), Str(String)
         }
     }
 
     /// A tuple is much the same as a constructor, we just give it fields with numbered names
-    fn codegen_tuple(
-        &mut self,
-        env: &mut Environment,
-        fields: &[Expression],
-    ) -> Result<Value, RuntimeError> {
+    fn codegen_tuple(&mut self, fields: &[Expression]) -> Result<Value, RuntimeError> {
         let fields = fields
             .iter()
-            .map(|field| self.codegen_expression(env, field))
+            .map(|field| self.codegen_expression(field))
             .collect::<Result<Vec<_>, _>>()?;
 
         Ok(Value::Tuple(fields))
     }
 
-    pub fn codegen_expression_list(
-        &mut self,
-        env: &mut Environment,
-        exprs: &[Expression],
-    ) -> Vec<NodeId> {
+    pub fn codegen_expression_list(&mut self, exprs: &[Expression]) -> Vec<NodeId> {
         let mut result = Vec::with_capacity(exprs.len());
         for expr in exprs {
-            let value = self.codegen_expression(env, expr);
+            let value = self.codegen_expression(expr);
             result.extend(value.unwrap().to_node_ids());
         }
         result
     }
 
-    fn codegen_for(
-        &mut self,
-        env: &mut Environment,
-        for_expr: &For,
-    ) -> Result<Value, RuntimeError> {
+    fn codegen_for(&mut self, for_expr: &For) -> Result<Value, RuntimeError> {
         //we add the 'i = start' instruction (in the block before the join)
-        let start_idx = self.codegen_expression(env, &for_expr.start_range).unwrap().unwrap_id();
-        let end_idx = self.codegen_expression(env, &for_expr.end_range).unwrap().unwrap_id();
+        let start_idx = self.codegen_expression(&for_expr.start_range).unwrap().unwrap_id();
+        let end_idx = self.codegen_expression(&for_expr.end_range).unwrap().unwrap_id();
 
         //We support only const range for now
         //TODO how should we handle scope (cf. start/end_for_loop)?
@@ -650,7 +685,7 @@ impl IRGenerator {
         let body_block1 = &mut self.context[body_id];
         body_block1.update_variable(iter_id, phi); //TODO try with just a get_current_value(iter)
 
-        self.codegen_expression(env, for_expr.block.as_ref())?;
+        self.codegen_expression(for_expr.block.as_ref())?;
 
         //increment iter
         let one = self.context.get_or_create_const(FieldElement::one(), iter_type);
@@ -670,35 +705,27 @@ impl IRGenerator {
         //jump back to join
         self.context.new_instruction(Operation::Jmp(join_idx), ObjectType::NotAnObject)?;
 
-        //seal join
-        ssa_form::seal_block(&mut self.context, join_idx);
-
         //exit block
         self.context.current_block = exit_id;
         let exit_first = self.context.get_current_block().get_first_instruction();
         block::link_with_target(&mut self.context, join_idx, Some(exit_id), Some(body_id));
 
+        //seal join
+        ssa_form::seal_block(&mut self.context, join_idx, join_idx);
+
         Ok(Value::Single(exit_first)) //TODO what should we return???
     }
 
     //Parse a block of AST statements into ssa form
-    pub fn codegen_block(
-        &mut self,
-        block: &[Expression],
-        env: &mut Environment,
-    ) -> Result<Value, RuntimeError> {
+    pub fn codegen_block(&mut self, block: &[Expression]) -> Result<Value, RuntimeError> {
         let mut last_value = Value::dummy();
         for expr in block {
-            last_value = self.codegen_expression(env, expr)?;
+            last_value = self.codegen_expression(expr)?;
         }
         Ok(last_value)
     }
 
-    fn handle_if_expr(
-        &mut self,
-        env: &mut Environment,
-        if_expr: &If,
-    ) -> Result<Value, RuntimeError> {
+    fn handle_if_expr(&mut self, if_expr: &If) -> Result<Value, RuntimeError> {
         //jump instruction
         let mut entry_block = self.context.current_block;
         if self.context[entry_block].kind != BlockType::Normal {
@@ -706,17 +733,17 @@ impl IRGenerator {
                 block::new_sealed_block(&mut self.context, block::BlockType::Normal, true);
         }
 
-        let condition = self.codegen_expression(env, if_expr.condition.as_ref())?.unwrap_id();
+        let condition = self.codegen_expression(if_expr.condition.as_ref())?.unwrap_id();
 
         if let Some(cond) = node::NodeEval::from_id(&self.context, condition).into_const_value() {
             if cond.is_zero() {
                 if let Some(alt) = &if_expr.alternative {
-                    return self.codegen_expression(env, alt);
+                    return self.codegen_expression(alt);
                 } else {
                     return Ok(Value::dummy());
                 }
             } else {
-                return self.codegen_expression(env, if_expr.consequence.as_ref());
+                return self.codegen_expression(if_expr.consequence.as_ref());
             }
         }
 
@@ -726,7 +753,7 @@ impl IRGenerator {
         //Then block
         block::new_sealed_block(&mut self.context, block::BlockType::Normal, true);
 
-        let v1 = self.codegen_expression(env, if_expr.consequence.as_ref())?;
+        let v1 = self.codegen_expression(if_expr.consequence.as_ref())?;
 
         //Exit block
         let exit_block =
@@ -747,7 +774,7 @@ impl IRGenerator {
 
         let mut v2 = Value::dummy();
         if let Some(alt) = if_expr.alternative.as_ref() {
-            v2 = self.codegen_expression(env, alt)?;
+            v2 = self.codegen_expression(alt)?;
         }
 
         //Connect with the exit block
@@ -756,7 +783,7 @@ impl IRGenerator {
         //Exit block plumbing
         self.context.current_block = exit_block;
         self.context.get_current_block_mut().predecessor.push(block2);
-        ssa_form::seal_block(&mut self.context, exit_block);
+        ssa_form::seal_block(&mut self.context, exit_block, entry_block);
 
         // return value:
         let mut counter = 0;

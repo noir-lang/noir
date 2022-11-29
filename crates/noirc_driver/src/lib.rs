@@ -8,7 +8,6 @@ use noirc_frontend::graph::{CrateId, CrateName, CrateType, LOCAL_CRATE};
 use noirc_frontend::hir::def_map::CrateDefMap;
 use noirc_frontend::hir::Context;
 use noirc_frontend::monomorphisation::monomorphise;
-use noirc_frontend::partialevaluator::evaluate;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
@@ -178,7 +177,6 @@ impl Driver {
         let abi = func_meta.into_abi(&self.context.def_interner);
 
         let program = monomorphise(main_function, self.context.def_interner);
-        let program = evaluate(program);
 
         // Compile Program
         let circuit = match create_circuit(program, np_language, show_ssa) {

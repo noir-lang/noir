@@ -134,11 +134,6 @@ impl Anchor {
                     len
                 }
             };
-
-            if mem_idx == 32 {
-                println!("Instruction is: {}", ins);
-                ctx.print("anchor");
-            }
             self.mem_map.get_mut(&array_id).unwrap()[mem_idx].push_front((item_pos, id));
         } else {
             prev_list.push_front(MemItem::NonConst(id));
@@ -180,13 +175,11 @@ impl Anchor {
                 MemItem::Const(p) | MemItem::ConstLoad(p) => {
                     let a = self.get_mem_map(array_id);
                     let b_idx = b_value.to_u128() as usize;
-                    if let Some(elements) = a.get(b_idx) {
-                        for (pos, id) in elements {
-                            if pos == p {
-                                let action = Anchor::match_mem_id(ctx, *id, index, is_load);
-                                if action.is_some() {
-                                    return action;
-                                }
+                    for (pos, id) in &a[b_idx] {
+                        if pos == p {
+                            let action = Anchor::match_mem_id(ctx, *id, index, is_load);
+                            if action.is_some() {
+                                return action;
                             }
                         }
                     }
