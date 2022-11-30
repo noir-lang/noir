@@ -32,15 +32,14 @@ fn main(y : pub Field, a: u32, b: u32) -> pub Field {
     let p2 = new_parent(c2, a, b);
     // Passes without a specified return value when I add a constrain stmt on the struct field
     // Trying to return p2.foo alone though will always fail without a specified return value in Prover.toml
-    // let q2 = p2.foo + y;
-    // constrain q2 == 3; 
+    let q2 = p2.foo + y;
+    constrain q2 == 3; 
     // Then a valid return
-    // p2.foo
-
-    constrain p2.child.child2.input_b == 1 as u30;
+    p2.foo
 
     // Passes only when the field is constrained 
-    p2.child.child2.input_b as Field 
+    // constrain p2.child.child2.input_b == 1 as u30;
+    // p2.child.child2.input_b as Field 
 
     // Fails without change `let q2 = p2.bar + y`
     // p2.bar
