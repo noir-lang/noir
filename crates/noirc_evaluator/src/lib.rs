@@ -1,28 +1,15 @@
-mod binary_op;
-
-mod builtin;
-mod environment;
 mod errors;
-mod interpreter;
-mod low_level_function_impl;
-mod object;
 mod ssa;
 
-use acvm::acir::circuit::{
-    gate::{AndGate, Gate, XorGate},
-    Circuit, PublicInputs,
-};
-use acvm::acir::native_types::{Expression, Linear, Witness};
-use acvm::FieldElement;
+use acvm::acir::circuit::{gate::Gate, Circuit, PublicInputs};
+use acvm::acir::native_types::{Expression, Witness};
 use acvm::Language;
-use environment::{Environment, FuncContext};
 use errors::{RuntimeError, RuntimeErrorKind};
 use noirc_abi::{AbiFEType, AbiType};
 use noirc_frontend::monomorphisation::ast::*;
 use noirc_frontend::util::btree_map;
 use std::collections::BTreeMap;
 
-use object::{Array, Integer, Object};
 use ssa::{code_gen::IRGenerator, node};
 
 pub struct Evaluator {
@@ -48,11 +35,8 @@ pub fn create_circuit(
 ) -> Result<Circuit, RuntimeError> {
     let mut evaluator = Evaluator::new();
 
-    // create a new environment for the main context
-    let mut env = Environment::new(FuncContext::Main);
-
     // First evaluate the main function
-    evaluator.evaluate_main_alt(&mut env, program, enable_logging)?;
+    evaluator.evaluate_main_alt(program, enable_logging)?;
 
     let witness_index = evaluator.current_witness_index();
 
@@ -91,18 +75,6 @@ impl Evaluator {
         Witness(self.current_witness_index)
     }
 
-    // Maps a variable name to a witness index
-    fn add_witness_to_env(
-        &mut self,
-        variable_name: String,
-        witness: Witness,
-        env: &mut Environment,
-    ) -> Object {
-        let value = Object::from_witness(witness);
-        env.store(variable_name, value.clone());
-        value
-    }
-
     pub fn current_witness_index(&self) -> u32 {
         self.current_witness_index
     }
@@ -110,7 +82,6 @@ impl Evaluator {
     /// Compiles the AST into the intermediate format by evaluating the main function
     pub fn evaluate_main_alt(
         &mut self,
-        env: &mut Environment,
         program: Program,
         enable_logging: bool,
     ) -> Result<(), RuntimeError> {
@@ -118,7 +89,7 @@ impl Evaluator {
         self.parse_abi_alt(&mut igen);
 
         // Now call the main function
-        igen.codegen_main(env)?;
+        igen.codegen_main()?;
 
         //Generates ACIR representation:
         igen.context.ir_to_acir(self, enable_logging)?;
@@ -128,18 +99,14 @@ impl Evaluator {
     // When we are multiplying arithmetic gates by each other, if one gate has too many terms
     // It is better to create an intermediate variable which links to the gate and then multiply by that intermediate variable
     // instead
-    pub fn create_intermediate_variable(
-        &mut self,
-        arithmetic_gate: Expression,
-    ) -> (Object, Witness) {
+    pub fn create_intermediate_variable(&mut self, arithmetic_gate: Expression) -> Witness {
         // Create a unique witness name and add witness to the constraint system
         let inter_var_witness = self.add_witness_to_cs();
-        let inter_var_object = Object::from_witness(inter_var_witness);
 
         // Link that witness to the arithmetic gate
         let constraint = &arithmetic_gate - &inter_var_witness;
         self.gates.push(Gate::Arithmetic(constraint));
-        (inter_var_object, inter_var_witness)
+        inter_var_witness
     }
 
     fn param_to_var(
