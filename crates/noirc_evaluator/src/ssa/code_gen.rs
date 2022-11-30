@@ -212,7 +212,7 @@ impl IRGenerator {
                         if orig_values.len() > fields.len() {
                             // TODO: Look into how to avoid creating a new value here everytime we have a tuple member access from a nested tuple that was returned by a func
                             // We might have to cache the updated SSA values for nested structs that are the result of func returns
-                            self.create_new_value(&ident.typ, &ident.name, None)
+                            self.create_new_value(&ident.typ, &ident.name, Some(ident.id))
                         } else {
                             value
                         }

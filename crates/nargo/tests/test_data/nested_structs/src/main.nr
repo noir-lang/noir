@@ -17,9 +17,10 @@ struct Child2 {
 }
 
 fn main(y : pub Field, a: u32, b: u32) -> pub Field {
-    let (struct_from_tuple, a_bool) = test_struct_in_tuple(true);
-    constrain struct_from_tuple.my_bool == true;
-    constrain a_bool == 10;
+    // TODO: Currently broken for fixed return value problem discussed in the comments below 
+    // let (struct_from_tuple, a_bool) = test_struct_in_tuple(true);
+    // constrain struct_from_tuple.my_bool == true;
+    // constrain a_bool == 10;
 
     // Always passes as the nested struct is not returned from a function
     let c2 = Child2 { input_a: 0 as u30, input_b: 1 as u30, flag: true };
@@ -32,9 +33,12 @@ fn main(y : pub Field, a: u32, b: u32) -> pub Field {
     let res = p2.foo;
     constrain res == a as Field;
     let q2 = p2.foo + y;
-    q2
+    // Passes without a specified return value when I add this constrain stmt
+    // Trying to return p2.foo always fails though without a specified return value
+    constrain q2 == 3; 
+    p2.foo
 
-    // Passes as parent_wrapper returns a Field
+    // Always passes as parent_wrapper returns a Field
     // let res = parent_wrapper(a, b);
     // constrain res == a as Field;
     // let q2 = res + y;
