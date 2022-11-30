@@ -52,7 +52,7 @@ fn process_abi_with_input(
         .parameters
         .iter()
         .find(|x| x.0 == noirc_frontend::hir_def::function::MAIN_RETURN_NAME)
-        .map_or(0, |(_, return_type)| return_type.field_count() as u32);
+        .map_or(0, |(_, return_type)| return_type.field_count());
 
     for (param_name, param_type) in abi.parameters.into_iter() {
         let value = witness_map
