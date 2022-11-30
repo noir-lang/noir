@@ -1,5 +1,5 @@
 use super::context::SsaContext;
-use super::function::FuncIndex;
+use super::function::{self, FuncIndex};
 use super::mem::ArrayId;
 use super::node::{Binary, BinaryOp, NodeId, ObjectType, Operation, Variable};
 use super::{block, node, ssa_form};
@@ -190,9 +190,45 @@ impl IRGenerator {
         self.insert_new_struct(ident_def, values)
     }
 
-    fn codegen_identifier(&mut self, ident: &Ident) -> Value {
-        let value = self.variable_values[&ident.definition].clone();
-        self.get_current_value(&value)
+    fn codegen_identifier(&mut self, ident: &Ident) -> Result<Value, RuntimeError> {
+        // Check if we have already code-gen'd the definition of this variable
+        if let Some(value) = self.variable_values.get(&ident.definition) {
+            Ok(self.get_current_value(&value.clone()))
+        } else {
+            // If we haven't, it must be a global value, like a function or builtin
+            match ident.definition {
+                Definition::Local(id) => unreachable!(
+                    "Local variable encountered before its definition was compiled: {:?}",
+                    id
+                ),
+                Definition::Function(id) => {
+                    if !self.context.function_already_compiled(id) {
+                        let index = self.context.get_function_index();
+                        self.create_function(id, index)?;
+                    }
+
+                    // Link this referenced function to the current function's call graph
+                    // regardless of whether it is called later or not.
+                    let callee = self.context.get_ssafunc(id).unwrap().idx;
+                    if let Some(caller) = self.function_context {
+                        function::update_call_graph(&mut self.context.call_graph, caller, callee);
+                    }
+
+                    let expect_msg = "Expected called function to already be codegen'd";
+                    let function_node_id = self.context.get_function_node_id(id).expect(expect_msg);
+                    Ok(Value::Single(function_node_id))
+
+                    // Expression::CallLowLevel(call) => Ok(Value::Single(self.codegen_lowlevel(call)?)),
+                    // Expression::CallBuiltin(call) => {
+                    //     let call =
+                    //         CallLowLevel { opcode: call.opcode.clone(), arguments: call.arguments.clone() };
+                    //     Ok(Value::Single(self.codegen_lowlevel(&call)?))
+                    // }
+                }
+                Definition::Builtin(_) => todo!(),
+                Definition::LowLevel(_) => todo!(),
+            }
+        }
     }
 
     fn codegen_prefix_expression(
@@ -497,30 +533,7 @@ impl IRGenerator {
                 }
                 Ok(Value::Single(new_var))
             }
-            Expression::Ident(ident) => {
-                // TODO: Update call graph if ident refers to a function
-                //
-                // if self.context.get_ssafunc(call_expr.func_id).is_none() {
-                //     let index = self.context.get_function_index();
-                //     self.create_function(call_expr.func_id, index)?;
-                // }
-
-                // let callee = self.context.get_ssafunc(call_expr.func_id).unwrap().idx;
-                // //generate a call instruction to the function cfg
-                // if let Some(caller) = self.function_context {
-                //     function::update_call_graph(&mut self.context.call_graph, caller, callee);
-                // }
-                //
-                // Expression::CallLowLevel(call) => Ok(Value::Single(self.codegen_lowlevel(call)?)),
-                // Expression::CallBuiltin(call) => {
-                //     let call =
-                //         CallLowLevel { opcode: call.opcode.clone(), arguments: call.arguments.clone() };
-                //     Ok(Value::Single(self.codegen_lowlevel(&call)?))
-                // }
-
-                Ok(self.codegen_identifier(ident))
-                //n.b this creates a new variable if it does not exist, may be we should delegate this to explicit statements (let) - TODO
-            }
+            Expression::Ident(ident) => self.codegen_identifier(ident),
             Expression::Binary(binary) => {
                 // Note: we disallows structs/tuples in infix expressions.
                 // The type checker currently disallows this as well but not if they come from generic type

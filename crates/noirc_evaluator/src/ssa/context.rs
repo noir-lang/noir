@@ -3,7 +3,7 @@ use super::conditional::{DecisionTree, TreeBuilder};
 use super::function::{FuncIndex, SSAFunction};
 use super::inline::StackFrame;
 use super::mem::{ArrayId, Memory};
-use super::node::{BinaryOp, Instruction, NodeId, NodeObj, ObjectType, Operation};
+use super::node::{BinaryOp, FunctionObj, Instruction, NodeId, NodeObj, ObjectType, Operation};
 use super::{block, flatten, inline, integer, node, optim};
 use std::collections::{HashMap, HashSet};
 
@@ -30,7 +30,10 @@ pub struct SsaContext {
     value_names: HashMap<NodeId, u32>,
     pub sealed_blocks: HashSet<BlockId>,
     pub mem: Memory,
+
     pub functions: HashMap<FuncId, function::SSAFunction>,
+    pub function_ids: HashMap<FuncId, NodeId>,
+
     //Adjacency Matrix of the call graph; list of rows where each row indicates the functions called by the function whose FuncIndex is the row number
     pub call_graph: Vec<Vec<u8>>,
     dummy_store: HashMap<ArrayId, NodeId>,
@@ -48,6 +51,7 @@ impl SsaContext {
             sealed_blocks: HashSet::new(),
             mem: Memory::default(),
             functions: HashMap::new(),
+            function_ids: HashMap::new(),
             call_graph: Vec::new(),
             dummy_store: HashMap::new(),
             dummy_load: HashMap::new(),
@@ -1003,6 +1007,31 @@ impl SsaContext {
             self[exit_block].instructions.insert(1, phi_id);
             phi_id
         }
+    }
+
+    pub fn push_function_id(&mut self, func_id: FuncId) {
+        let index = self
+            .nodes
+            .insert(NodeObj::Function(FunctionObj { id: func_id, node_id: NodeId::dummy() }));
+
+        // Now fix it to have the correct NodeId
+        let node_id = NodeId(index);
+        let node = self.nodes.get_mut(index).unwrap();
+        *node = NodeObj::Function(FunctionObj { id: func_id, node_id });
+
+        self.function_ids.insert(func_id, node_id);
+    }
+
+    /// Return the standard NodeId for this FuncId.
+    /// The 'standard' NodeId is just the NodeId assigned to the function when it
+    /// is first compiled so that repeated NodeObjs are not made for the same function.
+    /// If this function returns None, it means the given FuncId has yet to be compiled.
+    pub fn get_function_node_id(&self, func_id: FuncId) -> Option<NodeId> {
+        self.function_ids.get(&func_id).copied()
+    }
+
+    pub fn function_already_compiled(&self, func_id: FuncId) -> bool {
+        self.get_ssafunc(func_id).is_some()
     }
 }
 

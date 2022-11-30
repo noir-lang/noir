@@ -142,6 +142,9 @@ impl IRGenerator {
         let function = &mut self.program[func_id];
         let mut func = SSAFunction::new(func_id, &function.name, func_block, index, &self.context);
 
+        // Push a standard NodeId for this FuncId
+        self.context.push_function_id(func_id);
+
         //arguments:
         for (param_id, mutable, name, typ) in std::mem::take(&mut function.parameters) {
             let node_ids = self.create_function_parameter(param_id, &typ, &name);
