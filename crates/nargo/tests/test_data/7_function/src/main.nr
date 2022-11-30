@@ -87,6 +87,13 @@ fn test_multiple6(a: my2, b: my_struct, c: (my2, my_struct)) {
     constrain c.0.aa.a == c.1.a;
 }
 
+
+fn foo(a: [Field]) -> [Field] {
+    a
+}
+fn bar() -> [Field] {
+    foo([0])
+}
 fn main(x: u32 , y: u32 , a: Field) {  
     let mut ss: my_struct = my_struct { b: x, a: x+2, };
     test_multiple4(ss);
@@ -108,6 +115,7 @@ fn main(x: u32 , y: u32 , a: Field) {
     test0(a);
     test1(a);
     test2(x as Field, y);
+    constrain bar()[0] == 0;
 
     let mut b = [0 as u8, 5 as u8, 2 as u8];
     let c = test3(b);

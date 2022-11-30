@@ -139,11 +139,14 @@ impl SsaContext {
 
     //Display an object for debugging puposes
     fn node_to_string(&self, id: NodeId) -> String {
+        let mut result = String::new();
         if let Some(var) = self.try_get_node(id) {
-            format!("{}", var)
-        } else {
-            format!("unknown {:?}", id.0.into_raw_parts().0)
+            result = format!("{}", var);
         }
+        if result.is_empty() {
+            result = format!("unknown {:?}", id.0.into_raw_parts().0)
+        }
+        result
     }
 
     fn binary_to_string(&self, binary: &node::Binary) -> String {
