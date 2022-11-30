@@ -99,6 +99,7 @@ fn msg_u8_to_u32(msg: [u8; 64]) -> [u32; 16]
 }
 
 // SHA-256 hash function
+#[alternative(sha256)]
 fn digest(msg: [u8]) -> [u8; 32]
 {
     let mut msg_block: [u8; 64] = [0; 64];
