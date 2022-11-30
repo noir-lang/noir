@@ -17,7 +17,7 @@ fn main(a: [Field; M], b: [Field; M], c : pub [Field; foo::MAGIC_NUMBER], d: [Fi
      for i in 0..foo::MAGIC_NUMBER {
           constrain c[i] == foo::MAGIC_NUMBER;
           constrain test_struct.y[i] == foo::MAGIC_NUMBER;
-     };
+     }
 
      constrain N != M;
      
@@ -31,7 +31,7 @@ fn main(a: [Field; M], b: [Field; M], c : pub [Field; foo::MAGIC_NUMBER], d: [Fi
           x = M;
           
           y = i;
-     };
+     }
      constrain y == 24;
      constrain x == 10;
 
