@@ -95,6 +95,20 @@ impl Value {
             Value::Tuple(fields) => &fields[field_index],
         }
     }
+
+    //Deflate a vector of NodeIds into a Value whose type is provided in argument
+    pub fn deflate(value_type: &Type, iter: &mut core::slice::Iter<NodeId>) -> Value {
+        match value_type {
+            Type::Tuple(tup) => {
+                let mut values = Vec::new();
+                for i in tup {
+                    values.push(Self::deflate(i, iter));
+                }
+                Value::Tuple(values)
+            }
+            _ => Value::Single(*iter.next().unwrap()),
+        }
+    }
 }
 
 impl IRGenerator {
@@ -553,13 +567,7 @@ impl IRGenerator {
                 let results = self.call(call_expr)?;
 
                 let function = &self.program[call_expr.func_id];
-                Ok(match &function.return_type {
-                    Type::Tuple(_) => Value::Tuple(vecmap(results, Value::Single)),
-                    _ => {
-                        assert_eq!(results.len(), 1);
-                        Value::Single(results[0])
-                    }
-                })
+                Ok(Value::deflate(&function.return_type, &mut results.iter()))
             }
             Expression::CallLowLevel(call) => Ok(Value::Single(self.codegen_lowlevel(call)?)),
             Expression::CallBuiltin(call) => {
