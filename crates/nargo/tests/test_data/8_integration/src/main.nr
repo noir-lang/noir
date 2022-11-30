@@ -5,9 +5,9 @@ fn matrix_mul_2(a: [u32; 4], b: [u32; 4]) ->[u32; 4] {
             c[i+2*j] = 0;
             for k in 0..2 {
                c[i+2*j] = c[i+2*j] + a[i+2*k]*b[k+2*j];
-            };
-        };
-    };
+            }
+        }
+    }
     c
 }
 
@@ -19,9 +19,9 @@ fn matrix_mul_10(a: [u32; 100], b: [u32; 100]) -> [u32; 100] {
 
             for k in 0..10 {
                c[i+10*j] = c[i+10*j] + a[i+10*k]*b[k+10*j];
-            };
-        };
-    };
+            }
+        }
+    }
     c
 }
 
@@ -34,7 +34,7 @@ fn siggy(x: u32) -> u32 {
 fn test4 (mut a: [u32; 4]) -> [u32; 4] {
     for i in 3..4 {
         a[i] = siggy(a[i-2]);
-    };
+    }
     a
 }
 
@@ -51,7 +51,7 @@ fn iterate1(mut a0: u32) -> u32{
         h = g;
         g = f;
         a = t1 + t2;
-    };
+    }
     a0 = a0 + a;
     a0
 }
@@ -63,7 +63,7 @@ fn array_noteq(a: [u32; 4], b: [u32; 4]) {
 fn test3(mut b: [Field; 4]) -> [Field; 4] {
     for i in 0..4 {
         b[i] = i;
-    };
+    }
     b
 }
 
@@ -81,7 +81,7 @@ fn iterate2(mut hash: [u32; 8]) -> [u32; 8] {
         h = g;
         g = f;
         a = t1;
-    };
+    }
 
     hash[0] = hash[0] + a;
     hash
@@ -104,7 +104,7 @@ fn iterate3( mut hash: [u32; 8]) -> [u32; 8] {
         h = g;
         g = f;
         a = t1+t2;
-    };
+    }
     constrain a == 2470696267;
     hash[0] = hash[0] + a;
     hash[1] = hash[1] + b;
@@ -152,7 +152,7 @@ fn test6(x: [u8; 32]) ->  [u32; 8] {
     let mut buffer = [0 as u8; 64];
     for i in 0..32 {  
        buffer[i] = x[i];
-    };
+    }
 
     sha_m = iterate6_1(sha_m, buffer);
     sha_hash = iterate6_2(sha_m, sha_hash);
@@ -167,10 +167,10 @@ fn iterate6_1(mut sha_m: [u32; 64], next_chunk: [u8; 64]) -> [u32; 64] {
             | ((next_chunk[j + 1] as u32) << 16 as u32) 
             | ((next_chunk[j + 2] as u32) << 8 as u32) 
             | (next_chunk[j + 3] as u32);
-    };
+    }
     for i in 16..64 {
         sha_m[i] = sig1(sha_m[i - 2])+(sha_m[i - 7])+(sig0(sha_m[i - 15]))+(sha_m[i - 16]);
-    };
+    }
     sha_m
 }
 
@@ -197,7 +197,7 @@ fn iterate6_2(sha_m: [u32; 64], mut hash: [u32; 8]) -> [u32; 8] {
         c = b;
         b = a;
         a = t1+t2;
-    };
+    }
 
     hash[0] = hash[0]+a;
     hash[1] = hash[1]+b;

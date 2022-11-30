@@ -37,7 +37,7 @@ fn pow(base: Field, exponent: Field) -> Field {
     for i in 1..33 {
         r = r*r;
         r = (b[32-i] as Field) * (r * base) + (1 - b[32-i] as Field) * r;
-    };
+    }
     r
 }
 
@@ -45,7 +45,7 @@ fn test3(x: [u8; 3]) -> [u8; 3] {
     let mut buffer = [0 as u8; 3];
     for i in 0..3 {
         buffer[i] = x[i];
-    };
+    }
     constrain buffer == x;
     buffer
 }
