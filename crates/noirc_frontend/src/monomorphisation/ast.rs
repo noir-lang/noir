@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use acvm::FieldElement;
 use noirc_abi::Abi;
 use noirc_errors::Location;
@@ -20,90 +18,11 @@ pub enum Expression {
     Tuple(Vec<Expression>),
     ExtractTupleField(Box<Expression>, usize),
     Call(Call),
-    CallBuiltin(CallBuiltin),
-    CallLowLevel(CallLowLevel),
 
-    Shared(SharedId, Rc<Expression>),
     Let(Let),
-    Constrain(Box<Expression>, Option<Location>),
+    Constrain(Box<Expression>, Location),
     Assign(Assign),
     Semi(Box<Expression>),
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct SharedId(pub u32);
-
-impl Expression {
-    pub fn has_side_effects(&self) -> bool {
-        match self {
-            Expression::Block(exprs) => exprs.iter().any(|expr| expr.has_side_effects()),
-            Expression::Semi(expr) => expr.has_side_effects(),
-            Expression::Literal(Literal::Array(array)) => {
-                array.contents.iter().any(|elem| elem.has_side_effects())
-            }
-            Expression::Shared(_, expr) => expr.has_side_effects(),
-
-            Expression::Literal(_) => false,
-            Expression::Ident(_) => false,
-            Expression::Unary(_) => false,
-            Expression::Binary(_) => false,
-            Expression::Index(_) => false,
-            Expression::Cast(_) => false,
-            Expression::Tuple(_) => false,
-            Expression::ExtractTupleField(_, _) => false,
-            Expression::CallBuiltin(_) => false,
-            Expression::CallLowLevel(_) => false,
-
-            Expression::For(_) => unreachable!(),
-            Expression::Call(_) => unreachable!(),
-
-            Expression::If(_) => true,
-            Expression::Let(_) => true,
-            Expression::Constrain(..) => true,
-            Expression::Assign(_) => true,
-        }
-    }
-
-    pub fn contains_variables(&self) -> bool {
-        match self {
-            Expression::Ident(_) => true,
-            Expression::Literal(Literal::Array(array)) => {
-                array.contents.iter().any(|elem| elem.contains_variables())
-            }
-            Expression::Literal(_) => false,
-            Expression::Block(exprs) => exprs.iter().any(|expr| expr.contains_variables()),
-            Expression::Unary(unary) => unary.rhs.contains_variables(),
-            Expression::Binary(binary) => {
-                binary.lhs.contains_variables() || binary.rhs.contains_variables()
-            }
-            Expression::Index(index) => {
-                index.collection.contains_variables() || index.index.contains_variables()
-            }
-            Expression::Cast(cast) => cast.lhs.contains_variables(),
-            Expression::For(for_loop) => {
-                for_loop.start_range.contains_variables() || for_loop.end_range.contains_variables()
-            }
-            Expression::If(if_expr) => {
-                if_expr.condition.contains_variables()
-                    || if_expr.consequence.contains_variables()
-                    || if_expr.alternative.as_ref().map_or(false, |alt| alt.contains_variables())
-            }
-            Expression::Tuple(fields) => fields.iter().any(|field| field.contains_variables()),
-            Expression::ExtractTupleField(expr, _) => expr.contains_variables(),
-            Expression::Call(call) => call.arguments.iter().any(|arg| arg.contains_variables()),
-            Expression::CallBuiltin(call) => {
-                call.arguments.iter().any(|arg| arg.contains_variables())
-            }
-            Expression::CallLowLevel(call) => {
-                call.arguments.iter().any(|arg| arg.contains_variables())
-            }
-            Expression::Shared(_, expr) => expr.contains_variables(),
-            Expression::Let(let_expr) => let_expr.expression.contains_variables(),
-            Expression::Constrain(expr, ..) => expr.contains_variables(),
-            Expression::Assign(assign) => assign.expression.contains_variables(),
-            Expression::Semi(expr) => expr.contains_variables(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -192,19 +111,6 @@ pub struct Call {
     pub func: Box<Expression>,
     pub arguments: Vec<Expression>,
     pub return_type: Type,
-}
-
-#[derive(Debug, Clone)]
-pub struct CallLowLevel {
-    pub opcode: String,
-    pub arguments: Vec<Expression>,
-}
-
-/// TODO: Ssa doesn't support these yet.
-#[derive(Debug, Clone)]
-pub struct CallBuiltin {
-    pub opcode: String,
-    pub arguments: Vec<Expression>,
 }
 
 #[derive(Debug, Clone)]

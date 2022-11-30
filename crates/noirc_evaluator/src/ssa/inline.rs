@@ -70,7 +70,8 @@ fn inline_block(
     for i in &ctx[block_id].instructions {
         if let Some(ins) = ctx.try_get_instruction(*i) {
             if !ins.is_deleted() {
-                if let Operation::Call { func_id, arguments, returned_arrays, .. } = &ins.operation
+                if let Operation::Call { func: func_id, arguments, returned_arrays, .. } =
+                    &ins.operation
                 {
                     if let Some(func_to_inline) = to_inline {
                         if *func_id == func_to_inline {

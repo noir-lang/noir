@@ -106,7 +106,7 @@ impl BasicBlock {
                             result.insert(a);
                         }
                     }
-                    node::Operation::Call { func_id, returned_arrays, .. } => {
+                    node::Operation::Call { func: func_id, returned_arrays, .. } => {
                         for a in returned_arrays {
                             result.insert(a.0);
                         }

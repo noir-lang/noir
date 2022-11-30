@@ -13,7 +13,7 @@ use crate::ssa::function;
 use crate::ssa::node::{Mark, Node};
 use crate::Evaluator;
 use acvm::FieldElement;
-use noirc_frontend::monomorphisation::ast::{DefinitionId, FuncId};
+use noirc_frontend::monomorphisation::ast::{Definition, FuncId};
 use noirc_frontend::util::vecmap;
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
@@ -229,7 +229,7 @@ impl SsaContext {
             }
             Operation::Intrinsic(opcode, args) => format!("intrinsic {}({})", opcode, join(args)),
             Operation::Nop => "nop".into(),
-            Operation::Call { func_id, arguments, returned_arrays, .. } => {
+            Operation::Call { func: func_id, arguments, returned_arrays, .. } => {
                 format!("call {:?}({}) _ {:?}", func_id, join(arguments), returned_arrays)
             }
             Operation::Return(values) => format!("return ({})", join(values)),
@@ -593,7 +593,7 @@ impl SsaContext {
         name: &str,
         element_type: ObjectType,
         len: u32,
-        def_id: Option<DefinitionId>,
+        def_id: Option<Definition>,
     ) -> (NodeId, ArrayId) {
         let array_index = self.mem.create_new_array(len, element_type, name);
         self.add_dummy_load(array_index);

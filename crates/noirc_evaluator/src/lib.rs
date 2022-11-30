@@ -112,7 +112,7 @@ impl Evaluator {
     fn param_to_var(
         &mut self,
         name: &str,
-        def: DefinitionId,
+        def: Definition,
         param_type: &AbiType,
         igen: &mut IRGenerator,
     ) -> Result<(), RuntimeErrorKind> {
@@ -238,7 +238,8 @@ impl Evaluator {
             main_params.iter().zip(abi_params)
         {
             assert_eq!(param_name1, &param_name2);
-            self.param_to_var(param_name1, *param_id, &param_type, igen).unwrap();
+            let def = Definition::Local(*param_id);
+            self.param_to_var(param_name1, def, &param_type, igen).unwrap();
         }
     }
 }

@@ -264,7 +264,7 @@ fn cse_block_with_anchor(
                         anchor.push_cast_front(&operator, *ins_id, ins.res_type);
                     }
                 }
-                Operation::Call { func_id, arguments, returned_arrays, .. } => {
+                Operation::Call { func: func_id, arguments, returned_arrays, .. } => {
                     //No CSE for function calls because of possible side effect - TODO checks if a function has side effect when parsed and do cse for these.
                     //Add dummy store for functions that modify arrays
                     for a in returned_arrays {

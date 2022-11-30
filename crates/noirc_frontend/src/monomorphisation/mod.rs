@@ -150,7 +150,7 @@ impl Monomorphiser {
             let eq = ast::Expression::Binary(ast::Binary { operator, lhs, rhs });
 
             let location = self.interner.function_meta(&main_id).location;
-            main.body = ast::Expression::Constrain(Box::new(eq), Some(location));
+            main.body = ast::Expression::Constrain(Box::new(eq), location);
         }
 
         let abi = main_meta.into_abi(&self.interner);
@@ -317,7 +317,7 @@ impl Monomorphiser {
             HirStatement::Constrain(constrain) => {
                 let expr = self.expr(constrain.0, &HirType::Bool(Comptime::No(None)));
                 let location = self.interner.expr_location(&constrain.0);
-                ast::Expression::Constrain(Box::new(expr), Some(location))
+                ast::Expression::Constrain(Box::new(expr), location)
             }
             HirStatement::Assign(assign) => self.assign(assign),
             HirStatement::Expression(expr) => self.expr_infer(expr),

@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use crate::errors::RuntimeError;
 use acvm::acir::OPCODE;
 use acvm::FieldElement;
-use noirc_frontend::monomorphisation::ast::{self, Call, DefinitionId, FuncId, Type};
+use noirc_frontend::monomorphisation::ast::{Call, Definition, FuncId, LocalId, Type};
+use noirc_frontend::util::try_vecmap;
 
 use super::conditional::{AssumptionId, DecisionTree, TreeBuilder};
 use super::node::Node;
@@ -185,62 +186,41 @@ impl IRGenerator {
         Ok(())
     }
 
-    fn create_function_parameter(
-        &mut self,
-        id: DefinitionId,
-        typ: &Type,
-        name: &str,
-    ) -> Vec<NodeId> {
+    fn create_function_parameter(&mut self, id: LocalId, typ: &Type, name: &str) -> Vec<NodeId> {
         //check if the variable is already created:
-        let val = match self.find_variable(id) {
+        let def = Definition::Local(id);
+        let val = match self.find_variable(&def) {
             Some(var) => self.get_current_value(&var.clone()),
-            None => self.create_new_value(typ, name, Some(id)),
+            None => self.create_new_value(typ, name, Some(def)),
         };
         val.to_node_ids()
     }
 
     //generates an instruction for calling the function
     pub fn call(&mut self, call: &Call) -> Result<Vec<NodeId>, RuntimeError> {
+        let func = self.codegen_expression(&call.func)?.unwrap_id();
         let arguments = self.codegen_expression_list(&call.arguments);
-        let call_instruction = self.context.new_instruction(
-            node::Operation::Call {
-                func_id: call.func_id,
-                arguments,
-                returned_arrays: Vec::new(),
-                predicate: AssumptionId::dummy(),
-            },
-            ObjectType::NotAnObject,
-        )?;
+        let return_types = call.return_type.flatten().into_iter().enumerate();
 
-        let rtt = self.context.functions[&call.func_id].result_types.clone();
-        let mut result = Vec::new();
-        for i in rtt.iter().enumerate() {
-            result.push(self.context.new_instruction(
-                node::Operation::Result { call_instruction, index: i.0 as u32 },
-                *i.1,
-            )?);
-        }
-        Ok(result)
+        let returned_arrays = vec![];
+        let predicate = AssumptionId::dummy();
+        let call = node::Operation::Call { func, arguments, returned_arrays, predicate };
+        let call_instruction = self.context.new_instruction(call, ObjectType::NotAnObject)?;
+
+        try_vecmap(return_types, |(i, typ)| {
+            let index = i as u32;
+            let typ = typ.into();
+            self.context.new_instruction(node::Operation::Result { call_instruction, index }, typ)
+        })
     }
 
     //Lowlevel functions with no more than 2 arguments
     pub fn call_low_level(
         &mut self,
         op: OPCODE,
-        call: &ast::CallLowLevel,
+        args: Vec<NodeId>,
     ) -> Result<NodeId, RuntimeError> {
-        //Inputs
-        let mut args: Vec<NodeId> = Vec::new();
-
-        for arg in &call.arguments {
-            if let Ok(lhs) = self.codegen_expression(arg) {
-                args.push(lhs.unwrap_id()); //TODO handle multiple values
-            } else {
-                panic!("error calling {}", op);
-            }
-        }
         //REM: we do not check that the nb of inputs correspond to the function signature, it is done in the frontend
-
         //Output:
         let (len, elem_type) = get_result_type(op);
         let result_type = if len > 1 {

@@ -35,7 +35,6 @@ impl AstPrinter {
             Expression::Block(exprs) => self.print_block(exprs, f),
             Expression::Unary(unary) => self.print_unary(unary, f),
             Expression::Binary(binary) => self.print_binary(binary, f),
-            Expression::Shared(_, e) => self.print_expr(e, f),
             Expression::Index(index) => {
                 self.print_expr(&index.collection, f)?;
                 write!(f, "[")?;
@@ -55,8 +54,6 @@ impl AstPrinter {
                 write!(f, ".{}", index)
             }
             Expression::Call(call) => self.print_call(call, f),
-            Expression::CallBuiltin(call) => self.print_lowlevel(call, f),
-            Expression::CallLowLevel(call) => self.print_builtin(call, f),
             Expression::Let(let_expr) => {
                 write!(f, "let {}${} = ", let_expr.name, let_expr.id.0)?;
                 self.print_expr(&let_expr.expression, f)
@@ -249,26 +246,6 @@ impl AstPrinter {
     ) -> Result<(), std::fmt::Error> {
         self.print_expr(&call.func, f)?;
         write!(f, "(")?;
-        self.print_comma_separated(&call.arguments, f)?;
-        write!(f, ")")
-    }
-
-    fn print_lowlevel(
-        &mut self,
-        call: &super::ast::CallBuiltin,
-        f: &mut Formatter,
-    ) -> Result<(), std::fmt::Error> {
-        write!(f, "{}$lowlevel(", call.opcode)?;
-        self.print_comma_separated(&call.arguments, f)?;
-        write!(f, ")")
-    }
-
-    fn print_builtin(
-        &mut self,
-        call: &super::ast::CallLowLevel,
-        f: &mut Formatter,
-    ) -> Result<(), std::fmt::Error> {
-        write!(f, "{}$builtin(", call.opcode)?;
         self.print_comma_separated(&call.arguments, f)?;
         write!(f, ")")
     }

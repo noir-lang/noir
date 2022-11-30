@@ -6,7 +6,7 @@ use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use arena;
 use noirc_errors::Location;
-use noirc_frontend::monomorphisation::ast::{DefinitionId, FuncId, Type};
+use noirc_frontend::monomorphisation::ast::{Definition, Type};
 use noirc_frontend::util::vecmap;
 use noirc_frontend::{BinaryOpKind, Signedness};
 use num_bigint::BigUint;
@@ -138,7 +138,7 @@ pub struct Variable {
     pub name: String,
     //pub cur_value: arena::Index, //for generating the SSA form, current value of the object during parsing of the AST
     pub root: Option<NodeId>, //when generating SSA, assignment of an object creates a new one which is linked to the original one
-    pub def: Option<DefinitionId>, //TODO redundant with root - should it be an option?
+    pub def: Option<Definition>, //TODO redundant with root - should it be an option?
     //TODO clarify where cur_value and root is stored, and also this:
     //  pub max_bits: u32,                  //max possible bit size of the expression
     //  pub max_value: Option<BigUInt>,     //maximum possible value of the expression, if less than max_bits
@@ -154,7 +154,7 @@ impl Variable {
     pub fn new(
         obj_type: ObjectType,
         name: String,
-        def: Option<DefinitionId>,
+        def: Option<Definition>,
         parent_block: BlockId,
     ) -> Variable {
         Variable {
@@ -520,7 +520,7 @@ pub enum Operation {
     },
     //Call(function::FunctionCall),
     Call {
-        func_id: FuncId,
+        func: NodeId,
         arguments: Vec<NodeId>,
         returned_arrays: Vec<(super::mem::ArrayId, u32)>,
         predicate: conditional::AssumptionId,
@@ -590,7 +590,7 @@ pub enum Opcode {
     Jmp, //unconditional jump
     Phi,
 
-    Call(FuncId), //Call a function
+    Call(NodeId), //Call a function
     Return,       //Return value(s) from a function block
     Results,      //Get result(s) from a function call
 
@@ -1085,8 +1085,8 @@ impl Operation {
             }
             Intrinsic(i, args) => Intrinsic(*i, vecmap(args.iter().copied(), f)),
             Nop => Nop,
-            Call { func_id, arguments, returned_arrays, predicate } => Call {
-                func_id: *func_id,
+            Call { func: func_id, arguments, returned_arrays, predicate } => Call {
+                func: *func_id,
                 arguments: vecmap(arguments.iter().copied(), f),
                 returned_arrays: returned_arrays.clone(),
                 predicate: *predicate,
@@ -1205,7 +1205,7 @@ impl Operation {
             Operation::Jmp(_) => Opcode::Jmp,
             Operation::Phi { .. } => Opcode::Phi,
             Operation::Cond { .. } => Opcode::Cond,
-            Operation::Call { func_id, .. } => Opcode::Call(*func_id),
+            Operation::Call { func, .. } => Opcode::Call(*func),
             Operation::Return(_) => Opcode::Return,
             Operation::Result { .. } => Opcode::Results,
             Operation::Load { array_id, .. } => Opcode::Load(*array_id),
