@@ -201,7 +201,7 @@ impl IRGenerator {
         let value = self.variable_values[&ident.id].clone();
 
         // Determine whether the ident being accessed is a nested struct/tuple that was returned from a function.
-        // When creating an SSA function we flatten the return values. This can lead to a mismatch in the NodeId that is fetched.
+        // When creating an SSA function we flatten the return values. This can lead to a mismatch in the NodeId that is indexed by a member access.
         // We recreate a struct/tuple with an unflattened structure in order to enable accurate indexing.
         // If the Value::Tuple has a longer list of NodeIds (meaning it has been flattened) we know to use our recreated value.
         let value = match value.clone() {

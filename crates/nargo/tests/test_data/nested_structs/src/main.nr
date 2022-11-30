@@ -30,13 +30,20 @@ fn main(y : pub Field, a: u32, b: u32) -> pub Field {
 
     // Fails unless we specify the return value. Otherwise we get a stack overflow
     let p2 = new_parent(c2, a, b);
-    let res = p2.foo;
-    constrain res == a as Field;
-    let q2 = p2.foo + y;
-    // Passes without a specified return value when I add this constrain stmt
-    // Trying to return p2.foo always fails though without a specified return value
-    constrain q2 == 3; 
-    p2.foo
+    // Passes without a specified return value when I add a constrain stmt on the struct field
+    // Trying to return p2.foo alone though will always fail without a specified return value in Prover.toml
+    // let q2 = p2.foo + y;
+    // constrain q2 == 3; 
+    // Then a valid return
+    // p2.foo
+
+    constrain p2.child.child2.input_b == 1 as u30;
+
+    // Passes only when the field is constrained 
+    p2.child.child2.input_b as Field 
+
+    // Fails without change `let q2 = p2.bar + y`
+    // p2.bar
 
     // Always passes as parent_wrapper returns a Field
     // let res = parent_wrapper(a, b);
