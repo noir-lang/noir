@@ -3,9 +3,7 @@ use super::{
     then_commit_ignore, top_level_statement_recovery, ExprParser, ForRange, NoirParser,
     ParsedModule, ParserError, Precedence, SubModule, TopLevelStatement,
 };
-use crate::ast::{
-    Expression, ExpressionKind, LetStatement, Statement, UnresolvedArraySize, UnresolvedType,
-};
+use crate::ast::{Expression, ExpressionKind, LetStatement, Statement, UnresolvedType};
 use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
@@ -97,8 +95,8 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
         .then_ignore(keyword(Keyword::Fn))
         .then(ident())
         .then(generics())
-        .then(parenthesized(function_parameters(allow_self)))
-        .then(function_return_type())
+        .then(parenthesized(function_parameters(allow_self, expression())))
+        .then(function_return_type(expression()))
         .then(block(expression()))
         .map(
             |(
@@ -134,14 +132,14 @@ fn struct_definition() -> impl NoirParser<TopLevelStatement> {
     use self::Keyword::Struct;
     use Token::*;
 
-    let fields = struct_fields().delimited_by(just(LeftBrace), just(RightBrace)).recover_with(
-        nested_delimiters(
+    let fields = struct_fields(expression())
+        .delimited_by(just(LeftBrace), just(RightBrace))
+        .recover_with(nested_delimiters(
             LeftBrace,
             RightBrace,
             [(LeftParen, RightParen), (LeftBracket, RightBracket)],
             |_| vec![],
-        ),
-    );
+        ));
 
     keyword(Struct).ignore_then(ident()).then(generics()).then(fields).map_with_span(
         |((name, generics), fields), span| {
@@ -150,10 +148,12 @@ fn struct_definition() -> impl NoirParser<TopLevelStatement> {
     )
 }
 
-fn function_return_type() -> impl NoirParser<(AbiFEType, UnresolvedType)> {
+fn function_return_type<'a>(
+    expr_parser: impl NoirParser<Expression> + 'a,
+) -> impl NoirParser<(AbiFEType, UnresolvedType)> + 'a {
     just(Token::Arrow)
         .ignore_then(optional_visibility())
-        .then(parse_type())
+        .then(parse_type(expr_parser))
         .or_not()
         .map(|ret| ret.unwrap_or((AbiFEType::Private, UnresolvedType::Unit)))
 }
@@ -165,18 +165,21 @@ fn attribute() -> impl NoirParser<Attribute> {
     })
 }
 
-fn struct_fields() -> impl NoirParser<Vec<(Ident, UnresolvedType)>> {
+fn struct_fields<'a>(
+    expr_parser: impl NoirParser<Expression> + 'a,
+) -> impl NoirParser<Vec<(Ident, UnresolvedType)>> + 'a {
     ident()
         .then_ignore(just(Token::Colon))
-        .then(parse_type())
+        .then(parse_type(expr_parser))
         .separated_by(just(Token::Comma))
         .allow_trailing()
 }
 
-fn function_parameters(
+fn function_parameters<'a>(
     allow_self: bool,
-) -> impl NoirParser<Vec<(Pattern, UnresolvedType, AbiFEType)>> {
-    let typ = parse_type().recover_via(parameter_recovery());
+    expr_parser: impl NoirParser<Expression> + 'a,
+) -> impl NoirParser<Vec<(Pattern, UnresolvedType, AbiFEType)>> + 'a {
+    let typ = parse_type(expr_parser).recover_via(parameter_recovery());
 
     let full_parameter = pattern()
         .recover_via(parameter_name_recovery())
@@ -259,7 +262,7 @@ fn check_statements_require_semicolon(
 
 /// Parse an optional ': type' and implicitly add a 'comptime' to the type
 fn global_type_annotation() -> impl NoirParser<UnresolvedType> {
-    ignore_then_commit(just(Token::Colon), parse_type())
+    ignore_then_commit(just(Token::Colon), parse_type(expression()))
         .map(|r#type| match r#type {
             UnresolvedType::FieldElement(_) => UnresolvedType::FieldElement(Comptime::Yes(None)),
             UnresolvedType::Bool(_) => UnresolvedType::Bool(Comptime::Yes(None)),
@@ -272,8 +275,10 @@ fn global_type_annotation() -> impl NoirParser<UnresolvedType> {
         .map(|opt| opt.unwrap_or(UnresolvedType::Unspecified))
 }
 
-fn optional_type_annotation() -> impl NoirParser<UnresolvedType> {
-    ignore_then_commit(just(Token::Colon), parse_type())
+fn optional_type_annotation<'a>(
+    expr_parser: impl NoirParser<Expression> + 'a,
+) -> impl NoirParser<UnresolvedType> + 'a {
+    ignore_then_commit(just(Token::Colon), parse_type(expr_parser))
         .or_not()
         .map(|r#type| r#type.unwrap_or(UnresolvedType::Unspecified))
 }
@@ -348,7 +353,7 @@ where
     P: ExprParser + 'a,
 {
     let p = ignore_then_commit(keyword(Keyword::Let).labelled("statement"), pattern());
-    let p = p.then(optional_type_annotation());
+    let p = p.then(optional_type_annotation(expr_parser.clone()));
     let p = then_commit_ignore(p, just(Token::Assign));
     let p = then_commit(p, expr_parser);
     p.map(Statement::new_let)
@@ -421,19 +426,26 @@ where
     })
 }
 
-fn parse_type() -> impl NoirParser<UnresolvedType> {
-    recursive(parse_type_inner)
+fn parse_type<'a, P>(expr_parser: P) -> impl NoirParser<UnresolvedType> + 'a
+where
+    P: NoirParser<Expression> + 'a,
+{
+    recursive(move |typ| parse_type_inner(typ, expr_parser))
 }
 
-fn parse_type_inner<T>(recursive_type_parser: T) -> impl NoirParser<UnresolvedType>
+fn parse_type_inner<T, P>(
+    recursive_type_parser: T,
+    expr_parser: P,
+) -> impl NoirParser<UnresolvedType>
 where
     T: NoirParser<UnresolvedType>,
+    P: NoirParser<Expression>,
 {
     choice((
         field_type(),
         int_type(),
         named_type(recursive_type_parser.clone()),
-        array_type(recursive_type_parser.clone()),
+        array_type(recursive_type_parser.clone(), expr_parser),
         tuple_type(recursive_type_parser),
         bool_type(),
     ))
@@ -490,18 +502,16 @@ fn generic_type_args(
         .map(Option::unwrap_or_default)
 }
 
-fn array_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>
+fn array_type<T, P>(type_parser: T, expr_parser: P) -> impl NoirParser<UnresolvedType>
 where
     T: NoirParser<UnresolvedType>,
+    P: NoirParser<Expression>,
 {
     just(Token::LeftBracket)
         .ignore_then(type_parser)
-        .then(fixed_array_size().or_not())
+        .then(just(Token::Semicolon).ignore_then(expr_parser).or_not())
         .then_ignore(just(Token::RightBracket))
-        .map(|(element_type, size)| {
-            let size = size.unwrap_or(UnresolvedArraySize::Variable);
-            UnresolvedType::Array(size, Box::new(element_type))
-        })
+        .map(|(element_type, size)| UnresolvedType::Array(size, Box::new(element_type)))
 }
 
 fn tuple_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>
@@ -592,8 +602,10 @@ where
         .map(UnaryRhs::ArrayIndex);
 
     // `as Type` in `atom as Type`
-    let cast_rhs =
-        keyword(Keyword::As).ignore_then(parse_type()).map(UnaryRhs::Cast).labelled("cast");
+    let cast_rhs = keyword(Keyword::As)
+        .ignore_then(parse_type(expr_parser.clone()))
+        .map(UnaryRhs::Cast)
+        .labelled("cast");
 
     // `.foo` or `.foo(args)` in `atom.foo` or `atom.foo(args)`
     let member_rhs = just(Token::Dot)
@@ -801,29 +813,6 @@ fn literal() -> impl NoirParser<ExpressionKind> {
         Token::Str(s) => ExpressionKind::string(s),
         unexpected => unreachable!("Non-literal {} parsed as a literal", unexpected),
     })
-}
-
-fn fixed_array_size() -> impl NoirParser<UnresolvedArraySize> {
-    let fixed_variable_size = path().map(UnresolvedArraySize::FixedVariable);
-
-    just(Token::Semicolon).ignore_then(fixed_variable_size.or(filter_map(|span, token: Token| {
-        match token {
-            Token::Int(integer) => Ok(UnresolvedArraySize::Fixed(try_field_to_u64(integer, span)?)),
-            _ => {
-                let message = "Expected an integer for the length of the array".to_string();
-                Err(ParserError::with_reason(message, span))
-            }
-        }
-    })))
-}
-
-fn try_field_to_u64(x: acvm::FieldElement, span: Span) -> Result<u64, ParserError> {
-    if x.num_bits() <= 64 {
-        Ok(x.to_u128() as u64)
-    } else {
-        let message = "Array lengths must fit within a u64".to_string();
-        Err(ParserError::with_reason(message, span))
-    }
 }
 
 #[cfg(test)]

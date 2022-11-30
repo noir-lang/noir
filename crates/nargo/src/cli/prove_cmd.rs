@@ -49,17 +49,12 @@ fn process_abi_with_input(
 
     let mut index = 0;
     let mut return_witness = None;
-    let return_witness_len = if let Some(return_param) =
-        abi.parameters.iter().find(|x| x.0 == noirc_frontend::hir_def::function::MAIN_RETURN_NAME)
-    {
-        match &return_param.1 {
-            AbiType::Array { length, .. } => *length as u32,
-            AbiType::Integer { .. } | AbiType::Field(_) => 1,
-            AbiType::Struct { fields, .. } => fields.len() as u32,
-        }
-    } else {
-        0
-    };
+    let return_witness_len: u32 = abi
+        .parameters
+        .iter()
+        .find(|x| x.0 == noirc_frontend::hir_def::function::MAIN_RETURN_NAME)
+        .map_or(0, |(_, return_type)| return_type.field_count());
+
     for (param_name, param_type) in abi.parameters.clone().into_iter() {
         let value = witness_map
             .get(&param_name)
