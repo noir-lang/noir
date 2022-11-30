@@ -106,11 +106,11 @@ impl BasicBlock {
                             result.insert(a);
                         }
                     }
-                    node::Operation::Call { func: func_id, returned_arrays, .. } => {
+                    node::Operation::Call { func, returned_arrays, .. } => {
                         for a in returned_arrays {
                             result.insert(a.0);
                         }
-                        if let Some(f) = ctx.get_ssafunc(*func_id) {
+                        if let Some(f) = ctx.try_get_ssafunc(*func) {
                             for typ in &f.result_types {
                                 if let node::ObjectType::Pointer(a) = typ {
                                     result.insert(*a);

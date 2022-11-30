@@ -6,7 +6,7 @@ use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use arena;
 use noirc_errors::Location;
-use noirc_frontend::monomorphisation::ast::{Definition, Type};
+use noirc_frontend::monomorphisation::ast::{Definition, FuncId, Type};
 use noirc_frontend::util::vecmap;
 use noirc_frontend::{BinaryOpKind, Signedness};
 use num_bigint::BigUint;
@@ -37,6 +37,7 @@ impl std::fmt::Display for NodeObj {
             NodeObj::Obj(o) => write!(f, "{}", o),
             NodeObj::Instr(i) => write!(f, "{}", i),
             NodeObj::Const(c) => write!(f, "{}", c),
+            NodeObj::Function(func) => write!(f, "f{}", func.id.0),
         }
     }
 }
@@ -67,6 +68,7 @@ impl Node for NodeObj {
             NodeObj::Obj(o) => o.get_type(),
             NodeObj::Instr(i) => i.res_type,
             NodeObj::Const(o) => o.value_type,
+            NodeObj::Function(_) => ObjectType::NotAnObject,
         }
     }
 
@@ -75,6 +77,7 @@ impl Node for NodeObj {
             NodeObj::Obj(o) => o.size_in_bits(),
             NodeObj::Instr(i) => i.res_type.bits(),
             NodeObj::Const(c) => c.size_in_bits(),
+            NodeObj::Function(_) => 0,
         }
     }
 
@@ -83,6 +86,7 @@ impl Node for NodeObj {
             NodeObj::Obj(o) => o.get_id(),
             NodeObj::Instr(i) => i.id,
             NodeObj::Const(c) => c.get_id(),
+            NodeObj::Function(_) => unreachable!("get_id called on Function object"),
         }
     }
 }
@@ -115,6 +119,13 @@ pub enum NodeObj {
     Obj(Variable),
     Instr(Instruction),
     Const(Constant),
+    Function(FunctionObj),
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct FunctionObj {
+    pub id: FuncId,
+    pub node_id: NodeId,
 }
 
 #[derive(Debug)]
@@ -301,6 +312,7 @@ impl std::fmt::Display for Instruction {
 pub enum NodeEval {
     Const(FieldElement, ObjectType),
     VarOrInstruction(NodeId),
+    Function(FunctionObj),
 }
 
 impl NodeEval {
@@ -315,6 +327,7 @@ impl NodeEval {
         match self {
             NodeEval::VarOrInstruction(i) => Some(i),
             NodeEval::Const(_, _) => None,
+            NodeEval::Function(_) => None,
         }
     }
 
@@ -324,6 +337,7 @@ impl NodeEval {
         match self {
             NodeEval::Const(c, t) => ctx.get_or_create_const(c, t),
             NodeEval::VarOrInstruction(i) => i,
+            NodeEval::Function(f) => f.node_id,
         }
     }
 

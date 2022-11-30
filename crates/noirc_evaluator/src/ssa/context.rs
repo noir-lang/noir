@@ -343,7 +343,7 @@ impl SsaContext {
         let obj = NodeObj::Const(constant);
         let id = NodeId(self.nodes.insert(obj));
         match &mut self[id] {
-            node::NodeObj::Const(c) => c.id = id,
+            NodeObj::Const(c) => c.id = id,
             _ => unreachable!(),
         }
 
@@ -352,6 +352,17 @@ impl SsaContext {
 
     pub fn get_ssafunc(&self, func_id: FuncId) -> Option<&SSAFunction> {
         self.functions.get(&func_id)
+    }
+
+    pub fn try_get_funcid(&self, id: NodeId) -> Option<FuncId> {
+        match &self[id] {
+            NodeObj::Function(f) => Some(f.id),
+            _ => None,
+        }
+    }
+
+    pub fn try_get_ssafunc(&self, id: NodeId) -> Option<&SSAFunction> {
+        self.try_get_funcid(id).and_then(|id| self.get_ssafunc(id))
     }
 
     pub fn dummy_id() -> arena::Index {
@@ -593,7 +604,7 @@ impl SsaContext {
         name: &str,
         element_type: ObjectType,
         len: u32,
-        def_id: Option<Definition>,
+        def: Option<Definition>,
     ) -> (NodeId, ArrayId) {
         let array_index = self.mem.create_new_array(len, element_type, name);
         self.add_dummy_load(array_index);
@@ -604,11 +615,11 @@ impl SsaContext {
             obj_type: node::ObjectType::Pointer(array_index),
             name: name.to_string(),
             root: None,
-            def: def_id,
+            def: def.clone(),
             witness: None,
             parent_block: self.current_block,
         };
-        if let Some(def) = def_id {
+        if let Some(def) = def {
             self.mem[array_index].def = def;
         }
         (self.add_variable(new_var, None), array_index)
@@ -834,7 +845,7 @@ impl SsaContext {
             obj_type: lhs_type,
             name: String::new(),
             root: None,
-            def: lhs_obj.def,
+            def: lhs_obj.def.clone(),
             witness: None,
             parent_block: self.current_block,
         };
@@ -914,7 +925,7 @@ impl SsaContext {
                 obj_type: lhs_type,
                 name: String::new(),
                 root: None,
-                def: lhs_obj.def,
+                def: lhs_obj.def.clone(),
                 witness: None,
                 parent_block: self.current_block,
             };

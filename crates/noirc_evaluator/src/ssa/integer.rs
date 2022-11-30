@@ -98,6 +98,7 @@ fn get_obj_max_value(
         NodeObj::Obj(v) => (BigUint::one() << v.size_in_bits()) - BigUint::one(), //TODO check for signed type
         NodeObj::Instr(i) => get_instruction_max(ctx, i, max_map, vmap),
         NodeObj::Const(c) => c.value.clone(), //TODO panic for string constants
+        NodeObj::Function(_) => BigUint::zero(),
     };
     max_map.insert(id, result.clone());
     result

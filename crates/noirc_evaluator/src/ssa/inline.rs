@@ -70,27 +70,28 @@ fn inline_block(
     for i in &ctx[block_id].instructions {
         if let Some(ins) = ctx.try_get_instruction(*i) {
             if !ins.is_deleted() {
-                if let Operation::Call { func: func_id, arguments, returned_arrays, .. } =
-                    &ins.operation
-                {
-                    if let Some(func_to_inline) = to_inline {
-                        if *func_id == func_to_inline {
+                if let Operation::Call { func, arguments, returned_arrays, .. } = &ins.operation {
+                    match (ctx.try_get_funcid(*func), to_inline) {
+                        (Some(func_id), Some(func_to_inline)) => {
+                            if func_id == func_to_inline {
+                                call_ins.push((
+                                    ins.id,
+                                    *func,
+                                    arguments.clone(),
+                                    returned_arrays.clone(),
+                                    block_id,
+                                ));
+                            }
+                        }
+                        _ => {
                             call_ins.push((
                                 ins.id,
-                                *func_id,
+                                *func,
                                 arguments.clone(),
                                 returned_arrays.clone(),
                                 block_id,
                             ));
                         }
-                    } else {
-                        call_ins.push((
-                            ins.id,
-                            *func_id,
-                            arguments.clone(),
-                            returned_arrays.clone(),
-                            block_id,
-                        ));
                     }
                 }
             }
@@ -98,9 +99,11 @@ fn inline_block(
     }
     let mut result = true;
     for (ins_id, f, args, arrays, parent_block) in call_ins {
-        let f_copy = ctx.get_ssafunc(f).unwrap().clone();
-        if !inline(ctx, &f_copy, &args, &arrays, parent_block, ins_id, decision)? {
-            result = false;
+        if let Some(func_id) = ctx.try_get_funcid(f) {
+            let f_copy = ctx.get_ssafunc(func_id).unwrap().clone();
+            if !inline(ctx, &f_copy, &args, &arrays, parent_block, ins_id, decision)? {
+                result = false;
+            }
         }
     }
 

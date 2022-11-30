@@ -270,7 +270,7 @@ impl IRGenerator {
             obj_type,
             name: var_name,
             root: None,
-            def,
+            def: def.clone(),
             witness,
             parent_block: self.context.current_block,
         };
@@ -326,10 +326,10 @@ impl IRGenerator {
         name: &str,
         element_type: ObjectType,
         len: u32,
-        def_id: Option<Definition>,
+        def: Option<Definition>,
     ) -> (NodeId, ArrayId) {
-        let (id, array_id) = self.context.new_array(name, element_type, len, def_id);
-        if let Some(def) = def_id {
+        let (id, array_id) = self.context.new_array(name, element_type, len, def.clone());
+        if let Some(def) = def {
             self.variable_values.insert(def, super::code_gen::Value::Single(id));
         }
         (id, array_id)

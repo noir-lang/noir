@@ -264,14 +264,14 @@ fn cse_block_with_anchor(
                         anchor.push_cast_front(&operator, *ins_id, ins.res_type);
                     }
                 }
-                Operation::Call { func: func_id, arguments, returned_arrays, .. } => {
+                Operation::Call { func, arguments, returned_arrays, .. } => {
                     //No CSE for function calls because of possible side effect - TODO checks if a function has side effect when parsed and do cse for these.
                     //Add dummy store for functions that modify arrays
                     for a in returned_arrays {
                         let id = ctx.get_dummy_store(a.0);
                         anchor.push_mem_instruction(ctx, id);
                     }
-                    if let Some(f) = ctx.get_ssafunc(*func_id) {
+                    if let Some(f) = ctx.try_get_ssafunc(*func) {
                         for typ in &f.result_types {
                             if let ObjectType::Pointer(a) = typ {
                                 let id = ctx.get_dummy_store(*a);
@@ -279,7 +279,7 @@ fn cse_block_with_anchor(
                             }
                         }
                     }
-                    //Add dunmmy load for function arguments:
+                    //Add dummy load for function arguments:
                     for arg in arguments {
                         if let Some(obj) = ctx.try_get_node(*arg) {
                             if let ObjectType::Pointer(a) = obj.get_type() {
