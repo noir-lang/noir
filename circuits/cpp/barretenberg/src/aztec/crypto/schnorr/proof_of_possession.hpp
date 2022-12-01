@@ -39,7 +39,7 @@ template <typename G1, typename Hash> struct ProofOfPossession {
         auto secret_key = account.private_key;
         auto public_key = account.public_key;
 
-        // use HMAC in PRF mode to derive 32-byte secret `k`
+        // use HMAC in PRF mode to derive uniformly random nonce `k` from the secret/public key.
         auto hmac_key = to_buffer(secret_key);
         auto hmac_message = to_buffer(public_key);
         Fr k = crypto::get_unbiased_field_from_hmac<Hash, Fr>(hmac_message, hmac_key);
@@ -63,7 +63,7 @@ template <typename G1, typename Hash> struct ProofOfPossession {
     {
         Fr challenge_fr = Fr::serialize_from_buffer(&challenge[0]);
         // this ensures that a default constructed proof is invalid
-        if (challenge_fr.is_zero() || response.is_zero())
+        if (response.is_zero())
             return false;
 
         if (!public_key.on_curve() || public_key.is_point_at_infinity())
@@ -81,11 +81,11 @@ template <typename G1, typename Hash> struct ProofOfPossession {
 
   private:
     /**
-     * @brief Generate the Fiat-Shamir challenge e = H_reg(G,X,X,R)
+     * @brief Generate the Fiat-Shamir challenge e = H_reg(G,X,R)
      *
      * @param public_key X = secret_key•G
      * @param R the commitment R = k•G
-     * @return e = H_reg(X,X,R)
+     * @return e = H_reg(X,R)
      */
     static auto generate_challenge(const affine_element& public_key, const affine_element& R)
     {
@@ -101,8 +101,7 @@ template <typename G1, typename Hash> struct ProofOfPossession {
         // write the group generator
         write(challenge_buf, G1::affine_one);
 
-        // write X twice as per the spec
-        write(challenge_buf, public_key);
+        // write X (only once, differing from the paper)
         write(challenge_buf, public_key);
 
         // write R
