@@ -26,6 +26,25 @@ impl Pair {
     }
 }
 
+struct Nested {
+    a: Field,
+    b: Field
+}
+struct MyStruct {
+    my_bool: bool,
+    my_int: u32,
+    my_nest: Nested,
+}
+fn test_struct_in_tuple(a_bool : bool,x:Field, y:Field) -> (MyStruct, bool) {
+    let my_struct = MyStruct {
+        my_bool: a_bool,
+        my_int: 5,
+        my_nest: Nested{a:x,b:y},
+    };
+    (my_struct, a_bool)
+}
+
+
 fn main(x: Field, y: Field) {
     let first = Foo::default(x,y);
     let p = Pair { first, second: 1 };
@@ -33,5 +52,12 @@ fn main(x: Field, y: Field) {
     constrain p.bar() == x;
     constrain p.second == y;
     constrain p.first.array[0] != p.first.array[1];
+
+    // Nested structs
+    let (struct_from_tuple, a_bool) = test_struct_in_tuple(true,x,y);
+    constrain struct_from_tuple.my_bool == true;
+    constrain a_bool == true;
+    constrain struct_from_tuple.my_int == 5;
+    constrain struct_from_tuple.my_nest.a == 0;
 }
     
