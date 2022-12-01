@@ -96,18 +96,25 @@ impl Value {
         }
     }
 
-    //Deflate a vector of NodeIds into a Value whose type is provided in argument
-    pub fn deflate(value_type: &Type, iter: &mut core::slice::Iter<NodeId>) -> Value {
+    //Reconstruct a value whose type is provided in argument, from a bunch of NodeIds
+    fn reshape(value_type: &Type, iter: &mut core::slice::Iter<NodeId>) -> Value {
         match value_type {
             Type::Tuple(tup) => {
                 let mut values = Vec::new();
                 for i in tup {
-                    values.push(Self::deflate(i, iter));
+                    values.push(Self::reshape(i, iter));
                 }
                 Value::Tuple(values)
             }
             _ => Value::Single(*iter.next().unwrap()),
         }
+    }
+
+    fn from_slice(value_type: &Type, slice: &[NodeId]) -> Value {
+        let mut iter = slice.iter();
+        let result = Value::reshape(value_type, &mut iter);
+        assert!(iter.next().is_none());
+        result
     }
 }
 
@@ -567,7 +574,7 @@ impl IRGenerator {
                 let results = self.call(call_expr)?;
 
                 let function = &self.program[call_expr.func_id];
-                Ok(Value::deflate(&function.return_type, &mut results.iter()))
+                Ok(Value::from_slice(&function.return_type, &results))
             }
             Expression::CallLowLevel(call) => Ok(Value::Single(self.codegen_lowlevel(call)?)),
             Expression::CallBuiltin(call) => {
