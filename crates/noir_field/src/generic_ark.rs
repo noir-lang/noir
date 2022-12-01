@@ -149,6 +149,10 @@ impl<F: PrimeField> FieldElement<F> {
         F::Params::MODULUS_BITS
     }
 
+    pub fn max_num_bytes() -> u32 {
+        Self::max_num_bits() / 8
+    }
+
     pub fn modulus() -> BigUint {
         F::Params::MODULUS.into()
     }

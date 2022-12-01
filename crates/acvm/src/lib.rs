@@ -195,7 +195,6 @@ pub trait PartialWitnessGenerator {
                                         }
                                         std::collections::btree_map::Entry::Occupied(e) => {
                                             if e.get() != &v {
-                                                dbg!(e.get());
                                                 return GateResolution::UnsatisfiedConstrain;
                                             }
                                         }

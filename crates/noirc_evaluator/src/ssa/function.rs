@@ -126,7 +126,7 @@ pub fn get_result_type(op: OPCODE) -> (u32, ObjectType) {
         OPCODE::EcdsaSecp256k1 => (1, ObjectType::NativeField), //field?
         OPCODE::FixedBaseScalarMul => (2, ObjectType::NativeField),
         OPCODE::ToBits => (FieldElement::max_num_bits(), ObjectType::Boolean),
-        OPCODE::ToBytes => (FieldElement::max_num_bits(), ObjectType::Boolean),
+        OPCODE::ToBytes => (FieldElement::max_num_bytes(), ObjectType::Boolean),
     }
 }
 
