@@ -8,8 +8,8 @@ fn sort(mut a: [u32; 4]) -> [u32; 4] {
                 a[j] = a[i];
                 a[i]= c;
             }
-        };
-    };
+        }
+    }
     a
 }
 
@@ -62,15 +62,15 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
             constrain arr[i] == 1;// 1
             for k in 0..2 {
                 constrain as_bits_hardcode_1[k] == as_bits[k];
-            };
+            }
         }
         if i == 1 {
             constrain arr[i] == 2;//2
             for k in 0..2 {
                 constrain as_bits_hardcode_1[k] != as_bits[k];
-            };
+            }
         }
-    };
+    }
     constrain c1==1;
 
     //Test case for short-circuit
@@ -83,13 +83,13 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
                 data[i + j] = c[4 - 1 - j];
                 for k in 0..4 {
                     ba = ba +data[k];
-                };
+                }
                 if ba == 4864 {
                     c[3]=ba;
                 }
-            };
+            }
         }
-    };
+    }
     constrain data[31] == 0;
     constrain ba != 13;
     
@@ -152,7 +152,7 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
         if c[i] == 0 {
             x = i as u32 +2;
         }
-    };
+    }
     constrain x == 0;
 
     test3(1);

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::errors::RuntimeError;
+use crate::ssa::node::Opcode;
 use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use noirc_frontend::monomorphisation::ast::{self, Call, DefinitionId, FuncId, Type};
@@ -163,16 +164,37 @@ impl IRGenerator {
 
         let function_body = self.program.take_function_body(func_id);
         let last_value = self.codegen_expression(&function_body)?;
-        let returned_values = last_value.to_node_ids();
+        let last_values = last_value.to_node_ids();
 
         func.result_types.clear();
-        for i in &returned_values {
+        let mut returned_values = Vec::new();
+        for i in &last_values {
+            let mut j = *i;
             if let Some(node) = self.context.try_get_node(*i) {
                 func.result_types.push(node.get_type());
+                if let Some(ins) = self.context.try_get_instruction(*i) {
+                    if ins.operation.opcode() == Opcode::Results {
+                        // n.b. this required for result instructions, but won't hurt if done for all i
+                        let new_var = node::Variable {
+                            id: NodeId::dummy(),
+                            obj_type: node.get_type(),
+                            name: format!("return_{}", i.0.into_raw_parts().0),
+                            root: None,
+                            def: None,
+                            witness: None,
+                            parent_block: self.context.current_block,
+                        };
+                        let b_id = self.context.add_variable(new_var, None);
+                        let b_id1 = self.context.handle_assign(b_id, None, *i)?;
+                        j = ssa_form::get_current_value(&mut self.context, b_id1);
+                    }
+                }
             } else {
                 func.result_types.push(ObjectType::NotAnObject);
             }
+            returned_values.push(j);
         }
+
         self.context.new_instruction(
             node::Operation::Return(returned_values),
             node::ObjectType::NotAnObject,
