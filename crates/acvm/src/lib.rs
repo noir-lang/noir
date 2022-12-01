@@ -43,6 +43,7 @@ pub trait PartialWitnessGenerator {
         initial_witness: &mut BTreeMap<Witness, FieldElement>,
         gates: Vec<Gate>,
     ) -> GateResolution {
+        // dbg!(initial_witness.clone());
         if gates.is_empty() {
             return GateResolution::Resolved;
         }
@@ -170,6 +171,31 @@ pub trait PartialWitnessGenerator {
                                         }
                                         std::collections::btree_map::Entry::Occupied(e) => {
                                             if e.get() != &v {
+                                                return GateResolution::UnsatisfiedConstrain;
+                                            }
+                                        }
+                                    }
+                                }
+                                false
+                            }
+                            _ => true,
+                        }
+                    }
+                    Directive::SplitBytes { a, b, bit_size } => {
+                        match Self::get_value(a, initial_witness) {
+                            Some(val_a) => {
+                                let mut a_bytes = val_a.to_bytes();
+                                a_bytes.reverse();
+                                for i in 0..(bit_size / 8) {
+                                    let i_usize = i as usize;
+                                    let v = FieldElement::from_be_bytes_reduce(&[a_bytes[i_usize]]);
+                                    match initial_witness.entry(b[i_usize]) {
+                                        std::collections::btree_map::Entry::Vacant(e) => {
+                                            e.insert(v);
+                                        }
+                                        std::collections::btree_map::Entry::Occupied(e) => {
+                                            if e.get() != &v {
+                                                dbg!(e.get());
                                                 return GateResolution::UnsatisfiedConstrain;
                                             }
                                         }

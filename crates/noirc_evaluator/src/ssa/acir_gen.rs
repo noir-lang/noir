@@ -558,6 +558,14 @@ impl Acir {
                     self.map_array(a, &outputs, ctx);
                 }
             }
+            OPCODE::ToBytes => {
+                let bit_size = ctx.get_as_constant(args[1]).unwrap().to_u128() as u32;
+                let l_c = self.substitute(args[0], evaluator, ctx);
+                outputs = split_bytes(&l_c, bit_size, evaluator);
+                if let node::ObjectType::Pointer(a) = res_type {
+                    self.map_array(a, &outputs, ctx);
+                }
+            }
             _ => {
                 let inputs = self.prepare_inputs(args, ctx, evaluator);
                 let output_count = opcode.definition().output_size.0 as u32;
@@ -630,6 +638,38 @@ pub fn evaluate_cmp(
     }
 }
 
+//Performs byte decomposition
+pub fn split_bytes(lhs: &InternalVar, bit_size: u32, evaluator: &mut Evaluator) -> Vec<Witness> {
+    assert!(bit_size < FieldElement::max_num_bits());
+    let mut bytes = Expression::default();
+    let mut two_pow = FieldElement::one();
+    let two = FieldElement::from(2_i128);
+    let mut result = Vec::new();
+    for _ in 0..(bit_size / 8) {
+        let byte_witness = evaluator.add_witness_to_cs();
+        result.push(byte_witness);
+        let byte_expr = from_witness(byte_witness);
+        bytes = add(&bytes, two_pow, &byte_expr);
+        for _ in 0..8 {
+            two_pow = two_pow.mul(two);
+        }
+        evaluator.gates.push(Gate::Arithmetic(subtract(
+            &byte_expr,
+            FieldElement::one(),
+            &byte_expr,
+        )));
+    }
+    evaluator.gates.push(Gate::Directive(Directive::SplitBytes {
+        a: lhs.expression.clone(),
+        b: result.clone(),
+        bit_size,
+    }));
+
+    evaluator.gates.push(Gate::Arithmetic(subtract(&lhs.expression, FieldElement::one(), &bytes)));
+
+    result
+}
+
 //Performs bit decomposition
 pub fn split(lhs: &InternalVar, bit_size: u32, evaluator: &mut Evaluator) -> Vec<Witness> {
     assert!(bit_size < FieldElement::max_num_bits());
@@ -654,6 +694,7 @@ pub fn split(lhs: &InternalVar, bit_size: u32, evaluator: &mut Evaluator) -> Vec
         b: result.clone(),
         bit_size,
     }));
+
     evaluator.gates.push(Gate::Arithmetic(subtract(&lhs.expression, FieldElement::one(), &bits)));
 
     result
