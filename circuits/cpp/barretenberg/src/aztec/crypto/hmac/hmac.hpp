@@ -22,29 +22,25 @@ template <typename Hash, typename MessageContainer, typename KeyContainer>
 std::array<uint8_t, Hash::OUTPUT_SIZE> hmac(const MessageContainer& message, const KeyContainer& key)
 {
     constexpr size_t B = Hash::BLOCK_SIZE;
+    // ensures truncated_key fits into k_prime
     static_assert(Hash::OUTPUT_SIZE <= B);
+    constexpr uint8_t IPAD_CONST = 0x36;
+    constexpr uint8_t OPAD_CONST = 0x5c;
     std::array<uint8_t, B> ipad;
     std::array<uint8_t, B> opad;
-    for (size_t i = 0; i < B; ++i) {
-        opad[i] = 0x5c;
-        ipad[i] = 0x36;
-    }
+    ipad.fill(IPAD_CONST);
+    opad.fill(OPAD_CONST);
 
-    std::array<uint8_t, B> k_prime;
+    // initialize k_prime to 0x00,...,0x00
+    // copy key or truncated key to start.
+    std::array<uint8_t, B> k_prime{};
     if (key.size() > B) {
         const auto truncated_key = Hash::hash(key);
         std::copy(truncated_key.begin(), truncated_key.end(), k_prime.begin());
-        for (size_t i = Hash::OUTPUT_SIZE; i < B; ++i) {
-            k_prime[i] = 0x00;
-        }
     } else {
         std::copy(key.begin(), key.end(), k_prime.begin());
-        for (size_t i = key.size(); i < B; ++i) {
-            k_prime[i] = 0x00;
-        }
     }
 
-    // std::cout << uint8_to_hex_string(&k_prime[0], B) << std::endl;
     std::array<uint8_t, B> h1;
     for (size_t i = 0; i < B; ++i) {
         h1[i] = k_prime[i] ^ opad[i];
