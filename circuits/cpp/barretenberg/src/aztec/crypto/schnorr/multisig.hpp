@@ -1,7 +1,11 @@
 #pragma once
 
+#include <algorithm>
+#include <cstdint>
+#include <numeric>
 #include <optional>
 #include <utility>
+#include <vector>
 
 #include "schnorr.hpp"
 #include "proof_of_possession.hpp"
@@ -88,18 +92,19 @@ template <typename G1, typename HashRegNon, typename HashSig = Blake2sHasher> cl
      */
     static bool valid_round1_nonces(const std::vector<RoundOnePublicOutput>& round1_public_outputs)
     {
-        for (auto& [R_user, S_user] : round1_public_outputs) {
+        for (size_t i = 0; i < round1_public_outputs.size(); ++i) {
+            auto& [R_user, S_user] = round1_public_outputs[i];
             if (!R_user.on_curve() || R_user.is_point_at_infinity()) {
-                info("Round 1 commitments contains invalid R");
+                info("Round 1 commitments contains invalid R at index ", i);
                 return false;
             }
             if (!S_user.on_curve() || S_user.is_point_at_infinity()) {
-                info("Round 1 commitments contains invalid S");
+                info("Round 1 commitments contains invalid S at index ", i);
                 return false;
             }
         }
-        if (contains_duplicates(round1_public_outputs)) {
-            info("Round 1 commitments contains duplicate values");
+        if (auto duplicated = duplicated_indices(round1_public_outputs); duplicated.size() > 0) {
+            info("Round 1 commitments contains duplicate values at indices ", duplicated);
             return false;
         }
         return true;
@@ -117,8 +122,8 @@ template <typename G1, typename HashRegNon, typename HashSig = Blake2sHasher> cl
      * @param message
      * @param aggregate_pubkey the output of `combine_signer_pubkeys`
      * @param round_1_nonces the public outputs of round 1 from all signers
-     * @return Fr the nonce challenge `a = int(H_non(G, X_agg, "m_start", m, "m_end" {(R1, S1), ..., (Rn, Sn)})) % r `
-     * where r is the field order
+     * @return Fr the nonce challenge `a = int(H_non(G, X_agg, "m_start", m.size(), m, "m_end" {(R1, S1), ..., (Rn,
+     * Sn)})) % r ` where r is the field order
      */
     static Fr generate_nonce_challenge(const std::string& message,
                                        const affine_element& aggregate_pubkey,
@@ -127,7 +132,8 @@ template <typename G1, typename HashRegNon, typename HashSig = Blake2sHasher> cl
         // Domain separation for H_non
         const std::string domain_separator_nonce("h_nonce");
 
-        // compute nonce challenge H('domain_separator_nonce', G, X, "m_start", m, "m_end", {(R1, S1), ..., (Rn, Sn)})
+        // compute nonce challenge
+        // H('domain_separator_nonce', G, X, "m_start", m.size(), m, "m_end", {(R1, S1), ..., (Rn, Sn)})
         std::vector<uint8_t> nonce_challenge_buffer;
         // write domain separator
         std::copy(
@@ -145,6 +151,8 @@ template <typename G1, typename HashRegNon, typename HashSig = Blake2sHasher> cl
 
         // write "m_start"
         const std::string m_start = "m_start";
+        // write m.size()
+        write(nonce_challenge_buffer, static_cast<uint32_t>(message.size()));
         std::copy(m_start.begin(), m_start.end(), std::back_inserter(nonce_challenge_buffer));
         // write message
         std::copy(message.begin(), message.end(), std::back_inserter(nonce_challenge_buffer));
@@ -175,23 +183,48 @@ template <typename G1, typename HashRegNon, typename HashSig = Blake2sHasher> cl
      */
     static affine_element construct_multisig_nonce(const Fr& a, const std::vector<RoundOnePublicOutput>& round_1_nonces)
     {
-        element R_sum = G1::point_at_infinity;
-        element S_sum = G1::point_at_infinity;
-        for (const auto& nonce : round_1_nonces) {
-            R_sum += nonce.R;
-            S_sum += nonce.S;
+        element R_sum = round_1_nonces[0].R;
+        element S_sum = round_1_nonces[0].S;
+        for (size_t i = 1; i < round_1_nonces.size(); ++i) {
+            const auto& [R, S] = round_1_nonces[i];
+            R_sum += R;
+            S_sum += S;
         }
         affine_element R(R_sum + S_sum * a);
         return R;
     }
 
-    template <typename T> static bool contains_duplicates(const std::vector<T>& input)
+    /**
+     * @brief Returns a vector of indices of elements in input that are included more than once.
+     *
+     * @warning The returned list may include an index more than once.
+     *
+     * @tparam T implements operator<
+     * @param input list of elements possibly containing duplicates
+     * @return std::vector<size_t> a list of indices of input which are included more than once
+     */
+    template <typename T> static std::vector<size_t> duplicated_indices(const std::vector<T>& input)
     {
-        std::vector<T> copy(input.begin(), input.end());
-        std::sort(copy.begin(), copy.end());
-        auto it = std::unique(copy.begin(), copy.end());
-        bool wasUnique = (it == copy.end());
-        return !wasUnique;
+        const size_t num_inputs = input.size();
+        // indices = [0,1,..., num_inputs-1]
+        std::vector<size_t> indices(num_inputs);
+        std::iota(indices.begin(), indices.end(), 0);
+
+        // sort indices according to input.
+        // input[indices[i-1]] <= input[indices[i]]
+        std::sort(indices.begin(), indices.end(), [&](size_t a, size_t b) { return input[a] < input[b]; });
+
+        // This loop will include multiple copies of the same index if an element appears more than twice.
+        std::vector<size_t> duplicates;
+        for (size_t i = 1; i < num_inputs; ++i) {
+            const size_t idx1 = indices[i - 1];
+            const size_t idx2 = indices[i];
+            if (input[idx1] == input[idx2]) {
+                duplicates.push_back(idx1);
+                duplicates.push_back(idx2);
+            }
+        }
+        return duplicates;
     }
 
   public:
@@ -211,23 +244,28 @@ template <typename G1, typename HashRegNon, typename HashSig = Blake2sHasher> cl
             points.push_back(public_key);
         }
 
-        if (contains_duplicates(points)) {
+        if (auto duplicated = duplicated_indices(points); duplicated.size() > 0) {
+            info("Duplicated public keys at indices ", duplicated);
             return std::nullopt;
         }
 
         element aggregate_pubkey_jac = G1::point_at_infinity;
-        for (const auto& [public_key, proof_of_possession] : signer_pubkeys) {
+        for (size_t i = 0; i < signer_pubkeys.size(); ++i) {
+            const auto& [public_key, proof_of_possession] = signer_pubkeys[i];
             if (!public_key.on_curve() || public_key.is_point_at_infinity()) {
-                info("Multisig signer pubkey not a valid point");
+                info("Multisig signer pubkey not a valid point at index ", i);
                 return std::nullopt;
             }
             if (!proof_of_possession.verify(public_key)) {
-                info("Multisig proof of posession invalid");
+                info("Multisig proof of posession invalid at index ", i);
                 return std::nullopt;
             }
             aggregate_pubkey_jac += public_key;
         }
 
+        // This would prevent accidentally creating an aggregate key for the point at inifinity,
+        // with the trivial secret key.
+        // While it shouldn't happen, it is a cheap check.
         affine_element aggregate_pubkey(aggregate_pubkey_jac);
         if (aggregate_pubkey.is_point_at_infinity()) {
             info("Multisig aggregate public key is invalid");
@@ -341,10 +379,6 @@ template <typename G1, typename HashRegNon, typename HashSig = Blake2sHasher> cl
             return std::nullopt;
         }
         if (!valid_round1_nonces(round_1_nonces)) {
-            return std::nullopt;
-        }
-        if (contains_duplicates(round_2_signature_shares)) {
-            info("Multisig signature shares contains duplicate values");
             return std::nullopt;
         }
 
