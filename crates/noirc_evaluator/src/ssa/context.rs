@@ -3,7 +3,9 @@ use super::conditional::{DecisionTree, TreeBuilder};
 use super::function::{FuncIndex, SSAFunction};
 use super::inline::StackFrame;
 use super::mem::{ArrayId, Memory};
-use super::node::{BinaryOp, FunctionObj, Instruction, NodeId, NodeObj, ObjectType, Operation};
+use super::node::{
+    BinaryOp, BuiltinObj, FunctionObj, Instruction, NodeId, NodeObj, ObjectType, Operation,
+};
 use super::{block, flatten, inline, integer, node, optim};
 use std::collections::{HashMap, HashSet};
 
@@ -12,6 +14,7 @@ use crate::ssa::acir_gen::Acir;
 use crate::ssa::function;
 use crate::ssa::node::{Mark, Node};
 use crate::Evaluator;
+use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use noirc_frontend::monomorphisation::ast::{Definition, FuncId};
 use noirc_frontend::util::vecmap;
@@ -33,6 +36,7 @@ pub struct SsaContext {
 
     pub functions: HashMap<FuncId, function::SSAFunction>,
     pub function_ids: HashMap<FuncId, NodeId>,
+    pub opcode_ids: HashMap<OPCODE, NodeId>,
 
     //Adjacency Matrix of the call graph; list of rows where each row indicates the functions called by the function whose FuncIndex is the row number
     pub call_graph: Vec<Vec<u8>>,
@@ -52,6 +56,7 @@ impl SsaContext {
             mem: Memory::default(),
             functions: HashMap::new(),
             function_ids: HashMap::new(),
+            opcode_ids: HashMap::new(),
             call_graph: Vec::new(),
             dummy_store: HashMap::new(),
             dummy_load: HashMap::new(),
@@ -1010,16 +1015,14 @@ impl SsaContext {
     }
 
     pub fn push_function_id(&mut self, func_id: FuncId) {
-        let index = self
-            .nodes
-            .insert(NodeObj::Function(FunctionObj { id: func_id, node_id: NodeId::dummy() }));
+        assert!(!self.function_already_compiled(func_id));
 
-        // Now fix it to have the correct NodeId
-        let node_id = NodeId(index);
-        let node = self.nodes.get_mut(index).unwrap();
-        *node = NodeObj::Function(FunctionObj { id: func_id, node_id });
+        let index = self.nodes.insert_with(|index| {
+            let node_id = NodeId(index);
+            NodeObj::Function(FunctionObj { id: func_id, node_id })
+        });
 
-        self.function_ids.insert(func_id, node_id);
+        self.function_ids.insert(func_id, NodeId(index));
     }
 
     /// Return the standard NodeId for this FuncId.
@@ -1032,6 +1035,24 @@ impl SsaContext {
 
     pub fn function_already_compiled(&self, func_id: FuncId) -> bool {
         self.get_ssafunc(func_id).is_some()
+    }
+
+    pub fn get_or_create_opcode_node_id(&mut self, opcode: acvm::acir::OPCODE) -> NodeId {
+        let nodes = &mut self.nodes;
+        *self.opcode_ids.entry(opcode).or_insert_with(|| {
+            let index = nodes.insert_with(|index| {
+                let node_id = NodeId(index);
+                NodeObj::Builtin(BuiltinObj { opcode, node_id })
+            });
+            NodeId(index)
+        })
+    }
+
+    pub fn get_builtin_opcode(&self, node_id: NodeId) -> Option<OPCODE> {
+        match &self[node_id] {
+            NodeObj::Builtin(b) => Some(b.opcode),
+            _ => None,
+        }
     }
 }
 

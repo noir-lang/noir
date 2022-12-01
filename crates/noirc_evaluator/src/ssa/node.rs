@@ -38,6 +38,7 @@ impl std::fmt::Display for NodeObj {
             NodeObj::Instr(i) => write!(f, "{}", i),
             NodeObj::Const(c) => write!(f, "{}", c),
             NodeObj::Function(func) => write!(f, "f{}", func.id.0),
+            NodeObj::Builtin(b) => write!(f, "{}", b.opcode),
         }
     }
 }
@@ -69,6 +70,7 @@ impl Node for NodeObj {
             NodeObj::Instr(i) => i.res_type,
             NodeObj::Const(o) => o.value_type,
             NodeObj::Function(_) => ObjectType::NotAnObject,
+            NodeObj::Builtin(_) => ObjectType::NotAnObject,
         }
     }
 
@@ -78,6 +80,7 @@ impl Node for NodeObj {
             NodeObj::Instr(i) => i.res_type.bits(),
             NodeObj::Const(c) => c.size_in_bits(),
             NodeObj::Function(_) => 0,
+            NodeObj::Builtin(_) => 0,
         }
     }
 
@@ -86,7 +89,8 @@ impl Node for NodeObj {
             NodeObj::Obj(o) => o.get_id(),
             NodeObj::Instr(i) => i.id,
             NodeObj::Const(c) => c.get_id(),
-            NodeObj::Function(_) => unreachable!("get_id called on Function object"),
+            NodeObj::Function(f) => f.node_id,
+            NodeObj::Builtin(b) => b.node_id,
         }
     }
 }
@@ -120,11 +124,18 @@ pub enum NodeObj {
     Instr(Instruction),
     Const(Constant),
     Function(FunctionObj),
+    Builtin(BuiltinObj),
 }
 
 #[derive(Debug, Copy, Clone)]
 pub struct FunctionObj {
     pub id: FuncId,
+    pub node_id: NodeId,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct BuiltinObj {
+    pub opcode: OPCODE,
     pub node_id: NodeId,
 }
 
@@ -313,6 +324,7 @@ pub enum NodeEval {
     Const(FieldElement, ObjectType),
     VarOrInstruction(NodeId),
     Function(FunctionObj),
+    Builtin(BuiltinObj),
 }
 
 impl NodeEval {
@@ -327,7 +339,8 @@ impl NodeEval {
         match self {
             NodeEval::VarOrInstruction(i) => Some(i),
             NodeEval::Const(_, _) => None,
-            NodeEval::Function(_) => None,
+            NodeEval::Function(f) => Some(f.node_id),
+            NodeEval::Builtin(b) => Some(b.node_id),
         }
     }
 
@@ -338,6 +351,7 @@ impl NodeEval {
             NodeEval::Const(c, t) => ctx.get_or_create_const(c, t),
             NodeEval::VarOrInstruction(i) => i,
             NodeEval::Function(f) => f.node_id,
+            NodeEval::Builtin(b) => b.node_id,
         }
     }
 
@@ -347,7 +361,9 @@ impl NodeEval {
                 let value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
                 NodeEval::Const(value, c.get_type())
             }
-            _ => NodeEval::VarOrInstruction(id),
+            NodeObj::Function(f) => NodeEval::Function(*f),
+            NodeObj::Builtin(b) => NodeEval::Builtin(*b),
+            NodeObj::Obj(_) | NodeObj::Instr(_) => NodeEval::VarOrInstruction(id),
         }
     }
 
@@ -445,7 +461,10 @@ impl Instruction {
                     } else if obj.is_zero() {
                         if let Some(location) = *location {
                             return Err(RuntimeErrorKind::UnstructuredError {
-                                message: "Constraint is always false".into(),
+                                message: format!(
+                                    "Constraint '{}: Constrain {:?}' is always false",
+                                    self, value
+                                ),
                             }
                             .add_location(location));
                         } else {

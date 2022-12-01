@@ -203,18 +203,21 @@ impl IRGenerator {
     pub fn call(&mut self, call: &Call) -> Result<Vec<NodeId>, RuntimeError> {
         let func = self.codegen_expression(&call.func)?.unwrap_id();
         let arguments = self.codegen_expression_list(&call.arguments);
-        let return_types = call.return_type.flatten().into_iter().enumerate();
 
-        let returned_arrays = vec![];
-        let predicate = AssumptionId::dummy();
-        let call = node::Operation::Call { func, arguments, returned_arrays, predicate };
-        let call_instruction = self.context.new_instruction(call, ObjectType::NotAnObject)?;
+        if let Some(opcode) = self.context.get_builtin_opcode(func) {
+            self.call_low_level(opcode, arguments)
+        } else {
+            let return_types = call.return_type.flatten().into_iter().enumerate();
+            let returned_arrays = vec![];
+            let predicate = AssumptionId::dummy();
+            let call = node::Operation::Call { func, arguments, returned_arrays, predicate };
+            let call_instruction = self.context.new_instruction(call, ObjectType::NotAnObject)?;
 
-        try_vecmap(return_types, |(i, typ)| {
-            let index = i as u32;
-            let typ = typ.into();
-            self.context.new_instruction(node::Operation::Result { call_instruction, index }, typ)
-        })
+            try_vecmap(return_types, |(i, typ)| {
+                let result = node::Operation::Result { call_instruction, index: i as u32 };
+                self.context.new_instruction(result, typ.into())
+            })
+        }
     }
 
     //Lowlevel functions with no more than 2 arguments
@@ -222,7 +225,7 @@ impl IRGenerator {
         &mut self,
         op: OPCODE,
         args: Vec<NodeId>,
-    ) -> Result<NodeId, RuntimeError> {
+    ) -> Result<Vec<NodeId>, RuntimeError> {
         //REM: we do not check that the nb of inputs correspond to the function signature, it is done in the frontend
         //Output:
         let (len, elem_type) = get_result_type(op);
@@ -237,7 +240,8 @@ impl IRGenerator {
         //when the function returns an array, we use ins.res_type(array)
         //else we map ins.id to the returned witness
         //Call instruction
-        self.context.new_instruction(node::Operation::Intrinsic(op, args), result_type)
+        let id = self.context.new_instruction(node::Operation::Intrinsic(op, args), result_type)?;
+        Ok(vec![id])
     }
 }
 

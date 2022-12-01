@@ -290,9 +290,8 @@ fn get_current_value_for_node_eval(
     value_array: &HashMap<NodeId, NodeEval>,
 ) -> NodeEval {
     match obj {
-        NodeEval::Const(_, _) => obj,
         NodeEval::VarOrInstruction(obj_id) => get_current_value(obj_id, value_array),
-        NodeEval::Function(_) => obj,
+        NodeEval::Const(_, _) | NodeEval::Function(_) | NodeEval::Builtin(_) => obj,
     }
 }
 
@@ -306,6 +305,7 @@ fn evaluate_one(
     match get_current_value_for_node_eval(obj, value_array) {
         NodeEval::Const(_, _) => Ok(obj),
         NodeEval::Function(f) => Ok(NodeEval::Function(f)),
+        NodeEval::Builtin(b) => Ok(NodeEval::Builtin(b)),
         NodeEval::VarOrInstruction(obj_id) => {
             if ctx.try_get_node(obj_id).is_none() {
                 return Ok(obj);
@@ -338,6 +338,7 @@ fn evaluate_one(
                 }
                 NodeObj::Obj(_) => Ok(NodeEval::VarOrInstruction(obj_id)),
                 NodeObj::Function(f) => Ok(NodeEval::Function(*f)),
+                NodeObj::Builtin(b) => Ok(NodeEval::Builtin(*b)),
             }
         }
     }
@@ -352,6 +353,7 @@ fn evaluate_object(
     match get_current_value_for_node_eval(obj, value_array) {
         NodeEval::Const(_, _) => Ok(obj),
         NodeEval::Function(f) => Ok(NodeEval::Function(f)),
+        NodeEval::Builtin(b) => Ok(NodeEval::Builtin(b)),
         NodeEval::VarOrInstruction(obj_id) => {
             if ctx.try_get_node(obj_id).is_none() {
                 dbg!(obj_id);
@@ -384,6 +386,7 @@ fn evaluate_object(
                 }
                 NodeObj::Obj(_) => Ok(NodeEval::VarOrInstruction(obj_id)),
                 NodeObj::Function(f) => Ok(NodeEval::Function(*f)),
+                NodeObj::Builtin(f) => Ok(NodeEval::Builtin(*f)),
             }
         }
     }

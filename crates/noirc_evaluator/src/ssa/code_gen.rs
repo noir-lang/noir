@@ -196,12 +196,13 @@ impl IRGenerator {
             Ok(self.get_current_value(&value.clone()))
         } else {
             // If we haven't, it must be a global value, like a function or builtin
-            match ident.definition {
+            match &ident.definition {
                 Definition::Local(id) => unreachable!(
                     "Local variable encountered before its definition was compiled: {:?}",
                     id
                 ),
                 Definition::Function(id) => {
+                    let id = *id;
                     if !self.context.function_already_compiled(id) {
                         let index = self.context.get_function_index();
                         self.create_function(id, index)?;
@@ -217,16 +218,14 @@ impl IRGenerator {
                     let expect_msg = "Expected called function to already be codegen'd";
                     let function_node_id = self.context.get_function_node_id(id).expect(expect_msg);
                     Ok(Value::Single(function_node_id))
-
-                    // Expression::CallLowLevel(call) => Ok(Value::Single(self.codegen_lowlevel(call)?)),
-                    // Expression::CallBuiltin(call) => {
-                    //     let call =
-                    //         CallLowLevel { opcode: call.opcode.clone(), arguments: call.arguments.clone() };
-                    //     Ok(Value::Single(self.codegen_lowlevel(&call)?))
-                    // }
                 }
-                Definition::Builtin(_) => todo!(),
-                Definition::LowLevel(_) => todo!(),
+                Definition::Builtin(opcode) | Definition::LowLevel(opcode) => {
+                    let opcode = OPCODE::lookup(opcode).unwrap_or_else(|| {
+                        unreachable!("Unknown builtin/lowlevel opcode '{}'", opcode)
+                    });
+                    let function_node_id = self.context.get_or_create_opcode_node_id(opcode);
+                    Ok(Value::Single(function_node_id))
+                }
             }
         }
     }
@@ -603,19 +602,6 @@ impl IRGenerator {
             Expression::Semi(expr) => {
                 self.codegen_expression(expr.as_ref())?;
                 Ok(Value::dummy())
-            }
-        }
-    }
-
-    fn codegen_lowlevel(
-        &mut self,
-        opcode: &str,
-        args: Vec<NodeId>,
-    ) -> Result<NodeId, RuntimeError> {
-        match OPCODE::lookup(opcode) {
-            Some(func) => self.call_low_level(func, args),
-            None => {
-                unreachable!("cannot find a low level opcode with the name {} in the IR", opcode)
             }
         }
     }
