@@ -19,13 +19,8 @@ template <typename Fr, typename G1> struct key_pair {
 };
 
 struct signature {
-    std::array<uint8_t, 32> s;
-    std::array<uint8_t, 32> e;
-};
-
-struct signature_b {
-    std::array<uint8_t, 32> s;
-    std::array<uint8_t, 32> r;
+    std::array<uint8_t, 32> s; // Fr
+    std::array<uint8_t, 32> e; // Fr
 };
 
 template <typename Hash, typename Fq, typename Fr, typename G1>
@@ -33,12 +28,6 @@ bool verify_signature(const std::string& message, const typename G1::affine_elem
 
 template <typename Hash, typename Fq, typename Fr, typename G1>
 signature construct_signature(const std::string& message, const key_pair<Fr, G1>& account);
-
-template <typename Hash, typename Fq, typename Fr, typename G1>
-signature_b construct_signature_b(const std::string& message, const key_pair<Fr, G1>& account);
-
-template <typename Hash, typename Fq, typename Fr, typename G1>
-typename G1::affine_element ecrecover(const std::string& message, const signature_b& sig);
 
 inline bool operator==(signature const& lhs, signature const& rhs)
 {

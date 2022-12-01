@@ -11,13 +11,13 @@ namespace schnorr {
 /**
  * @brief Generate the schnorr signature challenge parameter `e` given a message, signer pubkey and nonce
  *
- * @details Normal Schnorr param e = H(r.x || pub_key || message)
+ * @details Normal Schnorr param e = H(R.x || pubkey || message)
  * But we want to keep hash preimage to <= 64 bytes for a 32 byte message
  * (for performance reasons in our join-split circuit!)
  *
  * barretenberg schnorr defines e as the following:
  *
- * e = H(pedersen(r.x || pub_key.x || pub_key.y), message)
+ * e = H(pedersen(R.x || pubkey.x || pubkey.y), message)
  *
  * pedersen is collision resistant => e can be modelled as randomly distributed
  * as long as H can be modelled as a random oracle
@@ -27,7 +27,7 @@ namespace schnorr {
  * @param message what are we signing over?
  * @param pubkey the pubkey of the signer
  * @param R the nonce
- * @return e = H(pedersen(r.x || pub_key.x || pub_key.y), message) as a 256-bit integer,
+ * @return e = H(pedersen(R.x || pubkey.x || pubkey.y), message) as a 256-bit integer,
  *      represented in a container of 32 uint8_t's
  *
  *
@@ -74,7 +74,8 @@ signature construct_signature(const std::string& message, const key_pair<Fr, G1>
     auto& public_key = account.public_key;
     auto& private_key = account.private_key;
 
-    // use HMAC in PRF mode to derive 32-byte secret `k`
+    // use HMAC in PRF mode to deterministically derive a uniformly distributed nonce `k`
+    // from the secret key and message.
     std::vector<uint8_t> pkey_buffer;
     write(pkey_buffer, private_key);
     Fr k = crypto::get_unbiased_field_from_hmac<Hash, Fr>(message, pkey_buffer);
@@ -113,7 +114,7 @@ bool verify_signature(const std::string& message, const typename G1::affine_elem
         return false;
     }
     // Deserializing from a 256-bit buffer will induce a bias on the order of
-    // 1/(2(256-log(r))) where r is the order of Fr.
+    // 1/(2(256-log(r))) where r is the order of Fr, since we perform a modular reduction
     Fr e = Fr::serialize_from_buffer(&sig.e[0]);
 
     // reading s in this way always applies the modular reduction, and
@@ -129,7 +130,8 @@ bool verify_signature(const std::string& message, const typename G1::affine_elem
     // R = g^{sig.s} • pub^{sig.e}
     affine_element R(element(public_key) * e + G1::one * s);
     if (R.is_point_at_infinity()) {
-        // this result implies k == 0
+        // this result implies k == 0, which would be catastrophic for the prover.
+        // it is a cheap check that ensures this doesn't happen.
         return false;
     }
 
