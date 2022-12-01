@@ -15,8 +15,7 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     };
     package_dir.push(Path::new(package_name));
     if package_dir.exists() {
-        let msg = format!("error: destination {} already exists", package_dir.display());
-        return Err(CliError::DestinationAlreadyExists(msg));
+        return Err(CliError::DestinationAlreadyExists(package_dir));
     }
 
     let src_dir = package_dir.join(Path::new(SRC_DIR));
