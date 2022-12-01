@@ -100,10 +100,7 @@ impl Value {
     fn reshape(value_type: &Type, iter: &mut core::slice::Iter<NodeId>) -> Value {
         match value_type {
             Type::Tuple(tup) => {
-                let mut values = Vec::new();
-                for i in tup {
-                    values.push(Self::reshape(i, iter));
-                }
+                let values = vecmap(tup, |v| Self::reshape(v, iter));
                 Value::Tuple(values)
             }
             _ => Value::Single(*iter.next().unwrap()),
