@@ -70,12 +70,7 @@ template <typename G1, typename HashRegNon, typename HashSig = Blake2sHasher> cl
         // for std::sort
         bool operator<(const RoundOnePublicOutput& other) const
         {
-            if (R < other.R) {
-                return true;
-            } else if (R == other.R && S < other.S) {
-                return true;
-            }
-            return false;
+            return (R < other.R || (R == other.R && S < other.S));
         }
 
         bool operator==(const RoundOnePublicOutput& other) const { return R == other.R && S == other.S; }
