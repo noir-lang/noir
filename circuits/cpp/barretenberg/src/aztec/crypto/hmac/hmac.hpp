@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <string>
@@ -21,6 +22,7 @@ template <typename Hash, typename MessageContainer, typename KeyContainer>
 std::array<uint8_t, Hash::OUTPUT_SIZE> hmac(const MessageContainer& message, const KeyContainer& key)
 {
     constexpr size_t B = Hash::BLOCK_SIZE;
+    static_assert(Hash::OUTPUT_SIZE <= B);
     std::array<uint8_t, B> ipad;
     std::array<uint8_t, B> opad;
     for (size_t i = 0; i < B; ++i) {
