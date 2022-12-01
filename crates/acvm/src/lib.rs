@@ -31,6 +31,7 @@ pub enum GateResolution {
     UnknownError(String),      //Generic error
     UnsupportedOpcode(OPCODE), //Unsupported Opcode
     UnsatisfiedConstrain,      //Gate is not satisfied
+    Solved(usize),             //Circuit is solved, after a number of passes
 }
 
 pub trait Backend: SmartContract + ProofSystemCompiler + PartialWitnessGenerator {}
@@ -186,64 +187,58 @@ pub trait PartialWitnessGenerator {
     fn solve(
         &self,
         initial_witness: &mut BTreeMap<Witness, FieldElement>,
-        mut gates: Vec<Gate>,
+        mut gates_to_resolve: Vec<Gate>,
     ) -> GateResolution {
-        let mut gates2: Vec<Gate> = Vec::new();
-        let mut pass_nb = 0;
-        let mut gates_to_resolve = &mut gates;
-        let mut unresolved_gates = &mut gates2;
+        let mut unresolved_gates: Vec<Gate> = Vec::new();
+        let mut pass_number = 0;
         let mut ctx = BinarySolver::new();
-        let mut binary_solve = -1;
+        //binary_solve is used to manage the binary solving mode:
+        //binary_solve.is_none()                => binary solve is not activated
+        //binary_solve == Some(forward_pass)    => binary solve is activated and will do forward_pass forward passes, decreasing at each pass until it reach 0 where the process will be backward
+        let mut binary_solve = None;
 
         while !gates_to_resolve.is_empty() {
             unresolved_gates.clear();
 
             let mut process = |gate| {
                 let mut result = self.solve_gate(initial_witness, gate);
-                if binary_solve >= 0 && result == GateResolution::Skip {
+                if binary_solve.is_some() && result == GateResolution::Skip {
                     result = ctx.solve(gate, initial_witness);
                 }
                 result
             };
 
-            if binary_solve != 0 {
-                for gate in gates_to_resolve.iter() {
-                    let result = process(gate);
-                    match result {
-                        GateResolution::Skip => unresolved_gates.push(gate.clone()),
-                        GateResolution::Resolved => (),
-                        _ => return result,
-                    }
-                }
-            } else {
+            if binary_solve == Some(0) {
                 //we go backward because binary solver should execute only when the program returns an array
                 //in that case it is a bit more efficient to go backwards, although both ways work.
                 for gate in gates_to_resolve.iter().rev() {
-                    let result = process(gate);
-                    match result {
+                    match process(gate) {
                         GateResolution::Skip => unresolved_gates.push(gate.clone()),
                         GateResolution::Resolved => (),
-                        _ => return result,
+                        resolution => return resolution,
+                    }
+                }
+            } else {
+                for gate in gates_to_resolve.iter() {
+                    match process(gate) {
+                        GateResolution::Skip => unresolved_gates.push(gate.clone()),
+                        GateResolution::Resolved => (),
+                        resolution => return resolution,
                     }
                 }
             }
-            if binary_solve > 0 {
-                binary_solve -= 1;
-            } else if gates_to_resolve.len() == unresolved_gates.len() && binary_solve < 0 {
-                // activate the binary solver with 2 forward passes in order to properly identify booleans first
-                binary_solve = 2;
-            }
 
-            if pass_nb % 2 == 0 {
-                gates_to_resolve = &mut gates2;
-                unresolved_gates = &mut gates;
-            } else {
-                unresolved_gates = &mut gates2;
-                gates_to_resolve = &mut gates;
+            if let Some(forward_pass) = binary_solve {
+                if forward_pass > 0 {
+                    binary_solve = Some(forward_pass - 1);
+                }
+            } else if gates_to_resolve.len() == unresolved_gates.len() {
+                binary_solve = Some(2);
             }
-            pass_nb += 1;
+            std::mem::swap(&mut gates_to_resolve, &mut unresolved_gates);
+            pass_number += 1;
         }
-        GateResolution::Resolved
+        GateResolution::Solved(pass_number)
     }
 
     fn solve_gadget_call(

@@ -61,7 +61,7 @@ impl BinarySolver {
             let partial_gate =
                 super::arithmetic::ArithmeticSolver::evaluate(arith, initial_witness);
             result = self.solve_booleans(initial_witness, &partial_gate);
-            self.lookup_booleans(&partial_gate);
+            self.identify_booleans(&partial_gate);
         } else {
             self.lookup_binaries(gate);
         }
@@ -80,7 +80,7 @@ impl BinarySolver {
             | GateResolution::UnsatisfiedConstrain
             | GateResolution::UnknownError(_) => return result,
             GateResolution::Skip => (),
-            GateResolution::UnsupportedOpcode(_) => unreachable!(),
+            GateResolution::UnsupportedOpcode(_) | GateResolution::Solved(_) => unreachable!(),
         }
 
         if let Some(max) = self.is_binary(gate) {
@@ -145,8 +145,8 @@ impl BinarySolver {
     }
 
     // look for boolean constraint and add boolean witness to a map
-    pub fn lookup_booleans(&mut self, arith: &Expression) {
-        let mut x = usize::MAX;
+    pub fn identify_booleans(&mut self, arith: &Expression) {
+        let mut x = None;
         if arith.mul_terms.len() == 1 && arith.linear_combinations.len() == 1 {
             // x*x = x
             if arith.mul_terms[0].1 == arith.mul_terms[0].2
@@ -154,18 +154,18 @@ impl BinarySolver {
                 && arith.q_c.is_zero()
                 && (arith.mul_terms[0].0 + arith.linear_combinations[0].0).is_zero()
             {
-                x = 0;
+                x = Some(0);
             } else {
                 // x = a*b, a,b booleans or inverse
                 if self.are_boolean(&arith.mul_terms[0].1, &arith.mul_terms[0].2) {
                     if arith.q_c.is_zero() {
                         if (arith.mul_terms[0].0 + arith.linear_combinations[0].0).is_zero() {
-                            x = 0;
+                            x = Some(0);
                         }
                     } else if (arith.mul_terms[0].0 + arith.q_c).is_zero()
                         && arith.mul_terms[0].0 == arith.linear_combinations[0].0
                     {
-                        x = 0;
+                        x = Some(0);
                     }
                 }
             }
@@ -174,15 +174,15 @@ impl BinarySolver {
             let z = if self.is_boolean(&arith.linear_combinations[0].1)
                 && !self.is_boolean(&arith.linear_combinations[1].1)
             {
-                1
+                Some(1)
             } else if self.is_boolean(&arith.linear_combinations[1].1)
                 && !self.is_boolean(&arith.linear_combinations[0].1)
             {
-                0
+                Some(0)
             } else {
-                usize::MAX
+                None
             };
-            if z < usize::MAX {
+            if z.is_some() {
                 if arith.q_c.is_zero() {
                     if (arith.linear_combinations[0].0 + arith.linear_combinations[1].0).is_zero() {
                         x = z;
@@ -190,7 +190,7 @@ impl BinarySolver {
                 } else if (arith.q_c + arith.linear_combinations[1].0).is_zero()
                     && arith.linear_combinations[0].0 == arith.linear_combinations[1].0
                 {
-                    x = z;
+                    x = Some(0);
                 }
             }
         } else if arith.mul_terms.is_empty() && arith.linear_combinations.len() > 2 {
@@ -199,22 +199,22 @@ impl BinarySolver {
             for (i, lin) in arith.linear_combinations.iter().enumerate() {
                 if let Some(v) = self.get_max_value(&lin.1) {
                     max += v * BigUint::from_bytes_be(&lin.0.to_bytes());
-                } else if x != usize::MAX {
-                    x = usize::MAX;
+                } else if x.is_some() {
+                    x = None;
                     break;
                 } else {
-                    x = i;
+                    x = Some(i);
                 }
             }
             if max < FieldElement::modulus()
-                && x != usize::MAX
-                && arith.linear_combinations[x].0 == -FieldElement::one()
+                && x.is_some()
+                && arith.linear_combinations[x.unwrap()].0 == -FieldElement::one()
             {
-                self.positive_witness.insert(arith.linear_combinations[x].1, max);
-                x = usize::MAX;
+                self.positive_witness.insert(arith.linear_combinations[x.unwrap()].1, max);
+                x = None;
             }
         }
-        if x < usize::MAX {
+        if let Some(x) = x {
             self.binary_witness.insert(arith.linear_combinations[x].1);
         }
     }
@@ -226,7 +226,7 @@ impl BinarySolver {
                 self.invert_witness.insert(*x, *result);
             }
             Gate::Arithmetic(a) => {
-                self.lookup_booleans(a);
+                self.identify_booleans(a);
             }
             _ => (),
         }

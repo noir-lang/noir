@@ -182,7 +182,7 @@ pub fn solve_witness<P: AsRef<Path>>(
         GateResolution::UnsatisfiedConstrain => return Err(CliError::Generic(
                 "could not satisfy all constraints".to_string()
         )),
-        GateResolution::Resolved => (),
+        GateResolution::Resolved | GateResolution::Solved(_)=> (),
         _ => unreachable!(),
     }
 
