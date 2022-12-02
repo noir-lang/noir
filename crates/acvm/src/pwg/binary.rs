@@ -63,7 +63,7 @@ impl BinarySolver {
             result = self.solve_booleans(initial_witness, &partial_gate);
             self.identify_booleans(&partial_gate);
         } else {
-            self.lookup_binaries(gate);
+            self.identify_binaries(gate);
         }
         result
     }
@@ -219,8 +219,8 @@ impl BinarySolver {
         }
     }
 
-    // look for boolean and inverse constraints
-    pub fn lookup_binaries(&mut self, gate: &Gate) {
+    // identify boolean and inverse constraints in the gate
+    pub fn identify_binaries(&mut self, gate: &Gate) {
         match gate {
             Gate::Directive(Directive::Invert { x, result }) => {
                 self.invert_witness.insert(*x, *result);
