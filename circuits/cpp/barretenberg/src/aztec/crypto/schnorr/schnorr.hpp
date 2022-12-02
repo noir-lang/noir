@@ -18,9 +18,19 @@ template <typename Fr, typename G1> struct key_pair {
     typename G1::affine_element public_key;
 };
 
+// Raw representation of a Schnorr signature (e,s).  We use the short variant of Schnorr
+// where we include the challenge hash `e` instead of the group element R representing
+// the provers initial message.
 struct signature {
-    std::array<uint8_t, 32> s; // Fr
-    std::array<uint8_t, 32> e; // Fr
+
+    // `s` is a serialized field element (also 32 bytes), representing the prover's response to
+    // to the verifier challenge `e`.
+    // We do not enforce that `s` is canonical since signatures are verified inside a circuit,
+    // and are provided as private inputs. Malleability is not an issue in this case.
+    std::array<uint8_t, 32> s;
+    // `e` represents the verifier's challenge in the protocol. It is encoded as the 32-byte
+    // output of a hash function modeling a random oracle in the Fiat-Shamir transform.
+    std::array<uint8_t, 32> e;
 };
 
 template <typename Hash, typename Fq, typename Fr, typename G1>

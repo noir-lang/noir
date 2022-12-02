@@ -71,6 +71,10 @@ static auto generate_schnorr_challenge(const std::string& message,
 template <typename Hash, typename Fq, typename Fr, typename G1>
 signature construct_signature(const std::string& message, const key_pair<Fr, G1>& account)
 {
+    // sanity check to ensure our hash function produces `e_raw`
+    // of exactly 32 bytes.
+    static_assert(Hash::OUTPUT_SIZE == 32);
+
     auto& public_key = account.public_key;
     auto& private_key = account.private_key;
 
@@ -82,7 +86,6 @@ signature construct_signature(const std::string& message, const key_pair<Fr, G1>
 
     typename G1::affine_element R(G1::one * k);
 
-    // container with 32 bytes
     auto e_raw = generate_schnorr_challenge<Hash, G1>(message, public_key, R);
     // the conversion from e_raw results in a biased field element e
     Fr e = Fr::serialize_from_buffer(&e_raw[0]);

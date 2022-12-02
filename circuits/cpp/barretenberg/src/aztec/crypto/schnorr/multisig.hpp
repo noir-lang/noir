@@ -74,10 +74,10 @@ template <typename G1, typename HashRegNon, typename HashSig = Blake2sHasher> cl
         // for std::sort
         bool operator<(const RoundOnePublicOutput& other) const
         {
-            return (R < other.R || (R == other.R && S < other.S));
+            return ((R < other.R) || ((R == other.R) && S < (other.S)));
         }
 
-        bool operator==(const RoundOnePublicOutput& other) const { return R == other.R && S == other.S; }
+        bool operator==(const RoundOnePublicOutput& other) const { return (R == other.R) && (S == other.S); }
     };
     // corresponds to z = r + as - ex,
     using RoundTwoPublicOutput = Fr;
@@ -147,13 +147,13 @@ template <typename G1, typename HashRegNon, typename HashSig = Blake2sHasher> cl
 
         // we slightly deviate from the protocol when including 'm', since the length of 'm' is variable
         // by writing a prefix and a suffix, we prevent the message from being interpreted as coming from a different
-        // session
+        // session.
 
         // write "m_start"
         const std::string m_start = "m_start";
+        std::copy(m_start.begin(), m_start.end(), std::back_inserter(nonce_challenge_buffer));
         // write m.size()
         write(nonce_challenge_buffer, static_cast<uint32_t>(message.size()));
-        std::copy(m_start.begin(), m_start.end(), std::back_inserter(nonce_challenge_buffer));
         // write message
         std::copy(message.begin(), message.end(), std::back_inserter(nonce_challenge_buffer));
         // write "m_end"
