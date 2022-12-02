@@ -31,7 +31,7 @@ jobs:
           override: true
 
       - name: Install dependencies
-        run: sudo apt update && sudo apt install llvm && sudo apt install libomp-dev
+        run: sudo apt update && sudo apt install libomp-dev
         
       - name: Run cargo check
         uses: actions-rs/cargo@v1
@@ -39,6 +39,12 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
           command: check
           args: --all-targets --verbose
+
+      - name: Run cargo clean
+        uses: actions-rs/cargo@v1
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          command: clean
 
       - name: Run cargo test
         uses: actions-rs/cargo@v1
