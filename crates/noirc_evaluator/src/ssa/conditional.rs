@@ -436,7 +436,7 @@ impl DecisionTree {
         stack: &mut StackFrame,
         condition: NodeId,
         error_msg: &str,
-    ) -> bool {
+    ) {
         if ctx.under_assumption(condition) {
             block::short_circuit_instructions(ctx, &stack.stack);
             let nop = stack.stack[0];
@@ -457,7 +457,6 @@ impl DecisionTree {
                 Some(stack.block),
             ));
             stack.push(ins2);
-            true
         } else {
             unreachable!("{}", error_msg);
         }
@@ -531,7 +530,8 @@ impl DecisionTree {
                                 ctx.mem[*array_id].len,
                                 idx.to_u128()
                             );
-                            return !DecisionTree::short_circuit(ctx, stack, ass_value, &error);
+                            DecisionTree::short_circuit(ctx, stack, ass_value, &error);
+                            return false;
                         }
                     }
                     stack.push(ins_id);
@@ -541,7 +541,9 @@ impl DecisionTree {
                     let mut cond = ass_value;
                     if let Some(pred) = binop.predicate {
                         assert_ne!(pred, NodeId::dummy());
-                        if ass_value != NodeId::dummy() {
+                        if ass_value == NodeId::dummy() {
+                            cond = pred;
+                        } else {
                             let op = Operation::Binary(node::Binary {
                                 lhs: ass_value,
                                 rhs: pred,
@@ -555,8 +557,6 @@ impl DecisionTree {
                             ));
                             optim::simplify_id(ctx, cond).unwrap();
                             stack.push(cond);
-                        } else {
-                            cond = pred;
                         }
                     }
                     match binop.operator {
@@ -566,12 +566,13 @@ impl DecisionTree {
                         | BinaryOp::Srem
                         | BinaryOp::Div => {
                             if ctx.is_zero(binop.rhs) {
-                                return !DecisionTree::short_circuit(
+                                DecisionTree::short_circuit(
                                     ctx,
                                     stack,
                                     cond,
                                     "error: attempt to divide by zero",
                                 );
+                                return false;
                             }
                             if ctx.under_assumption(cond) {
                                 let ins2 = ctx.get_mut_instruction(ins_id);
@@ -595,7 +596,8 @@ impl DecisionTree {
                                     ctx.mem[*array_id].len,
                                     idx.to_u128()
                                 );
-                                return !DecisionTree::short_circuit(ctx, stack, ass_value, &error);
+                                DecisionTree::short_circuit(ctx, stack, ass_value, &error);
+                                return false;
                             }
                         }
                         if stack.created_arrays[array_id] != stack.block
