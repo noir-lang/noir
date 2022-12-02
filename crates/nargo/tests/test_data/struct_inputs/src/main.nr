@@ -14,7 +14,7 @@ fn main(x : Field, y : pub myStruct, z: pub foo::bar::barStruct, a: pub foo::foo
 
     for i in 0..std::array::len(struct_from_bar.array) {
         constrain struct_from_bar.array[i] == z.array[i];
-    };
+    }
     constrain z.val == struct_from_bar.val;
 
     constrain (struct_from_bar.val * x) == x;
@@ -28,5 +28,5 @@ fn check_inner_struct(a: foo::fooStruct, z: foo::bar::barStruct) {
     constrain a.bar_struct.val == z.val;
     for i in 0..std::array::len(a.bar_struct.array) {
         constrain a.bar_struct.array[i] == z.array[i];
-    };
+    }
 }

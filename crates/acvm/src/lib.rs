@@ -164,7 +164,16 @@ pub trait PartialWitnessGenerator {
                                     } else {
                                         FieldElement::zero()
                                     };
-                                    initial_witness.insert(b[j], v);
+                                    match initial_witness.entry(b[j]) {
+                                        std::collections::btree_map::Entry::Vacant(e) => {
+                                            e.insert(v);
+                                        }
+                                        std::collections::btree_map::Entry::Occupied(e) => {
+                                            if e.get() != &v {
+                                                return GateResolution::UnsatisfiedConstrain;
+                                            }
+                                        }
+                                    }
                                 }
                                 false
                             }
