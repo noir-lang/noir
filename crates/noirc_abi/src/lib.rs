@@ -147,6 +147,9 @@ impl Abi {
                 });
             }
 
+            // As the circuit calculates the return value in the process of calculating rest of the witnesses
+            // it's not absolutely necessary to provide them as inputs. We then tolerate an undefined value for
+            // the return value input and just skip it.
             // We do not support undefined arrays for now - TODO
             if !allow_undefined_return
                 || param_name != MAIN_RETURN_NAME
