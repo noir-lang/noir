@@ -146,6 +146,7 @@ impl Abi {
                 });
             }
 
+            // We do not support undefined arrays for now - TODO
             if param_name != MAIN_RETURN_NAME
                 || return_witness_len != 1
                 || !matches!(value, InputValue::Undefined)
