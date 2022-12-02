@@ -6,7 +6,7 @@ use acvm::ProofSystemCompiler;
 use acvm::{GateResolution, PartialWitnessGenerator};
 use clap::ArgMatches;
 use noirc_abi::errors::AbiError;
-use noirc_abi::{input_parser::InputValue, Abi};
+use noirc_abi::input_parser::InputValue;
 use std::path::Path;
 
 use crate::errors::CliError;
@@ -63,17 +63,25 @@ pub fn parse_and_solve_witness<P: AsRef<Path>>(
     // Solve the remaining witnesses
     let solved_witness = solve_witness(compiled_program, &witness_map)?;
 
-    let abi = compiled_program.abi.as_ref().unwrap();
-
     // We allow the user to optionally not provide a value for the circuit's return value, so this may be missing from
     // `witness_map`. We must then decode these from the circuit's witness values.
-    let inputs_vector: Vec<FieldElement> = (0..abi.field_count())
-        .map(|index| solved_witness[&Witness::new(index + WITNESS_OFFSET)])
+    let encoded_public_inputs: Vec<FieldElement> = compiled_program
+        .circuit
+        .public_inputs
+        .0
+        .iter()
+        .map(|index| solved_witness[index])
         .collect();
-    let decoded_inputs = abi.decode(&inputs_vector)?;
+
+    let public_abi = compiled_program.abi.as_ref().unwrap().clone().public_abi();
+    let public_inputs = public_abi.decode(&encoded_public_inputs)?;
 
     // Write public inputs into Verifier.toml
-    export_public_inputs(&decoded_inputs, abi.clone(), &program_dir)?;
+    noirc_abi::input_parser::Format::Toml.serialise(
+        &program_dir,
+        VERIFIER_INPUT_FILE,
+        &public_inputs,
+    )?;
 
     Ok(solved_witness)
 }
@@ -115,22 +123,6 @@ fn solve_witness(
     }
 
     Ok(solved_witness)
-}
-
-fn export_public_inputs<P: AsRef<Path>>(
-    decoded_inputs: &BTreeMap<String, InputValue>,
-    abi: Abi,
-    path: P,
-) -> Result<(), noirc_abi::errors::InputParserError> {
-    let public_inputs = abi
-        .public_abi()
-        .parameter_names()
-        .into_iter()
-        .map(|param_name| (param_name.to_owned(), decoded_inputs[param_name].to_owned()))
-        .collect();
-
-    //serialise public inputs into verifier.toml
-    noirc_abi::input_parser::Format::Toml.serialise(&path, VERIFIER_INPUT_FILE, &public_inputs)
 }
 
 pub fn prove_with_path<P: AsRef<Path>>(
