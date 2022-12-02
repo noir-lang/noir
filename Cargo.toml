@@ -14,7 +14,7 @@ members = [
     "crates/noirc_abi",
     "crates/wasm",
 ]
-exclude = ["examples/9/merkle_tree_processor"]
+exclude = ["examples/9/merkle_tree_processor", "crates/wasm"]
 default-members = ["crates/nargo"]
 
 # Patch github versions of acvm with local copy
