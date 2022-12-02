@@ -22,7 +22,7 @@ template <typename G1, typename Hash> struct ProofOfPossession {
     using element = typename G1::element;
     using key_pair = crypto::schnorr::key_pair<Fr, G1>;
 
-    // challenge = e = H_reg(pk,pk,R)
+    // challenge = e = H_reg(pk,R)
     std::array<uint8_t, 32> challenge;
     // response = z = k - e * sk
     Fr response = Fr::zero();
@@ -92,7 +92,7 @@ template <typename G1, typename Hash> struct ProofOfPossession {
         // Domain separation challenges
         const std::string domain_separator_pop("h_reg");
 
-        // buffer containing (domain_sep, G, X, X, R)
+        // buffer containing (domain_sep, G, X, R)
         std::vector<uint8_t> challenge_buf;
 
         // write domain separator
@@ -107,7 +107,7 @@ template <typename G1, typename Hash> struct ProofOfPossession {
         // write R
         write(challenge_buf, R);
 
-        // generate the raw bits of H_reg(X,X,R)
+        // generate the raw bits of H_reg(X,R)
         return Hash::hash(challenge_buf);
     }
 };
