@@ -134,7 +134,7 @@ impl Abi {
                 .ok_or_else(|| AbiError::MissingParam(param_name.clone()))?
                 .clone();
 
-            if !value.matches_abi(&param_type) {
+            if !value.matches_abi(param_type) {
                 return Err(AbiError::TypeMismatch {
                     param_name: param_name.to_string(),
                     param_type: param_type.to_owned(),
@@ -209,7 +209,7 @@ impl Abi {
 
         for (param_name, param_type) in &self.parameters {
             let (next_index, decoded_value) =
-                Self::decode_value(index, &encoded_inputs, &param_type)?;
+                Self::decode_value(index, encoded_inputs, param_type)?;
 
             decoded_inputs.insert(param_name.to_owned(), decoded_value);
 
