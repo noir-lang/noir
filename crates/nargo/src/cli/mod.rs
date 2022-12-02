@@ -142,12 +142,8 @@ pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> boo
         false,
     ) {
         Ok(p) => p,
-        Err(CliError::Generic(msg)) => {
-            println!("Error: {}", msg);
-            return false;
-        }
-        Err(CliError::DestinationAlreadyExists(str)) => {
-            println!("Error, destination {} already exists: ", str);
+        Err(error) => {
+            println!("{}", error);
             return false;
         }
     };
