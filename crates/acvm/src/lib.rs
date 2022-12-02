@@ -208,23 +208,18 @@ pub trait PartialWitnessGenerator {
                 result
             };
 
-            if binary_solve == Some(0) {
+            let gates: Box<dyn Iterator<Item = _>> = if binary_solve == Some(0) {
                 //we go backward because binary solver should execute only when the program returns an array
                 //in that case it is a bit more efficient to go backwards, although both ways work.
-                for gate in gates_to_resolve.iter().rev() {
-                    match process(gate) {
-                        GateResolution::Skip => unresolved_gates.push(gate.clone()),
-                        GateResolution::Resolved => (),
-                        resolution => return resolution,
-                    }
-                }
+                Box::new(gates_to_resolve.iter().rev())
             } else {
-                for gate in gates_to_resolve.iter() {
-                    match process(gate) {
-                        GateResolution::Skip => unresolved_gates.push(gate.clone()),
-                        GateResolution::Resolved => (),
-                        resolution => return resolution,
-                    }
+                Box::new(gates_to_resolve.iter())
+            };
+            for gate in gates {
+                match process(gate) {
+                    GateResolution::Skip => unresolved_gates.push(gate.clone()),
+                    GateResolution::Resolved => (),
+                    resolution => return resolution,
                 }
             }
 
