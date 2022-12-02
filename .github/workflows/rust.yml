@@ -40,12 +40,6 @@ jobs:
           command: check
           args: --all-targets --verbose
 
-      - name: Run cargo clean
-        uses: actions-rs/cargo@v1
-        with:
-          toolchain: ${{ matrix.toolchain }}
-          command: clean
-
       - name: Run cargo test
         uses: actions-rs/cargo@v1
         with:
