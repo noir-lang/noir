@@ -1,5 +1,5 @@
 use super::compile_cmd::compile_circuit;
-use super::{PROOFS_DIR, PROOF_EXT, VERIFIER_INPUT_FILE, read_inputs_from_file};
+use super::{read_inputs_from_file, PROOFS_DIR, PROOF_EXT, VERIFIER_INPUT_FILE};
 use crate::errors::{AbiError, CliError};
 use acvm::{FieldElement, ProofSystemCompiler};
 use clap::ArgMatches;
