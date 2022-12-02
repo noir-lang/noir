@@ -166,5 +166,13 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
         c[1] = 5;
     }
     constrain c[1] == 2;
+
+    test5(4);
 }
 
+fn test5(a : u32) {
+    if a > 1 {
+        let q = a / 2;
+        constrain q == 2;
+    }
+}
