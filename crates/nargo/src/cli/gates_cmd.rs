@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
+use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
 use std::path::Path;
-use acvm::ProofSystemCompiler;
 
 use crate::cli::compile_cmd::compile_circuit;
 use crate::errors::CliError;
