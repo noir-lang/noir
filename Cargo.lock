@@ -279,6 +279,7 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 [[package]]
 name = "barretenberg_static_lib"
 version = "0.1.0"
+source = "git+https://github.com/noir-lang/aztec_backend?rev=a44d23c305e688075afa3d76cdf575f697c72a0a#a44d23c305e688075afa3d76cdf575f697c72a0a"
 dependencies = [
  "barretenberg_wrapper",
  "blake2",
@@ -508,6 +509,7 @@ dependencies = [
 [[package]]
 name = "common"
 version = "0.1.0"
+source = "git+https://github.com/noir-lang/aztec_backend?rev=a44d23c305e688075afa3d76cdf575f697c72a0a#a44d23c305e688075afa3d76cdf575f697c72a0a"
 dependencies = [
  "acvm",
  "blake2",
@@ -792,7 +794,7 @@ dependencies = [
 name = "fm"
 version = "0.1.0"
 dependencies = [
- "cfg-if 1.0.0",
+ "cfg-if 0.1.10",
  "codespan-reporting",
  "tempfile",
  "wasm-bindgen",
@@ -1583,9 +1585,9 @@ dependencies = [
 
 [[package]]
 name = "os_str_bytes"
-version = "6.4.0"
+version = "6.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b5bf27447411e9ee3ff51186bf7a08e16c341efdde93f4d823e8844429bed7e"
+checksum = "9b7820b9daea5457c9f21c69448905d723fbd21136ccf521748f23fd49e723ee"
 
 [[package]]
 name = "parking_lot"
