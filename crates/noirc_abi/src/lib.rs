@@ -128,12 +128,6 @@ impl Abi {
         let param_names = self.parameter_names();
         let mut encoded_inputs = Vec::new();
 
-        let return_witness_len: u32 = self
-            .parameters
-            .iter()
-            .find(|x| x.0 == MAIN_RETURN_NAME)
-            .map_or(0, |(_, return_type)| return_type.field_count());
-
         for (param_name, param_type) in self.parameters.iter() {
             let value = inputs
                 .get(param_name)
@@ -151,15 +145,24 @@ impl Abi {
             // As the circuit calculates the return value in the process of calculating rest of the witnesses
             // it's not absolutely necessary to provide them as inputs. We then tolerate an undefined value for
             // the return value input and just skip it.
-            // We do not support undefined arrays for now - TODO
-            if !allow_undefined_return
-                || param_name != MAIN_RETURN_NAME
-                || return_witness_len != 1
-                || !matches!(value, InputValue::Undefined)
+            if allow_undefined_return
+                && param_name == MAIN_RETURN_NAME
+                && matches!(value, InputValue::Undefined)
             {
-                let encoded_input = Self::encode_value(value, param_name)?;
-                encoded_inputs.extend(encoded_input);
+                let return_witness_len = param_type.field_count();
+
+                // We do not support undefined arrays for now - TODO
+                if return_witness_len != 1 {
+                    return Err(AbiError::Generic(
+                        "Values of array returned from main must be specified".to_string(),
+                    ));
+                } else {
+                    // This assumes that the return value is at the end of the ABI, otherwise values will be misaligned.
+                    continue;
+                }
             }
+
+            encoded_inputs.extend(Self::encode_value(value, param_name)?);
         }
 
         // Check that no extra witness values have been provided.
