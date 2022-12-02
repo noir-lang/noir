@@ -1,9 +1,9 @@
 use super::compile_cmd::compile_circuit;
-use super::{PROOFS_DIR, PROOF_EXT, VERIFIER_INPUT_FILE};
+use super::{PROOFS_DIR, PROOF_EXT, VERIFIER_INPUT_FILE, read_inputs_from_file};
 use crate::errors::{AbiError, CliError};
 use acvm::{FieldElement, ProofSystemCompiler};
 use clap::ArgMatches;
-use noirc_abi::input_parser::{parse_input_file, Format, InputValue};
+use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::Abi;
 use noirc_driver::CompiledProgram;
 use std::{collections::BTreeMap, path::Path, path::PathBuf};
@@ -100,7 +100,7 @@ pub fn verify_with_path<P: AsRef<Path>>(
     let num_pub_params = public_abi.num_parameters();
     if num_pub_params != 0 {
         let curr_dir = program_dir;
-        public_inputs = parse_input_file(curr_dir, VERIFIER_INPUT_FILE, Format::Toml)?;
+        public_inputs = read_inputs_from_file(curr_dir, VERIFIER_INPUT_FILE, Format::Toml)?;
     }
 
     let valid_proof = verify_proof(compiled_program, public_inputs, load_proof(proof_path)?)?;

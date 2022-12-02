@@ -5,7 +5,7 @@ use acvm::FieldElement;
 use acvm::ProofSystemCompiler;
 use acvm::{GateResolution, PartialWitnessGenerator};
 use clap::ArgMatches;
-use noirc_abi::input_parser::{parse_input_file, serialise_to_file, Format, InputValue};
+use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::Abi;
 use noirc_abi::AbiType;
 use std::path::Path;
@@ -13,7 +13,8 @@ use std::path::Path;
 use crate::errors::{AbiError, CliError};
 
 use super::{
-    create_named_dir, write_to_file, PROOFS_DIR, PROOF_EXT, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE,
+    create_named_dir, read_inputs_from_file, write_inputs_to_file, write_to_file, PROOFS_DIR,
+    PROOF_EXT, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE,
 };
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
@@ -164,7 +165,7 @@ pub fn parse_and_solve_witness<P: AsRef<Path>>(
     compiled_program: &noirc_driver::CompiledProgram,
 ) -> Result<BTreeMap<Witness, FieldElement>, CliError> {
     // Parse the initial witness values from Prover.toml
-    let witness_map = parse_input_file(&program_dir, PROVER_INPUT_FILE, Format::Toml)?;
+    let witness_map = read_inputs_from_file(&program_dir, PROVER_INPUT_FILE, Format::Toml)?;
 
     // Solve the remaining witnesses
     let (solved_witness, return_value) = solve_witness(compiled_program, &witness_map)?;
@@ -213,7 +214,7 @@ fn export_public_inputs<P: AsRef<Path>>(
     witness_map: &BTreeMap<String, InputValue>,
     abi: &Abi,
     path: P,
-) -> Result<(), noirc_abi::errors::InputParserError> {
+) -> Result<(), CliError> {
     // generate a name->value map for the public inputs, using the ABI and witness_map:
     let mut public_inputs = BTreeMap::new();
     for i in &abi.parameters {
@@ -239,7 +240,7 @@ fn export_public_inputs<P: AsRef<Path>>(
     }
 
     // Serialise public inputs into Verifier.toml
-    serialise_to_file(&public_inputs, path, VERIFIER_INPUT_FILE, Format::Toml)
+    write_inputs_to_file(&public_inputs, path, VERIFIER_INPUT_FILE, Format::Toml)
 }
 
 pub fn prove_with_path<P: AsRef<Path>>(
