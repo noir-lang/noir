@@ -29,8 +29,11 @@ template <typename G1, typename Hash> struct ProofOfPossession {
 
     // restore default constructor to enable deserialization
     ProofOfPossession() = default;
+
     /**
-     * @brief Deterministically create a proof of possession for the given account
+     * @brief Create a new proof of possession for a given account.
+     *
+     * @warning Proofs are not deterministic.
      *
      * @param account a key_pair (secret_key, public_key)
      */
@@ -39,10 +42,7 @@ template <typename G1, typename Hash> struct ProofOfPossession {
         auto secret_key = account.private_key;
         auto public_key = account.public_key;
 
-        // use HMAC in PRF mode to derive uniformly random nonce `k` from the secret/public key.
-        auto hmac_key = to_buffer(secret_key);
-        auto hmac_message = to_buffer(public_key);
-        Fr k = crypto::get_unbiased_field_from_hmac<Hash, Fr>(hmac_message, hmac_key);
+        Fr k = Fr::random_element();
 
         affine_element R = G1::one * k;
 

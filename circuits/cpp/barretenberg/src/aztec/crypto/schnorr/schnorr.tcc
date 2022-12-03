@@ -57,6 +57,8 @@ static auto generate_schnorr_challenge(const std::string& message,
 /**
  * @brief Construct a Schnorr signature of the form (random - priv * hash, hash) using the group G1.
  *
+ * @warning Proofs are not deterministic.
+ *
  * @tparam Hash: A function std::vector<uint8_t> -> std::array<uint8_t, 32>
  * @tparam Fq:   The field over which points of G1 are defined.
  * @tparam Fr:   A class with a random element generator, where the multiplication
@@ -78,11 +80,8 @@ signature construct_signature(const std::string& message, const key_pair<Fr, G1>
     auto& public_key = account.public_key;
     auto& private_key = account.private_key;
 
-    // use HMAC in PRF mode to deterministically derive a uniformly distributed nonce `k`
-    // from the secret key and message.
-    std::vector<uint8_t> pkey_buffer;
-    write(pkey_buffer, private_key);
-    Fr k = crypto::get_unbiased_field_from_hmac<Hash, Fr>(message, pkey_buffer);
+    // sample random nonce k
+    Fr k = Fr::random_element();
 
     typename G1::affine_element R(G1::one * k);
 
