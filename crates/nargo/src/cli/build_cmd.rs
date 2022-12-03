@@ -25,7 +25,7 @@ pub fn build_from_path<P: AsRef<Path>>(p: P, allow_warnings: bool) -> Result<(),
     add_std_lib(&mut driver);
     driver.build(allow_warnings);
     // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
-    if let Some(x) = driver.compute_abi() {
+    if let Some(abi) = driver.compute_abi() {
         // XXX: The root config should return an enum to determine if we are looking for .json or .toml
         // For now it is hard-coded to be toml.
         //
@@ -37,12 +37,12 @@ pub fn build_from_path<P: AsRef<Path>>(p: P, allow_warnings: bool) -> Result<(),
         // If they are not available, then create them and
         // populate them based on the ABI
         if !path_to_prover_input.exists() {
-            let toml = toml::to_string(&build_empty_map(&x)).unwrap();
+            let toml = toml::to_string(&build_empty_map(&abi)).unwrap();
             write_to_file(toml.as_bytes(), &path_to_prover_input);
         }
         if !path_to_verifier_input.exists() {
-            let abi = x.public_abi();
-            let toml = toml::to_string(&build_empty_map(&abi)).unwrap();
+            let public_abi = abi.public_abi();
+            let toml = toml::to_string(&build_empty_map(&public_abi)).unwrap();
             write_to_file(toml.as_bytes(), &path_to_verifier_input);
         }
     } else {
