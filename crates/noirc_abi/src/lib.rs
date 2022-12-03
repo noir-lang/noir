@@ -182,8 +182,9 @@ impl Abi {
             InputValue::Field(elem) => encoded_value.push(elem),
             InputValue::Vec(vec_elem) => encoded_value.extend(vec_elem),
             InputValue::Struct(object) => {
-                for (name, value) in object {
-                    encoded_value.extend(Self::encode_value(value, &name)?)
+                for (field_name, value) in object {
+                    let new_name = format!("{}.{}", param_name, field_name);
+                    encoded_value.extend(Self::encode_value(value, &new_name)?)
                 }
             }
             InputValue::Undefined => return Err(AbiError::UndefinedInput(param_name.to_string())),
