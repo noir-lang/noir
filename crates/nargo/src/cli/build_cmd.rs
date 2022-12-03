@@ -1,7 +1,11 @@
 use crate::{errors::CliError, resolver::Resolver};
 use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
-use std::path::{Path, PathBuf};
+use noirc_abi::{Abi, AbiType};
+use std::{
+    collections::BTreeMap,
+    path::{Path, PathBuf},
+};
 
 use super::{add_std_lib, write_to_file, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 
@@ -33,18 +37,28 @@ pub fn build_from_path<P: AsRef<Path>>(p: P, allow_warnings: bool) -> Result<(),
         // If they are not available, then create them and
         // populate them based on the ABI
         if !path_to_prover_input.exists() {
-            let toml = toml::to_string(&x).unwrap();
+            let toml = toml::to_string(&build_empty_map(&x)).unwrap();
             write_to_file(toml.as_bytes(), &path_to_prover_input);
         }
         if !path_to_verifier_input.exists() {
             let abi = x.public_abi();
-            let toml = toml::to_string(&abi).unwrap();
+            let toml = toml::to_string(&build_empty_map(&abi)).unwrap();
             write_to_file(toml.as_bytes(), &path_to_verifier_input);
         }
     } else {
         // This means that this is a library. Libraries do not have ABIs.
     }
     Ok(())
+}
+
+fn build_empty_map(abi: &Abi) -> BTreeMap<String, &str> {
+    abi.parameters
+        .iter()
+        .map(|(param_name, param_type)| {
+            let default_value = if matches!(param_type, AbiType::Array { .. }) { "[]" } else { "" };
+            (param_name.to_string(), default_value)
+        })
+        .collect()
 }
 
 #[cfg(test)]
