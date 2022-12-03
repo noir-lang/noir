@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use serde::{ser::SerializeMap, Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 
 // This is the ABI used to bridge the different TOML formats for the initial
 // witness, the partial witness generator and the interpreter.
@@ -9,6 +9,7 @@ use serde::{ser::SerializeMap, Deserialize, Serialize, Serializer};
 
 pub mod errors;
 pub mod input_parser;
+mod serialization;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 /// Types that are allowed in the (main function in binary)
@@ -35,6 +36,7 @@ pub enum AbiType {
 /// In the future, maybe it will be decided that the AST will hold esoteric types and the HIR will transform them
 /// This method is a bit cleaner as we would not need to dig into the resolver, to lower from a esoteric AST type to a HIR type.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum AbiFEType {
     Public,
     // Constants are not allowed in the ABI for main at the moment.
@@ -52,6 +54,7 @@ impl std::fmt::Display for AbiFEType {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Sign {
     Unsigned,
     Signed,
@@ -77,17 +80,21 @@ impl AbiType {
         }
     }
 
-    pub fn is_public(&self) -> bool {
+    fn visibility(&self) -> AbiFEType {
         match self {
-            AbiType::Field(fe_type) => fe_type == &AbiFEType::Public,
-            AbiType::Array { visibility, length: _, typ: _ } => visibility == &AbiFEType::Public,
-            AbiType::Integer { visibility, sign: _, width: _ } => visibility == &AbiFEType::Public,
-            AbiType::Struct { visibility, .. } => visibility == &AbiFEType::Public,
+            AbiType::Field(visibility) => *visibility,
+            AbiType::Array { visibility, length: _, typ: _ } => *visibility,
+            AbiType::Integer { visibility, sign: _, width: _ } => *visibility,
+            AbiType::Struct { visibility, .. } => *visibility,
         }
+    }
+
+    pub fn is_public(&self) -> bool {
+        self.visibility() == AbiFEType::Public
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug)]
 pub struct Abi {
     pub parameters: Vec<(String, AbiType)>,
 }
@@ -106,24 +113,5 @@ impl Abi {
         let parameters: Vec<_> =
             self.parameters.into_iter().filter(|(_, param_type)| param_type.is_public()).collect();
         Abi { parameters }
-    }
-}
-
-impl Serialize for Abi {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let vec: Vec<u8> = Vec::new();
-        let mut map = serializer.serialize_map(Some(self.parameters.len()))?;
-        for (param_name, param_type) in &self.parameters {
-            match param_type {
-                AbiType::Field(_) => map.serialize_entry(&param_name, "")?,
-                AbiType::Array { .. } => map.serialize_entry(&param_name, &vec)?,
-                AbiType::Integer { .. } => map.serialize_entry(&param_name, "")?,
-                AbiType::Struct { .. } => map.serialize_entry(&param_name, "")?,
-            };
-        }
-        map.end()
     }
 }
