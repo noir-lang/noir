@@ -166,7 +166,9 @@ fn write_inputs_to_file<P: AsRef<Path>>(
     };
 
     let serialized_output = format.serialise(w_map)?;
-    std::fs::write(file_path, serialized_output).map_err(CliError::SaveTomlFile)
+    write_to_file(serialized_output.as_bytes(), &file_path);
+
+    Ok(())
 }
 
 // helper function which tests noir programs by trying to generate a proof and verify it

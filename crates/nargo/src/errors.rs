@@ -10,7 +10,6 @@ pub enum CliError {
     PathNotValid(PathBuf),
     ProofNotValid(FromHexError),
     MissingTomlFile(PathBuf),
-    SaveTomlFile(std::io::Error),
 }
 
 impl CliError {
@@ -38,7 +37,6 @@ impl Display for CliError {
                     write!(f, "Error: could not parse proof data ({})", hex_error)
                 }
                 CliError::MissingTomlFile(path) => write!(f, "cannot find input file located at {:?}, run nargo build to generate the missing Prover and/or Verifier toml files", path),
-                CliError::SaveTomlFile(err) => write!(f, "could not save file to disk, {}", err),
             }
     }
 }
