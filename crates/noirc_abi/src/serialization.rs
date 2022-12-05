@@ -18,7 +18,7 @@ struct AbiParameter {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(tag = "name", rename_all = "lowercase")]
+#[serde(tag = "kind", rename_all = "lowercase")]
 enum Type {
     Field,
     Array {
@@ -138,17 +138,17 @@ mod tests {
                 \"name\": \"thing1\",
                 \"visibility\": \"public\",
                 \"type\": {
-                    \"name\": \"field\"
+                    \"kind\": \"field\"
                 }
             },
             {
                 \"name\": \"thing2\",
                 \"visibility\": \"private\",
                 \"type\": {
-                    \"name\": \"array\",
+                    \"kind\": \"array\",
                     \"length\": 2,
                     \"type\": {
-                        \"name\": \"integer\",
+                        \"kind\": \"integer\",
                         \"width\": 3,
                         \"sign\": \"unsigned\"
                     }
@@ -158,12 +158,12 @@ mod tests {
                 \"name\": \"thing3\",
                 \"visibility\": \"private\",
                 \"type\": {
-                    \"name\": \"struct\",
+                    \"kind\": \"struct\",
                     \"fields\": [
                         {
                             \"name\": \"field1\",
                             \"type\": {
-                                \"name\": \"integer\",
+                                \"kind\": \"integer\",
                                 \"width\": 3,
                                 \"sign\": \"unsigned\"
                             }
@@ -171,10 +171,10 @@ mod tests {
                         {
                             \"name\": \"field2\",
                             \"type\": {
-                                \"name\": \"array\",
+                                \"kind\": \"array\",
                                 \"length\": 2,
                                 \"type\": {
-                                    \"name\": \"field\"
+                                    \"kind\": \"field\"
                                 }
                             }
                         }
