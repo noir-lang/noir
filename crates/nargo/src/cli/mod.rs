@@ -1,5 +1,5 @@
 pub use build_cmd::build_from_path;
-use clap::{App, Arg};
+use clap::{App, AppSettings, Arg};
 use noirc_driver::Driver;
 use noirc_frontend::graph::{CrateName, CrateType};
 use std::{
@@ -88,6 +88,7 @@ pub fn start_cli() {
                 .arg(show_ssa)
                 .arg(allow_warnings),
         )
+        .setting(AppSettings::SubcommandRequiredElseHelp)
         .get_matches();
 
     let result = match matches.subcommand_name() {
@@ -98,8 +99,8 @@ pub fn start_cli() {
         Some("compile") => compile_cmd::run(matches),
         Some("verify") => verify_cmd::run(matches),
         Some("gates") => gates_cmd::run(matches),
-        None => Err(CliError::Generic("No subcommand was used".to_owned())),
         Some(x) => Err(CliError::Generic(format!("unknown command : {}", x))),
+        _ => unreachable!(),
     };
     if let Err(err) = result {
         err.write()
