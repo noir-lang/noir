@@ -18,7 +18,7 @@ inline fr_hash_path get_new_hash_path(fr_hash_path const& old_path, uint128_t in
     fr_hash_path path = old_path;
     fr current = value;
     for (size_t i = 0; i < old_path.size(); ++i) {
-        bool path_bit = index & 0x1;
+        bool path_bit = static_cast<bool>(index & 0x1);
         if (path_bit) {
             path[i].second = current;
         } else {
