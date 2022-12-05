@@ -2,6 +2,7 @@ use crate::{errors::CliError, resolver::Resolver};
 use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
 use noirc_abi::{Abi, AbiType};
+use noirc_frontend::util::btree_map;
 use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
@@ -37,12 +38,12 @@ pub fn build_from_path<P: AsRef<Path>>(p: P, allow_warnings: bool) -> Result<(),
         // If they are not available, then create them and
         // populate them based on the ABI
         if !path_to_prover_input.exists() {
-            let toml = toml::to_string(&build_empty_map(&abi)).unwrap();
+            let toml = toml::to_string(&build_empty_map(abi.clone())).unwrap();
             write_to_file(toml.as_bytes(), &path_to_prover_input);
         }
         if !path_to_verifier_input.exists() {
             let public_abi = abi.public_abi();
-            let toml = toml::to_string(&build_empty_map(&public_abi)).unwrap();
+            let toml = toml::to_string(&build_empty_map(public_abi)).unwrap();
             write_to_file(toml.as_bytes(), &path_to_verifier_input);
         }
     } else {
@@ -51,14 +52,11 @@ pub fn build_from_path<P: AsRef<Path>>(p: P, allow_warnings: bool) -> Result<(),
     Ok(())
 }
 
-fn build_empty_map(abi: &Abi) -> BTreeMap<String, &str> {
-    abi.parameters
-        .iter()
-        .map(|(param_name, param_type)| {
-            let default_value = if matches!(param_type, AbiType::Array { .. }) { "[]" } else { "" };
-            (param_name.to_string(), default_value)
-        })
-        .collect()
+fn build_empty_map(abi: Abi) -> BTreeMap<String, &str> {
+    btree_map(abi.parameters, |(param_name, param_type)| {
+        let default_value = if matches!(param_type, AbiType::Array { .. }) { "[]" } else { "" };
+        (param_name, default_value)
+    })
 }
 
 #[cfg(test)]
