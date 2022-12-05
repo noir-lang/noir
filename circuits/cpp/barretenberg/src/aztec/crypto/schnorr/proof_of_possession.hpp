@@ -22,7 +22,7 @@ template <typename G1, typename Hash> struct ProofOfPossession {
     using element = typename G1::element;
     using key_pair = crypto::schnorr::key_pair<Fr, G1>;
 
-    // challenge = e = H_reg(pk,R)
+    // challenge = e = H_reg(pk,pk,R)
     std::array<uint8_t, 32> challenge;
     // response = z = k - e * sk
     Fr response = Fr::zero();
@@ -42,6 +42,13 @@ template <typename G1, typename Hash> struct ProofOfPossession {
         auto secret_key = account.private_key;
         auto public_key = account.public_key;
 
+        // Fr::random_element() will call std::random_device, which in turn relies on system calls to generate a string
+        // of random bits. It is important to ensure that the execution environment will correctly supply system calls
+        // that give std::random_device access to an entropy source that produces a string of non-deterministic
+        // uniformly random bits. For example, when compiling into a wasm binary, it is essential that the random_get
+        // method is overloaded to utilise a suitable entropy source
+        // (see https://github.com/WebAssembly/WASI/blob/main/phases/snapshot/docs.md)
+        // TODO: securely erase `k`
         Fr k = Fr::random_element();
 
         affine_element R = G1::one * k;
@@ -81,18 +88,18 @@ template <typename G1, typename Hash> struct ProofOfPossession {
 
   private:
     /**
-     * @brief Generate the Fiat-Shamir challenge e = H_reg(G,X,R)
+     * @brief Generate the Fiat-Shamir challenge e = H_reg(G,X,X,R)
      *
      * @param public_key X = secret_key•G
      * @param R the commitment R = k•G
-     * @return e = H_reg(X,R)
+     * @return e = H_reg(X,X,R)
      */
     static auto generate_challenge(const affine_element& public_key, const affine_element& R)
     {
         // Domain separation challenges
         const std::string domain_separator_pop("h_reg");
 
-        // buffer containing (domain_sep, G, X, R)
+        // buffer containing (domain_sep, G, X, X, R)
         std::vector<uint8_t> challenge_buf;
 
         // write domain separator
@@ -101,13 +108,14 @@ template <typename G1, typename Hash> struct ProofOfPossession {
         // write the group generator
         write(challenge_buf, G1::affine_one);
 
-        // write X (only once, differing from the paper)
+        // write X twice as per the spec
+        write(challenge_buf, public_key);
         write(challenge_buf, public_key);
 
         // write R
         write(challenge_buf, R);
 
-        // generate the raw bits of H_reg(X,R)
+        // generate the raw bits of H_reg(X,X,R)
         return Hash::hash(challenge_buf);
     }
 };

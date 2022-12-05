@@ -285,11 +285,13 @@ template <typename G1, typename HashRegNon, typename HashSig = Blake2sHasher> cl
     static std::pair<RoundOnePublicOutput, RoundOnePrivateOutput> construct_signature_round_1()
     {
         // r_user ← 𝔽
+        // TODO: securely erase `r_user`
         Fr r_user = Fr::random_element();
         // R_user ← r_user⋅G
         affine_element R_user = G1::one * r_user;
 
         // s_user ← 𝔽
+        // TODO: securely erase `s_user`
         Fr s_user = Fr::random_element();
         // S_user ← s_user⋅G
         affine_element S_user = G1::one * s_user;

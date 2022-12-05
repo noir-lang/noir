@@ -34,6 +34,7 @@ std::array<uint8_t, Hash::OUTPUT_SIZE> hmac(const MessageContainer& message, con
 
     // initialize k_prime to 0x00,...,0x00
     // copy key or truncated key to start.
+    // TODO: securely erase `k_prime`
     std::array<uint8_t, B> k_prime{};
     if (key.size() > B) {
         const auto truncated_key = Hash::hash(key);
@@ -42,22 +43,28 @@ std::array<uint8_t, Hash::OUTPUT_SIZE> hmac(const MessageContainer& message, con
         std::copy(key.begin(), key.end(), k_prime.begin());
     }
 
+    // TODO: securely erase `h1`
     std::array<uint8_t, B> h1;
     for (size_t i = 0; i < B; ++i) {
         h1[i] = k_prime[i] ^ opad[i];
     }
 
+    // TODO: securely erase `h2`
     std::array<uint8_t, B> h2;
     for (size_t i = 0; i < B; ++i) {
         h2[i] = k_prime[i] ^ ipad[i];
     }
 
+    // TODO: securely erase copy of `h2` in `message_buffer`,
+    // ensure `message_buffer` is not re-allocated
     std::vector<uint8_t> message_buffer;
     std::copy(h2.begin(), h2.end(), std::back_inserter(message_buffer));
     std::copy(message.begin(), message.end(), std::back_inserter(message_buffer));
 
     const auto h3 = Hash::hash(message_buffer);
 
+    // TODO: securely erase copy of `h1` in `hmac_buffer`,
+    // ensure `hmac_buffer` is not re-allocated
     std::vector<uint8_t> hmac_buffer;
     std::copy(h1.begin(), h1.end(), std::back_inserter(hmac_buffer));
     std::copy(h3.begin(), h3.end(), std::back_inserter(hmac_buffer));
