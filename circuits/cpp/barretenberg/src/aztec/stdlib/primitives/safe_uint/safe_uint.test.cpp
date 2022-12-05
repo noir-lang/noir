@@ -504,7 +504,7 @@ TEST(stdlib_safeuint, operator_div_remainder_constraint)
     // We constrain divisor - remainder - 1 to be positive to ensure that remainder < divisor.
     suint_t delta = b - remainder - 1;
     field_t::from_witness_index(delta.value.context, delta.value.get_witness_index())
-        .create_range_constraint(b.current_max.get_msb() + 1);
+        .create_range_constraint(static_cast<size_t>(b.current_max.get_msb() + 1));
 
     // // More rudimentary constraint
     // // We constrain divisor - remainder - 1 to be positive to ensure that remainder < divisor.

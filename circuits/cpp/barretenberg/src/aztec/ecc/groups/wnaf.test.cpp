@@ -14,22 +14,20 @@ namespace {
 void recover_fixed_wnaf(uint64_t* wnaf, bool skew, uint64_t& hi, uint64_t& lo, size_t wnaf_bits)
 {
     size_t wnaf_entries = (127 + wnaf_bits - 1) / wnaf_bits;
-    unsigned __int128 scalar = 0; // (unsigned __int128)(skew);
+    uint128_t scalar = 0; // (uint128_t)(skew);
     for (int i = (int)0; i < (int)wnaf_entries; ++i) {
         uint64_t entry_formatted = wnaf[(size_t)i];
         bool negative = entry_formatted >> 31;
         uint64_t entry = ((entry_formatted & 0x0fffffffU) << 1) + 1;
         if (negative) {
-            scalar -= (unsigned __int128)((unsigned __int128)entry)
-                      << (unsigned __int128)(wnaf_bits * (wnaf_entries - 1 - (size_t)i));
+            scalar -= (uint128_t)((uint128_t)entry) << (uint128_t)(wnaf_bits * (wnaf_entries - 1 - (size_t)i));
         } else {
-            scalar += (unsigned __int128)((unsigned __int128)entry)
-                      << (unsigned __int128)(wnaf_bits * (wnaf_entries - 1 - (size_t)i));
+            scalar += (uint128_t)((uint128_t)entry) << (uint128_t)(wnaf_bits * (wnaf_entries - 1 - (size_t)i));
         }
     }
-    scalar -= (unsigned __int128)(skew);
-    hi = (uint64_t)(unsigned __int128)(scalar >> (unsigned __int128)(64));
-    lo = (uint64_t)(unsigned __int128)(scalar & (unsigned __int128)0xffff'ffff'ffff'ffff);
+    scalar -= (uint128_t)(skew);
+    hi = (uint64_t)(uint128_t)(scalar >> (uint128_t)(64));
+    lo = (uint64_t)(uint128_t)(scalar & (uint128_t)0xffff'ffff'ffff'ffff);
 }
 } // namespace
 

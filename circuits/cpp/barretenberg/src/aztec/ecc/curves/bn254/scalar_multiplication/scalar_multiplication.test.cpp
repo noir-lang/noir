@@ -300,7 +300,7 @@ TEST(scalar_multiplication, reduce_buckets)
 
     g1::affine_element* result_buckets = scalar_multiplication::reduce_buckets(product_state, true);
 
-    printf("num buckets = %lu \n", num_buckets);
+    printf("num buckets = %zu \n", num_buckets);
     for (size_t i = 0; i < num_buckets; ++i) {
         if (!bucket_empty_status[i]) {
             g1::element expected = expected_buckets[i].normalize();

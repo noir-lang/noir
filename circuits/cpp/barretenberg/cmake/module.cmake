@@ -15,7 +15,7 @@
 function(barretenberg_module MODULE_NAME)
     file(GLOB_RECURSE SOURCE_FILES *.cpp)
     file(GLOB_RECURSE HEADER_FILES *.hpp)
-    list(FILTER SOURCE_FILES EXCLUDE REGEX ".*\.(test|bench).cpp$")
+    list(FILTER SOURCE_FILES EXCLUDE REGEX ".*\.(fuzzer|test|bench).cpp$")
 
     if(SOURCE_FILES)
         add_library(
@@ -101,6 +101,30 @@ function(barretenberg_module MODULE_NAME)
             COMMAND ${MODULE_NAME}_tests
             WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
         )
+    endif()
+
+    file(GLOB_RECURSE FUZZERS_SOURCE_FILES *.fuzzer.cpp)
+    if(FUZZING AND FUZZERS_SOURCE_FILES)
+        foreach(FUZZER_SOURCE_FILE ${FUZZERS_SOURCE_FILES})
+            get_filename_component(FUZZER_NAME_STEM ${FUZZER_SOURCE_FILE} NAME_WE)
+            add_executable(
+            ${MODULE_NAME}_${FUZZER_NAME_STEM}_fuzzer
+            ${FUZZER_SOURCE_FILE}
+            )
+
+            target_link_options(
+            ${MODULE_NAME}_${FUZZER_NAME_STEM}_fuzzer
+                PRIVATE
+                "-fsanitize=fuzzer"
+                ${SANITIZER_OPTIONS}
+                )
+
+            target_link_libraries(
+            ${MODULE_NAME}_${FUZZER_NAME_STEM}_fuzzer
+            PRIVATE
+                ${MODULE_LINK_NAME}
+                )
+        endforeach()
     endif()
 
     file(GLOB_RECURSE BENCH_SOURCE_FILES *.bench.cpp)

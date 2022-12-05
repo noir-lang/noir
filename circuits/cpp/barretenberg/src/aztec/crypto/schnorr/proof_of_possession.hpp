@@ -29,8 +29,11 @@ template <typename G1, typename Hash> struct ProofOfPossession {
 
     // restore default constructor to enable deserialization
     ProofOfPossession() = default;
+
     /**
-     * @brief Deterministically create a proof of possession for the given account
+     * @brief Create a new proof of possession for a given account.
+     *
+     * @warning Proofs are not deterministic.
      *
      * @param account a key_pair (secret_key, public_key)
      */
@@ -39,10 +42,14 @@ template <typename G1, typename Hash> struct ProofOfPossession {
         auto secret_key = account.private_key;
         auto public_key = account.public_key;
 
-        // use HMAC in PRF mode to derive 32-byte secret `k`
-        auto hmac_key = to_buffer(secret_key);
-        auto hmac_message = to_buffer(public_key);
-        Fr k = crypto::get_unbiased_field_from_hmac<Hash, Fr>(hmac_message, hmac_key);
+        // Fr::random_element() will call std::random_device, which in turn relies on system calls to generate a string
+        // of random bits. It is important to ensure that the execution environment will correctly supply system calls
+        // that give std::random_device access to an entropy source that produces a string of non-deterministic
+        // uniformly random bits. For example, when compiling into a wasm binary, it is essential that the random_get
+        // method is overloaded to utilise a suitable entropy source
+        // (see https://github.com/WebAssembly/WASI/blob/main/phases/snapshot/docs.md)
+        // TODO: securely erase `k`
+        Fr k = Fr::random_element();
 
         affine_element R = G1::one * k;
 
@@ -63,7 +70,7 @@ template <typename G1, typename Hash> struct ProofOfPossession {
     {
         Fr challenge_fr = Fr::serialize_from_buffer(&challenge[0]);
         // this ensures that a default constructed proof is invalid
-        if (challenge_fr.is_zero() || response.is_zero())
+        if (response.is_zero())
             return false;
 
         if (!public_key.on_curve() || public_key.is_point_at_infinity())

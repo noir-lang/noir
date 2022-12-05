@@ -236,7 +236,7 @@ class CheckGetter {
      * @param composer Composer object
      * @param index Index of the value in polynomial (array)
      *
-     * @tparam use_shifted_evaluation Controls if we shift index to the right or not
+     * @tparam value_type Controls if we shift index to the right or not
      * @tparam id The id of the selector/witness polynomial being used
      * */
     template <EvaluationType value_type, PolynomialIndex id>

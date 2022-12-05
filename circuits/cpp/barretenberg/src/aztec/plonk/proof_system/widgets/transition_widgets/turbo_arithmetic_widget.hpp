@@ -18,6 +18,20 @@ template <class Field, class Getters, typename PolyContainer> class TurboArithme
     typedef containers::coefficient_array<Field> coefficient_array;
 
   public:
+    /**
+     * @brief Quickly checks if the result of all computation will be zero because of the selector or not
+     *
+     * @param polynomials Polynomial or simulated container
+     * @param i Gate index
+     * @return q_arith[i] != 0
+     */
+    inline static bool gate_enabled(PolyContainer& polynomials, const size_t i = 0)
+    {
+        const Field& q_arith =
+            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_ARITHMETIC_SELECTOR>(
+                polynomials, i);
+        return !q_arith.is_zero();
+    }
     inline static std::set<PolynomialIndex> const& get_required_polynomial_ids()
     {
         static const std::set<PolynomialIndex> required_polynomial_ids = {
