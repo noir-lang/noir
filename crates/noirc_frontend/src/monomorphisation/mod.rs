@@ -660,10 +660,12 @@ fn unwrap_array_size(typ: &HirType) -> u64 {
     match typ {
         HirType::ArrayLength(len) => *len,
         HirType::Array(len, _elem) => unwrap_array_size(len),
-        HirType::TypeVariable(binding) => match &*binding.borrow() {
-            TypeBinding::Bound(binding) => unwrap_array_size(binding),
-            TypeBinding::Unbound(_) => unreachable!(),
-        },
+        HirType::TypeVariable(binding) | HirType::NamedGeneric(binding, _) => {
+            match &*binding.borrow() {
+                TypeBinding::Bound(binding) => unwrap_array_size(binding),
+                TypeBinding::Unbound(_) => unreachable!(),
+            }
+        }
         other => unreachable!("unwrap_array_size: expected array, found {:?}", other),
     }
 }

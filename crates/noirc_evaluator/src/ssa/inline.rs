@@ -192,7 +192,7 @@ pub fn inline(
     let mut stack_frame = StackFrame::new(block);
 
     //1. return arrays
-    for arg_caller in dbg!(arrays.iter()) {
+    for arg_caller in arrays.iter() {
         if let node::ObjectType::Pointer(a) = ssa_func.result_types[arg_caller.1 as usize] {
             stack_frame.array_map.insert(a, arg_caller.0);
         }
@@ -274,7 +274,7 @@ pub fn inline_in_block(
                 stack_frame.block,
             );
 
-            match dbg!(&clone.operation) {
+            match &clone.operation {
                 Operation::Nop => (),
                 //Return instruction:
                 Operation::Return(values) => {
@@ -284,11 +284,6 @@ pub fn inline_in_block(
                             ctx.get_result_instruction_mut(stack_frame.block, call_id, i as u32)
                         {
                             result.mark = Mark::ReplaceWith(*value);
-                            println!(
-                                "Replacing return with ({}) type is {:?}",
-                                value.0.into_raw_parts().0,
-                                ctx[*value].get_type()
-                            );
                         }
                     }
                     let call_ins = ctx.get_mut_instruction(call_id);
@@ -302,7 +297,7 @@ pub fn inline_in_block(
                     let (func, returned_arrays) = if let Some(f) = ctx.try_get_funcid(*func) {
                         let func = ctx.get_function_node_id(f).expect("Function not yet compiled");
                         let result_types = &ctx.get_ssafunc(f).unwrap().result_types;
-                        let returned_arrays = dbg!(get_returned_arrays(result_types));
+                        let returned_arrays = get_returned_arrays(result_types);
                         (func, returned_arrays)
                     } else {
                         return Err(RuntimeErrorKind::UnstructuredError { message: "Cannot determine which function to call. Function calls cannot depend on private variables".into() }.add_location(*location));

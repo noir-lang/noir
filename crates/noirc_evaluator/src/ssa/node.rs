@@ -38,8 +38,8 @@ impl std::fmt::Display for NodeObj {
             NodeObj::Obj(o) => write!(f, "{}", o),
             NodeObj::Instr(i) => write!(f, "{}", i),
             NodeObj::Const(c) => write!(f, "{}", c),
-            NodeObj::Function(Normal(id), _) => write!(f, "f{}", id.0),
-            NodeObj::Function(Builtin(opcode), _) => write!(f, "{}", opcode),
+            NodeObj::Function(Normal(id), ..) => write!(f, "f{}", id.0),
+            NodeObj::Function(Builtin(opcode), ..) => write!(f, "{}", opcode),
         }
     }
 }
@@ -70,7 +70,7 @@ impl Node for NodeObj {
             NodeObj::Obj(o) => o.get_type(),
             NodeObj::Instr(i) => i.res_type,
             NodeObj::Const(o) => o.value_type,
-            NodeObj::Function(..) => ObjectType::NotAnObject,
+            NodeObj::Function(_, _, typ) => *typ,
         }
     }
 
@@ -88,7 +88,7 @@ impl Node for NodeObj {
             NodeObj::Obj(o) => o.get_id(),
             NodeObj::Instr(i) => i.id,
             NodeObj::Const(c) => c.get_id(),
-            NodeObj::Function(_, id) => *id,
+            NodeObj::Function(_, id, _) => *id,
         }
     }
 }
@@ -121,7 +121,7 @@ pub enum NodeObj {
     Obj(Variable),
     Instr(Instruction),
     Const(Constant),
-    Function(FunctionKind, NodeId),
+    Function(FunctionKind, NodeId, ObjectType),
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -234,8 +234,8 @@ impl From<&Type> for ObjectType {
                     Signedness::Unsigned => ObjectType::Unsigned(*bit_size),
                 }
             }
-            // TODO: We should probably not convert an array type into the element type
-            Type::Array(_, t) => ObjectType::from(t.as_ref()),
+            // TODO: We should not track arrays through ObjectTypes
+            Type::Array(..) => ObjectType::Pointer(ArrayId::dummy()),
             Type::Unit => ObjectType::NotAnObject,
             other => {
                 unimplemented!("Conversion to ObjectType is unimplemented for type {:?}", other)
@@ -319,7 +319,7 @@ impl std::fmt::Display for Instruction {
 pub enum NodeEval {
     Const(FieldElement, ObjectType),
     VarOrInstruction(NodeId),
-    Function(FunctionKind, NodeId),
+    Function(FunctionKind, NodeId, ObjectType),
 }
 
 impl NodeEval {
@@ -334,7 +334,7 @@ impl NodeEval {
         match self {
             NodeEval::VarOrInstruction(i) => Some(i),
             NodeEval::Const(_, _) => None,
-            NodeEval::Function(_, id) => Some(id),
+            NodeEval::Function(_, id, _) => Some(id),
         }
     }
 
@@ -344,7 +344,7 @@ impl NodeEval {
         match self {
             NodeEval::Const(c, t) => ctx.get_or_create_const(c, t),
             NodeEval::VarOrInstruction(i) => i,
-            NodeEval::Function(_, id) => id,
+            NodeEval::Function(_, id, _) => id,
         }
     }
 
@@ -354,7 +354,7 @@ impl NodeEval {
                 let value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
                 NodeEval::Const(value, c.get_type())
             }
-            NodeObj::Function(f, id) => NodeEval::Function(*f, *id),
+            NodeObj::Function(f, id, typ) => NodeEval::Function(*f, *id, *typ),
             NodeObj::Obj(_) | NodeObj::Instr(_) => NodeEval::VarOrInstruction(id),
         }
     }

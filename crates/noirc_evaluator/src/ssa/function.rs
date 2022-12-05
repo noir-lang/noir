@@ -125,20 +125,18 @@ pub fn get_result_type(op: OPCODE) -> (u32, ObjectType) {
 }
 
 impl IRGenerator {
+    /// Creates an ssa function and returns its type upon success
     pub fn create_function(
         &mut self,
         func_id: FuncId,
         index: FuncIndex,
-    ) -> Result<(), RuntimeError> {
+    ) -> Result<ObjectType, RuntimeError> {
         let current_block = self.context.current_block;
         let current_function = self.function_context;
         let func_block = super::block::BasicBlock::create_cfg(&mut self.context);
 
         let function = &mut self.program[func_id];
         let mut func = SSAFunction::new(func_id, &function.name, func_block, index, &self.context);
-
-        // Push a standard NodeId for this FuncId
-        self.context.push_function_id(func_id);
 
         //arguments:
         for (param_id, mutable, name, typ) in std::mem::take(&mut function.parameters) {
@@ -165,13 +163,24 @@ impl IRGenerator {
         let returned_values = last_value.to_node_ids();
 
         func.result_types.clear();
-        for i in &returned_values {
-            if let Some(node) = self.context.try_get_node(*i) {
-                func.result_types.push(node.get_type());
-            } else {
-                func.result_types.push(ObjectType::NotAnObject);
+        let mut returned_arrays = vec![];
+
+        for (i, id) in returned_values.iter().enumerate() {
+            let node = self.context.try_get_node(*id);
+            let typ = node.map_or(ObjectType::NotAnObject, |node| node.get_type());
+            func.result_types.push(typ);
+
+            if let ObjectType::Pointer(array_id) = typ {
+                returned_arrays.push((array_id, i as u32));
             }
         }
+
+        let array_set_id = self.context.push_array_set(returned_arrays);
+        let function_type = ObjectType::Function(array_set_id);
+
+        // Push a standard NodeId for this FuncId
+        self.context.push_function_id(func_id, function_type);
+
         self.context.new_instruction(
             node::Operation::Return(returned_values),
             node::ObjectType::NotAnObject,
@@ -181,7 +190,8 @@ impl IRGenerator {
         self.context.functions.insert(func_id, func);
         self.context.current_block = current_block;
         self.function_context = current_function;
-        Ok(())
+
+        Ok(function_type)
     }
 
     fn create_function_parameter(&mut self, id: LocalId, typ: &Type, name: &str) -> Vec<NodeId> {
@@ -203,14 +213,29 @@ impl IRGenerator {
             self.call_low_level(opcode, arguments)
         } else {
             let return_types = call.return_type.flatten().into_iter().enumerate();
-            let returned_arrays = vec![];
+            let returned_arrays = self.context.get_returned_arrays(func);
             let predicate = AssumptionId::dummy();
             let location = call.location;
-            let call = Operation::Call { func, arguments, returned_arrays, predicate, location };
+            let call = Operation::Call {
+                func,
+                arguments,
+                returned_arrays: returned_arrays.clone(),
+                predicate,
+                location,
+            };
             let call_instruction = self.context.new_instruction(call, ObjectType::NotAnObject)?;
 
             try_vecmap(return_types, |(i, typ)| {
                 let result = Operation::Result { call_instruction, index: i as u32 };
+                let typ = match ObjectType::from(typ) {
+                    ObjectType::Pointer(_) => {
+                        let id =
+                            returned_arrays.iter().find(|(_, index)| *index == i as u32).unwrap().0;
+                        ObjectType::Pointer(id)
+                    }
+                    other => other,
+                };
+
                 self.context.new_instruction(result, ObjectType::from(typ))
             })
         }
@@ -224,7 +249,20 @@ impl IRGenerator {
     ) -> Result<Vec<NodeId>, RuntimeError> {
         //REM: we do not check that the nb of inputs correspond to the function signature, it is done in the frontend
         //Output:
+
+        // TODO: There is a mismatch between intrinsics and normal function calls:
+        // Normal functions returning arrays have 1 ArrayId on the function itself
+        // Intrinsics generate a new Id on every call
+
         let (len, elem_type) = get_result_type(op);
+        // let result_type = match (elem_type, function_type) {
+        //     (_, ObjectType::Function(arrays_id)) if len > 1 => {
+        //         let arrays = &self.context[arrays_id];
+        //         assert_eq!(arrays.len(), 1);
+        //         ObjectType::Pointer(arrays[0].0)
+        //     }
+        //     (typ, _) => typ,
+        // };
         let result_type = if len > 1 {
             //We create an array that will contain the result and set the res_type to point to that array
             let result_index = self.new_array(&format!("{}_result", op), elem_type, len, None).1;
