@@ -33,12 +33,13 @@ impl std::fmt::Display for Variable {
 
 impl std::fmt::Display for NodeObj {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        use FunctionKind::*;
         match self {
             NodeObj::Obj(o) => write!(f, "{}", o),
             NodeObj::Instr(i) => write!(f, "{}", i),
             NodeObj::Const(c) => write!(f, "{}", c),
-            NodeObj::Function(func) => write!(f, "f{}", func.id.0),
-            NodeObj::Builtin(b) => write!(f, "{}", b.opcode),
+            NodeObj::Function(Normal(id), _) => write!(f, "f{}", id.0),
+            NodeObj::Function(Builtin(opcode), _) => write!(f, "{}", opcode),
         }
     }
 }
@@ -69,8 +70,7 @@ impl Node for NodeObj {
             NodeObj::Obj(o) => o.get_type(),
             NodeObj::Instr(i) => i.res_type,
             NodeObj::Const(o) => o.value_type,
-            NodeObj::Function(_) => ObjectType::NotAnObject,
-            NodeObj::Builtin(_) => ObjectType::NotAnObject,
+            NodeObj::Function(..) => ObjectType::NotAnObject,
         }
     }
 
@@ -79,8 +79,7 @@ impl Node for NodeObj {
             NodeObj::Obj(o) => o.size_in_bits(),
             NodeObj::Instr(i) => i.res_type.bits(),
             NodeObj::Const(c) => c.size_in_bits(),
-            NodeObj::Function(_) => 0,
-            NodeObj::Builtin(_) => 0,
+            NodeObj::Function(..) => 0,
         }
     }
 
@@ -89,8 +88,7 @@ impl Node for NodeObj {
             NodeObj::Obj(o) => o.get_id(),
             NodeObj::Instr(i) => i.id,
             NodeObj::Const(c) => c.get_id(),
-            NodeObj::Function(f) => f.node_id,
-            NodeObj::Builtin(b) => b.node_id,
+            NodeObj::Function(_, id) => *id,
         }
     }
 }
@@ -123,20 +121,13 @@ pub enum NodeObj {
     Obj(Variable),
     Instr(Instruction),
     Const(Constant),
-    Function(FunctionObj),
-    Builtin(BuiltinObj),
+    Function(FunctionKind, NodeId),
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct FunctionObj {
-    pub id: FuncId,
-    pub node_id: NodeId,
-}
-
-#[derive(Debug, Copy, Clone)]
-pub struct BuiltinObj {
-    pub opcode: OPCODE,
-    pub node_id: NodeId,
+pub enum FunctionKind {
+    Normal(FuncId),
+    Builtin(OPCODE),
 }
 
 #[derive(Debug)]
@@ -200,11 +191,15 @@ pub enum ObjectType {
     Unsigned(u32), //bit size
     Signed(u32),   //bit size
     Pointer(ArrayId),
-    //custom(u32),   //user-defined struct, u32 refers to the id of the type in...?todo
+
+    Function(ArrayIdSet), // Function with a set of arrays that may be returned
     //TODO big_int
     //TODO floats
     NotAnObject, //not an object
 }
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ArrayIdSet(pub u32);
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum NumericType {
@@ -264,6 +259,7 @@ impl ObjectType {
             ObjectType::Signed(c) => *c,
             ObjectType::Unsigned(c) => *c,
             ObjectType::Pointer(_) => 0,
+            ObjectType::Function(_) => 0,
         }
     }
 
@@ -319,12 +315,11 @@ impl std::fmt::Display for Instruction {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Copy, Clone)]
 pub enum NodeEval {
     Const(FieldElement, ObjectType),
     VarOrInstruction(NodeId),
-    Function(FunctionObj),
-    Builtin(BuiltinObj),
+    Function(FunctionKind, NodeId),
 }
 
 impl NodeEval {
@@ -339,8 +334,7 @@ impl NodeEval {
         match self {
             NodeEval::VarOrInstruction(i) => Some(i),
             NodeEval::Const(_, _) => None,
-            NodeEval::Function(f) => Some(f.node_id),
-            NodeEval::Builtin(b) => Some(b.node_id),
+            NodeEval::Function(_, id) => Some(id),
         }
     }
 
@@ -350,8 +344,7 @@ impl NodeEval {
         match self {
             NodeEval::Const(c, t) => ctx.get_or_create_const(c, t),
             NodeEval::VarOrInstruction(i) => i,
-            NodeEval::Function(f) => f.node_id,
-            NodeEval::Builtin(b) => b.node_id,
+            NodeEval::Function(_, id) => id,
         }
     }
 
@@ -361,8 +354,7 @@ impl NodeEval {
                 let value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
                 NodeEval::Const(value, c.get_type())
             }
-            NodeObj::Function(f) => NodeEval::Function(*f),
-            NodeObj::Builtin(b) => NodeEval::Builtin(*b),
+            NodeObj::Function(f, id) => NodeEval::Function(*f, *id),
             NodeObj::Obj(_) | NodeObj::Instr(_) => NodeEval::VarOrInstruction(id),
         }
     }
@@ -557,6 +549,7 @@ pub enum Operation {
         arguments: Vec<NodeId>,
         returned_arrays: Vec<(super::mem::ArrayId, u32)>,
         predicate: conditional::AssumptionId,
+        location: Location,
     },
     Return(Vec<NodeId>), //Return value(s) from a function block
     Result {
@@ -796,7 +789,7 @@ impl Binary {
                     return Ok(l_eval);
                 }
                 if self.lhs == self.rhs {
-                    return Ok(NodeEval::from_u128(0, res_type));
+                    return Ok(NodeEval::from_u128(0, res_type.clone()));
                 }
                 //constant folding
                 if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
@@ -1118,11 +1111,12 @@ impl Operation {
             }
             Intrinsic(i, args) => Intrinsic(*i, vecmap(args.iter().copied(), f)),
             Nop => Nop,
-            Call { func: func_id, arguments, returned_arrays, predicate } => Call {
+            Call { func: func_id, arguments, returned_arrays, predicate, location } => Call {
                 func: *func_id,
                 arguments: vecmap(arguments.iter().copied(), f),
                 returned_arrays: returned_arrays.clone(),
                 predicate: *predicate,
+                location: *location,
             },
             Return(values) => Return(vecmap(values.iter().copied(), f)),
             Result { call_instruction, index } => {

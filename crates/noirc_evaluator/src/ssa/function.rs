@@ -7,7 +7,7 @@ use noirc_frontend::monomorphisation::ast::{Call, Definition, FuncId, LocalId, T
 use noirc_frontend::util::try_vecmap;
 
 use super::conditional::{AssumptionId, DecisionTree, TreeBuilder};
-use super::node::Node;
+use super::node::{Node, Operation};
 use super::{
     block::BlockId,
     code_gen::IRGenerator,
@@ -91,24 +91,19 @@ impl SSAFunction {
         inline_map: &HashMap<NodeId, NodeId>,
         block_id: BlockId,
     ) -> NodeId {
-        if let Some(&node_id) = var {
-            if node_id == NodeId::dummy() {
-                return node_id;
-            }
-            let mut my_const = None;
-            let node_obj_opt = ctx.try_get_node(node_id);
-            if let Some(node::NodeObj::Const(c)) = node_obj_opt {
-                my_const = Some((c.get_value_field(), c.value_type));
-            }
-            if let Some(c) = my_const {
-                ctx.get_or_create_const(c.0, c.1)
-            } else if let Some(id) = inline_map.get(&node_id) {
-                *id
-            } else {
-                ssa_form::get_current_value_in_block(ctx, node_id, block_id)
-            }
+        let dummy = NodeId::dummy();
+        let node_id = var.unwrap_or(&dummy);
+        if node_id == &dummy {
+            return dummy;
+        }
+
+        let node_obj_opt = ctx.try_get_node(*node_id);
+        if let Some(node::NodeObj::Const(c)) = node_obj_opt {
+            ctx.get_or_create_const(c.get_value_field(), c.value_type)
+        } else if let Some(id) = inline_map.get(node_id) {
+            *id
         } else {
-            NodeId::dummy()
+            ssa_form::get_current_value_in_block(ctx, *node_id, block_id)
         }
     }
 }
@@ -210,12 +205,13 @@ impl IRGenerator {
             let return_types = call.return_type.flatten().into_iter().enumerate();
             let returned_arrays = vec![];
             let predicate = AssumptionId::dummy();
-            let call = node::Operation::Call { func, arguments, returned_arrays, predicate };
+            let location = call.location;
+            let call = Operation::Call { func, arguments, returned_arrays, predicate, location };
             let call_instruction = self.context.new_instruction(call, ObjectType::NotAnObject)?;
 
             try_vecmap(return_types, |(i, typ)| {
-                let result = node::Operation::Result { call_instruction, index: i as u32 };
-                self.context.new_instruction(result, typ.into())
+                let result = Operation::Result { call_instruction, index: i as u32 };
+                self.context.new_instruction(result, ObjectType::from(typ))
             })
         }
     }

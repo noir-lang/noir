@@ -3,7 +3,7 @@ use std::collections::{hash_map::Entry, HashMap};
 use noirc_frontend::monomorphisation::ast::FuncId;
 
 use crate::{
-    errors::RuntimeError,
+    errors::{RuntimeError, RuntimeErrorKind},
     ssa::{
         node::{Node, Operation},
         optim,
@@ -192,7 +192,7 @@ pub fn inline(
     let mut stack_frame = StackFrame::new(block);
 
     //1. return arrays
-    for arg_caller in arrays.iter() {
+    for arg_caller in dbg!(arrays.iter()) {
         if let node::ObjectType::Pointer(a) = ssa_func.result_types[arg_caller.1 as usize] {
             stack_frame.array_map.insert(a, arg_caller.0);
         }
@@ -274,27 +274,51 @@ pub fn inline_in_block(
                 stack_frame.block,
             );
 
-            match &clone.operation {
+            match dbg!(&clone.operation) {
                 Operation::Nop => (),
                 //Return instruction:
                 Operation::Return(values) => {
                     //we need to find the corresponding result instruction in the target block (using ins.rhs) and replace it by ins.lhs
                     for (i, value) in values.iter().enumerate() {
-                        if ctx
-                            .get_result_instruction_mut(stack_frame.block, call_id, i as u32)
-                            .is_some()
-                        {
+                        if let Some(result) =
                             ctx.get_result_instruction_mut(stack_frame.block, call_id, i as u32)
-                                .unwrap()
-                                .mark = Mark::ReplaceWith(*value);
+                        {
+                            result.mark = Mark::ReplaceWith(*value);
+                            println!(
+                                "Replacing return with ({}) type is {:?}",
+                                value.0.into_raw_parts().0,
+                                ctx[*value].get_type()
+                            );
                         }
                     }
                     let call_ins = ctx.get_mut_instruction(call_id);
                     call_ins.mark = Mark::Deleted;
                 }
-                Operation::Call { .. } => {
+                Operation::Call { func, arguments, returned_arrays, predicate, location } => {
                     *nested_call = true;
-                    let new_ins = new_cloned_instruction(clone, stack_frame.block);
+                    assert!(returned_arrays.is_empty());
+
+                    // Function should be known by now, fixup its returned arrays
+                    let (func, returned_arrays) = if let Some(f) = ctx.try_get_funcid(*func) {
+                        let func = ctx.get_function_node_id(f).expect("Function not yet compiled");
+                        let result_types = &ctx.get_ssafunc(f).unwrap().result_types;
+                        let returned_arrays = dbg!(get_returned_arrays(result_types));
+                        (func, returned_arrays)
+                    } else {
+                        return Err(RuntimeErrorKind::UnstructuredError { message: "Cannot determine which function to call. Function calls cannot depend on private variables".into() }.add_location(*location));
+                    };
+
+                    let operation = Operation::Call {
+                        func,
+                        arguments: arguments.clone(),
+                        returned_arrays,
+                        predicate: *predicate,
+                        location: *location,
+                    };
+
+                    let mut new_ins =
+                        Instruction::new(operation, clone.res_type, Some(stack_frame.block));
+                    new_ins.id = clone.id;
                     push_instruction(ctx, new_ins, stack_frame, inline_map);
                 }
                 Operation::Load { array_id, index } => {
@@ -363,6 +387,16 @@ pub fn inline_in_block(
     stack2.apply(ctx, stack_frame.block, call_id, false);
     stack_frame.stack.clear();
     Ok(next_block)
+}
+
+fn get_returned_arrays(result_types: &[ObjectType]) -> Vec<(ArrayId, u32)> {
+    result_types
+        .iter()
+        .filter_map(|typ| match typ {
+            ObjectType::Pointer(id) => Some((*id, 0)),
+            _ => None,
+        })
+        .collect()
 }
 
 fn new_cloned_instruction(original: Instruction, block: BlockId) -> Instruction {

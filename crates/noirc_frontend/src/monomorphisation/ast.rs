@@ -111,6 +111,7 @@ pub struct Call {
     pub func: Box<Expression>,
     pub arguments: Vec<Expression>,
     pub return_type: Type,
+    pub location: Location,
 }
 
 #[derive(Debug, Clone)]

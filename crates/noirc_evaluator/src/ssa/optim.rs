@@ -113,6 +113,9 @@ pub fn propagate(ctx: &SsaContext, id: NodeId, modified: &mut bool) -> NodeId {
 pub fn cse(igen: &mut SsaContext, first_block: BlockId) -> Result<Option<NodeId>, RuntimeError> {
     let mut anchor = Anchor::default();
     let mut modified = false;
+
+    igen.print("cse called. Current ssa:");
+
     cse_tree(igen, first_block, &mut anchor, &mut modified)
 }
 
@@ -152,6 +155,9 @@ pub fn full_cse(
 pub fn simple_cse(ctx: &mut SsaContext, block_id: BlockId) -> Result<Option<NodeId>, RuntimeError> {
     let mut modified = false;
     let mut instructions = Vec::new();
+
+    ctx.print("simple cse called");
+
     cse_block(ctx, block_id, &mut instructions, &mut modified)
 }
 
@@ -337,7 +343,9 @@ fn cse_block_with_anchor(
             update.parent_block = block_id;
 
             let mut update2 = update.clone();
+
             simplify(ctx, &mut update2)?;
+
             //cannot simplify to_bits() in the previous call because it get replaced with multiple instructions
             if let Operation::Intrinsic(opcode, args) = &update2.operation {
                 let args = args.iter().map(|arg| {

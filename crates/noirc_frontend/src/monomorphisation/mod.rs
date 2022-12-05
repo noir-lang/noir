@@ -541,11 +541,13 @@ impl Monomorphiser {
         let arguments = vecmap(&call.arguments, |id| self.expr_infer(*id));
         let return_type = self.interner.id_type(id);
         let return_type = Self::convert_type(&return_type);
+        let location = call.location;
 
         self.try_evaluate_call(&func, &call.arguments).unwrap_or(ast::Expression::Call(ast::Call {
             func,
             arguments,
             return_type,
+            location,
         }))
     }
 

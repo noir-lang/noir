@@ -291,7 +291,7 @@ fn get_current_value_for_node_eval(
 ) -> NodeEval {
     match obj {
         NodeEval::VarOrInstruction(obj_id) => get_current_value(obj_id, value_array),
-        NodeEval::Const(_, _) | NodeEval::Function(_) | NodeEval::Builtin(_) => obj,
+        NodeEval::Const(_, _) | NodeEval::Function(..) => obj,
     }
 }
 
@@ -304,8 +304,7 @@ fn evaluate_one(
     let mut modified = false;
     match get_current_value_for_node_eval(obj, value_array) {
         NodeEval::Const(_, _) => Ok(obj),
-        NodeEval::Function(f) => Ok(NodeEval::Function(f)),
-        NodeEval::Builtin(b) => Ok(NodeEval::Builtin(b)),
+        NodeEval::Function(f, id) => Ok(NodeEval::Function(f, id)),
         NodeEval::VarOrInstruction(obj_id) => {
             if ctx.try_get_node(obj_id).is_none() {
                 return Ok(obj);
@@ -337,8 +336,7 @@ fn evaluate_one(
                     Ok(NodeEval::Const(value, c.get_type()))
                 }
                 NodeObj::Obj(_) => Ok(NodeEval::VarOrInstruction(obj_id)),
-                NodeObj::Function(f) => Ok(NodeEval::Function(*f)),
-                NodeObj::Builtin(b) => Ok(NodeEval::Builtin(*b)),
+                NodeObj::Function(f, id) => Ok(NodeEval::Function(*f, *id)),
             }
         }
     }
@@ -352,8 +350,7 @@ fn evaluate_object(
 ) -> Result<NodeEval, RuntimeError> {
     match get_current_value_for_node_eval(obj, value_array) {
         NodeEval::Const(_, _) => Ok(obj),
-        NodeEval::Function(f) => Ok(NodeEval::Function(f)),
-        NodeEval::Builtin(b) => Ok(NodeEval::Builtin(b)),
+        NodeEval::Function(f, id) => Ok(NodeEval::Function(f, id)),
         NodeEval::VarOrInstruction(obj_id) => {
             if ctx.try_get_node(obj_id).is_none() {
                 dbg!(obj_id);
@@ -385,8 +382,7 @@ fn evaluate_object(
                     Ok(NodeEval::Const(value, c.get_type()))
                 }
                 NodeObj::Obj(_) => Ok(NodeEval::VarOrInstruction(obj_id)),
-                NodeObj::Function(f) => Ok(NodeEval::Function(*f)),
-                NodeObj::Builtin(f) => Ok(NodeEval::Builtin(*f)),
+                NodeObj::Function(f, id) => Ok(NodeEval::Function(*f, *id)),
             }
         }
     }

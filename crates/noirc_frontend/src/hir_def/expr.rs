@@ -107,6 +107,7 @@ pub struct HirCastExpression {
 pub struct HirCallExpression {
     pub func: ExprId,
     pub arguments: Vec<ExprId>,
+    pub location: Location,
 }
 
 /// These nodes are temporary, they're
@@ -118,6 +119,7 @@ pub struct HirMethodCallExpression {
     pub method: Ident,
     pub object: ExprId,
     pub arguments: Vec<ExprId>,
+    pub location: Location,
 }
 
 impl HirMethodCallExpression {
@@ -134,7 +136,7 @@ impl HirMethodCallExpression {
         let ident = HirExpression::Ident(HirIdent { location, id });
         let func = interner.push_expr(ident);
 
-        (func, HirExpression::Call(HirCallExpression { func, arguments }))
+        (func, HirExpression::Call(HirCallExpression { func, arguments, location }))
     }
 }
 

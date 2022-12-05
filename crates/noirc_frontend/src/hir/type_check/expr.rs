@@ -117,8 +117,7 @@ pub(crate) fn type_check_expression(
 
                     // Desugar the method call into a normal, resolved function call
                     // so that the backend doesn't need to worry about methods
-                    let location = interner.function_meta(&method_id).location;
-
+                    let location = method_call.location;
                     let (function_id, function_call) =
                         method_call.into_function_call(method_id, location, interner);
 

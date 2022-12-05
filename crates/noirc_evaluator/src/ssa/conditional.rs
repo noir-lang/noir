@@ -643,7 +643,7 @@ impl DecisionTree {
                     arguments,
                     returned_arrays,
                     predicate: ins_pred,
-                    ..
+                    location,
                 } => {
                     if ctx.under_assumption(ass_value) {
                         assert!(*ins_pred == AssumptionId::dummy());
@@ -653,6 +653,7 @@ impl DecisionTree {
                             arguments: arguments.clone(),
                             returned_arrays: returned_arrays.clone(),
                             predicate,
+                            location: *location,
                         };
                     }
                     stack.push(ins_id);
@@ -759,6 +760,7 @@ impl DecisionTree {
                         func: left_func,
                         arguments: left_arg,
                         returned_arrays: left_arrays,
+                        location: left_location,
                         ..
                     },
                     Operation::Call { func: right_func, arguments: right_arg, .. },
@@ -778,6 +780,7 @@ impl DecisionTree {
                         arguments: Vec::new(),
                         returned_arrays: left_arrays.clone(),
                         predicate: self.root,
+                        location: *left_location,
                     }
                 }
                 (

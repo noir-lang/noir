@@ -340,9 +340,9 @@ impl IRGenerator {
                 });
                 self.insert_new_struct(def, values)
             }
-            Type::Array(len, _) => {
+            Type::Array(len, elem) => {
                 //TODO support array of structs
-                let obj_type = node::ObjectType::from(typ);
+                let obj_type = node::ObjectType::from(elem.as_ref());
                 let len = *len;
                 let (v_id, _) = self.new_array(base_name, obj_type, len.try_into().unwrap(), def);
                 Value::Single(v_id)
