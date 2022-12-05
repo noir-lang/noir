@@ -102,7 +102,7 @@ Fr get_unbiased_field_from_hmac(const MessageContainer& message, const KeyContai
 
     // Domain separators whose size ensures we hash a block of the exact size expected by
     // the Hasher.
-    constexpr std::array<uint8_t, DOMAIN_SEPARATOR_SIZE> KLO_DOMAIN_SEPARATOR{};
+    constexpr std::array<uint8_t, DOMAIN_SEPARATOR_SIZE> KLO_DOMAIN_SEPARATOR{ 0x0 };
     constexpr std::array<uint8_t, DOMAIN_SEPARATOR_SIZE> KHI_DOMAIN_SEPARATOR{ 0x1 };
 
     auto input = hmac<Hash, MessageContainer, KeyContainer>(message, key);
