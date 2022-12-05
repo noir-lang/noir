@@ -3,6 +3,7 @@ set -e
 
 NARGO_DIR=${NARGO_DIR-"$HOME/.nargo"}
 NARGO_BIN_DIR="$NARGO_DIR/bin"
+CONFIG_DIR=${XDG_CONFIG_HOME-"$HOME/.config"}
 
 main() {
   need_cmd git
@@ -60,102 +61,93 @@ main() {
   fi
 
   NOIRUP_REPO=${NOIRUP_REPO-noir-lang/noir}
+  if [[ "$NOIRUP_REPO" == "noir-lang/noir" && -z "$NOIRUP_BRANCH" && -z "$NOIRUP_COMMIT" ]]; then
+    NOIRUP_VERSION=${NOIRUP_VERSION-nightly}
+    NOIRUP_TAG=$NOIRUP_VERSION
 
-  # Noir doesn't publish binaries currently so we always build from source.
+    # Normalize versions (handle channels, versions without v prefix)
+    if [[ "$NOIRUP_VERSION" == [[:digit:]]* ]]; then
+      # Add v prefix
+      NOIRUP_VERSION="v${NOIRUP_VERSION}"
+      NOIRUP_TAG="${NOIRUP_VERSION}"
+    fi
 
-  #   if [[ "$NOIRUP_REPO" == "noir-lang/noir" && -z "$NOIRUP_BRANCH" && -z "$NOIRUP_COMMIT" ]]; then
-  #     NOIRUP_VERSION=${NOIRUP_VERSION-nightly}
-  #     NOIRUP_TAG=$NOIRUP_VERSION
+    say "installing nargo (version ${NOIRUP_VERSION}, tag ${NOIRUP_TAG})"
 
-  #     # Normalize versions (handle channels, versions without v prefix
-  #     if [[ "$NOIRUP_VERSION" == "nightly" ]]; then
-  #       # Locate real nightly tag
-  #       SHA=$(ensure curl -sSf https://api.github.com/repos/${NOIRUP_REPO}/git/refs/tags/nightly \
-  #         | grep -Eo '"sha"[^,]*' \
-  #         | grep -Eo '[^:]*$' \
-  #         | tr -d '"' \
-  #         | tr -d ' ')
-  #       NOIRUP_TAG="nightly-${SHA}"
-  #     elif [[ "$NOIRUP_VERSION" == nightly* ]]; then
-  #       NOIRUP_VERSION="nightly"
-  #     elif [[ "$NOIRUP_VERSION" == [[:digit:]]* ]]; then
-  #       # Add v prefix
-  #       NOIRUP_VERSION="v${NOIRUP_VERSION}"
-  #       NOIRUP_TAG="${NOIRUP_VERSION}"
-  #     fi
+    PLATFORM="$(uname -s)"
+    case $PLATFORM in
+      Linux)
+        PLATFORM="unknown-linux-gnu"
+        ;;
+      Darwin)
+        PLATFORM="apple-darwin"
+        ;;
+      *)
+        err "unsupported platform: $PLATFORM"
+        ;;
+    esac
 
-  #     say "installing nargo (version ${NOIRUP_VERSION}, tag ${NOIRUP_TAG})"
+    # We currently only provide binaries targetting x64_64 architectures.
 
-  #     PLATFORM="$(uname -s)"
-  #     case $PLATFORM in
-  #       Linux)
-  #         PLATFORM="linux"
-  #         ;;
-  #       Darwin)
-  #         PLATFORM="darwin"
-  #         ;;
-  #       *)
-  #         err "unsupported platform: $PLATFORM"
-  #         ;;
-  #     esac
+    ARCHITECTURE="x86_64"
+    # ARCHITECTURE="$(uname -m)"
+    # if [ "${ARCHITECTURE}" = "x86_64" ]; then
+    #   # Redirect stderr to /dev/null to avoid printing errors if non Rosetta.
+    #   if [ "$(sysctl -n sysctl.proc_translated 2>/dev/null)" = "1" ]; then
+    #     ARCHITECTURE="arm64" # Rosetta.
+    #   else
+    #     ARCHITECTURE="amd64" # Intel.
+    #   fi
+    # elif [ "${ARCHITECTURE}" = "arm64" ] ||[ "${ARCHITECTURE}" = "aarch64" ] ; then
+    #   ARCHITECTURE="arm64" # Arm.
+    # else
+    #   ARCHITECTURE="amd64" # Amd.
+    # fi
 
-  #     ARCHITECTURE="$(uname -m)"
-  #     if [ "${ARCHITECTURE}" = "x86_64" ]; then
-  #       # Redirect stderr to /dev/null to avoid printing errors if non Rosetta.
-  #       if [ "$(sysctl -n sysctl.proc_translated 2>/dev/null)" = "1" ]; then
-  #         ARCHITECTURE="arm64" # Rosetta.
-  #       else
-  #         ARCHITECTURE="amd64" # Intel.
-  #       fi
-  #     elif [ "${ARCHITECTURE}" = "arm64" ] ||[ "${ARCHITECTURE}" = "aarch64" ] ; then
-  #       ARCHITECTURE="arm64" # Arm.
-  #     else
-  #       ARCHITECTURE="amd64" # Amd.
-  #     fi
+    # Compute the URL of the release tarball in the Noir repository.
+    RELEASE_URL="https://github.com/${NOIRUP_REPO}/releases/download/${NOIRUP_TAG}"
+    BIN_TARBALL_URL="${RELEASE_URL}/nargo-${ARCHITECTURE}-${PLATFORM}.tar.gz"
 
-  #     # Compute the URL of the release tarball in the Noir repository.
-  #     RELEASE_URL="https://github.com/${NOIRUP_REPO}/releases/download/${NOIRUP_TAG}/"
-  #     BIN_TARBALL_URL="${RELEASE_URL}nargo-${PLATFORM}_${NOIRUP_VERSION}.tar.gz"
-  #     MAN_TARBALL_URL="${RELEASE_URL}foundry_man_${NOIRUP_VERSION}.tar.gz"
+    # Download the binaries tarball and unpack it into the .nargo bin directory.
+    say "downloading latest nargo"
+    ensure curl -# -L $BIN_TARBALL_URL | tar -xzC $NARGO_BIN_DIR
 
-  #     # Download the binaries tarball and unpack it into the .foundry bin directory.
-  #     say "downloading latest nargo"
-  #     ensure curl -# -L $BIN_TARBALL_URL | tar -xzC $NARGO_BIN_DIR
+    # Replace existing std_lib with copy from new installation.
+    ensure rm -rf "$CONFIG_DIR/noir-lang/std"
+    ensure mv "$NARGO_BIN_DIR/noir-lang" $CONFIG_DIR
 
-  #     if [[ $(which nargo) =~ "cargo" ]]; then
-  #       warn "it appears your system has already has forge installed via cargo. you may need to run 'rm $(which nargo)' to allow noirup to take precedence!"
-  #     fi
-  #   else
-  need_cmd cargo
-  NOIRUP_BRANCH=${NOIRUP_BRANCH-master}
-  REPO_PATH="${NARGO_DIR}/${NOIRUP_REPO}"
+  else
+    need_cmd cargo
+    NOIRUP_BRANCH=${NOIRUP_BRANCH-master}
+    REPO_PATH="${NARGO_DIR}/${NOIRUP_REPO}"
 
-  if [ ! -d $REPO_PATH ]; then
-    # Repo path did not exist, grab the author from the repo, make a directory in .nargo, cd to it and clone.
-    IFS="/" read -ra AUTHOR <<<"$NOIRUP_REPO"
-    ensure mkdir -p "$NARGO_DIR/$AUTHOR"
-    cd "$NARGO_DIR/$AUTHOR"
-    ensure git clone https://github.com/${NOIRUP_REPO}
+    if [ ! -d $REPO_PATH ]; then
+      # Repo path did not exist, grab the author from the repo, make a directory in .nargo, cd to it and clone.
+      IFS="/" read -ra AUTHOR <<<"$NOIRUP_REPO"
+      ensure mkdir -p "$NARGO_DIR/$AUTHOR"
+      cd "$NARGO_DIR/$AUTHOR"
+      ensure git clone https://github.com/${NOIRUP_REPO}
+    fi
+    # force checkout, discarding any local changes
+    cd $REPO_PATH
+    ensure git fetch origin ${NOIRUP_BRANCH}:remotes/origin/${NOIRUP_BRANCH}
+    ensure git checkout origin/${NOIRUP_BRANCH}
+    # If set, checkout specific commit from branch
+    if [ ! -z $NOIRUP_COMMIT ]; then
+      say "installing at commit ${NOIRUP_COMMIT}"
+      ensure git checkout ${NOIRUP_COMMIT}
+    fi
+    # Build the repo and install it locally to the .nargo bin directory.
+    # --root appends /bin to the directory it is given, so we pass NARGO_DIR.
+    RUSTFLAGS="-C target-cpu=native" ensure cargo install --path ./crates/nargo --bins --locked --force --root $NARGO_DIR
+
   fi
-  # force checkout, discarding any local changes
-  cd $REPO_PATH
-  ensure git fetch origin ${NOIRUP_BRANCH}:remotes/origin/${NOIRUP_BRANCH}
-  ensure git checkout origin/${NOIRUP_BRANCH}
-  # If set, checkout specific commit from branch
-  if [ ! -z $NOIRUP_COMMIT ]; then
-    say "installing at commit ${NOIRUP_COMMIT}"
-    ensure git checkout ${NOIRUP_COMMIT}
-  fi
-  # Build the repo and install it locally to the .nargo bin directory.
-  # --root appends /bin to the directory it is given, so we pass NARGO_DIR.
-  RUSTFLAGS="-C target-cpu=native" ensure cargo install --path ./crates/nargo --bins --locked --force --root $NARGO_DIR
 
   if [[ $(which nargo) =~ "cargo" ]]; then
     warn "it appears your system has already has nargo installed via cargo. you may need to run 'rm $(which nargo)' to allow noirup to take precedence!"
   fi
 
   say "done"
-  #   fi
 }
 
 usage() {
