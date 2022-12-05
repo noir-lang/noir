@@ -28,6 +28,19 @@ template <class Field, class Getters, typename PolyContainer> class TurboLogicKe
         return required_polynomial_ids;
     }
 
+    /**
+     * @brief Quickly checks if the result of all computation will be zero because of the selector or not
+     *
+     * @param polynomials Polynomial or simulated container
+     * @param i Gate index
+     * @return q_logic[i] != 0
+     */
+    inline static bool gate_enabled(PolyContainer& polynomials, const size_t i = 0)
+    {
+        const Field& q_logic =
+            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_LOGIC_SELECTOR>(polynomials, i);
+        return !q_logic.is_zero();
+    }
     inline static void compute_linear_terms(PolyContainer& polynomials,
                                             const challenge_array& challenges,
                                             coefficient_array& linear_terms,

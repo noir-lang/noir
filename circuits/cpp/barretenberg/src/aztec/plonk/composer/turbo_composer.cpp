@@ -883,37 +883,54 @@ bool TurboComposer::check_circuit()
     for (size_t i = 0; i < get_num_gates(); i++) {
         result_nonlinear_part = barretenberg::fr::zero();
         // Do arithmetic
-        arithmetic_checker.compute_linear_terms(*this, arithmetic_challenges, linear_parts, i);
-        result_linear_part = arithmetic_checker.sum_linear_terms(*this, arithmetic_challenges, linear_parts, i);
-        arithmetic_checker.compute_non_linear_terms(*this, arithmetic_challenges, result_nonlinear_part, i);
-        result_linear_part += result_nonlinear_part;
-        if (!(result_linear_part + result_nonlinear_part).is_zero()) {
-            return false;
+        if (arithmetic_checker.gate_enabled(*this, i)) {
+            arithmetic_checker.compute_linear_terms(*this, arithmetic_challenges, linear_parts, i);
+            result_linear_part = arithmetic_checker.sum_linear_terms(*this, arithmetic_challenges, linear_parts, i);
+            arithmetic_checker.compute_non_linear_terms(*this, arithmetic_challenges, result_nonlinear_part, i);
+            if (!(result_linear_part + result_nonlinear_part).is_zero()) {
+#ifndef FUZZING
+                std::cerr << "Arithmetic error at gate " << i << std::endl;
+#endif
+                return false;
+            }
         }
 
         // Do range
-        range_checker.compute_linear_terms(*this, range_challenges, linear_parts, i);
-        result_linear_part = range_checker.sum_linear_terms(*this, range_challenges, linear_parts, i);
-        range_checker.compute_non_linear_terms(*this, range_challenges, result_nonlinear_part, i);
-        if (!(result_linear_part + result_nonlinear_part).is_zero()) {
-            return false;
+        if (range_checker.gate_enabled(*this, i)) {
+            range_checker.compute_linear_terms(*this, range_challenges, linear_parts, i);
+            result_linear_part = range_checker.sum_linear_terms(*this, range_challenges, linear_parts, i);
+            range_checker.compute_non_linear_terms(*this, range_challenges, result_nonlinear_part, i);
+            if (!(result_linear_part + result_nonlinear_part).is_zero()) {
+#ifndef FUZZING
+                std::cerr << "Range error at gate " << i << std::endl;
+#endif
+                return false;
+            }
         }
-
         // Do logic
-        logic_checker.compute_linear_terms(*this, logic_challenges, linear_parts, i);
-        result_linear_part = logic_checker.sum_linear_terms(*this, logic_challenges, linear_parts, i);
-        logic_checker.compute_non_linear_terms(*this, logic_challenges, result_nonlinear_part, i);
-        if (!(result_linear_part + result_nonlinear_part).is_zero()) {
-            return false;
+        if (logic_checker.gate_enabled(*this, i)) {
+            logic_checker.compute_linear_terms(*this, logic_challenges, linear_parts, i);
+            result_linear_part = logic_checker.sum_linear_terms(*this, logic_challenges, linear_parts, i);
+            logic_checker.compute_non_linear_terms(*this, logic_challenges, result_nonlinear_part, i);
+            if (!(result_linear_part + result_nonlinear_part).is_zero()) {
+#ifndef FUZZING
+                std::cerr << "Logic error at gate " << i << std::endl;
+#endif
+                return false;
+            }
         }
-
         // Do fixed base
-        fixed_base_checker.compute_linear_terms(*this, fixed_base_challenges, linear_parts, i);
-        result_linear_part = fixed_base_checker.sum_linear_terms(*this, fixed_base_challenges, linear_parts, i);
-        fixed_base_checker.compute_non_linear_terms(*this, fixed_base_challenges, result_nonlinear_part, i);
-        // Fixed base is the only one where independent parts are not zero
-        if (!(result_linear_part + result_nonlinear_part).is_zero()) {
-            return false;
+        if (fixed_base_checker.gate_enabled(*this, i)) {
+            fixed_base_checker.compute_linear_terms(*this, fixed_base_challenges, linear_parts, i);
+            result_linear_part = fixed_base_checker.sum_linear_terms(*this, fixed_base_challenges, linear_parts, i);
+            fixed_base_checker.compute_non_linear_terms(*this, fixed_base_challenges, result_nonlinear_part, i);
+            // Fixed base is the only one where independent parts are not zero
+            if (!(result_linear_part + result_nonlinear_part).is_zero()) {
+#ifndef FUZZING
+                std::cerr << "Fixed base error at gate " << i << std::endl;
+#endif
+                return false;
+            }
         }
     }
     return true;

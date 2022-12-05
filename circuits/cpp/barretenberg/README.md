@@ -92,6 +92,7 @@ CMake can be passed various build options on it's command line:
 - `-DTESTING=ON | OFF`: Enable/disable building of tests.
 - `-DBENCHMARK=ON | OFF`: Enable/disable building of benchmarks.
 - `-DTOOLCHAIN=<filename in ./cmake/toolchains>`: Use one of the preconfigured toolchains.
+- `-DFUZZING=ON | OFF`: Enable building various fuzzers.
 
 ### WASM build
 
@@ -117,3 +118,18 @@ Tests can be built and run like:
 make ecc_tests
 wasmtime --dir=.. ./bin/ecc_tests
 ```
+
+### Fuzzing build
+
+To build:
+```
+mkdir build-fuzzing && cd build-fuzzing
+cmake -DTOOLCHAIN=x86_64-linux-clang -DFUZZING=ON ..
+make
+```
+Fuzzing build turns off building tests and benchmarks, since they are incompatible with libfuzzer interface.
+
+To turn on address sanitizer add `-DADDRESS_SANITIZER=ON`. Note that address sanitizer can be used to explore crashes.
+Sometimes you might have to specify the address of llvm-symbolizer. You have to do it with `export ASAN_SYMBOLIZER_PATH=<PATH_TO_SYMBOLIZER>`.
+For undefined behaviour sanitizer `-DUNDEFINED_BEHAVIOUR_SANITIZER=ON`.
+Note that the fuzzer can be orders of magnitude slower with ASan (2-3x slower) or UBSan on, so it is best to run a non-sanitized build first, minimize the testcase and then run it for a bit of time with sanitizers.  

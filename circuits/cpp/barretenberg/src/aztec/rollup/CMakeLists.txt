@@ -1,9 +1,11 @@
-if(NOT WASM)
+if(NOT WASM) 
   link_libraries(leveldb)
+  if (NOT FUZZING)
   add_subdirectory(db_cli)
   add_subdirectory(keygen)
   add_subdirectory(rollup_cli)
   add_subdirectory(tx_factory)
+  endif()
 endif()
 
 add_subdirectory(proofs)
