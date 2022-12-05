@@ -25,11 +25,11 @@ FastRandom VarianceRNG(0);
  * @brief The class parametrizing ByteArray fuzzing instructions, execution, etc
  *
  */
-template <typename Composer>
-class BoolFuzzBase {
-    private:
-        typedef plonk::stdlib::bool_t<Composer> bool_t;
-        typedef plonk::stdlib::witness_t<Composer> witness_t;
+template <typename Composer> class BoolFuzzBase {
+  private:
+    typedef plonk::stdlib::bool_t<Composer> bool_t;
+    typedef plonk::stdlib::witness_t<Composer> witness_t;
+
   public:
     /**
      * @brief A class representing a single fuzzing instruction
@@ -37,19 +37,7 @@ class BoolFuzzBase {
      */
     class Instruction {
       public:
-        enum OPCODE {
-            CONSTANT,
-            WITNESS,
-            AND,
-            OR,
-            XOR,
-            NOT,
-            ASSERT_EQUAL,
-            SELECT_IF_EQ,
-            SET,
-            RANDOMSEED,
-            _LAST
-        };
+        enum OPCODE { CONSTANT, WITNESS, AND, OR, XOR, NOT, ASSERT_EQUAL, SELECT_IF_EQ, SET, RANDOMSEED, _LAST };
         struct TwoArgs {
             uint8_t in;
             uint8_t out;
@@ -94,8 +82,7 @@ class BoolFuzzBase {
             case OPCODE::CONSTANT:
             case OPCODE::WITNESS:
                 // Return instruction
-                return { .id = instruction_opcode,
-                    .arguments.element = static_cast<bool>(rng.next() % 2) };
+                return { .id = instruction_opcode, .arguments.element = static_cast<bool>(rng.next() % 2) };
                 break;
             case OPCODE::AND:
             case OPCODE::OR:
@@ -122,9 +109,7 @@ class BoolFuzzBase {
             case OPCODE::SET:
                 in1 = static_cast<uint8_t>(rng.next() & 0xff);
                 out = static_cast<uint8_t>(rng.next() & 0xff);
-                return { .id = instruction_opcode,
-                         .arguments.twoArgs = {
-                             .in = in1, .out = out } };
+                return { .id = instruction_opcode, .arguments.twoArgs = { .in = in1, .out = out } };
             case OPCODE::RANDOMSEED:
                 return { .id = instruction_opcode, .arguments.randomseed = rng.next() };
                 break;
@@ -154,13 +139,13 @@ class BoolFuzzBase {
     if (rng.next() & 1) {                                                                                              \
         variable = rng.next() & 0xff;                                                                                  \
     }
-#define PUT_RANDOM_TWO_BYTES_IF_LUCKY(variable)                                                                             \
+#define PUT_RANDOM_TWO_BYTES_IF_LUCKY(variable)                                                                        \
     if (rng.next() & 1) {                                                                                              \
-        variable = rng.next() & 0xffff;                                                                                  \
+        variable = rng.next() & 0xffff;                                                                                \
     }
-#define PUT_RANDOM_FOUR_BYTES_IF_LUCKY(variable)                                                                             \
+#define PUT_RANDOM_FOUR_BYTES_IF_LUCKY(variable)                                                                       \
     if (rng.next() & 1) {                                                                                              \
-        variable = rng.next() & 0xffffffff;                                                                                  \
+        variable = rng.next() & 0xffffffff;                                                                            \
     }
             // Depending on instruction type...
             switch (instruction.id) {
@@ -229,23 +214,19 @@ class BoolFuzzBase {
          */
         template <typename Instruction::OPCODE opcode> inline static Instruction parseInstructionArgs(uint8_t* Data)
         {
-            if constexpr (opcode == Instruction::OPCODE::CONSTANT ||
-                          opcode == Instruction::OPCODE::WITNESS) {
+            if constexpr (opcode == Instruction::OPCODE::CONSTANT || opcode == Instruction::OPCODE::WITNESS) {
                 return Instruction{ .id = static_cast<typename Instruction::OPCODE>(opcode),
-                                    .arguments.element = static_cast<bool>(*Data)};
+                                    .arguments.element = static_cast<bool>(*Data) };
             }
-            if constexpr (opcode == Instruction::OPCODE::AND ||
-                          opcode == Instruction::OPCODE::OR ||
+            if constexpr (opcode == Instruction::OPCODE::AND || opcode == Instruction::OPCODE::OR ||
                           opcode == Instruction::OPCODE::XOR) {
                 return { .id = static_cast<typename Instruction::OPCODE>(opcode),
                          .arguments.threeArgs = { .in1 = *Data, .in2 = *(Data + 1), .out = *(Data + 2) } };
             }
-            if constexpr (opcode == Instruction::OPCODE::NOT ||
-                          opcode == Instruction::OPCODE::ASSERT_EQUAL ||
+            if constexpr (opcode == Instruction::OPCODE::NOT || opcode == Instruction::OPCODE::ASSERT_EQUAL ||
                           opcode == Instruction::OPCODE::SET) {
                 return Instruction{ .id = static_cast<typename Instruction::OPCODE>(opcode),
-                                    .arguments.twoArgs = { .in = *Data,
-                                                              .out = *(Data + 1) } };
+                                    .arguments.twoArgs = { .in = *Data, .out = *(Data + 1) } };
             }
             if constexpr (opcode == Instruction::OPCODE::SELECT_IF_EQ) {
 
@@ -317,85 +298,71 @@ class BoolFuzzBase {
         ExecutionHandler(bool r, bool_t b)
             : reference_value(r)
             , b(b)
-        {
-        }
+        {}
         ExecutionHandler(bool_t b)
             : reference_value(b.get_value())
             , b(b)
         {}
 
-        ExecutionHandler operator&(const ExecutionHandler& other) const {
+        ExecutionHandler operator&(const ExecutionHandler& other) const
+        {
             const bool ref_result(this->reference_value & other.reference_value);
 
             switch (VarianceRNG.next() % 2) {
-                case    0:
-                    /* ^ operator */
-                    return ExecutionHandler(
-                            ref_result,
-                            bool_t(this->b & other.b));
-                case    1:
-                    /* ^= operator */
-                    {
-                        bool_t b = this->b;
-                        b &= other.b;
-                        return ExecutionHandler(
-                                ref_result,
-                                b);
-                    }
-                default:
-                    abort();
+            case 0:
+                /* ^ operator */
+                return ExecutionHandler(ref_result, bool_t(this->b & other.b));
+            case 1:
+                /* ^= operator */
+                {
+                    bool_t b = this->b;
+                    b &= other.b;
+                    return ExecutionHandler(ref_result, b);
+                }
+            default:
+                abort();
             }
         }
-        ExecutionHandler operator|(const ExecutionHandler& other) const {
+        ExecutionHandler operator|(const ExecutionHandler& other) const
+        {
             const bool ref_result(this->reference_value | other.reference_value);
 
             switch (VarianceRNG.next() % 2) {
-                case    0:
-                    /* ^ operator */
-                    return ExecutionHandler(
-                            ref_result,
-                            bool_t(this->b | other.b));
-                case    1:
-                    /* ^= operator */
-                    {
-                        bool_t b = this->b;
-                        b |= other.b;
-                        return ExecutionHandler(
-                                ref_result,
-                                b);
-                    }
-                default:
-                    abort();
+            case 0:
+                /* ^ operator */
+                return ExecutionHandler(ref_result, bool_t(this->b | other.b));
+            case 1:
+                /* ^= operator */
+                {
+                    bool_t b = this->b;
+                    b |= other.b;
+                    return ExecutionHandler(ref_result, b);
+                }
+            default:
+                abort();
             }
         }
-        ExecutionHandler operator^(const ExecutionHandler& other) const {
+        ExecutionHandler operator^(const ExecutionHandler& other) const
+        {
             const bool ref_result(this->reference_value ^ other.reference_value);
 
             switch (VarianceRNG.next() % 2) {
-                case    0:
-                    /* ^ operator */
-                    return ExecutionHandler(
-                            ref_result,
-                            bool_t(this->b ^ other.b));
-                case    1:
-                    /* ^= operator */
-                    {
-                        bool_t b = this->b;
-                        b ^= other.b;
-                        return ExecutionHandler(
-                                ref_result,
-                                b);
-                    }
-                default:
-                    abort();
+            case 0:
+                /* ^ operator */
+                return ExecutionHandler(ref_result, bool_t(this->b ^ other.b));
+            case 1:
+                /* ^= operator */
+                {
+                    bool_t b = this->b;
+                    b ^= other.b;
+                    return ExecutionHandler(ref_result, b);
+                }
+            default:
+                abort();
             }
         }
 
-        ExecutionHandler not_() const {
-            return ExecutionHandler(
-                    !this->reference_value,
-                    bool_t(!this->b));
-        }
+        ExecutionHandler not_() const { return ExecutionHandler(!this->reference_value, bool_t(!this->b)); }
         void assert_equal(ExecutionHandler& other) const
         {
             /* TODO */
@@ -412,30 +379,24 @@ class BoolFuzzBase {
             }
             this->b.assert_equal(other.b);
         }
-        ExecutionHandler select_if_eq(
-                ExecutionHandler& other1,
-                ExecutionHandler& other2) {
-            return ExecutionHandler(
-                    other1.reference_value == other2.reference_value ?
-                        other1.reference_value :
-                        this->reference_value,
-                    (other1.b == other2.b).get_value() ?
-                        other1.b :
-                        this->b);
+        ExecutionHandler select_if_eq(ExecutionHandler& other1, ExecutionHandler& other2)
+        {
+            return ExecutionHandler(other1.reference_value == other2.reference_value ? other1.reference_value
+                                                                                     : this->reference_value,
+                                    (other1.b == other2.b).get_value() ? other1.b : this->b);
         }
 
         /* Explicit re-instantiation using the various bit_array constructors */
-        ExecutionHandler set(Composer* composer) {
+        ExecutionHandler set(Composer* composer)
+        {
             (void)composer;
             switch (VarianceRNG.next() % 2) {
-                case    0:
-                    return ExecutionHandler(this->reference_value,
-                            bool_t(this->reference_value));
-                case    1:
-                    return ExecutionHandler(this->reference_value,
-                            bool_t(this->b));
-                default:
-                    abort();
+            case 0:
+                return ExecutionHandler(this->reference_value, bool_t(this->reference_value));
+            case 1:
+                return ExecutionHandler(this->reference_value, bool_t(this->b));
+            default:
+                abort();
             }
         }
 
@@ -468,8 +429,8 @@ class BoolFuzzBase {
                                              Instruction& instruction)
         {
 
-            stack.push_back(ExecutionHandler(instruction.arguments.element,
-                                             witness_t(composer, instruction.arguments.element)));
+            stack.push_back(
+                ExecutionHandler(instruction.arguments.element, witness_t(composer, instruction.arguments.element)));
             return 0;
         }
         /**
@@ -481,8 +442,8 @@ class BoolFuzzBase {
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
         static inline size_t execute_AND(Composer* composer,
-                                            std::vector<ExecutionHandler>& stack,
-                                            Instruction& instruction)
+                                         std::vector<ExecutionHandler>& stack,
+                                         Instruction& instruction)
         {
             (void)composer;
             if (stack.size() == 0) {
@@ -511,8 +472,8 @@ class BoolFuzzBase {
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
         static inline size_t execute_OR(Composer* composer,
-                                            std::vector<ExecutionHandler>& stack,
-                                            Instruction& instruction)
+                                        std::vector<ExecutionHandler>& stack,
+                                        Instruction& instruction)
         {
             (void)composer;
             if (stack.size() == 0) {
@@ -541,8 +502,8 @@ class BoolFuzzBase {
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
         static inline size_t execute_XOR(Composer* composer,
-                                            std::vector<ExecutionHandler>& stack,
-                                            Instruction& instruction)
+                                         std::vector<ExecutionHandler>& stack,
+                                         Instruction& instruction)
         {
             (void)composer;
             if (stack.size() == 0) {
@@ -571,8 +532,8 @@ class BoolFuzzBase {
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
         static inline size_t execute_NOT(Composer* composer,
-                                                      std::vector<ExecutionHandler>& stack,
-                                                      Instruction& instruction)
+                                         std::vector<ExecutionHandler>& stack,
+                                         Instruction& instruction)
         {
             (void)composer;
             if (stack.size() == 0) {
@@ -600,8 +561,8 @@ class BoolFuzzBase {
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
         static inline size_t execute_SELECT_IF_EQ(Composer* composer,
-                                                      std::vector<ExecutionHandler>& stack,
-                                                      Instruction& instruction)
+                                                  std::vector<ExecutionHandler>& stack,
+                                                  Instruction& instruction)
         {
             (void)composer;
             if (stack.size() == 0) {
@@ -613,9 +574,7 @@ class BoolFuzzBase {
             size_t output_index = instruction.arguments.fourArgs.out % stack.size();
 
             ExecutionHandler result;
-            result = stack[first_index].select_if_eq(
-                    stack[second_index],
-                    stack[third_index]);
+            result = stack[first_index].select_if_eq(stack[second_index], stack[third_index]);
             // If the output index is larger than the number of elements in stack, append
             if (output_index >= stack.size()) {
                 stack.push_back(result);
@@ -655,8 +614,8 @@ class BoolFuzzBase {
          * @return if everything is ok, 1 if we should stop execution, since an expected error was encountered
          */
         static inline size_t execute_SET(Composer* composer,
-                                                std::vector<ExecutionHandler>& stack,
-                                                Instruction& instruction)
+                                         std::vector<ExecutionHandler>& stack,
+                                         Instruction& instruction)
         {
             (void)composer;
             if (stack.size() == 0) {
@@ -843,8 +802,7 @@ extern "C" size_t LLVMFuzzerCustomMutator(uint8_t* Data, size_t Size, size_t Max
 {
     using FuzzerClass = BoolFuzzBase<waffle::StandardComposer>;
     auto fast_random = FastRandom(Seed);
-    auto size_occupied =
-        ArithmeticFuzzHelper<FuzzerClass>::MutateInstructionBuffer(Data, Size, MaxSize, fast_random);
+    auto size_occupied = ArithmeticFuzzHelper<FuzzerClass>::MutateInstructionBuffer(Data, Size, MaxSize, fast_random);
     if ((fast_random.next() % 200) < fuzzer_havoc_settings.GEN_LLVM_POST_MUTATION_PROB) {
         size_occupied = LLVMFuzzerMutate(Data, size_occupied, MaxSize);
     }
