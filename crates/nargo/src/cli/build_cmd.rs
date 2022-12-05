@@ -52,7 +52,7 @@ pub fn build_from_path<P: AsRef<Path>>(p: P, allow_warnings: bool) -> Result<(),
     Ok(())
 }
 
-fn build_empty_map(abi: Abi) -> BTreeMap<String, &str> {
+fn build_empty_map(abi: Abi) -> BTreeMap<String, &'static str> {
     btree_map(abi.parameters, |(param_name, param_type)| {
         let default_value = if matches!(param_type, AbiType::Array { .. }) { "[]" } else { "" };
         (param_name, default_value)
