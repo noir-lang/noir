@@ -16,8 +16,8 @@ use crate::ssa::node::{Mark, Node};
 use crate::Evaluator;
 use acvm::acir::OPCODE;
 use acvm::FieldElement;
-use noirc_frontend::monomorphisation::ast::{Definition, FuncId};
 use iter_extended::vecmap;
+use noirc_frontend::monomorphisation::ast::{Definition, FuncId};
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
 

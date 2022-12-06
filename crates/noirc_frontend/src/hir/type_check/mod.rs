@@ -63,12 +63,12 @@ mod test {
     use crate::hir_def::stmt::HirLetStatement;
     use crate::hir_def::stmt::HirPattern::Identifier;
     use crate::hir_def::types::Type;
-    use crate::node_interner::{DefinitionKind, FuncId, NodeInterner};
     use crate::hir_def::{
         expr::{HirBinaryOp, HirBlockExpression, HirExpression, HirInfixExpression},
         function::{FuncMeta, HirFunction, Param},
         stmt::HirStatement,
     };
+    use crate::node_interner::{DefinitionKind, FuncId, NodeInterner};
     use crate::BinaryOpKind;
     use crate::{graph::CrateId, Ident};
     use crate::{
