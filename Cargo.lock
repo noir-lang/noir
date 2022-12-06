@@ -279,7 +279,7 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 [[package]]
 name = "aztec_backend"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=01b922adcb5a9d70b2d12304e1cb7487d9f28188#01b922adcb5a9d70b2d12304e1cb7487d9f28188"
+source = "git+https://github.com/noir-lang/aztec_backend?rev=2d601a7d55faf601f4b183a43923c8fe04eabb7b#2d601a7d55faf601f4b183a43923c8fe04eabb7b"
 dependencies = [
  "acvm",
  "barretenberg_wrapper",
@@ -298,7 +298,7 @@ dependencies = [
 [[package]]
 name = "barretenberg_wrapper"
 version = "0.1.0"
-source = "git+https://github.com/AztecProtocol/barretenberg?rev=804c7dcf21111acd1302a768a8fa2f453dcec50f#804c7dcf21111acd1302a768a8fa2f453dcec50f"
+source = "git+https://github.com/AztecProtocol/aztec-2.0?rev=804c7dcf21111acd1302a768a8fa2f453dcec50f#804c7dcf21111acd1302a768a8fa2f453dcec50f"
 dependencies = [
  "cmake",
  "hex",
