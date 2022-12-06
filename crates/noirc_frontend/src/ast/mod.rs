@@ -12,7 +12,8 @@ use noirc_errors::Span;
 pub use statement::*;
 pub use structure::*;
 
-use crate::{token::IntType, util::vecmap, Comptime};
+use crate::{token::IntType, Comptime};
+use utils::map::vecmap;
 
 /// The parser parses types as 'UnresolvedType's which
 /// require name resolution to resolve any typenames used

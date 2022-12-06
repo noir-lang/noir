@@ -4,6 +4,7 @@ use acvm::{CustomGate, Language};
 use arena::{Arena, Index};
 use fm::FileId;
 use noirc_errors::{Location, Span, Spanned};
+use utils::map::vecmap;
 
 use crate::ast::Ident;
 use crate::graph::CrateId;
@@ -16,7 +17,6 @@ use crate::hir_def::{
     function::{FuncMeta, HirFunction},
     stmt::HirStatement,
 };
-use crate::util::vecmap;
 use crate::{Shared, TypeBinding, TypeBindings, TypeVariableId};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]

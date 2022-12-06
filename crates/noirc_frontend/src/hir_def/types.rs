@@ -4,13 +4,13 @@ use std::{
     rc::Rc,
 };
 
-use crate::{hir::type_check::TypeCheckError, node_interner::NodeInterner, util::btree_map};
+use crate::{hir::type_check::TypeCheckError, node_interner::NodeInterner};
 use noirc_abi::{AbiFEType, AbiType};
 use noirc_errors::Span;
+use utils::map::{btree_map, vecmap};
 
 use crate::{
     node_interner::{FuncId, StructId},
-    util::vecmap,
     Ident, Signedness,
 };
 

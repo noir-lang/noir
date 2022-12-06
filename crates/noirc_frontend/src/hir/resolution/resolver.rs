@@ -30,7 +30,6 @@ use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId};
 use crate::hir_def::stmt::{HirAssignStatement, HirLValue, HirPattern};
 use crate::node_interner::{DefinitionId, ExprId, FuncId, NodeInterner, StmtId, StructId};
-use crate::util::vecmap;
 use crate::{
     hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
     BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
@@ -42,6 +41,7 @@ use crate::{
 };
 use fm::FileId;
 use noirc_errors::{Location, Span, Spanned};
+use utils::map::vecmap;
 
 use crate::hir::scope::{
     Scope as GenericScope, ScopeForest as GenericScopeForest, ScopeTree as GenericScopeTree,

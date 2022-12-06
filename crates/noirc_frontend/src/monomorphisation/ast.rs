@@ -1,8 +1,9 @@
 use acvm::FieldElement;
 use noirc_abi::Abi;
 use noirc_errors::Location;
+use utils::map::vecmap;
 
-use crate::{util::vecmap, BinaryOpKind, Signedness};
+use crate::{BinaryOpKind, Signedness};
 
 #[derive(Debug, Clone)]
 pub enum Expression {

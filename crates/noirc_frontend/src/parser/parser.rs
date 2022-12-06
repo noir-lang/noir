@@ -7,7 +7,6 @@ use crate::ast::{Expression, ExpressionKind, LetStatement, Statement, Unresolved
 use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
-use crate::util::vecmap;
 use crate::{
     AssignStatement, BinaryOp, BinaryOpKind, BlockExpression, Comptime, ConstrainStatement,
     FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, LValue,
@@ -17,6 +16,7 @@ use crate::{
 use chumsky::prelude::*;
 use noirc_abi::AbiFEType;
 use noirc_errors::{CustomDiagnostic, DiagnosableError, Span, Spanned};
+use utils::map::vecmap;
 
 pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<CustomDiagnostic>) {
     let lexer = Lexer::new(source_program);

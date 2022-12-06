@@ -1,10 +1,10 @@
 use noirc_abi::{Abi, AbiFEType};
 use noirc_errors::{Location, Span};
+use utils::map::vecmap;
 
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
 use crate::node_interner::{ExprId, NodeInterner};
-use crate::util::vecmap;
 use crate::Type;
 use crate::{token::Attribute, FunctionKind};
 

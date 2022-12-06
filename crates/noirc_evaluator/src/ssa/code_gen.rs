@@ -13,10 +13,10 @@ use crate::ssa::function;
 use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use noirc_frontend::monomorphisation::ast::*;
-use noirc_frontend::util::vecmap;
 use noirc_frontend::{BinaryOpKind, UnaryOp};
 use num_bigint::BigUint;
 use num_traits::Zero;
+use utils::map::vecmap;
 
 pub struct IRGenerator {
     pub context: SsaContext,

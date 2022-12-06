@@ -57,11 +57,17 @@ mod test {
 
     use fm::FileId;
     use noirc_errors::{Location, Span};
+    use utils::map::vecmap;
 
     use crate::hir_def::expr::HirIdent;
     use crate::hir_def::stmt::HirLetStatement;
     use crate::hir_def::stmt::HirPattern::Identifier;
     use crate::hir_def::types::Type;
+    use crate::hir_def::{
+        expr::{HirBinaryOp, HirBlockExpression, HirExpression, HirInfixExpression},
+        function::{FuncMeta, HirFunction, Param},
+        stmt::HirStatement,
+    };
     use crate::node_interner::{FuncId, NodeInterner};
     use crate::BinaryOpKind;
     use crate::{graph::CrateId, Ident};
@@ -71,14 +77,6 @@ mod test {
             resolution::{path_resolver::PathResolver, resolver::Resolver},
         },
         parse_program, FunctionKind, Path,
-    };
-    use crate::{
-        hir_def::{
-            expr::{HirBinaryOp, HirBlockExpression, HirExpression, HirInfixExpression},
-            function::{FuncMeta, HirFunction, Param},
-            stmt::HirStatement,
-        },
-        util::vecmap,
     };
 
     #[test]

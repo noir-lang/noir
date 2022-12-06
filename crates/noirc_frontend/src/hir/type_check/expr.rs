@@ -1,4 +1,5 @@
 use noirc_errors::Span;
+use utils::map::vecmap;
 
 use crate::{
     hir_def::{
@@ -6,7 +7,6 @@ use crate::{
         types::Type,
     },
     node_interner::{ExprId, FuncId, NodeInterner},
-    util::vecmap,
     Comptime, Shared, TypeBinding,
 };
 

@@ -3,9 +3,9 @@ use std::fmt::Display;
 use crate::lexer::token::SpannedToken;
 use crate::parser::ParserError;
 use crate::token::Token;
-use crate::util::vecmap;
 use crate::{Expression, ExpressionKind, UnresolvedType};
 use noirc_errors::{Span, Spanned};
+use utils::map::vecmap;
 
 /// This is used when an identifier fails to parse in the parser.
 /// Instead of failing the parse, we can often recover using this

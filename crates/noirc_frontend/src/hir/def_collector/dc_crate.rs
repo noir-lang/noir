@@ -12,7 +12,6 @@ use crate::hir::type_check::type_check;
 use crate::hir::type_check::type_check_func;
 use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId};
-use crate::util::vecmap;
 use crate::{
     Generics, Ident, LetStatement, NoirFunction, NoirStruct, ParsedModule, Path, Statement, Type,
 };
@@ -20,6 +19,8 @@ use fm::FileId;
 use noirc_errors::CollectedErrors;
 use noirc_errors::DiagnosableError;
 use std::collections::{BTreeMap, HashMap};
+
+use utils::map::vecmap;
 
 /// Stores all of the unresolved functions in a particular file/mod
 pub struct UnresolvedFunctions {

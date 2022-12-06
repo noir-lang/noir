@@ -12,6 +12,7 @@ noirc_abi = { path = "../noirc_abi" }
 noirc_errors = { path = "../noirc_errors" }
 fm = { path = "../fm" }
 arena = { path = "../arena" }
+utils = { path = "../utils" }
 chumsky = { git = "https://github.com/jfecher/chumsky", rev = "ad9d312" }
 thiserror = "1.0.21"
 pathdiff = "0.2"

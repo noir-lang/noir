@@ -7,12 +7,12 @@ use acvm::FieldElement;
 use arena;
 use noirc_errors::Location;
 use noirc_frontend::monomorphisation::ast::{DefinitionId, FuncId, Type};
-use noirc_frontend::util::vecmap;
 use noirc_frontend::{BinaryOpKind, Signedness};
 use num_bigint::BigUint;
 use num_traits::{FromPrimitive, One};
 use std::ops::{Add, Mul, Sub};
 use std::ops::{BitAnd, BitOr, BitXor, Shl, Shr};
+use utils::map::vecmap;
 
 use super::block::BlockId;
 use super::conditional;

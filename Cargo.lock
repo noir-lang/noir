@@ -1207,6 +1207,7 @@ dependencies = [
  "termcolor",
  "toml",
  "url",
+ "utils",
 ]
 
 [[package]]
@@ -1305,6 +1306,7 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "thiserror",
+ "utils",
 ]
 
 [[package]]
@@ -1321,6 +1323,7 @@ dependencies = [
  "rustc-hash",
  "smol_str",
  "thiserror",
+ "utils",
 ]
 
 [[package]]
@@ -2207,6 +2210,10 @@ dependencies = [
  "idna",
  "percent-encoding",
 ]
+
+[[package]]
+name = "utils"
+version = "0.1.0"
 
 [[package]]
 name = "vcpkg"

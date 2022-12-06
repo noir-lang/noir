@@ -8,6 +8,7 @@ use clap::ArgMatches;
 use noirc_abi::AbiType;
 use noirc_abi::{input_parser::InputValue, Abi};
 use std::path::Path;
+use utils::map::vecmap;
 
 use crate::errors::{AbiError, CliError};
 
@@ -224,7 +225,7 @@ fn export_public_inputs<P: AsRef<Path>>(
                 let w_ret = w_ret.unwrap();
                 match &i.1 {
                     AbiType::Array { length, .. } => {
-                        let return_values = noirc_frontend::util::vecmap(0..*length, |i| {
+                        let return_values = vecmap(0..*length, |i| {
                             *solved_witness.get(&Witness::new(w_ret.0 + i as u32)).unwrap()
                         });
                         InputValue::Vec(return_values)

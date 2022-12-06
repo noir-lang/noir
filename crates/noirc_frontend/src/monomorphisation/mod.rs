@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, HashMap, VecDeque};
+use utils::map::vecmap;
 
 use crate::{
     hir_def::{
@@ -7,7 +8,6 @@ use crate::{
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
     },
     node_interner::{self, NodeInterner, StmtId},
-    util::vecmap,
     Comptime, FunctionKind, TypeBinding, TypeBindings,
 };
 

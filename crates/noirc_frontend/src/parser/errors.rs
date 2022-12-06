@@ -1,12 +1,12 @@
 use std::collections::BTreeSet;
 
 use crate::lexer::token::Token;
-use crate::util::vecmap;
 use crate::BinaryOp;
 
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::DiagnosableError;
 use noirc_errors::Span;
+use utils::map::vecmap;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParserError {
