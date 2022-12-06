@@ -68,7 +68,7 @@ class account_tests : public ::testing::Test {
 
     uint256_t compute_account_public_key_nullifier(grumpkin::g1::affine_element const& account_public_key)
     {
-        return crypto::pedersen::compress_native({ account_public_key.x },
+        return crypto::pedersen::compress_native({ account_public_key.x, account_public_key.y },
                                                  notes::GeneratorIndex::ACCOUNT_PUBLIC_KEY_NULLIFIER);
     }
 
