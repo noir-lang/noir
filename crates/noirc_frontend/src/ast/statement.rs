@@ -3,8 +3,8 @@ use std::fmt::Display;
 use crate::lexer::token::SpannedToken;
 use crate::parser::ParserError;
 use crate::token::Token;
-use crate::util::vecmap;
 use crate::{Expression, ExpressionKind, UnresolvedType};
+use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
 
 /// This is used when an identifier fails to parse in the parser.
