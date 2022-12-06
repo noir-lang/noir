@@ -248,14 +248,10 @@ impl Monomorphiser {
                 ast::Expression::Binary(ast::Binary { lhs, rhs, operator })
             }
 
-            HirExpression::Index(index) => {
-                let collection_length = unwrap_array_size(&self.interner.id_type(index.collection));
-                ast::Expression::Index(ast::Index {
-                    collection: Box::new(self.expr_infer(index.collection)),
-                    index: Box::new(self.expr_infer(index.index)),
-                    collection_length,
-                })
-            }
+            HirExpression::Index(index) => ast::Expression::Index(ast::Index {
+                collection: Box::new(self.expr_infer(index.collection)),
+                index: Box::new(self.expr_infer(index.index)),
+            }),
 
             HirExpression::MemberAccess(access) => {
                 let field_index = self.interner.get_field_index(expr);
@@ -624,10 +620,9 @@ impl Monomorphiser {
                 ast::LValue::MemberAccess { object, field_index: field_index.unwrap() }
             }
             HirLValue::Index { array, index, .. } => {
-                let array_len = get_lvalue_array_len(&array);
                 let array = Box::new(self.lvalue(*array));
                 let index = Box::new(self.expr_infer(index));
-                ast::LValue::Index { array, index, array_len }
+                ast::LValue::Index { array, index }
             }
         }
     }
@@ -653,29 +648,6 @@ fn unwrap_struct_type(typ: &HirType) -> BTreeMap<String, HirType> {
         },
         other => unreachable!("unwrap_struct_type: expected struct, found {:?}", other),
     }
-}
-
-fn unwrap_array_size(typ: &HirType) -> u64 {
-    match typ {
-        HirType::ArrayLength(len) => *len,
-        HirType::Array(len, _elem) => unwrap_array_size(len),
-        HirType::TypeVariable(binding) | HirType::NamedGeneric(binding, _) => {
-            match &*binding.borrow() {
-                TypeBinding::Bound(binding) => unwrap_array_size(binding),
-                TypeBinding::Unbound(_) => unreachable!(),
-            }
-        }
-        other => unreachable!("unwrap_array_size: expected array, found {:?}", other),
-    }
-}
-
-fn get_lvalue_array_len(lvalue: &HirLValue) -> u64 {
-    let typ = match lvalue {
-        HirLValue::Ident(_, typ)
-        | HirLValue::MemberAccess { typ, .. }
-        | HirLValue::Index { typ, .. } => typ,
-    };
-    unwrap_array_size(typ)
 }
 
 fn perform_instantiation_bindings(bindings: &TypeBindings) {

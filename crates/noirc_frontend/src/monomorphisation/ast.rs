@@ -117,7 +117,6 @@ pub struct Call {
 pub struct Index {
     pub collection: Box<Expression>,
     pub index: Box<Expression>,
-    pub collection_length: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -145,7 +144,7 @@ pub struct BinaryStatement {
 #[derive(Debug, Clone)]
 pub enum LValue {
     Ident(Ident),
-    Index { array: Box<LValue>, index: Box<Expression>, array_len: u64 },
+    Index { array: Box<LValue>, index: Box<Expression> },
     MemberAccess { object: Box<LValue>, field_index: usize },
 }
 
