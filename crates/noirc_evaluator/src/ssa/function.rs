@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::errors::RuntimeError;
+use crate::ssa::node::Opcode;
 use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use noirc_frontend::monomorphisation::ast::{Call, Definition, FuncId, LocalId, Type};
@@ -160,20 +161,41 @@ impl IRGenerator {
 
         let function_body = self.program.take_function_body(func_id);
         let last_value = self.codegen_expression(&function_body)?;
-        let returned_values = last_value.to_node_ids();
-
-        func.result_types.clear();
+        let return_values = last_value.to_node_ids();
         let mut returned_arrays = vec![];
 
-        for (i, id) in returned_values.iter().enumerate() {
-            let node = self.context.try_get_node(*id);
-            let typ = node.map_or(ObjectType::NotAnObject, |node| node.get_type());
-            func.result_types.push(typ);
+        func.result_types.clear();
+        let return_values =
+            try_vecmap(return_values.into_iter().enumerate(), |(i, mut return_id)| {
+                let node_opt = self.context.try_get_node(return_id);
+                let typ = node_opt.map_or(ObjectType::NotAnObject, |node| {
+                    let typ = node.get_type();
+                    if let ObjectType::Pointer(array_id) = typ {
+                        returned_arrays.push((array_id, i as u32));
+                    }
+                    typ
+                });
 
-            if let ObjectType::Pointer(array_id) = typ {
-                returned_arrays.push((array_id, i as u32));
-            }
-        }
+                if let Some(ins) = self.context.try_get_instruction(return_id) {
+                    if ins.operation.opcode() == Opcode::Results {
+                        // n.b. this required for result instructions, but won't hurt if done for all i
+                        let new_var = node::Variable {
+                            id: NodeId::dummy(),
+                            obj_type: typ,
+                            name: format!("return_{}", return_id.0.into_raw_parts().0),
+                            root: None,
+                            def: None,
+                            witness: None,
+                            parent_block: self.context.current_block,
+                        };
+                        let b_id = self.context.add_variable(new_var, None);
+                        let b_id1 = self.context.handle_assign(b_id, None, return_id)?;
+                        return_id = ssa_form::get_current_value(&mut self.context, b_id1);
+                    }
+                }
+                func.result_types.push(typ);
+                Ok(return_id)
+            })?;
 
         let array_set_id = self.context.push_array_set(returned_arrays);
         let function_type = ObjectType::Function(array_set_id);
@@ -182,7 +204,7 @@ impl IRGenerator {
         self.context.push_function_id(func_id, function_type);
 
         self.context.new_instruction(
-            node::Operation::Return(returned_values),
+            node::Operation::Return(return_values),
             node::ObjectType::NotAnObject,
         )?;
         let decision = func.compile(self)?; //unroll the function

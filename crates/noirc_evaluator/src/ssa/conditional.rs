@@ -431,7 +431,12 @@ impl DecisionTree {
         }
     }
 
-    fn short_circuit(ctx: &mut SsaContext, stack: &mut StackFrame, condition: NodeId) -> bool {
+    fn short_circuit(
+        ctx: &mut SsaContext,
+        stack: &mut StackFrame,
+        condition: NodeId,
+        error_msg: &str,
+    ) {
         if ctx.under_assumption(condition) {
             block::short_circuit_instructions(ctx, &stack.stack);
             let nop = stack.stack[0];
@@ -452,9 +457,8 @@ impl DecisionTree {
                 Some(stack.block),
             ));
             stack.push(ins2);
-            true
         } else {
-            false
+            unreachable!("{}", error_msg);
         }
     }
 
@@ -521,13 +525,12 @@ impl DecisionTree {
                 Operation::Load { array_id, index } => {
                     if let Some(idx) = ctx.get_as_constant(*index) {
                         if (idx.to_u128() as u32) >= ctx.mem[*array_id].len {
-                            if !DecisionTree::short_circuit(ctx, stack, ass_value) {
-                                unreachable!(
-                                    "index out of bounds: the len is {} but the index is {}",
-                                    ctx.mem[*array_id].len,
-                                    idx.to_u128()
-                                );
-                            }
+                            let error = format!(
+                                "index out of bounds: the len is {} but the index is {}",
+                                ctx.mem[*array_id].len,
+                                idx.to_u128()
+                            );
+                            DecisionTree::short_circuit(ctx, stack, ass_value, &error);
                             return false;
                         }
                     }
@@ -535,7 +538,27 @@ impl DecisionTree {
                 }
                 Operation::Binary(binop) => {
                     stack.push(ins_id);
-                    assert!(binop.predicate.is_none());
+                    let mut cond = ass_value;
+                    if let Some(pred) = binop.predicate {
+                        assert_ne!(pred, NodeId::dummy());
+                        if ass_value == NodeId::dummy() {
+                            cond = pred;
+                        } else {
+                            let op = Operation::Binary(node::Binary {
+                                lhs: ass_value,
+                                rhs: pred,
+                                operator: BinaryOp::Mul,
+                                predicate: None,
+                            });
+                            cond = ctx.add_instruction(Instruction::new(
+                                op,
+                                ObjectType::Boolean,
+                                Some(stack.block),
+                            ));
+                            optim::simplify_id(ctx, cond).unwrap();
+                            stack.push(cond);
+                        }
+                    }
                     match binop.operator {
                         BinaryOp::Udiv
                         | BinaryOp::Sdiv
@@ -543,18 +566,21 @@ impl DecisionTree {
                         | BinaryOp::Srem
                         | BinaryOp::Div => {
                             if ctx.is_zero(binop.rhs) {
-                                if !DecisionTree::short_circuit(ctx, stack, ass_value) {
-                                    unreachable!("error: attempt to divide by zero");
-                                }
+                                DecisionTree::short_circuit(
+                                    ctx,
+                                    stack,
+                                    cond,
+                                    "error: attempt to divide by zero",
+                                );
                                 return false;
                             }
-                            if ctx.under_assumption(ass_value) {
+                            if ctx.under_assumption(cond) {
                                 let ins2 = ctx.get_mut_instruction(ins_id);
                                 ins2.operation = Operation::Binary(crate::node::Binary {
                                     lhs: binop.lhs,
                                     rhs: binop.rhs,
                                     operator: binop.operator.clone(),
-                                    predicate: Some(ass_value),
+                                    predicate: Some(cond),
                                 });
                             }
                         }
@@ -565,13 +591,12 @@ impl DecisionTree {
                     if !ins.operation.is_dummy_store() {
                         if let Some(idx) = ctx.get_as_constant(*index) {
                             if (idx.to_u128() as u32) >= ctx.mem[*array_id].len {
-                                if !DecisionTree::short_circuit(ctx, stack, ass_value) {
-                                    unreachable!(
-                                        "index out of bounds: the len is {} but the index is {}",
-                                        ctx.mem[*array_id].len,
-                                        idx.to_u128()
-                                    );
-                                }
+                                let error = format!(
+                                    "index out of bounds: the len is {} but the index is {}",
+                                    ctx.mem[*array_id].len,
+                                    idx.to_u128()
+                                );
+                                DecisionTree::short_circuit(ctx, stack, ass_value, &error);
                                 return false;
                             }
                         }

@@ -17,7 +17,7 @@ fn main(a: [Field; M + N - N], b: [Field; 30 + N / 2], c : pub [Field; foo::MAGI
      for i in 0..foo::MAGIC_NUMBER {
           constrain c[i] == foo::MAGIC_NUMBER;
           constrain test_struct.y[i] == foo::MAGIC_NUMBER;
-     };
+     }
 
      constrain N != M;
      
@@ -31,7 +31,7 @@ fn main(a: [Field; M + N - N], b: [Field; 30 + N / 2], c : pub [Field; foo::MAGI
           x = M;
           
           y = i;
-     };
+     }
      constrain y == 24;
      constrain x == 10;
 

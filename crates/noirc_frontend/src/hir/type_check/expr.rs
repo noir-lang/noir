@@ -169,13 +169,8 @@ pub(crate) fn type_check_expression(
 
             interner.push_definition_type(for_expr.identifier.id, start_range_type);
 
-            let last_type = type_check_expression(interner, &for_expr.block, errors);
-
-            // TODO: This length is wrong, would need a type for (end_range - start_range) or
-            // to have a variable again.
-            let len = Box::new(interner.next_type_variable());
-
-            Type::Array(len, Box::new(last_type))
+            type_check_expression(interner, &for_expr.block, errors);
+            Type::Unit
         }
         HirExpression::Block(block_expr) => {
             let mut block_type = Type::Unit;

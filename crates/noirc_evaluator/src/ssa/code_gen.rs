@@ -94,6 +94,24 @@ impl Value {
             Value::Tuple(fields) => &fields[field_index],
         }
     }
+
+    //Reconstruct a value whose type is provided in argument, from a bunch of NodeIds
+    fn reshape(value_type: &Type, iter: &mut core::slice::Iter<NodeId>) -> Value {
+        match value_type {
+            Type::Tuple(tup) => {
+                let values = vecmap(tup, |v| Self::reshape(v, iter));
+                Value::Tuple(values)
+            }
+            _ => Value::Single(*iter.next().unwrap()),
+        }
+    }
+
+    fn from_slice(value_type: &Type, slice: &[NodeId]) -> Value {
+        let mut iter = slice.iter();
+        let result = Value::reshape(value_type, &mut iter);
+        assert!(iter.next().is_none());
+        result
+    }
 }
 
 impl IRGenerator {
@@ -573,11 +591,7 @@ impl IRGenerator {
             }
             Expression::Call(call_expr) => {
                 let results = self.call(call_expr)?;
-                Ok(if results.len() == 1 {
-                    Value::Single(results[0])
-                } else {
-                    Value::Tuple(vecmap(results, Value::Single))
-                })
+                Ok(Value::from_slice(&call_expr.return_type, &results))
             }
             Expression::For(for_expr) => self.codegen_for(for_expr),
             Expression::Tuple(fields) => self.codegen_tuple(fields),
