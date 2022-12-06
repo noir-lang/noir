@@ -1,5 +1,6 @@
 use std::convert::TryInto;
 
+use iter_extended::vecmap;
 use serde::{Deserialize, Serialize, Serializer};
 
 use crate::{Abi, AbiFEType, AbiType, Sign};
@@ -83,15 +84,10 @@ impl Serialize for Abi {
     where
         S: Serializer,
     {
-        let parameter_vec: Vec<AbiParameter> = self
-            .parameters
-            .clone()
-            .into_iter()
-            .map(|(name, param_type)| {
-                let visibility = Some(param_type.visibility());
-                AbiParameter { name, visibility, param_type: Type::from(param_type) }
-            })
-            .collect();
+        let parameter_vec = vecmap(self.parameters.clone(), |(name, param_type)| {
+            let visibility = Some(param_type.visibility());
+            AbiParameter { name, visibility, param_type: Type::from(param_type) }
+        });
 
         parameter_vec.serialize(serializer)
     }
@@ -104,12 +100,9 @@ impl<'de> Deserialize<'de> for Abi {
     {
         let parameters = Vec::<AbiParameter>::deserialize(deserializer)?;
 
-        let parameters = parameters
-            .into_iter()
-            .map(|AbiParameter { name, visibility, param_type }| {
-                (name, AbiType::from_type(param_type, visibility.unwrap()))
-            })
-            .collect();
+        let parameters = vecmap(parameters, |AbiParameter { name, visibility, param_type }| {
+            (name, AbiType::from_type(param_type, visibility.unwrap()))
+        });
 
         Ok(Abi { parameters })
     }
