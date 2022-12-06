@@ -205,7 +205,7 @@ For more information on available controllers, check the [SDK](../sdk/overview.m
 
 One of the most interesting use cases of the Aztec SDK is to enable users on the Aztec Network to interact with protocols on Ethereum Layer 1 privately and inexpensively through Aztec Connect Bridges with the [`DefiController`](https://github.com/AztecProtocol/aztec-connect/blob/master/sdk/src/controllers/defi_controller.ts).
 
-For more information, check the [Ethereum Interaction page](../sdk/usage/ethereum-interaction.md) and the separate guide on [_Getting Started with Aztec Connect Bridges_](./bridges.md).
+For more information, check the [Ethereum Interaction page](../sdk/usage/ethereum-interaction.md) and the separate guide on [_Getting Started with Aztec Connect Bridges_](./bridges/bridges.md).
 
 ## Resources
 

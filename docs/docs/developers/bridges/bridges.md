@@ -210,7 +210,7 @@ To do this:
 
 1. Import the [IRollupProcessor.sol](https://github.com/AztecProtocol/aztec-connect/blob/master/blockchain/contracts/interfaces/IRollupProcessor.sol) contract into [Remix](https://remix.ethereum.org)
 2. Compile IRollupProcessor.sol
-3. [Connect Metamask to the testnet](./getting-started.md#testnet-information)
+3. [Connect Metamask to the testnet](../getting-started.md#testnet-information)
 4. Connect Remix and Metamask
 5. Create an instance of IRollupProcessor.sol at address `0x614957a8ae7b87f18fa3f207b6619c520a022b4f`
 6. Call `setSupportedAsset()` with your token address and `200000` for the `_gasLimit`. The `_gasLimit` tells the Aztec client how much gas token transfers use. 200,000 is an overestimate that is fine for testnet transactions, but you should test your token for more precise gas usage before deploying to mainnet.

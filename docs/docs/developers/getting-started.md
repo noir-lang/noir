@@ -58,7 +58,7 @@ After logging in on the [Minimal Frontend](https://aztec-frontend-boilerplate.ne
 
 #### Foundry Script
 
-Alternatively, you can read from the bridge data provider contract directly by running a script from the [Aztec Connect Bridges repository](https://github.com/AztecProtocol/aztec-connect-bridges). Check [this section](./bridges#testnet-deployment-info) for more details.
+Alternatively, you can read from the bridge data provider contract directly by running a script from the [Aztec Connect Bridges repository](https://github.com/AztecProtocol/aztec-connect-bridges). Check [this section](./bridges/bridges#testnet-deployment-info) for more details.
 
 ## Building with the SDK
 
@@ -104,7 +104,7 @@ By default, Aztec transactions could take up to a few hours to settle on the Tes
 
 ## Building an Aztec Connect Bridge Contract
 
-The [Aztec Connect Bridges page](./bridges) covers how to develop an Aztec Connect Bridge in great detail.
+The [Aztec Connect Bridges page](./bridges/bridges) covers how to develop an Aztec Connect Bridge in great detail.
 
 The [Aztec Connect Bridges repository](https://github.com/AztecProtocol/aztec-connect-bridges) has the most up to date information and materials for creating a bridge contract.
 
@@ -112,7 +112,7 @@ The [Aztec Connect Bridges repository](https://github.com/AztecProtocol/aztec-co
 
 - [🧑‍💻 Aztec Connect Bridges GitHub Repo](https://github.com/AztecProtocol/aztec-connect-bridges)
 - [🎥 ETHBogota Workshop - Aztec Connect Bridges](https://www.youtube.com/watch?v=I5M8LhOECpM&t=1826s)
-- [✍️ Getting Started with Aztec Connect Bridges](./bridges.md)
+- [✍️ Getting Started with Aztec Connect Bridges](./bridges/bridges.md)
 - [✍️ Element Bridge Explained](https://hackmd.io/@aztec-network/SJ7-6Rbfq)
 
 ## Building in Noir

@@ -26,7 +26,7 @@ When you have found a bridge to subsidise, you need to figure out what flows you
 For bridges that follow the base implementation, there will be a `computeCriteria()` function taking assets and auxdata as input that should compute the criteria for a given interaction. *Note*: multiple flows can have the same criteria.
 
 
-To give you an example our [Yearn bridge](../../../bridges/yearn/YearnBridge.sol) uses criteria to distinguish between deposit and withdrawal flows while our [Uniswap bridge](../../../bridges/uniswap/UniswapBridge.sol)  a specific combination of input/output assets.
+To give you an example our [Yearn bridge](https://github.com/AztecProtocol/aztec-connect-bridges/blob/master/src/bridges/yearn/YearnBridge.sol) uses criteria to distinguish between deposit and withdrawal flows while our [Uniswap bridge](https://github.com/AztecProtocol/aztec-connect-bridges/blob/master/src/bridges/uniswap/UniswapBridge.sol)  a specific combination of input/output assets.
 
 To fund the subsidy using etherscan as an interface do the following:
 
