@@ -287,7 +287,8 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
         // Construction of partial_claim_note_witness_data includes construction of bridge_call_data, which contains
         // many constraints on the bridge_call_data's format and the bit_config's format:
         .partial_claim_note = claim::partial_claim_note_witness_data(composer, tx.partial_claim_note),
-        .signing_pub_key = stdlib::create_point_witness(composer, tx.signing_pub_key),
+        .signing_pub_key = { .x = witness_ct(&composer, tx.signing_pub_key.x),
+                             .y = witness_ct(&composer, tx.signing_pub_key.y) },
         .signature = stdlib::schnorr::convert_signature(&composer, tx.signature),
         .merkle_root = witness_ct(&composer, tx.old_data_root),
         .input_path1 = merkle_tree::create_witness_hash_path(composer, tx.input_path[0]),
@@ -325,7 +326,7 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
     defi_root.set_public();
     inputs.backward_link.set_public();
     inputs.allow_chain.set_public();
-} // namespace join_split
+}
 
 } // namespace join_split
 } // namespace proofs

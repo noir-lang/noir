@@ -146,9 +146,6 @@ point<C> variable_base_mul(const point<C>& pub_key, const field_t<C>& low_bits, 
 template <typename C>
 point<C> variable_base_mul(const point<C>& pub_key, const point<C>& current_accumulator, const wnaf_record<C>& wnaf)
 {
-    // Check if the pub_key is a points on the curve.
-    pub_key.on_curve();
-
     // The account circuit constrains `pub_key` to lie on Grumpkin. Presently, the only values that are passed in the
     // second argument as `current_accumulator` are `pub_key` and a point which is the output of the present function.
     // We therefore assume that `current_accumulator` lies on Grumpkin as well.
@@ -171,9 +168,6 @@ point<C> variable_base_mul(const point<C>& pub_key, const point<C>& current_accu
     if (init) {
         field_t<C> zero_test = ((pub_key.x - collision_offset.x) * (pub_key.y - collision_offset.y));
         zero_test.assert_is_not_zero("pub_key and collision_offset have a coordinate in common.");
-    } else {
-        // Check if the current_accumulator is a point on the curve only if init is false.
-        current_accumulator.on_curve();
     }
 
     point<C> accumulator{ collision_offset.x, collision_offset.y };

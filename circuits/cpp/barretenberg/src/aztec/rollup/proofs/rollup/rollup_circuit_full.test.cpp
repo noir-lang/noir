@@ -90,18 +90,18 @@ HEAVY_TEST_F(rollup_full_tests, test_1_proof_in_1_rollup_full_proof_and_detect_c
     // rollup/constants.hpp and see if atleast the next power of two limit is not exceeded. Please change the constant
     // values accordingly and set is_circuit_change_expected to 0 in rollup/constants.hpp before merging.
     if (!(circuit_gate_count::is_circuit_change_expected)) {
-        EXPECT_EQ(number_of_gates_rollup, circuit_gate_count::ROLLUP)
+        EXPECT_TRUE(number_of_gates_rollup == circuit_gate_count::ROLLUP)
             << "The gate count for the rollup circuit is changed.";
-        EXPECT_EQ(from_buffer<uint256_t>(vk_hash_rollup), circuit_vk_hash::ROLLUP)
+        EXPECT_TRUE(from_buffer<uint256_t>(vk_hash_rollup) == circuit_vk_hash::ROLLUP)
             << "The verification key hash for the rollup circuit is changed.";
         // For the next power of two limit, we need to consider that we reserve four gates for adding
         // randomness/zero-knowledge
-        EXPECT_LE(number_of_gates_rollup,
-                  circuit_gate_next_power_of_two::ROLLUP - waffle::ComposerBase::NUM_RESERVED_GATES)
+        EXPECT_TRUE(number_of_gates_rollup <=
+                    circuit_gate_next_power_of_two::ROLLUP - waffle::ComposerBase::NUM_RESERVED_GATES)
             << "You have exceeded the next power of two limit for the rollup circuit.";
     } else {
-        EXPECT_LE(number_of_gates_rollup,
-                  circuit_gate_next_power_of_two::ROLLUP - waffle::ComposerBase::NUM_RESERVED_GATES)
+        EXPECT_TRUE(number_of_gates_rollup <=
+                    circuit_gate_next_power_of_two::ROLLUP - waffle::ComposerBase::NUM_RESERVED_GATES)
             << "You have exceeded the next power of two limit for the rollup circuit.";
     }
 }

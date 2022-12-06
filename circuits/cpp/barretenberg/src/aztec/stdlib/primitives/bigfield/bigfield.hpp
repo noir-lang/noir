@@ -255,28 +255,6 @@ template <typename Composer, typename T> class bigfield {
     }
 
     /**
-     * @brief Create an unreduced 0 ~ p*k, where p*k is the minimal multiple of modulus that should be reduced
-     *
-     * @details We need it for division. If we always add this element during division, then we never run into the
-     * formula-breaking situation
-     */
-    static constexpr bigfield unreduced_zero()
-    {
-        uint512_t multiple_of_modulus = ((get_maximum_unreduced_value() / modulus_u512) + 1) * modulus_u512;
-        auto msb = multiple_of_modulus.get_msb();
-
-        bigfield result(nullptr, uint256_t(0));
-        result.binary_basis_limbs[0] = Limb(barretenberg::fr(multiple_of_modulus.slice(0, NUM_LIMB_BITS).lo));
-        result.binary_basis_limbs[1] =
-            Limb(barretenberg::fr(multiple_of_modulus.slice(NUM_LIMB_BITS, 2 * NUM_LIMB_BITS).lo));
-        result.binary_basis_limbs[2] =
-            Limb(barretenberg::fr(multiple_of_modulus.slice(2 * NUM_LIMB_BITS, 3 * NUM_LIMB_BITS).lo));
-        result.binary_basis_limbs[3] = Limb(barretenberg::fr(multiple_of_modulus.slice(3 * NUM_LIMB_BITS, msb + 1).lo));
-        result.prime_basis_limb = field_t<Composer>((multiple_of_modulus % uint512_t(field_t<Composer>::modulus)).lo);
-        return result;
-    }
-
-    /**
      * Create a witness form a constant. This way the value of the witness is fixed and public.
      **/
     void convert_constant_to_witness(Composer* composer)

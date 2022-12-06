@@ -33,7 +33,7 @@ field_ct compute_account_alias_hash_nullifier(suint_ct const& account_alias_hash
 
 field_ct compute_account_public_key_nullifier(point_ct const& account_public_key)
 {
-    return pedersen::compress(std::vector<field_ct>{ account_public_key.x },
+    return pedersen::compress(std::vector<field_ct>{ account_public_key.x, account_public_key.y },
                               notes::GeneratorIndex::ACCOUNT_PUBLIC_KEY_NULLIFIER);
 }
 void account_circuit(Composer& composer, account_tx const& tx)
