@@ -1,5 +1,5 @@
+use iter_extended::vecmap;
 use std::collections::{BTreeMap, HashMap, VecDeque};
-use utils::map::vecmap;
 
 use crate::{
     hir_def::{

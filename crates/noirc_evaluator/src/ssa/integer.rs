@@ -9,11 +9,11 @@ use super::{
     optim,
 };
 use acvm::{acir::OPCODE, FieldElement};
+use iter_extended::vecmap;
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
 use std::collections::BTreeMap;
 use std::{collections::HashMap, ops::Neg};
-use utils::map::vecmap;
 
 //Returns the maximum bit size of short integers
 pub fn short_integer_max_bit_size() -> u32 {

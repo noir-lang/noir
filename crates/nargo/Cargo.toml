@@ -17,7 +17,7 @@ noirc_frontend = { path = "../noirc_frontend" }
 noirc_abi = { path = "../noirc_abi" }
 fm = { path = "../fm" }
 acvm = { git = "https://github.com/noir-lang/noir" }
-utils = { path = "../utils" }
+iter-extended = { path = "../iter-extended" }
 cfg-if = "1.0.0"
 
 toml = "0.5"

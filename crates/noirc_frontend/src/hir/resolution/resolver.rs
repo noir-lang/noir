@@ -40,8 +40,8 @@ use crate::{
     TypeBinding, TypeVariable, UnresolvedType, ERROR_IDENT,
 };
 use fm::FileId;
+use iter_extended::vecmap;
 use noirc_errors::{Location, Span, Spanned};
-use utils::map::vecmap;
 
 use crate::hir::scope::{
     Scope as GenericScope, ScopeForest as GenericScopeForest, ScopeTree as GenericScopeTree,

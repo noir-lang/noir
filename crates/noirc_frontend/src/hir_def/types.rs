@@ -5,9 +5,9 @@ use std::{
 };
 
 use crate::{hir::type_check::TypeCheckError, node_interner::NodeInterner};
+use iter_extended::{btree_map, vecmap};
 use noirc_abi::{AbiFEType, AbiType};
 use noirc_errors::Span;
-use utils::map::{btree_map, vecmap};
 
 use crate::{
     node_interner::{FuncId, StructId},

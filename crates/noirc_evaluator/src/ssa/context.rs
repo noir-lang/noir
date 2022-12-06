@@ -13,10 +13,10 @@ use crate::ssa::function;
 use crate::ssa::node::{Mark, Node};
 use crate::Evaluator;
 use acvm::FieldElement;
+use iter_extended::vecmap;
 use noirc_frontend::monomorphisation::ast::{DefinitionId, FuncId};
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
-use utils::map::vecmap;
 
 // This is a 'master' class for generating the SSA IR from the AST
 // It contains all the data; the node objects representing the source code in the nodes arena

@@ -5,10 +5,10 @@ use acvm::FieldElement;
 use acvm::ProofSystemCompiler;
 use acvm::{GateResolution, PartialWitnessGenerator};
 use clap::ArgMatches;
+use iter_extended::vecmap;
 use noirc_abi::AbiType;
 use noirc_abi::{input_parser::InputValue, Abi};
 use std::path::Path;
-use utils::map::vecmap;
 
 use crate::errors::{AbiError, CliError};
 

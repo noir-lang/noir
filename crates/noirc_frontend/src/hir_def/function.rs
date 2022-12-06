@@ -1,6 +1,6 @@
+use iter_extended::vecmap;
 use noirc_abi::{Abi, AbiFEType};
 use noirc_errors::{Location, Span};
-use utils::map::vecmap;
 
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;

@@ -1,5 +1,5 @@
+use iter_extended::vecmap;
 use noirc_errors::Span;
-use utils::map::vecmap;
 
 use crate::{
     hir_def::{

@@ -1067,6 +1067,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f88c5561171189e69df9d98bcf18fd5f9558300f7ea7b801eb8a0fd748bd8745"
 
 [[package]]
+name = "iter-extended"
+version = "0.1.0"
+
+[[package]]
 name = "itoa"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1197,6 +1201,7 @@ dependencies = [
  "dirs 4.0.0",
  "fm",
  "hex",
+ "iter-extended",
  "marlin_arkworks_backend",
  "noirc_abi",
  "noirc_driver",
@@ -1207,7 +1212,6 @@ dependencies = [
  "termcolor",
  "toml",
  "url",
- "utils",
 ]
 
 [[package]]
@@ -1299,6 +1303,7 @@ dependencies = [
  "acvm",
  "arena",
  "fm",
+ "iter-extended",
  "lazy_static",
  "noirc_abi",
  "noirc_errors",
@@ -1306,7 +1311,6 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "thiserror",
- "utils",
 ]
 
 [[package]]
@@ -1317,13 +1321,13 @@ dependencies = [
  "arena",
  "chumsky",
  "fm",
+ "iter-extended",
  "noirc_abi",
  "noirc_errors",
  "pathdiff",
  "rustc-hash",
  "smol_str",
  "thiserror",
- "utils",
 ]
 
 [[package]]
@@ -2210,10 +2214,6 @@ dependencies = [
  "idna",
  "percent-encoding",
 ]
-
-[[package]]
-name = "utils"
-version = "0.1.0"
 
 [[package]]
 name = "vcpkg"

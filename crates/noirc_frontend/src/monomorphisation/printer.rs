@@ -1,6 +1,6 @@
 use std::fmt::Formatter;
 
-use utils::map::vecmap;
+use iter_extended::vecmap;
 
 use super::ast::{Expression, Function, LValue};
 

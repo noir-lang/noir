@@ -12,7 +12,7 @@ members = [
     "crates/arena",
     "crates/acvm",
     "crates/noirc_abi",
-    "crates/utils",
+    "crates/iter-extended",
     "crates/wasm",
 ]
 exclude = ["examples/9/merkle_tree_processor"]

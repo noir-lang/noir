@@ -20,7 +20,7 @@ use noirc_errors::CollectedErrors;
 use noirc_errors::DiagnosableError;
 use std::collections::{BTreeMap, HashMap};
 
-use utils::map::vecmap;
+use iter_extended::vecmap;
 
 /// Stores all of the unresolved functions in a particular file/mod
 pub struct UnresolvedFunctions {

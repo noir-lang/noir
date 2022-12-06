@@ -56,8 +56,8 @@ mod test {
     use std::collections::HashMap;
 
     use fm::FileId;
+    use iter_extended::vecmap;
     use noirc_errors::{Location, Span};
-    use utils::map::vecmap;
 
     use crate::hir_def::expr::HirIdent;
     use crate::hir_def::stmt::HirLetStatement;

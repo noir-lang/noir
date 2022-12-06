@@ -3,8 +3,8 @@ use std::fmt::Display;
 use crate::token::{Attribute, Token};
 use crate::{Ident, Path, Pattern, Recoverable, Statement, UnresolvedType};
 use acvm::FieldElement;
+use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
-use utils::map::vecmap;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ExpressionKind {

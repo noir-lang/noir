@@ -1,7 +1,7 @@
 use acvm::FieldElement;
+use iter_extended::vecmap;
 use noirc_abi::Abi;
 use noirc_errors::Location;
-use utils::map::vecmap;
 
 use crate::{BinaryOpKind, Signedness};
 

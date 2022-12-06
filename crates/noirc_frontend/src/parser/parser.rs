@@ -14,9 +14,9 @@ use crate::{
 };
 
 use chumsky::prelude::*;
+use iter_extended::vecmap;
 use noirc_abi::AbiFEType;
 use noirc_errors::{CustomDiagnostic, DiagnosableError, Span, Spanned};
-use utils::map::vecmap;
 
 pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<CustomDiagnostic>) {
     let lexer = Lexer::new(source_program);
