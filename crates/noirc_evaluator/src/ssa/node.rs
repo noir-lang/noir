@@ -789,7 +789,7 @@ impl Binary {
                     return Ok(l_eval);
                 }
                 if self.lhs == self.rhs {
-                    return Ok(NodeEval::from_u128(0, res_type.clone()));
+                    return Ok(NodeEval::from_u128(0, res_type));
                 }
                 //constant folding
                 if let (Some(lhs), Some(rhs)) = (lhs, rhs) {

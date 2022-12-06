@@ -236,7 +236,7 @@ impl IRGenerator {
                     other => other,
                 };
 
-                self.context.new_instruction(result, ObjectType::from(typ))
+                self.context.new_instruction(result, typ)
             })
         }
     }
