@@ -243,7 +243,8 @@ impl SsaContext {
             Operation::Intrinsic(opcode, args) => format!("intrinsic {}({})", opcode, join(args)),
             Operation::Nop => "nop".into(),
             Operation::Call { func: func_id, arguments, returned_arrays, .. } => {
-                format!("call {:?}({}) _ {:?}", func_id, join(arguments), returned_arrays)
+                let f = self.id_to_string(*func_id);
+                format!("call {}({}) _ {:?}", f, join(arguments), returned_arrays)
             }
             Operation::Return(values) => format!("return ({})", join(values)),
             Operation::Result { call_instruction, index } => {
@@ -740,6 +741,7 @@ impl SsaContext {
 
         optim::cse(self, first_block)?;
         println!("optim::cse done");
+        self.log(enable_logging, "\nafter cse:", "");
 
         //Truncation
         integer::overflow_strategy(self)?;

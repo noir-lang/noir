@@ -1112,7 +1112,7 @@ impl Operation {
             Intrinsic(i, args) => Intrinsic(*i, vecmap(args.iter().copied(), f)),
             Nop => Nop,
             Call { func: func_id, arguments, returned_arrays, predicate, location } => Call {
-                func: *func_id,
+                func: f(*func_id),
                 arguments: vecmap(arguments.iter().copied(), f),
                 returned_arrays: returned_arrays.clone(),
                 predicate: *predicate,
@@ -1163,7 +1163,8 @@ impl Operation {
                 }
             }
             Nop => (),
-            Call { arguments, .. } => {
+            Call { func, arguments, .. } => {
+                *func = f(*func);
                 for arg in arguments {
                     *arg = f(*arg);
                 }
@@ -1212,7 +1213,10 @@ impl Operation {
             }
             Intrinsic(_, args) => args.iter().copied().for_each(f),
             Nop => (),
-            Call { arguments, .. } => arguments.iter().copied().for_each(f),
+            Call { func, arguments, .. } => {
+                f(*func);
+                arguments.iter().copied().for_each(f)
+            }
             Return(values) => values.iter().copied().for_each(f),
             Result { call_instruction, .. } => {
                 f(*call_instruction);
