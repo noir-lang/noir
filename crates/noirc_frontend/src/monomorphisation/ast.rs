@@ -59,7 +59,6 @@ pub struct For {
     pub start_range: Box<Expression>,
     pub end_range: Box<Expression>,
     pub block: Box<Expression>,
-    pub element_type: Type,
 }
 
 #[derive(Debug, Clone)]

@@ -284,7 +284,6 @@ impl Monomorphiser {
                     index_type: Self::convert_type(&self.interner.id_type(for_expr.start_range)),
                     start_range: Box::new(start),
                     end_range: Box::new(end),
-                    element_type: unwrap_array_element_type(&self.interner.id_type(expr)),
                     block,
                 })
             }
@@ -677,17 +676,6 @@ fn get_lvalue_array_len(lvalue: &HirLValue) -> u64 {
         | HirLValue::Index { typ, .. } => typ,
     };
     unwrap_array_size(typ)
-}
-
-fn unwrap_array_element_type(typ: &HirType) -> ast::Type {
-    match typ {
-        HirType::Array(_len, elem) => Monomorphiser::convert_type(elem),
-        HirType::TypeVariable(binding) => match &*binding.borrow() {
-            TypeBinding::Bound(binding) => unwrap_array_element_type(binding),
-            TypeBinding::Unbound(_) => unreachable!(),
-        },
-        other => unreachable!("unwrap_array_element_type: expected array, found {:?}", other),
-    }
 }
 
 fn perform_instantiation_bindings(bindings: &TypeBindings) {
