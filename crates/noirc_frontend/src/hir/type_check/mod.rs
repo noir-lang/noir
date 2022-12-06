@@ -244,10 +244,14 @@ mod test {
         // the whole vec if the assert fails rather than just two booleans
         assert_eq!(errors, vec![]);
 
-        let mut func_ids = Vec::new();
-        for _ in 0..func_namespace.len() {
-            func_ids.push(interner.push_fn(HirFunction::empty()));
-        }
+        let main_id = interner.push_fn(HirFunction::empty());
+        interner.push_function_definition("main".into(), main_id);
+
+        let func_ids = vecmap(&func_namespace, |name| {
+            let id = interner.push_fn(HirFunction::empty());
+            interner.push_function_definition(name.into(), id);
+            id
+        });
 
         let mut path_resolver = TestPathResolver(HashMap::new());
         for (name, id) in func_namespace.into_iter().zip(func_ids.clone()) {
@@ -259,8 +263,7 @@ mod test {
 
         let func_meta = vecmap(program.functions, |nf| {
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
-            let (hir_func, func_meta, resolver_errors) =
-                resolver.resolve_function(nf, FuncId::dummy_id());
+            let (hir_func, func_meta, resolver_errors) = resolver.resolve_function(nf, main_id);
             assert_eq!(resolver_errors, vec![]);
             (hir_func, func_meta)
         });

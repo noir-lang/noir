@@ -983,6 +983,7 @@ mod test {
 
     use fm::FileId;
 
+    use crate::util::vecmap;
     use crate::{hir::resolution::errors::ResolverError, Ident};
 
     use crate::graph::CrateId;
@@ -1003,10 +1004,11 @@ mod test {
 
         let mut interner = NodeInterner::default();
 
-        let mut func_ids = Vec::new();
-        for _ in 0..func_namespace.len() {
-            func_ids.push(interner.push_fn(HirFunction::empty()));
-        }
+        let func_ids = vecmap(&func_namespace, |name| {
+            let id = interner.push_fn(HirFunction::empty());
+            interner.push_function_definition(name.to_string(), id);
+            id
+        });
 
         let mut path_resolver = TestPathResolver(HashMap::new());
         for (name, id) in func_namespace.into_iter().zip(func_ids) {
@@ -1018,8 +1020,10 @@ mod test {
 
         let mut errors = Vec::new();
         for func in program.functions {
+            let id = interner.push_fn(HirFunction::empty());
+            interner.push_function_definition(func.name().to_string(), id);
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
-            let (_, _, err) = resolver.resolve_function(func, FuncId::dummy_id());
+            let (_, _, err) = resolver.resolve_function(func, id);
             errors.extend(err);
         }
 

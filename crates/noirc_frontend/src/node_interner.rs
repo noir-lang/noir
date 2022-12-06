@@ -385,6 +385,7 @@ impl NodeInterner {
     }
 
     pub fn push_function_definition(&mut self, name: String, func: FuncId) -> DefinitionId {
+        println!("Pushing definition for {}, id {:?}", name, func);
         self.push_definition(name, false, DefinitionKind::Function(func))
     }
 
@@ -539,6 +540,7 @@ impl NodeInterner {
     }
 
     pub fn function_definition_id(&self, function: FuncId) -> DefinitionId {
+        println!("Getting def for {:?}", function);
         self.function_definition_ids[&function]
     }
 
