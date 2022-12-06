@@ -4,8 +4,8 @@ use crate::errors::RuntimeError;
 use crate::ssa::node::Opcode;
 use acvm::acir::OPCODE;
 use acvm::FieldElement;
+use iter_extended::try_vecmap;
 use noirc_frontend::monomorphisation::ast::{Call, Definition, FuncId, LocalId, Type};
-use noirc_frontend::util::try_vecmap;
 
 use super::conditional::{AssumptionId, DecisionTree, TreeBuilder};
 use super::node::{Node, Operation};

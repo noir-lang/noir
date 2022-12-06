@@ -17,7 +17,7 @@ use crate::Evaluator;
 use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use noirc_frontend::monomorphisation::ast::{Definition, FuncId};
-use noirc_frontend::util::vecmap;
+use iter_extended::vecmap;
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
 

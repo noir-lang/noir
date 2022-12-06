@@ -56,6 +56,7 @@ mod test {
     use std::collections::HashMap;
 
     use fm::FileId;
+    use iter_extended::vecmap;
     use noirc_errors::{Location, Span};
 
     use crate::hir_def::expr::HirIdent;
@@ -63,6 +64,11 @@ mod test {
     use crate::hir_def::stmt::HirPattern::Identifier;
     use crate::hir_def::types::Type;
     use crate::node_interner::{DefinitionKind, FuncId, NodeInterner};
+    use crate::hir_def::{
+        expr::{HirBinaryOp, HirBlockExpression, HirExpression, HirInfixExpression},
+        function::{FuncMeta, HirFunction, Param},
+        stmt::HirStatement,
+    };
     use crate::BinaryOpKind;
     use crate::{graph::CrateId, Ident};
     use crate::{
@@ -71,14 +77,6 @@ mod test {
             resolution::{path_resolver::PathResolver, resolver::Resolver},
         },
         parse_program, FunctionKind, Path,
-    };
-    use crate::{
-        hir_def::{
-            expr::{HirBinaryOp, HirBlockExpression, HirExpression, HirInfixExpression},
-            function::{FuncMeta, HirFunction, Param},
-            stmt::HirStatement,
-        },
-        util::vecmap,
     };
 
     #[test]

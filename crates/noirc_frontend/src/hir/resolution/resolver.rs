@@ -32,7 +32,6 @@ use crate::hir_def::stmt::{HirAssignStatement, HirLValue, HirPattern};
 use crate::node_interner::{
     DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, StructId,
 };
-use crate::util::vecmap;
 use crate::{
     hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
     BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
@@ -43,6 +42,7 @@ use crate::{
     TypeBinding, TypeVariable, UnresolvedType, ERROR_IDENT,
 };
 use fm::FileId;
+use iter_extended::vecmap;
 use noirc_errors::{Location, Span, Spanned};
 
 use crate::hir::scope::{
@@ -982,8 +982,8 @@ mod test {
     use std::collections::HashMap;
 
     use fm::FileId;
+    use iter_extended::vecmap;
 
-    use crate::util::vecmap;
     use crate::{hir::resolution::errors::ResolverError, Ident};
 
     use crate::graph::CrateId;

@@ -1,6 +1,6 @@
 use std::fmt::{Display, Formatter};
 
-use crate::util::vecmap;
+use iter_extended::vecmap;
 
 use super::ast::{Definition, Expression, Function, LValue};
 

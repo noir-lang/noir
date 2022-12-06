@@ -9,7 +9,7 @@ use super::{
     optim,
 };
 use acvm::{acir::OPCODE, FieldElement};
-use noirc_frontend::util::vecmap;
+use iter_extended::vecmap;
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
 use std::collections::BTreeMap;
