@@ -15,7 +15,7 @@ PUSH_LABEL=$3
 PROJECTS=(
   cpp:barretenberg-cpp:./dockerfiles/Dockerfile.x86_64-linux-clang:barretenberg-x86_64-linux-clang
   cpp:barretenberg-cpp:./dockerfiles/Dockerfile.wasm-linux-clang:barretenberg-wasm-linux-clang
-  js:barretenberg-js
+  # js:barretenberg-js
 )
 
 for E in ${PROJECTS[@]}; do
@@ -48,14 +48,9 @@ for E in ${PROJECTS[@]}; do
   echo "*** Building $PROJECT:$DOCKERFILE -> $REPO ***"
   echo
 
-  time docker build -f $DOCKERFILE -t $ECR_DEPLOY_URL/$REPO:latest .
+  time docker build -f $DOCKERFILE -t $ECR_URL/$REPO:latest .
 
   if [ -n "$TERM_AT_TARGET" -a "$PROJECT" = "$TARGET_PROJECT" ]; then
-    if [ -n "$PUSH_LABEL" ]; then
-      $(aws ecr get-login --region eu-west-2 --no-include-email) 2> /dev/null
-      docker tag $ECR_DEPLOY_URL/$REPO:latest $ECR_DEPLOY_URL/$REPO:$PUSH_LABEL
-      docker push $ECR_DEPLOY_URL/$REPO:$PUSH_LABEL
-    fi
     break
   fi
 
