@@ -15,45 +15,45 @@ GIT_REPOSITORY_URL=$4
 BRANCH=$5
 
 BUILD_SYSTEM_PATH=$(pwd)
-PROJECT=$(cat ../PROJECT)
-VERSION=$(cat ../VERSION)
+# PROJECT=$(cat ../PROJECT)
+# VERSION=$(cat ../VERSION)
 
 echo "Setting up environment COMMIT_HASH=$COMMIT_HASH, COMMIT_TAG=$COMMIT_TAG, JOB_NAME=$JOB_NAME, GIT_REPOSITORY_URL=$GIT_REPOSITORY_URL"
 
-if [ -n "$COMMIT_TAG" ]; then
-  # We're tagged e.g. v2.1.123 or v2.1.123-testnet.0.
-  # First we sanity check that the tag matches the VERSION file.
-  echo "Extracting commit tag version..."
-  # Strips the e.g. '-testnet.XX' from the COMMIT_TAG
-  WITHOUT_VERSION_TAG=${COMMIT_TAG%%-*}
-  # Strips the subversion, leaving just the 'vMAJ.MIN' e.g. v2.1
-  COMMIT_TAG_VERSION=${WITHOUT_VERSION_TAG%.*}
-  echo "WITHOUT_VERSION_TAG=$WITHOUT_VERSION_TAG"
-  echo "COMMIT_TAG_VERSION=$COMMIT_TAG_VERSION"
-  # COMMIT_TAG_VERSION=$(echo "$COMMIT_TAG" | grep -oE "v\d+.\d+")
-  if [ "$COMMIT_TAG_VERSION" != "$VERSION" ]; then
-    echo "Commit tag $COMMIT_TAG does not match repo version $VERSION."
-    exit 1
-  fi
+# if [ -n "$COMMIT_TAG" ]; then
+#   # We're tagged e.g. v2.1.123 or v2.1.123-testnet.0.
+#   # First we sanity check that the tag matches the VERSION file.
+#   echo "Extracting commit tag version..."
+#   # Strips the e.g. '-testnet.XX' from the COMMIT_TAG
+#   WITHOUT_VERSION_TAG=${COMMIT_TAG%%-*}
+#   # Strips the subversion, leaving just the 'vMAJ.MIN' e.g. v2.1
+#   COMMIT_TAG_VERSION=${WITHOUT_VERSION_TAG%.*}
+#   echo "WITHOUT_VERSION_TAG=$WITHOUT_VERSION_TAG"
+#   echo "COMMIT_TAG_VERSION=$COMMIT_TAG_VERSION"
+#   # COMMIT_TAG_VERSION=$(echo "$COMMIT_TAG" | grep -oE "v\d+.\d+")
+#   if [ "$COMMIT_TAG_VERSION" != "$VERSION" ]; then
+#     echo "Commit tag $COMMIT_TAG does not match repo version $VERSION."
+#     exit 1
+#   fi
 
-  # Extract the version tag from the commit tag, if it has one, e.g. testnet.
-  # If we have one, we look something like v2.1.123-testnet.0. This is a "non production" release.
-  if [[ "$COMMIT_TAG" == *"-"* ]]; then
-    # Strips the trailing '.XX' from the end of the commit tag
-    TEMP=${COMMIT_TAG%.*}
-    # Strips the 'vX.Y.ZZZ-' from the front of the commit tag, leaving the e.g. 'testnet'
-    VERSION_TAG=${TEMP##*-}
-  else
-    VERSION_TAG=prod
-  fi
-else
-  # We have no commit tag. This is one of our development project branches.
-  VERSION_TAG=dev
-fi
+#   # Extract the version tag from the commit tag, if it has one, e.g. testnet.
+#   # If we have one, we look something like v2.1.123-testnet.0. This is a "non production" release.
+#   if [[ "$COMMIT_TAG" == *"-"* ]]; then
+#     # Strips the trailing '.XX' from the end of the commit tag
+#     TEMP=${COMMIT_TAG%.*}
+#     # Strips the 'vX.Y.ZZZ-' from the front of the commit tag, leaving the e.g. 'testnet'
+#     VERSION_TAG=${TEMP##*-}
+#   else
+#     VERSION_TAG=prod
+#   fi
+# else
+#   # We have no commit tag. This is one of our development project branches.
+#   VERSION_TAG=dev
+# fi
 
-# - The deploy tag (used in api paths, subdomains), is a concatenation of the project name and version tag,
-#   e.g. aztec-connect-dev, aztec-connect-testnet, or aztec-connect-prod
-DEPLOY_TAG=$PROJECT-$VERSION_TAG
+# # - The deploy tag (used in api paths, subdomains), is a concatenation of the project name and version tag,
+# #   e.g. aztec-connect-dev, aztec-connect-testnet, or aztec-connect-prod
+# DEPLOY_TAG=$PROJECT-$VERSION_TAG
 
 if [ -z "$BASH_ENV" ]; then
   BASH_ENV=$(mktemp)
@@ -67,15 +67,15 @@ echo export AWS_DEFAULT_REGION=eu-west-2 >> $BASH_ENV
 echo export ECR_REGION=us-east-2 >> $BASH_ENV
 echo export AWS_ACCOUNT=278380418400 >> $BASH_ENV
 echo export ECR_URL=278380418400.dkr.ecr.us-east-2.amazonaws.com >> $BASH_ENV
-echo export ECR_DEPLOY_REGION=eu-west-2 >> $BASH_ENV
-echo export ECR_DEPLOY_URL=278380418400.dkr.ecr.eu-west-2.amazonaws.com >> $BASH_ENV
-echo export PROJECT=$PROJECT >> $BASH_ENV
+# echo export ECR_DEPLOY_REGION=eu-west-2 >> $BASH_ENV
+# echo export ECR_DEPLOY_URL=278380418400.dkr.ecr.eu-west-2.amazonaws.com >> $BASH_ENV
+# echo export PROJECT=$PROJECT >> $BASH_ENV
 echo export COMMIT_HASH=$COMMIT_HASH >> $BASH_ENV
 echo export COMMIT_TAG=$COMMIT_TAG >> $BASH_ENV
 echo export JOB_NAME=$JOB_NAME >> $BASH_ENV
 echo export GIT_REPOSITORY_URL=$GIT_REPOSITORY_URL >> $BASH_ENV
-echo export VERSION_TAG=$VERSION_TAG >> $BASH_ENV
-echo export DEPLOY_TAG=$DEPLOY_TAG >> $BASH_ENV
+# echo export VERSION_TAG=$VERSION_TAG >> $BASH_ENV
+# echo export DEPLOY_TAG=$DEPLOY_TAG >> $BASH_ENV
 echo export BRANCH=$BRANCH >> $BASH_ENV
 # Our alpine build image has jq installed, ubuntu build instances use our committed version.
 if [ ! -f /etc/alpine-release ]; then
