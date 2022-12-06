@@ -1,8 +1,8 @@
 use crate::{errors::CliError, resolver::Resolver};
 use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
+use iter_extended::btree_map;
 use noirc_abi::{Abi, AbiType};
-use noirc_frontend::util::btree_map;
 use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
