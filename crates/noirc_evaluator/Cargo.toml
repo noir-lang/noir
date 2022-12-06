@@ -13,6 +13,7 @@ noirc_abi = { path = "../noirc_abi" }
 acvm = { git = "https://github.com/noir-lang/noir" }
 arena = { path = "../arena" }
 fm = { path = "../fm" }
+iter-extended = { path = "../iter-extended" }
 lazy_static = "1.4.0"
 thiserror = "1.0.21"
 num-bigint = "0.4"
