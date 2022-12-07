@@ -349,7 +349,7 @@ fn cse_block_with_anchor(
             if let Some(err) = err {
                 if stop_on_error {
                     return Err(err);
-                }    
+                }
             }
             //cannot simplify to_bits() in the previous call because it get replaced with multiple instructions
             if let Operation::Intrinsic(opcode, args) = &update2.operation {
