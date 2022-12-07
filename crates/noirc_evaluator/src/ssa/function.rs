@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 
 use crate::errors::RuntimeError;
 use crate::ssa::node::Opcode;
@@ -57,10 +57,12 @@ impl SSAFunction {
     }
 
     pub fn compile(&self, igen: &mut IRGenerator) -> Result<DecisionTree, RuntimeError> {
+        let current_block = igen.context.current_block;
         let function_cfg = super::block::bfs(self.entry_block, None, &igen.context);
         super::block::compute_sub_dom(&mut igen.context, &function_cfg);
         //Optimisation
-        super::optim::full_cse(&mut igen.context, self.entry_block)?;
+        //catch the error because the function may not be called
+        super::optim::full_cse(&mut igen.context, self.entry_block, false)?;
         //Unrolling
         super::flatten::unroll_tree(&mut igen.context, self.entry_block)?;
 
@@ -72,15 +74,54 @@ impl SSAFunction {
                 builder.stack.created_arrays.insert(a, self.entry_block);
             }
         }
-        decision.make_decision_tree(&mut igen.context, builder);
-        decision.reduce(&mut igen.context, decision.root)?;
 
-        //merge blocks
-        let to_remove =
-            super::block::merge_path(&mut igen.context, self.entry_block, BlockId::dummy(), None);
+        let mut to_remove: VecDeque<BlockId> = VecDeque::new();
+
+        let result = decision.make_decision_tree(&mut igen.context, builder);
+        if result.is_err() {
+            //short-circuit for function: false constraint and return 0
+            let unreachable = node::Operation::Constrain(igen.context.zero(), None);
+            let fail = igen.context.add_instruction(node::Instruction::new(
+                unreachable,
+                ObjectType::NotAnObject,
+                Some(self.entry_block),
+            ));
+            let instructions = &igen.context[current_block].instructions;
+            let ret_idx = instructions.iter().position(|x| {
+                if let Some(ins) = igen.context.try_get_instruction(*x) {
+                    return ins.operation.opcode() == Opcode::Return;
+                }
+                false
+            });
+            let stack = vec![fail, instructions[ret_idx.unwrap()]];
+            super::block::short_circuit_instructions(
+                &mut igen.context,
+                &vec![*stack.last().unwrap()],
+            );
+            igen.context.get_mut_instruction(*stack.last().unwrap()).parent_block =
+                self.entry_block;
+
+            let function_block = &mut igen.context[self.entry_block];
+            function_block.instructions.clear();
+            function_block.instructions = stack;
+            function_block.left = None;
+            to_remove.extend(function_cfg.iter()); //let's remove all the other blocks
+        } else {
+            decision.reduce(&mut igen.context, decision.root)?;
+            //merge blocks
+            to_remove = super::block::merge_path(
+                &mut igen.context,
+                self.entry_block,
+                BlockId::dummy(),
+                None,
+            );
+        }
+
         igen.context[self.entry_block].dominated.retain(|b| !to_remove.contains(b));
         for i in to_remove {
-            igen.context.remove_block(i);
+            if i != self.entry_block {
+                igen.context.remove_block(i);
+            }
         }
         Ok(decision)
     }
@@ -327,7 +368,7 @@ pub fn inline_all(ctx: &mut SsaContext) -> Result<(), RuntimeError> {
     while processed.len() < l {
         let i = get_new_leaf(ctx, &processed);
         if !processed.is_empty() {
-            super::optim::full_cse(ctx, ctx.functions[&i.1].entry_block)?;
+            super::optim::full_cse(ctx, ctx.functions[&i.1].entry_block, false)?;
         }
         let mut to_inline = Vec::new();
         for f in ctx.functions.values() {

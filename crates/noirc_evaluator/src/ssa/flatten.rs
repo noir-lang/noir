@@ -41,7 +41,7 @@ fn eval_block(block_id: BlockId, eval_map: &HashMap<NodeId, NodeEval>, ctx: &mut
         if let Some(ins) = ctx.try_get_mut_instruction(*i) {
             ins.operation = update_operator(&ins.operation, eval_map);
             let ins_id = ins.id;
-            optim::simplify_id(ctx, ins_id).unwrap();
+            optim::simplify_id(ctx, ins_id).err();
         }
     }
 }
@@ -125,7 +125,7 @@ pub fn unroll_std_block(
                     Operation::Jmp(block) => assert_eq!(block, next),
                     Operation::Nop => (),
                     _ => {
-                        optim::simplify(ctx, &mut new_ins)?;
+                        optim::simplify(ctx, &mut new_ins).err();
                         match new_ins.mark {
                             Mark::None => {
                                 let id = ctx.push_instruction(new_ins);

@@ -5,7 +5,7 @@ use thiserror::Error;
 
 #[derive(Debug)]
 pub struct RuntimeError {
-    pub location: Location,
+    pub location: Option<Location>,
     pub kind: RuntimeErrorKind,
 }
 
@@ -22,7 +22,7 @@ impl RuntimeError {
 }
 
 impl RuntimeErrorKind {
-    pub fn add_location(self, location: Location) -> RuntimeError {
+    pub fn add_location(self, location: Option<Location>) -> RuntimeError {
         RuntimeError { location, kind: self }
     }
 }
@@ -64,7 +64,8 @@ impl RuntimeErrorKind {
 
 impl DiagnosableError for RuntimeError {
     fn to_diagnostic(&self) -> Diagnostic {
-        let span = self.location.span;
+        let span =
+            if let Some(loc) = self.location { loc.span } else { noirc_errors::Span::new(0..0) };
         match &self.kind {
             RuntimeErrorKind::ArrayOutOfBounds { index, bound } => Diagnostic::simple_error(
                 "index out of bounds".to_string(),

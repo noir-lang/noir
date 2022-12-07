@@ -358,10 +358,10 @@ impl IRGenerator {
     fn codegen_constrain(
         &mut self,
         expr: &Expression,
-        location: noirc_errors::Location,
+        location: Option<noirc_errors::Location>,
     ) -> Result<Value, RuntimeError> {
         let cond = self.codegen_expression(expr)?.unwrap_id();
-        let operation = Operation::Constrain(cond, Some(location));
+        let operation = Operation::Constrain(cond, location);
         self.context.new_instruction(operation, ObjectType::NotAnObject)?;
         Ok(Value::dummy())
     }
@@ -526,7 +526,7 @@ impl IRGenerator {
                 let rhs = self.codegen_expression(&binary.rhs)?.to_node_ids();
                 if lhs.len() != 1 || rhs.len() != 1 {
                     return Err(RuntimeError {
-                        location: noirc_errors::Location::dummy(),
+                        location: None,
                         kind: crate::errors::RuntimeErrorKind::UnsupportedOp {
                             op: binary.operator.to_string(),
                             first_type: "struct/tuple".to_string(),

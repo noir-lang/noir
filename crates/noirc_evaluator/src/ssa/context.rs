@@ -525,7 +525,7 @@ impl SsaContext {
         //Add a new instruction to the nodes arena
         let mut i = Instruction::new(opcode, optype, Some(self.current_block));
         //Basic simplification
-        optim::simplify(self, &mut i)?;
+        optim::simplify(self, &mut i).err();
 
         if let Mark::ReplaceWith(replacement) = i.mark {
             return Ok(replacement);
@@ -662,19 +662,17 @@ impl SsaContext {
 
         //Optimisation
         block::compute_dom(self);
-        optim::full_cse(self, self.first_block)?;
+        optim::full_cse(self, self.first_block, false)?;
 
         //Flattenning
         self.log(enable_logging, "\nCSE:", "\nunrolling:");
         //Unrolling
         flatten::unroll_tree(self, self.first_block)?;
-
         //reduce conditionals
         let mut decision = DecisionTree::new(self);
         let builder = TreeBuilder::new(self.first_block);
-        decision.make_decision_tree(self, builder);
+        decision.make_decision_tree(self, builder)?;
         decision.reduce(self, decision.root)?;
-
         //Inlining
         self.log(enable_logging, "reduce", "\ninlining:");
         inline::inline_tree(self, self.first_block, &decision)?;
@@ -693,7 +691,7 @@ impl SsaContext {
         let first_block = self.first_block;
         self[first_block].dominated.clear();
 
-        optim::cse(self, first_block)?;
+        optim::cse(self, first_block, true)?;
 
         //Truncation
         integer::overflow_strategy(self)?;
@@ -994,6 +992,57 @@ impl SsaContext {
             let phi_id = self.add_instruction(new_phi);
             self[exit_block].instructions.insert(1, phi_id);
             phi_id
+        }
+    }
+
+    pub fn add_predicate(
+        &mut self,
+        pred: NodeId,
+        instruction: &mut Instruction,
+        stack: &mut StackFrame,
+    ) {
+        let op = &mut instruction.operation;
+
+        match op {
+            Operation::Binary(bin) => {
+                assert!(bin.predicate.is_none());
+                let cond = if let Some(pred_ins) = bin.predicate {
+                    assert_ne!(pred_ins, NodeId::dummy());
+                    if pred == NodeId::dummy() {
+                        pred_ins
+                    } else {
+                        let op = Operation::Binary(node::Binary {
+                            lhs: pred,
+                            rhs: pred_ins,
+                            operator: BinaryOp::Mul,
+                            predicate: None,
+                        });
+                        let cond = self.add_instruction(Instruction::new(
+                            op,
+                            ObjectType::Boolean,
+                            Some(stack.block),
+                        ));
+                        optim::simplify_id(self, cond).unwrap();
+                        stack.push(cond);
+                        cond
+                    }
+                } else {
+                    pred
+                };
+                bin.predicate = Some(cond);
+            }
+            Operation::Constrain(cond, _) => {
+                let operation =
+                    Operation::Cond { condition: pred, val_true: *cond, val_false: self.one() };
+                let c_ins = self.add_instruction(Instruction::new(
+                    operation,
+                    ObjectType::Boolean,
+                    Some(stack.block),
+                ));
+                stack.push(c_ins);
+                *cond = c_ins;
+            }
+            _ => unreachable!(),
         }
     }
 }

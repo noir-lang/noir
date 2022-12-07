@@ -1,3 +1,5 @@
+use noirc_frontend::util::vecmap;
+
 use super::{
     conditional::AssumptionId,
     context::SsaContext,
@@ -127,30 +129,33 @@ impl BasicBlock {
 
     //Returns true if the block is a short-circuit
     fn is_short_circuit(&self, ctx: &SsaContext, assumption: Option<NodeId>) -> bool {
-        if let Some(ass_value) = assumption {
-            if self.instructions.len() >= 3 {
-                if let Some(Instruction { operation, .. }) =
-                    ctx.try_get_instruction(self.instructions[1])
-                {
-                    if *operation
-                        == (node::Operation::Cond {
-                            condition: ass_value,
-                            val_true: ctx.zero(),
-                            val_false: ctx.one(),
-                        })
+        let mut cond = None;
+        for (i, ins_id) in self.instructions.iter().enumerate() {
+            if let Some(ins) = ctx.try_get_instruction(*ins_id) {
+                if let Some(ass_value) = assumption {
+                    if cond.is_none()
+                        && ins.operation
+                            == (node::Operation::Cond {
+                                condition: ass_value,
+                                val_true: ctx.zero(),
+                                val_false: ctx.one(),
+                            })
                     {
-                        if let Some(Instruction { operation, .. }) =
-                            ctx.try_get_instruction(self.instructions[2])
-                        {
-                            if *operation == node::Operation::Constrain(self.instructions[1], None)
-                            {
-                                return true;
-                            }
+                        cond = Some(*ins_id);
+                    }
+
+                    if let node::Operation::Constrain(a, _) = ins.operation {
+                        if a == ctx.zero() || Some(a) == cond {
+                            return true;
                         }
                     }
                 }
             }
+            if i > 3 {
+                break;
+            }
         }
+
         false
     }
 }
@@ -373,6 +378,34 @@ pub fn rewire_block_left(ctx: &mut SsaContext, block_id: BlockId, left: BlockId)
     }
 }
 
+//replace all instructions in the target block by a false constraint, expect for return instruction
+pub fn short_circuit_inline(ctx: &mut SsaContext, target: BlockId) {
+    // short-circuit the return instruction (if it exists)
+    short_circuit_block(ctx, target);
+    //nop and constrain false
+    let unreachable_op = node::Operation::Constrain(ctx.zero(), None);
+    let unreachable_ins = ctx.add_instruction(Instruction::new(
+        unreachable_op,
+        node::ObjectType::NotAnObject,
+        Some(target),
+    ));
+    let nop = ctx[target].instructions[0];
+    debug_assert_eq!(ctx.get_instruction(nop).operation, node::Operation::Nop);
+    let mut stack = vec![nop, unreachable_ins];
+    //return:
+    let ret_pos = ctx[target].instructions.iter().position(|x| {
+        if let Some(ins) = ctx.try_get_instruction(*x) {
+            return ins.operation.opcode() == Opcode::Return;
+        }
+        false
+    });
+    if let Some(ret) = ret_pos {
+        let ret_id = ctx[target].instructions[ret];
+        stack.push(ret_id);
+    }
+    ctx[target].instructions = stack;
+}
+
 //Delete all instructions in the block
 pub fn short_circuit_block(ctx: &mut SsaContext, block_id: BlockId) {
     let instructions = ctx[block_id].instructions.clone();
@@ -381,18 +414,43 @@ pub fn short_circuit_block(ctx: &mut SsaContext, block_id: BlockId) {
 
 pub fn short_circuit_instructions(ctx: &mut SsaContext, instructions: &Vec<NodeId>) {
     let mut zeros = HashMap::new();
+    let mut zero_keys = Vec::new();
     for i in instructions {
         let ins = ctx.get_instruction(*i);
         if ins.res_type != node::ObjectType::NotAnObject {
             zeros.insert(ins.res_type, ctx.zero_with_type(ins.res_type));
+        } else if let node::Operation::Return(ret) = &ins.operation {
+            for i in ret {
+                if *i != NodeId::dummy() {
+                    let typ = ctx.get_object_type(*i);
+                    assert_ne!(typ, node::ObjectType::NotAnObject);
+                    zero_keys.push(typ);
+                } else {
+                    zero_keys.push(node::ObjectType::NotAnObject);
+                }
+            }
         }
     }
+    for k in zero_keys.iter() {
+        let zero_id = if *k != node::ObjectType::NotAnObject {
+            ctx.zero_with_type(*k)
+        } else {
+            NodeId::dummy()
+        };
+        zeros.insert(*k, zero_id);
+    }
+
     for i in instructions {
         let ins = ctx.get_mut_instruction(*i);
         if ins.res_type != node::ObjectType::NotAnObject {
             ins.mark = Mark::ReplaceWith(zeros[&ins.res_type]);
         } else if ins.operation.opcode() != Opcode::Nop {
-            ins.mark = Mark::Deleted;
+            if ins.operation.opcode() == Opcode::Return {
+                let vec = vecmap(&zero_keys, |x| zeros[x]);
+                ins.operation = node::Operation::Return(vec);
+            } else {
+                ins.mark = Mark::Deleted;
+            }
         }
     }
 }

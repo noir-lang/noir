@@ -49,7 +49,7 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) -> Result<(), Runti
 
     if let Operation::Binary(binary) = &mut ins.operation {
         if let NodeEval::Const(r_const, r_type) = NodeEval::from_id(ctx, binary.rhs) {
-            if binary.operator == BinaryOp::Div {
+            if binary.operator == BinaryOp::Div && !r_const.is_zero() {
                 binary.rhs = ctx.get_or_create_const(r_const.inverse(), r_type);
                 binary.operator = BinaryOp::Mul;
             }
@@ -110,10 +110,14 @@ pub fn propagate(ctx: &SsaContext, id: NodeId, modified: &mut bool) -> NodeId {
 }
 
 //common subexpression elimination, starting from the root
-pub fn cse(igen: &mut SsaContext, first_block: BlockId) -> Result<Option<NodeId>, RuntimeError> {
+pub fn cse(
+    igen: &mut SsaContext,
+    first_block: BlockId,
+    stop_on_error: bool,
+) -> Result<Option<NodeId>, RuntimeError> {
     let mut anchor = Anchor::default();
     let mut modified = false;
-    cse_tree(igen, first_block, &mut anchor, &mut modified)
+    cse_tree(igen, first_block, &mut anchor, &mut modified, stop_on_error)
 }
 
 //Perform CSE for the provided block and then process its children following the dominator tree, passing around the anchor list.
@@ -122,11 +126,13 @@ fn cse_tree(
     block_id: BlockId,
     anchor: &mut Anchor,
     modified: &mut bool,
+    stop_on_error: bool,
 ) -> Result<Option<NodeId>, RuntimeError> {
     let mut instructions = Vec::new();
-    let mut res = cse_block_with_anchor(igen, block_id, &mut instructions, anchor, modified)?;
+    let mut res =
+        cse_block_with_anchor(igen, block_id, &mut instructions, anchor, modified, stop_on_error)?;
     for b in igen[block_id].dominated.clone() {
-        let sub_res = cse_tree(igen, b, &mut anchor.clone(), modified)?;
+        let sub_res = cse_tree(igen, b, &mut anchor.clone(), modified, stop_on_error)?;
         if sub_res.is_some() {
             res = sub_res;
         }
@@ -138,13 +144,14 @@ fn cse_tree(
 pub fn full_cse(
     igen: &mut SsaContext,
     first_block: BlockId,
+    report_error: bool,
 ) -> Result<Option<NodeId>, RuntimeError> {
     let mut modified = true;
     let mut result = None;
     while modified {
         modified = false;
         let mut anchor = Anchor::default();
-        result = cse_tree(igen, first_block, &mut anchor, &mut modified)?;
+        result = cse_tree(igen, first_block, &mut anchor, &mut modified, report_error)?;
     }
     Ok(result)
 }
@@ -161,7 +168,7 @@ pub fn cse_block(
     instructions: &mut Vec<NodeId>,
     modified: &mut bool,
 ) -> Result<Option<NodeId>, RuntimeError> {
-    cse_block_with_anchor(ctx, block_id, instructions, &mut Anchor::default(), modified)
+    cse_block_with_anchor(ctx, block_id, instructions, &mut Anchor::default(), modified, false)
 }
 
 //Performs common subexpression elimination and copy propagation on a block
@@ -171,6 +178,7 @@ fn cse_block_with_anchor(
     instructions: &mut Vec<NodeId>,
     anchor: &mut Anchor,
     modified: &mut bool,
+    stop_on_error: bool,
 ) -> Result<Option<NodeId>, RuntimeError> {
     let mut new_list = Vec::new();
     let bb = &ctx[block_id];
@@ -337,7 +345,12 @@ fn cse_block_with_anchor(
             update.parent_block = block_id;
 
             let mut update2 = update.clone();
-            simplify(ctx, &mut update2)?;
+            let err = simplify(ctx, &mut update2).err();
+            if let Some(err) = err {
+                if stop_on_error {
+                    return Err(err);
+                }    
+            }
             //cannot simplify to_bits() in the previous call because it get replaced with multiple instructions
             if let Operation::Intrinsic(opcode, args) = &update2.operation {
                 let args = args.iter().map(|arg| {

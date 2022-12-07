@@ -113,7 +113,7 @@ impl Monomorphiser {
             let eq = ast::Expression::Binary(ast::Binary { operator, lhs, rhs });
 
             let location = self.interner.function_meta(&main_id).location;
-            main.body = ast::Expression::Constrain(Box::new(eq), location);
+            main.body = ast::Expression::Constrain(Box::new(eq), Some(location));
         }
 
         let abi = main_meta.into_abi(&self.interner);
@@ -277,7 +277,7 @@ impl Monomorphiser {
             HirStatement::Constrain(constrain) => {
                 let expr = self.expr(constrain.0, &HirType::Bool(Comptime::No(None)));
                 let location = self.interner.expr_location(&constrain.0);
-                ast::Expression::Constrain(Box::new(expr), location)
+                ast::Expression::Constrain(Box::new(expr), Some(location))
             }
             HirStatement::Assign(assign) => self.assign(assign),
             HirStatement::Expression(expr) => self.expr_infer(expr),
@@ -387,7 +387,7 @@ impl Monomorphiser {
             definitions.push(new_expr);
         }
 
-        ast::Expression::Block(definitions)
+        ast::Expression::Tuple(definitions)
     }
 
     /// A local (ie non-global) ident only
