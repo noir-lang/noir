@@ -331,6 +331,11 @@ impl<'a> Resolver<'a> {
             UnresolvedType::Tuple(fields) => {
                 Type::Tuple(vecmap(fields, |field| self.resolve_type_inner(field, new_variables)))
             }
+            UnresolvedType::Function(args, ret) => {
+                let args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
+                let ret = Box::new(self.resolve_type_inner(*ret, new_variables));
+                Type::Function(args, ret)
+            }
         }
     }
 

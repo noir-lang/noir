@@ -1129,6 +1129,34 @@ impl SsaContext {
             other => unreachable!("get_returned_arrays: Expected function type, found {:?}", other),
         }
     }
+
+    pub fn convert_type(&mut self, t: &noirc_frontend::monomorphisation::ast::Type) -> ObjectType {
+        use noirc_frontend::monomorphisation::ast::Type;
+        use noirc_frontend::Signedness;
+        match t {
+            Type::Bool => ObjectType::Boolean,
+            Type::Field => ObjectType::NativeField,
+            Type::Integer(sign, bit_size) => {
+                assert!(
+                    *bit_size < super::integer::short_integer_max_bit_size(),
+                    "long integers are not yet supported"
+                );
+                match sign {
+                    Signedness::Signed => ObjectType::Signed(*bit_size),
+                    Signedness::Unsigned => ObjectType::Unsigned(*bit_size),
+                }
+            }
+            // TODO: We should not track arrays through ObjectTypes
+            Type::Array(..) => ObjectType::Pointer(ArrayId::dummy()),
+            Type::Unit => ObjectType::NotAnObject,
+            Type::Function(..) => {
+                // TODO: This is incorrect, we cannot track arrays through function types in this case
+                let id = self.push_array_set(vec![]);
+                ObjectType::Function(id)
+            }
+            Type::Tuple(_) => todo!("Conversion to ObjectType is unimplemented for tuples"),
+        }
+    }
 }
 
 impl std::ops::Index<BlockId> for SsaContext {

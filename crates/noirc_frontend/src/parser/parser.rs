@@ -446,8 +446,9 @@ where
         int_type(),
         named_type(recursive_type_parser.clone()),
         array_type(recursive_type_parser.clone(), expr_parser),
-        tuple_type(recursive_type_parser),
+        tuple_type(recursive_type_parser.clone()),
         bool_type(),
+        function_type(recursive_type_parser),
     ))
 }
 
@@ -520,6 +521,18 @@ where
 {
     let fields = type_parser.separated_by(just(Token::Comma)).allow_trailing();
     parenthesized(fields).map(UnresolvedType::Tuple)
+}
+
+fn function_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>
+where
+    T: NoirParser<UnresolvedType>,
+{
+    let args = parenthesized(type_parser.clone().separated_by(just(Token::Comma)).allow_trailing());
+    keyword(Keyword::Fn)
+        .ignore_then(args)
+        .then_ignore(just(Token::Arrow))
+        .then(type_parser)
+        .map(|(args, ret)| UnresolvedType::Function(args, Box::new(ret)))
 }
 
 fn expression() -> impl ExprParser {

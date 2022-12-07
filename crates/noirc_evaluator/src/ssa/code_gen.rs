@@ -360,13 +360,13 @@ impl IRGenerator {
             }
             Type::Array(len, elem) => {
                 //TODO support array of structs
-                let obj_type = node::ObjectType::from(elem.as_ref());
+                let obj_type = self.context.convert_type(elem);
                 let len = *len;
                 let (v_id, _) = self.new_array(base_name, obj_type, len.try_into().unwrap(), def);
                 Value::Single(v_id)
             }
             _ => {
-                let obj_type = node::ObjectType::from(typ);
+                let obj_type = self.context.convert_type(typ);
                 let v_id = self.create_new_variable(base_name.to_string(), def, obj_type, None);
                 self.context.get_current_block_mut().update_variable(v_id, v_id);
                 Value::Single(v_id)
@@ -531,10 +531,11 @@ impl IRGenerator {
     pub(crate) fn codegen_expression(&mut self, expr: &Expression) -> Result<Value, RuntimeError> {
         match expr {
             Expression::Literal(Literal::Integer(x, typ)) => {
-                Ok(Value::Single(self.context.get_or_create_const(*x, typ.into())))
+                let typ = self.context.convert_type(typ);
+                Ok(Value::Single(self.context.get_or_create_const(*x, typ)))
             }
             Expression::Literal(Literal::Array(arr_lit)) => {
-                let element_type = ObjectType::from(&arr_lit.element_type);
+                let element_type = self.context.convert_type(&arr_lit.element_type);
 
                 let (new_var, array_id) =
                     self.context.new_array("", element_type, arr_lit.contents.len() as u32, None);
@@ -571,7 +572,7 @@ impl IRGenerator {
             }
             Expression::Cast(cast_expr) => {
                 let lhs = self.codegen_expression(&cast_expr.lhs)?.unwrap_id();
-                let rtype = ObjectType::from(&cast_expr.r#type);
+                let rtype = self.context.convert_type(&cast_expr.r#type);
 
                 Ok(Value::Single(self.context.new_instruction(Operation::Cast(lhs), rtype)?))
             }
@@ -629,7 +630,10 @@ impl IRGenerator {
                     self.context.zero()
                 }
             }
-            Literal::Integer(f, typ) => self.context.get_or_create_const(*f, typ.into()),
+            Literal::Integer(f, typ) => {
+                let typ = self.context.convert_type(typ);
+                self.context.get_or_create_const(*f, typ)
+            }
             _ => todo!(), //todo: add support for Array(ArrayLiteral), Str(String)
         }
     }
@@ -661,7 +665,7 @@ impl IRGenerator {
         //We support only const range for now
         //TODO how should we handle scope (cf. start/end_for_loop)?
         let iter_def = Definition::Local(for_expr.index_variable);
-        let iter_type = ObjectType::from(&for_expr.index_type);
+        let iter_type = self.context.convert_type(&for_expr.index_type);
         let index_name = for_expr.index_name.clone();
 
         let iter_id = self.create_new_variable(index_name, Some(iter_def), iter_type, None);

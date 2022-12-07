@@ -152,7 +152,7 @@ impl IRGenerator {
             func.result_types.push(match typ {
                 Type::Unit => ObjectType::NotAnObject,
                 Type::Array(_, _) => ObjectType::Pointer(crate::ssa::mem::ArrayId::dummy()),
-                _ => typ.into(),
+                _ => self.context.convert_type(&typ),
             });
         }
 
@@ -249,7 +249,7 @@ impl IRGenerator {
 
             try_vecmap(return_types, |(i, typ)| {
                 let result = Operation::Result { call_instruction, index: i as u32 };
-                let typ = match ObjectType::from(typ) {
+                let typ = match self.context.convert_type(&typ) {
                     ObjectType::Pointer(_) => {
                         let id =
                             returned_arrays.iter().find(|(_, index)| *index == i as u32).unwrap().0;

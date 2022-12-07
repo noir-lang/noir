@@ -300,7 +300,7 @@ pub fn inline_in_block(
                         let returned_arrays = get_returned_arrays(result_types);
                         (func, returned_arrays)
                     } else {
-                        return Err(RuntimeErrorKind::UnstructuredError { message: "Cannot determine which function to call. Function calls cannot depend on private variables".into() }.add_location(*location));
+                        return Err(RuntimeErrorKind::UnstructuredError { message: "Cannot determine which function to call. Function calls cannot depend on circuit inputs".into() }.add_location(*location));
                     };
 
                     let operation = Operation::Call {

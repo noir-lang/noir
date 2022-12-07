@@ -7,8 +7,8 @@ use acvm::FieldElement;
 use arena;
 use iter_extended::vecmap;
 use noirc_errors::Location;
-use noirc_frontend::monomorphisation::ast::{Definition, FuncId, Type};
-use noirc_frontend::{BinaryOpKind, Signedness};
+use noirc_frontend::monomorphisation::ast::{Definition, FuncId};
+use noirc_frontend::BinaryOpKind;
 use num_bigint::BigUint;
 use num_traits::{FromPrimitive, One};
 use std::ops::{Add, Mul, Sub};
@@ -216,37 +216,6 @@ impl From<ObjectType> for NumericType {
             ObjectType::NativeField => NumericType::NativeField,
             _ => unreachable!("failed to convert an object type into a numeric type"),
         }
-    }
-}
-
-impl From<&Type> for ObjectType {
-    fn from(t: &Type) -> ObjectType {
-        match t {
-            Type::Bool => ObjectType::Boolean,
-            Type::Field => ObjectType::NativeField,
-            Type::Integer(sign, bit_size) => {
-                assert!(
-                    *bit_size < super::integer::short_integer_max_bit_size(),
-                    "long integers are not yet supported"
-                );
-                match sign {
-                    Signedness::Signed => ObjectType::Signed(*bit_size),
-                    Signedness::Unsigned => ObjectType::Unsigned(*bit_size),
-                }
-            }
-            // TODO: We should not track arrays through ObjectTypes
-            Type::Array(..) => ObjectType::Pointer(ArrayId::dummy()),
-            Type::Unit => ObjectType::NotAnObject,
-            other => {
-                unimplemented!("Conversion to ObjectType is unimplemented for type {:?}", other)
-            }
-        }
-    }
-}
-
-impl From<Type> for ObjectType {
-    fn from(t: Type) -> ObjectType {
-        ObjectType::from(&t)
     }
 }
 
