@@ -200,14 +200,6 @@ pub trait PartialWitnessGenerator {
         while !gates_to_resolve.is_empty() {
             unresolved_gates.clear();
 
-            let mut process = |gate| {
-                let mut result = self.solve_gate(initial_witness, gate);
-                if binary_solve.is_some() && result == GateResolution::Skip {
-                    result = ctx.solve(gate, initial_witness);
-                }
-                result
-            };
-
             let gates: Box<dyn Iterator<Item = _>> = if binary_solve == Some(0) {
                 //we go backward because binary solver should execute only when the program returns an array
                 //in that case it is a bit more efficient to go backwards, although both ways work.
@@ -216,7 +208,11 @@ pub trait PartialWitnessGenerator {
                 Box::new(gates_to_resolve.iter())
             };
             for gate in gates {
-                match process(gate) {
+                let mut result = self.solve_gate(initial_witness, gate);
+                if binary_solve.is_some() && result == GateResolution::Skip {
+                    result = ctx.solve(gate, initial_witness);
+                }
+                match result {
                     GateResolution::Skip => unresolved_gates.push(gate.clone()),
                     GateResolution::Resolved => (),
                     resolution => return resolution,
