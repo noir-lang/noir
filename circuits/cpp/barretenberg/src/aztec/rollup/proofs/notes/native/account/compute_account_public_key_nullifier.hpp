@@ -13,7 +13,7 @@ using namespace barretenberg;
 
 inline fr compute_account_public_key_nullifier(grumpkin::g1::affine_element const& public_key)
 {
-    return crypto::pedersen::compress_native(std::vector<fr>{ public_key.x, public_key.y },
+    return crypto::pedersen::compress_native(std::vector<fr>{ public_key.x },
                                              notes::GeneratorIndex::ACCOUNT_PUBLIC_KEY_NULLIFIER);
 }
 

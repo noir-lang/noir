@@ -24,6 +24,14 @@ template <typename Composer> struct point {
         this->y.assert_equal(rhs.y, msg);
     }
 
+    void on_curve(std::string const& msg = "point::on_curve: point not on curve") const
+    {
+        auto on_curve = x * x;
+        on_curve = on_curve * x + grumpkin::g1::curve_b; // x^3 - 17
+        on_curve = y.madd(y, -on_curve);                 // on_curve = y^2 - (x^3 - 17) == 0
+        on_curve.assert_is_zero(msg);
+    }
+
     void assert_not_equal(const point& rhs, std::string const& msg = "point:assert_not_equal") const
     {
         const auto lhs_eq = this->x == rhs.x;
@@ -46,13 +54,11 @@ point<Composer> create_point_witness(Composer& composer, E const& p, const bool 
     // validate point is on the grumpkin curve
     field_t<Composer> x(witness_t<Composer>(&composer, p.x));
     field_t<Composer> y(witness_t<Composer>(&composer, p.y));
+    point<Composer> result = { x, y };
 
     // we need to disable this for when we are conditionally creating a point (e.g. account output note spending keys)
     if (validate_on_curve) {
-        auto on_curve = x * x;
-        on_curve = on_curve * x + grumpkin::g1::curve_b; // x^3 - 17
-        on_curve = y.madd(y, -on_curve);                 // on_curve = y^2 - (x^3 - 17) == 0
-        on_curve.assert_is_zero("create_point_witness: point not on curve");
+        result.on_curve("create_point_witness: point not on curve");
     }
     return { x, y };
 }

@@ -34,19 +34,19 @@ is_circuit_change_expected to zero and change the modified circuit gate counts a
 constexpr bool is_circuit_change_expected = 0;
 /* The below constants are only used for regression testing; to identify accidental changes to circuit
  constraints. They need to be changed when there is a circuit change. */
-constexpr uint32_t JOIN_SPLIT = 63984;
-constexpr uint32_t ACCOUNT = 24123;
+constexpr uint32_t ACCOUNT = 23958;
+constexpr uint32_t JOIN_SPLIT = 64000;
 constexpr uint32_t CLAIM = 22684;
-constexpr uint32_t ROLLUP = 1171925;
-constexpr uint32_t ROOT_ROLLUP = 5477579;
-constexpr uint32_t ROOT_VERIFIER = 7433260;
+constexpr uint32_t ROLLUP = 1173221;
+constexpr uint32_t ROOT_ROLLUP = 5481327;
+constexpr uint32_t ROOT_VERIFIER = 7435892;
 }; // namespace circuit_gate_count
 
 namespace circuit_gate_next_power_of_two {
 /* The below constants are used in tests to detect undesirable circuit changes. They should not be changed unless we
 want to exceed the next power of two limit. */
-constexpr uint32_t JOIN_SPLIT = 65536;
 constexpr uint32_t ACCOUNT = 32768;
+constexpr uint32_t JOIN_SPLIT = 65536;
 constexpr uint32_t CLAIM = 32768;
 constexpr uint32_t ROLLUP = 2097152;
 constexpr uint32_t ROOT_ROLLUP = 8388608;
@@ -57,13 +57,13 @@ namespace circuit_vk_hash {
 /* These below constants are only used for regression testing; to identify accidental changes to circuit
  constraints. They need to be changed when there is a circuit change. Note that they are written in the reverse order
  to comply with the from_buffer<>() method. */
-constexpr auto ACCOUNT = uint256_t(0x5d97584af28e524a, 0xd2007df20f73d2bf, 0xe134d5b853eff05a, 0xdd2c3d1ff8bce519);
-constexpr auto JOIN_SPLIT = uint256_t(0x7d54acfcca0eaf34, 0xa69c7b4e1c2fb5c5, 0x77161b356ca1c7a2, 0xb88194f268d2caa9);
+constexpr auto ACCOUNT = uint256_t(0x78ebf096ab73e440, 0xaa1dc7c26a125f6e, 0x488a97e465b96964, 0xf9d3e501b89bf466);
+constexpr auto JOIN_SPLIT = uint256_t(0x5e67a4a4503ebf25, 0xb3c070c061e76d1a, 0xb18c6c6a5bcad5fb, 0xe0d5f46cafb33ecf);
 constexpr auto CLAIM = uint256_t(0x878301ebba40ab60, 0x931466762c62d661, 0x40aad71ec3496905, 0x9f47aaa109759d0a);
-constexpr auto ROLLUP = uint256_t(0x3c9e491095547852, 0xbf65ec889ec96a1a, 0xb16e824aa0bb319f, 0x28d7b587edf1eb4d);
-constexpr auto ROOT_ROLLUP = uint256_t(0xa5e06b55f0e30cbe, 0x5fbf39af52fe67c8, 0xd8a0ecd1bb3a6f40, 0xdf67f7fcbb55dc1f);
+constexpr auto ROLLUP = uint256_t(0x160731cc44173fdc, 0x6a6d55e46bf198bd, 0x9ce1d4608ae26fb0, 0x865ced5c16cb6152);
+constexpr auto ROOT_ROLLUP = uint256_t(0xd77e82eae9e6efc7, 0x2b5ddf767012a4cf, 0x8b5982bb3d64616f, 0x20b515f5a9c78048);
 constexpr auto ROOT_VERIFIER =
-    uint256_t(0x341a876aae2df472, 0x87e0704f1ae50773, 0x5d6c740f61a0dbdd, 0x1f1a94b50cdcf5ae);
+    uint256_t(0x8e8313d6015ca626, 0x62ccf70b81c4e099, 0x33bee0072a20f36a, 0x44bd24daa009cd59);
 }; // namespace circuit_vk_hash
 
 namespace ProofIds {
