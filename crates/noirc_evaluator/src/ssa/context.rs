@@ -13,8 +13,8 @@ use crate::ssa::function;
 use crate::ssa::node::{Mark, Node};
 use crate::Evaluator;
 use acvm::FieldElement;
+use iter_extended::vecmap;
 use noirc_frontend::monomorphisation::ast::{DefinitionId, FuncId};
-use noirc_frontend::util::vecmap;
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
 

@@ -1,3 +1,4 @@
+use iter_extended::vecmap;
 use std::collections::{BTreeMap, HashMap, VecDeque};
 
 use crate::{
@@ -7,7 +8,6 @@ use crate::{
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
     },
     node_interner::{self, NodeInterner, StmtId},
-    util::vecmap,
     Comptime, FunctionKind, TypeBinding, TypeBindings,
 };
 

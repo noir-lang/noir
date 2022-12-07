@@ -1,9 +1,9 @@
 use std::collections::BTreeSet;
 
 use crate::lexer::token::Token;
-use crate::util::vecmap;
 use crate::BinaryOp;
 
+use iter_extended::vecmap;
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::DiagnosableError;
 use noirc_errors::Span;

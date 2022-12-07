@@ -1,3 +1,4 @@
+use iter_extended::vecmap;
 use noirc_errors::Span;
 
 use crate::{
@@ -6,7 +7,6 @@ use crate::{
         types::Type,
     },
     node_interner::{ExprId, FuncId, NodeInterner},
-    util::vecmap,
     Comptime, Shared, TypeBinding,
 };
 
