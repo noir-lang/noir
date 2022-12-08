@@ -24,6 +24,30 @@ if(ARM)
     set(RUN_HAVE_POSIX_REGEX 0)
 endif()
 
+if(FUZZING)
+    add_definitions(-DFUZZING=1)
+
+    if(DISABLE_CUSTOM_MUTATORS)
+        add_definitions(-DDISABLE_CUSTOM_MUTATORS=1)
+    endif()
+
+    set(SANITIZER_OPTIONS "")
+
+    if(ADDRESS_SANITIZER)
+        set(SANITIZER_OPTIONS ${SANITIZER_OPTIONS} -fsanitize=address)
+    endif()
+
+    if(UNDEFINED_BEHAVIOUR_SANITIZER)
+        set(SANITIZER_OPTIONS ${SANITIZER_OPTIONS} -fsanitize=undefined  -fno-sanitize=alignment)
+    endif()
+    
+    add_compile_options(-fsanitize=fuzzer-no-link ${SANITIZER_OPTIONS})
+
+    set(WASM OFF)
+    set(BENCHMARKS OFF)
+    set(TESTING OFF)
+endif()
+
 if(WASM)
     message(STATUS "Compiling for WebAssembly.")
     set(DISABLE_ASM ON)

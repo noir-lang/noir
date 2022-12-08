@@ -4,7 +4,7 @@ add_subdirectory(inner_proof_data)
 add_subdirectory(join_split)
 add_subdirectory(notes)
 
-if(NOT WASM)
+if(NOT (WASM OR FUZZING))
   add_subdirectory(rollup)
   add_subdirectory(root_rollup)
   add_subdirectory(root_verifier)

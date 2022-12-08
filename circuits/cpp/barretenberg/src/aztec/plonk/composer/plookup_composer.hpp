@@ -1,6 +1,7 @@
 #pragma once
 #include "composer_base.hpp"
 #include "plookup_tables/plookup_tables.hpp"
+#include <optional>
 
 namespace waffle {
 
@@ -125,7 +126,6 @@ class PlookupComposer : public ComposerBase {
         const PlookupReadData& read_values,
         const uint32_t key_a_index,
         std::optional<uint32_t> key_b_index = std::nullopt);
-
     /**
      * Generalized Permutation Methods
      **/

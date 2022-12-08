@@ -66,7 +66,7 @@ WASM_EXPORT bool multisig_validate_and_combine_signer_pubkeys(uint8_t const* sig
     std::vector<multisig::MultiSigPublicKey> pubkeys =
         from_buffer<std::vector<multisig::MultiSigPublicKey>>(signer_pubkey_buf);
 
-    if (auto combined_key = multisig::validate_and_combine_signer_pubkeys(pubkeys)) {
+    if (auto combined_key = multisig::validate_and_combine_signer_pubkeys(pubkeys); combined_key) {
         write(combined_key_buf, *combined_key);
         return true;
     } else {

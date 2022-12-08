@@ -21,7 +21,7 @@ auto& engine = numeric::random::get_debug_engine();
 
 TEST(client_proofs_join_split_tx, test_serialization)
 {
-    join_split_tx tx;
+    join_split_tx tx = {};
     tx.proof_id = 1;
     tx.account_note_index = 0;
     tx.signing_pub_key = grumpkin::g1::one * grumpkin::fr::random_element(&engine);

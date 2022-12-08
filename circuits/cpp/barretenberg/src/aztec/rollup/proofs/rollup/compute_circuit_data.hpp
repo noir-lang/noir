@@ -50,19 +50,20 @@ inline circuit_data get_circuit_data(size_t rollup_size,
         rollup_circuit(composer, rollup, verification_keys, rollup_size);
     };
 
-    auto cd = proofs::get_circuit_data<Composer>("tx rollup " + std::to_string(rollup_size) + "x" +
-                                                     std::to_string(rollup_size_pow2),
-                                                 name,
-                                                 srs,
-                                                 key_path,
-                                                 compute,
-                                                 save,
-                                                 load,
-                                                 pk,
-                                                 vk,
-                                                 true,
-                                                 mock,
-                                                 build_circuit);
+    auto cd =
+        proofs::get_circuit_data<Composer>("tx rollup",
+                                           name,
+                                           srs,
+                                           key_path,
+                                           compute,
+                                           save,
+                                           load,
+                                           pk,
+                                           vk,
+                                           true,
+                                           mock,
+                                           build_circuit,
+                                           " " + std::to_string(rollup_size) + "x" + std::to_string(rollup_size_pow2));
 
     circuit_data data;
     data.num_gates = cd.num_gates;

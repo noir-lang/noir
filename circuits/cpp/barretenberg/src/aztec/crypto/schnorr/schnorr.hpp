@@ -18,14 +18,19 @@ template <typename Fr, typename G1> struct key_pair {
     typename G1::affine_element public_key;
 };
 
+// Raw representation of a Schnorr signature (e,s).  We use the short variant of Schnorr
+// where we include the challenge hash `e` instead of the group element R representing
+// the provers initial message.
 struct signature {
-    std::array<uint8_t, 32> s;
-    std::array<uint8_t, 32> e;
-};
 
-struct signature_b {
+    // `s` is a serialized field element (also 32 bytes), representing the prover's response to
+    // to the verifier challenge `e`.
+    // We do not enforce that `s` is canonical since signatures are verified inside a circuit,
+    // and are provided as private inputs. Malleability is not an issue in this case.
     std::array<uint8_t, 32> s;
-    std::array<uint8_t, 32> r;
+    // `e` represents the verifier's challenge in the protocol. It is encoded as the 32-byte
+    // output of a hash function modeling a random oracle in the Fiat-Shamir transform.
+    std::array<uint8_t, 32> e;
 };
 
 template <typename Hash, typename Fq, typename Fr, typename G1>
@@ -33,12 +38,6 @@ bool verify_signature(const std::string& message, const typename G1::affine_elem
 
 template <typename Hash, typename Fq, typename Fr, typename G1>
 signature construct_signature(const std::string& message, const key_pair<Fr, G1>& account);
-
-template <typename Hash, typename Fq, typename Fr, typename G1>
-signature_b construct_signature_b(const std::string& message, const key_pair<Fr, G1>& account);
-
-template <typename Hash, typename Fq, typename Fr, typename G1>
-typename G1::affine_element ecrecover(const std::string& message, const signature_b& sig);
 
 inline bool operator==(signature const& lhs, signature const& rhs)
 {

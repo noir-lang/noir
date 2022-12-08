@@ -120,7 +120,7 @@ void pippenger_bench(State& state) noexcept
     // uint64_t count = 0;
     // uint64_t i = 0;
     for (auto _ : state) {
-        const uint64_t num_points = static_cast<uint64_t>(state.range(0));
+        const size_t num_points = static_cast<size_t>(state.range(0));
         state.PauseTiming();
         scalar_multiplication::pippenger_runtime_state run_state(num_points);
         state.ResumeTiming();
@@ -139,7 +139,7 @@ BENCHMARK(pippenger_bench)->RangeMultiplier(2)->Range(START, MAX_GATES)->Unit(be
 void unsafe_pippenger_bench(State& state) noexcept
 {
     uint64_t count = 0;
-    const uint64_t num_points = static_cast<uint64_t>(state.range(0));
+    const size_t num_points = static_cast<size_t>(state.range(0));
     uint64_t i = 0;
     for (auto _ : state) {
         state.PauseTiming();
@@ -153,7 +153,7 @@ void unsafe_pippenger_bench(State& state) noexcept
         ++i;
     }
     uint64_t avg_cycles = count / i;
-    printf("unsafe pippenger. %" PRIu64 " points. clock cycles = %" PRIu64 "\n", (num_points), (avg_cycles));
+    printf("unsafe pippenger. %zu points. clock cycles = %" PRIu64 "\n", (num_points), (avg_cycles));
     printf("unsafe pippenger clock cycles per mul = %" PRIu64 "\n", (avg_cycles / (MAX_GATES)));
 }
 BENCHMARK(unsafe_pippenger_bench)->RangeMultiplier(2)->Range(1 << 20, 1 << 20);
@@ -325,9 +325,9 @@ void fq_sqr_asm_bench(State& state) noexcept
     fq a{ 0x1122334455667788, 0x8877665544332211, 0x0123456701234567, 0x0efdfcfbfaf9f8f7 };
     fq r{ 1, 0, 0, 0 };
     for (auto _ : state) {
-        size_t before = rdtsc();
+        uint64_t before = rdtsc();
         (DoNotOptimize(fq_sqr_asm(a, r)));
-        size_t after = rdtsc();
+        uint64_t after = rdtsc();
         count += after - before;
         ++i;
     }
@@ -343,9 +343,9 @@ void fq_mul_asm_bench(State& state) noexcept
     fq a{ 0x1122334455667788, 0x8877665544332211, 0x0123456701234567, 0x0efdfcfbfaf9f8f7 };
     fq r{ 1, 0, 0, 0 };
     for (auto _ : state) {
-        size_t before = rdtsc();
+        uint64_t before = rdtsc();
         (DoNotOptimize(fq_mul_asm(a, r)));
-        size_t after = rdtsc();
+        uint64_t after = rdtsc();
         count += after - before;
         ++i;
     }

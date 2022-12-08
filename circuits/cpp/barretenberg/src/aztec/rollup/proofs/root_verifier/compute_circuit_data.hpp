@@ -34,7 +34,7 @@ inline circuit_data get_circuit_data(root_rollup::circuit_data const& root_rollu
 
     auto cd = proofs::get_circuit_data<OuterComposer>(
 
-        format("root verifier ", root_rollup_circuit_data.inner_rollup_circuit_data.rollup_size, "x", valid_vks.size()),
+        "root verifier",
         name,
         srs,
         key_path,
@@ -45,7 +45,8 @@ inline circuit_data get_circuit_data(root_rollup::circuit_data const& root_rollu
         vk,
         false,
         mock,
-        build_verifier_circuit);
+        build_verifier_circuit,
+        format(" ", root_rollup_circuit_data.inner_rollup_circuit_data.rollup_size, "x", valid_vks.size()));
 
     circuit_data data;
     data.num_gates = cd.num_gates;

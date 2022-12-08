@@ -49,7 +49,8 @@ circuit_data get_circuit_data(std::string const& name,
                               bool vk,
                               bool padding,
                               bool mock,
-                              F const& build_circuit)
+                              F const& build_circuit,
+                              std::string const name_suffix_for_benchmarks = "")
 {
     circuit_data data;
     data.srs = srs;
@@ -71,18 +72,27 @@ circuit_data get_circuit_data(std::string const& name,
         Timer timer;
         build_circuit(composer);
 
-        benchmark_collator.benchmark_info_deferred(
-            GET_COMPOSER_NAME_STRING(ComposerType), "Core", name, "Build time", timer.toString());
-        benchmark_collator.benchmark_info_deferred(
-            GET_COMPOSER_NAME_STRING(ComposerType), "Core", name, "Gates", composer.get_num_gates());
+        benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(ComposerType),
+                                                   "Core",
+                                                   name + name_suffix_for_benchmarks,
+                                                   "Build time",
+                                                   timer.toString());
+        benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(ComposerType),
+                                                   "Core",
+                                                   name + name_suffix_for_benchmarks,
+                                                   "Gates",
+                                                   composer.get_num_gates());
         info(name, ": Circuit built in: ", timer.toString(), "s");
         info(name, ": Circuit size: ", composer.get_num_gates());
         if (mock) {
             auto public_inputs = composer.get_public_inputs();
             mock::mock_circuit(mock_proof_composer, public_inputs);
             info(name, ": Mock circuit size: ", mock_proof_composer.get_num_gates());
-            benchmark_collator.benchmark_info_deferred(
-                GET_COMPOSER_NAME_STRING(ComposerType), "Core", name, "Mock Gates", composer.get_num_gates());
+            benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(ComposerType),
+                                                       "Core",
+                                                       name + name_suffix_for_benchmarks,
+                                                       "Mock Gates",
+                                                       composer.get_num_gates());
         }
     }
 
@@ -103,8 +113,11 @@ circuit_data get_circuit_data(std::string const& name,
                 std::make_shared<waffle::proving_key>(std::move(pk_data), srs->get_prover_crs(pk_data.n + 1));
             data.num_gates = pk_data.n;
             info(name, ": Circuit size 2^n: ", data.num_gates);
-            benchmark_collator.benchmark_info_deferred(
-                GET_COMPOSER_NAME_STRING(ComposerType), "Core", name, "Gates 2^n", data.num_gates);
+            benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(ComposerType),
+                                                       "Core",
+                                                       name + name_suffix_for_benchmarks,
+                                                       "Gates 2^n",
+                                                       data.num_gates);
         } else if (compute) {
             Timer timer;
             info(name, ": Computing proving key...");
@@ -114,20 +127,29 @@ circuit_data get_circuit_data(std::string const& name,
                 data.proving_key = composer.compute_proving_key();
                 info(name, ": Circuit size 2^n: ", data.proving_key->n);
 
-                benchmark_collator.benchmark_info_deferred(
-                    GET_COMPOSER_NAME_STRING(ComposerType), "Core", name, "Gates 2^n", data.proving_key->n);
+                benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(ComposerType),
+                                                           "Core",
+                                                           name + name_suffix_for_benchmarks,
+                                                           "Gates 2^n",
+                                                           data.proving_key->n);
             } else {
                 data.num_gates = mock_proof_composer.get_num_gates();
                 data.proving_key = mock_proof_composer.compute_proving_key();
                 info(name, ": Mock circuit size 2^n: ", data.proving_key->n);
-                benchmark_collator.benchmark_info_deferred(
-                    GET_COMPOSER_NAME_STRING(ComposerType), "Core", name, "Mock Gates 2^n", data.proving_key->n);
+                benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(ComposerType),
+                                                           "Core",
+                                                           name + name_suffix_for_benchmarks,
+                                                           "Mock Gates 2^n",
+                                                           data.proving_key->n);
             }
 
             info(name, ": Proving key computed in ", timer.toString(), "s");
 
-            benchmark_collator.benchmark_info_deferred(
-                GET_COMPOSER_NAME_STRING(ComposerType), "Core", name, "Proving key computed in", timer.toString());
+            benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(ComposerType),
+                                                       "Core",
+                                                       name + name_suffix_for_benchmarks,
+                                                       "Proving key computed in",
+                                                       timer.toString());
             if (save) {
                 info(name, ": Saving proving key...");
                 std::filesystem::create_directories(pk_dir.c_str());
@@ -153,7 +175,7 @@ circuit_data get_circuit_data(std::string const& name,
             info(name, ": Verification key hash: ", data.verification_key->sha256_hash());
             benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(ComposerType),
                                                        "Core",
-                                                       name,
+                                                       name + name_suffix_for_benchmarks,
                                                        "Verification key hash",
                                                        data.verification_key->sha256_hash());
         } else if (compute) {
@@ -167,12 +189,15 @@ circuit_data get_circuit_data(std::string const& name,
             }
             info(name, ": Computed verification key in ", timer.toString(), "s");
 
-            benchmark_collator.benchmark_info_deferred(
-                GET_COMPOSER_NAME_STRING(ComposerType), "Core", name, "Verification key computed in", timer.toString());
+            benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(ComposerType),
+                                                       "Core",
+                                                       name + name_suffix_for_benchmarks,
+                                                       "Verification key computed in",
+                                                       timer.toString());
             info(name, ": Verification key hash: ", data.verification_key->sha256_hash());
             benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(ComposerType),
                                                        "Core",
-                                                       name,
+                                                       name + name_suffix_for_benchmarks,
                                                        "Verification key hash",
                                                        data.verification_key->sha256_hash());
 
@@ -219,8 +244,11 @@ circuit_data get_circuit_data(std::string const& name,
                 info(name, ": Padding verified: ", verifier.verify_proof(proof));
             }
             info(name, ": Padding proof computed in ", timer.toString(), "s");
-            benchmark_collator.benchmark_info_deferred(
-                GET_COMPOSER_NAME_STRING(ComposerType), "Core", name, "Padding proof computed in", timer.toString());
+            benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(ComposerType),
+                                                       "Core",
+                                                       name + name_suffix_for_benchmarks,
+                                                       "Padding proof computed in",
+                                                       timer.toString());
 
             if (save) {
                 std::ofstream os(padding_path);

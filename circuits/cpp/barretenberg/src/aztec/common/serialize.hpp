@@ -34,8 +34,9 @@
 #include <map>
 #include <iostream>
 
+#ifndef __i386__
 __extension__ using uint128_t = unsigned __int128;
-
+#endif
 namespace serialize {
 // Basic integer read / write, to / from raw buffers.
 // Pointers to buffers are advanced by length of type.
@@ -99,6 +100,7 @@ inline void write(uint8_t*& it, uint64_t value)
     it += 8;
 }
 
+#ifndef __i386__
 inline void read(uint8_t const*& it, uint128_t& value)
 {
     uint64_t hi, lo;
@@ -106,7 +108,6 @@ inline void read(uint8_t const*& it, uint128_t& value)
     read(it, lo);
     value = (static_cast<uint128_t>(hi) << 64) | lo;
 }
-
 inline void write(uint8_t*& it, uint128_t value)
 {
     uint64_t hi = static_cast<uint64_t>(value >> 64);
@@ -114,6 +115,7 @@ inline void write(uint8_t*& it, uint128_t value)
     write(it, hi);
     write(it, lo);
 }
+#endif
 
 // Reading / writing integer types to / from vectors.
 template <typename T> inline std::enable_if_t<std::is_integral_v<T>> read(std::vector<uint8_t> const& buf, T& value)

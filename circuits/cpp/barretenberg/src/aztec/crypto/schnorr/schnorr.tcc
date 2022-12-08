@@ -11,13 +11,13 @@ namespace schnorr {
 /**
  * @brief Generate the schnorr signature challenge parameter `e` given a message, signer pubkey and nonce
  *
- * @details Normal Schnorr param e = H(r.x || pub_key || message)
+ * @details Normal Schnorr param e = H(R.x || pubkey || message)
  * But we want to keep hash preimage to <= 64 bytes for a 32 byte message
  * (for performance reasons in our join-split circuit!)
  *
  * barretenberg schnorr defines e as the following:
  *
- * e = H(pedersen(r.x || pub_key.x || pub_key.y), message)
+ * e = H(pedersen(R.x || pubkey.x || pubkey.y), message)
  *
  * pedersen is collision resistant => e can be modelled as randomly distributed
  * as long as H can be modelled as a random oracle
@@ -27,7 +27,7 @@ namespace schnorr {
  * @param message what are we signing over?
  * @param pubkey the pubkey of the signer
  * @param R the nonce
- * @return e = H(pedersen(r.x || pub_key.x || pub_key.y), message) as a 256-bit integer,
+ * @return e = H(pedersen(R.x || pubkey.x || pubkey.y), message) as a 256-bit integer,
  *      represented in a container of 32 uint8_t's
  *
  *
@@ -57,6 +57,8 @@ static auto generate_schnorr_challenge(const std::string& message,
 /**
  * @brief Construct a Schnorr signature of the form (random - priv * hash, hash) using the group G1.
  *
+ * @warning Proofs are not deterministic.
+ *
  * @tparam Hash: A function std::vector<uint8_t> -> std::array<uint8_t, 32>
  * @tparam Fq:   The field over which points of G1 are defined.
  * @tparam Fr:   A class with a random element generator, where the multiplication
@@ -71,17 +73,27 @@ static auto generate_schnorr_challenge(const std::string& message,
 template <typename Hash, typename Fq, typename Fr, typename G1>
 signature construct_signature(const std::string& message, const key_pair<Fr, G1>& account)
 {
+    // sanity check to ensure our hash function produces `e_raw`
+    // of exactly 32 bytes.
+    static_assert(Hash::OUTPUT_SIZE == 32);
+
     auto& public_key = account.public_key;
     auto& private_key = account.private_key;
 
-    // use HMAC in PRF mode to derive 32-byte secret `k`
-    std::vector<uint8_t> pkey_buffer;
-    write(pkey_buffer, private_key);
-    Fr k = crypto::get_unbiased_field_from_hmac<Hash, Fr>(message, pkey_buffer);
+    // sample random nonce k
+    //
+    // Fr::random_element() will call std::random_device, which in turn relies on system calls to generate a string
+    // of random bits. It is important to ensure that the execution environment will correctly supply system calls
+    // that give std::random_device access to an entropy source that produces a string of non-deterministic
+    // uniformly random bits. For example, when compiling into a wasm binary, it is essential that the random_get
+    // method is overloaded to utilise a suitable entropy source
+    // (see https://github.com/WebAssembly/WASI/blob/main/phases/snapshot/docs.md)
+    //
+    // TODO: securely erase `k`
+    Fr k = Fr::random_element();
 
     typename G1::affine_element R(G1::one * k);
 
-    // container with 32 bytes
     auto e_raw = generate_schnorr_challenge<Hash, G1>(message, public_key, R);
     // the conversion from e_raw results in a biased field element e
     Fr e = Fr::serialize_from_buffer(&e_raw[0]);
@@ -113,7 +125,7 @@ bool verify_signature(const std::string& message, const typename G1::affine_elem
         return false;
     }
     // Deserializing from a 256-bit buffer will induce a bias on the order of
-    // 1/(2(256-log(r))) where r is the order of Fr.
+    // 1/(2(256-log(r))) where r is the order of Fr, since we perform a modular reduction
     Fr e = Fr::serialize_from_buffer(&sig.e[0]);
 
     // reading s in this way always applies the modular reduction, and
@@ -129,7 +141,8 @@ bool verify_signature(const std::string& message, const typename G1::affine_elem
     // R = g^{sig.s} • pub^{sig.e}
     affine_element R(element(public_key) * e + G1::one * s);
     if (R.is_point_at_infinity()) {
-        // this result implies k == 0
+        // this result implies k == 0, which would be catastrophic for the prover.
+        // it is a cheap check that ensures this doesn't happen.
         return false;
     }
 
