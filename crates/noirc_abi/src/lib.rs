@@ -108,7 +108,7 @@ impl Abi {
 
     /// Returns the number of field elements required to represent the ABI's input once encoded.
     pub fn field_count(&self) -> u32 {
-        self.parameters.iter().fold(0, |acc, (_, param_type)| acc + param_type.field_count())
+        self.parameters.iter().map(|(_, typ)| typ.field_count()).sum()
     }
 
     /// ABI with only the public parameters
