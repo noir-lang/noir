@@ -1,5 +1,3 @@
-use noirc_frontend::util::vecmap;
-
 use super::{
     conditional::AssumptionId,
     context::SsaContext,
@@ -446,7 +444,7 @@ pub fn short_circuit_instructions(ctx: &mut SsaContext, instructions: &Vec<NodeI
             ins.mark = Mark::ReplaceWith(zeros[&ins.res_type]);
         } else if ins.operation.opcode() != Opcode::Nop {
             if ins.operation.opcode() == Opcode::Return {
-                let vec = vecmap(&zero_keys, |x| zeros[x]);
+                let vec = iter_extended::vecmap(&zero_keys, |x| zeros[x]);
                 ins.operation = node::Operation::Return(vec);
             } else {
                 ins.mark = Mark::Deleted;
