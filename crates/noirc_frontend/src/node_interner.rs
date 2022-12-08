@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, HashMap};
 use acvm::{CustomGate, Language};
 use arena::{Arena, Index};
 use fm::FileId;
+use iter_extended::vecmap;
 use noirc_errors::{Location, Span, Spanned};
 
 use crate::ast::Ident;
@@ -16,7 +17,6 @@ use crate::hir_def::{
     function::{FuncMeta, HirFunction},
     stmt::HirStatement,
 };
-use crate::util::vecmap;
 use crate::{Shared, TypeBinding, TypeBindings, TypeVariableId};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
