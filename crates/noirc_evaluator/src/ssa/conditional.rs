@@ -347,7 +347,7 @@ impl DecisionTree {
             left,
             exit_block_id,
             self[ctx[left].assumption].value,
-        ));
+        )?);
 
         //merge else branch
         to_remove.extend(block::merge_path(
@@ -355,7 +355,7 @@ impl DecisionTree {
             right,
             exit_block_id,
             self[ctx[right].assumption].value,
-        ));
+        )?);
 
         to_remove.push(right);
         let mut merged_ins;

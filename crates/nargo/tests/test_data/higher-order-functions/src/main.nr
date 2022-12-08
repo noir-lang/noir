@@ -1,8 +1,8 @@
-fn main() {
+fn main() -> pub Field {
     let f = if 3 * 7 > 200 { foo } else { bar };
     constrain f()[1] == 2;
 
-    constrain twice(add1, 3) == 5;
+    twice(add1, 3)
 }
 
 fn foo() -> [u32; 2] {

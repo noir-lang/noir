@@ -3,7 +3,7 @@ use std::collections::{hash_map::Entry, HashMap};
 use noirc_frontend::monomorphisation::ast::FuncId;
 
 use crate::{
-    errors::{RuntimeError, RuntimeErrorKind},
+    errors::RuntimeError,
     ssa::{
         node::{Node, Operation},
         optim,
@@ -292,16 +292,8 @@ pub fn inline_in_block(
                 Operation::Call { func, arguments, returned_arrays, predicate, location } => {
                     *nested_call = true;
                     assert!(returned_arrays.is_empty());
-
-                    // Function should be known by now, fixup its returned arrays
-                    let (func, returned_arrays) = if let Some(f) = ctx.try_get_funcid(*func) {
-                        let func = ctx.get_function_node_id(f).expect("Function not yet compiled");
-                        let result_types = &ctx.get_ssafunc(f).unwrap().result_types;
-                        let returned_arrays = get_returned_arrays(result_types);
-                        (func, returned_arrays)
-                    } else {
-                        return Err(RuntimeErrorKind::UnstructuredError { message: "Cannot determine which function to call. Function calls cannot depend on circuit inputs".into() }.add_location(*location));
-                    };
+                    let func = *func;
+                    let returned_arrays = returned_arrays.clone();
 
                     let operation = Operation::Call {
                         func,
@@ -382,16 +374,6 @@ pub fn inline_in_block(
     stack2.apply(ctx, stack_frame.block, call_id, false);
     stack_frame.stack.clear();
     Ok(next_block)
-}
-
-fn get_returned_arrays(result_types: &[ObjectType]) -> Vec<(ArrayId, u32)> {
-    result_types
-        .iter()
-        .filter_map(|typ| match typ {
-            ObjectType::Pointer(id) => Some((*id, 0)),
-            _ => None,
-        })
-        .collect()
 }
 
 fn new_cloned_instruction(original: Instruction, block: BlockId) -> Instruction {

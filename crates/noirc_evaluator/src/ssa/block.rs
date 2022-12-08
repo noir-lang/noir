@@ -1,3 +1,5 @@
+use crate::errors::RuntimeError;
+
 use super::{
     conditional::AssumptionId,
     context::SsaContext,
@@ -403,7 +405,7 @@ pub fn merge_path(
     start: BlockId,
     end: BlockId,
     assumption: Option<NodeId>,
-) -> VecDeque<BlockId> {
+) -> Result<VecDeque<BlockId>, RuntimeError> {
     let mut removed_blocks = VecDeque::new();
     if start != end {
         let mut next = start;
@@ -448,7 +450,7 @@ pub fn merge_path(
 
         //we assign the concatened list of instructions to the start block, using a CSE pass
         let mut modified = false;
-        super::optim::cse_block(ctx, start, &mut instructions, &mut modified).unwrap();
+        super::optim::cse_block(ctx, start, &mut instructions, &mut modified)?;
         //Wires start to end
         if !end.is_dummy() {
             rewire_block_left(ctx, start, end);
@@ -458,7 +460,7 @@ pub fn merge_path(
         removed_blocks.pop_front();
     }
     //housekeeping for the caller
-    removed_blocks
+    Ok(removed_blocks)
 }
 
 // retrieve written arrays along the CFG until we reach stop

@@ -422,10 +422,7 @@ impl Instruction {
                     } else if obj.is_zero() {
                         if let Some(location) = *location {
                             return Err(RuntimeErrorKind::UnstructuredError {
-                                message: format!(
-                                    "Constraint '{}: Constrain {:?}' is always false",
-                                    self, value
-                                ),
+                                message: "Constraint is always false".into(),
                             }
                             .add_location(location));
                         } else {

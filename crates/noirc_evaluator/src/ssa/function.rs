@@ -78,7 +78,7 @@ impl SSAFunction {
 
         //merge blocks
         let to_remove =
-            super::block::merge_path(&mut igen.context, self.entry_block, BlockId::dummy(), None);
+            super::block::merge_path(&mut igen.context, self.entry_block, BlockId::dummy(), None)?;
         igen.context[self.entry_block].dominated.retain(|b| !to_remove.contains(b));
         for i in to_remove {
             igen.context.remove_block(i);
