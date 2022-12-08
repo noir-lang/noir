@@ -29,11 +29,8 @@ fn main(
     let receiver_note_commitment = std::hash::pedersen([to_pubkey_x, to_pubkey_y]);
 
     // // Check that the input note nullifier is in the root
-    // check_membership is currently producing false proofs that should true
-    // let is_member = std::merkle::check_membership(note_root, note_commitment[0], index, note_hash_path);
-    // constrain is_member == 1;
-    let new_root = std::merkle::compute_root_from_leaf(note_commitment[0], index, note_hash_path);
-    constrain new_root == note_root;
+    let is_member = std::merkle::check_membership(note_root, note_commitment[0], index, note_hash_path);
+    constrain is_member == 1;
 
     [nullifier[0], receiver_note_commitment[0]]
 }
