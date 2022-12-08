@@ -9,6 +9,7 @@ pub enum CliError {
     DestinationAlreadyExists(PathBuf),
     PathNotValid(PathBuf),
     ProofNotValid(FromHexError),
+    MissingTomlFile(PathBuf),
 }
 
 impl CliError {
@@ -25,21 +26,18 @@ impl CliError {
 
 impl Display for CliError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                CliError::Generic(msg) => format!("Error: {}", msg),
+        match self {
+                CliError::Generic(msg) => write!(f, "Error: {}", msg),
                 CliError::DestinationAlreadyExists(path) =>
-                    format!("Error: destination {} already exists", path.display()),
+                write!(f, "Error: destination {} already exists", path.display()),
                 CliError::PathNotValid(path) => {
-                    format!("Error: {} is not a valid path", path.display())
+                    write!(f, "Error: {} is not a valid path", path.display())
                 }
                 CliError::ProofNotValid(hex_error) => {
-                    format!("Error: could not parse proof data ({})", hex_error)
+                    write!(f, "Error: could not parse proof data ({})", hex_error)
                 }
+                CliError::MissingTomlFile(path) => write!(f, "cannot find input file located at {:?}, run nargo build to generate the missing Prover and/or Verifier toml files", path),
             }
-        )
     }
 }
 

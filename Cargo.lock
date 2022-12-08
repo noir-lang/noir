@@ -1201,7 +1201,6 @@ dependencies = [
  "dirs 4.0.0",
  "fm",
  "hex",
- "iter-extended",
  "marlin_arkworks_backend",
  "noirc_abi",
  "noirc_driver",
