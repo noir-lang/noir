@@ -949,7 +949,7 @@ impl Type {
                     .expect("Cannot have variable sized arrays as a parameter to main");
                 AbiType::Array {
                     visibility: fe_type,
-                    length: size as u128,
+                    length: size,
                     typ: Box::new(typ.as_abi_type(fe_type)),
                 }
             }

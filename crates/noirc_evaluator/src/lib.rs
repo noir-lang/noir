@@ -199,7 +199,7 @@ impl Evaluator {
     fn generate_array_witnesses(
         &mut self,
         visibility: &AbiFEType,
-        length: &u128,
+        length: &u64,
         typ: &AbiType,
     ) -> Result<Vec<Witness>, RuntimeErrorKind> {
         let mut witnesses = Vec::new();

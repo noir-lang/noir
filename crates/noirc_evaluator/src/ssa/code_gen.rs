@@ -165,7 +165,7 @@ impl IRGenerator {
         name: &str,
         ident_def: Option<DefinitionId>,
         el_type: &noirc_abi::AbiType,
-        len: u128,
+        len: u64,
         witness: Vec<acvm::acir::native_types::Witness>,
     ) -> NodeId {
         let element_type = self.get_object_type_from_abi(el_type);

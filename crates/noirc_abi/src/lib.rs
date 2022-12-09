@@ -29,7 +29,7 @@ pub const MAIN_RETURN_NAME: &str = "return";
 /// support.
 pub enum AbiType {
     Field(AbiFEType),
-    Array { visibility: AbiFEType, length: u128, typ: Box<AbiType> },
+    Array { visibility: AbiFEType, length: u64, typ: Box<AbiType> },
     Integer { visibility: AbiFEType, sign: Sign, width: u32 },
     Struct { visibility: AbiFEType, fields: BTreeMap<String, AbiType> },
 }

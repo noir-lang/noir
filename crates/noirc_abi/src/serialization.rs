@@ -1,5 +1,3 @@
-use std::convert::TryInto;
-
 use iter_extended::vecmap;
 use serde::{Deserialize, Serialize, Serializer};
 
@@ -41,7 +39,7 @@ impl From<AbiType> for Type {
         match param_type {
             AbiType::Field(_) => Self::Field,
             AbiType::Array { visibility: _, length, typ } => {
-                Self::Array { length: length.try_into().unwrap(), typ: Box::new(Self::from(*typ)) }
+                Self::Array { length, typ: Box::new(Self::from(*typ)) }
             }
             AbiType::Integer { visibility: _, sign, width } => Self::Integer { sign, width },
             AbiType::Struct { visibility: _, fields } => Self::Struct {
@@ -65,7 +63,7 @@ impl AbiType {
             Type::Integer { sign, width } => AbiType::Integer { visibility, sign, width },
             Type::Array { length, typ } => AbiType::Array {
                 visibility,
-                length: length.into(),
+                length,
                 typ: Box::new(Self::from_type(*typ, visibility)),
             },
             Type::Struct { fields } => AbiType::Struct {
