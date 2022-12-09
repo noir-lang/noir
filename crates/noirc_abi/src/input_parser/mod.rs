@@ -64,35 +64,21 @@ impl Format {
 }
 
 impl Format {
-    pub fn parse<P: AsRef<Path>>(
+    pub fn parse(
         &self,
-        path: P,
-        file_name: &str,
+        input_string: &str,
     ) -> Result<BTreeMap<String, InputValue>, InputParserError> {
         match self {
-            Format::Toml => {
-                let mut dir_path = path.as_ref().to_path_buf();
-                dir_path.push(file_name);
-                dir_path.set_extension(self.ext());
-                toml::parse(dir_path)
-            }
+            Format::Toml => toml::parse_toml(input_string),
         }
     }
 
-    pub fn serialise<P: AsRef<Path>>(
+    pub fn serialise(
         &self,
-        path: P,
-        file_name: &str,
         w_map: &BTreeMap<String, InputValue>,
-    ) -> Result<(), InputParserError> {
+    ) -> Result<String, InputParserError> {
         match self {
-            Format::Toml => {
-                let mut dir_path = path.as_ref().to_path_buf();
-                dir_path.push(file_name);
-                dir_path.set_extension(self.ext());
-                toml::serialise(dir_path, w_map)?;
-            }
+            Format::Toml => toml::serialise_to_toml(w_map),
         }
-        Ok(())
     }
 }
