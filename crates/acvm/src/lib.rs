@@ -43,7 +43,6 @@ pub trait PartialWitnessGenerator {
         initial_witness: &mut BTreeMap<Witness, FieldElement>,
         gates: Vec<Gate>,
     ) -> GateResolution {
-        // dbg!(initial_witness.clone());
         if gates.is_empty() {
             return GateResolution::Resolved;
         }

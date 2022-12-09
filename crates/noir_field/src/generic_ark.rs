@@ -150,7 +150,12 @@ impl<F: PrimeField> FieldElement<F> {
     }
 
     pub fn max_num_bytes() -> u32 {
-        Self::max_num_bits() / 8
+        let num_bytes = Self::max_num_bits() / 8;
+        if Self::max_num_bits() % 8 == 0 {
+            num_bytes
+        } else {
+            num_bytes + 1
+        }
     }
 
     pub fn modulus() -> BigUint {

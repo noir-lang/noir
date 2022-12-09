@@ -507,9 +507,6 @@ impl Acir {
                                         inputs.push(GadgetInput { witness: w, num_bits });
                                     }
                                 } else {
-                                    if array.values.is_empty() {
-                                        dbg!("inside prepare_inputs", array);
-                                    }
                                     inputs.push(GadgetInput {
                                         witness: array.values[i as usize].witness.unwrap(),
                                         num_bits,
