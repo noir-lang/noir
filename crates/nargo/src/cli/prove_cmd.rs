@@ -5,140 +5,103 @@ use acvm::FieldElement;
 use acvm::ProofSystemCompiler;
 use acvm::{GateResolution, PartialWitnessGenerator};
 use clap::ArgMatches;
-use noirc_abi::AbiType;
-use noirc_abi::{input_parser::InputValue, Abi};
+use noirc_abi::errors::AbiError;
+use noirc_abi::input_parser::{Format, InputValue};
 use std::path::Path;
 
 use crate::errors::CliError;
 
 use super::{
-    create_named_dir, write_to_file, PROOFS_DIR, PROOF_EXT, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE,
+    create_named_dir, read_inputs_from_file, write_inputs_to_file, write_to_file, PROOFS_DIR,
+    PROOF_EXT, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE,
 };
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("prove").unwrap();
     let proof_name = args.value_of("proof_name").unwrap();
     let show_ssa = args.is_present("show-ssa");
-    prove(proof_name, show_ssa)
+    let allow_warnings = args.is_present("allow-warnings");
+    prove(proof_name, show_ssa, allow_warnings)
 }
 
 /// In Barretenberg, the proof system adds a zero witness in the first index,
 /// So when we add witness values, their index start from 1.
 const WITNESS_OFFSET: u32 = 1;
 
-fn prove(proof_name: &str, show_ssa: bool) -> Result<(), CliError> {
+fn prove(proof_name: &str, show_ssa: bool, allow_warnings: bool) -> Result<(), CliError> {
     let curr_dir = std::env::current_dir().unwrap();
     let mut proof_path = PathBuf::new();
     proof_path.push(PROOFS_DIR);
-    let result = prove_with_path(proof_name, curr_dir, proof_path, show_ssa);
+    let result = prove_with_path(proof_name, curr_dir, proof_path, show_ssa, allow_warnings);
     match result {
         Ok(_) => Ok(()),
         Err(e) => Err(e),
     }
 }
 
-/// Ordering is important here, which is why we need the ABI to tell us what order to add the elements in
-/// We then need the witness map to get the elements field values.
-fn process_abi_with_input(
-    abi: Abi,
-    witness_map: &BTreeMap<String, InputValue>,
-) -> Result<(BTreeMap<Witness, FieldElement>, Option<Witness>), CliError> {
-    let mut solved_witness = BTreeMap::new();
-
-    let mut index = 0;
-    let mut return_witness = None;
-    let return_witness_len = if let Some(return_param) =
-        abi.parameters.iter().find(|x| x.0 == noirc_frontend::hir_def::function::MAIN_RETURN_NAME)
-    {
-        match &return_param.1 {
-            AbiType::Array { length, .. } => *length as u32,
-            AbiType::Integer { .. } | AbiType::Field(_) => 1,
-        }
-    } else {
-        0
-    };
-    for (param_name, param_type) in abi.parameters.into_iter() {
-        let value = witness_map
-            .get(&param_name)
-            .unwrap_or_else(|| {
-                panic!("ABI expects the parameter `{}`, but this was not found", param_name)
-            })
-            .clone();
-
-        if !value.matches_abi(param_type) {
-            return Err(CliError::Generic(format!("The parameters in the main do not match the parameters in the {}.toml file. \n Please check `{}` parameter ", PROVER_INPUT_FILE,param_name)));
-        }
-
-        match value {
-            InputValue::Field(element) => {
-                let old_value =
-                    solved_witness.insert(Witness::new(index + WITNESS_OFFSET), element);
-                assert!(old_value.is_none());
-                index += 1;
-            }
-            InputValue::Vec(arr) => {
-                for element in arr {
-                    let old_value =
-                        solved_witness.insert(Witness::new(index + WITNESS_OFFSET), element);
-                    assert!(old_value.is_none());
-                    index += 1;
-                }
-            }
-            InputValue::Undefined => {
-                assert_eq!(
-                    param_name,
-                    noirc_frontend::hir_def::function::MAIN_RETURN_NAME,
-                    "input value {} is not defined",
-                    param_name
-                );
-                return_witness = Some(Witness::new(index + WITNESS_OFFSET));
-
-                //We do not support undefined arrays for now - TODO
-                if return_witness_len != 1 {
-                    return Err(CliError::Generic(
-                        "Values of array returned from main must be specified in prover toml file"
-                            .to_string(),
-                    ));
-                }
-                index += return_witness_len;
-                //XXX We do not support (yet) array of arrays
-            }
-        }
-    }
-    Ok((solved_witness, return_witness))
-}
-
 pub fn compile_circuit_and_witness<P: AsRef<Path>>(
     program_dir: P,
     show_ssa: bool,
+    allow_unused_variables: bool,
 ) -> Result<(noirc_driver::CompiledProgram, BTreeMap<Witness, FieldElement>), CliError> {
-    let compiled_program = super::compile_cmd::compile_circuit(program_dir.as_ref(), show_ssa)?;
-    let solved_witness = solve_witness(program_dir, &compiled_program)?;
+    let compiled_program = super::compile_cmd::compile_circuit(
+        program_dir.as_ref(),
+        show_ssa,
+        allow_unused_variables,
+    )?;
+    let solved_witness = parse_and_solve_witness(program_dir, &compiled_program)?;
     Ok((compiled_program, solved_witness))
 }
 
-pub fn solve_witness<P: AsRef<Path>>(
+pub fn parse_and_solve_witness<P: AsRef<Path>>(
     program_dir: P,
     compiled_program: &noirc_driver::CompiledProgram,
 ) -> Result<BTreeMap<Witness, FieldElement>, CliError> {
-    // Parse the initial witness values
-    let witness_map = noirc_abi::input_parser::Format::Toml
-        .parse(&program_dir, PROVER_INPUT_FILE)
-        .map_err(CliError::from)?;
+    // Parse the initial witness values from Prover.toml
+    let witness_map = read_inputs_from_file(&program_dir, PROVER_INPUT_FILE, Format::Toml)?;
 
-    // Check that enough witness values were supplied
-    let num_params = compiled_program.abi.as_ref().unwrap().num_parameters();
-    if num_params != witness_map.len() {
-        panic!(
-            "Expected {} number of values, but got {} number of values",
-            num_params,
-            witness_map.len()
-        )
-    }
-    // Map initial witnesses with their values
-    let abi = compiled_program.abi.as_ref().unwrap();
     // Solve the remaining witnesses
-    let (mut solved_witness, rv) = process_abi_with_input(abi.clone(), &witness_map)?;
+    let solved_witness = solve_witness(compiled_program, &witness_map)?;
+
+    // We allow the user to optionally not provide a value for the circuit's return value, so this may be missing from
+    // `witness_map`. We must then decode these from the circuit's witness values.
+    let encoded_public_inputs: Vec<FieldElement> = compiled_program
+        .circuit
+        .public_inputs
+        .0
+        .iter()
+        .map(|index| solved_witness[index])
+        .collect();
+
+    let public_abi = compiled_program.abi.as_ref().unwrap().clone().public_abi();
+    let public_inputs = public_abi.decode(&encoded_public_inputs)?;
+
+    // Write public inputs into Verifier.toml
+    write_inputs_to_file(&public_inputs, &program_dir, VERIFIER_INPUT_FILE, Format::Toml)?;
+
+    Ok(solved_witness)
+}
+
+fn solve_witness(
+    compiled_program: &noirc_driver::CompiledProgram,
+    witness_map: &BTreeMap<String, InputValue>,
+) -> Result<BTreeMap<Witness, FieldElement>, CliError> {
+    let abi = compiled_program.abi.as_ref().unwrap();
+    let encoded_inputs = abi.clone().encode(witness_map, true).map_err(|error| match error {
+        AbiError::UndefinedInput(_) => {
+            CliError::Generic(format!("{} in the {}.toml file.", error, PROVER_INPUT_FILE))
+        }
+        _ => CliError::from(error),
+    })?;
+
+    let mut solved_witness: BTreeMap<Witness, FieldElement> = encoded_inputs
+        .into_iter()
+        .enumerate()
+        .map(|(index, witness_value)| {
+            let witness = Witness::new(WITNESS_OFFSET + (index as u32));
+            (witness, witness_value)
+        })
+        .collect();
 
     let backend = crate::backends::ConcreteBackend;
     let solver_res = backend.solve(&mut solved_witness, compiled_program.circuit.gates.clone());
@@ -155,45 +118,7 @@ pub fn solve_witness<P: AsRef<Path>>(
         _ => unreachable!(),
     }
 
-    // (over)writes verifier.toml
-    export_public_inputs(rv, &solved_witness, &witness_map, abi, &program_dir)
-        .map_err(CliError::from)?;
-
     Ok(solved_witness)
-}
-
-fn export_public_inputs<P: AsRef<Path>>(
-    w_ret: Option<Witness>,
-    solved_witness: &BTreeMap<Witness, FieldElement>,
-    witness_map: &BTreeMap<String, InputValue>,
-    abi: &Abi,
-    path: P,
-) -> Result<(), noirc_abi::errors::InputParserError> {
-    // generate a name->value map for the public inputs, using the ABI and witness_map:
-    let mut public_inputs = BTreeMap::new();
-    for i in &abi.parameters {
-        if i.1.is_public() {
-            let v = &witness_map[&i.0];
-
-            let iv = if matches!(*v, InputValue::Undefined) {
-                let w_ret = w_ret.unwrap();
-                match &i.1 {
-                    AbiType::Array { length, .. } => {
-                        let return_values = noirc_frontend::util::vecmap(0..*length, |i| {
-                            *solved_witness.get(&Witness::new(w_ret.0 + i as u32)).unwrap()
-                        });
-                        InputValue::Vec(return_values)
-                    }
-                    _ => InputValue::Field(*solved_witness.get(&w_ret).unwrap()),
-                }
-            } else {
-                v.clone()
-            };
-            public_inputs.insert(i.0.clone(), iv);
-        }
-    }
-    //serialise public inputs into verifier.toml
-    noirc_abi::input_parser::Format::Toml.serialise(&path, VERIFIER_INPUT_FILE, &public_inputs)
 }
 
 pub fn prove_with_path<P: AsRef<Path>>(
@@ -201,8 +126,10 @@ pub fn prove_with_path<P: AsRef<Path>>(
     program_dir: P,
     proof_dir: P,
     show_ssa: bool,
+    allow_warnings: bool,
 ) -> Result<PathBuf, CliError> {
-    let (compiled_program, solved_witness) = compile_circuit_and_witness(program_dir, show_ssa)?;
+    let (compiled_program, solved_witness) =
+        compile_circuit_and_witness(program_dir, show_ssa, allow_warnings)?;
 
     let backend = crate::backends::ConcreteBackend;
     let proof = backend.prove_with_meta(compiled_program.circuit, solved_witness);

@@ -8,7 +8,7 @@ fn main(x: [u32; 5], y: [u32; 5], mut z: u32, t: u32) {
     for i in 0..5 {
        c = z*z*y[i];
        z = z - c;
-    };
+    }
     constrain (z==0);    //y[4]=0, so c and z are always 0
 
     //Test 2:
@@ -17,7 +17,7 @@ fn main(x: [u32; 5], y: [u32; 5], mut z: u32, t: u32) {
        c = t+2 as u32;
        c = z*z*x[i];
        z  = z + x[i]*y[i] - c;
-    };
+    }
     constrain (z==3814912846);
 
     //Test 3:
@@ -28,8 +28,8 @@ fn main(x: [u32; 5], y: [u32; 5], mut z: u32, t: u32) {
         for _i in 0..3 {
             c = i as u32 - 2 as u32;
             z=c*z;
-        };
-    };
+        }
+    }
     constrain (z==41472);
 
     //Test 4:
@@ -38,8 +38,8 @@ fn main(x: [u32; 5], y: [u32; 5], mut z: u32, t: u32) {
        z  = z + x[i]*y[i];
        for j in 0..2 {
           z = z + x[i+j]-y[i+j];
-       };
-    };
+       }
+    }
     constrain (z ==11539);
 
     //Test 5:
@@ -51,5 +51,5 @@ fn main(x: [u32; 5], y: [u32; 5], mut z: u32, t: u32) {
         for x_elem in x {
             constrain x_elem != y_elem;
         }
-    };
+    }
 }

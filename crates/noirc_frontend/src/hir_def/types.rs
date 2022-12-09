@@ -5,12 +5,12 @@ use std::{
 };
 
 use crate::{hir::type_check::TypeCheckError, node_interner::NodeInterner};
+use iter_extended::{btree_map, vecmap};
 use noirc_abi::{AbiFEType, AbiType};
 use noirc_errors::Span;
 
 use crate::{
     node_interner::{FuncId, StructId},
-    util::vecmap,
     Ident, Signedness,
 };
 
@@ -971,7 +971,12 @@ impl Type {
             Type::Error => unreachable!(),
             Type::Unit => unreachable!(),
             Type::ArrayLength(_) => unreachable!(),
-            Type::Struct(..) => todo!("as_abi_type not yet implemented for struct types"),
+            Type::Struct(def, args) => {
+                let struct_type = def.borrow();
+                let fields = struct_type.get_fields(args);
+                let abi_map = btree_map(fields, |(name, typ)| (name, typ.as_abi_type(fe_type)));
+                AbiType::Struct { visibility: fe_type, fields: abi_map }
+            }
             Type::Tuple(_) => todo!("as_abi_type not yet implemented for tuple types"),
             Type::TypeVariable(_) => unreachable!(),
             Type::NamedGeneric(..) => unreachable!(),

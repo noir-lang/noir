@@ -11,13 +11,13 @@ struct Dummy {
      y: [Field; foo::MAGIC_NUMBER]
 }
 
-fn main(a: [Field; M], b: [Field; M], c : pub [Field; foo::MAGIC_NUMBER], d: [Field; foo::bar::N]) {
+fn main(a: [Field; M + N - N], b: [Field; 30 + N / 2], c : pub [Field; foo::MAGIC_NUMBER], d: [Field; foo::bar::N]) {
      let test_struct = Dummy { x: d, y: c };
 
      for i in 0..foo::MAGIC_NUMBER {
           constrain c[i] == foo::MAGIC_NUMBER;
           constrain test_struct.y[i] == foo::MAGIC_NUMBER;
-     };
+     }
 
      constrain N != M;
      
@@ -31,7 +31,7 @@ fn main(a: [Field; M], b: [Field; M], c : pub [Field; foo::MAGIC_NUMBER], d: [Fi
           x = M;
           
           y = i;
-     };
+     }
      constrain y == 24;
      constrain x == 10;
 

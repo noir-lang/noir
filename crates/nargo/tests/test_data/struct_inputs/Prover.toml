@@ -1,0 +1,15 @@
+x = "5"
+return = ""
+
+[y]
+foo = "5"
+bar = "10"
+
+[z]
+val = "1"
+array = [0, 1]
+
+[a]
+[a.bar_struct]
+val = "1"
+array = [0, 1]

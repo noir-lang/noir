@@ -1,26 +1,15 @@
-mod binary_op;
-
-mod builtin;
-mod environment;
 mod errors;
-mod interpreter;
-mod low_level_function_impl;
-mod object;
 mod ssa;
 
-use acvm::acir::circuit::{
-    gate::{AndGate, Gate, XorGate},
-    Circuit, PublicInputs,
-};
-use acvm::acir::native_types::{Expression, Linear, Witness};
-use acvm::FieldElement;
+use acvm::acir::circuit::{gate::Gate, Circuit, PublicInputs};
+use acvm::acir::native_types::{Expression, Witness};
 use acvm::Language;
-use environment::{Environment, FuncContext};
 use errors::{RuntimeError, RuntimeErrorKind};
+use iter_extended::btree_map;
 use noirc_abi::{AbiFEType, AbiType};
 use noirc_frontend::monomorphisation::ast::*;
+use std::collections::BTreeMap;
 
-use object::{Array, Integer, Object};
 use ssa::{code_gen::IRGenerator, node};
 
 pub struct Evaluator {
@@ -46,11 +35,8 @@ pub fn create_circuit(
 ) -> Result<Circuit, RuntimeError> {
     let mut evaluator = Evaluator::new();
 
-    // create a new environment for the main context
-    let mut env = Environment::new(FuncContext::Main);
-
     // First evaluate the main function
-    evaluator.evaluate_main_alt(&mut env, program, enable_logging)?;
+    evaluator.evaluate_main_alt(program, enable_logging)?;
 
     let witness_index = evaluator.current_witness_index();
 
@@ -89,18 +75,6 @@ impl Evaluator {
         Witness(self.current_witness_index)
     }
 
-    // Maps a variable name to a witness index
-    fn add_witness_to_env(
-        &mut self,
-        variable_name: String,
-        witness: Witness,
-        env: &mut Environment,
-    ) -> Object {
-        let value = Object::from_witness(witness);
-        env.store(variable_name, value.clone());
-        value
-    }
-
     pub fn current_witness_index(&self) -> u32 {
         self.current_witness_index
     }
@@ -108,7 +82,6 @@ impl Evaluator {
     /// Compiles the AST into the intermediate format by evaluating the main function
     pub fn evaluate_main_alt(
         &mut self,
-        env: &mut Environment,
         program: Program,
         enable_logging: bool,
     ) -> Result<(), RuntimeError> {
@@ -116,7 +89,7 @@ impl Evaluator {
         self.parse_abi_alt(&mut igen);
 
         // Now call the main function
-        igen.codegen_main(env)?;
+        igen.codegen_main()?;
 
         //Generates ACIR representation:
         igen.context.ir_to_acir(self, enable_logging)?;
@@ -126,18 +99,14 @@ impl Evaluator {
     // When we are multiplying arithmetic gates by each other, if one gate has too many terms
     // It is better to create an intermediate variable which links to the gate and then multiply by that intermediate variable
     // instead
-    pub fn create_intermediate_variable(
-        &mut self,
-        arithmetic_gate: Expression,
-    ) -> (Object, Witness) {
+    pub fn create_intermediate_variable(&mut self, arithmetic_gate: Expression) -> Witness {
         // Create a unique witness name and add witness to the constraint system
         let inter_var_witness = self.add_witness_to_cs();
-        let inter_var_object = Object::from_witness(inter_var_witness);
 
         // Link that witness to the arithmetic gate
         let constraint = &arithmetic_gate - &inter_var_witness;
         self.gates.push(Gate::Arithmetic(constraint));
-        (inter_var_object, inter_var_witness)
+        inter_var_witness
     }
 
     fn param_to_var(
@@ -153,43 +122,102 @@ impl Evaluator {
                 if *visibility == AbiFEType::Public {
                     self.public_inputs.push(witness);
                 }
-                igen.abi_var(name, def, node::ObjectType::NativeField, witness);
+                igen.create_new_variable(
+                    name.to_owned(),
+                    Some(def),
+                    node::ObjectType::NativeField,
+                    Some(witness),
+                );
             }
             AbiType::Array { visibility, length, typ } => {
-                let mut witnesses = Vec::new();
-                let mut element_width = None;
-                if let AbiType::Integer { width, .. } = typ.as_ref() {
-                    element_width = Some(*width);
-                }
-                for _ in 0..*length {
-                    let witness = self.add_witness_to_cs();
-                    witnesses.push(witness);
-                    if let Some(ww) = element_width {
-                        ssa::acir_gen::range_constraint(witness, ww, self)?;
-                    }
-                    if *visibility == AbiFEType::Public {
-                        self.public_inputs.push(witness);
-                    }
-                }
-                igen.abi_array(name, def, typ.as_ref(), *length, witnesses);
+                let witnesses = self.generate_array_witnesses(visibility, length, typ)?;
+                igen.abi_array(name, Some(def), typ.as_ref(), *length, witnesses);
             }
-            AbiType::Integer { visibility, sign, width } => {
+            AbiType::Integer { visibility, sign: _, width } => {
                 let witness = self.add_witness_to_cs();
                 ssa::acir_gen::range_constraint(witness, *width, self)?;
                 if *visibility == AbiFEType::Public {
                     self.public_inputs.push(witness);
                 }
-                match sign {
-                    noirc_abi::Sign::Unsigned => {
-                        igen.abi_var(name, def, node::ObjectType::Unsigned(*width), witness)
+                let obj_type = igen.get_object_type_from_abi(param_type); // Fetch signedness of the integer
+                igen.create_new_variable(name.to_owned(), Some(def), obj_type, Some(witness));
+            }
+            AbiType::Struct { visibility, fields } => {
+                let mut struct_witnesses: BTreeMap<String, Vec<Witness>> = BTreeMap::new();
+                let new_fields = btree_map(fields, |(inner_name, value)| {
+                    let new_name = format!("{}.{}", name, inner_name);
+                    (new_name, value.clone())
+                });
+                self.generate_struct_witnesses(&mut struct_witnesses, visibility, &new_fields)?;
+                igen.abi_struct(name, Some(def), fields, struct_witnesses);
+            }
+        }
+        Ok(())
+    }
+
+    fn generate_struct_witnesses(
+        &mut self,
+        struct_witnesses: &mut BTreeMap<String, Vec<Witness>>,
+        visibility: &AbiFEType,
+        fields: &BTreeMap<String, AbiType>,
+    ) -> Result<(), RuntimeErrorKind> {
+        for (name, typ) in fields {
+            match typ {
+                AbiType::Integer { width, .. } => {
+                    let witness = self.add_witness_to_cs();
+                    struct_witnesses.insert(name.clone(), vec![witness]);
+                    ssa::acir_gen::range_constraint(witness, *width, self)?;
+                    if *visibility == AbiFEType::Public {
+                        self.public_inputs.push(witness);
                     }
-                    noirc_abi::Sign::Signed => {
-                        igen.abi_var(name, def, node::ObjectType::Signed(*width), witness)
+                }
+                AbiType::Field(_) => {
+                    let witness = self.add_witness_to_cs();
+                    struct_witnesses.insert(name.clone(), vec![witness]);
+                    if *visibility == AbiFEType::Public {
+                        self.public_inputs.push(witness);
                     }
+                }
+                AbiType::Array { visibility: _, length, typ } => {
+                    let internal_arr_witnesses =
+                        self.generate_array_witnesses(visibility, length, typ)?;
+                    struct_witnesses.insert(name.clone(), internal_arr_witnesses);
+                }
+                AbiType::Struct { fields, .. } => {
+                    let mut new_fields: BTreeMap<String, AbiType> = BTreeMap::new();
+                    for (inner_name, value) in fields {
+                        let new_name = format!("{}.{}", name, inner_name);
+                        new_fields.insert(new_name, value.clone());
+                    }
+                    self.generate_struct_witnesses(struct_witnesses, visibility, &new_fields)?
                 }
             }
         }
         Ok(())
+    }
+
+    fn generate_array_witnesses(
+        &mut self,
+        visibility: &AbiFEType,
+        length: &u128,
+        typ: &AbiType,
+    ) -> Result<Vec<Witness>, RuntimeErrorKind> {
+        let mut witnesses = Vec::new();
+        let mut element_width = None;
+        if let AbiType::Integer { width, .. } = typ {
+            element_width = Some(*width);
+        }
+        for _ in 0..*length {
+            let witness = self.add_witness_to_cs();
+            witnesses.push(witness);
+            if let Some(ww) = element_width {
+                ssa::acir_gen::range_constraint(witness, ww, self)?;
+            }
+            if *visibility == AbiFEType::Public {
+                self.public_inputs.push(witness);
+            }
+        }
+        Ok(witnesses)
     }
 
     /// The ABI is the intermediate representation between Noir and types like Toml

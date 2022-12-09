@@ -1,3 +1,4 @@
+use iter_extended::vecmap;
 use noirc_errors::Span;
 
 use crate::{
@@ -6,7 +7,6 @@ use crate::{
         types::Type,
     },
     node_interner::{ExprId, FuncId, NodeInterner},
-    util::vecmap,
     Comptime, Shared, TypeBinding,
 };
 
@@ -170,13 +170,8 @@ pub(crate) fn type_check_expression(
 
             interner.push_definition_type(for_expr.identifier.id, start_range_type);
 
-            let last_type = type_check_expression(interner, &for_expr.block, errors);
-
-            // TODO: This length is wrong, would need a type for (end_range - start_range) or
-            // to have a variable again.
-            let len = Box::new(interner.next_type_variable());
-
-            Type::Array(len, Box::new(last_type))
+            type_check_expression(interner, &for_expr.block, errors);
+            Type::Unit
         }
         HirExpression::Block(block_expr) => {
             let mut block_type = Type::Unit;
@@ -676,9 +671,16 @@ pub fn comparator_operand_type_rules(
         (Integer(..), typ) | (typ,Integer(..)) => {
             Err(format!("Integer cannot be used with type {}", typ))
         }
-        (FieldElement(comptime_x, ..), FieldElement(comptime_y, ..)) => {
-            let comptime = comptime_x.and(comptime_y, op.location.span);
-            Ok(Bool(comptime))
+        (FieldElement(comptime_x), FieldElement(comptime_y)) => {
+            match op.kind {
+                Equal | NotEqual => {
+                    let comptime = comptime_x.and(comptime_y, op.location.span);
+                    Ok(Bool(comptime))
+                },
+                _ => {
+                    Err("Fields cannot be compared, try casting to an integer first".into())
+                }
+            }
         }
 
         // <= and friends are technically valid for booleans, just not very useful
@@ -706,6 +708,12 @@ pub fn comparator_operand_type_rules(
 
             // We could check if all elements of all arrays are comptime but I am lazy
             Ok(Bool(Comptime::No(Some(op.location.span))))
+        }
+        (NamedGeneric(binding_a, name_a), NamedGeneric(binding_b, name_b)) => {
+            if binding_a == binding_b {
+                return Ok(Bool(Comptime::No(Some(op.location.span))));
+            }
+            Err(format!("Unsupported types for comparison: {} and {}", name_a, name_b))
         }
         (lhs, rhs) => Err(format!("Unsupported types for comparison: {} and {}", lhs, rhs)),
     }

@@ -1,8 +1,10 @@
 pub use build_cmd::build_from_path;
-use clap::{App, Arg};
+use clap::{App, AppSettings, Arg};
+use noirc_abi::input_parser::{Format, InputValue};
 use noirc_driver::Driver;
 use noirc_frontend::graph::{CrateName, CrateType};
 use std::{
+    collections::BTreeMap,
     fs::File,
     io::Write,
     path::{Path, PathBuf},
@@ -32,11 +34,21 @@ const ACIR_EXT: &str = "acir";
 const WITNESS_EXT: &str = "tr";
 
 pub fn start_cli() {
+    let allow_warnings = Arg::with_name("allow-warnings")
+        .long("allow-warnings")
+        .help("Issue a warning for each unused variable instead of an error");
+
+    let show_ssa = Arg::with_name("show-ssa")
+        .long("show-ssa")
+        .help("Emit debug information for the intermediate SSA IR");
+
     let matches = App::new("nargo")
         .about("Noir's package manager")
         .version("0.1")
         .author("Kevaundray Wedderburn <kevtheappdev@gmail.com>")
-        .subcommand(App::new("build").about("Builds the constraint system"))
+        .subcommand(
+            App::new("build").about("Builds the constraint system").arg(allow_warnings.clone()),
+        )
         .subcommand(App::new("contract").about("Creates the smart contract code for circuit"))
         .subcommand(
             App::new("new")
@@ -49,17 +61,15 @@ pub fn start_cli() {
         .subcommand(
             App::new("verify")
                 .about("Given a proof and a program, verify whether the proof is valid")
-                .arg(Arg::with_name("proof").help("The proof to verify").required(true)),
+                .arg(Arg::with_name("proof").help("The proof to verify").required(true))
+                .arg(allow_warnings.clone()),
         )
         .subcommand(
             App::new("prove")
                 .about("Create proof for this program")
                 .arg(Arg::with_name("proof_name").help("The name of the proof").required(true))
-                .arg(
-                    Arg::with_name("show-ssa")
-                        .long("show-ssa")
-                        .help("Emit debug information for the intermediate SSA IR"),
-                ),
+                .arg(show_ssa.clone())
+                .arg(allow_warnings.clone()),
         )
         .subcommand(
             App::new("compile")
@@ -71,15 +81,16 @@ pub fn start_cli() {
                     Arg::with_name("witness")
                         .long("witness")
                         .help("Solve the witness and write it to file along with the ACIR"),
-                ),
+                )
+                .arg(allow_warnings.clone()),
         )
         .subcommand(
-            App::new("gates").about("Counts the occurences of different gates in circuit").arg(
-                Arg::with_name("show-ssa")
-                    .long("show-ssa")
-                    .help("Emit debug information for the intermediate SSA IR"),
-            ),
+            App::new("gates")
+                .about("Counts the occurences of different gates in circuit")
+                .arg(show_ssa)
+                .arg(allow_warnings),
         )
+        .setting(AppSettings::SubcommandRequiredElseHelp)
         .get_matches();
 
     let result = match matches.subcommand_name() {
@@ -90,8 +101,8 @@ pub fn start_cli() {
         Some("compile") => compile_cmd::run(matches),
         Some("verify") => verify_cmd::run(matches),
         Some("gates") => gates_cmd::run(matches),
-        None => Err(CliError::Generic("No subcommand was used".to_owned())),
         Some(x) => Err(CliError::Generic(format!("unknown command : {}", x))),
+        _ => unreachable!(),
     };
     if let Err(err) = result {
         err.write()
@@ -123,23 +134,62 @@ fn write_to_file(bytes: &[u8], path: &Path) -> String {
     }
 }
 
+pub fn read_inputs_from_file<P: AsRef<Path>>(
+    path: P,
+    file_name: &str,
+    format: Format,
+) -> Result<BTreeMap<String, InputValue>, CliError> {
+    let file_path = {
+        let mut dir_path = path.as_ref().to_path_buf();
+        dir_path.push(file_name);
+        dir_path.set_extension(format.ext());
+        dir_path
+    };
+    if !file_path.exists() {
+        return Err(CliError::MissingTomlFile(file_path));
+    }
+
+    let input_string = std::fs::read_to_string(file_path).unwrap();
+    Ok(format.parse(&input_string)?)
+}
+
+fn write_inputs_to_file<P: AsRef<Path>>(
+    w_map: &BTreeMap<String, InputValue>,
+    path: P,
+    file_name: &str,
+    format: Format,
+) -> Result<(), CliError> {
+    let file_path = {
+        let mut dir_path = path.as_ref().to_path_buf();
+        dir_path.push(file_name);
+        dir_path.set_extension(format.ext());
+        dir_path
+    };
+
+    let serialized_output = format.serialise(w_map)?;
+    write_to_file(serialized_output.as_bytes(), &file_path);
+
+    Ok(())
+}
+
 // helper function which tests noir programs by trying to generate a proof and verify it
 pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> bool {
     let tmp_dir = TempDir::new("p_and_v_tests").unwrap();
-    let proof_path =
-        match prove_cmd::prove_with_path(proof_name, prg_dir, &tmp_dir.into_path(), show_ssa) {
-            Ok(p) => p,
-            Err(CliError::Generic(msg)) => {
-                println!("Error: {}", msg);
-                return false;
-            }
-            Err(CliError::DestinationAlreadyExists(str)) => {
-                println!("Error, destination {} already exists: ", str);
-                return false;
-            }
-        };
+    let proof_path = match prove_cmd::prove_with_path(
+        proof_name,
+        prg_dir,
+        &tmp_dir.into_path(),
+        show_ssa,
+        false,
+    ) {
+        Ok(p) => p,
+        Err(error) => {
+            println!("{}", error);
+            return false;
+        }
+    };
 
-    verify_cmd::verify_with_path(prg_dir, &proof_path, show_ssa).unwrap()
+    verify_cmd::verify_with_path(prg_dir, &proof_path, show_ssa, false).unwrap()
 }
 
 fn add_std_lib(driver: &mut Driver) {
