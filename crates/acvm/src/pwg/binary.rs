@@ -10,6 +10,8 @@ use num_traits::{One, Zero};
 
 use crate::GateResolution;
 
+// This structure tracks un-resolved witnesses which are constrained to be booleans or sum of booleans, so that gates which uses only those can be solved.
+// This is the case for array equality constraints which are unsolved when the value of arrays returned from main are not supplied in the .toml
 pub struct BinarySolver {
     binary_witness: HashSet<Witness>,
     invert_witness: HashMap<Witness, Witness>,
