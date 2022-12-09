@@ -345,12 +345,11 @@ fn cse_block_with_anchor(
             update.parent_block = block_id;
 
             let mut update2 = update.clone();
-            let err = simplify(ctx, &mut update2).err();
-            if let Some(err) = err {
-                if stop_on_error {
-                    return Err(err);
-                }
+            let result = simplify(ctx, &mut update2);
+            if stop_on_error {
+                result?;
             }
+
             //cannot simplify to_bits() in the previous call because it get replaced with multiple instructions
             if let Operation::Intrinsic(opcode, args) = &update2.operation {
                 let args = args.iter().map(|arg| {

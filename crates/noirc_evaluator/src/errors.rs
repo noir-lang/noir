@@ -19,11 +19,16 @@ impl RuntimeError {
     pub fn remove_span(self) -> RuntimeErrorKind {
         self.kind
     }
+
+    pub fn new(kind: RuntimeErrorKind, location: Option<Location>) -> RuntimeError {
+        RuntimeError { location, kind }
+    }
 }
 
-impl RuntimeErrorKind {
-    pub fn add_location(self, location: Option<Location>) -> RuntimeError {
-        RuntimeError { location, kind: self }
+
+impl From<RuntimeErrorKind> for RuntimeError {
+    fn from(kind: RuntimeErrorKind) -> RuntimeError {
+        RuntimeError { location: None, kind }
     }
 }
 

@@ -6,6 +6,10 @@ use super::{
 };
 use std::collections::{HashMap, HashSet, VecDeque};
 
+// A short-circuited block should not have more than 3 instructions (a nop, a failing constraint and an optional condition)
+// so we do not need to check the whole instruction list when looking for short-circuit instructions.
+const MAX_SHORT_CIRCUIT_LEN: usize = 3;
+
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum BlockType {
     Normal,
@@ -149,7 +153,7 @@ impl BasicBlock {
                     }
                 }
             }
-            if i > 3 {
+            if i > MAX_SHORT_CIRCUIT_LEN {
                 break;
             }
         }

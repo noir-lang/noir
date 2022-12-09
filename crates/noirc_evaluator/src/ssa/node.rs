@@ -430,15 +430,17 @@ impl Instruction {
                         return Ok(NodeEval::VarOrInstruction(NodeId::dummy()));
                     } else if obj.is_zero() {
                         if let Some(location) = *location {
-                            return Err(RuntimeErrorKind::UnstructuredError {
-                                message: "Constraint is always false".into(),
-                            }
-                            .add_location(Some(location)));
+                            return Err(RuntimeError::new(
+                                RuntimeErrorKind::UnstructuredError {
+                                    message: "Constraint is always false".into(),
+                                },
+                                Some(location),
+                            ));
                         } else {
                             return Err(RuntimeErrorKind::Spanless(
                                 "Constraint is always false".into(),
                             )
-                            .add_location(None));
+                            .into());
                         }
                     }
                 }
@@ -788,10 +790,7 @@ impl Binary {
 
             BinaryOp::Udiv => {
                 if r_is_zero {
-                    return Err(RuntimeError {
-                        location: None,
-                        kind: RuntimeErrorKind::Spanless(zero_div_error),
-                    });
+                    return Err(RuntimeErrorKind::Spanless(zero_div_error).into());
                 } else if l_is_zero {
                     return Ok(l_eval); //TODO should we ensure rhs != 0 ???
                 }
@@ -804,10 +803,7 @@ impl Binary {
             }
             BinaryOp::Div => {
                 if r_is_zero {
-                    return Err(RuntimeError {
-                        location: None,
-                        kind: RuntimeErrorKind::Spanless(zero_div_error),
-                    });
+                    return Err(RuntimeErrorKind::Spanless(zero_div_error).into());
                 } else if l_is_zero {
                     return Ok(l_eval); //TODO should we ensure rhs != 0 ???
                 }
@@ -818,10 +814,7 @@ impl Binary {
             }
             BinaryOp::Sdiv => {
                 if r_is_zero {
-                    return Err(RuntimeError {
-                        location: None,
-                        kind: RuntimeErrorKind::Spanless(zero_div_error),
-                    });
+                    return Err(RuntimeErrorKind::Spanless(zero_div_error).into());
                 } else if l_is_zero {
                     return Ok(l_eval); //TODO should we ensure rhs != 0 ???
                 }
@@ -832,10 +825,7 @@ impl Binary {
             }
             BinaryOp::Urem | BinaryOp::Srem => {
                 if r_is_zero {
-                    return Err(RuntimeError {
-                        location: None,
-                        kind: RuntimeErrorKind::Spanless(zero_div_error),
-                    });
+                    return Err(RuntimeErrorKind::Spanless(zero_div_error).into());
                 } else if l_is_zero {
                     return Ok(l_eval); //TODO what is the correct result?
                 }
