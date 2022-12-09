@@ -380,7 +380,7 @@ pub fn rewire_block_left(ctx: &mut SsaContext, block_id: BlockId, left: BlockId)
     }
 }
 
-//replace all instructions in the target block by a false constraint, expect for return instruction
+//replace all instructions in the target block by a false constraint, except for return instruction
 pub fn short_circuit_inline(ctx: &mut SsaContext, target: BlockId) {
     // short-circuit the return instruction (if it exists)
     short_circuit_block(ctx, target);
