@@ -23,7 +23,7 @@ pub enum Expression {
     CallLowLevel(CallLowLevel),
 
     Let(Let),
-    Constrain(Box<Expression>, Option<Location>),
+    Constrain(Box<Expression>, Location),
     Assign(Assign),
     Semi(Box<Expression>),
 }

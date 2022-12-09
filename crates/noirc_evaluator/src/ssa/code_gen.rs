@@ -358,10 +358,10 @@ impl IRGenerator {
     fn codegen_constrain(
         &mut self,
         expr: &Expression,
-        location: Option<noirc_errors::Location>,
+        location: noirc_errors::Location,
     ) -> Result<Value, RuntimeError> {
         let cond = self.codegen_expression(expr)?.unwrap_id();
-        let operation = Operation::Constrain(cond, location);
+        let operation = Operation::Constrain(cond, Some(location));
         self.context.new_instruction(operation, ObjectType::NotAnObject)?;
         Ok(Value::dummy())
     }

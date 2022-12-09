@@ -330,10 +330,8 @@ pub fn inline_in_block(
                     if err.is_err() {
                         //add predicate if under condition, else short-circuit the target block.
                         let ass_value = decision.get_assumption_value(predicate);
-                        #[allow(clippy::unnecessary_unwrap)]
-                        if ass_value.is_some() && ctx.under_assumption(ass_value.unwrap()) {
-                            let aa = ass_value.unwrap();
-                            ctx.add_predicate(aa, &mut new_ins, stack_frame);
+                        if ass_value.map_or(false, |value| ctx.under_assumption(value)) {
+                            ctx.add_predicate(ass_value.unwrap(), &mut new_ins, stack_frame);
                         } else {
                             short_circuit = true;
                             break;

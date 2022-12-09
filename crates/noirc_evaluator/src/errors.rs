@@ -25,7 +25,6 @@ impl RuntimeError {
     }
 }
 
-
 impl From<RuntimeErrorKind> for RuntimeError {
     fn from(kind: RuntimeErrorKind) -> RuntimeError {
         RuntimeError { location: None, kind }
