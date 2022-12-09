@@ -21,7 +21,7 @@ pub enum InputValue {
 impl InputValue {
     /// Checks whether the ABI type matches the InputValue type
     /// and also their arity
-    pub fn matches_abi(&self, abi_param: AbiType) -> bool {
+    pub fn matches_abi(&self, abi_param: &AbiType) -> bool {
         match (self, abi_param) {
             (InputValue::Field(_), AbiType::Field(_)) => true,
             (InputValue::Field(_), AbiType::Array { .. }) => false,
@@ -29,7 +29,7 @@ impl InputValue {
             (InputValue::Field(_), AbiType::Struct { .. }) => false,
 
             (InputValue::Vec(_), AbiType::Field(_)) => false,
-            (InputValue::Vec(x), AbiType::Array { length, .. }) => x.len() == length as usize,
+            (InputValue::Vec(x), AbiType::Array { length, .. }) => x.len() == *length as usize,
             (InputValue::Vec(_), AbiType::Integer { .. }) => false,
             (InputValue::Vec(_), AbiType::Struct { .. }) => false,
 
@@ -64,35 +64,21 @@ impl Format {
 }
 
 impl Format {
-    pub fn parse<P: AsRef<Path>>(
+    pub fn parse(
         &self,
-        path: P,
-        file_name: &str,
+        input_string: &str,
     ) -> Result<BTreeMap<String, InputValue>, InputParserError> {
         match self {
-            Format::Toml => {
-                let mut dir_path = path.as_ref().to_path_buf();
-                dir_path.push(file_name);
-                dir_path.set_extension(self.ext());
-                toml::parse(dir_path)
-            }
+            Format::Toml => toml::parse_toml(input_string),
         }
     }
 
-    pub fn serialise<P: AsRef<Path>>(
+    pub fn serialise(
         &self,
-        path: P,
-        file_name: &str,
         w_map: &BTreeMap<String, InputValue>,
-    ) -> Result<(), InputParserError> {
+    ) -> Result<String, InputParserError> {
         match self {
-            Format::Toml => {
-                let mut dir_path = path.as_ref().to_path_buf();
-                dir_path.push(file_name);
-                dir_path.set_extension(self.ext());
-                toml::serialise(dir_path, w_map)?;
-            }
+            Format::Toml => toml::serialise_to_toml(w_map),
         }
-        Ok(())
     }
 }

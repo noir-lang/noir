@@ -314,6 +314,8 @@ pub trait ProofSystemCompiler {
         public_input: Vec<FieldElement>,
         circuit: Circuit,
     ) -> bool;
+
+    fn get_exact_circuit_size(&self, circuit: Circuit) -> u32;
 }
 
 /// Supported NP complete languages

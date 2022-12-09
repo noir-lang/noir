@@ -5,9 +5,9 @@ use acvm::acir::circuit::{gate::Gate, Circuit, PublicInputs};
 use acvm::acir::native_types::{Expression, Witness};
 use acvm::Language;
 use errors::{RuntimeError, RuntimeErrorKind};
+use iter_extended::btree_map;
 use noirc_abi::{AbiFEType, AbiType};
 use noirc_frontend::monomorphisation::ast::*;
-use noirc_frontend::util::btree_map;
 use std::collections::BTreeMap;
 
 use ssa::{code_gen::IRGenerator, node};

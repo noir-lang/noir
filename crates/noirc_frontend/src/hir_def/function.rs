@@ -1,10 +1,10 @@
-use noirc_abi::{Abi, AbiFEType};
+use iter_extended::vecmap;
+use noirc_abi::{Abi, AbiFEType, MAIN_RETURN_NAME};
 use noirc_errors::{Location, Span};
 
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
 use crate::node_interner::{ExprId, NodeInterner};
-use crate::util::vecmap;
 use crate::Type;
 use crate::{token::Attribute, FunctionKind};
 
@@ -12,8 +12,6 @@ use crate::{token::Attribute, FunctionKind};
 /// with a list of statements
 #[derive(Debug, Clone)]
 pub struct HirFunction(ExprId);
-
-pub const MAIN_RETURN_NAME: &str = "return";
 
 impl HirFunction {
     pub fn empty() -> HirFunction {
