@@ -450,10 +450,14 @@ impl DecisionTree {
         error_msg: &str,
     ) -> Result<(), RuntimeError> {
         if ctx.under_assumption(condition) {
-            block::short_circuit_instructions(ctx, &stack.stack);
+            let avoid = if stack.stack.contains(&condition) { Some(&condition) } else { None };
+            block::zero_instructions(ctx, &stack.stack, avoid);
             let nop = stack.stack[0];
             stack.stack.clear();
             stack.stack.push(nop);
+            if avoid.is_some() {
+                stack.stack.push(condition);
+            }
             let operation =
                 Operation::Cond { condition, val_true: ctx.zero(), val_false: ctx.one() };
             let cond = ctx.add_instruction(Instruction::new(

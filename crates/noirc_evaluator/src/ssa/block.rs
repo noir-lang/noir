@@ -6,9 +6,9 @@ use super::{
 };
 use std::collections::{HashMap, HashSet, VecDeque};
 
-// A short-circuited block should not have more than 3 instructions (a nop, a failing constraint and an optional condition)
+// A short-circuited block should not have more than 4 instructions (a nop, an optional not, an optional condition and a failing constraint)
 // so we do not need to check the whole instruction list when looking for short-circuit instructions.
-const MAX_SHORT_CIRCUIT_LEN: usize = 3;
+const MAX_SHORT_CIRCUIT_LEN: usize = 4;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum BlockType {
@@ -380,10 +380,14 @@ pub fn rewire_block_left(ctx: &mut SsaContext, block_id: BlockId, left: BlockId)
     }
 }
 
-//replace all instructions in the target block by a false constraint, except for return instruction
-pub fn short_circuit_inline(ctx: &mut SsaContext, target: BlockId) {
+//replace all instructions by a false constraint, except for return instruction which is kept and zeroed
+pub fn short_circuit_instructions(
+    ctx: &mut SsaContext,
+    target: BlockId,
+    instructions: &Vec<NodeId>,
+) -> Vec<NodeId> {
     // short-circuit the return instruction (if it exists)
-    short_circuit_block(ctx, target);
+    zero_instructions(ctx, instructions, None);
     //nop and constrain false
     let unreachable_op = node::Operation::Constrain(ctx.zero(), None);
     let unreachable_ins = ctx.add_instruction(Instruction::new(
@@ -391,30 +395,40 @@ pub fn short_circuit_inline(ctx: &mut SsaContext, target: BlockId) {
         node::ObjectType::NotAnObject,
         Some(target),
     ));
-    let nop = ctx[target].instructions[0];
+    let nop = instructions[0];
     debug_assert_eq!(ctx.get_instruction(nop).operation, node::Operation::Nop);
     let mut stack = vec![nop, unreachable_ins];
     //return:
-    let ret_pos = ctx[target].instructions.iter().position(|x| {
+    let ret_pos = instructions.iter().position(|x| {
         if let Some(ins) = ctx.try_get_instruction(*x) {
             return ins.operation.opcode() == Opcode::Return;
         }
         false
     });
     if let Some(ret) = ret_pos {
-        let ret_id = ctx[target].instructions[ret];
+        let ret_id = instructions[ret];
         stack.push(ret_id);
+        zero_instructions(ctx, &vec![ret_id], None);
     }
+
+    stack
+}
+
+//replace all instructions in the target block by a false constraint, except for return instruction
+pub fn short_circuit_inline(ctx: &mut SsaContext, target: BlockId) {
+    let instructions = ctx[target].instructions.clone();
+    let stack = short_circuit_instructions(ctx, target, &instructions);
     ctx[target].instructions = stack;
 }
 
 //Delete all instructions in the block
 pub fn short_circuit_block(ctx: &mut SsaContext, block_id: BlockId) {
     let instructions = ctx[block_id].instructions.clone();
-    short_circuit_instructions(ctx, &instructions);
+    zero_instructions(ctx, &instructions, None);
 }
 
-pub fn short_circuit_instructions(ctx: &mut SsaContext, instructions: &Vec<NodeId>) {
+//Delete instructions and replace them with zeros, except for return instruction which is kept with zeroed return values, and the avoid instruction
+pub fn zero_instructions(ctx: &mut SsaContext, instructions: &Vec<NodeId>, avoid: Option<&NodeId>) {
     let mut zeros = HashMap::new();
     let mut zero_keys = Vec::new();
     for i in instructions {
@@ -442,7 +456,7 @@ pub fn short_circuit_instructions(ctx: &mut SsaContext, instructions: &Vec<NodeI
         zeros.insert(*k, zero_id);
     }
 
-    for i in instructions {
+    for i in instructions.iter().filter(|x| Some(*x) != avoid) {
         let ins = ctx.get_mut_instruction(*i);
         if ins.res_type != node::ObjectType::NotAnObject {
             ins.mark = Mark::ReplaceWith(zeros[&ins.res_type]);
@@ -545,4 +559,15 @@ pub fn written_along(
     } else {
         unreachable!("could not reach stop block");
     }
+}
+
+// compute the exit block of a graph
+pub fn exit(ctx: &SsaContext, block_id: BlockId) -> BlockId {
+    let block = &ctx[block_id];
+    if let Some(left) = block.left {
+        if left != BlockId::dummy() {
+            return exit(ctx, left);
+        }
+    }
+    block_id
 }

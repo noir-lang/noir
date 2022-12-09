@@ -9,6 +9,7 @@ use noirc_frontend::monomorphisation::ast::{self, Call, DefinitionId, FuncId, Ty
 use super::conditional::{AssumptionId, DecisionTree, TreeBuilder};
 use super::node::Node;
 use super::{
+    block,
     block::BlockId,
     code_gen::IRGenerator,
     context::SsaContext,
@@ -57,9 +58,8 @@ impl SSAFunction {
     }
 
     pub fn compile(&self, igen: &mut IRGenerator) -> Result<DecisionTree, RuntimeError> {
-        let current_block = igen.context.current_block;
-        let function_cfg = super::block::bfs(self.entry_block, None, &igen.context);
-        super::block::compute_sub_dom(&mut igen.context, &function_cfg);
+        let function_cfg = block::bfs(self.entry_block, None, &igen.context);
+        block::compute_sub_dom(&mut igen.context, &function_cfg);
         //Optimisation
         //catch the error because the function may not be called
         super::optim::full_cse(&mut igen.context, self.entry_block, false)?;
@@ -79,27 +79,20 @@ impl SSAFunction {
 
         let result = decision.make_decision_tree(&mut igen.context, builder);
         if result.is_err() {
+            // we take the last block to ensure we have the return instruction
+            let exit = block::exit(&igen.context, self.entry_block);
             //short-circuit for function: false constraint and return 0
-            let unreachable = node::Operation::Constrain(igen.context.zero(), None);
-            let fail = igen.context.add_instruction(node::Instruction::new(
-                unreachable,
-                ObjectType::NotAnObject,
-                Some(self.entry_block),
-            ));
-            let instructions = &igen.context[current_block].instructions;
-            let ret_idx = instructions.iter().position(|x| {
-                if let Some(ins) = igen.context.try_get_instruction(*x) {
-                    return ins.operation.opcode() == Opcode::Return;
-                }
-                false
-            });
-            let stack = vec![fail, instructions[ret_idx.unwrap()]];
-            super::block::short_circuit_instructions(
+            let instructions = &igen.context[exit].instructions.clone();
+            let stack = block::short_circuit_instructions(
                 &mut igen.context,
-                &vec![*stack.last().unwrap()],
+                self.entry_block,
+                instructions,
             );
-            igen.context.get_mut_instruction(*stack.last().unwrap()).parent_block =
-                self.entry_block;
+            if self.entry_block != exit {
+                for i in &stack {
+                    igen.context.get_mut_instruction(*i).parent_block = self.entry_block;
+                }
+            }
 
             let function_block = &mut igen.context[self.entry_block];
             function_block.instructions.clear();
@@ -108,14 +101,9 @@ impl SSAFunction {
             to_remove.extend(function_cfg.iter()); //let's remove all the other blocks
         } else {
             decision.reduce(&mut igen.context, decision.root)?;
-            //merge blocks
-            to_remove = super::block::merge_path(
-                &mut igen.context,
-                self.entry_block,
-                BlockId::dummy(),
-                None,
-            );
         }
+        //merge blocks
+        to_remove = block::merge_path(&mut igen.context, self.entry_block, BlockId::dummy(), None);
 
         igen.context[self.entry_block].dominated.retain(|b| !to_remove.contains(b));
         for i in to_remove {
@@ -178,7 +166,7 @@ impl IRGenerator {
     ) -> Result<(), RuntimeError> {
         let current_block = self.context.current_block;
         let current_function = self.function_context;
-        let func_block = super::block::BasicBlock::create_cfg(&mut self.context);
+        let func_block = block::BasicBlock::create_cfg(&mut self.context);
 
         let function = &mut self.program[func_id];
         let mut func = SSAFunction::new(func_id, &function.name, func_block, index, &self.context);
