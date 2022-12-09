@@ -3,28 +3,20 @@ use crate::errors::InputParserError;
 use acvm::FieldElement;
 use serde::Serialize;
 use serde_derive::Deserialize;
-use std::{collections::BTreeMap, path::Path};
+use std::collections::BTreeMap;
 
-pub(crate) fn parse<P: AsRef<Path>>(
-    path_to_toml: P,
+pub(crate) fn parse_toml(
+    input_string: &str,
 ) -> Result<BTreeMap<String, InputValue>, InputParserError> {
-    let path_to_toml = path_to_toml.as_ref();
-    if !path_to_toml.exists() {
-        return Err(InputParserError::MissingTomlFile(path_to_toml.to_path_buf()));
-    }
-    // Get input.toml file as a string
-    let input_as_string = std::fs::read_to_string(path_to_toml).unwrap();
-
     // Parse input.toml into a BTreeMap, converting the argument to field elements
-    let data: BTreeMap<String, TomlTypes> = toml::from_str(&input_as_string)
+    let data: BTreeMap<String, TomlTypes> = toml::from_str(input_string)
         .map_err(|err_msg| InputParserError::ParseTomlMap(err_msg.to_string()))?;
     toml_map_to_field(data)
 }
 
-pub fn serialise<P: AsRef<Path>>(
-    path_to_toml: P,
+pub(crate) fn serialise_to_toml(
     w_map: &BTreeMap<String, InputValue>,
-) -> Result<(), InputParserError> {
+) -> Result<String, InputParserError> {
     let to_map = toml_remap(w_map);
 
     // Toml requires that values be emitted before tables. Thus, we must reorder our map in case a TomlTypes::Table comes before any other values in the toml map
@@ -51,8 +43,7 @@ pub fn serialise<P: AsRef<Path>>(
 
     toml_string.push_str(&toml_string_tables);
 
-    std::fs::write(path_to_toml.as_ref(), toml_string).map_err(InputParserError::SaveTomlFile)?;
-    Ok(())
+    Ok(toml_string)
 }
 
 /// Converts the Toml mapping to the native representation that the compiler
