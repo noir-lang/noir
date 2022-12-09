@@ -181,7 +181,7 @@ pub trait PartialWitnessGenerator {
                             _ => true,
                         }
                     }
-                    Directive::SplitBytes { a, b, bit_size } => {
+                    Directive::ToBytes { a, b, bit_size } => {
                         match Self::get_value(a, initial_witness) {
                             Some(val_a) => {
                                 let mut a_bytes = val_a.to_bytes();

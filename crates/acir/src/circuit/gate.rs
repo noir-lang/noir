@@ -42,7 +42,7 @@ impl Gate {
             Gate::Directive(Directive::Quotient { .. }) => "quotient",
             Gate::Directive(Directive::Oddrange { .. }) => "odd_range",
             Gate::Directive(Directive::Split { .. }) => "split",
-            Gate::Directive(Directive::SplitBytes { .. }) => "split_bytes",
+            Gate::Directive(Directive::ToBytes { .. }) => "to_bytes",
             Gate::GadgetCall(g) => g.name.name(),
         }
     }
@@ -129,7 +129,7 @@ impl std::fmt::Debug for Gate {
                     b.last().unwrap().witness_index(),
                 )
             }
-            Gate::Directive(Directive::SplitBytes { a, b, bit_size: _ }) => {
+            Gate::Directive(Directive::ToBytes { a, b, bit_size: _ }) => {
                 write!(
                     f,
                     "Split Bytes: {} into x{}...x{}",
@@ -184,7 +184,7 @@ pub enum Directive {
     },
 
     //byte decomposition of a: a=\sum b[i]*2^i where b is a byte array
-    SplitBytes {
+    ToBytes {
         a: Expression,
         b: Vec<Witness>,
         bit_size: u32,

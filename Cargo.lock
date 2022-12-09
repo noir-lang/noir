@@ -279,7 +279,7 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 [[package]]
 name = "barretenberg_static_lib"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=e1f206f6739d3782d3a241298089a0292de33742#e1f206f6739d3782d3a241298089a0292de33742"
+source = "git+https://github.com/noir-lang/aztec_backend?rev=ef6cdb1e26bff1c8dd9aea811e97b008f7e6651e#ef6cdb1e26bff1c8dd9aea811e97b008f7e6651e"
 dependencies = [
  "barretenberg_wrapper",
  "blake2",
@@ -509,7 +509,7 @@ dependencies = [
 [[package]]
 name = "common"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=e1f206f6739d3782d3a241298089a0292de33742#e1f206f6739d3782d3a241298089a0292de33742"
+source = "git+https://github.com/noir-lang/aztec_backend?rev=ef6cdb1e26bff1c8dd9aea811e97b008f7e6651e#ef6cdb1e26bff1c8dd9aea811e97b008f7e6651e"
 dependencies = [
  "acvm",
  "blake2",
@@ -794,7 +794,7 @@ dependencies = [
 name = "fm"
 version = "0.1.0"
 dependencies = [
- "cfg-if 1.0.0",
+ "cfg-if 0.1.10",
  "codespan-reporting",
  "tempfile",
  "wasm-bindgen",

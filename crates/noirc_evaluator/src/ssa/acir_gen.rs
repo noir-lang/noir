@@ -564,7 +564,7 @@ impl Acir {
             OPCODE::ToBytes => {
                 let bit_size = ctx.get_as_constant(args[1]).unwrap().to_u128() as u32;
                 let l_c = self.substitute(args[0], evaluator, ctx);
-                outputs = split_bytes(&l_c, bit_size, evaluator);
+                outputs = to_bytes(&l_c, bit_size, evaluator);
                 if let node::ObjectType::Pointer(a) = res_type {
                     self.map_array(a, &outputs, ctx);
                 }
@@ -642,7 +642,7 @@ pub fn evaluate_cmp(
 }
 
 //Performs byte decomposition
-pub fn split_bytes(lhs: &InternalVar, bit_size: u32, evaluator: &mut Evaluator) -> Vec<Witness> {
+pub fn to_bytes(lhs: &InternalVar, bit_size: u32, evaluator: &mut Evaluator) -> Vec<Witness> {
     assert!(bit_size < FieldElement::max_num_bits());
     let mut bytes = Expression::default();
     let mut two_pow = FieldElement::one();
@@ -662,7 +662,7 @@ pub fn split_bytes(lhs: &InternalVar, bit_size: u32, evaluator: &mut Evaluator) 
             &byte_expr,
         )));
     }
-    evaluator.gates.push(Gate::Directive(Directive::SplitBytes {
+    evaluator.gates.push(Gate::Directive(Directive::ToBytes {
         a: lhs.expression.clone(),
         b: result.clone(),
         bit_size,
