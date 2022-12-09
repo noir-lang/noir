@@ -17,7 +17,6 @@ noirc_frontend = { path = "../noirc_frontend" }
 noirc_abi = { path = "../noirc_abi" }
 fm = { path = "../fm" }
 acvm = { git = "https://github.com/noir-lang/noir" }
-iter-extended = { path = "../iter-extended" }
 cfg-if = "1.0.0"
 
 toml = "0.5"
@@ -29,7 +28,7 @@ hex = "0.4.2"
 tempdir = "0.3.7"
 
 # Backends
-aztec_backend = { optional = true, git = "https://github.com/noir-lang/aztec_backend", rev = "2d601a7d55faf601f4b183a43923c8fe04eabb7b" }
+aztec_backend = { optional = true, package = "barretenberg_static_lib", git = "https://github.com/noir-lang/aztec_backend", rev = "e1f206f6739d3782d3a241298089a0292de33742" }
 marlin_arkworks_backend = { optional = true, git = "https://github.com/noir-lang/marlin_arkworks_backend", rev = "601e24dcb5dcbe72e3de7a33879aaf84e171d541" }
 
 [features]
