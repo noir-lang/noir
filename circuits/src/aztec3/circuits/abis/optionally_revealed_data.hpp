@@ -1,10 +1,9 @@
 #pragma once
+#include "function_signature.hpp"
 #include <stdlib/primitives/witness/witness.hpp>
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
 #include <stdlib/types/convert.hpp>
-#include "function_signature.hpp"
-
 namespace aztec3::circuits::abis {
 
 using plonk::stdlib::witness_t;
@@ -17,7 +16,7 @@ template <typename NCT> struct OptionallyRevealedData {
 
     fr call_stack_item_hash;
     FunctionSignature<NCT> function_signature;
-    std::array<fr, EMITTED_PUBLIC_INPUTS_LENGTH> emitted_public_inputs;
+    std::array<fr, EMITTED_EVENTS_LENGTH> emitted_events;
     fr vk_hash;
     fr portal_contract_address; // an ETH address
     boolean pay_fee_from_l1;
@@ -35,7 +34,7 @@ template <typename NCT> struct OptionallyRevealedData {
 
         OptionallyRevealedData<CircuitTypes<Composer>> data = {
             to_ct(call_stack_item_hash),    function_signature.to_circuit_type(composer),
-            to_ct(emitted_public_inputs),   to_ct(vk_hash),
+            to_ct(emitted_events),          to_ct(vk_hash),
             to_ct(portal_contract_address), to_ct(pay_fee_from_l1),
             to_ct(pay_fee_from_public_l2),  to_ct(called_from_l1),
             to_ct(called_from_public_l2),
@@ -50,7 +49,7 @@ template <typename NCT> struct OptionallyRevealedData {
 
         call_stack_item_hash.set_public();
         function_signature.set_public();
-        set_array_public(emitted_public_inputs);
+        set_array_public(emitted_events);
         vk_hash.set_public();
         portal_contract_address.set_public();
         fr(pay_fee_from_l1).set_public();

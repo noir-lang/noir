@@ -1,9 +1,9 @@
 #pragma once
+#include "public_inputs.hpp"
 #include <stdlib/primitives/witness/witness.hpp>
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
 #include <stdlib/types/convert.hpp>
-#include "public_inputs.hpp"
 
 namespace aztec3::circuits::abis::private_kernel {
 
@@ -13,10 +13,6 @@ using plonk::stdlib::types::NativeTypes;
 using std::is_same;
 
 template <typename NCT> struct PreviousKernelData {
-    typedef typename NCT::address address;
-    typedef typename NCT::uint32 uint32;
-    typedef typename NCT::boolean boolean;
-    typedef typename NCT::grumpkin_point grumpkin_point;
     typedef typename NCT::fr fr;
     typedef typename NCT::VK VK;
 

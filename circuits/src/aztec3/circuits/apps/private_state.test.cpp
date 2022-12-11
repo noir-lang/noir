@@ -1,8 +1,9 @@
+#include "index.hpp"
+
 #include <gtest/gtest.h>
 #include <common/test.hpp>
 #include <common/serialize.hpp>
 // #include <numeric/random/engine.hpp>
-#include "index.hpp"
 #include <stdlib/types/turbo.hpp>
 // #include <aztec3/constants.hpp>
 // #include <crypto/pedersen/pedersen.hpp>

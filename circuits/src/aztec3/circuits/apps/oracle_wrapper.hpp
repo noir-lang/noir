@@ -1,10 +1,11 @@
 #pragma once
 #include <aztec3/circuits/abis/call_context.hpp>
 #include <aztec3/circuits/apps/private_state_note_preimage.hpp>
+#include <aztec3/oracle/oracle.hpp>
+
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
 #include <stdlib/types/convert.hpp>
-#include <aztec3/oracle/oracle.hpp>
 
 namespace aztec3::circuits::apps {
 

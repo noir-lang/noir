@@ -1,5 +1,10 @@
 // TODO: remove unused inclusions
 // #include "private_state_note.hpp"
+#include "oracle_wrapper.hpp"
+#include "private_state_var.hpp"
+#include "private_state_note_preimage.hpp"
+#include "plonk/composer/turbo_composer.hpp"
+
 #include <crypto/pedersen/generator_data.hpp>
 #include <stdlib/hash/pedersen/pedersen.hpp>
 #include <stdlib/hash/blake2s/blake2s.hpp>
@@ -7,10 +12,6 @@
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
 #include <stdlib/types/convert.hpp>
-#include "oracle_wrapper.hpp"
-#include "private_state_var.hpp"
-#include "private_state_note_preimage.hpp"
-#include "plonk/composer/turbo_composer.hpp"
 
 namespace aztec3::circuits::apps {
 

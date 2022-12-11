@@ -3,4 +3,3 @@
 #include "deposit.hpp"
 #include "transfer.hpp"
 #include "withdraw.hpp"
-#include "withdraw_failure_callback.hpp"

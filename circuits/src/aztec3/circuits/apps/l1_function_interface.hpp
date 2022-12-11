@@ -3,8 +3,6 @@
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
 #include <stdlib/types/convert.hpp>
-#include "l1_promise.hpp"
-#include "l1_result.hpp"
 
 namespace aztec3::circuits::apps {
 
@@ -48,15 +46,10 @@ template <typename Composer> class L1FunctionInterface {
     //     , num_params(l1_function.num_params)
     // {}
 
-    std::pair<L1Promise<Composer>, L1Result> call(std::vector<fr> args)
+    void call(std::vector<fr> args)
     {
-        if (args.size() != num_params) {
-            throw_or_abort("Incorrect number of args");
-        }
-
-        auto promise = L1Promise<Composer>(*contract);
-        L1Result result;
-        return std::make_pair(promise, result);
+        // TODO: implement this function.
+        (void)args; // So the compiler doesn't complain about an unused var.
     }
 };
 

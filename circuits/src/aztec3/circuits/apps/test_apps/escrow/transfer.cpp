@@ -1,9 +1,11 @@
 #include "transfer.hpp"
+
+#include "contract.hpp"
+
 #include <aztec3/circuits/apps/private_state_note.hpp>
 #include <aztec3/circuits/apps/function_execution_context.hpp>
 #include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
 // #include <aztec3/circuits/abis/call_context.hpp>
-#include "contract.hpp"
 
 namespace aztec3::circuits::apps::test_apps::escrow {
 
@@ -70,8 +72,8 @@ OptionalPrivateCircuitPublicInputs<NT> transfer(FunctionExecutionContext<Compose
     public_inputs.custom_inputs[4] = CT::fr(reveal_msg_sender_to_recipient);
     public_inputs.custom_inputs[5] = fee;
 
-    public_inputs.emitted_public_inputs[0] = CT::fr::copy_as_new_witness(composer, fee);
-    public_inputs.emitted_public_inputs[1] = CT::fr::copy_as_new_witness(composer, asset_id);
+    public_inputs.emitted_events[0] = CT::fr::copy_as_new_witness(composer, fee);
+    public_inputs.emitted_events[1] = CT::fr::copy_as_new_witness(composer, asset_id);
 
     /// TODO: merkle membership check
     // public_inputs.old_private_data_tree_root

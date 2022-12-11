@@ -1,11 +1,14 @@
 #pragma once
+
+#include "accumulated_data.hpp"
+#include "previous_kernel_data.hpp"
+#include "private_call_data.hpp"
+#include "../signed_tx_object.hpp"
+
 #include <stdlib/primitives/witness/witness.hpp>
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
 #include <stdlib/types/convert.hpp>
-#include "accumulated_data.hpp"
-#include "previous_kernel_data.hpp"
-#include "private_call_data.hpp"
 
 namespace aztec3::circuits::abis::private_kernel {
 
@@ -18,8 +21,7 @@ template <typename NCT> struct PrivateInputs {
     typedef typename NCT::fr fr;
     // typedef typename NCT::signature Signature;
 
-    // Signature signature;
-    // AccumulatedData<NCT> start;
+    SignedTxObject<NCT> signed_tx_object;
     PreviousKernelData<NCT> previous_kernel;
     PrivateCallData<NCT> private_call;
 
@@ -29,7 +31,7 @@ template <typename NCT> struct PrivateInputs {
 
         PrivateInputs<CircuitTypes<Composer>> private_inputs = {
             // plonk::stdlib::schnorr::convert_signature(&composer, signature),
-            // start.to_circuit_type(composer),
+            signed_tx_object.to_circuit_type(composer),
             previous_kernel.to_circuit_type(composer),
             private_call.to_circuit_type(composer),
         };

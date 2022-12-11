@@ -1,7 +1,7 @@
 #pragma once
+#include "nullifier_preimage.hpp"
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
-#include "nullifier_preimage.hpp"
 
 namespace aztec3::circuits::apps {
 

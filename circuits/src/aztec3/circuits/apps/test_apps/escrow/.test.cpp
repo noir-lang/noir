@@ -59,7 +59,8 @@ TEST(escrow_tests, test_transfer)
         .msg_sender = msg_sender,
         .storage_contract_address = contract_address,
         .tx_origin = msg_sender,
-        .is_fee_payment = true,
+        .is_delegate_call = false,
+        .is_static_call = false,
     };
 
     NativeOracle oracle = NativeOracle(db, call_context, msg_sender_private_key);
@@ -100,7 +101,8 @@ TEST(escrow_tests, test_withdraw)
         .msg_sender = msg_sender,
         .storage_contract_address = contract_address,
         .tx_origin = msg_sender,
-        .is_fee_payment = true,
+        .is_delegate_call = false,
+        .is_static_call = false,
     };
 
     NativeOracle oracle = NativeOracle(db, call_context, msg_sender_private_key);

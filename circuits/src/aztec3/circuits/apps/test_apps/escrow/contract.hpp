@@ -1,8 +1,9 @@
 #pragma once
+#include "init.hpp"
+
 #include <aztec3/circuits/apps/contract.hpp>
 #include <aztec3/circuits/apps/function_declaration.hpp>
 #include <aztec3/circuits/apps/function_execution_context.hpp>
-#include "init.hpp"
 
 namespace aztec3::circuits::apps::test_apps::escrow {
 

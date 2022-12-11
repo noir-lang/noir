@@ -34,6 +34,16 @@ template <typename NCT> struct StateRead {
 
         return state_read;
     };
+
+    fr hash() const
+    {
+        std::vector<fr> inputs = {
+            storage_slot,
+            current_value,
+        };
+
+        return NCT::compress(inputs, GeneratorIndex::STATE_READ);
+    }
 };
 
 template <typename NCT> void read(uint8_t const*& it, StateRead<NCT>& state_read)

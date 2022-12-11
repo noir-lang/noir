@@ -1,11 +1,13 @@
 #pragma once
+
+#include <aztec3/oracle/oracle.hpp>
+#include <aztec3/circuits/apps/function_execution_context.hpp>
+#include <aztec3/circuits/apps/oracle_wrapper.hpp>
+
 #include <stdlib/types/turbo.hpp>
 #include <stdlib/types/convert.hpp>
 #include <stdlib/types/circuit_types.hpp>
 #include <stdlib/types/native_types.hpp>
-#include <aztec3/oracle/oracle.hpp>
-#include <aztec3/circuits/apps/function_execution_context.hpp>
-#include <aztec3/circuits/apps/oracle_wrapper.hpp>
 
 namespace aztec3::circuits::apps::test_apps::escrow {
 

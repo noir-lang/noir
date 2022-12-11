@@ -1,9 +1,9 @@
 #include "withdraw.hpp"
-#include <aztec3/circuits/apps/private_state_note.hpp>
-#include <aztec3/circuits/apps/l1_promise.hpp>
-#include <aztec3/circuits/apps/l1_result.hpp>
-#include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
+
 #include "contract.hpp"
+
+#include <aztec3/circuits/apps/private_state_note.hpp>
+#include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
 
 namespace aztec3::circuits::apps::test_apps::escrow {
 
@@ -48,20 +48,8 @@ OptionalPrivateCircuitPublicInputs<NT> withdraw(FunctionExecutionContext<Compose
 
     auto& l1_withdraw_function = contract.get_l1_function("withdraw");
 
-    auto [l1_promise, l1_result] = l1_withdraw_function.call({ asset_id, amount, msg_sender.to_field() });
-    l1_promise.on_success("withdraw_success_callback",
-                          {
-                              l1_result[0],
-                              amount,
-                              msg_sender.to_field(),
-                          });
-    l1_promise.on_failure("withdraw_failure_callback",
-                          {
-                              asset_id,
-                              amount,
-                              msg_sender.to_field(),
-                              memo,
-                          });
+    // TODO: this doesn't do anything at the moment:
+    l1_withdraw_function.call({ asset_id, amount, msg_sender.to_field() });
 
     // Assign circuit-specific public inputs ****************************************
 
@@ -73,9 +61,9 @@ OptionalPrivateCircuitPublicInputs<NT> withdraw(FunctionExecutionContext<Compose
     public_inputs.custom_inputs[3] = l1_withdrawal_address;
     public_inputs.custom_inputs[4] = fee;
 
-    public_inputs.emitted_public_inputs[0] = CT::fr::copy_as_new_witness(composer, l1_withdrawal_address);
-    public_inputs.emitted_public_inputs[1] = CT::fr::copy_as_new_witness(composer, asset_id);
-    public_inputs.emitted_public_inputs[2] = CT::fr::copy_as_new_witness(composer, fee);
+    public_inputs.emitted_events[0] = CT::fr::copy_as_new_witness(composer, l1_withdrawal_address);
+    public_inputs.emitted_events[1] = CT::fr::copy_as_new_witness(composer, asset_id);
+    public_inputs.emitted_events[2] = CT::fr::copy_as_new_witness(composer, fee);
 
     exec_ctx.finalise();
 

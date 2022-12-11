@@ -1,13 +1,17 @@
 #pragma once
-#include <common/container.hpp>
-#include <aztec3/constants.hpp>
-#include <stdlib/types/convert.hpp>
-#include <aztec3/circuits/abis/function_signature.hpp>
-#include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
 #include "contract.hpp"
 #include "nullifier_preimage.hpp"
 #include "oracle_wrapper.hpp"
 #include "private_state_note.hpp"
+
+#include <aztec3/constants.hpp>
+#include <aztec3/circuits/abis/function_signature.hpp>
+#include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
+
+#include <common/container.hpp>
+
+#include <stdlib/types/convert.hpp>
+
 // #include "private_state_var.hpp"
 // #include "function_declaration.hpp"
 // #include "l1_function_interface.hpp"

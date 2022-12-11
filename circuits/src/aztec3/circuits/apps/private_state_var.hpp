@@ -1,10 +1,12 @@
 #pragma once
-#include <stdlib/types/native_types.hpp>
-#include <stdlib/types/circuit_types.hpp>
 #include "private_state_note.hpp"
 #include "private_state_note_preimage.hpp"
 #include "private_state_operand.hpp"
+
 #include <aztec3/constants.hpp>
+
+#include <stdlib/types/native_types.hpp>
+#include <stdlib/types/circuit_types.hpp>
 
 namespace aztec3::circuits::apps {
 

@@ -1,5 +1,11 @@
 #pragma once
 // #include <common/container.hpp>
+#include "oracle_wrapper.hpp"
+#include "private_state_note.hpp"
+#include "private_state_note_preimage.hpp"
+#include "private_state_operand.hpp"
+#include "plonk/composer/turbo_composer.hpp"
+
 #include <common/streams.hpp>
 #include <common/map.hpp>
 #include <crypto/pedersen/generator_data.hpp>
@@ -7,11 +13,6 @@
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
 #include <stdlib/types/convert.hpp>
-#include "oracle_wrapper.hpp"
-#include "private_state_note.hpp"
-#include "private_state_note_preimage.hpp"
-#include "private_state_operand.hpp"
-#include "plonk/composer/turbo_composer.hpp"
 
 namespace aztec3::circuits::apps {
 

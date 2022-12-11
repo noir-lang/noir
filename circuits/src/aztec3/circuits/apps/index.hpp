@@ -1,4 +1,3 @@
-#include "private_state_factory.hpp"
 #include "private_state_var.hpp"
 #include "private_state_note.hpp"
 #include "private_state_note_preimage.hpp"

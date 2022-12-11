@@ -36,6 +36,17 @@ template <typename NCT> struct StateTransition {
 
         return state_transition;
     };
+
+    fr hash() const
+    {
+        std::vector<fr> inputs = {
+            storage_slot,
+            old_value,
+            new_value,
+        };
+
+        return NCT::compress(inputs, GeneratorIndex::STATE_TRANSITION);
+    }
 };
 
 template <typename NCT> void read(uint8_t const*& it, StateTransition<NCT>& state_transition)

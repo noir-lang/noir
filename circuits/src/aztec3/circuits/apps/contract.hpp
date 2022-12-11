@@ -1,12 +1,11 @@
 #pragma once
 // #include <common/container.hpp>
 // #include <aztec3/constants.hpp>
-#include <aztec3/circuits/abis/function_signature.hpp>
 #include "function_declaration.hpp"
 #include "private_state_var.hpp"
 #include "l1_function_interface.hpp"
 
-// #include "oracle_wrapper.hpp"
+#include <aztec3/circuits/abis/function_signature.hpp>
 
 namespace aztec3::circuits::apps {
 

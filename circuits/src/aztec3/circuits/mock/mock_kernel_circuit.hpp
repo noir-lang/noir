@@ -16,7 +16,7 @@ using plonk::stdlib::pedersen;
 using plonk::stdlib::witness_t;
 using plonk::stdlib::types::CircuitTypes;
 
-template <typename Composer> void mock_circuit_2(Composer& composer, PublicInputs<NT> const& _public_inputs)
+template <typename Composer> void mock_kernel_circuit(Composer& composer, PublicInputs<NT> const& _public_inputs)
 {
     typedef CircuitTypes<Composer> CT;
     typedef typename CT::fr fr;

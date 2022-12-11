@@ -1,13 +1,11 @@
 #pragma once
 // #include <stdlib/hash/pedersen/pedersen.hpp>
+#include "../../constants.hpp"
 #include <common/map.hpp>
 #include <stdlib/primitives/witness/witness.hpp>
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
 #include <stdlib/types/convert.hpp>
-#include "../../constants.hpp"
-#include "executed_callback.hpp"
-#include "callback_stack_item.hpp"
 
 namespace aztec3::circuits::abis {
 

@@ -1,10 +1,10 @@
 #pragma once
+#include "accumulated_data.hpp"
+#include "constant_data.hpp"
 #include <stdlib/primitives/witness/witness.hpp>
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
 #include <stdlib/types/convert.hpp>
-#include "accumulated_data.hpp"
-#include "constant_data.hpp"
 
 namespace aztec3::circuits::abis::private_kernel {
 
@@ -19,6 +19,7 @@ template <typename NCT> struct PublicInputs {
 
     AccumulatedData<NCT> end;
     ConstantData<NCT> constants;
+
     boolean is_private = true; // TODO: might need to instantiate from witness!
     boolean is_public = false;
     boolean is_contract_deployment = false;
@@ -31,7 +32,11 @@ template <typename NCT> struct PublicInputs {
         auto to_ct = [&](auto& e) { return plonk::stdlib::types::to_ct(composer, e); };
 
         PublicInputs<CircuitTypes<Composer>> private_inputs = {
-            end.to_circuit_type(composer), constants.to_circuit_type(composer), to_ct(is_private), to_ct(is_public),
+            end.to_circuit_type(composer),
+            constants.to_circuit_type(composer),
+
+            to_ct(is_private),
+            to_ct(is_public),
             to_ct(is_contract_deployment),
         };
 

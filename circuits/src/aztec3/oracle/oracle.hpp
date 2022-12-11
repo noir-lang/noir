@@ -23,11 +23,7 @@ template <typename DB> class NativeOracleInterface {
                           NT::address const& tx_origin,
                           NT::boolean const& is_delegate_call = false,
                           NT::boolean const& is_static_call = false,
-                          NT::boolean const& is_fee_payment = false,
-                          NT::boolean const& pay_fee_from_l1 = false,
-                          NT::boolean const& pay_fee_from_public_l2 = false,
-                          NT::boolean const& called_from_l1 = false,
-                          NT::boolean const& called_from_public_l2 = false)
+                          NT::fr const& reference_block_num = 0)
         : db(db)
         , call_context({
               .msg_sender = msg_sender,
@@ -35,11 +31,7 @@ template <typename DB> class NativeOracleInterface {
               .tx_origin = tx_origin,
               .is_delegate_call = is_delegate_call,
               .is_static_call = is_static_call,
-              .is_fee_payment = is_fee_payment,
-              .pay_fee_from_l1 = pay_fee_from_l1,
-              .pay_fee_from_public_l2 = pay_fee_from_public_l2,
-              .called_from_l1 = called_from_l1,
-              .called_from_public_l2 = called_from_public_l2,
+              .reference_block_num = reference_block_num,
           })
         // , portal_contract_address(portal_contract_address)
         {};
@@ -53,11 +45,7 @@ template <typename DB> class NativeOracleInterface {
                           std::optional<NT::fr> msg_sender_private_key,
                           NT::boolean const& is_delegate_call = false,
                           NT::boolean const& is_static_call = false,
-                          NT::boolean const& is_fee_payment = false,
-                          NT::boolean const& pay_fee_from_l1 = false,
-                          NT::boolean const& pay_fee_from_public_l2 = false,
-                          NT::boolean const& called_from_l1 = false,
-                          NT::boolean const& called_from_public_l2 = false)
+                          NT::fr const& reference_block_num = 0)
         : db(db)
         , call_context({
               .msg_sender = msg_sender,
@@ -65,11 +53,7 @@ template <typename DB> class NativeOracleInterface {
               .tx_origin = tx_origin,
               .is_delegate_call = is_delegate_call,
               .is_static_call = is_static_call,
-              .is_fee_payment = is_fee_payment,
-              .pay_fee_from_l1 = pay_fee_from_l1,
-              .pay_fee_from_public_l2 = pay_fee_from_public_l2,
-              .called_from_l1 = called_from_l1,
-              .called_from_public_l2 = called_from_public_l2,
+              .reference_block_num = reference_block_num,
           })
         // , portal_contract_address(portal_contract_address)
         , msg_sender_private_key(msg_sender_private_key){};
