@@ -22,6 +22,7 @@ pub enum ExpressionKind {
     If(Box<IfExpression>),
     Variable(Path),
     Tuple(Vec<Expression>),
+    Lambda(Box<Lambda>),
     Error,
 }
 
@@ -317,6 +318,13 @@ pub struct IfExpression {
     pub condition: Expression,
     pub consequence: Expression,
     pub alternative: Option<Expression>,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct Lambda {
+    pub parameters: Vec<(Pattern, UnresolvedType)>,
+    pub return_type: UnresolvedType,
+    pub body: Expression,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

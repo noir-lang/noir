@@ -667,6 +667,35 @@ where
     })
 }
 
+fn lambda(expr_parser: impl NoirParser<Expression>) -> impl NoirParser<ExpressionKind> {
+    attribute()
+        .or_not()
+        .then_ignore(keyword(Keyword::Fn))
+        .then(ident())
+        .then(generics())
+        .then(parenthesized(function_parameters(allow_self, expression())))
+        .then(function_return_type(expression()))
+        .then(block(expression()))
+        .map(
+            |(
+                ((((attribute, name), generics), parameters), (return_visibility, return_type)),
+                body,
+            )| {
+                FunctionDefinition {
+                    span: name.0.span(),
+                    name,
+                    attribute, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
+                    generics,
+                    parameters,
+                    body,
+                    return_type,
+                    return_visibility,
+                }
+                .into()
+            },
+        )
+}
+
 fn for_expr<'a, P>(expr_parser: P) -> impl NoirParser<ExpressionKind> + 'a
 where
     P: ExprParser + 'a,
