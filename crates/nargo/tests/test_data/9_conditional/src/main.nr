@@ -36,6 +36,16 @@ fn test4() -> [u32; 4] {
 }
 
 fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
+
+    // Regression test for issue #547
+    // Warning: it must be kept at the start of main
+    let arr: [u8; 2] = [1, 2];
+    if arr[0] != arr[1] {
+        for i in 0..1 {
+            constrain i != 2;
+        }
+    }
+
     //Issue reported in #421
     if a == c[0] {
         constrain c[0] == 0;
@@ -50,7 +60,6 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
     }
 
     //Regression for to_bits() constant evaluation 
-    let arr : [u8; 2] = [ 1, 2 ];
     // binary array representation of u8 1
     let as_bits_hardcode_1 = [1, 0];
     let mut c1 = 0;
