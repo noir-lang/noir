@@ -8,6 +8,7 @@ use std::convert::TryInto;
 
 use super::super::errors::RuntimeError;
 
+use crate::errors;
 use crate::ssa::block::BlockType;
 use crate::ssa::function;
 use acvm::acir::OPCODE;
@@ -525,14 +526,12 @@ impl IRGenerator {
                 let lhs = self.codegen_expression(&binary.lhs)?.to_node_ids();
                 let rhs = self.codegen_expression(&binary.rhs)?.to_node_ids();
                 if lhs.len() != 1 || rhs.len() != 1 {
-                    return Err(RuntimeError {
-                        location: None,
-                        kind: crate::errors::RuntimeErrorKind::UnsupportedOp {
-                            op: binary.operator.to_string(),
-                            first_type: "struct/tuple".to_string(),
-                            second_type: "struct/tuple".to_string(),
-                        },
-                    });
+                    return Err(errors::RuntimeErrorKind::UnsupportedOp {
+                        op: binary.operator.to_string(),
+                        first_type: "struct/tuple".to_string(),
+                        second_type: "struct/tuple".to_string(),
+                    }
+                    .into());
                 }
                 Ok(Value::Single(self.codegen_infix_expression(lhs[0], rhs[0], binary.operator)?))
             }

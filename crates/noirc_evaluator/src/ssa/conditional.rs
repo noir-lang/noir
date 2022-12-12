@@ -2,7 +2,7 @@ use num_bigint::BigUint;
 use num_traits::One;
 
 use crate::{
-    errors::RuntimeError,
+    errors::{self, RuntimeError},
     ssa::{
         node::{Mark, ObjectType},
         optim,
@@ -450,7 +450,7 @@ impl DecisionTree {
         error_msg: &str,
     ) -> Result<(), RuntimeError> {
         if ctx.under_assumption(condition) {
-            let avoid = if stack.stack.contains(&condition) { Some(&condition) } else { None };
+            let avoid = stack.stack.contains(&condition).then_some(&condition);
             block::zero_instructions(ctx, &stack.stack, avoid);
             let nop = stack.stack[0];
             stack.stack.clear();
@@ -475,10 +475,7 @@ impl DecisionTree {
             stack.push(ins2);
             Ok(())
         } else {
-            Err(RuntimeError {
-                location: None,
-                kind: crate::errors::RuntimeErrorKind::Spanless(error_msg.to_string()),
-            })
+            Err(errors::RuntimeErrorKind::Spanless(error_msg.to_string()).into())
         }
     }
 

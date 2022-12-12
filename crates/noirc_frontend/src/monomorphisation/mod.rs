@@ -387,7 +387,7 @@ impl Monomorphiser {
             definitions.push(new_expr);
         }
 
-        ast::Expression::Tuple(definitions)
+        ast::Expression::Block(definitions)
     }
 
     /// A local (ie non-global) ident only
