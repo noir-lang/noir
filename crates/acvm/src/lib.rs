@@ -180,12 +180,12 @@ pub trait PartialWitnessGenerator {
                             _ => true,
                         }
                     }
-                    Directive::ToBytes { a, b, bit_size } => {
+                    Directive::ToBytes { a, b, byte_size } => {
                         match Self::get_value(a, initial_witness) {
                             Some(val_a) => {
                                 let mut a_bytes = val_a.to_bytes();
                                 a_bytes.reverse();
-                                for i in 0..(bit_size / 8) {
+                                for i in 0..*byte_size {
                                     let i_usize = i as usize;
                                     let v = FieldElement::from_be_bytes_reduce(&[a_bytes[i_usize]]);
                                     match initial_witness.entry(b[i_usize]) {

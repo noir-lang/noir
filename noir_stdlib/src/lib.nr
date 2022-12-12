@@ -12,7 +12,7 @@ mod sha512;
 fn to_bits(_x : Field, _bit_size: u32) -> [u1; 256] {}
 
 #[builtin(to_bytes)]
-fn to_bytes(_x : Field, _bit_size: u32) -> [u8; 32] {}
+fn to_bytes(_x : Field, _byte_size: u32) -> [u8; 32] {}
 
 // Returns base^exponent. 
 // ^ means to the power of and not xor

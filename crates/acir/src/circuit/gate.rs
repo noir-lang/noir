@@ -129,7 +129,7 @@ impl std::fmt::Debug for Gate {
                     b.last().unwrap().witness_index(),
                 )
             }
-            Gate::Directive(Directive::ToBytes { a, b, bit_size: _ }) => {
+            Gate::Directive(Directive::ToBytes { a, b, byte_size: _ }) => {
                 write!(
                     f,
                     "To Bytes: {} into x{}...x{}",
@@ -187,7 +187,7 @@ pub enum Directive {
     ToBytes {
         a: Expression,
         b: Vec<Witness>,
-        bit_size: u32,
+        byte_size: u32,
     },
 }
 

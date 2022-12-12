@@ -559,9 +559,9 @@ impl Acir {
                 }
             }
             OPCODE::ToBytes => {
-                let bit_size = ctx.get_as_constant(args[1]).unwrap().to_u128() as u32;
+                let byte_size = ctx.get_as_constant(args[1]).unwrap().to_u128() as u32;
                 let l_c = self.substitute(args[0], evaluator, ctx);
-                outputs = to_bytes(&l_c, bit_size, evaluator);
+                outputs = to_bytes(&l_c, byte_size, evaluator);
                 if let node::ObjectType::Pointer(a) = res_type {
                     self.map_array(a, &outputs, ctx);
                 }
@@ -638,30 +638,43 @@ pub fn evaluate_cmp(
     }
 }
 
-//Performs byte decomposition
-pub fn to_bytes(lhs: &InternalVar, bit_size: u32, evaluator: &mut Evaluator) -> Vec<Witness> {
-    assert!(bit_size < FieldElement::max_num_bits());
-    let mut bytes = Expression::default();
+//Decomposition into a specified radix (bits, bytes, etc)
+pub fn to_radix(
+    radix: u32,
+    radix_size: u32,
+    evaluator: &mut Evaluator,
+) -> (Vec<Witness>, Expression) {
+    let mut digits = Expression::default();
     let mut two_pow = FieldElement::one();
-    let two_five_six = FieldElement::from(256_i128);
+    let base: i32 = 2;
+    let radix_base = if radix != 2 { base.pow(radix) } else { base };
+    let shift = FieldElement::from(radix_base as i128);
     let mut result = Vec::new();
-    for _ in 0..(bit_size / 8) {
-        let byte_witness = evaluator.add_witness_to_cs();
-        result.push(byte_witness);
-        let byte_expr = from_witness(byte_witness);
-        bytes = add(&bytes, two_pow, &byte_expr);
-        // Multiply by 2^8
-        two_pow = two_pow.mul(two_five_six);
+    for _ in 0..radix_size {
+        let radix_witness = evaluator.add_witness_to_cs();
+        result.push(radix_witness);
+        let radix_expr = from_witness(radix_witness);
+        digits = add(&digits, two_pow, &radix_expr);
+        two_pow = two_pow.mul(shift);
+
         evaluator.gates.push(Gate::Arithmetic(subtract(
-            &byte_expr,
+            &mul(&radix_expr, &radix_expr),
             FieldElement::one(),
-            &byte_expr,
+            &mul(&radix_expr, &radix_expr),
         )));
     }
+
+    (result, digits)
+}
+
+//Performs byte decomposition
+pub fn to_bytes(lhs: &InternalVar, byte_size: u32, evaluator: &mut Evaluator) -> Vec<Witness> {
+    assert!(byte_size < FieldElement::max_num_bytes());
+    let (result, bytes) = to_radix(8, byte_size, evaluator);
     evaluator.gates.push(Gate::Directive(Directive::ToBytes {
         a: lhs.expression.clone(),
         b: result.clone(),
-        bit_size,
+        byte_size,
     }));
 
     evaluator.gates.push(Gate::Arithmetic(subtract(&lhs.expression, FieldElement::one(), &bytes)));
@@ -672,22 +685,7 @@ pub fn to_bytes(lhs: &InternalVar, bit_size: u32, evaluator: &mut Evaluator) -> 
 //Performs bit decomposition
 pub fn split(lhs: &InternalVar, bit_size: u32, evaluator: &mut Evaluator) -> Vec<Witness> {
     assert!(bit_size < FieldElement::max_num_bits());
-    let mut bits = Expression::default();
-    let mut two_pow = FieldElement::one();
-    let two = FieldElement::from(2_i128);
-    let mut result = Vec::new();
-    for _ in 0..bit_size {
-        let bit_witness = evaluator.add_witness_to_cs();
-        result.push(bit_witness);
-        let bit_expr = from_witness(bit_witness);
-        bits = add(&bits, two_pow, &bit_expr);
-        two_pow = two_pow.mul(two);
-        evaluator.gates.push(Gate::Arithmetic(subtract(
-            &mul(&bit_expr, &bit_expr),
-            FieldElement::one(),
-            &bit_expr,
-        )));
-    }
+    let (result, bits) = to_radix(2, bit_size, evaluator);
     evaluator.gates.push(Gate::Directive(Directive::Split {
         a: lhs.expression.clone(),
         b: result.clone(),
