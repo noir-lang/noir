@@ -643,16 +643,15 @@ pub fn to_bytes(lhs: &InternalVar, bit_size: u32, evaluator: &mut Evaluator) -> 
     assert!(bit_size < FieldElement::max_num_bits());
     let mut bytes = Expression::default();
     let mut two_pow = FieldElement::one();
-    let two = FieldElement::from(2_i128);
+    let two_five_six = FieldElement::from(256_i128);
     let mut result = Vec::new();
     for _ in 0..(bit_size / 8) {
         let byte_witness = evaluator.add_witness_to_cs();
         result.push(byte_witness);
         let byte_expr = from_witness(byte_witness);
         bytes = add(&bytes, two_pow, &byte_expr);
-        for _ in 0..8 {
-            two_pow = two_pow.mul(two);
-        }
+        // Multiply by 2^8
+        two_pow = two_pow.mul(two_five_six);
         evaluator.gates.push(Gate::Arithmetic(subtract(
             &byte_expr,
             FieldElement::one(),

@@ -149,6 +149,10 @@ impl<F: PrimeField> FieldElement<F> {
         F::Params::MODULUS_BITS
     }
 
+    /// Maximum numbers of bytes needed to represent a field element
+    /// We are not guaranteed that the number of bits being used to represent a field element
+    /// will always be divisible by 8. If the case that it is not, we add one to the max number of bytes
+    /// For example, a max bit size of 254 would give a max byte size of 32.
     pub fn max_num_bytes() -> u32 {
         let num_bytes = Self::max_num_bits() / 8;
         if Self::max_num_bits() % 8 == 0 {

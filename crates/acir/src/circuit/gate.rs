@@ -132,7 +132,7 @@ impl std::fmt::Debug for Gate {
             Gate::Directive(Directive::ToBytes { a, b, bit_size: _ }) => {
                 write!(
                     f,
-                    "Split Bytes: {} into x{}...x{}",
+                    "To Bytes: {} into x{}...x{}",
                     a,
                     b.first().unwrap().witness_index(),
                     b.last().unwrap().witness_index(),
