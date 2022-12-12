@@ -638,39 +638,35 @@ pub fn evaluate_cmp(
     }
 }
 
-//Decomposition into a specified radix (bits, bytes, etc)
-pub fn to_radix(
-    radix: u32,
-    radix_size: u32,
+//Decomposition into a list of unsigned integers based on a base2 radix (bits - u1, bytes - u8, etc)
+pub fn to_base2_decomposition(
+    pow: u32,
+    num_limbs: u32,
     evaluator: &mut Evaluator,
-) -> (Vec<Witness>, Expression) {
+) -> Result<(Vec<Witness>, Expression), RuntimeErrorKind> {
     let mut digits = Expression::default();
     let mut two_pow = FieldElement::one();
     let base: i32 = 2;
-    let radix_base = if radix != 2 { base.pow(radix) } else { base };
+    let radix_base = base.pow(pow);
     let shift = FieldElement::from(radix_base as i128);
     let mut result = Vec::new();
-    for _ in 0..radix_size {
+    for _ in 0..num_limbs {
         let radix_witness = evaluator.add_witness_to_cs();
         result.push(radix_witness);
         let radix_expr = from_witness(radix_witness);
         digits = add(&digits, two_pow, &radix_expr);
         two_pow = two_pow.mul(shift);
 
-        evaluator.gates.push(Gate::Arithmetic(subtract(
-            &mul(&radix_expr, &radix_expr),
-            FieldElement::one(),
-            &mul(&radix_expr, &radix_expr),
-        )));
+        range_constraint(radix_witness, pow, evaluator)?;
     }
 
-    (result, digits)
+    Ok((result, digits))
 }
 
 //Performs byte decomposition
 pub fn to_bytes(lhs: &InternalVar, byte_size: u32, evaluator: &mut Evaluator) -> Vec<Witness> {
     assert!(byte_size < FieldElement::max_num_bytes());
-    let (result, bytes) = to_radix(8, byte_size, evaluator);
+    let (result, bytes) = to_base2_decomposition(8, byte_size, evaluator).unwrap();
     evaluator.gates.push(Gate::Directive(Directive::ToBytes {
         a: lhs.expression.clone(),
         b: result.clone(),
@@ -685,7 +681,7 @@ pub fn to_bytes(lhs: &InternalVar, byte_size: u32, evaluator: &mut Evaluator) ->
 //Performs bit decomposition
 pub fn split(lhs: &InternalVar, bit_size: u32, evaluator: &mut Evaluator) -> Vec<Witness> {
     assert!(bit_size < FieldElement::max_num_bits());
-    let (result, bits) = to_radix(2, bit_size, evaluator);
+    let (result, bits) = to_base2_decomposition(1, bit_size, evaluator).unwrap();
     evaluator.gates.push(Gate::Directive(Directive::Split {
         a: lhs.expression.clone(),
         b: result.clone(),
