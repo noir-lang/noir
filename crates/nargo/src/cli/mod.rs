@@ -17,6 +17,7 @@ use crate::errors::CliError;
 mod build_cmd;
 mod compile_cmd;
 mod contract_cmd;
+mod gates_cmd;
 mod new_cmd;
 mod prove_cmd;
 mod verify_cmd;
@@ -83,6 +84,12 @@ pub fn start_cli() {
                 )
                 .arg(allow_warnings.clone()),
         )
+        .subcommand(
+            App::new("gates")
+                .about("Counts the occurences of different gates in circuit")
+                .arg(show_ssa)
+                .arg(allow_warnings),
+        )
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .get_matches();
 
@@ -93,6 +100,7 @@ pub fn start_cli() {
         Some("prove") => prove_cmd::run(matches),
         Some("compile") => compile_cmd::run(matches),
         Some("verify") => verify_cmd::run(matches),
+        Some("gates") => gates_cmd::run(matches),
         Some(x) => Err(CliError::Generic(format!("unknown command : {}", x))),
         _ => unreachable!(),
     };
