@@ -869,25 +869,16 @@ pub fn unroll_if(
     debug_assert!(if_block.kind == BlockType::Normal);
     let exit = block::find_join(ctx, if_block.id);
 
-    // simple mode:
-    if unroll_ctx.unroll_into.is_dummy() || unroll_ctx.unroll_into == unroll_ctx.to_unroll {
-        unroll_ctx.unroll_into = unroll_ctx.to_unroll;
-        flatten::unroll_std_block(ctx, unroll_ctx)?;
-        unroll_ctx.to_unroll = left;
-        unroll_ctx.unroll_into = left;
-        flatten::unroll_std_block(ctx, unroll_ctx)?;
-        unroll_ctx.to_unroll = right;
-        unroll_ctx.unroll_into = right;
-        flatten::unroll_std_block(ctx, unroll_ctx)?;
-        unroll_ctx.to_unroll = exit;
-        unroll_ctx.unroll_into = exit;
-        return Ok(exit);
-    }
-
     //2. create the IF subgraph
-    //the unroll_into is required and will be used as the prev block
-    let prev = unroll_ctx.unroll_into;
-    let (new_entry, new_exit) = create_if_subgraph(ctx, prev);
+    let (new_entry, new_exit) =
+        if unroll_ctx.unroll_into.is_dummy() || unroll_ctx.unroll_into == unroll_ctx.to_unroll {
+            // simple mode:
+            create_if_subgraph(ctx, unroll_ctx.to_unroll, true)
+        } else {
+            //the unroll_into is required and will be used as the prev block
+            let prev = unroll_ctx.unroll_into;
+            create_if_subgraph(ctx, prev, false)
+        };
     unroll_ctx.unroll_into = new_entry;
 
     //3 Process the entry_block
@@ -919,10 +910,18 @@ pub fn unroll_if(
 }
 
 //create the subgraph for unrolling IF statement
-fn create_if_subgraph(ctx: &mut SsaContext, prev_block: BlockId) -> (BlockId, BlockId) {
+fn create_if_subgraph(
+    ctx: &mut SsaContext,
+    prev_block: BlockId,
+    simple_mode: bool,
+) -> (BlockId, BlockId) {
     //Entry block
     ctx.current_block = prev_block;
-    let new_entry = block::new_sealed_block(ctx, block::BlockType::Normal, true);
+    let new_entry = if simple_mode {
+        prev_block
+    } else {
+        block::new_sealed_block(ctx, block::BlockType::Normal, true)
+    };
     //Then block
     ctx.current_block = new_entry;
     block::new_sealed_block(ctx, block::BlockType::Normal, true);
