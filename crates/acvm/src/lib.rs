@@ -31,7 +31,7 @@ pub enum GateResolution {
     UnknownError(String),      //Generic error
     UnsupportedOpcode(OPCODE), //Unsupported Opcode
     UnsatisfiedConstrain,      //Gate is not satisfied
-    Solved(usize),             //Circuit is solved, after a number of passes
+    Solved,                    //Circuit is solved, after a number of passes
 }
 
 pub trait Backend: SmartContract + ProofSystemCompiler + PartialWitnessGenerator {}
@@ -190,7 +190,6 @@ pub trait PartialWitnessGenerator {
         mut gates_to_resolve: Vec<Gate>,
     ) -> GateResolution {
         let mut unresolved_gates: Vec<Gate> = Vec::new();
-        let mut pass_number = 0;
         let mut ctx = BinarySolver::new();
         //binary_solve is used to manage the binary solving mode:
         //binary_solve.is_none()                => binary solve is not activated
@@ -227,9 +226,8 @@ pub trait PartialWitnessGenerator {
                 binary_solve = Some(2);
             }
             std::mem::swap(&mut gates_to_resolve, &mut unresolved_gates);
-            pass_number += 1;
         }
-        GateResolution::Solved(pass_number)
+        GateResolution::Solved
     }
 
     fn solve_gadget_call(

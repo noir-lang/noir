@@ -82,7 +82,7 @@ impl BinarySolver {
             | GateResolution::UnsatisfiedConstrain
             | GateResolution::UnknownError(_) => return result,
             GateResolution::Skip => (),
-            GateResolution::UnsupportedOpcode(_) | GateResolution::Solved(_) => unreachable!(),
+            GateResolution::UnsupportedOpcode(_) | GateResolution::Solved => unreachable!(),
         }
 
         if let Some(max) = self.is_binary(gate) {
