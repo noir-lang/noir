@@ -643,7 +643,7 @@ pub fn to_base2_decomposition(
     pow: u32,
     num_limbs: u32,
     evaluator: &mut Evaluator,
-) -> Result<(Vec<Witness>, Expression), RuntimeErrorKind> {
+) -> (Vec<Witness>, Expression) {
     let mut digits = Expression::default();
     let mut two_pow = FieldElement::one();
     let base: i32 = 2;
@@ -657,16 +657,16 @@ pub fn to_base2_decomposition(
         digits = add(&digits, two_pow, &radix_expr);
         two_pow = two_pow.mul(shift);
 
-        range_constraint(radix_witness, pow, evaluator)?;
+        range_constraint(radix_witness, pow, evaluator).unwrap();
     }
 
-    Ok((result, digits))
+    (result, digits)
 }
 
 //Performs byte decomposition
 pub fn to_bytes(lhs: &InternalVar, byte_size: u32, evaluator: &mut Evaluator) -> Vec<Witness> {
     assert!(byte_size < FieldElement::max_num_bytes());
-    let (result, bytes) = to_base2_decomposition(8, byte_size, evaluator).unwrap();
+    let (result, bytes) = to_base2_decomposition(8, byte_size, evaluator);
     evaluator.gates.push(Gate::Directive(Directive::ToBytes {
         a: lhs.expression.clone(),
         b: result.clone(),
@@ -681,7 +681,7 @@ pub fn to_bytes(lhs: &InternalVar, byte_size: u32, evaluator: &mut Evaluator) ->
 //Performs bit decomposition
 pub fn split(lhs: &InternalVar, bit_size: u32, evaluator: &mut Evaluator) -> Vec<Witness> {
     assert!(bit_size < FieldElement::max_num_bits());
-    let (result, bits) = to_base2_decomposition(1, bit_size, evaluator).unwrap();
+    let (result, bits) = to_base2_decomposition(1, bit_size, evaluator);
     evaluator.gates.push(Gate::Directive(Directive::Split {
         a: lhs.expression.clone(),
         b: result.clone(),
