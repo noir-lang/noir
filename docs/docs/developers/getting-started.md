@@ -23,10 +23,8 @@ We are working on making this process more transparent. Feel free to [get in tou
 
 ## Testnet Information
 
-:::warn
-
+:::caution
 Our testnet is currently undergoing maintenance. If you need access to an Aztec testing environment, please reach out via [email](mailto:josh@aztecprotocol.com).
-
 :::
 
 ## Building with the SDK
