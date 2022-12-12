@@ -186,7 +186,9 @@ Refer to [this section](https://github.com/AztecProtocol/aztec-connect-bridges#w
 
 ### Testnet Deployment Info
 
-:::caution Our testnet is currently undergoing maintenance. If you need access to an Aztec testing environment, please reach out via email. :::
+:::caution 
+Our testnet is currently undergoing maintenance. If you need access to an Aztec testing environment, please reach out via email. 
+:::
 
 You can use these commands to get all of assets and bridges that the Aztec core team has deployed on the testnet.
 
