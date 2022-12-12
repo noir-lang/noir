@@ -23,42 +23,9 @@ We are working on making this process more transparent. Feel free to [get in tou
 
 ## Testnet Information
 
-### Configuration
-
-Aztec maintains a Testnet environment that mimics Ethereum, enabling more comprehensive testing of projects built on Aztec.
-
-To make use of the Testnet:
-
-1. Connect Metamask (or other Ethereum wallet) to the Testnet:
-
-| Properties      | Network Details                                           |
-| --------------- | --------------------------------------------------------- |
-| Network name    | Aztec Testnet                                             |
-| RPC URL         | https://aztec-connect-testnet-eth-host.aztec.network:8545 |
-| Chain ID        | 677868                                                    |
-| Currency symbol | ETH                                                       |
-
-2. Get Testnet funds:
-   - Use the [Testnet faucet](https://aztec-connect-testnet-faucet.aztec.network/)
-   - For larger amounts of Testnet ETH, [get in touch](#get-in-touch)
-
-After connecting to the Testnet, you can try out Aztec projects on the Testnet such as [zk.money (Testnet)](https://aztec-connect-testnet.zk.money/), [Aztec CLI](https://github.com/critesjosh/azteccli) and the [Minimal Frontend](https://aztec-frontend-boilerplate.netlify.app/) that involve account registrations, deposits, transfers, withdrawals and more on the Aztec network.
-
-The testnet doesn't have a block explorer at the moment. A simple way to deploy contracts on the testnet and interact with existing deployed contracts is via [Remix](https://remix.ethereum.org). To do this, connect Metamask to the testnet, connect Remix and Metamask and send transactions through the Remix "Deploy and Run Transactions" tab.
-
-For the status and details of the Aztec Testnet infrastructure, check the [Testnet Falafel Status API](https://api.aztec.network/aztec-connect-testnet/falafel/status).
-
-### Deployed Aztec Connect Bridges
-
-If you are developing with the SDK / on multi-step bridges that involve interaction with other existing bridges, you may come across the need to retrieve details of bridges already deployed on the Testnet (e.g. `bridgeAddressId`). There are currently two ways to do so:
-
-#### Aztec Frontend Boilerplate
-
-After logging in on the [Minimal Frontend](https://aztec-frontend-boilerplate.netlify.app/), you will see a "Log Bridges" button which logs bridge details in the browser console.
-
-#### Foundry Script
-
-Alternatively, you can read from the bridge data provider contract directly by running a script from the [Aztec Connect Bridges repository](https://github.com/AztecProtocol/aztec-connect-bridges). Check [this section](./bridges#testnet-deployment-info) for more details.
+:::caution
+Our testnet is currently undergoing maintenance. If you need access to an Aztec testing environment, please reach out via [email](mailto:josh@aztecprotocol.com).
+:::
 
 ## Building with the SDK
 
