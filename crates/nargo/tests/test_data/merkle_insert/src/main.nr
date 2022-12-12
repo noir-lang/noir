@@ -11,7 +11,7 @@ fn main(
 ) {
     let old_leaf_exists = std::merkle::check_membership(old_root, old_leaf, index, old_hash_path);
     constrain old_leaf_exists == 1;
-    constrain old_root == std::merkle::compute_root_from_leaf( old_leaf, index, old_hash_path);
+    constrain old_root == std::merkle::compute_root_from_leaf(old_leaf, index, old_hash_path);
     let new_leaf_exists = std::merkle::check_membership(new_root, leaf, index, old_hash_path);
     constrain new_leaf_exists == 1;
 
