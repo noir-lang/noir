@@ -910,7 +910,11 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn try_eval_array_length_id(&self, rhs: ExprId, span: Span) -> Result<u128, Option<ResolverError>> {
+    fn try_eval_array_length_id(
+        &self,
+        rhs: ExprId,
+        span: Span,
+    ) -> Result<u128, Option<ResolverError>> {
         match self.interner.expression(&rhs) {
             HirExpression::Literal(HirLiteral::Integer(int)) => {
                 int.try_into_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
