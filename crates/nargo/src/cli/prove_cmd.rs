@@ -114,7 +114,7 @@ fn solve_witness(
         GateResolution::UnsatisfiedConstrain => return Err(CliError::Generic(
                 "could not satisfy all constraints".to_string()
         )),
-        GateResolution::Resolved | GateResolution::Solved(_)=> (),
+        GateResolution::Resolved | GateResolution::Solved => (),
         _ => unreachable!(),
     }
 
