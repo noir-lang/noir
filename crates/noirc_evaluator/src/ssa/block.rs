@@ -399,16 +399,13 @@ pub fn short_circuit_instructions(
     debug_assert_eq!(ctx.get_instruction(nop).operation, node::Operation::Nop);
     let mut stack = vec![nop, unreachable_ins];
     //return:
-    let ret_pos = instructions.iter().position(|x| {
-        if let Some(ins) = ctx.try_get_instruction(*x) {
-            return ins.operation.opcode() == Opcode::Return;
+    for &i in instructions.iter() {
+        if let Some(ins) = ctx.try_get_instruction(i) {
+            if ins.operation.opcode() == Opcode::Return {
+                stack.push(i);
+                zero_instructions(ctx, &vec![i], None);
+            }
         }
-        false
-    });
-    if let Some(ret) = ret_pos {
-        let ret_id = instructions[ret];
-        stack.push(ret_id);
-        zero_instructions(ctx, &vec![ret_id], None);
     }
 
     stack
