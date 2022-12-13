@@ -6,7 +6,7 @@ Recover an Aztec account.
 
 Aztec allows for recovery of an account for which all of the registered spending keys have been lost. The recovering party will still need the account privacy key to decrypt the associated account notes.
 
-At a high level, what the [RecoverAccountController](./../types/sdk/RecoverAccountController) does is it adds a trusted third party key as a new spending key for the account. This trusted third party key can then be used to [add new spending keys](add-spending-keys) to the account.
+At a high level, what the [RecoverAccountController](./../types/sdk/RecoverAccountController) does is it adds a trusted third party key as a new spending key for the account. This trusted third party key can then be used to [add new spending keys](add-spending-keys) to the account, so only add a recovery account that is managed by someone that you trust!
 
 The `RecoverAccountController` does not require an Aztec account and can be used with only a funded Ethereum account. This allows anyone to initiate an account recovery.
 
@@ -14,9 +14,9 @@ The trusted third party key is **different** than the `recoveryPublicKey` passed
 
 ## Recovery Payload
 
-In practice, a user generates a [RecoveryPayload](../types/sdk/RecoveryPayload) from their account public key, their alias and a trusted third party public key. The `RecoveryPayload` includes the `recoveryPublicKey` that is used when an account is [registered](register).
+In practice, a user generates a [RecoveryPayload](../types/sdk/RecoveryPayload) from their account public key, their alias and a trusted third party public key. The `RecoveryPayload` includes the `recoveryPublicKey`.
 
-To be able to recover an account, a user must have the `RecoveryPayload` generated during registration. Generating a `RecoveryPayload` is **not** deterministic, you will not be able to regenerate a `RecoveryPayload` with the same inputs later. Store the recovery payload someplace safe!
+To be able to recover an account, a user must have the `RecoveryPayload` generated using the SDK. Generating a `RecoveryPayload` is **not** deterministic, you will not be able to regenerate a `RecoveryPayload` with the same inputs later. Store the recovery payload someplace safe!
 
 Using the SDK to generate a `RecoveryPayload`:
 
