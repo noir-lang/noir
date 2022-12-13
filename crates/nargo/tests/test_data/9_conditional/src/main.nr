@@ -101,7 +101,12 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
     }
     constrain data[31] == 0;
     constrain ba != 13;
-    
+    //regression for short-circuit2
+    if 35 == a {
+        constrain false;
+    }
+    bar(a as Field);
+
     if a == 3 {
        c = test4();
     }
@@ -185,3 +190,18 @@ fn test5(a : u32) {
         constrain q == 2;
     }
 }
+
+
+
+fn foo() {
+    let mut x = 1;
+    x = x/0;
+}
+
+fn bar(x:Field) {
+    if x ==15 {
+        foo();
+    }
+}
+
+
