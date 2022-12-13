@@ -100,7 +100,7 @@ impl Reporter {
     /// Writes the given diagnostics to stderr and returns the count
     /// of diagnostics that were errors.
     pub fn with_diagnostics(
-        file_id: FileId,
+        file_id: Option<FileId>,
         files: &fm::FileManager,
         diagnostics: &[CustomDiagnostic],
         allow_warnings: bool,
@@ -117,17 +117,20 @@ impl Reporter {
                 }
             };
 
-            let secondary_labels = cd
-                .secondaries
-                .iter()
-                .map(|sl| {
-                    let start_span = sl.span.start() as usize;
-                    let end_span = sl.span.end() as usize + 1;
-                    Label::secondary(file_id.as_usize(), start_span..end_span)
-                        .with_message(&sl.message)
-                })
-                .collect();
+            let secondary_labels = if let Some(f_id) = file_id {
+                cd.secondaries
+                    .iter()
+                    .map(|sl| {
+                        let start_span = sl.span.start() as usize;
+                        let end_span = sl.span.end() as usize + 1;
 
+                        Label::secondary(f_id.as_usize(), start_span..end_span)
+                            .with_message(&sl.message)
+                    })
+                    .collect()
+            } else {
+                Vec::new()
+            };
             diagnostic
                 .with_message(&cd.message)
                 .with_labels(secondary_labels)

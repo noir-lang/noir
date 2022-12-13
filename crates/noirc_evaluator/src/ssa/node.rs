@@ -430,15 +430,17 @@ impl Instruction {
                         return Ok(NodeEval::VarOrInstruction(NodeId::dummy()));
                     } else if obj.is_zero() {
                         if let Some(location) = *location {
-                            return Err(RuntimeErrorKind::UnstructuredError {
-                                message: "Constraint is always false".into(),
-                            }
-                            .add_location(location));
+                            return Err(RuntimeError::new(
+                                RuntimeErrorKind::UnstructuredError {
+                                    message: "Constraint is always false".into(),
+                                },
+                                Some(location),
+                            ));
                         } else {
                             return Err(RuntimeErrorKind::Spanless(
                                 "Constraint is always false".into(),
                             )
-                            .add_location(Location::dummy()));
+                            .into());
                         }
                     }
                 }
@@ -743,6 +745,9 @@ impl Binary {
 
         let l_is_zero = lhs.map_or(false, |x| x.is_zero());
         let r_is_zero = rhs.map_or(false, |x| x.is_zero());
+        let zero_div_error =
+            Err(RuntimeErrorKind::Spanless("Panic - division by zero".to_string()).into());
+
         match &self.operator {
             BinaryOp::Add | BinaryOp::SafeAdd => {
                 if l_is_zero {
@@ -787,7 +792,7 @@ impl Binary {
 
             BinaryOp::Udiv => {
                 if r_is_zero {
-                    todo!("Panic - division by zero");
+                    return zero_div_error;
                 } else if l_is_zero {
                     return Ok(l_eval); //TODO should we ensure rhs != 0 ???
                 }
@@ -800,7 +805,7 @@ impl Binary {
             }
             BinaryOp::Div => {
                 if r_is_zero {
-                    todo!("Panic - division by zero");
+                    return zero_div_error;
                 } else if l_is_zero {
                     return Ok(l_eval); //TODO should we ensure rhs != 0 ???
                 }
@@ -811,7 +816,7 @@ impl Binary {
             }
             BinaryOp::Sdiv => {
                 if r_is_zero {
-                    todo!("Panic - division by zero");
+                    return zero_div_error;
                 } else if l_is_zero {
                     return Ok(l_eval); //TODO should we ensure rhs != 0 ???
                 }
@@ -822,7 +827,7 @@ impl Binary {
             }
             BinaryOp::Urem | BinaryOp::Srem => {
                 if r_is_zero {
-                    todo!("Panic - division by zero");
+                    return zero_div_error;
                 } else if l_is_zero {
                     return Ok(l_eval); //TODO what is the correct result?
                 }
