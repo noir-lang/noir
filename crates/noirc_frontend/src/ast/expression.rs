@@ -420,6 +420,7 @@ impl Display for ExpressionKind {
                 let elements = vecmap(elements, ToString::to_string);
                 write!(f, "({})", elements.join(", "))
             }
+            Lambda(lambda) => lambda.fmt(f),
             Error => write!(f, "Error"),
         }
     }
@@ -560,6 +561,14 @@ impl Display for IfExpression {
             write!(f, " else {}", alternative)?;
         }
         Ok(())
+    }
+}
+
+impl Display for Lambda {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let parameters = vecmap(&self.parameters, |(name, r#type)| format!("{}: {}", name, r#type));
+
+        write!(f, "|{}| -> {} {{ {} }}", parameters.join(", "), self.return_type, self.body)
     }
 }
 

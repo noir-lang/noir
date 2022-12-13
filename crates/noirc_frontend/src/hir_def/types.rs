@@ -794,6 +794,19 @@ impl Type {
                 }
             }
 
+            (Function(params_a, ret_a), Function(params_b, ret_b)) => {
+                if params_a.len() == params_b.len() {
+                    for (a, b) in params_a.iter().zip(params_b) {
+                        a.try_unify(b, span)?;
+                    }
+
+                    // return types are contravariant, so this must be ret_b <: ret_a instead of the reverse
+                    ret_b.try_unify(ret_a, span)
+                } else {
+                    Err(SpanKind::None)
+                }
+            }
+
             (other_a, other_b) => {
                 if other_a == other_b {
                     Ok(())
@@ -909,6 +922,19 @@ impl Type {
                 assert!(is_unbound(binding_a) && is_unbound(binding_b));
                 if name_a == name_b {
                     Ok(())
+                } else {
+                    Err(SpanKind::None)
+                }
+            }
+
+            (Function(params_a, ret_a), Function(params_b, ret_b)) => {
+                if params_a.len() == params_b.len() {
+                    for (a, b) in params_a.iter().zip(params_b) {
+                        a.is_subtype_of(b, span)?;
+                    }
+
+                    // return types are contravariant, so this must be ret_b <: ret_a instead of the reverse
+                    ret_b.is_subtype_of(ret_a, span)
                 } else {
                     Err(SpanKind::None)
                 }

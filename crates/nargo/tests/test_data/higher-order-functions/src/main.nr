@@ -2,6 +2,10 @@ fn main() -> pub Field {
     let f = if 3 * 7 > 200 { foo } else { bar };
     constrain f()[1] == 2;
 
+    // lambdas!
+    constrain twice(|x| x * 2, 5) == 20;
+    constrain (|x, y| x + y + 1)(2, 3) == 6;
+
     twice(add1, 3)
 }
 

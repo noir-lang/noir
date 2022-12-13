@@ -39,7 +39,7 @@ pub enum Definition {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct LocalId(pub u32);
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct FuncId(pub u32);
 
 #[derive(Debug, Clone)]
@@ -187,19 +187,15 @@ pub struct Program {
 }
 
 impl Program {
-    pub fn new(main: Function, abi: Abi) -> Program {
-        Program { functions: vec![main], abi }
-    }
-
-    pub fn push_function(&mut self, function: Function) {
-        self.functions.push(function);
+    pub fn new(functions: Vec<Function>, abi: Abi) -> Program {
+        Program { functions, abi }
     }
 
     pub fn main(&mut self) -> &mut Function {
         &mut self.functions[0]
     }
 
-    pub fn main_id(&mut self) -> FuncId {
+    pub fn main_id() -> FuncId {
         FuncId(0)
     }
 

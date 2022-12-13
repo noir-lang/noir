@@ -9,7 +9,7 @@ use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::{
     AssignStatement, BinaryOp, BinaryOpKind, BlockExpression, Comptime, ConstrainStatement,
-    FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, LValue,
+    FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, LValue, Lambda,
     NoirFunction, NoirImpl, NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp,
 };
 
@@ -96,7 +96,7 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
         .then(ident())
         .then(generics())
         .then(parenthesized(function_parameters(allow_self, expression())))
-        .then(function_return_type(expression()))
+        .then(function_return_type())
         .then(block(expression()))
         .map(
             |(
@@ -148,12 +148,19 @@ fn struct_definition() -> impl NoirParser<TopLevelStatement> {
     )
 }
 
-fn function_return_type<'a>(
+fn lambda_return_type<'a>(
     expr_parser: impl NoirParser<Expression> + 'a,
-) -> impl NoirParser<(AbiFEType, UnresolvedType)> + 'a {
+) -> impl NoirParser<UnresolvedType> + 'a {
+    just(Token::Arrow)
+        .ignore_then(parse_type(expr_parser))
+        .or_not()
+        .map(|ret| ret.unwrap_or(UnresolvedType::Unspecified))
+}
+
+fn function_return_type<'a>() -> impl NoirParser<(AbiFEType, UnresolvedType)> + 'a {
     just(Token::Arrow)
         .ignore_then(optional_visibility())
-        .then(parse_type(expr_parser))
+        .then(parse_type(expression()))
         .or_not()
         .map(|ret| ret.unwrap_or((AbiFEType::Private, UnresolvedType::Unit)))
 }
@@ -173,6 +180,19 @@ fn struct_fields<'a>(
         .then(parse_type(expr_parser))
         .separated_by(just(Token::Comma))
         .allow_trailing()
+}
+
+fn lambda_parameters<'a>(
+    expr_parser: impl NoirParser<Expression> + 'a,
+) -> impl NoirParser<Vec<(Pattern, UnresolvedType)>> + 'a {
+    let typ = parse_type(expr_parser).recover_via(parameter_recovery());
+    let typ = just(Token::Colon).ignore_then(typ);
+
+    let parameter = pattern()
+        .recover_via(parameter_name_recovery())
+        .then(typ.or_not().map(|typ| typ.unwrap_or(UnresolvedType::Unspecified)));
+
+    parameter.separated_by(just(Token::Comma)).allow_trailing().labelled("parameter")
 }
 
 fn function_parameters<'a>(
@@ -667,33 +687,16 @@ where
     })
 }
 
-fn lambda(expr_parser: impl NoirParser<Expression>) -> impl NoirParser<ExpressionKind> {
-    attribute()
-        .or_not()
-        .then_ignore(keyword(Keyword::Fn))
-        .then(ident())
-        .then(generics())
-        .then(parenthesized(function_parameters(allow_self, expression())))
-        .then(function_return_type(expression()))
-        .then(block(expression()))
-        .map(
-            |(
-                ((((attribute, name), generics), parameters), (return_visibility, return_type)),
-                body,
-            )| {
-                FunctionDefinition {
-                    span: name.0.span(),
-                    name,
-                    attribute, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
-                    generics,
-                    parameters,
-                    body,
-                    return_type,
-                    return_visibility,
-                }
-                .into()
-            },
-        )
+fn lambda<'a>(
+    expr_parser: impl NoirParser<Expression> + 'a,
+) -> impl NoirParser<ExpressionKind> + 'a {
+    lambda_parameters(expr_parser.clone())
+        .delimited_by(just(Token::Pipe), just(Token::Pipe))
+        .then(lambda_return_type(expr_parser.clone()))
+        .then(expr_parser)
+        .map(|((parameters, return_type), body)| {
+            ExpressionKind::Lambda(Box::new(Lambda { parameters, return_type, body }))
+        })
 }
 
 fn for_expr<'a, P>(expr_parser: P) -> impl NoirParser<ExpressionKind> + 'a
@@ -790,6 +793,7 @@ where
         for_expr(expr_parser.clone()),
         array_expr(expr_parser.clone()),
         constructor(expr_parser.clone()),
+        lambda(expr_parser.clone()),
         block(expr_parser.clone()).map(ExpressionKind::Block),
         variable(),
         literal(),

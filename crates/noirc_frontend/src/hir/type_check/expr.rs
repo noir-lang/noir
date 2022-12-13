@@ -10,7 +10,7 @@ use crate::{
     Comptime, Shared, TypeBinding,
 };
 
-use super::errors::TypeCheckError;
+use super::{bind_pattern, errors::TypeCheckError};
 
 pub(crate) fn type_check_expression(
     interner: &mut NodeInterner,
@@ -219,6 +219,24 @@ pub(crate) fn type_check_expression(
         HirExpression::Error => Type::Error,
         HirExpression::Tuple(elements) => {
             Type::Tuple(vecmap(&elements, |elem| type_check_expression(interner, elem, errors)))
+        }
+        HirExpression::Lambda(lambda) => {
+            let params = vecmap(lambda.parameters, |(pattern, typ)| {
+                bind_pattern(interner, &pattern, typ.clone(), errors);
+                typ
+            });
+
+            let actual_return = type_check_expression(interner, &lambda.body, errors);
+
+            let span = interner.expr_span(&lambda.body);
+            actual_return.make_subtype_of(&lambda.return_type, span, errors, || {
+                TypeCheckError::TypeMismatch {
+                    expected_typ: lambda.return_type.to_string(),
+                    expr_typ: actual_return.to_string(),
+                    expr_span: span,
+                }
+            });
+            Type::Function(params, Box::new(lambda.return_type))
         }
     };
 
@@ -515,6 +533,20 @@ pub fn infix_operand_type_rules(
 
         (Bool(comptime_x), Bool(comptime_y)) => Ok(Bool(comptime_x.and(comptime_y, op.location.span))),
 
+        (TypeVariable(var), other)
+        | (other, TypeVariable(var)) => {
+            if let TypeBinding::Bound(binding) = &*var.borrow() {
+                return infix_operand_type_rules(binding, op, other, errors);
+            }
+
+            let comptime = Comptime::No(None);
+            if other.try_bind_to_polymorphic_int(var, &comptime, true, op.location.span).is_ok() || other == &Type::Error {
+                Ok(other.clone())
+            } else {
+                Err(format!("Types in a binary operation should match, but found {} and {}", lhs_type, rhs_type))
+            }
+        }
+
         (lhs, rhs) => Err(format!("Unsupported types for binary operation: {} and {}", lhs, rhs)),
     }
 }
@@ -715,6 +747,20 @@ pub fn comparator_operand_type_rules(
                 return Ok(Bool(Comptime::No(Some(op.location.span))));
             }
             Err(format!("Unsupported types for comparison: {} and {}", name_a, name_b))
+        }
+
+        (TypeVariable(var), other)
+        | (other, TypeVariable(var)) => {
+            if let TypeBinding::Bound(binding) = &*var.borrow() {
+                return infix_operand_type_rules(binding, op, other, errors);
+            }
+
+            let comptime = Comptime::No(None);
+            if other.try_bind_to_polymorphic_int(var, &comptime, true, op.location.span).is_ok() || other == &Type::Error {
+                Ok(other.clone())
+            } else {
+                Err(format!("Types in a binary operation should match, but found {} and {}", lhs_type, rhs_type))
+            }
         }
         (lhs, rhs) => Err(format!("Unsupported types for comparison: {} and {}", lhs, rhs)),
     }

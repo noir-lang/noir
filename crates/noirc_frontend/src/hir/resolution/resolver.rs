@@ -20,8 +20,8 @@ struct ResolverMeta {
 use crate::hir_def::expr::{
     HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
     HirConstructorExpression, HirExpression, HirForExpression, HirIdent, HirIfExpression,
-    HirIndexExpression, HirInfixExpression, HirLiteral, HirMemberAccess, HirMethodCallExpression,
-    HirPrefixExpression,
+    HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral, HirMemberAccess,
+    HirMethodCallExpression, HirPrefixExpression,
 };
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::rc::Rc;
@@ -364,6 +364,15 @@ impl<'a> Resolver<'a> {
         self.resolve_type_inner(typ, &mut vec![])
     }
 
+    /// Translates a (possibly Unspecified) UnresolvedType to a Type.
+    /// Any UnresolvedType::Unspecified encountered are replaced with fresh type variables.
+    fn resolve_inferred_type(&mut self, typ: UnresolvedType) -> Type {
+        match typ {
+            UnresolvedType::Unspecified => self.interner.next_type_variable(),
+            other => self.resolve_type_inner(other, &mut vec![]),
+        }
+    }
+
     fn add_generics(&mut self, generics: Vec<Ident>) -> Generics {
         vecmap(generics, |generic| {
             // Map the generic to a fresh type variable
@@ -598,10 +607,9 @@ impl<'a> Resolver<'a> {
                 // TODO: For loop variables are currently mutable by default since we haven't
                 //       yet implemented syntax for them to be optionally mutable.
                 let (identifier, block_id) = self.in_new_scope(|this| {
-                    (
-                        this.add_variable_decl(identifier, false, DefinitionKind::Local(None)),
-                        this.resolve_expression(block),
-                    )
+                    let local = DefinitionKind::Local(None);
+                    let ident = this.add_variable_decl(identifier, false, local);
+                    (ident, this.resolve_expression(block))
                 });
 
                 HirExpression::For(HirForExpression {
@@ -662,6 +670,19 @@ impl<'a> Resolver<'a> {
                 let elements = vecmap(elements, |elem| self.resolve_expression(elem));
                 HirExpression::Tuple(elements)
             }
+            // It is okay to resolve the lambda within its parent function's context,
+            // It should capture any used variables.
+            ExpressionKind::Lambda(lambda) => self.in_new_scope(|this| {
+                let parameters = vecmap(lambda.parameters, |(pattern, typ)| {
+                    let parameter = DefinitionKind::Local(None);
+                    (this.resolve_pattern(pattern, parameter), this.resolve_inferred_type(typ))
+                });
+
+                let return_type = this.resolve_inferred_type(lambda.return_type);
+                let body = this.resolve_expression(lambda.body);
+
+                HirExpression::Lambda(HirLambda { parameters, return_type, body })
+            }),
         };
 
         let expr_id = self.interner.push_expr(hir_expr);
@@ -937,6 +958,7 @@ impl<'a> Resolver<'a> {
             | ExpressionKind::Cast(_)
             | ExpressionKind::For(_)
             | ExpressionKind::If(_)
+            | ExpressionKind::Lambda(_)
             | ExpressionKind::Tuple(_) => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
 
             ExpressionKind::Error => Err(None),
