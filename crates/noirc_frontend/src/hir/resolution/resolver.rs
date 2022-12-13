@@ -73,6 +73,13 @@ pub struct Resolver<'a> {
     /// Contains a mapping of the current struct's generics to
     /// unique type variables if we're resolving a struct. Empty otherwise.
     generics: HashMap<Rc<String>, (TypeVariable, Span)>,
+
+    /// Lambdas share the function scope of the function they're defined in,
+    /// so to identify whether they use any variables from the parent function
+    /// we keep track of the scope index a variable is declared in. When a lambda
+    /// is declared we push a scope and set this lambda_index to the scope index.
+    /// Any variable from a scope less than that must be from the parent function.
+    lambda_index: usize,
 }
 
 impl<'a> Resolver<'a> {
@@ -90,6 +97,7 @@ impl<'a> Resolver<'a> {
             self_type: None,
             generics: HashMap::new(),
             errors: Vec::new(),
+            lambda_index: 0,
             file,
         }
     }
@@ -100,6 +108,10 @@ impl<'a> Resolver<'a> {
 
     fn push_err(&mut self, err: ResolverError) {
         self.errors.push(err)
+    }
+
+    fn current_lambda_index(&self) -> usize {
+        self.scopes.current_scope_index()
     }
 
     /// Resolving a function involves interning the metadata
@@ -250,10 +262,19 @@ impl<'a> Resolver<'a> {
     fn find_variable(&mut self, name: &Ident) -> Result<HirIdent, ResolverError> {
         // Find the definition for this Ident
         let scope_tree = self.scopes.current_scope_tree();
+        let location = Location::new(name.span(), self.file);
+
         let variable = scope_tree.find(&name.0.contents);
 
-        let location = Location::new(name.span(), self.file);
-        if let Some(variable_found) = variable {
+        if let Some((variable_found, lambda_index)) = variable {
+            // Disallow closures from capturing mutable variables
+            if lambda_index < self.lambda_index
+                && self.interner.definition(variable_found.ident.id).mutable
+            {
+                let span = name.0.span();
+                return Err(ResolverError::CapturedMutableVariable { span });
+            }
+
             variable_found.num_times_used += 1;
             let id = variable_found.ident.id;
             Ok(HirIdent { location, id })
@@ -670,9 +691,12 @@ impl<'a> Resolver<'a> {
                 let elements = vecmap(elements, |elem| self.resolve_expression(elem));
                 HirExpression::Tuple(elements)
             }
-            // It is okay to resolve the lambda within its parent function's context,
-            // It should capture any used variables.
+            // We must stay in the same function scope as the parent function to allow for closures
+            // to capture variables. This is currently limited to immutable variables.
             ExpressionKind::Lambda(lambda) => self.in_new_scope(|this| {
+                let new_index = this.current_lambda_index();
+                let old_index = std::mem::replace(&mut this.lambda_index, new_index);
+
                 let parameters = vecmap(lambda.parameters, |(pattern, typ)| {
                     let parameter = DefinitionKind::Local(None);
                     (this.resolve_pattern(pattern, parameter), this.resolve_inferred_type(typ))
@@ -681,6 +705,7 @@ impl<'a> Resolver<'a> {
                 let return_type = this.resolve_inferred_type(lambda.return_type);
                 let body = this.resolve_expression(lambda.body);
 
+                this.lambda_index = old_index;
                 HirExpression::Lambda(HirLambda { parameters, return_type, body })
             }),
         };
