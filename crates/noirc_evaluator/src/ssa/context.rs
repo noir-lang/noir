@@ -524,8 +524,9 @@ impl SsaContext {
     ) -> Result<NodeId, RuntimeError> {
         //Add a new instruction to the nodes arena
         let mut i = Instruction::new(opcode, optype, Some(self.current_block));
-        //Basic simplification
-        optim::simplify(self, &mut i).err();
+        //Basic simplification - we ignore RunTimeErrors when creating an instruction
+        //because they must be managed after handling conditionals. For instance if false { b } should not fail whatever b is doing.
+        optim::simplify(self, &mut i).ok();
 
         if let Mark::ReplaceWith(replacement) = i.mark {
             return Ok(replacement);

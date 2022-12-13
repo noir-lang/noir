@@ -41,7 +41,9 @@ fn eval_block(block_id: BlockId, eval_map: &HashMap<NodeId, NodeEval>, ctx: &mut
         if let Some(ins) = ctx.try_get_mut_instruction(*i) {
             ins.operation = update_operator(&ins.operation, eval_map);
             let ins_id = ins.id;
-            optim::simplify_id(ctx, ins_id).err();
+            // We ignore RunTimeErrors at this stage because unrolling is done before conditionals
+            // While failures must be managed after handling conditionals: For instance if false { b } should not fail whatever b is doing.
+            optim::simplify_id(ctx, ins_id).ok();
         }
     }
 }
@@ -125,7 +127,7 @@ pub fn unroll_std_block(
                     Operation::Jmp(block) => assert_eq!(block, next),
                     Operation::Nop => (),
                     _ => {
-                        optim::simplify(ctx, &mut new_ins).err();
+                        optim::simplify(ctx, &mut new_ins).ok(); //ignore RuntimeErrors until conditionals are processed
                         match new_ins.mark {
                             Mark::None => {
                                 let id = ctx.push_instruction(new_ins);
