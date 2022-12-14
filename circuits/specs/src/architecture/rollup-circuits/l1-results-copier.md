@@ -1,3 +1,5 @@
+# THIS PAGE IS OUT OF DATE
+
 # L1 Results Copier Circuit
 
 See the [L2 --> L1 calls](../contracts/l1-calls.md#l2----l1-calls) section for motivation.

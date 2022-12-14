@@ -1,3 +1,5 @@
+# OUT OF DATE
+
 # Withdraw
 
 Withdrawal is an example of a [L2 --> L1 call](../../architecture/contracts/l1-calls.md#l2----l1-calls). A user wants to nullify a private note on L2, and then be transferred ERC20 tokens on L1.

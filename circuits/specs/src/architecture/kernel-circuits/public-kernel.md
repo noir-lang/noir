@@ -1,3 +1,5 @@
+# THIS PAGE IS OUT OF DATE
+
 # Public Kernel Circuit
 
 **IGNORE this page. We now think we'll need a VM for public functions, so this is massively out of date. (Even without the need for a VM, the content of this page has fallen significantly behind the naming and architecture of other pages).**

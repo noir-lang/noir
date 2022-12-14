@@ -1,3 +1,5 @@
+# THIS PAGE IS OUT OF DATE
+
 # Contract Deployment
 
 A contract is a collection of functions and state variables. Each 'function' is expressed as a circuit, and each circuit can be represented by its verification key. I.e. each verification key represents a callable function in the smart contract.

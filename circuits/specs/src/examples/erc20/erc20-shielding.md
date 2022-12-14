@@ -1,3 +1,5 @@
+# OUT OF DATE
+
 # Example - ERC20 shield
 
 Let's walk through the steps of deploying a contract to Aztec's L2, which shields ERC20-tokens from L1.

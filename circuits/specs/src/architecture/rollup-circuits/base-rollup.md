@@ -1,6 +1,4 @@
-<style>
-    div#doc { max-width: 100%; }
-</style>
+# THIS PAGE NEEDS SOME UPDATES
 
 # Base rollup circuit
 

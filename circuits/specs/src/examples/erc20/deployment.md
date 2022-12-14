@@ -1,3 +1,5 @@
+# OUT OF DATE
+
 # Deployment
 
 Let's suppose our aztec contract will have 3 circuits (plus constructor circuits): deposit, transfer, withdraw.
