@@ -182,7 +182,7 @@ Some notes on the additional flags in the above command:
 - `-vvvv` prints trace
 - `broadcast` will broadcast the deployment transactions to the testnet (rather than running simulations)
 
-Once the bridge has been deployed and listed to the rollup contract, reach out via [email](mailto:josh@aztecprotocol.com) to get the Aztec testnet sequencer config updated.
+Once the bridge has been deployed and listed to the rollup contract, reach out via [email](mailto:josh@aztecprotocol.com) to get the Aztec testnet sequencer config updated so that the sequencer can handle transactions to the new bridge contract.
 
 Refer to [this section](https://github.com/AztecProtocol/aztec-connect-bridges#writing-a-bridge) of the bridges repo README for more detail.
 
