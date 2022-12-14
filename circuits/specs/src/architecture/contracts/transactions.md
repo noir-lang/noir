@@ -1,29 +1,88 @@
-# Transactions (Calls)
+# Transactions
 
-A transaction begins as a call to a single function[^1]. A function can be uniquely identified (across all contracts) by its [`functionSignature`](#function-signature). A 'call' to a function is expressed through a [`callStackItem`](#call-stacks). During the execution of a transaction, the initial function might make calls to other functions, so callstacks are required. Call stack items are verified recursively. The final kernel snark that is produced by the recursion represents the entire transaction.
+A transaction always comes from a user account, and must be signed by that user's aztec private key. A transaction represents a call to some function of some contract, passing some parameters, and specifying some fee.
+
+
+<!-- A transaction begins as a call to a single function[^1]. A function can be uniquely identified (within a contracts) by its [`functionSignature`](#function-signature). A 'call' to a function is expressed through a [`callStackItem`](#call-stacks). During the execution of a transaction, the initial function might make calls to other functions, so callstacks are required. Call stack items are verified recursively. The final kernel snark that is produced by the recursion represents the entire transaction. -->
 
 Contracts can be deployed with a special type of call (a contractDeploymentCall).
 
 [^1]: Most transactions will likely begin with _two_ callstack items: one for the actual call, and one to pay the rollup provider a fee (by invoking some payment circuit). [Fee payments](../fees/fees.md) still need to be spec'd out.
-## Function signature
 
-A private function call is uniquely defined by a 64-bit integer, which we'll call a `functionSignature`:
+## `TxObject`
 
-
-| Num Bits | Description |
+| Value | Description |
 | --- | --- |
-| 0-31 (32-bits) | `contractAddress` | The contract address being called. <br/> For calls which deploy a contract, this is `0` (context will be understood from the fact this will be popped of a contractDeploymentCallStack). <br/>For calls to private constructors, this is not known when generating the private kernel proof which verifies the private constructor, so is `0` (in combination with `isConstructor`). |
-| 32-60 (29-bits) | `vkIndex` - the position of the vk (i.e. its leaf index) in this contract's `vkTree` (this defines the function being called) |
-| 61 (1-bit) | `isPrivate` - A bit describing if this function is public or private. <br/><br/>:question: Is this needed? Perhaps the differences in private/public ABIs is sufficient to cause a circuit to fail if passed the wrong proof type? Or, maybe the vk tree could be arranged in a way which clearly separates public/private vks. |
-| 62 (1-bit) | `isConstructor` - If a function is a constructor, it's going to be called by the Contract Deployment Kernel circuit. This flag notifies the kernel circuit that this private circuit is being executed as a constructor for the deployment of a new contract, and so the following public inputs of this private circuit MUST be revealed to the public kernel circuit (so that the Contract Deployment kernel circuit may validate them): <br/><ul><li>`callStackItemHash` - so that the Contract Deployment kernel circuit (and interested parties) can be convinced that the constructor was run with the correct set of inputs (this might need to exposed all the way to L1)</li><li>`vkHash` - so that the Contract Deplyment constructor can validate that the correct function was executed. (Notice, we don't use a conventional `functionSignature` because we won't be adding constructor vkHashes to the vkTree). Notice, by design, this doesn't reveal any details to observers about the nature of the executed function. We might want to optionally allow the underlying vk to be broadcast (and hence we might need to expose this vkHash all the way to L1).</li><li>`emittedPublicInputs` - to pass particular inputs to L1.</li></ul><br/>Special note: this `isConstructor` flag is not part of the private circuit's ABI (as it potentially could have been), because the checks in the contract deployment kernel circuit are much cheaper if it's accessible here. |
-| 63 (1-bit) | `isCallback` - Tells the kernel circuit that this function is being executed as a callback from an earlier L2 --> L1 call. |
+| `from`: `aztecAddress` | The aztec address of the user signing the tx. |
+| `to`: [`contractAddress`](#contractaddress) | The contract address of the contract being called. <br/>For calls which deploy a contract, this is `0` (context will be understood from the fact this will be popped of a contractDeploymentCallStack). <br/>For calls to private constructors, this is not known when generating the private kernel proof which verifies the private constructor (as the contract won't yet have been assigned an address), so is `0` (in combination with `functionSignature.isConstructor == true`). |
+| `functionSignature`: [`FunctionSignature`](#functionsignature) | An identifier for the function being called. |
+| `args`: `Array[Field]` | Arguments being passed into the function by this tx. |
+| `nonce`: `Field` | Useful for overriding a tx which has already been sent to the pool. Note: for private function calls, this _must not_ be incremented sequentially, but should be random-looking. <br/>`0` if this is a fee-paying tx to accompany a 'proper' tx. |
+| `txContext`: [`TxContext`](#txcontext) | Miscellaneous data relating to this tx, which might be useful for all subsequent nested function calls, and kernel circuits of this tx. |
+| `chainId`: `Field` | Needed to prevent replay attacks on other rollups (e.g. testnet / devnet). <br/>`0` if this is a fee-paying tx to accompany a 'proper' tx. |
 
 
-_Note_: the `contractTree` is append-only, so individual verification keys can't be 'replaced' for bug-fixes etc.; the entire contract (a `vkTree`) would need to be re-deployed to the next available slot in the `contractTree`. Such re-deployments, of course, would change the contract address.
+## `ContractAddress`
+
+| Value | Description |
+| --- | --- |
+|  `contractAddress`: `Field` | See [here](deployment.md#l2-contract-address) for contract address derivation. |
+
+## `FunctionSignature`
+
+| Value | Description |
+| --- | --- |
+| `vkIndex`: `Field` | The position of the vk (i.e. its leaf index) in this contract's `vkTree`. This is used to identify the function being called. It is derived as the first 4 bytes of the hash of the abi encoding of the function, similar to Solidity. The reason we do this, is so that a vkIndex can be derived from a contract interface, regardless of the ordering of that interface's functions. |
+| `isPrivate`: `Bool` | A bit describing if this function is public or private. |
+| `isConstructor`: `Bool` | If a function is a constructor, it's going to be called by the Contract Deployment Kernel circuit. This flag notifies the kernel circuit that this private circuit is being executed as a constructor for the deployment of a new contract, and so the following public inputs of this private circuit MUST be revealed to the public kernel circuit (so that the Contract Deployment kernel circuit may validate them): <br/><ul><li>`callStackItemHash` - so that the Contract Deployment kernel circuit (and interested parties) can be convinced that the constructor was run with the correct set of inputs (this might need to exposed all the way to L1)</li><li>`vkHash` - so that the Contract Deplyment constructor can validate that the correct function was executed. (Notice, we don't use a conventional `functionSignature` because we won't be adding constructor vkHashes to the vkTree). Notice, by design, this doesn't reveal any details to observers about the nature of the executed function. We might want to optionally allow the underlying vk to be broadcast (and hence we might need to expose this vkHash all the way to L1).</li><li>`emittedPublicInputs` - to pass particular inputs to L1.</li></ul> |
+
+
+_Note_: the `contractTree` is append-only, so individual verification keys can't be 'replaced' for bug-fixes etc.; the entire contract (a `vkTree`) would need to be re-deployed to the next available slot in the `contractTree`. Such re-deployments, of course, would change the contract address, unless using a proxy pattern.
+
+
+## `FeeData`
+
+Currently, the fee model is inspired by EIP-1559.
+
+| Value | Description |
+| --- | --- |
+| `maxPriorityFeePerAztecGas`: `Field` | |
+| `maxFeePerAztecGas`: `Field` | |
+| `aztecGasLimit`: `Field` | |
+| `maxPriorityFeePerEthGas`: `Field` | |
+| `maxFeePerEthGas`: `Field` | |
+| `ethGasLimit`: `Field` | |
+| `payFeePrivately`: `Bool` | |
+| `payFeeFromL1`: `Bool` | Provides a way of paying for private L2 function execution from L1 (the RollupProcessor.sol could provide the interface for ETH or ERC20... but we could generalise this by somehow pointing to a particular 'other' payment L1 contract state?). "Submit on-chain the callHash and state a fee (in L1 currency) for the L2 tx, and then when the L2 tx is executed, the rollup provider may redeem the previously-published fee". <br/><br/>  Notifies the kernel circuit that the following public inputs of this private circuit MUST be revealed to the public kernel circuit:<br/><ul><li>`callHash` - no other data is needed (in order to allow the user to keep the function they've actually executed private).</li></ul> |
+| `payFeeFromPublicL2`: `Bool` | Provides a way of paying for private L2 function execution from a public L2 circuit. This input being `true` will cause the rollup provider to look for an `isFeePayment` tx in the _public_ callStack. |
+| `feeAmount`: `Field` | |
+| `feeStandardId`: `Field` | |
+| `signedFeePaymentTxHash`: `Field` | Hash of a [SignedTxObject](#signedtxobject) |
+
+
+## `TxContext`
+
+| Value | Description |
+| --- | --- |
+| `calledFromL1`: `Bool` | Is this tx being sent as a continuation of some L1 tx which made a call to L2? If the L1 contract wants to call a specific L2 circuit, then the function signature needs to be revealed on-chain so that it can be checked that the correct, intended function was executed. <br/><br/> Notifies the private kernel circuit that an L1 contract wants to call this specific private L2 circuit, and so the following MUST be revealed to the public kernel circuit: <br/><ul><li>`functionSignature` - needed so the L1 contract can confirm the intended function was executed on L2. Although a callHash contains the functionSignature, the L1 contract wouldn't (cheaply) be able to unpack the callHash. So we expose the function signature as well to keep costs down. Although this leaks the function which was called, there's no way around that; this is an L1 -> L2 call after all.</li><li>`callHash` - used as a 'lookup' key. The RollupProcessor will store this `callHash`, and await an L2 tx with this `callHash` before triggering a callback to the L1 contract which made this L1 -> L2 call in the first place.</li><li>`emittedPublicInputs` - needed so that a set of values can be emitted by an L2 function and exposed to L1. It would be too expensive to unpack the callHash and extract all of the custom public inputs of a circuit. This is much cheaper, and is very similar to how the EVM exposes only a few values (via event emissions) to JavaScript (for example).</li></ul> <br/><br/> We need this convoluted process, because the RollupProcessor has to be _sure_ an L1 fee has been set-aside for them, before they add any corresponding L2 states. |
+| `calledFromPublicL2`: `Bool` | Is this tx being sent as a continuation of some public L2 tx which made a call to Private L2? |
+| `isCallback`: `Bool` | Is this tx being sent as a continuation of some L2 --> L1 call, which now needs to continue L2 execution? |
+| `resultsTreeLeafIndex`: `Field` | Not sure if we want this or some kind of tx hash. If executing a callback, the user/dapp needs to feed-in info about the original call they made, so that the Private Client can find the right results tree leaf to use. |
+| `isFeePaymentTx`: `Bool` | Is this tx the 'fee payment' component of some other tx? Notifies the kernel circuit that the following public inputs of this private circuit MUST be revealed to the public kernel circuit:<br/><ul><li>`functionSignature` - so that the rollup provider can see how they're to be paid </li><li>`emittedPublicInputs` - so that the rollup provider can validate the amount they'll be paid (they'll need to be provided with the underlying public inputs separately, to validate the hash).</li></ul> |
+| `feeData`: [`FeeData`](#feedata) | Empty if `isFeePaymentTx == false`. Conveys information about the fee being paid for this tx. |
+| `referenceRollupNum`: `Field` | The rollup number which should be used if referring to any historic tree values. Useful if the proof needs to use a particular tree state snapshot of a particular historic rollup. |
+
+
+## `SignedTxObject`
+
+| Value | Description |
+| --- | --- |
+| `txObject`: [`TxObject`](#txobject) | The TxObject being signed over. |
+| r, s, v | The usual ecdsa signature values. |
 
 ---
 
-## Call Stacks
+# Call Stacks
 
 To fully define how Aztec 3 implements call semantics, we start by defining 4 call stack data structures.
 
@@ -32,20 +91,28 @@ A call stack is a vector where each entry describes a transaction that is yet to
 There are 4 call stack types in the Aztec 3 architecture: public calls, private calls, L1 calls (see [earlier](./function-types.md) for details of those 3), and [contract deployment](./deployment.md) calls.
 
 
-### Structure of a call stack item
+## Structure of a call stack item
 
-A call stack item contains the following witnesses:
+A call stack item represents a call which has been made by a function during execution of a tx. It is formatted this way so as to be read by a kernel circuit.
+
+The format varies, depending on the type of call being made.
+
+
+### `PrivateCallStackItem`
 
 | Data  | Description |
 | -------- | -------- |
-| `functionSignature` | The 'function signature' of the circuit being called. I.e. `concat(contractAddress, vkIndex, isPrivate)` (see earlier) |
-| `publicInputsHash` | The public inputs of the call (represented as a pedersen hash. Preimage provided as auxiliary data. When a call stack item is processed, the preimage is unpacked).<br/><br/>Note: for the public circuit ABI, _not all_ public inputs are hashed to form this `publicInputsHash`, since variables read/written from/to the publicDataTree are not known at the time the call is made by the user (or by another circuit). See the Public Circuit ABI section. |
-| `callContext: {` | 'Object' for distinguishing between `call` and `delegateCall` |
-| ` - msgSender,` | - If doing a `call` or `staticCall`: Either the user address or the address of the contract that created the call. (Can be set to `0` for private -> public calls) <br/> - If doing a `delegateCall`: the address of the calling contract's own `callContext.msgSender` (since delegate calls can be chained). |
-| ` - storageContractAddress,` | - If doing a `call` or `staticCall`: the address of the contract being called. <br/> - If doing a `delegateCall`: the address of the calling contract's own `callContext.storageContractAddress` (since delegate calls can be chained). |
-| `}` | |
-| `bool isDelegateCall` | Used by the kernel snark to validate that the `callContext` of newly-pushed `callStackItems` is consistent with the contract making the call. |
-| `bool isStaticCall` | Informs the kernel snark that it MUST fail if the function being called modifies state. <br/><br/> A state modification includes: creating a new contract; emitting events; writing to trees; making a 'call' to another contract. :question: Not sure why 'delegatecall' is not included as a potentially state-modifying tx in ethereum specs? <br/><br/> Note: static calls to private circuits might not make sense. 'Reads' from the privateDataTree require a write of equal value, but the kernel snark cannot 'see' what has been written (it's a private tx), and so cannot validate that a state change didn't take place. So there would be no output commitments or nullifiers for a private static call. But a private call's only use is (I think :question:) to read/modify private state. So I'm thinking a staticCall to a private circuit doesn't make sense. |
+| `contractAddress`: [`ContractAddress`](#contractaddress) | The address of the contract being called. |
+| `functionSignature`: [`FunctionSignature`](#functionsignature) | The 'function signature' of the circuit being called. |
+| `publicInputs`: [`PrivateCircuitPublicInputs`](../app-circuits/public-input-abis.md#privatecircuitpublicinputs) | The public inputs of the call, which can be calculated in advanced through simulation. |
+
+### `PublicCallStackItem`
+
+| Data  | Description |
+| -------- | -------- |
+| `contractAddress`: [`ContractAddress`](#contractaddress) | The address of the contract being called. |
+| `functionSignature`: [`FunctionSignature`](#functionsignature) | The 'function signature' of the circuit being called. |
+| `publicInputs`: [`PublicCircuitPublicInputs`](../app-circuits/public-input-abis.md#publiccircuitpublicinputs) | The public inputs of the call, which can be calculated in advanced through simulation. <br/>**Note:** for the public circuit ABI, _not all_ public inputs can be included in `publicInputs`, since variables read/written from/to the publicDataTree are not known at the time the call is made by the user (or by another circuit). See the Public Circuit ABI section. |
 
 > Note: A `proof` is not included in the call stack item. For public calls, the proof is not known at the time the call is made, because public proofs are generated by the rollup provider. For private calls, the proof isn't needed for a call stack item to be unique; the input nullifiers and output commitments ensure uniqueness of calls. :question: Q: is a private call which doesn't read/modify state nonsensical (if so, that's good - we can reject such calls (they won't have any nullifiers or commitments), thereby ensuring uniqueness of private callStack items)?
 
@@ -55,30 +122,16 @@ A call stack item contains the following witnesses:
 
 > Note: The `contractAddress` is sometimes set to `0` in the `functionSignature` if a function is calling another function of the same contract. (Functions cannot know their own contract address, since it is set after the function's circuit has been compiled). The kernel circuits are capable of interpreting this. Examples of a function calling another function of the same contract are: a private-to-public call; and a call to a callback function.
 
-
-#### `callStackItemHash`
-`callStackItemHash := hash(functionSignature, publicInputsHash, callContext, etc.)`
-a.k.a. `callHash` - similar to Ethereum's notion of a txHash.
-
-We also use the term `callbackCallHash` to refer to the `callHash` of a callback function (which has certain public inputs omitted when calculating the call stack item).
-
-Having a single value for each item on the stack (a hash) makes thinking about the callstack easier.
-
-#### Contract Deployment call stack item
+### `ContractDeploymentCallStackItem`
 
 An instruction to deploy a contract is also expressed through a call, but the call stack item's data is slightly abbreviated (no function signature):
 
 | Data  | Description |
 | -------- | -------- |
-| `publicInputsHash` | The public inputs of the call (represented as a pedersen hash. Preimage provided as auxiliary data. When a call stack item is processed, the preimage is unpacked). |
-| `callContext: {` | 'Object' for distinguishing between `call` and `delegateCall`. :question: Not sure if we need this for a contract deployment? |
-| ` - msgSender,` |  |
-| ` - storageContractAddress,` |  |
-| `}` |  |
-| `bool isDelegateCall` |  |
-| `bool isStaticCall` |  |
+| `publicInputs`: [`ContractDeploymentPublicInputs`](../app-circuits/public-input-abis.md#contractdeploymentpublicinputs) | The public inputs of this call. |
 
-### L1 callstack items
+
+### `L1CallstackItem`
 
 An L1 callstack item is a call to L1. So it's the Ethereum-defined tuple (functionSelector, argument encoding). See [here](https://docs.soliditylang.org/en/v0.8.11/abi-spec.html#function-selector-and-argument-encoding).
 
@@ -95,6 +148,26 @@ So:
   - `l1CallStackItem = keccak(portalContractAddress,l1FunctionCall)`
   - We don't do this within the app-specific circuit to save on expensive keccak hashing (since the kernel has to do a portal contract address check, so needs to do this hashing already).
 
+
+### `CallbackStackItem`
+
+When a function makes a call to another 'layer', it can specify a success or failure callback. By the end of recursing through many calls, a kernel circuit might need to keep track of multiple callbacks that have been requested by many circuits. See [more here](./l1-calls.md), for info on the contents of this table.
+
+| Data  | Description |
+| -------- | -------- |
+| `callbackPublicKey`: `Point` |  The public inputs of this call. |
+| `successCallbackCallHash`: `Field` | |
+| `failureCallbackCallHash`: `Field` | |
+| `successResultArgMapAcc`: `Field` | |
+
+
+#### `callStackItemHash`
+`callStackItemHash := hash(functionSignature, publicInputsHash, callContext, etc.)`
+a.k.a. `callHash` - similar to Ethereum's notion of a txHash.
+
+We also use the term `callbackCallHash` to refer to the `callHash` of a callback function (which has certain public inputs omitted when calculating the call stack item).
+
+Having a single value for each item on the stack (a hash) makes thinking about the callstack easier.
 
 ### Passing inputs between functions
 

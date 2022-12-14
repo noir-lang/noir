@@ -3,37 +3,70 @@
 The following describes how many public inputs each public/private circuit will have and how they will be interpreted.
 
 
-## Private Circuit ABI
+## `CallContext`
+
+Much of the CallContext comes from the [`TxContext`](../contracts/transactions.md#txcontext) over which the user signs.
+
+| Value | Description |
+| --- | --- |
+| `txOrigin`: `aztecAddress` | The user who signed over this tx. We'll need this when making nested function calls, because private keys for nested circuits might need to be grabbed from the Private Client's DB based on this address -- not from the calling contract's address (since a contract cannot have private keys). |
+| `msgSender`: `aztecAddress` | - If doing a `call` or `staticCall`: Either the user address or the address of the contract that created the call. (Can be set to `0` for private -> public calls) <br/> - If doing a `delegateCall`: the address of the calling contract's own `callContext.msgSender` (since delegate calls can be chained). |
+| `storageContractAddress`: [`ContractAddress`](../contracts/transactions.md#contractaddress) | - If doing a `call` or `staticCall`: the address of the contract being called. <br/> - If doing a `delegateCall`: the address of the calling contract's own `callContext.storageContractAddress` (since delegate calls can be chained).
+| `isDelegateCall` : `Bool` | Used by the kernel snark to validate that the `callContext` of newly-pushed `callStackItems` is consistent with the contract making the call. |
+| `isStaticCall` : `Bool` | Informs the kernel snark that it MUST fail if the function being called modifies state. <br/><br/> A state modification includes: creating a new contract; emitting events; writing to trees; making a 'call' to another contract. :question: Not sure why 'delegatecall' is not included as a potentially state-modifying tx in ethereum specs? <br/><br/> Note: static calls to private circuits might not make sense. 'Reads' from the privateDataTree require a write of equal value, but the kernel snark cannot 'see' what has been written (it's a private tx), and so cannot validate that a state change didn't take place. So there would be no output commitments or nullifiers for a private static call. But a private call's only use is (I think :question:) to read/modify private state. So I'm thinking a staticCall to a private circuit doesn't make sense. |
+| `reference_block_num`: Field | The rollup number which should be used if referring to any historic tree values. Useful if the proof needs to use a particular tree state snapshot of a particular historic rollup. |
+
+## `StateTransition`
+
+Describes a single `publicDataTree` read+write operation.
+
+A 'state transition' is expressed as:
+- `[storageSlot, old_value, new_value]`.
+
+:heavy_exclamation_mark: For state transitions, the caller might not know the `old_value` nor the `new_value` when they make the call (i.e. when they add the call to their callStack), since the value will depend on the current state of the publicDataTree. (Imagine if the storage slot represented total liquidity in some pool which changes frequently. Then the old and new values are only known at the time the rollup processor actually organises the ordering of txs in their block).
+
+Conclusion: the `publicInputs` data which is included in a [`PublicCallStackItem`](../contracts/transactions.md#publiccallstackitem) cannot include the `old_value` nor `new_value` inputs. Therefore, the `stateTransitions` that are populated by a user when generating the `PublicCallStackItemHash` will have `0`-valued placeholders for `old_value` and `new_value`. Pure reads can be emulated by setting a new write value to equal the read value. However, for this tree, we could halve the amount of hashing for pure reads by having a separate `reads` set of inputs. A read can be done without a write for this tree (see next field).
+
+| Value | Description |
+| --- | --- |
+| `storageSlot`: `Field` | The slot that the circuit wants to modify. |
+| `oldValue`: `Field` | Old value is checked by the kernel circuit to be correct. |
+| `newValue`: `Field` | New value inserted by the kernel circuit. |
+
+## `StateRead`
+
+For efficiency (vs a StateTransition), we can read public state without writing. As explained above, the `current_value` won't necessarily be known by the user when they generate the call, so `current_value` is replaced with `0` when the `PublicCallStackItem` is generated for calls to a public function.
+
+| Value | Description |
+| --- | --- |
+| `storageSlot`: `Field` | The slot that the circuit wants to modify. |
+| `currentValue`: `Field` | Current value is checked by the kernel circuit to be correct. |
+
+# Private Circuit ABI
 
 All private contract circuits have a fixed number of public inputs. Most of these public inputs will eventually be swallowed by the [private kernel circuit](../kernel-circuits/private-kernel.md). Under some circumstances, some public inputs will be optionally revealed to the 'public world, depending on the various booleans in this table.
 
 > Note: some of these inputs might be packed into 1 field for efficiencies in the implementation, but for ease of understanding they're kept separate here.
 
+## `PrivateCircuitPublicInputs`
 
 | Data type | Description |
 | -------- | -------- |
-| *`customPublicInputs` | Up to 32 circuit-specific inputs passed into this circuit. All of these inputs will be 'swallowed' by the private kernel snark. Hence any private args can safely be put here, which enables private circuits to call other private circuits, and pass private data to them. To reveal data to the 'public world', either call a public function or emit an event. |
-| *`customPublicOutputs` | Up to 32 circuit-specific values _returned by_ circuit. All of these inputs will be 'swallowed' by the private kernel snark. Hence any private outputs can safely be put here, which enables private circuits to call other private circuits, and pass private data to them. |
-| `emittedPublicInputs` | Public inputs which will be revealed to the 'public world' (L1 or L2). E.g. allowing certain inputs to be more-easily extracted by the RollupProcessor contract (rather than having to unpack this vast ABI object of inputs, which would cost too much hash-wise). An example of its usefulness is passing a value from L1 to L2 when doing an L1->L2 tx (see 'deposit' example in the other doc). TODO: consider whether this could be a single value, for simplicity. It could be a hash of data if more values need to be exposed. If so, we'll rename to `emittedPublicInputsHash`. |
-| *`executedCallback: {` | Populated if this circuit is a callback, so that the purported L1 Result to which this circuit is responding can be validated against the l1ResultsTree. |
-| `- l1ResultHash`, | If this function is a callback function, following some L1 call, then it needs to expose the `l1ResultHash` to ensure the callback is actually using data emitted by L1. The preimage of the `l1ResultHash` will need to be passed in as private inputs to the circuit. Note: the `l1ResultHash` MUST be computed with a sha256 hash, because that's what the RollupProcessor will have used. This is unfortunate, as it forces apps to adhere to a specific calculation within their circuits. DISAGREE NOW - we don't need to calcualte this within the app circuit: we can just hash the custom_inputs and compare that hash against the L1ResultHash. |
-| `- l1ResultsTreeLeafIndex`, | Communicates to the rollup provider the correct leaf to prove membership against in the l1ResultsTree. Only if we don't want to hide the callback will the rollup provider perform the membership check (within the Base Rollup Circuit). Otherwise it'll be performed in the Private Kernel Circuit. |
-| `}`|
-| `outputCommitments` | output notes to be added into the `privateDataTree` (up to 16) | 
-| `inputNullifiers` | input nullifiers to be added into the `nullifierTree` (up to 16) |
-| `privateCallStack` | additional private calls created by this transaction (up to 16) |
-| `publicCallStack` | additional public calls created by this transaction (up to 16) |
-| `contractDeploymentCallStack` | additional calls which  _deploy contracts_, created by this transaction (up to 1?) |
-| `partialL1CallStack` | additional calls to L1 created by this transaction (up to 16). "Partial" because the kernel circuit will add the correct portal contract address to 'complete' the call into a proper L1 CallStack Item. See [here](../contracts/l1-calls.md). |
-| <pre>callbackStack = [{<br/>&nbsp;&nbsp;callbackPublicKey, <br/>&nbsp;&nbsp;successCallbackCallHash, <br/>&nbsp;&nbsp;failureCallbackCallHash, <br/>&nbsp;&nbsp;successResultArgMapAcc, <br/>},...]</pre> | An element in the array for each new L1 call on the `l1CallStack`. See [more](../contracts/l1-calls.md). We need to expose all of this data so that the kernel snark ensures the callback is a function of the same contract which made the call. |
-| *`oldPrivateDataTreeRoot` | used to query the `privateDataTree` |
-| Booleans: | |
-| *`bool isFeePayment` | Notifies the kernel circuit that the following public inputs of this private circuit MUST be revealed to the public kernel circuit:<br/><ul><li>`functionSignature` - so that the rollup provider can see how they're to be paid </li><li>`emittedPublicInputs` - so that the rollup provider can validate the amount they'll be paid (they'll need to be provided with the underlying public inputs separately, to validate the hash).</li></ul> |
-| *`bool payFeeFromL1`| Provides a way of paying for private L2 function execution from L1 (the RollupProcessor.sol could provide the interface for ETH or ERC20... but we could generalise this by somehow pointing to a particular 'other' payment L1 contract state?). "Submit on-chain the callHash and state a fee (in L1 currency) for the L2 tx, and then when the L2 tx is executed, the rollup provider may redeem the previously-published fee". <br/><br/>  Notifies the kernel circuit that the following public inputs of this private circuit MUST be revealed to the public kernel circuit:<br/><ul><li>`callHash` - no other data is needed (in order to allow the user to keep the function they've actually executed private).</li></ul> |
-| *`bool payFeeFromPublicL2`| Provides a way of paying for private L2 function execution from a public L2 circuit. This input being `true` will cause the rollup provider to look for an `isFeePayment` tx in the _public_ callStack. |
-| *`bool calledFromL1` | If the L1 contract wants to call a specific L2 circuit, then the function signature needs to be revealed on-chain so that it can be checked that the correct, intended function was executed. <br/><br/> Notifies the private kernel circuit that an L1 contract wants to call this specific private L2 circuit, and so the following MUST be revealed to the public kernel circuit: <br/><ul><li>`functionSignature` - needed so the L1 contract can confirm the intended function was executed on L2. Although a callHash contains the functionSignature, the L1 contract wouldn't (cheaply) be able to unpack the callHash. So we expose the function signature as well to keep costs down. Although this leaks the function which was called, there's no way around that; this is an L1 -> L2 call after all.</li><li>`callHash` - used as a 'lookup' key. The RollupProcessor will store this `callHash`, and await an L2 tx with this `callHash` before triggering a callback to the L1 contract which made this L1 -> L2 call in the first place.</li><li>`emittedPublicInputs` - needed so that a set of values can be emitted by an L2 function and exposed to L1. It would be too expensive to unpack the callHash and extract all of the custom public inputs of a circuit. This is much cheaper, and is very similar to how the EVM exposes only a few values (via event emissions) to JavaScript (for example).</li></ul> <br/><br/> We need this convoluted process, because the RollupProcessor has to be _sure_ an L1 fee has been set-aside for them, before they add any corresponding L2 states. |
-| Global vars: | |
-| *`minTimestamp` | a timestamp value that must be exceeded when the block containing this txn is mined |
+| `callContext`: [`CallContext`](#callcontext) | Information about what this function used as its call context, so that the kernel circuit may validate that the correct context was indeed used. |
+| `args`: `Array[Field]` | Arguments passed into this circuit. All of these inputs will be 'swallowed' by the private kernel snark. Hence any private args can safely be put here, which enables private circuits to call other private circuits, and pass private data to them. To reveal data to the 'public world', either call a public function or emit an event. |
+| `returnValues`: `Array[Field]` | Values _returned by_ circuit. All of these outputs will be 'swallowed' by the private kernel snark. Hence any private outputs can safely be put here, which enables private circuits to call other private circuits, and receive return data from them. |
+| `emittedEvents`: `Array[Field]` | Public inputs which will be revealed to the 'public world' (L1 or L2). E.g. allowing certain inputs to be more-easily extracted by the RollupProcessor contract (rather than having to unpack this vast ABI object of inputs, which would cost too much hash-wise). An example of its usefulness is passing a value from L1 to L2 when doing an L1->L2 tx. |
+| `newCommitments`: `Array[Field]` | new commitments to be added into the `privateDataTree` | 
+| `newNullifiers`: `Array[Field]` | new nullifiers to be added into the `nullifierTree` |
+| `privateCallStack`: `Array[Field]` | Additional private calls made by this function. The `Field` is a hash of a [`PrivateCallStackItem`](../contracts/transactions.md#privatecallstackitem). |
+| `publicCallStack`: `Array[Field]` | Additional public calls created by this transaction. The `Field` is a hash of a [`PublicCallStackItem`](../contracts/transactions.md#publiccallstackitem). |
+| `contractDeploymentCallStack`: `Array[Field]` | Additional calls which  _deploy contracts_, created by this transaction. The `Field` is a hash of a [`ContractDeploymentCallStackItem`](../contracts/transactions.md#contractdeploymentcallstackitem). |
+| `partialL1CallStack`: [`Array[PartialL1CallStackItem]`](../contracts/transactions.md#l1callstackitem) | Additional calls to L1 created by this transaction. "Partial" because the kernel circuit will add the correct portal contract address to 'complete' the call into a proper L1 CallStack Item. See [here](../contracts/l1-calls.md). We need to expose all of this data (rather than hashing it to a `Field`), because the kernel snark needs to pass this data to L1, and unlike the earlier callstacks, we'll never have another opportunity to pass this 'unpacked' data into any other kernel snark. |
+| `oldPrivateDataTreeRoot`: `Field` | The root that has been used to query the `privateDataTree` |
+| `oldNullifierTreeRoot`: `Field` | The root that has been used to query the `nullifierDataTree` |
+| `oldConstPublicDataTreeRoot`: `Field` | The root that has been used to query the `constPublicDataTree` (if we choose to have one). |
+| `oldContractTreeRoot`: `Field` | The root that has been used to query the `contractTree` |
+
 
 Apart from the public input API, the structure of a private contract circuit is  undefined by the Aztec 3 architecture.
 
@@ -55,82 +88,69 @@ Apart from the public input API, the structure of a private contract circuit is 
 >- What _can_ be done is a defi-bridge-like chain of events: a private circuit generates a partial commitment, and then the public circuit completes that partial commitment with some public state and adds it to the privateDataTree. But that doesn't require explicit public -> private calls.
 
 
-> **Aside:** we don't think we need chained transactions for Aztec 3. Recall: chained transactions give the ability to nullify a newly-created commitment _within_ the same rollup; before it's been added to the dataTree. This isn't needed. For a user to chain state to themselves, they can just create a callstack. The notion of chaining _between_ users is really complicated, and possibly not useful in practice. In particular, chaining doesn't play well with the idea of binary rollup trees, since the number of 'chaining' comparisons would blow up exponentially with the level of the rollup tree (meaning we'd need to build differently-sized rollup circuits per level). Recall: linked transactions give the ability to 'await' the inclusion of 'other' transactions in the rollup, before processing 'this' transaction. Unsure whether that's needed.
 
 
-
-
-
-
-## Public Circuit ABI
+# Public Circuit ABI
 
 The public contract ABI is similar to the private one.
 
 Whilst the _user_ provides all the values specified by this Public Circuit ABI, it's the _rollup provider_ who actually generates public contract proofs. This is because the rollup provider is the only party with perfect knowledge of the current Merkle roots, meaning only they can access/update the public data tree, as well as know the exact block number etc.
 
+## `PublicCircuitPublicInputs`
+
+**NOTE** This section is out of date. Public function execution might differ drastically from this old draft. Not worth even reading this section anymore.
 
 | Data Type | Description |
 | -------- | -------- |
-| `customPublicInputs` | Up to 32 circuit-specific inputs passed into this circuit. All of these inputs will be 'swallowed' by the public kernel circuit. |
-| `customOutputs` | Up to 32 variables 'returned' by calling this function. All of these inputs will be 'swallowed' by the public kernel circuit. Note, unlike the private circuit ABI (which doesn't have a `customOutputs` field like this), it's possible for public circuit execution to output values which were derived from the current state of the public data tree - such values cannot have been known by the caller of the function, and hence can truly be considered 'outputs'. Note, since the caller won't necessarily known what these outputs will be when they make the call, this entire `customOutputs` field is omitted from the `callStackItemHash` when the user makes the call. |
-| `emittedPublicInputs` | Public inputs which may be revealed to L1. E.g. allowing certain inputs to be more-easily extracted by the RollupProcessor contract (rather than having to unpack this vast ABI object of inputs, which would cost too much hash-wise). An example of its usefulness is passing a value from L1 to L2 when doing an L1->L2 tx (see 'deposit' example in the other doc). |
-| `emittedOutputs` | As above, except these values won't necessarily be known when the call is made; only when the rollup provider is generating the witness for this function's execution. Note, since the caller won't necessarily known what these outputs will be when they make the call, this entire `customOutputs` field is omitted from the `callStackItemHash` when the user makes the call. |
-| `executedCallback: {` | Populated if this circuit is a callback, so that the purported L1 Result to which this circuit is responding can be validated against the l1ResultsTree. |
-| `- l1ResultHash`, | If this function is a callback function, following some L1 call, then it needs to expose the `l1ResultHash` to ensure the callback is actually using data emitted by L1. The preimage of the `l1ResultHash` will need to be passed in as private inputs to the circuit. Note: the `l1ResultHash` MUST be computed with a sha256 hash, because that's what the RollupProcessor will have used. This is unfortunate, as it forces apps to adhere to a specific calculation within their circuits. |
-| `- l1ResultsTreeLeafIndex`, | Communicates to the rollup provider the correct leaf to prove membership against in the l1ResultsTree. Only if we don't want to hide the callback will the rollup provider perform the membership check (within the Base Rollup Circuit). Otherwise it'll be performed in the Private Kernel Circuit. |
-| `}`|
-| 256 `stateTransitions` | Describes up to 256 `publicDataTree` read+write operations. <br> A 'state transition' is expressed as: <br> `[storageSlot, old_value, new_value]`. <br/>:heavy_exclamation_mark: For state transitions, the caller might not know the `old_value` nor the `new_value` when they make the call (i.e. when they add the call to their callStack), since the value will depend on the current state of the publicDataTree. (Imagine if the storage slot represented total liquidity in some pool which changes frequently. Then the old and new values are only known at the time the rollup processor actually organises the ordering of txs in their block). Conclusion: the `publicInputsHash` which is included in a public call's `callStackItemHash` cannot include the `old_value` nor `new_value` inputs. </br/><br/> Therefore, the `stateTransitions` that are populated by a user and hashed when generating the `callStackItemHash` will have `0`-valued placeholders for `old_value` and `new_value`. <br/><br/> Pure reads can be emulated by setting a new write value to equal the read value. However, for this tree, we could halve the amount of hashing for pure reads by having a separate `reads` set of inputs. A read can be done without a write for this tree (see next field). |
-| `stateReads` | Pure reads. Each 'read' request is simply the `[storageSlot, current_value]`. As explained above, the `current_value` won't necessarily be known by the user when they generate the call, so `current_value` is replaced with `0` when the `callStackItemHash` is generated for calls to a public function. |
-| `publicCallStack` | additional public calls to be made by this transaction (up to 16) |
-| `contractDeploymentCallStack` | additional calls which  _deploy contracts_, created by this transaction (up to 1?) |
-| `partialL1CallStack` | Additional L1 calls to be made by this transaction (up to 16). "Partial" because the kernel circuit will add the correct portal contract address to 'complete' the call into a proper L1 CallStack Item. See [here](../contracts/l1-calls.md). |
-| <pre>callbackStack = [{<br/>&nbsp;&nbsp;callbackPublicKey, <br/>&nbsp;&nbsp;successCallbackCallHash, <br/>&nbsp;&nbsp;failureCallbackCallHash, <br/>&nbsp;&nbsp;successResultArgMapAcc, <br/>},...]</pre> | An element in the array for each new L1 call on the `partialL1CallStack`. See [more](../contracts/l1-calls.md). We need to expose all of this data so that the kernel snark ensures the callback is a function of the same contract which made the call. |
-| `oldPrivateDataTreeRoot` | used to query the `privateDataTree` |
-| `proverAddress` | Who is going to be generating the proof for this circuit (any value can be injected here by the prover). :question: IS THIS ALLOWED HERE? It can be allowed here as long as Noir abstracts its existence away from the circuit developer. |
-| Booleans: | |
-| `bool isFeePayment` | Notifies the rollup provider that this function pays them their fee. The rollup provider will need a way to interpret the many ways it can be paid. :question: Perhaps a fee payment ABI is required for the structure of the `emittedPublicInputs`, for example? |
-| `bool payFeeFromL1`| Provides a way of paying for L2 function execution from L1 (the RollupProcessor.sol could provide the interface for ETH or ERC20... but we could generalise this by somehow pointing to a particular 'other' payment L1 contract state?). "Submit on-chain the callHash and state a fee (in L1 currency) for the L2 tx, and then when the L2 tx is executed, the rollup provider may redeem the previously-published fee". <br/><br/>  Notifies the kernel circuit that the following public inputs of this public circuit MUST also be revealed by the public kernel circuit:<br/><ul><li>`callHash`</li></ul> |
-| `bool calledFromL1` | If the L1 contract wants to call a specific L2 circuit, then the function signature needs to be revealed on-chain so that it can be checked that the correct, intended function was executed. <br/><br/> Notifies the public kernel circuit that an L1 contract wants to call this specific public L2 circuit, and so the following MUST be revealed by the public kernel circuit: <ul><li>`functionSignature`</li><li>`callHash`</li><li>`emittedPublicInputs` (possibly)</li></ul><br/><br/> We need this convoluted process, because the RollupProcessor has to be _sure_ an L1 fee has been set-aside for them, before they add any corresponding L2 states. |
-| Global vars: | |
-| `block.timestamp` | aztec block timestamp |
-| `block.number` | aztec block number | 
-| `prevBlock.ethTimestamp` | Ethereum timestamp of block that contained previous Aztec 3 block |
-| `prevBlock.ethNumber` | block number of Ethereum block that contained previous Aztec 3 block |
+| *`callContext`: [`CallContext`](#callcontext) | Information about what this function used as its call context, so that the kernel circuit may validate that the correct context was indeed used. |
+| *`args` | Circuit-specific inputs passed into this circuit. |
+| `returnValues` | Values 'returned' by calling this function. Note: it's possible for public circuit execution to output values which were derived from the current state of the public data tree - such values cannot have been known by the caller of the function. Note, since the caller won't necessarily known what these outputs will be when they make the call, this entire `returnValues` field is omitted from the [`PublicCallStackItem`](../contracts/transactions.md#publiccallstackitem) when the user makes the call. |
+| `emittedEvents` | Public inputs which may be revealed to L1. E.g. allowing certain inputs to be more-easily extracted by the RollupProcessor contract (rather than having to unpack this vast ABI object of inputs, which would cost too much hash-wise). An example of its usefulness is passing a value from L1 to L2 when doing an L1->L2 tx (see 'deposit' example in the other doc). Note: some of these values won't necessarily be known when the call is made; only when the rollup provider is generating the witness for this function's execution. Note, since the caller won't necessarily know what these outputs will be when they make the call, this entire `emittedEvents` field is omitted from the [`PublicCallStackItem`](../contracts/transactions.md#publiccallstackitem) when the user makes the call. |
+| `stateTransitions`: [`Array[StateTransition]`](#statetransition) |  Public state changes. |
+| `stateReads`: [`Array[StateRead]`](#stateread) | Public state reads. |
+| `publicCallStack`: `Array[Field]` | Additional public calls created by this transaction. The `Field` is a hash of a [`PublicCallStackItem`](../contracts/transactions.md#publiccallstackitem). |
+| `contractDeploymentCallStack`: `Array[Field]` | Additional calls which  _deploy contracts_, created by this transaction. The `Field` is a hash of a [`ContractDeploymentCallStackItem`](../contracts/transactions.md#contractdeploymentcallstackitem). |
+| `partialL1CallStack`: `Array[Field]` | Additional calls to L1 created by this transaction. "Partial" because the kernel circuit will add the correct portal contract address to 'complete' the call into a proper L1 CallStack Item. See [here](../contracts/l1-calls.md). The `Field` is a hash of a [`PartialL1CallStackItem`](../contracts/transactions.md#partiall1callstackitem). |
+| *`oldPrivateDataTreeRoot`: `Field` | The root that has been used to query the `privateDataTree` |
+| *`oldNullifierTreeRoot`: `Field` | The root that has been used to query the `nullifierDataTree` |
+| *`oldConstPublicDataTreeRoot`: `Field` | The root that has been used to query the `constPublicDataTree` (if we choose to have one). |
+| *`oldContractTreeRoot`: `Field` | The root that has been used to query the `contractTree` |
+| *`proverAddress`: `aztecAddress` | Who is going to be generating the proof for this circuit (any value can be injected here by the prover). |
 
-### publicInputsHash
 
-As explained briefly in the table above, for calls to a public circuit, certain inputs are _not_ known when the user makes the call (since their values might depend on the state of the public data tree at the time of proof generation (rather than at the time of making the call)). Therefore, the `publicInputsHash` for public calls is defined as the hash of the above ABI data, _except_ for the following modifications to the preimage:
-- `customOutputs` fields are completely omitted from the preimage.
-- `emittedOutputs` fields are completely omitted from the preimage.
-- Each state transition is truncated to be `storageSlot` (instead of `[storageSlot, old_value, new_value]`).
-- Each state read is truncated to be `storageSlot` (instead of `[storageSlot, current_value]`).
+**Note**: For calls to a public circuit, certain inputs are _not_ known when the user makes the call (since their values might depend on the state of the public data tree at the time of proof generation (rather than at the time of making the call)). Therefore, the `publicInputs` provided when making public calls (i.e. when creating a [`PublicCallStackItem`](../contracts/transactions.md#publiccallstackitem)) sets-to-0 some of the above data.
+- `returnValues`
+- `emittedEvents`
+- `stateTransitions`' old and new values.
+- `stateReads`' current values.
+- All call stacks (as the calls could be made based on some dynamic state read of some address, for example)
 
 
 
 
 
-
-
-
-
-## Contract Deployment ABI
+# Contract Deployment ABI
 
 Recall:
 
 Contracts can be deployed to Aztec's Layer 2. A contract comprises:
 - a set of functions, each encapsulated by a `(vk, proving_key, circuit)` tuple, with the hash of the `vk` being a succinct and unique representation of each function.
 - state variables, split across these trees:
-    - `publicDataTree`
+    - `publicDataTree` (maybe also a const public data tree)
     - `privateDataTree`
 
 A contract deployment ABI, therefore, needs to communicate this information to the rollup provider.
 
-This is the ABI for the public inputs that must be specified when making a call to deploy a new contract. These public inputs will then be hashed into a `publicInputsHash` which will form part of the [`callStackItemHash`](../contracts/transactions.md#callstackitemhash) which will get added to the `contractDeploymentCallStack`.
+This is the ABI for the public inputs that must be specified when making a call to deploy a new contract. These public inputs will form part of the [`ContractDeploymentCallStackItem`](../contracts/transactions.md#contractdeploymentcallstackitem) which will get added to the `contractDeploymentCallStack`.
 
 **Important note**: Unlike for the above Public Input ABIs for private circuits and public circuits, we don't actually have a 'contract deployment' _circuit_. These public inputs are simply defined so that a callStackItem can be created. These public inputs (and others) are then fed directly into a [Contract Deployment _Kernel_ Circuit](../kernel-circuits/contract-deployment-kernel.md).
 
 
 TODO: we might be able to remove some of these public inputs and provide them privately instead; but such optimisations can happen _much_ later in this project.
+
+PROBLEM: we might wish to _prove_ that a set of ACIR++ opcodes compiles to a particular vkHash. This would be very complex to do inside a circuit, but might be essential.
+
+## `ContractDeploymentPublicInputs`
 
 | Data Type | Description |
 | -------- | -------- |
@@ -151,7 +171,7 @@ TODO: we might be able to remove some of these public inputs and provide them pr
 
  ## Custom inputs ABI
 
-Circuits have up to 32 custom 'inputs' (and 'outputs' for public circuits). Each Noir data type that is set to be a public input is represented by a single field element (we don't need to do this for private inputs). If the data type is >1 field element, the data is Pedersen hashed. We apply this heuristic recursively for structs and nested data. e.g. for
+Circuits have custom 'args' and 'return values'. Each Noir data type that is set to be a public input is represented by a single field element (we don't need to do this for private inputs). If the data type is >1 field element, the data is Pedersen hashed. We apply this heuristic recursively for structs and nested data. e.g. for
 
 ```
 struct foo {

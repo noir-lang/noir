@@ -72,7 +72,7 @@ fn called_by_l1(
             a,
             b,
         ],
-        emitted_public_inputs: [
+        emitted_events: [
             123,
             456,
         ],
@@ -102,8 +102,8 @@ fn called_by_l1(
     }
 ) {
     // Noddy example:
-    let { emitted_public_inputs } = PUBLIC_INPUTS;
-    assert(emitted_public_inputs[0] == 123);
+    let { emitted_events } = PUBLIC_INPUTS;
+    assert(emitted_events[0] == 123);
     assert(emitted_publit_inputs[1] == 456);
 }
 ```

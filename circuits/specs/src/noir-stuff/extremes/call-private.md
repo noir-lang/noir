@@ -52,7 +52,7 @@ fn my_private_function(
                         b,
                         c,
                     ],
-                    emitted_public_inputs: {},
+                    emitted_events: {},
                     executed_callback: {},
 
                     output_commitments: {
@@ -89,7 +89,7 @@ fn my_private_function(
             a,
             b,
         ],
-        emitted_public_inputs: {},
+        emitted_events: {},
         executed_callback: {},
 
         output_commitments: {

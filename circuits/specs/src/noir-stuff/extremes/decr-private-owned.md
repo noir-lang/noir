@@ -64,7 +64,7 @@ fn decrement_my_own_private_state(
     },
     PUBLIC_INPUTS: {
         custom_inputs: {}, // lots of unused stuff denoted by {} or [].
-        emitted_public_inputs: {},
+        emitted_events: {},
         executed_callback: {},
 
         output_commitments: {
@@ -170,7 +170,7 @@ fn decrement_my_own_private_state(
     },
     PUBLIC_INPUTS: {
         custom_inputs: {}, // lots of unused stuff denoted by {} or [].
-        emitted_public_inputs: {},
+        emitted_events: {},
         executed_callback: {},
 
         output_commitments: {

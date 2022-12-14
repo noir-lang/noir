@@ -94,7 +94,7 @@ fn deploy(
     },
     PUBLIC_INPUTS: {
         custom_inputs: [],
-        emitted_public_inputs: {},
+        emitted_events: {},
         executed_callback: {},
 
         output_commitments: {},
@@ -195,7 +195,7 @@ fn private_constructor(
                 // the `emittedPublicInputs` or call stacks, so that the kernel circuit
                 // does indeed swallow the secret param with no leaks.
         ],
-        emitted_public_inputs: {},
+        emitted_events: {},
         executed_callback: {},
 
         output_commitments: {

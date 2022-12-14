@@ -1,5 +1,9 @@
 # Contract Deployment Kernel Circuit
 
+
+**NOTE: this section is out of date (naming and architecture), given recent conversations.**
+
+
 Notice, that this is a _kernel_ circuit. That's because this circuit will itself verify a private &or public kernel snark representing the new contract's 'constructors'. Unlike the other two (private & public) kernel snarks though, Contract Deployment Kernel Circuits can be called by users and/or functions, meaning they have a callStack of their own which can be pushed-to. The Contract Deployment call stack will be processed at the very end of the kernel chain; after the private and public kernels have been executed.
 
 You'll notice that the private/public inputs for this kernel circuit are a superset of the inputs of both the private & public kernel circuits. That's because contract deployments are processed at the very end of a tx, so all other data needs to 'pass through' this circuit.

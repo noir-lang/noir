@@ -107,7 +107,7 @@ fn swap_a_for_b(
         custom_inputs: [
             amount_a,
         ],
-        emitted_public_inputs: {},
+        emitted_events: {},
         executed_callback: {},
 
         output_commitments: {
@@ -188,7 +188,7 @@ fn swap_a_for_b(
                 custom_inputs: [
                     0, // Inputs which will be 'result' values are set as 0.
                 ],
-                emitted_public_inputs: {},
+                emitted_events: {},
                 // executed_callback: {...}, // Object is omitted,
                                              // since it's not known yet.
                 // TODO: maybe we ONLY need the custom_inputs???
@@ -243,7 +243,7 @@ fn swap_a_for_b(
                     amount_a, // All args are known for a failure callback. (There's
                               // no result being fed in).
                 ],
-                emitted_public_inputs: {},
+                emitted_events: {},
                 // executed_callback: {...}, // Object is omitted,
                                              // since it's not known yet.
                 output_commitments: {
@@ -383,7 +383,7 @@ fn hide_amount_b(
         custom_inputs: {
             amount_b,
         },
-        emitted_public_inputs: {}, // lots of unused stuff denoted by {} or [].
+        emitted_events: {}, // lots of unused stuff denoted by {} or [].
         executed_callback: {
             // Nonzero values only if it's actually being executed as a callback.
             // These values will be passed straight through this circuit; no checks

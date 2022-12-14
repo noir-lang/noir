@@ -87,7 +87,7 @@ There are 3 options for linking an L2 contract with a portal contract, all with 
 2. Deploy the L1 portal contract first, tell the Rollup Processor the address, then deploy this L2 contract (providing the L1 address of the portal contract).
 3. Deploy this L2 contract, note the deployer’s L1 user address, and allow that same person to later deploy an L1 portal contract and link it with this L2 contract.
 
-Option 1 initially sounds nice and clean, but L1 contract deployment is _expensive_, so just a few portal contract deployments would use all the gas in an L1 block; not leaving enough room for logic to verify the L2 rollup etc. But the most difficult thing about this option would be we'd have to _await_ the success of the Portal Contract deployment attempt on L1 before allowing the L2 contract to be 'finalised', which would need callbacks and painful logic that we'd rather avoid (for contract deployment, at least) if we can.
+Option 1 initially sounds nice and clean, but L1 contract deployment is _expensive_, so just a few portal contract deployments would use all the gas in an L1 block; not leaving enough room for logic to verify the L2 rollup etc. But the most difficult thing about this option would be we'd have to _await_ the success of the Portal Contract deployment attempt on L1 before allowing the L2 contract to be 'finalised'.
 
 Option 2 is a nice option, although it doesn't allow for deployment of the Portal Contract to be paid-for from the privacy of aztec's L2 - a user would need public Eth to deploy it. 
 

@@ -1,5 +1,7 @@
 # Public Kernel Circuit
 
+**IGNORE this page. We now think we'll need a VM for public functions, so this is massively out of date. (Even without the need for a VM, the content of this page has fallen significantly behind the naming and architecture of other pages).**
+
 The public kernel circuit has a very similar structure to that of the private kernel circuit.
 
 The public circuit tracks its own call depth. If `start.publicCallCount == 0` , one of two conditions must be met:
