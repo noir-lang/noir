@@ -62,17 +62,17 @@ To get started with an example setup, follow the steps below:
 ```shell
 git clone https://github.com/{YOUR_GITHUB_USERNAME}/aztec-connect-bridges.git
 ```
-
-3. Create a new branch with your preferred bridge name:
     
-```shell
-git checkout -b {YOUR_GITHUB_USERNAME}/{BRIDGE_NAME}
-```
-    
-4. Change directory into `aztec-connect-bridges`:
+3. Change directory into `aztec-connect-bridges`:
 
 ```shell
 cd aztec-connect-bridges
+```
+
+4. Create a new branch with your preferred bridge name:
+    
+```shell
+git checkout -b {YOUR_GITHUB_USERNAME}/{BRIDGE_NAME}
 ```
     
 5. Install dependencies and build the repository:
@@ -85,10 +85,9 @@ yarn setup
 
 ```
 src/bridges/example
-src/test/example
-src/client/example
+src/test/bridges/example
 src/deployment/example
-src/specs/TEMPLATE.md
+specs/bridges/TEMPLATE.md
 ```
 
 You are now equipped to write your first Aztec Connect Bridge! Simply start by reading and implementing your bridge over the boilerplate files.
