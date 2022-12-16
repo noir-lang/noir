@@ -1,6 +1,6 @@
 #include "./aes128.hpp"
 
-#include <plonk/composer/plookup_composer.hpp>
+#include <plonk/composer/ultra_composer.hpp>
 
 #include <numeric/uint256/uint256.hpp>
 #include <numeric/bitop/sparse_form.hpp>
@@ -16,37 +16,37 @@ namespace stdlib {
 namespace aes128 {
 
 constexpr uint32_t AES128_BASE = 9;
-typedef plonk::stdlib::field_t<waffle::PlookupComposer> field_t;
-typedef plonk::stdlib::witness_t<waffle::PlookupComposer> witness_t;
+typedef plonk::stdlib::field_t<waffle::UltraComposer> field_t;
+typedef plonk::stdlib::witness_t<waffle::UltraComposer> witness_t;
 
 typedef std::pair<field_t, field_t> byte_pair;
 
-field_t normalize_sparse_form(waffle::PlookupComposer*, field_t& byte)
+field_t normalize_sparse_form(waffle::UltraComposer*, field_t& byte)
 {
-    auto result = plookup::read_from_1_to_2_table(waffle::AES_NORMALIZE, byte);
+    auto result = plookup_read::read_from_1_to_2_table(AES_NORMALIZE, byte);
     return result;
 }
 
-byte_pair apply_aes_sbox_map(waffle::PlookupComposer*, field_t& input)
+byte_pair apply_aes_sbox_map(waffle::UltraComposer*, field_t& input)
 {
-    return plookup::read_pair_from_table(waffle::AES_SBOX, input);
+    return plookup_read::read_pair_from_table(AES_SBOX, input);
 }
 
-std::array<field_t, 16> convert_into_sparse_bytes(waffle::PlookupComposer*, const field_t& block_data)
+std::array<field_t, 16> convert_into_sparse_bytes(waffle::UltraComposer*, const field_t& block_data)
 {
     // `block_data` must be a 128 bit variable
     std::array<field_t, 16> sparse_bytes;
 
-    auto sequence = plookup::read_sequence_from_table(waffle::AES_INPUT, block_data);
+    auto lookup = plookup_read::get_lookup_accumulators(AES_INPUT, block_data);
 
     for (size_t i = 0; i < 16; ++i) {
-        sparse_bytes[15 - i] = sequence[1][i];
+        sparse_bytes[15 - i] = lookup[ColumnIdx::C2][i];
     }
 
     return sparse_bytes;
 }
 
-field_t convert_from_sparse_bytes(waffle::PlookupComposer* ctx, field_t* sparse_bytes)
+field_t convert_from_sparse_bytes(waffle::UltraComposer* ctx, field_t* sparse_bytes)
 {
     std::array<field_t, 16> bytes;
 
@@ -60,16 +60,16 @@ field_t convert_from_sparse_bytes(waffle::PlookupComposer* ctx, field_t* sparse_
 
     field_t result = witness_t(ctx, fr(accumulator));
 
-    const auto indices = plookup::read_sequence_from_table(waffle::AES_INPUT, result);
+    const auto lookup = plookup_read::get_lookup_accumulators(AES_INPUT, result);
 
     for (size_t i = 0; i < 16; ++i) {
-        sparse_bytes[15 - i].assert_equal(indices[1][i]);
+        sparse_bytes[15 - i].assert_equal(lookup[ColumnIdx::C2][i]);
     }
 
     return result;
 }
 
-std::array<field_t, 176> expand_key(waffle::PlookupComposer* ctx, const field_t& key)
+std::array<field_t, 176> expand_key(waffle::UltraComposer* ctx, const field_t& key)
 {
     constexpr uint8_t round_constants[11] = { 0x8d, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36 };
     std::array<field_t, 11> sparse_round_constants{
@@ -210,7 +210,7 @@ void mix_columns_and_add_round_key(byte_pair* state_pairs, field_t* round_key, u
     mix_column_and_add_round_key(state_pairs + 12, round_key + 12, round);
 }
 
-void sub_bytes(waffle::PlookupComposer* ctx, byte_pair* state_pairs)
+void sub_bytes(waffle::UltraComposer* ctx, byte_pair* state_pairs)
 {
     for (size_t i = 0; i < 16; ++i) {
         state_pairs[i] = apply_aes_sbox_map(ctx, state_pairs[i].first);
@@ -233,7 +233,7 @@ void xor_with_iv(byte_pair* state, field_t* iv)
     }
 }
 
-void aes128_cipher(waffle::PlookupComposer* ctx, byte_pair* state, field_t* sparse_round_key)
+void aes128_cipher(waffle::UltraComposer* ctx, byte_pair* state, field_t* sparse_round_key)
 {
     add_round_key(state, sparse_round_key, 0);
     for (size_t i = 0; i < 16; ++i) {
@@ -256,7 +256,7 @@ void aes128_cipher(waffle::PlookupComposer* ctx, byte_pair* state, field_t* spar
 
 std::vector<field_t> encrypt_buffer_cbc(const std::vector<field_t>& input, const field_t& iv, const field_t& key)
 {
-    waffle::PlookupComposer* ctx = key.get_context();
+    waffle::UltraComposer* ctx = key.get_context();
 
     auto round_key = expand_key(ctx, key);
 

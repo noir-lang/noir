@@ -12,8 +12,8 @@ inline std::vector<uint8_t> create_proof(claim_tx& tx, circuit_data const& cd)
 
     claim_circuit(composer, tx);
 
-    if (composer.failed) {
-        info("Claim circuit logic failed: ", composer.err);
+    if (composer.failed()) {
+        info("Claim circuit logic failed: ", composer.err());
     }
 
     auto prover = composer.create_unrolled_prover();

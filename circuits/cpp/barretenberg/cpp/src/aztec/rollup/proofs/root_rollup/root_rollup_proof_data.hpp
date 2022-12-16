@@ -1,5 +1,5 @@
 #pragma once
-#include <stdlib/types/turbo.hpp>
+#include <stdlib/types/types.hpp>
 #include "../rollup/rollup_proof_data.hpp"
 #include "../../constants.hpp"
 
@@ -7,7 +7,7 @@ namespace rollup {
 namespace proofs {
 namespace root_rollup {
 
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 
 struct root_rollup_proof_data {
     fr input_hash;

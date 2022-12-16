@@ -174,7 +174,6 @@ void fft_inner_parallel(std::vector<fr*> coeffs,
                         const fr&,
                         const std::vector<fr*>& root_table)
 {
-    // hmm  // fr* scratch_space = (fr*)aligned_alloc(64, sizeof(fr) * domain.size);
     fr* scratch_space = get_scratch_space(domain.size);
 
     const size_t num_polys = coeffs.size();
@@ -311,7 +310,6 @@ void fft_inner_parallel(std::vector<fr*> coeffs,
 void fft_inner_parallel(
     fr* coeffs, fr* target, const evaluation_domain& domain, const fr&, const std::vector<fr*>& root_table)
 {
-    // hmm  // fr* scratch_space = (fr*)aligned_alloc(64, sizeof(fr) * domain.size);
 #ifndef NO_MULTITHREADING
 #pragma omp parallel
 #endif
@@ -403,26 +401,137 @@ void fft_inner_parallel(
                 // Finally, we want to treat the final round differently from the others,
                 // so that we can reduce out of our 'coarse' reduction and store the output in `coeffs` instead of
                 // `scratch_space`
-                if (m != (domain.size >> 1)) {
-                    for (size_t i = start; i < end; ++i) {
-                        size_t k1 = (i & index_mask) << 1;
-                        size_t j1 = i & block_mask;
-                        temp = round_roots[j1] * target[k1 + j1 + m];
-                        target[k1 + j1 + m] = target[k1 + j1] - temp;
-                        target[k1 + j1] += temp;
-                    }
-                } else {
-                    for (size_t i = start; i < end; ++i) {
-                        size_t k1 = (i & index_mask) << 1;
-                        size_t j1 = i & block_mask;
-                        temp = round_roots[j1] * target[k1 + j1 + m];
-                        target[k1 + j1 + m] = target[k1 + j1] - temp;
-                        target[k1 + j1] = target[k1 + j1] + temp;
-                    }
+                for (size_t i = start; i < end; ++i) {
+                    size_t k1 = (i & index_mask) << 1;
+                    size_t j1 = i & block_mask;
+                    temp = round_roots[j1] * target[k1 + j1 + m];
+                    target[k1 + j1 + m] = target[k1 + j1] - temp;
+                    target[k1 + j1] += temp;
                 }
             }
         }
     }
+}
+
+void partial_fft_serial_inner(fr* coeffs,
+                              fr* target,
+                              const evaluation_domain& domain,
+                              const std::vector<fr*>& root_table)
+{
+    // We wish to compute a partial modified FFT of 2 rounds from given coefficients.
+    // We need a 2-round modified FFT for commiting to the 4n-sized quotient polynomial for
+    // the PLONK prover.
+    //
+    // We assume that the number of coefficients is a multiplicand of 4, since the domain size
+    // we use in PLONK would always be a power of 2, this is a reasonable assumption.
+    // Let n = N / 4 where N is the input domain size, we wish to compute
+    // R_{i,s} = \sum_{j=0}^{3} Y_{i + jn} * \omega^{(i + jn)(s + 1)}
+    //
+    // We should store the result in the following way:
+    // (R_{0,3} , R_{1,3}, R_{3,3}, ..., R_{n, 3})  {coefficients of X^0}
+    // (R_{0,2} , R_{1,2}, R_{3,2}, ..., R_{n, 2})  {coefficients of X^1}
+    // (R_{0,1} , R_{1,1}, R_{3,1}, ..., R_{n, 1})  {coefficients of X^2}
+    // (R_{0,0} , R_{1,0}, R_{3,0}, ..., R_{n, 0})  {coefficients of X^3}
+    size_t n = domain.size >> 2;
+    size_t index = 0;
+    size_t full_mask = domain.size - 1;
+    size_t m = domain.size >> 1;
+    size_t half_mask = m - 1;
+    const fr* round_roots = root_table[static_cast<size_t>(numeric::get_msb(m)) - 1];
+    size_t root_index = 0;
+
+    // iterate for s = 0, 1, 2, 3 to compute R_{i,s}
+    for (size_t i = 0; i < n; ++i) {
+        for (size_t s = 0; s < 4; s++) {
+            target[(3 - s) * n + i] = 0;
+            for (size_t j = 0; j < 4; ++j) {
+                index = i + j * n;
+                root_index = (index * (s + 1)) & full_mask;
+                target[(3 - s) * n + i] +=
+                    (root_index < m ? fr::one() : -fr::one()) * coeffs[index] * round_roots[root_index & half_mask];
+            }
+        }
+    }
+}
+
+void partial_fft_parellel_inner(
+    fr* coeffs, const evaluation_domain& domain, const std::vector<fr*>& root_table, fr constant, bool is_coset)
+{
+    // We wish to compute a partial modified FFT of 2 rounds from given coefficients.
+    // We need a 2-round modified FFT for commiting to the 4n-sized quotient polynomial for
+    // the PLONK prover.
+    //
+    // We assume that the number of coefficients is a multiplicand of 4, since the domain size
+    // we use in PLONK would always be a power of 2, this is a reasonable assumption.
+    // Let n = N / 4 where N is the input domain size, we wish to compute
+    // R_{i,s} = \sum_{j=0}^{3} Y_{i + jn} * \omega^{(i + jn)(s + 1)}
+    //
+    // Input `coeffs` is the evaluation form (FFT) of a polynomial.
+    // (Y_{0,0} , Y_{1,0}, Y_{3,0}, ..., Y_{n, 0})
+    // (Y_{0,1} , Y_{1,1}, Y_{3,1}, ..., Y_{n, 1})
+    // (Y_{0,2} , Y_{1,2}, Y_{3,2}, ..., Y_{n, 2})
+    // (Y_{0,3} , Y_{1,3}, Y_{3,3}, ..., Y_{n, 3})
+    //
+    // We should store the result in the following way:
+    // (R_{0,3} , R_{1,3}, R_{3,3}, ..., R_{n, 3})  {coefficients of X^0}
+    // (R_{0,2} , R_{1,2}, R_{3,2}, ..., R_{n, 2})  {coefficients of X^1}
+    // (R_{0,1} , R_{1,1}, R_{3,1}, ..., R_{n, 1})  {coefficients of X^2}
+    // (R_{0,0} , R_{1,0}, R_{3,0}, ..., R_{n, 0})  {coefficients of X^3}
+
+    size_t n = domain.size >> 2;
+    size_t full_mask = domain.size - 1;
+    size_t m = domain.size >> 1;
+    size_t half_mask = m - 1;
+    const fr* round_roots = root_table[static_cast<size_t>(numeric::get_msb(m)) - 1];
+
+    evaluation_domain small_domain(n);
+
+    // iterate for s = 0, 1, 2, 3 to compute R_{i,s}
+    ITERATE_OVER_DOMAIN_START(small_domain);
+    fr temp[4];
+    temp[0] = coeffs[i];
+    temp[1] = coeffs[i + n];
+    temp[2] = coeffs[i + 2 * n];
+    temp[3] = coeffs[i + 3 * n];
+    coeffs[i] = 0;
+    coeffs[i + n] = 0;
+    coeffs[i + 2 * n] = 0;
+    coeffs[i + 3 * n] = 0;
+
+    size_t index, root_index;
+    fr temp_constant = constant;
+    fr root_multiplier = 1;
+
+    for (size_t s = 0; s < 4; s++) {
+        for (size_t j = 0; j < 4; ++j) {
+            index = i + j * n;
+            root_index = (index * (s + 1));
+            if (is_coset) {
+                root_index -= 4 * i;
+            }
+            root_index &= full_mask;
+            root_multiplier = round_roots[root_index & half_mask];
+            if (root_index >= m) {
+                root_multiplier = -round_roots[root_index & half_mask];
+            }
+            coeffs[(3 - s) * n + i] += root_multiplier * temp[j];
+        }
+        if (is_coset) {
+            temp_constant *= domain.generator;
+            coeffs[(3 - s) * n + i] *= temp_constant;
+        }
+    }
+    ITERATE_OVER_DOMAIN_END;
+}
+
+void partial_fft_serial(fr* coeffs, fr* target, const evaluation_domain& domain)
+{
+    partial_fft_serial_inner(coeffs, target, domain, domain.get_round_roots());
+}
+
+void partial_fft(fr* coeffs, const evaluation_domain& domain, fr constant, bool is_coset)
+{
+    partial_fft_parellel_inner(coeffs, domain, domain.get_round_roots(), constant, is_coset);
 }
 
 void fft(fr* coeffs, const evaluation_domain& domain)
@@ -699,89 +808,87 @@ fr evaluate(const std::vector<fr*> coeffs, const fr& z, const size_t large_n)
     return r;
 }
 
-// For L_1(X) = (X^{n} - 1 / (X - 1)) * (1 / n)
-// Compute the 2n-fft of L_1(X)
-// We can use this to compute the 2n-fft evaluations of any L_i(X).
-// We can consider `l_1_coefficients` to be a 2n-sized vector of the evaluations of L_1(X),
-// for all X = 2n'th roots of unity.
-// To compute the vector for the 2n-fft transform of L_i(X), we perform a (2i)-left-shift of this vector
+/**
+ * @brief Compute evaluations of lagrange polynomial L_1(X) on the specified domain
+ *
+ * @param l_1_coefficients
+ * @param src_domain
+ * @param target_domain
+ * @details Let the size of the target domain be k*n, where k is a power of 2.
+ * Evaluate L_1(X) = (X^{n} - 1 / (X - 1)) * (1 / n) at the k*n points X_i = w'^i.g,
+ * i = 0, 1,..., k*n-1, where w' is the target domain (kn'th) root of unity, and g is the
+ * source domain multiplicative generator. The evaluation domain is taken to be the coset
+ * w'^i.g, rather than just the kn'th roots, to avoid division by zero in L_1(X).
+ * The computation is done in three steps:
+ * Step 1) (Parallelized) Compute the evaluations of 1/denominator of L_1 at X_i using
+ * Montgomery batch inversion.
+ * Step 2) Compute the evaluations of the numerator of L_1 using the fact that (X_i)^n forms
+ * a subgroup of order k.
+ * Step 3) (Parallelized) Construct the evaluations of L_1 on X_i using the numerator and
+ * denominator evaluations from Steps 1 and 2.
+ *
+ * Note 1: Let w = n'th root of unity. When evaluated at the k*n'th roots of unity, the term
+ * X^{n} forms a subgroup of order k, since (w'^i)^n = w^{in/k} = w^{1/k}. Similarly, for X_i
+ * we have (X_i)^n = (w'^i.g)^n = w^{in/k}.g^n = w^{1/k}.g^n.
+ * For example, if k = 2:
+ * for even powers of w', X^{n} = w^{2in/2} = 1
+ * for odd powers of w', X = w^{i}w^{n/2} -> X^{n} = w^{in}w^{n/2} = -1
+ * The numerator term, therefore, can only take two values (for k = 2):
+ * For even indices: (X^{n} - 1)/n = (g^n - 1)/n
+ * For odd indices: (X^{n} - 1)/n = (-g^n - 1)/n
+ *
+ * Note 2: We can use the evaluations of L_1 to compute the k*n-fft evaluations of any L_i(X).
+ * We can consider `l_1_coefficients` to be a k*n-sized vector of the evaluations of L_1(X),
+ * for all X = k*n'th roots of unity. To compute the vector for the k*n-fft transform of
+ * L_i(X), we perform a (k*i)-left-shift of this vector.
+ */
 void compute_lagrange_polynomial_fft(fr* l_1_coefficients,
                                      const evaluation_domain& src_domain,
                                      const evaluation_domain& target_domain)
 {
-    // L_1(X) = (X^{n} - 1 / (X - 1)) * (1 / n)
-    // when evaluated at the 2n'th roots of unity, the term X^{n} forms a subgroup of order 2
-    // w = n'th root of unity
-    // w' = 2n'th root of unity = w^{1/2}
-    // for even powers of w', X^{n} = w^{2in/2} = 1
-    // for odd powers of w', X = w^{i}w^{n/2} -> X^{n} = w^{in}w^{n/2} = -1
-
-    // We also want to compute fft using subgroup union a coset (the multiplicative generator g), so we're not dividing
-    // by zero
-
-    // Step 1: compute the denominator for each evaluation: 1 / (X.g - 1)
-    // fr work_root;
-    fr multiplicand = target_domain.root;
+    // Step 1: Compute the 1/denominator for each evaluation: 1 / (X_i - 1)
+    fr multiplicand = target_domain.root; // kn'th root of unity w'
 
 #ifndef NO_MULTITHREADING
 #pragma omp parallel for
 #endif
+    // First compute X_i - 1, i = 0,...,kn-1
     for (size_t j = 0; j < target_domain.num_threads; ++j) {
         const fr root_shift = multiplicand.pow(static_cast<uint64_t>(j * target_domain.thread_size));
-        fr work_root = src_domain.generator * root_shift;
+        fr work_root = src_domain.generator * root_shift; // g.(w')^{j*thread_size}
         size_t offset = j * target_domain.thread_size;
         for (size_t i = offset; i < offset + target_domain.thread_size; ++i) {
-            l_1_coefficients[i] = work_root - fr::one();
-            work_root *= multiplicand;
+            l_1_coefficients[i] = work_root - fr::one(); // (w')^{j*thread_size + i}.g - 1
+            work_root *= multiplicand;                   // (w')^{j*thread_size + i + 1}
         }
     }
 
-    // use Montgomery's trick to invert all of these at once
+    // Compute 1/(X_i - 1) using Montgomery batch inversion
     fr::batch_invert(l_1_coefficients, target_domain.size);
 
-    // next: compute numerator multiplicand: w'^{n}.g^n
-    // Here, w' is the primitive 2n'th root of unity
-    // and w is the primitive n'th root of unity
-    // i.e. w' = w^{1/2}
-    // The polynomial X^n, when evaluated at all 2n'th roots of unity, forms a subgroup of order 2.
-    // For even powers of w', X^n = w'^{2in} = w^{in} = 1
-    // For odd powers of w', X^n = w'^{1 + 2in} = w^{n/2}w^{in} = w^{n/2} = -1
-
-    // The numerator term, therefore, can only take two values
-    // For even indices: (X^{n} - 1)/n = (g^n - 1)/n
-    // For odd indices: (X^{n} - 1)/n = (-g^n - 1)/n
-
-    size_t log2_subgroup_size = target_domain.log2_size - src_domain.log2_size;
-    size_t subgroup_size = 1UL << log2_subgroup_size;
+    // Step 2: Compute numerator (1/n)*(X_i^n - 1)
+    // First compute X_i^n (which forms a multiplicative subgroup of order k)
+    size_t log2_subgroup_size = target_domain.log2_size - src_domain.log2_size; // log_2(k)
+    size_t subgroup_size = 1UL << log2_subgroup_size;                           // k
     ASSERT(target_domain.log2_size >= src_domain.log2_size);
-
     fr* subgroup_roots = new fr[subgroup_size];
     compute_multiplicative_subgroup(log2_subgroup_size, src_domain, &subgroup_roots[0]);
 
-    // Each element of `subgroup_roots[i]` contains some root wi^n
-    // want to compute (1/n)(wi^n - 1)
+    // Subtract 1 and divide by n to get the k elements (1/n)*(X_i^n - 1)
     for (size_t i = 0; i < subgroup_size; ++i) {
         subgroup_roots[i] -= fr::one();
         subgroup_roots[i] *= src_domain.domain_inverse;
     }
-    // TODO: this is disgusting! Fix it fix it fix it fix it...
-    if (subgroup_size >= target_domain.thread_size) {
-        for (size_t i = 0; i < target_domain.size; i += subgroup_size) {
-            for (size_t j = 0; j < subgroup_size; ++j) {
-                l_1_coefficients[i + j] *= subgroup_roots[j];
-            }
-        }
-    } else {
+    // Step 3: Construct L_1(X_i) by multiplying the 1/denominator evaluations in
+    // l_1_coefficients by the numerator evaluations in subgroup_roots
+    size_t subgroup_mask = subgroup_size - 1;
 #ifndef NO_MULTITHREADING
 #pragma omp parallel for
 #endif
-        for (size_t k = 0; k < target_domain.num_threads; ++k) {
-            size_t offset = k * target_domain.thread_size;
-            for (size_t i = offset; i < offset + target_domain.thread_size; i += subgroup_size) {
-                for (size_t j = 0; j < subgroup_size; ++j) {
-                    l_1_coefficients[i + j] *= subgroup_roots[j];
-                }
-            }
+    for (size_t i = 0; i < target_domain.num_threads; ++i) {
+        for (size_t j = 0; j < target_domain.thread_size; ++j) {
+            size_t eval_idx = i * target_domain.thread_size + j;
+            l_1_coefficients[eval_idx] *= subgroup_roots[eval_idx & subgroup_mask];
         }
     }
     delete[] subgroup_roots;
@@ -923,68 +1030,89 @@ fr compute_kate_opening_coefficients(const fr* src, fr* dest, const fr& z, const
     return f;
 }
 
+/**
+ * @param zeta - the name given (in our code) to the evaluation challenge ʓ from the Plonk paper.
+ */
 barretenberg::polynomial_arithmetic::lagrange_evaluations get_lagrange_evaluations(
-    const fr& z, const evaluation_domain& domain, const size_t num_roots_cut_out_of_vanishing_polynomial)
+    const fr& zeta, const evaluation_domain& domain, const size_t num_roots_cut_out_of_vanishing_polynomial)
 {
-    // compute Z_H*(z), l_start(z), l_{end}(z)
+    // Compute Z_H*(ʓ), l_start(ʓ), l_{end}(ʓ)
     // Note that as we modify the vanishing polynomial by cutting out some roots, we must simultaneously ensure that
-    // the lagrange polynomials we require would be l_1(z) and l_{n-k}(z) where k =
+    // the lagrange polynomials we require would be l_1(ʓ) and l_{n-k}(ʓ) where k =
     // num_roots_cut_out_of_vanishing_polynomial. For notational simplicity, we call l_1 as l_start and l_{n-k} as
     // l_end.
     //
     // NOTE: If in future, there arises a need to cut off more zeros, this method will not require any changes.
     //
 
-    fr z_pow = z;
+    fr z_pow_n = zeta;
     for (size_t i = 0; i < domain.log2_size; ++i) {
-        z_pow.self_sqr();
+        z_pow_n.self_sqr();
     }
 
-    fr numerator = z_pow - fr::one();
+    fr numerator = z_pow_n - fr::one();
 
     fr denominators[3];
 
-    // compute denominator of Z_H*(z)
-    // (z - w^{n-1})(z - w^{n-2})...(z - w^{n - num_roots_cut_out_of_vanishing_poly})
+    // Compute the denominator of Z_H*(ʓ)
+    //   (ʓ - ω^{n-1})(ʓ - ω^{n-2})...(ʓ - ω^{n - num_roots_cut_out_of_vanishing_poly})
+    // = (ʓ - ω^{ -1})(ʓ - ω^{ -2})...(ʓ - ω^{  - num_roots_cut_out_of_vanishing_poly})
     fr work_root = domain.root_inverse;
     denominators[0] = fr::one();
     for (size_t i = 0; i < num_roots_cut_out_of_vanishing_polynomial; ++i) {
-        denominators[0] *= (z - work_root);
+        denominators[0] *= (zeta - work_root);
         work_root *= domain.root_inverse;
     }
 
     // The expressions of the lagrange polynomials are:
-    //           (X^n - 1)
-    // L_1(X) = -----------
-    //             X - 1
     //
-    // L_{i}(X) = L_1(X.w^{-i})
-    //                                                      (X^n - 1)
-    // => L_{n-k}(X) = L_1(X.w^{k-n}) = L_1(X.w^{k + 1}) = ----------------
-    //                                                      (X.w^{k+1} - 1)
+    //           ω^0.(X^n - 1)      (X^n - 1)
+    // L_1(X) = --------------- =  -----------
+    //            n.(X - ω^0)       n.(X - 1)
     //
-    denominators[1] = z - fr::one();
+    // Notice: here (in this comment), the index i of L_i(X) counts from 1 (not from 0). So L_1 corresponds to the
+    // _first_ root of unity ω^0, and not to the 1-th root of unity ω^1.
+    //
+    //
+    //             ω^{i-1}.(X^n - 1)         X^n - 1          X^n.(ω^{-i+1})^n - 1
+    // L_{i}(X) = ------------------ = -------------------- = -------------------- = L_1(X.ω^{-i+1})
+    //              n.(X - ω^{i-1})    n.(X.ω^{-(i-1)} - 1) |  n.(X.ω^{-i+1} - 1)
+    //                                                      |
+    //                                                      since (ω^{-i+1})^n = 1 trivially
+    //
+    //                                                          (X^n - 1)
+    // => L_{n-k}(X) = L_1(X.ω^{k-n+1}) = L_1(X.ω^{k+1}) =  -----------------
+    //                                                      n.(X.ω^{k+1} - 1)
+    //
+    denominators[1] = zeta - fr::one();
 
-    // compute w^{num_roots_cut_out_of_vanishing_polynomial + 1}
+    // Compute ω^{num_roots_cut_out_of_vanishing_polynomial + 1}
     fr l_end_root = (num_roots_cut_out_of_vanishing_polynomial & 1) ? domain.root.sqr() : domain.root;
     for (size_t i = 0; i < num_roots_cut_out_of_vanishing_polynomial / 2; ++i) {
         l_end_root *= domain.root.sqr();
     }
-    denominators[2] = (z * l_end_root) - fr::one();
+    denominators[2] = (zeta * l_end_root) - fr::one();
     fr::batch_invert(denominators, 3);
 
     barretenberg::polynomial_arithmetic::lagrange_evaluations result;
-    result.vanishing_poly = numerator * denominators[0];
-    numerator = numerator * domain.domain_inverse;
-    result.l_start = numerator * denominators[1];
-    result.l_end = numerator * denominators[2];
+    result.vanishing_poly = numerator * denominators[0]; // (ʓ^n - 1) / (ʓ-ω^{-1}).(ʓ-ω^{-2})...(ʓ-ω^{-k}) =: Z_H*(ʓ)
+    numerator = numerator * domain.domain_inverse;       // (ʓ^n - 1) / n
+    result.l_start = numerator * denominators[1];        // (ʓ^n - 1) / (n.(ʓ - 1))         =: L_1(ʓ)
+    result.l_end = numerator * denominators[2];          // (ʓ^n - 1) / (n.(ʓ.ω^{k+1} - 1)) =: L_{n-k}(ʓ)
 
     return result;
 }
 
-// computes r = \sum_{i=0}^{num_coeffs}(L_i(z).f_i)
-// start with L_1(z) = ((z^n - 1)/n).(1 / z - 1)
-// L_i(z) = L_1(z.w^{1-i}) = ((z^n - 1) / n).(1 / z.w^{1-i} - 1)
+// Computes r = \sum_{i=0}^{num_coeffs-1} (L_{i+1}(ʓ).f_i)
+//
+//                     (ʓ^n - 1)
+// Start with L_1(ʓ) = ---------
+//                     n.(ʓ - 1)
+//
+//                                 ʓ^n - 1
+// L_i(z) = L_1(ʓ.ω^{1-i}) = ------------------
+//                           n.(ʓ.ω^{1-i)} - 1)
+//
 fr compute_barycentric_evaluation(const fr* coeffs,
                                   const size_t num_coeffs,
                                   const fr& z,
@@ -997,13 +1125,15 @@ fr compute_barycentric_evaluation(const fr* coeffs,
         numerator.self_sqr();
     }
     numerator -= fr::one();
-    numerator *= domain.domain_inverse;
+    numerator *= domain.domain_inverse; // (ʓ^n - 1) / n
 
     denominators[0] = z - fr::one();
-    fr work_root = domain.root_inverse;
+    fr work_root = domain.root_inverse; // ω^{-1}
     for (size_t i = 1; i < num_coeffs; ++i) {
-        denominators[i] = work_root * z;
-        denominators[i] -= fr::one();
+        denominators[i] =
+            work_root * z; // denominators[i] will correspond to L_[i+1] (since our 'commented maths' notation indexes
+                           // L_i from 1). So ʓ.ω^{-i} = ʓ.ω^{1-(i+1)} is correct for L_{i+1}.
+        denominators[i] -= fr::one(); // ʓ.ω^{-i} - 1
         work_root *= domain.root_inverse;
     }
 
@@ -1012,11 +1142,14 @@ fr compute_barycentric_evaluation(const fr* coeffs,
     fr result = fr::zero();
 
     for (size_t i = 0; i < num_coeffs; ++i) {
-        fr temp = coeffs[i] * denominators[i];
+        fr temp = coeffs[i] * denominators[i]; // f_i * 1/(ʓ.ω^{-i} - 1)
         result = result + temp;
     }
 
-    result = result * numerator;
+    result = result *
+             numerator; //   \sum_{i=0}^{num_coeffs-1} f_i * [ʓ^n - 1]/[n.(ʓ.ω^{-i} - 1)]
+                        // = \sum_{i=0}^{num_coeffs-1} f_i * L_{i+1}
+                        // (with our somewhat messy 'commented maths' convention that L_1 corresponds to the 0th coeff).
 
     aligned_free(denominators);
 
@@ -1032,6 +1165,187 @@ void compress_fft(const fr* src, fr* dest, const size_t cur_size, const size_t c
     size_t new_size = cur_size >> log2_compress_factor;
     for (size_t i = 0; i < new_size; ++i) {
         fr::__copy(src[i << log2_compress_factor], dest[i]);
+    }
+}
+
+fr evaluate_from_fft(const fr* poly_coset_fft,
+                     const evaluation_domain& large_domain,
+                     const fr& z,
+                     const evaluation_domain& small_domain)
+{
+    size_t n = small_domain.size;
+    fr* small_poly_coset_fft = static_cast<fr*>(aligned_alloc(64, sizeof(fr) * n));
+    for (size_t i = 0; i < n; ++i) {
+        small_poly_coset_fft[i] = poly_coset_fft[4 * i];
+    }
+
+    fr zeta_by_g = z * large_domain.generator_inverse;
+
+    const auto result = compute_barycentric_evaluation(small_poly_coset_fft, n, zeta_by_g, small_domain);
+    aligned_free(small_poly_coset_fft);
+    return result;
+}
+
+// This function computes sum of all scalars in a given array.
+fr compute_sum(const fr* src, const size_t n)
+{
+    fr result = 0;
+    for (size_t i = 0; i < n; ++i) {
+        result += src[i];
+    }
+    return result;
+}
+
+// This function computes the polynomial (x - a)(x - b)(x - c)... given n distinct roots (a, b, c, ...).
+void compute_linear_polynomial_product(const fr* roots, fr* dest, const size_t n)
+{
+    fr* scratch_space = get_scratch_space(n);
+    memcpy((void*)scratch_space, (void*)roots, n * sizeof(fr));
+
+    dest[n] = 1;
+    dest[n - 1] = -compute_sum(scratch_space, n);
+
+    fr temp;
+    fr constant = 1;
+    for (size_t i = 0; i < n - 1; ++i) {
+        temp = 0;
+        for (size_t j = 0; j < n - 1 - i; ++j) {
+            scratch_space[j] = roots[j] * compute_sum(&scratch_space[j + 1], n - 1 - i - j);
+            temp += scratch_space[j];
+        }
+        dest[n - 2 - i] = temp * constant;
+        constant *= fr::neg_one();
+    }
+}
+
+fr compute_linear_polynomial_product_evaluation(const fr* roots, const fr z, const size_t n)
+{
+    fr result = 1;
+    for (size_t i = 0; i < n; ++i) {
+        result *= (z - roots[i]);
+    }
+    return result;
+}
+
+void fft_linear_polynomial_product(
+    const fr* roots, fr* dest, const size_t n, const evaluation_domain& domain, const bool is_coset)
+{
+    size_t m = domain.size >> 1;
+    const fr* round_roots = domain.get_round_roots()[static_cast<size_t>(numeric::get_msb(m)) - 1];
+
+    fr current_root = 0;
+    for (size_t i = 0; i < m; ++i) {
+        current_root = round_roots[i];
+        current_root *= (is_coset ? domain.generator : 1);
+        dest[i] = 1;
+        dest[i + m] = 1;
+        for (size_t j = 0; j < n; ++j) {
+            dest[i] *= (current_root - roots[j]);
+            dest[i + m] *= (-current_root - roots[j]);
+        }
+    }
+}
+
+void compute_interpolation(const fr* src, fr* dest, const fr* evaluation_points, const size_t n)
+{
+    std::vector<fr> local_roots;
+    fr local_polynomial[n];
+    fr denominator = 1;
+    fr multiplicand;
+    fr temp_dest[n];
+
+    if (n == 1) {
+        temp_dest[0] = src[0];
+        return;
+    }
+
+    // Initialize dest
+    for (size_t i = 0; i < n; ++i) {
+        temp_dest[i] = 0;
+    }
+
+    for (size_t i = 0; i < n; ++i) {
+
+        // fill in local roots
+        denominator = 1;
+        for (size_t j = 0; j < n; ++j) {
+            if (j == i) {
+                continue;
+            }
+            local_roots.push_back(evaluation_points[j]);
+            denominator *= (evaluation_points[i] - evaluation_points[j]);
+        }
+
+        // bring local roots to coefficient form
+        compute_linear_polynomial_product(&local_roots[0], local_polynomial, n - 1);
+
+        // store the resulting coefficients
+        multiplicand = src[i] / denominator;
+        for (size_t j = 0; j < n; ++j) {
+            temp_dest[j] += multiplicand * local_polynomial[j];
+        }
+
+        // clear up local roots
+        local_roots.clear();
+    }
+
+    memcpy((void*)dest, (void*)temp_dest, n * sizeof(fr));
+}
+
+void compute_efficient_interpolation(const fr* src, fr* dest, const fr* evaluation_points, const size_t n)
+{
+    /*
+        We use Lagrange technique to compute polynomial interpolation.
+        Given: (x_i, y_i) for i ∈ {0, 1, ..., n} =: [n]
+        Compute function f(X) such that f(x_i) = y_i for all i ∈ [n].
+                   (X - x1)(X - x2)...(X - xn)             (X - x0)(X - x2)...(X - xn)
+        F(X) = y0--------------------------------  +  y1----------------------------------  + ...
+                 (x0 - x_1)(x0 - x_2)...(x0 - xn)       (x1 - x_0)(x1 - x_2)...(x1 - xn)
+        We write this as:
+                      [          yi        ]
+        F(X) = N(X) * |∑_i --------------- |
+                      [     (X - xi) * di  ]
+        where:
+        N(X) = ∏_{i \in [n]} (X - xi),
+        di = ∏_{j != i} (xi - xj)
+        For division of N(X) by (X - xi), we use the same trick that was used in compute_opening_polynomial()
+        function in the kate commitment scheme.
+    */
+    fr numerator_polynomial[n + 1];
+    polynomial_arithmetic::compute_linear_polynomial_product(evaluation_points, numerator_polynomial, n);
+
+    fr roots_and_denominators[2 * n];
+    fr temp_src[n];
+    for (size_t i = 0; i < n; ++i) {
+        roots_and_denominators[i] = -evaluation_points[i];
+        temp_src[i] = src[i];
+        dest[i] = 0;
+
+        // compute constant denominator
+        roots_and_denominators[n + i] = 1;
+        for (size_t j = 0; j < n; ++j) {
+            if (j == i) {
+                continue;
+            }
+            roots_and_denominators[n + i] *= (evaluation_points[i] - evaluation_points[j]);
+        }
+    }
+
+    fr::batch_invert(roots_and_denominators, 2 * n);
+
+    fr z, multiplier;
+    fr temp_dest[n];
+    for (size_t i = 0; i < n; ++i) {
+        z = roots_and_denominators[i];
+        multiplier = temp_src[i] * roots_and_denominators[n + i];
+        temp_dest[0] = multiplier * numerator_polynomial[0];
+        temp_dest[0] *= z;
+        dest[0] += temp_dest[0];
+        for (size_t j = 1; j < n; ++j) {
+            temp_dest[j] = multiplier * numerator_polynomial[j] - temp_dest[j - 1];
+            temp_dest[j] *= z;
+            dest[j] += temp_dest[j];
+        }
     }
 }
 

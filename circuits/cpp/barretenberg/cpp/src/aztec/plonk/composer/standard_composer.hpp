@@ -1,17 +1,13 @@
 #pragma once
 #include "composer_base.hpp"
-#include <plonk/reference_string/file_reference_string.hpp>
 #include <plonk/transcript/manifest.hpp>
-namespace waffle {
-enum StandardSelectors {
-    QM = 0,
-    QC = 1,
-    Q1 = 2,
-    Q2 = 3,
-    Q3 = 4,
-};
+#include <srs/reference_string/file_reference_string.hpp>
+#include "../proof_system/types/polynomial_manifest.hpp"
 
-inline std::vector<ComposerBase::SelectorProperties> standard_sel_props()
+namespace waffle {
+enum StandardSelectors { QM, QC, Q1, Q2, Q3, NUM };
+
+inline std::vector<ComposerBase::SelectorProperties> standard_selector_properties()
 {
     std::vector<ComposerBase::SelectorProperties> result{
         { "q_m", false }, { "q_c", false }, { "q_1", false }, { "q_2", false }, { "q_3", false },
@@ -22,10 +18,11 @@ inline std::vector<ComposerBase::SelectorProperties> standard_sel_props()
 class StandardComposer : public ComposerBase {
   public:
     static constexpr ComposerType type = ComposerType::STANDARD;
+    static constexpr MerkleHashType merkle_hash_type = MerkleHashType::FIXED_BASE_PEDERSEN;
     static constexpr size_t UINT_LOG2_BASE = 2;
 
     StandardComposer(const size_t size_hint = 0)
-        : ComposerBase(5, size_hint, standard_sel_props())
+        : ComposerBase(StandardSelectors::NUM, size_hint, standard_selector_properties())
     {
         w_l.reserve(size_hint);
         w_r.reserve(size_hint);
@@ -33,10 +30,10 @@ class StandardComposer : public ComposerBase {
         zero_idx = put_constant_variable(barretenberg::fr::zero());
     };
 
-    StandardComposer(const size_t selector_num,
+    StandardComposer(const size_t num_selectors,
                      const size_t size_hint,
                      const std::vector<SelectorProperties> selector_properties)
-        : ComposerBase(selector_num, size_hint, selector_properties)
+        : ComposerBase(num_selectors, size_hint, selector_properties)
     {
         w_l.reserve(size_hint);
         w_r.reserve(size_hint);
@@ -49,7 +46,7 @@ class StandardComposer : public ComposerBase {
                            size_hint){};
 
     StandardComposer(std::shared_ptr<ReferenceStringFactory> const& crs_factory, const size_t size_hint = 0)
-        : ComposerBase(crs_factory, 5, size_hint, standard_sel_props())
+        : ComposerBase(crs_factory, StandardSelectors::NUM, size_hint, standard_selector_properties())
     {
         w_l.reserve(size_hint);
         w_r.reserve(size_hint);
@@ -59,7 +56,7 @@ class StandardComposer : public ComposerBase {
     }
 
     StandardComposer(std::unique_ptr<ReferenceStringFactory>&& crs_factory, const size_t size_hint = 0)
-        : ComposerBase(std::move(crs_factory), 5, size_hint, standard_sel_props())
+        : ComposerBase(std::move(crs_factory), StandardSelectors::NUM, size_hint, standard_selector_properties())
     {
         w_l.reserve(size_hint);
         w_r.reserve(size_hint);
@@ -70,7 +67,7 @@ class StandardComposer : public ComposerBase {
     StandardComposer(std::shared_ptr<proving_key> const& p_key,
                      std::shared_ptr<verification_key> const& v_key,
                      size_t size_hint = 0)
-        : ComposerBase(p_key, v_key, 5, size_hint, standard_sel_props())
+        : ComposerBase(p_key, v_key, StandardSelectors::NUM, size_hint, standard_selector_properties())
     {
         w_l.reserve(size_hint);
         w_r.reserve(size_hint);
@@ -120,14 +117,17 @@ class StandardComposer : public ComposerBase {
                                                             const size_t num_bits,
                                                             std::string const& msg = "create_range_constraint");
 
-    std::vector<uint32_t> create_range_constraint(const uint32_t witness_index,
-                                                  const size_t num_bits,
-                                                  std::string const& msg = "create_range_constraint");
+    void create_range_constraint(const uint32_t variable_index,
+                                 const size_t num_bits,
+                                 std::string const& msg = "create_range_constraint")
+    {
+        decompose_into_base4_accumulators(variable_index, num_bits, msg);
+    }
+
     void add_recursive_proof(const std::vector<uint32_t>& proof_output_witness_indices)
     {
         if (contains_recursive_proof) {
-            failed = true;
-            err = "added recursive proof when one already exists";
+            failure("added recursive proof when one already exists");
         }
         contains_recursive_proof = true;
 
@@ -151,9 +151,9 @@ class StandardComposer : public ComposerBase {
 
     size_t get_num_constant_gates() const override { return 0; }
 
-    // these are variables that we have used a gate on, to enforce that they are
-    // equal to a defined value
-    std::map<barretenberg::fr, uint32_t> constant_variables;
+    // These are variables that we have used a gate on, to enforce that they are
+    // equal to a defined value.
+    std::map<barretenberg::fr, uint32_t> constant_variable_indices;
 
     /**
      * Create a manifest, which specifies proof rounds, elements and who supplies them.
@@ -169,9 +169,12 @@ class StandardComposer : public ComposerBase {
         constexpr size_t fr_size = 32;
         const size_t public_input_size = fr_size * num_public_inputs;
         const transcript::Manifest output = transcript::Manifest(
+
             { transcript::Manifest::RoundManifest(
                   { { "circuit_size", 4, true }, { "public_input_size", 4, true } }, "init", 1),
+
               transcript::Manifest::RoundManifest({}, "eta", 0),
+
               transcript::Manifest::RoundManifest(
                   {
                       { "public_inputs", public_input_size, false },
@@ -184,6 +187,7 @@ class StandardComposer : public ComposerBase {
               transcript::Manifest::RoundManifest({ { "Z_PERM", g1_size, false } }, "alpha", 1),
               transcript::Manifest::RoundManifest(
                   { { "T_1", g1_size, false }, { "T_2", g1_size, false }, { "T_3", g1_size, false } }, "z", 1),
+
               transcript::Manifest::RoundManifest(
                   {
                       { "w_1", fr_size, false, 0 },
@@ -194,8 +198,9 @@ class StandardComposer : public ComposerBase {
                       { "z_perm_omega", fr_size, false, -1 },
                   },
                   "nu",
-                  6,
+                  STANDARD_UNROLLED_MANIFEST_SIZE - 6,
                   true),
+
               transcript::Manifest::RoundManifest(
                   { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 1) });
         return output;
@@ -208,9 +213,12 @@ class StandardComposer : public ComposerBase {
         constexpr size_t fr_size = 32;
         const size_t public_input_size = fr_size * num_public_inputs;
         const transcript::Manifest output = transcript::Manifest(
+
             { transcript::Manifest::RoundManifest(
                   { { "circuit_size", 4, true }, { "public_input_size", 4, true } }, "init", 1),
+
               transcript::Manifest::RoundManifest({}, "eta", 0),
+
               transcript::Manifest::RoundManifest(
                   {
                       { "public_inputs", public_input_size, false },
@@ -223,6 +231,7 @@ class StandardComposer : public ComposerBase {
               transcript::Manifest::RoundManifest({ { "Z_PERM", g1_size, false } }, "alpha", 1),
               transcript::Manifest::RoundManifest(
                   { { "T_1", g1_size, false }, { "T_2", g1_size, false }, { "T_3", g1_size, false } }, "z", 1),
+
               transcript::Manifest::RoundManifest(
                   {
                       { "t", fr_size, true, -1 },
@@ -241,10 +250,12 @@ class StandardComposer : public ComposerBase {
                       { "z_perm_omega", fr_size, false, -1 },
                   },
                   "nu",
-                  12,
+                  STANDARD_UNROLLED_MANIFEST_SIZE,
                   true),
+
               transcript::Manifest::RoundManifest(
                   { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 1) });
+
         return output;
     }
 

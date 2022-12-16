@@ -248,14 +248,14 @@ uint<Composer, Native> uint<Composer, Native>::operator*(const uint& other) cons
     };
 
     ctx->create_big_mul_gate(gate);
-    constrain_accumulators(context, gate.d, width + 2);
+    constrain_accumulators(context, gate.d, width + 2, "arithmetic: uint mul overflow too large.");
 
     uint<Composer, Native> result(ctx);
 
     // Manually normalize the result. We do this here, and not for operator+, because
     // it is much easier to overflow the 252-bit modulus using multiplications. It is
     // left to the circuit writer keep track of overflows when using addition.
-    result.accumulators = constrain_accumulators(ctx, gate.c);
+    result.accumulators = constrain_accumulators(ctx, gate.c, width, "arithmetic: uint mul remainder too large.");
     result.witness_index = result.accumulators[num_accumulators() - 1];
     result.witness_status = WitnessStatus::OK;
 
@@ -374,28 +374,25 @@ std::pair<uint<Composer, Native>, uint<Composer, Native>> uint<Composer, Native>
     ctx->create_add_gate(delta_gate);
 
     // validate delta is in the correct range
-    field_t<Composer>::from_witness_index(ctx, delta_idx).create_range_constraint(width);
+    ctx->decompose_into_base4_accumulators(delta_idx, width, "arithmetic: divmod delta range constraint fails.");
 
     // normalize witness quotient and remainder
     // minimal bit range for quotient: from 0 (in case a = b-1) to width (when b = 1).
     uint<Composer, Native> quotient(ctx);
-    quotient.accumulators = ctx->decompose_into_base4_accumulators(quotient_idx, width);
+    quotient.accumulators = ctx->decompose_into_base4_accumulators(
+        quotient_idx, width, "arithmetic: divmod quotient range constraint fails.");
     quotient.witness_index = quotient.accumulators[(width >> 1) - 1];
     quotient.witness_status = WitnessStatus::OK;
 
     // constrain remainder to lie in [0, 2^width-1]
     uint<Composer, Native> remainder(ctx);
-    remainder.accumulators = ctx->decompose_into_base4_accumulators(remainder_idx, width);
+    remainder.accumulators = ctx->decompose_into_base4_accumulators(
+        remainder_idx, width, "arithmetic: divmod remaidner range constraint fails.");
     remainder.witness_index = remainder.accumulators[(width >> 1) - 1];
     remainder.witness_status = WitnessStatus::OK;
 
     return std::make_pair(quotient, remainder);
 }
-
-template class uint<waffle::PlookupComposer, uint8_t>;
-template class uint<waffle::PlookupComposer, uint16_t>;
-template class uint<waffle::PlookupComposer, uint32_t>;
-template class uint<waffle::PlookupComposer, uint64_t>;
 
 template class uint<waffle::TurboComposer, uint8_t>;
 template class uint<waffle::TurboComposer, uint16_t>;

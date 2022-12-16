@@ -59,7 +59,7 @@ class rollup_tests : public ::testing::Test {
                                                                    .second_output_in_use = true },
             .aux_data = 0
         };
-        // MIKE started here
+
         auto defi_proof1 = context.create_defi_proof({ 0, 1 }, { 100, 50 }, { 40, 110 }, bid);
 
         return create_rollup_tx(context.world_state, 1, { defi_proof1 }, { bid });

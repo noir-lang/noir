@@ -1,19 +1,21 @@
 #include "byte_array.hpp"
 #include <gtest/gtest.h>
 #include <plonk/composer/turbo_composer.hpp>
+#include <plonk/composer/ultra_composer.hpp>
 
+// ULTRATODO: make these typed tests
 namespace test_stdlib_byte_array {
 using namespace barretenberg;
 using namespace plonk;
-
-typedef stdlib::bool_t<waffle::TurboComposer> bool_t;
-typedef stdlib::field_t<waffle::TurboComposer> field_t;
-typedef stdlib::witness_t<waffle::TurboComposer> witness_t;
-typedef stdlib::byte_array<waffle::TurboComposer> byte_array;
+typedef waffle::TurboComposer Composer;
+typedef stdlib::bool_t<Composer> bool_t;
+typedef stdlib::field_t<Composer> field_t;
+typedef stdlib::witness_t<Composer> witness_t;
+typedef stdlib::byte_array<Composer> byte_array;
 
 TEST(stdlib_byte_array, test_reverse)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
     std::vector<uint8_t> expected = { 0x04, 0x03, 0x02, 0x01 };
     byte_array arr(&composer, std::vector<uint8_t>{ 0x01, 0x02, 0x03, 0x04 });
 
@@ -23,7 +25,7 @@ TEST(stdlib_byte_array, test_reverse)
 
 TEST(stdlib_byte_array, test_string_constructor)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
     std::string a = "ascii";
     byte_array arr(&composer, a);
     EXPECT_EQ(arr.get_string(), a);
@@ -31,7 +33,7 @@ TEST(stdlib_byte_array, test_string_constructor)
 
 TEST(stdlib_byte_array, test_ostream_operator)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
     std::string a = "\1\2\3a";
     byte_array arr(&composer, a);
     std::ostringstream os;
@@ -41,7 +43,7 @@ TEST(stdlib_byte_array, test_ostream_operator)
 
 TEST(stdlib_byte_array, test_byte_array_input_output_consistency)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
 
     fr a_expected = fr::random_element();
     fr b_expected = fr::random_element();
@@ -71,7 +73,7 @@ TEST(stdlib_byte_array, test_byte_array_input_output_consistency)
 
 TEST(stdlib_byte_array, get_bit)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
     byte_array arr(&composer, std::vector<uint8_t>{ 0x01, 0x02, 0x03, 0x04 });
 
     EXPECT_EQ(arr.get_bit(0).get_value(), false);
@@ -103,7 +105,7 @@ TEST(stdlib_byte_array, get_bit)
 
 TEST(stdlib_byte_array, set_bit)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
     byte_array arr(&composer, std::vector<uint8_t>{ 0x01, 0x02, 0x03, 0x04 });
 
     arr.set_bit(16, bool_t(witness_t(&composer, true)));

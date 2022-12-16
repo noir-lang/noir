@@ -1,0 +1,8 @@
+{
+  "files.associations": {
+    "*.tf": "terraform",
+    "*.tfvars": "terraform",
+    "Makefile.*": "makefile",
+    "iosfwd": "cpp"
+  }
+}

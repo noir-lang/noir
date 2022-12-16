@@ -104,11 +104,7 @@ void populate_kate_element_map(verification_key* key,
     const auto zeta = transcript.get_challenge_field_element("z", 0);
     const auto quotient_nu = transcript.get_challenge_field_element_from_map("nu", "t");
 
-    Field z_pow_n = zeta;
-    const size_t log2_n = numeric::get_msb(key->n);
-    for (size_t j = 0; j < log2_n; ++j) {
-        z_pow_n = z_pow_n.sqr();
-    }
+    Field z_pow_n = zeta.pow(key->n);
     Field z_power = 1;
     for (size_t i = 0; i < program_settings::program_width; ++i) {
         std::string quotient_label = "T_" + std::to_string(i + 1);
@@ -149,10 +145,10 @@ inline void print_turbo_verification_key(verification_key* key)
     print_g1("Q5", key->constraint_selectors.at("Q_5"));
     print_g1("QM", key->constraint_selectors.at("Q_M"));
     print_g1("QC", key->constraint_selectors.at("Q_C"));
-    print_g1("QARITH", key->constraint_selectors.at("Q_ARITHMETIC_SELECTOR"));
-    print_g1("QECC", key->constraint_selectors.at("Q_FIXED_BASE_SELECTOR"));
-    print_g1("QRANGE", key->constraint_selectors.at("Q_RANGE_SELECTOR"));
-    print_g1("QLOGIC", key->constraint_selectors.at("Q_LOGIC_SELECTOR"));
+    print_g1("QARITH", key->constraint_selectors.at("Q_ARITHMETIC"));
+    print_g1("QFIXEDBASE", key->constraint_selectors.at("Q_FIXED_BASE"));
+    print_g1("QRANGE", key->constraint_selectors.at("Q_RANGE"));
+    print_g1("QLOGIC", key->constraint_selectors.at("Q_LOGIC"));
     print_g1("sigma_commitments[0]", key->permutation_selectors.at("SIGMA_1"));
     print_g1("sigma_commitments[1]", key->permutation_selectors.at("SIGMA_2"));
     print_g1("sigma_commitments[2]", key->permutation_selectors.at("SIGMA_3"));

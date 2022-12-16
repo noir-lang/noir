@@ -31,6 +31,7 @@ template <typename B> inline void read(B& any, proving_key_data& key)
 
     read(any, key.contains_recursive_proof);
     read(any, key.recursive_proof_public_input_indices);
+    read(any, key.memory_records);
 }
 
 // Write the pre-computed polynomials
@@ -55,6 +56,7 @@ template <typename B> inline void write(B& buf, proving_key const& key)
 
     write(buf, key.contains_recursive_proof);
     write(buf, key.recursive_proof_public_input_indices);
+    write(buf, key.memory_records);
 }
 
 template <typename B> inline void read_mmap(B& is, std::string const& path, proving_key_data& key)
@@ -76,9 +78,8 @@ template <typename B> inline void read_mmap(B& is, std::string const& path, prov
     }
     read(is, key.contains_recursive_proof);
     read(is, key.recursive_proof_public_input_indices);
+    read(is, key.memory_records);
 }
-
-// inline void write_mmap(std::ostream& os, std::string const& path, proving_key const& key)
 template <typename B> inline void write_mmap(B& os, std::string const& path, proving_key const& key)
 {
     using serialize::write;
@@ -107,6 +108,7 @@ template <typename B> inline void write_mmap(B& os, std::string const& path, pro
     }
     write(os, key.contains_recursive_proof);
     write(os, key.recursive_proof_public_input_indices);
+    write(os, key.memory_records);
 }
 
 } // namespace waffle

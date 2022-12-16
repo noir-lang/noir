@@ -1,10 +1,10 @@
 #include "hash.hpp"
 #include <gtest/gtest.h>
 #include <stdlib/hash/pedersen/pedersen.hpp>
-#include <stdlib/types/turbo.hpp>
+#include <stdlib/types/types.hpp>
 
 using namespace barretenberg;
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 
 TEST(stdlib_merkle_tree_hash, compress_native_vs_circuit)
 {

@@ -1,6 +1,8 @@
 #pragma once
 #include <numeric/uint256/uint256.hpp>
 #include <vector>
+#include <type_traits>
+#include <ecc/curves/bn254/fq2.hpp>
 
 namespace barretenberg {
 namespace group_elements {
@@ -16,15 +18,16 @@ template <typename Fq, typename Fr, typename Params> class alignas(64) affine_el
 
     /**
      * @brief Reconstruct a point in affine coordinates from compressed form.
+     * @details #LARGE_MODULUS_AFFINE_POINT_COMPRESSION Point compression is only implemented for curves of a prime
+     * field F_p with p using < 256 bits.  One possiblity for extending to a 256-bit prime field:
+     * https://patents.google.com/patent/US6252960B1/en.
      *
-     * @tparam BaseField Coordinate field class
-     * @tparam CompileTimeEnabled Checks that the modulus of BaseField is < 2**255, otherwise disables the function
-     *
-     * @param compressed Compressed point
+     * @param compressed compressed point
+     * @return constexpr affine_element
      */
     template <typename BaseField = Fq,
               typename CompileTimeEnabled = std::enable_if_t<(BaseField::modulus >> 255) == uint256_t(0), void>>
-    static constexpr std::pair<bool, affine_element> deserialize(const uint256_t& compressed) noexcept;
+    static constexpr affine_element from_compressed(const uint256_t& compressed) noexcept;
 
     constexpr affine_element& operator=(const affine_element& other) noexcept;
 
@@ -32,7 +35,7 @@ template <typename Fq, typename Fr, typename Params> class alignas(64) affine_el
 
     template <typename BaseField = Fq,
               typename CompileTimeEnabled = std::enable_if_t<(BaseField::modulus >> 255) == uint256_t(0), void>>
-    explicit constexpr operator uint256_t() const noexcept;
+    constexpr uint256_t compress() const noexcept;
 
     constexpr affine_element set_infinity() const noexcept;
     constexpr void self_set_infinity() noexcept;
@@ -44,15 +47,9 @@ template <typename Fq, typename Fr, typename Params> class alignas(64) affine_el
     /**
      * @brief Hash a seed value to curve.
      *
-     * @tparam BaseField Coordinate field
-     * @tparam CompileTimeEnabled Checks that the modulus of BaseField is < 2**255, otherwise disables the function
-     *
-     * @return <true,A point on the curve corresponding to the given seed> if the seed lands on a point <false,
-     * affine_element(0,0)> if not.
+     * @return A point on the curve corresponding to the given seed
      */
-    template <typename BaseField = Fq,
-              typename CompileTimeEnabled = std::enable_if_t<(BaseField::modulus >> 255) == uint256_t(0), void>>
-    static std::pair<bool, affine_element> hash_to_curve(const uint64_t seed) noexcept;
+    static affine_element hash_to_curve(const uint64_t seed) noexcept;
 
     constexpr bool operator==(const affine_element& other) const noexcept;
 
@@ -64,52 +61,82 @@ template <typename Fq, typename Fr, typename Params> class alignas(64) affine_el
     /**
      * @brief Serialize the point to the given buffer
      *
-     * @tparam BaseField Coordinate field
-     * @tparam CompileTimeEnabled Checks that the modulus of BaseField is < 2**255, otherwise disables the function
+     * @details We support serializing the point at infinity for curves defined over a barretenberg::field (i.e., a
+     * native field of prime order) and for points of barretenberg::g2.
+     *
+     * @warning This will need to be updated if we serialize points over composite-order fields other than fq2!
      *
      */
-    template <typename BaseField = Fq,
-              typename CompileTimeEnabled = std::enable_if_t<(BaseField::modulus >> 255) == uint256_t(0), void>>
     static void serialize_to_buffer(const affine_element& value, uint8_t* buffer)
     {
-        Fq::serialize_to_buffer(value.y, buffer);
-        Fq::serialize_to_buffer(value.x, buffer + sizeof(Fq));
         if (value.is_point_at_infinity()) {
-            buffer[0] = buffer[0] | (1 << 7);
+            if constexpr (Fq::modulus.get_msb() == 255) {
+                write(buffer, uint256_t(0));
+                write(buffer, Fq::modulus);
+            } else {
+                write(buffer, uint256_t(0));
+                write(buffer, uint256_t(1) << 255);
+            }
+        } else {
+            Fq::serialize_to_buffer(value.y, buffer);
+            Fq::serialize_to_buffer(value.x, buffer + sizeof(Fq));
         }
     }
+
     /**
      * @brief Restore point from a buffer
-     *
-     * @tparam BaseField Coordinate field
-     * @tparam CompileTimeEnabled Checks that the modulus of BaseField is < 2**255, otherwise disables the function
      *
      * @param buffer Buffer from which we deserialize the point
      *
      * @return Deserialized point
+     *
+     * @details We support serializing the point at infinity for curves defined over a barretenberg::field (i.e., a
+     * native field of prime order) and for points of barretenberg::g2.
+     *
+     * @warning This will need to be updated if we serialize points over composite-order fields other than fq2!
      */
-    template <typename BaseField = Fq,
-              typename CompileTimeEnabled = std::enable_if_t<(BaseField::modulus >> 255) == uint256_t(0), void>>
     static affine_element serialize_from_buffer(uint8_t* buffer)
     {
         affine_element result;
-        result.y = Fq::serialize_from_buffer(buffer);
-        result.x = Fq::serialize_from_buffer(buffer + sizeof(Fq));
-        if (((buffer[0] >> 7) & 1) == 1) {
-            result.self_set_infinity();
+
+        // need to read a raw uint256_t to avoid reductions so we can check whether the point is the point at infinity
+        uint256_t raw_x = from_buffer<uint256_t>(buffer + sizeof(Fq));
+
+        if constexpr (Fq::modulus.get_msb() == 255) {
+            if (raw_x == Fq::modulus) {
+                result.y = Fq::zero();
+                result.x.data[0] = raw_x.data[0];
+                result.x.data[1] = raw_x.data[1];
+                result.x.data[2] = raw_x.data[2];
+                result.x.data[3] = raw_x.data[3];
+            } else {
+                result.y = Fq::serialize_from_buffer(buffer);
+                result.x = Fq(raw_x);
+            }
+        } else {
+            if (raw_x.get_msb() == 255) {
+                result.y = Fq::zero();
+                result.x = Fq::zero();
+                result.self_set_infinity();
+            } else {
+                // conditional here to avoid reading the same data twice in case of a field of prime order
+                if constexpr (std::is_same<Fq, fq2>::value) {
+                    result.y = Fq::serialize_from_buffer(buffer);
+                    result.x = Fq::serialize_from_buffer(buffer + sizeof(Fq));
+                } else {
+                    result.y = Fq::serialize_from_buffer(buffer);
+                    result.x = Fq(raw_x);
+                }
+            }
         }
         return result;
     }
+
     /**
      * @brief Serialize the point to a byte vector
      *
-     * @tparam BaseField Coordinate field
-     * @tparam CompileTimeEnabled Checks that the modulus of BaseField is < 2**255, otherwise disables the function
-     *
      * @return Vector with serialized representation of the point
      */
-    template <typename BaseField = Fq,
-              typename CompileTimeEnabled = std::enable_if_t<(BaseField::modulus >> 255) == uint256_t(0), void>>
     inline std::vector<uint8_t> to_buffer() const
     {
         std::vector<uint8_t> buffer(sizeof(affine_element));

@@ -1,11 +1,11 @@
 #include "sha256.hpp"
 #include <benchmark/benchmark.h>
 #include <ecc/curves/bn254/fr.hpp>
-#include <plonk/composer/plookup_composer.hpp>
-#include <stdlib/types/plookup.hpp>
+#include <plonk/composer/ultra_composer.hpp>
+#include <stdlib/types/types.hpp>
 
 using namespace benchmark;
-using namespace plonk::stdlib::types::plookup;
+using namespace plonk::stdlib::types;
 
 constexpr size_t NUM_HASHES = 8;
 constexpr size_t BYTES_PER_CHUNK = 512;

@@ -47,17 +47,20 @@ extern template point<waffle::TurboComposer> variable_base_mul(const point<waffl
 extern template wnaf_record<waffle::TurboComposer> convert_field_into_wnaf<waffle::TurboComposer>(
     waffle::TurboComposer* context, const field_t<waffle::TurboComposer>& limb);
 
+extern template wnaf_record<waffle::UltraComposer> convert_field_into_wnaf<waffle::UltraComposer>(
+    waffle::UltraComposer* context, const field_t<waffle::UltraComposer>& limb);
+
 extern template void verify_signature<waffle::TurboComposer>(const byte_array<waffle::TurboComposer>&,
                                                              const point<waffle::TurboComposer>&,
                                                              const signature_bits<waffle::TurboComposer>&);
-extern template void verify_signature<waffle::PlookupComposer>(const byte_array<waffle::PlookupComposer>&,
-                                                               const point<waffle::PlookupComposer>&,
-                                                               const signature_bits<waffle::PlookupComposer>&);
+extern template void verify_signature<waffle::UltraComposer>(const byte_array<waffle::UltraComposer>&,
+                                                             const point<waffle::UltraComposer>&,
+                                                             const signature_bits<waffle::UltraComposer>&);
 
 extern template signature_bits<waffle::TurboComposer> convert_signature<waffle::TurboComposer>(
     waffle::TurboComposer*, const crypto::schnorr::signature&);
-extern template signature_bits<waffle::PlookupComposer> convert_signature<waffle::PlookupComposer>(
-    waffle::PlookupComposer*, const crypto::schnorr::signature&);
+extern template signature_bits<waffle::UltraComposer> convert_signature<waffle::UltraComposer>(
+    waffle::UltraComposer*, const crypto::schnorr::signature&);
 
 } // namespace schnorr
 } // namespace stdlib

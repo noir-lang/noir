@@ -4,8 +4,6 @@
 #include "../notes/constants.hpp"
 #include "../add_zero_public_inputs.hpp"
 #include <common/log.hpp>
-#include <plonk/composer/turbo/compute_verification_key.hpp>
-#include <stdlib/primitives/field/pow.hpp>
 #include <stdlib/merkle_tree/membership.hpp>
 #include <plonk/proof_system/commitment_scheme/kate_commitment_scheme.hpp>
 #include <ecc/curves/grumpkin/grumpkin.hpp>
@@ -18,7 +16,7 @@ namespace proofs {
 namespace account {
 
 using namespace plonk;
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 using namespace notes::circuit::account;
 
 static std::shared_ptr<waffle::proving_key> proving_key;
@@ -96,7 +94,7 @@ void account_circuit(Composer& composer, account_tx const& tx)
 
     // Check signature.
     {
-        bool composerAlreadyFailed = composer.failed;
+        bool composerAlreadyFailed = composer.failed();
         std::vector<field_ct> to_compress = { alias_hash.value,
                                               account_public_key.x,
                                               new_account_public_key.x,
@@ -106,9 +104,9 @@ void account_circuit(Composer& composer, account_tx const& tx)
                                               nullifier_2 };
         const byte_array_ct message = pedersen::compress(to_compress);
         stdlib::schnorr::verify_signature(message, signer, signature);
-        if (composer.failed && !composerAlreadyFailed) {
+        if (composer.failed() && !composerAlreadyFailed) {
             // only assign this error if an error hasn't already been assigned.
-            composer.err = "verify signature failed";
+            composer.set_err("verify signature failed");
         }
     }
 
@@ -186,6 +184,7 @@ void init_proving_key(std::shared_ptr<waffle::ReferenceStringFactory> const& crs
     tx.new_signing_pub_key_2 = grumpkin::g1::affine_one;
     tx.signing_pub_key = grumpkin::g1::affine_one;
     tx.account_note_path.resize(32);
+    tx.signature = { { 1 }, { 1 } };
 
     Composer composer(crs_factory);
     account_circuit(composer, tx);
@@ -217,7 +216,9 @@ void init_verification_key(std::shared_ptr<waffle::ReferenceStringFactory> const
         // Patch the 'nothing' reference string fed to init_proving_key.
         proving_key->reference_string = crs_factory->get_prover_crs(proving_key->n + 1);
     }
-    verification_key = waffle::turbo_composer::compute_verification_key(proving_key, crs_factory->get_verifier_crs());
+
+    verification_key =
+        plonk::stdlib::types::Composer::compute_verification_key_base(proving_key, crs_factory->get_verifier_crs());
 }
 
 void init_verification_key(std::shared_ptr<waffle::VerifierMemReferenceString> const& crs,
@@ -231,8 +232,8 @@ UnrolledProver new_account_prover(account_tx const& tx, bool mock)
     Composer composer(proving_key, nullptr);
     account_circuit(composer, tx);
 
-    if (composer.failed) {
-        std::string error = format("composer logic failed: ", composer.err);
+    if (composer.failed()) {
+        std::string error = format("composer logic failed: ", composer.err());
         throw_or_abort(error);
     }
     number_of_gates = composer.get_num_gates();
@@ -254,8 +255,8 @@ bool verify_proof(waffle::plonk_proof const& proof)
     UnrolledVerifier verifier(verification_key,
                               Composer::create_unrolled_manifest(verification_key->num_public_inputs));
 
-    std::unique_ptr<waffle::KateCommitmentScheme<waffle::unrolled_turbo_settings>> kate_commitment_scheme =
-        std::make_unique<waffle::KateCommitmentScheme<waffle::unrolled_turbo_settings>>();
+    std::unique_ptr<waffle::KateCommitmentScheme<waffle::unrolled_ultra_settings>> kate_commitment_scheme =
+        std::make_unique<waffle::KateCommitmentScheme<waffle::unrolled_ultra_settings>>();
     verifier.commitment_scheme = std::move(kate_commitment_scheme);
 
     return verifier.verify_proof(proof);

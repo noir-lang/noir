@@ -13,7 +13,7 @@ namespace proofs {
 namespace join_split {
 
 using namespace barretenberg;
-using namespace plonk::stdlib::types::turbo;
+// using namespace plonk::stdlib::types::turbo;
 using namespace plonk::stdlib::merkle_tree;
 using namespace rollup::proofs::notes::native;
 using key_pair = rollup::fixtures::grumpkin_key_pair;

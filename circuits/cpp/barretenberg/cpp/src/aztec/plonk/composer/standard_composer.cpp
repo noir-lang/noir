@@ -1,10 +1,8 @@
 #include "standard_composer.hpp"
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <numeric/bitop/get_msb.hpp>
-#include <plonk/composer/standard/compute_verification_key.hpp>
 #include <plonk/proof_system/widgets/transition_widgets/arithmetic_widget.hpp>
 #include <plonk/proof_system/widgets/random_widgets/permutation_widget.hpp>
-#include <plonk/proof_system/types/polynomial_manifest.hpp>
 #include <plonk/proof_system/commitment_scheme/kate_commitment_scheme.hpp>
 #include <unordered_set>
 #include <unordered_map>
@@ -699,13 +697,13 @@ void StandardComposer::fix_witness(const uint32_t witness_index, const barretenb
 
 uint32_t StandardComposer::put_constant_variable(const barretenberg::fr& variable)
 {
-    if (constant_variables.count(variable) == 1) {
-        return constant_variables.at(variable);
+    if (constant_variable_indices.contains(variable)) {
+        return constant_variable_indices.at(variable);
     } else {
 
         uint32_t variable_index = add_variable(variable);
         fix_witness(variable_index, variable);
-        constant_variables.insert({ variable, variable_index });
+        constant_variable_indices.insert({ variable, variable_index });
         return variable_index;
     }
 }
@@ -743,6 +741,7 @@ std::shared_ptr<proving_key> StandardComposer::compute_proving_key()
 
     circuit_proving_key->recursive_proof_public_input_indices =
         std::vector<uint32_t>(recursive_proof_public_input_indices.begin(), recursive_proof_public_input_indices.end());
+    // What does this line do exactly?
     circuit_proving_key->contains_recursive_proof = contains_recursive_proof;
     return circuit_proving_key;
 }
@@ -761,7 +760,7 @@ std::shared_ptr<verification_key> StandardComposer::compute_verification_key()
     }
 
     circuit_verification_key =
-        waffle::standard_composer::compute_verification_key(circuit_proving_key, crs_factory_->get_verifier_crs());
+        ComposerBase::compute_verification_key_base(circuit_proving_key, crs_factory_->get_verifier_crs());
     circuit_verification_key->composer_type = type;
     circuit_verification_key->recursive_proof_public_input_indices =
         std::vector<uint32_t>(recursive_proof_public_input_indices.begin(), recursive_proof_public_input_indices.end());
@@ -870,9 +869,8 @@ Prover StandardComposer::create_prover()
 
 void StandardComposer::assert_equal_constant(uint32_t const a_idx, fr const& b, std::string const& msg)
 {
-    if (variables[a_idx] != b && !failed) {
-        failed = true;
-        err = msg;
+    if (variables[a_idx] != b && !failed()) {
+        failure(msg);
     }
     auto b_idx = put_constant_variable(b);
     assert_equal(a_idx, b_idx, msg);

@@ -16,7 +16,7 @@ namespace rollup {
 namespace proofs {
 namespace root_rollup {
 
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 using namespace plonk::stdlib::recursion;
 using namespace plonk::stdlib::merkle_tree;
 using namespace notes;
@@ -279,12 +279,11 @@ circuit_result_data root_rollup_circuit(Composer& composer,
     for (uint32_t i = 0; i < max_num_inner_proofs; ++i) {
         auto is_real = num_inner_proofs > i;
 
-        recursion_output =
-            verify_proof<bn254, recursive_turbo_verifier_settings<bn254>>(&composer,
-                                                                          recursive_verification_key,
-                                                                          recursive_manifest,
-                                                                          waffle::plonk_proof{ tx.rollups[i] },
-                                                                          recursion_output);
+        recursion_output = verify_proof<bn254, recursive_inner_verifier_settings>(&composer,
+                                                                                  recursive_verification_key,
+                                                                                  recursive_manifest,
+                                                                                  waffle::plonk_proof{ tx.rollups[i] },
+                                                                                  recursion_output);
 
         auto& public_inputs = recursion_output.public_inputs;
 

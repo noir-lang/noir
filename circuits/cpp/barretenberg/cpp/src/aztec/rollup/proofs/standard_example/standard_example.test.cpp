@@ -4,15 +4,14 @@
 #include <gtest/gtest.h>
 
 using namespace barretenberg;
-using namespace plonk::stdlib::types::standard;
 using namespace rollup::proofs::standard_example;
 
 TEST(standard_example_tests, test_standard_example)
 {
-    Composer composer = Composer("../srs_db/ignition");
+    waffle::StandardComposer composer = waffle::StandardComposer("../srs_db/ignition");
     build_circuit(composer);
 
-    Prover prover = composer.create_prover();
+    waffle::Prover prover = composer.create_prover();
     waffle::plonk_proof proof = prover.construct_proof();
 
     std::cout << "gates: " << composer.get_num_gates() << std::endl;

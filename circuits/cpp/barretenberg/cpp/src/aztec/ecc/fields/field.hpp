@@ -99,6 +99,11 @@ template <class Params> struct alignas(32) field {
         return uint256_t(out.data[0], out.data[1], out.data[2], out.data[3]);
     }
 
+    constexpr uint256_t uint256_t_no_montgomery_conversion() const noexcept
+    {
+        return uint256_t(data[0], data[1], data[2], data[3]);
+    }
+
     constexpr field(const field& other) = default;
     constexpr field& operator=(const field& other) = default;
 
@@ -107,14 +112,20 @@ template <class Params> struct alignas(32) field {
     static constexpr uint256_t modulus =
         uint256_t{ Params::modulus_0, Params::modulus_1, Params::modulus_2, Params::modulus_3 };
 
-    static constexpr field beta()
+    static constexpr field cube_root_of_unity()
     {
-        // TODO: move this into group, so that we can pick cube roots over both Fq and Fr that align with the curve
-        // endomorphism i.e. lambda * [P] = (beta * x, y) constexpr field two_inv = field(2).invert(); constexpr field
-        // numerator = (-field(3)).sqrt() - field(1); constexpr field result = two_inv * numerator;
-        constexpr field result =
-            field(Params::cube_root_0, Params::cube_root_1, Params::cube_root_2, Params::cube_root_3);
-        return result;
+        // endomorphism i.e. lambda * [P] = (beta * x, y)
+        if constexpr (Params::cube_root_0 != 0) {
+            constexpr field result{
+                Params::cube_root_0, Params::cube_root_1, Params::cube_root_2, Params::cube_root_3
+            };
+            return result;
+        } else {
+            constexpr field two_inv = field(2).invert();
+            constexpr field numerator = (-field(3)).sqrt() - field(1);
+            constexpr field result = two_inv * numerator;
+            return result;
+        }
     }
 
     static constexpr field zero() { return field(0, 0, 0, 0); }
@@ -145,7 +156,7 @@ template <class Params> struct alignas(32) field {
 
     static constexpr field coset_generator(const size_t idx)
     {
-        ASSERT(idx < 7); // TODO: well-named constants for enforcing PI elements disjointess instead of this
+        ASSERT(idx < 7);
         const field result{
             Params::coset_generators_0[idx],
             Params::coset_generators_1[idx],
@@ -231,6 +242,7 @@ template <class Params> struct alignas(32) field {
             return *this;
         }
     }
+
     /**
      * For short Weierstrass curves y^2 = x^3 + b mod r, if there exists a cube root of unity mod r,
      * we can take advantage of an enodmorphism to decompose a 254 bit scalar into 2 128 bit scalars.
@@ -250,19 +262,22 @@ template <class Params> struct alignas(32) field {
      *
      * To find k1, k2, We use the extended euclidean algorithm to find 4 short scalars [a1, a2], [b1, b2] such that
      * modulus = (a1 * b2) - (b1 * a2)
-     * We then compube scalars c1 = round(b2 * k / r), c2 = round(b1 * k / r), where
+     * We then compute scalars c1 = round(b2 * k / r), c2 = round(b1 * k / r), where
      * k1 = (c1 * a1) + (c2 * a2), k2 = -((c1 * b1) + (c2 * b2))
      * We pre-compute scalars g1 = (2^256 * b1) / n, g2 = (2^256 * b2) / n, to avoid having to perform long division
      * on 512-bit scalars
      **/
     static void split_into_endomorphism_scalars(const field& k, field& k1, field& k2)
     {
+        // if the modulus is a 256-bit integer, we need to use a basis where g1, g2 have been shifted by 2^384
+        if constexpr (Params::modulus_3 >= 0x4000000000000000ULL) {
+            split_into_endomorphism_scalars_384(k, k1, k2);
+            return;
+        }
         field input = k.reduce_once();
         // uint64_t lambda_reduction[4] = { 0 };
         // __to_montgomery_form(lambda, lambda_reduction);
 
-        // TODO: these parameters only work for the bn254 coordinate field.
-        // Need to shift into Params and calculate correct constants for the subgroup field
         constexpr field endo_g1 = { Params::endo_g1_lo, Params::endo_g1_mid, Params::endo_g1_hi, 0 };
 
         constexpr field endo_g2 = { Params::endo_g2_lo, Params::endo_g2_mid, 0, 0 };
@@ -278,7 +293,6 @@ template <class Params> struct alignas(32) field {
 
         // (the bit shifts are implicit, as we only utilize the high limbs of c1, c2
 
-        // TODO remove data duplication
         field c1_hi = {
             c1.data[4], c1.data[5], c1.data[6], c1.data[7]
         }; // *(field*)((uintptr_t)(&c1) + (4 * sizeof(uint64_t)));
@@ -291,16 +305,67 @@ template <class Params> struct alignas(32) field {
         // compute q2 = c2 * b2
         wide_array q2 = c2_hi.mul_512(endo_b2);
 
-        // TODO: this doesn't have to be a 512-bit multiply...
+        // FIX: Avoid using 512-bit multiplication as its not necessary.
+        // c1_hi, c2_hi can be uint256_t's and the final result (without montgomery reduction)
+        // could be casted to a field.
         field q1_lo{ q1.data[0], q1.data[1], q1.data[2], q1.data[3] };
         field q2_lo{ q2.data[0], q2.data[1], q2.data[2], q2.data[3] };
 
         field t1 = (q2_lo - q1_lo).reduce_once();
-        field t2 = (t1 * beta() + input).reduce_once();
+        field beta = cube_root_of_unity();
+        field t2 = (t1 * beta + input).reduce_once();
         k2.data[0] = t1.data[0];
         k2.data[1] = t1.data[1];
         k1.data[0] = t2.data[0];
         k1.data[1] = t2.data[1];
+    }
+
+    static void split_into_endomorphism_scalars_384(const field& input, field& k1_out, field& k2_out)
+    {
+
+        constexpr field minus_b1f{
+            Params::endo_minus_b1_lo,
+            Params::endo_minus_b1_mid,
+            0,
+            0,
+        };
+        constexpr field b2f{
+            Params::endo_b2_lo,
+            Params::endo_b2_mid,
+            0,
+            0,
+        };
+        constexpr uint256_t g1{
+            Params::endo_g1_lo,
+            Params::endo_g1_mid,
+            Params::endo_g1_hi,
+            Params::endo_g1_hihi,
+        };
+        constexpr uint256_t g2{
+            Params::endo_g2_lo,
+            Params::endo_g2_mid,
+            Params::endo_g2_hi,
+            Params::endo_g2_hihi,
+        };
+
+        field kf = input.reduce_once();
+        uint256_t k{ kf.data[0], kf.data[1], kf.data[2], kf.data[3] };
+
+        uint512_t c1 = (uint512_t(k) * uint512_t(g1)) >> 384;
+        uint512_t c2 = (uint512_t(k) * uint512_t(g2)) >> 384;
+
+        field c1f{ c1.lo.data[0], c1.lo.data[1], c1.lo.data[2], c1.lo.data[3] };
+        field c2f{ c2.lo.data[0], c2.lo.data[1], c2.lo.data[2], c2.lo.data[3] };
+
+        c1f.self_to_montgomery_form();
+        c2f.self_to_montgomery_form();
+        c1f = c1f * minus_b1f;
+        c2f = c2f * b2f;
+        field r2f = c1f - c2f;
+        field beta = cube_root_of_unity();
+        field r1f = input.reduce_once() - r2f * beta;
+        k1_out = r1f;
+        k2_out = -r2f;
     }
 
     // static constexpr auto coset_generators = compute_coset_generators();

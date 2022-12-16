@@ -15,15 +15,15 @@ RUN git clone -b release/10.x --depth 1 https://github.com/llvm/llvm-project.git
   && make -j$(nproc) \
   && make install \
   && cd ../.. && rm -rf llvm-project
-WORKDIR /usr/src/barretenberg
+WORKDIR /usr/src/barretenberg/cpp
 COPY . .
 # Only build binaries that are needed upstream.
 RUN mkdir build && cd build && cmake -DOpenMP_omp_LIBRARY=/usr/local/lib/libomp.a .. && make -j$(nproc) db_cli rollup_cli tx_factory keygen
 
 FROM alpine:3.13
 RUN apk update && apk add llvm10-libs
-COPY --from=builder /usr/src/barretenberg/srs_db /usr/src/barretenberg/srs_db
-COPY --from=builder /usr/src/barretenberg/build/bin/db_cli /usr/src/barretenberg/build/bin/db_cli
-COPY --from=builder /usr/src/barretenberg/build/bin/rollup_cli /usr/src/barretenberg/build/bin/rollup_cli
-COPY --from=builder /usr/src/barretenberg/build/bin/tx_factory /usr/src/barretenberg/build/bin/tx_factory
-COPY --from=builder /usr/src/barretenberg/build/bin/keygen /usr/src/barretenberg/build/bin/keygen
+COPY --from=builder /usr/src/barretenberg/cpp/srs_db /usr/src/barretenberg/cpp/srs_db
+COPY --from=builder /usr/src/barretenberg/cpp/build/bin/db_cli /usr/src/barretenberg/cpp/build/bin/db_cli
+COPY --from=builder /usr/src/barretenberg/cpp/build/bin/rollup_cli /usr/src/barretenberg/cpp/build/bin/rollup_cli
+COPY --from=builder /usr/src/barretenberg/cpp/build/bin/tx_factory /usr/src/barretenberg/cpp/build/bin/tx_factory
+COPY --from=builder /usr/src/barretenberg/cpp/build/bin/keygen /usr/src/barretenberg/cpp/build/bin/keygen

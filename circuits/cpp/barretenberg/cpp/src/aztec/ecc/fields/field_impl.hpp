@@ -35,6 +35,7 @@ template <class T> constexpr field<T> field<T>::operator*(const field& other) co
 {
     if constexpr (BBERG_NO_ASM || (T::modulus_3 >= 0x4000000000000000ULL) ||
                   (T::modulus_1 == 0 && T::modulus_2 == 0 && T::modulus_3 == 0)) {
+        // >= 255-bits or <= 64-bits.
         return montgomery_mul(other);
     } else {
         if (std::is_constant_evaluated()) {
@@ -48,6 +49,7 @@ template <class T> constexpr field<T> field<T>::operator*=(const field& other) n
 {
     if constexpr (BBERG_NO_ASM || (T::modulus_3 >= 0x4000000000000000ULL) ||
                   (T::modulus_1 == 0 && T::modulus_2 == 0 && T::modulus_3 == 0)) {
+        // >= 255-bits or <= 64-bits.
         *this = operator*(other);
     } else {
         if (std::is_constant_evaluated()) {

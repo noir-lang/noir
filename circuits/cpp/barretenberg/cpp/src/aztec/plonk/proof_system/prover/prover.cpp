@@ -1,6 +1,7 @@
 #include "prover.hpp"
 #include "../public_inputs/public_inputs.hpp"
 #include "../utils/linearizer.hpp"
+#include "polynomials/polynomial.hpp"
 #include <chrono>
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <polynomials/iterate_over_domain.hpp>
@@ -64,16 +65,20 @@ template <typename settings> ProverBase<settings>& ProverBase<settings>::operato
 }
 
 /**
- * Compute wire precommitments and add public_inputs from w_2_fft to transcript.
+ * - Compute wire commitments and add them to the transcript.
+ * - Add public_inputs from w_2_fft to transcript.
  *
  * @tparam settings Program settings.
  * */
-template <typename settings> void ProverBase<settings>::compute_wire_pre_commitments()
+template <typename settings> void ProverBase<settings>::compute_wire_commitments()
 {
-    for (size_t i = 0; i < settings::program_width; ++i) {
+    // Compute wire commitments
+    const size_t end = settings::is_plookup ? (settings::program_width - 1) : settings::program_width;
+    for (size_t i = 0; i < end; ++i) {
         std::string wire_tag = "w_" + std::to_string(i + 1);
         std::string commit_tag = "W_" + std::to_string(i + 1);
         barretenberg::fr* coefficients = key->polynomial_cache.get(wire_tag).get_coefficients();
+        // This automatically saves the computed point to the transcript
         commitment_scheme->commit(coefficients, commit_tag, work_queue::MSMSize::N, queue);
     }
 
@@ -86,7 +91,7 @@ template <typename settings> void ProverBase<settings>::compute_wire_pre_commitm
     transcript.add_element("public_inputs", ::to_buffer(public_wires));
 }
 
-template <typename settings> void ProverBase<settings>::compute_quotient_pre_commitment()
+template <typename settings> void ProverBase<settings>::compute_quotient_commitments()
 {
     // In this method, we compute the commitments to polynomials t_{low}(X), t_{mid}(X) and t_{high}(X).
     // Recall, the quotient polynomial t(X) = t_{low}(X) + t_{mid}(X).X^n + t_{high}(X).X^{2n}
@@ -104,7 +109,7 @@ template <typename settings> void ProverBase<settings>::compute_quotient_pre_com
     // deg(t) = (n - 1) * (program_width + 1) - (n - k)
     //        = n * program_width - program_width - 1 + k
     //
-    // Since we must cut atleast 4 roots from the vanishing polynomial
+    // Since we must cut at least 4 roots from the vanishing polynomial
     // (refer to ./src/aztec/plonk/proof_system/widgets/random_widgets/permutation_widget_impl.hpp/L247),
     // k = 4 => deg(t) = n * program_width - program_width + 3
     //
@@ -138,7 +143,9 @@ template <typename settings> void ProverBase<settings>::compute_quotient_pre_com
 
 /**
  * Execute preamble round.
- * Execute init round, add randomness to witness polynomials for Honest-Verifier Zero Knowledge.
+ * - Execute init round
+ * - Add randomness to the wire witness polynomials for Honest-Verifier Zero Knowledge.
+ *
  * N.B. Maybe we need to refactor this, since before we execute this function wires are in lagrange basis
  * and after they are in monomial form. This is an inconsistency that can mislead developers.
  *
@@ -147,20 +154,26 @@ template <typename settings> void ProverBase<settings>::compute_quotient_pre_com
 template <typename settings> void ProverBase<settings>::execute_preamble_round()
 {
     queue.flush_queue();
+
     transcript.add_element("circuit_size",
                            { static_cast<uint8_t>(n >> 24),
                              static_cast<uint8_t>(n >> 16),
                              static_cast<uint8_t>(n >> 8),
                              static_cast<uint8_t>(n) });
+
     transcript.add_element("public_input_size",
                            { static_cast<uint8_t>(key->num_public_inputs >> 24),
                              static_cast<uint8_t>(key->num_public_inputs >> 16),
                              static_cast<uint8_t>(key->num_public_inputs >> 8),
                              static_cast<uint8_t>(key->num_public_inputs) });
+
     transcript.apply_fiat_shamir("init");
 
-    for (size_t i = 0; i < settings::program_width; ++i) {
-        // fetch witness wire w_i
+    // If this is a plookup proof, do not queue up an ifft on W_4 - we can only finish computing
+    // the lagrange-base values in W_4 once eta has been generated.
+    // This is because of the RAM/ROM subprotocol, which adds witnesses into W_4 that depend on eta
+    const size_t end = settings::is_plookup ? (settings::program_width - 1) : settings::program_width;
+    for (size_t i = 0; i < end; ++i) {
         std::string wire_tag = "w_" + std::to_string(i + 1);
         barretenberg::polynomial wire_lagrange = key->polynomial_cache.get(wire_tag + "_lagrange");
 
@@ -195,17 +208,20 @@ template <typename settings> void ProverBase<settings>::execute_preamble_round()
 
         // perfom an IFFT so that the "w_i" polynomials will contain the monomial form
         queue.add_to_queue({
-            work_queue::WorkType::IFFT,
-            nullptr,
-            wire_tag,
-            barretenberg::fr(0),
-            0,
+            .work_type = work_queue::WorkType::IFFT,
+            .mul_scalars = nullptr,
+            .tag = wire_tag,
+            .constant = barretenberg::fr(0),
+            .index = 0,
         });
     }
 }
 
 /**
- * Execute the first round by computing wire precommitments.
+ * Execute the first round:
+ * - Compute wire commitments.
+ * - Add public input values to the transcript
+ *
  * N.B. Random widget precommitments aren't actually being computed, since we are using permutation widget
  * which only does computation in compute_random_commitments function if the round is 3.
  *
@@ -233,7 +249,7 @@ template <typename settings> void ProverBase<settings>::execute_first_round()
 #ifdef DEBUG_TIMING
     start = std::chrono::steady_clock::now();
 #endif
-    compute_wire_pre_commitments();
+    compute_wire_commitments();
     for (auto& widget : random_widgets) {
         widget->compute_round_commitments(transcript, 1, queue);
     }
@@ -245,30 +261,74 @@ template <typename settings> void ProverBase<settings>::execute_first_round()
 }
 
 /**
- * Execute second round by applying Fiat-Shamir transform on the "eta" challenge
- * and computing random_widgets round commitments that need to be computed at round 2.
+ * Execute second round:
+ * - Apply Fiat-Shamir transform to generate the "eta" challenge
+ * - Compute the random_widgets' round commitments that need to be computed at round 2.
+ * - If using plookup, we compute some w_4 values here (for gates which access "memory"), and apply blinding factors,
+ * before finally committing to w_4.
  *
  * @tname settings Program settings.
  * */
 template <typename settings> void ProverBase<settings>::execute_second_round()
 {
     queue.flush_queue();
+
     transcript.apply_fiat_shamir("eta");
+
     for (auto& widget : random_widgets) {
         widget->compute_round_commitments(transcript, 2, queue);
     }
+
+    // RAM/ROM memory subprotocol requires eta is generated before w_4 is comitted
+    if (settings::is_plookup) {
+        add_plookup_memory_records_to_w_4();
+        std::string wire_tag = "w_4";
+        barretenberg::polynomial& w_4_lagrange = key->polynomial_cache.get(wire_tag + "_lagrange");
+        // barretenberg::polynomial& wire_fft = key->polynomial_cache.get(wire_tag + "_fft");
+        barretenberg::polynomial w_4(key->n);
+        // barretenberg::polynomial_arithmetic::copy_polynomial(&wire[0], &wire_fft[0], n, n);
+        barretenberg::polynomial_arithmetic::copy_polynomial(&w_4_lagrange[0], &w_4[0], n, n);
+
+        // TODO: This adds blinding to the what will become the w_4_monomial, NOT to the w_4_lagrange poly. Is this
+        // intentional?
+        const size_t w_randomness = 3;
+        ASSERT(w_randomness < settings::num_roots_cut_out_of_vanishing_polynomial);
+        for (size_t k = 0; k < w_randomness; ++k) {
+            // Blinding
+            w_4.at(n - settings::num_roots_cut_out_of_vanishing_polynomial + k) = fr::random_element();
+        }
+
+        // poly w_4 and add to cache
+        w_4.ifft(key->small_domain);
+        key->polynomial_cache.put(wire_tag, std::move(w_4));
+
+        // Commit to w_4:
+        queue.add_to_queue({
+            .work_type = work_queue::WorkType::SCALAR_MULTIPLICATION,
+            .mul_scalars = key->polynomial_cache.get(wire_tag).get_coefficients(),
+            .tag = "W_4",
+            .constant = barretenberg::fr(0),
+            .index = 0,
+        });
+    }
 }
+
 /**
- * Execute third round by applying Fiat-Shamir transform on the "beta" challenge,
- * apply 3rd round random widgets and FFT the wires. For example, standard composer
- * executes permutation widget for z polynomial construction at this round.
+ * Execute third round:
+ * - Apply Fiat-Shamir transform on the "beta" challenge
+ * - Apply 3rd round random widgets*
+ * - FFT the wires.
+ *
+ * *For example, standard composer executes permutation widget for z polynomial construction at this round.
  *
  * @tparam settings Program settings.
  * */
 template <typename settings> void ProverBase<settings>::execute_third_round()
 {
     queue.flush_queue();
+
     transcript.apply_fiat_shamir("beta");
+
 #ifdef DEBUG_TIMING
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
 #endif
@@ -287,11 +347,11 @@ template <typename settings> void ProverBase<settings>::execute_third_round()
     for (size_t i = 0; i < settings::program_width; ++i) {
         std::string wire_tag = "w_" + std::to_string(i + 1);
         queue.add_to_queue({
-            work_queue::WorkType::FFT,
-            nullptr,
-            wire_tag,
-            barretenberg::fr(0),
-            0,
+            .work_type = work_queue::WorkType::FFT,
+            .mul_scalars = nullptr,
+            .tag = wire_tag,
+            .constant = barretenberg::fr(0),
+            .index = 0,
         });
     }
 #ifdef DEBUG_TIMING
@@ -301,6 +361,9 @@ template <typename settings> void ProverBase<settings>::execute_third_round()
 #endif
 }
 
+/**
+ * @brief Computes the quotient polynomial, then commits to its degree-n split parts.
+ */
 template <typename settings> void ProverBase<settings>::execute_fourth_round()
 {
     queue.flush_queue();
@@ -398,7 +461,7 @@ template <typename settings> void ProverBase<settings>::execute_fourth_round()
 
     add_blinding_to_quotient_polynomial_parts();
 
-    compute_quotient_pre_commitment();
+    compute_quotient_commitments();
 #ifdef DEBUG_TIMING
     end = std::chrono::steady_clock::now();
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -567,11 +630,12 @@ template <typename settings> waffle::plonk_proof& ProverBase<settings>::construc
     execute_second_round();
     queue.process_queue();
 
-    // Fiat-Shamir beta, execute random widgets (Permutation widget is executed here)
+    // Fiat-Shamir beta & gamma, execute random widgets (Permutation widget is executed here)
     // and fft the witnesses
     execute_third_round();
     queue.process_queue();
 
+    // Fiat-Shamir alpha, compute & commit to quotient polynomial.
     execute_fourth_round();
     queue.process_queue();
 
@@ -591,11 +655,34 @@ template <typename settings> void ProverBase<settings>::reset()
     transcript = transcript::StandardTranscript(manifest, settings::hash_type, settings::num_challenge_bytes);
 }
 
+template <typename settings> void ProverBase<settings>::add_plookup_memory_records_to_w_4()
+{
+    // We can only compute memory record values once W_1, W_2, W_3 have been comitted to,
+    // due to the dependence on the `eta` challenge.
+
+    const fr eta = fr::serialize_from_buffer(transcript.get_challenge("eta").begin());
+    const fr eta_sqr = eta.sqr();
+    // At this point in the algorithm, the w_1, w_2, w_3 polynomials have been copied into
+    // the wire_fft map, and inverse fourier transforms have been applied to the original polynomials.
+    // We need their lagrange-base forms, so we tap into the wire_fft map.
+    // fr* w_1 = key->polynomial_cache.get("w_1_fft").get_coefficients();
+    // fr* w_2 = key->polynomial_cache.get("w_2_fft").get_coefficients();
+    // fr* w_3 = key->polynomial_cache.get("w_3_fft").get_coefficients();
+    fr* w_1 = key->polynomial_cache.get("w_1_lagrange").get_coefficients();
+    fr* w_2 = key->polynomial_cache.get("w_2_lagrange").get_coefficients();
+    fr* w_3 = key->polynomial_cache.get("w_3_lagrange").get_coefficients();
+    fr* w_4 = key->polynomial_cache.get("w_4_lagrange").get_coefficients();
+    for (const auto& gate_idx : key->memory_records) {
+        w_4[gate_idx] = w_1[gate_idx] + w_2[gate_idx] * eta + w_3[gate_idx] * eta_sqr;
+    }
+}
+
 template class ProverBase<unrolled_standard_settings>;
 template class ProverBase<unrolled_turbo_settings>;
-template class ProverBase<unrolled_plookup_settings>;
+template class ProverBase<unrolled_ultra_settings>;
+template class ProverBase<unrolled_ultra_to_standard_settings>;
 template class ProverBase<standard_settings>;
 template class ProverBase<turbo_settings>;
-template class ProverBase<plookup_settings>;
+template class ProverBase<ultra_settings>;
 
 } // namespace waffle

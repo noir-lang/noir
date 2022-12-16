@@ -4,7 +4,6 @@
 #include "../../primitives/biggroup/biggroup.hpp"
 #include "../../primitives/bool/bool.hpp"
 #include "../../primitives/field/field.hpp"
-#include "../../primitives/field/pow.hpp"
 
 #include "../verification_key/verification_key.hpp"
 #include "../transcript/transcript.hpp"
@@ -54,7 +53,8 @@ void populate_kate_element_map(typename Curve::Composer* ctx,
                                std::map<std::string, typename Curve::g1_ct>& kate_g1_elements,
                                std::map<std::string, typename Curve::fr_ct>& kate_fr_elements_at_zeta,
                                std::map<std::string, typename Curve::fr_ct>& kate_fr_elements_at_zeta_large,
-                               std::map<std::string, typename Curve::fr_ct>& kate_fr_elements_at_zeta_omega)
+                               std::map<std::string, typename Curve::fr_ct>& kate_fr_elements_at_zeta_omega,
+                               typename Curve::fr_ct& batch_opening_scalar)
 {
     using fr_ct = typename Curve::fr_ct;
     using g1_ct = typename Curve::g1_ct;
@@ -67,6 +67,10 @@ void populate_kate_element_map(typename Curve::Composer* ctx,
         case waffle::PolynomialSource::WITNESS: {
             const auto element = transcript.get_group_element(label);
             ASSERT(element.on_curve());
+            if (element.is_point_at_infinity()) {
+                std::cerr << label << " witness is point at infinity! Error!" << std::endl;
+                ctx->failure("witness " + label + " is point at infinity");
+            }
             // g1_ct::from_witness validates that the point produced lies on the curve
             kate_g1_elements.insert({ label, g1_ct::from_witness(ctx, element) });
             break;
@@ -76,7 +80,11 @@ void populate_kate_element_map(typename Curve::Composer* ctx,
             // TODO: with user-defined circuits, we will need verify that the point
             // lies on the curve with constraints
             if (!element.get_value().on_curve()) {
-                std::cerr << "c selector not on curve!" << std::endl;
+                std::cerr << label << " constraint selector not on curve!" << std::endl;
+            }
+            if (element.get_value().is_point_at_infinity()) {
+                std::cerr << label << " constraint selector is point at infinity! Error!" << std::endl;
+                ctx->failure("constraint selector " + label + " is point at infinity");
             }
             kate_g1_elements.insert({ label, element });
             break;
@@ -86,7 +94,11 @@ void populate_kate_element_map(typename Curve::Composer* ctx,
             // TODO: with user-defined circuits, we will need verify that the point
             // lies on the curve with constraints
             if (!element.get_value().on_curve()) {
-                std::cerr << "p selector not on curve!" << std::endl;
+                std::cerr << label << " permutation selector not on curve!" << std::endl;
+            }
+            if (element.get_value().is_point_at_infinity()) {
+                std::cerr << label << " permutation selector is point at infinity! Error!" << std::endl;
+                ctx->failure("permutation selector " + label + " is point at infinity");
             }
             kate_g1_elements.insert({ label, element });
             break;
@@ -121,8 +133,7 @@ void populate_kate_element_map(typename Curve::Composer* ctx,
 
     fr_ct batch_evaluation =
         waffle::compute_kate_batch_evaluation<fr_ct, Transcript, program_settings>(key, transcript);
-    kate_g1_elements.insert({ "BATCH_EVALUATION", g1::affine_one });
-    kate_fr_elements_at_zeta_large.insert({ "BATCH_EVALUATION", -batch_evaluation });
+    batch_opening_scalar = -batch_evaluation;
 
     kate_g1_elements.insert({ "PI_Z_OMEGA", g1_ct::from_witness(ctx, PI_Z_OMEGA) });
     kate_fr_elements_at_zeta_large.insert({ "PI_Z_OMEGA", zeta * key->domain.root * u });
@@ -149,7 +160,7 @@ lagrange_evaluations<typename Curve::Composer> get_lagrange_evaluations(
     typedef typename Curve::fr_ct fr_ct;
     typedef typename Curve::Composer Composer;
 
-    fr_ct z_pow = pow<Composer>(z, domain.size);
+    fr_ct z_pow = z.pow(field_t<Composer>(domain.size));
     fr_ct numerator = z_pow - fr_ct(1);
 
     // compute modified vanishing polynomial Z_H*(z)
@@ -191,6 +202,10 @@ lagrange_evaluations<typename Curve::Composer> get_lagrange_evaluations(
     return result;
 }
 
+/**
+ * Refer to src/aztec/plonk/proof_system/verifier/verifier.cpp verify_proof() for the native implementation, which
+ * includes detailed comments.
+ */
 template <typename Curve, typename program_settings>
 recursion_output<Curve> verify_proof(typename Curve::Composer* context,
                                      std::shared_ptr<verification_key<Curve>> key,
@@ -229,16 +244,17 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
     fr_ct alpha = transcript.get_challenge_field_element("alpha");
     fr_ct zeta = transcript.get_challenge_field_element("z");
 
-    key->z_pow_n = pow<Composer>(zeta, key->n);
+    key->z_pow_n = zeta.pow(key->domain.domain);
+
     lagrange_evaluations<Composer> lagrange_evals = get_lagrange_evaluations<Curve>(zeta, key->domain);
 
     // reconstruct evaluation of quotient polynomial from prover messages
-    fr_ct T0;
 
     fr_ct r_0 = fr_ct(0);
-    fr_ct alpha_base = alpha;
+    program_settings::compute_quotient_evaluation_contribution(key.get(), alpha, transcript, r_0);
 
-    alpha_base = program_settings::compute_quotient_evaluation_contribution(key.get(), alpha_base, transcript, r_0);
+    // We want to include t_eval in the transcript only when use_linearisation = false. This is always the case when
+    // verifying within a circuit.
     fr_ct t_eval = r_0 / lagrange_evals.vanishing_poly;
     transcript.add_field_element("t", t_eval);
 
@@ -247,13 +263,16 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
 
     fr_ct u = transcript.get_challenge_field_element("separator", 0);
 
+    fr_ct batch_opening_scalar;
     populate_kate_element_map<Curve, Transcript<Composer>, program_settings>(context,
                                                                              key.get(),
                                                                              transcript,
                                                                              kate_g1_elements,
                                                                              kate_fr_elements_at_zeta,
                                                                              kate_fr_elements_at_zeta_large,
-                                                                             kate_fr_elements_at_zeta_omega);
+                                                                             kate_fr_elements_at_zeta_omega,
+                                                                             batch_opening_scalar);
+
     std::vector<fr_ct> double_opening_scalars;
     std::vector<g1_ct> double_opening_elements;
     std::vector<fr_ct> opening_scalars;
@@ -261,6 +280,7 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
     std::vector<fr_ct> big_opening_scalars;
     std::vector<g1_ct> big_opening_elements;
     std::vector<g1_ct> elements_to_add;
+
     for (const auto& [label, fr_value] : kate_fr_elements_at_zeta) {
         const auto& g1_value = kate_g1_elements[label];
         if (fr_value.get_value() == 0 && fr_value.witness_index != IS_CONSTANT) {
@@ -314,6 +334,7 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
         double_opening_scalars.emplace_back(fr_value);
         double_opening_elements.emplace_back(g1_value);
     }
+
     const auto double_opening_result = g1_ct::batch_mul(double_opening_elements, double_opening_scalars, 128);
 
     opening_elements.emplace_back(double_opening_result);
@@ -331,7 +352,8 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
         opening_elements.push_back(previous_output.P0);
         opening_scalars.push_back(random_separator);
 
-        rhs_elements.push_back((-(previous_output.P1)).normalize());
+        rhs_elements.push_back(
+            (-(previous_output.P1)).reduce()); // TODO: use .normalize() instead? (As per defi bridge project)
         rhs_scalars.push_back(random_separator);
     }
 
@@ -378,15 +400,17 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
         rhs_elements.push_back((-g1_ct(x1, y1)).normalize());
         rhs_scalars.push_back(recursion_separator_challenge);
     }
-    auto opening_result =
-        g1_ct::bn254_endo_batch_mul(big_opening_elements, big_opening_scalars, opening_elements, opening_scalars, 128);
+
+    auto opening_result = g1_ct::template bn254_endo_batch_mul_with_generator(
+        big_opening_elements, big_opening_scalars, opening_elements, opening_scalars, batch_opening_scalar, 128);
+
     opening_result = opening_result + double_opening_result;
     for (const auto& to_add : elements_to_add) {
         opening_result = opening_result + to_add;
     }
     opening_result = opening_result.normalize();
 
-    g1_ct rhs = g1_ct::batch_mul(rhs_elements, rhs_scalars, 128);
+    g1_ct rhs = g1_ct::template wnaf_batch_mul<128>(rhs_elements, rhs_scalars);
     rhs = rhs + PI_Z;
     rhs = (-rhs).normalize();
 
@@ -408,6 +432,7 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
         rhs.y.binary_basis_limbs[2].element.normalize().witness_index,
         rhs.y.binary_basis_limbs[3].element.normalize().witness_index,
     };
+
     return recursion_output<Curve>{
         opening_result, rhs, transcript.get_field_element_vector("public_inputs"), proof_witness_indices, true,
     };

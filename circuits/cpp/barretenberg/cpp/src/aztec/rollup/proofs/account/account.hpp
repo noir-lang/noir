@@ -1,14 +1,14 @@
 #pragma once
 #include "account_tx.hpp"
 #include <crypto/schnorr/schnorr.hpp>
-#include <plonk/reference_string/mem_reference_string.hpp>
-#include <stdlib/types/turbo.hpp>
+#include <srs/reference_string/mem_reference_string.hpp>
+#include <stdlib/types/types.hpp>
 
 namespace rollup {
 namespace proofs {
 namespace account {
 
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 
 void init_proving_key(std::shared_ptr<waffle::ReferenceStringFactory> const& crs_factory, bool mock);
 

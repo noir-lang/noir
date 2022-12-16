@@ -3,13 +3,13 @@
 #include "../notes/circuit/value/witness_data.hpp"
 #include "../notes/circuit/claim/witness_data.hpp"
 #include <crypto/schnorr/schnorr.hpp>
-#include <stdlib/types/turbo.hpp>
+#include <stdlib/types/types.hpp>
 
 namespace rollup {
 namespace proofs {
 namespace join_split {
 
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 
 struct join_split_inputs {
     field_ct proof_id;

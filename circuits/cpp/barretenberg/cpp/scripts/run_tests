@@ -1,7 +1,9 @@
 #!/bin/bash
 set -e
 
-TESTS=$1
+NUM_TRANSCRIPTS=$1
+TESTS=$2
+shift
 shift
 
 $(aws ecr get-login --region us-east-2 --no-include-email) 2> /dev/null
@@ -16,7 +18,8 @@ fi
 
 docker run --rm -t $IMAGE_URI /bin/sh -c "\
   set -e; \
-  cd /usr/src/barretenberg/srs_db; \
-  ./download_ignition.sh 1; \
-  cd /usr/src/barretenberg/build; \
+  cd /usr/src/barretenberg/cpp/srs_db; \
+  ./download_ignition.sh $NUM_TRANSCRIPTS; \
+  ./download_ignition_lagrange.sh 12; \
+  cd /usr/src/barretenberg/cpp/build; \
   for BIN in $TESTS; do ./bin/\$BIN $@; done"

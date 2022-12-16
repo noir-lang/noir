@@ -5,6 +5,12 @@
 #include "../field/field.hpp"
 #include "../plookup/plookup.hpp"
 
+#include "./plookup/uint.hpp"
+
+#include <plonk/composer/standard_composer.hpp>
+#include <plonk/composer/turbo_composer.hpp>
+#include <plonk/composer/ultra_composer.hpp>
+
 namespace plonk {
 namespace stdlib {
 
@@ -41,7 +47,8 @@ template <typename Composer, typename Native> class uint {
 
     std::vector<uint32_t> constrain_accumulators(Composer* ctx,
                                                  const uint32_t witness_index,
-                                                 const size_t num_bits = width) const;
+                                                 const size_t num_bits,
+                                                 std::string const& msg) const;
 
     static constexpr size_t num_accumulators()
     {
@@ -185,15 +192,27 @@ template <typename T, typename w> inline std::ostream& operator<<(std::ostream& 
     return os << v.get_value();
 }
 
-template <typename ComposerContext> using uint8 = uint<ComposerContext, uint8_t>;
-template <typename ComposerContext> using uint16 = uint<ComposerContext, uint16_t>;
-template <typename ComposerContext> using uint32 = uint<ComposerContext, uint32_t>;
-template <typename ComposerContext> using uint64 = uint<ComposerContext, uint64_t>;
+template <typename ComposerContext>
+using uint8 = typename std::conditional<ComposerContext::type == waffle::ComposerType::PLOOKUP,
+                                        uint_plookup<ComposerContext, uint8_t>,
+                                        uint<ComposerContext, uint8_t>>::type;
+template <typename ComposerContext>
+using uint16 = typename std::conditional<ComposerContext::type == waffle::ComposerType::PLOOKUP,
+                                         uint_plookup<ComposerContext, uint16_t>,
+                                         uint<ComposerContext, uint16_t>>::type;
+template <typename ComposerContext>
+using uint32 = typename std::conditional<ComposerContext::type == waffle::ComposerType::PLOOKUP,
+                                         uint_plookup<ComposerContext, uint32_t>,
+                                         uint<ComposerContext, uint32_t>>::type;
+template <typename ComposerContext>
+using uint64 = typename std::conditional<ComposerContext::type == waffle::ComposerType::PLOOKUP,
+                                         uint_plookup<ComposerContext, uint64_t>,
+                                         uint<ComposerContext, uint64_t>>::type;
 
-EXTERN_STDLIB_TYPE_VA(uint, uint8_t);
-EXTERN_STDLIB_TYPE_VA(uint, uint16_t);
-EXTERN_STDLIB_TYPE_VA(uint, uint32_t);
-EXTERN_STDLIB_TYPE_VA(uint, uint64_t);
+EXTERN_STDLIB_BASIC_TYPE_VA(uint, uint8_t);
+EXTERN_STDLIB_BASIC_TYPE_VA(uint, uint16_t);
+EXTERN_STDLIB_BASIC_TYPE_VA(uint, uint32_t);
+EXTERN_STDLIB_BASIC_TYPE_VA(uint, uint64_t);
 
 } // namespace stdlib
 } // namespace plonk

@@ -686,8 +686,8 @@ template <class T> constexpr field<T> field<T>::montgomery_square() const noexce
     t3 = carry_lo + round_carry;
     return { t0, t1, t2, t3 };
 #else
-    // TODO: apparently the plain old 'mul' operation is faster than the squaring code.
-    // `square_accumulate` has too many additions and comparisons, to justify the saved multiplications
+    // We use ‘montgomery_mul' instead of 'square_accumulate'. The number of additions and comparisons in
+    // 'square_accumulate' makes it slower in this particular case.
     return montgomery_mul(*this);
 #endif
 }

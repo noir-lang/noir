@@ -85,12 +85,13 @@ template <class Field, class Getters, typename PolyContainer> class TurboRangeKe
     inline static bool gate_enabled(PolyContainer& polynomials, const size_t i = 0)
     {
         const Field& q_range =
-            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_RANGE_SELECTOR>(polynomials, i);
+            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_RANGE>(polynomials, i);
         return !q_range.is_zero();
     }
+
     inline static std::set<PolynomialIndex> const& get_required_polynomial_ids()
     {
-        static const std::set<PolynomialIndex> required_polynomial_ids = { PolynomialIndex::Q_RANGE_SELECTOR,
+        static const std::set<PolynomialIndex> required_polynomial_ids = { PolynomialIndex::Q_RANGE,
                                                                            PolynomialIndex::W_1,
                                                                            PolynomialIndex::W_2,
                                                                            PolynomialIndex::W_3,
@@ -187,7 +188,7 @@ template <class Field, class Getters, typename PolyContainer> class TurboRangeKe
                                          const size_t i = 0)
     {
         const Field& q_range =
-            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_RANGE_SELECTOR>(polynomials, i);
+            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_RANGE>(polynomials, i);
 
         return linear_terms[0] * q_range;
     }
@@ -196,7 +197,7 @@ template <class Field, class Getters, typename PolyContainer> class TurboRangeKe
                                                    std::map<std::string, Field>& scalars,
                                                    const challenge_array&)
     {
-        scalars["Q_RANGE_SELECTOR"] += linear_terms[0];
+        scalars["Q_RANGE"] += linear_terms[0];
     }
 };
 

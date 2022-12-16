@@ -92,9 +92,10 @@ auto group<ComposerContext>::fixed_base_scalar_mul_internal(const field_t<Compos
     ASSERT(ctx != nullptr);
     uint256_t scalar_multiplier(scalar.get_value());
     if (scalar_multiplier.get_msb() >= num_bits) {
-        ctx->failed = true;
-        ctx->err = format(
-            "fixed_base_scalar_mul scalar multiplier ", scalar_multiplier, " is larger than num_bits ", num_bits);
+        ctx->failure(format("group::fixed_base_scalar_mul scalar multiplier ",
+                            scalar_multiplier,
+                            " is larger than num_bits ",
+                            num_bits));
     }
 
     // constexpr size_t num_bits = 250;

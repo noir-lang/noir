@@ -159,7 +159,7 @@ point<C> variable_base_mul(const point<C>& pub_key, const point<C>& current_accu
 
     field_t<C> two(pub_key.x.context, 2);
 
-    // Various elliptic curve point additions that follow assume we that the two points are distinct and not mutually
+    // Various elliptic curve point additions that follow assume that the two points are distinct and not mutually
     // inverse. collision_offset is chosen to prevent a malicious prover from exploiting this assumption.
     grumpkin::g1::affine_element collision_offset = crypto::pedersen::get_generator_data(DEFAULT_GEN_1).generator;
     grumpkin::g1::affine_element collision_end = collision_offset * grumpkin::fr(uint256_t(1) << 129);
@@ -302,6 +302,9 @@ void verify_signature(const byte_array<C>& message, const point<C>& pub_key, con
 template wnaf_record<waffle::TurboComposer> convert_field_into_wnaf<waffle::TurboComposer>(
     waffle::TurboComposer* context, const field_t<waffle::TurboComposer>& limb);
 
+template wnaf_record<waffle::UltraComposer> convert_field_into_wnaf<waffle::UltraComposer>(
+    waffle::UltraComposer* context, const field_t<waffle::UltraComposer>& limb);
+
 template point<waffle::TurboComposer> variable_base_mul(const point<waffle::TurboComposer>& pub_key,
                                                         const field_t<waffle::TurboComposer>& low_bits,
                                                         const field_t<waffle::TurboComposer>& high_bits);
@@ -314,11 +317,14 @@ template point<waffle::TurboComposer> variable_base_mul<waffle::TurboComposer>(
 template void verify_signature<waffle::TurboComposer>(const byte_array<waffle::TurboComposer>&,
                                                       const point<waffle::TurboComposer>&,
                                                       const signature_bits<waffle::TurboComposer>&);
+template void verify_signature<waffle::UltraComposer>(const byte_array<waffle::UltraComposer>&,
+                                                      const point<waffle::UltraComposer>&,
+                                                      const signature_bits<waffle::UltraComposer>&);
 
 template signature_bits<waffle::TurboComposer> convert_signature<waffle::TurboComposer>(
     waffle::TurboComposer*, const crypto::schnorr::signature&);
-template signature_bits<waffle::PlookupComposer> convert_signature<waffle::PlookupComposer>(
-    waffle::PlookupComposer*, const crypto::schnorr::signature&);
+template signature_bits<waffle::UltraComposer> convert_signature<waffle::UltraComposer>(
+    waffle::UltraComposer*, const crypto::schnorr::signature&);
 } // namespace schnorr
 } // namespace stdlib
 } // namespace plonk

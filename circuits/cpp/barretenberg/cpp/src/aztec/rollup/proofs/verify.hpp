@@ -46,9 +46,9 @@ auto verify_logic_internal(Composer& composer, Tx& tx, CircuitData const& cd, ch
     auto result = build_circuit(composer, tx, cd);
     info(name, ": Circuit built in ", timer.toString(), "s");
 
-    if (composer.failed) {
-        info(name, ": Circuit logic failed: " + composer.err);
-        result.err = composer.err;
+    if (composer.failed()) {
+        info(name, ": Circuit logic failed: " + composer.err());
+        result.err = composer.err();
         return result;
     }
 
@@ -85,9 +85,21 @@ auto verify_internal(
 
     if (!cd.mock) {
         if (unrolled) {
-            auto prover = composer.create_unrolled_prover();
-            auto proof = prover.construct_proof();
-            result.proof_data = proof.proof_data;
+            if constexpr (std::is_same<Composer, waffle::UltraComposer>::value) {
+                if (std::string(name) == "root rollup") {
+                    auto prover = composer.create_unrolled_ultra_to_standard_prover();
+                    auto proof = prover.construct_proof();
+                    result.proof_data = proof.proof_data;
+                } else {
+                    auto prover = composer.create_unrolled_prover();
+                    auto proof = prover.construct_proof();
+                    result.proof_data = proof.proof_data;
+                }
+            } else {
+                auto prover = composer.create_unrolled_prover();
+                auto proof = prover.construct_proof();
+                result.proof_data = proof.proof_data;
+            }
         } else {
             auto prover = composer.create_prover();
             auto proof = prover.construct_proof();
@@ -97,9 +109,21 @@ auto verify_internal(
         Composer mock_proof_composer = Composer(cd.proving_key, cd.verification_key, cd.num_gates);
         ::rollup::proofs::mock::mock_circuit(mock_proof_composer, composer.get_public_inputs());
         if (unrolled) {
-            auto prover = mock_proof_composer.create_unrolled_prover();
-            auto proof = prover.construct_proof();
-            result.proof_data = proof.proof_data;
+            if constexpr (std::is_same<Composer, waffle::UltraComposer>::value) {
+                if (std::string(name) == "root rollup") {
+                    auto prover = mock_proof_composer.create_unrolled_ultra_to_standard_prover();
+                    auto proof = prover.construct_proof();
+                    result.proof_data = proof.proof_data;
+                } else {
+                    auto prover = mock_proof_composer.create_unrolled_prover();
+                    auto proof = prover.construct_proof();
+                    result.proof_data = proof.proof_data;
+                }
+            } else {
+                auto prover = mock_proof_composer.create_unrolled_prover();
+                auto proof = prover.construct_proof();
+                result.proof_data = proof.proof_data;
+            }
         } else {
             auto prover = mock_proof_composer.create_prover();
             auto proof = prover.construct_proof();
@@ -110,8 +134,18 @@ auto verify_internal(
     info(name, ": Proof created in ", proof_timer.toString(), "s");
     info(name, ": Total time taken: ", timer.toString(), "s");
     if (unrolled) {
-        auto verifier = composer.create_unrolled_verifier();
-        result.verified = verifier.verify_proof({ result.proof_data });
+        if constexpr (std::is_same<Composer, waffle::UltraComposer>::value) {
+            if (std::string(name) == "root rollup") {
+                auto verifier = composer.create_unrolled_ultra_to_standard_verifier();
+                result.verified = verifier.verify_proof({ result.proof_data });
+            } else {
+                auto verifier = composer.create_unrolled_verifier();
+                result.verified = verifier.verify_proof({ result.proof_data });
+            }
+        } else {
+            auto verifier = composer.create_unrolled_verifier();
+            result.verified = verifier.verify_proof({ result.proof_data });
+        }
     } else {
         auto verifier = composer.create_verifier();
         result.verified = verifier.verify_proof({ result.proof_data });

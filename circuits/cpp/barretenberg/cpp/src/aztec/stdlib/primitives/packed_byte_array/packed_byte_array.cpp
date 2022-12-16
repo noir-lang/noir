@@ -35,8 +35,7 @@ packed_byte_array<Composer>::packed_byte_array(const std::vector<field_pt>& inpu
 {
     ASSERT(bytes_per_input <= BYTES_PER_ELEMENT);
     if (bytes_per_input > BYTES_PER_ELEMENT) {
-        context->failed = true;
-        context->err = "called `packed_byte_array` constructor with `bytes_per_input > 16 bytes";
+        context->failure("packed_byte_array: called `packed_byte_array` constructor with `bytes_per_input > 16 bytes");
     }
 
     // TODO HANDLE CASE WHERE bytes_per_input > BYTES_PER_ELEMENT (and not 32)
@@ -46,8 +45,7 @@ packed_byte_array<Composer>::packed_byte_array(const std::vector<field_pt>& inpu
     for (size_t i = 0; i < num_elements; ++i) {
         field_pt limb(context, 0);
         if (uint256_t(limb.get_value()).get_msb() >= 128) {
-            context->failed = true;
-            context->err = "input field element to `packed_byte_array` is >16 bytes!";
+            context->failure("packed_byte_array: input field element to `packed_byte_array` is >16 bytes!");
         }
         const size_t num_inputs = (i == num_elements - 1) ? (input.size() - (i * inputs_per_limb)) : inputs_per_limb;
         for (size_t j = 0; j < num_inputs; ++j) {

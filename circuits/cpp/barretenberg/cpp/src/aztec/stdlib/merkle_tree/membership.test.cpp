@@ -4,10 +4,10 @@
 #include "memory_store.hpp"
 #include "memory_tree.hpp"
 #include <gtest/gtest.h>
-#include <stdlib/types/turbo.hpp>
+#include <stdlib/types/types.hpp>
 
 using namespace barretenberg;
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 using namespace plonk::stdlib::merkle_tree;
 
 TEST(stdlib_merkle_tree, test_check_membership)

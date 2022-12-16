@@ -3,7 +3,6 @@
 #include "../bool/bool.hpp"
 #include "../composers/composers.hpp"
 #include "../../../rollup/constants.hpp"
-#include "pow.hpp"
 #include "../../../rollup/constants.hpp"
 
 // #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -62,7 +61,7 @@ field_t<ComposerContext> field_t<ComposerContext>::from_witness_index(ComposerCo
     return result;
 }
 
-template <typename ComposerContext> field_t<ComposerContext>::operator bool_t<ComposerContext>()
+template <typename ComposerContext> field_t<ComposerContext>::operator bool_t<ComposerContext>() const
 {
     if (witness_index == IS_CONSTANT) {
         bool_t<ComposerContext> result(context);
@@ -153,19 +152,66 @@ field_t<ComposerContext> field_t<ComposerContext>::operator*(const field_t& othe
     ASSERT(ctx || (witness_index == IS_CONSTANT && other.witness_index == IS_CONSTANT));
 
     if (witness_index == IS_CONSTANT && other.witness_index == IS_CONSTANT) {
-        // both inputs are constant - don't add a gate
+        // Both inputs are constant - don't add a gate.
+        // The value of a constant is tracked in `.additive_constant`.
         result.additive_constant = additive_constant * other.additive_constant;
     } else if (witness_index != IS_CONSTANT && other.witness_index == IS_CONSTANT) {
-        // one input is constant - don't add a gate, but update scaling factors
+        // One input is constant: don't add a gate, but update scaling factors.
+
+        /**
+         * Let:
+         *   a := this;
+         *   b := other;
+         *   a.v := ctx->variables[this.witness_index];
+         *   b.v := ctx->variables[other.witness_index];
+         *   .mul = .multiplicative_constant
+         *   .add = .additive_constant
+         */
+
+        /**
+         * Value of this   = a.v * a.mul + a.add;
+         * Value of other  = b.add
+         * Value of result = a * b = a.v * [a.mul * b.add] + [a.add * b.add]
+         *                             ^   ^result.mul       ^result.add
+         *                             ^result.v
+         */
+
         result.additive_constant = additive_constant * other.additive_constant;
         result.multiplicative_constant = multiplicative_constant * other.additive_constant;
         result.witness_index = witness_index;
     } else if (witness_index == IS_CONSTANT && other.witness_index != IS_CONSTANT) {
+        // One input is constant: don't add a gate, but update scaling factors.
+
+        /**
+         * Value of this   = a.add;
+         * Value of other  = b.v * b.mul + b.add
+         * Value of result = a * b = b.v * [a.add * b.mul] + [a.add * b.add]
+         *                             ^   ^result.mul       ^result.add
+         *                             ^result.v
+         */
+
         result.additive_constant = additive_constant * other.additive_constant;
         result.multiplicative_constant = other.multiplicative_constant * additive_constant;
         result.witness_index = other.witness_index;
     } else {
-        // both inputs map to circuit varaibles - create a * constraint
+        // Both inputs map to circuit varaibles: create a `*` constraint.
+
+        /**
+         * Value of this   = a.v * a.mul + a.add;
+         * Value of other  = b.v * b.mul + b.add;
+         * Value of result = a * b
+         *            = [a.v * b.v] * [a.mul * b.mul] + a.v * [a.mul * b.add] + b.v * [a.add * b.mul] + [a.ac * b.add]
+         *            = [a.v * b.v] * [     q_m     ] + a.v * [     q_l     ] + b.v * [     q_r     ] + [    q_c     ]
+         *            ^               ^Notice the add/mul_constants form selectors when a gate is created.
+         *            |                Only the witnesses (pointed-to by the witness_indexes) form the wires in/out of
+         *            |                the gate.
+         *            ^This entire value is pushed to ctx->variables as a new witness. The
+         *             implied additive & multiplicative constants of the new witness are 0 & 1 resp.
+         * Left wire value: a.v
+         * Right wire value: b.v
+         * Output wire value: result.v (with q_o = -1)
+         */
+
         barretenberg::fr T0;
         barretenberg::fr q_m;
         barretenberg::fr q_l;
@@ -189,9 +235,14 @@ field_t<ComposerContext> field_t<ComposerContext>::operator*(const field_t& othe
         out += T0;
         out += q_c;
         result.witness_index = ctx->add_variable(out);
-        const waffle::poly_triple gate_coefficients{
-            witness_index, other.witness_index, result.witness_index, q_m, q_l, q_r, barretenberg::fr::neg_one(), q_c
-        };
+        const waffle::poly_triple gate_coefficients{ .a = witness_index,
+                                                     .b = other.witness_index,
+                                                     .c = result.witness_index,
+                                                     .q_m = q_m,
+                                                     .q_l = q_l,
+                                                     .q_r = q_r,
+                                                     .q_o = barretenberg::fr::neg_one(),
+                                                     .q_c = q_c };
         ctx->create_poly_gate(gate_coefficients);
     }
     return result;
@@ -240,9 +291,14 @@ field_t<ComposerContext> field_t<ComposerContext>::divide_no_zero_check(const fi
             barretenberg::fr q_c = -get_value();
             barretenberg::fr out_value = get_value() / other.get_value();
             result.witness_index = ctx->add_variable(out_value);
-            const waffle::poly_triple gate_coefficients{
-                result.witness_index, other.witness_index, result.witness_index, q_m, q_l, 0, 0, q_c
-            };
+            const waffle::poly_triple gate_coefficients{ .a = result.witness_index,
+                                                         .b = other.witness_index,
+                                                         .c = result.witness_index,
+                                                         .q_m = q_m,
+                                                         .q_l = q_l,
+                                                         .q_r = 0,
+                                                         .q_o = 0,
+                                                         .q_c = q_c };
             ctx->create_poly_gate(gate_coefficients);
         }
     } else {
@@ -281,12 +337,59 @@ field_t<ComposerContext> field_t<ComposerContext>::divide_no_zero_check(const fi
         barretenberg::fr q_o = -multiplicative_constant;
         barretenberg::fr q_c = -additive_constant;
 
-        const waffle::poly_triple gate_coefficients{
-            result.witness_index, other.witness_index, witness_index, q_m, q_l, q_r, q_o, q_c
-        };
+        const waffle::poly_triple gate_coefficients{ .a = result.witness_index,
+                                                     .b = other.witness_index,
+                                                     .c = witness_index,
+                                                     .q_m = q_m,
+                                                     .q_l = q_l,
+                                                     .q_r = q_r,
+                                                     .q_o = q_o,
+                                                     .q_c = q_c };
         ctx->create_poly_gate(gate_coefficients);
     }
     return result;
+}
+/**
+ * @brief raise a field_t to a power of an exponent (field_t). Note that the exponent must not exceed 32 bits and is
+ * implicitly range constrained.
+ *
+ * @returns this ** (exponent)
+ */
+template <typename ComposerContext>
+field_t<ComposerContext> field_t<ComposerContext>::pow(const field_t& exponent) const
+{
+    auto* ctx = get_context() ? get_context() : exponent.get_context();
+
+    bool exponent_constant = exponent.is_constant();
+
+    uint256_t exponent_value = exponent.get_value();
+    std::vector<bool_t<ComposerContext>> exponent_bits(32);
+    for (size_t i = 0; i < exponent_bits.size(); ++i) {
+        uint256_t value_bit = exponent_value & 1;
+        bool_t<ComposerContext> bit;
+        bit = exponent_constant ? bool_t<ComposerContext>(ctx, value_bit.data[0])
+                                : witness_t<ComposerContext>(ctx, value_bit.data[0]);
+        exponent_bits[31 - i] = (bit);
+        exponent_value >>= 1;
+    }
+
+    if (!exponent_constant) {
+        field_t<ComposerContext> exponent_accumulator(ctx, 0);
+        for (const auto& bit : exponent_bits) {
+            exponent_accumulator += exponent_accumulator;
+            exponent_accumulator += bit;
+        }
+        exponent.assert_equal(exponent_accumulator, "field_t::pow exponent accumulator incorrect");
+    }
+    field_t accumulator(ctx, 1);
+    field_t mul_coefficient = *this - 1;
+    for (size_t i = 0; i < 32; ++i) {
+        accumulator *= accumulator;
+        const auto bit = exponent_bits[i];
+        accumulator *= (mul_coefficient * bit + 1);
+    }
+    accumulator = accumulator.normalize();
+    return accumulator;
 }
 
 /**
@@ -303,13 +406,31 @@ field_t<ComposerContext> field_t<ComposerContext>::madd(const field_t& to_mul, c
         return ((*this) * to_mul + to_add);
     }
 
-    // (a * Q_a  + R_a) * (b * Q_b + R_b) + (c * Q_c  R_c) = result
+    // Let:
+    //    a = this;
+    //    b = to_mul;
+    //    c = to_add;
+    //    a.v = ctx->variables[this.witness_index];
+    //    b.v = ctx->variables[to_mul.witness_index];
+    //    c.v = ctx->variables[to_add.witness_index];
+    //    .mul = .multiplicative_constant;
+    //    .add = .additive_constant.
+    //
+    // result = a * b + c
+    //   = (a.v * a.mul + a.add) * (b.v * b.mul + b.add) + (c.v * c.mul + c.add)
+    //   = a.v * b.v * [a.mul * b.mul] + a.v * [a.mul * b.add] + b.v * [b.mul + a.add] + c.v * [c.mul] +
+    //     [a.add * b.add + c.add]
+    //   = a.v * b.v * [     q_m     ] + a.v * [     q_1     ] + b.v * [     q_2     ] + c.v * [ q_3 ] + [ q_c ]
+
     barretenberg::fr q_m = multiplicative_constant * to_mul.multiplicative_constant;
     barretenberg::fr q_1 = multiplicative_constant * to_mul.additive_constant;
     barretenberg::fr q_2 = to_mul.multiplicative_constant * additive_constant;
     barretenberg::fr q_3 = to_add.multiplicative_constant;
     barretenberg::fr q_c = additive_constant * to_mul.additive_constant + to_add.additive_constant;
 
+    // Note: the value of a constant field_t is wholly tracked by the field_t's `additive_constant` member, which is
+    // accounted for in the above-calculated selectors (`q_`'s). Therefore no witness (`variables[witness_index]`)
+    // exists for constants, and so the field_t's corresponding wire value is set to `0` in the gate equation.
     barretenberg::fr a = witness_index == IS_CONSTANT ? barretenberg::fr(0) : ctx->get_variable(witness_index);
     barretenberg::fr b =
         to_mul.witness_index == IS_CONSTANT ? barretenberg::fr(0) : ctx->get_variable(to_mul.witness_index);
@@ -322,16 +443,16 @@ field_t<ComposerContext> field_t<ComposerContext>::madd(const field_t& to_mul, c
     result.witness_index = ctx->add_variable(out);
 
     const waffle::mul_quad gate_coefficients{
-        witness_index == IS_CONSTANT ? ctx->zero_idx : witness_index,
-        to_mul.witness_index == IS_CONSTANT ? ctx->zero_idx : to_mul.witness_index,
-        to_add.witness_index == IS_CONSTANT ? ctx->zero_idx : to_add.witness_index,
-        result.witness_index,
-        q_m,
-        q_1,
-        q_2,
-        q_3,
-        -barretenberg::fr(1),
-        q_c,
+        .a = witness_index == IS_CONSTANT ? ctx->zero_idx : witness_index,
+        .b = to_mul.witness_index == IS_CONSTANT ? ctx->zero_idx : to_mul.witness_index,
+        .c = to_add.witness_index == IS_CONSTANT ? ctx->zero_idx : to_add.witness_index,
+        .d = result.witness_index,
+        .mul_scaling = q_m,
+        .a_scaling = q_1,
+        .b_scaling = q_2,
+        .c_scaling = q_3,
+        .d_scaling = -barretenberg::fr(1),
+        .const_scaling = q_c,
     };
     ctx->create_big_mul_gate(gate_coefficients);
     return result;
@@ -363,16 +484,16 @@ field_t<ComposerContext> field_t<ComposerContext>::add_two(const field_t& add_a,
     result.witness_index = ctx->add_variable(out);
 
     const waffle::mul_quad gate_coefficients{
-        witness_index == IS_CONSTANT ? ctx->zero_idx : witness_index,
-        add_a.witness_index == IS_CONSTANT ? ctx->zero_idx : add_a.witness_index,
-        add_b.witness_index == IS_CONSTANT ? ctx->zero_idx : add_b.witness_index,
-        result.witness_index,
-        barretenberg::fr(0),
-        q_1,
-        q_2,
-        q_3,
-        -barretenberg::fr(1),
-        q_c,
+        .a = witness_index == IS_CONSTANT ? ctx->zero_idx : witness_index,
+        .b = add_a.witness_index == IS_CONSTANT ? ctx->zero_idx : add_a.witness_index,
+        .c = add_b.witness_index == IS_CONSTANT ? ctx->zero_idx : add_b.witness_index,
+        .d = result.witness_index,
+        .mul_scaling = barretenberg::fr(0),
+        .a_scaling = q_1,
+        .b_scaling = q_2,
+        .c_scaling = q_3,
+        .d_scaling = -barretenberg::fr(1),
+        .const_scaling = q_c,
     };
     ctx->create_big_mul_gate(gate_coefficients);
     return result;
@@ -385,6 +506,10 @@ template <typename ComposerContext> field_t<ComposerContext> field_t<ComposerCon
         return *this;
     }
 
+    // Value of this = this.v * this.mul + this.add; // where this.v = context->variables[this.witness_index]
+    // Normalised result = result.v * 1 + 0;         // where result.v = this.v * this.mul + this.add
+    // We need a new gate to enforce that the `result` was correctly calculated from `this`.
+
     field_t<ComposerContext> result(context);
     barretenberg::fr value = context->get_variable(witness_index);
     barretenberg::fr out;
@@ -394,10 +519,19 @@ template <typename ComposerContext> field_t<ComposerContext> field_t<ComposerCon
     result.witness_index = context->add_variable(out);
     result.additive_constant = barretenberg::fr::zero();
     result.multiplicative_constant = barretenberg::fr::one();
-    const waffle::add_triple gate_coefficients{
-        witness_index,    witness_index, result.witness_index, multiplicative_constant, 0, barretenberg::fr::neg_one(),
-        additive_constant
-    };
+
+    // Aim of new gate: this.v * this.mul + this.add == result.v
+    // <=>                           this.v * [this.mul] +                  result.v * [ -1] + [this.add] == 0
+    // <=> this.v * this.v * [ 0 ] + this.v * [this.mul] + this.v * [ 0 ] + result.v * [ -1] + [this.add] == 0
+    // <=> this.v * this.v * [q_m] + this.v * [   q_l  ] + this.v * [q_r] + result.v * [q_o] + [   q_c  ] == 0
+
+    const waffle::add_triple gate_coefficients{ .a = witness_index,
+                                                .b = witness_index,
+                                                .c = result.witness_index,
+                                                .a_scaling = multiplicative_constant,
+                                                .b_scaling = 0,
+                                                .c_scaling = barretenberg::fr::neg_one(),
+                                                .const_scaling = additive_constant };
 
     context->create_add_gate(gate_coefficients);
     return result;
@@ -406,8 +540,7 @@ template <typename ComposerContext> field_t<ComposerContext> field_t<ComposerCon
 template <typename ComposerContext> void field_t<ComposerContext>::assert_is_zero(std::string const& msg) const
 {
     if (get_value() != barretenberg::fr(0)) {
-        context->failed = true;
-        context->err = msg;
+        context->failure(msg);
     }
 
     if (witness_index == IS_CONSTANT) {
@@ -415,10 +548,21 @@ template <typename ComposerContext> void field_t<ComposerContext>::assert_is_zer
         return;
     }
 
+    // Aim of new gate: this.v * this.mul + this.add == 0
+    // I.e.:
+    // this.v * 0 * [ 0 ] + this.v * [this.mul] + 0 * [ 0 ] + 0 * [ 0 ] + [this.add] == 0
+    // this.v * 0 * [q_m] + this.v * [   q_l  ] + 0 * [q_r] + 0 * [q_o] + [   q_c  ] == 0
+
     ComposerContext* ctx = context;
     const waffle::poly_triple gate_coefficients{
-        witness_index,           ctx->zero_idx,       ctx->zero_idx,       barretenberg::fr(0),
-        multiplicative_constant, barretenberg::fr(0), barretenberg::fr(0), additive_constant,
+        .a = witness_index,
+        .b = ctx->zero_idx,
+        .c = ctx->zero_idx,
+        .q_m = barretenberg::fr(0),
+        .q_l = multiplicative_constant,
+        .q_r = barretenberg::fr(0),
+        .q_o = barretenberg::fr(0),
+        .q_c = additive_constant,
     };
     context->create_poly_gate(gate_coefficients);
 }
@@ -426,33 +570,40 @@ template <typename ComposerContext> void field_t<ComposerContext>::assert_is_zer
 template <typename ComposerContext> void field_t<ComposerContext>::assert_is_not_zero(std::string const& msg) const
 {
     if (get_value() == barretenberg::fr(0)) {
-        context->failed = true;
-        context->err = msg;
+        context->failure(msg);
+        // We don't return; we continue with the function, for debugging purposes.
     }
 
     if (witness_index == IS_CONSTANT) {
         ASSERT(additive_constant != barretenberg::fr(0));
         return;
     }
+
     ComposerContext* ctx = context;
     if (get_value() == 0 && ctx) {
-        ctx->failed = true;
-        ctx->err = msg;
+        ctx->failure(msg);
     }
+
     barretenberg::fr inverse_value = (get_value() == 0) ? 0 : get_value().invert();
 
     field_t<ComposerContext> inverse(witness_t<ComposerContext>(ctx, inverse_value));
 
+    // Aim of new gate: `this` has an inverse (hence is not zero).
+    // I.e.:
+    //     (this.v * this.mul + this.add) * inverse.v == 1;
+    // <=> this.v * inverse.v * [this.mul] + this.v * [ 0 ] + inverse.v * [this.add] + 0 * [ 0 ] + [ -1] == 0
+    // <=> this.v * inverse.v * [   q_m  ] + this.v * [q_l] + inverse.v * [   q_r  ] + 0 * [q_o] + [q_c] == 0
+
     // (a * mul_const + add_const) * b - 1 = 0
     const waffle::poly_triple gate_coefficients{
-        witness_index,           // input value
-        inverse.witness_index,   // inverse
-        ctx->zero_idx,           // no output
-        multiplicative_constant, // a * b * mul_const
-        barretenberg::fr(0),     // a * 0
-        additive_constant,       // b * mul_const
-        barretenberg::fr(0),     // c * 0
-        barretenberg::fr(-1),    // -1
+        .a = witness_index,             // input value
+        .b = inverse.witness_index,     // inverse
+        .c = ctx->zero_idx,             // no output
+        .q_m = multiplicative_constant, // a * b * mul_const
+        .q_l = barretenberg::fr(0),     // a * 0
+        .q_r = additive_constant,       // b * mul_const
+        .q_o = barretenberg::fr(0),     // c * 0
+        .q_c = barretenberg::fr(-1),    // -1
     };
     context->create_poly_gate(gate_coefficients);
 }
@@ -492,17 +643,27 @@ template <typename ComposerContext> bool_t<ComposerContext> field_t<ComposerCont
     barretenberg::fr q_r = barretenberg::fr::zero();
     barretenberg::fr q_o = barretenberg::fr::one();
     barretenberg::fr q_c = barretenberg::fr::neg_one();
-    const waffle::poly_triple gate_coefficients_a{
-        k.witness_index, k_inverse.witness_index, is_zero.witness_index, q_m, q_l, q_r, q_o, q_c
-    };
+    const waffle::poly_triple gate_coefficients_a{ .a = k.witness_index,
+                                                   .b = k_inverse.witness_index,
+                                                   .c = is_zero.witness_index,
+                                                   .q_m = q_m,
+                                                   .q_l = q_l,
+                                                   .q_r = q_r,
+                                                   .q_o = q_o,
+                                                   .q_c = q_c };
     context->create_poly_gate(gate_coefficients_a);
 
     // is_zero * k_inverse - is_zero = 0
     q_o = barretenberg::fr::neg_one();
     q_c = barretenberg::fr::zero();
-    const waffle::poly_triple gate_coefficients_b{
-        is_zero.witness_index, k_inverse.witness_index, is_zero.witness_index, q_m, q_l, q_r, q_o, q_c
-    };
+    const waffle::poly_triple gate_coefficients_b{ .a = is_zero.witness_index,
+                                                   .b = k_inverse.witness_index,
+                                                   .c = is_zero.witness_index,
+                                                   .q_m = q_m,
+                                                   .q_l = q_l,
+                                                   .q_r = q_r,
+                                                   .q_o = q_o,
+                                                   .q_c = q_c };
     context->create_poly_gate(gate_coefficients_b);
     return is_zero;
 }
@@ -513,6 +674,7 @@ template <typename ComposerContext> barretenberg::fr field_t<ComposerContext>::g
         ASSERT(context != nullptr);
         return (multiplicative_constant * context->get_variable(witness_index)) + additive_constant;
     } else {
+        // A constant field_t's value is tracked wholly by its additive_constant member.
         return additive_constant;
     }
 }
@@ -580,7 +742,10 @@ void field_t<ComposerContext>::create_range_constraint(const size_t num_bits, st
             ASSERT(uint256_t(get_value()).get_msb() < num_bits);
         } else {
             if constexpr (ComposerContext::type == waffle::ComposerType::PLOOKUP) {
-                context->decompose_into_default_range(normalize().get_witness_index(), num_bits, msg);
+                context->decompose_into_default_range(normalize().get_witness_index(),
+                                                      num_bits,
+                                                      waffle::UltraComposer::DEFAULT_PLOOKUP_RANGE_BITNUM,
+                                                      msg);
             } else {
                 context->decompose_into_base4_accumulators(normalize().get_witness_index(), num_bits, msg);
             }
@@ -713,6 +878,42 @@ field_t<ComposerContext> field_t<ComposerContext>::select_from_three_bit_table(c
 }
 
 template <typename ComposerContext>
+void field_t<ComposerContext>::evaluate_linear_identity(const field_t& a,
+                                                        const field_t& b,
+                                                        const field_t& c,
+                                                        const field_t& d)
+{
+    ComposerContext* ctx = a.context == nullptr
+                               ? (b.context == nullptr ? (c.context == nullptr ? d.context : c.context) : b.context)
+                               : a.context;
+
+    if (a.witness_index == IS_CONSTANT && b.witness_index == IS_CONSTANT && c.witness_index == IS_CONSTANT &&
+        d.witness_index == IS_CONSTANT) {
+        return;
+    }
+
+    // validate that a + b + c + d = 0
+    barretenberg::fr q_1 = a.multiplicative_constant;
+    barretenberg::fr q_2 = b.multiplicative_constant;
+    barretenberg::fr q_3 = c.multiplicative_constant;
+    barretenberg::fr q_4 = d.multiplicative_constant;
+    barretenberg::fr q_c = a.additive_constant + b.additive_constant + c.additive_constant + d.additive_constant;
+
+    const waffle::add_quad gate_coefficients{
+        a.witness_index == IS_CONSTANT ? ctx->zero_idx : a.witness_index,
+        b.witness_index == IS_CONSTANT ? ctx->zero_idx : b.witness_index,
+        c.witness_index == IS_CONSTANT ? ctx->zero_idx : c.witness_index,
+        d.witness_index == IS_CONSTANT ? ctx->zero_idx : d.witness_index,
+        q_1,
+        q_2,
+        q_3,
+        q_4,
+        q_c,
+    };
+    ctx->create_big_add_gate(gate_coefficients);
+}
+
+template <typename ComposerContext>
 void field_t<ComposerContext>::evaluate_polynomial_identity(const field_t& a,
                                                             const field_t& b,
                                                             const field_t& c,
@@ -750,7 +951,9 @@ void field_t<ComposerContext>::evaluate_polynomial_identity(const field_t& a,
     ctx->create_big_mul_gate(gate_coefficients);
 }
 
-// compute sum of inputs
+/**
+ * Compute sum of inputs
+ */
 template <typename ComposerContext>
 field_t<ComposerContext> field_t<ComposerContext>::accumulate(const std::vector<field_t>& input)
 {
@@ -758,7 +961,7 @@ field_t<ComposerContext> field_t<ComposerContext>::accumulate(const std::vector<
         return field_t<ComposerContext>(nullptr, 0);
     }
     if (input.size() == 1) {
-        return input[0];
+        return input[0]; //.normalize();
     }
     /**
      * If we are using UltraComposer, we can accumulate 3 values into a sum per gate.
@@ -782,7 +985,65 @@ field_t<ComposerContext> field_t<ComposerContext>::accumulate(const std::vector<
      *
      * If num elements is not a multiple of 3, the final gate will be padded with zero_idx wires
      **/
-    if constexpr (ComposerContext::type == waffle::TURBO) {
+    if constexpr (ComposerContext::type == waffle::PLOOKUP) {
+        ComposerContext* ctx = nullptr;
+        std::vector<field_t> accumulator;
+        field_t constant_term = 0;
+
+        // Step 1: remove constant terms from input field elements
+        for (const auto& element : input) {
+            if (element.is_constant()) {
+                constant_term += element;
+            } else {
+                accumulator.emplace_back(element);
+            }
+            ctx = (element.get_context() ? element.get_context() : ctx);
+        }
+        if (accumulator.size() == 0) {
+            return constant_term;
+        } else if (accumulator.size() != input.size()) {
+            accumulator[0] += constant_term;
+        }
+
+        // Step 2: compute output value
+        size_t num_elements = accumulator.size();
+        barretenberg::fr output = 0;
+        for (const auto& acc : accumulator) {
+            output += acc.get_value();
+        }
+
+        // Step 3: pad accumulator to be a multiple of 3
+        const size_t num_padding_wires = (num_elements % 3) == 0 ? 0 : 3 - (num_elements % 3);
+        for (size_t i = 0; i < num_padding_wires; ++i) {
+            accumulator.emplace_back(field_t<ComposerContext>::from_witness_index(ctx, ctx->zero_idx));
+        }
+        num_elements = accumulator.size();
+        const size_t num_gates = (num_elements / 3);
+
+        field_t total = witness_t(ctx, output);
+        field_t accumulating_total = total;
+
+        for (size_t i = 0; i < num_gates; ++i) {
+            ctx->create_big_add_gate(
+                {
+                    accumulator[3 * i].get_witness_index(),
+                    accumulator[3 * i + 1].get_witness_index(),
+                    accumulator[3 * i + 2].get_witness_index(),
+                    accumulating_total.witness_index,
+                    accumulator[3 * i].multiplicative_constant,
+                    accumulator[3 * i + 1].multiplicative_constant,
+                    accumulator[3 * i + 2].multiplicative_constant,
+                    -1,
+                    accumulator[3 * i].additive_constant + accumulator[3 * i + 1].additive_constant +
+                        accumulator[3 * i + 2].additive_constant,
+                },
+                ((i == num_gates - 1) ? false : true));
+            barretenberg::fr new_total = accumulating_total.get_value() - accumulator[3 * i].get_value() -
+                                         accumulator[3 * i + 1].get_value() - accumulator[3 * i + 2].get_value();
+            accumulating_total = witness_t<ComposerContext>(ctx, new_total);
+        }
+        return total.normalize();
+    } else if constexpr (ComposerContext::type == waffle::TURBO) {
 
         field_t total(0);
         bool odd_number = (input.size() & 0x01UL) == 0x01ULL;
@@ -806,6 +1067,8 @@ template <typename ComposerContext>
 std::array<field_t<ComposerContext>, 3> field_t<ComposerContext>::slice(const uint8_t msb, const uint8_t lsb) const
 {
     ASSERT(msb >= lsb);
+    ASSERT(msb < rollup::MAX_NO_WRAP_INTEGER_BIT_LENGTH); //  CODY: eek! Why is rollup info here? function input arg
+                                                          //  msb_bound or something
     const field_t lhs = *this;
     ComposerContext* ctx = lhs.get_context();
 
@@ -837,6 +1100,26 @@ std::array<field_t<ComposerContext>, 3> field_t<ComposerContext>::slice(const ui
 
 /**
  * @brief Build a circuit allowing a user to prove that they have deomposed `this` into bits.
+ *
+ * @details A bit vector `result` is extracted and used to to construct a sum `sum` using the normal binary expansion.
+ * Along the way, we extract a value `shifted_high_limb` which is equal to `sum_hi` in the natural decomposition
+ *          `sum = sum_lo + 2**128*sum_hi`.
+ * We impose a copy constraint between `sum` and `this` but that only imposes equality in `Fr`; it could be that
+ * `result` has overflowed the modulus `r`. To impose a unique value of `result`, we constrain `sum` to satisfy `r - 1
+ * >= sum >= 0`. In order to do this inside of `Fr`, we must reduce break the check down in the smaller checks so that
+ * we can check non-negativity of integers using range constraints in Fr.
+ *
+ * At circuit compilation time we build the decomposition `r - 1 = p_lo + 2**128*p_hi`. Then desired schoolbook
+ * subtraction is
+ *                 p_hi - b       |        p_lo + b*2**128         (++foo++ is foo crossed out)
+ *                 ++p_hi++       |           ++p_lo++               (b = 0, 1)
+ *            -                   |
+ *                  sum_hi        |             sum_lo
+ *         -------------------------------------------------
+ *     y_lo := p_hi - b - sum_hi  |  y_hi :=  p_lo + b*2**128 - sum_lo
+ *
+ * Here `b` is the boolean "a carry is necessary". Each of the resulting values can be checked for underflow by imposing
+ * a small range constraint, since the negative of a small value in `Fr` is a large value in `Fr`.
  */
 template <typename ComposerContext>
 std::vector<bool_t<ComposerContext>> field_t<ComposerContext>::decompose_into_bits(
@@ -849,6 +1132,8 @@ std::vector<bool_t<ComposerContext>> field_t<ComposerContext>::decompose_into_bi
     const uint256_t val_u256 = static_cast<uint256_t>(get_value());
     field_t<ComposerContext> sum(context, 0);
     field_t<ComposerContext> shifted_high_limb(context, 0); // will equal high 128 bits, left shifted by 128 bits
+    // TODO: Guido will make a PR that will fix an error here; hard-coded 127 is incorrect when 128 < num_bits < 256.
+    // Extract bit vector and show that it has the same value as `this`.
     for (size_t i = 0; i < num_bits; ++i) {
         bool_t<ComposerContext> bit = get_bit(context, num_bits - 1 - i, val_u256);
         result[num_bits - 1 - i] = bit;
@@ -860,24 +1145,38 @@ std::vector<bool_t<ComposerContext>> field_t<ComposerContext>::decompose_into_bi
             shifted_high_limb = sum;
     }
 
-    this->assert_equal(sum); // note: `this` and `sum` both normalized here.
+    this->assert_equal(sum); // `this` and `sum` are both normalized here.
     constexpr uint256_t modulus_minus_one = fr::modulus - 1;
     auto modulus_bits = modulus_minus_one.get_msb() + 1;
-    // if value can be larger than modulus we must enforce unique representation
+    // If value can be larger than modulus we must enforce unique representation
     if (num_bits >= modulus_bits) {
+        // r - 1 = p_lo + 2**128 * p_hi
         const fr p_lo = modulus_minus_one.slice(0, 128);
         const fr p_hi = modulus_minus_one.slice(128, 256);
-        const fr shift = fr(uint256_t(1) << 128);
 
+        // `shift` is used to shift high limbs. It has the dual purpose of representing a borrowed bit.
+        const fr shift = fr(uint256_t(1) << 128);
+        // We always borrow from 2**128*p_hi. We handle whether this was necessary later.
+        // y_lo = (2**128 + p_lo) - sum_lo
         field_t<ComposerContext> y_lo = (-sum) + (p_lo + shift);
         y_lo += shifted_high_limb;
-        const auto low_accumulators = context->decompose_into_base4_accumulators(y_lo.normalize().witness_index, 130);
-        field_t<ComposerContext> y_borrow =
-            -(field_t<ComposerContext>::from_witness_index(context, low_accumulators[0]) - 1);
+        y_lo.normalize();
 
+        // A carry was necessary if and only if the 128th bit y_lo_hi of y_lo is 0.
+        auto [y_lo_lo, y_lo_hi, zeros] = y_lo.slice(128, 128);
+        // This copy constraint, along with the constraints of field_t::slice, imposes that y_lo has bit length 129.
+        // Since the integer y_lo is at least -2**128+1, which has more than 129 bits in `Fr`, the implicit range
+        // constraint shows that y_lo is non-negative.
+        context->assert_equal(
+            zeros.witness_index, context->zero_idx, "field_t: bit decomposition_fails: high limb non-zero");
+        // y_borrow is the boolean "a carry was necessary"
+        field_t<ComposerContext> y_borrow = -(y_lo_hi - 1);
+        // If a carry was necessary, subtract that carry from p_hi
+        // y_hi = (p_hi - y_borrow) - sum_hi
         field_t<ComposerContext> y_hi = -(shifted_high_limb / shift) + (p_hi);
         y_hi -= y_borrow;
-        y_hi.create_range_constraint(128);
+        // As before, except that now the range constraint is explicit, this shows that y_hi is non-negative.
+        y_hi.create_range_constraint(128, "field_t: bit decomposition fails: y_hi is too large.");
     }
 
     return result;

@@ -8,8 +8,7 @@
 #include "types.hpp"
 #include "sparse.hpp"
 
-namespace waffle {
-
+namespace plookup {
 namespace aes128_tables {
 static constexpr uint64_t AES_BASE = 9;
 static constexpr uint64_t aes_normalization_table[AES_BASE]{
@@ -22,9 +21,9 @@ inline std::array<barretenberg::fr, 2> get_aes_sparse_values_from_key(const std:
     return { barretenberg::fr(sparse), barretenberg::fr(0) };
 }
 
-inline PlookupBasicTable generate_aes_sparse_table(PlookupBasicTableId id, const size_t table_index)
+inline BasicTable generate_aes_sparse_table(BasicTableId id, const size_t table_index)
 {
-    PlookupBasicTable table;
+    BasicTable table;
     table.id = id;
     table.table_index = table_index;
     table.size = 256;
@@ -50,9 +49,9 @@ inline std::array<barretenberg::fr, 2> get_aes_sparse_normalization_values_from_
     return { barretenberg::fr(numeric::map_into_sparse_form<AES_BASE>(byte)), barretenberg::fr(0) };
 }
 
-inline PlookupBasicTable generate_aes_sparse_normalization_table(PlookupBasicTableId id, const size_t table_index)
+inline BasicTable generate_aes_sparse_normalization_table(BasicTableId id, const size_t table_index)
 {
-    PlookupBasicTable table;
+    BasicTable table;
     table.id = id;
     table.table_index = table_index;
     for (uint64_t i = 0; i < AES_BASE; ++i) {
@@ -86,7 +85,7 @@ inline PlookupBasicTable generate_aes_sparse_normalization_table(PlookupBasicTab
     return table;
 }
 
-inline PlookupMultiTable get_aes_normalization_table(const PlookupMultiTableId id = AES_NORMALIZE)
+inline MultiTable get_aes_normalization_table(const MultiTableId id = AES_NORMALIZE)
 {
     const size_t num_entries = 2;
     std::vector<barretenberg::fr> column_1_coefficients;
@@ -99,7 +98,7 @@ inline PlookupMultiTable get_aes_normalization_table(const PlookupMultiTableId i
         column_3_coefficients.emplace_back(0);
     }
 
-    PlookupMultiTable table(column_1_coefficients, column_2_coefficients, column_3_coefficients);
+    MultiTable table(column_1_coefficients, column_2_coefficients, column_3_coefficients);
 
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
@@ -110,11 +109,11 @@ inline PlookupMultiTable get_aes_normalization_table(const PlookupMultiTableId i
     return table;
 }
 
-inline PlookupMultiTable get_aes_input_table(const PlookupMultiTableId id = AES_INPUT)
+inline MultiTable get_aes_input_table(const MultiTableId id = AES_INPUT)
 {
     const size_t num_entries = 16;
 
-    PlookupMultiTable table(256, 0, 0, num_entries);
+    MultiTable table(256, 0, 0, num_entries);
 
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
@@ -134,9 +133,9 @@ inline std::array<barretenberg::fr, 2> get_aes_sbox_values_from_key(const std::a
              barretenberg::fr(numeric::map_into_sparse_form<AES_BASE>((uint8_t)(sbox_value ^ swizzled))) };
 }
 
-inline PlookupBasicTable generate_aes_sbox_table(PlookupBasicTableId id, const size_t table_index)
+inline BasicTable generate_aes_sbox_table(BasicTableId id, const size_t table_index)
 {
-    PlookupBasicTable table;
+    BasicTable table;
     table.id = id;
     table.table_index = table_index;
     table.size = 256;
@@ -160,11 +159,11 @@ inline PlookupBasicTable generate_aes_sbox_table(PlookupBasicTableId id, const s
     return table;
 }
 
-inline PlookupMultiTable get_aes_sbox_table(const PlookupMultiTableId id = AES_SBOX)
+inline MultiTable get_aes_sbox_table(const MultiTableId id = AES_SBOX)
 {
     const size_t num_entries = 1;
 
-    PlookupMultiTable table(0, 0, 0, 1);
+    MultiTable table(0, 0, 0, 1);
 
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
@@ -175,4 +174,4 @@ inline PlookupMultiTable get_aes_sbox_table(const PlookupMultiTableId id = AES_S
     return table;
 }
 } // namespace aes128_tables
-} // namespace waffle
+} // namespace plookup

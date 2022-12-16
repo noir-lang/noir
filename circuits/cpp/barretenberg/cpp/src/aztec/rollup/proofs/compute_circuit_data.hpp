@@ -9,9 +9,9 @@
 #include <filesystem>
 
 #define GET_COMPOSER_NAME_STRING(composer)                                                                             \
-    (typeid(composer) == typeid(waffle::StandardComposer)                                                              \
-         ? "StandardPlonk"                                                                                             \
-         : typeid(composer) == typeid(waffle::TurboComposer) ? "TurboPlonk" : "NULLPlonk")
+    (typeid(composer) == typeid(waffle::StandardComposer) ? "StandardPlonk"                                            \
+     : typeid(composer) == typeid(waffle::TurboComposer)  ? "TurboPlonk"                                               \
+                                                          : "NULLPlonk")
 
 namespace rollup {
 namespace proofs {
@@ -220,8 +220,8 @@ circuit_data get_circuit_data(std::string const& name,
         } else if (data.proving_key) {
             info(name, ": Computing padding proof...");
 
-            if (composer.failed) {
-                info(name, ": Composer logic failed: ", composer.err);
+            if (composer.failed()) {
+                info(name, ": Composer logic failed: ", composer.err());
                 info(name, ": Warning, padding proof can only be used to aid upstream pk construction!");
             }
 

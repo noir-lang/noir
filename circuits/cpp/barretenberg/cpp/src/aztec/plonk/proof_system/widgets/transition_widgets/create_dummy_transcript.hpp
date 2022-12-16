@@ -62,7 +62,7 @@ inline transcript::Manifest create_dummy_ultra_manifest(const size_t num_public_
                                                                      { "sigma_2", fr_size, false },
                                                                      { "sigma_3", fr_size, false },
                                                                      { "q_arith", fr_size, false },
-                                                                     { "q_ecc_1", fr_size, false },
+                                                                     { "q_fixed_base", fr_size, false },
                                                                      { "q_c", fr_size, false },
                                                                      { "r", fr_size, false },
                                                                      { "w_1_omega", fr_size, false },

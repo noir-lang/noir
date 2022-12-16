@@ -2,11 +2,10 @@
 #include "standard_example.hpp"
 #include <common/streams.hpp>
 #include <cstdint>
-#include <plonk/reference_string/pippenger_reference_string.hpp>
+#include <srs/reference_string/pippenger_reference_string.hpp>
 #include <sstream>
 
 using namespace barretenberg;
-using namespace plonk::stdlib::types::standard;
 
 #define WASM_EXPORT __attribute__((visibility("default")))
 
@@ -28,12 +27,12 @@ WASM_EXPORT void standard_example__init_verification_key(void* pippenger_ptr, ui
 WASM_EXPORT void* standard_example__new_prover()
 {
     auto prover = rollup::proofs::standard_example::new_prover();
-    return new Prover(std::move(prover));
+    return new waffle::Prover(std::move(prover));
 }
 
 WASM_EXPORT void standard_example__delete_prover(void* prover)
 {
-    delete reinterpret_cast<Prover*>(prover);
+    delete reinterpret_cast<waffle::Prover*>(prover);
 }
 
 WASM_EXPORT bool standard_example__verify_proof(uint8_t* proof, uint32_t length)

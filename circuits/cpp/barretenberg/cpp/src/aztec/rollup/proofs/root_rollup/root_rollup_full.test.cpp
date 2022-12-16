@@ -17,10 +17,14 @@ using namespace plonk::stdlib::merkle_tree;
 
 namespace {
 #ifdef CI
+constexpr bool CIRCUIT_CHANGE_EXPECTED = false;
 bool persist = false;
 #else
+// During development, if the circuit vk hash/gate count is expected to change, set the following to true.
+constexpr bool CIRCUIT_CHANGE_EXPECTED = false;
 bool persist = false;
 #endif
+
 std::shared_ptr<waffle::DynamicFileReferenceStringFactory> srs;
 numeric::random::Engine* rand_engine = &numeric::random::get_debug_engine(true);
 fixtures::user_context user = fixtures::create_user_context(rand_engine);
@@ -138,27 +142,25 @@ HEAVY_TEST_F(root_rollup_full_tests, test_root_rollup_3x2_and_detect_circuit_cha
     EXPECT_EQ(inner_data.public_value, fr(0));
     EXPECT_EQ(inner_data.public_owner, fr(0));
     EXPECT_EQ(inner_data.asset_id, fr(0));
+
     // The below assertions detect changes in the root rollup circuit
+    constexpr uint32_t CIRCUIT_GATE_COUNT = 5424685;
+    constexpr uint32_t GATES_NEXT_POWER_OF_TWO = 8388608;
+    const uint256_t VK_HASH("6f6d58bfe23a31ea15dcc612c6a96d89bf211a192f52386673a0af1ef0fd3745");
+
     size_t number_of_gates_root_rollup = result.number_of_gates;
     auto vk_hash_root_rollup = result.verification_key->sha256_hash();
-    // If the below assertions fail, consider changing the variable is_circuit_change_expected to 1 in
-    // rollup/constants.hpp and see if atleast the next power of two limit is not exceeded. Please change the constant
-    // values accordingly and set is_circuit_change_expected to 0 in rollup/constants.hpp before merging.
-    if (!(circuit_gate_count::is_circuit_change_expected)) {
-        EXPECT_EQ(number_of_gates_root_rollup, circuit_gate_count::ROOT_ROLLUP)
+
+    if (!CIRCUIT_CHANGE_EXPECTED) {
+        EXPECT_EQ(number_of_gates_root_rollup, CIRCUIT_GATE_COUNT)
             << "The gate count for the root rollup circuit is changed.";
-        EXPECT_EQ(from_buffer<uint256_t>(vk_hash_root_rollup), circuit_vk_hash::ROOT_ROLLUP)
+        EXPECT_EQ(from_buffer<uint256_t>(vk_hash_root_rollup), VK_HASH)
             << "The verification key hash for the root rollup circuit is changed.";
-        // For the next power of two limit, we need to consider that we reserve four gates for adding
-        // randomness/zero-knowledge
-        EXPECT_LE(number_of_gates_root_rollup,
-                  circuit_gate_next_power_of_two::ROOT_ROLLUP - waffle::ComposerBase::NUM_RESERVED_GATES)
-            << "You have exceeded the next power of two limit for the root rollup circuit.";
-    } else {
-        EXPECT_LE(number_of_gates_root_rollup,
-                  circuit_gate_next_power_of_two::ROOT_ROLLUP - waffle::ComposerBase::NUM_RESERVED_GATES)
-            << "You have exceeded the next power of two limit for the root rollup circuit.";
     }
+    // For the next power of two limit, we need to consider that we reserve four gates for adding
+    // randomness/zero-knowledge
+    EXPECT_LE(number_of_gates_root_rollup, GATES_NEXT_POWER_OF_TWO - waffle::ComposerBase::NUM_RESERVED_GATES)
+        << "You have exceeded the next power of two limit for the root rollup circuit.";
 }
 
 HEAVY_TEST_F(root_rollup_full_tests, test_root_rollup_2x3)
@@ -212,7 +214,7 @@ HEAVY_TEST_F(root_rollup_full_tests, test_bad_js_proof_fails)
     Composer inner_composer = Composer(tx_rollup_cd.proving_key, tx_rollup_cd.verification_key, tx_rollup_cd.num_gates);
     rollup::pad_rollup_tx(inner_rollup_tx, tx_rollup_cd.num_txs, tx_rollup_cd.join_split_circuit_data.padding_proof);
     rollup::rollup_circuit(inner_composer, inner_rollup_tx, tx_rollup_cd.verification_keys, tx_rollup_cd.num_txs);
-    ASSERT_FALSE(inner_composer.failed);
+    ASSERT_FALSE(inner_composer.failed());
     auto inner_prover = inner_composer.create_unrolled_prover();
     auto inner_proof = inner_prover.construct_proof();
     auto inner_verifier = inner_composer.create_unrolled_verifier();
@@ -233,7 +235,7 @@ HEAVY_TEST_F(root_rollup_full_tests, test_bad_js_proof_fails)
                         root_rollup_cd.inner_rollup_circuit_data.rollup_size,
                         root_rollup_cd.rollup_size,
                         root_rollup_cd.inner_rollup_circuit_data.verification_key);
-    ASSERT_FALSE(root_composer.failed);
+    ASSERT_FALSE(root_composer.failed());
     auto root_prover = root_composer.create_prover();
     auto root_proof = root_prover.construct_proof();
     auto root_verifier = root_composer.create_verifier();

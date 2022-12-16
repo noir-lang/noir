@@ -1,5 +1,5 @@
 #pragma once
-#include <stdlib/types/turbo.hpp>
+#include <stdlib/types/types.hpp>
 #include "commit.hpp"
 
 namespace rollup {
@@ -8,7 +8,7 @@ namespace notes {
 namespace circuit {
 namespace account {
 
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 
 struct account_note {
     field_ct account_alias_hash;

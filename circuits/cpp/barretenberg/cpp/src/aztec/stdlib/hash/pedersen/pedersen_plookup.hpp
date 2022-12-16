@@ -25,13 +25,22 @@ template <typename ComposerContext> class pedersen_plookup {
 
   public:
     static field_t compress(const field_t& left, const field_t& right);
-    static field_t compress(const std::vector<field_t>& inputs);
-    static field_t compress(const packed_byte_array& input) { return compress(input.get_limbs()); };
+    static field_t compress(const std::vector<field_t>& inputs, const size_t hash_index = 0);
+    static field_t compress(const packed_byte_array& input) { return compress(input.get_limbs()); }
 
-    static point commit(const std::vector<field_t>& inputs);
+    template <size_t T> static field_t compress(const std::array<field_t, T>& inputs)
+    {
+        std::vector<field_t> in(inputs.begin(), inputs.end());
+        return compress(in);
+    }
+
+    static point merkle_damgard_compress(const std::vector<field_t>& inputs, const field_t& iv);
+
+    static point commit(const std::vector<field_t>& inputs, const size_t hash_index = 0);
+
     static point compress_to_point(const field_t& left, const field_t& right);
 };
 
-extern template class pedersen_plookup<waffle::PlookupComposer>;
+extern template class pedersen_plookup<waffle::UltraComposer>;
 } // namespace stdlib
 } // namespace plonk

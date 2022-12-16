@@ -4,10 +4,10 @@
 #include "./value_note.hpp"
 #include "../../native/value/compute_nullifier.hpp"
 #include "../../native/value/value_note.hpp"
-#include <stdlib/types/turbo.hpp>
+#include <stdlib/types/types.hpp>
 
 using namespace rollup::proofs::notes;
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 
 TEST(compute_nullifier_circuit, native_consistency)
 {

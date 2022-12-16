@@ -1,6 +1,7 @@
 #include <common/test.hpp>
 #include <common/streams.hpp>
 #include "verification_key.hpp"
+#include "../constants.hpp"
 
 using namespace barretenberg;
 using namespace waffle;

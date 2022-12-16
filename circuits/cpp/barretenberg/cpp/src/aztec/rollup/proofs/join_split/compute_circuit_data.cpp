@@ -9,7 +9,7 @@ namespace proofs {
 namespace join_split {
 
 using namespace rollup::proofs::join_split;
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 using namespace rollup::proofs::notes::native;
 using namespace plonk::stdlib::merkle_tree;
 

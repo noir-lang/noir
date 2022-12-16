@@ -1,4 +1,4 @@
-if(NOT WASM) 
+if(NOT WASM)
   link_libraries(leveldb)
   if (NOT FUZZING)
   add_subdirectory(db_cli)
@@ -9,4 +9,3 @@ if(NOT WASM)
 endif()
 
 add_subdirectory(proofs)
-add_subdirectory(ci_failsafe)

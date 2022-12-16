@@ -7,8 +7,9 @@
 
 #include "../../primitives/curves/bn254.hpp"
 #include "../verification_key/verification_key.hpp"
-#include "../../hash/blake2s/blake2s.hpp"
+#include "../../hash/blake3s/blake3s.hpp"
 #include "../../hash/pedersen/pedersen.hpp"
+#include "../../hash/pedersen/pedersen_plookup.hpp"
 #include "../../primitives/bigfield/bigfield.hpp"
 #include "../../primitives/biggroup/biggroup.hpp"
 #include "../../primitives/bool/bool.hpp"
@@ -24,12 +25,11 @@ template <typename Composer> class Transcript {
     using witness_pt = witness_t<Composer>;
     using fq_pt = bigfield<Composer, barretenberg::Bn254FqParams>;
     using group_pt = element<Composer, fq_pt, field_pt, barretenberg::g1>;
-    using pedersen = plonk::stdlib::pedersen<Composer>;
     using Key = plonk::stdlib::recursion::verification_key<stdlib::bn254<Composer>>;
 
     Transcript(Composer* in_context, const transcript::Manifest input_manifest)
         : context(in_context)
-        , transcript_base(input_manifest, transcript::HashType::PedersenBlake2s, 16)
+        , transcript_base(input_manifest, transcript::HashType::PedersenBlake3s, 16)
         , current_challenge(in_context)
     {}
 
@@ -37,7 +37,7 @@ template <typename Composer> class Transcript {
                const std::vector<uint8_t>& input_transcript,
                const transcript::Manifest input_manifest)
         : context(in_context)
-        , transcript_base(input_transcript, input_manifest, transcript::HashType::PedersenBlake2s, 16)
+        , transcript_base(input_transcript, input_manifest, transcript::HashType::PedersenBlake3s, 16)
         , current_challenge(in_context)
     /*, transcript_bytes(in_context) */
     {
@@ -102,8 +102,7 @@ template <typename Composer> class Transcript {
         field_keys.push_back(element_name);
         field_values.push_back(element);
     }
-    // 0x28b96cad7dce47b8e727159ce2adbdd119a4435d6edcba6361209301bd53bd0f
-    // 0xb96cad7dce47b8e727159ce2adbdd10019a4435d6edcba6361209301bd53bd0f
+
     void add_group_element(const std::string& element_name, const group_pt& element)
     {
         uint256_t x = element.x.get_value().lo;
@@ -199,13 +198,13 @@ template <typename Composer> class Transcript {
             split(working_element, compression_buffer, field_pt(current_challenge), byte_counter, 32);
         }
         for (auto manifest_element : get_manifest().get_round_manifest(current_round).elements) {
-            if (manifest_element.num_bytes == 32) {
+            if (manifest_element.num_bytes == 32 && manifest_element.name != "public_inputs") {
                 split(working_element,
                       compression_buffer,
                       get_field_element(manifest_element.name),
                       byte_counter,
                       manifest_element.num_bytes);
-            } else if (manifest_element.num_bytes == 64) {
+            } else if (manifest_element.num_bytes == 64 && manifest_element.name != "public_inputs") {
                 group_pt point = get_circuit_group_element(manifest_element.name);
 
                 field_pt y_hi =
@@ -228,7 +227,7 @@ template <typename Composer> class Transcript {
                 for (size_t i = 0; i < field_array.size(); ++i) {
                     split(working_element, compression_buffer, field_array[i], byte_counter, 32);
                 }
-            } else if (manifest_element.num_bytes < 32) {
+            } else if (manifest_element.num_bytes < 32 && manifest_element.name != "public_inputs") {
                 split(working_element,
                       compression_buffer,
                       get_field_element(manifest_element.name),
@@ -236,7 +235,6 @@ template <typename Composer> class Transcript {
                       manifest_element.num_bytes);
             }
         }
-
         std::vector<byte_array<Composer>> round_challenges;
 
         if (byte_counter != 0) {
@@ -247,10 +245,15 @@ template <typename Composer> class Transcript {
             compression_buffer.push_back(working_element);
         }
 
-        field_pt T0 = pedersen::compress(compression_buffer);
+        field_pt T0;
+        if constexpr (Composer::type == waffle::ComposerType::PLOOKUP) {
+            T0 = stdlib::pedersen_plookup<Composer>::compress(compression_buffer);
+        } else {
+            T0 = stdlib::pedersen<Composer>::compress(compression_buffer);
+        }
         byte_array<Composer> compressed_buffer(T0);
 
-        byte_array<Composer> base_hash = blake2s(compressed_buffer);
+        byte_array<Composer> base_hash = stdlib::blake3s(compressed_buffer);
 
         byte_array<Composer> first(field_pt(0), 16);
         first.write(base_hash.slice(0, 16));
@@ -265,7 +268,7 @@ template <typename Composer> class Transcript {
         for (size_t i = 2; i < num_challenges; i += 2) {
             byte_array<Composer> rolling_buffer = base_hash;
             rolling_buffer.write(byte_array<Composer>(field_pt(i / 2), 1));
-            byte_array<Composer> hash_output = blake2s(rolling_buffer);
+            byte_array<Composer> hash_output = stdlib::blake3s(rolling_buffer);
 
             byte_array<Composer> hi(field_pt(0), 16);
             hi.write(hash_output.slice(0, 16));

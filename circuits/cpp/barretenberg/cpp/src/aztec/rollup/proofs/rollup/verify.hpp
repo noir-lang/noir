@@ -6,7 +6,7 @@ namespace rollup {
 namespace proofs {
 namespace rollup {
 
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 
 verify_result<Composer> verify_logic(rollup_tx& tx, circuit_data const& cd);
 

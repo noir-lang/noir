@@ -1,6 +1,6 @@
 #pragma once
 #include <map>
-#include <plonk/reference_string/reference_string.hpp>
+#include <srs/reference_string/reference_string.hpp>
 #include <polynomials/evaluation_domain.hpp>
 #include <crypto/sha256/sha256.hpp>
 #include "../types/polynomial_manifest.hpp"
@@ -76,9 +76,9 @@ struct verification_key {
 
     PolynomialManifest polynomial_manifest;
 
-    // this is a member variable because stdlib::field has no `pow` method, we
-    // have to compute this differently for the normal and recursive settings respectively
-    barretenberg::fr z_pow_n;
+    // This is a member variable so as to avoid recomputing it in the different places of the verifier algorithm.
+    // Note that recomputing would also have added constraints to the recursive verifier circuit.
+    barretenberg::fr z_pow_n; // ʓ^n (ʓ being the 'evaluation challenge')
 
     bool contains_recursive_proof = false;
     std::vector<uint32_t> recursive_proof_public_input_indices;

@@ -9,6 +9,10 @@
 namespace barretenberg {
 class Bn254FrParams {
   public:
+    // Note: limbs here are combined as concat(_3, _2, _1, _0)
+    // E.g. this modulus forms the value:
+    // 0x30644E72E131A029B85045B68181585D2833E84879B9709143E1F593F0000001
+    // = 21888242871839275222246405745257275088548364400416034343698204186575808495617
     static constexpr uint64_t modulus_0 = 0x43E1F593F0000001UL;
     static constexpr uint64_t modulus_1 = 0x2833E84879B97091UL;
     static constexpr uint64_t modulus_2 = 0xB85045B68181585DUL;

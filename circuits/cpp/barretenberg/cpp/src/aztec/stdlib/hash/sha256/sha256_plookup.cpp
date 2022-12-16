@@ -2,7 +2,7 @@
 
 #include <plonk/composer/plookup_tables/plookup_tables.hpp>
 #include <plonk/composer/plookup_tables/sha256.hpp>
-#include <plonk/composer/plookup_composer.hpp>
+#include <plonk/composer/ultra_composer.hpp>
 #include <stdlib/primitives/bit_array/bit_array.hpp>
 #include <stdlib/primitives/field/field.hpp>
 #include <stdlib/primitives/uint/uint.hpp>
@@ -13,6 +13,7 @@ using namespace barretenberg;
 namespace plonk {
 namespace stdlib {
 namespace sha256_plookup {
+
 namespace internal {
 
 constexpr size_t get_num_blocks(const size_t num_bits)
@@ -23,7 +24,7 @@ constexpr size_t get_num_blocks(const size_t num_bits)
 }
 } // namespace internal
 
-void prepare_constants(std::array<field_t<waffle::PlookupComposer>, 8>& input)
+void prepare_constants(std::array<field_t<waffle::UltraComposer>, 8>& input)
 {
     constexpr uint64_t init_constants[8]{ 0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
                                           0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19 };
@@ -38,38 +39,37 @@ void prepare_constants(std::array<field_t<waffle::PlookupComposer>, 8>& input)
     input[7] = init_constants[7];
 }
 
-sparse_witness_limbs convert_witness(const field_t<waffle::PlookupComposer>& w)
+sparse_witness_limbs convert_witness(const field_t<waffle::UltraComposer>& w)
 {
-    typedef field_t<waffle::PlookupComposer> field_pt;
+    typedef field_t<waffle::UltraComposer> field_pt;
 
     sparse_witness_limbs result(w);
 
-    const auto sequence_elements =
-        plookup::read_sequence_from_table(waffle::PlookupMultiTableId::SHA256_WITNESS_INPUT, w);
+    const auto lookup = plookup_read::get_lookup_accumulators(MultiTableId::SHA256_WITNESS_INPUT, w);
 
     result.sparse_limbs = std::array<field_pt, 4>{
-        sequence_elements[1][0],
-        sequence_elements[1][1],
-        sequence_elements[1][2],
-        sequence_elements[1][3],
+        lookup[ColumnIdx::C2][0],
+        lookup[ColumnIdx::C2][1],
+        lookup[ColumnIdx::C2][2],
+        lookup[ColumnIdx::C2][3],
     };
     result.rotated_limbs = std::array<field_pt, 4>{
-        sequence_elements[2][0],
-        sequence_elements[2][1],
-        sequence_elements[2][2],
-        sequence_elements[2][3],
+        lookup[ColumnIdx::C3][0],
+        lookup[ColumnIdx::C3][1],
+        lookup[ColumnIdx::C3][2],
+        lookup[ColumnIdx::C3][3],
     };
     result.has_sparse_limbs = true;
 
     return result;
 }
 
-std::array<field_t<waffle::PlookupComposer>, 64> extend_witness(
-    const std::array<field_t<waffle::PlookupComposer>, 16>& w_in)
+std::array<field_t<waffle::UltraComposer>, 64> extend_witness(
+    const std::array<field_t<waffle::UltraComposer>, 16>& w_in)
 {
-    typedef field_t<waffle::PlookupComposer> field_pt;
+    typedef field_t<waffle::UltraComposer> field_pt;
 
-    waffle::PlookupComposer* ctx = w_in[0].get_context();
+    waffle::UltraComposer* ctx = w_in[0].get_context();
 
     std::array<sparse_witness_limbs, 64> w_sparse;
     for (size_t i = 0; i < 16; ++i) {
@@ -128,7 +128,7 @@ std::array<field_t<waffle::PlookupComposer>, 64> extend_witness(
                                            .add_two(w_right.rotated_limbs[3], left_xor_sparse)
                                            .normalize();
 
-        field_pt xor_result = plookup::read_from_1_to_2_table(waffle::SHA256_WITNESS_OUTPUT, xor_result_sparse);
+        field_pt xor_result = plookup_read::read_from_1_to_2_table(SHA256_WITNESS_OUTPUT, xor_result_sparse);
 
         // TODO NORMALIZE WITH RANGE CHECK
 
@@ -138,7 +138,7 @@ std::array<field_t<waffle::PlookupComposer>, 64> extend_witness(
             w_out = field_pt(ctx, fr(w_out_raw.get_value().from_montgomery_form().data[0] & (uint64_t)0xffffffffULL));
 
         } else {
-            w_out = witness_t<waffle::PlookupComposer>(
+            w_out = witness_t<waffle::UltraComposer>(
                 ctx, fr(w_out_raw.get_value().from_montgomery_form().data[0] & (uint64_t)0xffffffffULL));
         }
         w_sparse[i] = sparse_witness_limbs(w_out);
@@ -152,60 +152,61 @@ std::array<field_t<waffle::PlookupComposer>, 64> extend_witness(
     return w_extended;
 }
 
-sparse_value map_into_choose_sparse_form(const field_t<waffle::PlookupComposer>& e)
+sparse_value map_into_choose_sparse_form(const field_t<waffle::UltraComposer>& e)
 {
     sparse_value result;
     result.normal = e;
-    result.sparse = plookup::read_from_1_to_2_table(waffle::SHA256_CH_INPUT, e);
+    result.sparse = plookup_read::read_from_1_to_2_table(SHA256_CH_INPUT, e);
 
     return result;
 }
 
-sparse_value map_into_maj_sparse_form(const field_t<waffle::PlookupComposer>& e)
+sparse_value map_into_maj_sparse_form(const field_t<waffle::UltraComposer>& e)
 {
     sparse_value result;
     result.normal = e;
-    result.sparse = plookup::read_from_1_to_2_table(waffle::SHA256_MAJ_INPUT, e);
+    result.sparse = plookup_read::read_from_1_to_2_table(SHA256_MAJ_INPUT, e);
 
     return result;
 }
 
-field_t<waffle::PlookupComposer> choose(sparse_value& e, const sparse_value& f, const sparse_value& g)
+field_t<waffle::UltraComposer> choose(sparse_value& e, const sparse_value& f, const sparse_value& g)
 {
-    typedef field_t<waffle::PlookupComposer> field_pt;
+    typedef field_t<waffle::UltraComposer> field_pt;
 
-    const auto lookups = plookup::read_sequence_from_table(waffle::SHA256_CH_INPUT, e.normal);
-    const auto rotation_coefficients = waffle::sha256_tables::get_choose_rotation_multipliers();
+    const auto lookup = plookup_read::get_lookup_accumulators(SHA256_CH_INPUT, e.normal);
+    const auto rotation_coefficients = sha256_tables::get_choose_rotation_multipliers();
 
-    field_pt rotation_result = lookups[2][0];
+    field_pt rotation_result = lookup[ColumnIdx::C3][0];
 
-    e.sparse = lookups[1][0];
+    e.sparse = lookup[ColumnIdx::C2][0];
 
-    field_pt sparse_limb_3 = lookups[1][2];
+    field_pt sparse_limb_3 = lookup[ColumnIdx::C2][2];
 
+    // where is the middle limb used
     field_pt xor_result = (rotation_result * fr(7))
                               .add_two(e.sparse * (rotation_coefficients[0] * fr(7) + fr(1)),
                                        sparse_limb_3 * (rotation_coefficients[2] * fr(7)));
 
     field_pt choose_result_sparse = xor_result.add_two(f.sparse + f.sparse, g.sparse + g.sparse + g.sparse).normalize();
 
-    field_pt choose_result = plookup::read_from_1_to_2_table(waffle::SHA256_CH_OUTPUT, choose_result_sparse);
+    field_pt choose_result = plookup_read::read_from_1_to_2_table(SHA256_CH_OUTPUT, choose_result_sparse);
 
     return choose_result;
 }
 
-field_t<waffle::PlookupComposer> majority(sparse_value& a, const sparse_value& b, const sparse_value& c)
+field_t<waffle::UltraComposer> majority(sparse_value& a, const sparse_value& b, const sparse_value& c)
 {
-    typedef field_t<waffle::PlookupComposer> field_pt;
+    typedef field_t<waffle::UltraComposer> field_pt;
 
-    const auto lookups = plookup::read_sequence_from_table(waffle::SHA256_MAJ_INPUT, a.normal);
-    const auto rotation_coefficients = waffle::sha256_tables::get_majority_rotation_multipliers();
+    const auto lookup = plookup_read::get_lookup_accumulators(SHA256_MAJ_INPUT, a.normal);
+    const auto rotation_coefficients = sha256_tables::get_majority_rotation_multipliers();
 
-    field_pt rotation_result = lookups[2][0];
-
-    a.sparse = lookups[1][0];
-
-    field_pt sparse_accumulator_2 = lookups[1][1];
+    field_pt rotation_result =
+        lookup[ColumnIdx::C3][0]; // last index of first row gives accumulating sum of "non-trival" wraps
+    a.sparse = lookup[ColumnIdx::C2][0];
+    // use these values to compute trivial wraps somehow
+    field_pt sparse_accumulator_2 = lookup[ColumnIdx::C2][1];
 
     field_pt xor_result = (rotation_result * fr(4))
                               .add_two(a.sparse * (rotation_coefficients[0] * fr(4) + fr(1)),
@@ -213,24 +214,18 @@ field_t<waffle::PlookupComposer> majority(sparse_value& a, const sparse_value& b
 
     field_pt majority_result_sparse = xor_result.add_two(b.sparse, c.sparse).normalize();
 
-    field_pt majority_result = plookup::read_from_1_to_2_table(waffle::SHA256_MAJ_OUTPUT, majority_result_sparse);
+    field_pt majority_result = plookup_read::read_from_1_to_2_table(SHA256_MAJ_OUTPUT, majority_result_sparse);
 
     return majority_result;
 }
 
-field_t<waffle::PlookupComposer> add_normalize(const field_t<waffle::PlookupComposer>& a,
-                                               const field_t<waffle::PlookupComposer>& b)
+field_t<waffle::UltraComposer> add_normalize(const field_t<waffle::UltraComposer>& a,
+                                             const field_t<waffle::UltraComposer>& b)
 {
-    typedef field_t<waffle::PlookupComposer> field_pt;
-    typedef witness_t<waffle::PlookupComposer> witness_pt;
+    typedef field_t<waffle::UltraComposer> field_pt;
+    typedef witness_t<waffle::UltraComposer> witness_pt;
 
-    waffle::PlookupComposer* ctx = a.get_context() ? a.get_context() : b.get_context();
-
-    if (a.witness_index == IS_CONSTANT && b.witness_index == IS_CONSTANT) {
-        auto sum = uint256_t(a.get_value() + b.get_value());
-        uint64_t normalized = static_cast<uint32_t>(sum.data[0]);
-        return field_pt(ctx, normalized);
-    }
+    waffle::UltraComposer* ctx = a.get_context() ? a.get_context() : b.get_context();
 
     uint256_t sum = a.get_value() + b.get_value();
 
@@ -244,15 +239,14 @@ field_t<waffle::PlookupComposer> add_normalize(const field_t<waffle::PlookupComp
 
     field_pt result = a.add_two(b, overflow * field_pt(ctx, -fr((uint64_t)(1ULL << 32ULL))));
 
-    // TODO USE RANGE CONSTRAINT ON OVERFLOW
+    overflow.create_range_constraint(3);
     return result;
 }
 
-std::array<field_t<waffle::PlookupComposer>, 8> sha256_block(
-    const std::array<field_t<waffle::PlookupComposer>, 8>& h_init,
-    const std::array<field_t<waffle::PlookupComposer>, 16>& input)
+std::array<field_t<waffle::UltraComposer>, 8> sha256_block(const std::array<field_t<waffle::UltraComposer>, 8>& h_init,
+                                                           const std::array<field_t<waffle::UltraComposer>, 16>& input)
 {
-    typedef field_t<waffle::PlookupComposer> field_pt;
+    typedef field_t<waffle::UltraComposer> field_pt;
 
     constexpr uint64_t round_constants[64]{
         0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
@@ -285,6 +279,7 @@ std::array<field_t<waffle::PlookupComposer>, 8> sha256_block(
     /**
      * Apply SHA-256 compression function to the message schedule
      **/
+    // As opposed to standard sha description - Maj and Choose functions also include required rotations for round
     for (size_t i = 0; i < 64; ++i) {
         auto ch = choose(e, f, g);
         auto maj = majority(a, b, c);
@@ -312,14 +307,24 @@ std::array<field_t<waffle::PlookupComposer>, 8> sha256_block(
     output[5] = add_normalize(f.normal, h_init[5]);
     output[6] = add_normalize(g.normal, h_init[6]);
     output[7] = add_normalize(h.normal, h_init[7]);
+
+    /**
+     * At this point, a malicilous prover could tweak the add_normalise function and the result could be 'overflowed'.
+     * Thus, we need 32-bit range checks on the outputs. Note that we won't need range checks while applying the SHA-256
+     * compression function because the outputs of the lookup table ensures that the output is contrained to 32 bits.
+     */
+    for (size_t i = 0; i < 8; i++) {
+        output[i].create_range_constraint(32);
+    }
+
     return output;
 }
 
-packed_byte_array<waffle::PlookupComposer> sha256(const packed_byte_array<waffle::PlookupComposer>& input)
+packed_byte_array<waffle::UltraComposer> sha256(const packed_byte_array<waffle::UltraComposer>& input)
 {
-    typedef field_t<waffle::PlookupComposer> field_pt;
+    typedef field_t<waffle::UltraComposer> field_pt;
 
-    waffle::PlookupComposer* ctx = input.get_context();
+    waffle::UltraComposer* ctx = input.get_context();
 
     auto message_schedule(input);
 
@@ -352,7 +357,7 @@ packed_byte_array<waffle::PlookupComposer> sha256(const packed_byte_array<waffle
     }
 
     std::vector<field_pt> output(rolling_hash.begin(), rolling_hash.end());
-    return packed_byte_array<waffle::PlookupComposer>(output, 4);
+    return packed_byte_array<waffle::UltraComposer>(output, 4);
 }
 
 } // namespace sha256_plookup

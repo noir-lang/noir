@@ -5,7 +5,7 @@
 #include <crypto/schnorr/schnorr.hpp>
 #include <fstream>
 #include <gtest/gtest.h>
-#include <plonk/reference_string/pippenger_reference_string.hpp>
+#include <srs/reference_string/pippenger_reference_string.hpp>
 #include <srs/io.hpp>
 
 using namespace barretenberg;

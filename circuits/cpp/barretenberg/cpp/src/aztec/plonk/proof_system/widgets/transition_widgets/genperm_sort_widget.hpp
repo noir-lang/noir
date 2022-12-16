@@ -20,12 +20,10 @@ template <class Field, class Getters, typename PolyContainer> class GenPermSortK
   public:
     inline static std::set<PolynomialIndex> const& get_required_polynomial_ids()
     {
-        static const std::set<PolynomialIndex> required_polynomial_ids = { PolynomialIndex::Q_SORT_SELECTOR,
-                                                                           PolynomialIndex::W_1,
-                                                                           PolynomialIndex::W_2,
-                                                                           PolynomialIndex::W_3,
-                                                                           PolynomialIndex::W_4,
-                                                                           PolynomialIndex::Z };
+        static const std::set<PolynomialIndex> required_polynomial_ids = {
+            PolynomialIndex::Q_SORT, PolynomialIndex::W_1, PolynomialIndex::W_2,
+            PolynomialIndex::W_3,    PolynomialIndex::W_4, PolynomialIndex::Z
+        };
         return required_polynomial_ids;
     }
 
@@ -107,7 +105,7 @@ template <class Field, class Getters, typename PolyContainer> class GenPermSortK
                                          const size_t i = 0)
     {
         const Field& q_sort =
-            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_SORT_SELECTOR>(polynomials, i);
+            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_SORT>(polynomials, i);
 
         return linear_terms[0] * q_sort;
     }
@@ -116,7 +114,7 @@ template <class Field, class Getters, typename PolyContainer> class GenPermSortK
                                                    std::map<std::string, Field>& scalars,
                                                    const challenge_array&)
     {
-        scalars["Q_SORT_SELECTOR"] += linear_terms[0];
+        scalars["Q_SORT"] += linear_terms[0];
     }
 };
 

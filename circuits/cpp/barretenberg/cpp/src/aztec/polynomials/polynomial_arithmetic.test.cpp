@@ -295,6 +295,9 @@ TEST(polynomials, fft_coset_ifft_cross_consistency)
     }
 }
 
+/**
+ * @brief Test function compute_lagrange_polynomial_fft() on medium domain (size 2 * n)
+ */
 TEST(polynomials, compute_lagrange_polynomial_fft)
 {
     size_t n = 256;
@@ -335,6 +338,80 @@ TEST(polynomials, compute_lagrange_polynomial_fft)
     shifted_eval = polynomial_arithmetic::evaluate(l_n_minus_one_coefficients, z, small_domain.size);
     EXPECT_EQ((eval == shifted_eval), true);
 
+    polynomial_arithmetic::fft(l_n_minus_one_coefficients, small_domain);
+
+    EXPECT_EQ((l_1_coefficients[0] == fr::one()), true);
+
+    for (size_t i = 1; i < n; ++i) {
+        EXPECT_EQ((l_1_coefficients[i] == fr::zero()), true);
+    }
+
+    EXPECT_EQ(l_n_minus_one_coefficients[n - 2] == fr::one(), true);
+
+    for (size_t i = 0; i < n; ++i) {
+        if (i == (n - 2)) {
+            continue;
+        }
+        EXPECT_EQ((l_n_minus_one_coefficients[i] == fr::zero()), true);
+    }
+}
+
+/**
+ * @brief Test function compute_lagrange_polynomial_fft() on large domain (size 4 * n)
+ * @details Compute L_1 in monomial form by 1) compute_lagrange_polynomial_fft() then
+ * 2) coset_ifft. Evaluate L_1 at the shifted random point z*ω^2. Show that this gives
+ * the same result as 1) manually shifting coset FFT of L_1, then 2) calling
+ * coset_ifft and evaluating the result (L_{n-1} monomial) at z.
+ * Finally, verify that L_1 and L_{n-1} have indeed been computed correctly by checking
+ * that they evaluate to one at the correct location and are zero elsewhere.
+ */
+TEST(polynomials, compute_lagrange_polynomial_fft_large_domain)
+{
+    size_t n = 256; // size of small_domain
+    size_t M = 4;   // size of large_domain == M * n
+    evaluation_domain small_domain = evaluation_domain(n);
+    evaluation_domain large_domain = evaluation_domain(M * n);
+    small_domain.compute_lookup_table();
+    large_domain.compute_lookup_table();
+
+    fr l_1_coefficients[M * n];
+    // Scratch memory needs additional space (M*2) to allow for 'shift' later on
+    fr scratch_memory[M * n + (M * 2)];
+    for (size_t i = 0; i < M * n; ++i) {
+        l_1_coefficients[i] = fr::zero();
+        scratch_memory[i] = fr::zero();
+    }
+    // Compute FFT on target domain
+    polynomial_arithmetic::compute_lagrange_polynomial_fft(l_1_coefficients, small_domain, large_domain);
+
+    // Copy L_1 FFT into scratch space and shift it to get FFT of L_{n-1}
+    polynomial_arithmetic::copy_polynomial(l_1_coefficients, scratch_memory, M * n, M * n);
+    // Manually 'shift' L_1 FFT in scratch memory by M*2
+    for (size_t i = 0; i < M * 2; ++i) {
+        fr::__copy(scratch_memory[i], scratch_memory[M * n + i]);
+    }
+    fr* l_n_minus_one_coefficients = &scratch_memory[M * 2];
+
+    // Recover monomial forms of L_1 and L_{n-1} (from manually shifted L_1 FFT)
+    polynomial_arithmetic::coset_ifft(l_1_coefficients, large_domain);
+    polynomial_arithmetic::coset_ifft(l_n_minus_one_coefficients, large_domain);
+
+    // Compute shifted random eval point z*ω^2
+    fr z = fr::random_element();
+    fr shifted_z;                      // z*ω^2
+    shifted_z = z * small_domain.root; // z*ω
+    shifted_z *= small_domain.root;    // z*ω^2
+
+    // Compute L_1(z_shifted) and L_{n-1}(z)
+    fr eval = polynomial_arithmetic::evaluate(l_1_coefficients, shifted_z, small_domain.size);
+    fr shifted_eval = polynomial_arithmetic::evaluate(l_n_minus_one_coefficients, z, small_domain.size);
+
+    // Check L_1(z_shifted) = L_{n-1}(z)
+    EXPECT_EQ((eval == shifted_eval), true);
+
+    // Compute evaluation forms of L_1 and L_{n-1} and check that they have
+    // a one in the right place and zeros elsewhere
+    polynomial_arithmetic::fft(l_1_coefficients, small_domain);
     polynomial_arithmetic::fft(l_n_minus_one_coefficients, small_domain);
 
     EXPECT_EQ((l_1_coefficients[0] == fr::one()), true);
@@ -577,7 +654,6 @@ TEST(polynomials, divide_by_vanishing_polynomial)
 
     polynomial R_copy(2 * n, 2 * n);
     R_copy = R;
-    // polynomial R_copy(R);
 
     polynomial_arithmetic::divide_by_pseudo_vanishing_polynomial({ &R[0] }, small_domain, large_domain, 3);
     R.coset_ifft(large_domain);

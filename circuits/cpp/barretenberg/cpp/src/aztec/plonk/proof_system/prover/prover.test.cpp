@@ -4,7 +4,7 @@
 
 #include "prover.hpp"
 #include <gtest/gtest.h>
-#include <plonk/reference_string/file_reference_string.hpp>
+#include <srs/reference_string/file_reference_string.hpp>
 #include <polynomials/polynomial_arithmetic.hpp>
 #include <plonk/proof_system/commitment_scheme/kate_commitment_scheme.hpp>
 

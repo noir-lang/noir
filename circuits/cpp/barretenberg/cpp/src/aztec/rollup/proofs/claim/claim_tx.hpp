@@ -6,13 +6,13 @@
 #include "../notes/native/defi_interaction/note.hpp"
 #include "../notes/native/defi_interaction/compute_nullifier.hpp"
 #include <stdlib/merkle_tree/hash_path.hpp>
-#include <stdlib/types/turbo.hpp>
+#include <stdlib/types/types.hpp>
 
 namespace rollup {
 namespace proofs {
 namespace claim {
 
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 
 struct claim_tx {
     fr data_root;

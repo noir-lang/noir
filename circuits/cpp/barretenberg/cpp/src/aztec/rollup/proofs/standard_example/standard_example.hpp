@@ -1,20 +1,21 @@
 #pragma once
-#include <plonk/reference_string/mem_reference_string.hpp>
-#include <stdlib/types/standard.hpp>
+#include <srs/reference_string/mem_reference_string.hpp>
+#include <plonk/composer/standard_composer.hpp>
 
 namespace rollup {
 namespace proofs {
 namespace standard_example {
 
-using namespace plonk::stdlib::types::standard;
+using Composer = waffle::StandardComposer;
+using Prover = waffle::Prover;
 
 void init_proving_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory);
 
 void init_verification_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory);
 
-void build_circuit(plonk::stdlib::types::standard::Composer& composer);
+void build_circuit(Composer& composer);
 
-plonk::stdlib::types::standard::Prover new_prover();
+Prover new_prover();
 
 bool verify_proof(waffle::plonk_proof const& proof);
 

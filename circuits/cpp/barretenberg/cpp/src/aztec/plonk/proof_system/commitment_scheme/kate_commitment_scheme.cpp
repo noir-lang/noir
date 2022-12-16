@@ -11,14 +11,17 @@ KateCommitmentScheme<settings>::KateCommitmentScheme()
 {}
 
 template <typename settings>
-void KateCommitmentScheme<settings>::commit(fr* coefficients, std::string tag, fr item_constant, work_queue& queue)
+void KateCommitmentScheme<settings>::commit(fr* coefficients,
+                                            std::string commitment_tag,
+                                            fr item_constant,
+                                            work_queue& queue)
 {
     queue.add_to_queue({
-        work_queue::WorkType::SCALAR_MULTIPLICATION,
-        coefficients,
-        tag,
-        item_constant,
-        0,
+        .work_type = work_queue::WorkType::SCALAR_MULTIPLICATION,
+        .mul_scalars = coefficients,
+        .tag = commitment_tag,
+        .constant = item_constant,
+        .index = 0,
     });
 }
 
@@ -262,6 +265,7 @@ void KateCommitmentScheme<settings>::batch_verify(const transcript::StandardTran
     // Note that we do not actually compute the scalar multiplications but just accumulate the scalars
     // and the group elements in different vectors.
     //
+
     fr batch_eval(0);
     const auto& polynomial_manifest = input_key->polynomial_manifest;
     for (size_t i = 0; i < input_key->polynomial_manifest.size(); ++i) {
@@ -425,9 +429,9 @@ void KateCommitmentScheme<settings>::add_opening_evaluations_to_transcript(trans
 
 template class KateCommitmentScheme<unrolled_standard_settings>;
 template class KateCommitmentScheme<unrolled_turbo_settings>;
-template class KateCommitmentScheme<unrolled_plookup_settings>;
+template class KateCommitmentScheme<unrolled_ultra_settings>;
+template class KateCommitmentScheme<unrolled_ultra_to_standard_settings>;
 template class KateCommitmentScheme<standard_settings>;
 template class KateCommitmentScheme<turbo_settings>;
-template class KateCommitmentScheme<plookup_settings>;
-
+template class KateCommitmentScheme<ultra_settings>;
 } // namespace waffle

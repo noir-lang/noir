@@ -1,5 +1,5 @@
 #pragma once
-#include <stdlib/types/turbo.hpp>
+#include <stdlib/types/types.hpp>
 #include "../../constants.hpp"
 
 namespace rollup {
@@ -8,7 +8,7 @@ namespace notes {
 namespace circuit {
 namespace defi_interaction {
 
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 
 /**
  * nonce - randomness provided by the user (sdk) to ensure uniqueness.

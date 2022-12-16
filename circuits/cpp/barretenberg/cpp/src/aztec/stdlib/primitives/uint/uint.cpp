@@ -12,15 +12,16 @@ namespace stdlib {
 template <typename Composer, typename Native>
 std::vector<uint32_t> uint<Composer, Native>::constrain_accumulators(Composer* context,
                                                                      const uint32_t witness_index,
-                                                                     const size_t num_bits) const
+                                                                     const size_t num_bits,
+                                                                     std::string const& msg) const
 {
     if constexpr (Composer::type == waffle::PLOOKUP) {
         // TODO: manage higher bit ranges
-        const auto sequence = plonk::stdlib::plookup::read_sequence_from_table(
-            waffle::PlookupMultiTableId::UINT32_XOR,
-            field_t<Composer>::from_witness_index(context, witness_index),
-            field_t<Composer>::from_witness_index(context, context->zero_idx),
-            true);
+        const auto sequence =
+            plookup_read::get_lookup_accumulators(plookup::MultiTableId::UINT32_XOR,
+                                                  field_t<Composer>::from_witness_index(context, witness_index),
+                                                  field_t<Composer>::from_witness_index(context, context->zero_idx),
+                                                  true);
 
         std::vector<uint32_t> out(num_accumulators());
         for (size_t i = 0; i < num_accumulators(); ++i) {
@@ -28,7 +29,7 @@ std::vector<uint32_t> uint<Composer, Native>::constrain_accumulators(Composer* c
         }
         return out;
     }
-    return context->decompose_into_base4_accumulators(witness_index, num_bits);
+    return context->decompose_into_base4_accumulators(witness_index, num_bits, msg);
 }
 
 template <typename Composer, typename Native>
@@ -36,7 +37,8 @@ uint<Composer, Native>::uint(const witness_t<Composer>& witness)
     : context(witness.context)
     , additive_constant(0)
     , witness_status(WitnessStatus::OK)
-    , accumulators(constrain_accumulators(context, witness.witness_index))
+    , accumulators(constrain_accumulators(
+          context, witness.witness_index, width, "uint: range constraint fails in constructor of uint from witness"))
     , witness_index(accumulators[num_accumulators() - 1])
 {}
 
@@ -52,7 +54,8 @@ uint<Composer, Native>::uint(const field_t<Composer>& value)
         additive_constant = value.additive_constant;
     } else {
         field_t<Composer> norm = value.normalize();
-        accumulators = constrain_accumulators(context, norm.witness_index);
+        accumulators = constrain_accumulators(
+            context, norm.witness_index, width, "uint: range constraint fails in constructor of uint from field_t");
         witness_index = accumulators[num_accumulators() - 1];
     }
 }
@@ -240,7 +243,8 @@ template <typename Composer, typename Native> uint<Composer, Native> uint<Compos
     }
 
     if (witness_status == WitnessStatus::WEAK_NORMALIZED) {
-        accumulators = constrain_accumulators(context, witness_index);
+        accumulators = constrain_accumulators(
+            context, witness_index, width, "uint: range constraint fails in uint normalization from weak normlized");
         witness_index = accumulators[num_accumulators() - 1];
         witness_status = WitnessStatus::OK;
     }
@@ -255,7 +259,8 @@ template <typename Composer, typename Native> uint<Composer, Native> uint<Compos
          * of w, storing this in accumulators (just partial sums), and checking that a partial sum of a
          * fixed length actually does reproduce the witness value.
          */
-        accumulators = constrain_accumulators(context, witness_index);
+        accumulators = constrain_accumulators(
+            context, witness_index, width, "uint: range constraint fails in uint normalization from unnormlized");
         // This will only change the value of the uint if the range constraint fails.
         witness_index = accumulators[num_accumulators() - 1];
         witness_status = WitnessStatus::OK;
@@ -311,6 +316,29 @@ template <typename Composer, typename Native> bool_t<Composer> uint<Composer, Na
     uint256_t quad =
         uint256_t(context->get_variable(right_idx)) - uint256_t(context->get_variable(left_idx)) * uint256_t(4);
 
+    if constexpr (Composer::type == waffle::ComposerType::PLOOKUP) {
+        uint256_t lo_bit = quad & 1;
+        uint256_t hi_bit = (quad & 2) >> 1;
+        // difference in quads = 0, 1, 2, 3 = delta
+        // (delta - lo_bit) / 2 \in [0, 1]
+        // lo_bit \in [0, 1]
+        waffle::add_quad gate{
+            context->add_variable(lo_bit), context->add_variable(hi_bit), right_idx, left_idx, 1, 2, -1, 4, 0,
+        };
+        context->create_new_range_constraint(gate.a, 1);
+        context->create_new_range_constraint(gate.b, 1);
+        bool_t<Composer> result;
+
+        if ((bit_index & 1UL) == 0UL) {
+            result.witness_index = gate.a;
+            result.witness_bool = (lo_bit == 1) ? true : false;
+        } else {
+            result.witness_index = gate.b;
+            result.witness_bool = (hi_bit == 1) ? true : false;
+        }
+        return result;
+    }
+    // if 'index' is odd, we want a low bit
     /**
      * Write Δ = accumulators[pivot] - 4 . accumulators[pivot - 1]. We would like to construct
      * the bit representation of Δ by imposing the constraint that Δ = lo_bit + 2 . hi_bit
@@ -370,10 +398,10 @@ template <typename Composer, typename Native> bool_t<Composer> uint<Composer, Na
     return result;
 }
 
-INSTANTIATE_STDLIB_TYPE_VA(uint, uint8_t);
-INSTANTIATE_STDLIB_TYPE_VA(uint, uint16_t);
-INSTANTIATE_STDLIB_TYPE_VA(uint, uint32_t);
-INSTANTIATE_STDLIB_TYPE_VA(uint, uint64_t);
+INSTANTIATE_STDLIB_BASIC_TYPE_VA(uint, uint8_t);
+INSTANTIATE_STDLIB_BASIC_TYPE_VA(uint, uint16_t);
+INSTANTIATE_STDLIB_BASIC_TYPE_VA(uint, uint32_t);
+INSTANTIATE_STDLIB_BASIC_TYPE_VA(uint, uint64_t);
 
 } // namespace stdlib
 } // namespace plonk

@@ -11,8 +11,15 @@ namespace rollup {
 namespace proofs {
 namespace join_split {
 
+#ifdef CI
+constexpr bool CIRCUIT_CHANGE_EXPECTED = false;
+#else
+// During development, if the circuit vk hash/gate count is expected to change, set the following to true.
+constexpr bool CIRCUIT_CHANGE_EXPECTED = false;
+#endif
+
 using namespace barretenberg;
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 using namespace plonk::stdlib::merkle_tree;
 using namespace rollup::proofs::notes::native;
 using key_pair = rollup::fixtures::grumpkin_key_pair;
@@ -273,10 +280,10 @@ class join_split_tests : public ::testing::Test {
     {
         Composer composer(get_proving_key(), nullptr);
         join_split_circuit(composer, tx);
-        if (composer.failed) {
-            std::cout << "Logic failed: " << composer.err << std::endl;
+        if (composer.failed()) {
+            std::cout << "Logic failed: " << composer.err() << std::endl;
         }
-        return { !composer.failed, composer.err, composer.get_public_inputs(), composer.get_num_gates() };
+        return { !composer.failed(), composer.err(), composer.get_public_inputs(), composer.get_num_gates() };
     }
 
     verify_result sign_and_verify_logic(join_split_tx& tx, key_pair const& signing_key)
@@ -688,28 +695,26 @@ TEST_F(join_split_tests, test_0_input_notes_and_detect_circuit_change)
     auto result = sign_and_verify_logic(tx, user.owner);
 
     EXPECT_TRUE(result.valid);
+
     // The below part detects any changes in the join-split circuit
+    constexpr uint32_t CIRCUIT_GATE_COUNT = 64000;
+    constexpr uint32_t GATES_NEXT_POWER_OF_TWO = 65536;
+    const uint256_t VK_HASH("bb2062d006d31d3234766277711eb28577d5f6082d0f484b87e8235628f8e864");
+
     auto number_of_gates_js = result.number_of_gates;
     auto vk_hash_js = get_verification_key()->sha256_hash();
-    // If the below assertions fail, consider changing the variable is_circuit_change_expected to 1 in
-    // rollup/constants.hpp and see if atleast the next power of two limit is not exceeded. Please change the constant
-    // values accordingly and set is_circuit_change_expected to 0 in rollup/constants.hpp before merging.
-    if (!(circuit_gate_count::is_circuit_change_expected)) {
-        EXPECT_EQ(number_of_gates_js, circuit_gate_count::JOIN_SPLIT)
-            << "The gate count for the join_split circuit is changed.";
-        EXPECT_EQ(from_buffer<uint256_t>(vk_hash_js), circuit_vk_hash::JOIN_SPLIT)
+
+    if (!CIRCUIT_CHANGE_EXPECTED) {
+        EXPECT_EQ(number_of_gates_js, CIRCUIT_GATE_COUNT) << "The gate count for the join_split circuit is changed.";
+        EXPECT_EQ(from_buffer<uint256_t>(vk_hash_js), VK_HASH)
             << "The verification key hash for the join_split circuit is changed: "
             << from_buffer<uint256_t>(vk_hash_js);
-        // For the next power of two limit, we need to consider that we reserve four gates for adding
-        // randomness/zero-knowledge
-        EXPECT_LE(number_of_gates_js,
-                  circuit_gate_next_power_of_two::JOIN_SPLIT - waffle::ComposerBase::NUM_RESERVED_GATES)
-            << "You have exceeded the next power of two limit for the join_split circuit.";
-    } else {
-        EXPECT_LE(number_of_gates_js,
-                  circuit_gate_next_power_of_two::JOIN_SPLIT - waffle::ComposerBase::NUM_RESERVED_GATES)
-            << "You have exceeded the next power of two limit for the join_split circuit.";
     }
+
+    // For the next power of two limit, we need to consider that we reserve four gates for adding
+    // randomness/zero-knowledge
+    EXPECT_LE(number_of_gates_js, GATES_NEXT_POWER_OF_TWO - waffle::ComposerBase::NUM_RESERVED_GATES)
+        << "You have exceeded the next power of two limit for the join_split circuit.";
 }
 
 // Bespoke test seeking bug.
@@ -1025,7 +1030,7 @@ TEST_F(join_split_tests, test_total_output_value_larger_than_total_input_value_f
 TEST_F(join_split_tests, test_different_input_note_owners_fails)
 {
     join_split_tx tx = simple_setup({ 1, 2 });
-    tx.input_note[0].owner = grumpkin::g1::affine_element::hash_to_curve(1).second;
+    tx.input_note[0].owner = grumpkin::g1::affine_element::hash_to_curve(1);
 
     auto result = sign_and_verify_logic(tx, user.owner);
     EXPECT_FALSE(result.valid);
@@ -2507,7 +2512,7 @@ TEST_F(join_split_tests, serialzed_proving_key_size)
 {
     uint8_t* ptr;
     auto len = join_split__get_new_proving_key_data(&ptr);
-    EXPECT_LE(len, 170 * 1024 * 1024);
+    EXPECT_LE(len, 2 * 170 * 1024 * 1024);
 }
 
 } // namespace join_split

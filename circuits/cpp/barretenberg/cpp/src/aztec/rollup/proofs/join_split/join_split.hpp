@@ -1,14 +1,14 @@
 #pragma once
 #include "join_split_tx.hpp"
-#include <plonk/reference_string/mem_reference_string.hpp>
-#include <stdlib/types/turbo.hpp>
+#include <srs/reference_string/mem_reference_string.hpp>
+#include <stdlib/types/types.hpp>
 
 namespace rollup {
 namespace proofs {
 namespace join_split {
 
 using namespace plonk::stdlib::merkle_tree;
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 
 void init_proving_key(std::shared_ptr<waffle::ReferenceStringFactory> const& crs_factory, bool mock);
 

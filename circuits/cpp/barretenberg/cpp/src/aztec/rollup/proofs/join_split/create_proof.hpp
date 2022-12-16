@@ -16,8 +16,8 @@ inline std::vector<uint8_t> create_proof(join_split_tx const& tx,
     composer.rand_engine = rand_engine;
     join_split_circuit(composer, tx);
 
-    if (composer.failed) {
-        info("Join-split circuit logic failed: ", composer.err);
+    if (composer.failed()) {
+        info("Join-split circuit logic failed: ", composer.err());
     }
 
     auto prover = composer.create_unrolled_prover();

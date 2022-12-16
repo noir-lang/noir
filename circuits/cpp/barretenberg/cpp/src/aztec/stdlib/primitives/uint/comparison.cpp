@@ -55,7 +55,9 @@ bool_t<Composer> uint<Composer, Native>::operator>(const uint& other) const
     // diff.result - result + diff.result - diff = diff.(2.result - 1) - result
     const auto comparison_check =
         diff.madd(field_t<Composer>(result) * 2 - field_t<Composer>(1), -field_t<Composer>(result));
-    comparison_check.create_range_constraint(width);
+
+    ctx->decompose_into_base4_accumulators(
+        comparison_check.witness_index, width, "comparison: uint comparison range constraint fails.");
 
     return result;
 }
@@ -99,12 +101,6 @@ template <typename Composer, typename Native> bool_t<Composer> uint<Composer, Na
     // return true if this is zero, otherwise return false.
     return (field_t<Composer>(*this).is_zero()).normalize();
 }
-
-template class uint<waffle::PlookupComposer, uint8_t>;
-template class uint<waffle::PlookupComposer, uint16_t>;
-template class uint<waffle::PlookupComposer, uint32_t>;
-template class uint<waffle::PlookupComposer, uint64_t>;
-
 template class uint<waffle::TurboComposer, uint8_t>;
 template class uint<waffle::TurboComposer, uint16_t>;
 template class uint<waffle::TurboComposer, uint32_t>;

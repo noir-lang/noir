@@ -328,6 +328,16 @@ void polynomial::fft(const evaluation_domain& domain)
     size = domain.size;
 }
 
+void polynomial::partial_fft(const evaluation_domain& domain, fr constant, bool is_coset)
+{
+    if (domain.size > max_size) {
+        bump_memory(domain.size);
+    }
+
+    polynomial_arithmetic::partial_fft(coefficients, domain, constant, is_coset);
+    size = domain.size;
+}
+
 void polynomial::coset_fft(const evaluation_domain& domain)
 {
     ASSERT(!empty());
@@ -431,6 +441,13 @@ fr polynomial::compute_kate_opening_coefficients(const barretenberg::fr& z)
 fr polynomial::compute_barycentric_evaluation(const barretenberg::fr& z, const evaluation_domain& domain)
 {
     return polynomial_arithmetic::compute_barycentric_evaluation(coefficients, domain.size, z, domain);
+}
+
+fr polynomial::evaluate_from_fft(const evaluation_domain& large_domain,
+                                 const fr& z,
+                                 const evaluation_domain& small_domain)
+{
+    return polynomial_arithmetic::evaluate_from_fft(coefficients, large_domain, z, small_domain);
 }
 
 } // namespace barretenberg

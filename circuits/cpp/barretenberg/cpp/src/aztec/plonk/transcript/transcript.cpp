@@ -3,9 +3,10 @@
 #include <common/throw_or_abort.hpp>
 #include <common/assert.hpp>
 #include <common/net.hpp>
-#include <crypto/blake2s/blake2s.hpp>
+#include <crypto/blake3s/blake3s.hpp>
 #include <crypto/keccak/keccak.hpp>
 #include <crypto/pedersen/pedersen.hpp>
+#include <crypto/pedersen/pedersen_lookup.hpp>
 #include <iomanip>
 #include <iostream>
 #include <vector>
@@ -31,9 +32,9 @@ std::array<uint8_t, Keccak256Hasher::PRNG_OUTPUT_SIZE> Keccak256Hasher::hash(std
     return result;
 }
 
-std::array<uint8_t, Blake2sHasher::PRNG_OUTPUT_SIZE> Blake2sHasher::hash(std::vector<uint8_t> const& buffer)
+std::array<uint8_t, Blake3sHasher::PRNG_OUTPUT_SIZE> Blake3sHasher::hash(std::vector<uint8_t> const& buffer)
 {
-    std::vector<uint8_t> hash_result = blake2::blake2s(buffer);
+    std::vector<uint8_t> hash_result = blake3::blake3s(buffer);
     std::array<uint8_t, PRNG_OUTPUT_SIZE> result;
     for (size_t i = 0; i < PRNG_OUTPUT_SIZE; ++i) {
         result[i] = hash_result[i];
@@ -116,14 +117,20 @@ void Transcript::add_element(const std::string& element_name, const std::vector<
  * */
 void Transcript::apply_fiat_shamir(const std::string& challenge_name /*, const bool debug*/)
 {
+    // For reference, see the relevant manifest, which is defined in
+    // plonk/composer/[standard/turbo/ultra]_composer.hpp
     ASSERT(current_round <= manifest.get_num_rounds());
     ASSERT(challenge_name == manifest.get_round_manifest(current_round).challenge);
+
     const size_t num_challenges = manifest.get_round_manifest(current_round).num_challenges;
     if (num_challenges == 0) {
         ++current_round;
         return;
     }
 
+    // Combine the very last challenge from the previous fiat-shamir round (which is, inductively, a hash containing the
+    // manifest data of all previous rounds), plus the manifest data for this round, into a buffer. This buffer will
+    // ultimately be hashed, to form this round's fiat-shamir challenge(s).
     std::vector<uint8_t> buffer;
     if (current_round > 0) {
         buffer.insert(buffer.end(), current_challenge.data.begin(), current_challenge.data.end());
@@ -145,9 +152,14 @@ void Transcript::apply_fiat_shamir(const std::string& challenge_name /*, const b
         base_hash = Keccak256Hasher::hash(buffer);
         break;
     }
-    case HashType::PedersenBlake2s: {
+    case HashType::PedersenBlake3s: {
         std::vector<uint8_t> compressed_buffer = to_buffer(crypto::pedersen::compress_native(buffer));
-        base_hash = Blake2sHasher::hash(compressed_buffer);
+        base_hash = Blake3sHasher::hash(compressed_buffer);
+        break;
+    }
+    case HashType::PlookupPedersenBlake3s: {
+        std::vector<uint8_t> compressed_buffer = crypto::pedersen::lookup::compress_native(buffer);
+        base_hash = Blake3sHasher::hash(compressed_buffer);
         break;
     }
     default: {
@@ -155,14 +167,20 @@ void Transcript::apply_fiat_shamir(const std::string& challenge_name /*, const b
     }
     }
 
+    // Depending on the settings, we might be able to chunk the bytes of a single hash across multiple challenges:
     const size_t challenges_per_hash = PRNG_OUTPUT_SIZE / num_challenge_bytes;
 
     for (size_t j = 0; j < challenges_per_hash; ++j) {
         if (j < num_challenges) {
+            // Each challenge still occupies PRNG_OUTPUT_SIZE number of bytes, but only num_challenge_bytes rhs bytes
+            // are nonzero.
             std::array<uint8_t, PRNG_OUTPUT_SIZE> challenge{};
             std::copy(base_hash.begin() + (j * num_challenge_bytes),
                       base_hash.begin() + (j + 1) * num_challenge_bytes,
-                      challenge.begin() + (PRNG_OUTPUT_SIZE - num_challenge_bytes)); // HMM?
+                      challenge.begin() +
+                          (PRNG_OUTPUT_SIZE -
+                           num_challenge_bytes)); // Left-pad the challenge with zeros, and then copy the next
+                                                  // num_challange_bytes slice of the hash to the rhs of the challenge.
             round_challenges.push_back({ challenge });
         }
     }
@@ -170,11 +188,15 @@ void Transcript::apply_fiat_shamir(const std::string& challenge_name /*, const b
     std::vector<uint8_t> rolling_buffer(base_hash.begin(), base_hash.end());
     rolling_buffer.push_back(0);
 
+    // Compute how many hashes we need so that we have enough distinct chunks of 'random' bytes to distribute
+    // across the num_challenges.
     size_t num_hashes = (num_challenges / challenges_per_hash);
     if (num_hashes * challenges_per_hash != num_challenges) {
         ++num_hashes;
     }
+
     for (size_t i = 1; i < num_hashes; ++i) {
+        // Compute hash_output = hash(base_hash, i);
         rolling_buffer[rolling_buffer.size() - 1] = static_cast<uint8_t>(i);
         std::array<uint8_t, PRNG_OUTPUT_SIZE> hash_output{};
         switch (hasher) {
@@ -182,8 +204,12 @@ void Transcript::apply_fiat_shamir(const std::string& challenge_name /*, const b
             hash_output = Keccak256Hasher::hash(rolling_buffer);
             break;
         }
-        case HashType::PedersenBlake2s: {
-            hash_output = Blake2sHasher::hash(rolling_buffer);
+        case HashType::PedersenBlake3s: {
+            hash_output = Blake3sHasher::hash(rolling_buffer);
+            break;
+        }
+        case HashType::PlookupPedersenBlake3s: {
+            hash_output = Blake3sHasher::hash(rolling_buffer);
             break;
         }
         default: {
@@ -191,6 +217,7 @@ void Transcript::apply_fiat_shamir(const std::string& challenge_name /*, const b
         }
         }
         for (size_t j = 0; j < challenges_per_hash; ++j) {
+            // Only produce as many challenges as we need.
             if (challenges_per_hash * i + j < num_challenges) {
                 std::array<uint8_t, PRNG_OUTPUT_SIZE> challenge{};
                 std::copy(hash_output.begin() + (j * num_challenge_bytes),
@@ -201,6 +228,8 @@ void Transcript::apply_fiat_shamir(const std::string& challenge_name /*, const b
         }
     }
 
+    // Remember the very last challenge, as it will be included in the buffer of the next fiat-shamir round (since this
+    // challenge is effectively a hash of _all_ previous rounds' manifest data).
     current_challenge = round_challenges[round_challenges.size() - 1];
 
     challenges.insert({ challenge_name, round_challenges });

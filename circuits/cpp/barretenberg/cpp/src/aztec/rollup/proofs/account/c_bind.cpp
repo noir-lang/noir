@@ -6,12 +6,12 @@
 #include <common/container.hpp>
 #include <cstdint>
 #include <ecc/curves/grumpkin/grumpkin.hpp>
-#include <plonk/reference_string/pippenger_reference_string.hpp>
+#include <srs/reference_string/pippenger_reference_string.hpp>
 #include <plonk/proof_system/proving_key/serialize.hpp>
 #include <sstream>
 
 using namespace barretenberg;
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 using namespace rollup::proofs::account;
 
 #define WASM_EXPORT __attribute__((visibility("default")))

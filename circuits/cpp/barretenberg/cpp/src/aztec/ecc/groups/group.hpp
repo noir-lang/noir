@@ -32,7 +32,8 @@ template <typename _coordinate_field, typename _subgroup_field, typename GroupPa
     using subgroup_field = _subgroup_field;
     typedef group_elements::element<coordinate_field, subgroup_field, GroupParams> element;
     typedef group_elements::affine_element<coordinate_field, subgroup_field, GroupParams> affine_element;
-
+    typedef coordinate_field Fq;
+    typedef subgroup_field Fr;
     static constexpr bool USE_ENDOMORPHISM = GroupParams::USE_ENDOMORPHISM;
     static constexpr bool has_a = GroupParams::has_a;
 
@@ -51,8 +52,8 @@ template <typename _coordinate_field, typename _subgroup_field, typename GroupPa
         size_t seed = 0;
         while (count < N) {
             ++seed;
-            auto [on_curve, candidate] = affine_element::hash_to_curve(seed);
-            if (on_curve && !candidate.is_point_at_infinity()) {
+            auto candidate = affine_element::hash_to_curve(seed);
+            if (candidate.on_curve() && !candidate.is_point_at_infinity()) {
                 generators[count] = candidate;
                 ++count;
             }

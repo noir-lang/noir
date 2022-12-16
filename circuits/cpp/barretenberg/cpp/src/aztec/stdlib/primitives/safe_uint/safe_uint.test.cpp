@@ -4,34 +4,37 @@
 #include <numeric/random/engine.hpp>
 #include "../byte_array/byte_array.hpp"
 #include <plonk/composer/standard_composer.hpp>
-#include <plonk/composer/plookup_composer.hpp>
+#include <plonk/composer/ultra_composer.hpp>
 #include <plonk/composer/turbo_composer.hpp>
+#include <stdlib/types/types.hpp>
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
 
+using namespace plonk::stdlib::types;
+
 namespace test_stdlib_safe_uint {
 template <class T> void ignore_unused(T&) {} // use to ignore unused variables in lambdas
 
-typedef plonk::stdlib::bool_t<waffle::TurboComposer> bool_t;
-typedef plonk::stdlib::field_t<waffle::TurboComposer> field_t;
-typedef plonk::stdlib::safe_uint_t<waffle::TurboComposer> suint_t;
-typedef plonk::stdlib::witness_t<waffle::TurboComposer> witness_t;
-typedef plonk::stdlib::public_witness_t<waffle::TurboComposer> public_witness_t;
-typedef plonk::stdlib::byte_array<waffle::TurboComposer> byte_array_t;
+typedef plonk::stdlib::bool_t<Composer> bool_t;
+typedef plonk::stdlib::field_t<Composer> field_t;
+typedef plonk::stdlib::safe_uint_t<Composer> suint_t;
+typedef plonk::stdlib::witness_t<Composer> witness_t;
+typedef plonk::stdlib::public_witness_t<Composer> public_witness_t;
+typedef plonk::stdlib::byte_array<Composer> byte_array_t;
 
 struct verify_logic_result {
     bool valid;
     std::string err;
 };
 
-verify_logic_result verify_logic(waffle::TurboComposer& composer)
+verify_logic_result verify_logic(Composer& composer)
 {
-    if (composer.failed) {
-        info("Circuit logic failed: " + composer.err);
+    if (composer.failed()) {
+        info("Circuit logic failed: " + composer.err());
     }
-    return { !composer.failed, composer.err };
+    return { !composer.failed(), composer.err() };
 }
 
 // CONSTRUCTOR
@@ -40,7 +43,7 @@ TEST(stdlib_safeuint, test_constructor_with_value_out_of_range_fails)
 {
     // check incorrect range init causes failure
 
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
     field_t a(witness_t(&composer, 100));
     suint_t b(a, 2, "b");
 
@@ -51,12 +54,12 @@ TEST(stdlib_safeuint, test_constructor_with_value_out_of_range_fails)
 
 TEST(stdlib_safeuint, test_constructor_with_value_in_range)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
     field_t a(witness_t(&composer, 100));
     suint_t b(a, 7);
 
-    waffle::TurboProver prover = composer.create_prover();
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    Prover prover = composer.create_prover();
+    Verifier verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
     EXPECT_TRUE(verifier.verify_proof(proof));
 }
@@ -69,7 +72,7 @@ TEST(stdlib_safeuint, test_multiply_operation_out_of_range_fails)
     // should allow largest power of 3 smaller than r iterations, which is 159. Hence below we should exceed r, and
     // expect a throw
     try {
-        waffle::TurboComposer composer = waffle::TurboComposer();
+        Composer composer = Composer();
         field_t a(witness_t(&composer, 2));
         suint_t c(a, 2);
         suint_t d(a, 2);
@@ -88,7 +91,7 @@ TEST(stdlib_safeuint, test_multiply_operation_on_constants_out_of_range_fails)
 {
     //  Now we check that when using constants the maximum grows more slowly - since they are bounded by themselves
     //  rather than the next 2^n-1
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
     field_t a(witness_t(&composer, 2));
     suint_t c(a, 2);
     suint_t d(fr(2));
@@ -99,7 +102,7 @@ TEST(stdlib_safeuint, test_multiply_operation_on_constants_out_of_range_fails)
     // Below we should exceed r, and expect a throw
 
     try {
-        waffle::TurboComposer composer = waffle::TurboComposer();
+        Composer composer = Composer();
         field_t a(witness_t(&composer, 2));
         suint_t c(a, 2);
         suint_t d(fr(2));
@@ -120,7 +123,7 @@ TEST(stdlib_safeuint, test_add_operation_out_of_range_fails)
 {
     // Here we test the addition operator also causes a throw when exceeding r
     try {
-        waffle::TurboComposer composer = waffle::TurboComposer();
+        Composer composer = Composer();
         field_t a(witness_t(&composer, 2));
         suint_t c(a, 2);
         suint_t d(a, 2);
@@ -141,15 +144,15 @@ TEST(stdlib_safeuint, test_add_operation_out_of_range_fails)
 TEST(stdlib_safeuint, test_subtract_method)
 {
 
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
     field_t a(witness_t(&composer, 2));
     field_t b(witness_t(&composer, 9));
     suint_t c(a, 2);
     suint_t d(b, 4);
     c = d.subtract(c, 3);
 
-    waffle::TurboProver prover = composer.create_prover();
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    Prover prover = composer.create_prover();
+    Verifier verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
     EXPECT_TRUE(verifier.verify_proof(proof));
 }
@@ -157,7 +160,7 @@ TEST(stdlib_safeuint, test_subtract_method)
 TEST(stdlib_safeuint, test_subtract_method_minued_gt_lhs_fails)
 {
     // test failure when range for difference too small
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
     field_t a(witness_t(&composer, 2));
     field_t b(witness_t(&composer, 9));
     suint_t c(a, 2, "c");
@@ -172,7 +175,7 @@ TEST(stdlib_safeuint, test_subtract_method_minued_gt_lhs_fails)
 TEST(stdlib_safeuint, test_subtract_method_underflow_fails)
 {
 
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
     field_t a(witness_t(&composer, 2));
     field_t b(witness_t(&composer, field_t::modulus / 2));
     suint_t c(a, 2);
@@ -191,15 +194,15 @@ TEST(stdlib_safeuint, test_subtract_method_underflow_fails)
 
 TEST(stdlib_safeuint, test_minus_operator)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
     field_t a(witness_t(&composer, 2));
     field_t b(witness_t(&composer, 9));
     suint_t c(a, 2);
     suint_t d(b, 4);
     c = d - c;
 
-    waffle::TurboProver prover = composer.create_prover();
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    Prover prover = composer.create_prover();
+    Verifier verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
     EXPECT_TRUE(verifier.verify_proof(proof));
 }
@@ -207,7 +210,7 @@ TEST(stdlib_safeuint, test_minus_operator)
 TEST(stdlib_safeuint, test_minus_operator_underflow_fails)
 {
 
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
     field_t a(witness_t(&composer, 2));
     field_t b(witness_t(&composer, field_t::modulus / 2));
     suint_t c(a, 2);
@@ -226,7 +229,7 @@ TEST(stdlib_safeuint, test_minus_operator_underflow_fails)
 TEST(stdlib_safeuint, test_divide_method)
 {
 
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
 
     field_t a1(witness_t(&composer, 2));
     field_t b1(witness_t(&composer, 9));
@@ -240,19 +243,19 @@ TEST(stdlib_safeuint, test_divide_method)
     suint_t d2(b2, 32);
     c2 = d2.divide(c2, 32, 8);
 
-    waffle::TurboProver prover = composer.create_prover();
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    Prover prover = composer.create_prover();
+    Verifier verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
     EXPECT_TRUE(verifier.verify_proof(proof));
 }
 
 TEST(stdlib_safeuint, test_divide_method_quotient_range_too_small_fails)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
     field_t a(witness_t(&composer, 2));
     field_t b(witness_t(&composer, 32));
     suint_t c(a, 2);
-    suint_t d(b, 5);
+    suint_t d(b, 6);
     d = d.divide(c, 4, 1, "d/c");
 
     auto result = verify_logic(composer);
@@ -263,7 +266,7 @@ TEST(stdlib_safeuint, test_divide_method_quotient_range_too_small_fails)
 TEST(stdlib_safeuint, test_divide_remainder_too_large)
 {
     // test failure when range for remainder too small
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
     field_t a(witness_t(&composer, 5));
     suint_t c(a, 3);
     suint_t d((fr::modulus - 1) / 3);
@@ -274,12 +277,12 @@ TEST(stdlib_safeuint, test_divide_remainder_too_large)
 TEST(stdlib_safeuint, test_divide_method_quotient_remainder_incorrect_fails)
 {
     // test failure when quotient and remainder values are wrong
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
     field_t a(witness_t(&composer, 5));
     field_t b(witness_t(&composer, 19));
     suint_t c(a, 3);
     suint_t d(b, 5);
-    d = d.divide(c, 3, 1, "d/c", [](uint256_t, uint256_t) { return std::make_pair(2, 3); });
+    d = d.divide(c, 3, 2, "d/c", [](uint256_t, uint256_t) { return std::make_pair(2, 3); });
 
     auto result = verify_logic(composer);
     EXPECT_FALSE(result.valid);
@@ -289,7 +292,7 @@ TEST(stdlib_safeuint, test_divide_method_quotient_remainder_incorrect_fails)
 TEST(stdlib_safeuint, test_divide_method_quotient_remainder_mod_r_fails)
 {
     // test failure when quotient and remainder are only correct mod r
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
     field_t a(witness_t(&composer, 5));
     field_t b(witness_t(&composer, 19));
     suint_t c(a, 3);
@@ -305,15 +308,15 @@ TEST(stdlib_safeuint, test_divide_method_quotient_remainder_mod_r_fails)
 
 TEST(stdlib_safeuint, test_div_operator)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
 
     suint_t a(witness_t(&composer, 1000), 10, "a");
     suint_t b(2, 2, "b");
 
     a = a / b;
 
-    waffle::TurboProver prover = composer.create_prover();
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    Prover prover = composer.create_prover();
+    Verifier verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
     EXPECT_TRUE(verifier.verify_proof(proof));
 }
@@ -324,7 +327,7 @@ TEST(stdlib_safeuint, test_divide_operator)
 {
     // test success cases
     {
-        waffle::TurboComposer composer = waffle::TurboComposer();
+        Composer composer = Composer();
 
         field_t a1(witness_t(&composer, 2));
         field_t b1(witness_t(&composer, 9));
@@ -338,64 +341,64 @@ TEST(stdlib_safeuint, test_divide_operator)
         suint_t d2(b2, 32);
         d2 / c2;
 
-        waffle::TurboProver prover = composer.create_prover();
-        waffle::TurboVerifier verifier = composer.create_verifier();
+        Prover prover = composer.create_prover();
+        Verifier verifier = composer.create_verifier();
         waffle::plonk_proof proof = prover.construct_proof();
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, true);
     }
     // test failure when range for quotient too small
     {
-        waffle::TurboComposer composer = waffle::TurboComposer();
+        Composer composer = Composer();
         field_t a(witness_t(&composer, 2));
         field_t b(witness_t(&composer, 32));
         suint_t c(a, 2);
         suint_t d(b, 5);
         d = d / c;
-        waffle::TurboProver prover = composer.create_prover();
-        waffle::TurboVerifier verifier = composer.create_verifier();
+        Prover prover = composer.create_prover();
+        Verifier verifier = composer.create_verifier();
         waffle::plonk_proof proof = prover.construct_proof();
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, false);
     }
     // test failure when range for remainder too small
     {
-        waffle::TurboComposer composer = waffle::TurboComposer();
+        Composer composer = Composer();
         field_t a(witness_t(&composer, 5));
         field_t b(witness_t(&composer, 19));
         suint_t c(a, 2);
         suint_t d(b, 5);
         d = d / c;
-        waffle::TurboProver prover = composer.create_prover();
-        waffle::TurboVerifier verifier = composer.create_verifier();
+        Prover prover = composer.create_prover();
+        Verifier verifier = composer.create_verifier();
         waffle::plonk_proof proof = prover.construct_proof();
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, false);
     }
     // test failure when quotient and remainder values are wrong
     {
-        waffle::TurboComposer composer = waffle::TurboComposer();
+        Composer composer = Composer();
         field_t a(witness_t(&composer, 5));
         field_t b(witness_t(&composer, 19));
         suint_t c(a, 2);
         suint_t d(b, 5);
         d = d / c;
-        waffle::TurboProver prover = composer.create_prover();
-        waffle::TurboVerifier verifier = composer.create_verifier();
+        Prover prover = composer.create_prover();
+        Verifier verifier = composer.create_verifier();
         waffle::plonk_proof proof = prover.construct_proof();
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, false);
     }
     // test failure when quotient and remainder are only correct mod r
     {
-        waffle::TurboComposer composer = waffle::TurboComposer();
+        Composer composer = Composer();
         field_t a(witness_t(&composer, 5));
         field_t b(witness_t(&composer, 19));
         suint_t c(a, 2);
         suint_t d(b, 5);
         d = d / c;
-        waffle::TurboProver prover = composer.create_prover();
-        waffle::TurboVerifier verifier = composer.create_verifier();
+        Prover prover = composer.create_prover();
+        Verifier verifier = composer.create_verifier();
         waffle::plonk_proof proof = prover.construct_proof();
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, false);
@@ -406,7 +409,7 @@ TEST(stdlib_safeuint, test_divide_operator)
 
 TEST(stdlib_safeuint, test_slice)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
     // 0b11110110101001011
     //         ^      ^
     //        msb    lsb
@@ -420,8 +423,8 @@ TEST(stdlib_safeuint, test_slice)
     EXPECT_EQ(slice_data[1].get_value(), fr(169));
     EXPECT_EQ(slice_data[2].get_value(), fr(61));
 
-    waffle::TurboProver prover = composer.create_prover();
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    Prover prover = composer.create_prover();
+    Verifier verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
@@ -430,7 +433,7 @@ TEST(stdlib_safeuint, test_slice)
 
 TEST(stdlib_safeuint, test_slice_equal_msb_lsb)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
     // 0b11110110101001011
     //             ^
     //         msb = lsb
@@ -444,8 +447,8 @@ TEST(stdlib_safeuint, test_slice_equal_msb_lsb)
     EXPECT_EQ(slice_data[1].get_value(), fr(1));
     EXPECT_EQ(slice_data[2].get_value(), fr(986));
 
-    waffle::TurboProver prover = composer.create_prover();
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    Prover prover = composer.create_prover();
+    Verifier verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
@@ -454,7 +457,7 @@ TEST(stdlib_safeuint, test_slice_equal_msb_lsb)
 
 TEST(stdlib_safeuint, test_slice_random)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
 
     uint8_t lsb = 106;
     uint8_t msb = 189;
@@ -470,8 +473,8 @@ TEST(stdlib_safeuint, test_slice_random)
     EXPECT_EQ(slice[1].get_value(), fr(expected1));
     EXPECT_EQ(slice[2].get_value(), fr(expected2));
 
-    waffle::TurboProver prover = composer.create_prover();
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    Prover prover = composer.create_prover();
+    Verifier verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
@@ -484,7 +487,7 @@ TEST(stdlib_safeuint, test_slice_random)
 
 TEST(stdlib_safeuint, operator_div_remainder_constraint)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
 
     uint256_t val = 5;
 
@@ -527,8 +530,8 @@ TEST(stdlib_safeuint, operator_div_remainder_constraint)
 
     a.assert_equal(int_val);
 
-    waffle::TurboProver prover = composer.create_prover();
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    Prover prover = composer.create_prover();
+    Verifier verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
     bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, false);
@@ -540,7 +543,7 @@ TEST(stdlib_safeuint, operator_div_remainder_constraint)
 
 TEST(stdlib_safeuint, div_remainder_constraint)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
 
     uint256_t val = 5;
 
@@ -555,8 +558,8 @@ TEST(stdlib_safeuint, div_remainder_constraint)
 
     a.divide(b, 32, 32, "", supply_bad_witnesses);
 
-    waffle::TurboProver prover = composer.create_prover();
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    Prover prover = composer.create_prover();
+    Verifier verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
     bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, false);
@@ -564,7 +567,7 @@ TEST(stdlib_safeuint, div_remainder_constraint)
 
 TEST(stdlib_safeuint, test_byte_array_conversion)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
     field_t elt = witness_t(&composer, 0x7f6f5f4f00010203);
     suint_t safe(elt, 63);
     // safe.value is a uint256_t, so we serialize to a 32-byte array

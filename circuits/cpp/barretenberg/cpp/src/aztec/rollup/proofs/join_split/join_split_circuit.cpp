@@ -6,7 +6,6 @@
 #include "../notes/circuit/claim/claim_note.hpp"
 #include "verify_signature.hpp"
 #include <stdlib/merkle_tree/membership.hpp>
-#include <stdlib/primitives/field/pow.hpp>
 
 // #pragma GCC diagnostic ignored "-Wunused-variable"
 // #pragma GCC diagnostic ignored "-Wunused-parameter"

@@ -8,7 +8,7 @@ namespace proofs {
 namespace root_rollup {
 
 using namespace barretenberg;
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 
 struct verify_result : ::rollup::proofs::verify_result<Composer> {
     std::vector<fr> broadcast_data;

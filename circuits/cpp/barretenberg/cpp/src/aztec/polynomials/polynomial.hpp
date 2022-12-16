@@ -100,7 +100,12 @@ class polynomial {
     barretenberg::fr evaluate(const barretenberg::fr& z, const size_t target_size) const;
     barretenberg::fr compute_barycentric_evaluation(const barretenberg::fr& z, const evaluation_domain& domain);
 
+    barretenberg::fr evaluate_from_fft(const evaluation_domain& large_domain,
+                                       const fr& z,
+                                       const evaluation_domain& small_domain);
+
     void fft(const evaluation_domain& domain);
+    void partial_fft(const evaluation_domain& domain, fr constant = 1, bool is_coset = false);
     void coset_fft(const evaluation_domain& domain);
     void coset_fft(const evaluation_domain& domain,
                    const evaluation_domain& large_domain,
@@ -131,18 +136,22 @@ class polynomial {
   private:
     void free();
     void zero_memory(const size_t zero_size);
-    const static size_t DEFAULT_SIZE_HINT = 1 << 12;
-    const static size_t DEFAULT_PAGE_SPILL = 20;
+    const static size_t DEFAULT_SIZE_HINT = 1 << 12; // DOCTODO: justify this number.
+    const static size_t DEFAULT_PAGE_SPILL = 20;     // DOCTODO: explain this, or rename.
     void add_coefficient_internal(const barretenberg::fr& coefficient);
     void bump_memory(const size_t new_size);
 
   public:
     bool mapped;
+    /**
+     * Note: depending on the `representation` of this polynomial, `coefficients` will either contain 'monomial
+     * coefficients', 'lagrange evaluations', or 'coset evaluations'.
+     */
     barretenberg::fr* coefficients;
     Representation representation;
     size_t initial_size;
-    size_t size;
-    size_t page_size;
+    size_t size;      // This is the size() of the `coefficients` vector.
+    size_t page_size; // DOCTODO: what does 'page' mean? Explain this.
     size_t max_size;
     size_t allocated_pages;
 };

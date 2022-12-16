@@ -17,21 +17,21 @@ struct Keccak256Hasher {
     static std::array<uint8_t, PRNG_OUTPUT_SIZE> hash(std::vector<uint8_t> const& buffer);
 };
 
-struct Blake2sHasher {
+struct Blake3sHasher {
     static constexpr size_t SECURITY_PARAMETER_SIZE = 16;
     static constexpr size_t PRNG_OUTPUT_SIZE = 32;
 
     static std::array<uint8_t, PRNG_OUTPUT_SIZE> hash(std::vector<uint8_t> const& input);
 };
 
-enum HashType { Keccak256, PedersenBlake2s };
+enum HashType { Keccak256, PedersenBlake3s, PlookupPedersenBlake3s };
 
 /**
  * Transcript is used by the Prover to store round values
  * and derive challenges. The verifier uses it to parse serialized
  * values and get the data and challenges back.
  *
- * */
+ */
 class Transcript {
     static constexpr size_t PRNG_OUTPUT_SIZE = 32;
     struct challenge {
@@ -48,7 +48,7 @@ class Transcript {
      * @param hash_type The hash to use for Fiat-Shamir.
      * @param challenge_bytes The number of bytes per challenge to generate.
      *
-     * */
+     */
     Transcript(const Manifest input_manifest,
                const HashType hash_type = HashType::Keccak256,
                const size_t challenge_bytes = 32)
@@ -70,7 +70,7 @@ class Transcript {
      * @param hash_type The hash used for Fiat-Shamir
      * @param challenge_bytes The number of bytes per challenge to generate.
      *
-     * */
+     */
     Transcript(const std::vector<uint8_t>& input_transcript,
                const Manifest input_manifest,
                const HashType hash_type = HashType::Keccak256,

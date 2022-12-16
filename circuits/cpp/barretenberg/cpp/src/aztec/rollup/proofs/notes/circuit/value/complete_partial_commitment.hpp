@@ -1,5 +1,5 @@
 #pragma once
-#include <stdlib/types/turbo.hpp>
+#include <stdlib/types/types.hpp>
 #include <stdlib/hash/pedersen/pedersen.hpp>
 #include "../../constants.hpp"
 
@@ -9,7 +9,7 @@ namespace notes {
 namespace circuit {
 namespace value {
 
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 
 inline auto complete_partial_commitment(field_ct const& value_note_partial_commitment,
                                         suint_ct const& value,

@@ -5,11 +5,12 @@ namespace {
 
 constexpr size_t max_num_generators = 1 << 10;
 static std::array<g1::affine_element, max_num_generators> generators;
-// TODO (#LARGE_MODULUS_AFFINE_POINT_COMPRESSION): Rewrite this test after designing point compression for p>2^255
-// static bool init_generators = false;
+static bool init_generators = false;
 
 } // namespace
-/** TODO (#LARGE_MODULUS_AFFINE_POINT_COMPRESSION): Rewrite this test after designing point compression for p>2^255
+
+/* In case where prime bit length is 256, the method produces a generator, but only with one less bit of randomness than
+the maximum possible, as the y coordinate in that case is determined by the x-coordinate. */
 g1::affine_element get_generator(const size_t generator_index)
 {
     if (!init_generators) {
@@ -18,5 +19,5 @@ g1::affine_element get_generator(const size_t generator_index)
     }
     ASSERT(generator_index < max_num_generators);
     return generators[generator_index];
-}**/
+}
 } // namespace secp256r1

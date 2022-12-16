@@ -25,15 +25,6 @@ template <typename Composer, typename T> class bigfield {
         size_t num_bits;
     };
 
-    // used in dual_multiply_add to store the result of one of the multiplications,
-    // as we will likely re-use it
-    struct cached_product {
-        field_t<Composer> lo_cache = field_t<Composer>(0);
-        field_t<Composer> hi_cache = field_t<Composer>(0);
-        field_t<Composer> prime_cache = field_t<Composer>(0);
-        bool cache_exists = false;
-    };
-
     struct Limb {
         Limb() {}
         Limb(const field_t<Composer>& input, const uint256_t max = uint256_t(0))
@@ -74,18 +65,36 @@ template <typename Composer, typename T> class bigfield {
              const field_t<Composer>& c,
              const field_t<Composer>& d,
              const bool can_overflow = false)
-        : bigfield((a + b * shift_1), (c + d * shift_1), can_overflow)
     {
-        const auto limb_range_checks = [](const field_t<Composer>& limb, const bool overflow) {
-            if (limb.is_constant()) {
-                limb.create_range_constraint(overflow ? NUM_LIMB_BITS : NUM_LAST_LIMB_BITS);
-            }
-        };
-        limb_range_checks(a, true);
-        limb_range_checks(b, true);
-        limb_range_checks(c, true);
-        limb_range_checks(d, can_overflow);
-    }
+        context = a.context;
+        binary_basis_limbs[0] = Limb(field_t(a));
+        binary_basis_limbs[1] = Limb(field_t(b));
+        binary_basis_limbs[2] = Limb(field_t(c));
+        binary_basis_limbs[3] =
+            Limb(field_t(d), can_overflow ? DEFAULT_MAXIMUM_LIMB : DEFAULT_MAXIMUM_MOST_SIGNIFICANT_LIMB);
+        prime_basis_limb =
+            (binary_basis_limbs[3].element * shift_3)
+                .add_two(binary_basis_limbs[2].element * shift_2, binary_basis_limbs[1].element * shift_1);
+        prime_basis_limb += (binary_basis_limbs[0].element);
+    };
+
+    // we assume the limbs have already been normalized!
+    bigfield(const field_t<Composer>& a,
+             const field_t<Composer>& b,
+             const field_t<Composer>& c,
+             const field_t<Composer>& d,
+             const field_t<Composer>& prime_limb,
+             const bool can_overflow = false)
+    {
+        context = a.context;
+        binary_basis_limbs[0] = Limb(field_t(a));
+        binary_basis_limbs[1] = Limb(field_t(b));
+        binary_basis_limbs[2] = Limb(field_t(c));
+        binary_basis_limbs[3] =
+            Limb(field_t(d), can_overflow ? DEFAULT_MAXIMUM_LIMB : DEFAULT_MAXIMUM_MOST_SIGNIFICANT_LIMB);
+        prime_basis_limb = prime_limb;
+    };
+
     bigfield(const byte_array<Composer>& bytes);
     bigfield(const bigfield& other);
     bigfield(bigfield&& other);
@@ -106,7 +115,7 @@ template <typename Composer, typename T> class bigfield {
     // code assumes modulus is at most 256 bits so good to define it via a uint256_t
     static constexpr uint256_t modulus = (uint256_t(T::modulus_0, T::modulus_1, T::modulus_2, T::modulus_3));
     static constexpr uint512_t modulus_u512 = uint512_t(modulus);
-    static constexpr uint64_t NUM_LIMB_BITS = waffle::NUM_LIMB_BITS_IN_FIELD_SIMULATION;
+    static constexpr uint64_t NUM_LIMB_BITS = 68;
     static constexpr uint64_t NUM_LAST_LIMB_BITS = modulus_u512.get_msb() + 1 - (NUM_LIMB_BITS * 3);
     static constexpr uint1024_t DEFAULT_MAXIMUM_REMAINDER =
         (uint1024_t(1) << (NUM_LIMB_BITS * 3 + NUM_LAST_LIMB_BITS)) - uint1024_t(1);
@@ -318,7 +327,7 @@ template <typename Composer, typename T> class bigfield {
     }
 
     /**
-     * @brief Compute the maximum number of bits for quotient range proof to protect against CRT undeflow
+     * @brief Compute the maximum number of bits for quotient range proof to protect against CRT underflow
      *
      * @param remainders_max Maximum sizes of resulting remainders
      * @return Desired length of range proof
@@ -437,7 +446,7 @@ template <typename Composer, typename T> class bigfield {
                                                     const std::vector<uint512_t>& to_add);
 
     /**
-     * @brief Check for 2 conditions (CRT modulus is overflown of the maximum quotient doesn't fit into range proof).
+     * @brief Check for 2 conditions (CRT modulus is overflown or the maximum quotient doesn't fit into range proof).
      * Also returns the length of quotient's range proof if there is no need to reduce.
      *
      * @param as_max Vector of left multiplicands' maximum values

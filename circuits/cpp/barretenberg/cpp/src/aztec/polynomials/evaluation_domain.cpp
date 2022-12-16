@@ -15,7 +15,6 @@ using namespace barretenberg;
 namespace {
 constexpr size_t MIN_GROUP_PER_THREAD = 4;
 
-
 size_t compute_num_threads(const size_t size)
 {
 #ifndef NO_MULTITHREADING
@@ -26,7 +25,7 @@ size_t compute_num_threads(const size_t size)
     if (size <= (num_threads * MIN_GROUP_PER_THREAD)) {
         num_threads = 1;
     }
-    
+
     return num_threads;
 }
 
@@ -68,6 +67,7 @@ evaluation_domain::evaluation_domain(const size_t domain_size, const size_t targ
     , domain_inverse(domain.invert())
     , generator(fr::coset_generator(0))
     , generator_inverse(fr::coset_generator(0).invert())
+    , four_inverse(fr(4).invert())
     , roots(nullptr)
 {
     ASSERT((1UL << log2_size) == size || (size == 0));
@@ -89,6 +89,7 @@ evaluation_domain::evaluation_domain(const evaluation_domain& other)
     , domain_inverse(domain.invert())
     , generator(other.generator)
     , generator_inverse(other.generator_inverse)
+    , four_inverse(other.four_inverse)
 {
     ASSERT((1UL << log2_size) == size);
     ASSERT((1UL << log2_thread_size) == thread_size);
@@ -124,6 +125,7 @@ evaluation_domain::evaluation_domain(evaluation_domain&& other)
     , domain_inverse(domain.invert())
     , generator(other.generator)
     , generator_inverse(other.generator_inverse)
+    , four_inverse(other.four_inverse)
 {
     roots = other.roots;
     round_roots = std::move(other.round_roots);
@@ -146,6 +148,7 @@ evaluation_domain& evaluation_domain::operator=(evaluation_domain&& other)
     fr::__copy(other.domain_inverse, domain_inverse);
     fr::__copy(other.generator, generator);
     fr::__copy(other.generator_inverse, generator_inverse);
+    fr::__copy(other.four_inverse, four_inverse);
     if (roots != nullptr) {
         aligned_free(roots);
     }

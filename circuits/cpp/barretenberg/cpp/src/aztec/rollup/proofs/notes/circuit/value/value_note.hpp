@@ -1,5 +1,5 @@
 #pragma once
-#include <stdlib/types/turbo.hpp>
+#include <stdlib/types/types.hpp>
 #include "witness_data.hpp"
 #include "commit.hpp"
 
@@ -9,7 +9,7 @@ namespace notes {
 namespace circuit {
 namespace value {
 
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 
 struct value_note {
     point_ct owner;

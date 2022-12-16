@@ -145,7 +145,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert bb-tests
+          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert 1 bb-tests
       - *save_logs
 
   stdlib-primitives-tests:
@@ -157,10 +157,10 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert stdlib_primitives_tests
+          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert 1 stdlib_primitives_tests
       - *save_logs
 
-  stdlib-recursion-tests:
+  stdlib-recursion-turbo-tests:
     docker:
       - image: aztecprotocol/alpine-build-image
     resource_class: small
@@ -169,7 +169,19 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert stdlib_recursion_tests
+          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert 1 stdlib_recursion_tests --gtest_filter=*turbo*
+      - *save_logs
+
+  stdlib-recursion-ultra-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert 3 stdlib_recursion_tests --gtest_filter=-*turbo*
       - *save_logs
 
   tx-rollup-tests:
@@ -181,7 +193,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert rollup_proofs_tx_rollup_tests --gtest_filter=-rollup_full_tests.*
+          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert 1 rollup_proofs_tx_rollup_tests --gtest_filter=-rollup_full_tests.*
       - *save_logs
 
   tx-rollup-full-tests:
@@ -193,7 +205,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert rollup_proofs_tx_rollup_tests --gtest_filter=rollup_full_tests.*
+          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert 1 rollup_proofs_tx_rollup_tests --gtest_filter=rollup_full_tests.*
       - *save_logs
 
   root-rollup-tests:
@@ -205,7 +217,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert rollup_proofs_root_rollup_tests --gtest_filter=-root_rollup_full_tests.*
+          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert 1 rollup_proofs_root_rollup_tests --gtest_filter=-root_rollup_full_tests.*
       - *save_logs
 
   root-rollup-full-tests:
@@ -217,7 +229,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert rollup_proofs_root_rollup_tests --gtest_filter=root_rollup_full_tests.*
+          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert 1 rollup_proofs_root_rollup_tests --gtest_filter=root_rollup_full_tests.*
       - *save_logs
 
   root-verifier-tests:
@@ -229,7 +241,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert rollup_proofs_root_verifier_tests
+          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert 3 rollup_proofs_root_verifier_tests
       - *save_logs
 
   benchmark-aggregator:
@@ -260,7 +272,8 @@ workflows:
       - wasm-linux-clang
       - barretenberg-tests: *bb_test
       - stdlib-primitives-tests: *bb_test
-      - stdlib-recursion-tests: *bb_test
+      - stdlib-recursion-turbo-tests: *bb_test
+      - stdlib-recursion-ultra-tests: *bb_test
       - tx-rollup-tests: *bb_test
       - tx-rollup-full-tests: *bb_test
       - root-rollup-tests: *bb_test
@@ -270,7 +283,8 @@ workflows:
           requires:
             - barretenberg-tests
             - stdlib-primitives-tests
-            - stdlib-recursion-tests
+            - stdlib-recursion-turbo-tests
+            - stdlib-recursion-ultra-tests
             - tx-rollup-tests
             - tx-rollup-full-tests
             - root-verifier-tests

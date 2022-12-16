@@ -1,10 +1,10 @@
 #pragma once
-#include <stdlib/types/turbo.hpp>
+#include <stdlib/types/types.hpp>
 
 namespace rollup {
 namespace proofs {
 
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 
 inline void add_zero_public_inputs(Composer& composer, size_t num)
 {

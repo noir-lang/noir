@@ -5,9 +5,10 @@
 #include <ecc/curves/bn254/g1.hpp>
 
 #include <plonk/transcript/transcript.hpp>
-#include <stdlib/types/turbo.hpp>
 
 using namespace plonk;
+
+// ULTRATODO: Add tests for other composers too (make tests modular?)
 
 typedef stdlib::field_t<waffle::TurboComposer> field_t;
 typedef stdlib::bool_t<waffle::TurboComposer> bool_t;
@@ -79,7 +80,7 @@ TestData get_test_data()
 transcript::Transcript get_test_base_transcript(const TestData& data)
 {
     transcript::Transcript transcript =
-        transcript::Transcript(create_manifest(data.num_public_inputs), transcript::HashType::PedersenBlake2s, 16);
+        transcript::Transcript(create_manifest(data.num_public_inputs), transcript::HashType::PedersenBlake3s, 16);
     transcript.add_element("circuit_size", { 1, 2, 3, 4 });
     transcript.add_element("public_input_size",
                            { static_cast<uint8_t>(data.num_public_inputs >> 24),

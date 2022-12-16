@@ -1,0 +1,1 @@
+barretenberg_module(crypto_blake3s_full)

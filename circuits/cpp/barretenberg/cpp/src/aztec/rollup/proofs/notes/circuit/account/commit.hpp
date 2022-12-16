@@ -1,5 +1,5 @@
 #pragma once
-#include <stdlib/types/turbo.hpp>
+#include <stdlib/types/types.hpp>
 #include "../../constants.hpp"
 
 namespace rollup {
@@ -8,7 +8,7 @@ namespace notes {
 namespace circuit {
 namespace account {
 
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 
 inline auto commit(field_ct const& account_alias_hash,
                    point_ct const& account_public_key,

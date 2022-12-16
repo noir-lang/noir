@@ -222,8 +222,40 @@ point<C> pedersen<C>::hash_single(const field_t& in,
         if (i > 0) {
             ctx->create_fixed_group_add_gate(round_quad);
         } else {
+            if constexpr (C::type == waffle::PLOOKUP &&
+                          C::merkle_hash_type == waffle::MerkleHashType::FIXED_BASE_PEDERSEN) {
+                /* In TurboComposer, the selector q_5 is used to show that w_1 and w_2 are properly initialized to the
+                 * coordinates of P_s = (-s + 4^n)[g]. In UltraPlonK, we have removed q_5 for overall efficiency (it
+                 * would only be used here in this gate), but this presents us a cost in the present circuit: we must
+                 * use an additional gate to perform part of the initialization. Since q_5 is only involved in the
+                 * x-coordinate initialization (in the notation of the widget, Constraint 5), we only perform that part
+                 * of the initialization with additional gates, letting Constraints 4 and 6  be handled in the Ultra
+                 * version of the widget as in the Turbo verison.
+                 * x-coordinate initialization constraint (Pi = origin_points[i] for i = 0,1):
+                 * c * (P0.x - x_0) + (P0.x - P1.x) * (1 - a_0))
+                 *     = -c * x_0 + c * P0.x - (P0.x - P1.x) * a_0 + (P0.x - P1.x)
+                 * In present terms, x_0 = round_quad.a, c = round_quad.c, P0.x = init_quad.q_x_1,
+                 *                   a_0 = round_quad.d,                   P0.x - P1.x = init_quad.q_x_2,
+                 * so we want to impose the constraint:
+                 * 0 = -round_quad.a * round_quad.c
+                 *        + init_quad.q_x_1 * round_quad.c
+                 *        - init_quad.q_x_2 * round_quad.d
+                 *        + init_quad.q_x_2
+                 * */
+                waffle::mul_quad x_init_quad{ .a = round_quad.a,
+                                              .b = round_quad.c,
+                                              .c = 0,
+                                              .d = round_quad.d,
+                                              .mul_scaling = -1,
+                                              .a_scaling = 0,
+                                              .b_scaling = init_quad.q_x_1,
+                                              .c_scaling = 0,
+                                              .d_scaling = -init_quad.q_x_2,
+                                              .const_scaling = init_quad.q_x_2 };
+                ctx->create_big_mul_gate(x_init_quad);
+            }
             ctx->create_fixed_group_add_gate_with_init(round_quad, init_quad);
-        }
+        };
 
         accumulator_witnesses.push_back(round_quad.d);
     }
@@ -248,7 +280,7 @@ point<C> pedersen<C>::hash_single(const field_t& in,
     result.y = field_t(ctx);
     result.y.witness_index = add_quad.b;
 
-    field_t::from_witness_index(ctx, add_quad.d).assert_equal(in, "pedersen d != in");
+    field_t::from_witness_index(ctx, add_quad.d).assert_equal(in, "pedersen: d != in");
 
     if (validate_input_is_in_field) {
         validate_wnaf_is_in_field(ctx, accumulator_witnesses);
@@ -260,8 +292,8 @@ point<C> pedersen<C>::hash_single(const field_t& in,
  * Check the wnaf sum is smaller than the circuit modulus
  *
  * When we compute a scalar mul e.g. x * [1], we decompose `x` into an accumulating sum of 2-bit non-adjacent form
- *values. In `hash_single`, we validate that the sum of the 2-bit NAFs (`w`) equals x. But we only check that `w == x
- *mod r` where r is the circuit modulus.
+ * values. In `hash_single`, we validate that the sum of the 2-bit NAFs (`w`) equals x. But we only check that `w == x
+ * mod r` where r is the circuit modulus.
  *
  * If we require the pedersen hash to be injective, we must ensure that `w < r`.
  * Typically this is required for all instances where `w` represents a field element.
@@ -319,7 +351,7 @@ template <typename C> void pedersen<C>::validate_wnaf_is_in_field(C* ctx, const 
      *
      *    We can extract w.hi from accumulator[64], but we need to remove the contribution from the wnaf skew
      *    We can extract w.lo by subtracting w.hi * 2^{126} from the final accumulator (the final accumulator will be
-     *equal to `w`)
+     *    equal to `w`)
      *
      * 2. Compute y.lo = (r.lo - w.lo) + 2^{126} (the 2^126 constant ensures this is positive)
      *    r.lo is the least significant 126 bits of r
@@ -340,7 +372,7 @@ template <typename C> void pedersen<C>::validate_wnaf_is_in_field(C* ctx, const 
      * 6. Range constrain y.hi to be a 128-bit integer
      *
      * We slice the low limb to be 126 bits so that both our range checks can be over 128-bit integers (if the range is
-     *a multiple of 8 we save 1 gate per range check)
+     * a multiple of 8 we save 1 gate per range check)
      *
      * The following table describes the range of values the above terms can take, if w < r
      *
@@ -396,7 +428,7 @@ template <typename C> void pedersen<C>::validate_wnaf_is_in_field(C* ctx, const 
      *
      * Therefore  the 2^{-254} term in accumulator[0] will translate to a value of `1` when `input` is computed
      * This corresponds to `input` being an even number (without a skew term, wnaf represenatations can only express odd
-     *numbers)
+     * numbers)
      *
      * We need to factor out this skew term from w.hi as it is part of w.lo
      *
@@ -427,11 +459,29 @@ template <typename C> void pedersen<C>::validate_wnaf_is_in_field(C* ctx, const 
 
     field_t y_lo = (-reconstructed_input).add_two(high_limb_with_skew * shift + (r_lo + shift), is_even);
 
-    // Validate y.lo is a 128-bit integer
-    const auto y_lo_accumulators = ctx->decompose_into_base4_accumulators(y_lo.normalize().witness_index, 128);
+    field_t y_overlap;
+    if constexpr (C::type == waffle::ComposerType::PLOOKUP) {
+        // carve out the 2 high bits from y_lo and instantiate as y_overlap
+        const uint256_t y_lo_value = y_lo.get_value();
+        const uint256_t y_overlap_value = y_lo_value >> 126;
+        y_overlap = witness_t(ctx, y_overlap_value);
 
-    // Extract y.overlap, the 2 most significant bits of y.lo
-    field_t y_overlap = field_t::from_witness_index(ctx, y_lo_accumulators[0]) - 1;
+        // Validate y.lo is a 128-bit integer
+        field_t y_remainder = y_lo - (y_overlap * field_t(uint256_t(1ULL) << 126));
+        y_overlap.create_range_constraint(2,
+                                          "pedersen: range constraint on y_overlap fails in validate_wnaf_is_in_field");
+        y_remainder.create_range_constraint(
+            126, "pedersen: range constraint on y_remainder fails in validate_wnaf_is_in_field");
+        y_overlap = y_overlap - 1;
+    } else {
+        // Validate y.lo is a 128-bit integer
+        const auto y_lo_accumulators = ctx->decompose_into_base4_accumulators(
+            y_lo.normalize().witness_index,
+            128,
+            "pedersen: range constraint on y_lo fails in validate_wnaf_is_in_field");
+        // Extract y.overlap, the 2 most significant bits of y.lo
+        y_overlap = field_t::from_witness_index(ctx, y_lo_accumulators[0]) - 1;
+    }
 
     /**
      *                                           -126
@@ -442,7 +492,7 @@ template <typename C> void pedersen<C>::validate_wnaf_is_in_field(C* ctx, const 
     field_t y_hi = (-is_even * fr(uint256_t(1) << 126).invert()).add_two(-high_limb_with_skew, y_overlap + (r_hi));
 
     // Validate y.hi is a 128-bit integer
-    ctx->decompose_into_base4_accumulators(y_hi.normalize().witness_index, 128);
+    y_hi.create_range_constraint(128, "pedersen: range constraint on y_lo fails in validate_wnaf_is_in_field");
 }
 
 template <typename C> point<C> pedersen<C>::accumulate(const std::vector<point>& to_accumulate)
@@ -465,8 +515,9 @@ field_t<C> pedersen<C>::compress_unsafe(const field_t& in_left,
                                         const size_t hash_index,
                                         const bool validate_input_is_in_field)
 {
-    if constexpr (C::type == waffle::ComposerType::PLOOKUP) {
-        return pedersen_plookup<C>::compress(in_left, in_right);
+    if constexpr (C::type == waffle::ComposerType::PLOOKUP &&
+                  C::merkle_hash_type == waffle::MerkleHashType::LOOKUP_PEDERSEN) {
+        return pedersen_plookup<C>::compress({ in_left, in_right });
     }
 
     std::vector<point> accumulators;
@@ -479,8 +530,9 @@ field_t<C> pedersen<C>::compress_unsafe(const field_t& in_left,
 
 template <typename C> point<C> pedersen<C>::commit(const std::vector<field_t>& inputs, const size_t hash_index)
 {
-    if constexpr (C::type == waffle::ComposerType::PLOOKUP) {
-        return pedersen_plookup<C>::commit(inputs);
+    if constexpr (C::type == waffle::ComposerType::PLOOKUP &&
+                  C::merkle_hash_type == waffle::MerkleHashType::LOOKUP_PEDERSEN) {
+        return pedersen_plookup<C>::commit(inputs, hash_index);
     }
 
     std::vector<point> to_accumulate;
@@ -493,22 +545,19 @@ template <typename C> point<C> pedersen<C>::commit(const std::vector<field_t>& i
 
 template <typename C> field_t<C> pedersen<C>::compress(const std::vector<field_t>& inputs, const size_t hash_index)
 {
-    if (C::type == waffle::ComposerType::PLOOKUP) {
-        // TODO handle hash index in plookup. This is a tricky problem but
-        // we can defer solving it until we migrate to UltraPlonk
-        return pedersen_plookup<C>::compress(inputs);
+    if constexpr (C::type == waffle::ComposerType::PLOOKUP &&
+                  C::merkle_hash_type == waffle::MerkleHashType::LOOKUP_PEDERSEN) {
+        return pedersen_plookup<C>::compress(inputs, hash_index);
     }
+
     return commit(inputs, hash_index).x;
 }
 
-// If the input values are all zero, we return the array length instead of `0`
+// If the input values are all zero, we return the array length instead of `0\`
 // This is because we require the inputs to regular pedersen compression function are nonzero (we use this method to
 // hash the base layer of our merkle trees)
 template <typename C> field_t<C> pedersen<C>::compress(const byte_array& input)
 {
-    if constexpr (C::type == waffle::ComposerType::PLOOKUP) {
-        return pedersen_plookup<C>::compress(packed_byte_array(input));
-    }
     const size_t num_bytes = input.size();
     const size_t bytes_per_element = 31;
     size_t num_elements = (num_bytes % bytes_per_element != 0) + (num_bytes / bytes_per_element);
@@ -537,7 +586,7 @@ template <typename C> field_t<C> pedersen<C>::compress(const byte_array& input)
 
 template class pedersen<waffle::StandardComposer>;
 template class pedersen<waffle::TurboComposer>;
-template class pedersen<waffle::PlookupComposer>;
+template class pedersen<waffle::UltraComposer>;
 
 } // namespace stdlib
 } // namespace plonk

@@ -1,5 +1,5 @@
 FROM aztecprotocol/crosstool-ng-arm64:latest
-WORKDIR /usr/src/barretenberg
+WORKDIR /usr/src/barretenberg/cpp
 COPY . .
 RUN mkdir build && cd build && cmake -DTOOLCHAIN=arm64-linux-gcc .. && make -j$(nproc)
 RUN cd build && qemu-aarch64 ./test/barretenberg_tests

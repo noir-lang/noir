@@ -23,6 +23,13 @@ using namespace notes::native;
 using namespace plonk::stdlib::merkle_tree;
 
 namespace {
+#ifdef CI
+constexpr bool CIRCUIT_CHANGE_EXPECTED = false;
+#else
+// During development, if the circuit vk hash/gate count is expected to change, set the following to true.
+constexpr bool CIRCUIT_CHANGE_EXPECTED = false;
+#endif
+
 std::shared_ptr<waffle::DynamicFileReferenceStringFactory> srs;
 numeric::random::Engine* rand_engine = &numeric::random::get_debug_engine(true);
 fixtures::user_context user = fixtures::create_user_context(rand_engine);
@@ -89,27 +96,26 @@ HEAVY_TEST_F(root_verifier_full_tests, good_data_passes_and_detect_circuit_chang
     auto tx = create_root_verifier_tx();
     auto result = verify(tx, root_verifier_cd, root_rollup_cd);
     ASSERT_TRUE(result.verified);
+
     // The below part detects changes in the root verifier circuit
+    constexpr uint32_t CIRCUIT_GATE_COUNT = 7158521;
+    constexpr uint32_t GATES_NEXT_POWER_OF_TWO = 8388608;
+    const uint256_t VK_HASH("8adecb7bd1be689ce8adb46192a9356ad42cb2310b08e55b9cb14708dd2eb85c");
+
     size_t number_of_gates_root_verifier = result.number_of_gates;
     auto vk_hash_root_verifier = result.verification_key->sha256_hash();
-    // If the below assertions fail, consider changing the variable is_circuit_change_expected to 1 in
-    // rollup/constants.hpp and see if atleast the next power of two limit is not exceeded. Please change the constant
-    // values accordingly and set is_circuit_change_expected to 0 in rollup/constants.hpp before merging.
-    if (!(circuit_gate_count::is_circuit_change_expected)) {
-        EXPECT_EQ(number_of_gates_root_verifier, circuit_gate_count::ROOT_VERIFIER)
+
+    if (!CIRCUIT_CHANGE_EXPECTED) {
+        EXPECT_EQ(number_of_gates_root_verifier, CIRCUIT_GATE_COUNT)
             << "The gate count for the root verifier circuit is changed.";
-        EXPECT_EQ(from_buffer<uint256_t>(vk_hash_root_verifier), circuit_vk_hash::ROOT_VERIFIER)
+        EXPECT_EQ(from_buffer<uint256_t>(vk_hash_root_verifier), VK_HASH)
             << "The verification key hash for the root verifier circuit is changed.";
-        // For the next power of two limit, we need to consider that we reserve four gates for adding
-        // randomness/zero-knowledge
-        EXPECT_LE(number_of_gates_root_verifier,
-                  circuit_gate_next_power_of_two::ROOT_VERIFIER - waffle::ComposerBase::NUM_RESERVED_GATES)
-            << "You have exceeded the next power of two limit for the root verifier circuit.";
-    } else {
-        EXPECT_LE(number_of_gates_root_verifier,
-                  circuit_gate_next_power_of_two::ROOT_VERIFIER - waffle::ComposerBase::NUM_RESERVED_GATES)
-            << "You have exceeded the next power of two limit for the root verifier circuit.";
     }
+
+    // For the next power of two limit, we need to consider that we reserve four gates for adding
+    // randomness/zero-knowledge
+    EXPECT_LE(number_of_gates_root_verifier, GATES_NEXT_POWER_OF_TWO - waffle::ComposerBase::NUM_RESERVED_GATES)
+        << "You have exceeded the next power of two limit for the root verifier circuit.";
 }
 
 HEAVY_TEST_F(root_verifier_full_tests, bad_byte_failure)

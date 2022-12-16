@@ -177,7 +177,8 @@ TEST(fr, lambda)
     fr x = fr::random_element();
 
     fr lambda_x = { x.data[0], x.data[1], x.data[2], x.data[3] };
-    lambda_x = lambda_x * fr::beta();
+    fr lambda = fr::cube_root_of_unity();
+    lambda_x = lambda_x * lambda;
 
     // compute x^3
     fr x_cubed;
@@ -265,7 +266,8 @@ TEST(fr, split_into_endomorphism_scalars)
     k1.self_to_montgomery_form();
     k2.self_to_montgomery_form();
 
-    result = k2 * fr::beta();
+    fr lambda = fr::cube_root_of_unity();
+    result = k2 * lambda;
     result = k1 - result;
 
     result.self_from_montgomery_form();
@@ -287,7 +289,8 @@ TEST(fr, split_into_endomorphism_scalars_simple)
     k1.self_to_montgomery_form();
     k2.self_to_montgomery_form();
 
-    result = k2 * fr::beta();
+    fr lambda = fr::cube_root_of_unity();
+    result = k2 * lambda;
     result = k1 - result;
 
     result.self_from_montgomery_form();

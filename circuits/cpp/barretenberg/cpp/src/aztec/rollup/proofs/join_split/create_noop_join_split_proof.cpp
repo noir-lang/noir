@@ -1,7 +1,7 @@
 #include "create_noop_join_split_proof.hpp"
 #include "join_split_circuit.hpp"
 #include <stdlib/merkle_tree/hash_path.hpp>
-#include <stdlib/types/turbo.hpp>
+#include <stdlib/types/types.hpp>
 #include <sys/stat.h>
 
 namespace rollup {
@@ -9,7 +9,7 @@ namespace proofs {
 namespace join_split {
 
 using namespace barretenberg;
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 using namespace plonk::stdlib::merkle_tree;
 
 std::vector<uint8_t> create_noop_join_split_proof(circuit_data const& circuit_data,
@@ -24,8 +24,8 @@ std::vector<uint8_t> create_noop_join_split_proof(circuit_data const& circuit_da
     Composer composer = Composer(circuit_data.proving_key, circuit_data.verification_key, circuit_data.num_gates);
     join_split_circuit(composer, tx);
 
-    if (composer.failed) {
-        info("join split logic failed: ", composer.err);
+    if (composer.failed()) {
+        info("join split logic failed: ", composer.err());
     }
 
     if (!mock) {

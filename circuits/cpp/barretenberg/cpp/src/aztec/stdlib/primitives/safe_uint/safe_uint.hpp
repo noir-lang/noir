@@ -32,8 +32,8 @@ template <typename ComposerContext> class safe_uint_t {
 
   public:
     // The following constant should be small enough that any thing with this bitnum is smaller than the modulus
-    static constexpr size_t MAX_BIT_NUM = fr::modulus.get_msb();
-    static constexpr uint256_t MAX_VALUE = fr::modulus - 1;
+    static constexpr size_t MAX_BIT_NUM = barretenberg::fr::modulus.get_msb();
+    static constexpr uint256_t MAX_VALUE = barretenberg::fr::modulus - 1;
     static constexpr size_t IS_UNSAFE = 143; // weird constant to make it hard to use accidentally
     // Make sure our uint256 values don't wrap  - add_two function sums three of these
     static_assert((uint512_t)MAX_VALUE * 3 < (uint512_t)1 << 256);
@@ -76,7 +76,8 @@ template <typename ComposerContext> class safe_uint_t {
         , current_max(other.current_max)
     {}
 
-    static safe_uint_t<ComposerContext> create_constant_witness(ComposerContext* parent_context, fr const& value)
+    static safe_uint_t<ComposerContext> create_constant_witness(ComposerContext* parent_context,
+                                                                barretenberg::fr const& value)
 
     {
         witness_t<ComposerContext> out(parent_context, value);

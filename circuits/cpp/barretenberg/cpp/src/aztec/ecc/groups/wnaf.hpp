@@ -364,7 +364,9 @@ inline void wnaf_round(uint64_t* scalar, uint64_t* wnaf, const uint64_t point_in
             (point_index << 32UL);
         wnaf_round<scalar_bits, num_points, wnaf_bits, round_i + 1>(scalar, wnaf, point_index, slice + predicate);
     } else {
-        constexpr size_t final_bits = scalar_bits - (scalar_bits / wnaf_bits) * wnaf_bits;
+        constexpr size_t final_bits = ((scalar_bits / wnaf_bits) * wnaf_bits == scalar_bits)
+                                          ? wnaf_bits
+                                          : scalar_bits - (scalar_bits / wnaf_bits) * wnaf_bits;
         uint64_t slice = get_wnaf_bits_const<final_bits, (wnaf_entries - 1) * wnaf_bits>(scalar);
         uint64_t predicate = ((slice & 1UL) == 0UL);
         wnaf[num_points] =

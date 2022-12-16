@@ -6,7 +6,7 @@
 #include <common/streams.hpp>
 #include <crypto/schnorr/schnorr.hpp>
 #include <numeric/random/engine.hpp>
-#include <plonk/reference_string/pippenger_reference_string.hpp>
+#include <srs/reference_string/pippenger_reference_string.hpp>
 #include <srs/io.hpp>
 
 #include <fstream>

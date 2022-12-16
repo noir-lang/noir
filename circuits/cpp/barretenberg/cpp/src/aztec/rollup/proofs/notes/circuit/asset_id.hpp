@@ -1,9 +1,9 @@
 #pragma once
-#include <stdlib/types/turbo.hpp>
+#include <stdlib/types/types.hpp>
 
 namespace rollup::proofs::notes::circuit {
 
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 
 std::pair<bool_ct, suint_ct> deflag_asset_id(suint_ct const& asset_id);
 

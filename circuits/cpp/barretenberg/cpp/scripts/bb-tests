@@ -1,6 +1,6 @@
-ci_failsafe_tests
 crypto_aes128_tests
 crypto_blake2s_tests
+crypto_blake3s_tests
 crypto_ecdsa_tests
 crypto_pedersen_tests
 crypto_schnorr_tests
@@ -18,6 +18,7 @@ rollup_proofs_standard_example_tests
 srs_tests
 stdlib_aes128_tests
 stdlib_blake2s_tests
+stdlib_blake3s_tests
 stdlib_ecdsa_tests
 stdlib_merkle_tree_tests
 stdlib_pedersen_tests

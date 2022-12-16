@@ -9,7 +9,7 @@
 #include "../prover/work_queue.hpp"
 #include "../types/program_settings.hpp"
 #include "../../composer/composer_base.hpp"
-#include <plonk/reference_string/file_reference_string.hpp>
+#include <srs/reference_string/file_reference_string.hpp>
 
 #include <ecc/curves/bn254/fq12.hpp>
 #include <ecc/curves/bn254/pairing.hpp>

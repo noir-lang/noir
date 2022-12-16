@@ -48,7 +48,10 @@ template <class base_field, class Params> struct alignas(32) field2 {
     {
         return field2{ Params::twist_mul_by_q_y_0, Params::twist_mul_by_q_y_1 };
     }
-    static constexpr field2 beta() { return field2{ Params::twist_cube_root_0, Params::twist_cube_root_1 }; }
+    static constexpr field2 cube_root_of_unity()
+    {
+        return field2{ Params::twist_cube_root_0, Params::twist_cube_root_1 };
+    }
 
     constexpr field2 operator*(const field2& other) const noexcept;
     constexpr field2 operator+(const field2& other) const noexcept;

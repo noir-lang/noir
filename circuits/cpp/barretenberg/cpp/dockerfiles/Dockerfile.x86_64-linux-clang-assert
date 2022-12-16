@@ -15,12 +15,13 @@ RUN git clone -b release/10.x --depth 1 https://github.com/llvm/llvm-project.git
   && make -j$(nproc) \
   && make install \
   && cd ../.. && rm -rf llvm-project
-WORKDIR /usr/src/barretenberg
+WORKDIR /usr/src/barretenberg/cpp
+
 COPY . .
 # Build everything to ensure everything builds. All tests will be run from the result of this build.
 RUN mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=RelWithAssert -DOpenMP_omp_LIBRARY=/usr/local/lib/libomp.a -DCI=ON .. && make -j$(nproc)
 
 FROM alpine:3.13
 RUN apk update && apk add llvm10-libs curl
-COPY --from=builder /usr/src/barretenberg/srs_db /usr/src/barretenberg/srs_db
-COPY --from=builder /usr/src/barretenberg/build/bin/*_tests /usr/src/barretenberg/build/bin/
+COPY --from=builder /usr/src/barretenberg/cpp/srs_db /usr/src/barretenberg/cpp/srs_db
+COPY --from=builder /usr/src/barretenberg/cpp/build/bin/*_tests /usr/src/barretenberg/cpp/build/bin/

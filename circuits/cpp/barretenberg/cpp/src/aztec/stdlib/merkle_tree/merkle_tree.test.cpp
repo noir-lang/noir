@@ -5,7 +5,7 @@
 #include <common/streams.hpp>
 #include <common/test.hpp>
 #include <numeric/random/engine.hpp>
-#include <stdlib/types/turbo.hpp>
+#include <stdlib/types/types.hpp>
 
 using namespace barretenberg;
 using namespace plonk::stdlib::merkle_tree;

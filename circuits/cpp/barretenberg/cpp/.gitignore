@@ -1,4 +1,4 @@
-./build*
+build*/
 src/wasi-sdk-*
 src/aztec/plonk/proof_system/proving_key/fixtures
 src/aztec/rollup/proofs/*/fixtures

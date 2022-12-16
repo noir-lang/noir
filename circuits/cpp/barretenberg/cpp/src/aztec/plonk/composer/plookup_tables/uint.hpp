@@ -4,7 +4,7 @@
 
 #include <numeric/bitop/rotate.hpp>
 
-namespace waffle {
+namespace plookup {
 namespace uint_tables {
 
 template <uint64_t bits_per_slice, uint64_t num_rotated_output_bits>
@@ -14,10 +14,10 @@ inline std::array<barretenberg::fr, 2> get_xor_rotate_values_from_key(const std:
 }
 
 template <uint64_t bits_per_slice, uint64_t num_rotated_output_bits>
-inline PlookupBasicTable generate_xor_rotate_table(PlookupBasicTableId id, const size_t table_index)
+inline BasicTable generate_xor_rotate_table(BasicTableId id, const size_t table_index)
 {
     const uint64_t base = 1UL << bits_per_slice;
-    PlookupBasicTable table;
+    BasicTable table;
     table.id = id;
     table.table_index = table_index;
     table.size = base * base;
@@ -47,10 +47,10 @@ inline std::array<barretenberg::fr, 2> get_and_rotate_values_from_key(const std:
 }
 
 template <uint64_t bits_per_slice, uint64_t num_rotated_output_bits>
-inline PlookupBasicTable generate_and_rotate_table(PlookupBasicTableId id, const size_t table_index)
+inline BasicTable generate_and_rotate_table(BasicTableId id, const size_t table_index)
 {
     const uint64_t base = 1UL << bits_per_slice;
-    PlookupBasicTable table;
+    BasicTable table;
     table.id = id;
     table.table_index = table_index;
     table.size = base * base;
@@ -73,11 +73,11 @@ inline PlookupBasicTable generate_and_rotate_table(PlookupBasicTableId id, const
     return table;
 }
 
-inline PlookupMultiTable get_uint32_xor_table(const PlookupMultiTableId id = UINT32_XOR)
+inline MultiTable get_uint32_xor_table(const MultiTableId id = UINT32_XOR)
 {
     const size_t num_entries = (32 + 5) / 6;
     const uint64_t base = 1 << 6;
-    PlookupMultiTable table(base, base, base, num_entries);
+    MultiTable table(base, base, base, num_entries);
 
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
@@ -88,11 +88,11 @@ inline PlookupMultiTable get_uint32_xor_table(const PlookupMultiTableId id = UIN
     return table;
 }
 
-inline PlookupMultiTable get_uint32_and_table(const PlookupMultiTableId id = UINT32_AND)
+inline MultiTable get_uint32_and_table(const MultiTableId id = UINT32_AND)
 {
     const size_t num_entries = (32 + 5) / 6;
     const uint64_t base = 1 << 6;
-    PlookupMultiTable table(base, base, base, num_entries);
+    MultiTable table(base, base, base, num_entries);
 
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
@@ -104,4 +104,4 @@ inline PlookupMultiTable get_uint32_and_table(const PlookupMultiTableId id = UIN
 }
 
 } // namespace uint_tables
-} // namespace waffle
+} // namespace plookup

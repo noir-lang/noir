@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <iomanip>
 #include <iostream>
+#include <sstream>
 #include <common/serialize.hpp>
 #include "../uint128/uint128.hpp"
 
@@ -32,6 +33,15 @@ class alignas(32) uint256_t {
     constexpr uint256_t(const uint256_t& other)
         : data{ other.data[0], other.data[1], other.data[2], other.data[3] }
     {}
+
+    explicit uint256_t(std::string const& str)
+    {
+        for (int i = 0; i < 4; ++i) {
+            std::stringstream ss;
+            ss << std::hex << str.substr(size_t(i) * 16, 16);
+            ss >> data[3 - i];
+        }
+    }
 
     static constexpr uint256_t from_uint128(const uint128_t a)
     {

@@ -7,6 +7,7 @@
 #include "../../groups/group.hpp"
 #include "../bn254/fq.hpp"
 #include "../bn254/fr.hpp"
+#include "../types.hpp"
 
 namespace secp256k1 {
 
@@ -57,10 +58,10 @@ struct Secp256k1FqParams {
 
     static constexpr uint64_t r_inv = 15580212934572586289ULL;
 
-    static constexpr uint64_t cube_root_0 = 0UL;
-    static constexpr uint64_t cube_root_1 = 0UL;
-    static constexpr uint64_t cube_root_2 = 0UL;
-    static constexpr uint64_t cube_root_3 = 0UL;
+    static constexpr uint64_t cube_root_0 = 0x58a4361c8e81894eULL;
+    static constexpr uint64_t cube_root_1 = 0x03fde1631c4b80afULL;
+    static constexpr uint64_t cube_root_2 = 0xf8e98978d02e3905ULL;
+    static constexpr uint64_t cube_root_3 = 0x7a4a36aebcbb3d53ULL;
 
     static constexpr uint64_t primitive_root_0 = 0UL;
     static constexpr uint64_t primitive_root_1 = 0UL;
@@ -96,10 +97,26 @@ struct Secp256k1FrParams {
         0, 0, 0, 0, 0, 0, 0, 0,
     };
 
-    static constexpr uint64_t cube_root_0 = 0UL;
-    static constexpr uint64_t cube_root_1 = 0UL;
-    static constexpr uint64_t cube_root_2 = 0UL;
-    static constexpr uint64_t cube_root_3 = 0UL;
+    static constexpr uint64_t cube_root_0 = 0xf07deb3dc9926c9eULL;
+    static constexpr uint64_t cube_root_1 = 0x2c93e7ad83c6944cULL;
+    static constexpr uint64_t cube_root_2 = 0x73a9660652697d91ULL;
+    static constexpr uint64_t cube_root_3 = 0x532840178558d639ULL;
+
+    static constexpr uint64_t endo_minus_b1_lo = 0x6F547FA90ABFE4C3ULL;
+    static constexpr uint64_t endo_minus_b1_mid = 0xE4437ED6010E8828ULL;
+
+    static constexpr uint64_t endo_b2_lo = 0xe86c90e49284eb15ULL;
+    static constexpr uint64_t endo_b2_mid = 0x3086d221a7d46bcdULL;
+
+    static constexpr uint64_t endo_g1_lo = 0xE893209A45DBB031ULL;
+    static constexpr uint64_t endo_g1_mid = 0x3DAA8A1471E8CA7FULL;
+    static constexpr uint64_t endo_g1_hi = 0xE86C90E49284EB15ULL;
+    static constexpr uint64_t endo_g1_hihi = 0x3086D221A7D46BCDULL;
+
+    static constexpr uint64_t endo_g2_lo = 0x1571B4AE8AC47F71ULL;
+    static constexpr uint64_t endo_g2_mid = 0x221208AC9DF506C6ULL;
+    static constexpr uint64_t endo_g2_hi = 0x6F547FA90ABFE4C4ULL;
+    static constexpr uint64_t endo_g2_hihi = 0xE4437ED6010E8828ULL;
 
     static constexpr uint64_t primitive_root_0 = 0UL;
     static constexpr uint64_t primitive_root_1 = 0UL;
@@ -128,7 +145,5 @@ struct Secp256k1G1Params {
 typedef barretenberg::
     group<barretenberg::field<Secp256k1FqParams>, barretenberg::field<Secp256k1FrParams>, Secp256k1G1Params>
         g1;
-/* TODO (#LARGE_MODULUS_AFFINE_POINT_COMPRESSION): Rewrite this test after designing point compression for p>2^255
 g1::affine_element get_generator(const size_t generator_index);
-*/
 } // namespace secp256k1

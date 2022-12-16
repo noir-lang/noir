@@ -1,11 +1,11 @@
 FROM ubuntu:focal AS builder
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential wget git libssl-dev cmake curl binaryen
 RUN curl https://wasmtime.dev/install.sh -sSf | bash /dev/stdin --version v0.25.0
-WORKDIR /usr/src/barretenberg/src
+WORKDIR /usr/src/barretenberg/cpp/src
 RUN curl -s -L https://github.com/CraneStation/wasi-sdk/releases/download/wasi-sdk-12/wasi-sdk-12.0-linux.tar.gz | tar zxfv -
-WORKDIR /usr/src/barretenberg
+WORKDIR /usr/src/barretenberg/cpp
 COPY . .
 RUN mkdir build && cd build && cmake -DTOOLCHAIN=wasm-linux-clang .. && make -j$(nproc) barretenberg.wasm
 
 FROM alpine:3.13
-COPY --from=builder /usr/src/barretenberg/build/bin/barretenberg.wasm /usr/src/barretenberg/build/bin/barretenberg.wasm
+COPY --from=builder /usr/src/barretenberg/cpp/build/bin/barretenberg.wasm /usr/src/barretenberg/cpp/build/bin/barretenberg.wasm

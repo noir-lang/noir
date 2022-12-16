@@ -34,6 +34,7 @@ function(barretenberg_module MODULE_NAME)
             ${MODULE_NAME}
             PUBLIC
             ${ARGN}
+            ${TBB_IMPORTED_TARGETS}
         )
 
         set(MODULE_LINK_NAME ${MODULE_NAME})
@@ -51,6 +52,7 @@ function(barretenberg_module MODULE_NAME)
             ${MODULE_NAME}_test_objects
             PRIVATE
             gtest
+            ${TBB_IMPORTED_TARGETS}
         )
 
         add_executable(
@@ -89,6 +91,7 @@ function(barretenberg_module MODULE_NAME)
             ${ARGN}
             gtest
             gtest_main
+            ${TBB_IMPORTED_TARGETS}
         )
 
         if(NOT WASM AND NOT CI)
@@ -139,6 +142,7 @@ function(barretenberg_module MODULE_NAME)
             ${MODULE_NAME}_bench_objects
             PRIVATE
             benchmark
+            ${TBB_IMPORTED_TARGETS}
         )
 
         add_executable(
@@ -152,6 +156,7 @@ function(barretenberg_module MODULE_NAME)
             ${MODULE_LINK_NAME}
             ${ARGN}
             benchmark
+            ${TBB_IMPORTED_TARGETS}
         )
 
         add_custom_target(

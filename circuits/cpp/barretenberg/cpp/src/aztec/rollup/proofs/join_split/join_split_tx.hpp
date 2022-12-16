@@ -3,13 +3,13 @@
 #include "../notes/native/value/value_note.hpp"
 #include <crypto/schnorr/schnorr.hpp>
 #include <stdlib/merkle_tree/hash_path.hpp>
-#include <stdlib/types/turbo.hpp>
+#include <stdlib/types/types.hpp>
 
 namespace rollup {
 namespace proofs {
 namespace join_split {
 
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 
 struct join_split_tx {
     uint32_t proof_id;

@@ -12,8 +12,7 @@ template <typename Composer> struct signature {
     stdlib::byte_array<Composer> s;
 };
 
-// (ノಠ益ಠ)ノ彡┻━┻
-template <typename Composer, typename Fq, typename Fr, typename G1>
+template <typename Composer, typename Curve, typename Fq, typename Fr, typename G1>
 bool_t<Composer> verify_signature(const stdlib::byte_array<Composer>& message,
                                   const G1& public_key,
                                   const signature<Composer>& sig);

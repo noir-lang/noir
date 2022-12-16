@@ -344,16 +344,35 @@ TEST(g2, group_exponentiation_consistency_check)
 
 TEST(g2, serialize)
 {
-    g2::affine_element expected = g2::affine_element(g2::element::random_element());
+    // test serializing random points
+    size_t num_repetitions(1);
+    for (size_t i = 0; i < num_repetitions; i++) {
+        g2::affine_element expected = g2::affine_element(g2::element::random_element());
 
-    uint8_t buffer[sizeof(g2::affine_element)];
+        uint8_t buffer[sizeof(g2::affine_element)];
 
-    g2::affine_element::serialize_to_buffer(expected, buffer);
+        g2::affine_element::serialize_to_buffer(expected, buffer);
 
-    g2::affine_element result = g2::affine_element::serialize_from_buffer(buffer);
+        g2::affine_element result = g2::affine_element::serialize_from_buffer(buffer);
 
-    EXPECT_EQ(result == expected, true);
+        EXPECT_EQ(result == expected, true);
+    }
+
+    // test serializing the point at infinity
+    {
+        g2::affine_element expected = g2::affine_element(g2::element::random_element());
+        expected.self_set_infinity();
+        uint8_t buffer[sizeof(g2::affine_element)];
+
+        g2::affine_element::serialize_to_buffer(expected, buffer);
+
+        g2::affine_element result = g2::affine_element::serialize_from_buffer(buffer);
+
+        ASSERT_TRUE(result.is_point_at_infinity());
+        EXPECT_EQ(result == expected, true);
+    }
 }
+
 template <class T> void write(const T t)
 {
     FILE* fp = fopen("/dev/null", "wb");

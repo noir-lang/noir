@@ -1,5 +1,5 @@
 #pragma once
-#include <stdlib/types/turbo.hpp>
+#include <stdlib/types/types.hpp>
 #include <stdlib/hash/pedersen/pedersen.hpp>
 #include "../../constants.hpp"
 
@@ -9,7 +9,7 @@ namespace notes {
 namespace circuit {
 namespace claim {
 
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 
 inline auto create_partial_commitment(field_ct const& deposit_value,
                                       field_ct const& bridge_call_data,

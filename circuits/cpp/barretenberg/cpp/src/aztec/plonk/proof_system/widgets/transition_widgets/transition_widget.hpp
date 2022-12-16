@@ -52,7 +52,25 @@ template <class Field> using coefficient_array = std::array<Field, PolynomialInd
 
 } // namespace containers
 
+/**
+ * @brief Getters are various classes that are used to retrieve / query various object needed during the proof
+ *
+ * @details You can query:
+ * Challenges;
+ * Polynomial evaluations;
+ * Polynomials is monomial form;
+ * Polynomials in lagrange form;
+ *
+ */
 namespace getters {
+/**
+ * @brief Implements loading challenges from the transcript and computing powers of α, which is later used in widgets
+ *
+ * @tparam Field Base field
+ * @tparam Transcript Transcript class
+ * @tparam Settings Configuration, specifically the use of linearization
+ * @tparam num_widget_relations How many powers of α are needed
+ */
 template <class Field, class Transcript, class Settings, size_t num_widget_relations> class BaseGetter {
   protected:
     typedef containers::challenge_array<Field, num_widget_relations> challenge_array;
@@ -92,18 +110,17 @@ template <class Field, class Transcript, class Settings, size_t num_widget_relat
          * proof will fail if some widget uses an uninitialized challenge.         *
          *
          * */
+
         auto add_challenge = [transcript,
                               &result](const auto label, const auto tag, const bool required, const size_t index = 0) {
-            if (required) { // if we are supposed to use the challenge, we pick it from transcript, otherwise we use a
-                            // random value
-                ASSERT(index < transcript.get_num_challenges(
-                                   label)); // We fail this assertion only if the required challenge doesn't exist yet
+            ASSERT(!required || transcript.has_challenge(label));
+            if (transcript.has_challenge(label)) {
+                ASSERT(index < transcript.get_num_challenges(label));
                 result.elements[tag] = transcript.get_challenge_field_element(label, index);
             } else {
                 result.elements[tag] = barretenberg::fr::random_element();
             }
         };
-
         add_challenge("alpha", ALPHA, required_challenges & CHALLENGE_BIT_ALPHA);
         add_challenge("beta", BETA, required_challenges & CHALLENGE_BIT_BETA);
         add_challenge("beta", GAMMA, required_challenges & CHALLENGE_BIT_GAMMA, 1);
@@ -125,6 +142,15 @@ template <class Field, class Transcript, class Settings, size_t num_widget_relat
     }
 };
 
+/**
+ * @brief Implements loading polynomial openings from transcript in addition to BaseGetter's loading challenges from the
+ * transcript and computing powers of α
+ *
+ * @tparam Field Base field
+ * @tparam Transcript Transcript class
+ * @tparam Settings Configuration, specifically the use of linearization
+ * @tparam num_widget_relations How many powers of α are needed
+ */
 template <class Field, class Transcript, class Settings, size_t num_widget_relations>
 class EvaluationGetter : public BaseGetter<Field, Transcript, Settings, num_widget_relations> {
   protected:
@@ -151,7 +177,13 @@ class EvaluationGetter : public BaseGetter<Field, Transcript, Settings, num_widg
         }
         return polynomials[id].first;
     }
-
+    /**
+     * @brief Return an array with poly
+     *
+     * @param polynomial_manifest
+     * @param transcript
+     * @return poly_array
+     */
     static poly_array get_polynomial_evaluations(const polynomial_manifest& polynomial_manifest,
                                                  const Transcript& transcript)
     {

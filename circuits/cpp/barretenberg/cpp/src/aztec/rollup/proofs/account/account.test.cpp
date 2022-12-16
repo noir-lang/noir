@@ -12,8 +12,15 @@
 #include <stdlib/merkle_tree/memory_store.hpp>
 #include <stdlib/merkle_tree/merkle_tree.hpp>
 
+#ifdef CI
+constexpr bool CIRCUIT_CHANGE_EXPECTED = false;
+#else
+// During development, if the circuit vk hash/gate count is expected to change, set the following to true.
+constexpr bool CIRCUIT_CHANGE_EXPECTED = false;
+#endif
+
 using namespace barretenberg;
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 using namespace plonk::stdlib::merkle_tree;
 using namespace rollup;
 using namespace rollup::proofs;
@@ -145,10 +152,10 @@ class account_tests : public ::testing::Test {
     {
         Composer composer(get_proving_key(), nullptr);
         account_circuit(composer, tx);
-        if (composer.failed) {
-            info("Circuit logic failed: " + composer.err);
+        if (composer.failed()) {
+            info("Circuit logic failed: " + composer.err());
         }
-        return { !composer.failed, composer.err };
+        return { !composer.failed(), composer.err() };
     }
 
     rollup::fixtures::user_context alice;
@@ -355,27 +362,25 @@ TEST_F(account_tests, test_create_account_full_proof_and_detect_circuit_change)
     EXPECT_EQ(data.allow_chain, uint256_t(0));
 
     EXPECT_TRUE(verify_proof(proof));
+
     // The below part detects change in the account circuit
+    constexpr uint32_t CIRCUIT_GATE_COUNT = 23958;
+    constexpr uint32_t GATES_NEXT_POWER_OF_TWO = 32768;
+    const uint256_t VK_HASH("e0a3d137687cf0d8e0fd1975351051a63592ae71dcd7649399a3590fb411cc59");
+
     size_t number_of_gates_acc = get_number_of_gates();
     auto vk_hash_acc = get_verification_key()->sha256_hash();
-    // If the below assertions fail, consider changing the variable is_circuit_change_expected to 1 in
-    // rollup/constants.hpp and see if atleast the next power of two limit is not exceeded. Please change the constant
-    // values accordingly and set is_circuit_change_expected to 0 in rollup/constants.hpp before merging.
-    if (!(circuit_gate_count::is_circuit_change_expected)) {
-        EXPECT_EQ(number_of_gates_acc, circuit_gate_count::ACCOUNT)
-            << "The gate count for the account circuit is changed.";
-        EXPECT_EQ(from_buffer<uint256_t>(vk_hash_acc), circuit_vk_hash::ACCOUNT)
+
+    if (!CIRCUIT_CHANGE_EXPECTED) {
+        EXPECT_EQ(number_of_gates_acc, CIRCUIT_GATE_COUNT) << "The gate count for the account circuit is changed.";
+        EXPECT_EQ(from_buffer<uint256_t>(vk_hash_acc), VK_HASH)
             << "The verification key hash for the account circuit is changed: " << from_buffer<uint256_t>(vk_hash_acc);
-        // For the next power of two limit, we need to consider that we reserve four gates for adding
-        // randomness/zero-knowledge
-        EXPECT_LE(number_of_gates_acc,
-                  circuit_gate_next_power_of_two::ACCOUNT - waffle::ComposerBase::NUM_RESERVED_GATES)
-            << "You have exceeded the next power of two limit for the account circuit.";
-    } else {
-        EXPECT_LE(number_of_gates_acc,
-                  circuit_gate_next_power_of_two::ACCOUNT - waffle::ComposerBase::NUM_RESERVED_GATES)
-            << "You have exceeded the next power of two limit for the account circuit.";
     }
+
+    // For the next power of two limit, we need to consider that we reserve four gates for adding
+    // randomness/zero-knowledge
+    EXPECT_LE(number_of_gates_acc, GATES_NEXT_POWER_OF_TWO - waffle::ComposerBase::NUM_RESERVED_GATES)
+        << "You have exceeded the next power of two limit for the account circuit.";
 }
 
 TEST_F(account_tests, test_migrate_account_full_proof)

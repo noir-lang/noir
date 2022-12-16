@@ -80,11 +80,12 @@ class root_verifier_tests : public ::testing::Test {
                                                 srs,
                                                 { root_rollup_cd.verification_key },
                                                 FIXTURE_PATH,
-                                                false,
-                                                false,
-                                                true,
-                                                false,
-                                                true);
+                                                false, // compute
+                                                false, // save
+                                                true,  // load
+                                                false, // pk
+                                                true   // vk
+            );
             // create 1x2 key to use later
             root_rollup_cd_bad =
                 root_rollup::get_circuit_data(2U, tx_rollup_cd, srs, FIXTURE_PATH, false, false, true, false, true);

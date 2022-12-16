@@ -3,7 +3,7 @@
 #include <numeric/random/engine.hpp>
 
 using namespace barretenberg;
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 using namespace rollup::proofs::claim;
 
 namespace {
@@ -28,7 +28,7 @@ TEST(ratio_check, product_check)
     uint512_t test_right = uint512_t(a2) * uint512_t(b2);
     EXPECT_EQ(test_left, test_right);
 
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
 
     field_ct left1(witness_ct(&composer, a1));
     field_ct right1(witness_ct(&composer, b1));
@@ -38,8 +38,8 @@ TEST(ratio_check, product_check)
     auto result = product_check(composer, left1, right1, left2, right2, witness_ct(&composer, 0));
     result.assert_equal(true);
 
-    waffle::TurboProver prover = composer.create_prover();
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    Prover prover = composer.create_prover();
+    Verifier verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, true);
@@ -53,7 +53,7 @@ TEST(ratio_check, product_check_with_zeros)
     uint256_t c = 5;
     uint256_t d = 0;
 
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
 
     field_ct a1(witness_ct(&composer, a));
     field_ct b1(witness_ct(&composer, b));
@@ -63,8 +63,8 @@ TEST(ratio_check, product_check_with_zeros)
     auto result = product_check(composer, a1, b1, a2, b2, witness_ct(&composer, 0));
     result.assert_equal(true);
 
-    waffle::TurboProver prover = composer.create_prover();
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    Prover prover = composer.create_prover();
+    Verifier verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, true);
@@ -91,7 +91,7 @@ TEST(ratio_check, ratio_check)
 
     const uint256_t d = ((uint512_t(a) * uint512_t(b)) / uint512_t(c)).lo;
 
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
 
     field_ct a1(witness_ct(&composer, a));
     field_ct a2(witness_ct(&composer, c));
@@ -105,8 +105,8 @@ TEST(ratio_check, ratio_check)
     auto result = ratio_check(composer, ratios);
     result.assert_equal(true);
 
-    waffle::TurboProver prover = composer.create_prover();
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    Prover prover = composer.create_prover();
+    Verifier verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, true);
@@ -119,7 +119,7 @@ TEST(ratio_check, bad_ratio_check)
     uint256_t c = 200;
     uint256_t d = 21;
 
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
 
     field_ct a1(witness_ct(&composer, a));
     field_ct a2(witness_ct(&composer, b));
@@ -130,8 +130,8 @@ TEST(ratio_check, bad_ratio_check)
     auto result = ratio_check(composer, ratios);
     result.assert_equal(false);
 
-    waffle::TurboProver prover = composer.create_prover();
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    Prover prover = composer.create_prover();
+    Verifier verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, true);
@@ -144,7 +144,7 @@ TEST(ratio_check, zero_denominator_a2_returns_false)
     uint256_t c = 5;
     uint256_t d = 0;
 
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
 
     field_ct a1(witness_ct(&composer, a));
     field_ct a2(witness_ct(&composer, d));
@@ -155,8 +155,8 @@ TEST(ratio_check, zero_denominator_a2_returns_false)
     auto result = ratio_check(composer, ratios);
     result.assert_equal(false);
 
-    waffle::TurboProver prover = composer.create_prover();
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    Prover prover = composer.create_prover();
+    Verifier verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, true);
@@ -169,7 +169,7 @@ TEST(ratio_check, zero_denominator_b2_returns_false)
     uint256_t c = 5;
     uint256_t d = 1;
 
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
 
     field_ct a1(witness_ct(&composer, a));
     field_ct a2(witness_ct(&composer, d));
@@ -180,8 +180,8 @@ TEST(ratio_check, zero_denominator_b2_returns_false)
     auto result = ratio_check(composer, ratios);
     result.assert_equal(false);
 
-    waffle::TurboProver prover = composer.create_prover();
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    Prover prover = composer.create_prover();
+    Verifier verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, true);
@@ -194,7 +194,7 @@ TEST(ratio_check, zero_denominator_both_returns_false)
     uint256_t c = 5;
     uint256_t d = 0;
 
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
 
     field_ct a1(witness_ct(&composer, a));
     field_ct a2(witness_ct(&composer, d));
@@ -205,8 +205,8 @@ TEST(ratio_check, zero_denominator_both_returns_false)
     auto result = ratio_check(composer, ratios);
     result.assert_equal(false);
 
-    waffle::TurboProver prover = composer.create_prover();
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    Prover prover = composer.create_prover();
+    Verifier verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, true);
@@ -220,7 +220,7 @@ TEST(ratio_check, field_modulus_overflow_fails)
     // uint256_t d = 10944121435919637611123202872628637544274182200208017171849102093287904247809; // = 2^(-1)
     uint256_t d(0xA1F0FAC9F8000001ULL, 0x9419F4243CDCB848ULL, 0xDC2822DB40C0AC2EULL, 0x183227397098D014ULL); // = 2^(-1)
 
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
 
     field_ct a1(witness_ct(&composer, a));
     field_ct a2(witness_ct(&composer, d));
@@ -233,8 +233,8 @@ TEST(ratio_check, field_modulus_overflow_fails)
     auto result = ratio_check(composer, ratios);
     result.assert_equal(false);
 
-    waffle::TurboProver prover = composer.create_prover();
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    Prover prover = composer.create_prover();
+    Verifier verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, true);
@@ -250,7 +250,7 @@ TEST(ratio_check, field_modulus_overflow_with_biggest_numbers_possible_fails)
     uint256_t c = r - 1;
     uint256_t d = r - 1;
 
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
 
     field_ct a1(witness_ct(&composer, a));
     field_ct a2(witness_ct(&composer, d));
@@ -263,8 +263,8 @@ TEST(ratio_check, field_modulus_overflow_with_biggest_numbers_possible_fails)
     auto result = ratio_check(composer, ratios);
     result.assert_equal(false);
 
-    waffle::TurboProver prover = composer.create_prover();
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    Prover prover = composer.create_prover();
+    Verifier verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, true);

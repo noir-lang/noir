@@ -490,7 +490,8 @@ TEST(turbo_composer, range_constraint)
         // include non-nice numbers of bits, that will bleed over gate boundaries
         size_t extra_bits = 2 * (i % 4);
 
-        std::vector<uint32_t> accumulators = composer.decompose_into_base4_accumulators(witness_index, 32 + extra_bits);
+        std::vector<uint32_t> accumulators = composer.decompose_into_base4_accumulators(
+            witness_index, 32 + extra_bits, "constraint in test range_constraint fails");
 
         for (uint32_t j = 0; j < 16; ++j) {
             uint32_t result = (value >> (30U - (2 * j)));
@@ -528,7 +529,7 @@ TEST(turbo_composer, range_constraint_fail)
     uint64_t value = 0xffffff;
     uint32_t witness_index = composer.add_variable(fr(value));
 
-    composer.decompose_into_base4_accumulators(witness_index, 23);
+    composer.decompose_into_base4_accumulators(witness_index, 23, "yay, range constraint fails");
 
     waffle::TurboProver prover = composer.create_prover();
 
@@ -569,8 +570,8 @@ TEST(turbo_composer, and_constraint_failure)
 
     bool result = verifier.verify_proof(proof);
 
-    if (composer.failed) {
-        info("Composer failed; ", composer.err);
+    if (composer.failed()) {
+        info("Composer failed; ", composer.err());
     }
 
     EXPECT_EQ(result, false);
@@ -675,8 +676,8 @@ TEST(turbo_composer, xor_constraint_failure)
 
     bool result = verifier.verify_proof(proof);
 
-    if (composer.failed) {
-        info("Composer failed; ", composer.err);
+    if (composer.failed()) {
+        info("Composer failed; ", composer.err());
     }
 
     EXPECT_EQ(result, false);
@@ -1122,7 +1123,8 @@ TEST(turbo_composer, test_check_circuit_range_constraint)
         // include non-nice numbers of bits, that will bleed over gate boundaries
         size_t extra_bits = 2 * (i % 4);
 
-        std::vector<uint32_t> accumulators = composer.decompose_into_base4_accumulators(witness_index, 32 + extra_bits);
+        std::vector<uint32_t> accumulators = composer.decompose_into_base4_accumulators(
+            witness_index, 32 + extra_bits, "range constraint fails in test_check_circuit_range_constraint");
     }
 
     uint32_t zero_idx = composer.add_variable(fr::zero());

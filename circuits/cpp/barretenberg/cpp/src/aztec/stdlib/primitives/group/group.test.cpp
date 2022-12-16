@@ -1,9 +1,9 @@
-#include "../../types/turbo.hpp"
+#include "../../types/types.hpp"
 #include <common/test.hpp>
 #include <numeric/random/engine.hpp>
 
 using namespace barretenberg;
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();
@@ -55,7 +55,7 @@ TEST(stdlib_group, test_fixed_base_scalar_mul_zero_fails)
 
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, false);
-    EXPECT_EQ(composer.err, "input scalar to fixed_base_scalar_mul_internal cannot be 0");
+    EXPECT_EQ(composer.err(), "input scalar to fixed_base_scalar_mul_internal cannot be 0");
 }
 
 TEST(stdlib_group, test_fixed_base_scalar_mul_with_two_limbs)

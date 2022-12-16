@@ -18,7 +18,6 @@ namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
 
-// TODO: refactor pippenger tests. These are a hot mess...
 TEST(scalar_multiplication, reduce_buckets_simple)
 {
     constexpr size_t num_points = 128;
@@ -517,10 +516,11 @@ TEST(scalar_multiplication, endomorphism_split)
 
     g1::element result;
     g1::element t1 = g1::affine_one * k1;
-    g1::affine_element beta = g1::affine_one;
-    beta.x = beta.x * fq::beta();
-    beta.y = -beta.y;
-    g1::element t2 = beta * k2;
+    g1::affine_element generator = g1::affine_one;
+    fq beta = fq::cube_root_of_unity();
+    generator.x = generator.x * beta;
+    generator.y = -generator.y;
+    g1::element t2 = generator * k2;
     result = t1 + t2;
 
     EXPECT_EQ(result == expected, true);

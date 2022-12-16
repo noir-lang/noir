@@ -12,7 +12,7 @@
 using namespace ::rollup::proofs;
 using namespace ::rollup::fixtures;
 using namespace plonk::stdlib::merkle_tree;
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 namespace tx_rollup = ::rollup::proofs::rollup;
 using WorldState = ::rollup::world_state::WorldState<MemoryStore>;
 

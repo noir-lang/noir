@@ -2,13 +2,13 @@
 #include "rollup_tx.hpp"
 #include <stdlib/recursion/verifier/program_settings.hpp>
 #include <stdlib/recursion/verifier/verifier.hpp>
-#include <stdlib/types/turbo.hpp>
+#include <stdlib/types/types.hpp>
 
 namespace rollup {
 namespace proofs {
 namespace rollup {
 
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 using namespace plonk::stdlib::recursion;
 
 field_ct check_nullifiers_inserted(Composer& composer,

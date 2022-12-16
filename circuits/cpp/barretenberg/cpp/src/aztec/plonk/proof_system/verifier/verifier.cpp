@@ -45,23 +45,29 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     // π_SNARK =   { [a]_1,[b]_1,[c]_1,[z]_1,[t_{low}]_1,[t_{mid}]_1,[t_{high}]_1,[W_z]_1,[W_zω]_1 \in G,
     //              a_eval, b_eval, c_eval, sigma1_eval, sigma2_eval, z_eval_omega \in F }
     //
-    // Proof π_SNARK must be first added in the transcrip with other program settings.
-    //
+    // Proof π_SNARK must first be added to the transcript with the other program_settings.
 
     key->program_width = program_settings::program_width;
+
+    // Add the proof data to the transcript, according to the manifest. Also initialise the transcript's hash type and
+    // challenge bytes.
     transcript::StandardTranscript transcript = transcript::StandardTranscript(
         proof.proof_data, manifest, program_settings::hash_type, program_settings::num_challenge_bytes);
-    // Compute challenges using Fiat-Shamir heuristic from transcript
+
+    // From the verification key, also add n & l (the circuit size and the number of public inputs) to the transcript.
     transcript.add_element("circuit_size",
                            { static_cast<uint8_t>(key->n >> 24),
                              static_cast<uint8_t>(key->n >> 16),
                              static_cast<uint8_t>(key->n >> 8),
                              static_cast<uint8_t>(key->n) });
+
     transcript.add_element("public_input_size",
                            { static_cast<uint8_t>(key->num_public_inputs >> 24),
                              static_cast<uint8_t>(key->num_public_inputs >> 16),
                              static_cast<uint8_t>(key->num_public_inputs >> 8),
                              static_cast<uint8_t>(key->num_public_inputs) });
+
+    // Compute challenges from the proof data, based on the manifest, using the Fiat-Shamir heuristic
     transcript.apply_fiat_shamir("init");
     transcript.apply_fiat_shamir("eta");
     transcript.apply_fiat_shamir("beta");
@@ -69,38 +75,48 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     transcript.apply_fiat_shamir("z");
 
     const auto alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
-    const auto zeta = fr::serialize_from_buffer(transcript.get_challenge("z").begin());
+    const auto zeta = fr::serialize_from_buffer(
+        transcript.get_challenge("z")
+            .begin()); // `zeta` is the name being given to the "Fraktur" (gothic) z from the plonk paper, so as not to
+                       // confuse us with the z permutation polynomial and Z_H vanishing polynomial.
+                       // You could use a unicode "latin small letter ezh with curl" (ʓ) to get close, if you wanted.
 
-    // Compute the evaluations of the lagrange polynomials L_1(X) and L_{n - k}(X) at X = zeta.
+    // Compute the evaluations of the lagrange polynomials L_1(X) and L_{n - k}(X) at X = ʓ.
+    // Also computes the evaluation of the vanishing polynomial Z_H*(X) at X = ʓ.
     // Here k = num_roots_cut_out_of_the_vanishing_polynomial and n is the size of the evaluation domain.
+    /// TODO: can we add these lagrange evaluations to the transcript? They get recalcualted after this multiple times,
+    // by each widget.
     const auto lagrange_evals = barretenberg::polynomial_arithmetic::get_lagrange_evaluations(zeta, key->domain);
 
     // Step 8: Compute quotient polynomial evaluation at zeta
-    //           r_eval − ((a_eval + β.sigma1_eval + γ)(b_eval + β.sigma2_eval + γ)(c_eval + γ) z_eval_omega)α −
-    //           L_1(zeta).α^{3} + (z_eval_omega - ∆_{PI}).L_{n-k}(zeta)α^{2}
-    // t_eval =
-    // --------------------------------------------------------------------------------------------------------------------------------------------------------------
-    //                                                                       Z_H*(zeta)
+    //           r_eval − (a_eval + β.sigma1_eval + γ)(b_eval + β.sigma2_eval + γ)(c_eval + γ).z_eval_omega.α −
+    //           L_1(ʓ).α^3 + (z_eval_omega - ∆_{PI}).L_{n-k}(ʓ).α^2
+    // t_eval =  -----------------------------------------------------------------------------------------------
+    //                                                    Z_H*(ʓ)
+    //
     // where Z_H*(X) is the modified vanishing polynomial.
+
+    // Compute ʓ^n.
+    key->z_pow_n = zeta.pow(key->domain.size);
+
     // The `compute_quotient_evaluation_contribution` function computes the numerator of t_eval and also r_0 (for
     // the simplified version) according to the program settings for standard/turbo/ultra PLONK.
-    //
-    key->z_pow_n = zeta;
-    for (size_t i = 0; i < key->domain.log2_size; ++i) {
-        key->z_pow_n *= key->z_pow_n;
-    }
-    // when use_linearisation is true, r_0 is the contant term of r(X). When use_linearisation is false, r_0
-    // is the evaluation of the numerator of quotient polynomial t(X)
+    // When use_linearisation = true, r_0 is the constant term of r(X).
+    // When use_linearisation = false, r_0 is the evaluation of the numerator of quotient polynomial t(X).
     fr r_0(0);
     program_settings::compute_quotient_evaluation_contribution(key.get(), alpha, transcript, r_0);
-    // We want to include t_eval to transcript only when use_linearisation is false
+
+    // We want to include t_eval in the transcript only when use_linearisation = false.
     if (!program_settings::use_linearisation) {
         fr t_eval = r_0 * lagrange_evals.vanishing_poly.invert();
         transcript.add_element("t", t_eval.to_buffer());
     }
+
     transcript.apply_fiat_shamir("nu");
     transcript.apply_fiat_shamir("separator");
-    const auto separator_challenge = fr::serialize_from_buffer(transcript.get_challenge("separator").begin());
+
+    const auto separator_challenge =
+        fr::serialize_from_buffer(transcript.get_challenge("separator").begin()); // a.k.a. `u` in the plonk paper
 
     // In the following function, we do the following computation.
     // Step 10: Compute batch opening commitment [F]_1
@@ -121,7 +137,7 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     //
     commitment_scheme->batch_verify(transcript, kate_g1_elements, kate_fr_elements, key, r_0);
 
-    // Step 9: Compute partial opening batch commitment [D]_1:
+    // Step 9: Compute the partial opening batch commitment [D]_1:
     //         [D]_1 = (a_eval.b_eval.[qM]_1 + a_eval.[qL]_1 + b_eval.[qR]_1 + c_eval.[qO]_1 + [qC]_1) * nu_{linear} * α
     //         >> selector polynomials
     //                  + [(a_eval + β.z + γ)(b_eval + β.k_1.z + γ)(c_eval + β.k_2.z + γ).α +
@@ -138,7 +154,7 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     g1::affine_element PI_Z = g1::affine_element::serialize_from_buffer(&transcript.get_element("PI_Z")[0]);
     g1::affine_element PI_Z_OMEGA = g1::affine_element::serialize_from_buffer(&transcript.get_element("PI_Z_OMEGA")[0]);
 
-    // validate PI_Z, PI_Z_OMEGA are valid ecc points.
+    // Validate PI_Z, PI_Z_OMEGA are valid ecc points.
     // N.B. we check that witness commitments are valid points in KateCommitmentScheme<settings>::batch_verify
     if (!PI_Z.on_curve() || PI_Z.is_point_at_infinity()) {
         throw_or_abort("opening proof group element PI_Z not a valid point");
@@ -158,6 +174,7 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     std::vector<g1::affine_element> elements;
 
     for (const auto& [key, value] : kate_g1_elements) {
+        // TODO: perhaps we should throw if not on curve or if infinity?
         if (value.on_curve() && !value.is_point_at_infinity()) {
             scalars.emplace_back(kate_fr_elements.at(key));
             elements.emplace_back(value);
@@ -208,6 +225,7 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
                                                       key->recursive_proof_public_input_indices[13],
                                                       key->recursive_proof_public_input_indices[14],
                                                       key->recursive_proof_public_input_indices[15]);
+
         P[0] += g1::element(x0, y0, 1) * recursion_separator_challenge;
         P[1] += g1::element(x1, y1, 1) * recursion_separator_challenge;
     }
@@ -228,10 +246,12 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
 
 template class VerifierBase<unrolled_standard_verifier_settings>;
 template class VerifierBase<unrolled_turbo_verifier_settings>;
-template class VerifierBase<unrolled_plookup_verifier_settings>;
+template class VerifierBase<unrolled_ultra_verifier_settings>;
+template class VerifierBase<unrolled_ultra_to_standard_verifier_settings>;
+
 template class VerifierBase<standard_verifier_settings>;
 template class VerifierBase<turbo_verifier_settings>;
-template class VerifierBase<plookup_verifier_settings>;
+template class VerifierBase<ultra_verifier_settings>;
 template class VerifierBase<generalized_permutation_verifier_settings>;
 
 } // namespace waffle

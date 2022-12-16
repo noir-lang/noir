@@ -1,7 +1,7 @@
 #pragma once
 #include <crypto/schnorr/schnorr.hpp>
 #include <stdlib/merkle_tree/hash_path.hpp>
-#include <stdlib/types/turbo.hpp>
+#include <stdlib/types/types.hpp>
 
 namespace rollup {
 namespace proofs {

@@ -1,5 +1,5 @@
 #pragma once
-#include <stdlib/types/turbo.hpp>
+#include <stdlib/types/types.hpp>
 #include "../bridge_call_data.hpp"
 #include "witness_data.hpp"
 #include "../value/create_partial_commitment.hpp"
@@ -12,7 +12,7 @@ namespace notes {
 namespace circuit {
 namespace claim {
 
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 
 struct partial_claim_note {
     suint_ct deposit_value;

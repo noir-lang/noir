@@ -15,8 +15,7 @@ recursion_output<outer_curve> root_verifier_circuit(
 {
     recursion_output<outer_curve> recursion_output;
     if (!valid_vks.size()) {
-        composer.failed = true;
-        composer.err = "Cannot build root verifier circuit with empty list of keys.";
+        composer.failure("Cannot build root verifier circuit with empty list of keys.");
         return recursion_output;
     }
 

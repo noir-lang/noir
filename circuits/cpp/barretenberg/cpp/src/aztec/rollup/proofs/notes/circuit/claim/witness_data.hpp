@@ -1,5 +1,5 @@
 #pragma once
-#include <stdlib/types/turbo.hpp>
+#include <stdlib/types/types.hpp>
 #include "../../native/claim/claim_note.hpp"
 #include "../../native/claim/claim_note_tx_data.hpp"
 #include "../../constants.hpp"
@@ -11,7 +11,7 @@ namespace notes {
 namespace circuit {
 namespace claim {
 
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 
 /**
  * Convert native claim note data into circuit witness data.

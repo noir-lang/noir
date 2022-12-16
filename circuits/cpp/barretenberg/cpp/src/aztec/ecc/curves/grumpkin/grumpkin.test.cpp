@@ -400,7 +400,7 @@ TEST(grumpkin, batch_mul)
 // https://github.com/AztecProtocol/aztec2-internal/issues/437
 TEST(grumpkin, bad_points)
 {
-    auto beta = grumpkin::fr::beta();
+    auto beta = grumpkin::fr::cube_root_of_unity();
     auto beta_sqr = beta * beta;
     bool res = true;
     grumpkin::fr c(1);

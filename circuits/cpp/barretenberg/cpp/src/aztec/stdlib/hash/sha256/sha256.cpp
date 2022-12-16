@@ -2,7 +2,7 @@
 #include "sha256_plookup.hpp"
 #include <plonk/composer/standard_composer.hpp>
 #include <plonk/composer/turbo_composer.hpp>
-#include <plonk/composer/plookup_composer.hpp>
+#include <plonk/composer/ultra_composer.hpp>
 #include <stdlib/primitives/bit_array/bit_array.hpp>
 
 namespace plonk {
@@ -121,13 +121,13 @@ template <typename Composer> byte_array<Composer> sha256_block(const byte_array<
     ASSERT(input.size() == 64);
 
     std::array<uint32, 8> hash;
-    prepare_constants(hash);
+    prepare_constants<Composer>(hash);
 
     std::array<uint32, 16> hash_input;
     for (size_t i = 0; i < 16; ++i) {
         hash_input[i] = uint32(input.slice(i * 4, 4));
     }
-    hash = sha256_block(hash, hash_input);
+    hash = sha256_block<Composer>(hash, hash_input);
 
     byte_array<Composer> result(input.get_context());
     for (size_t i = 0; i < 8; ++i) {
@@ -168,23 +168,22 @@ template <typename Composer> packed_byte_array<Composer> sha256(const packed_byt
     constexpr size_t slices_per_block = 16;
 
     std::array<uint32, 8> rolling_hash;
-    prepare_constants(rolling_hash);
+    prepare_constants<Composer>(rolling_hash);
     for (size_t i = 0; i < num_blocks; ++i) {
         std::array<uint32, 16> hash_input;
         for (size_t j = 0; j < 16; ++j) {
             hash_input[j] = uint32(slices[i * slices_per_block + j]);
         }
-        rolling_hash = sha256_block(rolling_hash, hash_input);
+        rolling_hash = sha256_block<Composer>(rolling_hash, hash_input);
     }
 
     std::vector<field_pt> output(rolling_hash.begin(), rolling_hash.end());
     return packed_byte_array<Composer>(output, 4);
 }
 
-template byte_array<waffle::StandardComposer> sha256_block(const byte_array<waffle::StandardComposer>& input);
-template packed_byte_array<waffle::StandardComposer> sha256(const packed_byte_array<waffle::StandardComposer>& input);
 template byte_array<waffle::TurboComposer> sha256_block(const byte_array<waffle::TurboComposer>& input);
+template packed_byte_array<waffle::StandardComposer> sha256(const packed_byte_array<waffle::StandardComposer>& input);
 template packed_byte_array<waffle::TurboComposer> sha256(const packed_byte_array<waffle::TurboComposer>& input);
-template packed_byte_array<waffle::PlookupComposer> sha256(const packed_byte_array<waffle::PlookupComposer>& input);
+template packed_byte_array<waffle::UltraComposer> sha256(const packed_byte_array<waffle::UltraComposer>& input);
 } // namespace stdlib
 } // namespace plonk

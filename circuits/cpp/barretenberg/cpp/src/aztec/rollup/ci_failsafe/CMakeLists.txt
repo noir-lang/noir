@@ -1,1 +1,0 @@
-barretenberg_module(ci_failsafe)

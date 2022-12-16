@@ -6,7 +6,7 @@ namespace plonk {
 namespace stdlib {
 namespace ecdsa {
 
-template <typename Composer, typename Fq, typename Fr, typename G1>
+template <typename Composer, typename Curve, typename Fq, typename Fr, typename G1>
 bool_t<Composer> verify_signature(const stdlib::byte_array<Composer>& message,
                                   const G1& public_key,
                                   const signature<Composer>& sig)
@@ -20,6 +20,9 @@ bool_t<Composer> verify_signature(const stdlib::byte_array<Composer>& message,
     z.assert_is_in_field();
 
     Fr r(sig.r);
+    // force r to be < secp256k1 group modulus, so we can compare with `result_mod_r` below
+    r.assert_is_in_field();
+
     Fr s(sig.s);
 
     // r and s should not be zero
@@ -29,17 +32,31 @@ bool_t<Composer> verify_signature(const stdlib::byte_array<Composer>& message,
     Fr u1 = z / s;
     Fr u2 = r / s;
 
-    G1 result = G1::batch_mul({ G1::one(ctx), public_key }, { u1, u2 });
-    result.x.assert_is_in_field();
+    G1 result;
+    if constexpr (Composer::type == waffle::ComposerType::PLOOKUP) {
+        ASSERT(Curve::type == waffle::CurveType::SECP256K1);
+        public_key.validate_on_curve();
+        result = G1::secp256k1_ecdsa_mul(public_key, u1, u2);
+    } else {
+        result = G1::batch_mul({ G1::one(ctx), public_key }, { u1, u2 });
+    }
+    result.x.self_reduce();
 
-    field_t<Composer> result_x_lo =
-        result.x.binary_basis_limbs[1].element * Fq::shift_1 + result.x.binary_basis_limbs[0].element;
-    field_t<Composer> result_x_hi =
-        result.x.binary_basis_limbs[3].element * Fq::shift_1 + result.x.binary_basis_limbs[2].element;
+    // transfer Fq value x to an Fr element and reduce mod r
+    Fr result_mod_r(ctx, 0);
+    result_mod_r.binary_basis_limbs[0].element = result.x.binary_basis_limbs[0].element;
+    result_mod_r.binary_basis_limbs[1].element = result.x.binary_basis_limbs[1].element;
+    result_mod_r.binary_basis_limbs[2].element = result.x.binary_basis_limbs[2].element;
+    result_mod_r.binary_basis_limbs[3].element = result.x.binary_basis_limbs[3].element;
+    result_mod_r.binary_basis_limbs[0].maximum_value = result.x.binary_basis_limbs[0].maximum_value;
+    result_mod_r.binary_basis_limbs[1].maximum_value = result.x.binary_basis_limbs[1].maximum_value;
+    result_mod_r.binary_basis_limbs[2].maximum_value = result.x.binary_basis_limbs[2].maximum_value;
+    result_mod_r.binary_basis_limbs[3].maximum_value = result.x.binary_basis_limbs[3].maximum_value;
 
-    Fr result_mod_r(result_x_lo, result_x_hi);
+    result_mod_r.prime_basis_limb = result.x.prime_basis_limb;
+
     result_mod_r.assert_is_in_field();
-    r.assert_is_in_field();
+
     result_mod_r.binary_basis_limbs[0].element.assert_equal(r.binary_basis_limbs[0].element);
     result_mod_r.binary_basis_limbs[1].element.assert_equal(r.binary_basis_limbs[1].element);
     result_mod_r.binary_basis_limbs[2].element.assert_equal(r.binary_basis_limbs[2].element);

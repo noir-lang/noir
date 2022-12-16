@@ -2,15 +2,49 @@
 #include <crypto/pedersen/pedersen.hpp>
 #include <ecc/curves/grumpkin/grumpkin.hpp>
 #include <gtest/gtest.h>
-#include <stdlib/types/turbo.hpp>
+#include <stdlib/types/types.hpp>
 
 namespace test_stdlib_schnorr {
 
 using namespace barretenberg;
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 using namespace plonk::stdlib::schnorr;
 
-typedef wnaf_record<waffle::TurboComposer> wnaf_record_ct;
+auto run_scalar_mul_test = [](grumpkin::fr scalar_mont, bool expect_verify) {
+    Composer composer = Composer();
+
+    grumpkin::fr scalar = scalar_mont.from_montgomery_form();
+
+    uint256_t scalar_low{ scalar.data[0], scalar.data[1], 0ULL, 0ULL };
+    uint256_t scalar_high{ scalar.data[2], scalar.data[3], 0ULL, 0ULL };
+
+    field_ct input_lo = witness_ct(&composer, scalar_low);
+    field_ct input_hi = witness_ct(&composer, scalar_high);
+
+    grumpkin::g1::element expected = grumpkin::g1::one * scalar_mont;
+    expected = expected.normalize();
+    point_ct point_input{ witness_ct(&composer, grumpkin::g1::affine_one.x),
+                          witness_ct(&composer, grumpkin::g1::affine_one.y) };
+
+    point_ct output = variable_base_mul(point_input, input_lo, input_hi);
+
+    if (expect_verify) {
+        EXPECT_EQ(output.x.get_value(), expected.x);
+        EXPECT_EQ(output.y.get_value(), expected.y);
+    };
+
+    Prover prover = composer.create_prover();
+
+    printf("composer gates = %zu\n", composer.get_num_gates());
+    Verifier verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof);
+    EXPECT_EQ(result, expect_verify);
+};
+
+typedef wnaf_record<Composer> wnaf_record_ct;
 
 /**
  * @brief Helper function to compare wnaf_records, useful since == on bool_ct's returns a bool_ct.
@@ -59,34 +93,30 @@ TEST(stdlib_schnorr, convert_field_into_wnaf_special)
     };
 
     // manually build the expected wnaf records
-
-    // these values are corrrectly reproduced
-    // //  1 is given by ((false, ..., false), false)
+    //  1 is given by ((false, ..., false), false)
     auto record_1 = all_false;
 
-    // // 0 is given by ((false, ..., false), true)
+    // 0 is given by ((false, ..., false), true)
     auto record_0 = all_false;
     record_0.skew = true;
 
-    // // 2^128 - 1 = 2^128 - 2^127 + (2^127 - 1) - 0 is given by((false, true, ..., true), false)
+    // 2^128 - 1 = 2^128 - 2^127 + (2^127 - 1) - 0 is given by((false, true, ..., true), false)
     auto record_128_minus_1 = all_true;
     record_128_minus_1.bits[0] = false;
     record_128_minus_1.skew = false;
 
-    // these values are not correctly reproduced
-    // // 2^128 + 1 = 2^128 + (2^127 - (2^127 - 1)) - 0 is given by((true, true, false, ..., false), false)
+    // 2^128 + 1 = 2^128 + (2^127 - (2^127 - 1)) - 0 is given by((true, false, false, ..., false), false)
     auto record_128_plus_1 = all_false;
     record_128_plus_1.bits[0] = true;
-    record_128_plus_1.bits[1] = true;
 
-    // // 2^128  = 2^128 + (2^127 - (2^127 - 1)) - 1 is given by((true, true, false, ..., false), true)
+    // 2^128  = 2^128 + (2^127 - (2^127 - 1)) - 1 is given by((true, false, false, ..., false), true)
     auto record_128 = all_false;
     record_128.bits[0] = true;
-    record_128.bits[1] = true;
     record_128.skew = true;
 
     // // 2^129-1 = 2^128 + 2^127 + ... + 1 - 0 should be given by ((true, true, ..., true), false).
-    // Note: fixed_wnaf<129, 1, 1>, used inside of convert_field_into_wnaf, incorrectly computes the the coefficient of
+    // Note: fixed_wnaf<129, 1, 1>, used inside of convert_field_into_wnaf, incorrectly computes the the coefficient
+    // of
     // 2^127 in the wnaf representation of to be -1.
     auto record_max = all_true;
     record_max.skew = false;
@@ -95,25 +125,13 @@ TEST(stdlib_schnorr, convert_field_into_wnaf_special)
         { record_1, record_0, record_128_minus_1, record_128_plus_1, record_128, record_max });
 
     // integers less than 2^128 are converted correctly
-    for (size_t i = 0; i != 3; ++i) {
+    for (size_t i = 0; i != num_special_values; ++i) {
         field_ct elt = special_field_elts[i];
         wnaf_record_ct record = convert_field_into_wnaf(&composer, elt);
         wnaf_record_ct expected_record = expected_wnaf_records[i];
         bool records_equal = compare_records(record, expected_record);
         ASSERT_TRUE(records_equal);
-        ASSERT_FALSE(composer.failed);
-    }
-
-    // integers >= 2^128 are not converted correctly.
-    for (size_t i = 3; i != num_special_values; ++i) {
-        field_ct elt = special_field_elts[i];
-        wnaf_record_ct record = convert_field_into_wnaf(&composer, elt);
-        wnaf_record_ct expected_record = expected_wnaf_records[i];
-        bool records_equal = compare_records(record, expected_record);
-        ASSERT_FALSE(records_equal);
-        ASSERT_TRUE(composer.failed);
-        // reset composer state for the next test.
-        composer.failed = false;
+        ASSERT_FALSE(composer.failed());
     }
 }
 
@@ -149,50 +167,22 @@ TEST(stdlib_schnorr, convert_field_into_wnaf)
  * @brief Test variable_base_mul(const point<C>& pub_key,
  *                               const field_t<C>& low_bits,
  *                               const field_t<C>& high_bits)
- * by taking a random field Fr element s, commputing the corresponding Grumpkin G1 element both natively
+ * by taking a random field Fr element s, computing the corresponding Grumpkin G1 element both natively
  * and using the function in question (splitting s into 128-bit halves), then comparing the results.
  */
 TEST(stdlib_schnorr, test_scalar_mul_low_high)
 {
-    auto run_test = [](grumpkin::fr scalar_mont, bool expect_verify) {
-        Composer composer = Composer();
+    run_scalar_mul_test(grumpkin::fr::random_element(), true);
+    run_scalar_mul_test(grumpkin::fr(static_cast<uint256_t>(1) << 128), false);
+}
 
-        grumpkin::fr scalar = scalar_mont.from_montgomery_form();
-
-        uint256_t scalar_low{ scalar.data[0], scalar.data[1], 0ULL, 0ULL };
-        uint256_t scalar_high{ scalar.data[2], scalar.data[3], 0ULL, 0ULL };
-
-        field_ct input_lo = witness_ct(&composer, scalar_low);
-        field_ct input_hi = witness_ct(&composer, scalar_high);
-
-        grumpkin::g1::element expected = grumpkin::g1::one * scalar_mont;
-        expected = expected.normalize();
-        point_ct point_input{ witness_ct(&composer, grumpkin::g1::affine_one.x),
-                              witness_ct(&composer, grumpkin::g1::affine_one.y) };
-
-        point_ct output = variable_base_mul(point_input, input_lo, input_hi);
-
-        if (expect_verify) {
-            EXPECT_EQ(output.x.get_value(), expected.x);
-            EXPECT_EQ(output.y.get_value(), expected.y);
-        };
-
-        Prover prover = composer.create_prover();
-
-        printf("composer gates = %zu\n", composer.get_num_gates());
-        Verifier verifier = composer.create_verifier();
-
-        waffle::plonk_proof proof = prover.construct_proof();
-
-        bool result = verifier.verify_proof(proof);
-        EXPECT_EQ(result, expect_verify);
-    };
-
-    run_test(grumpkin::fr::random_element(), true);
-    // // removing and ASSERT in variable_base_mul, these tests show that
-    // // verification fails when input element fits in a single limb
-    // run_test(0, false);
-    // run_test(grumpkin::fr(static_cast<uint256_t>(1) << 128), false);
+/**
+ * @brief Death test for cases exluded by `ASSERT` in variable_base_mul.KH
+ */
+TEST(stdlib_schnorrDeathTest, test_scalar_mul_low_high)
+{
+    // without the assert causing the death here, the test passes (i.e., verification fails).
+    ASSERT_DEATH(run_scalar_mul_test(0, false), "");
 }
 
 /**

@@ -1,5 +1,5 @@
 #pragma once
-#include <stdlib/types/turbo.hpp>
+#include <stdlib/types/types.hpp>
 #include <stdlib/hash/pedersen/pedersen.hpp>
 #include "../../constants.hpp"
 
@@ -9,7 +9,7 @@ namespace notes {
 namespace circuit {
 namespace claim {
 
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 
 inline field_ct compute_nullifier(field_ct const& note_commitment)
 {

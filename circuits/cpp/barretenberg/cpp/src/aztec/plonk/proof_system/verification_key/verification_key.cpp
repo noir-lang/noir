@@ -1,5 +1,6 @@
 #include <crypto/sha256/sha256.hpp>
 #include "verification_key.hpp"
+#include "../constants.hpp"
 
 namespace waffle {
 

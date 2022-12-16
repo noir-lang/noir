@@ -1,6 +1,9 @@
 #!/bin/sh
 # Downloads the ignition trusted setup transcripts.
 #
+# See here for details of the contents of the transcript.dat files:
+#  https://github.com/AztecProtocol/ignition-verification/blob/master/Transcript_spec.md
+#
 # To download all transcripts.
 #  ./download_ignition.sh
 #

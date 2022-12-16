@@ -1,7 +1,6 @@
 #include "join_split.hpp"
 #include "join_split_circuit.hpp"
 #include "compute_circuit_data.hpp"
-#include <plonk/composer/turbo/compute_verification_key.hpp>
 #include <plonk/proof_system/commitment_scheme/kate_commitment_scheme.hpp>
 
 namespace rollup {
@@ -54,7 +53,9 @@ void init_verification_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs
     }
     // Patch the 'nothing' reference string fed to init_proving_key.
     proving_key->reference_string = crs_factory->get_prover_crs(proving_key->n + 1);
-    verification_key = waffle::turbo_composer::compute_verification_key(proving_key, crs_factory->get_verifier_crs());
+
+    verification_key =
+        plonk::stdlib::types::Composer::compute_verification_key_base(proving_key, crs_factory->get_verifier_crs());
 }
 
 void init_verification_key(std::shared_ptr<waffle::VerifierMemReferenceString> const& crs,
@@ -68,8 +69,8 @@ UnrolledProver new_join_split_prover(join_split_tx const& tx, bool mock)
     Composer composer(proving_key, nullptr);
     join_split_circuit(composer, tx);
 
-    if (composer.failed) {
-        std::string error = format("composer logic failed: ", composer.err);
+    if (composer.failed()) {
+        std::string error = format("composer logic failed: ", composer.err());
         throw_or_abort(error);
     }
 

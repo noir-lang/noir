@@ -72,7 +72,9 @@ template <class Fq, class Fr, class Params> class alignas(32) element {
 
     element operator*=(const Fr& other) noexcept;
 
-    // constexpr Fr operator/(const element& other) noexcept {} TODO: this one seems harder than the others...
+    // If you end up implementing this, congrats, you've solved the DL problem!
+    // P.S. This is a joke, don't even attempt! 😂
+    // constexpr Fr operator/(const element& other) noexcept {}
 
     constexpr element normalize() const noexcept;
     BBERG_INLINE constexpr element set_infinity() const noexcept;

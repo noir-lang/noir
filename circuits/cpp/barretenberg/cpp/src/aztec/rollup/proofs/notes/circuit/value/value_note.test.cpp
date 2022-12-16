@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 
 using namespace barretenberg;
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 using namespace rollup::proofs::notes;
 using namespace rollup::proofs::notes::circuit::value;
 
@@ -30,11 +30,11 @@ TEST(value_note, commits)
     auto result = circuit_note.commitment;
     result.assert_equal(expected);
 
-    waffle::TurboProver prover = composer.create_prover();
+    Prover prover = composer.create_prover();
 
-    EXPECT_FALSE(composer.failed);
+    EXPECT_FALSE(composer.failed());
     printf("composer gates = %zu\n", composer.get_num_gates());
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    Verifier verifier = composer.create_verifier();
 
     waffle::plonk_proof proof = prover.construct_proof();
 
@@ -64,11 +64,11 @@ TEST(value_note, commits_with_0_value)
     auto result = circuit_note.commitment;
     result.assert_equal(expected);
 
-    waffle::TurboProver prover = composer.create_prover();
+    Prover prover = composer.create_prover();
 
-    EXPECT_FALSE(composer.failed);
+    EXPECT_FALSE(composer.failed());
     printf("composer gates = %zu\n", composer.get_num_gates());
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    Verifier verifier = composer.create_verifier();
 
     waffle::plonk_proof proof = prover.construct_proof();
 
@@ -96,11 +96,11 @@ TEST(value_note, commit_with_oversized_asset_id_fails)
     auto result = circuit_note.commitment;
     result.assert_equal(expected);
 
-    waffle::TurboProver prover = composer.create_prover();
+    Prover prover = composer.create_prover();
 
-    EXPECT_TRUE(composer.failed);
+    EXPECT_TRUE(composer.failed());
     printf("composer gates = %zu\n", composer.get_num_gates());
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    Verifier verifier = composer.create_verifier();
 
     waffle::plonk_proof proof = prover.construct_proof();
 

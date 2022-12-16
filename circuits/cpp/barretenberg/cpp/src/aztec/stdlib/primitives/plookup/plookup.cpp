@@ -1,9 +1,10 @@
 #include "./plookup.hpp"
-#include <plonk/composer/plookup_composer.hpp>
+#include <plonk/composer/ultra_composer.hpp>
 #include <plonk/composer/plookup_tables/plookup_tables.hpp>
+#include <plonk/composer/plookup_tables/types.hpp>
 
 namespace waffle {
-class PlookupComposer;
+class UltraComposer;
 } // namespace waffle
 
 namespace plonk {
@@ -12,70 +13,82 @@ namespace stdlib {
 using namespace barretenberg;
 
 template <typename Composer>
-std::array<std::vector<plonk::stdlib::field_t<Composer>>, 3> plookup_base<Composer>::read_sequence_from_table(
-    const waffle::PlookupMultiTableId id,
-    const field_t<Composer>& key_a_in,
-    const field_t<Composer>& key_b_in,
-    const bool is_2_to_1_lookup)
+plookup::ReadData<field_t<Composer>> plookup_<Composer>::get_lookup_accumulators(const MultiTableId id,
+                                                                                 const field_t<Composer>& key_a_in,
+                                                                                 const field_t<Composer>& key_b_in,
+                                                                                 const bool is_2_to_1_lookup)
 {
     auto key_a = key_a_in.normalize();
     auto key_b = key_b_in.normalize();
     Composer* ctx = key_a.get_context() ? key_a.get_context() : key_b.get_context();
-    const auto sequence_data =
-        waffle::plookup::get_table_values(id, key_a.get_value(), key_b.get_value(), is_2_to_1_lookup);
+    const plookup::ReadData<barretenberg::fr> lookup_data =
+        plookup::get_lookup_accumulators(id, key_a.get_value(), key_b.get_value(), is_2_to_1_lookup);
 
-    std::array<std::vector<plonk::stdlib::field_t<Composer>>, 3> sequence_values;
-    if (key_a.witness_index == IS_CONSTANT && key_b.witness_index == IS_CONSTANT) {
-        for (size_t i = 0; i < sequence_data.column_1_accumulator_values.size(); ++i) {
-            sequence_values[0].emplace_back(field_t<Composer>(ctx, sequence_data.column_1_accumulator_values[i]));
-            sequence_values[1].emplace_back(field_t<Composer>(ctx, sequence_data.column_2_accumulator_values[i]));
-            sequence_values[2].emplace_back(field_t<Composer>(ctx, sequence_data.column_3_accumulator_values[i]));
+    const bool is_key_a_constant = key_a.is_constant();
+    plookup::ReadData<field_t<Composer>> lookup;
+    if (is_key_a_constant && (key_b.is_constant() || !is_2_to_1_lookup)) {
+        for (size_t i = 0; i < lookup_data[ColumnIdx::C1].size(); ++i) {
+            lookup[ColumnIdx::C1].emplace_back(field_t<Composer>(ctx, lookup_data[ColumnIdx::C1][i]));
+            lookup[ColumnIdx::C2].emplace_back(field_t<Composer>(ctx, lookup_data[ColumnIdx::C2][i]));
+            lookup[ColumnIdx::C3].emplace_back(field_t<Composer>(ctx, lookup_data[ColumnIdx::C3][i]));
         }
     } else {
-        auto key_b_witness = std::make_optional(key_b.witness_index);
-        if (key_b.witness_index == IS_CONSTANT) {
+        uint32_t lhs_index = key_a.witness_index;
+        uint32_t rhs_index = key_b.witness_index;
+        // If only one lookup key is constant, we need to instantiate it as a real witness
+        if (is_key_a_constant) {
+            lhs_index = ctx->put_constant_variable(key_a.get_value());
+        }
+        if (key_b.is_constant() && is_2_to_1_lookup) {
+            rhs_index = ctx->put_constant_variable(key_b.get_value());
+        }
+
+        auto key_b_witness = std::make_optional(rhs_index);
+        if (rhs_index == IS_CONSTANT) {
             key_b_witness = std::nullopt;
         }
+        const auto accumulator_witnesses =
+            ctx->create_gates_from_plookup_accumulators(id, lookup_data, lhs_index, key_b_witness);
 
-        const auto sequence_indices =
-            ctx->read_sequence_from_multi_table(id, sequence_data, key_a.witness_index, key_b_witness);
-        for (size_t i = 0; i < sequence_data.column_1_accumulator_values.size(); ++i) {
-            sequence_values[0].emplace_back(field_t<Composer>::from_witness_index(ctx, sequence_indices[0][i]));
-            sequence_values[1].emplace_back(field_t<Composer>::from_witness_index(ctx, sequence_indices[1][i]));
-            sequence_values[2].emplace_back(field_t<Composer>::from_witness_index(ctx, sequence_indices[2][i]));
+        for (size_t i = 0; i < lookup_data[ColumnIdx::C1].size(); ++i) {
+            lookup[ColumnIdx::C1].emplace_back(
+                field_t<Composer>::from_witness_index(ctx, accumulator_witnesses[ColumnIdx::C1][i]));
+            lookup[ColumnIdx::C2].emplace_back(
+                field_t<Composer>::from_witness_index(ctx, accumulator_witnesses[ColumnIdx::C2][i]));
+            lookup[ColumnIdx::C3].emplace_back(
+                field_t<Composer>::from_witness_index(ctx, accumulator_witnesses[ColumnIdx::C3][i]));
         }
     }
-    return sequence_values;
+    return lookup;
 }
 
 template <typename Composer>
-std::pair<field_t<Composer>, field_t<Composer>> plookup_base<Composer>::read_pair_from_table(
-    const waffle::PlookupMultiTableId id, const field_t<Composer>& key)
+std::pair<field_t<Composer>, field_t<Composer>> plookup_<Composer>::read_pair_from_table(const MultiTableId id,
+                                                                                         const field_t<Composer>& key)
 {
-    const auto sequence_elements = read_sequence_from_table(id, key);
+    const auto lookup = get_lookup_accumulators(id, key);
 
-    return { sequence_elements[1][0], sequence_elements[2][0] };
+    return { lookup[ColumnIdx::C2][0], lookup[ColumnIdx::C3][0] };
 }
 
 template <typename Composer>
-field_t<Composer> plookup_base<Composer>::read_from_2_to_1_table(const waffle::PlookupMultiTableId id,
-                                                                 const field_t<Composer>& key_a,
-                                                                 const field_t<Composer>& key_b)
+field_t<Composer> plookup_<Composer>::read_from_2_to_1_table(const MultiTableId id,
+                                                             const field_t<Composer>& key_a,
+                                                             const field_t<Composer>& key_b)
 {
-    const auto sequence_elements = read_sequence_from_table(id, key_a, key_b, true);
+    const auto lookup = get_lookup_accumulators(id, key_a, key_b, true);
 
-    return sequence_elements[1][0];
+    return lookup[ColumnIdx::C2][0];
 }
 
 template <typename Composer>
-field_t<Composer> plookup_base<Composer>::read_from_1_to_2_table(const waffle::PlookupMultiTableId id,
-                                                                 const field_t<Composer>& key_a)
+field_t<Composer> plookup_<Composer>::read_from_1_to_2_table(const MultiTableId id, const field_t<Composer>& key_a)
 {
-    const auto sequence_elements = read_sequence_from_table(id, key_a);
+    const auto lookup = get_lookup_accumulators(id, key_a);
 
-    return sequence_elements[1][0];
+    return lookup[ColumnIdx::C2][0];
 }
 
-template class plookup_base<waffle::PlookupComposer>;
+template class plookup_<waffle::UltraComposer>;
 } // namespace stdlib
 } // namespace plonk

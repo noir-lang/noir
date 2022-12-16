@@ -8,7 +8,7 @@
 #include "types.hpp"
 #include "sparse.hpp"
 
-namespace waffle {
+namespace plookup {
 namespace sha256_tables {
 
 static constexpr uint64_t choose_normalization_table[28]{
@@ -92,28 +92,27 @@ static constexpr uint64_t witness_extension_normalization_table[16]{
     2,
 };
 
-inline PlookupBasicTable generate_witness_extension_normalization_table(PlookupBasicTableId id,
-                                                                        const size_t table_index)
+inline BasicTable generate_witness_extension_normalization_table(BasicTableId id, const size_t table_index)
 {
     return sparse_tables::generate_sparse_normalization_table<16, 3, witness_extension_normalization_table>(
         id, table_index);
 }
 
-inline PlookupBasicTable generate_choose_normalization_table(PlookupBasicTableId id, const size_t table_index)
+inline BasicTable generate_choose_normalization_table(BasicTableId id, const size_t table_index)
 {
     return sparse_tables::generate_sparse_normalization_table<28, 2, choose_normalization_table>(id, table_index);
 }
 
-inline PlookupBasicTable generate_majority_normalization_table(PlookupBasicTableId id, const size_t table_index)
+inline BasicTable generate_majority_normalization_table(BasicTableId id, const size_t table_index)
 {
     return sparse_tables::generate_sparse_normalization_table<16, 3, majority_normalization_table>(id, table_index);
 }
 
-inline PlookupMultiTable get_witness_extension_output_table(const PlookupMultiTableId id = SHA256_WITNESS_OUTPUT)
+inline MultiTable get_witness_extension_output_table(const MultiTableId id = SHA256_WITNESS_OUTPUT)
 {
     const size_t num_entries = 11;
 
-    PlookupMultiTable table(numeric::pow64(16, 3), 1 << 3, 0, num_entries);
+    MultiTable table(numeric::pow64(16, 3), 1 << 3, 0, num_entries);
 
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
@@ -125,11 +124,11 @@ inline PlookupMultiTable get_witness_extension_output_table(const PlookupMultiTa
     return table;
 }
 
-inline PlookupMultiTable get_choose_output_table(const PlookupMultiTableId id = SHA256_CH_OUTPUT)
+inline MultiTable get_choose_output_table(const MultiTableId id = SHA256_CH_OUTPUT)
 {
     const size_t num_entries = 16;
 
-    PlookupMultiTable table(numeric::pow64(28, 2), 1 << 2, 0, num_entries);
+    MultiTable table(numeric::pow64(28, 2), 1 << 2, 0, num_entries);
 
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
@@ -141,11 +140,11 @@ inline PlookupMultiTable get_choose_output_table(const PlookupMultiTableId id = 
     return table;
 }
 
-inline PlookupMultiTable get_majority_output_table(const PlookupMultiTableId id = SHA256_MAJ_OUTPUT)
+inline MultiTable get_majority_output_table(const MultiTableId id = SHA256_MAJ_OUTPUT)
 {
     const size_t num_entries = 11;
 
-    PlookupMultiTable table(numeric::pow64(16, 3), 1 << 3, 0, num_entries);
+    MultiTable table(numeric::pow64(16, 3), 1 << 3, 0, num_entries);
 
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
@@ -159,24 +158,18 @@ inline PlookupMultiTable get_majority_output_table(const PlookupMultiTableId id 
 
 inline std::array<barretenberg::fr, 3> get_majority_rotation_multipliers()
 {
-    constexpr uint64_t base = 16;
-
+    constexpr uint64_t base_temp = 16;
+    auto base = barretenberg::fr(base_temp);
     // scaling factors applied to a's sparse limbs, excluding the rotated limb
-    const std::array<barretenberg::fr, 3> rot6_coefficients{ barretenberg::fr(0),
-                                                             barretenberg::fr(base).pow(11 - 2),
-                                                             barretenberg::fr(base).pow(22 - 2) };
-    const std::array<barretenberg::fr, 3> rot11_coefficients{ barretenberg::fr(base).pow(32 - 13),
-                                                              barretenberg::fr(0),
-                                                              barretenberg::fr(base).pow(22 - 13) };
-    const std::array<barretenberg::fr, 3> rot25_coefficients{ barretenberg::fr(base).pow(32 - 22),
-                                                              barretenberg::fr(base).pow(32 - 22 + 11),
-                                                              barretenberg::fr(0) };
+    const std::array<barretenberg::fr, 3> rot2_coefficients{ 0, base.pow(11 - 2), base.pow(22 - 2) };
+    const std::array<barretenberg::fr, 3> rot13_coefficients{ base.pow(32 - 13), 0, base.pow(22 - 13) };
+    const std::array<barretenberg::fr, 3> rot22_coefficients{ base.pow(32 - 22), base.pow(32 - 22 + 11), 0 };
 
     // these are the coefficients that we want
     const std::array<barretenberg::fr, 3> target_rotation_coefficients{
-        rot6_coefficients[0] + rot11_coefficients[0] + rot25_coefficients[0],
-        rot6_coefficients[1] + rot11_coefficients[1] + rot25_coefficients[1],
-        rot6_coefficients[2] + rot11_coefficients[2] + rot25_coefficients[2],
+        rot2_coefficients[0] + rot13_coefficients[0] + rot22_coefficients[0],
+        rot2_coefficients[1] + rot13_coefficients[1] + rot22_coefficients[1],
+        rot2_coefficients[2] + rot13_coefficients[2] + rot22_coefficients[2],
     };
 
     barretenberg::fr column_2_row_1_multiplier = target_rotation_coefficients[0];
@@ -216,7 +209,8 @@ inline std::array<barretenberg::fr, 3> get_choose_rotation_multipliers()
         rot6_coefficients[2] + rot11_coefficients[2] + rot25_coefficients[2],
     };
 
-    barretenberg::fr column_2_row_1_multiplier = barretenberg::fr(1) * target_rotation_coefficients[0];
+    barretenberg::fr column_2_row_1_multiplier =
+        barretenberg::fr(1) * target_rotation_coefficients[0]; // why multiply by one?
 
     // this gives us the correct scaling factor for a0's 1st limb
     std::array<barretenberg::fr, 3> current_coefficients{
@@ -233,12 +227,12 @@ inline std::array<barretenberg::fr, 3> get_choose_rotation_multipliers()
     return rotation_multipliers;
 }
 
-inline PlookupMultiTable get_witness_extension_input_table(const PlookupMultiTableId id = SHA256_WITNESS_INPUT)
+inline MultiTable get_witness_extension_input_table(const MultiTableId id = SHA256_WITNESS_INPUT)
 {
     std::vector<barretenberg::fr> column_1_coefficients{ 1, 1 << 3, 1 << 10, 1 << 18 };
     std::vector<barretenberg::fr> column_2_coefficients{ 0, 0, 0, 0 };
     std::vector<barretenberg::fr> column_3_coefficients{ 0, 0, 0, 0 };
-    PlookupMultiTable table(column_1_coefficients, column_2_coefficients, column_3_coefficients);
+    MultiTable table(column_1_coefficients, column_2_coefficients, column_3_coefficients);
     table.id = id;
     table.slice_sizes = { (1 << 3), (1 << 7), (1 << 8), (1 << 18) };
     table.lookup_ids = { SHA256_WITNESS_SLICE_3,
@@ -255,7 +249,7 @@ inline PlookupMultiTable get_witness_extension_input_table(const PlookupMultiTab
     return table;
 }
 
-inline PlookupMultiTable get_choose_input_table(const PlookupMultiTableId id = SHA256_CH_INPUT)
+inline MultiTable get_choose_input_table(const MultiTableId id = SHA256_CH_INPUT)
 {
     /**
      * When reading from our lookup tables, we can read from the differences between adjacent rows in program memory,
@@ -295,11 +289,11 @@ inline PlookupMultiTable get_choose_input_table(const PlookupMultiTableId id = S
      *
      * In sparse form, we can represent this as:
      *
-     *      (a >>> 6) + (a >>> 11) + (a >>> 25) + 7 * (a + 2 * b + 3 * c)
+     *      7 * (a >>> 6) + (a >>> 11) + (a >>> 25) + (a + 2 * b + 3 * c)
      *
      * When decomposing a into sparse form, we would therefore like to obtain the following:
      *
-     *      (a >>> 6) + (a >>> 11) + (a >>> 25) + 7 * (a)
+     *      7 * (a >>> 6) + (a >>> 11) + (a >>> 25) + (a)
      *
      * We need to determine the values of the constants (q_1, q_2, q_3) that we will be scaling our lookup values by,
      *when assembling our accumulated sums.
@@ -348,15 +342,15 @@ inline PlookupMultiTable get_choose_input_table(const PlookupMultiTableId id = S
     std::vector<barretenberg::fr> column_3_coefficients{ barretenberg::fr(1),
                                                          column_3_row_2_multiplier + barretenberg::fr(1),
                                                          barretenberg::fr(1) };
-    PlookupMultiTable table(column_1_coefficients, column_2_coefficients, column_3_coefficients);
+    MultiTable table(column_1_coefficients, column_2_coefficients, column_3_coefficients);
     table.id = id;
-    table.slice_sizes = { (1 << 11), (1 << 11), (1 << 11) };
+    table.slice_sizes = { (1 << 11), (1 << 11), (1 << 10) };
     table.lookup_ids = { SHA256_BASE28_ROTATE6, SHA256_BASE28, SHA256_BASE28_ROTATE3 };
 
     table.get_table_values.push_back(&sparse_tables::get_sparse_table_with_rotation_values<28, 6>);
     table.get_table_values.push_back(&sparse_tables::get_sparse_table_with_rotation_values<28, 0>);
     table.get_table_values.push_back(&sparse_tables::get_sparse_table_with_rotation_values<28, 3>);
-    // table.get_table_values = std::vector<PlookupMultiTable::table_out (*)(PlookupMultiTable::table_in)>{
+    // table.get_table_values = std::vector<MultiTable::table_out (*)(MultiTable::table_in)>{
 
     //     &get_sha256_sparse_map_values<28, 0, 0>,
     //     &get_sha256_sparse_map_values<28, 3, 0>,
@@ -364,7 +358,8 @@ inline PlookupMultiTable get_choose_input_table(const PlookupMultiTableId id = S
     return table;
 }
 
-inline PlookupMultiTable get_majority_input_table(const PlookupMultiTableId id = SHA256_MAJ_INPUT)
+// This table (at third row and column) returns the sum of roations that "non-trivially wrap"
+inline MultiTable get_majority_input_table(const MultiTableId id = SHA256_MAJ_INPUT)
 {
     /**
      * We want to tackle the SHA256 `maj` sub-algorithm
@@ -373,7 +368,7 @@ inline PlookupMultiTable get_majority_input_table(const PlookupMultiTableId id =
      *
      * In sparse form, we can represent this as:
      *
-     *      (a >>> 2) + (a >>> 13) + (a >>> 22) + 4 * (a + b + c)
+     *      4 * (a >>> 2) + (a >>> 13) + (a >>> 22) +  (a + b + c)
      *
      *
      * We need to determine the values of the constants (q_1, q_2, q_3) that we will be scaling our lookup values by,
@@ -416,9 +411,9 @@ inline PlookupMultiTable get_majority_input_table(const PlookupMultiTableId id =
                                                          barretenberg::fr(1),
                                                          barretenberg::fr(1) + column_2_row_3_multiplier };
 
-    PlookupMultiTable table(column_1_coefficients, column_2_coefficients, column_3_coefficients);
+    MultiTable table(column_1_coefficients, column_2_coefficients, column_3_coefficients);
     table.id = id;
-    table.slice_sizes = { (1 << 11), (1 << 11), (1 << 11) };
+    table.slice_sizes = { (1 << 11), (1 << 11), (1 << 10) };
     table.lookup_ids = { SHA256_BASE16_ROTATE2, SHA256_BASE16_ROTATE2, SHA256_BASE16 };
     table.get_table_values = {
         &sparse_tables::get_sparse_table_with_rotation_values<16, 2>,
@@ -429,4 +424,4 @@ inline PlookupMultiTable get_majority_input_table(const PlookupMultiTableId id =
 }
 
 } // namespace sha256_tables
-} // namespace waffle
+} // namespace plookup

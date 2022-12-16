@@ -1,5 +1,5 @@
 #pragma once
-#include <stdlib/types/turbo.hpp>
+#include <stdlib/types/types.hpp>
 #include "../../native/defi_interaction/note.hpp"
 #include "../bridge_call_data.hpp"
 
@@ -9,7 +9,7 @@ namespace notes {
 namespace circuit {
 namespace defi_interaction {
 
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 
 struct witness_data {
     bridge_call_data bridge_call_data_local;

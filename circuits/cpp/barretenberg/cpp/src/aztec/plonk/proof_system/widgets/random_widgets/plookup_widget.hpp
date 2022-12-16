@@ -36,9 +36,9 @@ class ProverPlookupWidget : public ProverRandomWidget {
     inline ProverPlookupWidget& operator=(const ProverPlookupWidget& other);
     inline ProverPlookupWidget& operator=(ProverPlookupWidget&& other);
 
-    inline void compute_sorted_list_commitment(transcript::StandardTranscript& transcript);
+    inline void compute_sorted_list_polynomial(transcript::StandardTranscript& transcript);
 
-    inline void compute_grand_product_commitment(transcript::StandardTranscript& transcript);
+    inline void compute_grand_product_polynomial(transcript::StandardTranscript& transcript);
 
     inline void compute_round_commitments(transcript::StandardTranscript& transcript,
                                           const size_t round_number,

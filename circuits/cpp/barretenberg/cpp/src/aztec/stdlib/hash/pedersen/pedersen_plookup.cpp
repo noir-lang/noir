@@ -2,6 +2,7 @@
 #include <crypto/pedersen/pedersen.hpp>
 #include <ecc/curves/grumpkin/grumpkin.hpp>
 
+#include <plonk/composer/plookup_tables/types.hpp>
 #include "../../primitives/composers/composers.hpp"
 #include "../../primitives/plookup/plookup.hpp"
 
@@ -19,17 +20,18 @@ template <typename C> point<C> pedersen_plookup<C>::add_points(const point& p1, 
     grumpkin::fq y_2_raw = p2.y.get_value();
     grumpkin::fq endomorphism_coefficient = 1;
     grumpkin::fq sign_coefficient = 1;
+    grumpkin::fq beta = grumpkin::fq::cube_root_of_unity();
     switch (add_type) {
     case ONE: {
         break;
     }
     case LAMBDA: {
-        endomorphism_coefficient = grumpkin::fq::beta();
+        endomorphism_coefficient = beta;
         x_2_raw *= endomorphism_coefficient;
         break;
     }
     case ONE_PLUS_LAMBDA: {
-        endomorphism_coefficient = grumpkin::fq::beta().sqr();
+        endomorphism_coefficient = beta.sqr();
         sign_coefficient = -1;
         x_2_raw *= endomorphism_coefficient;
         y_2_raw = -y_2_raw;
@@ -68,29 +70,57 @@ template <typename C> point<C> pedersen_plookup<C>::hash_single(const field_t& s
 {
     if (scalar.is_constant()) {
         C* ctx = scalar.get_context();
-        const auto hash_native = crypto::pedersen::sidon::compress_single(scalar.get_value(), parity).normalize();
+        const auto hash_native = crypto::pedersen::lookup::hash_single(scalar.get_value(), parity).normalize();
         return { field_t(ctx, hash_native.x), field_t(ctx, hash_native.y) };
     }
 
-    std::array<std::vector<field_t>, 3> sequence;
+    // Slice the input scalar in lower 126 and higher 128 bits.
+    C* ctx = scalar.get_context();
+    const field_t y_hi = witness_t(ctx, uint256_t(scalar.get_value()).slice(126, 256));
+    const field_t y_lo = witness_t(ctx, uint256_t(scalar.get_value()).slice(0, 126));
+
+    ReadData<field_t> lookup_hi, lookup_lo;
     if (parity) {
-        sequence = plookup::read_sequence_from_table(waffle::PlookupMultiTableId::PEDERSEN_RIGHT, scalar);
+        lookup_lo = plookup_read::get_lookup_accumulators(MultiTableId::PEDERSEN_RIGHT_LO, y_lo);
+        lookup_hi = plookup_read::get_lookup_accumulators(MultiTableId::PEDERSEN_RIGHT_HI, y_hi);
     } else {
-        sequence = plookup::read_sequence_from_table(waffle::PlookupMultiTableId::PEDERSEN_LEFT, scalar);
+        lookup_lo = plookup_read::get_lookup_accumulators(MultiTableId::PEDERSEN_LEFT_LO, y_lo);
+        lookup_hi = plookup_read::get_lookup_accumulators(MultiTableId::PEDERSEN_LEFT_HI, y_hi);
     }
 
-    const size_t num_lookups = sequence[0].size();
+    // Check if (r_hi - y_hi) is 128 bits and if (r_hi - y_hi) == 0, then
+    // (r_lo - y_lo) must be 126 bits.
+    constexpr uint256_t modulus = fr::modulus;
+    const field_t r_lo = witness_t(ctx, modulus.slice(0, 126));
+    const field_t r_hi = witness_t(ctx, modulus.slice(126, 256));
 
-    point p1{ sequence[1][num_lookups - 1], sequence[2][num_lookups - 1] };
+    const field_t term_hi = r_hi - y_hi;
+    const field_t term_lo = (r_lo - y_lo) * field_t(term_hi == field_t(0));
+    term_hi.normalize().create_range_constraint(128);
+    term_lo.normalize().create_range_constraint(126);
 
-    for (size_t i = 0; i < num_lookups - 1; ++i) {
-        point p2 = { sequence[1][i], sequence[2][i] };
-        AddType type = (i % 3 == 0) ? LAMBDA : (i % 3 == 1 ? ONE : ONE_PLUS_LAMBDA);
-        point p3 = add_points(p1, p2, type);
-        p1 = p3;
+    const size_t num_lookups_lo = lookup_lo[ColumnIdx::C1].size();
+    const size_t num_lookups_hi = lookup_hi[ColumnIdx::C1].size();
+
+    point p1{ lookup_lo[ColumnIdx::C2][1], lookup_lo[ColumnIdx::C3][1] };
+    point p2{ lookup_lo[ColumnIdx::C2][0], lookup_lo[ColumnIdx::C3][0] };
+    point res = add_points(p1, p2, LAMBDA);
+
+    for (size_t i = 2; i < num_lookups_lo; ++i) {
+        point p2 = { lookup_lo[ColumnIdx::C2][i], lookup_lo[ColumnIdx::C3][i] };
+        AddType basic_type = (i % 2 == 0) ? LAMBDA : ONE;
+        point p3 = add_points(res, p2, basic_type);
+        res = p3;
     }
 
-    return p1;
+    for (size_t i = 0; i < num_lookups_hi; ++i) {
+        point p2 = { lookup_hi[ColumnIdx::C2][i], lookup_hi[ColumnIdx::C3][i] };
+        AddType basic_type = (i % 2 == 0) ? LAMBDA : ONE;
+        point p3 = add_points(res, p2, basic_type);
+        res = p3;
+    }
+
+    return res;
 }
 
 template <typename C> point<C> pedersen_plookup<C>::compress_to_point(const field_t& left, const field_t& right)
@@ -106,51 +136,34 @@ template <typename C> field_t<C> pedersen_plookup<C>::compress(const field_t& le
     return compress_to_point(left, right).x;
 }
 
-template <typename C> point<C> pedersen_plookup<C>::commit(const std::vector<field_t>& inputs)
+template <typename C>
+point<C> pedersen_plookup<C>::merkle_damgard_compress(const std::vector<field_t>& inputs, const field_t& iv)
 {
-    const size_t num_inputs = inputs.size();
-
-    size_t num_tree_levels = numeric::get_msb(num_inputs) + 1;
-    if (1UL << num_tree_levels < num_inputs) {
-        ++num_tree_levels;
+    if (inputs.size() == 0) {
+        return point{ 0, 0 };
     }
 
-    std::vector<field_t> previous_leaves(inputs.begin(), inputs.end());
-
-    for (size_t i = 0; i < num_tree_levels - 1; ++i) {
-        const size_t num_leaves = 1UL << (num_tree_levels - i);
-        std::vector<field_t> current_leaves;
-        for (size_t j = 0; j < num_leaves; j += 2) {
-            field_t left;
-            field_t right;
-            if (j < previous_leaves.size()) {
-                left = previous_leaves[j];
-            } else {
-                left = 0;
-            }
-
-            if ((j + 1) < previous_leaves.size()) {
-                right = previous_leaves[j + 1];
-            } else {
-                right = 0;
-            }
-
-            current_leaves.push_back(compress(left, right));
-        }
-
-        previous_leaves.resize(current_leaves.size());
-        std::copy(current_leaves.begin(), current_leaves.end(), previous_leaves.begin());
+    auto result = plookup_read::get_lookup_accumulators(MultiTableId::PEDERSEN_IV, iv)[ColumnIdx::C2][0];
+    auto num_inputs = inputs.size();
+    for (size_t i = 0; i < num_inputs; i++) {
+        result = compress(result, inputs[i]);
     }
 
-    return compress_to_point(previous_leaves[0], previous_leaves[1]);
+    return compress_to_point(result, field_t(num_inputs));
 }
 
-template <typename C> field_t<C> pedersen_plookup<C>::compress(const std::vector<field_t>& inputs)
+template <typename C> point<C> pedersen_plookup<C>::commit(const std::vector<field_t>& inputs, const size_t hash_index)
 {
-    return commit(inputs).x;
+    return merkle_damgard_compress(inputs, field_t(hash_index));
 }
 
-template class pedersen_plookup<waffle::PlookupComposer>;
+template <typename C>
+field_t<C> pedersen_plookup<C>::compress(const std::vector<field_t>& inputs, const size_t hash_index)
+{
+    return commit(inputs, hash_index).x;
+}
+
+template class pedersen_plookup<waffle::UltraComposer>;
 
 } // namespace stdlib
 } // namespace plonk

@@ -5,7 +5,7 @@ namespace proofs {
 namespace rollup {
 
 using namespace barretenberg;
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 
 namespace {
 verify_result<Composer> build_circuit(Composer& composer, rollup_tx& tx, circuit_data const& cd)
