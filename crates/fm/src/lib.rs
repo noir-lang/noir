@@ -85,7 +85,7 @@ impl FileManager {
 
         let dir = self.path(anchor).to_path_buf();
 
-        candidate_files.push(dir.join(&format!("{}.{}", mod_name, FILE_EXTENSION)));
+        candidate_files.push(dir.join(format!("{}.{}", mod_name, FILE_EXTENSION)));
 
         for candidate in candidate_files.iter() {
             if let Some(file_id) = self.add_file(candidate, FileType::Normal) {
