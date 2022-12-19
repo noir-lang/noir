@@ -3,7 +3,7 @@
 #include <unordered_map>
 #include <list>
 #include "polynomial_store.hpp"
-#include "../types/polynomial_manifest.hpp"
+#include "../../plonk/proof_system/types/polynomial_manifest.hpp"
 
 namespace waffle {
 

@@ -9,7 +9,7 @@
 #include <plonk/proof_system/types/polynomial_manifest.hpp>
 #include <unordered_map>
 
-#include "polynomial_cache.hpp"
+#include "../polynomial_cache/polynomial_cache.hpp"
 
 namespace waffle {
 

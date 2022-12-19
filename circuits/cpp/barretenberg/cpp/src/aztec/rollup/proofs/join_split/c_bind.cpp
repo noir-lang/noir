@@ -8,7 +8,7 @@
 #include <cstdint>
 #include <ecc/curves/grumpkin/grumpkin.hpp>
 #include <srs/reference_string/pippenger_reference_string.hpp>
-#include <plonk/proof_system/proving_key/serialize.hpp>
+#include <proof_system/proving_key/serialize.hpp>
 #include <sstream>
 
 using namespace barretenberg;

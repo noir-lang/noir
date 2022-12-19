@@ -5,13 +5,13 @@
 #include <fstream>
 #include <sys/stat.h>
 #include <common/timer.hpp>
-#include <plonk/proof_system/proving_key/serialize.hpp>
+#include <proof_system/proving_key/serialize.hpp>
 #include <filesystem>
 
 #define GET_COMPOSER_NAME_STRING(composer)                                                                             \
-    (typeid(composer) == typeid(waffle::StandardComposer) ? "StandardPlonk"                                            \
-     : typeid(composer) == typeid(waffle::TurboComposer)  ? "TurboPlonk"                                               \
-                                                          : "NULLPlonk")
+    (typeid(composer) == typeid(waffle::StandardComposer)                                                              \
+         ? "StandardPlonk"                                                                                             \
+         : typeid(composer) == typeid(waffle::TurboComposer) ? "TurboPlonk" : "NULLPlonk")
 
 namespace rollup {
 namespace proofs {

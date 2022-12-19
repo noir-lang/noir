@@ -1,7 +1,7 @@
 #pragma once
 #include <common/mem.hpp>
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
-#include <plonk/proof_system/proving_key/proving_key.hpp>
+#include <proof_system/proving_key/proving_key.hpp>
 #include <plonk/proof_system/public_inputs/public_inputs.hpp>
 #include <plonk/proof_system/utils/linearizer.hpp>
 

@@ -1,9 +1,11 @@
+.cache/
 build*/
 src/wasi-sdk-*
-src/aztec/plonk/proof_system/proving_key/fixtures
+src/aztec/proof_system/proving_key/fixtures
 src/aztec/rollup/proofs/*/fixtures
 srs_db/ignition/transcript*
 srs_db/lagrange
 srs_db/coset_lagrange
 srs_db/modified_lagrange
-.vscode
+# to be unignored when we agree on clang-tidy rules
+.clangd

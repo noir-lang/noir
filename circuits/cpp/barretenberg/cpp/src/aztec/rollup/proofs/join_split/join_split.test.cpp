@@ -4,7 +4,7 @@
 #include "../notes/native/index.hpp"
 #include <common/streams.hpp>
 #include <common/test.hpp>
-#include <plonk/proof_system/proving_key/serialize.hpp>
+#include <proof_system/proving_key/serialize.hpp>
 #include <stdlib/merkle_tree/index.hpp>
 
 namespace rollup {

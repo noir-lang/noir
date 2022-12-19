@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../transcript/transcript_wrappers.hpp"
+#include "../../plonk/transcript/transcript_wrappers.hpp"
 #include "../proving_key/proving_key.hpp"
 
 namespace waffle {

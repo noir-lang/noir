@@ -1,7 +1,7 @@
 #pragma once
 
 #include <unordered_map>
-#include <polynomials/polynomial.hpp>
+#include "../../polynomials/polynomial.hpp"
 
 namespace waffle {
 

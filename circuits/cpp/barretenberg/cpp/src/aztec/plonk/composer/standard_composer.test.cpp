@@ -2,7 +2,7 @@
 #include <gtest/gtest.h>
 #include <crypto/pedersen/pedersen.hpp>
 #include <crypto/pedersen/generator_data.hpp>
-#include <plonk/proof_system/proving_key/serialize.hpp>
+#include <proof_system/proving_key/serialize.hpp>
 
 using namespace barretenberg;
 

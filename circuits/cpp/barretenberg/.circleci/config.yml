@@ -148,6 +148,19 @@ jobs:
           command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert 1 bb-tests
       - *save_logs
 
+  honk-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert 1 honk_tests
+      - *save_logs
+
+
   stdlib-primitives-tests:
     docker:
       - image: aztecprotocol/alpine-build-image
@@ -270,6 +283,7 @@ workflows:
       - x86_64-linux-clang
       - x86_64-linux-clang-assert
       - wasm-linux-clang
+      - honk-tests: *bb_test
       - barretenberg-tests: *bb_test
       - stdlib-primitives-tests: *bb_test
       - stdlib-recursion-turbo-tests: *bb_test

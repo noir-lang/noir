@@ -17,7 +17,7 @@
 #include <common/container.hpp>
 #include <common/map.hpp>
 
-#include <plonk/proof_system/proving_key/proving_key.hpp>
+#include <proof_system/proving_key/proving_key.hpp>
 #include <plonk/proof_system/verification_key/verification_key.hpp>
 
 using namespace ::rollup::proofs;

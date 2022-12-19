@@ -1,10 +1,10 @@
 #pragma once
 #include "../../transcript/transcript_wrappers.hpp"
-#include "../proving_key/proving_key.hpp"
+#include "../../../proof_system/proving_key/proving_key.hpp"
 #include "../types/plonk_proof.hpp"
 #include "../types/program_settings.hpp"
 #include "../widgets/random_widgets/random_widget.hpp"
-#include "./work_queue.hpp"
+#include "../../../proof_system/work_queue/work_queue.hpp"
 #include "../widgets/transition_widgets/transition_widget.hpp"
 #include "../commitment_scheme/commitment_scheme.hpp"
 namespace waffle {

@@ -1,5 +1,5 @@
 #include "../prover/prover.hpp"
-#include "../proving_key/proving_key.hpp"
+#include "../../../proof_system/proving_key/proving_key.hpp"
 #include "../utils/linearizer.hpp"
 #include "../utils/permutation.hpp"
 #include "../widgets/transition_widgets/arithmetic_widget.hpp"

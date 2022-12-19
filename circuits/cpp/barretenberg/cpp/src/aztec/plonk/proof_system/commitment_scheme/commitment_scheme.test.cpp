@@ -6,7 +6,7 @@
 #include <gtest/gtest.h>
 #include "./polynomials/polynomial_arithmetic.hpp"
 #include "./polynomials/polynomial.hpp"
-#include "../prover/work_queue.hpp"
+#include "../../../proof_system/work_queue/work_queue.hpp"
 #include "../types/program_settings.hpp"
 #include "../../composer/composer_base.hpp"
 #include <srs/reference_string/file_reference_string.hpp>

@@ -61,7 +61,7 @@ TEST(proving_key, proving_key_from_mmaped_key)
 
     // Write each precomputed polynomial in the proving key to
     // its own file using write_mmap
-    std::string pk_dir = "../src/aztec/plonk/proof_system/proving_key/fixtures";
+    std::string pk_dir = "../src/aztec/proof_system/proving_key/fixtures";
     std::filesystem::create_directories(pk_dir);
     std::string pk_path = pk_dir + "/proving_key";
     std::ofstream os(pk_path);

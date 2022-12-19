@@ -8,7 +8,7 @@
 
 #include <common/streams.hpp>
 #include <common/test.hpp>
-#include <plonk/proof_system/proving_key/serialize.hpp>
+#include <proof_system/proving_key/serialize.hpp>
 #include <stdlib/merkle_tree/memory_store.hpp>
 #include <stdlib/merkle_tree/merkle_tree.hpp>
 

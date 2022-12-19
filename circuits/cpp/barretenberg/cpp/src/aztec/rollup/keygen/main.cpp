@@ -5,7 +5,7 @@
 #include "../proofs/claim/index.hpp"
 #include <common/timer.hpp>
 #include <plonk/composer/standard_composer.hpp>
-#include <plonk/proof_system/proving_key/proving_key.hpp>
+#include <proof_system/proving_key/proving_key.hpp>
 #include <plonk/proof_system/verification_key/verification_key.hpp>
 #include <plonk/proof_system/verification_key/sol_gen.hpp>
 

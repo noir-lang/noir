@@ -1,7 +1,7 @@
 #include "turbo_composer.hpp"
 #include <crypto/pedersen/pedersen.hpp>
 #include <gtest/gtest.h>
-#include <plonk/proof_system/proving_key/serialize.hpp>
+#include <proof_system/proving_key/serialize.hpp>
 
 using namespace barretenberg;
 using namespace crypto::pedersen;

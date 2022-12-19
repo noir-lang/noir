@@ -1,0 +1,2 @@
+# to be unignored when we finalize one of these
+.vscode/*.code-workspace
