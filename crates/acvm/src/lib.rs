@@ -164,13 +164,12 @@ pub trait PartialWitnessGenerator {
                                     return GateResolution::UnsatisfiedConstrain;
                                 }
                                 for i in 0..b.len() {
-                                    let i_usize = i as usize;
-                                    let v = if i_usize < a_dec.len() {
-                                        FieldElement::from_be_bytes_reduce(&[a_dec[i_usize]])
+                                    let v = if i < a_dec.len() {
+                                        FieldElement::from_be_bytes_reduce(&[a_dec[i]])
                                     } else {
                                         FieldElement::zero()
                                     };
-                                    match initial_witness.entry(b[i_usize]) {
+                                    match initial_witness.entry(b[i]) {
                                         std::collections::btree_map::Entry::Vacant(e) => {
                                             e.insert(v);
                                         }
