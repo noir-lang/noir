@@ -1705,6 +1705,7 @@ dependencies = [
  "serde_derive",
  "tempdir",
  "termcolor",
+ "thiserror",
  "toml",
  "url",
 ]
