@@ -15,6 +15,18 @@ pub enum InputParserError {
     AbiTypeMismatch(AbiType),
 }
 
+impl From<toml::ser::Error> for InputParserError {
+    fn from(err: toml::ser::Error) -> Self {
+        Self::ParseTomlMap(err.to_string())
+    }
+}
+
+impl From<toml::de::Error> for InputParserError {
+    fn from(err: toml::de::Error) -> Self {
+        Self::ParseTomlMap(err.to_string())
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum AbiError {
     #[error("{0}")]

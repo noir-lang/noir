@@ -10,8 +10,7 @@ pub(crate) fn parse_toml(
     abi: Abi,
 ) -> Result<BTreeMap<String, InputValue>, InputParserError> {
     // Parse input.toml into a BTreeMap, converting the argument to field elements
-    let data: BTreeMap<String, TomlTypes> = toml::from_str(input_string)
-        .map_err(|err_msg| InputParserError::ParseTomlMap(err_msg.to_string()))?;
+    let data: BTreeMap<String, TomlTypes> = toml::from_str(input_string)?;
 
     // The toml map is stored in an ordered BTreeMap. As the keys are strings the map is in alphanumerical order.
     // When parsing the toml map we recursively go through each field to enable struct inputs.
@@ -44,11 +43,8 @@ pub(crate) fn serialise_to_toml(
         })
         .collect();
 
-    let mut toml_string = toml::to_string(&to_map)
-        .map_err(|err_msg| InputParserError::ParseTomlMap(err_msg.to_string()))?;
-
-    let toml_string_tables = toml::to_string(&tables_map)
-        .map_err(|err_msg| InputParserError::ParseTomlMap(err_msg.to_string()))?;
+    let mut toml_string = toml::to_string(&to_map)?;
+    let toml_string_tables = toml::to_string(&tables_map)?;
 
     toml_string.push_str(&toml_string_tables);
 
