@@ -953,7 +953,7 @@ pub fn evaluate_udiv(
         dbg!(err);
     });
     // a-b*q-r = 0
-    let mut d = mul(&rhs.expression, &Expression::from(&q_witness));
+    let mut d = mul_with_witness(evaluator, &rhs.expression, &Expression::from(&q_witness));
     d = add(&d, FieldElement::one(), &Expression::from(&r_witness));
     d = mul_with_witness(evaluator, &d, &predicate.expression);
     let div_eucl = subtract(&pa, FieldElement::one(), &d);
