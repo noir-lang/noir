@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 
 use crate::errors::RuntimeError;
 use crate::ssa::node::Opcode;
@@ -9,6 +9,7 @@ use noirc_frontend::monomorphisation::ast::{self, Call, DefinitionId, FuncId, Ty
 use super::conditional::{AssumptionId, DecisionTree, TreeBuilder};
 use super::node::Node;
 use super::{
+    block,
     block::BlockId,
     code_gen::IRGenerator,
     context::SsaContext,
@@ -57,10 +58,11 @@ impl SSAFunction {
     }
 
     pub fn compile(&self, igen: &mut IRGenerator) -> Result<DecisionTree, RuntimeError> {
-        let function_cfg = super::block::bfs(self.entry_block, None, &igen.context);
-        super::block::compute_sub_dom(&mut igen.context, &function_cfg);
+        let function_cfg = block::bfs(self.entry_block, None, &igen.context);
+        block::compute_sub_dom(&mut igen.context, &function_cfg);
         //Optimisation
-        super::optim::full_cse(&mut igen.context, self.entry_block)?;
+        //catch the error because the function may not be called
+        super::optim::full_cse(&mut igen.context, self.entry_block, false)?;
         //Unrolling
         super::flatten::unroll_tree(&mut igen.context, self.entry_block)?;
 
@@ -72,15 +74,42 @@ impl SSAFunction {
                 builder.stack.created_arrays.insert(a, self.entry_block);
             }
         }
-        decision.make_decision_tree(&mut igen.context, builder);
-        decision.reduce(&mut igen.context, decision.root)?;
 
+        let mut to_remove: VecDeque<BlockId> = VecDeque::new();
+
+        let result = decision.make_decision_tree(&mut igen.context, builder);
+        if result.is_err() {
+            // we take the last block to ensure we have the return instruction
+            let exit = block::exit(&igen.context, self.entry_block);
+            //short-circuit for function: false constraint and return 0
+            let instructions = &igen.context[exit].instructions.clone();
+            let stack = block::short_circuit_instructions(
+                &mut igen.context,
+                self.entry_block,
+                instructions,
+            );
+            if self.entry_block != exit {
+                for i in &stack {
+                    igen.context.get_mut_instruction(*i).parent_block = self.entry_block;
+                }
+            }
+
+            let function_block = &mut igen.context[self.entry_block];
+            function_block.instructions.clear();
+            function_block.instructions = stack;
+            function_block.left = None;
+            to_remove.extend(function_cfg.iter()); //let's remove all the other blocks
+        } else {
+            decision.reduce(&mut igen.context, decision.root)?;
+        }
         //merge blocks
-        let to_remove =
-            super::block::merge_path(&mut igen.context, self.entry_block, BlockId::dummy(), None);
+        to_remove = block::merge_path(&mut igen.context, self.entry_block, BlockId::dummy(), None);
+
         igen.context[self.entry_block].dominated.retain(|b| !to_remove.contains(b));
         for i in to_remove {
-            igen.context.remove_block(i);
+            if i != self.entry_block {
+                igen.context.remove_block(i);
+            }
         }
         Ok(decision)
     }
@@ -126,6 +155,7 @@ pub fn get_result_type(op: OPCODE) -> (u32, ObjectType) {
         OPCODE::EcdsaSecp256k1 => (1, ObjectType::NativeField), //field?
         OPCODE::FixedBaseScalarMul => (2, ObjectType::NativeField),
         OPCODE::ToBits => (FieldElement::max_num_bits(), ObjectType::Boolean),
+        OPCODE::ToBytes => (FieldElement::max_num_bytes(), ObjectType::Boolean),
     }
 }
 
@@ -137,7 +167,7 @@ impl IRGenerator {
     ) -> Result<(), RuntimeError> {
         let current_block = self.context.current_block;
         let current_function = self.function_context;
-        let func_block = super::block::BasicBlock::create_cfg(&mut self.context);
+        let func_block = block::BasicBlock::create_cfg(&mut self.context);
 
         let function = &mut self.program[func_id];
         let mut func = SSAFunction::new(func_id, &function.name, func_block, index, &self.context);
@@ -327,7 +357,7 @@ pub fn inline_all(ctx: &mut SsaContext) -> Result<(), RuntimeError> {
     while processed.len() < l {
         let i = get_new_leaf(ctx, &processed);
         if !processed.is_empty() {
-            super::optim::full_cse(ctx, ctx.functions[&i.1].entry_block)?;
+            super::optim::full_cse(ctx, ctx.functions[&i.1].entry_block, false)?;
         }
         let mut to_inline = Vec::new();
         for f in ctx.functions.values() {

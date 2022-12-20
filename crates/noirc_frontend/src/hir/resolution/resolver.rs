@@ -904,23 +904,22 @@ impl<'a> Resolver<'a> {
         let definition = self.interner.definition(id);
         match definition.rhs {
             Some(rhs) if definition.is_global || !definition.mutable => {
-                self.try_eval_array_length_id(rhs)
+                self.try_eval_array_length_id(rhs, span)
             }
             _ => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
         }
     }
 
-    fn try_eval_array_length_id(&self, rhs: ExprId) -> Result<u128, Option<ResolverError>> {
-        let span = self.interner.expr_span(&rhs);
+    fn try_eval_array_length_id(
+        &self,
+        rhs: ExprId,
+        span: Span,
+    ) -> Result<u128, Option<ResolverError>> {
         match self.interner.expression(&rhs) {
             HirExpression::Literal(HirLiteral::Integer(int)) => {
                 int.try_into_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
             }
-            HirExpression::Literal(_) => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
-            other => unreachable!(
-                "Expected global to be initialized to a literal, but found {:?}",
-                other
-            ),
+            _other => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
         }
     }
 }

@@ -115,6 +115,7 @@ pub struct StackFrame {
     array_map: HashMap<ArrayId, ArrayId>,
     pub created_arrays: HashMap<ArrayId, BlockId>,
     zeros: HashMap<ObjectType, NodeId>,
+    pub return_arrays: Vec<ArrayId>,
 }
 
 impl StackFrame {
@@ -125,6 +126,7 @@ impl StackFrame {
             array_map: HashMap::new(),
             created_arrays: HashMap::new(),
             zeros: HashMap::new(),
+            return_arrays: Vec::new(),
         }
     }
 
@@ -191,6 +193,7 @@ pub fn inline(
     for arg_caller in arrays.iter() {
         if let node::ObjectType::Pointer(a) = ssa_func.result_types[arg_caller.1 as usize] {
             stack_frame.array_map.insert(a, arg_caller.0);
+            stack_frame.return_arrays.push(arg_caller.0);
         }
     }
 
@@ -248,6 +251,7 @@ pub fn inline_in_block(
         } else {
             unreachable!("invalid call id");
         };
+    let mut short_circuit = false;
 
     *nested_call = false;
     for &i_id in block_func_instructions {
@@ -320,14 +324,22 @@ pub fn inline_in_block(
                 }
                 _ => {
                     let mut new_ins = new_cloned_instruction(clone, stack_frame.block);
-
                     if let Some(id) = array_id {
                         let new_id = stack_frame.get_or_default(id);
                         new_ins.res_type = node::ObjectType::Pointer(new_id);
                     }
 
-                    optim::simplify(ctx, &mut new_ins)?;
-
+                    let err = optim::simplify(ctx, &mut new_ins);
+                    if err.is_err() {
+                        //add predicate if under condition, else short-circuit the target block.
+                        let ass_value = decision.get_assumption_value(predicate);
+                        if ass_value.map_or(false, |value| ctx.under_assumption(value)) {
+                            ctx.add_predicate(ass_value.unwrap(), &mut new_ins, stack_frame);
+                        } else {
+                            short_circuit = true;
+                            break;
+                        }
+                    }
                     if let Mark::ReplaceWith(replacement) = new_ins.mark {
                         if let Some(id) = array_id {
                             if let Entry::Occupied(mut entry) = stack_frame.array_map.entry(id) {
@@ -354,9 +366,15 @@ pub fn inline_in_block(
 
     // we conditionalise the stack frame into a new stack frame (to avoid ownership issues)
     let mut stack2 = StackFrame::new(stack_frame.block);
-    decision.conditionalise_inline(ctx, &stack_frame.stack, &mut stack2, predicate);
-    // we add the conditionalised instructions to the target_block, at proper location (really need a linked list!)
-    stack2.apply(ctx, stack_frame.block, call_id, false);
+    stack2.return_arrays = stack_frame.return_arrays.clone();
+    if short_circuit {
+        super::block::short_circuit_inline(ctx, stack_frame.block);
+    } else {
+        decision.conditionalise_inline(ctx, &stack_frame.stack, &mut stack2, predicate)?;
+        // we add the conditionalised instructions to the target_block, at proper location (really need a linked list!)
+        stack2.apply(ctx, stack_frame.block, call_id, false);
+    }
+
     stack_frame.stack.clear();
     Ok(next_block)
 }

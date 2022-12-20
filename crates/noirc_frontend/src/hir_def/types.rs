@@ -959,7 +959,7 @@ impl Type {
                     Signedness::Signed => noirc_abi::Sign::Signed,
                 };
 
-                AbiType::Integer { sign, width: *bit_width as u32, visibility: fe_type }
+                AbiType::Integer { sign, width: *bit_width, visibility: fe_type }
             }
             Type::PolymorphicInteger(_, binding) => match &*binding.borrow() {
                 TypeBinding::Bound(typ) => typ.as_abi_type(fe_type),
