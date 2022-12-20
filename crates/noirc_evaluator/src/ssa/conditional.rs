@@ -2,7 +2,7 @@ use num_bigint::BigUint;
 use num_traits::One;
 
 use crate::{
-    errors::RuntimeError,
+    errors::{self, RuntimeError},
     ssa::{
         node::{Mark, ObjectType},
         optim,
@@ -200,10 +200,14 @@ impl DecisionTree {
         ins
     }
 
-    pub fn make_decision_tree(&mut self, ctx: &mut SsaContext, mut builder: TreeBuilder) {
+    pub fn make_decision_tree(
+        &mut self,
+        ctx: &mut SsaContext,
+        mut builder: TreeBuilder,
+    ) -> Result<(), RuntimeError> {
         let entry_block = builder.stack.block;
         ctx[entry_block].assumption = self.root;
-        self.decision_tree(ctx, entry_block, &mut builder);
+        self.decision_tree(ctx, entry_block, &mut builder)
     }
 
     //Returns a boolean to indicate if we should process the children (true) of not (false) of the block
@@ -212,7 +216,7 @@ impl DecisionTree {
         ctx: &mut SsaContext,
         current: BlockId,
         data: &mut TreeBuilder,
-    ) -> Vec<BlockId> {
+    ) -> Result<Vec<BlockId>, RuntimeError> {
         data.stack.block = current;
         let mut block_assumption = ctx[current].assumption;
         let assumption = &self[block_assumption];
@@ -279,15 +283,20 @@ impl DecisionTree {
 
         ctx[current].assumption = block_assumption;
         self.compute_assumption(ctx, current);
-        self.conditionalize_block(ctx, current, &mut data.stack);
-        result
+        self.conditionalize_block(ctx, current, &mut data.stack)?;
+        Ok(result)
     }
 
-    fn decision_tree(&mut self, ctx: &mut SsaContext, current: BlockId, data: &mut TreeBuilder) {
+    fn decision_tree(
+        &mut self,
+        ctx: &mut SsaContext,
+        current: BlockId,
+        data: &mut TreeBuilder,
+    ) -> Result<(), RuntimeError> {
         let mut queue = vec![current]; //Stack of elements to visit
 
         while let Some(current) = queue.pop() {
-            let children = self.process_block(ctx, current, data);
+            let children = self.process_block(ctx, current, data)?;
 
             let mut test_and_push = |block_id: BlockId| {
                 if !block_id.is_dummy() && !queue.contains(&block_id) {
@@ -299,6 +308,7 @@ impl DecisionTree {
                 test_and_push(i);
             }
         }
+        Ok(())
     }
 
     pub fn reduce(
@@ -394,13 +404,14 @@ impl DecisionTree {
         ctx: &mut SsaContext,
         block: BlockId,
         stack: &mut StackFrame,
-    ) {
+    ) -> Result<(), RuntimeError> {
         let assumption_id = ctx[block].assumption;
         let instructions = ctx[block].instructions.clone();
-        self.conditionalise_inline(ctx, &instructions, stack, assumption_id);
+        self.conditionalise_inline(ctx, &instructions, stack, assumption_id)?;
         ctx[block].instructions.clear();
         ctx[block].instructions.append(&mut stack.stack);
         assert!(stack.stack.is_empty());
+        Ok(())
     }
 
     pub fn conditionalise_inline(
@@ -409,15 +420,16 @@ impl DecisionTree {
         instructions: &[NodeId],
         result: &mut StackFrame,
         predicate: AssumptionId,
-    ) {
+    ) -> Result<(), RuntimeError> {
         if predicate == AssumptionId::dummy() || self[predicate].value != Some(ctx.zero()) {
             let mut short_circuit = false;
             for i in instructions {
-                if !self.conditionalise_into(ctx, result, *i, predicate, short_circuit) {
+                if !self.conditionalise_into(ctx, result, *i, predicate, short_circuit)? {
                     short_circuit = true;
                 }
             }
         }
+        Ok(())
     }
 
     //assigns the arrays to the block where they are seen for the first time
@@ -436,12 +448,16 @@ impl DecisionTree {
         stack: &mut StackFrame,
         condition: NodeId,
         error_msg: &str,
-    ) {
+    ) -> Result<(), RuntimeError> {
         if ctx.under_assumption(condition) {
-            block::short_circuit_instructions(ctx, &stack.stack);
+            let avoid = stack.stack.contains(&condition).then_some(&condition);
+            block::zero_instructions(ctx, &stack.stack, avoid);
             let nop = stack.stack[0];
             stack.stack.clear();
             stack.stack.push(nop);
+            if avoid.is_some() {
+                stack.stack.push(condition);
+            }
             let operation =
                 Operation::Cond { condition, val_true: ctx.zero(), val_false: ctx.one() };
             let cond = ctx.add_instruction(Instruction::new(
@@ -457,8 +473,9 @@ impl DecisionTree {
                 Some(stack.block),
             ));
             stack.push(ins2);
+            Ok(())
         } else {
-            unreachable!("{}", error_msg);
+            Err(errors::RuntimeErrorKind::Spanless(error_msg.to_string()).into())
         }
     }
 
@@ -469,7 +486,7 @@ impl DecisionTree {
         ins_id: NodeId,
         predicate: AssumptionId,
         short_circtuit: bool,
-    ) -> bool {
+    ) -> Result<bool, RuntimeError> {
         let ass_cond;
         let ass_value;
         if predicate == AssumptionId::dummy() {
@@ -530,14 +547,13 @@ impl DecisionTree {
                                 ctx.mem[*array_id].len,
                                 idx.to_u128()
                             );
-                            DecisionTree::short_circuit(ctx, stack, ass_value, &error);
-                            return false;
+                            DecisionTree::short_circuit(ctx, stack, ass_value, &error)?;
+                            return Ok(false);
                         }
                     }
                     stack.push(ins_id);
                 }
                 Operation::Binary(binop) => {
-                    stack.push(ins_id);
                     let mut cond = ass_value;
                     if let Some(pred) = binop.predicate {
                         assert_ne!(pred, NodeId::dummy());
@@ -559,6 +575,7 @@ impl DecisionTree {
                             stack.push(cond);
                         }
                     }
+                    stack.push(ins_id);
                     match binop.operator {
                         BinaryOp::Udiv
                         | BinaryOp::Sdiv
@@ -570,9 +587,9 @@ impl DecisionTree {
                                     ctx,
                                     stack,
                                     cond,
-                                    "error: attempt to divide by zero",
-                                );
-                                return false;
+                                    "attempt to divide by zero",
+                                )?;
+                                return Ok(false);
                             }
                             if ctx.under_assumption(cond) {
                                 let ins2 = ctx.get_mut_instruction(ins_id);
@@ -596,11 +613,12 @@ impl DecisionTree {
                                     ctx.mem[*array_id].len,
                                     idx.to_u128()
                                 );
-                                DecisionTree::short_circuit(ctx, stack, ass_value, &error);
-                                return false;
+                                DecisionTree::short_circuit(ctx, stack, ass_value, &error)?;
+                                return Ok(false);
                             }
                         }
-                        if stack.created_arrays[array_id] != stack.block
+                        if (stack.created_arrays[array_id] != stack.block
+                            || stack.return_arrays.contains(array_id))
                             && ctx.under_assumption(ass_value)
                         {
                             let load = Operation::Load { array_id: *array_id, index: *index };
@@ -657,7 +675,7 @@ impl DecisionTree {
                                     &memcpy_stack.stack,
                                     stack,
                                     predicate,
-                                );
+                                )?;
                             }
                         }
                     }
@@ -702,7 +720,7 @@ impl DecisionTree {
                         ins2.operation = Operation::Constrain(cond, *loc);
                         if ctx.is_zero(*expr) {
                             stack.push(ins_id);
-                            return false;
+                            return Ok(false);
                         }
                     }
                     stack.push(ins_id);
@@ -711,7 +729,15 @@ impl DecisionTree {
             }
         }
 
-        true
+        Ok(true)
+    }
+
+    pub fn get_assumption_value(&self, assumption: AssumptionId) -> Option<NodeId> {
+        if assumption == AssumptionId::dummy() {
+            None
+        } else {
+            self[assumption].value
+        }
     }
 
     fn synchronise(
@@ -869,25 +895,16 @@ pub fn unroll_if(
     debug_assert!(if_block.kind == BlockType::Normal);
     let exit = block::find_join(ctx, if_block.id);
 
-    // simple mode:
-    if unroll_ctx.unroll_into.is_dummy() || unroll_ctx.unroll_into == unroll_ctx.to_unroll {
-        unroll_ctx.unroll_into = unroll_ctx.to_unroll;
-        flatten::unroll_std_block(ctx, unroll_ctx)?;
-        unroll_ctx.to_unroll = left;
-        unroll_ctx.unroll_into = left;
-        flatten::unroll_std_block(ctx, unroll_ctx)?;
-        unroll_ctx.to_unroll = right;
-        unroll_ctx.unroll_into = right;
-        flatten::unroll_std_block(ctx, unroll_ctx)?;
-        unroll_ctx.to_unroll = exit;
-        unroll_ctx.unroll_into = exit;
-        return Ok(exit);
-    }
-
     //2. create the IF subgraph
-    //the unroll_into is required and will be used as the prev block
-    let prev = unroll_ctx.unroll_into;
-    let (new_entry, new_exit) = create_if_subgraph(ctx, prev);
+    let (new_entry, new_exit) =
+        if unroll_ctx.unroll_into.is_dummy() || unroll_ctx.unroll_into == unroll_ctx.to_unroll {
+            // simple mode:
+            create_if_subgraph(ctx, unroll_ctx.to_unroll, true)
+        } else {
+            //the unroll_into is required and will be used as the prev block
+            let prev = unroll_ctx.unroll_into;
+            create_if_subgraph(ctx, prev, false)
+        };
     unroll_ctx.unroll_into = new_entry;
 
     //3 Process the entry_block
@@ -919,10 +936,18 @@ pub fn unroll_if(
 }
 
 //create the subgraph for unrolling IF statement
-fn create_if_subgraph(ctx: &mut SsaContext, prev_block: BlockId) -> (BlockId, BlockId) {
+fn create_if_subgraph(
+    ctx: &mut SsaContext,
+    prev_block: BlockId,
+    simple_mode: bool,
+) -> (BlockId, BlockId) {
     //Entry block
     ctx.current_block = prev_block;
-    let new_entry = block::new_sealed_block(ctx, block::BlockType::Normal, true);
+    let new_entry = if simple_mode {
+        prev_block
+    } else {
+        block::new_sealed_block(ctx, block::BlockType::Normal, true)
+    };
     //Then block
     ctx.current_block = new_entry;
     block::new_sealed_block(ctx, block::BlockType::Normal, true);
