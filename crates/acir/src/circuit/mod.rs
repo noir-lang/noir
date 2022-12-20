@@ -45,7 +45,7 @@ pub struct PublicInputs(pub Vec<Witness>);
 impl PublicInputs {
     /// Returns the witness index of each public input
     pub fn indices(&self) -> Vec<u32> {
-        self.0.iter().map(|witness| witness.witness_index() as u32).collect()
+        self.0.iter().map(|witness| witness.witness_index()).collect()
     }
 
     pub fn contains(&self, index: usize) -> bool {

@@ -66,5 +66,5 @@ fn main() {
     let stdlib_src_dir = Path::new("../../noir_stdlib/");
     rerun_if_stdlib_changes(stdlib_src_dir);
     let target = dirs::config_dir().unwrap().join("noir-lang").join("std");
-    copy(stdlib_src_dir, &target).unwrap();
+    copy(stdlib_src_dir, target).unwrap();
 }
