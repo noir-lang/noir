@@ -1,6 +1,6 @@
 {
   "name": "@noir-lang/noir_wasm",
-  "version": "0.3.0",
+  "version": "0.10.0",
   "files": [
     "noir_wasm_bg.wasm",
     "noir_wasm.js",
