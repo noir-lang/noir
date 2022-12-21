@@ -5,7 +5,7 @@
 #include <plonk/proof_system/public_inputs/public_inputs.hpp>
 #include <plonk/proof_system/utils/linearizer.hpp>
 
-#include <plonk/transcript/transcript.hpp>
+#include <transcript/transcript.hpp>
 #include <polynomials/iterate_over_domain.hpp>
 #include <polynomials/polynomial_arithmetic.hpp>
 

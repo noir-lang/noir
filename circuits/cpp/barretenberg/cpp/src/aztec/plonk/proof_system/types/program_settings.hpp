@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-#include "../../transcript/transcript_wrappers.hpp"
+#include "../../../transcript/transcript.hpp"
 #include "../widgets/transition_widgets/arithmetic_widget.hpp"
 #include "../widgets/transition_widgets/turbo_arithmetic_widget.hpp"
 #include "../widgets/transition_widgets/plookup_arithmetic_widget.hpp"

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <proof_system/proving_key/proving_key.hpp>
-#include <plonk/transcript/transcript.hpp>
+#include <transcript/transcript.hpp>
 #include <polynomials/iterate_over_domain.hpp>
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <polynomials/polynomial_arithmetic.hpp>

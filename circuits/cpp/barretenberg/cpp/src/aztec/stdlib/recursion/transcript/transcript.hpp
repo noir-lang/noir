@@ -3,7 +3,7 @@
 #include <ecc/curves/bn254/fq.hpp>
 #include <ecc/curves/bn254/fr.hpp>
 #include <ecc/curves/bn254/g1.hpp>
-#include <plonk/transcript/transcript.hpp>
+#include <transcript/transcript.hpp>
 
 #include "../../primitives/curves/bn254.hpp"
 #include "../verification_key/verification_key.hpp"

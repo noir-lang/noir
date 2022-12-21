@@ -1,1 +1,1 @@
-barretenberg_module(proof_system plonk polynomials)
+barretenberg_module(proof_system plonk)

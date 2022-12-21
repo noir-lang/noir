@@ -3,7 +3,7 @@
 #include "../utils/linearizer.hpp"
 #include "../utils/permutation.hpp"
 #include "../widgets/transition_widgets/arithmetic_widget.hpp"
-#include "../../transcript/transcript.hpp"
+#include "../../../transcript/transcript.hpp"
 #include "verifier.hpp"
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <gtest/gtest.h>

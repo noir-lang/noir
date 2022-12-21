@@ -1,1 +1,1 @@
-barretenberg_module(plonk proof_system crypto_pedersen polynomials crypto_sha256 ecc crypto_blake3s)
+barretenberg_module(plonk proof_system transcript crypto_pedersen polynomials crypto_sha256 ecc crypto_blake3s)

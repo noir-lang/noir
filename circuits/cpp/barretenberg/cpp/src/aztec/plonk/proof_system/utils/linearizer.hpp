@@ -1,6 +1,6 @@
 #pragma once
 #include <ecc/curves/bn254/fr.hpp>
-#include <plonk/transcript/transcript.hpp>
+#include <transcript/transcript.hpp>
 
 namespace waffle {
 template <typename Field> struct plonk_linear_terms {

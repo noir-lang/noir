@@ -3,8 +3,7 @@
 #include "../types/program_settings.hpp"
 #include "../verification_key/verification_key.hpp"
 #include "../widgets/random_widgets/random_widget.hpp"
-#include <plonk/transcript/manifest.hpp>
-#include <plonk/transcript/transcript_wrappers.hpp>
+#include <transcript/manifest.hpp>
 #include <plonk/proof_system/commitment_scheme/commitment_scheme.hpp>
 
 namespace waffle {

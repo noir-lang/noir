@@ -1,6 +1,6 @@
 #pragma once
 #include "composer_base.hpp"
-#include <plonk/transcript/manifest.hpp>
+#include <transcript/manifest.hpp>
 #include <srs/reference_string/file_reference_string.hpp>
 #include "../proof_system/types/polynomial_manifest.hpp"
 

@@ -1,5 +1,4 @@
 #pragma once
-#include "../../transcript/transcript_wrappers.hpp"
 #include "../../../proof_system/proving_key/proving_key.hpp"
 #include "../types/plonk_proof.hpp"
 #include "../types/program_settings.hpp"

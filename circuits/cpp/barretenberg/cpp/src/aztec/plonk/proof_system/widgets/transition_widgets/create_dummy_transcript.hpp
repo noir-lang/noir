@@ -1,5 +1,5 @@
 #include <plonk/composer/standard_composer.hpp>
-#include <plonk/transcript/transcript.hpp>
+#include <transcript/transcript.hpp>
 
 namespace waffle {
 inline transcript::StandardTranscript create_dummy_standard_transcript()

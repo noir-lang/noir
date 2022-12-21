@@ -1,6 +1,6 @@
 #include "verifier.hpp"
 #include <common/test.hpp>
-#include <plonk/transcript/transcript.hpp>
+#include <transcript/transcript.hpp>
 #include <proof_system/proving_key/serialize.hpp>
 #include <stdlib/primitives/curves/bn254.hpp>
 #include <ecc/curves/bn254/fq12.hpp>

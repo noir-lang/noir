@@ -1,1 +1,1 @@
-barretenberg_module(honk numeric ecc srs plonk proof_system)
+barretenberg_module(honk numeric ecc srs proof_system transcript)

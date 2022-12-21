@@ -1,5 +1,5 @@
 #pragma once
-#include "../../transcript/transcript_wrappers.hpp"
+#include "../../../transcript/transcript.hpp"
 namespace waffle {
 class settings_base {
   public:

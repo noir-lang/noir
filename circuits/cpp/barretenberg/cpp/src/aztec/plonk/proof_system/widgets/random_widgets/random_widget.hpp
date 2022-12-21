@@ -1,5 +1,5 @@
 #pragma once
-#include "../../../transcript/transcript_wrappers.hpp"
+#include "../../../../transcript/transcript.hpp"
 #include "../../verification_key/verification_key.hpp"
 #include "../../../../proof_system/work_queue/work_queue.hpp"
 #include <ecc/curves/bn254/fr.hpp>

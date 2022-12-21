@@ -1,5 +1,4 @@
 #pragma once
-#include "../../transcript/transcript_wrappers.hpp"
 #include "../../../polynomials/polynomial_arithmetic.hpp"
 #include "../../../proof_system/work_queue/work_queue.hpp"
 #include "../../../polynomials/polynomial.hpp"
