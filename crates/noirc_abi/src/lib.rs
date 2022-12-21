@@ -32,26 +32,21 @@ pub enum AbiType {
     Integer { sign: Sign, width: u32 },
     Struct { fields: BTreeMap<String, AbiType> },
 }
-/// This is the same as the FieldElementType in AST, without constants.
-/// We don't want the ABI to depend on Noir, so types are not shared between the two
-/// Note: At the moment, it is not even possible since the ABI is in another crate and Noir depends on it
-/// This can be easily fixed by making the ABI a module.
-///
-/// In the future, maybe it will be decided that the AST will hold esoteric types and the HIR will transform them
-/// This method is a bit cleaner as we would not need to dig into the resolver, to lower from a esoteric AST type to a HIR type.
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub enum AbiFEType {
+/// Represents whether the parameter is public or known only to the prover.
+pub enum AbiVisibility {
     Public,
     // Constants are not allowed in the ABI for main at the moment.
     // Constant,
     Private,
 }
 
-impl std::fmt::Display for AbiFEType {
+impl std::fmt::Display for AbiVisibility {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AbiFEType::Public => write!(f, "pub"),
-            AbiFEType::Private => write!(f, "priv"),
+            AbiVisibility::Public => write!(f, "pub"),
+            AbiVisibility::Private => write!(f, "priv"),
         }
     }
 }
@@ -87,12 +82,12 @@ impl AbiType {
 pub struct AbiParameter {
     pub name: String,
     pub typ: AbiType,
-    pub visibility: AbiFEType,
+    pub visibility: AbiVisibility,
 }
 
 impl AbiParameter {
     pub fn is_public(&self) -> bool {
-        self.visibility == AbiFEType::Public
+        self.visibility == AbiVisibility::Public
     }
 }
 

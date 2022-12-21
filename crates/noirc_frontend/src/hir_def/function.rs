@@ -1,5 +1,5 @@
 use iter_extended::vecmap;
-use noirc_abi::{Abi, AbiFEType, AbiParameter, MAIN_RETURN_NAME};
+use noirc_abi::{Abi, AbiParameter, AbiVisibility, MAIN_RETURN_NAME};
 use noirc_errors::{Location, Span};
 
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
@@ -38,7 +38,7 @@ impl HirFunction {
 
 /// An interned function parameter from a function definition
 #[derive(Debug, Clone)]
-pub struct Param(pub HirPattern, pub Type, pub noirc_abi::AbiFEType);
+pub struct Param(pub HirPattern, pub Type, pub noirc_abi::AbiVisibility);
 
 /// Attempts to retrieve the name of this parameter. Returns None
 /// if this parameter is a tuple or struct pattern.
@@ -118,7 +118,7 @@ pub struct FuncMeta {
 
     pub attributes: Option<Attribute>,
     pub parameters: Parameters,
-    pub return_visibility: AbiFEType,
+    pub return_visibility: AbiVisibility,
 
     /// The type of this function. Either a Type::Function
     /// or a Type::Forall for generic functions.
