@@ -79,6 +79,7 @@ impl AbiType {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+/// An argument or return value of the circuit's `main` function.
 pub struct AbiParameter {
     pub name: String,
     pub typ: AbiType,
